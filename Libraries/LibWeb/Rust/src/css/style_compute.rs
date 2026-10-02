@@ -941,7 +941,7 @@ pub(crate) fn recascade_font_size_batch(
 /// `length_resolution_context` must be null or valid.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_recascade_font_size_batch(
-    style_engine: *const c_void,
+    style_engine: crate::css::style::StyleEngineHandle,
     style_records: *const u64,
     style_record_count: usize,
     start_index: usize,
@@ -952,7 +952,7 @@ pub unsafe extern "C" fn rust_recascade_font_size_batch(
     length_resolution_context: *const FfiLengthResolutionContext,
 ) -> FfiFontSizeRecascadeBatch {
     crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::NestedPropertyComputeEntry);
-    let style_engine = unsafe { &*style_engine.cast::<crate::css::style::StyleEngine>() };
+    let style_engine = unsafe { style_engine.get() };
     let style_records = if style_record_count == 0 {
         &[]
     } else {
@@ -2832,7 +2832,7 @@ pub struct FfiComputePropertiesInput {
     /// none, and the registry their names may be registered in.
     pub custom_property_store: *const c_void,
     pub custom_property_registry: *const c_void,
-    pub style_engine: *const c_void,
+    pub style_engine: crate::css::style::StyleEngineHandle,
     pub style_node: u32,
     pub pseudo_kind: u8,
     pub previous_style_record: u64,
@@ -2902,7 +2902,7 @@ pub struct FfiDocumentLonghandInput {
 #[repr(C)]
 pub struct FfiAnimationKeyframeLonghandInput {
     pub underlying_longhand_table: *const ComputedLonghandTable,
-    pub style_engine: *const c_void,
+    pub style_engine: crate::css::style::StyleEngineHandle,
     pub inheritance_parent_style_record: u64,
     pub resolved_properties: *const c_void,
     pub property_count: usize,
@@ -5251,7 +5251,7 @@ fn settled_animation_plan(
 /// retain the definitions it is handed.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_settled_animation_plan(
-    engine: *const c_void,
+    engine: crate::css::style::StyleEngineHandle,
     node: u32,
     record: u64,
     context: *mut c_void,
@@ -5262,11 +5262,8 @@ pub unsafe extern "C" fn rust_settled_animation_plan(
     };
     // Applying the plan publishes the element's animations to the engine, so nothing of the
     // engine is borrowed while the host applies it: the definitions only point into the record.
-    let Some((definitions, in_display_none_subtree)) = settled_animation_plan(
-        unsafe { &*engine.cast::<crate::css::style::StyleEngine>() },
-        node,
-        record,
-    ) else {
+    let Some((definitions, in_display_none_subtree)) = settled_animation_plan(unsafe { engine.get() }, node, record)
+    else {
         return;
     };
     unsafe {
@@ -5414,7 +5411,7 @@ pub(crate) fn effective_display(table: &ComputedLonghandTable, overlay: Option<&
 pub unsafe extern "C" fn rust_compute_properties(input: *const FfiComputePropertiesInput) {
     crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::LonghandDriverEntry);
     let input = unsafe { &*input };
-    let style_engine = unsafe { &*input.style_engine.cast::<crate::css::style::StyleEngine>() };
+    let style_engine = unsafe { input.style_engine.get() };
     let previous_style = (input.previous_style_record != 0).then(|| {
         style_engine
             .style_record_view(input.previous_style_record)
@@ -5812,7 +5809,7 @@ pub unsafe extern "C" fn rust_compute_animation_keyframe_longhands(
     let parent_snapshot = if input.inheritance_parent_style_record == 0 {
         None
     } else {
-        let style_engine = unsafe { &*input.style_engine.cast::<crate::css::style::StyleEngine>() };
+        let style_engine = unsafe { input.style_engine.get() };
         Some(keyframe_parent_snapshot_for_style_record(
             style_engine,
             input.inheritance_parent_style_record,
@@ -6033,7 +6030,7 @@ pub struct FfiAnimationLengthContexts {
 /// what the sampling reads of the element.
 #[repr(C)]
 pub struct FfiHostAnimationSample {
-    pub style_engine: *mut c_void,
+    pub style_engine: crate::css::style::StyleEngineHandle,
     pub style_node: u32,
     /// The pseudo-element sampled, or `NO_PSEUDO_ELEMENT` for the element itself.
     pub pseudo_kind: u8,
@@ -6183,8 +6180,7 @@ pub unsafe extern "C" fn rust_sample_animation_effects(
     let input = unsafe { &*input };
     // The host callbacks the sample makes may reach the engine as well, so the sample reads it
     // through a shared borrow, and borrows it exclusively only to draw random base values below.
-    let engine_pointer = input.style_engine.cast::<crate::css::style::StyleEngine>();
-    let engine = unsafe { &*engine_pointer };
+    let engine = unsafe { input.style_engine.get() };
     let Some(node) = crate::css::style::tree::StyleNodeID::from_raw(input.style_node) else {
         return FfiHostAnimationSampleResult::with_outcome(Cleared);
     };
@@ -6342,7 +6338,7 @@ pub unsafe extern "C" fn rust_sample_animation_effects(
     // Drawing a random base value is the sample's one write to the engine: nothing borrows the
     // engine across it, and no host callback runs while it draws.
     let random_base_values = {
-        let engine = unsafe { &mut *engine_pointer };
+        let engine = unsafe { input.style_engine.get_mut() };
         resolved
             .unfixed_random_sharings
             .iter()
@@ -6358,7 +6354,7 @@ pub unsafe extern "C" fn rust_sample_animation_effects(
             })
             .collect::<Vec<_>>()
     };
-    let engine = unsafe { &*engine_pointer };
+    let engine = unsafe { input.style_engine.get() };
     let mut environment = unsafe { std::ptr::read(input.environment) };
     environment.has_tree_counting_context = sibling_position.is_some();
     environment.sibling_count = sibling_position.map_or(0, |(count, _)| u64::from(count));
@@ -6398,7 +6394,7 @@ pub unsafe extern "C" fn rust_sample_animation_effects(
 
     let keyframe_input = FfiAnimationKeyframeLonghandInput {
         underlying_longhand_table: input.longhand_table.cast(),
-        style_engine: std::ptr::from_ref(engine).cast(),
+        style_engine: input.style_engine,
         inheritance_parent_style_record: input.inheritance_parent_style_record,
         resolved_properties: resolved.properties.as_ptr().cast(),
         property_count: resolved.properties.len(),

@@ -530,9 +530,9 @@ pub unsafe extern "C" fn rust_style_sheet_evaluate_media_queries(
     sheet: &NativeStyleSheet,
     environment: FfiMediaEnvironment,
     state: &mut NativeMediaEvaluationState,
-    engine: *mut c_void,
+    engine: crate::css::style::StyleEngineHandle,
 ) -> NativeStyleSheetMediaEvaluation {
-    let engine: &mut crate::css::style::StyleEngine = unsafe { &mut *engine.cast() };
+    let engine = unsafe { engine.get_mut() };
     sheet.evaluate_media_queries(unsafe { environment.borrow() }, state, &mut |identity, holds| {
         if let Some(rule) = engine.native_rule_id(identity) {
             crate::css::style::bridge::operations::set_rule_conditions_hold(engine, rule.0 + 1, holds);
@@ -547,10 +547,10 @@ pub unsafe extern "C" fn rust_style_sheet_evaluate_media_queries(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_style_sheet_publish_conditions(
     sheet: &NativeStyleSheet,
-    engine: *mut c_void,
+    engine: crate::css::style::StyleEngineHandle,
     environment: FfiMediaEnvironment,
 ) {
-    sheet.publish_conditions(unsafe { &mut *engine.cast() }, unsafe { environment.borrow() });
+    sheet.publish_conditions(unsafe { engine.get_mut() }, unsafe { environment.borrow() });
 }
 
 // Keep first-seen sibling order and emit descendants before their parent, including the
@@ -608,7 +608,7 @@ fn cascade_layer_order<'a>(sheets: impl IntoIterator<Item = &'a NativeStyleSheet
 pub unsafe extern "C" fn rust_style_sheet_publish_layer_order(
     sheets: *const *const NativeStyleSheet,
     count: usize,
-    engine: *mut c_void,
+    engine: crate::css::style::StyleEngineHandle,
     tree_scope: u32,
     previously_had_layers: bool,
     context: *mut c_void,
@@ -625,7 +625,7 @@ pub unsafe extern "C" fn rust_style_sheet_publish_layer_order(
     // must clear the engine's old ranks.
     if has_layers || previously_had_layers {
         unsafe { prepare(context) };
-        let engine = unsafe { &mut *engine.cast::<crate::css::style::StyleEngine>() };
+        let engine = unsafe { engine.get_mut() };
         let layers: Vec<_> = names
             .iter()
             .map(|name| {

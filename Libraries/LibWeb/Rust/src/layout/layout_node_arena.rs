@@ -607,7 +607,7 @@ pub const BOX_PRESENCE_HAS_COMMITTED_BOX: u8 = 1 << 1;
 #[derive(Clone, Copy)]
 #[repr(C)]
 pub struct FfiStyleRecordHostCallbacks {
-    pub style_engine: *mut c_void,
+    pub style_engine: crate::css::style::StyleEngineHandle,
     pub context: *mut c_void,
     pub shell_style_changed: unsafe extern "C" fn(*mut c_void, *mut c_void, u64, *const c_void, bool),
 }
@@ -661,7 +661,7 @@ pub(crate) struct FreedSubtree {
     rows: Vec<NodeSlotId>,
     paintable_row_resets: Vec<crate::painting::paintable_rows::PaintableRowReset>,
     arena_pinned_style_records: Vec<u64>,
-    style_engine: *mut c_void,
+    style_engine: crate::css::style::StyleEngineHandle,
 }
 
 /// The node a layout row can be bound to: an element or text node, named by its identity, a
@@ -721,7 +721,7 @@ impl FreedSubtree {
         if !self.style_engine.is_null() {
             for style_record in self.arena_pinned_style_records {
                 // SAFETY: Registration and unregistration keep the engine live.
-                unsafe { &mut *self.style_engine.cast::<StyleEngine>() }.unpin_layout_style_record(style_record);
+                unsafe { self.style_engine.get_mut() }.unpin_layout_style_record(style_record);
             }
         }
     }
@@ -881,7 +881,7 @@ pub(crate) struct LayoutNodeArena {
     document_style_node: Cell<Option<StyleNodeID>>,
     /// The style engine the document registered, which owns the records rows are built from;
     /// null when it registered none, as in a layout test.
-    style_engine: Cell<*mut c_void>,
+    style_engine: Cell<crate::css::style::StyleEngineHandle>,
     box_presence_host: Cell<Option<BoxPresenceHost>>,
     /// The nodes whose boxes a running tree build changed, which the host hears of once the walk
     /// is over, or `None` while no build runs.
@@ -1020,7 +1020,7 @@ impl LayoutNodeArena {
             bound_viewport_row: Cell::new(NodeSlotId::INVALID),
             viewport_scroll_offset: Cell::new(CssPixelPoint::default()),
             document_style_node: Cell::new(None),
-            style_engine: Cell::new(std::ptr::null_mut()),
+            style_engine: Cell::new(crate::css::style::StyleEngineHandle::null()),
             box_presence_host: Cell::new(None),
             box_presence_queued_by_tree_build: RefCell::new(None),
             document_is_decoded_svg: Cell::new(false),
@@ -2074,7 +2074,7 @@ impl LayoutNodeArena {
         self.style_records_pinned_by_host[id.slot_index() as usize].get()
     }
 
-    pub(crate) fn set_style_engine(&self, style_engine: *mut c_void) {
+    pub(crate) fn set_style_engine(&self, style_engine: crate::css::style::StyleEngineHandle) {
         self.style_engine.set(style_engine);
     }
 
@@ -2247,10 +2247,10 @@ impl LayoutNodeArena {
         self.needs_full_layout_tree_update.set(value);
     }
 
-    fn style_engine(&self) -> *mut StyleEngine {
+    fn style_engine(&self) -> crate::css::style::StyleEngineHandle {
         let style_engine = self.style_engine.get();
         assert!(!style_engine.is_null(), "layout node arena has no style engine");
-        style_engine.cast()
+        style_engine
     }
 
     /// Reads the style mirror. As with `with_style_engine`, no host callback runs while the borrow
@@ -2444,7 +2444,7 @@ impl LayoutNodeArena {
         }
         // SAFETY: As with `with_style_store`, the engine outlives the arena's live nodes, and no
         // reader keeps a borrow of the engine across the host call this publication arrives in.
-        let engine = unsafe { &mut *self.style_engine() };
+        let engine = unsafe { self.style_engine().get_mut() };
         for atom in retained {
             engine.retain_published_atom(crate::css::style::index::StyleAtomID(atom));
         }
@@ -2462,7 +2462,7 @@ impl LayoutNodeArena {
     }
 
     pub(crate) fn with_style_store<T>(&self, query: impl FnOnce(&StyleEngine) -> T) -> T {
-        query(unsafe { &*self.style_engine() })
+        query(unsafe { self.style_engine().get() })
     }
 
     /// The first child the style mirror's DOM child sequence holds for `style_node`, text nodes
@@ -2603,7 +2603,7 @@ impl LayoutNodeArena {
     // The engine outlives the arena's live nodes. No host callback runs while this
     // native style-store borrow is active; shell notifications follow publication.
     pub(crate) fn with_style_engine<T>(&self, callback: impl FnOnce(&mut StyleEngine) -> T) -> T {
-        unsafe { callback(&mut *self.style_engine()) }
+        unsafe { callback(self.style_engine().get_mut()) }
     }
 
     pub(crate) fn derive_anonymous_style_record(
@@ -5585,7 +5585,7 @@ pub unsafe extern "C" fn layout_arena_set_style_record_host_callbacks(
 pub unsafe extern "C" fn layout_arena_clear_style_record_host_callbacks(arena: *mut c_void) {
     assert!(!arena.is_null(), "layout node arena handle is null");
     // SAFETY: As above.
-    unsafe { &*arena.cast::<LayoutNodeArena>() }.set_style_engine(std::ptr::null_mut());
+    unsafe { &*arena.cast::<LayoutNodeArena>() }.set_style_engine(crate::css::style::StyleEngineHandle::null());
     // SAFETY: As above.
     unsafe { super::HostTables::from_handle(arena) }
         .shell_style_changed_host
@@ -5738,7 +5738,7 @@ mod tests {
         // The rows name their generators, whose unique node ids the style mirror answers for.
         let mut engine = crate::css::style::StyleEngine::new(crate::css::style::memory::DeviceClass::ForegroundDesktop);
         let mut arena = LayoutNodeArena::new();
-        arena.set_style_engine((&raw mut engine).cast());
+        arena.set_style_engine(crate::css::style::StyleEngineHandle::from_raw(&raw mut engine));
         let style_node = StyleNodeID::element(3);
         let rows = [(); 3].map(|()| {
             arena.allocate(FfiNodeConstructionFacts {
@@ -5819,7 +5819,7 @@ mod tests {
         // The rows name their generators, whose unique node ids the style mirror answers for.
         let mut engine = crate::css::style::StyleEngine::new(crate::css::style::memory::DeviceClass::ForegroundDesktop);
         let mut arena = LayoutNodeArena::new();
-        arena.set_style_engine((&raw mut engine).cast());
+        arena.set_style_engine(crate::css::style::StyleEngineHandle::from_raw(&raw mut engine));
         let element = StyleNodeID::element(3);
         let principal = arena.allocate(FfiNodeConstructionFacts {
             style_node: element.raw(),
@@ -5950,7 +5950,7 @@ mod tests {
         // The rows name their generators, whose unique node ids the style mirror answers for.
         let mut engine = crate::css::style::StyleEngine::new(crate::css::style::memory::DeviceClass::ForegroundDesktop);
         let mut arena = LayoutNodeArena::new();
-        arena.set_style_engine((&raw mut engine).cast());
+        arena.set_style_engine(crate::css::style::StyleEngineHandle::from_raw(&raw mut engine));
         let generator = StyleNodeID::element(2);
         let principal_box = arena.allocate(test_anonymous_construction_facts());
         let content = arena.allocate(test_anonymous_construction_facts());
@@ -6110,7 +6110,7 @@ mod tests {
         engine.allocate_text_style_nodes(&mut text);
         let text = StyleNodeID::from_raw(text[0]).unwrap();
         let mut arena = LayoutNodeArena::new();
-        arena.set_style_engine((&raw mut engine).cast());
+        arena.set_style_engine(crate::css::style::StyleEngineHandle::from_raw(&raw mut engine));
         let main_thread = crate::stage::MainThread::for_test();
 
         engine.set_node_dom_paint_facts(text, DomPaintFact::Inert as u8);
@@ -6128,7 +6128,7 @@ mod tests {
         arena
             .free_subtree(row)
             .destroy_shells_and_invoke_callbacks(&main_thread);
-        arena.set_style_engine(std::ptr::null_mut());
+        arena.set_style_engine(crate::css::style::StyleEngineHandle::null());
     }
 
     #[test]
@@ -6148,7 +6148,7 @@ mod tests {
         };
         engine.set_element_table_spans(element, spans);
         let mut arena = LayoutNodeArena::new();
-        arena.set_style_engine((&raw mut engine).cast());
+        arena.set_style_engine(crate::css::style::StyleEngineHandle::from_raw(&raw mut engine));
         let main_thread = crate::stage::MainThread::for_test();
 
         let cell = arena.allocate_unbound();
@@ -6164,7 +6164,7 @@ mod tests {
         arena
             .free_subtree(cell)
             .destroy_shells_and_invoke_callbacks(&main_thread);
-        arena.set_style_engine(std::ptr::null_mut());
+        arena.set_style_engine(crate::css::style::StyleEngineHandle::null());
     }
 
     #[test]
@@ -6179,7 +6179,7 @@ mod tests {
         let element = StyleNodeID::from_raw(element[0]).unwrap();
         engine.set_element_unique_node_id(element, 42);
         let mut arena = LayoutNodeArena::new();
-        arena.set_style_engine((&raw mut engine).cast());
+        arena.set_style_engine(crate::css::style::StyleEngineHandle::from_raw(&raw mut engine));
         let main_thread = crate::stage::MainThread::for_test();
 
         let principal = arena.allocate_unbound();
@@ -6200,7 +6200,7 @@ mod tests {
                 .free_subtree(row)
                 .destroy_shells_and_invoke_callbacks(&main_thread);
         }
-        arena.set_style_engine(std::ptr::null_mut());
+        arena.set_style_engine(crate::css::style::StyleEngineHandle::null());
     }
 
     #[test]
@@ -6215,7 +6215,7 @@ mod tests {
         engine.allocate_style_nodes(&mut element);
         let element = StyleNodeID::from_raw(element[0]).unwrap();
         let mut arena = LayoutNodeArena::new();
-        arena.set_style_engine((&raw mut engine).cast());
+        arena.set_style_engine(crate::css::style::StyleEngineHandle::from_raw(&raw mut engine));
         let main_thread = crate::stage::MainThread::for_test();
         let has_scroll_offset =
             |arena: &LayoutNodeArena, row| arena.node_flags_if_live(row) & NodeFlag::HasScrollOffset as u32 != 0;
@@ -6258,7 +6258,7 @@ mod tests {
                 .free_subtree(row)
                 .destroy_shells_and_invoke_callbacks(&main_thread);
         }
-        arena.set_style_engine(std::ptr::null_mut());
+        arena.set_style_engine(crate::css::style::StyleEngineHandle::null());
     }
 
     #[test]

@@ -14,7 +14,6 @@ use crate::css::style::bridge::{
     BoundScopeChain, operations, publish_rule_declarations, publish_style_rule, publish_style_rule_selectors,
 };
 use crate::css::style::compiler::NamespaceScope;
-use std::ffi::c_void;
 use std::rc::Rc;
 
 #[derive(Clone, Copy, Default)]
@@ -29,7 +28,7 @@ pub struct NativeCompilationResult {
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct NativeStylePublication {
-    pub engine: *mut c_void,
+    pub engine: crate::css::style::StyleEngineHandle,
     pub sheet: u32,
     pub before_rule: u32,
 }
@@ -140,7 +139,7 @@ impl NativeStylePublication {
         context: &CompilationContext,
         selectors: &RustParsedSelectorList,
     ) {
-        let engine = unsafe { &mut *self.engine.cast::<crate::css::style::StyleEngine>() };
+        let engine = unsafe { self.engine.get_mut() };
         let id = engine.native_rule_id(rule.identity()).map_or(0, |id| id.0 + 1);
         let namespaces = NamespaceScope::from_rule_list(source.rules(), |text| {
             crate::css::style::bridge::intern_native_text(engine, text)
@@ -157,7 +156,7 @@ impl NativeStylePublication {
         selectors: Option<&RustParsedSelectorList>,
     ) -> NativeCompilationResult {
         let mut result = NativeCompilationResult::default();
-        let engine = unsafe { &mut *self.engine.cast::<crate::css::style::StyleEngine>() };
+        let engine = unsafe { self.engine.get_mut() };
         let sheet = self.sheet;
         let before = self.before_rule;
         // Reuse the engine's recorded publication operations so recording and replay see the

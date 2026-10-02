@@ -24,6 +24,7 @@
 //! and asks for a run of `StyleNodeID` values, Rust owns the arena and the relation columns keyed by
 //! them.
 
+use super::StyleEngineHandle;
 use std::ffi::c_void;
 
 use crate::abort_on_panic as abort_on_boundary_panic;
@@ -1391,7 +1392,7 @@ impl StyleEngineState {
 
 /// Creates one document's style engine.
 #[unsafe(no_mangle)]
-pub extern "C" fn style_engine_create(device_class: FfiDeviceClass) -> *mut c_void {
+pub extern "C" fn style_engine_create(device_class: FfiDeviceClass) -> StyleEngineHandle {
     let device_class = device_class.decode();
     let mut engine = Box::new(StyleEngine::new(device_class));
     engine.begin_recording(device_class);
@@ -1404,7 +1405,7 @@ pub extern "C" fn style_engine_create(device_class: FfiDeviceClass) -> *mut c_vo
             payload.write_u32_slice(output_masks);
         }
     });
-    Box::into_raw(engine).cast()
+    StyleEngineHandle::create(engine)
 }
 
 /// Publishes the document's `@font-face` table and the memo of the cascades resolved from it, which
@@ -1415,11 +1416,11 @@ pub extern "C" fn style_engine_create(device_class: FfiDeviceClass) -> *mut c_vo
 /// `FontCascadeMemo` whose reference the engine takes over.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_publish_font_faces(
-    engine: *mut c_void,
+    engine: crate::css::style::StyleEngineHandle,
     snapshot: *const c_void,
     memo: *const c_void,
 ) {
-    let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
+    let engine = unsafe { engine.get_mut() };
     let font_faces = unsafe { super::font_resolution::PublishedFontFaces::adopt(snapshot, memo) };
     match &mut engine.host.font_resolver {
         Some(resolver) => resolver.publish(font_faces),
@@ -1484,7 +1485,7 @@ unsafe impl Sync for FfiAppliedAnimationDefinition {}
 /// `engine` must be live, and each buffer must hold the count it is given.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_set_tree_scope_animation_keyframes(
-    engine: *mut c_void,
+    engine: crate::css::style::StyleEngineHandle,
     tree_scope: u32,
     shadow_root_identity: usize,
     name_lengths: *const u32,
@@ -1493,7 +1494,7 @@ pub unsafe extern "C" fn style_engine_set_tree_scope_animation_keyframes(
     keyframe_sets: *const usize,
     count: usize,
 ) {
-    let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
+    let engine = unsafe { engine.get_mut() };
     let name_lengths = unsafe { ffi_slice(name_lengths, count) };
     let name_units = unsafe { ffi_slice(name_units, name_unit_count) };
     let keyframe_sets = unsafe { ffi_slice(keyframe_sets, count) };
@@ -1507,8 +1508,8 @@ pub unsafe extern "C" fn style_engine_set_tree_scope_animation_keyframes(
 }
 
 /// Creates a replay engine whose atom keys are opaque capture tokens rather than live fly strings.
-pub fn style_engine_create_for_replay(device_class: FfiDeviceClass) -> *mut c_void {
-    abort_on_panic(|| Box::into_raw(Box::new(StyleEngine::new_for_replay(device_class.decode()))).cast())
+pub fn style_engine_create_for_replay(device_class: FfiDeviceClass) -> StyleEngineHandle {
+    abort_on_panic(|| StyleEngineHandle::create(Box::new(StyleEngine::new_for_replay(device_class.decode()))))
 }
 
 /// Keeps the custom-property environment an element now holds, named by `identity`: whether it is
@@ -1519,7 +1520,7 @@ pub fn style_engine_create_for_replay(device_class: FfiDeviceClass) -> *mut c_vo
 /// `engine` must be live, and `data` must be null or a live `Web::CSS::CustomPropertyData`.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_set_element_custom_property_data(
-    engine: *mut c_void,
+    engine: crate::css::style::StyleEngineHandle,
     node: u32,
     data: *const c_void,
     identity: u64,
@@ -1529,7 +1530,7 @@ pub unsafe extern "C" fn style_engine_set_element_custom_property_data(
     let Some(node) = StyleNodeID::from_raw(node) else {
         return;
     };
-    let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
+    let engine = unsafe { engine.get_mut() };
     unsafe { engine.set_element_custom_property_data(node, data, identity, is_animation_overlay, declares) };
 }
 
@@ -1538,8 +1539,11 @@ pub unsafe extern "C" fn style_engine_set_element_custom_property_data(
 /// # Safety
 /// `engine` must be live.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_element_custom_property_data(engine: *const c_void, node: u32) -> *const c_void {
-    let engine = unsafe { &*engine.cast::<StyleEngine>() };
+pub unsafe extern "C" fn style_engine_element_custom_property_data(
+    engine: crate::css::style::StyleEngineHandle,
+    node: u32,
+) -> *const c_void {
+    let engine = unsafe { engine.get() };
     StyleNodeID::from_raw(node).map_or(std::ptr::null(), |node| engine.element_custom_property_data(node))
 }
 
@@ -1550,7 +1554,7 @@ pub unsafe extern "C" fn style_engine_element_custom_property_data(engine: *cons
 /// `engine` must be live, and `data` must be null or a live `Web::CSS::CustomPropertyData`.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_set_pseudo_element_custom_property_data(
-    engine: *mut c_void,
+    engine: crate::css::style::StyleEngineHandle,
     node: u32,
     pseudo: u8,
     data: *const c_void,
@@ -1559,7 +1563,7 @@ pub unsafe extern "C" fn style_engine_set_pseudo_element_custom_property_data(
     let Some(node) = StyleNodeID::from_raw(node) else {
         return;
     };
-    let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
+    let engine = unsafe { engine.get_mut() };
     unsafe { engine.set_pseudo_element_custom_property_data(node, pseudo, data, identity) };
 }
 
@@ -1569,11 +1573,11 @@ pub unsafe extern "C" fn style_engine_set_pseudo_element_custom_property_data(
 /// `engine` must be live.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_pseudo_element_custom_property_data(
-    engine: *const c_void,
+    engine: crate::css::style::StyleEngineHandle,
     node: u32,
     pseudo: u8,
 ) -> *const c_void {
-    let engine = unsafe { &*engine.cast::<StyleEngine>() };
+    let engine = unsafe { engine.get() };
     StyleNodeID::from_raw(node).map_or(std::ptr::null(), |node| {
         engine.pseudo_element_custom_property_data(node, pseudo)
     })
@@ -1586,10 +1590,10 @@ pub unsafe extern "C" fn style_engine_pseudo_element_custom_property_data(
 /// `engine` must be live.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_pseudo_elements_with_custom_property_data(
-    engine: *const c_void,
+    engine: crate::css::style::StyleEngineHandle,
     node: u32,
 ) -> u64 {
-    let engine = unsafe { &*engine.cast::<StyleEngine>() };
+    let engine = unsafe { engine.get() };
     StyleNodeID::from_raw(node).map_or(0, |node| engine.pseudo_elements_with_custom_property_data(node))
 }
 
@@ -1600,7 +1604,7 @@ pub unsafe extern "C" fn style_engine_pseudo_elements_with_custom_property_data(
 /// `engine` must be live, and `visit` must not retain the name it is given.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_element_random_base_values(
-    engine: *const c_void,
+    engine: crate::css::style::StyleEngineHandle,
     node: u32,
     context: *mut c_void,
     visit: unsafe extern "C" fn(*mut c_void, *const u16, usize, u64),
@@ -1608,7 +1612,7 @@ pub unsafe extern "C" fn style_engine_element_random_base_values(
     let Some(node) = StyleNodeID::from_raw(node) else {
         return;
     };
-    let engine = unsafe { &*engine.cast::<StyleEngine>() };
+    let engine = unsafe { engine.get() };
     for (name, value) in engine.random_base_values.element_values(node) {
         unsafe { visit(context, name.as_ptr(), name.len(), value.to_bits()) };
     }
@@ -1709,7 +1713,7 @@ pub struct FfiAnimationEffectVersion {
 #[unsafe(no_mangle)]
 #[allow(clippy::too_many_arguments)]
 pub unsafe extern "C" fn style_engine_set_element_animation_effect_descriptions(
-    engine: *mut c_void,
+    engine: crate::css::style::StyleEngineHandle,
     node: u32,
     slot: u8,
     effects: *const FfiPublishedAnimationEffect,
@@ -1725,7 +1729,7 @@ pub unsafe extern "C" fn style_engine_set_element_animation_effect_descriptions(
     base_url_bytes: *const u8,
     base_url_byte_count: usize,
 ) {
-    let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
+    let engine = unsafe { engine.get_mut() };
     let Some(node) = StyleNodeID::from_raw(node) else {
         return;
     };
@@ -1749,13 +1753,13 @@ pub unsafe extern "C" fn style_engine_set_element_animation_effect_descriptions(
 /// `engine` must be live, and `versions` must hold `count` elements.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_describes_animation_effects(
-    engine: *const c_void,
+    engine: crate::css::style::StyleEngineHandle,
     node: u32,
     slot: u8,
     versions: *const FfiAnimationEffectVersion,
     count: usize,
 ) -> bool {
-    let engine = unsafe { &*engine.cast::<StyleEngine>() };
+    let engine = unsafe { engine.get() };
     StyleNodeID::from_raw(node).is_some_and(|node| {
         engine
             .animation_effect_descriptions
@@ -1768,8 +1772,8 @@ pub unsafe extern "C" fn style_engine_describes_animation_effects(
 /// # Safety
 /// `engine` must be live.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_use_recording_memory_policy(engine: *mut c_void) {
-    let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
+pub unsafe extern "C" fn style_engine_use_recording_memory_policy(engine: crate::css::style::StyleEngineHandle) {
+    let engine = unsafe { engine.get_mut() };
     engine.memory.enable_recording_policy();
 }
 
@@ -1781,16 +1785,20 @@ pub extern "C" fn style_engine_verification_gate_bits() -> u8 {
 /// # Safety
 /// `engine` must be a pointer returned by `style_engine_create` and not yet destroyed.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_destroy(engine: *mut c_void) {
-    let mut engine = unsafe { Box::from_raw(engine.cast::<StyleEngine>()) };
+pub unsafe extern "C" fn style_engine_destroy(engine: crate::css::style::StyleEngineHandle) {
+    let mut engine = unsafe { engine.destroy() };
     engine.end_recording();
 }
 
 /// # Safety
 /// `engine` must be live, and `out` must point at `count` writable `u32` values.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_allocate_style_nodes(engine: *mut c_void, out: *mut u32, count: usize) {
-    let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
+pub unsafe extern "C" fn style_engine_allocate_style_nodes(
+    engine: crate::css::style::StyleEngineHandle,
+    out: *mut u32,
+    count: usize,
+) {
+    let engine = unsafe { engine.get_mut() };
     let out = if count == 0 {
         &mut []
     } else {
@@ -1803,8 +1811,12 @@ pub unsafe extern "C" fn style_engine_allocate_style_nodes(engine: *mut c_void, 
 /// # Safety
 /// `engine` must be live, and `out` must point at `count` writable `u32` values.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_allocate_text_style_nodes(engine: *mut c_void, out: *mut u32, count: usize) {
-    let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
+pub unsafe extern "C" fn style_engine_allocate_text_style_nodes(
+    engine: crate::css::style::StyleEngineHandle,
+    out: *mut u32,
+    count: usize,
+) {
+    let engine = unsafe { engine.get_mut() };
     let out = if count == 0 {
         &mut []
     } else {
@@ -1822,8 +1834,11 @@ pub unsafe extern "C" fn style_engine_allocate_text_style_nodes(engine: *mut c_v
 /// `engine` must be live. The returned node slice remains valid until the next mutable
 /// `style_engine_*` entry point or an explicit discard of the flat-tree descendants.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_flat_tree_descendants(engine: *mut c_void, root: u32) -> FfiStyleNodeSlice {
-    let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
+pub unsafe extern "C" fn style_engine_flat_tree_descendants(
+    engine: crate::css::style::StyleEngineHandle,
+    root: u32,
+) -> FfiStyleNodeSlice {
+    let engine = unsafe { engine.get_mut() };
     engine.clear_ffi_style_node_query();
     let Some(root) = StyleNodeID::from_raw(root) else {
         return FfiStyleNodeSlice::default();
@@ -1844,8 +1859,8 @@ pub unsafe extern "C" fn style_engine_flat_tree_descendants(engine: *mut c_void,
 /// # Safety
 /// `engine` must be live.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_discard_flat_tree_descendants(engine: *mut c_void) {
-    let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
+pub unsafe extern "C" fn style_engine_discard_flat_tree_descendants(engine: crate::css::style::StyleEngineHandle) {
+    let engine = unsafe { engine.get_mut() };
     engine.clear_ffi_style_node_query();
 }
 
@@ -1855,8 +1870,10 @@ pub unsafe extern "C" fn style_engine_discard_flat_tree_descendants(engine: *mut
 /// `engine` must be live. The returned slice remains valid until the next mutable engine call or an
 /// explicit discard.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_viewport_dependent_nodes(engine: *mut c_void) -> FfiStyleNodeSlice {
-    let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
+pub unsafe extern "C" fn style_engine_viewport_dependent_nodes(
+    engine: crate::css::style::StyleEngineHandle,
+) -> FfiStyleNodeSlice {
+    let engine = unsafe { engine.get_mut() };
     engine.clear_ffi_style_node_query();
     let nodes = engine.computed_group_sets.viewport_dependent_nodes();
     engine.install_ffi_style_node_query(nodes)
@@ -1867,8 +1884,8 @@ pub unsafe extern "C" fn style_engine_viewport_dependent_nodes(engine: *mut c_vo
 /// # Safety
 /// `engine` must be live.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_discard_viewport_dependent_nodes(engine: *mut c_void) {
-    let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
+pub unsafe extern "C" fn style_engine_discard_viewport_dependent_nodes(engine: crate::css::style::StyleEngineHandle) {
+    let engine = unsafe { engine.get_mut() };
     engine.clear_ffi_style_node_query();
 }
 
@@ -1878,8 +1895,11 @@ pub unsafe extern "C" fn style_engine_discard_viewport_dependent_nodes(engine: *
 /// `engine` must be live and every array in `transaction` must point at its stated number of valid
 /// records for the duration of the call.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_apply_transaction(engine: *mut c_void, transaction: &FfiStyleInputTransaction) {
-    let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
+pub unsafe extern "C" fn style_engine_apply_transaction(
+    engine: crate::css::style::StyleEngineHandle,
+    transaction: &FfiStyleInputTransaction,
+) {
+    let engine = unsafe { engine.get_mut() };
     // SAFETY: the caller vouches that each pointer covers its stated count for this call.
     let tree = unsafe { borrow(transaction.tree_deltas, transaction.tree_delta_count) };
     let arrivals = unsafe { borrow(transaction.element_arrivals, transaction.element_arrival_count) };
@@ -2027,12 +2047,12 @@ pub(crate) fn publish_style_rule(
 /// `engine` must be live, and the sheet and optional rule handles must belong to it.
 #[cfg(feature = "style-recording")]
 pub unsafe fn replay_add_style_rule(
-    engine: *mut c_void,
+    engine: crate::css::style::StyleEngineHandle,
     sheet: u32,
     before_rule: u32,
     selector_program: super::selector::SelectorProgram,
 ) -> u32 {
-    let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
+    let engine = unsafe { engine.get_mut() };
     if sheet == 0 {
         return 0;
     }
@@ -2049,11 +2069,11 @@ pub unsafe fn replay_add_style_rule(
 /// `engine` must be live and `rule` must name one of its style rules.
 #[cfg(feature = "style-recording")]
 pub unsafe fn replay_replace_style_rule_selectors(
-    engine: *mut c_void,
+    engine: crate::css::style::StyleEngineHandle,
     rule: u32,
     selector_program: super::selector::SelectorProgram,
 ) {
-    let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
+    let engine = unsafe { engine.get_mut() };
     engine.replace_replayed_style_rule_selectors(RuleID(rule - 1), selector_program);
 }
 
@@ -2063,14 +2083,14 @@ pub unsafe fn replay_replace_style_rule_selectors(
 /// `engine` must be live and `node` must name one of its style nodes.
 #[cfg(feature = "style-recording")]
 pub unsafe fn replay_set_element_declared_properties(
-    engine: *mut c_void,
+    engine: crate::css::style::StyleEngineHandle,
     node: u32,
     kind: FfiElementDeclarationKind,
     declared: &[DeclaredProperty],
     custom_declarations: &[CustomDeclaration],
     declarations_are_complete: bool,
 ) {
-    let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
+    let engine = unsafe { engine.get_mut() };
     let node = StyleNodeID::from_raw(node).expect("recorded style node identities are nonzero");
     engine.set_element_declared_properties(
         node,
@@ -2089,13 +2109,13 @@ pub unsafe fn replay_set_element_declared_properties(
 /// `engine` must be live.
 #[cfg(feature = "style-recording")]
 pub unsafe fn replay_random_base_value(
-    engine: *mut c_void,
+    engine: crate::css::style::StyleEngineHandle,
     node: u32,
     name: &[u16],
     element_shared: bool,
     value_bits: u64,
 ) {
-    let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
+    let engine = unsafe { engine.get_mut() };
     engine.random_base_values.set(
         StyleNodeID::from_raw(node),
         name,
@@ -2110,13 +2130,13 @@ pub unsafe fn replay_random_base_value(
 /// `engine` must be live and `rule` must name one of its style rules.
 #[cfg(feature = "style-recording")]
 pub unsafe fn replay_set_rule_declared_properties(
-    engine: *mut c_void,
+    engine: crate::css::style::StyleEngineHandle,
     rule: u32,
     declared: &[DeclaredProperty],
     custom_declarations: &[CustomDeclaration],
     declarations_are_complete: bool,
 ) {
-    let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
+    let engine = unsafe { engine.get_mut() };
     engine.set_rule_declared_properties_with_written_values(
         RuleID(rule - 1),
         declared,
@@ -2159,7 +2179,7 @@ pub(crate) fn publish_style_rule_selectors(
 /// `engine` must be live, and `names` and `hosts` must each point to `count` values.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_set_element_parts(
-    engine: *mut c_void,
+    engine: crate::css::style::StyleEngineHandle,
     node: u32,
     names: *const u32,
     hosts: *const u32,
@@ -2168,7 +2188,7 @@ pub unsafe extern "C" fn style_engine_set_element_parts(
     let Some(node) = StyleNodeID::from_raw(node) else {
         return;
     };
-    let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
+    let engine = unsafe { engine.get_mut() };
     let pairs: Vec<(StyleAtomID, StyleNodeID)> = match count == 0 || names.is_null() || hosts.is_null() {
         true => Vec::new(),
         false => {
@@ -2197,8 +2217,12 @@ pub unsafe extern "C" fn style_engine_set_element_parts(
 /// `engine` must be live, and `data` must be a raw `AK::Utf16String` representation for which the
 /// caller transfers one reference to this call.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_set_text_data(engine: *mut c_void, node: u32, data: usize) {
-    let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
+pub unsafe extern "C" fn style_engine_set_text_data(
+    engine: crate::css::style::StyleEngineHandle,
+    node: u32,
+    data: usize,
+) {
+    let engine = unsafe { engine.get_mut() };
     // SAFETY: The caller transfers one reference to a live string.
     let data = unsafe { ak::Utf16String::from_raw_owned(data) };
     engine.record_boundary_call(EventKind::SetTextData, |payload| {
@@ -2216,13 +2240,13 @@ pub unsafe extern "C" fn style_engine_set_text_data(engine: *mut c_void, node: u
 /// `engine` must be live.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_set_element_language(
-    engine: *mut c_void,
+    engine: crate::css::style::StyleEngineHandle,
     node: u32,
     language: u32,
     text: *const u16,
     text_length: usize,
 ) {
-    let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
+    let engine = unsafe { engine.get_mut() };
     let text = match language != 0 && !text.is_null() {
         true => unsafe { std::slice::from_raw_parts(text, text_length) },
         false => &[],
@@ -2338,7 +2362,7 @@ unsafe fn write_rule_matches(
 /// `engine` must be live and `out` must point at `capacity` writable `FfiRuleMatch` values.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_consume_published_match_answer(
-    engine: *mut c_void,
+    engine: crate::css::style::StyleEngineHandle,
     node: u32,
     out: *mut FfiRuleMatch,
     capacity: usize,
@@ -2346,7 +2370,7 @@ pub unsafe extern "C" fn style_engine_consume_published_match_answer(
     let Some(node) = StyleNodeID::from_raw(node) else {
         return usize::MAX;
     };
-    let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
+    let engine = unsafe { engine.get_mut() };
     let result = engine
         .consume_published_match_answer_with(
             node,
@@ -2395,7 +2419,7 @@ pub unsafe extern "C" fn style_engine_consume_published_match_answer(
 /// `engine` must be live and `out` must point at `capacity` writable `FfiRuleMatch` values.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_match_element(
-    engine: *mut c_void,
+    engine: crate::css::style::StyleEngineHandle,
     node: u32,
     out: *mut FfiRuleMatch,
     capacity: usize,
@@ -2404,7 +2428,7 @@ pub unsafe extern "C" fn style_engine_match_element(
     let Some(node) = StyleNodeID::from_raw(node) else {
         return usize::MAX;
     };
-    let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
+    let engine = unsafe { engine.get_mut() };
     let result = match compact_for_cascade {
         true => engine.match_element_for_cascade(node),
         false => engine.match_element(node),
@@ -2530,14 +2554,14 @@ fn register_element_declared_properties(
 /// `engine` must be live. A non-null `block` must borrow a live `DeclarationBlock`.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_set_element_inline_style_properties(
-    engine: *mut c_void,
+    engine: crate::css::style::StyleEngineHandle,
     node: u32,
     block: *const c_void,
 ) -> bool {
     let Some(node) = StyleNodeID::from_raw(node) else {
         return false;
     };
-    let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
+    let engine = unsafe { engine.get_mut() };
     let block = unsafe { block.cast::<crate::css::declaration_block::DeclarationBlock>().as_ref() };
     let data = block.map(|block| block.data());
     register_element_declared_properties(
@@ -2557,7 +2581,7 @@ pub unsafe extern "C" fn style_engine_set_element_inline_style_properties(
 /// whose values point at live, Arc-backed `StyleValueData` roots.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_set_element_presentational_hint_properties(
-    engine: *mut c_void,
+    engine: crate::css::style::StyleEngineHandle,
     node: u32,
     kind: FfiElementDeclarationKind,
     properties: *const c_void,
@@ -2567,7 +2591,7 @@ pub unsafe extern "C" fn style_engine_set_element_presentational_hint_properties
     let Some(node) = StyleNodeID::from_raw(node) else {
         return false;
     };
-    let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
+    let engine = unsafe { engine.get_mut() };
     let properties = if count == 0 {
         &[]
     } else {
@@ -2584,7 +2608,7 @@ pub unsafe extern "C" fn style_engine_set_element_presentational_hint_properties
 /// `engine` and `store` must be live.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_publish_exact_cascade_state(
-    engine: *mut c_void,
+    engine: crate::css::style::StyleEngineHandle,
     node: u32,
     pseudo_kind: u8,
     store: *const c_void,
@@ -2598,7 +2622,7 @@ pub unsafe extern "C" fn style_engine_publish_exact_cascade_state(
     if store.is_null() {
         return FfiExactCascadePublication::missing();
     }
-    let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
+    let engine = unsafe { engine.get_mut() };
     let generation_snapshot =
         engine.exact_cascade_generation_snapshot(super::computed::ComputedStyleTarget::new(node, pseudo_kind));
     let donor = exact_cascade_donor(donor_node, donor_style_record);
@@ -2652,7 +2676,7 @@ pub unsafe extern "C" fn style_engine_publish_exact_cascade_state(
 /// explicit discard of the retained cascade assignments.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_materialize_retained_cascade_state(
-    engine: *mut c_void,
+    engine: crate::css::style::StyleEngineHandle,
     node: u32,
     pseudo_kind: u8,
     store: *mut c_void,
@@ -2662,7 +2686,7 @@ pub unsafe extern "C" fn style_engine_materialize_retained_cascade_state(
     if engine.is_null() {
         return FfiSourceSlotAssignmentView::default();
     }
-    let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
+    let engine = unsafe { engine.get_mut() };
     engine.clear_ffi_retained_cascade_assignments();
     let Some(node) = StyleNodeID::from_raw(node) else {
         return FfiSourceSlotAssignmentView::default();
@@ -2693,14 +2717,16 @@ pub unsafe extern "C" fn style_engine_materialize_retained_cascade_state(
 /// # Safety
 /// `engine` must be live.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_discard_retained_cascade_assignments(engine: *mut c_void) {
-    let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
+pub unsafe extern "C" fn style_engine_discard_retained_cascade_assignments(
+    engine: crate::css::style::StyleEngineHandle,
+) {
+    let engine = unsafe { engine.get_mut() };
     engine.clear_ffi_retained_cascade_assignments();
 }
 
 #[cfg(feature = "style-recording")]
 pub unsafe fn replay_publish_exact_cascade_state(
-    engine: *mut c_void,
+    engine: crate::css::style::StyleEngineHandle,
     node: u32,
     pseudo_kind: u8,
     winners: &[RecordedExactCascadeWinner],
@@ -2708,7 +2734,7 @@ pub unsafe fn replay_publish_exact_cascade_state(
     donor_node: u32,
     donor_style_record: u64,
 ) -> (FfiExactCascadePublication, bool) {
-    let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
+    let engine = unsafe { engine.get_mut() };
     let node = StyleNodeID::from_raw(node).expect("recorded style node identities are nonzero");
     let winners = winners
         .iter()
@@ -2744,11 +2770,11 @@ fn exact_cascade_donor(donor_node: u32, donor_style_record: u64) -> Option<super
 
 #[cfg(feature = "style-recording")]
 pub unsafe fn replay_exact_cascade_generation_snapshot(
-    engine: *const c_void,
+    engine: crate::css::style::StyleEngineHandle,
     node: u32,
     pseudo_kind: u8,
 ) -> (u64, Option<u64>) {
-    let engine = unsafe { &*engine.cast::<StyleEngine>() };
+    let engine = unsafe { engine.get() };
     let node = StyleNodeID::from_raw(node).expect("recorded style node identities are nonzero");
     engine.exact_cascade_generation_snapshot(super::computed::ComputedStyleTarget::new(node, pseudo_kind))
 }
@@ -2764,8 +2790,10 @@ pub fn replay_style_value_token(value: *const c_void) -> Option<u64> {
 }
 
 #[cfg(feature = "style-recording")]
-pub unsafe fn replay_memory_pressure_snapshot(engine: *const c_void) -> FfiMemoryPressureSnapshot {
-    let engine = unsafe { &*engine.cast::<StyleEngine>() };
+pub unsafe fn replay_memory_pressure_snapshot(
+    engine: crate::css::style::StyleEngineHandle,
+) -> FfiMemoryPressureSnapshot {
+    let engine = unsafe { engine.get() };
     let memory = engine.memory();
     let tier3_refusal_categories = TIER3_REFUSAL_CATEGORIES.map(|category| memory.refusals(category));
     let tier4_refusal_categories: [u64; 2] = [MemoryCategory::NormalizationJournal, MemoryCategory::BatchScratch]
@@ -2799,7 +2827,7 @@ pub unsafe fn replay_memory_pressure_snapshot(engine: *const c_void) -> FfiMemor
 /// layout style or point to a live, frozen `ComputedLonghandTable`.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_publish_computed_groups(
-    engine: *mut c_void,
+    engine: crate::css::style::StyleEngineHandle,
     node: u32,
     pseudo_kind: u8,
     payloads: *const *const c_void,
@@ -2837,7 +2865,7 @@ pub unsafe extern "C" fn style_engine_publish_computed_groups(
             .as_ref()
     };
     publish_computed_groups_from_inputs(
-        unsafe { &mut *engine.cast::<StyleEngine>() },
+        unsafe { engine.get_mut() },
         node,
         pseudo_kind,
         payloads,
@@ -3024,7 +3052,7 @@ pub(crate) fn publish_computed_groups_from_inputs(
 /// payloads for a non-empty overlay.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_publish_animation_overlay(
-    engine: *mut c_void,
+    engine: crate::css::style::StyleEngineHandle,
     node: u32,
     pseudo_kind: u8,
     animation_overlay_identity: u64,
@@ -3045,7 +3073,7 @@ pub unsafe extern "C" fn style_engine_publish_animation_overlay(
         0 => &[],
         _ => SharedPayload::from_pointer_slice(unsafe { std::slice::from_raw_parts(payloads, payload_count) }),
     };
-    let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
+    let engine = unsafe { engine.get_mut() };
     let Some(publication) = engine.publish_animation_overlay_impl(
         super::computed::ComputedStyleTarget::new(node, pseudo_kind),
         animation_overlay_identity,
@@ -3068,14 +3096,14 @@ pub unsafe extern "C" fn style_engine_publish_animation_overlay(
 /// `engine` must be live.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_reaffirm_style_record(
-    engine: *mut c_void,
+    engine: crate::css::style::StyleEngineHandle,
     node: u32,
     pseudo_kind: u8,
 ) -> FfiStyleRecordDelta {
     if engine.is_null() || node == 0 {
         return FfiStyleRecordDelta::default();
     }
-    let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
+    let engine = unsafe { engine.get_mut() };
     let target = super::computed::ComputedStyleTarget::new(
         StyleNodeID::from_raw(node).expect("a nonzero node must be a style node"),
         pseudo_kind,
@@ -3097,7 +3125,7 @@ pub unsafe extern "C" fn style_engine_reaffirm_style_record(
 /// `engine` must be live and `style_record` must name a live base record from that engine.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_assign_shared_style_record(
-    engine: *mut c_void,
+    engine: crate::css::style::StyleEngineHandle,
     node: u32,
     pseudo_kind: u8,
     style_record: u64,
@@ -3107,7 +3135,7 @@ pub unsafe extern "C" fn style_engine_assign_shared_style_record(
     if engine.is_null() || node == 0 || style_record == 0 {
         return FfiStyleRecordDelta::default();
     }
-    let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
+    let engine = unsafe { engine.get_mut() };
     if engine.recording_id().is_some() {
         return FfiStyleRecordDelta::default();
     }
@@ -3135,8 +3163,11 @@ pub unsafe extern "C" fn style_engine_assign_shared_style_record(
 /// # Safety
 /// `engine` must be live for this call and for every read through the returned pointer.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_style_record_payloads(engine: *const c_void, style_record: u64) -> *const c_void {
-    let engine = unsafe { &*engine.cast::<StyleEngine>() };
+pub unsafe extern "C" fn style_engine_style_record_payloads(
+    engine: crate::css::style::StyleEngineHandle,
+    style_record: u64,
+) -> *const c_void {
+    let engine = unsafe { engine.get() };
     let payloads = engine.style_record_payloads(style_record);
     let result = payloads.map_or(std::ptr::null(), |payloads| payloads.as_ptr().cast());
     let record_response = engine.recording_first_response(0, style_record);
@@ -3180,8 +3211,11 @@ pub unsafe extern "C" fn style_engine_style_record_payloads(engine: *const c_voi
 /// # Safety
 /// `engine` must be live.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_style_record_dependency_flags(engine: *const c_void, style_record: u64) -> u8 {
-    let engine = unsafe { &*engine.cast::<StyleEngine>() };
+pub unsafe extern "C" fn style_engine_style_record_dependency_flags(
+    engine: crate::css::style::StyleEngineHandle,
+    style_record: u64,
+) -> u8 {
+    let engine = unsafe { engine.get() };
     engine.style_record_dependency_flags(style_record).unwrap_or(0)
 }
 
@@ -3215,10 +3249,10 @@ pub enum FfiNodeRecordReads {
 /// `engine` must be live.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_style_record_custom_property_environment(
-    engine: *const c_void,
+    engine: crate::css::style::StyleEngineHandle,
     style_record: u64,
 ) -> u64 {
-    let engine = unsafe { &*engine.cast::<StyleEngine>() };
+    let engine = unsafe { engine.get() };
     engine
         .computed_group_sets
         .style_record_custom_property_environment(style_record)
@@ -3233,11 +3267,11 @@ pub unsafe extern "C" fn style_engine_style_record_custom_property_environment(
 /// `engine` must be live and both style records must remain pinned or assigned.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_compare_style_records(
-    engine: *mut c_void,
+    engine: crate::css::style::StyleEngineHandle,
     old_style_record: u64,
     new_style_record: u64,
 ) -> u32 {
-    let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
+    let engine = unsafe { engine.get_mut() };
     engine.compare_style_records(old_style_record, new_style_record, true, false, false)
 }
 
@@ -3249,12 +3283,12 @@ pub unsafe extern "C" fn style_engine_compare_style_records(
 /// `engine` must be live and both style records must remain pinned or assigned.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_element_record_damage(
-    engine: *mut c_void,
+    engine: crate::css::style::StyleEngineHandle,
     node: u32,
     old_style_record: u64,
     new_style_record: u64,
 ) -> u32 {
-    let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
+    let engine = unsafe { engine.get_mut() };
     let Some(node) = StyleNodeID::from_raw(node) else {
         return super::style_invalidation::unreadable_record_damage();
     };
@@ -3269,7 +3303,7 @@ pub unsafe extern "C" fn style_engine_element_record_damage(
 /// `engine` must be live and every nonzero style record must remain pinned or assigned.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_pseudo_element_record_damage(
-    engine: *mut c_void,
+    engine: crate::css::style::StyleEngineHandle,
     node: u32,
     pseudo_kind: u8,
     old_style_record: u64,
@@ -3277,7 +3311,7 @@ pub unsafe extern "C" fn style_engine_pseudo_element_record_damage(
     originating_style_record: u64,
     counter_styles_changed: bool,
 ) -> u32 {
-    let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
+    let engine = unsafe { engine.get_mut() };
     let Some(node) = StyleNodeID::from_raw(node) else {
         return super::style_invalidation::unreadable_record_damage();
     };
@@ -3298,11 +3332,11 @@ pub unsafe extern "C" fn style_engine_pseudo_element_record_damage(
 /// pinned or assigned.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_animation_overlay_changed(
-    engine: *const c_void,
+    engine: crate::css::style::StyleEngineHandle,
     old_style_record: u64,
     animated_overlay: *const c_void,
 ) -> bool {
-    let engine = unsafe { &*engine.cast::<StyleEngine>() };
+    let engine = unsafe { engine.get() };
     engine.animation_overlay_changed(old_style_record, animated_overlay.cast())
 }
 
@@ -3313,11 +3347,11 @@ pub unsafe extern "C" fn style_engine_animation_overlay_changed(
 /// `engine` must be live for this call.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_current_color_dependent_group_mask(
-    engine: *const c_void,
+    engine: crate::css::style::StyleEngineHandle,
     node: u32,
     pseudo_kind: u8,
 ) -> u32 {
-    let engine = unsafe { &*engine.cast::<StyleEngine>() };
+    let engine = unsafe { engine.get() };
     StyleNodeID::from_raw(node)
         .and_then(|node| engine.current_color_dependent_group_mask(node, pseudo_kind))
         .unwrap_or(u32::MAX)
@@ -3362,13 +3396,13 @@ pub struct FfiAnimationOverlayPayloads {
 /// be non-null, and `payloads` must hold `payload_count` entries, one per style group.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_build_animation_overlay_payloads(
-    engine: *const c_void,
+    engine: crate::css::style::StyleEngineHandle,
     input: *const FfiAnimationOverlayPayloadInput,
     payloads: *mut *const c_void,
     payload_count: usize,
 ) -> FfiAnimationOverlayPayloads {
     use crate::css::table_group_builder::group_index;
-    let engine = unsafe { &*engine.cast::<StyleEngine>() };
+    let engine = unsafe { engine.get() };
     let input = unsafe { &*input };
     assert_eq!(payload_count, group_index::COUNT, "one payload per style group");
     let payloads = unsafe { &mut *payloads.cast::<[*const c_void; group_index::COUNT]>() };
@@ -3440,14 +3474,14 @@ pub unsafe extern "C" fn style_engine_release_animation_overlay_payloads(
 /// record must remain pinned or assigned.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_compare_animation_overlay(
-    engine: *const c_void,
+    engine: crate::css::style::StyleEngineHandle,
     old_style_record: u64,
     animated_overlay: *const c_void,
     payloads: *const *const c_void,
     payload_count: usize,
     is_document_element: bool,
 ) -> FfiAnimationInvalidation {
-    let engine = unsafe { &*engine.cast::<StyleEngine>() };
+    let engine = unsafe { engine.get() };
     let payloads = SharedPayload::from_pointer_slice(unsafe { std::slice::from_raw_parts(payloads, payload_count) });
     engine.compare_animation_overlay(old_style_record, animated_overlay.cast(), payloads, is_document_element)
 }
@@ -3458,10 +3492,10 @@ pub unsafe extern "C" fn style_engine_compare_animation_overlay(
 /// `engine` must be live for this call and for every read through the returned pointers.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_style_record_view(
-    engine: *const c_void,
+    engine: crate::css::style::StyleEngineHandle,
     style_record: u64,
 ) -> FfiStyleRecordView {
-    let engine = unsafe { &*engine.cast::<StyleEngine>() };
+    let engine = unsafe { engine.get() };
     let view = engine.style_record_view(style_record);
     let result = match &view {
         None => FfiStyleRecordView::missing(),
@@ -3560,14 +3594,14 @@ pub unsafe extern "C" fn style_engine_style_record_view(
 /// `engine` must be live.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_remove_computed_pseudo(
-    engine: *mut c_void,
+    engine: crate::css::style::StyleEngineHandle,
     node: u32,
     pseudo_kind: u8,
 ) -> FfiStyleRecordDelta {
     let Some(node) = StyleNodeID::from_raw(node) else {
         return FfiStyleRecordDelta::default();
     };
-    let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
+    let engine = unsafe { engine.get_mut() };
     let result = FfiStyleRecordDelta {
         old_style_record: engine
             .remove_computed_pseudo(node, pseudo_kind)
@@ -3636,12 +3670,12 @@ pub(crate) fn publish_rule_declarations(
 /// `engine` must be live, and `store` must be null or a live raw `Arc` pointer.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_republish_record_environment(
-    engine: *mut c_void,
+    engine: crate::css::style::StyleEngineHandle,
     node: u32,
     environment: u64,
     store: *const c_void,
 ) -> u64 {
-    let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
+    let engine = unsafe { engine.get_mut() };
     let Some(node) = StyleNodeID::from_raw(node) else {
         return 0;
     };
@@ -3737,11 +3771,11 @@ pub struct FfiEnvironmentMoveActions {
 /// `moved.new_inheritable_data` must be null or a live `Web::CSS::CustomPropertyData`.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_move_custom_property_environment(
-    engine: *mut c_void,
+    engine: crate::css::style::StyleEngineHandle,
     origin: u32,
     moved: FfiEnvironmentMove,
 ) -> FfiEnvironmentMoveActions {
-    let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
+    let engine = unsafe { engine.get_mut() };
     let mut actions = std::mem::take(&mut engine.host.environment_move_actions);
     actions.clear();
     if let Some(origin) = StyleNodeID::from_raw(origin) {
@@ -3771,8 +3805,12 @@ pub unsafe extern "C" fn style_engine_move_custom_property_environment(
 ///
 /// # Safety
 /// `engine` must be live.
-pub unsafe fn replay_republish_record_environment(engine: *mut c_void, node: u32, environment: u64) -> u64 {
-    let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
+pub unsafe fn replay_republish_record_environment(
+    engine: crate::css::style::StyleEngineHandle,
+    node: u32,
+    environment: u64,
+) -> u64 {
+    let engine = unsafe { engine.get_mut() };
     StyleNodeID::from_raw(node)
         .and_then(|node| engine.republish_record_environment(node, environment))
         .unwrap_or(0)
@@ -3785,11 +3823,11 @@ pub unsafe fn replay_republish_record_environment(engine: *mut c_void, node: u32
 /// `engine` must be live.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_retry_engine_record_after_ancestor(
-    engine: *mut c_void,
+    engine: crate::css::style::StyleEngineHandle,
     node: u32,
 ) -> FfiEngineComputedRecord {
     abort_on_panic(|| {
-        let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
+        let engine = unsafe { engine.get_mut() };
         let Some(style_node) = StyleNodeID::from_raw(node) else {
             return FfiEngineComputedRecord::default();
         };
@@ -3850,12 +3888,12 @@ pub struct FfiRecordDemandAnswer {
 /// `engine` must be live.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_answer_record_demand(
-    engine: *mut c_void,
+    engine: crate::css::style::StyleEngineHandle,
     node: u32,
     demand: FfiRecordDemand,
 ) -> FfiRecordDemandAnswer {
     abort_on_panic(|| {
-        let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
+        let engine = unsafe { engine.get_mut() };
         let Some(style_node) = StyleNodeID::from_raw(node) else {
             return FfiRecordDemandAnswer::default();
         };
@@ -3914,7 +3952,7 @@ pub unsafe extern "C" fn style_engine_answer_record_demand(
 /// a live `DeclarationBlock`.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_declared_only_record(
-    engine: *mut c_void,
+    engine: crate::css::style::StyleEngineHandle,
     subject: u32,
     facts: u32,
     hint_kind: FfiElementDeclarationKind,
@@ -3924,7 +3962,7 @@ pub unsafe extern "C" fn style_engine_declared_only_record(
 ) -> u64 {
     use crate::css::declaration_block::{DeclarationBlock, FfiDeclaredProperty, declaration_from_view};
     abort_on_panic(|| {
-        let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
+        let engine = unsafe { engine.get_mut() };
         // A record no row holds is no event a replay could reproduce.
         let Some(subject) = StyleNodeID::from_raw(subject).filter(|_| engine.recording_id().is_none()) else {
             return 0;
@@ -3962,12 +4000,12 @@ pub unsafe extern "C" fn style_engine_declared_only_record(
 /// `engine` must be live.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_settle_pseudo_records_after_host_record(
-    engine: *mut c_void,
+    engine: crate::css::style::StyleEngineHandle,
     node: u32,
     old_is_list_item: bool,
 ) -> FfiEngineComputedRecord {
     abort_on_panic(|| {
-        let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
+        let engine = unsafe { engine.get_mut() };
         let Some(style_node) = StyleNodeID::from_raw(node) else {
             return FfiEngineComputedRecord::default();
         };
@@ -4004,11 +4042,11 @@ pub unsafe extern "C" fn style_engine_settle_pseudo_records_after_host_record(
 /// `engine` must be live and `parent` must be writable.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_borrow_engine_custom_property_environment(
-    engine: *const c_void,
+    engine: crate::css::style::StyleEngineHandle,
     identity: u64,
     parent: *mut u64,
 ) -> *const c_void {
-    let engine = unsafe { &*engine.cast::<StyleEngine>() };
+    let engine = unsafe { engine.get() };
     let Some((store, parent_identity)) = engine.custom_property_environments.engine_environment(identity) else {
         return std::ptr::null();
     };
@@ -4027,7 +4065,7 @@ pub unsafe extern "C" fn style_engine_borrow_engine_custom_property_environment(
 /// must name `length` code units.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_note_custom_property_name(
-    engine: *mut c_void,
+    engine: crate::css::style::StyleEngineHandle,
     name: u32,
     raw: usize,
     text: *const u16,
@@ -4036,7 +4074,7 @@ pub unsafe extern "C" fn style_engine_note_custom_property_name(
     if name == 0 || (length != 0 && text.is_null()) {
         return;
     }
-    let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
+    let engine = unsafe { engine.get_mut() };
     let text = match length {
         0 => &[],
         _ => unsafe { std::slice::from_raw_parts(text, length) },
@@ -4057,8 +4095,8 @@ unsafe fn note_native_custom_property_name(engine: &mut StyleEngine, name: Style
 ///
 /// # Safety
 /// `engine` must be live.
-pub unsafe fn replay_note_custom_property_name(engine: *mut c_void, name: u32, text: &[u16]) {
-    let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
+pub unsafe fn replay_note_custom_property_name(engine: crate::css::style::StyleEngineHandle, name: u32, text: &[u16]) {
+    let engine = unsafe { engine.get_mut() };
     unsafe { engine.note_custom_property_name(StyleAtomID(name), 0, text) };
 }
 
@@ -4079,8 +4117,11 @@ pub struct FfiNativeRuleTarget {
 /// # Safety
 /// Engine must be live.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_native_rule_id(engine: *const c_void, identity: u64) -> u32 {
-    let engine = unsafe { &*engine.cast::<StyleEngine>() };
+pub unsafe extern "C" fn style_engine_native_rule_id(
+    engine: crate::css::style::StyleEngineHandle,
+    identity: u64,
+) -> u32 {
+    let engine = unsafe { engine.get() };
     engine.native_rule_id(identity).map_or(0, |id| id.0 + 1)
 }
 
@@ -4089,8 +4130,10 @@ pub unsafe extern "C" fn style_engine_native_rule_id(engine: *const c_void, iden
 /// # Safety
 /// Engine must be live and not borrowed.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_next_declaration_block_version(engine: *mut c_void) -> u32 {
-    unsafe { &mut *engine.cast::<StyleEngine>() }.next_declaration_block_version()
+pub unsafe extern "C" fn style_engine_next_declaration_block_version(
+    engine: crate::css::style::StyleEngineHandle,
+) -> u32 {
+    unsafe { engine.get_mut() }.next_declaration_block_version()
 }
 
 /// Publish a native declaration edit through its owning rule and return whether it declares
@@ -4101,7 +4144,7 @@ pub unsafe extern "C" fn style_engine_next_declaration_block_version(engine: *mu
 /// engine, and must remain valid for this call.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_native_rule_declarations_changed(
-    engine: *mut c_void,
+    engine: crate::css::style::StyleEngineHandle,
     rule: *const c_void,
     context: *mut c_void,
     notify: unsafe extern "C" fn(*mut c_void, u32),
@@ -4111,14 +4154,14 @@ pub unsafe extern "C" fn style_engine_native_rule_declarations_changed(
         let Some(identity) = rule.declaration_owner_identity() else {
             return false;
         };
-        let engine = unsafe { &*engine.cast::<StyleEngine>() };
+        let engine = unsafe { engine.get() };
         let Some(id) = engine.native_rules.identities.get(&identity) else {
             return false;
         };
         (id, rule.cascade_declarations())
     };
     unsafe { notify(context, id.0 + 1) };
-    let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
+    let engine = unsafe { engine.get_mut() };
     engine.native_rules.targets.get_mut(&id).unwrap().declarations = declarations.clone();
     let version = engine.next_declaration_block_version();
     operations::record_rule_declarations_changed(engine, id.0 + 1, version);
@@ -4131,11 +4174,11 @@ pub unsafe extern "C" fn style_engine_native_rule_declarations_changed(
 /// Engine and sheet must be live native allocations.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_native_rule_successor(
-    engine: *const c_void,
+    engine: crate::css::style::StyleEngineHandle,
     sheet: *const c_void,
     identity: u64,
 ) -> u32 {
-    let engine = unsafe { &*engine.cast::<StyleEngine>() };
+    let engine = unsafe { engine.get() };
     let sheet = unsafe { &*sheet.cast::<crate::css::style_sheet::NativeStyleSheet>() };
     crate::css::rule::mutation::successor(sheet, identity, |identity| {
         engine.native_rules.identities.get(&identity).map_or(0, |id| id.0 + 1)
@@ -4149,7 +4192,7 @@ pub unsafe extern "C" fn style_engine_native_rule_successor(
 /// belong to Arc allocations. No graph or engine borrow spans a host callback.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_remove_native_rule(
-    engine: *mut c_void,
+    engine: crate::css::style::StyleEngineHandle,
     sheet: *const c_void,
     rule: *const c_void,
     detached_import: *const c_void,
@@ -4175,10 +4218,10 @@ pub unsafe extern "C" fn style_engine_remove_native_rule(
     unsafe { begin(context, changes_environment, has_counter_style) };
     for rule in removed {
         let declares_layer = mutation::declares_layer(&rule);
-        let id = unsafe { &*engine.cast::<StyleEngine>() }.native_rule_id(RuleRef::Materialized(&rule).identity());
+        let id = unsafe { engine.get() }.native_rule_id(RuleRef::Materialized(&rule).identity());
         unsafe { notify(context, id.map_or(0, |id| id.0 + 1), declares_layer) };
         if let Some(id) = id {
-            operations::remove_rule(unsafe { &mut *engine.cast::<StyleEngine>() }, id.0 + 1);
+            operations::remove_rule(unsafe { engine.get_mut() }, id.0 + 1);
         }
     }
 }
@@ -4191,11 +4234,11 @@ pub unsafe extern "C" fn style_engine_remove_native_rule(
 /// must copy any text needed across such a mutation. Source identity never retains a native sheet.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_native_rule_target(
-    engine: *const c_void,
+    engine: crate::css::style::StyleEngineHandle,
     rule: u32,
     result: &mut FfiNativeRuleTarget,
 ) -> bool {
-    let engine = unsafe { &*engine.cast::<StyleEngine>() };
+    let engine = unsafe { engine.get() };
     let Some(target) = rule
         .checked_sub(1)
         .and_then(|id| engine.native_rules.targets.get(&RuleID(id)))
@@ -4276,13 +4319,13 @@ pub struct FfiContainerEffects {
 /// `engine` must be live.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_take_container_effects(
-    engine: *mut c_void,
+    engine: crate::css::style::StyleEngineHandle,
     node: u32,
     context: *mut c_void,
     record: unsafe extern "C" fn(*mut c_void, FfiContainerEffect),
 ) -> FfiContainerEffects {
     let verdict = StyleNodeID::from_raw(node)
-        .and_then(|node| unsafe { &mut *engine.cast::<StyleEngine>() }.take_container_effects_for_host(node))
+        .and_then(|node| unsafe { engine.get_mut() }.take_container_effects_for_host(node))
         .unwrap_or_default();
     for (node, kind) in verdict.effects {
         unsafe { record(context, FfiContainerEffect { node: node.raw(), kind }) };
@@ -4303,7 +4346,7 @@ pub unsafe extern "C" fn style_engine_take_container_effects(
 /// names. Evaluation can reenter style computation, so no engine borrow spans either callback.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_native_rule_matches_containers(
-    engine: *const c_void,
+    engine: crate::css::style::StyleEngineHandle,
     rule: u32,
     context: *mut c_void,
     mark_dependencies: unsafe extern "C" fn(*mut c_void, bool, bool),
@@ -4311,7 +4354,7 @@ pub unsafe extern "C" fn style_engine_native_rule_matches_containers(
 ) -> bool {
     use crate::css::parser::query_parser::CONTAINER_QUERY_REQUIRES_STYLE;
     let containers = {
-        let engine = unsafe { &*engine.cast::<StyleEngine>() };
+        let engine = unsafe { engine.get() };
         let Some(target) = rule
             .checked_sub(1)
             .and_then(|id| engine.native_rules.targets.get(&RuleID(id)))
@@ -4350,8 +4393,8 @@ pub unsafe extern "C" fn style_engine_native_rule_matches_containers(
 /// # Safety
 /// `engine` must be live.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_intern_atom(engine: *mut c_void, raw: usize) -> u32 {
-    let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
+pub unsafe extern "C" fn style_engine_intern_atom(engine: crate::css::style::StyleEngineHandle, raw: usize) -> u32 {
+    let engine = unsafe { engine.get_mut() };
     let result = engine.intern_atom(raw);
     record_interned_atom(engine, raw, result);
     result.0
@@ -4383,14 +4426,14 @@ fn record_interned_atom(engine: &mut StyleEngine, raw: usize, atom: StyleAtomID)
 /// `style_engine_*` entry point or an explicit discard of the transaction outputs.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_take_style_transaction(
-    engine: *mut c_void,
+    engine: crate::css::style::StyleEngineHandle,
     root: u32,
     mut computation_inputs: FfiDocumentStyleComputationInputs,
 ) -> FfiStyleTransactionView {
     let Some(root) = StyleNodeID::from_raw(root) else {
         return FfiStyleTransactionView::default();
     };
-    let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
+    let engine = unsafe { engine.get_mut() };
     // SAFETY: The host lends the buffers the inputs name for this call.
     let resource_contexts_moved = unsafe { engine.document_resource_contexts.take_in(&mut computation_inputs) };
     // SAFETY: The host lends the media environment the inputs name for this call.
@@ -4491,7 +4534,7 @@ pub unsafe extern "C" fn style_engine_take_style_transaction(
 /// `engine` must be live, and `deltas` must name `count` writable entries.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_sort_style_deltas_for_direct_application(
-    engine: *const c_void,
+    engine: crate::css::style::StyleEngineHandle,
     deltas: *mut FfiStyleDelta,
     count: usize,
 ) {
@@ -4499,7 +4542,7 @@ pub unsafe extern "C" fn style_engine_sort_style_deltas_for_direct_application(
         return;
     }
     assert!(!deltas.is_null(), "a non-empty delta span must have storage");
-    let engine = unsafe { &*engine.cast::<StyleEngine>() };
+    let engine = unsafe { engine.get() };
     let deltas = unsafe { std::slice::from_raw_parts_mut(deltas, count) };
     // An element's own delta leads the pseudo-element deltas settled beside it.
     let pseudo_rank = |delta: &FfiStyleDelta| {
@@ -4539,11 +4582,11 @@ pub unsafe extern "C" fn style_engine_sort_style_deltas_for_direct_application(
 /// `engine` must be live and `atoms` must name `count` readable atom identities.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_set_replay_reclaimed_style_atoms(
-    engine: *mut c_void,
+    engine: crate::css::style::StyleEngineHandle,
     atoms: *const u32,
     count: usize,
 ) {
-    let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
+    let engine = unsafe { engine.get_mut() };
     assert!(engine.host.replay_reclaimed_style_atoms.is_none());
     let atoms = if count == 0 {
         &[]
@@ -4561,12 +4604,12 @@ pub unsafe extern "C" fn style_engine_set_replay_reclaimed_style_atoms(
 /// `engine` must be live, and the out pointers must be writable.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_counter(
-    engine: *const c_void,
+    engine: crate::css::style::StyleEngineHandle,
     index: usize,
     out_value: *mut u64,
     out_name_length: *mut usize,
 ) -> *const u8 {
-    let engine = unsafe { &*engine.cast::<StyleEngine>() };
+    let engine = unsafe { engine.get() };
     let result = engine.counters().iter().nth(index);
     engine.record_boundary_call(EventKind::Counter, |payload| {
         payload.write_u64(u64::try_from(index).expect("counter index exceeds u64"));
@@ -4593,12 +4636,12 @@ pub unsafe extern "C" fn style_engine_counter(
 #[cfg(feature = "style-recording")]
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_record_benchmark_marker(
-    engine: *const c_void,
+    engine: crate::css::style::StyleEngineHandle,
     name: *const c_void,
     length: usize,
     is_ascii: bool,
 ) {
-    let engine = unsafe { &*engine.cast::<StyleEngine>() };
+    let engine = unsafe { engine.get() };
     if engine.recording_id().is_none() {
         return;
     }
