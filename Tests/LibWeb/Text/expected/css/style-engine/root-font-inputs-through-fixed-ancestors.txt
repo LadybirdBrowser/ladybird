@@ -11,5 +11,5 @@ equal constant: 80px/60px, pseudo 120px/90px
 viewport after constant: 80px/60px, pseudo 120px/90px; new: 80px/60px, pseudo 120px/90px
 transitioning root: 60px/60px, pseudo 90px/90px
 root font preparation exercised: true
-root font fallback exercised: true
+root font fallback exercised: false
 engine computation exercised: true

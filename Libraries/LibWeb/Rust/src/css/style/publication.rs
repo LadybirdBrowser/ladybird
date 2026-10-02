@@ -397,9 +397,10 @@ impl RetainedState {
             counters,
         );
         self.apply_substitution_effects(scratch);
-        // A record that does not move keeps the composition the children read already.
+        // A record that does not move keeps the composition the children read already, unless the
+        // step it owes moves it.
         if let Ok((old, new)) = delta
-            && old != new
+            && (old != new || self.row_owes_a_transition_step(node))
             && self.host_composes_row(node, old.raw(), new.raw())
         {
             scratch.nodes_composed_by_the_host.insert(node);
@@ -704,9 +705,27 @@ impl RetainedState {
             underlying_style_record,
             moves_transition_declarations,
             scratch.host_applies_animation_plans,
-            self.current_winner_groups().pseudo_states(node).next().is_some(),
             counters,
         )?;
+        // A discrete transition of display, float or position takes the element through the box-type
+        // transformation of the animated value, which only the C++ computation applies: a step that
+        // may start or run one stays there.
+        if owes_a_transition_step
+            && (delta
+                .properties()
+                .iter()
+                .any(|&property| property_feeds_box_type_transformation(property))
+                || self.record_animates_box_type_input(old_style_record))
+        {
+            counters.bump(Counter::EngineComputedRecordBailProperty);
+            return Err(Unanswered::Refused);
+        }
+        // A step decides over a moved base record, or over one an ancestor's moved style reaches
+        // without moving it: the base the record holds an inherited animated value of.
+        let owes_a_transition_step_to = |new_style_record| {
+            owes_a_transition_step
+                && (new_style_record != underlying_style_record || parent_inputs_moved.inherited_style)
+        };
         let mut inputs = self.document_style_computation_inputs;
         if let Some((root, root_inputs)) = scratch.root_element_inputs
             && root == node
@@ -829,7 +848,7 @@ impl RetainedState {
                     .expect("an assigned record without an overlay moves to any environment");
                 counters.bump(Counter::EngineComputedRecordUnchangedWinners);
                 self.note_engine_computed_record(node, delta, (generation, state), false, 0, 0, counters)
-                    .owes_a_transition_step = owes_a_transition_step && delta.0 != delta.1;
+                    .owes_a_transition_step = owes_a_transition_step_to(delta.1);
                 return Ok(ElementAnswer::Delta(delta));
             }
             // Standing winners driven in full for a reason they do not show still stop the
@@ -904,7 +923,7 @@ impl RetainedState {
                 counters,
             );
             pending.detached_composition = detached_composition;
-            pending.owes_a_transition_step = owes_a_transition_step && delta.0 != delta.1;
+            pending.owes_a_transition_step = owes_a_transition_step_to(delta.1);
             counters.bump(Counter::EngineComputedRecordCohortHits);
             return Ok(ElementAnswer::Delta(delta));
         }
@@ -1197,7 +1216,7 @@ impl RetainedState {
             counters,
         );
         pending.detached_composition = detached_composition;
-        pending.owes_a_transition_step = owes_a_transition_step && delta.0 != delta.1;
+        pending.owes_a_transition_step = owes_a_transition_step_to(delta.1);
         // A record driven in full stands for a cohort keyed by the parent's inherited inputs only
         // when the drive was partial.
         if !driver_input_moved
@@ -2055,6 +2074,7 @@ impl RetainedState {
     pub(super) fn host_composes_row(&self, node: StyleNodeID, old: u64, new: u64) -> bool {
         self.computed_group_sets.adjustment_facts(node) & bridge::element_adjustment_fact::HAS_ANIMATIONS != 0
             || self.row_owes_an_animation_plan(node, old, new)
+            || self.row_owes_a_transition_step(node)
     }
 
     /// Settle the pseudo-elements of an element the engine moves along `delta` beside its record,
@@ -2154,6 +2174,19 @@ impl RetainedState {
             .is_none_or(|view| !view.animated_overlay.is_null())
     }
 
+    /// Whether a record's animation overlay holds a value the box-type transformation reads.
+    fn record_animates_box_type_input(&self, record: computed::FinalStyleRecordID) -> bool {
+        self.computed_group_sets
+            .style_record_view(record.raw())
+            .and_then(|view| unsafe { view.animated_overlay.as_ref() })
+            .is_some_and(|overlay| {
+                overlay
+                    .entries()
+                    .iter()
+                    .any(|entry| property_feeds_box_type_transformation(entry.property))
+            })
+    }
+
     /// Whether a record's transition declarations name a longhand a change of which starts a
     /// transition.
     pub(super) fn record_declares_transitions(&self, record: computed::FinalStyleRecordID) -> bool {
@@ -2164,31 +2197,24 @@ impl RetainedState {
     }
 
     /// Whether a row moving `node` off `underlying_style_record`, the record beneath any
-    /// composition, owes the host the transition step: the record declares transitions, or the row
-    /// moves their declarations. The host runs the step once it installs the new record, against
-    /// the record the row moved away from, and the step's start values reach what inherits from the
-    /// element only after the step. So a row that owes one is refused where anything inherits from
-    /// the element, an element child or, as the caller tells, a pseudo-element, and where no host
-    /// installs the record.
+    /// composition, owes the host the transition step: the host holds a style to start transitions
+    /// from, and the record declares transitions or the row moves their declarations. The host runs
+    /// the step once it installs the new record, against the record the row moved away from, and
+    /// composes the record before anything inherits from it, so its children and pseudo-elements
+    /// read the values the step started from. A row no host installs is refused.
     pub(super) fn decide_transition_step(
         &self,
         node: StyleNodeID,
         underlying_style_record: computed::FinalStyleRecordID,
         moves_transition_declarations: bool,
         host_applies_animation_plans: bool,
-        pseudo_elements_inherit: bool,
         counters: &mut Counters,
     ) -> Result<bool, Unanswered> {
-        let owes_a_transition_step =
-            moves_transition_declarations || self.record_declares_transitions(underlying_style_record);
-        if owes_a_transition_step
-            && (!host_applies_animation_plans
-                || pseudo_elements_inherit
-                || self
-                    .tree
-                    .flat_tree_children(node)
-                    .any(|child| child.element_index().is_some()))
-        {
+        // An element whose style the host cleared on entering display:none, or never computed, has
+        // no before-change style.
+        let owes_a_transition_step = self.held_style_records.contains_key(&node)
+            && (moves_transition_declarations || self.record_declares_transitions(underlying_style_record));
+        if owes_a_transition_step && !host_applies_animation_plans {
             counters.bump(Counter::EngineComputedRecordBailProperty);
             return Err(Unanswered::Refused);
         }
