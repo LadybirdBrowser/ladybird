@@ -23,6 +23,7 @@ use std::os::fd::{FromRawFd, RawFd};
 use std::sync::{Arc, Mutex, PoisonError};
 use std::time::Instant;
 
+use crate::contrib::test262::global_object::Test262GlobalObject;
 use crate::interpreter::runtime_functions::unimplemented_runtime_function;
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
@@ -31,7 +32,7 @@ use crate::layout::value::Value;
 use crate::parser_error::ParserError;
 use crate::script::Script;
 use crate::utf16::{Utf16View, string_from_utf8_with_replacement_character, utf16_from_wtf8};
-use crate::utilities::initialize_realm;
+use crate::utilities::initialize_realm_with_global_object;
 use libjs_rust::ast::ProgramType;
 use libjs_rust::compile::parse;
 
@@ -590,8 +591,8 @@ fn run_test(
     }
 
     let vm = Vm::create();
-    // NB: The C++ runner's global object is a Test262::GlobalObject, which comes with $262.
-    let root_execution_context = initialize_realm(&vm);
+    let root_execution_context =
+        initialize_realm_with_global_object(&vm, &|realm| Test262GlobalObject::allocate(&vm, realm).upcast());
     let realm = root_execution_context.realm();
     let program = parse_program(&vm, realm, decoded_source(source, "The test"), metadata.program_type)?;
 
@@ -816,7 +817,7 @@ impl CapturedStandardOutput {
 
     /// The first bytes printed since the last call, if anything was printed. The rest is discarded.
     fn collect_output(&self) -> Option<Vec<u8>> {
-        let _ = std::io::stdout().flush();
+        crate::standard_output::flush();
         let mut buffer = [0u8; COLLECTED_OUTPUT_LIMIT];
         let read = |buffer: &mut [u8; COLLECTED_OUTPUT_LIMIT]| {
             // SAFETY: The buffer is valid for its length.

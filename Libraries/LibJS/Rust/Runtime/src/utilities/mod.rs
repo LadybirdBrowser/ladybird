@@ -12,6 +12,7 @@ pub mod test262_runner;
 use crate::interpreter::execution_context::OwnedExecutionContext;
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
+use crate::layout::object::Object;
 use crate::runtime::completion::Must;
 use crate::runtime::realm::Realm;
 
@@ -38,8 +39,12 @@ impl Drop for RootExecutionContext<'_> {
     }
 }
 
-/// The realm the tools run scripts in, with a GlobalObject as its global object.
-pub(crate) fn initialize_realm(vm: &Vm) -> RootExecutionContext<'_> {
-    let context = Realm::initialize_host_defined_realm(vm, None, None).must();
+/// create_simple_execution_context<GlobalObjectType>(): the realm a tool runs scripts in, whose global object
+/// `create_global_object` allocates.
+pub(crate) fn initialize_realm_with_global_object<'vm>(
+    vm: &'vm Vm,
+    create_global_object: &dyn Fn(Gc<Realm>) -> Gc<Object>,
+) -> RootExecutionContext<'vm> {
+    let context = Realm::initialize_host_defined_realm(vm, Some(create_global_object), None).must();
     RootExecutionContext { vm, context }
 }

@@ -6,27 +6,45 @@
 
 //! js-rust: runs scripts on the Rust runtime, with the command line of Utilities/js.cpp.
 
+use core::cell::Cell;
 use core::ffi::{c_char, c_int};
+use core::ops::Deref;
+use core::sync::atomic::{AtomicBool, Ordering};
 use std::ffi::CStr;
-use std::io::{self, IsTerminal, Read, Write};
+use std::io::{self, Read, Write};
 
-use ak::Utf16String;
+use ak::{Utf16FlyString, Utf16String};
+use libjs_runtime_macros::Trace;
 
+use crate::console::{Console, ConsoleClient, ConsoleClientMethods, LogLevel, PrinterArguments};
+use crate::contrib::test262::global_object::Test262GlobalObject;
+use crate::gc::class::{GcCell, define_cell};
+use crate::hash_table::HashTable;
 use crate::interpreter::run::set_dump_bytecode;
 use crate::interpreter::runtime_functions::unimplemented_runtime_function;
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
+use crate::layout::object::Object;
 use crate::layout::value::Value;
 use crate::parser_error::ParserError;
 use crate::runtime::completion::ThrowCompletionOr;
 use crate::runtime::error::{Error, ErrorKind};
 use crate::runtime::error_data::CompactTraceback;
+use crate::runtime::error_types::ErrorType;
+use crate::runtime::global_object::GlobalObject;
+use crate::runtime::json_object::JSONObject;
+use crate::runtime::native_function::raw_native;
+use crate::runtime::object::{ORDINARY_OBJECT_METHODS, allocate_object, define_object_class};
+use crate::runtime::primitive_string::PrimitiveString;
 use crate::runtime::print::{PrintContext, print};
+use crate::runtime::property_attributes::{Attribute, PropertyAttributes};
+use crate::runtime::property_key::PropertyKey;
 use crate::runtime::realm::Realm;
 use crate::script::Script;
 use crate::source_code::SourceCode;
+use crate::standard_output::{self, StandardOutputWriter, UnbufferedStandardOutputWriter};
 use crate::utf16::{Utf16View, utf16_from_wtf8};
-use crate::utilities::initialize_realm;
+use crate::utilities::initialize_realm_with_global_object;
 use libjs_rust::ast::ProgramType;
 use libjs_rust::compile::parse;
 
@@ -345,16 +363,149 @@ fn parse_arguments(arguments: &[String], output: &mut dyn Write) -> Result<Optio
     Ok(options)
 }
 
-/// print() in the C++ js: the value, then a newline.
-fn print_value_to(vm: &Vm, options: &Options, stream: &mut dyn Write, value: Value) -> io::Result<()> {
+/// s_strip_ansi and s_raw_strings of the C++ js, which the native functions of its global objects print with.
+static STRIP_ANSI: AtomicBool = AtomicBool::new(false);
+static RAW_STRINGS: AtomicBool = AtomicBool::new(false);
+
+/// The global object of the realm js runs scripts in.
+#[repr(C)]
+#[derive(Trace)]
+pub struct ScriptObject {
+    base: GlobalObject,
+}
+
+define_object_class!(ScriptObject, extends: [GlobalObject, Object], methods: {
+    initialize: ScriptObject::initialize,
+    ..ORDINARY_OBJECT_METHODS
+});
+
+impl ScriptObject {
+    pub fn allocate(vm: &Vm, realm: Gc<Realm>) -> Gc<ScriptObject> {
+        allocate_object(
+            vm,
+            ScriptObject {
+                base: GlobalObject::new(vm, Self::CLASS, realm),
+            },
+        )
+    }
+
+    fn initialize(object: &Object, vm: &Vm, realm: Gc<Realm>) {
+        let base_initialize = GlobalObject::CLASS
+            .object_methods
+            .expect("GlobalObject is an object class")
+            .initialize;
+        base_initialize(object, vm, realm);
+
+        object.define_direct_property(
+            vm,
+            &key("global"),
+            Value::from_object(object.as_gc()),
+            PropertyAttributes::new(Attribute::ENUMERABLE),
+        );
+        let attr = PropertyAttributes::new(Attribute::CONFIGURABLE | Attribute::WRITABLE | Attribute::ENUMERABLE);
+        let define = |name: &str, function, length| {
+            object.define_native_function(vm, realm, &key(name), function, length, attr, None);
+        };
+        define("loadINI", raw_native!(ScriptObject::load_ini), 1);
+        define("loadJSON", raw_native!(ScriptObject::load_json), 1);
+        define("print", raw_native!(ScriptObject::print), 1);
+        define("gc", raw_native!(ScriptObject::gc), 0);
+    }
+
+    fn load_ini(vm: &Vm) -> ThrowCompletionOr<Value> {
+        load_ini_impl(vm)
+    }
+
+    fn load_json(vm: &Vm) -> ThrowCompletionOr<Value> {
+        load_json_impl(vm)
+    }
+
+    fn print(vm: &Vm) -> ThrowCompletionOr<Value> {
+        if let Err(error) = print_all_arguments(vm, PrintTarget::StandardOutput, PrintEnd::Newline) {
+            return vm
+                .throw_completion_with_message(ErrorKind::InternalError, format!("Failed to print value(s): {error}"));
+        }
+
+        Ok(Value::UNDEFINED)
+    }
+
+    #[allow(clippy::unnecessary_wraps, reason = "native functions return a completion")]
+    fn gc(vm: &Vm) -> ThrowCompletionOr<Value> {
+        vm.heap().collect_garbage();
+        Ok(Value::UNDEFINED)
+    }
+}
+
+fn key(name: &str) -> PropertyKey {
+    PropertyKey::from(Utf16FlyString::from_utf8(name))
+}
+
+fn print_inline(vm: &Vm, value: Value, stream: &mut dyn Write) -> io::Result<()> {
     let mut print_context = PrintContext {
         vm,
         stream,
-        strip_ansi: options.strip_ansi,
-        raw_strings: options.raw_strings,
+        strip_ansi: STRIP_ANSI.load(Ordering::Relaxed),
+        raw_strings: RAW_STRINGS.load(Ordering::Relaxed),
     };
-    print(value, &mut print_context)?;
-    stream.write_all(b"\n")
+    print(value, &mut print_context)
+}
+
+#[derive(Clone, Copy)]
+enum PrintTarget {
+    StandardError,
+    StandardOutput,
+}
+
+/// The stream a print goes to: past stdio's buffer, which is flushed first.
+fn flushed_print_stream(target: PrintTarget) -> Box<dyn Write> {
+    match target {
+        PrintTarget::StandardOutput => {
+            standard_output::flush();
+            Box::new(UnbufferedStandardOutputWriter)
+        }
+        // NB: The standard error is unbuffered, so there is nothing to flush.
+        PrintTarget::StandardError => Box::new(io::stderr()),
+    }
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum PrintEnd {
+    Newline,
+    #[allow(
+        dead_code,
+        reason = "the warnings about rejected promises print without a newline, once the runtime has promises"
+    )]
+    None,
+}
+
+fn print_value(vm: &Vm, value: Value, target: PrintTarget, end: PrintEnd) -> io::Result<()> {
+    let mut stream = flushed_print_stream(target);
+
+    print_inline(vm, value, &mut stream)?;
+
+    if end == PrintEnd::Newline {
+        stream.write_all(b"\n")?;
+    }
+
+    Ok(())
+}
+
+fn print_all_arguments(vm: &Vm, target: PrintTarget, end: PrintEnd) -> io::Result<()> {
+    let mut stream = flushed_print_stream(target);
+
+    for i in 0..vm.argument_count() {
+        print_inline(vm, vm.argument(i), &mut stream)?;
+
+        if i < vm.argument_count() - 1 {
+            stream.write_all(b" ")?;
+        }
+    }
+
+    if end == PrintEnd::Newline {
+        stream.write_all(b"\n")?;
+    }
+
+    Ok(())
 }
 
 /// error->stack_string(JS::CompactTraceback::Yes) of a thrown Error, which the C++ js prints after the error.
@@ -366,26 +517,19 @@ fn stack_string_of_thrown_error(thrown_value: Value) -> Option<Utf16String> {
     Some(error.stack_string(CompactTraceback::Yes))
 }
 
-fn handle_exception(vm: &Vm, options: &Options, thrown_value: Value) -> io::Result<()> {
-    let mut stream = io::stderr().lock();
-    stream.write_all(b"Uncaught exception: \n")?;
-    print_value_to(vm, options, &mut stream, thrown_value)?;
+fn handle_exception(vm: &Vm, thrown_value: Value) -> io::Result<()> {
+    eprintln!("Uncaught exception: ");
+    print_value(vm, thrown_value, PrintTarget::StandardError, PrintEnd::Newline)?;
 
     if let Some(stack_string) = stack_string_of_thrown_error(thrown_value) {
-        stream.write_all(&Utf16View::of_string(&stack_string).to_wtf8())?;
-        stream.write_all(b"\n")?;
+        let mut line = Utf16View::of_string(&stack_string).to_wtf8();
+        line.push(b'\n');
+        io::stderr().write_all(&line)?;
     }
     Ok(())
 }
 
-fn parse_and_run(
-    vm: &Vm,
-    realm: Gc<Realm>,
-    options: &Options,
-    output: &mut dyn Write,
-    source: &[u8],
-    source_name: &str,
-) -> bool {
+fn parse_and_run(vm: &Vm, realm: Gc<Realm>, options: &Options, source: &[u8], source_name: &str) -> bool {
     let mut result: ThrowCompletionOr<Value> = Ok(Value::UNDEFINED);
     // Like Utf16String::from_utf8(), this stops the process for a source that is not valid UTF-8, which the caller
     // has ruled out.
@@ -401,18 +545,17 @@ fn parse_and_run(
         let error = ParserError::all_from_parsed_program(&parsed).swap_remove(0);
         let hint = error.source_location_hint(&utf16_source, b' ', b'^');
         if !hint.is_empty() {
-            let _ = output.write_all(&Utf16View::Utf16(&hint).to_wtf8());
-            let _ = output.write_all(b"\n");
+            standard_output::outln(&Utf16View::Utf16(&hint).to_wtf8());
         }
 
         let error_string = error.to_string();
-        let _ = writeln!(output, "{error_string}");
+        standard_output::outln(error_string.as_bytes());
         result = vm.throw_completion_with_message(ErrorKind::SyntaxError, error_string);
     } else {
         // NB: The C++ js dumps the AST in color unless -i is given, which the frontend only offers to standard output
         //     directly, so this dumps it without color.
         if options.dump_ast {
-            let _ = writeln!(output, "{}", parsed.ast_dump());
+            standard_output::outln(parsed.ast_dump().as_bytes());
         }
         if !options.as_module {
             let source_code = SourceCode::create(
@@ -430,22 +573,21 @@ fn parse_and_run(
 
     match result {
         Err(throw) => {
-            let _ = handle_exception(vm, options, throw.value());
+            let _ = handle_exception(vm, throw.value());
             false
         }
         Ok(value) => {
             if options.print_last_result {
-                let _ = output.flush();
-                let _ = print_value_to(vm, options, output, value);
-                let _ = output.flush();
+                let _ = print_value(vm, value, PrintTarget::StandardOutput, PrintEnd::Newline);
             }
             true
         }
     }
 }
 
-fn report_runtime_error(syscall: &str, error: &io::Error) {
-    let description = match error.raw_os_error() {
+/// How AK formats the Error of a failed system call: "<syscall>: <strerror> (errno=<code>)".
+fn system_error_string(syscall: &str, error: &io::Error) -> String {
+    match error.raw_os_error() {
         Some(code) => {
             let message = io::Error::from_raw_os_error(code).to_string();
             let message = message
@@ -455,8 +597,328 @@ fn report_runtime_error(syscall: &str, error: &io::Error) {
             format!("{syscall}: {message} (errno={code})")
         }
         None => error.to_string(),
+    }
+}
+
+/// Opens a file and reads it to its end, failing with what Core::File reports for the call that failed: the open, or
+/// a read.
+fn open_and_read_file(path: &str) -> Result<Vec<u8>, ReadFileError> {
+    let mut file =
+        std::fs::File::open(path).map_err(|error| ReadFileError::Open(system_error_string("open", &error)))?;
+    let mut contents = Vec::new();
+    file.read_to_end(&mut contents)
+        .map_err(|error| ReadFileError::Read(system_error_string("read", &error)))?;
+    Ok(contents)
+}
+
+enum ReadFileError {
+    Open(String),
+    Read(String),
+}
+
+fn load_ini_impl(vm: &Vm) -> ThrowCompletionOr<Value> {
+    let realm = vm.current_realm().expect("loadINI runs in a realm");
+
+    let filename = Utf16View::of_string(&vm.argument(0).to_utf16_string(vm)?).to_utf8();
+    let contents = match open_and_read_file(&filename) {
+        Ok(contents) => contents,
+        Err(ReadFileError::Open(error)) => {
+            return vm.throw_completion_with_message(ErrorKind::Error, format!("Failed to open '{filename}': {error}"));
+        }
+        Err(ReadFileError::Read(error)) => {
+            return vm.throw_completion_with_message(ErrorKind::Error, format!("Failed to read '{filename}': {error}"));
+        }
     };
-    eprintln!("\x1b[31;1mRuntime error\x1b[0m: {description}");
+
+    let config_file = ConfigFile::parse(&contents);
+    let object = Object::create(vm, realm, Some(realm.object_prototype()));
+    let attributes = PropertyAttributes::new(Attribute::ENUMERABLE | Attribute::CONFIGURABLE | Attribute::WRITABLE);
+    let utf16_from_utf8 = |bytes: &[u8]| {
+        Utf16String::from_utf8(core::str::from_utf8(bytes).expect("Utf16String::from_utf8() takes valid UTF-8"))
+    };
+    for group in config_file.groups() {
+        let group_object = Object::create(vm, realm, Some(realm.object_prototype()));
+        for (entry_key, entry) in config_file.entries(group) {
+            group_object.define_direct_property(
+                vm,
+                &PropertyKey::from_utf16_string(&utf16_from_utf8(entry_key)),
+                Value::from_string(PrimitiveString::create(vm, utf16_from_utf8(entry))),
+                attributes,
+            );
+        }
+        object.define_direct_property(
+            vm,
+            &PropertyKey::from_utf16_string(&utf16_from_utf8(group)),
+            Value::from_object(group_object),
+            attributes,
+        );
+    }
+    Ok(Value::from_object(object))
+}
+
+/// The keys and values of a group of an INI file.
+type ConfigFileEntries = Vec<(Vec<u8>, Vec<u8>)>;
+
+/// What Core::ConfigFile reads from an INI file: the groups and their entries, which it keeps in AK HashMaps that
+/// are walked in the order of their buckets.
+struct ConfigFile {
+    groups: Vec<(Vec<u8>, ConfigFileEntries)>,
+}
+
+/// The values of a HashMap keyed by ByteStrings, in the order the C++ map visits them.
+fn in_hash_map_order<T>(entries: &[(Vec<u8>, T)]) -> Vec<&(Vec<u8>, T)> {
+    let mut table = HashTable::default();
+    for (key, _) in entries {
+        table.set(key.clone());
+    }
+    table
+        .iter()
+        .map(|key| {
+            entries
+                .iter()
+                .find(|(entry_key, _)| entry_key == key)
+                .expect("every key has an entry")
+        })
+        .collect()
+}
+
+impl ConfigFile {
+    /// ConfigFile::parse(), which reads the lines of the file as InputBufferedFile::read_line() splits them.
+    fn parse(contents: &[u8]) -> Self {
+        let mut groups: Vec<(Vec<u8>, ConfigFileEntries)> = Vec::new();
+        let mut current_group: Option<usize> = None;
+        let ensure_group = |groups: &mut Vec<(Vec<u8>, ConfigFileEntries)>, name: Vec<u8>| {
+            if let Some(index) = groups.iter().position(|(group_name, _)| *group_name == name) {
+                return index;
+            }
+            groups.push((name, Vec::new()));
+            groups.len() - 1
+        };
+
+        let mut lines: Vec<&[u8]> = contents.split(|&byte| byte == b'\n').collect();
+        if contents.ends_with(b"\n") || contents.is_empty() {
+            lines.pop();
+        }
+        for line in lines {
+            let mut i = 0;
+
+            while i < line.len() && (line[i] == b' ' || line[i] == b'\t' || line[i] == b'\n') {
+                i += 1;
+            }
+
+            if i >= line.len() {
+                continue;
+            }
+
+            match line[i] {
+                // Comment, skip entire line.
+                b'#' | b';' => {}
+                // Start of new group.
+                b'[' => {
+                    let mut builder = Vec::new();
+                    i += 1; // Skip the '['
+                    while i < line.len() && line[i] != b']' {
+                        builder.push(line[i]);
+                        i += 1;
+                    }
+                    current_group = Some(ensure_group(&mut groups, builder));
+                }
+                // Start of key
+                _ => {
+                    let mut key_builder = Vec::new();
+                    let mut value_builder = Vec::new();
+                    while i < line.len() && line[i] != b'=' {
+                        key_builder.push(line[i]);
+                        i += 1;
+                    }
+                    i += 1; // Skip the '='
+                    while i < line.len() && line[i] != b'\n' {
+                        value_builder.push(line[i]);
+                        i += 1;
+                    }
+                    // We're not in a group yet, create one with the name ""...
+                    let group = *current_group.get_or_insert_with(|| ensure_group(&mut groups, Vec::new()));
+                    while value_builder
+                        .last()
+                        .is_some_and(|byte| b" \n\t\x0b\x0c\r".contains(byte))
+                    {
+                        value_builder.pop();
+                    }
+                    let entries = &mut groups[group].1;
+                    match entries.iter_mut().find(|(entry_key, _)| *entry_key == key_builder) {
+                        Some(entry) => entry.1 = value_builder,
+                        None => entries.push((key_builder, value_builder)),
+                    }
+                }
+            }
+        }
+        Self { groups }
+    }
+
+    fn groups(&self) -> Vec<&[u8]> {
+        in_hash_map_order(&self.groups)
+            .into_iter()
+            .map(|(name, _)| name.as_slice())
+            .collect()
+    }
+
+    fn entries(&self, group: &[u8]) -> Vec<(&[u8], &[u8])> {
+        let (_, entries) = self
+            .groups
+            .iter()
+            .find(|(name, _)| name == group)
+            .expect("the group exists");
+        in_hash_map_order(entries)
+            .into_iter()
+            .map(|(entry_key, entry)| (entry_key.as_slice(), entry.as_slice()))
+            .collect()
+    }
+}
+
+fn load_json_impl(vm: &Vm) -> ThrowCompletionOr<Value> {
+    let filename = Utf16View::of_string(&vm.argument(0).to_utf16_string(vm)?).to_utf8();
+    let file_contents = match open_and_read_file(&filename) {
+        Ok(contents) => contents,
+        Err(ReadFileError::Open(error)) => {
+            return vm.throw_completion_with_message(ErrorKind::Error, format!("Failed to open '{filename}': {error}"));
+        }
+        Err(ReadFileError::Read(error)) => {
+            return vm.throw_completion_with_message(ErrorKind::Error, format!("Failed to read '{filename}': {error}"));
+        }
+    };
+
+    let Ok(json_text) = core::str::from_utf8(&file_contents) else {
+        return vm.throw_completion(ErrorKind::SyntaxError, ErrorType::JsonMalformed, &[]);
+    };
+    let json_text = Utf16String::from_utf8(json_text);
+
+    JSONObject::parse_json(vm, Utf16View::of_string(&json_text), None)
+}
+
+/// ReplConsoleClient of the C++ js: prints what the console logs to the standard output.
+#[repr(C)]
+#[derive(Trace)]
+pub struct ReplConsoleClient {
+    base: ConsoleClient,
+    group_stack_depth: Cell<i32>,
+}
+
+define_cell!(ReplConsoleClient, Other, extends: [ConsoleClient]);
+
+static REPL_CONSOLE_CLIENT_METHODS: ConsoleClientMethods = ConsoleClientMethods {
+    printer: ReplConsoleClient::printer,
+    add_css_style_to_current_message: |_, _| {},
+    report_exception: |_, _, _, _, _| {},
+    clear: ReplConsoleClient::clear,
+    end_group: ReplConsoleClient::end_group,
+};
+
+impl ReplConsoleClient {
+    pub fn create(vm: &Vm, console: Gc<Console>) -> Gc<ReplConsoleClient> {
+        vm.heap().allocate(ReplConsoleClient {
+            base: ConsoleClient::new(Self::CLASS, &REPL_CONSOLE_CLIENT_METHODS, console),
+            group_stack_depth: Cell::new(0),
+        })
+    }
+
+    fn of(client: &ConsoleClient) -> &ReplConsoleClient {
+        // SAFETY: Only ReplConsoleClient has these methods.
+        unsafe { &*core::ptr::from_ref(client).cast::<ReplConsoleClient>() }
+    }
+
+    fn clear(client: &ConsoleClient) {
+        let this = Self::of(client);
+        standard_output::out(b"\x1b[3J\x1b[H\x1b[2J");
+        this.group_stack_depth.set(0);
+        standard_output::flush();
+    }
+
+    fn end_group(client: &ConsoleClient) {
+        let this = Self::of(client);
+        if this.group_stack_depth.get() > 0 {
+            this.group_stack_depth.set(this.group_stack_depth.get() - 1);
+        }
+    }
+
+    // 2.3. Printer(logLevel, args[, options]), https://console.spec.whatwg.org/#printer
+    fn printer<'vm>(
+        client: &ConsoleClient,
+        vm: &'vm Vm,
+        log_level: LogLevel,
+        arguments: PrinterArguments<'vm>,
+    ) -> ThrowCompletionOr<Value> {
+        let this = Self::of(client);
+        let indent = " ".repeat(usize::try_from(this.group_stack_depth.get() * 2).unwrap_or(0));
+
+        if log_level == LogLevel::Trace {
+            let PrinterArguments::Trace(trace) = arguments else {
+                unreachable!("trace() prints a trace");
+            };
+            let mut builder = String::new();
+            if !Utf16View::of_string(&trace.label).is_empty() {
+                builder.push_str(&format!(
+                    "{indent}\x1b[36;1m{}\x1b[0m\n",
+                    Utf16View::of_string(&trace.label).to_utf8()
+                ));
+            }
+
+            for frame in &trace.stack {
+                builder.push_str(&format!(
+                    "{indent}-> {}\n",
+                    Utf16View::of_string(&frame.function_name).to_utf8()
+                ));
+            }
+
+            standard_output::outln(builder.as_bytes());
+            return Ok(Value::UNDEFINED);
+        }
+
+        if log_level == LogLevel::Group || log_level == LogLevel::GroupCollapsed {
+            let PrinterArguments::Group(group) = arguments else {
+                unreachable!("group() and groupCollapsed() print a group");
+            };
+            let mut line = format!("{indent}\x1b[36;1m").into_bytes();
+            line.extend(Utf16View::of_string(&group.label).to_wtf8());
+            line.extend_from_slice(b"\x1b[0m");
+            standard_output::outln(&line);
+            this.group_stack_depth.set(this.group_stack_depth.get() + 1);
+            return Ok(Value::UNDEFINED);
+        }
+
+        let PrinterArguments::Values(values) = arguments else {
+            unreachable!("the other log levels print values");
+        };
+        let output = Utf16View::of_string(&client.generically_format_values(vm, &values)?).to_wtf8();
+
+        let (prefix, suffix): (&[u8], &[u8]) = match log_level {
+            LogLevel::Debug => (b"\x1b[36;1m", b"\x1b[0m"),
+            LogLevel::Error | LogLevel::Assert => (b"\x1b[31;1m", b"\x1b[0m"),
+            LogLevel::Info => (b"(i) ", b""),
+            LogLevel::Warn | LogLevel::CountReset => (b"\x1b[33;1m", b"\x1b[0m"),
+            _ => (b"", b""),
+        };
+        let mut line = indent.into_bytes();
+        line.extend_from_slice(prefix);
+        line.extend(output);
+        line.extend_from_slice(suffix);
+        standard_output::outln(&line);
+        Ok(Value::UNDEFINED)
+    }
+}
+
+impl Deref for ReplConsoleClient {
+    type Target = ConsoleClient;
+
+    fn deref(&self) -> &ConsoleClient {
+        &self.base
+    }
+}
+
+fn report_runtime_error(syscall: &str, error: &io::Error) {
+    eprintln!(
+        "\x1b[31;1mRuntime error\x1b[0m: {}",
+        system_error_string(syscall, error)
+    );
 }
 
 /// What windows-1252 decodes the bytes 0x80 to 0x9F to; every other byte is its own code point.
@@ -509,11 +971,13 @@ fn read_file(path: &str) -> Result<Vec<u8>, ()> {
     Ok(file_contents)
 }
 
-fn ladybird_main(arguments: &[String], output: &mut dyn Write) -> c_int {
-    let options = match parse_arguments(arguments, output) {
+fn ladybird_main(arguments: &[String]) -> c_int {
+    let options = match parse_arguments(arguments, &mut StandardOutputWriter) {
         Ok(options) => options,
         Err(exit_code) => return exit_code,
     };
+    STRIP_ANSI.store(options.strip_ansi, Ordering::Relaxed);
+    RAW_STRINGS.store(options.raw_strings, Ordering::Relaxed);
 
     // NB: The -h, -s and --disable-debug-output options change nothing yet: the C++ js does not read the first, the
     //     second is for the REPL, and the runtime prints no debug output.
@@ -533,14 +997,16 @@ fn ladybird_main(arguments: &[String], output: &mut dyn Write) -> c_int {
         unimplemented_runtime_function("the REPL, which js runs when it is given no script", 0);
     }
 
-    if options.use_test262_global {
-        unimplemented_runtime_function("the test262 global object, for --use-test262-global", 0);
-    }
-    // FIXME: Run scripts in a realm whose global object is a ScriptObject, with the global, loadINI, loadJSON, print and
-    //        gc properties, once realms have intrinsics.
-    let root_execution_context = initialize_realm(&vm);
+    let root_execution_context = if options.use_test262_global {
+        initialize_realm_with_global_object(&vm, &|realm| Test262GlobalObject::allocate(&vm, realm).upcast())
+    } else {
+        initialize_realm_with_global_object(&vm, &|realm| ScriptObject::allocate(&vm, realm).upcast())
+    };
+
     let realm = root_execution_context.realm();
-    // FIXME: Give the realm's console object a client that prints like ReplConsoleClient, once realms have one.
+    let console_object = realm.intrinsics().console_object(&vm);
+    let console_client = ReplConsoleClient::create(&vm, console_object.console());
+    console_object.console().set_client(console_client.upcast());
     vm.heap()
         .set_should_collect_on_every_allocation(options.gc_on_every_allocation);
 
@@ -574,7 +1040,7 @@ fn ladybird_main(arguments: &[String], output: &mut dyn Write) -> c_int {
 
     // We resolve modules as if it is the first file
 
-    if !parse_and_run(&vm, realm, &options, output, &builder, source_name) {
+    if !parse_and_run(&vm, realm, &options, &builder, source_name) {
         return 1;
     }
 
@@ -596,15 +1062,8 @@ pub unsafe extern "C" fn libjs_runtime_rust_js_main(argc: c_int, argv: *const *c
                 .into_owned()
         })
         .collect();
-    // Like C stdio, buffer whole blocks when stdout is not a terminal, so that output written before a crash or a
-    // dump to stderr keeps the order the C++ js produces.
-    let stdout = io::stdout();
-    if stdout.is_terminal() {
-        ladybird_main(&arguments, &mut stdout.lock())
-    } else {
-        let mut output = io::BufWriter::with_capacity(64 * 1024, stdout.lock());
-        let result = ladybird_main(&arguments, &mut output);
-        let _ = output.flush();
-        result
-    }
+    let result = ladybird_main(&arguments);
+    // Like exit(), which flushes C stdio.
+    standard_output::flush();
+    result
 }

@@ -11,11 +11,13 @@ use std::collections::{HashMap, HashSet};
 
 use ak::{ScopeGuard, Utf16FlyString, Utf16String};
 
-use crate::bytecode::executable::StaticPropertyLookupCacheSite;
+use crate::bytecode::executable::{Executable, StaticPropertyLookupCacheSite};
 use crate::gc::class::{Extends, GcCell};
 use crate::gc::class_id::ClassId;
 use crate::gc::gc_ref_cell::GcRefCell;
 use crate::gc::root::MarkedVec;
+use crate::hash_table::Utf16FlyStringHashTable;
+use crate::interpreter::run::should_dump_bytecode;
 use crate::interpreter::runtime_functions::unimplemented_runtime_function;
 use crate::interpreter::vm::{CompilationType, EvalMode, Vm};
 use crate::layout::cell::Gc;
@@ -26,30 +28,36 @@ use crate::runtime::accessor::Accessor;
 use crate::runtime::arguments_object::ArgumentsObject;
 use crate::runtime::bound_function::BoundFunction;
 use crate::runtime::canonical_index::{CanonicalIndex, CanonicalIndexType};
-use crate::runtime::completion::{Must, ThrowCompletionOr};
+use crate::runtime::completion::{Must, Throw, ThrowCompletionOr};
 use crate::runtime::declarative_environment::DeclarativeEnvironment;
 use crate::runtime::ecmascript_function_object::as_ecmascript_function_object;
 use crate::runtime::environment::{Environment, InitializeBindingHint, ThisBindingStatus};
 use crate::runtime::error::ErrorKind;
 use crate::runtime::error_types::ErrorType;
 use crate::runtime::function_environment::FunctionEnvironment;
+use crate::runtime::global_environment::GlobalEnvironment;
 use crate::runtime::indexed_properties::ValueAndAttributes;
 use crate::runtime::intrinsics::Intrinsics;
 use crate::runtime::iterator::{IteratorHint, get_iterator, iterator_step_value, try_or_close_iterator};
 use crate::runtime::object::{MayInterfereWithIndexedPropertyAccess, Object, StackFrameInfo};
-use crate::runtime::object_environment::{IsWithEnvironment, ObjectEnvironment};
+use crate::runtime::object_environment::{IsWithEnvironment, ObjectEnvironment, name_for_message};
 use crate::runtime::private_environment::PrivateEnvironment;
 use crate::runtime::property_attributes::{DEFAULT_ATTRIBUTES, PropertyAttributes};
 use crate::runtime::property_descriptor::PropertyDescriptor;
 use crate::runtime::property_key::PropertyKey;
 use crate::runtime::realm::Realm;
-use crate::runtime::shared_function_instance_data::{ClassFieldInitializerName, ConstructorKind, ThisMode};
+use crate::runtime::shared_function_instance_data::{
+    ClassFieldInitializerName, ConstructorKind, SharedFunctionInstanceData, ThisMode,
+};
 use crate::runtime::string_conversions::parse_number_f64;
 use crate::runtime::string_prototype::string_index_of;
 use crate::runtime::value::{number_to_utf16_string, same_value};
 use crate::runtime::value_conversions::MAX_ARRAY_LIKE_INDEX;
+use crate::script::LexicalBinding;
+use crate::source_code::SourceCode;
 use crate::utf16::{Utf16StringBuilder, Utf16View};
 use libjs_runtime_macros::Trace;
+use libjs_rust::compile::{CompiledEval, EvalContext, parse_eval};
 
 /// The Object a function object starts with.
 pub fn function_object_as_object(function: Gc<FunctionObject>) -> Gc<Object> {
@@ -1023,15 +1031,622 @@ pub fn perform_eval(vm: &Vm, x: Value, strict_caller: CallerMode, direct: EvalMo
     //     f. If inMethod is false, and body Contains SuperProperty, throw a SyntaxError exception.
     //     g. If inDerivedConstructor is false, and body Contains SuperCall, throw a SyntaxError exception.
     //     h. If inClassFieldInitializer is true, and ContainsArguments of body is true, throw a SyntaxError exception.
-    unimplemented_runtime_function(
-        &format!(
-            "compiling the code of an eval (RustIntegration::compile_eval in PerformEval, strict caller: {}, in \
-             function: {in_function}, in method: {in_method}, in derived constructor: {in_derived_constructor}, in \
-             class field initializer: {in_class_field_initializer})",
-            strict_caller == CallerMode::Strict
-        ),
-        0,
-    )
+    let eval_result = match compile_eval(
+        vm,
+        code,
+        strict_caller,
+        in_function,
+        in_method,
+        in_derived_constructor,
+        in_class_field_initializer,
+    ) {
+        Ok(eval_result) => eval_result,
+        Err(error_message) => return vm.throw_completion_with_message(ErrorKind::SyntaxError, error_message),
+    };
+    let executable = eval_result.executable;
+    let strict_eval = eval_result.is_strict_mode;
+    let eval_declaration_data = eval_result.declaration_data;
+
+    // 16. Let runningContext be the running execution context.
+    // 17. NOTE: If direct is true, runningContext will be the execution context that performed the direct eval. If direct is false, runningContext will be the execution context for the invocation of the eval function.
+    let running_context_pointer = vm
+        .running_execution_context()
+        .expect("eval runs in an execution context");
+    // SAFETY: The running execution context stays live until eval returns to it.
+    let running_context = unsafe { running_context_pointer.as_ref() };
+
+    let lexical_environment: Gc<Environment>;
+    let mut variable_environment: Gc<Environment>;
+    let private_environment: Option<Gc<PrivateEnvironment>>;
+
+    // 18. If direct is true, then
+    if direct == EvalMode::Direct {
+        // a. Let lexEnv be NewDeclarativeEnvironment(runningContext's LexicalEnvironment).
+        lexical_environment = new_declarative_environment(
+            vm,
+            running_context
+                .lexical_environment
+                .get()
+                .expect("the running execution context has a LexicalEnvironment"),
+        )
+        .upcast();
+
+        // b. Let varEnv be runningContext's VariableEnvironment.
+        variable_environment = running_context
+            .variable_environment
+            .get()
+            .expect("the running execution context has a VariableEnvironment");
+
+        // c. Let privateEnv be runningContext's PrivateEnvironment.
+        private_environment = running_context.private_environment.get();
+    }
+    // 19. Else,
+    else {
+        // a. Let lexEnv be NewDeclarativeEnvironment(evalRealm.[[GlobalEnv]]).
+        lexical_environment = new_declarative_environment(vm, eval_realm.global_environment().upcast()).upcast();
+
+        // b. Let varEnv be evalRealm.[[GlobalEnv]].
+        variable_environment = eval_realm.global_environment().upcast();
+
+        // c. Let privateEnv be null.
+        private_environment = None;
+    }
+
+    // 20. If strictEval is true, set varEnv to lexEnv.
+    if strict_eval {
+        variable_environment = lexical_environment;
+    }
+
+    if direct == EvalMode::Direct && !strict_eval {
+        // NOTE: Non-strict direct eval() forces us to deoptimize variable accesses.
+        //       Mark the variable environment chain as screwed since we will not be able
+        //       to rely on cached environment coordinates from this point on.
+        variable_environment.set_permanently_screwed_by_eval();
+    }
+
+    // 21. If runningContext is not already suspended, suspend runningContext.
+    // NOTE: Done by the push on step 29.
+
+    // NOTE: Spec steps are rearranged in order to compute number of registers+constants+locals before construction of the execution context.
+
+    // 30. Let result be Completion(EvalDeclarationInstantiation(body, varEnv, lexEnv, privateEnv, strictEval)).
+    eval_declaration_instantiation(
+        vm,
+        &eval_declaration_data,
+        variable_environment,
+        lexical_environment,
+        private_environment,
+        strict_eval,
+    )?;
+
+    if should_dump_bytecode() {
+        executable.dump();
+    }
+
+    // 22. Let evalContext be a new ECMAScript code execution context.
+    let stack = vm.interpreter_stack();
+    let stack_mark = stack.top.get();
+    let constant_count = u32::try_from(executable.constants().len()).expect("the constant count fits in u32");
+    let Some(eval_context_pointer) = stack.allocate(executable.registers_and_locals_count(), constant_count, 0) else {
+        return vm.throw_completion(ErrorKind::InternalError, ErrorType::CallStackSizeExceeded, &[]);
+    };
+    // SAFETY: The context was just allocated, and stays allocated until the pop guard below frees it.
+    let eval_context = unsafe { eval_context_pointer.as_ref() };
+
+    // 23. Set evalContext's Function to null.
+    // NOTE: This was done in the construction of eval_context.
+
+    // 24. Set evalContext's Realm to evalRealm.
+    eval_context.realm.set(Some(eval_realm));
+
+    // 25. Set evalContext's ScriptOrModule to runningContext's ScriptOrModule.
+    eval_context
+        .script_or_module
+        .set(running_context.script_or_module.get());
+
+    // 26. Set evalContext's VariableEnvironment to varEnv.
+    eval_context.variable_environment.set(Some(variable_environment));
+
+    // 27. Set evalContext's LexicalEnvironment to lexEnv.
+    eval_context.lexical_environment.set(Some(lexical_environment));
+
+    // 28. Set evalContext's PrivateEnvironment to privateEnv.
+    eval_context.private_environment.set(private_environment);
+
+    // 29. Push evalContext onto the execution context stack; evalContext is now the running execution context.
+    // NB: Like C++, a push that fails leaves the context allocated, until the frame that called eval frees the
+    //     interpreter stack above its own mark.
+    vm.push_execution_context_checking_stack_space(eval_context_pointer)?;
+
+    // NOTE: We use a ScopeGuard to automatically pop the execution context when any of the `TRY`s below return a throw completion.
+    let _pop_guard = ScopeGuard::new(|| {
+        // 33. Suspend evalContext and remove it from the execution context stack.
+        // 34. Resume the context that is now on the top of the execution context stack as the running execution context.
+        vm.pop_execution_context();
+        stack.deallocate(stack_mark);
+    });
+
+    let result = vm
+        .run_executable(eval_context_pointer, executable, 0)
+        .map_err(Throw::new)?;
+
+    // 32. If result.[[Type]] is normal and result.[[Value]] is empty, then
+    //     a. Set result to NormalCompletion(undefined).
+    // NOTE: Step 33 and 34 is handled by `pop_guard` above.
+    // 35. Return ? result.
+    // NOTE: Step 35 is also performed with each use of `TRY` above.
+    // NB: C++ only replaces a result that is missing, which it never is, so an empty result is returned as it is.
+    Ok(result)
+}
+
+/// EvalDeclarationData::FunctionToInitialize, without its shared data, which the declaration data keeps rooted on its
+/// own.
+pub struct EvalFunctionToInitialize {
+    pub name: Utf16FlyString,
+}
+
+/// What EvalDeclarationInstantiation needs from the body of an eval, which the frontend extracts as it compiles it.
+pub struct EvalDeclarationData<'vm> {
+    pub var_names: Vec<Utf16FlyString>,
+
+    pub functions_to_initialize: Vec<EvalFunctionToInitialize>,
+    /// The shared data of each function to initialize, in the same order.
+    pub functions_to_initialize_shared_data: MarkedVec<'vm, Gc<SharedFunctionInstanceData>>,
+    pub declared_function_names: HashSet<Utf16FlyString>,
+
+    pub var_scoped_names: Vec<Utf16FlyString>,
+
+    pub annex_b_candidate_names: Vec<Utf16FlyString>,
+
+    pub lexical_bindings: Vec<LexicalBinding>,
+
+    pub referenced_private_names: Vec<Utf16FlyString>,
+}
+
+/// RustIntegration::EvalResult.
+struct EvalResult<'vm> {
+    executable: Gc<Executable>,
+    is_strict_mode: bool,
+    declaration_data: EvalDeclarationData<'vm>,
+}
+
+fn fly_string_of(name: &libjs_rust::ast::Utf16String) -> Utf16FlyString {
+    Utf16FlyString::from_utf16(&name.0)
+}
+
+fn fly_strings_of(names: &[libjs_rust::ast::Utf16String]) -> Vec<Utf16FlyString> {
+    names.iter().map(fly_string_of).collect()
+}
+
+/// RustIntegration::compile_eval(): parses and compiles the code of an eval, or returns the message of its first
+/// parse error.
+#[allow(
+    clippy::fn_params_excessive_bools,
+    reason = "the flags are the ones PerformEval works out"
+)]
+fn compile_eval(
+    vm: &Vm,
+    code: Utf16String,
+    strict_caller: CallerMode,
+    in_function: bool,
+    in_method: bool,
+    in_derived_constructor: bool,
+    in_class_field_initializer: bool,
+) -> Result<EvalResult<'_>, String> {
+    let source_code = SourceCode::create(Utf16String::default(), code);
+    let mut code_units = Vec::with_capacity(source_code.length_in_code_units());
+    Utf16View::of_string(source_code.code()).append_to(&mut code_units);
+    let length = code_units.len();
+
+    let context = EvalContext {
+        starts_in_strict_mode: strict_caller == CallerMode::Strict,
+        in_eval_function_context: in_function,
+        allow_super_property_lookup: in_method,
+        allow_super_constructor_call: in_derived_constructor,
+        in_class_field_initializer,
+    };
+    let parsed = parse_eval(&code_units, context).map_err(|errors| {
+        errors
+            .first()
+            .map(|error| format!("{} (line: {}, column: {})", error.message, error.line, error.column))
+            .unwrap_or_default()
+    })?;
+
+    let CompiledEval {
+        executable,
+        declarations,
+    } = libjs_rust::compile::compile_eval(parsed, length);
+    let executable = Executable::create_with_source_code(vm, executable, Some(&source_code));
+    executable.set_name(Utf16FlyString::from_utf8("eval"));
+
+    let functions_to_initialize_shared_data = MarkedVec::with_capacity(vm, declarations.functions_to_initialize.len());
+    let mut functions_to_initialize = Vec::with_capacity(declarations.functions_to_initialize.len());
+    let mut declared_function_names = HashSet::new();
+    for mut function in declarations.functions_to_initialize {
+        functions_to_initialize_shared_data.push(SharedFunctionInstanceData::create_from_pending_shared_function_data(
+            vm,
+            &mut function.shared_function_data,
+            declarations.is_strict,
+            Some(&source_code),
+        ));
+        let name = fly_string_of(&function.name);
+        declared_function_names.insert(name.clone());
+        functions_to_initialize.push(EvalFunctionToInitialize { name });
+    }
+
+    let declaration_data = EvalDeclarationData {
+        var_names: fly_strings_of(&declarations.var_names),
+        functions_to_initialize,
+        functions_to_initialize_shared_data,
+        declared_function_names,
+        var_scoped_names: fly_strings_of(&declarations.var_scoped_names),
+        annex_b_candidate_names: fly_strings_of(&declarations.annex_b_candidate_names),
+        lexical_bindings: declarations
+            .lexical_bindings
+            .iter()
+            .map(|binding| LexicalBinding {
+                name: fly_string_of(&binding.name),
+                is_constant: binding.is_constant,
+            })
+            .collect(),
+        referenced_private_names: fly_strings_of(&declarations.private_names),
+    };
+
+    Ok(EvalResult {
+        executable,
+        // If the caller is strict, the eval is always strict regardless of what Rust reported.
+        is_strict_mode: declarations.is_strict || strict_caller == CallerMode::Strict,
+        declaration_data,
+    })
+}
+
+// 19.2.1.3 EvalDeclarationInstantiation ( body, varEnv, lexEnv, privateEnv, strict ), https://tc39.es/ecma262/#sec-evaldeclarationinstantiation
+// 9.1.1.1 EvalDeclarationInstantiation ( body, varEnv, lexEnv, privateEnv, strict ), https://tc39.es/proposal-explicit-resource-management/#sec-evaldeclarationinstantiation
+pub fn eval_declaration_instantiation(
+    vm: &Vm,
+    data: &EvalDeclarationData<'_>,
+    variable_environment: Gc<Environment>,
+    lexical_environment: Gc<Environment>,
+    private_environment: Option<Gc<PrivateEnvironment>>,
+    strict: bool,
+) -> ThrowCompletionOr<()> {
+    let realm = vm.current_realm().expect("eval runs in a realm");
+    let global_var_environment = variable_environment.downcast::<GlobalEnvironment>();
+
+    // 1. Let varNames be the VarDeclaredNames of body.
+    // 2. Let varDeclarations be the VarScopedDeclarations of body.
+    // 3. If strict is false, then
+    if !strict {
+        // a. If varEnv is a global Environment Record, then
+        if let Some(global_var_environment) = global_var_environment {
+            // i. For each element name of varNames, do
+            for name in &data.var_names {
+                // 1. If varEnv.HasLexicalDeclaration(name) is true, throw a SyntaxError exception.
+                if global_var_environment.has_lexical_declaration(name) {
+                    return vm.throw_completion(
+                        ErrorKind::SyntaxError,
+                        ErrorType::TopLevelVariableAlreadyDeclared,
+                        &[&name_for_message(name)],
+                    );
+                }
+
+                // 2. NOTE: eval will not create a global var declaration that would be shadowed by a global lexical declaration.
+            }
+        }
+
+        // b. Let thisEnv be lexEnv.
+        let mut this_environment = lexical_environment;
+        // c. Assert: The following loop will terminate.
+
+        // d. Repeat, while thisEnv is not the same as varEnv,
+        while this_environment != variable_environment {
+            // i. If thisEnv is not an object Environment Record, then
+            if !this_environment.is_object_environment() {
+                // 1. NOTE: The environment of with statements cannot contain any lexical declaration so it doesn't need to be checked for var/let hoisting conflicts.
+                // 2. For each element name of varNames, do
+                for name in &data.var_names {
+                    // a. If ! thisEnv.HasBinding(name) is true, then
+                    if this_environment.has_binding(vm, name, None).must() {
+                        // B.3.4 Changes to EvalDeclarationInstantiation, https://tc39.es/ecma262/#sec-evaldeclarationinstantiation
+                        // i. Normative Optional
+                        //     If the host is a web browser or otherwise supports VariableStatements in Catch Blocks, then
+                        //         i. If thisEnv is not the Environment Record for a Catch clause, throw a SyntaxError exception.
+                        // ii. Else,
+                        //     i. Throw a SyntaxError exception.
+                        // AD-HOC: We are a web browser, so we only implement the web browser branch.
+                        if !this_environment.is_catch_environment() {
+                            return vm.throw_completion(
+                                ErrorKind::SyntaxError,
+                                ErrorType::EvalVarHoistingConflict,
+                                &[&name_for_message(name)],
+                            );
+                        }
+                    }
+                    // b. NOTE: A direct eval will not hoist var declaration over a like-named lexical declaration.
+                }
+            }
+
+            // ii. Set thisEnv to thisEnv.[[OuterEnv]].
+            this_environment = this_environment
+                .outer_environment()
+                .expect("the variable environment encloses the lexical environment");
+        }
+    }
+
+    // 4. Let privateIdentifiers be a new empty List.
+    // 5. Let pointer be privateEnv.
+    // 6. Repeat, while pointer is not null,
+    //     a. For each Private Name binding of pointer.[[Names]], do
+    //         i. If privateIdentifiers does not contain binding.[[Description]], append binding.[[Description]] to privateIdentifiers.
+    //     b. Set pointer to pointer.[[OuterPrivateEnvironment]].
+    // 7. If AllPrivateIdentifiersValid of body with argument privateIdentifiers is false, throw a SyntaxError exception.
+    for name in &data.referenced_private_names {
+        if !private_environment.is_some_and(|private_environment| private_environment.contains_private_identifier(name))
+        {
+            return vm.throw_completion(
+                ErrorKind::SyntaxError,
+                ErrorType::PrivateFieldNotDeclared,
+                &[&name_for_message(name)],
+            );
+        }
+    }
+
+    // 8. Let functionsToInitialize be a new empty List.
+    // 9. Let declaredFunctionNames be a new empty List.
+    // 10. For each element d of varDeclarations, in reverse List order, do
+    for function in &data.functions_to_initialize {
+        // 1. If varEnv is a global Environment Record, then
+        if let Some(global_var_environment) = global_var_environment {
+            // a. Let fnDefinable be ? varEnv.CanDeclareGlobalFunction(fn).
+            let function_definable = global_var_environment.can_declare_global_function(vm, &function.name)?;
+
+            // b. If fnDefinable is false, throw a TypeError exception.
+            if !function_definable {
+                return vm.throw_completion(
+                    ErrorKind::TypeError,
+                    ErrorType::CannotDeclareGlobalFunction,
+                    &[&name_for_message(&function.name)],
+                );
+            }
+        }
+    }
+
+    // 11. NOTE: Annex B.3.2.3 adds additional steps at this point.
+    // B.3.2.3 Changes to EvalDeclarationInstantiation, https://tc39.es/ecma262/#sec-web-compat-evaldeclarationinstantiation
+    // 11. If strict is false, then
+    if !strict {
+        // a. Let declaredFunctionOrVarNames be the list-concatenation of declaredFunctionNames and declaredVarNames.
+        // The spec here uses 'declaredVarNames' but that has not been declared yet.
+        let mut hoisted_functions = HashSet::new();
+
+        // b. For each FunctionDeclaration f that is directly contained in the StatementList of a Block, CaseClause, or DefaultClause Contained within body, do
+        for function_name in &data.annex_b_candidate_names {
+            // i. Let F be StringValue of the BindingIdentifier of f.
+
+            // ii. If replacing the FunctionDeclaration f with a VariableStatement that has F as a BindingIdentifier would not produce any Early Errors for body, then
+            // Note: This is checked during parsing and for_each_function_hoistable_with_annexB_extension so it always passes here.
+
+            // 1. Let bindingExists be false.
+            // 2. Let thisEnv be lexEnv.
+            let mut this_environment = lexical_environment;
+
+            // 3. Assert: The following loop will terminate.
+
+            // 4. Repeat, while thisEnv is not the same as varEnv,
+            let mut binding_exists = false;
+            while this_environment != variable_environment {
+                // a. If thisEnv is not an object Environment Record, then
+                //     i. If ! thisEnv.HasBinding(F) is true, then
+                if !this_environment.is_object_environment()
+                    && this_environment.has_binding(vm, function_name, None).must()
+                {
+                    // i. Let bindingExists be true.
+                    binding_exists = true;
+                    break;
+                }
+
+                // b. Set thisEnv to thisEnv.[[OuterEnv]].
+                this_environment = this_environment
+                    .outer_environment()
+                    .expect("the variable environment encloses the lexical environment");
+            }
+
+            if binding_exists {
+                continue;
+            }
+
+            // Note: At this point bindingExists is false.
+            // 5. If bindingExists is false and varEnv is a global Environment Record, then
+            if let Some(global_var_environment) = global_var_environment {
+                // a. If varEnv.HasLexicalDeclaration(F) is false, then
+                if !global_var_environment.has_lexical_declaration(function_name) {
+                    // i. Let fnDefinable be ? varEnv.CanDeclareGlobalVar(F).
+                    if !global_var_environment.can_declare_global_var(vm, function_name)? {
+                        continue;
+                    }
+                }
+                // b. Else,
+                else {
+                    // i. Let fnDefinable be false.
+                    continue;
+                }
+            }
+            // 6. Else,
+            //     a. Let fnDefinable be true.
+
+            // Note: At this point fnDefinable is true.
+            // 7. If bindingExists is false and fnDefinable is true, then
+
+            // a. If declaredFunctionOrVarNames does not contain F, then
+            if !data.declared_function_names.contains(function_name) && !hoisted_functions.contains(function_name) {
+                // i. If varEnv is a global Environment Record, then
+                if let Some(global_var_environment) = global_var_environment {
+                    // i. Perform ? varEnv.CreateGlobalVarBinding(F, true).
+                    global_var_environment.create_global_var_binding(vm, function_name, true)?;
+                }
+                // ii. Else,
+                else {
+                    // i. Let bindingExists be ! varEnv.HasBinding(F).
+                    // ii. If bindingExists is false, then
+                    if !variable_environment.has_binding(vm, function_name, None).must() {
+                        // i. Perform ! varEnv.CreateMutableBinding(F, true).
+                        variable_environment
+                            .create_mutable_binding(vm, function_name, true)
+                            .must();
+                        // ii. Perform ! varEnv.InitializeBinding(F, undefined, normal).
+                        variable_environment
+                            .initialize_binding(vm, function_name, Value::UNDEFINED, InitializeBindingHint::Normal)
+                            .must();
+                    }
+                }
+            }
+
+            // iii. Append F to declaredFunctionOrVarNames.
+            hoisted_functions.insert(function_name.clone());
+
+            // b. When the FunctionDeclaration f is evaluated, perform the following steps in place of the FunctionDeclaration Evaluation algorithm provided in 15.2.6:
+            //     i. Let genv be the running execution context's VariableEnvironment.
+            //     ii. Let benv be the running execution context's LexicalEnvironment.
+            //     iii. Let fobj be ! benv.GetBindingValue(F, false).
+            //     iv. Perform ? genv.SetMutableBinding(F, fobj, false).
+            //     v. Return unused.
+        }
+    }
+
+    // 12. Let declaredVarNames be a new empty List.
+    let mut declared_var_names = Utf16FlyStringHashTable::default();
+
+    // 13. For each element d of varDeclarations, do
+    for name in &data.var_scoped_names {
+        // 1. If vn is not an element of declaredFunctionNames, then
+        if !data.declared_function_names.contains(name) {
+            // a. If varEnv is a global Environment Record, then
+            if let Some(global_var_environment) = global_var_environment {
+                // i. Let vnDefinable be ? varEnv.CanDeclareGlobalVar(vn).
+                let variable_definable = global_var_environment.can_declare_global_var(vm, name)?;
+
+                // ii. If vnDefinable is false, throw a TypeError exception.
+                if !variable_definable {
+                    return vm.throw_completion(
+                        ErrorKind::TypeError,
+                        ErrorType::CannotDeclareGlobalVariable,
+                        &[&name_for_message(name)],
+                    );
+                }
+            }
+
+            // b. If vn is not an element of declaredVarNames, then
+            // i. Append vn to declaredVarNames.
+            declared_var_names.set(name.clone());
+        }
+    }
+
+    // 14. NOTE: No abnormal terminations occur after this algorithm step unless varEnv is a global Environment Record and the global object is a Proxy exotic object.
+
+    // 15. Let lexDeclarations be the LexicallyScopedDeclarations of body.
+    // 16. For each element d of lexDeclarations, do
+    for binding in &data.lexical_bindings {
+        // i. If IsConstantDeclaration of d is true, then
+        if binding.is_constant {
+            // 1. Perform ? lexEnv.CreateImmutableBinding(dn, true).
+            lexical_environment.create_immutable_binding(vm, &binding.name, true)?;
+        }
+        // ii. Else,
+        else {
+            // 1. Perform ? lexEnv.CreateMutableBinding(dn, false).
+            lexical_environment.create_mutable_binding(vm, &binding.name, false)?;
+        }
+    }
+
+    // 17. For each Parse Node f of functionsToInitialize, do
+    for (function_index, function_to_initialize) in data.functions_to_initialize.iter().enumerate() {
+        // a. Let fn be the sole element of the BoundNames of f.
+        // b. Let fo be InstantiateFunctionObject of f with arguments lexEnv and privateEnv.
+        let shared_data = data
+            .functions_to_initialize_shared_data
+            .get(function_index)
+            .expect("each function to initialize has its shared data");
+        let function = EcmascriptFunctionObject::create_from_function_data(
+            vm,
+            realm,
+            shared_data,
+            Some(lexical_environment),
+            private_environment,
+        );
+
+        // c. If varEnv is a global Environment Record, then
+        if let Some(global_var_environment) = global_var_environment {
+            // i. Perform ? varEnv.CreateGlobalFunctionBinding(fn, fo, true).
+            global_var_environment.create_global_function_binding(
+                vm,
+                &function_to_initialize.name,
+                Value::from_object(function),
+                true,
+            )?;
+        }
+        // d. Else,
+        else {
+            // i. Let bindingExists be ! varEnv.HasBinding(fn).
+            let binding_exists = variable_environment
+                .has_binding(vm, &function_to_initialize.name, None)
+                .must();
+
+            // ii. If bindingExists is false, then
+            if !binding_exists {
+                // 1. NOTE: The following invocation cannot return an abrupt completion because of the validation preceding step 14.
+                // 2. Perform ! varEnv.CreateMutableBinding(fn, true).
+                variable_environment
+                    .create_mutable_binding(vm, &function_to_initialize.name, true)
+                    .must();
+
+                // 3. Perform ! varEnv.InitializeBinding(fn, fo, normal).
+                variable_environment
+                    .initialize_binding(
+                        vm,
+                        &function_to_initialize.name,
+                        Value::from_object(function),
+                        InitializeBindingHint::Normal,
+                    )
+                    .must();
+            }
+            // iii. Else,
+            else {
+                // 1. Perform ! varEnv.SetMutableBinding(fn, fo, false).
+                variable_environment
+                    .set_mutable_binding(vm, &function_to_initialize.name, Value::from_object(function), false)
+                    .must();
+            }
+        }
+    }
+
+    // 18. For each String vn of declaredVarNames, do
+    for var_name in declared_var_names.iter() {
+        // a. If varEnv is a global Environment Record, then
+        if let Some(global_var_environment) = global_var_environment {
+            // i. Perform ? varEnv.CreateGlobalVarBinding(vn, true).
+            global_var_environment.create_global_var_binding(vm, var_name, true)?;
+        }
+        // b. Else,
+        else {
+            // i. Let bindingExists be ! varEnv.HasBinding(vn).
+            let binding_exists = variable_environment.has_binding(vm, var_name, None).must();
+
+            // ii. If bindingExists is false, then
+            if !binding_exists {
+                // 1. NOTE: The following invocation cannot return an abrupt completion because of the validation preceding step 14.
+                // 2. Perform ! varEnv.CreateMutableBinding(vn, true).
+                variable_environment.create_mutable_binding(vm, var_name, true).must();
+
+                // 3. Perform ! varEnv.InitializeBinding(vn, undefined, normal).
+                variable_environment
+                    .initialize_binding(vm, var_name, Value::UNDEFINED, InitializeBindingHint::Normal)
+                    .must();
+            }
+        }
+    }
+
+    // 19. Return unused.
+    Ok(())
 }
 
 // 10.4.4.6 CreateUnmappedArgumentsObject ( argumentsList ), https://tc39.es/ecma262/#sec-createunmappedargumentsobject
