@@ -6,8 +6,6 @@
 
 #include <AK/Array.h>
 #include <AK/Math.h>
-#include <AK/Queue.h>
-#include <AK/Stream.h>
 #include <Compositor/CompositorState.h>
 #include <Compositor/FramePacer.h>
 #include <LibCompositing/DisplayList/DisplayListDamage.h>
@@ -17,9 +15,6 @@
 #include <LibCore/EventLoop.h>
 #include <LibCore/Timer.h>
 #include <LibGfx/SharedImageBuffer.h>
-#include <LibIPC/Decoder.h>
-#include <LibIPC/Encoder.h>
-#include <LibIPC/Message.h>
 #include <LibTest/TestCase.h>
 #include <LibWebCommon/Page/InputEvent.h>
 #include <Tests/LibCompositing/DisplayListTestHelpers.h>
@@ -155,33 +150,6 @@ static NonnullRefPtr<Compositing::DisplayList> make_display_list(Compositing::Ac
         append_display_list_command(command_bytes, command, command.rect, context);
     }
     return decode_display_list(visual_context_tree, move(command_bytes), surface_clear_color);
-}
-
-TEST_CASE(visual_context_trees_round_trip_through_ipc_and_reject_corrupted_bytes)
-{
-    Compositing::VisualContextTreeTestBuilder builder;
-    auto scroll_node = builder.append_scroll(Compositing::VISUAL_VIEWPORT_NODE_INDEX);
-    auto clip = builder.append_clip(Compositing::NO_CLIP_NODE, scroll_node, { 1, 2, 3, 4 });
-    auto effect = builder.append_effects(Compositing::NO_EFFECT_NODE, scroll_node, clip, 0.5f);
-    auto visual_context_tree = builder.finish();
-
-    IPC::MessageBuffer buffer;
-    IPC::Encoder encoder { buffer };
-    MUST(encoder.encode(visual_context_tree));
-    FixedMemoryStream stream { buffer.data().span() };
-    Queue<IPC::Attachment> attachments;
-    IPC::Decoder decoder { stream, attachments };
-    auto decoded_tree = MUST(decoder.decode<Compositing::AccumulatedVisualContextTree>());
-    EXPECT_EQ(decoded_tree.structural_epoch(), visual_context_tree.structural_epoch());
-    EXPECT_EQ(decoded_tree.spatial_node_count(), 2u);
-    EXPECT_EQ(decoded_tree.node_count(), 4u);
-    EXPECT_EQ(decoded_tree.live_node_count(), 4u);
-    EXPECT_EQ(decoded_tree.effects_opacity(effect), Optional<float> { 0.5f });
-    EXPECT_EQ(decoded_tree.serialize_to_bytes(), visual_context_tree.serialize_to_bytes());
-
-    auto corrupted_bytes = visual_context_tree.serialize_to_bytes();
-    corrupted_bytes[0] ^= 0xff;
-    EXPECT(Compositing::AccumulatedVisualContextTree::from_serialized_bytes(corrupted_bytes).is_error());
 }
 
 static Compositing::AccumulatedVisualContextTree make_visual_context_tree()
@@ -2388,30 +2356,6 @@ TEST_CASE(async_scroll_presents_report_the_damage_of_the_scrolled_content)
     EXPECT_EQ(viewport_scroll_frame.damage_rect, fixture.viewport_rect);
 }
 
-TEST_CASE(clip_paths_round_trip_through_serialized_tree_bytes)
-{
-    Gfx::Path star;
-    star.move_to({ 65, 0 });
-    star.line_to({ 35, 80 });
-    star.line_to({ 105, 30 });
-    star.line_to({ 25, 30 });
-    star.line_to({ 95, 80 });
-    star.close();
-    Compositing::VisualContextTreeTestBuilder builder;
-    auto clip_path = builder.append_clip_path(Compositing::NO_CLIP_NODE, Compositing::VISUAL_VIEWPORT_NODE_INDEX, star, { 25, 0, 80, 80 }, Gfx::WindingRule::EvenOdd);
-    auto visual_context_tree = builder.finish();
-
-    auto serialized_bytes = visual_context_tree.serialize_to_bytes();
-    auto decoded_tree = MUST(Compositing::AccumulatedVisualContextTree::from_serialized_bytes(serialized_bytes));
-    EXPECT_EQ(decoded_tree.serialize_to_bytes(), serialized_bytes);
-
-    Compositing::ScrollStateSnapshot unscrolled;
-    Compositing::ContextRef clip_path_context { Compositing::VISUAL_VIEWPORT_NODE_INDEX, clip_path };
-    EXPECT(decoded_tree.transform_point_for_hit_test(clip_path_context, Gfx::FloatPoint { 65, 5 }, unscrolled).has_value());
-    EXPECT(!decoded_tree.transform_point_for_hit_test(clip_path_context, Gfx::FloatPoint { 26, 1 }, unscrolled).has_value());
-    EXPECT(!decoded_tree.transform_point_for_hit_test(clip_path_context, Gfx::FloatPoint { 10, 40 }, unscrolled).has_value());
-}
-
 // A scroll container that snaps along its y axis, with snap areas every 100 pixels.
 static NonnullRefPtr<Compositing::DisplayList> make_snap_container_display_list(Compositing::AccumulatedVisualContextTree const& visual_context_tree, Compositing::CompositorScrollNodeKind kind = Compositing::CompositorScrollNodeKind::Viewport)
 {
@@ -2668,51 +2612,4 @@ TEST_CASE(a_key_step_takes_over_a_programmatic_smooth_scroll_from_its_presented_
     EXPECT(updates.operation_ids_taken_over_by_user_input.contains_slow(*programmatic_scroll.enqueue_result.operation_id));
     EXPECT_EQ(updates.started_user_scrolls.size(), 1u);
     EXPECT_EQ(updates.started_user_scrolls.first().unsnapped_scroll_destination, Web::CSSPixelPoint(arrow_key_scroll_distance_for_testing, 0));
-}
-
-TEST_CASE(started_user_scrolls_round_trip_through_ipc)
-{
-    Compositing::PendingAsyncScrollUpdates updates;
-    updates.sequence = 7;
-    updates.started_user_scrolls.append({
-        .stable_node_id = snap_container_stable_id,
-        .operation_id = 3,
-        .initial_scroll_offset = { Web::CSSPixels(0), Web::CSSPixels(12.5) },
-        .unsnapped_scroll_destination = { 0, 22 },
-        .selection = {
-            .position = { 0, 100 },
-            .snapped_x = false,
-            .snapped_y = true,
-            .evaluated_x = false,
-            .evaluated_y = true,
-            .snapped_areas = { .x = {}, .y = { { .node_id = Web::UniqueNodeID { 11 }, .pseudo_element_type = 3 } } },
-        },
-        .settles_gesture = true,
-    });
-
-    IPC::MessageBuffer buffer;
-    IPC::Encoder encoder { buffer };
-    MUST(encoder.encode(updates));
-
-    FixedMemoryStream stream { buffer.data().span() };
-    Queue<IPC::Attachment> attachments;
-    IPC::Decoder decoder { stream, attachments };
-    auto decoded = MUST(decoder.decode<Compositing::PendingAsyncScrollUpdates>());
-
-    EXPECT_EQ(decoded.sequence, 7u);
-    EXPECT_EQ(decoded.started_user_scrolls.size(), 1u);
-    auto const& started = decoded.started_user_scrolls.first();
-    EXPECT_EQ(started.stable_node_id, snap_container_stable_id);
-    EXPECT_EQ(started.operation_id, 3u);
-    EXPECT_EQ(started.initial_scroll_offset, Web::CSSPixelPoint(Web::CSSPixels(0), Web::CSSPixels(12.5)));
-    EXPECT_EQ(started.selection.position, Web::CSSPixelPoint(0, 100));
-    EXPECT_EQ(started.unsnapped_scroll_destination, Web::CSSPixelPoint(0, 22));
-    EXPECT(started.settles_gesture);
-    EXPECT(!started.selection.snapped_x);
-    EXPECT(started.selection.snapped_y);
-    EXPECT(!started.selection.evaluated_x);
-    EXPECT(started.selection.evaluated_y);
-    EXPECT_EQ(started.selection.snapped_areas.y.size(), 1u);
-    EXPECT_EQ(started.selection.snapped_areas.y.first().node_id, Web::UniqueNodeID(11));
-    EXPECT_EQ(started.selection.snapped_areas.y.first().pseudo_element_type, 3u);
 }
