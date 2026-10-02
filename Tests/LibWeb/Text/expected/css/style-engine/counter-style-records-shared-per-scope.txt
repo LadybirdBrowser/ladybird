@@ -1,0 +1,6 @@
+consumer records shared: 4
+first scope's consumers share a record: true
+second scope's consumers share a record: true
+scopes' consumers hold different records: true
+non-consumers share a record across scopes: true
+each scope's consumers use its counter style: true

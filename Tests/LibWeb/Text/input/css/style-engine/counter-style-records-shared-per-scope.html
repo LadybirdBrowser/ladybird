@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<div id="first"></div>
+<div id="second"></div>
+<script>
+    function attach(host, symbols) {
+        const root = host.attachShadow({ mode: "open" });
+        root.innerHTML = `<style>
+            @counter-style marker { system: cyclic; symbols: "${symbols}"; }
+            .item { display: list-item; list-style: marker inside; width: max-content; }
+        </style><span></span><span></span>`;
+        return root;
+    }
+
+    function append_items(root) {
+        for (let index = 0; index < 3; ++index) {
+            const item = document.createElement("div");
+            item.className = "item";
+            root.appendChild(item);
+        }
+        return [...root.querySelectorAll(".item")];
+    }
+
+    test(() => {
+        const first_root = attach(document.getElementById("first"), "A");
+        const second_root = attach(document.getElementById("second"), "BBBBBBBB");
+        internals.updateStyle();
+        const shared_hits = () => {
+            const counters = internals.styleEngineCounters();
+            return counters.engineComputedRecordSharedHits + counters.engineComputedRecordCohortHits;
+        };
+        const before = shared_hits();
+        const first = append_items(first_root);
+        const second = append_items(second_root);
+        internals.updateStyle();
+        const record = element => internals.styleRecordIdentity(element);
+        // The consumers of one scope's counter style share a record, which answers for no consumer
+        // of the other scope's; an element naming no counter style shares its record across scopes.
+        println(`consumer records shared: ${shared_hits() - before}`);
+        println(`first scope's consumers share a record: ${first.every(item => record(item) === record(first[0]))}`);
+        println(`second scope's consumers share a record: ${second.every(item => record(item) === record(second[0]))}`);
+        println(`scopes' consumers hold different records: ${record(first[0]) !== record(second[0])}`);
+        const plain = root => root.querySelector("span");
+        println(`non-consumers share a record across scopes: ${record(plain(first_root)) === record(plain(second_root))}`);
+        const width = element => element.getBoundingClientRect().width;
+        println(`each scope's consumers use its counter style: ${width(second[0]) > width(first[0])}`);
+    });
+</script>
