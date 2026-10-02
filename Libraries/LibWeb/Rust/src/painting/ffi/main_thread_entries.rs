@@ -416,6 +416,77 @@ pub unsafe extern "C" fn render_state_update_visual_viewport_transform(host: *mu
     run_paint_pass(unsafe { &*host }, PaintPass::UpdateVisualViewportTransform);
 }
 
+/// Resolves the SVG paint resources the enrolled rows of `host`'s document name: the render state answers what to
+/// resolve, the host resolves it from the DOM, and the render state publishes what it resolved. Answers whether a
+/// published resource changed.
+///
+/// # Safety
+///
+/// `host` must be a live document host, on its document's thread, and both resolvers must answer synchronously for the
+/// row they are handed and only push into the sink whose pointer they receive.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn render_state_sync_svg_paint_resources(
+    host: *mut crate::render_state::DocumentHost,
+    context: *mut c_void,
+    resolve_filter: unsafe extern "C" fn(*mut c_void, NodeSlotId, *const c_void, *mut c_void) -> bool,
+    resolve_paint_server: unsafe extern "C" fn(*mut c_void, NodeSlotId, bool, *mut c_void),
+) -> bool {
+    use crate::painting::paint_passes::{ResolvedSvgPaintResource, SvgPaintResourceRequest};
+    use crate::painting::svg_paint_resources::{PublishedSvgFilter, PublishedSvgPaintServer, SvgPaintResourceKind};
+    // SAFETY: Guaranteed by the caller.
+    let PaintPassAnswer::SvgPaintResourceRequests(requests) =
+        run_paint_pass(unsafe { &*host }, PaintPass::SvgPaintResourceRequests)
+    else {
+        unreachable!("the SVG paint resources answer what to resolve");
+    };
+    let Some(requests) = requests else {
+        return false;
+    };
+    let resolved = requests
+        .into_iter()
+        .map(|request| match request {
+            SvgPaintResourceRequest::PaintServer { slot, kind } => {
+                let mut published = PublishedSvgPaintServer::None;
+                // SAFETY: The host resolves synchronously for the row, and only pushes into the sink it is handed.
+                unsafe {
+                    resolve_paint_server(
+                        context,
+                        slot,
+                        kind == SvgPaintResourceKind::Stroke,
+                        (&raw mut published).cast(),
+                    );
+                }
+                ResolvedSvgPaintResource::PaintServer { slot, kind, published }
+            }
+            SvgPaintResourceRequest::Filter { slot, kind, urls } => {
+                let mut published = PublishedSvgFilter::default();
+                for url in &urls {
+                    let mut primitives: Vec<SvgFilterPrimitive> = Vec::new();
+                    // SAFETY: The host resolves synchronously for the row, and only pushes into the primitive list it
+                    // is handed as its sink.
+                    let found =
+                        unsafe { resolve_filter(context, slot, url.pointer().cast(), (&raw mut primitives).cast()) };
+                    published = PublishedSvgFilter {
+                        failed: !found,
+                        primitives: if found { primitives } else { Vec::new() },
+                    };
+                    if published.failed {
+                        break;
+                    }
+                }
+                ResolvedSvgPaintResource::Filter { slot, kind, published }
+            }
+        })
+        .collect();
+    // SAFETY: Guaranteed by the caller.
+    let PaintPassAnswer::SvgPaintResourcesPublished(changed) =
+        run_paint_pass(unsafe { &*host }, PaintPass::PublishSvgPaintResources(resolved))
+    else {
+        unreachable!("publishing the SVG paint resources answers whether they changed");
+    };
+    changed
+}
+
 /// Re-reads the scroll containers' offsets when something invalidated them since the last refresh, resolves the
 /// sticky nodes' offsets on top of them, and hands the dense device-pixel snapshot to `publish`. Returns whether that
 /// happened, so the caller keeps its copy otherwise; `force` re-derives the snapshot even when nothing invalidated it,
