@@ -50,7 +50,7 @@ mod text_queries;
 mod text_transform;
 mod trace;
 mod tree_builder;
-mod tree_mutation;
+pub(crate) mod tree_mutation;
 pub(crate) mod tree_update_marks;
 mod update_layout;
 pub mod used_values;
@@ -85,7 +85,7 @@ pub(crate) use geometry::{
     AvailableSize, AvailableSpace, ContainingBlockConstraints, LayoutInput, ParticipationInParentFormattingContext,
     RootSizingDirectives,
 };
-pub(crate) use host_tables::{ArenaHandle, HostTables};
+pub(crate) use host_tables::{ArenaHandle, HostTables, TreeBuildWalk};
 pub(crate) use layout_pass::LayoutPass;
 pub(crate) use node_facts::NodeFacts;
 pub(crate) use rendered_text::RenderedTextBoundary;

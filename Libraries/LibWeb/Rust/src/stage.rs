@@ -69,9 +69,15 @@ impl<'host> MainThread<'host> {
 /// The caller must be an FFI entry point whose C++ contract requires the document thread, and
 /// `arena_handle` must come from `layout_arena_create` and outlive the token.
 pub(crate) unsafe fn from_ffi_entry<'host>(_: &impl FfiEntry, arena_handle: *mut c_void) -> MainThread<'host> {
+    // SAFETY: Guaranteed by the caller.
+    let host_tables = unsafe { HostTables::from_handle(arena_handle) };
+    // A tree build's walk runs without a token, so the C++ its callbacks run must not mint one.
+    assert!(
+        !host_tables.tree_build_walk_is_open(),
+        "a tree build walk's callback entered Rust again"
+    );
     MainThread {
-        // SAFETY: Guaranteed by the caller.
-        host_tables: Some(unsafe { HostTables::from_handle(arena_handle) }),
+        host_tables: Some(host_tables),
         not_send_or_sync: PhantomData,
     }
 }

@@ -31,6 +31,9 @@ pub(crate) struct HostTables {
     /// Whether the shell factory is making a layout node, which a reader asking for a row's box
     /// can cause while it borrows the arena, so nothing may borrow the arena mutably meanwhile.
     pub(super) making_shell: Cell<bool>,
+    /// Whether a tree build's walk is running. The walk holds no main thread token, and C++ that
+    /// its callbacks run must not mint one by entering Rust again.
+    tree_build_walk_is_open: Cell<bool>,
     pub(super) shell_style_changed_host: Cell<Option<ShellStyleChangedHost>>,
     pub(crate) chrome_state_callback: Cell<Option<ChromeStateCallback>>,
     /// What the overflow pass tells the document once it has settled a box's scroll offset.
@@ -55,6 +58,20 @@ impl HostTables {
         assert!(!handle.is_null(), "layout node arena handle is null");
         // SAFETY: Guaranteed by the caller. The projection does not borrow the arena beside it.
         unsafe { &(*handle.cast::<ArenaHandle>()).host_tables }
+    }
+
+    /// Marks a tree build's walk as running until the answer is dropped.
+    pub(crate) fn open_tree_build_walk(&self) -> TreeBuildWalk<'_> {
+        assert!(
+            !self.tree_build_walk_is_open.replace(true),
+            "a tree build walk was opened twice"
+        );
+        TreeBuildWalk { host_tables: self }
+    }
+
+    /// Whether a tree build's walk is running, during which no FFI entry may mint a token.
+    pub(crate) fn tree_build_walk_is_open(&self) -> bool {
+        self.tree_build_walk_is_open.get()
     }
 
     /// Gives `slot` the image provider it owns. A row is given one once, while it is built.
@@ -93,6 +110,30 @@ impl HostTables {
             .get(&slot)
             .copied()
             .unwrap_or(std::ptr::null_mut())
+    }
+}
+
+/// A running tree build walk, closed when dropped.
+#[must_use]
+pub(crate) struct TreeBuildWalk<'a> {
+    host_tables: &'a HostTables,
+}
+
+impl TreeBuildWalk<'_> {
+    /// Runs `callback` with the walk's guard lifted, for C++ that enters Rust again. Restyling an
+    /// element a bypass path reached is the one such call: the style update reaches layout through
+    /// FFI.
+    pub(crate) fn reentered_by<T>(&self, callback: impl FnOnce() -> T) -> T {
+        self.host_tables.tree_build_walk_is_open.set(false);
+        let answer = callback();
+        self.host_tables.tree_build_walk_is_open.set(true);
+        answer
+    }
+}
+
+impl Drop for TreeBuildWalk<'_> {
+    fn drop(&mut self) {
+        self.host_tables.tree_build_walk_is_open.set(false);
     }
 }
 
@@ -174,6 +215,42 @@ mod tests {
     }
 
     #[test]
+    fn a_tree_build_lets_go_of_a_freed_rows_image_objects_once_the_walk_is_over() {
+        use crate::layout::tree_mutation::{HostCalls, TreeBuildHostWork};
+
+        let host_tables = HostTables::default();
+        let main_thread = MainThread::for_test_with_host(&host_tables);
+        let mut arena = LayoutNodeArena::new();
+        arena.queue_box_presence_for_tree_build();
+        let work = TreeBuildHostWork::default();
+        let freed = arena.allocate_for_test().slot;
+        arena
+            .data(freed)
+            .kind
+            .set(super::super::node_data::NodeKind::BlockContainer);
+        host_tables.replace_image_observers(freed, object(8));
+
+        let host_calls = HostCalls::AfterTreeBuild(&work);
+        super::super::layout_node_arena::prepare_subtree_for_detach(host_calls, &arena, freed);
+        host_calls.free_subtree(&raw mut arena, freed);
+        // The walk owes the host the observers it let go of, so they stay until the walk is over.
+        assert_eq!(host_tables.image_observers(freed), object(8));
+
+        // A row the walk builds in the freed row's slot is another row, whose objects stay.
+        let reused = arena.allocate_for_test().slot;
+        assert_eq!(reused.slot_index(), freed.slot_index());
+        host_tables.replace_image_observers(reused, object(16));
+
+        work.apply(&main_thread, &arena, |_, _| {});
+        assert!(host_tables.image_observers(freed).is_null());
+        assert_eq!(host_tables.image_observers(reused), object(16));
+        host_tables.replace_image_observers(reused, std::ptr::null_mut());
+        arena
+            .free_subtree(reused)
+            .destroy_shells_and_invoke_callbacks(&main_thread);
+    }
+
+    #[test]
     fn preparing_a_subtree_for_detach_drops_the_image_observers_of_its_styled_rows() {
         let host_tables = HostTables::default();
         let main_thread = MainThread::for_test_with_host(&host_tables);
@@ -189,7 +266,11 @@ mod tests {
         host_tables.replace_image_observers(root, object(8));
         host_tables.replace_image_observers(text, object(16));
 
-        super::super::layout_node_arena::prepare_subtree_for_detach(&main_thread, &arena, root);
+        super::super::layout_node_arena::prepare_subtree_for_detach(
+            crate::layout::tree_mutation::HostCalls::Now(&main_thread),
+            &arena,
+            root,
+        );
 
         assert!(host_tables.image_observers(root).is_null());
         assert_eq!(host_tables.image_observers(text), object(16));

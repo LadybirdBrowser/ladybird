@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<style>
+    table {
+        border: 1px solid black;
+    }
+</style>
+<div id="toggled">hello</div>
+<table id="table"><tr><td>cell</td></tr></table>
+<script>
+    // Each round asks for the boxes, so that they exist on the DOM side, then changes styles that a
+    // partial rebuild carries onto boxes it keeps: the viewport's scrollbar-width, which comes from
+    // the root element, and the table box's, which its wrapper takes over.
+    const table = document.getElementById("table");
+    const toggled = document.getElementById("toggled");
+    for (let i = 0; i < 4; ++i) {
+        document.body.offsetWidth;
+        document.elementFromPoint(10, 10);
+        table.getBoundingClientRect();
+        document.documentElement.style.scrollbarWidth = i % 2 ? "thin" : "auto";
+        table.style.margin = 5 + i + "px";
+        table.style.display = i % 2 ? "table" : "inline-table";
+        toggled.style.display = i % 2 ? "none" : "block";
+    }
+</script>
