@@ -626,8 +626,8 @@ set(SOURCES
     HTML/Scripting/Agent.cpp
     HTML/Scripting/ClassicScript.cpp
     HTML/Scripting/Environments.cpp
-    HTML/Scripting/EnvironmentSettingsSnapshot.cpp
     HTML/Scripting/ExceptionReporter.cpp
+    HTML/Scripting/FetchClient.cpp
     HTML/Scripting/Fetching.cpp
     HTML/Scripting/ImportMap.cpp
     HTML/Scripting/ImportMapParseResult.cpp

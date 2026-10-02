@@ -35,9 +35,11 @@ static SerializedPolicyContainer serialize_request_policy_container(Fetch::Infra
 {
     return request.policy_container().visit(
         [&request](Fetch::Infrastructure::Request::PolicyContainer) {
-            auto client = Fetch::Fetching::resolve_client(request);
-            VERIFY(client);
-            return client->policy_container()->serialize();
+            auto client = Fetch::Fetching::resolve_fetch_client(request);
+            VERIFY(client.has_value());
+            return client->visit(
+                [](GC::Ref<EnvironmentSettingsObject> const& settings_object) { return settings_object->policy_container()->serialize(); },
+                [](NonnullRefPtr<RemoteEnvironmentSettings const> const& settings) { return settings->settings.policy_container; });
         },
         [](NonnullRefPtr<PolicyContainer const> const& policy_container) {
             return policy_container->serialize();

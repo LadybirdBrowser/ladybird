@@ -7,6 +7,7 @@
 
 #include <AK/AnyOf.h>
 #include <LibGC/Heap.h>
+#include <LibWeb/Bindings/PrincipalHostDefined.h>
 #include <LibWeb/ContentSecurityPolicy/BlockingAlgorithms.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/DirectiveOperations.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/HTMLIntegration.h>
@@ -21,9 +22,9 @@
 #include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/PolicyContainers.h>
-#include <LibWeb/HTML/Scripting/EnvironmentSettingsSnapshot.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Window.h>
+#include <LibWeb/Page/Page.h>
 #include <LibWeb/TrustedTypes/RequireTrustedTypesForDirective.h>
 #include <LibWeb/TrustedTypes/TrustedScript.h>
 #include <LibWeb/TrustedTypes/TrustedTypePolicy.h>
@@ -33,22 +34,37 @@
 
 namespace Web::ContentSecurityPolicy {
 
-// AD-HOC: A client standing in for an environment another process hosts has its global object there, and its
-//         violations belong to that global, so none is reported here unless the client reports them to that process.
-// FIXME: Report the violations of every such client in the process hosting its environment.
-static bool may_report_violations_for(GC::Ptr<HTML::EnvironmentSettingsObject const> client)
+// AD-HOC: A client another process hosts has its global object there, and its violations belong to that global, so
+//         none is reported here.
+// FIXME: Report those violations in the process hosting the client's environment.
+static bool may_report_violations_for(Fetch::Infrastructure::Request const& request)
 {
-    if (!client)
-        return true;
-    auto const* snapshot = as_if<HTML::EnvironmentSettingsSnapshot>(*client);
-    return !snapshot || snapshot->report_violation();
+    return !Fetch::Fetching::remote_client(request);
+}
+
+// AD-HOC: A client another process hosts has its global object there, so its page reports the violation to that
+//         process, by the violated policy's index in the client's CSP list.
+// FIXME: WebContent's page drops the violation.
+static void report_a_violation_of_a_remote_client(Page& page, NonnullRefPtr<Fetch::Infrastructure::Request> const& request, Policy const& policy)
+{
+    // NB: Request's policy container is a clone of the client's, which lists the policies in the same order.
+    auto const& policies = request->policy_container().get<NonnullRefPtr<HTML::PolicyContainer const>>()->csp_list.policies();
+    auto policy_index = policies.find_first_index_if([&](auto const& candidate) { return candidate.ptr() == &policy; });
+    if (!policy_index.has_value())
+        return;
+
+    auto effective_directive = Directives::get_the_effective_directive_for_request(request);
+    VERIFY(effective_directive.has_value());
+    page.client().page_did_report_violation_of_remote_client(*policy_index, effective_directive->view().to_utf8_but_should_be_ported_to_utf16(), request->url());
 }
 
 ViolationReporter violation_reporter_for_request(JS::Realm& realm, NonnullRefPtr<Fetch::Infrastructure::Request> request)
 {
     return [&realm, request](NonnullRefPtr<Policy const> policy) {
-        if (!may_report_violations_for(Fetch::Fetching::resolve_client(request)))
+        if (Fetch::Fetching::remote_client(request)) {
+            report_a_violation_of_a_remote_client(Bindings::principal_host_defined_page(realm), request, policy);
             return;
+        }
         auto violation = Violation::create_a_violation_object_for_request_and_policy(request, move(policy));
         violation->report_a_violation(realm);
     };
@@ -72,7 +88,7 @@ Directives::Directive::Result should_navigation_request_of_type_be_blocked_by_co
             if (directive_result == Directives::Directive::Result::Allowed)
                 continue;
 
-            if (may_report_violations_for(client)) {
+            if (may_report_violations_for(*navigation_request)) {
                 // 2. Otherwise, let violation be the result of executing § 2.4.1 Create a violation object for global, policy, and directive on navigation request’s
                 //    client’s global object, policy, and directive’s name.
                 auto& realm = client->realm();
@@ -114,15 +130,15 @@ Directives::Directive::Result should_navigation_request_of_type_be_blocked_by_co
                 //    navigation request’s current URL, skip to the next directive.
                 // FIXME: File spec issue that current URL is a URL object and not a string, therefore they must use a
                 //        spec operation to serialize the URL.
-                auto& realm = client->realm();
                 auto serialized_url = navigation_request->current_url().to_string();
                 auto serialized_url_utf16 = Utf16String::from_utf8(serialized_url);
                 if (Directives::inline_check(directive, nullptr, Directives::Directive::InlineType::Navigation, policy, serialized_url_utf16.utf16_view()) == Directives::Directive::Result::Allowed)
                     continue;
 
-                if (may_report_violations_for(client)) {
+                if (may_report_violations_for(*navigation_request)) {
                     // 3. Otherwise, let violation be the result of executing § 2.4.1 Create a violation object for global,
                     //    policy, and directive on navigation request’s client’s global object, policy, and directive-name.
+                    auto& realm = client->realm();
                     auto violation = Violation::create_a_violation_object_for_global_policy_and_directive(client->global_object(), policy, directive_name.view().to_utf8_but_should_be_ported_to_utf16());
 
                     // 4. Set violation’s resource to "inline".
@@ -187,7 +203,8 @@ Directives::Directive::Result should_navigation_response_to_navigation_request_o
             // 2. Otherwise, let violation be the result of executing § 2.4.1 Create a violation object for global, policy, and directive on null, policy, and directive’s name.
             // Spec Note: We use null for the global object, as no global exists: we haven’t processed the navigation to create a Document yet.
             // FIXME: What should the realm be here?
-            auto& realm = client->realm();
+            // AD-HOC: Without a client of this process, target's active window's realm reports the violation.
+            auto& realm = client ? client->realm() : HTML::relevant_realm(*target->active_window());
             auto violation = Violation::create_a_violation_object_for_global_policy_and_directive(nullptr, policy, directive.name().view().to_utf8_but_should_be_ported_to_utf16());
 
             // 3. Set violation’s resource to navigation response’s URL.
@@ -217,7 +234,7 @@ Directives::Directive::Result should_navigation_response_to_navigation_request_o
             if (directive_result == Directives::Directive::Result::Allowed)
                 continue;
 
-            if (may_report_violations_for(client)) {
+            if (may_report_violations_for(*navigation_request)) {
                 // 2. Otherwise, let violation be the result of executing § 2.4.1 Create a violation object for global, policy, and directive on navigation request’s client’s global object, policy, and directive’s name.
                 auto& realm = client->realm();
                 auto violation = Violation::create_a_violation_object_for_global_policy_and_directive(client->global_object(), policy, directive.name().view().to_utf8_but_should_be_ported_to_utf16());

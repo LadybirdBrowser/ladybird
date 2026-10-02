@@ -14,6 +14,7 @@
 #include <LibWebCommon/HTML/CrossOriginIsolationMode.h>
 #include <LibWebCommon/HTML/Scripting/EnvironmentId.h>
 #include <LibWebCommon/HTML/SerializedPolicyContainer.h>
+#include <LibWebCommon/MixedContent/ProhibitsMixedSecurityContexts.h>
 
 namespace Web::HTML {
 
@@ -30,6 +31,9 @@ struct SerializedDocument {
 
 struct SerializedWindow {
     SerializedDocument associated_document;
+
+    // Whether the window's navigable is non-null and has no parent.
+    bool navigable_is_top_level { false };
 };
 
 struct SerializedWorkerGlobalScope {
@@ -56,6 +60,9 @@ struct SerializedEnvironmentSettingsObject {
     bool has_cross_site_ancestor;
     SerializedPolicyContainer policy_container;
     CanUseCrossOriginIsolatedAPIs cross_origin_isolated_capability;
+
+    // https://w3c.github.io/webappsec-mixed-content/#categorize-settings-object
+    MixedContent::ProhibitsMixedSecurityContexts prohibits_mixed_security_contexts;
     Optional<u64> agent_cluster_id;
     CrossOriginIsolationMode agent_cluster_cross_origin_isolation_mode;
     double time_origin;

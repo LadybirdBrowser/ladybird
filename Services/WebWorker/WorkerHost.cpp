@@ -21,9 +21,9 @@
 #include <LibWeb/HTML/MessagePort.h>
 #include <LibWeb/HTML/PolicyContainers.h>
 #include <LibWeb/HTML/Scripting/ClassicScript.h>
-#include <LibWeb/HTML/Scripting/EnvironmentSettingsSnapshot.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/Fetching.h>
+#include <LibWeb/HTML/Scripting/RemoteEnvironmentSettings.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/Scripting/WorkerEnvironmentSettingsObject.h>
 #include <LibWeb/HTML/SharedWorkerGlobalScope.h>
@@ -121,21 +121,13 @@ void WorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataEncoder mes
     // 8. Set worker global scope's name to options["name"].
     worker_global_scope->set_name(m_name);
 
-    // IMPLEMENTATION DEFINED: We need an object to represent the fetch response's client
-    auto outside_settings = GC::Heap::the().allocate<Web::HTML::EnvironmentSettingsSnapshot>(inside_settings->realm_execution_context().copy(), outside_settings_snapshot);
-    m_outside_settings = outside_settings;
-
-    // AD-HOC: Outside settings' global object is in the owner's process, so the violations of its policies, such as by
-    //         the worker script fetch, are reported to the owner.
-    outside_settings->set_report_violation(GC::create_function(GC::Heap::the(), [page](u64 policy_index, String effective_directive, URL::URL resource) {
-        as<WebWorker::PageHost>(page->client()).did_report_outside_settings_content_security_policy_violation(policy_index, move(effective_directive), move(resource));
-    }));
+    auto outside_settings = Web::HTML::RemoteEnvironmentSettings::create(outside_settings_snapshot);
 
     // 10. If is shared is true, then:
     if (is_shared) {
         auto& shared_global_scope = static_cast<Web::HTML::SharedWorkerGlobalScope&>(*worker_global_scope);
         // 1. Set worker global scope's constructor origin to outside settings's origin.
-        shared_global_scope.set_constructor_origin(outside_settings->origin());
+        shared_global_scope.set_constructor_origin(outside_settings->settings.origin);
 
         // 2. Set worker global scope's constructor URL to url.
         shared_global_scope.set_constructor_url(m_url);
@@ -204,7 +196,7 @@ void WorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataEncoder mes
 
             // 6. If the result of checking a global object's embedder policy with worker global scope, outside settings,
             //    and response is false, then set response to a network error.
-            if (!worker_global_scope->check_embedder_policy(*outside_settings))
+            if (!worker_global_scope->check_embedder_policy(outside_settings->settings.policy_container.embedder_policy))
                 response = Web::Fetch::Infrastructure::Response::network_error("Blocked by Cross-Origin-Embedder-Policy"_string);
 
             // 7. Set worker global scope's cross-origin isolated capability to true if agent's agent cluster's
@@ -215,7 +207,7 @@ void WorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataEncoder mes
                 // 8. If is shared is false and owner's cross-origin isolated capability is false, then set worker
                 //    global scope's cross-origin isolated capability to false.
                 // NB: owner's relevant settings object is outside settings.
-                if (outside_settings->cross_origin_isolated_capability() == Web::HTML::CanUseCrossOriginIsolatedAPIs::No)
+                if (outside_settings->settings.cross_origin_isolated_capability == Web::HTML::CanUseCrossOriginIsolatedAPIs::No)
                     worker_global_scope->set_cross_origin_isolated_capability(false);
 
                 // 9. If is shared is false and response's URL's scheme is "data", then set worker global scope's

@@ -28,6 +28,7 @@
 #include <LibWeb/Bindings/PrincipalHostDefined.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOMURL/DOMURL.h>
+#include <LibWeb/Fetch/Fetching/ClientContextSnapshots.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
 #include <LibWeb/Fetch/Infrastructure/FetchAlgorithms.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/MIME.h>
@@ -815,7 +816,7 @@ void fetch_classic_script(GC::Ref<HTMLScriptElement> element, URL::URL const& ur
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#fetch-a-classic-worker-script
-WebIDL::ExceptionOr<void> fetch_classic_worker_script(URL::URL const& url, EnvironmentSettingsObject& fetch_client, Fetch::Infrastructure::Request::Destination destination, EnvironmentSettingsObject& settings_object, PerformTheFetchHook perform_fetch, OnFetchScriptComplete on_complete)
+WebIDL::ExceptionOr<void> fetch_classic_worker_script(URL::URL const& url, FetchClient const& fetch_client, Fetch::Infrastructure::Request::Destination destination, EnvironmentSettingsObject& settings_object, PerformTheFetchHook perform_fetch, OnFetchScriptComplete on_complete)
 {
     auto& realm = settings_object.realm();
     // 1. Let request be a new request whose URL is url, client is fetchClient, destination is destination, initiator type is "other",
@@ -823,7 +824,7 @@ WebIDL::ExceptionOr<void> fetch_classic_worker_script(URL::URL const& url, Envir
     //    and whose use-URL-credentials flag is set.
     auto request = Fetch::Infrastructure::Request::create();
     request->set_url(url);
-    request->set_client(fetch_client.address());
+    request->set_client(Fetch::Fetching::request_client(fetch_client));
     request->set_destination(destination);
     request->set_initiator_type(Fetch::Infrastructure::Request::InitiatorType::Other);
     request->set_mode(Fetch::Infrastructure::Request::Mode::SameOrigin);
@@ -963,13 +964,13 @@ WebIDL::ExceptionOr<GC::Ref<ClassicScript>> fetch_a_classic_worker_imported_scri
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#fetch-a-module-worker-script-tree
-WebIDL::ExceptionOr<void> fetch_module_worker_script_graph(URL::URL const& url, EnvironmentSettingsObject& fetch_client, Fetch::Infrastructure::Request::Destination destination, EnvironmentSettingsObject& settings_object, PerformTheFetchHook perform_fetch, OnFetchScriptComplete on_complete)
+WebIDL::ExceptionOr<void> fetch_module_worker_script_graph(URL::URL const& url, FetchClient const& fetch_client, Fetch::Infrastructure::Request::Destination destination, EnvironmentSettingsObject& settings_object, PerformTheFetchHook perform_fetch, OnFetchScriptComplete on_complete)
 {
     return fetch_worklet_module_worker_script_graph(url, fetch_client, destination, settings_object, move(perform_fetch), move(on_complete));
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#fetch-a-worklet/module-worker-script-graph
-WebIDL::ExceptionOr<void> fetch_worklet_module_worker_script_graph(URL::URL const& url, EnvironmentSettingsObject& fetch_client, Fetch::Infrastructure::Request::Destination destination, EnvironmentSettingsObject& settings_object, PerformTheFetchHook perform_fetch, OnFetchScriptComplete on_complete, Fetch::Infrastructure::Request::CredentialsMode credentials_mode)
+WebIDL::ExceptionOr<void> fetch_worklet_module_worker_script_graph(URL::URL const& url, FetchClient const& fetch_client, Fetch::Infrastructure::Request::Destination destination, EnvironmentSettingsObject& settings_object, PerformTheFetchHook perform_fetch, OnFetchScriptComplete on_complete, Fetch::Infrastructure::Request::CredentialsMode credentials_mode)
 {
     auto& realm = settings_object.realm();
 
@@ -986,7 +987,7 @@ WebIDL::ExceptionOr<void> fetch_worklet_module_worker_script_graph(URL::URL cons
     };
 
     // onSingleFetchComplete given result is the following algorithm:
-    auto on_single_fetch_complete = create_on_fetch_script_complete(GC::Heap::the(), [&realm, &fetch_client, destination, perform_fetch = perform_fetch, on_complete = move(on_complete)](auto result) mutable {
+    auto on_single_fetch_complete = create_on_fetch_script_complete(GC::Heap::the(), [&realm, fetch_client, destination, perform_fetch = perform_fetch, on_complete = move(on_complete)](auto result) mutable {
         // 1. If result is null, run onComplete with null, and abort these steps.
         if (!result) {
             dbgln("on single fetch complete with nool");
@@ -1027,7 +1028,7 @@ Fetch::Infrastructure::Request::Destination fetch_destination_from_module_type(F
 // https://html.spec.whatwg.org/multipage/webappapis.html#fetch-a-single-module-script
 void fetch_single_module_script(JS::Realm& realm,
     URL::URL const& url,
-    EnvironmentSettingsObject& fetch_client,
+    FetchClient const& fetch_client,
     Fetch::Infrastructure::Request::Destination destination,
     ScriptFetchOptions const& options,
     EnvironmentSettingsObject& settings_object,
@@ -1078,7 +1079,7 @@ void fetch_single_module_script(JS::Realm& realm,
     request->set_url(url);
     request->set_mode(Fetch::Infrastructure::Request::Mode::CORS);
     request->set_referrer(referrer);
-    request->set_client(fetch_client.address());
+    request->set_client(Fetch::Fetching::request_client(fetch_client));
 
     // 9. Set request's destination to the result of running the fetch destination from module type steps given destination and moduleType.
     request->set_destination(fetch_destination_from_module_type(destination, module_type.utf16_view()));
@@ -1312,11 +1313,11 @@ void fetch_external_module_script_graph(JS::Realm& realm, URL::URL const& url, E
 
         // 2. Fetch the descendants of and link result given settingsObject, "script", and onComplete.
         auto& module_script = as<ModuleScript>(*result);
-        fetch_descendants_of_and_link_a_module_script(realm, module_script, settings_object, Fetch::Infrastructure::Request::Destination::Script, nullptr, on_complete);
+        fetch_descendants_of_and_link_a_module_script(realm, module_script, GC::Ref { settings_object }, Fetch::Infrastructure::Request::Destination::Script, nullptr, on_complete);
     });
 
     // 1. Fetch a single module script given url, settingsObject, "script", options, settingsObject, "client", true, and with the following steps given result:
-    fetch_single_module_script(realm, url, settings_object, Fetch::Infrastructure::Request::Destination::Script, options, settings_object, Web::Fetch::Infrastructure::Request::Referrer::Client, {}, TopLevelModule::Yes, nullptr, steps);
+    fetch_single_module_script(realm, url, GC::Ref { settings_object }, Fetch::Infrastructure::Request::Destination::Script, options, settings_object, Web::Fetch::Infrastructure::Request::Referrer::Client, {}, TopLevelModule::Yes, nullptr, steps);
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#fetch-a-modulepreload-module-script-graph
@@ -1333,7 +1334,7 @@ void fetch_modulepreload_module_script_graph(JS::Realm& realm, URL::URL const& u
         //    destination, and an empty algorithm.
         if (result) {
             auto on_descendants_complete = create_on_fetch_script_complete(GC::Heap::the(), [](auto) { });
-            fetch_descendants_of_and_link_a_module_script(realm, as<ModuleScript>(*result), settings_object, destination, nullptr, on_descendants_complete);
+            fetch_descendants_of_and_link_a_module_script(realm, as<ModuleScript>(*result), GC::Ref { settings_object }, destination, nullptr, on_descendants_complete);
         }
     });
 
@@ -1353,7 +1354,7 @@ void fetch_modulepreload_module_script_graph(JS::Realm& realm, URL::URL const& u
         module_request.emplace();
         module_request->add_attribute("type"_utf16, "text"_utf16);
     }
-    fetch_single_module_script(realm, url, settings_object, destination, options, settings_object, Web::Fetch::Infrastructure::Request::Referrer::Client, module_request, TopLevelModule::Yes, nullptr, steps);
+    fetch_single_module_script(realm, url, GC::Ref { settings_object }, destination, options, settings_object, Web::Fetch::Infrastructure::Request::Referrer::Client, module_request, TopLevelModule::Yes, nullptr, steps);
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#fetch-an-inline-module-script-graph
@@ -1364,13 +1365,13 @@ void fetch_inline_module_script_graph(JS::Realm& realm, ByteString const& filena
     script->set_fetch_options(options);
 
     // 2. Fetch the descendants of and link script, given settingsObject, "script", and onComplete.
-    fetch_descendants_of_and_link_a_module_script(realm, *script, settings_object, Fetch::Infrastructure::Request::Destination::Script, nullptr, on_complete);
+    fetch_descendants_of_and_link_a_module_script(realm, *script, GC::Ref { settings_object }, Fetch::Infrastructure::Request::Destination::Script, nullptr, on_complete);
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#fetch-a-single-imported-module-script
 void fetch_single_imported_module_script(JS::Realm& realm,
     URL::URL const& url,
-    EnvironmentSettingsObject& fetch_client,
+    FetchClient const& fetch_client,
     Fetch::Infrastructure::Request::Destination destination,
     ScriptFetchOptions const& options,
     EnvironmentSettingsObject& settings_object,
@@ -1402,7 +1403,7 @@ void fetch_single_imported_module_script(JS::Realm& realm,
 // https://html.spec.whatwg.org/multipage/webappapis.html#fetch-the-descendants-of-and-link-a-module-script
 void fetch_descendants_of_and_link_a_module_script(JS::Realm& realm,
     ModuleScript& module_script,
-    EnvironmentSettingsObject& fetch_client,
+    FetchClient const& fetch_client,
     Fetch::Infrastructure::Request::Destination destination,
     PerformTheFetchHook perform_fetch,
     OnFetchScriptComplete on_complete)
@@ -1430,13 +1431,18 @@ void fetch_descendants_of_and_link_a_module_script(JS::Realm& realm,
 
     // FIXME: These should most likely be steps in the spec.
     // NOTE: For reasons beyond my understanding, we cannot use TemporaryExecutionContext here.
-    //       Calling perform_a_microtask_checkpoint() on the fetch_client's responsible_event_loop
+    //       Calling perform_a_microtask_checkpoint() on the callback settings' responsible_event_loop
     //       prevents this from functioning properly. HTMLParser::the_end would be run before
     //       HTMLScriptElement::prepare_script had a chance to setup the callback to mark_done properly,
     //       resulting in the event loop hanging forever awaiting for the script to be ready for parser
     //       execution.
-    realm.vm().push_execution_context(fetch_client.realm_execution_context());
-    prepare_to_run_callback(fetch_client);
+    // AD-HOC: A fetch client another process hosts has no realm here, so the callback runs in the module script's
+    //         settings object.
+    auto& callback_settings = fetch_client.visit(
+        [](GC::Ref<EnvironmentSettingsObject> const& settings_object) -> EnvironmentSettingsObject& { return settings_object; },
+        [&](NonnullRefPtr<RemoteEnvironmentSettings const> const&) -> EnvironmentSettingsObject& { return module_script.settings_object(); });
+    realm.vm().push_execution_context(callback_settings.realm_execution_context());
+    prepare_to_run_callback(callback_settings);
 
     // 5. Let loadingPromise be record.LoadRequestedModules(state).
     auto loading_promise = record.visit(
@@ -1478,7 +1484,7 @@ void fetch_descendants_of_and_link_a_module_script(JS::Realm& realm,
             return JS::js_undefined();
         }));
 
-    clean_up_after_running_callback(fetch_client);
+    clean_up_after_running_callback(callback_settings);
 
     realm.vm().pop_execution_context();
 }

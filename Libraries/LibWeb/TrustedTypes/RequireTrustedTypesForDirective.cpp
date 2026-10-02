@@ -70,6 +70,11 @@ ContentSecurityPolicy::Directives::Directive::Result require_trusted_types_for_p
     // 3. Let encodedScriptSource be the result of removing the leading "javascript:" from urlString.
     auto const encoded_script_source = MUST(url_string.substring_from_byte_offset("javascript:"sv.length()));
 
+    // AD-HOC: The global object of a client another process hosts is in that process, so its default policy cannot
+    //         convert the script source here.
+    if (Fetch::Fetching::remote_client(request))
+        return Result::Blocked;
+
     // 4. Let convertedScriptSource be the result of executing Process value with a default policy algorithm, with the following arguments:
     //    expectedType:
     //      TrustedScript
