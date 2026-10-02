@@ -416,7 +416,7 @@ void StyleEngine::publish_attribute_value_text(StyleAtomID atom, Utf16View value
 {
     // The engine holds one copy of the text per currently used value. Ask whether it survived
     // reclamation before copying it out of the attribute's representation again.
-    if (StyleEngineFFI::style_engine_has_attribute_value_text(m_impl, atom.value()))
+    if (StyleEngineFFI::style_engine_has_attribute_value_text(m_render_document->host(), atom.value()))
         return;
 
     Vector<u16> code_units;
@@ -428,7 +428,7 @@ void StyleEngine::publish_attribute_value_text(StyleAtomID atom, Utf16View value
 
 bool StyleEngine::refresh_attribute_value_text_requirements()
 {
-    auto version = StyleEngineFFI::style_engine_attribute_value_text_requirements_version(m_impl);
+    auto version = StyleEngineFFI::style_engine_attribute_value_text_requirements_version(m_render_document->host());
     if (version == m_attribute_value_text_requirements_version)
         return false;
     m_attribute_value_text_requirements_version = version;
@@ -439,7 +439,7 @@ bool StyleEngine::refresh_attribute_value_text_requirements()
 bool StyleEngine::attribute_name_requires_value_text(StyleAtomID name)
 {
     return m_attribute_names_requiring_value_text.ensure(name, [&] {
-        return StyleEngineFFI::style_engine_attribute_name_requires_value_text(m_impl, name.value());
+        return StyleEngineFFI::style_engine_attribute_name_requires_value_text(m_render_document->host(), name.value());
     });
 }
 
@@ -895,33 +895,39 @@ void StyleEngine::sort_style_deltas_for_direct_application(Span<PublishedStyleDe
 
 bool StyleEngine::has_pending_transaction() const
 {
-    return has_recorded_input() || StyleEngineFFI::style_engine_has_pending_transaction(m_impl);
+    return has_recorded_input() || StyleEngineFFI::style_engine_has_pending_transaction(m_render_document->host());
 }
 
 bool StyleEngine::pending_transaction_may_affect_layout_geometry()
 {
     submit_recorded_input();
-    return StyleEngineFFI::style_engine_pending_transaction_may_affect_layout_geometry(m_impl);
+    return StyleEngineFFI::style_engine_pending_transaction_may_affect_layout_geometry(m_render_document->host());
 }
 
 bool StyleEngine::has_deferred_geometry_transaction() const
 {
-    return StyleEngineFFI::style_engine_has_deferred_geometry_transaction(m_impl);
+    // Only a geometry read defers a transaction, so until one has, every input recorded meanwhile is spared the
+    // question.
+    if (!m_geometry_read_deferred_transaction)
+        return false;
+    m_geometry_read_deferred_transaction = StyleEngineFFI::style_engine_has_deferred_geometry_transaction(m_render_document->host());
+    return m_geometry_read_deferred_transaction;
 }
 
 bool StyleEngine::has_deferred_element_style_inputs() const
 {
-    return StyleEngineFFI::style_engine_has_deferred_element_style_inputs(m_impl);
+    return StyleEngineFFI::style_engine_has_deferred_element_style_inputs(m_render_document->host());
 }
 
 bool StyleEngine::has_deferred_element_style_input(StyleNodeID style_node) const
 {
-    return StyleEngineFFI::style_engine_has_deferred_element_style_input(m_impl, style_node.value());
+    return StyleEngineFFI::style_engine_has_deferred_element_style_input(m_render_document->host(), style_node.value());
 }
 
 bool StyleEngine::defer_pending_transaction_for_geometry_read()
 {
     submit_recorded_input();
+    m_geometry_read_deferred_transaction = true;
     return StyleEngineFFI::style_engine_defer_pending_transaction_for_geometry_read(m_impl);
 }
 
