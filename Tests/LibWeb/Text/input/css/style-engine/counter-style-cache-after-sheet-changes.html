@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    #host, #layered { font-family: monospace; }
+</style>
+<style id="layered-definitions">
+    @layer base, override;
+    #layered { display: inline-block; counter-reset: item 1; }
+    #layered::before { content: counter(item, layered-marker); }
+    @layer override { @counter-style layered-marker { system: cyclic; symbols: "BBBBBBBB"; } }
+    @layer base { @counter-style layered-marker { system: cyclic; symbols: "A"; } }
+</style>
+<div id="host"></div>
+<div id="layered"></div>
+<script>
+    test(() => {
+        const shadowRoot = host.attachShadow({ mode: "open" });
+        shadowRoot.innerHTML = `
+            <style>
+                #target { display: inline-block; counter-reset: item 1; }
+                #target::before { content: counter(item, marker); }
+            </style>
+            <div id="target"></div>
+        `;
+        const target = shadowRoot.getElementById("target");
+        const width = element => element.getBoundingClientRect().width;
+        const initialWidth = width(target);
+
+        const definition = document.createElement("style");
+        definition.textContent = '@counter-style marker { system: cyclic; symbols: "BBBBBBBB"; }';
+        shadowRoot.append(definition);
+        println(`shadow sheet defining the counter style changes the marker: ${width(target) > initialWidth}`);
+
+        const layeredWidth = width(layered);
+        const reorder = document.createElement("style");
+        reorder.textContent = "@layer override, base;";
+        document.getElementById("layered-definitions").before(reorder);
+        println(`sheet reordering layers changes the winning definition: ${width(layered) < layeredWidth}`);
+    });
+</script>

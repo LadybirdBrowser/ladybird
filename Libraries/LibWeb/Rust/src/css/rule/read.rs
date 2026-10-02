@@ -65,6 +65,18 @@ pub extern "C" fn rust_rule_list_has_implicit_scope(list: &NativeRuleList) -> bo
 }
 
 #[unsafe(no_mangle)]
+pub extern "C" fn rust_rule_list_has_counter_style_rules(list: &NativeRuleList) -> bool {
+    list.visit_descendant_rules(&mut |rule| {
+        if rule.rule_type() == NativeRuleType::CounterStyle {
+            ControlFlow::Break(())
+        } else {
+            ControlFlow::Continue(())
+        }
+    })
+    .is_break()
+}
+
+#[unsafe(no_mangle)]
 pub extern "C" fn rust_rule_list_has_anonymous_layer(list: &NativeRuleList) -> bool {
     list.visit_descendant_rules(&mut |rule| {
         let anonymous = match rule {

@@ -603,6 +603,18 @@ bool StyleSheetState::has_document_owner() const
     return false;
 }
 
+bool StyleSheetState::has_counter_style_rules() const
+{
+    if (native_rules().has_counter_style_rules())
+        return true;
+    for (auto const& import_rule : m_import_rules) {
+        auto const* imported_sheet = import_rule->loaded_style_sheet();
+        if (imported_sheet && imported_sheet->has_counter_style_rules())
+            return true;
+    }
+    return false;
+}
+
 GC::Ptr<DOM::Document> StyleSheetState::owning_document() const
 {
     if (!m_owning_documents_or_shadow_roots.is_empty())

@@ -18,15 +18,22 @@ void invalidate_rule_cache_after_style_sheet_change(DOM::Node& document_or_shado
         return;
 
     if (auto* shadow_root = as_if<DOM::ShadowRoot>(document_or_shadow_root))
-        shadow_root->style_scope().invalidate_style_cache();
+        invalidate_rule_cache_after_style_sheet_change(shadow_root->style_scope(), sheet);
     else
-        document_or_shadow_root.document().style_scope().invalidate_style_cache();
+        invalidate_rule_cache_after_style_sheet_change(document_or_shadow_root.document().style_scope(), sheet);
+}
+
+void invalidate_rule_cache_after_style_sheet_change(StyleScope& style_scope, StyleSheetState const& sheet)
+{
+    style_scope.invalidate_style_cache();
+    if (sheet.has_counter_style_rules() || style_scope.sheets_define_counter_styles())
+        style_scope.invalidate_counter_style_cache();
 }
 
 void invalidate_rule_cache_for_style_sheet_owners(StyleSheetState const& style_sheet)
 {
-    style_sheet.for_each_owning_style_scope([](StyleScope& style_scope) {
-        style_scope.invalidate_style_cache();
+    style_sheet.for_each_owning_style_scope([&](StyleScope& style_scope) {
+        invalidate_rule_cache_after_style_sheet_change(style_scope, style_sheet);
     });
 }
 

@@ -262,7 +262,6 @@ void StyleScope::build_rule_cache()
 void StyleScope::invalidate_style_cache()
 {
     document().note_style_sheet_set_change();
-    invalidate_counter_style_cache();
     m_rule_cache.clear();
     m_has_published_rule_cache = false;
     // The registered custom properties cache is built from the document's active stylesheets, so it only needs a
@@ -275,6 +274,7 @@ void StyleScope::invalidate_user_style_sheet()
 {
     m_user_style_sheet = nullptr;
     invalidate_style_cache();
+    invalidate_counter_style_cache();
 }
 
 void StyleScope::build_user_style_sheet_if_needed()
@@ -679,6 +679,7 @@ void StyleScope::build_counter_style_cache(Layout::BegunRead const& read)
     //               and so is what a document that defines no counter style of its own registers. Every new iframe
     //               and SVG image registers them in its first style update, so they are made once.
     static Parser::ValueParserFFI::RegisteredCounterStyles const* user_agent_counter_styles = nullptr;
+    m_sheets_define_counter_styles = !rules.is_empty();
     bool const registers_only_user_agent_counter_styles = is_document && rules.is_empty();
     Parser::ValueParserFFI::RegisteredCounterStyles const* counter_styles = nullptr;
     if (registers_only_user_agent_counter_styles && user_agent_counter_styles) {
