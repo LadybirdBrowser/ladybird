@@ -490,6 +490,7 @@ public:
     Function<void(Web::HTML::FileFilter const& accepted_file_types, Web::HTML::AllowMultipleFiles)> on_request_file_picker;
     Function<void(Gfx::IntPoint content_position, i32 minimum_width, Vector<Web::HTML::SelectItem> items)> on_request_select_dropdown;
     Function<void(Web::KeyEvent const&)> on_finish_handling_key_event;
+    Function<void(Web::MouseEvent const&, Web::EventResult)> on_finish_handling_mouse_event;
     Function<void(Web::DragEvent const&)> on_finish_handling_drag_event;
     Function<void(String const&)> on_test_finish;
     Function<void(double milliseconds)> on_set_test_timeout;

@@ -905,6 +905,14 @@ void ViewImplementation::did_finish_handling_input_event(Badge<WebContentPage>, 
         return;
     auto event = m_pending_input_events.take(*index).event;
 
+    // A view can decide what a mouse event goes on to do by whether the page handled it, such as whether the page
+    // claimed the press that starts a drag.
+    if (auto const* mouse_event = event.get_pointer<Web::MouseEvent>()) {
+        if (on_finish_handling_mouse_event)
+            on_finish_handling_mouse_event(*mouse_event, event_result);
+        return;
+    }
+
     if (event_result == Web::EventResult::Handled || event_result == Web::EventResult::Cancelled)
         return;
 
