@@ -21,7 +21,6 @@ use crate::painting::chrome_geometry::{maximum_scroll_offset, minimum_scroll_off
 use crate::painting::host::{FfiSnapAreaGeometry, FfiSnapAxes, FfiSnapContainerGeometry};
 use crate::painting::paint_read::PaintRead;
 use crate::painting::paintable_geometry;
-use crate::painting::paintable_rows::PaintableRowsRead;
 use crate::painting::style_queries;
 use crate::painting::visual_context::node_values::compute_transform;
 use libgfx_rust::{FloatMatrix4x4, FloatPoint, FloatRect};
@@ -121,7 +120,7 @@ fn inflate_by_scroll_margin(rect: CssPixelRect, scroll_margin: &ComputedLengthBo
 
 /// The geometry of a snap container, or `None` for a scroll container that snaps in no axis.
 pub(crate) fn snap_container_geometry(
-    arena: &impl PaintableRowsRead,
+    arena: &impl PaintRead,
     snap_container: NodeSlotId,
 ) -> Option<FfiSnapContainerGeometry> {
     if !arena.paintable_row_is_populated(snap_container) {
