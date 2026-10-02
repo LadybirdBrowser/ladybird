@@ -67,7 +67,7 @@ impl<'host> MainThread<'host> {
 /// # Safety
 ///
 /// The caller must be an FFI entry point whose C++ contract requires the document thread, and
-/// `arena_handle` must come from `render_state_create_document` and outlive the token.
+/// `arena_handle` must come from `render_state_arena_for_unconverted_entry` and outlive the token.
 pub(crate) unsafe fn from_ffi_entry<'host>(_: &impl FfiEntry, arena_handle: *mut c_void) -> MainThread<'host> {
     // SAFETY: Guaranteed by the caller.
     let host_tables = unsafe { HostTables::from_handle(arena_handle) };

@@ -23,6 +23,8 @@ namespace Web::Layout {
 class Node;
 class TextNode;
 
+// A document's host for its render state: the DocumentHost that names the state and holds the host tables layout
+// answers to, kept alive by the layout shells and paint objects that reach the state's arena.
 class WEB_API NodeArena : public RefCounted<NodeArena> {
     AK_MAKE_NONCOPYABLE(NodeArena);
     AK_MAKE_NONMOVABLE(NodeArena);
@@ -50,7 +52,9 @@ public:
     void commit_box_presence(DOM::Node&);
 
 private:
-    RustFFI::DocumentId m_document_id {};
+    RustFFI::DocumentHost* m_host { nullptr };
+    // The arena of the document's render state, which the entries that have not been converted to render messages
+    // still take.
     void* m_handle { nullptr };
     GC::RawPtr<DOM::Document> m_document;
 };

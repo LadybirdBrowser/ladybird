@@ -30,13 +30,13 @@ mod main_thread_entries;
 
 pub(crate) use main_thread_entries::MainThreadFfiEntry;
 
-/// SAFETY: `arena` must be a live handle from `render_state_create_document`, borrowed for this call on
+/// SAFETY: `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, borrowed for this call on
 /// the document thread.
 pub(crate) unsafe fn arena_from_handle<'a>(arena: *mut c_void) -> &'a LayoutNodeArena {
     unsafe { LayoutNodeArena::from_handle(arena) }
 }
 
-/// SAFETY: `arena` must be a live handle from `render_state_create_document`, exclusively borrowed for
+/// SAFETY: `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, exclusively borrowed for
 /// this call on the document thread. No C++ callback may re-enter the arena during the borrow.
 unsafe fn arena_from_handle_mut<'a>(arena: *mut c_void) -> &'a mut LayoutNodeArena {
     unsafe { LayoutNodeArena::from_handle_mut(arena) }
@@ -47,7 +47,7 @@ unsafe fn arena_from_handle_mut<'a>(arena: *mut c_void) -> &'a mut LayoutNodeAre
 ///
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_create_document` with no outstanding borrow, used on
+/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry` with no outstanding borrow, used on
 /// the document thread.
 pub(crate) unsafe fn paintable_cleared_from_node(
     host_calls: crate::layout::tree_mutation::HostCalls<'_>,
@@ -111,7 +111,7 @@ pub struct FfiOptionalScrollbarData {
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_create_document`, used on the document thread.
+/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_paintable_set_scrollbar_enlarged(
     arena: *mut c_void,
@@ -138,7 +138,7 @@ pub unsafe extern "C" fn layout_arena_paintable_set_scrollbar_enlarged(
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_create_document`, used on the document thread.
+/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_paintable_physical_resize_axes(
     arena: *mut c_void,
@@ -154,7 +154,7 @@ pub unsafe extern "C" fn layout_arena_paintable_physical_resize_axes(
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_create_document`, used on the document thread.
+/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_paintable_is_chrome_mirrored(arena: *mut c_void, slot: NodeSlotId) -> bool {
     let arena = unsafe { arena_from_handle(arena) };
@@ -163,7 +163,7 @@ pub unsafe extern "C" fn layout_arena_paintable_is_chrome_mirrored(arena: *mut c
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_create_document`, used on the document thread.
+/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_paintable_compute_scrollbar_data(
     arena: *mut c_void,
@@ -211,7 +211,7 @@ pub unsafe extern "C" fn layout_arena_paintable_compute_scrollbar_data(
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_create_document`, used on the document thread.
+/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_paintable_minimum_scroll_offset(
     arena: *mut c_void,
@@ -224,7 +224,7 @@ pub unsafe extern "C" fn layout_arena_paintable_minimum_scroll_offset(
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_create_document`, used on the document thread.
+/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_paintable_maximum_scroll_offset(
     arena: *mut c_void,
@@ -237,7 +237,7 @@ pub unsafe extern "C" fn layout_arena_paintable_maximum_scroll_offset(
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_create_document`, used on the document thread.
+/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_paintable_wheel_scrollable_axes(
     arena: *mut c_void,
@@ -261,7 +261,7 @@ pub unsafe extern "C" fn layout_arena_paintable_wheel_scrollable_axes(
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_create_document`, used on the document thread.
+/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_set_chrome_state_callback(
     arena: *mut c_void,
@@ -275,7 +275,7 @@ pub unsafe extern "C" fn layout_arena_set_chrome_state_callback(
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_create_document`, used on the document thread.
+/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_clear_chrome_state_callback(arena: *mut c_void) {
     unsafe { crate::layout::HostTables::from_handle(arena) }
@@ -285,7 +285,7 @@ pub unsafe extern "C" fn layout_arena_clear_chrome_state_callback(arena: *mut c_
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_create_document`, used on the document thread.
+/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_node_establishes_an_absolute_positioning_containing_block(
     arena: *mut c_void,
@@ -297,7 +297,7 @@ pub unsafe extern "C" fn layout_arena_node_establishes_an_absolute_positioning_c
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_create_document`, used on the document thread.
+/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_node_establishes_a_fixed_positioning_containing_block(
     arena: *mut c_void,
@@ -309,7 +309,7 @@ pub unsafe extern "C" fn layout_arena_node_establishes_a_fixed_positioning_conta
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_create_document`, used on the document thread.
+/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_any_ancestor_establishes_a_fixed_position_containing_block(
     arena: *mut c_void,
@@ -321,7 +321,7 @@ pub unsafe extern "C" fn layout_arena_any_ancestor_establishes_a_fixed_position_
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_create_document`, used on the document thread.
+/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_node_has_css_transform(arena: *mut c_void, node: NodeSlotId) -> bool {
     let arena = unsafe { arena_from_handle(arena) };
@@ -333,7 +333,7 @@ pub unsafe extern "C" fn layout_arena_node_has_css_transform(arena: *mut c_void,
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_create_document`, used on the document thread, and
+/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread, and
 /// `node` must name a live node in this arena.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_invalidate_nearest_self_painting_inline_paint_cache(
@@ -351,7 +351,7 @@ pub unsafe extern "C" fn layout_arena_invalidate_nearest_self_painting_inline_pa
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_create_document`, used on the document thread.
+/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_paintable_row(arena: *mut c_void, slot: NodeSlotId) -> *const PaintableData {
     let arena = unsafe { arena_from_handle(arena) };
@@ -364,7 +364,7 @@ pub unsafe extern "C" fn layout_arena_paintable_row(arena: *mut c_void, slot: No
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_create_document`, used on the document thread.
+/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_paintable_has_child_paintables(arena: *mut c_void, slot: NodeSlotId) -> bool {
     let arena = unsafe { arena_from_handle(arena) };
@@ -373,7 +373,7 @@ pub unsafe extern "C" fn layout_arena_paintable_has_child_paintables(arena: *mut
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_create_document`, used on the
+/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the
 /// document thread. `entries` must point at `entry_count` valid entries.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_selection_apply(
@@ -401,7 +401,7 @@ pub unsafe extern "C" fn layout_arena_selection_apply(
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_create_document`, used on the document thread.
+/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_selection_clear(arena: *mut c_void, viewport: NodeSlotId) {
     let arena = unsafe { arena_from_handle_mut(arena) };
@@ -424,7 +424,7 @@ pub struct FfiPhysicalOverflowDirections {
 ///
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_create_document`, used on the document thread;
+/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread;
 /// `publish` is called synchronously with `sink` and a view of the snapshot that is valid only
 /// for the duration of that call.
 #[unsafe(no_mangle)]
@@ -465,7 +465,7 @@ pub unsafe extern "C" fn layout_arena_refresh_scroll_state(
 ///
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_create_document`, used on the document thread.
+/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_publish_visual_context_tree_inputs(
     arena: *mut c_void,
@@ -476,7 +476,7 @@ pub unsafe extern "C" fn layout_arena_publish_visual_context_tree_inputs(
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_create_document`, used on the document thread.
+/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_update_accumulated_visual_contexts(
     arena: *mut c_void,
@@ -570,7 +570,7 @@ pub unsafe extern "C" fn layout_arena_update_accumulated_visual_contexts(
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_create_document`, used on the document thread.
+/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_update_visual_viewport_transform(arena: *mut c_void) -> bool {
     let arena = unsafe { arena_from_handle(arena) };
@@ -696,7 +696,7 @@ pub struct FfiBoxModelMetrics {
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_create_document`, used on the document thread.
+/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_paintable_content_size(arena: *mut c_void, slot: NodeSlotId) -> FfiCssPixelSize {
     let arena = unsafe { arena_from_handle(arena) };
@@ -709,7 +709,7 @@ pub unsafe extern "C" fn layout_arena_paintable_content_size(arena: *mut c_void,
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_create_document`, used on the document thread.
+/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_paintable_svg_viewport_size(
     arena: *mut c_void,
@@ -731,7 +731,7 @@ pub struct FfiOptionalAffineTransform {
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_create_document`, used on the document thread.
+/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_paintable_svg_viewport_transform(
     arena: *mut c_void,
@@ -751,7 +751,7 @@ pub unsafe extern "C" fn layout_arena_paintable_svg_viewport_transform(
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_create_document`, used on the document thread.
+/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_paintable_transform_reference_box(
     arena: *mut c_void,
@@ -772,7 +772,7 @@ pub unsafe extern "C" fn layout_arena_paintable_transform_reference_box(
 ///
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_create_document`, used on the document thread.
+/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_paintable_box_model(arena: *mut c_void, slot: NodeSlotId) -> FfiBoxModelMetrics {
     let arena = unsafe { arena_from_handle(arena) };
@@ -789,7 +789,7 @@ pub unsafe extern "C" fn layout_arena_paintable_box_model(arena: *mut c_void, sl
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_create_document`, used on the document thread.
+/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_paintable_is_positioned(arena: *mut c_void, slot: NodeSlotId) -> bool {
     let arena = unsafe { arena_from_handle(arena) };
@@ -801,7 +801,7 @@ pub unsafe extern "C" fn layout_arena_paintable_is_positioned(arena: *mut c_void
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_create_document`, used on the document thread.
+/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_paintable_absolute_rect(arena: *mut c_void, slot: NodeSlotId) -> FfiCssPixelRect {
     let arena = unsafe { arena_from_handle(arena) };
@@ -810,7 +810,7 @@ pub unsafe extern "C" fn layout_arena_paintable_absolute_rect(arena: *mut c_void
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_create_document`, used on the document thread.
+/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_paintable_absolute_padding_box_rect(
     arena: *mut c_void,
@@ -826,7 +826,7 @@ pub unsafe extern "C" fn layout_arena_paintable_absolute_padding_box_rect(
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_create_document`, used on the document thread.
+/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_paintable_absolute_border_box_rect(
     arena: *mut c_void,
@@ -842,7 +842,7 @@ pub unsafe extern "C" fn layout_arena_paintable_absolute_border_box_rect(
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_create_document`, used on the document thread.
+/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_physical_overflow_directions(
     arena: *mut c_void,
@@ -862,7 +862,7 @@ pub unsafe extern "C" fn layout_arena_physical_overflow_directions(
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_create_document`, used on the document thread.
+/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_visual_context_note_box_dirty(
     arena: *mut c_void,
@@ -885,7 +885,7 @@ pub unsafe extern "C" fn layout_arena_visual_context_note_box_dirty(
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_create_document`, used on the document thread.
+/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_visual_context_request_full_rebuild(
     arena: *mut c_void,
@@ -912,7 +912,7 @@ pub unsafe extern "C" fn layout_arena_visual_context_request_full_rebuild(
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_create_document`, used on the document thread.
+/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_visual_context_pending_dirty_box_count(arena: *mut c_void) -> usize {
     let arena = unsafe { arena_from_handle(arena) };
@@ -938,7 +938,7 @@ pub unsafe extern "C" fn layout_arena_background_color_can_be_compositor_animate
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_create_document`, used on the document thread.
+/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_paintable_visual_context_node_count(
     arena: *mut c_void,
@@ -956,7 +956,7 @@ pub unsafe extern "C" fn layout_arena_paintable_visual_context_node_count(
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_create_document`, used on the document thread; `out`
+/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread; `out`
 /// must have room for `capacity` indices.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_paintable_visual_context_copy_node_indices(
@@ -1084,7 +1084,7 @@ fn paintables_with_mask_nodes_in_paint_order(
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_create_document`, used on the document thread.
+/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
 /// `out_geometry` must point to writable storage.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_snap_container_geometry(
@@ -1105,7 +1105,7 @@ pub unsafe extern "C" fn layout_arena_snap_container_geometry(
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_create_document`, used on the document thread.
+/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_scroll_snapport_rect(
     arena: *mut c_void,
@@ -1118,7 +1118,7 @@ pub unsafe extern "C" fn layout_arena_scroll_snapport_rect(
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_create_document`, used on the document thread.
+/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_invalidate_scroll_state(arena: *mut c_void) {
     let arena = unsafe { arena_from_handle(arena) };
@@ -1135,7 +1135,7 @@ pub unsafe extern "C" fn layout_arena_invalidate_scroll_state(arena: *mut c_void
 ///
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_create_document`, used on the document thread.
+/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_sticky_spatial_node_index(arena: *mut c_void, paintable: NodeSlotId) -> u32 {
     let arena = unsafe { arena_from_handle(arena) };
@@ -1151,7 +1151,7 @@ pub unsafe extern "C" fn layout_arena_sticky_spatial_node_index(arena: *mut c_vo
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_create_document`, used on the document thread.
+/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
 /// Input arrays and byte buffers must remain valid and immutable throughout this call;
 /// fonts for enabled overlays must be live `Gfx::Font`s.
 #[unsafe(no_mangle)]
@@ -1262,7 +1262,7 @@ impl FfiPresentedRecording {
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_create_document`, used on the document thread.
+/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_set_form_control_paint_facts(
     arena: *mut c_void,
@@ -1278,7 +1278,7 @@ pub unsafe extern "C" fn layout_arena_set_form_control_paint_facts(
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_create_document`, used on the document thread.
+/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_set_canvas_paint_facts(
     arena: *mut c_void,
@@ -1294,7 +1294,7 @@ pub unsafe extern "C" fn layout_arena_set_canvas_paint_facts(
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_create_document`, used on the document thread, and
+/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread, and
 /// `entries` must point at `count` readable entries whose frame pointers are null or live.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_set_layer_image_paint_facts(
@@ -1325,7 +1325,7 @@ pub unsafe extern "C" fn layout_arena_set_layer_image_paint_facts(
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_create_document`, used on the document thread, and
+/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread, and
 /// `facts.frame` must be null or point to a live `Gfx::DecodedImageFrame`.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_set_replaced_image_paint_facts(
@@ -1358,7 +1358,7 @@ pub struct FfiImageMapArea {
 ///
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_create_document`. `areas` must point at `area_count`
+/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`. `areas` must point at `area_count`
 /// areas and `coords` at `coords_count` values, and every area's coordinate range must lie within
 /// them.
 #[unsafe(no_mangle)]
@@ -1395,7 +1395,7 @@ pub unsafe extern "C" fn layout_arena_publish_image_map_areas(
 ///
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_create_document`.
+/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_image_map_area_for_point(
     arena: *mut c_void,
@@ -1410,7 +1410,7 @@ pub unsafe extern "C" fn layout_arena_image_map_area_for_point(
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_create_document`, used on the document thread, and
+/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread, and
 /// `facts.poster_frame` must be null or point to a live `Gfx::DecodedImageFrame`.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_set_video_paint_facts(
@@ -1428,7 +1428,7 @@ pub unsafe extern "C" fn layout_arena_set_video_paint_facts(
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_create_document`, used on the document thread.
+/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_set_navigable_container_paint_facts(
     arena: *mut c_void,
@@ -1444,7 +1444,7 @@ pub unsafe extern "C" fn layout_arena_set_navigable_container_paint_facts(
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_create_document`, used on the document thread.
+/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_scroll_snap_axes(
     arena: *mut c_void,
@@ -1459,7 +1459,7 @@ pub unsafe extern "C" fn layout_arena_scroll_snap_axes(
 ///
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_create_document`, used on the document thread.
+/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_sync_selection_pseudo_style(arena: *mut c_void, element_style_node: u32) {
     let Some(element) = crate::css::style::tree::StyleNodeID::from_raw(element_style_node) else {
@@ -1645,7 +1645,7 @@ pub unsafe extern "C" fn ladybird_web_record_image_paint_display_list(
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_create_document`, used on the document thread.
+/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_paintable_invalidate_paint_cache(
     arena: *mut c_void,
@@ -1663,7 +1663,7 @@ pub unsafe extern "C" fn layout_arena_paintable_invalidate_paint_cache(
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_create_document`, used on the document thread.
+/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_paintable_invalidate_for_repaint(
     arena: *mut c_void,
@@ -1682,7 +1682,7 @@ pub unsafe extern "C" fn layout_arena_paintable_invalidate_for_repaint(
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_create_document`, used on the document thread.
+/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_paintable_invalidate_subtree_for_repaint(
     arena: *mut c_void,
@@ -1694,7 +1694,7 @@ pub unsafe extern "C" fn layout_arena_paintable_invalidate_subtree_for_repaint(
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_create_document`, used on the document thread.
+/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_invalidate_all_paint_caches(arena: *mut c_void) {
     let arena = unsafe { arena_from_handle(arena) };
@@ -1703,7 +1703,7 @@ pub unsafe extern "C" fn layout_arena_invalidate_all_paint_caches(arena: *mut c_
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_create_document`, used on the document thread.
+/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_paintable_computed_svg_path(
     arena: *mut c_void,
@@ -1729,7 +1729,7 @@ pub struct FfiCaretRectResult {
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_create_document`, used on the document
+/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document
 /// thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_text_caret_rect_in_dom_range(
@@ -1785,7 +1785,7 @@ unsafe fn rect_to_viewport_transform_from_ffi(
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_create_document`, used on the document thread, and
+/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread, and
 /// `rect_to_viewport_transform` must satisfy `rect_to_viewport_transform_from_ffi`.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_client_rects(
@@ -1810,7 +1810,7 @@ pub unsafe extern "C" fn layout_arena_client_rects(
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_create_document`, used on the document thread, and
+/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread, and
 /// `rect_to_viewport_transform` must satisfy `rect_to_viewport_transform_from_ffi`.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_bounding_client_rect(
@@ -1830,7 +1830,7 @@ pub unsafe extern "C" fn layout_arena_bounding_client_rect(
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_create_document`, used on the document thread, and
+/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread, and
 /// `rect_to_viewport_transform` must satisfy `rect_to_viewport_transform_from_ffi`.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_transform_subtree_is_clipped_outside(
@@ -1851,7 +1851,7 @@ pub unsafe extern "C" fn layout_arena_transform_subtree_is_clipped_outside(
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_create_document`, used on the document thread, and
+/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread, and
 /// `rect_to_viewport_transform` must satisfy `rect_to_viewport_transform_from_ffi`.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_intersection_observer_intersection_rect(
@@ -1889,7 +1889,7 @@ pub unsafe extern "C" fn layout_arena_intersection_observer_intersection_rect(
 ///
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_create_document`, used on the document thread.
+/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_may_have_auto_content_visibility(arena: *mut c_void) -> bool {
     unsafe { arena_from_handle(arena) }.may_have_auto_content_visibility()
@@ -1897,7 +1897,7 @@ pub unsafe extern "C" fn layout_arena_may_have_auto_content_visibility(arena: *m
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_create_document`, used on the document thread.
+/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_collect_boxes_with_auto_content_visibility(
     arena: *mut c_void,
@@ -1918,7 +1918,7 @@ pub unsafe extern "C" fn layout_arena_collect_boxes_with_auto_content_visibility
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_create_document`, used on the document thread.
+/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_can_compute_client_rects_without_visual_context_update(
     arena: *mut c_void,
@@ -1935,7 +1935,7 @@ pub unsafe extern "C" fn layout_arena_can_compute_client_rects_without_visual_co
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_create_document`, used on the document thread.
+/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_inline_paintable_has_content_pieces(
     arena: *mut c_void,
@@ -1962,7 +1962,7 @@ pub struct FfiOptionalCssPixelPoint {
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_create_document`, used on the document thread.
+/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_inline_paintable_first_piece_position(
     arena: *mut c_void,
@@ -2009,7 +2009,7 @@ pub struct FfiVisualLine {
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_create_document`, used on the document
+/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document
 /// thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_text_visual_lines(
@@ -2058,7 +2058,7 @@ fn has_rendered_text_matching(
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_create_document`, used on the document
+/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document
 /// thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_text_has_rendered_text_before(
@@ -2076,7 +2076,7 @@ pub unsafe extern "C" fn layout_arena_text_has_rendered_text_before(
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_create_document`, used on the document
+/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document
 /// thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_text_has_rendered_text_after(
@@ -2100,7 +2100,7 @@ pub struct FfiOptionalCssPixels {
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_create_document`, used on the document
+/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document
 /// thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_visual_line_caret_inline_coordinate(
@@ -2132,7 +2132,7 @@ pub unsafe extern "C" fn layout_arena_visual_line_caret_inline_coordinate(
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_create_document`, used on the document
+/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document
 /// thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_visual_line_offset_closest_to_inline_coordinate(
@@ -2159,7 +2159,7 @@ pub unsafe extern "C" fn layout_arena_visual_line_offset_closest_to_inline_coord
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_create_document`, used on the document
+/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document
 /// thread, and
 /// `rect_to_viewport_transform` must satisfy `rect_to_viewport_transform_from_ffi`.
 #[unsafe(no_mangle)]
@@ -2221,7 +2221,7 @@ pub struct FfiOptionalCssPixelRect {
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_create_document`, used on the document thread.
+/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_paintable_first_fragment_rect_for_node(
     arena: *mut c_void,
@@ -2250,7 +2250,7 @@ pub unsafe extern "C" fn layout_arena_paintable_first_fragment_rect_for_node(
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_create_document`, used on the document thread;
+/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread;
 /// `consume` copies the byte span synchronously.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_stacking_context_structure_verification_report(
@@ -2269,7 +2269,7 @@ pub unsafe extern "C" fn layout_arena_stacking_context_structure_verification_re
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_create_document`, used on the document thread.
+/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_paintable_grid_layout_json(
     arena: *mut c_void,
@@ -2290,7 +2290,7 @@ pub unsafe extern "C" fn layout_arena_paintable_grid_layout_json(
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_create_document`, used on the document thread.
+/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_paintable_flex_layout_json(
     arena: *mut c_void,
@@ -2317,7 +2317,7 @@ pub unsafe extern "C" fn layout_arena_paintable_flex_layout_json(
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_create_document`, used on the document thread.
+/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_paintable_used_grid_tracks(
     arena: *mut c_void,
@@ -2337,7 +2337,7 @@ pub unsafe extern "C" fn layout_arena_paintable_used_grid_tracks(
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_create_document`, used on the document thread. The
+/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread. The
 /// returned tree is retained; the caller owns one reference and releases it with
 /// `visual_context_tree_release`.
 #[unsafe(no_mangle)]
@@ -2355,7 +2355,7 @@ pub unsafe extern "C" fn layout_arena_main_visual_context_tree_retain(arena: *mu
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_create_document`, used on the document thread.
+/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_has_visual_context_tree(arena: *mut c_void) -> bool {
     let arena = unsafe { arena_from_handle(arena) };
@@ -2365,7 +2365,7 @@ pub unsafe extern "C" fn layout_arena_has_visual_context_tree(arena: *mut c_void
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_create_document`, used on the document thread.
+/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_visual_context_tree_structural_epoch(arena: *mut c_void) -> u64 {
     let arena = unsafe { arena_from_handle(arena) };
@@ -2375,7 +2375,7 @@ pub unsafe extern "C" fn layout_arena_visual_context_tree_structural_epoch(arena
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_create_document`, used on the document thread.
+/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_visual_context_tree_has_visual_animations(arena: *mut c_void) -> bool {
     let arena = unsafe { arena_from_handle(arena) };
@@ -2417,7 +2417,7 @@ pub unsafe extern "C" fn compositor_animation_effect_state_destroy(state: *mut c
 ///
 /// # Safety
 ///
-/// `state` must be a live effect state handle, `arena` a live handle from `render_state_create_document`
+/// `state` must be a live effect state handle, `arena` a live handle from `render_state_arena_for_unconverted_entry`
 /// used on the document thread, and the request and host, with every range they address, live
 /// for the call. The host's callbacks run synchronously and may not touch the arena.
 #[unsafe(no_mangle)]
@@ -2470,7 +2470,7 @@ pub unsafe extern "C" fn compositor_animation_effect_clear_pending(state: *mut c
 ///
 /// # Safety
 ///
-/// `state` must be a live effect state handle and `arena` a live handle from `render_state_create_document`
+/// `state` must be a live effect state handle and `arena` a live handle from `render_state_arena_for_unconverted_entry`
 /// used on the document thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn compositor_animation_effect_publish_pending(
@@ -2543,7 +2543,7 @@ pub unsafe extern "C" fn compositor_animation_effect_transform_preserves_axes(
 ///
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_create_document`, used on the document thread.
+/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_begin_compositor_animation_update(arena: *mut c_void) {
     let arena = unsafe { arena_from_handle(arena) };
@@ -2559,7 +2559,7 @@ pub unsafe extern "C" fn layout_arena_begin_compositor_animation_update(arena: *
 ///
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_create_document`, used on the document thread.
+/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_publish_compositor_animations(
     arena: *mut c_void,
@@ -2572,7 +2572,7 @@ pub unsafe extern "C" fn layout_arena_publish_compositor_animations(
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_create_document`, used on the document thread; the
+/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread; the
 /// sink pointer must stay valid for this synchronous call.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_hit_test_visit_chrome_widgets(
@@ -2593,7 +2593,7 @@ pub unsafe extern "C" fn layout_arena_hit_test_visit_chrome_widgets(
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_create_document`, used on the document thread;
+/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread;
 /// the callback context and function pointers must remain valid for this synchronous call.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_hit_test_caret_line_for_position(
@@ -2673,7 +2673,7 @@ pub unsafe extern "C" fn layout_arena_paint_push_svg_filter_primitive(
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_create_document`, used on the document thread.
+/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_note_svg_paint_resources_changed(arena: *mut c_void) -> bool {
     let arena = unsafe { arena_from_handle(arena) };
@@ -2682,7 +2682,7 @@ pub unsafe extern "C" fn layout_arena_note_svg_paint_resources_changed(arena: *m
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_create_document`, used on the document thread.
+/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_has_enrolled_svg_paint_resources(arena: *mut c_void) -> bool {
     let arena = unsafe { arena_from_handle(arena) };
@@ -2714,7 +2714,7 @@ pub unsafe extern "C" fn layout_arena_filter_functions_serialize(
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_create_document`; `line_index` in range.
+/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`; `line_index` in range.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_hit_test_caret_line(
     arena: *mut c_void,
@@ -2733,7 +2733,7 @@ pub unsafe extern "C" fn layout_arena_hit_test_caret_line(
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_create_document`, used on the document thread.
+/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_hit_test_list_generation(arena: *mut c_void) -> u64 {
     let arena = unsafe { arena_from_handle(arena) };
@@ -2744,7 +2744,7 @@ pub unsafe extern "C" fn layout_arena_hit_test_list_generation(arena: *mut c_voi
 ///
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_create_document`, used on the document thread.
+/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_paintable_event_dispatch_target(
     arena: *mut c_void,
@@ -2755,7 +2755,7 @@ pub unsafe extern "C" fn layout_arena_paintable_event_dispatch_target(
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_create_document`, used on the document thread;
+/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread;
 /// `index` in range.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_hit_test_item_facts(
@@ -2788,7 +2788,7 @@ pub unsafe extern "C" fn layout_arena_hit_test_item_facts(
 ///
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_create_document`, used on the document thread;
+/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread;
 /// `item_index` must be in range for the current hit-test list.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_hit_test_item_target(
@@ -2804,7 +2804,7 @@ pub unsafe extern "C" fn layout_arena_hit_test_item_target(
 ///
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_create_document`, used on the document thread;
+/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread;
 /// `item_index` must be in range for the current hit-test list.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_hit_test_item_dispatch_target(
@@ -2818,7 +2818,7 @@ pub unsafe extern "C" fn layout_arena_hit_test_item_dispatch_target(
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_create_document`, used on the document thread;
+/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread;
 /// `item_index` must be in range for the current hit-test list.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_hit_test_resolve_hit(
@@ -2833,7 +2833,7 @@ pub unsafe extern "C" fn layout_arena_hit_test_resolve_hit(
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_create_document`, used on the document thread;
+/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread;
 /// `item_index` must be in range for the current hit-test list.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_hit_test_resolve_caret(
@@ -2964,7 +2964,7 @@ fn publish_resolved_svg_paint_resources(arena: &LayoutNodeArena, resolved: Vec<R
 ///
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_create_document`, used on the document thread, and
+/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread, and
 /// both resolvers must answer synchronously for the row of the arena they are handed and only
 /// push into the sink whose pointer they receive.
 #[unsafe(no_mangle)]
@@ -3094,7 +3094,7 @@ fn ffi_topmost(item: Option<crate::painting::hit_test::query::TopmostItem>) -> c
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_create_document`, used on the document thread.
+/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_hit_test_find_topmost_item(
     arena: *mut c_void,
@@ -3108,7 +3108,7 @@ pub unsafe extern "C" fn layout_arena_hit_test_find_topmost_item(
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_create_document`, used on the document thread.
+/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_hit_test_find_topmost_items_for_caret(
     arena: *mut c_void,
@@ -3126,7 +3126,7 @@ pub unsafe extern "C" fn layout_arena_hit_test_find_topmost_items_for_caret(
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_create_document`, used on the document thread.
+/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_hit_test_all(
     arena: *mut c_void,
@@ -3147,7 +3147,7 @@ pub unsafe extern "C" fn layout_arena_hit_test_all(
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_create_document`, used on the document thread.
+/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_hit_test_item_at_line_edge(
     arena: *mut c_void,
@@ -3162,7 +3162,7 @@ pub unsafe extern "C" fn layout_arena_hit_test_item_at_line_edge(
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_create_document`, used on the document thread.
+/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_hit_test_caret_item_for_line(
     arena: *mut c_void,
@@ -3189,7 +3189,7 @@ pub unsafe extern "C" fn layout_arena_hit_test_caret_item_for_line(
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_create_document`, used on the document thread.
+/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_hit_test_line_block_coordinate(arena: *mut c_void, line_index: usize) -> i32 {
     with_hit_test_list_and_caret_lines(arena, 0, |list, _| list.line_block_coordinate(line_index).raw_value())
@@ -3197,7 +3197,7 @@ pub unsafe extern "C" fn layout_arena_hit_test_line_block_coordinate(arena: *mut
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_create_document`, used on the document thread.
+/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_hit_test_item_is_inline_adjacent_to_line(
     arena: *mut c_void,

@@ -1429,7 +1429,7 @@ mod node_facts_tests {
 ///
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_create_document`, and `id` a live image box.
+/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, and `id` a live image box.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_set_owned_image_natural_size(
     arena: *mut c_void,
@@ -1446,7 +1446,7 @@ pub unsafe extern "C" fn layout_arena_set_owned_image_natural_size(
 ///
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_create_document`, and `natural_size` writable.
+/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, and `natural_size` writable.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_take_changed_document_svg_root_natural_size(
     arena: *mut c_void,
