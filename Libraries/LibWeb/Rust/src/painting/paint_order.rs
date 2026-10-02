@@ -6,9 +6,9 @@
 
 use crate::layout::node_data::NodeSlotId;
 use crate::painting::node_painting;
-use crate::painting::paintable_rows::PaintableRowsRead;
+use crate::painting::paint_read::PaintRead;
 
-pub(crate) fn paint_parent(layout_arena: &impl PaintableRowsRead, slot: NodeSlotId) -> Option<NodeSlotId> {
+pub(crate) fn paint_parent(layout_arena: &impl PaintRead, slot: NodeSlotId) -> Option<NodeSlotId> {
     if !layout_arena.paintable_row_is_populated(slot)
         || layout_arena
             .node_kind_if_live(slot)
@@ -31,7 +31,7 @@ pub(crate) fn paint_parent(layout_arena: &impl PaintableRowsRead, slot: NodeSlot
 }
 
 fn first_paintable_in_layout_siblings(
-    layout_arena: &impl PaintableRowsRead,
+    layout_arena: &impl PaintRead,
     first_node: Option<NodeSlotId>,
 ) -> Option<NodeSlotId> {
     let mut pending_siblings = Vec::new();
@@ -63,14 +63,14 @@ fn first_paintable_in_layout_siblings(
     None
 }
 
-pub(crate) fn first_paint_child(layout_arena: &impl PaintableRowsRead, slot: NodeSlotId) -> Option<NodeSlotId> {
+pub(crate) fn first_paint_child(layout_arena: &impl PaintRead, slot: NodeSlotId) -> Option<NodeSlotId> {
     if !layout_arena.paintable_row_is_populated(slot) {
         return None;
     }
     first_paintable_in_layout_siblings(layout_arena, layout_arena.node_first_child_if_live(slot))
 }
 
-pub(crate) fn next_paint_sibling(layout_arena: &impl PaintableRowsRead, slot: NodeSlotId) -> Option<NodeSlotId> {
+pub(crate) fn next_paint_sibling(layout_arena: &impl PaintRead, slot: NodeSlotId) -> Option<NodeSlotId> {
     if !layout_arena.paintable_row_is_populated(slot)
         || layout_arena
             .node_kind_if_live(slot)
@@ -96,7 +96,7 @@ pub(crate) fn next_paint_sibling(layout_arena: &impl PaintableRowsRead, slot: No
 }
 
 pub(crate) fn for_each_paint_child(
-    layout_arena: &impl PaintableRowsRead,
+    layout_arena: &impl PaintRead,
     slot: NodeSlotId,
     mut callback: impl FnMut(NodeSlotId),
 ) {
@@ -108,11 +108,11 @@ pub(crate) fn for_each_paint_child(
 }
 
 pub(crate) fn for_each_in_paint_subtree(
-    layout_arena: &impl PaintableRowsRead,
+    layout_arena: &impl PaintRead,
     root: NodeSlotId,
     mut callback: impl FnMut(NodeSlotId),
 ) {
-    fn visit(layout_arena: &impl PaintableRowsRead, slot: NodeSlotId, callback: &mut impl FnMut(NodeSlotId)) {
+    fn visit(layout_arena: &impl PaintRead, slot: NodeSlotId, callback: &mut impl FnMut(NodeSlotId)) {
         callback(slot);
         for_each_paint_child(layout_arena, slot, |child| {
             visit(layout_arena, child, callback);

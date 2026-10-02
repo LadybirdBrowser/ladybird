@@ -124,8 +124,7 @@ impl<'a> PaintableCommit<'a> {
             )
         };
         let row_existed_before_this_commit = self.arena().paintable_rows().paintable_row_is_populated(node);
-        let previous_offset =
-            row_existed_before_this_commit.then(|| self.arena().paintable_rows().paintable_data(node).offset);
+        let previous_offset = row_existed_before_this_commit.then(|| self.arena().live_paintable_data(node).offset);
         if !wants_paintable {
             self.arena().clear_committed_fragment_link(node);
             if row_existed_before_this_commit {

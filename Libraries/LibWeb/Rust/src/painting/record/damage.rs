@@ -12,6 +12,7 @@ use crate::layout::node_data::NodeSlotId;
 use crate::painting::node_painting;
 use crate::painting::paint_order;
 use crate::painting::paint_order_plan::PaintOrderInputs;
+use crate::painting::paint_read::GeometryRead;
 use std::cell::{Cell, Ref, RefCell};
 
 #[derive(Clone, Copy, Default, PartialEq, Eq, Hash)]

@@ -11,6 +11,7 @@
 //! are explicit references, so a consumer can record them, reuse them, or collect their order.
 
 use crate::layout::node_data::{NodeKind, NodeSlotId};
+use crate::painting::paint_read::GeometryRead;
 use crate::painting::paintable_rows::PaintableRowsRef;
 use crate::painting::record::PaintPhase;
 use crate::painting::{node_painting, style_queries};

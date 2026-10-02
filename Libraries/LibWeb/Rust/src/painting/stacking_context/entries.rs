@@ -8,6 +8,7 @@ use super::StackingContextFacts;
 use crate::layout::LayoutNodeArena;
 use crate::layout::node_data::NodeSlotId;
 use crate::painting::paint_order;
+use crate::painting::paint_read::GeometryRead;
 use crate::painting::visual_context::dirty::VisualContextBoxDirtyKind;
 use std::cell::Ref;
 

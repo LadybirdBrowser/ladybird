@@ -25,6 +25,7 @@ pub mod layout_tree_dump;
 pub(crate) mod node_painting;
 pub(crate) mod paint_order;
 pub(crate) mod paint_order_plan;
+pub(crate) mod paint_read;
 pub mod paint_state;
 pub mod paintable_build;
 pub mod paintable_data;

@@ -12,6 +12,7 @@
 use super::{HitTestItem, HitTestItemKind};
 use crate::css::css_pixels::CssPixelRect;
 use crate::layout::node_data::NodeSlotId;
+use crate::painting::paint_read::GeometryRead;
 use crate::painting::paintable_rows::PaintableRowsRef;
 use crate::painting::{node_painting, paintable_geometry, text_fragment};
 

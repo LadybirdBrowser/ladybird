@@ -105,17 +105,15 @@ struct VisualContextNodeOwners {
 
 impl VisualContextNodeOwners {
     fn collect(arena: &LayoutNodeArena, viewport: NodeSlotId) -> Self {
-        let paintable_rows = arena.paintable_rows();
         let mut owners = Self {
             spatial: HashMap::new(),
             clip: HashMap::new(),
             effect: HashMap::new(),
         };
         owners.spatial.insert(VISUAL_VIEWPORT_NODE_INDEX.0, viewport);
-        owners.spatial.insert(
-            paintable_rows.paintable_data(viewport).own_scroll_node_index.0,
-            viewport,
-        );
+        owners
+            .spatial
+            .insert(arena.live_paintable_data(viewport).own_scroll_node_index.0, viewport);
         let mut pending = vec![viewport];
         while let Some(slot) = pending.pop() {
             arena.with_paintable_visual_context_node_handles(slot, |handles| {
