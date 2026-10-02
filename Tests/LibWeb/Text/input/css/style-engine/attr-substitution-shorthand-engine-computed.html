@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .item { margin: attr(data-margin type(<length>)); }
+    .colored { background: attr(data-color type(<color>), rgb(0, 128, 0)); }
+</style>
+<div class="item" id="item" data-margin="5px"></div>
+<div class="colored" id="colored" data-color="qqffuutt"></div>
+<script>
+    // A shorthand written with attr() leaves its longhands pending the shorthand's substitution,
+    // which reads the element's attributes. The style engine computes those records itself, and
+    // follows an attribute change.
+    function recomputations(update) {
+        const before = internals.getStyleInvalidationCounters();
+        update();
+        internals.updateStyle();
+        const after = internals.getStyleInvalidationCounters();
+        return after.elementStyleRecomputations - before.elementStyleRecomputations;
+    }
+    test(() => {
+        internals.updateStyle();
+        println(`C++ recomputations on arrival: ${recomputations(() => {
+            for (const element of [item, colored]) {
+                const clone = element.cloneNode();
+                clone.removeAttribute("id");
+                document.body.append(clone);
+            }
+        })}`);
+        println(`margin: ${getComputedStyle(item).marginLeft}`);
+        println(`invalid color falls back: ${getComputedStyle(colored).backgroundColor}`);
+        println(`C++ recomputations on attribute change: ${recomputations(() => {
+            item.dataset.margin = "7px";
+            colored.dataset.color = "rgb(0, 0, 255)";
+        })}`);
+        println(`margin: ${getComputedStyle(item).marginLeft}`);
+        println(`color: ${getComputedStyle(colored).backgroundColor}`);
+    });
+</script>

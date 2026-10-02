@@ -3443,6 +3443,18 @@ impl RetainedState {
                             pseudo_kind.unwrap_or(u8::MAX),
                         )));
                 }
+                // An `attr()` reads the element's attributes, written in a longhand or in the
+                // shorthand it pends, or in a function's declarations. A state that reads them
+                // keeps its store the element's alone.
+                let reads_attributes = custom_property_cascade::value_reads_attributes(value.data())
+                    || (calls_functions && functions.as_ref().is_some_and(|functions| functions.reads_attributes));
+                if reads_attributes && attributes.is_none() {
+                    attributes = Some(custom_property_cascade::SubstitutionAttributes::of(
+                        &self.facts,
+                        attribute_element,
+                        self.html_element_namespace,
+                    ));
+                }
                 let (value, borrowed) = match value.data() {
                     crate::css::style_value::StyleValueData::Shorthand { .. } => {
                         let Some(value) = shorthand_longhand_data(winner.property, value.data()) else {
@@ -3457,20 +3469,9 @@ impl RetainedState {
                     // A value with var() references substitutes under the node's environment, as
                     // the C++ cascade substitutes it; a value invalid at computed-value time is
                     // unset.
-                    crate::css::style_value::StyleValueData::Unresolved { presence_attr, .. } => {
+                    crate::css::style_value::StyleValueData::Unresolved { .. } => {
                         *substituted = true;
                         let value = value.clone_retained();
-                        // A function's declarations may substitute `attr()` as well.
-                        let reads_attributes = *presence_attr
-                            || (calls_functions
-                                && functions.as_ref().is_some_and(|functions| functions.reads_attributes));
-                        if reads_attributes && attributes.is_none() {
-                            attributes = Some(custom_property_cascade::SubstitutionAttributes::of(
-                                &self.facts,
-                                attribute_element,
-                                self.html_element_namespace,
-                            ));
-                        }
                         let inputs = custom_property_cascade::SubstitutionInputs {
                             document: &self.document_style_computation_inputs,
                             media: &self.document_media,
@@ -3509,13 +3510,11 @@ impl RetainedState {
                             unwritten(counters, "a pending longhand's shorthand is written in its source")?;
                             continue 'winners;
                         };
-                        // The store caches do not key a shorthand's `attr()` on the attributes it
-                        // read.
                         let inputs = custom_property_cascade::SubstitutionInputs {
                             document: &self.document_style_computation_inputs,
                             media: &self.document_media,
                             environment,
-                            attributes: None,
+                            attributes: attributes.as_ref().filter(|_| reads_attributes),
                             style_query: style_query.as_ref().and_then(Option::as_ref),
                             style_query_references: Some(&style_query_references),
                             functions: functions.as_ref(),

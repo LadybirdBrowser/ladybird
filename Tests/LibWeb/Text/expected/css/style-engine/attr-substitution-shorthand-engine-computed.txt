@@ -1,0 +1,6 @@
+C++ recomputations on arrival: 0
+margin: 5px
+invalid color falls back: rgb(0, 128, 0)
+C++ recomputations on attribute change: 0
+margin: 7px
+color: rgb(0, 0, 255)
