@@ -579,9 +579,8 @@ public:
     void replace_custom_property_data(Optional<CSS::PseudoElement>, RefPtr<CSS::CustomPropertyData const>);
     [[nodiscard]] RefPtr<CSS::CustomPropertyData const> custom_property_data(Optional<CSS::PseudoElement>) const;
 
-    [[nodiscard]] bool refresh_inherited_custom_property_data();
-    // Publish the environment a refresh moved the element's custom-property data to on its record,
-    // so the engine reads the environment the element holds.
+    // Publish the environment the element's custom-property data moved to on its record, so the
+    // engine reads the environment the element holds.
     void republish_style_record_environment();
 
     // What the element's last computation was allowed to read, so a later one can ask whether any of
