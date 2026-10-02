@@ -2385,21 +2385,6 @@ TEST_CASE(an_element_scroll_gesture_reports_its_document_without_a_viewport_scro
     EXPECT(ended.scroll_offsets.is_empty());
 }
 
-TEST_CASE(a_discrete_wheel_step_along_a_non_snapping_axis_scrolls_by_its_delta)
-{
-    SnapContainerContextFixture fixture;
-
-    auto result = fixture.discrete_step({ 10, 0 });
-    EXPECT(result.enqueue_result.accepted);
-    EXPECT(!fixture.context.has_active_smooth_scroll_animations());
-
-    auto updates = fixture.take_updates();
-    EXPECT(updates.started_user_scrolls.is_empty());
-    EXPECT(updates.completed_operation_ids.contains_slow(*result.enqueue_result.operation_id));
-    EXPECT_EQ(updates.scroll_offsets.size(), 1u);
-    EXPECT_EQ(updates.scroll_offsets.first().compositor_scroll_offset, Gfx::FloatPoint(10, 0));
-}
-
 static constexpr int arrow_key_scroll_distance_for_testing = 40;
 
 static void target_keyboard_scrolling_at_the_snap_container(SnapContainerContextFixture& fixture)

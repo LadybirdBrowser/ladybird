@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    #scroller {
+        width: 100px;
+        height: 100px;
+        overflow: scroll;
+        scroll-snap-type: y mandatory;
+    }
+    .item {
+        width: 400px;
+        height: 100px;
+        scroll-snap-align: start;
+    }
+</style>
+<div id="scroller">
+    <div class="item"></div>
+    <div class="item"></div>
+    <div class="item"></div>
+</div>
+<script>
+    promiseTest(async () => {
+        await animationFrame();
+        await animationFrame();
+
+        // The scroller only snaps vertically, so a horizontal step scrolls it by the step's delta, and leaves the
+        // vertical offset alone.
+        await internals.wheel(50, 50, 10, 0);
+        await animationFrame();
+        await animationFrame();
+        println(`scroll offset after a horizontal step: ${scroller.scrollLeft},${scroller.scrollTop}`);
+    });
+</script>
