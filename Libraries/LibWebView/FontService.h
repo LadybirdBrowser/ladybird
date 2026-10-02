@@ -6,9 +6,10 @@
 
 #pragma once
 
+#include <AK/AtomicRefCounted.h>
 #include <AK/HashMap.h>
 #include <AK/Mutex.h>
-#include <AK/NonnullOwnPtr.h>
+#include <AK/NonnullRefPtr.h>
 #include <AK/String.h>
 #include <LibGfx/Font/FontCatalog.h>
 #include <LibGfx/Font/SharedFontProvider.h>
@@ -24,14 +25,16 @@ struct FontCatalogDescriptor {
     u64 generation { 0 };
 };
 
-class WEBVIEW_API FontService {
+// Held by the UI process and by each font connection thread that answers from it, so the service
+// outlives every thread that may still be answering a question when the UI shuts down.
+class WEBVIEW_API FontService : public AtomicRefCounted<FontService> {
     AK_MAKE_NONCOPYABLE(FontService);
     AK_MAKE_NONMOVABLE(FontService);
 
 public:
     AK_ALLOC_WITH_KMALLOC;
 
-    static NonnullOwnPtr<FontService> create(Vector<String> additional_font_directories = {});
+    static NonnullRefPtr<FontService> create(Vector<String> additional_font_directories = {});
     ~FontService();
 
     ErrorOr<FontCatalogDescriptor> clone_catalog();
@@ -73,7 +76,8 @@ private:
     HashMap<u64, MemoryFontSource> m_memory_font_sources;
     HashMap<String, u64> m_dynamic_match_cache;
 
-    // Font requests arrive on the UI process's renderer connections and the Compositor's dedicated font connection.
+    // Font requests arrive on the UI process's renderer connections and on the dedicated font connections of the
+    // Compositor and of each renderer's render side.
     Mutex m_mutex;
 };
 

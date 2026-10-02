@@ -12,8 +12,8 @@
 #include <LibIPC/ConnectionFromClient.h>
 #include <LibIPC/Transport.h>
 #include <LibThreading/Thread.h>
-#include <LibWebView/CompositorFontServiceConnection.h>
 #include <LibWebView/FontService.h>
+#include <LibWebView/FontServiceConnection.h>
 
 namespace WebView {
 
@@ -70,9 +70,9 @@ private:
     FontService& m_font_service;
 };
 
-ErrorOr<NonnullRefPtr<CompositorFontServiceConnection>> CompositorFontServiceConnection::create(FontService& font_service)
+ErrorOr<NonnullRefPtr<FontServiceConnection>> FontServiceConnection::create(FontService& font_service)
 {
-    auto connection = adopt_ref(*new CompositorFontServiceConnection(font_service));
+    auto connection = adopt_ref(*new FontServiceConnection(font_service));
 
     Optional<Error> initialization_error;
     {
@@ -86,16 +86,16 @@ ErrorOr<NonnullRefPtr<CompositorFontServiceConnection>> CompositorFontServiceCon
     return connection;
 }
 
-CompositorFontServiceConnection::CompositorFontServiceConnection(FontService& font_service)
+FontServiceConnection::FontServiceConnection(FontService& font_service)
     : m_font_service(font_service)
-    , m_thread(Threading::Thread::construct("Compositor font IPC"sv, [this] {
+    , m_thread(Threading::Thread::construct("Font service IPC"sv, [this] {
         return thread_main();
     }))
 {
     m_thread->start();
 }
 
-CompositorFontServiceConnection::~CompositorFontServiceConnection()
+FontServiceConnection::~FontServiceConnection()
 {
     RefPtr<Core::WeakEventLoopReference> event_loop;
     {
@@ -114,14 +114,14 @@ CompositorFontServiceConnection::~CompositorFontServiceConnection()
         (void)m_thread->join();
 }
 
-IPC::TransportHandle CompositorFontServiceConnection::take_transport_handle()
+IPC::TransportHandle FontServiceConnection::take_transport_handle()
 {
     MutexLocker locker(m_mutex);
     VERIFY(m_transport_handle.has_value());
     return m_transport_handle.release_value();
 }
 
-intptr_t CompositorFontServiceConnection::thread_main()
+intptr_t FontServiceConnection::thread_main()
 {
     Core::EventLoop event_loop;
     auto paired_or_error = IPC::Transport::create_paired();
@@ -134,7 +134,7 @@ intptr_t CompositorFontServiceConnection::thread_main()
     }
 
     auto paired = paired_or_error.release_value();
-    auto connection = adopt_ref(*new FontServerConnection(move(paired.local), m_font_service));
+    auto connection = adopt_ref(*new FontServerConnection(move(paired.local), *m_font_service));
 
     {
         MutexLocker locker(m_mutex);

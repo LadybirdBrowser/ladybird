@@ -49,11 +49,11 @@
 #include <LibWebView/AutocompleteService.h>
 #include <LibWebView/BlobURLStore.h>
 #include <LibWebView/CompositorClient.h>
-#include <LibWebView/CompositorFontServiceConnection.h>
 #include <LibWebView/CookieJar.h>
 #include <LibWebView/CrashReportStore.h>
 #include <LibWebView/FaviconStore.h>
 #include <LibWebView/FontService.h>
+#include <LibWebView/FontServiceConnection.h>
 #include <LibWebView/HSTSStore.h>
 #include <LibWebView/HeadlessWebView.h>
 #include <LibWebView/HelperProcess.h>
@@ -1666,7 +1666,7 @@ ErrorOr<void> Application::launch_compositor_process()
     VERIFY(!m_compositor_client);
     VERIFY(!m_compositor_font_service_connection);
     m_compositor_client = TRY(WebView::launch_compositor_process());
-    m_compositor_font_service_connection = TRY(CompositorFontServiceConnection::create(*m_font_service));
+    m_compositor_font_service_connection = TRY(FontServiceConnection::create(*m_font_service));
     m_compositor_client->async_set_font_service_transport(m_compositor_font_service_connection->take_transport_handle());
     m_compositor_client->on_death = [this]() {
         handle_compositor_process_death();

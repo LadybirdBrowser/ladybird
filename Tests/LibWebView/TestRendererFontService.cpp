@@ -1,0 +1,113 @@
+/*
+ * Copyright (c) 2026-present, the Ladybird developers.
+ *
+ * SPDX-License-Identifier: BSD-2-Clause
+ */
+
+#include <AK/Array.h>
+#include <LibCompositing/FontServiceClient.h>
+#include <LibCore/EventLoop.h>
+#include <LibGfx/Font/Font.h>
+#include <LibTest/TestCase.h>
+#include <LibThreading/Thread.h>
+#include <LibWebView/FontService.h>
+#include <LibWebView/FontServiceConnection.h>
+
+namespace {
+
+struct RenderSideFontService {
+    NonnullRefPtr<WebView::FontService> font_service;
+    NonnullRefPtr<WebView::FontServiceConnection> connection;
+    NonnullOwnPtr<Compositing::FontServiceClient> client;
+};
+
+RenderSideFontService connect_render_side_font_service()
+{
+    auto font_service = WebView::FontService::create({});
+    auto connection = MUST(WebView::FontServiceConnection::create(*font_service));
+    auto client = MUST(Compositing::FontServiceClient::create(connection->take_transport_handle()));
+    return { move(font_service), move(connection), move(client) };
+}
+
+void run_on_another_thread(Function<void()> function)
+{
+    auto thread = Threading::Thread::construct("RenderSideFontQuestion"sv, [function = move(function)] {
+        function();
+        return 0;
+    });
+    thread->start();
+    (void)thread->join();
+}
+
+constexpr Array<u32, 4> code_points { 'A', 0x4e2d, 0x0416, 0x05d0 };
+
+}
+
+// The shape a renderer's render side will have: the document thread is inside a join, pumping
+// nothing, while the pass it waits for needs a code point no family in its cascade covers. The
+// answer has to come from a connection the document thread does not own, or this never returns.
+TEST_CASE(a_question_from_another_thread_is_answered_while_the_main_thread_is_blocked)
+{
+    auto service = connect_render_side_font_service();
+
+    // The document thread's loop exists and is not running, exactly as it will be during a join.
+    Core::EventLoop event_loop;
+
+    Array<u64, code_points.size()> face_ids {};
+    run_on_another_thread([&] {
+        for (size_t index = 0; index < code_points.size(); ++index)
+            face_ids[index] = service.client->match_font_for_code_point(code_points[index], 400, Gfx::FontWidth::Normal, 0, false).face_id;
+    });
+
+    // A machine with no font at all for basic Latin cannot run this suite.
+    EXPECT_NE(face_ids[0], 0u);
+
+    // The connection answered for the rest rather than handing back nothing: the service on the
+    // other end agrees about which code points it can cover.
+    for (size_t index = 0; index < code_points.size(); ++index) {
+        auto brokered = service.font_service->match_font_for_code_point(code_points[index], 400, Gfx::FontWidth::Normal, 0, false);
+        EXPECT_EQ(brokered.face_id, face_ids[index]);
+    }
+}
+
+// Two render-side threads asking at once each get their own answer.
+TEST_CASE(questions_from_several_threads_at_once_are_answered_one_at_a_time)
+{
+    IGNORE_USE_IN_ESCAPING_LAMBDA auto service = connect_render_side_font_service();
+    Core::EventLoop event_loop;
+
+    IGNORE_USE_IN_ESCAPING_LAMBDA Array<Array<u64, code_points.size()>, 2> face_ids {};
+    Vector<NonnullRefPtr<Threading::Thread>> threads;
+    for (size_t thread_index = 0; thread_index < face_ids.size(); ++thread_index) {
+        auto thread = Threading::Thread::construct("RenderSideFontQuestion"sv, [&, thread_index] {
+            for (size_t index = 0; index < code_points.size(); ++index)
+                face_ids[thread_index][index] = service.client->match_font_for_code_point(code_points[index], 400, Gfx::FontWidth::Normal, 0, false).face_id;
+            return 0;
+        });
+        thread->start();
+        threads.append(move(thread));
+    }
+    for (auto& thread : threads)
+        (void)thread->join();
+
+    EXPECT_NE(face_ids[0][0], 0u);
+    EXPECT_EQ(face_ids[0], face_ids[1]);
+}
+
+// A renderer's connection belongs to its WebContentClient, which can outlive the UI process's own
+// reference to the font service. The connection keeps the service alive until its thread is gone.
+TEST_CASE(a_connection_keeps_the_font_service_alive)
+{
+    RefPtr<WebView::FontService> font_service = WebView::FontService::create({});
+    auto connection = MUST(WebView::FontServiceConnection::create(*font_service));
+    auto client = MUST(Compositing::FontServiceClient::create(connection->take_transport_handle()));
+    auto expected = font_service->match_font_for_code_point('A', 400, Gfx::FontWidth::Normal, 0, false).face_id;
+    font_service = nullptr;
+
+    Core::EventLoop event_loop;
+    u64 face_id = 0;
+    run_on_another_thread([&] {
+        face_id = client->match_font_for_code_point('A', 400, Gfx::FontWidth::Normal, 0, false).face_id;
+    });
+    EXPECT_EQ(face_id, expected);
+}

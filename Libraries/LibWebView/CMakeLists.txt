@@ -18,7 +18,6 @@ set(SOURCES
     CanonicalWindow.cpp
     BrowserProcess.cpp
     CompositorClient.cpp
-    CompositorFontServiceConnection.cpp
     CookieJar.cpp
     CrashReport.cpp
     CrashReportDiagnostics.cpp
@@ -32,6 +31,7 @@ set(SOURCES
     FaviconStore.cpp
     FileDownloader.cpp
     FontService.cpp
+    FontServiceConnection.cpp
     HeadlessWebView.cpp
     HelperProcess.cpp
     HistoryDebug.cpp

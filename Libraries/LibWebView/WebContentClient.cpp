@@ -33,6 +33,7 @@
 #include <LibWebView/CanonicalWindow.h>
 #include <LibWebView/CookieJar.h>
 #include <LibWebView/FontService.h>
+#include <LibWebView/FontServiceConnection.h>
 #include <LibWebView/HSTSStore.h>
 #include <LibWebView/HelperProcess.h>
 #include <LibWebView/HistoryStore.h>
@@ -119,6 +120,16 @@ Messages::WebContentClient::DidRequestBlobUrlEntryResponse WebContentClient::did
 void WebContentClient::connect_test_endpoint(NonnullOwnPtr<IPC::Transport> transport)
 {
     m_test_connection = make_ref_counted<WebContentTestClient>(move(transport), *this);
+}
+
+// A font question asked from a render pass must not travel on this connection, which the renderer's document thread
+// pumps, so the render side gets a connection of its own.
+ErrorOr<void> WebContentClient::connect_render_side_font_service()
+{
+    VERIFY(!m_render_side_font_service_connection);
+    m_render_side_font_service_connection = TRY(FontServiceConnection::create(Application::font_service()));
+    async_set_render_side_font_service_transport(m_render_side_font_service_connection->take_transport_handle());
+    return {};
 }
 
 void WebContentClient::remove_blob_url_entries()
