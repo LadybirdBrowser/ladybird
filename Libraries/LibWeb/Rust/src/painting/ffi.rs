@@ -3356,7 +3356,7 @@ mod tests {
         for (spatial_indexes, caret_lines) in [(true, false), (true, true), (false, true), (false, false)] {
             let mut arena = LayoutNodeArena::new();
             let viewport = arena.allocate_for_test().slot;
-            arena.data(viewport).kind.set(NodeKind::Viewport);
+            arena.write_shape(viewport).set_kind(NodeKind::Viewport);
             arena.populate_paintable_row(viewport);
             arena.scrollable_overflow.viewport.set(Some(viewport));
             let root = arena.allocate_for_test().slot;
@@ -3434,11 +3434,11 @@ mod tests {
     fn preparing_for_rendering_measures_root_overflow_before_recording_reads_it() {
         let mut arena = LayoutNodeArena::new();
         let viewport = arena.allocate_for_test().slot;
-        arena.data(viewport).kind.set(NodeKind::Viewport);
+        arena.write_shape(viewport).set_kind(NodeKind::Viewport);
         arena.populate_paintable_row(viewport);
         arena.scrollable_overflow.viewport.set(Some(viewport));
         let root = arena.allocate_for_test().slot;
-        arena.data(root).kind.set(NodeKind::BlockContainer);
+        arena.write_shape(root).set_kind(NodeKind::BlockContainer);
         arena.populate_paintable_row(root);
         // A structural change invalidated the root's overflow, measured earlier in this commit,
         // without queueing a recalculation, so nothing but a query measures it again. Measuring

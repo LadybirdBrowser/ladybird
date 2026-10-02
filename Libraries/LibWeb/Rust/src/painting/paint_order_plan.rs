@@ -688,8 +688,7 @@ mod tests {
         arena.paintable_rows_mut().paintable_data_mut(child).offset.x = CssPixels::from_integer(100);
         let after_move = PaintOrderInputs::gather(&arena.paintable_rows(), child);
         assert!(!arena.update_paint_order_inputs(child, after_move));
-        let flags = &arena.data(child).flags;
-        flags.set(flags.get() | NodeFlag::IsFlexItem as u32);
+        arena.set_node_flag(child, NodeFlag::IsFlexItem, true);
         let as_flex_item = PaintOrderInputs::gather(&arena.paintable_rows(), child);
         assert!(arena.update_paint_order_inputs(child, as_flex_item));
     }
@@ -698,12 +697,12 @@ mod tests {
     fn canonical_planning_can_detect_stale_prepared_inputs() {
         let mut arena = LayoutNodeArena::new();
         let row = arena.allocate_for_test().slot;
-        arena.data(row).kind.set(NodeKind::Box);
+        arena.write_shape(row).set_kind(NodeKind::Box);
         arena.populate_paintable_row(row);
         arena.refresh_paint_order_inputs(row);
         // Deliberately omit the refresh after a participation change. The canonical planner
         // must see the new state independently of that snapshot.
-        arena.data(row).flags.set(NodeFlag::IsFlexItem as u32);
+        arena.write_shape(row).set_flags(NodeFlag::IsFlexItem as u32);
         let scope = PaintScope {
             owner: row,
             kind: PaintScopeKind::Descendants(StackingContextPaintPhase::Foreground),

@@ -811,7 +811,7 @@ mod tests {
 
     fn allocate_box_with_a_dummy_shell(arena: &mut LayoutNodeArena) -> NodeAllocation {
         let allocation = arena.allocate_for_test();
-        arena.data(allocation.slot).kind.set(NodeKind::Box);
+        arena.write_shape(allocation.slot).set_kind(NodeKind::Box);
         allocation
     }
 
@@ -825,7 +825,7 @@ mod tests {
     fn a_box_without_a_committed_row_or_splice_derivable_ancestors_is_not_a_boundary() {
         let mut arena = LayoutNodeArena::new();
         let allocation = arena.allocate_for_test();
-        arena.data(allocation.slot).kind.set(NodeKind::Box);
+        arena.write_shape(allocation.slot).set_kind(NodeKind::Box);
         assert!(!arena.node_is_partial_relayout_boundary(allocation.slot));
         free_node(&mut arena, &allocation);
     }
@@ -933,18 +933,11 @@ mod tests {
         let anonymous_child = allocate_box_with_a_dummy_shell(&mut arena);
         let anonymous_table_wrapper_child = allocate_box_with_a_dummy_shell(&mut arena);
         let named_child = allocate_box_with_a_dummy_shell(&mut arena);
+        arena.set_node_flag(anonymous_child.slot, NodeFlag::Anonymous, true);
+        arena.set_node_flag(anonymous_table_wrapper_child.slot, NodeFlag::Anonymous, true);
         arena
-            .data(anonymous_child.slot)
-            .flags
-            .set(arena.data(anonymous_child.slot).flags.get() | (NodeFlag::Anonymous as u32));
-        arena
-            .data(anonymous_table_wrapper_child.slot)
-            .flags
-            .set(arena.data(anonymous_table_wrapper_child.slot).flags.get() | (NodeFlag::Anonymous as u32));
-        arena
-            .data(anonymous_table_wrapper_child.slot)
-            .kind
-            .set(NodeKind::TableWrapper);
+            .write_shape(anonymous_table_wrapper_child.slot)
+            .set_kind(NodeKind::TableWrapper);
         arena.insert_child(parent.slot, anonymous_child.slot, NodeSlotId::INVALID);
         arena.insert_child(parent.slot, anonymous_table_wrapper_child.slot, NodeSlotId::INVALID);
         arena.insert_child(parent.slot, named_child.slot, NodeSlotId::INVALID);
@@ -983,10 +976,7 @@ mod tests {
         let grandparent = allocate_box_with_a_dummy_shell(&mut arena);
         let anonymous_parent = allocate_box_with_a_dummy_shell(&mut arena);
         let child = allocate_box_with_a_dummy_shell(&mut arena);
-        arena
-            .data(anonymous_parent.slot)
-            .flags
-            .set(arena.data(anonymous_parent.slot).flags.get() | (NodeFlag::Anonymous as u32));
+        arena.set_node_flag(anonymous_parent.slot, NodeFlag::Anonymous, true);
         arena.insert_child(grandparent.slot, anonymous_parent.slot, NodeSlotId::INVALID);
         arena.insert_child(anonymous_parent.slot, child.slot, NodeSlotId::INVALID);
         arena.set_style_node_for_test(grandparent.slot, StyleNodeID::from_raw(7));
