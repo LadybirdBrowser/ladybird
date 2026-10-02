@@ -20,7 +20,7 @@ use crate::css::css_string::CssString;
 use crate::css::style::fast_hash::FastMap as HashMap;
 use crate::css::style::tree::StyleNodeID;
 use crate::css::style_value::{COUNTER_FUNCTION_COUNTER, StyleValueData};
-use std::rc::Rc;
+use std::sync::Arc;
 
 /// What a list marker whose `content` is `normal` shows, resolved from the published records of the
 /// marker box and of the list item box it belongs to.
@@ -28,7 +28,7 @@ enum MarkerContent<'a> {
     Image,
     String(&'a [u16]),
     /// A counter style, or `None` for a name that resolves to none.
-    CounterStyle(Option<Rc<CounterStyle>>),
+    CounterStyle(Option<Arc<CounterStyle>>),
 }
 
 /// What the tree build recorded for the generated content of each pseudo-element it built a box for.
@@ -40,7 +40,7 @@ pub(crate) struct GeneratedContent {
     /// `counter()` or `counters()` the content names and one for the counter style a normal
     /// marker shows. A later style change compares what the pseudo-element's record names now
     /// against this to decide whether the box has to be rebuilt.
-    content_counter_styles_in_use: HashMap<CounterOwner, Vec<Option<Rc<CounterStyle>>>>,
+    content_counter_styles_in_use: HashMap<CounterOwner, Vec<Option<Arc<CounterStyle>>>>,
 }
 
 impl GeneratedContent {
@@ -190,7 +190,7 @@ fn resolve_normal_marker_content(
 
 /// The counter style a normal marker renders from, as the list its box records for a later style
 /// change to compare against. A marker showing an image or a string renders from none.
-fn marker_counter_styles_in_use(content: &MarkerContent<'_>) -> Vec<Option<Rc<CounterStyle>>> {
+fn marker_counter_styles_in_use(content: &MarkerContent<'_>) -> Vec<Option<Arc<CounterStyle>>> {
     match content {
         MarkerContent::CounterStyle(counter_style) => vec![counter_style.clone()],
         MarkerContent::Image | MarkerContent::String(_) => Vec::new(),
@@ -258,7 +258,7 @@ struct CounterItemResolver<'a> {
     arena: &'a LayoutNodeArena,
     element: CounterOwner,
     tree_scope: u32,
-    styles: &'a [Option<Rc<CounterStyle>>],
+    styles: &'a [Option<Arc<CounterStyle>>],
     next_counter_style: usize,
     renders_list_item_counter_value: bool,
 }
@@ -315,7 +315,7 @@ fn content_counter_styles(
     arena: &LayoutNodeArena,
     content: Option<&StyleValueData>,
     tree_scope: u32,
-) -> Vec<Option<Rc<CounterStyle>>> {
+) -> Vec<Option<Arc<CounterStyle>>> {
     let Some(StyleValueData::Content {
         content: content_list,
         alt_text,
@@ -355,7 +355,7 @@ fn content_is_normal(content: Option<&StyleValueData>) -> bool {
 fn note_content_counter_styles_in_use(
     arena: &LayoutNodeArena,
     owner: CounterOwner,
-    styles: Vec<Option<Rc<CounterStyle>>>,
+    styles: Vec<Option<Arc<CounterStyle>>>,
 ) {
     arena
         .generated_content()

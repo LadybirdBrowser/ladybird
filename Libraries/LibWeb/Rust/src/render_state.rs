@@ -275,6 +275,18 @@ pub(crate) fn arena_for_unconverted_entry(document: DocumentId) -> *mut c_void {
     })
 }
 
+// A render state is to move to the thread that renders, where nothing of the host may follow it: the shells and the
+// callbacks into the host's DOM are main-thread objects because of what they hold and do, and stay with the host. What
+// the arena shares between its rows and its caches may follow it; the arena itself still links its engine and the
+// host's box presence callback, which go with the last entries that reach it directly.
+const _: () = {
+    const fn assert_send_and_sync<T: Send + Sync + ?Sized>() {}
+    assert_send_and_sync::<std::sync::Arc<crate::css::counter_representation::CounterStyle>>();
+    assert_send_and_sync::<std::sync::Arc<crate::layout::rendered_text::CachedTextChunks>>();
+    assert_send_and_sync::<std::sync::Arc<[crate::layout::svg_formatting_context::FfiFloatPoint]>>();
+    assert_send_and_sync::<crate::css::computed_value_types::RetainedComputedResolvedTransformList>();
+};
+
 #[cfg(test)]
 mod tests {
     use super::*;

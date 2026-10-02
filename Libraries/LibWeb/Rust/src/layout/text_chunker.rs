@@ -703,7 +703,7 @@ pub(crate) fn text_chunks(
     should_wrap_lines: bool,
     should_respect_linebreaks: bool,
     unidirectional_ltr: bool,
-) -> std::rc::Rc<super::rendered_text::CachedTextChunks> {
+) -> std::sync::Arc<super::rendered_text::CachedTextChunks> {
     let parent_style = StyleValues::for_node(callbacks, callbacks.parent(node));
     let key = super::rendered_text::TextChunkCacheKey {
         should_wrap_lines,

@@ -10,7 +10,6 @@ use super::{ComputedValuesView, LayoutNodeArena};
 use crate::css::css_enums::text_transform;
 use std::cell::{OnceCell, RefCell};
 use std::ffi::c_void;
-use std::rc::Rc;
 use std::sync::Arc;
 
 /// Selects the beginning or end of a transformed span for offsets inside it.
@@ -83,7 +82,7 @@ impl PartialEq for PublishedTextSlot {
 pub(crate) struct TextContent {
     rendered: Arc<RenderedText>,
     grapheme_segmenter: OnceCell<super::text_chunker::GraphemeSegmenter>,
-    chunks: RefCell<Option<Rc<CachedTextChunks>>>,
+    chunks: RefCell<Option<Arc<CachedTextChunks>>>,
     pub(super) rendering_key: Option<TextRenderingKey>,
 }
 
@@ -206,7 +205,7 @@ impl TextContent {
         &self,
         key: &TextChunkCacheKey,
         compute: impl FnOnce() -> Vec<super::text_chunker::TextChunk>,
-    ) -> Rc<CachedTextChunks> {
+    ) -> Arc<CachedTextChunks> {
         if let Some(entry) = self.chunks.borrow().as_ref()
             && entry.key == *key
         {
@@ -216,7 +215,7 @@ impl TextContent {
         // A nested measurement can request a different key while an iterator
         // still uses the previous chunks. Keep the chunks and their fonts alive
         // until that iterator finishes, even if this snapshot is replaced.
-        let entry = Rc::new(CachedTextChunks {
+        let entry = Arc::new(CachedTextChunks {
             key: key.clone(),
             chunks: compute(),
         });
@@ -467,7 +466,7 @@ mod tests {
     fn text_chunk_users_survive_cache_and_snapshot_replacement() {
         use super::TextChunkCacheKey;
         use crate::layout::text_chunker::TextChunk;
-        use std::rc::Rc;
+        use std::sync::Arc;
 
         let mut arena = LayoutNodeArena::new();
         let node = arena.allocate_for_test().slot;
@@ -499,9 +498,9 @@ mod tests {
             .text_content(node)
             .unwrap()
             .text_chunks(&key, || panic!("matching chunks should be cached"));
-        assert!(Rc::ptr_eq(&original, &hit));
+        assert!(Arc::ptr_eq(&original, &hit));
         drop(hit);
-        let original_weak = Rc::downgrade(&original);
+        let original_weak = Arc::downgrade(&original);
         let replacement = arena.text_content(node).unwrap().text_chunks(
             &TextChunkCacheKey {
                 should_wrap_lines: false,
@@ -511,11 +510,11 @@ mod tests {
         );
         assert!(replacement.is_empty());
         assert_eq!(&**original, std::slice::from_ref(&chunk));
-        assert_eq!(Rc::strong_count(&original), 1);
+        assert_eq!(Arc::strong_count(&original), 1);
         drop(original);
         assert!(original_weak.upgrade().is_none());
 
-        let replacement_weak = Rc::downgrade(&replacement);
+        let replacement_weak = Arc::downgrade(&replacement);
         let published = arena.publish_paint_facts().text;
         let published_text = |published: &crate::cow_column::ColumnSnapshot<PublishedTextSlot, SLOTS_PER_CHUNK>| {
             published
@@ -527,14 +526,14 @@ mod tests {
         };
         let published_hello = published_text(&published);
         arena.set_text_content(node, content("hello", 0, 5, Vec::new()));
-        assert_eq!(Rc::strong_count(&replacement), 2);
+        assert_eq!(Arc::strong_count(&replacement), 2);
         // The same content keeps the rendered text the publication shares.
         assert!(std::sync::Arc::ptr_eq(
             &published_hello,
             &published_text(&arena.publish_paint_facts().text)
         ));
         arena.set_text_content(node, content("goodbye", 0, 7, Vec::new()));
-        assert_eq!(Rc::strong_count(&replacement), 1);
+        assert_eq!(Arc::strong_count(&replacement), 1);
         // A publication keeps the rendered text it was made with.
         assert_eq!(
             published_text(&published).text,
@@ -552,7 +551,7 @@ mod tests {
         drop(replacement);
         assert!(replacement_weak.upgrade().is_none());
         let _ = arena.free_subtree(node);
-        assert_eq!(Rc::strong_count(&new_chunks), 1);
+        assert_eq!(Arc::strong_count(&new_chunks), 1);
     }
 
     #[test]

@@ -996,7 +996,7 @@ struct StyleNodeTables {
     /// which republishes the resources its style names. No reader holds a borrow across a host call.
     svg_attribute_facts: RefCell<HashMap<StyleNodeID, super::svg_formatting_context::FfiSvgAttributeFacts>>,
     /// The `points` list each <polyline> and <polygon> published beside its facts.
-    svg_points: RefCell<HashMap<StyleNodeID, std::rc::Rc<[super::svg_formatting_context::FfiFloatPoint]>>>,
+    svg_points: RefCell<HashMap<StyleNodeID, std::sync::Arc<[super::svg_formatting_context::FfiFloatPoint]>>>,
     /// The elements carrying each anchor name, in tree order. The DOM's registry republishes a
     /// name's list whenever it changes.
     anchor_name_elements: RefCell<HashMap<ScopedAnchorName, Vec<StyleNodeID>>>,
@@ -2514,14 +2514,14 @@ impl LayoutNodeArena {
     pub(crate) fn svg_points(
         &self,
         id: NodeSlotId,
-    ) -> Option<std::rc::Rc<[super::svg_formatting_context::FfiFloatPoint]>> {
+    ) -> Option<std::sync::Arc<[super::svg_formatting_context::FfiFloatPoint]>> {
         self.style_node_svg_points(self.node_style_node(id)?)
     }
 
     pub(crate) fn style_node_svg_points(
         &self,
         style_node: StyleNodeID,
-    ) -> Option<std::rc::Rc<[super::svg_formatting_context::FfiFloatPoint]>> {
+    ) -> Option<std::sync::Arc<[super::svg_formatting_context::FfiFloatPoint]>> {
         self.style_node_tables.svg_points.borrow().get(&style_node).cloned()
     }
 
