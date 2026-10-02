@@ -10,8 +10,6 @@
 //! or a [`LockstepProof`], whose reasons are the waits internal code makes. Each right is minted only by the module
 //! that owns its marker, so code elsewhere has no way to wait.
 
-#![expect(dead_code, reason = "the first wait is the render state's panic test")]
-
 use super::{DocumentHost, RenderMessage, send};
 use std::marker::PhantomData;
 use std::sync::mpsc::{Receiver, Sender, channel};
@@ -39,6 +37,7 @@ mod private {
 pub(crate) trait ScriptEntry: private::ScriptEntry {}
 
 /// A marker that only the module waiting for its reason can construct, which mints a [`LockstepProof`].
+#[expect(dead_code, reason = "no internal code waits yet")]
 pub(crate) trait LockstepReason: private::LockstepReason {}
 
 /// What a wait for a document's render state spends: a script's forced read, or a [`LockstepProof`].
@@ -58,6 +57,7 @@ impl ScriptForcedRead {
     }
 }
 
+#[expect(dead_code, reason = "no internal code waits yet")]
 impl LockstepProof {
     /// The right to wait for the reason `_` marks.
     pub(crate) fn for_reason(_: &impl LockstepReason) -> Self {
@@ -66,6 +66,16 @@ impl LockstepProof {
         }
     }
 }
+
+macro_rules! script_entry {
+    ($marker:path) => {
+        impl private::ScriptEntry for $marker {}
+        impl ScriptEntry for $marker {}
+    };
+}
+
+// The host entries script APIs call, which may each spend one forced read.
+script_entry!(super::devtools::DevtoolsEntry);
 
 /// Where the render side answers a host that waits for it. Only an answer goes through it: a reply dropped unanswered
 /// is a render state that died.

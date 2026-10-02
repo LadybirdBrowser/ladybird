@@ -1753,6 +1753,11 @@ u64 Internals::layout_arena_live_slot_count()
     return Layout::RustFFI::layout_arena_live_slot_count(document.layout_node_arena().handle());
 }
 
+void Internals::panic_render_state_for_testing()
+{
+    Layout::RustFFI::render_state_panic_for_testing(window().associated_document().layout_node_arena().host());
+}
+
 u64 Internals::layout_arena_shell_count()
 {
     auto& document = window().associated_document();
