@@ -793,6 +793,18 @@ impl RetainedState {
         self.tree.set_text_is_ascii_whitespace(node, value, &mut self.memory);
     }
 
+    /// Record the unique node id the document names the element by. It arrives with the identity
+    /// and never changes while the element holds it.
+    pub fn set_element_unique_node_id(&mut self, node: StyleNodeID, unique_node_id: i64) {
+        self.tree.set_unique_node_id(node, unique_node_id, &mut self.memory);
+    }
+
+    /// The unique node id the document names the element by, or zero for anything else.
+    #[must_use]
+    pub fn element_unique_node_id(&self, node: StyleNodeID) -> i64 {
+        self.tree.unique_node_id(node)
+    }
+
     /// What a row built for the node is painted and hit-tested with, as `DomPaintFact` names them.
     #[must_use]
     pub fn node_dom_paint_facts(&self, node: StyleNodeID) -> u8 {

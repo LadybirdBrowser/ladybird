@@ -3680,12 +3680,17 @@ impl TreeBuilderHost<'_> {
     /// style the build was handed, and the layout node made for it.
     fn create_document_box(&self, document_style: DerivedStyleRecord) -> NodeSlotId {
         let slot = self.stamp_dom_box(NodeKind::Viewport, None);
-        // The viewport is the document's row, painted with what the document published.
+        // The viewport is the document's row, painted with what the document published and named
+        // by the document's name.
         let document = self
             .arena()
             .document_style_node()
             .expect("a build names the document it lays out");
         self.arena().stamp_dom_paint_facts(slot, document);
+        let unique_node_id = self
+            .arena()
+            .with_style_store(|engine| engine.element_unique_node_id(document));
+        self.arena().unique_node_ids().publish(slot, unique_node_id);
         self.arena()
             .apply_reinherited_style_record(self.main_thread, slot, document_style);
         assert!(!self.arena().node_shell(self.main_thread, slot).is_null());
@@ -5314,7 +5319,10 @@ mod tests {
             dom_paint_facts: 0,
             style_node: style_node.map_or(0, StyleNodeID::raw),
         };
+        // The rows name their generators, whose unique node ids the style mirror answers for.
+        let mut engine = crate::css::style::StyleEngine::new(crate::css::style::memory::DeviceClass::ForegroundDesktop);
         let mut arena = LayoutNodeArena::new();
+        arena.set_style_engine((&raw mut engine).cast());
         let element = StyleNodeID::element(4);
         let parent = arena.allocate(facts(None));
         let element_box = arena.allocate(facts(Some(element)));

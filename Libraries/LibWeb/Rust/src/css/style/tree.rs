@@ -654,6 +654,12 @@ pub struct StyleNodeTree {
     /// holding a navigable. Nearly every node holds none of them, which is the absence of an entry.
     /// Element, text and document identities publish here, as each gets a row.
     dom_paint_facts: HashMap<StyleNodeID, u8>,
+    /// The unique node id the document names the element by, published where the identity arrives
+    /// and constant for as long as the element holds it. A box built for the element answers by
+    /// it, and so does a box built for one of the element's pseudo-elements, which is why the
+    /// render side needs it for an element that has no box of its own. The document's identity
+    /// carries the document's.
+    unique_node_ids: Vec<i64>,
 
     capacity_bytes: u64,
 
@@ -700,6 +706,7 @@ impl StyleNodeTree {
             previous_sibling: Vec::new(),
             text: TextRows::default(),
             dom_paint_facts: HashMap::default(),
+            unique_node_ids: Vec::new(),
             capacity_bytes: 0,
             #[cfg(test)]
             depth_recompute_visits: 0,
@@ -837,6 +844,9 @@ impl StyleNodeTree {
             }
             self.live.set(index as usize, false);
             self.dom_paint_facts.remove(&node);
+            if let Some(unique_node_id) = self.unique_node_ids.get_mut(index as usize) {
+                *unique_node_id = 0;
+            }
             if !self.relation_only.set(index as usize, false).0 {
                 self.connected_element_count -= 1;
             }
@@ -988,6 +998,30 @@ impl StyleNodeTree {
         self.text.is_password_input.set(index as usize, value);
         let current = self.text.capacity_bytes();
         self.record_capacity_change(memory, before, current);
+    }
+
+    /// Record the unique node id the document names the element by. Only an element identity, the
+    /// document's included, holds one.
+    pub fn set_unique_node_id(&mut self, node: StyleNodeID, unique_node_id: i64, memory: &mut MemoryController) {
+        let Some(index) = node.element_index() else {
+            return;
+        };
+        let index = index as usize;
+        let before = self.identity_capacity_bytes();
+        if self.unique_node_ids.len() <= index {
+            self.unique_node_ids.resize(index + 1, 0);
+        }
+        self.unique_node_ids[index] = unique_node_id;
+        let current = self.identity_capacity_bytes();
+        self.record_capacity_change(memory, before, current);
+    }
+
+    /// The unique node id the document names the element by, or zero for anything else.
+    #[must_use]
+    pub fn unique_node_id(&self, node: StyleNodeID) -> i64 {
+        node.element_index()
+            .and_then(|index| self.unique_node_ids.get(index as usize).copied())
+            .unwrap_or(0)
     }
 
     /// What a row built for the node is painted and hit-tested with. An identity with nothing
@@ -1828,6 +1862,7 @@ impl StyleNodeTree {
                 self.next_sibling,
                 self.previous_sibling,
                 self.dom_paint_facts,
+                self.unique_node_ids,
             ];
             cached [];
             nested [

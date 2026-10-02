@@ -307,6 +307,9 @@ void record_element_connected(DOM::Element& element)
         return;
     element.set_style_node_id(style_engine->allocate_style_node());
     element.document().style_computer().register_style_node(element.style_node_id(), element);
+    // The name the document knows the element by arrives with the identity. A box built for one of
+    // the element's pseudo-elements answers by it even when the element itself has no box.
+    style_engine->set_element_unique_node_id(element.style_node_id(), static_cast<u64>(element.unique_id().value()));
     // A newly minted identity holds none of the facts the element's style noted before.
     if (element.style_recomputes_on_environment_move())
         element.publish_style_recomputes_on_environment_move();
@@ -367,6 +370,8 @@ void record_document_tree_tracked(DOM::Document& document)
     auto& style_engine = document.style_computer().style_engine();
     document.set_style_node_id(style_engine.allocate_style_node());
     style_engine.mark_relation_only_style_node(document.style_node_id());
+    // The viewport's row answers by the document's name, which the document's identity carries.
+    style_engine.set_element_unique_node_id(document.style_node_id(), static_cast<u64>(document.unique_id().value()));
 }
 
 void record_subtree_connecting(DOM::Node& root)
@@ -428,6 +433,7 @@ void record_subtree_connecting(DOM::Node& root)
                 auto identity = identities[next_element_identity++];
                 element->set_style_node_id(identity);
                 style_computer.register_style_node(identity, *element);
+                style_engine.set_element_unique_node_id(identity, static_cast<u64>(element->unique_id().value()));
                 if (element->style_recomputes_on_environment_move())
                     element->publish_style_recomputes_on_environment_move();
                 if (element->is_size_query_container() || element->style_depends_on_size_container_query())

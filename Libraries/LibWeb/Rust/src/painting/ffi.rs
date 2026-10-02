@@ -836,10 +836,8 @@ fn apply_walk_assignments(
 }
 
 fn fresh_visual_context_tree_build(
-    main_thread: &crate::stage::MainThread,
     arena: *mut c_void,
     viewport: NodeSlotId,
-    callbacks: &FfiVisualContextHostCallbacks,
     inputs: crate::painting::host::FfiVisualContextTreeInputs,
     state: &mut crate::painting::visual_context::VisualContextState,
 ) -> crate::painting::host::FfiVisualContextUpdateOutcome {
@@ -855,8 +853,7 @@ fn fresh_visual_context_tree_build(
             viewport,
             &inputs,
         );
-        fresh_tree.viewport_assignment.node_identity =
-            callbacks.node_identity(main_thread, arena.shell_if_live(main_thread, viewport));
+        fresh_tree.viewport_assignment.node_identity = arena.unique_node_ids().id(viewport);
         fresh_tree
     };
     {
@@ -873,8 +870,6 @@ fn fresh_visual_context_tree_build(
         let paintable_rows = arena.paintable_rows();
         match update_visual_context_tree(
             &paintable_rows,
-            callbacks,
-            main_thread,
             viewport,
             inputs,
             VisualContextUpdateScope::FreshTree,
@@ -2956,9 +2951,6 @@ mod tests {
         unsafe extern "C" fn scroll_offset(_: *mut c_void, _: *mut c_void) -> FfiCssPixelPoint {
             unreachable!("no visual context tree exists to refresh")
         }
-        unsafe extern "C" fn node_identity(_: *mut c_void, _: *mut c_void) -> i64 {
-            unreachable!("no visual context tree exists to refresh")
-        }
 
         let mut arena = LayoutNodeArena::new();
         let viewport = arena.allocate_for_test().slot;
@@ -2990,7 +2982,7 @@ mod tests {
         let outcome = prepare_for_rendering(
             &crate::stage::MainThread::for_test(),
             &arena,
-            &FfiVisualContextHostCallbacks::for_test(tree_inputs, scroll_offset, node_identity),
+            &FfiVisualContextHostCallbacks::for_test(tree_inputs, scroll_offset),
             RootBackgroundSource {
                 root_layout_node: root,
                 ..Default::default()

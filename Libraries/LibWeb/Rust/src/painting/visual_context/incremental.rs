@@ -18,7 +18,7 @@ use super::scroll_state::ScrollState;
 use super::*;
 use crate::fast_hash::{FastMap as HashMap, FastSet as HashSet};
 use crate::layout::node_data::{NodeKind, NodeSlotId};
-use crate::painting::host::{FfiVisualContextHostCallbacks, FfiVisualContextTreeInputs};
+use crate::painting::host::FfiVisualContextTreeInputs;
 use crate::painting::paint_order;
 use crate::painting::paintable_rows::PaintableRowsRead;
 
@@ -378,8 +378,6 @@ fn take_next_deferred_anchor_positioned(
 
 pub(crate) fn update_visual_context_tree<Arena: PaintableRowsRead>(
     layout_arena: &Arena,
-    callbacks: &FfiVisualContextHostCallbacks,
-    main_thread: &crate::stage::MainThread,
     viewport: NodeSlotId,
     tree_inputs: FfiVisualContextTreeInputs,
     scope: VisualContextUpdateScope,
@@ -405,8 +403,6 @@ pub(crate) fn update_visual_context_tree<Arena: PaintableRowsRead>(
 
     let environment = BoxBuildEnvironment {
         layout_arena,
-        callbacks,
-        main_thread,
         pixel_ratio: tree_inputs.device_pixels_per_css_pixel,
     };
     let viewport_output = layout_arena
