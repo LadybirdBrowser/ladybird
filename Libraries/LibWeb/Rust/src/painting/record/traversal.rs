@@ -18,6 +18,7 @@ use crate::painting::hit_test::HitTestList;
 use crate::painting::node_painting;
 use crate::painting::paint_order_plan::PaintScope;
 use crate::painting::paint_read::{GeometryRead, PaintSource};
+use crate::painting::published_frame::PublishedRows;
 use crate::painting::record::RecordingInputs;
 use crate::painting::record::assemble::{Assembler, frame_is_unchanged};
 use crate::painting::record::frame_inputs::FrameInputs;
@@ -35,6 +36,7 @@ use std::sync::Arc;
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn record_display_list(
     layout_arena: &LayoutNodeArena,
+    rows: &PublishedRows,
     paint_state: &crate::painting::paint_state::PaintState,
     scratch: &mut RecordingScratch,
     absolute_rects: &RefCell<AbsoluteRectMemo>,
@@ -52,6 +54,7 @@ pub(crate) fn record_display_list(
         ($observer:ty) => {
             record_display_list_impl::<$observer>(
                 layout_arena,
+                rows,
                 paint_state,
                 scratch,
                 absolute_rects,
@@ -77,6 +80,7 @@ pub(crate) fn record_display_list(
 #[allow(clippy::too_many_arguments)]
 fn record_display_list_impl<O: Observer>(
     layout_arena: &LayoutNodeArena,
+    rows: &PublishedRows,
     paint_state: &crate::painting::paint_state::PaintState,
     scratch: &mut RecordingScratch,
     absolute_rects: &RefCell<AbsoluteRectMemo>,
@@ -93,7 +97,7 @@ fn record_display_list_impl<O: Observer>(
         "a recording that publishes nothing has no published recording to copy from"
     );
     let structural_epoch = paint_state.visual_context.structural_epoch();
-    let source = PaintSource::new(layout_arena, absolute_rects);
+    let source = PaintSource::new(layout_arena, rows, absolute_rects);
     let frame_inputs = FrameInputs::from_recording_inputs(inputs, paint_state);
     let root_background_canvas_rect = root_background_canvas_rect(
         &source,

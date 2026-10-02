@@ -1148,11 +1148,12 @@ pub unsafe extern "C" fn layout_arena_sticky_spatial_node_index(arena: *mut c_vo
         .map_or(u32::MAX, |state| state.node_index.0)
 }
 
-/// What a recording stage records from: the arena, borrowed for the stage, the viewport it
-/// records, the inputs the document lent for the call, and the recorder's own state, which nothing
-/// else borrows while it runs.
+/// What a recording stage records from: the arena, borrowed for the stage, the rows published for
+/// it, the viewport it records, the inputs the document lent for the call, and the recorder's own
+/// state, which nothing else borrows while it runs.
 struct RecordingStageInput<'a> {
     arena: &'a LayoutNodeArena,
+    rows: &'a crate::painting::published_frame::PublishedRows,
     viewport: NodeSlotId,
     inputs: crate::painting::record::RecordingInputs<'a>,
     recorder_state: &'a mut crate::painting::record::recorder_state::RecorderState,
@@ -1174,6 +1175,7 @@ const _: () = {
 fn record_display_list_stage(input: RecordingStageInput<'_>) -> RecordingStageOutput {
     let RecordingStageInput {
         arena,
+        rows,
         viewport,
         inputs,
         recorder_state,
@@ -1221,6 +1223,7 @@ fn record_display_list_stage(input: RecordingStageInput<'_>) -> RecordingStageOu
     arena.set_paint_recording_in_progress(true);
     let recording = crate::painting::record::traversal::record_display_list(
         arena,
+        rows,
         &paint_state,
         scratch,
         absolute_rects,
@@ -1242,6 +1245,7 @@ fn record_display_list_stage(input: RecordingStageInput<'_>) -> RecordingStageOu
             let mut tree_for_recording_from_scratch = crate::painting::record::order_tree::PaintOrderTree::default();
             crate::painting::record::traversal::record_display_list(
                 arena,
+                rows,
                 &paint_state,
                 scratch,
                 absolute_rects,
@@ -1273,9 +1277,12 @@ pub unsafe extern "C" fn layout_arena_record_display_list(
     viewport: NodeSlotId,
     inputs: crate::painting::host::FfiRecordingInputs,
 ) -> bool {
-    let arena = unsafe { arena_from_handle(arena) };
+    let arena = unsafe { arena_from_handle_mut(arena) };
     // Recording reads overflow, and reading overflow never measures it.
     arena.measure_scrollable_overflow();
+    // The recording reads the rows as they are now, and nothing writes them before it is done.
+    let rows = arena.publish_rows();
+    let arena: &LayoutNodeArena = arena;
     {
         let mut paint_state = arena.paint_state().borrow_mut();
         debug_assert!(
@@ -1309,6 +1316,7 @@ pub unsafe extern "C" fn layout_arena_record_display_list(
         drop(paint_state);
         record_display_list_stage(RecordingStageInput {
             arena,
+            rows: &rows,
             viewport,
             inputs: recording_inputs,
             recorder_state: &mut arena.recorder_state().borrow_mut(),
