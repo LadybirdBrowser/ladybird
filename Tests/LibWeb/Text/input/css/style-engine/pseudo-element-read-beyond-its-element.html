@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .outer .inner::before { --own: document; }
+</style>
+<div class="outer"><div class="inner" id="inner"></div></div>
+<div id="host"></div>
+<script>
+    test(() => {
+        // Each pseudo-element's rule reads its element's ancestors, and in a shadow tree also the
+        // host. The style engine matches the element again over the facts those reads reach,
+        // whatever tree it is in, and answers every read.
+        const host = document.getElementById("host");
+        const root = host.attachShadow({ mode: "open" });
+        root.innerHTML = `<style>.a .b::before { --own: shadow; } :host(.x) .b::after { --own: host; }</style><div class="a"><div class="b" id="b"></div></div>`;
+        internals.updateStyle();
+        const cases = [
+            ["document", "::before", () => document.getElementById("inner")],
+            ["shadow", "::before", () => root.getElementById("b")],
+            ["host", "::after", () => {
+                host.classList.add("x");
+                return root.getElementById("b");
+            }],
+        ];
+        for (const [name, pseudo, target] of cases) {
+            const element = target();
+            const start = internals.styleEngineCounters();
+            const value = getComputedStyle(element, pseudo).getPropertyValue("--own");
+            const end = internals.styleEngineCounters();
+            println(`${name} ${pseudo}: --own ${value}, demands left to the host ${end.pseudoRecordDemandsLeftToHost - start.pseudoRecordDemandsLeftToHost}`);
+        }
+    });
+</script>

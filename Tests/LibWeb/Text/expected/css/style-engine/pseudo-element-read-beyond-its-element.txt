@@ -1,0 +1,3 @@
+document ::before: --own document, demands left to the host 0
+shadow ::before: --own shadow, demands left to the host 0
+host ::after: --own host, demands left to the host 0
