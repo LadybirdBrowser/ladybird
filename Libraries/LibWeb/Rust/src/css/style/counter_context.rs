@@ -1030,9 +1030,10 @@ impl StyleEngine {
         subject: StyleNodeID,
         facts: u32,
         declarations: &[(ElementDeclarationKind, &crate::css::declaration_block::DeclaredProperty)],
+        custom_declarations: &[(CustomDeclaration, RetainedStyleValueData)],
     ) -> publication::Drive<computed::FinalStyleRecordID> {
         self.state
-            .declared_only_record(subject, facts, declarations, &mut self.counters)
+            .declared_only_record(subject, facts, declarations, custom_declarations, &mut self.counters)
     }
 
     /// Settle the pseudo-element records of an element whose record C++ just installed.

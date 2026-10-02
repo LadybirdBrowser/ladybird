@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    test(() => {
+        // A detached element's style is its own declarations alone, which the style engine
+        // cascades. Values with var() substitute under the custom properties its inline style
+        // declares, as C++ would.
+        CSS.registerProperty({ name: "--length", syntax: "<length>", inherits: true, initialValue: "0px" });
+        const create = style => {
+            const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+            rect.setAttribute("width", 10);
+            rect.setAttribute("height", 20);
+            rect.setAttribute("style", style);
+            return rect;
+        };
+        const start = internals.getStyleInvalidationCounters().baseStyleFullBuilds;
+        for (const style of [
+            "width: var(--w, 15px)",
+            "--w: 30px; width: var(--w)",
+            "--w: 30px; --h: calc(var(--w) * 2); width: var(--w); height: var(--h)",
+            "--length: 2em; width: var(--length)",
+            "width: var(--missing)",
+        ])
+            println(`${style}: ${create(style).getTotalLength()}`);
+        println(`C++ style builds: ${internals.getStyleInvalidationCounters().baseStyleFullBuilds - start}`);
+    });
+</script>

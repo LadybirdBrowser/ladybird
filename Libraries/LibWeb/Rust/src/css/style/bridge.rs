@@ -3608,7 +3608,8 @@ pub unsafe fn style_engine_answer_record_demand_for_replay(
 }
 
 /// The record of an element no rule reaches, computed from its presentational hints and its
-/// inline style alone over the initial values; see `declared_only_record`. `subject` is the
+/// inline style alone over the initial values, its custom properties among them; see
+/// `declared_only_record`. `subject` is the
 /// document's style node. Returns a pinned record the host unpins, or zero where the engine
 /// leaves the computation to C++.
 ///
@@ -3653,8 +3654,14 @@ pub unsafe extern "C" fn style_engine_declared_only_record(
                     .map(|declaration| (ElementDeclarationKind::InlineStyle, declaration))
             }))
             .collect::<Vec<_>>();
+        let custom_declarations = collect_native_custom_declarations(
+            engine,
+            inline_data
+                .as_ref()
+                .map_or(&[], |data| data.custom_properties.as_slice()),
+        );
         engine
-            .declared_only_record(subject, facts, &declarations)
+            .declared_only_record(subject, facts, &declarations, &custom_declarations)
             .map_or(0, super::computed::FinalStyleRecordID::raw)
     })
 }
