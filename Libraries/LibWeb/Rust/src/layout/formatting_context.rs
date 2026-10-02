@@ -2378,9 +2378,86 @@ pub(crate) unsafe fn run_root_layout(
     );
     // SAFETY: As above.
     unsafe { super::layout_node_arena::sync_enrolled_content_for_layout(arena_handle) };
-    // SAFETY: The host keeps the document's layout inputs alive and unchanged
-    // while computing fragments. Nested measurements only mutate side caches.
-    let arena = unsafe { LayoutNodeArena::from_handle(arena_handle) };
+    // SAFETY: The host keeps the document's layout inputs alive and unchanged while the stage
+    // computes fragments, and the scratch beside the arena is the layout stage's own.
+    let input = unsafe {
+        layout_stage_input(
+            main_thread,
+            arena_handle,
+            &host,
+            root,
+            viewport_inline_size_raw,
+            viewport_block_size_raw,
+            document_in_quirks_mode,
+        )
+    };
+    let output = compute_root_layout(input, should_collect_devtools_layout_data);
+    // SAFETY: Computation has finished and its input borrows are no longer used.
+    let arena = unsafe { commit_entry_pass(main_thread, arena_handle, &host, root, &output) };
+    arena.did_commit_full_layout(root);
+    arena.end_active_layout_pass(main_thread);
+}
+
+/// What a layout stage computes from: the arena and the layout stage's scratch, borrowed for the
+/// pass, the one question the pass may ask the document, and the facts of the pass. It holds no
+/// main thread token, so nothing the stage calls can reach the rest of the host.
+struct LayoutStageInput<'a> {
+    arena: &'a LayoutNodeArena,
+    scratch: &'a super::run_records::LayoutScratch,
+    container_length_bases: layout_pass::ContainerLengthBasesQuery,
+    root: NodeSlotId,
+    viewport_inline_size_raw: i32,
+    viewport_block_size_raw: i32,
+    document_in_quirks_mode: bool,
+}
+
+/// The fragments a layout stage computed, which its commit consumes on the document thread.
+pub(crate) struct LayoutStageOutput(fragment_tree::CompletedPassFragments);
+
+const _: () = {
+    const fn assert_send<T: Send>() {}
+    assert_send::<LayoutStageOutput>();
+};
+
+/// # Safety
+///
+/// `arena_handle` must be a live handle, used on the document thread, whose layout inputs stay
+/// unchanged while the stage borrows them.
+#[allow(clippy::too_many_arguments)]
+unsafe fn layout_stage_input<'a>(
+    main_thread: &crate::stage::MainThread,
+    arena_handle: *mut c_void,
+    host: &FfiLayoutHostCallbacks,
+    root: NodeSlotId,
+    viewport_inline_size_raw: i32,
+    viewport_block_size_raw: i32,
+    document_in_quirks_mode: bool,
+) -> LayoutStageInput<'a> {
+    LayoutStageInput {
+        // SAFETY: Guaranteed by the caller.
+        arena: unsafe { LayoutNodeArena::from_handle(arena_handle) },
+        // SAFETY: As above; the scratch beside the arena is the layout stage's own.
+        scratch: unsafe { super::run_records::LayoutScratch::from_handle(arena_handle) },
+        container_length_bases: host.container_length_bases_query(main_thread),
+        root,
+        viewport_inline_size_raw,
+        viewport_block_size_raw,
+        document_in_quirks_mode,
+    }
+}
+
+/// The full layout stage: computes the fragments of the document from its viewport, without the
+/// host.
+fn compute_root_layout(input: LayoutStageInput<'_>, should_collect_devtools_layout_data: bool) -> LayoutStageOutput {
+    let LayoutStageInput {
+        arena,
+        scratch,
+        container_length_bases,
+        root,
+        viewport_inline_size_raw,
+        viewport_block_size_raw,
+        document_in_quirks_mode,
+    } = input;
     arena.begin_active_layout_pass();
     // NB: The tree builder derives the facts of rebuilt subtrees. Unclassified invalidations
     // require deriving them for the entire tree instead.
@@ -2392,12 +2469,10 @@ pub(crate) unsafe fn run_root_layout(
         // NB: Top-layer updates can attach boxes without running the tree builder.
         arena.derive_facts_after_tree_update(&[]);
     }
-    // SAFETY: Guaranteed by the caller; the scratch beside the arena is the layout stage's own.
-    let scratch = unsafe { super::run_records::LayoutScratch::from_handle(arena_handle) };
     let callbacks = LayoutPass::new(
         arena,
         scratch,
-        host.container_length_bases_query(main_thread),
+        container_length_bases,
         CssPixels::from_raw(viewport_inline_size_raw),
         CssPixels::from_raw(viewport_block_size_raw),
         document_in_quirks_mode,
@@ -2469,10 +2544,7 @@ pub(crate) unsafe fn run_root_layout(
             should_collect_devtools_layout_data,
         )
     });
-    // SAFETY: Computation has finished and its input borrows are no longer used.
-    let arena = unsafe { commit_entry_pass(main_thread, arena_handle, &host, root, &pass_fragments) };
-    arena.did_commit_full_layout(root);
-    arena.end_active_layout_pass(main_thread);
+    LayoutStageOutput(pass_fragments)
 }
 
 fn finish_entry_pass(
@@ -2509,14 +2581,14 @@ unsafe fn commit_entry_pass<'a>(
     arena_handle: *mut c_void,
     host: &FfiLayoutHostCallbacks,
     commit_root: NodeSlotId,
-    pass_fragments: &fragment_tree::CompletedPassFragments,
+    output: &LayoutStageOutput,
 ) -> &'a LayoutNodeArena {
     // SAFETY: Computation has finished and its input borrows are no longer used.
     // Commit performs no host callbacks while it borrows the arena exclusively.
     let notifications = commit::commit_replacing(
         commit_root,
         unsafe { LayoutNodeArena::from_handle_mut(arena_handle) },
-        pass_fragments,
+        &output.0,
     );
     // SAFETY: The host and shells remain live, and commit's mutable borrow has ended.
     unsafe { notifications.notify_host(main_thread, host) };
@@ -2548,16 +2620,47 @@ pub(crate) unsafe fn compute_subtree_layout(
     assert!(!arena_handle.is_null(), "layout node arena handle is null");
     assert!(!root.is_invalid());
     let host = FfiLayoutHostCallbacks::of(main_thread);
-    // SAFETY: The host keeps the document's layout inputs alive and unchanged
-    // while computing fragments. Nested measurements only mutate side caches.
-    let arena = unsafe { LayoutNodeArena::from_handle(arena_handle) };
+    // SAFETY: The host keeps the document's layout inputs alive and unchanged while the stage
+    // computes fragments, and the scratch beside the arena is the layout stage's own.
+    let input = unsafe {
+        layout_stage_input(
+            main_thread,
+            arena_handle,
+            &host,
+            root,
+            viewport_inline_size_raw,
+            viewport_block_size_raw,
+            document_in_quirks_mode,
+        )
+    };
+    let output = compute_subtree_layout_fragments(input);
+    // SAFETY: Computation has finished and its input borrows are no longer used.
+    let arena = unsafe { commit_entry_pass(main_thread, arena_handle, &host, root, &output) };
+    // Commit reset the subtree's rows, and its new size may affect ancestor scrollable overflow.
+    // Partial relayout roots are SVG viewports or abspos boxes, never SVG content boxes that
+    // would require a new layout instead of an overflow update.
+    debug_assert!(!node_facts::kind_is_svg_box(arena.data(root).kind.get()));
+    arena.schedule_scrollable_overflow_recalculation(root);
+    arena.end_active_layout_pass(main_thread);
+}
+
+/// The partial layout stage: computes the fragments of one partial relayout boundary in place,
+/// without the host.
+fn compute_subtree_layout_fragments(input: LayoutStageInput<'_>) -> LayoutStageOutput {
+    let LayoutStageInput {
+        arena,
+        scratch,
+        container_length_bases,
+        root,
+        viewport_inline_size_raw,
+        viewport_block_size_raw,
+        document_in_quirks_mode,
+    } = input;
     arena.begin_active_layout_pass();
-    // SAFETY: Guaranteed by the caller; the scratch beside the arena is the layout stage's own.
-    let scratch = unsafe { super::run_records::LayoutScratch::from_handle(arena_handle) };
     let callbacks = LayoutPass::new(
         arena,
         scratch,
-        host.container_length_bases_query(main_thread),
+        container_length_bases,
         CssPixels::from_raw(viewport_inline_size_raw),
         CssPixels::from_raw(viewport_block_size_raw),
         document_in_quirks_mode,
@@ -2613,14 +2716,7 @@ pub(crate) unsafe fn compute_subtree_layout(
         },
     );
     drop(read_scope);
-    // SAFETY: Computation has finished and its input borrows are no longer used.
-    let arena = unsafe { commit_entry_pass(main_thread, arena_handle, &host, root, &pass_fragments) };
-    // Commit reset the subtree's rows, and its new size may affect ancestor scrollable overflow.
-    // Partial relayout roots are SVG viewports or abspos boxes, never SVG content boxes that
-    // would require a new layout instead of an overflow update.
-    debug_assert!(!node_facts::kind_is_svg_box(arena.data(root).kind.get()));
-    arena.schedule_scrollable_overflow_recalculation(root);
-    arena.end_active_layout_pass(main_thread);
+    LayoutStageOutput(pass_fragments)
 }
 
 fn layout_subtree_with_frozen_root_geometry(run: &FormattingContextRun<'_>) {
