@@ -14,6 +14,7 @@ mod rust_allocator;
 #[path = "../../../RustPanic.rs"]
 mod rust_panic;
 
+pub(crate) mod cow_column;
 mod encoding_detection;
 pub use libcompositing_rust::fast_hash;
 
