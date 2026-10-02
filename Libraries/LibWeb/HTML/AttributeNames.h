@@ -75,6 +75,7 @@ namespace AttributeNames {
     __ENUMERATE_HTML_ATTRIBUTE(direction, "direction")                                             \
     __ENUMERATE_HTML_ATTRIBUTE(dirname, "dirname")                                                 \
     __ENUMERATE_HTML_ATTRIBUTE(disabled, "disabled")                                               \
+    __ENUMERATE_HTML_ATTRIBUTE(disablepictureinpicture, "disablepictureinpicture")                 \
     __ENUMERATE_HTML_ATTRIBUTE(download, "download")                                               \
     __ENUMERATE_HTML_ATTRIBUTE(draggable, "draggable")                                             \
     __ENUMERATE_HTML_ATTRIBUTE(enctype, "enctype")                                                 \
