@@ -389,7 +389,12 @@ fn single_modifier_argument(values: &[ComponentValue]) -> Option<&ComponentValue
     single_non_whitespace_value(values)
 }
 
-pub(crate) fn parse_url_value(_context: &ParseContext, value: &ComponentValue) -> Option<StyleValueData> {
+pub(crate) fn parse_url_value(context: &ParseContext, value: &ComponentValue) -> Option<StyleValueData> {
+    // https://drafts.csswg.org/css-values-5/#attr-security
+    // Using an attr-tainted value as or in a <url> makes a declaration invalid at computed-value time.
+    if context.contains_attr_tainted_values {
+        return None;
+    }
     let (url, url_type, modifiers) = match &value.kind {
         ComponentKind::Token(ParserTokenKind::Url(url)) => (url.as_ref(), 0, Vec::new()),
         ComponentKind::Function { name, values }

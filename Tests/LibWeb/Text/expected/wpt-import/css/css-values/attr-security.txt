@@ -2,19 +2,19 @@ Harness status: OK
 
 Found 43 tests
 
-33 Pass
-10 Fail
+36 Pass
+7 Fail
 Pass	'--x: image-set(attr(data-foo))' with data-foo="https://does-not-exist.test/404.png"
 Pass	'background-image: image-set(attr(data-foo))' with data-foo="https://does-not-exist.test/404.png"
 Pass	'background-image: image-set("https://does-not-exist.test/404.png")' with data-foo="https://does-not-exist.test/404.png"
 Pass	'--x: src(attr(data-foo))' with data-foo="https://does-not-exist.test/404.png"
-Fail	'background-image: src(attr(data-foo))' with data-foo="https://does-not-exist.test/404.png"
+Pass	'background-image: src(attr(data-foo))' with data-foo="https://does-not-exist.test/404.png"
 Fail	'background-image: src("https://does-not-exist.test/404.png")' with data-foo="https://does-not-exist.test/404.png"
 Pass	'--x: src(string("https://does-not-exist.test" attr(data-foo)))' with data-foo="/404.png"
 Pass	'background-image: src(string("https://does-not-exist.test" attr(data-foo)))' with data-foo="/404.png"
 Fail	'background-image: src(string("https://does-not-exist.test/""404.png"))' with data-foo="/404.png"
 Pass	'--x: attr(data-foo type(<url>))' with data-foo="url(https://does-not-exist.test/404.png)"
-Fail	'background-image: attr(data-foo type(<url>))' with data-foo="url(https://does-not-exist.test/404.png)"
+Pass	'background-image: attr(data-foo type(<url>))' with data-foo="url(https://does-not-exist.test/404.png)"
 Pass	'background-image: url("https://does-not-exist.test/404.png")' with data-foo="url(https://does-not-exist.test/404.png)"
 Pass	'--x: image(attr(data-foo))' with data-foo="https://does-not-exist.test/404.png"
 Pass	'background-image: image(attr(data-foo))' with data-foo="https://does-not-exist.test/404.png"
@@ -30,7 +30,7 @@ Pass	'--registered-url: attr(data-foo type(<url>))' with data-foo="https://does-
 Pass	'--registered-color: attr(data-foo type(<color>))' with data-foo="blue"
 Pass	'--x: image-set(var(--some-other-url))' with data-foo="https://does-not-exist.test/404.png"
 Pass	'background-image: image-set(var(--some-other-url))' with data-foo="https://does-not-exist.test/404.png"
-Fail	'background-image: attr(data-foo type(*))' with data-foo="url(https://does-not-exist.test/404.png), linear-gradient(black, white)"
+Pass	'background-image: attr(data-foo type(*))' with data-foo="url(https://does-not-exist.test/404.png), linear-gradient(black, white)"
 Pass	'background-image: image-set(var(--image-set-valid))' with data-foo="image/jpeg"
 Pass	'background-image: image-set(var(--image-set-invalid))' with data-foo="https://does-not-exist.test/404.png"
 Fail	'--x: image-set(if(style(--true): attr(data-foo);))' with data-foo="https://does-not-exist.test/404.png"
