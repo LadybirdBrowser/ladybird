@@ -46,7 +46,7 @@ use crate::runtime::primitive_string::PrimitiveString;
 use crate::runtime::property_key::PropertyKey;
 use crate::runtime::reference::{BaseType, Reference};
 use crate::runtime::shared_function_instance_data::SharedFunctionInstanceData;
-use crate::runtime::symbol::{self, Symbol, enumerate_well_known_symbols};
+use crate::runtime::symbol::{self, GlobalSymbolRegistry, Symbol, enumerate_well_known_symbols};
 use crate::source_range::SourceRange;
 use crate::utf16::Utf16View;
 
@@ -215,6 +215,7 @@ pub struct Vm {
     cached_strings: OnceCell<CachedStrings>,
     single_ascii_character_strings: OnceCell<[Gc<PrimitiveString>; SINGLE_ASCII_CHARACTER_STRING_COUNT]>,
     well_known_symbols: OnceCell<WellKnownSymbols>,
+    global_symbol_registry: OnceCell<Gc<GlobalSymbolRegistry>>,
 
     /// The executables whose inline caches the sweep callback prunes. The list is weak: the callback drops the
     /// executables that die.
@@ -280,6 +281,7 @@ impl Vm {
             cached_strings: OnceCell::new(),
             single_ascii_character_strings: OnceCell::new(),
             well_known_symbols: OnceCell::new(),
+            global_symbol_registry: OnceCell::new(),
             executables: RefCell::new(Vec::new()),
             static_property_lookup_caches: StaticPropertyLookupCaches::new(),
             keyed_property_lookup_cache: KeyedPropertyLookupCache::new(),
@@ -332,6 +334,7 @@ impl Vm {
             }));
 
         let _ = self.well_known_symbols.set(WellKnownSymbols::create(self));
+        let _ = self.global_symbol_registry.set(GlobalSymbolRegistry::create(self));
     }
 
     pub fn heap(&self) -> &Heap {
@@ -429,6 +432,7 @@ impl Vm {
         self.large_numeric_string_cache.trace(visitor);
         self.cached_strings.trace(visitor);
         self.well_known_symbols.trace(visitor);
+        self.global_symbol_registry.trace(visitor);
         self.type_error_realm_override.trace(visitor);
     }
 
@@ -605,6 +609,13 @@ impl Vm {
         self.well_known_symbols
             .get()
             .expect("the VM creates the well-known symbols")
+    }
+
+    pub fn global_symbol_registry(&self) -> Gc<GlobalSymbolRegistry> {
+        *self
+            .global_symbol_registry
+            .get()
+            .expect("the VM creates the global symbol registry")
     }
 
     pub fn register_native_function(&self, entry: NativeFunctionTableEntry) -> u32 {

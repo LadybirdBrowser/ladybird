@@ -42,7 +42,7 @@ use crate::runtime::string_object::StringObject;
 use crate::runtime::symbol::Symbol;
 use crate::runtime::symbol_object::SymbolObject;
 use crate::runtime::value_conversions::{self, string_to_number};
-use crate::utf16::Utf16View;
+use crate::utf16::{Utf16StringBuilder, Utf16View};
 use libjs_abi::Builtin;
 use libjs_abi::value as nan_box;
 
@@ -2260,6 +2260,16 @@ impl NumberStringBuilder for Vec<u16> {
 
     fn append_repeated_ascii(&mut self, code_unit: u8, count: usize) {
         self.extend(core::iter::repeat_n(u16::from(code_unit), count));
+    }
+}
+
+impl NumberStringBuilder for Utf16StringBuilder {
+    fn append_ascii(&mut self, text: &[u8]) {
+        self.append_ascii_bytes(text);
+    }
+
+    fn append_repeated_ascii(&mut self, code_unit: u8, count: usize) {
+        Utf16StringBuilder::append_repeated_ascii(self, code_unit, count);
     }
 }
 

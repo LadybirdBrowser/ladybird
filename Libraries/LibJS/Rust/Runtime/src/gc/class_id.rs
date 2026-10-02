@@ -131,4 +131,9 @@ define_class_ids! {
     // Reserved for Date, whose [[DateValue]] slot Object.prototype.toString already recognizes by its class.
     Date,
     ArrayIterator,
+    MathObject,
+    JSONObject,
+    RawJSONObject,
+    StringIterator,
+    GlobalSymbolRegistry,
 }

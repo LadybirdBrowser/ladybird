@@ -9,7 +9,7 @@
 use core::cell::Cell;
 use std::collections::{HashMap, HashSet};
 
-use ak::{ScopeGuard, Utf16FlyString};
+use ak::{ScopeGuard, Utf16FlyString, Utf16String};
 
 use crate::bytecode::executable::StaticPropertyLookupCacheSite;
 use crate::gc::class::{Extends, GcCell};
@@ -45,14 +45,43 @@ use crate::runtime::property_key::PropertyKey;
 use crate::runtime::realm::Realm;
 use crate::runtime::shared_function_instance_data::{ClassFieldInitializerName, ConstructorKind, ThisMode};
 use crate::runtime::string_conversions::parse_number_f64;
+use crate::runtime::string_prototype::string_index_of;
 use crate::runtime::value::{number_to_utf16_string, same_value};
 use crate::runtime::value_conversions::MAX_ARRAY_LIKE_INDEX;
-use crate::utf16::Utf16View;
+use crate::utf16::{Utf16StringBuilder, Utf16View};
 use libjs_runtime_macros::Trace;
 
 /// The Object a function object starts with.
 pub fn function_object_as_object(function: Gc<FunctionObject>) -> Gc<Object> {
     function.upcast()
+}
+
+pub fn max_js_string_length() -> usize {
+    u32::MAX as usize - 1
+}
+
+pub fn checked_js_string_length_sum(
+    vm: &Vm,
+    addend_a: usize,
+    addend_b: usize,
+    error_type: ErrorType,
+) -> ThrowCompletionOr<usize> {
+    match addend_a.checked_add(addend_b) {
+        Some(sum) if sum <= max_js_string_length() => Ok(sum),
+        _ => vm.throw_completion(ErrorKind::RangeError, error_type, &[]),
+    }
+}
+
+pub fn checked_js_string_length_product(
+    vm: &Vm,
+    factor_a: usize,
+    factor_b: usize,
+    error_type: ErrorType,
+) -> ThrowCompletionOr<usize> {
+    match factor_a.checked_mul(factor_b) {
+        Some(product) if product <= max_js_string_length() => Ok(product),
+        _ => vm.throw_completion(ErrorKind::RangeError, error_type, &[]),
+    }
 }
 
 // 7.2.1 RequireObjectCoercible ( argument ), https://tc39.es/ecma262/#sec-requireobjectcoercible
@@ -1155,6 +1184,221 @@ pub fn create_mapped_arguments_object(
 
     // 22. Return obj.
     object.upcast()
+}
+
+// 22.1.3.19.1 GetSubstitution ( matched, str, position, captures, namedCaptures, replacementTemplate ), https://tc39.es/ecma262/#sec-getsubstitution
+pub fn get_substitution(
+    vm: &Vm,
+    matched: Utf16View<'_>,
+    str: Utf16View<'_>,
+    position: usize,
+    captures: &[Value],
+    named_captures: Value,
+    replacement_template: Utf16View<'_>,
+) -> ThrowCompletionOr<Utf16String> {
+    // 1. Let stringLength be the length of str.
+    let string_length = str.length_in_code_units();
+
+    // 2. Assert: position ≤ stringLength.
+    assert!(position <= string_length);
+
+    // 3. Let result be the empty String.
+    let mut result = Utf16StringBuilder::new();
+
+    // 4. Let templateRemainder be replacementTemplate.
+    let mut template_remainder = replacement_template;
+
+    // 5. Repeat, while templateRemainder is not the empty String,
+    while !template_remainder.is_empty() {
+        // a. NOTE: The following steps isolate ref (a prefix of templateRemainder), determine refReplacement (its replacement), and then append that replacement to result.
+
+        let ref_length;
+        let capture_string;
+
+        // b. If templateRemainder starts with "$$", then
+        let ref_replacement = if template_remainder.starts_with(Utf16View::Ascii(b"$$")) {
+            // i. Let ref be "$$".
+            ref_length = 2;
+
+            // ii. Let refReplacement be "$".
+            Utf16View::Ascii(b"$")
+        }
+        // c. Else if templateRemainder starts with "$`", then
+        else if template_remainder.starts_with(Utf16View::Ascii(b"$`")) {
+            // i. Let ref be "$`".
+            ref_length = 2;
+
+            // ii. Let refReplacement be the substring of str from 0 to position.
+            str.substring_view(0, position)
+        }
+        // d. Else if templateRemainder starts with "$&", then
+        else if template_remainder.starts_with(Utf16View::Ascii(b"$&")) {
+            // i. Let ref be "$&".
+            ref_length = 2;
+
+            // ii. Let refReplacement be matched.
+            matched
+        }
+        // e. Else if templateRemainder starts with "$'" (0x0024 (DOLLAR SIGN) followed by 0x0027 (APOSTROPHE)), then
+        else if template_remainder.starts_with(Utf16View::Ascii(b"$'")) {
+            // i. Let ref be "$'".
+            ref_length = 2;
+
+            // ii. Let matchLength be the length of matched.
+            let match_length = matched.length_in_code_units();
+
+            // iii. Let tailPos be position + matchLength.
+            let tail_pos = position + match_length;
+
+            // iv. Let refReplacement be the substring of str from min(tailPos, stringLength).
+            // v. NOTE: tailPos can exceed stringLength only if this abstract operation was invoked by a call to the intrinsic @@replace method of %RegExp.prototype% on an object whose "exec" property is not the intrinsic %RegExp.prototype.exec%.
+            let tail_start = tail_pos.min(string_length);
+            str.substring_view(tail_start, string_length - tail_start)
+        }
+        // f. Else if templateRemainder starts with "$" followed by 1 or more decimal digits, then
+        else if template_remainder.starts_with(Utf16View::Ascii(b"$"))
+            && template_remainder.length_in_code_units() > 1
+            && is_ascii_digit_code_unit(template_remainder.code_unit_at(1))
+        {
+            // i. If templateRemainder starts with "$" followed by 2 or more decimal digits, let digitCount be 2. Otherwise, let digitCount be 1.
+            let mut digit_count = 1;
+
+            if template_remainder.length_in_code_units() > 2
+                && is_ascii_digit_code_unit(template_remainder.code_unit_at(2))
+            {
+                digit_count = 2;
+            }
+
+            // ii. Let digits be the substring of templateRemainder from 1 to 1 + digitCount.
+            let digits = template_remainder.substring_view(1, digit_count);
+
+            // iii. Let index be ℝ(StringToNumber(digits)).
+            let mut index = decimal_digits_value(digits);
+
+            // iv. Assert: 0 ≤ index ≤ 99.
+            assert!(index <= 99);
+
+            // v. Let captureLen be the number of elements in captures.
+            let capture_length = captures.len();
+
+            // vi. If index > captureLen and digitCount = 2, then
+            if index > capture_length && digit_count == 2 {
+                // 1. NOTE: When a two-digit replacement pattern specifies an index exceeding the count of capturing groups, it is treated as a one-digit replacement pattern followed by a literal digit.
+
+                // 2. Set digitCount to 1.
+                digit_count = 1;
+
+                // 3. Set digits to the substring of digits from 0 to 1.
+                let digits = digits.substring_view(0, 1);
+
+                // 4. Set index to ℝ(StringToNumber(digits)).
+                index = decimal_digits_value(digits);
+            }
+
+            // vii. Let ref be the substring of templateRemainder from 0 to 1 + digitCount.
+            ref_length = 1 + digit_count;
+
+            // viii. If 1 ≤ index ≤ captureLen, then
+            if 1 <= index && index <= capture_length {
+                // 1. Let capture be captures[index - 1].
+                let capture = captures[index - 1];
+
+                // 2. If capture is undefined, then
+                if capture.is_undefined() {
+                    // a. Let refReplacement be the empty String.
+                    Utf16View::EMPTY
+                }
+                // 3. Else,
+                else {
+                    // a. Let refReplacement be capture.
+                    capture_string = capture.to_utf16_string(vm)?;
+                    Utf16View::of_string(&capture_string)
+                }
+            }
+            // ix. Else,
+            else {
+                // 1. Let refReplacement be ref.
+                template_remainder.substring_view(0, ref_length)
+            }
+        }
+        // g. Else if templateRemainder starts with "$<", then
+        else if template_remainder.starts_with(Utf16View::Ascii(b"$<")) {
+            // i. Let gtPos be StringIndexOf(templateRemainder, ">", 0).
+            // NOTE: We can actually start at index 2 because we know the string starts with "$<".
+            let greater_than_position = string_index_of(template_remainder, Utf16View::Ascii(b">"), 2);
+
+            // ii. If gtPos = -1 or namedCaptures is undefined, then
+            match greater_than_position.filter(|_| !named_captures.is_undefined()) {
+                None => {
+                    // 1. Let ref be "$<".
+                    ref_length = 2;
+
+                    // 2. Let refReplacement be ref.
+                    Utf16View::Ascii(b"$<")
+                }
+                // iii. Else,
+                Some(greater_than_position) => {
+                    // 1. Let ref be the substring of templateRemainder from 0 to gtPos + 1.
+                    ref_length = greater_than_position + 1;
+
+                    // 2. Let groupName be the substring of templateRemainder from 2 to gtPos.
+                    let group_name = template_remainder
+                        .substring_view(2, greater_than_position - 2)
+                        .to_utf16_string();
+
+                    // 3. Assert: namedCaptures is an Object.
+                    assert!(named_captures.is_object());
+
+                    // 4. Let capture be ? Get(namedCaptures, groupName).
+                    let capture = named_captures.as_object().get(vm, &PropertyKey::from(&group_name))?;
+
+                    // 5. If capture is undefined, then
+                    if capture.is_undefined() {
+                        // a. Let refReplacement be the empty String.
+                        Utf16View::EMPTY
+                    }
+                    // 6. Else,
+                    else {
+                        // a. Let refReplacement be ? ToString(capture).
+                        capture_string = capture.to_utf16_string(vm)?;
+                        Utf16View::of_string(&capture_string)
+                    }
+                }
+            }
+        }
+        // h. Else,
+        else {
+            // i. Let ref be the substring of templateRemainder from 0 to 1.
+            ref_length = 1;
+
+            // ii. Let refReplacement be ref.
+            template_remainder.substring_view(0, 1)
+        };
+
+        // i. Let refLength be the length of ref.
+
+        // k. Set result to the string-concatenation of result and refReplacement.
+        result.append(ref_replacement);
+
+        // j. Set templateRemainder to the substring of templateRemainder from refLength.
+        // NOTE: We do this step last because refReplacement may point to templateRemainder.
+        template_remainder =
+            template_remainder.substring_view(ref_length, template_remainder.length_in_code_units() - ref_length);
+    }
+
+    // 6. Return result.
+    Ok(result.to_utf16_string())
+}
+
+fn is_ascii_digit_code_unit(code_unit: u16) -> bool {
+    (u16::from(b'0')..=u16::from(b'9')).contains(&code_unit)
+}
+
+/// ℝ(StringToNumber(digits)) of the one or two decimal digits of a replacement pattern.
+fn decimal_digits_value(digits: Utf16View<'_>) -> usize {
+    digits.code_units().fold(0, |value, code_unit| {
+        value * 10 + usize::from(code_unit - u16::from(b'0'))
+    })
 }
 
 // 2.1.1 DisposeCapability Records, https://tc39.es/proposal-explicit-resource-management/#sec-disposecapability-records

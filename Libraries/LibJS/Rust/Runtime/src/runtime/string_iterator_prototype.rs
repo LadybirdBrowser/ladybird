@@ -5,6 +5,7 @@
  */
 
 use ak::Utf16FlyString;
+use libjs_abi::Builtin;
 use libjs_runtime_macros::Trace;
 
 use crate::gc::class::{GcCell, define_cell};
@@ -12,11 +13,16 @@ use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
 use crate::layout::object::Object;
 use crate::layout::value::Value;
+use crate::runtime::completion::ThrowCompletionOr;
+use crate::runtime::iterator::create_iterator_result_object;
+use crate::runtime::native_function::raw_native;
 use crate::runtime::object::{MayInterfereWithIndexedPropertyAccess, ORDINARY_OBJECT_METHODS, define_object_class};
 use crate::runtime::primitive_string::PrimitiveString;
 use crate::runtime::property_attributes::{Attribute, PropertyAttributes};
 use crate::runtime::property_key::PropertyKey;
+use crate::runtime::prototype_object::typed_this_value;
 use crate::runtime::realm::Realm;
+use crate::runtime::string_iterator::StringIterator;
 
 /// %StringIteratorPrototype%.
 #[repr(C)]
@@ -45,8 +51,16 @@ impl StringIteratorPrototype {
         )
     }
 
-    fn initialize(object: &Object, vm: &Vm, _realm: Gc<Realm>) {
-        // NB: %StringIteratorPrototype%.next comes with the String builtins.
+    fn initialize(object: &Object, vm: &Vm, realm: Gc<Realm>) {
+        object.define_native_function(
+            vm,
+            realm,
+            &vm.names.next,
+            raw_native!(StringIteratorPrototype::next),
+            0,
+            PropertyAttributes::new(Attribute::CONFIGURABLE | Attribute::WRITABLE),
+            Some(Builtin::StringIteratorPrototypeNext),
+        );
 
         // 22.1.5.1.2 %StringIteratorPrototype% [ @@toStringTag ], https://tc39.es/ecma262/#sec-%stringiteratorprototype%-@@tostringtag
         object.define_direct_property(
@@ -58,5 +72,19 @@ impl StringIteratorPrototype {
             )),
             PropertyAttributes::new(Attribute::CONFIGURABLE),
         );
+    }
+
+    // 22.1.5.1.1 %StringIteratorPrototype%.next ( ), https://tc39.es/ecma262/#sec-%stringiteratorprototype%.next
+    fn next(vm: &Vm) -> ThrowCompletionOr<Value> {
+        let iterator = typed_this_value::<StringIterator>(vm, "StringIterator")?;
+
+        let mut value = Value::UNDEFINED;
+        let mut done = false;
+        iterator.next(vm, &mut done, &mut value)?;
+
+        let realm = vm.current_realm().expect("a native function runs in a realm");
+        Ok(Value::from_object(create_iterator_result_object(
+            vm, realm, value, done,
+        )))
     }
 }

@@ -25,10 +25,13 @@ pub mod interpreter;
 pub mod layout;
 pub mod layout_forward;
 pub mod parser_error;
+pub mod random;
 pub mod runtime;
 pub mod script;
+pub mod simdjson;
 pub mod source_code;
 pub mod source_range;
+pub mod unicode;
 pub mod utf16;
 pub mod utilities;
 
