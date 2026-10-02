@@ -1460,6 +1460,155 @@ pub unsafe extern "C" fn style_engine_element_random_base_values(
     }
 }
 
+/// How one animation effect's description travels across the boundary: the ranges of the flat
+/// buffers that belong to it.
+#[repr(C)]
+pub struct FfiPublishedAnimationEffect {
+    pub identity: u64,
+    pub generation: u64,
+    /// The effect belongs to a CSS transition, which the interpolation treats differently.
+    pub is_transition: bool,
+    /// The effect's keyframes come from a style sheet, which their URLs resolve against: its base
+    /// URL is the range of the base URL buffer below.
+    pub has_resource_context: bool,
+    pub resource_context_is_origin_clean: bool,
+    pub first_keyframe: u32,
+    pub keyframe_count: u32,
+    pub base_url_offset: u32,
+    pub base_url_length: u32,
+}
+
+/// The easing function a published keyframe spells out.
+#[repr(u8)]
+#[derive(Clone, Copy)]
+pub enum FfiPublishedEasingKind {
+    Linear,
+    CubicBezier,
+    Steps,
+}
+
+/// One keyframe of a published effect: its offset on the scale the host keys keyframes by, its
+/// easing spelled out, its composite operation and the ranges of what it declares.
+#[repr(C)]
+pub struct FfiPublishedAnimationKeyframe {
+    pub key: i64,
+    pub easing_kind: FfiPublishedEasingKind,
+    pub step_position: u8,
+    pub interval_count: i32,
+    pub x1: f64,
+    pub y1: f64,
+    pub x2: f64,
+    pub y2: f64,
+    pub first_linear_point: u32,
+    pub linear_point_count: u32,
+    /// The keyframe's own easing where it still has to be substituted against the element being
+    /// sampled, or null.
+    pub easing_value: *const c_void,
+    /// The keyframe's composite operation, with `auto` already the effect's own.
+    pub composite: crate::css::animation::FfiCompositeOperation,
+    pub first_declaration: u32,
+    pub declaration_count: u32,
+    pub first_custom_declaration: u32,
+    pub custom_declaration_count: u32,
+}
+
+/// One control point of a published `linear()` easing.
+#[repr(C)]
+pub struct FfiPublishedLinearEasingPoint {
+    pub input: f64,
+    pub output: f64,
+}
+
+/// One longhand a published keyframe declares. A null value stands for the element's own value,
+/// which a keyframe the host synthesized holds and which is not known until the element is
+/// sampled.
+#[repr(C)]
+pub struct FfiPublishedAnimationDeclaration {
+    pub property_id: u16,
+    pub value: *const c_void,
+}
+
+/// One custom property a published keyframe declares, by the raw representation of its name. A
+/// null value stands for the element's own value of it.
+#[repr(C)]
+pub struct FfiPublishedAnimationCustomDeclaration {
+    pub name: usize,
+    pub value: *const c_void,
+}
+
+/// The version of one animation effect the host is about to sample.
+#[repr(C)]
+pub struct FfiAnimationEffectVersion {
+    pub identity: u64,
+    pub generation: u64,
+}
+
+/// Describe the effects one of an element's animation lists holds, in composite order, for the
+/// style engine to sample them from.
+///
+/// Hand-written rather than a recorded boundary event, because a keyframe declaration carries a
+/// style value the host holds, which a replayed engine could not be handed.
+///
+/// # Safety
+/// `engine` must be live, every buffer must hold the count it is given, and every value and
+/// custom-property name the buffers name must be live for the duration of the call.
+#[unsafe(no_mangle)]
+#[allow(clippy::too_many_arguments)]
+pub unsafe extern "C" fn style_engine_set_element_animation_effect_descriptions(
+    engine: *mut c_void,
+    node: u32,
+    slot: u8,
+    effects: *const FfiPublishedAnimationEffect,
+    effect_count: usize,
+    keyframes: *const FfiPublishedAnimationKeyframe,
+    keyframe_count: usize,
+    declarations: *const FfiPublishedAnimationDeclaration,
+    declaration_count: usize,
+    custom_declarations: *const FfiPublishedAnimationCustomDeclaration,
+    custom_declaration_count: usize,
+    linear_points: *const FfiPublishedLinearEasingPoint,
+    linear_point_count: usize,
+    base_url_bytes: *const u8,
+    base_url_byte_count: usize,
+) {
+    let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
+    let Some(node) = StyleNodeID::from_raw(node) else {
+        return;
+    };
+    let buffers = unsafe {
+        super::effect_descriptions::PublishedEffectBuffers {
+            effects: ffi_slice(effects, effect_count),
+            keyframes: ffi_slice(keyframes, keyframe_count),
+            declarations: ffi_slice(declarations, declaration_count),
+            custom_declarations: ffi_slice(custom_declarations, custom_declaration_count),
+            linear_points: ffi_slice(linear_points, linear_point_count),
+            base_url_bytes: ffi_slice(base_url_bytes, base_url_byte_count),
+        }
+    };
+    unsafe { engine.animation_effect_descriptions.set(node, slot, buffers) };
+}
+
+/// Whether the engine describes one of an element's animation lists as holding exactly these
+/// versions of its effects, in this order, so that the host need not describe them again.
+///
+/// # Safety
+/// `engine` must be live, and `versions` must hold `count` elements.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn style_engine_describes_animation_effects(
+    engine: *const c_void,
+    node: u32,
+    slot: u8,
+    versions: *const FfiAnimationEffectVersion,
+    count: usize,
+) -> bool {
+    let engine = unsafe { &*engine.cast::<StyleEngine>() };
+    StyleNodeID::from_raw(node).is_some_and(|node| {
+        engine
+            .animation_effect_descriptions
+            .describe(node, slot, unsafe { ffi_slice(versions, count) })
+    })
+}
+
 /// Applies the memory policy used while producing a replay recording.
 ///
 /// # Safety

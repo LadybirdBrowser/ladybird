@@ -3027,6 +3027,13 @@ fn main() -> Result<(), Box<dyn Error>> {
         "FfiResolvedFont".to_string(),
         "FontResolutionFeatureInput".to_string(),
     ];
+    // A published keyframe's composite operation is the one the animation sampler composes with.
+    style_engine_config.export.rename.insert(
+        "FfiCompositeOperation".to_string(),
+        "Web::CSS::StyleValueFFI::FfiCompositeOperation".to_string(),
+    );
+    style_engine_config.after_includes =
+        Some("namespace Web::CSS::StyleValueFFI { enum class FfiCompositeOperation : uint8_t; }".to_string());
 
     generate_ffi_header(
         style_engine_config,

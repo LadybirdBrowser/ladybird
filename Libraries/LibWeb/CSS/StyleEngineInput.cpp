@@ -7,6 +7,8 @@
 #include <AK/HashTable.h>
 #include <AK/QuickSort.h>
 #include <AK/SetUnion.h>
+#include <LibWeb/Animations/KeyframeEffect.h>
+#include <LibWeb/CSS/CSSAnimation.h>
 #include <LibWeb/CSS/CSSPropertyRule.h>
 #include <LibWeb/CSS/CSSStyleRule.h>
 #include <LibWeb/CSS/Invalidation/LanguageInvalidator.h>
@@ -38,6 +40,7 @@
 #include <LibWeb/SVG/SVGMaskElement.h>
 #include <LibWeb/SVG/SVGPatternElement.h>
 #include <LibWeb/SVG/SVGSwitchElement.h>
+#include <LibWeb/StyleValueRustFFI.h>
 
 namespace Web::CSS {
 
@@ -986,6 +989,163 @@ void record_element_css_defined_animations(DOM::Element& element, u8 slot, Reado
             units.unchecked_append(view.code_unit_at(index));
     }
     style_engine->set_element_css_defined_animations(element.style_node_id(), slot, lengths, units, definitions);
+}
+
+// A keyframe's composite operation as a published keyframe spells it.
+static StyleValueFFI::FfiCompositeOperation published_composite_operation(Bindings::CompositeOperation operation)
+{
+    switch (operation) {
+    case Bindings::CompositeOperation::Replace:
+        return StyleValueFFI::FfiCompositeOperation::Replace;
+    case Bindings::CompositeOperation::Add:
+        return StyleValueFFI::FfiCompositeOperation::Add;
+    case Bindings::CompositeOperation::Accumulate:
+        return StyleValueFFI::FfiCompositeOperation::Accumulate;
+    }
+    VERIFY_NOT_REACHED();
+}
+
+// One keyframe's easing, spelled out for publication. A `linear()` keeps its control points in the
+// shared buffer the keyframe names by range.
+static void describe_easing(EasingFunction const& easing, StyleEngineFFI::FfiPublishedAnimationKeyframe& keyframe, Vector<StyleEngineFFI::FfiPublishedLinearEasingPoint>& points)
+{
+    keyframe.first_linear_point = static_cast<u32>(points.size());
+    easing.visit(
+        [&](LinearEasingFunction const& linear) {
+            keyframe.easing_kind = StyleEngineFFI::FfiPublishedEasingKind::Linear;
+            for (auto const& point : linear.control_points)
+                points.append({ .input = point.input, .output = point.output });
+        },
+        [&](CubicBezierEasingFunction const& cubic_bezier) {
+            keyframe.easing_kind = StyleEngineFFI::FfiPublishedEasingKind::CubicBezier;
+            keyframe.x1 = cubic_bezier.x1;
+            keyframe.y1 = cubic_bezier.y1;
+            keyframe.x2 = cubic_bezier.x2;
+            keyframe.y2 = cubic_bezier.y2;
+        },
+        [&](StepsEasingFunction const& steps) {
+            keyframe.easing_kind = StyleEngineFFI::FfiPublishedEasingKind::Steps;
+            keyframe.interval_count = steps.interval_count;
+            keyframe.step_position = static_cast<u8>(to_underlying(steps.position));
+        });
+    keyframe.linear_point_count = static_cast<u32>(points.size()) - keyframe.first_linear_point;
+}
+
+// The effects one of an element's animation lists holds, in composite order, described for the style
+// engine to sample them from, unless it already describes exactly these versions of them: every change
+// that moves what a description says moves its effect's generation.
+//
+// Everything a keyframe declares that does not depend on the element being sampled is settled here. What
+// does, a value or an easing still to be substituted against the element, travels as written.
+void record_element_animation_effect_descriptions(DOM::Element& element, u8 slot, ReadonlySpan<GC::Ref<Animations::KeyframeEffect>> effects)
+{
+    auto* style_engine = style_engine_for(element);
+    if (!style_engine || element.style_node_id() == no_style_node)
+        return;
+
+    Vector<StyleEngineFFI::FfiAnimationEffectVersion, 4> versions;
+    versions.ensure_capacity(effects.size());
+    for (auto const& effect : effects)
+        versions.unchecked_append({ .identity = effect->animation_preparation_identity(), .generation = effect->animation_preparation_generation() });
+    if (StyleEngineFFI::style_engine_describes_animation_effects(style_engine->rust_handle(), element.style_node_id().value(), slot, versions.data(), versions.size()))
+        return;
+
+    Vector<StyleEngineFFI::FfiPublishedAnimationEffect> ffi_effects;
+    Vector<StyleEngineFFI::FfiPublishedAnimationKeyframe> ffi_keyframes;
+    Vector<StyleEngineFFI::FfiPublishedAnimationDeclaration> ffi_declarations;
+    Vector<StyleEngineFFI::FfiPublishedAnimationCustomDeclaration> ffi_custom_declarations;
+    Vector<StyleEngineFFI::FfiPublishedLinearEasingPoint> ffi_points;
+    Vector<u8> base_url_bytes;
+    ffi_effects.ensure_capacity(effects.size());
+    for (auto const& effect : effects) {
+        auto animation = effect->associated_animation();
+        StyleEngineFFI::FfiPublishedAnimationEffect row {};
+        row.identity = effect->animation_preparation_identity();
+        row.generation = effect->animation_preparation_generation();
+        row.first_keyframe = static_cast<u32>(ffi_keyframes.size());
+        row.base_url_offset = static_cast<u32>(base_url_bytes.size());
+        row.is_transition = animation && animation->is_css_transition();
+        // An effect with no animation, or whose animation runs no keyframes, is described with none, which is
+        // all there is to sample of it.
+        auto const* key_frame_set = animation ? effect->key_frame_set() : nullptr;
+        if (!key_frame_set) {
+            ffi_effects.unchecked_append(row);
+            continue;
+        }
+        if (auto const& resource_context = key_frame_set->style_sheet_resource_context; resource_context.has_value()) {
+            row.has_resource_context = true;
+            row.resource_context_is_origin_clean = resource_context->origin_clean;
+            auto bytes = resource_context->base_url.bytes();
+            base_url_bytes.append(bytes.data(), bytes.size());
+            row.base_url_length = static_cast<u32>(bytes.size());
+        }
+        // A keyframe that declares no easing of its own runs the animation's.
+        auto default_easing = animation->is_css_animation()
+            ? static_cast<CSSAnimation const&>(*animation).default_easing()
+            : EasingFunction::linear();
+        for (auto it = key_frame_set->keyframes_by_key.begin(); it != key_frame_set->keyframes_by_key.end(); ++it) {
+            StyleEngineFFI::FfiPublishedAnimationKeyframe keyframe {};
+            keyframe.key = static_cast<i64>(it.key());
+            auto easing = it->easing.visit(
+                [&](Empty) { return default_easing; },
+                [](EasingFunction const& easing) { return easing; },
+                [&](RustStyleValueHandle const& value) {
+                    // The value can need substitution against the element, which the engine does when
+                    // it samples it; the animation's easing is what the keyframe runs if it resolves to
+                    // none.
+                    keyframe.easing_value = value.data();
+                    return default_easing;
+                });
+            describe_easing(easing, keyframe, ffi_points);
+            keyframe.composite = published_composite_operation([&] {
+                switch (it->composite) {
+                case Bindings::CompositeOperationOrAuto::Accumulate:
+                    return Bindings::CompositeOperation::Accumulate;
+                case Bindings::CompositeOperationOrAuto::Add:
+                    return Bindings::CompositeOperation::Add;
+                case Bindings::CompositeOperationOrAuto::Replace:
+                    return Bindings::CompositeOperation::Replace;
+                case Bindings::CompositeOperationOrAuto::Auto:
+                    return effect->composite();
+                }
+                VERIFY_NOT_REACHED();
+            }());
+            keyframe.first_declaration = static_cast<u32>(ffi_declarations.size());
+            keyframe.first_custom_declaration = static_cast<u32>(ffi_custom_declarations.size());
+            for (auto const& [property, value] : it->properties) {
+                // A keyframe the host synthesized holds the element's own value, which is not known
+                // until the element is sampled, and travels as no value. A shorthand's stands for its
+                // longhands', which have keyframes of their own.
+                bool const use_initial = value.has<Animations::KeyframeEffect::KeyFrameSet::UseInitial>();
+                if (use_initial && !property.is_custom_property() && property_is_shorthand(property.id()))
+                    continue;
+                StyleValueFFI::StyleValueData const* data = use_initial ? nullptr : value.get<RustStyleValueHandle>().data();
+                // A shorthand's pending substitution animates nothing, and neither does a value that
+                // is invalid at computed-value time.
+                // https://drafts.csswg.org/css-values-5/#invalid-at-computed-value-time
+                if (!use_initial && (data->tag == StyleValueFFI::StyleValueData::Tag::PendingSubstitution || (data->tag == StyleValueFFI::StyleValueData::Tag::GuaranteedInvalid && !property.is_custom_property())))
+                    continue;
+                if (property.is_custom_property())
+                    ffi_custom_declarations.append({ .name = property.name().raw_identity(), .value = data });
+                else
+                    ffi_declarations.append({ .property_id = to_underlying(property.id()), .value = data });
+            }
+            keyframe.declaration_count = static_cast<u32>(ffi_declarations.size()) - keyframe.first_declaration;
+            keyframe.custom_declaration_count = static_cast<u32>(ffi_custom_declarations.size()) - keyframe.first_custom_declaration;
+            ffi_keyframes.append(keyframe);
+        }
+        row.keyframe_count = static_cast<u32>(ffi_keyframes.size()) - row.first_keyframe;
+        ffi_effects.unchecked_append(row);
+    }
+
+    StyleEngineFFI::style_engine_set_element_animation_effect_descriptions(style_engine->rust_handle(),
+        element.style_node_id().value(), slot,
+        ffi_effects.data(), ffi_effects.size(),
+        ffi_keyframes.data(), ffi_keyframes.size(),
+        ffi_declarations.data(), ffi_declarations.size(),
+        ffi_custom_declarations.data(), ffi_custom_declarations.size(),
+        ffi_points.data(), ffi_points.size(),
+        base_url_bytes.data(), base_url_bytes.size());
 }
 
 // The custom properties an element declares or references.
