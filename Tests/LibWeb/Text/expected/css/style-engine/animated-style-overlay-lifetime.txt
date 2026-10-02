@@ -1,6 +1,6 @@
 permanent style records added: 0
 permanent metadata added: 0
-overlay slots added: 0
+overlay slots added: 1
 overlay records updated: 9
 live overlay records: 1
 overlay slots released: 1
