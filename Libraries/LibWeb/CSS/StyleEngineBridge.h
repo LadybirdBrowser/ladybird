@@ -342,7 +342,7 @@ public:
     void publish_font_faces(FontComputer const&);
 
     // The custom-property environment each element holds is kept here; the element keeps none of its own.
-    void set_element_custom_property_data(StyleNodeID, CustomPropertyData const*);
+    void set_element_custom_property_data(DOM::Element const&, CustomPropertyData const*);
     [[nodiscard]] CustomPropertyData const* element_custom_property_data(StyleNodeID) const;
     void set_pseudo_element_custom_property_data(StyleNodeID, PseudoElement, CustomPropertyData const*);
     [[nodiscard]] CustomPropertyData const* pseudo_element_custom_property_data(StyleNodeID, PseudoElement) const;

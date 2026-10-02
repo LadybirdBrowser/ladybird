@@ -989,13 +989,13 @@ bool StyleEngine::counter(size_t index, StringView& out_name, u64& out_value) co
     return true;
 }
 
-void StyleEngine::set_element_custom_property_data(StyleNodeID node, CustomPropertyData const* data)
+void StyleEngine::set_element_custom_property_data(DOM::Element const& element, CustomPropertyData const* data)
 {
     // A move of the environment the element inherits reads whether this is its animation overlay, and
     // whether what the element's style resolves to declares custom properties of its own.
-    bool const is_animation_overlay = data && data->is_animation_overlay();
+    bool const is_animation_overlay = data && data->is_animation_overlay_for({ element });
     auto const* base = is_animation_overlay ? data->parent().ptr() : data;
-    StyleEngineFFI::style_engine_set_element_custom_property_data(m_impl, node.value(), data, data ? data->identity() : 0, is_animation_overlay, base && base->declared_count() > 0);
+    StyleEngineFFI::style_engine_set_element_custom_property_data(m_impl, element.style_node_id().value(), data, data ? data->identity() : 0, is_animation_overlay, base && base->declared_count() > 0);
 }
 
 CustomPropertyData const* StyleEngine::element_custom_property_data(StyleNodeID node) const
