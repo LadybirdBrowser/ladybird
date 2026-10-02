@@ -7,6 +7,7 @@
 #include <LibCompositing/DisplayList/Canvas2DCommandStream.h>
 #include <LibCompositing/DisplayList/DisplayList.h>
 #include <LibGfx/PaintingSurface.h>
+#include <LibWeb/Compositor/CompositorFrame.h>
 #include <LibWeb/Compositor/CompositorHost.h>
 
 namespace Web::Compositor {
@@ -32,17 +33,14 @@ void CompositorContextHandle::stop_presenting_to_client()
     m_host.stop_presenting_to_client(m_context_id);
 }
 
-void CompositorContextHandle::update_display_list(NonnullRefPtr<Compositing::DisplayList> display_list, Compositing::AccumulatedVisualContextTree visual_context_tree, Compositing::DisplayListResourceTransaction&& resource_transaction, Compositing::ScrollStateSnapshot&& scroll_state_snapshot)
+void CompositorContextHandle::submit_frame(CompositorFrame&& frame)
 {
+    frame.context_id = m_context_id;
     // Pending canvas commands (and present markers) must reach the Compositor
     // before a display list that samples the presented canvas surfaces.
-    m_host.flush_canvas_2d_stream();
-    m_host.update_display_list(m_context_id, move(display_list), move(visual_context_tree), move(resource_transaction), move(scroll_state_snapshot));
-}
-
-void CompositorContextHandle::update_visual_context_tree(Compositing::AccumulatedVisualContextTree visual_context_tree, Compositing::DisplayListResourceTransaction&& resource_transaction)
-{
-    m_host.update_visual_context_tree(m_context_id, move(visual_context_tree), move(resource_transaction));
+    if (frame.display_list_update.has_value() || frame.present_viewport_rect.has_value())
+        m_host.flush_canvas_2d_stream();
+    m_host.submit_frame(move(frame));
 }
 
 void CompositorContextHandle::add_video_sink(Media::VideoSinkHandle video_sink_handle)
@@ -58,11 +56,6 @@ void CompositorContextHandle::remove_video_sink(Media::VideoSinkHandle video_sin
 void CompositorContextHandle::set_video_sink_ticking(Media::VideoSinkHandle video_sink_handle, bool should_tick)
 {
     m_host.set_video_sink_ticking(video_sink_handle, should_tick);
-}
-
-void CompositorContextHandle::update_scroll_state(Compositing::ScrollStateSnapshot&& scroll_state_snapshot, Compositing::KeyboardScrollState keyboard_scroll_state)
-{
-    m_host.update_scroll_state(m_context_id, move(scroll_state_snapshot), move(keyboard_scroll_state));
 }
 
 void CompositorContextHandle::invalidate_keyboard_scroll_state(u64 generation)
@@ -109,12 +102,6 @@ bool CompositorContextHandle::request_rendering_opportunity(double maximum_frame
 void CompositorContextHandle::hurry_rendering_opportunity()
 {
     m_host.hurry_rendering_opportunity(m_context_id);
-}
-
-void CompositorContextHandle::present_frame(Gfx::IntRect viewport_rect)
-{
-    m_host.flush_canvas_2d_stream();
-    m_host.present_frame(m_context_id, viewport_rect);
 }
 
 void CompositorContextHandle::request_screenshot(NonnullRefPtr<Gfx::PaintingSurface> target_surface, Function<void()>&& callback)

@@ -11,6 +11,7 @@
 #include <LibGfx/PaintingSurface.h>
 #include <LibMedia/VideoFrame.h>
 #include <LibWeb/Compositor/CompositorConnection.h>
+#include <LibWeb/Compositor/CompositorFrame.h>
 #include <LibWeb/Compositor/CompositorHostBase.h>
 #include <LibWeb/HTML/Canvas/RemoteCanvas2DTransport.h>
 #include <LibWeb/WebGL/RemoteWebGLTransport.h>
@@ -246,16 +247,10 @@ void CompositorHostBase::stop_presenting_to_client(Web::CompositorContextId cont
         connection->stop_presenting_to_client(context_id);
 }
 
-void CompositorHostBase::update_display_list(Web::CompositorContextId context_id, NonnullRefPtr<Compositing::DisplayList> display_list, Compositing::AccumulatedVisualContextTree visual_context_tree, Compositing::DisplayListResourceTransaction&& resource_transaction, Compositing::ScrollStateSnapshot&& scroll_state_snapshot)
+void CompositorHostBase::submit_frame(CompositorFrame&& frame)
 {
     if (auto* connection = compositor_connection())
-        connection->update_display_list(context_id, display_list, visual_context_tree, resource_transaction, scroll_state_snapshot);
-}
-
-void CompositorHostBase::update_visual_context_tree(Web::CompositorContextId context_id, Compositing::AccumulatedVisualContextTree visual_context_tree, Compositing::DisplayListResourceTransaction&& resource_transaction)
-{
-    if (auto* connection = compositor_connection())
-        connection->update_visual_context_tree(context_id, visual_context_tree, move(resource_transaction));
+        connection->submit_frame(move(frame));
 }
 
 void CompositorHostBase::add_video_sink(Media::VideoSinkHandle video_sink_handle)
@@ -274,12 +269,6 @@ void CompositorHostBase::set_video_sink_ticking(Media::VideoSinkHandle video_sin
 {
     if (auto* connection = compositor_connection())
         connection->set_video_sink_ticking(video_sink_handle, should_tick);
-}
-
-void CompositorHostBase::update_scroll_state(Web::CompositorContextId context_id, Compositing::ScrollStateSnapshot&& scroll_state_snapshot, Compositing::KeyboardScrollState keyboard_scroll_state)
-{
-    if (auto* connection = compositor_connection())
-        connection->update_scroll_state(context_id, scroll_state_snapshot, keyboard_scroll_state);
 }
 
 void CompositorHostBase::invalidate_keyboard_scroll_state(Web::CompositorContextId context_id, u64 generation)
@@ -339,12 +328,6 @@ void CompositorHostBase::hurry_rendering_opportunity(Web::CompositorContextId co
 {
     if (auto* connection = compositor_connection())
         connection->hurry_rendering_opportunity(context_id);
-}
-
-void CompositorHostBase::present_frame(Web::CompositorContextId context_id, Gfx::IntRect viewport_rect)
-{
-    if (auto* connection = compositor_connection())
-        connection->present_frame(context_id, viewport_rect);
 }
 
 void CompositorHostBase::request_screenshot(Web::CompositorContextId context_id, NonnullRefPtr<Gfx::PaintingSurface> target_surface, Function<void()>&& callback)
