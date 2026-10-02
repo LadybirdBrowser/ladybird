@@ -61,7 +61,6 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     StringView serenity_resource_root;
     StringView worker_type_string;
     StringView mach_server_name;
-    StringView cache_path;
     Vector<ByteString> certificates;
     bool expose_experimental_interfaces = false;
     bool enable_http_memory_cache = false;
@@ -80,7 +79,6 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     args_parser.add_option(wait_for_debugger, "Wait for debugger", "wait-for-debugger");
     args_parser.add_option(worker_type_string, "Type of WebWorker to start (dedicated, shared, or service)", "type", 't', "type");
     args_parser.add_option(mach_server_name, "Mach server name", "mach-server-name", 0, "mach_server_name");
-    args_parser.add_option(cache_path, "Path to the profile cache", "cache-path", 0, "path");
     args_parser.add_option(file_origins_are_tuple_origins, "Treat file:// URLs as having tuple origins", "tuple-file-origins");
     args_parser.add_option(disable_sandbox, "Disable process sandboxing", "disable-sandbox");
     args_parser.add_option(enable_test_mode, "Enable test mode", "test-mode");
@@ -121,7 +119,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     Web::Bindings::initialize_main_thread_vm(worker_type);
 
     if (!disable_sandbox)
-        TRY(RendererSandbox::apply_sandbox(mach_server_name, cache_path, RendererSandbox::AudioAccess::No));
+        TRY(RendererSandbox::apply_sandbox(mach_server_name, RendererSandbox::AudioAccess::No));
 
     auto client = TRY(IPC::take_over_accepted_client_from_system_server<WebWorker::ConnectionFromClient>(mach_server_name, enable_test_mode));
 

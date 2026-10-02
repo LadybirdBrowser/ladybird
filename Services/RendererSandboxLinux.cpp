@@ -15,7 +15,7 @@
 
 namespace RendererSandbox {
 
-ErrorOr<void> apply_sandbox(StringView, Optional<StringView>, AudioAccess audio_access)
+ErrorOr<void> apply_sandbox(StringView, AudioAccess audio_access)
 {
     TRY(Sandbox::install_no_new_privileges());
     TRY(Sandbox::configure_runtime());

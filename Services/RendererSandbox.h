@@ -7,7 +7,6 @@
 #pragma once
 
 #include <AK/Error.h>
-#include <AK/Optional.h>
 #include <AK/StringView.h>
 
 namespace RendererSandbox {
@@ -20,6 +19,6 @@ enum class AudioAccess {
     Yes,
 };
 
-[[nodiscard]] ErrorOr<void> apply_sandbox(StringView mach_server_name, Optional<StringView> cache_path, AudioAccess);
+[[nodiscard]] ErrorOr<void> apply_sandbox(StringView mach_server_name, AudioAccess);
 
 }
