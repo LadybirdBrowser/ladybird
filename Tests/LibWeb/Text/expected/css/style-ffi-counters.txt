@@ -1,8 +1,8 @@
 has counters: true
 all zero after reset: true
 simple element stayed callback-free: true
-longhand computation used one Rust entry: true
-longhand computation used two context callbacks: true
+engine-computed record entered no longhand drive: true
+engine-computed record asked for no context: true
 shorthand expansion entered Rust: true
 inherited partial restyle stayed callback-free: true
 pseudo-element stayed callback-free: true

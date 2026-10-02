@@ -4,14 +4,17 @@
 <style>
     .local { background-image: url("image.svg"); }
     .changed { color: rgb(1, 2, 3); }
-    /* A transition keeps the computation in C++, whose style sharing this counts. */
-    #container > div { transition-delay: 0s; }
 </style>
 <div id="container"></div>
 <script>
     test(() => {
         internals.updateStyle();
-        const before = internals.getStyleInvalidationCounters().elementStyleSharedComputations;
+        // The engine computes these records itself now; C++ shares the ones it computes.
+        const settledWithoutRecomputation = () => {
+            const counters = internals.getStyleInvalidationCounters();
+            return counters.elementStyleSharedComputations + counters.engineComputedStyleRecords;
+        };
+        const before = settledWithoutRecomputation();
         const nodes = [];
         for (const className of ["local", "imported"]) {
             for (let index = 0; index < 8; ++index) {
@@ -22,7 +25,7 @@
             }
         }
         internals.updateStyle();
-        const after = internals.getStyleInvalidationCounters().elementStyleSharedComputations;
+        const after = settledWithoutRecomputation();
         println(`image styles share within each declaration context: ${after - before >= 14}`);
 
         function checkImages(label) {
