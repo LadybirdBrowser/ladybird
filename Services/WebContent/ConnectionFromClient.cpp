@@ -196,12 +196,9 @@ void ConnectionFromClient::set_font_catalog(IPC::File file, u64 size, u64 genera
 
 void ConnectionFromClient::set_render_side_font_service_transport(IPC::TransportHandle handle)
 {
-    auto service = Compositing::FontServiceClient::create(move(handle));
-    if (service.is_error()) {
-        dbgln("WebContent: Unable to connect the render side's font service: {}", service.error());
-        return;
-    }
-    m_render_side_font_service = service.release_value();
+    // NB: A renderer cannot run without this connection: a font question from any thread but the document's would
+    //     otherwise go out on the connection the document thread owns.
+    m_render_side_font_service = MUST(Compositing::FontServiceClient::create(move(handle)));
     if (!m_font_provider)
         return;
 
