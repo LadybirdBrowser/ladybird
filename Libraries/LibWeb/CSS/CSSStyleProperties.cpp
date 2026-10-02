@@ -656,24 +656,6 @@ static bool install_engine_pseudo_element_style(DOM::AbstractElement target)
     return true;
 }
 
-// The style a CSSOM read of a pseudo-element without a style of its own reads, as the style engine derives it for the
-// read alone; null where the engine leaves the read to C++.
-static RefPtr<ComputedValues const> engine_transient_pseudo_element_style(DOM::AbstractElement abstract_element)
-{
-    auto pseudo_element = abstract_element.pseudo_element();
-    if (!pseudo_element.has_value() || !is_pseudo_element_the_style_engine_reads(*pseudo_element))
-        return {};
-    auto& style_computer = abstract_element.document().style_computer();
-    auto answer = style_computer.style_engine().answer_record_demand(abstract_element.element().style_node_id(), { .read_only = true, .pseudo_kind = to_underlying(*pseudo_element) });
-    if (answer.record.style_record == 0)
-        return {};
-    auto view = style_computer.computed_style_record_view(StyleRecordID { answer.record.style_record });
-    if (!view)
-        return {};
-    // The engine holds the record only until the element's styles are next read or settled.
-    return ComputedValues::Builder { *view }.build();
-}
-
 static void ensure_pseudo_element_style_for_cssom(DOM::AbstractElement abstract_element)
 {
     auto pseudo_element = abstract_element.pseudo_element();
@@ -869,9 +851,11 @@ Optional<StyleProperty> CSSStyleProperties::get_direct_property(PropertyNameAndI
             if (!style_record) {
                 // A synthetic pseudo-element without matching rules has no durable style. The style engine derives the
                 // one it would have for this read alone; where it leaves the read to C++, C++ computes it.
-                transient_style = engine_transient_pseudo_element_style(abstract_element);
+                auto& style_computer = abstract_element.document().style_computer();
+                if (auto pseudo_element = abstract_element.pseudo_element(); pseudo_element.has_value() && is_pseudo_element_the_style_engine_reads(*pseudo_element))
+                    transient_style = style_computer.engine_transient_pseudo_element_style(abstract_element.element(), *pseudo_element);
                 if (!transient_style)
-                    transient_style = abstract_element.document().style_computer().materialize_style_record(abstract_element);
+                    transient_style = style_computer.materialize_style_record(abstract_element);
             }
             auto const* computed_values = style_record ? &*style_record : transient_style.ptr();
             VERIFY(computed_values);
