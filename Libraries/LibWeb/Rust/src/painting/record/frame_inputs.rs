@@ -9,7 +9,7 @@ use super::inputs::UncapturedContentInputs;
 use crate::painting::force_dark::ForceDarkSettings;
 use crate::painting::paint_state::PaintState;
 
-/// The recording inputs every producer may read. A frame copies from the published frame only
+/// The recording inputs every producer may read. A frame copies from the published recording only
 /// while they are unchanged; otherwise it records from scratch. They stay with the published
 /// frame, which a read-only recording never replaces.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]

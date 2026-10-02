@@ -942,7 +942,7 @@ pub(crate) struct LayoutNodeArena {
     // Hit testing can measure overflow and invalidate painting state while querying this list.
     pub(crate) hit_test_list: RefCell<Option<crate::painting::hit_test::HitTestList>>,
     // Reuse workspace allocations without making recording scratch part of the committed paint state.
-    recording_scratch: RefCell<crate::painting::record::scratch::RecordingScratch>,
+    recorder: RefCell<crate::painting::record::recorder_state::RecorderState>,
     pub(crate) scrollable_overflow: crate::painting::scrollable_overflow::ScrollableOverflowState,
     pub(crate) partial_relayout_boundary_roots: RefCell<Vec<NodeSlotId>>,
     nodes_with_layout_update_flags: RefCell<Vec<NodeSlotId>>,
@@ -1062,7 +1062,7 @@ impl LayoutNodeArena {
             paintable_rows: crate::painting::paintable_rows::PaintableRowStore::default(),
             paint_state: RefCell::new(crate::painting::paint_state::PaintState::default()),
             hit_test_list: RefCell::new(None),
-            recording_scratch: RefCell::new(crate::painting::record::scratch::RecordingScratch::default()),
+            recorder: RefCell::default(),
             scrollable_overflow: Default::default(),
             partial_relayout_boundary_roots: RefCell::new(Vec::new()),
             nodes_with_layout_update_flags: RefCell::new(Vec::new()),
@@ -4505,8 +4505,9 @@ impl LayoutNodeArena {
         &self.paint_state
     }
 
-    pub(crate) fn recording_scratch(&self) -> &RefCell<crate::painting::record::scratch::RecordingScratch> {
-        &self.recording_scratch
+    /// What the display list recording keeps from one recording to the next.
+    pub(crate) fn recorder_state(&self) -> &RefCell<crate::painting::record::recorder_state::RecorderState> {
+        &self.recorder
     }
 
     pub(crate) fn node_flags_if_live(&self, id: NodeSlotId) -> u32 {

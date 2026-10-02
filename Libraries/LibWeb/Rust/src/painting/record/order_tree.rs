@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! The paint-order tree retained from the published frame. Every scope the planner produced is
+//! The paint-order tree retained from the published recording. Every scope the planner produced is
 //! a node with a stable id. A node's child entries name producers of the node's owner and child
 //! scopes, each with the size of the output it contributed, so a child's position in the
 //! published tape is the sum of the sizes before it and a change inside one scope never touches
@@ -146,7 +146,7 @@ impl ProducerKind {
     }
 }
 
-/// The output one child contributed to the published frame.
+/// The output one child contributed to the published recording.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) struct OutputSize {
     pub bytes: u32,
@@ -354,7 +354,7 @@ impl PaintOrderTree {
     }
 
     /// The scope for a plan item under `parent`, if the tree has one. A scope allocated by the
-    /// current recording qualifies too; a caller copying from the published frame tells the
+    /// current recording qualifies too; a caller copying from the published recording tells the
     /// two apart by the parent's published child list.
     pub(crate) fn published_scope(&self, scope: PaintScope, parent: ScopeId) -> Option<ScopeId> {
         let kind_code = scope_kind_code(scope.kind);

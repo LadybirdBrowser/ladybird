@@ -690,6 +690,11 @@ impl LayoutNodeArena {
             Some((id, store.absolute_rect_memo_epoch.get(), rect));
     }
 
+    /// The epoch every memoized absolute rect is stamped with; any geometry change starts a new one.
+    pub(crate) fn absolute_rect_memo_epoch(&self) -> u64 {
+        self.paintable_rows.absolute_rect_memo_epoch.get()
+    }
+
     pub(crate) fn clear_absolute_rect_memo(&self) {
         let epoch = &self.paintable_rows.absolute_rect_memo_epoch;
         epoch.set(epoch.get().checked_add(1).expect("absolute rect memo epoch overflowed"));

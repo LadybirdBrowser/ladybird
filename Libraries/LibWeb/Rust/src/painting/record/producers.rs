@@ -268,13 +268,13 @@ impl<O: Observer> AssemblyHost for PaintRecorder<'_, O> {
 
     fn copy_published(&mut self, bytes: Range<u32>, hits: Range<u32>, blocking_wheel_event_regions: u32) {
         let frame = self
-            .source_frame
+            .source_recording
             .as_ref()
-            .expect("clean output is copied from a published frame");
+            .expect("clean output is copied from a published recording");
         let items = self
             .source_items
             .as_ref()
-            .expect("clean output is copied from a published frame");
+            .expect("clean output is copied from a published recording");
         let destination = self.output_position();
         if !bytes.is_empty() {
             self.recorder.append_cached_command_range_verbatim(

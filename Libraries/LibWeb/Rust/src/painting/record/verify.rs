@@ -52,7 +52,7 @@ fn describe_enclosing_capture(records: &[LoggedCapture], position: usize) -> Str
             record.label,
             record.owner,
             if record.copied {
-                "copied from the published frame"
+                "copied from the published recording"
             } else {
                 "recorded"
             },
