@@ -911,6 +911,10 @@ struct ASFResolutionContext<'a> {
     inheritance_store_overrides: Vec<Option<Arc<CustomPropertyStore>>>,
     attribute_names_are_ascii_case_insensitive: bool,
     contains_attr_tainted_values: bool,
+    /// Whether the substitution under way is inside a function that takes a URL.
+    in_url_function: bool,
+    /// Whether an attr-tainted value was substituted into a URL, or substituted one.
+    uses_attr_tainted_url: bool,
     custom_functions: Option<&'a CustomFunctionRegistry>,
     parse_context: Option<&'a ParseContext>,
     media_environment: Option<&'a FfiMediaEnvironment>,
@@ -3203,6 +3207,25 @@ fn replace_attr_function(
     TokenResolution::Resolved(resolved)
 }
 
+fn is_substitution_function(kind: &OwnedTokenKind) -> bool {
+    matches!(kind, OwnedTokenKind::Function(name) if name.starts_with_ascii("--") || name.eq_ignore_ascii_case("var") || name.eq_ignore_ascii_case("attr") || name.eq_ignore_ascii_case("env") || name.eq_ignore_ascii_case("if") || name.eq_ignore_ascii_case("inherit"))
+}
+
+/// Whether a function's arguments are, or are made into, a URL.
+fn function_takes_a_url(name: &[u16]) -> bool {
+    ["url", "src", "image", "image-set", "-webkit-image-set"]
+        .iter()
+        .any(|url_function| name.eq_ignore_ascii_case(url_function))
+}
+
+fn token_is_a_url(kind: &OwnedTokenKind) -> bool {
+    match kind {
+        OwnedTokenKind::Url => true,
+        OwnedTokenKind::Function(name) => function_takes_a_url(name),
+        _ => false,
+    }
+}
+
 // Step 2 of https://drafts.csswg.org/css-values-5/#substitute-arbitrary-substitution-function
 fn substitute_tokens(
     store: Option<&CustomPropertyStore>,
@@ -3227,6 +3250,11 @@ fn substitute_tokens(
         };
 
         let contents = &tokens[index + 1..close_index];
+        let substitutes = is_substitution_function(&tokens[index].kind);
+        let tainted_before = std::mem::take(&mut context.contains_attr_tainted_values);
+        let in_url_function = context.in_url_function;
+        context.in_url_function |=
+            matches!(&tokens[index].kind, OwnedTokenKind::Function(name) if function_takes_a_url(name));
         let resolved = match &tokens[index].kind {
             OwnedTokenKind::Function(name) if name.eq_ignore_ascii_case("var") => {
                 replace_var_function(store, registry, contents, context, recursion_depth)
@@ -3248,6 +3276,20 @@ fn substitute_tokens(
             }
             _ => substitute_tokens(store, registry, contents, context, recursion_depth + 1),
         };
+        context.in_url_function = in_url_function;
+        let tainted = context.contains_attr_tainted_values;
+        context.contains_attr_tainted_values |= tainted_before;
+        // https://drafts.csswg.org/css-values-5/#attr-security
+        // Using an attr-tainted value as or in a <url> makes a declaration invalid at computed-value time.
+        // NB: A custom function's own declarations use nothing until its result is substituted.
+        if let TokenResolution::Resolved(resolved) = &resolved
+            && substitutes
+            && tainted
+            && context.function_local_scopes.is_empty()
+            && (in_url_function || resolved.iter().any(|token| token_is_a_url(&token.kind)))
+        {
+            context.uses_attr_tainted_url = true;
+        }
         let resolved = match resolved {
             TokenResolution::Resolved(resolved) => resolved,
             TokenResolution::Invalid => return TokenResolution::Invalid,
@@ -3259,8 +3301,7 @@ fn substitute_tokens(
             TokenResolution::NotHandled => return TokenResolution::NotHandled,
         };
 
-        if !matches!(tokens[index].kind, OwnedTokenKind::Function(ref name) if name.starts_with_ascii("--") || name.eq_ignore_ascii_case("var") || name.eq_ignore_ascii_case("attr") || name.eq_ignore_ascii_case("env") || name.eq_ignore_ascii_case("if") || name.eq_ignore_ascii_case("inherit"))
-        {
+        if !substitutes {
             output.push(tokens[index].clone());
         }
         let resolved_start = usize::from(
@@ -3271,8 +3312,7 @@ fn substitute_tokens(
                 ),
         );
         output.extend(resolved.into_iter().skip(resolved_start));
-        if !matches!(tokens[index].kind, OwnedTokenKind::Function(ref name) if name.starts_with_ascii("--") || name.eq_ignore_ascii_case("var") || name.eq_ignore_ascii_case("attr") || name.eq_ignore_ascii_case("env") || name.eq_ignore_ascii_case("if") || name.eq_ignore_ascii_case("inherit"))
-        {
+        if !substitutes {
             output.push(tokens[close_index].clone());
         }
         let remaining_token_count = tokens.len() - close_index - 1;
@@ -3461,9 +3501,15 @@ pub(crate) unsafe fn resolve_vars(
     let result =
         substitute_arbitrary_substitution_functions(store, registry, &source, &mut context, 0, substitution_context);
     match result {
+        // A custom property carries its taint to the values that substitute it; another property is invalid where a
+        // tainted value reaches a URL.
         TokenResolution::Resolved(tokens) => NativeVarResolution::Resolved {
             source: serialize_tokens(&tokens),
-            contains_attr_tainted_values: context.contains_attr_tainted_values,
+            contains_attr_tainted_values: if property_id == crate::css::property_metadata::property_id::CUSTOM {
+                context.contains_attr_tainted_values
+            } else {
+                context.uses_attr_tainted_url
+            },
         },
         TokenResolution::Invalid | TokenResolution::Cyclic => NativeVarResolution::Invalid,
         TokenResolution::NotHandled => NativeVarResolution::NotHandled,

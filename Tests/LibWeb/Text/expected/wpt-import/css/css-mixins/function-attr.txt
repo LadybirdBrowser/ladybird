@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 19 tests
 
-12 Pass
-7 Fail
+19 Pass
 Pass	Return untyped url() from function
 Pass	Return untyped url() from function, quoted
 Pass	Return typed url() from function
@@ -14,12 +13,12 @@ Pass	Return attr(type(*)) from typed function
 Pass	Return attr(type(*)) from untyped function
 Pass	attr() in default parameter value
 Pass	attr() in local variable
-Fail	Returned url() is attr-tainted
-Fail	Returned url() is attr-tainted, typed attr()
-Fail	Returned url() is attr-tainted, typed return
-Fail	Returned url() is attr-tainted, local
-Fail	Returned url() is attr-tainted, argument
+Pass	Returned url() is attr-tainted
+Pass	Returned url() is attr-tainted, typed attr()
+Pass	Returned url() is attr-tainted, typed return
+Pass	Returned url() is attr-tainted, local
+Pass	Returned url() is attr-tainted, argument
 Pass	Returned url() is attr-tainted, default
-Fail	Returned url() is attr-tainted, parent stack frame
+Pass	Returned url() is attr-tainted, parent stack frame
 Pass	Returned url() is attr-tainted, initial
-Fail	Returned url() is attr-tainted, inherit
+Pass	Returned url() is attr-tainted, inherit
