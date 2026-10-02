@@ -8,6 +8,15 @@
             0x2a, 0x0b,
         ]);
 
+        function paddedBytes(size) {
+            const padded = new Uint8Array(size);
+            padded.set(bytes);
+            // Append a custom section with an empty name to reach the requested size.
+            const payloadSize = size - bytes.length - 3;
+            padded.set([0, (payloadSize & 0x7f) | 0x80, payloadSize >> 7, 0], bytes.length);
+            return padded;
+        }
+
         const inlineCompilations = [];
         for (let index = 0; index < 16; ++index) {
             const input = bytes.slice(0, 8);
@@ -44,10 +53,32 @@
         internals.gc();
         println(`streaming compilation: ${new WebAssembly.Instance(await streaming).exports.value()}`);
 
+        for (const size of [1024, 1025]) {
+            const input = paddedBytes(size);
+            let settled = false;
+            const compilation = WebAssembly.compile(input);
+            compilation.then(() => (settled = true));
+            input.fill(0);
+            internals.gc();
+            await Promise.resolve();
+            const asynchronous = !settled;
+            const module = await compilation;
+            println(
+                `${size} byte compilation: asynchronous=${asynchronous}, value=${new WebAssembly.Instance(module).exports.value()}`
+            );
+
+            const result = await WebAssembly.instantiate(paddedBytes(size));
+            println(`${size} byte instantiation: ${result.instance.exports.value()}`);
+            const streamedModule = await WebAssembly.compileStreaming(
+                new Response(paddedBytes(size), { headers: { "Content-Type": "application/wasm" } })
+            );
+            println(`${size} byte streaming compilation: ${new WebAssembly.Instance(streamedModule).exports.value()}`);
+        }
+
         const iframe = document.createElement("iframe");
         document.body.append(iframe);
         const ModuleFromFrame = iframe.contentWindow.WebAssembly.Module;
-        const compilationFromFrame = iframe.contentWindow.WebAssembly.compile(bytes);
+        const compilationFromFrame = iframe.contentWindow.WebAssembly.compile(paddedBytes(1025));
         iframe.remove();
         internals.gc();
         const moduleFromFrame = await compilationFromFrame;
@@ -55,9 +86,15 @@
             `removed realm: ${moduleFromFrame instanceof ModuleFromFrame}, ${new WebAssembly.Instance(moduleFromFrame).exports.value()}`
         );
 
-        const invalidType = bytes.slice();
-        invalidType[invalidType.length - 3] = 0x42;
-        const errors = [WebAssembly.compile(new Uint8Array([0])), WebAssembly.compile(invalidType)];
+        const invalidType = paddedBytes(1024);
+        invalidType[bytes.length - 3] = 0x42;
+        const invalidLargeType = paddedBytes(1025);
+        invalidLargeType[bytes.length - 3] = 0x42;
+        const errors = [
+            WebAssembly.compile(new Uint8Array([0])),
+            WebAssembly.compile(invalidType),
+            WebAssembly.compile(invalidLargeType),
+        ];
         internals.gc();
         for (const result of await Promise.allSettled(errors))
             println(`compilation error: ${result.status}, ${result.reason instanceof WebAssembly.CompileError}`);

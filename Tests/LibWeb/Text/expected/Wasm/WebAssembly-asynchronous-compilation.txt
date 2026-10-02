@@ -2,7 +2,14 @@ inline input copies: 16, true
 concurrent compilation copies: 16, true
 instantiation copy: 42
 streaming compilation: 42
+1024 byte compilation: asynchronous=true, value=42
+1024 byte instantiation: 42
+1024 byte streaming compilation: 42
+1025 byte compilation: asynchronous=true, value=42
+1025 byte instantiation: 42
+1025 byte streaming compilation: 42
 removed realm: true, 42
+compilation error: rejected, true
 compilation error: rejected, true
 compilation error: rejected, true
 synchronous compilation: 42
