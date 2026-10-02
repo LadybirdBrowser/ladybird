@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // Once a media element has its metadata, a failed response to a range request is a fatal network error: The element
+    // gets a MEDIA_ERR_NETWORK error and fires error at itself, rather than failing over to its next <source> candidate.
+    // The echo answers every request with 206 and no Content-Range: The initial request asks for the entire resource,
+    // so its response passes verification as-is. But the range request that a seek far past the buffered data makes
+    // fails verification.
+    asyncTest(async done => {
+        const server = httpTestServer();
+
+        // Build a constant-bitrate MP3 of about 2 MiB by repeating the audio frames of tone.mp3 (all but its leading ID3
+        // tag and Info frame), so that a seek near its end lands far enough past the buffered data to need a range request.
+        const tone = new Uint8Array(await (await fetch(server.getStaticURL("Assets/tone.mp3"))).arrayBuffer());
+        const audioFrames = tone.subarray(226);
+        const repetitions = Math.ceil((2 * 1024 * 1024) / audioFrames.length);
+        const mediaBytes = new Uint8Array(audioFrames.length * repetitions);
+        for (let i = 0; i < repetitions; ++i)
+            mediaBytes.set(audioFrames, i * audioFrames.length);
+        let binary = "";
+        for (let i = 0; i < mediaBytes.length; i += 0x8000)
+            binary += String.fromCharCode(...mediaBytes.subarray(i, i + 0x8000));
+
+        const mediaURL = await server.createEcho("GET", `/echo/failed-range-response-${crypto.randomUUID()}.mp3`, {
+            status: 206,
+            headers: {
+                "Content-Type": "audio/mpeg",
+                "Content-Length": String(mediaBytes.length),
+                "Accept-Ranges": "bytes",
+                "Cache-Control": "no-store",
+            },
+            body: btoa(binary),
+            body_encoding: "base64",
+        });
+
+        const audio = document.createElement("audio");
+        audio.preload = "auto";
+        const source = document.createElement("source");
+        // Deliver the head of the resource, then trickle the rest in, so that its end is never buffered before the seek.
+        // Each chunk that arrives has a waiting read look again at where to request data from.
+        const trickle = Array(120).fill(256).join(",");
+        source.src = `${mediaURL}?chunks=65536,${trickle}&chunk_delay_ms=250`;
+        source.type = "audio/mpeg";
+        audio.append(source);
+
+        source.addEventListener("error", () => println("error event fired at the <source> element"));
+        audio.addEventListener("error", () => {
+            println("error event fired at the media element");
+            println(`error code is MEDIA_ERR_NETWORK: ${audio.error?.code === MediaError.MEDIA_ERR_NETWORK}`);
+            println(`networkState is NETWORK_IDLE: ${audio.networkState === HTMLMediaElement.NETWORK_IDLE}`);
+            done();
+        });
+        audio.addEventListener(
+            "loadedmetadata",
+            () => {
+                println("loadedmetadata fired");
+                audio.currentTime = audio.duration - 1;
+            },
+            { once: true }
+        );
+        document.body.append(audio);
+    });
+</script>

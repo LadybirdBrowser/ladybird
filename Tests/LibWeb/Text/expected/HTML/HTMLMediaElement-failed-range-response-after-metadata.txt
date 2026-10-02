@@ -1,0 +1,4 @@
+loadedmetadata fired
+error event fired at the media element
+error code is MEDIA_ERR_NETWORK: true
+networkState is NETWORK_IDLE: true
