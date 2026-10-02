@@ -707,19 +707,6 @@ impl RetainedState {
             scratch.host_applies_animation_plans,
             counters,
         )?;
-        // A discrete transition of display, float or position takes the element through the box-type
-        // transformation of the animated value, which only the C++ computation applies: a step that
-        // may start or run one stays there.
-        if owes_a_transition_step
-            && (delta
-                .properties()
-                .iter()
-                .any(|&property| property_feeds_box_type_transformation(property))
-                || self.record_animates_box_type_input(old_style_record))
-        {
-            counters.bump(Counter::EngineComputedRecordBailProperty);
-            return Err(Unanswered::Refused);
-        }
         // A step decides over a moved base record, or over one an ancestor's moved style reaches
         // without moving it: the base the record holds an inherited animated value of.
         let owes_a_transition_step_to = |new_style_record| {
@@ -2172,19 +2159,6 @@ impl RetainedState {
         self.computed_group_sets
             .style_record_view(record.raw())
             .is_none_or(|view| !view.animated_overlay.is_null())
-    }
-
-    /// Whether a record's animation overlay holds a value the box-type transformation reads.
-    fn record_animates_box_type_input(&self, record: computed::FinalStyleRecordID) -> bool {
-        self.computed_group_sets
-            .style_record_view(record.raw())
-            .and_then(|view| unsafe { view.animated_overlay.as_ref() })
-            .is_some_and(|overlay| {
-                overlay
-                    .entries()
-                    .iter()
-                    .any(|entry| property_feeds_box_type_transformation(entry.property))
-            })
     }
 
     /// Whether a record's transition declarations name a longhand a change of which starts a

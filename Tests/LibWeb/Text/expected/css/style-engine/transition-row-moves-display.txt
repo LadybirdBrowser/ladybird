@@ -1,2 +1,2 @@
-hidden: C++ recomputations 1, display block, transitions display,opacity
-shown: C++ recomputations 1, display block, transitions 
+hidden: C++ recomputations 0, display block, transitions display,opacity
+shown: C++ recomputations 0, display block, transitions 

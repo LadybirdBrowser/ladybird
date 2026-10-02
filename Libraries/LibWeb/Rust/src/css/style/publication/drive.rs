@@ -584,6 +584,62 @@ impl RetainedState {
         }))
     }
 
+    /// What the box-type transformation of a style reads besides its own display, position and
+    /// float: the facts the host published for the element and the display of `parent`, the
+    /// element it inherits from, past any display:contents ancestor, as its record composes it.
+    /// A record the engine drives and a composition the host samples over it are transformed
+    /// against the same input.
+    pub(in crate::css::style) fn box_type_transformation_input(
+        &self,
+        facts: u32,
+        target: crate::css::style_compute::FfiStyleAdjustmentTarget,
+        parent: Option<StyleNodeID>,
+    ) -> crate::css::style_compute::FfiBoxTypeTransformationInput {
+        use crate::css::style_compute::effective_display;
+
+        let mut parent_display = None;
+        let mut ancestor = parent;
+        while let Some(current) = ancestor
+            && let Some(record) = self.computed_group_sets.assigned_style_record(current)
+            && let Some(view) = self.computed_group_sets.style_record_view(record.raw())
+            && let Some(table) = unsafe { view.longhand_table.as_ref() }
+        {
+            let display = effective_display(table, unsafe { view.animated_overlay.as_ref() });
+            if !display.is_contents() {
+                parent_display = Some(display);
+                break;
+            }
+            ancestor = self.tree.inheritance_parent(current);
+        }
+        crate::css::style_compute::rust_box_type_transformation_input(
+            facts,
+            target,
+            parent_display.is_some(),
+            parent_display.unwrap_or_else(crate::css::display::FfiDisplay::block),
+        )
+    }
+
+    /// The box-type transformation input of the composition the host samples over the record of
+    /// `node`, or of its pseudo-element of `pseudo_kind`, which inherits from the element.
+    pub(crate) fn composition_box_type_transformation_input(
+        &self,
+        node: StyleNodeID,
+        pseudo_kind: u8,
+    ) -> crate::css::style_compute::FfiBoxTypeTransformationInput {
+        use crate::css::style_compute::FfiStyleAdjustmentTarget;
+
+        let facts = self.computed_group_sets.adjustment_facts(node);
+        if pseudo_kind == crate::css::cascaded_properties::NO_PSEUDO_ELEMENT {
+            self.box_type_transformation_input(
+                facts,
+                FfiStyleAdjustmentTarget::Element,
+                self.tree.inheritance_parent(node),
+            )
+        } else {
+            self.box_type_transformation_input(facts, FfiStyleAdjustmentTarget::PseudoElement, Some(node))
+        }
+    }
+
     /// Drive a record through every phase: the font phase against the parent's metrics, the
     /// element's font resolved through the document's resolver, line-height and color-scheme
     /// against that font, and the remaining phase with the element facts the box-type
@@ -623,7 +679,7 @@ impl RetainedState {
             FfiEffectiveColorSchemeInput, FfiFontMetrics, FfiInputLineHeightMetrics, FfiLengthResolutionContext,
             FfiStyleComputationEnvironment, LONGHAND_DRIVE_PHASE_COLOR_SCHEME, LONGHAND_DRIVE_PHASE_FONT,
             LONGHAND_DRIVE_PHASE_LINE_HEIGHT, LONGHAND_DRIVE_PHASE_REMAINING, drive_property_computation,
-            effective_display, empty_longhand_driver_results, font_family_is_monospace,
+            empty_longhand_driver_results, font_family_is_monospace,
         };
         use bridge::element_adjustment_fact as fact;
 
@@ -730,27 +786,6 @@ impl RetainedState {
                 }
                 None => (initial_metrics, false, 0.0),
             };
-        // The parent's display, past any display:contents ancestor, is what the box-type
-        // transformation reads.
-        let mut parent_display = None;
-        let mut ancestor = parent;
-        while let Some(current) = ancestor {
-            let Some(record) = self.computed_group_sets.assigned_style_record(current) else {
-                break;
-            };
-            let Some(ancestor_view) = self.computed_group_sets.style_record_view(record.raw()) else {
-                break;
-            };
-            let Some(ancestor_table) = (unsafe { ancestor_view.longhand_table.as_ref() }) else {
-                break;
-            };
-            let display = effective_display(ancestor_table, None);
-            if !display.is_contents() {
-                parent_display = Some(display);
-                break;
-            }
-            ancestor = self.tree.inheritance_parent(current);
-        }
         let snapshot = match &parent_view {
             Some(parent_view) => {
                 let Some(parent_table) = (unsafe { parent_view.longhand_table.as_ref() }) else {
@@ -810,11 +845,10 @@ impl RetainedState {
         // A tree-counting function on a pseudo-element counts its originating element's siblings.
         let sibling_position = self.sibling_position(subject.target.node());
         let environment = FfiStyleComputationEnvironment {
-            box_type_input: crate::css::style_compute::rust_box_type_transformation_input(
+            box_type_input: self.box_type_transformation_input(
                 facts,
                 crate::css::style_compute::FfiStyleAdjustmentTarget::Element,
-                parent_display.is_some(),
-                parent_display.unwrap_or_else(crate::css::display::FfiDisplay::block),
+                parent,
             ),
             color_scheme_input: FfiEffectiveColorSchemeInput {
                 preferred_color_scheme: inputs.preferred_color_scheme,

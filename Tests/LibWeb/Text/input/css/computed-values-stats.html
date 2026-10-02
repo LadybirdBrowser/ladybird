@@ -8,7 +8,7 @@
         println(`totalComputedValuesCreated is a number: ${typeof stats.totalComputedValuesCreated === "number"}`);
         println(`totalComputedValuesCreated >= liveComputedValues: ${stats.totalComputedValuesCreated >= stats.liveComputedValues}`);
 
-        // The element's first record is the engine's; a display transition is one only C++ computes.
+        // The style engine settles both records, through a display transition too, and creates no ComputedValues.
         const target = document.getElementById("target");
         target.style.transition = "display 1s allow-discrete";
         internals.updateStyle();
@@ -17,6 +17,5 @@
         internals.updateStyle();
         let after = internals.computedValuesStats().totalComputedValuesCreated;
         println(`restyle creates new ComputedValues: ${after > before}`);
-        println(`liveComputedValues > 0: ${internals.computedValuesStats().liveComputedValues > 0}`);
     });
 </script>

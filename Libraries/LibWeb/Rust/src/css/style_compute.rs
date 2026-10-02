@@ -6820,6 +6820,26 @@ pub extern "C" fn rust_box_type_transformation_input(
     }
 }
 
+/// The box-type transformation input of a style target's animated composition, which the host
+/// samples over the record the engine holds for it: the same input the engine drives the record
+/// against, read from the element's published facts and its parent's record. A target the engine
+/// does not know is transformed with no facts and no parent display.
+///
+/// # Safety
+/// `engine` must be live for this call.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_animated_box_type_transformation_input(
+    engine: *const c_void,
+    node: u32,
+    pseudo_kind: u8,
+) -> FfiBoxTypeTransformationInput {
+    let engine = unsafe { &*engine.cast::<crate::css::style::StyleEngine>() };
+    match crate::css::style::tree::StyleNodeID::from_raw(node) {
+        Some(node) => engine.composition_box_type_transformation_input(node, pseudo_kind),
+        None => rust_box_type_transformation_input(0, FfiStyleAdjustmentTarget::Element, false, FfiDisplay::block()),
+    }
+}
+
 /// Result of the box type transformation: whether float must be reset to none,
 /// and the possibly replaced display.
 #[repr(C)]
