@@ -153,6 +153,13 @@ pub unsafe extern "C" fn rust_build_layout_tree(
         }
     }
 
+    // The style resources the walk owes the host for the rows it stamped, in the order it stamped
+    // them, now that no walk is left to run inside the host's answers.
+    for (row, owns_content_replacement_image) in host.layout().arena().take_style_resources_owed_to_host() {
+        // SAFETY: The builder remains live, and the row is a live NodeWithStyle.
+        unsafe { (host.callbacks.attach_style_resources)(host.callbacks.builder, row, owns_content_replacement_image) };
+    }
+
     for &element in &state.layout_tree_rebuild_requests {
         // A request that names no element asks for the whole tree, which the arena answers itself.
         let Some(element) = element else {

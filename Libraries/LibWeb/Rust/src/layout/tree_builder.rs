@@ -2442,15 +2442,8 @@ fn update_principal_node_after_entry(
     if !construction.layout_node.is_invalid() {
         let layout_node = construction.layout_node;
         if update.kind.is_element() || update.kind.is_document() {
-            // SAFETY: The builder remains live, and the box is a live NodeWithStyle for elements and
-            // documents.
-            unsafe {
-                (host.callbacks.attach_style_resources)(
-                    host.callbacks.builder,
-                    layout_node,
-                    construction.owns_content_replacement_image,
-                );
-            };
+            host.arena()
+                .owe_style_resources(layout_node, construction.owns_content_replacement_image);
         }
 
         let starts_new_subtree = entry_decision.should_create_layout_node && update.state.new_subtree_root.is_invalid();
@@ -3052,7 +3045,6 @@ fn stamp_pseudo_element_box_row(
             .set_node_flag(slot, NodeFlag::ListMarkerIsInside, facts.marker_position_is_inside);
     }
     layout_host.note_style_of_built_row(slot, None);
-    assert!(!layout_host.arena().node_shell(layout_host.main_thread, slot).is_null());
     Some(slot)
 }
 
@@ -3087,9 +3079,7 @@ fn stamp_nested_list_marker_row(
         .arena()
         .set_node_flag(slot, NodeFlag::ListMarkerIsInside, marker_position_is_inside);
     layout_host.note_style_of_built_row(slot, None);
-    assert!(!layout_host.arena().node_shell(layout_host.main_thread, slot).is_null());
-    // SAFETY: The builder remains live, and the row the build stamped is a live NodeWithStyle.
-    unsafe { (host.callbacks.attach_style_resources)(host.callbacks.builder, slot, false) };
+    layout_host.arena().owe_style_resources(slot, false);
     slot
 }
 
@@ -3111,7 +3101,6 @@ fn create_generated_content_item(
             layout_host
                 .arena()
                 .set_node_generated_for(slot, generated_for_of(pseudo_element), Some(generator));
-            assert!(!layout_host.arena().node_shell(layout_host.main_thread, slot).is_null());
             return slot;
         }
         ContentItem::Image(content_index) => FfiGeneratedImage {
@@ -3144,9 +3133,8 @@ fn create_generated_content_item(
     layout_host
         .arena()
         .set_node_generated_for(slot, generated_for_of(pseudo_element), Some(generator));
-    assert!(!layout_host.arena().node_shell(layout_host.main_thread, slot).is_null());
     // SAFETY: The builder remains live, the identity names a live element, and the row the build
-    // stamped is a live image box.
+    // stamped is a live image box, whose shell the host makes as it attaches the image.
     unsafe {
         (host.callbacks.attach_generated_image)(host.callbacks.builder, slot, generator.raw(), pseudo_element, image);
     }
@@ -3195,14 +3183,8 @@ fn create_pseudo_element(
 
     host.arena()
         .stamp_pseudo_element_box(layout_node, element_identity, generated_for_of(pseudo_element));
-    // SAFETY: The builder remains live, and the row the build stamped is a live NodeWithStyle.
-    unsafe {
-        (host.callbacks.attach_style_resources)(
-            host.callbacks.builder,
-            layout_node,
-            decision == FfiPseudoElementDecision::ContentReplacement,
-        );
-    };
+    host.arena()
+        .owe_style_resources(layout_node, decision == FfiPseudoElementDecision::ContentReplacement);
     if decision == FfiPseudoElementDecision::ContentReplacement {
         let adjustment = replaced_element_display_adjustment(&host.layout(), layout_node);
         if adjustment != FfiReplacedElementDisplayAdjustment::None {
@@ -3615,8 +3597,7 @@ impl TreeBuilderHost<'_> {
     }
 
     /// The row an element's principal box of `kind` is built in, stamped with the style the
-    /// element published, and the layout node made for it. A fieldset and a media element adjust
-    /// their box as it is built.
+    /// element published. A fieldset and a media element adjust their box as it is built.
     fn create_element_box(&self, element: StyleNodeID, kind: NodeKind) -> NodeSlotId {
         let slot = self.stamp_dom_box(kind, Some(element));
         self.arena().stamp_published_style(slot, element);
@@ -3645,7 +3626,6 @@ impl TreeBuilderHost<'_> {
             _ => {}
         }
         self.note_style_of_built_row(slot, Some(element));
-        assert!(!self.arena().node_shell(self.main_thread, slot).is_null());
         slot
     }
 
@@ -3671,12 +3651,10 @@ impl TreeBuilderHost<'_> {
         slot
     }
 
-    /// The row a text node's box is built in, stamped out of the text node's identity, and the
-    /// layout node made for it.
+    /// The row a text node's box is built in, stamped out of the text node's identity.
     fn create_text_box(&self, style_node: StyleNodeID) -> NodeSlotId {
         let slot = self.stamp_dom_box(NodeKind::TextNode, Some(style_node));
         self.stamp_text_row_facts(slot, style_node);
-        assert!(!self.arena().node_shell(self.main_thread, slot).is_null());
         slot
     }
 
@@ -3751,7 +3729,7 @@ impl TreeBuilderHost<'_> {
     }
 
     /// The row the document's viewport is built in, stamped out of its kind and the document's
-    /// style the build was handed, and the layout node made for it.
+    /// style the build was handed.
     fn create_document_box(&self, document_style: DerivedStyleRecord) -> NodeSlotId {
         let slot = self.stamp_dom_box(NodeKind::Viewport, None);
         // The viewport is the document's row, painted with what the document published and named
@@ -3768,7 +3746,6 @@ impl TreeBuilderHost<'_> {
         self.arena()
             .apply_reinherited_style_record(self.main_thread, slot, document_style);
         self.arena().note_built_scroll_container(slot);
-        assert!(!self.arena().node_shell(self.main_thread, slot).is_null());
         slot
     }
 
@@ -3802,8 +3779,9 @@ impl TreeBuilderHost<'_> {
         let slot = unsafe { &mut *self.arena }.allocate_unbound();
         self.arena().stamp_anonymous_box(slot, node_kind, derived);
         self.arena().refresh_insets_use_anchor_functions_flag(slot);
+        // An anonymous inline box takes its style from its parent, so it may name images too.
         if node_kind == NodeKind::InlineNode {
-            assert!(!self.arena().node_shell(self.main_thread, slot).is_null());
+            self.arena().owe_style_resources(slot, false);
         }
         UnplacedLayoutNode::new(slot)
     }
@@ -4511,9 +4489,6 @@ fn create_first_letter_boxes(host: &DomTreeBuilderHost<'_>, element: StyleNodeID
             layout_host.stamp_text_row_facts(slice, text);
         }
     }
-    for slice in [first_letter_slice, remainder_slice] {
-        assert!(!layout_host.arena().node_shell(layout_host.main_thread, slice).is_null());
-    }
     let first_letter_slice_slot = first_letter_slice;
     let remainder_slice_slot = remainder_slice;
     let first_letter_slice = layout_host.created(first_letter_slice);
@@ -4551,14 +4526,7 @@ fn create_first_letter_boxes(host: &DomTreeBuilderHost<'_>, element: StyleNodeID
         .arena()
         .stamp_pseudo_element_row(wrapper_slot, wrapper_kind, element, GENERATED_FOR_FIRST_LETTER);
     layout_host.note_style_of_built_row(wrapper_slot, None);
-    assert!(
-        !layout_host
-            .arena()
-            .node_shell(layout_host.main_thread, wrapper_slot)
-            .is_null()
-    );
-    // SAFETY: The builder remains live, and the row the build stamped is a live NodeWithStyle.
-    unsafe { (host.callbacks.attach_style_resources)(host.callbacks.builder, wrapper_slot, false) };
+    layout_host.arena().owe_style_resources(wrapper_slot, false);
     host.arena()
         .clear_pseudo_element_box(element, GENERATED_FOR_FIRST_LETTER);
     host.arena()

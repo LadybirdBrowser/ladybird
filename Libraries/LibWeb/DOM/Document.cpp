@@ -678,13 +678,9 @@ Layout::NodeArena& Document::layout_node_arena()
             auto& document = *static_cast<Document*>(context);
             switch (kind) {
             case Layout::RustFFI::NodeKind::InlineNode:
-            case Layout::RustFFI::NodeKind::BreakNode: {
-                auto& node = Layout::allocate_layout_node<Layout::NodeWithStyle>(document, Layout::BindToPreparedArenaSlot::Yes, slot, kind);
-                // The build attaches the style resources of the boxes it builds for elements.
-                if (node.is_anonymous())
-                    node.attach_style_resources();
+            case Layout::RustFFI::NodeKind::BreakNode:
+                Layout::allocate_layout_node<Layout::NodeWithStyle>(document, Layout::BindToPreparedArenaSlot::Yes, slot, kind);
                 return;
-            }
             case Layout::RustFFI::NodeKind::TextNode:
                 Layout::allocate_layout_node<Layout::TextNode>(document, Layout::BindToPreparedArenaSlot::Yes, slot, kind);
                 return;
@@ -9347,7 +9343,16 @@ Vector<GC::Root<Range>> Document::find_matching_text(Utf16View query, CaseSensit
     if (!layout_node())
         return {};
 
-    Vector<GC::Root<Range>> matches;
+    struct Search {
+        GC::Ref<Document> document;
+        Vector<GC::Root<Range>> matches;
+
+        DOM::Text* text_node(u32 identity) const
+        {
+            return as_if<DOM::Text>(document->style_computer().node_for_style_node(CSS::StyleNodeID { identity }).ptr());
+        }
+    };
+    Search search { *this, {} };
     auto query_view = Layout::RustFFI::FfiUtf16View {
         .ascii = query.has_ascii_storage() ? reinterpret_cast<u8 const*>(query.ascii_span().data()) : nullptr,
         .utf16 = query.has_ascii_storage() ? nullptr : reinterpret_cast<u16 const*>(query.utf16_span().data()),
@@ -9356,22 +9361,22 @@ Vector<GC::Root<Range>> Document::find_matching_text(Utf16View query, CaseSensit
     Layout::RustFFI::layout_arena_find_matching_text(
         layout_node()->arena_handle(), Layout::Node::slot_id(layout_node()), query_view,
         case_sensitivity == CaseSensitivity::CaseSensitive,
-        [](void* layout_node) {
+        [](void* context, u32 identity) {
             // Inert text is excluded from find-in-page.
-            auto const* text = as_if<DOM::Text>(static_cast<Layout::Node const*>(layout_node)->dom_node());
+            auto const* text = static_cast<Search*>(context)->text_node(identity);
             return text && !text->is_inert();
         },
-        &matches, [](void* context, Layout::RustFFI::FfiDomTextRange match) {
-            auto* start = as_if<DOM::Text>(static_cast<Layout::Node*>(match.start_layout_node)->dom_node());
-            auto* end = as_if<DOM::Text>(static_cast<Layout::Node*>(match.end_layout_node)->dom_node());
+        &search, [](void* context, Layout::RustFFI::FfiDomTextRange match) {
+            auto& search = *static_cast<Search*>(context);
+            auto* start = search.text_node(match.start_text_node);
+            auto* end = search.text_node(match.end_text_node);
             if (!start || !end || &start->root() != &end->root()
                 || !start->is_connected() || !end->is_connected()
                 || match.start_offset > start->length() || match.end_offset > end->length())
                 return;
-            static_cast<Vector<GC::Root<Range>>*>(context)->append(
-                Range::create(*start, match.start_offset, *end, match.end_offset)); });
+            search.matches.append(Range::create(*start, match.start_offset, *end, match.end_offset)); });
 
-    return matches;
+    return move(search.matches);
 }
 
 // https://dom.spec.whatwg.org/#document-allow-declarative-shadow-roots

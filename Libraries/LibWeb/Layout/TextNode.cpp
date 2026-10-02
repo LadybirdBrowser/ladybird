@@ -19,12 +19,11 @@
 
 namespace Web::Layout {
 
-// The tree build stamped the row with whether an empty text produces a line box fragment, and the document restamps it
-// through the layout node when editability changes, so the layout node leaves the stamp alone.
+// The tree build stamped the row with whether an empty text produces a line box fragment and enrolled it for content
+// sync. A layout node is made whenever something first asks for it, so it does nothing but bind.
 TextNode::TextNode(DOM::Document& document, BindToPreparedArenaSlot bind, Compositing::RustFFI::NodeSlotId slot, RustFFI::NodeKind kind)
     : Node(document, bind, slot, kind)
 {
-    invalidate_text_for_rendering();
 }
 
 bool TextNode::update_produces_line_box_fragment_when_empty_flag()

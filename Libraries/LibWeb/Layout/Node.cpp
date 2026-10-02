@@ -251,8 +251,8 @@ bool NodeWithStyle::is_sticky_position() const
     return position == CSS::Positioning::Sticky;
 }
 
-// The build stamped the row with its style, which this layout node reads off the row. A row built for a DOM node
-// tells the document what its style asks for, as a layout node built from the node's style did.
+// The build stamped the row with its style, which this layout node reads off the row, and told the document what that
+// style asks for. A layout node is made whenever something first asks for it, so it does nothing but bind.
 NodeWithStyle::NodeWithStyle(DOM::Document& document, BindToPreparedArenaSlot bind, Compositing::RustFFI::NodeSlotId slot, RustFFI::NodeKind kind)
     : Node(document, bind, slot, kind)
 {
@@ -260,8 +260,8 @@ NodeWithStyle::NodeWithStyle(DOM::Document& document, BindToPreparedArenaSlot bi
     VERIFY(m_style_record_identity);
     m_style_payloads = RustFFI::layout_arena_node_style_payloads(arena_handle(), slot);
     VERIFY(m_style_payloads);
-    if (dom_node() || is_generated_for_pseudo_element())
-        did_update_style_record();
+    // The layout node reads its style through the row's payloads, which only a live record keeps.
+    VERIFY(document.style_computer().style_record_payloads(m_style_record_identity));
 }
 
 bool NodeWithStyle::has_layout_derived_style() const
