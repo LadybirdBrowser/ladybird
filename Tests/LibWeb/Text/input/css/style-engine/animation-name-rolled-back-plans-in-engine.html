@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+    #target { animation: fade 100s linear; }
+    #target.reverted { animation-name: revert; }
+</style>
+<div id="target"></div>
+<script>
+    test(() => {
+        internals.updateStyle();
+        const recomputations = () => internals.getStyleInvalidationCounters().elementStyleRecomputations;
+        // A reverted animation-name rolls back past every declaration to the initial value, which
+        // no scope declared: the engine plans the animations it names.
+        for (const step of [1, 2]) {
+            const before = recomputations();
+            target.classList.toggle("reverted");
+            internals.updateStyle();
+            println(`step ${step}: animations ${target.getAnimations().length}, C++ recomputations ${recomputations() - before}`);
+        }
+    });
+</script>
