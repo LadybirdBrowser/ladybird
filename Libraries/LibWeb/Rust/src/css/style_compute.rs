@@ -6140,7 +6140,7 @@ pub unsafe extern "C" fn rust_release_animated_custom_property_results(storage: 
     }
 }
 
-fn animation_length_resolution_context(
+pub(crate) fn animation_length_resolution_context(
     context: &FfiLengthResolutionContext,
 ) -> crate::css::animation::FfiAnimationLengthResolutionContext {
     let font_metrics = |metrics: &FfiFontMetrics| crate::css::animation::FfiAnimationFontMetrics {
