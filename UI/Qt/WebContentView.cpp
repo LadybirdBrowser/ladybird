@@ -354,8 +354,33 @@ static bool wheel_event_scrolls_continuously(QWheelEvent const& wheel_event)
     return pointing_device && pointing_device->type() == QInputDevice::DeviceType::TouchPad;
 }
 
+static bool is_running_on_wayland()
+{
+    static bool const is_wayland = QGuiApplication::platformName().startsWith(QStringLiteral("wayland"));
+    return is_wayland;
+}
+
+// Qt on Wayland gives touchpad scroll distances in axis units, at 1 pixel per unit. This scrolls too slowly, so we
+// multiply the distance by this gain.
+static constexpr double wayland_touchpad_scroll_gain = 4;
+
+static QPointF wayland_touchpad_delta(QWheelEvent const& wheel_event)
+{
+    // NB: Qt rounds each pixel delta to whole units. After the gain, this causes visible jumps. For a touchpad, Qt's
+    //     angle delta gives the same distance with 12 times more resolution.
+    static constexpr double angle_delta_units_per_axis_unit = 12;
+    auto angle_delta = -wheel_event.angleDelta();
+    if (!angle_delta.isNull())
+        return QPointF { angle_delta } * (wayland_touchpad_scroll_gain / angle_delta_units_per_axis_unit);
+    return QPointF { -wheel_event.pixelDelta() } * wayland_touchpad_scroll_gain;
+}
+
 static WheelDelta wheel_delta_from_qt_event(QWheelEvent const& wheel_event)
 {
+    // NB: A slow touchpad movement can have a pixel delta of zero. It is still precise input, not a wheel step.
+    if (is_running_on_wayland() && wheel_event_scrolls_continuously(wheel_event))
+        return { wayland_touchpad_delta(wheel_event), Web::WheelDeltaPrecision::Precise };
+
     auto pixel_delta = -wheel_event.pixelDelta();
     // NB: macOS can report a tiny pixel delta for mouse-wheel ticks. Use it only for continuous scrolling so physical
     //     wheels continue through the line-step conversion below.
