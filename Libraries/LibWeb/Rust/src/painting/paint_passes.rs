@@ -10,8 +10,11 @@
 use crate::css::css_pixels::CssPixelPoint;
 use crate::layout::LayoutNodeArena;
 use crate::layout::node_data::NodeSlotId;
-use crate::painting::host::{FfiVisualContextUpdateOutcome, RootBackgroundSource};
+use crate::painting::host::{
+    FfiCompositorAnimationPublishOutcome, FfiVisualContextUpdateOutcome, RootBackgroundSource,
+};
 use crate::painting::svg_paint_resources::{PublishedSvgFilter, PublishedSvgPaintServer, SvgPaintResourceKind};
+use crate::painting::visual_animation::VisualAnimation;
 use crate::painting::visual_context::VisualContextState;
 use crate::painting::visual_context::dirty::{VisualContextGlobalRebuildReason, VisualContextUpdateScope};
 use crate::painting::visual_context::incremental::{
@@ -35,6 +38,8 @@ pub(crate) enum PaintPass {
     SvgPaintResourceRequests,
     /// Publishes the SVG paint resources the host resolved.
     PublishSvgPaintResources(Vec<ResolvedSvgPaintResource>),
+    /// Gives the visual context tree the compositor animations of an update pass, or none where it was discarded.
+    PublishCompositorAnimations(Vec<VisualAnimation>),
 }
 
 /// What a paint pass answers.
@@ -47,6 +52,7 @@ pub(crate) enum PaintPassAnswer {
     SvgPaintResourceRequests(Option<Vec<SvgPaintResourceRequest>>),
     /// Whether a published SVG paint resource changed.
     SvgPaintResourcesPublished(bool),
+    CompositorAnimationsPublished(FfiCompositorAnimationPublishOutcome),
 }
 
 #[derive(Default)]
@@ -92,6 +98,12 @@ impl PaintPass {
             Self::PublishSvgPaintResources(resolved) => {
                 PaintPassAnswer::SvgPaintResourcesPublished(publish_resolved_svg_paint_resources(arena, resolved))
             }
+            Self::PublishCompositorAnimations(animations) => PaintPassAnswer::CompositorAnimationsPublished(
+                crate::painting::visual_context::publish_compositor_animations(
+                    &mut arena.paint_state().borrow_mut().visual_context,
+                    animations,
+                ),
+            ),
         }
     }
 }

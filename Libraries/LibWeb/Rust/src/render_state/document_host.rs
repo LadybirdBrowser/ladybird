@@ -14,6 +14,7 @@ use crate::layout::{HostTables, LayoutNodeArena};
 use crate::painting::paint_read::PaintSource;
 use crate::painting::record::recorder_state::AbsoluteRectMemo;
 use crate::painting::recording_slot::RecordingSlot;
+use crate::painting::visual_animation::VisualAnimation;
 use std::cell::{Cell, OnceCell, RefCell, RefMut};
 use std::ffi::c_void;
 use std::ptr::NonNull;
@@ -43,6 +44,9 @@ pub struct DocumentHost {
     /// The arena of the document's render state, whose rows version tells the host whether the rows it has still read
     /// as the arena's after a write the host made through an entry that reaches the arena directly.
     arena: Cell<Option<NonNull<LayoutNodeArena>>>,
+    /// The compositor animations the document's effects published in the current update pass, which the host hands
+    /// the render state as the pass ends.
+    compositor_animations: RefCell<Vec<VisualAnimation>>,
     /// Whether any element has had random base values, which the render state raises and never lowers.
     element_random_base_values_exist: OnceCell<Arc<AtomicBool>>,
 }
@@ -58,6 +62,7 @@ impl DocumentHost {
             style_transaction: RefCell::default(),
             absolute_rects: RefCell::default(),
             arena: Cell::new(None),
+            compositor_animations: RefCell::default(),
             element_random_base_values_exist: OnceCell::new(),
         }
     }
@@ -179,6 +184,21 @@ impl DocumentHost {
     /// Lets go of what the style transaction the host took last answered.
     pub(crate) fn end_style_transaction(&self) {
         self.style_transaction.borrow_mut().take();
+    }
+
+    /// Starts an update pass of the document's compositor animations, with none published.
+    pub(crate) fn begin_compositor_animation_update(&self) {
+        self.compositor_animations.borrow_mut().clear();
+    }
+
+    /// Adds what an effect published to the compositor animations of the current update pass.
+    pub(crate) fn publish_compositor_animations(&self, animations: impl IntoIterator<Item = VisualAnimation>) {
+        self.compositor_animations.borrow_mut().extend(animations);
+    }
+
+    /// Ends the current update pass of the document's compositor animations, answering what its effects published.
+    pub(crate) fn take_compositor_animations(&self) -> Vec<VisualAnimation> {
+        self.compositor_animations.take()
     }
 
     /// What the document keeps of its recordings.

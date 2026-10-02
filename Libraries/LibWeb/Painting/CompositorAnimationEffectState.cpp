@@ -301,7 +301,7 @@ void CompositorAnimationEffectState::clear_pending()
 
 void CompositorAnimationEffectState::publish_pending(DOM::Document& document, ReuseRetainedTimingAnchors reuse_retained_timing_anchors)
 {
-    Layout::RustFFI::compositor_animation_effect_publish_pending(m_handle, layout_arena_handle(document), reuse_retained_timing_anchors == ReuseRetainedTimingAnchors::Yes);
+    Layout::RustFFI::compositor_animation_effect_publish_pending(m_handle, document.layout_node_arena().host(), reuse_retained_timing_anchors == ReuseRetainedTimingAnchors::Yes);
 }
 
 bool CompositorAnimationEffectState::has_retained() const

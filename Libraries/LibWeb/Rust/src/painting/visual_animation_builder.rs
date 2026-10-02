@@ -1630,30 +1630,27 @@ mod tests {
             tree: Some(tree_with_one_effect()),
             ..VisualContextState::default()
         };
-        assert!(!publish_compositor_animations(&mut visual_context, true).published);
+        assert!(!publish_compositor_animations(&mut visual_context, Vec::new()).published);
 
-        visual_context.pending_compositor_animations = first.clone();
-        let outcome = publish_compositor_animations(&mut visual_context, true);
+        let outcome = publish_compositor_animations(&mut visual_context, first.clone());
         assert!(outcome.published);
         assert!(outcome.parameters_changed);
         assert!(!outcome.timing_anchors_changed);
         assert!(visual_context.tree.as_ref().unwrap().has_visual_animations());
 
-        visual_context.pending_compositor_animations = first.clone();
-        assert!(!publish_compositor_animations(&mut visual_context, true).published);
+        assert!(!publish_compositor_animations(&mut visual_context, first).published);
 
-        visual_context.pending_compositor_animations = again.clone();
-        visual_context.pending_compositor_animations[0].monotonic_time_at_anchor_ns = 500;
-        let outcome = publish_compositor_animations(&mut visual_context, true);
+        let mut again = again;
+        again[0].monotonic_time_at_anchor_ns = 500;
+        let outcome = publish_compositor_animations(&mut visual_context, again);
         assert!(outcome.published);
         assert!(!outcome.parameters_changed);
         assert!(outcome.timing_anchors_changed);
 
-        visual_context.pending_compositor_animations = changed;
-        let outcome = publish_compositor_animations(&mut visual_context, false);
+        // Discarding the pass's animations publishes none.
+        let outcome = publish_compositor_animations(&mut visual_context, Vec::new());
         assert!(outcome.published);
         assert!(outcome.parameters_changed);
         assert!(!visual_context.tree.as_ref().unwrap().has_visual_animations());
-        assert!(visual_context.pending_compositor_animations.is_empty());
     }
 }

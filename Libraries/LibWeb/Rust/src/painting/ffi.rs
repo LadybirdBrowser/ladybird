@@ -1197,30 +1197,6 @@ pub unsafe extern "C" fn compositor_animation_effect_clear_pending(state: *mut c
     unsafe { crate::painting::visual_animation_builder::effect_state_from_handle(state) }.clear_pending();
 }
 
-/// Publishes the effect's pending animations: they become the ones it retains, and copies join the
-/// document's list for the current update pass.
-///
-/// # Safety
-///
-/// `state` must be a live effect state handle and `arena` a live handle from `render_state_arena_for_unconverted_entry`
-/// used on the document thread.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn compositor_animation_effect_publish_pending(
-    state: *mut c_void,
-    arena: *mut c_void,
-    reuse_retained_timing_anchors: bool,
-) {
-    let animations = unsafe { crate::painting::visual_animation_builder::effect_state_from_handle(state) }
-        .publish_pending(reuse_retained_timing_anchors);
-    let arena = unsafe { arena_from_handle(arena) };
-    arena
-        .paint_state()
-        .borrow_mut()
-        .visual_context
-        .pending_compositor_animations
-        .extend(animations);
-}
-
 /// # Safety
 ///
 /// `state` must be a live effect state handle.
@@ -1273,35 +1249,6 @@ pub unsafe extern "C" fn compositor_animation_effect_transform_preserves_axes(
 
 /// Starts an update pass: the effects publish into an empty document list.
 ///
-/// # Safety
-///
-/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_begin_compositor_animation_update(arena: *mut c_void) {
-    let arena = unsafe { arena_from_handle(arena) };
-    arena
-        .paint_state()
-        .borrow_mut()
-        .visual_context
-        .pending_compositor_animations
-        .clear();
-}
-
-/// Gives the arena's main tree the animations the update pass published, or none.
-///
-/// # Safety
-///
-/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_publish_compositor_animations(
-    arena: *mut c_void,
-    publish_pending: bool,
-) -> crate::painting::host::FfiCompositorAnimationPublishOutcome {
-    let arena = unsafe { arena_from_handle(arena) };
-    let mut paint_state = arena.paint_state().borrow_mut();
-    crate::painting::visual_context::publish_compositor_animations(&mut paint_state.visual_context, publish_pending)
-}
-
 /// # Safety
 ///
 /// `sink` must be the pointer handed to the callback, used synchronously; `bytes` must point at

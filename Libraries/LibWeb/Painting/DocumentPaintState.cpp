@@ -108,13 +108,13 @@ void DocumentPaintState::update_visual_viewport_accumulated_visual_context(DOM::
 void DocumentPaintState::begin_compositor_animation_update(DOM::Document& document)
 {
     ensure_visual_context_tree(document);
-    Layout::RustFFI::layout_arena_begin_compositor_animation_update(m_layout_node_arena->handle());
+    Layout::RustFFI::render_state_begin_compositor_animation_update(m_layout_node_arena->host());
 }
 
 void DocumentPaintState::publish_compositor_animations(DOM::Document& document, PublishPendingCompositorAnimations publish_pending)
 {
     ensure_visual_context_tree(document);
-    auto outcome = Layout::RustFFI::layout_arena_publish_compositor_animations(m_layout_node_arena->handle(), publish_pending == PublishPendingCompositorAnimations::Yes);
+    auto outcome = Layout::RustFFI::render_state_publish_compositor_animations(m_layout_node_arena->host(), publish_pending == PublishPendingCompositorAnimations::Yes);
     if (!outcome.published)
         return;
     m_visual_context_tree_needs_compositor_update = true;
