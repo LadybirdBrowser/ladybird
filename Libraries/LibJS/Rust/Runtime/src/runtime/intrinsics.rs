@@ -43,6 +43,8 @@ use crate::runtime::error_prototype::{
     SyntaxErrorPrototype, TypeErrorPrototype, URIErrorPrototype,
 };
 use crate::runtime::error_types::ErrorType;
+use crate::runtime::finalization_registry_constructor::FinalizationRegistryConstructor;
+use crate::runtime::finalization_registry_prototype::FinalizationRegistryPrototype;
 use crate::runtime::function_constructor::FunctionConstructor;
 use crate::runtime::function_object::FunctionObject;
 use crate::runtime::function_prototype::FunctionPrototype;
@@ -54,7 +56,9 @@ use crate::runtime::iterator_constructor::IteratorConstructor;
 use crate::runtime::iterator_helper_prototype::IteratorHelperPrototype;
 use crate::runtime::iterator_prototype::IteratorPrototype;
 use crate::runtime::json_object::JSONObject;
+use crate::runtime::map_constructor::MapConstructor;
 use crate::runtime::map_iterator_prototype::MapIteratorPrototype;
+use crate::runtime::map_prototype::MapPrototype;
 use crate::runtime::math_object::MathObject;
 use crate::runtime::native_function::{NativeFunction, RawNativeFunction, raw_native};
 use crate::runtime::number_constructor::NumberConstructor;
@@ -71,13 +75,21 @@ use crate::runtime::proxy_constructor::ProxyConstructor;
 use crate::runtime::realm::Realm;
 use crate::runtime::reflect_object::ReflectObject;
 use crate::runtime::regexp_string_iterator_prototype::RegExpStringIteratorPrototype;
+use crate::runtime::set_constructor::SetConstructor;
 use crate::runtime::set_iterator_prototype::SetIteratorPrototype;
+use crate::runtime::set_prototype::SetPrototype;
 use crate::runtime::shape::Shape;
 use crate::runtime::string_constructor::StringConstructor;
 use crate::runtime::string_iterator_prototype::StringIteratorPrototype;
 use crate::runtime::string_prototype::StringPrototype;
 use crate::runtime::symbol_constructor::SymbolConstructor;
 use crate::runtime::symbol_prototype::SymbolPrototype;
+use crate::runtime::weak_map_constructor::WeakMapConstructor;
+use crate::runtime::weak_map_prototype::WeakMapPrototype;
+use crate::runtime::weak_ref_constructor::WeakRefConstructor;
+use crate::runtime::weak_ref_prototype::WeakRefPrototype;
+use crate::runtime::weak_set_constructor::WeakSetConstructor;
+use crate::runtime::weak_set_prototype::WeakSetPrototype;
 use crate::runtime::wrap_for_valid_iterator_prototype::WrapForValidIteratorPrototype;
 
 /// Declares the intrinsics' slots, which all start out empty.
@@ -202,7 +214,7 @@ define_intrinsics! {
     disposable_stack_prototype: Cell<Option<Gc<Object>>>,
     error_constructor: Cell<Option<Gc<ErrorConstructor>>>,
     error_prototype: Cell<Option<Gc<Object>>>,
-    finalization_registry_constructor: Cell<Option<Gc<FunctionObject>>>,
+    finalization_registry_constructor: Cell<Option<Gc<FinalizationRegistryConstructor>>>,
     finalization_registry_prototype: Cell<Option<Gc<Object>>>,
     function_constructor: Cell<Option<Gc<FunctionConstructor>>>,
     function_prototype: Cell<Option<Gc<Object>>>,
@@ -210,7 +222,7 @@ define_intrinsics! {
     generator_function_prototype: Cell<Option<Gc<Object>>>,
     iterator_constructor: Cell<Option<Gc<IteratorConstructor>>>,
     iterator_prototype: Cell<Option<Gc<Object>>>,
-    map_constructor: Cell<Option<Gc<FunctionObject>>>,
+    map_constructor: Cell<Option<Gc<MapConstructor>>>,
     map_prototype: Cell<Option<Gc<Object>>>,
     number_constructor: Cell<Option<Gc<NumberConstructor>>>,
     number_prototype: Cell<Option<Gc<Object>>>,
@@ -220,7 +232,7 @@ define_intrinsics! {
     promise_prototype: Cell<Option<Gc<Object>>>,
     regexp_constructor: Cell<Option<Gc<FunctionObject>>>,
     regexp_prototype: Cell<Option<Gc<Object>>>,
-    set_constructor: Cell<Option<Gc<FunctionObject>>>,
+    set_constructor: Cell<Option<Gc<SetConstructor>>>,
     set_prototype: Cell<Option<Gc<Object>>>,
     shared_array_buffer_constructor: Cell<Option<Gc<FunctionObject>>>,
     shared_array_buffer_prototype: Cell<Option<Gc<Object>>>,
@@ -230,11 +242,11 @@ define_intrinsics! {
     suppressed_error_prototype: Cell<Option<Gc<Object>>>,
     symbol_constructor: Cell<Option<Gc<SymbolConstructor>>>,
     symbol_prototype: Cell<Option<Gc<Object>>>,
-    weak_map_constructor: Cell<Option<Gc<FunctionObject>>>,
+    weak_map_constructor: Cell<Option<Gc<WeakMapConstructor>>>,
     weak_map_prototype: Cell<Option<Gc<Object>>>,
-    weak_ref_constructor: Cell<Option<Gc<FunctionObject>>>,
+    weak_ref_constructor: Cell<Option<Gc<WeakRefConstructor>>>,
     weak_ref_prototype: Cell<Option<Gc<Object>>>,
-    weak_set_constructor: Cell<Option<Gc<FunctionObject>>>,
+    weak_set_constructor: Cell<Option<Gc<WeakSetConstructor>>>,
     weak_set_prototype: Cell<Option<Gc<Object>>>,
     typed_array_constructor: Cell<Option<Gc<FunctionObject>>>,
     typed_array_prototype: Cell<Option<Gc<Object>>>,
@@ -481,23 +493,23 @@ builtin_type_accessors! {
     date_prototype, date_constructor: FunctionObject, initialize_date;
     disposable_stack_prototype, disposable_stack_constructor: FunctionObject, initialize_disposable_stack;
     error_prototype, error_constructor: ErrorConstructor, initialize_error;
-    finalization_registry_prototype, finalization_registry_constructor: FunctionObject, initialize_finalization_registry;
+    finalization_registry_prototype, finalization_registry_constructor: FinalizationRegistryConstructor, initialize_finalization_registry;
     function_prototype, function_constructor: FunctionConstructor, initialize_function;
     generator_function_prototype, generator_function_constructor: GeneratorFunctionConstructor, initialize_generator_function;
     iterator_prototype, iterator_constructor: IteratorConstructor, initialize_iterator;
-    map_prototype, map_constructor: FunctionObject, initialize_map;
+    map_prototype, map_constructor: MapConstructor, initialize_map;
     number_prototype, number_constructor: NumberConstructor, initialize_number;
     object_prototype, object_constructor: ObjectConstructor, initialize_object;
     promise_prototype, promise_constructor: PromiseConstructor, initialize_promise;
     regexp_prototype, regexp_constructor: FunctionObject, initialize_regexp;
-    set_prototype, set_constructor: FunctionObject, initialize_set;
+    set_prototype, set_constructor: SetConstructor, initialize_set;
     shared_array_buffer_prototype, shared_array_buffer_constructor: FunctionObject, initialize_shared_array_buffer;
     string_prototype, string_constructor: StringConstructor, initialize_string;
     suppressed_error_prototype, suppressed_error_constructor: FunctionObject, initialize_suppressed_error;
     symbol_prototype, symbol_constructor: SymbolConstructor, initialize_symbol;
-    weak_map_prototype, weak_map_constructor: FunctionObject, initialize_weak_map;
-    weak_ref_prototype, weak_ref_constructor: FunctionObject, initialize_weak_ref;
-    weak_set_prototype, weak_set_constructor: FunctionObject, initialize_weak_set;
+    weak_map_prototype, weak_map_constructor: WeakMapConstructor, initialize_weak_map;
+    weak_ref_prototype, weak_ref_constructor: WeakRefConstructor, initialize_weak_ref;
+    weak_set_prototype, weak_set_constructor: WeakSetConstructor, initialize_weak_set;
     typed_array_prototype, typed_array_constructor: FunctionObject, initialize_typed_array;
     eval_error_prototype, eval_error_constructor: EvalErrorConstructor, initialize_eval_error;
     internal_error_prototype, internal_error_constructor: InternalErrorConstructor, initialize_internal_error;
@@ -573,13 +585,19 @@ initialize_builtin_types! {
     initialize_bigint: bigint_prototype: BigIntPrototype, bigint_constructor: BigIntConstructor, BigInt;
     initialize_boolean: boolean_prototype: BooleanPrototype, boolean_constructor: BooleanConstructor, Boolean;
     initialize_error: error_prototype: ErrorPrototype, error_constructor: ErrorConstructor, Error;
+    initialize_finalization_registry: finalization_registry_prototype: FinalizationRegistryPrototype, finalization_registry_constructor: FinalizationRegistryConstructor, FinalizationRegistry;
     initialize_function: function_prototype: FunctionPrototype, function_constructor: FunctionConstructor, Function;
     initialize_generator_function: generator_function_prototype: GeneratorFunctionPrototype, generator_function_constructor: GeneratorFunctionConstructor, GeneratorFunction;
+    initialize_map: map_prototype: MapPrototype, map_constructor: MapConstructor, Map;
     initialize_number: number_prototype: NumberPrototype, number_constructor: NumberConstructor, Number;
     initialize_object: object_prototype: ObjectPrototype, object_constructor: ObjectConstructor, Object;
     initialize_promise: promise_prototype: PromisePrototype, promise_constructor: PromiseConstructor, Promise;
+    initialize_set: set_prototype: SetPrototype, set_constructor: SetConstructor, Set;
     initialize_string: string_prototype: StringPrototype, string_constructor: StringConstructor, String;
     initialize_symbol: symbol_prototype: SymbolPrototype, symbol_constructor: SymbolConstructor, Symbol;
+    initialize_weak_map: weak_map_prototype: WeakMapPrototype, weak_map_constructor: WeakMapConstructor, WeakMap;
+    initialize_weak_ref: weak_ref_prototype: WeakRefPrototype, weak_ref_constructor: WeakRefConstructor, WeakRef;
+    initialize_weak_set: weak_set_prototype: WeakSetPrototype, weak_set_constructor: WeakSetConstructor, WeakSet;
     initialize_eval_error: eval_error_prototype: EvalErrorPrototype, eval_error_constructor: EvalErrorConstructor, EvalError;
     initialize_internal_error: internal_error_prototype: InternalErrorPrototype, internal_error_constructor: InternalErrorConstructor, InternalError;
     initialize_range_error: range_error_prototype: RangeErrorPrototype, range_error_constructor: RangeErrorConstructor, RangeError;
@@ -611,15 +629,9 @@ unimplemented_builtin_types! {
     initialize_data_view => "DataView",
     initialize_date => "Date",
     initialize_disposable_stack => "DisposableStack",
-    initialize_finalization_registry => "FinalizationRegistry",
-    initialize_map => "Map",
     initialize_regexp => "RegExp",
-    initialize_set => "Set",
     initialize_shared_array_buffer => "SharedArrayBuffer",
     initialize_suppressed_error => "SuppressedError",
-    initialize_weak_map => "WeakMap",
-    initialize_weak_ref => "WeakRef",
-    initialize_weak_set => "WeakSet",
     initialize_typed_array => "%TypedArray%",
     initialize_uint8_array => "Uint8Array",
     initialize_uint8_clamped_array => "Uint8ClampedArray",

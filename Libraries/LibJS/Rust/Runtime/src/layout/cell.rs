@@ -47,6 +47,13 @@ impl<T: ?Sized> PartialEq for Gc<T> {
 
 impl<T: ?Sized> Eq for Gc<T> {}
 
+/// Hashes the address, like the pointer traits of AK's hash tables.
+impl<T: ?Sized> core::hash::Hash for Gc<T> {
+    fn hash<H: core::hash::Hasher>(&self, state: &mut H) {
+        self.0.as_ptr().cast::<()>().addr().hash(state);
+    }
+}
+
 /// Mirrors GC::CellKind.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]

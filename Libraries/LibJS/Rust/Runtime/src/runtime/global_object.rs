@@ -128,11 +128,17 @@ pub fn set_default_global_bindings(vm: &Vm, realm: Gc<Realm>) {
     define_intrinsic_accessor(&names.EvalError, |vm, realm| {
         Value::from_object(realm.intrinsics().eval_error_constructor(vm))
     });
+    define_intrinsic_accessor(&names.FinalizationRegistry, |vm, realm| {
+        Value::from_object(realm.intrinsics().finalization_registry_constructor(vm))
+    });
     define_intrinsic_accessor(&names.Function, |vm, realm| {
         Value::from_object(realm.intrinsics().function_constructor(vm))
     });
     define_intrinsic_accessor(&names.Iterator, |vm, realm| {
         Value::from_object(realm.intrinsics().iterator_constructor(vm))
+    });
+    define_intrinsic_accessor(&names.Map, |vm, realm| {
+        Value::from_object(realm.intrinsics().map_constructor(vm))
     });
     define_intrinsic_accessor(&names.Number, |vm, realm| {
         Value::from_object(realm.intrinsics().number_constructor(vm))
@@ -152,6 +158,9 @@ pub fn set_default_global_bindings(vm: &Vm, realm: Gc<Realm>) {
     define_intrinsic_accessor(&names.ReferenceError, |vm, realm| {
         Value::from_object(realm.intrinsics().reference_error_constructor(vm))
     });
+    define_intrinsic_accessor(&names.Set, |vm, realm| {
+        Value::from_object(realm.intrinsics().set_constructor(vm))
+    });
     define_intrinsic_accessor(&names.String, |vm, realm| {
         Value::from_object(realm.intrinsics().string_constructor(vm))
     });
@@ -166,6 +175,15 @@ pub fn set_default_global_bindings(vm: &Vm, realm: Gc<Realm>) {
     });
     define_intrinsic_accessor(&names.URIError, |vm, realm| {
         Value::from_object(realm.intrinsics().uri_error_constructor(vm))
+    });
+    define_intrinsic_accessor(&names.WeakMap, |vm, realm| {
+        Value::from_object(realm.intrinsics().weak_map_constructor(vm))
+    });
+    define_intrinsic_accessor(&names.WeakRef, |vm, realm| {
+        Value::from_object(realm.intrinsics().weak_ref_constructor(vm))
+    });
+    define_intrinsic_accessor(&names.WeakSet, |vm, realm| {
+        Value::from_object(realm.intrinsics().weak_set_constructor(vm))
     });
 
     // 19.4 Other Properties of the Global Object, https://tc39.es/ecma262/#sec-other-properties-of-the-global-object

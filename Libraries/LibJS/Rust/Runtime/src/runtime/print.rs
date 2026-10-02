@@ -20,12 +20,17 @@ use crate::runtime::boolean_object::BooleanObject;
 use crate::runtime::ecmascript_function_object::EcmascriptFunctionObject;
 use crate::runtime::error::Error;
 use crate::runtime::generator_object::GeneratorObject;
+use crate::runtime::map::Map;
 use crate::runtime::native_function::NativeFunction;
 use crate::runtime::number_object::NumberObject;
 use crate::runtime::promise::{Promise, PromiseState};
 use crate::runtime::property_key::PropertyKey;
+use crate::runtime::set::Set;
 use crate::runtime::shared_function_instance_data::FunctionKind;
 use crate::runtime::string_object::StringObject;
+use crate::runtime::weak_map::WeakMap;
+use crate::runtime::weak_ref::WeakRef;
+use crate::runtime::weak_set::WeakSet;
 use crate::utf16::Utf16View;
 
 /// Where and how to print. A Vec<u8> stream stands in for the StringBuilder C++ can print into.
@@ -285,6 +290,73 @@ fn print_error(
     Ok(())
 }
 
+fn print_map(print_context: &mut PrintContext<'_>, map: Gc<Map>, seen_objects: &mut SeenObjects<'_>) -> io::Result<()> {
+    print_type(print_context, "Map")?;
+    js_out(print_context, " {")?;
+    let mut first = true;
+    let iterator = map.begin();
+    while !iterator.is_end() {
+        let entry = iterator.current();
+        print_separator(print_context, &mut first)?;
+        print_value(print_context, entry.key, seen_objects)?;
+        js_out(print_context, " => ")?;
+        print_value(print_context, entry.value, seen_objects)?;
+        iterator.advance();
+    }
+    if !first {
+        js_out(print_context, " ")?;
+    }
+    js_out(print_context, "}")
+}
+
+fn print_set(print_context: &mut PrintContext<'_>, set: Gc<Set>, seen_objects: &mut SeenObjects<'_>) -> io::Result<()> {
+    print_type(print_context, "Set")?;
+    js_out(print_context, " {")?;
+    let mut first = true;
+    let iterator = set.begin();
+    while !iterator.is_end() {
+        let value = iterator.current();
+        print_separator(print_context, &mut first)?;
+        print_value(print_context, value, seen_objects)?;
+        iterator.advance();
+    }
+    if !first {
+        js_out(print_context, " ")?;
+    }
+    js_out(print_context, "}")
+}
+
+fn print_weak_map(print_context: &mut PrintContext<'_>, weak_map: Gc<WeakMap>) -> io::Result<()> {
+    print_type(print_context, "WeakMap")?;
+    js_out(print_context, " (")?;
+    js_out_argument(print_context, &weak_map.weak_map_size().to_string())?;
+    // Note: We could tell you what's actually inside, but not in insertion order.
+    js_out(print_context, ")")
+}
+
+fn print_weak_set(print_context: &mut PrintContext<'_>, weak_set: Gc<WeakSet>) -> io::Result<()> {
+    print_type(print_context, "WeakSet")?;
+    js_out(print_context, " (")?;
+    js_out_argument(print_context, &weak_set.weak_set_size().to_string())?;
+    // Note: We could tell you what's actually inside, but not in insertion order.
+    js_out(print_context, ")")
+}
+
+fn print_weak_ref(
+    print_context: &mut PrintContext<'_>,
+    weak_ref: Gc<WeakRef>,
+    seen_objects: &mut SeenObjects<'_>,
+) -> io::Result<()> {
+    print_type(print_context, "WeakRef")?;
+    js_out(print_context, " ")?;
+    let value = weak_ref.value();
+    print_value(
+        print_context,
+        if value.is_empty() { Value::UNDEFINED } else { value },
+        seen_objects,
+    )
+}
+
 fn print_boolean_object(
     print_context: &mut PrintContext<'_>,
     boolean_object: Gc<BooleanObject>,
@@ -407,8 +479,24 @@ fn print_value(
         }
 
         // NB: Print.cpp goes on to check for the classes the runtime does not have yet, which their units add here in
-        //     this order, each printed by the function Print.cpp names after it: RegExpObject, Map, Set, WeakMap,
-        //     WeakSet, WeakRef, DataView, ProxyObject, then Promise below.
+        //     this order, each printed by the function Print.cpp names after it: RegExpObject here, Map, Set,
+        //     WeakMap, WeakSet and WeakRef below, then DataView, ProxyObject and Promise after them.
+        if let Some(map) = object.downcast::<Map>() {
+            return print_map(print_context, map, seen_objects);
+        }
+        if let Some(set) = object.downcast::<Set>() {
+            return print_set(print_context, set, seen_objects);
+        }
+        if let Some(weak_map) = object.downcast::<WeakMap>() {
+            return print_weak_map(print_context, weak_map);
+        }
+        if let Some(weak_set) = object.downcast::<WeakSet>() {
+            return print_weak_set(print_context, weak_set);
+        }
+        if let Some(weak_ref) = object.downcast::<WeakRef>() {
+            return print_weak_ref(print_context, weak_ref, seen_objects);
+        }
+        // NB: Then DataView and ProxyObject, then Promise below.
         if let Some(promise) = object.downcast::<Promise>() {
             return print_promise(print_context, promise, seen_objects);
         }

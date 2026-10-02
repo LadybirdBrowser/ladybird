@@ -93,6 +93,16 @@ impl Heap {
         unsafe { capi::gc_heap_register_sweep_callback(self.raw.as_ptr(), callback, context) };
     }
 
+    /// Calls `callback` with `context` once the collection in progress is over, when it is safe to allocate again.
+    ///
+    /// # Safety
+    ///
+    /// `context` must stay valid until the callback has run.
+    pub unsafe fn enqueue_post_gc_task(&self, callback: capi::GCCallback, context: *mut c_void) {
+        // SAFETY: The heap is live, and the caller keeps the context alive until the task runs.
+        unsafe { capi::gc_heap_enqueue_post_gc_task(self.raw.as_ptr(), callback, context) };
+    }
+
     pub fn set_should_collect_on_every_allocation(&self, should_collect: bool) {
         // SAFETY: The heap is live.
         unsafe { capi::gc_heap_set_should_collect_on_every_allocation(self.raw.as_ptr(), should_collect) };

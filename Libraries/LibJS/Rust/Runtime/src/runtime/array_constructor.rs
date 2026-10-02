@@ -25,12 +25,55 @@ use crate::runtime::intrinsics::Intrinsics;
 use crate::runtime::iterator::{
     get_iterator_from_method_impl, iterator_close, iterator_step_value, try_or_close_iterator,
 };
+use crate::runtime::map::Map;
+use crate::runtime::map_iterator::map_iteration_is_unobservable;
 use crate::runtime::native_function::{NativeFunction, RawNativeFunction, define_native_function_class, raw_native};
 use crate::runtime::object::ShouldThrowExceptions;
 use crate::runtime::property_attributes::{Attribute, DEFAULT_ATTRIBUTES, PropertyAttributes};
 use crate::runtime::property_key::PropertyKey;
 use crate::runtime::realm::Realm;
+use crate::runtime::set::Set;
+use crate::runtime::set_iterator::set_iteration_is_unobservable;
 use crate::runtime::value_conversions::MAX_ARRAY_LIKE_INDEX;
+
+// OPTIMIZATION: Without a mapper, unobservable collection iteration can copy storage directly.
+fn array_from_set_or_map(
+    vm: &Vm,
+    realm: Gc<Realm>,
+    items: Gc<Object>,
+    using_iterator: Gc<FunctionObject>,
+) -> Option<Gc<Array>> {
+    if let Some(set) = items.downcast::<Set>() {
+        if !set_iteration_is_unobservable(vm, realm, using_iterator) || set.set_size() >= u32::MAX as usize {
+            return None;
+        }
+
+        let array = Array::create(vm, realm, 0, None).must();
+        array.set_indexed_property_elements_to_undefined(set.set_size() as u32);
+        let mut index = 0;
+        set.for_each_value(|value| {
+            array.set_packed_indexed_element(index, value);
+            index += 1;
+        });
+        return Some(array);
+    }
+    if let Some(map) = items.downcast::<Map>() {
+        if !map_iteration_is_unobservable(vm, realm, using_iterator) || map.map_size() >= u32::MAX as usize {
+            return None;
+        }
+
+        let array = Array::create(vm, realm, 0, None).must();
+        array.set_indexed_property_elements_to_undefined(map.map_size() as u32);
+        let mut index = 0;
+        map.for_each_entry(|key, value| {
+            let entry = Array::create_from(vm, realm, &[key, value]);
+            array.set_packed_indexed_element(index, Value::from_object(entry));
+            index += 1;
+        });
+        return Some(array);
+    }
+    None
+}
 
 #[repr(C)]
 #[derive(Trace)]
@@ -267,8 +310,13 @@ impl ArrayConstructor {
             let constructor_is_intrinsic_array = constructor.is_object()
                 && constructor.as_object() == realm.intrinsics().array_constructor(vm).upcast::<Object>();
 
-            // NB: C++ copies the storage of a Set or a Map whose iteration is unobservable into the new array here,
-            //     which comes with Set and Map.
+            if constructor_is_intrinsic_array
+                && mapfn.is_none()
+                && items.is_object()
+                && let Some(array) = array_from_set_or_map(vm, realm, items.as_object(), using_iterator)
+            {
+                return Ok(Value::from_object(array));
+            }
 
             // a. If IsConstructor(C) is true, then
             let array = if constructor.is_constructor() && !constructor_is_intrinsic_array {
