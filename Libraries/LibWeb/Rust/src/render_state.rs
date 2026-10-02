@@ -24,7 +24,7 @@ mod document_host;
 mod wait;
 
 pub use document_host::DocumentHost;
-pub(crate) use wait::{ReplyTo, ScriptForcedRead, wait_for_render_state};
+pub(crate) use wait::{LockstepProof, ReplyTo, ScriptForcedRead, wait_for_render_state};
 
 /// The host's name for one document's render state. The host mints it, so naming a new document needs no answer from
 /// the render side.
@@ -98,6 +98,12 @@ pub(crate) enum RenderMessage {
     Destroy { document: DocumentId },
     /// A write to a document's render state.
     Change { document: DocumentId, change: ArenaChange },
+    /// A write to a document's layout arena the host waits for, answering what it owes the host.
+    Write {
+        document: DocumentId,
+        write: crate::layout::layout_changes::LayoutWrite,
+        reply: ReplyTo<crate::layout::layout_changes::LayoutWritten>,
+    },
     /// Panics answering, for a test that the host waiting for the answer crashes.
     PanicForTesting { reply: ReplyTo<()> },
 }
@@ -139,6 +145,13 @@ fn handle_message(_: &RenderingSide, message: RenderMessage) {
                 change.apply(unsafe { &mut *arena }.arena_mut());
             }
         }
+        RenderMessage::Write { document, write, reply } => reply.answer(|| {
+            // A document with no state is a bug of the sender's, whose write has nothing to write.
+            state_arena(document).map_or_else(Default::default, |arena| {
+                // SAFETY: As for a change.
+                write.apply(unsafe { &mut *arena }.arena_mut())
+            })
+        }),
         RenderMessage::PanicForTesting { reply } => reply.answer(|| panic!("the render state panicked for a test")),
     }
 }

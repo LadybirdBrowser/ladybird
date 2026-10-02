@@ -37,7 +37,6 @@ mod private {
 pub(crate) trait ScriptEntry: private::ScriptEntry {}
 
 /// A marker that only the module waiting for its reason can construct, which mints a [`LockstepProof`].
-#[expect(dead_code, reason = "no internal code waits yet")]
 pub(crate) trait LockstepReason: private::LockstepReason {}
 
 /// What a wait for a document's render state spends: a script's forced read, or a [`LockstepProof`].
@@ -57,7 +56,6 @@ impl ScriptForcedRead {
     }
 }
 
-#[expect(dead_code, reason = "no internal code waits yet")]
 impl LockstepProof {
     /// The right to wait for the reason `_` marks.
     pub(crate) fn for_reason(_: &impl LockstepReason) -> Self {
@@ -76,6 +74,16 @@ macro_rules! script_entry {
 
 // The host entries script APIs call, which may each spend one forced read.
 script_entry!(super::devtools::DevtoolsEntry);
+
+macro_rules! lockstep_reason {
+    ($marker:path) => {
+        impl private::LockstepReason for $marker {}
+        impl LockstepReason for $marker {}
+    };
+}
+
+// The waits internal code makes, each minted only by the module its marker belongs to.
+lockstep_reason!(crate::layout::layout_changes::HostPaysTheWrite);
 
 /// Where the render side answers a host that waits for it. Only an answer goes through it: a reply dropped unanswered
 /// is a render state that died.
@@ -156,7 +164,7 @@ mod tests {
     fn a_panic_in_a_job_for_a_waiting_caller_drops_its_reply() {
         let (reply, answered) = ReplyTo::<u32>::channel();
         let panicked = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            reply.answer(|| panic!("the job panicked"))
+            reply.answer(|| panic!("the job panicked"));
         }));
         assert!(panicked.is_err());
         assert_eq!(answered.try_recv(), Err(TryRecvError::Disconnected));

@@ -41,6 +41,10 @@ impl DocumentHost {
         Self::new(DocumentId::default())
     }
 
+    pub(crate) fn document(&self) -> DocumentId {
+        self.document
+    }
+
     pub(crate) fn host_tables(&self) -> &HostTables {
         &self.host_tables
     }

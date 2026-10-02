@@ -232,7 +232,7 @@ DOM::Node& LayoutTreeBuildBridge::node_for_style_node(void* builder_pointer, u32
 
 void LayoutTreeBuildBridge::detach_top_layer_element_layout_subtree(DOM::Element& element)
 {
-    RustFFI::rust_detach_top_layer_element_layout_subtree(element.document().layout_node_arena().handle(), element.style_node_id().value());
+    RustFFI::render_state_detach_top_layer_element(element.document().layout_node_arena().host(), element.style_node_id().value());
 }
 
 RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_builder_callbacks()

@@ -17,51 +17,6 @@ pub(crate) struct MainThreadFfiEntry {
 
 const MAIN_THREAD_FFI_ENTRY: MainThreadFfiEntry = MainThreadFfiEntry { _private: () };
 
-/// Detaches a top-layer element's layout placement and clears every stale projected subtree.
-///
-/// # Safety
-///
-/// `arena` must be a live handle on the document thread.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_detach_top_layer_element_layout_subtree(arena: *mut c_void, element: u32) {
-    assert!(!arena.is_null());
-    // SAFETY: Guaranteed by the entry point's contract.
-    let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY, arena) };
-    let arena = arena.cast::<LayoutNodeArena>();
-    let host = StaleSubtreeHost {
-        arena,
-        host_calls: HostCalls::Now(&main_thread),
-    };
-    // A top layer member the style engine no longer tracks has left the DOM. Nothing of it is in the
-    // mirror, and nothing of it is bound to a row, so there is nothing to detach or clear.
-    let Some(element) = StyleNodeID::from_raw(element) else {
-        return;
-    };
-    // NB: Called at DOM mutation processing time, outside layout tree construction.
-    let element_layout_node = host.arena().bound_row(element);
-    if !element_layout_node.is_invalid() {
-        let topmost = topmost_layout_node_of_top_layer_placement(arena, element_layout_node);
-        let layout_node_to_detach = if topmost.is_invalid() {
-            element_layout_node
-        } else {
-            topmost
-        };
-        // SAFETY: The arena outlives this call, and the shared borrow ends before the subtree is
-        // freed.
-        super::super::layout_node_arena::prepare_subtree_for_detach(
-            HostCalls::Now(&main_thread),
-            unsafe { &*arena },
-            layout_node_to_detach,
-        );
-        if unsafe { &*arena }.detach_from_parent(layout_node_to_detach) {
-            free_subtree_and_destroy_shells(&main_thread, arena, layout_node_to_detach);
-        }
-    }
-
-    clear_stale_subtree(host, element, StaleSubtreeClearScope::InclusiveBoundedToRoot);
-    clear_stale_assigned_slottables(host, element);
-}
-
 /// Builds or incrementally updates a document's layout tree and applies table fixup.
 ///
 /// # Safety
@@ -79,14 +34,14 @@ pub unsafe extern "C" fn rust_build_layout_tree(
     // SAFETY: Guaranteed by the entry point's contract.
     let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY, arena) };
     // What the walk owes the host, which the walk, holding no main thread token, can only queue.
-    let work = TreeBuildHostWork::default();
+    let work = OwedHostWork::default();
     let walk = main_thread
         .host_tables()
         .expect("an FFI entry's token names its arena's host tables")
         .open_tree_build_walk();
     // SAFETY: Guaranteed by the entry point's contract.
     let host = unsafe { dom_tree_builder_host(callbacks, arena, &work, &walk) };
-    host.arena().queue_box_presence_for_tree_build();
+    host.arena().queue_box_presence();
     let document_identity =
         StyleNodeID::from_raw(document_style_node).expect("a document that lays out is named in the style mirror");
     host.layout().arena().set_document_style_node(document_identity);

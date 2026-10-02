@@ -10,12 +10,13 @@
 use super::LayoutNodeArena;
 use super::node_data::{NodeFlag, NodeSlotId};
 use super::svg_formatting_context::{FfiFloatPoint, FfiSvgAttributeFacts};
+use super::tree_mutation::{HostCalls, OwedHostWork};
 use super::used_values::FfiCssPixelPoint;
 use crate::css::css_pixels::CssPixelPoint;
 use crate::css::style::NaturalSize;
 use crate::css::style::tree::StyleNodeID;
 use crate::painting::host::FfiNaturalSize;
-use crate::render_state::{ArenaChange, DocumentHost};
+use crate::render_state::{ArenaChange, DocumentHost, LockstepProof, RenderMessage, wait_for_render_state};
 use smallvec::SmallVec;
 
 /// One write of the host to a document's layout marks or layout facts, which the render state applies to the arena
@@ -187,7 +188,7 @@ impl LayoutChange {
                 arena.set_identity_in_focused_text_control(node, value);
             }
             Self::SvgAttributeFacts { element, facts, points } => {
-                arena.set_style_node_svg_attribute_facts(element, *facts, &points)
+                arena.set_style_node_svg_attribute_facts(element, *facts, &points);
             }
             Self::SvgStyleReferences { element, references } => {
                 arena.set_style_node_svg_style_references(element, references);
@@ -211,6 +212,68 @@ impl LayoutChange {
             }
         }
     }
+}
+
+/// A write the host waits for the render state to make, as it pays what the write owes it before it goes on.
+#[derive(Clone, Copy, Debug)]
+pub(crate) enum LayoutWrite {
+    /// Detaches the layout subtree `root` heads from its parent, if it has one, and frees it. The host prepared its rows
+    /// for leaving the tree before.
+    DropSubtree { root: NodeSlotId },
+    /// Detaches the layout placement of the top layer element and clears every stale projected subtree of it.
+    DetachTopLayerElement(StyleNodeID),
+}
+
+/// What a write answers: whether the subtree it dropped was attached, and what it owes the host.
+#[derive(Default)]
+pub(crate) struct LayoutWritten {
+    pub(crate) was_attached: bool,
+    pub(crate) host_work: OwedHostWork,
+}
+
+impl LayoutWrite {
+    /// Makes the write to the arena `arena` names, owing the host what it would have paid on its thread.
+    pub(crate) fn apply(self, arena: *mut LayoutNodeArena) -> LayoutWritten {
+        let host_work = OwedHostWork::default();
+        let host_calls = HostCalls::Owed(&host_work);
+        // SAFETY: The render state holds the arena, and nothing else reaches it while the write runs.
+        let arena_ref = unsafe { &*arena };
+        arena_ref.queue_box_presence();
+        let was_attached = match self {
+            Self::DropSubtree { root } => {
+                if arena_ref.slot_is_live(root) {
+                    let was_attached = arena_ref.detach_from_parent(root);
+                    host_calls.free_subtree(arena, root);
+                    was_attached
+                } else {
+                    false
+                }
+            }
+            Self::DetachTopLayerElement(element) => {
+                super::tree_builder::detach_top_layer_element_layout_subtree(host_calls, arena, element);
+                false
+            }
+        };
+        LayoutWritten {
+            was_attached,
+            host_work,
+        }
+    }
+}
+
+/// The reason a host waits for a layout write: it pays what the write owes it before it goes on.
+pub(crate) struct HostPaysTheWrite {
+    _private: (),
+}
+
+const HOST_PAYS_THE_WRITE: HostPaysTheWrite = HostPaysTheWrite { _private: () };
+
+/// Has the render state of `host`'s document make `write`, and answers what the write owes the host.
+pub(crate) fn write(host: &DocumentHost, write: LayoutWrite) -> LayoutWritten {
+    let document = host.document();
+    wait_for_render_state(LockstepProof::for_reason(&HOST_PAYS_THE_WRITE), host, |reply| {
+        RenderMessage::Write { document, write, reply }
+    })
 }
 
 /// Queues `change` for the render state of `host`'s document.
@@ -582,5 +645,21 @@ mod tests {
         arena
             .free_subtree(node)
             .destroy_shells_and_invoke_callbacks(&crate::stage::MainThread::for_test());
+    }
+
+    #[test]
+    fn a_dropped_subtree_owes_the_host_its_freed_rows_until_it_is_paid() {
+        let mut arena = LayoutNodeArena::new();
+        let parent = arena.allocate_for_test().slot;
+        let child = arena.allocate_for_test().slot;
+        arena.insert_child(parent, child, NodeSlotId::INVALID);
+        let written = LayoutWrite::DropSubtree { root: child }.apply(&raw mut arena);
+        assert!(written.was_attached);
+        assert!(!arena.slot_is_live(child));
+        written.host_work.apply(&crate::stage::MainThread::for_test(), &arena);
+        let written = LayoutWrite::DropSubtree { root: parent }.apply(&raw mut arena);
+        assert!(!written.was_attached);
+        written.host_work.apply(&crate::stage::MainThread::for_test(), &arena);
+        assert_eq!(arena.live_slot_count(), 0);
     }
 }
