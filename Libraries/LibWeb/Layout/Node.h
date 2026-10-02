@@ -670,6 +670,9 @@ public:
     void set_computed_values(NonnullRefPtr<CSS::ComputedValues const>);
     void set_style_record_identity(CSS::StyleRecordID);
     void refresh_style_from_arena(CSS::StyleRecordID, void const* payloads, bool should_attach_resources);
+    // The pin lives on the node's arena row and is released with it, so
+    // Document::tear_down_layout_tree() must free the layout root before the document's style
+    // engine goes away. Every document destruction path goes through that teardown.
     void pin_style_record_for_cxx_consumers();
     void release_pinned_style_record();
     void bind_generated_style_record(CSS::StyleRecordID);
@@ -690,10 +693,6 @@ private:
     void const* m_style_payloads { nullptr };
     bool has_layout_derived_style() const;
     CSS::StyleRecordID m_style_record_identity;
-    // The pin is released through the arena's document, so Document::tear_down_layout_tree()
-    // must free the layout root before the document's style computer goes away. Every document
-    // destruction path goes through that teardown.
-    bool m_style_record_pinned { false };
     mutable Optional<Vector<CSS::BackgroundLayerData>> m_background_layers;
     mutable Optional<Vector<CSS::BackgroundLayerData>> m_mask_layers;
     mutable Optional<CSS::BorderImageData> m_border_image;
