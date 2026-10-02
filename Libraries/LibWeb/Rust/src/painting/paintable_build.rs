@@ -340,7 +340,7 @@ impl<'a> PaintableCommit<'a> {
         {
             let arena = self.arena_mut();
             let mut paintable_rows = arena.paintable_rows_mut();
-            let data = paintable_rows.paintable_data_mut(node);
+            let mut data = paintable_rows.paintable_data_mut(node);
             data.content_size = new_content_size;
             data.offset = link.committed_offset;
         }
@@ -427,9 +427,10 @@ impl<'a> PaintableCommit<'a> {
         } else {
             NodeSlotId::INVALID
         };
-        let data = paintable_rows.paintable_data_mut(node);
-        let containing_block_changed = data.containing_block != containing_block;
-        data.containing_block = containing_block;
+        let containing_block_changed = {
+            let mut data = paintable_rows.paintable_data_mut(node);
+            std::mem::replace(&mut data.containing_block, containing_block) != containing_block
+        };
         if containing_block_changed {
             paintable_rows.note_visual_context_box_dirty(node, VisualContextBoxDirtyKind::ContainingBlockChanged);
             paintable_rows.push_paint_damage(node, PaintDamage::MOVED);
@@ -512,8 +513,8 @@ impl<'a> PaintableCommit<'a> {
             };
             let padding_union = padding_union.expect("padding union set alongside content union");
             let border_union = border_union.expect("border union set alongside content union");
-            {
-                let data = paintable_rows.paintable_data_mut(piece_node);
+            let inline_geometry_changed = {
+                let mut data = paintable_rows.paintable_data_mut(piece_node);
                 let new_offset = content_union.location().into();
                 let new_content_size = content_union.size().into();
                 let new_padding_box_union = padding_union.translated(-content_union.x, -content_union.y).into();
@@ -526,10 +527,11 @@ impl<'a> PaintableCommit<'a> {
                 data.content_size = new_content_size;
                 data.local_padding_box_union = new_padding_box_union;
                 data.local_border_box_union = new_border_box_union;
-                if inline_geometry_changed {
-                    paintable_rows
-                        .note_visual_context_box_dirty(piece_node, VisualContextBoxDirtyKind::InlineGeometryChanged);
-                }
+                inline_geometry_changed
+            };
+            if inline_geometry_changed {
+                paintable_rows
+                    .note_visual_context_box_dirty(piece_node, VisualContextBoxDirtyKind::InlineGeometryChanged);
             }
             // This box has at most one piece per line, so its piece indices are ordered by line.
             paintable_rows.committed_side_data_mut(piece_node).piece_indices = Some(piece_indices.into());

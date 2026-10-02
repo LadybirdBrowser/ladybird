@@ -20,7 +20,7 @@
 //! they write with the row a snapshot shares before copying the chunk. So a write that leaves a row
 //! as it was never copies a chunk, whichever caller makes it.
 
-#![cfg_attr(not(test), expect(dead_code, reason = "no column stores rows yet"))]
+#![cfg_attr(not(test), expect(dead_code, reason = "nothing publishes a column yet"))]
 
 use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
@@ -178,10 +178,12 @@ impl<T: Clone + Default, const CHUNK: usize> CowColumn<T, CHUNK> {
 }
 
 impl<T: Clone + Default + PartialEq, const CHUNK: usize> CowColumn<T, CHUNK> {
-    /// Sets the row at `index`, copying its chunk only if a snapshot shares it and the row
-    /// changes. `None` if the column does not hold the row.
+    /// Sets the row at `index`: in place in a chunk the column owns, and in a chunk a snapshot
+    /// shares only if the row changes, copying the chunk then. `None` if the column does not hold
+    /// the row.
     pub(crate) fn set(&mut self, index: usize, value: T) -> Option<()> {
-        if *self.get(index)? != value {
+        self.get(index)?;
+        if self.owns_chunk_of(index) || *self.get(index)? != value {
             *self.owned_row(index)? = value;
         }
         Some(())

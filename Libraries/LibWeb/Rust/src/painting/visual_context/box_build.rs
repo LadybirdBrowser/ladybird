@@ -70,7 +70,7 @@ impl PaintableVisualContextAssignment {
             None => (false, false),
         };
         {
-            let data = layout_arena.paintable_data_mut(self.slot);
+            let mut data = layout_arena.paintable_data_mut(self.slot);
             data.establishes_stacking_context = self.record.stacking_context.establishes_stacking_context;
             data.enclosing_scroll_node_index = self.enclosing_scroll_node_index;
             data.own_scroll_node_index = self.own_scroll_node_index;
