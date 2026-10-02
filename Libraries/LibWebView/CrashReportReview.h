@@ -36,7 +36,6 @@ public:
 
     struct Report {
         ByteString name;
-        String title;
         // The fields that tell crashes apart. The rest is in the report itself, which show_report() opens.
         Vector<Field> fields;
     };

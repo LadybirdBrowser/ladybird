@@ -25,15 +25,6 @@ static ByteString sha256_hex(ReadonlyBytes bytes)
     return encode_hex(Crypto::Hash::SHA256::hash(bytes).bytes());
 }
 
-static String report_title(StringView process)
-{
-    if (process.is_empty() || process == "Browser"sv)
-        return "Ladybird crashed"_string;
-    if (process == "WebContent"sv || process == "WebWorker"sv)
-        return "A web page crashed"_string;
-    return MUST(String::formatted("{} crashed", process));
-}
-
 CrashReportReview::CrashReportReview(CrashReportStore& store)
     : m_store(store)
 {
@@ -72,7 +63,6 @@ ErrorOr<CrashReportReview::Report> CrashReportReview::open(Optional<ByteString> 
 
     Report report;
     report.name = report_name;
-    report.title = report_title(diagnostics.header("Process"sv));
 
     auto add_field = [&](StringView label, StringView value, bool is_code = false) {
         if (!value.is_empty())
