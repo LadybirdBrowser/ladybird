@@ -685,8 +685,8 @@ impl RetainedState {
         // end a transition: the host runs the transition step once it installs the record, against
         // the record the row moved away from. The step's start values reach what inherits from the
         // element only after the step, so a row that owes one is left to the host where anything
-        // inherits from it: an element child, or a pseudo-element. So is one moving display, whose
-        // transitions the host tears down beside the decision, and one no host installs. A record
+        // inherits from it: an element child, or a pseudo-element. So is one no host installs. A
+        // moved display is applied after the step, as C++ applies it after the step it runs. A record
         // driven from its winners alone takes its declarations from them. The row carries what is
         // decided here to the host, for a record that moves.
         let owes_a_transition_step = self.record_declares_transitions(underlying_style_record)
@@ -702,10 +702,6 @@ impl RetainedState {
             };
         if owes_a_transition_step
             && (!scratch.host_applies_animation_plans
-                || parent_inputs_moved.display
-                || delta
-                    .properties()
-                    .contains(&crate::css::property_metadata::property_id::DISPLAY)
                 || self
                     .tree
                     .flat_tree_children(node)
