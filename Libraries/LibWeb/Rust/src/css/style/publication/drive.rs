@@ -186,20 +186,19 @@ struct DriveProgress {
 }
 
 impl RetainedState {
-    /// Whether what an explicit `inherit` of a non-inherited property reads from the parent is the
-    /// record the engine holds. A parent whose style the host composes over its record, or that
-    /// runs a transition, holds the style C++ composes, which the engine cannot read.
+    /// Whether what an explicit `inherit` of a non-inherited property reads from the parent, the
+    /// parent's record with the composition its animations laid over it, is what the child's
+    /// after-change style inherits. A parent that declares transitions may hold the current value
+    /// of one, which the after-change style leaves out and the host's transition decision cannot
+    /// tell from the parent's own.
     fn parent_record_answers_explicit_inheritance(&self, parent: Option<StyleNodeID>) -> bool {
-        let Some(parent) = parent else {
-            return true;
-        };
-        !self.host_composes_style(parent)
-            && self
-                .computed_group_sets
+        parent.is_none_or(|parent| {
+            self.computed_group_sets
                 .assigned_style_record(parent)
                 .and_then(|record| self.computed_group_sets.style_record_view(record.raw()))
                 .and_then(|view| unsafe { view.longhand_table.as_ref() })
                 .is_some_and(|table| !crate::css::style_compute::has_active_transition_properties(table))
+        })
     }
 
     /// The font size the monospace recascade gives a drive target: the cascaded font-size of every
