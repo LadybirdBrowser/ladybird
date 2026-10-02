@@ -282,17 +282,6 @@ void register_geometry_host(Layout::NodeArena& arena)
             auto offset = scroll_offset(box);
             if (!offset.is_zero())
                 set_scroll_offset(box, offset); },
-        .layout_node_is_in_focused_text_control = [](void*, void* layout_node_shell) -> bool {
-            auto const& layout_node = *static_cast<Layout::Node const*>(layout_node_shell);
-            auto const* dom_node = layout_node.dom_node();
-            if (!dom_node)
-                return false;
-            auto shadow_root = dom_node->containing_shadow_root();
-            return shadow_root
-                && shadow_root->is_user_agent_internal()
-                && is<HTML::FormAssociatedTextControlElement>(shadow_root->host())
-                && shadow_root->host()->is_focused();
-        },
     };
     Layout::RustFFI::layout_arena_set_geometry_host(arena.handle(), callbacks);
 }

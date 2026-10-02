@@ -3744,6 +3744,22 @@ void Document::update_active_element()
     set_active_element(calculate_active_element(*this));
 }
 
+// Both sides of a change of the focused area republish whether the nodes of a text control's shadow tree sit in the
+// focused text control.
+static void publish_focused_text_control_nodes(GC::Ptr<Node> area)
+{
+    auto* element = as_if<Element>(area.ptr());
+    if (!element || !is<HTML::FormAssociatedTextControlElement>(*element))
+        return;
+    auto shadow_root = element->shadow_root();
+    if (!shadow_root || !shadow_root->is_user_agent_internal())
+        return;
+    shadow_root->for_each_in_inclusive_subtree([](Node& node) {
+        Layout::publish_is_in_focused_text_control(node);
+        return TraversalDecision::Continue;
+    });
+}
+
 void Document::set_focused_area(GC::Ptr<Node> node, InvalidateFocusPseudoClasses invalidate_focus_pseudo_classes)
 {
     if (m_focused_area == node)
@@ -3762,6 +3778,8 @@ void Document::set_focused_area(GC::Ptr<Node> node, InvalidateFocusPseudoClasses
     }
 
     m_focused_area = node;
+    publish_focused_text_control_nodes(old_focused_area);
+    publish_focused_text_control_nodes(node);
     set_needs_selection_style_update();
 
     auto* new_focused_element = as_if<Element>(node.ptr());
