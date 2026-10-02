@@ -306,12 +306,29 @@ StyleEngineFFI::FfiEngineComputedRecord StyleEngine::retry_engine_record_after_a
     return StyleEngineFFI::style_engine_retry_engine_record_after_ancestor(m_impl, node.value());
 }
 
+#define ASSERT_DEMANDED_PSEUDO_ELEMENT_KIND(name) \
+    static_assert(to_underlying(StyleEngine::DemandedPseudoElement::name) == to_underlying(PseudoElement::name));
+ASSERT_DEMANDED_PSEUDO_ELEMENT_KIND(After)
+ASSERT_DEMANDED_PSEUDO_ELEMENT_KIND(ViewTransition)
+ASSERT_DEMANDED_PSEUDO_ELEMENT_KIND(DetailsContent)
+ASSERT_DEMANDED_PSEUDO_ELEMENT_KIND(SliderTrack)
+ASSERT_DEMANDED_PSEUDO_ELEMENT_KIND(ViewTransitionGroup)
+ASSERT_DEMANDED_PSEUDO_ELEMENT_KIND(ViewTransitionOld)
+#undef ASSERT_DEMANDED_PSEUDO_ELEMENT_KIND
+
 Optional<StyleEngine::DemandedPseudoElement> StyleEngine::demanded_pseudo_element(PseudoElement pseudo_element)
 {
-    // The engine numbers each synthetic pseudo-element as its kind.
-    if (!is_synthetic_pseudo_element(pseudo_element))
+    // The engine numbers each pseudo-element it answers as its kind: the synthetic ones, the ones an element in the
+    // shadow tree backs, and the named view transition ones. ::part() and ::slotted() name other elements.
+    switch (pseudo_element) {
+    case PseudoElement::Part:
+    case PseudoElement::Slotted:
+    case PseudoElement::KnownPseudoElementCount:
+    case PseudoElement::UnknownWebKit:
         return {};
-    return static_cast<DemandedPseudoElement>(to_underlying(pseudo_element));
+    default:
+        return static_cast<DemandedPseudoElement>(to_underlying(pseudo_element));
+    }
 }
 
 StyleEngineFFI::FfiRecordDemandAnswer StyleEngine::answer_record_demand(StyleNodeID node, RecordDemand demand)

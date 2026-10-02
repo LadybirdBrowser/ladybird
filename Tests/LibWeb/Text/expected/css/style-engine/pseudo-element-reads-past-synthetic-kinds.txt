@@ -1,0 +1,8 @@
+item::placeholder: rgb(0, 128, 0), engine drove it: true, left to the host: 0
+item::file-selector-button: rgb(0, 0, 255), engine drove it: true, left to the host: 0
+item::view-transition-group(name): rgb(0, 128, 128), engine drove it: true, left to the host: 0
+item::view-transition-image-pair(name): rgb(128, 0, 128), engine drove it: true, left to the host: 0
+item::view-transition-old(name): rgb(128, 128, 0), engine drove it: true, left to the host: 0
+item::view-transition-new(name): rgb(0, 0, 128), engine drove it: true, left to the host: 0
+file::placeholder: rgb(0, 128, 0), engine drove it: true, left to the host: 0
+item::-webkit-scrollbar length: 0

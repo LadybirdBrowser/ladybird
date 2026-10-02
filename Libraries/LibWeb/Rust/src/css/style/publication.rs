@@ -3246,10 +3246,11 @@ impl RetainedState {
     /// `pseudo_kind` (`u8::MAX` for the element's own), reads the node's place among its siblings,
     /// in place of what the record it replaces read.
     fn note_sibling_position_reads(&mut self, node: StyleNodeID, pseudo_kind: u8, reads: bool) {
-        let bit = if pseudo_kind == u8::MAX {
-            ELEMENT_READS_SIBLING_POSITION
-        } else {
-            1 << pseudo_kind
+        let bit = match pseudo_kind {
+            u8::MAX => ELEMENT_READS_SIBLING_POSITION,
+            kind if usize::from(kind) < pseudo_kind::SYNTHETIC_COUNT => 1 << kind,
+            // A kind past the synthetic ones is only a read's, which no style update installs.
+            _ => return,
         };
         if reads {
             *self.nodes_with_tree_counting_records.entry(node).or_default() |= bit;

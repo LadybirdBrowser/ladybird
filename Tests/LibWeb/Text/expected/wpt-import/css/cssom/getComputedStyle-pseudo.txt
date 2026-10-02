@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 28 tests
 
-24 Pass
-1 Fail
+25 Pass
 3 Optional Feature Unsupported
 Pass	Resolution of width is correct when pseudo-element argument is ignored (due to no colon)
 Pass	Resolution of width is correct when pseudo-element argument is invalid (due to a trailing token)
@@ -32,4 +31,4 @@ Pass	Unknown pseudo-element with a known identifier: view-transition-group(name)
 Pass	Unknown pseudo-element with a known identifier: view-transition-old(name)
 Pass	Unknown pseudo-element with a known identifier: view-transition-new(name)
 Pass	::file-selector-button resolves to the file input button element
-Fail	Prefixed ::-webkit-file-upload-button does not resolve in getComputedStyle
+Pass	Prefixed ::-webkit-file-upload-button does not resolve in getComputedStyle

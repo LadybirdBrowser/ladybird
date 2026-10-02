@@ -2092,6 +2092,16 @@ fn read_record_demand(
             5 => Pseudo::Marker,
             6 => Pseudo::Selection,
             7 => Pseudo::ViewTransition,
+            8 => Pseudo::DetailsContent,
+            9 => Pseudo::FileSelectorButton,
+            10 => Pseudo::Placeholder,
+            11 => Pseudo::SliderFill,
+            12 => Pseudo::SliderThumb,
+            13 => Pseudo::SliderTrack,
+            16 => Pseudo::ViewTransitionGroup,
+            17 => Pseudo::ViewTransitionImagePair,
+            18 => Pseudo::ViewTransitionNew,
+            19 => Pseudo::ViewTransitionOld,
             _ => return Err(format!("record demand of pseudo-element kind {kind}").into()),
         })
     };

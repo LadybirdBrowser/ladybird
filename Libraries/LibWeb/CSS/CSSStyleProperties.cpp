@@ -859,8 +859,9 @@ Optional<StyleProperty> CSSStyleProperties::get_direct_property(PropertyNameAndI
             auto style_record = abstract_element.computed_style();
             RefPtr<ComputedValues const> transient_style;
             if (!style_record) {
-                // A synthetic pseudo-element without matching rules has no durable style. The style engine derives the
-                // one it would have for this read alone; where it leaves the read to C++, C++ computes it.
+                // A pseudo-element without a box has no durable style: a synthetic one without matching rules, one no
+                // element in the shadow tree backs, or a named view transition one. The style engine derives the one
+                // it would have for this read alone; where it leaves the read to C++, C++ computes it.
                 auto& style_computer = abstract_element.document().style_computer();
                 if (auto pseudo_element = abstract_element.pseudo_element(); pseudo_element.has_value()) {
                     if (auto demanded_pseudo_element = StyleEngine::demanded_pseudo_element(*pseudo_element); demanded_pseudo_element.has_value())

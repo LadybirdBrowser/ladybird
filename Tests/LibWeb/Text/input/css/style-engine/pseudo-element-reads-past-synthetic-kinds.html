@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    #item { color: rgb(255, 0, 0); }
+    #item::placeholder { color: rgb(0, 128, 0); }
+    #item::file-selector-button { color: rgb(0, 0, 255); }
+    #item::view-transition-group(name) { color: rgb(0, 128, 128); }
+    #item::view-transition-image-pair(name) { color: rgb(128, 0, 128); }
+    #item::view-transition-old(name) { color: rgb(128, 128, 0); }
+    #item::view-transition-new(name) { color: rgb(0, 0, 128); }
+    #file::placeholder { color: rgb(0, 128, 0); }
+</style>
+<ul><li id="item">item</li></ul>
+<input id="file" type="file">
+<script>
+    // A read of a pseudo-element no element in the shadow tree backs, or of a named view transition
+    // pseudo-element, has no box to read. The style engine computes it from the element's rules for
+    // it, inheriting from the element. A ::-webkit- pseudo-element is none we support, so its read
+    // is empty.
+    function read(element, pseudo) {
+        internals.updateStyle();
+        const start = internals.styleEngineCounters();
+        const color = getComputedStyle(element, pseudo).color;
+        const end = internals.styleEngineCounters();
+        const drove = end.engineFullDrivesStarted - start.engineFullDrivesStarted > 0;
+        const leftToHost = end.pseudoRecordDemandsLeftToHost - start.pseudoRecordDemandsLeftToHost;
+        println(`${element.id}${pseudo}: ${color}, engine drove it: ${drove}, left to the host: ${leftToHost}`);
+    }
+    test(() => {
+        for (const pseudo of ["::placeholder", "::file-selector-button", "::view-transition-group(name)", "::view-transition-image-pair(name)", "::view-transition-old(name)", "::view-transition-new(name)"])
+            read(item, pseudo);
+        read(file, "::placeholder");
+        println(`item::-webkit-scrollbar length: ${getComputedStyle(item, "::-webkit-scrollbar").length}`);
+    });
+</script>
