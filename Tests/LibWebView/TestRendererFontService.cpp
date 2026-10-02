@@ -7,7 +7,9 @@
 #include <AK/Array.h>
 #include <LibCompositing/FontServiceClient.h>
 #include <LibCore/EventLoop.h>
+#include <LibCore/MappedFile.h>
 #include <LibGfx/Font/Font.h>
+#include <LibGfx/Font/FontCatalog.h>
 #include <LibGfx/Font/SharedFontProvider.h>
 #include <LibTest/TestCase.h>
 #include <LibThreading/Thread.h>
@@ -137,4 +139,41 @@ TEST_CASE(a_code_point_miss_from_another_thread_goes_out_on_the_render_side_conn
         font = provider->get_font_for_code_point('A', 16, 400, Gfx::FontWidth::Normal, 0, false);
     });
     EXPECT(font);
+}
+
+// A catalog face carries a face id and no font data, so the first use of any system family has to
+// ask the font service to open the file. From any thread but the document's, that question too
+// goes out on the render side's connection.
+TEST_CASE(a_cold_family_lookup_from_another_thread_goes_out_on_the_render_side_connection)
+{
+    auto service = connect_render_side_font_service();
+
+    // The provider's own callbacks stand for the document thread's connection, which no other
+    // thread may use. They are left empty, so only the render side's connection can open a face.
+    auto catalog = MUST(service.font_service->clone_catalog());
+    auto provider = MUST(Gfx::SharedFontProvider::create_from_catalog_file_or_empty(move(catalog.file), catalog.size, catalog.generation, {}));
+
+    Gfx::SharedFontProviderCallbacks render_side_callbacks;
+    render_side_callbacks.open_font = [&](u64 generation, u64 face_id) {
+        return service.client->open_font(generation, face_id);
+    };
+    provider->set_callbacks_for_other_threads(move(render_side_callbacks));
+
+    // Any installed family will do; take the first one the catalog lists.
+    auto catalog_copy = MUST(service.font_service->clone_catalog());
+    auto mapping = MUST(Core::MappedFile::map_from_fd_range_and_close(catalog_copy.file.take_fd(), "font catalog"sv, 0, catalog_copy.size));
+    auto parsed_catalog = MUST(Gfx::FontCatalog::parse(mapping->bytes(), catalog_copy.generation));
+    VERIFY(parsed_catalog->face_count() > 0);
+    auto family = MUST(FlyString::from_utf8(parsed_catalog->face_at(0)->family));
+
+    Core::EventLoop event_loop;
+    size_t typefaces_seen = 0;
+    run_on_another_thread([&] {
+        provider->for_each_typeface_with_family_name(family, [&](Gfx::Typeface const&) {
+            ++typefaces_seen;
+        });
+    });
+
+    // Every file the lookup needed was opened without the main thread pumping anything.
+    EXPECT(typefaces_seen > 0u);
 }

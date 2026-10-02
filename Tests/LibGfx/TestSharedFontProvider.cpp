@@ -319,6 +319,62 @@ TEST_CASE(code_point_fallback_from_another_thread_asks_on_its_own_callbacks)
     EXPECT_EQ(own_match_count, 1u);
 }
 
+TEST_CASE(family_matching_from_another_thread_asks_on_its_own_callbacks)
+{
+    auto catalog = make_catalog();
+    size_t own_question_count = 0;
+    Gfx::SharedFontProviderCallbacks callbacks;
+    callbacks.open_font = [&](u64, u64) {
+        ++own_question_count;
+        return Gfx::BrokeredFont {};
+    };
+    callbacks.match_font = [&](String const&, u16, u16, u8) {
+        ++own_question_count;
+        return Gfx::BrokeredFont {};
+    };
+    callbacks.resolve_generic_family = [&](String const&, u16, u8) -> Optional<FlyString> {
+        ++own_question_count;
+        return {};
+    };
+    auto provider = MUST(Gfx::SharedFontProvider::create(map_bytes(catalog), 9, move(callbacks)));
+
+    size_t open_count = 0;
+    size_t match_count = 0;
+    Gfx::SharedFontProviderCallbacks other_thread_callbacks;
+    other_thread_callbacks.open_font = [&](u64 generation, u64 face_id) {
+        EXPECT_EQ(generation, 9u);
+        ++open_count;
+        return open_test_font(face_id);
+    };
+    other_thread_callbacks.match_font = [&](String const&, u16, u16, u8) {
+        ++match_count;
+        return Gfx::BrokeredFont {};
+    };
+    other_thread_callbacks.resolve_generic_family = [](String const&, u16, u8) -> Optional<FlyString> {
+        return "Brokered Test"_fly_string;
+    };
+    provider->set_callbacks_for_other_threads(move(other_thread_callbacks));
+
+    RefPtr<Gfx::Font> catalog_font;
+    RefPtr<Gfx::Font> missing_font;
+    Optional<FlyString> generic_family;
+    run_on_another_thread([&] {
+        catalog_font = provider->get_font("Brokered Test"_fly_string, 12, 400, Gfx::FontWidth::Normal, 0);
+        missing_font = provider->get_font("Missing Family"_fly_string, 12, 400, Gfx::FontWidth::Normal, 0);
+        generic_family = provider->resolve_generic_family("serif"sv, 400, 0);
+    });
+    EXPECT(catalog_font);
+    EXPECT(!missing_font);
+    EXPECT_EQ(generic_family, "Brokered Test"_fly_string);
+    EXPECT_EQ(open_count, 1u);
+    EXPECT_EQ(match_count, 1u);
+    EXPECT_EQ(own_question_count, 0u);
+
+    // The face opened for the other thread is the provider's, so this thread finds it without asking.
+    EXPECT(provider->get_font("Brokered Test"_fly_string, 16, 400, Gfx::FontWidth::Normal, 0));
+    EXPECT_EQ(own_question_count, 0u);
+}
+
 TEST_CASE(replacing_catalog_clears_code_point_fallback_cache)
 {
     size_t match_count = 0;

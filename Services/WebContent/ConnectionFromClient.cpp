@@ -205,9 +205,19 @@ void ConnectionFromClient::set_render_side_font_service_transport(IPC::Transport
     if (!m_font_provider)
         return;
 
+    // NB: There is no match_local_font: only a @font-face src: local() asks it, which is the document thread's work.
     Gfx::SharedFontProviderCallbacks callbacks;
+    callbacks.open_font = [this](u64 generation, u64 face_id) {
+        return m_render_side_font_service->open_font(generation, face_id);
+    };
+    callbacks.match_font = [this](String const& family, u16 weight, u16 width, u8 slope) {
+        return m_render_side_font_service->match_font(family, weight, width, slope);
+    };
     callbacks.match_font_for_code_point = [this](u32 code_point, u16 weight, u16 width, u8 slope, bool prefer_color_emoji) {
         return m_render_side_font_service->match_font_for_code_point(code_point, weight, width, slope, prefer_color_emoji);
+    };
+    callbacks.resolve_generic_family = [this](String const& family, u16 weight, u8 slope) {
+        return m_render_side_font_service->resolve_generic_family(family, weight, slope);
     };
     m_font_provider->set_callbacks_for_other_threads(move(callbacks));
 }
