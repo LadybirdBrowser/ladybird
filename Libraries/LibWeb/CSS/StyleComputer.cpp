@@ -3296,27 +3296,6 @@ StyleEngine::StyleRecordDelta StyleComputer::publish_computed_style_inputs(DOM::
     return publication;
 }
 
-StyleEngine::StyleRecordDelta StyleComputer::publish_animation_overlay(DOM::AbstractElement abstract_element, ComputedValues const& values) const
-{
-    auto animated_properties = values.animated_properties();
-    Array<void const*, to_underlying(StyleGroupIndex::Count)> payloads;
-    ReadonlySpan<void const*> payload_span;
-    if (animated_properties) {
-        for (size_t index = 0; index < payloads.size(); ++index)
-            payloads[index] = values.style_group_payload(static_cast<StyleGroupIndex>(index));
-        payload_span = payloads;
-    }
-    auto publication = const_cast<StyleComputer&>(*this).style_engine().publish_animation_overlay(
-        abstract_element.element().style_node_id(),
-        pseudo_element_to_ffi(abstract_element.pseudo_element()),
-        animated_properties ? animated_properties->identity() : 0,
-        animated_properties ? animated_properties->overlay() : nullptr,
-        payload_span);
-    if (publication.has_value())
-        return publication.release_value();
-    return publish_computed_style_inputs(abstract_element, values);
-}
-
 StyleComputer::SampledAnimationOverlayPublication StyleComputer::publish_sampled_animation_overlay(DOM::AbstractElement abstract_element, ComputedStyleWorkingSet& style, StyleRecordID style_record, Function<void(StyleEngineFFI::FfiAnimationInvalidation const&)> const& before_publication) const
 {
     // The engine composes the overlay over the record, rebuilding only the groups the overlay writes. The animated
@@ -3767,59 +3746,6 @@ Optional<u32> StyleComputer::animated_overlay_style_groups(AnimatedProperties co
         groups |= *current_color_dependent_groups;
     }
     return groups;
-}
-
-NonnullRefPtr<ComputedValues const> StyleComputer::build_animated_computed_values(ComputedStyleWorkingSet& computed_properties, DOM::AbstractElement abstract_element, StyleScope const& style_scope, ComputedValues const& previous_values) const
-{
-    // The base half of an animated style does not move between frames, and everything the overlay
-    // touches is named by the animated property set, so a frame keeps the previous base and
-    // rebuilds only the groups the animation writes.
-    auto& counters = document().style_invalidation_counters();
-    auto animated_properties = computed_properties.animated_properties_snapshot();
-    Optional<u32> groups_to_apply;
-    if (animated_properties && !animated_properties->is_empty())
-        groups_to_apply = animated_overlay_style_groups(*animated_properties, abstract_element);
-    if (!groups_to_apply.has_value()) {
-        counters.animated_style_full_builds++;
-        return build_computed_values(computed_properties, abstract_element, style_scope);
-    }
-    counters.animated_style_overlay_builds++;
-
-    VERIFY(computation_context_cache_is_empty());
-    ScopeGuard clear_computation_context_cache = [&] { clear_computation_context_caches(); };
-    auto color_resolution_context = [&] {
-        if ((*groups_to_apply & (1u << to_underlying(StyleGroupIndex::FontValues))) == 0) {
-            return ColorResolutionContext {
-                .color_scheme = previous_values.color_scheme(),
-                .current_color = InitialValues::color(),
-                .current_color_style_value_data = computed_properties.effective_property_data(PropertyID::Color),
-                .calculation_resolution_context = { .length_resolution_context = Length::ResolutionContext::for_element(abstract_element, previous_values) },
-            };
-        }
-        auto const& computation_context = get_computation_context_for_property(PropertyID::Color, computed_properties, abstract_element);
-        return ColorResolutionContext {
-            .color_scheme = computation_context.color_scheme,
-            .current_color = InitialValues::color(),
-            .current_color_style_value_data = computed_properties.effective_property_data(PropertyID::Color),
-            .calculation_resolution_context = { .length_resolution_context = computation_context.length_resolution_context },
-        };
-    }();
-
-    auto base_values = ComputedValues::Builder { previous_values.base_values() }.build();
-    auto animated_values = ComputedValues::create_over_base(computed_properties, document(), style_scope, move(color_resolution_context), *base_values, *groups_to_apply);
-    ComputedValues::Builder builder { *animated_values };
-    ComputedValuesFFI::FfiStyleFinalizationInput finalization_input {};
-    finalization_input.mode = ComputedValuesFFI::FfiStyleFinalizationMode::Overflow;
-    finalization_input.overflow_x = to_underlying(to_keyword(animated_values->overflow_x()));
-    finalization_input.overflow_y = to_underlying(to_keyword(animated_values->overflow_y()));
-    auto effective_overflow = ComputedValuesFFI::rust_finalize_style(&finalization_input, nullptr, nullptr, nullptr).overflow;
-    if (effective_overflow.changed_x)
-        builder->set_overflow_x(keyword_to_overflow(static_cast<Keyword>(effective_overflow.x_keyword)).value());
-    if (effective_overflow.changed_y)
-        builder->set_overflow_y(keyword_to_overflow(static_cast<Keyword>(effective_overflow.y_keyword)).value());
-    builder->set_base_values(move(base_values));
-    builder->set_animated_properties(animated_properties.ptr());
-    return move(builder).build();
 }
 
 NonnullRefPtr<ComputedStyleWorkingSet> StyleComputer::reconstruct_computed_properties(ComputedValues const& computed_values) const
