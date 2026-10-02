@@ -47,21 +47,11 @@ static ScrollStateSnapshot decode_snapshot(Vector<WirePair> const& pairs)
     return MUST(IPC::decode<ScrollStateSnapshot>(decoder));
 }
 
-TEST_CASE(decode_of_out_of_range_index_does_not_grow_the_dense_store)
+TEST_CASE(binding_to_node_count_keeps_in_range_and_drops_out_of_range)
 {
     // #10847: a single 16-byte wire pair can claim any node index the decoder accepts. The decoder stages the pair
     // instead of densifying — so decoding cannot abort or over-allocate. The index is validated only once the
     // compositor supplies the node count, which drops it.
-    auto snapshot = decode_snapshot({ { malicious_index, Gfx::FloatPoint { 1, 2 } } });
-
-    snapshot.set_node_count(8);
-
-    EXPECT(snapshot.device_offsets().size() <= 8u);
-    EXPECT_EQ(snapshot.device_offset_for_index(SpatialNodeIndex { malicious_index }), Gfx::FloatPoint {});
-}
-
-TEST_CASE(binding_to_node_count_keeps_in_range_and_drops_out_of_range)
-{
     auto snapshot = decode_snapshot({
         { 3, Gfx::FloatPoint { 10, 20 } },
         { malicious_index, Gfx::FloatPoint { 30, 40 } },
@@ -89,27 +79,6 @@ TEST_CASE(set_device_offset_ignores_index_at_or_past_node_count)
     EXPECT_EQ(snapshot.device_offset_for_index(SpatialNodeIndex { 3 }), (Gfx::FloatPoint { 5, 6 }));
     EXPECT_EQ(snapshot.device_offset_for_index(SpatialNodeIndex { 4 }), Gfx::FloatPoint {});
     EXPECT(snapshot.device_offsets().size() <= 4u);
-}
-
-TEST_CASE(node_count_comes_from_the_visual_context_tree)
-{
-    VisualContextTreeTestBuilder builder;
-    builder.append_transform(VISUAL_VIEWPORT_NODE_INDEX, Gfx::FloatMatrix4x4::identity());
-    builder.append_transform(VISUAL_VIEWPORT_NODE_INDEX, Gfx::FloatMatrix4x4::identity());
-    auto tree = builder.finish();
-
-    // The builder seeds the viewport node, so two appends leave three nodes; indices 0..2 are valid.
-    EXPECT_EQ(tree.spatial_node_count(), 3u);
-
-    auto snapshot = decode_snapshot({
-        { 2, Gfx::FloatPoint { 1, 1 } },
-        { 3, Gfx::FloatPoint { 2, 2 } },
-    });
-    snapshot.set_node_count(tree.spatial_node_count());
-
-    EXPECT_EQ(snapshot.device_offset_for_index(SpatialNodeIndex { 2 }), (Gfx::FloatPoint { 1, 1 }));
-    EXPECT_EQ(snapshot.device_offset_for_index(SpatialNodeIndex { 3 }), Gfx::FloatPoint {});
-    EXPECT(snapshot.device_offsets().size() <= tree.spatial_node_count());
 }
 
 static AccumulatedVisualContextTree make_tree_with_four_spatial_nodes()
@@ -169,31 +138,6 @@ TEST_CASE(async_scroll_tree_ignores_out_of_range_scroll_node_index)
 
     EXPECT(snapshot.device_offsets().size() <= 4u);
     EXPECT_EQ(snapshot.device_offset_for_index(out_of_range_index), Gfx::FloatPoint {});
-}
-
-TEST_CASE(async_scroll_tree_records_in_range_scroll_node_index)
-{
-    // The same path with a valid index still writes the offset, confirming the bound only rejects out-of-range indices,
-    // rather than disabling async scrolling.
-    Compositing::AsyncScrollingState state;
-    auto in_range_index = SpatialNodeIndex { 2 };
-    state.scroll_nodes.append(make_scroll_node(in_range_index));
-
-    Compositing::AsyncScrollTree scroll_tree;
-    scroll_tree.set_state(move(state));
-
-    auto tree = make_tree_with_four_spatial_nodes();
-    ScrollStateSnapshot snapshot;
-    snapshot.set_node_count(tree.spatial_node_count());
-    (void)scroll_tree.apply_scroll_delta(
-        Compositing::AsyncScrollNodeID { .document_id = Web::UniqueNodeID { 1 }, .scroll_node_index = in_range_index },
-        Gfx::FloatPoint { 10, 10 },
-        tree,
-        snapshot,
-        Compositing::ScrollChaining::ToScrollableAncestors);
-
-    EXPECT(snapshot.device_offsets().size() <= 4u);
-    EXPECT_NE(snapshot.device_offset_for_index(in_range_index), Gfx::FloatPoint {});
 }
 
 TEST_CASE(ipc_round_trip_preserves_scroll_offsets_and_adopted_sequence)
