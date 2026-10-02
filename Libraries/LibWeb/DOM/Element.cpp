@@ -1770,7 +1770,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styl
             if (engine_record.has_value())
                 install_engine_pseudo_element_custom_property_data(pseudo_element, *engine_record);
             if (!!before_change.style_record())
-                invalidation |= style_computer.run_transition_step_for_installed_record({ *this, pseudo_element }, before_change.style_record());
+                invalidation |= style_computer.run_transition_step_for_installed_record({ *this, pseudo_element }, before_change.style_record(), CSS::StyleComputer::TransitionStepFollowUp::LeftToCaller);
         } else if (auto existing_pseudo_element = get_synthetic_pseudo_element(pseudo_element); existing_pseudo_element.has_value())
             existing_pseudo_element->clear_computed_style(move(style_to_preserve_for_detachment));
 
@@ -2781,12 +2781,17 @@ CSS::RequiredInvalidationAfterStyleChange Element::apply_style_engine_reaction(b
 
     // https://drafts.csswg.org/css-transitions-1/#starting
     // The transition step compares the style the element moved away from with the one it now holds, so the old record
-    // has to outlive its replacement until the step has read it.
+    // has to outlive its replacement until the step has read it. A reference computation that verifies a record the
+    // engine settled leaves the step to the installation of that record, which then sees the reference where the
+    // element's old record was: the reference keeps the old one for the epoch's later passes, as the step would.
+    bool const runs_transition_step = mode != StyleRecomputeMode::Verification;
+    if (!runs_transition_step && !!old_style_record)
+        style_computer.record_transition_baseline_for_later_passes({ *this }, old_style_record);
     {
-        CSS::StyleRecordPin const before_change { style_computer, old_style_record };
+        CSS::StyleRecordPin const before_change { style_computer, runs_transition_step ? old_style_record : CSS::StyleRecordID {} };
         set_computed_style({}, style_record_delta.new_style_record);
         if (!!before_change.style_record())
-            invalidation |= style_computer.run_transition_step_for_installed_record({ *this }, before_change.style_record());
+            invalidation |= style_computer.run_transition_step_for_installed_record({ *this }, before_change.style_record(), CSS::StyleComputer::TransitionStepFollowUp::LeftToCaller);
     }
 
     if (old_non_animated_display_is_none != new_non_animated_display_is_none) {

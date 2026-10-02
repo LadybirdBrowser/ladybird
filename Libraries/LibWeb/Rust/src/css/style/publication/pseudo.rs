@@ -664,6 +664,7 @@ impl RetainedState {
                 new_style_record,
                 cascade_state,
                 longhand_evaluations,
+                owes_a_transition_step: false,
             });
         scratch.pseudo_deltas.push(PseudoRecordDelta {
             kind: pseudo_kind,
@@ -855,7 +856,9 @@ impl RetainedState {
         // A record it already holds is replaced by a full drive; one composing animations or
         // running transitions starts them from itself, which C++ does.
         let old_record = self.computed_group_sets.assigned_style_record(node);
-        if old_record.is_some_and(|old| self.record_requires_cpp_animation(old)) {
+        if old_record
+            .is_some_and(|old| self.record_holds_an_animation_overlay(old) || self.record_declares_transitions(old))
+        {
             counters.bump(Counter::EngineComputedRecordBailRecordOverlay);
             return Err(Unanswered::Refused);
         }

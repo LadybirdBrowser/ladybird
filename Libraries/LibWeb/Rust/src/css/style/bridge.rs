@@ -158,6 +158,9 @@ pub struct FfiStyleDelta {
     /// declaring its CSS animations, so that the host owes it the animation plan the record
     /// decides once the batch is installed.
     pub owes_an_animation_plan: bool,
+    /// Whether the host owes an element the engine settled the transition step, against the old
+    /// record, once it installs the new one.
+    pub owes_a_transition_step: bool,
 }
 
 /// A retried engine record and the metadata needed to install it.
@@ -172,6 +175,8 @@ pub struct FfiEngineComputedRecord {
     pub explicitly_inherited_groups: u32,
     /// As [`FfiStyleDelta::owes_an_animation_plan`].
     pub owes_an_animation_plan: bool,
+    /// As [`FfiStyleDelta::owes_a_transition_step`].
+    pub owes_a_transition_step: bool,
     /// The synthetic pseudo-element kinds whose records the engine settled beside the
     /// element's, as a bit per kind; a present slot holding zero is a removal.
     pub pseudo_records_present: u8,
@@ -3735,6 +3740,7 @@ pub unsafe extern "C" fn style_engine_retry_engine_record_after_ancestor(
             },
             explicitly_inherited_groups: retried.explicitly_inherited_groups,
             owes_an_animation_plan: retried.owes_an_animation_plan,
+            owes_a_transition_step: retried.owes_a_transition_step,
             pseudo_records_present: retried.pseudo_records_present,
             pseudo_records: retried.pseudo_records,
         };
@@ -3804,6 +3810,7 @@ pub unsafe extern "C" fn style_engine_answer_record_demand(
                     },
                     explicitly_inherited_groups: record.explicitly_inherited_groups,
                     owes_an_animation_plan: false,
+                    owes_a_transition_step: false,
                     pseudo_records_present: record.pseudo_records_present,
                     pseudo_records: record.pseudo_records,
                 },
@@ -3912,6 +3919,7 @@ pub unsafe extern "C" fn style_engine_settle_pseudo_records_after_host_record(
             },
             explicitly_inherited_groups: settled.explicitly_inherited_groups,
             owes_an_animation_plan: false,
+            owes_a_transition_step: false,
             pseudo_records_present: settled.pseudo_records_present,
             pseudo_records: settled.pseudo_records,
         };

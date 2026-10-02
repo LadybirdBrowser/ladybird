@@ -2356,6 +2356,8 @@ impl StyleEngineState {
                             && self
                                 .retained
                                 .record_owes_an_animation_plan(old_style_record, new_style_record),
+                        owes_a_transition_step: gap == FfiStyleDeltaGap::Computed
+                            && self.retained.row_owes_a_transition_step(node),
                     };
                     if style_deltas.len() == style_deltas.capacity() {
                         style_deltas.reserve(1);
@@ -2404,6 +2406,7 @@ impl StyleEngineState {
                                 explicitly_inherited_groups: 0,
                                 record_damage,
                                 owes_an_animation_plan: false,
+                                owes_a_transition_step: false,
                             });
                         }
                     }

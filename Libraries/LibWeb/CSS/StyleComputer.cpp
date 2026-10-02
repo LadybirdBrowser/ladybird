@@ -1155,7 +1155,7 @@ static void collect_dimension_attribute(Vector<StyleProperty>& properties, DOM::
 // `decide_transitions`' baseline. A transition the step starts layers its current values into the after-change style to
 // keep the frame from jumping; publishing that is the same animation overlay publication an animation sample performs,
 // on the same element, over the same base.
-RequiredInvalidationAfterStyleChange StyleComputer::run_transition_step_for_installed_record(DOM::AbstractElement abstract_element, StyleRecordID before_change_style_record) const
+RequiredInvalidationAfterStyleChange StyleComputer::run_transition_step_for_installed_record(DOM::AbstractElement abstract_element, StyleRecordID before_change_style_record, TransitionStepFollowUp follow_up) const
 {
     auto installed_style_record = abstract_element.style_record_identity();
     if (!installed_style_record || !before_change_style_record)
@@ -1207,6 +1207,11 @@ RequiredInvalidationAfterStyleChange StyleComputer::run_transition_step_for_inst
     element.refresh_computed_style(pseudo_element, publication.publication.new_style_record);
     if (auto* svg_element = as_if<SVG::SVGElement>(element); svg_element && !pseudo_element.has_value())
         svg_element->note_svg_paint_resource_description_may_have_changed();
+    // Box-type, overflow and text-alignment adjustments consume the unadjusted base values, which an overlay
+    // publication does not reconstruct.
+    if (follow_up == TransitionStepFollowUp::Request && publication.invalidation.requires_base_style_recomputation)
+        const_cast<StyleComputer&>(*this).style_engine().record_derived_element_style_input_change(
+            element.style_node_id(), StyleEngine::PublishedStyle | StyleEngine::RecomputeStyle);
     return decode_style_invalidation(publication.invalidation.invalidation);
 }
 

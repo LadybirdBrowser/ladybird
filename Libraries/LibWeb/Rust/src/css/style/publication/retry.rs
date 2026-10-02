@@ -207,10 +207,11 @@ impl StyleEngineState {
         };
         if style_record != 0 {
             retried.explicitly_inherited_groups = scratch.element_explicitly_inherited_groups;
-            retried.owes_an_animation_plan = self.retained.record_owes_an_animation_plan(
-                self.retained.held_style_records.get(&node).copied().unwrap_or(0),
-                style_record,
-            );
+            let held_style_record = self.retained.held_style_records.get(&node).copied().unwrap_or(0);
+            retried.owes_an_animation_plan = self
+                .retained
+                .record_owes_an_animation_plan(held_style_record, style_record);
+            retried.owes_a_transition_step = self.retained.row_owes_a_transition_step(node);
             for delta in &scratch.pseudo_deltas {
                 let kind = usize::from(delta.kind);
                 if kind < bridge::RETRY_PSEUDO_RECORD_SLOTS {

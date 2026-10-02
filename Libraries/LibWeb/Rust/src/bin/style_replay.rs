@@ -2275,12 +2275,13 @@ fn read_style_transaction_outputs(
                 },
                 uses_substitution: format_version >= 16 && payload.read_bool()?,
                 // NB: The recording does not carry the record reads, the explicit-inheritance marks,
-                //     the record damage or the animation plan a row owes, and replay does not compare
-                //     them.
+                //     the record damage or the animation plan and transition step a row owes, and
+                //     replay does not compare them.
                 record_reads: 0,
                 explicitly_inherited_groups: 0,
                 record_damage: 0,
                 owes_an_animation_plan: false,
+                owes_a_transition_step: false,
             });
         }
         emissions.push(StyleTransactionEmission {
@@ -3045,6 +3046,7 @@ mod tests {
                     explicitly_inherited_groups: 0,
                     record_damage: 0,
                     owes_an_animation_plan: false,
+                    owes_a_transition_step: false,
                 }],
             }],
             style_atoms_swept: false,
