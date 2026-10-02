@@ -6,7 +6,7 @@
 
 //! What the host keeps of a document's render state.
 
-use super::{ArenaChange, DocumentId, RenderMessage, RenderWait, send, wait_for_render_state};
+use super::{Answer, ArenaChange, DocumentId, Query, RenderMessage, RenderWait, ask, send};
 use crate::css::style::bridge::FfiDeviceClass;
 use crate::layout::row_reads::RowSnapshot;
 use crate::layout::{HostTables, LayoutNodeArena};
@@ -14,7 +14,6 @@ use crate::painting::recording_slot::RecordingSlot;
 use std::cell::{Cell, RefCell, RefMut};
 use std::ffi::c_void;
 use std::ptr::NonNull;
-use std::rc::Rc;
 use std::rc::Rc;
 
 /// The host's side of one document's render state: the document's name, the host tables the host answers layout
@@ -118,14 +117,10 @@ impl DocumentHost {
         if let Some(rows) = self.rows.borrow().as_ref().filter(|rows| usable(rows)) {
             return Rc::clone(rows);
         }
-        let document = self.document;
-        let rows = Rc::new(wait_for_render_state(wait, self, |reply| {
-            RenderMessage::CommittedRows {
-                document,
-                measure_overflow,
-                reply,
-            }
-        }));
+        let Answer::Rows(rows) = ask(wait, self, Query::CommittedRows { measure_overflow }) else {
+            unreachable!("the rows are answered with rows");
+        };
+        let rows = Rc::new(rows);
         *self.rows.borrow_mut() = Some(Rc::clone(&rows));
         self.rows_may_be_stale.set(false);
         rows
