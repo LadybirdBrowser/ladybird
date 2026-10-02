@@ -26,7 +26,7 @@ use crate::layout::CssPixels;
 use crate::layout::FfiReplacedContentFacts;
 use crate::layout::node_data::{
     AncestorFact, DomPaintFact, FfiNodeConstructionFacts, FfiNodeLink, FfiStylePayloads, MAX_NODE_SLOT_COUNT, NodeData,
-    NodeFlag, NodeKind, NodeSlotId,
+    NodeFlag, NodeKind, NodeSlotId, StylePayloadsRef,
 };
 use crate::stage::MainThread;
 use std::cell::Cell;
@@ -420,16 +420,15 @@ pub(crate) type ShellStyleChangedHost = (
     unsafe extern "C" fn(*mut c_void, *mut c_void, u64, *const c_void, bool),
 );
 
-fn style_payloads_equal_in_layout_affecting_groups(a: *const c_void, b: *const c_void) -> bool {
+fn style_payloads_equal_in_layout_affecting_groups(a: StylePayloadsRef, b: StylePayloadsRef) -> bool {
     if a == b {
         return true;
     }
     if a.is_null() || b.is_null() {
         return false;
     }
-    // SAFETY: A non-null style pointer addresses the engine's group pointer array, which
-    // FfiStylePayloads mirrors exactly.
-    let (a, b) = unsafe { (&*a.cast::<FfiStylePayloads>(), &*b.cast::<FfiStylePayloads>()) };
+    // SAFETY: A row's non-null style addresses the payload array of the record pinned for it.
+    let (a, b) = unsafe { (a.deref(), b.deref()) };
     (0..a.groups.len()).all(|group_index| {
         !crate::css::computed_values::style_group_affects_layout(group_index)
             || a.groups[group_index] == b.groups[group_index]
@@ -1551,7 +1550,7 @@ impl LayoutNodeArena {
         }
     }
 
-    pub(crate) fn set_node_style(&self, id: NodeSlotId, style_record: u64, payloads: *const c_void) -> bool {
+    pub(crate) fn set_node_style(&self, id: NodeSlotId, style_record: u64, payloads: StylePayloadsRef) -> bool {
         self.assert_owner_thread();
         let data = self.data(id);
         data.style.set(payloads);
@@ -2221,17 +2220,7 @@ impl LayoutNodeArena {
                     && self.data(parent).flags.get() & NodeFlag::IsPseudoElementPrincipalBox as u32 != 0
                     && self.data(parent).generated_for.get() == data.generated_for.get();
                 if follows_principal {
-                    let derived = self.with_style_engine(|engine| {
-                        engine.pin_layout_style_record(parent_style_record);
-                        DerivedStyleRecord {
-                            record: parent_style_record,
-                            payloads: engine
-                                .style_record_payloads(parent_style_record)
-                                .unwrap()
-                                .as_ptr()
-                                .cast(),
-                        }
-                    });
+                    let derived = self.with_style_engine(|engine| DerivedStyleRecord::pin(engine, parent_style_record));
                     self.apply_reinherited_style_record(main_thread, child, derived);
                     self.set_node_flag(child, NodeFlag::FollowsPrincipalStyle, true);
                     self.reinherit_anonymous_descendants(main_thread, child);
@@ -2277,7 +2266,7 @@ impl LayoutNodeArena {
                 context,
                 shell,
                 self.node_style_record(slot),
-                self.data(slot).style.get(),
+                self.data(slot).style.get().as_ptr().cast(),
                 attach_resources,
             );
         };
@@ -3850,7 +3839,7 @@ impl LayoutNodeArena {
         let style = self.data(id).style.get();
         // SAFETY: A non-null style pointer addresses the container's group
         // pointer array, which FfiStylePayloads mirrors exactly.
-        (!style.is_null()).then(|| unsafe { &*style.cast::<FfiStylePayloads>() })
+        (!style.is_null()).then(|| unsafe { style.deref() })
     }
 
     pub(crate) fn begin_run(&self) -> u64 {
@@ -4827,7 +4816,7 @@ pub unsafe extern "C" fn layout_arena_set_node_style(
     assert!(!arena.is_null(), "layout node arena handle is null");
     // SAFETY: As above.
     let arena = unsafe { &*arena.cast::<LayoutNodeArena>() };
-    if arena.set_node_style(id, style_record, payloads) {
+    if arena.set_node_style(id, style_record, StylePayloadsRef::new(payloads.cast())) {
         arena.refresh_style_flags(id);
     }
     arena.publish_new_size_container_geometry(id);
@@ -4850,7 +4839,12 @@ pub unsafe extern "C" fn layout_arena_node_style_record(arena: *mut c_void, id: 
 pub unsafe extern "C" fn layout_arena_node_style_payloads(arena: *mut c_void, id: NodeSlotId) -> *const c_void {
     assert!(!arena.is_null(), "layout node arena handle is null");
     // SAFETY: As above.
-    unsafe { &*arena.cast::<LayoutNodeArena>() }.data(id).style.get()
+    unsafe { &*arena.cast::<LayoutNodeArena>() }
+        .data(id)
+        .style
+        .get()
+        .as_ptr()
+        .cast()
 }
 
 #[unsafe(no_mangle)]
@@ -5411,7 +5405,7 @@ mod tests {
             NodeKind::InlineNode,
             DerivedStyleRecord {
                 record: 7,
-                payloads: payloads.as_ptr().cast(),
+                payloads: crate::layout::node_data::StylePayloadsRef::new(payloads.as_ptr().cast()),
             },
         );
         assert_eq!(arena.data(slot).kind.get(), NodeKind::InlineNode);
@@ -5421,7 +5415,11 @@ mod tests {
         assert!(arena.node_style_record_is_pinned_by_arena(slot));
 
         let element = arena.allocate(test_construction_facts_with_kind(NodeKind::InlineNode));
-        arena.set_node_style(element, 9, payloads.as_ptr().cast());
+        arena.set_node_style(
+            element,
+            9,
+            crate::layout::node_data::StylePayloadsRef::new(payloads.as_ptr().cast()),
+        );
         assert_eq!(arena.node_style_record(element), 9);
         assert!(!arena.node_style_record_is_pinned_by_arena(element));
 
