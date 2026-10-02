@@ -920,6 +920,9 @@ struct ASFResolutionContext<'a> {
     style_query_length_resolution_context: Option<&'a crate::css::style_compute::FfiLengthResolutionContext>,
     /// What colors in a style query resolve against, where the queried element's are known.
     style_query_color_resolution_input: Option<crate::css::color_resolution::ColorResolutionInput<'a>>,
+    /// The queried element's sibling count and index, which tree-counting functions in a style
+    /// query resolve against, where they are known.
+    style_query_tree_counting: Option<(u64, u64)>,
     /// Loads both from the callback context the first time a style query is evaluated.
     load_style_query_inputs: Option<LoadStyleQueryInputs>,
     /// Where the custom properties a style query reads are noted, for the host to record.
@@ -2018,6 +2021,7 @@ fn registered_style_query_values_are_equal(
     query_tokens: &[OwnedToken],
     length_resolution_context: Option<&crate::css::style_compute::FfiLengthResolutionContext>,
     color_resolution_input: Option<&crate::css::color_resolution::ColorResolutionInput>,
+    tree_counting: Option<(u64, u64)>,
 ) -> bool {
     let mut random_function_index = 0;
     let context = registry.parse_context(&mut random_function_index);
@@ -2035,8 +2039,8 @@ fn registered_style_query_values_are_equal(
     }
     // Numeric values compare computed: in their canonical unit, relative lengths resolved.
     if let (Some(computed), Some(query)) = (
-        StyleRangeValue::of(&computed, length_resolution_context),
-        StyleRangeValue::of(&query, length_resolution_context),
+        StyleRangeValue::of(&computed, length_resolution_context, tree_counting),
+        StyleRangeValue::of(&query, length_resolution_context, tree_counting),
     ) {
         return computed.kind == query.kind && computed.value == query.value;
     }
@@ -2066,6 +2070,7 @@ impl StyleRangeValue {
     fn of(
         value: &StyleValueData,
         length_resolution_context: Option<&crate::css::style_compute::FfiLengthResolutionContext>,
+        tree_counting: Option<(u64, u64)>,
     ) -> Option<Self> {
         use crate::css::calc::CalcNumericValue;
         let length_resolution = crate::css::calc::LengthResolution {
@@ -2096,8 +2101,29 @@ impl StyleRangeValue {
                 CanonicalNumericType::Resolution,
                 CalcNumericValue::Resolution { value, unit }.to_canonical_number(length_resolution),
             ),
+            // A tree-counting function resolves against the queried element's place among its
+            // siblings first.
             StyleValueData::Calculated { .. } => {
-                crate::css::calc::resolve_calculated_canonically(value, length_resolution_context)?
+                match tree_counting
+                    .zip(length_resolution_context)
+                    .and_then(|(tree_counting, context)| {
+                        crate::css::calc::absolutize_calculation_value(
+                            value,
+                            std::ptr::from_ref(context).cast(),
+                            Some(tree_counting),
+                            &[],
+                        )
+                    }) {
+                    Some(crate::css::calc::AbsolutizedCalculation::Value(resolved)) => {
+                        return Self::of(&resolved, length_resolution_context, None);
+                    }
+                    Some(crate::css::calc::AbsolutizedCalculation::Percentage(value)) => {
+                        (CanonicalNumericType::Percentage, value)
+                    }
+                    Some(crate::css::calc::AbsolutizedCalculation::Unchanged) | None => {
+                        crate::css::calc::resolve_calculated_canonically(value, length_resolution_context)?
+                    }
+                }
             }
             _ => return None,
         };
@@ -2172,7 +2198,13 @@ fn evaluate_style_range_value(
     Ok(StyleRangeValue::SYNTAX_TYPES
         .iter()
         .find_map(|&syntax_type| parse_with_syntax(parse_context, &source, &SyntaxNode::Type(syntax_type)))
-        .and_then(|value| StyleRangeValue::of(&value, context.style_query_length_resolution_context)))
+        .and_then(|value| {
+            StyleRangeValue::of(
+                &value,
+                context.style_query_length_resolution_context,
+                context.style_query_tree_counting,
+            )
+        }))
 }
 
 // https://drafts.csswg.org/css-conditional-5/#style-container
@@ -2333,6 +2365,7 @@ fn evaluate_named_style_feature(
             &tokenize_owned(initial),
             context.style_query_length_resolution_context,
             context.style_query_color_resolution_input.as_ref(),
+            context.style_query_tree_counting,
         ));
     };
     let query = trim_whitespace(query);
@@ -2379,6 +2412,7 @@ fn evaluate_named_style_feature(
                     &expected,
                     context.style_query_length_resolution_context,
                     context.style_query_color_resolution_input.as_ref(),
+                    context.style_query_tree_counting,
                 )
             }
             (Some(computed), Some(expected)) => trim_whitespace(&computed) == trim_whitespace(&expected),
@@ -2403,6 +2437,7 @@ fn evaluate_named_style_feature(
             query,
             context.style_query_length_resolution_context,
             context.style_query_color_resolution_input.as_ref(),
+            context.style_query_tree_counting,
         ));
     }
     ConditionEvaluation::Match(serialize_tokens(trim_whitespace(&computed)) == serialize_tokens(query))
@@ -2417,12 +2452,14 @@ pub(crate) fn evaluate_retained_container_style_feature(
     feature: &StyleFeature,
     length_resolution_context: &crate::css::style_compute::FfiLengthResolutionContext,
     color_resolution_input: crate::css::color_resolution::ColorResolutionInput<'_>,
+    tree_counting: Option<(u64, u64)>,
     dependencies: &mut Option<Box<StyleQueryDependencies>>,
 ) -> MatchResult {
     let mut context = ASFResolutionContext {
         inheritance_store: store.and_then(|store| store.inheritance_parent.as_deref()),
         style_query_length_resolution_context: Some(length_resolution_context),
         style_query_color_resolution_input: Some(color_resolution_input),
+        style_query_tree_counting: tree_counting,
         style_query_dependencies: Some(dependencies),
         ..Default::default()
     };
