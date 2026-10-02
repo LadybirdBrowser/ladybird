@@ -982,6 +982,12 @@ impl RetainedState {
             }
         }
         self.set_element_container_query_inputs(node, style_record);
+        // A `rem` the host resolves reads the font of the record it holds for the document element,
+        // which it can install in the middle of a style update.
+        if self.computed_group_sets.adjustment_facts(node) & bridge::element_adjustment_fact::IS_DOCUMENT_ELEMENT != 0 {
+            self.held_root_font_inputs = computed::FinalStyleRecordID::from_raw(style_record)
+                .and_then(|record| self.root_font_inputs_from_record(record));
+        }
     }
 
     /// Record that a child of an element or shadow root explicitly inherits a non-inherited
@@ -1562,6 +1568,7 @@ impl StyleEngineState {
                 css_defined_animations: Default::default(),
                 animation_keyframes: Default::default(),
                 animation_effect_descriptions: Default::default(),
+                held_root_font_inputs: None,
                 random_base_values: Default::default(),
                 transition_baselines: HashMap::default(),
                 custom_property_registrations_changed: false,
@@ -3073,6 +3080,9 @@ impl RetainedState {
             css_defined_animations,
             animation_keyframes: _,
             animation_effect_descriptions,
+            // Like the host, a `rem` keeps reading the last document element's font until another
+            // takes its place.
+            held_root_font_inputs: _,
             random_base_values,
             transition_baselines,
             custom_property_registrations_changed: _,
