@@ -72,18 +72,30 @@ impl Intl {
         object.define_intrinsic_accessor(vm, &names.Collator, attr, |vm, realm| {
             Value::from_object(realm.intrinsics().intl_collator_constructor(vm))
         });
-        // NB: Intl.DateTimeFormat comes with its builtins, as the global object's Date does.
+        object.define_intrinsic_accessor(vm, &names.DateTimeFormat, attr, |vm, realm| {
+            Value::from_object(realm.intrinsics().intl_date_time_format_constructor(vm))
+        });
         object.define_intrinsic_accessor(vm, &names.DisplayNames, attr, |vm, realm| {
             Value::from_object(realm.intrinsics().intl_display_names_constructor(vm))
         });
-        // NB: Intl.DurationFormat comes with its builtins.
+        object.define_intrinsic_accessor(vm, &names.DurationFormat, attr, |vm, realm| {
+            Value::from_object(realm.intrinsics().intl_duration_format_constructor(vm))
+        });
         object.define_intrinsic_accessor(vm, &names.ListFormat, attr, |vm, realm| {
             Value::from_object(realm.intrinsics().intl_list_format_constructor(vm))
         });
         object.define_intrinsic_accessor(vm, &names.Locale, attr, |vm, realm| {
             Value::from_object(realm.intrinsics().intl_locale_constructor(vm))
         });
-        // NB: Intl.NumberFormat, Intl.PluralRules and Intl.RelativeTimeFormat come with their builtins.
+        object.define_intrinsic_accessor(vm, &names.NumberFormat, attr, |vm, realm| {
+            Value::from_object(realm.intrinsics().intl_number_format_constructor(vm))
+        });
+        object.define_intrinsic_accessor(vm, &names.PluralRules, attr, |vm, realm| {
+            Value::from_object(realm.intrinsics().intl_plural_rules_constructor(vm))
+        });
+        object.define_intrinsic_accessor(vm, &names.RelativeTimeFormat, attr, |vm, realm| {
+            Value::from_object(realm.intrinsics().intl_relative_time_format_constructor(vm))
+        });
         object.define_intrinsic_accessor(vm, &names.Segmenter, attr, |vm, realm| {
             Value::from_object(realm.intrinsics().intl_segmenter_constructor(vm))
         });

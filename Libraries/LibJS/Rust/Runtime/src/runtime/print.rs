@@ -20,6 +20,7 @@ use crate::runtime::array::Array;
 use crate::runtime::array_buffer::{ArrayBuffer, Order};
 use crate::runtime::async_generator::AsyncGenerator;
 use crate::runtime::boolean_object::BooleanObject;
+use crate::runtime::completion::Must;
 use crate::runtime::data_view::{
     DataView, get_view_byte_length, is_view_out_of_bounds, make_data_view_with_buffer_witness_record,
 };
@@ -30,9 +31,11 @@ use crate::runtime::error::Error;
 use crate::runtime::error_types::AkDouble;
 use crate::runtime::generator_object::GeneratorObject;
 use crate::runtime::intl::collator::Collator;
+use crate::runtime::intl::date_time_format::{DateTimeFormat, for_each_calendar_field};
 use crate::runtime::intl::display_names::DisplayNames;
 use crate::runtime::intl::list_format::ListFormat;
 use crate::runtime::intl::locale::Locale;
+use crate::runtime::intl::relative_time_format::RelativeTimeFormat;
 use crate::runtime::intl::segmenter::Segmenter;
 use crate::runtime::intl::segments::Segments;
 use crate::runtime::map::Map;
@@ -62,6 +65,9 @@ use crate::runtime::typed_array::{
 use crate::runtime::weak_map::WeakMap;
 use crate::runtime::weak_ref::WeakRef;
 use crate::runtime::weak_set::WeakSet;
+use crate::unicode::date_time_format::{
+    CalendarPatternFieldValue, calendar_pattern_style_to_string, hour_cycle_to_string,
+};
 use crate::utf16::Utf16View;
 
 /// Where and how to print. A Vec<u8> stream stands in for the StringBuilder C++ can print into.
@@ -691,6 +697,113 @@ fn print_intl_list_format(
     print_ascii_property(print_context, "\n  style: ", list_format.style_string(), seen_objects)
 }
 
+fn print_intl_date_time_format(
+    print_context: &mut PrintContext<'_>,
+    date_time_format: Gc<DateTimeFormat>,
+    seen_objects: &mut SeenObjects<'_>,
+) -> io::Result<()> {
+    print_type(print_context, "Intl.DateTimeFormat")?;
+    print_string_property(print_context, "\n  locale: ", date_time_format.locale(), seen_objects)?;
+    print_string_property(
+        print_context,
+        "\n  calendar: ",
+        date_time_format.calendar(),
+        seen_objects,
+    )?;
+    print_string_property(
+        print_context,
+        "\n  numberingSystem: ",
+        date_time_format.numbering_system(),
+        seen_objects,
+    )?;
+    let format = date_time_format.date_time_format();
+    if let Some(hour_cycle) = format.hour_cycle {
+        print_ascii_property(
+            print_context,
+            "\n  hourCycle: ",
+            hour_cycle_to_string(hour_cycle),
+            seen_objects,
+        )?;
+    }
+    print_string_property(
+        print_context,
+        "\n  timeZone: ",
+        date_time_format.time_zone(),
+        seen_objects,
+    )?;
+    if date_time_format.has_date_style() {
+        print_ascii_property(
+            print_context,
+            "\n  dateStyle: ",
+            date_time_format.date_style_string(),
+            seen_objects,
+        )?;
+    }
+    if date_time_format.has_time_style() {
+        print_ascii_property(
+            print_context,
+            "\n  timeStyle: ",
+            date_time_format.time_style_string(),
+            seen_objects,
+        )?;
+    }
+
+    let mut fields: Vec<(Utf16String, CalendarPatternFieldValue)> = Vec::new();
+    for_each_calendar_field(print_context.vm, |row| {
+        if let Some(value) = format.field(row.field) {
+            fields.push((row.property.to_utf16_string(), value));
+        }
+        Ok(())
+    })
+    .must();
+    for (property, value) in fields {
+        js_out(print_context, "\n  ")?;
+        js_out_utf16_argument(print_context, Utf16View::of_string(&property))?;
+        js_out(print_context, ": ")?;
+        match value {
+            CalendarPatternFieldValue::FractionalSecondDigits(digits) => {
+                print_value(print_context, Value::from_i32(i32::from(digits)), seen_objects)?;
+            }
+            CalendarPatternFieldValue::Style(style) => {
+                print_ascii_property(print_context, "", calendar_pattern_style_to_string(style), seen_objects)?;
+            }
+        }
+    }
+    Ok(())
+}
+
+fn print_intl_relative_time_format(
+    print_context: &mut PrintContext<'_>,
+    relative_time_format: Gc<RelativeTimeFormat>,
+    seen_objects: &mut SeenObjects<'_>,
+) -> io::Result<()> {
+    print_type(print_context, "Intl.RelativeTimeFormat")?;
+    print_string_property(
+        print_context,
+        "\n  locale: ",
+        relative_time_format.locale(),
+        seen_objects,
+    )?;
+    print_string_property(
+        print_context,
+        "\n  numberingSystem: ",
+        relative_time_format.numbering_system(),
+        seen_objects,
+    )?;
+    print_ascii_property(
+        print_context,
+        "\n  style: ",
+        relative_time_format.style_string(),
+        seen_objects,
+    )?;
+    print_ascii_property(
+        print_context,
+        "\n  numeric: ",
+        relative_time_format.numeric_string(),
+        seen_objects,
+    )
+}
+
 fn print_intl_collator(
     print_context: &mut PrintContext<'_>,
     collator: Gc<Collator>,
@@ -1035,8 +1148,14 @@ fn print_value(
         if let Some(list_format) = object.downcast::<ListFormat>() {
             return print_intl_list_format(print_context, list_format, seen_objects);
         }
-        // NB: Print.cpp then checks for Intl.NumberFormat, Intl.DateTimeFormat, Intl.RelativeTimeFormat and
-        //     Intl.PluralRules, which come with later units.
+        // NB: Print.cpp then checks for Intl.NumberFormat, which comes with a later unit.
+        if let Some(date_time_format) = object.downcast::<DateTimeFormat>() {
+            return print_intl_date_time_format(print_context, date_time_format, seen_objects);
+        }
+        if let Some(relative_time_format) = object.downcast::<RelativeTimeFormat>() {
+            return print_intl_relative_time_format(print_context, relative_time_format, seen_objects);
+        }
+        // NB: Print.cpp then checks for Intl.PluralRules, which comes with a later unit.
         if let Some(collator) = object.downcast::<Collator>() {
             return print_intl_collator(print_context, collator, seen_objects);
         }
