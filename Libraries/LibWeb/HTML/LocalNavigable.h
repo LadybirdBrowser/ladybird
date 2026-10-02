@@ -21,6 +21,7 @@
 #include <LibWeb/Bindings/CSS.h>
 #include <LibWeb/Bindings/Navigation.h>
 #include <LibWeb/Compositor/CompositorHost.h>
+#include <LibWeb/Compositor/NavigablePresenter.h>
 #include <LibWeb/DOM/DocumentLoadEventDelayer.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
@@ -301,8 +302,8 @@ public:
     void paint_next_frame();
     bool paint_next_frame_if_needed(DOM::UpdateLayoutReason);
     void render_screenshot(Gfx::PaintingSurface&, PaintConfig, Function<void()>&& callback);
-    Compositing::DisplayListResourceStorage& display_list_resource_storage() { return m_display_list_resource_storage; }
-    Compositing::DisplayListResourceStorage const& display_list_resource_storage() const { return m_display_list_resource_storage; }
+    Compositing::DisplayListResourceStorage& display_list_resource_storage() { return m_presenter.display_list_resource_storage(); }
+    Compositing::DisplayListResourceStorage const& display_list_resource_storage() const { return m_presenter.display_list_resource_storage(); }
 
     bool needs_repaint() const { return m_needs_repaint; }
     void set_needs_repaint() { m_needs_repaint = true; }
@@ -567,12 +568,7 @@ private:
     i32 m_force_dark_foreground_threshold { default_force_dark_foreground_threshold };
     i32 m_force_dark_background_threshold { default_force_dark_background_threshold };
     bool m_should_show_caret_hit_test_debug_overlay { false };
-    Optional<PaintConfig> m_compositor_display_list_paint_config;
-    RefPtr<Compositing::DisplayList> m_compositor_display_list;
-    u64 m_compositor_display_list_visual_context_tree_structural_epoch { 0 };
-    Compositing::DisplayListResourceStorage m_display_list_resource_storage;
-    Compositing::DisplayListResourceSet m_compositor_display_list_resources;
-    Compositing::DisplayListResourceSet m_compositor_display_list_command_resources;
+    Compositor::NavigablePresenter m_presenter;
     OwnPtr<Compositor::CompositorContextHandle> m_compositor_context;
     RefPtr<Core::Timer> m_async_scroll_hover_update_timer;
     Vector<PendingUserScrollendTarget> m_pending_user_scrollend_targets;
