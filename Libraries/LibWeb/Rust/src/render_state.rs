@@ -14,7 +14,7 @@
 use crate::css::style::StyleEngineHandle;
 use crate::css::style::bridge::{FfiDeviceClass, create_document_style_engine};
 use crate::fast_hash::FastMap as HashMap;
-use crate::layout::ArenaHandle;
+use crate::layout::{ArenaHandle, HostOfEntries};
 use std::cell::RefCell;
 use std::marker::PhantomData;
 use std::ptr::NonNull;
@@ -71,9 +71,13 @@ pub(crate) struct CreatedState {
     pub(crate) element_random_base_values_exist: Arc<AtomicBool>,
 }
 
+// SAFETY: The host reaches the arena and the engine only through its unconverted entries, which run while nothing on
+// the render side reaches them.
+unsafe impl Send for CreatedState {}
+
 impl RenderState {
     /// Makes the state of the document whose host is `host`, and answers what the host keeps of it.
-    fn new(host: NonNull<DocumentHost>, device_class: FfiDeviceClass) -> (Self, CreatedState) {
+    fn new(host: HostOfEntries, device_class: FfiDeviceClass) -> (Self, CreatedState) {
         let mut arena = Box::new(ArenaHandle::new(host));
         let engine = create_document_style_engine(device_class);
         let element_random_base_values_exist = engine.element_random_base_values_exist();
@@ -136,7 +140,7 @@ pub(crate) enum RenderMessage<'a> {
     /// Makes the render state of a new document, whose arena names the document's host.
     Create {
         document: DocumentId,
-        host: NonNull<DocumentHost>,
+        host: HostOfEntries,
         device_class: FfiDeviceClass,
         reply: ReplyTo<'a, CreatedState>,
     },
@@ -245,16 +249,13 @@ pub(crate) fn send(message: RenderMessage<'_>) {
     handle(message);
 }
 
-// A render state is to move to the thread that renders, where nothing of the host may follow it: the shells and the
-// callbacks into the host's DOM are main-thread objects because of what they hold and do, and stay with the host. What
-// the arena shares between its rows and its caches may follow it; the arena itself still links its engine and the
-// host's box presence callback, which go with the last entries that reach it directly.
+// A render state lives on a thread of its own, where nothing of the host may follow it: the shells and the callbacks
+// into the host's DOM are main-thread objects because of what they hold and do, and stay with the host. The state and
+// every message the host sends it may cross, which the compiler checks here.
 const _: () = {
-    const fn assert_send_and_sync<T: Send + Sync + ?Sized>() {}
-    assert_send_and_sync::<std::sync::Arc<crate::css::counter_representation::CounterStyle>>();
-    assert_send_and_sync::<std::sync::Arc<crate::layout::rendered_text::CachedTextChunks>>();
-    assert_send_and_sync::<std::sync::Arc<[crate::layout::svg_formatting_context::FfiFloatPoint]>>();
-    assert_send_and_sync::<crate::css::computed_value_types::RetainedComputedResolvedTransformList>();
+    const fn assert_send<T: Send + ?Sized>() {}
+    assert_send::<RenderState>();
+    assert_send::<RenderMessage>();
 };
 
 #[cfg(test)]
@@ -306,7 +307,7 @@ mod tests {
         let document = DocumentId::mint();
         wait_for_render_state(ScriptForcedRead::for_test(), &host, |reply| RenderMessage::Create {
             document,
-            host: NonNull::from(&host),
+            host: HostOfEntries::new(NonNull::from(&host)),
             device_class: FfiDeviceClass::ForegroundDesktop,
             reply,
         });

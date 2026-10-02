@@ -15,6 +15,10 @@ use super::StyleEngine;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct StyleEngineHandle(*mut StyleEngine);
 
+// SAFETY: The handle only names the engine; every borrow of the engine through it is unsafe, and its caller guarantees
+// that nothing else borrows the engine meanwhile, on whichever thread.
+unsafe impl Send for StyleEngineHandle where StyleEngine: Send {}
+
 impl StyleEngineHandle {
     /// A handle that names no engine.
     #[must_use]

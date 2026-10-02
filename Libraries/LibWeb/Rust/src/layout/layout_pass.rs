@@ -17,6 +17,10 @@ pub(crate) struct ContainerLengthBasesQuery {
     query: unsafe extern "C" fn(*mut c_void, u32) -> svg_formatting_context::FfiContainerLengthBases,
 }
 
+// SAFETY: A layout job calls the query while the host waits for the job's answer, so the document the C++ side reads
+// changes under neither of them.
+unsafe impl Send for ContainerLengthBasesQuery {}
+
 impl ContainerLengthBasesQuery {
     /// Only the layout host makes one, for a caller holding the main thread token.
     pub(super) fn new(

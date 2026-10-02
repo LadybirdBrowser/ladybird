@@ -140,6 +140,10 @@ pub(crate) struct IcuSegmenterHandle {
     raw: *mut c_void,
 }
 
+// SAFETY: The handle owns its segmenter, which shares nothing with another, so the thread that holds the handle may
+// change.
+unsafe impl Send for IcuSegmenterHandle {}
+
 impl IcuSegmenterHandle {
     fn next_boundary(&self, index: usize, inclusive: bool) -> Option<usize> {
         // SAFETY: The handle is live until drop, and the text it references
