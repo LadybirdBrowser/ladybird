@@ -258,7 +258,7 @@ pub extern "C" fn document_host_create(device_class: u8) -> *mut DocumentHost {
     let created = wait_for_render_state(LockstepProof::for_reason(&NEW_DOCUMENT), host_ref, |reply| {
         RenderMessage::Create {
             document,
-            host,
+            host: crate::layout::HostOfEntries::new(host),
             device_class,
             reply,
         }

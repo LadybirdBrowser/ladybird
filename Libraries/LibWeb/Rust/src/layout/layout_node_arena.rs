@@ -700,7 +700,12 @@ pub(crate) type ShellFactory = (*mut c_void, unsafe extern "C" fn(*mut c_void, N
 /// How the host learns what boxes a DOM node has. The identity is 0 for the document, which has
 /// none of its own. The callback must not reenter the arena: it runs while the arena is changing
 /// the bindings it would read.
-type BoxPresenceHost = (*mut c_void, unsafe extern "C" fn(*mut c_void, u32, u8));
+#[derive(Clone, Copy)]
+struct BoxPresenceHost(*mut c_void, unsafe extern "C" fn(*mut c_void, u32, u8));
+
+// SAFETY: The arena calls the host only outside a job of its render state, which queues what the host is to hear and
+// pays it on the host's thread once it is over (see [`LayoutNodeArena::queue_box_presence`]).
+unsafe impl Send for BoxPresenceHost {}
 
 /// A row is bound to the node.
 pub const BOX_PRESENCE_HAS_LAYOUT_BOX: u8 = 1 << 0;
@@ -3399,7 +3404,7 @@ impl LayoutNodeArena {
         self.set_node_flag(slot, NodeFlag::InsetsUseAnchorFunctions, insets_use_anchor_functions);
     }
 
-    pub(crate) fn set_box_presence_host(&self, host: Option<BoxPresenceHost>) {
+    fn set_box_presence_host(&self, host: Option<BoxPresenceHost>) {
         self.box_presence_host.set(host);
     }
 
@@ -3432,7 +3437,7 @@ impl LayoutNodeArena {
     }
 
     fn tell_host_of_box_presence(&self, node: BoundNode) {
-        let Some((context, callback)) = self.box_presence_host.get() else {
+        let Some(BoxPresenceHost(context, callback)) = self.box_presence_host.get() else {
             return;
         };
         let (style_node, row) = match node {
@@ -5363,7 +5368,7 @@ pub unsafe extern "C" fn layout_arena_set_box_presence_host(
 ) {
     assert!(!arena.is_null(), "layout node arena handle is null");
     // SAFETY: As above.
-    unsafe { &*arena.cast::<LayoutNodeArena>() }.set_box_presence_host(Some((context, callback)));
+    unsafe { &*arena.cast::<LayoutNodeArena>() }.set_box_presence_host(Some(BoxPresenceHost(context, callback)));
 }
 
 /// # Safety
@@ -5674,7 +5679,10 @@ mod tests {
         }
         let mut reports: Vec<(u32, u8)> = Vec::new();
         let mut arena = LayoutNodeArena::new();
-        arena.set_box_presence_host(Some((std::ptr::from_mut(&mut reports).cast::<c_void>(), record)));
+        arena.set_box_presence_host(Some(super::BoxPresenceHost(
+            std::ptr::from_mut(&mut reports).cast::<c_void>(),
+            record,
+        )));
         let element = StyleNodeID::element(3);
         let row = arena.allocate(FfiNodeConstructionFacts {
             style_node: element.raw(),
@@ -6514,7 +6522,8 @@ mod tests {
     #[test]
     fn clearing_a_committed_box_evicts_its_fragment_link_and_abspos_inputs() {
         let host = crate::render_state::DocumentHost::for_test();
-        let mut handle = crate::layout::ArenaHandle::new(std::ptr::NonNull::from(&host));
+        let mut handle =
+            crate::layout::ArenaHandle::new(crate::layout::HostOfEntries::new(std::ptr::NonNull::from(&host)));
         let handle = std::ptr::from_mut(&mut handle).cast::<c_void>();
         // SAFETY: The handle lives until the end of the test, and the entry below borrows the
         // arena only for its call.

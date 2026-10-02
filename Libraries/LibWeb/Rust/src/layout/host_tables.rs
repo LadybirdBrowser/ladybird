@@ -144,16 +144,30 @@ impl HostTables {
 #[repr(C)]
 pub(crate) struct ArenaHandle {
     arena: LayoutNodeArena,
-    host: NonNull<DocumentHost>,
+    host: HostOfEntries,
     layout_scratch: super::run_records::LayoutScratch,
 }
+
+/// The document's host, as the host's entries called with an arena handle reach it.
+#[derive(Clone, Copy)]
+pub(crate) struct HostOfEntries(NonNull<DocumentHost>);
+
+impl HostOfEntries {
+    pub(crate) fn new(host: NonNull<DocumentHost>) -> Self {
+        Self(host)
+    }
+}
+
+// SAFETY: The render state that holds the handle never reads the host through it; only the host's entries do, on the
+// host's thread.
+unsafe impl Send for HostOfEntries {}
 
 const _: () = assert!(std::mem::offset_of!(ArenaHandle, arena) == 0);
 
 impl ArenaHandle {
     /// An arena whose entries answer to `host`, which must outlive every entry called with the
     /// handle.
-    pub(crate) fn new(host: NonNull<DocumentHost>) -> Self {
+    pub(crate) fn new(host: HostOfEntries) -> Self {
         Self {
             arena: LayoutNodeArena::new(),
             host,
@@ -170,7 +184,7 @@ impl ArenaHandle {
     pub(crate) unsafe fn host<'a>(handle: *mut c_void) -> &'a DocumentHost {
         assert!(!handle.is_null(), "layout node arena handle is null");
         // SAFETY: Guaranteed by the caller. The projection does not borrow the arena beside it.
-        unsafe { (*handle.cast::<ArenaHandle>()).host.as_ref() }
+        unsafe { (*handle.cast::<ArenaHandle>()).host.0.as_ref() }
     }
 
     pub(crate) fn arena(&self) -> &LayoutNodeArena {

@@ -11,7 +11,6 @@
 //! that owns its marker, so code elsewhere has no way to wait.
 
 use super::{DocumentHost, RenderMessage, send};
-use std::cell::Cell;
 use std::marker::PhantomData;
 
 /// The one wait of a script API call that needs a current answer: getComputedStyle, an element's geometry, hit
@@ -105,12 +104,12 @@ lockstep_reason!(super::document_host::NewDocument);
 /// Where the render side answers a host that waits for it: the slot in the waiting host's frame that the answer moves
 /// into, which the message borrows for as long as the host waits. Only an answer goes through it: a slot left empty
 /// is a render state that died.
-pub(crate) struct ReplyTo<'a, R>(&'a Cell<Option<R>>);
+pub(crate) struct ReplyTo<'a, R>(&'a mut Option<R>);
 
 impl<R> ReplyTo<'_, R> {
     /// Answers with what `job` answers. A panic in `job` leaves the slot empty and goes on to end the message.
     pub(crate) fn answer(self, job: impl FnOnce() -> R) {
-        self.0.set(Some(job()));
+        *self.0 = Some(job());
     }
 }
 
@@ -136,9 +135,9 @@ pub(crate) fn wait_from_entry<R>(
 }
 
 fn send_and_wait<R>(message: impl FnOnce(ReplyTo<'_, R>) -> RenderMessage<'_>) -> R {
-    let answered = Cell::new(None);
-    send(message(ReplyTo(&answered)));
-    answered.into_inner().unwrap_or_else(|| render_state_died())
+    let mut answered = None;
+    send(message(ReplyTo(&mut answered)));
+    answered.unwrap_or_else(|| render_state_died())
 }
 
 /// Ends the process, on a host whose wait for a render state found no answer: the message panicked, and may have left
@@ -172,19 +171,19 @@ mod tests {
 
     #[test]
     fn a_job_answers_through_its_reply() {
-        let answered = Cell::new(None);
-        ReplyTo(&answered).answer(|| 7);
-        assert_eq!(answered.into_inner(), Some(7));
+        let mut answered = None;
+        ReplyTo(&mut answered).answer(|| 7);
+        assert_eq!(answered, Some(7));
     }
 
     #[test]
     fn a_panic_in_a_job_for_a_waiting_caller_leaves_its_reply_empty() {
-        let answered = Cell::<Option<u32>>::new(None);
-        let reply = ReplyTo(&answered);
+        let mut answered = None::<u32>;
+        let reply = ReplyTo(&mut answered);
         let panicked = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
             reply.answer(|| panic!("the job panicked"));
         }));
         assert!(panicked.is_err());
-        assert_eq!(answered.into_inner(), None);
+        assert_eq!(answered, None);
     }
 }

@@ -89,7 +89,7 @@ pub(crate) use geometry::{
     AvailableSize, AvailableSpace, ContainingBlockConstraints, LayoutInput, ParticipationInParentFormattingContext,
     RootSizingDirectives,
 };
-pub(crate) use host_tables::{ArenaHandle, HostTables};
+pub(crate) use host_tables::{ArenaHandle, HostOfEntries, HostTables};
 pub(crate) use layout_pass::LayoutPass;
 pub(crate) use node_facts::NodeFacts;
 pub(crate) use rendered_text::{PublishedTextSlot, RenderedText, RenderedTextBoundary, TextFragments};
