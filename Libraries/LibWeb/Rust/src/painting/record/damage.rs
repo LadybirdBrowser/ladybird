@@ -11,7 +11,6 @@ use crate::layout::LayoutNodeArena;
 use crate::layout::node_data::NodeSlotId;
 use crate::painting::node_painting;
 use crate::painting::paint_order;
-use crate::painting::paint_order_plan::PaintOrderInputs;
 use crate::painting::paint_read::GeometryRead;
 use std::cell::{Cell, Ref, RefCell};
 
@@ -126,7 +125,6 @@ pub(crate) struct RowPaintState {
     // The recording sequence number the row was last pushed in; publication clears rows pushed
     // before the recording it publishes started and keeps rows pushed after.
     damage_stamp: Cell<u32>,
-    order_inputs: Cell<PaintOrderInputs>,
 }
 
 impl RowPaintState {
@@ -134,19 +132,9 @@ impl RowPaintState {
         self.damage.get()
     }
 
-    pub(crate) fn order_inputs(&self) -> Option<PaintOrderInputs> {
-        let inputs = self.order_inputs.get();
-        inputs.is_initialized().then_some(inputs)
-    }
-
-    pub(crate) fn update_order_inputs(&self, inputs: PaintOrderInputs) -> bool {
-        self.order_inputs.replace(inputs) != inputs
-    }
-
     pub(crate) fn clear(&self) {
         self.damage.set(PaintDamage::NONE);
         self.damage_stamp.set(0);
-        self.order_inputs.set(PaintOrderInputs::default());
     }
 
     fn add(&self, damage: PaintDamage, stamp: u32) -> bool {

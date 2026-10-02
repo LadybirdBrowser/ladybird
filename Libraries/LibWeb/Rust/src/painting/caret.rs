@@ -55,7 +55,7 @@ pub(crate) fn caret_rect_for_position(
         }
     });
     let (block, index) = direct.or(fallback)?;
-    let side = layout_arena.paintable_side_data(block);
+    let side = layout_arena.committed_side_data(block);
     let fragment = &side.fragments()[index as usize];
     Some(caret_rect_in_fragment(layout_arena, block, fragment, offset))
 }
@@ -91,7 +91,7 @@ pub(crate) fn caret_rect_for_atomic_inline(
     after: bool,
 ) -> Option<CaretRectResult> {
     let owner = text_fragment::containing_block_paintable_of_node(layout_arena, node)?;
-    let side = layout_arena.paintable_side_data(owner);
+    let side = layout_arena.committed_side_data(owner);
     let fragment = side
         .fragments()
         .iter()

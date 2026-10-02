@@ -613,7 +613,7 @@ pub unsafe extern "C" fn layout_arena_paintable_scrollable_overflow(
     else {
         return FfiOptionalOverflowData::default();
     };
-    let mut value = arena.paintable_side_data(slot).overflow_relative_to_padding_box.get();
+    let mut value = arena.committed_side_data(slot).overflow_relative_to_padding_box;
     value.rect = rect.into();
     FfiOptionalOverflowData { has_value: true, value }
 }
@@ -2332,7 +2332,7 @@ pub unsafe extern "C" fn layout_arena_paintable_first_fragment_rect_for_node(
     if !paintable_rows.paintable_row_is_populated(block) {
         return result;
     }
-    for fragment in arena.paintable_side_data(block).fragments() {
+    for fragment in arena.committed_side_data(block).fragments() {
         if fragment.layout_node != node {
             continue;
         }
@@ -3373,19 +3373,16 @@ mod tests {
             }
             // Leave stale overflow for the hit-test geometry query to remeasure. Losing
             // scrollability must invalidate both the root background and visual context.
-            arena
-                .paintable_side_data(viewport)
-                .overflow_relative_to_padding_box
-                .set(FfiOverflowData {
-                    rect: CssPixelRect::new(
-                        CssPixels::from_integer(0),
-                        CssPixels::from_integer(0),
-                        CssPixels::from_integer(100),
-                        CssPixels::from_integer(2000),
-                    )
-                    .into(),
-                    has_scrollable_overflow: true,
-                });
+            arena.committed_side_data_mut(viewport).overflow_relative_to_padding_box = FfiOverflowData {
+                rect: CssPixelRect::new(
+                    CssPixels::from_integer(0),
+                    CssPixels::from_integer(0),
+                    CssPixels::from_integer(100),
+                    CssPixels::from_integer(2000),
+                )
+                .into(),
+                has_scrollable_overflow: true,
+            };
             arena
                 .paintable_side_data(viewport)
                 .overflow_measured_this_commit
@@ -3438,19 +3435,16 @@ mod tests {
         // A structural change invalidated the root's overflow, measured earlier in this commit,
         // without queueing a recalculation, so nothing but a query measures it again. Measuring
         // it drops its scrollable overflow.
-        arena
-            .paintable_side_data(root)
-            .overflow_relative_to_padding_box
-            .set(FfiOverflowData {
-                rect: CssPixelRect::new(
-                    CssPixels::from_integer(0),
-                    CssPixels::from_integer(0),
-                    CssPixels::from_integer(100),
-                    CssPixels::from_integer(2000),
-                )
-                .into(),
-                has_scrollable_overflow: true,
-            });
+        arena.committed_side_data_mut(root).overflow_relative_to_padding_box = FfiOverflowData {
+            rect: CssPixelRect::new(
+                CssPixels::from_integer(0),
+                CssPixels::from_integer(0),
+                CssPixels::from_integer(100),
+                CssPixels::from_integer(2000),
+            )
+            .into(),
+            has_scrollable_overflow: true,
+        };
         arena.paintable_side_data(root).overflow_measured_this_commit.set(true);
         arena.paint_state().borrow_mut().visual_context.dirty_boxes.clear();
 

@@ -415,26 +415,17 @@ mod tests {
         arena.attach_child(grandparent.slot, owned(parent.slot), NodeSlotId::INVALID);
         for node in [grandparent.slot, parent.slot] {
             arena.populate_paintable_row(node);
-            arena
-                .paintable_side_data(node)
-                .overflow_valid_across_recommits
-                .set(true);
+            arena.committed_side_data_mut(node).overflow_valid_across_recommits = true;
         }
 
         arena.attach_child(parent.slot, owned(child.slot), NodeSlotId::INVALID);
 
         assert!(
             !arena
-                .paintable_side_data(grandparent.slot)
+                .committed_side_data(grandparent.slot)
                 .overflow_valid_across_recommits
-                .get()
         );
-        assert!(
-            arena
-                .paintable_side_data(parent.slot)
-                .overflow_valid_across_recommits
-                .get()
-        );
+        assert!(arena.committed_side_data(parent.slot).overflow_valid_across_recommits);
 
         free(&mut arena, grandparent);
     }

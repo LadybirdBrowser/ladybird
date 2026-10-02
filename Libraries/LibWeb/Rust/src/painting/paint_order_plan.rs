@@ -284,7 +284,7 @@ impl<R: PaintRead> PaintOrderBuilder<'_, R> {
             self.append_box_phase(PaintPhase::Foreground);
             return;
         }
-        let side = arena.paintable_side_data(root);
+        let side = arena.committed_side_data(root);
         let Some(content) = side.inline_content.as_ref().filter(|content| !content.items.is_empty()) else {
             self.append_box_phase(PaintPhase::Foreground);
             return;
@@ -345,7 +345,7 @@ impl<R: PaintRead> PaintOrderBuilder<'_, R> {
             && self.layout_arena.paintable_row_is_populated(block)
             && self
                 .layout_arena
-                .paintable_side_data(block)
+                .committed_side_data(block)
                 .fragments()
                 .iter()
                 .any(|fragment| fragment.layout_node == paintable && fragment.is_atomic_inline)
@@ -687,11 +687,11 @@ mod tests {
         }
         arena.paintable_rows_mut().paintable_data_mut(child).offset.x = CssPixels::from_integer(100);
         let after_move = PaintOrderInputs::gather(&arena.paintable_rows(), child);
-        assert!(!arena.row_paint_state(child).update_order_inputs(after_move));
+        assert!(!arena.update_paint_order_inputs(child, after_move));
         let flags = &arena.data(child).flags;
         flags.set(flags.get() | NodeFlag::IsFlexItem as u32);
         let as_flex_item = PaintOrderInputs::gather(&arena.paintable_rows(), child);
-        assert!(arena.row_paint_state(child).update_order_inputs(as_flex_item));
+        assert!(arena.update_paint_order_inputs(child, as_flex_item));
     }
 
     #[test]

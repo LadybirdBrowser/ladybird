@@ -115,7 +115,7 @@ pub(crate) fn assign_fragment_ownership(layout_arena: &impl PaintableRowsRead, v
             stack.push(first_child);
         }
         if node_painting::has_lines(layout_arena, current)
-            && !layout_arena.paintable_side_data(current).inline_box_pieces().is_empty()
+            && !layout_arena.committed_side_data(current).inline_box_pieces().is_empty()
         {
             assign_for_block(layout_arena, current);
         }
@@ -131,7 +131,7 @@ pub(crate) fn assign_fragment_ownership_for_pending_line_roots(layout_arena: &La
         if paintable_rows.paintable_row_is_populated(line_root)
             && node_painting::has_lines(&paintable_rows, line_root)
             && !layout_arena
-                .paintable_side_data(line_root)
+                .committed_side_data(line_root)
                 .inline_box_pieces()
                 .is_empty()
         {
@@ -151,7 +151,7 @@ pub(crate) fn compute_fragment_ownership_for_block(
     layout_arena: &impl PaintRead,
     block: NodeSlotId,
 ) -> Vec<(NodeSlotId, FragmentOwnershipFilter)> {
-    let pieces = layout_arena.paintable_side_data(block).inline_box_pieces().to_vec();
+    let pieces = layout_arena.committed_side_data(block).inline_box_pieces().to_vec();
     let mut block_filter = FragmentOwnershipFilter::everything();
 
     let mut owners: Vec<NodeSlotId> = Vec::new();
@@ -206,12 +206,18 @@ fn assign_for_block(layout_arena: &impl PaintableRowsRead, block: NodeSlotId) {
     let owners_with_filters = compute_fragment_ownership_for_block(layout_arena, block);
     // Start every piece's box from a clean slate. A box whose filter changes paints a
     // different selection of the block's fragments.
-    let pieces = layout_arena.paintable_side_data(block).inline_box_pieces().to_vec();
+    let pieces = layout_arena.committed_side_data(block).inline_box_pieces().to_vec();
     let previous_filter_of = |paintable: NodeSlotId| {
-        let mut side = layout_arena.paintable_side_data_mut(paintable);
-        side.fragment_ownership
-            .take()
-            .or_else(|| side.fragment_ownership_before_recommit.take())
+        let assigned = layout_arena
+            .committed_side_data_mut(paintable)
+            .fragment_ownership
+            .take();
+        assigned.or_else(|| {
+            layout_arena
+                .paintable_side_data_mut(paintable)
+                .fragment_ownership_before_recommit
+                .take()
+        })
     };
     let mut boxes_with_previous_filters = Vec::new();
     for piece in &pieces {
@@ -227,18 +233,18 @@ fn assign_for_block(layout_arena: &impl PaintableRowsRead, block: NodeSlotId) {
     for (owner, filter) in owners_with_filters {
         let unchanged = boxes_with_previous_filters
             .iter()
-            .any(|(previous_owner, previous)| *previous_owner == owner && *previous == filter);
+            .any(|(previous_owner, previous)| *previous_owner == owner && **previous == filter);
         if !unchanged {
             layout_arena.push_paint_damage(
                 owner,
                 PaintDamage::DRAW_FOREGROUND | PaintDamage::HIT_FOREGROUND | PaintDamage::ORDER,
             );
         }
-        layout_arena.paintable_side_data_mut(owner).fragment_ownership = Some(filter);
+        layout_arena.committed_side_data_mut(owner).fragment_ownership = Some(std::sync::Arc::new(filter));
     }
     for (previous_owner, _) in boxes_with_previous_filters {
         if layout_arena
-            .paintable_side_data(previous_owner)
+            .committed_side_data(previous_owner)
             .fragment_ownership
             .is_none()
         {
@@ -251,8 +257,8 @@ fn assign_for_block(layout_arena: &impl PaintableRowsRead, block: NodeSlotId) {
 }
 
 pub(crate) fn effective_filter(layout_arena: &impl PaintRead, paintable: NodeSlotId) -> FragmentOwnershipFilter {
-    if let Some(filter) = &layout_arena.paintable_side_data(paintable).fragment_ownership {
-        return filter.clone();
+    if let Some(filter) = &layout_arena.committed_side_data(paintable).fragment_ownership {
+        return FragmentOwnershipFilter::clone(filter);
     }
     if node_painting::has_lines(layout_arena, paintable) {
         return FragmentOwnershipFilter::everything();

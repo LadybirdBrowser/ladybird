@@ -97,7 +97,7 @@ fn anchor_for_decorating_box<O: Observer>(
     if decorating_node == text_parent {
         return (fragment.baseline, true);
     }
-    let side = recorder.source.paintable_side_data(block);
+    let side = recorder.source.committed_side_data(block);
     for piece in side.inline_box_pieces() {
         if piece.node == decorating_node && piece.line_index == fragment.line_index {
             return (
@@ -124,7 +124,7 @@ pub(crate) fn decoration_sets_for_span<O: Observer>(
         return sets;
     }
     let arena = recorder.source;
-    let side = recorder.source.paintable_side_data(block);
+    let side = recorder.source.committed_side_data(block);
     let fragment = &side.fragments()[span.fragment_index as usize];
     let text_parent = fragment.style_source;
 
@@ -279,7 +279,7 @@ fn compute_skip_ink_segments<O: Observer>(
     line_thickness: i32,
     font_size: f32,
 ) -> Vec<DecorationSegment> {
-    let side = recorder.source.paintable_side_data(block);
+    let side = recorder.source.committed_side_data(block);
     let fragment = &side.fragments()[fragment_index as usize];
     let Some(run) = &fragment.glyph_run else {
         return vec![DecorationSegment {
