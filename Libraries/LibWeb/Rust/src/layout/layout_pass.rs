@@ -9,8 +9,8 @@ use super::*;
 /// The one question a layout pass still asks the document while it runs: what the container-relative
 /// lengths on an element resolve against. Answering it notes in the document that the element depends
 /// on its query container's size, so the answer cannot be published ahead of the pass. A pass holds
-/// this and no other part of the host, and the arena hands its host only to code outside a pass, so
-/// a pass has no way to make any other call into the document.
+/// this and no other part of the host. Every other host call takes the main thread token, which a
+/// pass is not handed, so a pass has no way to make any other call into the document.
 #[derive(Clone, Copy)]
 pub(crate) struct ContainerLengthBasesQuery {
     context: *mut c_void,
@@ -18,11 +18,12 @@ pub(crate) struct ContainerLengthBasesQuery {
 }
 
 impl ContainerLengthBasesQuery {
-    pub(crate) fn of(host: &FfiLayoutHostCallbacks) -> Self {
-        Self {
-            context: host.context,
-            query: host.container_length_bases,
-        }
+    /// Only the layout host makes one, for a caller holding the main thread token.
+    pub(super) fn new(
+        context: *mut c_void,
+        query: unsafe extern "C" fn(*mut c_void, u32) -> svg_formatting_context::FfiContainerLengthBases,
+    ) -> Self {
+        Self { context, query }
     }
 
     /// What `cqw` and `cqh` are 100 of for `element`.

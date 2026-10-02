@@ -157,7 +157,8 @@ pub(crate) struct PaintableRowReset {
 }
 
 impl PaintableRowReset {
-    pub(crate) fn invoke_callback(self) {
+    /// Tells the document's chrome state that the row was reset.
+    pub(crate) fn tell(self, _: &crate::stage::MainThread) {
         if let Some((context, callback)) = self.callback {
             // SAFETY: Registration and unregistration keep the callback context live.
             unsafe { callback(context, self.slot, self.kind) };

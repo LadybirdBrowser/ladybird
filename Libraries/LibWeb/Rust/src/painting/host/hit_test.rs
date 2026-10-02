@@ -20,11 +20,12 @@ pub struct FfiHitTestQueryCallbacks {
     pub chrome_metrics: crate::painting::ffi::FfiChromeMetrics,
     pub viewport_wheel_overflow_x: u8,
     pub viewport_wheel_overflow_y: u8,
-    pub shell_in_scope: unsafe extern "C" fn(*mut c_void, *mut c_void) -> bool,
+    /// Private: reached only through the method below, which takes the main thread token.
+    shell_in_scope: unsafe extern "C" fn(*mut c_void, *mut c_void) -> bool,
 }
 
 impl FfiHitTestQueryCallbacks {
-    pub(crate) fn shell_in_scope(&self, shell: *mut c_void) -> bool {
+    pub(crate) fn shell_in_scope(&self, _: &crate::stage::MainThread, shell: *mut c_void) -> bool {
         // SAFETY: The C++ host answers synchronously.
         unsafe { (self.shell_in_scope)(self.context, shell) }
     }

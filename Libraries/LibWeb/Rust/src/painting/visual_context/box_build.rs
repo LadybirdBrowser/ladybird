@@ -17,6 +17,7 @@ use libgfx_rust::FloatPoint;
 pub(crate) struct BoxBuildEnvironment<'a, Arena> {
     pub layout_arena: &'a Arena,
     pub callbacks: &'a FfiVisualContextHostCallbacks,
+    pub main_thread: &'a crate::stage::MainThread,
     pub pixel_ratio: f64,
 }
 
@@ -553,7 +554,9 @@ pub(crate) fn build_box_visual_context_nodes<Arena: PaintableRowsRead>(
         );
         let scroll_node_index = state_for_descendants.spatial;
         assignment.own_scroll_node_index = scroll_node_index;
-        assignment.node_identity = env.callbacks.node_identity(layout_arena.shell_if_live(slot));
+        assignment.node_identity = env
+            .callbacks
+            .node_identity(env.main_thread, layout_arena.shell_if_live(slot));
         nearest_scroll_nodes_for_descendants = NearestScrollNodeIndices {
             stopping_at_fixed_position_ancestors: scroll_node_index,
             continuing_through_fixed_position_ancestors: scroll_node_index,
@@ -566,7 +569,9 @@ pub(crate) fn build_box_visual_context_nodes<Arena: PaintableRowsRead>(
             .node_style_if_live(slot)
             .is_some_and(|style| style.has_scroll_snap_alignment())
     {
-        assignment.node_identity = env.callbacks.node_identity(layout_arena.shell_if_live(slot));
+        assignment.node_identity = env
+            .callbacks
+            .node_identity(env.main_thread, layout_arena.shell_if_live(slot));
     }
 
     // Positioned descendants that escape into a viewport-establishing containing block lay

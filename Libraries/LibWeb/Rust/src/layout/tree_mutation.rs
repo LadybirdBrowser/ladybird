@@ -6,26 +6,17 @@
 
 use crate::layout::LayoutNodeArena;
 use crate::layout::node_data::NodeSlotId;
-use std::ffi::c_void;
+use crate::stage::MainThread;
 
-unsafe extern "C" {
-    fn ladybird_layout_node_shell_destroy(shell: *mut c_void);
-}
+mod host_calls;
 
-pub(crate) fn destroy_shell(shell: *mut c_void) {
-    if shell.is_null() {
-        return;
-    }
-    // SAFETY: The arena has already freed the shell's slot, and destroying a shell never
-    // re-enters the arena.
-    unsafe { ladybird_layout_node_shell_destroy(shell) };
-}
+pub(crate) use host_calls::destroy_shell;
 
-pub(crate) fn free_subtree_and_destroy_shells(arena: *mut LayoutNodeArena, root: NodeSlotId) {
+pub(crate) fn free_subtree_and_destroy_shells(main_thread: &MainThread, arena: *mut LayoutNodeArena, root: NodeSlotId) {
     // SAFETY: Callers hold no reference derived from the arena across this call, and the
     // mutable borrow ends before the shells are destroyed.
     let freed = unsafe { &mut *arena }.free_subtree(root);
-    freed.destroy_shells_and_invoke_callbacks();
+    freed.destroy_shells_and_invoke_callbacks(main_thread);
 }
 
 #[must_use = "an unplaced layout node must be attached or freed"]
@@ -154,7 +145,7 @@ mod tests {
     fn free(arena: &mut LayoutNodeArena, allocation: NodeAllocation) {
         arena
             .free_subtree(allocation.slot)
-            .destroy_shells_and_invoke_callbacks();
+            .destroy_shells_and_invoke_callbacks(&crate::stage::MainThread::for_test());
     }
 
     #[test]
@@ -258,7 +249,7 @@ mod tests {
         for slot in [root.slot, a.slot, b.slot, c.slot] {
             assert!(!arena.slot_is_live(slot));
         }
-        freed.destroy_shells_and_invoke_callbacks();
+        freed.destroy_shells_and_invoke_callbacks(&crate::stage::MainThread::for_test());
     }
 
     #[test]

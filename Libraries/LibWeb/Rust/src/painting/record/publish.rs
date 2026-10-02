@@ -13,10 +13,12 @@ use crate::painting::record::vector_images::{
     VectorImageRenderRequest, is_vector_image_placeholder, vector_image_placeholder_index,
 };
 use crate::painting::record::{RecordingOutput, RecordingResult};
+use crate::stage::MainThread;
 
 fn resolve_vector_image_placeholders(
     output: &mut RecordingOutput,
     requests: &[VectorImageRenderRequest],
+    main_thread: &MainThread,
     publish: &FfiRecordingPublishCallbacks,
 ) {
     if requests.is_empty() {
@@ -24,7 +26,7 @@ fn resolve_vector_image_placeholders(
     }
     let resolved_ids: Vec<u64> = requests
         .iter()
-        .map(|request| publish.resolve_vector_image_display_list(&request.to_ffi()))
+        .map(|request| publish.resolve_vector_image_display_list(main_thread, &request.to_ffi()))
         .collect();
     let display_list = std::sync::Arc::make_mut(&mut output.display_list);
     let id_field_offset = std::mem::offset_of!(PaintNestedDisplayList, display_list_id);
@@ -54,6 +56,7 @@ fn resolve_vector_image_placeholders(
 pub(crate) fn publish_recording(
     arena: &LayoutNodeArena,
     pending: PendingRecording,
+    main_thread: &MainThread,
     publish: &FfiRecordingPublishCallbacks,
 ) -> u64 {
     let PendingRecording {
@@ -69,22 +72,23 @@ pub(crate) fn publish_recording(
         ..
     } = resources;
     for font in fonts.values() {
-        publish.add_font(font);
+        publish.add_font(main_thread, font);
     }
     for frame in image_frames.values() {
-        publish.add_image_frame(frame);
+        publish.add_image_frame(main_thread, frame);
     }
     for frame in arena.svg_paint_resources().published_filter_image_frames() {
-        publish.add_image_frame(&frame);
+        publish.add_image_frame(main_thread, &frame);
     }
     for (resource_id, sink_handle) in video_sinks {
-        publish.add_video_sink(resource_id, sink_handle);
+        publish.add_video_sink(main_thread, resource_id, sink_handle);
     }
-    resolve_vector_image_placeholders(&mut output, &vector_image_render_requests, publish);
+    resolve_vector_image_placeholders(&mut output, &vector_image_render_requests, main_thread, publish);
     if let Some(mut recording_from_scratch) = recording_from_scratch {
         resolve_vector_image_placeholders(
             &mut recording_from_scratch.output,
             &recording_from_scratch.resources.vector_image_render_requests,
+            main_thread,
             publish,
         );
         crate::painting::record::verify::verify_assembled_recording_matches_fresh(

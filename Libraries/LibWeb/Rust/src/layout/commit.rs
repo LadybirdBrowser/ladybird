@@ -64,13 +64,12 @@ impl CommitNotifications {
     ///
     /// The host must keep the document and node shells alive until these synchronous
     /// notifications return. No mutable arena borrow may be active.
-    pub(crate) unsafe fn notify_host(self, host: &FfiLayoutHostCallbacks) {
+    pub(crate) unsafe fn notify_host(self, main_thread: &crate::stage::MainThread, host: &FfiLayoutHostCallbacks) {
         for reset in self.row_resets {
-            reset.invoke_callback();
+            reset.tell(main_thread);
         }
-        if !self.messages.is_empty() {
-            unsafe { (host.deliver_commit_messages)(host.context, self.messages.as_ptr(), self.messages.len()) };
-        }
+        // SAFETY: Guaranteed by the caller.
+        unsafe { host.deliver_commit_messages(main_thread, &self.messages) };
     }
 }
 

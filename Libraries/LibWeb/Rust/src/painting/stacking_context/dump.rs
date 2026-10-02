@@ -10,20 +10,30 @@ use crate::layout::node_data::NodeSlotId;
 use crate::painting::dump::push_css_pixel_rect;
 use crate::painting::paintable_geometry;
 use crate::painting::style_queries;
+use crate::stage::MainThread;
 use std::ffi::c_void;
 use std::fmt::Write;
 
+/// What a stacking context dump asks the document. The fields are private: the callbacks are
+/// reached only through the methods below, which take the main thread token.
 #[derive(Clone, Copy)]
 #[repr(C)]
 pub struct FfiStackingContextDumpCallbacks {
-    pub context: *mut c_void,
-    pub debug_description:
+    context: *mut c_void,
+    debug_description:
         unsafe extern "C" fn(context: *mut c_void, layout_node_shell: *mut c_void, description_sink: *mut c_void),
-    pub append_text: unsafe extern "C" fn(context: *mut c_void, bytes: *const u8, byte_count: usize),
+    append_text: unsafe extern "C" fn(context: *mut c_void, bytes: *const u8, byte_count: usize),
 }
 
+/// Mints the main thread token for this module's FFI entry points; only this module can make one.
+pub(crate) struct MainThreadFfiEntry {
+    _private: (),
+}
+
+const MAIN_THREAD_FFI_ENTRY: MainThreadFfiEntry = MainThreadFfiEntry { _private: () };
+
 impl FfiStackingContextDumpCallbacks {
-    fn debug_description(&self, layout_node_shell: *mut c_void) -> String {
+    fn debug_description(&self, _: &MainThread, layout_node_shell: *mut c_void) -> String {
         let mut description = Vec::new();
         // SAFETY: The C++ host fills the description sink synchronously through the exported push
         // function.
@@ -31,7 +41,7 @@ impl FfiStackingContextDumpCallbacks {
         String::from_utf8_lossy(&description).into_owned()
     }
 
-    fn append_text(&self, text: &str) {
+    fn append_text(&self, _: &MainThread, text: &str) {
         // SAFETY: The C++ sink copies the completed dump synchronously.
         unsafe { (self.append_text)(self.context, text.as_ptr(), text.len()) };
     }
@@ -48,17 +58,20 @@ pub unsafe extern "C" fn layout_arena_dump_stacking_context_tree(
     viewport: NodeSlotId,
     callbacks: FfiStackingContextDumpCallbacks,
 ) {
+    // SAFETY: Guaranteed by the entry point's contract.
+    let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY) };
     // SAFETY: The caller guarantees a live arena handle borrowed for this call.
     let arena = unsafe { LayoutNodeArena::from_handle(arena) };
     if arena.stacking_context_entries(viewport).is_none() {
         return;
     }
     let mut output = String::new();
-    visit(&mut output, arena, viewport, 0, &callbacks);
-    callbacks.append_text(&output);
+    visit(&main_thread, &mut output, arena, viewport, 0, &callbacks);
+    callbacks.append_text(&main_thread, &output);
 }
 
 fn visit(
+    main_thread: &MainThread,
     output: &mut String,
     arena: &LayoutNodeArena,
     root: NodeSlotId,
@@ -71,7 +84,7 @@ fn visit(
     } else {
         push_line(
             output,
-            &callbacks.debug_description(arena.node_shell(root)),
+            &callbacks.debug_description(main_thread, arena.node_shell(root)),
             paintable_geometry::absolute_rect_or_default(&arena.paintable_rows(), root),
             effective_z_index(arena, root),
             has_css_transform(arena, root),
@@ -82,7 +95,7 @@ fn visit(
         return;
     };
     for entry in entries.negative_z_index_child_contexts() {
-        visit(output, arena, entry.slot, depth + 1, callbacks);
+        visit(main_thread, output, arena, entry.slot, depth + 1, callbacks);
     }
     for &descendant in &entries.stack_level_zero_boxes {
         if arena.paintable_row_is_populated(descendant)
@@ -91,11 +104,11 @@ fn visit(
                 .paintable_data(descendant)
                 .establishes_stacking_context
         {
-            visit(output, arena, descendant, depth + 1, callbacks);
+            visit(main_thread, output, arena, descendant, depth + 1, callbacks);
         }
     }
     for entry in entries.positive_z_index_child_contexts() {
-        visit(output, arena, entry.slot, depth + 1, callbacks);
+        visit(main_thread, output, arena, entry.slot, depth + 1, callbacks);
     }
 }
 

@@ -18,6 +18,7 @@ use crate::painting::dump::{
 use crate::painting::visual_context::VisualContextTree;
 use crate::painting::visual_context::VisualContextTreeDump;
 use crate::painting::visual_context::dump::SlotKind;
+use crate::stage::MainThread;
 use libgfx_rust::path::OwnedPath;
 use libgfx_rust::{
     Color, CompositingAndBlendingOperator, CornerRadii, FloatPoint, FloatRect, FloatSize, IntPoint, IntRect, IntSize,
@@ -27,25 +28,34 @@ use std::collections::HashMap;
 use std::ffi::c_void;
 use std::fmt::Write;
 
+/// Mints the main thread token for this module's FFI entry points; only this module can make one.
+pub(crate) struct MainThreadFfiEntry {
+    _private: (),
+}
+
+const MAIN_THREAD_FFI_ENTRY: MainThreadFfiEntry = MainThreadFfiEntry { _private: () };
+
+/// What a display list dump asks the document. The fields are private: the callbacks are reached
+/// only through the methods below, which take the main thread token.
 #[derive(Clone, Copy)]
 #[repr(C)]
 pub struct FfiPaintingDumpCallbacks {
-    pub context: *mut c_void,
-    pub debug_description:
+    context: *mut c_void,
+    debug_description:
         unsafe extern "C" fn(context: *mut c_void, layout_node_shell: *mut c_void, description_sink: *mut c_void),
-    pub command_bytes:
+    command_bytes:
         unsafe extern "C" fn(context: *mut c_void, display_list: *const c_void, byte_count: *mut usize) -> *const u8,
-    pub command_runs: unsafe extern "C" fn(
+    command_runs: unsafe extern "C" fn(
         context: *mut c_void,
         display_list: *const c_void,
         run_count: *mut usize,
     ) -> *const DisplayListCommandRun,
-    pub nested_display_list: unsafe extern "C" fn(context: *mut c_void, display_list_id: u64) -> *const c_void,
-    pub append_text: unsafe extern "C" fn(context: *mut c_void, bytes: *const u8, byte_count: usize),
+    nested_display_list: unsafe extern "C" fn(context: *mut c_void, display_list_id: u64) -> *const c_void,
+    append_text: unsafe extern "C" fn(context: *mut c_void, bytes: *const u8, byte_count: usize),
 }
 
 impl FfiPaintingDumpCallbacks {
-    fn debug_description(&self, layout_node_shell: *mut c_void) -> String {
+    fn debug_description(&self, _: &MainThread, layout_node_shell: *mut c_void) -> String {
         let mut description = Vec::new();
         // SAFETY: The C++ host fills the description sink synchronously through the exported push
         // function.
@@ -53,7 +63,7 @@ impl FfiPaintingDumpCallbacks {
         String::from_utf8_lossy(&description).into_owned()
     }
 
-    fn command_bytes(&self, display_list: *const c_void) -> &[u8] {
+    fn command_bytes(&self, _: &MainThread, display_list: *const c_void) -> &[u8] {
         let mut byte_count = 0;
         // SAFETY: The host owns the display list for the duration of the dump and returns a span
         // that stays live for this call.
@@ -66,7 +76,7 @@ impl FfiPaintingDumpCallbacks {
         unsafe { std::slice::from_raw_parts(bytes, byte_count) }
     }
 
-    fn command_runs(&self, display_list: *const c_void) -> &[DisplayListCommandRun] {
+    fn command_runs(&self, _: &MainThread, display_list: *const c_void) -> &[DisplayListCommandRun] {
         let mut run_count = 0;
         // SAFETY: The host owns the display list for the duration of the dump and returns its live runs.
         let runs = unsafe { (self.command_runs)(self.context, display_list, &raw mut run_count) };
@@ -74,14 +84,14 @@ impl FfiPaintingDumpCallbacks {
         unsafe { libcompositing_rust::ffi::ffi_slice(runs, run_count) }
     }
 
-    fn nested_display_list(&self, display_list_id: DisplayListResourceId) -> *const c_void {
+    fn nested_display_list(&self, _: &MainThread, display_list_id: DisplayListResourceId) -> *const c_void {
         // SAFETY: Nested ids come from records the host produced, so they resolve in its storage.
         let display_list = unsafe { (self.nested_display_list)(self.context, display_list_id.0) };
         assert!(!display_list.is_null());
         display_list
     }
 
-    fn append_text(&self, text: &str) {
+    fn append_text(&self, _: &MainThread, text: &str) {
         // SAFETY: The C++ sink copies the completed dump synchronously.
         unsafe { (self.append_text)(self.context, text.as_ptr(), text.len()) };
     }
@@ -156,17 +166,19 @@ pub unsafe extern "C" fn painting_dump(
     callbacks: FfiPaintingDumpCallbacks,
 ) {
     assert!(!display_list.is_null());
+    // SAFETY: Guaranteed by the entry point's contract.
+    let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY) };
     let arena = unsafe { crate::painting::ffi::arena_from_handle(arena) };
     let visual_context_tree = unsafe { libcompositing_rust::ffi::tree_from_handle(visual_context_tree) };
     let command_runs = unsafe { libcompositing_rust::ffi::ffi_slice(command_runs, command_run_count) };
     let owners = VisualContextNodeOwners::collect(arena, viewport);
     let mut output = visual_context_tree.dump_nodes_reachable_from_runs(command_runs, |kind, index| {
         let shell = arena.shell_if_live(owners.owner(kind, index)?);
-        (!shell.is_null()).then(|| callbacks.debug_description(shell))
+        (!shell.is_null()).then(|| callbacks.debug_description(&main_thread, shell))
     });
     output.push_str("\nDisplayList:\n");
-    dump_commands(&mut output, &callbacks, display_list, 0);
-    callbacks.append_text(&output);
+    dump_commands(&main_thread, &mut output, &callbacks, display_list, 0);
+    callbacks.append_text(&main_thread, &output);
 }
 
 fn push_indent(output: &mut String, indent: usize) {
@@ -174,19 +186,21 @@ fn push_indent(output: &mut String, indent: usize) {
 }
 
 fn dump_commands(
+    main_thread: &MainThread,
     output: &mut String,
     callbacks: &FfiPaintingDumpCallbacks,
     display_list: *const c_void,
     base_indent: usize,
 ) {
-    let bytes = callbacks.command_bytes(display_list);
-    for run in callbacks.command_runs(display_list) {
+    let bytes = callbacks.command_bytes(main_thread, display_list);
+    for run in callbacks.command_runs(main_thread, display_list) {
         let run_bytes = &bytes[run.offset as usize..(run.offset + run.size) as usize];
-        dump_command_bytes(output, callbacks, run_bytes, run.context, base_indent);
+        dump_command_bytes(main_thread, output, callbacks, run_bytes, run.context, base_indent);
     }
 }
 
 fn dump_command_bytes(
+    main_thread: &MainThread,
     output: &mut String,
     callbacks: &FfiPaintingDumpCallbacks,
     command_bytes: &[u8],
@@ -208,6 +222,7 @@ fn dump_command_bytes(
         output.push('\n');
 
         dump_records_inside(
+            main_thread,
             output,
             callbacks,
             header.command_type,
@@ -219,9 +234,10 @@ fn dump_command_bytes(
             return;
         };
         dump_commands(
+            main_thread,
             output,
             callbacks,
-            callbacks.nested_display_list(nested.display_list),
+            callbacks.nested_display_list(main_thread, nested.display_list),
             base_indent + 1,
         );
     });
@@ -241,6 +257,7 @@ fn nested_display_lists(command_type: DisplayListCommandType, payload: &[u8]) ->
 }
 
 fn dump_records_inside(
+    main_thread: &MainThread,
     output: &mut String,
     callbacks: &FfiPaintingDumpCallbacks,
     command_type: DisplayListCommandType,
@@ -262,7 +279,14 @@ fn dump_records_inside(
             output.push_str(label);
             nested_indent += 1;
         }
-        dump_command_bytes(output, callbacks, span_bytes(payload, span), context, nested_indent);
+        dump_command_bytes(
+            main_thread,
+            output,
+            callbacks,
+            span_bytes(payload, span),
+            context,
+            nested_indent,
+        );
     });
 }
 
