@@ -544,9 +544,9 @@ mod tests {
         let mut arena = LayoutNodeArena::new();
         let parent = arena.allocate_for_test().slot;
         let node = arena.allocate_for_test().slot;
-        arena.data(parent).kind.set(NodeKind::BlockContainer);
-        arena.data(node).kind.set(NodeKind::TextNode);
-        arena.data(node).parent.set(parent);
+        arena.write_shape(parent).set_kind(NodeKind::BlockContainer);
+        arena.write_shape(node).set_kind(NodeKind::TextNode);
+        arena.write_shape(node).set_parent(parent);
         let sharp_s_first = || content("SSS", 0, 2, vec![edit(0, 1, 0, 2)]);
         arena.set_text_content(node, sharp_s_first());
         let epoch = arena.data(parent).fragment_cache_epoch.get();
@@ -564,7 +564,7 @@ mod tests {
     fn refreshing_the_key_preserves_identical_text_storage_and_layout() {
         let mut arena = LayoutNodeArena::new();
         let node = arena.allocate_for_test().slot;
-        arena.data(node).kind.set(NodeKind::TextNode);
+        arena.write_shape(node).set_kind(NodeKind::TextNode);
         let key = TextRenderingKey {
             options: TextRenderingOptions {
                 text_transform: text_transform::UPPERCASE,
@@ -601,7 +601,7 @@ mod tests {
     fn native_style_and_dom_notifications_share_one_pending_enrollment() {
         let mut arena = LayoutNodeArena::new();
         let node = arena.allocate_for_test().slot;
-        arena.data(node).kind.set(NodeKind::TextNode);
+        arena.write_shape(node).set_kind(NodeKind::TextNode);
         arena.enroll_text_node_for_content_sync(node);
         arena.invalidate_text_content(node);
         arena.enroll_text_node_for_content_sync(node);
@@ -619,9 +619,9 @@ mod tests {
         let mut arena = LayoutNodeArena::new();
         let parent = arena.allocate_for_test().slot;
         let node = arena.allocate_for_test().slot;
-        arena.data(node).kind.set(NodeKind::GeneratedTextNode);
-        arena.data(node).parent.set(parent);
-        arena.data(parent).first_child.set(node);
+        arena.write_shape(node).set_kind(NodeKind::GeneratedTextNode);
+        arena.write_shape(node).set_parent(parent);
+        arena.write_shape(parent).set_first_child(node);
         let hello = ak::Utf16FlyString::from_utf16(&"hello".encode_utf16().collect::<Vec<_>>());
         arena.set_generated_text(node, ak::Utf16String::from(hello));
         let mut text = content("hello", 0, 5, Vec::new());
@@ -654,8 +654,8 @@ mod tests {
     fn first_letter_slices(arena: &mut LayoutNodeArena, end: usize, length: usize) -> (NodeSlotId, NodeSlotId) {
         let first = arena.allocate_for_test().slot;
         let remainder = arena.allocate_for_test().slot;
-        arena.data(first).kind.set(NodeKind::TextNode);
-        arena.data(remainder).kind.set(NodeKind::TextNode);
+        arena.write_shape(first).set_kind(NodeKind::TextNode);
+        arena.write_shape(remainder).set_kind(NodeKind::TextNode);
         arena.set_first_letter_slices(first, remainder, end, length);
         (first, remainder)
     }
@@ -694,7 +694,7 @@ mod tests {
         );
         let _ = arena.free_subtree(first);
         let replacement = arena.allocate_for_test().slot;
-        arena.data(replacement).kind.set(NodeKind::TextNode);
+        arena.write_shape(replacement).set_kind(NodeKind::TextNode);
         assert_eq!(replacement.slot_index(), first.slot_index());
         assert_ne!(replacement, first);
         assert!(!arena.text_has_source_range(first));
@@ -707,7 +707,7 @@ mod tests {
 
         let _ = arena.free_subtree(remainder);
         let replacement = arena.allocate_for_test().slot;
-        arena.data(replacement).kind.set(NodeKind::TextNode);
+        arena.write_shape(replacement).set_kind(NodeKind::TextNode);
         assert_eq!(replacement.slot_index(), remainder.slot_index());
         assert!(arena.text_fragments(remainder).as_slice().is_empty());
         assert_eq!(arena.text_fragments(replacement).as_slice(), &[replacement]);

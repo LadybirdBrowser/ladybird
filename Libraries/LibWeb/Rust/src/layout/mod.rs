@@ -34,6 +34,7 @@ pub(crate) mod line_box_fragment;
 pub(crate) mod line_builder;
 pub mod node_data;
 pub(crate) mod node_facts;
+pub(crate) mod tree_shape;
 pub use libcompositing_rust::node_slot_id;
 mod partial_relayout;
 mod read_scope;

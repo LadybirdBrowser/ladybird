@@ -410,8 +410,8 @@ mod tests {
         let grandparent = arena.allocate_for_test();
         let parent = arena.allocate_for_test();
         let child = arena.allocate_for_test();
-        arena.data(grandparent.slot).kind.set(NodeKind::BlockContainer);
-        arena.data(parent.slot).kind.set(NodeKind::InlineNode);
+        arena.write_shape(grandparent.slot).set_kind(NodeKind::BlockContainer);
+        arena.write_shape(parent.slot).set_kind(NodeKind::InlineNode);
         arena.attach_child(grandparent.slot, owned(parent.slot), NodeSlotId::INVALID);
         for node in [grandparent.slot, parent.slot] {
             arena.populate_paintable_row(node);

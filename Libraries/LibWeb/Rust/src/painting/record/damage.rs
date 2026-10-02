@@ -401,7 +401,7 @@ mod tests {
 
     fn populated_child(arena: &mut LayoutNodeArena, parent: NodeSlotId) -> NodeSlotId {
         let row = arena.allocate_for_test().slot;
-        arena.data(row).kind.set(NodeKind::Box);
+        arena.write_shape(row).set_kind(NodeKind::Box);
         if !parent.is_invalid() {
             arena.insert_child(parent, row, NodeSlotId::INVALID);
         }
@@ -449,7 +449,7 @@ mod tests {
         let owner = populated_child(&mut arena, root);
         let sibling = populated_child(&mut arena, root);
         let unpopulated = arena.allocate_for_test().slot;
-        arena.data(unpopulated).kind.set(NodeKind::InlineNode);
+        arena.write_shape(unpopulated).set_kind(NodeKind::InlineNode);
         arena.insert_child(owner, unpopulated, NodeSlotId::INVALID);
         let child = populated_child(&mut arena, unpopulated);
         settle(&arena);
@@ -502,7 +502,7 @@ mod tests {
         let root = populated_child(&mut arena, NodeSlotId::INVALID);
         let svg_root = populated_child(&mut arena, root);
         let mask = populated_child(&mut arena, svg_root);
-        arena.data(mask).kind.set(NodeKind::SVGMaskBox);
+        arena.write_shape(mask).set_kind(NodeKind::SVGMaskBox);
         let mask_content = populated_child(&mut arena, mask);
         settle(&arena);
 
@@ -605,13 +605,12 @@ mod tests {
     fn repaint_fan_out_reaches_anonymous_boxes_and_the_line_root_of_an_inline() {
         let mut arena = LayoutNodeArena::new();
         let line_root = populated_child(&mut arena, NodeSlotId::INVALID);
-        arena.data(line_root).kind.set(NodeKind::BlockContainer);
+        arena.write_shape(line_root).set_kind(NodeKind::BlockContainer);
         let inline = populated_child(&mut arena, line_root);
-        arena.data(inline).kind.set(NodeKind::InlineNode);
+        arena.write_shape(inline).set_kind(NodeKind::InlineNode);
         let anonymous = populated_child(&mut arena, inline);
-        arena.data(anonymous).kind.set(NodeKind::BlockContainer);
-        let flags = &arena.data(anonymous).flags;
-        flags.set(flags.get() | crate::layout::node_data::NodeFlag::Anonymous as u32);
+        arena.write_shape(anonymous).set_kind(NodeKind::BlockContainer);
+        arena.set_node_flag(anonymous, crate::layout::node_data::NodeFlag::Anonymous, true);
         settle(&arena);
 
         arena.push_paint_damage_for_repaint(inline, PaintDamage::ALL_DRAW);

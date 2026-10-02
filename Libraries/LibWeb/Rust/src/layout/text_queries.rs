@@ -472,7 +472,7 @@ mod tests {
         edits: Vec<RenderedTextEdit>,
     ) -> NodeSlotId {
         let node = arena.allocate_for_test().slot;
-        arena.data(node).kind.set(NodeKind::TextNode);
+        arena.write_shape(node).set_kind(NodeKind::TextNode);
         arena.set_text_content(node, TextContent::for_test(text, start, length, edits));
         node
     }

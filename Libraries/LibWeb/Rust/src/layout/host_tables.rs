@@ -342,9 +342,8 @@ mod tests {
         let work = TreeBuildHostWork::default();
         let freed = arena.allocate_for_test().slot;
         arena
-            .data(freed)
-            .kind
-            .set(super::super::node_data::NodeKind::BlockContainer);
+            .write_shape(freed)
+            .set_kind(super::super::node_data::NodeKind::BlockContainer);
         host_tables.replace_image_observers(freed, object(8));
 
         let host_calls = HostCalls::AfterTreeBuild(&work);
@@ -375,10 +374,11 @@ mod tests {
         let root = arena.allocate_for_test().slot;
         let text = arena.allocate_for_test().slot;
         arena
-            .data(root)
-            .kind
-            .set(super::super::node_data::NodeKind::BlockContainer);
-        arena.data(text).kind.set(super::super::node_data::NodeKind::TextNode);
+            .write_shape(root)
+            .set_kind(super::super::node_data::NodeKind::BlockContainer);
+        arena
+            .write_shape(text)
+            .set_kind(super::super::node_data::NodeKind::TextNode);
         arena.attach_child(root, UnplacedLayoutNode::new(text), NodeSlotId::INVALID);
         host_tables.replace_image_observers(root, object(8));
         host_tables.replace_image_observers(text, object(16));

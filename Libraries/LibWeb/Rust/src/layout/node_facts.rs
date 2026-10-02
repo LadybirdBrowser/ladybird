@@ -1247,13 +1247,11 @@ mod node_facts_tests {
     use crate::css::style::{NaturalSize, ReplacedContentInput};
     use crate::layout::CssPixels;
     use crate::layout::node_data::{NodeData, NodeFlag, NodeKind};
-    use std::cell::Cell;
 
     fn data_with_kind(kind: NodeKind) -> NodeData {
-        NodeData {
-            kind: Cell::new(kind),
-            ..NodeData::default()
-        }
+        let mut data = NodeData::default();
+        *data.kind.get_mut() = kind;
+        data
     }
 
     #[test]
@@ -1272,11 +1270,11 @@ mod node_facts_tests {
         assert!(super::node_can_have_children(&data_with_kind(NodeKind::InlineNode)));
         assert!(super::node_can_have_children(&data_with_kind(NodeKind::TextNode)));
 
-        let media = data_with_kind(NodeKind::AudioBox);
+        let mut media = data_with_kind(NodeKind::AudioBox);
         assert!(!super::node_can_have_children(&media));
-        media.flags.set(NodeFlag::ReplacedBoxCanHaveChildren as u32);
+        *media.flags.get_mut() = NodeFlag::ReplacedBoxCanHaveChildren as u32;
         assert!(super::node_can_have_children(&media));
-        media.kind.set(NodeKind::VideoBox);
+        *media.kind.get_mut() = NodeKind::VideoBox;
         assert!(super::node_can_have_children(&media));
     }
     fn horizontal_style() -> super::ReplacedContentStyle {

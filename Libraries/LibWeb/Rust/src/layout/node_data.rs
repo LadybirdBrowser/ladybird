@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use super::tree_shape::ShapeCell;
 use crate::layout::CssPixels;
 use std::cell::Cell;
 use std::ffi::c_void;
@@ -259,15 +260,15 @@ pub struct FfiNodeConstructionFacts {
 
 #[repr(C)]
 pub(crate) struct NodeData {
-    pub parent: Cell<NodeSlotId>,
-    pub first_child: Cell<NodeSlotId>,
+    pub parent: ShapeCell<NodeSlotId>,
+    pub first_child: ShapeCell<NodeSlotId>,
     pub last_child: Cell<NodeSlotId>,
     pub previous_sibling: Cell<NodeSlotId>,
-    pub next_sibling: Cell<NodeSlotId>,
-    pub kind: Cell<NodeKind>,
-    pub generated_for: Cell<u8>,
+    pub next_sibling: ShapeCell<NodeSlotId>,
+    pub kind: ShapeCell<NodeKind>,
+    pub generated_for: ShapeCell<u8>,
     pub intrinsic_cache_epoch: Cell<u16>,
-    pub flags: Cell<u32>,
+    pub flags: ShapeCell<u32>,
     /// Advanced on every layout invalidation that reaches this node or its
     /// subtree, with no propagation boundary: unlike the intrinsic epoch,
     /// changes inside absolutely positioned and SVG descendants must reach
@@ -275,35 +276,35 @@ pub(crate) struct NodeData {
     /// Wide enough that wrapping between a cache store and the next probe
     /// is unreachable.
     pub fragment_cache_epoch: Cell<u32>,
-    pub slot_generation: Cell<u8>,
-    pub compositor_animation_frame_kinds: Cell<u8>,
+    pub slot_generation: ShapeCell<u8>,
+    pub compositor_animation_frame_kinds: ShapeCell<u8>,
     pub table_column_span: Cell<u16>,
     pub table_row_span: Cell<u16>,
-    pub dom_paint_facts: Cell<u8>,
+    pub dom_paint_facts: ShapeCell<u8>,
     pub ancestor_facts: Cell<u8>,
-    pub style: Cell<StylePayloadsRef>,
+    pub style: ShapeCell<StylePayloadsRef>,
 }
 
 impl Default for NodeData {
     fn default() -> Self {
         Self {
-            parent: Cell::new(NodeSlotId::INVALID),
-            first_child: Cell::new(NodeSlotId::INVALID),
+            parent: ShapeCell::new(NodeSlotId::INVALID),
+            first_child: ShapeCell::new(NodeSlotId::INVALID),
             last_child: Cell::new(NodeSlotId::INVALID),
             previous_sibling: Cell::new(NodeSlotId::INVALID),
-            next_sibling: Cell::new(NodeSlotId::INVALID),
-            kind: Cell::new(NodeKind::Unset),
-            generated_for: Cell::new(0),
+            next_sibling: ShapeCell::new(NodeSlotId::INVALID),
+            kind: ShapeCell::new(NodeKind::Unset),
+            generated_for: ShapeCell::new(0),
             intrinsic_cache_epoch: Cell::new(0),
-            flags: Cell::new(0),
-            slot_generation: Cell::new(0),
-            compositor_animation_frame_kinds: Cell::new(0),
+            flags: ShapeCell::new(0),
+            slot_generation: ShapeCell::new(0),
+            compositor_animation_frame_kinds: ShapeCell::new(0),
             table_column_span: Cell::new(1),
             table_row_span: Cell::new(1),
-            dom_paint_facts: Cell::new(0),
+            dom_paint_facts: ShapeCell::new(0),
             ancestor_facts: Cell::new(0),
             fragment_cache_epoch: Cell::new(0),
-            style: Cell::new(StylePayloadsRef::null()),
+            style: ShapeCell::new(StylePayloadsRef::null()),
         }
     }
 }

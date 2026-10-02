@@ -262,7 +262,7 @@ mod tests {
         }
         let mut arena = LayoutNodeArena::new();
         let owner = arena.allocate_for_test();
-        arena.data(owner.slot).kind.set(NodeKind::BlockContainer);
+        arena.write_shape(owner.slot).set_kind(NodeKind::BlockContainer);
         let host_tables = crate::layout::HostTables::default();
         host_tables.layout_trace_describe_node.set(Some(describe));
         let main_thread = MainThread::for_test_with_host(&host_tables);
