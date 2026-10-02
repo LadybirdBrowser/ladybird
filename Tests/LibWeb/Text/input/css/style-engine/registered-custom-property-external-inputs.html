@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    @property --drawn { syntax: "<number>"; inherits: false; initial-value: 0; }
+    @property --position { syntax: "<number>"; inherits: false; initial-value: 0; }
+    @property --container-length { syntax: "<length>"; inherits: false; initial-value: 0px; }
+    #container { container-type: inline-size; width: 200px; }
+    .on {
+        --drawn: random(element-shared, 0, 1000);
+        --position: sibling-index();
+        --container-length: 10cqw;
+        width: var(--container-length);
+        z-index: var(--position);
+        opacity: calc(var(--drawn) / 1000);
+    }
+</style>
+<div id="container"><div id="first"></div><div id="second"></div></div>
+<script>
+    // A registered custom property's value reads the random base values drawn for its element,
+    // its place among its siblings, its query containers' sizes and the viewport. The style engine
+    // computes it against each, and a change of any reaches the element.
+    promiseTest(async () => {
+        internals.updateStyle();
+        const before = Object.assign({}, internals.styleEngineCounters());
+        for (const element of [first, second])
+            element.classList.add("on");
+        internals.updateStyle();
+        const after = internals.styleEngineCounters();
+        println(`environment refusals: ${after.engineCustomPropertyEnvironmentBails - before.engineCustomPropertyEnvironmentBails}`);
+        println(`environments the engine resolved: ${after.engineCustomPropertyEnvironmentsResolved - before.engineCustomPropertyEnvironmentsResolved}`);
+        const describe = element => {
+            const style = getComputedStyle(element);
+            return `--position ${style.getPropertyValue("--position")}, --container-length ${style.getPropertyValue("--container-length")}, width ${style.width}, z-index ${style.zIndex}`;
+        };
+        // An element-shared value is drawn once for every element, and stays what it was drawn as.
+        const drawn = element => parseFloat(getComputedStyle(element).getPropertyValue("--drawn"));
+        const drawnFollows = element => Math.abs(parseFloat(getComputedStyle(element).opacity) - drawn(element) / 1000) < 1e-6;
+        const firstDrawn = drawn(first);
+        println(`--drawn in range: ${firstDrawn >= 0 && firstDrawn <= 1000}`);
+        println(`--drawn shared between elements: ${drawn(second) === firstDrawn}`);
+        println(`opacity reads --drawn: ${drawnFollows(first) && drawnFollows(second)}`);
+        println(`first: ${describe(first)}`);
+        println(`second: ${describe(second)}`);
+
+        first.remove();
+        println(`second after its sibling left: ${describe(second)}`);
+        container.style.width = "400px";
+        println(`second in a wider container: ${describe(second)}`);
+        println(`--drawn stable across restyles: ${drawn(second) === firstDrawn && drawnFollows(second)}`);
+
+        const iframe = document.createElement("iframe");
+        iframe.style.width = "200px";
+        const loaded = new Promise(resolve => iframe.addEventListener("load", resolve, { once: true }));
+        iframe.srcdoc = `
+            <!DOCTYPE html>
+            <style>
+                @property --viewport-length { syntax: "<length>"; inherits: false; initial-value: 0px; }
+                #target { --viewport-length: 10vw; width: var(--viewport-length); }
+            </style>
+            <div id="target"></div>
+        `;
+        document.body.appendChild(iframe);
+        await loaded;
+        const target = iframe.contentDocument.getElementById("target");
+        println(`viewport length: ${iframe.contentWindow.getComputedStyle(target).width}`);
+        iframe.style.width = "400px";
+        document.body.offsetWidth;
+        println(`viewport length after resize: ${iframe.contentWindow.getComputedStyle(target).width}`);
+    });
+</script>

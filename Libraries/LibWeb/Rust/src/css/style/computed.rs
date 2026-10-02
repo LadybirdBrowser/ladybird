@@ -1002,20 +1002,31 @@ impl ComputedGroupSets {
         Some(self.final_style_record(assignment.style_record, assignment.animation_overlay_slot))
     }
 
-    pub(super) fn viewport_dependent_nodes(&self) -> Vec<u32> {
-        let depends_on_viewport = |fixed_metadata: ComputedFixedMetadataID| {
+    /// The nodes whose element or pseudo-element style depends on viewport metrics, by its own
+    /// values or by the raw custom-property environment it holds, as `environment_reads_viewport`
+    /// says.
+    pub(super) fn viewport_dependent_nodes(&self, environment_reads_viewport: impl Fn(u64) -> bool) -> Vec<u32> {
+        let depends_on_viewport = |fixed_metadata: ComputedFixedMetadataID,
+                                   environment: CustomPropertyEnvironmentID| {
             self.computed_fixed_metadata.get(fixed_metadata).dependency_flags & DEPENDS_ON_VIEWPORT_METRICS != 0
+                || environment_reads_viewport(self.custom_property_environments[environment])
         };
         let mut nodes = Vec::new();
         for index in 1..self.columns.flags.len() {
-            if self.columns.fixed_metadata(index).is_some_and(depends_on_viewport) {
+            if self
+                .columns
+                .fixed_metadata(index)
+                .zip(self.columns.custom_properties(index))
+                .is_some_and(|(fixed_metadata, environment)| depends_on_viewport(fixed_metadata, environment))
+            {
                 nodes.push(u32::try_from(index).expect("computed style node identity exceeds u32"));
             }
         }
         for (&node, rows) in &self.pseudo_rows_by_node {
             if rows.iter().any(|row| {
-                row.assignment
-                    .is_some_and(|assignment| depends_on_viewport(assignment.fixed_metadata))
+                row.assignment.is_some_and(|assignment| {
+                    depends_on_viewport(assignment.fixed_metadata, assignment.custom_properties)
+                })
             }) {
                 nodes.push(node.raw());
             }
@@ -3991,7 +4002,7 @@ mod tests {
         sets.publish_unowned(Some(viewport_dependent_pseudo), &[], 0, 0, metadata(0, 1, 0));
         sets.publish_unowned(Some(viewport_dependent_pseudo_only), &[], 0, 0, metadata(0, 1, 0));
 
-        assert_eq!(sets.viewport_dependent_nodes(), vec![2, 4]);
+        assert_eq!(sets.viewport_dependent_nodes(|_| false), vec![2, 4]);
     }
 
     #[test]

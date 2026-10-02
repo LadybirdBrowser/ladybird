@@ -1,0 +1,12 @@
+environment refusals: 0
+environments the engine resolved: 4
+--drawn in range: true
+--drawn shared between elements: true
+opacity reads --drawn: true
+first: --position 1, --container-length 20px, width 20px, z-index 1
+second: --position 2, --container-length 20px, width 20px, z-index 2
+second after its sibling left: --position 1, --container-length 20px, width 20px, z-index 1
+second in a wider container: --position 1, --container-length 40px, width 40px, z-index 1
+--drawn stable across restyles: true
+viewport length: 20px
+viewport length after resize: 40px

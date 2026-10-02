@@ -268,10 +268,24 @@ impl RetainedState {
                 .writing_mode()
                     == crate::css::css_enums::writing_mode::HORIZONTAL_TB
             });
-        let (reads_width, reads_height) = crate::css::style_compute::container_relative_axes_read(
+        self.note_container_unit_reads_for_host(
+            node,
             self.state_container_unit_mask(node, state),
             inline_axis_is_horizontal,
         );
+    }
+
+    /// Keep for the host what container-relative units of `unit_mask` read of the subject's
+    /// containers, for a subject whose inline axis is or is not the horizontal one, as
+    /// `note_container_unit_effects_for_host` says.
+    pub(super) fn note_container_unit_reads_for_host(
+        &mut self,
+        node: StyleNodeID,
+        unit_mask: u8,
+        inline_axis_is_horizontal: bool,
+    ) {
+        let (reads_width, reads_height) =
+            crate::css::style_compute::container_relative_axes_read(unit_mask, inline_axis_is_horizontal);
         let mut verdict = ContainerVerdict {
             depends_on_size: true,
             ..Default::default()

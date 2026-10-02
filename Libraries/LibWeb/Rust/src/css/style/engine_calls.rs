@@ -483,7 +483,11 @@ impl StyleQuery {
             Self::PseudoElementsWithCustomPropertyData(node) => {
                 StyleAnswer::Number(engine.pseudo_elements_with_custom_property_data(node))
             }
-            Self::ViewportDependentNodes => StyleAnswer::Nodes(engine.computed_group_sets.viewport_dependent_nodes()),
+            Self::ViewportDependentNodes => {
+                StyleAnswer::Nodes(engine.computed_group_sets.viewport_dependent_nodes(|environment| {
+                    engine.custom_property_environments.reads_viewport(environment)
+                }))
+            }
             Self::ElementRandomBaseValues(node) => {
                 StyleAnswer::RandomBaseValues(engine.random_base_values.element_values(node).to_vec())
             }

@@ -1347,7 +1347,7 @@ struct CustomPropertyFinalizerContext<'a> {
     registry: &'a crate::css::custom_properties::CustomPropertyRegistry,
     inherited: Option<&'a CustomPropertyStore>,
     finalization: crate::css::custom_properties::CustomPropertyFinalization<'a>,
-    depends_on_viewport_metrics: Cell<bool>,
+    reads: Cell<crate::css::custom_properties::RegisteredValueReads>,
     left_a_value_uncomputed: Cell<bool>,
 }
 
@@ -1370,16 +1370,16 @@ unsafe extern "C" fn finalize_custom_property_component(
         //         and takes one back.
         let output = unsafe { &mut *outputs.add(member as usize) };
         let substituted = unsafe { RetainedStyleValueData::from_retained_pointer(output.data.cast()) };
-        let (finalized, depends_on_viewport_metrics) = context
+        let (finalized, reads) = context
             .registry
             .finalize_custom_property_value(context.inherited, name_raw, name, substituted, &context.finalization)
             .unwrap_or_else(|fallback| {
                 context.left_a_value_uncomputed.set(true);
-                (fallback, false)
+                (fallback, Default::default())
             });
-        if depends_on_viewport_metrics {
-            context.depends_on_viewport_metrics.set(true);
-        }
+        let mut all_reads = context.reads.get();
+        all_reads |= reads;
+        context.reads.set(all_reads);
         output.data = std::sync::Arc::into_raw(finalized.into_arc()).cast();
     }
 }
@@ -1393,6 +1393,38 @@ unsafe extern "C" fn finalize_custom_property_component(
 pub(crate) unsafe fn drive_custom_property_resolution(
     input: &FfiCustomPropertyDriveInput,
 ) -> FfiResolvedCustomProperties {
+    let environment = unsafe { input.finalization_environment.as_ref() };
+    let finalization = crate::css::custom_properties::CustomPropertyFinalization {
+        length: unsafe { input.finalization_length_resolution_context.as_ref() },
+        tree_counting: environment
+            .filter(|environment| environment.has_tree_counting_context)
+            .map(|environment| (environment.sibling_count, environment.sibling_index)),
+        random_base_values: environment.map_or(&[], |environment| unsafe {
+            crate::css::custom_properties::ffi_slice(
+                environment.random_base_values,
+                environment.random_base_value_count,
+            )
+        }),
+        color_scheme: input.finalization_color_scheme,
+        draw_random_base_value: input
+            .draw_random_base_value
+            .map(|draw| (draw, input.random_base_context)),
+    };
+    unsafe { resolve_declared_custom_properties(input, finalization).0 }
+}
+
+/// What `drive_custom_property_resolution` resolves, finalizing against `finalization` rather than
+/// what `input` says, and what the registered values read as they computed.
+///
+/// # Safety
+/// As for `drive_custom_property_resolution`.
+pub(crate) unsafe fn resolve_declared_custom_properties(
+    input: &FfiCustomPropertyDriveInput,
+    finalization: crate::css::custom_properties::CustomPropertyFinalization<'_>,
+) -> (
+    FfiResolvedCustomProperties,
+    crate::css::custom_properties::RegisteredValueReads,
+) {
     let store = unsafe { &*input.store.cast::<CustomPropertyStore>() };
     let names = &store.declared_names;
     let mut inputs = Vec::with_capacity(names.len());
@@ -1434,15 +1466,8 @@ pub(crate) unsafe fn drive_custom_property_resolution(
                 .cast::<CustomPropertyStore>()
                 .as_ref()
         },
-        finalization: crate::css::custom_properties::CustomPropertyFinalization {
-            length: unsafe { input.finalization_length_resolution_context.as_ref() },
-            environment: unsafe { input.finalization_environment.as_ref() },
-            color_scheme: input.finalization_color_scheme,
-            draw_random_base_value: input
-                .draw_random_base_value
-                .map(|draw| (draw, input.random_base_context)),
-        },
-        depends_on_viewport_metrics: Cell::new(false),
+        finalization,
+        reads: Cell::default(),
         left_a_value_uncomputed: Cell::new(false),
     };
     let mut stats = unsafe {
@@ -1455,7 +1480,8 @@ pub(crate) unsafe fn drive_custom_property_resolution(
             Some(finalize_custom_property_component),
         )
     };
-    stats.depends_on_viewport_metrics = finalizer_context.depends_on_viewport_metrics.get();
+    let reads = finalizer_context.reads.get();
+    stats.depends_on_viewport_metrics = reads.viewport;
     stats.left_a_value_uncomputed = finalizer_context.left_a_value_uncomputed.get();
     let resolved_parent = if input.resolved_parent_store.is_null() {
         None
@@ -1492,14 +1518,15 @@ pub(crate) unsafe fn drive_custom_property_resolution(
     let properties = properties.into_boxed_slice();
     let count = properties.len();
     let storage = Box::into_raw(properties);
-    FfiResolvedCustomProperties {
+    let resolved = FfiResolvedCustomProperties {
         properties: storage.cast::<FfiResolvedCustomProperty>(),
         count,
         did_resolve: true,
         rust_store,
         stats,
         storage: storage.cast(),
-    }
+    };
+    (resolved, reads)
 }
 
 /// # Safety

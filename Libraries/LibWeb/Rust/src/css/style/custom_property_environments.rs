@@ -147,6 +147,8 @@ pub(super) struct CustomPropertyEnvironments {
     /// The environments `inheritable` hands down, gathered by `retain_only`, which keeps the set to
     /// reuse its allocation.
     handed_down: HashSet<u64>,
+    /// The environments holding a registered value resolved against the viewport.
+    reads_viewport: HashSet<u64>,
     /// What inputs resolved to which environment, so an element alike in its inputs takes the
     /// environment an earlier one got.
     memo: HashMap<EnvironmentInputs, MemoizedEnvironment>,
@@ -244,6 +246,18 @@ impl CustomPropertyEnvironments {
     /// The environment a child inherits from `identity`.
     pub(super) fn inheritable(&self, identity: u64) -> u64 {
         self.inheritable.get(&identity).copied().unwrap_or(identity)
+    }
+
+    /// Note that an environment holds a registered value resolved against the viewport.
+    pub(super) fn note_reads_viewport(&mut self, identity: u64) {
+        if identity != 0 {
+            self.reads_viewport.insert(identity);
+        }
+    }
+
+    /// Whether an environment holds a registered value resolved against the viewport.
+    pub(super) fn reads_viewport(&self, identity: u64) -> bool {
+        self.reads_viewport.contains(&identity)
     }
 
     /// An engine-resolved environment's store and the environment it was resolved over.
@@ -380,6 +394,7 @@ impl CustomPropertyEnvironments {
         let is_live = |identity| is_live(identity) || handed_down.contains(&identity);
         self.stores.retain(|&identity, _| is_live(identity));
         self.engine.retain(|&identity, _| is_live(identity));
+        self.reads_viewport.retain(|&identity| is_live(identity));
         self.memo.retain(|inputs, environment| {
             let retain = is_live(environment.identity) && (inputs.parent == 0 || is_live(inputs.parent));
             if !retain {
@@ -398,6 +413,7 @@ impl CustomPropertyEnvironments {
             + self.engine.capacity() * (size_of::<u64>() + size_of::<EngineEnvironment>())
             + self.inheritable.capacity() * 2 * size_of::<u64>()
             + self.handed_down.capacity() * size_of::<u64>()
+            + self.reads_viewport.capacity() * size_of::<u64>()
             + self.memo.capacity() * (size_of::<EnvironmentInputs>() + size_of::<MemoizedEnvironment>())
             + self.substitutions.capacity() * (size_of::<(usize, u16, u64)>() + size_of::<MemoizedSubstitution>())
             + self.names.capacity() * (size_of::<StyleAtomID>() + size_of::<CustomPropertyName>())) as u64
