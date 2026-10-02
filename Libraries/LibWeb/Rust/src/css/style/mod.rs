@@ -888,6 +888,11 @@ pub struct RetainedState {
     /// substitution produced: what it rolled back to is a declaration the winners do not name, so
     /// the node's records are its alone and are computed again whatever its winners say.
     nodes_with_rolled_back_records: HashMap<StyleNodeID, u64>,
+    /// The nodes whose last winner store, for the element or for one of its pseudo-elements,
+    /// substituted a value that resolves against the element: a `random()` it draws or a
+    /// container-relative length. No record cache keys on the element, so its records are its
+    /// alone.
+    nodes_with_element_relative_substitutions: HashMap<StyleNodeID, publication::ElementRelativeSubstitutions>,
     /// The custom-property environment each element holds, for the elements that hold one. This is
     /// the only copy: the element reads its environment from here.
     element_custom_property_data: HashMap<StyleNodeID, inputs::HeldCustomPropertyEnvironment>,

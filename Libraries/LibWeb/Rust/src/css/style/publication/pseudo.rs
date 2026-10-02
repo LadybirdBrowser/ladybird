@@ -368,7 +368,7 @@ impl RetainedState {
                             && !(self.custom_property_registrations_changed
                                 && self.state_has_substitutions(node, state))
                             && !self.state_reads_beyond_environment(node, state)
-                            && !self.record_rolls_back_substitution(node)
+                            && !self.records_are_the_elements_alone(node)
                             && self.winner_groups.states_are_semantically_equal(bound_state, state)
                     }
                     (None, None) => true,
@@ -418,7 +418,7 @@ impl RetainedState {
                             scratch.substituted_states.insert((state, environment));
                         }
                         scratch.store_capacity_bytes += store.capacity_bytes();
-                        if !element_alone && !self.record_rolls_back_substitution(node) {
+                        if !element_alone && !self.records_are_the_elements_alone(node) {
                             scratch.pseudo_stores.insert((kind, state, environment), store.clone());
                         }
                         store
@@ -608,9 +608,8 @@ impl RetainedState {
                         }
                     };
                     // Another element's marker may sit in another tree scope, so a record naming a
-                    // registry answers for this one alone, as does one that rolled a property back
-                    // to a declaration no winner names.
-                    if let Some(key) = key.filter(|_| registry == 0 && !self.record_rolls_back_substitution(node)) {
+                    // registry answers for this one alone, as does one that is the element's alone.
+                    if let Some(key) = key.filter(|_| registry == 0 && !self.records_are_the_elements_alone(node)) {
                         scratch.pseudo_cohorts.insert(key, record);
                         if self.engine_pseudo_record_cache.len() >= COLD_RECORD_CACHE_LIMIT {
                             self.engine_pseudo_record_cache.clear();

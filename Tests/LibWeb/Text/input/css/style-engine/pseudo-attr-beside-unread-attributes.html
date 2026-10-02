@@ -7,8 +7,8 @@
 <script>
     test(() => {
         // The element's class, id and style attributes are no attr()'s to read. Its pseudo-element
-        // settles beside a record C++ computed: a container unit substituted into the element's own
-        // style keeps its record with C++, which the count of C++ recomputations shows.
+        // settles beside the element's record, which substitutes a container unit and so stays out
+        // of every record cache.
         const target = document.getElementById("target");
         internals.updateStyle();
         const start = internals.styleEngineCounters();
