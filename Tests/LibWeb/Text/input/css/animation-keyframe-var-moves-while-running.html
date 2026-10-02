@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @keyframes grow {
+        from {
+            width: var(--from);
+        }
+        to {
+            width: 200px;
+        }
+    }
+    #parent {
+        --from: 0px;
+    }
+    .animated {
+        animation: grow 100s linear paused;
+        animation-delay: -50s;
+    }
+</style>
+<div id="parent">
+    <div id="inherits" class="animated"></div>
+    <div id="declares" class="animated" style="--from: 0px"></div>
+</div>
+<script>
+    // A keyframe value substituted against the element holds only while the custom properties it
+    // read stand, so a sample after one of them moved substitutes again, whether the element
+    // declares it or inherits it.
+    test(() => {
+        const parent = document.getElementById("parent");
+        const inherits = document.getElementById("inherits");
+        const declares = document.getElementById("declares");
+        const widths = () => `${getComputedStyle(inherits).width} ${getComputedStyle(declares).width}`;
+        println(`before: ${widths()}`);
+
+        parent.style.setProperty("--from", "100px");
+        declares.style.setProperty("--from", "100px");
+        println(`after moving --from: ${widths()}`);
+
+        for (const element of [inherits, declares])
+            element.getAnimations()[0].currentTime = 25000;
+        println(`later: ${widths()}`);
+    });
+</script>

@@ -264,7 +264,14 @@ pub struct FfiComputedAnimationBatch {
     pub context: FfiAnimationContext,
     pub sampled_effects: *const FfiSampledAnimationEffect,
     pub sampled_effect_count: usize,
+    /// The identities of the custom-property environments of the element and of the one it
+    /// inherits from, which a preparation that substituted keyframe values against the element was
+    /// made under.
+    pub custom_property_environments: [u64; 2],
     pub cache_preparation: bool,
+    /// Whether the preparation substituted keyframe values against the element, so that it holds
+    /// only under the custom-property environments its key names.
+    pub preparation_reads_custom_property_environments: bool,
     pub resolved_animation_storage: *mut std::ffi::c_void,
     pub computed_keyframe_storage: *mut std::ffi::c_void,
     pub underlying_longhand_table: *const std::ffi::c_void,
@@ -7322,16 +7329,22 @@ fn easing_descriptor(easing: &crate::css::easing::Easing) -> FfiEasingDescriptor
 
 struct AnimationPreparationKey {
     effects: Box<[FfiAnimationPreparationEffect]>,
+    /// The custom-property environments a preparation that substituted keyframe values against the
+    /// element was made under, which it holds for only as long as they stand.
+    custom_property_environments: Option<[u64; 2]>,
 }
 
 impl AnimationPreparationKey {
-    fn matches(&self, sampled: &[FfiSampledAnimationEffect]) -> bool {
+    fn matches(&self, sampled: &[FfiSampledAnimationEffect], custom_property_environments: [u64; 2]) -> bool {
         self.effects.len() == sampled.len()
             && self
                 .effects
                 .iter()
                 .zip(sampled)
                 .all(|(effect, sampled)| *effect == sampled.effect)
+            && self
+                .custom_property_environments
+                .is_none_or(|environments| environments == custom_property_environments)
     }
 }
 
@@ -7354,14 +7367,16 @@ pub(crate) struct PreparedAnimationBatch {
 unsafe impl Send for PreparedAnimationBatch {}
 unsafe impl Sync for PreparedAnimationBatch {}
 
-/// Whether an animated overlay already holds the endpoint preparation for the `sampled` effects.
+/// Whether an animated overlay already holds the endpoint preparation for the `sampled` effects
+/// under the custom-property environments a sample reads.
 pub(crate) fn animation_preparation_matches(
     overlay: Option<&crate::css::animated_overlay::AnimatedOverlay>,
     sampled: &[FfiSampledAnimationEffect],
+    custom_property_environments: [u64; 2],
 ) -> bool {
     overlay
         .and_then(|overlay| overlay.animation_preparation.as_ref())
-        .is_some_and(|preparation| preparation.key.matches(sampled))
+        .is_some_and(|preparation| preparation.key.matches(sampled, custom_property_environments))
 }
 
 /// Complete the Rust-owned animation plan and compose every interval without
@@ -7384,7 +7399,7 @@ pub unsafe extern "C" fn rust_evaluate_animations(computed: *const FfiComputedAn
     let preparation = overlay
         .animation_preparation
         .as_ref()
-        .filter(|preparation| preparation.key.matches(sampled))
+        .filter(|preparation| preparation.key.matches(sampled, computed.custom_property_environments))
         .cloned()
         .unwrap_or_else(|| {
             assert!(!computed.resolved_animation_storage.is_null());
@@ -7422,6 +7437,9 @@ pub unsafe extern "C" fn rust_evaluate_animations(computed: *const FfiComputedAn
             std::sync::Arc::new(PreparedAnimationBatch {
                 key: AnimationPreparationKey {
                     effects: sampled.iter().map(|sampled| sampled.effect).collect(),
+                    custom_property_environments: computed
+                        .preparation_reads_custom_property_environments
+                        .then_some(computed.custom_property_environments),
                 },
                 resolved,
                 _computed_keyframe_values: computed_keyframe_values,
