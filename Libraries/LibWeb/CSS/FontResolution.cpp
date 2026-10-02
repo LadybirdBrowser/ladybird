@@ -94,7 +94,10 @@ static RefPtr<Gfx::FontCascadeList const> font_for_face(FontFaceSnapshot::Face c
             return Gfx::PendingFontState::Failed; }, [face_id = face.id, point_size, variations, shape_features]() -> RefPtr<Gfx::Font const> {
             if (auto face = FontFaceState::with_id(face_id))
                 return face->font_for_rendering(point_size, variations, shape_features);
-            return {}; });
+            return {}; }, [face_id = face.id] {
+            if (auto face = FontFaceState::with_id(face_id))
+                return face->rendering_state_without_requesting();
+            return Gfx::PendingFontState::Failed; });
     }
     if (font_list->is_empty())
         return {};
@@ -139,11 +142,14 @@ struct MatchingFontCandidate {
             // Unloaded subset face: surface it as a pending entry so the fetch only
             // fires once font_for_code_point() sees a codepoint in its unicode-range.
             if (face.has_urls && face.has_non_default_unicode_range) {
-                font_list->add_pending_face(face.unicode_ranges, [face_id = face.id] {
-                    if (auto face = FontFaceState::with_id(face_id))
-                        return face->resolve_for_rendering();
-                    return Gfx::PendingFontState::Failed;
-                });
+                font_list->add_pending_face(
+                    face.unicode_ranges, [face_id = face.id] {
+                        if (auto face = FontFaceState::with_id(face_id))
+                            return face->resolve_for_rendering();
+                        return Gfx::PendingFontState::Failed; }, {}, [face_id = face.id] {
+                        if (auto face = FontFaceState::with_id(face_id))
+                            return face->rendering_state_without_requesting();
+                        return Gfx::PendingFontState::Failed; });
             }
         }
         if (font_list->is_empty())
@@ -471,6 +477,10 @@ NonnullRefPtr<Gfx::FontCascadeList const> resolve_font_cascade(FontFaceSnapshot 
             return Gfx::system_fallback_font(key, reference_font.point_size());
         });
     }
+
+    // The cascade is complete. Freeze it here, on the document thread, so that every layout pass that receives it
+    // reads a snapshot instead of the live list.
+    font_list->freeze();
 
     return font_list;
 }

@@ -1008,13 +1008,20 @@ impl<'a> ComputedValuesView<'a> {
         unsafe { libgfx_rust::font::FontHandle::intern(font.first_available_font) }
     }
 
-    pub(crate) fn font_cascade_list(self) -> &'a libgfx_rust::font::FontCascadeListHandle {
-        let list = &self.font().font_cascade_list;
-        debug_assert!(
-            !list.is_null(),
-            "layout read a font group that never received a font list"
-        );
-        list
+    /// The frozen cascade a render pass reads.
+    pub(crate) fn frozen_font_list(self) -> &'a libgfx_rust::font::FrozenFontList {
+        self.font()
+            .frozen_font_list
+            .list()
+            .expect("layout read a font group that never received a frozen font list")
+    }
+
+    /// A counted reference to the frozen cascade, for a render row that outlives this payload.
+    pub(crate) fn frozen_font_list_ref(self) -> std::sync::Arc<libgfx_rust::font::FrozenFontList> {
+        self.font()
+            .frozen_font_list
+            .to_arc()
+            .expect("layout read a font group that never received a frozen font list")
     }
 
     pub(crate) fn box_sizing_for_aspect_ratio(self) -> u8 {

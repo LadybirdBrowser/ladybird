@@ -498,6 +498,10 @@ pub struct FontValues {
     pub font_zero_advance: f32,
     pub first_available_font: *const std::ffi::c_void,
     pub font_cascade_list: libgfx_rust::font::FontCascadeListHandle,
+    /// The same cascade, frozen at publication: what the render pipeline reads. The live
+    /// list beside it is the document's, and only the document thread may look a code point
+    /// up in it.
+    pub frozen_font_list: libgfx_rust::font::FrozenFontListRef,
     pub font_weight: f64,
     pub font_width: f64,
     pub math_shift: u8,

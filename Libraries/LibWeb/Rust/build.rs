@@ -3094,6 +3094,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         "MiscResetValues".to_string(),
         "FontValues".to_string(),
         "FontCascadeListHandle".to_string(),
+        "FrozenFontListRef".to_string(),
         "FfiFontGroupBuildInputs".to_string(),
         "TextResetValues".to_string(),
         "AnchorValues".to_string(),

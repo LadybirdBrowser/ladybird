@@ -7798,6 +7798,10 @@ pub(crate) mod ffi_test_stubs {
         list == other
     }
     #[unsafe(no_mangle)]
+    extern "C" fn ladybird_gfx_font_cascade_list_frozen(_raw: *const std::ffi::c_void) -> *const std::ffi::c_void {
+        std::ptr::null()
+    }
+    #[unsafe(no_mangle)]
     extern "C" fn ladybird_gfx_font_ref(_raw: *const std::ffi::c_void) {}
     #[unsafe(no_mangle)]
     extern "C" fn ladybird_gfx_font_unref(_raw: *const std::ffi::c_void) {}

@@ -1993,6 +1993,8 @@ private:
     // Whether an image box handed the provider it owns after a layout update found its image already there, so it lays
     // out again with it.
     bool m_owed_image_provider_arrived_with_image { false };
+    // Whether a layout update requested web faces its layout wanted, which may have resolved at once.
+    bool m_requested_wanted_font_faces { false };
     bool m_may_have_scroll_snap_areas { false };
     bool m_may_have_blocking_wheel_event_listener { false };
     bool m_may_have_dom_paint_facts { false };

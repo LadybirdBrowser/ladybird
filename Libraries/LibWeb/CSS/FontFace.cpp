@@ -581,7 +581,10 @@ RefPtr<Gfx::FontCascadeList const> FontFaceState::font_with_point_size(float poi
             return Gfx::PendingFontState::Failed; }, [weak_face = make_weak_ptr(), point_size, variations, shape_features]() -> RefPtr<Gfx::Font const> {
             if (weak_face && weak_face->m_parsed_font && !weak_face->m_font_display_failed)
                 return weak_face->m_parsed_font->font(point_size, variations, shape_features);
-            return {}; });
+            return {}; }, [weak_face = make_weak_ptr()] {
+            if (weak_face)
+                return weak_face->rendering_state_without_requesting();
+            return Gfx::PendingFontState::Failed; });
     }
     if (font_list->is_empty())
         return {};
@@ -640,6 +643,67 @@ void FontFaceState::invalidate_font_display()
         font_computer->did_load_font(m_family);
 }
 
+namespace {
+
+struct FontDisplayDeadlines {
+    i64 block_period { 0 };
+    Optional<i64> failure_period_start;
+};
+
+// INTEROP: Use WebKit's timeouts: 3 seconds for auto/block, 100 milliseconds for fallback/optional,
+//          and a further 3 seconds of swapping for fallback. Blink also uses no block period for swap.
+FontDisplayDeadlines font_display_deadlines(FontDisplay font_display)
+{
+    switch (font_display) {
+    case FontDisplay::Auto:
+    case FontDisplay::Block:
+        return { .block_period = 3000, .failure_period_start = {} };
+    case FontDisplay::Swap:
+        return {};
+    case FontDisplay::Fallback:
+        return { .block_period = 100, .failure_period_start = 3100 };
+    case FontDisplay::Optional:
+        return { .block_period = 100, .failure_period_start = 100 };
+    }
+    VERIFY_NOT_REACHED();
+}
+
+}
+
+// https://drafts.csswg.org/css-fonts-4/#font-display-timeline
+// NB: What resolve_for_rendering() would answer, without any of what it does to get there: no fetch, no download timer,
+//     no load-event delayer. A frozen cascade records this so that a layout pass can pick the right fallback for a face
+//     still on its timeline without entering the document.
+Gfx::PendingFontState FontFaceState::rendering_state_without_requesting() const
+{
+    if (m_font_display_failed || m_status == FontFaceLoadStatus::Error)
+        return Gfx::PendingFontState::Failed;
+    if (m_status == FontFaceLoadStatus::Loaded)
+        return Gfx::PendingFontState::Visible;
+
+    if (m_font_download_timer_start.has_value() || m_font_download_completed) {
+        // NB: The timeline is already running, and the download timer keeps the period current.
+        switch (m_font_display_period) {
+        case FontDisplayPeriod::Block:
+            return Gfx::PendingFontState::Invisible;
+        case FontDisplayPeriod::Swap:
+            return Gfx::PendingFontState::Visible;
+        case FontDisplayPeriod::Failure:
+            return Gfx::PendingFontState::Failed;
+        }
+        VERIFY_NOT_REACHED();
+    }
+
+    // NB: The timer has not started. Answer with the period the first use would put this face in.
+    auto deadlines = font_display_deadlines(m_font_display);
+    auto elapsed = static_cast<i64>(m_font_display_time_for_testing.value_or(0));
+    if (deadlines.failure_period_start.has_value() && elapsed >= *deadlines.failure_period_start)
+        return Gfx::PendingFontState::Failed;
+    if (elapsed < deadlines.block_period)
+        return Gfx::PendingFontState::Invisible;
+    return Gfx::PendingFontState::Visible;
+}
+
 // https://drafts.csswg.org/css-fonts-4/#font-display-desc
 void FontFaceState::update_font_display_period()
 {
@@ -648,26 +712,7 @@ void FontFaceState::update_font_display_period()
     if (!m_font_download_timer_start.has_value() || m_font_download_completed || m_status == FontFaceLoadStatus::Loaded || m_status == FontFaceLoadStatus::Error)
         return;
 
-    // INTEROP: Use WebKit's timeouts: 3 seconds for auto/block, 100 milliseconds for fallback/optional,
-    //          and a further 3 seconds of swapping for fallback. Blink also uses no block period for swap.
-    i64 block_period = 0;
-    Optional<i64> failure_period_start;
-    switch (m_font_display) {
-    case FontDisplay::Auto:
-    case FontDisplay::Block:
-        block_period = 3000;
-        break;
-    case FontDisplay::Swap:
-        break;
-    case FontDisplay::Fallback:
-        block_period = 100;
-        failure_period_start = 3100;
-        break;
-    case FontDisplay::Optional:
-        block_period = 100;
-        failure_period_start = 100;
-        break;
-    }
+    auto [block_period, failure_period_start] = font_display_deadlines(m_font_display);
 
     auto elapsed = font_download_elapsed_time();
     auto previous_period = m_font_display_period;

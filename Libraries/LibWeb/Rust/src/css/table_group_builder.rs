@@ -3175,6 +3175,9 @@ unsafe fn build_font_group(
         // SAFETY: The non-null check above and the caller's guarantee make the
         // list live for the call; the handle keeps it live afterwards.
         font_cascade_list: unsafe { libgfx_rust::font::FontCascadeListHandle::retain(inputs.font_cascade_list) },
+        // SAFETY: As above. A cascade the font computer published carries a frozen snapshot; one
+        // built for something else (canvas, a unit test) does not, and never reaches a stage.
+        frozen_font_list: unsafe { libgfx_rust::font::frozen_font_list_of(inputs.font_cascade_list) },
         font_weight: inputs.font_weight,
         font_width: inputs.font_width,
         math_shift: inputs.math_shift,

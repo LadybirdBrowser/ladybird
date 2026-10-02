@@ -135,6 +135,7 @@ public:
     bool has_pending_rendering() const;
     void set_font_display_time_for_testing(u32 milliseconds);
     Gfx::PendingFontState resolve_for_rendering();
+    Gfx::PendingFontState rendering_state_without_requesting() const;
 
     bool has_non_default_unicode_range() const
     {

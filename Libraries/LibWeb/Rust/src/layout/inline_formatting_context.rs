@@ -148,8 +148,8 @@ fn apply_block_ellipsis(
         }) as u32;
     let presentation = libgfx_rust::font::emoji_presentation_for_code_point(first_code_point, None);
     let font = style
-        .font_cascade_list()
-        .font_for_code_point(first_code_point, presentation, None);
+        .frozen_font_list()
+        .font_for_code_point(first_code_point, presentation);
     let shaped_ellipsis = libgfx_rust::text_layout::shape_text(
         &font,
         ellipsis_text,

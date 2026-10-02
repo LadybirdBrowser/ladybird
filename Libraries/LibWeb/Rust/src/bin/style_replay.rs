@@ -2818,6 +2818,12 @@ extern "C" fn ladybird_gfx_font_cascade_list_unref(_list: *const c_void) {}
 extern "C" fn ladybird_gfx_font_cascade_list_equals(list: *const c_void, other: *const c_void) -> bool {
     list == other
 }
+#[unsafe(no_mangle)]
+extern "C" fn ladybird_gfx_font_cascade_list_frozen(_list: *const c_void) -> *const c_void {
+    std::ptr::null()
+}
+#[unsafe(no_mangle)]
+extern "C" fn ladybird_gfx_font_unref(_font: *const c_void) {}
 // Replay has no C++ CustomPropertyData to count references on.
 #[unsafe(no_mangle)]
 extern "C" fn web_css_custom_property_data_reference(_data: *const c_void) {}
