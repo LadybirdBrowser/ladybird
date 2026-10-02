@@ -6365,7 +6365,8 @@ pub unsafe extern "C" fn rust_sample_animation_effects(
     let registry = engine.custom_property_registry();
     let finalization = crate::css::custom_properties::CustomPropertyFinalization {
         length: Some(&length_contexts.remaining),
-        environment: Some(&environment),
+        tree_counting: sibling_position.map(|(count, index)| (u64::from(count), u64::from(index))),
+        random_base_values: &random_base_values,
         color_scheme: u8::try_from(table.effective_color_scheme())
             .unwrap_or(environment.color_scheme_input.preferred_color_scheme),
         draw_random_base_value: None,

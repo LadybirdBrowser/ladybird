@@ -21,12 +21,13 @@ use super::publication::{Drive, Unanswered};
 use super::*;
 use crate::css::cascaded_properties::{
     CallbackFreeParseOutcome, FfiCascadeResolutionContext, FfiCustomPropertyDriveInput,
-    destroy_resolved_custom_properties, drive_custom_property_resolution, parse_substituted_source,
-    parse_substituted_without_callbacks,
+    destroy_resolved_custom_properties, parse_substituted_source, parse_substituted_without_callbacks,
+    resolve_declared_custom_properties,
 };
 use crate::css::custom_properties::{
-    CustomPropertyStore, FfiSubstitutionFunctionDeclaration, FfiSubstitutionFunctionDefinition,
-    FfiSubstitutionFunctionVisibility, NativeVarResolution, prepare_var_resolution_environment,
+    CustomPropertyFinalization, CustomPropertyStore, FfiSubstitutionFunctionDeclaration,
+    FfiSubstitutionFunctionDefinition, FfiSubstitutionFunctionVisibility, NativeVarResolution,
+    prepare_var_resolution_environment,
 };
 use crate::css::ffi_support::FfiUtf16View;
 use crate::css::parser::component_value::{ComponentKind, ComponentValue};
@@ -303,6 +304,26 @@ pub(super) struct PreparedCustomFunctions {
 pub(super) struct RegisteredValueContext {
     pub length: crate::css::style_compute::FfiLengthResolutionContext,
     pub color_scheme: u8,
+}
+
+/// Draws the random base value of a registered value's random caching key for its element from
+/// the engine's own, as the host draws one.
+///
+/// # Safety
+/// `context` must point at the element and the engine's random base values, and `name` at
+/// `length` code units.
+unsafe extern "C" fn draw_engine_random_base_value(
+    context: *mut c_void,
+    name: *const u16,
+    length: usize,
+    element_shared: bool,
+) -> f64 {
+    let (node, values) = unsafe { &mut *context.cast::<(StyleNodeID, &mut super::random_bases::RandomBaseValues)>() };
+    let name = match length {
+        0 => &[],
+        _ => unsafe { std::slice::from_raw_parts(name, length) },
+    };
+    values.ensure(Some(*node), name, element_shared)
 }
 
 /// The resolution context the engine substitutes under: the stores alone, with no callback into
@@ -1517,50 +1538,69 @@ impl RetainedState {
             Some(&mut style_query_references),
             functions.as_ref(),
         );
+        // A registered value computes as the host computes one: against the element's lengths with
+        // its query containers' sizes, its place among its siblings, and the random base values
+        // drawn for the element, which the engine keeps. A pseudo-element's are its element's.
+        let length = registered.as_ref().map(|registered| {
+            let mut length = registered.length;
+            self.container_unit_bases(node).apply_to(&mut length);
+            length
+        });
+        let tree_counting = registered
+            .is_some()
+            .then(|| self.sibling_position(node))
+            .flatten()
+            .map(|position| (u64::from(position.count), u64::from(position.index)));
+        let mut random_base_values = (node, &mut self.random_base_values);
+        let finalization = CustomPropertyFinalization {
+            length: length.as_ref(),
+            tree_counting,
+            random_base_values: &[],
+            color_scheme: registered.as_ref().map_or(0, |registered| registered.color_scheme),
+            draw_random_base_value: Some((
+                draw_engine_random_base_value,
+                std::ptr::from_mut(&mut random_base_values).cast(),
+            )),
+        };
         let drive = FfiCustomPropertyDriveInput {
             store: cascaded_store,
             resolved_parent_store: parent_store,
             reuse_resolved_parent_if_empty: !parent_store.is_null(),
             resolution_context: &raw const resolution_context,
-            finalization_length_resolution_context: registered
-                .as_ref()
-                .map_or(std::ptr::null(), |registered| &raw const registered.length),
+            finalization_length_resolution_context: std::ptr::null(),
             finalization_environment: std::ptr::null(),
-            finalization_color_scheme: registered.as_ref().map_or(0, |registered| registered.color_scheme),
+            finalization_color_scheme: 0,
             draw_random_base_value: None,
             random_base_context: std::ptr::null_mut(),
         };
         // SAFETY: Every pointer the drive reads is live for the call.
-        let resolved = unsafe { drive_custom_property_resolution(&drive) };
+        let (resolved, reads) = unsafe { resolve_declared_custom_properties(&drive, finalization) };
         // The resolved values live in the store; the listing transfers references of its own.
         let properties = match resolved.count {
             0 => &[],
             count => unsafe { std::slice::from_raw_parts(resolved.properties, count) },
         };
-        // A registered value computes against the element's lengths alone here: one resolving a
-        // viewport-relative length makes the element's style read the viewport, which nothing in
-        // its record would say, one drawing a random() or counting siblings reads what the host
-        // holds, and one that does not compute, such as a container-relative length, reads what
-        // its lengths do not carry.
-        let mut reads_beyond_lengths =
-            resolved.stats.depends_on_viewport_metrics || resolved.stats.left_a_value_uncomputed;
         for property in properties {
-            let dependencies = crate::css::style_compute::collect_external_value_dependencies(unsafe {
-                &*property.data.cast::<StyleValueData>()
-            });
-            reads_beyond_lengths |= dependencies.uses_random_function || dependencies.uses_tree_counting_function;
             unsafe { release_style_value(property.data.cast()) };
         }
         unsafe { destroy_resolved_custom_properties(resolved.storage, resolved.count) };
         unsafe { Arc::decrement_strong_count(cascaded_store.cast::<CustomPropertyStore>()) };
-        if reads_beyond_lengths {
-            if !resolved.rust_store.is_null() {
-                unsafe { Arc::decrement_strong_count(resolved.rust_store.cast::<CustomPropertyStore>()) };
-            }
-            counters.bump(Counter::EngineCustomPropertyEnvironmentBails);
-            return Err(Unanswered::Refused);
-        }
         counters.bump(Counter::EngineCustomPropertyEnvironmentsResolved);
+        // What the registered values read beyond the element's fonts reaches the element's
+        // records as what they read themselves does: a sibling change, a container's size.
+        if reads.sibling_position {
+            *self.custom_declaration_reads.entry(node).or_default() |=
+                bridge::FfiNodeRecordReads::SiblingPosition as u8;
+        }
+        if reads.container_unit_mask != 0
+            && let Some(length) = length
+        {
+            self.note_container_unit_reads_for_host(
+                node,
+                reads.container_unit_mask,
+                length.subject_inline_axis_is_horizontal,
+            );
+        }
         if let Some(effects) = container_effects {
             self.note_container_effects_for_host(node, effects);
         }
@@ -1585,6 +1625,11 @@ impl RetainedState {
                 )
             }
         };
+        // A viewport change reaches the records under the environment. One the element shares with
+        // its parent is the parent's too, which then restyles with it.
+        if reads.viewport {
+            self.custom_property_environments.note_reads_viewport(identity);
+        }
         if memoizes && !keeps_cpp_environment {
             let written_values = cascaded.into_iter().map(|(_, written)| written).collect();
             self.custom_property_environments

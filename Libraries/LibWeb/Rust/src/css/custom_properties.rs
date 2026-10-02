@@ -307,17 +307,36 @@ impl CustomPropertyRegistry {
 }
 
 /// What a custom property's substituted value is finalized against, beside the registry and the
-/// environment inherited: the element's lengths as its style computes them after line-height, the
-/// facts its longhands are computed against, and the color scheme its colors resolve with. Only a
-/// registered name reads them.
+/// environment inherited: the element's lengths as its style computes them after line-height,
+/// with its query containers' sizes, its sibling count and index, the random base values drawn
+/// for it, and the color scheme its colors resolve with. Only a registered name reads them.
 #[derive(Clone, Copy, Default)]
 pub(crate) struct CustomPropertyFinalization<'a> {
     pub(crate) length: Option<&'a crate::css::style_compute::FfiLengthResolutionContext>,
-    pub(crate) environment: Option<&'a crate::css::style_compute::FfiStyleComputationEnvironment>,
+    pub(crate) tree_counting: Option<(u64, u64)>,
+    pub(crate) random_base_values: &'a [crate::css::style_compute::FfiRandomBaseValue],
     /// A PreferredColorScheme code.
     pub(crate) color_scheme: u8,
     /// How to draw the random base value of a key the host published none for, with its context.
     pub(crate) draw_random_base_value: Option<(DrawRandomBaseValue, *mut c_void)>,
+}
+
+/// What computing registered values read of their element beyond the fonts of its lengths: the
+/// viewport, its place among its siblings, and the container-relative units it resolved against
+/// its query containers, as a `container_relative_length_unit_mask`.
+#[derive(Clone, Copy, Default)]
+pub(crate) struct RegisteredValueReads {
+    pub(crate) viewport: bool,
+    pub(crate) sibling_position: bool,
+    pub(crate) container_unit_mask: u8,
+}
+
+impl std::ops::BitOrAssign for RegisteredValueReads {
+    fn bitor_assign(&mut self, other: Self) {
+        self.viewport |= other.viewport;
+        self.sibling_position |= other.sibling_position;
+        self.container_unit_mask |= other.container_unit_mask;
+    }
 }
 
 /// Loads what a style query resolves against from a resolution's callback context.
@@ -389,8 +408,8 @@ impl CustomPropertyRegistry {
     /// `StyleComputer::finalize_custom_property_value` does: a CSS-wide keyword resolves against
     /// the registration and the environment inherited, the guaranteed-invalid value against the
     /// registration, and a registered name's value parses with its syntax and computes against
-    /// the element. Also says whether the computation resolved a viewport-relative length. A
-    /// registered value that does not compute against the element's inputs is an error carrying
+    /// the element. Also says what the computation read of the element beyond its lengths' fonts.
+    /// A registered value that does not compute against the element's inputs is an error carrying
     /// the invalid fallback it takes.
     pub(crate) fn finalize_custom_property_value(
         &self,
@@ -399,7 +418,7 @@ impl CustomPropertyRegistry {
         name: &[u16],
         value: RetainedStyleValueData,
         finalization: &CustomPropertyFinalization<'_>,
-    ) -> Result<(RetainedStyleValueData, bool), RetainedStyleValueData> {
+    ) -> Result<(RetainedStyleValueData, RegisteredValueReads), RetainedStyleValueData> {
         use crate::css::style_compute::keyword;
         let registration = self.registrations.get(name);
         let initial = || {
@@ -451,10 +470,10 @@ impl CustomPropertyRegistry {
             None => RetainedStyleValueData::from_owned(StyleValueData::GuaranteedInvalid),
         };
         if matches!(value.data(), StyleValueData::GuaranteedInvalid) {
-            return Ok((invalid_fallback(), false));
+            return Ok((invalid_fallback(), RegisteredValueReads::default()));
         }
         let Some(registration) = syntax_registration else {
-            return Ok((value, false));
+            return Ok((value, RegisteredValueReads::default()));
         };
 
         let contains_attr_tainted_values = matches!(
@@ -465,22 +484,20 @@ impl CustomPropertyRegistry {
             }
         );
         let Some(parsed) = self.parse_registered_value_memoized(registration, &value) else {
-            return Ok((invalid_fallback(), false));
+            return Ok((invalid_fallback(), RegisteredValueReads::default()));
         };
         // Without the element's lengths the value stays as parsed, as the host leaves one it has
         // no computed style to compute against.
         let Some(length) = finalization.length else {
-            return Ok((parsed, false));
+            return Ok((parsed, RegisteredValueReads::default()));
         };
+        let dependencies = crate::css::style_compute::collect_external_value_dependencies(parsed.data());
         let random_base_values = random_base_values_for_registered_value(parsed.data(), finalization);
         let context = crate::css::absolutize::AbsolutizationContext {
             length,
             scheme: Some(finalization.color_scheme),
             resolved_viewport_relative_length: Cell::new(false),
-            tree_counting: finalization
-                .environment
-                .filter(|environment| environment.has_tree_counting_context)
-                .map(|environment| (environment.sibling_count, environment.sibling_index)),
+            tree_counting: finalization.tree_counting,
             random_base_values: &random_base_values,
             document_base_url: &self.document_base_url,
             style_sheet_resource_context: None,
@@ -490,9 +507,13 @@ impl CustomPropertyRegistry {
             Some(crate::css::absolutize::Absolutized::Unchanged) => parsed,
             None => return Err(invalid_fallback()),
         };
-        let depends_on_viewport_metrics = context.resolved_viewport_relative_length.get();
+        let reads = RegisteredValueReads {
+            viewport: context.resolved_viewport_relative_length.get(),
+            sibling_position: dependencies.uses_tree_counting_function,
+            container_unit_mask: dependencies.container_relative_length_unit_mask,
+        };
         if !contains_attr_tainted_values {
-            return Ok((computed, depends_on_viewport_metrics));
+            return Ok((computed, reads));
         }
 
         // A value an attr() substituted into stays tainted, as an unresolved value carrying what
@@ -514,7 +535,7 @@ impl CustomPropertyRegistry {
         };
         *contains_attr_tainted_values = true;
         *parsed_value = computed;
-        Ok((RetainedStyleValueData::from_owned(wrapped), depends_on_viewport_metrics))
+        Ok((RetainedStyleValueData::from_owned(wrapped), reads))
     }
 }
 
@@ -526,9 +547,7 @@ fn random_base_values_for_registered_value(
     value: &StyleValueData,
     finalization: &CustomPropertyFinalization<'_>,
 ) -> Vec<crate::css::style_compute::FfiRandomBaseValue> {
-    let published = finalization.environment.map_or(&[][..], |environment| unsafe {
-        ffi_slice(environment.random_base_values, environment.random_base_value_count)
-    });
+    let published = finalization.random_base_values;
     let kind = |sharing: *const StyleValueData| match unsafe { &*sharing } {
         StyleValueData::RandomValueSharing {
             is_auto,

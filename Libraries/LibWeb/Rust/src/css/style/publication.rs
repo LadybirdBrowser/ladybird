@@ -3119,14 +3119,19 @@ impl RetainedState {
             != 0
     }
 
-    /// Whether a record holds a value resolved against the viewport, its own or its font's: the
-    /// record's publication flags carry both.
+    /// Whether a record holds a value resolved against the viewport, its own or its font's, which
+    /// the record's publication flags carry, or a registered custom property's, which its
+    /// environment does.
     pub(super) fn record_reads_the_viewport(&self, record: computed::FinalStyleRecordID) -> bool {
         self.computed_group_sets
             .style_record_view(record.raw())
             .is_some_and(|view| {
                 view.dependency_flags & (DEPENDS_ON_VIEWPORT_METRICS | FONT_METRICS_DEPEND_ON_VIEWPORT_METRICS) != 0
             })
+            || self
+                .computed_group_sets
+                .style_record_custom_property_environment(record.raw())
+                .is_some_and(|environment| self.custom_property_environments.reads_viewport(environment))
     }
 
     /// Whether a record of the node rolled a property back below a revert keyword a substitution
