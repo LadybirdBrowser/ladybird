@@ -438,17 +438,6 @@ impl RetainedState {
             counters.bump(Counter::EngineComputedRecordBailUnhosted);
             return Err(Unanswered::Refused);
         }
-        // An element-backed pseudo-element is the element in the host's shadow tree that backs
-        // it, which is no row of the host's: a host whose rules for one flipped is left to C++,
-        // which refreshes the backing element with the host. A host arriving brings its backing
-        // elements with it, each a row of its own.
-        if exact_flipped_rules.is_some_and(|flipped| flipped.pseudos & pseudo_kind::ELEMENT_REFERENCE_KINDS != 0)
-            && self.tree.shadow_root_of(node).is_some()
-            && self.computed_group_sets.assigned_style_record(node).is_some()
-        {
-            counters.bump(Counter::EngineComputedRecordBailPseudoFlip);
-            return Err(Unanswered::Refused);
-        }
         let pending_element = drive::PendingElement::take_for(&mut scratch.pending_element, node);
         if pending_element.is_none() {
             scratch.pseudo_deltas.clear();

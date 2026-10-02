@@ -2082,6 +2082,22 @@ impl StyleEngineState {
             while next_published_index < published_nodes.len() {
                 let mut suspended_on_font = false;
                 for (published_index, node) in published_nodes.iter().copied().enumerate().skip(next_published_index) {
+                    // The kinds of element-backed pseudo-elements whose rules may have moved for the
+                    // node: those of the pseudo-element rules that flipped, or every kind when its
+                    // answer or the rules' declarations moved in another way.
+                    let element_reference_kinds_moved =
+                        if pseudo_inputs_may_have_changed || !selector_truth_changes.refreshes_for(node).is_empty() {
+                            publication::pseudo_kind::ELEMENT_REFERENCE_KINDS
+                        } else {
+                            selector_truth_changes
+                                .deltas_for(node)
+                                .iter()
+                                .filter_map(|delta| self.retained.programs.entry(delta.entry).1.pseudo_element)
+                                .fold(0, |kinds, pseudo| {
+                                    kinds | 1_u64.checked_shl(u32::from(pseudo.kind.0)).unwrap_or(0)
+                                })
+                                & publication::pseudo_kind::ELEMENT_REFERENCE_KINDS
+                        };
                     let pseudo_inputs_may_have_changed = pseudo_inputs_may_have_changed
                         || !selector_truth_changes.refreshes_for(node).is_empty()
                         || selector_truth_changes
@@ -2467,6 +2483,13 @@ impl StyleEngineState {
                             });
                         }
                     }
+                    // A host's element-backed pseudo-elements are elements of its shadow tree, which
+                    // take the host's rules: the moved ones restyle as their own rows.
+                    if element_reference_kinds_moved != 0
+                        && matches!(gap, FfiStyleDeltaGap::None | FfiStyleDeltaGap::Computed)
+                    {
+                        self.record_backing_element_inputs(node, element_reference_kinds_moved);
+                    }
                     // What applying a row the engine settled derives for the element's children is read
                     // from the row's records and their damage. A child that is a row of this batch takes
                     // it as its own reaction before it settles, rather than in another transaction once
@@ -2653,6 +2676,15 @@ impl StyleEngineState {
 }
 
 impl StyleEngineState {
+    /// Restyle the elements of a host's shadow tree that back its pseudo-elements of the given
+    /// `kinds`, as the rules they take, the host's, moved.
+    fn record_backing_element_inputs(&mut self, host: StyleNodeID, kinds: u64) {
+        let backing_elements: SmallVec<[StyleNodeID; 2]> = self.retained.backing_elements(host, kinds).collect();
+        for node in backing_elements {
+            self.record_derived_element_style_input(node, transaction::STYLE_REACTION_RECOMPUTE_STYLE, 0);
+        }
+    }
+
     /// Whether the host can ask for a declined row again once it has applied the rows before it:
     /// a document-scope row whose winners the engine holds.
     fn row_may_retry_after_ancestor(&self, node: StyleNodeID, cascade_winners_are_complete: bool) -> bool {

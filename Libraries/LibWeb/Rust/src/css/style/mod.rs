@@ -925,6 +925,10 @@ pub struct RetainedState {
     /// The style record each element holds, for the elements that hold one, as the host reports
     /// every record it installs or clears.
     held_style_records: HashMap<StyleNodeID, u64>,
+    /// Per shadow host, the elements of its shadow tree that stood for one of its element-backed
+    /// pseudo-elements when the host published them; [`RetainedState::backing_elements`] reads the
+    /// ones that still do.
+    backing_elements: HashMap<StyleNodeID, SmallVec<[StyleNodeID; 2]>>,
     /// The elements and shadow roots the host marked as having a child that explicitly inherits
     /// a non-inherited property: a move of the node's non-inherited groups reaches its children.
     children_explicitly_inherit_marks: HashSet<StyleNodeID>,
