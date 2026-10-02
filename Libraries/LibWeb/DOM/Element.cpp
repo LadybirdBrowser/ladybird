@@ -1273,64 +1273,6 @@ CSS::ElementBoxKind Element::box_kind() const
     return CSS::ElementBoxKind::FromDisplay;
 }
 
-Layout::NodeWithStyle* Element::create_layout_node_for_display_type(DOM::Document& document, CSS::Display const& display, CSS::LayoutStyle style, Element* element)
-{
-    if (display.is_none())
-        return nullptr;
-
-    if (display.is_contents())
-        return nullptr;
-
-    if (display.is_table_inside() || display.is_table_row_group() || display.is_table_header_group() || display.is_table_footer_group() || display.is_table_row())
-        return &Layout::allocate_layout_node<Layout::Box>(document, element, style);
-
-    if (display.is_list_item())
-        return &Layout::allocate_layout_node<Layout::Box>(document, element, style, Layout::RustFFI::NodeKind::ListItemBox);
-
-    if (display.is_table_cell())
-        return &Layout::allocate_layout_node<Layout::Box>(document, element, style, Layout::RustFFI::NodeKind::BlockContainer);
-
-    if (display.is_table_column() || display.is_table_column_group() || display.is_table_caption()) {
-        // FIXME: This is just an incorrect placeholder until we improve table layout support.
-        return &Layout::allocate_layout_node<Layout::Box>(document, element, style, Layout::RustFFI::NodeKind::BlockContainer);
-    }
-
-    if (display.is_math_inside()) {
-        // https://w3c.github.io/mathml-core/#new-display-math-value
-        // MathML elements with a computed display value equal to block math or inline math control box generation
-        // and layout according to their tag name, as described in the relevant sections.
-        // FIXME: Figure out what kind of node we should make for them. For now, we'll stick with a generic Box.
-        return &Layout::allocate_layout_node<Layout::Box>(document, element, style, Layout::RustFFI::NodeKind::BlockContainer);
-    }
-
-    if (display.is_inline_outside()) {
-        if (display.is_flow_root_inside())
-            return &Layout::allocate_layout_node<Layout::Box>(document, element, style, Layout::RustFFI::NodeKind::BlockContainer);
-        if (display.is_flow_inside())
-            return &Layout::allocate_layout_node<Layout::NodeWithStyle>(document, element, style, Layout::RustFFI::NodeKind::InlineNode);
-        if (display.is_flex_inside())
-            return &Layout::allocate_layout_node<Layout::Box>(document, element, style);
-        if (display.is_grid_inside())
-            return &Layout::allocate_layout_node<Layout::Box>(document, element, style);
-        dbgln_if(LIBWEB_CSS_DEBUG, "FIXME: Support display: {}", display.to_string());
-        return &Layout::allocate_layout_node<Layout::NodeWithStyle>(document, element, style, Layout::RustFFI::NodeKind::InlineNode);
-    }
-
-    if (display.is_flex_inside() || display.is_grid_inside())
-        return &Layout::allocate_layout_node<Layout::Box>(document, element, style);
-
-    if (display.is_flow_inside() || display.is_flow_root_inside())
-        return &Layout::allocate_layout_node<Layout::Box>(document, element, style, Layout::RustFFI::NodeKind::BlockContainer);
-
-    dbgln("FIXME: CSS display '{}' not implemented yet.", display.to_string());
-
-    // FIXME: We don't actually support `display: block ruby`, this is just a hack to prevent a crash
-    if (display.is_ruby_inside())
-        return &Layout::allocate_layout_node<Layout::Box>(document, element, style, Layout::RustFFI::NodeKind::BlockContainer);
-
-    return &Layout::allocate_layout_node<Layout::NodeWithStyle>(document, element, style, Layout::RustFFI::NodeKind::InlineNode);
-}
-
 void Element::apply_presentational_hints(Vector<CSS::StyleProperty>& properties) const
 {
     // https://html.spec.whatwg.org/multipage/rendering.html#the-page

@@ -22,7 +22,6 @@ class GeneratedTextNode;
 
 class TextNode : public Node {
 public:
-    TextNode(DOM::Document&, DOM::Text&, AttachToDOMNode = AttachToDOMNode::Yes);
     TextNode(DOM::Document&, BindToPreparedArenaSlot, Compositing::RustFFI::NodeSlotId, RustFFI::NodeKind);
     virtual ~TextNode() override;
 
@@ -47,16 +46,12 @@ public:
 
     bool update_produces_line_box_fragment_when_empty_flag();
 
-protected:
-    TextNode(DOM::Document&, RustFFI::NodeKind);
-
 private:
     virtual bool is_text_node() const final { return true; }
 };
 
 class GeneratedTextNode final : public TextNode {
 public:
-    GeneratedTextNode(DOM::Document&, Utf16String);
     GeneratedTextNode(DOM::Document&, BindToPreparedArenaSlot, Compositing::RustFFI::NodeSlotId, RustFFI::NodeKind);
     virtual ~GeneratedTextNode() override;
 

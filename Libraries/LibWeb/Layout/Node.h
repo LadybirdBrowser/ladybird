@@ -237,7 +237,6 @@ public:
     bool is_generated_for_before_pseudo_element() const { return generated_for() == encode_generated_for(CSS::PseudoElement::Before); }
     bool is_generated_for_after_pseudo_element() const { return generated_for() == encode_generated_for(CSS::PseudoElement::After); }
     bool is_generated_for_backdrop_pseudo_element() const { return generated_for() == encode_generated_for(CSS::PseudoElement::Backdrop); }
-    void set_generated_for(CSS::PseudoElement type, DOM::Element&);
     static constexpr u8 encode_generated_for(CSS::PseudoElement pseudo_element)
     {
         static_assert(static_cast<u8>(CSS::PseudoElement::UnknownWebKit) < 0xff);
@@ -321,13 +320,7 @@ public:
     // https://drafts.csswg.org/css-ui/#propdef-user-select
     CSS::UserSelect user_select_used_value() const;
 
-    enum class AttachToDOMNode {
-        No,
-        Yes,
-    };
-
 protected:
-    Node(DOM::Document&, GC::Ptr<DOM::Node>, RustFFI::NodeKind, AttachToDOMNode = AttachToDOMNode::Yes);
     Node(DOM::Document&, BindToPreparedArenaSlot, Compositing::RustFFI::NodeSlotId, RustFFI::NodeKind);
 
     bool has_flag(RustFFI::NodeFlag flag) const
@@ -381,7 +374,6 @@ T& allocate_layout_node(Args&&... args)
 
 class WEB_API NodeWithStyle : public Node {
 public:
-    NodeWithStyle(DOM::Document&, GC::Ptr<DOM::Node>, CSS::LayoutStyle, RustFFI::NodeKind = RustFFI::NodeKind::NodeWithStyle);
     NodeWithStyle(DOM::Document&, BindToPreparedArenaSlot, Compositing::RustFFI::NodeSlotId, RustFFI::NodeKind);
 
     virtual ~NodeWithStyle() override;
@@ -675,7 +667,6 @@ public:
     // engine goes away. Every document destruction path goes through that teardown.
     void pin_style_record_for_cxx_consumers();
     void release_pinned_style_record();
-    void bind_generated_style_record(CSS::StyleRecordID);
 
     void set_display(CSS::Display);
 
@@ -684,7 +675,6 @@ private:
 
     virtual bool is_node_with_style() const final { return true; }
 
-    void initialize_from_style_record();
     void publish_style_record_to_node_data();
     void did_update_style_record();
 

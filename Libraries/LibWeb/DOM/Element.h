@@ -710,8 +710,6 @@ public:
     bool should_indicate_focus() const;
     virtual bool is_focusable() const override;
 
-    static Layout::NodeWithStyle* create_layout_node_for_display_type(DOM::Document&, CSS::Display const&, CSS::LayoutStyle, Element*);
-
     Layout::NodeWithStyle* pseudo_element_layout_node(CSS::PseudoElement) const;
     Layout::NodeWithStyle* pseudo_element_unsafe_layout_node(CSS::PseudoElement) const;
 

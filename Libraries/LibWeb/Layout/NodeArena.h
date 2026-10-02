@@ -31,7 +31,6 @@ public:
     NodeArena();
     ~NodeArena();
 
-    Compositing::RustFFI::NodeSlotId allocate(RustFFI::FfiNodeConstructionFacts const&);
     void free_subtree(Compositing::RustFFI::NodeSlotId);
     Node* node_if_live(Compositing::RustFFI::NodeSlotId) const;
     void* handle() const { return m_handle; }
