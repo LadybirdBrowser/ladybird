@@ -1177,6 +1177,31 @@ impl RetainedState {
     pub fn set_element_associated_pseudo_kind(&mut self, node: StyleNodeID, pseudo_kind_plus_one: u8) {
         self.computed_group_sets
             .set_associated_pseudo_kind(node, pseudo_kind_plus_one);
+        if pseudo_kind_plus_one != 0
+            && let Some(host) = self.tree.shadow_host_of(node)
+        {
+            let backing_elements = self.backing_elements.entry(host).or_default();
+            if !backing_elements.contains(&node) {
+                backing_elements.push(node);
+            }
+        }
+    }
+
+    /// The elements of `host`'s shadow tree that stand for one of its element-backed
+    /// pseudo-elements of `kinds`, a bit per kind.
+    pub(super) fn backing_elements(&self, host: StyleNodeID, kinds: u64) -> impl Iterator<Item = StyleNodeID> {
+        self.backing_elements
+            .get(&host)
+            .into_iter()
+            .flatten()
+            .copied()
+            .filter(move |&node| {
+                self.tree.shadow_host_of(node) == Some(host)
+                    && self
+                        .computed_group_sets
+                        .associated_pseudo_kind(node)
+                        .is_some_and(|kind| kinds & 1_u64.checked_shl(u32::from(kind)).unwrap_or(0) != 0)
+            })
     }
 
     /// What the last layout commit and scroll state say of a container's box.
@@ -1820,6 +1845,7 @@ impl StyleEngineState {
                 size_container_queries: Default::default(),
                 counter_style_environment_identities: HashMap::default(),
                 held_style_records: HashMap::default(),
+                backing_elements: HashMap::default(),
                 children_explicitly_inherit_marks: HashSet::default(),
                 host_var_reads: HashMap::default(),
                 css_defined_animations: Default::default(),
@@ -3078,8 +3104,7 @@ impl StyleEngineState {
             .computed_group_sets
             .set_box_kind(node, super::bridge::ElementBoxKind::from_raw(arrival.box_kind));
         self.retained
-            .computed_group_sets
-            .set_associated_pseudo_kind(node, arrival.associated_pseudo_kind_plus_one);
+            .set_element_associated_pseudo_kind(node, arrival.associated_pseudo_kind_plus_one);
         for &state in custom_states {
             self.record_batched_input(
                 InputKey::LocalFeature(node, LocalFeatureKey::CustomState(state)),
@@ -3336,6 +3361,7 @@ impl RetainedState {
             size_container_queries,
             counter_style_environment_identities: _,
             held_style_records,
+            backing_elements,
             children_explicitly_inherit_marks,
             host_var_reads,
             css_defined_animations,
@@ -3447,6 +3473,7 @@ impl RetainedState {
             !retired
         });
         size_container_queries.retire(node);
+        backing_elements.remove(&node);
         if let Some(style_record) = held_style_records.remove(&node) {
             computed_group_sets.unpin_style_record(style_record);
         }

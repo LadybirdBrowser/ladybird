@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    input::placeholder { color: rgb(255, 0, 0); }
+    input.flag::placeholder { color: rgb(0, 128, 0); }
+</style>
+<input id="field" placeholder="hint">
+<script>
+    test(() => {
+        internals.updateStyle();
+        const recomputations = () => internals.getStyleInvalidationCounters().elementStyleRecomputations;
+        for (const step of [1, 2]) {
+            const before = recomputations();
+            // Only the host's ::placeholder rules flip: the element backing it restyles as its own row.
+            field.classList.toggle("flag");
+            internals.updateStyle();
+            println(`step ${step}: ${getComputedStyle(field, "::placeholder").color}, C++ recomputations ${recomputations() - before}`);
+        }
+    });
+</script>
