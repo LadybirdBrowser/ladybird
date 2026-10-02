@@ -246,9 +246,11 @@ Gfx::BrokeredFont FontService::materialize_typeface(NonnullRefPtr<Gfx::TypefaceS
     // each character a page uses, and a renderer would load each copy as a typeface of its own.
     auto ttc_index = typeface->collection_index();
     auto face_key = MUST(String::formatted("face:{}", typeface->platform_typeface_id()));
-    if (auto face_id = m_dynamic_match_cache.get(face_key); face_id.has_value()) {
-        m_dynamic_match_cache.set(move(cache_key), *face_id);
-        return open_font_without_lock(m_generation, *face_id);
+    if (auto cached_face_id = m_dynamic_match_cache.get(face_key); cached_face_id.has_value()) {
+        // Copy the id out first: adding a key may grow the cache and free the entry it points at.
+        auto face_id = *cached_face_id;
+        m_dynamic_match_cache.set(move(cache_key), face_id);
+        return open_font_without_lock(m_generation, face_id);
     }
 
     auto face_id = m_next_dynamic_face_id++;
