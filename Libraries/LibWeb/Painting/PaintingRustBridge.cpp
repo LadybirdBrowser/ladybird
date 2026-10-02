@@ -185,24 +185,27 @@ static Layout::NodeWithStyle::ImageObserver const* layer_image_observer(Layout::
     VERIFY_NOT_REACHED();
 }
 
-Layout::RustFFI::FfiVisualContextHostCallbacks visual_context_host_callbacks(DOM::Document& document)
+// The render side draws into a viewport it never asks about: this is published before every pass that reads it, and a
+// pass reads what was published rather than the document.
+void publish_visual_context_tree_inputs(DOM::Document& document)
+{
+    Compositing::RustFFI::FfiVisualContextTreeInputs inputs {};
+    inputs.device_pixels_per_css_pixel = document.page().client().device_pixels_per_css_pixel();
+    auto const& visual_viewport = *document.visual_viewport();
+    auto offset = visual_viewport.offset().to_type<double>();
+    inputs.visual_viewport_offset_x = offset.x();
+    inputs.visual_viewport_offset_y = offset.y();
+    inputs.visual_viewport_scale = visual_viewport.scale();
+    auto viewport_overflow = overflow_values_applied_to_viewport_for_wheel_scrolling(document);
+    inputs.viewport_wheel_overflow_x = static_cast<u8>(to_underlying(viewport_overflow.x));
+    inputs.viewport_wheel_overflow_y = static_cast<u8>(to_underlying(viewport_overflow.y));
+    Layout::RustFFI::layout_arena_publish_visual_context_tree_inputs(document.layout_node_arena().handle(), inputs);
+}
+
+Layout::RustFFI::FfiVisualContextHostCallbacks visual_context_host_callbacks()
 {
     return {
-        .context = &document,
-        .tree_inputs = [](void* context) -> Compositing::RustFFI::FfiVisualContextTreeInputs {
-            auto& document = *static_cast<DOM::Document*>(context);
-            Compositing::RustFFI::FfiVisualContextTreeInputs inputs {};
-            inputs.device_pixels_per_css_pixel = document.page().client().device_pixels_per_css_pixel();
-            auto const& visual_viewport = *document.visual_viewport();
-            auto offset = visual_viewport.offset().to_type<double>();
-            inputs.visual_viewport_offset_x = offset.x();
-            inputs.visual_viewport_offset_y = offset.y();
-            inputs.visual_viewport_scale = visual_viewport.scale();
-            auto viewport_overflow = overflow_values_applied_to_viewport_for_wheel_scrolling(document);
-            inputs.viewport_wheel_overflow_x = static_cast<u8>(to_underlying(viewport_overflow.x));
-            inputs.viewport_wheel_overflow_y = static_cast<u8>(to_underlying(viewport_overflow.y));
-            return inputs;
-        },
+        .context = nullptr,
         .scroll_offset = [](void*, void* layout_node_shell) -> CSSPixelPoint {
             return scroll_offset(*static_cast<Layout::Node const*>(layout_node_shell));
         },
@@ -234,7 +237,8 @@ static void* layout_arena_handle(DOM::Document const& document)
 Layout::RustFFI::FfiVisualContextUpdateOutcome rust_update_accumulated_visual_contexts(DOM::Document& document)
 {
     auto update_timer = Core::ElapsedTimer::start_new(Core::TimerType::Precise);
-    auto outcome = Layout::RustFFI::layout_arena_update_accumulated_visual_contexts(layout_arena_handle(document), viewport_row_slot(document), visual_context_host_callbacks(document));
+    publish_visual_context_tree_inputs(document);
+    auto outcome = Layout::RustFFI::layout_arena_update_accumulated_visual_contexts(layout_arena_handle(document), viewport_row_slot(document));
     if (rust_painting_timing_enabled())
         dbgln("AVC_UPDATE rust={} µs {}", update_timer.elapsed_time().to_microseconds(), outcome.performed_full_build ? "full"sv : "incremental"sv);
     return outcome;
@@ -288,8 +292,8 @@ void register_geometry_host(Layout::NodeArena& arena)
 
 Layout::RustFFI::FfiRenderingPreparationOutcome rust_prepare_for_rendering(DOM::Document& document, bool visual_context_update_pending)
 {
-    return Layout::RustFFI::layout_arena_prepare_for_rendering(
-        layout_arena_handle(document), visual_context_host_callbacks(document), visual_context_update_pending);
+    publish_visual_context_tree_inputs(document);
+    return Layout::RustFFI::layout_arena_prepare_for_rendering(layout_arena_handle(document), visual_context_update_pending);
 }
 
 static CSS::PreferredColorScheme image_color_scheme(Layout::NodeWithStyle const& layout_node)
@@ -326,13 +330,15 @@ CSS::ColorResolutionContext gradient_stop_color_resolution_context(Layout::NodeW
 
 void rust_update_visual_viewport_transform(DOM::Document& document)
 {
-    Layout::RustFFI::layout_arena_update_visual_viewport_transform(layout_arena_handle(document), visual_context_host_callbacks(document));
+    publish_visual_context_tree_inputs(document);
+    Layout::RustFFI::layout_arena_update_visual_viewport_transform(layout_arena_handle(document));
 }
 
 bool rust_refresh_scroll_state(DOM::Document& document, Compositing::ScrollStateSnapshot& snapshot, ForceScrollStateRefresh force)
 {
+    publish_visual_context_tree_inputs(document);
     return Layout::RustFFI::layout_arena_refresh_scroll_state(
-        layout_arena_handle(document), visual_context_host_callbacks(document), force == ForceScrollStateRefresh::Yes,
+        layout_arena_handle(document), visual_context_host_callbacks(), force == ForceScrollStateRefresh::Yes,
         &snapshot, [](void* sink, Gfx::FloatPoint const* offsets, size_t count) {
             static_cast<Compositing::ScrollStateSnapshot*>(sink)->assign_device_offsets({ offsets, count });
         });
@@ -403,7 +409,6 @@ static void push_bytes_to_dump_sink(void* sink, ReadonlyBytes bytes)
 
 static void dump_layout_tree(Layout::Node const& root, size_t initial_indent, bool interactive, void* output_context, void (*append_text)(void*, u8 const*, size_t))
 {
-    auto& document = const_cast<DOM::Document&>(root.document());
     Layout::RustFFI::FfiLayoutTreeDumpCallbacks callbacks {
         .context = output_context,
         .describe_dom_node = [](void*, void* layout_node_pointer, void* tag_name_sink, void* identifier_sink) {
@@ -447,7 +452,6 @@ static void dump_layout_tree(Layout::Node const& root, size_t initial_indent, bo
             return const_cast<Layout::Viewport*>(svg_image_data->svg_document().unsafe_layout_node()); },
         .dump_nested_layout_tree = [](void*, void* layout_root_shell, size_t indent, bool interactive, void* output_sink) { dump_layout_tree(*static_cast<Layout::Node const*>(layout_root_shell), indent, interactive, output_sink, Layout::RustFFI::layout_arena_paint_push_bytes); },
         .append_text = append_text,
-        .visual_context = visual_context_host_callbacks(document),
     };
     Layout::RustFFI::layout_arena_dump_layout_tree(root.arena_handle(), Layout::Node::slot_id(&root), initial_indent, interactive, callbacks);
 }

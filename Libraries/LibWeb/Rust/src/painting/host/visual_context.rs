@@ -153,27 +153,10 @@ pub(crate) struct ResolvedSvgFilter {
 #[repr(C)]
 pub struct FfiVisualContextHostCallbacks {
     context: *mut c_void,
-    tree_inputs: unsafe extern "C" fn(*mut c_void) -> FfiVisualContextTreeInputs,
     scroll_offset: unsafe extern "C" fn(*mut c_void, *mut c_void) -> used_values::FfiCssPixelPoint,
 }
 
 impl FfiVisualContextHostCallbacks {
-    #[cfg(test)]
-    pub(crate) fn for_test(
-        tree_inputs: unsafe extern "C" fn(*mut c_void) -> FfiVisualContextTreeInputs,
-        scroll_offset: unsafe extern "C" fn(*mut c_void, *mut c_void) -> used_values::FfiCssPixelPoint,
-    ) -> Self {
-        Self {
-            context: std::ptr::null_mut(),
-            tree_inputs,
-            scroll_offset,
-        }
-    }
-
-    pub(crate) fn tree_inputs(&self, _: &MainThread) -> FfiVisualContextTreeInputs {
-        // SAFETY: The C++ host answers synchronously.
-        unsafe { (self.tree_inputs)(self.context) }
-    }
     pub(crate) fn scroll_offset(
         &self,
         _: &MainThread,
