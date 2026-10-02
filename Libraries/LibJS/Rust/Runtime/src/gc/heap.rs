@@ -103,6 +103,17 @@ impl Heap {
         unsafe { capi::gc_heap_enqueue_post_gc_task(self.raw.as_ptr(), callback, context) };
     }
 
+    /// Counts memory a cell allocated outside the heap towards the next collection, which this may start.
+    pub fn did_allocate_external_memory(&self, size: usize) {
+        // SAFETY: The heap is live.
+        unsafe { capi::gc_heap_did_allocate_external_memory(self.raw.as_ptr(), size) };
+    }
+
+    pub fn did_free_external_memory(&self, size: usize) {
+        // SAFETY: The heap is live.
+        unsafe { capi::gc_heap_did_free_external_memory(self.raw.as_ptr(), size) };
+    }
+
     pub fn set_should_collect_on_every_allocation(&self, should_collect: bool) {
         // SAFETY: The heap is live.
         unsafe { capi::gc_heap_set_should_collect_on_every_allocation(self.raw.as_ptr(), should_collect) };

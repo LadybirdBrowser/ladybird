@@ -27,15 +27,15 @@ use crate::bytecode::property_access::{
 use crate::gc::class::GcCell;
 use crate::gc::class::class_of;
 use crate::gc::root::MarkedVec;
-use crate::interpreter::runtime_functions::{
-    SlowPathControl, asm_try, handle_asm_exception, unimplemented_runtime_function,
-};
+use crate::interpreter::runtime_functions::{SlowPathControl, asm_try, handle_asm_exception};
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
 use crate::layout::shape::{PrototypeChainValidity, Shape};
 use crate::layout::value::Value;
 use crate::runtime::abstract_operations::function_object_as_object;
 use crate::runtime::array::Array;
+use crate::runtime::array_buffer::{ElementType, Order};
+use crate::runtime::canonical_index::{CanonicalIndex, CanonicalIndexType};
 use crate::runtime::completion::ThrowCompletionOr;
 use crate::runtime::ecmascript_function_object::as_ecmascript_function_object;
 use crate::runtime::error::ErrorKind;
@@ -45,6 +45,7 @@ use crate::runtime::private_environment::{PrivateEnvironment, PrivateName};
 use crate::runtime::property_attributes::{Attribute, DEFAULT_ATTRIBUTES, PropertyAttributes};
 use crate::runtime::property_key::PropertyKey;
 use crate::runtime::reference::Reference;
+use crate::runtime::typed_array::{Kind, is_valid_integer_index, typed_array_of_object};
 
 fn strict_of(header_strict: bool) -> Strict {
     if header_strict { Strict::Yes } else { Strict::No }
@@ -1374,7 +1375,7 @@ pub fn try_get_by_id_cache(base: Value, cache: &PropertyLookupCache) -> Value {
 
 // Fast path for GetByValue on typed arrays.
 // Returns whether it stored the result in dst; if not, the caller falls to the slow path.
-pub fn try_get_by_value_typed_array(pc: u32, values: &op::GetByValueValues) -> bool {
+pub fn try_get_by_value_typed_array(vm: &Vm, values: &mut op::GetByValueValues) -> bool {
     let base = values.base;
     if !base.is_object() {
         return false;
@@ -1390,15 +1391,53 @@ pub fn try_get_by_value_typed_array(pc: u32, values: &op::GetByValueValues) -> b
         return false;
     }
 
-    unimplemented_runtime_function(
-        "asm_try_get_by_value_typed_array of a typed array, which needs TypedArrayBase and ArrayBuffer",
-        pc,
-    )
+    let typed_array = typed_array_of_object(&object);
+    let index = property.as_i32() as u32;
+
+    // Fast path: fixed-length typed array with cached data pointer
+    let array_length = typed_array.array_length();
+    if array_length.is_auto() {
+        return false;
+    }
+
+    let length = array_length.length();
+    if index >= length {
+        values.dst = Value::UNDEFINED;
+        return true;
+    }
+
+    if !is_valid_integer_index(typed_array, CanonicalIndex::new(CanonicalIndexType::Index, index)) {
+        values.dst = Value::UNDEFINED;
+        return true;
+    }
+
+    let buffer = typed_array.viewed_array_buffer();
+    let Some(byte_index) = (index as usize)
+        .checked_mul(typed_array.element_size() as usize)
+        .and_then(|byte_index| byte_index.checked_add(typed_array.byte_offset() as usize))
+    else {
+        return false;
+    };
+
+    let element_type = match typed_array.kind() {
+        Kind::Uint8Array | Kind::Uint8ClampedArray => ElementType::Uint8,
+        Kind::Int8Array => ElementType::Int8,
+        Kind::Uint16Array => ElementType::Uint16,
+        Kind::Int16Array => ElementType::Int16,
+        Kind::Uint32Array => ElementType::Uint32,
+        Kind::Int32Array => ElementType::Int32,
+        Kind::Float32Array => ElementType::Float32,
+        Kind::Float64Array => ElementType::Float64,
+        _ => return false,
+    };
+
+    values.dst = buffer.get_value(vm, byte_index, element_type, true, Order::Unordered, true);
+    true
 }
 
 // Fast path for PutByValue on typed arrays.
 // Returns whether it stored the value; if not, the caller falls to the slow path.
-pub fn try_put_by_value_typed_array(pc: u32, values: &op::PutByValueValues) -> bool {
+pub fn try_put_by_value_typed_array(vm: &Vm, values: &op::PutByValueValues) -> bool {
     let base = values.base;
     if !base.is_object() {
         return false;
@@ -1414,8 +1453,68 @@ pub fn try_put_by_value_typed_array(pc: u32, values: &op::PutByValueValues) -> b
         return false;
     }
 
-    unimplemented_runtime_function(
-        "asm_try_put_by_value_typed_array of a typed array, which needs TypedArrayBase and ArrayBuffer",
-        pc,
-    )
+    let typed_array = typed_array_of_object(&object);
+    let index = property.as_i32() as u32;
+
+    let array_length = typed_array.array_length();
+    if array_length.is_auto() {
+        return false;
+    }
+
+    // NB: An out-of-bounds write is not simply a no-op: TypedArraySetElement still
+    //     evaluates ToNumber(value) for its side effects before discarding the store.
+    //     Fall back to the slow path so those side effects happen.
+    if index >= array_length.length() {
+        return false;
+    }
+
+    if !is_valid_integer_index(typed_array, CanonicalIndex::new(CanonicalIndexType::Index, index)) {
+        return false;
+    }
+
+    let buffer = typed_array.viewed_array_buffer();
+    let Some(byte_index) = (index as usize)
+        .checked_mul(typed_array.element_size() as usize)
+        .and_then(|byte_index| byte_index.checked_add(typed_array.byte_offset() as usize))
+    else {
+        return false;
+    };
+    let value = values.src;
+
+    if value.is_int32() {
+        let int_value = value.as_i32();
+        let (element_type, value) = match typed_array.kind() {
+            Kind::Uint8Array => (ElementType::Uint8, value),
+            Kind::Uint8ClampedArray => (ElementType::Uint8Clamped, Value::from_i32(int_value.clamp(0, 255))),
+            Kind::Int8Array => (ElementType::Int8, value),
+            Kind::Uint16Array => (ElementType::Uint16, value),
+            Kind::Int16Array => (ElementType::Int16, value),
+            Kind::Uint32Array => (ElementType::Uint32, value),
+            Kind::Int32Array => (ElementType::Int32, value),
+            _ => return false,
+        };
+        buffer.set_value(vm, byte_index, element_type, value, true, Order::Unordered, true);
+        return true;
+    }
+
+    if value.is_double() {
+        let double_value = value.as_f64();
+        let element_type = match typed_array.kind() {
+            Kind::Float32Array => ElementType::Float32,
+            Kind::Float64Array => ElementType::Float64,
+            _ => return false,
+        };
+        buffer.set_value(
+            vm,
+            byte_index,
+            element_type,
+            Value::from_f64(double_value),
+            true,
+            Order::Unordered,
+            true,
+        );
+        return true;
+    }
+
+    false
 }

@@ -15,8 +15,12 @@ use crate::layout::cell::Gc;
 use crate::layout::object::Object;
 use crate::layout::value::Value;
 use crate::runtime::array::Array;
+use crate::runtime::array_buffer::{ArrayBuffer, Order};
 use crate::runtime::async_generator::AsyncGenerator;
 use crate::runtime::boolean_object::BooleanObject;
+use crate::runtime::data_view::{
+    DataView, get_view_byte_length, is_view_out_of_bounds, make_data_view_with_buffer_witness_record,
+};
 use crate::runtime::ecmascript_function_object::EcmascriptFunctionObject;
 use crate::runtime::error::Error;
 use crate::runtime::generator_object::GeneratorObject;
@@ -30,6 +34,10 @@ use crate::runtime::regexp_object::RegExpObject;
 use crate::runtime::set::Set;
 use crate::runtime::shared_function_instance_data::FunctionKind;
 use crate::runtime::string_object::StringObject;
+use crate::runtime::typed_array::{
+    is_typed_array_out_of_bounds, make_typed_array_with_buffer_witness_record, typed_array_byte_length,
+    typed_array_length, typed_array_of_object,
+};
 use crate::runtime::weak_map::WeakMap;
 use crate::runtime::weak_ref::WeakRef;
 use crate::runtime::weak_set::WeakSet;
@@ -430,6 +438,142 @@ fn print_regexp_object(print_context: &mut PrintContext<'_>, regexp_object: Gc<R
     js_out(print_context, "\x1b[0m")
 }
 
+fn print_array_buffer(
+    print_context: &mut PrintContext<'_>,
+    array_buffer: Gc<ArrayBuffer>,
+    seen_objects: &mut SeenObjects<'_>,
+) -> io::Result<()> {
+    print_type(print_context, "ArrayBuffer")?;
+
+    let byte_length = array_buffer.byte_length();
+    js_out(print_context, "\n  byteLength: ")?;
+    print_value(print_context, Value::from_f64(byte_length as f64), seen_objects)?;
+    if array_buffer.is_detached() {
+        js_out(print_context, "\n  Detached")?;
+        return Ok(());
+    }
+
+    if byte_length == 0 {
+        return Ok(());
+    }
+
+    let buffer_data = array_buffer.copy_all_to_byte_buffer();
+    js_out(print_context, "\n")?;
+    for (i, byte) in buffer_data.iter().enumerate() {
+        js_out_argument(print_context, &format!("{byte:02x}"))?;
+        if i + 1 < byte_length {
+            if (i + 1) % 32 == 0 {
+                js_out(print_context, "\n")?;
+            } else if (i + 1) % 16 == 0 {
+                js_out(print_context, "  ")?;
+            } else {
+                js_out(print_context, " ")?;
+            }
+        }
+    }
+
+    Ok(())
+}
+
+/// The {:p} format of a pointer.
+fn format_pointer<T>(cell: Gc<T>) -> String {
+    format!("0x{:016x}", cell.as_ptr().cast::<u8>().addr())
+}
+
+fn print_typed_array(
+    print_context: &mut PrintContext<'_>,
+    object: Gc<Object>,
+    seen_objects: &mut SeenObjects<'_>,
+) -> io::Result<()> {
+    let typed_array_base = typed_array_of_object(&object);
+    let array_buffer = typed_array_base.viewed_array_buffer();
+
+    let typed_array_record = make_typed_array_with_buffer_witness_record(typed_array_base, Order::SeqCst);
+    print_type(print_context, typed_array_base.class_name())?;
+
+    js_out(print_context, "\n  buffer: ")?;
+    print_type(print_context, "ArrayBuffer")?;
+    js_out(print_context, " @ ")?;
+    js_out_argument(print_context, &format_pointer(array_buffer))?;
+
+    if is_typed_array_out_of_bounds(&typed_array_record) {
+        js_out(print_context, "\n  <out of bounds>")?;
+        return Ok(());
+    }
+
+    let length = typed_array_length(&typed_array_record);
+
+    js_out(print_context, "\n  length: ")?;
+    print_value(print_context, Value::from_f64(f64::from(length)), seen_objects)?;
+    js_out(print_context, "\n  byteLength: ")?;
+    print_value(
+        print_context,
+        Value::from_f64(f64::from(typed_array_byte_length(&typed_array_record))),
+        seen_objects,
+    )?;
+
+    js_out(print_context, "\n")?;
+    // FIXME: Find a better way to print typed arrays to the console.
+    // The current solution is limited to 100 lines, is hard to read, and hampers debugging.
+    js_out(print_context, "[ ")?;
+    let mut printed_count: usize = 0;
+    for i in 0..length as usize {
+        if i > 0 {
+            js_out(print_context, ", ")?;
+        }
+        // NB: An embedder's stream can run JavaScript between two elements, which may have detached or shrunk the
+        //     buffer since the length was read.
+        let current_record = make_typed_array_with_buffer_witness_record(typed_array_base, Order::SeqCst);
+        if is_typed_array_out_of_bounds(&current_record) || i >= typed_array_length(&current_record) as usize {
+            break;
+        }
+        let byte_index = typed_array_base.byte_offset() as usize + i * typed_array_base.element_size() as usize;
+        print_value(
+            print_context,
+            typed_array_base.get_value_from_buffer(print_context.vm, byte_index, Order::Unordered),
+            seen_objects,
+        )?;
+        printed_count += 1;
+        if printed_count > 100 && i < length as usize {
+            js_out(print_context, ", ...")?;
+            break;
+        }
+    }
+    js_out(print_context, " ]")
+}
+
+fn print_data_view(
+    print_context: &mut PrintContext<'_>,
+    data_view: Gc<DataView>,
+    seen_objects: &mut SeenObjects<'_>,
+) -> io::Result<()> {
+    let view_record = make_data_view_with_buffer_witness_record(data_view, Order::SeqCst);
+    print_type(print_context, "DataView")?;
+
+    js_out(print_context, "\n  buffer: ")?;
+    print_type(print_context, "ArrayBuffer")?;
+    js_out(print_context, " @ ")?;
+    js_out_argument(print_context, &format_pointer(data_view.viewed_array_buffer()))?;
+
+    if is_view_out_of_bounds(&view_record) {
+        js_out(print_context, "\n  <out of bounds>")?;
+        return Ok(());
+    }
+
+    js_out(print_context, "\n  byteLength: ")?;
+    print_value(
+        print_context,
+        Value::from_f64(f64::from(get_view_byte_length(&view_record))),
+        seen_objects,
+    )?;
+    js_out(print_context, "\n  byteOffset: ")?;
+    print_value(
+        print_context,
+        Value::from_f64(f64::from(data_view.byte_offset())),
+        seen_objects,
+    )
+}
+
 fn print_generator(print_context: &mut PrintContext<'_>, generator: Gc<Object>) -> io::Result<()> {
     print_type(print_context, generator.class().class_name())
 }
@@ -522,22 +666,28 @@ fn print_value(
         if let Some(weak_ref) = object.downcast::<WeakRef>() {
             return print_weak_ref(print_context, weak_ref, seen_objects);
         }
-        // NB: Then DataView, which the runtime does not have yet.
+        if let Some(data_view) = object.downcast::<DataView>() {
+            return print_data_view(print_context, data_view, seen_objects);
+        }
         if let Some(proxy_object) = object.downcast::<ProxyObject>() {
             return print_proxy_object(print_context, proxy_object, seen_objects);
         }
         if let Some(promise) = object.downcast::<Promise>() {
             return print_promise(print_context, promise, seen_objects);
         }
-        // NB: After Promise, Print.cpp checks for ArrayBuffer, then GeneratorObject below.
+        if let Some(array_buffer) = object.downcast::<ArrayBuffer>() {
+            return print_array_buffer(print_context, array_buffer, seen_objects);
+        }
         if object.is::<GeneratorObject>() {
             return print_generator(print_context, object);
         }
         if object.is::<AsyncGenerator>() {
             return print_async_generator(print_context, object);
         }
-        // NB: After AsyncGenerator, Print.cpp checks for the typed arrays (object.is_typed_array()), then
-        //     BooleanObject, NumberObject and StringObject below.
+        if object.is_typed_array() {
+            return print_typed_array(print_context, object, seen_objects);
+        }
+        // NB: After the typed arrays, Print.cpp checks for BooleanObject, NumberObject and StringObject below.
         if let Some(boolean_object) = object.downcast::<BooleanObject>() {
             return print_boolean_object(print_context, boolean_object, seen_objects);
         }

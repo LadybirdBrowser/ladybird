@@ -520,7 +520,7 @@ pub fn generate(configuration: &LayoutConfiguration) -> LayoutWriter {
 
     w.section("ByteLength layout");
     w.constant("BYTE_LENGTH_U32_INDEX", BYTE_LENGTH_U32_INDEX);
-    size!(w, "BYTE_LENGTH_SIZE", ByteLength);
+    size!(w, "BYTE_LENGTH_SIZE", ByteLengthSlot);
     offset!(w, "TYPED_ARRAY_ARRAY_LENGTH_VALUE", TypedArrayBase, array_length.length);
     w.line("field Object.typed_array_array_length u32 TYPED_ARRAY_ARRAY_LENGTH_VALUE nullable scalar");
     offset!(w, "TYPED_ARRAY_ARRAY_LENGTH_INDEX", TypedArrayBase, array_length.alternative_index);

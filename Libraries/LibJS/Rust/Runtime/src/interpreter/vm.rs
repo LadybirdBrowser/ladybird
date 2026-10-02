@@ -38,6 +38,7 @@ use crate::layout::value::Value;
 use crate::layout::vm::{InterpreterStack, VmHead};
 use crate::layout_forward::RawNativeFunctionPointer;
 use crate::runtime::abstract_operations::get_this_environment;
+use crate::runtime::array_buffer::{ArrayBuffer, ZeroFillNewBytes};
 use crate::runtime::common_property_names::CommonPropertyNames;
 use crate::runtime::completion::ThrowCompletionOr;
 use crate::runtime::declarative_environment::DeclarativeEnvironment;
@@ -57,6 +58,12 @@ use crate::runtime::shared_function_instance_data::SharedFunctionInstanceData;
 use crate::runtime::symbol::{self, GlobalSymbolRegistry, Symbol, enumerate_well_known_symbols};
 use crate::source_range::SourceRange;
 use crate::utf16::Utf16View;
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum HandledByHost {
+    Handled,
+    Unhandled,
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum EvalMode {
@@ -135,6 +142,56 @@ pub struct JobQueues {
 }
 
 define_cell!(JobQueues, Other);
+
+/// HostResizeArrayBuffer, which hosts may override.
+pub type HostResizeArrayBuffer = fn(&Vm, &ArrayBuffer, usize) -> ThrowCompletionOr<HandledByHost>;
+
+/// HostGrowSharedArrayBuffer, which hosts may override.
+pub type HostGrowSharedArrayBuffer = fn(&Vm, &ArrayBuffer, usize) -> ThrowCompletionOr<HandledByHost>;
+
+// 25.1.3.8 HostResizeArrayBuffer ( buffer, newByteLength ), https://tc39.es/ecma262/#sec-hostresizearraybuffer
+fn default_host_resize_array_buffer(
+    vm: &Vm,
+    buffer: &ArrayBuffer,
+    new_byte_length: usize,
+) -> ThrowCompletionOr<HandledByHost> {
+    // The host-defined abstract operation HostResizeArrayBuffer takes arguments buffer (an ArrayBuffer) and
+    // newByteLength (a non-negative integer) and returns either a normal completion containing either handled or
+    // unhandled, or a throw completion. It gives the host an opportunity to perform implementation-defined resizing
+    // of buffer. If the host chooses not to handle resizing of buffer, it may return unhandled for the default behaviour.
+
+    // The implementation of HostResizeArrayBuffer must conform to the following requirements:
+    // - The abstract operation does not detach buffer.
+    // - If the abstract operation completes normally with handled, buffer.[[ArrayBufferByteLength]] is newByteLength.
+
+    // The default implementation of HostResizeArrayBuffer is to return NormalCompletion(unhandled).
+
+    if buffer.try_resize(vm, new_byte_length, ZeroFillNewBytes::Yes).is_err() {
+        return vm.throw_completion(
+            ErrorKind::RangeError,
+            ErrorType::NotEnoughMemoryToAllocate,
+            &[&new_byte_length],
+        );
+    }
+
+    Ok(HandledByHost::Handled)
+}
+
+// 25.2.2.4 HostGrowSharedArrayBuffer ( buffer, newByteLength ), https://tc39.es/ecma262/#sec-hostgrowsharedarraybuffer
+#[allow(clippy::unnecessary_wraps, reason = "the hook's type lets other hosts throw")]
+fn default_host_grow_shared_array_buffer(_: &Vm, _: &ArrayBuffer, _: usize) -> ThrowCompletionOr<HandledByHost> {
+    // The host-defined abstract operation HostGrowSharedArrayBuffer takes arguments buffer (a SharedArrayBuffer)
+    // and newByteLength (a non-negative integer) and returns either a normal completion containing either handled
+    // or unhandled, or a throw completion. It gives the host an opportunity to perform implementation-defined
+    // growing of buffer. If the host chooses not to handle growing of buffer, it may return unhandled for the default behaviour.
+
+    // The implementation of HostGrowSharedArrayBuffer must conform to the following requirements:
+    // - If the abstract operation does not complete normally with unhandled, and newByteLength < the current byte length of the buffer or newByteLength > buffer.[[ArrayBufferMaxByteLength]], throw a RangeError exception.
+    // - Let AR be the Agent Record of the surrounding agent. Let isLittleEndian be AR.[[LittleEndian]]. If the abstract operation completes normally with handled, a WriteSharedMemory or ReadModifyWriteSharedMemory event whose [[Order]] is seq-cst, [[Payload]] is NumericToRawBytes(biguint64, newByteLength, isLittleEndian), [[Block]] is buffer.[[ArrayBufferByteLengthData]], [[ByteIndex]] is 0, and [[ElementSize]] is 8 is added to the surrounding agent's candidate execution such that racing calls to SharedArrayBuffer.prototype.grow ( newLength ) are not "lost", i.e. silently do nothing.
+
+    // The default implementation of HostGrowSharedArrayBuffer is to return NormalCompletion(unhandled).
+    Ok(HandledByHost::Unhandled)
+}
 
 // 1 HostGetCodeForEval ( argument ), https://tc39.es/proposal-dynamic-code-brand-checks/#sec-hostgetcodeforeval
 fn default_host_get_code_for_eval(_: &Vm, _: &Object) -> Option<Gc<PrimitiveString>> {
@@ -301,6 +358,8 @@ pub struct Vm {
     /// The finalization registries whose targets died in the collection in progress, which are handed to
     /// HostEnqueueFinalizationRegistryCleanupJob once it is over. C++ roots each of them in a post-GC task.
     finalization_registries_with_dead_cells: RefCell<Vec<Gc<FinalizationRegistry>>>,
+    host_resize_array_buffer: Cell<HostResizeArrayBuffer>,
+    host_grow_shared_array_buffer: Cell<HostGrowSharedArrayBuffer>,
     /// The id the next PrivateEnvironment gives its names, the C++ static PrivateEnvironment::s_next_id. It starts
     /// at one such that 0 can be invalid / default initialized.
     next_private_environment_id: Cell<u64>,
@@ -378,6 +437,8 @@ impl Vm {
             run_executable_depth: Cell::new(0),
             weak_containers: RefCell::new(Vec::new()),
             finalization_registries_with_dead_cells: RefCell::new(Vec::new()),
+            host_resize_array_buffer: Cell::new(default_host_resize_array_buffer),
+            host_grow_shared_array_buffer: Cell::new(default_host_grow_shared_array_buffer),
             next_private_environment_id: Cell::new(1),
             intrinsic_accessors: RefCell::new(HashMap::new()),
             type_error_realm_override: Cell::new(None),
@@ -872,6 +933,22 @@ impl Vm {
                 }
             }
         }
+    }
+
+    pub fn host_resize_array_buffer(&self) -> HostResizeArrayBuffer {
+        self.host_resize_array_buffer.get()
+    }
+
+    pub fn set_host_resize_array_buffer(&self, hook: HostResizeArrayBuffer) {
+        self.host_resize_array_buffer.set(hook);
+    }
+
+    pub fn host_grow_shared_array_buffer(&self) -> HostGrowSharedArrayBuffer {
+        self.host_grow_shared_array_buffer.get()
+    }
+
+    pub fn set_host_grow_shared_array_buffer(&self, hook: HostGrowSharedArrayBuffer) {
+        self.host_grow_shared_array_buffer.set(hook);
     }
 
     pub fn next_private_environment_id(&self) -> &Cell<u64> {

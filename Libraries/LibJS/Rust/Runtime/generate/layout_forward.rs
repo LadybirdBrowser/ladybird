@@ -36,6 +36,7 @@ pub struct PrivateEnvironmentStorage;
 pub struct EcmascriptFunctionObjectStorage;
 pub struct SharedFunctionInstanceDataStorage;
 pub struct RealmStorage;
+pub struct TypedArrayBaseStorage;
 
 /// Mirrors AK::Detail::Utf16StringDataHeader.
 #[repr(C, align(8))]

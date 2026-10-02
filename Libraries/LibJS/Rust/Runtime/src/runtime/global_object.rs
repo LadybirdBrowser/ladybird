@@ -116,11 +116,23 @@ pub fn set_default_global_bindings(vm: &Vm, realm: Gc<Realm>) {
     define_intrinsic_accessor(&names.Array, |vm, realm| {
         Value::from_object(realm.intrinsics().array_constructor(vm))
     });
+    define_intrinsic_accessor(&names.ArrayBuffer, |vm, realm| {
+        Value::from_object(realm.intrinsics().array_buffer_constructor(vm))
+    });
     define_intrinsic_accessor(&names.BigInt, |vm, realm| {
         Value::from_object(realm.intrinsics().bigint_constructor(vm))
     });
+    define_intrinsic_accessor(&names.BigInt64Array, |vm, realm| {
+        Value::from_object(realm.intrinsics().big_int64_array_constructor(vm))
+    });
+    define_intrinsic_accessor(&names.BigUint64Array, |vm, realm| {
+        Value::from_object(realm.intrinsics().big_uint64_array_constructor(vm))
+    });
     define_intrinsic_accessor(&names.Boolean, |vm, realm| {
         Value::from_object(realm.intrinsics().boolean_constructor(vm))
+    });
+    define_intrinsic_accessor(&names.DataView, |vm, realm| {
+        Value::from_object(realm.intrinsics().data_view_constructor(vm))
     });
     define_intrinsic_accessor(&names.Error, |vm, realm| {
         Value::from_object(realm.intrinsics().error_constructor(vm))
@@ -131,8 +143,26 @@ pub fn set_default_global_bindings(vm: &Vm, realm: Gc<Realm>) {
     define_intrinsic_accessor(&names.FinalizationRegistry, |vm, realm| {
         Value::from_object(realm.intrinsics().finalization_registry_constructor(vm))
     });
+    define_intrinsic_accessor(&names.Float16Array, |vm, realm| {
+        Value::from_object(realm.intrinsics().float16_array_constructor(vm))
+    });
+    define_intrinsic_accessor(&names.Float32Array, |vm, realm| {
+        Value::from_object(realm.intrinsics().float32_array_constructor(vm))
+    });
+    define_intrinsic_accessor(&names.Float64Array, |vm, realm| {
+        Value::from_object(realm.intrinsics().float64_array_constructor(vm))
+    });
     define_intrinsic_accessor(&names.Function, |vm, realm| {
         Value::from_object(realm.intrinsics().function_constructor(vm))
+    });
+    define_intrinsic_accessor(&names.Int8Array, |vm, realm| {
+        Value::from_object(realm.intrinsics().int8_array_constructor(vm))
+    });
+    define_intrinsic_accessor(&names.Int16Array, |vm, realm| {
+        Value::from_object(realm.intrinsics().int16_array_constructor(vm))
+    });
+    define_intrinsic_accessor(&names.Int32Array, |vm, realm| {
+        Value::from_object(realm.intrinsics().int32_array_constructor(vm))
     });
     define_intrinsic_accessor(&names.Iterator, |vm, realm| {
         Value::from_object(realm.intrinsics().iterator_constructor(vm))
@@ -164,6 +194,9 @@ pub fn set_default_global_bindings(vm: &Vm, realm: Gc<Realm>) {
     define_intrinsic_accessor(&names.Set, |vm, realm| {
         Value::from_object(realm.intrinsics().set_constructor(vm))
     });
+    define_intrinsic_accessor(&names.SharedArrayBuffer, |vm, realm| {
+        Value::from_object(realm.intrinsics().shared_array_buffer_constructor(vm))
+    });
     define_intrinsic_accessor(&names.String, |vm, realm| {
         Value::from_object(realm.intrinsics().string_constructor(vm))
     });
@@ -175,6 +208,18 @@ pub fn set_default_global_bindings(vm: &Vm, realm: Gc<Realm>) {
     });
     define_intrinsic_accessor(&names.TypeError, |vm, realm| {
         Value::from_object(realm.intrinsics().type_error_constructor(vm))
+    });
+    define_intrinsic_accessor(&names.Uint8Array, |vm, realm| {
+        Value::from_object(realm.intrinsics().uint8_array_constructor(vm))
+    });
+    define_intrinsic_accessor(&names.Uint8ClampedArray, |vm, realm| {
+        Value::from_object(realm.intrinsics().uint8_clamped_array_constructor(vm))
+    });
+    define_intrinsic_accessor(&names.Uint16Array, |vm, realm| {
+        Value::from_object(realm.intrinsics().uint16_array_constructor(vm))
+    });
+    define_intrinsic_accessor(&names.Uint32Array, |vm, realm| {
+        Value::from_object(realm.intrinsics().uint32_array_constructor(vm))
     });
     define_intrinsic_accessor(&names.URIError, |vm, realm| {
         Value::from_object(realm.intrinsics().uri_error_constructor(vm))
@@ -190,7 +235,10 @@ pub fn set_default_global_bindings(vm: &Vm, realm: Gc<Realm>) {
     });
 
     // 19.4 Other Properties of the Global Object, https://tc39.es/ecma262/#sec-other-properties-of-the-global-object
-    // NB: Atomics and Intl come with their builtins, before JSON.
+    // NB: Intl comes with its builtins, before JSON.
+    define_intrinsic_accessor(&names.Atomics, |vm, realm| {
+        Value::from_object(realm.intrinsics().atomics_object(vm))
+    });
     define_intrinsic_accessor(&names.JSON, |vm, realm| {
         Value::from_object(realm.intrinsics().json_object(vm))
     });

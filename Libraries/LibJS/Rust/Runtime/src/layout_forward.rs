@@ -71,3 +71,5 @@ pub use crate::runtime::environment_shape::EnvironmentShapeStorage;
 
 pub use crate::runtime::ecmascript_function_object::EcmascriptFunctionObjectStorage;
 pub use crate::runtime::shared_function_instance_data::SharedFunctionInstanceDataStorage;
+
+pub use crate::runtime::typed_array::TypedArrayBaseStorage;
