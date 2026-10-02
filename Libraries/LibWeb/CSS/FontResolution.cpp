@@ -558,9 +558,10 @@ NonnullRefPtr<Gfx::FontCascadeList const> FontCascadeMemo::resolve(FontFaceSnaps
     });
 }
 
-void FontCascadeMemo::forget_matching(Function<bool(ComputedFontCacheKey const&, NonnullRefPtr<Gfx::FontCascadeList const> const&)> const& predicate)
+void FontCascadeMemo::forget_matching(u64 environment_generation, Function<bool(ComputedFontCacheKey const&, NonnullRefPtr<Gfx::FontCascadeList const> const&)> const& predicate)
 {
     MutexLocker locker(m_mutex);
+    VERIFY(environment_generation > m_generation);
     m_cascades.remove_all_matching([&](auto const& key, auto const& font_list) { return predicate(key, font_list); });
 }
 
@@ -600,11 +601,12 @@ extern "C" Web::CSS::StyleEngineFFI::FfiResolvedFont web_css_resolve_font(void c
     // The metric probe must not load a face: the first available font answers without one.
     auto const& first_available_font = font_list->first_available_font();
     auto const metrics = first_available_font.pixel_metrics();
-    // The engine's resolver cache adopts this reference and releases it on eviction.
+    // NB: The engine takes no reference. The memo keeps the cascade alive until the font environment generation
+    //     changes, and the engine's resolver cache answers only for the generation it was filled at.
     return {
         // Handles, not pointers: the engine names these host objects and hands them back here.
         .first_available_font = reinterpret_cast<StyleEngineFFI::FfiHostHandle>(&first_available_font),
-        .font_cascade_list = reinterpret_cast<StyleEngineFFI::FfiHostHandle>(&font_list.leak_ref()),
+        .font_cascade_list = reinterpret_cast<StyleEngineFFI::FfiHostHandle>(font_list.ptr()),
         .ascent = metrics.ascent,
         .descent = metrics.descent,
         .x_height = metrics.x_height,

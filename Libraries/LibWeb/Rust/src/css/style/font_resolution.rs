@@ -8,7 +8,6 @@ use super::HashMap;
 use super::bridge::{FONT_RESOLUTION_FEATURE_INPUT_COUNT, FfiFontResolutionRequest, FfiHostHandle, FfiResolvedFont};
 use crate::css::host_shared::HostShared;
 use crate::css::style_value::{RetainedStyleValueData, retain_style_value};
-use libgfx_rust::font::FontCascadeListHandle;
 use std::ffi::c_void;
 
 /// Resolves one request against the document's published `@font-face` table, through the memo of
@@ -74,35 +73,22 @@ impl FontRequest {
     }
 }
 
-/// One reference to a host `Gfx::FontCascadeList`, held so the list the engine names stays alive
-/// while a resolution names it.
-struct SharedFontCascadeList(#[expect(dead_code, reason = "held for the reference it owns")] FontCascadeListHandle);
-
-// SAFETY: An evaluation step reaches this type only through `&FontResolutionCache`, and `lookup`
-// copies the `FfiResolvedFont` out without ever naming the handle, so no worker can move or drop
-// one. That is exactly `Sync` and deliberately not `Send`: the handle is borrowed by a walk,
-// never given to it. What matters is which thread performs the *final* release, because that runs
-// `~FontCascadeList`. This handle is the reason it is never a worker: the cache holds one reference
-// per cached resolution for the whole font-environment generation, taken here and given up only in
-// `FontResolutionCache::prepare` or when the cache is dropped - a host round on the engine's thread.
-// A step that builds a font style group takes a second reference to the same list
-// (`build_font_group` in `table_group_builder.rs`) and may give it up again when the rebuilt payload
-// is canonicalized away. `Gfx::FontCascadeList`, `Gfx::Font`, and `Gfx::Typeface` are all atomically
-// reference-counted, so that pair is safe. Keeping final destruction on the host also keeps it away
-// from concurrently used mutable font and typeface caches.
-unsafe impl Sync for SharedFontCascadeList {}
-
 struct ResolvedFont {
     // Keep the family and feature values alive for the pointer identities in the cache key.
     _font_family: RetainedStyleValueData,
     _font_feature_values: [Option<RetainedStyleValueData>; FONT_RESOLUTION_FEATURE_INPUT_COUNT],
-    _font_cascade_list: SharedFontCascadeList,
     ffi: FfiResolvedFont,
 }
 
 /// The resolutions this document has already been given, keyed by content and scoped to one
 /// font-environment generation. This is retained engine state: an evaluation step reads it and
 /// never calls the host.
+///
+/// It names the cascades it was given without holding a reference to any of them. The host's
+/// cascade memo keeps every cascade it resolves alive until the font environment generation
+/// changes, and a lookup answers only for the generation the cache was filled at. So the engine
+/// never gives up the last reference to a `Gfx::FontCascadeList`, whose destructor releases fonts
+/// into host caches, and nothing in the cache stops it from moving to another thread.
 #[derive(Default)]
 pub(super) struct FontResolutionCache {
     generation: Option<u64>,
@@ -130,15 +116,11 @@ impl FontResolutionCache {
         // The host resolves every request, to the fallback font where nothing else matches, so the
         // resolution always names a list.
         debug_assert!(!ffi.font_cascade_list.is_none());
-        // SAFETY: The callback transfers one reference to a live list.
-        let font_cascade_list =
-            SharedFontCascadeList(unsafe { FontCascadeListHandle::adopt(ffi.font_cascade_list.as_pointer()) });
         self.cache.insert(
             FontResolutionKey::new(request.ffi),
             ResolvedFont {
                 _font_family: request.family,
                 _font_feature_values: request.feature_values,
-                _font_cascade_list: font_cascade_list,
                 ffi,
             },
         );
@@ -314,13 +296,15 @@ mod tests {
         request.font_environment_generation = 2;
         assert!(resolver.lookup(request).is_none());
         resolver.prepare(2);
-        assert_eq!(font_cascade_list_unref_count(), unrefs_before + 1);
+        assert_eq!(font_cascade_list_unref_count(), unrefs_before);
         host.refill(&mut resolver, FontRequest::new(request));
         resolver.lookup(request).unwrap();
         assert_eq!(RESOLVES.load(Ordering::Relaxed), 2);
-        assert_eq!(font_cascade_list_unref_count(), unrefs_before + 1);
+        assert_eq!(font_cascade_list_unref_count(), unrefs_before);
 
+        // The host's memo owns the cascades, so neither a new generation nor dropping the cache
+        // gives up a reference.
         drop(resolver);
-        assert_eq!(font_cascade_list_unref_count(), unrefs_before + 2);
+        assert_eq!(font_cascade_list_unref_count(), unrefs_before);
     }
 }

@@ -63,7 +63,7 @@ pub(crate) enum EnvironmentMoveAction {
 #[derive(Default)]
 pub(super) struct ChangedCustomPropertyNames {
     /// By the addresses of the two stores, the raw names whose values differ, sorted.
-    by_stores: HashMap<(usize, usize), Rc<[usize]>>,
+    by_stores: HashMap<(usize, usize), Arc<[usize]>>,
     /// The stores the addresses name, kept alive so that no other store takes an address.
     stores: Vec<Arc<CustomPropertyStore>>,
 }
@@ -78,13 +78,13 @@ impl ChangedCustomPropertyNames {
         &mut self,
         old: Option<&Arc<CustomPropertyStore>>,
         new: Option<&Arc<CustomPropertyStore>>,
-    ) -> Rc<[usize]> {
+    ) -> Arc<[usize]> {
         let key = (
             old.map_or(0, |store| Arc::as_ptr(store) as usize),
             new.map_or(0, |store| Arc::as_ptr(store) as usize),
         );
         if key.0 == key.1 {
-            return Rc::from([]);
+            return Arc::from([]);
         }
         if let Some(names) = self.by_stores.get(&key) {
             return names.clone();
@@ -102,7 +102,7 @@ impl ChangedCustomPropertyNames {
             .filter(|&name| seen.insert(name) && custom_property_value_moved(name, old, new))
             .collect();
         names.sort_unstable();
-        let names: Rc<[usize]> = names.into();
+        let names: Arc<[usize]> = names.into();
         self.stores.extend(old.cloned());
         self.stores.extend(new.cloned());
         self.by_stores.insert(key, names.clone());
