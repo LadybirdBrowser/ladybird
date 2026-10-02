@@ -923,9 +923,6 @@ pub struct FfiLayoutHostCallbacks {
     /// The commit messages a finished commit leaves for the document, in the order it produced
     /// them.
     pub deliver_commit_messages: unsafe extern "C" fn(*mut c_void, *const commit::FfiCommitMessage, usize),
-    /// The document element and body facts the viewport propagation decides from.
-    pub viewport_propagation_facts:
-        unsafe extern "C" fn(*mut c_void) -> viewport_propagation::FfiViewportPropagationFacts,
     /// What a container-relative length on the element of a live box shell resolves against.
     pub container_length_bases:
         unsafe extern "C" fn(*mut c_void, *mut c_void) -> svg_formatting_context::FfiContainerLengthBases,
@@ -2328,15 +2325,14 @@ pub(crate) unsafe fn run_root_layout(
     // SAFETY: The caller keeps the arena alive for this synchronous call. The host table is
     // copied out so no arena borrow spans a host callback.
     let host = unsafe { LayoutNodeArena::from_handle(arena_handle) }.layout_host();
-    // SAFETY: The document answers from its elements' style records without entering the arena.
-    let propagation_facts = unsafe { (host.viewport_propagation_facts)(host.context) };
     // The style rewrites enroll the affected boxes' text children for content sync, so the sync
     // follows them, and both precede the pass, which caches decoded style.
     // SAFETY: As above; the propagation borrows the arena only for its own call.
+    let arena = unsafe { LayoutNodeArena::from_handle(arena_handle) };
     viewport_propagation::propagate_root_styles_to_viewport(
-        unsafe { LayoutNodeArena::from_handle(arena_handle) },
+        arena,
         root,
-        &propagation_facts,
+        &viewport_propagation::viewport_propagation_facts(arena),
     );
     // SAFETY: As above.
     unsafe { super::layout_node_arena::sync_enrolled_content_for_layout(arena_handle) };
