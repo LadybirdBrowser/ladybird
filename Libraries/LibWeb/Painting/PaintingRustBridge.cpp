@@ -335,7 +335,7 @@ bool rust_refresh_scroll_state(DOM::Document& document, Compositing::ScrollState
 
 void rust_invalidate_scroll_state(DOM::Document& document)
 {
-    Layout::RustFFI::layout_arena_invalidate_scroll_state(layout_arena_handle(document));
+    Layout::RustFFI::render_state_invalidate_scroll_state(document.layout_node_arena().host());
 }
 
 // Describes the row in the slot as its layout node describes itself, for a dump or a trace.

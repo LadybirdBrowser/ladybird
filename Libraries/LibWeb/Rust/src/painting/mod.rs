@@ -23,6 +23,7 @@ pub(crate) mod intersection_observer;
 pub(crate) mod layer_image_paint_facts;
 pub mod layout_tree_dump;
 pub(crate) mod node_painting;
+pub(crate) mod paint_changes;
 pub(crate) mod paint_order;
 pub(crate) mod paint_order_plan;
 pub(crate) mod paint_read;

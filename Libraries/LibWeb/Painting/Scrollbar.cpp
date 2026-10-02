@@ -106,8 +106,8 @@ void Scrollbar::push_enlarged_state()
     auto* node = layout_node();
     if (!node)
         return;
-    Layout::RustFFI::layout_arena_paintable_set_scrollbar_enlarged(
-        node->arena_handle(), committed_row_slot(*node), static_cast<Layout::RustFFI::ScrollDirection>(m_direction), is_enlarged());
+    Layout::RustFFI::render_state_set_scrollbar_enlarged(
+        node->document_host(), committed_row_slot(*node), static_cast<Layout::RustFFI::ScrollDirection>(m_direction), is_enlarged());
 }
 
 void Scrollbar::mouse_enter()

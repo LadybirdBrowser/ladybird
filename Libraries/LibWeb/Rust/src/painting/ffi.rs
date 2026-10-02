@@ -113,33 +113,6 @@ pub struct FfiOptionalScrollbarData {
 ///
 /// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_paintable_set_scrollbar_enlarged(
-    arena: *mut c_void,
-    slot: NodeSlotId,
-    direction: ScrollDirection,
-    enlarged: bool,
-) {
-    let arena = unsafe { arena_from_handle_mut(arena) };
-    let mut rows = arena.paintable_rows_mut();
-    if !rows.paintable_row_is_populated(slot) {
-        return;
-    }
-    let flag = match direction {
-        ScrollDirection::Horizontal => PaintableFlag::HorizontalScrollbarEnlarged,
-        ScrollDirection::Vertical => PaintableFlag::VerticalScrollbarEnlarged,
-    };
-    if rows.paintable_data(slot).has_flag(flag) == enlarged {
-        return;
-    }
-    rows.paintable_data_mut(slot).set_flag(flag, enlarged);
-    use crate::painting::record::damage::PaintDamage;
-    rows.push_paint_damage(slot, PaintDamage::DRAW_OVERLAY | PaintDamage::HIT_OVERLAY);
-}
-
-/// # Safety
-///
-/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
-#[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_paintable_physical_resize_axes(
     arena: *mut c_void,
     slot: NodeSlotId,
@@ -369,46 +342,6 @@ pub unsafe extern "C" fn layout_arena_paintable_row(arena: *mut c_void, slot: No
 pub unsafe extern "C" fn layout_arena_paintable_has_child_paintables(arena: *mut c_void, slot: NodeSlotId) -> bool {
     let arena = unsafe { arena_from_handle(arena) };
     crate::painting::paint_order::first_paint_child(&arena.paintable_rows(), slot).is_some()
-}
-
-/// # Safety
-///
-/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the
-/// document thread. `entries` must point at `entry_count` valid entries.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_selection_apply(
-    arena: *mut c_void,
-    viewport: NodeSlotId,
-    entries: *const FfiSelectionEntry,
-    entry_count: usize,
-    range_start_offset: usize,
-    range_end_offset: usize,
-) {
-    let arena = unsafe { arena_from_handle_mut(arena) };
-    if !arena.paintable_row_is_populated(viewport) {
-        return;
-    }
-    // SAFETY: The caller guarantees the entry span is valid for this synchronous call.
-    let entries = unsafe { ffi_slice(entries, entry_count) };
-    let text_states = crate::painting::selection::apply(&mut arena.paintable_rows_mut(), viewport, entries);
-    arena.paint_state().borrow_mut().selection =
-        Some(std::sync::Arc::new(crate::painting::selection::SelectionRange {
-            start_offset: range_start_offset,
-            end_offset: range_end_offset,
-            text_states,
-        }));
-}
-
-/// # Safety
-///
-/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_selection_clear(arena: *mut c_void, viewport: NodeSlotId) {
-    let arena = unsafe { arena_from_handle_mut(arena) };
-    if !arena.paintable_row_is_populated(viewport) {
-        return;
-    }
-    crate::painting::selection::clear(&mut arena.paintable_rows_mut(), viewport);
 }
 
 #[repr(C)]
@@ -1116,19 +1049,6 @@ pub unsafe extern "C" fn layout_arena_scroll_snapport_rect(
     crate::painting::scroll_snap::scroll_snapport_rect(arena, snap_container, scrollport.into()).into()
 }
 
-/// # Safety
-///
-/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_invalidate_scroll_state(arena: *mut c_void) {
-    let arena = unsafe { arena_from_handle(arena) };
-    arena
-        .paint_state()
-        .borrow_mut()
-        .visual_context
-        .needs_to_refresh_scroll_state = true;
-}
-
 /// The index of the sticky node the accumulated visual context tree holds for `paintable`, which
 /// is where the scroll state snapshot keeps its resolved sticky offset, or `u32::MAX` when the tree
 /// holds none.
@@ -1368,20 +1288,6 @@ pub unsafe extern "C" fn layout_arena_scroll_snap_axes(
 ) -> crate::painting::host::FfiSnapAxes {
     let arena = unsafe { arena_from_handle(arena) };
     crate::painting::scroll_snap::snap_axes_of_scroll_container(arena, snap_container)
-}
-
-/// Gives the rows that paint text under the element what its published `::selection` record says
-/// selected text paints with, after the element's style changed.
-///
-/// # Safety
-///
-/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_sync_selection_pseudo_style(arena: *mut c_void, element_style_node: u32) {
-    let Some(element) = crate::css::style::tree::StyleNodeID::from_raw(element_style_node) else {
-        return;
-    };
-    crate::painting::selection::sync_selection_pseudo_style(unsafe { arena_from_handle(arena) }, element);
 }
 
 /// # Safety
