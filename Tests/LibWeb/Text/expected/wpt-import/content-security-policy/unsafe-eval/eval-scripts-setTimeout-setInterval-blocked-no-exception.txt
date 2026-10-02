@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	setTimeout() with a blocked string handler returns 0 and doesn't report an exception
+Pass	setInterval() with a blocked string handler returns 0 and doesn't report an exception

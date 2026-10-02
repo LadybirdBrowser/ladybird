@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	setTimeout() runs the default policy and then blocks the rewritten string handler
+Pass	setInterval() runs the default policy and then blocks the rewritten string handler

@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	setTimeout() string handler runs after a policy blocking eval is added
+Pass	setInterval() string handler keeps running after a policy blocking eval is added
