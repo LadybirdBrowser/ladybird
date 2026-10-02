@@ -1828,7 +1828,7 @@ impl<'pass> SizingContext<'pass> {
         available.to_px_or_zero() - self.used(node).horizontal_margin_border_padding()
     }
 
-    fn calculate_stretch_fit_block_size(&self, node: Node, available: AvailableSize) -> CssPixels {
+    pub(crate) fn calculate_stretch_fit_block_size(&self, node: Node, available: AvailableSize) -> CssPixels {
         // https://drafts.csswg.org/css-sizing-3/#stretch-fit-size
         // The size a box would take if its outer size filled the available space in the given axis;
         // in other words, the stretch fit into the available space, if that is definite.

@@ -1,0 +1,41 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 100 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [0,0] [0+0+0 800 0+0+0] [0+0+0 100 0+0+0] children: not-inline
+      Box <div.grid> at [0,0] [0+0+0 300 0+0+500] [0+0+0 50 0+0+0] [GFC] children: not-inline
+        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+          TextNode <#text> (not painted)
+        Box <div.subgrid> at [0,0] [0+0+0 300 0+0+0] [0+0+0 40 0+0+0] [GFC] children: not-inline
+          BlockContainer <div.box> at [0,0] [0+0+0 20 0+0+0] [0+0+0 20 0+0+0] [BFC] children: not-inline
+          Box <div.wrapping> at [250,0] flex-container(row) [0+0+0 50 0+0+0] [0+0+0 40 0+0+0] [FFC] children: not-inline
+            BlockContainer <div.box> at [250,0] flex-item [0+0+0 20 0+0+0] [0+0+0 20 0+0+0] [BFC] children: not-inline
+            BlockContainer <div.box> at [270,0] flex-item [0+0+0 20 0+0+0] [0+0+0 20 0+0+0] [BFC] children: not-inline
+            BlockContainer <div.box> at [250,20] flex-item [0+0+0 20 0+0+0] [0+0+0 20 0+0+0] [BFC] children: not-inline
+            BlockContainer <div.box> at [270,20] flex-item [0+0+0 20 0+0+0] [0+0+0 20 0+0+0] [BFC] children: not-inline
+        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+          TextNode <#text> (not painted)
+        BlockContainer <div.wide> at [0,40] [0+0+0 250 0+0+0] [0+0+0 10 0+0+0] [BFC] children: not-inline
+        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+          TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [0,50] [0+0+0 800 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      Box <div.grid> at [0,50] [0+0+0 300 0+0+500] [0+0+0 50 0+0+0] [GFC] children: not-inline
+        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+          TextNode <#text> (not painted)
+        Box <div.subgrid> at [0,50] [0+0+0 300 0+0+0] [0+0+0 40 0+0+0] [GFC] children: not-inline
+          Box <div.both-axes-subgrid> at [0,50] [0+0+0 300 0+0+0] [0+0+0 40 0+0+0] [GFC] children: not-inline
+            BlockContainer <div.box> at [0,50] [0+0+0 20 0+0+0] [0+0+0 20 0+0+0] [BFC] children: not-inline
+            Box <div.wrapping> at [250,50] flex-container(row) [0+0+0 50 0+0+0] [0+0+0 40 0+0+0] [FFC] children: not-inline
+              BlockContainer <div.box> at [250,50] flex-item [0+0+0 20 0+0+0] [0+0+0 20 0+0+0] [BFC] children: not-inline
+              BlockContainer <div.box> at [270,50] flex-item [0+0+0 20 0+0+0] [0+0+0 20 0+0+0] [BFC] children: not-inline
+              BlockContainer <div.box> at [250,70] flex-item [0+0+0 20 0+0+0] [0+0+0 20 0+0+0] [BFC] children: not-inline
+              BlockContainer <div.box> at [270,70] flex-item [0+0+0 20 0+0+0] [0+0+0 20 0+0+0] [BFC] children: not-inline
+        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+          TextNode <#text> (not painted)
+        BlockContainer <div.wide> at [0,90] [0+0+0 250 0+0+0] [0+0+0 10 0+0+0] [BFC] children: not-inline
+        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+          TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [0,100] [0+0+0 800 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+
+SC for Viewport<#document> [0,0 800x600] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x100] (z-index: auto)
