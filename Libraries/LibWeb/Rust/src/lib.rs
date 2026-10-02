@@ -16,6 +16,8 @@ mod rust_panic;
 
 pub(crate) mod cow_column;
 mod encoding_detection;
+#[cfg(test)]
+mod gfx_test_stubs;
 pub use libcompositing_rust::fast_hash;
 
 pub mod css;

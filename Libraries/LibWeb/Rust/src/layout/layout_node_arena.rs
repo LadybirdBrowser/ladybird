@@ -5052,21 +5052,6 @@ pub(crate) struct NodeAllocation {
     pub(crate) slot: NodeSlotId,
 }
 
-/// The characters the generated text row `id` renders, as a raw `AK::Utf16String` representation
-/// for which the caller takes one reference.
-///
-/// # Safety
-///
-/// `arena` must be a live handle on the document thread, and `id` a live generated text row.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_generated_text(arena: *mut c_void, id: NodeSlotId) -> usize {
-    // SAFETY: Guaranteed by the caller.
-    unsafe { LayoutNodeArena::from_handle(arena) }
-        .published_text_source(id, false)
-        .data
-        .into_raw()
-}
-
 /// Whether the counter styles the generated content of the element `style_node` names, or of its
 /// pseudo-element `generated_for`, names now differ from the ones its box was built with.
 ///
@@ -5091,31 +5076,6 @@ pub unsafe extern "C" fn layout_arena_content_counter_styles_changed(
 
 fn counter_owner(style_node: u32, generated_for: u8) -> Option<super::counters::CounterOwner> {
     StyleNodeID::from_raw(style_node).map(|element| super::counters::CounterOwner { element, generated_for })
-}
-
-/// The text the content of the pseudo-element `generated_for` of the element `style_node` names last
-/// resolved to, the way accessibility reads it: the alt text when there is one, otherwise every
-/// string in order. The result is an `AK::Utf16String` raw representation the caller adopts.
-///
-/// # Safety
-///
-/// The arena must remain valid for the duration of the call.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_generated_content_accessible_text(
-    arena: *mut c_void,
-    style_node: u32,
-    generated_for: u8,
-) -> usize {
-    assert!(!arena.is_null(), "layout node arena handle is null");
-    let Some(owner) = counter_owner(style_node, generated_for) else {
-        return ak::Utf16String::from_utf16(&[]).into_raw();
-    };
-    // SAFETY: The C++ wrapper keeps the arena alive for this call and serializes all access on the
-    // document thread.
-    let generated_content = unsafe { &*arena.cast::<LayoutNodeArena>() }
-        .generated_content()
-        .borrow();
-    ak::Utf16String::from_utf16(generated_content.accessible_text(owner)).into_raw()
 }
 
 /// Whether the innermost `list-item` counter in the counters set of the element `style_node` names

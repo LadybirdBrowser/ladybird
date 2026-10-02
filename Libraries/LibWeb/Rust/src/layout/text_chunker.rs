@@ -27,6 +27,67 @@ unsafe extern "C" {
     fn ladybird_layout_code_point_has_emoji_property(code_point: u32) -> bool;
 }
 
+// Stand-ins for the Unicode library's segmenters and the host's code point facts, which a unit test links through a
+// document's render state but never reaches.
+#[cfg(test)]
+mod unicode_test_stubs {
+    use std::ffi::c_void;
+
+    #[unsafe(no_mangle)]
+    extern "C" fn unicode_layout_grapheme_segmenter_create(
+        _text: *const u16,
+        _length_in_code_units: usize,
+    ) -> *mut c_void {
+        unreachable!("no unit test segments text");
+    }
+
+    #[unsafe(no_mangle)]
+    extern "C" fn unicode_layout_line_segmenter_create(_text: *const u16, _length_in_code_units: usize) -> *mut c_void {
+        unreachable!("no unit test segments text");
+    }
+
+    #[unsafe(no_mangle)]
+    extern "C" fn unicode_layout_segmenter_next_boundary(_handle: *mut c_void, _index: usize, _inclusive: bool) -> i64 {
+        unreachable!("no unit test segments text");
+    }
+
+    #[unsafe(no_mangle)]
+    extern "C" fn unicode_layout_word_boundaries(
+        _text: *const u16,
+        _length: usize,
+        _offset: usize,
+        _start: *mut usize,
+        _end: *mut usize,
+    ) {
+        unreachable!("no unit test segments text");
+    }
+
+    #[unsafe(no_mangle)]
+    extern "C" fn ladybird_layout_text_type_for_code_point(_code_point: u32) -> u8 {
+        unreachable!("no unit test segments text");
+    }
+
+    #[unsafe(no_mangle)]
+    extern "C" fn ladybird_layout_code_point_has_break_all_line_break_class(_code_point: u32) -> bool {
+        unreachable!("no unit test segments text");
+    }
+
+    #[unsafe(no_mangle)]
+    extern "C" fn ladybird_layout_code_point_has_keep_all_line_break_class(_code_point: u32) -> bool {
+        unreachable!("no unit test segments text");
+    }
+
+    #[unsafe(no_mangle)]
+    extern "C" fn ladybird_layout_code_point_has_combining_mark_line_break_class(_code_point: u32) -> bool {
+        unreachable!("no unit test segments text");
+    }
+
+    #[unsafe(no_mangle)]
+    extern "C" fn ladybird_layout_code_point_has_emoji_property(_code_point: u32) -> bool {
+        unreachable!("no unit test segments text");
+    }
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct TextChunk {
     pub start: usize,

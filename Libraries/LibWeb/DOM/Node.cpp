@@ -119,8 +119,8 @@ static Utf16String generated_content_accessible_text(Element const& element, CSS
 {
     auto* arena = element.document().layout_node_arena_if_created();
     VERIFY(arena);
-    return Utf16String::adopt_raw(Layout::RustFFI::layout_arena_generated_content_accessible_text(
-        const_cast<Layout::NodeArena*>(arena)->handle(), element.style_node_id().value(), Layout::Node::encode_generated_for(pseudo_element)));
+    return Utf16String::adopt_raw(Layout::RustFFI::layout_script_generated_content_accessible_text(
+        arena->host(), element.style_node_id().value(), Layout::Node::encode_generated_for(pseudo_element)));
 }
 
 static UniqueNodeID s_next_unique_id;

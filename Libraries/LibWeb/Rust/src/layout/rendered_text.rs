@@ -178,7 +178,7 @@ impl std::ops::Deref for CachedTextChunks {
 
 impl TextContent {
     #[cfg(test)]
-    pub(super) fn for_test(text: &str, dom_start: usize, dom_length: usize, edits: Vec<RenderedTextEdit>) -> Self {
+    pub(crate) fn for_test(text: &str, dom_start: usize, dom_length: usize, edits: Vec<RenderedTextEdit>) -> Self {
         Self {
             rendered: Arc::new(RenderedText {
                 text: text.encode_utf16().collect(),

@@ -97,6 +97,40 @@ unsafe extern "C" {
     fn unicode_text_may_require_bidi_processing(text: *const u16, length: usize) -> bool;
 }
 
+// Stand-ins for the Unicode library's mappings, which a unit test links through a document's render state but never
+// reaches.
+#[cfg(test)]
+mod unicode_test_stubs {
+    use super::UnicodeTextMappingOutput;
+
+    #[unsafe(no_mangle)]
+    extern "C" fn unicode_apply_case_mapping(
+        _text: *const u16,
+        _length: usize,
+        _mapping: u8,
+        _locale: *const u16,
+        _locale_length: usize,
+        _preserve_existing: bool,
+        _output: UnicodeTextMappingOutput,
+    ) {
+        unreachable!("no unit test transforms text");
+    }
+
+    #[unsafe(no_mangle)]
+    extern "C" fn unicode_apply_fullwidth_mapping(
+        _text: *const u16,
+        _length: usize,
+        _output: UnicodeTextMappingOutput,
+    ) {
+        unreachable!("no unit test transforms text");
+    }
+
+    #[unsafe(no_mangle)]
+    extern "C" fn unicode_text_may_require_bidi_processing(_text: *const u16, _length: usize) -> bool {
+        unreachable!("no unit test transforms text");
+    }
+}
+
 unsafe extern "C" fn allocate_text(context: *mut c_void, length: usize) -> *mut u16 {
     // SAFETY: unicode_mapping lends this result exclusively to its synchronous callbacks.
     let result = unsafe { &mut *context.cast::<TransformedText>() };

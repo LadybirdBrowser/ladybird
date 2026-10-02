@@ -9365,8 +9365,8 @@ Vector<GC::Root<Range>> Document::find_matching_text(Utf16View query, CaseSensit
         .utf16 = query.has_ascii_storage() ? nullptr : reinterpret_cast<u16 const*>(query.utf16_span().data()),
         .length = query.length_in_code_units(),
     };
-    Layout::RustFFI::layout_arena_find_matching_text(
-        layout_node()->arena_handle(), Layout::Node::slot_id(layout_node()), query_view,
+    Layout::RustFFI::layout_script_find_matching_text(
+        layout_node()->document_host(), Layout::Node::slot_id(layout_node()), query_view,
         case_sensitivity == CaseSensitivity::CaseSensitive,
         [](void* context, u32 identity) {
             // Inert text is excluded from find-in-page.
