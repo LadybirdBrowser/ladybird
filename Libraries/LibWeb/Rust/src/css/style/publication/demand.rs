@@ -514,24 +514,133 @@ impl StyleEngineState {
     }
 
     /// The record of an element no rule reaches, such as one outside the document: the cascade of
-    /// its own declarations alone, in cascade order, over the initial values. The element has no
-    /// style node, so the drive is keyed by `subject`, the document's, which names no parent and
-    /// no siblings. A value that would substitute is C++'s. No row holds the record, which comes
+    /// its own declarations alone, in cascade order, over the initial values. Its custom
+    /// declarations resolve over no environment, and its other declarations substitute under what
+    /// they resolve to. The element has no style node, so the drive is keyed by `subject`, the
+    /// document's, which names no parent and no siblings. No row holds the record, which comes
     /// back pinned for the caller.
     pub(in crate::css::style) fn declared_only_record(
         &mut self,
         subject: StyleNodeID,
         facts: u32,
         declarations: &[(ElementDeclarationKind, &crate::css::declaration_block::DeclaredProperty)],
+        custom_declarations: &[(CustomDeclaration, RetainedStyleValueData)],
         counters: &mut Counters,
     ) -> Drive<computed::FinalStyleRecordID> {
-        use crate::css::style_value::{RetainedStyleValueData, retain_style_value};
         if !self.computes_records() {
             return Err(Unanswered::Refused);
         }
+        let inputs = self.retained.document_style_computation_inputs;
+        let cascaded = || {
+            custom_declarations
+                .iter()
+                .map(|(declared, written)| (*declared, written.clone_retained()))
+                .collect::<Vec<_>>()
+        };
+        let registered_declarations = self
+            .retained
+            .declarations_name_a_registered_custom_property(custom_declarations, &inputs);
+        let mut environment = self.retained.engine_custom_property_environment_over(
+            subject,
+            None,
+            cascaded(),
+            0,
+            &inputs,
+            None,
+            counters,
+        )?;
+        let mut store = self
+            .retained
+            .declared_only_winners(subject, declarations, environment, counters)?;
+        let drive_subject = DriveSubject {
+            target: computed::ComputedStyleTarget::new(subject, u8::MAX),
+            parent: None,
+            facts: facts & !bridge::element_adjustment_fact::IS_DOCUMENT_ELEMENT,
+        };
+        let mut scratch = EngineComputedRecordScratch::default();
+        let mut suspended_memory = MemoryLease::new(MemoryCategory::BatchScratch);
+        let mut awaits_registered_context = registered_declarations;
+        let driven = loop {
+            match self.retained.engine_full_drive(
+                drive_subject,
+                None,
+                &store,
+                &inputs,
+                &mut scratch.font_drive,
+                FontDriveGoal::Complete,
+                awaits_registered_context,
+                counters,
+            ) {
+                Err(Unanswered::Suspended(Suspension::Font)) => {
+                    let request = scratch.font_drive.take_suspended_request();
+                    suspended_memory.resize_required_to(&mut self.retained.memory, scratch.font_drive.capacity_bytes());
+                    self.refill_font_request(subject, request, counters);
+                }
+                // The registered custom properties compute against the font the drive settled,
+                // and the declarations substitute what they computed to.
+                Ok(FullDrive::AwaitsRegisteredContext(registered)) => {
+                    environment = self.retained.engine_custom_property_environment_over(
+                        subject,
+                        None,
+                        cascaded(),
+                        0,
+                        &inputs,
+                        Some(&registered),
+                        counters,
+                    )?;
+                    store = self
+                        .retained
+                        .declared_only_winners(subject, declarations, environment, counters)?;
+                    awaits_registered_context = false;
+                }
+                driven => break driven?,
+            }
+        };
+        let FullDrive::Driven(DrivenTable {
+            table, length, font, ..
+        }) = driven
+        else {
+            unreachable!("a complete drive that waits for no registered context answers with its table");
+        };
+        let font = font.expect("a full drive resolves the font");
+        let (record, _) = self.retained.assemble_and_publish_engine_record(
+            None,
+            None,
+            table,
+            &length,
+            &font,
+            environment,
+            0,
+            0,
+            None,
+            &mut scratch.computability,
+            counters,
+        )?;
+        self.retained.computed_group_sets.pin_style_record(record.raw());
+        Ok(record)
+    }
+}
+
+impl RetainedState {
+    /// The winners of an element no rule reaches: its declarations in cascade order, normal before
+    /// important, a later one replacing an earlier one for the same property. A value with `var()`
+    /// references substitutes under `environment`, and one invalid at computed-value time is
+    /// unset. A substituted `revert` leaves the property undeclared, and a substituted
+    /// `revert-layer` leaves the earlier declaration standing, as the presentational hints sit
+    /// below the inline style.
+    fn declared_only_winners(
+        &mut self,
+        subject: StyleNodeID,
+        declarations: &[(ElementDeclarationKind, &crate::css::declaration_block::DeclaredProperty)],
+        environment: u64,
+        counters: &mut Counters,
+    ) -> Drive<WinnerStore> {
+        use crate::css::style_value::retain_style_value;
         let retained = |value: &StyleValueData| unsafe {
             RetainedStyleValueData::from_retained_pointer(retain_style_value(value))
         };
+        let mut style_query = None;
+        let mut functions = None;
         let mut winners: Vec<WinnerDeclaration> = Vec::with_capacity(declarations.len());
         for important in [false, true] {
             for &(kind, declaration) in declarations {
@@ -541,15 +650,81 @@ impl StyleEngineState {
                 {
                     continue;
                 }
-                let value = match declaration.value.as_ref() {
+                // A longhand pending its shorthand's substitution takes its part of the
+                // substituted shorthand, which the same declarations hold.
+                let (substituted_property, written) = match declaration.value.as_ref() {
                     data @ StyleValueData::Shorthand { .. } => match shorthand_longhand_data(property, data) {
-                        Some(longhand) => retained(longhand),
+                        Some(longhand) => (None, retained(longhand)),
                         None => continue,
                     },
-                    StyleValueData::Unresolved { .. } | StyleValueData::PendingSubstitution { .. } => {
-                        return Err(Unanswered::Refused);
+                    data @ StyleValueData::Unresolved { .. } => (Some(property), retained(data)),
+                    StyleValueData::PendingSubstitution {
+                        original_shorthand_value,
+                    } => {
+                        let shorthand = declarations.iter().find(|(_, shorthand)| {
+                            std::ptr::eq(
+                                std::sync::Arc::as_ptr(&shorthand.value),
+                                original_shorthand_value.pointer().cast(),
+                            )
+                        });
+                        match shorthand {
+                            Some((_, shorthand)) => {
+                                (Some(shorthand.property_id), original_shorthand_value.clone_retained())
+                            }
+                            None => (None, unset_value()),
+                        }
                     }
-                    data => retained(data),
+                    data => (None, retained(data)),
+                };
+                let value = match substituted_property {
+                    None => written,
+                    Some(substituted_property) => {
+                        let calls_functions = custom_property_cascade::value_calls_custom_functions(written.data());
+                        if calls_functions && functions.is_none() {
+                            functions = Some(self.prepare_custom_functions(subject, None).or_refused()?);
+                        }
+                        if style_query.is_none()
+                            && (calls_functions || custom_property_cascade::value_reads_conditions(written.data()))
+                        {
+                            style_query =
+                                Some(self.style_query_inputs(computed::ComputedStyleTarget::new(subject, u8::MAX)));
+                        }
+                        let inputs = custom_property_cascade::SubstitutionInputs {
+                            document: &self.document_style_computation_inputs,
+                            media: &self.document_media,
+                            environment: custom_property_cascade::SubstitutionEnvironment {
+                                own: environment,
+                                inherited: 0,
+                            },
+                            attributes: None,
+                            style_query: style_query.as_ref().and_then(Option::as_ref),
+                            style_query_references: None,
+                            functions: functions.as_ref(),
+                        };
+                        let substituted = Self::substitute_written_value(
+                            &mut self.custom_property_environments,
+                            &inputs,
+                            substituted_property,
+                            written,
+                            counters,
+                        )?;
+                        let substituted = match substituted_property == property {
+                            true => invalid_as_unset(substituted),
+                            false => match substituted.data() {
+                                StyleValueData::GuaranteedInvalid => unset_value(),
+                                _ => expanded_longhand_value(substituted_property, property, &substituted)
+                                    .unwrap_or_else(unset_value),
+                            },
+                        };
+                        match super::program_updates::declaration_operator(substituted.data()) {
+                            CascadeOperator::Revert => {
+                                winners.retain(|winner| winner.property != property);
+                                continue;
+                            }
+                            CascadeOperator::RevertLayer => continue,
+                            _ => substituted,
+                        }
+                    }
                 };
                 winners.retain(|winner| winner.property != property);
                 winners.push(WinnerDeclaration::new(
@@ -562,55 +737,6 @@ impl StyleEngineState {
                 ));
             }
         }
-        let store = WinnerStore::new(winners);
-        let inputs = self.retained.document_style_computation_inputs;
-        let subject = DriveSubject {
-            target: computed::ComputedStyleTarget::new(subject, u8::MAX),
-            parent: None,
-            facts: facts & !bridge::element_adjustment_fact::IS_DOCUMENT_ELEMENT,
-        };
-        let mut scratch = EngineComputedRecordScratch::default();
-        let mut suspended_memory = MemoryLease::new(MemoryCategory::BatchScratch);
-        let driven = loop {
-            match self.retained.engine_full_drive(
-                subject,
-                None,
-                &store,
-                &inputs,
-                &mut scratch.font_drive,
-                FontDriveGoal::Complete,
-                false,
-                counters,
-            ) {
-                Err(Unanswered::Suspended(Suspension::Font)) => {
-                    let request = scratch.font_drive.take_suspended_request();
-                    suspended_memory.resize_required_to(&mut self.retained.memory, scratch.font_drive.capacity_bytes());
-                    self.refill_font_request(subject.target.node(), request, counters);
-                }
-                driven => break driven?,
-            }
-        };
-        let FullDrive::Driven(DrivenTable {
-            table, length, font, ..
-        }) = driven
-        else {
-            unreachable!("a complete drive declaring no custom property answers with its table");
-        };
-        let font = font.expect("a full drive resolves the font");
-        let (record, _) = self.retained.assemble_and_publish_engine_record(
-            None,
-            None,
-            table,
-            &length,
-            &font,
-            0,
-            0,
-            0,
-            None,
-            &mut scratch.computability,
-            counters,
-        )?;
-        self.retained.computed_group_sets.pin_style_record(record.raw());
-        Ok(record)
+        Ok(WinnerStore::new(winners))
     }
 }
