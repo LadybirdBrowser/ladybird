@@ -226,7 +226,16 @@ public:
     [[nodiscard]] NonnullRefPtr<ComputedStyleWorkingSet> reconstruct_computed_properties_for_animation(StyleRecordID) const;
 
     void begin_transition_stabilization_epoch();
-    void record_transition_stabilization_baseline(DOM::AbstractElement) const;
+    // https://drafts.csswg.org/css-transitions-2/#defining-before-change-style
+    // Keeps `before_change_style_record` as the style a later pass of the stabilization epoch decides the element's
+    // transitions against, unless a pass already kept one.
+    void record_transition_stabilization_baseline(DOM::AbstractElement, StyleRecordID before_change_style_record) const;
+    // Keeps `before_change_style_record` that way where the element's style scope can run a later pass at all.
+    void record_transition_baseline_for_later_passes(DOM::AbstractElement, StyleRecordID before_change_style_record) const;
+    // Runs the whole transition step for an installed record, against the record the element moved away from, which
+    // the caller keeps alive. Returns what publishing a started transition's values invalidates, which the caller
+    // reacts to like to the rest of the style change.
+    [[nodiscard]] RequiredInvalidationAfterStyleChange run_transition_step_for_installed_record(DOM::AbstractElement, StyleRecordID before_change_style_record) const;
     void commit_transition_stabilization_epoch();
     void for_each_provisional_transition_effect(DOM::AbstractElement const&, Function<void(Animations::KeyframeEffect&)> const&) const;
 
@@ -348,9 +357,8 @@ private:
     void collect_animation_effects_into(DOM::AbstractElement, ReadonlySpan<GC::Ref<Animations::KeyframeEffect>>, ComputedStyleWorkingSet&, StyleRecordID sampled_style_record) const;
     void publish_animated_custom_properties(ComputedStyleWorkingSet&, DOM::AbstractElement) const;
     void invalidate_animated_custom_property_readers(DOM::AbstractElement, OrderedHashMap<Utf16FlyString, NonnullRefPtr<StyleValue const>> const& animated_values) const;
-    Vector<GC::Ref<Animations::KeyframeEffect>> start_needed_transitions(ComputedStyleWorkingSet&, DOM::AbstractElement) const;
+    void start_needed_transitions(ComputedStyleWorkingSet&, DOM::AbstractElement, StyleRecordID before_change_style_record) const;
     [[nodiscard]] bool has_provisional_transition_states(DOM::AbstractElement) const;
-    [[nodiscard]] RefPtr<ComputedStyleWorkingSet> start_needed_transitions_on_shared_style(DOM::AbstractElement, ComputedValues const& shared_values) const;
     void finalize_style(ComputedStyleWorkingSet&, DOM::AbstractElement, ComputedValuesFFI::FfiStyleFinalizationMode) const;
 
     [[nodiscard]] CSSPixelRect viewport_rect() const { return m_viewport_rect; }
@@ -535,6 +543,34 @@ private:
     HashMap<RefPtr<StyleSheetState const>, SheetID> m_constructed_sheet_ids;
     HashMap<SharedCompiledStyleSheetKey, RefPtr<SharedCompiledStyleSheet>> m_shared_compiled_style_sheets;
     HashMap<u64, WeakPtr<StyleSheetState const>> m_style_engine_sheet_sources;
+};
+
+// Keeps a style record alive for as long as it is held, as a transition step that reads the record an element moved
+// away from needs. A null record pins nothing.
+class StyleRecordPin {
+    AK_MAKE_NONCOPYABLE(StyleRecordPin);
+    AK_MAKE_NONMOVABLE(StyleRecordPin);
+
+public:
+    StyleRecordPin(StyleComputer const& style_computer, StyleRecordID style_record)
+        : m_style_computer(style_computer)
+        , m_style_record(style_record)
+    {
+        if (!!m_style_record)
+            m_style_computer->pin_style_record(m_style_record);
+    }
+
+    ~StyleRecordPin()
+    {
+        if (!!m_style_record)
+            m_style_computer->unpin_style_record(m_style_record);
+    }
+
+    StyleRecordID style_record() const { return m_style_record; }
+
+private:
+    GC::Ref<StyleComputer const> m_style_computer;
+    StyleRecordID m_style_record;
 };
 
 // Whether a custom property holds a different value under two inherited environments.

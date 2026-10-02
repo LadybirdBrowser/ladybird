@@ -1764,9 +1764,13 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styl
         }
 
         if (new_pseudo_element_style) {
+            // The transition step of a pseudo-element the host computed reads the record it moved away from.
+            CSS::StyleRecordPin const before_change { style_computer, engine_record.has_value() ? CSS::StyleRecordID {} : old_style_record };
             set_computed_style(pseudo_element, style_record_delta.new_style_record);
             if (engine_record.has_value())
                 install_engine_pseudo_element_custom_property_data(pseudo_element, *engine_record);
+            if (!!before_change.style_record())
+                invalidation |= style_computer.run_transition_step_for_installed_record({ *this, pseudo_element }, before_change.style_record());
         } else if (auto existing_pseudo_element = get_synthetic_pseudo_element(pseudo_element); existing_pseudo_element.has_value())
             existing_pseudo_element->clear_computed_style(move(style_to_preserve_for_detachment));
 
@@ -2486,9 +2490,8 @@ CSS::RequiredInvalidationAfterStyleChange Element::apply_engine_computed_style_r
     // A later pass of this style update may start the element's transitions in C++, against the
     // style the element held before the update rather than this record, as a C++ computation of
     // this pass would have recorded.
-    if (old_style_record != new_style_record
-        && (AbstractElement { *this }.style_scope().rule_cache().has_size_container_queries || document().is_in_style_stabilization_feedback_epoch()))
-        style_computer.record_transition_stabilization_baseline(AbstractElement { *this });
+    if (old_style_record != new_style_record)
+        style_computer.record_transition_baseline_for_later_passes({ *this }, old_style_record);
     // What is left to decide is what the layout tree and paint need, and the anchor and animation
     // names the record registers; the animation plan the record decides is the host's to apply once
     // the batch is installed. The record itself may be the one the element holds, when the reaction
@@ -2776,7 +2779,15 @@ CSS::RequiredInvalidationAfterStyleChange Element::apply_style_engine_reaction(b
         }
     });
 
-    set_computed_style({}, style_record_delta.new_style_record);
+    // https://drafts.csswg.org/css-transitions-1/#starting
+    // The transition step compares the style the element moved away from with the one it now holds, so the old record
+    // has to outlive its replacement until the step has read it.
+    {
+        CSS::StyleRecordPin const before_change { style_computer, old_style_record };
+        set_computed_style({}, style_record_delta.new_style_record);
+        if (!!before_change.style_record())
+            invalidation |= style_computer.run_transition_step_for_installed_record({ *this }, before_change.style_record());
+    }
 
     if (old_non_animated_display_is_none != new_non_animated_display_is_none) {
         for_each_shadow_including_inclusive_descendant([&](auto& node) {

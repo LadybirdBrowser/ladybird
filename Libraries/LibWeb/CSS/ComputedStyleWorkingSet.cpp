@@ -471,6 +471,12 @@ void ComputedStyleWorkingSet::set_animated_custom_property(Badge<StyleComputer>,
     m_animated_custom_properties.set(move(name), move(value));
 }
 
+void ComputedStyleWorkingSet::install_animated_overlay(Badge<StyleComputer>, ComputedValuesFFI::AnimatedOverlay const* overlay)
+{
+    m_animated_properties = adopt_ref(*new AnimatedProperties(overlay));
+    clear_computed_font_list_cache();
+}
+
 void ComputedStyleWorkingSet::clear_animated_properties(Badge<StyleComputer>)
 {
     m_animated_custom_properties.clear();

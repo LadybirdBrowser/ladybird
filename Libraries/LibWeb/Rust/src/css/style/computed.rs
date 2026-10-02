@@ -59,6 +59,8 @@ pub(crate) const INHERITED_GROUP_SWAP_ELIGIBLE: u8 = 1 << 3;
 /// The record holds an `<image>` in a property whose images a layout node loads and observes.
 /// Derived from the published payloads; see `style_group_payloads_hold_image_values`.
 pub(crate) const HOLDS_IMAGE_VALUES: u8 = 1 << 4;
+/// The record is display:none, or its inheritance parent's record is in a display:none subtree.
+pub(crate) const IN_DISPLAY_NONE_SUBTREE: u8 = 1 << 2;
 
 /// The inherited style groups lead every group tuple; a node's inherited-group column names them.
 pub(super) const ENGINE_INHERITED_GROUP_COUNT: usize = 7;
@@ -300,9 +302,10 @@ struct AnimationOverlayRecord {
     final_style_record: FinalStyleRecordID,
     animated_overlay: Box<crate::css::animated_overlay::AnimatedOverlay>,
     payloads: Box<[SharedPayload]>,
-    /// Whether the composed payloads hold an `<image>` a layout node loads, which a sampled value
-    /// can hold where the base does not.
-    holds_image_values: bool,
+    /// The base's flags, with an `<image>` a layout node loads, which a sampled value can hold
+    /// where the base does not, and with the display:none subtree a sampled display puts the
+    /// record in.
+    dependency_flags: u8,
     pin_count: u64,
     is_assigned: bool,
 }
@@ -1759,17 +1762,30 @@ impl ComputedGroupSets {
         source_identity: u64,
         animated_overlay: Box<crate::css::animated_overlay::AnimatedOverlay>,
         payloads: &[SharedPayload],
+        in_display_none_subtree: Option<bool>,
     ) -> AnimationOverlayRecord {
         assert!(payloads.iter().all(|payload| !payload.is_null()));
         for (index, &payload) in payloads.iter().enumerate() {
             retain_group_payload(index, payload.as_ptr());
+        }
+        let base = self
+            .style_records
+            .get_index(base_style_record.index())
+            .expect("base style-record is live");
+        let mut dependency_flags = self.computed_fixed_metadata.get(base.fixed_metadata).dependency_flags;
+        if style_group_payloads_hold_image_values(SharedPayload::as_pointer_slice(payloads)) {
+            dependency_flags |= HOLDS_IMAGE_VALUES;
+        }
+        if let Some(in_display_none_subtree) = in_display_none_subtree {
+            dependency_flags = (dependency_flags & !IN_DISPLAY_NONE_SUBTREE)
+                | (u8::from(in_display_none_subtree) * IN_DISPLAY_NONE_SUBTREE);
         }
         AnimationOverlayRecord {
             base_style_record,
             source_identity,
             final_style_record: self.next_animation_overlay_record(),
             animated_overlay,
-            holds_image_values: style_group_payloads_hold_image_values(SharedPayload::as_pointer_slice(payloads)),
+            dependency_flags,
             payloads: payloads.into(),
             pin_count: 0,
             is_assigned: true,
@@ -1782,6 +1798,7 @@ impl ComputedGroupSets {
         source_identity: u64,
         animated_overlay: Option<&crate::css::animated_overlay::AnimatedOverlay>,
         payloads: &[SharedPayload],
+        in_display_none_subtree: Option<bool>,
     ) -> (u32, FinalStyleRecordID, bool) {
         let record = self.make_animation_overlay_record(
             base_style_record,
@@ -1792,6 +1809,7 @@ impl ComputedGroupSets {
                     .clone(),
             ),
             payloads,
+            in_display_none_subtree,
         );
         self.animation_overlay_nested_memory
             .grow_committed(size_of_val(record.payloads.as_ref()) as u64);
@@ -1844,6 +1862,7 @@ impl ComputedGroupSets {
         source_identity: u64,
         animated_overlay: Option<&crate::css::animated_overlay::AnimatedOverlay>,
         payloads: &[SharedPayload],
+        in_display_none_subtree: Option<bool>,
     ) -> AnimationOverlayPublication {
         if source_identity == 0 {
             if let Some(slot) = current_slot {
@@ -1886,6 +1905,7 @@ impl ComputedGroupSets {
                             .clone(),
                     ),
                     payloads,
+                    in_display_none_subtree,
                 );
                 let new_payload_bytes = size_of_val(record.payloads.as_ref()) as u64;
                 if new_payload_bytes >= old_payload_bytes {
@@ -1910,8 +1930,13 @@ impl ComputedGroupSets {
             self.release_animation_overlay_assignment(slot);
         }
 
-        let (slot, final_style_record, slot_allocated) =
-            self.allocate_animation_overlay(base_style_record, source_identity, animated_overlay, payloads);
+        let (slot, final_style_record, slot_allocated) = self.allocate_animation_overlay(
+            base_style_record,
+            source_identity,
+            animated_overlay,
+            payloads,
+            in_display_none_subtree,
+        );
         AnimationOverlayPublication {
             slot: Some(slot),
             final_style_record,
@@ -1943,6 +1968,7 @@ impl ComputedGroupSets {
         source_identity: u64,
         animated_overlay: HostShared<crate::css::animated_overlay::AnimatedOverlay>,
         payloads: &[SharedPayload],
+        parent_in_display_none_subtree: bool,
     ) -> Option<AnimationOverlayUpdate> {
         let (base_style_record, current_slot) = if target.is_pseudo() {
             let assignment = self.pseudo_row(target.node, target.pseudo_kind)?.assignment?;
@@ -1956,12 +1982,23 @@ impl ComputedGroupSets {
         };
         let previous_style_record = self.final_style_record(base_style_record, current_slot);
         let animated_overlay = unsafe { animated_overlay.as_ref() };
+        // The base computed its flag from its own display, which the sampled display overrides.
+        let in_display_none_subtree = self
+            .style_records
+            .get_index(base_style_record.index())
+            .and_then(|record| record.longhand_table)
+            .and_then(|identity| self.computed_longhand_tables.get_index(identity.0 as usize))
+            .map(|table| {
+                parent_in_display_none_subtree
+                    || crate::css::style_compute::effective_display(table.table(), animated_overlay).is_none()
+            });
         let publication = self.update_animation_overlay(
             current_slot,
             base_style_record,
             source_identity,
             animated_overlay,
             payloads,
+            in_display_none_subtree,
         );
         if target.is_pseudo() {
             self.ensure_pseudo_row(target.node, target.pseudo_kind)
@@ -2176,6 +2213,7 @@ impl ComputedGroupSets {
                 animation_overlay_identity,
                 animated_overlay,
                 animation_overlay_payloads,
+                None,
             );
             let row = self.ensure_pseudo_row(node, pseudo_kind);
             row.set_published(true);
@@ -2209,6 +2247,7 @@ impl ComputedGroupSets {
                 animation_overlay_identity,
                 animated_overlay,
                 animation_overlay_payloads,
+                None,
             );
             let changed = (
                 self.columns.groups(index) != Some(identity),
@@ -2349,6 +2388,7 @@ impl ComputedGroupSets {
                 0,
                 None,
                 &[],
+                None,
             );
             let row = self.ensure_pseudo_row(target.node, target.pseudo_kind);
             row.set_published(true);
@@ -2385,6 +2425,7 @@ impl ComputedGroupSets {
                 0,
                 None,
                 &[],
+                None,
             );
             let changed = (
                 self.columns.groups(index) != Some(record.groups),
@@ -3357,27 +3398,16 @@ impl ComputedGroupSets {
 
     pub fn style_record_dependency_flags(&self, raw_style_record: u64) -> Option<u8> {
         let final_style_record = FinalStyleRecordID(raw_style_record);
-        let (base_style_record, overlay_holds_image_values) =
-            if let Some(style_record) = final_style_record.base_record() {
-                assert!(
-                    self.style_record_generation_is_live(style_record, final_style_record.base_generation()),
-                    "base style-record is not live"
-                );
-                (style_record, false)
-            } else {
-                let slot = *self.animation_overlay_slots_by_record.get(&final_style_record)?;
-                let overlay = self.animation_overlay_slots[slot as usize].as_ref()?;
-                (overlay.base_style_record, overlay.holds_image_values)
-            };
+        let Some(style_record) = final_style_record.base_record() else {
+            let slot = *self.animation_overlay_slots_by_record.get(&final_style_record)?;
+            return Some(self.animation_overlay_slots[slot as usize].as_ref()?.dependency_flags);
+        };
         assert!(
-            self.style_record_is_live(base_style_record),
+            self.style_record_generation_is_live(style_record, final_style_record.base_generation()),
             "base style-record is not live"
         );
-        let record = self.style_records.get_index(base_style_record.index())?;
-        Some(
-            self.computed_fixed_metadata.get(record.fixed_metadata).dependency_flags
-                | (u8::from(overlay_holds_image_values) * HOLDS_IMAGE_VALUES),
-        )
+        let record = self.style_records.get_index(style_record.index())?;
+        Some(self.computed_fixed_metadata.get(record.fixed_metadata).dependency_flags)
     }
 
     #[cfg(feature = "style-recording")]
@@ -3456,7 +3486,7 @@ impl ComputedGroupSets {
 
     pub(crate) fn style_record_view(&self, raw_style_record: u64) -> Option<StyleRecordView<'_>> {
         let final_style_record = FinalStyleRecordID(raw_style_record);
-        let (base_style_record, payloads, animation_overlay_identity, animated_overlay) =
+        let (base_style_record, payloads, animation_overlay_identity, animated_overlay, overlay_dependency_flags) =
             if let Some(style_record) = final_style_record.base_record() {
                 assert!(
                     self.style_record_generation_is_live(style_record, final_style_record.base_generation()),
@@ -3468,6 +3498,7 @@ impl ComputedGroupSets {
                     self.sets[record.groups].payloads.as_ref(),
                     0_u64,
                     HostShared::null(),
+                    None,
                 )
             } else {
                 let slot = *self.animation_overlay_slots_by_record.get(&final_style_record)?;
@@ -3477,6 +3508,7 @@ impl ComputedGroupSets {
                     overlay.payloads.as_ref(),
                     overlay.source_identity,
                     HostShared::new(std::ptr::from_ref(overlay.animated_overlay.as_ref())),
+                    Some(overlay.dependency_flags),
                 )
             };
         assert!(
@@ -3502,7 +3534,7 @@ impl ComputedGroupSets {
             pseudo_element_styles: fixed_metadata.pseudo_element_styles,
             counter_style_environment_identity: fixed_metadata.counter_style_environment_identity,
             animation_overlay_identity,
-            dependency_flags: fixed_metadata.dependency_flags,
+            dependency_flags: overlay_dependency_flags.unwrap_or(fixed_metadata.dependency_flags),
         })
     }
 

@@ -4705,11 +4705,26 @@ impl StyleEngineState {
         if self.recording_id().is_some() {
             return None;
         }
+        // A pseudo-element inherits from its element.
+        let parent = if target.is_pseudo() {
+            Some(target.node())
+        } else {
+            self.retained.tree.inheritance_parent(target.node())
+        };
+        let parent_in_display_none_subtree = parent
+            .and_then(|parent| self.retained.computed_group_sets.assigned_style_record(parent))
+            .and_then(|record| {
+                self.retained
+                    .computed_group_sets
+                    .style_record_dependency_flags(record.raw())
+            })
+            .is_some_and(|flags| flags & computed::IN_DISPLAY_NONE_SUBTREE != 0);
         let publication = self.retained.computed_group_sets.publish_animation_overlay(
             target,
             source_identity,
             animated_overlay,
             payloads,
+            parent_in_display_none_subtree,
         )?;
         self.settle_computed_memory();
         if publication.slot_allocated {

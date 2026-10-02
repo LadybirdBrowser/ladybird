@@ -2863,7 +2863,7 @@ pub struct FfiComputePropertiesInput {
     pub apply_animations:
         unsafe extern "C" fn(*mut c_void, bool, *mut FfiInputLineHeightMetrics) -> *mut AnimatedOverlay,
     pub did_mutate_post_compute: unsafe extern "C" fn(*mut c_void, u16),
-    pub finish_properties: unsafe extern "C" fn(*mut c_void, bool),
+    pub finish_properties: unsafe extern "C" fn(*mut c_void),
 }
 
 /// Document-level inputs to used color-scheme resolution. Scheme values use
@@ -5573,7 +5573,7 @@ pub unsafe extern "C" fn rust_compute_properties(input: *const FfiComputePropert
     unsafe { destroy_style_computation_result(&result) };
     unsafe { crate::css::cascaded_properties::destroy_style_computation_requirements(requirements.storage) };
     if input.stop_after_longhand_drive {
-        unsafe { (input.finish_properties)(input.callback_context, false) };
+        unsafe { (input.finish_properties)(input.callback_context) };
         unsafe { &mut *drive_input.longhand_table }.freeze();
         return;
     }
@@ -5637,7 +5637,7 @@ pub unsafe extern "C" fn rust_compute_properties(input: *const FfiComputePropert
     .is_none();
     unsafe { &mut *drive_input.longhand_table }
         .set_in_display_none_subtree(parent_style_in_display_none_subtree || display_is_none);
-    unsafe { (input.finish_properties)(input.callback_context, parent_style_in_display_none_subtree) };
+    unsafe { (input.finish_properties)(input.callback_context) };
     unsafe { &mut *drive_input.longhand_table }.freeze();
 }
 
