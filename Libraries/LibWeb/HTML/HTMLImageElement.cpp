@@ -124,9 +124,7 @@ static bool image_element_dimensions_may_depend_on_intrinsic_size(Layout::Box co
 
 static void reset_intrinsic_size_caches_after_image_data_change(Layout::Box& image_box)
 {
-    image_box.bump_fragment_cache_epoch_of_self_and_ancestors();
-    Layout::RustFFI::layout_arena_reset_cached_intrinsic_sizes_of_self_and_ancestors(
-        image_box.arena_handle(), Layout::Node::slot_id(&image_box));
+    image_box.reset_cached_intrinsic_sizes_of_self_and_ancestors();
 }
 
 void HTMLImageElement::set_needs_layout_update_or_repaint_after_image_data_change(DOM::SetNeedsLayoutReason reason)

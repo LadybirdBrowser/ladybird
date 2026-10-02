@@ -140,14 +140,19 @@ StringView Node::class_name() const
     VERIFY_NOT_REACHED();
 }
 
-void Node::bump_fragment_cache_epoch_of_self_and_ancestors()
+void Node::reset_cached_intrinsic_sizes_of_self_and_ancestors()
 {
-    RustFFI::layout_arena_bump_fragment_cache_epoch_of_self_and_ancestors(arena_handle(), slot_id(this));
+    RustFFI::render_state_reset_cached_intrinsic_sizes_of_self_and_ancestors(document_host(), slot_id(this));
 }
 
 void* Node::arena_handle() const
 {
     return m_arena->handle();
+}
+
+RustFFI::DocumentHost* Node::document_host() const
+{
+    return m_arena->host();
 }
 
 Box const* Node::containing_block() const
@@ -595,10 +600,8 @@ void NodeWithStyle::set_style_record_identity(CSS::StyleRecordID style_record_id
     if (should_repin_style_record)
         pin_style_record_for_cxx_consumers();
 
-    if (changes_layout_affecting_style) {
-        bump_fragment_cache_epoch_of_self_and_ancestors();
-        RustFFI::layout_arena_reset_cached_intrinsic_sizes_of_self_and_ancestors(arena_handle(), slot_id(this));
-    }
+    if (changes_layout_affecting_style)
+        reset_cached_intrinsic_sizes_of_self_and_ancestors();
 }
 
 void NodeWithStyle::pin_style_record_for_cxx_consumers()
@@ -755,23 +758,17 @@ void Node::dom_node_style_node_changed(DOM::Node& dom_node, CSS::StyleNodeID old
     if (!arena)
         return;
     auto new_style_node = Node::style_node_of(&dom_node);
-    // The node's rows, and those of its pseudo-elements, take its new identity along with their
-    // bindings. Both are still keyed by the old identity here, so this precedes retiring it.
-    if (old_style_node != 0 && new_style_node != 0) {
-        RustFFI::layout_arena_move_bound_rows_to_style_node(arena->handle(), old_style_node.value(), new_style_node.value());
-        if (auto* element = as_if<DOM::Element>(dom_node)) {
-            element->for_each_synthetic_pseudo_element([&](CSS::PseudoElement pseudo_element, DOM::SyntheticPseudoElement const&) {
-                RustFFI::layout_arena_move_bound_pseudo_element_rows_to_style_node(arena->handle(), old_style_node.value(), encode_generated_for(pseudo_element), new_style_node.value());
-            });
-        }
+    // The node's rows, and those of its pseudo-elements, take its new identity along with their bindings. A retired
+    // identity may be reused, so it then leaves every row carrying it, including rows of a removed subtree that outlive
+    // the disconnection. Nor does a layout tree update mark the new identity's previous holder left stay: the marks are
+    // keyed by the identity alone.
+    Vector<u8, 4> generated_for;
+    if (auto* element = as_if<DOM::Element>(dom_node); element && old_style_node != 0 && new_style_node != 0) {
+        element->for_each_synthetic_pseudo_element([&](CSS::PseudoElement pseudo_element, DOM::SyntheticPseudoElement const&) {
+            generated_for.append(encode_generated_for(pseudo_element));
+        });
     }
-    // A retired identity may be reused, so it leaves every row carrying it, including rows of a
-    // removed subtree that outlive the disconnection.
-    if (old_style_node != 0)
-        RustFFI::layout_arena_forget_style_node(arena->handle(), old_style_node.value());
-    // Nor does a layout tree update mark the identity's previous holder left: the marks are keyed by the identity alone.
-    if (new_style_node != 0)
-        RustFFI::layout_arena_clear_layout_tree_update_marks(arena->handle(), new_style_node.value());
+    RustFFI::render_state_style_node_changed(arena->host(), old_style_node.value(), new_style_node.value(), generated_for.data(), generated_for.size());
     // The arena tells a node about a change to its layout node through its StyleNodeID, so a node whose StyleNodeID
     // changes is one it cannot name. Its box presence is committed again here instead. A node that had no StyleNodeID
     // had no layout node either, and a fresh StyleNodeID has none bound yet, so it has nothing to commit.
@@ -833,7 +830,7 @@ void Node::set_needs_layout_update(DOM::SetNeedsLayoutReason reason, LayoutUpdat
                 dbgln_if(UPDATE_LAYOUT_DEBUG, "NEED LAYOUT {}", DOM::to_string(reason));
         }
     }
-    RustFFI::layout_arena_set_needs_layout_update(arena_handle(), slot_id(this),
+    RustFFI::render_state_set_needs_layout_update(document_host(), slot_id(this),
         propagation == LayoutUpdatePropagation::ThroughAncestors);
 }
 

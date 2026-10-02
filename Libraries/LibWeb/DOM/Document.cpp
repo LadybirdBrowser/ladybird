@@ -729,7 +729,7 @@ bool Document::needs_full_layout_tree_update() const
 void Document::set_needs_full_layout_tree_update(bool value)
 {
     if (m_layout_node_arena)
-        Layout::RustFFI::layout_arena_set_needs_full_layout_tree_update(m_layout_node_arena->handle(), value);
+        Layout::RustFFI::render_state_set_needs_full_layout_tree_update(m_layout_node_arena->host(), value);
 }
 
 bool Document::is_running_update_layout() const
@@ -1885,7 +1885,7 @@ void Document::record_partial_relayout_escape(PartialRelayoutEscapeReason reason
     // A document without an arena has no layout root either, and the full pass that builds one
     // clears the bit before any boundary can be registered.
     if (m_layout_node_arena)
-        Layout::RustFFI::layout_arena_record_partial_relayout_escape(m_layout_node_arena->handle());
+        Layout::RustFFI::render_state_record_partial_relayout_escape(m_layout_node_arena->host());
 }
 
 // The style engine keeps the containers, and records their dependents once a full layout has committed their

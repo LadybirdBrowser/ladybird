@@ -1503,7 +1503,7 @@ void Node::update_layout_tree_for_removal(Node& parent, LayoutSubtreeRemoval rem
         bool const parent_contains_removed_abspos_box = removed_box && removed_box->position() == CSS::Positioning::Absolute
             && parent_box && removed_box->containing_block() == parent_box;
         if (parent_contains_removed_abspos_box)
-            Layout::RustFFI::layout_arena_note_contained_abspos_child_removal(parent_box->arena_handle(), Layout::Node::slot_id(parent_box), Layout::Node::slot_id(layout_node));
+            Layout::RustFFI::render_state_note_contained_abspos_child_removal(parent_box->document_host(), Layout::Node::slot_id(parent_box), Layout::Node::slot_id(layout_node));
         layout_node->for_each_in_inclusive_subtree([](Layout::Node& node) {
             node.clear_committed_box();
             return TraversalDecision::Continue;
@@ -2662,7 +2662,7 @@ void Node::apply_layout_tree_update_mark(Layout::Node& layout_node, SetNeedsLayo
         layout_node.set_needs_layout_update(SetNeedsLayoutReason::LayoutTreeUpdate, Layout::LayoutUpdatePropagation::BoundarySelfOnly);
     } else if (reason == SetNeedsLayoutTreeUpdateReason::NodeInsertBefore) {
         // What an insertion invalidates depends on the boxes it attaches, which only the layout tree build knows.
-        Layout::RustFFI::layout_arena_defer_child_list_insertion_layout_update(layout_node.arena_handle(), Layout::Node::slot_id(&layout_node));
+        Layout::RustFFI::render_state_defer_child_list_insertion_layout_update(layout_node.document_host(), Layout::Node::slot_id(&layout_node));
     } else {
         layout_node.set_needs_layout_update(SetNeedsLayoutReason::LayoutTreeUpdate, Layout::LayoutUpdatePropagation::ThroughAncestors);
     }

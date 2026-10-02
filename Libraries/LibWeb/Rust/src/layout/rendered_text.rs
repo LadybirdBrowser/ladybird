@@ -111,14 +111,9 @@ fn transform_uses_locale(transform: u8) -> bool {
     )
 }
 
-/// # Safety
-///
-/// The arena and root must be live on the document thread. This only enrolls
-/// text; source views are requested after DOM language invalidation completes.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_enroll_text_after_language_change(arena: *mut c_void, root: NodeSlotId) -> bool {
-    // SAFETY: The DOM invalidator lends the live arena for this traversal.
-    let arena = unsafe { LayoutNodeArena::from_handle(arena) };
+/// Enrolls the text under `root` whose casing depends on the language it renders with, and answers whether there was
+/// any. This only enrolls text; source views are requested after DOM language invalidation completes.
+pub(crate) fn enroll_text_after_language_change(arena: &LayoutNodeArena, root: NodeSlotId) -> bool {
     let mut changed = false;
     let mut enroll = |node| {
         if !super::node_facts::kind_is_text(arena.data(node).kind.get()) {
@@ -426,15 +421,6 @@ fn sync_text_content(arena: &mut LayoutNodeArena, id: NodeSlotId) {
         arena.set_text_content(id, content);
     }
     arena.finish_text_content_sync(id);
-}
-
-/// # Safety
-///
-/// The arena must be exclusively available and `id` must name a live text node.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_invalidate_text_content(arena: *mut c_void, id: NodeSlotId) {
-    // SAFETY: DOM mutation publishes invalidation outside layout and painting.
-    unsafe { LayoutNodeArena::from_handle_mut(arena) }.invalidate_text_content(id);
 }
 
 /// # Safety

@@ -18,10 +18,10 @@
 
 namespace Web::CSS::Invalidation {
 
+// Where any of the text is cased by its language, the root lays out again.
 static void enroll_language_dependent_text(Layout::Node& root)
 {
-    if (Layout::RustFFI::layout_arena_enroll_text_after_language_change(root.arena_handle(), Layout::Node::slot_id(&root)))
-        root.set_needs_layout_update(DOM::SetNeedsLayoutReason::LanguageChangeUnderCasingTextTransform);
+    Layout::RustFFI::render_state_enroll_text_after_language_change(root.document_host(), Layout::Node::slot_id(&root));
 }
 
 // `lang` and `dir` both inherit, so a change on one element changes what every element under it

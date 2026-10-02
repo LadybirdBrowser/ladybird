@@ -76,7 +76,7 @@ RustFFI::FfiTextSourceRange TextNode::word_range_at(size_t dom_offset) const
 
 void TextNode::invalidate_text_for_rendering()
 {
-    RustFFI::layout_arena_invalidate_text_content(arena_handle(), slot_id(this));
+    RustFFI::render_state_invalidate_text_content(document_host(), slot_id(this));
 }
 
 Utf16View TextNode::text_for_rendering() const
