@@ -53,6 +53,7 @@ struct PreparedFrame {
     Gfx::PaintingSurface* rendered_surface { nullptr };
     i32 bitmap_id { 0 };
     Gfx::IntRect damage_rect;
+    double device_pixel_ratio { 1.0 };
 };
 
 // Rasterizes the scene of a context into its backing stores and keeps track of the frames it presents.

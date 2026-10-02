@@ -538,12 +538,12 @@ void WebContentPage::did_not_dispatch_input_event_through_compositor(u64 event_i
     }
 }
 
-void WebContentPage::did_present_bitmap(Gfx::IntRect content_rect, Gfx::IntRect damage_rect, i32 bitmap_id)
+void WebContentPage::did_present_bitmap(Gfx::IntRect content_rect, Gfx::IntRect damage_rect, i32 bitmap_id, double device_pixel_ratio)
 {
     dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI compositor IPC did_paint for page {} bitmap {} rect={}x{} at {},{}",
         m_id, bitmap_id, content_rect.width(), content_rect.height(), content_rect.x(), content_rect.y());
     if (displays_tab()) {
-        view().server_did_paint({}, bitmap_id, content_rect.size(), damage_rect);
+        view().server_did_paint({}, bitmap_id, content_rect.size(), damage_rect, device_pixel_ratio);
         return;
     }
     dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI dropping did_paint for page {} bitmap {}: no view", m_id, bitmap_id);
@@ -1422,6 +1422,11 @@ void WebContentPage::did_request_exit_fullscreen()
 void WebContentPage::did_exit_picture_in_picture()
 {
     PictureInPictureManager::the().close_window(*this);
+}
+
+void WebContentPage::did_change_picture_in_picture_player_controls_visibility(bool shown)
+{
+    view().did_change_picture_in_picture_player_controls_visibility({}, shown);
 }
 
 // A navigation's population steps run in the process with its source document, which need not have hosted local file

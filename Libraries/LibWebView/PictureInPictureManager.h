@@ -16,6 +16,7 @@
 #include <LibGfx/Size.h>
 #include <LibWebCommon/Page/PageId.h>
 #include <LibWebView/Forward.h>
+#include <LibWebView/PictureInPictureWindow.h>
 
 namespace WebView {
 
@@ -41,7 +42,7 @@ private:
     Optional<size_t> index_of_window_for(WebContentPage const&) const;
     Optional<size_t> index_of(PictureInPictureWindow const&) const;
     void retire_window(size_t index);
-    void window_did_close(PictureInPictureWindow&);
+    void window_did_close(PictureInPictureWindow&, PictureInPictureWindow::VideoKeepsPlaying);
     void window_page_did_close(PictureInPictureWindow&);
 
     Vector<Window> m_windows;

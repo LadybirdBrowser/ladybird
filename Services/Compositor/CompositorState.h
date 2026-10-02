@@ -43,7 +43,7 @@ public:
     // The stores join the ones allocated last, and leave them again once retired.
     virtual void did_add_backing_stores(Web::CompositorContextId, Vector<i32> bitmap_ids, Vector<Gfx::SharedImage>&& backing_stores) = 0;
     virtual void did_retire_backing_stores(Web::CompositorContextId, Vector<i32> bitmap_ids) = 0;
-    virtual void did_present_frame(Web::CompositorContextId, Gfx::IntRect content_rect, Gfx::IntRect damage_rect, i32 bitmap_id) = 0;
+    virtual void did_present_frame(Web::CompositorContextId, Gfx::IntRect content_rect, Gfx::IntRect damage_rect, i32 bitmap_id, double device_pixel_ratio) = 0;
     // The compositor performed the event's whole default action, so the UI hears nothing more about it.
     virtual void did_consume_input_event(Web::CompositorContextId, u64 event_id) = 0;
     // No context could take the event; the UI sends it to WebContent itself.
@@ -148,11 +148,12 @@ private:
     CompositorState(RefPtr<Gfx::SkiaBackendContext>);
 
     struct PendingAsyncPresent {
-        PendingAsyncPresent(Web::CompositorContextId context_id, Gfx::IntRect viewport_rect, Gfx::IntRect damage_rect, i32 bitmap_id)
+        PendingAsyncPresent(Web::CompositorContextId context_id, Gfx::IntRect viewport_rect, Gfx::IntRect damage_rect, i32 bitmap_id, double device_pixel_ratio)
             : context_id(context_id)
             , viewport_rect(viewport_rect)
             , damage_rect(damage_rect)
             , bitmap_id(bitmap_id)
+            , device_pixel_ratio(device_pixel_ratio)
         {
         }
 
@@ -160,6 +161,7 @@ private:
         Gfx::IntRect viewport_rect;
         Gfx::IntRect damage_rect;
         i32 bitmap_id { 0 };
+        double device_pixel_ratio { 1.0 };
         bool was_cancelled { false };
     };
 

@@ -913,6 +913,11 @@ void PageClient::page_did_exit_picture_in_picture()
     client().async_did_exit_picture_in_picture(m_id);
 }
 
+void PageClient::page_did_change_picture_in_picture_player_controls_visibility(bool shown)
+{
+    client().async_did_change_picture_in_picture_player_controls_visibility(m_id, shown);
+}
+
 void PageClient::page_did_request_tooltip_override(Web::CSSPixelPoint position, ByteString const& title)
 {
     auto device_position = page().css_to_device_point(position);

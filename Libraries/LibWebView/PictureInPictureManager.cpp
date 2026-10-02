@@ -31,7 +31,7 @@ String PictureInPictureManager::open_window(WebContentPage& requesting_page, Can
             auto page = m_windows.last().page;
             retire_window(m_windows.size() - 1);
             if (page->is_open())
-                page->async_picture_in_picture_window_did_close();
+                page->async_picture_in_picture_window_did_close(false);
         }
     }
 
@@ -43,8 +43,8 @@ String PictureInPictureManager::open_window(WebContentPage& requesting_page, Can
         if (auto index = index_of(*window); index.has_value() && m_windows[*index].page->is_open())
             m_windows[*index].page->async_picture_in_picture_window_did_resize(size);
     };
-    window->on_close = [this, window = window.ptr()] {
-        window_did_close(*window);
+    window->on_close = [this, window = window.ptr()](auto video_keeps_playing) {
+        window_did_close(*window, video_keeps_playing);
     };
     window->on_page_close = [this, window = window.ptr()] {
         window_page_did_close(*window);
@@ -81,7 +81,9 @@ void PictureInPictureManager::retire_window(size_t index)
     m_retired_windows.append(move(window));
 }
 
-void PictureInPictureManager::window_did_close(PictureInPictureWindow& window)
+// The window is gone as soon as the user closes it, and its page only learns of that after, so a page that is busy or
+// misbehaves cannot keep it open.
+void PictureInPictureManager::window_did_close(PictureInPictureWindow& window, PictureInPictureWindow::VideoKeepsPlaying video_keeps_playing)
 {
     auto index = index_of(window);
     if (!index.has_value())
@@ -90,7 +92,7 @@ void PictureInPictureManager::window_did_close(PictureInPictureWindow& window)
     retire_window(*index);
 
     if (page->is_open())
-        page->async_picture_in_picture_window_did_close();
+        page->async_picture_in_picture_window_did_close(video_keeps_playing == PictureInPictureWindow::VideoKeepsPlaying::No);
 }
 
 void PictureInPictureManager::window_page_did_close(PictureInPictureWindow& window)

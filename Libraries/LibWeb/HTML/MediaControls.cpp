@@ -25,6 +25,7 @@
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/TimeRanges.h>
 #include <LibWeb/HTML/Window.h>
+#include <LibWeb/Page/Page.h>
 #include <LibWeb/UIEvents/EventNames.h>
 #include <LibWeb/UIEvents/KeyboardEvent.h>
 #include <LibWeb/UIEvents/MouseEvent.h>
@@ -62,7 +63,15 @@ void MediaControls::create_shadow_tree()
     shadow_root->set_user_agent_internal(true);
     host.set_shadow_root(shadow_root);
 
-    m_dom = MediaControlsDOM(document, *shadow_root, is_video ? MediaControlsDOM::Options::Video : MediaControlsDOM::Options::None);
+    auto options = MediaControlsDOM::Options::None;
+    if (is_video) {
+        options |= MediaControlsDOM::Options::Video;
+        // Only an element that shows its own media can show it fullscreen. One that shows another element's media is
+        // the player of a Picture-in-Picture window.
+        if (&host == m_media_element.ptr().ptr())
+            options |= MediaControlsDOM::Options::Fullscreen;
+    }
+    m_dom = MediaControlsDOM(document, *shadow_root, options);
 
     if (is_video)
         MUST(m_dom->container->class_list()->add("video"_utf16));
@@ -396,6 +405,7 @@ void MediaControls::set_up_event_listeners()
             hide_controls();
             return true;
         });
+
         add_event_listener(realm, *m_dom->control_bar, UIEvents::EventNames::mouseenter, [this] {
             m_hovering_controls = true;
             show_controls();
@@ -769,6 +779,9 @@ void MediaControls::show_controls()
 
     MUST(m_dom->control_bar->class_list()->add(visible_class()));
 
+    if (!exchange(m_control_bar_is_shown, true))
+        control_bar_visibility_did_change();
+
     if (!m_hover_timer) {
         constexpr int hover_timeout_ms = 1000;
         m_hover_timer = Core::Timer::create_single_shot(hover_timeout_ms, [&] {
@@ -785,13 +798,36 @@ void MediaControls::hide_controls()
     VERIFY(m_media_element);
     VERIFY(m_dom->control_bar);
 
-    if (m_scrubbing_timeline != Scrubbing::No || m_scrubbing_volume || m_hovering_controls)
+    if (m_scrubbing_timeline != Scrubbing::No || m_scrubbing_volume || m_hovering_controls || m_picture_in_picture_window_controls_in_use)
         return;
     if (m_dom->placeholder_circle && should_show_placeholder())
         return;
 
     MUST(m_dom->control_bar->class_list()->remove(visible_class()));
     m_hover_timer.clear();
+    m_control_bar_is_shown = false;
+    control_bar_visibility_did_change();
+}
+
+bool MediaControls::is_picture_in_picture_player() const
+{
+    return m_host.ptr() != m_media_element.ptr();
+}
+
+// The browser's controls over a Picture-in-Picture window show while its player's do, and the player's stay shown while
+// the browser's are hovered, so that the two fade together.
+void MediaControls::control_bar_visibility_did_change()
+{
+    if (is_picture_in_picture_player())
+        m_host->document().page().client().page_did_change_picture_in_picture_player_controls_visibility(m_control_bar_is_shown);
+}
+
+void MediaControls::set_picture_in_picture_window_controls_in_use(bool in_use)
+{
+    if (!is_picture_in_picture_player())
+        return;
+    m_picture_in_picture_window_controls_in_use = in_use;
+    show_controls();
 }
 
 }

@@ -226,7 +226,7 @@ void ViewImplementation::set_favicon(Badge<WebContentPage>, Optional<Gfx::Bitmap
 // The tab is displayed in a process of its own, whose page starts from a document standing in for the entry of the
 // document state given. The outgoing process keeps displaying the tab's document until the UI process has unloaded
 // it there, before a document activates in the new page.
-void ViewImplementation::server_did_paint(Badge<WebContentPage>, i32 bitmap_id, Gfx::IntSize size, Gfx::IntRect damage_rect)
+void ViewImplementation::server_did_paint(Badge<WebContentPage>, i32 bitmap_id, Gfx::IntSize size, Gfx::IntRect damage_rect, double device_pixel_ratio)
 {
     bool did_swap_bitmap = false;
     auto previous_front_bitmap_id = m_front_bitmap.id;
@@ -234,6 +234,7 @@ void ViewImplementation::server_did_paint(Badge<WebContentPage>, i32 bitmap_id, 
     if (bitmap_index.has_value()) {
         m_has_usable_bitmap = true;
         m_other_bitmaps[*bitmap_index].last_painted_size = size.to_type<Web::DevicePixels>();
+        m_other_bitmaps[*bitmap_index].last_painted_device_pixel_ratio = device_pixel_ratio;
         swap(m_other_bitmaps[*bitmap_index], m_front_bitmap);
         m_backup_shared_image_buffer = nullptr;
         did_swap_bitmap = true;
@@ -683,8 +684,8 @@ void ViewImplementation::enqueue_input_event(Web::InputEvent event)
     auto* mouse_event = event.get_pointer<Web::MouseEvent>();
     if (m_debugger_paused) {
         if (mouse_event) {
-            auto activated_action = handle_ui_overlay_mouse_event(m_debugger_overlay_pointer_state, *mouse_event, [&](Gfx::IntSize viewport_size) {
-                return Compositing::paused_debugger_overlay_geometry(viewport_size, device_pixel_ratio()).buttons();
+            auto activated_action = handle_ui_overlay_mouse_event(m_debugger_overlay_pointer_state, *mouse_event, [](Gfx::IntSize viewport_size, double device_pixel_ratio) {
+                return Compositing::paused_debugger_overlay_geometry(viewport_size, device_pixel_ratio).buttons();
             });
             if (activated_action.has_value()) {
                 resume_debugger(*activated_action == Compositing::PausedDebuggerOverlayAction::StepOver
@@ -694,6 +695,9 @@ void ViewImplementation::enqueue_input_event(Web::InputEvent event)
         }
         return;
     }
+
+    if (m_has_picture_in_picture_controls && mouse_event && handle_picture_in_picture_controls_mouse_event(*mouse_event))
+        return;
 
     // User input enables a single request for an external URL.
     if ((key_event && key_event->type == Web::KeyEvent::Type::KeyDown && !key_event->repeat
@@ -1756,8 +1760,9 @@ void ViewImplementation::did_leave_tooltip_area(Badge<WebContentPage>)
 template<typename Action, typename ButtonsForViewport>
 Optional<Action> ViewImplementation::handle_ui_overlay_mouse_event(Compositing::OverlayPointerState<Action>& pointer_state, Web::MouseEvent const& event, ButtonsForViewport const& buttons_for_viewport)
 {
-    auto buttons = buttons_for_viewport(viewport_size().to_type<int>());
-    auto outcome = pointer_state.handle_mouse_event(event, Compositing::overlay_action_at(buttons, event.position.to_type<int>()));
+    auto overlay_position = ui_overlay_position(event.position);
+    auto buttons = buttons_for_viewport(overlay_position.viewport_size, overlay_position.device_pixel_ratio);
+    auto outcome = pointer_state.handle_mouse_event(event, Compositing::overlay_action_at(buttons, overlay_position.position));
     if (outcome.hover_changed) {
         update_ui_overlays();
         apply_cursor();
@@ -1783,11 +1788,24 @@ static StringView paused_debugger_overlay_action_tooltip(Compositing::PausedDebu
     VERIFY_NOT_REACHED();
 }
 
+static StringView picture_in_picture_control_tooltip(Compositing::PictureInPictureControl control)
+{
+    switch (control) {
+    case Compositing::PictureInPictureControl::BackToTab:
+        return "Back to tab"sv;
+    case Compositing::PictureInPictureControl::Close:
+        return "Close"sv;
+    }
+    VERIFY_NOT_REACHED();
+}
+
 void ViewImplementation::apply_tooltip()
 {
     auto tooltip = m_page_tooltip;
     if (auto action = m_debugger_overlay_pointer_state.hovered_action(); action.has_value())
         tooltip = paused_debugger_overlay_action_tooltip(*action);
+    if (auto control = m_picture_in_picture_controls_pointer_state.hovered_action(); control.has_value())
+        tooltip = picture_in_picture_control_tooltip(*control);
 
     if (tooltip.has_value()) {
         if (on_enter_tooltip_area)
@@ -1811,6 +1829,120 @@ void ViewImplementation::set_debugger_paused(bool paused)
     update_ui_overlays();
 }
 
+// The compositor draws the controls and the view handles them, rather than the page, so that they work whatever the
+// page does.
+// FIXME: Expose the controls to accessibility clients, which only see the page's tree.
+void ViewImplementation::enable_picture_in_picture_controls()
+{
+    m_has_picture_in_picture_controls = true;
+
+    // The same delay as the page's media controls.
+    static constexpr int hide_delay_ms = 1000;
+    m_picture_in_picture_controls_hide_timer = Core::Timer::create_single_shot(hide_delay_ms, [this] {
+        if (!m_picture_in_picture_controls_pointer_state.hovered_action().has_value())
+            set_picture_in_picture_controls_shown(false);
+    });
+
+    update_ui_overlays();
+}
+
+// Returns whether the event was the controls', which the page then never sees.
+bool ViewImplementation::handle_picture_in_picture_controls_mouse_event(Web::MouseEvent const& event)
+{
+    // A cancelled press counts as the pointer leaving the controls, as it does for the page.
+    Optional<Web::MouseEvent> leave_for_cancel;
+    if (event.type == Web::MouseEvent::Type::MouseCancel) {
+        leave_for_cancel = event.clone_without_browser_data();
+        leave_for_cancel->type = Web::MouseEvent::Type::MouseLeave;
+    }
+    auto const& controls_event = leave_for_cancel.has_value() ? *leave_for_cancel : event;
+
+    if (controls_event.type == Web::MouseEvent::Type::MouseMove) {
+        set_picture_in_picture_controls_shown(true);
+        m_picture_in_picture_controls_hide_timer->restart();
+    } else if (controls_event.type == Web::MouseEvent::Type::MouseLeave) {
+        m_picture_in_picture_controls_hide_timer->stop();
+        set_picture_in_picture_controls_shown(false);
+    }
+
+    if (event.type == Web::MouseEvent::Type::MouseDown && !picture_in_picture_controls_are_shown())
+        return false;
+
+    // A control is in use while it is hovered, and for the rest of a press on it, as the page sees none of that press.
+    auto& pointer_state = m_picture_in_picture_controls_pointer_state;
+    auto controls_in_use = [&] { return pointer_state.hovered_action().has_value() || pointer_state.is_pressing(); };
+    auto was_pressing = pointer_state.is_pressing();
+    auto was_in_use = controls_in_use();
+    auto activated_control = handle_ui_overlay_mouse_event(pointer_state, controls_event, [](Gfx::IntSize viewport_size, double device_pixel_ratio) {
+        return Compositing::picture_in_picture_controls_geometry(viewport_size, device_pixel_ratio).buttons();
+    });
+    if (auto is_in_use = controls_in_use(); is_in_use != was_in_use)
+        page().async_set_picture_in_picture_window_controls_in_use(is_in_use);
+    if (activated_control.has_value() && on_picture_in_picture_control_activated)
+        on_picture_in_picture_control_activated(*activated_control);
+
+    // The page still learns that the pointer left, even during a press on a control.
+    if (event.type == Web::MouseEvent::Type::MouseLeave)
+        return false;
+    return was_pressing || pointer_state.is_pressing();
+}
+
+void ViewImplementation::set_picture_in_picture_controls_shown(bool shown)
+{
+    if (m_picture_in_picture_controls_shown == shown)
+        return;
+
+    m_picture_in_picture_controls_shown = shown;
+    update_ui_overlays();
+}
+
+// The controls show while the player's own controls do, as the player's stay shown while the controls are in use, so
+// that the two fade together. The page can only keep the controls up, which then still show and work without it.
+void ViewImplementation::did_change_picture_in_picture_player_controls_visibility(Badge<WebContentPage>, bool shown)
+{
+    if (m_picture_in_picture_player_controls_shown == shown)
+        return;
+
+    m_picture_in_picture_player_controls_shown = shown;
+    if (m_has_picture_in_picture_controls)
+        update_ui_overlays();
+}
+
+Optional<ViewImplementation::DisplayedFrame> ViewImplementation::displayed_frame() const
+{
+    if (m_has_usable_bitmap)
+        return DisplayedFrame { m_front_bitmap.last_painted_size.to_type<int>(), m_front_bitmap.last_painted_device_pixel_ratio };
+    if (m_backup_shared_image_buffer)
+        return DisplayedFrame { m_backup_bitmap_size.to_type<int>(), m_backup_bitmap_device_pixel_ratio };
+    return {};
+}
+
+// The compositor draws the browser's overlays over the frame it presents, at the pixel ratio it painted the frame at,
+// and the frame may be scaled to fit the view.
+ViewImplementation::UIOverlayPosition ViewImplementation::ui_overlay_position(Web::DevicePixelPoint position) const
+{
+    auto view_size = viewport_size().to_type<int>();
+    auto view_position = position.to_type<int>();
+    auto frame = displayed_frame();
+    if (!frame.has_value() || frame->size.is_empty())
+        return { view_position, view_size, m_device_pixel_ratio };
+    if (!m_scales_frames_to_fit || frame->size == view_size)
+        return { view_position, frame->size, frame->device_pixel_ratio };
+
+    auto fitted_frame = rect_fitting_frame(frame->size, view_size);
+    if (fitted_frame.is_empty())
+        return { view_position, view_size, m_device_pixel_ratio };
+
+    return {
+        .position = {
+            (view_position.x() - fitted_frame.x()) * frame->size.width() / fitted_frame.width(),
+            (view_position.y() - fitted_frame.y()) * frame->size.height() / fitted_frame.height(),
+        },
+        .viewport_size = frame->size,
+        .device_pixel_ratio = frame->device_pixel_ratio,
+    };
+}
+
 void ViewImplementation::update_ui_overlays()
 {
     Compositing::UIOverlays overlays;
@@ -1818,6 +1950,12 @@ void ViewImplementation::update_ui_overlays()
         overlays.paused_debugger = Compositing::PausedDebuggerOverlayState {
             .font_family = Application::the().ui_font_family(),
             .hovered_action = m_debugger_overlay_pointer_state.hovered_action(),
+        };
+    }
+    if (m_has_picture_in_picture_controls) {
+        overlays.picture_in_picture_controls = Compositing::PictureInPictureControlsState {
+            .shown = picture_in_picture_controls_are_shown(),
+            .hovered_control = m_picture_in_picture_controls_pointer_state.hovered_action(),
         };
     }
     Application::the().update_compositor_ui_overlays(page().compositor_context_id(), overlays);
@@ -2371,6 +2509,7 @@ void ViewImplementation::install_backing_stores(Vector<i32> bitmap_ids, Vector<G
         // NOTE: We keep the outgoing front bitmap as a backup so we have something to paint until we get a new one.
         m_backup_shared_image_buffer = move(m_front_bitmap.shared_image_buffer);
         m_backup_bitmap_size = m_front_bitmap.last_painted_size;
+        m_backup_bitmap_device_pixel_ratio = m_front_bitmap.last_painted_device_pixel_ratio;
     }
     m_has_usable_bitmap = false;
     m_front_bitmap.id = bitmap_ids[0];
@@ -2780,6 +2919,7 @@ void ViewImplementation::display_page_changed(RefPtr<WebContentPage> previous_pa
         if (m_has_usable_bitmap) {
             m_backup_shared_image_buffer = move(m_front_bitmap.shared_image_buffer);
             m_backup_bitmap_size = m_front_bitmap.last_painted_size;
+            m_backup_bitmap_device_pixel_ratio = m_front_bitmap.last_painted_device_pixel_ratio;
         }
         if (previous_page->is_open()) {
             Application::the().update_compositor_context_visibility(previous_page->compositor_context_id(), Web::HTML::VisibilityState::Hidden);

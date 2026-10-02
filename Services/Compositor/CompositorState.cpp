@@ -843,7 +843,7 @@ void CompositorState::present_frame(Web::CompositorContextId context_id, Context
     if (!prepared_frame.has_value())
         return;
 
-    m_pending_async_presents.append(context_id, pending_frame.viewport_rect, prepared_frame->damage_rect, prepared_frame->bitmap_id);
+    m_pending_async_presents.append(context_id, pending_frame.viewport_rect, prepared_frame->damage_rect, prepared_frame->bitmap_id, prepared_frame->device_pixel_ratio);
     auto* pending_present = &m_pending_async_presents.last();
 
     auto& event_loop = Core::EventLoop::current();
@@ -1066,6 +1066,7 @@ void CompositorState::did_finish_async_present(PendingAsyncPresent& pending_pres
     auto viewport_rect = pending_present.viewport_rect;
     auto damage_rect = pending_present.damage_rect;
     auto bitmap_id = pending_present.bitmap_id;
+    auto device_pixel_ratio = pending_present.device_pixel_ratio;
     auto was_cancelled = pending_present.was_cancelled;
     (void)m_pending_async_presents.remove(pending_present_iterator);
     if (m_pending_async_presents.is_empty() && m_gpu_completion_timer)
@@ -1080,7 +1081,7 @@ void CompositorState::did_finish_async_present(PendingAsyncPresent& pending_pres
     context->presenter().did_finish_gpu_present(bitmap_id);
     if (context->presents_to_client()) {
         VERIFY(m_client);
-        m_client->did_present_frame(context_id, viewport_rect, damage_rect, bitmap_id);
+        m_client->did_present_frame(context_id, viewport_rect, damage_rect, bitmap_id, device_pixel_ratio);
     }
     resize_backing_stores_if_needed(context_id, *context);
     if (auto parent_context_id = context->parent_context_id(); parent_context_id.has_value()) {

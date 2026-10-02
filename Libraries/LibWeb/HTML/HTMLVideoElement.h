@@ -88,6 +88,7 @@ private:
 
     virtual bool is_html_video_element() const override { return true; }
     virtual bool is_shown_elsewhere() const override;
+    virtual HTMLMediaElement& media_element_for_controls() override;
 
     virtual CSS::ElementBoxKind box_kind() const override;
 

@@ -27,8 +27,14 @@ public:
     virtual String handle() const = 0;
     virtual void hide() = 0;
 
+    // The user closes the window to stop watching its video, or to go back to the video's tab and watch it there.
+    enum class VideoKeepsPlaying : bool {
+        No,
+        Yes,
+    };
+
     Function<void(Gfx::IntSize)> on_resize;
-    Function<void()> on_close;
+    Function<void(VideoKeepsPlaying)> on_close;
     Function<void()> on_page_close;
 
 protected:

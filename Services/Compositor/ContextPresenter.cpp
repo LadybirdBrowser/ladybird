@@ -316,6 +316,7 @@ Optional<PreparedFrame> ContextPresenter::prepare_frame(DisplayListPlayerSkia& d
         .rendered_surface = &back_store,
         .bitmap_id = render_target->bitmap_id,
         .damage_rect = damage_rect,
+        .device_pixel_ratio = m_device_pixel_ratio,
     };
 }
 

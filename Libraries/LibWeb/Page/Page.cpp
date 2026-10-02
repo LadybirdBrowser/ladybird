@@ -1719,6 +1719,22 @@ void Page::toggle_media_controls_state()
         media_element->set_attribute_value(HTML::AttributeNames::controls, Utf16String {});
 }
 
+// The browser's controls over a Picture-in-Picture window keep the controls of the player that its page shows up while
+// they are hovered or pressed, as the player's own controls do.
+void Page::set_picture_in_picture_window_controls_in_use(bool in_use)
+{
+    if (!has_local_traversable())
+        return;
+    auto document = local_traversable()->active_document();
+    if (!document)
+        return;
+
+    document->for_each_in_inclusive_subtree_of_type<HTML::HTMLMediaElement>([&](auto& media_element) {
+        media_element.set_picture_in_picture_window_controls_in_use(in_use);
+        return TraversalDecision::Continue;
+    });
+}
+
 void Page::set_page_mute_state(HTML::MuteState mute_state)
 {
     if (m_mute_state == mute_state)
