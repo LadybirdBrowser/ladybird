@@ -6,11 +6,12 @@
 
 //! What the host keeps of a document's render state.
 
-use super::{ArenaChange, DocumentId, RenderMessage, send};
+use super::{ArenaChange, DocumentId, RenderMessage, RenderWait, send, wait_for_render_state};
 use crate::css::style::bridge::FfiDeviceClass;
 use crate::layout::HostTables;
+use crate::layout::row_reads::RowSnapshot;
 use crate::painting::recording_slot::RecordingSlot;
-use std::cell::{RefCell, RefMut};
+use std::cell::{Cell, RefCell, RefMut};
 use std::ffi::c_void;
 use std::ptr::NonNull;
 use std::rc::Rc;
@@ -25,6 +26,14 @@ pub struct DocumentHost {
     document: DocumentId,
     host_tables: HostTables,
     recording: RefCell<RecordingSlot>,
+    /// The rows the render state published last, which the host reads between messages.
+    #[cfg_attr(
+        not(test),
+        expect(dead_code, reason = "the host reads the published rows from the next commit on")
+    )]
+    rows: RefCell<Option<Rc<RowSnapshot>>>,
+    /// Whether the host queued a change that alters the published rows since they were published.
+    rows_may_be_stale: Cell<bool>,
 }
 
 impl DocumentHost {
@@ -33,6 +42,8 @@ impl DocumentHost {
             document,
             host_tables: HostTables::default(),
             recording: RefCell::default(),
+            rows: RefCell::default(),
+            rows_may_be_stale: Cell::new(false),
         }
     }
 
@@ -52,10 +63,47 @@ impl DocumentHost {
 
     /// Queues `change` for the document's render state, which applies it before anything that reads what it changes.
     pub(crate) fn queue_change(&self, change: ArenaChange) {
+        if change.alters_published_rows() {
+            self.rows_may_be_stale.set(true);
+        }
         send(RenderMessage::Change {
             document: self.document,
             change,
         });
+    }
+
+    /// The rows the render state published last, unless the host queued a change since that alters them, or none were
+    /// published yet. Reading them waits for nothing.
+    #[cfg_attr(
+        not(test),
+        expect(dead_code, reason = "the host reads the published rows from the next commit on")
+    )]
+    pub(crate) fn rows(&self) -> Option<Rc<RowSnapshot>> {
+        if self.rows_may_be_stale.get() {
+            return None;
+        }
+        self.rows.borrow().clone()
+    }
+
+    /// The rows as of every change the host queued, which the render state publishes again first where the ones the
+    /// host has may be stale, spending `wait`.
+    #[cfg_attr(
+        not(test),
+        expect(dead_code, reason = "the host reads the published rows from the next commit on")
+    )]
+    pub(crate) fn fresh_rows(&self, wait: impl RenderWait) -> Rc<RowSnapshot> {
+        if !self.rows_may_be_stale.get()
+            && let Some(rows) = self.rows.borrow().as_ref()
+        {
+            return Rc::clone(rows);
+        }
+        let document = self.document;
+        let rows = Rc::new(wait_for_render_state(wait, self, |reply| {
+            RenderMessage::CommittedRows { document, reply }
+        }));
+        *self.rows.borrow_mut() = Some(Rc::clone(&rows));
+        self.rows_may_be_stale.set(false);
+        rows
     }
 
     /// What the document keeps of its recordings.

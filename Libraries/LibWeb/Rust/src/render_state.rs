@@ -26,7 +26,7 @@ mod document_host;
 mod wait;
 
 pub use document_host::DocumentHost;
-pub(crate) use wait::{LockstepProof, ReplyTo, ScriptForcedRead, wait_for_render_state};
+pub(crate) use wait::{LockstepProof, RenderWait, ReplyTo, ScriptForcedRead, wait_for_render_state};
 
 /// The host's name for one document's render state. The host mints it, so naming a new document needs no answer from
 /// the render side.
@@ -96,6 +96,17 @@ pub(crate) enum ArenaChange {
 }
 
 impl ArenaChange {
+    /// Whether applying the change can alter what the rows the render state publishes answer the host (see
+    /// [`crate::layout::row_reads`]), so that a read the host makes after queuing it waits for rows that reflect it.
+    /// What the next layout or paint reads, and the style engine's state, alter none.
+    fn alters_published_rows(&self) -> bool {
+        match self {
+            Self::Layout(change) => change.alters_published_rows(),
+            Self::Paint(change) => change.alters_published_rows(),
+            Self::Style(_) | Self::Engine(_) => false,
+        }
+    }
+
     /// # Safety
     ///
     /// `engine` must name the live style engine `arena` links, which nothing else borrows meanwhile.
@@ -123,6 +134,15 @@ pub(crate) enum RenderMessage {
     Destroy { document: DocumentId },
     /// A write to a document's render state.
     Change { document: DocumentId, change: ArenaChange },
+    /// Publishes the document's rows as they are now.
+    #[cfg_attr(
+        not(test),
+        expect(dead_code, reason = "the host reads the published rows from the next commit on")
+    )]
+    CommittedRows {
+        document: DocumentId,
+        reply: ReplyTo<crate::layout::row_reads::RowSnapshot>,
+    },
     /// A write to a document's layout arena the host waits for, answering what it owes the host.
     Write {
         document: DocumentId,
@@ -174,6 +194,11 @@ fn handle_message(_: &RenderingSide, message: RenderMessage) {
                 unsafe { change.apply((*arena).arena_mut(), engine) };
             }
         }
+        RenderMessage::CommittedRows { document, reply } => reply.answer(|| {
+            let (arena, _) = state_parts(document).expect("a document whose rows the host reads has a render state");
+            // SAFETY: As for a change.
+            unsafe { &mut *arena }.arena_mut().publish_row_snapshot()
+        }),
         RenderMessage::Write { document, write, reply } => reply.answer(|| {
             // A document with no state is a bug of the sender's, whose write has nothing to write.
             state_parts(document).map_or_else(Default::default, |(arena, _)| {
@@ -279,5 +304,27 @@ mod tests {
         });
         send(RenderMessage::Destroy { document });
         send(RenderMessage::Destroy { document });
+    }
+
+    #[test]
+    fn a_queued_change_that_alters_the_rows_makes_the_host_read_them_again() {
+        use crate::layout::layout_changes::LayoutChange;
+        use crate::layout::node_data::NodeSlotId;
+        let pointer = document_host::document_host_create(0);
+        // SAFETY: The host lives until it is destroyed below.
+        let host = unsafe { &*pointer };
+        assert!(host.rows().is_none());
+        host.fresh_rows(ScriptForcedRead::for_test());
+        assert!(host.rows().is_some());
+        host.queue_change(ArenaChange::Layout(LayoutChange::SetNeedsFullLayoutTreeUpdate(true)));
+        assert!(host.rows().is_some(), "a layout mark leaves the rows as they are");
+        host.queue_change(ArenaChange::Layout(LayoutChange::InvalidateTextContent {
+            node: NodeSlotId::INVALID,
+        }));
+        assert!(host.rows().is_none());
+        host.fresh_rows(ScriptForcedRead::for_test());
+        assert!(host.rows().is_some());
+        // SAFETY: The host is destroyed once, and nothing reaches it after.
+        unsafe { document_host::document_host_destroy(pointer) };
     }
 }
