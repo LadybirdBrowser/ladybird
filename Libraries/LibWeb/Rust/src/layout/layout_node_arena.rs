@@ -11,7 +11,7 @@ use super::geometry::AvailableSize;
 use super::geometry::AvailableSpace;
 use super::rendered_text::{FfiTextSourceRange, RenderedTextBoundary, TextContent, TextFragments};
 use super::tree_builder::FfiLayoutTreeBuildOutcome;
-use super::tree_shape::{Chunk, ShapeWriter};
+use super::tree_shape::{Chunk, PUBLISHED_ROWS_PER_CHUNK, ShapeWriter, TreeShape};
 use super::update_layout::FfiLayoutTreeBuildStats;
 use super::used_values::SizeConstraint;
 use crate::css::css_pixels::{CssPixelPoint, FfiCssPixelPoint};
@@ -831,6 +831,7 @@ enum ArenaStylePin {
 
 pub(crate) struct LayoutNodeArena {
     chunks: Vec<Box<Chunk>>,
+    tree_shape: TreeShape,
     chunks_by_address: Vec<ChunkAddress>,
     slot_metadata: Vec<SlotMetadata>,
     style_records: Vec<Cell<u64>>,
@@ -989,6 +990,7 @@ impl LayoutNodeArena {
     pub(crate) fn new() -> Self {
         Self {
             chunks: Vec::new(),
+            tree_shape: TreeShape::default(),
             chunks_by_address: Vec::new(),
             slot_metadata: Vec::new(),
             style_records: Vec::new(),
@@ -1445,6 +1447,14 @@ impl LayoutNodeArena {
             "layout node arena wrote a stale or unused slot"
         );
         shape
+    }
+
+    /// What the paint side reads of every node, as it is now. The arena's nodes go on being written,
+    /// and the next publication copies only the nodes written since this one.
+    pub(crate) fn publish_paint_tree(
+        &mut self,
+    ) -> crate::cow_column::ColumnSnapshot<super::node_data::PaintNode, PUBLISHED_ROWS_PER_CHUNK> {
+        self.tree_shape.publish(&self.chunks)
     }
 
     /// The shape of the node whose data `data` is, for writing.
@@ -2852,7 +2862,7 @@ impl LayoutNodeArena {
         let data = self.write_shape(node);
         let previous_flags = data.flags.get();
         let (absolute, fixed) = if data.kind.get() == NodeKind::InlineNode {
-            let absolute = !super::node_facts::has_flag(&data, NodeFlag::Anonymous)
+            let absolute = !super::node_facts::has_flag(&*data, NodeFlag::Anonymous)
                 && self
                     .node_style_if_live(node)
                     .is_some_and(crate::painting::style_queries::inline_establishes_absolute_position_containing_block);
@@ -2893,18 +2903,7 @@ impl LayoutNodeArena {
     }
 
     pub(crate) fn containing_block_by_walking_ancestors(&self, node: NodeSlotId) -> NodeSlotId {
-        use crate::css::css_enums::positioning;
-        let position = if super::node_facts::kind_is_text(self.data(node).kind.get()) {
-            positioning::STATIC
-        } else {
-            crate::painting::style_queries::position(self, node)
-        };
-        if position != positioning::ABSOLUTE && position != positioning::FIXED {
-            return self.nearest_ancestor_capable_of_forming_a_containing_block(node);
-        }
-        let mut search = super::abspos_inputs::ContainingBlockSearch::starting_at(node, position == positioning::FIXED);
-        self.continue_containing_block_search(&mut search, NodeSlotId::INVALID);
-        search.containing_block
+        PaintRead::node_containing_block_if_live(self, node).unwrap_or(NodeSlotId::INVALID)
     }
 
     fn mark_nodes_escaped_by_out_of_flow_box(&self, node: NodeSlotId, containing_block: NodeSlotId) {
@@ -3567,22 +3566,6 @@ impl LayoutNodeArena {
             data.set_flags(data.flags.get() & !flags_to_clear);
             self.remove_layout_update_flag_node(node);
         }
-    }
-
-    fn node_is_capable_of_forming_a_containing_block(&self, id: NodeSlotId) -> bool {
-        let data = self.data(id);
-        super::node_facts::node_forms_containing_block_for_children(data, self.node_style_if_live(id))
-    }
-
-    fn nearest_ancestor_capable_of_forming_a_containing_block(&self, node: NodeSlotId) -> NodeSlotId {
-        let mut ancestor = self.data(node).parent.get();
-        while !ancestor.is_invalid() {
-            if self.node_is_capable_of_forming_a_containing_block(ancestor) {
-                return ancestor;
-            }
-            ancestor = self.data(ancestor).parent.get();
-        }
-        NodeSlotId::INVALID
     }
 
     /// Returns whether the node's ancestor facts changed.
@@ -4319,10 +4302,8 @@ impl LayoutNodeArena {
     }
 
     pub(crate) fn style_payloads(&self, id: NodeSlotId) -> Option<&FfiStylePayloads> {
-        let style = self.data(id).style.get();
-        // SAFETY: A non-null style pointer addresses the container's group
-        // pointer array, which FfiStylePayloads mirrors exactly.
-        (!style.is_null()).then(|| unsafe { style.deref() })
+        // SAFETY: The arena pins the style record of each of its rows while the row holds it.
+        unsafe { super::node_data::style_payloads(self.data(id).style.get()) }
     }
 
     // OPTIMIZATION: The edit invalidates line data at its direct parent and every formatting
@@ -4605,14 +4586,6 @@ impl LayoutNodeArena {
             .get(&node)
             .copied()
             .filter(|&inline_box| self.slot_is_live(inline_box))
-    }
-
-    pub(crate) fn node_containing_block_if_live(&self, id: NodeSlotId) -> Option<NodeSlotId> {
-        if !self.slot_is_live(id) {
-            return None;
-        }
-        let block = self.containing_block_by_walking_ancestors(id);
-        (!block.is_invalid()).then_some(block)
     }
 
     pub(crate) fn node_style_if_live(

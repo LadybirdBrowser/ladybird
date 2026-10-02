@@ -37,6 +37,17 @@ pub const STYLE_GROUP_COUNT: usize = 23;
 /// row shares it as a `HostShared` rather than as a raw pointer.
 pub(crate) type StylePayloadsRef = crate::css::host_shared::HostShared<FfiStylePayloads>;
 
+/// The group payload array a row's style addresses, or `None` for a row with no style.
+///
+/// # Safety
+///
+/// The style record pinned for the row must outlive `'a`.
+pub(crate) unsafe fn style_payloads<'a>(style: StylePayloadsRef) -> Option<&'a FfiStylePayloads> {
+    // SAFETY: A non-null style pointer addresses the group pointer array of the style record, which
+    // FfiStylePayloads mirrors exactly, and the caller keeps the record alive for 'a.
+    (!style.is_null()).then(|| unsafe { style.deref() })
+}
+
 #[derive(Clone, Copy, Default, PartialEq, Eq)]
 #[repr(C)]
 pub struct FfiReplacedContentFacts {
@@ -306,6 +317,65 @@ impl Default for NodeData {
             fragment_cache_epoch: Cell::new(0),
             style: ShapeCell::new(StylePayloadsRef::null()),
         }
+    }
+}
+
+/// The part of a node the paint side reads, as a row of the arena's published column.
+#[derive(Clone, PartialEq)]
+pub(crate) struct PaintNode {
+    pub(crate) generation: u8,
+    pub(crate) kind: NodeKind,
+    pub(crate) generated_for: u8,
+    pub(crate) dom_paint_facts: u8,
+    pub(crate) compositor_animation_frame_kinds: u8,
+    pub(crate) flags: u32,
+    pub(crate) parent: NodeSlotId,
+    pub(crate) first_child: NodeSlotId,
+    pub(crate) next_sibling: NodeSlotId,
+    pub(crate) style: StylePayloadsRef,
+}
+
+impl Default for PaintNode {
+    fn default() -> Self {
+        Self {
+            generation: 0,
+            kind: NodeKind::Unset,
+            generated_for: 0,
+            dom_paint_facts: 0,
+            compositor_animation_frame_kinds: 0,
+            flags: 0,
+            parent: NodeSlotId::INVALID,
+            first_child: NodeSlotId::INVALID,
+            next_sibling: NodeSlotId::INVALID,
+            style: StylePayloadsRef::null(),
+        }
+    }
+}
+
+impl PaintNode {
+    /// The node's row as `data` holds it.
+    pub(crate) fn of(data: &NodeData) -> Self {
+        Self {
+            generation: data.slot_generation.get(),
+            kind: data.kind.get(),
+            generated_for: data.generated_for.get(),
+            dom_paint_facts: data.dom_paint_facts.get(),
+            compositor_animation_frame_kinds: data.compositor_animation_frame_kinds.get(),
+            flags: data.flags.get(),
+            parent: data.parent.get(),
+            first_child: data.first_child.get(),
+            next_sibling: data.next_sibling.get(),
+            style: data.style.get(),
+        }
+    }
+
+    /// The node's computed style, or `None` for a node without one.
+    pub(crate) fn style(&self) -> Option<crate::css::computed_value_views::ComputedValuesView<'_>> {
+        // SAFETY: No style record is released while a recording reads the rows published for it.
+        let payloads = unsafe { style_payloads(self.style) }?;
+        Some(crate::css::computed_value_views::ComputedValuesView::new(
+            &payloads.groups,
+        ))
     }
 }
 
