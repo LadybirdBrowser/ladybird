@@ -4731,7 +4731,6 @@ impl RetainedState {
                     || !self
                         .program
                         .declarations_are_complete_but_for_custom_properties(entry.rule)
-                    || !self.match_scope_is_complete_for(Some(node), entry.tree_scope)
                 {
                     return Some(false);
                 }

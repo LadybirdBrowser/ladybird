@@ -300,6 +300,7 @@ impl RetainedState {
             } else {
                 matches.sort_by_cached_key(|entry| {
                     self.cascade_priority_of(
+                        entry.node,
                         entry.rule,
                         entry.tree_scope,
                         entry.specificity,
@@ -330,14 +331,20 @@ impl RetainedState {
         }
     }
 
-    pub(super) fn cascade_stratum_of(&self, rule: RuleID, tree_scope: TreeScopeID, important: bool) -> CascadeStratum {
+    pub(super) fn cascade_stratum_of(
+        &self,
+        node: StyleNodeID,
+        rule: RuleID,
+        tree_scope: TreeScopeID,
+        important: bool,
+    ) -> CascadeStratum {
         let sheet = self.program.rule_sheet(rule);
         let context_scope = self.cascade_context_scope(rule, tree_scope);
         let layer = self.program.rule_version(rule).layer;
         CascadeStratum::new(
             self.program.sheet_origin(sheet),
             important,
-            self.tree_scope_depth(context_scope),
+            self.encapsulation_context(node, context_scope),
             layer,
             self.program.layer_rank(context_scope, layer),
             CascadeAttachment::StyleSheet,
@@ -395,6 +402,7 @@ impl RetainedState {
                 // node's winners were published.
                 if self.published_container_verdict_holds(node, rule, pseudo_kind.is_some()) {
                     self.push_rule_cascade_candidates(
+                        node,
                         rule,
                         tree_scope,
                         specificity,
@@ -476,6 +484,7 @@ impl RetainedState {
             .filter(|entry| entry.pseudo_element == pseudo && conditions_hold(entry.rule))
         {
             self.push_rule_cascade_candidates(
+                node,
                 entry.rule,
                 entry.tree_scope,
                 entry.specificity,
@@ -504,8 +513,10 @@ impl RetainedState {
     /// Push the cascade candidates a matched rule declares for the longhands `wants` names. A
     /// shorthand written with a substitution is declared whole beside the longhands it pends; the
     /// longhands are the candidates, the shorthand names no column.
+    #[allow(clippy::too_many_arguments)]
     fn push_rule_cascade_candidates(
         &self,
+        node: StyleNodeID,
         rule: RuleID,
         tree_scope: TreeScopeID,
         specificity: Specificity,
@@ -521,8 +532,15 @@ impl RetainedState {
             let (priority, stratum) = *priority_and_stratum_by_importance[declared.important as usize]
                 .get_or_insert_with(|| {
                     (
-                        self.cascade_priority_of(rule, tree_scope, specificity, scope_proximity, declared.important),
-                        self.cascade_stratum_of(rule, tree_scope, declared.important),
+                        self.cascade_priority_of(
+                            node,
+                            rule,
+                            tree_scope,
+                            specificity,
+                            scope_proximity,
+                            declared.important,
+                        ),
+                        self.cascade_stratum_of(node, rule, tree_scope, declared.important),
                     )
                 });
             candidates.push(OrderedCascadeCandidate {
@@ -746,8 +764,7 @@ impl RetainedState {
         let mut container_verdicts = Vec::new();
         for (match_index, entry) in all.iter().enumerate() {
             if compaction_blocked
-                && (!self.match_scope_is_complete_for(publish_winners_for, entry.tree_scope)
-                    || !self.container_gate_is_held(publish_winners_for, entry.rule)
+                && (!self.container_gate_is_held(publish_winners_for, entry.rule)
                     || !self
                         .program
                         .declarations_are_complete_but_for_custom_properties(entry.rule))
@@ -778,6 +795,7 @@ impl RetainedState {
                 }
                 let priority = *priorities[declared.important as usize].get_or_insert_with(|| {
                     self.cascade_priority_of(
+                        entry.node,
                         entry.rule,
                         entry.tree_scope,
                         entry.specificity,
@@ -1525,6 +1543,7 @@ impl RetainedState {
                 };
                 let priority = *priorities[declared.important as usize].get_or_insert_with(|| {
                     self.cascade_priority_of(
+                        node,
                         delta.rule,
                         matched.tree_scope,
                         entry.specificity,
@@ -1611,7 +1630,6 @@ impl RetainedState {
             .any(|entry| {
                 !self.container_gate_is_held(node, entry.rule)
                     || !self.program.declarations_are_complete_for(entry.rule)
-                    || !self.match_scope_is_complete_for(node, entry.tree_scope)
             })
             || (pseudo.is_none()
                 && node.is_some_and(|node| {
@@ -1637,71 +1655,44 @@ impl RetainedState {
                     || !self
                         .program
                         .declarations_are_complete_but_for_custom_properties(entry.rule)
-                    || !self.match_scope_is_complete_for(Some(node), entry.tree_scope)
             })
-    }
-
-    /// Whether the winners the cascade publishes for a node hold a match from a rule in the given
-    /// tree scope: a document rule's do, and so does a rule's from the element's own tree scope,
-    /// for the element and its pseudo-elements alike. A rule reaching across a shadow boundary
-    /// (`:host`, `::slotted`, `::part`) decides from its own context, and the winners hold it when
-    /// that context is one the element's cascade weighs where a rule's priority places it, which
-    /// is at its encapsulation depth, the same for every element it matches.
-    pub(super) fn match_scope_is_complete_for(&self, node: Option<StyleNodeID>, scope: TreeScopeID) -> bool {
-        if scope == TreeScopeID::DOCUMENT {
-            return true;
-        }
-        let Some(node) = node else {
-            return false;
-        };
-        self.tree.tree_scope(node) == scope
-            || self
-                .author_context_index(node, scope)
-                .is_some_and(|index| index == self.tree_scope_depth(scope))
     }
 
     /// Where a tree scope stands among the encapsulation contexts that decide for an element,
     /// outermost first, the order its cascade applies them in: the document, the shadow trees the
     /// element is in from the outermost inwards, the ones holding the slots it is assigned to along
-    /// its assignment chain, then the element's own shadow tree, for `:host`. `None` when the scope
-    /// is none of them.
+    /// its assignment chain, then the element's own shadow tree, for `:host`. That is the
+    /// shadow-including tree order of those trees. `None` when the scope is none of them.
     pub(super) fn author_context_index(&self, node: StyleNodeID, scope: TreeScopeID) -> Option<u32> {
-        let mut contexts: SmallVec<[TreeScopeID; 8]> = SmallVec::new();
-        let mut append = |scope: TreeScopeID| {
-            if !contexts.contains(&scope) {
-                contexts.push(scope);
-            }
-        };
-        append(TreeScopeID::DOCUMENT);
-        let mut chain: SmallVec<[TreeScopeID; 4]> = SmallVec::new();
-        let mut current = self.tree.tree_scope(node);
-        while current != TreeScopeID::DOCUMENT {
-            if chain.contains(&current) {
-                return None;
-            }
-            chain.push(current);
+        let tree_scope = self.tree.tree_scope(node);
+        let enclosing = std::iter::successors(Some(tree_scope), |&current| {
             let host = self.scope_root(current).and_then(|root| self.tree.host_of(root))?;
-            current = self.tree.tree_scope(host);
+            Some(self.tree.tree_scope(host))
+        });
+        let is_context = enclosing
+            .take(self.tree_scope_depth(tree_scope) as usize + 1)
+            .any(|enclosing| enclosing == scope)
+            || self.scopes_slotted_into(node).any(|slotted_into| slotted_into == scope)
+            || self.own_shadow_tree(node) == Some(scope);
+        is_context.then(|| self.encapsulation_context(node, scope))
+    }
+
+    /// Where the cascade of `node` weighs a match from `scope`, as `author_context_index` places
+    /// it. Each tree the element is in or slotted into stands at its depth, one deeper than the
+    /// last, so only the element's own shadow tree, after all of those, stands elsewhere.
+    fn encapsulation_context(&self, node: StyleNodeID, scope: TreeScopeID) -> u32 {
+        if self.own_shadow_tree(node) != Some(scope) {
+            return self.tree_scope_depth(scope);
         }
-        for &scope in chain.iter().rev() {
-            append(scope);
-        }
-        for slotted_into in self.scopes_slotted_into(node) {
-            append(slotted_into);
-        }
-        // The element's own shadow tree is the one its shadow root roots: the root node itself is in
-        // the host's tree scope.
-        if let Some(own_shadow_tree) = self
-            .tree
+        let slotted_into = self.scopes_slotted_into(node).count() as u32;
+        self.tree_scope_depth(self.tree.tree_scope(node)) + slotted_into + 1
+    }
+
+    /// The tree the element's shadow root roots, where its `:host` rules decide from.
+    fn own_shadow_tree(&self, node: StyleNodeID) -> Option<TreeScopeID> {
+        self.tree
             .shadow_root_of(node)
             .and_then(|shadow_root| self.scope_by_root.get(shadow_root))
-        {
-            append(own_shadow_tree);
-        }
-        contexts
-            .iter()
-            .position(|&context| context == scope)
-            .map(|index| index as u32)
     }
 
     pub(super) fn cascade_winner_inventory_is_complete(
@@ -1712,9 +1703,7 @@ impl RetainedState {
         // Checking every target covers every match. Check each inventory once instead
         // of scanning the answer again for every rule matching the same pseudo target.
         !matches.iter().any(|entry| {
-            !self.container_gate_is_held(node, entry.rule)
-                || !self.program.declarations_are_complete_for(entry.rule)
-                || !self.match_scope_is_complete_for(node, entry.tree_scope)
+            !self.container_gate_is_held(node, entry.rule) || !self.program.declarations_are_complete_for(entry.rule)
         }) && !node.is_some_and(|node| {
             ElementDeclarationKind::ALL
                 .iter()
@@ -1866,8 +1855,9 @@ impl RetainedState {
     }
 
     /// How deeply a tree scope is encapsulated: the document is zero, a shadow tree inside it one,
-    /// and one inside that two. It is what orders the contexts against each other, outermost first
-    /// for a normal declaration and innermost first for an important one.
+    /// and one inside that two. It is where an element's cascade weighs a tree it is in or slotted
+    /// into (`encapsulation_context`), outermost first for a normal declaration and innermost first
+    /// for an important one.
     #[must_use]
     pub(super) fn tree_scope_depth(&self, tree_scope: TreeScopeID) -> u32 {
         let mut depth = 0;
@@ -1913,7 +1903,7 @@ impl RetainedState {
         }
     }
 
-    /// Where one rule's declarations sit in the cascade for an element in `tree_scope`.
+    /// Where one rule's declarations, matched from `tree_scope`, sit in the cascade of `node`.
     ///
     /// The components that change globally - layer topology, sheet order - are read through the
     /// identities the rule references rather than copied into it, so moving a layer or a sheet
@@ -1921,8 +1911,51 @@ impl RetainedState {
     #[must_use]
     pub(super) fn cascade_priority_of(
         &self,
+        node: StyleNodeID,
         rule: RuleID,
         tree_scope: TreeScopeID,
+        specificity: Specificity,
+        scope_proximity: u32,
+        important: bool,
+    ) -> CascadePriority {
+        let context_scope = self.cascade_context_scope(rule, tree_scope);
+        self.cascade_priority_in_context(
+            rule,
+            tree_scope,
+            self.encapsulation_context(node, context_scope),
+            specificity,
+            scope_proximity,
+            important,
+        )
+    }
+
+    /// As `cascade_priority_of`, for any element of `tree_scope` itself, which weighs its own tree
+    /// and the document at their depths: a rule decides for such an element from no other context.
+    #[must_use]
+    pub(super) fn own_scope_cascade_priority_of(
+        &self,
+        rule: RuleID,
+        tree_scope: TreeScopeID,
+        specificity: Specificity,
+        scope_proximity: u32,
+        important: bool,
+    ) -> CascadePriority {
+        let context_scope = self.cascade_context_scope(rule, tree_scope);
+        self.cascade_priority_in_context(
+            rule,
+            tree_scope,
+            self.tree_scope_depth(context_scope),
+            specificity,
+            scope_proximity,
+            important,
+        )
+    }
+
+    fn cascade_priority_in_context(
+        &self,
+        rule: RuleID,
+        tree_scope: TreeScopeID,
+        context_depth: u32,
         specificity: Specificity,
         scope_proximity: u32,
         important: bool,
@@ -1937,7 +1970,7 @@ impl RetainedState {
         CascadePriority::new(PriorityInputs {
             origin: self.program.sheet_origin(sheet),
             important,
-            context_depth: self.tree_scope_depth(context_scope),
+            context_depth,
             element_attachment: ElementAttachment::Rule,
             layer_rank: self.program.layer_rank(context_scope, version.layer),
             specificity,

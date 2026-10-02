@@ -3814,7 +3814,7 @@ impl RetainedState {
                 let Some(previous) = self.winner_groups.winner_in_state(state, declaration.property) else {
                     return false;
                 };
-                let changed_priority = self.cascade_priority_of(
+                let changed_priority = self.own_scope_cascade_priority_of(
                     rule,
                     TreeScopeID::DOCUMENT,
                     entry.specificity,
@@ -4644,8 +4644,13 @@ impl StyleEngineState {
                     if self.retained.programs.get(previous_program).can_leave_its_scope() {
                         return false;
                     }
-                    let priority =
-                        self.cascade_priority_of(rule, tree_scope, entry.specificity, u32::MAX, declared.important);
+                    let priority = self.own_scope_cascade_priority_of(
+                        rule,
+                        tree_scope,
+                        entry.specificity,
+                        u32::MAX,
+                        declared.important,
+                    );
                     priority <= previous.priority
                 })
         };
