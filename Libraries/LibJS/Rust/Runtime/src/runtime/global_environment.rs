@@ -22,7 +22,7 @@ use crate::runtime::environment::{ENVIRONMENT_METHODS, Environment, EnvironmentM
 use crate::runtime::error::ErrorKind;
 use crate::runtime::error_types::ErrorType;
 use crate::runtime::object::ShouldThrowExceptions;
-use crate::runtime::object_environment::{IsWithEnvironment, ObjectEnvironment, name_for_message};
+use crate::runtime::object_environment::{IsWithEnvironment, ObjectEnvironment};
 use crate::runtime::property_descriptor::PropertyDescriptor;
 use crate::runtime::property_key::PropertyKey;
 
@@ -140,7 +140,7 @@ impl GlobalEnvironment {
             return vm.throw_completion(
                 ErrorKind::TypeError,
                 ErrorType::GlobalEnvironmentAlreadyHasBinding,
-                &[&name_for_message(name)],
+                &[name],
             );
         }
 
@@ -159,7 +159,7 @@ impl GlobalEnvironment {
             return vm.throw_completion(
                 ErrorKind::TypeError,
                 ErrorType::GlobalEnvironmentAlreadyHasBinding,
-                &[&name_for_message(name)],
+                &[name],
             );
         }
 

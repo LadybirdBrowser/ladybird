@@ -122,12 +122,7 @@ impl PlainMonthDayConstructor {
 
         // 6. If calendar is not a String, throw a TypeError exception.
         if !calendar_value.is_string() {
-            return vm.throw_completion_with_utf16_message(
-                ErrorKind::TypeError,
-                ErrorType::NotAString.utf16_message(&[Utf16View::of_string(
-                    &calendar_value.to_utf16_string_without_side_effects(),
-                )]),
-            );
+            return vm.throw_completion(ErrorKind::TypeError, ErrorType::NotAString, &[&calendar_value]);
         }
 
         // 7. Set calendar to ? CanonicalizeCalendar(calendar).

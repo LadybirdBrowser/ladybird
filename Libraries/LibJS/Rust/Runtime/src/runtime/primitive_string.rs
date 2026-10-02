@@ -21,8 +21,8 @@ use crate::runtime::error::ErrorKind;
 use crate::runtime::error_types::ErrorType;
 use crate::runtime::property_key::PropertyKey;
 use crate::utf16::{
-    MAX_SHORT_STRING_BYTE_COUNT, Utf16View, concatenate, has_fly_string_storage, has_short_ascii_storage,
-    to_utf16_fly_string,
+    MAX_SHORT_STRING_BYTE_COUNT, Utf16Display, Utf16StringBuilder, Utf16View, concatenate, has_fly_string_storage,
+    has_short_ascii_storage, to_utf16_fly_string,
 };
 
 define_cell!(PrimitiveString, PrimitiveString);
@@ -443,6 +443,12 @@ impl PartialEq for PrimitiveString {
 }
 
 impl Eq for PrimitiveString {}
+
+impl Utf16Display for Gc<PrimitiveString> {
+    fn fmt_utf16(&self, builder: &mut Utf16StringBuilder) {
+        builder.append(self.utf16_string_view());
+    }
+}
 
 impl RopeString {
     fn new(lhs: Gc<PrimitiveString>, rhs: Gc<PrimitiveString>) -> Self {

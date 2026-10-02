@@ -79,37 +79,23 @@ fn flag_for_code_unit(code_unit: u16) -> Option<RegExpFlags> {
         .map(|(flag, _)| *flag)
 }
 
-/// The message of `error_type` with its one placeholder replaced by `code_unit`, as Utf16String::formatted() formats a
-/// code unit of the flags into it.
-fn message_with_code_unit(error_type: ErrorType, code_unit: u16) -> Utf16String {
-    let (before, after) = error_type
-        .format()
-        .split_once("{}")
-        .expect("the message has a placeholder for the flag");
-    let mut builder = Utf16StringBuilder::new();
-    builder.append_ascii(before);
-    builder.append_code_unit(code_unit);
-    builder.append_ascii(after);
-    builder.to_utf16_string()
-}
-
 fn validate_flags(flags: Utf16View<'_>) -> Result<RegExpFlags, Utf16String> {
     let mut seen = [false; 128];
     let mut flag_bits = RegExpFlags::default();
 
     for code_unit in flags.code_units() {
         let Some(flag) = flag_for_code_unit(code_unit) else {
-            return Err(message_with_code_unit(ErrorType::RegExpObjectBadFlag, code_unit));
+            return Err(ErrorType::RegExpObjectBadFlag.message(&[&Utf16View::Utf16(&[code_unit])]));
         };
         if seen[code_unit as usize] {
-            return Err(message_with_code_unit(ErrorType::RegExpObjectRepeatedFlag, code_unit));
+            return Err(ErrorType::RegExpObjectRepeatedFlag.message(&[&Utf16View::Utf16(&[code_unit])]));
         }
         seen[code_unit as usize] = true;
         flag_bits.insert(flag);
     }
 
     if flag_bits.has(RegExpFlags::UNICODE) && flag_bits.has(RegExpFlags::UNICODE_SETS) {
-        return Err(Utf16String::from_utf8(&regexp_object_incompatible_flags('u', 'v')));
+        return Err(ErrorType::RegExpObjectIncompatibleFlags.message(&[&'u', &'v']));
     }
 
     Ok(flag_bits)

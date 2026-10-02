@@ -182,10 +182,7 @@ impl Intl {
         // 8. Else,
         else {
             // a. Throw a RangeError exception.
-            return vm.throw_completion_with_utf16_message(
-                ErrorKind::RangeError,
-                ErrorType::IntlInvalidKey.utf16_message(&[key_view]),
-            );
+            return vm.throw_completion(ErrorKind::RangeError, ErrorType::IntlInvalidKey, &[&key_view]);
         };
 
         // 9. Return CreateArrayFromList( list ).

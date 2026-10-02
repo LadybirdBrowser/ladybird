@@ -19,9 +19,8 @@ use crate::runtime::error::ErrorKind;
 use crate::runtime::error_types::ErrorType;
 use crate::runtime::property_key::PropertyKey;
 use crate::runtime::temporal::abstract_operations::{
-    DateType, MessageArgument, Overflow, ShowCalendar, Unit, ascii_view, epoch_days_to_epoch_ms,
-    iso_date_to_epoch_days, parse_temporal_calendar_string, to_integer_with_truncation, to_offset_string,
-    to_positive_integer_with_truncation,
+    DateType, Overflow, ShowCalendar, Unit, ascii_view, epoch_days_to_epoch_ms, iso_date_to_epoch_days,
+    parse_temporal_calendar_string, to_integer_with_truncation, to_offset_string, to_positive_integer_with_truncation,
 };
 use crate::runtime::temporal::date_equations::{
     epoch_time_for_year, epoch_time_to_day_in_year, epoch_time_to_week_day, mathematical_days_in_year,
@@ -510,9 +509,10 @@ fn calendar_for_unicode(calendar: Utf16View<'_>) -> String {
 
 pub fn canonicalize_calendar(vm: &Vm, id: Utf16View<'_>) -> ThrowCompletionOr<Utf16String> {
     if !id.is_ascii() {
-        return vm.throw_completion_with_utf16_message(
+        return vm.throw_completion(
             ErrorKind::RangeError,
-            ErrorType::TemporalInvalidCalendarIdentifier.utf16_message(&[id]),
+            ErrorType::TemporalInvalidCalendarIdentifier,
+            &[&id],
         );
     }
 
@@ -531,9 +531,10 @@ pub fn canonicalize_calendar(vm: &Vm, id: Utf16View<'_>) -> ThrowCompletionOr<Ut
         return Ok(canonical);
     }
 
-    vm.throw_completion_with_utf16_message(
+    vm.throw_completion(
         ErrorKind::RangeError,
-        ErrorType::TemporalInvalidCalendarIdentifier.utf16_message(&[id]),
+        ErrorType::TemporalInvalidCalendarIdentifier,
+        &[&id],
     )
 }
 
@@ -659,7 +660,7 @@ pub fn prepare_calendar_fields(
                         vm,
                         value,
                         ErrorType::TemporalInvalidCalendarFieldName,
-                        &[MessageArgument::PropertyKey(property)],
+                        &[property],
                     )?;
                     result.set_number_field(key, integer);
                 }
@@ -671,7 +672,7 @@ pub fn prepare_calendar_fields(
                         vm,
                         value,
                         ErrorType::TemporalInvalidCalendarFieldName,
-                        &[MessageArgument::PropertyKey(property)],
+                        &[property],
                     )?;
                     result.set_number_field(key, integer);
                 }

@@ -37,7 +37,6 @@ use crate::runtime::module::{
 use crate::runtime::module_entry::{ExportEntry, ExportEntryKind, ImportEntry};
 use crate::runtime::module_environment::ModuleEnvironment;
 use crate::runtime::module_request::ModuleRequest;
-use crate::runtime::object_environment::name_for_message;
 use crate::runtime::private_environment::PrivateEnvironment;
 use crate::runtime::promise_capability::PromiseCapability;
 use crate::runtime::shared_function_instance_data::{FunctionKind, SharedFunctionInstanceData};
@@ -397,7 +396,7 @@ impl SourceTextModule {
                 return vm.throw_completion(
                     ErrorKind::SyntaxError,
                     ErrorType::InvalidOrAmbiguousExportEntry,
-                    &[&name_for_message(&export_name)],
+                    &[&export_name],
                 );
             }
 
@@ -455,7 +454,7 @@ impl SourceTextModule {
                 return vm.throw_completion(
                     ErrorKind::SyntaxError,
                     ErrorType::InvalidOrAmbiguousExportEntry,
-                    &[&name_for_message(import_name)],
+                    &[import_name],
                 );
             }
 

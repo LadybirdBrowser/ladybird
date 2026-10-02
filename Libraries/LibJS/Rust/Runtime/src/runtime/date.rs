@@ -833,9 +833,10 @@ pub fn parse_date_time_utc_offset_or_throw(vm: &Vm, offset_string: Utf16View<'_>
     // 1. Let parseResult be ParseText(offsetString, UTCOffset[+SubMinutePrecision]).
     let Some(parse_result) = parse_utc_offset(offset_string, SubMinutePrecision::Yes) else {
         // 2. If parseResult is a List of errors, throw a RangeError exception.
-        return vm.throw_completion_with_utf16_message(
+        return vm.throw_completion(
             ErrorKind::RangeError,
-            ErrorType::TemporalInvalidTimeZoneString.utf16_message(&[offset_string]),
+            ErrorType::TemporalInvalidTimeZoneString,
+            &[&offset_string],
         );
     };
 

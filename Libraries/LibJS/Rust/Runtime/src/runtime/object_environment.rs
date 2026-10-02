@@ -21,7 +21,6 @@ use crate::runtime::error_types::ErrorType;
 use crate::runtime::object::ShouldThrowExceptions;
 use crate::runtime::property_descriptor::PropertyDescriptor;
 use crate::runtime::property_key::PropertyKey;
-use crate::utf16::Utf16View;
 
 /// Mirrors ObjectEnvironment::IsWithEnvironment.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -78,10 +77,6 @@ pub const OBJECT_ENVIRONMENT_METHODS: EnvironmentMethods = EnvironmentMethods {
     is_object_environment: true,
     ..ENVIRONMENT_METHODS
 };
-
-pub(crate) fn name_for_message(name: &Utf16FlyString) -> String {
-    Utf16View::of_fly_string(name).to_utf8()
-}
 
 impl ObjectEnvironment {
     /// The C++ constructor, which NewObjectEnvironment and NewGlobalEnvironment allocate through.
@@ -226,11 +221,7 @@ impl ObjectEnvironment {
 
         // 3. If stillExists is false and S is true, throw a ReferenceError exception.
         if !still_exists && strict {
-            return vm.throw_completion(
-                ErrorKind::ReferenceError,
-                ErrorType::UnknownIdentifier,
-                &[&name_for_message(name)],
-            );
+            return vm.throw_completion(ErrorKind::ReferenceError, ErrorType::UnknownIdentifier, &[name]);
         }
 
         // 4. Perform ? Set(bindingObject, N, V, S).
@@ -257,11 +248,7 @@ impl ObjectEnvironment {
             if let Some(property) = property
                 && !property.writable.unwrap_or(true)
             {
-                return vm.throw_completion(
-                    ErrorKind::TypeError,
-                    ErrorType::DescWriteNonWritable,
-                    &[&name_for_message(name)],
-                );
+                return vm.throw_completion(ErrorKind::TypeError, ErrorType::DescWriteNonWritable, &[name]);
             }
         }
 
@@ -294,11 +281,7 @@ impl ObjectEnvironment {
             if !strict {
                 return Ok(Value::UNDEFINED);
             }
-            return vm.throw_completion(
-                ErrorKind::ReferenceError,
-                ErrorType::UnknownIdentifier,
-                &[&name_for_message(name)],
-            );
+            return vm.throw_completion(ErrorKind::ReferenceError, ErrorType::UnknownIdentifier, &[name]);
         }
 
         // 4. Return ? Get(bindingObject, N).

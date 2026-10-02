@@ -1002,13 +1002,10 @@ fn throw_invalid_calendar<T>(
     calendar: &Utf16String,
     date_time_format_calendar: &Utf16String,
 ) -> ThrowCompletionOr<T> {
-    vm.throw_completion_with_utf16_message(
+    vm.throw_completion(
         ErrorKind::RangeError,
-        ErrorType::IntlTemporalInvalidCalendar.utf16_message(&[
-            Utf16View::Ascii(type_name.as_bytes()),
-            Utf16View::of_string(calendar),
-            Utf16View::of_string(date_time_format_calendar),
-        ]),
+        ErrorType::IntlTemporalInvalidCalendar,
+        &[&type_name, calendar, date_time_format_calendar],
     )
 }
 

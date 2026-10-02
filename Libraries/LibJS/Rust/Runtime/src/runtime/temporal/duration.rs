@@ -30,10 +30,10 @@ use crate::runtime::error_types::{AkDouble, ErrorType};
 use crate::runtime::intrinsics::Intrinsics;
 use crate::runtime::object::MayInterfereWithIndexedPropertyAccess;
 use crate::runtime::temporal::abstract_operations::{
-    ArithmeticOperation, Disambiguation, MessageArgument, Overflow, Precision, Sign, Unit, UnitCategory,
-    apply_unsigned_rounding_mode, format_fractional_seconds, get_unsigned_rounding_mode, is_calendar_unit,
-    larger_of_two_temporal_units, parse_temporal_duration_string, round_big_number_to_increment,
-    round_number_to_increment, temporal_unit_category, temporal_unit_length_in_nanoseconds,
+    ArithmeticOperation, Disambiguation, Overflow, Precision, Sign, Unit, UnitCategory, apply_unsigned_rounding_mode,
+    format_fractional_seconds, get_unsigned_rounding_mode, is_calendar_unit, larger_of_two_temporal_units,
+    parse_temporal_duration_string, round_big_number_to_increment, round_number_to_increment, temporal_unit_category,
+    temporal_unit_length_in_nanoseconds,
 };
 use crate::runtime::temporal::calendar::{calendar_date_add, calendar_date_until};
 use crate::runtime::temporal::instant::{
@@ -955,7 +955,7 @@ pub fn to_temporal_partial_duration_record(
                 vm,
                 value,
                 ErrorType::TemporalInvalidDurationPropertyValueNonIntegral,
-                &[MessageArgument::PropertyKey(property), MessageArgument::Value(value)],
+                &[property, &value],
             )?))
         };
     let names = &vm.names;

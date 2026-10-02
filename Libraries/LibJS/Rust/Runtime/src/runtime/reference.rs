@@ -19,7 +19,6 @@ use crate::runtime::error_types::ErrorType;
 use crate::runtime::object::{Object, PropertyLookupPhase, ShouldThrowExceptions};
 use crate::runtime::private_environment::PrivateName;
 use crate::runtime::property_key::PropertyKey;
-use crate::utf16::Utf16View;
 
 /// Mirrors Reference::BaseType.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -292,11 +291,7 @@ impl Reference {
         if self.is_private_reference() {
             return vm.throw_completion(ErrorKind::ReferenceError, ErrorType::ReferenceUnresolvable, &[]);
         }
-        vm.throw_completion(
-            ErrorKind::ReferenceError,
-            ErrorType::UnknownIdentifier,
-            &[&Utf16View::of_string(&self.name().to_utf16_string()).to_utf8()],
-        )
+        vm.throw_completion(ErrorKind::ReferenceError, ErrorType::UnknownIdentifier, &[self.name()])
     }
 
     // 6.2.4.5 GetValue ( V ), https://tc39.es/ecma262/#sec-getvalue

@@ -111,11 +111,7 @@ impl ZonedDateTimeConstructor {
 
         // 4. If timeZone is not a String, throw a TypeError exception.
         if !time_zone_value.is_string() {
-            let time_zone_value_string = time_zone_value.to_utf16_string_without_side_effects();
-            return vm.throw_completion_with_utf16_message(
-                ErrorKind::TypeError,
-                ErrorType::NotAString.utf16_message(&[Utf16View::of_string(&time_zone_value_string)]),
-            );
+            return vm.throw_completion(ErrorKind::TypeError, ErrorType::NotAString, &[&time_zone_value]);
         }
 
         // 5. Let timeZoneParse be ? ParseTimeZoneIdentifier(timeZone).
@@ -134,9 +130,10 @@ impl ZonedDateTimeConstructor {
 
                 // b. If identifierRecord is EMPTY, throw a RangeError exception.
                 let Some(identifier_record) = identifier_record else {
-                    return vm.throw_completion_with_utf16_message(
+                    return vm.throw_completion(
                         ErrorKind::RangeError,
-                        ErrorType::TemporalInvalidTimeZoneName.utf16_message(&[Utf16View::of_string(&name)]),
+                        ErrorType::TemporalInvalidTimeZoneName,
+                        &[&name],
                     );
                 };
 
@@ -157,11 +154,7 @@ impl ZonedDateTimeConstructor {
 
         // 9. If calendar is not a String, throw a TypeError exception.
         if !calendar_value.is_string() {
-            let calendar_value_string = calendar_value.to_utf16_string_without_side_effects();
-            return vm.throw_completion_with_utf16_message(
-                ErrorKind::TypeError,
-                ErrorType::NotAString.utf16_message(&[Utf16View::of_string(&calendar_value_string)]),
-            );
+            return vm.throw_completion(ErrorKind::TypeError, ErrorType::NotAString, &[&calendar_value]);
         }
 
         // 10. Set calendar to ? CanonicalizeCalendar(calendar).

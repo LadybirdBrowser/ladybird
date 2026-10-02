@@ -31,6 +31,7 @@ use crate::runtime::property_descriptor::{from_property_descriptor, to_property_
 use crate::runtime::property_key::PropertyKey;
 use crate::runtime::realm::Realm;
 use crate::runtime::value::same_value;
+use crate::utf16::utf16_formatted;
 
 #[repr(C)]
 #[derive(Trace)]
@@ -350,7 +351,7 @@ impl ObjectConstructor {
                 return vm.throw_completion(
                     ErrorKind::TypeError,
                     ErrorType::NotAnObject,
-                    &[&format!("Iterator value {iterator_value}")],
+                    &[&utf16_formatted("Iterator value {}", &[&iterator_value])],
                 );
             }
 

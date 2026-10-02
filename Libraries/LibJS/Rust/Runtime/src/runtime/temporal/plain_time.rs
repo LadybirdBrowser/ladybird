@@ -26,9 +26,9 @@ use crate::runtime::intrinsics::Intrinsics;
 use crate::runtime::object::MayInterfereWithIndexedPropertyAccess;
 use crate::runtime::property_key::PropertyKey;
 use crate::runtime::temporal::abstract_operations::{
-    ArithmeticOperation, DurationOperation, MessageArgument, Overflow, SecondsPrecision, Unit, UnitGroup,
-    format_time_string, get_difference_settings, get_temporal_overflow_option, parse_iso_date_time,
-    round_number_to_increment, temporal_unit_length_in_nanoseconds, to_integer_with_truncation,
+    ArithmeticOperation, DurationOperation, Overflow, SecondsPrecision, Unit, UnitGroup, format_time_string,
+    get_difference_settings, get_temporal_overflow_option, parse_iso_date_time, round_number_to_increment,
+    temporal_unit_length_in_nanoseconds, to_integer_with_truncation,
 };
 use crate::runtime::temporal::duration::{
     Duration, big_integer_from_double, combine_date_and_time_duration, create_negated_temporal_duration,
@@ -570,7 +570,7 @@ pub fn to_temporal_time_record(
             vm,
             field,
             ErrorType::TemporalInvalidTimeLikeField,
-            &[MessageArgument::Value(field), MessageArgument::PropertyKey(key)],
+            &[&field, key],
         )?);
         any = true;
 

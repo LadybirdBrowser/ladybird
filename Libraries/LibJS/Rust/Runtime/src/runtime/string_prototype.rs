@@ -801,11 +801,7 @@ impl StringPrototype {
         // 5. If f is not one of "NFC", "NFD", "NFKC", or "NFKD", throw a RangeError exception.
         let form_view = Utf16View::of_string(&form);
         if !["NFC", "NFD", "NFKC", "NFKD"].iter().any(|name| form_view == *name) {
-            return vm.throw_completion(
-                ErrorKind::RangeError,
-                ErrorType::InvalidNormalizationForm,
-                &[&form_view.to_utf8()],
-            );
+            return vm.throw_completion(ErrorKind::RangeError, ErrorType::InvalidNormalizationForm, &[&form]);
         }
 
         // 6. Let ns be the String value that is the result of normalizing S into the normalization form named by f as specified in https://unicode.org/reports/tr15/.

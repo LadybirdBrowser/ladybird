@@ -6,7 +6,6 @@
 
 //! Libraries/LibJS/Runtime/Value.cpp: the conversions and operators on values.
 
-use core::fmt;
 use core::ptr::NonNull;
 
 use ak::Utf16String;
@@ -42,7 +41,7 @@ use crate::runtime::string_object::StringObject;
 use crate::runtime::symbol::Symbol;
 use crate::runtime::symbol_object::SymbolObject;
 use crate::runtime::value_conversions::{self, string_to_number};
-use crate::utf16::{Utf16StringBuilder, Utf16View};
+use crate::utf16::{Utf16Display, Utf16StringBuilder, Utf16View};
 use libjs_abi::Builtin;
 use libjs_abi::value as nan_box;
 
@@ -2234,10 +2233,9 @@ pub fn is_less_than(vm: &Vm, lhs: Value, rhs: Value, left_first: bool) -> ThrowC
 }
 
 /// Formats a value the way AK formats a C++ JS::Value, without side effects.
-impl fmt::Display for Value {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let string = self.to_utf16_string_without_side_effects();
-        formatter.write_str(&Utf16View::of_string(&string).to_utf8())
+impl Utf16Display for Value {
+    fn fmt_utf16(&self, builder: &mut Utf16StringBuilder) {
+        builder.append(Utf16View::of_string(&self.to_utf16_string_without_side_effects()));
     }
 }
 

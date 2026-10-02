@@ -26,7 +26,6 @@ use crate::runtime::error::ErrorKind;
 use crate::runtime::error_types::ErrorType;
 use crate::runtime::global_environment::GlobalEnvironment;
 use crate::runtime::module_request::LoadedModuleRequest;
-use crate::runtime::object_environment::name_for_message;
 use crate::runtime::private_environment::PrivateEnvironment;
 use crate::runtime::shared_function_instance_data::SharedFunctionInstanceData;
 use crate::source_code::SourceCode;
@@ -264,7 +263,7 @@ impl Script {
                 return vm.throw_completion(
                     ErrorKind::SyntaxError,
                     ErrorType::TopLevelVariableAlreadyDeclared,
-                    &[&name_for_message(&name)],
+                    &[&name],
                 );
             }
 
@@ -273,11 +272,7 @@ impl Script {
 
             // d. If hasRestrictedGlobal is true, throw a SyntaxError exception.
             if has_restricted_global {
-                return vm.throw_completion(
-                    ErrorKind::SyntaxError,
-                    ErrorType::RestrictedGlobalProperty,
-                    &[&name_for_message(&name)],
-                );
+                return vm.throw_completion(ErrorKind::SyntaxError, ErrorType::RestrictedGlobalProperty, &[&name]);
             }
         }
 
@@ -288,7 +283,7 @@ impl Script {
                 return vm.throw_completion(
                     ErrorKind::SyntaxError,
                     ErrorType::TopLevelVariableAlreadyDeclared,
-                    &[&name_for_message(&name)],
+                    &[&name],
                 );
             }
         }
@@ -312,7 +307,7 @@ impl Script {
                 return vm.throw_completion(
                     ErrorKind::TypeError,
                     ErrorType::CannotDeclareGlobalFunction,
-                    &[&name_for_message(function_name)],
+                    &[function_name],
                 );
             }
         }
@@ -332,11 +327,7 @@ impl Script {
 
             // b. If vnDefinable is false, throw a TypeError exception.
             if !var_definable {
-                return vm.throw_completion(
-                    ErrorKind::TypeError,
-                    ErrorType::CannotDeclareGlobalVariable,
-                    &[&name_for_message(&name)],
-                );
+                return vm.throw_completion(ErrorKind::TypeError, ErrorType::CannotDeclareGlobalVariable, &[&name]);
             }
 
             // c. If vn is not an element of declaredVarNames, then

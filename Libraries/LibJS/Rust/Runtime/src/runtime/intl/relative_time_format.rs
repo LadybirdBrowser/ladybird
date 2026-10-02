@@ -190,7 +190,7 @@ pub fn singular_relative_time_unit(vm: &Vm, unit: Utf16View<'_>) -> ThrowComplet
     if let Some(time_unit) = unicode_relative_time_format::time_unit_from_string(unit) {
         return Ok(time_unit);
     }
-    vm.throw_completion_with_utf16_message(ErrorKind::RangeError, ErrorType::IntlInvalidUnit.utf16_message(&[unit]))
+    vm.throw_completion(ErrorKind::RangeError, ErrorType::IntlInvalidUnit, &[&unit])
 }
 
 /// The first steps of PartitionRelativeTimePattern, which FormatRelativeTime performs as well.

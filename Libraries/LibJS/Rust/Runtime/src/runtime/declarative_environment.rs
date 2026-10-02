@@ -32,7 +32,6 @@ use crate::runtime::environment_shape::{EnvironmentShape, EnvironmentShapeCache}
 use crate::runtime::error::ErrorKind;
 use crate::runtime::error_types::ErrorType;
 use crate::runtime::module_environment::ModuleEnvironment;
-use crate::utf16::Utf16View;
 
 /// Mirrors DeclarativeEnvironment::Binding.
 #[derive(Clone)]
@@ -216,10 +215,6 @@ pub const DECLARATIVE_ENVIRONMENT_METHODS: EnvironmentMethods = EnvironmentMetho
     is_catch_environment: |environment| declarative(environment).is_catch_environment(),
     ..ENVIRONMENT_METHODS
 };
-
-fn name_for_message(name: &Utf16FlyString) -> String {
-    Utf16View::of_fly_string(name).to_utf8()
-}
 
 impl DeclarativeEnvironment {
     const BINDING_FLAG_STRICT: u8 = EnvironmentShape::BINDING_FLAG_STRICT;
@@ -659,11 +654,7 @@ impl DeclarativeEnvironment {
         let Some(binding_and_index) = self.find_binding_and_index(name) else {
             // a. If S is true, throw a ReferenceError exception.
             if strict {
-                return vm.throw_completion(
-                    ErrorKind::ReferenceError,
-                    ErrorType::UnknownIdentifier,
-                    &[&name_for_message(name)],
-                );
+                return vm.throw_completion(ErrorKind::ReferenceError, ErrorType::UnknownIdentifier, &[name]);
             }
 
             // b. Perform ! envRec.CreateMutableBinding(N, true).
@@ -703,7 +694,7 @@ impl DeclarativeEnvironment {
             return vm.throw_completion(
                 ErrorKind::ReferenceError,
                 ErrorType::BindingNotInitialized,
-                &[&name_for_message(&self.binding_name(index))],
+                &[&self.binding_name(index)],
             );
         }
 
@@ -730,7 +721,7 @@ impl DeclarativeEnvironment {
             return vm.throw_completion(
                 ErrorKind::ReferenceError,
                 ErrorType::BindingNotInitialized,
-                &[&name_for_message(&binding.name)],
+                &[&binding.name],
             );
         }
 
@@ -764,7 +755,7 @@ impl DeclarativeEnvironment {
             return vm.throw_completion(
                 ErrorKind::ReferenceError,
                 ErrorType::BindingNotInitialized,
-                &[&name_for_message(&self.binding_name(index))],
+                &[&self.binding_name(index)],
             );
         }
 
@@ -782,7 +773,7 @@ impl DeclarativeEnvironment {
             return vm.throw_completion(
                 ErrorKind::ReferenceError,
                 ErrorType::BindingNotInitialized,
-                &[&name_for_message(&binding.name)],
+                &[&binding.name],
             );
         }
 

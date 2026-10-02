@@ -1221,7 +1221,7 @@ impl DatePrototype {
         } else if hint == "number" {
             PreferredType::Number
         } else {
-            return vm.throw_completion(ErrorKind::TypeError, ErrorType::InvalidHint, &[&hint.to_utf8()]);
+            return vm.throw_completion(ErrorKind::TypeError, ErrorType::InvalidHint, &[&hint_string]);
         };
         this_value.as_object().ordinary_to_primitive(vm, try_first)
     }

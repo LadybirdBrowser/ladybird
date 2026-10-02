@@ -6,7 +6,7 @@
 
 //! The slow paths for calls, function and class creation, and their helpers.
 
-use ak::ScopeGuard;
+use ak::{ScopeGuard, Utf16FlyString};
 use libjs_abi::{ArgumentsKind, Builtin, FunctionNamePrefix};
 
 use crate::bytecode::op;
@@ -42,7 +42,7 @@ use crate::runtime::property_attributes::DEFAULT_ATTRIBUTES;
 use crate::runtime::property_key::PropertyKey;
 use crate::runtime::shared_function_instance_data::{ConstructorKind, FunctionKind};
 use crate::runtime::string_constructor;
-use crate::utf16::Utf16View;
+use crate::utf16::Utf16Display;
 
 /// Op::CallType: how a call instruction calls its callee.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -73,9 +73,9 @@ fn caller_mode_of(strict: Strict) -> CallerMode {
     }
 }
 
-/// Executable::get_string(), as the UTF-8 the error messages are formatted in.
-fn get_string(vm: &Vm, index: StringTableIndex) -> String {
-    Utf16View::of_fly_string(&vm.current_executable().string_table[index.0 as usize]).to_utf8()
+/// Executable::get_string().
+fn get_string(vm: &Vm, index: StringTableIndex) -> Utf16FlyString {
+    vm.current_executable().string_table[index.0 as usize].clone()
 }
 
 /// Value::as_array_exotic_object(): the arguments the bytecode collected into an Array for a call.
@@ -92,7 +92,7 @@ fn throw_error(
     pc: u32,
     kind: ErrorKind,
     error_type: ErrorType,
-    arguments: &[&dyn core::fmt::Display],
+    arguments: &[&dyn Utf16Display],
 ) -> SlowPathControl {
     match vm.throw_completion::<()>(kind, error_type, arguments) {
         Err(throw) => handle_asm_exception(vm, pc, throw.value()),

@@ -261,10 +261,10 @@ pub fn to_temporal_time_zone_identifier(vm: &Vm, temporal_time_zone_like: Value)
 
     // 2. If temporalTimeZoneLike is not a String, throw a TypeError exception.
     if !temporal_time_zone_like.is_string() {
-        let temporal_time_zone_like = temporal_time_zone_like.to_utf16_string_without_side_effects();
-        return vm.throw_completion_with_utf16_message(
+        return vm.throw_completion(
             ErrorKind::TypeError,
-            ErrorType::TemporalInvalidTimeZoneName.utf16_message(&[Utf16View::of_string(&temporal_time_zone_like)]),
+            ErrorType::TemporalInvalidTimeZoneName,
+            &[&temporal_time_zone_like],
         );
     }
 
@@ -299,9 +299,10 @@ pub fn to_temporal_time_zone_identifier_from_string(
 
     // 8. If timeZoneIdentifierRecord is empty, throw a RangeError exception.
     let Some(time_zone_identifier_record) = time_zone_identifier_record else {
-        return vm.throw_completion_with_utf16_message(
+        return vm.throw_completion(
             ErrorKind::RangeError,
-            ErrorType::TemporalInvalidTimeZoneName.utf16_message(&[temporal_time_zone_like]),
+            ErrorType::TemporalInvalidTimeZoneName,
+            &[&temporal_time_zone_like],
         );
     };
 
@@ -645,9 +646,10 @@ pub fn parse_time_zone_identifier_or_throw(
 
     // 2. If parseResult is a List of errors, throw a RangeError exception.
     let Some(parse_result) = parse_result else {
-        return vm.throw_completion_with_utf16_message(
+        return vm.throw_completion(
             ErrorKind::RangeError,
-            ErrorType::TemporalInvalidTimeZoneString.utf16_message(&[identifier]),
+            ErrorType::TemporalInvalidTimeZoneString,
+            &[&identifier],
         );
     };
 

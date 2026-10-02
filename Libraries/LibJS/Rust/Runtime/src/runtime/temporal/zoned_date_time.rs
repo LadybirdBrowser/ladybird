@@ -362,10 +362,10 @@ pub fn to_temporal_zoned_date_time(vm: &Vm, item: Value, options: Value) -> Thro
     else {
         // a. If item is not a String, throw a TypeError exception.
         if !item.is_string() {
-            let item_string = item.to_utf16_string_without_side_effects();
-            return vm.throw_completion_with_utf16_message(
+            return vm.throw_completion(
                 ErrorKind::TypeError,
-                ErrorType::TemporalInvalidZonedDateTimeString.utf16_message(&[Utf16View::of_string(&item_string)]),
+                ErrorType::TemporalInvalidZonedDateTimeString,
+                &[&item],
             );
         }
 

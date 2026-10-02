@@ -23,6 +23,7 @@ use crate::runtime::property_attributes::{Attribute, PropertyAttributes};
 use crate::runtime::property_key::PropertyKey;
 use crate::runtime::realm::Realm;
 use crate::runtime::weak_map::WeakMap;
+use crate::utf16::utf16_formatted;
 
 #[repr(C)]
 #[derive(Trace)]
@@ -118,7 +119,7 @@ impl WeakMapConstructor {
             vm.throw_completion(
                 ErrorKind::TypeError,
                 ErrorType::NotAnObject,
-                &[&format!("Iterator value {iterator_value}")],
+                &[&utf16_formatted("Iterator value {}", &[&iterator_value])],
             )
         };
         get_iterator_values(vm, iterable, |iterator_value| {

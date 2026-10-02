@@ -1689,8 +1689,13 @@ impl Vm {
             return;
         }
 
-        let module_not_found =
-            || vm.throw_completion(ErrorKind::SyntaxError, ErrorType::ModuleNotFound, &[&module_specifier]);
+        let module_not_found = || {
+            vm.throw_completion(
+                ErrorKind::SyntaxError,
+                ErrorType::ModuleNotFound,
+                &[&module_request.module_specifier],
+            )
+        };
 
         let Ok(mut file) = std::fs::File::open(&filename) else {
             finish_loading_imported_module(vm, referrer, module_request, payload, module_not_found());
