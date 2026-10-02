@@ -400,19 +400,6 @@ fn prepare_for_rendering(
     }
 }
 
-/// # Safety
-///
-/// `arena` must be a live arena used on the document thread.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_scrollable_overflow_recalculation_count(arena: *mut c_void, reset: bool) -> u64 {
-    let state = &unsafe { arena_from_handle(arena) }.scrollable_overflow;
-    if reset {
-        state.recalculations.replace(0)
-    } else {
-        state.recalculations.get()
-    }
-}
-
 #[derive(Default)]
 #[repr(C)]
 pub struct FfiOptionalOverflowData {
@@ -535,16 +522,6 @@ pub unsafe extern "C" fn layout_arena_visual_context_request_full_rebuild(
         }
     };
     arena.request_full_visual_context_rebuild(reason);
-}
-
-/// # Safety
-///
-/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_visual_context_pending_dirty_box_count(arena: *mut c_void) -> usize {
-    let arena = unsafe { arena_from_handle(arena) };
-    let paint_state = arena.paint_state().borrow();
-    paint_state.visual_context.dirty_boxes.boxes.len()
 }
 
 /// # Safety
@@ -1288,25 +1265,6 @@ pub unsafe extern "C" fn layout_arena_paintable_first_fragment_rect_for_node(
         break;
     }
     result
-}
-
-/// # Safety
-///
-/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread;
-/// `consume` copies the byte span synchronously.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_stacking_context_structure_verification_report(
-    arena: *mut c_void,
-    viewport: NodeSlotId,
-    context: *mut c_void,
-    consume: unsafe extern "C" fn(*mut c_void, *const u8, usize),
-) {
-    let arena = unsafe { arena_from_handle(arena) };
-    let report = crate::painting::stacking_context::verify::verification_report(arena, viewport);
-    if !report.is_empty() {
-        // SAFETY: The consumer copies the byte span synchronously.
-        unsafe { consume(context, report.as_ptr(), report.len()) };
-    }
 }
 
 /// # Safety

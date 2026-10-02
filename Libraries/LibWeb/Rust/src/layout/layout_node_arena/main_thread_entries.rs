@@ -19,30 +19,6 @@ const MAIN_THREAD_FFI_ENTRY: MainThreadFfiEntry = MainThreadFfiEntry { _private:
 
 /// # Safety
 ///
-/// The arena must remain valid for the duration of the call.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_pre_order_label_violation_count(arena: *mut c_void, root: NodeSlotId) -> u64 {
-    assert!(!arena.is_null(), "layout node arena handle is null");
-    // SAFETY: The C++ wrapper keeps the arena alive for this call and
-    // serializes all access on the document thread.
-    let arena = unsafe { &*arena.cast::<LayoutNodeArena>() };
-    if !arena.slot_is_live(root) {
-        return 0;
-    }
-    let mut violation_count = 0u64;
-    let mut previous_label: Option<u64> = None;
-    arena.for_each_node_in_layout_subtree_in_pre_order(root, |node| {
-        let label = arena.node_pre_order_label(node);
-        if previous_label.is_some_and(|previous| label <= previous) {
-            violation_count += 1;
-        }
-        previous_label = Some(label);
-    });
-    violation_count
-}
-
-/// # Safety
-///
 /// The arena must remain valid for the duration of the call. `id` may be
 /// invalid or stale; null is returned in that case.
 #[unsafe(no_mangle)]

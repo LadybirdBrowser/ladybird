@@ -185,20 +185,20 @@ u64 Internals::visual_context_pending_dirty_box_count()
     auto& document = window().associated_document();
     if (!document.has_committed_viewport_box())
         return 0;
-    return Layout::RustFFI::layout_arena_visual_context_pending_dirty_box_count(document.layout_node_arena().handle());
+    return Layout::RustFFI::render_state_visual_context_pending_dirty_box_count(document.layout_node_arena().host());
 }
 
 u64 Internals::layout_tree_pre_order_label_violation_count()
 {
     auto& document = window().associated_document();
-    return Layout::RustFFI::layout_arena_pre_order_label_violation_count(
-        document.layout_node_arena().handle(), Painting::viewport_row_slot(document));
+    return Layout::RustFFI::render_state_pre_order_label_violation_count(
+        document.layout_node_arena().host(), Painting::viewport_row_slot(document));
 }
 
 u64 Internals::layout_tree_pre_order_relabel_count()
 {
     auto& document = window().associated_document();
-    return Layout::RustFFI::layout_arena_pre_order_relabel_count(document.layout_node_arena().handle());
+    return Layout::RustFFI::render_state_layout_counts(document.layout_node_arena().host()).pre_order_relabels;
 }
 
 u64 Internals::visual_context_tree_node_count()
@@ -1226,8 +1226,8 @@ Utf16String Internals::stacking_context_structure_verification_report()
         return {};
     document.update_paint_and_hit_testing_properties_if_needed();
     StringBuilder builder;
-    Layout::RustFFI::layout_arena_stacking_context_structure_verification_report(
-        document.layout_node_arena().handle(), Painting::viewport_row_slot(document), &builder,
+    Layout::RustFFI::render_state_stacking_context_structure_verification_report(
+        document.layout_node_arena().host(), Painting::viewport_row_slot(document), &builder,
         [](void* context, u8 const* bytes, size_t byte_count) {
             static_cast<StringBuilder*>(context)->append(StringView { bytes, byte_count });
         });
@@ -1634,10 +1634,10 @@ void Internals::request_reentrant_animation_style_flush_for_testing(GC::Ref<DOM:
 GC::Ref<JS::Object> Internals::layout_tree_build_stats()
 {
     auto object = JS::Object::create(window().principal_realm(), nullptr);
-    auto const& stats = window().associated_document().layout_tree_build_stats();
-    object->define_direct_property("builds"_utf16_fly_string, JS::Value(stats.builds), JS::default_attributes);
-    object->define_direct_property("lastBuildRebuiltSubtreeRoots"_utf16_fly_string, JS::Value(stats.last_build_rebuilt_subtree_roots), JS::default_attributes);
-    object->define_direct_property("lastBuildEscapedRebuildRoots"_utf16_fly_string, JS::Value(stats.last_build_escaped_rebuild_roots), JS::default_attributes);
+    auto counts = window().associated_document().layout_counts();
+    object->define_direct_property("builds"_utf16_fly_string, JS::Value(counts.tree_builds), JS::default_attributes);
+    object->define_direct_property("lastBuildRebuiltSubtreeRoots"_utf16_fly_string, JS::Value(counts.last_tree_build_rebuilt_subtree_roots), JS::default_attributes);
+    object->define_direct_property("lastBuildEscapedRebuildRoots"_utf16_fly_string, JS::Value(counts.last_tree_build_escaped_rebuild_roots), JS::default_attributes);
     return object;
 }
 
@@ -1750,7 +1750,7 @@ u64 Internals::layout_arena_live_slot_count()
 {
     auto& document = window().associated_document();
     document.update_layout(DOM::UpdateLayoutReason::Debugging);
-    return Layout::RustFFI::layout_arena_live_slot_count(document.layout_node_arena().handle());
+    return Layout::RustFFI::render_state_layout_counts(document.layout_node_arena().host()).live_slots;
 }
 
 void Internals::panic_render_state_for_testing()
@@ -1762,7 +1762,7 @@ u64 Internals::layout_arena_shell_count()
 {
     auto& document = window().associated_document();
     document.update_layout(DOM::UpdateLayoutReason::Debugging);
-    return Layout::RustFFI::layout_arena_shell_count(document.layout_node_arena().handle());
+    return Layout::RustFFI::render_state_shell_count(document.layout_node_arena().host());
 }
 
 GC::Ref<JS::Object> Internals::style_engine_transaction_reactions()
@@ -2325,7 +2325,7 @@ GC::Ref<JS::Object> Internals::style_invalidation_counters_object() const
     object->define_direct_property("customPropertyCycleParticipants"_utf16_fly_string, JS::Value(counters.custom_property_cycle_participants), JS::default_attributes);
     object->define_direct_property("styleCascadeMicroseconds"_utf16_fly_string, JS::Value(counters.style_cascade_microseconds), JS::default_attributes);
     object->define_direct_property("styleValuesMicroseconds"_utf16_fly_string, JS::Value(counters.style_values_microseconds), JS::default_attributes);
-    object->define_direct_property("scrollableOverflowRecalculations"_utf16_fly_string, JS::Value(Layout::RustFFI::layout_arena_scrollable_overflow_recalculation_count(document.layout_node_arena().handle(), false)), JS::default_attributes);
+    object->define_direct_property("scrollableOverflowRecalculations"_utf16_fly_string, JS::Value(Layout::RustFFI::render_state_scrollable_overflow_recalculation_count(document.layout_node_arena().host(), false)), JS::default_attributes);
     return object;
 }
 

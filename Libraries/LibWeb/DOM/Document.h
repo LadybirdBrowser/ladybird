@@ -1195,7 +1195,7 @@ public:
 
     // Confinement report of the most recent layout tree build, for tests observing whether a
     // partial rebuild stayed inside its rebuilt subtrees.
-    [[nodiscard]] Layout::RustFFI::FfiLayoutTreeBuildStats layout_tree_build_stats() const;
+    [[nodiscard]] Layout::RustFFI::FfiLayoutCounts layout_counts() const;
 
     enum class AccumulatedVisualContextUpdateScope : u8 {
         Values,
