@@ -152,6 +152,9 @@ pub(super) struct CustomPropertyEnvironments {
     /// What inputs resolved to which environment, so an element alike in its inputs takes the
     /// environment an earlier one got.
     memo: HashMap<EnvironmentInputs, MemoizedEnvironment>,
+    /// The environment an animation overlay's values laid over another base make, by the overlay
+    /// and that base.
+    overlays_moved: HashMap<(u64, u64), u64>,
     minted: u64,
     /// What a written value substitutes to for a property under an environment, by the written
     /// value's identity: the same declaration under the same environment substitutes alike.
@@ -241,6 +244,29 @@ impl CustomPropertyEnvironments {
         }
         unsafe { self.retain(inheritable, store) };
         self.inheritable.insert(identity, inheritable);
+    }
+
+    /// The values `overlay`, an element's animation overlay, sampled over another environment, laid
+    /// over `base`, which the element's declarations resolve to now.
+    pub(super) fn overlay_moved_over(&mut self, overlay: u64, base: u64) -> u64 {
+        if let Some(&identity) = self.overlays_moved.get(&(overlay, base)) {
+            return identity;
+        }
+        let overlay_store = self.store(overlay);
+        debug_assert!(overlay_store.is_some(), "an element's overlay was noted with its store");
+        let Some(overlay_store) = overlay_store else {
+            return base;
+        };
+        // SAFETY: The stores are live while the identities naming them are.
+        let store = unsafe {
+            CustomPropertyStore::animated_values_over(
+                &*overlay_store.cast::<CustomPropertyStore>(),
+                self.store(base).map(|store| &*store.cast::<CustomPropertyStore>()),
+            )
+        };
+        let identity = self.mint(Arc::into_raw(Arc::new(store)).cast(), base);
+        self.overlays_moved.insert((overlay, base), identity);
+        identity
     }
 
     /// The environment a child inherits from `identity`.
@@ -405,6 +431,8 @@ impl CustomPropertyEnvironments {
         });
         self.substitutions
             .retain(|&(_, _, environment), _| environment == 0 || is_live(environment));
+        self.overlays_moved
+            .retain(|&(overlay, base), &mut moved| is_live(overlay) && (base == 0 || is_live(base)) && is_live(moved));
         self.handed_down = handed_down;
     }
 
@@ -415,6 +443,7 @@ impl CustomPropertyEnvironments {
             + self.handed_down.capacity() * size_of::<u64>()
             + self.reads_viewport.capacity() * size_of::<u64>()
             + self.memo.capacity() * (size_of::<EnvironmentInputs>() + size_of::<MemoizedEnvironment>())
+            + self.overlays_moved.capacity() * 3 * size_of::<u64>()
             + self.substitutions.capacity() * (size_of::<(usize, u16, u64)>() + size_of::<MemoizedSubstitution>())
             + self.names.capacity() * (size_of::<StyleAtomID>() + size_of::<CustomPropertyName>())) as u64
             + self.nested_capacity_bytes

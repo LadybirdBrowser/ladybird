@@ -1000,13 +1000,19 @@ void StyleEngine::set_element_custom_property_data(DOM::Element const& element, 
     // whether what the element's style resolves to declares custom properties of its own.
     bool const is_animation_overlay = data && data->is_animation_overlay_for({ element });
     auto const* base = is_animation_overlay ? data->parent().ptr() : data;
-    // What the element's children inherit, which the engine resolves their environments over.
-    if (base) {
-        auto inheritable = base->inheritable(element.document());
-        StyleEngineFFI::style_engine_note_custom_property_environment(m_impl, base->identity(), base->rust_store(),
+    // The engine resolves the children's environments over what the element hands down, and substitutes the
+    // element's own values under what its animations sampled, laid over what its style resolves to.
+    auto note = [&](CustomPropertyData const& environment) {
+        auto inheritable = environment.inheritable(element.document());
+        StyleEngineFFI::style_engine_note_custom_property_environment(m_impl, environment.identity(), environment.rust_store(),
             inheritable ? inheritable->identity() : 0, inheritable ? inheritable->rust_store() : nullptr);
-    }
-    StyleEngineFFI::style_engine_set_element_custom_property_data(m_render_document->host(), element.style_node_id().value(), data, data ? data->identity() : 0, is_animation_overlay, base && base->declared_count() > 0);
+    };
+    if (base)
+        note(*base);
+    if (is_animation_overlay)
+        note(*data);
+    StyleEngineFFI::style_engine_set_element_custom_property_data(m_render_document->host(), element.style_node_id().value(), data, data ? data->identity() : 0, is_animation_overlay, base && base->declared_count() > 0,
+        base ? base->identity() : 0);
 }
 
 CustomPropertyData const* StyleEngine::element_custom_property_data(StyleNodeID node) const

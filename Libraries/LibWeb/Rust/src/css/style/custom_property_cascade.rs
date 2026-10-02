@@ -702,6 +702,29 @@ impl RetainedState {
         self.program.any_rule_declares_custom_properties() || self.facts.any_element_declares_custom_properties()
     }
 
+    /// The environment the element's own values substitute under: `own`, the one its declarations
+    /// resolve to, with what its animations sampled into its custom properties laid over it.
+    pub(super) fn sampled_custom_property_environment(&mut self, node: StyleNodeID, own: u64) -> u64 {
+        let Some((overlay, sampled_over)) = self
+            .element_custom_property_data
+            .get(&node)
+            .and_then(|held| Some((held.identity, held.sampled_over?)))
+        else {
+            return own;
+        };
+        if sampled_over == own {
+            return overlay;
+        }
+        self.custom_property_environments.overlay_moved_over(overlay, own)
+    }
+
+    /// Whether the element's animations sample custom properties, which its own values read.
+    pub(super) fn element_samples_custom_properties(&self, node: StyleNodeID) -> bool {
+        self.element_custom_property_data
+            .get(&node)
+            .is_some_and(|held| held.sampled_over.is_some())
+    }
+
     pub(super) fn node_declares_custom_properties(&self, node: StyleNodeID) -> bool {
         if !self.any_custom_property_is_declared() {
             return false;

@@ -1493,7 +1493,7 @@ pub fn style_engine_create_for_replay(device_class: FfiDeviceClass) -> StyleEngi
 
 /// Keeps the store behind an environment an element holds, and what a child inherits of it,
 /// `inheritable` with its store: the engine resolves the environments of an element's children
-/// over it.
+/// over it, and substitutes the element's own values under an animation overlay.
 ///
 /// # Safety
 /// `engine` must be live, and `store` and `inheritable_store` null or live raw `Arc` pointers to

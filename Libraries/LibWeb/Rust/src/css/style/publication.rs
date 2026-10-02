@@ -151,23 +151,31 @@ impl RetainedState {
     /// The custom-property environment of a node the drive reads as an inheritance parent, which
     /// holds a record. Every record is assigned with its environment, so it holds one; should it
     /// not, the row waits for the parent as for one without a record.
+    ///
+    /// What the node's animations sampled into its custom properties is what it hands down, over
+    /// the record's environment. The host lays the samples over a record as it installs it, so a
+    /// child of a record moved beneath them waits for the parent.
     fn held_custom_property_environment(&self, node: StyleNodeID, counters: &mut Counters) -> Drive<u64> {
-        // What the node's animations sampled into its custom properties is an environment the host
-        // made over the record's, which the engine holds no store for.
-        if self
-            .element_custom_property_data
-            .get(&node)
-            .is_some_and(|held| held.is_animation_overlay)
-        {
-            counters.bump(Counter::EngineComputedRecordBailCustomProperties);
-            return Err(Unanswered::Refused);
-        }
         let environment = self.computed_group_sets.custom_property_environment_identity(node);
         debug_assert!(environment.is_some(), "an inheritance parent without an environment");
-        environment.ok_or_else(|| {
+        let Some(environment) = environment else {
             counters.bump(Counter::EngineComputedRecordBailRecordParent);
-            Unanswered::AwaitsParent
-        })
+            return Err(Unanswered::AwaitsParent);
+        };
+        let Some(held) = self
+            .element_custom_property_data
+            .get(&node)
+            .filter(|held| held.sampled_over.is_some())
+        else {
+            return Ok(environment);
+        };
+        // The record names the overlay once the host composed the samples into it, or the
+        // environment beneath them before.
+        if environment == held.identity || held.sampled_over == Some(environment) {
+            Ok(held.identity)
+        } else {
+            Err(Unanswered::AwaitsParent)
+        }
     }
 
     fn shared_style_record_key(
@@ -642,10 +650,7 @@ impl RetainedState {
         let composes_animations = underlying_style_record != old_style_record;
         // The custom properties an element's animations sample are what its own `var()` references
         // read, which a record derived from the environment beneath them would miss.
-        let samples_custom_properties = self
-            .element_custom_property_data
-            .get(&node)
-            .is_some_and(|held| held.is_animation_overlay);
+        let samples_custom_properties = self.element_samples_custom_properties(node);
         if (composes_animations && !scratch.host_applies_animation_plans) || samples_custom_properties {
             counters.bump(Counter::EngineComputedRecordBailRecordOverlay);
             return Err(Unanswered::Refused);
@@ -3068,7 +3073,8 @@ impl RetainedState {
     /// media features and the element's lengths through `if()`, or the `@function` definitions
     /// through a custom function call. What such a state substitutes to is the element's alone,
     /// as is what a state computes to whose winners draw a random base value for the element or
-    /// resolve a container-relative length against the element's query containers.
+    /// resolve a container-relative length against the element's query containers, or substitute
+    /// under the custom properties the element's animations sample.
     pub(super) fn state_reads_beyond_environment(&self, node: StyleNodeID, state: CascadeStateID) -> bool {
         self.state_reads(node, state)
             & (cascade::STATE_READS_ATTRIBUTES
@@ -3078,6 +3084,7 @@ impl RetainedState {
                 | cascade::STATE_READS_ELEMENT_RANDOM_BASE
                 | cascade::STATE_READS_CONTAINER_UNITS)
             != 0
+            || (self.element_samples_custom_properties(node) && self.state_has_substitutions(node, state))
     }
 
     /// Whether a record holds a value resolved against the viewport, its own or its font's, which
@@ -3260,6 +3267,14 @@ impl RetainedState {
             Ok(())
         };
         crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::WinnerStoreBuilds);
+        // An element's own values read what its animations sampled into its custom properties.
+        let environment = match pseudo_kind {
+            None => custom_property_cascade::SubstitutionEnvironment {
+                own: self.sampled_custom_property_environment(node, environment.own),
+                ..environment
+            },
+            Some(_) => environment,
+        };
         // Seeded in cascade order, and within one rule in declaration order, since a logical
         // property and its physical associate resolve by order of appearance.
         let mut declarations = Vec::with_capacity(self.winner_groups.winner_count_in_state(state));
@@ -4797,10 +4812,17 @@ impl StyleEngineState {
         {
             counters.set(Counter::ComputedGroupsRetained, retention.retained as u64);
             counters.set(Counter::ComputedGroupsReachable, retention.reachable as u64);
+            // An element's animation overlay is named by no record, only by the element holding it.
             let live: super::fast_hash::FastSet<u64> = self
                 .retained
                 .computed_group_sets
                 .live_custom_property_environments()
+                .chain(
+                    self.retained
+                        .element_custom_property_data
+                        .values()
+                        .map(|held| held.identity),
+                )
                 .collect();
             self.retained
                 .custom_property_environments

@@ -580,6 +580,46 @@ fn random_base_values_for_registered_value(
 }
 
 impl CustomPropertyStore {
+    /// An element's animated custom property values laid over its own environment, `base`.
+    fn animation_overlay(
+        animated: impl ExactSizeIterator<Item = (usize, CustomPropertyEntry)>,
+        base: Option<&Self>,
+    ) -> Self {
+        let (mut own_values, mut own_names, parent, inheritance_parent, ancestor_count) = match base {
+            Some(base) => (
+                base.own_values.clone(),
+                base.own_names.clone(),
+                base.parent.clone(),
+                base.inheritance_parent.clone(),
+                base.ancestor_count,
+            ),
+            None => (HashMap::new(), HashMap::new(), None, None, 0),
+        };
+        let mut declared_names = Vec::with_capacity(animated.len());
+        for (name_raw, entry) in animated {
+            declared_names.push(name_raw);
+            own_names.insert(entry.name.clone(), name_raw);
+            own_values.insert(name_raw, entry);
+        }
+        Self {
+            own_values,
+            declared_names,
+            own_names,
+            ancestor_count,
+            parent,
+            inheritance_parent,
+        }
+    }
+
+    /// The values `overlay`, an animation overlay, laid over its base, laid over `base` instead.
+    pub(crate) fn animated_values_over(overlay: &Self, base: Option<&Self>) -> Self {
+        let animated = overlay
+            .declared_names
+            .iter()
+            .map(|name_raw| (*name_raw, overlay.own_values[name_raw].clone()));
+        Self::animation_overlay(animated, base)
+    }
+
     /// The store this one's chain goes on in, which may skip the environment it inherits from
     /// once that one's few values were absorbed into this one.
     pub(crate) fn parent(&self) -> Option<&Arc<CustomPropertyStore>> {
@@ -3857,30 +3897,12 @@ pub unsafe extern "C" fn rust_custom_property_store_create_animation_overlay(
     } else {
         unsafe { std::slice::from_raw_parts(entries, entry_count) }
     };
-    let base = if base.is_null() {
-        None
-    } else {
-        let base = base.cast::<CustomPropertyStore>();
-        Some(unsafe { &*base })
-    };
-    let (mut own_values, mut own_names, parent, inheritance_parent, ancestor_count) = match base {
-        Some(base) => (
-            base.own_values.clone(),
-            base.own_names.clone(),
-            base.parent.clone(),
-            base.inheritance_parent.clone(),
-            base.ancestor_count,
-        ),
-        None => (HashMap::new(), HashMap::new(), None, None, 0),
-    };
-    let mut declared_names = Vec::with_capacity(entries.len());
-    for entry in entries {
+    let base = unsafe { base.cast::<CustomPropertyStore>().as_ref() };
+    let animated = entries.iter().map(|entry| {
         let name: Arc<[u16]> = unsafe { entry.name.to_utf16() }
             .expect("invalid custom property name")
             .into();
-        declared_names.push(entry.name_raw);
-        own_names.insert(name.clone(), entry.name_raw);
-        own_values.insert(
+        (
             entry.name_raw,
             CustomPropertyEntry {
                 _name: unsafe { RetainedUtf16FlyString::from_leaked_raw(entry.name_raw) },
@@ -3888,17 +3910,9 @@ pub unsafe extern "C" fn rust_custom_property_store_create_animation_overlay(
                 value: unsafe { RetainedStyleValueData::from_retained_pointer(entry.data.cast()) },
                 important: entry.important,
             },
-        );
-    }
-    Arc::into_raw(Arc::new(CustomPropertyStore {
-        own_values,
-        declared_names,
-        own_names,
-        ancestor_count,
-        parent,
-        inheritance_parent,
-    }))
-    .cast()
+        )
+    });
+    Arc::into_raw(Arc::new(CustomPropertyStore::animation_overlay(animated, base))).cast()
 }
 
 /// Releases one store reference returned by `rust_custom_property_store_create`.
