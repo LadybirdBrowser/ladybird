@@ -958,7 +958,11 @@ public:
 
         // 9. Run the resource fetch algorithm with urlRecord. If that algorithm returns without aborting this one, then
         //    the load failed.
-        m_media_element->load_url_resource(*url_record, [self = GC::make_root(this)](auto const&) { self->failed_with_elements(); });
+        // NB: The callback holds the selector weakly — so a fetch that outlives the selection doesn't keep the element
+        // and its whole document alive. The element itself holds the selector until on_metadata_parsed(), and that's as
+        // long as the callback can run: Once readyState is past HAVE_NOTHING, every failure takes the media data
+        // processing steps instead (MEDIA_ERR_NETWORK or MEDIA_ERR_DECODE). Gecko/WebKit/Blink do so too.
+        m_media_element->load_url_resource(*url_record, GC::weak_callback(*this, [](auto& self, auto const&) { self.failed_with_elements(); }));
     }
 
     void process_next_candidate()
