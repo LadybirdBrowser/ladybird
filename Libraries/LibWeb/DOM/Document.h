@@ -1228,6 +1228,12 @@ public:
     void set_may_have_scroll_snap_areas() { m_may_have_scroll_snap_areas = true; }
     [[nodiscard]] bool may_have_scroll_snap_areas() const { return m_may_have_scroll_snap_areas; }
 
+    // Whether a node in this document has ever carried a blocking wheel event listener. It never
+    // goes back to false: a node that stopped carrying one still has descendants whose inherited
+    // state has to be derived when they move.
+    void set_may_have_blocking_wheel_event_listener() { m_may_have_blocking_wheel_event_listener = true; }
+    [[nodiscard]] bool may_have_blocking_wheel_event_listener() const { return m_may_have_blocking_wheel_event_listener; }
+
     void register_scroll_snap_container(Layout::Node const&);
     [[nodiscard]] Vector<Compositing::RustFFI::NodeSlotId> collect_scroll_snap_containers();
 
@@ -1982,6 +1988,7 @@ private:
     Vector<Compositing::RustFFI::NodeSlotId> m_scroll_snap_containers;
     bool m_needs_scroll_container_resnap { false };
     bool m_may_have_scroll_snap_areas { false };
+    bool m_may_have_blocking_wheel_event_listener { false };
 
     HashTable<GC::Ref<Element>> m_list_owners_pending_item_renumber;
     HashTable<GC::Ref<Element>> m_list_owners_with_stale_item_counters;
