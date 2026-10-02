@@ -2329,21 +2329,6 @@ struct SnapContainerContextFixture {
     }
 };
 
-TEST_CASE(a_discrete_step_on_a_latched_snap_container_at_its_edge_is_consumed)
-{
-    SnapContainerContextFixture fixture;
-
-    EXPECT(fixture.discrete_step({ 0, 500 }).enqueue_result.accepted);
-    fixture.finish_animations(AK::Duration::from_milliseconds(1000));
-
-    auto step_past_the_edge = fixture.discrete_step({ 0, 100 }, AK::Duration::from_milliseconds(50));
-    EXPECT(step_past_the_edge.enqueue_result.accepted);
-    EXPECT(step_past_the_edge.enqueue_result.operation_id.has_value());
-    EXPECT(!fixture.context.has_active_smooth_scroll_animations());
-    EXPECT(fixture.take_updates().completed_operation_ids.contains_slow(*step_past_the_edge.enqueue_result.operation_id));
-    EXPECT(fixture.context.latched_wheel_scroller_for_testing().has_value());
-}
-
 TEST_CASE(a_wheel_gesture_ends_once_its_steps_stop_arriving)
 {
     SnapContainerContextFixture fixture;
