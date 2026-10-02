@@ -10,6 +10,7 @@
 
 #pragma once
 
+#include <AK/AtomicRefCounted.h>
 #include <AK/ByteString.h>
 #include <AK/Utf16FlyString.h>
 #include <LibGC/CellAllocator.h>
@@ -96,8 +97,8 @@ struct ComputedFontCacheKey {
 using FontFeatureValues = HashMap<FontFeatureValueKey, Vector<u32>>;
 
 // The @font-feature-values of one tree scope, for every family they name. Immutable once built, so the font computer
-// and every snapshot built while it stands share one.
-struct FontFeatureValuesByFamily final : public RefCounted<FontFeatureValuesByFamily> {
+// and every snapshot built while it stands share one, and a snapshot may let go of it on another thread.
+struct FontFeatureValuesByFamily final : public AtomicRefCounted<FontFeatureValuesByFamily> {
     HashMap<Utf16FlyString, FontFeatureValues> families;
 };
 
@@ -187,7 +188,7 @@ public:
     // table moves ahead of it, and the generation catches up when the batch ends; nothing resolves a font in between.
     [[nodiscard]] NonnullRefPtr<FontFaceSnapshot const> font_face_snapshot() const;
     // The cascades resolved for this document.
-    [[nodiscard]] FontCascadeMemo& font_cascade_memo() const { return *m_font_cascade_memo; }
+    [[nodiscard]] FontCascadeMemo const& font_cascade_memo() const { return *m_font_cascade_memo; }
     // A resolution's view of the @font-feature-values of one tree scope.
     [[nodiscard]] Function<FontFeatureValues const&(Utf16FlyString const&)> font_feature_values_provider(TreeScopeID) const;
 

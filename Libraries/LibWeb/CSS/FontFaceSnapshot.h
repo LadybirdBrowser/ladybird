@@ -6,9 +6,9 @@
 
 #pragma once
 
+#include <AK/AtomicRefCounted.h>
 #include <AK/HashMap.h>
 #include <AK/NeverDestroyed.h>
-#include <AK/RefCounted.h>
 #include <AK/Vector.h>
 #include <LibGfx/Font/Typeface.h>
 #include <LibGfx/Font/UnicodeRange.h>
@@ -18,8 +18,9 @@ namespace Web::CSS {
 
 // The document's @font-face table at one font environment generation: what font matching reads of each face, and
 // nothing that could reach the face itself. Immutable once built, so resolving a font from it cannot start a load or
-// observe a face changing underneath it.
-class FontFaceSnapshot final : public RefCounted<FontFaceSnapshot> {
+// observe a face changing underneath it. The style engine holds a reference beside the document's, and may let go of
+// it on whichever thread it runs on.
+class FontFaceSnapshot final : public AtomicRefCounted<FontFaceSnapshot> {
 public:
     struct Face {
         // The number the document knows the face by, for a resolution that wants it loaded.
