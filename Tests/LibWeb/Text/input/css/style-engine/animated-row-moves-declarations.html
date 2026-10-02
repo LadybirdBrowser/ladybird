@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    @keyframes grow {
+        from { width: 10px; font-size: 10px; }
+        to { width: 30px; font-size: 30px; }
+    }
+    #target { animation: grow 1000s linear -500s both paused; height: 5px; color: rgb(0, 0, 255); }
+    #target.taller { height: 7px; color: rgb(0, 128, 0); }
+    #target.taller.slower { animation-duration: 2000s; }
+</style>
+<div id="target"><span id="child">x</span></div>
+<script>
+    test(() => {
+        const target = document.getElementById("target");
+        const child = document.getElementById("child");
+        const describe = () => {
+            const style = getComputedStyle(target);
+            const childStyle = getComputedStyle(child);
+            return `${style.width} ${style.height} ${style.fontSize}, child ${childStyle.fontSize} ${childStyle.color}`;
+        };
+        const measure = (label, mutation) => {
+            internals.updateStyle();
+            const before = internals.getStyleInvalidationCounters();
+            mutation();
+            internals.updateStyle();
+            const after = internals.getStyleInvalidationCounters();
+            println(`${label}: C++ recomputations ${after.elementStyleRecomputations - before.elementStyleRecomputations}`);
+            println(`${label}: ${describe()}`);
+        };
+        println(`before: ${describe()}`);
+
+        // The class change moves values beside a running animation, one of them inherited: the
+        // record beneath the animation moves, and its values stay composed over it.
+        measure("beside the animation", () => target.classList.add("taller"));
+
+        // This one moves the animation's own declarations, which retimes it.
+        measure("retimed", () => target.classList.add("slower"));
+        println(`duration: ${target.getAnimations().map(animation => animation.effect.getTiming().duration).join(",")}`);
+    });
+</script>

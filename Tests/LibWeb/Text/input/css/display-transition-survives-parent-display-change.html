@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div class="parent"><div id="target" style="display: block"></div></div>
+<script>
+test(() => {
+    const target = document.getElementById("target");
+    getComputedStyle(target).getPropertyValue("display");
+    target.style.transitionDuration = "100s";
+    target.style.transitionDelay = "-50s";
+    target.style.transitionTimingFunction = "linear";
+    target.style.transitionProperty = "display"; target.style.transitionBehavior = "allow-discrete";
+    target.style.setProperty("display", "none");
+    println("display: " + getComputedStyle(target).display + " anims " + target.getAnimations().length);
+    target.parentElement.style.display = "flow-root";
+    println("after parent display: " + getComputedStyle(target).display + " anims " + target.getAnimations().length);
+    target.parentElement.style.color = "red";
+    println("after parent color: " + getComputedStyle(target).display + " anims " + target.getAnimations().length);
+    document.body.appendChild(document.createElement("div"));
+    println("after append: " + getComputedStyle(target).display + " anims " + target.getAnimations().length);
+});
+</script>

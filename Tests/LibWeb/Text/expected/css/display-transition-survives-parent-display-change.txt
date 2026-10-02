@@ -1,0 +1,4 @@
+display: block anims 1
+after parent display: block anims 1
+after parent color: block anims 1
+after append: block anims 1
