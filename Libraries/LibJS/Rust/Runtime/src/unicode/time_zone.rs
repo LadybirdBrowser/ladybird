@@ -17,6 +17,7 @@ use crate::utf16::Utf16View;
 
 unsafe extern "C" {
     fn unicode_current_time_zone(output: UnicodeTextMappingOutput);
+    fn unicode_set_current_time_zone(time_zone: *const u16, length: usize) -> bool;
     fn unicode_available_time_zones(
         context: *mut c_void,
         append: unsafe extern "C" fn(context: *mut c_void, time_zone: *const u16, length: usize),
@@ -150,6 +151,14 @@ pub fn current_time_zone() -> Utf16String {
     // SAFETY: The output writes into a Vec that outlives the call.
     let ((), time_zone) = collect_text(|output| unsafe { unicode_current_time_zone(output) });
     Utf16String::from_utf16(&time_zone)
+}
+
+/// Unicode::set_current_time_zone: makes `time_zone` ICU's default time zone and the one current_time_zone() returns.
+/// Returns false if LibUnicode does not know the time zone.
+pub fn set_current_time_zone(time_zone: Utf16View<'_>) -> bool {
+    let time_zone = code_units_of(time_zone);
+    // SAFETY: The time zone buffer is valid for its length.
+    unsafe { unicode_set_current_time_zone(time_zone.as_ptr(), time_zone.len()) }
 }
 
 unsafe extern "C" fn append_time_zone(context: *mut c_void, time_zone: *const u16, length: usize) {

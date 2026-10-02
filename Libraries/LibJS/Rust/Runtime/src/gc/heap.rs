@@ -120,6 +120,14 @@ impl Heap {
         unsafe { capi::gc_heap_set_should_collect_on_every_allocation(self.raw.as_ptr(), should_collect) };
     }
 
+    /// Heap::uproot_cell(): has the next collection leave `cell` out of its roots, so that copies of it on the stack or
+    /// in the registers of a running frame no longer keep it alive. A cell that something on the heap still points at
+    /// stays alive.
+    pub fn uproot_cell<T>(&self, cell: Gc<T>) {
+        // SAFETY: The heap is live, and LibGC only keeps the cell's address until the next collection.
+        unsafe { capi::gc_heap_uproot_cell(self.raw.as_ptr(), cell.as_ptr().cast()) };
+    }
+
     /// The lowest and highest addresses of the stack of the thread that created the heap.
     pub fn stack_bounds(&self) -> (usize, usize) {
         let (mut base, mut top) = (0, 0);
