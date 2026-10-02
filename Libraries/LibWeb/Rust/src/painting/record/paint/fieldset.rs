@@ -13,14 +13,14 @@ use crate::layout::node_data::{NodeKind, NodeSlotId};
 use crate::painting::display_list::builder::PendingInlineClip;
 use crate::painting::display_list::device_pixels::DevicePixelConverter;
 use crate::painting::force_dark::ForceDarkRole;
+use crate::painting::paint_read::PaintRead;
 use crate::painting::paintable_geometry::absolute_border_box_rect;
-use crate::painting::paintable_rows::PaintableRowsRead;
 use crate::painting::record::PaintRecorder;
 use crate::painting::record::paint::background;
 use crate::painting::record::paint::border::{BorderDataDevicePixels, BordersDataDevicePixels, paint_all_borders};
 use libgfx_rust::{Color, IntRect};
 
-pub(crate) fn legend_paintable(arena: &impl PaintableRowsRead, fieldset: NodeSlotId) -> Option<NodeSlotId> {
+pub(crate) fn legend_paintable(arena: &impl PaintRead, fieldset: NodeSlotId) -> Option<NodeSlotId> {
     let mut child = arena.node_first_child_if_live(fieldset);
     while let Some(node) = child {
         if arena.node_kind_if_live(node) == Some(NodeKind::LegendBox) && !arena.node_is_out_of_flow_if_live(node) {
@@ -31,14 +31,14 @@ pub(crate) fn legend_paintable(arena: &impl PaintableRowsRead, fieldset: NodeSlo
     None
 }
 
-fn css_border_top_width(arena: &impl PaintableRowsRead, fieldset: NodeSlotId) -> CssPixels {
+fn css_border_top_width(arena: &impl PaintRead, fieldset: NodeSlotId) -> CssPixels {
     arena
         .node_style_if_live(fieldset)
         .map(|style| style.border_top_width())
         .unwrap_or_default()
 }
 
-fn effective_border_top(arena: &impl PaintableRowsRead, fieldset: NodeSlotId) -> CssPixels {
+fn effective_border_top(arena: &impl PaintRead, fieldset: NodeSlotId) -> CssPixels {
     let css_border_top = css_border_top_width(arena, fieldset);
     if let Some(legend) = legend_paintable(arena, fieldset) {
         let legend_margin = crate::painting::paintable_geometry::committed_margin(arena, legend);
@@ -49,7 +49,7 @@ fn effective_border_top(arena: &impl PaintableRowsRead, fieldset: NodeSlotId) ->
     css_border_top
 }
 
-pub(crate) fn visual_border_box_rect(arena: &impl PaintableRowsRead, fieldset: NodeSlotId) -> CssPixelRect {
+pub(crate) fn visual_border_box_rect(arena: &impl PaintRead, fieldset: NodeSlotId) -> CssPixelRect {
     let css_border_top = css_border_top_width(arena, fieldset);
     let allocated_border_top = effective_border_top(arena, fieldset);
     let mut rect = absolute_border_box_rect(arena, fieldset);

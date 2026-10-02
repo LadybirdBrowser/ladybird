@@ -4600,6 +4600,21 @@ impl LayoutNodeArena {
             .is_some_and(|data| super::node_facts::node_is_fragmented_inline(data, self.node_style_if_live(id)))
     }
 
+    pub(crate) fn node_is_atomic_inline(&self, id: NodeSlotId) -> bool {
+        self.node_data_if_live(id)
+            .is_some_and(|data| super::node_facts::node_is_atomic_inline(data, self.node_style_if_live(id)))
+    }
+
+    pub(crate) fn node_is_positioned(&self, id: NodeSlotId) -> bool {
+        self.node_data_if_live(id)
+            .is_some_and(|data| super::node_facts::node_is_positioned(data, self.node_style_if_live(id)))
+    }
+
+    pub(crate) fn node_is_floating(&self, id: NodeSlotId) -> bool {
+        self.node_data_if_live(id)
+            .is_some_and(|data| super::node_facts::node_is_floating(data, self.node_style_if_live(id)))
+    }
+
     pub(crate) fn note_inline_box_lifted_out_of(&self, node: NodeSlotId, inline_box: Option<NodeSlotId>) {
         let mut lifted = self.inline_boxes_lifted_out_of.borrow_mut();
         match inline_box {
@@ -4846,20 +4861,6 @@ impl LayoutNodeArena {
         self.text_content(id)
             .expect("text must be published before mapping rendered offsets")
             .dom_offset_for_rendered_text_offset(offset, boundary)
-    }
-
-    pub(crate) fn rendered_text_offset_for_dom_offset(
-        &self,
-        id: NodeSlotId,
-        offset: usize,
-        boundary: RenderedTextBoundary,
-    ) -> usize {
-        if !self.node_kind_if_live(id).is_some_and(super::node_facts::kind_is_text) {
-            return offset;
-        }
-        self.text_content(id)
-            .expect("text must be published before mapping DOM offsets")
-            .rendered_text_offset_for_dom_offset(offset, boundary)
     }
 
     pub(crate) unsafe fn from_handle<'a>(arena: *mut c_void) -> &'a Self {

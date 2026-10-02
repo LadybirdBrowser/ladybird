@@ -403,6 +403,7 @@ pub unsafe extern "C" fn layout_arena_text_for_rendering(arena: *mut c_void, id:
 mod tests {
     use super::*;
     use crate::layout::node_data::NodeKind;
+    use crate::painting::paint_read::PaintRead;
     use RenderedTextBoundary::{End, Start};
 
     fn content(text: &str, dom_start: usize, dom_length: usize, edits: Vec<RenderedTextEdit>) -> TextContent {

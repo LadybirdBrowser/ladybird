@@ -47,7 +47,7 @@ pub(crate) fn compute_svg_viewport_transform_data(
 }
 
 pub(crate) fn svg_viewport_transform_of(
-    layout_arena: &crate::layout::LayoutNodeArena,
+    layout_arena: &impl crate::painting::paint_read::GeometryRead,
     slot: NodeSlotId,
 ) -> Option<AffineTransform> {
     crate::painting::paintable_geometry::committed_svg_viewport_transform(layout_arena, slot).map(Into::into)

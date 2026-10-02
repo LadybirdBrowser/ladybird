@@ -13,8 +13,8 @@ use crate::layout::node_data::NodeSlotId;
 use crate::painting::border_radii::BorderRadii;
 use crate::painting::display_list::builder::PendingInlineClip;
 use crate::painting::paint_order;
+use crate::painting::paint_read::PaintRead;
 use crate::painting::paintable_geometry;
-use crate::painting::paintable_rows::PaintableRowsRead;
 use crate::painting::record::PaintRecorder;
 use crate::painting::record::paint::background::paint_resolved_background;
 use crate::painting::record::paint::background_resolution::{BackgroundPaintInputs, resolve_background_layers};
@@ -72,7 +72,7 @@ pub(crate) fn paint_table_part_background<O: Observer>(recorder: &mut PaintRecor
 }
 
 /// The cells that originate in a table row, row group, column or column group, in paint order.
-fn originating_cells(arena: &impl PaintableRowsRead, part: NodeSlotId) -> Vec<NodeSlotId> {
+fn originating_cells(arena: &impl PaintRead, part: NodeSlotId) -> Vec<NodeSlotId> {
     let mut cells = Vec::new();
     let display = style_queries::display(arena, part);
     if display.is_table_row() {
@@ -104,7 +104,7 @@ fn originating_cells(arena: &impl PaintableRowsRead, part: NodeSlotId) -> Vec<No
     cells
 }
 
-fn push_cells_of_row(arena: &impl PaintableRowsRead, row: NodeSlotId, cells: &mut Vec<NodeSlotId>) {
+fn push_cells_of_row(arena: &impl PaintRead, row: NodeSlotId, cells: &mut Vec<NodeSlotId>) {
     paint_order::for_each_paint_child(arena, row, |cell| {
         if style_queries::display(arena, cell).is_table_cell() {
             cells.push(cell);
@@ -113,7 +113,7 @@ fn push_cells_of_row(arena: &impl PaintableRowsRead, row: NodeSlotId, cells: &mu
 }
 
 /// The rows of a table box: the children of its row groups and its own child rows, in tree order.
-fn for_each_row_of_table(arena: &impl PaintableRowsRead, table: NodeSlotId, mut callback: impl FnMut(NodeSlotId)) {
+fn for_each_row_of_table(arena: &impl PaintRead, table: NodeSlotId, mut callback: impl FnMut(NodeSlotId)) {
     paint_order::for_each_paint_child(arena, table, |child| {
         let display = style_queries::display(arena, child);
         if display.is_table_row() {
@@ -129,7 +129,7 @@ fn for_each_row_of_table(arena: &impl PaintableRowsRead, table: NodeSlotId, mut 
 }
 
 /// The table box that a column or column group box belongs to.
-fn table_box_of(arena: &impl PaintableRowsRead, part: NodeSlotId) -> Option<NodeSlotId> {
+fn table_box_of(arena: &impl PaintRead, part: NodeSlotId) -> Option<NodeSlotId> {
     let mut ancestor = paint_order::paint_parent(arena, part);
     while let Some(node) = ancestor {
         if style_queries::display(arena, node).is_table_inside() {

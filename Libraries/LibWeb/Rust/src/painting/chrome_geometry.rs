@@ -10,6 +10,7 @@ use crate::layout::node_data::{NodeKind, NodeSlotId};
 use crate::painting::display_list::commands::VISUAL_VIEWPORT_NODE_INDEX;
 use crate::painting::ffi::{FfiChromeMetrics, ScrollDirection};
 use crate::painting::host::{FfiHitTestQueryCallbacks, RootBackgroundSource};
+use crate::painting::paint_read::PaintRead;
 use crate::painting::paintable_data::PaintableFlag;
 use crate::painting::paintable_geometry;
 use crate::painting::paintable_rows::PaintableRowsRead;
@@ -84,7 +85,7 @@ fn axis_view(rect: &mut CssPixelRect, direction: ScrollDirection) -> AxisView<'_
     }
 }
 
-pub(crate) fn is_chrome_mirrored(arena: &impl PaintableRowsRead, slot: NodeSlotId) -> bool {
+pub(crate) fn is_chrome_mirrored(arena: &impl PaintRead, slot: NodeSlotId) -> bool {
     arena.node_style_if_live(slot).is_some_and(|style| {
         let writing_mode = style.writing_mode();
         (writing_mode == css_enums::writing_mode::HORIZONTAL_TB && style.direction() == css_enums::direction::RTL)
@@ -93,7 +94,7 @@ pub(crate) fn is_chrome_mirrored(arena: &impl PaintableRowsRead, slot: NodeSlotI
     })
 }
 
-pub(crate) fn physical_resize_axes(arena: &impl PaintableRowsRead, slot: NodeSlotId) -> PhysicalAxes {
+pub(crate) fn physical_resize_axes(arena: &impl PaintRead, slot: NodeSlotId) -> PhysicalAxes {
     let Some(style) = arena.node_style_if_live(slot) else {
         return PhysicalAxes::default();
     };
@@ -122,7 +123,7 @@ pub(crate) fn physical_resize_axes(arena: &impl PaintableRowsRead, slot: NodeSlo
     }
 }
 
-pub(crate) fn has_resizer(arena: &impl PaintableRowsRead, slot: NodeSlotId) -> bool {
+pub(crate) fn has_resizer(arena: &impl PaintRead, slot: NodeSlotId) -> bool {
     if !arena.paintable_row_is_populated(slot)
         || arena.node_kind_if_live(slot) == Some(NodeKind::Viewport)
         || arena.node_is_generated_for_pseudo_element(slot)
@@ -194,11 +195,7 @@ pub(crate) fn maximum_scroll_offset(arena: &impl PaintableRowsRead, slot: NodeSl
     scroll_offset_bounds(arena, slot).map_or(CssPixelPoint::default(), |(_, maximum)| maximum)
 }
 
-pub(crate) fn scrollbar_is_enlarged(
-    arena: &impl PaintableRowsRead,
-    slot: NodeSlotId,
-    direction: ScrollDirection,
-) -> bool {
+pub(crate) fn scrollbar_is_enlarged(arena: &impl PaintRead, slot: NodeSlotId, direction: ScrollDirection) -> bool {
     let flag = match direction {
         ScrollDirection::Horizontal => PaintableFlag::HorizontalScrollbarEnlarged,
         ScrollDirection::Vertical => PaintableFlag::VerticalScrollbarEnlarged,
@@ -432,7 +429,7 @@ impl<'a, Arena: PaintableRowsRead> ChromeGeometry<'a, Arena> {
 }
 
 fn is_canvas_background_source(
-    arena: &impl PaintableRowsRead,
+    arena: &impl PaintRead,
     slot: NodeSlotId,
     root_background_source: RootBackgroundSource,
 ) -> bool {
@@ -441,7 +438,7 @@ fn is_canvas_background_source(
 }
 
 pub(crate) fn scrollbar_colors_for_paint(
-    arena: &impl PaintableRowsRead,
+    arena: &impl PaintRead,
     slot: NodeSlotId,
     root_background_source: RootBackgroundSource,
     canvas_background_color: Color,

@@ -17,8 +17,8 @@ use crate::painting::display_list::recorder::{
 use crate::painting::force_dark::ForceDarkRole;
 use crate::painting::host::{FfiSvgGradientKind, FfiSvgGradientSpreadMethod};
 use crate::painting::node_painting;
+use crate::painting::paint_read::PaintRead;
 use crate::painting::paintable_geometry::absolute_rect;
-use crate::painting::paintable_rows::PaintableRowsRead;
 use crate::painting::record::{PaintPhase, PaintRecorder};
 use crate::painting::svg_paint_resources::{
     PublishedSvgGradient, PublishedSvgPaintServer, PublishedSvgPattern, SvgPaintResourceKind,
@@ -377,10 +377,7 @@ fn paint_server_style<O: Observer>(
     } else {
         SvgPaintResourceKind::Fill
     };
-    let published = recorder
-        .layout_arena
-        .svg_paint_resources()
-        .published_paint_server(paintable, kind)?;
+    let published = recorder.layout_arena.published_svg_paint_server(paintable, kind)?;
     match &*published {
         PublishedSvgPaintServer::Gradient(gradient) => Some(gradient_paint_style(gradient, paint_context)),
         PublishedSvgPaintServer::Pattern(pattern) => pattern_paint_style(recorder, pattern, paint_context),
@@ -389,12 +386,12 @@ fn paint_server_style<O: Observer>(
 }
 
 fn references_pattern<O: Observer>(recorder: &PaintRecorder<'_, O>, paintable: NodeSlotId) -> bool {
-    let resources = recorder.layout_arena.svg_paint_resources();
     [SvgPaintResourceKind::Fill, SvgPaintResourceKind::Stroke]
         .iter()
         .any(|kind| {
-            resources
-                .published_paint_server(paintable, *kind)
+            recorder
+                .layout_arena
+                .published_svg_paint_server(paintable, *kind)
                 .is_some_and(|published| matches!(&*published, PublishedSvgPaintServer::Pattern(_)))
         })
 }
@@ -541,7 +538,7 @@ pub(crate) fn paint_path<O: Observer>(recorder: &mut PaintRecorder<'_, O>, paint
 }
 
 pub(crate) fn svg_image_unquantized_device_rect(
-    layout_arena: &impl PaintableRowsRead,
+    layout_arena: &impl PaintRead,
     paintable: NodeSlotId,
     pixel_ratio: f64,
 ) -> FloatRect {
