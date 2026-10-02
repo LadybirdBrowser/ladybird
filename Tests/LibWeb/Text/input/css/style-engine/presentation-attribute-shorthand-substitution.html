@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<svg>
+    <text id="text" style="--caps: small-caps" font-variant="var(--caps)">x</text>
+</svg>
+<script>
+    // A presentation attribute naming a shorthand written with var() declares each longhand it pends, as a
+    // declaration block does. Count who computed the element's record.
+    test(() => {
+        const text = document.getElementById("text");
+        text.style.setProperty("--caps", "all-small-caps");
+        const recomputationsBefore = internals.getStyleInvalidationCounters().elementStyleRecomputations;
+        internals.updateStyle();
+        println(`C++ recomputations: ${internals.getStyleInvalidationCounters().elementStyleRecomputations - recomputationsBefore}`);
+        println(`font-variant-caps: ${getComputedStyle(text).fontVariantCaps}`);
+    });
+</script>

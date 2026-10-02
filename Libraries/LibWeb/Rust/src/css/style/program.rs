@@ -231,7 +231,6 @@ struct Rule {
     live: bool,
     gated_by_container_query: bool,
     declarations: Arc<SharedRuleDeclarations>,
-    declarations_are_complete: bool,
     semantic_declaration: SemanticDeclarationID,
 }
 
@@ -248,7 +247,6 @@ impl Rule {
             live,
             gated_by_container_query,
             declarations,
-            declarations_are_complete,
             semantic_declaration,
         } = self;
         (
@@ -262,7 +260,6 @@ impl Rule {
             live,
             gated_by_container_query,
             Arc::as_ptr(declarations),
-            declarations_are_complete,
             semantic_declaration,
         )
     }
@@ -867,7 +864,6 @@ impl StyleSheetProgram {
             live,
             gated_by_container_query: false,
             declarations: Arc::clone(&self.empty_declarations),
-            declarations_are_complete: false,
             semantic_declaration: SemanticDeclarationID::default(),
         });
         self.record_capacity_change(previous_rule_capacity, self.rules.shallow_capacity_bytes());
@@ -1289,7 +1285,6 @@ impl StyleSheetProgram {
         written_values: Vec<RetainedStyleValueData>,
         custom_declarations: Vec<CustomDeclaration>,
         custom_written_values: Vec<RetainedStyleValueData>,
-        declarations_are_complete: bool,
     ) {
         debug_assert!(written_values.is_empty() || written_values.len() == declared.len());
         debug_assert!(custom_written_values.is_empty() || custom_written_values.len() == custom_declarations.len());
@@ -1307,8 +1302,7 @@ impl StyleSheetProgram {
             || declared
                 .iter()
                 .any(|declared| crate::css::property_metadata::property_may_affect_layout_geometry(declared.property));
-        let moves_layout_geometry = entry.declarations.data.may_affect_layout_geometry != may_affect_layout_geometry
-            || entry.declarations_are_complete != declarations_are_complete;
+        let moves_layout_geometry = entry.declarations.data.may_affect_layout_geometry != may_affect_layout_geometry;
         entry.declarations = share_rule_declarations(
             RuleDeclarationData {
                 declared_properties: declared,
@@ -1328,7 +1322,6 @@ impl StyleSheetProgram {
             (true, false) => self.rules_declaring_custom_properties -= 1,
             _ => {}
         }
-        entry.declarations_are_complete = declarations_are_complete;
         // The routing liveness view carries which live routes' rules may move layout geometry. A rule that cannot
         // decide has no live routes, and moves the routing liveness when it comes to.
         if moves_layout_geometry && self.rule_can_decide(rule) {
@@ -1360,9 +1353,6 @@ impl StyleSheetProgram {
     /// style-sharing optimization. IDs are never reused, so invalidation cannot alias a cached ID.
     pub(super) fn ensure_semantic_declaration(&mut self, rule: RuleID) -> SemanticDeclarationID {
         let rule_index = rule.0 as usize;
-        if !self.rules[rule_index].declarations_are_complete {
-            return SemanticDeclarationID::default();
-        }
         if self.rules[rule_index].semantic_declaration != SemanticDeclarationID::default() {
             return self.rules[rule_index].semantic_declaration;
         }
@@ -1454,10 +1444,9 @@ impl StyleSheetProgram {
             .map(|(_, value)| value)
     }
 
-    /// Whether a match of this rule may move geometry. Incomplete declarations cannot prove independence.
+    /// Whether a match of this rule may move geometry.
     pub(super) fn rule_may_affect_layout_geometry(&self, rule: RuleID) -> bool {
-        let rule = &self.rules[rule.0 as usize];
-        !rule.declarations_are_complete || rule.may_affect_layout_geometry
+        self.rules[rule.0 as usize].may_affect_layout_geometry
     }
 
     pub(super) fn written_value_checks(&self, rule: RuleID, index: usize) -> super::publication::WrittenValueChecks {
@@ -1488,14 +1477,7 @@ impl StyleSheetProgram {
     /// Whether the rule's declarations are all in the winner columns. A rule declaring custom
     /// properties is not: they never reach the columns.
     pub fn declarations_are_complete_for(&self, rule: RuleID) -> bool {
-        let rule = &self.rules[rule.0 as usize];
-        rule.declarations_are_complete && rule.custom_declarations.is_empty()
-    }
-
-    /// Whether the rule's longhand declarations are all in the winner columns, whatever custom
-    /// properties it declares beside them.
-    pub fn declarations_are_complete_but_for_custom_properties(&self, rule: RuleID) -> bool {
-        self.rules[rule.0 as usize].declarations_are_complete
+        self.rules[rule.0 as usize].custom_declarations.is_empty()
     }
 
     /// Record that a tree scope's rules include the document's author sheets as well as its own,
@@ -1683,7 +1665,6 @@ mod tests {
                 )],
                 Vec::new(),
                 Vec::new(),
-                true,
             );
         };
         set(&mut first, first_rule, 1);
@@ -1728,19 +1709,19 @@ mod tests {
                 value: SpecifiedValueID(1),
             }]
         };
-        program.set_rule_declared_properties(rule, vec![], vec![], declarations(), vec![], true);
+        program.set_rule_declared_properties(rule, vec![], vec![], declarations(), vec![]);
         assert!(program.any_rule_declares_custom_properties());
         program.remove_rule(group);
         assert!(!program.any_rule_declares_custom_properties());
 
         let reserved = program.reserve_rule(sheet, None, RuleKind::Style);
-        program.set_rule_declared_properties(reserved, vec![], vec![], declarations(), vec![], true);
+        program.set_rule_declared_properties(reserved, vec![], vec![], declarations(), vec![]);
         assert!(!program.any_rule_declares_custom_properties());
         program.set_rule_liveness(&[(reserved, true), (reserved, true)]);
         assert!(program.any_rule_declares_custom_properties());
         program.set_rule_liveness(&[(reserved, false)]);
         assert!(!program.any_rule_declares_custom_properties());
-        program.set_rule_declared_properties(reserved, vec![], vec![], vec![], vec![], true);
+        program.set_rule_declared_properties(reserved, vec![], vec![], vec![], vec![]);
         assert!(!program.any_rule_declares_custom_properties());
     }
 
@@ -1809,7 +1790,7 @@ mod tests {
     }
 
     #[test]
-    fn complete_equal_declarations_share_a_collision_checked_identity() {
+    fn equal_declarations_share_a_collision_checked_identity() {
         let (mut program, sheet) = program_with_sheet();
         let first = program.append_rule(sheet, None, RuleKind::Style);
         let second = program.append_rule(sheet, None, RuleKind::Style);
@@ -1822,9 +1803,9 @@ mod tests {
             value: SpecifiedValueID(value),
         };
 
-        program.set_rule_declared_properties(first, vec![declared(10)], Vec::new(), Vec::new(), Vec::new(), true);
-        program.set_rule_declared_properties(second, vec![declared(10)], Vec::new(), Vec::new(), Vec::new(), true);
-        program.set_rule_declared_properties(third, vec![declared(20)], Vec::new(), Vec::new(), Vec::new(), true);
+        program.set_rule_declared_properties(first, vec![declared(10)], Vec::new(), Vec::new(), Vec::new());
+        program.set_rule_declared_properties(second, vec![declared(10)], Vec::new(), Vec::new(), Vec::new());
+        program.set_rule_declared_properties(third, vec![declared(20)], Vec::new(), Vec::new(), Vec::new());
 
         let first_identity = program.ensure_semantic_declaration(first);
         let second_identity = program.ensure_semantic_declaration(second);
@@ -1833,20 +1814,13 @@ mod tests {
         assert_eq!(first_identity, second_identity);
         assert_ne!(first_identity, third_identity);
 
-        program.set_rule_declared_properties(
-            never_interned,
-            vec![declared(30)],
-            Vec::new(),
-            Vec::new(),
-            Vec::new(),
-            true,
-        );
+        program.set_rule_declared_properties(never_interned, vec![declared(30)], Vec::new(), Vec::new(), Vec::new());
         assert_eq!(program.ensure_semantic_declaration(first), first_identity);
 
-        program.set_rule_declared_properties(second, vec![declared(10)], Vec::new(), Vec::new(), Vec::new(), false);
+        program.set_rule_declared_properties(second, vec![declared(20)], Vec::new(), Vec::new(), Vec::new());
         assert_eq!(
             program.ensure_semantic_declaration(second),
-            SemanticDeclarationID::default()
+            program.ensure_semantic_declaration(third)
         );
         assert_ne!(program.ensure_semantic_declaration(first), first_identity);
         assert_eq!(program.capacity_bytes(), program.recompute_capacity_bytes());

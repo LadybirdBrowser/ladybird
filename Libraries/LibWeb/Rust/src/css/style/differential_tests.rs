@@ -210,7 +210,7 @@ impl Workload {
             version.selector_program = Some(selector);
             version.declaration_block = Some(DeclarationBlockID(1000 + index as u32));
             engine.replace_rule_version(rule, version);
-            engine.set_rule_declared_properties(rule, &[(1 + index as u16 % 5, index % 7 == 0)], true);
+            engine.set_rule_declared_properties(rule, &[(1 + index as u16 % 5, index % 7 == 0)]);
             rules.push(rule);
         }
 

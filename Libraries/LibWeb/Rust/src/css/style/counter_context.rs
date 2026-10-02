@@ -387,16 +387,9 @@ impl StyleEngine {
         kind: ElementDeclarationKind,
         declarations: Vec<(DeclaredProperty, RetainedStyleValueData)>,
         custom_declarations: Vec<(CustomDeclaration, RetainedStyleValueData)>,
-        declarations_are_complete: bool,
     ) {
-        self.state.set_element_declared_properties(
-            node,
-            kind,
-            declarations,
-            custom_declarations,
-            declarations_are_complete,
-            &mut self.counters,
-        );
+        self.state
+            .set_element_declared_properties(node, kind, declarations, custom_declarations, &mut self.counters);
     }
 
     #[inline]

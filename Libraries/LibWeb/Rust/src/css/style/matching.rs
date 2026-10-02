@@ -2762,10 +2762,7 @@ impl RetainedState {
         else {
             return false;
         };
-        if ElementDeclarationKind::ALL
-            .iter()
-            .any(|&kind| !self.facts.element_declared_properties(node, kind).1)
-        {
+        if !self.facts.element_custom_declarations(node).is_empty() {
             return false;
         }
         for retained_entry in retained {
@@ -3684,9 +3681,7 @@ impl RetainedState {
                     && !self.program.rule_is_gated_by_container_query(entry.rule)
                     && self.program.declarations_are_complete_for(entry.rule)
             })
-            && ElementDeclarationKind::ALL
-                .iter()
-                .all(|&kind| self.facts.element_declared_properties(node, kind).1);
+            && self.facts.element_custom_declarations(node).is_empty();
         counters.bump(Counter::RetainedMatchAnswerReuses);
         Some(PublishedMatchAnswer {
             node,
@@ -3731,10 +3726,10 @@ impl RetainedState {
     }
 
     pub(super) fn has_no_element_declarations(&self, node: StyleNodeID) -> bool {
-        ElementDeclarationKind::ALL.iter().all(|&kind| {
-            let (declarations, complete) = self.facts.element_declared_properties(node, kind);
-            complete && declarations.is_empty()
-        })
+        self.facts.element_custom_declarations(node).is_empty()
+            && ElementDeclarationKind::ALL
+                .iter()
+                .all(|&kind| self.facts.element_declared_properties(node, kind).is_empty())
     }
 
     /// Whether nodes with this exact answer can share one node's completed cascade: not when the
@@ -3879,10 +3874,7 @@ impl RetainedState {
             counters.bump(Counter::TransitionProofMissingAnswer);
             return false;
         };
-        if ElementDeclarationKind::ALL
-            .iter()
-            .any(|&kind| !self.facts.element_declared_properties(node, kind).1)
-        {
+        if !self.facts.element_custom_declarations(node).is_empty() {
             counters.bump(Counter::TransitionProofElementDeclarations);
             return false;
         }
@@ -4197,10 +4189,9 @@ impl RetainedState {
         // they stand, which the record loop checks again once the node's ancestors are settled.
         self.container_gates_unheld.remove(&node);
         let complete = self.cascade_winner_inventory_is_complete(&matches, Some(node));
-        let complete_but_for_custom_properties = self.element_declarations_are_complete_but_for_custom_properties(node)
-            && matches
-                .iter()
-                .all(|entry| self.match_is_complete_but_for_custom_properties(node, entry.rule));
+        let complete_but_for_custom_properties = matches
+            .iter()
+            .all(|entry| self.match_is_complete_but_for_custom_properties(node, entry.rule));
         let mut effects = AnswerEffects::default();
         // The answer's pseudo-element inventory, and the matches its custom-property cascade runs
         // over where a record loop reads this transaction's.

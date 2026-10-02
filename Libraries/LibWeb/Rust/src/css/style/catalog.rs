@@ -2043,7 +2043,6 @@ pub(super) struct PendingRuleDeclarations {
     pub(super) written_values: Vec<crate::css::style_value::RetainedStyleValueData>,
     pub(super) custom_declarations: Vec<super::program::CustomDeclaration>,
     pub(super) custom_written_values: Vec<crate::css::style_value::RetainedStyleValueData>,
-    pub(super) complete: bool,
 }
 
 pub(super) struct SheetRuleReplacement {

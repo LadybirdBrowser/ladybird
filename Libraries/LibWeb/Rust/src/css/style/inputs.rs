@@ -1603,14 +1603,12 @@ impl RetainedState {
     ///
     /// An element-attached declaration is a cascade component above layers: a style attribute beats
     /// every layered and unlayered rule in its context, whatever layer they are in.
-    #[allow(clippy::too_many_arguments)]
     pub fn set_element_declared_properties(
         &mut self,
         node: StyleNodeID,
         kind: ElementDeclarationKind,
         declarations: Vec<(DeclaredProperty, RetainedStyleValueData)>,
         custom_declarations: Vec<(CustomDeclaration, RetainedStyleValueData)>,
-        declarations_are_complete: bool,
         counters: &mut Counters,
     ) {
         debug_assert!(custom_declarations.is_empty() || kind == ElementDeclarationKind::InlineStyle);
@@ -1627,21 +1625,24 @@ impl RetainedState {
                 );
             });
         }
-        let (current_declared, current_declarations_are_complete) = self.facts.element_declared_properties(node, kind);
-        if current_declarations_are_complete == declarations_are_complete
-            && current_declared
+        let current_declared = self.facts.element_declared_properties(node, kind);
+        let current_custom_declarations = match kind {
+            ElementDeclarationKind::InlineStyle => self.facts.element_custom_declarations(node),
+            _ => &[],
+        };
+        if current_declared
+            .iter()
+            .eq(declarations.iter().map(|(declared, _)| declared))
+            && current_custom_declarations
                 .iter()
-                .eq(declarations.iter().map(|(declared, _)| declared))
-            && (kind != ElementDeclarationKind::InlineStyle
-                || self
-                    .facts
-                    .element_custom_declarations(node)
-                    .iter()
-                    .eq(custom_declarations.iter().map(|(declared, _)| declared)))
+                .eq(custom_declarations.iter().map(|(declared, _)| declared))
         {
             return;
         }
-        let repair_inputs = (declarations_are_complete && current_declarations_are_complete)
+        // Custom properties never reach the winner columns, so winners repaired from the
+        // declarations alone hold only for an element whose style declared none.
+        let repair_inputs = current_custom_declarations
+            .is_empty()
             .then(|| {
                 let previous = self
                     .current_winner_groups()
@@ -1654,15 +1655,14 @@ impl RetainedState {
                 Some((previous, retained, current_declared.to_vec()))
             })
             .flatten();
-        self.facts
-            .set_element_declared_properties(node, kind, declarations, declarations_are_complete);
+        self.facts.set_element_declared_properties(node, kind, declarations);
         if kind == ElementDeclarationKind::InlineStyle {
             self.facts.set_element_custom_declarations(node, custom_declarations);
         }
         let Some((previous, retained, previous_declared)) = repair_inputs else {
             return;
         };
-        let (declared, _) = self.facts.element_declared_properties(node, kind);
+        let declared = self.facts.element_declared_properties(node, kind);
         let mut changed_properties: Vec<u16> = previous_declared
             .iter()
             .chain(declared)

@@ -32,7 +32,6 @@ use crate::css::custom_properties::{CustomPropertyRegistry, ffi_slice};
 use crate::css::host_shared::{HostShared, SharedPayload};
 use crate::css::selector::CompiledSelector;
 use crate::css::style_value::RetainedStyleValueData;
-use crate::css::style_value::StyleValueData;
 
 use super::batch_matcher::RuleMatch;
 use super::cascade::CascadeOperator;
@@ -1916,13 +1915,12 @@ pub unsafe fn replay_set_element_declared_properties(
     kind: FfiElementDeclarationKind,
     declared: &[DeclaredProperty],
     custom_declarations: &[CustomDeclaration],
-    declarations_are_complete: bool,
 ) {
     let engine = unsafe { engine.get_mut() };
     let node = StyleNodeID::from_raw(node).expect("recorded style node identities are nonzero");
     // A replay computes no record, so no value is read: each declaration stands for its written
     // value with the guaranteed-invalid one.
-    let unwritten = || RetainedStyleValueData::from_owned(StyleValueData::GuaranteedInvalid);
+    let unwritten = || RetainedStyleValueData::from_owned(crate::css::style_value::StyleValueData::GuaranteedInvalid);
     engine.set_element_declared_properties(
         node,
         decode_element_declaration_kind(kind),
@@ -1931,7 +1929,6 @@ pub unsafe fn replay_set_element_declared_properties(
             .iter()
             .map(|&declared| (declared, unwritten()))
             .collect(),
-        declarations_are_complete,
     );
 }
 
@@ -1966,7 +1963,6 @@ pub unsafe fn replay_set_rule_declared_properties(
     rule: u32,
     declared: &[DeclaredProperty],
     custom_declarations: &[CustomDeclaration],
-    declarations_are_complete: bool,
 ) {
     let engine = unsafe { engine.get_mut() };
     engine.set_rule_declared_properties_with_written_values(
@@ -1975,7 +1971,6 @@ pub unsafe fn replay_set_rule_declared_properties(
         Vec::new(),
         custom_declarations.to_vec(),
         Vec::new(),
-        declarations_are_complete,
     );
 }
 
@@ -2198,27 +2193,6 @@ pub unsafe extern "C" fn style_engine_match_element(
     result
 }
 
-fn declaration_inventory_is_complete<'a>(
-    declarations: impl Iterator<Item = (&'a DeclaredProperty, &'a RetainedStyleValueData)> + Clone,
-) -> bool {
-    use crate::css::property_metadata::{longhands_for_shorthand, property_id, property_is_shorthand};
-    fn covers<'a>(property: u16, mut declared: impl Iterator<Item = &'a DeclaredProperty> + Clone) -> bool {
-        if property_is_shorthand(property) {
-            longhands_for_shorthand(property)
-                .iter()
-                .all(|longhand| covers(*longhand, declared.clone()))
-        } else {
-            declared.any(|declaration| declaration.property == property)
-        }
-    }
-    declarations.clone().all(|(declaration, value)| {
-        declaration.property != property_id::ALL
-            && (!property_is_shorthand(declaration.property)
-                || !matches!(value.data(), StyleValueData::Unresolved { .. })
-                || covers(declaration.property, declarations.clone().map(|(declared, _)| declared)))
-    })
-}
-
 fn collect_native_custom_declarations(
     engine: &mut StyleEngine,
     custom_properties: &[crate::css::declaration_block::CustomProperty],
@@ -2253,37 +2227,24 @@ fn register_element_declared_properties(
     kind: FfiElementDeclarationKind,
     declarations: &[crate::css::declaration_block::DeclaredProperty],
     custom_properties: &[crate::css::declaration_block::CustomProperty],
-    mut declarations_are_complete: bool,
 ) -> bool {
-    use crate::css::property_metadata::{property_defines_a_css_transition, property_id};
-    declarations_are_complete &= declarations
-        .iter()
-        .all(|declaration| declaration.property_id != property_id::ALL);
+    use crate::css::property_metadata::property_defines_a_css_transition;
     let has_transitions = declarations
         .iter()
         .any(|declaration| property_defines_a_css_transition(declaration.property_id));
     let declarations = engine.intern_element_declared_properties(declarations);
-    declarations_are_complete &=
-        declaration_inventory_is_complete(declarations.iter().map(|(declared, written)| (declared, written)));
     let custom_declarations = collect_native_custom_declarations(engine, custom_properties);
     let declaration_kind = decode_element_declaration_kind(kind);
-    engine.set_element_declared_properties(
-        node,
-        declaration_kind,
-        declarations,
-        custom_declarations,
-        declarations_are_complete,
-    );
+    engine.set_element_declared_properties(node, declaration_kind, declarations, custom_declarations);
     // The engine holds the declarations as they were published.
     engine.record_boundary_call(EventKind::SetElementDeclaredProperties, |payload| {
-        let (declared, _) = engine.facts.element_declared_properties(node, declaration_kind);
+        let declared = engine.facts.element_declared_properties(node, declaration_kind);
         let custom_declared = match declaration_kind {
             ElementDeclarationKind::InlineStyle => engine.facts.element_custom_declarations(node),
             _ => &[],
         };
         payload.write_u32(node.raw());
         payload.write_u8(kind as u8);
-        payload.write_bool(declarations_are_complete);
         write_declared_properties(declared, payload);
         write_custom_declarations(custom_declared, payload);
     });
@@ -2313,7 +2274,6 @@ pub unsafe extern "C" fn style_engine_set_element_inline_style_properties(
         FfiElementDeclarationKind::InlineStyle,
         data.as_ref().map_or(&[], |data| data.properties.as_slice()),
         data.as_ref().map_or(&[], |data| data.custom_properties.as_slice()),
-        true,
     )
 }
 
@@ -2330,7 +2290,7 @@ pub unsafe extern "C" fn style_engine_set_element_presentational_hint_properties
     properties: *const c_void,
     count: usize,
 ) -> bool {
-    use crate::css::declaration_block::{FfiDeclaredProperty, declaration_from_view};
+    use crate::css::declaration_block::{DeclarationBlockData, FfiDeclaredProperty, declaration_from_view};
     let Some(node) = StyleNodeID::from_raw(node) else {
         return false;
     };
@@ -2340,11 +2300,13 @@ pub unsafe extern "C" fn style_engine_set_element_presentational_hint_properties
     } else {
         unsafe { std::slice::from_raw_parts(properties.cast::<FfiDeclaredProperty>(), count) }
     };
-    let declarations = properties
-        .iter()
-        .map(|property| unsafe { declaration_from_view(property) })
-        .collect::<Vec<_>>();
-    register_element_declared_properties(engine, node, kind, &declarations, &[], true)
+    // A hint may name a shorthand. Expanded as any declaration block is, it declares every
+    // longhand it decides, and so do all declarations the engine is given.
+    let mut hints = DeclarationBlockData::default();
+    for property in properties {
+        hints.append_in_specified_order(unsafe { declaration_from_view(property) });
+    }
+    register_element_declared_properties(engine, node, kind, &hints.properties, &[])
 }
 
 /// # Safety
@@ -3321,14 +3283,12 @@ pub(crate) fn publish_rule_declarations(
     if rule == 0 {
         return false;
     }
-    let mut declarations_are_complete = true;
     let mut has_transitions = false;
     let declared = data
         .properties
         .iter()
         .map(|declaration| {
-            use crate::css::property_metadata::{property_defines_a_css_transition, property_id};
-            declarations_are_complete &= declaration.property_id != property_id::ALL;
+            use crate::css::property_metadata::property_defines_a_css_transition;
             has_transitions |= property_defines_a_css_transition(declaration.property_id);
             engine.intern_declared_property(declaration)
         })
@@ -3340,7 +3300,6 @@ pub(crate) fn publish_rule_declarations(
             RetainedStyleValueData::from_retained_pointer(std::sync::Arc::into_raw(declaration.value.clone()))
         })
         .collect();
-    declarations_are_complete &= declaration_inventory_is_complete(declared.iter().zip(&written_values));
     let (custom_declarations, custom_written_values) =
         collect_native_custom_declarations(engine, &data.custom_properties)
             .into_iter()
@@ -3351,11 +3310,9 @@ pub(crate) fn publish_rule_declarations(
         written_values,
         custom_declarations.clone(),
         custom_written_values,
-        declarations_are_complete,
     );
     engine.record_boundary_call(EventKind::SetRuleDeclaredProperties, |payload| {
         payload.write_u32(rule);
-        payload.write_bool(declarations_are_complete);
         write_declared_properties(&declared, payload);
         write_custom_declarations(&custom_declarations, payload);
     });

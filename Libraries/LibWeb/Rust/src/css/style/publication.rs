@@ -2932,18 +2932,10 @@ impl RetainedState {
                 .program
                 .written_winner_declaration(rule, winner.property, winner.important, winner.key.value)
                 .map(|(index, value)| (index, value, self.program.written_value_checks(rule, index)))),
-            WinnerSource::Element(kind) => {
-                if !self
-                    .facts
-                    .element_declarations_are_complete_but_for_custom_properties(node, kind)
-                {
-                    return Err(Counter::EngineComputedRecordBailWinnerElement);
-                }
-                Ok(self.facts.element_declarations(node, kind).and_then(|declarations| {
-                    let index = declarations.winner_index(winner.property, winner.important, winner.key.value)?;
-                    Some((index, declarations.written(index), declarations.checks(index)))
-                }))
-            }
+            WinnerSource::Element(kind) => Ok(self.facts.element_declarations(node, kind).and_then(|declarations| {
+                let index = declarations.winner_index(winner.property, winner.important, winner.key.value)?;
+                Some((index, declarations.written(index), declarations.checks(index)))
+            })),
             WinnerSource::ExactCascade => Err(Counter::EngineComputedRecordBailWinnerOperator),
         }
     }
@@ -4316,7 +4308,6 @@ impl RetainedState {
                         verifier
                             .facts
                             .element_declared_properties(target.node(), kind)
-                            .0
                             .iter()
                             .for_each(&mut inspect);
                     }
@@ -4723,23 +4714,15 @@ impl RetainedState {
                 Lookup::Known(answer) => answer,
                 Lookup::KnownAbsent | Lookup::Missing(_) => return None,
             };
-            // Completeness depends only on rule inventory and scope. Cascade rank,
-            // specificity, and the materialized node never participate.
+            // Completeness depends only on which rules matched and on the element's own
+            // declarations. Cascade rank, specificity, and the materialized node never participate.
             for entry in retained.iter() {
                 self.programs.get(entry.program).entries().get(entry.entry as usize)?;
-                if self.program.rule_is_gated_by_container_query(entry.rule)
-                    || !self
-                        .program
-                        .declarations_are_complete_but_for_custom_properties(entry.rule)
-                {
+                if self.program.rule_is_gated_by_container_query(entry.rule) {
                     return Some(false);
                 }
             }
-            Some(
-                ElementDeclarationKind::ALL
-                    .iter()
-                    .all(|&kind| self.facts.element_declared_properties(node, kind).1),
-            )
+            Some(self.facts.element_custom_declarations(node).is_empty())
         };
         if !published_answer_is_complete && retained_answer_is_complete() != Some(true) {
             return;
@@ -5751,7 +5734,6 @@ mod tests {
                 vec![original.clone_retained(), pending.clone_retained()],
                 vec![],
                 vec![],
-                true,
             );
             let (found_property, found_value) = engine
                 .shorthand_declaration_written_as(StyleNodeID::element(1), WinnerSource::Rule(rule), pending.pointer())
@@ -5776,14 +5758,11 @@ mod tests {
             value: SpecifiedValueID(1),
         };
         let kind = ElementDeclarationKind::InlineStyle;
-        let written = || RetainedStyleValueData::from_owned(StyleValueData::Number { value: 0.5 });
+        let written = RetainedStyleValueData::from_owned(StyleValueData::Number { value: 0.5 });
         engine
             .facts
-            .set_element_declared_properties(first, kind, vec![(declaration, written())], true);
-        // The second element's declarations are incomplete, which keeps its record from the engine.
-        engine
-            .facts
-            .set_element_declared_properties(second, kind, vec![(declaration, written())], false);
+            .set_element_declared_properties(first, kind, vec![(declaration, written)]);
+        // The second element declares nothing, so the winner names no declaration of its own.
         let winner = PropertyWinner {
             property: declaration.property,
             important: false,
