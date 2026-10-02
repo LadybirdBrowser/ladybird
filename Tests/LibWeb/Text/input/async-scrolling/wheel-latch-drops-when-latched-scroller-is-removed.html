@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+        height: 2000px;
+    }
+    #nested {
+        width: 100px;
+        height: 100px;
+        overflow: scroll;
+    }
+    #nested > div {
+        height: 300px;
+    }
+</style>
+<div id="nested"><div></div></div>
+<script>
+    promiseTest(async () => {
+        await animationFrame();
+        await animationFrame();
+
+        await internals.wheel(50, 50, 0, 50, true, "ongoing");
+        println(`nested.scrollTop after the first step: ${nested.scrollTop}`);
+
+        // Once the scroller the compositor latched the gesture to has left the display list, the next step of the
+        // gesture is routed afresh, to the page.
+        nested.remove();
+        await animationFrame();
+        await animationFrame();
+        await internals.wheel(50, 50, 0, 50, true, "ongoing");
+        await internals.wheel(50, 50, 0, 0, true, "ended");
+        println(`window.scrollY after the next step: ${window.scrollY}`);
+    });
+</script>

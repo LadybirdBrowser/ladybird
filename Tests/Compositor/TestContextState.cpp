@@ -1296,23 +1296,6 @@ TEST_CASE(momentum_within_the_grace_after_the_gesture_ended_continues_its_latch)
     EXPECT_EQ(fixture.latched_scroller_node_id(), nested_scroller_node_id);
 }
 
-TEST_CASE(a_latch_is_dropped_when_its_scroller_leaves_the_display_list)
-{
-    LatchedWheelContextFixture fixture;
-
-    EXPECT(fixture.wheel({ 20, 20 }, { 0, 50 }, Web::ScrollGesturePhase::Ongoing, 0).accepted);
-    fixture.take_scroll_offsets();
-
-    auto visual_context_tree = make_scrollable_viewport_visual_context_tree();
-    fixture.scene.context.install_display_list_update(make_scrollable_viewport_display_list(visual_context_tree, false), visual_context_tree, {});
-    fixture.take_scroll_offsets();
-
-    EXPECT(fixture.wheel({ 20, 20 }, { 0, 50 }, Web::ScrollGesturePhase::Ongoing, 20).accepted);
-    auto latched_scroller = fixture.scene.context.latched_wheel_scroller_for_testing();
-    EXPECT(latched_scroller.has_value());
-    EXPECT_EQ(latched_scroller->kind, Web::AsyncScrollNodeKind::Viewport);
-}
-
 TEST_CASE(a_latched_gesture_ignores_main_thread_wheel_regions_it_moves_over)
 {
     LatchedWheelContextFixture fixture({ .main_thread_wheel_event_region_in_viewport = Gfx::FloatRect { 60, 60, 40, 40 } });
