@@ -3120,11 +3120,10 @@ impl RetainedState {
             WinnerSource::ExactCascade => return None,
         };
         let mut written_value = written_value;
-        loop {
-            let (shorthand, value) = declarations.clone().find(|(declared, written)| {
-                declared.property < crate::css::property_metadata::FIRST_LONGHAND_PROPERTY_ID
-                    && std::ptr::eq(written.pointer(), written_value)
-            })?;
+        while let Some((shorthand, value)) = declarations.clone().find(|(declared, written)| {
+            declared.property < crate::css::property_metadata::FIRST_LONGHAND_PROPERTY_ID
+                && std::ptr::eq(written.pointer(), written_value)
+        }) {
             match value.data() {
                 crate::css::style_value::StyleValueData::PendingSubstitution {
                     original_shorthand_value,
@@ -3132,6 +3131,46 @@ impl RetainedState {
                 _ => return Some((shorthand.property, value.clone_retained())),
             }
         }
+
+        // Inline declarations retain the expanded pending longhands without a separate shorthand
+        // declaration. The longhands pending the same original value are the leaves of the
+        // shorthand whose grammar parses the substituted source, through any shorthand nested in
+        // it (`border-width` in `border`).
+        let mut original = None;
+        let mut pending_longhands = Vec::new();
+        for (declared, written) in declarations {
+            if let crate::css::style_value::StyleValueData::PendingSubstitution {
+                original_shorthand_value,
+            } = written.data()
+                && std::ptr::eq(original_shorthand_value.pointer(), written_value)
+            {
+                pending_longhands.push(declared.property);
+                original = Some(original_shorthand_value);
+            }
+        }
+        let original = original?;
+        pending_longhands.sort_unstable();
+        pending_longhands.dedup();
+        fn leaf_longhands(property: u16, leaves: &mut Vec<u16>) {
+            for &longhand in crate::css::property_metadata::longhands_for_shorthand(property) {
+                if longhand < crate::css::property_metadata::FIRST_LONGHAND_PROPERTY_ID {
+                    leaf_longhands(longhand, leaves);
+                } else {
+                    leaves.push(longhand);
+                }
+            }
+        }
+        let mut leaves = Vec::with_capacity(pending_longhands.len());
+        let shorthand = (crate::css::property_metadata::FIRST_SHORTHAND_PROPERTY_ID
+            ..=crate::css::property_metadata::LAST_SHORTHAND_PROPERTY_ID)
+            .find(|&candidate| {
+                leaves.clear();
+                leaf_longhands(candidate, &mut leaves);
+                leaves.sort_unstable();
+                leaves.dedup();
+                leaves == pending_longhands
+            })?;
+        Some((shorthand, original.clone_retained()))
     }
 
     /// Whether any winner of a state was written with a substitution, so the record computed
