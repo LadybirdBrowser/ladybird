@@ -112,10 +112,21 @@ unsafe extern "C" {
     fn web_css_custom_property_data_unreference(data: *const std::ffi::c_void);
 }
 
+/// A `Web::CSS::CustomPropertyData`, which Rust only names by pointer.
+#[repr(C)]
+pub(crate) struct CustomPropertyDataObject {
+    _opaque: [u8; 0],
+    _not_send_or_sync: std::marker::PhantomData<*const ()>,
+}
+
+// SAFETY: The data is immutable once built and counts its references atomically, so a shared
+// reference to it may be read, taken and given up on any thread.
+unsafe impl Sync for CustomPropertyDataObject {}
+
 /// The custom-property environment one element holds, a `Web::CSS::CustomPropertyData` the engine
 /// keeps a reference to. The element keeps no copy of its own.
 pub(crate) struct RetainedCustomPropertyData {
-    data: crate::css::host_shared::HostShared<std::ffi::c_void>,
+    data: crate::css::host_shared::HostShared<CustomPropertyDataObject>,
 }
 
 impl RetainedCustomPropertyData {
@@ -124,12 +135,12 @@ impl RetainedCustomPropertyData {
     pub(super) unsafe fn retain(data: *const std::ffi::c_void) -> Self {
         unsafe { web_css_custom_property_data_reference(data) };
         Self {
-            data: crate::css::host_shared::HostShared::new(data),
+            data: crate::css::host_shared::HostShared::new(data.cast()),
         }
     }
 
     pub(crate) fn data(&self) -> *const std::ffi::c_void {
-        self.data.as_ptr()
+        self.data.as_ptr().cast()
     }
 }
 
@@ -158,7 +169,7 @@ pub(crate) enum HostVarReads {
 impl Drop for RetainedCustomPropertyData {
     fn drop(&mut self) {
         // SAFETY: The row owns exactly one reference, taken in `retain`.
-        unsafe { web_css_custom_property_data_unreference(self.data.as_ptr()) };
+        unsafe { web_css_custom_property_data_unreference(self.data()) };
     }
 }
 

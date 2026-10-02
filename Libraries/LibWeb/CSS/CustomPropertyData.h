@@ -6,11 +6,11 @@
 
 #pragma once
 
+#include <AK/AtomicRefCounted.h>
 #include <AK/Function.h>
 #include <AK/HashMap.h>
 #include <AK/NumericLimits.h>
 #include <AK/QuickSort.h>
-#include <AK/RefCounted.h>
 #include <AK/RefPtr.h>
 #include <AK/Types.h>
 #include <LibWeb/CSS/PseudoElement.h>
@@ -24,7 +24,9 @@ namespace Web::CSS {
 // Chain of custom property maps with structural sharing.
 // Each node stores only the properties declared directly on its element,
 // with a parent pointer to the inherited chain.
-class WEB_API CustomPropertyData : public RefCounted<CustomPropertyData> {
+// NB: The style engine references the data elements hold, and may take and give up those references on whichever
+//     thread it runs on.
+class WEB_API CustomPropertyData : public AtomicRefCounted<CustomPropertyData> {
 public:
     static NonnullRefPtr<CustomPropertyData> create(
         OrderedHashMap<Utf16FlyString, StyleProperty> own_values,
