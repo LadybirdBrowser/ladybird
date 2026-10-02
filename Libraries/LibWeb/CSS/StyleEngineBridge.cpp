@@ -315,6 +315,11 @@ StyleEngineFFI::FfiEngineComputedRecord StyleEngine::settle_pseudo_records_after
     return StyleEngineFFI::style_engine_settle_pseudo_records_after_host_record(m_impl, node.value(), old_is_list_item);
 }
 
+u64 StyleEngine::inheritable_custom_property_environment(u64 identity) const
+{
+    return StyleEngineFFI::style_engine_inheritable_custom_property_environment(m_impl, identity);
+}
+
 void const* StyleEngine::borrow_engine_custom_property_environment(u64 identity, u64& parent_identity) const
 {
     return StyleEngineFFI::style_engine_borrow_engine_custom_property_environment(m_impl, identity, &parent_identity);
@@ -995,6 +1000,12 @@ void StyleEngine::set_element_custom_property_data(DOM::Element const& element, 
     // whether what the element's style resolves to declares custom properties of its own.
     bool const is_animation_overlay = data && data->is_animation_overlay_for({ element });
     auto const* base = is_animation_overlay ? data->parent().ptr() : data;
+    // What the element's children inherit, which the engine resolves their environments over.
+    if (base) {
+        auto inheritable = base->inheritable(element.document());
+        StyleEngineFFI::style_engine_note_custom_property_environment(m_impl, base->identity(), base->rust_store(),
+            inheritable ? inheritable->identity() : 0, inheritable ? inheritable->rust_store() : nullptr);
+    }
     StyleEngineFFI::style_engine_set_element_custom_property_data(m_render_document->host(), element.style_node_id().value(), data, data ? data->identity() : 0, is_animation_overlay, base && base->declared_count() > 0);
 }
 

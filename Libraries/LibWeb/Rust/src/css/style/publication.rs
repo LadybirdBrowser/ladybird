@@ -1483,7 +1483,7 @@ impl RetainedState {
                 state,
                 facts: cold_record_facts(facts),
                 pseudo_styles,
-                environment: parent_environment,
+                environment: self.custom_property_environments.inheritable(parent_environment),
                 font_environment_generation: inputs.font_environment_generation,
                 root_font_inputs: RootFontInputs::from_document(&inputs),
             });
@@ -2450,9 +2450,7 @@ impl RetainedState {
             && self
                 .computed_group_sets
                 .custom_property_environment_identity(node)
-                .is_some_and(|environment| {
-                    self.computed_group_sets.custom_property_environment_identity(parent) == Some(environment)
-                })
+                .is_some_and(|environment| self.inherited_custom_property_environment(parent) == Some(environment))
     }
 
     /// The inherited groups a state's winners rebuild for their element: the groups its
@@ -2663,7 +2661,7 @@ impl RetainedState {
             return None;
         }
         let dependency_flags = view.dependency_flags;
-        let environment = self.computed_group_sets.custom_property_environment_identity(parent)?;
+        let environment = self.inherited_custom_property_environment(parent)?;
         let inherited_groups = self.computed_group_sets.node_inherited_groups_identity(parent)?;
         let parent_display = self.box_type_parent_display(parent)?;
         let record = if self.state_explicitly_inherits_non_inherited_property(node, state) {
@@ -2818,7 +2816,7 @@ impl RetainedState {
         let Some(parent_record) = self.computed_group_sets.assigned_style_record(parent) else {
             return;
         };
-        if self.computed_group_sets.custom_property_environment_identity(parent) != Some(custom_property_environment) {
+        if self.inherited_custom_property_environment(parent) != Some(custom_property_environment) {
             return;
         }
         // An opaque record is shared only when every winner is context-free, which no winner

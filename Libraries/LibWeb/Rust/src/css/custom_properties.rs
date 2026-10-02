@@ -587,6 +587,37 @@ impl CustomPropertyStore {
             .and_then(|name_raw| self.own_values.get(name_raw))
     }
 
+    /// What a child inherits of this store: the store without the entries a registration keeps
+    /// from inheriting, over the same chain; `None` when every entry inherits.
+    pub(crate) fn inheritable(&self, registry: &CustomPropertyRegistry) -> Option<Arc<CustomPropertyStore>> {
+        let inherits = |entry: &CustomPropertyEntry| registry.name_inherits(&entry.name);
+        if self.own_values.values().all(inherits) {
+            return None;
+        }
+        let own_values: HashMap<usize, CustomPropertyEntry> = self
+            .own_values
+            .iter()
+            .filter(|(_, entry)| inherits(entry))
+            .map(|(&name_raw, entry)| (name_raw, entry.clone()))
+            .collect();
+        Some(Arc::new(Self {
+            own_names: own_values
+                .iter()
+                .map(|(&name_raw, entry)| (entry.name.clone(), name_raw))
+                .collect(),
+            declared_names: self
+                .declared_names
+                .iter()
+                .copied()
+                .filter(|name_raw| own_values.contains_key(name_raw))
+                .collect(),
+            own_values,
+            parent: self.parent.clone(),
+            inheritance_parent: self.inheritance_parent.clone(),
+            ancestor_count: self.ancestor_count,
+        }))
+    }
+
     pub(crate) fn value_matches(&self, name_raw: usize, value: &StyleValueData) -> bool {
         self.get(name_raw).is_some_and(|entry| entry.value.data() == value)
     }

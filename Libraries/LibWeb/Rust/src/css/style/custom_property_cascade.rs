@@ -706,10 +706,18 @@ impl RetainedState {
     /// keeps the parent's whatever its reaction computes.
     pub(super) fn node_environment_may_move(&self, node: StyleNodeID) -> bool {
         let own = self.computed_group_sets.custom_property_environment_identity(node);
-        let parent = self.tree.inheritance_parent(node).map_or(Some(0), |parent| {
-            self.computed_group_sets.custom_property_environment_identity(parent)
-        });
+        let parent = self
+            .tree
+            .inheritance_parent(node)
+            .map_or(Some(0), |parent| self.inherited_custom_property_environment(parent));
         own != parent || self.node_declares_custom_properties(node)
+    }
+
+    /// The environment the node's children inherit: the one behind its record, without the custom
+    /// properties a registration keeps from inheriting.
+    pub(super) fn inherited_custom_property_environment(&self, node: StyleNodeID) -> Option<u64> {
+        let environment = self.computed_group_sets.custom_property_environment_identity(node)?;
+        Some(self.custom_property_environments.inheritable(environment))
     }
 
     /// Whether the node's style reads custom properties: its cascade declares some, or a winner
@@ -1281,13 +1289,12 @@ impl RetainedState {
         store
     }
 
-    /// The environment of a node the engine computes a record for: the one it inherits when its
-    /// cascade declares no custom property, else what its declarations resolve to over that one.
+    /// The environment of a node the engine computes a record for: the one it inherits of its
+    /// parent's when its cascade declares no custom property, else what its declarations resolve
+    /// to over that one. What a node inherits is the parent's environment without the custom
+    /// properties a registration keeps from inheriting, while `inherit` reads the parent's whole.
     /// A registered name computes against `registered`, else against what
-    /// `standing_registered_value_context` says. Refused when an input is missing, or when a name
-    /// is registered as not inheriting: the environment this builds over the parent's is the one
-    /// a child declaring nothing takes whole, which would hand the name to a descendant the
-    /// registration keeps it from.
+    /// `standing_registered_value_context` says. Refused when an input is missing.
     pub(super) fn engine_custom_property_environment(
         &mut self,
         node: StyleNodeID,
@@ -1314,7 +1321,7 @@ impl RetainedState {
             if pseudo.is_none() {
                 self.custom_declaration_reads.remove(&node);
             }
-            return Ok(parent_environment);
+            return Ok(self.custom_property_environments.inheritable(parent_environment));
         }
         // A node the engine drives has the match answer its winners came from, and a published
         // block carries a written value for each custom declaration, so the cascade answers. One
@@ -1379,14 +1386,11 @@ impl RetainedState {
         registered: Option<&RegisteredValueContext>,
         counters: &mut Counters,
     ) -> Drive<u64> {
+        let inherited_environment = self.custom_property_environments.inheritable(parent_environment);
         if cascaded.is_empty() {
-            return Ok(parent_environment);
+            return Ok(inherited_environment);
         }
         let registry_ref = inputs.custom_property_registry();
-        if registry_ref.has_non_inheriting_registrations() {
-            counters.bump(Counter::EngineCustomPropertyEnvironmentBails);
-            return Err(Unanswered::Refused);
-        }
         // A registered name computes against the element's own font and viewport, so what it
         // resolves to is the element's alone and takes no memo.
         let registered = self
@@ -1436,14 +1440,17 @@ impl RetainedState {
         // only what it saves, so where it holds such an identity this resolves one of its own.
         let memoized = self.custom_property_environments.memoized(&key);
         let keeps_cpp_environment = memoized.is_some_and(|identity| {
-            identity != parent_environment
+            identity != inherited_environment
                 && identity & custom_property_environments::ENGINE_ENVIRONMENT_IDENTITY_BIT == 0
         });
         if memoizes && let Some(identity) = memoized.filter(|_| !keeps_cpp_environment) {
             counters.bump(Counter::EngineCustomPropertyEnvironmentMemoHits);
             return Ok(identity);
         }
-        let Some(parent_store) = self.inherited_environment_store(parent_environment) else {
+        let (Some(parent_store), Some(inheritance_store)) = (
+            self.inherited_environment_store(inherited_environment),
+            self.inherited_environment_store(parent_environment),
+        ) else {
             counters.bump(Counter::EngineCustomPropertyEnvironmentBails);
             return Err(Unanswered::Refused);
         };
@@ -1471,9 +1478,9 @@ impl RetainedState {
             if memoizes && !keeps_cpp_environment {
                 let written_values = cascaded.into_iter().map(|(_, written)| written).collect();
                 self.custom_property_environments
-                    .remember(key, parent_environment, written_values);
+                    .remember(key, inherited_environment, written_values);
             }
-            return Ok(parent_environment);
+            return Ok(inherited_environment);
         }
         // The attributes an `attr()` among the declarations reads.
         let attributes = if reads_attributes {
@@ -1502,7 +1509,7 @@ impl RetainedState {
         let resolution_context = engine_resolution_context(
             &parse_context,
             cascaded_store,
-            parent_store,
+            inheritance_store,
             std::ptr::from_ref(registry_ref).cast(),
             attributes.as_ref(),
             &media_environment,
@@ -1567,11 +1574,15 @@ impl RetainedState {
             );
         }
         let identity = if resolved.rust_store.is_null() {
-            parent_environment
+            inherited_environment
         } else {
             unsafe {
-                self.custom_property_environments
-                    .adopt_engine_environment(resolved.rust_store, parent_environment)
+                self.custom_property_environments.adopt_engine_environment(
+                    resolved.rust_store,
+                    inherited_environment,
+                    parent_store,
+                    registry_ref,
+                )
             }
         };
         if memoizes && !keeps_cpp_environment {

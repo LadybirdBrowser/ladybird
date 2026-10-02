@@ -2544,6 +2544,9 @@ RefPtr<CustomPropertyData const> StyleComputer::engine_custom_property_environme
     });
     auto data = CustomPropertyData::create(move(own_values), inherited, store, identity);
     m_engine_custom_property_environments.set(identity, data);
+    // What its children inherit is the engine's to name too: the children's environments are resolved over it.
+    if (auto inheritable = m_style_engine.inheritable_custom_property_environment(identity); inheritable != identity)
+        data->set_inheritable(document(), inheritable == (inherited ? inherited->identity() : 0) ? inherited : engine_custom_property_environment(inheritable, inherited));
     return data;
 }
 

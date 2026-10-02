@@ -1,4 +1,4 @@
-disable unrelated longhands skipped: true
+disable unrelated longhands skipped: false
 disable transition: 0s
 disable color: rgb(0, 128, 0)
 restore unrelated longhands skipped: true
