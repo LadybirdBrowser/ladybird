@@ -37,7 +37,7 @@ private:
 NonnullOwnPtr<PictureInPictureWindow> HeadlessWebView::create_picture_in_picture_window(HeadlessWebView& requesting_view, CanonicalTraversable& traversable, Gfx::IntSize video_size)
 {
     auto size = PictureInPictureWindow::initial_size(video_size, screen_rect.size().to_type<int>());
-    auto view = create_child(requesting_view, traversable);
+    auto view = create_child(requesting_view, traversable, IsOwnedByParent::Yes);
     view->reset_viewport_size(size.to_type<Web::DevicePixels>());
     return make<HeadlessPictureInPictureWindow>(size, move(view));
 }
@@ -50,9 +50,12 @@ NonnullOwnPtr<HeadlessWebView> HeadlessWebView::create(Core::AnonymousBuffer the
     return view;
 }
 
-NonnullOwnPtr<HeadlessWebView> HeadlessWebView::create_child(HeadlessWebView& parent, CanonicalTraversable& traversable)
+NonnullOwnPtr<HeadlessWebView> HeadlessWebView::create_child(HeadlessWebView& parent, CanonicalTraversable& traversable, IsOwnedByParent is_owned_by_parent)
 {
     auto view = adopt_own(*new HeadlessWebView(parent.m_theme, parent.m_viewport_size, parent.is_private()));
+    if (is_owned_by_parent == IsOwnedByParent::Yes)
+        view->set_owner_view(parent);
+
     view->initialize_tab(Web::HTML::VisibilityState::Visible, traversable);
 
     return view;

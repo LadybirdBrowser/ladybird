@@ -387,6 +387,9 @@ void ProcessManagerWindow::refresh()
     };
     HashMap<pid_t, ProcessPage> process_pages;
     WebView::ViewImplementation::for_each_view([&](auto& view) {
+        // An owned view's page shares its owner's process, which the owner's tab already lists.
+        if (view.owner_view_id().has_value())
+            return IterationDecision::Continue;
         auto active_view = WebView::Application::the().active_web_view();
         auto priority = [&](auto const& candidate) {
             if (active_view.has_value() && &*active_view == &candidate)
