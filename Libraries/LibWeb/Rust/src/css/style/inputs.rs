@@ -1116,6 +1116,14 @@ impl RetainedState {
         &self.animation_keyframes
     }
 
+    /// Where an element stands among its siblings, as a tree-counting function reads it: how many
+    /// there are and its one-based index among them.
+    #[must_use]
+    pub(crate) fn element_sibling_position(&self, node: StyleNodeID) -> Option<(u32, u32)> {
+        self.sibling_position(node)
+            .map(|position| (position.count, position.index))
+    }
+
     /// The registry of the custom properties the document registers.
     #[must_use]
     pub(crate) fn custom_property_registry(&self) -> &crate::css::custom_properties::CustomPropertyRegistry {

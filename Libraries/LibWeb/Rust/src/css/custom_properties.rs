@@ -269,6 +269,14 @@ impl CustomPropertyRegistry {
             .is_none_or(|registration| registration.inherits)
     }
 
+    /// Whether a custom property of this name is registered with a syntax other than the universal
+    /// one, which its values compute against.
+    pub(crate) fn name_has_syntax(&self, name: &[u16]) -> bool {
+        self.registrations
+            .get(name)
+            .is_some_and(|registration| !matches!(registration.syntax, SyntaxNode::Universal))
+    }
+
     /// A custom property's initial value: what its registration's initial value computes to, and
     /// the guaranteed-invalid value for an unregistered name or a registration without one.
     pub(crate) fn initial_value(&self, name: &[u16]) -> RetainedStyleValueData {
