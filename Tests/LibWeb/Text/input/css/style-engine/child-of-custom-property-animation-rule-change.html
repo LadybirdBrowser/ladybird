@@ -26,8 +26,8 @@
         seek(100000);
         println(`before the flip: ${read()}`);
         seek(600000);
-        // NB: Settle the parent first. The mark its new environment leaves on the child is acted on
-        //     by the next update only, which animation-of-an-unregistered-custom-property.html covers.
+        println(`after the flip: ${read()}`);
+        // Settle the sampled parent before changing an unrelated winner on the child.
         internals.updateStyle();
         child.classList.add("spaced");
         println(`after the flip and a rule change: ${read()}`);
