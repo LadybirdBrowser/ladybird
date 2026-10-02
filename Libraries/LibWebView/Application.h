@@ -120,6 +120,9 @@ public:
     virtual bool supports_vertical_tabs() const { return false; }
     virtual bool supports_private_browsing_windows() const { return false; }
     virtual bool supports_client_side_window_decorations() const { return false; }
+    // Returns true if the platform sends momentum scroll events after a touchpad flick.
+    // If it does not, the compositor makes the fling.
+    virtual bool platform_reports_scroll_momentum() const { return true; }
 
     void appearance_changed(Badge<ApplicationSettingsObserver>);
     void tab_settings_changed(Badge<ApplicationSettingsObserver>);

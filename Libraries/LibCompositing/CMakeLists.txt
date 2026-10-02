@@ -12,6 +12,7 @@ set(SOURCES
     DisplayList/VisualContextTreeTestBuilder.cpp
     Scrolling/AsyncScrollTree.cpp
     Scrolling/AsyncScrollingState.cpp
+    Scrolling/ScrollFling.cpp
     Scrolling/ScrollSnapSelection.cpp
     Scrolling/ScrollState.cpp
     Scrolling/SmoothScrollAnimation.cpp

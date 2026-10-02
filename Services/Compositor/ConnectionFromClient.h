@@ -61,6 +61,7 @@ private:
     virtual Messages::CompositorControlServer::DispatchKeyEventToWebContentResponse dispatch_key_event_to_web_content(Web::CompositorContextId, Web::KeyEvent) override;
     virtual void presented_bitmap_ready_to_paint(Web::CompositorContextId, i32 bitmap_id) override;
     virtual void set_client_gpu_presentation_capability(bool supported, u64 adapter_luid) override;
+    virtual void set_synthesizes_scroll_momentum(bool) override;
     virtual void crash() override;
 
     ConnectionFromWebContent* web_content_connection(i32 web_content_connection_id);

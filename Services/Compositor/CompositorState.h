@@ -117,6 +117,7 @@ public:
     bool request_screenshot(Web::CompositorContextId, Gfx::ShareableBitmap&);
     void presented_bitmap_ready_to_paint(Web::CompositorContextId, i32 bitmap_id);
     void set_client_gpu_presentation_capability(bool supported, u64 adapter_luid);
+    void set_synthesizes_scroll_momentum(bool);
 
     struct PlaceholderCanvasAllocation {
         Compositing::CanvasId canvas_id;
@@ -196,6 +197,8 @@ private:
         Web::CompositorContextId,
         ContextState&,
         ContextState::ContextUpdateResult const&);
+    void schedule_animation_frames_if_needed(ContextState&);
+    void dispatch_scroll_fling_step(Web::CompositorContextId, ContextState&, Optional<ContextState::ScrollFlingStep>);
     void present_frame(Web::CompositorContextId, ContextState&, ContextState::PendingFrame);
     void schedule_present_frame(Web::CompositorContextId, ContextState&, ContextState::PendingFrame);
     void schedule_present_frame(Web::CompositorContextId, ContextState&, Gfx::IntRect viewport_rect);
@@ -226,6 +229,7 @@ private:
 
     // LUID of the GPU adapter the client can present shared GPU textures on, if any.
     Optional<u64> m_client_gpu_presentation_adapter_luid;
+    bool m_synthesizes_scroll_momentum { false };
 
     struct VideoSinkState {
         RefPtr<Media::DisplayingVideoSink> sink;
