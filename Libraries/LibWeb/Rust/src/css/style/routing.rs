@@ -3178,7 +3178,7 @@ impl RetainedState {
             if !all_inputs_accounted {
                 return PrefixConvergenceOutcome::default();
             }
-            let prefix_caches = Rc::clone(&self.prefix_caches);
+            let prefix_caches = std::sync::Arc::clone(&self.prefix_caches);
             let mut caches = prefix_caches.borrow_mut();
             if !caches.states.is_retained() {
                 return PrefixConvergenceOutcome::default();
@@ -3357,7 +3357,7 @@ impl RetainedState {
                 as u64;
 
         if had_retained_prefix_states {
-            let prefix_caches = Rc::clone(&self.prefix_caches);
+            let prefix_caches = std::sync::Arc::clone(&self.prefix_caches);
             let mut caches = prefix_caches.borrow_mut();
             let PrefixCaches {
                 states: retained,

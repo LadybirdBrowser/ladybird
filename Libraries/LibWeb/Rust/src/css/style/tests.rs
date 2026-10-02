@@ -7002,7 +7002,7 @@ fn covered_prefix_changes_forget_only_the_covered_subtree() {
     // The walk skips the covered subtree but keeps the cache warm: only the transitions
     // that depend on the skipped node are forgotten.
     let (scope_program, _) = engine.prepare_scope_program(TreeScopeID::DOCUMENT);
-    let prefix_caches = Rc::clone(&engine.prefix_caches);
+    let prefix_caches = std::sync::Arc::clone(&engine.prefix_caches);
     let mut caches = prefix_caches.borrow_mut();
     let Lookup::Known(states) = caches.states.lookup_mut(scope_program) else {
         panic!("the document program's states survive a covered skip");
@@ -7087,7 +7087,7 @@ fn a_prefix_upquery_retains_every_transition_on_its_ancestor_chain() {
     assert!(engine.begin_cold_matching_batch(nodes[0]));
     assert_eq!(engine.match_element(nodes[3]).unwrap().len(), 1);
     let (scope_program, _) = engine.prepare_scope_program(TreeScopeID::DOCUMENT);
-    let prefix_caches = Rc::clone(&engine.batch_matching_traversal.as_ref().unwrap().prefix_caches);
+    let prefix_caches = std::sync::Arc::clone(&engine.batch_matching_traversal.as_ref().unwrap().prefix_caches);
     let mut caches = prefix_caches.borrow_mut();
     let states = match caches.states.lookup_mut(scope_program) {
         Lookup::Known(states) => states,

@@ -1850,7 +1850,7 @@ impl StyleEngineState {
                 batch_matching_traversal: None,
                 completion_exactness: CompletionExactness::Exact,
                 route_pruning_states: Mutex::new(RoutePruningStateCache::default()),
-                prefix_caches: Rc::new(RefCell::new(PrefixCaches::default())),
+                prefix_caches: std::sync::Arc::default(),
                 #[cfg(test)]
                 force_bounded_prefix_completion: false,
                 prepared_batch_matching_traversal: None,
