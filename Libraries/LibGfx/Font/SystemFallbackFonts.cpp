@@ -48,9 +48,6 @@ RefPtr<Font const> system_fallback_font(SystemFallbackFontKey const& key, float 
     auto& cache = system_fallback_font_cache();
     // NB: The lookup runs under the lock rather than beside it, so one code point is matched once
     //     even when several threads want it. The cost falls on misses only.
-    // FIXME: SharedFontProvider answers a miss with a synchronous IPC round trip on the client's
-    //        connection, which belongs to the document thread. Until another thread has a font
-    //        service connection of its own, only cache hits are genuinely available off it.
     MutexLocker locker(cache.mutex);
     if (auto cached = cache.typefaces.get(key); cached.has_value()) {
         if (!*cached)

@@ -20,6 +20,7 @@
 #include <LibGfx/Font/SharedFontProvider.h>
 #include <LibGfx/Font/TypefaceSkia.h>
 #include <LibTest/TestCase.h>
+#include <LibThreading/Thread.h>
 
 namespace {
 
@@ -70,6 +71,16 @@ static Gfx::BrokeredFont open_test_font(u64 face_id)
             .file = IPC::File::adopt_file(move(file)),
         },
     };
+}
+
+static void run_on_another_thread(Function<void()> function)
+{
+    auto thread = Threading::Thread::construct("FontQuestion"sv, [function = move(function)] {
+        function();
+        return 0;
+    });
+    thread->start();
+    (void)thread->join();
 }
 
 static Gfx::BrokeredFont reference_test_font(u64 face_id, String family)
@@ -273,6 +284,39 @@ TEST_CASE(caches_code_point_fallback_matches_and_misses)
     EXPECT(provider->get_font_for_code_point('A', 12, 700, Gfx::FontWidth::Normal, 0, false));
     EXPECT(provider->get_font_for_code_point('A', 12, 400, Gfx::FontWidth::Normal, 0, true));
     EXPECT_EQ(match_count, 4u);
+}
+
+TEST_CASE(code_point_fallback_from_another_thread_asks_on_its_own_callbacks)
+{
+    size_t own_match_count = 0;
+    Gfx::SharedFontProviderCallbacks callbacks;
+    callbacks.match_font_for_code_point = [&](u32, u16, u16, u8, bool) {
+        ++own_match_count;
+        return open_test_font(94);
+    };
+    auto provider = MUST(Gfx::SharedFontProvider::create_empty(9, move(callbacks)));
+
+    size_t other_thread_match_count = 0;
+    Gfx::SharedFontProviderCallbacks other_thread_callbacks;
+    other_thread_callbacks.match_font_for_code_point = [&](u32, u16, u16, u8, bool) {
+        ++other_thread_match_count;
+        return open_test_font(94);
+    };
+    provider->set_callbacks_for_other_threads(move(other_thread_callbacks));
+
+    RefPtr<Gfx::Font> font;
+    run_on_another_thread([&] {
+        font = provider->get_font_for_code_point('A', 12, 400, Gfx::FontWidth::Normal, 0, false);
+    });
+    EXPECT(font);
+    EXPECT_EQ(other_thread_match_count, 1u);
+    EXPECT_EQ(own_match_count, 0u);
+
+    // The answer is the provider's, whichever thread asked for it.
+    EXPECT_EQ(&provider->get_font_for_code_point('A', 12, 400, Gfx::FontWidth::Normal, 0, false)->typeface(), &font->typeface());
+    EXPECT(provider->get_font_for_code_point('B', 12, 400, Gfx::FontWidth::Normal, 0, false));
+    EXPECT_EQ(other_thread_match_count, 1u);
+    EXPECT_EQ(own_match_count, 1u);
 }
 
 TEST_CASE(replacing_catalog_clears_code_point_fallback_cache)

@@ -8,6 +8,7 @@
 #include <LibCompositing/FontServiceClient.h>
 #include <LibCore/EventLoop.h>
 #include <LibGfx/Font/Font.h>
+#include <LibGfx/Font/SharedFontProvider.h>
 #include <LibTest/TestCase.h>
 #include <LibThreading/Thread.h>
 #include <LibWebView/FontService.h>
@@ -110,4 +111,30 @@ TEST_CASE(a_connection_keeps_the_font_service_alive)
         face_id = client->match_font_for_code_point('A', 400, Gfx::FontWidth::Normal, 0, false).face_id;
     });
     EXPECT_EQ(face_id, expected);
+}
+
+// The process's font provider sends a code point miss from any thread but its own over the render
+// side's connection, so the miss is answered while the document thread pumps nothing.
+TEST_CASE(a_code_point_miss_from_another_thread_goes_out_on_the_render_side_connection)
+{
+    auto service = connect_render_side_font_service();
+
+    // The provider's own callbacks stand for the document thread's connection, which no other
+    // thread may use.
+    Gfx::SharedFontProviderCallbacks callbacks;
+    callbacks.match_font_for_code_point = [](u32, u16, u16, u8, bool) -> Gfx::BrokeredFont { VERIFY_NOT_REACHED(); };
+    auto provider = MUST(Gfx::SharedFontProvider::create_empty(1, move(callbacks)));
+
+    Gfx::SharedFontProviderCallbacks render_side_callbacks;
+    render_side_callbacks.match_font_for_code_point = [&](u32 code_point, u16 weight, u16 width, u8 slope, bool prefer_color_emoji) {
+        return service.client->match_font_for_code_point(code_point, weight, width, slope, prefer_color_emoji);
+    };
+    provider->set_callbacks_for_other_threads(move(render_side_callbacks));
+
+    Core::EventLoop event_loop;
+    RefPtr<Gfx::Font> font;
+    run_on_another_thread([&] {
+        font = provider->get_font_for_code_point('A', 16, 400, Gfx::FontWidth::Normal, 0, false);
+    });
+    EXPECT(font);
 }
