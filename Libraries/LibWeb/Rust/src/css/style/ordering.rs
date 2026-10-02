@@ -81,26 +81,18 @@ struct PublishedWinnerState {
     inventory_is_complete: bool,
 }
 
-/// What a match contributes to a compaction that depends on nothing but its match list.
+/// What a match contributes to a compaction that depends on nothing but its match list. A match
+/// from the node's own tree reaches the compaction only through its priority, which names
+/// everything the tree decides about it, so alike rows of two instances of one shadow tree share
+/// a compaction.
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
 struct CompactionMatch {
     rule: RuleID,
     pseudo_element: Option<tree::PseudoElementTarget>,
     specificity: Specificity,
-    tree_scope: TreeScopeID,
     scope_proximity: u32,
-}
-
-impl CompactionMatch {
-    fn of(entry: &RuleMatch) -> Self {
-        Self {
-            rule: entry.rule,
-            pseudo_element: entry.pseudo_element,
-            specificity: entry.specificity,
-            tree_scope: entry.tree_scope,
-            scope_proximity: entry.scope_proximity,
-        }
-    }
+    /// The normal priority of a match from the node's own tree; none for a document rule's.
+    own_tree_priority: Option<CascadePriority>,
 }
 
 /// What compacting one match list decided: the states it published and, unless compaction was
@@ -127,11 +119,9 @@ struct RememberedCompactions {
 impl RememberedCompactions {
     const LIMIT: usize = 1024;
 
-    fn hash_of(all: &[RuleMatch]) -> u64 {
+    fn hash_of(matches: &[CompactionMatch]) -> u64 {
         let mut hasher = fast_hash::fast_hasher();
-        for entry in all {
-            CompactionMatch::of(entry).hash(&mut hasher);
-        }
+        matches.hash(&mut hasher);
         hasher.finish()
     }
 
@@ -149,14 +139,9 @@ impl RememberedCompactions {
         self.nested_bytes = 0;
     }
 
-    fn get(&self, hash: u64, all: &[RuleMatch]) -> Option<&RememberedCompaction> {
+    fn get(&self, hash: u64, matches: &[CompactionMatch]) -> Option<&RememberedCompaction> {
         self.by_matches.find(hash, |remembered| {
-            remembered.hash == hash
-                && remembered
-                    .matches
-                    .iter()
-                    .copied()
-                    .eq(all.iter().map(CompactionMatch::of))
+            remembered.hash == hash && *remembered.matches == *matches
         })
     }
 
@@ -168,13 +153,19 @@ impl RememberedCompactions {
         !self.seen.insert(hash)
     }
 
-    fn remember(&mut self, hash: u64, all: &[RuleMatch], states: &[PublishedWinnerState], keep: Option<&[bool]>) {
+    fn remember(
+        &mut self,
+        hash: u64,
+        matches: &[CompactionMatch],
+        states: &[PublishedWinnerState],
+        keep: Option<&[bool]>,
+    ) {
         if self.by_matches.len() >= Self::LIMIT {
             self.clear();
         }
         let remembered = RememberedCompaction {
             hash,
-            matches: all.iter().map(CompactionMatch::of).collect(),
+            matches: matches.into(),
             states: states.into(),
             keep: keep.map(Into::into),
         };
@@ -205,6 +196,8 @@ pub(super) struct CascadeCompactionWorkspace {
     published_winners: Vec<PropertyWinner>,
     published_targets: Vec<(Option<tree::PseudoElementTarget>, std::ops::Range<usize>)>,
     published_states: SmallVec<[PublishedWinnerState; 2]>,
+    /// The match list of a compaction that depends on nothing but it, as `remembered` keys it.
+    remembered_key: Vec<CompactionMatch>,
     remembered: RememberedCompactions,
 }
 
@@ -220,6 +213,7 @@ impl Default for CascadeCompactionWorkspace {
             published_winners: Vec::new(),
             published_targets: Vec::new(),
             published_states: SmallVec::new(),
+            remembered_key: Vec::new(),
             remembered: RememberedCompactions::default(),
         }
     }
@@ -238,6 +232,7 @@ impl CascadeCompactionWorkspace {
             } else {
                 0
             }
+            + (self.remembered_key.capacity() * size_of::<CompactionMatch>()) as u64
             + self.remembered.capacity_bytes()
     }
 }
@@ -712,10 +707,27 @@ impl RetainedState {
             && !has_continuations
             && self.compaction_depends_only_on_matches(effects, node, all)
         {
+            let key = &mut workspace.remembered_key;
+            key.clear();
+            key.extend(all.iter().map(|entry| CompactionMatch {
+                rule: entry.rule,
+                pseudo_element: entry.pseudo_element,
+                specificity: entry.specificity,
+                scope_proximity: entry.scope_proximity,
+                own_tree_priority: (entry.tree_scope != TreeScopeID::DOCUMENT).then(|| {
+                    self.cascade_priority_of(
+                        entry.rule,
+                        entry.tree_scope,
+                        entry.specificity,
+                        entry.scope_proximity,
+                        false,
+                    )
+                }),
+            }));
             let remembered = &mut workspace.remembered;
             remembered.settle(self.program.version(), self.winner_groups.generation());
-            let hash = RememberedCompactions::hash_of(all);
-            if let Some(remembered) = remembered.get(hash, all) {
+            let hash = RememberedCompactions::hash_of(key);
+            if let Some(remembered) = remembered.get(hash, key) {
                 self.publish_winner_states(effects, node, &remembered.states, counters);
                 if let Some(keep) = &remembered.keep {
                     // The key holds every match, so the remembered decisions line up with the list; were one missing,
@@ -941,7 +953,7 @@ impl RetainedState {
             if let Some(hash) = remember_as {
                 workspace
                     .remembered
-                    .remember(hash, all, &workspace.published_states, None);
+                    .remember(hash, &workspace.remembered_key, &workspace.published_states, None);
             }
             self.memory.release(MemoryCategory::BatchScratch, scratch_bytes);
             return;
@@ -1067,7 +1079,7 @@ impl RetainedState {
         if let Some(hash) = remember_as {
             workspace
                 .remembered
-                .remember(hash, all, &workspace.published_states, Some(keep));
+                .remember(hash, &workspace.remembered_key, &workspace.published_states, Some(keep));
         }
         let mut index = 0;
         all.retain(|_| {
