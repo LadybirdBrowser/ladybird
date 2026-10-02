@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/NeverDestroyed.h>
 #include <LibTLS/TLSv12.h>
 #include <RequestServer/Resolver.h>
 
@@ -28,6 +29,15 @@ DNSInfo& DNSInfo::the()
     return g_dns_info;
 }
 
+// System resolver to resolve the resolvers themselves.
+static DNS::Resolver& system_resolver()
+{
+    static NeverDestroyed<DNS::Resolver> resolver { [] -> ErrorOr<Optional<DNS::Resolver::SocketResult>> {
+        return OptionalNone {};
+    } };
+    return *resolver;
+}
+
 NonnullRefPtr<Resolver> Resolver::default_resolver()
 {
     static WeakPtr<Resolver> g_resolver {};
@@ -42,7 +52,7 @@ NonnullRefPtr<Resolver> Resolver::default_resolver()
             if (!dns_info.server_hostname.has_value())
                 return OptionalNone {};
 
-            auto resolved = TRY(default_resolver()->dns.lookup(*dns_info.server_hostname)->await());
+            auto resolved = TRY(system_resolver().lookup(*dns_info.server_hostname)->await());
             if (!resolved->has_cached_addresses())
                 return Error::from_string_literal("Failed to resolve DNS server hostname");
 
