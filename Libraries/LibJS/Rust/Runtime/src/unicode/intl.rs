@@ -17,14 +17,14 @@ use crate::utf16::{Utf16StringBuilder, Utf16View};
 /// UnicodeIntlText: a borrowed string in either of AK::Utf16View's storages.
 #[repr(C)]
 #[derive(Clone, Copy)]
-struct UnicodeIntlText {
+pub(crate) struct UnicodeIntlText {
     ascii: *const u8,
     utf16: *const u16,
     length: usize,
 }
 
 impl UnicodeIntlText {
-    fn of(view: Utf16View<'_>) -> Self {
+    pub(crate) fn of(view: Utf16View<'_>) -> Self {
         match view {
             Utf16View::Ascii(units) => Self {
                 ascii: units.as_ptr(),
@@ -41,7 +41,7 @@ impl UnicodeIntlText {
 }
 
 #[repr(C)]
-struct UnicodeTextMappingOutput {
+pub(crate) struct UnicodeTextMappingOutput {
     context: *mut c_void,
     allocate_text: unsafe extern "C" fn(context: *mut c_void, length: usize) -> *mut u16,
     append_edit: unsafe extern "C" fn(
@@ -238,7 +238,7 @@ fn with_text_output<R>(write: impl FnOnce(UnicodeTextMappingOutput) -> R) -> (R,
     (result, Utf16String::from_utf16(&output))
 }
 
-fn text_output(write: impl FnOnce(UnicodeTextMappingOutput)) -> Utf16String {
+pub(crate) fn text_output(write: impl FnOnce(UnicodeTextMappingOutput)) -> Utf16String {
     with_text_output(write).1
 }
 

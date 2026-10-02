@@ -13,8 +13,11 @@ use num_bigint::Sign;
 use num_integer::Integer;
 use num_traits::{One, Signed, Zero};
 
+use ak::Utf16String;
+
 use crate::runtime::big_int::SignedBigInteger;
 use crate::runtime::big_int_algorithms;
+use crate::utf16::Utf16StringBuilder;
 
 /// A fraction whose denominator is positive. Arithmetic reduces it, but the conversion from a double does not.
 #[derive(Clone, Debug)]
@@ -115,6 +118,100 @@ impl BigFraction {
 
     pub fn is_zero(&self) -> bool {
         self.numerator.is_zero()
+    }
+
+    /// BigFraction::rounded(): the fraction over 10^rounding_threshold, rounding half away from zero for positive
+    /// fractions and truncating negative ones, as LibCrypto's truncating division does.
+    pub fn rounded(&self, rounding_threshold: u32) -> BigFraction {
+        let get_last_digit = |integer: &SignedBigInteger| integer % 10;
+
+        let quotient = &self.numerator / &self.denominator;
+        let remainder = &self.numerator % &self.denominator;
+        let mut result = BigFraction::from_integer(quotient);
+
+        let needed_power = SignedBigInteger::from(10).pow(rounding_threshold);
+        // We get one more digit to do proper rounding
+        let fractional_value = (remainder * (&needed_power * 10)) / &self.denominator;
+
+        result.numerator = &result.numerator * &needed_power + &fractional_value / 10;
+        if get_last_digit(&fractional_value) > SignedBigInteger::from(4) {
+            result.numerator += 1;
+        }
+
+        result.denominator = &result.denominator * &needed_power;
+
+        result
+    }
+
+    /// BigFraction::to_utf16_string(): the decimal digits of the fraction rounded to `rounding_threshold` fractional
+    /// digits, without trailing zeros.
+    pub fn to_utf16_string(&self, rounding_threshold: u32) -> Utf16String {
+        let mut builder = Utf16StringBuilder::new();
+        if self.numerator.sign() == Sign::Minus {
+            builder.append_ascii("-");
+        }
+
+        let number_of_digits = |integer: &SignedBigInteger| -> usize {
+            let mut size = 1;
+            let ten = SignedBigInteger::from(10);
+
+            let (mut quotient, mut remainder) = integer.div_rem(&ten);
+
+            while remainder.is_zero() && !quotient.is_zero() {
+                (quotient, remainder) = quotient.div_rem(&ten);
+                size += 1;
+            }
+
+            size
+        };
+
+        let rounded_fraction = self.rounded(rounding_threshold);
+
+        // We take the unsigned value as we already manage the '-'
+        let full_value = rounded_fraction.numerator.magnitude().to_string();
+        let full_value_length = full_value.len();
+        let split =
+            (full_value_length as i64 - (number_of_digits(&rounded_fraction.denominator) as i64 - 1)).max(0) as usize;
+
+        let remove_trailing_zeros = |value: &str| -> usize {
+            assert!(!value.is_empty());
+            value.trim_end_matches('0').len()
+        };
+
+        let raw_fractional_value = &full_value[split..];
+
+        let integer_value = if split != 0 { &full_value[..split] } else { "0" };
+
+        let fractional_value = if rounding_threshold != 0 {
+            &raw_fractional_value[..remove_trailing_zeros(raw_fractional_value)]
+        } else {
+            "0"
+        };
+
+        builder.append_ascii(integer_value);
+
+        let has_decimal_part = !fractional_value.is_empty() && fractional_value != "0";
+
+        if has_decimal_part {
+            builder.append_ascii(".");
+
+            let mut number_pre_zeros = number_of_digits(&rounded_fraction.denominator)
+                .wrapping_sub(full_value_length)
+                .wrapping_sub(1);
+            if number_pre_zeros > rounding_threshold as usize || fractional_value == "0" {
+                number_pre_zeros = 0;
+            }
+
+            for _ in 0..number_pre_zeros {
+                builder.append_ascii("0");
+            }
+
+            if fractional_value != "0" {
+                builder.append_ascii(fractional_value);
+            }
+        }
+
+        builder.to_utf16_string()
     }
 
     fn reduce(&mut self) {

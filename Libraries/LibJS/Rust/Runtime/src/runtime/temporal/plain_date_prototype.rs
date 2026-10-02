@@ -10,7 +10,6 @@ use ak::Utf16String;
 use libjs_runtime_macros::Trace;
 
 use crate::gc::class::{GcCell, define_cell};
-use crate::interpreter::runtime_functions::unimplemented_runtime_function;
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
 use crate::layout::object::Object;
@@ -20,6 +19,8 @@ use crate::runtime::big_int::BigInt;
 use crate::runtime::completion::{Must, ThrowCompletionOr};
 use crate::runtime::error::ErrorKind;
 use crate::runtime::error_types::ErrorType;
+use crate::runtime::intl::date_time_format::{FormattableDateTime, format_date_time};
+use crate::runtime::intl::date_time_format_constructor::{OptionDefaults, OptionRequired, create_date_time_format};
 use crate::runtime::native_function::raw_native;
 use crate::runtime::object::{MayInterfereWithIndexedPropertyAccess, ORDINARY_OBJECT_METHODS, define_object_class};
 use crate::runtime::primitive_string::PrimitiveString;
@@ -715,18 +716,27 @@ impl PlainDatePrototype {
     fn to_locale_string(vm: &Vm) -> ThrowCompletionOr<Value> {
         let realm = vm.current_realm().expect("a builtin runs in a realm");
 
+        let locales = vm.argument(0);
+        let options = vm.argument(1);
+
         // 1. Let plainDate be the this value.
         // 2. Perform ? RequireInternalSlot(plainDate, [[InitializedTemporalDate]]).
-        typed_this_plain_date(vm)?;
+        let plain_date = typed_this_plain_date(vm)?;
 
         // 3. Let dateFormat be ? CreateDateTimeFormat(%Intl.DateTimeFormat%, locales, options, DATE, DATE).
-        realm.intrinsics().intl_date_time_format_constructor(vm);
+        let date_format = create_date_time_format(
+            vm,
+            realm.intrinsics().intl_date_time_format_constructor(vm),
+            locales,
+            options,
+            OptionRequired::Date,
+            OptionDefaults::Date,
+            None,
+        )?;
 
         // 4. Return ? FormatDateTime(dateFormat, plainDate).
-        unimplemented_runtime_function(
-            "Temporal.PlainDate.prototype.toLocaleString, which needs CreateDateTimeFormat and FormatDateTime",
-            0,
-        )
+        let formatted = format_date_time(vm, &date_format, &FormattableDateTime::PlainDate(plain_date))?;
+        Ok(Value::from_string(PrimitiveString::create(vm, formatted)))
     }
 
     // 3.3.32 Temporal.PlainDate.prototype.toJSON ( ), https://tc39.es/proposal-temporal/#sec-temporal.plaindate.prototype.tojson

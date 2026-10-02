@@ -14,8 +14,11 @@ use ak::Utf16String;
 use crate::utf16::Utf16View;
 
 pub mod calendar;
+pub mod date_time_format;
 pub mod display_names;
 pub mod intl;
+pub mod number_format;
+pub mod relative_time_format;
 pub mod time_zone;
 
 #[repr(C)]

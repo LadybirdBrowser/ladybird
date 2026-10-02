@@ -10,18 +10,18 @@ use ak::Utf16String;
 use libjs_runtime_macros::Trace;
 
 use crate::gc::class::{GcCell, define_cell};
-use crate::interpreter::runtime_functions::unimplemented_runtime_function;
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
 use crate::layout::object::Object;
 use crate::layout::value::Value;
 use crate::runtime::abstract_operations::{
-    RoundingMode, get_options_object, get_rounding_increment_option, get_rounding_mode_option,
+    RoundingMode, construct, get_options_object, get_rounding_increment_option, get_rounding_mode_option,
 };
 use crate::runtime::big_int::SignedBigInteger;
 use crate::runtime::completion::{Must, ThrowCompletionOr};
 use crate::runtime::error::ErrorKind;
 use crate::runtime::error_types::ErrorType;
+use crate::runtime::intl::duration_format::{DurationFormat, partition_duration_format_pattern};
 use crate::runtime::native_function::raw_native;
 use crate::runtime::object::{MayInterfereWithIndexedPropertyAccess, ORDINARY_OBJECT_METHODS, define_object_class};
 use crate::runtime::primitive_string::PrimitiveString;
@@ -52,7 +52,7 @@ use crate::runtime::temporal::plain_time::{add_time, midnight_time_record};
 use crate::runtime::temporal::zoned_date_time::{
     add_zoned_date_time, difference_zoned_date_time_with_rounding, difference_zoned_date_time_with_total,
 };
-use crate::utf16::Utf16View;
+use crate::utf16::{Utf16StringBuilder, Utf16View};
 
 // 7.3 Properties of the Temporal.Duration Prototype Object, https://tc39.es/proposal-temporal/#sec-properties-of-the-temporal-duration-prototype-object
 #[repr(C)]
@@ -977,22 +977,40 @@ impl DurationPrototype {
     fn to_locale_string(vm: &Vm) -> ThrowCompletionOr<Value> {
         let realm = vm.current_realm().expect("a builtin runs in a realm");
 
+        let locales = vm.argument(0);
+        let options = vm.argument(1);
+
         // 1. Let duration be the this value.
         // 2. Perform ? RequireInternalSlot(duration, [[InitializedTemporalDuration]]).
-        typed_this_duration(vm)?;
+        let duration = typed_this_duration(vm)?;
 
         // 3. Let formatter be ? Construct(%Intl.DurationFormat%, « locales, options »).
-        realm.intrinsics().intl_duration_format_constructor(vm);
+        let formatter = construct(
+            vm,
+            realm.intrinsics().intl_duration_format_constructor(vm),
+            &[locales, options],
+            None,
+        )?
+        .downcast::<DurationFormat>()
+        .expect("the Intl.DurationFormat constructor creates an Intl.DurationFormat");
 
         // 4. Let parts be PartitionDurationFormatPattern(formatter, duration).
+        let parts = partition_duration_format_pattern(vm, formatter, duration);
+
         // 5. Let result be the empty String.
+        let mut result = Utf16StringBuilder::new();
+
         // 6. For each Record { [[Type]], [[Value]], [[Unit]] } part in parts, do
-        //     a. Set result to the string-concatenation of result and part.[[Value]].
+        for part in &parts {
+            // a. Set result to the string-concatenation of result and part.[[Value]].
+            result.append(Utf16View::of_string(&part.value));
+        }
+
         // 7. Return result.
-        unimplemented_runtime_function(
-            "Temporal.Duration.prototype.toLocaleString, which constructs an Intl.DurationFormat",
-            0,
-        )
+        Ok(Value::from_string(PrimitiveString::create(
+            vm,
+            result.to_utf16_string(),
+        )))
     }
 
     // 7.3.25 Temporal.Duration.prototype.valueOf ( ), https://tc39.es/proposal-temporal/#sec-temporal.duration.prototype.valueof

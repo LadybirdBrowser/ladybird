@@ -7,7 +7,6 @@
 use libjs_runtime_macros::Trace;
 
 use crate::gc::class::{GcCell, define_cell};
-use crate::interpreter::runtime_functions::unimplemented_runtime_function;
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
 use crate::layout::object::Object;
@@ -19,6 +18,8 @@ use crate::runtime::big_int_object::BigIntObject;
 use crate::runtime::completion::ThrowCompletionOr;
 use crate::runtime::error::ErrorKind;
 use crate::runtime::error_types::ErrorType;
+use crate::runtime::intl::mathematical_value::MathematicalValue;
+use crate::runtime::intl::number_format::{NumberFormat, format_numeric};
 use crate::runtime::native_function::raw_native;
 use crate::runtime::object::{MayInterfereWithIndexedPropertyAccess, ORDINARY_OBJECT_METHODS, define_object_class};
 use crate::runtime::primitive_string::PrimitiveString;
@@ -147,18 +148,24 @@ impl BigIntPrototype {
         let options = vm.argument(1);
 
         // 1. Let x be ? thisBigIntValue(this value).
-        let _bigint = this_bigint_value(vm, vm.this_value())?;
+        let bigint = this_bigint_value(vm, vm.this_value())?;
 
         // 2. Let numberFormat be ? Construct(%NumberFormat%, « locales, options »).
-        let _number_format = construct(
+        let number_format = construct(
             vm,
             realm.intrinsics().intl_number_format_constructor(vm),
             &[locales, options],
             None,
-        )?;
+        )?
+        .downcast::<NumberFormat>()
+        .expect("the Intl.NumberFormat constructor creates an Intl.NumberFormat");
 
         // 3. Return ? FormatNumeric(numberFormat, x).
-        unimplemented_runtime_function("Intl::format_numeric, for BigInt.prototype.toLocaleString", 0)
+        let formatted = format_numeric(
+            &number_format,
+            &MathematicalValue::from_value(Value::from_bigint(bigint)),
+        );
+        Ok(Value::from_string(PrimitiveString::create(vm, formatted)))
     }
 
     // 21.2.3.4 BigInt.prototype.valueOf ( ), https://tc39.es/ecma262/#sec-bigint.prototype.valueof

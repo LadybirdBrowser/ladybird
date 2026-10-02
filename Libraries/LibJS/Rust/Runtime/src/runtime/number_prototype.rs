@@ -7,7 +7,6 @@
 use libjs_runtime_macros::Trace;
 
 use crate::gc::class::{GcCell, define_cell};
-use crate::interpreter::runtime_functions::unimplemented_runtime_function;
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
 use crate::layout::object::Object;
@@ -16,6 +15,8 @@ use crate::runtime::abstract_operations::construct;
 use crate::runtime::completion::{Must, ThrowCompletionOr};
 use crate::runtime::error::ErrorKind;
 use crate::runtime::error_types::ErrorType;
+use crate::runtime::intl::mathematical_value::MathematicalValue;
+use crate::runtime::intl::number_format::{NumberFormat, format_numeric};
 use crate::runtime::native_function::raw_native;
 use crate::runtime::number_object::NumberObject;
 use crate::runtime::number_prototype_algorithms;
@@ -203,18 +204,21 @@ impl NumberPrototype {
         let options = vm.argument(1);
 
         // 1. Let x be ? thisNumberValue(this value).
-        let _number_value = this_number_value(vm, vm.this_value())?;
+        let number_value = this_number_value(vm, vm.this_value())?;
 
         // 2. Let numberFormat be ? Construct(%NumberFormat%, « locales, options »).
-        let _number_format = construct(
+        let number_format = construct(
             vm,
             realm.intrinsics().intl_number_format_constructor(vm),
             &[locales, options],
             None,
-        )?;
+        )?
+        .downcast::<NumberFormat>()
+        .expect("the Intl.NumberFormat constructor creates an Intl.NumberFormat");
 
         // 3. Return ? FormatNumeric(numberFormat, x).
-        unimplemented_runtime_function("Intl::format_numeric, for Number.prototype.toLocaleString", 0)
+        let formatted = format_numeric(&number_format, &MathematicalValue::from_value(number_value));
+        Ok(Value::from_string(PrimitiveString::create(vm, formatted)))
     }
 
     // 21.1.3.5 Number.prototype.toPrecision ( precision ), https://tc39.es/ecma262/#sec-number.prototype.toprecision

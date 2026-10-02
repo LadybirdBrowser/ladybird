@@ -8,7 +8,6 @@ use ak::Utf16String;
 use libjs_runtime_macros::Trace;
 
 use crate::gc::class::{GcCell, define_cell};
-use crate::interpreter::runtime_functions::unimplemented_runtime_function;
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
 use crate::layout::object::Object;
@@ -22,6 +21,8 @@ use crate::runtime::date::{
 };
 use crate::runtime::error::ErrorKind;
 use crate::runtime::error_types::ErrorType;
+use crate::runtime::intl::date_time_format::{FormattableDateTime, format_date_time};
+use crate::runtime::intl::date_time_format_constructor::{OptionDefaults, OptionRequired, create_date_time_format};
 use crate::runtime::native_function::raw_native;
 use crate::runtime::object::{MayInterfereWithIndexedPropertyAccess, ORDINARY_OBJECT_METHODS, define_object_class};
 use crate::runtime::primitive_string::PrimitiveString;
@@ -1043,6 +1044,11 @@ impl DatePrototype {
     // 21.4.4.38 Date.prototype.toLocaleDateString ( [ reserved1 [ , reserved2 ] ] ), https://tc39.es/ecma262/#sec-date.prototype.tolocaledatestring
     // 20.4.2 Date.prototype.toLocaleDateString ( [ locales [ , options ] ] ), https://tc39.es/ecma402/#sup-date.prototype.tolocaledatestring
     fn to_locale_date_string(vm: &Vm) -> ThrowCompletionOr<Value> {
+        let realm = vm.current_realm().expect("a builtin runs in a realm");
+
+        let locales = vm.argument(0);
+        let options = vm.argument(1);
+
         // 1. Let x be ? thisTimeValue(this value).
         let time = this_time_value(vm, vm.this_value())?;
 
@@ -1052,17 +1058,29 @@ impl DatePrototype {
         }
 
         // 3. Let dateFormat be ? CreateDateTimeFormat(%DateTimeFormat%, locales, options, "date", "date").
+        let date_format = create_date_time_format(
+            vm,
+            realm.intrinsics().intl_date_time_format_constructor(vm),
+            locales,
+            options,
+            OptionRequired::Date,
+            OptionDefaults::Date,
+            None,
+        )?;
+
         // 4. Return ? FormatDateTime(dateFormat, x).
-        unimplemented_runtime_function(
-            "Intl::create_date_time_format and Intl::format_date_time, for Date.prototype.toLocaleDateString, which \
-             needs Intl.DateTimeFormat",
-            0,
-        )
+        let formatted = format_date_time(vm, &date_format, &FormattableDateTime::Number(time))?;
+        Ok(Value::from_string(PrimitiveString::create(vm, formatted)))
     }
 
     // 21.4.4.39 Date.prototype.toLocaleString ( [ reserved1 [ , reserved2 ] ] ), https://tc39.es/ecma262/#sec-date.prototype.tolocalestring
     // 20.4.1 Date.prototype.toLocaleString ( [ locales [ , options ] ] ), https://tc39.es/ecma402/#sup-date.prototype.tolocalestring
     fn to_locale_string(vm: &Vm) -> ThrowCompletionOr<Value> {
+        let realm = vm.current_realm().expect("a builtin runs in a realm");
+
+        let locales = vm.argument(0);
+        let options = vm.argument(1);
+
         // 1. Let x be ? thisTimeValue(this value).
         let time = this_time_value(vm, vm.this_value())?;
 
@@ -1072,17 +1090,29 @@ impl DatePrototype {
         }
 
         // 3. Let dateFormat be ? CreateDateTimeFormat(%DateTimeFormat%, locales, options, "any", "all").
+        let date_format = create_date_time_format(
+            vm,
+            realm.intrinsics().intl_date_time_format_constructor(vm),
+            locales,
+            options,
+            OptionRequired::Any,
+            OptionDefaults::All,
+            None,
+        )?;
+
         // 4. Return ? FormatDateTime(dateFormat, x).
-        unimplemented_runtime_function(
-            "Intl::create_date_time_format and Intl::format_date_time, for Date.prototype.toLocaleString, which needs \
-             Intl.DateTimeFormat",
-            0,
-        )
+        let formatted = format_date_time(vm, &date_format, &FormattableDateTime::Number(time))?;
+        Ok(Value::from_string(PrimitiveString::create(vm, formatted)))
     }
 
     // 21.4.4.40 Date.prototype.toLocaleTimeString ( [ reserved1 [ , reserved2 ] ] ), https://tc39.es/ecma262/#sec-date.prototype.tolocaletimestring
     // 20.4.3 Date.prototype.toLocaleTimeString ( [ locales [ , options ] ] ), https://tc39.es/ecma402/#sup-date.prototype.tolocaletimestring
     fn to_locale_time_string(vm: &Vm) -> ThrowCompletionOr<Value> {
+        let realm = vm.current_realm().expect("a builtin runs in a realm");
+
+        let locales = vm.argument(0);
+        let options = vm.argument(1);
+
         // 1. Let x be ? thisTimeValue(this value).
         let time = this_time_value(vm, vm.this_value())?;
 
@@ -1092,12 +1122,19 @@ impl DatePrototype {
         }
 
         // 3. Let timeFormat be ? CreateDateTimeFormat(%DateTimeFormat%, locales, options, "time", "time").
+        let time_format = create_date_time_format(
+            vm,
+            realm.intrinsics().intl_date_time_format_constructor(vm),
+            locales,
+            options,
+            OptionRequired::Time,
+            OptionDefaults::Time,
+            None,
+        )?;
+
         // 4. Return ? FormatDateTime(timeFormat, x).
-        unimplemented_runtime_function(
-            "Intl::create_date_time_format and Intl::format_date_time, for Date.prototype.toLocaleTimeString, which \
-             needs Intl.DateTimeFormat",
-            0,
-        )
+        let formatted = format_date_time(vm, &time_format, &FormattableDateTime::Number(time))?;
+        Ok(Value::from_string(PrimitiveString::create(vm, formatted)))
     }
 
     // 21.4.4.41 Date.prototype.toString ( ), https://tc39.es/ecma262/#sec-date.prototype.tostring

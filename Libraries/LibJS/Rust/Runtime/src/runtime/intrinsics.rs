@@ -68,13 +68,23 @@ use crate::runtime::global_object::GlobalObject;
 use crate::runtime::intl::collator::Collator;
 use crate::runtime::intl::collator_constructor::CollatorConstructor;
 use crate::runtime::intl::collator_prototype::CollatorPrototype;
+use crate::runtime::intl::date_time_format_constructor::DateTimeFormatConstructor;
+use crate::runtime::intl::date_time_format_prototype::DateTimeFormatPrototype;
 use crate::runtime::intl::display_names_constructor::DisplayNamesConstructor;
 use crate::runtime::intl::display_names_prototype::DisplayNamesPrototype;
+use crate::runtime::intl::duration_format_constructor::DurationFormatConstructor;
+use crate::runtime::intl::duration_format_prototype::DurationFormatPrototype;
 use crate::runtime::intl::intl::Intl;
 use crate::runtime::intl::list_format_constructor::ListFormatConstructor;
 use crate::runtime::intl::list_format_prototype::ListFormatPrototype;
 use crate::runtime::intl::locale_constructor::LocaleConstructor;
 use crate::runtime::intl::locale_prototype::LocalePrototype;
+use crate::runtime::intl::number_format_constructor::NumberFormatConstructor;
+use crate::runtime::intl::number_format_prototype::NumberFormatPrototype;
+use crate::runtime::intl::plural_rules_constructor::PluralRulesConstructor;
+use crate::runtime::intl::plural_rules_prototype::PluralRulesPrototype;
+use crate::runtime::intl::relative_time_format_constructor::RelativeTimeFormatConstructor;
+use crate::runtime::intl::relative_time_format_prototype::RelativeTimeFormatPrototype;
 use crate::runtime::intl::segment_iterator_prototype::SegmentIteratorPrototype;
 use crate::runtime::intl::segmenter_constructor::SegmenterConstructor;
 use crate::runtime::intl::segmenter_prototype::SegmenterPrototype;
@@ -708,9 +718,14 @@ initialize_builtin_function_types! {
     initialize_shared_array_buffer: shared_array_buffer_prototype: SharedArrayBufferPrototype, shared_array_buffer_constructor: SharedArrayBufferConstructor, SharedArrayBuffer;
     initialize_typed_array: typed_array_prototype: TypedArrayPrototype, typed_array_constructor: TypedArrayConstructor, TypedArray;
     initialize_intl_collator: intl_collator_prototype: CollatorPrototype, intl_collator_constructor: CollatorConstructor, Collator;
+    initialize_intl_date_time_format: intl_date_time_format_prototype: DateTimeFormatPrototype, intl_date_time_format_constructor: DateTimeFormatConstructor, DateTimeFormat;
     initialize_intl_display_names: intl_display_names_prototype: DisplayNamesPrototype, intl_display_names_constructor: DisplayNamesConstructor, DisplayNames;
+    initialize_intl_duration_format: intl_duration_format_prototype: DurationFormatPrototype, intl_duration_format_constructor: DurationFormatConstructor, DurationFormat;
     initialize_intl_list_format: intl_list_format_prototype: ListFormatPrototype, intl_list_format_constructor: ListFormatConstructor, ListFormat;
     initialize_intl_locale: intl_locale_prototype: LocalePrototype, intl_locale_constructor: LocaleConstructor, Locale;
+    initialize_intl_number_format: intl_number_format_prototype: NumberFormatPrototype, intl_number_format_constructor: NumberFormatConstructor, NumberFormat;
+    initialize_intl_plural_rules: intl_plural_rules_prototype: PluralRulesPrototype, intl_plural_rules_constructor: PluralRulesConstructor, PluralRules;
+    initialize_intl_relative_time_format: intl_relative_time_format_prototype: RelativeTimeFormatPrototype, intl_relative_time_format_constructor: RelativeTimeFormatConstructor, RelativeTimeFormat;
     initialize_intl_segmenter: intl_segmenter_prototype: SegmenterPrototype, intl_segmenter_constructor: SegmenterConstructor, Segmenter;
     initialize_temporal_duration: temporal_duration_prototype: DurationPrototype, temporal_duration_constructor: DurationConstructor, Duration;
     initialize_temporal_instant: temporal_instant_prototype: InstantPrototype, temporal_instant_constructor: InstantConstructor, Instant;
@@ -762,30 +777,6 @@ initialize_typed_array_types! {
     initialize_float16_array: float16_array_prototype: Float16ArrayPrototype, float16_array_constructor: Float16ArrayConstructor, Float16Array;
     initialize_float32_array: float32_array_prototype: Float32ArrayPrototype, float32_array_constructor: Float32ArrayConstructor, Float32Array;
     initialize_float64_array: float64_array_prototype: Float64ArrayPrototype, float64_array_constructor: Float64ArrayConstructor, Float64Array;
-}
-
-/// Intrinsics::initialize_snake_name() for the builtin types the runtime does not have yet.
-macro_rules! unimplemented_builtin_types {
-    ($($initialize:ident => $name:literal,)*) => {
-        impl Intrinsics {
-            $(
-                fn $initialize(&self, _vm: &Vm) {
-                    unimplemented_runtime_function(
-                        concat!("Intrinsics::", stringify!($initialize), ", for the ", $name, " constructor and prototype"),
-                        0,
-                    )
-                }
-            )*
-        }
-    };
-}
-
-unimplemented_builtin_types! {
-    initialize_intl_date_time_format => "Intl.DateTimeFormat",
-    initialize_intl_duration_format => "Intl.DurationFormat",
-    initialize_intl_number_format => "Intl.NumberFormat",
-    initialize_intl_plural_rules => "Intl.PluralRules",
-    initialize_intl_relative_time_format => "Intl.RelativeTimeFormat",
 }
 
 /// The lazy accessors of the namespace objects, which create the object the first time it is asked for, as the C++

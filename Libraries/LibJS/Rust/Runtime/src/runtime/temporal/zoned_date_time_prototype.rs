@@ -10,7 +10,6 @@ use ak::Utf16String;
 use libjs_runtime_macros::Trace;
 
 use crate::gc::class::{GcCell, define_cell};
-use crate::interpreter::runtime_functions::unimplemented_runtime_function;
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
 use crate::layout::object::Object;
@@ -24,6 +23,8 @@ use crate::runtime::completion::{Must, ThrowCompletionOr};
 use crate::runtime::date::{is_offset_time_zone_identifier, parse_date_time_utc_offset};
 use crate::runtime::error::ErrorKind;
 use crate::runtime::error_types::ErrorType;
+use crate::runtime::intl::date_time_format::{FormattableDateTime, format_date_time};
+use crate::runtime::intl::date_time_format_constructor::{OptionDefaults, OptionRequired, create_date_time_format};
 use crate::runtime::native_function::raw_native;
 use crate::runtime::object::{MayInterfereWithIndexedPropertyAccess, ORDINARY_OBJECT_METHODS, define_object_class};
 use crate::runtime::primitive_string::PrimitiveString;
@@ -41,8 +42,8 @@ use crate::runtime::temporal::abstract_operations::{
     to_seconds_string_precision_record, validate_temporal_rounding_increment, validate_temporal_unit_value,
 };
 use crate::runtime::temporal::calendar::{
-    CalendarField, CalendarFieldListOrPartial, calendar_equals, calendar_iso_to_date, calendar_merge_fields,
-    prepare_calendar_fields, to_temporal_calendar_identifier,
+    CalendarField, CalendarFieldListOrPartial, ISO8601_CALENDAR, calendar_equals, calendar_iso_to_date,
+    calendar_merge_fields, prepare_calendar_fields, to_temporal_calendar_identifier,
 };
 use crate::runtime::temporal::duration::{
     add_time_duration_to_epoch_nanoseconds, round_time_duration_to_increment,
@@ -1297,21 +1298,50 @@ impl ZonedDateTimePrototype {
     fn to_locale_string(vm: &Vm) -> ThrowCompletionOr<Value> {
         let realm = vm.current_realm().expect("a builtin runs in a realm");
 
+        let locales = vm.argument(0);
+        let options = vm.argument(1);
+
         // 1. Let zonedDateTime be the this value.
         // 2. Perform ? RequireInternalSlot(zonedDateTime, [[InitializedTemporalZonedDateTime]]).
-        typed_this_zoned_date_time(vm)?;
+        let zoned_date_time = typed_this_zoned_date_time(vm)?;
 
         // 3. Let dateTimeFormat be ? CreateDateTimeFormat(%Intl.DateTimeFormat%, locales, options, ANY, ALL, zonedDateTime.[[TimeZone]]).
-        realm.intrinsics().intl_date_time_format_constructor(vm);
+        let time_zone = zoned_date_time.time_zone();
+        let date_time_format = create_date_time_format(
+            vm,
+            realm.intrinsics().intl_date_time_format_constructor(vm),
+            locales,
+            options,
+            OptionRequired::Any,
+            OptionDefaults::All,
+            Some(Utf16View::of_string(&time_zone)),
+        )?;
 
         // 4. If zonedDateTime.[[Calendar]] is not "iso8601" and CalendarEquals(zonedDateTime.[[Calendar]], dateTimeFormat.[[Calendar]]) is false, throw a RangeError exception.
+        let calendar = zoned_date_time.calendar();
+        let date_time_format_calendar = date_time_format.calendar();
+        if Utf16View::of_string(&calendar) != ISO8601_CALENDAR
+            && !calendar_equals(
+                Utf16View::of_string(&calendar),
+                Utf16View::of_string(&date_time_format_calendar),
+            )
+        {
+            return vm.throw_completion_with_utf16_message(
+                ErrorKind::RangeError,
+                ErrorType::IntlTemporalInvalidCalendar.utf16_message(&[
+                    Utf16View::Ascii(b"Temporal.ZonedDateTime"),
+                    Utf16View::of_string(&calendar),
+                    Utf16View::of_string(&date_time_format_calendar),
+                ]),
+            );
+        }
+
         // 5. Let instant be ! CreateTemporalInstant(zonedDateTime.[[EpochNanoseconds]]).
+        let instant = create_temporal_instant(vm, zoned_date_time.epoch_nanoseconds(), None).must();
+
         // 6. Return ? FormatDateTime(dateTimeFormat, instant).
-        unimplemented_runtime_function(
-            "Temporal.ZonedDateTime.prototype.toLocaleString, which needs CreateDateTimeFormat with the time zone of \
-             the ZonedDateTime, the calendar of the DateTimeFormat, and FormatDateTime",
-            0,
-        )
+        let formatted = format_date_time(vm, &date_time_format, &FormattableDateTime::Instant(instant))?;
+        Ok(Value::from_string(PrimitiveString::create(vm, formatted)))
     }
 
     // 6.3.43 Temporal.ZonedDateTime.prototype.toJSON ( ), https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.tojson
