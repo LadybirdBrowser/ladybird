@@ -78,3 +78,32 @@ size_t system_fallback_font_cache_size()
 }
 
 }
+
+extern "C" {
+void const* ladybird_gfx_system_fallback_font(u32, u16, u16, u8, bool, float);
+void const* ladybird_gfx_font_invisible_variant(void const*);
+}
+
+// Transfers one reference to the caller, or answers null where no installed font covers the code point.
+extern "C" void const* ladybird_gfx_system_fallback_font(u32 code_point, u16 weight, u16 width, u8 slope, bool prefer_color_emoji, float point_size)
+{
+    auto font = Gfx::system_fallback_font(
+        {
+            .code_point = code_point,
+            .weight = weight,
+            .width = width,
+            .slope = slope,
+            .prefer_color_emoji = prefer_color_emoji,
+        },
+        point_size);
+    return font ? font.leak_ref() : nullptr;
+}
+
+// https://drafts.csswg.org/css-fonts-4/#invisible-fallback
+// An anonymous face with the selected face's metrics and no ink. Transfers one reference to the caller, which owns the
+// variant and memoizes it for as long as it needs it.
+extern "C" void const* ladybird_gfx_font_invisible_variant(void const* font)
+{
+    VERIFY(font);
+    return &static_cast<Gfx::Font const*>(font)->invisible_variant().leak_ref();
+}

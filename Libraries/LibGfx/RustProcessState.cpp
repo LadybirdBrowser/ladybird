@@ -6,7 +6,10 @@
 
 #include <AK/Array.h>
 #include <AK/Atomic.h>
+#include <AK/Mutex.h>
+#include <AK/Singleton.h>
 #include <AK/Types.h>
+#include <AK/Vector.h>
 
 // The process-wide state the Rust graphics crate needs exactly one copy of.
 //
@@ -29,6 +32,9 @@ u64 ladybird_gfx_process_next_path_identity();
 u64 ladybird_gfx_process_next_structural_epoch();
 void ladybird_gfx_process_note_crate_copy(void const* marker);
 size_t ladybird_gfx_process_crate_copies_seen();
+void ladybird_gfx_process_note_wanted_pending_face(u64 face_id);
+void ladybird_gfx_process_requeue_wanted_pending_face(u64 face_id);
+void ladybird_gfx_process_take_wanted_pending_faces(void* context, void (*visit)(void*, u64, bool));
 }
 
 namespace {
@@ -42,6 +48,22 @@ Atomic<u64> s_next_structural_epoch { 1 };
 // The marker of every copy of the crate that has reported itself. There are three at most:
 // LibGfx's, LibWeb's and LibCompositing's.
 Array<Atomic<FlatPtr>, 3> s_crate_copies;
+
+// The pending web font faces render passes wanted while looking code points up in frozen cascades, each with whether
+// it was offered to the document once already, until the document requests their loads.
+struct WantedPendingFace {
+    u64 id { 0 };
+    bool has_been_retried { false };
+};
+
+struct WantedPendingFaces {
+    AK_ALLOC_WITH_KMALLOC;
+
+    Mutex mutex;
+    Vector<WantedPendingFace> faces;
+};
+
+Singleton<WantedPendingFaces> s_wanted_pending_faces;
 
 }
 
@@ -76,6 +98,30 @@ extern "C" size_t ladybird_gfx_process_crate_copies_seen()
             ++seen;
     }
     return seen;
+}
+
+extern "C" void ladybird_gfx_process_note_wanted_pending_face(u64 face_id)
+{
+    MutexLocker locker(s_wanted_pending_faces->mutex);
+    s_wanted_pending_faces->faces.append({ face_id, false });
+}
+
+extern "C" void ladybird_gfx_process_requeue_wanted_pending_face(u64 face_id)
+{
+    MutexLocker locker(s_wanted_pending_faces->mutex);
+    s_wanted_pending_faces->faces.append({ face_id, true });
+}
+
+// Hands every wanted face to `visit` and forgets them. The visitor may want faces again, which go to the next call.
+extern "C" void ladybird_gfx_process_take_wanted_pending_faces(void* context, void (*visit)(void*, u64, bool))
+{
+    Vector<WantedPendingFace> faces;
+    {
+        MutexLocker locker(s_wanted_pending_faces->mutex);
+        faces = move(s_wanted_pending_faces->faces);
+    }
+    for (auto const& face : faces)
+        visit(context, face.id, face.has_been_retried);
 }
 
 }
