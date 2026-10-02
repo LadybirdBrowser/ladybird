@@ -113,7 +113,7 @@ impl<O: Observer> PaintRecorder<'_, O> {
         paintable: NodeSlotId,
         origin: MaskLayerOrigin,
     ) -> Option<(EffectNodeIndex, MaskData)> {
-        let tree = self.paint_state.visual_context.tree.as_deref()?;
+        let tree = self.paint_state.visual_context_tree.as_deref()?;
         self.source
             .with_paintable_visual_context_node_handles(paintable, |handles| {
                 handles

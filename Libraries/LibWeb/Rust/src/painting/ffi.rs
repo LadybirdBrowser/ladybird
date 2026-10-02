@@ -391,11 +391,12 @@ pub unsafe extern "C" fn layout_arena_selection_apply(
     // SAFETY: The caller guarantees the entry span is valid for this synchronous call.
     let entries = unsafe { ffi_slice(entries, entry_count) };
     let text_states = crate::painting::selection::apply(&mut arena.paintable_rows_mut(), viewport, entries);
-    arena.paint_state().borrow_mut().selection = Some(crate::painting::selection::SelectionRange {
-        start_offset: range_start_offset,
-        end_offset: range_end_offset,
-        text_states,
-    });
+    arena.paint_state().borrow_mut().selection =
+        Some(std::sync::Arc::new(crate::painting::selection::SelectionRange {
+            start_offset: range_start_offset,
+            end_offset: range_end_offset,
+            text_states,
+        }));
 }
 
 /// # Safety
@@ -1142,19 +1143,18 @@ pub unsafe extern "C" fn layout_arena_sticky_spatial_node_index(arena: *mut c_vo
     paint_state
         .visual_context
         .scroll_state
-        .states
+        .states()
         .iter()
         .find(|state| state.is_sticky && state.paintable == paintable)
         .map_or(u32::MAX, |state| state.node_index.0)
 }
 
-/// What a recording stage records from: the arena, borrowed for the stage, the rows and damage
-/// published for it, the viewport it records, the inputs the document lent for the call, and the
-/// recorder's own state, which nothing else borrows while it runs.
+/// What a recording stage records from: the arena, borrowed for the stage, the frame frozen for
+/// it, the viewport it records, the inputs the document lent for the call, and the recorder's own
+/// state, which nothing else borrows while it runs.
 struct RecordingStageInput<'a> {
     arena: &'a LayoutNodeArena,
-    rows: &'a crate::painting::published_frame::PublishedRows,
-    damage: &'a crate::painting::record::damage::FrameDamage,
+    frame: &'a crate::painting::published_frame::PublishedFrame,
     viewport: NodeSlotId,
     inputs: crate::painting::record::RecordingInputs<'a>,
     recorder_state: &'a mut crate::painting::record::recorder_state::RecorderState,
@@ -1176,13 +1176,11 @@ const _: () = {
 fn record_display_list_stage(input: RecordingStageInput<'_>) -> RecordingStageOutput {
     let RecordingStageInput {
         arena,
-        rows,
-        damage,
+        frame,
         viewport,
         inputs,
         recorder_state,
     } = input;
-    let paint_state = arena.paint_state().borrow();
     let crate::painting::record::recorder_state::RecorderState {
         published_recording,
         published_hit_test_items,
@@ -1190,7 +1188,7 @@ fn record_display_list_stage(input: RecordingStageInput<'_>) -> RecordingStageOu
         scratch,
         absolute_rects,
     } = recorder_state;
-    let source = crate::painting::paint_read::PaintSource::new(rows, damage, absolute_rects);
+    let source = crate::painting::paint_read::PaintSource::new(frame, absolute_rects);
     // The retained tree describes the published tape and is written in place while a frame
     // is assembled, so only a recording that publishes may copy from that frame or touch
     // the tree; any other recording records from scratch into a tree of its own.
@@ -1205,20 +1203,16 @@ fn record_display_list_stage(input: RecordingStageInput<'_>) -> RecordingStageOu
         (&mut throwaway_tree, None, None)
     };
     let copies_from_published_recording = source_recording.is_some();
-    arena.set_paint_recording_in_progress(true);
     let recording = crate::painting::record::traversal::record_display_list(
-        arena,
         &source,
-        &paint_state,
         scratch,
         tree,
         viewport,
         &inputs,
-        paint_state.hit_test_list_generation + 1,
         source_recording,
         source_items,
         true,
-        paint_state.trace_recordings || crate::painting::record::verify::enabled_by_environment(),
+        arena.paint_state().borrow().trace_recordings || crate::painting::record::verify::enabled_by_environment(),
     );
     // The oracle records the same frame from scratch into a throwaway tree whenever the
     // published recording could have been copied from.
@@ -1228,21 +1222,17 @@ fn record_display_list_stage(input: RecordingStageInput<'_>) -> RecordingStageOu
             inputs_for_recording_from_scratch.publishes_recording = false;
             let mut tree_for_recording_from_scratch = crate::painting::record::order_tree::PaintOrderTree::default();
             crate::painting::record::traversal::record_display_list(
-                arena,
                 &source,
-                &paint_state,
                 scratch,
                 &mut tree_for_recording_from_scratch,
                 viewport,
                 &inputs_for_recording_from_scratch,
-                paint_state.hit_test_list_generation + 1,
                 None,
                 None,
                 false,
                 false,
             )
         });
-    arena.set_paint_recording_in_progress(false);
     RecordingStageOutput {
         recording,
         recording_from_scratch,
@@ -1303,10 +1293,9 @@ pub unsafe extern "C" fn layout_arena_record_display_list(
     if inputs.publishes_recording {
         arena.note_publishing_paint_recording_started();
     }
-    // The recording reads the rows and the damage as they are now, and nothing writes them before
-    // it is done.
-    let rows = arena.publish_rows();
-    let damage = arena.paint_damage_for_frame();
+    // The recording reads the document as it is now, and nothing writes the document before it is
+    // done.
+    let frame = arena.freeze_frame();
     let arena: &LayoutNodeArena = arena;
     let RecordingStageOutput {
         recording,
@@ -1329,8 +1318,7 @@ pub unsafe extern "C" fn layout_arena_record_display_list(
         drop(paint_state);
         record_display_list_stage(RecordingStageInput {
             arena,
-            rows: &rows,
-            damage: &damage,
+            frame: &frame,
             viewport,
             inputs: recording_inputs,
             recorder_state: &mut arena.recorder_state().borrow_mut(),

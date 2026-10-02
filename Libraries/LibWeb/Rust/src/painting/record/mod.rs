@@ -99,7 +99,7 @@ impl PaintPhase {
 }
 pub struct PaintRecorder<'a, O: Observer> {
     pub(crate) source: &'a PaintSource<'a>,
-    pub(crate) paint_state: &'a crate::painting::paint_state::PaintState,
+    pub(crate) paint_state: &'a crate::painting::published_frame::PublishedPaintState,
     pub(crate) inputs: &'a RecordingInputs<'a>,
     pub(crate) recorder: DisplayListRecorder,
     pub(crate) converter: DevicePixelConverter,
@@ -232,12 +232,11 @@ impl<O: Observer> PaintRecorder<'_, O> {
         if own_scroll_node == VISUAL_VIEWPORT_NODE_INDEX {
             return crate::css::css_pixels::CssPixelPoint::default();
         }
-        let visual_context = &self.paint_state.visual_context;
-        let Some(tree) = visual_context.tree.as_ref() else {
+        let Some(tree) = self.paint_state.visual_context_tree.as_ref() else {
             return crate::css::css_pixels::CssPixelPoint::default();
         };
         let slot = tree.scroll_state_slot_for_node(own_scroll_node);
-        let own_offset = visual_context.scroll_state.state_at_slot(slot).own_offset;
+        let own_offset = self.paint_state.scroll_own_offset(slot);
         crate::css::css_pixels::CssPixelPoint::new(-own_offset.x, -own_offset.y)
     }
 
@@ -520,8 +519,7 @@ impl<O: Observer> PaintRecorder<'_, O> {
         }
         let tree = self
             .paint_state
-            .visual_context
-            .tree
+            .visual_context_tree
             .as_deref()
             .expect("recording runs against a visual context tree");
         tree.accumulated_2d_scale(

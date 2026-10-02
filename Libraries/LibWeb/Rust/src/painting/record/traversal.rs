@@ -8,7 +8,6 @@ use crate::painting::record::trace::Observer;
 
 use super::{PaintPhase, PaintRecorder};
 use crate::css::style::fast_hash::FastSet;
-use crate::layout::LayoutNodeArena;
 use crate::layout::node_data::{NodeKind, NodeSlotId};
 use crate::layout::node_facts;
 use crate::painting::display_list::commands::ContextRef;
@@ -32,31 +31,25 @@ use std::sync::Arc;
 
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn record_display_list(
-    layout_arena: &LayoutNodeArena,
     source: &PaintSource<'_>,
-    paint_state: &crate::painting::paint_state::PaintState,
     scratch: &mut RecordingScratch,
     tree: &mut PaintOrderTree,
     viewport: NodeSlotId,
     inputs: &RecordingInputs<'_>,
-    hit_test_list_generation: u64,
     source_recording: Option<Arc<RecordingOutput>>,
     source_items: Option<Arc<PublishedHitTestItems>>,
     plan_from_prepared_inputs: bool,
     trace: bool,
 ) -> RecordingResult {
-    scratch.begin_recording(layout_arena.paintable_row_count());
+    scratch.begin_recording(source.frame().paintable_row_capacity());
     macro_rules! record {
         ($observer:ty) => {
             record_display_list_impl::<$observer>(
-                layout_arena,
                 source,
-                paint_state,
                 scratch,
                 tree,
                 viewport,
                 inputs,
-                hit_test_list_generation,
                 source_recording,
                 source_items,
                 plan_from_prepared_inputs,
@@ -74,14 +67,11 @@ pub(crate) fn record_display_list(
 
 #[allow(clippy::too_many_arguments)]
 fn record_display_list_impl<O: Observer>(
-    layout_arena: &LayoutNodeArena,
     source: &PaintSource<'_>,
-    paint_state: &crate::painting::paint_state::PaintState,
     scratch: &mut RecordingScratch,
     tree: &mut PaintOrderTree,
     viewport: NodeSlotId,
     inputs: &RecordingInputs<'_>,
-    hit_test_list_generation: u64,
     source_recording: Option<Arc<RecordingOutput>>,
     source_items: Option<Arc<PublishedHitTestItems>>,
     plan_from_prepared_inputs: bool,
@@ -90,7 +80,8 @@ fn record_display_list_impl<O: Observer>(
         inputs.publishes_recording || source_recording.is_none(),
         "a recording that publishes nothing has no published recording to copy from"
     );
-    let structural_epoch = paint_state.visual_context.structural_epoch();
+    let paint_state = source.frame().paint_state();
+    let structural_epoch = paint_state.structural_epoch();
     let frame_inputs = FrameInputs::from_recording_inputs(inputs, paint_state);
     let root_background_canvas_rect = root_background_canvas_rect(
         source,
@@ -103,8 +94,8 @@ fn record_display_list_impl<O: Observer>(
         .as_ref()
         .is_some_and(|frame| frame.frame_inputs == frame_inputs)
         && source_items.is_some()
-        && !source.damage().covers_everything()
-        && !source.damage().scroll_metadata_everywhere();
+        && !source.frame().damage().covers_everything()
+        && !source.frame().damage().scroll_metadata_everywhere();
     let (source_recording, source_items) = if source_is_usable {
         (source_recording, source_items)
     } else {
@@ -127,11 +118,7 @@ fn record_display_list_impl<O: Observer>(
         blocking_wheel_event_region_count: 0,
         observer: O::default(),
         list: HitTestList {
-            item_capacity_hint_from_previous_list: layout_arena
-                .hit_test_list
-                .borrow()
-                .as_ref()
-                .map_or(0, |list| list.items.len()),
+            item_capacity_hint_from_previous_list: paint_state.hit_test_item_capacity_hint,
             ..HitTestList::default()
         },
         scratch,
@@ -139,7 +126,7 @@ fn record_display_list_impl<O: Observer>(
     };
     recorder
         .observer
-        .observe(|log| log.damage = Some(source.damage().summary()));
+        .observe(|log| log.damage = Some(source.frame().damage().summary()));
     recorder.record_canvas();
     let prologue_bytes = u32::try_from(recorder.recorder.byte_size()).expect("display list exceeds u32");
     let has_inspector_overlays = inputs.inspector_highlight.is_some()
@@ -154,7 +141,7 @@ fn record_display_list_impl<O: Observer>(
         .as_ref()
         .zip(recorder.source_items.as_ref())
         .filter(|(frame, _)| {
-            frame_is_unchanged(tree, !source.damage().is_empty())
+            frame_is_unchanged(tree, !source.frame().damage().is_empty())
                 && !has_inspector_overlays
                 && frame.prologue_bytes == prologue_bytes
                 && recorder.recorder.bytes() == &frame.display_list.bytes[..prologue_bytes as usize]
@@ -182,7 +169,7 @@ fn record_display_list_impl<O: Observer>(
         }
     };
     let mut hit_test_list = recorder.list;
-    hit_test_list.generation = hit_test_list_generation;
+    hit_test_list.generation = paint_state.hit_test_list_generation + 1;
     let output = RecordingOutput {
         recorded_structural_epoch: structural_epoch,
         frame_inputs,

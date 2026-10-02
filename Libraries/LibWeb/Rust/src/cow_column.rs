@@ -271,7 +271,6 @@ where
 
 impl<T, const CHUNK: usize> ColumnSnapshot<T, CHUNK> {
     /// How many rows the snapshot has room for: every row index below it may be read.
-    #[cfg_attr(not(test), expect(dead_code, reason = "only tests ask yet"))]
     pub(crate) fn slot_capacity(&self) -> usize {
         self.spine.last().map_or(0, |last| {
             let in_last = last.0.iter().take_while(|chunk| chunk.is_some()).count();

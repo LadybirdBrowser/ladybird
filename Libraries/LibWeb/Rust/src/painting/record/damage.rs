@@ -251,7 +251,6 @@ impl LayoutNodeArena {
     }
 
     pub(crate) fn push_paint_damage(&self, row: NodeSlotId, damage: PaintDamage) {
-        self.debug_assert_not_recording();
         if damage.is_empty() || !self.paintable_row_is_populated(row) {
             return;
         }
@@ -359,13 +358,11 @@ impl LayoutNodeArena {
     }
 
     pub(crate) fn push_all_paint_damage(&self) {
-        self.debug_assert_not_recording();
         let set = &self.paintable_rows.damage;
         set.all.set(set.stamp_for_push());
     }
 
     pub(crate) fn push_scroll_metadata_damage_everywhere(&self) {
-        self.debug_assert_not_recording();
         let set = &self.paintable_rows.damage;
         set.scroll_metadata_everywhere.set(set.stamp_for_push());
     }
