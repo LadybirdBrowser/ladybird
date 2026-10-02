@@ -105,6 +105,27 @@ GC::Ptr<Element> ShadowRoot::retargeted_fullscreen_element() const
     return nullptr;
 }
 
+// https://w3c.github.io/picture-in-picture/#dom-documentorshadowroot-pictureinpictureelement
+GC::Ptr<Element> ShadowRoot::retargeted_picture_in_picture_element() const
+{
+    // 1. If this is a shadow root and its host is not connected, return null and abort these steps.
+    if (!host() || !host()->is_connected())
+        return nullptr;
+
+    // 2. Let candidate be the result of retargeting Picture-in-Picture element against this.
+    // NB: Only a document has its Picture-in-Picture element set, so this retargets the one of this' document.
+    auto* candidate = as_if<Element>(retarget(document().picture_in_picture_element().ptr(), const_cast<ShadowRoot*>(this)));
+    if (!candidate)
+        return nullptr;
+
+    // 3. If candidate and this are in the same tree, return candidate and abort these steps.
+    if (&candidate->root() == &root())
+        return candidate;
+
+    // 4. Return null.
+    return nullptr;
+}
+
 // https://dom.spec.whatwg.org/#dom-shadowroot-onslotchange
 void ShadowRoot::set_onslotchange(WebIDL::CallbackType* event_handler)
 {

@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<title>Test that request Picture-in-Picture consumes the user activation</title>
+<script src="../common/media.js"></script>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="../resources/testdriver.js"></script>
+<script src="../resources/testdriver-vendor.js"></script>
+<script src="resources/picture-in-picture-helpers.js"></script>
+<body></body>
+<script>
+// Runs `action` synchronously from a click event handler, so that the requests
+// below are made while the user activation is live, as a page would make them.
+async function runFromClickHandler(t, action) {
+  const button = document.createElement('button');
+  button.textContent = 'This test requires user interaction. Please click here.';
+  document.body.appendChild(button);
+  t.add_cleanup(() => button.remove());
+
+  const result = new Promise(resolve => {
+    button.addEventListener('click', () => { resolve(action()); }, { once: true });
+  });
+  await test_driver.click(button);
+  return result;
+}
+
+promise_test(async t => {
+  const video = await loadVideo();
+  document.body.appendChild(video);
+  t.add_cleanup(async () => {
+    if (document.fullscreenElement)
+      await document.exitFullscreen();
+    if (document.pictureInPictureElement)
+      await document.exitPictureInPicture();
+    video.remove();
+  });
+
+  // https://w3c.github.io/picture-in-picture/#dom-htmlvideoelement-requestpictureinpicture
+  // requestPictureInPicture() consumes the user activation, so a fullscreen
+  // request made from the same activation must be denied.
+  //
+  // Each outcome is captured with handlers attached synchronously: the requests
+  // settle while the click is still being dispatched, so awaiting them later
+  // would report an unhandled rejection. Awaiting the outcomes rather than the
+  // requests themselves also keeps a wrongly granted fullscreen request from
+  // timing out the test: in that case the Picture-in-Picture request, whose
+  // presentation mode change is superseded by fullscreen, never settles.
+  const settled = promise => promise.then(() => 'fulfilled', error => error);
+  const outcomes = await runFromClickHandler(t, () => ({
+    // play() is only here to mirror how a page enters Picture-in-Picture from a
+    // click; its result is not what is under test.
+    play: settled(video.play()),
+    pictureInPicture: settled(video.requestPictureInPicture()),
+    fullscreen: settled(video.requestFullscreen()),
+  }));
+
+  const fullscreenOutcome = await outcomes.fullscreen;
+  assert_true(fullscreenOutcome instanceof TypeError,
+      'requestFullscreen() should be denied with a TypeError: requestPictureInPicture() ' +
+      `consumed the user activation (got ${fullscreenOutcome})`);
+  assert_equals(document.fullscreenElement, null, 'there should be no fullscreen element');
+
+  assert_equals(await outcomes.pictureInPicture, 'fulfilled', 'requestPictureInPicture()');
+  assert_equals(document.pictureInPictureElement, video,
+      'video should be the Picture-in-Picture element');
+}, 'request Picture-in-Picture consumes the user activation, denying a fullscreen request from the same activation');
+</script>

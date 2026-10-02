@@ -807,6 +807,9 @@ set(SOURCES
     PermissionsAPI/Permissions.cpp
     PermissionsAPI/PermissionStore.cpp
     PermissionsAPI/PermissionStatus.cpp
+    PictureInPicture/PictureInPictureController.cpp
+    PictureInPicture/PictureInPictureEvent.cpp
+    PictureInPicture/PictureInPictureWindow.cpp
     Platform/EventLoopPlugin.cpp
     Platform/FontPlugin.cpp
     Platform/ImageCodecPlugin.cpp

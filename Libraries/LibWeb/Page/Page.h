@@ -165,6 +165,8 @@ public:
 
     HTML::HistoryExecutor& history_executor();
 
+    PictureInPicture::PictureInPictureController& picture_in_picture_controller() const { return *m_picture_in_picture_controller; }
+
     GC::Ptr<HTML::Navigable> focused_navigable() const;
     GC::Ptr<HTML::LocalNavigable> hosted_focused_navigable() const;
     void set_focused_navigable(HTML::Navigable&);
@@ -454,6 +456,7 @@ private:
     HTML::VisibilityState m_system_visibility_state { HTML::VisibilityState::Hidden };
 
     GC::Ref<HTML::HistoryExecutor> m_history_executor;
+    GC::Ref<PictureInPicture::PictureInPictureController> m_picture_in_picture_controller;
 
     struct ScreenshotTask {
         Optional<UniqueNodeID> node_id;
@@ -656,6 +659,7 @@ public:
     virtual void page_did_request_minimize_window() { }
     virtual void page_did_request_fullscreen_window() { }
     virtual void page_did_request_exit_fullscreen() { }
+    virtual void page_did_exit_picture_in_picture() { }
     virtual void page_did_create_new_document(Web::DOM::Document&) { }
     virtual void page_did_change_active_document_in_top_level_browsing_context(Web::DOM::Document&) { }
     virtual void page_did_finish_loading(HTML::CrossProcessId, Optional<Utf16String> const&) { }

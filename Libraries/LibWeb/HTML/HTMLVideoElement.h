@@ -56,6 +56,16 @@ public:
 
     Optional<Gfx::DecodedImageFrame> current_decoded_image_frame() const;
 
+    GC::Ref<WebIDL::Promise> request_picture_in_picture();
+
+    GC::Ptr<PictureInPicture::PictureInPictureWindow> picture_in_picture_window() const { return m_picture_in_picture_window; }
+    void set_picture_in_picture_window(GC::Ptr<PictureInPicture::PictureInPictureWindow> window) { m_picture_in_picture_window = window; }
+
+    WebIDL::CallbackType* onenterpictureinpicture();
+    void set_onenterpictureinpicture(WebIDL::CallbackType*);
+    WebIDL::CallbackType* onleavepictureinpicture();
+    void set_onleavepictureinpicture(WebIDL::CallbackType*);
+
 private:
     HTMLVideoElement(DOM::Document&, DOM::QualifiedName);
     virtual void finalize() override;
@@ -82,6 +92,8 @@ private:
 
     GC::Ptr<Fetch::Infrastructure::FetchController> m_fetch_controller;
     Optional<DOM::DocumentLoadEventDelayer> m_load_event_delayer;
+
+    GC::Ptr<PictureInPicture::PictureInPictureWindow> m_picture_in_picture_window;
 };
 
 }

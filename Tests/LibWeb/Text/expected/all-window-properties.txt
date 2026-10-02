@@ -369,6 +369,8 @@ PerformanceTiming
 PeriodicWave
 PermissionStatus
 Permissions
+PictureInPictureEvent
+PictureInPictureWindow
 Plugin
 PluginArray
 PointerEvent

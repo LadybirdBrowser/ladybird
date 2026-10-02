@@ -41,6 +41,7 @@
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/Painting/PaintFacts.h>
+#include <LibWeb/PictureInPicture/PictureInPictureController.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/Selection/Selection.h>
 #include <LibWebCommon/Clipboard/SystemClipboard.h>
@@ -59,6 +60,7 @@ GC::Ref<Page> Page::create(GC::Ref<PageClient> page_client)
 Page::Page(GC::Ref<PageClient> client)
     : m_client(client)
     , m_history_executor(GC::Heap::the().allocate<HTML::HistoryExecutor>(*this))
+    , m_picture_in_picture_controller(GC::Heap::the().allocate<PictureInPicture::PictureInPictureController>(*this))
 {
 }
 
@@ -127,6 +129,7 @@ void Page::visit_edges(JS::Cell::Visitor& visitor)
     visitor.visit(m_top_level_traversable);
     visitor.visit(m_navigables_being_destroyed);
     visitor.visit(m_history_executor);
+    visitor.visit(m_picture_in_picture_controller);
     visitor.visit(m_client);
     visitor.visit(m_window_rect_observer);
     visitor.visit(m_on_pending_dialog_closed);

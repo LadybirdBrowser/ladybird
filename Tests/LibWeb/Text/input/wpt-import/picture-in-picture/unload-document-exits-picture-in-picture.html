@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<title>Exit Picture-in-Picture runs during unloading document cleanup steps</title>
+<meta name="timeout" content="long">
+<link rel="help" href="https://w3c.github.io/picture-in-picture/#exit-pip">
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="../resources/testdriver.js"></script>
+<script src="../resources/testdriver-vendor.js"></script>
+<body></body>
+<script>
+'use strict';
+
+const HELPER = '/picture-in-picture/resources/unload-document-helper.html';
+
+function loadIframe(src) {
+  return new Promise(resolve => {
+    const iframe = document.createElement('iframe');
+    iframe.addEventListener('load', () => resolve(iframe), { once: true });
+    iframe.src = src;
+    document.body.appendChild(iframe);
+  });
+}
+
+function navigateIframe(iframe, src) {
+  return new Promise(resolve => {
+    iframe.addEventListener('load', resolve, { once: true });
+    iframe.src = src;
+  });
+}
+
+promise_test(async t => {
+  const iframe = await loadIframe(HELPER);
+  t.add_cleanup(() => iframe.remove());
+  const video = await iframe.contentWindow.videoReady;
+
+  await test_driver.bless('enter Picture-in-Picture from iframe', null,
+                          iframe.contentWindow);
+  const pipWindow = await video.requestPictureInPicture();
+
+  assert_equals(iframe.contentDocument.pictureInPictureElement, video,
+                'pictureInPictureElement is set inside the iframe document');
+
+  assert_not_equals(pipWindow.width, 0,
+                    'pipWindow.width is non-zero before the iframe is unloaded');
+  assert_not_equals(pipWindow.height, 0,
+                    'pipWindow.height is non-zero before the iframe is unloaded');
+
+  await navigateIframe(iframe, '/common/blank.html');
+
+  assert_equals(iframe.contentDocument.pictureInPictureElement, null,
+                'the new iframe document has no pictureInPictureElement');
+  await t.step_wait(
+      () => pipWindow.width === 0 && pipWindow.height === 0,
+      'pipWindow.width and pipWindow.height become 0 after the iframe ' +
+      'document is unloaded');
+}, 'exit Picture-in-Picture algorithm runs as part of unloading document cleanup steps');
+</script>

@@ -225,6 +225,7 @@
 #include <LibWeb/Painting/HitTestDisplayList.h>
 #include <LibWeb/Painting/PaintableTypes.h>
 #include <LibWeb/Painting/PaintingRustBridge.h>
+#include <LibWeb/PictureInPicture/PictureInPictureController.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/ResizeObserver/ResizeObserver.h>
 #include <LibWeb/ResizeObserver/ResizeObserverEntry.h>
@@ -945,6 +946,7 @@ void Document::visit_edges(Cell::Visitor& visitor)
         visitor.visit(view_transition);
 
     visitor.visit(m_top_layer_elements);
+    visitor.visit(m_picture_in_picture_element);
     visitor.visit(m_top_layer_pending_removals);
     visitor.visit(m_elements_with_pending_top_layer_membership_change);
     visitor.visit(m_showing_auto_popover_list);
@@ -5804,6 +5806,7 @@ void Document::run_unloading_cleanup_steps()
 
     FileAPI::run_unloading_cleanup_steps(*this);
     fully_exit_fullscreen();
+    PictureInPicture::run_unloading_cleanup_steps(*this);
 }
 
 // https://html.spec.whatwg.org/multipage/document-lifecycle.html#destroy-a-document
@@ -6305,6 +6308,9 @@ bool Document::is_allowed_to_use_feature(PolicyControlledFeature feature) const
         // FIXME: Implement allowlist for this.
         return true;
     case PolicyControlledFeature::Microphone:
+        // FIXME: Implement allowlist for this.
+        return true;
+    case PolicyControlledFeature::PictureInPicture:
         // FIXME: Implement allowlist for this.
         return true;
     case PolicyControlledFeature::WindowManagement:
@@ -9959,6 +9965,66 @@ GC::Ref<GC::HeapVector<GC::Ref<Document>>> Document::collect_documents_to_unfull
 
     // 3. Return docs.
     return docs;
+}
+
+void Document::set_picture_in_picture_element(GC::Ptr<Element> element)
+{
+    m_picture_in_picture_element = element;
+}
+
+// https://w3c.github.io/picture-in-picture/#dom-documentorshadowroot-pictureinpictureelement
+GC::Ptr<Element> Document::retargeted_picture_in_picture_element() const
+{
+    // 1. If this is a shadow root and its host is not connected, return null and abort these steps.
+    // NB: We're not a shadow root. See ShadowRoot::retargeted_picture_in_picture_element().
+
+    // 2. Let candidate be the result of retargeting Picture-in-Picture element against this.
+    auto* candidate = as_if<Element>(retarget(m_picture_in_picture_element.ptr(), const_cast<Document*>(this)));
+    if (!candidate)
+        return nullptr;
+
+    // 3. If candidate and this are in the same tree, return candidate and abort these steps.
+    if (&candidate->root() == &root())
+        return candidate;
+
+    // AD-HOC: An element that was never inserted into this document is not in its tree, but the spec intends to
+    //         return it all the same. This adds the step proposed in
+    //         https://github.com/w3c/picture-in-picture/pull/253.
+    // If this is a Document and candidate's node document is this, return candidate.
+    if (&candidate->document() == this)
+        return candidate;
+
+    // 4. Return null.
+    return nullptr;
+}
+
+// https://w3c.github.io/picture-in-picture/#dom-document-pictureinpictureenabled
+bool Document::picture_in_picture_enabled() const
+{
+    // The pictureInPictureEnabled attribute's getter must return true if Picture-in-Picture support is true and this
+    // is allowed to use the feature indicated by attribute name picture-in-picture, and false otherwise.
+    return page().picture_in_picture_controller().has_picture_in_picture_support()
+        && is_allowed_to_use_feature(PolicyControlledFeature::PictureInPicture);
+}
+
+// https://w3c.github.io/picture-in-picture/#dom-document-exitpictureinpicture
+// AD-HOC: This follows the overhaul proposed in https://github.com/w3c/picture-in-picture/pull/260, since the current
+//         text mutates the DOM from its parallel steps.
+GC::Ref<WebIDL::Promise> Document::exit_picture_in_picture()
+{
+    auto& realm = HTML::relevant_realm(*this);
+
+    // 1. If this's Picture-in-Picture element is null or this is not fully active, return a promise rejected with
+    //    InvalidStateError DOMException.
+    if (!m_picture_in_picture_element || !is_fully_active())
+        return WebIDL::create_rejected_promise(realm, WebIDL::InvalidStateError::create("There is no Picture-in-Picture element to exit"_utf16));
+
+    // 2. Let p be a new promise created in this's relevant realm.
+    auto promise = WebIDL::create_promise(realm);
+
+    // 3. Return p, and enqueue the following steps to this's picture-in-picture parallel queue:
+    page().picture_in_picture_controller().enqueue_exit(*this, promise);
+    return promise;
 }
 
 // https://fullscreen.spec.whatwg.org/#unfullscreen-an-element

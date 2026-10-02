@@ -27,6 +27,7 @@
 #include <LibWebView/CookieJar.h>
 #include <LibWebView/HistoryStore.h>
 #include <LibWebView/NavigationLoader.h>
+#include <LibWebView/PictureInPictureManager.h>
 #include <LibWebView/StorageJar.h>
 #include <LibWebView/ViewImplementation.h>
 #include <LibWebView/WebContentClient.h>
@@ -598,6 +599,7 @@ void WebContentPage::fail_renderer_owned_downloads()
 
 void WebContentPage::close()
 {
+    PictureInPictureManager::the().close_window(*this);
     m_is_open = false;
     m_needs_beforeunload_check = true;
     m_history_recorded_url_for_current_load.clear();
@@ -1242,6 +1244,11 @@ void WebContentPage::did_request_exit_fullscreen()
 {
     if (view().on_exit_fullscreen_window)
         view().on_exit_fullscreen_window();
+}
+
+void WebContentPage::did_exit_picture_in_picture()
+{
+    PictureInPictureManager::the().close_window(*this);
 }
 
 void WebContentPage::did_request_file(ByteString path, i32 request_id)
@@ -2335,8 +2342,11 @@ Messages::WebContentClient::DidRequestNewWebViewResponse WebContentPage::did_req
     client().open_page_for_new_top_level_traversable(new_page_id, traversable);
 
     String window_handle;
-    if (view().on_new_web_view)
+    if (hints.picture_in_picture_video_size.has_value()) {
+        window_handle = PictureInPictureManager::the().open_window(*this, traversable, *hints.picture_in_picture_video_size);
+    } else if (view().on_new_web_view) {
         window_handle = view().on_new_web_view(activate_tab, hints, traversable);
+    }
 
     if (!traversable.view().has_value()) {
         client().discard_page_of_undisplayed_top_level_traversable(new_page_id);

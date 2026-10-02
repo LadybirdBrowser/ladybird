@@ -43,6 +43,8 @@ class HistoryStore;
 class HSTSStore;
 class Menu;
 class OutOfProcessWebView;
+class PictureInPictureManager;
+class PictureInPictureWindow;
 class ProcessManager;
 class RequestServerSiteBindings;
 class SessionStore;

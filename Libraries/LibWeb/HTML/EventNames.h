@@ -64,6 +64,7 @@ namespace Web::HTML::EventNames {
     __ENUMERATE_HTML_EVENT(end)                      \
     __ENUMERATE_HTML_EVENT(ended)                    \
     __ENUMERATE_HTML_EVENT(enter)                    \
+    __ENUMERATE_HTML_EVENT(enterpictureinpicture)    \
     __ENUMERATE_HTML_EVENT(error)                    \
     __ENUMERATE_HTML_EVENT(exit)                     \
     __ENUMERATE_HTML_EVENT(finish)                   \
@@ -77,6 +78,7 @@ namespace Web::HTML::EventNames {
     __ENUMERATE_HTML_EVENT(input)                    \
     __ENUMERATE_HTML_EVENT(invalid)                  \
     __ENUMERATE_HTML_EVENT(languagechange)           \
+    __ENUMERATE_HTML_EVENT(leavepictureinpicture)    \
     __ENUMERATE_HTML_EVENT(load)                     \
     __ENUMERATE_HTML_EVENT(loaded)                   \
     __ENUMERATE_HTML_EVENT(loadeddata)               \

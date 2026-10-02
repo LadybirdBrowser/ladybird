@@ -99,6 +99,7 @@
 #include <LibWeb/Painting/HitTestResult.h>
 #include <LibWeb/Painting/PaintingRustBridge.h>
 #include <LibWeb/Painting/Scrolling.h>
+#include <LibWeb/PictureInPicture/PictureInPictureController.h>
 #include <LibWeb/ResizeObserver/ResizeObserver.h>
 #include <LibWeb/StyleValueRustFFI.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
@@ -1286,6 +1287,16 @@ bool Internals::needs_display_list_record()
 bool Internals::screen_wake_lock_active()
 {
     return page().is_screen_wake_lock_active();
+}
+
+Utf16String Internals::picture_in_picture_window_state()
+{
+    auto const& controller = page().picture_in_picture_controller();
+    if (controller.is_waiting_for_window_to_open())
+        return "opening"_utf16;
+    if (controller.has_open_window())
+        return "open"_utf16;
+    return "none"_utf16;
 }
 
 static Utf16String dump_string_to_utf16(String const& string)

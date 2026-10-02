@@ -6796,6 +6796,11 @@ void Element::set_fullscreen_flag(bool is_fullscreen)
     CSS::record_element_state_changed(*this, CSS::PseudoClass::Fullscreen, is_fullscreen);
 }
 
+bool Element::is_picture_in_picture_element() const
+{
+    return document().picture_in_picture_element().ptr() == this;
+}
+
 void Element::set_fullscreen_request_type(Fullscreen::RequestType request_type)
 {
     if (request_type == Fullscreen::RequestType::Standard) {

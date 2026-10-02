@@ -6,11 +6,41 @@
 
 #include <LibCore/EventLoop.h>
 #include <LibWebView/HeadlessWebView.h>
+#include <LibWebView/PictureInPictureWindow.h>
 
 namespace WebView {
 
 static Web::DevicePixelRect const screen_rect { 0, 0, 1920, 1080 };
 static constexpr auto child_close_timeout_ms = 1000;
+
+// A headless window is never shown, so it keeps the size it opens with until it is closed.
+class HeadlessPictureInPictureWindow final : public PictureInPictureWindow {
+public:
+    AK_ALLOC_WITH_KMALLOC;
+
+    HeadlessPictureInPictureWindow(Gfx::IntSize size, NonnullOwnPtr<HeadlessWebView> view)
+        : m_size(size)
+        , m_view(move(view))
+    {
+        report_page_close_of(*m_view);
+    }
+
+    virtual Gfx::IntSize size() const override { return m_size; }
+    virtual String handle() const override { return m_view->handle(); }
+    virtual void hide() override { }
+
+private:
+    Gfx::IntSize m_size;
+    NonnullOwnPtr<HeadlessWebView> m_view;
+};
+
+NonnullOwnPtr<PictureInPictureWindow> HeadlessWebView::create_picture_in_picture_window(HeadlessWebView& requesting_view, CanonicalTraversable& traversable, Gfx::IntSize video_size)
+{
+    auto size = PictureInPictureWindow::initial_size(video_size, screen_rect.size().to_type<int>());
+    auto view = create_child(requesting_view, traversable);
+    view->reset_viewport_size(size.to_type<Web::DevicePixels>());
+    return make<HeadlessPictureInPictureWindow>(size, move(view));
+}
 
 NonnullOwnPtr<HeadlessWebView> HeadlessWebView::create(Core::AnonymousBuffer theme, Web::DevicePixelSize window_size, IsPrivate is_private)
 {

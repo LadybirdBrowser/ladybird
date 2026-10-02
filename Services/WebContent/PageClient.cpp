@@ -885,6 +885,11 @@ void PageClient::page_did_request_exit_fullscreen()
     client().async_did_request_exit_fullscreen(m_id);
 }
 
+void PageClient::page_did_exit_picture_in_picture()
+{
+    client().async_did_exit_picture_in_picture(m_id);
+}
+
 void PageClient::page_did_request_tooltip_override(Web::CSSPixelPoint position, ByteString const& title)
 {
     auto device_position = page().css_to_device_point(position);

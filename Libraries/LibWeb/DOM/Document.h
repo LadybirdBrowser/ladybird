@@ -261,6 +261,7 @@ enum class PolicyControlledFeature : u8 {
     Fullscreen,
     Gamepad,
     Microphone,
+    PictureInPicture,
     WindowManagement,
 };
 
@@ -1559,6 +1560,12 @@ public:
     bool is_simple_fullscreen_document() const;
     GC::Ref<GC::HeapVector<GC::Ref<Document>>> collect_documents_to_unfullscreen();
 
+    GC::Ptr<Element> picture_in_picture_element() const { return m_picture_in_picture_element; }
+    void set_picture_in_picture_element(GC::Ptr<Element>);
+    GC::Ptr<Element> retargeted_picture_in_picture_element() const;
+    bool picture_in_picture_enabled() const;
+    GC::Ref<WebIDL::Promise> exit_picture_in_picture();
+
     auto& script_blocking_style_sheet_set() { return m_script_blocking_style_sheet_set; }
     auto const& script_blocking_style_sheet_set() const { return m_script_blocking_style_sheet_set; }
     void remove_from_script_blocking_style_sheet_set(Element&);
@@ -2249,6 +2256,9 @@ private:
 
     // https://fullscreen.spec.whatwg.org/#list-of-pending-fullscreen-events
     Vector<PendingFullscreenEvent> m_pending_fullscreen_events;
+
+    // https://w3c.github.io/picture-in-picture/#picture-in-picture-element
+    GC::Ptr<Element> m_picture_in_picture_element;
 
     // https://dom.spec.whatwg.org/#document-custom-element-registry
     GC::Ptr<HTML::CustomElementRegistry> m_custom_element_registry;

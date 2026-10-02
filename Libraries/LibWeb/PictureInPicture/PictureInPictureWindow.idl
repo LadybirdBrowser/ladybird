@@ -1,0 +1,8 @@
+// https://w3c.github.io/picture-in-picture/#interface-picture-in-picture-window
+[Exposed=Window]
+interface PictureInPictureWindow : EventTarget {
+    readonly attribute long width;
+    readonly attribute long height;
+
+    attribute EventHandler onresize;
+};

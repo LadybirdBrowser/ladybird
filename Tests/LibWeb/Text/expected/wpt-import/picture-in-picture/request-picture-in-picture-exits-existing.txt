@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	Step 11.5.1 runs the inline exit algorithm, so leavepictureinpicture fires synchronously before enterpictureinpicture
+Pass	Inline exit algorithm unsets pictureInPictureElement before firing leavepictureinpicture
+Pass	Step 11.5.2 sets pictureInPictureElement to the new element before step 11.5.5 fires enterpictureinpicture
+Pass	Inline exit algorithm still runs the close window algorithm on the displaced Picture-in-Picture window

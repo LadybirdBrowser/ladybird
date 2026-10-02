@@ -166,6 +166,7 @@ interface Internals {
 
     readonly attribute boolean headless;
     readonly attribute boolean screenWakeLockActive;
+    readonly attribute DOMString pictureInPictureWindowState;
 
     readonly attribute boolean needsRepaint;
     readonly attribute boolean needsDisplayListRecord;

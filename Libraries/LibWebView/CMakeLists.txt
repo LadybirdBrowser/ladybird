@@ -43,6 +43,8 @@ set(SOURCES
     NavigationLoader.cpp
     Omnibox.cpp
     OmniboxEngagement.cpp
+    PictureInPictureManager.cpp
+    PictureInPictureWindow.cpp
     Process.cpp
     ProcessManager.cpp
     TabPerformanceStats.cpp
