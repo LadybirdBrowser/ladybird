@@ -37,9 +37,6 @@ impl RetainedState {
         counters: &mut Counters,
     ) -> Drive<u64> {
         let facts = self.computed_group_sets.adjustment_facts(node);
-        if facts & bridge::element_adjustment_fact::DISALLOW_DISPLAY_CONTENTS != 0 {
-            return Err(Unanswered::Refused);
-        }
         // An element standing for its host's pseudo-element is its host's to cascade, and is
         // driven in full against its parent as it is now, from an answer as complete as any.
         if self.backs_host_pseudo_element(node) {
