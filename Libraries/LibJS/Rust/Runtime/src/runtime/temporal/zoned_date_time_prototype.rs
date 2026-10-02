@@ -1326,13 +1326,10 @@ impl ZonedDateTimePrototype {
                 Utf16View::of_string(&date_time_format_calendar),
             )
         {
-            return vm.throw_completion_with_utf16_message(
+            return vm.throw_completion(
                 ErrorKind::RangeError,
-                ErrorType::IntlTemporalInvalidCalendar.utf16_message(&[
-                    Utf16View::Ascii(b"Temporal.ZonedDateTime"),
-                    Utf16View::of_string(&calendar),
-                    Utf16View::of_string(&date_time_format_calendar),
-                ]),
+                ErrorType::IntlTemporalInvalidCalendar,
+                &[&"Temporal.ZonedDateTime", &calendar, &date_time_format_calendar],
             );
         }
 

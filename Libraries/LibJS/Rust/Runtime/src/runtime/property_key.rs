@@ -18,7 +18,7 @@ use crate::layout::value::Value;
 use crate::runtime::completion::ThrowCompletionOr;
 use crate::runtime::primitive_string::PrimitiveString;
 use crate::runtime::symbol::Symbol;
-use crate::utf16::{Utf16View, to_utf16_fly_string};
+use crate::utf16::{Utf16Display, Utf16StringBuilder, Utf16View, to_utf16_fly_string};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum StringMayBeNumber {
@@ -258,13 +258,13 @@ unsafe impl Trace for PropertyKey {
     }
 }
 
-impl fmt::Display for PropertyKey {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+/// Formats a key the way AK formats a C++ JS::PropertyKey.
+impl Utf16Display for PropertyKey {
+    fn fmt_utf16(&self, builder: &mut Utf16StringBuilder) {
         if self.is_number() {
-            return write!(formatter, "{}", self.as_number());
+            return self.as_number().fmt_utf16(builder);
         }
-        let string = self.to_utf16_string();
-        write!(formatter, "{}", Utf16View::of_string(&string).to_utf8())
+        builder.append(Utf16View::of_string(&self.to_utf16_string()));
     }
 }
 
@@ -277,6 +277,13 @@ impl fmt::Debug for PropertyKey {
                 Utf16View::of_fly_string(self.as_string()).to_utf8()
             );
         }
-        write!(formatter, "PropertyKey({self})")
+        if self.is_number() {
+            return write!(formatter, "PropertyKey({})", self.as_number());
+        }
+        write!(
+            formatter,
+            "PropertyKey({})",
+            Utf16View::of_string(&self.to_utf16_string()).to_utf8()
+        )
     }
 }

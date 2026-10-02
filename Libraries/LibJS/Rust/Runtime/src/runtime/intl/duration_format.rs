@@ -554,16 +554,12 @@ fn validate_duration_unit_style(
     previous_style: Option<ValueStyle>,
     display_field: &PropertyKey,
 ) -> ThrowCompletionOr<()> {
-    let unit_name = unit.to_utf16_string();
-    let unit_name = Utf16View::of_string(&unit_name).to_utf8();
-
     // 1. If display is "always" and style is "fractional", throw a RangeError exception.
     if display == Display::Always && style == ValueStyle::Fractional {
-        let display_field = display_field.to_utf16_string();
         return vm.throw_completion(
             ErrorKind::RangeError,
             ErrorType::IntlFractionalUnitsMixedWithAlwaysDisplay,
-            &[&unit_name, &Utf16View::of_string(&display_field).to_utf8()],
+            &[unit, display_field],
         );
     }
 
@@ -572,7 +568,7 @@ fn validate_duration_unit_style(
         return vm.throw_completion(
             ErrorKind::RangeError,
             ErrorType::IntlFractionalUnitFollowedByNonFractionalUnit,
-            &[&unit_name],
+            &[unit],
         );
     }
 

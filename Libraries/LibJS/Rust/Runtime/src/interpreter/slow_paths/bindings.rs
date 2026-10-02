@@ -38,12 +38,11 @@ use crate::runtime::object::{
     CacheableGetPropertyMetadata, CacheableGetPropertyMetadataType, CacheableSetPropertyMetadata,
     CacheableSetPropertyMetadataType, PropertyLookupPhase,
 };
-use crate::runtime::object_environment::name_for_message;
 use crate::runtime::primitive_string::PrimitiveString;
 use crate::runtime::property_key::PropertyKey;
 use crate::runtime::reference::{BaseType, Reference};
 use crate::runtime::source_text_module::SourceTextModule;
-use crate::utf16::Utf16View;
+use crate::utf16::{Utf16Display, Utf16View, utf16_formatted};
 
 /// The environment `coordinate` refers to from `environment`, if the interpreter may keep finding the binding there:
 /// every environment on the way must be declarative and not open to eval adding bindings.
@@ -181,12 +180,9 @@ pub fn create_variable(
         // Note: This is papering over an issue where "FunctionDeclarationInstantiation" creates these bindings for us.
         //       Instead of crashing in there, we'll just raise an exception here.
         if lexical_environment.has_binding(vm, name, None)? {
-            return vm.throw_completion_with_message(
+            return vm.throw_completion_with_utf16_message(
                 ErrorKind::InternalError,
-                format!(
-                    "Lexical environment already has binding '{}'",
-                    Utf16View::of_fly_string(name).to_utf8()
-                ),
+                utf16_formatted("Lexical environment already has binding '{}'", &[name]),
             );
         }
 
@@ -253,7 +249,7 @@ fn throw_error(
     pc: u32,
     kind: ErrorKind,
     error_type: ErrorType,
-    arguments: &[&dyn core::fmt::Display],
+    arguments: &[&dyn Utf16Display],
 ) -> SlowPathControl {
     match vm.throw_completion::<()>(kind, error_type, arguments) {
         Err(throw) => handle_asm_exception(vm, pc, throw.value()),
@@ -747,7 +743,7 @@ pub fn get_global(vm: &Vm, pc: u32, instruction: &op::GetGlobal, values: &mut op
         pc,
         ErrorKind::ReferenceError,
         ErrorType::UnknownIdentifier,
-        &[&name_for_message(&identifier)],
+        &[&identifier],
     )
 }
 
@@ -839,7 +835,7 @@ pub fn set_global(vm: &Vm, pc: u32, instruction: &op::SetGlobal, values: &mut op
                     pc,
                     ErrorKind::TypeError,
                     ErrorType::DescWriteNonWritable,
-                    &[&name_for_message(&identifier)],
+                    &[&identifier],
                 );
             }
             return throw_error(vm, pc, ErrorKind::TypeError, ErrorType::ObjectSetReturnedFalse, &[]);
@@ -1120,7 +1116,7 @@ fn report_wrong_environment_coordinate(
 ) -> ! {
     panic!(
         "Environment coordinate for '{}' ({} hops, index {}) is wrong at hop {hop}: {reason}",
-        name_for_message(name),
+        Utf16View::of_fly_string(name).to_utf8(),
         coordinate.hops,
         coordinate.index
     )

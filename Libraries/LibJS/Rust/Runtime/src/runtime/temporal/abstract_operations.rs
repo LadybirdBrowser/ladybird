@@ -57,7 +57,7 @@ use crate::runtime::temporal::zoned_date_time::{
     MatchBehavior, OffsetBehavior, ZonedDateTime, create_temporal_zoned_date_time, interpret_iso_date_time_offset,
 };
 use crate::runtime::value_conversions::string_to_number;
-use crate::utf16::{TrimMode, Utf16View};
+use crate::utf16::{TrimMode, Utf16Display, Utf16View};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ArithmeticOperation {
@@ -680,13 +680,10 @@ pub fn get_temporal_fractional_second_digits_option(vm: &Vm, options: &Object) -
         let digits_value_string = digits_value.to_utf16_string(vm)?;
 
         if Utf16View::of_string(&digits_value_string) != "auto" {
-            return throw_range_error_with_message_arguments(
-                vm,
+            return vm.throw_completion(
+                ErrorKind::RangeError,
                 ErrorType::OptionIsNotValidValue,
-                &[
-                    MessageArgument::Value(digits_value),
-                    MessageArgument::PropertyKey(&vm.names.fractionalSecondDigits),
-                ],
+                &[&digits_value, &vm.names.fractionalSecondDigits],
             );
         }
 
@@ -696,13 +693,10 @@ pub fn get_temporal_fractional_second_digits_option(vm: &Vm, options: &Object) -
 
     // 4. If digitsValue is one of NaN, +∞𝔽, or -∞𝔽, throw a RangeError exception.
     if digits_value.is_nan() || digits_value.is_infinity() {
-        return throw_range_error_with_message_arguments(
-            vm,
+        return vm.throw_completion(
+            ErrorKind::RangeError,
             ErrorType::OptionIsNotValidValue,
-            &[
-                MessageArgument::Value(digits_value),
-                MessageArgument::PropertyKey(&vm.names.fractionalSecondDigits),
-            ],
+            &[&digits_value, &vm.names.fractionalSecondDigits],
         );
     }
 
@@ -711,13 +705,10 @@ pub fn get_temporal_fractional_second_digits_option(vm: &Vm, options: &Object) -
 
     // 6. If digitCount < 0 or digitCount > 9, throw a RangeError exception.
     if !(0.0..=9.0).contains(&digit_count) {
-        return throw_range_error_with_message_arguments(
-            vm,
+        return vm.throw_completion(
+            ErrorKind::RangeError,
             ErrorType::OptionIsNotValidValue,
-            &[
-                MessageArgument::Value(digits_value),
-                MessageArgument::PropertyKey(&vm.names.fractionalSecondDigits),
-            ],
+            &[&digits_value, &vm.names.fractionalSecondDigits],
         );
     }
 
@@ -1716,7 +1707,7 @@ pub fn parse_iso_date_time(
                             return vm.throw_completion(
                                 ErrorKind::RangeError,
                                 ErrorType::TemporalInvalidCriticalAnnotation,
-                                &[&key.to_utf8(), &value.to_utf8()],
+                                &[&key, &value],
                             );
                         }
                     }
@@ -1728,7 +1719,7 @@ pub fn parse_iso_date_time(
                         return vm.throw_completion(
                             ErrorKind::RangeError,
                             ErrorType::TemporalInvalidCriticalAnnotation,
-                            &[&key.to_utf8(), &value.to_utf8()],
+                            &[&key, &value],
                         );
                     }
                 }
@@ -1746,7 +1737,7 @@ pub fn parse_iso_date_time(
                     return vm.throw_completion(
                         ErrorKind::RangeError,
                         ErrorType::TemporalInvalidCalendarIdentifier,
-                        &[&Utf16View::of_string(calendar).to_utf8()],
+                        &[calendar],
                     );
                 }
 
@@ -1944,9 +1935,10 @@ pub fn parse_temporal_calendar_string(vm: &Vm, string: Utf16View<'_>) -> ThrowCo
 
     // 4. If parseResult is a List of errors, throw a RangeError exception.
     if annotation_parse_result.is_none() {
-        return vm.throw_completion_with_utf16_message(
+        return vm.throw_completion(
             ErrorKind::RangeError,
-            ErrorType::TemporalInvalidCalendarString.utf16_message(&[string]),
+            ErrorType::TemporalInvalidCalendarString,
+            &[&string],
         );
     }
 
@@ -1961,19 +1953,15 @@ pub fn parse_temporal_duration_string(vm: &Vm, iso_string: Utf16View<'_>) -> Thr
 
     // 2. If duration is a List of errors, throw a RangeError exception.
     let Some(parse_result) = parse_result else {
-        return vm.throw_completion_with_utf16_message(
+        return vm.throw_completion(
             ErrorKind::RangeError,
-            ErrorType::TemporalInvalidDurationString.utf16_message(&[iso_string]),
+            ErrorType::TemporalInvalidDurationString,
+            &[&iso_string],
         );
     };
 
     let to_integer = |digits: Utf16View<'_>| {
-        to_integer_with_truncation_of_string(
-            vm,
-            digits,
-            ErrorType::TemporalInvalidDurationString,
-            &[MessageArgument::Text(iso_string)],
-        )
+        to_integer_with_truncation_of_string(vm, digits, ErrorType::TemporalInvalidDurationString, &[&iso_string])
     };
 
     // 3. Let sign be the source text matched by the ASCIISign Parse Node contained within duration, or an empty sequence
@@ -2241,9 +2229,10 @@ pub fn parse_temporal_time_zone_string(
     }
 
     // 8. Throw a RangeError exception.
-    vm.throw_completion_with_utf16_message(
+    vm.throw_completion(
         ErrorKind::RangeError,
-        ErrorType::TemporalInvalidTimeZoneString.utf16_message(&[time_zone_string]),
+        ErrorType::TemporalInvalidTimeZoneString,
+        &[&time_zone_string],
     )
 }
 
@@ -2254,10 +2243,10 @@ pub fn to_offset_string(vm: &Vm, argument: Value) -> ThrowCompletionOr<Utf16Stri
 
     // 2. If offset is not a String, throw a TypeError exception.
     if !offset.is_string() {
-        let offset_string = offset.to_utf16_string_without_side_effects();
-        return vm.throw_completion_with_utf16_message(
+        return vm.throw_completion(
             ErrorKind::TypeError,
-            ErrorType::TemporalInvalidTimeZoneString.utf16_message(&[Utf16View::of_string(&offset_string)]),
+            ErrorType::TemporalInvalidTimeZoneString,
+            &[&offset],
         );
     }
 
@@ -2403,45 +2392,19 @@ pub fn get_difference_settings(
     })
 }
 
-/// An argument of the message of a RangeError that ToIntegerWithTruncation and its kin throw. Values and strings keep
-/// every code unit in the message, as AK formats them.
-#[derive(Clone, Copy)]
-pub enum MessageArgument<'a> {
-    Value(Value),
-    PropertyKey(&'a PropertyKey),
-    Text(Utf16View<'a>),
-}
-
-pub fn throw_range_error_with_message_arguments<T>(
-    vm: &Vm,
-    error_type: ErrorType,
-    arguments: &[MessageArgument<'_>],
-) -> ThrowCompletionOr<T> {
-    let arguments: Vec<Utf16String> = arguments
-        .iter()
-        .map(|argument| match argument {
-            MessageArgument::Value(value) => value.to_utf16_string_without_side_effects(),
-            MessageArgument::PropertyKey(key) => key.to_utf16_string(),
-            MessageArgument::Text(text) => text.to_utf16_string(),
-        })
-        .collect();
-    let arguments: Vec<Utf16View<'_>> = arguments.iter().map(Utf16View::of_string).collect();
-    vm.throw_completion_with_utf16_message(ErrorKind::RangeError, error_type.utf16_message(&arguments))
-}
-
 // 13.40 ToIntegerWithTruncation ( argument ), https://tc39.es/proposal-temporal/#sec-tointegerwithtruncation
 pub fn to_integer_with_truncation(
     vm: &Vm,
     argument: Value,
     error_type: ErrorType,
-    arguments: &[MessageArgument<'_>],
+    arguments: &[&dyn Utf16Display],
 ) -> ThrowCompletionOr<f64> {
     // 1. Let number be ? ToNumber(argument).
     let number = argument.to_number(vm)?;
 
     // 2. If number is one of NaN, +∞𝔽, or -∞𝔽, throw a RangeError exception.
     if number.is_nan() || number.is_infinity() {
-        return throw_range_error_with_message_arguments(vm, error_type, arguments);
+        return vm.throw_completion(ErrorKind::RangeError, error_type, arguments);
     }
 
     // 3. Return truncate(ℝ(number)).
@@ -2455,14 +2418,14 @@ pub fn to_integer_with_truncation_of_string(
     vm: &Vm,
     argument: Utf16View<'_>,
     error_type: ErrorType,
-    arguments: &[MessageArgument<'_>],
+    arguments: &[&dyn Utf16Display],
 ) -> ThrowCompletionOr<f64> {
     // 1. Let number be ? ToNumber(argument).
     let number = view_to_number(argument);
 
     // 2. If number is one of NaN, +∞𝔽, or -∞𝔽, throw a RangeError exception.
     if number.is_nan() || number.is_infinite() {
-        return throw_range_error_with_message_arguments(vm, error_type, arguments);
+        return vm.throw_completion(ErrorKind::RangeError, error_type, arguments);
     }
 
     // 3. Return truncate(ℝ(number)).
@@ -2474,14 +2437,14 @@ pub fn to_positive_integer_with_truncation(
     vm: &Vm,
     argument: Value,
     error_type: ErrorType,
-    arguments: &[MessageArgument<'_>],
+    arguments: &[&dyn Utf16Display],
 ) -> ThrowCompletionOr<f64> {
     // 1. Let integer be ? ToIntegerWithTruncation(argument).
     let integer = to_integer_with_truncation(vm, argument, error_type, arguments)?;
 
     // 2. If integer ≤ 0, throw a RangeError exception.
     if integer <= 0.0 {
-        return throw_range_error_with_message_arguments(vm, error_type, arguments);
+        return vm.throw_completion(ErrorKind::RangeError, error_type, arguments);
     }
 
     // 3. Return integer.

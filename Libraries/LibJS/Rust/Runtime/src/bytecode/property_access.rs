@@ -7,8 +7,6 @@
 //! Mirrors Libraries/LibJS/Bytecode/PropertyAccess.h: the property gets and puts that consult and fill the inline
 //! caches the interpreter's fast paths read.
 
-use core::fmt::Display;
-
 use ak::Utf16FlyString;
 use libjs_abi::PutKind;
 
@@ -30,7 +28,7 @@ use crate::runtime::object::{
 };
 use crate::runtime::property_attributes::{Attribute, PropertyAttributes};
 use crate::runtime::property_key::PropertyKey;
-use crate::utf16::Utf16View;
+use crate::utf16::Utf16Display;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum GetByIdMode {
@@ -49,10 +47,6 @@ pub enum CachePropertyAbsence {
 pub enum Strict {
     No,
     Yes,
-}
-
-fn display_fly_string(string: &Utf16FlyString) -> String {
-    Utf16View::of_fly_string(string).to_utf8()
 }
 
 pub fn get_cached_property_value(vm: &Vm, value: Value, this_value: Value) -> ThrowCompletionOr<Value> {
@@ -259,7 +253,7 @@ fn throw_null_or_undefined_property_get<T>(
     vm: &Vm,
     base_value: Value,
     get_base_identifier: impl FnOnce() -> Option<Utf16FlyString>,
-    property_name: &dyn Display,
+    property_name: &dyn Utf16Display,
 ) -> ThrowCompletionOr<T> {
     assert!(base_value.is_nullish());
 
@@ -267,7 +261,7 @@ fn throw_null_or_undefined_property_get<T>(
         return vm.throw_completion(
             ErrorKind::TypeError,
             ErrorType::ToObjectNullOrUndefinedWithPropertyAndName,
-            &[property_name, &base_value, &display_fly_string(&base_identifier)],
+            &[property_name, &base_value, &base_identifier],
         );
     }
     vm.throw_completion(
@@ -283,7 +277,7 @@ pub fn base_object_for_get(
     vm: &Vm,
     base_value: Value,
     get_base_identifier: impl FnOnce() -> Option<Utf16FlyString>,
-    property_name: &dyn Display,
+    property_name: &dyn Utf16Display,
 ) -> ThrowCompletionOr<Gc<Object>> {
     if let Some(base_object) = base_object_for_get_impl(vm, base_value) {
         return Ok(base_object);
@@ -461,7 +455,7 @@ fn throw_null_or_undefined_property_access<T>(
         return vm.throw_completion(
             ErrorKind::TypeError,
             ErrorType::ToObjectNullOrUndefinedWithPropertyAndName,
-            &[property_identifier, &base_value, &display_fly_string(&base_identifier)],
+            &[property_identifier, &base_value, &base_identifier],
         );
     }
     vm.throw_completion(
@@ -714,7 +708,7 @@ pub fn put_by_property_key(
                 return vm.throw_completion(
                     ErrorKind::TypeError,
                     ErrorType::ReferencePrimitiveSetProperty,
-                    &[name, &base.typeof_(vm).to_utf8(), &base],
+                    &[name, &base.typeof_(vm), &base],
                 );
             }
         }

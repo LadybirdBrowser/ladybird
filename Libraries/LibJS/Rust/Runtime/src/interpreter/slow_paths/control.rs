@@ -37,7 +37,7 @@ use crate::runtime::realm::Realm;
 use crate::runtime::regexp_object::RegExpObject;
 use crate::runtime::set::Set;
 use crate::runtime::set_iterator::set_iteration_is_unobservable;
-use crate::utf16::Utf16View;
+use crate::utf16::{Utf16Display, Utf16View};
 
 /// Throws a new error and hands it to the interpreter.
 fn throw_error(
@@ -45,7 +45,7 @@ fn throw_error(
     pc: u32,
     kind: ErrorKind,
     error_type: ErrorType,
-    arguments: &[&dyn core::fmt::Display],
+    arguments: &[&dyn Utf16Display],
 ) -> SlowPathControl {
     match vm.throw_completion::<()>(kind, error_type, arguments) {
         Err(throw) => handle_asm_exception(vm, pc, throw.value()),

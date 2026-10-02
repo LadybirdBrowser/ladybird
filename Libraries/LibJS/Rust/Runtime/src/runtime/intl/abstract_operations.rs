@@ -138,19 +138,16 @@ pub fn throw_option_is_not_valid_value<T>(
     value: Utf16View<'_>,
     property: &PropertyKey,
 ) -> ThrowCompletionOr<T> {
-    let property_string = property.to_utf16_string();
-    vm.throw_completion_with_utf16_message(
+    vm.throw_completion(
         ErrorKind::RangeError,
-        ErrorType::OptionIsNotValidValue.utf16_message(&[value, Utf16View::of_string(&property_string)]),
+        ErrorType::OptionIsNotValidValue,
+        &[&value, property],
     )
 }
 
 /// Throws a RangeError that `tag` is not a structurally valid language tag, with the code units of `tag`.
 pub fn throw_invalid_language_tag<T>(vm: &Vm, tag: Utf16View<'_>) -> ThrowCompletionOr<T> {
-    vm.throw_completion_with_utf16_message(
-        ErrorKind::RangeError,
-        ErrorType::IntlInvalidLanguageTag.utf16_message(&[tag]),
-    )
+    vm.throw_completion(ErrorKind::RangeError, ErrorType::IntlInvalidLanguageTag, &[&tag])
 }
 
 /// AK's Utf16View::equals_ignoring_ascii_case.
@@ -309,10 +306,7 @@ pub fn canonicalize_unicode_locale_id(vm: &Vm, locale: Utf16View<'_>) -> ThrowCo
     //         representation limits. Those are reported as a RangeError.
     match unicode::canonicalize_unicode_locale_id(locale) {
         Some(canonicalized_locale) => Ok(canonicalized_locale),
-        None => vm.throw_completion_with_utf16_message(
-            ErrorKind::RangeError,
-            ErrorType::IntlUnsupportedLanguageTag.utf16_message(&[locale]),
-        ),
+        None => vm.throw_completion(ErrorKind::RangeError, ErrorType::IntlUnsupportedLanguageTag, &[&locale]),
     }
 }
 

@@ -212,9 +212,10 @@ impl IntlObject for DisplayNames {
 }
 
 fn invalid_code<T>(vm: &Vm, code: Utf16View<'_>, option: &str) -> ThrowCompletionOr<T> {
-    vm.throw_completion_with_utf16_message(
+    vm.throw_completion(
         ErrorKind::RangeError,
-        ErrorType::OptionIsNotValidValue.utf16_message(&[code, Utf16View::Ascii(option.as_bytes())]),
+        ErrorType::OptionIsNotValidValue,
+        &[&code, &option],
     )
 }
 

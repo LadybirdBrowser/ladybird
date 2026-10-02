@@ -9,7 +9,7 @@ use core::fmt;
 use ak::Utf16String;
 
 use crate::runtime::value::number_to_string;
-use crate::utf16::{Utf16StringBuilder, Utf16View};
+use crate::utf16::{Utf16Display, Utf16StringBuilder, utf16_formatted};
 
 macro_rules! define_error_types {
     ($($name:ident => $format:literal,)*) => {
@@ -283,47 +283,9 @@ define_error_types! {
 }
 
 impl ErrorType {
-    /// The message with each `{}` replaced by the next of `arguments`, as AK's String::formatted() does.
-    pub fn message(self, arguments: &[&dyn fmt::Display]) -> String {
-        let mut pieces = self.format().split("{}");
-        let mut message = pieces.next().unwrap_or_default().to_string();
-        let mut arguments = arguments.iter();
-        for piece in pieces {
-            let argument = arguments
-                .next()
-                .unwrap_or_else(|| panic!("{self:?} needs more arguments than it was given"));
-            fmt::write(&mut message, format_args!("{argument}")).expect("formatting into a String cannot fail");
-            message.push_str(piece);
-        }
-        assert!(
-            arguments.next().is_none(),
-            "{self:?} was given more arguments than it needs"
-        );
-        message
-    }
-
-    /// The message with each `{}` replaced by the next of `arguments`, keeping every code unit of them, unpaired
-    /// surrogates included, as AK formats a Utf16View into the message of an error.
-    pub fn utf16_message(self, arguments: &[Utf16View<'_>]) -> Utf16String {
-        let append_piece = |message: &mut Utf16StringBuilder, piece: &str| {
-            message.append(Utf16View::of_string(&Utf16String::from_utf8(piece)));
-        };
-        let mut pieces = self.format().split("{}");
-        let mut message = Utf16StringBuilder::new();
-        append_piece(&mut message, pieces.next().unwrap_or_default());
-        let mut arguments = arguments.iter();
-        for piece in pieces {
-            let argument = arguments
-                .next()
-                .unwrap_or_else(|| panic!("{self:?} needs more arguments than it was given"));
-            message.append(*argument);
-            append_piece(&mut message, piece);
-        }
-        assert!(
-            arguments.next().is_none(),
-            "{self:?} was given more arguments than it needs"
-        );
-        message.to_utf16_string()
+    /// The message with each `{}` replaced by the next of `arguments`, as AK's Utf16String::formatted() does.
+    pub fn message(self, arguments: &[&dyn Utf16Display]) -> Utf16String {
+        utf16_formatted(self.format(), arguments)
     }
 }
 
@@ -341,5 +303,11 @@ impl fmt::Display for AkDouble {
             return formatter.write_str(if value < 0.0 { "-inf" } else { "inf" });
         }
         formatter.write_str(&number_to_string(value))
+    }
+}
+
+impl Utf16Display for AkDouble {
+    fn fmt_utf16(&self, builder: &mut Utf16StringBuilder) {
+        builder.append_utf8(&self.to_string());
     }
 }

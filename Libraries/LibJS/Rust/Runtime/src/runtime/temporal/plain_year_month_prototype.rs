@@ -499,11 +499,7 @@ impl PlainYearMonthPrototype {
 
         // 3. If item is not an Object, throw a TypeError exception.
         if !item.is_object() {
-            return vm.throw_completion_with_utf16_message(
-                ErrorKind::TypeError,
-                ErrorType::NotAnObject
-                    .utf16_message(&[Utf16View::of_string(&item.to_utf16_string_without_side_effects())]),
-            );
+            return vm.throw_completion(ErrorKind::TypeError, ErrorType::NotAnObject, &[&item]);
         }
 
         // 4. Let calendar be plainYearMonth.[[Calendar]].

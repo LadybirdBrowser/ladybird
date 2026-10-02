@@ -488,13 +488,10 @@ pub fn create_date_time_format(
         // a. If hasExplicitFormatComponents is true, then
         if let Some(explicit_format_component) = explicit_format_component {
             // i. Throw a TypeError exception.
-            let explicit_format_component = explicit_format_component.to_utf16_string();
-            return vm.throw_completion_with_utf16_message(
+            return vm.throw_completion(
                 ErrorKind::TypeError,
-                ErrorType::IntlInvalidDateTimeFormatOption.utf16_message(&[
-                    Utf16View::of_string(&explicit_format_component),
-                    Utf16View::Ascii(b"dateStyle or timeStyle"),
-                ]),
+                ErrorType::IntlInvalidDateTimeFormatOption,
+                &[explicit_format_component, &"dateStyle or timeStyle"],
             );
         }
 
