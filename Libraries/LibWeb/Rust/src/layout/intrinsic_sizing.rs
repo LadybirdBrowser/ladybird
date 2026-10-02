@@ -33,35 +33,42 @@ pub(super) fn compute_inline_sizes(
     {
         return None;
     }
-    RunRecords::with_root(callbacks.arena(), node, node_containing_block, root, |records| {
-        let run = FormattingContextRun {
-            purpose: formatting_context::LayoutPurpose::Measurement,
-            records,
-            box_: node,
-            layout_mode: LayoutMode::IntrinsicSizing,
-            callbacks,
-            should_collect_devtools_layout_data: false,
-            treat_block_axis_percentage_insets_as_auto_beyond_root: false,
-            fragments: None,
-            previous_line_data: None,
-        };
-        let sizing = run.sizing();
-        let input = LayoutInput::new(
-            AvailableSpace {
-                inline_size: AvailableSize::MaxContent,
-                block_size,
-            },
-            sizing.constraints_for_child_context(node, constraints),
-            ParticipationInParentFormattingContext::BlockLevel,
-        );
-        if let Some(measurement) = compute_from_atomic_children(&run, input) {
-            if fc_run_cache::fc_run_cache_mode_from_environment() == fc_run_cache::FcRunCacheMode::Shadow {
-                assert_eq!(Some(measurement), compute_from_items(&run, input));
+    RunRecords::with_root(
+        callbacks.scratch(),
+        callbacks.arena(),
+        node,
+        node_containing_block,
+        root,
+        |records| {
+            let run = FormattingContextRun {
+                purpose: formatting_context::LayoutPurpose::Measurement,
+                records,
+                box_: node,
+                layout_mode: LayoutMode::IntrinsicSizing,
+                callbacks,
+                should_collect_devtools_layout_data: false,
+                treat_block_axis_percentage_insets_as_auto_beyond_root: false,
+                fragments: None,
+                previous_line_data: None,
+            };
+            let sizing = run.sizing();
+            let input = LayoutInput::new(
+                AvailableSpace {
+                    inline_size: AvailableSize::MaxContent,
+                    block_size,
+                },
+                sizing.constraints_for_child_context(node, constraints),
+                ParticipationInParentFormattingContext::BlockLevel,
+            );
+            if let Some(measurement) = compute_from_atomic_children(&run, input) {
+                if fc_run_cache::fc_run_cache_mode_from_environment() == fc_run_cache::FcRunCacheMode::Shadow {
+                    assert_eq!(Some(measurement), compute_from_items(&run, input));
+                }
+                return Some(measurement);
             }
-            return Some(measurement);
-        }
-        compute_from_items(&run, input)
-    })
+            compute_from_items(&run, input)
+        },
+    )
 }
 
 fn compute_from_items(run: &FormattingContextRun<'_>, input: LayoutInput) -> Option<IntrinsicInlineSizeMeasurement> {

@@ -177,11 +177,12 @@ impl Drop for TreeBuildWalk<'_> {
 }
 
 /// What `layout_arena_create` hands C++: the arena, first, so that a handle is also a pointer to
-/// it, and the host tables beside it.
+/// it, and beside it the host tables and the layout stage's scratch.
 #[repr(C)]
 pub(crate) struct ArenaHandle {
     arena: LayoutNodeArena,
     host_tables: HostTables,
+    layout_scratch: super::run_records::LayoutScratch,
 }
 
 const _: () = assert!(std::mem::offset_of!(ArenaHandle, arena) == 0);
@@ -191,7 +192,19 @@ impl ArenaHandle {
         Self {
             arena: LayoutNodeArena::new(),
             host_tables: HostTables::default(),
+            layout_scratch: Default::default(),
         }
+    }
+
+    /// The layout scratch of the arena `handle` names.
+    ///
+    /// # Safety
+    ///
+    /// `handle` must come from `layout_arena_create` and stay live for `'a`.
+    pub(crate) unsafe fn layout_scratch_of<'a>(handle: *mut c_void) -> &'a super::run_records::LayoutScratch {
+        assert!(!handle.is_null(), "layout node arena handle is null");
+        // SAFETY: Guaranteed by the caller. The projection does not borrow the arena beside it.
+        unsafe { &(*handle.cast::<ArenaHandle>()).layout_scratch }
     }
 
     pub(crate) fn arena(&self) -> &LayoutNodeArena {

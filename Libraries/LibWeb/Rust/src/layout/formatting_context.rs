@@ -1687,279 +1687,287 @@ fn execute_formatting_context_run(
 ) -> RunOutputs {
     assert!(!box_.is_invalid());
     let root_used = root_cells.materialize_record();
-    RunRecords::with_root(callbacks.arena(), box_, root_containing_block, &root_used, |records| {
-        let run = FormattingContextRun {
-            purpose,
-            records,
-            box_,
-            layout_mode,
-            callbacks,
-            should_collect_devtools_layout_data,
-            treat_block_axis_percentage_insets_as_auto_beyond_root: input
-                .sizing
-                .treat_block_axis_percentage_insets_as_auto_beyond_root,
-            fragments: (layout_mode == LayoutMode::Normal && !purpose.is_measurement()).then(|| {
-                std::rc::Rc::new(fragment_tree::RunFragmentBuilder::new(
-                    box_,
-                    (!root_containing_block.is_invalid()).then_some(root_containing_block),
-                ))
-            }),
-            previous_line_data,
-        };
-        let run = &run;
-        if let Some(table_inline_layout) = table_inline_layout {
-            run.records
-                .store_table_inline_layout(table_inline_layout.table_box(), table_inline_layout);
-        }
-        let RootSizingOutcome {
-            body_input,
-            atomic_root_sizing_repeats_for_available_inline_sizes_at_or_above,
-        } = apply_root_sizing_directives(run, &input, fc_type);
-
-        let cached_atomic_block_size = if matches!(
-            input.participation,
-            ParticipationInParentFormattingContext::AtomicInline
-        ) {
-            run.sizing().apply_cached_intrinsic_inline_measurement(
-                run.box_,
-                input.available_space.inline_size,
-                body_input.available_space.block_size,
-                input.containing_block_constraints,
-            )
-        } else {
-            None
-        };
-        let mut implementation = None;
-        let mut result = if let Some((cached_block_size, cached_baselines)) = cached_atomic_block_size {
-            ChildLayoutResult {
-                automatic_content_block_size: cached_block_size,
-                baselines: cached_baselines,
-                ..ChildLayoutResult::default()
+    RunRecords::with_root(
+        callbacks.scratch(),
+        callbacks.arena(),
+        box_,
+        root_containing_block,
+        &root_used,
+        |records| {
+            let run = FormattingContextRun {
+                purpose,
+                records,
+                box_,
+                layout_mode,
+                callbacks,
+                should_collect_devtools_layout_data,
+                treat_block_axis_percentage_insets_as_auto_beyond_root: input
+                    .sizing
+                    .treat_block_axis_percentage_insets_as_auto_beyond_root,
+                fragments: (layout_mode == LayoutMode::Normal && !purpose.is_measurement()).then(|| {
+                    std::rc::Rc::new(fragment_tree::RunFragmentBuilder::new(
+                        box_,
+                        (!root_containing_block.is_invalid()).then_some(root_containing_block),
+                    ))
+                }),
+                previous_line_data,
+            };
+            let run = &run;
+            if let Some(table_inline_layout) = table_inline_layout {
+                run.records
+                    .store_table_inline_layout(table_inline_layout.table_box(), table_inline_layout);
             }
-        } else if layout_mode == LayoutMode::Normal
-            && !purpose.is_measurement()
-            && matches!(
+            let RootSizingOutcome {
+                body_input,
+                atomic_root_sizing_repeats_for_available_inline_sizes_at_or_above,
+            } = apply_root_sizing_directives(run, &input, fc_type);
+
+            let cached_atomic_block_size = if matches!(
                 input.participation,
                 ParticipationInParentFormattingContext::AtomicInline
-            )
-            && fc_type == FormattingContextType::Block
-            && callbacks.first_child(box_).is_invalid()
-        {
-            // An empty atomic block context has no body output. Root sizing and finalization still
-            // run through the shared paths around this branch.
-            ChildLayoutResult::default()
-        } else {
-            let mut context_implementation = create_formatting_context_implementation(run, parent_grid, fc_type);
-            let result = match &mut context_implementation {
-                FormattingContextImplementation::Block(context) => {
-                    context.run(run, body_input);
-                    let baselines = context.derived_baselines_of_root_box();
-                    store_derived_baselines(run.records.used_values(run.box_), baselines);
-                    ChildLayoutResult {
-                        automatic_content_inline_size: context.automatic_content_inline_size(),
-                        min_content_inline_size_from_max_content_layout: context
-                            .min_content_inline_size_from_max_content_layout(),
-                        automatic_content_block_size: context.automatic_content_block_size(),
-                        automatic_line_clamp_max_lines: context.automatic_line_clamp_max_lines(),
-                        baselines,
-                        table_box_in_wrapper_border_box_block_size: context
-                            .table_box_in_wrapper_border_box_block_size(),
-                        ..ChildLayoutResult::default()
-                    }
-                }
-                FormattingContextImplementation::Flex(context) => {
-                    context.run(run, body_input);
-                    let baselines = context.derived_baselines_of_root_box();
-                    store_derived_baselines(run.records.used_values(run.box_), baselines);
-                    ChildLayoutResult {
-                        automatic_content_inline_size: context.automatic_content_inline_size(),
-                        automatic_content_block_size: context.automatic_content_block_size(),
-                        baselines,
-                        ..ChildLayoutResult::default()
-                    }
-                }
-                FormattingContextImplementation::Grid(context) => {
-                    context.run(run, body_input);
-                    let baselines = context.derived_baselines_of_root_box();
-                    store_derived_baselines(run.records.used_values(run.box_), baselines);
-                    ChildLayoutResult {
-                        automatic_content_inline_size: context.automatic_content_inline_size(),
-                        automatic_content_block_size: context.automatic_content_block_size(),
-                        baselines,
-                        ..ChildLayoutResult::default()
-                    }
-                }
-                FormattingContextImplementation::Table(context) => {
-                    context.run(run, body_input, run.records.take_table_inline_layout(run.box_));
-                    let baselines = context.derived_baselines_of_root_box();
-                    store_derived_baselines(run.records.used_values(run.box_), baselines);
-                    ChildLayoutResult {
-                        automatic_content_inline_size: context.automatic_content_inline_size(),
-                        automatic_content_block_size: context.automatic_content_block_size,
-                        baselines,
-                        ..ChildLayoutResult::default()
-                    }
-                }
-                FormattingContextImplementation::Svg(context) => {
-                    context.run(run, body_input);
-                    ChildLayoutResult::default()
-                }
-                FormattingContextImplementation::ReplacedWithChildren => {
-                    replaced_with_children_formatting_context::layout_replaced_with_children(run, body_input)
-                }
-                FormattingContextImplementation::InternalReplaced | FormattingContextImplementation::InternalDummy => {
-                    ChildLayoutResult::default()
-                }
-            };
-            implementation = Some(context_implementation);
-            result
-        };
-
-        // https://drafts.csswg.org/css-sizing-4/#intrinsic-size-override
-        // If an element has an explicit intrinsic inner size in an axis, then after laying out the element as normal for
-        // size containment, the size of the contents in that axis are instead treated as being the explicit intrinsic inner
-        // size instead of what was calculated in layout, and layout is performed again if necessary.
-        //
-        // Every formatting context reports its content sizes through ChildLayoutResult, so overriding here covers them all
-        // rather than one context's root-height path.
-        let containment_facts = NodeFacts::new(&run.callbacks, run.box_);
-        if containment_facts.node_has_size_containment() {
-            let style = containment_facts.style();
-            // https://drafts.csswg.org/css-contain-2/#containment-size
-            // Giving an element size containment makes its principal box a size containment box and has the following
-            // effects:
-            // 1. The intrinsic sizes of the size containment box are determined as if the element had no content, following
-            //    the same logic as when sizing as if empty.
-            result.automatic_content_inline_size = if style.contain_intrinsic_width_has_length() {
-                CssPixels::nearest_value_for(style.contain_intrinsic_width_px())
-            } else {
-                CssPixels::default()
-            };
-            result.automatic_content_block_size = if style.contain_intrinsic_height_has_length() {
-                CssPixels::nearest_value_for(style.contain_intrinsic_height_px())
-            } else {
-                CssPixels::default()
-            };
-        } else if containment_facts.node_has_inline_size_containment() {
-            // https://drafts.csswg.org/css-contain-2/#containment-inline-size
-            // "This means the inline-axis intrinsic sizes of the principal box are determined as if the element had
-            //  no content."
-            let style = containment_facts.style();
-            result.automatic_content_inline_size = if style.contain_intrinsic_width_has_length() {
-                CssPixels::nearest_value_for(style.contain_intrinsic_width_px())
-            } else {
-                CssPixels::default()
-            };
-        }
-
-        if containment_facts.has_preferred_aspect_ratio() {
-            result.content_block_size_for_aspect_ratio_minimum = content_block_size_for_aspect_ratio_minimum(
-                run.records,
-                &run.callbacks,
-                run.box_,
-                result.automatic_content_block_size,
-            );
-        }
-
-        match input.participation {
-            ParticipationInParentFormattingContext::BlockLevel => {
-                finalize_block_level_root(run, &input, &result);
-            }
-            ParticipationInParentFormattingContext::Float => {
-                finalize_float_root(run, &input, &result);
-            }
-            ParticipationInParentFormattingContext::AtomicInline => {
-                let automatic_content_block_size_of_completed_body_run = cached_atomic_block_size
-                    .is_none()
-                    .then_some(result.automatic_content_block_size);
-                finalize_atomic_root_block_size(
-                    run,
-                    &input,
-                    cached_atomic_block_size.map(|(block_size, _)| block_size),
-                    automatic_content_block_size_of_completed_body_run,
-                    parent_block,
-                );
-            }
-            ParticipationInParentFormattingContext::AbsolutelyPositioned(abspos_inputs) => {
-                abspos_engine::AbsposEngine::for_run(run).finalize_out_of_flow_root_after_inside_layout(
+            ) {
+                run.sizing().apply_cached_intrinsic_inline_measurement(
                     run.box_,
-                    abspos_inputs,
-                    Some(result.automatic_content_block_size),
-                );
-            }
-            ParticipationInParentFormattingContext::Item => {
-                if input.sizing.adopt_automatic_content_block_size {
-                    let used = run.records.used_values(run.box_);
-                    used.set_content_block_size(result.automatic_content_block_size);
-                }
-            }
-            ParticipationInParentFormattingContext::Root => {}
-        }
-        if matches!(
-            input.participation,
-            ParticipationInParentFormattingContext::BlockLevel
-                | ParticipationInParentFormattingContext::Float
-                | ParticipationInParentFormattingContext::AtomicInline
-        ) {
-            let sizing = run.sizing();
-            sizing.apply_automatic_minimum_block_size_from_aspect_ratio(
-                run.box_,
-                sizing.available_space_for_block_size_resolution(
-                    run.box_,
-                    input.available_space,
+                    input.available_space.inline_size,
+                    body_input.available_space.block_size,
                     input.containing_block_constraints,
-                ),
-                input.containing_block_constraints,
-                result.content_block_size_for_aspect_ratio_minimum,
-            );
-        }
-        result.omitted_line_layout = run.records.omitted_line_layout();
-        result.depends_on_percentage_block_size = run.sizing().resolve_percentage_block_size_dependency(run.box_);
+                )
+            } else {
+                None
+            };
+            let mut implementation = None;
+            let mut result = if let Some((cached_block_size, cached_baselines)) = cached_atomic_block_size {
+                ChildLayoutResult {
+                    automatic_content_block_size: cached_block_size,
+                    baselines: cached_baselines,
+                    ..ChildLayoutResult::default()
+                }
+            } else if layout_mode == LayoutMode::Normal
+                && !purpose.is_measurement()
+                && matches!(
+                    input.participation,
+                    ParticipationInParentFormattingContext::AtomicInline
+                )
+                && fc_type == FormattingContextType::Block
+                && callbacks.first_child(box_).is_invalid()
+            {
+                // An empty atomic block context has no body output. Root sizing and finalization still
+                // run through the shared paths around this branch.
+                ChildLayoutResult::default()
+            } else {
+                let mut context_implementation = create_formatting_context_implementation(run, parent_grid, fc_type);
+                let result = match &mut context_implementation {
+                    FormattingContextImplementation::Block(context) => {
+                        context.run(run, body_input);
+                        let baselines = context.derived_baselines_of_root_box();
+                        store_derived_baselines(run.records.used_values(run.box_), baselines);
+                        ChildLayoutResult {
+                            automatic_content_inline_size: context.automatic_content_inline_size(),
+                            min_content_inline_size_from_max_content_layout: context
+                                .min_content_inline_size_from_max_content_layout(),
+                            automatic_content_block_size: context.automatic_content_block_size(),
+                            automatic_line_clamp_max_lines: context.automatic_line_clamp_max_lines(),
+                            baselines,
+                            table_box_in_wrapper_border_box_block_size: context
+                                .table_box_in_wrapper_border_box_block_size(),
+                            ..ChildLayoutResult::default()
+                        }
+                    }
+                    FormattingContextImplementation::Flex(context) => {
+                        context.run(run, body_input);
+                        let baselines = context.derived_baselines_of_root_box();
+                        store_derived_baselines(run.records.used_values(run.box_), baselines);
+                        ChildLayoutResult {
+                            automatic_content_inline_size: context.automatic_content_inline_size(),
+                            automatic_content_block_size: context.automatic_content_block_size(),
+                            baselines,
+                            ..ChildLayoutResult::default()
+                        }
+                    }
+                    FormattingContextImplementation::Grid(context) => {
+                        context.run(run, body_input);
+                        let baselines = context.derived_baselines_of_root_box();
+                        store_derived_baselines(run.records.used_values(run.box_), baselines);
+                        ChildLayoutResult {
+                            automatic_content_inline_size: context.automatic_content_inline_size(),
+                            automatic_content_block_size: context.automatic_content_block_size(),
+                            baselines,
+                            ..ChildLayoutResult::default()
+                        }
+                    }
+                    FormattingContextImplementation::Table(context) => {
+                        context.run(run, body_input, run.records.take_table_inline_layout(run.box_));
+                        let baselines = context.derived_baselines_of_root_box();
+                        store_derived_baselines(run.records.used_values(run.box_), baselines);
+                        ChildLayoutResult {
+                            automatic_content_inline_size: context.automatic_content_inline_size(),
+                            automatic_content_block_size: context.automatic_content_block_size,
+                            baselines,
+                            ..ChildLayoutResult::default()
+                        }
+                    }
+                    FormattingContextImplementation::Svg(context) => {
+                        context.run(run, body_input);
+                        ChildLayoutResult::default()
+                    }
+                    FormattingContextImplementation::ReplacedWithChildren => {
+                        replaced_with_children_formatting_context::layout_replaced_with_children(run, body_input)
+                    }
+                    FormattingContextImplementation::InternalReplaced
+                    | FormattingContextImplementation::InternalDummy => ChildLayoutResult::default(),
+                };
+                implementation = Some(context_implementation);
+                result
+            };
 
-        let take_run_fragments = || {
-            run.fragments
-                .as_ref()
-                .map(|fragments| fragments.take_unplaced_root(run.records, &run.callbacks))
-        };
+            // https://drafts.csswg.org/css-sizing-4/#intrinsic-size-override
+            // If an element has an explicit intrinsic inner size in an axis, then after laying out the element as normal for
+            // size containment, the size of the contents in that axis are instead treated as being the explicit intrinsic inner
+            // size instead of what was calculated in layout, and layout is performed again if necessary.
+            //
+            // Every formatting context reports its content sizes through ChildLayoutResult, so overriding here covers them all
+            // rather than one context's root-height path.
+            let containment_facts = NodeFacts::new(&run.callbacks, run.box_);
+            if containment_facts.node_has_size_containment() {
+                let style = containment_facts.style();
+                // https://drafts.csswg.org/css-contain-2/#containment-size
+                // Giving an element size containment makes its principal box a size containment box and has the following
+                // effects:
+                // 1. The intrinsic sizes of the size containment box are determined as if the element had no content, following
+                //    the same logic as when sizing as if empty.
+                result.automatic_content_inline_size = if style.contain_intrinsic_width_has_length() {
+                    CssPixels::nearest_value_for(style.contain_intrinsic_width_px())
+                } else {
+                    CssPixels::default()
+                };
+                result.automatic_content_block_size = if style.contain_intrinsic_height_has_length() {
+                    CssPixels::nearest_value_for(style.contain_intrinsic_height_px())
+                } else {
+                    CssPixels::default()
+                };
+            } else if containment_facts.node_has_inline_size_containment() {
+                // https://drafts.csswg.org/css-contain-2/#containment-inline-size
+                // "This means the inline-axis intrinsic sizes of the principal box are determined as if the element had
+                //  no content."
+                let style = containment_facts.style();
+                result.automatic_content_inline_size = if style.contain_intrinsic_width_has_length() {
+                    CssPixels::nearest_value_for(style.contain_intrinsic_width_px())
+                } else {
+                    CssPixels::default()
+                };
+            }
 
-        let registered_abspos_children_could_never_be_laid_out = run.fragments.is_none();
-        if registered_abspos_children_could_never_be_laid_out {
-            return run.outputs(
+            if containment_facts.has_preferred_aspect_ratio() {
+                result.content_block_size_for_aspect_ratio_minimum = content_block_size_for_aspect_ratio_minimum(
+                    run.records,
+                    &run.callbacks,
+                    run.box_,
+                    result.automatic_content_block_size,
+                );
+            }
+
+            match input.participation {
+                ParticipationInParentFormattingContext::BlockLevel => {
+                    finalize_block_level_root(run, &input, &result);
+                }
+                ParticipationInParentFormattingContext::Float => {
+                    finalize_float_root(run, &input, &result);
+                }
+                ParticipationInParentFormattingContext::AtomicInline => {
+                    let automatic_content_block_size_of_completed_body_run = cached_atomic_block_size
+                        .is_none()
+                        .then_some(result.automatic_content_block_size);
+                    finalize_atomic_root_block_size(
+                        run,
+                        &input,
+                        cached_atomic_block_size.map(|(block_size, _)| block_size),
+                        automatic_content_block_size_of_completed_body_run,
+                        parent_block,
+                    );
+                }
+                ParticipationInParentFormattingContext::AbsolutelyPositioned(abspos_inputs) => {
+                    abspos_engine::AbsposEngine::for_run(run).finalize_out_of_flow_root_after_inside_layout(
+                        run.box_,
+                        abspos_inputs,
+                        Some(result.automatic_content_block_size),
+                    );
+                }
+                ParticipationInParentFormattingContext::Item => {
+                    if input.sizing.adopt_automatic_content_block_size {
+                        let used = run.records.used_values(run.box_);
+                        used.set_content_block_size(result.automatic_content_block_size);
+                    }
+                }
+                ParticipationInParentFormattingContext::Root => {}
+            }
+            if matches!(
+                input.participation,
+                ParticipationInParentFormattingContext::BlockLevel
+                    | ParticipationInParentFormattingContext::Float
+                    | ParticipationInParentFormattingContext::AtomicInline
+            ) {
+                let sizing = run.sizing();
+                sizing.apply_automatic_minimum_block_size_from_aspect_ratio(
+                    run.box_,
+                    sizing.available_space_for_block_size_resolution(
+                        run.box_,
+                        input.available_space,
+                        input.containing_block_constraints,
+                    ),
+                    input.containing_block_constraints,
+                    result.content_block_size_for_aspect_ratio_minimum,
+                );
+            }
+            result.omitted_line_layout = run.records.omitted_line_layout();
+            result.depends_on_percentage_block_size = run.sizing().resolve_percentage_block_size_dependency(run.box_);
+
+            let take_run_fragments = || {
+                run.fragments
+                    .as_ref()
+                    .map(|fragments| fragments.take_unplaced_root(run.records, &run.callbacks))
+            };
+
+            let registered_abspos_children_could_never_be_laid_out = run.fragments.is_none();
+            if registered_abspos_children_could_never_be_laid_out {
+                return run.outputs(
+                    result,
+                    take_run_fragments(),
+                    atomic_root_sizing_repeats_for_available_inline_sizes_at_or_above,
+                );
+            }
+            if let Some(implementation) = implementation {
+                match &implementation {
+                    FormattingContextImplementation::Block(_) => {}
+                    FormattingContextImplementation::Table(_) => {
+                        let box_ = run.box_;
+                        register_table_abspos_descendants(run, box_);
+                    }
+                    FormattingContextImplementation::Flex(context) => {
+                        context.parent_did_dimension();
+                    }
+                    FormattingContextImplementation::Grid(context) => {
+                        context.parent_did_dimension();
+                    }
+                    FormattingContextImplementation::Svg(_) | FormattingContextImplementation::ReplacedWithChildren => {
+                    }
+                    FormattingContextImplementation::InternalReplaced
+                    | FormattingContextImplementation::InternalDummy => {
+                        return run.outputs(
+                            result,
+                            take_run_fragments(),
+                            atomic_root_sizing_repeats_for_available_inline_sizes_at_or_above,
+                        );
+                    }
+                }
+            }
+            run.records.used_values(run.box_).seal_own_metrics();
+            run.outputs(
                 result,
                 take_run_fragments(),
                 atomic_root_sizing_repeats_for_available_inline_sizes_at_or_above,
-            );
-        }
-        if let Some(implementation) = implementation {
-            match &implementation {
-                FormattingContextImplementation::Block(_) => {}
-                FormattingContextImplementation::Table(_) => {
-                    let box_ = run.box_;
-                    register_table_abspos_descendants(run, box_);
-                }
-                FormattingContextImplementation::Flex(context) => {
-                    context.parent_did_dimension();
-                }
-                FormattingContextImplementation::Grid(context) => {
-                    context.parent_did_dimension();
-                }
-                FormattingContextImplementation::Svg(_) | FormattingContextImplementation::ReplacedWithChildren => {}
-                FormattingContextImplementation::InternalReplaced | FormattingContextImplementation::InternalDummy => {
-                    return run.outputs(
-                        result,
-                        take_run_fragments(),
-                        atomic_root_sizing_repeats_for_available_inline_sizes_at_or_above,
-                    );
-                }
-            }
-        }
-        run.records.used_values(run.box_).seal_own_metrics();
-        run.outputs(
-            result,
-            take_run_fragments(),
-            atomic_root_sizing_repeats_for_available_inline_sizes_at_or_above,
-        )
-    })
+            )
+        },
+    )
 }
 
 fn finalize_atomic_root_block_size(
@@ -2384,8 +2392,11 @@ pub(crate) unsafe fn run_root_layout(
         // NB: Top-layer updates can attach boxes without running the tree builder.
         arena.derive_facts_after_tree_update(&[]);
     }
+    // SAFETY: Guaranteed by the caller; the scratch beside the arena is the layout stage's own.
+    let scratch = unsafe { super::run_records::LayoutScratch::from_handle(arena_handle) };
     let callbacks = LayoutPass::new(
         arena,
+        scratch,
         host.container_length_bases_query(main_thread),
         CssPixels::from_raw(viewport_inline_size_raw),
         CssPixels::from_raw(viewport_block_size_raw),
@@ -2399,7 +2410,7 @@ pub(crate) unsafe fn run_root_layout(
         percentage_basis_block_size: Some(viewport_block_size),
         ..ContainingBlockConstraints::default()
     };
-    let pass_fragments = RunRecords::with_unrooted(arena, root, NodeSlotId::INVALID, |entry_records| {
+    let pass_fragments = RunRecords::with_unrooted(scratch, arena, root, NodeSlotId::INVALID, |entry_records| {
         let _trace = arena.layout_trace.pass(None);
         let viewport_used = entry_records.create_used_values(&callbacks, root, root_constraints);
         let entry_fragments = std::rc::Rc::new(fragment_tree::RunFragmentBuilder::new_entry_accumulator(root));
@@ -2513,6 +2524,8 @@ unsafe fn commit_entry_pass<'a>(
     // performs no host callbacks.
     let arena = unsafe { LayoutNodeArena::from_handle(arena_handle) };
     arena.end_layout_pass();
+    // SAFETY: As above.
+    unsafe { super::run_records::LayoutScratch::from_handle(arena_handle) }.end_layout_pass();
     arena.reset_layout_update_flags_in_subtree(commit_root);
     arena
 }
@@ -2539,8 +2552,11 @@ pub(crate) unsafe fn compute_subtree_layout(
     // while computing fragments. Nested measurements only mutate side caches.
     let arena = unsafe { LayoutNodeArena::from_handle(arena_handle) };
     arena.begin_active_layout_pass();
+    // SAFETY: Guaranteed by the caller; the scratch beside the arena is the layout stage's own.
+    let scratch = unsafe { super::run_records::LayoutScratch::from_handle(arena_handle) };
     let callbacks = LayoutPass::new(
         arena,
+        scratch,
         host.container_length_bases_query(main_thread),
         CssPixels::from_raw(viewport_inline_size_raw),
         CssPixels::from_raw(viewport_block_size_raw),
@@ -2568,27 +2584,34 @@ pub(crate) unsafe fn compute_subtree_layout(
             .map_or(NodeSlotId::INVALID, |link| link.containing_block);
         (root, containing_block)
     };
-    let pass_fragments = RunRecords::with_unrooted(arena, entry_root, entry_root_containing_block, |entry_records| {
-        let _trace = arena.layout_trace.pass(Some(root));
-        let entry_fragments = std::rc::Rc::new(fragment_tree::RunFragmentBuilder::new_entry_accumulator(entry_root));
-        let entry_run = FormattingContextRun {
-            purpose: LayoutPurpose::Commit,
-            records: entry_records,
-            box_: entry_root,
-            layout_mode: LayoutMode::Normal,
-            callbacks,
-            should_collect_devtools_layout_data: false,
-            treat_block_axis_percentage_insets_as_auto_beyond_root: false,
-            fragments: Some(entry_fragments.clone()),
-            previous_line_data: None,
-        };
-        if root_is_absolutely_positioned {
-            abspos_engine::AbsposEngine::for_run(&entry_run).replay(&entry_run, root);
-        } else {
-            layout_subtree_with_frozen_root_geometry(&entry_run);
-        }
-        finish_entry_pass(entry_records, &entry_fragments, &callbacks, false)
-    });
+    let pass_fragments = RunRecords::with_unrooted(
+        scratch,
+        arena,
+        entry_root,
+        entry_root_containing_block,
+        |entry_records| {
+            let _trace = arena.layout_trace.pass(Some(root));
+            let entry_fragments =
+                std::rc::Rc::new(fragment_tree::RunFragmentBuilder::new_entry_accumulator(entry_root));
+            let entry_run = FormattingContextRun {
+                purpose: LayoutPurpose::Commit,
+                records: entry_records,
+                box_: entry_root,
+                layout_mode: LayoutMode::Normal,
+                callbacks,
+                should_collect_devtools_layout_data: false,
+                treat_block_axis_percentage_insets_as_auto_beyond_root: false,
+                fragments: Some(entry_fragments.clone()),
+                previous_line_data: None,
+            };
+            if root_is_absolutely_positioned {
+                abspos_engine::AbsposEngine::for_run(&entry_run).replay(&entry_run, root);
+            } else {
+                layout_subtree_with_frozen_root_geometry(&entry_run);
+            }
+            finish_entry_pass(entry_records, &entry_fragments, &callbacks, false)
+        },
+    );
     drop(read_scope);
     // SAFETY: Computation has finished and its input borrows are no longer used.
     let arena = unsafe { commit_entry_pass(main_thread, arena_handle, &host, root, &pass_fragments) };

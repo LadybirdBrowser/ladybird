@@ -2724,6 +2724,7 @@ impl<'pass> SizingContext<'pass> {
             .set(table_style.padding_right().to_px(containing_block_inline_size));
 
         RunRecords::with_root(
+            measurement.callbacks().scratch(),
             measurement.callbacks().arena(),
             table_box,
             measurement.callbacks().in_flow_containing_block(table_box),
