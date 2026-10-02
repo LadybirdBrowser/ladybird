@@ -235,7 +235,7 @@ public:
     void set_editing_history_state(bool can_undo, bool can_redo);
     bool can_undo() const { return m_can_undo; }
     bool can_redo() const { return m_can_redo; }
-    void find_in_page(Utf16String const& query, CaseSensitivity = CaseSensitivity::CaseInsensitive);
+    void find_in_page(Utf16String const& query, CaseSensitivity = CaseSensitivity::CaseInsensitive, bool highlight_all_matches = false);
     void find_in_page_next_match();
     void find_in_page_previous_match();
     void find_in_page_end();

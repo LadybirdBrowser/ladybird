@@ -270,16 +270,35 @@ void DocumentPaintState::reset_search_text_states()
     Layout::RustFFI::render_state_clear_search_text(m_layout_node_arena->host());
 }
 
-void DocumentPaintState::recompute_search_text_states(Layout::BegunRead const& read, DOM::Document& document, DOM::Range& range)
+void DocumentPaintState::recompute_search_text_states(Layout::BegunRead const& read, DOM::Document& document, GC::Ptr<DOM::Range> active_match, Vector<GC::Ref<DOM::Range>> const& highlighted_matches)
 {
     auto is_excluded_from_search_text = [](DOM::Node const&) { return false; };
 
+    Vector<Layout::RustFFI::FfiSearchTextRange> ranges;
     Vector<Layout::RustFFI::FfiSelectionEntry> entries;
-    for_each_node_in_highlight_range(read, range, is_excluded_from_search_text, [&](DOM::Node& node, SelectionState state) {
-        if (is<DOM::Text>(node))
-            append_highlight_entry(read, entries, node, state);
-    });
-    Layout::RustFFI::render_state_apply_search_text(m_layout_node_arena->host(), viewport_row_slot(read, document), entries.data(), entries.size(), range.start_offset(), range.end_offset());
+    auto append_range = [&](DOM::Range& range, bool is_current) {
+        auto first_entry = entries.size();
+        for_each_node_in_highlight_range(read, range, is_excluded_from_search_text, [&](DOM::Node& node, SelectionState state) {
+            if (is<DOM::Text>(node))
+                append_highlight_entry(read, entries, node, state);
+        });
+        if (entries.size() == first_entry)
+            return;
+        ranges.append({
+            .first_entry = first_entry,
+            .entry_count = entries.size() - first_entry,
+            .start_offset = range.start_offset(),
+            .end_offset = range.end_offset(),
+            .is_current = is_current,
+        });
+    };
+    for (auto const& match : highlighted_matches) {
+        if (match.ptr() != active_match.ptr())
+            append_range(*match, false);
+    }
+    if (active_match)
+        append_range(*active_match, true);
+    Layout::RustFFI::render_state_apply_search_text(m_layout_node_arena->host(), viewport_row_slot(read, document), ranges.data(), ranges.size(), entries.data(), entries.size());
 }
 
 }

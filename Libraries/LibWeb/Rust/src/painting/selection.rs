@@ -14,7 +14,10 @@ use crate::painting::display_list::commands::OptionalColor;
 use crate::painting::fragment_ownership;
 use crate::painting::host::FfiSelectionStyleFacts;
 use crate::painting::paint_read::GeometryRead;
-use crate::painting::paintable_data::{FfiSelectionEntry, SELECTION_STATE_NONE};
+use crate::painting::paintable_data::{
+    FfiSearchTextRange, FfiSelectionEntry, SELECTION_STATE_END, SELECTION_STATE_NONE, SELECTION_STATE_START,
+    SELECTION_STATE_START_AND_END,
+};
 use crate::painting::paintable_rows::PaintableRowsMut;
 use crate::painting::record::damage::PaintDamage;
 use crate::painting::record::paint::text::{HighlightShadowLayer, SelectionStyleAnswer, ShadowLayer};
@@ -110,34 +113,97 @@ pub(crate) fn apply(
     text_states
 }
 
+#[derive(Debug)]
+pub(crate) struct SearchTextMatch {
+    pub start_offset: usize,
+    pub end_offset: usize,
+    pub is_current: bool,
+}
+
+impl SearchTextMatch {
+    /// Where the match starts and ends in the text of a node it touches, given its selection state there.
+    pub(crate) fn offsets_in_node(&self, state: u8) -> (usize, usize) {
+        let starts_in_node = state == SELECTION_STATE_START || state == SELECTION_STATE_START_AND_END;
+        let ends_in_node = state == SELECTION_STATE_END || state == SELECTION_STATE_START_AND_END;
+        (
+            if starts_in_node { self.start_offset } else { 0 },
+            if ends_in_node { self.end_offset } else { usize::MAX },
+        )
+    }
+}
+
+#[derive(Debug, Default)]
+pub(crate) struct SearchTextHighlights {
+    pub matches: Vec<SearchTextMatch>,
+    /// For each node, the matches touching it with their selection states there, in the order they start in the
+    /// node. Find-in-page matches do not overlap, so they also end in that order.
+    pub by_node: std::collections::HashMap<NodeSlotId, Vec<(u32, u8)>>,
+}
+
+impl SearchTextHighlights {
+    fn node_signature(&self, node: NodeSlotId) -> Vec<(u8, usize, usize, bool)> {
+        let mut signature: Vec<_> = self
+            .by_node
+            .get(&node)
+            .map(|touching| {
+                touching
+                    .iter()
+                    .map(|&(match_index, state)| {
+                        let found = &self.matches[match_index as usize];
+                        (state, found.start_offset, found.end_offset, found.is_current)
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
+        signature.sort_unstable();
+        signature
+    }
+}
+
 pub(crate) fn clear_search_text(layout_arena: &mut PaintableRowsMut<'_>) {
-    let previous = layout_arena.paint_state().borrow_mut().search_text.take();
-    if let Some(previous) = previous {
-        for node in previous.text_states.keys() {
-            invalidate_text_node(layout_arena, *node);
-        }
+    let previous = std::mem::take(&mut layout_arena.paint_state().borrow_mut().search_text);
+    for node in previous.by_node.keys() {
+        invalidate_text_node(layout_arena, *node);
     }
 }
 
 pub(crate) fn apply_search_text(
     layout_arena: &mut PaintableRowsMut<'_>,
+    ranges: &[FfiSearchTextRange],
     entries: &[FfiSelectionEntry],
-    start_offset: usize,
-    end_offset: usize,
 ) {
-    clear_search_text(layout_arena);
-    let mut text_states = std::collections::HashMap::new();
-    for entry in entries.iter().filter(|entry| entry.is_text_node_entry) {
-        for &node in layout_arena.text_fragments(entry.layout_node).as_slice() {
-            text_states.insert(node, entry.state);
-            invalidate_text_node(layout_arena, node);
+    let mut highlights = SearchTextHighlights::default();
+    for range in ranges {
+        let match_index = highlights.matches.len() as u32;
+        highlights.matches.push(SearchTextMatch {
+            start_offset: range.start_offset,
+            end_offset: range.end_offset,
+            is_current: range.is_current,
+        });
+        let range_entries = entries
+            .get(range.first_entry..range.first_entry + range.entry_count)
+            .unwrap_or_default();
+        for entry in range_entries.iter().filter(|entry| entry.is_text_node_entry) {
+            for &node in layout_arena.text_fragments(entry.layout_node).as_slice() {
+                highlights
+                    .by_node
+                    .entry(node)
+                    .or_default()
+                    .push((match_index, entry.state));
+            }
         }
     }
-    layout_arena.paint_state().borrow_mut().search_text = Some(Arc::new(SelectionRange {
-        start_offset,
-        end_offset,
-        text_states,
-    }));
+    let matches = &highlights.matches;
+    for touching in highlights.by_node.values_mut() {
+        touching.sort_by_key(|&(match_index, state)| matches[match_index as usize].offsets_in_node(state));
+    }
+    let previous = std::mem::take(&mut layout_arena.paint_state().borrow_mut().search_text);
+    for node in previous.by_node.keys().chain(highlights.by_node.keys()) {
+        if previous.node_signature(*node) != highlights.node_signature(*node) {
+            invalidate_text_node(layout_arena, *node);
+        }
+    }
+    layout_arena.paint_state().borrow_mut().search_text = Arc::new(highlights);
 }
 
 /// https://drafts.csswg.org/css-pseudo-4/#highlight-styling

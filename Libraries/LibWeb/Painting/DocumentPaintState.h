@@ -12,6 +12,7 @@
 #include <LibCompositing/DisplayList/AccumulatedVisualContext.h>
 #include <LibCompositing/DisplayList/DisplayListResourceStorage.h>
 #include <LibCompositing/Scrolling/ScrollState.h>
+#include <LibGC/Ptr.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Layout/NodeArena.h>
@@ -58,7 +59,7 @@ public:
 
     void recompute_selection_states(Layout::BegunRead const& read, DOM::Document&, DOM::Range&);
     void reset_selection_states(Layout::BegunRead const& read, DOM::Document&);
-    void recompute_search_text_states(Layout::BegunRead const& read, DOM::Document&, DOM::Range&);
+    void recompute_search_text_states(Layout::BegunRead const& read, DOM::Document&, GC::Ptr<DOM::Range> active_match, Vector<GC::Ref<DOM::Range>> const& highlighted_matches);
     void reset_search_text_states();
 
     void invalidate_all_cached_paint(DOM::Document&);

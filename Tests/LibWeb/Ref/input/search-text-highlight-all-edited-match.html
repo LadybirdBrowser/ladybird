@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/search-text-highlight-all-edited-match-ref.html">
+<style>
+p {
+    font-size: 20px;
+    line-height: 1.5;
+}
+</style>
+<p id="edited">needle needle</p>
+<p id="surrounded">needle needle</p>
+<p id="removed">nee<span>dle</span> nee<span id="middle">dle</span></p>
+<script>
+internals.findInPage("needle", true);
+requestAnimationFrame(() => {
+    edited.firstChild.insertData(10, "X");
+    edited.firstChild.insertData(3, "X");
+    surrounded.firstChild.insertData(7, "X");
+    surrounded.firstChild.insertData(6, "Y");
+    middle.remove();
+    requestAnimationFrame(() => {
+        internals.signalTestIsDone("PASS");
+    });
+});
+</script>
+</html>

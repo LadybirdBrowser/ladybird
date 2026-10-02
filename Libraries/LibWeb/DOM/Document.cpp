@@ -876,6 +876,7 @@ void Document::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_fonts);
     visitor.visit(m_selection);
     visitor.visit(m_find_in_page_active_match);
+    visitor.visit(m_find_in_page_highlighted_matches);
     visitor.visit(m_first_base_element_with_href_in_tree_order);
     visitor.visit(m_first_base_element_with_target_in_tree_order);
     visitor.visit(m_parser);
@@ -1052,6 +1053,27 @@ void Document::set_find_in_page_active_match(GC::Ptr<Range> active_match)
     invalidation_journal().note_search_text_changed();
 }
 
+void Document::set_find_in_page_highlighted_matches(Vector<GC::Ref<Range>> matches)
+{
+    if (matches.is_empty() && m_find_in_page_highlighted_matches.is_empty())
+        return;
+    m_find_in_page_highlighted_matches = move(matches);
+    m_find_in_page_highlighted_match_texts.clear_with_capacity();
+    for (auto const& match : m_find_in_page_highlighted_matches)
+        m_find_in_page_highlighted_match_texts.append(match->to_string());
+    set_needs_highlight_style_update(CSS::PseudoElement::SearchText);
+    invalidation_journal().note_search_text_changed();
+}
+
+void Document::recompute_search_text_paint_states(Layout::BegunRead const& read)
+{
+    if (!m_find_in_page_active_match && m_find_in_page_highlighted_matches.is_empty()) {
+        paint_state().reset_search_text_states();
+        return;
+    }
+    paint_state().recompute_search_text_states(read, *this, m_find_in_page_active_match, m_find_in_page_highlighted_matches);
+}
+
 static bool realign_find_in_page_match_to_its_text(Range& match, Utf16String const& text)
 {
     if (match.collapsed())
@@ -1075,6 +1097,26 @@ void Document::collapse_find_in_page_active_match_if_its_text_changed()
     if (!match || match->collapsed() || realign_find_in_page_match_to_its_text(*match, m_find_in_page_active_match_text))
         return;
     set_find_in_page_active_match(Range::create(match->start_container(), match->start_offset(), match->start_container(), match->start_offset()));
+}
+
+void Document::remove_find_in_page_highlighted_matches_whose_text_changed()
+{
+    if (m_find_in_page_highlighted_matches.is_empty())
+        return;
+    if (dom_tree_version() == m_find_in_page_highlighted_matches_dom_tree_version
+        && character_data_version() == m_find_in_page_highlighted_matches_character_data_version)
+        return;
+    m_find_in_page_highlighted_matches_dom_tree_version = dom_tree_version();
+    m_find_in_page_highlighted_matches_character_data_version = character_data_version();
+
+    Vector<GC::Ref<Range>> matches;
+    for (size_t i = 0; i < m_find_in_page_highlighted_matches.size(); ++i) {
+        auto const& match = m_find_in_page_highlighted_matches[i];
+        if (realign_find_in_page_match_to_its_text(*match, m_find_in_page_highlighted_match_texts[i]))
+            matches.append(match);
+    }
+    if (matches.size() != m_find_in_page_highlighted_matches.size())
+        set_find_in_page_highlighted_matches(move(matches));
 }
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-document-write
@@ -2025,11 +2067,8 @@ void Document::after_layout_commit(Layout::BegunRead const& read, LayoutTreeChan
     if (auto range = get_selection()->range())
         paint_state().recompute_selection_states(read, *this, *range);
     collapse_find_in_page_active_match_if_its_text_changed();
-    if (m_find_in_page_active_match) {
-        paint_state().recompute_search_text_states(read, *this, *m_find_in_page_active_match);
-    } else {
-        paint_state().reset_search_text_states();
-    }
+    remove_find_in_page_highlighted_matches_whose_text_changed();
+    recompute_search_text_paint_states(read);
 
     if (layout_tree_changed == LayoutTreeChanged::Yes) {
         // Broadcast the current viewport rect to any new committed boxes, so they know whether

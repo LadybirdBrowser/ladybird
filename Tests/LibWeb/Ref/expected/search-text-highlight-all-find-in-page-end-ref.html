@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<style>
+p {
+    font-size: 20px;
+    line-height: 1.5;
+}
+</style>
+<p>The first needle</p>
+<p>The second needle</p>
+<script>
+const text = document.querySelector("p").firstChild;
+const range = document.createRange();
+range.setStart(text, 10);
+range.setEnd(text, 16);
+getSelection().addRange(range);
+</script>

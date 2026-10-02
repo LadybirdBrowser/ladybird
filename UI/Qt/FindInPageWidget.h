@@ -56,6 +56,7 @@ private:
     QPushButton* m_previous_button { nullptr };
     QPushButton* m_next_button { nullptr };
     QPushButton* m_exit_button { nullptr };
+    QCheckBox* m_highlight_all { nullptr };
     QCheckBox* m_match_case { nullptr };
     QLabel* m_result_label { nullptr };
     bool m_is_updating_chrome_style { false };

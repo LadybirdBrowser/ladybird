@@ -375,6 +375,7 @@ public:
     struct FindInPageQuery {
         Utf16String string {};
         CaseSensitivity case_sensitivity { CaseSensitivity::CaseInsensitive };
+        bool highlight_all_matches { false };
     };
     struct FindInPageResult {
         size_t current_match_index { 0 };
@@ -420,7 +421,9 @@ private:
         Backward,
     };
     FindInPageResult perform_find_in_page_query(FindInPageQuery const&, Optional<SearchDirection> = {});
-    void update_find_in_page_active_match(Vector<GC::Root<DOM::Range>> matches);
+    void update_find_in_page_active_match(Vector<GC::Root<DOM::Range>> const& matches);
+    void update_find_in_page_highlighted_matches(Vector<GC::Root<DOM::Range>> const& matches, bool highlight_all_matches);
+    void clear_find_in_page_highlighted_matches();
     GC::Ptr<DOM::Range> find_in_page_active_match();
     void set_find_in_page_active_match(GC::Ptr<DOM::Range>);
 
@@ -525,6 +528,7 @@ private:
     Optional<FindInPageQuery> m_last_find_in_page_query;
     URL::URL m_last_find_in_page_url;
     GC::Weak<DOM::Document> m_find_in_page_active_match_document;
+    Vector<GC::Weak<DOM::Document>> m_find_in_page_highlighted_documents;
 
     bool m_listen_for_dom_mutations { false };
     Optional<CSS::PreferredColorScheme> m_preferred_color_scheme_override_for_testing;

@@ -230,7 +230,7 @@ endpoint WebContentServer routed by Web::PageId page_id
     commit_text_from_input_method(Web::PageId page_id, Utf16String text, i32 replacement_start, i32 replacement_length) =|
     unmark_text_from_input_method(Web::PageId page_id) =|
 
-    find_in_page(Web::PageId page_id, Utf16String query, AK::CaseSensitivity case_sensitivity) =|
+    find_in_page(Web::PageId page_id, Utf16String query, AK::CaseSensitivity case_sensitivity, bool highlight_all_matches) =|
     find_in_page_next_match(Web::PageId page_id) =|
     find_in_page_previous_match(Web::PageId page_id) =|
     find_in_page_end(Web::PageId page_id) =|

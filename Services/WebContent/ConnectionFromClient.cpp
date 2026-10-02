@@ -2602,13 +2602,13 @@ void ConnectionFromClient::redo(Web::PageId page_id)
     update_input_method_state(page_id);
 }
 
-void ConnectionFromClient::find_in_page(Web::PageId page_id, Utf16String query, CaseSensitivity case_sensitivity)
+void ConnectionFromClient::find_in_page(Web::PageId page_id, Utf16String query, CaseSensitivity case_sensitivity, bool highlight_all_matches)
 {
     auto page = this->page(page_id);
     if (!page.has_value())
         return;
 
-    auto result = page->page().find_in_page({ .string = query, .case_sensitivity = case_sensitivity });
+    auto result = page->page().find_in_page({ .string = query, .case_sensitivity = case_sensitivity, .highlight_all_matches = highlight_all_matches });
     async_did_find_in_page(page_id, result.current_match_index, result.total_match_count);
 }
 

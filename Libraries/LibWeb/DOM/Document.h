@@ -325,6 +325,10 @@ public:
     GC::Ptr<Range> find_in_page_active_match() const { return m_find_in_page_active_match; }
     void set_find_in_page_active_match(GC::Ptr<Range>);
     void collapse_find_in_page_active_match_if_its_text_changed();
+    Vector<GC::Ref<Range>> const& find_in_page_highlighted_matches() const { return m_find_in_page_highlighted_matches; }
+    void set_find_in_page_highlighted_matches(Vector<GC::Ref<Range>>);
+    void remove_find_in_page_highlighted_matches_whose_text_changed();
+    void recompute_search_text_paint_states(Layout::BegunRead const&);
 
     WebIDL::ExceptionOr<Utf16String> cookie();
     WebIDL::ExceptionOr<void> set_cookie(Utf16View);
@@ -1920,6 +1924,10 @@ private:
     // https://html.spec.whatwg.org/multipage/interaction.html#fip-active-match
     GC::Ptr<Range> m_find_in_page_active_match;
     Utf16String m_find_in_page_active_match_text;
+    Vector<GC::Ref<Range>> m_find_in_page_highlighted_matches;
+    Vector<Utf16String> m_find_in_page_highlighted_match_texts;
+    u64 m_find_in_page_highlighted_matches_dom_tree_version { 0 };
+    u64 m_find_in_page_highlighted_matches_character_data_version { 0 };
 
     struct HighlightStyleObservability {
         bool observable { false };

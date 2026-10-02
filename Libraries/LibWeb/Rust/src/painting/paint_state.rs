@@ -6,7 +6,7 @@
 
 use crate::layout::node_data::NodeSlotId;
 use crate::painting::record::paint::text::SelectionStyleAnswer;
-use crate::painting::selection::{HighlightPseudoElement, SelectionRange};
+use crate::painting::selection::{HighlightPseudoElement, SearchTextHighlights, SelectionRange};
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -36,8 +36,8 @@ pub struct PaintState {
     /// The `::selection` styles, shared with the frames published while they hold, so a write
     /// copies the table only while a frame still holds it.
     pub(crate) selection_pseudo_styles: Arc<SelectionPseudoStyles>,
-    /// The active find-in-page match, shared with the frames published while it holds.
-    pub(crate) search_text: Option<Arc<SelectionRange>>,
+    /// The find-in-page matches, shared with the frames published while they hold.
+    pub(crate) search_text: Arc<SearchTextHighlights>,
     /// The `::search-text` styles, shared as the `::selection` styles are.
     pub(crate) search_text_pseudo_styles: Arc<SelectionPseudoStyles>,
     /// The `::search-text:current` styles, shared as the `::selection` styles are.

@@ -777,9 +777,9 @@ Utf16String Internals::selected_text_for_clipboard()
     return {};
 }
 
-void Internals::find_in_page(Utf16String const& query)
+void Internals::find_in_page(Utf16String const& query, bool highlight_all)
 {
-    page().find_in_page({ .string = query });
+    page().find_in_page({ .string = query, .highlight_all_matches = highlight_all });
 }
 
 void Internals::find_in_page_next_match()

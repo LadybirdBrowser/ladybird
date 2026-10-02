@@ -258,10 +258,7 @@ void InvalidationJournal::drain_marks(Layout::BegunRead const& read)
     }
 
     if (exchange(m_search_text_changed, false) && m_document->has_committed_viewport_box()) {
-        if (auto match = m_document->find_in_page_active_match())
-            m_document->paint_state().recompute_search_text_states(read, *m_document, *match);
-        else
-            m_document->paint_state().reset_search_text_states();
+        m_document->recompute_search_text_paint_states(read);
         static_cast<Node&>(*m_document).set_needs_repaint(InvalidateDisplayList::PaintCommands);
     }
 
