@@ -8,19 +8,21 @@
 <div id="ex"></div>
 <script>
     test(() => {
-        // A container unit in the element's own style keeps its record with C++, and the engine
-        // settles its pseudo-elements beside it. ::before settles first; ::after's monospace
-        // recascade then waits for the monospace font under the ex-sized ancestor. The retry
-        // resumes the settlement instead of refusing it.
+        // The element's pseudo-elements settle beside a record C++ computed: a container unit
+        // substituted into the element's own style keeps its record with C++, which the count of C++
+        // recomputations shows. ::before settles first; ::after's monospace recascade then waits for the monospace
+        // font under the ex-sized ancestor. The retry resumes the settlement instead of refusing it.
         internals.updateStyle();
         const target = document.createElement("span");
         target.id = "target";
-        target.style.width = "10cqw";
+        target.style.cssText = "--width: 10cqw; width: var(--width)";
         const start = internals.styleEngineCounters();
+        const startRecomputations = internals.getStyleInvalidationCounters().elementStyleRecomputations;
         document.getElementById("ex").appendChild(target);
         internals.updateStyle();
         const end = internals.styleEngineCounters();
         const counter = name => (end[name] ?? 0) - (start[name] ?? 0);
+        println(`C++ recomputations: ${internals.getStyleInvalidationCounters().elementStyleRecomputations - startRecomputations}`);
         println(`before: ${getComputedStyle(target, "::before").content}`);
         println(`after: ${getComputedStyle(target, "::after").fontFamily}`);
         println(`engine pseudo records: ${counter("engineComputedPseudoRecords")}`);

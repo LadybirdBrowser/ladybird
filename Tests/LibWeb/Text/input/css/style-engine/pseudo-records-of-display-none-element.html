@@ -1,17 +1,17 @@
 <!DOCTYPE html>
 <script src="../../include.js"></script>
 <style>
-    #target { display: list-item; }
+    #target { display: none; }
     #target::before { content: "before"; color: rgb(0, 128, 0); }
-    #target::marker { color: rgb(255, 0, 0); }
     #target.changed::before { content: "changed"; }
 </style>
-<ul><li id="target" style="--width: 10cqw; width: var(--width)"></li></ul>
+<div id="target" style="--width: 10cqw; width: var(--width)"></div>
 <script>
     test(() => {
         // The element's pseudo-elements settle beside a record C++ computed: a container unit
         // substituted into the element's own style keeps its record with C++, which the count of
-        // C++ recomputations shows.
+        // C++ recomputations shows. The pseudo-element is still the engine's, display:none as the
+        // element is.
         const target = document.getElementById("target");
         internals.updateStyle();
         const start = internals.styleEngineCounters();
@@ -22,7 +22,7 @@
         println(`C++ recomputations: ${internals.getStyleInvalidationCounters().elementStyleRecomputations - startRecomputations}`);
         const before = getComputedStyle(target, "::before");
         println(`before: ${before.content} ${before.color}`);
-        println(`marker: ${getComputedStyle(target, "::marker").color}`);
         println(`engine pseudo records: ${end.engineComputedPseudoRecords - start.engineComputedPseudoRecords}`);
+        println(`parent bails: ${end.engineComputedRecordBailRecordParent - start.engineComputedRecordBailRecordParent}`);
     });
 </script>
