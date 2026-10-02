@@ -271,11 +271,7 @@ void register_geometry_host(Layout::NodeArena& arena)
 {
     Layout::RustFFI::FfiGeometryHostCallbacks callbacks {
         .context = nullptr,
-        .clamp_scroll_offset_if_nonzero = [](void*, void* layout_node_shell) {
-            auto& box = *static_cast<Layout::Node*>(layout_node_shell);
-            auto offset = scroll_offset(box);
-            if (!offset.is_zero())
-                set_scroll_offset(box, offset); },
+        .set_scroll_offset = [](void*, void* layout_node_shell, CSSPixelPoint offset) { set_scroll_offset(*static_cast<Layout::Node*>(layout_node_shell), offset); },
     };
     Layout::RustFFI::layout_arena_set_geometry_host(arena.handle(), callbacks);
 }
