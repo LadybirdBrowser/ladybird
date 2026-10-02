@@ -633,16 +633,6 @@ pub struct FfiExactCascadePublication {
     pub donor_used: bool,
 }
 
-impl FfiExactCascadePublication {
-    fn missing() -> Self {
-        Self {
-            computed_group_mask: u32::MAX,
-            unchanged: false,
-            donor_used: false,
-        }
-    }
-}
-
 #[cfg(feature = "style-recording")]
 #[derive(Clone, Copy)]
 pub struct RecordedExactCascadeWinner {
@@ -1183,37 +1173,7 @@ fn write_custom_declarations(declared: &[CustomDeclaration], payload: &mut super
     }
 }
 
-fn write_exact_cascade_publication(
-    publication: FfiExactCascadePublication,
-    payload: &mut super::record_replay::PayloadWriter,
-) {
-    payload.write_u32(publication.computed_group_mask);
-    payload.write_bool(publication.unchanged);
-    payload.write_bool(publication.donor_used);
-}
-
 impl StyleEngineState {
-    fn install_ffi_retained_cascade_assignments(
-        &mut self,
-        assignments: Vec<crate::css::cascaded_properties::FfiSourceSlotAssignment>,
-    ) -> FfiSourceSlotAssignmentView {
-        let bytes =
-            (assignments.capacity() * size_of::<crate::css::cascaded_properties::FfiSourceSlotAssignment>()) as u64;
-        self.host.ffi_retained_cascade_assignments = assignments;
-        self.host
-            .ffi_retained_cascade_assignments_memory
-            .resize_required_to(&mut self.retained.memory, bytes);
-        FfiSourceSlotAssignmentView {
-            assignments: self.host.ffi_retained_cascade_assignments.as_ptr().cast(),
-            count: self.host.ffi_retained_cascade_assignments.len(),
-        }
-    }
-
-    fn clear_ffi_retained_cascade_assignments(&mut self) {
-        self.host.ffi_retained_cascade_assignments = Vec::new();
-        self.host.ffi_retained_cascade_assignments_memory.shrink_to(0);
-    }
-
     fn install_ffi_style_node_query(&mut self, nodes: Vec<u32>) -> FfiStyleNodeSlice {
         let bytes = (nodes.capacity() * size_of::<u32>()) as u64;
         self.host.ffi_style_node_query = nodes;
@@ -2121,60 +2081,6 @@ unsafe fn write_rule_matches(
     matches.len()
 }
 
-/// Consumes the complete answer published by the immediately preceding style transaction.
-///
-/// Returns `usize::MAX` when that transaction did not publish an answer for `node`, or a count
-/// larger than `capacity` when nothing was written because the buffer was too small.
-///
-/// # Safety
-/// `engine` must be live and `out` must point at `capacity` writable `FfiRuleMatch` values.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_consume_published_match_answer(
-    engine: crate::css::style::StyleEngineHandle,
-    node: u32,
-    out: *mut FfiRuleMatch,
-    capacity: usize,
-) -> usize {
-    let Some(node) = StyleNodeID::from_raw(node) else {
-        return usize::MAX;
-    };
-    let engine = unsafe { engine.get_mut() };
-    let result = engine
-        .consume_published_match_answer_with(
-            node,
-            capacity,
-            |index, node, rule, semantic_declaration, pseudo_element, scope_host, scope_proximity| unsafe {
-                *out.add(index) = FfiRuleMatch {
-                    node: node.raw(),
-                    rule: rule.0 + 1,
-                    semantic_declaration: semantic_declaration.0,
-                    pseudo_element: pseudo_element.map_or(u32::MAX, |target| u32::from(target.kind.0)),
-                    scope_host,
-                    scope_proximity,
-                };
-            },
-        )
-        .unwrap_or(usize::MAX);
-    engine.record_boundary_call(EventKind::ConsumePublishedMatchAnswer, |payload| {
-        payload.write_u32(node.raw());
-        payload.write_u64(u64::try_from(capacity).expect("match capacity exceeds u64"));
-        payload.write_u64(u64::try_from(result).expect("match count exceeds u64"));
-        let written = result != usize::MAX && result <= capacity;
-        payload.write_bool(written);
-        if written {
-            let matches = unsafe { std::slice::from_raw_parts(out, result) };
-            payload.write_length(matches.len());
-            for entry in matches {
-                payload.write_u32(entry.node);
-                payload.write_u32(entry.rule);
-                payload.write_u32(entry.pseudo_element);
-                payload.write_u32(entry.scope_host);
-                payload.write_u32(entry.scope_proximity);
-            }
-        }
-    });
-    result
-}
 /// Matches one element and writes its matches, in cascade order, into `out`.
 ///
 /// The same answer the document pass gives for that element, asked one element at a time, which is
@@ -2343,126 +2249,6 @@ pub unsafe extern "C" fn style_engine_set_element_presentational_hint_properties
     register_element_declared_properties(engine, node, kind, &hints.properties, &[])
 }
 
-/// # Safety
-/// `engine` and `store` must be live.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_publish_exact_cascade_state(
-    engine: crate::css::style::StyleEngineHandle,
-    node: u32,
-    pseudo_kind: u8,
-    store: *const c_void,
-    inherited_style_groups: u8,
-    donor_node: u32,
-    donor_style_record: u64,
-) -> FfiExactCascadePublication {
-    let Some(node) = StyleNodeID::from_raw(node) else {
-        return FfiExactCascadePublication::missing();
-    };
-    if store.is_null() {
-        return FfiExactCascadePublication::missing();
-    }
-    let engine = unsafe { engine.get_mut() };
-    let generation_snapshot =
-        engine.exact_cascade_generation_snapshot(super::computed::ComputedStyleTarget::new(node, pseudo_kind));
-    let donor = exact_cascade_donor(donor_node, donor_style_record);
-    let (publication, winners, had_previous) = engine.publish_exact_cascade_state(
-        super::computed::ComputedStyleTarget::new(node, pseudo_kind),
-        unsafe { &*store.cast::<crate::css::cascaded_properties::CascadedPropertyStore>() },
-        inherited_style_groups,
-        donor,
-    );
-    engine.record_boundary_call(EventKind::PublishExactCascadeState, |payload| {
-        payload.write_u32(node.raw());
-        payload.write_u8(pseudo_kind);
-        payload.write_u8(inherited_style_groups);
-        payload.write_u64(generation_snapshot.0);
-        payload.write_bool(generation_snapshot.1.is_some());
-        if let Some(generation) = generation_snapshot.1 {
-            payload.write_u64(generation);
-        }
-        payload.write_length(winners.len());
-        for (property, winner) in winners {
-            payload.write_u16(property);
-            payload.write_u64(winner.value.0);
-            payload.write_u8(match winner.operator {
-                CascadeOperator::Declared => 0,
-                CascadeOperator::Inherit => 1,
-                CascadeOperator::Initial => 2,
-                CascadeOperator::Unset => 3,
-                CascadeOperator::Revert => 4,
-                CascadeOperator::RevertLayer => 5,
-            });
-            payload.write_u32(winner.animation_relevance);
-            payload.write_bool(winner.important);
-        }
-        write_exact_cascade_publication(publication, payload);
-        // NB: Whether a previous cascade state was retained decides the publication's group
-        //     mask, and retention differs legitimately between the recording session and a
-        //     replay (memory pressure evicts). Record it so replay can compare accordingly;
-        //     older captures simply end before this byte.
-        payload.write_bool(had_previous);
-        payload.write_u32(donor_node);
-        payload.write_u64(donor_style_record);
-    });
-    publication
-}
-
-/// Seed the ordinary cascade store from a complete retained winner relation.
-///
-/// # Safety
-/// All pointers must be live and `blocks` must describe `block_count` entries. The returned
-/// assignment slice remains valid until the next mutable `style_engine_*` entry point or an
-/// explicit discard of the retained cascade assignments.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_materialize_retained_cascade_state(
-    engine: crate::css::style::StyleEngineHandle,
-    node: u32,
-    pseudo_kind: u8,
-    store: *mut c_void,
-    blocks: *const c_void,
-    block_count: usize,
-) -> FfiSourceSlotAssignmentView {
-    if engine.is_null() {
-        return FfiSourceSlotAssignmentView::default();
-    }
-    let engine = unsafe { engine.get_mut() };
-    engine.clear_ffi_retained_cascade_assignments();
-    let Some(node) = StyleNodeID::from_raw(node) else {
-        return FfiSourceSlotAssignmentView::default();
-    };
-    if store.is_null() {
-        return FfiSourceSlotAssignmentView::default();
-    }
-    let blocks = if block_count == 0 {
-        &[]
-    } else {
-        unsafe {
-            std::slice::from_raw_parts(
-                blocks.cast::<crate::css::cascaded_properties::FfiCascadeBlock>(),
-                block_count,
-            )
-        }
-    };
-    let assignments = engine.materialize_retained_cascade_state(
-        super::computed::ComputedStyleTarget::new(node, pseudo_kind),
-        unsafe { &mut *store.cast::<crate::css::cascaded_properties::CascadedPropertyStore>() },
-        blocks,
-    );
-    engine.install_ffi_retained_cascade_assignments(assignments)
-}
-
-/// Discards the borrowed retained cascade source-slot assignments.
-///
-/// # Safety
-/// `engine` must be live.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_discard_retained_cascade_assignments(
-    engine: crate::css::style::StyleEngineHandle,
-) {
-    let engine = unsafe { engine.get_mut() };
-    engine.clear_ffi_retained_cascade_assignments();
-}
-
 #[cfg(feature = "style-recording")]
 pub unsafe fn replay_publish_exact_cascade_state(
     engine: crate::css::style::StyleEngineHandle,
@@ -2499,6 +2285,7 @@ pub unsafe fn replay_publish_exact_cascade_state(
     (publication, had_previous)
 }
 
+#[cfg(feature = "style-recording")]
 fn exact_cascade_donor(donor_node: u32, donor_style_record: u64) -> Option<super::publication::ExactCascadeDonor> {
     let node = StyleNodeID::from_raw(donor_node)?;
     (donor_style_record != 0).then_some(super::publication::ExactCascadeDonor {
@@ -2824,76 +2611,6 @@ pub unsafe extern "C" fn style_engine_publish_animation_overlay(
     FfiStyleRecordDelta {
         old_style_record: publication.previous_style_record.raw(),
         new_style_record: publication.style_record.raw(),
-    }
-}
-
-/// Keeps the style record already assigned to one element or pseudo-element, for a recomputation
-/// its input record answered. Returns an empty delta when nothing is assigned or recording is
-/// active, so the caller publishes the style in full instead.
-///
-/// # Safety
-/// `engine` must be live.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_reaffirm_style_record(
-    engine: crate::css::style::StyleEngineHandle,
-    node: u32,
-    pseudo_kind: u8,
-) -> FfiStyleRecordDelta {
-    if engine.is_null() || node == 0 {
-        return FfiStyleRecordDelta::default();
-    }
-    let engine = unsafe { engine.get_mut() };
-    let target = super::computed::ComputedStyleTarget::new(
-        StyleNodeID::from_raw(node).expect("a nonzero node must be a style node"),
-        pseudo_kind,
-    );
-    let Some(style_record) = engine.reaffirm_style_record(target) else {
-        return FfiStyleRecordDelta::default();
-    };
-    FfiStyleRecordDelta {
-        old_style_record: style_record.raw(),
-        new_style_record: style_record.raw(),
-    }
-}
-
-/// Assigns an already-interned base style record to one element or pseudo-element.
-/// Returns an empty delta when recording is active so the caller can use the fully recorded
-/// publication path instead.
-///
-/// # Safety
-/// `engine` must be live and `style_record` must name a live base record from that engine.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_assign_shared_style_record(
-    engine: crate::css::style::StyleEngineHandle,
-    node: u32,
-    pseudo_kind: u8,
-    style_record: u64,
-    inherited_group_count: usize,
-    inherited_group_swap_eligible: bool,
-) -> FfiStyleRecordDelta {
-    if engine.is_null() || node == 0 || style_record == 0 {
-        return FfiStyleRecordDelta::default();
-    }
-    let engine = unsafe { engine.get_mut() };
-    if engine.recording_id().is_some() {
-        return FfiStyleRecordDelta::default();
-    }
-    let target = super::computed::ComputedStyleTarget::new(
-        StyleNodeID::from_raw(node).expect("a nonzero node must be a style node"),
-        pseudo_kind,
-    );
-    engine.forget_engine_computed_record(target);
-    let publication = engine.assign_shared_style_record(
-        target,
-        style_record,
-        inherited_group_count,
-        inherited_group_swap_eligible,
-    );
-    FfiStyleRecordDelta {
-        old_style_record: publication
-            .previous_style_record_identity
-            .map_or(0, super::computed::FinalStyleRecordID::raw),
-        new_style_record: publication.style_record_identity.raw(),
     }
 }
 
@@ -4087,52 +3804,6 @@ pub unsafe extern "C" fn style_engine_take_container_effects(
     }
 }
 
-/// Evaluate native container conditions while keeping their ownership independent of the host.
-///
-/// # Safety
-/// Engine and callbacks must be live. Callbacks receive borrowed native query data and UTF-16
-/// names. Evaluation can reenter style computation, so no engine borrow spans either callback.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_native_rule_matches_containers(
-    engine: crate::css::style::StyleEngineHandle,
-    rule: u32,
-    context: *mut c_void,
-    mark_dependencies: unsafe extern "C" fn(*mut c_void, bool, bool),
-    evaluate: unsafe extern "C" fn(*mut c_void, *const c_void, *const u16, usize) -> bool,
-) -> bool {
-    use crate::css::parser::query_parser::CONTAINER_QUERY_REQUIRES_STYLE;
-    let containers = {
-        let engine = unsafe { engine.get() };
-        let Some(target) = rule
-            .checked_sub(1)
-            .and_then(|id| engine.native_rules.targets.get(&RuleID(id)))
-        else {
-            return false;
-        };
-        target.containers().to_vec()
-    };
-    // Mark all ancestor dependencies, even if an inner condition subsequently fails to match.
-    let size = containers.iter().any(|conditions| conditions.contains_size_feature());
-    let style = containers.iter().any(|conditions| {
-        conditions.conditions.iter().any(|condition| {
-            condition.query.as_ref().is_some_and(|query| {
-                let requirements = query.container_requirements();
-                requirements & CONTAINER_QUERY_REQUIRES_STYLE != 0
-            })
-        })
-    });
-    unsafe { mark_dependencies(context, size, style) };
-    containers.iter().all(|conditions| {
-        conditions.conditions.iter().any(|condition| {
-            let name = condition.name.as_ref().map_or(&[][..], |name| name.units());
-            let query = condition
-                .query
-                .as_ref()
-                .map_or(std::ptr::null(), |query| std::sync::Arc::as_ptr(query).cast());
-            unsafe { evaluate(context, query, name.as_ptr(), name.len()) }
-        })
-    })
-}
 /// Interns one name identity and returns its document-local atom.
 ///
 /// The caller passes the one-word identity of an interned string it holds a reference to, so the

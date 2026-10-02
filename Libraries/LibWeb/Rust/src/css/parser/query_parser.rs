@@ -212,40 +212,6 @@ impl FfiMediaEnvironment {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-#[repr(u8)]
-pub enum FfiContainerStyleFeatureKind {
-    Boolean,
-    Plain,
-    Range,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-#[repr(u8)]
-pub enum FfiStyleRangeValueKind {
-    Property,
-    Components,
-}
-
-#[derive(Clone, Copy)]
-#[repr(C)]
-pub struct FfiStyleRangeValue {
-    pub kind: FfiStyleRangeValueKind,
-    pub value: FfiUtf16View,
-}
-
-#[derive(Clone, Copy)]
-#[repr(C)]
-pub struct FfiContainerStyleFeature {
-    pub kind: FfiContainerStyleFeatureKind,
-    pub values: *const FfiStyleRangeValue,
-    pub value_count: usize,
-    pub first_comparison: u8,
-    pub second_comparison: u8,
-}
-
-type EvaluateContainerStyleFeature = unsafe extern "C" fn(*mut c_void, FfiContainerStyleFeature) -> u8;
-
 #[derive(Clone, Copy)]
 #[repr(C)]
 pub struct FfiContainerFacts {
@@ -255,8 +221,6 @@ pub struct FfiContainerFacts {
     pub height: f64,
     pub inline_axis_horizontal: bool,
     pub length_resolution_context: *const c_void,
-    pub style_context: *mut c_void,
-    pub evaluate_style_feature: EvaluateContainerStyleFeature,
     // The container's scroll state as of the last post-layout snapshot. The edge sets use the
     // SCROLL_STATE_EDGE_* bits, and the start sides are SCROLL_STATE_SIDE_* values that name the
     // physical side the container's writing mode maps each logical start side to.
@@ -2520,97 +2484,6 @@ fn evaluate_container_size_feature(
     }
 }
 
-fn serialize_style_range_value_for_evaluation(value: &StyleRangeValue) -> (FfiStyleRangeValueKind, Vec<u16>) {
-    match value {
-        StyleRangeValue::Property(name) => (FfiStyleRangeValueKind::Property, name.as_ref().to_vec()),
-        StyleRangeValue::Components(components) => (
-            FfiStyleRangeValueKind::Components,
-            serialize_component_values_to_utf16(
-                components,
-                crate::css::parser::component_value::ComponentSerializationMode::Normalized,
-            ),
-        ),
-    }
-}
-
-fn evaluate_container_style_feature(feature: &StyleFeature, facts: &FfiContainerFacts) -> MatchResult {
-    let evaluate = facts.evaluate_style_feature;
-    let (kind, owned_values, first_comparison, second_comparison) = match feature {
-        StyleFeature::Boolean(name) => (
-            FfiContainerStyleFeatureKind::Boolean,
-            vec![(FfiStyleRangeValueKind::Property, name.as_ref().to_vec())],
-            0,
-            0,
-        ),
-        StyleFeature::Plain { name, value, .. } => (
-            FfiContainerStyleFeatureKind::Plain,
-            vec![
-                (FfiStyleRangeValueKind::Property, name.as_ref().to_vec()),
-                (
-                    FfiStyleRangeValueKind::Components,
-                    serialize_component_values_to_utf16(
-                        value,
-                        crate::css::parser::component_value::ComponentSerializationMode::Normalized,
-                    ),
-                ),
-            ],
-            0,
-            0,
-        ),
-        StyleFeature::Range {
-            left,
-            left_comparison,
-            middle,
-            right,
-        } => {
-            let mut values = vec![
-                serialize_style_range_value_for_evaluation(left),
-                serialize_style_range_value_for_evaluation(middle),
-            ];
-            let second_comparison = if let Some((comparison, value)) = right {
-                values.push(serialize_style_range_value_for_evaluation(value));
-                *comparison as u8
-            } else {
-                0
-            };
-            (
-                FfiContainerStyleFeatureKind::Range,
-                values,
-                *left_comparison as u8,
-                second_comparison,
-            )
-        }
-    };
-    let ffi_values = owned_values
-        .iter()
-        .map(|(kind, value)| FfiStyleRangeValue {
-            kind: *kind,
-            value: FfiUtf16View {
-                ascii: std::ptr::null(),
-                utf16: value.as_ptr(),
-                length: value.len(),
-            },
-        })
-        .collect::<Vec<_>>();
-    let result = unsafe {
-        evaluate(
-            facts.style_context,
-            FfiContainerStyleFeature {
-                kind,
-                values: ffi_values.as_ptr(),
-                value_count: ffi_values.len(),
-                first_comparison,
-                second_comparison,
-            },
-        )
-    };
-    match result {
-        0 => MatchResult::False,
-        1 => MatchResult::True,
-        _ => MatchResult::Unknown,
-    }
-}
-
 fn scroll_state_side_edge(side: u8) -> u8 {
     1 << (side % 4)
 }
@@ -3087,18 +2960,6 @@ pub unsafe extern "C" fn css_query_evaluate_supports(handle: *const FfiQueryHand
         .map_or(3, |result| result as u8)
 }
 
-/// Returns the query-container capabilities needed by a retained container condition.
-///
-/// # Safety
-/// `handle` must point to a live container-expression handle.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn css_query_container_requirements(handle: *const FfiQueryHandle) -> u8 {
-    unsafe { handle.as_ref() }.map_or(
-        CONTAINER_QUERY_HAS_UNKNOWN_FEATURE,
-        FfiQueryHandle::container_requirements,
-    )
-}
-
 /// Evaluate a retained container condition against a container's facts, answering its `style()`
 /// features with `style`.
 ///
@@ -3125,24 +2986,6 @@ pub(crate) unsafe fn evaluate_container_query(
             .as_ref()
     };
     evaluate_container_expression(expression, facts, length_context, style)
-}
-
-/// Evaluates a retained container condition against immutable size facts and style callbacks.
-///
-/// # Safety
-/// `handle` must point to a live container-expression handle. All pointers and callbacks in
-/// `facts` must remain valid for the duration of this call.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn css_query_evaluate_container(handle: *const FfiQueryHandle, facts: FfiContainerFacts) -> u8 {
-    let Some(handle) = (unsafe { handle.as_ref() }) else {
-        return MatchResult::Unknown as u8;
-    };
-    let result = unsafe {
-        evaluate_container_query(handle, &facts, &mut |feature| {
-            evaluate_container_style_feature(feature, &facts)
-        })
-    };
-    result as u8
 }
 
 /// Serializes a retained query condition without changing its UTF-16 representation.
@@ -3460,53 +3303,6 @@ mod tests {
         ] {
             assert_ne!(requirements(unknown) & CONTAINER_QUERY_HAS_UNKNOWN_FEATURE, 0);
         }
-    }
-
-    #[test]
-    fn evaluates_scroll_state_queries_in_the_container_writing_mode() {
-        unsafe extern "C" fn no_style_feature(_: *mut c_void, _: FfiContainerStyleFeature) -> u8 {
-            MatchResult::Unknown as u8
-        }
-        // A container in vertical-lr and ltr, stuck to the bottom, snapped in y, scrollable toward the right, and not
-        // scrolled yet.
-        let facts = FfiContainerFacts {
-            container_available: true,
-            size_available: false,
-            width: 0.0,
-            height: 0.0,
-            inline_axis_horizontal: false,
-            length_resolution_context: std::ptr::null(),
-            style_context: std::ptr::null_mut(),
-            evaluate_style_feature: no_style_feature,
-            scroll_state_available: true,
-            stuck: SCROLL_STATE_EDGE_BOTTOM,
-            snapped: SCROLL_STATE_SNAPPED_Y,
-            scrollable: SCROLL_STATE_EDGE_RIGHT,
-            scrolled: 0,
-            block_start_side: SCROLL_STATE_SIDE_LEFT,
-            inline_start_side: SCROLL_STATE_SIDE_TOP,
-        };
-        let evaluate = |source: &[u8]| {
-            evaluate_container_expression(
-                &parse_single_container_query(source).unwrap(),
-                &facts,
-                None,
-                &mut |feature| evaluate_container_style_feature(feature, &facts),
-            )
-        };
-        assert_eq!(evaluate(b"scroll-state(stuck)"), MatchResult::True);
-        assert_eq!(evaluate(b"scroll-state(stuck: inline-end)"), MatchResult::True);
-        assert_eq!(evaluate(b"scroll-state(stuck: block-end)"), MatchResult::False);
-        assert_eq!(evaluate(b"scroll-state(snapped: inline)"), MatchResult::True);
-        assert_eq!(evaluate(b"scroll-state(snapped: both)"), MatchResult::False);
-        assert_eq!(evaluate(b"scroll-state(scrollable: block-end)"), MatchResult::True);
-        assert_eq!(evaluate(b"scroll-state(scrollable: inline)"), MatchResult::False);
-        assert_eq!(evaluate(b"scroll-state(scrolled: none)"), MatchResult::True);
-        assert_eq!(evaluate(b"scroll-state(not (scrolled))"), MatchResult::True);
-        assert_eq!(
-            evaluate(b"scroll-state((stuck: top) or (scrollable: x))"),
-            MatchResult::True
-        );
     }
 
     #[test]

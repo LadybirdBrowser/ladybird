@@ -952,15 +952,6 @@ impl ComputedLonghandTable {
         self.metadata.effective_color_scheme
     }
 
-    /// Only the values and their hash sum carry over from `source`; flags, provenance, metadata and
-    /// the inheritance-dependent records start fresh, as for a drive from an empty table.
-    pub(crate) fn seeded_with_values_from(source: &ComputedLonghandTable) -> Self {
-        ffi_stats::bump(FfiOp::LonghandTableClone);
-        let table = Self::with_storage(SlotStorage::seeded(&source.storage, false));
-        table.slot_hash_sum.set(source.slot_hash_sum.get());
-        table
-    }
-
     pub(crate) fn copied_for_drive(source: &ComputedLonghandTable) -> Self {
         let mut table = Self::with_storage(SlotStorage::seeded(&source.storage, true));
         table.copy_metadata_from(source);
@@ -1530,22 +1521,6 @@ pub unsafe extern "C" fn rust_computed_longhand_table_set_raw_cascaded_font_size
     unsafe { &mut *table }.set_raw_cascaded_font_size(value);
 }
 
-/// Returns the longhand's recorded cascade source slot, or -1 when its value
-/// did not come from a declaration carrying style sheet context.
-///
-/// # Safety
-/// `table` must be a valid table.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_computed_longhand_table_source_slot(
-    table: *const ComputedLonghandTable,
-    property_id: u16,
-) -> i64 {
-    match unsafe { &*table }.source_slot(property_id) {
-        Some(slot) => i64::from(slot),
-        None => -1,
-    }
-}
-
 /// Marks a longhand's stored value `!important` (or not).
 ///
 /// # Safety
@@ -1757,25 +1732,6 @@ mod tests {
     }
 
     #[test]
-    fn seeding_a_delta_preserves_independence_without_a_base_chain() {
-        let mut original = ComputedLonghandTable::new();
-        original.set(property_id::OPACITY, retained_number(0.5), 3);
-        original.freeze();
-        let mut first = ComputedLonghandTable::copied_for_partial_drive(&original);
-        first.set(property_id::Z_INDEX, retained_number(1.0), 4);
-        let mut second = ComputedLonghandTable::seeded_with_values_from(&first);
-        first.set(property_id::Z_INDEX, retained_number(2.0), 5);
-        assert_eq!(second.source_slot(property_id::Z_INDEX), None);
-        assert!(second.get(property_id::Z_INDEX).unwrap().data() == &StyleValueData::Number { value: 1.0 });
-        drop(first);
-        drop(original);
-        assert!(second.get(property_id::OPACITY).unwrap().data() == &StyleValueData::Number { value: 0.5 });
-        second.freeze();
-        assert!(matches!(second.storage, SlotStorage::Dense(_)));
-        assert_eq!(second.slot_hash_sum(), second.recomputed_slot_hash_sum());
-    }
-
-    #[test]
     fn set_retains_and_release_drops() {
         let value = Arc::new(StyleValueData::Number { value: 42.0 });
         let weak_value = Arc::downgrade(&value);
@@ -1976,22 +1932,6 @@ mod tests {
             Some(&[property_id::OPACITY][..])
         );
         assert_eq!(resolutions, 1);
-    }
-
-    #[test]
-    fn seeded_table_carries_only_the_source_values() {
-        let mut source = ComputedLonghandTable::new();
-        source.set(property_id::OPACITY, retained_number(0.5), 7);
-        source.set_important(property_id::OPACITY, true);
-        let seeded = ComputedLonghandTable::seeded_with_values_from(&source);
-        assert_eq!(
-            seeded.get(property_id::OPACITY).unwrap().pointer(),
-            source.get(property_id::OPACITY).unwrap().pointer()
-        );
-        assert_eq!(seeded.slot_hash_sum(), source.slot_hash_sum());
-        assert_eq!(seeded.source_slot(property_id::OPACITY), None);
-        assert!(!seeded.is_important(property_id::OPACITY));
-        assert!(seeded.evaluated_bits().iter().all(|&bits| bits == 0));
     }
 }
 

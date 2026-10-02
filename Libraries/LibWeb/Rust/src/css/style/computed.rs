@@ -206,10 +206,6 @@ impl StyleRecordView<'_> {
         };
         ComputedLonghandTable::copied_for_partial_drive(source)
     }
-
-    pub(crate) fn longhand_table_seeded_with_values(&self) -> Option<ComputedLonghandTable> {
-        unsafe { self.longhand_table.as_ref() }.map(ComputedLonghandTable::seeded_with_values_from)
-    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -2772,6 +2768,7 @@ impl ComputedGroupSets {
         ))
     }
 
+    #[cfg(feature = "style-recording")]
     /// The longhands whose previous specified values read the effective color scheme.
     #[must_use]
     pub fn color_scheme_dependency_properties(&self, target: ComputedStyleTarget) -> Option<[u64; 6]> {
@@ -2790,6 +2787,7 @@ impl ComputedGroupSets {
         ))
     }
 
+    #[cfg(feature = "style-recording")]
     /// The longhands whose previous specified values may read font metrics.
     #[must_use]
     pub fn font_dependency_properties(&self, target: ComputedStyleTarget) -> Option<[u64; 6]> {

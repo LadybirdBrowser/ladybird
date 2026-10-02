@@ -931,10 +931,7 @@ fn shared_rule_tree_preserves_nested_declaration_lists() {
 
 #[test]
 fn container_conditions_own_names_and_queries_after_the_sheet_is_dropped() {
-    use crate::css::parser::query_parser::{
-        CONTAINER_QUERY_REQUIRES_STYLE, CONTAINER_QUERY_REQUIRES_WIDTH, css_query_container_requirements,
-        css_query_serialize_condition,
-    };
+    use crate::css::parser::query_parser::css_query_serialize_condition;
     let sheet =
         parse_shared_on_worker("@container 色😀 (width > 10px), 名前, style(--状態: 有効) { div { width: 13px } }");
     assert_eq!(sheet.rules.len(), 1);
@@ -946,17 +943,9 @@ fn container_conditions_own_names_and_queries_after_the_sheet_is_dropped() {
     assert_eq!(entries[1].name.as_ref().unwrap().units(), utf16("名前"));
     assert!(entries[1].query.is_none());
     assert!(entries[2].name.is_none());
+    assert!(entries[0].query.is_some());
     unsafe {
-        assert_ne!(
-            css_query_container_requirements(Arc::as_ptr(entries[0].query.as_ref().unwrap()))
-                & CONTAINER_QUERY_REQUIRES_WIDTH,
-            0
-        );
         let query = Arc::as_ptr(entries[2].query.as_ref().unwrap());
-        assert_ne!(
-            css_query_container_requirements(query) & CONTAINER_QUERY_REQUIRES_STYLE,
-            0
-        );
         let mut text = Vec::<u16>::new();
         assert!(css_query_serialize_condition(
             query,

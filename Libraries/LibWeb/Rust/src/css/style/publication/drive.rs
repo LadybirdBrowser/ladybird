@@ -797,7 +797,6 @@ impl RetainedState {
                     parent_table,
                     unsafe { parent_view.animated_overlay.as_ref() },
                     parent_font_metrics_depend_on_viewport_metrics,
-                    parent_view.dependency_flags & IN_DISPLAY_NONE_SUBTREE != 0,
                 ))
             }
             None => None,
@@ -813,7 +812,6 @@ impl RetainedState {
                         table,
                         unsafe { view.animated_overlay.as_ref() },
                         view.dependency_flags & (1 << 1) != 0,
-                        view.dependency_flags & (1 << 2) != 0,
                     ))
                 });
             crate::css::style_compute::HighlightInheritance {

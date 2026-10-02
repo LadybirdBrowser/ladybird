@@ -27,6 +27,7 @@ pub(super) use drive::{Drive, OrRefused, Suspension, Unanswered};
 use drive::{DrivenTable, FontDriveGoal, FullDrive, PartialDrive};
 use retry::InstalledAncestors;
 
+#[cfg(feature = "style-recording")]
 /// Another element's published style that a first-time computation may build over: the element
 /// whose cascade state stands in for the previous one, and the record it must still hold.
 #[derive(Clone, Copy, Debug)]
@@ -35,6 +36,7 @@ pub(crate) struct ExactCascadeDonor {
     pub style_record: u64,
 }
 
+#[cfg(feature = "style-recording")]
 pub(super) struct ExactCascadeContext {
     previous: Option<CascadeStateID>,
     lower_bound_state: Option<CascadeStateID>,
@@ -1275,7 +1277,6 @@ impl RetainedState {
         if let Some(pending_records) = self.engine_computed_records_pending.remove(&node) {
             for pending in pending_records {
                 let target = computed::ComputedStyleTarget::new(node, pending.pseudo_kind);
-                self.remove_pending_style_computation_selection(target);
                 // A pseudo-element settled as gone is removed now that C++ has cleared its style.
                 if pending.pseudo_kind != u8::MAX && pending.new_style_record == computed::FinalStyleRecordID::NONE {
                     self.remove_computed_pseudo(node, pending.pseudo_kind, counters);
@@ -2960,6 +2961,7 @@ impl RetainedState {
         }
     }
 
+    #[cfg(feature = "style-recording")]
     /// Whether a winner's declaration was written with a substitution the engine resolves itself,
     /// or is a longhand pending a shorthand written with one. A value reading an attribute is
     /// C++'s, and what it computes to can move without any winner moving.
@@ -4071,142 +4073,7 @@ impl RetainedState {
         publication
     }
 
-    pub(crate) fn publish_exact_cascade_state(
-        &mut self,
-        target: computed::ComputedStyleTarget,
-        store: &CascadedPropertyStore,
-        inherited_style_groups: u8,
-        donor: Option<ExactCascadeDonor>,
-        counters: &mut Counters,
-    ) -> (bridge::FfiExactCascadePublication, Vec<(u16, SpecifiedWinnerKey)>, bool) {
-        let context = self.prepare_exact_cascade_publication(target, donor);
-        let had_previous = context.previous.is_some();
-        let exact_winners = store
-            .winning_declarations()
-            .map(|(property, value_pointer, origin, important)| {
-                let value = unsafe { self.intern_exact_specified_value(value_pointer) };
-                (
-                    property,
-                    SpecifiedWinnerKey {
-                        value,
-                        operator: unsafe { Self::cascade_operator_of_style_value(value_pointer) },
-                        continuation: cascade::CascadeContinuationID::default(),
-                        animation_relevance: match origin {
-                            CascadeOrigin::Animation => 1,
-                            CascadeOrigin::Transition => 2,
-                            _ => 0,
-                        },
-                        important,
-                    },
-                )
-            })
-            .collect::<Vec<_>>();
-        let publication = self.publish_exact_cascade_winners_with_context(
-            target,
-            &exact_winners,
-            inherited_style_groups,
-            context,
-            counters,
-        );
-        (publication, exact_winners, had_previous)
-    }
-
-    pub(crate) fn materialize_retained_cascade_state(
-        &mut self,
-        target: computed::ComputedStyleTarget,
-        store: &mut CascadedPropertyStore,
-        blocks: &[FfiCascadeBlock],
-    ) -> Vec<FfiSourceSlotAssignment> {
-        let Some(answer) = self.current_published_answer(target.node()) else {
-            return Vec::new();
-        };
-        if !answer.cascade_winners_are_complete {
-            return Vec::new();
-        }
-        let key = target.pseudo_element_target().map_or_else(
-            || WinnerGroupKey::current(target.node(), self.program.version()),
-            |pseudo| WinnerGroupKey::current_pseudo(target.node(), pseudo, self.program.version()),
-        );
-        let Lookup::Known((_, state)) = self.current_winner_groups().token_for(key) else {
-            return Vec::new();
-        };
-
-        let mut assignments = Vec::new();
-        for winner in self.winner_groups.winners_in_state(state) {
-            let Some(winner) = self.winner_groups.resolved_winner(winner) else {
-                continue;
-            };
-            if !Self::retained_store_supports_property(target, winner.property) {
-                continue;
-            }
-            let block = match winner.source {
-                WinnerSource::Rule(rule) => {
-                    let Some(block) = blocks.iter().find(|block| block.style_engine_rule_id == rule.0 + 1) else {
-                        continue;
-                    };
-                    block
-                }
-                WinnerSource::Element(ElementDeclarationKind::InlineStyle) => {
-                    let Some(block) = blocks.iter().find(|block| block.is_inline_style) else {
-                        continue;
-                    };
-                    block
-                }
-                WinnerSource::Element(
-                    ElementDeclarationKind::PresentationalHint | ElementDeclarationKind::SvgPresentationAttribute,
-                ) => {
-                    let Some(block) = blocks
-                        .iter()
-                        .find(|block| block.origin == CascadeOrigin::AuthorPresentationalHint)
-                    else {
-                        continue;
-                    };
-                    block
-                }
-                WinnerSource::ExactCascade => continue,
-            };
-            let mut source_declarations = block.declarations().filter(|declaration| {
-                declaration.property_id == winner.property && declaration.important == winner.important
-            });
-            let Some(declaration) = source_declarations.next() else {
-                continue;
-            };
-            if source_declarations.next().is_some()
-                || !unsafe {
-                    self.specified_values
-                        .ensure_identity(declaration.data.cast(), winner.key.value, &mut self.memory)
-                }
-            {
-                continue;
-            }
-            let value = unsafe { &*(declaration.data as *const StyleValueData) };
-            if matches!(
-                value,
-                StyleValueData::Shorthand { .. }
-                    | StyleValueData::Unresolved { .. }
-                    | StyleValueData::PendingSubstitution { .. }
-            ) {
-                continue;
-            }
-            let retained = unsafe {
-                RetainedStyleValueData::from_retained_pointer(crate::css::style_value::retain_style_value(
-                    declaration.data.cast(),
-                ))
-            };
-            let slot = store.seed_retained_property(
-                winner.property,
-                retained,
-                winner.important,
-                declaration.has_style_sheet_context,
-            );
-            assignments.push(FfiSourceSlotAssignment {
-                slot,
-                source_id: block.source_id,
-            });
-        }
-        assignments
-    }
-
+    #[cfg(feature = "style-recording")]
     pub(crate) fn exact_cascade_generation_snapshot(
         &self,
         target: computed::ComputedStyleTarget,
@@ -4242,6 +4109,7 @@ impl RetainedState {
         )
     }
 
+    #[cfg(feature = "style-recording")]
     pub(super) fn prepare_exact_cascade_publication(
         &mut self,
         target: computed::ComputedStyleTarget,
@@ -4297,6 +4165,7 @@ impl RetainedState {
         }
     }
 
+    #[cfg(feature = "style-recording")]
     pub(super) fn publish_exact_cascade_winners_with_context(
         &mut self,
         target: computed::ComputedStyleTarget,
@@ -4423,37 +4292,6 @@ impl RetainedState {
         let generation = self.winner_groups.generation();
         let delta = self.winner_groups.semantic_delta(previous, state);
         let unchanged = previous.is_some() && delta.is_empty() && !donor_used;
-        let mut computed_property_words = [0u64; crate::css::property_metadata::LONGHAND_WORD_COUNT];
-        for property in delta.properties().iter().copied() {
-            let Some(index) = property
-                .checked_sub(crate::css::property_metadata::FIRST_LONGHAND_PROPERTY_ID)
-                .map(usize::from)
-                .filter(|&index| index < crate::css::property_metadata::NUMBER_OF_LONGHAND_PROPERTIES)
-            else {
-                computed_property_words.fill(u64::MAX);
-                break;
-            };
-            computed_property_words[index / 64] |= 1 << (index % 64);
-        }
-        // The background longhands form coordinated repeatable lists. A changed layer count in
-        // any one of them changes the computed representation of every other list even when its
-        // specified winner is unchanged.
-        let background_group = 1 << crate::css::computed_value_types::STYLE_GROUP_INDEX_BACKGROUND;
-        if delta
-            .properties()
-            .iter()
-            .copied()
-            .any(|property| computed_group_output_mask(property).is_some_and(|groups| groups & background_group != 0))
-        {
-            for property in crate::css::property_metadata::FIRST_LONGHAND_PROPERTY_ID
-                ..=crate::css::property_metadata::LAST_LONGHAND_PROPERTY_ID
-            {
-                if computed_group_output_mask(property).is_some_and(|groups| groups & background_group != 0) {
-                    let index = usize::from(property - crate::css::property_metadata::FIRST_LONGHAND_PROPERTY_ID);
-                    computed_property_words[index / 64] |= 1 << (index % 64);
-                }
-            }
-        }
         let current_color_dependency_mask = delta
             .properties()
             .contains(&crate::css::property_metadata::property_id::COLOR)
@@ -4461,49 +4299,10 @@ impl RetainedState {
                 self.computed_group_sets
                     .current_color_dependency_mask(dependency_target)
             });
-        let current_color_dependency_properties = delta
-            .properties()
-            .contains(&crate::css::property_metadata::property_id::COLOR)
-            .then(|| {
-                self.computed_group_sets
-                    .current_color_dependency_properties(dependency_target)
-            });
-        if let Some(Some(dependencies)) = current_color_dependency_properties {
-            for (word, dependencies) in computed_property_words.iter_mut().zip(dependencies) {
-                *word |= dependencies;
-            }
-        }
-        // caret-color and accent-color bake used values resolved against the element's own color
-        // into their group fields, even for their initial `auto`. A color change re-evaluates them
-        // whether or not either property is declared anywhere.
-        if delta
-            .properties()
-            .contains(&crate::css::property_metadata::property_id::COLOR)
-        {
-            for property in [
-                crate::css::property_metadata::property_id::CARET_COLOR,
-                crate::css::property_metadata::property_id::ACCENT_COLOR,
-            ] {
-                let index = usize::from(property - crate::css::property_metadata::FIRST_LONGHAND_PROPERTY_ID);
-                computed_property_words[index / 64] |= 1 << (index % 64);
-            }
-        }
         let color_scheme_dependency_mask = delta
             .properties()
             .contains(&crate::css::property_metadata::property_id::COLOR_SCHEME)
             .then(|| self.computed_group_sets.color_scheme_dependency_mask(dependency_target));
-        let color_scheme_dependency_properties = delta
-            .properties()
-            .contains(&crate::css::property_metadata::property_id::COLOR_SCHEME)
-            .then(|| {
-                self.computed_group_sets
-                    .color_scheme_dependency_properties(dependency_target)
-            });
-        if let Some(Some(dependencies)) = color_scheme_dependency_properties {
-            for (word, dependencies) in computed_property_words.iter_mut().zip(dependencies) {
-                *word |= dependencies;
-            }
-        }
         const INHERITED_FONT_GROUP: u8 = 1 << 6;
         let font_group_mask = computed_group_output_mask(crate::css::property_metadata::property_id::FONT_SIZE);
         let font_dependency_mask = font_group_mask.and_then(|font_group_mask| {
@@ -4524,40 +4323,6 @@ impl RetainedState {
                     .any(|property| computed_group_output_mask(property) == Some(font_group_mask)))
             .then(|| self.computed_group_sets.font_dependency_properties(dependency_target))
         });
-        if let Some(Some(dependencies)) = font_dependency_properties {
-            for (word, dependencies) in computed_property_words.iter_mut().zip(dependencies) {
-                *word |= dependencies;
-            }
-        }
-        let property_closure_is_known = |property: u16| {
-            if property == crate::css::property_metadata::property_id::COLOR {
-                return current_color_dependency_properties.is_some_and(|properties| properties.is_some());
-            }
-            if property == crate::css::property_metadata::property_id::COLOR_SCHEME {
-                return color_scheme_dependency_properties.is_some_and(|properties| properties.is_some());
-            }
-            if font_group_mask.is_some() && computed_group_output_mask(property) == font_group_mask {
-                return font_dependency_properties.is_some_and(|properties| properties.is_some());
-            }
-            if !(crate::css::property_metadata::FIRST_LONGHAND_PROPERTY_ID
-                ..=crate::css::property_metadata::LAST_LONGHAND_PROPERTY_ID)
-                .contains(&property)
-            {
-                return false;
-            }
-            crate::css::property_metadata::property_is_in_logical_group(property)
-                || crate::css::property_metadata::property_computed_dependents(property).is_some()
-        };
-        let mut computed_property_closure_is_exact =
-            !delta.properties().is_empty() && delta.properties().iter().copied().all(property_closure_is_known);
-        if computed_property_closure_is_exact {
-            for property in delta.properties().iter().copied() {
-                for &dependent in crate::css::property_metadata::property_computed_dependents(property).unwrap_or(&[]) {
-                    let index = usize::from(dependent - crate::css::property_metadata::FIRST_LONGHAND_PROPERTY_ID);
-                    computed_property_words[index / 64] |= 1 << (index % 64);
-                }
-            }
-        }
         const INHERITED_STATIC_GROUPS: u8 = (1 << 0) | (1 << 1) | (1 << 3);
         const INHERITED_UI_GROUP: u8 = 1 << 2;
         const INHERITED_TEXT_GROUP: u8 = 1 << 4;
@@ -4591,32 +4356,6 @@ impl RetainedState {
                 || inherited_color_scheme_dependency_properties.is_some_and(|properties| properties.is_some()))
             && (inherited_style_groups & INHERITED_FONT_GROUP == 0
                 || font_dependency_properties.is_some_and(|properties| properties.is_some()));
-        if inherited_property_closure_is_exact {
-            for property in crate::css::property_metadata::FIRST_LONGHAND_PROPERTY_ID
-                ..=crate::css::property_metadata::LAST_LONGHAND_PROPERTY_ID
-            {
-                if computed_group_output_mask(property)
-                    .is_some_and(|groups| groups & u32::from(inherited_style_groups) != 0)
-                {
-                    let index = usize::from(property - crate::css::property_metadata::FIRST_LONGHAND_PROPERTY_ID);
-                    computed_property_words[index / 64] |= 1 << (index % 64);
-                }
-            }
-            for dependencies in [
-                inherited_current_color_dependency_properties,
-                inherited_color_scheme_dependency_properties,
-                font_dependency_properties,
-            ]
-            .into_iter()
-            .flatten()
-            .flatten()
-            {
-                for (word, dependencies) in computed_property_words.iter_mut().zip(dependencies) {
-                    *word |= dependencies;
-                }
-            }
-            computed_property_closure_is_exact = true;
-        }
         let inherited_computed_group_mask = if inherited_property_closure_is_exact {
             [
                 inherited_current_color_dependency_mask,
@@ -4664,44 +4403,11 @@ impl RetainedState {
         });
         self.computed_group_sets
             .set_pending_cascade_state(target, (generation, state));
-        let selection = StyleComputationSelection {
-            computed_property_words,
-            computed_property_closure_is_exact,
-        };
-        if target.is_pseudo() {
-            let selections = self
-                .pending_pseudo_style_computation_selections
-                .entry(target.node())
-                .or_default();
-            match selections.iter_mut().find(|(kind, _)| *kind == target.pseudo_kind()) {
-                Some((_, existing)) => *existing = selection,
-                None => selections.push((target.pseudo_kind(), selection)),
-            }
-        } else {
-            self.pending_element_style_computation_selections
-                .insert(target.node(), selection);
-        }
         bridge::FfiExactCascadePublication {
             unchanged,
             computed_group_mask,
             donor_used,
         }
-    }
-
-    pub(crate) fn pending_style_computation_selection(
-        &self,
-        node: StyleNodeID,
-        pseudo_kind: u8,
-    ) -> Option<StyleComputationSelection> {
-        let target = computed::ComputedStyleTarget::new(node, pseudo_kind);
-        if !target.is_pseudo() {
-            return self.pending_element_style_computation_selections.get(&node).copied();
-        }
-        self.pending_pseudo_style_computation_selections
-            .get(&node)?
-            .iter()
-            .find(|(kind, _)| *kind == pseudo_kind)
-            .map(|(_, selection)| *selection)
     }
 
     pub(crate) fn current_color_dependent_group_mask(&self, node: StyleNodeID, pseudo_kind: u8) -> Option<u32> {
@@ -4712,140 +4418,6 @@ impl RetainedState {
         Some(dependencies | caret_color_group | accent_color_group)
     }
 
-    unsafe fn cascade_operator_of_style_value(value: *const StyleValueData) -> CascadeOperator {
-        let StyleValueData::Keyword { keyword } = (unsafe { &*value }) else {
-            return CascadeOperator::Declared;
-        };
-        match *keyword {
-            crate::css::style_compute::keyword::INHERIT => CascadeOperator::Inherit,
-            crate::css::style_compute::keyword::INITIAL => CascadeOperator::Initial,
-            crate::css::style_compute::keyword::UNSET => CascadeOperator::Unset,
-            crate::css::style_compute::keyword::REVERT => CascadeOperator::Revert,
-            crate::css::style_compute::keyword::REVERT_LAYER => CascadeOperator::RevertLayer,
-            _ => CascadeOperator::Declared,
-        }
-    }
-
-    /// Carry the exact winner state behind a style an element hands back unchanged into its next
-    /// publication. Reuse is granted only when the record's inputs are the ones the cascade ran
-    /// on, so the state bound by that cascade still describes the element's winners.
-    pub(crate) fn retain_exact_cascade_state(&mut self, node: StyleNodeID) {
-        let target = computed::ComputedStyleTarget::new(node, u8::MAX);
-        let Some(bound) = self.computed_group_sets.cascade_state(target) else {
-            return;
-        };
-        // A re-evaluation can mint a new state for the same winners; the reused style then carries
-        // the current one, so the next publication finds the winners it describes.
-        let Some(retained) = self.current_state_for_bound(node, bound) else {
-            return;
-        };
-        // A state bound before the winner groups were evicted describes nothing the table holds
-        // now; the next publication binds a fresh one.
-        if retained.0 != self.winner_groups.generation() {
-            return;
-        }
-        verify_cascade_winners(self, |engine| {
-            if let Lookup::Known(current) = engine
-                .current_winner_groups()
-                .token_for(WinnerGroupKey::current(node, engine.program.version()))
-            {
-                assert_eq!(
-                    current, retained,
-                    "a reused style must keep the winner state its cascade bound"
-                );
-            }
-        });
-        self.computed_group_sets.set_pending_cascade_state(target, retained);
-    }
-
-    /// The winner state the engine holds for a node now, when it describes the same winners as the
-    /// state the node's last cascade bound: the bound state itself, or one minted since for
-    /// winners that did not move. `None` when the winners moved or the current state is unknown.
-    fn current_state_for_bound(
-        &self,
-        node: StyleNodeID,
-        bound: (u64, CascadeStateID),
-    ) -> Option<(u64, CascadeStateID)> {
-        match self
-            .current_winner_groups()
-            .token_for(WinnerGroupKey::current(node, self.program.version()))
-        {
-            Lookup::Known(current) if current == bound => Some(current),
-            Lookup::Known(current)
-                if current.0 == bound.0 && self.winner_groups.semantic_delta(Some(bound.1), current.1).is_empty() =>
-            {
-                Some(current)
-            }
-            Lookup::Known(_) => None,
-            _ => Some(bound),
-        }
-    }
-
-    /// Whether the winner state an element's last cascade bound is still the one its current
-    /// winners describe. A style handed back unchanged may only carry that state forward when it is.
-    pub(crate) fn exact_cascade_state_is_current(&self, node: StyleNodeID) -> bool {
-        let target = computed::ComputedStyleTarget::new(node, u8::MAX);
-        let Some(bound) = self.computed_group_sets.cascade_state(target) else {
-            return false;
-        };
-        self.current_state_for_bound(node, bound).is_some()
-    }
-
-    /// Bind an exact winner state to a style-sharing publication which consumes the same complete
-    /// cascade input without running the C++ cascade.
-    pub(crate) fn prepare_shared_exact_cascade_state(&mut self, node: StyleNodeID) {
-        let published_answer_is_complete = self
-            .current_published_answer(node)
-            .is_some_and(|answer| answer.cascade_winners_are_complete);
-        let retained_answer_is_complete = || {
-            self.batch_matching_traversal.as_ref()?;
-            let retained = match self.retained_match_answer(node) {
-                Lookup::Known(answer) => answer,
-                Lookup::KnownAbsent | Lookup::Missing(_) => return None,
-            };
-            // Completeness depends only on which rules matched and on the element's own
-            // declarations. Cascade rank, specificity, and the materialized node never participate.
-            for entry in retained.iter() {
-                self.programs.get(entry.program).entries().get(entry.entry as usize)?;
-                if self.program.rule_is_gated_by_container_query(entry.rule) {
-                    return Some(false);
-                }
-            }
-            Some(self.facts.element_custom_declarations(node).is_empty())
-        };
-        if !published_answer_is_complete && retained_answer_is_complete() != Some(true) {
-            return;
-        }
-        let (generation, state) = match self
-            .current_winner_groups()
-            .token_for(WinnerGroupKey::current(node, self.program.version()))
-        {
-            Lookup::Known(state) => state,
-            Lookup::KnownAbsent | Lookup::Missing(_) => return,
-        };
-        self.computed_group_sets
-            .set_pending_cascade_state(computed::ComputedStyleTarget::new(node, u8::MAX), (generation, state));
-    }
-
-    pub(crate) fn discard_pending_exact_cascade_state(&mut self, target: computed::ComputedStyleTarget) {
-        self.computed_group_sets.take_pending_cascade_state(target);
-        self.remove_pending_style_computation_selection(target);
-    }
-
-    fn remove_pending_style_computation_selection(&mut self, target: computed::ComputedStyleTarget) {
-        if !target.is_pseudo() {
-            self.pending_element_style_computation_selections.remove(&target.node());
-            return;
-        }
-        let Some(selections) = self.pending_pseudo_style_computation_selections.get_mut(&target.node()) else {
-            return;
-        };
-        selections.retain(|(kind, _)| *kind != target.pseudo_kind());
-        if selections.is_empty() {
-            self.pending_pseudo_style_computation_selections.remove(&target.node());
-        }
-    }
-
     pub(crate) fn remove_computed_pseudo(
         &mut self,
         node: StyleNodeID,
@@ -4853,7 +4425,6 @@ impl RetainedState {
         counters: &mut Counters,
     ) -> Option<computed::FinalStyleRecordID> {
         let target = computed::ComputedStyleTarget::new(node, pseudo_kind);
-        self.remove_pending_style_computation_selection(target);
         if let Some(state) = self.computed_group_sets.take_pending_cascade_state(target) {
             self.computed_group_sets
                 .observe_absent_pseudo_cascade_state(target, state);
@@ -6158,47 +5729,6 @@ mod tests {
 }
 
 impl StyleEngineState {
-    /// Keep the style record already assigned to a target whose recomputation its input record
-    /// answered. Returns nothing when the target has no assignment or recording is active, so the
-    /// caller publishes the style in full instead.
-    pub(crate) fn reaffirm_style_record(
-        &mut self,
-        target: computed::ComputedStyleTarget,
-        counters: &mut Counters,
-    ) -> Option<computed::FinalStyleRecordID> {
-        if self.recording_id().is_some() {
-            return None;
-        }
-        let style_record = self.computed_group_sets.assigned_final_style_record(target)?;
-        if let Some(current_cascade_state) = self.computed_group_sets.take_pending_cascade_state(target) {
-            self.bind_published_cascade_state(target, current_cascade_state, false, counters);
-            let view = self
-                .computed_group_sets
-                .style_record_view(style_record.raw())
-                .expect("an assigned style record must be live");
-            let is_base_record = view.animation_overlay_identity == 0;
-            let pseudo_styles = view.pseudo_element_styles;
-            if let Some(custom_property_environment) = self
-                .computed_group_sets
-                .custom_property_environment_identity(target.node())
-            {
-                self.remember_cold_record_candidate(
-                    target,
-                    current_cascade_state,
-                    custom_property_environment,
-                    pseudo_styles,
-                    Some(style_record),
-                    style_record,
-                    is_base_record,
-                    &mut EngineComputabilityScratch::default(),
-                    counters,
-                );
-            }
-        }
-        counters.bump(Counter::StyleRecordsReaffirmed);
-        Some(style_record)
-    }
-
     pub(crate) fn end_style_record_view_epoch(&mut self, counters: &mut Counters) {
         self.retained.computed_group_sets.end_style_record_view_epoch();
         self.reclaim_computed_memory_if_needed(counters);

@@ -284,16 +284,6 @@ impl AnimationKeyframes {
         self.scopes.insert(tree_scope, sets);
     }
 
-    /// The scope of a declaration the cascade attributes to the shadow root of this pointer identity.
-    /// The document's identity, zero, names no shadow root, and a shadow root whose scope defines no
-    /// `@keyframes` has none to look in.
-    #[must_use]
-    pub(crate) fn scope_of_shadow_root(&self, shadow_root_identity: usize) -> DeclarationScope {
-        self.scope_by_shadow_root
-            .get(&shadow_root_identity)
-            .map_or(DeclarationScope::Unscoped, |&scope| DeclarationScope::Shadow(scope))
-    }
-
     /// The host's keyframe set an animation of this name runs, or `None` where no scope in its chain
     /// defines the name.
     ///
@@ -446,8 +436,12 @@ mod tests {
     }
 
     fn resolve(keyframes: &AnimationKeyframes, identity: usize, scope: u32, name: &str) -> Option<usize> {
+        let declaration_scope = keyframes
+            .scope_by_shadow_root
+            .get(&identity)
+            .map_or(DeclarationScope::Unscoped, |&scope| DeclarationScope::Shadow(scope));
         keyframes.resolve(
-            keyframes.scope_of_shadow_root(identity),
+            declaration_scope,
             TreeScopeID(scope),
             &name.encode_utf16().collect::<Vec<_>>(),
         )

@@ -375,6 +375,7 @@ fn engine_resolution_context(
     }
 }
 
+#[cfg(feature = "style-recording")]
 /// Whether a token stream is a substitution the engine resolves itself: one that substitutes no
 /// `attr()`.
 pub(super) fn value_is_engine_resolvable_substitution(value: &StyleValueData) -> bool {

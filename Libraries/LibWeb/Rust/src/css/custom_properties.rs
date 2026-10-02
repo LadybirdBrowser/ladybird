@@ -388,22 +388,6 @@ impl CustomPropertyRegistry {
         parsed
     }
 
-    /// A registered custom property's declared value as its computation will parse it, where it
-    /// parses before substitution: what the computation reads beside lengths, the random sharings
-    /// and tree-counting functions, is in it. `None` for a name without a syntax to parse with, or
-    /// a value that parses only once substituted.
-    pub(crate) fn parse_declared_registered_value(
-        &self,
-        name: &[u16],
-        value: &RetainedStyleValueData,
-    ) -> Option<RetainedStyleValueData> {
-        let registration = self
-            .registrations
-            .get(name)
-            .filter(|registration| !matches!(registration.syntax, SyntaxNode::Universal))?;
-        self.parse_registered_value_memoized(registration, value)
-    }
-
     /// Finalize a custom property's substituted value as its element's style computes it, as
     /// `StyleComputer::finalize_custom_property_value` does: a CSS-wide keyword resolves against
     /// the registration and the environment inherited, the guaranteed-invalid value against the
@@ -4020,40 +4004,6 @@ pub enum FfiRegisteredValueDeclarations {
     /// A registered value substitutes, so the container-relative lengths it reads are known only
     /// once it is substituted.
     Substituted,
-}
-
-/// What registered values a store declares, as `FfiRegisteredValueDeclarations` says.
-///
-/// # Safety
-/// `store` must be a live store pointer, and `registry` null or a live registry.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_custom_property_store_registered_value_declarations(
-    store: *const c_void,
-    registry: *const c_void,
-) -> FfiRegisteredValueDeclarations {
-    let store = unsafe { &*store.cast::<CustomPropertyStore>() };
-    let Some(registry) = (unsafe { registry.cast::<CustomPropertyRegistry>().as_ref() }) else {
-        return FfiRegisteredValueDeclarations::None;
-    };
-    let mut declarations = FfiRegisteredValueDeclarations::None;
-    for entry in store
-        .declared_names
-        .iter()
-        .filter_map(|name_raw| store.own_values.get(name_raw))
-    {
-        let is_registered = registry
-            .registrations
-            .get(&*entry.name)
-            .is_some_and(|registration| !matches!(registration.syntax, SyntaxNode::Universal));
-        if !is_registered {
-            continue;
-        }
-        if matches!(entry.value.data(), StyleValueData::Unresolved { .. }) {
-            return FfiRegisteredValueDeclarations::Substituted;
-        }
-        declarations = FfiRegisteredValueDeclarations::Parsed;
-    }
-    declarations
 }
 
 /// Hands every custom property a store declares itself to `callback`, in declaration order, with

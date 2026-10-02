@@ -7,8 +7,6 @@
 //! Container queries, evaluated over the retained container facts: the containers' published
 //! container query inputs, the previous layout's boxes and the containers' style records.
 
-use std::ffi::c_void;
-
 use super::bridge::FfiContainerEffectKind;
 use super::tree::StyleNodeID;
 use super::*;
@@ -17,8 +15,8 @@ use crate::css::custom_properties::StyleQueryDependencies;
 use crate::css::parser::query_parser::{
     CONTAINER_QUERY_HAS_UNKNOWN_FEATURE, CONTAINER_QUERY_REQUIRES_BLOCK_SIZE, CONTAINER_QUERY_REQUIRES_HEIGHT,
     CONTAINER_QUERY_REQUIRES_INLINE_SIZE, CONTAINER_QUERY_REQUIRES_SCROLL_STATE, CONTAINER_QUERY_REQUIRES_STYLE,
-    CONTAINER_QUERY_REQUIRES_WIDTH, FfiContainerFacts, FfiContainerStyleFeature, FfiQueryHandle, MatchResult,
-    SCROLL_STATE_SIDE_BOTTOM, SCROLL_STATE_SIDE_LEFT, SCROLL_STATE_SIDE_RIGHT, SCROLL_STATE_SIDE_TOP,
+    CONTAINER_QUERY_REQUIRES_WIDTH, FfiContainerFacts, FfiQueryHandle, MatchResult, SCROLL_STATE_SIDE_BOTTOM,
+    SCROLL_STATE_SIDE_LEFT, SCROLL_STATE_SIDE_RIGHT, SCROLL_STATE_SIDE_TOP,
 };
 use smallvec::SmallVec;
 
@@ -105,11 +103,6 @@ struct RetainedContainerStyleContext<'a> {
     /// The container's sibling count and index, which a tree-counting function in a query value
     /// resolves against.
     tree_counting: Option<(u64, u64)>,
-}
-
-/// The engine answers `style()` features in Rust, never through the facts' callback.
-unsafe extern "C" fn no_style_feature_callback(_: *mut c_void, _: FfiContainerStyleFeature) -> u8 {
-    MatchResult::Unknown as u8
 }
 
 /// Whether one of the container conditions asks a `style()` question.
@@ -523,8 +516,6 @@ impl RetainedState {
                 // styled, so the writing mode is the record's, not the last commit's.
                 inline_axis_horizontal,
                 length_resolution_context: std::ptr::from_ref(&length).cast(),
-                style_context: std::ptr::null_mut(),
-                evaluate_style_feature: no_style_feature_callback,
                 scroll_state_available: requirements & CONTAINER_QUERY_REQUIRES_SCROLL_STATE != 0,
                 stuck: snapshot.stuck,
                 snapped: snapshot.snapped,

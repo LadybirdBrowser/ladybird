@@ -130,37 +130,6 @@ impl SpecifiedValues {
         (id, lookup)
     }
 
-    /// Restore a program-owned identity from its still-live declaration payload.
-    ///
-    /// # Safety
-    /// `value` must point at live `StyleValueData`.
-    pub(super) unsafe fn ensure_identity(
-        &mut self,
-        value: *const StyleValueData,
-        id: SpecifiedValueID,
-        memory: &mut MemoryController,
-    ) -> bool {
-        if self.entries_by_pointer.get(&(value as usize)) == Some(&id) {
-            return true;
-        }
-        if let Some(index) = self.entries_by_id.get(&id) {
-            return matches!(self.lookup(unsafe { &*value }), Lookup::Known(existing) if self.entries_by_id.get(&existing) == Some(index));
-        }
-        if !memory.is_tier3_admitting(MemoryCategory::SpecifiedValueTable) {
-            self.mark_partial();
-            return false;
-        }
-        if let Lookup::Known(existing) = self.lookup(unsafe { &*value }) {
-            let index = self.entries_by_id[&existing];
-            self.entries_by_id.insert(id, index);
-        } else {
-            let retained = unsafe { RetainedStyleValueData::from_retained_pointer(retain_style_value(value)) };
-            self.push_entry(id, retained);
-        }
-        self.settle_memory(memory);
-        true
-    }
-
     /// Associate another immutable spelling with an existing canonical identity.
     ///
     /// # Safety
@@ -313,32 +282,6 @@ mod tests {
     }
 
     #[test]
-    fn closed_specified_value_admission_keeps_program_values_resolvable() {
-        let mut memory = MemoryController::new(DeviceClass::ForegroundDesktop);
-        memory.set_tier3_limit_for_test(0);
-        memory.begin_tier3_quota_period();
-        let mut values = SpecifiedValues::new();
-        let resident = std::sync::Arc::new(StyleValueData::Number { value: 1.0 });
-        let refused = std::sync::Arc::new(StyleValueData::Number { value: 2.0 });
-
-        let (resident_id, _) = unsafe { values.intern(std::sync::Arc::as_ptr(&resident), &mut memory) };
-        let bytes = memory.bytes_in_category(MemoryCategory::SpecifiedValueTable);
-        memory.finish_evaluation_loop();
-        let (refused_id, refused_lookup) = unsafe { values.intern(std::sync::Arc::as_ptr(&refused), &mut memory) };
-
-        assert!(matches!(values.value(resident_id), Lookup::Known(value) if value == resident.as_ref()));
-        assert!(matches!(refused_lookup, Lookup::Missing(_)));
-        assert!(matches!(values.value(refused_id), Lookup::Missing(_)));
-        assert_eq!(memory.bytes_in_category(MemoryCategory::SpecifiedValueTable), bytes);
-        assert!(!unsafe { values.ensure_identity(std::sync::Arc::as_ptr(&refused), resident_id, &mut memory) });
-
-        let _ = memory.finish_tier3_quota_period();
-        memory.begin_tier3_quota_period();
-        assert!(unsafe { values.ensure_identity(std::sync::Arc::as_ptr(&refused), refused_id, &mut memory) });
-        assert!(matches!(values.value(refused_id), Lookup::Known(value) if value == refused.as_ref()));
-    }
-
-    #[test]
     fn authored_spellings_can_alias_a_canonical_identity() {
         let mut memory = MemoryController::new(DeviceClass::ForegroundDesktop);
         let mut values = SpecifiedValues::new();
@@ -356,20 +299,5 @@ mod tests {
 
         assert_eq!(authored_id, canonical_id);
         assert!(matches!(lookup, Lookup::Known(())));
-    }
-
-    #[test]
-    fn identity_restoration_indexes_only_retained_payload_pointers() {
-        let mut memory = MemoryController::new(DeviceClass::ForegroundDesktop);
-        let mut values = SpecifiedValues::new();
-        let canonical = std::sync::Arc::new(StyleValueData::Number { value: 42.0 });
-        let duplicate = std::sync::Arc::new(StyleValueData::Number { value: 42.0 });
-
-        let (canonical_id, _) = unsafe { values.intern(std::sync::Arc::as_ptr(&canonical), &mut memory) };
-        let restored_id = SpecifiedValueID(canonical_id.0 + 1);
-        assert!(unsafe { values.ensure_identity(std::sync::Arc::as_ptr(&duplicate), restored_id, &mut memory) });
-
-        assert_eq!(values.entries_by_pointer.len(), 1);
-        assert!(matches!(values.value(restored_id), Lookup::Known(value) if value == canonical.as_ref()));
     }
 }

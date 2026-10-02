@@ -613,24 +613,6 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                         .into());
                     }
                 }
-                EventKind::MatchElementSignature => {
-                    let (engine_index, engine) = read_engine_indexed(&mut event.payload, &live_engines)?;
-                    let node = event.payload.read_u32()?;
-                    let expected = event.payload.read_u32()?;
-                    let actual = unsafe { bridge::style_engine_match_element_signature(engine, node) };
-                    match_answer_identity_mappings[engine_index]
-                        .record(expected, actual)
-                        .map_err(|error| format!("element match signature {error}"))?;
-                }
-                EventKind::PublishedMatchAnswerSignature => {
-                    let (engine_index, engine) = read_engine_indexed(&mut event.payload, &live_engines)?;
-                    let node = event.payload.read_u32()?;
-                    let expected = event.payload.read_u32()?;
-                    let actual = unsafe { bridge::style_engine_published_match_answer_signature(engine, node) };
-                    match_answer_identity_mappings[engine_index]
-                        .record(expected, actual)
-                        .map_err(|error| format!("published match answer signature {error}"))?;
-                }
                 EventKind::BenchmarkMarker => {
                     let _engine = read_engine(&mut event.payload, &live_engines)?;
                     let name = String::from_utf16(&event.payload.read_u16_vec()?)?;
@@ -638,44 +620,6 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                     if let Some(marker) = BenchmarkMarker::parse(&name) {
                         encountered_subtests.insert(format!("{}/{}", marker.suite, marker.test));
                         active_phase = marker.next_phase();
-                    }
-                }
-                EventKind::ConsumePublishedMatchAnswer => {
-                    let engine = read_engine(&mut event.payload, &live_engines)?;
-                    let node = event.payload.read_u32()?;
-                    let capacity = usize::try_from(event.payload.read_u64()?)?;
-                    let expected_result = usize::try_from(event.payload.read_u64()?)?;
-                    let has_output = event.payload.read_bool()?;
-                    let expected = match has_output {
-                        true => read_rule_matches(&mut event.payload)?,
-                        false => Vec::new(),
-                    };
-                    let mut actual = vec![
-                        FfiRuleMatch {
-                            node: 0,
-                            rule: 0,
-                            semantic_declaration: 0,
-                            pseudo_element: 0,
-                            scope_host: 0,
-                            scope_proximity: 0,
-                        };
-                        capacity
-                    ];
-                    let actual_result = unsafe {
-                        bridge::style_engine_consume_published_match_answer(engine, node, actual.as_mut_ptr(), capacity)
-                    };
-                    if actual_result != expected_result {
-                        return Err(format!(
-                        "published match consumption diverged for node {node}: expected count {expected_result}, got {actual_result}"
-                    )
-                    .into());
-                    }
-                    if has_output && !rule_matches_equal(&actual[..actual_result], &expected) {
-                        return Err(format!(
-                            "published matches diverged for node {node}: expected {expected:?}, got {:?}",
-                            &actual[..actual_result]
-                        )
-                        .into());
                     }
                 }
                 EventKind::CompletePublishedMatchAnswersForClosure => {
