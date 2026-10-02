@@ -15,7 +15,8 @@
 <input id="target" placeholder="Placeholder Text">
 <script>
     // The placeholder's backing element is restyled through what it inherits from its host while its
-    // transition runs: the C++ style computation recomputes its record, which cancels the transition.
+    // transition runs: the engine settles its record, and the host's transition step keeps the
+    // transition running against the record it held.
     test(() => {
         const target = document.getElementById("target");
         const placeholderStyle = () => getComputedStyle(target, "::placeholder");

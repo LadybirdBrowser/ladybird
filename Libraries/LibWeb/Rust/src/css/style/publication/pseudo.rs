@@ -848,16 +848,20 @@ impl RetainedState {
     ) -> Drive<RecordDelta> {
         use bridge::element_adjustment_fact as fact;
         let facts = self.computed_group_sets.adjustment_facts(node);
-        if facts & fact::HAS_ANIMATIONS != 0 {
+        // The host samples the element's animations over the record it installs, as it does for
+        // any element, and a record demand installs none of its own. A CSS animation needs a plan,
+        // which this drive does not decide.
+        let animates = facts & fact::HAS_ANIMATIONS != 0;
+        if animates
+            && (!scratch.host_applies_animation_plans || self.css_defined_animations.node_runs_a_css_animation(node))
+        {
             counters.bump(Counter::EngineComputedRecordBailWinnerElement);
             return Err(Unanswered::Refused);
         }
-        // A record it already holds is replaced by a full drive; one composing animations or
-        // running transitions starts them from itself, which C++ does.
+        // A record it already holds is replaced by a full drive. A composition laid over it is
+        // the element's own effects, sampled again over the new base.
         let old_record = self.computed_group_sets.assigned_style_record(node);
-        if old_record
-            .is_some_and(|old| self.record_holds_an_animation_overlay(old) || self.record_declares_transitions(old))
-        {
+        if old_record.is_some_and(|old| !animates && self.record_holds_an_animation_overlay(old)) {
             counters.bump(Counter::EngineComputedRecordBailRecordOverlay);
             return Err(Unanswered::Refused);
         }
@@ -915,6 +919,32 @@ impl RetainedState {
                 return Err(Unanswered::Refused);
             }
         }
+        // A record that replaces one owes the host the transition step as an element's row does,
+        // with every winner moved, since the drive takes them all.
+        let owes_a_transition_step = match old_record {
+            Some(old) => {
+                let Some(underlying_style_record) = self.computed_group_sets.underlying_style_record(old) else {
+                    counters.bump(Counter::EngineComputedRecordBailRecordOverlay);
+                    return Err(Unanswered::Refused);
+                };
+                let moves_transition_declarations = self
+                    .winner_groups
+                    .semantic_delta_properties(None, state)
+                    .any(super::property_declares_transitions);
+                // Its pseudo-element cascades include ones it does not have, from the UA style
+                // sheet's universal ::marker, ::backdrop and ::file-selector-button rules, so only
+                // the pseudo-elements it holds a record for inherit from it.
+                self.decide_transition_step(
+                    node,
+                    underlying_style_record,
+                    moves_transition_declarations,
+                    scratch.host_applies_animation_plans,
+                    self.computed_group_sets.assigned_pseudo_kinds(node).next().is_some(),
+                    counters,
+                )?
+            }
+            None => false,
+        };
         let mut inputs = self.document_style_computation_inputs;
         if let Some((root, root_inputs)) = scratch.root_element_inputs
             && root == node
@@ -1012,7 +1042,12 @@ impl RetainedState {
         let font = font.expect("a full drive resolves the font");
         let counter_style_registry =
             self.table_counter_style_environment_identity(computed::ComputedStyleTarget::new(node, u8::MAX), &table);
-        let (record, _) = self.assemble_and_publish_engine_record(
+        // The composition stays pinned for the host's step, which reads it as the before-change
+        // style, until the host installs the new base or the derivation is reverted.
+        let detached_composition = animates
+            .then(|| self.computed_group_sets.detach_composition(node))
+            .flatten();
+        let record = match self.assemble_and_publish_engine_record(
             Some(computed::ComputedStyleTarget::new(node, u8::MAX)),
             parent_record,
             table,
@@ -1024,12 +1059,37 @@ impl RetainedState {
             None,
             &mut scratch.computability,
             counters,
-        )?;
+        ) {
+            Ok((record, _)) => record,
+            Err(unanswered) => {
+                if let Some(detached) = detached_composition {
+                    self.computed_group_sets.reattach_composition(node, detached);
+                }
+                return Err(unanswered);
+            }
+        };
         scratch.element_explicitly_inherited_groups = explicitly_inherited_groups;
         scratch.noted_substitution = Some(substituted);
         let reads_sibling_position = store.uses_tree_counting_function(self);
         self.note_sibling_position_reads(node, u8::MAX, reads_sibling_position);
-        Ok((old_record.unwrap_or(computed::FinalStyleRecordID::NONE), record))
+        let old_record = old_record.unwrap_or(computed::FinalStyleRecordID::NONE);
+        let owes_a_transition_step = owes_a_transition_step && old_record != record;
+        if owes_a_transition_step || detached_composition.is_some() {
+            self.engine_computed_records_pending
+                .entry(node)
+                .or_default()
+                .push(PendingEngineComputedRecord {
+                    node,
+                    pseudo_kind: u8::MAX,
+                    old_style_record: old_record,
+                    new_style_record: record,
+                    cascade_state: None,
+                    longhand_evaluations: 0,
+                    owes_a_transition_step,
+                    detached_composition,
+                });
+        }
+        Ok((old_record, record))
     }
 
     /// Whether the node holds a match answer its pseudo-elements' winners are proven from: the

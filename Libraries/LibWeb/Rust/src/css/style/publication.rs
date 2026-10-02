@@ -661,49 +661,37 @@ impl RetainedState {
             Some(_) | None => (self.winner_groups.semantic_delta(Some(state), state), true),
         };
         // No delta names the winners such a record is driven from, so they are checked as a first
-        // record's are: one starting an animation keeps the record in C++. A transition
-        // declaration is the step's to act on, as for any record that replaces one.
+        // record's are: one starting an animation keeps the record in C++.
         if holds_no_current_cascade_state
             && self
                 .winner_groups
                 .semantic_delta_properties(None, state)
-                .any(|property| {
-                    self.first_record_winner_needs_cpp(property) && !property_declares_transitions(property)
-                })
+                .any(|property| self.first_record_winner_needs_cpp(property))
         {
             counters.bump(Counter::EngineComputedRecordBailProperty);
             return Err(Unanswered::Refused);
         }
-        // A record that declares transitions, or a delta that moves the declarations, may start or
-        // end a transition: the host runs the transition step once it installs the record, against
-        // the record the row moved away from. The step's start values reach what inherits from the
-        // element only after the step, so a row that owes one is left to the host where anything
-        // inherits from it: an element child, or a pseudo-element. So is one no host installs. A
-        // moved display is applied after the step, as C++ applies it after the step it runs. A record
-        // driven from its winners alone takes its declarations from them. The row carries what is
-        // decided here to the host, for a record that moves.
-        let owes_a_transition_step = self.record_declares_transitions(underlying_style_record)
-            || if holds_no_current_cascade_state {
-                self.winner_groups
-                    .semantic_delta_properties(None, state)
-                    .any(property_declares_transitions)
-            } else {
-                delta
-                    .properties()
-                    .iter()
-                    .any(|&property| property_declares_transitions(property))
-            };
-        if owes_a_transition_step
-            && (!scratch.host_applies_animation_plans
-                || self
-                    .tree
-                    .flat_tree_children(node)
-                    .any(|child| child.element_index().is_some())
-                || self.current_winner_groups().pseudo_states(node).next().is_some())
-        {
-            counters.bump(Counter::EngineComputedRecordBailProperty);
-            return Err(Unanswered::Refused);
-        }
+        // A record driven from its winners alone takes its transition declarations from them. A
+        // moved display is applied after the step, as C++ applies it after the step it runs. The row
+        // carries what is decided here to the host, for a record that moves.
+        let moves_transition_declarations = if holds_no_current_cascade_state {
+            self.winner_groups
+                .semantic_delta_properties(None, state)
+                .any(property_declares_transitions)
+        } else {
+            delta
+                .properties()
+                .iter()
+                .any(|&property| property_declares_transitions(property))
+        };
+        let owes_a_transition_step = self.decide_transition_step(
+            node,
+            underlying_style_record,
+            moves_transition_declarations,
+            scratch.host_applies_animation_plans,
+            self.current_winner_groups().pseudo_states(node).next().is_some(),
+            counters,
+        )?;
         let mut inputs = self.document_style_computation_inputs;
         if let Some((root, root_inputs)) = scratch.root_element_inputs
             && root == node
@@ -1501,14 +1489,11 @@ impl RetainedState {
             });
         // A winner that starts an animation keeps the record in C++, unless it declares CSS
         // animations and the host can be handed the plan the record decides, which is asked of every
-        // node, a shared record's too. A first computation starts no transition, there being no
-        // before-change style to start one from, so a transition declaration is computed into the
-        // record like any other value. The font-phase longhands feed no group of their own: the full
+        // node, a shared record's too. The font-phase longhands feed no group of their own: the full
         // drive resolves the font from them and rebuilds every group, rejecting the values the font
         // resolution does not pass on yet.
         for property in self.winner_groups.semantic_delta_properties(None, state) {
             if self.first_record_winner_needs_cpp(property)
-                && !property_declares_transitions(property)
                 && !(property_declares_css_animations(property) && self.may_plan_css_animations(node, state, scratch))
             {
                 counters.bump(Counter::EngineComputedRecordBailProperty);
@@ -1913,10 +1898,12 @@ impl RetainedState {
     }
 
     /// Whether a first record's winner keeps the record's computation in C++: a property that
-    /// starts an animation or transition. The font-phase longhands without a group of their own are
-    /// inputs of the font group the full drive builds.
+    /// starts an animation. A transition declaration is computed into the record like any other
+    /// value: a first record has no before-change style to start a transition from, and a record
+    /// driven in full that replaces one leaves the transition step to the host. The font-phase
+    /// longhands without a group of their own are inputs of the font group the full drive builds.
     fn first_record_winner_needs_cpp(&self, property: u16) -> bool {
-        property_starts_animation(property)
+        (property_starts_animation(property) && !property_declares_transitions(property))
             || (computed_group_dependency_mask(property).is_none() && !font_group_carries_longhand(property))
     }
 
@@ -2149,6 +2136,38 @@ impl RetainedState {
             .style_record_view(record.raw())
             .and_then(|view| unsafe { view.longhand_table.as_ref() })
             .is_some_and(crate::css::style_compute::has_active_transition_properties)
+    }
+
+    /// Whether a row moving `node` off `underlying_style_record`, the record beneath any
+    /// composition, owes the host the transition step: the record declares transitions, or the row
+    /// moves their declarations. The host runs the step once it installs the new record, against
+    /// the record the row moved away from, and the step's start values reach what inherits from the
+    /// element only after the step. So a row that owes one is refused where anything inherits from
+    /// the element, an element child or, as the caller tells, a pseudo-element, and where no host
+    /// installs the record.
+    pub(super) fn decide_transition_step(
+        &self,
+        node: StyleNodeID,
+        underlying_style_record: computed::FinalStyleRecordID,
+        moves_transition_declarations: bool,
+        host_applies_animation_plans: bool,
+        pseudo_elements_inherit: bool,
+        counters: &mut Counters,
+    ) -> Result<bool, Unanswered> {
+        let owes_a_transition_step =
+            moves_transition_declarations || self.record_declares_transitions(underlying_style_record);
+        if owes_a_transition_step
+            && (!host_applies_animation_plans
+                || pseudo_elements_inherit
+                || self
+                    .tree
+                    .flat_tree_children(node)
+                    .any(|child| child.element_index().is_some()))
+        {
+            counters.bump(Counter::EngineComputedRecordBailProperty);
+            return Err(Unanswered::Refused);
+        }
+        Ok(owes_a_transition_step)
     }
 
     /// Whether the host owes the element the transition step once it installs the record the engine
