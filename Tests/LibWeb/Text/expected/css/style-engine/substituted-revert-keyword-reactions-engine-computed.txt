@@ -1,5 +1,5 @@
 initial: toggled=7px edited=3px ::before=5px
 ancestor class added: substitution refusals 0, C++ recomputations 0, toggled=9px edited=3px ::before=6px
 ancestor class removed: substitution refusals 0, C++ recomputations 0, toggled=7px edited=3px ::before=5px
-lower layer edited: substitution refusals 0, C++ recomputations 3, toggled=7px edited=11px ::before=5px
+lower layer edited: substitution refusals 0, C++ recomputations 0, toggled=7px edited=11px ::before=5px
 ::before inserted: substitution refusals 0, C++ recomputations 0, toggled=7px edited=11px ::before=5px 5px

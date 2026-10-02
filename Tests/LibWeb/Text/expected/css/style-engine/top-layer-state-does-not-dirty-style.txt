@@ -9,4 +9,4 @@ hidden reaction batch runs: 1
 hidden reaction elements: 2
 hidden published reactions: 1
 hidden recomputations within budget: true
-hidden read recomputations: 1
+hidden read recomputations: 0

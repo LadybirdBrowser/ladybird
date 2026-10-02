@@ -2706,16 +2706,11 @@ impl ComputedGroupSets {
             .cascade_state(PseudoComputedRow::RETAINED_CASCADE)
     }
 
-    /// Whether every inherited group the node holds outside `own_groups` is the parent's very
-    /// group: the record was computed against this parent's inherited style, and nothing under
-    /// the parent's change is left to inherit.
+    /// Whether every inherited group the node holds is the parent's very group: the record was
+    /// computed against this parent's inherited style, and nothing under the parent's change is
+    /// left to inherit.
     #[must_use]
-    pub fn inherited_groups_follow_parent(
-        &self,
-        node: StyleNodeID,
-        parent: StyleNodeID,
-        own_groups: u32,
-    ) -> Option<bool> {
+    pub fn inherited_groups_follow_parent(&self, node: StyleNodeID, parent: StyleNodeID) -> Option<bool> {
         let node_set = self.columns.groups(node.element_index()? as usize)?;
         let parent_set = self.columns.groups(parent.element_index()? as usize)?;
         if node_set == parent_set {
@@ -2726,9 +2721,6 @@ impl ComputedGroupSets {
         // C++ and Rust can intern equal payloads under different group identities. Inheritance
         // follows the parent's value in that case just as it does after group reclamation.
         Some((0..ENGINE_INHERITED_GROUP_COUNT).all(|group| {
-            if own_groups & (1 << group) != 0 {
-                return true;
-            }
             let node_payload = node_groups[group];
             let parent_payload = parent_groups[group];
             node_payload == parent_payload

@@ -1,7 +1,7 @@
 PASS: detached child mutation: part-shadow-internal: :empty becomes false after element append
 PASS: detached pseudo-element child mutation: part-shadow-internal: :empty becomes false after element append
 PASS: detached child mutation: part-shadow-internal: :empty becomes false after textContent | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
-PASS: detached pseudo-element child mutation: part-shadow-internal: :empty becomes false after textContent | elementStyleRecomputations=3, elementStyleNoopRecomputations=1
+PASS: detached pseudo-element child mutation: part-shadow-internal: :empty becomes false after textContent | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-internal: mixed-case SVG type selector with :empty becomes false after element append | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-internal: mixed-case SVG type selector with :not(:empty) becomes true after element append | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-internal: mixed-case SVG foreignObject type selector with :empty becomes false after element append | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
@@ -20,7 +20,7 @@ PASS: detached pseudo-element child mutation: part-shadow-internal: :has(> .hit:
 PASS: detached child mutation: part-shadow-internal: :has(> .hit:first-child) after insertBefore | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: part-shadow-internal: :has(> .hit:first-child) after insertBefore | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-internal: :has(> .hit) ignores nested child append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
-PASS: detached pseudo-element child mutation: part-shadow-internal: :has(> .hit) ignores nested child append | elementStyleRecomputations=5, elementStyleNoopRecomputations=1
+PASS: detached pseudo-element child mutation: part-shadow-internal: :has(> .hit) ignores nested child append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-internal: :has(span.hit) after typed child append | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: part-shadow-internal: :has(span.hit) after typed child append | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-internal: :has([data-hit]) after attribute-bearing child append | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
@@ -46,7 +46,7 @@ PASS: detached pseudo-element child mutation: part-shadow-internal: :has(.hit ~ 
 PASS: detached child mutation: part-shadow-internal: :has(> .wrapper > .hit) after nested structure append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: part-shadow-internal: :has(> .wrapper > .hit) after nested structure append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-internal: :not(:has(.hit)) becomes false after child append | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
-PASS: detached pseudo-element child mutation: part-shadow-internal: :not(:has(.hit)) becomes false after child append | elementStyleRecomputations=4, elementStyleNoopRecomputations=1
+PASS: detached pseudo-element child mutation: part-shadow-internal: :not(:has(.hit)) becomes false after child append | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-internal: :has(.hit, .fallback) after first-list child append | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: part-shadow-internal: :has(.hit, .fallback) after first-list child append | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-internal: :has(:empty) after empty child append | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
@@ -56,11 +56,11 @@ PASS: detached pseudo-element child mutation: part-shadow-internal: :has(.hit) a
 PASS: detached child mutation: part-shadow-internal: :has(.hit) after replaceChildren | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: part-shadow-internal: :has(.hit) after replaceChildren | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-internal: :has(.hit) becomes false after child removal | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
-PASS: detached pseudo-element child mutation: part-shadow-internal: :has(.hit) becomes false after child removal | elementStyleRecomputations=3, elementStyleNoopRecomputations=1
+PASS: detached pseudo-element child mutation: part-shadow-internal: :has(.hit) becomes false after child removal | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-internal: :has(.hit) becomes false after removeChild | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
-PASS: detached pseudo-element child mutation: part-shadow-internal: :has(.hit) becomes false after removeChild | elementStyleRecomputations=3, elementStyleNoopRecomputations=1
+PASS: detached pseudo-element child mutation: part-shadow-internal: :has(.hit) becomes false after removeChild | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-internal: :has(.hit) becomes false after child moves out | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
-PASS: detached pseudo-element child mutation: part-shadow-internal: :has(.hit) becomes false after child moves out | elementStyleRecomputations=3, elementStyleNoopRecomputations=1
+PASS: detached pseudo-element child mutation: part-shadow-internal: :has(.hit) becomes false after child moves out | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-internal: :empty becomes true after replaceChildren | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: part-shadow-internal: :empty becomes true after replaceChildren | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-internal: :empty becomes true after textContent clear | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
@@ -68,7 +68,7 @@ PASS: detached pseudo-element child mutation: part-shadow-internal: :empty becom
 PASS: detached child mutation: part-shadow-internal: :empty stays true after comment append | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: part-shadow-internal: :empty stays true after comment append | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-internal: :empty becomes false after whitespace text append | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
-PASS: detached pseudo-element child mutation: part-shadow-internal: :empty becomes false after whitespace text append | elementStyleRecomputations=3, elementStyleNoopRecomputations=1
+PASS: detached pseudo-element child mutation: part-shadow-internal: :empty becomes false after whitespace text append | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-internal: :dir(rtl) after dir=auto text mutation | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: part-shadow-internal: :dir(rtl) after dir=auto text mutation | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-internal: :has(*) after child append | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
@@ -78,7 +78,7 @@ PASS: detached pseudo-element child mutation: part-shadow-internal: :has(> *) af
 PASS: detached child mutation: part-shadow-internal: :has(:checked) after checked checkbox append | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: part-shadow-internal: :has(:checked) after checked checkbox append | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-internal: :has(:checked) becomes false after checked checkbox removal | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
-PASS: detached pseudo-element child mutation: part-shadow-internal: :has(:checked) becomes false after checked checkbox removal | elementStyleRecomputations=3, elementStyleNoopRecomputations=1
+PASS: detached pseudo-element child mutation: part-shadow-internal: :has(:checked) becomes false after checked checkbox removal | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-internal: :has(:not(:checked)) after unchecked checkbox append | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: part-shadow-internal: :has(:not(:checked)) after unchecked checkbox append | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-internal: :has(:enabled) after enabled input append | elementStyleRecomputations=6, elementStyleNoopRecomputations=0
@@ -90,7 +90,7 @@ PASS: detached pseudo-element child mutation: part-shadow-internal: :has(:requir
 PASS: detached child mutation: part-shadow-internal: :has(:optional) after optional input append | elementStyleRecomputations=6, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: part-shadow-internal: :has(:optional) after optional input append | elementStyleRecomputations=6, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-internal: :has(:empty) becomes false after text inserted into only child | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
-PASS: detached pseudo-element child mutation: part-shadow-internal: :has(:empty) becomes false after text inserted into only child | elementStyleRecomputations=4, elementStyleNoopRecomputations=1
+PASS: detached pseudo-element child mutation: part-shadow-internal: :has(:empty) becomes false after text inserted into only child | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-internal: :has(:not(:empty)) after non-empty child append | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: part-shadow-internal: :has(:not(:empty)) after non-empty child append | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-internal: :has(:dir(rtl)) after dir=auto child append | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
@@ -104,7 +104,7 @@ PASS: detached pseudo-element child mutation: part-shadow-internal: :has(:any-li
 PASS: detached child mutation: part-shadow-internal: :has(:only-child) after only child append | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: part-shadow-internal: :has(:only-child) after only child append | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-internal: :has(:only-child) becomes false after sibling append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
-PASS: detached pseudo-element child mutation: part-shadow-internal: :has(:only-child) becomes false after sibling append | elementStyleRecomputations=5, elementStyleNoopRecomputations=1
+PASS: detached pseudo-element child mutation: part-shadow-internal: :has(:only-child) becomes false after sibling append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-internal: :has(:nth-child(2)) after second child append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: part-shadow-internal: :has(:nth-child(2)) after second child append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-internal: :has(:nth-last-child(2)) after trailing child append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
@@ -126,7 +126,7 @@ PASS: detached pseudo-element child mutation: part-shadow-internal: :has(> .oute
 PASS: detached child mutation: part-shadow-internal: :has(> .outer > .middle > .hit) after exact deep append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: part-shadow-internal: :has(> .outer > .middle > .hit) after exact deep append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-internal: :has(.miss .hit) ignores hit without required ancestor | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
-PASS: detached pseudo-element child mutation: part-shadow-internal: :has(.miss .hit) ignores hit without required ancestor | elementStyleRecomputations=6, elementStyleNoopRecomputations=1
+PASS: detached pseudo-element child mutation: part-shadow-internal: :has(.miss .hit) ignores hit without required ancestor | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-internal: :has(.before + .hit) after adjacent pair append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: part-shadow-internal: :has(.before + .hit) after adjacent pair append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-internal: :has(.before ~ .hit) after separated sibling append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
@@ -138,7 +138,7 @@ PASS: detached pseudo-element child mutation: part-shadow-internal: :has(.hit ~ 
 PASS: detached child mutation: part-shadow-internal: :has(.hit:only-child) after only child append | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: part-shadow-internal: :has(.hit:only-child) after only child append | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-internal: :has(.hit:only-child) becomes false after sibling append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
-PASS: detached pseudo-element child mutation: part-shadow-internal: :has(.hit:only-child) becomes false after sibling append | elementStyleRecomputations=5, elementStyleNoopRecomputations=1
+PASS: detached pseudo-element child mutation: part-shadow-internal: :has(.hit:only-child) becomes false after sibling append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-internal: :has(.hit:nth-last-child(1)) after last child append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: part-shadow-internal: :has(.hit:nth-last-child(1)) after last child append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-internal: :has(.hit:nth-last-child(2)) after trailing child append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
@@ -148,7 +148,7 @@ PASS: detached pseudo-element child mutation: part-shadow-internal: :has(.hit:nt
 PASS: detached child mutation: part-shadow-internal: :has(.hit:only-of-type) after only typed child append | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: part-shadow-internal: :has(.hit:only-of-type) after only typed child append | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-internal: :has(.hit:only-of-type) becomes false after same type sibling append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
-PASS: detached pseudo-element child mutation: part-shadow-internal: :has(.hit:only-of-type) becomes false after same type sibling append | elementStyleRecomputations=5, elementStyleNoopRecomputations=1
+PASS: detached pseudo-element child mutation: part-shadow-internal: :has(.hit:only-of-type) becomes false after same type sibling append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-internal: :has(:is(.hit, .fallback)) after second-list child append | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: part-shadow-internal: :has(:is(.hit, .fallback)) after second-list child append | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-internal: :has(:where(.hit, .fallback)) after second-list child append | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
@@ -164,23 +164,23 @@ PASS: detached pseudo-element child mutation: part-shadow-internal: :not(:has(.m
 PASS: detached child mutation: part-shadow-internal: :has(.hit:not(:empty)) after non-empty child append | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: part-shadow-internal: :has(.hit:not(:empty)) after non-empty child append | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-internal: :has(.hit:empty) becomes false after nested text append | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
-PASS: detached pseudo-element child mutation: part-shadow-internal: :has(.hit:empty) becomes false after nested text append | elementStyleRecomputations=4, elementStyleNoopRecomputations=1
+PASS: detached pseudo-element child mutation: part-shadow-internal: :has(.hit:empty) becomes false after nested text append | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-internal: :has(.hit) after append with multiple arguments | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: part-shadow-internal: :has(.hit) after append with multiple arguments | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-internal: :has(.hit:first-child + .after) after prepend before existing child | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: part-shadow-internal: :has(.hit:first-child + .after) after prepend before existing child | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-internal: :has(.hit:last-child) becomes false after trailing sibling append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
-PASS: detached pseudo-element child mutation: part-shadow-internal: :has(.hit:last-child) becomes false after trailing sibling append | elementStyleRecomputations=5, elementStyleNoopRecomputations=1
+PASS: detached pseudo-element child mutation: part-shadow-internal: :has(.hit:last-child) becomes false after trailing sibling append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-internal: :has(.hit + .after) becomes false after middle child removal | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
-PASS: detached pseudo-element child mutation: part-shadow-internal: :has(.hit + .after) becomes false after middle child removal | elementStyleRecomputations=4, elementStyleNoopRecomputations=1
+PASS: detached pseudo-element child mutation: part-shadow-internal: :has(.hit + .after) becomes false after middle child removal | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-internal: :has(.hit ~ .after) becomes false after following child removal | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
-PASS: detached pseudo-element child mutation: part-shadow-internal: :has(.hit ~ .after) becomes false after following child removal | elementStyleRecomputations=5, elementStyleNoopRecomputations=1
+PASS: detached pseudo-element child mutation: part-shadow-internal: :has(.hit ~ .after) becomes false after following child removal | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-internal: :has(> .wrapper > .hit) becomes false after nested child removal | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
-PASS: detached pseudo-element child mutation: part-shadow-internal: :has(> .wrapper > .hit) becomes false after nested child removal | elementStyleRecomputations=4, elementStyleNoopRecomputations=1
+PASS: detached pseudo-element child mutation: part-shadow-internal: :has(> .wrapper > .hit) becomes false after nested child removal | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-internal: :has(.hit) after replaceWith matching child | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: part-shadow-internal: :has(.hit) after replaceWith matching child | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-internal: :has(.hit) becomes false after replaceWith nonmatching child | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
-PASS: detached pseudo-element child mutation: part-shadow-internal: :has(.hit) becomes false after replaceWith nonmatching child | elementStyleRecomputations=4, elementStyleNoopRecomputations=1
+PASS: detached pseudo-element child mutation: part-shadow-internal: :has(.hit) becomes false after replaceWith nonmatching child | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-internal: :has(.hit) after cloned child append | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: part-shadow-internal: :has(.hit) after cloned child append | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-internal: :has(.hit) after fragment replaceChildren | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
@@ -196,7 +196,7 @@ PASS: detached pseudo-element child mutation: part-shadow-internal: :has(:nth-ch
 PASS: detached child mutation: part-shadow-host-internal: :empty becomes false after element append
 PASS: detached pseudo-element child mutation: part-shadow-host-internal: :empty becomes false after element append
 PASS: detached child mutation: part-shadow-host-internal: :empty becomes false after textContent | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
-PASS: detached pseudo-element child mutation: part-shadow-host-internal: :empty becomes false after textContent | elementStyleRecomputations=4, elementStyleNoopRecomputations=1
+PASS: detached pseudo-element child mutation: part-shadow-host-internal: :empty becomes false after textContent | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-host-internal: :has(.hit) after direct child append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: part-shadow-host-internal: :has(.hit) after direct child append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-host-internal: :has(.hit) after DocumentFragment append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
@@ -212,7 +212,7 @@ PASS: detached pseudo-element child mutation: part-shadow-host-internal: :has(> 
 PASS: detached child mutation: part-shadow-host-internal: :has(> .hit:first-child) after insertBefore | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: part-shadow-host-internal: :has(> .hit:first-child) after insertBefore | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-host-internal: :has(> .hit) ignores nested child append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
-PASS: detached pseudo-element child mutation: part-shadow-host-internal: :has(> .hit) ignores nested child append | elementStyleRecomputations=6, elementStyleNoopRecomputations=1
+PASS: detached pseudo-element child mutation: part-shadow-host-internal: :has(> .hit) ignores nested child append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-host-internal: :has(span.hit) after typed child append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: part-shadow-host-internal: :has(span.hit) after typed child append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-host-internal: :has([data-hit]) after attribute-bearing child append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
@@ -238,7 +238,7 @@ PASS: detached pseudo-element child mutation: part-shadow-host-internal: :has(.h
 PASS: detached child mutation: part-shadow-host-internal: :has(> .wrapper > .hit) after nested structure append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: part-shadow-host-internal: :has(> .wrapper > .hit) after nested structure append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-host-internal: :not(:has(.hit)) becomes false after child append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
-PASS: detached pseudo-element child mutation: part-shadow-host-internal: :not(:has(.hit)) becomes false after child append | elementStyleRecomputations=5, elementStyleNoopRecomputations=1
+PASS: detached pseudo-element child mutation: part-shadow-host-internal: :not(:has(.hit)) becomes false after child append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-host-internal: :has(.hit, .fallback) after first-list child append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: part-shadow-host-internal: :has(.hit, .fallback) after first-list child append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-host-internal: :has(:empty) after empty child append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
@@ -248,11 +248,11 @@ PASS: detached pseudo-element child mutation: part-shadow-host-internal: :has(.h
 PASS: detached child mutation: part-shadow-host-internal: :has(.hit) after replaceChildren | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: part-shadow-host-internal: :has(.hit) after replaceChildren | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-host-internal: :has(.hit) becomes false after child removal | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
-PASS: detached pseudo-element child mutation: part-shadow-host-internal: :has(.hit) becomes false after child removal | elementStyleRecomputations=4, elementStyleNoopRecomputations=1
+PASS: detached pseudo-element child mutation: part-shadow-host-internal: :has(.hit) becomes false after child removal | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-host-internal: :has(.hit) becomes false after removeChild | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
-PASS: detached pseudo-element child mutation: part-shadow-host-internal: :has(.hit) becomes false after removeChild | elementStyleRecomputations=4, elementStyleNoopRecomputations=1
+PASS: detached pseudo-element child mutation: part-shadow-host-internal: :has(.hit) becomes false after removeChild | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-host-internal: :has(.hit) becomes false after child moves out | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
-PASS: detached pseudo-element child mutation: part-shadow-host-internal: :has(.hit) becomes false after child moves out | elementStyleRecomputations=4, elementStyleNoopRecomputations=1
+PASS: detached pseudo-element child mutation: part-shadow-host-internal: :has(.hit) becomes false after child moves out | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-host-internal: :empty becomes true after replaceChildren | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: part-shadow-host-internal: :empty becomes true after replaceChildren | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-host-internal: :empty becomes true after textContent clear | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
@@ -260,7 +260,7 @@ PASS: detached pseudo-element child mutation: part-shadow-host-internal: :empty 
 PASS: detached child mutation: part-shadow-host-internal: :empty stays true after comment append | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: part-shadow-host-internal: :empty stays true after comment append | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-host-internal: :empty becomes false after whitespace text append | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
-PASS: detached pseudo-element child mutation: part-shadow-host-internal: :empty becomes false after whitespace text append | elementStyleRecomputations=4, elementStyleNoopRecomputations=1
+PASS: detached pseudo-element child mutation: part-shadow-host-internal: :empty becomes false after whitespace text append | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-host-internal: :dir(rtl) after dir=auto text mutation | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: part-shadow-host-internal: :dir(rtl) after dir=auto text mutation | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-host-internal: :has(*) after child append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
@@ -270,7 +270,7 @@ PASS: detached pseudo-element child mutation: part-shadow-host-internal: :has(> 
 PASS: detached child mutation: part-shadow-host-internal: :has(:checked) after checked checkbox append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: part-shadow-host-internal: :has(:checked) after checked checkbox append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-host-internal: :has(:checked) becomes false after checked checkbox removal | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
-PASS: detached pseudo-element child mutation: part-shadow-host-internal: :has(:checked) becomes false after checked checkbox removal | elementStyleRecomputations=4, elementStyleNoopRecomputations=1
+PASS: detached pseudo-element child mutation: part-shadow-host-internal: :has(:checked) becomes false after checked checkbox removal | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-host-internal: :has(:not(:checked)) after unchecked checkbox append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: part-shadow-host-internal: :has(:not(:checked)) after unchecked checkbox append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-host-internal: :has(:enabled) after enabled input append | elementStyleRecomputations=7, elementStyleNoopRecomputations=0
@@ -282,7 +282,7 @@ PASS: detached pseudo-element child mutation: part-shadow-host-internal: :has(:r
 PASS: detached child mutation: part-shadow-host-internal: :has(:optional) after optional input append | elementStyleRecomputations=7, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: part-shadow-host-internal: :has(:optional) after optional input append | elementStyleRecomputations=7, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-host-internal: :has(:empty) becomes false after text inserted into only child | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
-PASS: detached pseudo-element child mutation: part-shadow-host-internal: :has(:empty) becomes false after text inserted into only child | elementStyleRecomputations=5, elementStyleNoopRecomputations=1
+PASS: detached pseudo-element child mutation: part-shadow-host-internal: :has(:empty) becomes false after text inserted into only child | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-host-internal: :has(:not(:empty)) after non-empty child append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: part-shadow-host-internal: :has(:not(:empty)) after non-empty child append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-host-internal: :has(:dir(rtl)) after dir=auto child append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
@@ -296,7 +296,7 @@ PASS: detached pseudo-element child mutation: part-shadow-host-internal: :has(:a
 PASS: detached child mutation: part-shadow-host-internal: :has(:only-child) after only child append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: part-shadow-host-internal: :has(:only-child) after only child append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-host-internal: :has(:only-child) becomes false after sibling append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
-PASS: detached pseudo-element child mutation: part-shadow-host-internal: :has(:only-child) becomes false after sibling append | elementStyleRecomputations=6, elementStyleNoopRecomputations=1
+PASS: detached pseudo-element child mutation: part-shadow-host-internal: :has(:only-child) becomes false after sibling append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-host-internal: :has(:nth-child(2)) after second child append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: part-shadow-host-internal: :has(:nth-child(2)) after second child append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-host-internal: :has(:nth-last-child(2)) after trailing child append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
@@ -318,7 +318,7 @@ PASS: detached pseudo-element child mutation: part-shadow-host-internal: :has(> 
 PASS: detached child mutation: part-shadow-host-internal: :has(> .outer > .middle > .hit) after exact deep append | elementStyleRecomputations=6, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: part-shadow-host-internal: :has(> .outer > .middle > .hit) after exact deep append | elementStyleRecomputations=6, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-host-internal: :has(.miss .hit) ignores hit without required ancestor | elementStyleRecomputations=6, elementStyleNoopRecomputations=0
-PASS: detached pseudo-element child mutation: part-shadow-host-internal: :has(.miss .hit) ignores hit without required ancestor | elementStyleRecomputations=7, elementStyleNoopRecomputations=1
+PASS: detached pseudo-element child mutation: part-shadow-host-internal: :has(.miss .hit) ignores hit without required ancestor | elementStyleRecomputations=6, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-host-internal: :has(.before + .hit) after adjacent pair append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: part-shadow-host-internal: :has(.before + .hit) after adjacent pair append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-host-internal: :has(.before ~ .hit) after separated sibling append | elementStyleRecomputations=6, elementStyleNoopRecomputations=0
@@ -330,7 +330,7 @@ PASS: detached pseudo-element child mutation: part-shadow-host-internal: :has(.h
 PASS: detached child mutation: part-shadow-host-internal: :has(.hit:only-child) after only child append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: part-shadow-host-internal: :has(.hit:only-child) after only child append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-host-internal: :has(.hit:only-child) becomes false after sibling append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
-PASS: detached pseudo-element child mutation: part-shadow-host-internal: :has(.hit:only-child) becomes false after sibling append | elementStyleRecomputations=6, elementStyleNoopRecomputations=1
+PASS: detached pseudo-element child mutation: part-shadow-host-internal: :has(.hit:only-child) becomes false after sibling append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-host-internal: :has(.hit:nth-last-child(1)) after last child append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: part-shadow-host-internal: :has(.hit:nth-last-child(1)) after last child append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-host-internal: :has(.hit:nth-last-child(2)) after trailing child append | elementStyleRecomputations=6, elementStyleNoopRecomputations=0
@@ -340,7 +340,7 @@ PASS: detached pseudo-element child mutation: part-shadow-host-internal: :has(.h
 PASS: detached child mutation: part-shadow-host-internal: :has(.hit:only-of-type) after only typed child append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: part-shadow-host-internal: :has(.hit:only-of-type) after only typed child append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-host-internal: :has(.hit:only-of-type) becomes false after same type sibling append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
-PASS: detached pseudo-element child mutation: part-shadow-host-internal: :has(.hit:only-of-type) becomes false after same type sibling append | elementStyleRecomputations=6, elementStyleNoopRecomputations=1
+PASS: detached pseudo-element child mutation: part-shadow-host-internal: :has(.hit:only-of-type) becomes false after same type sibling append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-host-internal: :has(:is(.hit, .fallback)) after second-list child append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: part-shadow-host-internal: :has(:is(.hit, .fallback)) after second-list child append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-host-internal: :has(:where(.hit, .fallback)) after second-list child append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
@@ -356,23 +356,23 @@ PASS: detached pseudo-element child mutation: part-shadow-host-internal: :not(:h
 PASS: detached child mutation: part-shadow-host-internal: :has(.hit:not(:empty)) after non-empty child append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: part-shadow-host-internal: :has(.hit:not(:empty)) after non-empty child append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-host-internal: :has(.hit:empty) becomes false after nested text append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
-PASS: detached pseudo-element child mutation: part-shadow-host-internal: :has(.hit:empty) becomes false after nested text append | elementStyleRecomputations=5, elementStyleNoopRecomputations=1
+PASS: detached pseudo-element child mutation: part-shadow-host-internal: :has(.hit:empty) becomes false after nested text append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-host-internal: :has(.hit) after append with multiple arguments | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: part-shadow-host-internal: :has(.hit) after append with multiple arguments | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-host-internal: :has(.hit:first-child + .after) after prepend before existing child | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: part-shadow-host-internal: :has(.hit:first-child + .after) after prepend before existing child | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-host-internal: :has(.hit:last-child) becomes false after trailing sibling append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
-PASS: detached pseudo-element child mutation: part-shadow-host-internal: :has(.hit:last-child) becomes false after trailing sibling append | elementStyleRecomputations=6, elementStyleNoopRecomputations=1
+PASS: detached pseudo-element child mutation: part-shadow-host-internal: :has(.hit:last-child) becomes false after trailing sibling append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-host-internal: :has(.hit + .after) becomes false after middle child removal | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
-PASS: detached pseudo-element child mutation: part-shadow-host-internal: :has(.hit + .after) becomes false after middle child removal | elementStyleRecomputations=5, elementStyleNoopRecomputations=1
+PASS: detached pseudo-element child mutation: part-shadow-host-internal: :has(.hit + .after) becomes false after middle child removal | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-host-internal: :has(.hit ~ .after) becomes false after following child removal | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
-PASS: detached pseudo-element child mutation: part-shadow-host-internal: :has(.hit ~ .after) becomes false after following child removal | elementStyleRecomputations=6, elementStyleNoopRecomputations=1
+PASS: detached pseudo-element child mutation: part-shadow-host-internal: :has(.hit ~ .after) becomes false after following child removal | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-host-internal: :has(> .wrapper > .hit) becomes false after nested child removal | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
-PASS: detached pseudo-element child mutation: part-shadow-host-internal: :has(> .wrapper > .hit) becomes false after nested child removal | elementStyleRecomputations=5, elementStyleNoopRecomputations=1
+PASS: detached pseudo-element child mutation: part-shadow-host-internal: :has(> .wrapper > .hit) becomes false after nested child removal | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-host-internal: :has(.hit) after replaceWith matching child | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: part-shadow-host-internal: :has(.hit) after replaceWith matching child | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-host-internal: :has(.hit) becomes false after replaceWith nonmatching child | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
-PASS: detached pseudo-element child mutation: part-shadow-host-internal: :has(.hit) becomes false after replaceWith nonmatching child | elementStyleRecomputations=5, elementStyleNoopRecomputations=1
+PASS: detached pseudo-element child mutation: part-shadow-host-internal: :has(.hit) becomes false after replaceWith nonmatching child | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-host-internal: :has(.hit) after cloned child append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: part-shadow-host-internal: :has(.hit) after cloned child append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-host-internal: :has(.hit) after fragment replaceChildren | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
@@ -388,7 +388,7 @@ PASS: detached pseudo-element child mutation: part-shadow-host-internal: :has(:n
 PASS: detached child mutation: part-shadow-ancestor: :empty becomes false after element append
 PASS: detached pseudo-element child mutation: part-shadow-ancestor: :empty becomes false after element append
 PASS: detached child mutation: part-shadow-ancestor: :empty becomes false after textContent | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
-PASS: detached pseudo-element child mutation: part-shadow-ancestor: :empty becomes false after textContent | elementStyleRecomputations=4, elementStyleNoopRecomputations=1
+PASS: detached pseudo-element child mutation: part-shadow-ancestor: :empty becomes false after textContent | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-ancestor: :has(.hit) after direct child append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: part-shadow-ancestor: :has(.hit) after direct child append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-ancestor: :has(.hit) after DocumentFragment append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
@@ -404,7 +404,7 @@ PASS: detached pseudo-element child mutation: part-shadow-ancestor: :has(> .hit:
 PASS: detached child mutation: part-shadow-ancestor: :has(> .hit:first-child) after insertBefore | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: part-shadow-ancestor: :has(> .hit:first-child) after insertBefore | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-ancestor: :has(> .hit) ignores nested child append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
-PASS: detached pseudo-element child mutation: part-shadow-ancestor: :has(> .hit) ignores nested child append | elementStyleRecomputations=6, elementStyleNoopRecomputations=1
+PASS: detached pseudo-element child mutation: part-shadow-ancestor: :has(> .hit) ignores nested child append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-ancestor: :has(span.hit) after typed child append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: part-shadow-ancestor: :has(span.hit) after typed child append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-ancestor: :has([data-hit]) after attribute-bearing child append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
@@ -430,7 +430,7 @@ PASS: detached pseudo-element child mutation: part-shadow-ancestor: :has(.hit ~ 
 PASS: detached child mutation: part-shadow-ancestor: :has(> .wrapper > .hit) after nested structure append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: part-shadow-ancestor: :has(> .wrapper > .hit) after nested structure append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-ancestor: :not(:has(.hit)) becomes false after child append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
-PASS: detached pseudo-element child mutation: part-shadow-ancestor: :not(:has(.hit)) becomes false after child append | elementStyleRecomputations=5, elementStyleNoopRecomputations=1
+PASS: detached pseudo-element child mutation: part-shadow-ancestor: :not(:has(.hit)) becomes false after child append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-ancestor: :has(.hit, .fallback) after first-list child append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: part-shadow-ancestor: :has(.hit, .fallback) after first-list child append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-ancestor: :has(:empty) after empty child append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
@@ -440,11 +440,11 @@ PASS: detached pseudo-element child mutation: part-shadow-ancestor: :has(.hit) a
 PASS: detached child mutation: part-shadow-ancestor: :has(.hit) after replaceChildren | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: part-shadow-ancestor: :has(.hit) after replaceChildren | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-ancestor: :has(.hit) becomes false after child removal | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
-PASS: detached pseudo-element child mutation: part-shadow-ancestor: :has(.hit) becomes false after child removal | elementStyleRecomputations=4, elementStyleNoopRecomputations=1
+PASS: detached pseudo-element child mutation: part-shadow-ancestor: :has(.hit) becomes false after child removal | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-ancestor: :has(.hit) becomes false after removeChild | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
-PASS: detached pseudo-element child mutation: part-shadow-ancestor: :has(.hit) becomes false after removeChild | elementStyleRecomputations=4, elementStyleNoopRecomputations=1
+PASS: detached pseudo-element child mutation: part-shadow-ancestor: :has(.hit) becomes false after removeChild | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-ancestor: :has(.hit) becomes false after child moves out | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
-PASS: detached pseudo-element child mutation: part-shadow-ancestor: :has(.hit) becomes false after child moves out | elementStyleRecomputations=4, elementStyleNoopRecomputations=1
+PASS: detached pseudo-element child mutation: part-shadow-ancestor: :has(.hit) becomes false after child moves out | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-ancestor: :empty becomes true after replaceChildren | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: part-shadow-ancestor: :empty becomes true after replaceChildren | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-ancestor: :empty becomes true after textContent clear | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
@@ -452,7 +452,7 @@ PASS: detached pseudo-element child mutation: part-shadow-ancestor: :empty becom
 PASS: detached child mutation: part-shadow-ancestor: :empty stays true after comment append | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: part-shadow-ancestor: :empty stays true after comment append | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-ancestor: :empty becomes false after whitespace text append | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
-PASS: detached pseudo-element child mutation: part-shadow-ancestor: :empty becomes false after whitespace text append | elementStyleRecomputations=4, elementStyleNoopRecomputations=1
+PASS: detached pseudo-element child mutation: part-shadow-ancestor: :empty becomes false after whitespace text append | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-ancestor: :dir(rtl) after dir=auto text mutation | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: part-shadow-ancestor: :dir(rtl) after dir=auto text mutation | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-ancestor: :has(*) after child append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
@@ -462,7 +462,7 @@ PASS: detached pseudo-element child mutation: part-shadow-ancestor: :has(> *) af
 PASS: detached child mutation: part-shadow-ancestor: :has(:checked) after checked checkbox append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: part-shadow-ancestor: :has(:checked) after checked checkbox append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-ancestor: :has(:checked) becomes false after checked checkbox removal | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
-PASS: detached pseudo-element child mutation: part-shadow-ancestor: :has(:checked) becomes false after checked checkbox removal | elementStyleRecomputations=4, elementStyleNoopRecomputations=1
+PASS: detached pseudo-element child mutation: part-shadow-ancestor: :has(:checked) becomes false after checked checkbox removal | elementStyleRecomputations=3, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-ancestor: :has(:not(:checked)) after unchecked checkbox append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: part-shadow-ancestor: :has(:not(:checked)) after unchecked checkbox append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-ancestor: :has(:enabled) after enabled input append | elementStyleRecomputations=7, elementStyleNoopRecomputations=0
@@ -474,7 +474,7 @@ PASS: detached pseudo-element child mutation: part-shadow-ancestor: :has(:requir
 PASS: detached child mutation: part-shadow-ancestor: :has(:optional) after optional input append | elementStyleRecomputations=7, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: part-shadow-ancestor: :has(:optional) after optional input append | elementStyleRecomputations=7, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-ancestor: :has(:empty) becomes false after text inserted into only child | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
-PASS: detached pseudo-element child mutation: part-shadow-ancestor: :has(:empty) becomes false after text inserted into only child | elementStyleRecomputations=5, elementStyleNoopRecomputations=1
+PASS: detached pseudo-element child mutation: part-shadow-ancestor: :has(:empty) becomes false after text inserted into only child | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-ancestor: :has(:not(:empty)) after non-empty child append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: part-shadow-ancestor: :has(:not(:empty)) after non-empty child append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-ancestor: :has(:dir(rtl)) after dir=auto child append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
@@ -488,7 +488,7 @@ PASS: detached pseudo-element child mutation: part-shadow-ancestor: :has(:any-li
 PASS: detached child mutation: part-shadow-ancestor: :has(:only-child) after only child append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: part-shadow-ancestor: :has(:only-child) after only child append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-ancestor: :has(:only-child) becomes false after sibling append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
-PASS: detached pseudo-element child mutation: part-shadow-ancestor: :has(:only-child) becomes false after sibling append | elementStyleRecomputations=6, elementStyleNoopRecomputations=1
+PASS: detached pseudo-element child mutation: part-shadow-ancestor: :has(:only-child) becomes false after sibling append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-ancestor: :has(:nth-child(2)) after second child append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: part-shadow-ancestor: :has(:nth-child(2)) after second child append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-ancestor: :has(:nth-last-child(2)) after trailing child append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
@@ -510,7 +510,7 @@ PASS: detached pseudo-element child mutation: part-shadow-ancestor: :has(> .oute
 PASS: detached child mutation: part-shadow-ancestor: :has(> .outer > .middle > .hit) after exact deep append | elementStyleRecomputations=6, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: part-shadow-ancestor: :has(> .outer > .middle > .hit) after exact deep append | elementStyleRecomputations=6, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-ancestor: :has(.miss .hit) ignores hit without required ancestor | elementStyleRecomputations=6, elementStyleNoopRecomputations=0
-PASS: detached pseudo-element child mutation: part-shadow-ancestor: :has(.miss .hit) ignores hit without required ancestor | elementStyleRecomputations=7, elementStyleNoopRecomputations=1
+PASS: detached pseudo-element child mutation: part-shadow-ancestor: :has(.miss .hit) ignores hit without required ancestor | elementStyleRecomputations=6, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-ancestor: :has(.before + .hit) after adjacent pair append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: part-shadow-ancestor: :has(.before + .hit) after adjacent pair append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-ancestor: :has(.before ~ .hit) after separated sibling append | elementStyleRecomputations=6, elementStyleNoopRecomputations=0
@@ -522,7 +522,7 @@ PASS: detached pseudo-element child mutation: part-shadow-ancestor: :has(.hit ~ 
 PASS: detached child mutation: part-shadow-ancestor: :has(.hit:only-child) after only child append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: part-shadow-ancestor: :has(.hit:only-child) after only child append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-ancestor: :has(.hit:only-child) becomes false after sibling append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
-PASS: detached pseudo-element child mutation: part-shadow-ancestor: :has(.hit:only-child) becomes false after sibling append | elementStyleRecomputations=6, elementStyleNoopRecomputations=1
+PASS: detached pseudo-element child mutation: part-shadow-ancestor: :has(.hit:only-child) becomes false after sibling append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-ancestor: :has(.hit:nth-last-child(1)) after last child append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: part-shadow-ancestor: :has(.hit:nth-last-child(1)) after last child append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-ancestor: :has(.hit:nth-last-child(2)) after trailing child append | elementStyleRecomputations=6, elementStyleNoopRecomputations=0
@@ -532,7 +532,7 @@ PASS: detached pseudo-element child mutation: part-shadow-ancestor: :has(.hit:nt
 PASS: detached child mutation: part-shadow-ancestor: :has(.hit:only-of-type) after only typed child append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: part-shadow-ancestor: :has(.hit:only-of-type) after only typed child append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-ancestor: :has(.hit:only-of-type) becomes false after same type sibling append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
-PASS: detached pseudo-element child mutation: part-shadow-ancestor: :has(.hit:only-of-type) becomes false after same type sibling append | elementStyleRecomputations=6, elementStyleNoopRecomputations=1
+PASS: detached pseudo-element child mutation: part-shadow-ancestor: :has(.hit:only-of-type) becomes false after same type sibling append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-ancestor: :has(:is(.hit, .fallback)) after second-list child append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: part-shadow-ancestor: :has(:is(.hit, .fallback)) after second-list child append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-ancestor: :has(:where(.hit, .fallback)) after second-list child append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
@@ -548,23 +548,23 @@ PASS: detached pseudo-element child mutation: part-shadow-ancestor: :not(:has(.m
 PASS: detached child mutation: part-shadow-ancestor: :has(.hit:not(:empty)) after non-empty child append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: part-shadow-ancestor: :has(.hit:not(:empty)) after non-empty child append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-ancestor: :has(.hit:empty) becomes false after nested text append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
-PASS: detached pseudo-element child mutation: part-shadow-ancestor: :has(.hit:empty) becomes false after nested text append | elementStyleRecomputations=5, elementStyleNoopRecomputations=1
+PASS: detached pseudo-element child mutation: part-shadow-ancestor: :has(.hit:empty) becomes false after nested text append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-ancestor: :has(.hit) after append with multiple arguments | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: part-shadow-ancestor: :has(.hit) after append with multiple arguments | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-ancestor: :has(.hit:first-child + .after) after prepend before existing child | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: part-shadow-ancestor: :has(.hit:first-child + .after) after prepend before existing child | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-ancestor: :has(.hit:last-child) becomes false after trailing sibling append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
-PASS: detached pseudo-element child mutation: part-shadow-ancestor: :has(.hit:last-child) becomes false after trailing sibling append | elementStyleRecomputations=6, elementStyleNoopRecomputations=1
+PASS: detached pseudo-element child mutation: part-shadow-ancestor: :has(.hit:last-child) becomes false after trailing sibling append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-ancestor: :has(.hit + .after) becomes false after middle child removal | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
-PASS: detached pseudo-element child mutation: part-shadow-ancestor: :has(.hit + .after) becomes false after middle child removal | elementStyleRecomputations=5, elementStyleNoopRecomputations=1
+PASS: detached pseudo-element child mutation: part-shadow-ancestor: :has(.hit + .after) becomes false after middle child removal | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-ancestor: :has(.hit ~ .after) becomes false after following child removal | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
-PASS: detached pseudo-element child mutation: part-shadow-ancestor: :has(.hit ~ .after) becomes false after following child removal | elementStyleRecomputations=6, elementStyleNoopRecomputations=1
+PASS: detached pseudo-element child mutation: part-shadow-ancestor: :has(.hit ~ .after) becomes false after following child removal | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-ancestor: :has(> .wrapper > .hit) becomes false after nested child removal | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
-PASS: detached pseudo-element child mutation: part-shadow-ancestor: :has(> .wrapper > .hit) becomes false after nested child removal | elementStyleRecomputations=5, elementStyleNoopRecomputations=1
+PASS: detached pseudo-element child mutation: part-shadow-ancestor: :has(> .wrapper > .hit) becomes false after nested child removal | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-ancestor: :has(.hit) after replaceWith matching child | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: part-shadow-ancestor: :has(.hit) after replaceWith matching child | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-ancestor: :has(.hit) becomes false after replaceWith nonmatching child | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
-PASS: detached pseudo-element child mutation: part-shadow-ancestor: :has(.hit) becomes false after replaceWith nonmatching child | elementStyleRecomputations=5, elementStyleNoopRecomputations=1
+PASS: detached pseudo-element child mutation: part-shadow-ancestor: :has(.hit) becomes false after replaceWith nonmatching child | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-ancestor: :has(.hit) after cloned child append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: part-shadow-ancestor: :has(.hit) after cloned child append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-ancestor: :has(.hit) after fragment replaceChildren | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
@@ -580,7 +580,7 @@ PASS: detached pseudo-element child mutation: part-shadow-ancestor: :has(:nth-ch
 PASS: detached child mutation: part-shadow-host-ancestor: :empty becomes false after element append
 PASS: detached pseudo-element child mutation: part-shadow-host-ancestor: :empty becomes false after element append
 PASS: detached child mutation: part-shadow-host-ancestor: :empty becomes false after textContent | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
-PASS: detached pseudo-element child mutation: part-shadow-host-ancestor: :empty becomes false after textContent | elementStyleRecomputations=5, elementStyleNoopRecomputations=1
+PASS: detached pseudo-element child mutation: part-shadow-host-ancestor: :empty becomes false after textContent | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-host-ancestor: :has(.hit) after direct child append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: part-shadow-host-ancestor: :has(.hit) after direct child append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-host-ancestor: :has(.hit) after DocumentFragment append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
@@ -596,7 +596,7 @@ PASS: detached pseudo-element child mutation: part-shadow-host-ancestor: :has(> 
 PASS: detached child mutation: part-shadow-host-ancestor: :has(> .hit:first-child) after insertBefore | elementStyleRecomputations=6, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: part-shadow-host-ancestor: :has(> .hit:first-child) after insertBefore | elementStyleRecomputations=6, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-host-ancestor: :has(> .hit) ignores nested child append | elementStyleRecomputations=6, elementStyleNoopRecomputations=0
-PASS: detached pseudo-element child mutation: part-shadow-host-ancestor: :has(> .hit) ignores nested child append | elementStyleRecomputations=7, elementStyleNoopRecomputations=1
+PASS: detached pseudo-element child mutation: part-shadow-host-ancestor: :has(> .hit) ignores nested child append | elementStyleRecomputations=6, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-host-ancestor: :has(span.hit) after typed child append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: part-shadow-host-ancestor: :has(span.hit) after typed child append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-host-ancestor: :has([data-hit]) after attribute-bearing child append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
@@ -622,7 +622,7 @@ PASS: detached pseudo-element child mutation: part-shadow-host-ancestor: :has(.h
 PASS: detached child mutation: part-shadow-host-ancestor: :has(> .wrapper > .hit) after nested structure append | elementStyleRecomputations=6, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: part-shadow-host-ancestor: :has(> .wrapper > .hit) after nested structure append | elementStyleRecomputations=6, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-host-ancestor: :not(:has(.hit)) becomes false after child append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
-PASS: detached pseudo-element child mutation: part-shadow-host-ancestor: :not(:has(.hit)) becomes false after child append | elementStyleRecomputations=6, elementStyleNoopRecomputations=1
+PASS: detached pseudo-element child mutation: part-shadow-host-ancestor: :not(:has(.hit)) becomes false after child append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-host-ancestor: :has(.hit, .fallback) after first-list child append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: part-shadow-host-ancestor: :has(.hit, .fallback) after first-list child append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-host-ancestor: :has(:empty) after empty child append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
@@ -632,11 +632,11 @@ PASS: detached pseudo-element child mutation: part-shadow-host-ancestor: :has(.h
 PASS: detached child mutation: part-shadow-host-ancestor: :has(.hit) after replaceChildren | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: part-shadow-host-ancestor: :has(.hit) after replaceChildren | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-host-ancestor: :has(.hit) becomes false after child removal | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
-PASS: detached pseudo-element child mutation: part-shadow-host-ancestor: :has(.hit) becomes false after child removal | elementStyleRecomputations=5, elementStyleNoopRecomputations=1
+PASS: detached pseudo-element child mutation: part-shadow-host-ancestor: :has(.hit) becomes false after child removal | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-host-ancestor: :has(.hit) becomes false after removeChild | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
-PASS: detached pseudo-element child mutation: part-shadow-host-ancestor: :has(.hit) becomes false after removeChild | elementStyleRecomputations=5, elementStyleNoopRecomputations=1
+PASS: detached pseudo-element child mutation: part-shadow-host-ancestor: :has(.hit) becomes false after removeChild | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-host-ancestor: :has(.hit) becomes false after child moves out | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
-PASS: detached pseudo-element child mutation: part-shadow-host-ancestor: :has(.hit) becomes false after child moves out | elementStyleRecomputations=5, elementStyleNoopRecomputations=1
+PASS: detached pseudo-element child mutation: part-shadow-host-ancestor: :has(.hit) becomes false after child moves out | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-host-ancestor: :empty becomes true after replaceChildren | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: part-shadow-host-ancestor: :empty becomes true after replaceChildren | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-host-ancestor: :empty becomes true after textContent clear | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
@@ -644,7 +644,7 @@ PASS: detached pseudo-element child mutation: part-shadow-host-ancestor: :empty 
 PASS: detached child mutation: part-shadow-host-ancestor: :empty stays true after comment append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: part-shadow-host-ancestor: :empty stays true after comment append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-host-ancestor: :empty becomes false after whitespace text append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
-PASS: detached pseudo-element child mutation: part-shadow-host-ancestor: :empty becomes false after whitespace text append | elementStyleRecomputations=5, elementStyleNoopRecomputations=1
+PASS: detached pseudo-element child mutation: part-shadow-host-ancestor: :empty becomes false after whitespace text append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-host-ancestor: :dir(rtl) after dir=auto text mutation | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: part-shadow-host-ancestor: :dir(rtl) after dir=auto text mutation | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-host-ancestor: :has(*) after child append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
@@ -654,7 +654,7 @@ PASS: detached pseudo-element child mutation: part-shadow-host-ancestor: :has(> 
 PASS: detached child mutation: part-shadow-host-ancestor: :has(:checked) after checked checkbox append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: part-shadow-host-ancestor: :has(:checked) after checked checkbox append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-host-ancestor: :has(:checked) becomes false after checked checkbox removal | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
-PASS: detached pseudo-element child mutation: part-shadow-host-ancestor: :has(:checked) becomes false after checked checkbox removal | elementStyleRecomputations=5, elementStyleNoopRecomputations=1
+PASS: detached pseudo-element child mutation: part-shadow-host-ancestor: :has(:checked) becomes false after checked checkbox removal | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-host-ancestor: :has(:not(:checked)) after unchecked checkbox append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: part-shadow-host-ancestor: :has(:not(:checked)) after unchecked checkbox append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-host-ancestor: :has(:enabled) after enabled input append | elementStyleRecomputations=8, elementStyleNoopRecomputations=0
@@ -666,7 +666,7 @@ PASS: detached pseudo-element child mutation: part-shadow-host-ancestor: :has(:r
 PASS: detached child mutation: part-shadow-host-ancestor: :has(:optional) after optional input append | elementStyleRecomputations=8, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: part-shadow-host-ancestor: :has(:optional) after optional input append | elementStyleRecomputations=8, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-host-ancestor: :has(:empty) becomes false after text inserted into only child | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
-PASS: detached pseudo-element child mutation: part-shadow-host-ancestor: :has(:empty) becomes false after text inserted into only child | elementStyleRecomputations=6, elementStyleNoopRecomputations=1
+PASS: detached pseudo-element child mutation: part-shadow-host-ancestor: :has(:empty) becomes false after text inserted into only child | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-host-ancestor: :has(:not(:empty)) after non-empty child append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: part-shadow-host-ancestor: :has(:not(:empty)) after non-empty child append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-host-ancestor: :has(:dir(rtl)) after dir=auto child append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
@@ -680,7 +680,7 @@ PASS: detached pseudo-element child mutation: part-shadow-host-ancestor: :has(:a
 PASS: detached child mutation: part-shadow-host-ancestor: :has(:only-child) after only child append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: part-shadow-host-ancestor: :has(:only-child) after only child append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-host-ancestor: :has(:only-child) becomes false after sibling append | elementStyleRecomputations=6, elementStyleNoopRecomputations=0
-PASS: detached pseudo-element child mutation: part-shadow-host-ancestor: :has(:only-child) becomes false after sibling append | elementStyleRecomputations=7, elementStyleNoopRecomputations=1
+PASS: detached pseudo-element child mutation: part-shadow-host-ancestor: :has(:only-child) becomes false after sibling append | elementStyleRecomputations=6, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-host-ancestor: :has(:nth-child(2)) after second child append | elementStyleRecomputations=6, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: part-shadow-host-ancestor: :has(:nth-child(2)) after second child append | elementStyleRecomputations=6, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-host-ancestor: :has(:nth-last-child(2)) after trailing child append | elementStyleRecomputations=6, elementStyleNoopRecomputations=0
@@ -702,7 +702,7 @@ PASS: detached pseudo-element child mutation: part-shadow-host-ancestor: :has(> 
 PASS: detached child mutation: part-shadow-host-ancestor: :has(> .outer > .middle > .hit) after exact deep append | elementStyleRecomputations=7, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: part-shadow-host-ancestor: :has(> .outer > .middle > .hit) after exact deep append | elementStyleRecomputations=7, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-host-ancestor: :has(.miss .hit) ignores hit without required ancestor | elementStyleRecomputations=7, elementStyleNoopRecomputations=0
-PASS: detached pseudo-element child mutation: part-shadow-host-ancestor: :has(.miss .hit) ignores hit without required ancestor | elementStyleRecomputations=8, elementStyleNoopRecomputations=1
+PASS: detached pseudo-element child mutation: part-shadow-host-ancestor: :has(.miss .hit) ignores hit without required ancestor | elementStyleRecomputations=7, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-host-ancestor: :has(.before + .hit) after adjacent pair append | elementStyleRecomputations=6, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: part-shadow-host-ancestor: :has(.before + .hit) after adjacent pair append | elementStyleRecomputations=6, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-host-ancestor: :has(.before ~ .hit) after separated sibling append | elementStyleRecomputations=7, elementStyleNoopRecomputations=0
@@ -714,7 +714,7 @@ PASS: detached pseudo-element child mutation: part-shadow-host-ancestor: :has(.h
 PASS: detached child mutation: part-shadow-host-ancestor: :has(.hit:only-child) after only child append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: part-shadow-host-ancestor: :has(.hit:only-child) after only child append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-host-ancestor: :has(.hit:only-child) becomes false after sibling append | elementStyleRecomputations=6, elementStyleNoopRecomputations=0
-PASS: detached pseudo-element child mutation: part-shadow-host-ancestor: :has(.hit:only-child) becomes false after sibling append | elementStyleRecomputations=7, elementStyleNoopRecomputations=1
+PASS: detached pseudo-element child mutation: part-shadow-host-ancestor: :has(.hit:only-child) becomes false after sibling append | elementStyleRecomputations=6, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-host-ancestor: :has(.hit:nth-last-child(1)) after last child append | elementStyleRecomputations=6, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: part-shadow-host-ancestor: :has(.hit:nth-last-child(1)) after last child append | elementStyleRecomputations=6, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-host-ancestor: :has(.hit:nth-last-child(2)) after trailing child append | elementStyleRecomputations=7, elementStyleNoopRecomputations=0
@@ -724,7 +724,7 @@ PASS: detached pseudo-element child mutation: part-shadow-host-ancestor: :has(.h
 PASS: detached child mutation: part-shadow-host-ancestor: :has(.hit:only-of-type) after only typed child append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: part-shadow-host-ancestor: :has(.hit:only-of-type) after only typed child append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-host-ancestor: :has(.hit:only-of-type) becomes false after same type sibling append | elementStyleRecomputations=6, elementStyleNoopRecomputations=0
-PASS: detached pseudo-element child mutation: part-shadow-host-ancestor: :has(.hit:only-of-type) becomes false after same type sibling append | elementStyleRecomputations=7, elementStyleNoopRecomputations=1
+PASS: detached pseudo-element child mutation: part-shadow-host-ancestor: :has(.hit:only-of-type) becomes false after same type sibling append | elementStyleRecomputations=6, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-host-ancestor: :has(:is(.hit, .fallback)) after second-list child append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: part-shadow-host-ancestor: :has(:is(.hit, .fallback)) after second-list child append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-host-ancestor: :has(:where(.hit, .fallback)) after second-list child append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
@@ -740,23 +740,23 @@ PASS: detached pseudo-element child mutation: part-shadow-host-ancestor: :not(:h
 PASS: detached child mutation: part-shadow-host-ancestor: :has(.hit:not(:empty)) after non-empty child append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: part-shadow-host-ancestor: :has(.hit:not(:empty)) after non-empty child append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-host-ancestor: :has(.hit:empty) becomes false after nested text append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
-PASS: detached pseudo-element child mutation: part-shadow-host-ancestor: :has(.hit:empty) becomes false after nested text append | elementStyleRecomputations=6, elementStyleNoopRecomputations=1
+PASS: detached pseudo-element child mutation: part-shadow-host-ancestor: :has(.hit:empty) becomes false after nested text append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-host-ancestor: :has(.hit) after append with multiple arguments | elementStyleRecomputations=6, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: part-shadow-host-ancestor: :has(.hit) after append with multiple arguments | elementStyleRecomputations=6, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-host-ancestor: :has(.hit:first-child + .after) after prepend before existing child | elementStyleRecomputations=6, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: part-shadow-host-ancestor: :has(.hit:first-child + .after) after prepend before existing child | elementStyleRecomputations=6, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-host-ancestor: :has(.hit:last-child) becomes false after trailing sibling append | elementStyleRecomputations=6, elementStyleNoopRecomputations=0
-PASS: detached pseudo-element child mutation: part-shadow-host-ancestor: :has(.hit:last-child) becomes false after trailing sibling append | elementStyleRecomputations=7, elementStyleNoopRecomputations=1
+PASS: detached pseudo-element child mutation: part-shadow-host-ancestor: :has(.hit:last-child) becomes false after trailing sibling append | elementStyleRecomputations=6, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-host-ancestor: :has(.hit + .after) becomes false after middle child removal | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
-PASS: detached pseudo-element child mutation: part-shadow-host-ancestor: :has(.hit + .after) becomes false after middle child removal | elementStyleRecomputations=6, elementStyleNoopRecomputations=1
+PASS: detached pseudo-element child mutation: part-shadow-host-ancestor: :has(.hit + .after) becomes false after middle child removal | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-host-ancestor: :has(.hit ~ .after) becomes false after following child removal | elementStyleRecomputations=6, elementStyleNoopRecomputations=0
-PASS: detached pseudo-element child mutation: part-shadow-host-ancestor: :has(.hit ~ .after) becomes false after following child removal | elementStyleRecomputations=7, elementStyleNoopRecomputations=1
+PASS: detached pseudo-element child mutation: part-shadow-host-ancestor: :has(.hit ~ .after) becomes false after following child removal | elementStyleRecomputations=6, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-host-ancestor: :has(> .wrapper > .hit) becomes false after nested child removal | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
-PASS: detached pseudo-element child mutation: part-shadow-host-ancestor: :has(> .wrapper > .hit) becomes false after nested child removal | elementStyleRecomputations=6, elementStyleNoopRecomputations=1
+PASS: detached pseudo-element child mutation: part-shadow-host-ancestor: :has(> .wrapper > .hit) becomes false after nested child removal | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-host-ancestor: :has(.hit) after replaceWith matching child | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: part-shadow-host-ancestor: :has(.hit) after replaceWith matching child | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-host-ancestor: :has(.hit) becomes false after replaceWith nonmatching child | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
-PASS: detached pseudo-element child mutation: part-shadow-host-ancestor: :has(.hit) becomes false after replaceWith nonmatching child | elementStyleRecomputations=6, elementStyleNoopRecomputations=1
+PASS: detached pseudo-element child mutation: part-shadow-host-ancestor: :has(.hit) becomes false after replaceWith nonmatching child | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-host-ancestor: :has(.hit) after cloned child append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: part-shadow-host-ancestor: :has(.hit) after cloned child append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: detached child mutation: part-shadow-host-ancestor: :has(.hit) after fragment replaceChildren | elementStyleRecomputations=5, elementStyleNoopRecomputations=0

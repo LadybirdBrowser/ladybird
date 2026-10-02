@@ -1,4 +1,4 @@
-records computed: 2
+records computed: 5
 transactions: 3
 reader: rgb(0, 0, 255)
 reader: rgb(0, 0, 255)

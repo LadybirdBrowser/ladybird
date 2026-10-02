@@ -1,4 +1,4 @@
-inherit() in a custom property: substitution refusals 0, environment refusals 0, C++ recomputations 1, value 3px
+inherit() in a custom property: substitution refusals 0, environment refusals 0, C++ recomputations 0, value 3px
 inherit() in a longhand: substitution refusals 0, environment refusals 0, C++ recomputations 0, value 3px
 if(media()): substitution refusals 0, environment refusals 0, C++ recomputations 0, value 10px
 if(supports()): substitution refusals 0, environment refusals 0, C++ recomputations 0, value 10px
@@ -9,7 +9,7 @@ env(): substitution refusals 0, environment refusals 0, C++ recomputations 0, va
 custom function: substitution refusals 0, environment refusals 0, C++ recomputations 0, value 10px
 custom function with @media: substitution refusals 0, environment refusals 0, C++ recomputations 0, value 10px
 custom function with @container: substitution refusals 0, environment refusals 0, C++ recomputations 0, value 10px
-registered <length> in em: substitution refusals 0, environment refusals 0, C++ recomputations 1, value 30px
+registered <length> in em: substitution refusals 0, environment refusals 0, C++ recomputations 0, value 30px
 random() shared: substitution refusals 0, environment refusals 0, C++ recomputations 0, value a length
 random() per element: substitution refusals 0, environment refusals 0, C++ recomputations 0, value a length
 mixed: substitution refusals 0, environment refusals 0, C++ recomputations 0, value 3px

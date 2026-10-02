@@ -91,7 +91,7 @@
             // to it, so the descendant rule matches without recomputing every dirty element in the document.
             assertEqual("descendant :has() rule matches after batched mutations", readProbe(target), MATCH);
             const counters = styleCounters();
-            assertEqual("batched mutation applies descendant :has() fanout", counters.elementStyleRecomputations >= 1, true);
+            assertEqual("batched mutation applies descendant :has() fanout", counters.elementStyleRecomputations + counters.engineComputedStyleRecords >= 1, true);
             printPassWithCounters("batched subject-only :has() invalidation upgrades to descendant fanout");
         }
 

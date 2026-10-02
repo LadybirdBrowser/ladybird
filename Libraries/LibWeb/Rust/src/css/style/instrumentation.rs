@@ -156,7 +156,6 @@ define_counters! {
     EngineComputedRecordBailPseudoFlip => "engineComputedRecordBailPseudoFlip",
     EngineComputedRecordGateAncestors => "engineComputedRecordGateAncestors",
     EngineComputedLonghandEvaluations => "engineComputedLonghandEvaluations",
-    EngineComputedRecordBailUnchangedWinners => "engineComputedRecordBailUnchangedWinners",
     EngineComputedRecordBailIncompleteWinners => "engineComputedRecordBailIncompleteWinners",
     EngineComputedRecordBailProperty => "engineComputedRecordBailProperty",
     EngineComputedRecordBailWinner => "engineComputedRecordBailWinner",

@@ -62,7 +62,7 @@ PASS: target topology warm: inherited language changes through ancestor | elemen
 PASS: target topology cold: inherited language changes through ancestor | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: target topology detached: inherited language changes through ancestor | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: target topology detached-cold: inherited language changes through ancestor | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
-PASS: target topology warm: custom property changes through ancestor | elementStyleRecomputations=2, elementStyleNoopRecomputations=2
+PASS: target topology warm: custom property changes through ancestor | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: target topology cold: custom property changes through ancestor | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: target topology detached: custom property changes through ancestor | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: target topology detached-cold: custom property changes through ancestor | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
@@ -78,7 +78,7 @@ PASS: target topology warm: slotted target moves into named slot selector | elem
 PASS: target topology cold: slotted target moves into named slot selector | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
 PASS: target topology detached: slotted target moves into named slot selector | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
 PASS: target topology detached-cold: slotted target moves into named slot selector | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
-PASS: target topology warm: part target starts exposing matching part | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
+PASS: target topology warm: part target starts exposing matching part | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: target topology cold: part target starts exposing matching part | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
 PASS: target topology detached: part target starts exposing matching part | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
 PASS: target topology detached-cold: part target starts exposing matching part | elementStyleRecomputations=1, elementStyleNoopRecomputations=0

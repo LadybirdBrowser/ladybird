@@ -1,3 +1,3 @@
 parents switched on: C++ recomputations 0, small --len 20px children 20px 20px, large --len 40px children 40px 40px
-::before switched on: C++ recomputations 1, --len 60px, width 60px
+::before switched on: C++ recomputations 0, --len 60px, width 60px
 first records: C++ recomputations 0, --len 40px, child 40px

@@ -36,7 +36,6 @@
         const afterMutationEngine = internals.styleEngineCounters();
         const recordsWereShared = afterMutationEngine.sharedStyleRecordHits > beforeMutationEngine.sharedStyleRecordHits
             || afterMutationEngine.engineComputedRecordCohortHits > beforeMutationEngine.engineComputedRecordCohortHits;
-        // Not yet: the first edit attaches the edited sheet anew, which moves every answer, so C++ computes the consumers.
         println(`counter-style consumers answered by engine: ${afterMutation.engineComputedStyleRecords - beforeMutation.engineComputedStyleRecords >= targets.length && afterMutation.elementStyleRecomputations === beforeMutation.elementStyleRecomputations}`);
         document.styleSheets[0].cssRules[0].symbols = '"A"';
         println(`all shared consumers restore: ${targets.every((target, index) => target.getBoundingClientRect().width === initialWidths[index])}`);

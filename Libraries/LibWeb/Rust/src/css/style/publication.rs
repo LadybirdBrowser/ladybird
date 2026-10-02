@@ -60,6 +60,19 @@ pub(super) enum ElementAnswer {
     RootInputs(Option<RootFontInputs>),
 }
 
+/// How much of an element's held record a row drives again.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum DriveScope {
+    /// Nothing the record was computed from moved: it stands.
+    Stands,
+    /// Only the custom-property environment the record resolves under moved: it takes this one.
+    Environment(u64),
+    /// The moved winners are driven again over the record.
+    Partial,
+    /// Every phase is driven again from the current inputs, against the parent as it is now.
+    Full,
+}
+
 impl ElementAnswer {
     /// The delta of a computation that was no root-input probe.
     fn delta(self) -> RecordDelta {
@@ -545,7 +558,7 @@ impl RetainedState {
         node: StyleNodeID,
         mut cascade_winners_are_complete: bool,
         exact_flipped_rules: Option<FlippedRules>,
-        mut parent_inputs_moved: ParentInputsMoved,
+        parent_inputs_moved: ParentInputsMoved,
         full_drive_reason: Option<FullDriveReason>,
         scratch: &mut EngineComputedRecordScratch,
         goal: FontDriveGoal,
@@ -767,93 +780,69 @@ impl RetainedState {
             || self.state_reads_beyond_environment(node, state)
             || self.record_reads_sibling_position(node, state)
             || self.record_rolls_back_substitution(node);
-        if delta.is_empty() {
-            // The winners the record was computed from are the winners now. When everything else
-            // the record was computed from is as it was too - the document environment, the rules
-            // that flipped (custom properties are no winners), the parent's inherited style and
-            // custom-property environment - the record stands, and the reaction may still move a
-            // pseudo-element. The state has to hold the flips: a row this flush published holds
-            // the cascade of the node's current answer. Anything else recomputes in C++.
-            let flips_are_reflected = exact_flipped_rules.is_some_and(|flipped| {
-                !flipped.element || self.current_winner_groups().row_stamp(node) == Some(self.flush_stamp)
-            });
-            if !flips_are_reflected {
-                counters.bump(Counter::EngineComputedRecordBailUnchangedWinners);
-                // The document element's own record stays with C++, but nothing here says its
-                // font inputs moved: keep the host's root-metric route rather than declaring the
-                // root's computation unsupported, which takes every descendant with it.
-                if goal == FontDriveGoal::RootInputs {
-                    return Ok(ElementAnswer::RootInputs(None));
-                }
-                return Err(Unanswered::Refused);
-            }
-            // The winners stand while the parent's inherited style or display moved under the
-            // record: it is driven again in full against the parent as it is now. The record
-            // does not say which parent display it was transformed under, and a winner's own
-            // value may read the parent (a relative length, an inherit keyword).
-            if !parent_inputs_moved.any() && !root_inputs_moved && !drive_in_full {
-                // A declaration in an inherited payload group does not prove that the other
-                // properties in that group still inherit from the current parent. Re-drive the
-                // record in full when its payloads cannot prove the relationship, unless all that
-                // moved is what the element's pseudo-elements read.
-                if scratch.pseudo_inputs_alone || self.record_inherits_from_current_parent(node, state, 0) {
-                    if goal == FontDriveGoal::RootInputs {
-                        // NB: This proof covers the retained font, without publishing the root's
-                        //     remaining properties or custom-property environment during preparation.
-                        return Ok(ElementAnswer::RootInputs(Some(
-                            self.root_font_inputs_from_record(old_style_record).or_refused()?,
-                        )));
-                    }
-                    // Only the environment moved: the record keeps its groups and takes the new one.
-                    // A record reading its place among its siblings is driven in full, so one that
-                    // stands reads none.
-                    if let Some(environment) = environment {
-                        let delta = self
-                            .computed_group_sets
-                            .republish_engine_record_with_environment(node, environment)
-                            .expect("an assigned record without an overlay moves to any environment");
-                        counters.bump(Counter::EngineComputedRecordUnchangedWinners);
-                        self.note_engine_computed_record(node, delta, (generation, state), false, 0, 0, counters)
-                            .owes_a_transition_step = owes_a_transition_step && delta.0 != delta.1;
-                        return Ok(ElementAnswer::Delta(delta));
-                    }
-                    counters.bump(Counter::EngineComputedRecordUnchangedWinners);
-                    counters.bump(Counter::CascadeWinnerDeltaStops);
-                    self.note_engine_computed_record(
-                        node,
-                        (old_style_record, old_style_record),
-                        (generation, state),
-                        false,
-                        0,
-                        0,
-                        counters,
-                    );
-                    return Ok(ElementAnswer::Delta((old_style_record, old_style_record)));
-                }
-                let owned_groups = self
-                    .winner_groups
-                    .winners_in_state(state)
-                    .filter_map(|winner| crate::css::property_metadata::property_style_group_index(winner.property))
-                    .fold(0_u32, |mask, group| mask | (1 << group));
-                if !self.record_inherits_from_current_parent(node, state, owned_groups) {
-                    counters.bump(Counter::EngineComputedRecordBailUnchangedWinners);
-                    return Err(Unanswered::Refused);
-                }
-                parent_inputs_moved.inherited_style = true;
-            }
+        // The winners the record was computed from are the winners now when the delta is empty;
+        // the flips the reaction holds are reflected in them once the row holds the cascade of
+        // the node's current answer (custom properties are no winners).
+        let flips_are_reflected = exact_flipped_rules.is_some_and(|flipped| {
+            !flipped.element || self.current_winner_groups().row_stamp(node) == Some(self.flush_stamp)
+        });
+        // The document element's own record stays with C++ when nothing says why it is asked
+        // for, but nothing says its font inputs moved either: keep the host's root-metric route
+        // rather than declaring the root's computation unsupported, which takes every descendant
+        // with it.
+        if goal == FontDriveGoal::RootInputs && delta.is_empty() && !flips_are_reflected {
+            return Ok(ElementAnswer::RootInputs(None));
         }
-        // A moved font-phase longhand reaches every value the font feeds, so the record is driven
-        // through every phase and every group is rebuilt. A moved box-type transformation input
-        // takes the same route, as does a record whose parent inputs moved: the transformation
-        // and the inheritance are part of the full drive, and so does a record whose registered
-        // custom properties moved, which compute against the font the drive settles.
-        let full_drive = parent_inputs_moved.any()
-            || root_inputs_moved
-            || drive_in_full
-            || (has_registered_declarations && environment.is_some())
-            || delta.properties().iter().any(|&property| {
-                !property_computes_in_remaining_phase(property) || property_feeds_box_type_transformation(property)
-            });
+        let scope = self.record_drive_scope(
+            node,
+            state,
+            &delta,
+            flips_are_reflected,
+            parent_inputs_moved.any() || root_inputs_moved || drive_in_full,
+            environment,
+            has_registered_declarations,
+            scratch.pseudo_inputs_alone,
+        );
+        match scope {
+            DriveScope::Stands | DriveScope::Environment(_) if goal == FontDriveGoal::RootInputs => {
+                // NB: This proof covers the retained font, without publishing the root's
+                //     remaining properties or custom-property environment during preparation.
+                return Ok(ElementAnswer::RootInputs(Some(
+                    self.root_font_inputs_from_record(old_style_record).or_refused()?,
+                )));
+            }
+            // A record reading its place among its siblings is driven in full, so one that stands
+            // reads none.
+            DriveScope::Stands => {
+                counters.bump(Counter::EngineComputedRecordUnchangedWinners);
+                counters.bump(Counter::CascadeWinnerDeltaStops);
+                self.note_engine_computed_record(
+                    node,
+                    (old_style_record, old_style_record),
+                    (generation, state),
+                    false,
+                    0,
+                    0,
+                    counters,
+                );
+                return Ok(ElementAnswer::Delta((old_style_record, old_style_record)));
+            }
+            DriveScope::Environment(environment) => {
+                let delta = self
+                    .computed_group_sets
+                    .republish_engine_record_with_environment(node, environment)
+                    .expect("an assigned record without an overlay moves to any environment");
+                counters.bump(Counter::EngineComputedRecordUnchangedWinners);
+                self.note_engine_computed_record(node, delta, (generation, state), false, 0, 0, counters)
+                    .owes_a_transition_step = owes_a_transition_step && delta.0 != delta.1;
+                return Ok(ElementAnswer::Delta(delta));
+            }
+            // Standing winners driven in full for a reason they do not show still stop the
+            // cascade's winner delta.
+            DriveScope::Full if delta.is_empty() => counters.bump(Counter::CascadeWinnerDeltaStops),
+            DriveScope::Partial | DriveScope::Full => {}
+        }
+        let full_drive = scope == DriveScope::Full;
         let delta_property_count = delta.properties().len() as u64;
         // Partial drives can share across parents whose inherited inputs agree. Keep the full
         // parent record in the key when a non-inherited property explicitly inherits, including
@@ -2467,10 +2456,57 @@ impl RetainedState {
         self.settle_computed_memory();
     }
 
-    /// Whether a node's record inherits from the parent it has now: each inherited group outside
-    /// `owned_groups` is the parent's own, no non-inherited property is inherited explicitly, and
-    /// its custom-property environment is the parent's.
-    fn record_inherits_from_current_parent(&self, node: StyleNodeID, state: CascadeStateID, owned_groups: u32) -> bool {
+    /// How much of an element's held record a row drives again, given the winner `delta` since
+    /// the record and whether anything else it was computed from moved (`inputs_moved`: the
+    /// parent's inherited style or display, the root's inputs, or an input that drives in full).
+    #[allow(clippy::too_many_arguments)]
+    fn record_drive_scope(
+        &self,
+        node: StyleNodeID,
+        state: CascadeStateID,
+        delta: &cascade::CascadeWinnerDelta,
+        flips_are_reflected: bool,
+        inputs_moved: bool,
+        environment: Option<u64>,
+        has_registered_declarations: bool,
+        pseudo_inputs_alone: bool,
+    ) -> DriveScope {
+        if delta.is_empty() {
+            // Standing winners leave the record standing when the reaction is the rules that flipped
+            // and nothing else moved, while its inherited groups provably follow the current parent
+            // or all that moved is what the pseudo-elements read. Any other reaction stands for an
+            // input no winner shows, a host's forced recompute (an attribute, a state, an input
+            // type) among them: the record is driven in full from the inputs as they are now.
+            return if flips_are_reflected
+                && !inputs_moved
+                && (pseudo_inputs_alone || self.record_inherits_from_current_parent(node, state))
+            {
+                environment.map_or(DriveScope::Stands, DriveScope::Environment)
+            } else {
+                DriveScope::Full
+            };
+        }
+        // A moved font-phase longhand reaches every value the font feeds, so the record is driven
+        // through every phase and every group is rebuilt. A moved box-type transformation input
+        // takes the same route: the transformation is part of the full drive, and so is a moved
+        // environment under registered custom properties, which compute against the font the drive
+        // settles.
+        if inputs_moved
+            || (has_registered_declarations && environment.is_some())
+            || delta.properties().iter().any(|&property| {
+                !property_computes_in_remaining_phase(property) || property_feeds_box_type_transformation(property)
+            })
+        {
+            DriveScope::Full
+        } else {
+            DriveScope::Partial
+        }
+    }
+
+    /// Whether a node's record inherits from the parent it has now: each inherited group is the
+    /// parent's own, no non-inherited property is inherited explicitly, and its custom-property
+    /// environment is the parent's.
+    fn record_inherits_from_current_parent(&self, node: StyleNodeID, state: CascadeStateID) -> bool {
         let Some(parent) = self.tree.inheritance_parent(node) else {
             return false;
         };
@@ -2478,7 +2514,7 @@ impl RetainedState {
             return false;
         }
         self.computed_group_sets
-            .inherited_groups_follow_parent(node, parent, owned_groups)
+            .inherited_groups_follow_parent(node, parent)
             .unwrap_or(false)
             && self
                 .computed_group_sets

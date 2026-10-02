@@ -1,8 +1,8 @@
 li: 0
 :host > li: 0
-:host(.a) li: 1
-:host([data-priority]) > li: 1
-:host: 1
+:host(.a) li: 0
+:host([data-priority]) > li: 0
+:host: 0
 without the host attribute: rgb(0, 0, 0)
 with the host attribute: rgb(1, 2, 3)
 after removing the host attribute: rgb(0, 0, 0)
