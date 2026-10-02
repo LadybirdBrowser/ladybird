@@ -390,7 +390,7 @@ public:
     InputTraceRecorder& input_trace() { return m_input_trace; }
 
     using MediaContextMenu = Web::MediaContextMenu;
-    void did_request_media_context_menu(UniqueNodeID media_id, HTML::CrossProcessId local_root_id, CSSPixelPoint, ByteString const& target, unsigned modifiers, MediaContextMenu const&, HTML::PreparedNavigationDescriptor);
+    void did_request_media_context_menu(UniqueNodeID media_id, HTML::CrossProcessId local_root_id, CSSPixelPoint, ByteString const& target, unsigned modifiers, MediaContextMenu const&, Optional<HTML::PreparedNavigationDescriptor>);
     void toggle_media_play_state();
     void toggle_media_mute_state();
     void toggle_media_loop_state();
@@ -745,7 +745,7 @@ public:
     virtual void page_did_request_context_menu([[maybe_unused]] HTML::CrossProcessId local_root_id, CSSPixelPoint, ContextMenuForInputEventsTarget, [[maybe_unused]] Optional<Utf16String> misspelled_word, [[maybe_unused]] GC::Ptr<DOM::Range> selected_text_range) { }
     virtual void page_did_request_link_context_menu([[maybe_unused]] HTML::CrossProcessId local_root_id, CSSPixelPoint, HTML::PreparedNavigationDescriptor, [[maybe_unused]] ByteString const& target, [[maybe_unused]] unsigned modifiers, [[maybe_unused]] GC::Ptr<DOM::Range> selected_text_range) { }
     virtual void page_did_request_image_context_menu([[maybe_unused]] HTML::CrossProcessId local_root_id, CSSPixelPoint, HTML::PreparedNavigationDescriptor, [[maybe_unused]] ByteString const& target, [[maybe_unused]] unsigned modifiers, Optional<Gfx::Bitmap const*>) { }
-    virtual void page_did_request_media_context_menu([[maybe_unused]] HTML::CrossProcessId local_root_id, CSSPixelPoint, [[maybe_unused]] ByteString const& target, [[maybe_unused]] unsigned modifiers, Page::MediaContextMenu const&, HTML::PreparedNavigationDescriptor) { }
+    virtual void page_did_request_media_context_menu([[maybe_unused]] HTML::CrossProcessId local_root_id, CSSPixelPoint, [[maybe_unused]] ByteString const& target, [[maybe_unused]] unsigned modifiers, Page::MediaContextMenu const&, Optional<HTML::PreparedNavigationDescriptor>) { }
     virtual void page_did_click_link(HTML::PreparedNavigationDescriptor, [[maybe_unused]] ByteString const& target, [[maybe_unused]] unsigned modifiers) { }
     virtual void page_did_middle_click_link(HTML::PreparedNavigationDescriptor, [[maybe_unused]] ByteString const& target, [[maybe_unused]] unsigned modifiers) { }
     virtual void page_did_request_external_url([[maybe_unused]] URL::URL const& url, [[maybe_unused]] URL::Origin const& initiator_origin, [[maybe_unused]] bool has_transient_activation) { }

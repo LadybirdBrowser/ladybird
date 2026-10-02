@@ -551,7 +551,7 @@ public:
     void did_request_link_context_menu(Badge<WebContentPage>, Gfx::IntPoint content_position, Web::HTML::PreparedNavigationDescriptor, Optional<u64> text_fragment_generation_id);
     void did_generate_text_fragment_url(u64 request_id, Optional<URL::URL>);
     void did_request_image_context_menu(Badge<WebContentPage>, Gfx::IntPoint content_position, Web::HTML::PreparedNavigationDescriptor, Optional<Gfx::ShareableBitmap> bitmap);
-    void did_request_media_context_menu(Badge<WebContentPage>, WebContentPage& requesting_page, Gfx::IntPoint content_position, Web::MediaContextMenu menu, Web::HTML::PreparedNavigationDescriptor);
+    void did_request_media_context_menu(Badge<WebContentPage>, WebContentPage& requesting_page, Gfx::IntPoint content_position, Web::MediaContextMenu menu, Optional<Web::HTML::PreparedNavigationDescriptor>);
     void send_to_media_context_menu_page(Function<void(WebContentPage&)> const&);
 
     void did_request_color_picker(Badge<WebContentPage>, WebContentPage& requesting_page, Color current_color);
@@ -672,6 +672,7 @@ protected:
     void process_next_external_url_request();
     void update_look_up_selected_text_action(Optional<DictionaryLookup> const& lookup, Gfx::IntPoint content_position);
     void request_text_fragment_url(Optional<u64> generation_id);
+    void set_context_menu_url_actions_enabled(bool);
     void request_context_menu_dictionary_lookup(Function<void(Optional<DictionaryLookup> const&)> on_complete);
     NonnullRefPtr<Core::Promise<bool>> select_word_for_dictionary_lookup(Gfx::IntPoint widget_position);
     void reject_pending_selection_requests();

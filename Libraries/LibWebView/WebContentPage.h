@@ -319,7 +319,7 @@ private:
     virtual void did_request_link_context_menu(Web::HTML::CrossProcessId local_root_id, Gfx::IntPoint content_position, Web::HTML::PreparedNavigationDescriptor navigation, ByteString, unsigned, Optional<u64> text_fragment_generation_id) override;
     virtual void did_generate_text_fragment_url(u64 request_id, Optional<URL::URL> url) override;
     virtual void did_request_image_context_menu(Web::HTML::CrossProcessId local_root_id, Gfx::IntPoint content_position, Web::HTML::PreparedNavigationDescriptor navigation, ByteString, unsigned, Optional<Gfx::ShareableBitmap> bitmap) override;
-    virtual void did_request_media_context_menu(Web::HTML::CrossProcessId local_root_id, Gfx::IntPoint content_position, ByteString, unsigned, Web::MediaContextMenu menu, Web::HTML::PreparedNavigationDescriptor navigation) override;
+    virtual void did_request_media_context_menu(Web::HTML::CrossProcessId local_root_id, Gfx::IntPoint content_position, ByteString, unsigned, Web::MediaContextMenu menu, Optional<Web::HTML::PreparedNavigationDescriptor> navigation) override;
     virtual void did_get_highlighted_source(String html) override;
     virtual void did_get_debugger_environments(u64 request_id, Optional<String> error, Vector<DebuggerEnvironment> environments) override;
     virtual void did_evaluate_javascript_in_debugger_frame(u64 request_id, Optional<String> error, DebuggerEvaluationResult result) override;

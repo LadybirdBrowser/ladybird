@@ -4375,6 +4375,7 @@ void ViewImplementation::did_request_page_context_menu(Badge<WebContentPage>, We
             }
 
             if (selected_text_url.has_value() && weak_this->m_selected_text_link_context_menu->on_activation) {
+                weak_this->set_context_menu_url_actions_enabled(true);
                 weak_this->m_context_menu_url = selected_text_url.release_value();
                 weak_this->m_context_menu_navigation.clear();
                 weak_this->m_open_in_new_tab_action->set_text("Open in New Tab"sv);
@@ -4406,6 +4407,7 @@ void ViewImplementation::did_request_link_context_menu(Badge<WebContentPage>, Gf
         if (!weak_this || request_id != weak_this->m_context_menu_request_id)
             return;
 
+        weak_this->set_context_menu_url_actions_enabled(true);
         weak_this->m_context_menu_url = navigation.url;
         weak_this->m_context_menu_navigation = move(navigation);
         weak_this->update_look_up_selected_text_action(lookup, content_position);
@@ -4455,6 +4457,7 @@ void ViewImplementation::did_request_image_context_menu(Badge<WebContentPage>, G
         if (!weak_this || request_id != weak_this->m_context_menu_request_id)
             return;
 
+        weak_this->set_context_menu_url_actions_enabled(true);
         weak_this->m_context_menu_url = navigation.url;
         weak_this->m_context_menu_navigation = move(navigation);
         weak_this->m_image_context_menu_bitmap = move(bitmap);
@@ -4477,7 +4480,16 @@ void ViewImplementation::send_to_media_context_menu_page(Function<void(WebConten
         send(target);
 }
 
-void ViewImplementation::did_request_media_context_menu(Badge<WebContentPage>, WebContentPage& requesting_page, Gfx::IntPoint content_position, Web::MediaContextMenu menu, Web::HTML::PreparedNavigationDescriptor navigation)
+// The context menus share these actions, and only a media element can leave them without a URL to act on.
+void ViewImplementation::set_context_menu_url_actions_enabled(bool enabled)
+{
+    m_open_in_new_tab_action->set_enabled(enabled);
+    m_copy_url_action->set_enabled(enabled);
+    m_open_audio_action->set_enabled(enabled);
+    m_open_video_action->set_enabled(enabled);
+}
+
+void ViewImplementation::did_request_media_context_menu(Badge<WebContentPage>, WebContentPage& requesting_page, Gfx::IntPoint content_position, Web::MediaContextMenu menu, Optional<Web::HTML::PreparedNavigationDescriptor> navigation)
 {
     m_media_context_menu_page = requesting_page;
     auto request_id = ++m_context_menu_request_id;
@@ -4486,7 +4498,8 @@ void ViewImplementation::did_request_media_context_menu(Badge<WebContentPage>, W
         if (!weak_this || request_id != weak_this->m_context_menu_request_id)
             return;
 
-        weak_this->m_context_menu_url = move(menu.media_url);
+        weak_this->set_context_menu_url_actions_enabled(menu.media_url.has_value());
+        weak_this->m_context_menu_url = move(menu.media_url).value_or({});
         weak_this->m_context_menu_navigation = move(navigation);
         weak_this->update_look_up_selected_text_action(lookup, content_position);
 
