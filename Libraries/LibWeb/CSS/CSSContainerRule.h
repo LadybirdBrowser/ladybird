@@ -32,11 +32,6 @@ public:
     virtual ~CSSContainerRule() override;
 
     virtual Utf16String serialized_condition_text() const override;
-    bool matches(DOM::AbstractElement const&) const;
-    bool contains_size_feature() const;
-    bool contains_style_feature() const;
-
-    void mark_element_style_dependencies(DOM::AbstractElement&) const;
 
     Utf16String container_name() const;
     Utf16String container_query() const;
@@ -46,14 +41,9 @@ public:
 
 private:
     CSSContainerRule(RustRule, CSSRuleList&);
-    virtual void visit_edges(GC::Cell::Visitor&) override;
-    virtual void clear_caches() override;
     virtual Utf16String serialized() const override;
-    CSSContainerRule const* find_parent_container_rule() const;
 
     NonnullRefPtr<ContainerConditions> m_conditions;
-    mutable GC::Ptr<CSSContainerRule const> m_cached_parent_container_rule;
-    mutable bool m_parent_container_rule_cache_valid { false };
 };
 
 template<>
