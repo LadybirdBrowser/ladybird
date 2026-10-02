@@ -1017,6 +1017,14 @@ class PermissionStatus;
 
 }
 
+namespace Web::PictureInPicture {
+
+class PictureInPictureController;
+class PictureInPictureEvent;
+class PictureInPictureWindow;
+
+}
+
 namespace Web::Platform {
 
 class Timer;

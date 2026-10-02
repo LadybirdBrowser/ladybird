@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	request Picture-in-Picture requires a user gesture
+Pass	request Picture-in-Picture requires loaded metadata for the video element
+Pass	request Picture-in-Picture requires video track for the video element
+Pass	request Picture-in-Picture resolves on user click

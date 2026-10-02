@@ -74,6 +74,7 @@ public:
 
     // NOTE: The function is wrapped in a GC::HeapFunction immediately.
     void queue_a_media_element_task(Function<void(HTMLMediaElement&)>);
+    Task::Source media_element_event_task_source() const { return m_media_element_event_task_source.source; }
 
     void cancel_the_fetching_process();
     bool is_fetching() const;
@@ -217,8 +218,6 @@ private:
         u64 first;
     };
     using ByteRange = Variant<EntireResource, UntilEnd>;
-
-    Task::Source media_element_event_task_source() const { return m_media_element_event_task_source.source; }
 
     WebIDL::ExceptionOr<void> load_element();
     void select_resource_for_current_load();

@@ -193,6 +193,7 @@ public:
 
     bool headless();
     bool screen_wake_lock_active();
+    Utf16String picture_in_picture_window_state();
 
     bool needs_repaint();
     bool needs_display_list_record();

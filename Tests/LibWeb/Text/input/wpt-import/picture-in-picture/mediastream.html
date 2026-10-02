@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<title>Test mediastream video in Picture-in-Picture</title>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="../resources/testdriver.js"></script>
+<script src="../resources/testdriver-vendor.js"></script>
+<script src="resources/picture-in-picture-helpers.js"></script>
+<body></body>
+<script>
+promise_test(async t => {
+  const canvas = document.createElement('canvas');
+  const video = document.createElement('video');
+  canvas.getContext('2d').fillRect(0, 0, canvas.width, canvas.height);
+  video.muted = true;
+  video.srcObject = canvas.captureStream(60 /* fps */);
+  await video.play();
+
+  return requestPictureInPictureWithTrustedClick(video)
+  .then(pipWindow => {
+    assert_not_equals(pipWindow.width, 0);
+    assert_not_equals(pipWindow.height, 0);
+  });
+}, 'request Picture-in-Picture resolves on user click with Picture-in-Picture window');
+</script>

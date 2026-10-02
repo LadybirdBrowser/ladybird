@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<title>Picture-in-Picture unload-document helper</title>
+<script src="/common/media.js"></script>
+<body></body>
+<script>
+'use strict';
+
+window.video = document.createElement('video');
+window.video.src = getVideoURI('/media/movie_5');
+window.videoReady = new Promise((resolve, reject) => {
+  window.video.onloadedmetadata = () => resolve(window.video);
+  window.video.onerror = reject;
+});
+document.body.appendChild(window.video);
+</script>

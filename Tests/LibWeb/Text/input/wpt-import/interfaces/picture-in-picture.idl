@@ -1,0 +1,41 @@
+// GENERATED CONTENT - DO NOT EDIT
+// Content was automatically extracted by Reffy into webref
+// (https://github.com/w3c/webref)
+// Source: Picture-in-Picture (https://w3c.github.io/picture-in-picture/)
+
+partial interface HTMLVideoElement {
+  [NewObject] Promise<PictureInPictureWindow> requestPictureInPicture();
+
+  attribute EventHandler onenterpictureinpicture;
+  attribute EventHandler onleavepictureinpicture;
+
+  [CEReactions] attribute boolean disablePictureInPicture;
+};
+
+partial interface Document {
+  readonly attribute boolean pictureInPictureEnabled;
+
+  [NewObject] Promise<undefined> exitPictureInPicture();
+};
+
+partial interface mixin DocumentOrShadowRoot {
+  readonly attribute Element? pictureInPictureElement;
+};
+
+[Exposed=Window]
+interface PictureInPictureWindow : EventTarget {
+  readonly attribute long width;
+  readonly attribute long height;
+
+  attribute EventHandler onresize;
+};
+
+[Exposed=Window]
+interface PictureInPictureEvent : Event {
+    constructor(DOMString type, PictureInPictureEventInit eventInitDict);
+    [SameObject] readonly attribute PictureInPictureWindow pictureInPictureWindow;
+};
+
+dictionary PictureInPictureEventInit : EventInit {
+    required PictureInPictureWindow pictureInPictureWindow;
+};

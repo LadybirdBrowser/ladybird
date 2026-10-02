@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	request Picture-in-Picture consumes the user activation, denying a fullscreen request from the same activation

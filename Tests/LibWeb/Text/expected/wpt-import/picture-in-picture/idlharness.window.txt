@@ -1,0 +1,72 @@
+Harness status: OK
+
+Found 67 tests
+
+67 Pass
+Pass	idl_test setup
+Pass	idl_test validation
+Pass	Partial interface HTMLVideoElement: original interface defined
+Pass	Partial interface HTMLVideoElement: member names are unique
+Pass	Partial interface Document: original interface defined
+Pass	Partial interface Document: member names are unique
+Pass	Partial interface mixin DocumentOrShadowRoot: original interface mixin defined
+Pass	Partial interface mixin DocumentOrShadowRoot: member names are unique
+Pass	Partial interface Document[2]: member names are unique
+Pass	Partial interface mixin DocumentOrShadowRoot[2]: member names are unique
+Pass	Partial interface Element: member names are unique
+Pass	Partial interface Document[3]: member names are unique
+Pass	Document includes GlobalEventHandlers: member names are unique
+Pass	HTMLElement includes GlobalEventHandlers: member names are unique
+Pass	HTMLElement includes ElementContentEditable: member names are unique
+Pass	HTMLElement includes HTMLOrSVGElement: member names are unique
+Pass	Document includes NonElementParentNode: member names are unique
+Pass	DocumentFragment includes NonElementParentNode: member names are unique
+Pass	Document includes DocumentOrShadowRoot: member names are unique
+Pass	ShadowRoot includes DocumentOrShadowRoot: member names are unique
+Pass	Document includes ParentNode: member names are unique
+Pass	DocumentFragment includes ParentNode: member names are unique
+Pass	Element includes ParentNode: member names are unique
+Pass	Element includes NonDocumentTypeChildNode: member names are unique
+Pass	Element includes ChildNode: member names are unique
+Pass	Element includes Slottable: member names are unique
+Pass	Document includes XPathEvaluatorBase: member names are unique
+Pass	PictureInPictureWindow interface: existence and properties of interface object
+Pass	PictureInPictureWindow interface object length
+Pass	PictureInPictureWindow interface object name
+Pass	PictureInPictureWindow interface: existence and properties of interface prototype object
+Pass	PictureInPictureWindow interface: existence and properties of interface prototype object's "constructor" property
+Pass	PictureInPictureWindow interface: existence and properties of interface prototype object's @@unscopables property
+Pass	PictureInPictureWindow interface: attribute width
+Pass	PictureInPictureWindow interface: attribute height
+Pass	PictureInPictureWindow interface: attribute onresize
+Pass	PictureInPictureWindow must be primary interface of pipw
+Pass	Stringification of pipw
+Pass	PictureInPictureWindow interface: pipw must inherit property "width" with the proper type
+Pass	PictureInPictureWindow interface: pipw must inherit property "height" with the proper type
+Pass	PictureInPictureWindow interface: pipw must inherit property "onresize" with the proper type
+Pass	PictureInPictureEvent interface: existence and properties of interface object
+Pass	PictureInPictureEvent interface object length
+Pass	PictureInPictureEvent interface object name
+Pass	PictureInPictureEvent interface: existence and properties of interface prototype object
+Pass	PictureInPictureEvent interface: existence and properties of interface prototype object's "constructor" property
+Pass	PictureInPictureEvent interface: existence and properties of interface prototype object's @@unscopables property
+Pass	PictureInPictureEvent interface: attribute pictureInPictureWindow
+Pass	PictureInPictureEvent must be primary interface of new PictureInPictureEvent("type", { pictureInPictureWindow: pipw })
+Pass	Stringification of new PictureInPictureEvent("type", { pictureInPictureWindow: pipw })
+Pass	PictureInPictureEvent interface: new PictureInPictureEvent("type", { pictureInPictureWindow: pipw }) must inherit property "pictureInPictureWindow" with the proper type
+Pass	HTMLVideoElement interface: operation requestPictureInPicture()
+Pass	HTMLVideoElement interface: attribute onenterpictureinpicture
+Pass	HTMLVideoElement interface: attribute onleavepictureinpicture
+Pass	HTMLVideoElement interface: attribute disablePictureInPicture
+Pass	HTMLVideoElement interface: video must inherit property "requestPictureInPicture()" with the proper type
+Pass	HTMLVideoElement interface: video must inherit property "onenterpictureinpicture" with the proper type
+Pass	HTMLVideoElement interface: video must inherit property "onleavepictureinpicture" with the proper type
+Pass	HTMLVideoElement interface: video must inherit property "disablePictureInPicture" with the proper type
+Pass	DocumentOrShadowRoot interface: document must inherit property "pictureInPictureElement" with the proper type
+Pass	Document interface: attribute pictureInPictureEnabled
+Pass	Document interface: operation exitPictureInPicture()
+Pass	Document interface: attribute pictureInPictureElement
+Pass	Document interface: document must inherit property "pictureInPictureEnabled" with the proper type
+Pass	Document interface: document must inherit property "exitPictureInPicture()" with the proper type
+Pass	Document interface: document must inherit property "pictureInPictureElement" with the proper type
+Pass	ShadowRoot interface: attribute pictureInPictureElement
