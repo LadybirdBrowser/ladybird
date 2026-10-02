@@ -18,6 +18,7 @@ use crate::runtime::array::Array;
 use crate::runtime::boolean_object::BooleanObject;
 use crate::runtime::ecmascript_function_object::EcmascriptFunctionObject;
 use crate::runtime::error::Error;
+use crate::runtime::generator_object::GeneratorObject;
 use crate::runtime::native_function::NativeFunction;
 use crate::runtime::number_object::NumberObject;
 use crate::runtime::property_key::PropertyKey;
@@ -302,6 +303,10 @@ fn print_number_object(
     print_value(print_context, Value::from_f64(number_object.number()), seen_objects)
 }
 
+fn print_generator(print_context: &mut PrintContext<'_>, generator: Gc<Object>) -> io::Result<()> {
+    print_type(print_context, generator.class().class_name())
+}
+
 fn is_error_object(object: Gc<Object>) -> bool {
     object.is::<Error>()
 }
@@ -370,8 +375,12 @@ fn print_value(
 
         // NB: Print.cpp goes on to check for the classes the runtime does not have yet, which their units add here in
         //     this order, each printed by the function Print.cpp names after it: RegExpObject, Map, Set, WeakMap,
-        //     WeakSet, WeakRef, DataView, ProxyObject, Promise, ArrayBuffer, GeneratorObject, AsyncGenerator and the
-        //     typed arrays (object.is_typed_array()).
+        //     WeakSet, WeakRef, DataView, ProxyObject, Promise, ArrayBuffer, then GeneratorObject below.
+        if object.is::<GeneratorObject>() {
+            return print_generator(print_context, object);
+        }
+        // NB: After GeneratorObject, Print.cpp checks for AsyncGenerator and the typed arrays
+        //     (object.is_typed_array()), then BooleanObject, NumberObject and StringObject below.
         if let Some(boolean_object) = object.downcast::<BooleanObject>() {
             return print_boolean_object(print_context, boolean_object, seen_objects);
         }

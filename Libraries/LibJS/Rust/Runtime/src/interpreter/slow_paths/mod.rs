@@ -1373,10 +1373,10 @@ impl RuntimeFunctions for Runtime {
     fn set_completion_type(
         vm: &Vm,
         pc: u32,
-        _instruction: &op::SetCompletionType,
+        instruction: &op::SetCompletionType,
         values: &mut op::SetCompletionTypeValues,
     ) -> SlowPathControl {
-        control::set_completion_type(vm, pc, values)
+        control::set_completion_type(vm, pc, instruction, values)
     }
 
     fn debugger(_vm: &Vm, pc: u32, _instruction: &op::Debugger, _values: &mut op::DebuggerValues) -> SlowPathControl {
@@ -1421,5 +1421,18 @@ impl RuntimeFunctions for Runtime {
         _values: &mut op::ThrowConstAssignmentValues,
     ) -> SlowPathControl {
         control::throw_const_assignment(vm, pc)
+    }
+
+    fn r#yield(vm: &Vm, _pc: u32, instruction: &op::Yield, values: &mut op::YieldValues) -> SlowPathControl {
+        control::r#yield(vm, instruction, values)
+    }
+
+    fn yield_iterator_result(
+        vm: &Vm,
+        _pc: u32,
+        instruction: &op::YieldIteratorResult,
+        values: &mut op::YieldIteratorResultValues,
+    ) -> SlowPathControl {
+        control::yield_iterator_result(vm, instruction, values)
     }
 }
