@@ -26,6 +26,7 @@ use crate::runtime::number_object::NumberObject;
 use crate::runtime::promise::{Promise, PromiseState};
 use crate::runtime::property_key::PropertyKey;
 use crate::runtime::proxy_object::ProxyObject;
+use crate::runtime::regexp_object::RegExpObject;
 use crate::runtime::set::Set;
 use crate::runtime::shared_function_instance_data::FunctionKind;
 use crate::runtime::string_object::StringObject;
@@ -417,6 +418,18 @@ fn print_proxy_object(
     print_value(print_context, Value::from_object(proxy_object.handler()), seen_objects)
 }
 
+fn print_regexp_object(print_context: &mut PrintContext<'_>, regexp_object: Gc<RegExpObject>) -> io::Result<()> {
+    print_type(print_context, "RegExp")?;
+    js_out(print_context, " \x1b[34;1m/")?;
+    js_out_utf16_argument(
+        print_context,
+        Utf16View::of_string(&regexp_object.escape_regexp_pattern()),
+    )?;
+    js_out(print_context, "/")?;
+    js_out_utf16_argument(print_context, Utf16View::of_string(&regexp_object.flags()))?;
+    js_out(print_context, "\x1b[0m")
+}
+
 fn print_generator(print_context: &mut PrintContext<'_>, generator: Gc<Object>) -> io::Result<()> {
     print_type(print_context, generator.class().class_name())
 }
@@ -491,9 +504,9 @@ fn print_value(
             return print_error(print_context, object, seen_objects);
         }
 
-        // NB: Print.cpp goes on to check for the classes the runtime does not have yet, which their units add here in
-        //     this order, each printed by the function Print.cpp names after it: RegExpObject here, Map, Set,
-        //     WeakMap, WeakSet and WeakRef below, then DataView, ProxyObject and Promise after them.
+        if let Some(regexp_object) = object.downcast::<RegExpObject>() {
+            return print_regexp_object(print_context, regexp_object);
+        }
         if let Some(map) = object.downcast::<Map>() {
             return print_map(print_context, map, seen_objects);
         }
@@ -509,6 +522,7 @@ fn print_value(
         if let Some(weak_ref) = object.downcast::<WeakRef>() {
             return print_weak_ref(print_context, weak_ref, seen_objects);
         }
+        // NB: Then DataView, which the runtime does not have yet.
         if let Some(proxy_object) = object.downcast::<ProxyObject>() {
             return print_proxy_object(print_context, proxy_object, seen_objects);
         }

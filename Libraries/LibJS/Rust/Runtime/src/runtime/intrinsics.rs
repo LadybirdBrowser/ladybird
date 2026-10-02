@@ -74,6 +74,8 @@ use crate::runtime::property_key::PropertyKey;
 use crate::runtime::proxy_constructor::ProxyConstructor;
 use crate::runtime::realm::Realm;
 use crate::runtime::reflect_object::ReflectObject;
+use crate::runtime::regexp_constructor::RegExpConstructor;
+use crate::runtime::regexp_prototype::RegExpPrototype;
 use crate::runtime::regexp_string_iterator_prototype::RegExpStringIteratorPrototype;
 use crate::runtime::set_constructor::SetConstructor;
 use crate::runtime::set_iterator_prototype::SetIteratorPrototype;
@@ -230,7 +232,7 @@ define_intrinsics! {
     object_prototype: Cell<Option<Gc<Object>>>,
     promise_constructor: Cell<Option<Gc<PromiseConstructor>>>,
     promise_prototype: Cell<Option<Gc<Object>>>,
-    regexp_constructor: Cell<Option<Gc<FunctionObject>>>,
+    regexp_constructor: Cell<Option<Gc<RegExpConstructor>>>,
     regexp_prototype: Cell<Option<Gc<Object>>>,
     set_constructor: Cell<Option<Gc<SetConstructor>>>,
     set_prototype: Cell<Option<Gc<Object>>>,
@@ -501,7 +503,7 @@ builtin_type_accessors! {
     number_prototype, number_constructor: NumberConstructor, initialize_number;
     object_prototype, object_constructor: ObjectConstructor, initialize_object;
     promise_prototype, promise_constructor: PromiseConstructor, initialize_promise;
-    regexp_prototype, regexp_constructor: FunctionObject, initialize_regexp;
+    regexp_prototype, regexp_constructor: RegExpConstructor, initialize_regexp;
     set_prototype, set_constructor: SetConstructor, initialize_set;
     shared_array_buffer_prototype, shared_array_buffer_constructor: FunctionObject, initialize_shared_array_buffer;
     string_prototype, string_constructor: StringConstructor, initialize_string;
@@ -592,6 +594,7 @@ initialize_builtin_types! {
     initialize_number: number_prototype: NumberPrototype, number_constructor: NumberConstructor, Number;
     initialize_object: object_prototype: ObjectPrototype, object_constructor: ObjectConstructor, Object;
     initialize_promise: promise_prototype: PromisePrototype, promise_constructor: PromiseConstructor, Promise;
+    initialize_regexp: regexp_prototype: RegExpPrototype, regexp_constructor: RegExpConstructor, RegExp;
     initialize_set: set_prototype: SetPrototype, set_constructor: SetConstructor, Set;
     initialize_string: string_prototype: StringPrototype, string_constructor: StringConstructor, String;
     initialize_symbol: symbol_prototype: SymbolPrototype, symbol_constructor: SymbolConstructor, Symbol;
@@ -629,7 +632,7 @@ unimplemented_builtin_types! {
     initialize_data_view => "DataView",
     initialize_date => "Date",
     initialize_disposable_stack => "DisposableStack",
-    initialize_regexp => "RegExp",
+
     initialize_shared_array_buffer => "SharedArrayBuffer",
     initialize_suppressed_error => "SuppressedError",
     initialize_typed_array => "%TypedArray%",

@@ -6,14 +6,12 @@
 
 //! The slow paths for literals, iterators, generators and control flow, and their helpers.
 
-use ak::Utf16FlyString;
+use ak::{Utf16FlyString, Utf16String};
 
 use crate::bytecode::executable::StaticPropertyLookupCacheSite;
 use crate::bytecode::op;
 use crate::bytecode::property_access::get_own_property_without_side_effects;
-use crate::interpreter::runtime_functions::{
-    SlowPathControl, asm_try, handle_asm_exception, unimplemented_runtime_function,
-};
+use crate::interpreter::runtime_functions::{SlowPathControl, asm_try, handle_asm_exception};
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
 use crate::layout::execution_context::ExecutionContext;
@@ -36,6 +34,7 @@ use crate::runtime::object::{IndexedStorageKind, IntegrityLevel};
 use crate::runtime::property_attributes::{Attribute, DEFAULT_ATTRIBUTES, PropertyAttributes};
 use crate::runtime::property_key::PropertyKey;
 use crate::runtime::realm::Realm;
+use crate::runtime::regexp_object::RegExpObject;
 use crate::runtime::set::Set;
 use crate::runtime::set_iterator::set_iteration_is_unobservable;
 use crate::utf16::Utf16View;
@@ -314,17 +313,19 @@ pub fn get_template_object(
     SlowPathControl::continue_at(pc + instruction.length())
 }
 
-pub fn new_regexp(vm: &Vm, pc: u32, instruction: &op::NewRegExp) -> SlowPathControl {
+pub fn new_regexp(vm: &Vm, pc: u32, instruction: &op::NewRegExp, values: &mut op::NewRegExpValues) -> SlowPathControl {
+    let realm = current_realm(vm);
     let executable = vm.current_executable();
-    let source = Utf16View::of_fly_string(executable.get_string(instruction.source_index)).to_utf8();
-    let flags = Utf16View::of_fly_string(executable.get_string(instruction.flags_index)).to_utf8();
-    unimplemented_runtime_function(
-        &format!(
-            "RegExpObject::create for the regular expression literal /{source}/{flags}, which needs the regex engine \
-             and %RegExp.prototype%"
-        ),
-        pc,
-    )
+    let regexp_object = RegExpObject::create_with_pattern_and_flags(
+        vm,
+        realm,
+        Utf16String::from(executable.get_string(instruction.source_index)),
+        Utf16String::from(executable.get_string(instruction.flags_index)),
+    );
+    regexp_object.set_realm(realm);
+    regexp_object.set_legacy_features_enabled(true);
+    values.dst = Value::from_object(regexp_object);
+    SlowPathControl::continue_at(pc + op::NewRegExp::LENGTH)
 }
 
 pub fn new_reference_error(
