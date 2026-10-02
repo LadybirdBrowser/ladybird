@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    function nextFrame() {
+        return new Promise(resolve => requestAnimationFrame(resolve));
+    }
+
+    asyncTest(async done => {
+        const iframe = document.createElement("iframe");
+        iframe.srcdoc = '<video src="../../../Assets/test-webm.webm"></video>';
+        const loaded = new Promise(resolve => iframe.addEventListener("load", resolve, { once: true }));
+        document.body.appendChild(iframe);
+        await loaded;
+
+        const video = iframe.contentDocument.querySelector("video");
+        if (video.readyState === HTMLMediaElement.HAVE_NOTHING)
+            await new Promise(resolve => video.addEventListener("loadedmetadata", resolve, { once: true }));
+
+        // The UI process opens the window while the request runs, and the video's document goes away before the window
+        // has been acknowledged as open.
+        iframe.contentWindow.internals.grantTransientActivation();
+        video.requestPictureInPicture();
+        println(`While the window opens: ${internals.pictureInPictureWindowState}`);
+        iframe.remove();
+
+        while (internals.pictureInPictureWindowState === "opening")
+            await nextFrame();
+        println(`Once it has opened: ${internals.pictureInPictureWindowState}`);
+        done();
+    });
+</script>

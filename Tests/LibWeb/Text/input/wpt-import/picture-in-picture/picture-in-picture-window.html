@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<title>Test Picture-in-Picture window</title>
+<meta name="timeout" content="long">
+<script src="../common/media.js"></script>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="../resources/testdriver.js"></script>
+<script src="../resources/testdriver-vendor.js"></script>
+<script src="resources/picture-in-picture-helpers.js"></script>
+<body></body>
+<script>
+promise_test(async t => {
+  const video = await loadVideo();
+  return requestPictureInPictureWithTrustedClick(video)
+  .then(pipWindow => {
+    assert_not_equals(pipWindow.width, 0);
+    assert_not_equals(pipWindow.height, 0);
+    const videoAspectRatio = video.videoWidth / video.videoHeight;
+    const pipWindowAspectRatio = pipWindow.width / pipWindow.height;
+    assert_approx_equals(videoAspectRatio, pipWindowAspectRatio, 0.01);
+  });
+}, 'Picture-in-Picture window dimensions are set after entering Picture-in-Picture');
+
+promise_test(async t => {
+  const video1 = await loadVideo();
+  const video2 = await loadVideo();
+  return requestPictureInPictureWithTrustedClick(video1)
+  .then(pipWindow1 => {
+    return requestPictureInPictureWithTrustedClick(video2)
+    .then(pipWindow2 => {
+      assert_equals(pipWindow1.width, 0);
+      assert_equals(pipWindow1.height, 0);
+      assert_not_equals(pipWindow2.width, 0);
+      assert_not_equals(pipWindow2.height, 0);
+    });
+  });
+}, 'Picture-in-Picture window dimensions are set to 0 after entering ' +
+   'Picture-in-Picture for another video');
+
+promise_test(async t => {
+  const video = await loadVideo();
+
+  video.addEventListener('leavepictureinpicture', t.step_func_done(event => {
+    assert_unreached('leavepictureinpicture event should not fire.')
+  }));
+
+  let enterCounts = 0;
+  video.addEventListener('enterpictureinpicture', event => {
+    enterCounts++;
+  });
+
+  return requestPictureInPictureWithTrustedClick(video)
+  .then(pipWindow1 => {
+    pipWindow1.onresize = function foo() {};
+    return requestPictureInPictureWithTrustedClick(video)
+    .then(pipWindow2 => {
+      assert_equals(pipWindow1, pipWindow2);
+      assert_equals(pipWindow1.width, pipWindow2.width);
+      assert_equals(pipWindow1.height, pipWindow2.height);
+      assert_equals(pipWindow1.onresize, pipWindow2.onresize);
+      assert_equals(enterCounts, 1);
+    });
+  });
+}, 'Picture-in-Picture window is unchanged after entering ' +
+   'Picture-in-Picture for video already in Picture-in-Picture');
+
+promise_test(async t => {
+  const video = await loadVideo();
+
+  return requestPictureInPictureWithTrustedClick(video)
+  .then(pipWindow => {
+    return document.exitPictureInPicture()
+    .then(() => {
+      assert_equals(pipWindow.width, 0);
+      assert_equals(pipWindow.height, 0);
+    });
+  });
+}, 'Picture-in-Picture window dimensions are set to 0 after exiting Picture-in-Picture');
+
+promise_test(async t => {
+  const video = await loadVideo();
+  let thePipWindow;
+
+  video.addEventListener('leavepictureinpicture', t.step_func_done(event => {
+    assert_equals(thePipWindow.width, 0);
+    assert_equals(thePipWindow.height, 0);
+  }));
+
+  return requestPictureInPictureWithTrustedClick(video)
+  .then(pipWindow => {
+    thePipWindow = pipWindow;
+    video.disablePictureInPicture = true;
+  });
+}, 'Picture-in-Picture window dimensions are set to 0 if ' +
+   'disablePictureInPicture becomes true');
+</script>

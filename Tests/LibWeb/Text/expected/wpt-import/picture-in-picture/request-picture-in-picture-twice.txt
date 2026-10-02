@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	request Picture-in-Picture consumes user gesture
+Pass	request Picture-in-Picture does not require user gesture if document.pictureInPictureElement is set

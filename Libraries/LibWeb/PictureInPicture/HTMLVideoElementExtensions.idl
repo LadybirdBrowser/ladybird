@@ -1,4 +1,9 @@
 // https://w3c.github.io/picture-in-picture/#htmlvideoelement-extensions
 partial interface HTMLVideoElement {
+    [NewObject] Promise<PictureInPictureWindow> requestPictureInPicture();
+
+    attribute EventHandler onenterpictureinpicture;
+    attribute EventHandler onleavepictureinpicture;
+
     [CEReactions, Reflect=disablepictureinpicture] attribute boolean disablePictureInPicture;
 };

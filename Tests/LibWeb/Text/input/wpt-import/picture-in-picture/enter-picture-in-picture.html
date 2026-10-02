@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<title>Test enterpictureinpicture event</title>
+<script src="../common/media.js"></script>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="../resources/testdriver.js"></script>
+<script src="../resources/testdriver-vendor.js"></script>
+<script src="resources/picture-in-picture-helpers.js"></script>
+<body></body>
+<script>
+promise_test(async t => {
+  let pictureInPictureWindow;
+  const video = await loadVideo();
+
+  video.addEventListener('enterpictureinpicture', t.step_func_done(event => {
+    pictureInPictureWindow = event.pictureInPictureWindow;
+
+    assert_equals(event.target, video);
+    assert_equals(event.bubbles, true);
+    assert_equals(event.cancelable, false);
+    assert_equals(event.composed, false);
+    assert_equals(document.pictureInPictureElement, video);
+  }));
+
+  return requestPictureInPictureWithTrustedClick(video)
+  .then(pipWindow => {
+    assert_equals(pipWindow, pictureInPictureWindow);
+  })
+});
+</script>

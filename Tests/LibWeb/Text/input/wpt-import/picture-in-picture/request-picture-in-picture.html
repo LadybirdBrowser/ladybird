@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<title>Test request Picture-in-Picture</title>
+<script src="../common/media.js"></script>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="../resources/testdriver.js"></script>
+<script src="../resources/testdriver-vendor.js"></script>
+<script src="resources/picture-in-picture-helpers.js"></script>
+<body></body>
+<script>
+promise_test(async t => {
+  const video = await loadVideo();
+  return promise_rejects_dom(t, 'NotAllowedError', video.requestPictureInPicture());
+}, 'request Picture-in-Picture requires a user gesture');
+
+promise_test(t => {
+  const video = document.createElement('video');
+  return promise_rejects_dom(t, 'InvalidStateError',
+      requestPictureInPictureWithTrustedClick(video));
+}, 'request Picture-in-Picture requires loaded metadata for the video element');
+
+promise_test(async t => {
+  const video = document.createElement('video');
+  await new Promise(resolve => {
+    video.src = getAudioURI('/media/sound_5');
+    video.onloadeddata = resolve;
+  }).then(() => {
+    return promise_rejects_dom(t, 'InvalidStateError',
+      requestPictureInPictureWithTrustedClick(video));
+  })
+}, 'request Picture-in-Picture requires video track for the video element');
+
+promise_test(async t => {
+  const video = await loadVideo();
+  return requestPictureInPictureWithTrustedClick(video);
+}, 'request Picture-in-Picture resolves on user click');
+</script>

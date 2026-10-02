@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<title>Test for Picture-In-Picture and Shadow DOM</title>
+<script src="../common/media.js"></script>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="../resources/testdriver.js"></script>
+<script src="../resources/testdriver-vendor.js"></script>
+<script src="resources/picture-in-picture-helpers.js"></script>
+<script src="../shadow-dom/resources/shadow-dom.js"></script>
+<style>
+  #host2 { color: rgb(0, 0, 254); }
+  #host2:picture-in-picture { color: rgb(0, 0, 255); }
+</style>
+<body>
+<div id='host'>
+  <template data-mode='open' id='root'>
+    <slot></slot>
+  </template>
+  <div id='host2'>
+    <template data-mode='open' id='root2'>
+      <style>
+        #host3 { color: rgb(0, 0, 127); }
+        #host3:picture-in-picture { color: rgb(0, 0, 128); }
+      </style>
+      <div id='host3'>
+        <template data-mode='open' id='root3'>
+          <style>
+            video { color: rgb(0, 254, 0); }
+            video:picture-in-picture { color: rgb(0, 255, 0); }
+          </style>
+          <video id='video'></video>
+          <div id='host4'>
+            <template data-mode='open' id='root4'>
+              <div></div>
+            </template>
+          </div>
+        </template>
+      </div>
+      <div id='host5'>
+        <template data-mode='open' id='root5'>
+          <div></div>
+        </template>
+      </div>
+    </template>
+  </div>
+</div>
+</body>
+<script>
+promise_test(async t => {
+  const ids = createTestTree(host);
+  document.body.appendChild(ids.host);
+
+  assert_equals(document.pictureInPictureElement, null);
+  assert_equals(ids.root.pictureInPictureElement, null);
+  assert_equals(ids.root2.pictureInPictureElement, null);
+  assert_equals(ids.root3.pictureInPictureElement, null);
+  assert_equals(ids.root4.pictureInPictureElement, null);
+  assert_equals(ids.root5.pictureInPictureElement, null);
+
+  assert_equals(getComputedStyle(ids.video).color, 'rgb(0, 254, 0)');
+  assert_equals(getComputedStyle(ids.host3).color, 'rgb(0, 0, 127)');
+  assert_equals(getComputedStyle(ids.host2).color, 'rgb(0, 0, 254)');
+
+  await new Promise(resolve => {
+    ids.video.src = getVideoURI('/media/movie_5');
+    ids.video.onloadeddata = resolve;
+  })
+  .then(() => requestPictureInPictureWithTrustedClick(ids.video))
+  .then(() => {
+    assert_equals(document.pictureInPictureElement, ids.host2);
+    assert_equals(ids.root.pictureInPictureElement, null);
+    assert_equals(ids.root2.pictureInPictureElement, ids.host3);
+    assert_equals(ids.root3.pictureInPictureElement, ids.video);
+    assert_equals(ids.root4.pictureInPictureElement, null);
+    assert_equals(ids.root5.pictureInPictureElement, null);
+
+    assert_equals(getComputedStyle(ids.video).color, 'rgb(0, 255, 0)');
+    assert_equals(getComputedStyle(ids.host3).color, 'rgb(0, 0, 127)');
+    assert_equals(getComputedStyle(ids.host2).color, 'rgb(0, 0, 254)');
+  })
+  .then(() => document.exitPictureInPicture())
+  .then(() => {
+    assert_equals(getComputedStyle(ids.video).color, 'rgb(0, 254, 0)');
+    assert_equals(getComputedStyle(ids.host3).color, 'rgb(0, 0, 127)');
+    assert_equals(getComputedStyle(ids.host2).color, 'rgb(0, 0, 254)');
+  });
+});
+
+async function shadowRootTest(mode) {
+  const video = await loadVideo();
+  const host = document.createElement('div');
+  const shadow = host.attachShadow({ mode });
+  shadow.appendChild(video);
+  await requestPictureInPictureWithTrustedClick(video);
+
+  assert_equals(document.pictureInPictureElement, host,
+    'document.pictureInPictureElement is the disconnected shadow host ' +
+    '(retargeted across the shadow boundary from the unbound video)');
+
+  // Test the step 1 of the pictureInPictureElement getter algorithm:
+  // If this is a shadow root and its host is not connected,
+  // return null and abort these steps.
+  // Which looks odd, given that document.pictureInPictureElement returns non-null.
+  // See https://github.com/w3c/picture-in-picture/pull/253
+  assert_equals(shadow.pictureInPictureElement, null,
+    'shadowRoot.pictureInPictureElement is null while the shadow root\'s ' +
+    'host is not connected');
+
+  return { video, host, shadow };
+}
+
+promise_test(async t => {
+  const { shadow } = await shadowRootTest('open');
+  await document.exitPictureInPicture();
+  assert_equals(document.pictureInPictureElement, null);
+  assert_equals(shadow.pictureInPictureElement, null);
+}, 'Picture-in-Picture on a video inside an open shadow root attached to a ' +
+   'disconnected host');
+
+promise_test(async t => {
+  const { shadow } = await shadowRootTest('closed');
+  await document.exitPictureInPicture();
+  assert_equals(document.pictureInPictureElement, null);
+  assert_equals(shadow.pictureInPictureElement, null);
+}, 'Picture-in-Picture on a video inside a closed shadow root attached to a ' +
+   'disconnected host');
+
+promise_test(async t => {
+  const { video, host, shadow } = await shadowRootTest('open');
+  document.body.appendChild(host);
+
+  assert_equals(document.pictureInPictureElement, host,
+    'after connect: document.pictureInPictureElement is still the host');
+  assert_equals(shadow.pictureInPictureElement, video,
+    'after connect: shadow.pictureInPictureElement is the video, because ' +
+    'the shadow root is now in a composed document and the video is in ' +
+    'this shadow\'s tree');
+
+  await document.exitPictureInPicture();
+  assert_equals(document.pictureInPictureElement, null);
+  assert_equals(shadow.pictureInPictureElement, null);
+}, 'Connecting a previously-disconnected shadow host after Picture-in-Picture ' +
+   'starts exposes the video through shadowRoot.pictureInPictureElement');
+
+// Nested shadow roots where the outermost host is disconnected: retargeting
+// must walk all the way up to the outermost (disconnected) host, and neither
+// inner nor outer shadow root must expose the element because both are
+// outside the composed tree.
+promise_test(async t => {
+  const video = await loadVideo();
+  const outerHost = document.createElement('div');
+  const outerShadow = outerHost.attachShadow({ mode: 'open' });
+  const innerHost = document.createElement('div');
+  outerShadow.appendChild(innerHost);
+  const innerShadow = innerHost.attachShadow({ mode: 'open' });
+  innerShadow.appendChild(video);
+
+  assert_false(outerHost.isConnected);
+  assert_equals(document.pictureInPictureElement, null);
+
+  await requestPictureInPictureWithTrustedClick(video);
+
+  assert_equals(document.pictureInPictureElement, outerHost,
+    'document.pictureInPictureElement is the outermost disconnected host');
+  assert_equals(outerShadow.pictureInPictureElement, null,
+    'outerShadow.pictureInPictureElement is null while the outer host is ' +
+    'not connected');
+  assert_equals(innerShadow.pictureInPictureElement, null,
+    'innerShadow.pictureInPictureElement is null while the outer host is ' +
+    'not connected (the inner shadow is not in a composed document either)');
+
+  await document.exitPictureInPicture();
+}, 'Picture-in-Picture on a video inside nested shadow roots whose outer ' +
+   'host is disconnected');
+</script>

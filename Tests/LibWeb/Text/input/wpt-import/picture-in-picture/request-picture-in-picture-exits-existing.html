@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<title>Test request Picture-in-Picture exits existing element via inline exit algorithm (anticipated spec refactor)</title>
+<meta name="timeout" content="long">
+<script src="../common/media.js"></script>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="../resources/testdriver.js"></script>
+<script src="../resources/testdriver-vendor.js"></script>
+<script src="resources/picture-in-picture-helpers.js"></script>
+<body></body>
+<script>
+
+// Test 1: When video1 enters pip followed by video2 requesting pip
+// video1 should be observed leaving first, before video2 enters.
+promise_test(async t => {
+  const video1 = await loadVideo();
+  const video2 = await loadVideo();
+
+  await requestPictureInPictureWithTrustedClick(video1);
+
+  const events = [];
+  video1.addEventListener('leavepictureinpicture',
+      () => { events.push('leave1'); });
+  video2.addEventListener('enterpictureinpicture',
+      () => { events.push('enter2'); });
+
+  await requestPictureInPictureWithTrustedClick(video2);
+
+  assert_array_equals(events, ['leave1', 'enter2'],
+      'leavepictureinpicture on the displaced element fires before ' +
+      'enterpictureinpicture on the new element, both within the same task');
+}, 'Step 11.5.1 runs the inline exit algorithm, so leavepictureinpicture ' +
+   'fires synchronously before enterpictureinpicture');
+
+// Test 2: When video1 enters pip followed by video2 requesting pip
+// in video1's leavepictureinpicture handler it should be observed that
+// document.pictureInPictureElement is null, unset by video1's exit algorithm
+// and not yet set by video2's enter algorithm.
+promise_test(async t => {
+  const video1 = await loadVideo();
+  const video2 = await loadVideo();
+
+  await requestPictureInPictureWithTrustedClick(video1);
+
+  let pipElementDuringLeave = video1;
+  video1.addEventListener('leavepictureinpicture', () => {
+    pipElementDuringLeave = document.pictureInPictureElement;
+  });
+
+  await requestPictureInPictureWithTrustedClick(video2);
+
+  assert_equals(pipElementDuringLeave, null,
+      'document.pictureInPictureElement is null inside the displaced ' +
+      'element\'s leavepictureinpicture handler (inline exit has unset ' +
+      'it, and 11.5.2 has not yet set it to the new element)');
+}, 'Inline exit algorithm unsets pictureInPictureElement before firing ' +
+   'leavepictureinpicture');
+
+// Test 3: When video1 enters pip followed by video2 requesting pip
+// video2 enterpictureinpicture handler should observe itself having been set
+// as document.pictureInPictureElement
+promise_test(async t => {
+  const video1 = await loadVideo();
+  const video2 = await loadVideo();
+
+  await requestPictureInPictureWithTrustedClick(video1);
+
+  let pipElementDuringEnter = video1;
+  video2.addEventListener('enterpictureinpicture', () => {
+    pipElementDuringEnter = document.pictureInPictureElement;
+  });
+
+  await requestPictureInPictureWithTrustedClick(video2);
+
+  assert_equals(pipElementDuringEnter, video2,
+      'document.pictureInPictureElement is the new element inside its ' +
+      'enterpictureinpicture handler');
+}, 'Step 11.5.2 sets pictureInPictureElement to the new element before ' +
+   'step 11.5.5 fires enterpictureinpicture');
+
+// Test 4: When video1 enters pip followed by video2 requesting pip
+// it's always observed that pipWindow1 has closed before video2's enterpictureinpicture
+// handler runs
+promise_test(async t => {
+  const video1 = await loadVideo();
+  const video2 = await loadVideo();
+
+  const pipWindow1 = await requestPictureInPictureWithTrustedClick(video1);
+  assert_not_equals(pipWindow1.width, 0);
+  assert_not_equals(pipWindow1.height, 0);
+  let enteredPromise = new Promise(r => {
+    video2.addEventListener('enterpictureinpicture', () => {
+      assert_equals(pipWindow1.width, 0,
+          'previous Picture-in-Picture window width is reset to 0');
+      assert_equals(pipWindow1.height, 0,
+          'previous Picture-in-Picture window height is reset to 0');
+      r();
+    });
+  });
+  await requestPictureInPictureWithTrustedClick(video2);
+  await enteredPromise;
+}, 'Inline exit algorithm still runs the close window algorithm on the ' +
+   'displaced Picture-in-Picture window');
+</script>

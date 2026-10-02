@@ -23,6 +23,7 @@ public:
 
     static NonnullOwnPtr<HeadlessWebView> create(Core::AnonymousBuffer theme, Web::DevicePixelSize window_size, IsPrivate = IsPrivate::No);
     static NonnullOwnPtr<HeadlessWebView> create_child(HeadlessWebView&, CanonicalTraversable&);
+    static NonnullOwnPtr<PictureInPictureWindow> create_picture_in_picture_window(HeadlessWebView& requesting_view, CanonicalTraversable&, Gfx::IntSize video_size);
 
     void reset_viewport_size(Web::DevicePixelSize);
 
