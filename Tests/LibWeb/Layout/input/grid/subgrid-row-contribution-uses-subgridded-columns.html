@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<style>
+    body {
+        margin: 0;
+    }
+
+    .grid {
+        display: grid;
+        grid-template-columns: 100px 100px 100px;
+    }
+
+    .subgrid {
+        display: grid;
+        grid-column: 1 / -1;
+        grid-template-columns: subgrid;
+    }
+
+    .cell {
+        height: 20px;
+    }
+</style>
+<div class="grid">
+    <div class="subgrid"><div class="cell"></div><div class="cell"></div><div class="cell"></div></div>
+    <div class="subgrid">
+        <div class="subgrid"><div class="cell"></div><div class="cell"></div><div class="cell"></div></div>
+        <div class="subgrid"><div class="cell"></div><div class="cell"></div><div class="cell"></div></div>
+    </div>
+</div>
