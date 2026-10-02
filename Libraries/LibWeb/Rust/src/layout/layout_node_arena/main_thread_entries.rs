@@ -273,7 +273,7 @@ fn pay_for_write(
     host: &crate::render_state::DocumentHost,
     host_work: crate::layout::tree_mutation::OwedHostWork,
 ) {
-    let arena = crate::render_state::arena_for_unconverted_entry(host.document());
+    let arena = host.arena_for_unconverted_entry();
     // SAFETY: The render state of a live host's document is on this thread, and the write is over.
     host_work.apply(main_thread, unsafe { LayoutNodeArena::from_handle(arena) });
 }

@@ -100,6 +100,7 @@ lockstep_reason!(crate::painting::paint_passes::HostPaintStep);
 lockstep_reason!(crate::layout::text_queries::InputSelectsByWord);
 lockstep_reason!(crate::css::style::engine_calls::EngineDoor);
 lockstep_reason!(crate::layout::LayoutUpdate);
+lockstep_reason!(super::document_host::NewDocument);
 
 /// Where the render side answers a host that waits for it: the slot in the waiting host's frame that the answer moves
 /// into, which the message borrows for as long as the host waits. Only an answer goes through it: a slot left empty
