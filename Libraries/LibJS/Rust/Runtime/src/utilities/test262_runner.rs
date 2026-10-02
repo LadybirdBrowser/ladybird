@@ -23,14 +23,17 @@ use std::os::fd::{FromRawFd, RawFd};
 use std::sync::{Arc, Mutex, PoisonError};
 use std::time::Instant;
 
+use ak::Utf16String;
+
 use crate::contrib::test262::global_object::Test262GlobalObject;
-use crate::interpreter::runtime_functions::unimplemented_runtime_function;
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
 use crate::layout::realm::Realm;
 use crate::layout::value::Value;
 use crate::parser_error::ParserError;
+use crate::runtime::source_text_module::SourceTextModule;
 use crate::script::Script;
+use crate::source_code::SourceCode;
 use crate::utf16::{Utf16View, string_from_utf8_with_replacement_character, utf16_from_wtf8};
 use crate::utilities::initialize_realm_with_global_object;
 use libjs_rust::ast::ProgramType;
@@ -512,26 +515,32 @@ fn parse_only_check(source: &[u16], program_type: ProgramType) -> Result<(), Tes
     Ok(())
 }
 
+/// The C++ ScriptOrModuleProgram.
+#[derive(Clone, Copy)]
+enum ScriptOrModuleProgram {
+    Script(Gc<Script>),
+    Module(Gc<SourceTextModule>),
+}
+
 fn parse_program(
     vm: &Vm,
     realm: Gc<Realm>,
     source: &[u16],
+    filepath: &str,
     program_type: ProgramType,
-) -> Result<Gc<Script>, TestError> {
-    if program_type == ProgramType::Module {
-        let parsed = parse(source, ProgramType::Module, 1);
-        if parsed.has_errors() {
-            let errors = ParserError::all_from_parsed_program(&parsed);
-            return Err(TestError::syntax_error(
-                NegativePhase::ParseOrEarly,
-                first_parser_error(&errors),
-                "",
-            ));
-        }
-        unimplemented_runtime_function("running modules", 0);
+) -> Result<ScriptOrModuleProgram, TestError> {
+    let syntax_error = |errors: Vec<ParserError>| {
+        TestError::syntax_error(NegativePhase::ParseOrEarly, first_parser_error(&errors), "")
+    };
+    if program_type == ProgramType::Script {
+        return Script::parse_with_filename(vm, source, realm, filepath)
+            .map(ScriptOrModuleProgram::Script)
+            .map_err(syntax_error);
     }
-    Script::parse(vm, source, realm)
-        .map_err(|errors| TestError::syntax_error(NegativePhase::ParseOrEarly, first_parser_error(&errors), ""))
+    let source_code = SourceCode::create(Utf16String::from_utf8(filepath), Utf16String::from_utf16(source));
+    SourceTextModule::parse(vm, source_code, realm, filepath)
+        .map(ScriptOrModuleProgram::Module)
+        .map_err(syntax_error)
 }
 
 fn value_to_utf8_string_without_side_effects(value: Value) -> String {
@@ -574,14 +583,19 @@ fn describe_thrown_value(vm: &Vm, error_value: Value) -> TestError {
     error
 }
 
-fn run_program(vm: &Vm, script: Gc<Script>) -> Result<(), TestError> {
-    vm.run_script(script, None)
+fn run_program(vm: &Vm, program: ScriptOrModuleProgram) -> Result<(), TestError> {
+    let result = match program {
+        ScriptOrModuleProgram::Script(script) => vm.run_script(script, None),
+        ScriptOrModuleProgram::Module(module) => vm.run_module(module),
+    };
+    result
         .map(|_| ())
         .map_err(|throw| describe_thrown_value(vm, throw.value()))
 }
 
 fn run_test(
     source: Option<&[u16]>,
+    filepath: &str,
     metadata: &TestMetadata<'_>,
     parse_only: bool,
     harness_files: &mut HarnessFiles,
@@ -591,10 +605,17 @@ fn run_test(
     }
 
     let vm = Vm::create();
+    vm.set_dynamic_imports_allowed(true);
     let root_execution_context =
         initialize_realm_with_global_object(&vm, &|realm| Test262GlobalObject::allocate(&vm, realm).upcast());
     let realm = root_execution_context.realm();
-    let program = parse_program(&vm, realm, decoded_source(source, "The test"), metadata.program_type)?;
+    let program = parse_program(
+        &vm,
+        realm,
+        decoded_source(source, "The test"),
+        filepath,
+        metadata.program_type,
+    )?;
 
     let mut harness_source = Vec::new();
     for harness_file in &metadata.harness_files {
@@ -604,11 +625,14 @@ fn run_test(
 
     if !harness_source.is_empty() {
         let harness_source = utf16_from_wtf8(&harness_source);
-        let harness_program = Script::parse(&vm, decoded_source(harness_source.as_deref(), "The harness"), realm)
-            .map_err(|errors| {
-                TestError::syntax_error(NegativePhase::Harness, first_parser_error(&errors), "<harness>")
-            })?;
-        if let Err(error) = run_program(&vm, harness_program) {
+        let harness_program = Script::parse_with_filename(
+            &vm,
+            decoded_source(harness_source.as_deref(), "The harness"),
+            realm,
+            "<harness>",
+        )
+        .map_err(|errors| TestError::syntax_error(NegativePhase::Harness, first_parser_error(&errors), "<harness>"))?;
+        if let Err(error) = run_program(&vm, ScriptOrModuleProgram::Script(harness_program)) {
             return Err(TestError {
                 phase: NegativePhase::Harness,
                 error_type: error.error_type,
@@ -929,6 +953,7 @@ fn run(options: &Options) -> c_int {
         result_object.set("test", path.as_str());
         run_test_file(
             &source,
+            &path,
             options.parse_only,
             timeout_in_seconds,
             &mut harness_files,
@@ -971,6 +996,7 @@ impl TestSource {
 
 fn run_test_file(
     source: &TestSource,
+    path: &str,
     parse_only: bool,
     timeout_in_seconds: u32,
     harness_files: &mut HarnessFiles,
@@ -1006,7 +1032,7 @@ fn run_test_file(
         } else {
             &source.code_units
         };
-        let result = run_test(code_units.as_deref(), &metadata, parse_only, harness_files);
+        let result = run_test(code_units.as_deref(), path, &metadata, parse_only, harness_files);
         set_alarm(0);
         let elapsed_milliseconds = i64::try_from(start.elapsed().as_millis()).unwrap_or(i64::MAX);
 

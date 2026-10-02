@@ -12,6 +12,7 @@ use libjs_runtime_macros::Trace;
 
 use crate::bytecode::executable::Executable;
 use crate::gc::class::{GcCell, define_cell};
+use crate::gc::gc_ref_cell::GcRefCell;
 use crate::gc::root::MarkedVec;
 use crate::hash_table::Utf16FlyStringHashTable;
 use crate::interpreter::vm::Vm;
@@ -24,6 +25,7 @@ use crate::runtime::ecmascript_function_object::EcmascriptFunctionObject;
 use crate::runtime::error::ErrorKind;
 use crate::runtime::error_types::ErrorType;
 use crate::runtime::global_environment::GlobalEnvironment;
+use crate::runtime::module_request::LoadedModuleRequest;
 use crate::runtime::object_environment::name_for_message;
 use crate::runtime::private_environment::PrivateEnvironment;
 use crate::runtime::shared_function_instance_data::SharedFunctionInstanceData;
@@ -50,7 +52,8 @@ pub struct LexicalBinding {
 #[derive(Trace)]
 pub struct Script {
     header: CellHeader,
-    realm: Gc<Realm>, // [[Realm]]
+    realm: Gc<Realm>,                                    // [[Realm]]
+    loaded_modules: GcRefCell<Vec<LoadedModuleRequest>>, // [[LoadedModules]]
     executable: Gc<Executable>,
     /// What the script's functions compile themselves from when they are first called.
     #[gc(untraced)]
@@ -68,6 +71,9 @@ pub struct Script {
     annex_b_candidate_names: Vec<Utf16FlyString>,
     lexical_bindings: Vec<LexicalBinding>,
     is_strict_mode: bool,
+
+    // Needed for potential lookups of modules.
+    filename: String,
 }
 
 define_cell!(Script, Other);
@@ -83,11 +89,32 @@ fn fly_strings_of(names: &[Utf16String]) -> Vec<Utf16FlyString> {
 impl Script {
     // 16.1.5 ParseScript ( sourceText, realm, hostDefined ), https://tc39.es/ecma262/#sec-parse-script
     pub fn parse(vm: &Vm, source: &[u16], realm: Gc<Realm>) -> Result<Gc<Script>, Vec<ParserError>> {
+        Self::parse_with_filename(vm, source, realm, "")
+    }
+
+    /// ParseScript of a script from `filename`, which the script's code reports and module loading resolves the
+    /// specifiers of its dynamic imports against.
+    pub fn parse_with_filename(
+        vm: &Vm,
+        source: &[u16],
+        realm: Gc<Realm>,
+        filename: &str,
+    ) -> Result<Gc<Script>, Vec<ParserError>> {
         let parsed = parse(source, ProgramType::Script, 1);
         if parsed.has_errors() {
             return Err(ParserError::all_from_parsed_program(&parsed));
         }
-        Ok(Self::compile_parsed_program(vm, parsed, source, realm))
+        let source_code = SourceCode::create(
+            ak::Utf16String::from_utf8(filename),
+            ak::Utf16String::from_utf16(source),
+        );
+        Ok(Self::create_from_parsed_with_filename(
+            vm,
+            parsed,
+            source_code,
+            realm,
+            filename,
+        ))
     }
 
     /// Compiles a script the caller parsed without errors from `source`.
@@ -115,12 +142,31 @@ impl Script {
         source_code: Rc<SourceCode>,
         realm: Gc<Realm>,
     ) -> Gc<Script> {
-        assert!(parsed.program_type() == ProgramType::Script && !parsed.has_errors());
-        let source_length = source_code.length_in_code_units();
-        Self::create(vm, realm, compile_script(parsed, source_length), source_code)
+        Self::create_from_parsed_with_filename(vm, parsed, source_code, realm, "")
     }
 
-    fn create(vm: &Vm, realm: Gc<Realm>, compiled: CompiledScript, source_code: Rc<SourceCode>) -> Gc<Script> {
+    /// Compiles a script the caller parsed without errors from the code of `source_code`, whose filename the
+    /// script's code reports, as `filename`, which module loading resolves the specifiers of its dynamic imports
+    /// against.
+    pub fn create_from_parsed_with_filename(
+        vm: &Vm,
+        parsed: ParsedProgram,
+        source_code: Rc<SourceCode>,
+        realm: Gc<Realm>,
+        filename: &str,
+    ) -> Gc<Script> {
+        assert!(parsed.program_type() == ProgramType::Script && !parsed.has_errors());
+        let source_length = source_code.length_in_code_units();
+        Self::create(vm, realm, compile_script(parsed, source_length), source_code, filename)
+    }
+
+    fn create(
+        vm: &Vm,
+        realm: Gc<Realm>,
+        compiled: CompiledScript,
+        source_code: Rc<SourceCode>,
+        filename: &str,
+    ) -> Gc<Script> {
         let CompiledScript {
             executable,
             declarations,
@@ -162,6 +208,7 @@ impl Script {
         let script = vm.heap().allocate(Script {
             header: CellHeader::for_class(Self::CLASS),
             realm,
+            loaded_modules: GcRefCell::new(Vec::new()),
             executable,
             source_code,
             lexical_names: fly_strings_of(&declarations.lexical_names),
@@ -174,6 +221,7 @@ impl Script {
             // NB: The C++ runtime never sets the strictness of a script it compiles, so Annex B function hoisting
             //     always runs; the frontend only collects candidates for sloppy scripts.
             is_strict_mode: false,
+            filename: filename.to_string(),
         });
         drop(rooted_shared_data);
         script
@@ -181,6 +229,14 @@ impl Script {
 
     pub fn realm(&self) -> Gc<Realm> {
         self.realm
+    }
+
+    pub fn loaded_modules(&self) -> &GcRefCell<Vec<LoadedModuleRequest>> {
+        &self.loaded_modules
+    }
+
+    pub fn filename(&self) -> &str {
+        &self.filename
     }
 
     pub fn cached_executable(&self) -> Gc<Executable> {

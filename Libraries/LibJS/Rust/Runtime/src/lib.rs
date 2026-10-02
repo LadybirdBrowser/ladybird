@@ -28,6 +28,7 @@ pub mod hash_table;
 pub mod interpreter;
 pub mod layout;
 pub mod layout_forward;
+pub mod lexical_path;
 pub mod parser_error;
 pub mod random;
 pub mod runtime;

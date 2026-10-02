@@ -15,15 +15,14 @@ use crate::bytecode::executable::{Executable, PropertyLookupCacheEntryType};
 use crate::bytecode::op;
 use crate::bytecode::operand::{IdentifierTableIndex, InstructionHeader};
 use crate::bytecode::property_access::{Strict, get_cached_property_value};
-use crate::interpreter::runtime_functions::{
-    SlowPathControl, asm_try, handle_asm_exception, unimplemented_runtime_function,
-};
+use crate::interpreter::runtime_functions::{SlowPathControl, asm_try, handle_asm_exception};
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
-use crate::layout::execution_context::ExecutionContext;
+use crate::layout::execution_context::{ExecutionContext, ScriptOrModule};
 use crate::layout::value::Value;
 use crate::runtime::abstract_operations::{
     call, get_this_environment, new_declarative_environment, new_object_environment, new_private_environment,
+    perform_import_call,
 };
 use crate::runtime::completion::{Must, ThrowCompletionOr};
 use crate::runtime::declarative_environment::DeclarativeEnvironment;
@@ -43,6 +42,7 @@ use crate::runtime::object_environment::name_for_message;
 use crate::runtime::primitive_string::PrimitiveString;
 use crate::runtime::property_key::PropertyKey;
 use crate::runtime::reference::{BaseType, Reference};
+use crate::runtime::source_text_module::SourceTextModule;
 use crate::utf16::Utf16View;
 
 /// The environment `coordinate` refers to from `environment`, if the interpreter may keep finding the binding there:
@@ -621,24 +621,29 @@ pub fn dynamic_get_callee_and_this(
 }
 
 pub fn get_import_meta(
-    _vm: &Vm,
+    vm: &Vm,
     pc: u32,
     _instruction: &op::GetImportMeta,
-    _values: &mut op::GetImportMetaValues,
+    values: &mut op::GetImportMetaValues,
 ) -> SlowPathControl {
-    unimplemented_runtime_function("VM::get_import_meta, for GetImportMeta", pc)
+    values.dst = Value::from_object(vm.get_import_meta());
+    SlowPathControl::continue_at(pc + op::GetImportMeta::LENGTH)
 }
 
-pub fn get_import(
-    _vm: &Vm,
-    pc: u32,
-    _instruction: &op::GetImport,
-    _values: &mut op::GetImportValues,
-) -> SlowPathControl {
-    unimplemented_runtime_function(
-        "SourceTextModule::get_imported_binding_value of the running module, for GetImport",
+pub fn get_import(vm: &Vm, pc: u32, instruction: &op::GetImport, values: &mut op::GetImportValues) -> SlowPathControl {
+    let ScriptOrModule::Module(module) = running_execution_context(vm).script_or_module.get() else {
+        unreachable!("GetImport only runs in the code of a module");
+    };
+    let module = module
+        .downcast::<SourceTextModule>()
+        .expect("GetImport only runs in the code of a Source Text Module Record");
+    let identifier = get_identifier(vm, instruction.identifier);
+    values.dst = asm_try!(
+        vm,
         pc,
-    )
+        module.get_imported_binding_value(vm, instruction.import_index, &identifier)
+    );
+    SlowPathControl::continue_at(pc + op::GetImport::LENGTH)
 }
 
 pub fn get_new_target(
@@ -868,12 +873,15 @@ pub fn set_global(vm: &Vm, pc: u32, instruction: &op::SetGlobal, values: &mut op
 }
 
 pub fn import_call(
-    _vm: &Vm,
+    vm: &Vm,
     pc: u32,
     _instruction: &op::ImportCall,
-    _values: &mut op::ImportCallValues,
+    values: &mut op::ImportCallValues,
 ) -> SlowPathControl {
-    unimplemented_runtime_function("perform_import_call, for ImportCall", pc)
+    let specifier = values.specifier;
+    let options_value = values.options;
+    values.dst = asm_try!(vm, pc, perform_import_call(vm, specifier, options_value));
+    SlowPathControl::continue_at(pc + op::ImportCall::LENGTH)
 }
 
 pub fn dynamic_initialize_lexical_binding(

@@ -17,10 +17,8 @@ pub use crate::runtime::shape::ShapeStorage;
 pub use crate::runtime::symbol::Symbol;
 pub use ak::Utf16StringDataHeader;
 
-/// Cells the layout points to that the runtime does not define yet.
-pub enum Module {}
-
 pub use crate::runtime::intrinsics::Intrinsics;
+pub use crate::runtime::module::Module;
 
 pub use crate::runtime::object_environment::ObjectEnvironment;
 pub use crate::script::Script;
