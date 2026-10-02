@@ -1018,7 +1018,7 @@ impl StyleEngine {
     pub(super) fn answer_record_demand(
         &mut self,
         node: StyleNodeID,
-        demand: bridge::FfiRecordDemand,
+        demand: publication::RecordDemand,
     ) -> publication::Drive<publication::RecordDemandAnswer> {
         self.state.answer_record_demand(node, demand, &mut self.counters)
     }

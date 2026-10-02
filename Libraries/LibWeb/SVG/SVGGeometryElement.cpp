@@ -91,7 +91,7 @@ WebIDL::ExceptionOr<float> SVGGeometryElement::get_total_length()
     auto& style_computer = style_document.style_computer();
     auto record = has_no_style_node
         ? declared_only_style_record(style_computer, style_document, *this)
-        : CSS::StyleRecordID { style_computer.style_engine().answer_record_demand(style_node_id(), { .read_only = true }).record.style_record };
+        : CSS::StyleRecordID { style_computer.style_engine().answer_record_demand(style_node_id(), CSS::StyleEngine::RecordDemand::ElementRead).record.style_record };
     ScopeGuard unpin_record = [&] {
         if (has_no_style_node && !!record)
             style_computer.unpin_style_record(record);

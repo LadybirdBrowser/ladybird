@@ -93,7 +93,7 @@ public:
     [[nodiscard]] NonnullRefPtr<ComputedValues const> materialize_style_record(DOM::AbstractElement, Optional<bool&> did_change_custom_properties = {}, StyleEngineMatchResult* = nullptr, Optional<StyleEngine::StyleRecordDelta&> = {}) const;
     // The style of a pseudo-element the element holds no style for, as the style engine derives it for one read alone;
     // null where the engine leaves the read to C++.
-    [[nodiscard]] RefPtr<ComputedValues const> engine_transient_pseudo_element_style(DOM::Element const&, PseudoElement);
+    [[nodiscard]] RefPtr<ComputedValues const> engine_transient_pseudo_element_style(DOM::Element const&, StyleEngine::DemandedPseudoElement);
     [[nodiscard]] StyleRecordID try_share_computed_style_record(DOM::Element&) const;
     void remember_shared_computed_style_record(DOM::Element&, StyleRecordID) const;
     // Compute the cascade supplied by rules, presentational hints, and inheritance while excluding the element's

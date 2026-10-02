@@ -299,15 +299,32 @@ StyleEngineFFI::FfiEngineComputedRecord StyleEngine::retry_engine_record_after_a
     return StyleEngineFFI::style_engine_retry_engine_record_after_ancestor(m_impl, node.value());
 }
 
+Optional<StyleEngine::DemandedPseudoElement> StyleEngine::demanded_pseudo_element(PseudoElement pseudo_element)
+{
+    switch (pseudo_element) {
+    case PseudoElement::After:
+        return DemandedPseudoElement::After;
+    case PseudoElement::Backdrop:
+        return DemandedPseudoElement::Backdrop;
+    case PseudoElement::Before:
+        return DemandedPseudoElement::Before;
+    case PseudoElement::FirstLetter:
+        return DemandedPseudoElement::FirstLetter;
+    case PseudoElement::Marker:
+        return DemandedPseudoElement::Marker;
+    default:
+        return {};
+    }
+}
+
 StyleEngineFFI::FfiRecordDemandAnswer StyleEngine::answer_record_demand(StyleNodeID node, RecordDemand demand)
 {
-    StyleEngineFFI::FfiRecordDemand ffi_demand {
-        .targeted = demand.targeted,
-        .read_only = demand.read_only,
-        .exclude_inline_style = demand.exclude_inline_style,
-        .pseudo_kind_plus_one = static_cast<u8>(demand.pseudo_kind.has_value() ? *demand.pseudo_kind + 1 : 0),
-    };
-    return StyleEngineFFI::style_engine_answer_record_demand(m_render_document->host(), node.value(), ffi_demand);
+    return StyleEngineFFI::style_engine_answer_record_demand(m_render_document->host(), node.value(), demand);
+}
+
+StyleEngineFFI::FfiRecordDemandAnswer StyleEngine::answer_pseudo_element_record_demand(StyleNodeID node, PseudoElementRecordDemand demand, DemandedPseudoElement pseudo_element)
+{
+    return StyleEngineFFI::style_engine_answer_pseudo_element_record_demand(m_render_document->host(), node.value(), demand, pseudo_element);
 }
 
 StyleEngineFFI::FfiEngineComputedRecord StyleEngine::settle_pseudo_records_after_host_record(StyleNodeID node, bool old_is_list_item)
