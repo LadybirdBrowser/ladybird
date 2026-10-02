@@ -249,25 +249,25 @@ PASS: detached child mutation: document: :has(:not(:checked)) after unchecked ch
 PASS: detached pseudo-element child mutation: document: :has(:not(:checked)) after unchecked checkbox append | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: stress warm child mutation: document: :has(:enabled) after enabled input append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: stress cold child mutation: document: :has(:enabled) after enabled input append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
-PASS: stress warm pseudo-element child mutation: document: :has(:enabled) after enabled input append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
+PASS: stress warm pseudo-element child mutation: document: :has(:enabled) after enabled input append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: stress cold pseudo-element child mutation: document: :has(:enabled) after enabled input append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: detached child mutation: document: :has(:enabled) after enabled input append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: document: :has(:enabled) after enabled input append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: stress warm child mutation: document: :has(:disabled) after disabled input append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: stress cold child mutation: document: :has(:disabled) after disabled input append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
-PASS: stress warm pseudo-element child mutation: document: :has(:disabled) after disabled input append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
+PASS: stress warm pseudo-element child mutation: document: :has(:disabled) after disabled input append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: stress cold pseudo-element child mutation: document: :has(:disabled) after disabled input append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: detached child mutation: document: :has(:disabled) after disabled input append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: document: :has(:disabled) after disabled input append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: stress warm child mutation: document: :has(:required) after required input append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: stress cold child mutation: document: :has(:required) after required input append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
-PASS: stress warm pseudo-element child mutation: document: :has(:required) after required input append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
+PASS: stress warm pseudo-element child mutation: document: :has(:required) after required input append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: stress cold pseudo-element child mutation: document: :has(:required) after required input append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: detached child mutation: document: :has(:required) after required input append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: document: :has(:required) after required input append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: stress warm child mutation: document: :has(:optional) after optional input append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: stress cold child mutation: document: :has(:optional) after optional input append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
-PASS: stress warm pseudo-element child mutation: document: :has(:optional) after optional input append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
+PASS: stress warm pseudo-element child mutation: document: :has(:optional) after optional input append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: stress cold pseudo-element child mutation: document: :has(:optional) after optional input append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: detached child mutation: document: :has(:optional) after optional input append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: document: :has(:optional) after optional input append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
@@ -339,7 +339,7 @@ PASS: detached child mutation: document: :has(:first-of-type) after typed child 
 PASS: detached pseudo-element child mutation: document: :has(:first-of-type) after typed child append | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: stress warm child mutation: document: :has(:is(:checked, :disabled)) after disabled input append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: stress cold child mutation: document: :has(:is(:checked, :disabled)) after disabled input append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
-PASS: stress warm pseudo-element child mutation: document: :has(:is(:checked, :disabled)) after disabled input append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
+PASS: stress warm pseudo-element child mutation: document: :has(:is(:checked, :disabled)) after disabled input append | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: stress cold pseudo-element child mutation: document: :has(:is(:checked, :disabled)) after disabled input append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: detached child mutation: document: :has(:is(:checked, :disabled)) after disabled input append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: document: :has(:is(:checked, :disabled)) after disabled input append | elementStyleRecomputations=4, elementStyleNoopRecomputations=0
@@ -351,13 +351,13 @@ PASS: detached child mutation: document: :has(:where(:empty, :checked)) after em
 PASS: detached pseudo-element child mutation: document: :has(:where(:empty, :checked)) after empty child append | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
 PASS: stress warm child mutation: document: :has(rect.hit) after SVG child append | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
 PASS: stress cold child mutation: document: :has(rect.hit) after SVG child append | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
-PASS: stress warm pseudo-element child mutation: document: :has(rect.hit) after SVG child append | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
+PASS: stress warm pseudo-element child mutation: document: :has(rect.hit) after SVG child append | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
 PASS: stress cold pseudo-element child mutation: document: :has(rect.hit) after SVG child append | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
 PASS: detached child mutation: document: :has(rect.hit) after SVG child append | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: document: :has(rect.hit) after SVG child append | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
 PASS: stress warm child mutation: document: :has(> rect.hit) after direct SVG child append | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
 PASS: stress cold child mutation: document: :has(> rect.hit) after direct SVG child append | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
-PASS: stress warm pseudo-element child mutation: document: :has(> rect.hit) after direct SVG child append | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
+PASS: stress warm pseudo-element child mutation: document: :has(> rect.hit) after direct SVG child append | elementStyleRecomputations=2, elementStyleNoopRecomputations=0
 PASS: stress cold pseudo-element child mutation: document: :has(> rect.hit) after direct SVG child append | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
 PASS: detached child mutation: document: :has(> rect.hit) after direct SVG child append | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
 PASS: detached pseudo-element child mutation: document: :has(> rect.hit) after direct SVG child append | elementStyleRecomputations=1, elementStyleNoopRecomputations=0

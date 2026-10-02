@@ -1997,8 +1997,12 @@ impl StyleEngineState {
                         !answer.cascade_winners_are_complete
                             && !engine.cascade_winners_are_complete_but_for_custom_properties(ancestor)
                     });
+                    // So is one still to come, such as the slot a slotted element inherits from,
+                    // which the flush reaches after the element: what it moves is decided only once
+                    // it is processed.
                     let unconfined = published
-                        && (answer_is_incomplete
+                        && (row.is_none()
+                            || answer_is_incomplete
                             || !(style_input_reactions
                                 .binary_search_by_key(&ancestor, |&(style_node, _, _)| style_node)
                                 .is_err()
@@ -2145,9 +2149,13 @@ impl StyleEngineState {
                         && !self.retained.published_container_verdicts.contains_key(&node))
                     .then(|| self.retained.tree.inheritance_parent(node))
                     .flatten()
-                    .filter(|parent| {
-                        !row_of(&engine_computed_record_scratch.derived_child_inputs, *parent)
-                            .is_some_and(|row| row.inheritance_unresolved)
+                    .filter(|&parent| {
+                        // A parent this flush reaches after the node, a slot a slotted element
+                        // inherits from, has yet to decide what it passes on.
+                        row_of(&engine_computed_record_scratch.derived_child_inputs, parent).map_or_else(
+                            || published_match_answers.lookup(parent).is_none(),
+                            |row| !row.inheritance_unresolved,
+                        )
                     })
                     .and_then(|parent| {
                         self.computed_group_sets.replace_engine_resolvable_inherited_groups(

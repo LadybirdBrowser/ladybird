@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    @keyframes fade {
+        from { color: rgb(0, 0, 0); }
+        to { color: rgb(0, 0, 200); }
+    }
+    #host { animation: fade 100s linear paused; }
+</style>
+<div id="host"><span id="slotted">slotted</span></div>
+<script>
+    test(() => {
+        const root = host.attachShadow({ mode: "open" });
+        root.innerHTML = "<slot></slot>";
+        const slot = root.querySelector("slot");
+        internals.updateStyle();
+        const animation = host.getAnimations()[0];
+        // Each sample of the host's animation moves what the slot and the slotted element inherit
+        // in one flush, which reaches the slotted element before the slot it inherits from.
+        for (const time of [25000, 50000, 75000]) {
+            animation.currentTime = time;
+            internals.updateStyle();
+            println(`${time}: slot ${getComputedStyle(slot).color}, slotted ${getComputedStyle(slotted).color}`);
+        }
+    });
+</script>
