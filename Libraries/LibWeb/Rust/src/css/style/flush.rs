@@ -2147,8 +2147,10 @@ impl StyleEngineState {
                         && !parent_inputs_moved.display
                         && !self.node_style_reads_custom_properties(node)
                     {
-                        // C++ only refreshes the inherited environment for a non-consumer. There
-                        // is no element record to recompute or compare against the parent's groups.
+                        // A non-consumer's record and environment do not move with what it
+                        // inherits, beyond the environment move that already reached it. The row
+                        // still goes to the host so that what it derives for the children carries
+                        // the reaction on to the descendants whose style reads the environment.
                         false
                     } else if (previous_answer_was_incomplete
                         || selector_truth_changes.deltas_for(node).iter().any(|delta| {

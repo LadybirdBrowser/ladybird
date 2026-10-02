@@ -5839,31 +5839,6 @@ RefPtr<CSS::CustomPropertyData const> Element::custom_property_data(Optional<CSS
     return nullptr;
 }
 
-bool Element::refresh_inherited_custom_property_data()
-{
-    RefPtr<CSS::CustomPropertyData const> parent_data;
-    if (auto inherit_from = element_to_inherit_style_from({})) {
-        if (auto data = inherit_from->custom_property_data({}))
-            parent_data = data->inheritable(document());
-    }
-
-    auto current = custom_property_data({});
-    if (current && current->is_animation_overlay_for({ *this })) {
-        if (current->parent() == parent_data)
-            return false;
-        OrderedHashMap<Utf16FlyString, CSS::StyleProperty> animated_values;
-        for (auto const& [name, property] : current->own_values())
-            animated_values.set(name, property);
-        install_custom_property_data({}, CSS::CustomPropertyData::create_animation_overlay(move(animated_values), move(parent_data), { *this }));
-        return true;
-    }
-
-    if (current == parent_data)
-        return false;
-    install_custom_property_data({}, move(parent_data));
-    return true;
-}
-
 void Element::republish_style_record_environment()
 {
     if (!has_style() || style_node_id() == 0)
