@@ -886,8 +886,10 @@ impl RetainedState {
                 self.sibling_position_key(node, state),
             )
         });
-        if let Some(&(new_style_record, explicitly_inherited_groups, reads_sibling_position)) =
-            cohort.as_ref().and_then(|cohort| scratch.cohorts.get(cohort))
+        if let Some(&(new_style_record, explicitly_inherited_groups, reads_sibling_position)) = cohort
+            .as_ref()
+            .and_then(|cohort| scratch.cohorts.get(cohort))
+            .filter(|&&(record, ..)| self.record_answers_counter_styles_for(record, node))
         {
             self.note_node_substitution(node, scratch, state, current_environment);
             // The mark is per node: an element taking the record owes its own parent the mark.
@@ -1213,10 +1215,8 @@ impl RetainedState {
         pending.detached_composition = detached_composition;
         pending.owes_a_transition_step = owes_a_transition_step && delta.0 != delta.1;
         // A record driven in full stands for a cohort keyed by the parent's inherited inputs only
-        // when the drive was partial. One naming its tree scope's counter-style registry answers
-        // for no element of another scope, and the key names no scope.
+        // when the drive was partial.
         if !driver_input_moved
-            && counter_style_registry == 0
             && !self.record_rolls_back_substitution(node)
             && let Some(cohort) = cohort
         {
@@ -1688,14 +1688,11 @@ impl RetainedState {
                     counters,
                 );
                 // The key names the parent's environment: a record whose own declarations
-                // resolved another is no answer for an element declaring none. Nor is one naming
-                // its tree scope's counter-style registry for an element of another scope, or one
-                // that rolled a property back to a declaration no winner names.
-                if let Some(cache_key) = cache_key.filter(|key| {
-                    key.environment == environment
-                        && counter_style_registry == 0
-                        && !self.record_rolls_back_substitution(node)
-                }) {
+                // resolved another is no answer for an element declaring none. Nor is one that
+                // rolled a property back to a declaration no winner names.
+                if let Some(cache_key) =
+                    cache_key.filter(|key| key.environment == environment && !self.record_rolls_back_substitution(node))
+                {
                     let record = ColdRecord {
                         record: assembly.delta.1,
                         swap_eligible: self.computed_group_sets.node_inherited_group_swap_eligible(node),
@@ -1790,13 +1787,11 @@ impl RetainedState {
         let delta = (computed::FinalStyleRecordID::NONE, new_style_record);
         // The publication itself kept the record for later transactions; alike elements in this
         // one take it from the cohort. The key names the parent's environment, so a record whose
-        // own declarations resolved another is kept for no one, and it names no tree scope, so
-        // neither is a record naming its scope's counter-style registry. Nor does it name the
-        // declarations below the winners, which a record rolled back below a substituted revert
-        // keyword read.
-        if let Some(cache_key) = cache_key.filter(|key| {
-            key.environment == environment && counter_style_registry == 0 && !self.record_rolls_back_substitution(node)
-        }) {
+        // own declarations resolved another is kept for no one. Nor does it name the declarations
+        // below the winners, which a record rolled back below a substituted revert keyword read.
+        if let Some(cache_key) =
+            cache_key.filter(|key| key.environment == environment && !self.record_rolls_back_substitution(node))
+        {
             let record = ColdRecord {
                 record: delta.1,
                 swap_eligible,
@@ -1844,6 +1839,7 @@ impl RetainedState {
                         parent,
                         own_groups,
                     )
+                    && engine.record_answers_counter_styles_for(record.record, node)
             })
         };
         let (
@@ -1932,16 +1928,35 @@ impl RetainedState {
         if !names_a_counter_style {
             return 0;
         }
-        // An element of a shadow tree built from the document's style sheets has the document's
-        // style scope.
-        let mut tree_scope = self.tree.tree_scope(target.node());
-        if self.program.scope_uses_document_sheets(tree_scope) {
-            tree_scope = TreeScopeID::DOCUMENT;
-        }
         self.counter_style_environment_identities
-            .get(&tree_scope)
+            .get(&self.counter_style_scope(target.node()))
             .copied()
             .unwrap_or(0)
+    }
+
+    /// Whether a record settled for another element answers for `node` as far as counter styles
+    /// go: it names no counter-style registry, or the one `node`'s style scope has.
+    fn record_answers_counter_styles_for(&self, record: computed::FinalStyleRecordID, node: StyleNodeID) -> bool {
+        self.computed_group_sets
+            .style_record_view(record.raw())
+            .is_some_and(|view| {
+                view.counter_style_environment_identity == 0
+                    || self
+                        .counter_style_environment_identities
+                        .get(&self.counter_style_scope(node))
+                        == Some(&view.counter_style_environment_identity)
+            })
+    }
+
+    /// The style scope whose counter-style registry a node's records name. An element of a shadow
+    /// tree built from the document's style sheets has the document's style scope.
+    fn counter_style_scope(&self, node: StyleNodeID) -> TreeScopeID {
+        let tree_scope = self.tree.tree_scope(node);
+        if self.program.scope_uses_document_sheets(tree_scope) {
+            TreeScopeID::DOCUMENT
+        } else {
+            tree_scope
+        }
     }
 
     /// Whether the cascade state's winning `font-family` is monospace, which is what makes the
