@@ -55,6 +55,17 @@ pub unsafe extern "C" fn display_list_command_storage_view(storage: *const c_voi
 }
 
 /// # Safety
+/// `storage` must point to a live RecordedDisplayList held by an Arc. Returns `storage` with one
+/// more Arc reference to it, which C++ owns and releases with
+/// `display_list_release_command_storage`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn display_list_retain_command_storage(storage: *const c_void) -> *const c_void {
+    assert!(!storage.is_null());
+    unsafe { Arc::increment_strong_count(storage.cast::<RecordedDisplayList>()) };
+    storage
+}
+
+/// # Safety
 /// `storage` is null or one unconsumed Arc reference transferred to C++. It may be released
 /// from a compositor thread, independently of the layout arena and recording cache.
 #[unsafe(no_mangle)]

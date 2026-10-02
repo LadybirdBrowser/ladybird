@@ -1335,8 +1335,36 @@ pub unsafe extern "C" fn layout_arena_record_display_list(
         recording,
         recording_from_scratch,
         publishes_recording: inputs.publishes_recording,
+        svg_paint_resources: frame.svg_paint_resources().clone(),
     });
     true
+}
+
+/// What the host reads of a published recording, to build its display list from.
+#[repr(C)]
+pub struct FfiPresentedRecording {
+    pub is_identical_to_published_recording: bool,
+    pub has_blocking_wheel_event_listeners: bool,
+    /// The recorded display list, which the document's last recording holds until the next
+    /// recording replaces it. The host takes a reference of its own to keep it longer.
+    pub display_list: *const c_void,
+}
+
+impl FfiPresentedRecording {
+    /// What the host reads of the last recording the document took in.
+    pub(crate) fn of_last_recording(arena: &LayoutNodeArena) -> Self {
+        let paint_state = arena.paint_state().borrow();
+        let recording = paint_state.last_recording.as_deref();
+        Self {
+            is_identical_to_published_recording: recording
+                .is_some_and(|recording| recording.is_identical_to_published_recording),
+            has_blocking_wheel_event_listeners: recording
+                .is_some_and(|recording| recording.has_blocking_wheel_event_listeners),
+            display_list: recording.map_or(std::ptr::null(), |recording| {
+                std::sync::Arc::as_ptr(&recording.display_list).cast()
+            }),
+        }
+    }
 }
 
 /// # Safety
@@ -1720,32 +1748,6 @@ pub unsafe extern "C" fn ladybird_web_record_image_paint_display_list(
             std::sync::Arc::into_raw(std::sync::Arc::new(tree)).cast(),
         );
     }
-}
-
-/// # Safety
-///
-/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_last_recording_is_identical_to_published_recording(arena: *mut c_void) -> bool {
-    let arena = unsafe { arena_from_handle(arena) };
-    let paint_state = arena.paint_state().borrow();
-    paint_state
-        .last_recording
-        .as_ref()
-        .is_some_and(|recording| recording.is_identical_to_published_recording)
-}
-
-/// # Safety
-///
-/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_last_recording_has_blocking_wheel_event_listeners(arena: *mut c_void) -> bool {
-    let arena = unsafe { arena_from_handle(arena) };
-    let paint_state = arena.paint_state().borrow();
-    paint_state
-        .last_recording
-        .as_ref()
-        .is_some_and(|recording| recording.has_blocking_wheel_event_listeners)
 }
 
 /// # Safety
@@ -2815,22 +2817,6 @@ pub unsafe extern "C" fn layout_arena_filter_functions_serialize(
     let bytes = graph.serialize();
     unsafe { append(context, bytes.as_ptr(), bytes.len()) };
     true
-}
-
-/// # Safety
-///
-/// `arena` must be a live handle from `layout_arena_create`, used on the document thread. The
-/// returned pointers borrow the last recording and stay valid until the next one replaces it.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_retain_recorded_display_list(arena: *mut c_void) -> *const c_void {
-    let arena = unsafe { arena_from_handle(arena) };
-    let paint_state = arena.paint_state().borrow();
-    paint_state
-        .last_recording
-        .as_ref()
-        .map_or(std::ptr::null(), |recording| {
-            std::sync::Arc::into_raw(recording.display_list.clone()).cast()
-        })
 }
 
 /// # Safety

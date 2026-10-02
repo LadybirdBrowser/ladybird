@@ -69,6 +69,12 @@ void const* DisplayList::replay_effect_clip_plan(AccumulatedVisualContextTree co
     return plan;
 }
 
+NonnullRefPtr<DisplayList> DisplayList::share_rust_command_storage(AccumulatedVisualContextTree const& visual_context_tree, void const* storage)
+{
+    VERIFY(storage);
+    return adopt_rust_command_storage(visual_context_tree, Compositing::RustFFI::display_list_retain_command_storage(storage));
+}
+
 NonnullRefPtr<DisplayList> DisplayList::adopt_rust_command_storage(AccumulatedVisualContextTree const& visual_context_tree, void const* storage)
 {
     VERIFY(storage);

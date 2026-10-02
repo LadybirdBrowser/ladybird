@@ -658,9 +658,10 @@ RefPtr<Compositing::DisplayList> record_rust_display_list(DOM::Document& documen
     auto rust_timer = Core::ElapsedTimer::start_new(Core::TimerType::Precise);
     if (!Layout::RustFFI::layout_arena_record_display_list(arena, viewport_row_slot(document), inputs))
         return nullptr;
-    Layout::RustFFI::layout_arena_publish_recording(arena, recording_publish_callbacks(publish_context));
+    Layout::RustFFI::FfiPresentedRecording presented {};
+    Layout::RustFFI::layout_arena_publish_recording(arena, recording_publish_callbacks(publish_context), &presented);
     take_recording_trace_if_pending(document);
-    if (Layout::RustFFI::layout_arena_last_recording_has_blocking_wheel_event_listeners(arena))
+    if (presented.has_blocking_wheel_event_listeners)
         wheel_event_region_state.has_blocking_wheel_event_listeners = true;
     auto stamp_async_scrolling_metadata_with_current_viewport_rect = [&](Compositing::DisplayList& display_list) {
         if (auto navigable = document.navigable()) {
@@ -674,7 +675,7 @@ RefPtr<Compositing::DisplayList> record_rust_display_list(DOM::Document& documen
         }
     };
 
-    if (Layout::RustFFI::layout_arena_last_recording_is_identical_to_published_recording(arena)) {
+    if (presented.is_identical_to_published_recording) {
         if (auto* source = document.paint_state().display_list_used_as_paint_command_cache_source()) {
             if (rust_painting_timing_enabled())
                 dbgln("PAINT_RECORD rust={} µs identical to the previous recording", rust_timer.elapsed_time().to_microseconds());
@@ -683,7 +684,7 @@ RefPtr<Compositing::DisplayList> record_rust_display_list(DOM::Document& documen
         }
     }
 
-    auto display_list = Compositing::DisplayList::adopt_rust_command_storage(document.visual_context_tree(), Layout::RustFFI::layout_arena_retain_recorded_display_list(arena));
+    auto display_list = Compositing::DisplayList::share_rust_command_storage(document.visual_context_tree(), presented.display_list);
     if (rust_painting_timing_enabled())
         dbgln("PAINT_RECORD rust={} µs commands={} bytes", rust_timer.elapsed_time().to_microseconds(), display_list->command_bytes().size());
 

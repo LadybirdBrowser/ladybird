@@ -224,6 +224,11 @@ impl PublishedFrame {
         &self.damage
     }
 
+    /// The SVG paint resources the frame was published with.
+    pub(crate) fn svg_paint_resources(&self) -> &Arc<SvgPaintResourceRows> {
+        &self.rows.paint_facts.svg_paint_resources
+    }
+
     /// How many paintable rows the frame has room for.
     pub(crate) fn paintable_row_capacity(&self) -> usize {
         self.rows.rows.slot_capacity()

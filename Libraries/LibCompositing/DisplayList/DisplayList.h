@@ -132,6 +132,8 @@ public:
 
     // Adopts a strong reference to immutable Rust command storage, including its run table.
     static NonnullRefPtr<DisplayList> adopt_rust_command_storage(AccumulatedVisualContextTree const&, void const*);
+    // Shares immutable Rust command storage that someone else holds, taking a strong reference of its own.
+    static NonnullRefPtr<DisplayList> share_rust_command_storage(AccumulatedVisualContextTree const&, void const*);
     static NonnullRefPtr<DisplayList> create_from_command_bytes(AccumulatedVisualContextTree const&, ByteBuffer&& command_bytes, Vector<DisplayListCommandRun>&& command_runs);
 
     // The producer's side of sending a list: a fresh shared buffer holding the tape and the run table,

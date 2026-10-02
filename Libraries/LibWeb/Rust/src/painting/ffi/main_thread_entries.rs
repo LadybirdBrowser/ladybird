@@ -173,19 +173,23 @@ pub unsafe extern "C" fn layout_arena_for_each_snap_area(
 /// # Safety
 ///
 /// `arena` must be a live handle from `layout_arena_create`; the callbacks in `publish` are
-/// called synchronously with their context while the recording's resources are live.
+/// called synchronously with their context while the recording's resources are live. `out` must
+/// point to writable storage.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_publish_recording(
     arena: *mut c_void,
     publish: crate::painting::host::FfiRecordingPublishCallbacks,
-) -> u64 {
+    out: *mut crate::painting::ffi::FfiPresentedRecording,
+) {
     // SAFETY: Guaranteed by the entry point's contract.
     let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY, arena) };
     let arena = unsafe { arena_from_handle(arena) };
-    let Some(pending) = arena.paint_state().borrow_mut().pending_recording.take() else {
-        return 0;
-    };
-    crate::painting::record::publish::publish_recording(arena, pending, &main_thread, &publish)
+    let pending = arena.paint_state().borrow_mut().pending_recording.take();
+    if let Some(pending) = pending {
+        crate::painting::record::publish::publish_recording(arena, pending, &main_thread, &publish);
+    }
+    // SAFETY: The caller provides writable storage for what it reads of the recording.
+    unsafe { out.write(crate::painting::ffi::FfiPresentedRecording::of_last_recording(arena)) };
 }
 
 /// # Safety
