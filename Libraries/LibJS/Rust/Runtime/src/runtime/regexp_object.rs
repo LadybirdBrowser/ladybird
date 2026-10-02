@@ -4,7 +4,502 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! The parts of Libraries/LibJS/Runtime/RegExpObject.cpp the runtime implements so far.
+use core::cell::Cell;
+use core::ops::Deref;
+use std::rc::Rc;
+
+use ak::Utf16String;
+use libjs_runtime_macros::Trace;
+
+use crate::gc::class::{Finalize, GcCell, define_cell};
+use crate::gc::gc_ref_cell::GcRefCell;
+use crate::interpreter::vm::Vm;
+use crate::layout::cell::Gc;
+use crate::layout::object::Object;
+use crate::layout::value::Value;
+use crate::runtime::abstract_operations::ordinary_create_from_constructor_of;
+use crate::runtime::completion::{Must, ThrowCompletionOr};
+use crate::runtime::ecmascript_regex::{EcmaScriptCompileFlags, EcmaScriptRegex};
+use crate::runtime::error::ErrorKind;
+use crate::runtime::error_types::ErrorType;
+use crate::runtime::function_object::FunctionObject;
+use crate::runtime::intrinsics::Intrinsics;
+use crate::runtime::object::{
+    MayInterfereWithIndexedPropertyAccess, ORDINARY_OBJECT_METHODS, ObjectMethods, ShouldThrowExceptions,
+};
+use crate::runtime::property_attributes::{Attribute, PropertyAttributes};
+use crate::runtime::property_descriptor::PropertyDescriptor;
+use crate::runtime::realm::Realm;
+use crate::runtime::value::same_value;
+use crate::utf16::{Utf16StringBuilder, Utf16View};
+
+/// RegExpObject::Flags.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct RegExpFlags(u8);
+
+impl RegExpFlags {
+    pub const HAS_INDICES: Self = Self(1 << 0);
+    pub const GLOBAL: Self = Self(1 << 1);
+    pub const IGNORE_CASE: Self = Self(1 << 2);
+    pub const MULTILINE: Self = Self(1 << 3);
+    pub const DOT_ALL: Self = Self(1 << 4);
+    pub const UNICODE_SETS: Self = Self(1 << 5);
+    pub const UNICODE: Self = Self(1 << 6);
+    pub const STICKY: Self = Self(1 << 7);
+
+    pub fn has(self, flag: RegExpFlags) -> bool {
+        self.0 & flag.0 == flag.0
+    }
+
+    fn insert(&mut self, flag: RegExpFlags) {
+        self.0 |= flag.0;
+    }
+
+    pub fn bits(self) -> u8 {
+        self.0
+    }
+}
+
+/// JS_ENUMERATE_REGEXP_FLAGS: each flag with its flag character, in the order the C++ enumerates them.
+pub const REGEXP_FLAGS_WITH_CHARACTERS: [(RegExpFlags, u8); 8] = [
+    (RegExpFlags::HAS_INDICES, b'd'),
+    (RegExpFlags::GLOBAL, b'g'),
+    (RegExpFlags::IGNORE_CASE, b'i'),
+    (RegExpFlags::MULTILINE, b'm'),
+    (RegExpFlags::DOT_ALL, b's'),
+    (RegExpFlags::UNICODE, b'u'),
+    (RegExpFlags::UNICODE_SETS, b'v'),
+    (RegExpFlags::STICKY, b'y'),
+];
+
+fn flag_for_code_unit(code_unit: u16) -> Option<RegExpFlags> {
+    REGEXP_FLAGS_WITH_CHARACTERS
+        .iter()
+        .find(|(_, flag_character)| u16::from(*flag_character) == code_unit)
+        .map(|(flag, _)| *flag)
+}
+
+/// The message of `error_type` with its one placeholder replaced by `code_unit`, as Utf16String::formatted() formats a
+/// code unit of the flags into it.
+fn message_with_code_unit(error_type: ErrorType, code_unit: u16) -> Utf16String {
+    let (before, after) = error_type
+        .format()
+        .split_once("{}")
+        .expect("the message has a placeholder for the flag");
+    let mut builder = Utf16StringBuilder::new();
+    builder.append_ascii(before);
+    builder.append_code_unit(code_unit);
+    builder.append_ascii(after);
+    builder.to_utf16_string()
+}
+
+fn validate_flags(flags: Utf16View<'_>) -> Result<RegExpFlags, Utf16String> {
+    let mut seen = [false; 128];
+    let mut flag_bits = RegExpFlags::default();
+
+    for code_unit in flags.code_units() {
+        let Some(flag) = flag_for_code_unit(code_unit) else {
+            return Err(message_with_code_unit(ErrorType::RegExpObjectBadFlag, code_unit));
+        };
+        if seen[code_unit as usize] {
+            return Err(message_with_code_unit(ErrorType::RegExpObjectRepeatedFlag, code_unit));
+        }
+        seen[code_unit as usize] = true;
+        flag_bits.insert(flag);
+    }
+
+    if flag_bits.has(RegExpFlags::UNICODE) && flag_bits.has(RegExpFlags::UNICODE_SETS) {
+        return Err(Utf16String::from_utf8(&regexp_object_incompatible_flags('u', 'v')));
+    }
+
+    Ok(flag_bits)
+}
+
+fn to_flag_bits(flags: Utf16View<'_>) -> RegExpFlags {
+    let mut flag_bits = RegExpFlags::default();
+    for code_unit in flags.code_units() {
+        if let Some(flag) = flag_for_code_unit(code_unit) {
+            flag_bits.insert(flag);
+        }
+    }
+    flag_bits
+}
+
+/// The flags regex::ECMAScriptRegex::compile() takes for a pattern with `flag_bits`.
+pub fn compile_flags_for(flag_bits: RegExpFlags) -> EcmaScriptCompileFlags {
+    EcmaScriptCompileFlags {
+        global: flag_bits.has(RegExpFlags::GLOBAL),
+        ignore_case: flag_bits.has(RegExpFlags::IGNORE_CASE),
+        multiline: flag_bits.has(RegExpFlags::MULTILINE),
+        dot_all: flag_bits.has(RegExpFlags::DOT_ALL),
+        unicode: flag_bits.has(RegExpFlags::UNICODE),
+        unicode_sets: flag_bits.has(RegExpFlags::UNICODE_SETS),
+        sticky: flag_bits.has(RegExpFlags::STICKY),
+        has_indices: flag_bits.has(RegExpFlags::HAS_INDICES),
+    }
+}
+
+const LINE_SEPARATOR: u16 = 0x2028;
+const PARAGRAPH_SEPARATOR: u16 = 0x2029;
+
+#[repr(C)]
+#[derive(Trace)]
+pub struct RegExpObject {
+    base: Object,
+    #[gc(untraced)]
+    pattern: GcRefCell<Utf16String>,
+    #[gc(untraced)]
+    flags: GcRefCell<Utf16String>,
+    #[gc(untraced)]
+    flag_bits: Cell<RegExpFlags>,
+    #[gc(untraced)]
+    legacy_features_enabled: Cell<bool>, // [[LegacyFeaturesEnabled]]
+    /// The compiled pattern, which the C++ caches in a process-wide map shared by every RegExp object with the same
+    /// pattern and flags, and which this object owns.
+    #[gc(untraced)]
+    cached_regex: GcRefCell<Option<Rc<EcmaScriptRegex>>>,
+    // Note: This is initialized in RegExpAlloc, but will be non-null afterwards
+    realm: Cell<Option<Gc<Realm>>>, // [[Realm]]
+}
+
+static REGEXP_OBJECT_METHODS: ObjectMethods = ObjectMethods {
+    initialize: RegExpObject::initialize,
+    ..ORDINARY_OBJECT_METHODS
+};
+
+define_cell!(RegExpObject, Object, extends: [Object], methods: REGEXP_OBJECT_METHODS, finalize: finalize);
+
+impl Deref for RegExpObject {
+    type Target = Object;
+
+    fn deref(&self) -> &Object {
+        &self.base
+    }
+}
+
+impl Finalize for RegExpObject {
+    fn finalize(&self) {
+        drop(self.cached_regex.replace(None));
+    }
+}
+
+impl RegExpObject {
+    pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<RegExpObject> {
+        realm.create_object(
+            vm,
+            Self::new(
+                vm,
+                Utf16String::default(),
+                Utf16String::default(),
+                realm.intrinsics().regexp_prototype(vm),
+            ),
+        )
+    }
+
+    pub fn create_with_pattern_and_flags(
+        vm: &Vm,
+        realm: Gc<Realm>,
+        pattern: Utf16String,
+        flags: Utf16String,
+    ) -> Gc<RegExpObject> {
+        realm.create_object(
+            vm,
+            Self::new(vm, pattern, flags, realm.intrinsics().regexp_prototype(vm)),
+        )
+    }
+
+    fn new(vm: &Vm, pattern: Utf16String, flags: Utf16String, prototype: Gc<Object>) -> RegExpObject {
+        let flag_bits = to_flag_bits(Utf16View::of_string(&flags));
+        RegExpObject {
+            base: Object::new_with_prototype(vm, Self::CLASS, prototype, MayInterfereWithIndexedPropertyAccess::No),
+            pattern: GcRefCell::new(pattern),
+            flags: GcRefCell::new(flags),
+            flag_bits: Cell::new(flag_bits),
+            legacy_features_enabled: Cell::new(false),
+            cached_regex: GcRefCell::new(None),
+            realm: Cell::new(None),
+        }
+    }
+
+    fn initialize(object: &Object, vm: &Vm, _realm: Gc<Realm>) {
+        object.define_direct_property(
+            vm,
+            &vm.names.lastIndex,
+            Value::from_i32(0),
+            PropertyAttributes::new(Attribute::WRITABLE),
+        );
+    }
+
+    pub fn pattern(&self) -> Utf16String {
+        self.pattern.borrow().clone()
+    }
+
+    pub fn flags(&self) -> Utf16String {
+        self.flags.borrow().clone()
+    }
+
+    pub fn flag_bits(&self) -> RegExpFlags {
+        self.flag_bits.get()
+    }
+
+    pub fn realm(&self) -> Gc<Realm> {
+        self.realm
+            .get()
+            .expect("RegExpAlloc and NewRegExp set the realm of every RegExp object")
+    }
+
+    pub fn legacy_features_enabled(&self) -> bool {
+        self.legacy_features_enabled.get()
+    }
+
+    pub fn set_legacy_features_enabled(&self, legacy_features_enabled: bool) {
+        self.legacy_features_enabled.set(legacy_features_enabled);
+    }
+
+    pub fn set_realm(&self, realm: Gc<Realm>) {
+        self.realm.set(Some(realm));
+    }
+
+    pub fn cached_regex(&self) -> Option<Rc<EcmaScriptRegex>> {
+        self.cached_regex.borrow().clone()
+    }
+
+    pub fn set_cached_regex(&self, regex: Option<Rc<EcmaScriptRegex>>) {
+        drop(self.cached_regex.replace(regex));
+    }
+
+    // 22.2.3.3 RegExpInitialize ( obj, pattern, flags ), https://tc39.es/ecma262/#sec-regexpinitialize
+    pub fn regexp_initialize(
+        &self,
+        vm: &Vm,
+        pattern_value: Value,
+        flags_value: Value,
+    ) -> ThrowCompletionOr<Gc<RegExpObject>> {
+        // Invalidate the cached compiled regex since the pattern/flags may change.
+        self.set_cached_regex(None);
+
+        // 1. If pattern is undefined, let P be the empty String.
+        // 2. Else, let P be ? ToString(pattern).
+        let pattern = if pattern_value.is_undefined() {
+            Utf16String::default()
+        } else {
+            pattern_value.to_utf16_string(vm)?
+        };
+
+        // 3. If flags is undefined, let F be the empty String.
+        // 4. Else, let F be ? ToString(flags).
+        let flags = if flags_value.is_undefined() {
+            Utf16String::default()
+        } else {
+            flags_value.to_utf16_string(vm)?
+        };
+
+        // 5. If F contains any code unit other than "d", "g", "i", "m", "s", "u", "v", or "y", or if F contains any code unit more than once, throw a SyntaxError exception.
+        // 6. If F contains "i", let i be true; else let i be false.
+        // 7. If F contains "m", let m be true; else let m be false.
+        // 8. If F contains "s", let s be true; else let s be false.
+        // 9. If F contains "u", let u be true; else let u be false.
+        // 10. If F contains "v", let v be true; else let v be false.
+        let flag_bits = match validate_flags(Utf16View::of_string(&flags)) {
+            Ok(flag_bits) => flag_bits,
+            Err(message) => return vm.throw_completion_with_utf16_message(ErrorKind::SyntaxError, message),
+        };
+        let unicode = flag_bits.has(RegExpFlags::UNICODE);
+        let unicode_sets = flag_bits.has(RegExpFlags::UNICODE_SETS);
+
+        let mut parsed_pattern = Vec::new();
+
+        // Normalize non-ASCII code units to ASCII escapes before compiling the pattern.
+        if !Utf16View::of_string(&pattern).is_empty() {
+            let mut pattern_code_units = Vec::new();
+            Utf16View::of_string(&pattern).append_to(&mut pattern_code_units);
+            match parse_regex_pattern(&pattern_code_units, unicode, unicode_sets) {
+                Ok(result) => parsed_pattern = result,
+                Err(error) => {
+                    return vm.throw_completion(ErrorKind::SyntaxError, ErrorType::RegExpCompileError, &[&error.error]);
+                }
+            }
+        }
+
+        // 11. If u is true and v is true, throw a SyntaxError exception.
+        // NB: Already handled by validate_flags above.
+
+        // Validate by trial-compiling the pattern.
+        let mut compile_flags = compile_flags_for(flag_bits);
+        compile_flags.has_indices = false;
+
+        let compiled = match EcmaScriptRegex::compile(Utf16View::Utf16(&parsed_pattern), compile_flags) {
+            Ok(compiled) => compiled,
+            Err(error) => {
+                return vm.throw_completion(ErrorKind::SyntaxError, ErrorType::RegExpCompileError, &[&error]);
+            }
+        };
+
+        // Pattern and flag coercion can reenter and populate this cache.
+        // NB: The trial compile is what exec would compile when the pattern does not have indices, so it is kept for
+        //     exec instead of being compiled again.
+        self.set_cached_regex(if flag_bits.has(RegExpFlags::HAS_INDICES) {
+            None
+        } else {
+            Some(Rc::new(compiled))
+        });
+
+        // 16. Set obj.[[OriginalSource]] to P.
+        drop(self.pattern.replace(pattern));
+
+        // 17. Set obj.[[OriginalFlags]] to F.
+        self.flag_bits.set(to_flag_bits(Utf16View::of_string(&flags)));
+        drop(self.flags.replace(flags));
+
+        // 18. Let capturingGroupsCount be CountLeftCapturingParensWithin(parseResult).
+        // 19. Let rer be the RegExp Record { [[IgnoreCase]]: i, [[Multiline]]: m, [[DotAll]]: s, [[Unicode]]: u, [[CapturingGroupsCount]]: capturingGroupsCount }.
+        // 20. Set obj.[[RegExpRecord]] to rer.
+        // 21. Set obj.[[RegExpMatcher]] to CompilePattern of parseResult with argument rer.
+
+        // 22. Perform ? Set(obj, "lastIndex", +0𝔽, true).
+        self.base
+            .set(vm, &vm.names.lastIndex, Value::from_i32(0), ShouldThrowExceptions::Yes)?;
+
+        // 23. Return obj.
+        Ok(self
+            .as_gc()
+            .downcast::<RegExpObject>()
+            .expect("a RegExp object is a RegExpObject"))
+    }
+
+    // 22.2.6.13.1 EscapeRegExpPattern ( P, F ), https://tc39.es/ecma262/#sec-escaperegexppattern
+    pub fn escape_regexp_pattern(&self) -> Utf16String {
+        // 1. Let S be a String in the form of a Pattern[~UnicodeMode] (Pattern[+UnicodeMode] if F contains "u") equivalent
+        //    to P interpreted as UTF-16 encoded Unicode code points (6.1.4), in which certain code points are escaped as
+        //    described below. S may or may not be identical to P; however, the Abstract Closure that would result from
+        //    evaluating S as a Pattern[~UnicodeMode] (Pattern[+UnicodeMode] if F contains "u") must behave identically to
+        //    the Abstract Closure given by the constructed object's [[RegExpMatcher]] internal slot. Multiple calls to
+        //    this abstract operation using the same values for P and F must produce identical results.
+        // 2. The code points / or any LineTerminator occurring in the pattern shall be escaped in S as necessary to ensure
+        //    that the string-concatenation of "/", S, "/", and F can be parsed (in an appropriate lexical context) as a
+        //    RegularExpressionLiteral that behaves identically to the constructed regular expression. For example, if P is
+        //    "/", then S could be "\/" or "/", among other possibilities, but not "/", because /// followed by F
+        //    would be parsed as a SingleLineComment rather than a RegularExpressionLiteral. If P is the empty String, this
+        //    specification can be met by letting S be "(?:)".
+        // 3. Return S.
+        let pattern = self.pattern();
+        let pattern = Utf16View::of_string(&pattern);
+        if pattern.is_empty() {
+            return Utf16String::from_utf8("(?:)");
+        }
+
+        // FIXME: Check the 'u' and 'v' flags and escape accordingly
+        // NB: The C++ walks the pattern by code point and appends each one back. Only code points of the BMP are ever
+        //     escaped, so walking it by code unit gives the same string.
+        let mut builder = Utf16StringBuilder::new();
+        let mut escaped = false;
+        let mut in_character_class = false;
+
+        for code_unit in pattern.code_units() {
+            if escaped {
+                escaped = false;
+                builder.append_ascii("\\");
+
+                match code_unit {
+                    0x0a => builder.append_ascii("n"),
+                    0x0d => builder.append_ascii("r"),
+                    LINE_SEPARATOR => builder.append_ascii("u2028"),
+                    PARAGRAPH_SEPARATOR => builder.append_ascii("u2029"),
+                    _ => builder.append_code_unit(code_unit),
+                }
+                continue;
+            }
+
+            if code_unit == u16::from(b'\\') {
+                escaped = true;
+                continue;
+            }
+
+            if code_unit == u16::from(b'[') {
+                in_character_class = true;
+            } else if code_unit == u16::from(b']') {
+                in_character_class = false;
+            }
+
+            match code_unit {
+                0x2f => {
+                    if in_character_class {
+                        builder.append_ascii("/");
+                    } else {
+                        builder.append_ascii("\\/");
+                    }
+                }
+                0x0a => builder.append_ascii("\\n"),
+                0x0d => builder.append_ascii("\\r"),
+                LINE_SEPARATOR => builder.append_ascii("\\u2028"),
+                PARAGRAPH_SEPARATOR => builder.append_ascii("\\u2029"),
+                _ => builder.append_code_unit(code_unit),
+            }
+        }
+
+        builder.to_utf16_string()
+    }
+}
+
+// 22.2.3.1 RegExpCreate ( P, F ), https://tc39.es/ecma262/#sec-regexpcreate
+pub fn regexp_create(vm: &Vm, pattern: Value, flags: Value) -> ThrowCompletionOr<Gc<RegExpObject>> {
+    let realm = vm.current_realm().expect("RegExpCreate runs in a realm");
+
+    // 1. Let obj be ! RegExpAlloc(%RegExp%).
+    let regexp_object = regexp_alloc(vm, realm.intrinsics().regexp_constructor(vm).upcast()).must();
+
+    // 2. Return ? RegExpInitialize(obj, P, F).
+    regexp_object.regexp_initialize(vm, pattern, flags)
+}
+
+// 22.2.3.2 RegExpAlloc ( newTarget ), https://tc39.es/ecma262/#sec-regexpalloc
+// 22.2.3.2 RegExpAlloc ( newTarget ), https://github.com/tc39/proposal-regexp-legacy-features#regexpalloc--newtarget-
+pub fn regexp_alloc(vm: &Vm, new_target: Gc<FunctionObject>) -> ThrowCompletionOr<Gc<RegExpObject>> {
+    let current_realm = vm.current_realm().expect("RegExpAlloc runs in a realm");
+
+    // 1. Let obj be ? OrdinaryCreateFromConstructor(newTarget, "%RegExp.prototype%", « [[OriginalSource]], [[OriginalFlags]], [[RegExpRecord]], [[RegExpMatcher]] »).
+    let regexp_object = ordinary_create_from_constructor_of(
+        vm,
+        current_realm,
+        new_target,
+        Intrinsics::regexp_prototype,
+        |prototype| RegExpObject::new(vm, Utf16String::default(), Utf16String::default(), prototype),
+    )?;
+
+    // 2. Let thisRealm be the current Realm Record.
+    let this_realm = vm.current_realm().expect("RegExpAlloc runs in a realm");
+
+    // 3. Set the value of obj’s [[Realm]] internal slot to thisRealm.
+    regexp_object.set_realm(this_realm);
+
+    // 4. If SameValue(newTarget, thisRealm.[[Intrinsics]].[[%RegExp%]]) is true, then
+    if same_value(
+        Value::from_object(new_target),
+        Value::from_object(this_realm.intrinsics().regexp_constructor(vm)),
+    ) {
+        // i. Set the value of obj’s [[LegacyFeaturesEnabled]] internal slot to true.
+        regexp_object.set_legacy_features_enabled(true);
+    }
+    // 5. Else,
+    else {
+        // i. Set the value of obj’s [[LegacyFeaturesEnabled]] internal slot to false.
+        regexp_object.set_legacy_features_enabled(false);
+    }
+
+    // 6. Perform ! DefinePropertyOrThrow(obj, "lastIndex", PropertyDescriptor { [[Writable]]: true, [[Enumerable]]: false, [[Configurable]]: false }).
+    let mut descriptor = PropertyDescriptor {
+        writable: Some(true),
+        enumerable: Some(false),
+        configurable: Some(false),
+        ..Default::default()
+    };
+    regexp_object
+        .define_property_or_throw(vm, &vm.names.lastIndex, &mut descriptor)
+        .must();
+
+    // 7. Return obj.
+    Ok(regexp_object)
+}
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ParseRegexPatternError {

@@ -158,6 +158,9 @@ pub fn set_default_global_bindings(vm: &Vm, realm: Gc<Realm>) {
     define_intrinsic_accessor(&names.ReferenceError, |vm, realm| {
         Value::from_object(realm.intrinsics().reference_error_constructor(vm))
     });
+    define_intrinsic_accessor(&names.RegExp, |vm, realm| {
+        Value::from_object(realm.intrinsics().regexp_constructor(vm))
+    });
     define_intrinsic_accessor(&names.Set, |vm, realm| {
         Value::from_object(realm.intrinsics().set_constructor(vm))
     });

@@ -187,4 +187,7 @@ define_class_ids! {
     FinalizationRegistry,
     FinalizationRegistryPrototype,
     FinalizationRegistryConstructor,
+    RegExpPrototype,
+    RegExpConstructor,
+    RegExpStringIterator,
 }

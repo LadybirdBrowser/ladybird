@@ -1285,8 +1285,8 @@ impl RuntimeFunctions for Runtime {
         control::get_template_object(vm, pc, instruction, values, strings)
     }
 
-    fn new_regexp(vm: &Vm, pc: u32, instruction: &op::NewRegExp, _values: &mut op::NewRegExpValues) -> SlowPathControl {
-        control::new_regexp(vm, pc, instruction)
+    fn new_regexp(vm: &Vm, pc: u32, instruction: &op::NewRegExp, values: &mut op::NewRegExpValues) -> SlowPathControl {
+        control::new_regexp(vm, pc, instruction, values)
     }
 
     fn new_reference_error(

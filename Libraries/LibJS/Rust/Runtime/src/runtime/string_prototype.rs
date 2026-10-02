@@ -29,6 +29,8 @@ use crate::runtime::primitive_string::PrimitiveString;
 use crate::runtime::property_attributes::{Attribute, PropertyAttributes};
 use crate::runtime::property_key::PropertyKey;
 use crate::runtime::realm::Realm;
+use crate::runtime::regexp_object::regexp_create;
+use crate::runtime::regexp_prototype::RegExpPrototype;
 use crate::runtime::string_iterator::StringIterator;
 use crate::runtime::string_object::{STRING_OBJECT_METHODS, StringObject};
 use crate::runtime::value_conversions::MAX_ARRAY_LIKE_INDEX;
@@ -696,8 +698,14 @@ impl StringPrototype {
         let string = this_object.to_primitive_string(vm)?;
 
         // 4. Let rx be ? RegExpCreate(regexp, undefined).
+        let rx = regexp_create(vm, regexp, Value::UNDEFINED)?;
+
         // 5. Return ? Invoke(rx, @@match, « S »).
-        regexp_create_and_invoke(vm, regexp, Value::UNDEFINED, string, "@@match")
+        Value::from_object(rx).invoke(
+            vm,
+            &PropertyKey::from(vm.well_known_symbols().match_),
+            &[Value::from_string(string)],
+        )
     }
 
     // 22.1.3.14 String.prototype.matchAll ( regexp ), https://tc39.es/ecma262/#sec-string.prototype.matchall
@@ -748,12 +756,18 @@ impl StringPrototype {
         let string = this_object.to_primitive_string(vm)?;
 
         // 4. Let rx be ? RegExpCreate(regexp, "g").
-        // 5. Return ? Invoke(rx, @@matchAll, « S »).
         let flags = Value::from_string(PrimitiveString::create_from_fly_string(
             vm,
             &Utf16FlyString::from_utf8("g"),
         ));
-        regexp_create_and_invoke(vm, regexp, flags, string, "@@matchAll")
+        let rx = regexp_create(vm, regexp, flags)?;
+
+        // 5. Return ? Invoke(rx, @@matchAll, « S »).
+        Value::from_object(rx).invoke(
+            vm,
+            &PropertyKey::from(vm.well_known_symbols().match_all),
+            &[Value::from_string(string)],
+        )
     }
 
     // 22.1.3.15 String.prototype.normalize ( [ form ] ), https://tc39.es/ecma262/#sec-string.prototype.normalize
@@ -897,12 +911,9 @@ impl StringPrototype {
                 if replacer.builtin() == Some(Builtin::RegExpPrototypeReplace) && replacer.realm() == vm.current_realm()
                 {
                     // OPTIMIZATION: The common case of RegExp.prototype[@@replace]
-                    this_object.to_primitive_string(vm)?;
-                    unimplemented_runtime_function(
-                        "RegExpPrototype::symbol_replace_impl in String.prototype.replace, which needs the RegExp \
-                         builtins",
-                        0,
-                    );
+                    let rx = search_value.as_object();
+                    let string = this_object.to_primitive_string(vm)?;
+                    return RegExpPrototype::symbol_replace_impl(vm, rx, string, replace_value);
                 }
                 // i. Return ? Call(replacer, searchValue, « O, replaceValue »).
                 return call_function_object(vm, replacer, search_value, &[this_object, replace_value]);
@@ -1031,12 +1042,11 @@ impl StringPrototype {
             if let Some(replacer) = replacer {
                 if replacer.builtin() == Some(Builtin::RegExpPrototypeReplace) {
                     // OPTIMIZATION: The common case of RegExp.prototype[@@replace]
-                    this_object.to_primitive_string(vm)?;
-                    unimplemented_runtime_function(
-                        "RegExpPrototype::symbol_replace_impl in String.prototype.replaceAll, which needs the RegExp \
-                         builtins",
-                        0,
-                    );
+                    // NB: Unlike String.prototype.replace, the C++ does not check that the replacer is the one of the
+                    //     current realm here, so the @@replace of another realm runs in this one.
+                    let rx = search_value.as_object();
+                    let string = this_object.to_primitive_string(vm)?;
+                    return RegExpPrototype::symbol_replace_impl(vm, rx, string, replace_value);
                 }
                 // i. Return ? Call(replacer, searchValue, « O, replaceValue »).
                 return call_function_object(vm, replacer, search_value, &[this_object, replace_value]);
@@ -1174,8 +1184,14 @@ impl StringPrototype {
         let string = this_object.to_primitive_string(vm)?;
 
         // 4. Let rx be ? RegExpCreate(regexp, undefined).
+        let rx = regexp_create(vm, regexp, Value::UNDEFINED)?;
+
         // 5. Return ? Invoke(rx, @@search, « string »).
-        regexp_create_and_invoke(vm, regexp, Value::UNDEFINED, string, "@@search")
+        Value::from_object(rx).invoke(
+            vm,
+            &PropertyKey::from(vm.well_known_symbols().search),
+            &[Value::from_string(string)],
+        )
     }
 
     // 22.1.3.22 String.prototype.slice ( start, end ), https://tc39.es/ecma262/#sec-string.prototype.slice
@@ -1262,11 +1278,9 @@ impl StringPrototype {
             if let Some(splitter) = splitter {
                 if splitter.builtin() == Some(Builtin::RegExpPrototypeSplit) && splitter.realm() == vm.current_realm() {
                     // OPTIMIZATION: The common case of RegExp.prototype[@@split]
-                    this_value.to_primitive_string(vm)?;
-                    unimplemented_runtime_function(
-                        "RegExpPrototype::symbol_split_impl in String.prototype.split, which needs the RegExp builtins",
-                        0,
-                    );
+                    let rx = separator_argument.as_object();
+                    let string = this_value.to_primitive_string(vm)?;
+                    return RegExpPrototype::symbol_split_impl(vm, rx, string, limit_argument);
                 }
                 // i. Return ? Call(splitter, separator, « thisValue, limit »).
                 return call_function_object(vm, splitter, separator_argument, &[this_value, limit_argument]);
@@ -1761,24 +1775,6 @@ fn this_string_value(vm: &Vm, value: Value) -> ThrowCompletionOr<Gc<PrimitiveStr
 
     // 3. Throw a TypeError exception.
     vm.throw_completion(ErrorKind::TypeError, ErrorType::NotAnObjectOfType, &[&"String"])
-}
-
-/// RegExpCreate followed by the Invoke of `method_name` on the new RegExp object, which the String.prototype methods
-/// that take a regular expression perform when it is not an object with a method of that name.
-fn regexp_create_and_invoke(
-    _vm: &Vm,
-    _pattern: Value,
-    _flags: Value,
-    _string: Gc<PrimitiveString>,
-    method_name: &str,
-) -> ThrowCompletionOr<Value> {
-    unimplemented_runtime_function(
-        &format!(
-            "RegExpCreate and the Invoke of RegExp.prototype[{method_name}] in String.prototype, which need the \
-             RegExp builtins"
-        ),
-        0,
-    )
 }
 
 #[rustfmt::skip]
