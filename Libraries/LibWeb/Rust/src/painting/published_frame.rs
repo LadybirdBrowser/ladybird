@@ -12,6 +12,8 @@
 //! while it is read.
 
 use crate::cow_column::ColumnSnapshot;
+use crate::layout::PublishedTextSlot;
+use crate::layout::SLOTS_PER_CHUNK;
 use crate::layout::fragment_tree::FragmentLink;
 use crate::layout::node_data::{NodeSlotId, PaintNode};
 use crate::layout::tree_shape::PUBLISHED_ROWS_PER_CHUNK;
@@ -25,6 +27,7 @@ use std::sync::Arc;
 /// columns read beside them.
 pub(crate) struct PublishedRows {
     pub(super) nodes: ColumnSnapshot<PaintNode, PUBLISHED_ROWS_PER_CHUNK>,
+    pub(super) text: ColumnSnapshot<PublishedTextSlot, SLOTS_PER_CHUNK>,
     pub(super) rows: ColumnSnapshot<PaintableData, PAINTABLE_SLOTS_PER_CHUNK>,
     pub(super) fragment_links: ColumnSnapshot<CommittedFragmentLinkSlot, PAINTABLE_SLOTS_PER_CHUNK>,
     pub(super) side_data: ColumnSnapshot<CommittedSideData, PAINTABLE_SLOTS_PER_CHUNK>,
@@ -34,6 +37,14 @@ pub(crate) struct PublishedRows {
 }
 
 impl PublishedRows {
+    /// What a live text row published.
+    pub(crate) fn text(&self, id: NodeSlotId) -> Option<&PublishedTextSlot> {
+        self.node(id)?;
+        self.text
+            .get(id.slot_index() as usize)
+            .filter(|text| text.generation == id.generation())
+    }
+
     /// The node in slot `id`, if the slot holds it: a node freed or replaced since reads as gone.
     pub(crate) fn node(&self, id: NodeSlotId) -> Option<&PaintNode> {
         if id.is_invalid() {

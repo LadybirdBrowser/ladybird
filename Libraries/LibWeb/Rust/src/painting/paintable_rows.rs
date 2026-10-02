@@ -729,14 +729,16 @@ impl LayoutNodeArena {
         )
     }
 
-    /// The layout tree's shape, the paintable rows, their committed fragment links and their
-    /// committed side data as they are now. The live columns go on being written, copying only the
+    /// The layout tree's shape and text, the paintable rows and the columns read beside them as
+    /// they are now. The live columns go on being written, copying only the
     /// chunks the publication shares.
     pub(crate) fn publish_rows(&mut self) -> PublishedRows {
         let nodes = self.publish_paint_tree();
+        let text = self.publish_text();
         let store = &mut self.paintable_rows;
         PublishedRows {
             nodes,
+            text,
             rows: store.rows.publish(),
             fragment_links: store.committed_fragment_links.get_mut().publish(),
             side_data: store.committed_side_data.get_mut().publish(),

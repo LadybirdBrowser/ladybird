@@ -39,7 +39,7 @@ fn for_each_empty_visual_line_position(
 ) {
     let mut segments: Vec<(NodeSlotId, &[u16])> = Vec::new();
     for &node in node_slots {
-        if let Some(content) = layout_arena.text_content(node) {
+        if let Some(content) = layout_arena.rendered_text(node) {
             segments.push((node, &content.text));
         }
     }

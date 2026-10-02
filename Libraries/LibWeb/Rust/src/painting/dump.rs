@@ -136,7 +136,7 @@ fn dump_fragment(
         push_indent(out, indent);
         out.extend_from_slice(b"      \"");
         if node_facts::kind_is_text(kind)
-            && let Some(content) = layout_arena.text_content(fragment.layout_node)
+            && let Some(content) = layout_arena.rendered_text(fragment.layout_node)
         {
             let end = fragment
                 .start

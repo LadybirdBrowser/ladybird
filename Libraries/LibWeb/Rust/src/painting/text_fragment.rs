@@ -438,36 +438,35 @@ pub(crate) fn index_in_node_for_point(
     let mut tracker = GraphemeEdgeTracker::new(relative_inline_offset);
     let mut reached_target = false;
 
-    if let Some(run) = &fragment.glyph_run
-        && let Some(content) = layout_arena.text_content(fragment.layout_node)
-    {
-        let segmenter = content.grapheme_segmenter();
-        for_each_cluster_in_glyph_run(
-            &run.glyphs,
-            fragment.length_in_code_units,
-            |cluster_start, cluster_end, cluster_width| {
-                let per_unit_advance = cluster_width / (cluster_end - cluster_start) as f32;
-                let mut grapheme_start = fragment.start + cluster_start;
-                let cluster_absolute_end = fragment.start + cluster_end;
-                while grapheme_start < cluster_absolute_end {
-                    let grapheme_end = segmenter
-                        .next_boundary(grapheme_start, false)
-                        .unwrap_or(cluster_absolute_end)
-                        .min(cluster_absolute_end);
-                    if grapheme_end <= grapheme_start {
-                        break;
+    if let Some(run) = &fragment.glyph_run {
+        layout_arena.with_grapheme_segmenter(fragment.layout_node, |segmenter| {
+            for_each_cluster_in_glyph_run(
+                &run.glyphs,
+                fragment.length_in_code_units,
+                |cluster_start, cluster_end, cluster_width| {
+                    let per_unit_advance = cluster_width / (cluster_end - cluster_start) as f32;
+                    let mut grapheme_start = fragment.start + cluster_start;
+                    let cluster_absolute_end = fragment.start + cluster_end;
+                    while grapheme_start < cluster_absolute_end {
+                        let grapheme_end = segmenter
+                            .next_boundary(grapheme_start, false)
+                            .unwrap_or(cluster_absolute_end)
+                            .min(cluster_absolute_end);
+                        if grapheme_end <= grapheme_start {
+                            break;
+                        }
+                        let grapheme_units = grapheme_end - grapheme_start;
+                        let grapheme_width = per_unit_advance * grapheme_units as f32;
+                        if !tracker.update(grapheme_units, grapheme_width) {
+                            reached_target = true;
+                            return false;
+                        }
+                        grapheme_start = grapheme_end;
                     }
-                    let grapheme_units = grapheme_end - grapheme_start;
-                    let grapheme_width = per_unit_advance * grapheme_units as f32;
-                    if !tracker.update(grapheme_units, grapheme_width) {
-                        reached_target = true;
-                        return false;
-                    }
-                    grapheme_start = grapheme_end;
-                }
-                true
-            },
-        );
+                    true
+                },
+            );
+        });
     }
 
     if !reached_target && fragment.trailing_whitespace_length_in_code_units > 0 {

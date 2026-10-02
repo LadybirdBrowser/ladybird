@@ -63,8 +63,8 @@ use crate::layout::layout_node_arena::IntrinsicBlockSizeMeasurement;
 use crate::layout::layout_node_arena::IntrinsicInlineSizeMeasurement;
 use crate::layout::layout_node_arena::IntrinsicSizeCacheKey;
 use crate::layout::layout_node_arena::IntrinsicSizeCacheKind;
-pub(crate) use crate::layout::layout_node_arena::LayoutNodeArena;
 pub(crate) use crate::layout::layout_node_arena::MainThreadFfiEntry as ArenaMainThreadFfiEntry;
+pub(crate) use crate::layout::layout_node_arena::{LayoutNodeArena, SLOTS_PER_CHUNK};
 use crate::layout::layout_node_arena::{TableCellMeasurement, TableCellMeasurementKey};
 use crate::layout::node_data::AncestorFact;
 pub use crate::layout::node_data::FfiNodeConstructionFacts;
@@ -89,7 +89,7 @@ pub(crate) use geometry::{
 pub(crate) use host_tables::{ArenaHandle, HostTables, TreeBuildWalk};
 pub(crate) use layout_pass::LayoutPass;
 pub(crate) use node_facts::NodeFacts;
-pub(crate) use rendered_text::{RenderedTextBoundary, TextContent, TextFragments};
+pub(crate) use rendered_text::{PublishedTextSlot, RenderedText, RenderedTextBoundary, TextFragments};
 pub(crate) use run_records::RunRecords;
 use std::cell::Cell;
 use std::cell::OnceCell;
