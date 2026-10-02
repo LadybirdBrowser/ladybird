@@ -833,21 +833,24 @@ fn box_holds_scroll_state(arena: &LayoutNodeArena, slot: NodeSlotId) -> bool {
         || arena.node_flags_if_live(slot) & crate::layout::node_data::NodeFlag::HasScrollOffset as u32 != 0
 }
 
-/// Settles the scheduled recalculation, clamping the scroll offsets it moved out of range, then
-/// measures every other row left unmeasured.
-pub(crate) fn update_scrollable_overflow(main_thread: &crate::stage::MainThread, arena: &LayoutNodeArena) {
-    settle_scheduled_scrollable_overflow(main_thread, arena);
+/// Settles the scheduled recalculation, then measures every other row left unmeasured. Answers the scroll offsets the
+/// new overflow moved out of range, each clamped into it, for the document to store.
+#[must_use = "the document stores the clamped scroll offsets"]
+pub(crate) fn update_scrollable_overflow(arena: &LayoutNodeArena) -> Vec<(NodeSlotId, CssPixelPoint)> {
+    let clamped = settle_scheduled_scrollable_overflow(arena);
     arena.measure_scrollable_overflow();
+    clamped
 }
 
-fn settle_scheduled_scrollable_overflow(main_thread: &crate::stage::MainThread, arena: &LayoutNodeArena) {
+fn settle_scheduled_scrollable_overflow(arena: &LayoutNodeArena) -> Vec<(NodeSlotId, CssPixelPoint)> {
+    let mut clamped = Vec::new();
     let Some(viewport) = arena.scrollable_overflow.viewport.get() else {
-        return;
+        return clamped;
     };
     let full_layout_commit = arena.scrollable_overflow.full_layout_commit.replace(false);
     let (pending_boxes, needs_full_recalculation) = arena.take_scrollable_overflow_recalculation_state();
     if (pending_boxes.is_empty() && !needs_full_recalculation) || !arena.paintable_row_is_populated(viewport) {
-        return;
+        return clamped;
     }
     arena
         .scrollable_overflow
@@ -909,7 +912,6 @@ fn settle_scheduled_scrollable_overflow(main_thread: &crate::stage::MainThread, 
     // The new overflow can leave a stored scroll offset outside the range the box now allows. The
     // pass has the measurement, so it decides the offset itself, and tells the document what to
     // store once every root is measured rather than handing each box back to be clamped.
-    let mut clamped = Vec::new();
     for slot in roots {
         arena.ensure_scrollable_overflow(slot);
         let offset = arena.row_scroll_offset(slot);
@@ -929,19 +931,7 @@ fn settle_scheduled_scrollable_overflow(main_thread: &crate::stage::MainThread, 
             clamped.push((slot, offset_in_range));
         }
     }
-    let Some(host) = main_thread
-        .host_tables()
-        .and_then(|host_tables| host_tables.geometry_host.get())
-    else {
-        return;
-    };
-    for (slot, offset) in clamped {
-        if arena.slot_is_live(slot) {
-            // SAFETY: The registered host receives a live row. No mutable arena or cache borrow is
-            // held while it re-enters geometry queries to store the offset.
-            unsafe { host.set_scroll_offset(main_thread, slot, offset.into()) };
-        }
-    }
+    clamped
 }
 
 /// Retain the last published transform group so a style change can invalidate overflow

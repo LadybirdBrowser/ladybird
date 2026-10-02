@@ -9,6 +9,7 @@
 //! a token nor call an entry that does.
 
 use super::*;
+use crate::painting::paint_passes::{PaintPass, PaintPassAnswer, run as run_paint_pass};
 
 /// Mints the main thread token for this module's FFI entry points; only this module can make one.
 pub(crate) struct MainThreadFfiEntry {
@@ -354,24 +355,95 @@ pub unsafe extern "C" fn layout_arena_paintable_cleared_from_node(arena: *mut c_
     };
 }
 
+/// Prepares the document of `host` for rendering, and stores the scroll offsets the new overflow moved out of range.
+///
 /// # Safety
 ///
-/// `arena` must be a live arena used on the document thread. Host callbacks must
-/// remain valid for this call and must not mutate layout geometry.
+/// `host` must be a live document host, on its document's thread. Host callbacks must remain valid for this call.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_prepare_for_rendering(
-    arena: *mut c_void,
+pub unsafe extern "C" fn render_state_prepare_for_rendering(
+    host: *mut crate::render_state::DocumentHost,
     visual_context_update_pending: bool,
-) -> FfiRenderingPreparationOutcome {
-    // SAFETY: Guaranteed by the entry point's contract.
-    let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY, arena) };
-    let arena = unsafe { arena_from_handle(arena) };
-    prepare_for_rendering(
-        &main_thread,
-        arena,
-        crate::layout::viewport_propagation::root_background_source(arena),
-        visual_context_update_pending,
-    )
+) -> crate::painting::paint_passes::FfiRenderingPreparationOutcome {
+    // SAFETY: Guaranteed by the caller.
+    let PaintPassAnswer::Prepared(prepared) = run_paint_pass(
+        unsafe { &*host },
+        PaintPass::PrepareForRendering {
+            visual_context_update_pending,
+        },
+    ) else {
+        unreachable!("preparing for rendering answers what it prepared");
+    };
+    if !prepared.clamped_scroll_offsets.is_empty() {
+        // SAFETY: Guaranteed by the caller.
+        let host = unsafe { &*host };
+        // SAFETY: As above.
+        let main_thread = unsafe { crate::stage::from_ffi_entry_with_host(&MAIN_THREAD_FFI_ENTRY, host) };
+        if let Some(geometry_host) = host.host_tables().geometry_host.get() {
+            for (slot, offset) in prepared.clamped_scroll_offsets {
+                // SAFETY: The pass clamped the offsets of live rows, and the host holds no borrow of the arena.
+                unsafe { geometry_host.set_scroll_offset(&main_thread, slot, offset.into()) };
+            }
+        }
+    }
+    prepared.outcome
+}
+
+/// # Safety
+///
+/// `host` must be a live document host, on its document's thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn render_state_update_accumulated_visual_contexts(
+    host: *mut crate::render_state::DocumentHost,
+    viewport: NodeSlotId,
+) -> crate::painting::host::FfiVisualContextUpdateOutcome {
+    // SAFETY: Guaranteed by the caller.
+    let PaintPassAnswer::VisualContexts(outcome) = run_paint_pass(
+        unsafe { &*host },
+        PaintPass::UpdateAccumulatedVisualContexts { viewport },
+    ) else {
+        unreachable!("a visual context update answers its outcome");
+    };
+    outcome
+}
+
+/// # Safety
+///
+/// `host` must be a live document host, on its document's thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn render_state_update_visual_viewport_transform(host: *mut crate::render_state::DocumentHost) {
+    // SAFETY: Guaranteed by the caller.
+    run_paint_pass(unsafe { &*host }, PaintPass::UpdateVisualViewportTransform);
+}
+
+/// Re-reads the scroll containers' offsets when something invalidated them since the last refresh, resolves the
+/// sticky nodes' offsets on top of them, and hands the dense device-pixel snapshot to `publish`. Returns whether that
+/// happened, so the caller keeps its copy otherwise; `force` re-derives the snapshot even when nothing invalidated it,
+/// for verification.
+///
+/// # Safety
+///
+/// `host` must be a live document host, on its document's thread; `publish` is called synchronously with `sink` and a
+/// view of the snapshot that is valid only for the duration of that call.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn render_state_refresh_scroll_state(
+    host: *mut crate::render_state::DocumentHost,
+    force: bool,
+    sink: *mut c_void,
+    publish: unsafe extern "C" fn(*mut c_void, *const libgfx_rust::FloatPoint, usize),
+) -> bool {
+    // SAFETY: Guaranteed by the caller.
+    let PaintPassAnswer::ScrollState(snapshot) =
+        run_paint_pass(unsafe { &*host }, PaintPass::RefreshScrollState { force })
+    else {
+        unreachable!("a scroll state refresh answers its snapshot");
+    };
+    let Some(snapshot) = snapshot else {
+        return false;
+    };
+    // SAFETY: The C++ sink copies the offsets synchronously.
+    unsafe { publish(sink, snapshot.as_ptr(), snapshot.len()) };
+    true
 }
 
 /// # Safety

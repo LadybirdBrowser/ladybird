@@ -228,7 +228,7 @@ Layout::RustFFI::FfiVisualContextUpdateOutcome rust_update_accumulated_visual_co
 {
     auto update_timer = Core::ElapsedTimer::start_new(Core::TimerType::Precise);
     publish_visual_context_tree_inputs(document);
-    auto outcome = Layout::RustFFI::layout_arena_update_accumulated_visual_contexts(layout_arena_handle(document), viewport_row_slot(document));
+    auto outcome = Layout::RustFFI::render_state_update_accumulated_visual_contexts(document.layout_node_arena().host(), viewport_row_slot(document));
     if (rust_painting_timing_enabled())
         dbgln("AVC_UPDATE rust={} µs {}", update_timer.elapsed_time().to_microseconds(), outcome.performed_full_build ? "full"sv : "incremental"sv);
     return outcome;
@@ -282,7 +282,7 @@ void register_geometry_host(Layout::NodeArena& arena)
 Layout::RustFFI::FfiRenderingPreparationOutcome rust_prepare_for_rendering(DOM::Document& document, bool visual_context_update_pending)
 {
     publish_visual_context_tree_inputs(document);
-    return Layout::RustFFI::layout_arena_prepare_for_rendering(layout_arena_handle(document), visual_context_update_pending);
+    return Layout::RustFFI::render_state_prepare_for_rendering(document.layout_node_arena().host(), visual_context_update_pending);
 }
 
 static CSS::PreferredColorScheme image_color_scheme(Layout::NodeWithStyle const& layout_node)
@@ -320,14 +320,14 @@ CSS::ColorResolutionContext gradient_stop_color_resolution_context(Layout::NodeW
 void rust_update_visual_viewport_transform(DOM::Document& document)
 {
     publish_visual_context_tree_inputs(document);
-    Layout::RustFFI::layout_arena_update_visual_viewport_transform(layout_arena_handle(document));
+    Layout::RustFFI::render_state_update_visual_viewport_transform(document.layout_node_arena().host());
 }
 
 bool rust_refresh_scroll_state(DOM::Document& document, Compositing::ScrollStateSnapshot& snapshot, ForceScrollStateRefresh force)
 {
     publish_visual_context_tree_inputs(document);
-    return Layout::RustFFI::layout_arena_refresh_scroll_state(
-        layout_arena_handle(document), force == ForceScrollStateRefresh::Yes,
+    return Layout::RustFFI::render_state_refresh_scroll_state(
+        document.layout_node_arena().host(), force == ForceScrollStateRefresh::Yes,
         &snapshot, [](void* sink, Gfx::FloatPoint const* offsets, size_t count) {
             static_cast<Compositing::ScrollStateSnapshot*>(sink)->assign_device_offsets({ offsets, count });
         });
