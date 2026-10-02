@@ -7,6 +7,7 @@
 //! The command line tools built on the runtime, which their C++ mains in Utilities/ call into.
 
 pub mod js;
+pub mod line_editor;
 pub mod test262_runner;
 pub mod test_js;
 

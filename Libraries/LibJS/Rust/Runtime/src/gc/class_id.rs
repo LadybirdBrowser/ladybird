@@ -144,6 +144,7 @@ define_class_ids! {
     AgentObject,
     IsHTMLDDA,
     ScriptObject,
+    ReplObject,
     ReplConsoleClient,
     TestRunnerGlobalObject,
     HeapFunction,

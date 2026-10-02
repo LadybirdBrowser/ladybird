@@ -5,11 +5,13 @@
  */
 
 use core::cell::{Cell, RefCell};
+use std::collections::HashMap;
 use std::io::Write;
 use std::rc::Rc;
 
 use ak::Utf16FlyString;
 
+use crate::breakpoint::BreakpointID;
 use crate::bytecode::class_blueprint::ClassBlueprint;
 use crate::bytecode::operand::{IdentifierTableIndex, PropertyKeyTableIndex, StringTableIndex};
 use crate::frontend_host::{count_bytecode_basic_blocks, dump_bytecode, rust_free_compiled_regex};
@@ -999,10 +1001,34 @@ pub struct Executable {
     /// Sorted by bytecode offset: where in the source code the instructions from each offset on came from.
     pub source_map: Box<[SourceMapEntry]>,
     pub local_variable_names: Box<[Utf16FlyString]>,
+    pub argument_variable_names: Box<[Utf16FlyString]>,
+    /// One for each of the local variables.
+    pub local_variable_metadata: Box<[LocalVariableMetadata]>,
     pub source_code: Option<Rc<SourceCode>>,
+    /// The breakpoints of the debugger at the offsets of the instructions it pauses before.
+    debugger_breakpoint_sites: RefCell<HashMap<u32, DebuggerBreakpointSite, foldhash::fast::RandomState>>,
 }
 
 define_cell!(Executable, Other);
+
+/// Executable::LocalVariableScopeRange: the part of the source code in which a local variable is in scope.
+#[derive(Clone, Copy)]
+pub struct LocalVariableScopeRange {
+    pub start: Position,
+    pub end: Position,
+}
+
+/// Executable::LocalVariableMetadata
+#[derive(Clone, Copy)]
+pub struct LocalVariableMetadata {
+    pub is_mutable: bool,
+    pub scope_range: Option<LocalVariableScopeRange>,
+}
+
+#[derive(Default)]
+struct DebuggerBreakpointSite {
+    breakpoint_ids: Vec<BreakpointID>,
+}
 
 const _: () = assert!(core::mem::offset_of!(Executable, head) == 0);
 
@@ -1155,7 +1181,10 @@ impl Executable {
             name: FlyStringSlot::new(None),
             source_map: Box::new([]),
             local_variable_names: Box::new([]),
+            argument_variable_names: Box::new([]),
+            local_variable_metadata: Box::new([]),
             source_code: None,
+            debugger_breakpoint_sites: RefCell::new(HashMap::default()),
         }
     }
 
@@ -1247,17 +1276,40 @@ impl Executable {
         );
         executable.length_identifier = data.length_identifier.map(|index| PropertyKeyTableIndex(index.0));
         executable.source_map = data.source_map.into_boxed_slice();
+        executable.local_variable_metadata = data
+            .local_variables
+            .iter()
+            .map(|local_variable| LocalVariableMetadata {
+                is_mutable: local_variable.is_mutable,
+                scope_range: local_variable.scope_range.map(|range| LocalVariableScopeRange {
+                    start: Position {
+                        line: range.start.line,
+                        column: range.start.column,
+                    },
+                    end: Position {
+                        line: range.end.line,
+                        column: range.end.column,
+                    },
+                }),
+            })
+            .collect();
         executable.local_variable_names = data
             .local_variables
             .into_iter()
             .map(|local_variable| local_variable.name)
             .collect();
+        executable.argument_variable_names = data.argument_variable_names.into_boxed_slice();
         executable.source_code = source_code.cloned();
         let executable = Self::create_from_parts(vm, executable);
         drop(rooted_template_object_caches);
         drop(rooted_constants);
         drop(rooted_literal_values);
         drop(rooted_shared_function_data);
+
+        if let Some(debugger) = vm.debugger() {
+            debugger.register_executable(vm, executable);
+        }
+
         executable
     }
 
@@ -1329,6 +1381,50 @@ impl Executable {
             code: SourceCode::create(ak::Utf16String::default(), ak::Utf16String::default()),
             start: Position::default(),
         })
+    }
+
+    pub fn add_debugger_breakpoint(&self, bytecode_offset: u32, breakpoint_id: BreakpointID) {
+        let mut sites = self.debugger_breakpoint_sites.borrow_mut();
+        let site = sites.entry(bytecode_offset).or_default();
+        if !site.breakpoint_ids.contains(&breakpoint_id) {
+            site.breakpoint_ids.push(breakpoint_id);
+        }
+    }
+
+    pub fn remove_debugger_breakpoint(&self, breakpoint_id: BreakpointID) {
+        let mut sites = self.debugger_breakpoint_sites.borrow_mut();
+        sites.retain(|_, site| {
+            if let Some(index) = site.breakpoint_ids.iter().position(|&id| id == breakpoint_id) {
+                site.breakpoint_ids.remove(index);
+            }
+            !site.breakpoint_ids.is_empty()
+        });
+        if sites.is_empty() {
+            sites.shrink_to_fit();
+        }
+    }
+
+    pub fn clear_debugger_breakpoints(&self) {
+        *self.debugger_breakpoint_sites.borrow_mut() = HashMap::default();
+    }
+
+    pub fn has_debugger_breakpoint_at(&self, bytecode_offset: u32) -> bool {
+        self.debugger_breakpoint_sites.borrow().contains_key(&bytecode_offset)
+    }
+
+    pub fn debugger_breakpoints_at(&self, bytecode_offset: u32) -> Vec<BreakpointID> {
+        self.debugger_breakpoint_sites
+            .borrow()
+            .get(&bytecode_offset)
+            .map(|site| site.breakpoint_ids.clone())
+            .unwrap_or_default()
+    }
+
+    pub fn has_debugger_breakpoint(&self, breakpoint_id: BreakpointID) -> bool {
+        self.debugger_breakpoint_sites
+            .borrow()
+            .values()
+            .any(|site| site.breakpoint_ids.contains(&breakpoint_id))
     }
 
     pub fn bytecode(&self) -> &[u8] {

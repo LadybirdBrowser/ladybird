@@ -1379,8 +1379,8 @@ impl RuntimeFunctions for Runtime {
         control::set_completion_type(vm, pc, instruction, values)
     }
 
-    fn debugger(_vm: &Vm, pc: u32, _instruction: &op::Debugger, _values: &mut op::DebuggerValues) -> SlowPathControl {
-        control::debugger(pc)
+    fn debugger(vm: &Vm, pc: u32, _instruction: &op::Debugger, _values: &mut op::DebuggerValues) -> SlowPathControl {
+        control::debugger(vm, pc)
     }
 
     fn throw(vm: &Vm, pc: u32, _instruction: &op::Throw, values: &mut op::ThrowValues) -> SlowPathControl {

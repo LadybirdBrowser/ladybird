@@ -10,6 +10,7 @@ use core::ops::ControlFlow;
 use core::ptr::NonNull;
 use std::collections::HashMap;
 use std::collections::VecDeque;
+use std::rc::Rc;
 
 use ak::{Utf16FlyString, Utf16String};
 use libjs_runtime_macros::Trace;
@@ -21,6 +22,7 @@ use crate::bytecode::executable::{
     StaticPropertyLookupCaches,
 };
 use crate::bytecode::property_access::Strict;
+use crate::debugger::Debugger;
 use crate::gc::capi::{self, GCVisitor};
 use crate::gc::class::{GcCell, define_cell};
 use crate::gc::gc_ref_cell::GcRefCell;
@@ -463,6 +465,8 @@ pub struct Vm {
     /// depth it was created at.
     type_error_realm_override: Cell<Option<Gc<Realm>>>,
     type_error_realm_override_depth: Cell<usize>,
+    /// VM::m_debugger, which the head points to while it is attached.
+    debugger: RefCell<Option<Rc<Debugger>>>,
 }
 
 const _: () = assert!(core::mem::offset_of!(Vm, head) == 0);
@@ -544,6 +548,7 @@ impl Vm {
             intrinsic_accessors: RefCell::new(HashMap::default()),
             type_error_realm_override: Cell::new(None),
             type_error_realm_override_depth: Cell::new(0),
+            debugger: RefCell::new(None),
         });
         let context = core::ptr::from_ref::<Vm>(&vm).cast_mut().cast();
         // SAFETY: The VM is boxed, so its address is stable, and it destroys the heap before anything else.
@@ -724,6 +729,40 @@ impl Vm {
         self.job_queues.trace(visitor);
         self.loaded_modules.trace(visitor);
         self.finalization_registries_with_dead_cells.trace(visitor);
+        if let Some(debugger) = self.debugger.borrow().as_ref() {
+            debugger.trace(visitor);
+        }
+    }
+
+    pub fn enable_debugging(&self) {
+        if self.debugger.borrow().is_some() {
+            return;
+        }
+        let debugger = Rc::new(Debugger::new());
+        self.head.debugger.set(Rc::as_ptr(&debugger).cast_mut().cast());
+        *self.debugger.borrow_mut() = Some(debugger);
+    }
+
+    pub fn disable_debugging(&self) {
+        let debugger = self.debugger.borrow_mut().take();
+        if let Some(debugger) = &debugger {
+            assert!(!debugger.is_paused());
+        }
+        self.head.debugger.set(core::ptr::null_mut());
+        drop(debugger);
+    }
+
+    #[inline]
+    pub fn debugging_enabled(&self) -> bool {
+        !self.head.debugger.get().is_null()
+    }
+
+    #[inline]
+    pub fn debugger(&self) -> Option<Rc<Debugger>> {
+        if !self.debugging_enabled() {
+            return None;
+        }
+        self.debugger.borrow().clone()
     }
 
     pub fn register_weak_container(&self, weak_container: WeakContainer) {
@@ -1244,7 +1283,7 @@ impl Vm {
         script_or_module
     }
 
-    fn running_execution_context_ref(&self) -> &ExecutionContext {
+    pub(crate) fn running_execution_context_ref(&self) -> &ExecutionContext {
         let context = self
             .running_execution_context()
             .expect("there is a running execution context");
@@ -1413,6 +1452,8 @@ impl Vm {
 
 impl Drop for Vm {
     fn drop(&mut self) {
+        // The debugger holds weak references to executables, which go away with the heap.
+        drop(self.debugger.take());
         // The heap's final collection destroys every cell, so it has to happen while the rest of the VM exists.
         drop(self.heap.take());
     }
@@ -1431,6 +1472,9 @@ unsafe extern "C" fn sweep(context: *mut c_void) {
     vm.remove_dead_strings_from_weak_caches();
     vm.remove_dead_cells_from_property_lookup_caches();
     vm.remove_dead_objects_from_intrinsic_accessors();
+    if let Some(debugger) = vm.debugger() {
+        debugger.remove_dead_executables();
+    }
 }
 
 unsafe extern "C" fn enqueue_cleanup_jobs_of_finalization_registries_with_dead_cells(context: *mut c_void) {

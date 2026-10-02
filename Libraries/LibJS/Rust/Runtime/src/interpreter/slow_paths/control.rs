@@ -11,6 +11,7 @@ use ak::{Utf16FlyString, Utf16String};
 use crate::bytecode::executable::StaticPropertyLookupCacheSite;
 use crate::bytecode::op;
 use crate::bytecode::property_access::get_own_property_without_side_effects;
+use crate::debugger::PauseReason;
 use crate::interpreter::runtime_functions::{SlowPathControl, asm_try, handle_asm_exception};
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
@@ -89,8 +90,32 @@ fn primitive_array_elements(instruction: &op::NewPrimitiveArray) -> &[Value] {
     unsafe { core::slice::from_raw_parts(instruction.elements.as_ptr(), instruction.element_count as usize) }
 }
 
-pub fn debugger_check_breakpoint(_vm: &Vm, _pc: u32) {
-    // NB: The Rust runtime has no debugger, and C++ returns right away without one.
+pub fn debugger_check_breakpoint(vm: &Vm, pc: u32) {
+    // NB: The dispatch table is chosen when entering the interpreter, so we keep getting called
+    //     for the rest of the frame even if the host detaches its debugger in the meantime.
+    let Some(debugger) = vm.debugger() else {
+        return;
+    };
+
+    // NB: Debugger callbacks must not inspect slots before Enter initializes them.
+    if !vm.running_execution_context_ref().frame_initialized.get() {
+        return;
+    }
+
+    let executable = vm.current_executable();
+    debugger.register_executable(vm, executable);
+    let reason = if debugger.should_pause_on_next_bytecode_execution(&executable, pc) {
+        Some(PauseReason::Entry)
+    } else if executable.has_debugger_breakpoint_at(pc) {
+        Some(PauseReason::Breakpoint)
+    } else if debugger.should_pause_for_step(vm, &executable, pc) {
+        Some(PauseReason::Step)
+    } else {
+        None
+    };
+
+    let did_pause = reason.is_some_and(|reason| debugger.pause_execution(vm, executable, pc, reason, None, false));
+    debugger.set_did_pause_before_current_instruction(did_pause);
 }
 
 pub fn fallback_handler(_pc: u32) -> SlowPathControl {
@@ -527,8 +552,20 @@ pub fn set_completion_type(
     SlowPathControl::continue_at(pc + op::SetCompletionType::LENGTH)
 }
 
-pub fn debugger(pc: u32) -> SlowPathControl {
-    // NB: The Rust runtime has no debugger to pause in, and C++ continues past the statement without one.
+pub fn debugger(vm: &Vm, pc: u32) -> SlowPathControl {
+    // NB: Don't pause twice if the debugger trampoline already paused before this instruction.
+    if let Some(debugger) = vm.debugger()
+        && !debugger.did_pause_before_current_instruction()
+    {
+        debugger.pause_execution(
+            vm,
+            vm.current_executable(),
+            pc,
+            PauseReason::DebuggerStatement,
+            None,
+            false,
+        );
+    }
     SlowPathControl::continue_at(pc + op::Debugger::LENGTH)
 }
 
