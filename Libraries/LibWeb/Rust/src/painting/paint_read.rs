@@ -24,11 +24,12 @@ use crate::painting::layer_image_paint_facts::LayerImagePaintFacts;
 use crate::painting::paint_order_plan::PaintOrderInputs;
 use crate::painting::paintable_data::{PaintableData, PaintableSideData};
 use crate::painting::record::damage::PaintDamage;
+use crate::painting::record::recorder_state::AbsoluteRectMemo;
 use crate::painting::replaced_paint_facts::ReplacedPaintFacts;
 use crate::painting::stacking_context::entries::StackingContextEntries;
 use crate::painting::svg_paint_resources::{PublishedSvgFilter, PublishedSvgPaintServer, SvgPaintResourceKind};
 use crate::painting::visual_context::BoxVisualContextNodeHandles;
-use std::cell::Ref;
+use std::cell::{Ref, RefCell};
 use std::ops::Deref;
 use std::sync::Arc;
 
@@ -356,15 +357,23 @@ impl<Live: AsRef<LayoutNodeArena>> PaintRead for Live {
 }
 
 /// What the display list recording reads a document through: [`PaintRead`] and nothing else. It
-/// has no `Deref` to the arena, so a read the trait does not name does not compile.
+/// has no `Deref` to the arena, so a read the trait does not name does not compile. The absolute
+/// rects it computes go to the recorder's own memo, stamped with the geometry epoch the recording
+/// started at.
 #[derive(Clone, Copy)]
 pub(crate) struct PaintSource<'a> {
     arena: &'a LayoutNodeArena,
+    absolute_rects: &'a RefCell<AbsoluteRectMemo>,
+    geometry_epoch: u64,
 }
 
 impl<'a> PaintSource<'a> {
-    pub(crate) fn new(arena: &'a LayoutNodeArena) -> Self {
-        Self { arena }
+    pub(crate) fn new(arena: &'a LayoutNodeArena, absolute_rects: &'a RefCell<AbsoluteRectMemo>) -> Self {
+        Self {
+            arena,
+            absolute_rects,
+            geometry_epoch: arena.absolute_rect_memo_epoch(),
+        }
     }
 }
 
@@ -402,11 +411,11 @@ impl GeometryRead for PaintSource<'_> {
     }
 
     fn memoized_absolute_rect(&self, id: NodeSlotId) -> Option<CssPixelRect> {
-        self.arena.memoized_absolute_rect(id)
+        self.absolute_rects.borrow().get(id, self.geometry_epoch)
     }
 
     fn memoize_absolute_rect(&self, id: NodeSlotId, rect: CssPixelRect) {
-        self.arena.memoize_absolute_rect(id, rect);
+        self.absolute_rects.borrow_mut().set(id, self.geometry_epoch, rect);
     }
 }
 

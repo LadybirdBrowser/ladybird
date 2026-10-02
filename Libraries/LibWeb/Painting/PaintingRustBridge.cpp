@@ -674,7 +674,7 @@ RefPtr<Compositing::DisplayList> record_rust_display_list(DOM::Document& documen
         }
     };
 
-    if (Layout::RustFFI::layout_arena_last_recording_is_identical_to_published_frame(arena)) {
+    if (Layout::RustFFI::layout_arena_last_recording_is_identical_to_published_recording(arena)) {
         if (auto* source = document.paint_state().display_list_used_as_paint_command_cache_source()) {
             if (rust_painting_timing_enabled())
                 dbgln("PAINT_RECORD rust={} µs identical to the previous recording", rust_timer.elapsed_time().to_microseconds());

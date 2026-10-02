@@ -17,6 +17,7 @@ pub(crate) mod order_tree;
 pub mod paint;
 pub(crate) mod producers;
 pub(crate) mod publish;
+pub(crate) mod recorder_state;
 pub(crate) mod resources;
 pub(crate) mod scratch;
 pub mod svg_resources;
@@ -57,7 +58,7 @@ pub struct RecordingOutput {
     pub display_list: Arc<RecordedDisplayList>,
     pub has_blocking_wheel_event_listeners: bool,
     pub wheel_event_listener_state_generation: u64,
-    pub is_identical_to_published_frame: bool,
+    pub is_identical_to_published_recording: bool,
     pub(crate) capture_log_for_verification: Option<verify::CaptureLog>,
 }
 
@@ -66,7 +67,7 @@ pub(crate) struct RecordingResult {
     pub(crate) resources: resources::RecordingResourceManifest,
 }
 
-/// The hit-test items of the published frame, shared with the list that hit testing reads.
+/// The hit-test items of the published recording, shared with the list that hit testing reads.
 pub struct PublishedHitTestItems {
     pub items: Arc<Vec<HitTestItem>>,
 }
@@ -104,8 +105,8 @@ pub struct PaintRecorder<'a, O: Observer> {
     pub(crate) converter: DevicePixelConverter,
     pub(crate) svg_resource_walk: Option<SvgResourceWalk>,
     pub(crate) viewport: NodeSlotId,
-    // The published frame whose clean output this recording copies, when its inputs match.
-    pub(crate) source_frame: Option<Arc<RecordingOutput>>,
+    // The published recording whose clean output this recording copies, when its inputs match.
+    pub(crate) source_recording: Option<Arc<RecordingOutput>>,
     pub(crate) source_items: Option<Arc<PublishedHitTestItems>>,
     // Set while a producer records output that must record again every frame.
     live_producer: bool,

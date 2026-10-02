@@ -23,11 +23,13 @@ use crate::painting::record::assemble::{Assembler, frame_is_unchanged};
 use crate::painting::record::frame_inputs::FrameInputs;
 use crate::painting::record::order_tree::{PaintOrderTree, ProducerKind};
 use crate::painting::record::paint::background_resolution::root_background_canvas_rect;
+use crate::painting::record::recorder_state::AbsoluteRectMemo;
 use crate::painting::record::resources::RecordingResourceManifest;
 use crate::painting::record::scratch::RecordingScratch;
 use crate::painting::record::svg_resources::MaskLayerSet;
 use crate::painting::record::trace::{Action, Operation};
 use crate::painting::record::{PublishedHitTestItems, RecordingOutput, RecordingResult};
+use std::cell::RefCell;
 use std::sync::Arc;
 
 #[allow(clippy::too_many_arguments)]
@@ -35,11 +37,12 @@ pub(crate) fn record_display_list(
     layout_arena: &LayoutNodeArena,
     paint_state: &crate::painting::paint_state::PaintState,
     scratch: &mut RecordingScratch,
+    absolute_rects: &RefCell<AbsoluteRectMemo>,
     tree: &mut PaintOrderTree,
     viewport: NodeSlotId,
     inputs: &RecordingInputs<'_>,
     hit_test_list_generation: u64,
-    source_frame: Option<Arc<RecordingOutput>>,
+    source_recording: Option<Arc<RecordingOutput>>,
     source_items: Option<Arc<PublishedHitTestItems>>,
     plan_from_prepared_inputs: bool,
     trace: bool,
@@ -51,11 +54,12 @@ pub(crate) fn record_display_list(
                 layout_arena,
                 paint_state,
                 scratch,
+                absolute_rects,
                 tree,
                 viewport,
                 inputs,
                 hit_test_list_generation,
-                source_frame,
+                source_recording,
                 source_items,
                 plan_from_prepared_inputs,
             )
@@ -75,36 +79,37 @@ fn record_display_list_impl<O: Observer>(
     layout_arena: &LayoutNodeArena,
     paint_state: &crate::painting::paint_state::PaintState,
     scratch: &mut RecordingScratch,
+    absolute_rects: &RefCell<AbsoluteRectMemo>,
     tree: &mut PaintOrderTree,
     viewport: NodeSlotId,
     inputs: &RecordingInputs<'_>,
     hit_test_list_generation: u64,
-    source_frame: Option<Arc<RecordingOutput>>,
+    source_recording: Option<Arc<RecordingOutput>>,
     source_items: Option<Arc<PublishedHitTestItems>>,
     plan_from_prepared_inputs: bool,
 ) -> RecordingResult {
     debug_assert!(
-        inputs.publishes_recording || source_frame.is_none(),
-        "a recording that publishes nothing has no published frame to copy from"
+        inputs.publishes_recording || source_recording.is_none(),
+        "a recording that publishes nothing has no published recording to copy from"
     );
     let structural_epoch = paint_state.visual_context.structural_epoch();
-    let source = PaintSource::new(layout_arena);
+    let source = PaintSource::new(layout_arena, absolute_rects);
     let frame_inputs = FrameInputs::from_recording_inputs(inputs, paint_state);
     let root_background_canvas_rect = root_background_canvas_rect(
         &source,
         inputs.uncaptured.root_background_source.root_layout_node,
         inputs.css_viewport_rect,
     );
-    // The published frame is copied from while every input its producers read is unchanged and
+    // The published recording is copied from while every input its producers read is unchanged and
     // no push asked for everything; otherwise this frame records from scratch.
-    let source_is_usable = source_frame
+    let source_is_usable = source_recording
         .as_ref()
         .is_some_and(|frame| frame.frame_inputs == frame_inputs)
         && source_items.is_some()
         && !layout_arena.paint_damage_covers_everything()
         && !layout_arena.scroll_metadata_damaged_everywhere();
-    let (source_frame, source_items) = if source_is_usable {
-        (source_frame, source_items)
+    let (source_recording, source_items) = if source_is_usable {
+        (source_recording, source_items)
     } else {
         (None, None)
     };
@@ -117,7 +122,7 @@ fn record_display_list_impl<O: Observer>(
         converter: DevicePixelConverter::new(inputs.device_pixels_per_css_pixel),
         svg_resource_walk: None,
         viewport,
-        source_frame,
+        source_recording,
         source_items,
         live_producer: false,
         plan_from_prepared_inputs,
@@ -148,7 +153,7 @@ fn record_display_list_impl<O: Observer>(
     // Nothing was pushed and nothing records every frame: the published tape and items are
     // this frame, which lets the compositor skip its update as well.
     let unchanged_frame = recorder
-        .source_frame
+        .source_recording
         .as_ref()
         .zip(recorder.source_items.as_ref())
         .filter(|(frame, _)| {
@@ -168,7 +173,7 @@ fn record_display_list_impl<O: Observer>(
             display_list
         }
         None => {
-            let source_prologue_bytes = recorder.source_frame.as_ref().map(|frame| frame.prologue_bytes);
+            let source_prologue_bytes = recorder.source_recording.as_ref().map(|frame| frame.prologue_bytes);
             Assembler::new(&mut recorder, tree, source_prologue_bytes).assemble_root(root_scope);
             if has_inspector_overlays {
                 recorder.trace_paint(
@@ -190,7 +195,7 @@ fn record_display_list_impl<O: Observer>(
         display_list,
         has_blocking_wheel_event_listeners: recorder.blocking_wheel_event_region_count > 0,
         wheel_event_listener_state_generation: inputs.wheel_event_listener_state_generation,
-        is_identical_to_published_frame: false,
+        is_identical_to_published_recording: false,
         capture_log_for_verification: recorder.observer.finish(),
     };
     RecordingResult {

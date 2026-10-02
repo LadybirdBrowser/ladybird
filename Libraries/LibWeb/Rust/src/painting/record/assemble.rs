@@ -5,7 +5,7 @@
  */
 
 //! Assembles a frame from the retained paint-order tree and the pushed damage. Scopes on a
-//! damaged path are walked, clean children are copied from the published frame by range, and
+//! damaged path are walked, clean children are copied from the published recording by range, and
 //! damaged producers are recorded again under explicit contexts. Nothing is validated on the
 //! way: when assembly starts, the damage set is complete by construction.
 
@@ -85,7 +85,7 @@ pub(crate) struct OutputPosition {
     pub blocking_wheel_event_regions: u32,
 }
 
-/// What assembly needs from the recorder, which owns the output and the published frame.
+/// What assembly needs from the recorder, which owns the output and the published recording.
 pub(crate) trait AssemblyHost {
     fn plan_scope(&mut self, scope: PaintScope) -> ScopePlan;
 
@@ -94,7 +94,7 @@ pub(crate) trait AssemblyHost {
 
     fn output_position(&self) -> OutputPosition;
 
-    /// Appends the published frame's command bytes and hit-test items in the given ranges.
+    /// Appends the published recording's command bytes and hit-test items in the given ranges.
     fn copy_published(&mut self, bytes: Range<u32>, hits: Range<u32>, blocking_wheel_event_regions: u32);
 
     /// Every damaged row, including the rows of subtrees whose root moved.
@@ -129,7 +129,7 @@ struct PendingCopy {
     blocking_wheel_event_regions: u32,
 }
 
-/// Whether the published frame can be returned as it is: nothing was pushed, nothing in it is
+/// Whether the published recording can be returned as it is: nothing was pushed, nothing in it is
 /// recorded every frame, and there is a published tree at all.
 pub(crate) fn frame_is_unchanged(tree: &PaintOrderTree, has_damage: bool) -> bool {
     !tree.root().is_none() && !has_damage && !tree.root_entry().is_live()
@@ -138,7 +138,7 @@ pub(crate) fn frame_is_unchanged(tree: &PaintOrderTree, has_damage: bool) -> boo
 pub(crate) struct Assembler<'a, H: AssemblyHost> {
     host: &'a mut H,
     tree: &'a mut PaintOrderTree,
-    // The byte offset of the published root scope, when a published frame can be copied from.
+    // The byte offset of the published root scope, when a published recording can be copied from.
     source_prologue_bytes: Option<u32>,
     pending_copy: Option<PendingCopy>,
 }
@@ -157,7 +157,7 @@ impl<'a, H: AssemblyHost> Assembler<'a, H> {
     /// the assembled structure as pending changes for the caller to publish or discard.
     pub(crate) fn assemble_root(mut self, root_scope: PaintScope) -> ChildEntry {
         self.tree.begin_recording();
-        // Damage only steers what a frame copies; a frame without a published frame to copy
+        // Damage only steers what a frame copies; a frame without a published recording to copy
         // from records everything and never consults it.
         if self.source_prologue_bytes.is_some() {
             for row in self.host.damaged_rows() {
@@ -406,7 +406,7 @@ impl<'a, H: AssemblyHost> Assembler<'a, H> {
     fn copy(&mut self, cursor: SourceCursor, output: OutputSize) {
         debug_assert!(
             self.source_prologue_bytes.is_some(),
-            "clean output is copied from a published frame"
+            "clean output is copied from a published recording"
         );
         let mut end = cursor;
         end.advance(output);
@@ -642,7 +642,7 @@ mod tests {
         }
 
         fn copy_published(&mut self, bytes: Range<u32>, hits: Range<u32>, blocking_wheel_event_regions: u32) {
-            let source = self.source.as_ref().expect("a published frame to copy from");
+            let source = self.source.as_ref().expect("a published recording to copy from");
             if !bytes.is_empty() {
                 self.output.recorder.append_cached_command_range_verbatim(
                     &source.display_list,
