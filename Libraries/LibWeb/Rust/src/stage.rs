@@ -59,7 +59,10 @@ impl<'host> MainThread<'host> {
 /// Mint a main thread token for an FFI entry point called on the arena `arena_handle` names.
 ///
 /// The marker's type can only be constructed by the module that owns it, and this module lists
-/// those types below, so code elsewhere cannot mint a token with a marker of its own.
+/// those types below, so code elsewhere cannot mint a token with a marker of its own. A module
+/// whose layout or paint code runs without a token keeps its marker in a private
+/// `main_thread_entries` child that holds only the entries minting with it, so that code can
+/// neither mint a token nor call an entry that does.
 ///
 /// # Safety
 ///
