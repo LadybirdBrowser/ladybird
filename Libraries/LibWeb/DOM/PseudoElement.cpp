@@ -12,6 +12,7 @@
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/PseudoElement.h>
 #include <LibWeb/Layout/Node.h>
+#include <LibWeb/Layout/NodeArena.h>
 
 namespace Web::DOM {
 
@@ -43,6 +44,27 @@ Layout::NodeWithStyle* SyntheticPseudoElement::unsafe_layout_node() const
     if (!m_originating_element)
         return nullptr;
     return m_originating_element->pseudo_element_unsafe_layout_node(m_type);
+}
+
+void SyntheticPseudoElement::set_scroll_offset(CSSPixelPoint offset)
+{
+    m_scroll_offset = offset;
+    publish_scroll_offset();
+}
+
+// The layout node arena holds what the pseudo-element has scrolled to against the originating element's identity and
+// this pseudo-element's kind, for the box a build binds to it.
+void SyntheticPseudoElement::publish_scroll_offset() const
+{
+    VERIFY(m_originating_element);
+    if (m_originating_element->style_node_id().value() == 0)
+        return;
+    auto& document = m_originating_element->document();
+    // Nothing has scrolled anything before a layout tree exists, so there is no offset to forget.
+    if (!document.layout_node_arena_if_created() && m_scroll_offset.is_zero())
+        return;
+    Layout::RustFFI::layout_arena_set_pseudo_element_scroll_offset(document.layout_node_arena().handle(),
+        m_originating_element->style_node_id().value(), Layout::Node::encode_generated_for(m_type), m_scroll_offset);
 }
 
 Node& SyntheticPseudoElement::root() const

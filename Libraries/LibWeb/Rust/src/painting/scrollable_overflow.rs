@@ -795,9 +795,9 @@ impl LayoutNodeArena {
 
 /// Whether a box is measured eagerly after a full commit rather than only when an ancestor's
 /// measurement reaches it: a scroll container, or a box whose element or pseudo-element stores a
-/// scroll offset that the new overflow may have to clamp. The offset lives on the DOM side, which
-/// sets `NodeFlag::HasScrollOffset` whenever it stores one and whenever a box becomes an element's
-/// or pseudo-element's box, so the answer is one style query and one flag read.
+/// scroll offset that the new overflow may have to clamp. The arena sets `NodeFlag::HasScrollOffset`
+/// whenever the offset a box holds changes and whenever a box becomes an element's or
+/// pseudo-element's box, so the answer is one style query and one flag read.
 fn box_holds_scroll_state(arena: &LayoutNodeArena, slot: NodeSlotId) -> bool {
     crate::painting::style_queries::is_scroll_container(arena, slot)
         || arena.node_flags_if_live(slot) & crate::layout::node_data::NodeFlag::HasScrollOffset as u32 != 0

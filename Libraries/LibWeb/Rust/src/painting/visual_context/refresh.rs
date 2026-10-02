@@ -10,7 +10,7 @@ use crate::css::computed_value_types::ComputedLengthPercentageOrAuto;
 use crate::css::css_pixels::{CssPixelPoint, CssPixelRect, CssPixelSize, CssPixels};
 use crate::layout::node_data::NodeSlotId;
 use crate::painting::chrome_geometry;
-use crate::painting::host::{FfiVisualContextHostCallbacks, FfiVisualContextTreeInputs};
+use crate::painting::host::FfiVisualContextTreeInputs;
 use crate::painting::paintable_geometry;
 use crate::painting::paintable_rows::PaintableRowsRead;
 use crate::painting::style_queries;
@@ -188,12 +188,7 @@ pub(crate) fn refresh_sticky_constraints(
     true
 }
 
-pub(crate) fn refresh_scroll_state(
-    layout_arena: &impl PaintableRowsRead,
-    callbacks: &FfiVisualContextHostCallbacks,
-    main_thread: &crate::stage::MainThread,
-    scroll_state: &mut ScrollState,
-) {
+pub(crate) fn refresh_scroll_state(layout_arena: &impl PaintableRowsRead, scroll_state: &mut ScrollState) {
     for slot in 0..scroll_state.slot_count() {
         let state = scroll_state.state_at_slot(slot);
         if state.is_sticky {
@@ -201,9 +196,7 @@ pub(crate) fn refresh_scroll_state(
         }
         let paintable = state.paintable;
         if layout_arena.paintable_row_is_populated(paintable) {
-            let offset: CssPixelPoint = callbacks
-                .scroll_offset(main_thread, layout_arena.shell_if_live(main_thread, paintable))
-                .into();
+            let offset = layout_arena.row_scroll_offset(paintable);
             scroll_state.state_at_slot_mut(slot).own_offset = CssPixelPoint::new(-offset.x, -offset.y);
         }
     }

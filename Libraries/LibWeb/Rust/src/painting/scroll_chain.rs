@@ -47,13 +47,8 @@ fn clamp_scroll_offset(arena: &impl PaintableRowsRead, node: NodeSlotId, offset:
     )
 }
 
-fn scrolling_box_moved_by(
-    arena: &impl PaintableRowsRead,
-    node: NodeSlotId,
-    delta: CssPixelPoint,
-    scroll_offset_of_layout_node: &dyn Fn(NodeSlotId) -> CssPixelPoint,
-) -> bool {
-    let current_offset = scroll_offset_of_layout_node(node);
+fn scrolling_box_moved_by(arena: &impl PaintableRowsRead, node: NodeSlotId, delta: CssPixelPoint) -> bool {
+    let current_offset = arena.row_scroll_offset(node);
     clamp_scroll_offset(arena, node, current_offset.translated(delta.x, delta.y)) != current_offset
 }
 
@@ -63,12 +58,10 @@ pub(crate) fn scrolling_box_for_scroll_step(
     viewport: NodeSlotId,
     delta: CssPixelPoint,
     viewport_wheel_overflow: ViewportWheelOverflow,
-    scroll_offset_of_layout_node: &dyn Fn(NodeSlotId) -> CssPixelPoint,
 ) -> NodeSlotId {
     let scroll_step_moves = |node: NodeSlotId| {
         let accepted_delta = accepted_wheel_delta(arena, node, viewport_wheel_overflow, delta);
-        accepted_delta != CssPixelPoint::default()
-            && scrolling_box_moved_by(arena, node, accepted_delta, scroll_offset_of_layout_node)
+        accepted_delta != CssPixelPoint::default() && scrolling_box_moved_by(arena, node, accepted_delta)
     };
 
     let mut node = target;
@@ -94,7 +87,6 @@ pub(crate) fn for_each_wheel_scrollable_box_in_containing_block_chain(
     wheel_delta_x: f64,
     wheel_delta_y: f64,
     viewport_wheel_overflow: ViewportWheelOverflow,
-    scroll_offset_of_layout_node: &dyn Fn(NodeSlotId) -> CssPixelPoint,
     mut push_scrollable_box: impl FnMut(NodeSlotId, f64, f64),
 ) {
     let mut node = start;
@@ -109,7 +101,7 @@ pub(crate) fn for_each_wheel_scrollable_box_in_containing_block_chain(
                     CssPixels::nearest_value_for(accepted_delta_x),
                     CssPixels::nearest_value_for(accepted_delta_y),
                 );
-                if scrolling_box_moved_by(arena, node, accepted_delta, scroll_offset_of_layout_node) {
+                if scrolling_box_moved_by(arena, node, accepted_delta) {
                     return;
                 }
             }

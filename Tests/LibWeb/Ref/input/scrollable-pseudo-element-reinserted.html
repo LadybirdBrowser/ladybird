@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/scrollable-pseudo-element-ref.html" />
+<style>
+/* Wrapper clips the scrollbar area */
+.wrapper {
+    width: 85px;
+    height: 60px;
+    overflow: hidden;
+}
+
+.container::before {
+    display: block;
+    content: "Line 1\A Line 2\A Line 3\A Line 4\A Line 5\A Line 6\A Line 7\A Line 8";
+    white-space: pre-wrap;
+    width: 100px;
+    height: 60px;
+    overflow: scroll;
+    background: lightblue;
+}
+</style>
+<div class="wrapper">
+    <div class="container"></div>
+</div>
+<script>
+    // A pseudo-element keeps what it has scrolled to while its element is out of the document, as the element does.
+    (async () => {
+        await internals.wheel(50, 30, 0, 40);
+        const wrapper = document.querySelector(".wrapper");
+        const container = document.querySelector(".container");
+        container.remove();
+        document.body.offsetWidth;
+        wrapper.append(container);
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => document.documentElement.classList.remove("reftest-wait"));
+        });
+    })();
+</script>

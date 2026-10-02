@@ -2548,22 +2548,6 @@ void Document::prepare_for_rendering()
     if (!m_layout_node_arena)
         return;
 
-    // The update reads each box's scroll-offset flag in place of the offset it mirrors.
-    static bool const verify_scroll_offset_flags = getenv("LIBWEB_VERIFY_SCROLL_OFFSET_FLAGS") != nullptr;
-    if (verify_scroll_offset_flags) {
-        for_each_shadow_including_inclusive_descendant([](DOM::Node& node) {
-            if (auto const* layout_node = node.unsafe_layout_node())
-                layout_node->verify_has_scroll_offset_flag();
-            if (auto const* element = as_if<DOM::Element>(node)) {
-                element->for_each_synthetic_pseudo_element([](CSS::PseudoElement, DOM::SyntheticPseudoElement const& pseudo_element) {
-                    if (auto const* layout_node = pseudo_element.unsafe_layout_node())
-                        layout_node->verify_has_scroll_offset_flag();
-                });
-            }
-            return TraversalDecision::Continue;
-        });
-    }
-
     auto outcome = Painting::rust_prepare_for_rendering(*this, m_needs_accumulated_visual_contexts_update);
     if (outcome.requires_visual_context_update)
         set_needs_accumulated_visual_contexts_update(true);

@@ -44,6 +44,11 @@ void publish_svg_style_references(DOM::Element&);
 // rather than asking the document who has focus.
 void publish_is_in_focused_text_control(DOM::Node const&);
 
+// Publishes what the element has scrolled to, under its identity. The element's box is replaced whenever its subtree is
+// rebuilt, so the offset is held against the identity that outlives it, and every row built for the element reads it
+// there.
+void publish_element_scroll_offset(DOM::Element const&);
+
 inline RustFFI::FfiSvgNumberPercentage to_ffi_number_percentage(SVG::NumberPercentage value)
 {
     return { .value = value.value(), .is_percentage = value.is_percentage() };

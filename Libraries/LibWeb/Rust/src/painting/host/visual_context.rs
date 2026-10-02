@@ -6,9 +6,7 @@
 
 use crate::css::easing::FfiEasingDescriptor;
 use crate::css::ffi_support::FfiUtf16View;
-use crate::layout::used_values;
 use crate::layout::used_values::OptionalCssPixelRect;
-use crate::stage::MainThread;
 use libgfx_rust::filter::Filter;
 use libgfx_rust::{Color, CompositingAndBlendingOperator, IntRect, InterpolationColorSpace};
 use std::ffi::c_void;
@@ -145,26 +143,6 @@ pub(crate) struct ResolvedSvgFilter {
     /// primitives.
     pub filter: Option<Filter>,
     pub svg_filter_bounds: OptionalCssPixelRect,
-}
-
-/// What the visual context tree asks the document. The fields are private: the callbacks are
-/// reached only through the methods below, which take the main thread token.
-#[derive(Clone, Copy)]
-#[repr(C)]
-pub struct FfiVisualContextHostCallbacks {
-    context: *mut c_void,
-    scroll_offset: unsafe extern "C" fn(*mut c_void, *mut c_void) -> used_values::FfiCssPixelPoint,
-}
-
-impl FfiVisualContextHostCallbacks {
-    pub(crate) fn scroll_offset(
-        &self,
-        _: &MainThread,
-        layout_node_shell: *mut c_void,
-    ) -> used_values::FfiCssPixelPoint {
-        // SAFETY: The C++ host answers synchronously from a live layout node shell.
-        unsafe { (self.scroll_offset)(self.context, layout_node_shell) }
-    }
 }
 
 /// Whether a keyframe gives a property a value of its own, takes the target's underlying style

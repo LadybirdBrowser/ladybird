@@ -75,8 +75,6 @@ Node::Node(DOM::Document& document, BindToPreparedArenaSlot, Compositing::RustFF
     , m_kind(kind)
 {
     RustFFI::layout_arena_attach_shell(m_arena->handle(), m_slot, this);
-    if (dom_node())
-        update_has_scroll_offset_flag();
 }
 
 Node::~Node()
@@ -806,36 +804,6 @@ void Node::dom_node_style_node_changed(DOM::Node& dom_node, CSS::StyleNodeID old
 CSS::StyleNodeID Node::style_node_id() const
 {
     return RustFFI::layout_arena_node_style_node(m_arena->handle(), m_slot);
-}
-
-// An element's box holds the element's scroll offset. Everything generated for a pseudo-element
-// names it as generator, but only the pseudo-element's own box is what scrolls, so only that box
-// holds the pseudo-element's offset; the generated content inside it holds none.
-bool Node::dom_target_stores_scroll_offset() const
-{
-    if (auto pseudo_element = generated_for_pseudo_element(); pseudo_element.has_value()) {
-        // A compositor scroll can reach a removed generator's box before the layout tree drops it.
-        auto generator = pseudo_element_generator();
-        if (!generator)
-            return false;
-        auto synthetic_pseudo_element = generator->get_synthetic_pseudo_element(*pseudo_element);
-        return synthetic_pseudo_element.has_value()
-            && synthetic_pseudo_element->unsafe_layout_node() == this
-            && !synthetic_pseudo_element->scroll_offset().is_zero();
-    }
-    if (auto const* element = as_if<DOM::Element>(dom_node()))
-        return !element->scroll_offset({}).is_zero();
-    return false;
-}
-
-void Node::update_has_scroll_offset_flag()
-{
-    set_flag(RustFFI::NodeFlag::HasScrollOffset, dom_target_stores_scroll_offset());
-}
-
-void Node::verify_has_scroll_offset_flag() const
-{
-    VERIFY(has_flag(RustFFI::NodeFlag::HasScrollOffset) == dom_target_stores_scroll_offset());
 }
 
 DOM::Document& Node::document()
