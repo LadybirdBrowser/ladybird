@@ -93,7 +93,7 @@ ViewImplementation::~ViewImplementation()
         m_top_level_traversable->clear_ongoing_navigation();
     cancel_all_native_geolocation_requests();
 
-    if (!m_window_handle.is_empty())
+    if (!m_window_handle.is_empty() && !m_owner_view_id.has_value())
         Application::the().notify_webdriver_window_closed(m_window_handle);
 
     all_views().remove(m_view_id);
@@ -2226,7 +2226,8 @@ void ViewImplementation::initialize_tab(Web::HTML::VisibilityState system_visibi
 
     if (m_window_handle.is_empty()) {
         m_window_handle = generate_random_uuid();
-        Application::the().notify_webdriver_window_created(m_window_handle);
+        if (!m_owner_view_id.has_value())
+            Application::the().notify_webdriver_window_created(m_window_handle);
     }
     prepare_page_for_tab(page());
     display_page_changed({});
@@ -2792,7 +2793,7 @@ void ViewImplementation::did_close_browsing_context(Badge<WebContentPage>)
     traversable().discard_pending_host();
     traversable().discard_representing_pages();
 
-    if (!window_handle.is_empty())
+    if (!window_handle.is_empty() && !m_owner_view_id.has_value())
         Application::the().notify_webdriver_window_closed(window_handle);
 
     auto pending_user_prompt_requests = move(m_pending_webdriver_user_prompt_requests);

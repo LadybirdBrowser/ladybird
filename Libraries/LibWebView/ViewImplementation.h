@@ -107,6 +107,10 @@ public:
 
     u64 view_id() const { return m_view_id; }
 
+    // A view that shows a page on behalf of another view, such as a Picture-in-Picture window, is part of that view's
+    // tab rather than a tab or window of its own.
+    Optional<u64> owner_view_id() const { return m_owner_view_id; }
+
     CanonicalTraversable& traversable() const;
     virtual void prepare_page_for_tab(WebContentPage&);
     void did_change_display_page(Badge<CanonicalNavigable>, RefPtr<WebContentPage> previous_page);
@@ -553,6 +557,8 @@ protected:
 
     explicit ViewImplementation(IsPrivate = IsPrivate::No);
 
+    void set_owner_view(ViewImplementation const& owner_view) { m_owner_view_id = owner_view.view_id(); }
+
     void set_url(URL::URL);
     void did_start_navigation(Optional<Utf16String> navigation_id, URL::URL const&);
     void did_cancel_loading(Optional<Utf16String> const& navigation_id);
@@ -901,6 +907,7 @@ protected:
     // FIXME: Reconcile this ID with `page_id`. The latter is only unique per WebContent connection, whereas the view ID
     //        is required to be globally unique for Firefox DevTools.
     u64 m_view_id { 0 };
+    Optional<u64> m_owner_view_id;
 
     HashMap<u64, NavigationListener> m_navigation_listeners;
     u64 m_next_navigation_listener_id { 1 };

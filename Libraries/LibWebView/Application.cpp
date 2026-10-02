@@ -3097,7 +3097,8 @@ Vector<DevTools::TabDescription> Application::tab_list() const
     Vector<DevTools::TabDescription> tabs;
 
     ViewImplementation::for_each_view([&](ViewImplementation& view) {
-        tabs.empend(view.view_id(), view.title().to_utf8(), view.url().to_string());
+        if (!view.owner_view_id().has_value())
+            tabs.empend(view.view_id(), view.title().to_utf8(), view.url().to_string());
         return IterationDecision::Continue;
     });
 

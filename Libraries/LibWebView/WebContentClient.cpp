@@ -505,10 +505,19 @@ void WebContentClient::did_lose_process()
     struct LostPage {
         NonnullRefPtr<WebContentPage> page;
         Optional<u64> view_id;
+        // An owned view has no tab of its own to recover, so its owner decides what becomes of it, and the owner's
+        // crash screen is the one that offers the crash report.
+        bool shows_crash_screen { false };
     };
     Vector<LostPage> lost_pages;
     for_each_page([&](WebContentPage& page) {
-        lost_pages.append({ page, page.displays_tab() ? Optional<u64> { page.view().view_id() } : Optional<u64> {} });
+        LostPage lost { page, {} };
+        if (page.displays_tab()) {
+            auto const& view = page.view();
+            lost.view_id = view.view_id();
+            lost.shows_crash_screen = !view.owner_view_id().has_value();
+        }
+        lost_pages.append(move(lost));
         return IterationDecision::Continue;
     });
 
@@ -539,12 +548,14 @@ void WebContentClient::did_lose_process()
     for (auto const& lost : lost_pages) {
         if (!lost.view_id.has_value())
             continue;
-        m_crashed_view_ids.append(*lost.view_id);
-        Core::deferred_invoke([view_id = *lost.view_id, crash_reason] {
+        if (lost.shows_crash_screen)
+            m_crashed_view_ids.append(*lost.view_id);
+        Core::deferred_invoke([view_id = *lost.view_id, shows_crash_screen = lost.shows_crash_screen, crash_reason] {
             auto view = ViewImplementation::find_view_by_id(view_id);
             if (!view.has_value())
                 return;
-            view->handle_web_content_process_crash();
+            if (shows_crash_screen)
+                view->handle_web_content_process_crash();
             if (view->on_web_content_crashed)
                 view->on_web_content_crashed(crash_reason);
         });
@@ -763,7 +774,8 @@ Optional<u64> WebContentClient::exclusive_performance_owner() const
         auto const& page = it.value;
         if (!page->is_open())
             continue;
-        if (!add_owner(page->view().view_id()))
+        auto const& view = page->view();
+        if (!add_owner(view.owner_view_id().value_or(view.view_id())))
             return {};
     }
     return owner;
