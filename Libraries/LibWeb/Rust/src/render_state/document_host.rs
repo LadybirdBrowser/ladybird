@@ -15,6 +15,7 @@ use std::cell::{Cell, RefCell, RefMut};
 use std::ffi::c_void;
 use std::ptr::NonNull;
 use std::rc::Rc;
+use std::rc::Rc;
 
 /// The host's side of one document's render state: the document's name, the host tables the host answers layout
 /// through, and what the document keeps of its display list recordings, which are made on the host's thread from the
@@ -103,17 +104,27 @@ impl DocumentHost {
     /// The rows as of every change the host queued, which the render state publishes again first where the ones the
     /// host has may be stale, spending `wait`.
     pub(crate) fn fresh_rows(&self, wait: impl RenderWait) -> Rc<RowSnapshot> {
-        if let Some(rows) = self
-            .rows
-            .borrow()
-            .as_ref()
-            .filter(|rows| self.still_reads_as_arena(rows))
-        {
+        self.rows_as_of_writes(wait, false)
+    }
+
+    /// Like [`Self::fresh_rows`], with every row's scrollable overflow measured, as a read of overflow needs.
+    pub(crate) fn fresh_measured_rows(&self, wait: impl RenderWait) -> Rc<RowSnapshot> {
+        self.rows_as_of_writes(wait, true)
+    }
+
+    fn rows_as_of_writes(&self, wait: impl RenderWait, measure_overflow: bool) -> Rc<RowSnapshot> {
+        let usable =
+            |rows: &RowSnapshot| self.still_reads_as_arena(rows) && (!measure_overflow || rows.overflow_is_measured());
+        if let Some(rows) = self.rows.borrow().as_ref().filter(|rows| usable(rows)) {
             return Rc::clone(rows);
         }
         let document = self.document;
         let rows = Rc::new(wait_for_render_state(wait, self, |reply| {
-            RenderMessage::CommittedRows { document, reply }
+            RenderMessage::CommittedRows {
+                document,
+                measure_overflow,
+                reply,
+            }
         }));
         *self.rows.borrow_mut() = Some(Rc::clone(&rows));
         self.rows_may_be_stale.set(false);

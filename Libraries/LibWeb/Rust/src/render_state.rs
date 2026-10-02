@@ -139,6 +139,8 @@ pub(crate) enum RenderMessage {
     /// Publishes the document's rows as they are now.
     CommittedRows {
         document: DocumentId,
+        /// Whether every row's scrollable overflow is measured first.
+        measure_overflow: bool,
         reply: ReplyTo<crate::layout::row_reads::RowSnapshot>,
     },
     /// A write to a document's layout arena the host waits for, answering what it owes the host.
@@ -192,10 +194,16 @@ fn handle_message(_: &RenderingSide, message: RenderMessage) {
                 unsafe { change.apply((*arena).arena_mut(), engine) };
             }
         }
-        RenderMessage::CommittedRows { document, reply } => reply.answer(|| {
+        RenderMessage::CommittedRows {
+            document,
+            measure_overflow,
+            reply,
+        } => reply.answer(|| {
             let (arena, _) = state_parts(document).expect("a document whose rows the host reads has a render state");
             // SAFETY: As for a change.
-            unsafe { &mut *arena }.arena_mut().publish_row_snapshot()
+            unsafe { &mut *arena }
+                .arena_mut()
+                .publish_row_snapshot(measure_overflow)
         }),
         RenderMessage::Write { document, write, reply } => reply.answer(|| {
             // A document with no state is a bug of the sender's, whose write has nothing to write.

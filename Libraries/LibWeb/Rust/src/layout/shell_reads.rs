@@ -342,3 +342,17 @@ pub unsafe extern "C" fn layout_row_paintable_is_chrome_mirrored(host: *mut Docu
         })
     }
 }
+
+/// # Safety
+///
+/// As for [`layout_row_flags`].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_row_has_css_transform(host: *mut DocumentHost, id: NodeSlotId) -> bool {
+    // SAFETY: Guaranteed by the caller.
+    unsafe {
+        read_rows(host, |rows| {
+            rows.node_style_if_live(id)
+                .is_some_and(|style| crate::painting::style_queries::has_css_transform(rows, id, style))
+        })
+    }
+}
