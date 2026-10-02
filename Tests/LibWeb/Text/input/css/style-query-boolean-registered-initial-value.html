@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @property --x {
+        syntax: "<length>";
+        initial-value: 0px;
+        inherits: false;
+    }
+    .probe {
+        --if: if(style(--x): true; else: false);
+    }
+    @container style(--x) {
+        .probe {
+            --container: true;
+        }
+    }
+</style>
+<div class="container"><div class="probe"></div></div>
+<div class="container" style="--x: 0px"><div class="probe" style="--x: 0px"></div></div>
+<div class="container" style="--x: calc(10px - 10px)"><div class="probe" style="--x: calc(10px - 10px)"></div></div>
+<div class="container" style="--x: 5px"><div class="probe" style="--x: 5px"></div></div>
+<script>
+    test(() => {
+        for (const container of document.querySelectorAll(".container")) {
+            const style = getComputedStyle(container.firstElementChild);
+            const container_matches = style.getPropertyValue("--container") === "true";
+            println(`--x: ${getComputedStyle(container).getPropertyValue("--x")}: if() ${style.getPropertyValue("--if")}, @container ${container_matches}`);
+        }
+    });
+</script>
