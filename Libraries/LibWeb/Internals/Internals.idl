@@ -245,6 +245,8 @@ interface Internals {
     // layout node. Useful for asserting that incremental tree builds preserve unaffected nodes.
     unsigned long long layoutNodeIdentity(Node node);
     unsigned long long layoutArenaLiveSlotCount();
+    // Makes the document's render state panic answering this call, which waits for it: the WebContent process crashes.
+    undefined panicRenderStateForTesting();
     unsigned long long layoutArenaShellCount();
     double styleEngineMatchDocument();
     // Reports a snapshot of StyleEngine's matched rules for the whole document.

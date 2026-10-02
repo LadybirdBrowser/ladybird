@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<body>
+<div id="box">box</div>
+<script>
+    test(() => {
+        box.getBoundingClientRect();
+        // The render state panics answering this call. The process crashes rather than go on over what the panic left.
+        internals.panicRenderStateForTesting();
+        println(`FAIL: WebContent survived its render state's panic; box is ${box.getBoundingClientRect().width}px wide`);
+    });
+</script>

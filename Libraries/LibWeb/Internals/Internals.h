@@ -239,6 +239,7 @@ public:
     u64 paint_style_record_identity(DOM::Element&);
     u64 layout_node_identity(DOM::Node&);
     u64 layout_arena_live_slot_count();
+    void panic_render_state_for_testing();
     u64 layout_arena_shell_count();
     double style_engine_match_document();
     Utf16String style_engine_matched_rules();

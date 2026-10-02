@@ -19,10 +19,12 @@ use std::marker::PhantomData;
 use std::ptr::NonNull;
 use std::sync::atomic::{AtomicU64, Ordering};
 
+mod devtools;
 mod document_host;
 mod wait;
 
 pub use document_host::DocumentHost;
+pub(crate) use wait::{ReplyTo, ScriptForcedRead, wait_for_render_state};
 
 /// The host's name for one document's render state. The host mints it, so naming a new document needs no answer from
 /// the render side.
@@ -79,6 +81,8 @@ pub(crate) enum RenderMessage {
     },
     /// Drops the render state of a document the host has let go of.
     Destroy { document: DocumentId },
+    /// Panics answering, for a test that the host waiting for the answer crashes.
+    PanicForTesting { reply: ReplyTo<()> },
 }
 
 thread_local! {
@@ -110,6 +114,7 @@ fn handle_message(_: &RenderingSide, message: RenderMessage) {
                 state.retire();
             }
         }
+        RenderMessage::PanicForTesting { reply } => reply.answer(|| panic!("the render state panicked for a test")),
     }
 }
 

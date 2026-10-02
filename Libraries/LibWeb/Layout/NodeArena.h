@@ -36,6 +36,7 @@ public:
     void free_subtree(Compositing::RustFFI::NodeSlotId);
     Node* node_if_live(Compositing::RustFFI::NodeSlotId) const;
     void* handle() const { return m_handle; }
+    RustFFI::DocumentHost* host() const { return m_host; }
     u64 table_cell_measurement_cache_miss_count() const;
     u64 intrinsic_measurement_count() const;
     u64 intrinsic_inline_measurement_count() const;
