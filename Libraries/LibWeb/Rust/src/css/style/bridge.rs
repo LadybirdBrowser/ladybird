@@ -1407,29 +1407,6 @@ pub(crate) fn create_document_style_engine(device_class: FfiDeviceClass) -> Box<
     engine
 }
 
-/// Publishes the document's `@font-face` table and the memo of the cascades resolved from it, which
-/// every later font resolution of the engine reads. Takes one reference to each.
-///
-/// # Safety
-/// `engine` must be live, and `snapshot` and `memo` must be a live `Web::CSS::FontFaceSnapshot` and
-/// `FontCascadeMemo` whose reference the engine takes over.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_publish_font_faces(
-    engine: crate::css::style::StyleEngineHandle,
-    snapshot: *const c_void,
-    memo: *const c_void,
-) {
-    let engine = unsafe { engine.get_mut() };
-    let font_faces = unsafe { super::font_resolution::PublishedFontFaces::adopt(snapshot, memo) };
-    match &mut engine.host.font_resolver {
-        Some(resolver) => resolver.publish(font_faces),
-        None => {
-            engine.host.font_resolver = Some(super::font_resolution::FontResolverHost::new(font_faces));
-            engine.retained.font_resolution = Some(super::font_resolution::FontResolutionCache::default());
-        }
-    }
-}
-
 /// The definition a plan last applied to one of the host's CSS animations, published beside the
 /// animation's name: what the style computation handed the host for it, field for field, so that a
 /// definition just computed and one published back compare directly. A plan whose every definition
@@ -1511,28 +1488,6 @@ pub fn style_engine_create_for_replay(device_class: FfiDeviceClass) -> StyleEngi
     abort_on_panic(|| StyleEngineHandle::create(Box::new(StyleEngine::new_for_replay(device_class.decode()))))
 }
 
-/// Keeps the custom-property environment an element now holds, named by `identity`: whether it is
-/// the element's animation overlay, and whether the environment its style resolves to declares
-/// custom properties of its own. A null `data` is none.
-///
-/// # Safety
-/// `engine` must be live, and `data` must be null or a live `Web::CSS::CustomPropertyData`.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_set_element_custom_property_data(
-    engine: crate::css::style::StyleEngineHandle,
-    node: u32,
-    data: *const c_void,
-    identity: u64,
-    is_animation_overlay: bool,
-    declares: bool,
-) {
-    let Some(node) = StyleNodeID::from_raw(node) else {
-        return;
-    };
-    let engine = unsafe { engine.get_mut() };
-    unsafe { engine.set_element_custom_property_data(node, data, identity, is_animation_overlay, declares) };
-}
-
 /// The custom-property environment an element holds, or null.
 ///
 /// # Safety
@@ -1544,26 +1499,6 @@ pub unsafe extern "C" fn style_engine_element_custom_property_data(
 ) -> *const c_void {
     let engine = unsafe { engine.get() };
     StyleNodeID::from_raw(node).map_or(std::ptr::null(), |node| engine.element_custom_property_data(node))
-}
-
-/// Keeps the custom-property environment one of an element's synthetic pseudo-elements now holds,
-/// named by `identity`. A null `data` is none.
-///
-/// # Safety
-/// `engine` must be live, and `data` must be null or a live `Web::CSS::CustomPropertyData`.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_set_pseudo_element_custom_property_data(
-    engine: crate::css::style::StyleEngineHandle,
-    node: u32,
-    pseudo: u8,
-    data: *const c_void,
-    identity: u64,
-) {
-    let Some(node) = StyleNodeID::from_raw(node) else {
-        return;
-    };
-    let engine = unsafe { engine.get_mut() };
-    unsafe { engine.set_pseudo_element_custom_property_data(node, pseudo, data, identity) };
 }
 
 /// The custom-property environment one of an element's synthetic pseudo-elements holds, or null.
@@ -1790,26 +1725,6 @@ pub unsafe fn style_engine_destroy(engine: crate::css::style::StyleEngineHandle)
     engine.end_recording();
 }
 
-/// Makes the `count` identities at `nodes`, which the host minted, live.
-///
-/// # Safety
-/// `engine` must be live, and `nodes` must point at `count` readable `u32` values.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_mint_style_nodes(
-    engine: crate::css::style::StyleEngineHandle,
-    nodes: *const u32,
-    count: usize,
-) {
-    let engine = unsafe { engine.get_mut() };
-    let nodes = if count == 0 {
-        &[]
-    } else {
-        unsafe { std::slice::from_raw_parts(nodes, count) }
-    };
-    engine.mint_style_nodes(nodes);
-    engine.record_boundary_call(EventKind::MintStyleNodes, |payload| payload.write_u32_slice(nodes));
-}
-
 /// Ends the transaction the engine published last, and returns the identities its end released, for the host to
 /// mint again.
 ///
@@ -1889,56 +1804,7 @@ pub unsafe extern "C" fn style_engine_discard_viewport_dependent_nodes(engine: c
     engine.clear_ffi_style_node_query();
 }
 
-/// Applies one flat style input transaction.
-///
-/// # Safety
-/// `engine` must be live and every array in `transaction` must point at its stated number of valid
-/// records for the duration of the call.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_apply_transaction(
-    engine: crate::css::style::StyleEngineHandle,
-    transaction: &FfiStyleInputTransaction,
-) {
-    let engine = unsafe { engine.get_mut() };
-    // SAFETY: the caller vouches that each pointer covers its stated count for this call.
-    let tree = unsafe { borrow(transaction.tree_deltas, transaction.tree_delta_count) };
-    let arrivals = unsafe { borrow(transaction.element_arrivals, transaction.element_arrival_count) };
-    let arrival_custom_state_atoms = unsafe {
-        borrow(
-            transaction.arrival_custom_state_atoms,
-            transaction.arrival_custom_state_atom_count,
-        )
-    };
-    let features = unsafe { borrow(transaction.local_feature_deltas, transaction.local_feature_delta_count) };
-    let states = unsafe { borrow(transaction.state_deltas, transaction.state_delta_count) };
-    let declarations = unsafe {
-        borrow(
-            transaction.element_declaration_deltas,
-            transaction.element_declaration_delta_count,
-        )
-    };
-    let element_style_inputs =
-        unsafe { borrow(transaction.element_style_inputs, transaction.element_style_input_count) };
-    engine.apply_transaction_batch(
-        tree,
-        (arrivals, arrival_custom_state_atoms),
-        features,
-        states,
-        declarations,
-        element_style_inputs,
-    );
-    engine.record_boundary_call(EventKind::ApplyTransaction, |payload| {
-        write_recording_tree_deltas(tree, payload);
-        payload.write_raw_slice(arrivals);
-        payload.write_u32_slice(arrival_custom_state_atoms);
-        payload.write_raw_slice(features);
-        write_recording_state_deltas(states, payload);
-        payload.write_raw_slice(declarations);
-        write_recording_element_style_inputs(element_style_inputs, payload);
-    });
-}
-
-fn write_recording_tree_deltas(tree: &[FfiTreeDelta], payload: &mut super::record_replay::PayloadWriter) {
+pub(super) fn write_recording_tree_deltas(tree: &[FfiTreeDelta], payload: &mut super::record_replay::PayloadWriter) {
     payload.write_raw_rows(
         tree.len(),
         size_of::<FfiTreeDelta>(),
@@ -1965,7 +1831,10 @@ fn write_recording_tree_relations(relations: FfiTreeRelations, payload: &mut sup
     payload.write_native_u32(relations.reserved);
 }
 
-fn write_recording_state_deltas(state_deltas: &[FfiStateDelta], payload: &mut super::record_replay::PayloadWriter) {
+pub(super) fn write_recording_state_deltas(
+    state_deltas: &[FfiStateDelta],
+    payload: &mut super::record_replay::PayloadWriter,
+) {
     payload.write_raw_rows(
         state_deltas.len(),
         size_of::<FfiStateDelta>(),
@@ -1981,7 +1850,7 @@ fn write_recording_state_deltas(state_deltas: &[FfiStateDelta], payload: &mut su
     );
 }
 
-fn write_recording_element_style_inputs(
+pub(super) fn write_recording_element_style_inputs(
     element_style_inputs: &[FfiElementStyleInput],
     payload: &mut super::record_replay::PayloadWriter,
 ) {
@@ -2173,99 +2042,6 @@ pub(crate) fn publish_style_rule_selectors(
         super::selector::replay::write(engine.selector_program_for_rule(RuleID(rule - 1)), payload);
     });
 }
-/// Records the shadow parts an element exposes and which host each name reaches.
-///
-/// # Safety
-/// `engine` must be live, and `names` and `hosts` must each point to `count` values.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_set_element_parts(
-    engine: crate::css::style::StyleEngineHandle,
-    node: u32,
-    names: *const u32,
-    hosts: *const u32,
-    count: usize,
-) {
-    let Some(node) = StyleNodeID::from_raw(node) else {
-        return;
-    };
-    let engine = unsafe { engine.get_mut() };
-    let pairs: Vec<(StyleAtomID, StyleNodeID)> = match count == 0 || names.is_null() || hosts.is_null() {
-        true => Vec::new(),
-        false => {
-            let names = unsafe { std::slice::from_raw_parts(names, count) };
-            let hosts = unsafe { std::slice::from_raw_parts(hosts, count) };
-            names
-                .iter()
-                .zip(hosts.iter())
-                .filter_map(|(name, host)| StyleNodeID::from_raw(*host).map(|host| (StyleAtomID(*name), host)))
-                .collect()
-        }
-    };
-    engine.set_element_parts(node, &pairs);
-    engine.record_boundary_call(EventKind::SetElementParts, |payload| {
-        payload.write_u32(node.raw());
-        payload.write_length(pairs.len());
-        for (name, host) in &pairs {
-            payload.write_u32(name.0);
-            payload.write_u32(host.raw());
-        }
-    });
-}
-/// Records the characters a text node holds, as the document spells them.
-///
-/// # Safety
-/// `engine` must be live, and `data` must be a raw `AK::Utf16String` representation for which the
-/// caller transfers one reference to this call.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_set_text_data(
-    engine: crate::css::style::StyleEngineHandle,
-    node: u32,
-    data: usize,
-) {
-    let engine = unsafe { engine.get_mut() };
-    // SAFETY: The caller transfers one reference to a live string.
-    let data = unsafe { ak::Utf16String::from_raw_owned(data) };
-    engine.record_boundary_call(EventKind::SetTextData, |payload| {
-        payload.write_u32(node);
-        payload.write_u16_slice(&data.to_utf16());
-    });
-    if let Some(node) = StyleNodeID::from_raw(node) {
-        engine.set_text_data(node, data);
-    }
-}
-
-/// Records the element's resolved language, as its primary subtag atom.
-///
-/// # Safety
-/// `engine` must be live.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_set_element_language(
-    engine: crate::css::style::StyleEngineHandle,
-    node: u32,
-    language: u32,
-    text: *const u16,
-    text_length: usize,
-) {
-    let engine = unsafe { engine.get_mut() };
-    let text = match language != 0 && !text.is_null() {
-        true => unsafe { std::slice::from_raw_parts(text, text_length) },
-        false => &[],
-    };
-    if language != 0 && !text.is_empty() {
-        // A range is not a name, so `:lang()` compares against the tag itself. It is recorded
-        // once per language rather than once per element.
-        engine.set_element_language_text(StyleAtomID(language), text);
-    }
-    if let Some(node) = StyleNodeID::from_raw(node) {
-        engine.set_element_language(node, StyleAtomID(language));
-    }
-    engine.record_boundary_call(EventKind::SetElementLanguage, |payload| {
-        payload.write_u32(node);
-        payload.write_u32(language);
-        payload.write_u16_slice(text);
-    });
-}
-
 #[derive(Clone, Default)]
 pub(crate) struct BoundScopeChain {
     roots: Vec<std::sync::Arc<CompiledSelector>>,
@@ -4658,7 +4434,7 @@ pub unsafe extern "C" fn style_engine_record_benchmark_marker(
     });
 }
 
-unsafe fn borrow<'a, T>(pointer: *const T, count: usize) -> &'a [T] {
+pub(super) unsafe fn borrow<'a, T>(pointer: *const T, count: usize) -> &'a [T] {
     if count == 0 {
         return &[];
     }

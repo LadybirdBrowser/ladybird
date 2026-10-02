@@ -68,6 +68,7 @@ mod custom_property_environments;
 #[cfg(test)]
 mod differential_tests;
 pub(crate) mod effect_descriptions;
+pub mod engine_calls;
 mod engine_sample;
 mod environment_move;
 pub mod exact_matcher;

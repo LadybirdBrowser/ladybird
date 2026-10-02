@@ -1063,24 +1063,23 @@ impl RetainedState {
     /// Keep the custom-property environment an element now holds; a null `data` is none. Only
     /// elements that hold one have an entry.
     ///
-    /// # Safety
-    /// `data` must be null or a live `Web::CSS::CustomPropertyData` named by `identity`.
-    pub(crate) unsafe fn set_element_custom_property_data(
+    /// `data`, if any, is the environment named by `identity`.
+    pub(crate) fn set_element_custom_property_data(
         &mut self,
         node: StyleNodeID,
-        data: *const std::ffi::c_void,
+        data: Option<RetainedCustomPropertyData>,
         identity: u64,
         is_animation_overlay: bool,
         declares: bool,
     ) {
-        if data.is_null() {
+        let Some(data) = data else {
             self.element_custom_property_data.remove(&node);
             return;
-        }
+        };
         if self
             .element_custom_property_data
             .get(&node)
-            .is_some_and(|existing| existing.data.data() == data)
+            .is_some_and(|existing| existing.data.data() == data.data())
         {
             return;
         }
@@ -1090,7 +1089,7 @@ impl RetainedState {
                 identity,
                 is_animation_overlay,
                 declares,
-                data: unsafe { RetainedCustomPropertyData::retain(data) },
+                data,
             },
         );
     }
@@ -1105,17 +1104,16 @@ impl RetainedState {
     /// Keep the custom-property environment one of an element's synthetic pseudo-elements now
     /// holds; a null `data` is none.
     ///
-    /// # Safety
-    /// `data` must be null or a live `Web::CSS::CustomPropertyData` named by `identity`.
-    pub(crate) unsafe fn set_pseudo_element_custom_property_data(
+    /// `data`, if any, is the environment named by `identity`.
+    pub(crate) fn set_pseudo_element_custom_property_data(
         &mut self,
         node: StyleNodeID,
         pseudo: u8,
-        data: *const std::ffi::c_void,
+        data: Option<RetainedCustomPropertyData>,
         identity: u64,
     ) {
         // Clearing is the common install, and must not make an entry only to drop it again.
-        if data.is_null() {
+        let Some(data) = data else {
             let Some(environments) = self.pseudo_element_custom_property_data.get_mut(&node) else {
                 return;
             };
@@ -1124,18 +1122,18 @@ impl RetainedState {
                 self.pseudo_element_custom_property_data.remove(&node);
             }
             return;
-        }
-        let held = || HeldCustomPropertyEnvironment {
+        };
+        let held = HeldCustomPropertyEnvironment {
             identity,
             is_animation_overlay: false,
             declares: false,
-            data: unsafe { RetainedCustomPropertyData::retain(data) },
+            data,
         };
         let environments = self.pseudo_element_custom_property_data.entry(node).or_default();
         match environments.iter_mut().find(|(kind, _)| *kind == pseudo) {
-            Some((_, environment)) if environment.data.data() == data => {}
-            Some((_, environment)) => *environment = held(),
-            None => environments.push((pseudo, held())),
+            Some((_, environment)) if environment.data.data() == held.data.data() => {}
+            Some((_, environment)) => *environment = held,
+            None => environments.push((pseudo, held)),
         }
     }
 

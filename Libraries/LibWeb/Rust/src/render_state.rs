@@ -91,6 +91,8 @@ pub(crate) enum ArenaChange {
     Paint(crate::painting::paint_changes::PaintChange),
     /// A write to the document's style engine.
     Style(crate::css::style::bridge::StyleChange),
+    /// A hand-written write to the document's style engine.
+    Engine(crate::css::style::engine_calls::EngineWrite),
 }
 
 impl ArenaChange {
@@ -103,6 +105,8 @@ impl ArenaChange {
             Self::Paint(change) => change.apply(arena),
             // SAFETY: Guaranteed by the caller. A style change reaches the engine only through this borrow.
             Self::Style(change) => change.apply(unsafe { engine.get_mut() }),
+            // SAFETY: As above.
+            Self::Engine(write) => write.apply(unsafe { engine.get_mut() }),
         }
     }
 }

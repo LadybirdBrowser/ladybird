@@ -67,7 +67,7 @@ void StyleEngine::mint_style_nodes(Span<StyleNodeID> nodes)
         return;
     auto* raw_nodes = reinterpret_cast<u32*>(nodes.data());
     StyleEngineFFI::style_node_id_allocator_mint(m_style_node_ids, false, raw_nodes, nodes.size());
-    StyleEngineFFI::style_engine_mint_style_nodes(m_impl, raw_nodes, nodes.size());
+    StyleEngineFFI::style_engine_mint_style_nodes(m_render_document->host(), raw_nodes, nodes.size());
 }
 
 void StyleEngine::mint_text_style_nodes(Span<StyleNodeID> nodes)
@@ -76,7 +76,7 @@ void StyleEngine::mint_text_style_nodes(Span<StyleNodeID> nodes)
         return;
     auto* raw_nodes = reinterpret_cast<u32*>(nodes.data());
     StyleEngineFFI::style_node_id_allocator_mint(m_style_node_ids, true, raw_nodes, nodes.size());
-    StyleEngineFFI::style_engine_mint_style_nodes(m_impl, raw_nodes, nodes.size());
+    StyleEngineFFI::style_engine_mint_style_nodes(m_render_document->host(), raw_nodes, nodes.size());
 }
 
 HashTable<StyleNodeID> StyleEngine::take_deferred_element_initial_features()
@@ -92,7 +92,7 @@ HashTable<StyleNodeID> StyleEngine::take_elements_awaiting_first_style_computati
 void StyleEngine::set_element_parts(StyleNodeID node, ReadonlySpan<StyleAtomID> names, ReadonlySpan<StyleNodeID> hosts)
 {
     VERIFY(names.size() == hosts.size());
-    StyleEngineFFI::style_engine_set_element_parts(m_impl, node.value(), reinterpret_cast<u32 const*>(names.data()), reinterpret_cast<u32 const*>(hosts.data()), names.size());
+    StyleEngineFFI::style_engine_set_element_parts(m_render_document->host(), node.value(), reinterpret_cast<u32 const*>(names.data()), reinterpret_cast<u32 const*>(hosts.data()), names.size());
 }
 
 void StyleEngine::finish_sheet_rules_replacement(SheetID sheet)
@@ -335,7 +335,7 @@ StyleAtomID StyleEngine::intern_language_atom(Utf16View text)
     code_units.ensure_capacity(text.length_in_code_units());
     for (size_t i = 0; i < text.length_in_code_units(); ++i)
         code_units.unchecked_append(text.code_unit_at(i));
-    StyleEngineFFI::style_engine_set_element_language(m_impl, 0, atom.value(), code_units.data(), code_units.size());
+    StyleEngineFFI::style_engine_set_element_language(m_render_document->host(), 0, atom.value(), code_units.data(), code_units.size());
     return atom;
 }
 
@@ -445,7 +445,7 @@ bool StyleEngine::attribute_name_requires_value_text(StyleAtomID name)
 
 void StyleEngine::set_text_data(StyleNodeID node, Utf16String const& data)
 {
-    StyleEngineFFI::style_engine_set_text_data(m_impl, node.value(), data.to_raw_leaked());
+    StyleEngineFFI::style_engine_set_text_data(m_render_document->host(), node.value(), data.to_raw_leaked());
 }
 
 void StyleEngine::set_element_language(StyleNodeID node, StyleAtomID language, Utf16View tag)
@@ -458,7 +458,7 @@ void StyleEngine::set_element_language(StyleNodeID node, StyleAtomID language, U
         for (size_t i = 0; i < tag.length_in_code_units(); ++i)
             code_units.unchecked_append(tag.code_unit_at(i));
     }
-    StyleEngineFFI::style_engine_set_element_language(m_impl, node.value(), language.value(), code_units.data(), code_units.size());
+    StyleEngineFFI::style_engine_set_element_language(m_render_document->host(), node.value(), language.value(), code_units.data(), code_units.size());
 }
 
 // Recording input gives the next rendering update style work to do, but touches no layout tree
@@ -638,7 +638,7 @@ void StyleEngine::submit_recorded_input()
 
 void StyleEngine::apply_transaction(InputTransaction const& transaction)
 {
-    StyleEngineFFI::style_engine_apply_transaction(m_impl, &transaction);
+    StyleEngineFFI::style_engine_apply_transaction(m_render_document->host(), &transaction);
 }
 
 void StyleEngine::flush()
@@ -992,7 +992,7 @@ void StyleEngine::set_element_custom_property_data(DOM::Element const& element, 
     // whether what the element's style resolves to declares custom properties of its own.
     bool const is_animation_overlay = data && data->is_animation_overlay_for({ element });
     auto const* base = is_animation_overlay ? data->parent().ptr() : data;
-    StyleEngineFFI::style_engine_set_element_custom_property_data(m_impl, element.style_node_id().value(), data, data ? data->identity() : 0, is_animation_overlay, base && base->declared_count() > 0);
+    StyleEngineFFI::style_engine_set_element_custom_property_data(m_render_document->host(), element.style_node_id().value(), data, data ? data->identity() : 0, is_animation_overlay, base && base->declared_count() > 0);
 }
 
 CustomPropertyData const* StyleEngine::element_custom_property_data(StyleNodeID node) const
@@ -1004,7 +1004,7 @@ static_assert(to_underlying(PseudoElement::KnownPseudoElementCount) <= 64);
 
 void StyleEngine::set_pseudo_element_custom_property_data(StyleNodeID node, PseudoElement pseudo_element, CustomPropertyData const* data)
 {
-    StyleEngineFFI::style_engine_set_pseudo_element_custom_property_data(m_impl, node.value(), to_underlying(pseudo_element), data, data ? data->identity() : 0);
+    StyleEngineFFI::style_engine_set_pseudo_element_custom_property_data(m_render_document->host(), node.value(), to_underlying(pseudo_element), data, data ? data->identity() : 0);
 }
 
 CustomPropertyData const* StyleEngine::pseudo_element_custom_property_data(StyleNodeID node, PseudoElement pseudo_element) const
@@ -1024,7 +1024,7 @@ void StyleEngine::publish_font_faces(FontComputer const& font_computer)
     if (m_published_font_environment_generation == font_computer.environment_generation())
         return;
     m_published_font_environment_generation = font_computer.environment_generation();
-    StyleEngineFFI::style_engine_publish_font_faces(m_impl, &font_computer.font_face_snapshot().leak_ref(), &NonnullRefPtr { font_computer.font_cascade_memo() }.leak_ref());
+    StyleEngineFFI::style_engine_publish_font_faces(m_render_document->host(), &font_computer.font_face_snapshot().leak_ref(), &NonnullRefPtr { font_computer.font_cascade_memo() }.leak_ref());
 }
 
 }
