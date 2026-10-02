@@ -98,6 +98,7 @@ lockstep_reason!(crate::painting::ffi::InputReadsBoxes);
 lockstep_reason!(crate::painting::ffi::ScrollSnaps);
 lockstep_reason!(crate::layout::text_queries::InputSelectsByWord);
 lockstep_reason!(crate::css::style::engine_calls::EngineDoor);
+lockstep_reason!(crate::layout::LayoutUpdate);
 
 /// Where the render side answers a host that waits for it. Only an answer goes through it: a reply dropped unanswered
 /// is a render state that died.

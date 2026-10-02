@@ -227,12 +227,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                 EventKind::DiscardStyleTransactionOutputs => {
                     let engine = read_engine(&mut event.payload, &live_engines)?;
                     let expected = event.payload.read_u32_vec()?;
-                    let released = unsafe { bridge::style_engine_discard_style_transaction_outputs(engine) };
-                    let actual = if released.count == 0 {
-                        &[][..]
-                    } else {
-                        unsafe { std::slice::from_raw_parts(released.nodes, released.count) }
-                    };
+                    let actual = unsafe { bridge::style_engine_end_style_transaction_for_replay(engine) };
                     if actual != expected {
                         return Err(format!(
                             "released style-node identities diverged: expected {expected:?}, got {actual:?}"
@@ -437,8 +432,9 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                         }
                     }
                     let start = Instant::now();
-                    let actual_view =
-                        unsafe { bridge::style_engine_take_style_transaction(engine, root, computation_inputs) };
+                    let actual_view = unsafe {
+                        bridge::style_engine_take_style_transaction_for_replay(engine, root, computation_inputs)
+                    };
                     let actual_reclaimed_atoms = if actual_view.reclaimed_style_atom_count == 0 {
                         Vec::new()
                     } else {

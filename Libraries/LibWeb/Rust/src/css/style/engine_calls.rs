@@ -451,6 +451,8 @@ pub(crate) enum StyleQuery {
     NativeRuleId(u64),
     /// The engine's counter at `index`.
     Counter(usize),
+    /// The end of the transaction the host took last, which answers the identities it released.
+    EndTransaction,
     /// A read the boundary generator writes.
     Generated(super::bridge::GeneratedStyleQuery),
 }
@@ -471,6 +473,7 @@ impl StyleQuery {
     pub(crate) fn answer(self, engine: &mut StyleEngine) -> StyleAnswer {
         match self {
             Self::Generated(query) => StyleAnswer::Generated(query.answer(engine)),
+            Self::EndTransaction => StyleAnswer::Nodes(super::bridge::end_style_transaction(engine)),
             Self::ElementCustomPropertyData(node) => {
                 StyleAnswer::HostObject(engine.element_custom_property_data(node).addr())
             }
@@ -534,7 +537,7 @@ const ENGINE_DOOR: EngineDoor = EngineDoor { _private: () };
 /// # Safety
 ///
 /// `host` must be a live document host, on its document's thread.
-unsafe fn ask_engine(host: *const DocumentHost, query: StyleQuery) -> StyleAnswer {
+pub(crate) unsafe fn ask_engine(host: *const DocumentHost, query: StyleQuery) -> StyleAnswer {
     use crate::render_state::{Answer, LockstepProof, Query, ask};
     assert!(!host.is_null(), "document host is null");
     // SAFETY: Guaranteed by the caller.

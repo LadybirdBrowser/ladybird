@@ -141,6 +141,12 @@ pub(crate) enum RenderMessage {
     Destroy { document: DocumentId },
     /// A write to a document's render state.
     Change { document: DocumentId, change: ArenaChange },
+    /// A style transaction of the document the host waits for.
+    Style {
+        document: DocumentId,
+        job: crate::css::style::style_job::StyleJob,
+        reply: ReplyTo<crate::css::style::style_job::StyleJobAnswer>,
+    },
     /// A question about a document's render state the host waits for the answer to.
     Ask {
         document: DocumentId,
@@ -192,6 +198,11 @@ fn handle_message(_: &RenderingSide, message: RenderMessage) {
                 unsafe { change.apply((*arena).arena_mut(), engine) };
             }
         }
+        RenderMessage::Style { document, job, reply } => reply.answer(|| {
+            let (_, engine) = state_parts(document).expect("a document the host styles has a render state");
+            // SAFETY: As for a change. The host lends what the job's inputs name until it has the answer.
+            unsafe { job.run(engine.get_mut()) }
+        }),
         RenderMessage::Ask { document, query, reply } => reply.answer(|| {
             let (arena, engine) = state_parts(document).expect("a document the host asks about has a render state");
             // SAFETY: As for a change.

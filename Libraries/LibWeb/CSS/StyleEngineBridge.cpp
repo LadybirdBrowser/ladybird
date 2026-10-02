@@ -665,8 +665,7 @@ bool StyleEngine::take_diagnostic_style_transaction(StyleNodeID root, Function<v
 void StyleEngine::discard_style_transaction_outputs()
 {
     // The end of the transaction releases the identities no reader can name any more, which are minted again first.
-    auto released = StyleEngineFFI::style_engine_discard_style_transaction_outputs(m_impl);
-    StyleEngineFFI::style_node_id_allocator_release(m_style_node_ids, released.nodes, released.count);
+    StyleEngineFFI::style_engine_end_style_transaction(m_render_document->host(), m_style_node_ids);
 }
 
 namespace {
@@ -849,7 +848,7 @@ StyleEngine::PublishedStyleTransaction StyleEngine::take_style_transaction(Style
     auto bridge_started_at = MonotonicTime::now();
     if (m_style_computer)
         publish_font_faces(m_style_computer->document().font_computer());
-    auto view = StyleEngineFFI::style_engine_take_style_transaction(m_impl, root.value(), computation_inputs);
+    auto view = StyleEngineFFI::style_engine_take_style_transaction(m_render_document->host(), root.value(), computation_inputs);
     auto bridge_microseconds = (MonotonicTime::now() - bridge_started_at).to_truncated_microseconds();
     if (view.reclaimed_style_atom_count != 0) {
         HashTable<StyleAtomID> reclaimed_atoms;

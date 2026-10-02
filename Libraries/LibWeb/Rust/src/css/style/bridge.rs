@@ -195,8 +195,9 @@ pub struct FfiEngineComputedRecord {
 pub const RETRY_PSEUDO_RECORD_SLOTS: usize = 8;
 
 #[derive(Default)]
-pub(super) struct FfiStyleTransactionOutput {
+pub(crate) struct FfiStyleTransactionOutput {
     scoped: bool,
+    connected_element_count: u32,
     style_atoms_swept: bool,
     only_derived_child_reactions: bool,
     transaction_version: u64,
@@ -1661,22 +1662,24 @@ pub unsafe fn style_engine_destroy(engine: crate::css::style::StyleEngineHandle)
     engine.end_recording();
 }
 
-/// Ends the transaction the engine published last, and returns the identities its end released, for the host to
-/// mint again.
-///
-/// # Safety
-/// `engine` must be live. The returned node slice remains valid until the next mutable `style_engine_*` entry point.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_discard_style_transaction_outputs(
-    engine: crate::css::style::StyleEngineHandle,
-) -> FfiStyleNodeSlice {
-    let engine = unsafe { engine.get_mut() };
+/// Ends the transaction the engine published last, and answers the identities its end released, for the host to mint
+/// again.
+pub(crate) fn end_style_transaction(engine: &mut StyleEngine) -> Vec<u32> {
     engine.clear_ffi_style_node_query();
+    engine.clear_ffi_style_transaction_output();
     let released = engine.discard_style_transaction_outputs();
     engine.record_boundary_call(EventKind::DiscardStyleTransactionOutputs, |payload| {
         payload.write_u32_slice(&released);
     });
-    engine.install_ffi_style_node_query(released)
+    released
+}
+
+/// Ends the transaction a replay engine published last, and answers the identities its end released.
+///
+/// # Safety
+/// `engine` must be live.
+pub unsafe fn style_engine_end_style_transaction_for_replay(engine: crate::css::style::StyleEngineHandle) -> Vec<u32> {
+    end_style_transaction(unsafe { engine.get_mut() })
 }
 
 /// Returns the live element descendants whose inheritance path begins at `root` in the flat tree.
@@ -4051,22 +4054,16 @@ fn record_interned_atom(engine: &mut StyleEngine, raw: usize, atom: StyleAtomID)
     });
 }
 
-/// Takes the pending style transaction and returns its versioned semantic match answers.
+/// Takes the pending style transaction under `root` and answers its versioned semantic match answers.
 ///
 /// # Safety
-/// `engine` must be live. The returned answer slice remains valid until the next mutable
-/// `style_engine_*` entry point or an explicit discard of the transaction outputs.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_take_style_transaction(
-    engine: crate::css::style::StyleEngineHandle,
-    root: u32,
+/// The host lends the buffers `computation_inputs` names for this call.
+pub(crate) unsafe fn take_style_transaction(
+    engine: &mut StyleEngine,
+    root: StyleNodeID,
     mut computation_inputs: FfiDocumentStyleComputationInputs,
-) -> FfiStyleTransactionView {
-    let Some(root) = StyleNodeID::from_raw(root) else {
-        return FfiStyleTransactionView::default();
-    };
-    let engine = unsafe { engine.get_mut() };
-    // SAFETY: The host lends the buffers the inputs name for this call.
+) -> FfiStyleTransactionOutput {
+    // SAFETY: Guaranteed by the caller.
     let resource_contexts_moved = unsafe { engine.document_resource_contexts.take_in(&mut computation_inputs) };
     // SAFETY: The host lends the media environment the inputs name for this call.
     unsafe { engine.document_media.take_in(&mut computation_inputs) };
@@ -4144,20 +4141,45 @@ pub unsafe extern "C" fn style_engine_take_style_transaction(
         });
         engine.forget_recording_atom_mappings(output.reclaimed_style_atoms.iter().map(|reclaimed| reclaimed.atom));
     }
-    engine.install_ffi_style_transaction_output(output);
-    let output = &engine.host.ffi_style_transaction_output;
-    FfiStyleTransactionView {
-        transaction_version: output.transaction_version,
-        program_version: output.program_version,
-        answers: output.answers.as_ptr(),
-        count: output.answers.len(),
-        reclaimed_style_atoms: output.reclaimed_style_atoms.as_ptr(),
-        reclaimed_style_atom_count: output.reclaimed_style_atoms.len(),
-        scoped: output.scoped,
-        only_derived_child_reactions: output.only_derived_child_reactions,
-        style_atoms_swept: output.style_atoms_swept,
-        connected_element_count: engine.connected_element_count(),
+    output.connected_element_count = engine.connected_element_count();
+    output
+}
+
+impl FfiStyleTransactionOutput {
+    /// The output as C++ reads it, for as long as the output stays where it is.
+    pub(crate) fn view(&self) -> FfiStyleTransactionView {
+        FfiStyleTransactionView {
+            transaction_version: self.transaction_version,
+            program_version: self.program_version,
+            answers: self.answers.as_ptr(),
+            count: self.answers.len(),
+            reclaimed_style_atoms: self.reclaimed_style_atoms.as_ptr(),
+            reclaimed_style_atom_count: self.reclaimed_style_atoms.len(),
+            scoped: self.scoped,
+            only_derived_child_reactions: self.only_derived_child_reactions,
+            style_atoms_swept: self.style_atoms_swept,
+            connected_element_count: self.connected_element_count,
+        }
     }
+}
+
+/// Takes the pending style transaction of a replay engine, which keeps its output until it is discarded.
+///
+/// # Safety
+/// `engine` must be live, and the host must lend the buffers `computation_inputs` names for this call.
+pub unsafe fn style_engine_take_style_transaction_for_replay(
+    engine: crate::css::style::StyleEngineHandle,
+    root: u32,
+    computation_inputs: FfiDocumentStyleComputationInputs,
+) -> FfiStyleTransactionView {
+    let Some(root) = StyleNodeID::from_raw(root) else {
+        return FfiStyleTransactionView::default();
+    };
+    let engine = unsafe { engine.get_mut() };
+    // SAFETY: Guaranteed by the caller.
+    let output = unsafe { take_style_transaction(engine, root, computation_inputs) };
+    engine.install_ffi_style_transaction_output(output);
+    engine.host.ffi_style_transaction_output.view()
 }
 
 /// Orders a completed reaction batch for direct application in C++.
