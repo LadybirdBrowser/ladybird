@@ -63,8 +63,8 @@ void AnchorNameMap::publish(Utf16FlyString const& name, Document& document, Opti
         for (auto const& element : it->value)
             style_nodes.unchecked_append(element->style_node_id().value());
     }
-    Layout::RustFFI::layout_arena_set_anchor_name_elements(
-        arena->handle(),
+    Layout::RustFFI::render_state_set_anchor_name_elements(
+        arena->host(),
         scope_host.value_or(CSS::StyleNodeID {}).value(),
         name.raw_identity(),
         style_nodes.data(),

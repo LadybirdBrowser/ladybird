@@ -449,15 +449,6 @@ pub unsafe extern "C" fn layout_arena_find_matching_text(
     }
 }
 
-/// # Safety
-///
-/// The live arena must be exclusively available on the document thread.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_invalidate_searchable_text(arena: *mut c_void) {
-    // SAFETY: Layout invalidates the cache before exposing the updated tree.
-    unsafe { LayoutNodeArena::from_handle_mut(arena) }.searchable_text = None;
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

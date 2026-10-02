@@ -337,7 +337,7 @@ void publish_is_in_focused_text_control(DOM::Node const& node)
             return;
         arena = &const_cast<DOM::Document&>(node.document()).layout_node_arena();
     }
-    RustFFI::layout_arena_set_identity_in_focused_text_control(arena->handle(), identity.value(), value);
+    RustFFI::render_state_set_identity_in_focused_text_control(arena->host(), identity.value(), value);
 }
 
 void publish_element_scroll_offset(DOM::Element const& element)
@@ -349,7 +349,7 @@ void publish_element_scroll_offset(DOM::Element const& element)
     // Nothing has scrolled anything before a layout tree exists, so there is no offset to forget.
     if (!document.layout_node_arena_if_created() && offset.is_zero())
         return;
-    RustFFI::layout_arena_set_element_scroll_offset(document.layout_node_arena().handle(), element.style_node_id().value(), offset);
+    RustFFI::render_state_set_element_scroll_offset(document.layout_node_arena().host(), element.style_node_id().value(), offset);
 }
 
 void publish_table_spans(DOM::Element const& element)
@@ -384,8 +384,8 @@ void publish_svg_attribute_facts(DOM::Element& element)
     else if (auto const* polyline = as_if<SVG::SVGPolylineElement>(element))
         points = polyline->points();
     static_assert(sizeof(Gfx::FloatPoint) == sizeof(RustFFI::FfiFloatPoint));
-    RustFFI::layout_arena_set_style_node_svg_attribute_facts(
-        element.document().layout_node_arena().handle(),
+    RustFFI::render_state_set_svg_attribute_facts(
+        element.document().layout_node_arena().host(),
         element.style_node_id().value(),
         build_svg_attribute_facts(element),
         reinterpret_cast<RustFFI::FfiFloatPoint const*>(points.data()),
@@ -399,8 +399,8 @@ void publish_svg_style_references(DOM::Element& element)
 {
     VERIFY(element.style_node_id() != 0);
     auto references = svg_style_reference_atoms(element);
-    RustFFI::layout_arena_set_style_node_svg_style_references(
-        element.document().layout_node_arena().handle(),
+    RustFFI::render_state_set_svg_style_references(
+        element.document().layout_node_arena().host(),
         element.style_node_id().value(),
         references[0].value(),
         references[1].value(),
@@ -447,7 +447,7 @@ void register_layout_host(NodeArena& arena, DOM::Document& document)
                 Painting::take_built_scroll_container(document, scroll_container.slot, scroll_container.is_scroll_snap_container); },
     };
     RustFFI::layout_arena_set_layout_host_callbacks(arena.handle(), callbacks);
-    RustFFI::layout_arena_set_document_is_decoded_svg(arena.handle(), document.is_decoded_svg());
+    RustFFI::render_state_set_document_is_decoded_svg(arena.host(), document.is_decoded_svg());
 }
 
 }

@@ -660,9 +660,9 @@ void NodeWithStyle::did_update_style_record()
     document().forget_snapped_areas_of_scroll_container(*snap_container);
 }
 
-bool NodeWithStyle::synchronize_table_span_data()
+void NodeWithStyle::synchronize_table_span_data()
 {
-    return RustFFI::layout_arena_restamp_table_spans(arena_handle(), slot_id(this));
+    RustFFI::render_state_restamp_table_spans(document_host(), slot_id(this));
 }
 
 void NodeWithStyle::set_display(CSS::Display display)

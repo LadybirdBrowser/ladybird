@@ -148,7 +148,7 @@ private:
             published.aspect_ratio_numerator = natural_size.aspect_ratio->numerator();
             published.aspect_ratio_denominator = natural_size.aspect_ratio->denominator();
         }
-        RustFFI::layout_arena_set_owned_image_natural_size(m_layout_node->arena_handle(), Node::slot_id(m_layout_node.ptr()), published);
+        RustFFI::render_state_set_owned_image_natural_size(m_layout_node->document_host(), Node::slot_id(m_layout_node.ptr()), published);
     }
 
     CSS::SizeWithAspectRatio natural_size() const

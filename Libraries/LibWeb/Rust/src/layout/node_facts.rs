@@ -1424,22 +1424,6 @@ mod node_facts_tests {
     }
 }
 
-/// Publishes the natural size of the image the image box `id` owns the provider of, which the
-/// box's replaced content facts are derived from.
-///
-/// # Safety
-///
-/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, and `id` a live image box.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_set_owned_image_natural_size(
-    arena: *mut c_void,
-    id: NodeSlotId,
-    natural_size: crate::painting::host::FfiNaturalSize,
-) {
-    // SAFETY: Guaranteed by the caller.
-    unsafe { LayoutNodeArena::from_handle(arena) }.set_owned_image_natural_size(id, natural_size.into());
-}
-
 /// Writes the natural size of the document's `<svg>` document element as its last layout
 /// negotiated it to `natural_size` and returns true, unless it is what the last call handed over.
 /// The size is all absent if the document element is no `<svg>` with a box.

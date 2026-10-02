@@ -1005,19 +1005,6 @@ pub unsafe extern "C" fn layout_arena_set_layout_host_callbacks(arena: *mut c_vo
         .set(Some(callbacks));
 }
 
-/// Records whether the document is an SVG file decoded as an image. It is fixed for the
-/// document's lifetime, so the layout stage holds it rather than asking at each SVG root.
-///
-/// # Safety
-///
-/// `arena` must be a live handle on the document thread.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_set_document_is_decoded_svg(arena: *mut c_void, is_decoded_svg: bool) {
-    assert!(!arena.is_null(), "layout node arena handle is null");
-    // SAFETY: The caller keeps the arena alive for this synchronous call.
-    unsafe { LayoutNodeArena::from_handle(arena) }.set_document_is_decoded_svg(is_decoded_svg);
-}
-
 /// # Safety
 ///
 /// `arena` must be a live handle on the document thread.

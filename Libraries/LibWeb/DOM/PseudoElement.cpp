@@ -63,7 +63,7 @@ void SyntheticPseudoElement::publish_scroll_offset() const
     // Nothing has scrolled anything before a layout tree exists, so there is no offset to forget.
     if (!document.layout_node_arena_if_created() && m_scroll_offset.is_zero())
         return;
-    Layout::RustFFI::layout_arena_set_pseudo_element_scroll_offset(document.layout_node_arena().handle(),
+    Layout::RustFFI::render_state_set_pseudo_element_scroll_offset(document.layout_node_arena().host(),
         m_originating_element->style_node_id().value(), Layout::Node::encode_generated_for(m_type), m_scroll_offset);
 }
 
