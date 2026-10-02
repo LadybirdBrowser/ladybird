@@ -321,8 +321,11 @@ impl StyleEngineState {
             }
         };
 
+        // A targeted update installs the record as a flush row does, applying the animation plan it
+        // decides and running the transition step it owes.
         let mut scratch = EngineComputedRecordScratch {
             read_only,
+            host_applies_animation_plans: matches!(demand, RecordDemand::Element(Element::TargetedElement)),
             ..EngineComputedRecordScratch::default()
         };
         let result = answer.map_err(|_| Unanswered::Refused).and_then(|answer| match pseudo {
@@ -417,6 +420,9 @@ impl StyleEngineState {
                 answered.pseudo_records_present |= 1 << kind;
                 answered.pseudo_records[kind] = delta.new_style_record.raw();
             }
+        }
+        if scratch.host_applies_animation_plans {
+            self.retained.note_what_installing_owes(node, &mut answered);
         }
         if !read_only {
             self.host.journal.acknowledge_node(node, &mut self.retained.memory);
