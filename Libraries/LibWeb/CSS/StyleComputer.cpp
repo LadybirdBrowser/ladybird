@@ -3895,75 +3895,6 @@ static Array<u64, 3> element_shape_style_sharing_key(DOM::AbstractElement abstra
     return { shape_bits, parent_display_bits, static_cast<u64>(element.local_name() == HTML::TagNames::th) };
 }
 
-struct SharedStyleRecordContext {
-    StyleRecordID parent_record;
-    Array<u64, 4> shape;
-};
-
-static Optional<SharedStyleRecordContext> shared_style_record_context(StyleComputer const& style_computer, DOM::Element& element)
-{
-    if (element.is_document_element()
-        || element.associated_shadow_host_pseudo_element().has_value()
-        || element.has_relevant_animations()
-        || element.has_css_defined_animations()
-        || !element.property_ids_with_existing_transitions({}).is_empty()
-        || element.has_matching_transition_property_entry({})
-        || element.custom_property_data({}))
-        return {};
-    DOM::AbstractElement abstract_element { element };
-    auto parent = abstract_element.element_to_inherit_style_from();
-    if (!parent.has_value() || inheritable_custom_property_data(*parent))
-        return {};
-    auto parent_record = parent->style_record_identity();
-    auto parent_style = style_computer.style_engine().style_record_view(parent_record);
-    if (!parent_style.present || parent_style.animated_overlay)
-        return {};
-    auto previous_style = style_computer.style_engine().style_record_view(element.style_record_identity());
-    if (previous_style.animated_overlay)
-        return {};
-    auto const* parent_box = static_cast<ComputedValuesFFI::BoxValues const*>(parent_style.payloads[to_underlying(StyleGroupIndex::BoxValues)]);
-    auto shape = element_shape_style_sharing_key(abstract_element, display_from_ffi_display(parent_box->display));
-    u64 previous_writing_mode = 0;
-    if (previous_style.present) {
-        auto const* inherited_box = static_cast<ComputedValuesFFI::InheritedBoxValues const*>(previous_style.payloads[to_underlying(StyleGroupIndex::InheritedBoxValues)]);
-        previous_writing_mode = inherited_box->writing_mode + 1;
-    }
-    return SharedStyleRecordContext { parent_record, { shape[0], shape[1], shape[2], previous_writing_mode } };
-}
-
-StyleRecordID StyleComputer::try_share_computed_style_record(DOM::Element& element) const
-{
-    m_last_materialization_kept_pseudo_element_styles = false;
-    auto context = shared_style_record_context(*this, element);
-    if (!context.has_value() || !collect_presentational_hint_properties({ element }).is_empty())
-        return {};
-    auto record = StyleRecordID { const_cast<StyleComputer&>(*this).style_engine().lookup_shared_style_record(
-        element.style_node_id(), context->parent_record, style_environment_version_for_sharing(), context->shape) };
-    if (record.value() != 0) {
-        // The engine retains the fixed computation context for a later partial drive.
-        element.set_style_input_record(nullptr);
-        ++document().style_invalidation_counters().element_style_shared_computations;
-    }
-    return record;
-}
-
-void StyleComputer::remember_shared_computed_style_record(DOM::Element& element, StyleRecordID style_record) const
-{
-    auto const* input = element.style_input_record();
-    if (!input || input->read_beyond_the_record
-        || input->style_reads_resource_context
-        || input->cascade_reads_custom_properties
-        || input->style_uses_var_css_function
-        || input->style_uses_inherit_css_function
-        || input->explicitly_inherited_non_inherited_style_groups != 0)
-        return;
-    auto context = shared_style_record_context(*this, element);
-    if (!context.has_value())
-        return;
-    const_cast<StyleComputer&>(*this).style_engine().remember_shared_style_record(
-        element.style_node_id(), context->parent_record, style_environment_version_for_sharing(), context->shape, style_record);
-}
-
 static StyleInputRecord::Difference compare_style_input_records(StyleInputRecord const& previous, StyleInputRecord const& current, size_t first_word = 0)
 {
     auto const differing_index = [&]() -> Optional<size_t> {
@@ -4446,18 +4377,6 @@ RefPtr<ComputedStyleWorkingSet> StyleComputer::compute_style_impl(DOM::AbstractE
                         old_parent_custom_property_data = existing_data;
                     }
                 }
-            }
-        }
-        if (!element.style_input_record() && previous_style_record.present) {
-            auto const& shape = *element_shape_key;
-            Array<u64, 4> context_shape { shape[0], shape[1], shape[2], 0 };
-            auto context_record = StyleRecordID { const_cast<StyleComputer&>(*this).style_engine().take_shared_computation_context(
-                element.style_node_id(), inheritance_parent_style_record_identity, style_environment_version_for_sharing(),
-                context_shape, cascade_input.matching_pseudo_element_styles) };
-            if (context_record.value() != 0 && context_record == previous_style_record_identity) {
-                only_declarations_changed = true;
-                previous_computation = PreviousComputation { .read_beyond_the_record = false };
-                record->computed_style_record = context_record;
             }
         }
         // The buffer the element gives up becomes the next element's, so a pass over a document

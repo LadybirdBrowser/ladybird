@@ -13,7 +13,11 @@
 <script>
     test(() => {
         internals.updateStyle();
-        const before = internals.styleEngineCounters().sharedStyleRecordHits;
+        const sharedRecords = () => {
+            const counters = internals.styleEngineCounters();
+            return counters.engineComputedRecordSharedHits + counters.engineComputedRecordCohortHits;
+        };
+        const before = sharedRecords();
         const randomNodes = Array.from({ length: 8 }, () => {
             const node = document.createElement("div");
             node.className = "random";
@@ -21,7 +25,7 @@
             return node;
         });
         internals.updateStyle();
-        println(`random computations stay element-specific: ${internals.styleEngineCounters().sharedStyleRecordHits === before}`);
+        println(`random computations stay element-specific: ${sharedRecords() === before}`);
         const widths = randomNodes.map(node => getComputedStyle(node).width);
         randomRoot.style.color = "red";
         println(`random values survive inherited changes: ${randomNodes.every((node, index) => getComputedStyle(node).width === widths[index])}`);
@@ -37,8 +41,7 @@
             internals.updateStyle();
             const width = getComputedStyle(nodes[0]).width;
             const afterSharing = internals.styleEngineCounters();
-            const shared = afterSharing.sharedStyleRecordHits > beforeSharing.sharedStyleRecordHits
-                || afterSharing.engineComputedRecordSharedHits > beforeSharing.engineComputedRecordSharedHits
+            const shared = afterSharing.engineComputedRecordSharedHits > beforeSharing.engineComputedRecordSharedHits
                 || afterSharing.engineComputedRecordCohortHits > beforeSharing.engineComputedRecordCohortHits;
             println(`${className} computations share: ${shared && nodes.every(node => getComputedStyle(node).width === width)}`);
         }

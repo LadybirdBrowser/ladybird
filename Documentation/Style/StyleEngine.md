@@ -1009,7 +1009,7 @@ Who does what today: the host keeps the animation objects, their timelines and t
 * **Compositions.** The composition of an element or pseudo-element is laid over the record its winners decide. A row derives the record beneath it, and the composition stays detached and pinned (`DetachedComposition`, which must be released or reattached) until the host installs the new record and samples over it. Children wait for a composition that moves, and pseudo-elements settle against it after the sample.
 * **Transitions.** A row whose record declares transitions, or that moves their declarations, owes the host the transition step, which runs against the record held before once the new one is installed (`decide_transition_step()`).
 
-What stays with the C++ computation: a row owing a transition step whose element has element children or pseudo-element cascades, and elements whose animations sample custom properties.
+Nothing else computes styles: a row the engine did not settle in its transaction is answered from its record demand (`answer_record_demand()`), and a row whose demand the engine refuses keeps the record it holds.
 
 ### 9.12 Style-layout fixed points
 

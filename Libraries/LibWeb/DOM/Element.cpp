@@ -1495,7 +1495,7 @@ static void record_element_reference_pseudo_element_inputs(Element& element)
 
 static void record_engine_container_query_effects(Element&);
 
-CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styles(bool& did_change_custom_properties, bool had_list_marker, CSS::ComputedValues const* old_originating_style, CSS::StyleEngineMatchResult* reusable_matches, PreservedPseudoElementStyles* preserved_pseudo_element_styles, EnginePseudoElementRecords const* engine_pseudo_element_records, EngineRecordDamages const* engine_record_damages)
+CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styles(bool& did_change_custom_properties, bool had_list_marker, CSS::ComputedValues const* old_originating_style, EnginePseudoElementRecords const* engine_pseudo_element_records, EngineRecordDamages const* engine_record_damages)
 {
     CSS::RequiredInvalidationAfterStyleChange invalidation;
 
@@ -1504,9 +1504,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styl
 
     auto& style_computer = document().style_computer();
     auto originating_style = computed_style();
-    CSS::StyleEngineMatchResult local_matches;
-    if (!reusable_matches)
-        reusable_matches = &local_matches;
+    CSS::StyleEngineMatchResult matches;
     // A reused originating record keeps the pseudo-element inventory it was computed with; the
     // style engine's answer says which pseudo-elements have rules now.
     auto const engine_pseudo_element_styles = style_node_id() != 0 ? style_computer.style_engine().published_pseudo_style_mask(style_node_id()) : 0;
@@ -1595,7 +1593,6 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styl
             if (!engine_record.has_value())
                 return;
         }
-        auto preserved_style_record = preserved_pseudo_element_styles ? preserved_pseudo_element_styles->at(to_underlying(pseudo_element)) : CSS::StyleRecordID {};
         auto inherits_highlight_style = AbstractElement { *this, pseudo_element }.highlight_inheritance_parent().has_value();
         // Most elements have no style for most pseudo-elements. Decide that from the record
         // identities before materializing any record view.
@@ -1603,19 +1600,12 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styl
             && !has_implicit_style
             && !inherits_highlight_style
             && !old_style_record
-            && !preserved_style_record
             && !(old_originating_style && old_originating_style->has_pseudo_element_style(pseudo_element))
             && !(originating_style && originating_style->has_pseudo_element_style(pseudo_element))
             && !matches_have_pseudo_element(pseudo_element))
             return;
         auto pseudo_element_style = computed_style(pseudo_element);
-        if (!old_style_record)
-            old_style_record = preserved_style_record;
-        auto preserved_pseudo_element_style = style_computer.computed_style_record_view(preserved_style_record);
-        auto const* pseudo_element_values = pseudo_element_style
-            ? &*pseudo_element_style
-            : preserved_pseudo_element_style ? &*preserved_pseudo_element_style
-                                             : nullptr;
+        auto const* pseudo_element_values = pseudo_element_style ? &*pseudo_element_style : nullptr;
         ElementDependentInvalidationState old_state {
             .layout_node = pseudo_element_unsafe_layout_node(pseudo_element),
             .list_counter_style = {},
@@ -1625,7 +1615,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styl
         if (pseudo_element_values && pseudo_element_values->animated_properties()) {
             auto had_layout_node = !!old_state.layout_node;
             old_state.snapshot();
-            if (!!preserved_style_record || had_layout_node)
+            if (had_layout_node)
                 style_to_preserve_for_detachment = CSS::ComputedValues::Builder { *pseudo_element_values }.build();
         }
         auto should_recompute = engine_record.has_value()
@@ -1643,7 +1633,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styl
         if (engine_record.has_value())
             style_record_delta.new_style_record = *engine_record;
         else
-            computed_pseudo_element_style = style_computer.compute_pseudo_element_style_if_needed({ *this, pseudo_element }, did_change_custom_properties, reusable_matches, style_record_delta);
+            computed_pseudo_element_style = style_computer.compute_pseudo_element_style_if_needed({ *this, pseudo_element }, did_change_custom_properties, &matches, style_record_delta);
         auto engine_pseudo_element_style = engine_record.has_value() && !!*engine_record
             ? style_computer.computed_style_record_view(*engine_record)
             : CSS::ComputedStyleRecordView {};
@@ -2444,7 +2434,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::apply_engine_computed_style_r
             style_computer.update_root_element_font_metrics(*computed_style());
         counters.element_computed_style_changes++;
         auto invalidation = CSS::RequiredInvalidationAfterStyleChange::full();
-        invalidation |= recompute_pseudo_element_styles(did_change_custom_properties, false, nullptr, nullptr, nullptr, &pseudo_element_records, engine_record_damages);
+        invalidation |= recompute_pseudo_element_styles(did_change_custom_properties, false, nullptr, &pseudo_element_records, engine_record_damages);
         publish_custom_property_names();
         apply_computed_style_to_layout_node_if_needed(invalidation);
         return invalidation;
@@ -2511,251 +2501,12 @@ CSS::RequiredInvalidationAfterStyleChange Element::apply_engine_computed_style_r
             apply_display_none_change(DisplayNoneState::of(*old_computed_values));
     }
     // The pseudo-element records the engine settled beside this one install with it.
-    result.invalidation |= recompute_pseudo_element_styles(did_change_custom_properties, old_computed_values->display().is_list_item(), &*old_computed_values, nullptr, nullptr, &pseudo_element_records, engine_record_damages);
+    result.invalidation |= recompute_pseudo_element_styles(did_change_custom_properties, old_computed_values->display().is_list_item(), &*old_computed_values, &pseudo_element_records, engine_record_damages);
     publish_custom_property_names();
     if (new_style_record != old_style_record || did_change_custom_properties)
         invalidate_descendant_styles_depending_on_style_container_query();
     apply_computed_style_to_layout_node_if_needed(result.invalidation);
     return result.invalidation;
-}
-
-CSS::RequiredInvalidationAfterStyleChange Element::apply_style_engine_reaction(bool& did_change_custom_properties, PseudoElementInputs pseudo_element_inputs)
-{
-    VERIFY(parent());
-
-    auto& counters = document().style_invalidation_counters();
-    auto& style_computer = document().style_computer();
-    counters.element_style_recomputations++;
-    auto recompute_started_at = MonotonicTime::now();
-    ScopeGuard record_recompute_time = [&] {
-        counters.style_recompute_microseconds += (MonotonicTime::now() - recompute_started_at).to_microseconds();
-    };
-    ScopeGuard finish_style_dependencies = [&] {
-        finish_recording_style_dependencies();
-    };
-
-    CSS::StyleEngineMatchResult style_engine_matches;
-    CSS::StyleEngineMatchResult* reusable_style_engine_matches = nullptr;
-    CSS::StyleEngine::StyleRecordDelta style_record_delta {};
-    auto old_style_record = style_record_identity();
-    auto old_computed_values = computed_style();
-    auto root_font_metrics_before_recompute = style_computer.root_element_font_metrics();
-    auto root_font_metrics_depended_on_viewport_before_recompute = style_computer.root_element_font_metrics_depend_on_viewport_metrics();
-    ElementDependentInvalidationState old_state {
-        .layout_node = unsafe_layout_node(),
-        .list_counter_style = {},
-        .has_snapshot = false,
-    };
-    if (old_computed_values && old_computed_values->animated_properties()) {
-        old_state.snapshot();
-    }
-    RefPtr<CSS::ComputedValues const> materialized_style;
-    // These flags include reads by the previous pseudo styles. Recomputing just the element
-    // would otherwise lose those dependencies when the flags below are reset.
-    bool const had_environment_move_dependencies = style_recomputes_on_environment_move();
-    bool const had_style_context_dependencies = m_style_uses_attr_css_function
-        || m_style_uses_var_css_function || m_style_uses_if_css_function
-        || m_style_uses_custom_function || m_style_uses_inherit_css_function
-        || m_style_uses_tree_counting_function || m_style_depends_on_viewport_metrics
-        || m_style_depends_on_size_container_query || m_style_depends_on_style_container_query;
-    m_style_uses_attr_css_function = false;
-    m_style_uses_var_css_function = false;
-    m_style_uses_if_css_function = false;
-    m_style_uses_custom_function = false;
-    m_style_uses_inherit_css_function = false;
-    m_style_uses_tree_counting_function = false;
-    m_style_depends_on_viewport_metrics = false;
-    bool const had_size_container_query_dependency = m_style_depends_on_size_container_query;
-    m_style_depends_on_size_container_query = false;
-    m_style_depends_on_style_container_query = false;
-    if (had_environment_move_dependencies)
-        publish_style_recomputes_on_environment_move();
-    if (had_size_container_query_dependency)
-        publish_size_container_query_facts();
-    if (auto* rare_data = element_rare_data(); rare_data && rare_data->custom_property_consumer_data)
-        rare_data->custom_property_consumer_data->style_query_references.clear_with_capacity();
-    reusable_style_engine_matches = &style_engine_matches;
-    auto shared_record = style_computer.try_share_computed_style_record(*this);
-    auto shared_style = style_computer.computed_style_record_view(shared_record);
-    if (shared_style) {
-        style_record_delta.new_style_record = shared_record;
-    } else {
-        materialized_style = style_computer.materialize_style_record({ *this }, did_change_custom_properties, reusable_style_engine_matches, style_record_delta);
-        style_computer.remember_shared_computed_style_record(*this, style_record_delta.new_style_record);
-    }
-    auto const* new_style = shared_style ? &*shared_style : materialized_style.ptr();
-    style_record_delta.old_style_record = old_style_record;
-    bool root_font_metrics_changed = is_document_element()
-        && (root_font_metrics_before_recompute != style_computer.root_element_font_metrics()
-            || root_font_metrics_depended_on_viewport_before_recompute != style_computer.root_element_font_metrics_depend_on_viewport_metrics());
-    if (style_record_is_unchanged(style_record_delta))
-        ++counters.unchanged_style_record_deltas;
-
-    auto pseudo_styles_are_unchanged = [&] {
-        if (pseudo_element_inputs != PseudoElementInputs::Unchanged
-            || !old_computed_values || did_change_custom_properties || root_font_metrics_changed
-            || had_style_context_dependencies
-            || has_associated_animations()
-            || (m_rendered_in_top_layer && !computed_style(CSS::PseudoElement::Backdrop)))
-            return false;
-        auto const* new_payloads = static_cast<void const* const*>(style_computer.style_record_payloads(style_record_delta.new_style_record));
-        if (!new_payloads || old_computed_values->inherited_style_group_identities().span() != ReadonlySpan<void const*> { new_payloads, CSS::ComputedValues::inherited_style_group_count }
-            || old_computed_values->display() != new_style->display())
-            return false;
-        if (style_engine_matches.node == 0 || !style_computer.style_engine().pseudo_cascade_states_are_unchanged(style_engine_matches.node))
-            return false;
-        // An unchanged pseudo cascade can still read a changed non-inherited property from
-        // its originating element. Leave such styles to the full computation.
-        static auto const non_inherited_properties = [] {
-            AK::FixedBitmap<CSS::number_of_longhand_properties> bitmap { false };
-            for (auto property = to_underlying(CSS::first_longhand_property_id); property <= to_underlying(CSS::last_longhand_property_id); ++property) {
-                if (!CSS::is_inherited_property(static_cast<CSS::PropertyID>(property)))
-                    bitmap.set(property - to_underlying(CSS::first_longhand_property_id), true);
-            }
-            return bitmap;
-        }();
-        for (u8 kind = 0; kind <= to_underlying(CSS::last_element_reference_pseudo_element); ++kind) {
-            auto pseudo_record = style_record_identity(static_cast<CSS::PseudoElement>(kind));
-            if (!pseudo_record)
-                continue;
-            auto view = style_computer.style_engine().style_record_view(pseudo_record);
-            if (!view.present || !view.longhand_table || view.animation_overlay_identity != 0)
-                return false;
-            auto const* inheritance = CSS::ComputedValuesFFI::rust_computed_longhand_table_inheritance_bits(static_cast<CSS::ComputedValuesFFI::ComputedLonghandTable const*>(view.longhand_table));
-            for (size_t index = 0; index < non_inherited_properties.size_in_bytes(); ++index) {
-                if (inheritance[index] & non_inherited_properties.bytes()[index])
-                    return false;
-            }
-        }
-        return true;
-    }();
-
-    // An exact StyleEngine input record can answer a recomputation with the very style the element
-    // already holds. Nothing derived from the originating style needs to be compared or published
-    // again in that case. Pseudo-element declarations are a separate cascade projected from the
-    // originating element's matches, so they still have to consume that shared match result.
-    // Only the inherited custom-property environment moved, and no cascade of the element or its
-    // pseudo-elements read a name it moved: every style stands, and the descendants react to the
-    // environment.
-    if (old_computed_values && style_record_is_unchanged(style_record_delta) && !root_font_metrics_changed
-        && pseudo_element_inputs == PseudoElementInputs::Unchanged
-        && !(m_rendered_in_top_layer && !computed_style(CSS::PseudoElement::Backdrop))
-        && style_computer.last_materialization_kept_pseudo_element_styles()) {
-        counters.element_style_noop_recomputations++;
-        publish_custom_property_names();
-        if (did_change_custom_properties)
-            invalidate_descendant_styles_depending_on_style_container_query();
-        return {};
-    }
-
-    if (old_computed_values && style_record_is_unchanged(style_record_delta) && !did_change_custom_properties && !root_font_metrics_changed) {
-        if (pseudo_styles_are_unchanged) {
-            counters.element_style_noop_recomputations++;
-            return {};
-        }
-        record_element_reference_pseudo_element_inputs(*this);
-        auto invalidation = recompute_pseudo_element_styles(
-            did_change_custom_properties,
-            old_computed_values->display().is_list_item(),
-            &*old_computed_values,
-            reusable_style_engine_matches);
-        publish_custom_property_names();
-        if (invalidation.is_none()) {
-            counters.element_style_noop_recomputations++;
-            return invalidation;
-        }
-        apply_computed_style_to_layout_node_if_needed(invalidation);
-        return invalidation;
-    }
-
-    bool had_list_marker = false;
-
-    CSS::RequiredInvalidationAfterStyleChange invalidation;
-    bool element_computed_style_changed = true;
-    if (old_computed_values) {
-        DOM::AbstractElement abstract_element { *this };
-        auto result = compute_required_invalidation_with_cache(
-            style_computer,
-            *new_style,
-            old_state,
-            abstract_element,
-            style_record_delta);
-        invalidation = result.invalidation;
-        element_computed_style_changed = result.any_computed_value_changed;
-        had_list_marker = old_computed_values->display().is_list_item();
-    } else {
-        invalidation = CSS::RequiredInvalidationAfterStyleChange::full();
-    }
-    if (root_font_metrics_changed) {
-        // Root-relative units read document-global font metrics rather than inherited style. Every
-        // descendant must recompute even when an ancestor absorbs the root's inherited changes.
-        style_computer.drop_style_sharing_cache();
-        document().bump_style_environment_version();
-        invalidation.recompute_descendant_styles = true;
-    }
-
-    update_anchor_name_registry(old_computed_values ? &*old_computed_values : nullptr, *new_style);
-
-    update_animation_name_index(*this, old_computed_values ? &*old_computed_values : nullptr, *new_style);
-    auto const display_none_before = old_computed_values ? DisplayNoneState::of(*old_computed_values) : DisplayNoneState {};
-
-    PreservedPseudoElementStyles preserved_pseudo_element_styles;
-    ScopeGuard release_preserved_pseudo_element_styles = [&] {
-        for (auto style_record : preserved_pseudo_element_styles) {
-            if (!!style_record)
-                style_computer.unpin_style_record(style_record);
-        }
-    };
-    for_each_synthetic_pseudo_element([&](CSS::PseudoElement pseudo_element, SyntheticPseudoElement const& synthetic_pseudo_element) {
-        if (!synthetic_pseudo_element.unsafe_layout_node())
-            return;
-        auto pseudo_element_style = computed_style(pseudo_element);
-        if (pseudo_element_style && pseudo_element_style->animated_properties()) {
-            auto style_record = style_record_identity(pseudo_element);
-            style_computer.pin_style_record(style_record);
-            preserved_pseudo_element_styles[to_underlying(pseudo_element)] = style_record;
-        }
-    });
-
-    // https://drafts.csswg.org/css-transitions-1/#starting
-    // The transition step compares the style the element moved away from with the one it now holds, so the old record
-    // has to outlive its replacement until the step has read it.
-    {
-        CSS::StyleRecordPin const before_change { style_computer, old_style_record };
-        set_computed_style({}, style_record_delta.new_style_record);
-        if (!!before_change.style_record())
-            invalidation |= style_computer.run_transition_step_for_installed_record({ *this }, before_change.style_record());
-    }
-
-    apply_display_none_change(display_none_before);
-
-    auto const element_style_changed = !invalidation.is_none();
-    auto const element_custom_properties_changed = did_change_custom_properties;
-    if (element_computed_style_changed || element_custom_properties_changed)
-        counters.element_computed_style_changes++;
-
-    if (!pseudo_styles_are_unchanged) {
-        record_element_reference_pseudo_element_inputs(*this);
-        invalidation |= recompute_pseudo_element_styles(did_change_custom_properties, had_list_marker, old_computed_values ? &*old_computed_values : nullptr, reusable_style_engine_matches, &preserved_pseudo_element_styles);
-    }
-
-    // Which custom properties this element or one of its pseudo-elements declares or references
-    // decides which `@property` registrations reach it. Pseudo-elements share the originating
-    // element's style node, so their names are published on that node as well.
-    publish_custom_property_names();
-
-    if (old_computed_values && (element_style_changed || element_custom_properties_changed))
-        invalidate_descendant_styles_depending_on_style_container_query();
-
-    if (invalidation.is_none()) {
-        counters.element_style_noop_recomputations++;
-        return invalidation;
-    }
-
-    counters.committed_style_observer_consequences++;
-    apply_computed_style_to_layout_node_if_needed(invalidation);
-
-    return invalidation;
 }
 
 Element::DisplayNoneState Element::DisplayNoneState::of(CSS::ComputedValues const& computed_values)

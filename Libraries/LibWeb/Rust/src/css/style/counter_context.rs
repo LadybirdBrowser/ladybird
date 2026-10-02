@@ -980,18 +980,6 @@ impl StyleEngine {
         )
     }
 
-    #[inline]
-    pub(crate) fn lookup_shared_style_record(
-        &mut self,
-        node: StyleNodeID,
-        parent_record: u64,
-        environment: u64,
-        shape: [u64; 4],
-    ) -> Option<u64> {
-        self.state
-            .lookup_shared_style_record(node, parent_record, environment, shape, &mut self.counters)
-    }
-
     /// C++ installed the record the engine derived for `node`: the winner state it was computed
     /// from becomes the node's cascade state, and the answer counts as consumed.
     #[inline]
