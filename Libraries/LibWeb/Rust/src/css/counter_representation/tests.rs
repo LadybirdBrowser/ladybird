@@ -14,7 +14,7 @@ fn registry_with(styles: Vec<CounterStyle>) -> CounterStyleRegistry {
     let mut registry = CounterStyleRegistry::default();
     let mut scope = CounterStyleScope::default();
     for style in styles {
-        scope.styles.insert(style.name.clone(), Rc::new(style));
+        scope.styles.insert(style.name.clone(), Arc::new(style));
     }
     registry.publish_scope(0, scope);
     registry
@@ -227,7 +227,7 @@ fn a_name_resolves_through_the_host_scope() {
     let mut document_scope = CounterStyleScope::default();
     document_scope.styles.insert(
         symbol("shared"),
-        Rc::new(style(
+        Arc::new(style(
             "shared",
             Algorithm::Generic {
                 system: GenericSystem::Cyclic,
@@ -243,7 +243,7 @@ fn a_name_resolves_through_the_host_scope() {
     };
     shadow_scope.styles.insert(
         symbol("local"),
-        Rc::new(style(
+        Arc::new(style(
             "local",
             Algorithm::Generic {
                 system: GenericSystem::Cyclic,
@@ -311,7 +311,7 @@ fn the_extended_cjk_styles() {
 #[test]
 fn a_marker_with_one_symbol_does_not_depend_on_the_value() {
     let depends_on_value = |algorithm| {
-        let handle = FfiRegisteredCounterStyle(Rc::new(style("marker", algorithm)));
+        let handle = FfiRegisteredCounterStyle(Arc::new(style("marker", algorithm)));
         // SAFETY: The handle is live for the duration of the call.
         unsafe { rust_counter_style_representation_depends_on_value(&handle) }
     };

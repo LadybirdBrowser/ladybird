@@ -15,7 +15,7 @@ use crate::css::css_string::CssString;
 use crate::css::style_value::StyleValueData;
 use std::collections::HashMap;
 use std::ffi::c_void;
-use std::rc::Rc;
+use std::sync::Arc;
 use std::sync::LazyLock;
 
 /// A counter symbol. The `<image>` half of `<symbol>` is not implemented, so every symbol is text.
@@ -85,7 +85,7 @@ pub(crate) struct CounterStyle {
 #[derive(Default)]
 pub(crate) struct CounterStyleScope {
     pub(crate) parent: Option<u32>,
-    pub(crate) styles: HashMap<Symbol, Rc<CounterStyle>>,
+    pub(crate) styles: HashMap<Symbol, Arc<CounterStyle>>,
 }
 
 /// Every tree scope's registered counter styles, keyed by the tree scope's identity.
@@ -101,7 +101,7 @@ impl CounterStyleRegistry {
 
     /// The style a name resolves to from `tree_scope`: this scope's own registration, else the
     /// host's, recursively.
-    pub(crate) fn lookup(&self, tree_scope: u32, name: &[u16]) -> Option<&Rc<CounterStyle>> {
+    pub(crate) fn lookup(&self, tree_scope: u32, name: &[u16]) -> Option<&Arc<CounterStyle>> {
         let mut scope_id = Some(tree_scope);
         // A malformed parent chain would otherwise spin; the depth bound is the shadow nesting depth.
         let mut remaining_hops = self.scopes.len() + 1;
@@ -194,7 +194,7 @@ fn auto_range(algorithm: &Algorithm) -> Vec<RangeEntry> {
 /// The anonymous counter style a `symbols()` function defines: "a prefix of "" (empty string) and
 /// suffix of " " (U+0020 SPACE), a range of auto, a fallback of decimal, a negative of "\2D"
 /// ("-" hyphen-minus), a pad of 0 "", and a speak-as of auto."
-fn symbols_function_counter_style(symbols_type: u8, symbols: &[CssString]) -> Rc<CounterStyle> {
+fn symbols_function_counter_style(symbols_type: u8, symbols: &[CssString]) -> Arc<CounterStyle> {
     let symbol_list: Vec<Symbol> = symbols
         .iter()
         .map(|symbol| symbol.units().to_vec().into_boxed_slice())
@@ -224,7 +224,7 @@ fn symbols_function_counter_style(symbols_type: u8, symbols: &[CssString]) -> Rc
         other => panic!("unknown symbols() type {other}"),
     };
     let range = auto_range(&algorithm);
-    Rc::new(CounterStyle {
+    Arc::new(CounterStyle {
         // NB: C++ uses the empty string rather than no name, which cannot clash with an authored
         //     <counter-style-name>, and the name only shows up in serialization.
         name: symbol(""),
@@ -249,7 +249,7 @@ pub(crate) fn resolve_counter_style_value(
     registry: &CounterStyleRegistry,
     tree_scope: u32,
     value: Option<&StyleValueData>,
-) -> Option<Rc<CounterStyle>> {
+) -> Option<Arc<CounterStyle>> {
     let Some(StyleValueData::CounterStyle {
         is_symbols,
         name,
@@ -964,7 +964,7 @@ pub(crate) fn generate_a_counter_representation<'a>(
 // the cascade that picks one definition per name.
 
 /// A counter style C++ holds a handle to and names in a publication or a representation request.
-pub struct FfiRegisteredCounterStyle(Rc<CounterStyle>);
+pub struct FfiRegisteredCounterStyle(Arc<CounterStyle>);
 
 #[repr(C)]
 #[derive(Clone, Copy)]
@@ -1095,7 +1095,7 @@ pub unsafe extern "C" fn rust_counter_style_create(
         pad_symbol: unsafe { adopt_symbol(descriptors.pad_symbol) },
     };
 
-    Box::into_raw(Box::new(FfiRegisteredCounterStyle(Rc::new(style))))
+    Box::into_raw(Box::new(FfiRegisteredCounterStyle(Arc::new(style))))
 }
 
 /// # Safety

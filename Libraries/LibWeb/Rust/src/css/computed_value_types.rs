@@ -703,6 +703,11 @@ pub struct RetainedComputedResolvedTransformList {
     pub length: usize,
 }
 
+// SAFETY: The list owns its array, which is written once as the style group is built and only read after, like the
+// style values its transforms name.
+unsafe impl Send for RetainedComputedResolvedTransformList where ComputedResolvedTransform: Send {}
+unsafe impl Sync for RetainedComputedResolvedTransformList where ComputedResolvedTransform: Sync {}
+
 /// Layout of the computed transform properties.
 #[repr(C)]
 pub struct TransformValues {
