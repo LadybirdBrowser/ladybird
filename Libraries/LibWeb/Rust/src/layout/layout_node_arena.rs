@@ -1198,6 +1198,13 @@ impl LayoutNodeArena {
         let data = self.data(id);
         data.generated_for.set(generated_for);
         self.set_node_style_node(id, generator);
+        // A row generated for a pseudo-element answers by its generator's name. Reading it from
+        // the generator's own box would answer nothing for a `display: contents` element, which
+        // has no box and still has pseudo-elements.
+        if let Some(generator) = generator.filter(|_| generated_for != 0) {
+            let unique_node_id = self.with_style_store(|engine| engine.element_unique_node_id(generator));
+            self.unique_node_ids().publish(id, unique_node_id);
+        }
     }
 
     pub(crate) fn node_style_node(&self, id: NodeSlotId) -> Option<StyleNodeID> {
@@ -2604,6 +2611,10 @@ impl LayoutNodeArena {
             .set(super::node_facts::construction_flags(kind, false, construction_facts));
         if let Some(style_node) = style_node {
             self.stamp_dom_paint_facts(slot, style_node);
+            // The name the document knows the row's node by. The mirror publishes one for an
+            // element; a text node's row answers for nothing, as its identity reads zero.
+            let unique_node_id = self.with_style_store(|engine| engine.element_unique_node_id(style_node));
+            self.unique_node_ids().publish(slot, unique_node_id);
         }
         self.set_node_style_node(slot, style_node);
         self.enroll_node_for_replaced_content_facts_sync_if_eligible(slot);
@@ -5388,7 +5399,10 @@ mod tests {
     #[test]
     fn a_retired_style_node_leaves_every_row_carrying_it() {
         use crate::css::style::tree::StyleNodeID;
+        // The rows name their generators, whose unique node ids the style mirror answers for.
+        let mut engine = crate::css::style::StyleEngine::new(crate::css::style::memory::DeviceClass::ForegroundDesktop);
         let mut arena = LayoutNodeArena::new();
+        arena.set_style_engine((&raw mut engine).cast());
         let style_node = StyleNodeID::element(3);
         let rows = [(); 3].map(|()| {
             arena.allocate(FfiNodeConstructionFacts {
@@ -5466,7 +5480,10 @@ mod tests {
     #[test]
     fn a_commit_message_names_the_dom_node_a_row_stands_for() {
         use crate::css::style::tree::StyleNodeID;
+        // The rows name their generators, whose unique node ids the style mirror answers for.
+        let mut engine = crate::css::style::StyleEngine::new(crate::css::style::memory::DeviceClass::ForegroundDesktop);
         let mut arena = LayoutNodeArena::new();
+        arena.set_style_engine((&raw mut engine).cast());
         let element = StyleNodeID::element(3);
         let principal = arena.allocate(FfiNodeConstructionFacts {
             style_node: element.raw(),
@@ -5594,7 +5611,10 @@ mod tests {
     #[test]
     fn a_pseudo_element_is_bound_only_to_its_principal_box() {
         use crate::css::style::tree::StyleNodeID;
+        // The rows name their generators, whose unique node ids the style mirror answers for.
+        let mut engine = crate::css::style::StyleEngine::new(crate::css::style::memory::DeviceClass::ForegroundDesktop);
         let mut arena = LayoutNodeArena::new();
+        arena.set_style_engine((&raw mut engine).cast());
         let generator = StyleNodeID::element(2);
         let principal_box = arena.allocate(test_anonymous_construction_facts());
         let content = arena.allocate(test_anonymous_construction_facts());
@@ -5770,6 +5790,42 @@ mod tests {
         arena
             .free_subtree(row)
             .destroy_shells_and_invoke_callbacks(&main_thread);
+        arena.set_style_engine(std::ptr::null_mut());
+    }
+
+    #[test]
+    fn rows_answer_by_the_unique_node_id_their_element_published() {
+        use crate::css::style::StyleEngine;
+        use crate::css::style::memory::DeviceClass;
+        use crate::css::style::tree::StyleNodeID;
+
+        let mut engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
+        let mut element = [0_u32];
+        engine.allocate_style_nodes(&mut element);
+        let element = StyleNodeID::from_raw(element[0]).unwrap();
+        engine.set_element_unique_node_id(element, 42);
+        let mut arena = LayoutNodeArena::new();
+        arena.set_style_engine((&raw mut engine).cast());
+        let main_thread = crate::stage::MainThread::for_test();
+
+        let principal = arena.allocate_unbound();
+        arena.stamp_dom_row(principal, NodeKind::BlockContainer, Some(element));
+        let pseudo_element = arena.allocate_unbound();
+        arena.set_node_generated_for(pseudo_element, 1, Some(element));
+        assert_eq!(arena.unique_node_ids().id(principal), 42);
+        assert_eq!(arena.unique_node_ids().id(pseudo_element), 42);
+
+        arena
+            .free_subtree(pseudo_element)
+            .destroy_shells_and_invoke_callbacks(&main_thread);
+        let recycled = arena.allocate_unbound();
+        assert_eq!(recycled.slot_index(), pseudo_element.slot_index());
+        assert_eq!(arena.unique_node_ids().id(recycled), 0);
+        for row in [principal, recycled] {
+            arena
+                .free_subtree(row)
+                .destroy_shells_and_invoke_callbacks(&main_thread);
+        }
         arena.set_style_engine(std::ptr::null_mut());
     }
 

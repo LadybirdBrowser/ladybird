@@ -177,6 +177,39 @@ struct CommittedFragmentLinkSlot {
     link: Option<Box<fragment_tree::FragmentLink>>,
 }
 
+// The unique node id of what each box is the box of, as the document names it: an element, the
+// element a pseudo-element was generated for, or the document itself for the viewport. It is the
+// name the compositor scrolls and snaps by, and it is not the style node id, which a node gives up
+// when it disconnects, so the build stamps it onto a row from what the style mirror publishes.
+//
+// Dense by slot, because nearly every element box has one. Each entry names the row it was stamped
+// for, so a slot that has been recycled since answers for the new row and not the old one.
+#[derive(Default)]
+pub(crate) struct UniqueNodeIdColumn {
+    ids: RefCell<Vec<(NodeSlotId, i64)>>,
+}
+
+impl UniqueNodeIdColumn {
+    pub(crate) fn id(&self, slot: NodeSlotId) -> i64 {
+        match self.ids.borrow().get(slot.slot_index() as usize) {
+            Some(&(stamped_for, id)) if !slot.is_invalid() && stamped_for == slot => id,
+            _ => 0,
+        }
+    }
+
+    pub(crate) fn publish(&self, slot: NodeSlotId, id: i64) {
+        if slot.is_invalid() || self.id(slot) == id {
+            return;
+        }
+        let index = slot.slot_index() as usize;
+        let mut ids = self.ids.borrow_mut();
+        if ids.len() <= index {
+            ids.resize(index + 1, (NodeSlotId::INVALID, 0));
+        }
+        ids[index] = (slot, id);
+    }
+}
+
 #[derive(Default)]
 pub(crate) struct PaintableRowStore {
     chunks: Vec<Box<PaintableRowChunk>>,
@@ -193,6 +226,7 @@ pub(crate) struct PaintableRowStore {
     committed_fragment_links: RefCell<Vec<CommittedFragmentLinkSlot>>,
     paint_recording_in_progress: Cell<bool>,
     image_map_areas: crate::painting::image_map_areas::ImageMapAreaColumn,
+    unique_node_ids: UniqueNodeIdColumn,
 }
 
 pub(crate) struct PaintableRows<Arena> {
@@ -767,6 +801,11 @@ impl LayoutNodeArena {
     /// The areas of the image map each image is associated with, as the document published them.
     pub(crate) fn image_map_areas(&self) -> &crate::painting::image_map_areas::ImageMapAreaColumn {
         &self.paintable_rows.image_map_areas
+    }
+
+    /// The unique node id of what each box is the box of, as the build stamped it.
+    pub(crate) fn unique_node_ids(&self) -> &UniqueNodeIdColumn {
+        &self.paintable_rows.unique_node_ids
     }
 
     pub(crate) fn paintable_visual_context_record(

@@ -155,7 +155,6 @@ pub struct FfiVisualContextHostCallbacks {
     context: *mut c_void,
     tree_inputs: unsafe extern "C" fn(*mut c_void) -> FfiVisualContextTreeInputs,
     scroll_offset: unsafe extern "C" fn(*mut c_void, *mut c_void) -> used_values::FfiCssPixelPoint,
-    node_identity: unsafe extern "C" fn(*mut c_void, *mut c_void) -> i64,
 }
 
 impl FfiVisualContextHostCallbacks {
@@ -163,23 +162,17 @@ impl FfiVisualContextHostCallbacks {
     pub(crate) fn for_test(
         tree_inputs: unsafe extern "C" fn(*mut c_void) -> FfiVisualContextTreeInputs,
         scroll_offset: unsafe extern "C" fn(*mut c_void, *mut c_void) -> used_values::FfiCssPixelPoint,
-        node_identity: unsafe extern "C" fn(*mut c_void, *mut c_void) -> i64,
     ) -> Self {
         Self {
             context: std::ptr::null_mut(),
             tree_inputs,
             scroll_offset,
-            node_identity,
         }
     }
 
     pub(crate) fn tree_inputs(&self, _: &MainThread) -> FfiVisualContextTreeInputs {
         // SAFETY: The C++ host answers synchronously.
         unsafe { (self.tree_inputs)(self.context) }
-    }
-    pub(crate) fn node_identity(&self, _: &MainThread, layout_node_shell: *mut c_void) -> i64 {
-        // SAFETY: The C++ host answers synchronously from a live layout node shell.
-        unsafe { (self.node_identity)(self.context, layout_node_shell) }
     }
     pub(crate) fn scroll_offset(
         &self,

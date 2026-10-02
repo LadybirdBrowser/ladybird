@@ -206,18 +206,6 @@ Layout::RustFFI::FfiVisualContextHostCallbacks visual_context_host_callbacks(DOM
         .scroll_offset = [](void*, void* layout_node_shell) -> CSSPixelPoint {
             return scroll_offset(*static_cast<Layout::Node const*>(layout_node_shell));
         },
-        .node_identity = [](void*, void* layout_node_shell) -> i64 {
-            auto const& layout_node = *static_cast<Layout::NodeWithStyle const*>(layout_node_shell);
-            if (is_viewport_paintable(layout_node))
-                return layout_node.document().unique_id().value();
-            if (layout_node.generated_for_pseudo_element().has_value()) {
-                auto generator = layout_node.pseudo_element_generator();
-                return generator ? generator->unique_id().value() : 0;
-            }
-            if (auto dom_node = layout_node.dom_node(); dom_node && is<DOM::Element>(*dom_node))
-                return dom_node->unique_id().value();
-            return 0;
-        },
     };
 }
 

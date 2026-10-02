@@ -221,15 +221,7 @@ pub unsafe extern "C" fn layout_arena_update_accumulated_visual_contexts(
         }
         let result = {
             let paintable_rows = arena_ref.paintable_rows();
-            update_visual_context_tree(
-                &paintable_rows,
-                &callbacks,
-                &main_thread,
-                viewport,
-                inputs,
-                scope,
-                &mut state,
-            )
+            update_visual_context_tree(&paintable_rows, viewport, inputs, scope, &mut state)
         };
         match result {
             IncrementalUpdateResult::Applied(mut outcome) => {
@@ -273,7 +265,7 @@ pub unsafe extern "C" fn layout_arena_update_accumulated_visual_contexts(
     }
 
     state.last_full_build_reason = reason;
-    let outcome = fresh_visual_context_tree_build(&main_thread, arena, viewport, &callbacks, inputs, &mut state);
+    let outcome = fresh_visual_context_tree_build(arena, viewport, inputs, &mut state);
     state.last_tree_inputs = Some(inputs);
     let arena_ref = unsafe { arena_from_handle(arena) };
     arena_ref.paint_state().borrow_mut().visual_context = state;
