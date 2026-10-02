@@ -793,6 +793,17 @@ impl RetainedState {
         self.tree.set_text_is_ascii_whitespace(node, value, &mut self.memory);
     }
 
+    /// What a row built for the node is painted and hit-tested with, as `DomPaintFact` names them.
+    #[must_use]
+    pub fn node_dom_paint_facts(&self, node: StyleNodeID) -> u8 {
+        self.tree.dom_paint_facts(node)
+    }
+
+    /// Record what a row built for the node is painted and hit-tested with.
+    pub fn set_node_dom_paint_facts(&mut self, node: StyleNodeID, facts: u8) {
+        self.tree.set_dom_paint_facts(node, facts, &mut self.memory);
+    }
+
     /// Record whether the text node holds the value of a password input.
     pub fn set_text_is_password_input(&mut self, node: StyleNodeID, value: bool) {
         self.tree.set_text_is_password_input(node, value, &mut self.memory);

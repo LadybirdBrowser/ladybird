@@ -188,7 +188,7 @@ void RemoteNavigable::set_replicated_state(ReplicatedNavigableState state)
     if (!container)
         return;
     if (previous_compositor_context_id != m_replicated_state.compositor_context_id) {
-        container->note_dom_paint_facts();
+        container->publish_dom_paint_facts();
         container->set_needs_repaint();
     }
     if (was_delaying_the_load_event_of_its_container && !m_replicated_state.delays_the_load_event_of_its_container)

@@ -107,7 +107,7 @@ void NavigableContainer::create_new_child_navigable()
     m_reported_content_navigable_viewport = {};
     navigable->set_container({}, this);
 
-    note_dom_paint_facts();
+    publish_dom_paint_facts();
     set_needs_repaint();
 
     // 10. Let historyEntry be navigable's active session history entry.
@@ -308,7 +308,7 @@ void NavigableContainer::destroy_the_child_navigable()
     m_reported_content_navigable_viewport = {};
     navigable->set_container({}, nullptr);
     document().schedule_html_parser_end_check();
-    note_dom_paint_facts();
+    publish_dom_paint_facts();
     set_needs_repaint();
 
     // The load-event delays and navigation API of the navigable's document are where the document is.
@@ -429,7 +429,7 @@ void NavigableContainer::swap_content_navigable_to_remote(Badge<Page>, Replicate
         window_proxy->set_window(remote_navigable->active_window());
     }
     m_content_navigable = remote_navigable;
-    note_dom_paint_facts();
+    publish_dom_paint_facts();
     set_needs_repaint();
 
     local_navigable.set_container({}, nullptr);
@@ -448,7 +448,7 @@ void NavigableContainer::swap_content_navigable_to_local(Badge<Page>, LocalNavig
     VERIFY(remote_navigable.provisional_navigable().ptr() == &navigable);
 
     m_content_navigable = navigable;
-    note_dom_paint_facts();
+    publish_dom_paint_facts();
     set_needs_repaint();
 
     remote_navigable.set_container({}, nullptr);
