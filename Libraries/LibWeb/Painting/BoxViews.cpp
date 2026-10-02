@@ -727,7 +727,7 @@ DOM::NodeIdentity node_identity_of(Layout::RustFFI::FfiNodeIdentity identity)
 void push_selection_pseudo_style(DOM::Element const& element)
 {
     if (auto* arena = const_cast<DOM::Document&>(element.document()).layout_node_arena_if_created())
-        Layout::RustFFI::layout_arena_sync_selection_pseudo_style(arena->handle(), element.style_node_id().value());
+        Layout::RustFFI::render_state_sync_selection_pseudo_style(arena->host(), element.style_node_id().value());
 }
 
 class BoxViewRepaintAccess {

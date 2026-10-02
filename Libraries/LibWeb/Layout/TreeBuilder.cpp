@@ -330,7 +330,7 @@ RustFFI::FfiLayoutTreeBuildOutcome LayoutTreeBuildBridge::build(DOM::Node& dom_n
     // The viewport's row holds what the navigable has scrolled the viewport to, which the navigable publishes as it
     // scrolls. A new document has not heard from it yet.
     if (auto navigable = document.navigable())
-        RustFFI::layout_arena_set_viewport_scroll_offset(arena, navigable->viewport_scroll_offset());
+        RustFFI::render_state_set_viewport_scroll_offset(document.layout_node_arena().host(), navigable->viewport_scroll_offset());
     return RustFFI::rust_build_layout_tree(&callbacks, arena, &dom_node, document.style_node_id().value(), document_style_record.value());
 }
 

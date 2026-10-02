@@ -77,12 +77,15 @@ impl RenderState {
 pub(crate) enum ArenaChange {
     /// A write to the document's layout marks or layout facts.
     Layout(crate::layout::layout_changes::LayoutChange),
+    /// A write to the document's paint state.
+    Paint(crate::painting::paint_changes::PaintChange),
 }
 
 impl ArenaChange {
     fn apply(self, arena: &mut crate::layout::LayoutNodeArena) {
         match self {
             Self::Layout(change) => change.apply(arena),
+            Self::Paint(change) => change.apply(arena),
         }
     }
 }

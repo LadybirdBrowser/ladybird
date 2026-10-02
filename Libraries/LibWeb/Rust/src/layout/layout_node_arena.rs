@@ -5180,17 +5180,6 @@ pub unsafe extern "C" fn layout_arena_node_style_node(arena: *mut c_void, id: No
         .map_or(0, StyleNodeID::raw)
 }
 
-/// Publishes what the navigable has scrolled the viewport to.
-///
-/// # Safety
-///
-/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_set_viewport_scroll_offset(arena: *mut c_void, offset: FfiCssPixelPoint) {
-    // SAFETY: Guaranteed by the caller.
-    unsafe { LayoutNodeArena::from_handle(arena) }.set_viewport_scroll_offset(offset.into());
-}
-
 /// What the row is scrolled to, as the document published it.
 ///
 /// # Safety
