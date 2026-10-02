@@ -119,6 +119,23 @@ use crate::runtime::suppressed_error_constructor::SuppressedErrorConstructor;
 use crate::runtime::suppressed_error_prototype::SuppressedErrorPrototype;
 use crate::runtime::symbol_constructor::SymbolConstructor;
 use crate::runtime::symbol_prototype::SymbolPrototype;
+use crate::runtime::temporal::duration_constructor::DurationConstructor;
+use crate::runtime::temporal::duration_prototype::DurationPrototype;
+use crate::runtime::temporal::instant_constructor::InstantConstructor;
+use crate::runtime::temporal::instant_prototype::InstantPrototype;
+use crate::runtime::temporal::plain_date_constructor::PlainDateConstructor;
+use crate::runtime::temporal::plain_date_prototype::PlainDatePrototype;
+use crate::runtime::temporal::plain_date_time_constructor::PlainDateTimeConstructor;
+use crate::runtime::temporal::plain_date_time_prototype::PlainDateTimePrototype;
+use crate::runtime::temporal::plain_month_day_constructor::PlainMonthDayConstructor;
+use crate::runtime::temporal::plain_month_day_prototype::PlainMonthDayPrototype;
+use crate::runtime::temporal::plain_time_constructor::PlainTimeConstructor;
+use crate::runtime::temporal::plain_time_prototype::PlainTimePrototype;
+use crate::runtime::temporal::plain_year_month_constructor::PlainYearMonthConstructor;
+use crate::runtime::temporal::plain_year_month_prototype::PlainYearMonthPrototype;
+use crate::runtime::temporal::temporal::Temporal;
+use crate::runtime::temporal::zoned_date_time_constructor::ZonedDateTimeConstructor;
+use crate::runtime::temporal::zoned_date_time_prototype::ZonedDateTimePrototype;
 use crate::runtime::typed_array::{
     BigInt64ArrayConstructor, BigInt64ArrayPrototype, BigUint64ArrayConstructor, BigUint64ArrayPrototype,
     Float16ArrayConstructor, Float16ArrayPrototype, Float32ArrayConstructor, Float32ArrayPrototype,
@@ -695,6 +712,14 @@ initialize_builtin_function_types! {
     initialize_intl_list_format: intl_list_format_prototype: ListFormatPrototype, intl_list_format_constructor: ListFormatConstructor, ListFormat;
     initialize_intl_locale: intl_locale_prototype: LocalePrototype, intl_locale_constructor: LocaleConstructor, Locale;
     initialize_intl_segmenter: intl_segmenter_prototype: SegmenterPrototype, intl_segmenter_constructor: SegmenterConstructor, Segmenter;
+    initialize_temporal_duration: temporal_duration_prototype: DurationPrototype, temporal_duration_constructor: DurationConstructor, Duration;
+    initialize_temporal_instant: temporal_instant_prototype: InstantPrototype, temporal_instant_constructor: InstantConstructor, Instant;
+    initialize_temporal_plain_date: temporal_plain_date_prototype: PlainDatePrototype, temporal_plain_date_constructor: PlainDateConstructor, PlainDate;
+    initialize_temporal_plain_date_time: temporal_plain_date_time_prototype: PlainDateTimePrototype, temporal_plain_date_time_constructor: PlainDateTimeConstructor, PlainDateTime;
+    initialize_temporal_plain_month_day: temporal_plain_month_day_prototype: PlainMonthDayPrototype, temporal_plain_month_day_constructor: PlainMonthDayConstructor, PlainMonthDay;
+    initialize_temporal_plain_time: temporal_plain_time_prototype: PlainTimePrototype, temporal_plain_time_constructor: PlainTimeConstructor, PlainTime;
+    initialize_temporal_plain_year_month: temporal_plain_year_month_prototype: PlainYearMonthPrototype, temporal_plain_year_month_constructor: PlainYearMonthConstructor, PlainYearMonth;
+    initialize_temporal_zoned_date_time: temporal_zoned_date_time_prototype: ZonedDateTimePrototype, temporal_zoned_date_time_constructor: ZonedDateTimeConstructor, ZonedDateTime;
 }
 
 /// Intrinsics::initialize_snake_name() for the typed arrays, whose prototypes and constructors extend %TypedArray%'s.
@@ -761,30 +786,6 @@ unimplemented_builtin_types! {
     initialize_intl_number_format => "Intl.NumberFormat",
     initialize_intl_plural_rules => "Intl.PluralRules",
     initialize_intl_relative_time_format => "Intl.RelativeTimeFormat",
-    initialize_temporal_duration => "Temporal.Duration",
-    initialize_temporal_instant => "Temporal.Instant",
-    initialize_temporal_plain_date => "Temporal.PlainDate",
-    initialize_temporal_plain_date_time => "Temporal.PlainDateTime",
-    initialize_temporal_plain_month_day => "Temporal.PlainMonthDay",
-    initialize_temporal_plain_time => "Temporal.PlainTime",
-    initialize_temporal_plain_year_month => "Temporal.PlainYearMonth",
-    initialize_temporal_zoned_date_time => "Temporal.ZonedDateTime",
-}
-
-/// The lazy accessors of the other namespace objects, none of which the runtime has yet.
-macro_rules! unimplemented_lazy_intrinsics {
-    ($($name:ident: $type:ty => $description:literal,)*) => {
-        impl Intrinsics {
-            $(
-                pub fn $name(&self, _vm: &Vm) -> Gc<$type> {
-                    if let Some(intrinsic) = self.$name.get() {
-                        return intrinsic;
-                    }
-                    unimplemented_runtime_function(concat!("the realm intrinsic ", $description), 0)
-                }
-            )*
-        }
-    };
 }
 
 /// The lazy accessors of the namespace objects, which create the object the first time it is asked for, as the C++
@@ -809,10 +810,7 @@ namespace_object_accessors! {
     intl_object: Intl;
     json_object: JSONObject;
     math_object: MathObject;
-}
-
-unimplemented_lazy_intrinsics! {
-    temporal_object: Object => "%Temporal%",
+    temporal_object: Temporal;
 }
 
 fn abstract_operations_source() -> Utf16String {

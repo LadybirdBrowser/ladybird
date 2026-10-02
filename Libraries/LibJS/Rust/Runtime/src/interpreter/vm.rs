@@ -40,6 +40,7 @@ use crate::layout_forward::RawNativeFunctionPointer;
 use crate::lexical_path;
 use crate::runtime::abstract_operations::get_this_environment;
 use crate::runtime::array_buffer::{ArrayBuffer, ZeroFillNewBytes};
+use crate::runtime::big_int::SignedBigInteger;
 use crate::runtime::common_property_names::CommonPropertyNames;
 use crate::runtime::completion::{Must, Throw, ThrowCompletionOr};
 use crate::runtime::cyclic_module::{CyclicModule, promise_of};
@@ -125,6 +126,9 @@ pub type HostMakeJobCallback = fn(&Vm, Gc<FunctionObject>) -> Gc<JobCallback>;
 /// Whether the host's promise job queue is empty, which the synchronous await fast path checks.
 pub type HostPromiseJobQueueIsEmpty = fn(&Vm) -> bool;
 
+/// HostSystemUTCEpochNanoseconds ( global ), which hosts may override.
+pub type HostSystemUTCEpochNanoseconds = fn(&Vm, &Object) -> SignedBigInteger;
+
 /// VM::on_promise_unhandled_rejection and VM::on_promise_rejection_handled, which the default
 /// HostPromiseRejectionTracker calls.
 pub type PromiseRejectionCallback = fn(&Vm, Gc<Promise>);
@@ -139,6 +143,24 @@ fn default_host_enqueue_promise_job(vm: &Vm, job: Gc<HeapFunction>, realm: Optio
 
 fn default_host_promise_job_queue_is_empty(vm: &Vm) -> bool {
     vm.job_queues().promise_jobs.borrow().is_empty()
+}
+
+// 2.3.1 HostSystemUTCEpochNanoseconds ( global ), https://tc39.es/proposal-temporal/#sec-hostsystemutcepochnanoseconds
+fn default_host_system_utc_epoch_nanoseconds(_: &Vm, _: &Object) -> SignedBigInteger {
+    use crate::runtime::temporal::instant::{NANOSECONDS_MAX_INSTANT, NANOSECONDS_MIN_INSTANT};
+
+    // 1. Let ns be the approximate current UTC date and time, in nanoseconds since the epoch.
+    // NB: Like AK::UnixDateTime::now().nanoseconds_since_epoch(), this saturates to the i64 range.
+    let since_epoch = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or_else(
+            |error| -(error.duration().as_nanos() as i128),
+            |duration| duration.as_nanos() as i128,
+        );
+    let nanoseconds = SignedBigInteger::from(since_epoch.clamp(i128::from(i64::MIN), i128::from(i64::MAX)));
+
+    // 2. Return the result of clamping ns between nsMinInstant and nsMaxInstant.
+    nanoseconds.clamp(NANOSECONDS_MIN_INSTANT.clone(), NANOSECONDS_MAX_INSTANT.clone())
 }
 
 /// The VM's job queues, VM::m_promise_jobs and VM::m_finalization_registry_cleanup_jobs, in a cell the VM roots.
@@ -399,6 +421,7 @@ pub struct Vm {
     host_enqueue_promise_job: Cell<HostEnqueuePromiseJob>,
     host_make_job_callback: Cell<HostMakeJobCallback>,
     host_promise_job_queue_is_empty: Cell<HostPromiseJobQueueIsEmpty>,
+    host_system_utc_epoch_nanoseconds: Cell<HostSystemUTCEpochNanoseconds>,
     on_promise_unhandled_rejection: Cell<Option<PromiseRejectionCallback>>,
     on_promise_rejection_handled: Cell<Option<PromiseRejectionCallback>>,
     job_queues: OnceCell<Gc<JobQueues>>,
@@ -492,6 +515,7 @@ impl Vm {
             host_enqueue_promise_job: Cell::new(default_host_enqueue_promise_job),
             host_make_job_callback: Cell::new(make_job_callback),
             host_promise_job_queue_is_empty: Cell::new(default_host_promise_job_queue_is_empty),
+            host_system_utc_epoch_nanoseconds: Cell::new(default_host_system_utc_epoch_nanoseconds),
             on_promise_unhandled_rejection: Cell::new(None),
             on_promise_rejection_handled: Cell::new(None),
             job_queues: OnceCell::new(),
@@ -921,6 +945,14 @@ impl Vm {
 
     pub fn set_host_promise_job_queue_is_empty(&self, hook: HostPromiseJobQueueIsEmpty) {
         self.host_promise_job_queue_is_empty.set(hook);
+    }
+
+    pub fn host_system_utc_epoch_nanoseconds(&self) -> HostSystemUTCEpochNanoseconds {
+        self.host_system_utc_epoch_nanoseconds.get()
+    }
+
+    pub fn set_host_system_utc_epoch_nanoseconds(&self, hook: HostSystemUTCEpochNanoseconds) {
+        self.host_system_utc_epoch_nanoseconds.set(hook);
     }
 
     pub fn set_on_promise_unhandled_rejection(&self, callback: Option<PromiseRejectionCallback>) {

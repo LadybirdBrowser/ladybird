@@ -9,6 +9,8 @@
 use std::collections::HashSet;
 use std::io::{self, Write};
 
+use ak::Utf16String;
+
 use crate::gc::root::MarkedVec;
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
@@ -25,6 +27,7 @@ use crate::runtime::date::Date;
 use crate::runtime::date_prototype::to_date_string;
 use crate::runtime::ecmascript_function_object::EcmascriptFunctionObject;
 use crate::runtime::error::Error;
+use crate::runtime::error_types::AkDouble;
 use crate::runtime::generator_object::GeneratorObject;
 use crate::runtime::intl::collator::Collator;
 use crate::runtime::intl::display_names::DisplayNames;
@@ -43,6 +46,15 @@ use crate::runtime::regexp_object::RegExpObject;
 use crate::runtime::set::Set;
 use crate::runtime::shared_function_instance_data::FunctionKind;
 use crate::runtime::string_object::StringObject;
+use crate::runtime::temporal::duration::Duration;
+use crate::runtime::temporal::instant::Instant;
+use crate::runtime::temporal::iso_records::ISODateTime;
+use crate::runtime::temporal::plain_date::PlainDate;
+use crate::runtime::temporal::plain_date_time::PlainDateTime;
+use crate::runtime::temporal::plain_month_day::PlainMonthDay;
+use crate::runtime::temporal::plain_time::PlainTime;
+use crate::runtime::temporal::plain_year_month::PlainYearMonth;
+use crate::runtime::temporal::zoned_date_time::ZonedDateTime;
 use crate::runtime::typed_array::{
     is_typed_array_out_of_bounds, make_typed_array_with_buffer_witness_record, typed_array_byte_length,
     typed_array_length, typed_array_of_object,
@@ -374,6 +386,167 @@ fn print_weak_ref(
         if value.is_empty() { Value::UNDEFINED } else { value },
         seen_objects,
     )
+}
+
+fn print_temporal_duration(print_context: &mut PrintContext<'_>, duration: Gc<Duration>) -> io::Result<()> {
+    print_type(print_context, "Temporal.Duration")?;
+    js_out(print_context, " \x1b[34;1m")?;
+    js_out_argument(
+        print_context,
+        &format!(
+            "{} y, {} M, {} w, {} d, {} h, {} m, {} s, {} ms, {} us, {} ns",
+            AkDouble(duration.years()),
+            AkDouble(duration.months()),
+            AkDouble(duration.weeks()),
+            AkDouble(duration.days()),
+            AkDouble(duration.hours()),
+            AkDouble(duration.minutes()),
+            AkDouble(duration.seconds()),
+            AkDouble(duration.milliseconds()),
+            AkDouble(duration.microseconds()),
+            AkDouble(duration.nanoseconds()),
+        ),
+    )?;
+    js_out(print_context, "\x1b[0m")
+}
+
+fn print_temporal_instant(
+    print_context: &mut PrintContext<'_>,
+    instant: Gc<Instant>,
+    seen_objects: &mut SeenObjects<'_>,
+) -> io::Result<()> {
+    print_type(print_context, "Temporal.Instant")?;
+    js_out(print_context, " ")?;
+    print_value(
+        print_context,
+        Value::from_bigint(instant.epoch_nanoseconds()),
+        seen_objects,
+    )
+}
+
+/// AK's {:04} of a year: the digits are zero-padded to four, and a negative year's sign comes before them.
+fn format_year_as_ak_does(year: i32) -> String {
+    let sign = if year < 0 { "-" } else { "" };
+    format!("{sign}{:04}", year.unsigned_abs())
+}
+
+fn print_temporal_calendar(
+    print_context: &mut PrintContext<'_>,
+    calendar: Utf16String,
+    seen_objects: &mut SeenObjects<'_>,
+) -> io::Result<()> {
+    js_out(print_context, "\n  calendar: ")?;
+    let calendar = PrimitiveString::create(print_context.vm, calendar);
+    print_value(print_context, Value::from_string(calendar), seen_objects)
+}
+
+fn print_temporal_plain_date(
+    print_context: &mut PrintContext<'_>,
+    plain_date: Gc<PlainDate>,
+    seen_objects: &mut SeenObjects<'_>,
+) -> io::Result<()> {
+    print_type(print_context, "Temporal.PlainDate")?;
+    let iso_date = plain_date.iso_date();
+    js_out(print_context, " \x1b[34;1m")?;
+    js_out_argument(
+        print_context,
+        &format!(
+            "{}-{:02}-{:02}",
+            format_year_as_ak_does(iso_date.year),
+            iso_date.month,
+            iso_date.day
+        ),
+    )?;
+    js_out(print_context, "\x1b[0m")?;
+    print_temporal_calendar(print_context, plain_date.calendar(), seen_objects)
+}
+
+fn print_temporal_plain_date_time(
+    print_context: &mut PrintContext<'_>,
+    plain_date_time: Gc<PlainDateTime>,
+    seen_objects: &mut SeenObjects<'_>,
+) -> io::Result<()> {
+    print_type(print_context, "Temporal.PlainDateTime")?;
+    let ISODateTime { iso_date, time } = plain_date_time.iso_date_time();
+    js_out(print_context, " \x1b[34;1m")?;
+    js_out_argument(
+        print_context,
+        &format!(
+            "{}-{:02}-{:02} {:02}:{:02}:{:02}.{:03}{:03}{:03}",
+            format_year_as_ak_does(iso_date.year),
+            iso_date.month,
+            iso_date.day,
+            time.hour,
+            time.minute,
+            time.second,
+            time.millisecond,
+            time.microsecond,
+            time.nanosecond,
+        ),
+    )?;
+    js_out(print_context, "\x1b[0m")?;
+    print_temporal_calendar(print_context, plain_date_time.calendar(), seen_objects)
+}
+
+fn print_temporal_plain_month_day(
+    print_context: &mut PrintContext<'_>,
+    plain_month_day: Gc<PlainMonthDay>,
+    seen_objects: &mut SeenObjects<'_>,
+) -> io::Result<()> {
+    print_type(print_context, "Temporal.PlainMonthDay")?;
+    let iso_date = plain_month_day.iso_date();
+    js_out(print_context, " \x1b[34;1m")?;
+    js_out_argument(print_context, &format!("{:02}-{:02}", iso_date.month, iso_date.day))?;
+    js_out(print_context, "\x1b[0m")?;
+    print_temporal_calendar(print_context, plain_month_day.calendar(), seen_objects)
+}
+
+fn print_temporal_plain_time(print_context: &mut PrintContext<'_>, plain_time: Gc<PlainTime>) -> io::Result<()> {
+    print_type(print_context, "Temporal.PlainTime")?;
+    let time = plain_time.time();
+    js_out(print_context, " \x1b[34;1m")?;
+    js_out_argument(
+        print_context,
+        &format!(
+            "{:02}:{:02}:{:02}.{:03}{:03}{:03}",
+            time.hour, time.minute, time.second, time.millisecond, time.microsecond, time.nanosecond,
+        ),
+    )?;
+    js_out(print_context, "\x1b[0m")
+}
+
+fn print_temporal_plain_year_month(
+    print_context: &mut PrintContext<'_>,
+    plain_year_month: Gc<PlainYearMonth>,
+    seen_objects: &mut SeenObjects<'_>,
+) -> io::Result<()> {
+    print_type(print_context, "Temporal.PlainYearMonth")?;
+    let iso_date = plain_year_month.iso_date();
+    js_out(print_context, " \x1b[34;1m")?;
+    js_out_argument(
+        print_context,
+        &format!("{}-{:02}", format_year_as_ak_does(iso_date.year), iso_date.month),
+    )?;
+    js_out(print_context, "\x1b[0m")?;
+    print_temporal_calendar(print_context, plain_year_month.calendar(), seen_objects)
+}
+
+fn print_temporal_zoned_date_time(
+    print_context: &mut PrintContext<'_>,
+    zoned_date_time: Gc<ZonedDateTime>,
+    seen_objects: &mut SeenObjects<'_>,
+) -> io::Result<()> {
+    print_type(print_context, "Temporal.ZonedDateTime")?;
+    js_out(print_context, "\n  epochNanoseconds: ")?;
+    print_value(
+        print_context,
+        Value::from_bigint(zoned_date_time.epoch_nanoseconds()),
+        seen_objects,
+    )?;
+    js_out(print_context, "\n  timeZone: ")?;
+    let time_zone = PrimitiveString::create(print_context.vm, zoned_date_time.time_zone());
+    print_value(print_context, Value::from_string(time_zone), seen_objects)?;
+    print_temporal_calendar(print_context, zoned_date_time.calendar(), seen_objects)
 }
 
 fn print_boolean_object(
@@ -873,9 +1046,31 @@ fn print_value(
         if let Some(segments) = object.downcast::<Segments>() {
             return print_intl_segments(print_context, segments, seen_objects);
         }
-        // NB: Print.cpp then checks for Intl.DurationFormat, and Temporal.Duration, Temporal.Instant,
-        //     Temporal.PlainDate, Temporal.PlainDateTime, Temporal.PlainMonthDay, Temporal.PlainTime,
-        //     Temporal.PlainYearMonth and Temporal.ZonedDateTime. Everything else is printed as an ordinary object.
+        // NB: Print.cpp then checks for Intl.DurationFormat, which comes with a later unit.
+        if let Some(duration) = object.downcast::<Duration>() {
+            return print_temporal_duration(print_context, duration);
+        }
+        if let Some(instant) = object.downcast::<Instant>() {
+            return print_temporal_instant(print_context, instant, seen_objects);
+        }
+        if let Some(plain_date) = object.downcast::<PlainDate>() {
+            return print_temporal_plain_date(print_context, plain_date, seen_objects);
+        }
+        if let Some(plain_date_time) = object.downcast::<PlainDateTime>() {
+            return print_temporal_plain_date_time(print_context, plain_date_time, seen_objects);
+        }
+        if let Some(plain_month_day) = object.downcast::<PlainMonthDay>() {
+            return print_temporal_plain_month_day(print_context, plain_month_day, seen_objects);
+        }
+        if let Some(plain_time) = object.downcast::<PlainTime>() {
+            return print_temporal_plain_time(print_context, plain_time);
+        }
+        if let Some(plain_year_month) = object.downcast::<PlainYearMonth>() {
+            return print_temporal_plain_year_month(print_context, plain_year_month, seen_objects);
+        }
+        if let Some(zoned_date_time) = object.downcast::<ZonedDateTime>() {
+            return print_temporal_zoned_date_time(print_context, zoned_date_time, seen_objects);
+        }
         return print_object(print_context, object, seen_objects);
     }
 

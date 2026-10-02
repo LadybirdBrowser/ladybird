@@ -208,6 +208,28 @@ impl<'a> Utf16View<'a> {
             && self.substring_view(0, prefix.length_in_code_units()) == prefix
     }
 
+    /// Mirrors AK::Utf16View::equals_ignoring_ascii_case: equal code units once ASCII letters are lowercased.
+    pub fn equals_ignoring_ascii_case(self, other: Utf16View<'_>) -> bool {
+        let to_ascii_lowercase = |code_unit: u16| {
+            if (u16::from(b'A')..=u16::from(b'Z')).contains(&code_unit) {
+                code_unit + 0x20
+            } else {
+                code_unit
+            }
+        };
+        self.length_in_code_units() == other.length_in_code_units()
+            && self
+                .code_units()
+                .zip(other.code_units())
+                .all(|(this_code_unit, other_code_unit)| {
+                    to_ascii_lowercase(this_code_unit) == to_ascii_lowercase(other_code_unit)
+                })
+    }
+
+    pub fn ends_with_code_unit(self, code_unit: u16) -> bool {
+        !self.is_empty() && self.code_unit_at(self.length_in_code_units() - 1) == code_unit
+    }
+
     /// Mirrors AK::Utf16View::find_code_unit_offset(Utf16View const&, size_t): the first offset at or after
     /// `start_offset` where `needle` occurs, which an empty needle does at `start_offset` itself unless that is past
     /// the end.

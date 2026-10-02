@@ -26,11 +26,15 @@ use crate::runtime::error_types::ErrorType;
 use crate::runtime::intl::abstract_operations::get_available_named_time_zone_identifier;
 use crate::runtime::object::MayInterfereWithIndexedPropertyAccess;
 use crate::runtime::realm::Realm;
-use crate::runtime::value_conversions::to_integer_or_infinity;
-use crate::unicode::time_zone::{
-    self as unicode_time_zone, IncludeGivenTime, TimeZoneOffset as UnicodeTimeZoneOffset, TimeZoneTransitionOptions,
-    TransitionDirection, TransitionRule, UnixDateTime,
+use crate::runtime::temporal::instant::{
+    NANOSECONDS_PER_DAY, NANOSECONDS_PER_MICROSECOND, NANOSECONDS_PER_MILLISECOND, NANOSECONDS_PER_SECOND,
 };
+use crate::runtime::temporal::iso_records::ISODateTime;
+use crate::runtime::temporal::iso8601::{SubMinutePrecision, TimeZoneOffset, parse_utc_offset};
+use crate::runtime::temporal::plain_date_time::time_value_to_iso_date_time_record;
+use crate::runtime::temporal::time_zone::{get_named_time_zone_next_transition, parse_time_zone_identifier};
+use crate::runtime::value_conversions::to_integer_or_infinity;
+use crate::unicode::time_zone::{self as unicode_time_zone, TimeZoneOffset as UnicodeTimeZoneOffset, UnixDateTime};
 use crate::utf16::Utf16View;
 
 /// A Date object, whose [[DateValue]] is `date_value`.
@@ -440,8 +444,8 @@ pub fn get_utc_epoch_nanoseconds(iso_date_time: &ISODateTime) -> SignedBigIntege
 
     // 5. Return ℤ(ℝ(ms) × 10**6 + isoDateTime.[[Time]].[[Microsecond]] × 10**3 + isoDateTime.[[Time]].[[Nanosecond]]).
     let ms = SignedBigInteger::from_f64(ms).expect("an integral Number is an integer");
-    ms * NANOSECONDS_PER_MILLISECOND
-        + SignedBigInteger::from(iso_date_time.time.microsecond) * NANOSECONDS_PER_MICROSECOND
+    ms * &*NANOSECONDS_PER_MILLISECOND
+        + SignedBigInteger::from(iso_date_time.time.microsecond) * &*NANOSECONDS_PER_MICROSECOND
         + SignedBigInteger::from(iso_date_time.time.nanosecond)
 }
 
@@ -497,7 +501,7 @@ pub fn get_named_time_zone_offset_nanoseconds(
 ) -> UnicodeTimeZoneOffset {
     // Since UnixDateTime::from_seconds_since_epoch() and UnixDateTime::from_nanoseconds_since_epoch() both take an i64, converting to
     // seconds first gives us a greater range. The TZDB doesn't have sub-second offsets.
-    let seconds = epoch_nanoseconds.div_floor(&SignedBigInteger::from(NANOSECONDS_PER_SECOND));
+    let seconds = epoch_nanoseconds.div_floor(&NANOSECONDS_PER_SECOND.clone());
     let time = UnixDateTime::from_seconds_since_epoch(clip_bigint_to_sane_time(&seconds));
 
     unicode_time_zone::time_zone_offset(time_zone_identifier, time).expect("offset.has_value()")
@@ -641,7 +645,7 @@ pub fn utc_time(time: f64) -> f64 {
             //     which is guaranteed to be before the gap. The last valid instant before the transition is one
             //     nanosecond before the transition instant.
             let epoch_nanoseconds = get_utc_epoch_nanoseconds(&iso_date_time);
-            let day_before = epoch_nanoseconds - SignedBigInteger::from(NANOSECONDS_PER_DAY);
+            let day_before = epoch_nanoseconds - NANOSECONDS_PER_DAY.clone();
             let transition = get_named_time_zone_next_transition(system_time_zone_identifier, &day_before)
                 .expect("transition.has_value()");
 
@@ -683,9 +687,14 @@ pub fn make_time(hour: f64, min: f64, sec: f64, ms: f64) -> f64 {
 }
 
 /// AK::is_within_range<int>() of a double: whether it is an integer in the range of an i32.
-fn is_within_i32_range(value: f64) -> bool {
+pub fn is_within_i32_range(value: f64) -> bool {
     const BOUNDARY: f64 = 2_147_483_648.0;
     (-BOUNDARY..BOUNDARY).contains(&value) && f64::from(value as i32) == value
+}
+
+/// AK::is_within_range<u8>() of a double: whether it is an integer in the range of a u8.
+pub fn is_within_u8_range(value: f64) -> bool {
+    (0.0..256.0).contains(&value) && f64::from(value as u8) == value
 }
 
 // Integer division rounding towards negative infinity, as AK::Detail::floor_div_by does.
@@ -824,10 +833,9 @@ pub fn parse_date_time_utc_offset_or_throw(vm: &Vm, offset_string: Utf16View<'_>
     // 1. Let parseResult be ParseText(offsetString, UTCOffset[+SubMinutePrecision]).
     let Some(parse_result) = parse_utc_offset(offset_string, SubMinutePrecision::Yes) else {
         // 2. If parseResult is a List of errors, throw a RangeError exception.
-        return vm.throw_completion(
+        return vm.throw_completion_with_utf16_message(
             ErrorKind::RangeError,
-            ErrorType::TemporalInvalidTimeZoneString,
-            &[&offset_string.to_utf8()],
+            ErrorType::TemporalInvalidTimeZoneString.utf16_message(&[offset_string]),
         );
     };
 
@@ -865,7 +873,7 @@ pub fn parse_date_time_utc_offset_from_parse_result(parse_result: &TimeZoneOffse
     //     a. Let sign be -1.
     // 6. Else,
     //     a. Let sign be 1.
-    let sign = if parsed_sign == '-' { -1.0 } else { 1.0 };
+    let sign = if parsed_sign == b'-' { -1.0 } else { 1.0 };
 
     // 7. NOTE: Applications of StringToNumber below do not lose precision, since each of the parsed values is guaranteed
     //    to be a sufficiently short string of decimal digits.
@@ -910,439 +918,3 @@ pub fn parse_date_time_utc_offset_from_parse_result(parse_result: &TimeZoneOffse
     // 17. Return sign × (((hours × 60 + minutes) × 60 + seconds) × 10^9 + nanoseconds).
     sign * (((hours * 60.0 + minutes) * 60.0 + seconds) * 1e9 + nanoseconds)
 }
-
-// NB: The rest of this file stands in for the operations of the Temporal and Intl namespaces that Date.cpp calls,
-//     with the C++ names, for what Date needs of them, until the runtime has those namespaces.
-
-pub const NANOSECONDS_PER_SECOND: i64 = 1_000_000_000;
-pub const NANOSECONDS_PER_MILLISECOND: i64 = 1_000_000;
-pub const NANOSECONDS_PER_MICROSECOND: i64 = 1_000;
-pub const NANOSECONDS_PER_DAY: i64 = 86_400_000_000_000;
-
-// 3.5.1 ISO Date Records, https://tc39.es/proposal-temporal/#sec-temporal-iso-date-records
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct ISODate {
-    pub year: i32,
-    pub month: u8,
-    pub day: u8,
-}
-
-// 4.5.1 Time Records, https://tc39.es/proposal-temporal/#sec-temporal-time-records
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub struct Time {
-    pub days: f64,
-    pub hour: u8,
-    pub minute: u8,
-    pub second: u8,
-    pub millisecond: u16,
-    pub microsecond: u16,
-    pub nanosecond: u16,
-}
-
-// 5.5.1 ISO Date-Time Records, https://tc39.es/proposal-temporal/#sec-temporal-iso-date-time-records
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub struct ISODateTime {
-    pub iso_date: ISODate,
-    pub time: Time,
-}
-
-// 5.5.2 TimeValueToISODateTimeRecord ( t ), https://tc39.es/proposal-temporal/#sec-temporal-timevaluetoisodatetimerecord
-pub fn time_value_to_iso_date_time_record(time_value: f64) -> ISODateTime {
-    // 1. Let isoDate be CreateISODateRecord(ℝ(YearFromTime(t)), ℝ(MonthFromTime(t)) + 1, ℝ(DateFromTime(t))).
-    let iso_date = ISODate {
-        year: year_from_time(time_value),
-        month: month_from_time(time_value) + 1,
-        day: date_from_time(time_value),
-    };
-    assert!(
-        (1..=12).contains(&iso_date.month) && (1..=31).contains(&iso_date.day),
-        "is_valid_iso_date(year, month, day)"
-    );
-
-    // 2. Let time be CreateTimeRecord(ℝ(HourFromTime(t)), ℝ(MinFromTime(t)), ℝ(SecFromTime(t)), ℝ(msFromTime(t)), 0, 0).
-    let time = Time {
-        days: 0.0,
-        hour: hour_from_time(time_value),
-        minute: min_from_time(time_value),
-        second: sec_from_time(time_value),
-        millisecond: ms_from_time(time_value),
-        microsecond: 0,
-        nanosecond: 0,
-    };
-
-    // 3. Return ISO Date-Time Record { [[ISODate]]: isoDate, [[Time]]: time }.
-    ISODateTime { iso_date, time }
-}
-
-// 11.1.3 GetNamedTimeZoneNextTransition ( timeZoneIdentifier, epochNanoseconds ), https://tc39.es/proposal-temporal/#sec-temporal-getnamedtimezonenexttransition
-pub fn get_named_time_zone_next_transition(
-    time_zone: Utf16View<'_>,
-    epoch_nanoseconds: &SignedBigInteger,
-) -> Option<SignedBigInteger> {
-    let epoch_milliseconds = epoch_nanoseconds.div_floor(&SignedBigInteger::from(NANOSECONDS_PER_MILLISECOND));
-    let time = UnixDateTime::from_milliseconds_since_epoch(clip_bigint_to_sane_time(&epoch_milliseconds));
-
-    let options = TimeZoneTransitionOptions {
-        direction: TransitionDirection::Next,
-        include_given_time: IncludeGivenTime::No,
-        transition_rule: TransitionRule::TransitionWhereUTCOffsetChanges,
-    };
-    let transition_milliseconds = unicode_time_zone::get_time_zone_transition(time_zone, time, options)?;
-
-    let result_nanoseconds = SignedBigInteger::from(transition_milliseconds) * NANOSECONDS_PER_MILLISECOND;
-    // nsMaxInstant = 10**8 × nsPerDay = 8.64 × 10**21
-    if result_nanoseconds > SignedBigInteger::from(NANOSECONDS_PER_DAY) * 100_000_000 {
-        return None;
-    }
-
-    Some(result_nanoseconds)
-}
-
-// https://tc39.es/proposal-temporal/#sec-temporal-parsetimezoneidentifier, the Time Zone Identifier Parse Record.
-#[derive(Clone)]
-pub struct ParsedTimeZoneIdentifier {
-    pub name: Option<Utf16String>,
-    pub offset_minutes: Option<i64>,
-}
-
-// 11.1.16 ParseTimeZoneIdentifier ( identifier ), https://tc39.es/proposal-temporal/#sec-parsetimezoneidentifier
-/// For an identifier that is known to parse, as the system time zone identifier is: an offset time zone identifier, or
-/// else the IANA name of an available time zone.
-pub fn parse_time_zone_identifier(identifier: Utf16View<'_>) -> ParsedTimeZoneIdentifier {
-    // 1. Let parseResult be ParseText(StringToCodePoints(identifier), TimeZoneIdentifier).
-    let Some(time_zone_offset) = parse_utc_offset(identifier, SubMinutePrecision::No) else {
-        // 3. If parseResult contains a TimeZoneIANAName Parse Node, then
-        //     a. Let name be the source text matched by the TimeZoneIANAName Parse Node contained within parseResult.
-        //     b. NOTE: name is syntactically valid, but does not necessarily conform to IANA Time Zone Database naming
-        //        guidelines or correspond with an available named time zone identifier.
-        //     c. Return Time Zone Identifier Parse Record { [[Name]]: CodePointsToString(name), [[OffsetMinutes]]: EMPTY }.
-        return ParsedTimeZoneIdentifier {
-            name: Some(identifier.to_utf16_string()),
-            offset_minutes: None,
-        };
-    };
-
-    // 4. Assert: parseResult contains a UTCOffset[~SubMinutePrecision] Parse Node.
-    // 5. Let offset be the source text matched by the UTCOffset[~SubMinutePrecision] Parse Node contained within parseResult.
-    // 6. Let offsetNanoseconds be ! ParseDateTimeUTCOffset(CodePointsToString(offset)).
-    let offset_nanoseconds = parse_date_time_utc_offset_from_parse_result(&time_zone_offset);
-
-    // 7. Let offsetMinutes be offsetNanoseconds / (60 × 10**9).
-    let offset_minutes = offset_nanoseconds / 60_000_000_000.0;
-
-    // 8. Return Time Zone Identifier Parse Record { [[Name]]: empty, [[OffsetMinutes]]: offsetMinutes }.
-    ParsedTimeZoneIdentifier {
-        name: None,
-        offset_minutes: Some(offset_minutes as i64),
-    }
-}
-
-/// Temporal::SubMinutePrecision, the parameter of the UTCOffset production.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum SubMinutePrecision {
-    No,
-    Yes,
-}
-
-/// Temporal::TimeZoneOffset, the parse nodes of a UTCOffset.
-#[derive(Clone, Copy, Debug)]
-pub struct TimeZoneOffset<'a> {
-    pub sign: Option<char>,
-    pub hours: Option<Utf16View<'a>>,
-    pub minutes: Option<Utf16View<'a>>,
-    pub seconds: Option<Utf16View<'a>>,
-    pub fraction: Option<Utf16View<'a>>,
-    pub source_text: Utf16View<'a>,
-}
-
-/// The productions of ISO8601Parser that UTCOffset is made of, each of which consumes nothing when it fails.
-struct UtcOffsetParser<'a> {
-    input: Utf16View<'a>,
-    position: usize,
-}
-
-impl<'a> UtcOffsetParser<'a> {
-    fn peek(&self, offset: usize) -> Option<u16> {
-        let index = self.position + offset;
-        (index < self.input.length_in_code_units()).then(|| self.input.code_unit_at(index))
-    }
-
-    fn consume_specific(&mut self, expected: u8) -> bool {
-        if self.peek(0) != Some(u16::from(expected)) {
-            return false;
-        }
-        self.position += 1;
-        true
-    }
-
-    fn consume_specific_pair(&mut self, first: u8, second: u8) -> bool {
-        if self.peek(0) != Some(u16::from(first)) || self.peek(1) != Some(u16::from(second)) {
-            return false;
-        }
-        self.position += 2;
-        true
-    }
-
-    /// ISO8601Parser::scoped_parse: the source text `parse` matches, or nothing consumed if it does not match.
-    fn scoped_parse(&mut self, parse: impl FnOnce(&mut Self) -> bool) -> Option<Utf16View<'a>> {
-        let start = self.position;
-        if !parse(self) {
-            self.position = start;
-            return None;
-        }
-        Some(self.input.substring_view(start, self.position - start))
-    }
-
-    // https://tc39.es/ecma262/#prod-DecimalDigit
-    fn parse_decimal_digit(&mut self) -> bool {
-        // DecimalDigit : one of
-        //     0 1 2 3 4 5 6 7 8 9
-        if self
-            .peek(0)
-            .is_some_and(|code_unit| (u16::from(b'0')..=u16::from(b'9')).contains(&code_unit))
-        {
-            self.position += 1;
-            return true;
-        }
-        false
-    }
-
-    // https://tc39.es/proposal-temporal/#prod-ASCIISign
-    fn parse_ascii_sign(&mut self) -> bool {
-        // ASCIISign : one of
-        //     + -
-        self.consume_specific(b'+') || self.consume_specific(b'-')
-    }
-
-    // https://tc39.es/ecma262/#prod-Hour
-    fn parse_hour(&mut self) -> bool {
-        // Hour :::
-        //     0 DecimalDigit
-        //     1 DecimalDigit
-        //     20
-        //     21
-        //     22
-        //     23
-        if self.consume_specific(b'0') || self.consume_specific(b'1') {
-            if !self.parse_decimal_digit() {
-                return false;
-            }
-        } else {
-            let success = self.consume_specific_pair(b'2', b'0')
-                || self.consume_specific_pair(b'2', b'1')
-                || self.consume_specific_pair(b'2', b'2')
-                || self.consume_specific_pair(b'2', b'3');
-            if !success {
-                return false;
-            }
-        }
-
-        true
-    }
-
-    // https://tc39.es/ecma262/#prod-MinuteSecond
-    fn parse_minute_second(&mut self) -> bool {
-        // MinuteSecond :::
-        //     0 DecimalDigit
-        //     1 DecimalDigit
-        //     2 DecimalDigit
-        //     3 DecimalDigit
-        //     4 DecimalDigit
-        //     5 DecimalDigit
-        let success = (b'0'..=b'5').any(|first_digit| self.consume_specific(first_digit));
-        if !success {
-            return false;
-        }
-        if !self.parse_decimal_digit() {
-            return false;
-        }
-
-        true
-    }
-
-    // https://tc39.es/ecma262/#prod-TemporalDecimalSeparator
-    fn parse_temporal_decimal_separator(&mut self) -> bool {
-        // TemporalDecimalSeparator ::: one of
-        //    . ,
-        self.consume_specific(b'.') || self.consume_specific(b',')
-    }
-
-    // https://tc39.es/proposal-temporal/#prod-TemporalDecimalFraction
-    fn parse_temporal_decimal_fraction(&mut self) -> bool {
-        // TemporalDecimalFraction :::
-        //     TemporalDecimalSeparator DecimalDigit
-        //     [...] up to nine DecimalDigits
-        if !self.parse_temporal_decimal_separator() {
-            return false;
-        }
-        if !self.parse_decimal_digit() {
-            return false;
-        }
-
-        for _ in 0..8 {
-            if !self.parse_decimal_digit() {
-                break;
-            }
-        }
-
-        true
-    }
-
-    // https://tc39.es/ecma262/#prod-TimeSeparator
-    fn parse_extended_time_separator(&mut self) -> bool {
-        // TimeSeparator[Extended] :::
-        //     [+Extended] :
-        //     [~Extended] [empty]
-        self.consume_specific(b':')
-    }
-
-    // https://tc39.es/proposal-temporal/#prod-UTCOffset
-    fn parse_utc_offset(&mut self, sub_minute_precision: SubMinutePrecision) -> Option<TimeZoneOffset<'a>> {
-        let start = self.position;
-        let mut time_zone_offset = TimeZoneOffset {
-            sign: None,
-            hours: None,
-            minutes: None,
-            seconds: None,
-            fraction: None,
-            source_text: self.input.substring_view(start, 0),
-        };
-
-        let mut parse = |parser: &mut Self| -> bool {
-            // UTCOffset[SubMinutePrecision] :::
-            //     ASCIISign Hour
-            //     ASCIISign Hour TimeSeparator[+Extended] MinuteSecond
-            //     ASCIISign Hour TimeSeparator[~Extended] MinuteSecond
-            //     [+SubMinutePrecision] ASCIISign Hour TimeSeparator[+Extended] MinuteSecond TimeSeparator[+Extended] MinuteSecond TemporalDecimalFraction[opt]
-            //     [+SubMinutePrecision] ASCIISign Hour TimeSeparator[~Extended] MinuteSecond TimeSeparator[~Extended] MinuteSecond TemporalDecimalFraction[opt]
-            let Some(sign) = parser.scoped_parse(Self::parse_ascii_sign) else {
-                return false;
-            };
-            time_zone_offset.sign = Some(if sign.code_unit_at(0) == u16::from(b'-') {
-                '-'
-            } else {
-                '+'
-            });
-            time_zone_offset.hours = parser.scoped_parse(Self::parse_hour);
-            if time_zone_offset.hours.is_none() {
-                return false;
-            }
-
-            if parser.parse_extended_time_separator() {
-                time_zone_offset.minutes = parser.scoped_parse(Self::parse_minute_second);
-                if time_zone_offset.minutes.is_none() {
-                    return false;
-                }
-
-                if sub_minute_precision == SubMinutePrecision::Yes && parser.parse_extended_time_separator() {
-                    time_zone_offset.seconds = parser.scoped_parse(Self::parse_minute_second);
-                    if time_zone_offset.seconds.is_none() {
-                        return false;
-                    }
-
-                    time_zone_offset.fraction = parser.scoped_parse(Self::parse_temporal_decimal_fraction);
-                }
-            } else if let Some(minutes) = parser.scoped_parse(Self::parse_minute_second) {
-                time_zone_offset.minutes = Some(minutes);
-                if sub_minute_precision == SubMinutePrecision::Yes
-                    && let Some(seconds) = parser.scoped_parse(Self::parse_minute_second)
-                {
-                    time_zone_offset.seconds = Some(seconds);
-                    time_zone_offset.fraction = parser.scoped_parse(Self::parse_temporal_decimal_fraction);
-                }
-            }
-
-            true
-        };
-
-        if !parse(self) {
-            self.position = start;
-            return None;
-        }
-
-        time_zone_offset.source_text = self.input.substring_view(start, self.position - start);
-        Some(time_zone_offset)
-    }
-}
-
-// https://tc39.es/proposal-temporal/#prod-UTCOffset
-pub fn parse_utc_offset(input: Utf16View<'_>, sub_minute_precision: SubMinutePrecision) -> Option<TimeZoneOffset<'_>> {
-    let mut parser = UtcOffsetParser { input, position: 0 };
-
-    let utc_offset = parser.parse_utc_offset(sub_minute_precision)?;
-
-    // If we parsed successfully but didn't reach the end, the string doesn't match the given production.
-    if parser.position != input.length_in_code_units() {
-        return None;
-    }
-
-    Some(utc_offset)
-}
-
-/// Temporal::TimeStyle.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum TimeStyle {
-    Separated,
-    Unseparated,
-}
-
-// 13.26 FormatTimeString ( hour, minute, second, subSecondNanoseconds, precision [ , style ] ), https://tc39.es/proposal-temporal/#sec-temporal-formattimestring
-/// With a precision of MINUTE, or else of 0 digits and no sub-second nanoseconds: the only ones Date formats with.
-pub fn format_time_string(hour: u8, minute: u8, second: Option<u8>, style: Option<TimeStyle>) -> String {
-    // 1. If style is present and style is UNSEPARATED, let separator be the empty String; else, let separator be ":".
-    let separator = if style == Some(TimeStyle::Unseparated) { "" } else { ":" };
-
-    // 2. Let hh be ToZeroPaddedDecimalString(hour, 2).
-    // 3. Let mm be ToZeroPaddedDecimalString(minute, 2).
-
-    // 4. If precision is minute, return the string-concatenation of hh, separator, and mm.
-    let Some(second) = second else {
-        return format!("{hour:02}{separator}{minute:02}");
-    };
-
-    // 5. Let ss be ToZeroPaddedDecimalString(second, 2).
-    // 6. Let subSecondsPart be FormatFractionalSeconds(subSecondNanoseconds, precision).
-    // 7. Return the string-concatenation of hh, separator, mm, separator, ss, and subSecondsPart.
-    format!("{hour:02}{separator}{minute:02}{separator}{second:02}")
-}
-
-// 11.1.5 FormatOffsetTimeZoneIdentifier ( offsetMinutes [ , style ] ), https://tc39.es/proposal-temporal/#sec-temporal-formatoffsettimezoneidentifier
-pub fn format_offset_time_zone_identifier(offset_minutes: i64, style: Option<TimeStyle>) -> String {
-    // 1. If offsetMinutes ≥ 0, let sign be the code unit 0x002B (PLUS SIGN); else, let sign be the code unit 0x002D (HYPHEN-MINUS).
-    let sign = if offset_minutes >= 0 { '+' } else { '-' };
-
-    // 2. Let absoluteMinutes be abs(offsetMinutes).
-    let absolute_minutes = offset_minutes.unsigned_abs() as f64;
-
-    // 3. Let hour be floor(absoluteMinutes / 60).
-    let hour = (absolute_minutes / 60.0).floor() as u8;
-
-    // 4. Let minute be absoluteMinutes modulo 60.
-    let minute = modulo(absolute_minutes, 60.0) as u8;
-
-    // 5. Let timeString be FormatTimeString(hour, minute, 0, 0, MINUTE, style).
-    let time_string = format_time_string(hour, minute, None, style);
-
-    // 6. Return the string-concatenation of sign and timeString.
-    format!("{sign}{time_string}")
-}
-
-// 2.3.2 SystemUTCEpochMilliseconds ( ), https://tc39.es/proposal-temporal/#sec-temporal-systemutcepochmilliseconds
-pub fn system_utc_epoch_milliseconds() -> f64 {
-    // 1. Let global be GetGlobalObject().
-    // 2. Let nowNs be HostSystemUTCEpochNanoseconds(global).
-    // AD-HOC: Every caller of SystemUTCEpochMilliseconds is via Date.now and the Date constructor, which do not need
-    //         nanosecond precision. We can avoid unnecessary bigint math by returning milliseconds directly.
-    let now = std::time::SystemTime::now();
-    let now_ns: i64 = match now.duration_since(std::time::UNIX_EPOCH) {
-        Ok(since_epoch) => i64::try_from(since_epoch.as_nanos()).unwrap_or(i64::MAX),
-        Err(before_epoch) => {
-            i64::try_from(before_epoch.duration().as_nanos()).map_or(i64::MIN, |nanoseconds| -nanoseconds)
-        }
-    };
-
-    // 3. Return 𝔽(floor(nowNs / 10**6)).
-    (now_ns / 1_000_000) as f64
-}
-
-// 6.5.1 AvailableNamedTimeZoneIdentifiers ( ), https://tc39.es/ecma402/#sup-availablenamedtimezoneidentifiers
