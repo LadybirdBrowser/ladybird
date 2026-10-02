@@ -25,8 +25,43 @@ use crate::runtime::completion::{Completion, CompletionType, Must, Throw, ThrowC
 use crate::runtime::ecmascript_function_object::EcmascriptFunctionObject;
 use crate::runtime::error::ErrorKind;
 use crate::runtime::error_types::ErrorType;
+use crate::runtime::function_object::FunctionObject;
+use crate::runtime::native_javascript_backed_function::NativeJavaScriptBackedFunction;
 use crate::runtime::object::MayInterfereWithIndexedPropertyAccess;
 use crate::runtime::shared_function_instance_data::FunctionKind;
+
+/// Variant<GC::Ref<ECMAScriptFunctionObject>, GC::Ref<NativeJavaScriptBackedFunction>>: the function whose body a
+/// generator or an async generator runs.
+#[derive(Clone, Copy)]
+pub enum GeneratingFunction {
+    Ecmascript(Gc<EcmascriptFunctionObject>),
+    NativeJavaScriptBacked(Gc<NativeJavaScriptBackedFunction>),
+}
+
+impl GeneratingFunction {
+    pub fn kind(self) -> FunctionKind {
+        match self {
+            GeneratingFunction::Ecmascript(function) => function.kind(),
+            GeneratingFunction::NativeJavaScriptBacked(function) => function.kind(),
+        }
+    }
+
+    pub fn as_function_object(self) -> Gc<FunctionObject> {
+        match self {
+            GeneratingFunction::Ecmascript(function) => function.upcast(),
+            GeneratingFunction::NativeJavaScriptBacked(function) => function.upcast(),
+        }
+    }
+
+    pub fn bytecode_executable(self, vm: &Vm) -> Gc<Executable> {
+        match self {
+            GeneratingFunction::Ecmascript(function) => function
+                .bytecode_executable()
+                .expect("a generating function is compiled before it is called"),
+            GeneratingFunction::NativeJavaScriptBacked(function) => function.bytecode_executable(vm),
+        }
+    }
+}
 
 /// GeneratorObject::IterationResult: what resuming a generator produced.
 #[derive(Clone, Copy, Debug)]
@@ -99,10 +134,9 @@ impl GeneratorObject {
     pub fn create(
         vm: &Vm,
         realm: Gc<Realm>,
-        generating_function: Gc<EcmascriptFunctionObject>,
+        generating_function: GeneratingFunction,
         execution_context: OwnedExecutionContext,
     ) -> Gc<GeneratorObject> {
-        // NB: C++ also creates generators for a NativeJavaScriptBackedFunction, which the runtime does not have yet.
         let kind = generating_function.kind();
 
         let generating_function_prototype_object = if kind == FunctionKind::Async {
@@ -113,15 +147,13 @@ impl GeneratorObject {
         } else {
             // 1. Let _generator_ be ? OrdinaryCreateFromConstructor(_functionObject_, *"%GeneratorPrototype%"*,
             //    « [[GeneratorState]], [[GeneratorContext]], [[GeneratorBrand]] »).
-            get_prototype_from_constructor(vm, generating_function.as_function_object_gc(), |intrinsics, _| {
+            get_prototype_from_constructor(vm, generating_function.as_function_object(), |intrinsics, _| {
                 intrinsics.generator_prototype()
             })
             .must()
         };
 
-        let generating_executable = generating_function
-            .bytecode_executable()
-            .expect("a generator function is compiled before it is called");
+        let generating_executable = generating_function.bytecode_executable(vm);
 
         let yield_continuation = execution_context.yield_continuation.get();
         let object = realm.create_object(

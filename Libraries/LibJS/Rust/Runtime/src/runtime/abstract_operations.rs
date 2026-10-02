@@ -39,6 +39,7 @@ use crate::runtime::indexed_properties::ValueAndAttributes;
 use crate::runtime::intrinsics::Intrinsics;
 use crate::runtime::iterator::{IteratorHint, get_iterator, iterator_step_value, try_or_close_iterator};
 use crate::runtime::native_function::NativeFunction;
+use crate::runtime::native_javascript_backed_function::NativeJavaScriptBackedFunction;
 use crate::runtime::object::{MayInterfereWithIndexedPropertyAccess, Object, StackFrameInfo};
 use crate::runtime::object_environment::{IsWithEnvironment, ObjectEnvironment, name_for_message};
 use crate::runtime::private_environment::PrivateEnvironment;
@@ -811,13 +812,6 @@ pub fn new_object_environment(
     )
 }
 
-fn native_javascript_backed_function_this_mode_is_lexical(_function: Gc<FunctionObject>) -> bool {
-    unimplemented_runtime_function(
-        "NativeJavaScriptBackedFunction::this_mode, for NewFunctionEnvironment",
-        0,
-    )
-}
-
 // 9.1.2.4 NewFunctionEnvironment ( F, newTarget ), https://tc39.es/ecma262/#sec-newfunctionenvironment
 // 4.1.2.2 NewFunctionEnvironment ( F, newTarget ), https://tc39.es/proposal-explicit-resource-management/#sec-newfunctionenvironment
 pub fn new_function_environment(
@@ -854,16 +848,16 @@ pub fn new_function_environment(
 // 4.1.2.2 NewFunctionEnvironment ( F, newTarget ), https://tc39.es/proposal-explicit-resource-management/#sec-newfunctionenvironment
 pub fn new_function_environment_for_native_javascript_backed_function(
     vm: &Vm,
-    function: Gc<FunctionObject>,
+    function: Gc<NativeJavaScriptBackedFunction>,
     new_target: Option<Gc<Object>>,
 ) -> Gc<FunctionEnvironment> {
     // 1. Let env be a new function Environment Record containing no bindings.
     let env = FunctionEnvironment::create(vm, None);
 
     // 2. Set env.[[FunctionObject]] to F.
-    env.set_function_object(function);
+    env.set_function_object(function.upcast());
 
-    if native_javascript_backed_function_this_mode_is_lexical(function) {
+    if function.this_mode() == ThisMode::Lexical {
         // 3. If F.[[ThisMode]] is lexical, set env.[[ThisBindingStatus]] to lexical.
         env.set_this_binding_status(ThisBindingStatus::Lexical);
     } else {

@@ -251,4 +251,5 @@ define_class_ids! {
     SuppressedError,
     SuppressedErrorPrototype,
     SuppressedErrorConstructor,
+    NativeJavaScriptBackedFunction,
 }

@@ -37,7 +37,7 @@ use crate::runtime::error::ErrorKind;
 use crate::runtime::error_types::ErrorType;
 use crate::runtime::function_environment::FunctionEnvironment;
 use crate::runtime::function_object::{FUNCTION_OBJECT_METHODS, FunctionObject};
-use crate::runtime::generator_object::GeneratorObject;
+use crate::runtime::generator_object::{GeneratingFunction, GeneratorObject};
 use crate::runtime::intrinsics::Intrinsics;
 use crate::runtime::object::{
     MayInterfereWithIndexedPropertyAccess, ObjectMethods, PrivateElement, StackFrameInfo, allocate_object,
@@ -613,12 +613,17 @@ impl EcmascriptFunctionObject {
             return Ok(Value::from_object(AsyncGenerator::create(
                 vm,
                 realm,
-                self.as_ecmascript_function_gc(),
+                GeneratingFunction::Ecmascript(self.as_ecmascript_function_gc()),
                 context.copy(),
             )));
         }
 
-        let generator_object = GeneratorObject::create(vm, realm, self.as_ecmascript_function_gc(), context.copy());
+        let generator_object = GeneratorObject::create(
+            vm,
+            realm,
+            GeneratingFunction::Ecmascript(self.as_ecmascript_function_gc()),
+            context.copy(),
+        );
 
         // NOTE: Async functions are entirely transformed to generator functions, and wrapped in a custom driver that returns a promise.
         if self.kind() == FunctionKind::Async {
