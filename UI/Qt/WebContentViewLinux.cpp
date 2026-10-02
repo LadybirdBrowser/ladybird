@@ -712,7 +712,7 @@ struct WebContentView::VulkanRenderer {
         return imported_texture;
     }
 
-    bool render(VkCommandBuffer command_buffer, Gfx::SharedImageBuffer const& shared_image_buffer, Gfx::IntSize bitmap_size, QSize target_size)
+    bool render(VkCommandBuffer command_buffer, Gfx::SharedImageBuffer const& shared_image_buffer, Gfx::IntSize bitmap_size, QSize target_size, bool scale_to_fit)
     {
         auto* imported_texture = imported_texture_for(shared_image_buffer);
         if (!imported_texture)
@@ -721,22 +721,30 @@ struct WebContentView::VulkanRenderer {
         if (command_buffer == VK_NULL_HANDLE)
             return false;
 
-        auto content_width = min(bitmap_size.width(), target_size.width());
-        auto content_height = min(bitmap_size.height(), target_size.height());
+        auto content_limit = scale_to_fit ? imported_texture->size : Gfx::IntSize { target_size.width(), target_size.height() };
+        auto content_width = min(bitmap_size.width(), content_limit.width());
+        auto content_height = min(bitmap_size.height(), content_limit.height());
         if (content_width <= 0 || content_height <= 0)
             return false;
 
+        // The shader maps content pixels one-to-one onto the viewport, so scaling to fit shrinks the viewport to the
+        // fitted rect and makes the content its whole extent.
+        Gfx::IntRect viewport_rect { 0, 0, target_size.width(), target_size.height() };
+        if (scale_to_fit)
+            viewport_rect = rect_fitting_frame({ content_width, content_height }, viewport_rect.size());
+        auto quad_target_size = scale_to_fit ? Gfx::IntSize { content_width, content_height } : viewport_rect.size();
+
         PushConstants push_constants {
-            { static_cast<float>(target_size.width()), static_cast<float>(target_size.height()) },
+            { static_cast<float>(quad_target_size.width()), static_cast<float>(quad_target_size.height()) },
             { static_cast<float>(content_width), static_cast<float>(content_height) },
             { static_cast<float>(imported_texture->size.width()), static_cast<float>(imported_texture->size.height()) },
         };
 
         VkViewport viewport {
-            .x = 0.0f,
-            .y = 0.0f,
-            .width = static_cast<float>(target_size.width()),
-            .height = static_cast<float>(target_size.height()),
+            .x = static_cast<float>(viewport_rect.x()),
+            .y = static_cast<float>(viewport_rect.y()),
+            .width = static_cast<float>(viewport_rect.width()),
+            .height = static_cast<float>(viewport_rect.height()),
             .minDepth = 0.0f,
             .maxDepth = 1.0f,
         };
@@ -855,7 +863,7 @@ struct WebContentView::VulkanWindowRenderer final : public QVulkanWindowRenderer
         };
         vkCmdBeginRenderPass(command_buffer, &render_pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
 
-        bool rendered = m_renderer.render(command_buffer, *paintable->shared_image_buffer, paintable->bitmap_size, target_size);
+        bool rendered = m_renderer.render(command_buffer, *paintable->shared_image_buffer, paintable->bitmap_size, target_size, m_view.m_scales_frames_to_fit);
 
         if (rendered && m_view.m_vulkan_window_supports_alpha_blending.value_or(false)) {
             // Clear the strips overlaid by hover-expanded vertical tabs to transparent so the tab column painted in the

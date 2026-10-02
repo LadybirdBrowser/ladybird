@@ -113,6 +113,7 @@ void WebContentView::render(QRhiCommandBuffer* command_buffer)
     if (content_width <= 0 || content_height <= 0)
         return;
 
+    // FIXME: Scale the backing store to fit when the view scales frames to fit, which needs a draw rather than a copy.
     if (auto const* d3d_handle = paintable->shared_image_buffer->windows_d3d_handle()) {
         auto* imported_texture = imported_d3d_texture_for(*paintable->shared_image_buffer, *d3d_handle);
         if (!imported_texture) {
