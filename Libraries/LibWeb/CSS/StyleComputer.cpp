@@ -1084,9 +1084,6 @@ void StyleComputer::start_needed_transitions(ComputedStyleWorkingSet& new_style,
         .transform_reference_box_width = 0,
         .transform_reference_box_height = 0,
     };
-    // The lengths the transitions resolve against are those of the record the element installed.
-    transition_animation_context.has_length_resolution_context = StyleValueFFI::rust_transition_length_resolution_context(
-        m_style_engine.rust_handle(), abstract_element.style_record_identity().value(), &transition_animation_context.length_resolution_context);
     if (auto const* layout_node = abstract_element.element().unsafe_layout_node(); layout_node && Painting::has_committed_box(*layout_node)) {
         auto reference_box = Painting::transform_reference_box(*layout_node);
         transition_animation_context.has_transform_reference_box = true;
@@ -1228,12 +1225,9 @@ void StyleComputer::start_needed_transitions(ComputedStyleWorkingSet& new_style,
     };
     Vector<StyleValueFFI::FfiTransitionAction> actions;
     actions.resize(prepared_transitions.size());
-    m_style_engine.decide_transitions(
-        before_change_style_record,
-        new_style.computed_longhand_table(),
-        new_style.animated_overlay(Badge<StyleComputer> {}),
-        input,
-        actions.data());
+    // The after-change style is the record the element installed, with its overlay, and the transitions resolve their
+    // lengths against it.
+    m_style_engine.decide_transitions(before_change_style_record, abstract_element.style_record_identity(), input, actions.data());
     auto retain_style_value = [](StyleValueFFI::StyleValueData const* value) -> RefPtr<StyleValue const> {
         if (!value)
             return {};

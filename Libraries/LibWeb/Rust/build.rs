@@ -3051,7 +3051,16 @@ fn main() -> Result<(), Box<dyn Error>> {
     // an FFI call.
     let mut style_value_config = base_config.clone();
     style_value_config.namespaces = Some(vec!["Web".to_string(), "CSS".to_string(), "StyleValueFFI".to_string()]);
-    style_value_config.export.include = vec!["StyleValueData".to_string(), "RetainedGridTrackEntry".to_string()];
+    // A transition step's inputs and decisions cross through the style engine's header, which names them here.
+    style_value_config.export.include = [
+        "StyleValueData",
+        "RetainedGridTrackEntry",
+        "FfiTransitionInput",
+        "FfiTransitionPropertyInput",
+        "FfiTransitionAction",
+    ]
+    .map(String::from)
+    .to_vec();
     expose_compositing_types_as_cpp_types(&mut style_value_config);
 
     generate_ffi_header(
@@ -3156,8 +3165,17 @@ fn main() -> Result<(), Box<dyn Error>> {
         "FfiCompositeOperation".to_string(),
         "Web::CSS::StyleValueFFI::FfiCompositeOperation".to_string(),
     );
-    style_engine_config.after_includes =
-        Some("namespace Web::CSS::StyleValueFFI { enum class FfiCompositeOperation : uint8_t; }".to_string());
+    // A transition step's decision is asked of the engine in the style value header's terms.
+    for name in ["FfiTransitionInput", "FfiTransitionAction"] {
+        style_engine_config
+            .export
+            .rename
+            .insert(name.to_string(), format!("Web::CSS::StyleValueFFI::{name}"));
+    }
+    style_engine_config.after_includes = Some(
+        "namespace Web::CSS::StyleValueFFI { enum class FfiCompositeOperation : uint8_t; struct FfiTransitionInput; struct FfiTransitionAction; }"
+            .to_string(),
+    );
     // The host queues the engine's changes on the document host, which the layout header declares.
     style_engine_config.export.rename.insert(
         "DocumentHost".to_string(),

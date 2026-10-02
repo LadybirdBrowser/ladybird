@@ -213,9 +213,9 @@ void StyleEngine::element_random_base_values(StyleNodeID node, Vector<u32>& name
     });
 }
 
-void StyleEngine::decide_transitions(StyleRecordID before_style_record, void const* after_longhand_table, void const* after_animated_overlay, StyleValueFFI::FfiTransitionInput& input, StyleValueFFI::FfiTransitionAction* actions) const
+void StyleEngine::decide_transitions(StyleRecordID before_style_record, StyleRecordID after_style_record, StyleValueFFI::FfiTransitionInput const& input, StyleValueFFI::FfiTransitionAction* actions) const
 {
-    StyleValueFFI::rust_decide_transitions(m_impl, before_style_record.value(), after_longhand_table, after_animated_overlay, &input, actions);
+    StyleEngineFFI::style_engine_decide_transitions(m_render_document->host(), before_style_record.value(), after_style_record.value(), &input, actions);
 }
 
 StyleEngine::StyleRecordDelta StyleEngine::remove_computed_pseudo(StyleNodeID node, u8 pseudo_kind)

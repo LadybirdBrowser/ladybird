@@ -80,7 +80,7 @@ impl<T> LentSlice<T> {
     /// # Safety
     ///
     /// Only in answering the question that carries the slice, which the host waits for.
-    unsafe fn get<'a>(self) -> &'a [T] {
+    pub(crate) unsafe fn get<'a>(self) -> &'a [T] {
         // SAFETY: Guaranteed by the caller.
         unsafe { self.0.as_ref() }
     }

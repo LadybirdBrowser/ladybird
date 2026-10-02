@@ -23,6 +23,7 @@ use super::publication::RecordDemand;
 use super::record_replay::EventKind;
 use super::tree::{StyleNodeID, TreeScopeID};
 use super::{StyleEngine, StyleEngineHandle};
+use crate::css::transition::{FfiTransitionAction, FfiTransitionInput, TransitionDecision};
 use crate::render_state::{ArenaChange, DocumentHost};
 use std::ffi::c_void;
 
@@ -478,6 +479,8 @@ pub(crate) enum StyleQuery {
     Counter(usize),
     /// The end of the transaction the host took last, which answers the identities it released.
     EndTransaction,
+    /// What a transition step's change of records does to its target's transitions.
+    DecideTransitions(crate::css::transition::TransitionDecision),
     /// A read the boundary generator writes.
     Generated(super::bridge::GeneratedStyleQuery),
 }
@@ -491,6 +494,7 @@ pub(crate) enum StyleAnswer {
     RandomBaseValues(Vec<(Box<[u16]>, f64)>),
     RecordDemand(FfiRecordDemandAnswer),
     Counter(Option<(&'static str, u64)>),
+    Transitions(Vec<crate::css::transition::DecidedTransition>),
     Generated(super::bridge::GeneratedStyleAnswer),
 }
 
@@ -499,6 +503,7 @@ impl StyleQuery {
         match self {
             Self::Generated(query) => StyleAnswer::Generated(query.answer(engine)),
             Self::EndTransaction => StyleAnswer::Nodes(super::bridge::end_style_transaction(engine)),
+            Self::DecideTransitions(decision) => StyleAnswer::Transitions(decision.answer(engine)),
             Self::ElementCustomPropertyData(node) => {
                 StyleAnswer::HostObject(engine.element_custom_property_data(node).addr())
             }
@@ -826,4 +831,51 @@ pub unsafe extern "C" fn style_engine_counter(
         out_name_length.write(name.len());
     }
     name.as_ptr()
+}
+
+/// Decides what each property `input` prepared does to the transitions of its target, as the target's style changes
+/// from the record `before` to the record `after` it installed. Writes the values each decision compared into its
+/// property, and the decision into `actions`.
+///
+/// # Safety
+///
+/// `host` must be a live document host, on its document's thread, `input` must be valid, and `actions` must point at
+/// writable storage for one action per property.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn style_engine_decide_transitions(
+    host: *const DocumentHost,
+    before: u64,
+    after: u64,
+    input: *const FfiTransitionInput,
+    actions: *mut FfiTransitionAction,
+) {
+    crate::css::ffi_stats::rust_style_ffi_note_transition_decision();
+    // SAFETY: Guaranteed by the caller.
+    let input = unsafe { &*input };
+    if input.property_count == 0 {
+        return;
+    }
+    // SAFETY: As above.
+    let properties = unsafe { std::slice::from_raw_parts_mut(input.properties, input.property_count) };
+    let decision = TransitionDecision {
+        before,
+        after,
+        context: input.context,
+        element: (input.target_pseudo_kind == u8::MAX)
+            .then(|| StyleNodeID::from_raw(input.target_node))
+            .flatten(),
+        properties: crate::render_state::LentSlice::new(properties),
+    };
+    // SAFETY: As above.
+    let StyleAnswer::Transitions(decided) = (unsafe { ask_engine(host, StyleQuery::DecideTransitions(decision)) })
+    else {
+        unreachable!("a transition step is answered with its decisions");
+    };
+    for (index, (property, decided)) in properties.iter_mut().zip(decided).enumerate() {
+        property.before_change_value = decided.before_change_value;
+        property.after_change_value = decided.after_change_value;
+        property.current_value = decided.current_value;
+        // SAFETY: As above.
+        unsafe { actions.add(index).write(decided.action) };
+    }
 }

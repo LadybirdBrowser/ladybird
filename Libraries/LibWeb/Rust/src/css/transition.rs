@@ -18,6 +18,7 @@ pub enum FfiTransitionActionKind {
     CancelRemoveAndStartInterrupted,
 }
 
+#[derive(Clone, Copy)]
 #[repr(C)]
 pub struct FfiTransitionPropertyInput {
     pub property_id: u16,
@@ -47,6 +48,7 @@ pub struct FfiTransitionInput {
     pub target_pseudo_kind: u8,
 }
 
+#[derive(Clone, Copy)]
 #[repr(C)]
 pub struct FfiTransitionAction {
     pub property_id: u16,
@@ -342,85 +344,92 @@ fn prepare_transition_values(
         && originates_from_current_color(after_table, property.property_id)
 }
 
-/// Run the CSS Transitions decision algorithm for every supplied property.
-///
-/// C++ retains ownership of animation objects and executes the returned actions in order.
-///
-/// # Safety
-/// `input` must point to a live value for the duration of the call. When the input contains
-/// properties, `actions` must point at writable storage for `property_count` actions.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_decide_transitions(
-    style_engine: crate::css::style::StyleEngineHandle,
-    before_style_record: u64,
-    after_longhand_table: *const std::ffi::c_void,
-    after_animated_overlay: *const std::ffi::c_void,
-    input: *mut FfiTransitionInput,
-    actions: *mut FfiTransitionAction,
-) {
-    crate::css::ffi_stats::rust_style_ffi_note_transition_decision();
-    let input = unsafe { &mut *input };
-    let properties = if input.property_count == 0 {
-        &mut []
-    } else {
-        unsafe { std::slice::from_raw_parts_mut(input.properties, input.property_count) }
-    };
-    if properties.is_empty() {
-        return;
-    }
-    let style_engine = (!style_engine.is_null()).then(|| unsafe { style_engine.get() });
-    let before_style_view = style_engine
-        .expect("transition decisions require a style engine")
-        .style_record_view(before_style_record)
-        .expect("the transition baseline style record must remain live");
-    let before_style = {
-        let style = &before_style_view;
-        (
-            unsafe {
-                style
+/// A transition step's question to the style engine: what each property the host prepared does to the transitions
+/// of the step's target as its style changes from the record `before` to the record `after`, the record the target
+/// installed. The transitions resolve their lengths against `after`.
+pub(crate) struct TransitionDecision {
+    pub(crate) before: u64,
+    pub(crate) after: u64,
+    pub(crate) context: crate::css::animation::FfiAnimationContext,
+    /// The target's style node, where the target is an element: only an element's own record inherits from its
+    /// inheritance parent.
+    pub(crate) element: Option<crate::css::style::tree::StyleNodeID>,
+    pub(crate) properties: crate::render_state::LentSlice<FfiTransitionPropertyInput>,
+}
+
+/// What the style engine decided for one property of a [`TransitionDecision`], with the values it compared, which
+/// the records of the decision hold.
+#[derive(Clone, Copy)]
+pub(crate) struct DecidedTransition {
+    pub(crate) action: FfiTransitionAction,
+    pub(crate) before_change_value: *const crate::css::style_value::StyleValueData,
+    pub(crate) after_change_value: *const crate::css::style_value::StyleValueData,
+    pub(crate) current_value: *const crate::css::style_value::StyleValueData,
+}
+
+impl TransitionDecision {
+    /// Runs the CSS Transitions decision algorithm for every property of the decision.
+    pub(crate) fn answer(self, engine: &crate::css::style::StyleEngine) -> Vec<DecidedTransition> {
+        let Self {
+            before,
+            after,
+            mut context,
+            element,
+            properties,
+        } = self;
+        // SAFETY: The host waits for the answer, keeping what it lent live.
+        let properties = unsafe { properties.get() };
+        if let Some(length) = engine.transition_length_resolution_context(after) {
+            context.has_length_resolution_context = true;
+            context.length_resolution_context = length;
+        }
+        let before = engine
+            .style_record_view(before)
+            .expect("the transition baseline style record must remain live");
+        let after = engine
+            .style_record_view(after)
+            .expect("the record a transition step decides over must remain live");
+        // SAFETY: A live record's table and overlay live as long as the record.
+        let (before_table, before_overlay, after_table, after_overlay) = unsafe {
+            (
+                before
                     .longhand_table
                     .as_ref()
-                    .expect("a transition baseline style record must carry a longhand table")
-            },
-            unsafe { style.animated_overlay.as_ref() },
-        )
-    };
-    let after_table = unsafe {
-        after_longhand_table
-            .cast::<crate::css::computed_longhand_table::ComputedLonghandTable>()
-            .as_ref()
-    };
-    let after_overlay = unsafe {
-        after_animated_overlay
-            .cast::<crate::css::animated_overlay::AnimatedOverlay>()
-            .as_ref()
-    };
-    let after_table = after_table.expect("transition decisions require an after-change table");
-    // Only an element's own record inherits from its inheritance parent.
-    let target = (input.target_pseudo_kind == u8::MAX)
-        .then(|| crate::css::style::tree::StyleNodeID::from_raw(input.target_node))
-        .flatten();
-    for (index, property) in properties.iter_mut().enumerate() {
-        let inherited_animation = target
-            .filter(|_| {
-                after_overlay
-                    .and_then(|overlay| overlay.get(property.property_id))
-                    .is_none_or(|entry| !entry.inherited)
-            })
-            .and_then(|target| {
-                style_engine
-                    .expect("transition decisions require a style engine")
-                    .inherited_animated_value(target, after_table, property.property_id)
-            });
-        let values_originate_from_current_color =
-            prepare_transition_values(before_style, after_table, after_overlay, inherited_animation, property);
-        unsafe {
-            actions.add(index).write(decide_transition(
-                &input.context,
-                property,
-                values_originate_from_current_color,
-            ));
+                    .expect("a transition baseline style record must carry a longhand table"),
+                before.animated_overlay.as_ref(),
+                after
+                    .longhand_table
+                    .as_ref()
+                    .expect("a transition step's record must carry a longhand table"),
+                after.animated_overlay.as_ref(),
+            )
         };
+        properties
+            .iter()
+            .map(|property| {
+                let mut property = *property;
+                let inherited_animation = element
+                    .filter(|_| {
+                        after_overlay
+                            .and_then(|overlay| overlay.get(property.property_id))
+                            .is_none_or(|entry| !entry.inherited)
+                    })
+                    .and_then(|element| engine.inherited_animated_value(element, after_table, property.property_id));
+                let values_originate_from_current_color = prepare_transition_values(
+                    (before_table, before_overlay),
+                    after_table,
+                    after_overlay,
+                    inherited_animation,
+                    &mut property,
+                );
+                DecidedTransition {
+                    action: decide_transition(&context, &property, values_originate_from_current_color),
+                    before_change_value: property.before_change_value,
+                    after_change_value: property.after_change_value,
+                    current_value: property.current_value,
+                }
+            })
+            .collect()
     }
 }
 
@@ -438,25 +447,6 @@ pub struct FfiTransitionEntry {
 pub struct FfiTransitionEntries {
     pub entries: *mut FfiTransitionEntry,
     pub count: usize,
-}
-
-/// What a transition on an element resolves its lengths against, answered from the record the
-/// element has installed. Returns false where the engine cannot read the record.
-///
-/// # Safety
-/// `style_engine` must be a live style engine, and `context` writable.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_transition_length_resolution_context(
-    style_engine: crate::css::style::StyleEngineHandle,
-    style_record: u64,
-    context: *mut crate::css::animation::FfiAnimationLengthResolutionContext,
-) -> bool {
-    let style_engine = unsafe { style_engine.get() };
-    let Some(length) = style_engine.transition_length_resolution_context(style_record) else {
-        return false;
-    };
-    unsafe { context.write(length) };
-    true
 }
 
 /// The transitions a computed longhand table declares, per physical longhand they name. What the
@@ -579,27 +569,6 @@ mod tests {
             decide_transition(&animation_context(), &input(&before, &after, &before), false).kind,
             FfiTransitionActionKind::Start
         );
-    }
-
-    #[test]
-    fn accepts_an_empty_transition_batch() {
-        let mut input = FfiTransitionInput {
-            context: animation_context(),
-            properties: std::ptr::null_mut(),
-            property_count: 0,
-            target_node: 0,
-            target_pseudo_kind: u8::MAX,
-        };
-        unsafe {
-            rust_decide_transitions(
-                crate::css::style::StyleEngineHandle::null(),
-                0,
-                std::ptr::null(),
-                std::ptr::null(),
-                &raw mut input,
-                std::ptr::null_mut(),
-            )
-        };
     }
 
     #[test]
