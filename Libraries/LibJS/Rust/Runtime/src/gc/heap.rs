@@ -12,6 +12,7 @@ use core::ptr::NonNull;
 use super::capi::{self, GCAllocator, GCGatherRootsCallback, GCHeap, GCLayout};
 use super::class::{CellTypeInfo, Class, GcCell};
 use super::class_id::CLASS_COUNT;
+use super::weak::WEAK_IMPL_POINTER_OFFSET;
 use crate::build_configuration::{HEAP_REGION_OFFSET_MASK, PRIMITIVE_STORAGE_CAGE_OFFSET_MASK};
 use crate::layout::cell::{CellHeader, CellState, Gc};
 
@@ -190,5 +191,10 @@ fn check_layout() {
         "primitive storage cage offset mask",
         layout.primitive_storage_cage_offset_mask,
         PRIMITIVE_STORAGE_CAGE_OFFSET_MASK,
+    );
+    expect(
+        "weak impl pointer offset",
+        layout.weak_impl_pointer_offset.into(),
+        WEAK_IMPL_POINTER_OFFSET as u64,
     );
 }

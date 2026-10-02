@@ -12,8 +12,8 @@ use super::heap::Heap;
 use super::visitor::{Trace, Visitor};
 use crate::layout::cell::Gc;
 
-/// Mirrors the part of GC::WeakImpl the runtime reads: the pointer at the offset gc_get_layout() reports, which
-/// LibGC clears once the cell is collected.
+/// Mirrors the part of GC::WeakImpl the runtime reads: the pointer at this offset, which LibGC clears once the cell is
+/// collected. The startup layout check compares the offset with the one gc_get_layout() reports.
 pub(super) const WEAK_IMPL_POINTER_OFFSET: usize = 16;
 
 /// A reference to a cell that does not keep it alive.
