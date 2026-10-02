@@ -65,8 +65,11 @@ impl RenderState {
     fn new(host: NonNull<DocumentHost>, device_class: FfiDeviceClass) -> Self {
         let arena = Box::new(ArenaHandle::new(host));
         // SAFETY: The host outlives its document's render state.
-        unsafe { host.as_ref() }.watch_rows_of(NonNull::from(arena.arena()));
-        let engine = StyleEngineHandle::create(create_document_style_engine(device_class));
+        let host = unsafe { host.as_ref() };
+        host.watch_rows_of(NonNull::from(arena.arena()));
+        let engine = create_document_style_engine(device_class);
+        host.watch_element_random_base_values(engine.element_random_base_values_exist());
+        let engine = StyleEngineHandle::create(engine);
         arena.arena().set_style_engine(engine);
         Self { arena, engine }
     }
@@ -190,9 +193,9 @@ fn handle_message(_: &RenderingSide, message: RenderMessage) {
             }
         }
         RenderMessage::Ask { document, query, reply } => reply.answer(|| {
-            let (arena, _) = state_parts(document).expect("a document the host asks about has a render state");
+            let (arena, engine) = state_parts(document).expect("a document the host asks about has a render state");
             // SAFETY: As for a change.
-            query.answer(unsafe { &mut *arena }.arena_mut())
+            unsafe { query.answer((*arena).arena_mut(), engine) }
         }),
         RenderMessage::PanicForTesting { reply } => reply.answer(|| panic!("the render state panicked for a test")),
     }

@@ -356,6 +356,7 @@ public:
 
     // The render state that owns the engine, which the document's layout node arena shares.
     [[nodiscard]] Layout::RenderDocument& render_document() { return *m_render_document; }
+    [[nodiscard]] Layout::RenderDocument const& render_document() const { return *m_render_document; }
 
     [[nodiscard]] void* rust_handle() { return m_impl; }
     [[nodiscard]] void const* rust_handle() const { return m_impl; }

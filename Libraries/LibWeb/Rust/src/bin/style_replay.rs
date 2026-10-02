@@ -767,7 +767,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                     let expected_absent = event.payload.read_bool()?;
                     let expected_uses_substitution = event.payload.read_bool()?;
                     let expected_present = event.payload.read_u8()?;
-                    let actual = unsafe { bridge::style_engine_answer_record_demand(engine, node, demand) };
+                    let actual = unsafe { bridge::style_engine_answer_record_demand_for_replay(engine, node, demand) };
                     if actual.record.style_record != expected
                         || actual.is_absent != expected_absent
                         || actual.record.uses_substitution != expected_uses_substitution
@@ -840,7 +840,12 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                     let mut actual_value = 0;
                     let mut actual_name_length = 0;
                     let actual_name = unsafe {
-                        bridge::style_engine_counter(engine, index, &mut actual_value, &mut actual_name_length)
+                        bridge::style_engine_counter_for_replay(
+                            engine,
+                            index,
+                            &mut actual_value,
+                            &mut actual_name_length,
+                        )
                     };
                     let actual = match actual_name.is_null() {
                         true => None,
@@ -1661,7 +1666,7 @@ impl DetailedCounterReader {
         for index in 0.. {
             let mut value = 0_u64;
             let mut name_length = 0_usize;
-            let name = unsafe { bridge::style_engine_counter(engine, index, &mut value, &mut name_length) };
+            let name = unsafe { bridge::style_engine_counter_for_replay(engine, index, &mut value, &mut name_length) };
             if name.is_null() {
                 break;
             }
@@ -1726,7 +1731,7 @@ impl AmplificationCounterReader {
         for index in 0.. {
             let mut value = 0_u64;
             let mut name_length = 0_usize;
-            let name = unsafe { bridge::style_engine_counter(engine, index, &mut value, &mut name_length) };
+            let name = unsafe { bridge::style_engine_counter_for_replay(engine, index, &mut value, &mut name_length) };
             if name.is_null() {
                 break;
             }
@@ -1844,7 +1849,7 @@ fn amplification_stage_report(changed_rows: u64, touched_rows: u64, flushes: u64
 fn read_counter_value(engine: libweb_rust::css::style::StyleEngineHandle, index: usize) -> u64 {
     let mut value = 0_u64;
     let mut name_length = 0_usize;
-    let name = unsafe { bridge::style_engine_counter(engine, index, &mut value, &mut name_length) };
+    let name = unsafe { bridge::style_engine_counter_for_replay(engine, index, &mut value, &mut name_length) };
     assert!(!name.is_null(), "cached counter index is out of range");
     value
 }

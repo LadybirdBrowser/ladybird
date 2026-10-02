@@ -192,7 +192,6 @@ mod tests {
     use crate::css::parser::value_parser::ParseContext;
     use crate::css::rule::{rust_rule_identity, rust_rule_list_at, rust_rule_list_clear, rust_rule_retain};
     use crate::css::style::StyleEngine;
-    use crate::css::style::bridge::style_engine_native_rule_id;
     use crate::css::style::memory::DeviceClass;
     use crate::css::style::program::{CascadeOrigin, RuleKind, StyleSheetObjectID};
     use crate::css::style_sheet::NativeStyleSheet;
@@ -231,15 +230,7 @@ mod tests {
             unsafe {
                 engine.register_native_rule(id, identity, rule.cascade_declarations(), source.identity(), &[], &[])
             };
-            assert_eq!(
-                unsafe {
-                    style_engine_native_rule_id(
-                        crate::css::style::StyleEngineHandle::from_raw(std::ptr::from_ref(engine).cast_mut()),
-                        identity,
-                    )
-                },
-                id.0 + 1
-            );
+            assert_eq!(engine.native_rule_id(identity), Some(id));
             ids.push(id);
             assert_eq!(
                 engine.native_rules.targets.get(&id).unwrap().source_identity,

@@ -13,10 +13,12 @@ use crate::layout::{HostTables, LayoutNodeArena};
 use crate::painting::paint_read::PaintSource;
 use crate::painting::record::recorder_state::AbsoluteRectMemo;
 use crate::painting::recording_slot::RecordingSlot;
-use std::cell::{Cell, RefCell, RefMut};
+use std::cell::{Cell, OnceCell, RefCell, RefMut};
 use std::ffi::c_void;
 use std::ptr::NonNull;
 use std::rc::Rc;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 /// The host's side of one document's render state: the document's name, the host tables the host answers layout
 /// through, and what the document keeps of its display list recordings, which are made on the host's thread from the
@@ -38,6 +40,8 @@ pub struct DocumentHost {
     /// The arena of the document's render state, whose rows version tells the host whether the rows it has still read
     /// as the arena's after a write the host made through an entry that reaches the arena directly.
     arena: Cell<Option<NonNull<LayoutNodeArena>>>,
+    /// Whether any element has had random base values, which the render state raises and never lowers.
+    element_random_base_values_exist: OnceCell<Arc<AtomicBool>>,
 }
 
 impl DocumentHost {
@@ -50,6 +54,7 @@ impl DocumentHost {
             rows_may_be_stale: Cell::new(false),
             absolute_rects: RefCell::default(),
             arena: Cell::new(None),
+            element_random_base_values_exist: OnceCell::new(),
         }
     }
 
@@ -82,6 +87,21 @@ impl DocumentHost {
     /// where it is until the state is destroyed.
     pub(crate) fn watch_rows_of(&self, arena: NonNull<LayoutNodeArena>) {
         self.arena.set(Some(arena));
+    }
+
+    /// Watches the flag the render state raises once any element has random base values.
+    pub(crate) fn watch_element_random_base_values(&self, exist: Arc<AtomicBool>) {
+        assert!(
+            self.element_random_base_values_exist.set(exist).is_ok(),
+            "a document has one render state"
+        );
+    }
+
+    /// Whether some element may have random base values to keep, which only then is worth asking the render state.
+    pub(crate) fn element_random_base_values_may_exist(&self) -> bool {
+        self.element_random_base_values_exist
+            .get()
+            .is_some_and(|exist| exist.load(Ordering::Relaxed))
     }
 
     /// The rows the render state published last, unless the host wrote them since, or none were published yet.
