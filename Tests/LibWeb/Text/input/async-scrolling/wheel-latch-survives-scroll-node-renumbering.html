@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+        height: 2000px;
+    }
+    #nested {
+        width: 100px;
+        height: 100px;
+        overflow: scroll;
+    }
+    #nested > div,
+    #inserted > div {
+        height: 300px;
+    }
+    #inserted {
+        position: absolute;
+        top: 0;
+        left: 200px;
+        width: 100px;
+        height: 100px;
+        overflow: scroll;
+    }
+</style>
+<div id="nested"><div></div></div>
+<script>
+    function scrollNodeIndexOf(element) {
+        const spatialNodeIndices = internals.visualContextNodeIndices(element).spatial;
+        return internals.asyncScrollingState().scrollNodes.find(node => spatialNodeIndices.includes(node.scrollNodeIndex)).scrollNodeIndex;
+    }
+
+    promiseTest(async () => {
+        await animationFrame();
+        await animationFrame();
+
+        await internals.wheel(50, 50, 0, 50, true, "ongoing");
+        const scrollNodeIndexBefore = scrollNodeIndexOf(nested);
+
+        // A scroller inserted ahead of the nested one takes the scroll node index the nested scroller had once the
+        // visual context tree is rebuilt.
+        const inserted = document.createElement("div");
+        inserted.id = "inserted";
+        inserted.appendChild(document.createElement("div"));
+        document.body.prepend(inserted);
+        internals.forceIncompatibleVisualContextTreeRebuild();
+        println(`nested scroll node renumbered: ${scrollNodeIndexOf(nested) !== scrollNodeIndexBefore}`);
+        println(`inserted scroller took the old index: ${scrollNodeIndexOf(inserted) === scrollNodeIndexBefore}`);
+        await animationFrame();
+        await animationFrame();
+
+        // The compositor keeps the gesture with the nested scroller it latched, wherever its scroll node now is.
+        await internals.wheel(50, 150, 0, 30, true, "ongoing");
+        await internals.wheel(50, 150, 0, 0, true, "ended");
+        println(`nested.scrollTop: ${nested.scrollTop}`);
+        println(`inserted.scrollTop: ${inserted.scrollTop}`);
+        println(`window.scrollY: ${window.scrollY}`);
+    });
+</script>
