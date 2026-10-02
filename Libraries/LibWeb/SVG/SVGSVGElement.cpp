@@ -261,7 +261,7 @@ Optional<CSSPixelFraction> SVGSVGElement::view_box_natural_aspect_ratio(SVGSVGEl
         auto view_box = active_view_element->view_box().value();
 
         // 2. return viewbox.width / viewbox.height
-        if (view_box.width != 0 || view_box.height != 0)
+        if (view_box.width != 0 && view_box.height != 0)
             return view_box.width / view_box.height;
 
         return {};
