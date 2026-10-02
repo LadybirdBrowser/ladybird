@@ -634,6 +634,16 @@ impl RetainedState {
         })
     }
 
+    /// The style the element published for one pseudo-element kind. `None` while the element
+    /// styles no such pseudo-element.
+    pub(crate) fn pseudo_published_style_view(
+        &self,
+        node: StyleNodeID,
+        pseudo_kind: u8,
+    ) -> Option<crate::css::computed_value_views::ComputedValuesView<'_>> {
+        self.published_style_record_view(self.computed_group_sets.pseudo_style_record(node, pseudo_kind))
+    }
+
     /// The record the element published for one pseudo-element kind. `None` while the element
     /// styles no such pseudo-element.
     #[must_use]

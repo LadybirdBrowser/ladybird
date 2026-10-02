@@ -128,7 +128,6 @@ enum StaleSubtreeClearScope {
 #[repr(C)]
 pub struct FfiDomTreeBuilderCallbacks {
     pub builder: *mut c_void,
-    pub create_first_letter_nodes: unsafe extern "C" fn(*mut c_void, u32, FfiFirstLetterTarget) -> FfiFirstLetterNodes,
     pub top_layer_element_count: unsafe extern "C" fn(*mut c_void) -> usize,
     pub copy_top_layer_elements: unsafe extern "C" fn(*mut c_void, *mut FfiIdentifiedDomNode, usize),
     /// Computes the style of an element the walk reached through a bypass path without one. The
@@ -2755,11 +2754,9 @@ pub enum FfiPseudoElement {
     None,
 }
 
+/// What a record's `content` computes to: one of the two keywords the property takes, or a list.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-#[repr(u8)]
-// NB: `List` is constructed by C++ through the FFI.
-#[allow(dead_code)]
-pub enum FfiComputedContentType {
+pub enum ComputedContentType {
     Normal,
     None,
     List,
@@ -2774,12 +2771,12 @@ pub enum FfiPseudoElementDecision {
     Box,
 }
 
+/// What the build knows about a pseudo-element when it decides whether the pseudo-element gets a box.
 #[derive(Clone, Copy)]
-#[repr(C)]
-pub struct FfiPseudoElementFacts {
+pub struct PseudoElementFacts {
     pub has_style: bool,
     pub pseudo_element: FfiPseudoElement,
-    pub content_type: FfiComputedContentType,
+    pub content_type: ComputedContentType,
     pub display_is_none: bool,
     pub display_is_contents: bool,
     pub display_is_list_item: bool,
@@ -2819,7 +2816,6 @@ pub struct FfiGeneratedContentItem {
 #[repr(C)]
 pub struct FfiPseudoTreeBuilderCallbacks {
     pub builder: *mut c_void,
-    pub initialize: unsafe extern "C" fn(*mut c_void, u32, FfiPseudoElement) -> FfiPseudoElementFacts,
     /// The last argument is the list-item box a `::marker` belongs to, or an invalid slot when the
     /// pseudo-element is not a marker.
     pub create_layout_node:
@@ -2827,12 +2823,11 @@ pub struct FfiPseudoTreeBuilderCallbacks {
     /// The last argument of each of these is the pseudo-element's own box, which the build tracks
     /// by slot.
     pub create_nested_list_marker: unsafe extern "C" fn(*mut c_void, u32, FfiPseudoElement, NodeSlotId) -> NodeSlotId,
-    pub configure_layout_node: unsafe extern "C" fn(*mut c_void, u32, FfiPseudoElement, NodeSlotId),
     pub create_content_item:
         unsafe extern "C" fn(*mut c_void, u32, FfiPseudoElement, FfiGeneratedContentItem, NodeSlotId) -> NodeSlotId,
 }
 
-pub(crate) fn pseudo_element_decision(facts: FfiPseudoElementFacts) -> FfiPseudoElementDecision {
+pub(crate) fn pseudo_element_decision(facts: PseudoElementFacts) -> FfiPseudoElementDecision {
     abort_on_panic(|| {
         if !facts.has_style {
             return FfiPseudoElementDecision::None;
@@ -2848,19 +2843,19 @@ pub(crate) fn pseudo_element_decision(facts: FfiPseudoElementFacts) -> FfiPseudo
         if matches!(facts.pseudo_element, FfiPseudoElement::Before | FfiPseudoElement::After)
             && matches!(
                 facts.content_type,
-                FfiComputedContentType::Normal | FfiComputedContentType::None
+                ComputedContentType::Normal | ComputedContentType::None
             )
         {
             return FfiPseudoElementDecision::None;
         }
 
         // For ::marker with content 'none' -- do nothing.
-        if facts.pseudo_element == FfiPseudoElement::Marker && facts.content_type == FfiComputedContentType::None {
+        if facts.pseudo_element == FfiPseudoElement::Marker && facts.content_type == ComputedContentType::None {
             return FfiPseudoElementDecision::None;
         }
 
         if facts.pseudo_element == FfiPseudoElement::Marker
-            && facts.content_type == FfiComputedContentType::Normal
+            && facts.content_type == ComputedContentType::Normal
             && !facts.originating_list_box.is_invalid()
         {
             // https://www.w3.org/TR/css-lists-3/#content-property
@@ -2981,6 +2976,69 @@ fn generated_content_item(
     }
 }
 
+/// What the style mirror published for the pseudo-element `pseudo_element` on `element`, for the
+/// build to decide whether it gets a box.
+fn published_pseudo_element_facts(
+    layout: &TreeBuilderHost<'_>,
+    element: StyleNodeID,
+    pseudo_element: FfiPseudoElement,
+) -> PseudoElementFacts {
+    let facts = PseudoElementFacts {
+        has_style: false,
+        pseudo_element,
+        content_type: ComputedContentType::None,
+        display_is_none: false,
+        display_is_contents: false,
+        display_is_list_item: false,
+        display_is_inline_flow: false,
+        has_content_replacement: false,
+        originating_list_box: NodeSlotId::INVALID,
+        normal_marker_has_content: false,
+        marker_position_is_inside: false,
+    };
+    let published = layout.arena().with_style_store(|engine| {
+        engine
+            .pseudo_published_style_view(element, generated_for_of(pseudo_element) - 1)
+            .map(|view| {
+                let display = view.display();
+                PseudoElementFacts {
+                    has_style: true,
+                    content_type: if !view.content_is_keyword() {
+                        ComputedContentType::List
+                    } else if view.content_keyword_is_none() {
+                        ComputedContentType::None
+                    } else {
+                        ComputedContentType::Normal
+                    },
+                    display_is_none: display.is_none(),
+                    display_is_contents: display.is_contents(),
+                    display_is_list_item: display.is_list_item(),
+                    display_is_inline_flow: display.is_inline_outside() && display.is_flow_inside(),
+                    has_content_replacement: view.content_is_single_image(),
+                    ..facts
+                }
+            })
+    });
+    // A pseudo-element the mirror holds no record for generates nothing.
+    let Some(mut facts) = published else {
+        return facts;
+    };
+    // A ::marker belongs to the list item box its element was built as, and takes its position and
+    // its default content from that box's style.
+    if pseudo_element == FfiPseudoElement::Marker {
+        let originating_box = layout.arena().bound_row(element);
+        if !originating_box.is_invalid() && layout.data(originating_box).kind.get() == NodeKind::ListItemBox {
+            facts.originating_list_box = originating_box;
+            if let Some(list_style) = layout.style(originating_box) {
+                facts.normal_marker_has_content =
+                    !list_style.list_style_type_is_none() || list_style.list_style_image_is_set();
+                facts.marker_position_is_inside = list_style.list_style_position_is_inside();
+            }
+        }
+    }
+    facts
+}
+
 fn create_pseudo_element(
     host: &DomTreeBuilderHost<'_>,
     state: &mut TreeBuilderState,
@@ -2997,8 +3055,11 @@ fn create_pseudo_element(
     if let Some(record) = record {
         state.pin_style_record_for_build(host.arena(), record);
     }
-    // SAFETY: The builder remains live, and the identity names a live element.
-    let facts = unsafe { (callbacks.initialize)(callbacks.builder, element, pseudo_element) };
+    // The pseudo-element gives up the box it holds from an earlier build before the walk decides
+    // whether it gets a new one.
+    host.arena()
+        .clear_pseudo_element_box(element_identity, generated_for_of(pseudo_element));
+    let facts = published_pseudo_element_facts(&host.layout(), element_identity, pseudo_element);
     let decision = pseudo_element_decision(facts);
     if decision == FfiPseudoElementDecision::None {
         return None;
@@ -3043,9 +3104,8 @@ fn create_pseudo_element(
     }
 
     let initial_quote_nesting_level = state.quote_nesting_level;
-    // SAFETY: The builder remains live, the identity names a live element, and the box the host just
-    // built is a live NodeWithStyle.
-    unsafe { (callbacks.configure_layout_node)(callbacks.builder, element, pseudo_element, layout_node) };
+    host.arena()
+        .stamp_pseudo_element_box(layout_node, element_identity, generated_for_of(pseudo_element));
     let layout_node_kind = layout_host.data(layout_node).kind.get();
     let is_outside_marker = layout_node_kind == NodeKind::ListItemMarkerBox && !facts.marker_position_is_inside;
     if let Some(insertion_mode) = insertion_mode
@@ -3204,35 +3264,22 @@ pub(crate) fn adjusted_table_display_for_replaced_element(
 }
 
 #[derive(Clone, Copy)]
-#[repr(C)]
-pub struct FfiFirstLetterTarget {
-    pub text_node: *mut c_void,
+pub struct FirstLetterTarget {
     pub text_layout_node: NodeSlotId,
-    pub letter_start: usize,
     pub letter_end: usize,
     pub source_length: usize,
     pub found: bool,
 }
 
-impl FfiFirstLetterTarget {
+impl FirstLetterTarget {
     fn not_found() -> Self {
         Self {
-            text_node: std::ptr::null_mut(),
             text_layout_node: NodeSlotId::INVALID,
-            letter_start: 0,
             letter_end: 0,
             source_length: 0,
             found: false,
         }
     }
-}
-
-#[derive(Clone, Copy)]
-#[repr(C)]
-pub struct FfiFirstLetterNodes {
-    pub wrapper: NodeSlotId,
-    pub first_letter_slice: NodeSlotId,
-    pub remainder_slice: NodeSlotId,
 }
 
 #[derive(Clone, Copy)]
@@ -3473,12 +3520,6 @@ impl TreeBuilderHost<'_> {
         })
     }
 
-    fn shell(&self, node: LayoutNode) -> *mut c_void {
-        let shell = self.arena().node_shell(self.main_thread, node);
-        assert!(!shell.is_null());
-        shell
-    }
-
     fn set_children_are_inline(&self, node: LayoutNode, children_are_inline: bool) {
         self.arena()
             .set_node_flag(node, NodeFlag::ChildrenAreInline, children_are_inline);
@@ -3524,6 +3565,17 @@ impl TreeBuilderHost<'_> {
             _ => {}
         }
         assert!(!self.arena().node_shell(self.main_thread, slot).is_null());
+        slot
+    }
+
+    /// The row a piece of generated text is rendered from, which names no DOM node and carries no
+    /// style of its own.
+    fn stamp_generated_text_box(&self, text: &[u16]) -> NodeSlotId {
+        // SAFETY: Entry points guarantee that the arena remains live, and callers hold no reference
+        // derived from it across the allocation.
+        let arena = unsafe { &mut *self.arena };
+        let slot = arena.allocate_unbound();
+        arena.stamp_generated_text_row(slot, ak::Utf16String::from_utf16(text));
         slot
     }
 
@@ -4143,7 +4195,7 @@ pub(crate) fn find_first_letter_in_text(
     preserves_segment_breaks: bool,
     next_grapheme_boundary: impl Fn(usize) -> usize,
     code_point_facts: impl Fn(u32) -> FfiCodePointCategoryFacts,
-) -> FfiFirstLetterTarget {
+) -> FirstLetterTarget {
     // NB: Matches the first-letter text pattern: (P (Zs|P)*)? (L|N|S) ((Zs|P-(Ps|Pd))* (P-(Ps|Pd))?)?
 
     let code_units = text.len();
@@ -4155,7 +4207,7 @@ pub(crate) fn find_first_letter_in_text(
         // When white-space preserves segment breaks, a newline before any letter puts the letter on a later line, so
         // the first formatted line is empty and ::first-letter must not match.
         if preserves_segment_breaks && (starting_code_point == b'\n' as u32 || starting_code_point == b'\r' as u32) {
-            return FfiFirstLetterTarget::not_found();
+            return FirstLetterTarget::not_found();
         }
 
         let starting_facts = code_point_facts(starting_code_point);
@@ -4185,10 +4237,8 @@ pub(crate) fn find_first_letter_in_text(
         // The letter (L|N|S) must follow the preceding group. If the preceding punctuation consumed the entire text
         // node, accept it as the first-letter.
         if cursor >= code_units {
-            return FfiFirstLetterTarget {
-                text_node: std::ptr::null_mut(),
+            return FirstLetterTarget {
                 text_layout_node: NodeSlotId::INVALID,
-                letter_start: match_start,
                 letter_end: cursor,
                 source_length: code_units,
                 found: true,
@@ -4223,19 +4273,17 @@ pub(crate) fn find_first_letter_in_text(
             letter_end = next_grapheme_boundary(letter_end);
         }
 
-        return FfiFirstLetterTarget {
-            text_node: std::ptr::null_mut(),
+        return FirstLetterTarget {
             text_layout_node: NodeSlotId::INVALID,
-            letter_start: match_start,
             letter_end,
             source_length: code_units,
             found: true,
         };
     }
-    FfiFirstLetterTarget::not_found()
+    FirstLetterTarget::not_found()
 }
 
-fn find_first_letter_in_layout_text(host: &TreeBuilderHost<'_>, node: LayoutNode) -> FfiFirstLetterTarget {
+fn find_first_letter_in_layout_text(host: &TreeBuilderHost<'_>, node: LayoutNode) -> FirstLetterTarget {
     // First-letter matching determines source ranges before text transforms are applied, so it reads
     // the published characters rather than the rendered ones.
     let source = host.arena().published_text_source(node, false);
@@ -4258,36 +4306,94 @@ fn find_first_letter_in_layout_text(host: &TreeBuilderHost<'_>, node: LayoutNode
         },
     );
     if target.found {
-        target.text_node = host.shell(node);
         target.text_layout_node = node;
     }
     target
 }
 
-fn create_first_letter_boxes(host: &DomTreeBuilderHost<'_>, element: StyleNodeID, target: FfiFirstLetterTarget) {
+fn create_first_letter_boxes(host: &DomTreeBuilderHost<'_>, element: StyleNodeID, target: FirstLetterTarget) {
     let layout_host = host.layout();
-    // SAFETY: `element` names a live Element and `target` identifies a live descendant text node.
-    let nodes = unsafe { (host.callbacks.create_first_letter_nodes)(host.callbacks.builder, element.raw(), target) };
-    let first_letter_slice = layout_host.created(nodes.first_letter_slice);
-    let remainder_slice = layout_host.created(nodes.remainder_slice);
-    if nodes.wrapper.is_invalid() {
+    let text_node = target.text_layout_node;
+    let slices_a_dom_text_node = layout_host.data(text_node).kind.get() == NodeKind::TextNode;
+
+    // The first-letter and remainder boxes render slices of the same DOM text node. Generated text
+    // has no DOM node, and gets plain generated slices of its characters instead.
+    let (first_letter_slice, remainder_slice) = if slices_a_dom_text_node {
+        // The remainder takes the text node's rows over, and the first letter's slice renders the
+        // same node without becoming the row the node is bound to.
+        let text = layout_host.arena().node_style_node(text_node);
+        let remainder_slice = layout_host.stamp_dom_box(NodeKind::TextNode, text);
+        // SAFETY: Entry points guarantee that the arena remains live, and callers hold no reference
+        // derived from it across the allocation.
+        let first_letter_slice = unsafe { &mut *layout_host.arena }.allocate_unbound();
+        layout_host
+            .arena()
+            .stamp_dom_row(first_letter_slice, NodeKind::TextNode, text);
+        layout_host
+            .arena()
+            .note_rows_share_dom_node(remainder_slice, first_letter_slice);
+        (first_letter_slice, remainder_slice)
+    } else {
+        let source = layout_host.arena().published_text_source(text_node, false).data;
+        let source = source.to_utf16();
+        let letter_end = target.letter_end.min(source.len());
+        (
+            layout_host.stamp_generated_text_box(&source[..letter_end]),
+            layout_host.stamp_generated_text_box(&source[letter_end..]),
+        )
+    };
+    for slice in [first_letter_slice, remainder_slice] {
+        assert!(!layout_host.arena().node_shell(layout_host.main_thread, slice).is_null());
+    }
+    let first_letter_slice_slot = first_letter_slice;
+    let remainder_slice_slot = remainder_slice;
+    let first_letter_slice = layout_host.created(first_letter_slice);
+    let remainder_slice = layout_host.created(remainder_slice);
+
+    let wrapper_kind = layout_host
+        .arena()
+        .with_style_store(|engine| {
+            engine
+                .pseudo_published_style_view(element, GENERATED_FOR_FIRST_LETTER - 1)
+                .map(|view| view.display())
+        })
+        .and_then(node_kind_for_display);
+    let Some(wrapper_kind) = wrapper_kind else {
+        // A `::first-letter` whose display generates no box leaves the text it matched alone.
         layout_host.free_unplaced(first_letter_slice);
         layout_host.free_unplaced(remainder_slice);
         return;
-    }
-    if layout_host.data(nodes.remainder_slice).kind.get() == NodeKind::TextNode {
-        // SAFETY: The host callback has returned and no arena borrow survives it.
+    };
+    if slices_a_dom_text_node {
+        // SAFETY: No arena borrow survives into the call.
         // Initialize the source ranges before attaching or rendering either slice.
         unsafe { &mut *layout_host.arena }.set_first_letter_slices(
-            nodes.first_letter_slice,
-            nodes.remainder_slice,
+            first_letter_slice_slot,
+            remainder_slice_slot,
             target.letter_end,
             target.source_length,
         );
     }
-    let wrapper = layout_host.created(nodes.wrapper);
-    let wrapper_slot = wrapper.slot();
-    let text_node = target.text_layout_node;
+
+    // SAFETY: Entry points guarantee that the arena remains live, and callers hold no reference
+    // derived from it across the allocation.
+    let wrapper_slot = unsafe { &mut *layout_host.arena }.allocate_unbound();
+    layout_host
+        .arena()
+        .stamp_pseudo_element_row(wrapper_slot, wrapper_kind, element, GENERATED_FOR_FIRST_LETTER);
+    assert!(
+        !layout_host
+            .arena()
+            .node_shell(layout_host.main_thread, wrapper_slot)
+            .is_null()
+    );
+    // SAFETY: The builder remains live, and the row the build stamped is a live NodeWithStyle.
+    unsafe { (host.callbacks.attach_style_resources)(host.callbacks.builder, wrapper_slot, false) };
+    host.arena()
+        .clear_pseudo_element_box(element, GENERATED_FOR_FIRST_LETTER);
+    host.arena()
+        .stamp_pseudo_element_box(wrapper_slot, element, GENERATED_FOR_FIRST_LETTER);
+    let wrapper = layout_host.created(wrapper_slot);
     let parent = layout_host.parent(text_node);
     assert!(!parent.is_invalid());
     layout_host.set_children_are_inline(wrapper_slot, true);
@@ -4303,12 +4409,12 @@ fn is_marker_content(data: &NodeData) -> bool {
 }
 
 // https://drafts.csswg.org/css-pseudo-4/#first-letter-application
-fn find_first_letter_in_block(host: &DomTreeBuilderHost<'_>, block: LayoutNode) -> FfiFirstLetterTarget {
+fn find_first_letter_in_block(host: &DomTreeBuilderHost<'_>, block: LayoutNode) -> FirstLetterTarget {
     let layout_host = host.layout();
     // NB: This walks a block container's inline descendants looking for the first-letter text. If the block has block
     //     children instead of inline, recurses into each in-flow block child in turn.
     if node_has_flag(layout_host.data(block), NodeFlag::ChildrenAreInline) {
-        let mut result = FfiFirstLetterTarget::not_found();
+        let mut result = FirstLetterTarget::not_found();
         let mut is_root = true;
         layout_host.for_each_in_inclusive_subtree(block, |node| {
             if is_root {
@@ -4362,7 +4468,7 @@ fn find_first_letter_in_block(host: &DomTreeBuilderHost<'_>, block: LayoutNode) 
         }
         child = layout_host.next_sibling(child);
     }
-    FfiFirstLetterTarget::not_found()
+    FirstLetterTarget::not_found()
 }
 
 fn wrap_button_contents_if_needed(host: &TreeBuilderHost<'_>, layout_node: LayoutNode) {
@@ -5094,10 +5200,10 @@ mod tests {
     use crate::css::style::bridge::element_adjustment_fact;
     use crate::layout::node_data::NodeSlotId;
     use crate::layout::tree_builder::{
-        FfiCodePointCategoryFacts, FfiComputedContentType, FfiElementLayoutKind, FfiPrincipalBoxPlacement,
-        FfiPseudoElement, FfiPseudoElementDecision, FfiPseudoElementFacts, FfiReplacedElementDisplayAdjustment,
-        LayoutNodeReuse, PrincipalBoxGenerationDecision, PrincipalBoxPlacementFacts, PrincipalNodeEntryFacts,
-        PrincipalNodeKind, SvgEntryDecision, TopLayerEntryDecision, TreeBuilderContext,
+        ComputedContentType, FfiCodePointCategoryFacts, FfiElementLayoutKind, FfiPrincipalBoxPlacement,
+        FfiPseudoElement, FfiPseudoElementDecision, FfiReplacedElementDisplayAdjustment, LayoutNodeReuse,
+        PrincipalBoxGenerationDecision, PrincipalBoxPlacementFacts, PrincipalNodeEntryFacts, PrincipalNodeKind,
+        PseudoElementFacts, SvgEntryDecision, TopLayerEntryDecision, TreeBuilderContext,
         adjusted_table_display_for_replaced_element, display_contents_text_needs_style_wrapper, element_layout_kind,
         find_first_letter_in_text, principal_box_generation_decision, principal_box_placement_decision,
         principal_node_entry_decision, pseudo_element_decision,
@@ -5169,7 +5275,7 @@ mod tests {
     fn first_letter_target(
         text: &str,
         preserves_segment_breaks: bool,
-    ) -> crate::layout::tree_builder::FfiFirstLetterTarget {
+    ) -> crate::layout::tree_builder::FirstLetterTarget {
         let text = text.encode_utf16().collect::<Vec<_>>();
         find_first_letter_in_text(&text, preserves_segment_breaks, |index| index + 1, code_point_facts)
     }
@@ -5202,19 +5308,19 @@ mod tests {
     fn first_letter_text_pattern() {
         let target = first_letter_target("  Hello", false);
         assert!(target.found);
-        assert_eq!((target.letter_start, target.letter_end), (2, 3));
+        assert_eq!(target.letter_end, 3);
 
         let target = first_letter_target("\") A", false);
         assert!(target.found);
-        assert_eq!((target.letter_start, target.letter_end), (0, 4));
+        assert_eq!(target.letter_end, 4);
 
         let target = first_letter_target("H!ello", false);
         assert!(target.found);
-        assert_eq!((target.letter_start, target.letter_end), (0, 2));
+        assert_eq!(target.letter_end, 2);
 
         let target = first_letter_target("H-ello", false);
         assert!(target.found);
-        assert_eq!((target.letter_start, target.letter_end), (0, 1));
+        assert_eq!(target.letter_end, 1);
 
         assert!(!first_letter_target("\nHello", true).found);
     }
@@ -5233,10 +5339,7 @@ mod tests {
             },
         );
         assert!(target.found);
-        assert_eq!(
-            (target.letter_start, target.letter_end, target.source_length),
-            (2, 4, 7)
-        );
+        assert_eq!((target.letter_end, target.source_length), (4, 7));
 
         let text: Vec<u16> = "I\u{0307}abc".encode_utf16().collect();
         let target = find_first_letter_in_text(
@@ -5246,7 +5349,7 @@ mod tests {
             code_point_facts,
         );
         assert!(target.found);
-        assert_eq!((target.letter_start, target.letter_end), (0, 2));
+        assert_eq!(target.letter_end, 2);
     }
 
     #[test]
@@ -5275,7 +5378,7 @@ mod tests {
                       has_content_replacement,
                       originating_layout_node_is_list_item: bool,
                       normal_marker_has_content| {
-            pseudo_element_decision(FfiPseudoElementFacts {
+            pseudo_element_decision(PseudoElementFacts {
                 has_style: true,
                 pseudo_element,
                 content_type,
@@ -5297,7 +5400,7 @@ mod tests {
         assert_eq!(
             decide(
                 FfiPseudoElement::Before,
-                FfiComputedContentType::Normal,
+                ComputedContentType::Normal,
                 false,
                 false,
                 false,
@@ -5310,7 +5413,7 @@ mod tests {
         assert_eq!(
             decide(
                 FfiPseudoElement::Marker,
-                FfiComputedContentType::Normal,
+                ComputedContentType::Normal,
                 false,
                 false,
                 false,
@@ -5323,7 +5426,7 @@ mod tests {
         assert_eq!(
             decide(
                 FfiPseudoElement::Other,
-                FfiComputedContentType::List,
+                ComputedContentType::List,
                 false,
                 false,
                 false,
@@ -5336,7 +5439,7 @@ mod tests {
         assert_eq!(
             decide(
                 FfiPseudoElement::Other,
-                FfiComputedContentType::List,
+                ComputedContentType::List,
                 false,
                 true,
                 false,
@@ -5349,7 +5452,7 @@ mod tests {
         assert_eq!(
             decide(
                 FfiPseudoElement::Other,
-                FfiComputedContentType::List,
+                ComputedContentType::List,
                 false,
                 false,
                 true,

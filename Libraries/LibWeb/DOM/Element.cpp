@@ -3677,19 +3677,6 @@ void Element::children_changed(ChildrenChangedMetadata const& metadata)
     }
 }
 
-void Element::set_synthetic_pseudo_element_node(Badge<Layout::LayoutTreeBuilderAccess>, CSS::PseudoElement pseudo_element, Layout::NodeWithStyle* pseudo_element_node)
-{
-    auto existing_pseudo_element = get_synthetic_pseudo_element(pseudo_element);
-    if (!existing_pseudo_element.has_value() && !pseudo_element_node)
-        return;
-
-    if (!CSS::Selector::PseudoElementSelector::is_known_pseudo_element_type(pseudo_element)) {
-        return;
-    }
-
-    ensure_synthetic_pseudo_element(pseudo_element).set_layout_node(move(pseudo_element_node));
-}
-
 void Element::set_style_node_id(CSS::StyleNodeID style_node_id)
 {
     if (m_style_node_id == style_node_id)

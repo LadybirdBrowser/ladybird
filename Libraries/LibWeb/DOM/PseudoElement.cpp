@@ -45,24 +45,6 @@ Layout::NodeWithStyle* SyntheticPseudoElement::unsafe_layout_node() const
     return m_originating_element->pseudo_element_unsafe_layout_node(m_type);
 }
 
-void SyntheticPseudoElement::set_layout_node(Layout::NodeWithStyle* value)
-{
-    auto* bound_row = unsafe_layout_node();
-    if (bound_row && bound_row != value) {
-        bound_row->pin_style_record_for_detachment();
-        Layout::RustFFI::layout_arena_set_node_flag(bound_row->arena_handle(), Layout::Node::slot_id(bound_row), Layout::RustFFI::NodeFlag::IsPseudoElementPrincipalBox, false);
-        Layout::RustFFI::layout_arena_unbind_row(bound_row->arena_handle(), Layout::Node::slot_id(bound_row));
-    }
-    // The box becomes the pseudo-element's box here, which is when it starts holding its scroll offset.
-    if (value) {
-        Layout::RustFFI::layout_arena_set_node_flag(value->arena_handle(), Layout::Node::slot_id(value), Layout::RustFFI::NodeFlag::IsPseudoElementPrincipalBox, true);
-        Layout::RustFFI::layout_arena_bind_row(value->arena_handle(), Layout::Node::slot_id(value));
-        // The box binds under the generator and type it was generated for, which must be this pseudo-element's.
-        VERIFY(unsafe_layout_node() == value);
-        value->update_has_scroll_offset_flag();
-    }
-}
-
 Node& SyntheticPseudoElement::root() const
 {
     VERIFY(m_originating_element);

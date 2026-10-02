@@ -14,11 +14,4 @@ namespace Web::Layout {
 RustFFI::FfiLayoutTreeBuildOutcome build_layout_tree(DOM::Node&);
 void detach_top_layer_element_layout_subtree(DOM::Element&);
 
-class LayoutTreeBuilderAccess {
-    friend class LayoutTreeBuildBridge;
-
-private:
-    static void set_synthetic_pseudo_element_node(DOM::Element&, CSS::PseudoElement, Layout::NodeWithStyle*);
-};
-
 }

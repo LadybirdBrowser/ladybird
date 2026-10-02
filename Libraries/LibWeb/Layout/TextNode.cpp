@@ -31,6 +31,9 @@ TextNode::TextNode(DOM::Document& document, BindToPreparedArenaSlot bind, Compos
     : Node(document, bind, slot, kind)
 {
     invalidate_text_for_rendering();
+    // A generated text row stands for no DOM text node, and paints its selection the way its parent does.
+    if (!dom_node())
+        return;
     update_produces_line_box_fragment_when_empty_flag();
     Painting::push_selection_pseudo_style_of_parent(*this);
 }
@@ -71,6 +74,13 @@ GeneratedTextNode::GeneratedTextNode(DOM::Document& document, Utf16String text)
 {
     // No DOM text node holds these characters for the style mirror to publish, so the row keeps them itself.
     RustFFI::layout_arena_set_generated_text(arena_handle(), slot_id(this), m_text.to_raw_leaked());
+}
+
+// The build stamped the row with its characters, which this layout node shares.
+GeneratedTextNode::GeneratedTextNode(DOM::Document& document, BindToPreparedArenaSlot bind, Compositing::RustFFI::NodeSlotId slot, RustFFI::NodeKind kind)
+    : TextNode(document, bind, slot, kind)
+    , m_text(Utf16String::adopt_raw(RustFFI::layout_arena_generated_text(arena_handle(), slot)))
+{
 }
 
 GeneratedTextNode::~GeneratedTextNode() = default;

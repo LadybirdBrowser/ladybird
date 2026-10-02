@@ -691,8 +691,10 @@ Layout::NodeArena& Document::layout_node_arena()
             case Layout::RustFFI::NodeKind::Viewport:
                 Layout::allocate_layout_node<Layout::Viewport>(document, Layout::BindToPreparedArenaSlot::Yes, slot, kind);
                 return;
-            case Layout::RustFFI::NodeKind::Unset:
             case Layout::RustFFI::NodeKind::GeneratedTextNode:
+                Layout::allocate_layout_node<Layout::GeneratedTextNode>(document, Layout::BindToPreparedArenaSlot::Yes, slot, kind);
+                return;
+            case Layout::RustFFI::NodeKind::Unset:
             case Layout::RustFFI::NodeKind::Node:
             case Layout::RustFFI::NodeKind::NodeWithStyle:
                 VERIFY_NOT_REACHED();
