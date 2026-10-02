@@ -1495,7 +1495,7 @@ static void record_element_reference_pseudo_element_inputs(Element& element)
 
 static void record_engine_container_query_effects(Element&);
 
-CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styles(bool& did_change_custom_properties, bool had_list_marker, CSS::ComputedValues const* old_originating_style, EnginePseudoElementRecords const* engine_pseudo_element_records, EngineRecordDamages const* engine_record_damages)
+CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styles(bool&, bool had_list_marker, CSS::ComputedValues const* old_originating_style, EnginePseudoElementRecords const* engine_pseudo_element_records, EngineRecordDamages const* engine_record_damages)
 {
     CSS::RequiredInvalidationAfterStyleChange invalidation;
 
@@ -1504,24 +1504,20 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styl
 
     auto& style_computer = document().style_computer();
     auto originating_style = computed_style();
-    CSS::StyleEngineMatchResult matches;
     // A reused originating record keeps the pseudo-element inventory it was computed with; the
     // style engine's answer says which pseudo-elements have rules now.
     auto const engine_pseudo_element_styles = style_node_id() != 0 ? style_computer.style_engine().published_pseudo_style_mask(style_node_id()) : 0;
-    auto matches_have_pseudo_element = [&](CSS::PseudoElement pseudo_element) {
-        return CSS::is_synthetic_pseudo_element(pseudo_element) && ((engine_pseudo_element_styles >> to_underlying(pseudo_element)) & 1);
-    };
-    // The engine settles the synthetic pseudo-elements of an element C++ computed against the
-    // record C++ just installed, as it settles them beside a record of its own: C++ then installs
-    // the engine's records, and computes only the kinds the engine never settles.
+    // The engine settles the synthetic pseudo-elements of an element against the record the host
+    // just installed or composed, as it settles them beside a record of its own, and the host
+    // installs the engine's records.
     EnginePseudoElementRecords records_settled_after_host_record {};
     bool const settled_after_host_record = [&] {
         if (engine_pseudo_element_records || style_node_id() == 0 || !originating_style)
             return false;
-        // Most elements have no style for any of the kinds the engine settles, and C++ computes
-        // none for them either. A marker is refreshed for a list item only.
+        // Most elements have no style for any of the kinds the engine settles. A marker is
+        // refreshed for a list item only.
         auto may_have_style = [&](CSS::PseudoElement pseudo_element) {
-            return matches_have_pseudo_element(pseudo_element)
+            return ((engine_pseudo_element_styles >> to_underlying(pseudo_element)) & 1)
                 || !!style_record_identity(pseudo_element)
                 || (old_originating_style && old_originating_style->has_pseudo_element_style(pseudo_element))
                 || originating_style->has_pseudo_element_style(pseudo_element);
@@ -1538,8 +1534,9 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styl
         auto settled = style_computer.style_engine().settle_pseudo_records_after_host_record(style_node_id(), had_list_marker);
         // What the settled pseudo-elements' container-relative lengths read of the element's containers.
         record_engine_container_query_effects(*this);
-        // The engine leaves the pseudo-elements to C++ where it cannot compute one of them.
-        if (settled.computed_by_host)
+        // The engine leaves the pseudo-elements alone where it cannot compute one of them: they
+        // keep the records they hold.
+        if (settled.refused)
             return false;
         for (size_t kind = 0; kind < array_size(settled.pseudo_records); ++kind) {
             if (!((settled.pseudo_records_present >> kind) & 1))
@@ -1572,10 +1569,10 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styl
         engine_pseudo_element_records = &records_settled_after_host_record;
 
     // Any document change that can cause this element's style to change, could also affect its pseudo-elements.
-    auto recompute_pseudo_element_style = [&](CSS::PseudoElement pseudo_element, bool has_implicit_style = false) {
-        // A synthetic pseudo-element the style engine settled beside the element's record takes the engine's
-        // answer; one the engine left alone is unchanged. Whether ::selection styles are observable at all
-        // stays the host's decision.
+    auto recompute_pseudo_element_style = [&](CSS::PseudoElement pseudo_element) {
+        // A pseudo-element the style engine settled beside the element's record takes the engine's answer. One the
+        // engine left alone is unchanged, as is every pseudo-element when the engine settled none of them. Whether
+        // ::selection styles are observable at all stays the host's decision.
         // An unobservable ::selection holds no record, whatever the engine left standing, and neither does the
         // ::backdrop of an element outside the top layer.
         auto old_style_record = style_record_identity(pseudo_element);
@@ -1587,22 +1584,10 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styl
             }
             return;
         }
-        Optional<CSS::StyleRecordID> engine_record;
-        if (engine_pseudo_element_records && CSS::is_synthetic_pseudo_element(pseudo_element)) {
-            engine_record = engine_pseudo_element_records->at(to_underlying(pseudo_element));
-            if (!engine_record.has_value())
-                return;
-        }
-        auto inherits_highlight_style = AbstractElement { *this, pseudo_element }.highlight_inheritance_parent().has_value();
-        // Most elements have no style for most pseudo-elements. Decide that from the record
-        // identities before materializing any record view.
-        if (!engine_record.has_value()
-            && !has_implicit_style
-            && !inherits_highlight_style
-            && !old_style_record
-            && !(old_originating_style && old_originating_style->has_pseudo_element_style(pseudo_element))
-            && !(originating_style && originating_style->has_pseudo_element_style(pseudo_element))
-            && !matches_have_pseudo_element(pseudo_element))
+        if (!engine_pseudo_element_records)
+            return;
+        auto engine_record = engine_pseudo_element_records->at(to_underlying(pseudo_element));
+        if (!engine_record.has_value())
             return;
         auto pseudo_element_style = computed_style(pseudo_element);
         auto const* pseudo_element_values = pseudo_element_style ? &*pseudo_element_style : nullptr;
@@ -1618,28 +1603,11 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styl
             if (had_layout_node)
                 style_to_preserve_for_detachment = CSS::ComputedValues::Builder { *pseudo_element_values }.build();
         }
-        auto should_recompute = engine_record.has_value()
-            || has_implicit_style
-            || inherits_highlight_style
-            || pseudo_element_values
-            || (old_originating_style && old_originating_style->has_pseudo_element_style(pseudo_element))
-            || (originating_style && originating_style->has_pseudo_element_style(pseudo_element))
-            || matches_have_pseudo_element(pseudo_element);
-        if (!should_recompute)
-            return;
 
         CSS::StyleEngine::StyleRecordDelta style_record_delta {};
-        RefPtr<CSS::ComputedValues const> computed_pseudo_element_style;
-        if (engine_record.has_value())
-            style_record_delta.new_style_record = *engine_record;
-        else
-            computed_pseudo_element_style = style_computer.compute_pseudo_element_style_if_needed({ *this, pseudo_element }, did_change_custom_properties, &matches, style_record_delta);
-        auto engine_pseudo_element_style = engine_record.has_value() && !!*engine_record
-            ? style_computer.computed_style_record_view(*engine_record)
-            : CSS::ComputedStyleRecordView {};
-        CSS::ComputedValues const* new_pseudo_element_style = computed_pseudo_element_style ? computed_pseudo_element_style.ptr()
-            : engine_pseudo_element_style                                                   ? &*engine_pseudo_element_style
-                                                                                            : nullptr;
+        style_record_delta.new_style_record = *engine_record;
+        auto engine_pseudo_element_style = !!*engine_record ? style_computer.computed_style_record_view(*engine_record) : CSS::ComputedStyleRecordView {};
+        CSS::ComputedValues const* new_pseudo_element_style = engine_pseudo_element_style ? &*engine_pseudo_element_style : nullptr;
         style_record_delta.old_style_record = old_style_record;
         if (style_record_is_unchanged(style_record_delta))
             ++document().style_invalidation_counters().unchanged_style_record_deltas;
@@ -1670,7 +1638,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styl
         // The engine answered its record with what the move from the pseudo-element record it names
         // damages, decided against the originating record it names.
         Optional<u32> answered_damage;
-        if (engine_record_damages && engine_record.has_value()) {
+        if (engine_record_damages) {
             if (auto const& answer = engine_record_damages->pseudo_elements[to_underlying(pseudo_element)];
                 answer.has_value()
                 && answer->move.answers(style_record_delta.old_style_record, style_record_delta.new_style_record)
@@ -1697,10 +1665,8 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styl
             // away from.
             CSS::StyleRecordPin const before_change { style_computer, old_style_record };
             set_computed_style(pseudo_element, style_record_delta.new_style_record);
-            if (engine_record.has_value()) {
-                install_engine_pseudo_element_custom_property_data(pseudo_element, style_computer.style_engine().style_record_custom_property_environment(*engine_record));
-                style_computer.compose_installed_engine_record({ *this, pseudo_element }, before_change.style_record());
-            }
+            install_engine_pseudo_element_custom_property_data(pseudo_element, style_computer.style_engine().style_record_custom_property_environment(*engine_record));
+            style_computer.compose_installed_engine_record({ *this, pseudo_element }, before_change.style_record());
             if (!!before_change.style_record())
                 invalidation |= style_computer.run_transition_step_for_installed_record({ *this, pseudo_element }, before_change.style_record());
         } else if (auto existing_pseudo_element = get_synthetic_pseudo_element(pseudo_element); existing_pseudo_element.has_value())
@@ -1720,9 +1686,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styl
     // An element that left the top layer drops the ::backdrop it held.
     if (m_rendered_in_top_layer || !!style_record_identity(CSS::PseudoElement::Backdrop))
         recompute_pseudo_element_style(CSS::PseudoElement::Backdrop);
-    if (had_list_marker || originating_style->display().is_list_item()
-        || (engine_pseudo_element_records && engine_pseudo_element_records->at(to_underlying(CSS::PseudoElement::Marker)).has_value()))
-        recompute_pseudo_element_style(CSS::PseudoElement::Marker, true);
+    recompute_pseudo_element_style(CSS::PseudoElement::Marker);
     if (settled_after_host_record)
         style_computer.style_engine().acknowledge_engine_computed_record(style_node_id());
 

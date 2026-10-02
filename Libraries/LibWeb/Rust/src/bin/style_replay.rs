@@ -801,8 +801,8 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                     let node = event.payload.read_u32()?;
                     let old_is_list_item = event.payload.read_bool()?;
                     // Before version 19 the answer carried the element's record, zero where the
-                    // engine left the pseudo-elements to C++.
-                    let expected_computed_by_host = if format_version >= 19 {
+                    // engine refused the pseudo-elements.
+                    let expected_refused = if format_version >= 19 {
                         event.payload.read_bool()?
                     } else {
                         event.payload.read_u64()? == 0
@@ -811,11 +811,9 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                     let actual = unsafe {
                         bridge::style_engine_settle_pseudo_records_after_host_record(engine, node, old_is_list_item)
                     };
-                    if actual.computed_by_host != expected_computed_by_host
-                        || actual.pseudo_records_present != expected_present
-                    {
+                    if actual.refused != expected_refused || actual.pseudo_records_present != expected_present {
                         return Err(format!(
-                            "pseudo records settled after a host record diverged for node {node}: expected computed by the host {expected_computed_by_host} (present {expected_present:#x}), got {actual:?}"
+                            "pseudo records settled after a host record diverged for node {node}: expected refused {expected_refused} (present {expected_present:#x}), got {actual:?}"
                         )
                         .into());
                     }

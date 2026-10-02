@@ -199,9 +199,9 @@ pub struct FfiEngineComputedRecord {
 #[repr(C)]
 pub struct FfiSettledPseudoRecords {
     /// The engine settled none: one of the pseudo-elements reads a value it cannot compute, or one
-    /// of their rules a container condition it cannot decide. C++ computes them all, and nothing
-    /// else here is set.
-    pub computed_by_host: bool,
+    /// of their rules a container condition it cannot decide. They keep the records they hold, and
+    /// nothing else here is set.
+    pub refused: bool,
     /// Whether a settled pseudo-element substituted custom properties.
     pub uses_substitution: bool,
     /// As [`FfiStyleDelta::record_reads`].
@@ -3767,7 +3767,7 @@ pub unsafe extern "C" fn style_engine_declared_only_record(
     })
 }
 
-/// Settle the synthetic pseudo-element records of an element whose record C++ has just installed.
+/// Settle the synthetic pseudo-element records of an element whose record the host just installed.
 ///
 /// # Safety
 /// `engine` must be live.
@@ -3783,13 +3783,13 @@ pub unsafe extern "C" fn style_engine_settle_pseudo_records_after_host_record(
             return FfiSettledPseudoRecords::default();
         };
         let mut result = engine.settle_pseudo_records_after_host_record(style_node, old_is_list_item);
-        if !result.computed_by_host {
+        if !result.refused {
             result.record_reads = engine.node_record_reads(style_node);
         }
         engine.record_boundary_call(EventKind::SettlePseudoRecordsAfterHostRecord, |payload| {
             payload.write_u32(node);
             payload.write_bool(old_is_list_item);
-            payload.write_bool(result.computed_by_host);
+            payload.write_bool(result.refused);
             payload.write_u8(result.pseudo_records_present);
         });
         result
