@@ -228,6 +228,10 @@ impl ArenaHandle {
     pub(crate) fn arena(&self) -> &LayoutNodeArena {
         &self.arena
     }
+
+    pub(crate) fn arena_mut(&mut self) -> &mut LayoutNodeArena {
+        &mut self.arena
+    }
 }
 
 #[cfg(test)]

@@ -72,6 +72,21 @@ impl RenderState {
     }
 }
 
+/// A write the host makes to a document's render state, as owned data the state applies in the order the host made
+/// it, before anything that reads what it changes.
+pub(crate) enum ArenaChange {
+    /// A write to the document's layout marks or layout facts.
+    Layout(crate::layout::layout_changes::LayoutChange),
+}
+
+impl ArenaChange {
+    fn apply(self, arena: &mut crate::layout::LayoutNodeArena) {
+        match self {
+            Self::Layout(change) => change.apply(arena),
+        }
+    }
+}
+
 /// A message the host sends a document's render state.
 pub(crate) enum RenderMessage {
     /// Makes the render state of a new document, whose arena names the document's host.
@@ -81,6 +96,8 @@ pub(crate) enum RenderMessage {
     },
     /// Drops the render state of a document the host has let go of.
     Destroy { document: DocumentId },
+    /// A write to a document's render state.
+    Change { document: DocumentId, change: ArenaChange },
     /// Panics answering, for a test that the host waiting for the answer crashes.
     PanicForTesting { reply: ReplyTo<()> },
 }
@@ -114,8 +131,26 @@ fn handle_message(_: &RenderingSide, message: RenderMessage) {
                 state.retire();
             }
         }
+        RenderMessage::Change { document, change } => {
+            // A document with no state is a bug of the sender's, whose change has nothing to change.
+            if let Some(arena) = state_arena(document) {
+                // SAFETY: The state's box keeps the arena where it is while the message is handled, and nothing else
+                // reaches it meanwhile.
+                change.apply(unsafe { &mut *arena }.arena_mut());
+            }
+        }
         RenderMessage::PanicForTesting { reply } => reply.answer(|| panic!("the render state panicked for a test")),
     }
+}
+
+/// The arena of `document`'s render state, which stays where it is until the state is destroyed. The map is not
+/// borrowed while a message reaches the arena, so a message handled meanwhile for another document finds its own.
+fn state_arena(document: DocumentId) -> Option<*mut ArenaHandle> {
+    STATES.with_borrow_mut(|states| {
+        let state = states.get_mut(&document);
+        debug_assert!(state.is_some(), "document {document:?} has no render state");
+        state.map(|state| std::ptr::from_mut::<ArenaHandle>(&mut state.arena))
+    })
 }
 
 /// Sends `message` to the render side, which handles it right here.

@@ -5114,19 +5114,6 @@ pub unsafe extern "C" fn layout_arena_node_generated_for(arena: *mut c_void, id:
     unsafe { LayoutNodeArena::from_handle(arena) }.node_generated_for(id)
 }
 
-/// # Safety
-///
-/// The arena must remain valid for the duration of the call, and `node` must name a live node
-/// in this arena.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_bump_fragment_cache_epoch_of_self_and_ancestors(
-    arena: *mut c_void,
-    node: NodeSlotId,
-) {
-    // SAFETY: The C++ caller keeps the arena alive for this synchronous call.
-    unsafe { LayoutNodeArena::from_handle(arena) }.bump_fragment_cache_epoch_of_self_and_ancestors(node);
-}
-
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_set_node_dom_paint_facts(arena: *mut c_void, id: NodeSlotId, facts: u8) -> bool {
     assert!(!arena.is_null(), "layout node arena handle is null");
@@ -5188,45 +5175,6 @@ pub unsafe extern "C" fn layout_arena_node_style_node(arena: *mut c_void, id: No
     unsafe { &*arena.cast::<LayoutNodeArena>() }
         .node_style_node(id)
         .map_or(0, StyleNodeID::raw)
-}
-
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_move_bound_rows_to_style_node(
-    arena: *mut c_void,
-    old_style_node: u32,
-    new_style_node: u32,
-) {
-    assert!(!arena.is_null(), "layout node arena handle is null");
-    let (Some(old_style_node), Some(new_style_node)) = (
-        StyleNodeID::from_raw(old_style_node),
-        StyleNodeID::from_raw(new_style_node),
-    ) else {
-        return;
-    };
-    // SAFETY: As above.
-    unsafe { &*arena.cast::<LayoutNodeArena>() }.move_bound_rows_to_style_node(old_style_node, new_style_node);
-}
-
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_move_bound_pseudo_element_rows_to_style_node(
-    arena: *mut c_void,
-    old_generator: u32,
-    generated_for: u8,
-    new_generator: u32,
-) {
-    assert!(!arena.is_null(), "layout node arena handle is null");
-    let (Some(old_generator), Some(new_generator)) = (
-        StyleNodeID::from_raw(old_generator),
-        StyleNodeID::from_raw(new_generator),
-    ) else {
-        return;
-    };
-    // SAFETY: As above.
-    unsafe { &*arena.cast::<LayoutNodeArena>() }.move_bound_pseudo_element_rows_to_style_node(
-        old_generator,
-        generated_for,
-        new_generator,
-    );
 }
 
 /// Publishes what the element has scrolled to, as the element stores it.
@@ -5335,16 +5283,6 @@ pub unsafe extern "C" fn layout_arena_set_anchor_name_elements(
         anchor_name,
         elements.iter().copied().filter_map(StyleNodeID::from_raw),
     );
-}
-
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_forget_style_node(arena: *mut c_void, style_node: u32) {
-    assert!(!arena.is_null(), "layout node arena handle is null");
-    let Some(style_node) = StyleNodeID::from_raw(style_node) else {
-        return;
-    };
-    // SAFETY: As above.
-    unsafe { &*arena.cast::<LayoutNodeArena>() }.forget_style_node(style_node);
 }
 
 #[unsafe(no_mangle)]
@@ -5617,13 +5555,6 @@ pub unsafe extern "C" fn layout_arena_needs_full_layout_tree_update(arena: *mut 
     assert!(!arena.is_null(), "layout node arena handle is null");
     // SAFETY: As above.
     unsafe { &*arena.cast::<LayoutNodeArena>() }.needs_full_layout_tree_update()
-}
-
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_set_needs_full_layout_tree_update(arena: *mut c_void, value: bool) {
-    assert!(!arena.is_null(), "layout node arena handle is null");
-    // SAFETY: As above.
-    unsafe { &*arena.cast::<LayoutNodeArena>() }.set_needs_full_layout_tree_update(value);
 }
 
 #[unsafe(no_mangle)]

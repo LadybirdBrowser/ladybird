@@ -6,7 +6,7 @@
 
 //! What the host keeps of a document's render state.
 
-use super::{DocumentId, RenderMessage, send};
+use super::{ArenaChange, DocumentId, RenderMessage, send};
 use crate::layout::HostTables;
 use crate::painting::recording_slot::RecordingSlot;
 use std::cell::{RefCell, RefMut};
@@ -43,6 +43,14 @@ impl DocumentHost {
 
     pub(crate) fn host_tables(&self) -> &HostTables {
         &self.host_tables
+    }
+
+    /// Queues `change` for the document's render state, which applies it before anything that reads what it changes.
+    pub(crate) fn queue_change(&self, change: ArenaChange) {
+        send(RenderMessage::Change {
+            document: self.document,
+            change,
+        });
     }
 
     /// What the document keeps of its recordings.

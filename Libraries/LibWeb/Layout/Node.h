@@ -58,6 +58,7 @@ public:
     u32 arena_slot_index() const { return m_slot.index; }
     void* arena_handle() const;
     NodeArena& node_arena() const { return *m_arena; }
+    RustFFI::DocumentHost* document_host() const;
 
     Compositing::RustFFI::NodeSlotId linked_slot(RustFFI::FfiNodeLink link) const { return RustFFI::layout_arena_node_link_slot(m_arena->handle(), m_slot, link); }
     bool has_parent() const { return linked_slot(RustFFI::FfiNodeLink::Parent).index != Compositing::RustFFI::INVALID_NODE_SLOT_INDEX; }
@@ -211,7 +212,7 @@ public:
     // or SVG boundary — those descendants' fragments live in ancestor run trees. The arena runs
     // the same walk for every structural change; this serves content changes that never
     // restructure the tree.
-    void bump_fragment_cache_epoch_of_self_and_ancestors();
+    void reset_cached_intrinsic_sizes_of_self_and_ancestors();
 
     // Set when a style change altered geometry-determining properties of this node itself, so
     // a partial relayout must re-resolve its own size and position instead of reusing them.

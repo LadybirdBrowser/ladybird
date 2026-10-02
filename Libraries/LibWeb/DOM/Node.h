@@ -88,7 +88,6 @@ enum class RootNodeComposed {
     X(HTMLVideoElementNaturalDimensionsChanged)       \
     X(HTMLVideoElementSetVideoTrack)                  \
     X(KeyframeEffect)                                 \
-    X(LanguageChangeUnderCasingTextTransform)         \
     X(LayoutTreeUpdate)                               \
     X(NavigableSetViewportSize)                       \
     X(SVGImageElementFetchTheDocument)                \

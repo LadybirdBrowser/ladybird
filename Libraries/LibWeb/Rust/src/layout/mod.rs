@@ -27,6 +27,7 @@ pub mod inline_content;
 pub(crate) mod inline_formatting_context;
 pub mod inline_level_iterator;
 mod intrinsic_sizing;
+pub(crate) mod layout_changes;
 mod layout_node_arena;
 mod layout_pass;
 pub(crate) mod line_box;

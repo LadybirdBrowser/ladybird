@@ -767,28 +767,6 @@ pub(crate) struct FfiPartialRelayoutHostFacts {
 
 /// # Safety
 ///
-/// The arena must remain valid for the duration of the call.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_record_partial_relayout_escape(arena: *mut c_void) {
-    // SAFETY: The C++ caller keeps the arena alive for this synchronous call.
-    unsafe { LayoutNodeArena::from_handle(arena) }.record_partial_relayout_escape();
-}
-
-/// # Safety
-///
-/// The arena must remain valid for the duration of the call, and `node` must name a live node
-/// in this arena.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_reset_cached_intrinsic_sizes_of_self_and_ancestors(
-    arena: *mut c_void,
-    node: NodeSlotId,
-) {
-    // SAFETY: The C++ caller keeps the arena alive for this synchronous call.
-    unsafe { LayoutNodeArena::from_handle(arena) }.reset_cached_intrinsic_sizes_of_self_and_ancestors(node);
-}
-
-/// # Safety
-///
 /// The arena must remain valid for the duration of the call, and `node` must name a live node
 /// in this arena.
 #[unsafe(no_mangle)]
@@ -800,44 +778,6 @@ pub unsafe extern "C" fn layout_arena_classify_layout_tree_update(
     // SAFETY: The C++ caller keeps the arena alive for this synchronous call.
     unsafe { LayoutNodeArena::from_handle(arena) }
         .classify_layout_tree_update(node, reason_is_structural_boundary_self_rebuild)
-}
-
-/// # Safety
-///
-/// The arena must remain valid for the duration of the call, and `parent` must name a live node
-/// in this arena.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_defer_child_list_insertion_layout_update(arena: *mut c_void, parent: NodeSlotId) {
-    // SAFETY: The C++ caller keeps the arena alive for this synchronous call.
-    unsafe { LayoutNodeArena::from_handle(arena) }.defer_child_list_insertion_layout_update(parent);
-}
-
-/// # Safety
-///
-/// The arena must remain valid for the duration of the call, and `parent` and `child` must name
-/// live nodes in this arena. The child's subtree must still be intact.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_note_contained_abspos_child_removal(
-    arena: *mut c_void,
-    parent: NodeSlotId,
-    child: NodeSlotId,
-) {
-    // SAFETY: The C++ caller keeps the arena alive for this synchronous call.
-    unsafe { LayoutNodeArena::from_handle(arena) }.note_contained_abspos_child_removal(parent, child);
-}
-
-/// # Safety
-///
-/// The arena must remain valid for the duration of the call, and `node` must name a live node
-/// in this arena.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_set_needs_layout_update(
-    arena: *mut c_void,
-    node: NodeSlotId,
-    propagate_through_ancestors: bool,
-) {
-    // SAFETY: The C++ caller keeps the arena alive for this synchronous call.
-    unsafe { LayoutNodeArena::from_handle(arena) }.set_needs_layout_update(node, propagate_through_ancestors);
 }
 
 #[cfg(test)]
