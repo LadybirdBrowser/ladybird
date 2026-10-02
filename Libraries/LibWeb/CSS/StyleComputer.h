@@ -155,7 +155,6 @@ public:
     // Publish a computed style built outside the ordinary cascade path, such as an inherited-group
     // swap, so StyleEngine's final node-to-style relation remains authoritative.
     [[nodiscard]] StyleEngine::StyleRecordDelta publish_computed_style_inputs(DOM::AbstractElement, ComputedValues const&) const;
-    [[nodiscard]] StyleEngine::StyleRecordDelta publish_animation_overlay(DOM::AbstractElement, ComputedValues const&) const;
     // Has the engine compose a sampled overlay over the record it was sampled on, compares it with that record, and
     // publishes it. `before_publication` sees the comparison first.
     struct SampledAnimationOverlayPublication {
@@ -222,9 +221,6 @@ public:
     static NonnullRefPtr<StyleValue const> compute_font_width(NonnullRefPtr<StyleValue const> const& absolutized_value);
 
     [[nodiscard]] NonnullRefPtr<ComputedValues const> build_computed_values(ComputedStyleWorkingSet&, DOM::AbstractElement, StyleScope const&, ComputedValues const* previous_base = nullptr, u32 groups_to_apply = ComputedValues::all_style_groups) const;
-    // The animation-frame variant: keep the previous style's base and rebuild only the groups the
-    // animated properties write, falling back to the full build when a touched group is unknown.
-    [[nodiscard]] NonnullRefPtr<ComputedValues const> build_animated_computed_values(ComputedStyleWorkingSet&, DOM::AbstractElement, StyleScope const&, ComputedValues const& previous_values) const;
     [[nodiscard]] NonnullRefPtr<ComputedStyleWorkingSet> reconstruct_computed_properties(ComputedValues const&) const;
     void apply_animated_properties_to_reconstruction(ComputedStyleWorkingSet&, ComputedValues const&) const;
     [[nodiscard]] NonnullRefPtr<ComputedStyleWorkingSet> reconstruct_computed_properties_for_animation(StyleRecordID) const;

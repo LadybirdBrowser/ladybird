@@ -6881,7 +6881,6 @@ pub enum FfiStyleFinalizationMode {
     AnimatedBoxType,
     TextAlign,
     All,
-    Overflow,
     RestorePostCompute,
     RestorePostComputeTextAlign,
 }
@@ -7411,7 +7410,7 @@ fn finalize_style(
     };
     let overflow = if matches!(
         input.mode,
-        FfiStyleFinalizationMode::All | FfiStyleFinalizationMode::Overflow | FfiStyleFinalizationMode::AnimatedBoxType
+        FfiStyleFinalizationMode::All | FfiStyleFinalizationMode::AnimatedBoxType
     ) {
         resolve_effective_overflow_keywords(input.overflow_x, input.overflow_y)
     } else {
