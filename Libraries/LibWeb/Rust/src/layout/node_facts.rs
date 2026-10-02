@@ -314,7 +314,7 @@ pub(crate) fn node_uses_anchor_positioning(data: &NodeData) -> bool {
         })
 }
 
-pub(crate) fn node_is_out_of_flow(data: &NodeData, style: Option<ComputedValuesView<'_>>) -> bool {
+pub(crate) fn node_is_out_of_flow(data: &impl NodeShape, style: Option<ComputedValuesView<'_>>) -> bool {
     let Some(style) = style else {
         return false;
     };
@@ -323,7 +323,7 @@ pub(crate) fn node_is_out_of_flow(data: &NodeData, style: Option<ComputedValuesV
 
 /// Painting treats flex and grid items with a z-index other than auto as if
 /// they were positioned, in addition to boxes whose position is not static.
-pub(crate) fn node_is_positioned(data: &NodeData, style: Option<ComputedValuesView<'_>>) -> bool {
+pub(crate) fn node_is_positioned(data: &impl NodeShape, style: Option<ComputedValuesView<'_>>) -> bool {
     let Some(style) = style else {
         return false;
     };
@@ -340,7 +340,7 @@ pub(crate) fn node_position(style: Option<ComputedValuesView<'_>>) -> u8 {
 }
 
 /// Flex items never float, whatever their computed float value says.
-pub(crate) fn node_is_floating(data: &NodeData, style: Option<ComputedValuesView<'_>>) -> bool {
+pub(crate) fn node_is_floating(data: &impl NodeShape, style: Option<ComputedValuesView<'_>>) -> bool {
     style.is_some_and(|style| style.is_floating()) && !has_flag(data, NodeFlag::IsFlexItem)
 }
 
@@ -352,8 +352,8 @@ pub(crate) fn node_display(style: Option<ComputedValuesView<'_>>) -> crate::css:
     style.map_or_else(crate::css::display::FfiDisplay::none, |style| style.display())
 }
 
-pub(crate) fn node_can_have_children(data: &NodeData) -> bool {
-    match data.kind.get() {
+pub(crate) fn node_can_have_children(data: &impl NodeShape) -> bool {
+    match data.kind() {
         NodeKind::BreakNode => false,
         NodeKind::AudioBox | NodeKind::VideoBox => has_flag(data, NodeFlag::ReplacedBoxCanHaveChildren),
         NodeKind::SVGSVGBox => true,
@@ -366,8 +366,11 @@ pub(crate) fn node_can_have_children(data: &NodeData) -> bool {
 /// in-flow containing blocks ask, so anything that walks past a box on behalf of an enclosing formatting context has
 /// to ask it too: the boxes inside such a box are laid out against it, not against the block container of the
 /// context the walk started in.
-pub(crate) fn node_forms_containing_block_for_children(data: &NodeData, style: Option<ComputedValuesView<'_>>) -> bool {
-    if kind_is_block_container(data.kind.get()) && !node_is_fragmented_inline(data, style) {
+pub(crate) fn node_forms_containing_block_for_children(
+    data: &impl NodeShape,
+    style: Option<ComputedValuesView<'_>>,
+) -> bool {
+    if kind_is_block_container(data.kind()) && !node_is_fragmented_inline(data, style) {
         return true;
     }
     if let Some(style) = style {
@@ -376,7 +379,7 @@ pub(crate) fn node_forms_containing_block_for_children(data: &NodeData, style: O
             return true;
         }
     }
-    kind_is_replaced_box(data.kind.get()) && node_can_have_children(data)
+    kind_is_replaced_box(data.kind()) && node_can_have_children(data)
 }
 
 /// https://drafts.csswg.org/css-display/#atomic-inline
@@ -385,9 +388,9 @@ pub(crate) fn node_forms_containing_block_for_children(data: &NodeData, style: O
 /// of the enclosing inline formatting context: a box that is its own children's containing block has to be laid out as
 /// one box instead. Elements whose box type does not follow from their display reach that case, since <legend> and
 /// <fieldset> get a block container box whatever their computed display says.
-pub(crate) fn node_is_atomic_inline(data: &NodeData, style: Option<ComputedValuesView<'_>>) -> bool {
+pub(crate) fn node_is_atomic_inline(data: &impl NodeShape, style: Option<ComputedValuesView<'_>>) -> bool {
     has_flag(data, NodeFlag::IsReplacedElement)
-        || data.kind.get() == NodeKind::ListItemMarkerBox
+        || data.kind() == NodeKind::ListItemMarkerBox
         || style.is_some_and(|style| {
             let display = style.display();
             display.is_inline_outside()
@@ -395,9 +398,9 @@ pub(crate) fn node_is_atomic_inline(data: &NodeData, style: Option<ComputedValue
         })
 }
 
-pub(crate) fn node_is_fragmented_inline(data: &NodeData, style: Option<ComputedValuesView<'_>>) -> bool {
-    data.kind.get() == NodeKind::InlineNode
-        || (data.kind.get() == NodeKind::ListItemBox
+pub(crate) fn node_is_fragmented_inline(data: &impl NodeShape, style: Option<ComputedValuesView<'_>>) -> bool {
+    data.kind() == NodeKind::InlineNode
+        || (data.kind() == NodeKind::ListItemBox
             && style.is_some_and(|style| {
                 let display = style.display();
                 display.is_inline_outside() && display.is_flow_inside()
@@ -528,8 +531,51 @@ pub(crate) fn containing_block_establishment_flag(is_fixed_position: bool) -> No
     }
 }
 
-pub(crate) fn has_flag(data: &NodeData, flag: NodeFlag) -> bool {
-    data.flags.get() & flag as u32 != 0
+/// The facts of a node the questions above answer from: the live [`NodeData`] or a published
+/// [`super::node_data::PaintNode`].
+pub(crate) trait NodeShape {
+    fn kind(&self) -> NodeKind;
+    fn flags(&self) -> u32;
+}
+
+impl NodeShape for NodeData {
+    #[inline]
+    fn kind(&self) -> NodeKind {
+        self.kind.get()
+    }
+
+    #[inline]
+    fn flags(&self) -> u32 {
+        self.flags.get()
+    }
+}
+
+impl NodeShape for (NodeKind, u32) {
+    #[inline]
+    fn kind(&self) -> NodeKind {
+        self.0
+    }
+
+    #[inline]
+    fn flags(&self) -> u32 {
+        self.1
+    }
+}
+
+impl NodeShape for super::node_data::PaintNode {
+    #[inline]
+    fn kind(&self) -> NodeKind {
+        self.kind
+    }
+
+    #[inline]
+    fn flags(&self) -> u32 {
+        self.flags
+    }
+}
+
+pub(crate) fn has_flag(data: &impl NodeShape, flag: NodeFlag) -> bool {
+    data.flags() & flag as u32 != 0
 }
 
 pub(crate) fn kind_is_text(kind: NodeKind) -> bool {

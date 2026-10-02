@@ -6,19 +6,22 @@
 
 //! What a document publishes for the display list recording to read.
 //!
-//! [`PublishedRows`] is one generation of a document's paintable rows and of the columns read
-//! beside them. It is immutable: every column in it is a [`ColumnSnapshot`] the document shares
+//! [`PublishedRows`] is one generation of a document's layout tree shape and paintable rows, and of
+//! the columns read beside them. It is immutable: every column in it is a [`ColumnSnapshot`] the document shares
 //! with it, so the document writes its live columns (copying a chunk a publication still shares)
 //! while it is read.
 
 use crate::cow_column::ColumnSnapshot;
 use crate::layout::fragment_tree::FragmentLink;
-use crate::layout::node_data::NodeSlotId;
+use crate::layout::node_data::{NodeSlotId, PaintNode};
+use crate::layout::tree_shape::PUBLISHED_ROWS_PER_CHUNK;
 use crate::painting::paintable_data::{CommittedSideData, PaintableData};
 use crate::painting::paintable_rows::{CommittedFragmentLinkSlot, PAINTABLE_SLOTS_PER_CHUNK};
 
-/// One published generation of a document's paintable rows and of the columns read beside them.
+/// One published generation of a document's layout tree shape and paintable rows, and of the
+/// columns read beside them.
 pub(crate) struct PublishedRows {
+    nodes: ColumnSnapshot<PaintNode, PUBLISHED_ROWS_PER_CHUNK>,
     rows: ColumnSnapshot<PaintableData, PAINTABLE_SLOTS_PER_CHUNK>,
     fragment_links: ColumnSnapshot<CommittedFragmentLinkSlot, PAINTABLE_SLOTS_PER_CHUNK>,
     side_data: ColumnSnapshot<CommittedSideData, PAINTABLE_SLOTS_PER_CHUNK>,
@@ -26,15 +29,27 @@ pub(crate) struct PublishedRows {
 
 impl PublishedRows {
     pub(crate) fn new(
+        nodes: ColumnSnapshot<PaintNode, PUBLISHED_ROWS_PER_CHUNK>,
         rows: ColumnSnapshot<PaintableData, PAINTABLE_SLOTS_PER_CHUNK>,
         fragment_links: ColumnSnapshot<CommittedFragmentLinkSlot, PAINTABLE_SLOTS_PER_CHUNK>,
         side_data: ColumnSnapshot<CommittedSideData, PAINTABLE_SLOTS_PER_CHUNK>,
     ) -> Self {
         Self {
+            nodes,
             rows,
             fragment_links,
             side_data,
         }
+    }
+
+    /// The node in slot `id`, if the slot holds it: a node freed or replaced since reads as gone.
+    pub(crate) fn node(&self, id: NodeSlotId) -> Option<&PaintNode> {
+        if id.is_invalid() {
+            return None;
+        }
+        self.nodes
+            .get(id.slot_index() as usize)
+            .filter(|node| node.generation != 0 && node.generation == id.generation())
     }
 
     pub(crate) fn paintable_data(&self, id: NodeSlotId) -> &PaintableData {
@@ -94,7 +109,8 @@ mod tests {
     use crate::css::css_pixels::CssPixels;
     use crate::layout::LayoutNodeArena;
     use crate::layout::fragment_tree;
-    use crate::painting::paint_read::{GeometryRead, PaintSource};
+    use crate::layout::node_data::{NodeFlag, NodeKind};
+    use crate::painting::paint_read::{GeometryRead, PaintRead, PaintSource};
     use crate::painting::record::recorder_state::AbsoluteRectMemo;
     use std::cell::RefCell;
 
@@ -155,9 +171,38 @@ mod tests {
             }
         }
 
+        let root = slots[1];
+        arena.write_shape(root).set_kind(NodeKind::BlockContainer);
+        for &child in &slots[2..6] {
+            arena.write_shape(child).set_kind(NodeKind::InlineNode);
+            arena.insert_child(root, child, NodeSlotId::INVALID);
+        }
+        arena.set_node_flag(slots[3], NodeFlag::Anonymous, true);
+        arena.write_shape(slots[4]).set_generated_for(1);
+
         let published = arena.publish_rows();
         let absolute_rects = RefCell::new(AbsoluteRectMemo::default());
         let source = PaintSource::new(&arena, &published, &absolute_rects);
+        for &node in &slots {
+            assert_eq!(source.slot_is_live(node), arena.slot_is_live(node));
+            assert_eq!(source.node_kind_if_live(node), arena.node_kind_if_live(node));
+            assert_eq!(source.node_flags_if_live(node), arena.node_flags_if_live(node));
+            assert_eq!(source.node_parent_if_live(node), arena.node_parent_if_live(node));
+            assert_eq!(
+                source.node_first_child_if_live(node),
+                arena.node_first_child_if_live(node)
+            );
+            assert_eq!(
+                source.node_next_sibling_if_live(node),
+                arena.node_next_sibling_if_live(node)
+            );
+            assert_eq!(source.node_generated_for(node), arena.node_generated_for(node));
+            assert_eq!(source.node_is_dom_backed(node), arena.node_is_dom_backed(node));
+            assert_eq!(
+                source.node_is_fragmented_inline(node),
+                arena.node_is_fragmented_inline(node)
+            );
+        }
         for node in slots {
             assert_eq!(
                 source.paintable_row_is_populated(node),
