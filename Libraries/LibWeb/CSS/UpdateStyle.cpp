@@ -211,7 +211,7 @@ static void verify_engine_computed_record_environment(DOM::Element& element, Sty
     if (!StyleEngine::is_engine_custom_property_environment(identity))
         return;
     auto actual = element.custom_property_data({});
-    if (actual && actual->is_animation_overlay())
+    if (actual && actual->is_animation_overlay_for({ element }))
         actual = actual->parent();
     bool installable = false;
     auto expected = element.custom_property_environment_of_engine_record(style_record, installable);
@@ -232,9 +232,9 @@ static void verify_engine_computed_record_environment(DOM::Element& element, Sty
         actual->for_each_property([&](Utf16FlyString const& name, StyleProperty const&) { check(name); });
 }
 
-static RefPtr<CustomPropertyData const> custom_property_environment_base(RefPtr<CustomPropertyData const> data)
+static RefPtr<CustomPropertyData const> custom_property_environment_base(DOM::Element const& element, RefPtr<CustomPropertyData const> data)
 {
-    if (data && data->is_animation_overlay())
+    if (data && data->is_animation_overlay_for({ element }))
         return data->parent();
     return data;
 }
@@ -275,7 +275,7 @@ static void move_custom_property_environment_below(DOM::Document&, DOM::Element&
 // environment, and the move goes on below the element.
 static void rebuild_custom_property_environment(DOM::Document& document, DOM::Element& element, RefPtr<CustomPropertyData const> const& new_parent_inheritable, CustomPropertyData const* changed_old_base, CustomPropertyData const* changed_new_base)
 {
-    auto existing_base = custom_property_environment_base(element.custom_property_data({}));
+    auto existing_base = custom_property_environment_base(element, element.custom_property_data({}));
     VERIFY(existing_base && existing_base->declared_count() > 0);
     if (existing_base->parent().ptr() == new_parent_inheritable.ptr())
         return;
@@ -358,8 +358,8 @@ static void propagate_custom_property_environment_move(DOM::Document& document, 
     // Nothing inherits from an element with nothing below it in the flat tree.
     if (!origin.first_element_child() && !origin.shadow_root() && !is<HTML::HTMLSlotElement>(origin))
         return;
-    auto old_origin_base = custom_property_environment_base(move(old_origin_data));
-    auto new_origin_base = custom_property_environment_base(origin.custom_property_data({}));
+    auto old_origin_base = custom_property_environment_base(origin, move(old_origin_data));
+    auto new_origin_base = custom_property_environment_base(origin, origin.custom_property_data({}));
     move_custom_property_environment_below(document, origin, old_origin_base, new_origin_base, old_origin_base.ptr(), new_origin_base.ptr());
 }
 
@@ -537,7 +537,7 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
                     && reaction.new_style_record == reaction.old_style_record;
                 if (verify_engine_computed_records && !pseudo_only_record_stands) {
                     auto authoritative_custom_property_data = element->custom_property_data({});
-                    if (authoritative_custom_property_data && authoritative_custom_property_data->is_animation_overlay())
+                    if (authoritative_custom_property_data && authoritative_custom_property_data->is_animation_overlay_for({ *element }))
                         authoritative_custom_property_data = authoritative_custom_property_data->parent();
                     auto const authoritative_custom_property_environment = authoritative_custom_property_data
                         ? authoritative_custom_property_data->identity()

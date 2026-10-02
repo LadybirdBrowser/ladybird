@@ -508,6 +508,8 @@ public:
     bool is_shadow_including_inclusive_ancestor_of(Node const&) const;
 
     [[nodiscard]] UniqueNodeID unique_id() const;
+    // The node's unique id, without giving it one if it has none.
+    [[nodiscard]] Optional<UniqueNodeID> unique_id_if_assigned() const;
     static Node* from_unique_id(UniqueNodeID);
 
     Optional<String> webdriver_node_id() const;

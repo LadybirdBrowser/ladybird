@@ -289,6 +289,13 @@ UniqueNodeID Node::unique_id() const
     return *unique_id;
 }
 
+Optional<UniqueNodeID> Node::unique_id_if_assigned() const
+{
+    if (!m_rare_data)
+        return {};
+    return m_rare_data->unique_id;
+}
+
 Optional<String> Node::webdriver_node_id() const
 {
     if (!m_rare_data)
