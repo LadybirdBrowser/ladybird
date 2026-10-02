@@ -3624,9 +3624,9 @@ pub(crate) fn answer_record_demand(
                     0
                 },
                 explicitly_inherited_groups: record.explicitly_inherited_groups,
-                owes_an_animation_plan: false,
-                owes_a_transition_step: false,
-                composed_by_the_host: false,
+                owes_an_animation_plan: record.owes_an_animation_plan,
+                owes_a_transition_step: record.owes_a_transition_step,
+                composed_by_the_host: record.composed_by_the_host,
                 pseudo_records_present: record.pseudo_records_present,
                 pseudo_records: record.pseudo_records,
             },

@@ -172,6 +172,16 @@ impl RetainedState {
         )?;
         Ok(record.raw())
     }
+
+    /// What the host owes an element when it installs the record `settled` names over the one it
+    /// holds, as it owes a flush row: the animation plan the record decides, the transition step,
+    /// and whether it composes the record before anything inherits from it.
+    pub(super) fn note_what_installing_owes(&self, node: StyleNodeID, settled: &mut RetriedEngineRecord) {
+        let held_style_record = self.held_style_records.get(&node).copied().unwrap_or(0);
+        settled.owes_an_animation_plan = self.row_owes_an_animation_plan(node, held_style_record, settled.style_record);
+        settled.owes_a_transition_step = self.row_owes_a_transition_step(node);
+        settled.composed_by_the_host = self.host_composes_row(node, held_style_record, settled.style_record);
+    }
 }
 
 impl StyleEngineState {
@@ -212,12 +222,7 @@ impl StyleEngineState {
         };
         if style_record != 0 {
             retried.explicitly_inherited_groups = scratch.element_explicitly_inherited_groups;
-            let held_style_record = self.retained.held_style_records.get(&node).copied().unwrap_or(0);
-            retried.owes_an_animation_plan =
-                self.retained
-                    .row_owes_an_animation_plan(node, held_style_record, style_record);
-            retried.owes_a_transition_step = self.retained.row_owes_a_transition_step(node);
-            retried.composed_by_the_host = self.retained.host_composes_row(node, held_style_record, style_record);
+            self.retained.note_what_installing_owes(node, &mut retried);
             for delta in &scratch.pseudo_deltas {
                 let kind = usize::from(delta.kind);
                 if kind < bridge::RETRY_PSEUDO_RECORD_SLOTS {
