@@ -144,6 +144,7 @@
 #include <LibWeb/Namespace.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/BoxViews.h>
+#include <LibWeb/PictureInPicture/PictureInPictureController.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/SVG/SVGAElement.h>
 #include <LibWeb/SVG/SVGElement.h>
@@ -6794,6 +6795,19 @@ void Element::set_fullscreen_flag(bool is_fullscreen)
         return;
     m_fullscreen_flag = is_fullscreen;
     CSS::record_element_state_changed(*this, CSS::PseudoClass::Fullscreen, is_fullscreen);
+
+    // https://w3c.github.io/picture-in-picture/#fullscreen
+    // It is RECOMMENDED that when a Picture-in-Picture element's fullscreen flag is set, the user agent runs these
+    // steps:
+    // AD-HOC: These steps are from the overhaul proposed in https://github.com/w3c/picture-in-picture/pull/260.
+    if (is_fullscreen && is_picture_in_picture_element()) {
+        // 1. Let doc be the Picture-in-Picture element's node document.
+        auto& document = this->document();
+
+        // 2. Enqueue the following steps to doc's picture-in-picture parallel queue:
+        //    1. Run the exit Picture-in-Picture algorithm given doc and null.
+        document.page().picture_in_picture_controller().enqueue_exit(document, nullptr);
+    }
 }
 
 bool Element::is_picture_in_picture_element() const
