@@ -1244,23 +1244,6 @@ struct LatchedWheelContextFixture {
     MonotonicTime now { MonotonicTime::now() };
 };
 
-TEST_CASE(a_wheel_gesture_latches_the_scroller_its_first_step_hit)
-{
-    LatchedWheelContextFixture fixture;
-
-    EXPECT(fixture.wheel({ 20, 20 }, { 0, 50 }, Web::ScrollGesturePhase::Ongoing, 0).accepted);
-    auto offsets = fixture.take_scroll_offsets();
-    EXPECT_EQ(offsets.nested, (Gfx::FloatPoint { 0, 50 }));
-    EXPECT(!offsets.viewport.has_value());
-
-    // The viewport is under the cursor now, but the gesture stays with the nested scroller.
-    EXPECT(fixture.wheel({ 80, 80 }, { 0, 30 }, Web::ScrollGesturePhase::Ongoing, 10).accepted);
-    offsets = fixture.take_scroll_offsets();
-    EXPECT_EQ(offsets.nested, (Gfx::FloatPoint { 0, 80 }));
-    EXPECT(!offsets.viewport.has_value());
-    EXPECT_EQ(fixture.latched_scroller_node_id(), nested_scroller_node_id);
-}
-
 TEST_CASE(scroll_snapshots_keep_newer_unreconciled_offsets_until_they_are_adopted)
 {
     LatchedWheelContextFixture fixture;
