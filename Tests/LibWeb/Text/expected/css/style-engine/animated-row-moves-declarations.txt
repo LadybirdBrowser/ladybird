@@ -1,6 +1,6 @@
 before: 20px 5px 20px, child 20px rgb(0, 0, 255)
-beside the animation: C++ recomputations 1
+beside the animation: C++ recomputations 0
 beside the animation: 20px 7px 20px, child 20px rgb(0, 128, 0)
-retimed: C++ recomputations 1
+retimed: C++ recomputations 0
 retimed: 15px 7px 15px, child 15px rgb(0, 128, 0)
 duration: 2000000
