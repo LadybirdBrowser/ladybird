@@ -114,7 +114,6 @@ pub struct FfiDomTreeBuilderCallbacks {
     /// Attaches the image observers a box's style asks for. Principal and pseudo-element boxes
     /// both go through this; nothing about it depends on which the box is.
     pub attach_style_resources: unsafe extern "C" fn(*mut c_void, NodeSlotId),
-    pub layout: FfiTreeBuilderCallbacks,
     pub pseudo: FfiPseudoTreeBuilderCallbacks,
 }
 
@@ -338,7 +337,6 @@ pub struct FfiTopLayerDetachCallbacks {
     /// What `clear_stale_layout_node` is called with, which is the only thing the stale-subtree
     /// walk asks of the host.
     pub context: *mut c_void,
-    pub prepare_subtree_for_detach: unsafe extern "C" fn(*mut c_void),
     pub clear_stale_layout_node: unsafe extern "C" fn(*mut c_void, u32, u32) -> bool,
 }
 
@@ -1189,7 +1187,6 @@ impl DomTreeBuilderHost<'_> {
 
     fn layout(&self) -> TreeBuilderHost<'_> {
         TreeBuilderHost {
-            callbacks: &self.callbacks.layout,
             arena: self.arena,
             main_thread: self.main_thread,
         }
@@ -2358,13 +2355,7 @@ fn update_principal_node_after_entry(
                     arena.set_committed_fragment_link(new_data, link, None);
                 }
                 transfer_fragments_to_replacement_box(arena, old_layout_node, layout_node);
-                // SAFETY: The old layout node is still attached and still has its shell.
-                unsafe {
-                    (layout_host.callbacks.prepare_subtree_for_detach)(
-                        layout_host.callbacks.context,
-                        layout_host.shell(old_layout_node),
-                    );
-                }
+                super::layout_node_arena::prepare_subtree_for_detach(layout_host.main_thread, arena, old_layout_node);
                 let old_parent = layout_host.parent(old_layout_node);
                 assert!(!old_parent.is_invalid());
                 let replaced_old_box = arena.replace_child(
@@ -3048,12 +3039,6 @@ pub(crate) enum FfiInsertionMode {
     InDomOrder,
 }
 
-#[repr(C)]
-pub struct FfiTreeBuilderCallbacks {
-    pub context: *mut c_void,
-    pub prepare_subtree_for_detach: unsafe extern "C" fn(*mut c_void, *mut c_void),
-}
-
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum TraversalDecision {
     Continue,
@@ -3062,7 +3047,6 @@ enum TraversalDecision {
 }
 
 struct TreeBuilderHost<'a> {
-    callbacks: &'a FfiTreeBuilderCallbacks,
     arena: *mut LayoutNodeArena,
     main_thread: &'a MainThread<'a>,
 }
@@ -3163,7 +3147,7 @@ fn node_kind_is_text(kind: NodeKind) -> bool {
 /// Whether a row of this kind is a `Layout::NodeWithStyle`. A text row is not: it follows its
 /// parent's style rather than holding a record of its own, so a reader that wants the row's own
 /// box values must skip it.
-fn node_kind_is_node_with_style(kind: NodeKind) -> bool {
+pub(crate) fn node_kind_is_node_with_style(kind: NodeKind) -> bool {
     !node_kind_is_text(kind) && !matches!(kind, NodeKind::Unset | NodeKind::Node)
 }
 

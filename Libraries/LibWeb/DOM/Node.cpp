@@ -87,7 +87,9 @@
 #include <LibWeb/InvalidateDisplayList.h>
 #include <LibWeb/Layout/Box.h>
 #include <LibWeb/Layout/Node.h>
+#include <LibWeb/Layout/NodeArena.h>
 #include <LibWeb/Layout/TextNode.h>
+#include <LibWeb/Layout/TreeBuilderRustFFI.h>
 #include <LibWeb/MathML/MathMLElement.h>
 #include <LibWeb/Namespace.h>
 #include <LibWeb/Page/Page.h>
@@ -1519,23 +1521,16 @@ void Node::update_layout_tree_for_removal(Node& parent, LayoutSubtreeRemoval rem
 // engine retires their StyleNodeIDs, so anything the removal does to them has to happen before.
 void Node::detach_remaining_layout_nodes_for_removal()
 {
-    for_each_shadow_including_inclusive_descendant([](Node& node) {
+    auto* arena = document().layout_node_arena_if_created();
+    if (!arena)
+        return;
+    for_each_shadow_including_inclusive_descendant([&](Node& node) {
         // A pseudo-element's boxes are found through its generator's StyleNodeID, so they go while that ID still finds
         // them. A ::backdrop box sits outside the generator's box, so no rebuild of the parent would destroy it.
         if (auto* element = as_if<Element>(node))
             element->clear_synthetic_pseudo_element_layout_nodes(Badge<Node> {});
-        auto* layout_node = node.unsafe_layout_node();
-        if (!layout_node)
-            return TraversalDecision::Continue;
-        // The layout node is read until the parent's rebuild detaches it, after the style engine lets go of its style.
-        layout_node->pin_style_record_for_detachment();
-        layout_node->clear_committed_box();
-        // A top layer element's box is a viewport child rather than part of the parent's box
-        // subtree, so the parent rebuild triggered by this removal can never detach it.
-        if (auto* top_layer_placement = layout_node->topmost_layout_node_of_top_layer_placement()) {
-            top_layer_placement->prepare_subtree_for_detach_from_layout_tree();
-            VERIFY(Layout::destroy_layout_subtree(*top_layer_placement));
-        }
+        // The node's own box, and its top layer placement, are found by the node's StyleNodeID.
+        Layout::RustFFI::rust_detach_remaining_layout_rows_for_removal(arena->handle(), Layout::Node::style_node_of(&node).value());
         return TraversalDecision::Continue;
     });
 }

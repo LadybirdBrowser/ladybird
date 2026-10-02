@@ -166,4 +166,30 @@ mod tests {
             .destroy_shells_and_invoke_callbacks(&main_thread);
         assert!(host_tables.image_observer_sets.borrow().is_empty());
     }
+
+    #[test]
+    fn preparing_a_subtree_for_detach_drops_the_image_observers_of_its_styled_rows() {
+        let host_tables = HostTables::default();
+        let main_thread = MainThread::for_test_with_host(&host_tables);
+        let mut arena = LayoutNodeArena::new();
+        let root = arena.allocate_for_test().slot;
+        let text = arena.allocate_for_test().slot;
+        arena
+            .data(root)
+            .kind
+            .set(super::super::node_data::NodeKind::BlockContainer);
+        arena.data(text).kind.set(super::super::node_data::NodeKind::TextNode);
+        arena.attach_child(root, UnplacedLayoutNode::new(text), NodeSlotId::INVALID);
+        host_tables.replace_image_observers(root, object(8));
+        host_tables.replace_image_observers(text, object(16));
+
+        super::super::layout_node_arena::prepare_subtree_for_detach(&main_thread, &arena, root);
+
+        assert!(host_tables.image_observers(root).is_null());
+        assert_eq!(host_tables.image_observers(text), object(16));
+        host_tables.replace_image_observers(text, std::ptr::null_mut());
+        arena
+            .free_subtree(root)
+            .destroy_shells_and_invoke_callbacks(&main_thread);
+    }
 }
