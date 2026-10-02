@@ -115,6 +115,8 @@ public:
     ComputedValuesFFI::AnimatedOverlay* prepare_animated_overlay_for_rust_finalization(Badge<StyleComputer>, CreateAnimatedOverlay);
     ComputedValuesFFI::AnimatedOverlay const* animated_overlay(Badge<StyleComputer>) const;
     void finish_animated_overlay_rust_mutation(Badge<StyleComputer>);
+    // Hold every value of `overlay` as the working set's animated values, as the computation that sampled them did.
+    void install_animated_overlay(Badge<StyleComputer>, ComputedValuesFFI::AnimatedOverlay const*);
     void did_apply_style_finalization_from_rust(u16 invalidated_longhands);
     bool requires_animated_post_compute_adjustments() const;
     void prepare_for_animated_post_compute_adjustments(Badge<StyleComputer>);
