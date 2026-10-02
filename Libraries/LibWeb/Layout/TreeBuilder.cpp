@@ -569,9 +569,7 @@ RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_bui
             size_t index = 0;
             for (auto const& element : elements)
                 output[index++] = identified_dom_node(element.ptr()); },
-        .prepare_principal_element = [](void* builder_pointer, u32 style_node, bool should_create_layout_node) {
-            if (should_create_layout_node)
-                update_style_if_needed_for_layout_tree_bypass_path(as<DOM::Element>(node_for_style_node(builder_pointer, style_node))); },
+        .restyle_bypass_path_element = [](void* builder_pointer, u32 style_node) { update_style_if_needed_for_layout_tree_bypass_path(as<DOM::Element>(node_for_style_node(builder_pointer, style_node))); },
         .create_principal_element_layout = [](void* builder_pointer, u32 style_node, RustFFI::FfiElementLayoutKind kind, u8 box_kind) -> Compositing::RustFFI::NodeSlotId {
             auto& element = as<DOM::Element>(node_for_style_node(builder_pointer, style_node));
             auto style_record_identity = element.style_record_identity();
