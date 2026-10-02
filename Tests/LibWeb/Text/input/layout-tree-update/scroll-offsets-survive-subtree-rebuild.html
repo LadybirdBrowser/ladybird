@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    #scroller {
+        overflow: auto;
+        width: 100px;
+        height: 100px;
+    }
+    #content {
+        height: 400px;
+    }
+    #marker {
+        height: 10px;
+    }
+</style>
+<div id="container">
+    <div id="scroller"><div id="content"></div><div id="marker"></div></div>
+</div>
+<script>
+    test(() => {
+        const scroller = document.getElementById("scroller");
+        const marker = document.getElementById("marker");
+        const markerOffset = () => marker.getBoundingClientRect().top - scroller.getBoundingClientRect().top;
+
+        scroller.scrollTop = 50;
+        println(`scrollTop: ${scroller.scrollTop}`);
+        println(`marker offset: ${markerOffset()}`);
+
+        // Rebuild the scroller's layout subtree. The new boxes have to start out scrolled to where
+        // the scroller was.
+        document.getElementById("container").style.display = "flow-root";
+        println(`scrollTop after a rebuild: ${scroller.scrollTop}`);
+        println(`marker offset after a rebuild: ${markerOffset()}`);
+    });
+</script>
