@@ -24,13 +24,14 @@ every report still awaiting review: in the first tab when the window opens only
 the new tab page, otherwise in a background tab that is opened once it is first
 shown. Browsers driven by WebDriver never ask. Ladybird automatically offers
 each report at most once; leaving the crash screen without answering keeps the
-report on the device without offering it again on a later launch. Reports that
-have been offered move into a `Seen/` subdirectory, where the newest 20 are kept
-for reference. **Settings > Advanced > Crash reports > Open folder** remains
-available even when nothing has crashed. Reload restores the failed page without
-adding a crash-screen history entry; Back and Forward continue to use the
-original session history. The crash screen is native browser UI, so it does not
-depend on a web content process.
+report on the device without offering it again on a later launch. A report of a
+crash from more than 14 days ago, or from before October 2, 2026 20:00 UTC, is
+never offered, but stays in the folder. Reports that have been offered move into
+a `Seen/` subdirectory, where the newest 20 are kept for reference. **Settings >
+Advanced > Crash reports > Open folder** remains available even when nothing has
+crashed. Reload restores the failed page without adding a crash-screen history
+entry; Back and Forward continue to use the original session history. The crash
+screen is native browser UI, so it does not depend on a web content process.
 
 The review asks what the user was doing and lets them choose whether to send the
 report. Report details lists its main fields, such as the failure, signal,
