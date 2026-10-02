@@ -1216,9 +1216,7 @@ impl RetainedState {
     /// `match_is_complete_but_for_custom_properties` reads a pseudo-element's: custom properties
     /// are resolved into the pseudo-element's own environment.
     pub(super) fn pseudo_winners_are_complete(&self, node: StyleNodeID) -> bool {
-        let is_complete = |rule: RuleID, tree_scope: TreeScopeID| {
-            self.match_is_complete_but_for_custom_properties(node, rule, tree_scope)
-        };
+        let is_complete = |rule: RuleID| self.match_is_complete_but_for_custom_properties(node, rule);
         if let Some((published, answer)) = Self::published_answer_lookup(
             &self.published_match_answers,
             self.batch_matching_traversal.as_deref(),
@@ -1228,7 +1226,7 @@ impl RetainedState {
             return matches
                 .iter()
                 .filter(|entry| entry.pseudo_element.is_some())
-                .all(|entry| is_complete(entry.rule, entry.tree_scope));
+                .all(|entry| is_complete(entry.rule));
         }
         let Lookup::Known(answer) = self.retained_match_answer(node) else {
             return false;
@@ -1237,7 +1235,7 @@ impl RetainedState {
             self.programs.get(rule_match.program).entries()[rule_match.entry as usize]
                 .pseudo_element
                 .is_none()
-                || is_complete(rule_match.rule, rule_match.tree_scope)
+                || is_complete(rule_match.rule)
         })
     }
 }

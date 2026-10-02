@@ -73,9 +73,9 @@ pub struct RuleMatch {
     pub specificity: Specificity,
     /// The tree scope the rule decided from, which is where its sheet is attached and not
     /// necessarily where the element is. `:host`, `::slotted()` and `::part()` all decide for an
-    /// element outside their own tree, and how deeply encapsulated the rule is is what orders it
-    /// against the contexts around it - so the match carries the scope rather than the cascade
-    /// deriving it from the element.
+    /// element outside their own tree, and where the element's cascade weighs that tree is what
+    /// orders the rule against the contexts around it - so the match carries the scope rather than
+    /// the cascade deriving it from the element.
     pub tree_scope: TreeScopeID,
     /// Generational hops from the scoping root the match resolved through, or `u32::MAX` for a rule
     /// that is not scoped. A nearer root wins, which is why an unscoped rule is infinitely far.

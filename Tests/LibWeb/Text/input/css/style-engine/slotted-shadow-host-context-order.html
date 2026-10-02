@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<div id="outer">
+    <template shadowrootmode="open">
+        <style>
+            ::slotted(div) { color: rgb(0, 128, 0); background-color: rgb(255, 0, 0) !important; }
+        </style>
+        <slot></slot>
+    </template>
+    <div id="inner">
+        <template shadowrootmode="open">
+            <style>
+                :host(.a.b.c) { color: rgb(255, 0, 0); background-color: rgb(0, 128, 0) !important; }
+                :host(.a.b.c)::before { content: "x"; color: rgb(0, 0, 255); }
+            </style>
+        </template>
+    </div>
+</div>
+<script>
+    // A slotted shadow host is weighed in the tree it is slotted into before its own shadow tree, though both
+    // trees are as deeply encapsulated: the slot's tree wins normal declarations, the host's own important ones.
+    // Count who computed the host's record and its :host::before.
+    test(() => {
+        const inner = document.getElementById("inner");
+        inner.className = "a b c";
+        const recomputationsBefore = internals.getStyleInvalidationCounters().elementStyleRecomputations;
+        internals.updateStyle();
+        println(`C++ recomputations: ${internals.getStyleInvalidationCounters().elementStyleRecomputations - recomputationsBefore}`);
+        println(`color: ${getComputedStyle(inner).color}`);
+        println(`background-color: ${getComputedStyle(inner).backgroundColor}`);
+        println(`::before color: ${getComputedStyle(inner, "::before").color}`);
+    });
+</script>

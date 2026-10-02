@@ -940,7 +940,7 @@ impl RetainedState {
         } else {
             dispatch.assign_cascade_order(|candidate| {
                 let entry = &self.programs.get(candidate.program).entries()[candidate.entry as usize];
-                self.cascade_priority_of(candidate.rule, scope, entry.specificity, u32::MAX, false)
+                self.own_scope_cascade_priority_of(candidate.rule, scope, entry.specificity, u32::MAX, false)
             });
         }
         // A rule declaring custom properties beside its longhands contributes those longhands
@@ -2810,6 +2810,7 @@ impl RetainedState {
                             return false;
                         }
                         let priority = self.cascade_priority_of(
+                            node,
                             delta.rule,
                             TreeScopeID::DOCUMENT,
                             entry.specificity,
@@ -3952,6 +3953,7 @@ impl RetainedState {
                     return false;
                 }
                 let priority = self.cascade_priority_of(
+                    node,
                     added.rule,
                     added.tree_scope,
                     entry.specificity,
@@ -4198,7 +4200,7 @@ impl RetainedState {
         let complete_but_for_custom_properties = self.element_declarations_are_complete_but_for_custom_properties(node)
             && matches
                 .iter()
-                .all(|entry| self.match_is_complete_but_for_custom_properties(node, entry.rule, entry.tree_scope));
+                .all(|entry| self.match_is_complete_but_for_custom_properties(node, entry.rule));
         let mut effects = AnswerEffects::default();
         // The answer's pseudo-element inventory, and the matches its custom-property cascade runs
         // over where a record loop reads this transaction's.

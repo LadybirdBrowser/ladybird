@@ -776,7 +776,7 @@ impl RetainedState {
         {
             return matches
                 .iter()
-                .all(|entry| self.match_is_complete_but_for_custom_properties(node, entry.rule, entry.tree_scope));
+                .all(|entry| self.match_is_complete_but_for_custom_properties(node, entry.rule));
         }
         let Lookup::Known(answer) = self.retained_match_answer(node) else {
             return false;
@@ -800,7 +800,7 @@ impl RetainedState {
             return Some(
                 matches
                     .iter()
-                    .all(|entry| self.match_is_complete_but_for_custom_properties(node, entry.rule, entry.tree_scope)),
+                    .all(|entry| self.match_is_complete_but_for_custom_properties(node, entry.rule)),
             );
         }
         let matches = self.match_answers.answer(answer.cascade_input?)?;
@@ -819,23 +819,16 @@ impl RetainedState {
         node: StyleNodeID,
         matches: &[RetainedRuleMatch],
     ) -> bool {
-        matches.iter().all(|rule_match| {
-            self.match_is_complete_but_for_custom_properties(node, rule_match.rule, rule_match.tree_scope)
-        })
+        matches
+            .iter()
+            .all(|rule_match| self.match_is_complete_but_for_custom_properties(node, rule_match.rule))
     }
 
-    /// Whether the winners the cascade publishes hold a match: its scope is one they are
-    /// published for (`match_scope_is_complete_for`), they hold its container conditions
+    /// Whether the winners the cascade publishes hold a match: they hold its container conditions
     /// (`container_gate_is_held`), and its rule declares nothing past its longhand winners but
     /// custom properties.
-    pub(super) fn match_is_complete_but_for_custom_properties(
-        &self,
-        node: StyleNodeID,
-        rule: RuleID,
-        tree_scope: TreeScopeID,
-    ) -> bool {
-        self.match_scope_is_complete_for(Some(node), tree_scope)
-            && self.container_gate_is_held(Some(node), rule)
+    pub(super) fn match_is_complete_but_for_custom_properties(&self, node: StyleNodeID, rule: RuleID) -> bool {
+        self.container_gate_is_held(Some(node), rule)
             && self.program.declarations_are_complete_but_for_custom_properties(rule)
     }
 
@@ -909,13 +902,14 @@ impl RetainedState {
                     .get_or_insert_with(|| {
                         (
                             self.cascade_priority_of(
+                                node,
                                 rule,
                                 tree_scope,
                                 specificity,
                                 scope_proximity,
                                 declared.important,
                             ),
-                            self.cascade_stratum_of(rule, tree_scope, declared.important),
+                            self.cascade_stratum_of(node, rule, tree_scope, declared.important),
                         )
                     });
                 candidates.push(Candidate {
