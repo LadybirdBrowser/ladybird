@@ -218,20 +218,25 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                     });
                     unsafe { bridge::style_engine_destroy(engine) };
                 }
-                EventKind::AllocateStyleNodes | EventKind::AllocateTextStyleNodes => {
+                EventKind::MintStyleNodes => {
+                    let engine = read_engine(&mut event.payload, &live_engines)?;
+                    let nodes = event.payload.read_u32_vec()?;
+                    unsafe { bridge::style_engine_mint_style_nodes(engine, nodes.as_ptr(), nodes.len()) };
+                }
+                EventKind::DiscardStyleTransactionOutputs => {
                     let engine = read_engine(&mut event.payload, &live_engines)?;
                     let expected = event.payload.read_u32_vec()?;
-                    let mut actual = vec![0; expected.len()];
-                    let allocate = if event.kind == EventKind::AllocateStyleNodes {
-                        bridge::style_engine_allocate_style_nodes
+                    let released = unsafe { bridge::style_engine_discard_style_transaction_outputs(engine) };
+                    let actual = if released.count == 0 {
+                        &[][..]
                     } else {
-                        bridge::style_engine_allocate_text_style_nodes
+                        unsafe { std::slice::from_raw_parts(released.nodes, released.count) }
                     };
-                    unsafe { allocate(engine, actual.as_mut_ptr(), actual.len()) };
                     if actual != expected {
-                        return Err(
-                            format!("style-node allocation diverged: expected {expected:?}, got {actual:?}").into(),
-                        );
+                        return Err(format!(
+                            "released style-node identities diverged: expected {expected:?}, got {actual:?}"
+                        )
+                        .into());
                     }
                 }
                 EventKind::ApplyTransaction => {

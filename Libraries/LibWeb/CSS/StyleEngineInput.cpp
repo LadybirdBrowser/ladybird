@@ -142,7 +142,7 @@ static TreeScopeID tree_scope_of(DOM::Node&);
 static StyleNodeID identity_of_shadow_root(DOM::ShadowRoot& shadow_root, StyleEngine& style_engine)
 {
     if (shadow_root.style_node_id() == no_style_node) {
-        shadow_root.set_style_node_id(style_engine.allocate_style_node());
+        shadow_root.set_style_node_id(style_engine.mint_style_node());
         shadow_root.document().style_computer().register_style_node(shadow_root.style_node_id(), shadow_root);
         // A shadow root is a scope and a subtree at once. Naming the subtree is what lets a sheet
         // attached here be bounded by the tree it decides in, even when its rules dispatch on
@@ -306,7 +306,7 @@ void record_element_connected(DOM::Element& element)
     auto* style_engine = style_engine_for(element);
     if (!style_engine || element.style_node_id() != no_style_node)
         return;
-    element.set_style_node_id(style_engine->allocate_style_node());
+    element.set_style_node_id(style_engine->mint_style_node());
     element.document().style_computer().register_style_node(element.style_node_id(), element);
     // The name the document knows the element by arrives with the identity. A box built for one of
     // the element's pseudo-elements answers by it even when the element itself has no box.
@@ -338,7 +338,7 @@ void record_text_connected(DOM::Text& text)
     if (!style_engine || text.style_node_id() != no_style_node)
         return;
     StyleNodeID identity;
-    style_engine->allocate_text_style_nodes({ &identity, 1 });
+    style_engine->mint_text_style_nodes({ &identity, 1 });
     text.set_style_node_id(identity);
     text.document().style_computer().register_style_node(identity, text);
     style_engine->set_text_is_ascii_whitespace(identity, text.data().is_ascii_whitespace());
@@ -370,7 +370,7 @@ void record_document_tree_tracked(DOM::Document& document)
     if (document.style_node_id() != no_style_node)
         return;
     auto& style_engine = document.style_computer().style_engine();
-    document.set_style_node_id(style_engine.allocate_style_node());
+    document.set_style_node_id(style_engine.mint_style_node());
     style_engine.mark_relation_only_style_node(document.style_node_id());
     // The viewport's row answers by the document's name, which the document's identity carries.
     style_engine.set_element_unique_node_id(document.style_node_id(), static_cast<u64>(document.unique_id().value()));
@@ -411,7 +411,7 @@ void record_subtree_connecting(DOM::Node& root)
     if (!text_arrivals.is_empty()) {
         Vector<StyleNodeID, 64> identities;
         identities.resize(text_arrivals.size());
-        style_engine.allocate_text_style_nodes(identities.span());
+        style_engine.mint_text_style_nodes(identities.span());
         style_computer.ensure_style_node_slot(identities.last());
         for (size_t i = 0; i < text_arrivals.size(); ++i) {
             text_arrivals[i]->set_style_node_id(identities[i]);
@@ -426,7 +426,7 @@ void record_subtree_connecting(DOM::Node& root)
     if (!arrivals.is_empty()) {
         Vector<StyleNodeID, 64> identities;
         identities.resize(arrivals.size());
-        style_engine.allocate_style_nodes(identities.span());
+        style_engine.mint_style_nodes(identities.span());
         style_computer.ensure_style_node_slot(identities.last());
         size_t next_element_identity = 0;
         size_t next_shadow_root_identity = element_count;

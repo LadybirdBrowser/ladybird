@@ -1790,42 +1790,42 @@ pub unsafe extern "C" fn style_engine_destroy(engine: crate::css::style::StyleEn
     engine.end_recording();
 }
 
+/// Makes the `count` identities at `nodes`, which the host minted, live.
+///
 /// # Safety
-/// `engine` must be live, and `out` must point at `count` writable `u32` values.
+/// `engine` must be live, and `nodes` must point at `count` readable `u32` values.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_allocate_style_nodes(
+pub unsafe extern "C" fn style_engine_mint_style_nodes(
     engine: crate::css::style::StyleEngineHandle,
-    out: *mut u32,
+    nodes: *const u32,
     count: usize,
 ) {
     let engine = unsafe { engine.get_mut() };
-    let out = if count == 0 {
-        &mut []
+    let nodes = if count == 0 {
+        &[]
     } else {
-        unsafe { std::slice::from_raw_parts_mut(out, count) }
+        unsafe { std::slice::from_raw_parts(nodes, count) }
     };
-    engine.allocate_style_nodes(out);
-    engine.record_boundary_call(EventKind::AllocateStyleNodes, |payload| payload.write_u32_slice(out));
+    engine.mint_style_nodes(nodes);
+    engine.record_boundary_call(EventKind::MintStyleNodes, |payload| payload.write_u32_slice(nodes));
 }
 
+/// Ends the transaction the engine published last, and returns the identities its end released, for the host to
+/// mint again.
+///
 /// # Safety
-/// `engine` must be live, and `out` must point at `count` writable `u32` values.
+/// `engine` must be live. The returned node slice remains valid until the next mutable `style_engine_*` entry point.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_allocate_text_style_nodes(
+pub unsafe extern "C" fn style_engine_discard_style_transaction_outputs(
     engine: crate::css::style::StyleEngineHandle,
-    out: *mut u32,
-    count: usize,
-) {
+) -> FfiStyleNodeSlice {
     let engine = unsafe { engine.get_mut() };
-    let out = if count == 0 {
-        &mut []
-    } else {
-        unsafe { std::slice::from_raw_parts_mut(out, count) }
-    };
-    engine.allocate_text_style_nodes(out);
-    engine.record_boundary_call(EventKind::AllocateTextStyleNodes, |payload| {
-        payload.write_u32_slice(out);
+    engine.clear_ffi_style_node_query();
+    let released = engine.discard_style_transaction_outputs();
+    engine.record_boundary_call(EventKind::DiscardStyleTransactionOutputs, |payload| {
+        payload.write_u32_slice(&released);
     });
+    engine.install_ffi_style_node_query(released)
 }
 
 /// Returns the live element descendants whose inheritance path begins at `root` in the flat tree.

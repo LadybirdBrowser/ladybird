@@ -1,0 +1,8 @@
+after the storm: 2200 spans, height 22000, text 9080
+  first "a0" rgb(0, 128, 0), last "b699" rgb(0, 0, 255)
+  last text is laid out: true
+  hit test finds the sixth span: true
+after reuse: 910 spans, height 9100, text 3400
+  first "a0" rgb(0, 128, 0), last "d299" rgb(0, 0, 255)
+  last text is laid out: true
+  hit test finds the sixth span: true
