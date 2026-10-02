@@ -37,6 +37,7 @@ use crate::runtime::native_function::raw_native;
 use crate::runtime::object::{ORDINARY_OBJECT_METHODS, allocate_object, define_object_class};
 use crate::runtime::primitive_string::PrimitiveString;
 use crate::runtime::print::{PrintContext, print};
+use crate::runtime::promise::Promise;
 use crate::runtime::property_attributes::{Attribute, PropertyAttributes};
 use crate::runtime::property_key::PropertyKey;
 use crate::runtime::realm::Realm;
@@ -471,10 +472,6 @@ fn flushed_print_stream(target: PrintTarget) -> Box<dyn Write> {
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum PrintEnd {
     Newline,
-    #[allow(
-        dead_code,
-        reason = "the warnings about rejected promises print without a newline, once the runtime has promises"
-    )]
     None,
 }
 
@@ -488,6 +485,13 @@ fn print_value(vm: &Vm, value: Value, target: PrintTarget, end: PrintEnd) -> io:
     }
 
     Ok(())
+}
+
+fn warn_about_promise(vm: &Vm, warning: &str, promise: Gc<Promise>) {
+    eprint!("{warning}");
+    eprint!(" (result: ");
+    let _ = print_value(vm, promise.result(), PrintTarget::StandardError, PrintEnd::None);
+    eprintln!(")");
 }
 
 fn print_all_arguments(vm: &Vm, target: PrintTarget, end: PrintEnd) -> io::Result<()> {
@@ -979,8 +983,9 @@ fn ladybird_main(arguments: &[String]) -> c_int {
     STRIP_ANSI.store(options.strip_ansi, Ordering::Relaxed);
     RAW_STRINGS.store(options.raw_strings, Ordering::Relaxed);
 
-    // NB: The -h, -s and --disable-debug-output options change nothing yet: the C++ js does not read the first, the
-    //     second is for the REPL, and the runtime prints no debug output.
+    // NB: The -h and -s options change nothing yet: the C++ js does not read the first, and the second is for the
+    //     REPL. Besides the warnings about rejected promises, --disable-debug-output silences debug output, which the
+    //     runtime prints none of.
     set_dump_bytecode(options.dump_bytecode);
 
     let vm = Vm::create();
@@ -990,8 +995,22 @@ fn ladybird_main(arguments: &[String]) -> c_int {
         unimplemented_runtime_function("the JavaScript debugger, which --debug runs scripts in", 0);
     }
 
-    // FIXME: Unless --disable-debug-output is given, warn about promises rejected without handlers and about handlers
-    //        added to rejected promises, printing their results, once the runtime has promises.
+    if !options.disable_debug_printing {
+        // NOTE: These will print out both warnings when using something like Promise.reject().catch(...) -
+        // which is, as far as I can tell, correct - a promise is created, rejected without handler, and a
+        // handler then attached to it. The Node.js REPL doesn't warn in this case, so it's something we
+        // might want to revisit at a later point and disable warnings for promises created this way.
+        vm.set_on_promise_unhandled_rejection(Some(|vm, promise| {
+            warn_about_promise(vm, "WARNING: A promise was rejected without any handlers", promise);
+        }));
+        vm.set_on_promise_rejection_handled(Some(|vm, promise| {
+            warn_about_promise(
+                vm,
+                "WARNING: A handler was added to an already rejected promise",
+                promise,
+            );
+        }));
+    }
 
     if options.evaluate_script.is_empty() && options.script_paths.is_empty() {
         unimplemented_runtime_function("the REPL, which js runs when it is given no script", 0);

@@ -123,6 +123,15 @@ unsafe impl<T: Trace> Trace for Vec<T> {
     }
 }
 
+// SAFETY: Forwards to every element.
+unsafe impl<T: Trace> Trace for std::collections::VecDeque<T> {
+    fn trace(&self, visitor: &mut Visitor) {
+        let (front, back) = self.as_slices();
+        T::trace_slice(front, visitor);
+        T::trace_slice(back, visitor);
+    }
+}
+
 // SAFETY: Forwards to the value once it exists.
 unsafe impl<T: Trace> Trace for core::cell::OnceCell<T> {
     fn trace(&self, visitor: &mut Visitor) {
@@ -147,7 +156,7 @@ macro_rules! impl_trace_for_tuples {
     };
 }
 
-impl_trace_for_tuples!((A, B), (A, B, C), (A, B, C, D));
+impl_trace_for_tuples!((A, B), (A, B, C), (A, B, C, D), (A, B, C, D, E));
 
 // SAFETY: A Gc reaches exactly its cell.
 unsafe impl<T> Trace for Gc<T> {

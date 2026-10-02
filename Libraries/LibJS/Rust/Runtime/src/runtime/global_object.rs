@@ -140,6 +140,9 @@ pub fn set_default_global_bindings(vm: &Vm, realm: Gc<Realm>) {
     define_intrinsic_accessor(&names.Object, |vm, realm| {
         Value::from_object(realm.intrinsics().object_constructor(vm))
     });
+    define_intrinsic_accessor(&names.Promise, |vm, realm| {
+        Value::from_object(realm.intrinsics().promise_constructor(vm))
+    });
     define_intrinsic_accessor(&names.Proxy, |_, realm| {
         Value::from_object(realm.intrinsics().proxy_constructor())
     });

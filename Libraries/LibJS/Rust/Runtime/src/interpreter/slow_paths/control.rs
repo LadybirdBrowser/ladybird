@@ -21,6 +21,7 @@ use crate::layout::object::Object;
 use crate::layout::value::Value;
 use crate::runtime::array::Array;
 use crate::runtime::async_from_sync_iterator_prototype::create_async_from_sync_iterator;
+use crate::runtime::async_generator::AsyncGenerator;
 use crate::runtime::completion::{Completion, Must, completion_type_from_bytecode};
 use crate::runtime::error::ErrorKind;
 use crate::runtime::error_types::ErrorType;
@@ -458,11 +459,12 @@ pub fn get_completion_fields(_vm: &Vm, pc: u32, values: &mut op::GetCompletionFi
         return SlowPathControl::continue_at(pc + op::GetCompletionFields::LENGTH);
     }
 
-    unimplemented_runtime_function(
-        "GetCompletionFields of an AsyncGenerator, which reads its pending completion, which comes with async \
-         generators",
-        pc,
-    )
+    let async_generator = completion_source
+        .downcast::<AsyncGenerator>()
+        .expect("a completion source is a generator or an async generator");
+    values.value_dst = async_generator.pending_completion_value();
+    values.type_dst = Value::from_i32(async_generator.pending_completion_type() as i32);
+    SlowPathControl::continue_at(pc + op::GetCompletionFields::LENGTH)
 }
 
 pub fn set_completion_type(
@@ -477,11 +479,11 @@ pub fn set_completion_type(
         return SlowPathControl::continue_at(pc + op::SetCompletionType::LENGTH);
     }
 
-    unimplemented_runtime_function(
-        "SetCompletionType of an AsyncGenerator, which sets its pending completion, which comes with async \
-         generators",
-        pc,
-    )
+    completion_source
+        .downcast::<AsyncGenerator>()
+        .expect("a completion source is a generator or an async generator")
+        .set_pending_completion_type(completion_type_from_bytecode(instruction.completion_type));
+    SlowPathControl::continue_at(pc + op::SetCompletionType::LENGTH)
 }
 
 pub fn debugger(pc: u32) -> SlowPathControl {
@@ -521,6 +523,20 @@ pub fn throw_if_nullish(vm: &Vm, pc: u32, values: &op::ThrowIfNullishValues) -> 
 
 pub fn throw_const_assignment(vm: &Vm, pc: u32) -> SlowPathControl {
     throw_error(vm, pc, ErrorKind::TypeError, ErrorType::InvalidAssignToConst, &[])
+}
+
+pub fn r#await(vm: &Vm, instruction: &op::Await, values: &op::AwaitValues) -> SlowPathControl {
+    let yielded_value = if values.argument.is_empty() {
+        Value::UNDEFINED
+    } else {
+        values.argument
+    };
+    let context = running_execution_context(vm);
+    context.yield_continuation.set(instruction.continuation_label.0);
+    context.yield_is_await.set(true);
+    context.yield_value_is_iterator_result.set(false);
+    vm.do_return(yielded_value);
+    SlowPathControl::EXIT
 }
 
 pub fn r#yield(vm: &Vm, instruction: &op::Yield, values: &op::YieldValues) -> SlowPathControl {
