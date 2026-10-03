@@ -18,7 +18,7 @@ use crate::cow_column::{ColumnSnapshot, CowColumn};
 use crate::css::css_pixels::{CssPixelPoint, FfiCssPixelPoint};
 use crate::css::style::bridge::ElementBoxKind;
 use crate::css::style::fast_hash::{FastMap as HashMap, FastSet as HashSet};
-use crate::css::style::tree::{StyleNodeID, TableSpans};
+use crate::css::style::tree::{StyleNodeID, TableSpans, forget_identity};
 use crate::css::style::{
     PublishedBoxFacts, PublishedTextSource, StyleEngine, TextStyleParentFacts,
     layout_style::{AnonymousStyleKind, AnonymousStyleOverrides, DerivedStyleRecord, LayoutStyle},
@@ -2178,17 +2178,16 @@ impl LayoutNodeArena {
         counters_sets.borrow_mut().forget(style_node);
         generated_content.borrow_mut().forget(style_node);
         // The SVG facts let go of the reference atoms they hold as they leave.
-        let removed = svg_attribute_facts.borrow_mut().remove(&style_node);
-        if let Some(removed) = removed {
+        if let Some(removed) = forget_identity(&mut svg_attribute_facts.borrow_mut(), style_node) {
             self.retain_published_reference_atoms(
                 [0; PUBLISHED_REFERENCE_ATOM_COUNT],
                 Self::published_reference_atoms(&removed),
             );
         }
-        svg_points.borrow_mut().remove(&style_node);
+        forget_identity(&mut svg_points.borrow_mut(), style_node);
         identities_in_focused_text_control.borrow_mut().remove(&style_node);
-        element_scroll_offsets.borrow_mut().remove(&style_node);
-        pseudo_element_scroll_offsets.borrow_mut().remove(&style_node);
+        forget_identity(&mut element_scroll_offsets.borrow_mut(), style_node);
+        forget_identity(&mut pseudo_element_scroll_offsets.borrow_mut(), style_node);
         // A retired shadow host takes its tree scope with it. The registry withdraws no names from a
         // scope it can no longer name.
         anchor_name_elements

@@ -256,6 +256,17 @@ pub(super) struct TreeRelationStaging {
 
 type StagedTreeRows = Vec<(StyleNodeID, Option<TreeRelations>, Option<TreeRelations>)>;
 
+/// Removes a retired identity from a table keyed by identity, answering what it held.
+///
+/// OPTIMIZATION: Every retired identity is removed from tables most pages leave empty, and removing from a map hashes
+///               the key even when the map is empty, so an empty one is skipped.
+pub(crate) fn forget_identity<V>(table: &mut HashMap<StyleNodeID, V>, node: StyleNodeID) -> Option<V> {
+    if table.is_empty() {
+        return None;
+    }
+    table.remove(&node)
+}
+
 fn radix_sort_style_node_ids(mut nodes: Vec<StyleNodeID>) -> Vec<StyleNodeID> {
     if nodes.is_sorted() {
         return nodes;
@@ -897,11 +908,11 @@ impl StyleNodeTree {
                 ids.set(node, StyleAtomID::NONE);
             }
             self.live.set(index as usize, false);
-            self.dom_paint_facts.remove(&node);
+            forget_identity(&mut self.dom_paint_facts, node);
             if let Some(unique_node_id) = self.unique_node_ids.get_mut(index as usize) {
                 *unique_node_id = 0;
             }
-            self.table_spans.remove(&node);
+            forget_identity(&mut self.table_spans, node);
             self.top_layer.retain(|&member| member != node);
             if !self.relation_only.set(index as usize, false).0 {
                 self.connected_element_count -= 1;
@@ -1008,7 +1019,7 @@ impl StyleNodeTree {
             is_ascii_whitespace.set(index as usize, false);
             is_in_user_agent_shadow_tree.set(index as usize, false);
             is_password_input.set(index as usize, false);
-            self.dom_paint_facts.remove(&node);
+            forget_identity(&mut self.dom_paint_facts, node);
             // Lets go of the reference the mirror held to the document's string.
             data[index as usize] = ak::Utf16String::default();
             parent[index as usize] = None;
