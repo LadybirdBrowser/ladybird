@@ -49,7 +49,7 @@ namespace JS {
 
 size_t max_js_string_length()
 {
-    return NumericLimits<u32>::max();
+    return NumericLimits<u32>::max() - 1;
 }
 
 ThrowCompletionOr<size_t> checked_js_string_length_sum(VM& vm, size_t addend_a, size_t addend_b, ErrorType const& error_type)
