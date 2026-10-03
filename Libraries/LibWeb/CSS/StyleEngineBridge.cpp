@@ -342,6 +342,13 @@ StyleAtomID StyleEngine::intern_case_sensitive_text_atom(Utf16View text)
     return intern_atom(Utf16FlyString::from_utf16(text));
 }
 
+void StyleEngine::publish_html_element_namespace(StyleAtomID namespace_atom)
+{
+    // NB: The engine keeps the atom it was told alive, so an equal one names the same namespace.
+    if (exchange(m_html_element_namespace, namespace_atom) != namespace_atom)
+        set_html_element_namespace(namespace_atom);
+}
+
 // The name an attribute is published under, and the any-namespace name it shares.
 //
 // Three selectors ask three different questions of an attribute called `x`. `[ns|x]` reaches only

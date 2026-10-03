@@ -393,7 +393,6 @@ void StyleComputer::begin_transition_stabilization_epoch()
     VERIFY(m_provisional_transition_states.is_empty());
     VERIFY(m_provisional_transition_state_indices.is_empty());
     VERIFY(m_provisional_transition_state_indices_by_target.is_empty());
-    m_style_engine.begin_transition_baselines();
 }
 
 void StyleComputer::record_transition_stabilization_baseline(DOM::AbstractElement abstract_element, StyleRecordID before_change_style_record) const
@@ -401,7 +400,11 @@ void StyleComputer::record_transition_stabilization_baseline(DOM::AbstractElemen
     auto style_node_id = abstract_element.element().style_node_id();
     if (style_node_id == 0)
         return;
-    const_cast<StyleEngine&>(m_style_engine).record_transition_baseline(style_node_id, pseudo_element_to_ffi(abstract_element.pseudo_element()), before_change_style_record);
+    // Few epochs record a baseline, so the engine keeps them only for one that does.
+    auto& style_engine = const_cast<StyleEngine&>(m_style_engine);
+    if (!exchange(m_transition_baselines_recorded, true))
+        style_engine.begin_transition_baselines();
+    style_engine.record_transition_baseline(style_node_id, pseudo_element_to_ffi(abstract_element.pseudo_element()), before_change_style_record);
 }
 
 // https://drafts.csswg.org/css-transitions-2/#defining-before-change-style
@@ -477,7 +480,8 @@ void StyleComputer::commit_transition_stabilization_epoch()
     m_provisional_transition_states.clear();
     m_provisional_transition_state_indices.clear();
     m_provisional_transition_state_indices_by_target.clear();
-    m_style_engine.release_transition_baselines();
+    if (exchange(m_transition_baselines_recorded, false))
+        m_style_engine.release_transition_baselines();
 }
 
 template<size_t length>
@@ -986,8 +990,10 @@ RequiredInvalidationAfterStyleChange StyleComputer::run_transition_step_for_inst
     // A transition starts from the before-change style the epoch keeps, if any, and never from a style under
     // display: none. The installed record may itself be display: none; checking it would skip the discrete transition
     // into that state.
-    if (auto baseline = m_style_engine.transition_baseline(element.style_node_id(), pseudo_element_to_ffi(pseudo_element)); baseline != 0)
-        before_change_style_record = StyleRecordID { baseline };
+    if (m_transition_baselines_recorded) {
+        if (auto baseline = m_style_engine.transition_baseline(element.style_node_id(), pseudo_element_to_ffi(pseudo_element)); baseline != 0)
+            before_change_style_record = StyleRecordID { baseline };
+    }
     if (has_flag(m_style_engine.style_record_dependency_flags(before_change_style_record), StyleRecordDependencyFlag::InDisplayNoneSubtree))
         return {};
     if (auto parent = abstract_element.element_to_inherit_style_from(); parent.has_value()) {
