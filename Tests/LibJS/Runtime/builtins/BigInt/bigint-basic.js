@@ -194,6 +194,12 @@ describe("correct behavior", () => {
     });
 });
 
+test("constant right shift by a huge count", () => {
+    expect(~4n >> 18446744073709551615n).toBe(-1n);
+    expect(~0n >> 18446744073709551615n).toBe(-1n);
+    expect(5n >> 18446744073709551615n).toBe(0n);
+});
+
 describe("errors", () => {
     test("conversion to number", () => {
         expect(() => {

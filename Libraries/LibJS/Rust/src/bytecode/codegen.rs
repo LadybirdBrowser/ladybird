@@ -9817,24 +9817,11 @@ fn try_constant_fold_bigint_binary(
         BinaryOp::RightShift => {
             let shift = b.to_u64()?;
             // BigInt right shift for negative numbers floors toward negative infinity.
-            Some(generator.add_constant_bigint(bigint_right_shift(&a, shift as usize).to_string()))
+            Some(generator.add_constant_bigint((&a >> shift).to_string()))
         }
         // UnsignedRightShift throws TypeError for BigInt.
         _ => None,
     }
-}
-
-/// BigInt arithmetic right shift that floors toward negative infinity
-/// (matching JS spec 6.1.6.2.9 BigInt::signedRightShift).
-fn bigint_right_shift(value: &BigInt, shift: usize) -> BigInt {
-    if !value.is_negative() || shift == 0 {
-        return value >> shift;
-    }
-    // For negative values, we need floor division behavior.
-    // Check if any of the shifted-out bits are set.
-    let divisor = BigInt::one() << shift;
-    use num_integer::Integer;
-    value.div_floor(&divisor)
 }
 
 /// Try to constant-fold a binary operation when both operands are constants.
