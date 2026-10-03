@@ -24,9 +24,9 @@
 #include <LibWeb/DOM/NodeIdentity.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
-#include <LibWeb/Gamepad/SDLGamepadForward.h>
 #include <LibWeb/Layout/LayoutRustFFI.h>
 #include <LibWeb/Painting/Forward.h>
+#include <LibWebCommon/Gamepad/GamepadSnapshot.h>
 #include <LibWebCommon/Page/EventResult.h>
 #include <LibWebCommon/Page/InputEvent.h>
 #include <LibWebCommon/Page/QueuedInputEvent.h>
@@ -80,7 +80,10 @@ public:
     EventResult handle_pinch_event(CSSPixelPoint, unsigned modifiers, double scale_delta);
     [[nodiscard]] EventResult perform_paste_action();
     EventResult perform_paste_action(NonnullRefPtr<HTML::DragDataStore> const&);
-    void handle_sdl_input_events();
+
+    void handle_gamepad_connected(Gamepad::GamepadDescription const&);
+    void handle_gamepad_updated(Gamepad::GamepadState const&);
+    void handle_gamepad_disconnected(Gamepad::GamepadHandle);
 
     void process_auto_scroll();
 
@@ -197,10 +200,6 @@ private:
     void update_cursor(Layout::Node const*, GC::Ptr<DOM::Node> host_element, RefPtr<Painting::ChromeWidget>, bool hit_text_fragment = false);
     void record_last_known_mouse_position(CSSPixelPoint visual_viewport_position, CSSPixelPoint screen_position, unsigned buttons, unsigned modifiers);
     EventResult cancel_drag_and_drop_event(CSSPixelPoint, CSSPixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers);
-
-    void handle_gamepad_connected(SDL_JoystickID);
-    void handle_gamepad_updated(SDL_JoystickID);
-    void handle_gamepad_disconnected(SDL_JoystickID);
 
     bool has_committed_root_box() const;
 
