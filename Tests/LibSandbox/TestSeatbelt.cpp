@@ -929,6 +929,14 @@ TEST_CASE(application_bundle_is_found_only_for_bundled_executables)
     EXPECT(!Sandbox::application_bundle_for_executable("WebContent"sv).has_value());
 }
 
+TEST_CASE(paths_that_do_not_exist_are_not_granted)
+{
+    Vector<Sandbox::SeatbeltPath> paths;
+    MUST(Sandbox::add_seatbelt_path_if_exists(paths, "/nonexistent"sv, Sandbox::SeatbeltPath::Access::ReadOnly));
+    MUST(Sandbox::add_seatbelt_path_if_exists(paths, "/etc/hosts/nonexistent"sv, Sandbox::SeatbeltPath::Access::ReadOnly));
+    EXPECT(paths.is_empty());
+}
+
 TEST_CASE(sandboxed_process_with_network_connects_only_to_network_hosts)
 {
     auto network = Sandbox::SeatbeltProfile { .network_access = Sandbox::NetworkAccess::Allowed };

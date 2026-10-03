@@ -37,9 +37,16 @@ static ErrorOr<void> add_certificate_store_paths(Vector<Sandbox::LandlockPath>& 
     // libcurl is built with CURL_CA_FALLBACK, so OpenSSL's default store is consulted when no bundle is set.
     TRY(Sandbox::add_landlock_path_if_exists(paths, ByteString { X509_get_default_cert_file() }, Sandbox::LandlockPath::Access::ReadOnly));
     TRY(Sandbox::add_landlock_path_if_exists(paths, ByteString { X509_get_default_cert_dir() }, Sandbox::LandlockPath::Access::ReadOnly));
-    for (auto variable : { X509_get_default_cert_file_env(), X509_get_default_cert_dir_env() }) {
-        if (auto value = Core::Environment::get(StringView { variable, strlen(variable) }); value.has_value() && !value->is_empty())
-            TRY(Sandbox::add_landlock_path_if_exists(paths, *value, Sandbox::LandlockPath::Access::ReadOnly));
+
+    auto const* certificate_file_variable = X509_get_default_cert_file_env();
+    if (auto file = Core::Environment::get({ certificate_file_variable, strlen(certificate_file_variable) }); file.has_value() && !file->is_empty())
+        TRY(Sandbox::add_landlock_path_if_exists(paths, *file, Sandbox::LandlockPath::Access::ReadOnly));
+
+    // The directory variable holds a colon-separated list of directories.
+    auto const* certificate_directory_variable = X509_get_default_cert_dir_env();
+    if (auto directories = Core::Environment::get({ certificate_directory_variable, strlen(certificate_directory_variable) }); directories.has_value()) {
+        for (auto directory : directories->split_view(':'))
+            TRY(Sandbox::add_landlock_path_if_exists(paths, directory, Sandbox::LandlockPath::Access::ReadOnly));
     }
 
     return {};

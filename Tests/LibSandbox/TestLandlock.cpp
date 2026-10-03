@@ -140,6 +140,14 @@ TEST_CASE(a_process_with_a_second_thread_refuses_the_sandbox)
     EXPECT_EQ(WEXITSTATUS(status), 0);
 }
 
+TEST_CASE(paths_that_do_not_exist_are_not_granted)
+{
+    Vector<Sandbox::LandlockPath> paths;
+    MUST(Sandbox::add_landlock_path_if_exists(paths, "/nonexistent"sv, Sandbox::LandlockPath::Access::ReadOnly));
+    MUST(Sandbox::add_landlock_path_if_exists(paths, "/etc/hosts/nonexistent"sv, Sandbox::LandlockPath::Access::ReadOnly));
+    EXPECT(paths.is_empty());
+}
+
 #ifdef LANDLOCK_SCOPE_ABSTRACT_UNIX_SOCKET
 TEST_CASE(abstract_unix_sockets_outside_the_landlock_domain_are_unreachable)
 {
