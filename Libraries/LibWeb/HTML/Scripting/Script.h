@@ -18,14 +18,15 @@
 namespace Web::HTML {
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#concept-script
-class WEB_API Script
-    : public JS::Cell
-    , public JS::Script::HostDefined {
+class WEB_API Script : public JS::Cell {
     GC_CELL(Script, JS::Cell);
     GC_DECLARE_ALLOCATOR(Script);
 
 public:
     virtual ~Script() override;
+
+    template<typename T>
+    bool fast_is() const = delete;
 
     Optional<URL::URL> const& base_url() const { return m_base_url; }
     ByteString const& filename() const { return m_filename; }
@@ -46,8 +47,8 @@ protected:
     virtual void visit_edges(Visitor&) override;
 
 private:
-    virtual bool is_script() const final { return true; }
-    virtual void visit_host_defined_self(JS::Cell::Visitor&) override;
+    virtual bool is_classic_script() const { return false; }
+    virtual bool is_module_script() const { return false; }
 
     Optional<URL::URL> m_base_url;
     ByteString m_filename;
@@ -66,7 +67,10 @@ private:
 
 void register_javascript_source(Script&, NonnullRefPtr<JS::SourceCode const>, ScriptRegistry::JavaScriptSource::Type, ScriptRegistry::IsInlineSource, size_t source_line_number);
 
+// LibWeb puts the HTML::Script in the [[HostDefined]] field of every script and module record it creates.
+[[nodiscard]] inline Script* script_from_host_defined(GC::Ptr<GC::Cell> host_defined)
+{
+    return static_cast<Script*>(host_defined.ptr());
 }
 
-template<>
-inline bool JS::Script::HostDefined::fast_is<Web::HTML::Script>() const { return is_script(); }
+}

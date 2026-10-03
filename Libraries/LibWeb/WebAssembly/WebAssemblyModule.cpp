@@ -24,7 +24,7 @@ namespace Web::WebAssembly {
 GC_DEFINE_ALLOCATOR(WebAssemblyModule);
 
 WebAssemblyModule::WebAssemblyModule(JS::Realm& realm, StringView filename, WebAssembly::Module& module_source,
-    JS::Script::HostDefined* host_defined, Vector<JS::ModuleRequest> requested_modules)
+    GC::Ptr<GC::Cell> host_defined, Vector<JS::ModuleRequest> requested_modules)
     : CyclicModule(realm, filename, false, move(requested_modules), host_defined)
     , m_module_source(module_source)
 {
@@ -41,7 +41,7 @@ void WebAssemblyModule::visit_edges(Cell::Visitor& visitor)
 }
 
 // https://webassembly.github.io/esm-integration/js-api/index.html#parse-a-webassembly-module
-JS::ThrowCompletionOr<GC::Ref<WebAssemblyModule>> WebAssemblyModule::parse(ByteBuffer bytes, JS::Realm& realm, StringView filename, JS::Script::HostDefined* host_defined)
+JS::ThrowCompletionOr<GC::Ref<WebAssemblyModule>> WebAssemblyModule::parse(ByteBuffer bytes, JS::Realm& realm, StringView filename, GC::Ptr<GC::Cell> host_defined)
 {
     auto& vm = realm.vm();
 

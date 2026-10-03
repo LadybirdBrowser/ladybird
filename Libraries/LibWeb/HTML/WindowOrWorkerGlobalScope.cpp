@@ -1656,7 +1656,7 @@ void WindowOrWorkerGlobalScopeMixin::report_an_exception(JS::Value exception, Om
     //    0, and errorInfo[colno] to 0.
     script_or_module.visit(
         [&](GC::Ref<JS::Script> const& js_script) {
-            if (as<ClassicScript>(js_script->host_defined())->muted_errors() == ClassicScript::MutedErrors::Yes) {
+            if (as<ClassicScript>(script_from_host_defined(js_script->host_defined()))->muted_errors() == ClassicScript::MutedErrors::Yes) {
                 error_info.error = JS::js_null();
                 error_info.message = "Script error."_utf16;
                 error_info.filename = Utf16String {};

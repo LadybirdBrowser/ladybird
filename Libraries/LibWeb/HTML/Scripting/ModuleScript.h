@@ -70,4 +70,4 @@ private:
 }
 
 template<>
-inline bool JS::Script::HostDefined::fast_is<Web::HTML::ModuleScript>() const { return is_module_script(); }
+inline bool Web::HTML::Script::fast_is<Web::HTML::ModuleScript>() const { return is_module_script(); }

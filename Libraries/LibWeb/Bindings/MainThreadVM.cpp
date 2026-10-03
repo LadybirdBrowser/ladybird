@@ -95,10 +95,10 @@ HTML::Script* active_script()
     // 3. Return record.[[HostDefined]].
     return record.visit(
         [](GC::Ref<JS::Script>& js_script) -> HTML::Script* {
-            return as<HTML::ClassicScript>(js_script->host_defined());
+            return as<HTML::ClassicScript>(HTML::script_from_host_defined(js_script->host_defined()));
         },
         [](GC::Ref<JS::Module>& js_module) -> HTML::Script* {
-            return as<HTML::ModuleScript>(js_module->host_defined());
+            return as<HTML::ModuleScript>(HTML::script_from_host_defined(js_module->host_defined()));
         },
         [](Empty) -> HTML::Script* {
             return nullptr;
@@ -180,10 +180,10 @@ void initialize_main_thread_vm(HTML::AgentType type)
         HTML::Script* script { nullptr };
         vm.running_execution_context().script_or_module.visit(
             [&script](GC::Ref<JS::Script>& js_script) {
-                script = as<HTML::ClassicScript>(js_script->host_defined());
+                script = as<HTML::ClassicScript>(HTML::script_from_host_defined(js_script->host_defined()));
             },
             [&script](GC::Ref<JS::Module>& js_module) {
-                script = as<HTML::ModuleScript>(js_module->host_defined());
+                script = as<HTML::ModuleScript>(HTML::script_from_host_defined(js_module->host_defined()));
             },
             [](Empty) {
             });
@@ -427,7 +427,7 @@ void initialize_main_thread_vm(HTML::AgentType type)
         auto& vm = realm.vm();
 
         // 1. Let moduleScript be moduleRecord.[[HostDefined]].
-        auto& module_script = *as<HTML::Script>(module_record.host_defined());
+        auto& module_script = *HTML::script_from_host_defined(module_record.host_defined());
 
         // 2. Assert: moduleScript's base URL is not null, as moduleScript is a JavaScript module script.
         VERIFY(module_script.base_url().has_value());
@@ -498,7 +498,7 @@ void initialize_main_thread_vm(HTML::AgentType type)
         // 6. If referrer is a Script Record or a Cyclic Module Record, then:
         if (referrer.has<GC::Ref<JS::Script>>() || referrer.has<GC::Ref<JS::CyclicModule>>()) {
             // 1. Set referencingScript to referrer.[[HostDefined]].
-            referencing_script = as<HTML::Script>(referrer.has<GC::Ref<JS::Script>>() ? *referrer.get<GC::Ref<JS::Script>>()->host_defined() : *referrer.get<GC::Ref<JS::CyclicModule>>()->host_defined());
+            referencing_script = *HTML::script_from_host_defined(referrer.has<GC::Ref<JS::Script>>() ? referrer.get<GC::Ref<JS::Script>>()->host_defined() : referrer.get<GC::Ref<JS::CyclicModule>>()->host_defined());
 
             // 2. Set settingsObject to referencingScript's settings object.
             settings_object = referencing_script->settings_object();

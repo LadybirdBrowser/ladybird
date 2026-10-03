@@ -44,30 +44,17 @@ class JS_API Script final : public Cell {
     GC_DECLARE_ALLOCATOR(Script);
 
 public:
-    struct HostDefined {
-        virtual ~HostDefined() = default;
-
-        virtual void visit_host_defined_self(Cell::Visitor&) = 0;
-
-        template<typename T>
-        bool fast_is() const = delete;
-
-        virtual bool is_script() const { return false; }
-        virtual bool is_classic_script() const { return false; }
-        virtual bool is_module_script() const { return false; }
-    };
-
     virtual ~Script() override;
-    static Result<GC::Ref<Script>, Vector<ParserError>> parse(Utf16View source_text, Realm&, StringView filename = {}, Utf16View display_filename = {}, HostDefined* = nullptr, size_t line_number_offset = 1);
-    static Result<GC::Ref<Script>, Vector<ParserError>> create_from_parsed(FFI::ParsedProgram* parsed, NonnullRefPtr<SourceCode const> source_code, Realm&, StringView filename, HostDefined* = nullptr);
-    static Result<GC::Ref<Script>, Vector<ParserError>> create_from_compiled(FFI::CompiledProgram* compiled, NonnullRefPtr<SourceCode const> source_code, Realm&, StringView filename, HostDefined* = nullptr);
-    static Result<GC::Ref<Script>, Vector<ParserError>> create_from_bytecode_cache(NonnullRefPtr<RustIntegration::DecodedBytecodeCache>, NonnullRefPtr<SourceCode const> source_code, Realm&, StringView filename, HostDefined* = nullptr);
+    static Result<GC::Ref<Script>, Vector<ParserError>> parse(Utf16View source_text, Realm&, StringView filename = {}, Utf16View display_filename = {}, GC::Ptr<GC::Cell> host_defined = nullptr, size_t line_number_offset = 1);
+    static Result<GC::Ref<Script>, Vector<ParserError>> create_from_parsed(FFI::ParsedProgram* parsed, NonnullRefPtr<SourceCode const> source_code, Realm&, StringView filename, GC::Ptr<GC::Cell> host_defined = nullptr);
+    static Result<GC::Ref<Script>, Vector<ParserError>> create_from_compiled(FFI::CompiledProgram* compiled, NonnullRefPtr<SourceCode const> source_code, Realm&, StringView filename, GC::Ptr<GC::Cell> host_defined = nullptr);
+    static Result<GC::Ref<Script>, Vector<ParserError>> create_from_bytecode_cache(NonnullRefPtr<RustIntegration::DecodedBytecodeCache>, NonnullRefPtr<SourceCode const> source_code, Realm&, StringView filename, GC::Ptr<GC::Cell> host_defined = nullptr);
 
     Realm& realm() { return *m_realm; }
     Vector<LoadedModuleRequest>& loaded_modules() { return m_loaded_modules; }
     Vector<LoadedModuleRequest> const& loaded_modules() const { return m_loaded_modules; }
 
-    HostDefined* host_defined() const { return m_host_defined; }
+    GC::Ptr<GC::Cell> host_defined() const { return m_host_defined; }
     StringView filename() const LIFETIME_BOUND { return m_filename; }
 
     Bytecode::Executable* cached_executable() const { return m_executable.ptr(); }
@@ -94,7 +81,7 @@ public:
     };
 
 private:
-    Script(Realm&, StringView filename, RustIntegration::ScriptResult&&, ExecutableBacking, HostDefined*);
+    Script(Realm&, StringView filename, RustIntegration::ScriptResult&&, ExecutableBacking, GC::Ptr<GC::Cell> host_defined);
 
     virtual void visit_edges(Cell::Visitor&) override;
     virtual size_t external_memory_size() const override;
@@ -120,7 +107,7 @@ private:
 
     // Needed for potential lookups of modules.
     ByteString m_filename;
-    HostDefined* m_host_defined { nullptr }; // [[HostDefined]]
+    GC::Ptr<GC::Cell> m_host_defined; // [[HostDefined]]
 };
 
 }

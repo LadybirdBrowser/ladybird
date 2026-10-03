@@ -57,4 +57,4 @@ private:
 }
 
 template<>
-inline bool JS::Script::HostDefined::fast_is<Web::HTML::ClassicScript>() const { return is_classic_script(); }
+inline bool Web::HTML::Script::fast_is<Web::HTML::ClassicScript>() const { return is_classic_script(); }

@@ -21,7 +21,7 @@ class WebAssemblyModule final : public JS::CyclicModule {
 public:
     virtual ~WebAssemblyModule() override;
 
-    static JS::ThrowCompletionOr<GC::Ref<WebAssemblyModule>> parse(ByteBuffer bytes, JS::Realm&, StringView filename = {}, JS::Script::HostDefined* host_defined = nullptr);
+    static JS::ThrowCompletionOr<GC::Ref<WebAssemblyModule>> parse(ByteBuffer bytes, JS::Realm&, StringView filename = {}, GC::Ptr<GC::Cell> host_defined = nullptr);
 
     Vector<Utf16FlyString> export_name_list();
 
@@ -33,7 +33,7 @@ protected:
     virtual JS::ThrowCompletionOr<void> execute_module(JS::VM& vm, GC::Ptr<JS::PromiseCapability> capability) override;
 
 private:
-    WebAssemblyModule(JS::Realm&, StringView filename, WebAssembly::Module& module_source, JS::Script::HostDefined* host_defined, Vector<JS::ModuleRequest> requested_modules);
+    WebAssemblyModule(JS::Realm&, StringView filename, WebAssembly::Module& module_source, GC::Ptr<GC::Cell> host_defined, Vector<JS::ModuleRequest> requested_modules);
 
     virtual void visit_edges(Cell::Visitor&) override;
 

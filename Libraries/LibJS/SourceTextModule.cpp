@@ -59,7 +59,7 @@ static size_t export_entries_external_memory_size(Vector<ExportEntry> const& ent
     return size;
 }
 
-SourceTextModule::SourceTextModule(Realm& realm, StringView filename, Script::HostDefined* host_defined, bool has_top_level_await,
+SourceTextModule::SourceTextModule(Realm& realm, StringView filename, GC::Ptr<GC::Cell> host_defined, bool has_top_level_await,
     Vector<ModuleRequest> requested_modules, Vector<ImportEntry> import_entries,
     Vector<ExportEntry> local_export_entries, Vector<ExportEntry> indirect_export_entries,
     Vector<ExportEntry> star_export_entries, Optional<Utf16FlyString> default_export_binding_name,
@@ -122,7 +122,7 @@ size_t SourceTextModule::external_memory_size() const
     return size;
 }
 
-Result<GC::Ref<SourceTextModule>, Vector<ParserError>> SourceTextModule::parse_from_pre_parsed(FFI::ParsedProgram* parsed, NonnullRefPtr<SourceCode const> source_code, Realm& realm, StringView filename, Script::HostDefined* host_defined)
+Result<GC::Ref<SourceTextModule>, Vector<ParserError>> SourceTextModule::parse_from_pre_parsed(FFI::ParsedProgram* parsed, NonnullRefPtr<SourceCode const> source_code, Realm& realm, StringView filename, GC::Ptr<GC::Cell> host_defined)
 {
     auto rust_result = RustIntegration::compile_parsed_module(parsed, move(source_code), realm);
     // Always from the Rust pipeline, so the Optional must have a value.
@@ -145,7 +145,7 @@ Result<GC::Ref<SourceTextModule>, Vector<ParserError>> SourceTextModule::parse_f
         module_result.executable.ptr(), module_result.tla_shared_data.ptr(), ExecutableBacking::source());
 }
 
-Result<GC::Ref<SourceTextModule>, Vector<ParserError>> SourceTextModule::parse_from_pre_compiled(FFI::CompiledProgram* compiled, NonnullRefPtr<SourceCode const> source_code, Realm& realm, StringView filename, Script::HostDefined* host_defined)
+Result<GC::Ref<SourceTextModule>, Vector<ParserError>> SourceTextModule::parse_from_pre_compiled(FFI::CompiledProgram* compiled, NonnullRefPtr<SourceCode const> source_code, Realm& realm, StringView filename, GC::Ptr<GC::Cell> host_defined)
 {
     auto rust_result = RustIntegration::materialize_compiled_module(compiled, move(source_code), realm);
     // Always from the Rust pipeline, so the Optional must have a value.
@@ -168,7 +168,7 @@ Result<GC::Ref<SourceTextModule>, Vector<ParserError>> SourceTextModule::parse_f
         module_result.executable.ptr(), module_result.tla_shared_data.ptr(), ExecutableBacking::heap_bytecode());
 }
 
-Result<GC::Ref<SourceTextModule>, Vector<ParserError>> SourceTextModule::parse_from_bytecode_cache(NonnullRefPtr<RustIntegration::DecodedBytecodeCache> bytecode_cache, NonnullRefPtr<SourceCode const> source_code, Realm& realm, StringView filename, Script::HostDefined* host_defined)
+Result<GC::Ref<SourceTextModule>, Vector<ParserError>> SourceTextModule::parse_from_bytecode_cache(NonnullRefPtr<RustIntegration::DecodedBytecodeCache> bytecode_cache, NonnullRefPtr<SourceCode const> source_code, Realm& realm, StringView filename, GC::Ptr<GC::Cell> host_defined)
 {
     auto rust_result = RustIntegration::materialize_bytecode_cache_module(bytecode_cache, move(source_code), realm);
     // Always from the Rust pipeline, so the Optional must have a value.
@@ -266,7 +266,7 @@ void SourceTextModule::complete_bytecode_cache_install(GC::Ptr<Bytecode::Executa
     verify_executable_backing_invariants();
 }
 
-Result<GC::Ref<SourceTextModule>, Vector<ParserError>> SourceTextModule::from_rust_result(Optional<Result<RustIntegration::ModuleResult, Vector<ParserError>>> rust_result, Realm& realm, StringView filename, Script::HostDefined* host_defined)
+Result<GC::Ref<SourceTextModule>, Vector<ParserError>> SourceTextModule::from_rust_result(Optional<Result<RustIntegration::ModuleResult, Vector<ParserError>>> rust_result, Realm& realm, StringView filename, GC::Ptr<GC::Cell> host_defined)
 {
     if (!rust_result.has_value())
         return Vector<ParserError> {};
@@ -290,7 +290,7 @@ Result<GC::Ref<SourceTextModule>, Vector<ParserError>> SourceTextModule::from_ru
 }
 
 // 16.2.1.7.1 ParseModule ( sourceText, realm, hostDefined ), https://tc39.es/ecma262/#sec-parsemodule
-Result<GC::Ref<SourceTextModule>, Vector<ParserError>> SourceTextModule::parse(Utf16View source_text, Realm& realm, StringView filename, Utf16View display_filename, Script::HostDefined* host_defined, size_t line_number_offset)
+Result<GC::Ref<SourceTextModule>, Vector<ParserError>> SourceTextModule::parse(Utf16View source_text, Realm& realm, StringView filename, Utf16View display_filename, GC::Ptr<GC::Cell> host_defined, size_t line_number_offset)
 {
     auto fallback_display_filename = display_filename.is_empty() ? Utf16String::from_utf8(filename) : Utf16String {};
     if (display_filename.is_empty())
@@ -299,7 +299,7 @@ Result<GC::Ref<SourceTextModule>, Vector<ParserError>> SourceTextModule::parse(U
     return from_rust_result(RustIntegration::compile_module(source_text, realm, display_filename, line_number_offset), realm, filename, host_defined);
 }
 
-Result<GC::Ref<SourceTextModule>, Vector<ParserError>> SourceTextModule::parse(NonnullRefPtr<SourceCode const> source_code, Realm& realm, StringView filename, Script::HostDefined* host_defined, size_t line_number_offset)
+Result<GC::Ref<SourceTextModule>, Vector<ParserError>> SourceTextModule::parse(NonnullRefPtr<SourceCode const> source_code, Realm& realm, StringView filename, GC::Ptr<GC::Cell> host_defined, size_t line_number_offset)
 {
     return from_rust_result(RustIntegration::compile_module(move(source_code), realm, line_number_offset), realm, filename, host_defined);
 }
