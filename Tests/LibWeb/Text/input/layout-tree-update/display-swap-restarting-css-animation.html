@@ -1,0 +1,37 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    @keyframes fade {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+    .item { display: flex; }
+    .shown { animation: 1s fade; }
+    .hidden { display: none; }
+    #spacer { height: 5000px; }
+</style>
+<div style="display: flex; flex-direction: column">
+    <div id="a" class="item shown"><div>A</div><div style="display: flex">a</div></div>
+    <div id="b" class="item hidden"><div>B</div><div style="display: flex">b</div></div>
+</div>
+<div id="spacer"></div>
+<script>
+    // Swap which of two items is shown, the way a rotating ticker does, and scroll in the same task. The second
+    // swap shows the first item again, restarting its animation; the scroll lays out before the item's host has
+    // taken the record that starts the animation.
+    asyncTest(async done => {
+        const a = document.getElementById("a");
+        const b = document.getElementById("b");
+        for (let i = 0; i < 2; ++i) {
+            await animationFrame();
+            await animationFrame();
+            [a.className, b.className] = [b.className, a.className];
+            window.scrollBy(0, 10);
+        }
+        await animationFrame();
+        println(`a has a box: ${a.getClientRects().length > 0}`);
+        println(`b has a box: ${b.getClientRects().length > 0}`);
+        println(`matches full rebuild: ${internals.compareLayoutTreeWithFullRebuild().matches}`);
+        done();
+    });
+</script>
