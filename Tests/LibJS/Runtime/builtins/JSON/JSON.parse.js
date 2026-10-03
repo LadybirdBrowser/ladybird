@@ -186,6 +186,13 @@ test("lone surrogates among non-ASCII text", () => {
     expect(() => JSON.parse("\uD800")).toThrow(SyntaxError);
 });
 
+test("lone surrogate after a backslash", () => {
+    expect(() => JSON.parse('"\\' + "\uD800" + '"')).toThrow(SyntaxError);
+    expect(() => JSON.parse('{"\\' + "\uDC00" + '": 1}')).toThrow(SyntaxError);
+    expect(() => JSON.rawJSON('"\\' + "\uD800" + '"')).toThrow(SyntaxError);
+    expect(JSON.parse('"\\\\' + "\uD800" + '"')).toBe("\\\uD800");
+});
+
 test("object keys repeated across many objects", () => {
     const text = JSON.stringify(
         Array.from({ length: 300 }, (_, i) => ({ title: "やること " + i, completed: i % 2 === 0, id: "id" + i }))
