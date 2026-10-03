@@ -117,41 +117,6 @@ pub(crate) enum LayoutChange {
 }
 
 impl LayoutChange {
-    /// Whether applying the change can alter the published rows: their shape and flags, the style nodes they carry, or
-    /// the text they paint. Marks for the next layout and what layout alone reads alter none.
-    pub(crate) fn alters_published_rows(&self) -> bool {
-        match self {
-            Self::InvalidateTextContent { .. } | Self::StyleNodeChanged { .. } | Self::SetNodeFlag { .. } => true,
-            Self::SetNeedsLayoutUpdate { .. }
-            | Self::SetNeedsFullLayoutTreeUpdate(_)
-            | Self::ResetCachedIntrinsicSizesOfSelfAndAncestors { .. }
-            | Self::DeferChildListInsertionLayoutUpdate { .. }
-            | Self::EnrollTextAfterLanguageChange { .. }
-            | Self::RecordPartialRelayoutEscape
-            | Self::NoteContainedAbsposChildRemoval { .. }
-            | Self::SetAnchorNameElements { .. }
-            | Self::SetElementScrollOffset { .. }
-            | Self::SetPseudoElementScrollOffset { .. }
-            | Self::SetIdentityInFocusedTextControl { .. }
-            | Self::SvgAttributeFacts { .. }
-            | Self::SvgStyleReferences { .. }
-            | Self::SetDocumentIsDecodedSvg(_)
-            | Self::SetOwnedImageNaturalSize { .. }
-            | Self::InvalidateSearchableText
-            | Self::RestampTableSpans { .. } => false,
-        }
-    }
-
-    /// Whether applying the change can alter what a published row is, or the row a node is bound to (see
-    /// [`crate::layout::LayoutNodeArena::rows_identity_version`]).
-    pub(crate) fn alters_published_identities(&self) -> bool {
-        match self {
-            Self::StyleNodeChanged { .. } => true,
-            Self::SetNodeFlag { flag, .. } => *flag as u32 & NodeFlag::IDENTITY != 0,
-            _ => false,
-        }
-    }
-
     /// Applies the change to `arena`, the arena of the document it was queued for. A node freed since then has nothing
     /// left to change.
     pub(crate) fn apply(self, arena: &mut LayoutNodeArena) {

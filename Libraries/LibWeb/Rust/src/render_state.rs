@@ -103,26 +103,6 @@ pub(crate) enum ArenaChange {
 }
 
 impl ArenaChange {
-    /// Whether applying the change can alter what the rows the render state publishes answer the host (see
-    /// [`crate::layout::row_reads`]), so that a read the host makes after queuing it waits for rows that reflect it.
-    /// What the next layout or paint reads, and the style engine's state, alter none.
-    fn alters_published_rows(&self) -> bool {
-        match self {
-            Self::Layout(change) => change.alters_published_rows(),
-            Self::Paint(change) => change.alters_published_rows(),
-            Self::Style(_) | Self::Engine(_) => false,
-        }
-    }
-
-    /// Whether applying the change can alter what a published row is, or the row a node is bound to, which only a
-    /// change that alters the published rows can.
-    fn alters_published_identities(&self) -> bool {
-        match self {
-            Self::Layout(change) => change.alters_published_identities(),
-            Self::Paint(_) | Self::Style(_) | Self::Engine(_) => false,
-        }
-    }
-
     /// # Safety
     ///
     /// `engine` must name the live style engine `arena` links, which nothing else borrows meanwhile.
@@ -349,23 +329,36 @@ mod tests {
     }
 
     #[test]
-    fn a_queued_change_that_alters_the_rows_makes_the_host_read_them_again() {
+    fn only_a_change_that_writes_the_rows_makes_the_host_read_them_again() {
         use crate::layout::layout_changes::LayoutChange;
-        use crate::layout::node_data::NodeSlotId;
+        use crate::layout::node_data::{NodeFlag, NodeSlotId};
         let pointer = document_host::document_host_create(0);
         // SAFETY: The host lives until it is destroyed below.
         let host = unsafe { &*pointer };
-        assert!(host.rows().is_none());
+        // SAFETY: The arena lives as long as the host's render state, and nothing else reaches it meanwhile.
+        let arena =
+            unsafe { &mut *arena_for_unconverted_entry(host.document()).cast::<crate::layout::LayoutNodeArena>() };
+        let row = arena.allocate_for_test().slot;
         host.fresh_rows(ScriptForcedRead::for_test());
-        assert!(host.rows().is_some());
         host.queue_change(ArenaChange::Layout(LayoutChange::SetNeedsFullLayoutTreeUpdate(true)));
         assert!(host.rows().is_some(), "a layout mark leaves the rows as they are");
         host.queue_change(ArenaChange::Layout(LayoutChange::InvalidateTextContent {
             node: NodeSlotId::INVALID,
         }));
+        assert!(host.rows().is_some(), "a change of a row that is gone writes nothing");
+        host.queue_change(ArenaChange::Layout(LayoutChange::SetNodeFlag {
+            node: row,
+            flag: NodeFlag::IsEditingHost,
+            value: true,
+        }));
         assert!(host.rows().is_none());
-        host.fresh_rows(ScriptForcedRead::for_test());
-        assert!(host.rows().is_some());
+        assert_ne!(
+            host.fresh_rows(ScriptForcedRead::for_test()).flags(row) & NodeFlag::IsEditingHost as u32,
+            0
+        );
+        arena
+            .free_subtree(row)
+            .destroy_shells_and_invoke_callbacks(&crate::stage::MainThread::for_test());
         // SAFETY: The host is destroyed once, and nothing reaches it after.
         unsafe { document_host::document_host_destroy(pointer) };
     }

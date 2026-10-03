@@ -92,29 +92,6 @@ pub(crate) enum PaintChange {
 }
 
 impl PaintChange {
-    /// Whether applying the change can alter the published rows: what a paintable row paints and is hit-tested with,
-    /// and the paint facts beside the rows. Paint damage and the paint state the next frame reads alter none.
-    pub(crate) fn alters_published_rows(&self) -> bool {
-        match self {
-            Self::ApplySelection { .. }
-            | Self::ClearSelection { .. }
-            | Self::SetScrollbarEnlarged { .. }
-            | Self::SetDomPaintFacts { .. }
-            | Self::SetLayerImagePaintFacts { .. }
-            | Self::SetReplacedPaintFacts { .. } => true,
-            Self::SetViewportScrollOffset(_)
-            | Self::InvalidateScrollState
-            | Self::SyncSelectionPseudoStyle { .. }
-            | Self::PublishImageMapAreas { .. }
-            | Self::NoteVisualContextBoxDirty { .. }
-            | Self::Repaint { .. }
-            | Self::RepaintSubtree { .. }
-            | Self::InvalidatePaintCache { .. }
-            | Self::InvalidateNearestSelfPaintingInlinePaintCache { .. }
-            | Self::InvalidateAllPaintCaches => false,
-        }
-    }
-
     /// Applies the change to `arena`, the arena of the document it was queued for.
     pub(crate) fn apply(self, arena: &mut LayoutNodeArena) {
         match self {
