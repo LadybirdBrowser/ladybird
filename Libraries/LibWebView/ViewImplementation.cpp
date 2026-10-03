@@ -101,9 +101,9 @@ ViewImplementation::~ViewImplementation()
     if (m_top_level_traversable) {
         m_top_level_traversable->discard_pending_host();
         m_top_level_traversable->discard_representing_pages();
+        if (page().is_open())
+            page().client().close_page_of_closed_tab(page_id());
     }
-    if (has_display_page())
-        page().client().close_page_of_closed_tab(page_id());
 
     // A headless parent can own and destroy its child view without the child receiving a browsing-context-close
     // notification. Do not strand a WebDriver command which raced with that teardown.
@@ -139,14 +139,6 @@ WebContentPage& ViewImplementation::page() const
     auto page = traversable().display_page();
     VERIFY(page);
     return *page;
-}
-
-bool ViewImplementation::has_display_page() const
-{
-    if (!m_top_level_traversable)
-        return false;
-    auto page = traversable().display_page();
-    return page && page->is_open();
 }
 
 Web::PageId ViewImplementation::page_id() const
@@ -237,25 +229,16 @@ void ViewImplementation::release_backing_store(i32 bitmap_id)
 
 void ViewImplementation::set_window_position(Gfx::IntPoint position)
 {
-    if (!has_display_page())
-        return;
-
     page().async_set_window_position(position.to_type<Web::DevicePixels>());
 }
 
 void ViewImplementation::set_window_size(Gfx::IntSize size)
 {
-    if (!has_display_page())
-        return;
-
     page().async_set_window_size(size.to_type<Web::DevicePixels>());
 }
 
 void ViewImplementation::set_system_visibility_state(Web::HTML::VisibilityState visibility_state)
 {
-    if (!has_display_page())
-        return;
-
     if (traversable().system_visibility_state() == visibility_state)
         return;
 
@@ -265,8 +248,6 @@ void ViewImplementation::set_system_visibility_state(Web::HTML::VisibilityState 
 
 void ViewImplementation::set_has_system_focus(bool has_system_focus)
 {
-    if (!has_display_page())
-        return;
     traversable().set_has_system_focus(has_system_focus, {});
 }
 
@@ -655,9 +636,6 @@ void ViewImplementation::enqueue_webdriver_mouse_event(Badge<WebContentPage>, We
 
 void ViewImplementation::enqueue_input_event(Web::InputEvent event)
 {
-    if (!has_display_page())
-        return;
-
     auto* key_event = event.get_pointer<Web::KeyEvent>();
     auto* mouse_event = event.get_pointer<Web::MouseEvent>();
     if (m_debugger_paused) {
@@ -1652,9 +1630,6 @@ void ViewImplementation::set_debugger_overlay_hovered_action(Optional<Compositin
 
 void ViewImplementation::update_paused_debugger_overlay()
 {
-    if (!has_display_page())
-        return;
-
     auto context_id = page().compositor_context_id();
     Optional<u8> hovered_action;
     if (m_debugger_overlay_hovered_action.has_value())
@@ -2200,9 +2175,6 @@ void ViewImplementation::apply_zoom_for_current_host()
 
 void ViewImplementation::handle_resize()
 {
-    if (!has_display_page())
-        return;
-
     page().async_set_viewport(viewport_size(), m_device_pixel_ratio, m_is_fullscreen);
     Application::the().update_compositor_viewport(page().compositor_context_id(), viewport_size().to_type<int>(), Compositing::WindowResizingInProgress::Yes);
     if (m_debugger_paused) {
@@ -2223,7 +2195,7 @@ void ViewImplementation::initialize_tab(Web::HTML::VisibilityState system_visibi
     }
     display_traversable(*traversable, system_visibility_state);
     // The launched process's initial page, or the page the opener's process opened for the tab, displays it.
-    VERIFY(has_display_page());
+    VERIFY(page().is_open());
     VERIFY(page().client().is_private() == m_is_private);
 
     if (m_window_handle.is_empty()) {

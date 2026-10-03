@@ -108,7 +108,6 @@ public:
     u64 view_id() const { return m_view_id; }
 
     CanonicalTraversable& traversable() const;
-    bool has_display_page() const;
     virtual void prepare_page_for_tab(WebContentPage&);
     void did_change_display_page(Badge<CanonicalNavigable>, RefPtr<WebContentPage> previous_page);
 

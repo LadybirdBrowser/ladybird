@@ -805,9 +805,6 @@ void WebContentView::update_page_focus()
     // moved to the embedded window). Instead of trusting individual events, evaluate the resulting focus state once
     // the burst has settled.
     QTimer::singleShot(0, this, [this] {
-        if (!has_display_page())
-            return;
-
         auto focused = hasFocus();
 #ifdef LADYBIRD_QT_USE_VULKAN_WINDOW
         if (!focused)
@@ -1255,9 +1252,6 @@ void WebContentView::resizeEvent(QResizeEvent* event)
     if (m_crash_overlay)
         m_crash_overlay->setGeometry(rect());
 
-    if (!has_display_page())
-        return;
-
 #ifdef LADYBIRD_QT_USE_RHI_WIDGET
     m_force_full_repaint = true;
 #endif
@@ -1274,8 +1268,6 @@ void WebContentView::resizeEvent(QResizeEvent* event)
         if (!self)
             return;
         self->m_viewport_push_pending = false;
-        if (!self->has_display_page())
-            return;
         self->update_viewport_size();
     });
 }
@@ -1343,8 +1335,6 @@ void WebContentView::set_display_metadata(Optional<u64> display_id, double maxim
 
 void WebContentView::update_compositor_display_metadata()
 {
-    if (!has_display_page())
-        return;
     update_compositor_display_metadata(page());
 }
 
@@ -1447,9 +1437,6 @@ static Core::AnonymousBuffer make_system_theme_from_qt_palette(QWidget& widget, 
 void WebContentView::update_palette(PaletteMode mode)
 {
     set_page_background_color_to_system_canvas(is_using_dark_system_theme(*this));
-
-    if (!has_display_page())
-        return;
     update_palette(page(), mode);
 }
 
@@ -1460,8 +1447,6 @@ void WebContentView::update_palette(WebView::WebContentPage& page, PaletteMode m
 
 void WebContentView::update_screen_rects()
 {
-    if (!has_display_page())
-        return;
     update_screen_rects(page());
 }
 
