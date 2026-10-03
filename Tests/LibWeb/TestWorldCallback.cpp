@@ -24,7 +24,7 @@ static void install_test_host_defined(JS::Realm& realm, Web::Bindings::WrapperWo
 {
     auto intrinsics = realm.create<Web::Bindings::Intrinsics>(realm);
     auto wrapper_world = realm.heap().allocate<Web::Bindings::WrapperWorld>(world_type);
-    realm.set_host_defined(make<Web::Bindings::HostDefined>(intrinsics, *wrapper_world, principal_realm));
+    realm.set_host_defined(realm.heap().allocate<Web::Bindings::HostDefined>(intrinsics, *wrapper_world, principal_realm));
 }
 
 TEST_CASE(extension_world_callback_uses_principal_settings_object)

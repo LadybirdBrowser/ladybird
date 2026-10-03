@@ -414,10 +414,10 @@ Window& incumbent_window()
 EnvironmentSettingsObject& principal_realm_settings_object(JS::Realm& realm)
 {
     // A principal realm has a [[HostDefined]] field, which contains the principal realm's settings object.
-    if (realm.host_defined()->is_principal_host_defined())
+    auto& host_defined = Bindings::host_defined_of(realm);
+    if (host_defined.is_principal_host_defined())
         return Bindings::principal_host_defined_environment_settings_object(realm);
 
-    auto& host_defined = static_cast<Bindings::HostDefined&>(*realm.host_defined());
     return Bindings::principal_host_defined_environment_settings_object(*host_defined.principal_realm);
 }
 

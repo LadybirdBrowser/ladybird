@@ -783,7 +783,7 @@ GC::Ref<JS::Realm> create_a_simple_javascript_realm()
     auto& realm = *execution_context->realm;
     auto intrinsics = realm.create<Intrinsics>(realm);
     auto wrapper_world = GC::Heap::the().allocate<WrapperWorld>(WrapperWorld::Type::Internal);
-    realm.set_host_defined(make<HostDefined>(intrinsics, *wrapper_world, *principal_realm));
+    realm.set_host_defined(realm.heap().allocate<HostDefined>(intrinsics, *wrapper_world, *principal_realm));
     cache_global_object_wrapper(realm);
 
     // Keep the test realm alive and current for the lifetime of this VM.
