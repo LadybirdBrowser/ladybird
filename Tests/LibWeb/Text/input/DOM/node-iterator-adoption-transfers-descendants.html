@@ -1,0 +1,16 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        let detachedDocument = document.implementation.createHTMLDocument();
+        detachedDocument.createNodeIterator(detachedDocument.head);
+        document.adoptNode(detachedDocument.documentElement);
+        detachedDocument = null;
+
+        setTimeout(() => {
+            new ArrayBuffer(9_000_000);
+            println("PASS");
+            done();
+        }, 0);
+    });
+</script>
