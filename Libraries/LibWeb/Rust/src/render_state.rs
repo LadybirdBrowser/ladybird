@@ -15,7 +15,7 @@ use crate::css::style::StyleEngineHandle;
 use crate::css::style::bridge::{FfiDeviceClass, create_document_style_engine};
 use crate::fast_hash::FastMap as HashMap;
 use crate::layout::ArenaHandle;
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::marker::PhantomData;
 use std::ptr::NonNull;
 use std::sync::Arc;
@@ -142,14 +142,47 @@ impl ArenaChange {
     }
 }
 
-/// The writes a host queued for its document's render state since the render side last took them, in the order the
-/// host made them. They go to the render side ahead of the host's next message, which they come before.
-pub(crate) struct QueuedChanges {
-    document: DocumentId,
-    changes: Vec<ArenaChange>,
+/// The writes a host queued for its document's render state, in the order the host made them, in two buffers the queue
+/// keeps: the writes are applied out of one as the host queues more into the other, so queueing a write allocates only
+/// where a buffer grows past what it held before.
+#[derive(Default)]
+struct ChangeQueue {
+    queued: RefCell<Vec<ArenaChange>>,
+    /// The empty buffer the host queues into while the writes queued before are applied.
+    spare: Cell<Vec<ArenaChange>>,
 }
 
-impl QueuedChanges {
+impl ChangeQueue {
+    fn push(&self, change: ArenaChange) {
+        self.queued.borrow_mut().push(change);
+    }
+
+    fn is_empty(&self) -> bool {
+        self.queued.borrow().is_empty()
+    }
+
+    /// Lends the queued writes of `document` to `apply`, which applies them, and keeps their emptied buffer as the
+    /// spare. A write the host queues meanwhile, as the writes are applied or the render side works, waits for the next
+    /// application.
+    fn drain(&self, document: DocumentId, apply: impl FnOnce(QueuedChanges<'_>)) {
+        let mut queued = self.queued.replace(self.spare.take());
+        apply(QueuedChanges {
+            document,
+            changes: queued.drain(..),
+        });
+        self.spare.set(queued);
+    }
+}
+
+/// The writes a host queued for its document's render state since the render side last applied them, in the order the
+/// host made them, lent out of the host's queue. They go to the render side ahead of the host's next message, which
+/// they come before.
+pub(crate) struct QueuedChanges<'a> {
+    document: DocumentId,
+    changes: std::vec::Drain<'a, ArenaChange>,
+}
+
+impl QueuedChanges<'_> {
     /// Applies the changes to `arena` and `engine`, the arena and style engine of their document.
     ///
     /// # Safety
@@ -205,7 +238,7 @@ thread_local! {
 }
 
 /// Handles `message` on the render side, after the changes its host queued before it.
-fn handle(changes: QueuedChanges, message: RenderMessage<'_>) {
+fn handle(changes: QueuedChanges<'_>, message: RenderMessage<'_>) {
     let side = RenderingSide {
         not_send_or_sync: PhantomData,
     };
@@ -213,8 +246,8 @@ fn handle(changes: QueuedChanges, message: RenderMessage<'_>) {
     handle_message(&side, message);
 }
 
-fn apply_changes(_: &RenderingSide, changes: QueuedChanges) {
-    if changes.changes.is_empty() {
+fn apply_changes(_: &RenderingSide, changes: QueuedChanges<'_>) {
+    if changes.changes.len() == 0 {
         return;
     }
     let (arena, engine) = state_parts(changes.document).expect("a document the host changes has a render state");
@@ -284,11 +317,12 @@ fn state_parts(document: DocumentId) -> Option<(*mut ArenaHandle, StyleEngineHan
 /// thread handles another (a child document's) is handled right there, and a unit test's render states stay on the
 /// test's own thread.
 pub(crate) fn send(host: &DocumentHost, message: RenderMessage<'_>) {
-    let changes = host.take_queued_changes();
-    if cfg!(test) {
-        return handle(changes, message);
-    }
-    crate::stage_thread::style_layout_thread().run(|| handle(changes, message));
+    host.drain_queued_changes(|changes| {
+        if cfg!(test) {
+            return handle(changes, message);
+        }
+        crate::stage_thread::style_layout_thread().run(|| handle(changes, message));
+    });
 }
 
 // A render state lives on a thread of its own, where nothing of the host may follow it: the shells and the callbacks
@@ -344,6 +378,32 @@ mod tests {
         let second = DocumentId::mint();
         assert!(first != DocumentId::default() && second != DocumentId::default());
         assert_ne!(first, second);
+    }
+
+    #[test]
+    fn applying_queued_changes_keeps_the_queues_buffers() {
+        use crate::layout::layout_changes::LayoutChange;
+        let queue = ChangeQueue::default();
+        let write = || ArenaChange::Layout(LayoutChange::RecordPartialRelayoutEscape);
+        let mut buffers = [std::ptr::null(); 4];
+        for buffer in &mut buffers {
+            for _ in 0..8 {
+                queue.push(write());
+            }
+            *buffer = queue.queued.borrow().as_ptr();
+            queue.drain(DocumentId::default(), |changes| assert_eq!(changes.changes.count(), 8));
+        }
+        assert_eq!(buffers[0], buffers[2]);
+        assert_eq!(buffers[1], buffers[3]);
+        queue.push(write());
+        queue.drain(DocumentId::default(), |changes| {
+            assert_eq!(changes.changes.count(), 1);
+            queue.push(write());
+        });
+        assert!(
+            !queue.is_empty(),
+            "a write queued meanwhile waits for the next application"
+        );
     }
 
     #[test]

@@ -8,8 +8,8 @@
 
 use super::questions::Question;
 use super::{
-    ArenaChange, CommittedRows, CreatedState, DocumentId, ForcedRead, LockstepProof, QueuedChanges, RenderMessage,
-    RenderWait, ScriptForcedRead, ask, send, wait_for_render_state,
+    ArenaChange, ChangeQueue, CommittedRows, CreatedState, DocumentId, ForcedRead, LockstepProof, QueuedChanges,
+    RenderMessage, RenderWait, ScriptForcedRead, ask, send, wait_for_render_state,
 };
 use crate::css::style::bridge::FfiDeviceClass;
 use crate::css::style::style_job::StyleJobAnswer;
@@ -50,7 +50,7 @@ pub struct DocumentHost {
     /// The read of the render state the host began and has not ended, if any.
     forced_read: RefCell<BegunRead>,
     /// The writes the host queued that the render state has not applied yet, in the order the host made them.
-    changes: RefCell<Vec<ArenaChange>>,
+    changes: ChangeQueue,
 }
 
 /// A read of a document's render state the host began: how many of the read's scopes are open, and the read itself
@@ -73,7 +73,7 @@ impl DocumentHost {
             state: OnceCell::new(),
             compositor_animations: RefCell::default(),
             forced_read: RefCell::default(),
-            changes: RefCell::default(),
+            changes: ChangeQueue::default(),
         }
     }
 
@@ -95,28 +95,26 @@ impl DocumentHost {
     /// applies it ahead of the host's next message, and the host ahead of the next question it answers where it is. A
     /// write never reaches the render state as the host makes it.
     pub(crate) fn queue_change(&self, change: ArenaChange) {
-        self.changes.borrow_mut().push(change);
+        self.changes.push(change);
     }
 
-    /// Takes the writes the host queued, for the render side to apply ahead of the host's next message.
-    pub(super) fn take_queued_changes(&self) -> QueuedChanges {
-        QueuedChanges {
-            document: self.document,
-            changes: self.changes.take(),
-        }
+    /// Lends the writes the host queued to `apply`, for the render side to apply ahead of the host's next message.
+    pub(super) fn drain_queued_changes(&self, apply: impl FnOnce(QueuedChanges<'_>)) {
+        self.changes.drain(self.document, apply);
     }
 
     /// Applies the writes the host queued to the document's render state, where the host is, for a read the host
     /// answers itself. Only a read that spends a wait may: the render side waits for the host meanwhile.
     fn apply_queued_changes(&self, _wait: &impl RenderWait) {
-        let changes = self.take_queued_changes();
-        if changes.changes.is_empty() {
+        if self.changes.is_empty() {
             return;
         }
         let state = self.created_state();
-        // SAFETY: The state keeps its arena and engine where they are until it is destroyed, and nothing on the render
-        // side reaches them while the host waits.
-        unsafe { changes.apply((*state.arena.as_ptr()).arena_mut(), state.engine) };
+        self.drain_queued_changes(|changes| {
+            // SAFETY: The state keeps its arena and engine where they are until it is destroyed, and nothing on the
+            // render side reaches them while the host waits.
+            unsafe { changes.apply((*state.arena.as_ptr()).arena_mut(), state.engine) };
+        });
     }
 
     /// Begins a read of the document's render state that the host waits for, for a script API call where `by_script`
