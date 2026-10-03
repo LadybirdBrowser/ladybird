@@ -82,17 +82,17 @@ pub(crate) fn apply(
 }
 
 /// https://drafts.csswg.org/css-pseudo-4/#highlight-styling
-/// What selected text under `element` paints with, read from the element's published
-/// `::selection` record, or `None` when that record styles nothing a selection paints.
-fn selection_pseudo_style_of_element(
+/// What selected text under `element` paints with, read from `style_record`, the element's
+/// `::selection` record (zero for none), or `None` when that record styles nothing a selection
+/// paints.
+fn selection_pseudo_style_of_record(
     engine: &crate::css::style::StyleEngine,
     element: StyleNodeID,
+    style_record: u64,
 ) -> Option<SelectionStyleAnswer> {
     use crate::css::computed_longhand_table::{HIGHLIGHT_COLOR_IS_CURRENT_COLOR, HIGHLIGHT_COLORS_AUTHORED};
-    let style = engine.published_style_view(element, Some(SELECTION_PSEUDO_KIND))?;
-    let dependency_flags = engine
-        .published_style_dependency_flags(element, Some(SELECTION_PSEUDO_KIND))
-        .unwrap_or(0);
+    let style = engine.published_record_view(style_record)?;
+    let dependency_flags = engine.published_record_dependency_flags(style_record).unwrap_or(0);
     // https://drafts.csswg.org/css-pseudo-4/#paired-defaults
     // Paired default highlight colors must only be used when neither 'color' nor 'background-color' yield a
     // cascaded value from the author origin (or inherit their value from the author origin).
@@ -188,12 +188,13 @@ fn transform_selection_background_color(color: Color) -> Color {
     result
 }
 
-/// Gives the rows that paint text under `element` what its published `::selection` record says
-/// selected text paints with: the element's own rows, or, while it has no box, the rows of its
-/// text children, which then have no element row above them to find it on.
-pub(crate) fn sync_selection_pseudo_style(arena: &LayoutNodeArena, element: StyleNodeID) {
+/// Gives the rows that paint text under `element` what `style_record`, the `::selection` record
+/// the host holds for it (zero for none), says selected text paints with: the element's own rows,
+/// or, while it has no box, the rows of its text children, which then have no element row above
+/// them to find it on.
+pub(crate) fn sync_selection_pseudo_style(arena: &LayoutNodeArena, element: StyleNodeID, style_record: u64) {
     let answer = arena
-        .with_style_store(|engine| selection_pseudo_style_of_element(engine, element))
+        .with_style_store(|engine| selection_pseudo_style_of_record(engine, element, style_record))
         .map(Arc::new);
     let element_row = arena.bound_row(element);
     let text_rows_answer = if element_row.is_invalid() {
@@ -222,7 +223,10 @@ pub(crate) fn sync_selection_pseudo_style(arena: &LayoutNodeArena, element: Styl
 /// selected text paints with: `element`'s own row, or a text row whose parent element has no box.
 pub(crate) fn note_built_row_selection_pseudo_style(arena: &LayoutNodeArena, row: NodeSlotId, element: StyleNodeID) {
     let answer = arena
-        .with_style_store(|engine| selection_pseudo_style_of_element(engine, element))
+        .with_style_store(|engine| {
+            let style_record = engine.pseudo_published_style_record(element, SELECTION_PSEUDO_KIND)?;
+            selection_pseudo_style_of_record(engine, element, style_record)
+        })
         .map(Arc::new);
     set_selection_pseudo_style_of_rows(arena, arena.rows_sharing_dom_node_with(row), answer.as_ref());
 }

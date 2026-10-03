@@ -42,9 +42,9 @@ pub(crate) enum PaintChange {
     },
     /// Nothing is selected.
     ClearSelection { viewport: NodeSlotId },
-    /// The element's style changed: the rows that paint text under it take what its published `::selection` record
-    /// says selected text paints with.
-    SyncSelectionPseudoStyle { element: StyleNodeID },
+    /// The element's style changed: the rows that paint text under it take what `style_record`, the `::selection`
+    /// record the host holds for it (zero for none), says selected text paints with.
+    SyncSelectionPseudoStyle { element: StyleNodeID, style_record: u64 },
     /// Whether the scrollbar of the row in `direction` is drawn enlarged, as it is while the user hovers or drags it.
     SetScrollbarEnlarged {
         node: NodeSlotId,
@@ -136,7 +136,9 @@ impl PaintChange {
                     super::selection::clear(&mut arena.paintable_rows_mut(), viewport);
                 }
             }
-            Self::SyncSelectionPseudoStyle { element } => super::selection::sync_selection_pseudo_style(arena, element),
+            Self::SyncSelectionPseudoStyle { element, style_record } => {
+                super::selection::sync_selection_pseudo_style(arena, element, style_record);
+            }
             Self::SetScrollbarEnlarged {
                 node,
                 direction,
@@ -300,12 +302,16 @@ pub unsafe extern "C" fn render_state_clear_selection(host: *const DocumentHost,
 ///
 /// `host` must be a live document host, on the document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn render_state_sync_selection_pseudo_style(host: *const DocumentHost, element: u32) {
+pub unsafe extern "C" fn render_state_sync_selection_pseudo_style(
+    host: *const DocumentHost,
+    element: u32,
+    style_record: u64,
+) {
     let Some(element) = StyleNodeID::from_raw(element) else {
         return;
     };
     // SAFETY: Guaranteed by the caller.
-    unsafe { queue(host, PaintChange::SyncSelectionPseudoStyle { element }) };
+    unsafe { queue(host, PaintChange::SyncSelectionPseudoStyle { element, style_record }) };
 }
 
 /// # Safety

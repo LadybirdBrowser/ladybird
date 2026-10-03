@@ -906,14 +906,21 @@ impl RetainedState {
         self.published_style_record_view(style_record)
     }
 
-    /// The dependency flags of the element's published style record, or of its record for one
-    /// pseudo-element kind. `None` while there is no such record.
+    /// The published style record `raw_style_record` names, as a view. `None` for zero, which
+    /// names no record.
     #[must_use]
-    pub(crate) fn published_style_dependency_flags(&self, node: StyleNodeID, pseudo_kind: Option<u8>) -> Option<u8> {
-        let style_record = match pseudo_kind {
-            Some(pseudo_kind) => self.computed_group_sets.pseudo_style_record(node, pseudo_kind),
-            None => self.computed_group_sets.assigned_style_record(node),
-        }?;
+    pub(crate) fn published_record_view(
+        &self,
+        raw_style_record: u64,
+    ) -> Option<crate::css::computed_value_views::ComputedValuesView<'_>> {
+        self.published_style_record_view(computed::FinalStyleRecordID::from_raw(raw_style_record))
+    }
+
+    /// The dependency flags of the published style record `raw_style_record` names. `None` for
+    /// zero, which names no record.
+    #[must_use]
+    pub(crate) fn published_record_dependency_flags(&self, raw_style_record: u64) -> Option<u8> {
+        let style_record = computed::FinalStyleRecordID::from_raw(raw_style_record)?;
         self.computed_group_sets
             .style_record_dependency_flags(style_record.raw())
     }
