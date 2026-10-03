@@ -158,6 +158,8 @@ TESTJS_GLOBAL_FUNCTION(detach_array_buffer, detachArrayBuffer)
     auto array_buffer = vm.argument(0).as_if<JS::ArrayBuffer>();
     if (!array_buffer)
         return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "ArrayBuffer");
+    if (array_buffer->is_shared_array_buffer())
+        return vm.throw_completion<JS::TypeError>(JS::ErrorType::SharedArrayBuffer);
 
     TRY(JS::detach_array_buffer(vm, *array_buffer, vm.argument(1)));
     return JS::js_null();

@@ -85,6 +85,8 @@ JS_DEFINE_NATIVE_FUNCTION($262Object::detach_array_buffer)
     auto array_buffer = vm.argument(0).as_if<ArrayBuffer>();
     if (!array_buffer)
         return vm.throw_completion<TypeError>();
+    if (array_buffer->is_shared_array_buffer())
+        return vm.throw_completion<TypeError>(ErrorType::SharedArrayBuffer);
 
     TRY(JS::detach_array_buffer(vm, *array_buffer, vm.argument(1)));
     return js_null();
