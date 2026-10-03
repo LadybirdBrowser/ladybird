@@ -90,7 +90,7 @@ ErrorOr<PrimitiveStorage::Allocator::Allocation> PrimitiveStorage::Allocator::al
     VERIFY(size <= capacity);
     if (!force_large && guard_size == 0 && size == capacity && small_size_class_index(size).has_value())
         return allocate_small_storage(size, zero_fill_new_bytes);
-    return allocate_large_storage(size, capacity, zero_fill_new_bytes, guard_size);
+    return allocate_large_storage(size, capacity, guard_size);
 }
 
 ErrorOr<PrimitiveStorage::Allocator::Allocation> PrimitiveStorage::Allocator::allocate_small_storage(size_t size, ZeroFillNewBytes zero_fill_new_bytes)
@@ -166,7 +166,7 @@ ErrorOr<PrimitiveStorage::Allocator::Allocation> PrimitiveStorage::Allocator::al
     };
 }
 
-ErrorOr<PrimitiveStorage::Allocator::Allocation> PrimitiveStorage::Allocator::allocate_large_storage(size_t size, size_t capacity, ZeroFillNewBytes zero_fill_new_bytes, size_t guard_size)
+ErrorOr<PrimitiveStorage::Allocator::Allocation> PrimitiveStorage::Allocator::allocate_large_storage(size_t size, size_t capacity, size_t guard_size)
 {
     TRY(ensure_cage());
 
@@ -186,8 +186,6 @@ ErrorOr<PrimitiveStorage::Allocator::Allocation> PrimitiveStorage::Allocator::al
             return commit_result.release_error();
         }
     }
-    if (zero_fill_new_bytes == ZeroFillNewBytes::Yes && size > 0)
-        __builtin_memset(m_cage_base + offset, 0, size);
 
     return Allocation {
         .offset = offset,
@@ -257,11 +255,13 @@ ErrorOr<void> PrimitiveStorage::Allocator::resize(Allocation& allocation, size_t
 {
     VERIFY(new_size <= allocation.capacity);
 
+    auto old_committed_size = allocation.committed_size;
     if (!allocation.small_allocation.has_value())
         TRY(commit_large_storage(allocation, new_size));
 
-    if (zero_fill_new_bytes == ZeroFillNewBytes::Yes && new_size > old_size)
-        __builtin_memset(data(allocation, old_size), 0, new_size - old_size);
+    auto zero_fill_end = min(new_size, old_committed_size);
+    if (zero_fill_new_bytes == ZeroFillNewBytes::Yes && zero_fill_end > old_size)
+        __builtin_memset(data(allocation, old_size), 0, zero_fill_end - old_size);
 
     return {};
 }
@@ -296,7 +296,7 @@ ErrorOr<PrimitiveStorage::Allocator::Allocation> PrimitiveStorage::Allocator::re
     auto bytes_to_copy = min(old_size, new_size);
     if (bytes_to_copy > 0)
         __builtin_memcpy(m_cage_base + allocation.offset, m_cage_base + old_allocation.offset, bytes_to_copy);
-    if (zero_fill_new_bytes == ZeroFillNewBytes::Yes && new_size > old_size)
+    if (zero_fill_new_bytes == ZeroFillNewBytes::Yes && new_size > old_size && allocation.small_allocation.has_value())
         __builtin_memset(m_cage_base + allocation.offset + old_size, 0, new_size - old_size);
 
     return allocation;
