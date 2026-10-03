@@ -29,20 +29,6 @@ class JS_API Realm final : public Cell {
     GC_DECLARE_ALLOCATOR(Realm);
 
 public:
-    struct HostDefined {
-        AK_ALLOC_WITH_KMALLOC;
-
-        virtual ~HostDefined() = default;
-
-        virtual void visit_edges(Cell::Visitor&) { }
-
-        template<typename T>
-        bool fast_is() const = delete;
-
-        virtual bool is_principal_host_defined() const { return false; }
-        virtual bool is_synthetic_host_defined() const { return false; }
-    };
-
     template<typename T, typename... Args>
     GC::Ref<T> create(Args&&... args)
     {
@@ -70,10 +56,10 @@ public:
         m_intrinsics = &intrinsics;
     }
 
-    HostDefined* host_defined() { return m_host_defined; }
-    HostDefined const* host_defined() const { return m_host_defined; }
+    GC::Ptr<GC::Cell> host_defined() { return m_host_defined; }
+    GC::Ptr<GC::Cell const> host_defined() const { return m_host_defined; }
 
-    void set_host_defined(OwnPtr<HostDefined> host_defined) { m_host_defined = move(host_defined); }
+    void set_host_defined(GC::Ptr<GC::Cell> host_defined) { m_host_defined = host_defined; }
 
 private:
     Realm() = default;
@@ -84,7 +70,7 @@ private:
     GC::Ptr<Object> m_global_object;                                  // [[GlobalObject]]
     GC::Ptr<DeclarativeEnvironment> m_global_declarative_environment; // Cached from GlobalEnv
     GC::Ptr<GlobalEnvironment> m_global_environment;                  // [[GlobalEnv]]
-    OwnPtr<HostDefined> m_host_defined;                               // [[HostDefined]]
+    GC::Ptr<GC::Cell> m_host_defined;                                 // [[HostDefined]]
 };
 
 }

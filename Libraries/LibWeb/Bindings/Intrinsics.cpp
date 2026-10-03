@@ -29,7 +29,7 @@ void Intrinsics::visit_edges(JS::Cell::Visitor& visitor)
 Intrinsics& host_defined_intrinsics(JS::Realm& realm)
 {
     ASSERT(realm.host_defined());
-    return static_cast<Bindings::HostDefined&>(*realm.host_defined()).intrinsics;
+    return host_defined_of(realm).intrinsics;
 }
 
 GC::Ref<JS::NativeFunction> Intrinsics::ensure_web_unforgeable_function(

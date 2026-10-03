@@ -113,7 +113,7 @@ TEST_CASE(per_world_windowproxy_and_window_wrapper)
         });
     auto& extension_realm = *extension_execution_context->realm;
     auto intrinsics = extension_realm.create<Web::Bindings::Intrinsics>(extension_realm);
-    extension_realm.set_host_defined(make<Web::Bindings::HostDefined>(intrinsics, *extension_world, window->principal_realm()));
+    extension_realm.set_host_defined(extension_realm.heap().allocate<Web::Bindings::HostDefined>(intrinsics, *extension_world, window->principal_realm()));
     Web::Bindings::cache_global_object_wrapper(extension_realm);
     MUST(Web::Bindings::initialize_window_web_interfaces(*window, extension_realm));
 

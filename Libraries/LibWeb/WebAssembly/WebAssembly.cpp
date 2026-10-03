@@ -85,7 +85,7 @@ WebAssemblyCache::~WebAssemblyCache()
 
 NonnullRefPtr<WebAssemblyCache> get_cache(JS::Realm& realm)
 {
-    auto& host_defined = static_cast<Bindings::HostDefined&>(*realm.host_defined());
+    auto& host_defined = Bindings::host_defined_of(realm);
     if (!host_defined.wasm_cache)
         host_defined.wasm_cache = make_ref_counted<WebAssemblyCache>();
     return *host_defined.wasm_cache;

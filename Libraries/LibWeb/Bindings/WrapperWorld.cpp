@@ -105,12 +105,12 @@ void WrapperWorld::clear_wrapper(Wrappable& wrappable, PlatformObject const& wra
 
 WrapperWorld& host_defined_wrapper_world(JS::Realm& realm)
 {
-    return *static_cast<Bindings::HostDefined&>(*realm.host_defined()).wrapper_world;
+    return *host_defined_of(realm).wrapper_world;
 }
 
 WrapperWorld const& host_defined_wrapper_world(JS::Realm const& realm)
 {
-    return *static_cast<Bindings::HostDefined const&>(*realm.host_defined()).wrapper_world;
+    return *host_defined_of(realm).wrapper_world;
 }
 
 }

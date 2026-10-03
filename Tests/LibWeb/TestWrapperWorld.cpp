@@ -267,13 +267,13 @@ void install_test_host_defined(JS::Realm& realm, Web::Bindings::WrapperWorld::Ty
 {
     auto intrinsics = realm.create<Web::Bindings::Intrinsics>(realm);
     auto wrapper_world = realm.heap().allocate<Web::Bindings::WrapperWorld>(wrapper_world_type);
-    realm.set_host_defined(make<Web::Bindings::HostDefined>(intrinsics, *wrapper_world, principal_realm));
+    realm.set_host_defined(realm.heap().allocate<Web::Bindings::HostDefined>(intrinsics, *wrapper_world, principal_realm));
 }
 
 void install_test_host_defined(JS::Realm& realm, GC::Ref<Web::Bindings::WrapperWorld> wrapper_world, JS::Realm& principal_realm)
 {
     auto intrinsics = realm.create<Web::Bindings::Intrinsics>(realm);
-    realm.set_host_defined(make<Web::Bindings::HostDefined>(intrinsics, wrapper_world, principal_realm));
+    realm.set_host_defined(realm.heap().allocate<Web::Bindings::HostDefined>(intrinsics, wrapper_world, principal_realm));
 }
 
 struct TestRealm {
