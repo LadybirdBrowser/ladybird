@@ -200,9 +200,9 @@ unsafe fn lent_bytes<'a>(bytes: FfiHostHandle, length: usize) -> &'a [u8] {
 pub(crate) struct StyleJobAnswer(FfiStyleTransactionOutput);
 
 impl StyleJobAnswer {
-    /// Whether the transaction answered no row to restyle.
-    pub(crate) fn restyles_nothing(&self) -> bool {
-        self.0.answers().is_empty()
+    /// The rows the transaction answered.
+    pub(crate) fn rows(&self) -> &[super::bridge::FfiStyleDelta] {
+        self.0.answers()
     }
 }
 
@@ -348,6 +348,25 @@ pub unsafe extern "C" fn style_engine_end_flown_style_drain(host: *const Documen
     assert!(!host.is_null(), "document host is null");
     // SAFETY: Guaranteed by the caller.
     unsafe { &*host }.end_style_drain();
+}
+
+/// Whether the frame whose style transaction `host`'s document drains applied the element `style_node` names its record
+/// `style_record` ahead of the host, and marked the relayout the move asks for: the host's install of the row marks none
+/// then.
+///
+/// # Safety
+///
+/// `host` must be a live document host, on its document's thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn style_engine_frame_marked_relayout(
+    host: *const DocumentHost,
+    style_node: u32,
+    style_record: u64,
+) -> bool {
+    assert!(!host.is_null(), "document host is null");
+    // SAFETY: Guaranteed by the caller.
+    StyleNodeID::from_raw(style_node)
+        .is_some_and(|style_node| unsafe { &*host }.frame_marked_relayout(style_node, style_record))
 }
 
 /// Whether the style transaction of `host`'s document the host let fly still flies; one that has landed is taken in.

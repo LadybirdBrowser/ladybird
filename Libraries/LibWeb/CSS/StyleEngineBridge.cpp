@@ -1013,6 +1013,11 @@ bool StyleEngine::style_transaction_flies()
     return StyleEngineFFI::style_engine_style_transaction_flies(m_render_document->host());
 }
 
+bool StyleEngine::frame_marked_relayout(StyleNodeID style_node, StyleRecordID style_record) const
+{
+    return StyleEngineFFI::style_engine_frame_marked_relayout(m_render_document->host(), style_node.value(), style_record.value());
+}
+
 void StyleEngine::sort_style_deltas_for_direct_application(Layout::BegunRead const& read, Span<PublishedStyleDelta> deltas) const
 {
     StyleEngineFFI::style_engine_sort_style_deltas_for_direct_application(host(), &read, deltas.data(), deltas.size());

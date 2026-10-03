@@ -20,6 +20,7 @@ use crate::cow_column::{ColumnSnapshot, CowColumn};
 use crate::css::css_pixels::{CssPixelPoint, FfiCssPixelPoint};
 use crate::css::style::bridge::ElementBoxKind;
 use crate::css::style::fast_hash::{FastMap as HashMap, FastSet as HashSet};
+use crate::css::style::flight_style_rows::{Decline, FlightStyleRow};
 use crate::css::style::tree::{StyleNodeID, TableSpans};
 use crate::css::style::{
     PublishedBoxFacts, PublishedTextSource, StyleEngine, TextStyleParentFacts,
@@ -2231,6 +2232,88 @@ impl LayoutNodeArena {
         self.enroll_text_children_for_content_sync(id);
         self.enroll_node_for_replaced_content_facts_sync_if_eligible(id);
         previous != style_record
+    }
+
+    /// Applies `rows`, the rows of a style transaction a frame applies ahead of the host, to the boxes of their elements,
+    /// as the host's install of each row does: the row's record, the styles the box's anonymous descendants inherit, and
+    /// the relayout the move asks for. Answers the rows it applied, by element, or why it applied none: a row's box is
+    /// one the host styles in a way of its own. The host installs the rows on the elements once the frame has landed.
+    pub(crate) fn apply_flight_style_rows(
+        &self,
+        host_calls: HostCalls<'_>,
+        rows: Vec<FlightStyleRow>,
+    ) -> Result<Vec<FlightStyleRow>, Decline> {
+        let mut applied = Vec::with_capacity(rows.len());
+        for row in rows {
+            let slot = self.bound_row(row.style_node);
+            if slot.is_invalid() {
+                continue;
+            }
+            // Replaced content, form controls, list items, tables and SVG take facts from their element the host
+            // publishes as it styles them, and a box that holds a style of the arena's or one the host pins is styled
+            // in a way of its own.
+            if !matches!(
+                self.data(slot).kind.get(),
+                NodeKind::Box | NodeKind::BlockContainer | NodeKind::InlineNode
+            ) || self.style_records[slot.slot_index() as usize].get() != row.old_style_record
+                || self.node_style_record_is_derived(slot)
+                || self.node_style_record_pinned_by_host(slot) != 0
+            {
+                return Err(Decline::LayoutNode);
+            }
+            applied.push(row);
+        }
+        for row in &applied {
+            let slot = self.bound_row(row.style_node);
+            let previous_payloads = self.data(slot).style.get();
+            let payloads = self.with_style_engine(|engine| {
+                engine
+                    .style_record_payloads(row.new_style_record)
+                    .map_or(std::ptr::null(), <[_]>::as_ptr)
+            });
+            let payloads = StylePayloadsRef::new(payloads.cast());
+            if self.set_node_style(slot, row.new_style_record, payloads) {
+                self.refresh_style_flags(slot);
+            }
+            self.publish_new_size_container_geometry(slot);
+            self.enroll_node_for_svg_paint_resources_sync(slot);
+            self.set_node_flag(slot, NodeFlag::HasAnimatedOpacityOrTransform, false);
+            if !style_payloads_equal_in_layout_affecting_groups(previous_payloads, payloads) {
+                self.bump_fragment_cache_epoch_of_self_and_ancestors(slot);
+                self.reset_cached_intrinsic_sizes_of_self_and_ancestors(slot);
+            }
+            self.reinherit_anonymous_descendants(HostCalls(host_calls.0), slot);
+            if row.relayout {
+                self.mark_row_for_relayout_after_style_change(row.style_node, slot);
+            }
+        }
+        applied.sort_unstable_by_key(|row| row.style_node);
+        Ok(applied)
+    }
+
+    /// Marks `slot`, the box of the element `style_node` names, for the relayout a style change asks for, as the host
+    /// does. Only a full layout pass propagates the viewport's overflow, writing mode and direction from their elements
+    /// again, so the relayout of one of them does not finish as a partial relayout. A relayout of an absolutely
+    /// positioned partial relayout boundary stays confined to it, as the box contributes nothing to ancestor layout;
+    /// a rendered ::backdrop keeps it from being confined, as its box is the element box's sibling.
+    fn mark_row_for_relayout_after_style_change(&self, style_node: StyleNodeID, slot: NodeSlotId) {
+        let viewport_propagation_source =
+            self.data(slot).flags.get() & (NodeFlag::IsDocumentElement as u32 | NodeFlag::IsBody as u32) != 0;
+        if viewport_propagation_source {
+            self.record_partial_relayout_escape();
+        }
+        let confined = !viewport_propagation_source
+            && self
+                .style_payloads(slot)
+                .is_some_and(|payloads| ComputedValuesView::new(&payloads.groups).is_absolutely_positioned())
+            && self.node_is_partial_relayout_boundary(slot)
+            && self
+                .bound_pseudo_element_row(style_node, super::node_data::GENERATED_FOR_BACKDROP)
+                .is_invalid();
+        if confined {
+            self.set_node_flag(slot, NodeFlag::NeedsOwnGeometryUpdate, true);
+        }
+        self.set_needs_layout_update(slot, !confined);
     }
 
     pub(crate) fn enroll_node_for_svg_paint_resources_sync(&self, id: NodeSlotId) {
