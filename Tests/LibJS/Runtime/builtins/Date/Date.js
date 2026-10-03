@@ -86,6 +86,13 @@ test("tuple constructor overflow", () => {
     expect(date.getDay()).toBe(4);
 });
 
+test("tuple constructor with a day far outside the time value range", () => {
+    expect(new Date(2000, 0, 1e12).getTime()).toBeNaN();
+    expect(new Date(2000, 0, -1e12).getTime()).toBeNaN();
+    expect(new Date(2000, 0, 1).setDate(1e12)).toBeNaN();
+    expect(new Date(2000, 0, 1).setDate(-1e12)).toBeNaN();
+});
+
 test("time zone gap", () => {
     const originalTimeZone = setTimeZone("Europe/London");
 
