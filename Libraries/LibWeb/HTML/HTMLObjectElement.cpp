@@ -299,6 +299,11 @@ void HTMLObjectElement::queue_element_task_to_run_object_representation_steps()
                     response = filtered_response.internal_response();
                 }
 
+                if (!response->body()) {
+                    resource_did_fail();
+                    return;
+                }
+
                 auto on_data_read = GC::create_function(GC::Heap::the(), [this, response](ByteBuffer data) {
                     resource_did_load(response, data);
                 });
@@ -306,7 +311,6 @@ void HTMLObjectElement::queue_element_task_to_run_object_representation_steps()
                     resource_did_fail();
                 });
 
-                VERIFY(response->body());
                 response->body()->fully_read(realm, on_data_read, on_error, GC::Ref { global });
             };
 
