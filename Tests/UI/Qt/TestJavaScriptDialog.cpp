@@ -9,6 +9,7 @@
 
 #include <QApplication>
 #include <QDialogButtonBox>
+#include <QFrame>
 #include <QKeyEvent>
 #include <QLabel>
 #include <QLineEdit>
@@ -282,6 +283,27 @@ TEST_CASE(dialog_resizes_with_and_blocks_only_its_parent_view)
     web_view->resize(640, 480);
     QApplication::processEvents();
     EXPECT_EQ(dialog.geometry(), web_view->rect());
+}
+
+TEST_CASE(dialog_takes_its_views_size_when_it_opens)
+{
+    QWidget web_view;
+    web_view.resize(800, 600);
+    web_view.show();
+
+    Ladybird::JavaScriptDialog dialog(&web_view);
+    EXPECT_EQ(dialog.geometry(), web_view.rect());
+
+    // A hidden native dialog's platform window can report the size it was created with back as a resize, after the
+    // dialog took its view's size; that's Qt's default 100x30 when the dialog was made before its view was laid out.
+    dialog.setGeometry(0, 0, 100, 30);
+
+    dialog.show_confirm("https://example.com", "Confirm message");
+    EXPECT_EQ(dialog.geometry(), web_view.rect());
+    auto* panel = dialog.findChild<QFrame*>("LadybirdJavaScriptDialogPanel");
+    VERIFY(panel);
+    EXPECT_EQ(panel->minimumWidth(), 320);
+    dialog.dismiss();
 }
 
 TEST_CASE(dialog_visibility_and_state_follow_the_owning_tab)
