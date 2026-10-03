@@ -125,10 +125,7 @@ public:
     virtual void on_chunk(JS::Value chunk) override
     {
         if (m_result_realm) {
-            auto result = JS::Object::create_with_premade_shape(m_result_realm->intrinsics().iterator_result_object_shape());
-            result->put_direct(m_result_realm->intrinsics().iterator_result_object_value_offset(), chunk);
-            result->put_direct(m_result_realm->intrinsics().iterator_result_object_done_offset(), JS::Value(false));
-            WebIDL::resolve_promise(m_promise, result);
+            WebIDL::resolve_promise(m_promise, JS::create_iterator_result_object(*m_result_realm, chunk, false));
         } else {
             auto& realm = WebIDL::promise_realm(m_promise);
             WebIDL::resolve_promise(m_promise, JS::create_iterator_result_object(realm.vm(), chunk, false));
@@ -138,10 +135,7 @@ public:
     virtual void on_close() override
     {
         if (m_result_realm) {
-            auto result = JS::Object::create_with_premade_shape(m_result_realm->intrinsics().iterator_result_object_shape());
-            result->put_direct(m_result_realm->intrinsics().iterator_result_object_value_offset(), JS::js_undefined());
-            result->put_direct(m_result_realm->intrinsics().iterator_result_object_done_offset(), JS::Value(true));
-            WebIDL::resolve_promise(m_promise, result);
+            WebIDL::resolve_promise(m_promise, JS::create_iterator_result_object(*m_result_realm, JS::js_undefined(), true));
         } else {
             auto& realm = WebIDL::promise_realm(m_promise);
             WebIDL::resolve_promise(m_promise, JS::create_iterator_result_object(realm.vm(), JS::js_undefined(), true));
