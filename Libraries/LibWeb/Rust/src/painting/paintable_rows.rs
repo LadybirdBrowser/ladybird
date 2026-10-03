@@ -329,7 +329,6 @@ pub(crate) struct PaintableRowStore {
     committed_fragment_links: RefCell<CowColumn<CommittedFragmentLinkSlot, PAINTABLE_SLOTS_PER_CHUNK>>,
     image_map_areas: crate::painting::image_map_areas::ImageMapAreaColumn,
     unique_node_ids: UniqueNodeIdColumn,
-    visual_context_tree_inputs: Cell<Option<crate::painting::host::FfiVisualContextTreeInputs>>,
 }
 
 pub(crate) type VisualContextNodeHandleColumn =
@@ -929,18 +928,6 @@ impl LayoutNodeArena {
     /// The unique node id of what each box is the box of, as the build stamped it.
     pub(crate) fn unique_node_ids(&self) -> &UniqueNodeIdColumn {
         &self.paintable_rows.unique_node_ids
-    }
-
-    /// What the document last published about the viewport the render side draws into.
-    pub(crate) fn visual_context_tree_inputs(&self) -> crate::painting::host::FfiVisualContextTreeInputs {
-        self.paintable_rows
-            .visual_context_tree_inputs
-            .get()
-            .expect("the document publishes the viewport before a pass reads it")
-    }
-
-    pub(crate) fn publish_visual_context_tree_inputs(&self, inputs: crate::painting::host::FfiVisualContextTreeInputs) {
-        self.paintable_rows.visual_context_tree_inputs.set(Some(inputs));
     }
 
     pub(crate) fn paintable_visual_context_record(

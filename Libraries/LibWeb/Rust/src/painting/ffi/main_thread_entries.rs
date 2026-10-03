@@ -9,6 +9,7 @@
 //! a token nor call an entry that does.
 
 use super::*;
+use crate::painting::host::FfiVisualContextTreeInputs;
 use crate::painting::paint_passes::{PaintPass, PaintPassAnswer, pending_preparation, run as run_paint_pass};
 
 /// Mints the main thread token for this module's FFI entry points; only this module can make one.
@@ -364,14 +365,18 @@ pub unsafe extern "C" fn render_state_first_wheel_scrollable_box_in_containing_b
 }
 
 /// Prepares the document of `host` for rendering, and stores the scroll offsets the new overflow moved out of range.
+/// The viewport the preparation reads is asked of `inputs_of` only when there is something to prepare.
 ///
 /// # Safety
 ///
-/// `host` must be a live document host, on its document's thread. Host callbacks must remain valid for this call.
+/// `host` must be a live document host, on its document's thread. Host callbacks must remain valid for this call, and
+/// `inputs_of` must answer synchronously from `document`.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn render_state_prepare_for_rendering(
     host: *mut crate::render_state::DocumentHost,
     visual_context_update_pending: bool,
+    document: *mut c_void,
+    inputs_of: unsafe extern "C" fn(*mut c_void) -> FfiVisualContextTreeInputs,
 ) -> crate::painting::paint_passes::FfiRenderingPreparationOutcome {
     // SAFETY: Guaranteed by the caller.
     let host = unsafe { &*host };
@@ -383,6 +388,8 @@ pub unsafe extern "C" fn render_state_prepare_for_rendering(
         PaintPass::PrepareForRendering {
             pending,
             visual_context_update_pending,
+            // SAFETY: Guaranteed by the caller.
+            inputs: unsafe { inputs_of(document) },
         },
     ) else {
         unreachable!("preparing for rendering answers what it prepared");
@@ -407,11 +414,12 @@ pub unsafe extern "C" fn render_state_prepare_for_rendering(
 pub unsafe extern "C" fn render_state_update_accumulated_visual_contexts(
     host: *mut crate::render_state::DocumentHost,
     viewport: NodeSlotId,
+    inputs: FfiVisualContextTreeInputs,
 ) -> crate::painting::host::FfiVisualContextUpdateOutcome {
     // SAFETY: Guaranteed by the caller.
     let PaintPassAnswer::VisualContexts(outcome) = run_paint_pass(
         unsafe { &*host },
-        PaintPass::UpdateAccumulatedVisualContexts { viewport },
+        PaintPass::UpdateAccumulatedVisualContexts { viewport, inputs },
     ) else {
         unreachable!("a visual context update answers its outcome");
     };
@@ -422,9 +430,12 @@ pub unsafe extern "C" fn render_state_update_accumulated_visual_contexts(
 ///
 /// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn render_state_update_visual_viewport_transform(host: *mut crate::render_state::DocumentHost) {
+pub unsafe extern "C" fn render_state_update_visual_viewport_transform(
+    host: *mut crate::render_state::DocumentHost,
+    inputs: FfiVisualContextTreeInputs,
+) {
     // SAFETY: Guaranteed by the caller.
-    run_paint_pass(unsafe { &*host }, PaintPass::UpdateVisualViewportTransform);
+    run_paint_pass(unsafe { &*host }, PaintPass::UpdateVisualViewportTransform(inputs));
 }
 
 /// Starts an update pass of the compositor animations of `host`'s document, with none published.
@@ -568,13 +579,18 @@ pub unsafe extern "C" fn render_state_sync_svg_paint_resources(
 pub unsafe extern "C" fn render_state_refresh_scroll_state(
     host: *mut crate::render_state::DocumentHost,
     force: bool,
+    device_pixels_per_css_pixel: f64,
     sink: *mut c_void,
     publish: unsafe extern "C" fn(*mut c_void, *const libgfx_rust::FloatPoint, usize),
 ) -> bool {
     // SAFETY: Guaranteed by the caller.
-    let PaintPassAnswer::ScrollState(snapshot) =
-        run_paint_pass(unsafe { &*host }, PaintPass::RefreshScrollState { force })
-    else {
+    let PaintPassAnswer::ScrollState(snapshot) = run_paint_pass(
+        unsafe { &*host },
+        PaintPass::RefreshScrollState {
+            force,
+            device_pixels_per_css_pixel,
+        },
+    ) else {
         unreachable!("a scroll state refresh answers its snapshot");
     };
     let Some(snapshot) = snapshot else {
