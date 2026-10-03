@@ -1,0 +1,5 @@
+host: red
+nested: red
+child: rgb(255, 0, 0)
+arriving inherited color: rgb(0, 0, 255)
+arriving own color: rgb(255, 0, 0)
