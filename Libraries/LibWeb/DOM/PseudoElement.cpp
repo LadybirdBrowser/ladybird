@@ -75,7 +75,7 @@ Node& SyntheticPseudoElement::root() const
 
 void SyntheticPseudoElement::update_animated_properties(Badge<Web::Animations::KeyframeEffect> const&, DOM::AbstractElement abstract_element, Web::Animations::KeyframeEffect& effect, Web::Animations::AnimationUpdateContext& context)
 {
-    if (!m_style_record_identity)
+    if (!m_installed_style.record())
         return;
     effect.update_computed_properties_for_style(context, abstract_element);
 }
@@ -85,10 +85,9 @@ void SyntheticPseudoElement::replace_style_record(CSS::StyleRecordID style_recor
     VERIFY(m_originating_element);
     // The caller's own read of the render state.
     Layout::ForcedReadScope read { m_originating_element->document(), false };
-    auto old_style_record_identity = m_style_record_identity;
-    if (old_style_record_identity == style_record_identity)
+    if (m_installed_style.record() == style_record_identity)
         return;
-    m_style_record_identity = style_record_identity;
+    m_installed_style = m_originating_element->document().style_computer().install_style(read, style_record_identity);
     if (auto* layout_node = unsafe_layout_node(read))
         layout_node->set_style_record_identity(style_record_identity);
 }
@@ -114,13 +113,13 @@ void SyntheticPseudoElement::clear_computed_style(RefPtr<CSS::ComputedValues con
                 layout_node->pin_style_record_for_detachment();
         }
     }
-    m_style_record_identity = 0;
+    m_installed_style = {};
 }
 
 void SyntheticPseudoElement::refresh_computed_style(CSS::StyleRecordID style_record_identity)
 {
     replace_style_record(style_record_identity);
-    VERIFY(m_style_record_identity);
+    VERIFY(m_installed_style.record());
 }
 
 SyntheticPseudoElementTreeNode::SyntheticPseudoElementTreeNode(CSS::PseudoElement type)
@@ -154,9 +153,9 @@ Node& ElementReferencePseudoElement::root() const
     return m_referenced_element->root();
 }
 
-CSS::StyleRecordID ElementReferencePseudoElement::style_record_identity() const
+CSS::InstalledStyle const& ElementReferencePseudoElement::installed_style() const
 {
-    return m_referenced_element->style_record_identity({});
+    return m_referenced_element->installed_style({});
 }
 
 void ElementReferencePseudoElement::update_animated_properties(Badge<Web::Animations::KeyframeEffect> const& badge, DOM::AbstractElement abstract_element, Web::Animations::KeyframeEffect& effect, Web::Animations::AnimationUpdateContext& context)

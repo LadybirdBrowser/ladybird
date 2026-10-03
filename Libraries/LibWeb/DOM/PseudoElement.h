@@ -10,6 +10,7 @@
 #include <AK/OwnPtr.h>
 #include <LibGC/CellAllocator.h>
 #include <LibJS/Heap/Cell.h>
+#include <LibWeb/CSS/InstalledStyle.h>
 #include <LibWeb/CSS/PseudoElement.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
@@ -35,7 +36,8 @@ public:
 
     virtual Node& root() const = 0;
 
-    virtual CSS::StyleRecordID style_record_identity() const = 0;
+    virtual CSS::InstalledStyle const& installed_style() const = 0;
+    CSS::StyleRecordID style_record_identity() const { return installed_style().record(); }
     virtual void update_animated_properties(Badge<Web::Animations::KeyframeEffect> const&, DOM::AbstractElement, Web::Animations::KeyframeEffect&, Web::Animations::AnimationUpdateContext&) = 0;
 };
 
@@ -55,7 +57,7 @@ public:
 
     virtual Node& root() const override;
 
-    virtual CSS::StyleRecordID style_record_identity() const override { return m_style_record_identity; }
+    virtual CSS::InstalledStyle const& installed_style() const override { return m_installed_style; }
     void update_animated_properties(Badge<Web::Animations::KeyframeEffect> const&, DOM::AbstractElement, Web::Animations::KeyframeEffect&, Web::Animations::AnimationUpdateContext&) override;
     void set_computed_style(CSS::StyleRecordID);
     void clear_computed_style(RefPtr<CSS::ComputedValues const> style_to_preserve_for_detachment = nullptr);
@@ -74,7 +76,7 @@ private:
     GC::Ptr<Element> m_originating_element;
     // The authoritative StyleEngine record. C++ compatibility consumers borrow the record-owned
     // computed-values view rather than retaining one complete style per pseudo-element.
-    CSS::StyleRecordID m_style_record_identity;
+    CSS::InstalledStyle m_installed_style;
     CSSPixelPoint m_scroll_offset {};
 };
 
@@ -108,7 +110,7 @@ class WEB_API ElementReferencePseudoElement : public PseudoElement {
 
     virtual Node& root() const override;
 
-    virtual CSS::StyleRecordID style_record_identity() const override;
+    virtual CSS::InstalledStyle const& installed_style() const override;
     void update_animated_properties(Badge<Web::Animations::KeyframeEffect> const&, DOM::AbstractElement, Web::Animations::KeyframeEffect&, Web::Animations::AnimationUpdateContext&) override;
 
     GC::Ref<Element> const& referenced_element() const { return m_referenced_element; }

@@ -8,7 +8,7 @@ a constructed sheet with a media list: state in the next task: in-flight
 a constructed sheet with a media list: state after the write: landed
 a constructed sheet with a media list: after: print
 adding a font face: state in the next task: in-flight
-adding a font face: state after the write: landed
+adding a font face: state after the write: in-flight
 adding a font face: after: the text width changed: true
 a style element's media: state in the next task: in-flight
 a style element's media: state after the write: landed

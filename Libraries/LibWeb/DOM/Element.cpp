@@ -2472,7 +2472,7 @@ void Element::clear_computed_styles_from_display_none_descendants(Layout::BegunR
         // retaining the record as the descendant's current computed style.
         if (auto* layout_node = element->unsafe_layout_node(read))
             layout_node->pin_style_record_for_detachment();
-        element->m_style_record_identity = 0;
+        element->m_installed_style = {};
         element->document().style_computer().style_engine().set_held_style_record(element->style_node_id(), {});
 
         // NB: SVG resources can still affect rendering when a DOM ancestor has display:none.
@@ -3315,9 +3315,8 @@ void Element::set_style_node_id(CSS::StyleNodeID style_node_id)
         });
     }
     // A newly minted identity holds none of what the element held under its previous one.
-    if (style_node_id != 0 && !!m_style_record_identity) {
-        style_engine.set_held_style_record(style_node_id, m_style_record_identity);
-    }
+    if (style_node_id != 0 && !!m_installed_style.record())
+        style_engine.set_held_style_record(style_node_id, m_installed_style.record());
     if (style_node_id != 0)
         publish_children_explicitly_inherit_mark();
 }
@@ -5170,32 +5169,18 @@ ReadonlySpan<Element::Attribute> Element::attribute_list() const
 
 CSS::ComputedStyleRecordView Element::computed_style(Optional<CSS::PseudoElement> pseudo_element_type) const
 {
-    auto style_record = style_record_identity(pseudo_element_type);
-    if (!style_record)
-        return {};
-    // The caller's own read of the render state.
-    Layout::ForcedReadScope read { document(), false };
-    return document().style_computer().computed_style_record_view(read, style_record);
+    return document().style_computer().computed_style_record_view(installed_style(pseudo_element_type));
 }
 
-CSS::StyleRecordID Element::style_record_identity(Optional<CSS::PseudoElement> pseudo_element_type) const
+CSS::InstalledStyle const& Element::installed_style(Optional<CSS::PseudoElement> pseudo_element_type) const
 {
     if (pseudo_element_type.has_value()) {
+        static CSS::InstalledStyle const none;
         if (auto pseudo_element = get_pseudo_element(*pseudo_element_type); pseudo_element.has_value())
-            return pseudo_element->style_record_identity();
-        return 0;
+            return pseudo_element->installed_style();
+        return none;
     }
-    return m_style_record_identity;
-}
-
-void const* Element::style_record_payloads(Optional<CSS::PseudoElement> pseudo_element_type) const
-{
-    auto style_record = style_record_identity(pseudo_element_type);
-    if (!style_record)
-        return nullptr;
-    // The engine holds a record's payloads, so asking for them is the caller's own read of the render state.
-    Layout::ForcedReadScope read { document(), false };
-    return document().style_computer().style_record_payloads(read, style_record);
+    return m_installed_style;
 }
 
 void Element::update_animated_properties(Badge<Web::Animations::KeyframeEffect> const& badge, Optional<CSS::PseudoElement> pseudo_element_type, Web::Animations::KeyframeEffect& effect, Web::Animations::AnimationUpdateContext& context)
@@ -5222,10 +5207,9 @@ void Element::replace_style_record(CSS::StyleRecordID style_record_identity)
     // The caller's own read of the render state.
     Layout::ForcedReadScope read { document(), false };
     VERIFY(!style_record_identity || style_node_id() != 0);
-    auto old_style_record_identity = m_style_record_identity;
-    if (old_style_record_identity == style_record_identity)
+    if (m_installed_style.record() == style_record_identity)
         return;
-    m_style_record_identity = style_record_identity;
+    m_installed_style = document().style_computer().install_style(read, style_record_identity);
     if (style_node_id() != 0)
         document().style_computer().style_engine().set_held_style_record(style_node_id(), style_record_identity);
     if (auto* layout_node = unsafe_layout_node(read))
@@ -6672,8 +6656,7 @@ void Element::play_or_cancel_animations_after_display_property_change()
     // AD-HOC: Other browsers also check for ancestors which meet the above criteria, so we do that as well.
     // FIXME: Do we need to open a spec issue for this?
 
-    Layout::ForcedReadScope read { document(), false };
-    auto has_inclusive_ancestor_with_display_none_ignoring_animations = this->has_inclusive_ancestor_with_display_none_ignoring_animations(read);
+    auto has_inclusive_ancestor_with_display_none_ignoring_animations = this->has_inclusive_ancestor_with_display_none_ignoring_animations();
 
     if (has_inclusive_ancestor_with_display_none_ignoring_animations) {
         cancel_css_animations_and_transitions();
