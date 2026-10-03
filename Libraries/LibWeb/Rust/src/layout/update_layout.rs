@@ -373,17 +373,17 @@ pub(crate) struct SealedRound {
 }
 
 impl SealedRound {
-    /// Runs the round over `state` in the frame's flight, where the frame's style left its layout to do: the rows a
-    /// round runs over are bound to the styles the host has. The flight reaches nothing of the host, so a length only
-    /// the host resolves leaves the layout for the host to lay out again.
-    pub(crate) fn run(self, state: &mut ArenaHandle) -> Option<FlownRound> {
+    /// Runs the round over `state` in the frame's flight, where the frame's style left its layout to do, owing the host
+    /// `work` besides what the round owes it. The flight reaches nothing of the host, so a length only the host
+    /// resolves leaves the layout for the host to lay out again.
+    pub(crate) fn run(self, state: &mut ArenaHandle, work: OwedHostWork) -> Option<FlownRound> {
         if state
             .arena()
             .layout_is_up_to_date(self.job.facts.document_needs_layout_tree_build)
         {
             return None;
         }
-        let answer = self.job.run(state);
+        let answer = self.job.run_owing(state, work);
         let arena = state.arena();
         if arena.take_unresolved_container_lengths() && !arena.layout_root().is_invalid() {
             arena.set_needs_layout_update(arena.layout_root(), false);
@@ -404,13 +404,17 @@ pub(crate) struct FlownRound {
 impl LayoutRoundJob {
     /// Runs the round over `state`, and resolves what it owes the host as it ends.
     pub(crate) fn run(self, state: &mut ArenaHandle) -> LayoutRoundAnswer {
-        let work = OwedHostWork::default();
-        let mut answer = self.run_owing(state, &work);
+        self.run_owing(state, OwedHostWork::default())
+    }
+
+    /// Runs the round over `state`, and resolves what it owes the host as it ends, `work` among it.
+    fn run_owing(self, state: &mut ArenaHandle, work: OwedHostWork) -> LayoutRoundAnswer {
+        let mut answer = self.run_with(state, &work);
         answer.work = work.resolve(state.arena());
         answer
     }
 
-    fn run_owing(mut self, state: &mut ArenaHandle, work: &OwedHostWork) -> LayoutRoundAnswer {
+    fn run_with(mut self, state: &mut ArenaHandle, work: &OwedHostWork) -> LayoutRoundAnswer {
         let facts = self.facts;
         let mut answer = LayoutRoundAnswer {
             build: None,
@@ -606,7 +610,7 @@ fn next_round(
 }
 
 /// Seals the first round of a rendering update's layout of `document_host`'s document, which the frame the update lets
-/// fly next runs after its style, where the document needs one.
+/// fly next runs after its style.
 ///
 /// # Safety
 ///
@@ -622,8 +626,10 @@ unsafe fn seal_first_round(
         .layout_update_host
         .get()
         .expect("the document has no layout update host");
+    // A round is sealed for a document whose layout is up to date as well: the frame's style may leave it layout to
+    // do, which the round finds once the frame has applied the style.
     let facts = host.document_facts(main_thread, read);
-    if inputs.is_template_contents_document || host_layout_is_up_to_date(document_host, read, &facts) {
+    if !facts.document_is_active || inputs.is_template_contents_document {
         return;
     }
     // SAFETY: Guaranteed by the caller.

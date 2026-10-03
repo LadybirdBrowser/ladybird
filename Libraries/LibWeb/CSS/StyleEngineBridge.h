@@ -319,6 +319,9 @@ public:
     // was sealed with. What was written beside it waits for end_flown_style_drain(): it is the next transaction's.
     PublishedStyleTransaction take_flown_style_transaction(Layout::BegunRead const& read);
     void end_flown_style_drain();
+    // Whether the frame whose style transaction is drained applied the element `style_node` names the record
+    // `style_record` ahead of the host, and marked the relayout the move asks for.
+    [[nodiscard]] bool frame_marked_relayout(StyleNodeID style_node, StyleRecordID style_record) const;
     // The transaction that flew knows an element that arrived or was removed beside it as it was sealed: the drain
     // leaves its change, and what inherits from it, to the next transaction.
     void note_style_node_arrived_or_retired(StyleNodeID);

@@ -70,13 +70,18 @@ static void apply_element_style_invalidation_after_style_change(Layout::BegunRea
     if (invalidation.needs_scroll_container_resnap)
         element.document().schedule_scroll_container_resnap();
 
+    // A frame applied the element's record to its box ahead of this install, and marked the relayout the move asks
+    // for, which the frame's layout round, or the host's next one, runs.
+    bool const needs_relayout = invalidation.needs_relayout()
+        && !element.document().style_computer().style_engine().frame_marked_relayout(element.style_node_id(), element.style_record_identity());
+
     // Only a full layout pass applies viewport propagation again, so a relayout of an element the viewport takes its
     // overflow, writing mode, or direction from must not finish as a partial relayout of that element.
     bool const element_is_viewport_propagation_source = element.is_viewport_propagation_source();
-    if (invalidation.needs_relayout() && element_is_viewport_propagation_source)
+    if (needs_relayout && element_is_viewport_propagation_source)
         element.document().record_partial_relayout_escape(DOM::PartialRelayoutEscapeReason::ViewportPropagationSourceChangedByStyleChange);
 
-    if (invalidation.needs_relayout()) {
+    if (needs_relayout) {
         // A relayout-only style change on an absolutely positioned partial relayout boundary
         // stays confined to it: the box contributes nothing to ancestor layout, and partial
         // relayout re-resolves the boundary's own size and position. A rendered ::backdrop

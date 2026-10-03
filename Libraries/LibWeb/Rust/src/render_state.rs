@@ -93,6 +93,30 @@ impl RenderState {
         unsafe { self.engine.get_mut() }
     }
 
+    /// Runs `round` after `style`, the frame's style transaction, where the frame applies the transaction's rows to the
+    /// boxes itself: the round lays out the boxes as the host's install of the rows leaves them. Answers the rows it
+    /// applied, by element, and what the round owes the host.
+    fn fly_round(
+        &mut self,
+        style: &crate::css::style::style_job::StyleJobAnswer,
+        round: crate::layout::SealedRound,
+    ) -> (
+        Vec<crate::css::style::flight_style_rows::FlightStyleRow>,
+        Option<crate::layout::FlownRound>,
+    ) {
+        use crate::layout::tree_mutation::{HostCalls, OwedHostWork};
+        let Ok(rows) = self.engine_ref().rows_the_flight_applies(style.rows()) else {
+            return (Vec::new(), None);
+        };
+        // What applying the rows owes the host, the host's install of the rows makes good again.
+        let work = OwedHostWork::default();
+        let Ok(applied) = self.arena.arena().apply_flight_style_rows(HostCalls(&work), rows) else {
+            return (Vec::new(), None);
+        };
+        let round = round.run(&mut self.arena, work);
+        (applied, round)
+    }
+
     /// Handles `message`, after `changes`, the writes its host queued before it.
     fn handle(&mut self, changes: std::vec::Drain<'_, ArenaChange>, message: RenderMessage<'_>) {
         self.apply(changes);
@@ -106,12 +130,13 @@ impl RenderState {
     }
 }
 
-/// What a frame that flew brings its host back: the render state it took, what its style transaction answered, what
-/// its first layout round owes, where it ran one, and the emptied buffer of the writes it took, which the host's queue
-/// keeps.
+/// What a frame that flew brings its host back: the render state it took, what its style transaction answered, the
+/// rows of the transaction it applied to the boxes itself, by element, what its first layout round owes, where it ran
+/// one, and the emptied buffer of the writes it took, which the host's queue keeps.
 pub(crate) struct Landing {
     state: RenderState,
     style: crate::css::style::style_job::StyleJobAnswer,
+    applied: Vec<crate::css::style::flight_style_rows::FlightStyleRow>,
     round: Option<crate::layout::FlownRound>,
     changes: Vec<ArenaChange>,
 }
@@ -293,8 +318,8 @@ pub(crate) fn send(host: &DocumentHost, read: ReadRight, message: RenderMessage<
 /// frame flies with the state until the host takes it in, and the document drains the transaction's reactions with
 /// `drain`. Only a transaction that `_license` lets fly is submitted.
 ///
-/// The round lays out the rows as they are bound, to the styles the host has, so it runs only where the transaction
-/// answered no row to restyle.
+/// The frame applies the transaction's rows to the boxes itself before the round, where it can: otherwise the round is
+/// left unrun, and the host lays out after it installs the rows.
 pub(crate) fn fly(
     host: &DocumentHost,
     job: crate::css::style::style_job::StyleJob,
@@ -308,12 +333,14 @@ pub(crate) fn fly(
         let run = move |stop: &crate::stage_thread::StopWord| {
             state.apply(changes.drain(..));
             let style = job.run(state.engine_mut());
-            let round = round
-                .filter(|_| !stop.is_said() && style.restyles_nothing())
-                .and_then(|round| round.run(&mut state.arena));
+            let (applied, round) = match round {
+                Some(round) if !stop.is_said() => state.fly_round(&style, round),
+                _ => (Vec::new(), None),
+            };
             Landing {
                 state,
                 style,
+                applied,
                 round,
                 changes,
             }

@@ -13,7 +13,9 @@ use super::{
     ScriptForcedRead, on_render_side,
 };
 use crate::css::style::bridge::FfiDeviceClass;
+use crate::css::style::flight_style_rows::FlightStyleRow;
 use crate::css::style::style_job::{FfiFlownStyleDrain, StyleJobAnswer};
+use crate::css::style::tree::StyleNodeID;
 use crate::layout::row_reads::{RowIdentities, RowSnapshot};
 use crate::layout::{FlownRound, HostTables, SealedRound};
 use crate::painting::paint_read::PaintSource;
@@ -86,10 +88,11 @@ enum Frame {
 /// A style transaction that flew with the frame and has landed, or whose reactions the host drains. The style writes the
 /// host queued beside it reach the render state only behind its drain.
 enum FlownStyle {
-    Landed(StyleJobAnswer),
+    /// What the transaction answered, and the rows of it the frame applied to the boxes itself, by element.
+    Landed(StyleJobAnswer, Vec<FlightStyleRow>),
     /// The host drains the transaction's reactions, holding the writes it queued beside the transaction until the drain
-    /// ends.
-    Draining(Vec<ArenaChange>),
+    /// ends, and the rows the frame applied.
+    Draining(Vec<ArenaChange>, Vec<FlightStyleRow>),
 }
 
 /// A read of a document's render state the host began: how many of the read's scopes are open, and the read itself
@@ -242,12 +245,16 @@ impl DocumentHost {
         Landing {
             state,
             style,
+            applied,
             round,
             changes,
         }: Landing,
     ) -> Frame {
         self.changes.give_back(changes);
-        let previous = self.flown_style.borrow_mut().replace(FlownStyle::Landed(style));
+        let previous = self
+            .flown_style
+            .borrow_mut()
+            .replace(FlownStyle::Landed(style, applied));
         debug_assert!(
             previous.is_none(),
             "one style transaction of a document flies at a time"
@@ -315,7 +322,7 @@ impl DocumentHost {
     /// Whether the host let a style transaction fly whose reactions it has not begun to drain.
     #[inline]
     pub(crate) fn has_flown_style(&self) -> bool {
-        self.frame_flies() || matches!(*self.flown_style.borrow(), Some(FlownStyle::Landed(_)))
+        self.frame_flies() || matches!(*self.flown_style.borrow(), Some(FlownStyle::Landed(..)))
     }
 
     /// Has the document drain the style transaction that flew in `read`, where it has not begun to, for a write to the
@@ -334,17 +341,29 @@ impl DocumentHost {
         self.flown_style_drain.set(None);
         self.take_frame_in(read);
         let mut flown = self.flown_style.borrow_mut();
-        let Some(FlownStyle::Landed(answer)) = flown.take() else {
+        let Some(FlownStyle::Landed(answer, applied)) = flown.take() else {
             panic!("the host drains a style transaction that flew and has landed");
         };
-        *flown = Some(FlownStyle::Draining(self.changes.hold_style_writes()));
+        *flown = Some(FlownStyle::Draining(self.changes.hold_style_writes(), applied));
         answer
+    }
+
+    /// Whether the frame the host drains the style transaction of applied the element `style_node` names its record
+    /// `style_record` ahead of the host, and marked the relayout the move asks for.
+    pub(crate) fn frame_marked_relayout(&self, style_node: StyleNodeID, style_record: u64) -> bool {
+        let flown = self.flown_style.borrow();
+        let Some(FlownStyle::Draining(_, applied)) = &*flown else {
+            return false;
+        };
+        applied
+            .binary_search_by_key(&style_node, |row| row.style_node)
+            .is_ok_and(|index| applied[index].new_style_record == style_record && applied[index].relayout)
     }
 
     /// Ends the drain of the style transaction that flew: the writes the host queued beside it are queued again, behind
     /// what the drain wrote.
     pub(crate) fn end_style_drain(&self) {
-        let Some(FlownStyle::Draining(beside)) = self.flown_style.borrow_mut().take() else {
+        let Some(FlownStyle::Draining(beside, _)) = self.flown_style.borrow_mut().take() else {
             panic!("the host ends the drain it began");
         };
         self.changes.requeue(beside);
