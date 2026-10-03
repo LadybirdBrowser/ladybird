@@ -62,6 +62,12 @@ void PictureInPictureManager::close_window(WebContentPage& page)
         retire_window(*index);
 }
 
+void PictureInPictureManager::video_size_did_change(WebContentPage& page, Gfx::IntSize video_size)
+{
+    if (auto index = index_of_window_for(page); index.has_value())
+        m_windows[*index].window->set_video_size(video_size);
+}
+
 Optional<size_t> PictureInPictureManager::index_of_window_for(WebContentPage const& page) const
 {
     return m_windows.find_first_index_if([&](auto const& window) { return window.page.ptr() == &page; });

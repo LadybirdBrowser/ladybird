@@ -1424,6 +1424,11 @@ void WebContentPage::did_exit_picture_in_picture()
     PictureInPictureManager::the().close_window(*this);
 }
 
+void WebContentPage::did_change_picture_in_picture_video_size(Gfx::IntSize video_size)
+{
+    PictureInPictureManager::the().video_size_did_change(*this, video_size);
+}
+
 void WebContentPage::did_change_picture_in_picture_player_controls_visibility(bool shown)
 {
     view().did_change_picture_in_picture_player_controls_visibility({}, shown);

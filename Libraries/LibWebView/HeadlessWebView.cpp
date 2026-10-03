@@ -13,7 +13,7 @@ namespace WebView {
 static Web::DevicePixelRect const screen_rect { 0, 0, 1920, 1080 };
 static constexpr auto child_close_timeout_ms = 1000;
 
-// A headless window is never shown, so it keeps the size it opens with until it is closed.
+// A headless window is never shown, so it only changes size to keep the aspect ratio of its video.
 class HeadlessPictureInPictureWindow final : public PictureInPictureWindow {
 public:
     AK_ALLOC_WITH_KMALLOC;
@@ -28,6 +28,18 @@ public:
     virtual Gfx::IntSize size() const override { return m_size; }
     virtual String handle() const override { return m_view->handle(); }
     virtual void hide() override { }
+
+    virtual void set_video_size(Gfx::IntSize video_size) override
+    {
+        auto size = size_for_video_size(m_size, video_size, screen_rect.size().to_type<int>());
+        if (size == m_size)
+            return;
+
+        m_size = size;
+        m_view->reset_viewport_size(size.to_type<Web::DevicePixels>());
+        if (on_resize)
+            on_resize(size);
+    }
 
 private:
     Gfx::IntSize m_size;
