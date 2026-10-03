@@ -172,23 +172,29 @@ void NavigatorGamepadPartial::handle_gamepad_updated(Badge<EventHandler>, Gamepa
 void NavigatorGamepadPartial::handle_gamepad_disconnected(Badge<EventHandler>, GamepadHandle handle)
 {
     // When a gamepad becomes unavailable on the system, run the following steps:
-    m_available_gamepads.remove_first_matching([&handle](GamepadHandle available_gamepad) {
+    auto was_available = m_available_gamepads.remove_first_matching([&handle](GamepadHandle available_gamepad) {
         return handle == available_gamepad;
     });
 
-    // 1. Let gamepad be the Gamepad representing the unavailable device.
-    auto gamepad = m_gamepads.find_if([&handle](GC::Ptr<Gamepad> gamepad) {
-        return gamepad && gamepad->handle() == handle;
-    });
-
-    if (gamepad.is_end())
+    if (!was_available)
         return;
 
     // 2. Queue a global task on the gamepad task source with gamepad's relevant global object to perform the
     //    following steps:
-    auto& window = (*gamepad)->window();
-    auto& global = window.principal_realm().global_object();
-    HTML::queue_global_task(HTML::Task::Source::Gamepad, global, GC::create_function(GC::Heap::the(), [gamepad = GC::Ref { **gamepad }, &window] {
+    // AD-HOC: Step 1 runs in the task. A newly available gamepad is created by an earlier task on the same task
+    //         source, so a gamepad that becomes unavailable before that task has run is still removed.
+    auto& window = as<HTML::Navigator>(*this).window();
+    HTML::queue_global_task(HTML::Task::Source::Gamepad, window.principal_realm().global_object(), GC::create_function(GC::Heap::the(), [&window, handle] {
+        // 1. Let gamepad be the Gamepad representing the unavailable device.
+        auto matching_gamepad = window.navigator()->m_gamepads.first_matching([&handle](GC::Ptr<Gamepad> gamepad) {
+            return gamepad && gamepad->handle() == handle;
+        });
+
+        if (!matching_gamepad.has_value())
+            return;
+
+        auto gamepad = GC::Ref { **matching_gamepad };
+
         // 1. Set gamepad.[[connected]] to false.
         gamepad->set_connected({}, false);
 
