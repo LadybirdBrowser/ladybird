@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+</style>
+<div id="box" style="width: 10px; height: 10px; background: green"></div>
+<script>
+    // Hit testing reads the hit-test list of the last recording, which the recording in flight replaces once it lands:
+    // a hit test after a change of layout waits for the recording in flight and takes it in.
+    asyncTest(async done => {
+        const result = await whileRecordingInFlight(() => {
+            box.style.height = "30px";
+        }, state => {
+            const hit = document.elementFromPoint(5, 25) === box;
+            return { state, hit, afterHitTest: internals.frameSchedulerState() };
+        });
+        println(`state in the next task: ${result.state}`);
+        println(`hit test finds the grown box: ${result.hit}`);
+        println(`state after the hit test: ${result.afterHitTest}`);
+        done();
+    });
+</script>

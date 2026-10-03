@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+</style>
+<div id="box" style="width: 10px; height: 10px; background: green"></div>
+<script>
+    // Reads beside a recording in flight: the recording reaches nothing of the document but the frame it owns, so
+    // reads of style and layout, even one that lays out first, run beside it without taking it in. A recording that
+    // lands after such a layout no longer stands for the document, and the next rendering update records again.
+    asyncTest(async done => {
+        const result = await whileRecordingInFlight(() => {
+            box.style.backgroundColor = "blue";
+        }, state => {
+            const color = getComputedStyle(box).backgroundColor;
+            const cleanHeight = box.offsetHeight;
+            const afterCleanReads = internals.frameSchedulerState();
+            box.style.height = "20px";
+            const dirtyHeight = box.offsetHeight;
+            return { state, color, cleanHeight, afterCleanReads, dirtyHeight, afterDirtyRead: internals.frameSchedulerState() };
+        });
+        println(`state in the next task: ${result.state}`);
+        println(`clean reads: ${result.color} ${result.cleanHeight}`);
+        println(`state after the clean reads: ${result.afterCleanReads}`);
+        println(`dirty read: ${result.dirtyHeight}`);
+        println(`state after the dirty read: ${result.afterDirtyRead}`);
+        await twoFrames();
+        println(`hit test finds the grown box: ${document.elementFromPoint(5, 15) === box}`);
+        done();
+    });
+</script>

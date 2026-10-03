@@ -1,0 +1,2 @@
+state in the next task: idle
+color: rgb(0, 0, 255)

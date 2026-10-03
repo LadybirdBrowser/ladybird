@@ -1601,6 +1601,21 @@ void Internals::inject_rendering_opportunity(double frame_time_ms)
     page().client().inject_rendering_opportunity(frame_time);
 }
 
+Utf16String Internals::frame_scheduler_state() const
+{
+    return HTML::main_thread_event_loop().has_frame_in_flight() ? "in-flight"_utf16 : "idle"_utf16;
+}
+
+void Internals::hold_next_frame()
+{
+    HTML::main_thread_event_loop().hold_next_frame_for_testing();
+}
+
+void Internals::release_held_frame()
+{
+    HTML::main_thread_event_loop().release_held_frames_for_testing();
+}
+
 void Internals::update_compositor_animations()
 {
     window().associated_document().update_compositor_animations();
