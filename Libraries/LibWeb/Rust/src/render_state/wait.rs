@@ -197,6 +197,14 @@ pub(crate) fn force_read<J: RenderJob>(_read: ForcedRead, host: &DocumentHost, j
     answer
 }
 
+/// Spends `_read` on the style transaction of `host`'s document that flew beside the host, which the read takes in as
+/// its first job: the read's first layout round is its second wait, as after a style transaction it sent.
+pub(crate) fn force_read_flown_style(_read: ForcedRead, host: &DocumentHost) {
+    host.leave_forced_read(ForcedRead::AfterStyle(StyledFirst {
+        not_send_or_sync: PhantomData,
+    }));
+}
+
 /// Runs `job`, a style or layout job of `host`'s document that is not a forced read's first, spending `_permit`, and
 /// waits for its answer.
 pub(crate) fn run_job<J: RenderJob>(_permit: J::Permit, host: &DocumentHost, job: J) -> J::Answer {
@@ -241,10 +249,13 @@ lockstep_reason!(crate::layout::text_queries::InputSelectsByWord);
 lockstep_reason!(crate::css::style::engine_calls::EngineDoor);
 lockstep_reason!(super::document_host::HostReadsLayout);
 lockstep_reason!(super::document_host::NewDocument);
+lockstep_reason!(super::document_host::HostReachesFrameInFlight);
 
 // The host entries the event loop calls between two tasks.
 impl private::EventLoopEntry for crate::painting::ffi::TakesFinishedRecordingIn {}
 impl EventLoopEntry for crate::painting::ffi::TakesFinishedRecordingIn {}
+impl private::EventLoopEntry for crate::css::style::style_job::TakesFinishedStyleIn {}
+impl EventLoopEntry for crate::css::style::style_job::TakesFinishedStyleIn {}
 
 /// Where the render side answers a host that waits for it: the slot in the waiting host's frame that the answer moves
 /// into, which the message borrows for as long as the host waits. Only an answer goes through it: a slot left empty

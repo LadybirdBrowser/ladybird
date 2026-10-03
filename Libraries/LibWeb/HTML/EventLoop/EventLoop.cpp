@@ -15,6 +15,7 @@
 #include <LibWeb/Animations/ScrollTimeline.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/CSS/FontFaceSet.h>
+#include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/HTML/BrowsingContext.h>
@@ -126,6 +127,8 @@ void EventLoop::spin_until(GC::Ref<GC::Function<bool()>> goal_condition)
     //       2. Perform any steps that appear after this spin the event loop instance in the original algorithm.
     //       NOTE: This is achieved by returning from the function.
 
+    ++m_spin_depth;
+    ScopeGuard leave_spin = [this] { --m_spin_depth; };
     Platform::EventLoopPlugin::the().spin_until(GC::create_function(GC::Heap::the(), [this, goal_condition] {
         if (goal_condition->function()())
             return true;
@@ -466,6 +469,53 @@ static GC::RootVector<GC::Ref<Page>> pages_of_local_roots()
     return pages;
 }
 
+// A rendering update whose style transaction flies, with what its steps from step 16 on read.
+struct EventLoop::RenderingUpdateInFlight {
+    AK_ALLOC_WITH_KMALLOC;
+
+    Vector<GC::Root<DOM::Document>> docs;
+    double frame_timestamp { 0 };
+    double update_start_time { 0 };
+    // The event loop does not take the transaction in while a test holds it.
+    bool held_for_testing { false };
+};
+
+// The end of a rendering update, once its last step has run.
+void EventLoop::finish_rendering_update(double update_start_time)
+{
+    auto update_end_time = HighResolutionTime::unsafe_shared_current_time();
+    m_rendering_scheduler_counters.update_microseconds += static_cast<u64>((update_end_time - update_start_time) * 1000.0);
+    m_running_rendering_task = false;
+
+    for (auto const& page : pages_of_local_roots())
+        page->client().did_finish_rendering_update();
+
+    auto const& current = m_rendering_scheduler_counters;
+    auto const& previous = m_rendering_scheduler_counters_at_last_update;
+    dbgln_if(RENDERING_SCHEDULER_DEBUG,
+        "[RenderSched] update #{} duration={:.1f}ms gap={:.1f}ms paints={} tasks={} ({:.1f}ms) "
+        "[postmsg {} ({:.1f}ms), timer {} ({:.1f}ms), net {} ({:.1f}ms), dom {} ({:.1f}ms)] "
+        "requests={} coalesced={} during_update={}",
+        current.updates_run, update_end_time - update_start_time,
+        m_last_rendering_update_end_time > 0 ? update_start_time - m_last_rendering_update_end_time : 0.0,
+        current.paints - previous.paints,
+        current.tasks_between_updates - previous.tasks_between_updates,
+        static_cast<double>(current.task_microseconds_between_updates - previous.task_microseconds_between_updates) / 1000.0,
+        current.posted_message_tasks_between_updates - previous.posted_message_tasks_between_updates,
+        static_cast<double>(current.posted_message_task_microseconds_between_updates - previous.posted_message_task_microseconds_between_updates) / 1000.0,
+        current.timer_tasks_between_updates - previous.timer_tasks_between_updates,
+        static_cast<double>(current.timer_task_microseconds_between_updates - previous.timer_task_microseconds_between_updates) / 1000.0,
+        current.networking_tasks_between_updates - previous.networking_tasks_between_updates,
+        static_cast<double>(current.networking_task_microseconds_between_updates - previous.networking_task_microseconds_between_updates) / 1000.0,
+        current.dom_manipulation_tasks_between_updates - previous.dom_manipulation_tasks_between_updates,
+        static_cast<double>(current.dom_manipulation_task_microseconds_between_updates - previous.dom_manipulation_task_microseconds_between_updates) / 1000.0,
+        current.update_requests - previous.update_requests,
+        current.coalesced_update_requests - previous.coalesced_update_requests,
+        current.update_requests_while_rendering - previous.update_requests_while_rendering);
+    m_rendering_scheduler_counters_at_last_update = current;
+    m_last_rendering_update_end_time = update_end_time;
+}
+
 // https://html.spec.whatwg.org/multipage/webappapis.html#update-the-rendering
 void EventLoop::update_the_rendering()
 {
@@ -475,39 +525,7 @@ void EventLoop::update_the_rendering()
         page->client().will_begin_rendering_update();
     auto update_start_time = HighResolutionTime::unsafe_shared_current_time();
     ++m_rendering_scheduler_counters.updates_run;
-    ScopeGuard const guard = [this, update_start_time] {
-        auto update_end_time = HighResolutionTime::unsafe_shared_current_time();
-        m_rendering_scheduler_counters.update_microseconds += static_cast<u64>((update_end_time - update_start_time) * 1000.0);
-        m_running_rendering_task = false;
-
-        for (auto const& page : pages_of_local_roots())
-            page->client().did_finish_rendering_update();
-
-        auto const& current = m_rendering_scheduler_counters;
-        auto const& previous = m_rendering_scheduler_counters_at_last_update;
-        dbgln_if(RENDERING_SCHEDULER_DEBUG,
-            "[RenderSched] update #{} duration={:.1f}ms gap={:.1f}ms paints={} tasks={} ({:.1f}ms) "
-            "[postmsg {} ({:.1f}ms), timer {} ({:.1f}ms), net {} ({:.1f}ms), dom {} ({:.1f}ms)] "
-            "requests={} coalesced={} during_update={}",
-            current.updates_run, update_end_time - update_start_time,
-            m_last_rendering_update_end_time > 0 ? update_start_time - m_last_rendering_update_end_time : 0.0,
-            current.paints - previous.paints,
-            current.tasks_between_updates - previous.tasks_between_updates,
-            static_cast<double>(current.task_microseconds_between_updates - previous.task_microseconds_between_updates) / 1000.0,
-            current.posted_message_tasks_between_updates - previous.posted_message_tasks_between_updates,
-            static_cast<double>(current.posted_message_task_microseconds_between_updates - previous.posted_message_task_microseconds_between_updates) / 1000.0,
-            current.timer_tasks_between_updates - previous.timer_tasks_between_updates,
-            static_cast<double>(current.timer_task_microseconds_between_updates - previous.timer_task_microseconds_between_updates) / 1000.0,
-            current.networking_tasks_between_updates - previous.networking_tasks_between_updates,
-            static_cast<double>(current.networking_task_microseconds_between_updates - previous.networking_task_microseconds_between_updates) / 1000.0,
-            current.dom_manipulation_tasks_between_updates - previous.dom_manipulation_tasks_between_updates,
-            static_cast<double>(current.dom_manipulation_task_microseconds_between_updates - previous.dom_manipulation_task_microseconds_between_updates) / 1000.0,
-            current.update_requests - previous.update_requests,
-            current.coalesced_update_requests - previous.coalesced_update_requests,
-            current.update_requests_while_rendering - previous.update_requests_while_rendering);
-        m_rendering_scheduler_counters_at_last_update = current;
-        m_last_rendering_update_end_time = update_end_time;
-    };
+    ArmedScopeGuard guard = [this, update_start_time] { finish_rendering_update(update_start_time); };
 
     process_input_events();
 
@@ -606,6 +624,32 @@ void EventLoop::update_the_rendering()
     }
 
     // FIXME: 15. Let unsafeStyleAndLayoutStartTime be the unsafe shared current time.
+
+    // AD-HOC: The style transaction of a rendering update that nothing keeps in step with the event loop flies beside
+    //         it, and the update ends its task here: its steps from step 16 on run once the event loop takes the
+    //         transaction in, between two tasks.
+    if (auto blocker = style_flight_blocker(docs); blocker == Layout::RustFFI::FfiFlightBlocker::None) {
+        ensure_frame_completion_registered();
+        if (docs.first()->let_style_update_fly(blocker)) {
+            guard.disarm();
+            // The rendering task ends here: a rendering opportunity meanwhile queues the next one, which keeps its
+            // place in the queue until this update has finished.
+            m_running_rendering_task = false;
+            m_rendering_update_in_flight = make<RenderingUpdateInFlight>(move(docs), frame_timestamp, update_start_time, exchange(m_holds_next_frame_for_testing, false));
+            return;
+        }
+    }
+
+    update_the_rendering_from_style_and_layout(docs, frame_timestamp, Layout::RustFFI::FfiFlightBlocker::None);
+}
+
+// Steps 16 to 23 of updating the rendering: the style and layout of each doc of docs, and what follows it, with the
+// recording kept in step where `recording_blocker` is not none.
+void EventLoop::update_the_rendering_from_style_and_layout(Vector<GC::Root<DOM::Document>> const& docs, double frame_timestamp, Layout::RustFFI::FfiFlightBlocker recording_blocker)
+{
+    auto relative_frame_timestamp_for = [&](DOM::Document const& document) {
+        return max(0.0, HighResolutionTime::relative_high_resolution_time(frame_timestamp, relevant_global_object(document)));
+    };
 
     // 16. For each doc of docs:
     for (auto& document : docs) {
@@ -782,7 +826,7 @@ void EventLoop::update_the_rendering()
         auto navigable = doc->navigable();
         // AD-HOC: Script that ran earlier in this rendering update may have spun the event loop and run tasks that
         //         detached doc from its navigable (e.g. after its iframe was removed).
-        if (!navigable || !navigable->paint_next_frame_if_needed(DOM::UpdateLayoutReason::HTMLEventLoopRenderingUpdate))
+        if (!navigable || !navigable->paint_next_frame_if_needed(DOM::UpdateLayoutReason::HTMLEventLoopRenderingUpdate, recording_blocker))
             continue;
         ++m_rendering_scheduler_counters.paints;
         if (navigable->is_local_root())
@@ -815,6 +859,57 @@ void EventLoop::update_the_rendering()
     }
 }
 
+// Whether the style transaction of a rendering update of docs may fly beside the event loop, or what keeps it in step.
+Layout::RustFFI::FfiFlightBlocker EventLoop::style_flight_blocker(Vector<GC::Root<DOM::Document>> const& docs) const
+{
+    using Blocker = Layout::RustFFI::FfiFlightBlocker;
+    // A rendering update inside a nested event loop finishes before the task that spins it goes on.
+    if (m_running_synchronous_rendering_update || m_spin_depth > 0)
+        return Blocker::NotInRenderingUpdate;
+    if (docs.size() != 1)
+        return Blocker::NestedNavigables;
+    auto& document = *docs.first();
+    auto navigable = document.navigable();
+    if (!navigable || !navigable->is_local_root())
+        return Blocker::NestedNavigables;
+    for (auto& other : all_local_navigables()) {
+        if (other->parent().ptr() == navigable.ptr())
+            return Blocker::NestedNavigables;
+    }
+    if (document.has_resize_observers())
+        return Blocker::ResizeObservation;
+    if (document.has_active_view_transition())
+        return Blocker::ViewTransition;
+    if (document.scroll_state_query_containers().has_containers())
+        return Blocker::ScrollStateContainer;
+    if (document.has_boxes_with_auto_content_visibility())
+        return Blocker::ContentVisibilityAuto;
+    for (auto const& timeline : document.associated_animation_timelines()) {
+        if (is<Animations::ScrollTimeline>(*timeline))
+            return Blocker::ScrollTimeline;
+        if (!timeline->associated_animations().is_empty())
+            return Blocker::Animations;
+    }
+    if (document.style_computer().style_engine().css_transitions_may_observe_style_changes())
+        return Blocker::Animations;
+    return Blocker::None;
+}
+
+void EventLoop::resume_rendering_update_in_flight()
+{
+    auto update = m_rendering_update_in_flight.release_nonnull();
+    m_running_rendering_task = true;
+    ScopeGuard finish = [&] { finish_rendering_update(update->update_start_time); };
+    update_the_rendering_from_style_and_layout(update->docs, update->frame_timestamp, Layout::RustFFI::FfiFlightBlocker::StyleFlew);
+}
+
+void EventLoop::finish_rendering_update_in_flight()
+{
+    // The steps after the style transaction take it in, waiting for it to land.
+    if (m_rendering_update_in_flight)
+        resume_rendering_update_in_flight();
+}
+
 void EventLoop::did_let_recording_fly(LocalNavigable& navigable)
 {
     if (exchange(m_holds_next_frame_for_testing, false))
@@ -836,11 +931,26 @@ void EventLoop::ensure_frame_completion_registered()
 
 bool EventLoop::has_frame_in_flight() const
 {
+    if (m_rendering_update_in_flight && m_rendering_update_in_flight->docs.first()->has_flown_style_transaction())
+        return true;
     return any_of(m_navigables_with_recordings_in_flight, [](auto const& navigable) { return navigable->has_recording_in_flight(); });
+}
+
+bool EventLoop::holds_rendering_opportunity() const
+{
+    return m_rendering_update_in_flight || has_frame_in_flight();
 }
 
 void EventLoop::take_finished_frames_in()
 {
+    // A rendering update whose style transaction has landed goes on, and so does one that a task would run beside,
+    // waiting for the transaction to land: the engine answers what the task asks of it in place, which the drain of the
+    // transaction must not see. Neither goes on in a nested event loop or a pause, which run inside a task: its steps
+    // run script.
+    if (m_rendering_update_in_flight && !m_rendering_update_in_flight->held_for_testing && m_spin_depth == 0 && !execution_paused()
+        && (m_task_queue->has_runnable_tasks() || !m_rendering_update_in_flight->docs.first()->style_computer().style_engine().style_transaction_flies()))
+        resume_rendering_update_in_flight();
+
     if (m_navigables_with_recordings_in_flight.is_empty())
         return;
     auto navigables = move(m_navigables_with_recordings_in_flight);
@@ -853,6 +963,8 @@ void EventLoop::take_finished_frames_in()
 void EventLoop::release_held_frames_for_testing()
 {
     m_holds_next_frame_for_testing = false;
+    if (m_rendering_update_in_flight)
+        m_rendering_update_in_flight->held_for_testing = false;
     for (auto& navigable : m_navigables_with_recordings_in_flight)
         navigable->release_recording_in_flight_for_testing();
     schedule();
@@ -1150,7 +1262,10 @@ EventLoop::PauseHandle EventLoop::pause(UpdateTheRendering should_update_the_ren
     // 3. If necessary, update the rendering or user interface of any Document or navigable to reflect the current state.
     // NB: UpdateTheRendering::No skips this step, for a caller that must not run author callbacks (e.g., rAF callbacks)
     //     while it's blocked — a sync XHR send(), which may itself have been invoked from within a microtask.
-    if (should_update_the_rendering == UpdateTheRendering::Yes && !m_running_rendering_task) {
+    // A rendering update whose style transaction flies finishes first, as the update whose rendering the user sees.
+    if (should_update_the_rendering == UpdateTheRendering::Yes && m_rendering_update_in_flight) {
+        finish_rendering_update_in_flight();
+    } else if (should_update_the_rendering == UpdateTheRendering::Yes && !m_running_rendering_task) {
         if (m_rendering_task_queued) {
             m_task_queue->remove_tasks_matching([](auto const& task) {
                 return task.source() == Task::Source::Rendering;

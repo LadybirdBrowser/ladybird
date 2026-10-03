@@ -436,14 +436,13 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                             .get_or_insert_with(|| DetailedCounterReader::new(engine))
                             .read(engine)
                     });
-                    if expected.style_atoms_swept {
-                        unsafe {
-                            bridge::style_engine_set_replay_reclaimed_style_atoms(
-                                engine,
-                                expected.reclaimed_atoms.as_ptr(),
-                                expected.reclaimed_atoms.len(),
-                            );
-                        }
+                    unsafe {
+                        bridge::style_engine_set_replay_atom_sweep(
+                            engine,
+                            expected.style_atoms_swept,
+                            expected.reclaimed_atoms.as_ptr(),
+                            expected.reclaimed_atoms.len(),
+                        );
                     }
                     let start = Instant::now();
                     let actual_view = unsafe {

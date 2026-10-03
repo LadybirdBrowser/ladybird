@@ -8,18 +8,20 @@
 
 use super::questions::Question;
 use super::{
-    ArenaChange, ChangeQueue, CommittedRows, CreatedState, DocumentId, ForcedRead, LockstepProof, QueuedChanges,
-    RenderMessage, RenderWait, ScriptForcedRead, ask, send, wait_for_render_state,
+    ArenaChange, ChangeQueue, CommittedRows, CreatedState, DocumentId, ForcedRead, LockstepProof, NoFrameInFlight,
+    QueuedChanges, RenderMessage, RenderWait, ScriptForcedRead, ask, send, wait_for_render_state,
 };
 use crate::css::style::bridge::FfiDeviceClass;
-use crate::css::style::style_job::StyleJobAnswer;
+use crate::css::style::style_job::{FfiFlownStyleDrain, StyleJobAnswer};
 use crate::layout::HostTables;
 use crate::layout::row_reads::{RowIdentities, RowSnapshot};
 use crate::painting::paint_read::PaintSource;
 use crate::painting::record::recorder_state::AbsoluteRectMemo;
 use crate::painting::recording_slot::RecordingSlot;
 use crate::painting::visual_animation::VisualAnimation;
-use std::cell::{OnceCell, RefCell, RefMut};
+use crate::render_state::TaskBoundary;
+use crate::stage_thread::InFlight;
+use std::cell::{Cell, OnceCell, RefCell, RefMut};
 use std::rc::Rc;
 use std::sync::atomic::Ordering;
 
@@ -51,6 +53,22 @@ pub struct DocumentHost {
     forced_read: RefCell<BegunRead>,
     /// The writes the host queued that the render state has not applied yet, in the order the host made them.
     changes: ChangeQueue,
+    /// The style transaction the host let fly beside it, until the host has drained its reactions.
+    style_flight: RefCell<Option<StyleFlight>>,
+    /// How the host's document drains the style transaction that flew, until a drain begins. The document drains it
+    /// only where it has not begun to.
+    flown_style_drain: Cell<Option<FfiFlownStyleDrain>>,
+}
+
+/// A style transaction of the host's document that runs beside the host, has landed, or whose reactions the host
+/// drains. The style writes the host queued beside it reach the render state only behind its drain.
+enum StyleFlight {
+    /// The transaction flies with the buffer of the writes it took, which the host's queue gets back once it lands.
+    Flying(InFlight<(StyleJobAnswer, Vec<ArenaChange>)>),
+    Landed(StyleJobAnswer),
+    /// The host drains the transaction's reactions, holding the writes it queued beside the transaction until the drain
+    /// ends.
+    Draining(Vec<ArenaChange>),
 }
 
 /// A read of a document's render state the host began: how many of the read's scopes are open, and the read itself
@@ -74,6 +92,8 @@ impl DocumentHost {
             compositor_animations: RefCell::default(),
             forced_read: RefCell::default(),
             changes: ChangeQueue::default(),
+            style_flight: RefCell::default(),
+            flown_style_drain: Cell::new(None),
         }
     }
 
@@ -98,17 +118,133 @@ impl DocumentHost {
         self.changes.push(change);
     }
 
-    /// Lends the writes the host queued to `apply`, for the render side to apply ahead of the host's next message.
+    /// Lends the writes the host queued to `apply`, for the render side to apply ahead of the host's next message, once
+    /// the frame in flight has landed. A style write queued beside a style transaction that flew stays queued, behind the
+    /// drain of the transaction's reactions, which it is the next transaction's input to.
     pub(super) fn drain_queued_changes(&self, apply: impl FnOnce(QueuedChanges<'_>)) {
-        self.changes.drain(self.document, apply);
+        let landed = self.take_frame_in();
+        self.changes.drain(landed, self.document, self.has_flown_style(), apply);
+    }
+
+    /// Takes the writes the host queued, for a style transaction that flies with them to the render side.
+    pub(super) fn take_queued_changes_for_flight(&self) -> Vec<ArenaChange> {
+        debug_assert!(
+            !self.has_flown_style(),
+            "one style transaction of a document flies at a time"
+        );
+        self.changes.take()
+    }
+
+    /// Lets `flight`, a style transaction of the document's, fly beside the host until the host drains its reactions with
+    /// `drain`.
+    pub(super) fn let_style_fly(
+        &self,
+        flight: InFlight<(StyleJobAnswer, Vec<ArenaChange>)>,
+        drain: FfiFlownStyleDrain,
+    ) {
+        self.flown_style_drain.set(Some(drain));
+        let previous = self.style_flight.borrow_mut().replace(StyleFlight::Flying(flight));
+        debug_assert!(
+            previous.is_none(),
+            "one style transaction of a document flies at a time"
+        );
+    }
+
+    /// Takes the frame in flight in, waiting for it to land: the host reaches the document's render state, where it
+    /// is or with a message, only behind it. A frame in flight unsettles the host's queue, so a question the host
+    /// answers in place comes here only where the queue is not settled.
+    #[inline]
+    fn take_frame_in(&self) -> NoFrameInFlight {
+        if matches!(*self.style_flight.borrow(), Some(StyleFlight::Flying(_))) {
+            self.land_flying_style();
+        }
+        NoFrameInFlight(())
+    }
+
+    /// Waits for the style transaction that flies to land, and takes it in.
+    #[cold]
+    fn land_flying_style(&self) {
+        let mut flight = self.style_flight.borrow_mut();
+        let Some(StyleFlight::Flying(flying)) = flight.take() else {
+            unreachable!("a style transaction flies");
+        };
+        let (answer, buffer) = flying.join(LockstepProof::for_reason(&HOST_REACHES_FRAME_IN_FLIGHT));
+        self.changes.give_back(buffer);
+        *flight = Some(StyleFlight::Landed(answer));
+    }
+
+    /// Whether the document's style transaction still flies, where it has not landed: one that has is taken in. The
+    /// event loop asks between two tasks, so this never waits.
+    pub(crate) fn style_flies(&self, boundary: &TaskBoundary) -> bool {
+        let mut flight = self.style_flight.borrow_mut();
+        let Some(StyleFlight::Flying(flying)) = flight.take_if(|flight| matches!(flight, StyleFlight::Flying(_)))
+        else {
+            return false;
+        };
+        let (landed, flies) = match flying.try_take(boundary) {
+            Ok((answer, buffer)) => {
+                self.changes.give_back(buffer);
+                (StyleFlight::Landed(answer), false)
+            }
+            Err(flying) => (StyleFlight::Flying(flying), true),
+        };
+        *flight = Some(landed);
+        flies
+    }
+
+    /// Whether the host let a style transaction fly whose reactions it has not begun to drain.
+    #[inline]
+    pub(crate) fn has_flown_style(&self) -> bool {
+        matches!(
+            *self.style_flight.borrow(),
+            Some(StyleFlight::Flying(_) | StyleFlight::Landed(_))
+        )
+    }
+
+    /// Has the document drain the style transaction that flew, where it has not begun to, for a write to the document's
+    /// style sheets the host makes in place: the write lands behind the sheet writes the host queued beside the
+    /// transaction, which wait for its drain, in the order the host made them.
+    pub(crate) fn drain_flown_style(&self) {
+        if let Some(drain) = self.flown_style_drain.get() {
+            // SAFETY: The document drains on the host's thread, which this is, and outlives its host.
+            unsafe { (drain.drain)(drain.document) };
+        }
+    }
+
+    /// Takes what the style transaction the host let fly answered, waiting for it to land, for the host to drain its
+    /// reactions. The writes the host queued beside the transaction wait for the drain to end.
+    pub(crate) fn begin_style_drain(&self) -> StyleJobAnswer {
+        self.flown_style_drain.set(None);
+        self.take_frame_in();
+        let mut flight = self.style_flight.borrow_mut();
+        let Some(StyleFlight::Landed(answer)) = flight.take() else {
+            panic!("the host drains a style transaction that flew and has landed");
+        };
+        *flight = Some(StyleFlight::Draining(self.changes.hold_style_writes()));
+        answer
+    }
+
+    /// Ends the drain of the style transaction that flew: the writes the host queued beside it are queued again, behind
+    /// what the drain wrote.
+    pub(crate) fn end_style_drain(&self) {
+        let Some(StyleFlight::Draining(beside)) = self.style_flight.borrow_mut().take() else {
+            panic!("the host ends the drain it began");
+        };
+        self.changes.requeue(beside);
     }
 
     /// Applies the writes the host queued to the document's render state, where the host is, for a read the host
-    /// answers itself. Only a read that spends a wait may: the render side waits for the host meanwhile.
+    /// answers itself, once the frame in flight has landed. Only a read that spends a wait may: the render side waits
+    /// for the host meanwhile. A settled queue has neither, which is all the read tests.
+    #[inline]
     fn apply_queued_changes(&self, _wait: &impl RenderWait) {
-        if self.changes.is_empty() {
-            return;
+        if !self.changes.is_settled() {
+            self.settle_queued_changes();
         }
+    }
+
+    #[inline(never)]
+    fn settle_queued_changes(&self) {
         let state = self.created_state();
         self.drain_queued_changes(|changes| {
             // SAFETY: The state keeps its arena and engine where they are until it is destroyed, and nothing on the
@@ -379,6 +515,14 @@ pub(crate) struct ForcedReadScope {
 }
 
 const FORCED_READ_SCOPE: ForcedReadScope = ForcedReadScope { _private: () };
+
+/// The reason the host waits for its document's frame in flight: it reaches the document's render state, which the
+/// frame's job holds until it lands.
+pub(crate) struct HostReachesFrameInFlight {
+    _private: (),
+}
+
+const HOST_REACHES_FRAME_IN_FLIGHT: HostReachesFrameInFlight = HostReachesFrameInFlight { _private: () };
 
 /// The reason the host waits for its document's render state in a read of its own, for no script API call: an event's
 /// dispatch, a child document's style update, an inspection, a rendering update.

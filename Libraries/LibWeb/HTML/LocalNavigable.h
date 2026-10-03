@@ -302,7 +302,8 @@ public:
     // takes the recording in.
     Optional<Compositor::CompositorFrame> record_compositor_frame(PaintConfig, Layout::RustFFI::FfiFlightBlocker = Layout::RustFFI::FfiFlightBlocker::NotInRenderingUpdate);
     void paint_next_frame(Layout::RustFFI::FfiFlightBlocker = Layout::RustFFI::FfiFlightBlocker::NotInRenderingUpdate);
-    bool paint_next_frame_if_needed(DOM::UpdateLayoutReason);
+    // Paints the next frame if it needs one, with its recording kept in step where `blocker` is not none.
+    bool paint_next_frame_if_needed(DOM::UpdateLayoutReason, Layout::RustFFI::FfiFlightBlocker blocker = Layout::RustFFI::FfiFlightBlocker::None);
 
     enum class TakeIn {
         // Between two tasks: only a recording that has finished.

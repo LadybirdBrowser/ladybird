@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style id="base">
+    #box { width: 100px; height: 20px; color: rgb(255, 0, 0); }
+</style>
+<div id="box"></div>
+<div id="other" class="other"></div>
+<script>
+    // Style sheets inserted, edited, replaced and removed beside a frame in flight: a change that writes the sheets to
+    // the style engine in place drains the style transaction that flew first, so it lands behind the changes made
+    // beside the transaction, and a read or the next style update sees them all, in cascade order.
+    function describe() {
+        const style = getComputedStyle(box);
+        return `${style.width} ${style.color} ${style.backgroundColor} ${getComputedStyle(other).height}`;
+    }
+
+    asyncTest(async done => {
+        // A <style> inserted and a rule added and edited beside the frame, then read.
+        const inserted = await whileRecordingInFlight(() => {
+            box.style.height = "30px";
+        }, state => {
+            const style = document.createElement("style");
+            style.id = "inserted";
+            style.textContent = "#box { width: 120px; }";
+            document.head.appendChild(style);
+            base.sheet.insertRule(".other { height: 15px; }", base.sheet.cssRules.length);
+            const afterInsertion = internals.frameSchedulerState();
+            base.sheet.cssRules[0].style.color = "rgb(0, 128, 0)";
+            return { state, afterInsertion, read: describe() };
+        });
+        println(`insertion: state in the next task: ${inserted.state}`);
+        println(`insertion: state after inserting a sheet and a rule: ${inserted.afterInsertion}`);
+        println(`insertion: read beside the frame: ${inserted.read}`);
+
+        // A constructed sheet adopted and replaced beside the frame, then the next style update.
+        const sheet = new CSSStyleSheet();
+        sheet.replaceSync("#box { background-color: rgb(0, 0, 255); }");
+        const replaced = await whileRecordingInFlight(() => {
+            box.style.height = "40px";
+        }, state => {
+            document.adoptedStyleSheets = [sheet];
+            const afterAdoption = internals.frameSchedulerState();
+            sheet.replaceSync("#box { background-color: rgb(255, 255, 0); width: 140px; }");
+            return { state, afterAdoption };
+        });
+        println(`replaceSync: state in the next task: ${replaced.state}`);
+        println(`replaceSync: state after adopting: ${replaced.afterAdoption}`);
+        await twoFrames();
+        println(`replaceSync: after: ${describe()}`);
+
+        // Sheets disabled, removed and given a media query that does not match, beside the frame.
+        const removed = await whileRecordingInFlight(() => {
+            box.style.height = "50px";
+        }, state => {
+            sheet.disabled = true;
+            const afterDisabling = internals.frameSchedulerState();
+            document.getElementById("inserted").remove();
+            const afterRemoval = internals.frameSchedulerState();
+            base.media = "print";
+            return { state, afterDisabling, afterRemoval };
+        });
+        println(`removal: state in the next task: ${removed.state}`);
+        println(`removal: state after disabling: ${removed.afterDisabling}`);
+        println(`removal: state after removing a sheet: ${removed.afterRemoval}`);
+        await twoFrames();
+        println(`removal: after: ${describe()}, ${box.offsetHeight}`);
+
+        base.media = "";
+        sheet.disabled = false;
+        println(`restored: ${describe()}`);
+        done();
+    });
+</script>

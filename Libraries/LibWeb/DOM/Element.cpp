@@ -3262,17 +3262,12 @@ void Element::children_changed(ChildrenChangedMetadata const& metadata)
 {
     Node::children_changed(metadata);
 
-    if (child_style_uses_tree_counting_function()) {
-        for_each_child_of_type<Element>([&](Element& element) {
-            if (!element.style_uses_tree_counting_function())
-                return IterationDecision::Continue;
-
-            // The engine recomputes the element's record against its new place among its siblings.
-            document().style_computer().style_engine().record_derived_element_style_input_change(element.style_node_id(), CSS::StyleEngine::PublishedStyle | CSS::StyleEngine::RecomputeStyle);
-
-            return IterationDecision::Continue;
-        });
-    }
+    // NB: The style transaction that flew counted the children as they were when it was sealed, and a child whose
+    //     style it found to read its place among them is known to only once its drain installs that style.
+    if (document().has_flown_style_transaction()) [[unlikely]]
+        document().style_computer().style_engine().note_children_changed_beside_flown_transaction(style_node_id());
+    if (child_style_uses_tree_counting_function())
+        document().style_computer().style_engine().restyle_children_reading_sibling_position(*this);
 }
 
 void Element::set_style_node_id(CSS::StyleNodeID style_node_id)

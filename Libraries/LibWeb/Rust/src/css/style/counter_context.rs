@@ -470,6 +470,11 @@ impl StyleEngine {
         self.state.flush_without_document_root(&mut self.counters);
     }
 
+    /// Leaves the atom sweep of the transactions taken until the next call to a later one, where `defers`.
+    pub(crate) fn defer_atom_sweep(&mut self, defers: bool) {
+        self.state.host.defers_atom_sweep = defers;
+    }
+
     #[inline]
     #[cfg(test)]
     pub(super) fn sweep_style_atoms(&mut self) {

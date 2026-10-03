@@ -34,7 +34,8 @@ pub(crate) use questions::{
 };
 pub(crate) use wait::{
     ForcedRead, FrameJobPermit, LockstepProof, RenderJob, RenderWait, ReplyTo, ScriptForcedRead, SpentWait,
-    StyleJobPermit, TaskBoundary, force_read, render_state_died, run_job, wait_for_render_state,
+    StyleJobPermit, TaskBoundary, force_read, force_read_flown_style, render_state_died, run_job,
+    wait_for_render_state,
 };
 
 /// The host's name for one document's render state. The host mints it, so naming a new document needs no answer from
@@ -140,7 +141,21 @@ impl ArenaChange {
             Self::Engine(write) => write.apply(unsafe { engine.get_mut() }),
         }
     }
+
+    /// Whether the change writes what the document's style engine computes from. A mint of style node identities does
+    /// not: it makes them live, in the order the host minted them.
+    fn writes_style(&self) -> bool {
+        match self {
+            Self::Style(_) => true,
+            Self::Engine(write) => !matches!(write, crate::css::style::engine_calls::EngineWrite::MintStyleNodes(_)),
+            Self::Layout(_) | Self::Paint(_) => false,
+        }
+    }
 }
+
+/// Proof that the host's document has no frame in flight: the host has taken it in, or let none fly. Only
+/// DocumentHost::take_frame_in() mints it.
+struct NoFrameInFlight(());
 
 /// The writes a host queued for its document's render state, in the order the host made them, in two buffers the queue
 /// keeps: the writes are applied out of one as the host queues more into the other, so queueing a write allocates only
@@ -150,27 +165,76 @@ struct ChangeQueue {
     queued: RefCell<Vec<ArenaChange>>,
     /// The empty buffer the host queues into while the writes queued before are applied.
     spare: Cell<Vec<ArenaChange>>,
+    /// Whether nothing is queued and no frame of the document flies, so the render state reads as of every write the
+    /// host made. It is all a question the host answers where it is tests.
+    settled: Cell<bool>,
 }
 
 impl ChangeQueue {
     fn push(&self, change: ArenaChange) {
         self.queued.borrow_mut().push(change);
+        self.settled.set(false);
     }
 
-    fn is_empty(&self) -> bool {
-        self.queued.borrow().is_empty()
+    fn is_settled(&self) -> bool {
+        self.settled.get()
     }
 
     /// Lends the queued writes of `document` to `apply`, which applies them, and keeps their emptied buffer as the
     /// spare. A write the host queues meanwhile, as the writes are applied or the render side works, waits for the next
-    /// application.
-    fn drain(&self, document: DocumentId, apply: impl FnOnce(QueuedChanges<'_>)) {
+    /// application, as do the style writes where `hold_style`.
+    fn drain(
+        &self,
+        _landed: NoFrameInFlight,
+        document: DocumentId,
+        hold_style: bool,
+        apply: impl FnOnce(QueuedChanges<'_>),
+    ) {
         let mut queued = self.queued.replace(self.spare.take());
+        if hold_style {
+            self.queue_style_writes_of(&mut queued);
+        }
         apply(QueuedChanges {
             document,
             changes: queued.drain(..),
         });
         self.spare.set(queued);
+        self.settled.set(self.queued.borrow().is_empty());
+    }
+
+    /// Moves the style writes of `changes` back into the queue, where they wait for the next application.
+    #[cold]
+    fn queue_style_writes_of(&self, changes: &mut Vec<ArenaChange>) {
+        self.queued
+            .borrow_mut()
+            .extend(changes.extract_if(.., |change| change.writes_style()));
+    }
+
+    /// Takes the queued writes, for a style transaction that flies with them. Their buffer comes back with give_back().
+    /// The queue is not settled until the host has taken the transaction in.
+    fn take(&self) -> Vec<ArenaChange> {
+        self.settled.set(false);
+        self.queued.replace(self.spare.take())
+    }
+
+    /// Keeps `buffer`, emptied by the render side, as the spare.
+    fn give_back(&self, buffer: Vec<ArenaChange>) {
+        debug_assert!(buffer.is_empty(), "the render side gives back an emptied buffer");
+        self.spare.set(buffer);
+    }
+
+    /// Takes the queued style writes out of the queue, in the spare, until requeue() puts them back.
+    fn hold_style_writes(&self) -> Vec<ArenaChange> {
+        let mut held = self.spare.take();
+        held.extend(self.queued.borrow_mut().extract_if(.., |change| change.writes_style()));
+        held
+    }
+
+    /// Queues the writes hold_style_writes() held behind the writes queued meanwhile.
+    fn requeue(&self, mut held: Vec<ArenaChange>) {
+        self.queued.borrow_mut().append(&mut held);
+        self.spare.set(held);
+        self.settled.set(false);
     }
 }
 
@@ -315,8 +379,41 @@ fn state_parts(document: DocumentId) -> Option<(*mut ArenaHandle, StyleEngineHan
     })
 }
 
-/// Sends `message` about `host`'s document to the render side, the StyleLayout thread, behind the changes the host
-/// queued, and waits until it is handled, so the message may borrow from the calling frame. A message sent while the
+/// Submits `job`, a style transaction of `host`'s document, to the render side, the StyleLayout thread, behind the frame
+/// in flight and the changes the host queued, and goes on: the host takes what the job answers in from the flight, and
+/// the document drains its reactions with `drain`. Only a transaction that `_license` lets fly is submitted.
+pub(crate) fn fly(
+    host: &DocumentHost,
+    job: crate::css::style::style_job::StyleJob,
+    drain: crate::css::style::style_job::FfiFlownStyleDrain,
+    _license: &crate::painting::recording_slot::FlightLicense,
+) {
+    let mut changes = host.take_queued_changes_for_flight();
+    let document = host.document();
+    let run = move || {
+        let side = RenderingSide {
+            not_send_or_sync: PhantomData,
+        };
+        apply_changes(
+            &side,
+            QueuedChanges {
+                document,
+                changes: changes.drain(..),
+            },
+        );
+        let (_, engine) = state_parts(document).expect("a document whose style flies has a render state");
+        // SAFETY: The state keeps the engine where it is while the job runs, and the host reaches the state again only
+        // once it has taken the flight in.
+        (job.run(unsafe { engine.get_mut() }), changes)
+    };
+    #[cfg(test)]
+    host.let_style_fly(crate::stage_thread::InFlight::landed(run()), drain);
+    #[cfg(not(test))]
+    host.let_style_fly(crate::stage_thread::style_layout_thread().submit(run), drain);
+}
+
+/// Sends `message` about `host`'s document to the render side, the StyleLayout thread, behind the frame in flight and
+/// the changes the host queued, and waits until it is handled, so the message may borrow from the calling frame. A message sent while the
 /// thread handles another (a child document's) is handled right there, and a unit test's render states stay on the
 /// test's own thread.
 pub(crate) fn send(host: &DocumentHost, message: RenderMessage<'_>) {
@@ -394,17 +491,19 @@ mod tests {
                 queue.push(write());
             }
             *buffer = queue.queued.borrow().as_ptr();
-            queue.drain(DocumentId::default(), |changes| assert_eq!(changes.changes.count(), 8));
+            queue.drain(NoFrameInFlight(()), DocumentId::default(), false, |changes| {
+                assert_eq!(changes.changes.count(), 8)
+            });
         }
         assert_eq!(buffers[0], buffers[2]);
         assert_eq!(buffers[1], buffers[3]);
         queue.push(write());
-        queue.drain(DocumentId::default(), |changes| {
+        queue.drain(NoFrameInFlight(()), DocumentId::default(), false, |changes| {
             assert_eq!(changes.changes.count(), 1);
             queue.push(write());
         });
         assert!(
-            !queue.is_empty(),
+            !queue.is_settled(),
             "a write queued meanwhile waits for the next application"
         );
     }

@@ -484,21 +484,39 @@ pub enum FfiRecordingStart {
     InFlight,
 }
 
-/// Why a rendering update's recording may not fly beside the event loop: something reads what it
-/// records before the next task, or the document is presented in step with another.
+/// Why a rendering update's frame (its style transaction, or its recording) may not fly beside the
+/// event loop: something reads what it computes before the next task, or the document is rendered
+/// in step with another.
 #[repr(u8)]
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum FfiFlightBlocker {
-    /// Nothing blocks the recording, which may fly.
+    /// Nothing blocks the frame, which may fly.
     None,
-    /// The recording is not a rendering update's: the host records for a screenshot or a hit test, or
-    /// paints inside a nested event loop, and reads the recording right after.
+    /// The frame is not a rendering update's: the host records for a screenshot or a hit test, or
+    /// renders inside a nested event loop, and reads the frame right after.
     NotInRenderingUpdate,
-    /// The document hosts navigables, or is hosted by one, and is presented in step with them.
+    /// The document hosts navigables, or is hosted by one, and is rendered in step with them.
     NestedNavigables,
     /// The document's last recording in flight did not stand, so this one records in step with the
     /// host, which presents it.
     LastFlightDidNotStand,
+    /// The document observes the size of its elements, which the steps after its layout deliver
+    /// before any other task.
+    ResizeObservation,
+    /// A view transition of the document captures its rendering in step with the update.
+    ViewTransition,
+    /// Scroll-state container queries read the scroll state the update snapshots after layout.
+    ScrollStateContainer,
+    /// An element's `content-visibility: auto` is determined after layout, and styles it again.
+    ContentVisibilityAuto,
+    /// A scroll-driven timeline takes its time from the layout of the update it is stale in.
+    ScrollTimeline,
+    /// The document runs animations, which the update samples, or declares transitions, which the update starts: what
+    /// script sees of their timing follows the update.
+    Animations,
+    /// The rendering update's style transaction flew, and the update ends between two tasks: its recording is made in
+    /// step, so that the frame flies once.
+    StyleFlew,
 }
 
 /// How a recording in flight landed.

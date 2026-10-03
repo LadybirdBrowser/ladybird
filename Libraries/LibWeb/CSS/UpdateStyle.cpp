@@ -47,6 +47,15 @@ enum class DocumentWithoutBrowsingContext {
     Skip,
     Update,
 };
+// Where a style update's first transaction comes from.
+enum class FirstStyleTransaction : u8 {
+    // What was recorded since the last transaction.
+    Recorded,
+    // The transaction that flew beside the event loop, whose reactions are drained against the inputs it was sealed with.
+    Flown,
+};
+
+template<FirstStyleTransaction = FirstStyleTransaction::Recorded>
 static void update_style(DOM::Document&, DocumentWithoutBrowsingContext = DocumentWithoutBrowsingContext::Skip);
 static bool update_style_for_element(DOM::Document&, DOM::AbstractElement const&, StyleUpdateMode);
 static bool embedding_document_chain_has_no_pending_style_or_layout_work(DOM::Document const&);
@@ -117,9 +126,38 @@ struct StyleEngineTransaction {
     bool only_derived_child_reactions { false };
 };
 
-static StyleEngineTransaction take_style_engine_transaction(DOM::Document& document)
+static StyleEngineTransaction accept_style_engine_transaction(DOM::Document& document, StyleEngine::PublishedStyleTransaction const& published_transaction)
 {
     StyleEngineTransaction transaction;
+    auto& style_computer = document.style_computer();
+    document.style_invalidation_counters().style_update_submission_microseconds += published_transaction.submission_microseconds;
+    document.style_invalidation_counters().style_update_bridge_microseconds += published_transaction.bridge_microseconds;
+    if (!published_transaction.reactions.is_empty())
+        transaction.published_version = published_transaction.version;
+    for (auto const& answer : published_transaction.reactions) {
+        // The complete answer remains in Rust transaction scratch under this node. The identity
+        // names both the semantic reaction and the payload that consumes it.
+        if (!style_computer.element_for_style_node(answer.style_node)) {
+            // NB: The element was removed beside the transaction that flew. Its removal is the next transaction's, and
+            //     it has no style to install.
+            VERIFY(style_computer.style_engine().style_node_arrived_or_retired_beside_flown_transaction(StyleNodeID { answer.style_node }));
+            continue;
+        }
+        transaction.reactions.append(answer);
+    }
+
+    // A reaction batch covering more than one sixteenth of the connected elements is dense enough that
+    // packing the scope once is cheaper than repeatedly reconstructing cold facts while matching
+    // the planned elements.
+    transaction.prefers_broad_matching_batch = !published_transaction.is_scoped
+        || transaction.reactions.size() * 16 > published_transaction.connected_element_count;
+    transaction.only_derived_child_reactions = published_transaction.only_derived_child_reactions;
+
+    return transaction;
+}
+
+static StyleEngineTransaction take_style_engine_transaction(DOM::Document& document)
+{
     auto& style_computer = document.style_computer();
     // One element's computed style answers for another only while the inputs it was keyed on still
     // mean what they meant. A transaction boundary is exactly where they stop doing so: a
@@ -136,29 +174,16 @@ static StyleEngineTransaction take_style_engine_transaction(DOM::Document& docum
     auto* root = document.document_element();
     if (!root || root->style_node_id() == 0) {
         style_computer.style_engine().flush();
-        return transaction;
+        return {};
     }
 
-    auto published_transaction = style_computer.style_engine().take_style_transaction(root->style_node_id());
-    document.style_invalidation_counters().style_update_submission_microseconds += published_transaction.submission_microseconds;
-    document.style_invalidation_counters().style_update_bridge_microseconds += published_transaction.bridge_microseconds;
-    if (!published_transaction.reactions.is_empty())
-        transaction.published_version = published_transaction.version;
-    for (auto const& answer : published_transaction.reactions) {
-        // The complete answer remains in Rust transaction scratch under this node. The identity
-        // names both the semantic reaction and the payload that consumes it.
-        VERIFY(style_computer.element_for_style_node(answer.style_node));
-        transaction.reactions.append(answer);
-    }
+    return accept_style_engine_transaction(document, style_computer.style_engine().take_style_transaction(root->style_node_id()));
+}
 
-    // A reaction batch covering more than one sixteenth of the connected elements is dense enough that
-    // packing the scope once is cheaper than repeatedly reconstructing cold facts while matching
-    // the planned elements.
-    transaction.prefers_broad_matching_batch = !published_transaction.is_scoped
-        || transaction.reactions.size() * 16 > published_transaction.connected_element_count;
-    transaction.only_derived_child_reactions = published_transaction.only_derived_child_reactions;
-
-    return transaction;
+// The style transaction that flew beside the event loop, taken in to drain its reactions.
+static StyleEngineTransaction take_flown_style_engine_transaction(DOM::Document& document)
+{
+    return accept_style_engine_transaction(document, document.style_computer().style_engine().take_flown_style_transaction());
 }
 
 static StyleEngine::PublishedStyleDelta make_materialize_gap_delta(StyleNodeID style_node, u8 reaction, u8 inherited_style_groups = 0)
@@ -688,8 +713,11 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
     return transaction_invalidation;
 }
 
-static void update_style(DOM::Document& document, DocumentWithoutBrowsingContext document_without_browsing_context)
+template<FirstStyleTransaction first_transaction>
+static void update_style(DOM::Document& document, [[maybe_unused]] DocumentWithoutBrowsingContext document_without_browsing_context)
 {
+    // NB: The style update of a read with no transaction in flight is compiled without the drain's steps.
+    constexpr bool drains_flown_transaction = first_transaction == FirstStyleTransaction::Flown;
     auto style_update_started_at = MonotonicTime::now();
     auto& timing_counters = document.style_invalidation_counters();
     auto const submission_before = timing_counters.style_update_submission_microseconds;
@@ -708,22 +736,26 @@ static void update_style(DOM::Document& document, DocumentWithoutBrowsingContext
     StyleValueFFI::rust_style_ffi_complete_style_update_begin();
     ScopeGuard leave_complete_style_update = finish_complete_style_update;
 
-    // NOTE: If our parent document needs a relayout, we must do that *first*. This is required as it may cause the
-    // viewport to change which will can affect media query evaluation and the value of the `vw` unit.
-    // OPTIMIZATION: A settled embedding chain has no relayout to do, and finding that out by laying it out publishes
-    //               its whole style environment.
-    if (auto navigable = document.navigable(); navigable && navigable->container() && &navigable->container()->document() != &document
-        && !embedding_document_chain_has_no_pending_style_or_layout_work(document))
-        navigable->container()->document().update_layout(DOM::UpdateLayoutReason::ChildDocumentStyleUpdate);
+    // NB: The drain of a transaction that flew installs what was computed from the inputs it was sealed with, which
+    //     settled the parent document's layout, and is due whatever became of the document since.
+    if constexpr (!drains_flown_transaction) {
+        // NOTE: If our parent document needs a relayout, we must do that *first*. This is required as it may cause the
+        // viewport to change which will can affect media query evaluation and the value of the `vw` unit.
+        // OPTIMIZATION: A settled embedding chain has no relayout to do, and finding that out by laying it out publishes
+        //               its whole style environment.
+        if (auto navigable = document.navigable(); navigable && navigable->container() && &navigable->container()->document() != &document
+            && !embedding_document_chain_has_no_pending_style_or_layout_work(document))
+            navigable->container()->document().update_layout(DOM::UpdateLayoutReason::ChildDocumentStyleUpdate);
 
-    if (!document.browsing_context() && document_without_browsing_context == DocumentWithoutBrowsingContext::Skip)
-        return;
+        if (!document.browsing_context() && document_without_browsing_context == DocumentWithoutBrowsingContext::Skip)
+            return;
 
-    // NOTE: If this is a document hosting <template> contents, style update is unnecessary.
-    if (document.created_for_appropriate_template_contents())
-        return;
+        // NOTE: If this is a document hosting <template> contents, style update is unnecessary.
+        if (document.created_for_appropriate_template_contents())
+            return;
+    }
 
-    auto submission_started_at = MonotonicTime::now();
+    [[maybe_unused]] auto submission_started_at = MonotonicTime::now();
     document.style_computer().begin_style_update();
     ScopeGuard end_style_update = [&] {
         document.style_computer().end_style_update();
@@ -734,7 +766,9 @@ static void update_style(DOM::Document& document, DocumentWithoutBrowsingContext
         document.style_computer().end_style_record_view_epoch();
     };
 
-    document.synchronize_dirty_style_attributes();
+    // NB: What was recorded beside the transaction that flew is the next transaction's.
+    if constexpr (!drains_flown_transaction)
+        document.synchronize_dirty_style_attributes();
 
     document.begin_style_stabilization_epoch();
     ScopeGuard end_stabilization_epoch = [&] {
@@ -744,54 +778,65 @@ static void update_style(DOM::Document& document, DocumentWithoutBrowsingContext
     // Fetch the viewport rect once, instead of repeatedly, during style computation.
     document.update_style_computer_viewport_rect();
 
-    // An element may have rendering-only descendants that must join the transaction which first styles it. Prepare
-    // those descendants before selector inputs cross the transaction boundary.
-    document.style_computer().prepare_elements_for_style_computation();
+    if constexpr (!drains_flown_transaction) {
+        // An element may have rendering-only descendants that must join the transaction which first styles it. Prepare
+        // those descendants before selector inputs cross the transaction boundary.
+        document.style_computer().prepare_elements_for_style_computation();
 
-    // Media rules are evaluated before the transaction boundary below, because evaluating them is
-    // itself a source of inputs: a rule that starts or stops applying publishes its activation. A
-    // transaction taken ahead of that would leave those inputs for the next flush, so the flush that made
-    // a rule apply would not be the flush that recomputed the elements it applies to.
-    if (document.needs_media_rule_evaluation())
-        document.evaluate_media_rules_for_style_update();
+        // Media rules are evaluated before the transaction boundary below, because evaluating them is
+        // itself a source of inputs: a rule that starts or stops applying publishes its activation. A
+        // transaction taken ahead of that would leave those inputs for the next flush, so the flush that made
+        // a rule apply would not be the flush that recomputed the elements it applies to.
+        if (document.needs_media_rule_evaluation())
+            document.evaluate_media_rules_for_style_update();
 
-    // The user-agent and user sheets have no author-sheet attachment event, so compare their
-    // identities before deciding whether there is a transaction to take. Rendering opportunities
-    // call update_style() even for quiescent documents, and animation ticks do not themselves
-    // change selector or cascade inputs. Apply an animation-only update first, then take a
-    // transaction only if the resulting inherited-style feedback requires one.
-    record_non_author_stylesheets(document);
-    timing_counters.style_update_submission_microseconds += (MonotonicTime::now() - submission_started_at).to_truncated_microseconds();
-    if (document.has_completed_style_update()
-        && !document.style_computer().style_engine().has_pending_transaction()) {
-        if (!document.needs_animated_style_update())
-            return;
-        document.sample_animation_effects_needing_style_update();
-        if (!document.style_computer().style_engine().has_pending_transaction())
-            return;
+        // The user-agent and user sheets have no author-sheet attachment event, so compare their
+        // identities before deciding whether there is a transaction to take. Rendering opportunities
+        // call update_style() even for quiescent documents, and animation ticks do not themselves
+        // change selector or cascade inputs. Apply an animation-only update first, then take a
+        // transaction only if the resulting inherited-style feedback requires one.
+        record_non_author_stylesheets(document);
+        timing_counters.style_update_submission_microseconds += (MonotonicTime::now() - submission_started_at).to_truncated_microseconds();
+        if (document.has_completed_style_update()
+            && !document.style_computer().style_engine().has_pending_transaction()) {
+            if (!document.needs_animated_style_update())
+                return;
+            document.sample_animation_effects_needing_style_update();
+            if (!document.style_computer().style_engine().has_pending_transaction())
+                return;
+        }
+
+        // Settle each tree scope's counter-style registry before the engine answers any row: a record
+        // naming a counter style names the registry it was computed against, and a shadow tree can
+        // define its own. None of it depends on layout.
+        (void)document.style_scope().counter_style_environment_identity();
+        document.for_each_shadow_root([](DOM::ShadowRoot& shadow_root) {
+            (void)shadow_root.style_scope().counter_style_environment_identity();
+        });
     }
-
-    // Settle each tree scope's counter-style registry before the engine answers any row: a record
-    // naming a counter style names the registry it was computed against, and a shadow tree can
-    // define its own. None of it depends on layout.
-    (void)document.style_scope().counter_style_environment_identity();
-    document.for_each_shadow_root([](DOM::ShadowRoot& shadow_root) {
-        (void)shadow_root.style_scope().counter_style_environment_identity();
-    });
 
     // A style flush is a transaction boundary. Everything recorded since the last one crosses into
     // StyleEngine as one flat batch, is normalized there, and is routed into the region its
     // transpose programs reach. A transaction that could not be proven narrower publishes a
     // complete document reaction batch. Only a transaction that cannot complete its answers falls
     // back to document invalidation.
-    auto style_engine_transaction = take_style_engine_transaction(document);
+    auto style_engine_transaction = drains_flown_transaction ? take_flown_style_engine_transaction(document) : take_style_engine_transaction(document);
+    // What was written beside the transaction that flew reaches the engine once the drain of its reactions has ended,
+    // as the next transaction's input.
+    ScopeGuard end_flown_style_drain = [&] {
+        if constexpr (drains_flown_transaction)
+            document.style_computer().style_engine().end_flown_style_drain();
+    };
     ScopeGuard discard_style_engine_transaction_outputs = [&] {
         document.style_computer().style_engine().discard_style_transaction_outputs();
     };
 
     if (!style_engine_transaction.reactions.is_empty())
         document.note_style_stabilization_has_style_reactions();
-    document.sample_animation_effects_needing_style_update();
+    // NB: A transaction flies only while the document runs no animation, so one that runs now started beside it: the
+    //     next transaction samples it.
+    if constexpr (!drains_flown_transaction)
+        document.sample_animation_effects_needing_style_update();
 
     auto style_engine_reactions = move(style_engine_transaction.reactions);
     auto prefers_broad_matching_batch = style_engine_transaction.prefers_broad_matching_batch;
@@ -858,6 +903,7 @@ static void update_style(DOM::Document& document, DocumentWithoutBrowsingContext
             reaction_set.set(StyleNodeID { reaction.style_node });
         Vector<StyleNodeID> inheritance_closure;
 
+        HashTable<StyleNodeID> reactions_of_next_transaction;
         // A reaction can name an element created by editing after its new inheritance parent was
         // inserted. Close the batch over unstyled inheritance prerequisites, which are bounded by
         // the reaction paths rather than discovered by a document traversal. An element the engine
@@ -868,6 +914,20 @@ static void update_style(DOM::Document& document, DocumentWithoutBrowsingContext
             auto element = document.style_computer().element_for_style_node(style_engine_reactions[index].style_node);
             if (!element || !element->is_connected() || &element->document() != &document)
                 continue;
+            auto const& style_engine = document.style_computer().style_engine();
+            auto inherits_from_arrival_beside_flown_transaction = [&] {
+                for (auto ancestor = DOM::AbstractElement { *element }.element_to_inherit_style_from(); ancestor.has_value() && !ancestor->has_style(); ancestor = ancestor->element_to_inherit_style_from()) {
+                    if (style_engine.style_node_arrived_or_retired_beside_flown_transaction(ancestor->element().style_node_id()))
+                        return true;
+                }
+                return false;
+            };
+            if (drains_flown_transaction && inherits_from_arrival_beside_flown_transaction()) {
+                // NB: The transaction that flew computed the element's style under the ancestors it had as it was
+                //     sealed. The arrival of its new one is the next transaction's, which styles it under that.
+                reactions_of_next_transaction.set(StyleNodeID { style_engine_reactions[index].style_node });
+                continue;
+            }
             for (auto ancestor = DOM::AbstractElement { *element }.element_to_inherit_style_from(); ancestor.has_value() && !ancestor->has_style(); ancestor = ancestor->element_to_inherit_style_from()) {
                 auto prerequisite = ancestor->element().style_node_id();
                 VERIFY(prerequisite != 0);
@@ -876,6 +936,13 @@ static void update_style(DOM::Document& document, DocumentWithoutBrowsingContext
                     inheritance_closure.append(prerequisite);
                 }
             }
+        }
+        if (!reactions_of_next_transaction.is_empty()) {
+            style_engine_reactions.remove_all_matching([&](auto const& reaction) {
+                return reactions_of_next_transaction.contains(StyleNodeID { reaction.style_node });
+            });
+            for (auto style_node : reactions_of_next_transaction)
+                reaction_set.remove(style_node);
         }
 
         // A published descendant may have an inheritance ancestor in the batch while the nodes
@@ -949,7 +1016,39 @@ static void update_style(DOM::Document& document, DocumentWithoutBrowsingContext
 
     document.set_has_completed_style_update();
     apply_document_style_invalidation_after_style_change(document, invalidation);
-    document.sample_animation_effects_needing_style_update();
+    if constexpr (!drains_flown_transaction)
+        document.sample_animation_effects_needing_style_update();
+}
+
+// Records what update_style() records before it takes the document's style transaction, and lets the transaction fly
+// beside the event loop where `blocker` is none: the next update_style() takes its reactions in, once it has landed.
+static bool let_style_update_fly(DOM::Document& document, Layout::RustFFI::FfiFlightBlocker blocker)
+{
+    if (!document.browsing_context() || document.created_for_appropriate_template_contents())
+        return false;
+    auto* root = document.document_element();
+    if (!root || root->style_node_id() == 0)
+        return false;
+    auto& style_computer = document.style_computer();
+    style_computer.begin_style_update();
+    ScopeGuard end_style_update = [&] {
+        style_computer.end_style_update();
+    };
+    document.synchronize_dirty_style_attributes();
+    document.update_style_computer_viewport_rect();
+    style_computer.prepare_elements_for_style_computation();
+    if (document.needs_media_rule_evaluation())
+        document.evaluate_media_rules_for_style_update();
+    record_non_author_stylesheets(document);
+    if (!style_computer.style_engine().has_pending_transaction())
+        return false;
+    (void)document.style_scope().counter_style_environment_identity();
+    document.for_each_shadow_root([](DOM::ShadowRoot& shadow_root) {
+        (void)shadow_root.style_scope().counter_style_environment_identity();
+    });
+    document.build_registered_properties_cache_for_style_update();
+    style_computer.prepare_for_style_engine_transaction();
+    return style_computer.style_engine().let_style_transaction_fly(root->style_node_id(), blocker);
 }
 
 // What a targeted materialization of one element found, reported to the engine the way a reaction
@@ -1277,10 +1376,26 @@ void Document::update_selection_style_observability()
         record_subtree(*focused_area(), nullptr);
 }
 
+void Document::drain_style_transaction_that_flew()
+{
+    m_has_flown_style_transaction = false;
+    CSS::update_style<CSS::FirstStyleTransaction::Flown>(*this);
+}
+
 void Document::update_style()
 {
+    drain_flown_style_transaction();
     update_selection_style_observability();
     CSS::update_style(*this);
+}
+
+bool Document::let_style_update_fly(Layout::RustFFI::FfiFlightBlocker blocker)
+{
+    if (blocker != Layout::RustFFI::FfiFlightBlocker::None || m_has_flown_style_transaction)
+        return false;
+    update_selection_style_observability();
+    m_has_flown_style_transaction = CSS::let_style_update_fly(*this, blocker);
+    return m_has_flown_style_transaction;
 }
 
 bool Document::update_style_for_element(AbstractElement const& abstract_element)
@@ -1296,6 +1411,7 @@ bool Document::update_style_for_element(AbstractElement const& abstract_element,
     ScopeGuard end_forced_read = [&] {
         Layout::RustFFI::document_host_end_forced_read(host);
     };
+    drain_flown_style_transaction();
     update_selection_style_observability();
     flush_throttled_animation_style_update_for_node(abstract_element.element());
     return CSS::update_style_for_element(*this, abstract_element, mode);

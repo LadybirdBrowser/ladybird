@@ -11430,12 +11430,28 @@ fn atom_sweep_waits_for_an_active_matching_traversal() {
 #[test]
 fn replay_forces_a_recorded_atom_sweep_without_reclaims() {
     let mut engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
-    engine.host.replay_reclaimed_style_atoms = Some(Vec::new());
+    engine.host.replay_atom_sweep = Some(ReplayAtomSweep::Reclaim(Vec::new()));
 
     engine.sweep_style_atoms();
 
     assert_eq!(engine.counters().get(Counter::AtomSweeps), 1);
     assert!(engine.host.style_atoms_swept);
+}
+
+#[test]
+fn replay_skips_an_atom_sweep_the_recording_skipped() {
+    let mut engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
+    for raw in 0x1000..0x1100 {
+        engine.intern_atom(raw);
+    }
+    assert!(engine.retained.atoms.should_sweep());
+    engine.host.replay_atom_sweep = Some(ReplayAtomSweep::Skip);
+
+    engine.sweep_style_atoms();
+
+    assert_eq!(engine.counters().get(Counter::AtomSweeps), 0);
+    assert!(!engine.host.style_atoms_swept);
+    assert!(engine.host.replay_atom_sweep.is_none());
 }
 
 #[test]
@@ -11448,7 +11464,7 @@ fn replay_ffi_reclaims_the_non_empty_recorded_atom_set() {
     let recorded = [reclaimable.0];
     let engine_pointer = crate::css::style::StyleEngineHandle::from_raw(&raw mut engine);
     unsafe {
-        bridge::style_engine_set_replay_reclaimed_style_atoms(engine_pointer, recorded.as_ptr(), recorded.len());
+        bridge::style_engine_set_replay_atom_sweep(engine_pointer, true, recorded.as_ptr(), recorded.len());
     }
 
     let computation_inputs = bridge::FfiDocumentStyleComputationInputs {

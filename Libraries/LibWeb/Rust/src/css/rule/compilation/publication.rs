@@ -14,7 +14,7 @@ use crate::css::style::bridge::{
     BoundScopeChain, operations, publish_rule_declarations, publish_style_rule, publish_style_rule_selectors,
 };
 use crate::css::style::compiler::NamespaceScope;
-use crate::css::style::engine_calls::{document_host, with_engine};
+use crate::css::style::engine_calls::{sheet_writing_host, with_engine};
 use crate::render_state::DocumentHost;
 use std::rc::Rc;
 
@@ -135,14 +135,15 @@ impl SelectorInputs {
 }
 
 impl NativeStylePublication {
-    /// The host of the document whose style engine the rules are published to.
+    /// The host of the document whose style engine the rules are published to, behind the drain of its style
+    /// transaction that flew.
     ///
     /// # Safety
     ///
     /// The publication's host must be a live document host, on its document's thread.
     pub(super) unsafe fn host(&self) -> &DocumentHost {
         // SAFETY: Guaranteed by the caller.
-        unsafe { document_host(self.host) }
+        unsafe { sheet_writing_host(self.host) }
     }
 
     pub(super) unsafe fn replace_selectors(

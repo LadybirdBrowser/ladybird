@@ -534,7 +534,7 @@ pub unsafe extern "C" fn rust_style_sheet_evaluate_media_queries(
     host: *const crate::render_state::DocumentHost,
 ) -> NativeStyleSheetMediaEvaluation {
     // SAFETY: Guaranteed by the caller.
-    let host = unsafe { crate::css::style::engine_calls::document_host(host) };
+    let host = unsafe { crate::css::style::engine_calls::sheet_writing_host(host) };
     crate::css::style::engine_calls::with_engine(host, |engine| {
         sheet.evaluate_media_queries(unsafe { environment.borrow() }, state, &mut |identity, holds| {
             if let Some(rule) = engine.native_rule_id(identity) {
@@ -556,7 +556,7 @@ pub unsafe extern "C" fn rust_style_sheet_publish_conditions(
     environment: FfiMediaEnvironment,
 ) {
     // SAFETY: Guaranteed by the caller.
-    let host = unsafe { crate::css::style::engine_calls::document_host(host) };
+    let host = unsafe { crate::css::style::engine_calls::sheet_writing_host(host) };
     crate::css::style::engine_calls::with_engine(host, |engine| {
         sheet.publish_conditions(engine, unsafe { environment.borrow() });
     });
@@ -635,7 +635,7 @@ pub unsafe extern "C" fn rust_style_sheet_publish_layer_order(
     if has_layers || previously_had_layers {
         unsafe { prepare(context) };
         // SAFETY: Guaranteed by the caller.
-        let host = unsafe { crate::css::style::engine_calls::document_host(host) };
+        let host = unsafe { crate::css::style::engine_calls::sheet_writing_host(host) };
         crate::css::style::engine_calls::with_engine(host, |engine| {
             let layers: Vec<_> = names
                 .iter()

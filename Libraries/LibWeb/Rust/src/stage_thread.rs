@@ -357,6 +357,21 @@ pub(crate) struct InFlight<R> {
 }
 
 impl<R> InFlight<R> {
+    /// A flight that has landed with `answer`, for a unit test, whose render states stay on the test's own thread.
+    #[cfg(test)]
+    pub(crate) fn landed(answer: R) -> Self {
+        Self {
+            flight: Arc::new(Flight {
+                finished: AtomicBool::new(true),
+                landing: Mutex::new(Landing {
+                    answer: Some(Ok(answer)),
+                    joining: None,
+                }),
+            }),
+            not_send_or_sync: PhantomData,
+        }
+    }
+
     /// Whether the job has finished, so that taking its answer in waits for nothing.
     pub(crate) fn has_finished(&self) -> bool {
         self.flight.finished.load(Ordering::Acquire)

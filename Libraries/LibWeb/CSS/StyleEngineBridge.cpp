@@ -18,6 +18,7 @@
 #include <LibWeb/CSS/StyleSheetImport.h>
 #include <LibWeb/CSS/StyleSheetState.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/Page/Page.h>
@@ -502,6 +503,7 @@ void StyleEngine::record_element_arrival(StyleEngineFFI::FfiElementArrival arriv
     for (auto state : custom_states)
         m_arrival_custom_state_atoms.append(state.value());
     m_element_arrivals.append(arrival);
+    note_style_node_arrived_or_retired(StyleNodeID { arrival.node });
 }
 
 void StyleEngine::record_local_feature_delta(StyleEngineFFI::FfiLocalFeatureDelta const& delta)
@@ -729,130 +731,191 @@ Vector<CollectedStyleSheetResourceContext> collect_style_sheet_resource_contexts
 
 }
 
+// What a style transaction's document computation inputs lend the engine for the call that takes them, which copies
+// what it keeps.
+struct StyleEngine::LentComputationInputs {
+    StyleEngineFFI::FfiDocumentStyleComputationInputs inputs {};
+    String document_base_url;
+    Vector<StyleEngineFFI::FfiStyleSheetResourceContextEntry> resource_contexts;
+    Vector<StyleEngineFFI::FfiCustomFunctionEntry> custom_functions;
+};
+
+void StyleEngine::gather_computation_inputs(LentComputationInputs& lent)
+{
+    if (!m_style_computer)
+        return;
+    auto& document = m_style_computer->document();
+    document.publish_animation_keyframes_for_style_update();
+    lent.document_base_url = document.serialized_base_url();
+    auto document_api_base_url = HTML::relevant_settings_object(document).api_base_url().to_string();
+    if (!m_style_sheet_resource_contexts.has_value()
+        || m_style_sheet_resource_contexts->style_sheet_set_generation != document.style_sheet_set_generation()
+        || m_style_sheet_resource_contexts->document_api_base_url != document_api_base_url) {
+        m_style_sheet_resource_contexts = StyleSheetResourceContexts {
+            .contexts = collect_style_sheet_resource_contexts(document, document_api_base_url),
+            .style_sheet_set_generation = document.style_sheet_set_generation(),
+            .document_api_base_url = move(document_api_base_url),
+        };
+    }
+    auto const& collected_resource_contexts = m_style_sheet_resource_contexts->contexts;
+    lent.resource_contexts.ensure_capacity(collected_resource_contexts.size());
+    for (auto const& context : collected_resource_contexts) {
+        lent.resource_contexts.unchecked_append({
+            .source_identity = context.source_identity,
+            .base_url = context.base_url.bytes().data(),
+            .base_url_length = context.base_url.bytes().size(),
+            .has_base_url = context.has_base_url,
+            .origin_clean = context.origin_clean,
+        });
+    }
+    auto const viewport_rect = m_style_computer->viewport_rect_for_style_environment();
+    auto const& media_environment = *m_style_computer->ensure_media_environment_for_style_update();
+    // What each scope's custom function calls name, published after the media environment is
+    // settled: a media change rebuilds the definitions. A definition is seen only below a
+    // scope holding @function rules, which most documents have none of.
+    auto has_function_rules = [](StyleScope const& scope) { return !scope.rule_cache().function_rules_by_name.is_empty(); };
+    bool document_has_function_rules = has_function_rules(document.style_scope());
+    document.for_each_shadow_root([&](DOM::ShadowRoot& shadow_root) {
+        document_has_function_rules = document_has_function_rules || has_function_rules(shadow_root.style_scope());
+    });
+    if (document_has_function_rules) {
+        // A call in a function's body names what the function's own scope sees, so the scopes
+        // that define what another sees publish what they see too.
+        HashTable<StyleScope const*> visited_scopes;
+        Vector<StyleScope const*> scopes;
+        auto append_scope = [&](StyleScope const& scope) {
+            if (visited_scopes.set(&scope) == AK::HashSetResult::InsertedNewEntry)
+                scopes.append(&scope);
+        };
+        append_scope(document.style_scope());
+        document.for_each_shadow_root([&](DOM::ShadowRoot& shadow_root) { append_scope(shadow_root.style_scope()); });
+        for (size_t index = 0; index < scopes.size(); ++index) {
+            auto const& scope = *scopes[index];
+            scope.for_each_visible_function_definition([&](StyleScope::FunctionDefinitionAndScope const& definition) {
+                lent.custom_functions.append({
+                    .function = definition.function.handle(),
+                    .caller_scope = bit_cast<FlatPtr>(&scope),
+                    .definition_scope = bit_cast<FlatPtr>(&definition.scope),
+                    .tree_scope = scope.style_engine_tree_scope().value(),
+                });
+                append_scope(definition.scope);
+            });
+        }
+    }
+    auto const& root_font_metrics = m_style_computer->root_element_font_metrics();
+    auto const& initial_font = m_style_computer->document().font_computer().initial_font();
+    Length::FontMetrics const initial_font_metrics { CSSPixels { initial_font.pixel_size() }, initial_font.pixel_metrics(), InitialValues::line_height() };
+    lent.inputs = {
+        .in_quirks_mode = m_style_computer->document().in_quirks_mode(),
+        .viewport_width = viewport_rect.width().to_double(),
+        .viewport_height = viewport_rect.height().to_double(),
+        .root_font_size = root_font_metrics.font_size.to_double(),
+        .root_font_x_height = root_font_metrics.x_height.to_double(),
+        .root_font_cap_height = root_font_metrics.cap_height.to_double(),
+        .root_font_zero_advance = root_font_metrics.zero_advance.to_double(),
+        .root_line_height = root_font_metrics.line_height.to_double(),
+        .root_font_metrics_depend_on_viewport_metrics = m_style_computer->root_element_font_metrics_depend_on_viewport_metrics(),
+        .initial_font_size = initial_font_metrics.font_size.to_double(),
+        .initial_font_x_height = initial_font_metrics.x_height.to_double(),
+        .initial_font_cap_height = initial_font_metrics.cap_height.to_double(),
+        .initial_font_zero_advance = initial_font_metrics.zero_advance.to_double(),
+        .initial_font_size_raw = InitialValues::font_size().raw_value(),
+        .default_font_size_raw = StyleComputer::default_user_font_size().raw_value(),
+        .device_pixels_per_css_pixel = m_style_computer->document().page().client().device_pixels_per_css_pixel(),
+        .font_environment_generation = m_style_computer->document().font_computer().environment_generation(),
+        .preferred_color_scheme = static_cast<u8>(to_underlying(m_style_computer->document().page().preferred_color_scheme())),
+        .has_document_supported_schemes = false,
+        .document_supported_scheme_count = 0,
+        .document_supported_scheme_codes = {},
+        .custom_property_registry = reinterpret_cast<StyleEngineFFI::FfiHostHandle>(m_style_computer->document().rust_custom_property_registry()),
+        .custom_property_registration_generation = m_style_computer->document().custom_property_registration_generation(),
+        .document_base_url = reinterpret_cast<StyleEngineFFI::FfiHostHandle>(lent.document_base_url.bytes().data()),
+        .document_base_url_length = lent.document_base_url.bytes().size(),
+        .style_sheet_resource_contexts = reinterpret_cast<StyleEngineFFI::FfiHostHandle>(lent.resource_contexts.data()),
+        .style_sheet_resource_context_count = lent.resource_contexts.size(),
+        .media_feature_values = reinterpret_cast<StyleEngineFFI::FfiHostHandle>(media_environment.values),
+        .media_feature_value_count = media_environment.value_count,
+        .media_length_resolution_context = reinterpret_cast<StyleEngineFFI::FfiHostHandle>(media_environment.length_resolution_context),
+        .custom_functions = reinterpret_cast<StyleEngineFFI::FfiHostHandle>(lent.custom_functions.data()),
+        .custom_function_count = lent.custom_functions.size(),
+    };
+    if (auto supported = m_style_computer->document().supported_color_schemes(); supported.has_value()) {
+        lent.inputs.has_document_supported_schemes = true;
+        for (auto const& scheme : *supported) {
+            auto preferred_scheme = preferred_color_scheme_from_string(scheme);
+            if (preferred_scheme == PreferredColorScheme::Auto)
+                continue;
+            auto code = static_cast<u8>(to_underlying(preferred_scheme));
+            auto supported_codes = Span<u8> { lent.inputs.document_supported_scheme_codes };
+            if (supported_codes.trim(lent.inputs.document_supported_scheme_count).contains_slow(code))
+                continue;
+            VERIFY(lent.inputs.document_supported_scheme_count < supported_codes.size());
+            supported_codes[lent.inputs.document_supported_scheme_count++] = code;
+        }
+    }
+}
+
 StyleEngine::PublishedStyleTransaction StyleEngine::take_style_transaction(StyleNodeID root)
 {
     auto submission_started_at = MonotonicTime::now();
     submit_recorded_input();
-    StyleEngineFFI::FfiDocumentStyleComputationInputs computation_inputs {};
-    // Lent to the engine for the call below, which copies them.
-    String document_base_url;
-    Vector<StyleEngineFFI::FfiStyleSheetResourceContextEntry> resource_contexts;
-    Vector<StyleEngineFFI::FfiCustomFunctionEntry> custom_functions;
-    if (m_style_computer) {
-        auto& document = m_style_computer->document();
-        document.publish_animation_keyframes_for_style_update();
-        document_base_url = document.serialized_base_url();
-        auto document_api_base_url = HTML::relevant_settings_object(document).api_base_url().to_string();
-        if (!m_style_sheet_resource_contexts.has_value()
-            || m_style_sheet_resource_contexts->style_sheet_set_generation != document.style_sheet_set_generation()
-            || m_style_sheet_resource_contexts->document_api_base_url != document_api_base_url) {
-            m_style_sheet_resource_contexts = StyleSheetResourceContexts {
-                .contexts = collect_style_sheet_resource_contexts(document, document_api_base_url),
-                .style_sheet_set_generation = document.style_sheet_set_generation(),
-                .document_api_base_url = move(document_api_base_url),
-            };
-        }
-        auto const& collected_resource_contexts = m_style_sheet_resource_contexts->contexts;
-        resource_contexts.ensure_capacity(collected_resource_contexts.size());
-        for (auto const& context : collected_resource_contexts) {
-            resource_contexts.unchecked_append({
-                .source_identity = context.source_identity,
-                .base_url = context.base_url.bytes().data(),
-                .base_url_length = context.base_url.bytes().size(),
-                .has_base_url = context.has_base_url,
-                .origin_clean = context.origin_clean,
-            });
-        }
-        auto const viewport_rect = m_style_computer->viewport_rect_for_style_environment();
-        auto const& media_environment = *m_style_computer->ensure_media_environment_for_style_update();
-        // What each scope's custom function calls name, published after the media environment is
-        // settled: a media change rebuilds the definitions. A definition is seen only below a
-        // scope holding @function rules, which most documents have none of.
-        auto has_function_rules = [](StyleScope const& scope) { return !scope.rule_cache().function_rules_by_name.is_empty(); };
-        bool document_has_function_rules = has_function_rules(document.style_scope());
-        document.for_each_shadow_root([&](DOM::ShadowRoot& shadow_root) {
-            document_has_function_rules = document_has_function_rules || has_function_rules(shadow_root.style_scope());
-        });
-        if (document_has_function_rules) {
-            // A call in a function's body names what the function's own scope sees, so the scopes
-            // that define what another sees publish what they see too.
-            HashTable<StyleScope const*> visited_scopes;
-            Vector<StyleScope const*> scopes;
-            auto append_scope = [&](StyleScope const& scope) {
-                if (visited_scopes.set(&scope) == AK::HashSetResult::InsertedNewEntry)
-                    scopes.append(&scope);
-            };
-            append_scope(document.style_scope());
-            document.for_each_shadow_root([&](DOM::ShadowRoot& shadow_root) { append_scope(shadow_root.style_scope()); });
-            for (size_t index = 0; index < scopes.size(); ++index) {
-                auto const& scope = *scopes[index];
-                scope.for_each_visible_function_definition([&](StyleScope::FunctionDefinitionAndScope const& definition) {
-                    custom_functions.append({
-                        .function = definition.function.handle(),
-                        .caller_scope = bit_cast<FlatPtr>(&scope),
-                        .definition_scope = bit_cast<FlatPtr>(&definition.scope),
-                        .tree_scope = scope.style_engine_tree_scope().value(),
-                    });
-                    append_scope(definition.scope);
-                });
-            }
-        }
-        auto const& root_font_metrics = m_style_computer->root_element_font_metrics();
-        auto const& initial_font = m_style_computer->document().font_computer().initial_font();
-        Length::FontMetrics const initial_font_metrics { CSSPixels { initial_font.pixel_size() }, initial_font.pixel_metrics(), InitialValues::line_height() };
-        computation_inputs = {
-            .in_quirks_mode = m_style_computer->document().in_quirks_mode(),
-            .viewport_width = viewport_rect.width().to_double(),
-            .viewport_height = viewport_rect.height().to_double(),
-            .root_font_size = root_font_metrics.font_size.to_double(),
-            .root_font_x_height = root_font_metrics.x_height.to_double(),
-            .root_font_cap_height = root_font_metrics.cap_height.to_double(),
-            .root_font_zero_advance = root_font_metrics.zero_advance.to_double(),
-            .root_line_height = root_font_metrics.line_height.to_double(),
-            .root_font_metrics_depend_on_viewport_metrics = m_style_computer->root_element_font_metrics_depend_on_viewport_metrics(),
-            .initial_font_size = initial_font_metrics.font_size.to_double(),
-            .initial_font_x_height = initial_font_metrics.x_height.to_double(),
-            .initial_font_cap_height = initial_font_metrics.cap_height.to_double(),
-            .initial_font_zero_advance = initial_font_metrics.zero_advance.to_double(),
-            .initial_font_size_raw = InitialValues::font_size().raw_value(),
-            .default_font_size_raw = StyleComputer::default_user_font_size().raw_value(),
-            .device_pixels_per_css_pixel = m_style_computer->document().page().client().device_pixels_per_css_pixel(),
-            .font_environment_generation = m_style_computer->document().font_computer().environment_generation(),
-            .preferred_color_scheme = static_cast<u8>(to_underlying(m_style_computer->document().page().preferred_color_scheme())),
-            .has_document_supported_schemes = false,
-            .document_supported_scheme_count = 0,
-            .document_supported_scheme_codes = {},
-            .custom_property_registry = reinterpret_cast<StyleEngineFFI::FfiHostHandle>(m_style_computer->document().rust_custom_property_registry()),
-            .custom_property_registration_generation = m_style_computer->document().custom_property_registration_generation(),
-            .document_base_url = reinterpret_cast<StyleEngineFFI::FfiHostHandle>(document_base_url.bytes().data()),
-            .document_base_url_length = document_base_url.bytes().size(),
-            .style_sheet_resource_contexts = reinterpret_cast<StyleEngineFFI::FfiHostHandle>(resource_contexts.data()),
-            .style_sheet_resource_context_count = resource_contexts.size(),
-            .media_feature_values = reinterpret_cast<StyleEngineFFI::FfiHostHandle>(media_environment.values),
-            .media_feature_value_count = media_environment.value_count,
-            .media_length_resolution_context = reinterpret_cast<StyleEngineFFI::FfiHostHandle>(media_environment.length_resolution_context),
-            .custom_functions = reinterpret_cast<StyleEngineFFI::FfiHostHandle>(custom_functions.data()),
-            .custom_function_count = custom_functions.size(),
-        };
-        if (auto supported = m_style_computer->document().supported_color_schemes(); supported.has_value()) {
-            computation_inputs.has_document_supported_schemes = true;
-            for (auto const& scheme : *supported) {
-                auto preferred_scheme = preferred_color_scheme_from_string(scheme);
-                if (preferred_scheme == PreferredColorScheme::Auto)
-                    continue;
-                auto code = static_cast<u8>(to_underlying(preferred_scheme));
-                auto supported_codes = Span<u8> { computation_inputs.document_supported_scheme_codes };
-                if (supported_codes.trim(computation_inputs.document_supported_scheme_count).contains_slow(code))
-                    continue;
-                VERIFY(computation_inputs.document_supported_scheme_count < supported_codes.size());
-                supported_codes[computation_inputs.document_supported_scheme_count++] = code;
-            }
-        }
-    }
+    LentComputationInputs lent;
+    gather_computation_inputs(lent);
     auto bridge_started_at = MonotonicTime::now();
     if (m_style_computer)
         publish_font_faces(m_style_computer->document().font_computer());
-    auto view = StyleEngineFFI::style_engine_take_style_transaction(m_render_document->host(), root.value(), computation_inputs);
+    auto view = StyleEngineFFI::style_engine_take_style_transaction(m_render_document->host(), root.value(), lent.inputs);
+    return publish_style_transaction_view(view, submission_started_at, bridge_started_at);
+}
+
+StyleEngine::PublishedStyleTransaction StyleEngine::take_flown_style_transaction()
+{
+    auto submission_started_at = MonotonicTime::now();
+    // What was recorded beside the transaction is queued behind its drain, as the next transaction's input.
+    submit_recorded_input();
+    auto bridge_started_at = MonotonicTime::now();
+    auto view = StyleEngineFFI::style_engine_take_flown_style_transaction(m_render_document->host());
+    // The transaction's reactions were read inside the style record view epoch its seal opened.
+    if (m_style_computer)
+        m_style_computer->end_style_record_view_epoch();
+    return publish_style_transaction_view(view, submission_started_at, bridge_started_at);
+}
+
+void StyleEngine::end_flown_style_drain()
+{
+    m_style_nodes_beside_flown_transaction.clear();
+    StyleEngineFFI::style_engine_end_flown_style_drain(m_render_document->host());
+    // Behind the writes made beside the transaction, the children it counted whose siblings changed beside it are
+    // counted again.
+    for (auto parent : exchange(m_parents_whose_children_changed_beside_flown_transaction, {})) {
+        if (auto element = m_style_computer->element_for_style_node(parent); element && element->child_style_uses_tree_counting_function())
+            restyle_children_reading_sibling_position(*element);
+    }
+}
+
+void StyleEngine::restyle_children_reading_sibling_position(DOM::Element& parent)
+{
+    parent.for_each_child_of_type<DOM::Element>([&](DOM::Element& element) {
+        // The engine recomputes the element's record against its new place among its siblings.
+        if (element.style_uses_tree_counting_function())
+            record_derived_element_style_input_change(element.style_node_id(), PublishedStyle | RecomputeStyle);
+        return IterationDecision::Continue;
+    });
+}
+
+bool StyleEngine::has_flown_style_transaction() const
+{
+    return m_style_computer && m_style_computer->document().has_flown_style_transaction();
+}
+
+void StyleEngine::note_style_node_arrived_or_retired(StyleNodeID style_node)
+{
+    if (has_flown_style_transaction())
+        m_style_nodes_beside_flown_transaction.set(style_node);
+}
+
+StyleEngine::PublishedStyleTransaction StyleEngine::publish_style_transaction_view(StyleEngineFFI::FfiStyleTransactionView const& view, MonotonicTime submission_started_at, MonotonicTime bridge_started_at)
+{
     auto bridge_microseconds = (MonotonicTime::now() - bridge_started_at).to_truncated_microseconds();
     if (view.reclaimed_style_atom_count != 0) {
         HashTable<StyleAtomID> reclaimed_atoms;
@@ -891,6 +954,34 @@ StyleEngine::PublishedStyleTransaction StyleEngine::take_style_transaction(Style
     };
 }
 
+bool StyleEngine::let_style_transaction_fly(StyleNodeID root, Layout::RustFFI::FfiFlightBlocker blocker)
+{
+    if (!m_style_computer)
+        return false;
+    submit_recorded_input();
+    LentComputationInputs lent;
+    gather_computation_inputs(lent);
+    publish_font_faces(m_style_computer->document().font_computer());
+    // The reactions are read inside the style record view epoch the transaction is taken in, which stays open until
+    // take_style_transaction() takes them.
+    m_style_computer->begin_style_record_view_epoch();
+    // The host drains the transaction where it writes the document's style sheets to the engine in place before the
+    // next style update drains it, so that the write lands behind the sheet writes queued beside the transaction.
+    StyleEngineFFI::FfiFlownStyleDrain drain {
+        .drain = [](void* document) { static_cast<DOM::Document*>(document)->drain_flown_style_transaction(); },
+        .document = &m_style_computer->document(),
+    };
+    if (StyleEngineFFI::style_engine_let_style_transaction_fly(m_render_document->host(), root.value(), lent.inputs, blocker, drain))
+        return true;
+    m_style_computer->end_style_record_view_epoch();
+    return false;
+}
+
+bool StyleEngine::style_transaction_flies()
+{
+    return StyleEngineFFI::style_engine_style_transaction_flies(m_render_document->host());
+}
+
 void StyleEngine::sort_style_deltas_for_direct_application(Span<PublishedStyleDelta> deltas) const
 {
     StyleEngineFFI::style_engine_sort_style_deltas_for_direct_application(host(), deltas.data(), deltas.size());
@@ -898,7 +989,7 @@ void StyleEngine::sort_style_deltas_for_direct_application(Span<PublishedStyleDe
 
 bool StyleEngine::has_pending_transaction() const
 {
-    return has_recorded_input() || StyleEngineFFI::style_engine_has_pending_transaction(m_render_document->host());
+    return has_recorded_input() || has_flown_style_transaction() || StyleEngineFFI::style_engine_has_pending_transaction(m_render_document->host());
 }
 
 bool StyleEngine::pending_transaction_may_affect_layout_geometry()
