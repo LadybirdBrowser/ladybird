@@ -635,8 +635,8 @@ pub unsafe extern "C" fn render_state_publish_recording(
     // SAFETY: Guaranteed by the entry point's contract.
     let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY, host) };
     let mut recording = host.recording();
-    if let Some(pending) = recording.take_pending_recording() {
-        crate::painting::record::publish::publish_recording(host, &mut recording, pending, &main_thread, &publish);
+    if let Some(publication) = recording.take_publication() {
+        crate::painting::record::publish::publish_recording(host, publication, &main_thread, &publish);
     }
     drop(recording);
     let presented = unsafe {
@@ -730,31 +730,36 @@ pub unsafe extern "C" fn render_state_for_each_subtree_fragment_rect(
     }
 }
 
+/// Records `host`'s document's viewport with `inputs` on the Paint thread: in step with the host, or beside the event
+/// loop where `blocker` is none, until the host takes it in. Answers how the recording started, which it does not
+/// where the viewport has no box to record.
+///
 /// # Safety
 ///
-/// `host` must be a live document host, on its document's thread. Input arrays and byte buffers must remain valid
-/// and immutable throughout this call; fonts for enabled overlays must be live `Gfx::Font`s.
+/// `host` must be a live document host, on its document's thread. Input arrays and byte buffers must be valid and
+/// immutable for this call; fonts for enabled overlays must be live `Gfx::Font`s.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn render_state_record_display_list(
     host: *const crate::render_state::DocumentHost,
     viewport: NodeSlotId,
     inputs: crate::painting::host::FfiRecordingInputs,
-) -> bool {
+    blocker: FfiFlightBlocker,
+) -> FfiRecordingStart {
     assert!(!host.is_null(), "document host is null");
     // SAFETY: Guaranteed by the caller.
     let host = unsafe { &*host };
     let mut recording = host.recording();
     debug_assert!(
-        !recording.has_pending_recording(),
+        !recording.has_pending_recording() && !recording.has_recording_in_flight(),
         "a recording must be published before the next one starts"
     );
     recording.discard_pending_recording();
+    let recorder = recording.take_recorder();
     let frame_inputs = FrameInputs {
         viewport,
         css_viewport_rect: inputs.css_viewport_rect.into(),
         publishes_recording: inputs.publishes_recording,
-        published_root_background_canvas_rect: recording
-            .recorder()
+        published_root_background_canvas_rect: recorder
             .published_recording
             .as_ref()
             .map(|recording| recording.root_background_canvas_rect),
@@ -762,19 +767,89 @@ pub unsafe extern "C" fn render_state_record_display_list(
     };
     // SAFETY: As above.
     let Some(frame) = (unsafe { read(host, frame_inputs, freeze_recording_frame) }) else {
-        return false;
+        recording.give_back_recorder(recorder);
+        return FfiRecordingStart::NothingToRecord;
     };
     // SAFETY: The host lends the input arrays and buffers for this call, and the inputs copy what they read of them.
     let inputs = unsafe { inputs.recording_inputs(frame.tree_inputs, frame.root_background_source) };
-    let job = crate::painting::recording_slot::RecordingJob::new(
-        frame.frame,
-        recording.take_recorder(),
-        viewport,
-        frame.trace_recordings,
-    );
-    let answer = job.run_on_paint_thread(&inputs);
-    recording.accept_recording_answer(answer);
-    true
+    let job =
+        crate::painting::recording_slot::RecordingJob::new(frame.frame, recorder, viewport, frame.trace_recordings);
+    match crate::painting::recording_slot::FlightLicense::for_blocker(blocker) {
+        Some(license) => {
+            recording.fly(job.fly(inputs, license), frame.rows_version);
+            FfiRecordingStart::InFlight
+        }
+        None => {
+            let answer = job.run_on_paint_thread(&inputs);
+            recording.accept_recording_answer(answer);
+            FfiRecordingStart::Recorded
+        }
+    }
+}
+
+/// Takes the recording in flight of `host`'s document in where it has finished, and answers how it landed. The event
+/// loop calls it between two tasks, so it never waits.
+///
+/// # Safety
+///
+/// `host` must be a live document host, on its document's thread, and the event loop must call this between two tasks.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn render_state_take_finished_recording_in(
+    host: *const crate::render_state::DocumentHost,
+) -> FfiRecordingLanding {
+    assert!(!host.is_null(), "document host is null");
+    let boundary = crate::render_state::TaskBoundary::at_event_loop_entry(&TAKES_FINISHED_RECORDING_IN);
+    // SAFETY: Guaranteed by the caller.
+    unsafe { &*host }
+        .recording()
+        .take_finished_recording_in(&boundary, |rows_version| {
+            // SAFETY: As above.
+            unsafe { rows_are_still_at(host, rows_version) }
+        })
+}
+
+/// Waits for the recording in flight of `host`'s document and takes it in, and answers how it landed.
+///
+/// # Safety
+///
+/// `host` must be a live document host, on its document's thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn render_state_join_recording_in_flight(
+    host: *const crate::render_state::DocumentHost,
+) -> FfiRecordingLanding {
+    assert!(!host.is_null(), "document host is null");
+    // SAFETY: Guaranteed by the caller.
+    unsafe { &*host }.recording().join_recording_in_flight(|rows_version| {
+        // SAFETY: As above.
+        unsafe { rows_are_still_at(host, rows_version) }
+    })
+}
+
+/// Whether the rows of `host`'s document are still at `version`, so that a recording of a frame frozen there still
+/// stands for it.
+///
+/// # Safety
+///
+/// `host` must be a live document host, on its document's thread.
+unsafe fn rows_are_still_at(
+    host: *const crate::render_state::DocumentHost,
+    version: crate::layout::RowsVersion,
+) -> bool {
+    // SAFETY: Guaranteed by the caller.
+    unsafe { read(host, version, |arena, version| arena.rows_version() == version) }
+}
+
+/// Drops the recording pending for `host`'s document to publish unpublished, as the host does with a recording that
+/// landed for a document it no longer presents.
+///
+/// # Safety
+///
+/// `host` must be a live document host, on its document's thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn render_state_discard_pending_recording(host: *const crate::render_state::DocumentHost) {
+    assert!(!host.is_null(), "document host is null");
+    // SAFETY: Guaranteed by the caller.
+    unsafe { &*host }.recording().discard_pending_recording();
 }
 
 /// What the host knows that freezing a document's frame for a recording reads.
@@ -787,12 +862,14 @@ struct FrameInputs {
     hit_test_item_capacity_hint: usize,
 }
 
-/// A document's frame, frozen for a recording, with what the recording reads beside it.
+/// A document's frame, frozen for a recording, with what the recording reads beside it, and the rows version it was
+/// frozen at.
 struct FrozenFrame {
     frame: crate::painting::published_frame::PublishedFrame,
     tree_inputs: crate::painting::host::FfiVisualContextTreeInputs,
     root_background_source: crate::painting::host::RootBackgroundSource,
     trace_recordings: bool,
+    rows_version: crate::layout::RowsVersion,
 }
 
 /// Freezes the frame of the document whose arena `arena` is for a recording of its viewport, or none where the
@@ -825,11 +902,13 @@ fn freeze_recording_frame(arena: &mut LayoutNodeArena, inputs: FrameInputs) -> O
     if inputs.publishes_recording {
         arena.note_publishing_paint_recording_started();
     }
-    // The recording reads the document as it is now, and nothing writes the document before it is done.
+    // The recording reads the document as it is now: what the host writes after this goes to the next frame.
     let frame = arena.freeze_frame(inputs.hit_test_item_capacity_hint);
+    let rows_version = arena.rows_version();
     let paint_state = arena.paint_state().borrow();
     Some(FrozenFrame {
         frame,
+        rows_version,
         tree_inputs: paint_state
             .visual_context
             .last_tree_inputs

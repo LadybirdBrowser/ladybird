@@ -465,6 +465,57 @@ pub unsafe extern "C" fn render_state_sticky_spatial_node_index(
     }
 }
 
+/// Marks the entry the event loop calls between two tasks to take a finished recording in.
+pub(crate) struct TakesFinishedRecordingIn {
+    _private: (),
+}
+
+const TAKES_FINISHED_RECORDING_IN: TakesFinishedRecordingIn = TakesFinishedRecordingIn { _private: () };
+
+/// How a recording of a document started.
+#[repr(u8)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum FfiRecordingStart {
+    /// The document's viewport had no box to record.
+    NothingToRecord,
+    /// The recording is done, and pending for the host to publish.
+    Recorded,
+    /// The recording flies beside the event loop.
+    InFlight,
+}
+
+/// Why a rendering update's recording may not fly beside the event loop: something reads what it
+/// records before the next task, or the document is presented in step with another.
+#[repr(u8)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum FfiFlightBlocker {
+    /// Nothing blocks the recording, which may fly.
+    None,
+    /// The recording is not a rendering update's: the host records for a screenshot or a hit test, or
+    /// paints inside a nested event loop, and reads the recording right after.
+    NotInRenderingUpdate,
+    /// The document hosts navigables, or is hosted by one, and is presented in step with them.
+    NestedNavigables,
+    /// The document's last recording in flight did not stand, so this one records in step with the
+    /// host, which presents it.
+    LastFlightDidNotStand,
+}
+
+/// How a recording in flight landed.
+#[repr(u8)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum FfiRecordingLanding {
+    /// No recording of the document is in flight.
+    NoneInFlight,
+    /// The recording has not finished yet.
+    StillInFlight,
+    /// The recording landed, and the document's rows are still those of the frame it recorded: it is
+    /// pending for the host to publish.
+    Stands,
+    /// The recording landed after the host wrote the document's rows. It was dropped unpublished.
+    DidNotStand,
+}
+
 /// What the host reads of a published recording, to build its display list from.
 #[repr(C)]
 pub struct FfiPresentedRecording {

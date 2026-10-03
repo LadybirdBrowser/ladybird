@@ -84,6 +84,7 @@
 #include <LibWeb/Painting/ChromeWidget.h>
 #include <LibWeb/Painting/DocumentPaintState.h>
 #include <LibWeb/Painting/PaintableTypes.h>
+#include <LibWeb/Painting/PaintingRustBridge.h>
 #include <LibWeb/Painting/ScrollSnap.h>
 #include <LibWeb/Painting/Scrollbar.h>
 #include <LibWeb/Platform/Timer.h>
@@ -670,6 +671,14 @@ Vector<GC::Root<LocalNavigable>> LocalNavigable::child_navigables() const
     return results;
 }
 
+struct LocalNavigable::RecordingInFlight {
+    AK_ALLOC_WITH_KMALLOC;
+
+    GC::Ref<DOM::Document> document;
+    PaintConfig paint_config;
+    Painting::DisplayListRecording recording;
+};
+
 LocalNavigable::LocalNavigable(
     GC::Ref<Page> page,
     bool is_svg_page,
@@ -785,6 +794,8 @@ void LocalNavigable::visit_edges(Cell::Visitor& visitor)
         visitor.visit(smooth_scroll.promises);
     for (auto& entry : m_pending_user_scrollend_targets)
         visitor.visit(entry.target);
+    if (m_recording_in_flight)
+        visitor.visit(m_recording_in_flight->document);
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#script-closable
@@ -6795,8 +6806,11 @@ bool LocalNavigable::force_dark_applies_to_active_document() const
     return m_force_dark_enabled && !active_document_opts_out_of_force_dark();
 }
 
-Optional<Compositor::CompositorFrame> LocalNavigable::record_compositor_frame(PaintConfig paint_config)
+Optional<Compositor::CompositorFrame> LocalNavigable::record_compositor_frame(PaintConfig paint_config, Layout::RustFFI::FfiFlightBlocker blocker)
 {
+    // The recording in flight has the document's recorder state, and its frame goes to the compositor before this one.
+    take_recording_in_flight_in(TakeIn::Wait);
+
     // Per-navigable state is stamped here rather than where PaintConfig is built, so no call site (the headless
     // screenshot path above all) can leave it behind; kept in the config so a change compares unequal below.
     paint_config.force_dark_enabled = force_dark_applies_to_active_document();
@@ -6822,28 +6836,47 @@ Optional<Compositor::CompositorFrame> LocalNavigable::record_compositor_frame(Pa
         paint_config.canvas_fill_rect = Gfx::IntRect { {}, viewport_size };
     }
 
-    auto& presenter = m_presenter;
-    auto& resource_storage = presenter.display_list_resource_storage();
-    auto const& compositor_display_list_paint_config = presenter.compositor_display_list_paint_config();
+    auto const& compositor_display_list_paint_config = m_presenter.compositor_display_list_paint_config();
     auto should_record_display_list = m_needs_to_record_display_list
         || !compositor_display_list_paint_config.has_value()
         || !(compositor_display_list_paint_config.value() == paint_config);
+    if (!should_record_display_list)
+        return finish_compositor_frame(*document, paint_config, nullptr);
 
-    RefPtr<Compositing::DisplayList> display_list;
+    main_thread_event_loop().ensure_frame_completion_registered();
+    auto recording = document->start_display_list_recording(paint_config, Painting::PaintCommandCacheMode::ReadWrite, blocker);
+    if (!recording.has_value())
+        return {};
+    if (recording->in_flight) {
+        // What asks for another recording once this one has started asks for the next one.
+        m_needs_to_record_display_list = false;
+        m_recording_in_flight = make<RecordingInFlight>(*document, paint_config, recording.release_value());
+        main_thread_event_loop().did_let_recording_fly(*this);
+        return {};
+    }
+    auto display_list = document->finish_display_list_recording(*recording, m_presenter.display_list_resource_storage());
+    if (!display_list)
+        return {};
+    return finish_compositor_frame(*document, paint_config, move(display_list));
+}
+
+// Makes the frame that brings the compositor context up to date with `display_list`, the display list the document
+// just recorded, or with what changed for the one the compositor has where it recorded none.
+Optional<Compositor::CompositorFrame> LocalNavigable::finish_compositor_frame(DOM::Document& document, PaintConfig const& paint_config, RefPtr<Compositing::DisplayList> display_list)
+{
+    auto& presenter = m_presenter;
+    auto& resource_storage = presenter.display_list_resource_storage();
     Compositing::DisplayListResourceSet display_list_command_resources;
     Compositing::DisplayListResourceSet display_list_resources;
     Compositing::DisplayListResourceTransaction resource_transaction;
     Optional<Compositing::AccumulatedVisualContextTree> visual_context_tree;
-    auto& document_paint_state = document->paint_state();
+    auto& document_paint_state = document.paint_state();
     bool compositor_display_list_is_unchanged = false;
-    if (should_record_display_list) {
-        display_list = document->record_display_list(paint_config, resource_storage, Painting::PaintCommandCacheMode::ReadWrite);
-        if (!display_list)
-            return {};
-        VERIFY(document->has_committed_viewport_box());
+    if (display_list) {
+        VERIFY(document.has_committed_viewport_box());
         compositor_display_list_is_unchanged = presenter.compositor_display_list() == display_list;
         if (!compositor_display_list_is_unchanged) {
-            visual_context_tree = document_paint_state.visual_context_tree(*document);
+            visual_context_tree = document_paint_state.visual_context_tree(document);
             display_list_command_resources = command_resources_of_display_list(resource_storage, document_paint_state, *display_list);
             display_list_resources = compositor_display_list_resources(resource_storage, document_paint_state, display_list_command_resources, *visual_context_tree);
             resource_transaction = resource_storage.create_transaction(
@@ -6852,7 +6885,7 @@ Optional<Compositor::CompositorFrame> LocalNavigable::record_compositor_frame(Pa
         }
     }
 
-    VERIFY(document->has_committed_viewport_box());
+    VERIFY(document.has_committed_viewport_box());
     auto visual_context_tree_needs_compositor_update = document_paint_state.visual_context_tree_needs_compositor_update();
 
     Compositing::ScrollStateSnapshot scroll_state_snapshot { document_paint_state.scroll_state_snapshot() };
@@ -6869,7 +6902,7 @@ Optional<Compositor::CompositorFrame> LocalNavigable::record_compositor_frame(Pa
     published_display_list.set_async_scrolling_metadata(move(async_scrolling_metadata));
 
     Compositor::CompositorFrame frame;
-    if (should_record_display_list && !compositor_display_list_is_unchanged) {
+    if (display_list && !compositor_display_list_is_unchanged) {
         frame.display_list_update = Compositor::CompositorFrame::DisplayListUpdate {
             .display_list = *display_list,
             .visual_context_tree = visual_context_tree.release_value(),
@@ -6887,7 +6920,7 @@ Optional<Compositor::CompositorFrame> LocalNavigable::record_compositor_frame(Pa
                 resource_storage.retain_only(presenter.compositor_display_list_resources());
         }
         if (visual_context_tree_needs_compositor_update) {
-            auto updated_visual_context_tree = document_paint_state.visual_context_tree(*document);
+            auto updated_visual_context_tree = document_paint_state.visual_context_tree(document);
             VERIFY(updated_visual_context_tree.structural_epoch() == presenter.compositor_display_list_visual_context_tree_structural_epoch());
             auto updated_display_list_resources = compositor_display_list_resources(resource_storage, document_paint_state, presenter.compositor_display_list_command_resources(), updated_visual_context_tree);
             auto updated_resource_transaction = resource_storage.create_transaction(presenter.compositor_display_list_resources(), updated_display_list_resources);
@@ -6906,6 +6939,48 @@ Optional<Compositor::CompositorFrame> LocalNavigable::record_compositor_frame(Pa
     return frame;
 }
 
+bool LocalNavigable::take_recording_in_flight_in(TakeIn take_in)
+{
+    if (!m_recording_in_flight)
+        return true;
+    auto* host = m_recording_in_flight->document->layout_node_arena().host();
+    auto landing = take_in == TakeIn::Wait
+        ? Layout::RustFFI::render_state_join_recording_in_flight(host)
+        : Layout::RustFFI::render_state_take_finished_recording_in(host);
+    if (landing == Layout::RustFFI::FfiRecordingLanding::StillInFlight)
+        return false;
+    auto in_flight = m_recording_in_flight.release_nonnull();
+    GC::Ref<DOM::Document> document = in_flight->document;
+
+    // The recording stands if the document's rows are still those of the frame it recorded, nothing asked for another
+    // recording since it started, its layout is still up to date (the frame's keyboard scroll state reads it), and the
+    // navigable still presents the document. A recording that does not stand is dropped unpublished, and the next
+    // rendering update records in step with the event loop, so that it presents. Asking whether layout is up to date
+    // drains the document's invalidation journal, whose marks (such as a repaint for an image that finished decoding
+    // during the flight) may ask for another recording, so that is asked before whether anything did.
+    bool const stands = landing == Layout::RustFFI::FfiRecordingLanding::Stands && !has_been_destroyed()
+        && has_compositor_context() && active_document().ptr() == document.ptr() && document->layout_is_up_to_date()
+        && !m_needs_to_record_display_list;
+    if (!stands) {
+        if (landing == Layout::RustFFI::FfiRecordingLanding::Stands)
+            Layout::RustFFI::render_state_discard_pending_recording(host);
+        m_last_recording_in_flight_stood = false;
+        m_needs_repaint = true;
+        m_needs_to_record_display_list = true;
+        if (!has_been_destroyed())
+            page().client().request_frame();
+        return true;
+    }
+
+    auto display_list = document->finish_display_list_recording(in_flight->recording, m_presenter.display_list_resource_storage());
+    if (!display_list)
+        return true;
+    auto frame = finish_compositor_frame(*document, in_flight->paint_config, move(display_list));
+    if (frame.has_value())
+        submit_painted_frame(frame.release_value());
+    return true;
+}
+
 bool LocalNavigable::record_display_list_and_scroll_state(PaintConfig paint_config)
 {
     auto frame = record_compositor_frame(move(paint_config));
@@ -6915,7 +6990,7 @@ bool LocalNavigable::record_display_list_and_scroll_state(PaintConfig paint_conf
     return true;
 }
 
-void LocalNavigable::paint_next_frame()
+void LocalNavigable::paint_next_frame(Layout::RustFFI::FfiFlightBlocker blocker)
 {
     if (has_been_destroyed())
         return;
@@ -6934,11 +7009,32 @@ void LocalNavigable::paint_next_frame()
 
     m_needs_repaint = false;
 
-    auto frame = record_compositor_frame(paint_config);
+    auto frame = record_compositor_frame(paint_config, blocker);
     if (!frame.has_value())
         return;
-    frame->present_viewport_rect = page().css_to_device_rect(this->viewport_rect()).to_type<int>();
-    compositor_context().submit_frame(frame.release_value());
+    submit_painted_frame(frame.release_value());
+}
+
+void LocalNavigable::submit_painted_frame(Compositor::CompositorFrame frame)
+{
+    frame.present_viewport_rect = page().css_to_device_rect(this->viewport_rect()).to_type<int>();
+    compositor_context().submit_frame(move(frame));
+}
+
+// Whether the rendering update's recording of the active document may fly beside the event loop, or what blocks it.
+Layout::RustFFI::FfiFlightBlocker LocalNavigable::recording_flight_blocker(DOM::UpdateLayoutReason layout_reason)
+{
+    if (layout_reason != DOM::UpdateLayoutReason::HTMLEventLoopRenderingUpdate || main_thread_event_loop().running_synchronous_rendering_update())
+        return Layout::RustFFI::FfiFlightBlocker::NotInRenderingUpdate;
+    if (!is_local_root())
+        return Layout::RustFFI::FfiFlightBlocker::NestedNavigables;
+    for (auto& navigable : all_local_navigables()) {
+        if (navigable->parent().ptr() == this)
+            return Layout::RustFFI::FfiFlightBlocker::NestedNavigables;
+    }
+    if (!exchange(m_last_recording_in_flight_stood, true))
+        return Layout::RustFFI::FfiFlightBlocker::LastFlightDidNotStand;
+    return Layout::RustFFI::FfiFlightBlocker::None;
 }
 
 bool LocalNavigable::paint_next_frame_if_needed(DOM::UpdateLayoutReason layout_reason)
@@ -6959,7 +7055,7 @@ bool LocalNavigable::paint_next_frame_if_needed(DOM::UpdateLayoutReason layout_r
         if (document->font_computer().should_defer_initial_paint())
             return false;
     }
-    paint_next_frame();
+    paint_next_frame(recording_flight_blocker(layout_reason));
     return true;
 }
 

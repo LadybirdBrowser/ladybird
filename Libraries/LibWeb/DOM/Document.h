@@ -1344,7 +1344,12 @@ public:
     // be asked for when the mark is made.
     void request_frame_for_pending_repaint(Badge<InvalidationJournal>) { request_frame_for_pending_repaint(); }
 
+    // Records the document's display list in step with the host, once a recording in flight has been taken in.
     RefPtr<Compositing::DisplayList> record_display_list(HTML::PaintConfig, Compositing::DisplayListResourceStorage&, Painting::PaintCommandCacheMode);
+    // Starts recording the document's display list as the document is now, beside the event loop where `blocker` is
+    // none, and makes the display list of a recording that has landed and stands.
+    Optional<Painting::DisplayListRecording> start_display_list_recording(HTML::PaintConfig, Painting::PaintCommandCacheMode, Layout::RustFFI::FfiFlightBlocker);
+    RefPtr<Compositing::DisplayList> finish_display_list_recording(Painting::DisplayListRecording const&, Compositing::DisplayListResourceStorage&);
     Optional<Painting::HitTestQuery> prepare_hit_test_query();
     Optional<Painting::HitTestResult> hit_test(CSSPixelPoint);
     Optional<Painting::CaretPosition> caret_position_from_point(CSSPixelPoint);

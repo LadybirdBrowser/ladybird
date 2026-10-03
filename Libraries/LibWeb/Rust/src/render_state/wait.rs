@@ -228,6 +228,7 @@ macro_rules! lockstep_reason {
 }
 
 // The waits internal code makes, each minted only by the module its marker belongs to.
+lockstep_reason!(crate::painting::recording_slot::RecordingNeedsItsRecorder);
 lockstep_reason!(crate::layout::layout_changes::HostPaysTheWrite);
 lockstep_reason!(crate::layout::shell_reads::HostReadsItsOwnWrite);
 lockstep_reason!(crate::layout::LayoutUpdateReads);
@@ -240,6 +241,10 @@ lockstep_reason!(crate::layout::text_queries::InputSelectsByWord);
 lockstep_reason!(crate::css::style::engine_calls::EngineDoor);
 lockstep_reason!(super::document_host::HostReadsLayout);
 lockstep_reason!(super::document_host::NewDocument);
+
+// The host entries the event loop calls between two tasks.
+impl private::EventLoopEntry for crate::painting::ffi::TakesFinishedRecordingIn {}
+impl EventLoopEntry for crate::painting::ffi::TakesFinishedRecordingIn {}
 
 /// Where the render side answers a host that waits for it: the slot in the waiting host's frame that the answer moves
 /// into, which the message borrows for as long as the host waits. Only an answer goes through it: a slot left empty
