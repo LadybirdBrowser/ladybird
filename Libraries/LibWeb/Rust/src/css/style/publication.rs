@@ -2016,7 +2016,8 @@ impl RetainedState {
 
     /// Settle the pseudo-elements of an element the engine moves along `delta` beside its record,
     /// as `engine_pseudo_records` does, unless the host composes that record first: the host asks
-    /// for them once the composition they inherit stands.
+    /// for them once the composition they inherit stands, and they are settled then from what
+    /// they would have been settled from here.
     #[allow(clippy::too_many_arguments)]
     fn engine_pseudo_records_beside(
         &mut self,
@@ -2028,10 +2029,21 @@ impl RetainedState {
         scratch: &mut EngineComputedRecordScratch,
         counters: &mut Counters,
     ) -> Drive<()> {
+        let old_style_record = (delta.0 != computed::FinalStyleRecordID::NONE).then_some(delta.0);
         if self.host_composes_row(node, delta.0.raw(), delta.1.raw()) {
+            self.pseudo_settles_owed.insert(
+                node,
+                OwedPseudoSettle {
+                    old_element_record: old_style_record,
+                    full_drive_reason,
+                    moves: scratch.batch_moves(),
+                },
+            );
             return Ok(());
         }
-        let old_style_record = (delta.0 != computed::FinalStyleRecordID::NONE).then_some(delta.0);
+        if !self.pseudo_settles_owed.is_empty() {
+            self.pseudo_settles_owed.remove(&node);
+        }
         self.engine_pseudo_records(
             node,
             old_style_record,
@@ -4720,6 +4732,16 @@ impl ParentInputsMoved {
     }
 }
 
+/// What the pseudo-elements of a row the host composes would have been settled from beside its
+/// record: the host settles them over its composition, against the record the element held
+/// before, which they were derived against, and under what moved the row.
+#[derive(Clone, Copy)]
+pub(super) struct OwedPseudoSettle {
+    pub(super) old_element_record: Option<computed::FinalStyleRecordID>,
+    pub(super) full_drive_reason: Option<FullDriveReason>,
+    pub(super) moves: BatchMoves,
+}
+
 /// Why a row's record is driven again in full, its pseudo-elements with it, while its winners
 /// stand: its reaction moved inputs no winner shows.
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -5849,6 +5871,16 @@ impl EngineComputedRecordScratch {
             document_environment: self.document_environment_moved,
             viewport: self.viewport_moved,
             root_font_inputs: self.root_font_inputs_changed,
+        }
+    }
+
+    /// The scratch of a row the host asks for again, under what its flush moved.
+    pub(super) fn under(moves: BatchMoves) -> Self {
+        Self {
+            document_environment_moved: moves.document_environment,
+            viewport_moved: moves.viewport,
+            root_font_inputs_changed: moves.root_font_inputs,
+            ..Self::default()
         }
     }
 }

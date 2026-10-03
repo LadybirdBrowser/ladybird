@@ -992,6 +992,9 @@ pub struct RetainedState {
     /// box-type transformation reads it, so their record is driven again in full.
     parent_inputs_moved_nodes: HashSet<StyleNodeID>,
     engine_pseudo_record_cache: HashMap<publication::PseudoCohortKey, computed::FinalStyleRecordID>,
+    /// What the pseudo-elements of each row this transaction left to the host to compose would have
+    /// been settled from, until the host asks for them.
+    pseudo_settles_owed: HashMap<StyleNodeID, publication::OwedPseudoSettle>,
     /// Whether the answer the current transaction publishes for each node has winners complete
     /// but for custom properties, read for the record loop: the answers are installed after it.
     batch_answers_complete_but_for_custom_properties: HashMap<StyleNodeID, bool>,

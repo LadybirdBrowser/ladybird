@@ -18,12 +18,9 @@ impl EngineComputedRecordScratch {
     /// The scratch of a row the host asks for again, driven under what its flush moved.
     fn for_retry(moves: BatchMoves) -> Self {
         Self {
-            document_environment_moved: moves.document_environment,
-            viewport_moved: moves.viewport,
-            root_font_inputs_changed: moves.root_font_inputs,
             installed_ancestors: Some(InstalledAncestors(())),
             host_applies_animation_plans: true,
-            ..Self::default()
+            ..Self::under(moves)
         }
     }
 }

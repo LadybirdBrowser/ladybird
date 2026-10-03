@@ -1864,6 +1864,7 @@ impl StyleEngineState {
                 flush_stamp: 0,
                 parent_inputs_moved_nodes: HashSet::default(),
                 engine_pseudo_record_cache: HashMap::default(),
+                pseudo_settles_owed: HashMap::default(),
                 batch_answers_complete_but_for_custom_properties: HashMap::default(),
                 batch_custom_property_matches: HashMap::default(),
                 batch_backing_pseudo_matches: HashMap::default(),
@@ -3384,6 +3385,7 @@ impl RetainedState {
             // Taken by the transaction that fills them.
             parent_inputs_moved_nodes: _,
             engine_pseudo_record_cache: _,
+            pseudo_settles_owed,
             // Filled and cleared within one transaction's record loop.
             batch_answers_complete_but_for_custom_properties: _,
             batch_custom_property_matches: _,
@@ -3474,6 +3476,7 @@ impl RetainedState {
         });
         size_container_queries.retire(node);
         backing_elements.remove(&node);
+        pseudo_settles_owed.remove(&node);
         if let Some(style_record) = held_style_records.remove(&node) {
             computed_group_sets.unpin_style_record(style_record);
         }

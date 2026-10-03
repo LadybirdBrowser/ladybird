@@ -1957,6 +1957,7 @@ impl StyleEngineState {
             }
             self.host.batch_moves_for_retries = engine_computed_record_scratch.batch_moves();
             self.host.retry_full_drive_reasons.clear();
+            self.retained.pseudo_settles_owed.clear();
             // What the chain above a node proves, read by its children in the same pass. A
             // published ancestor's change is exact for a descendant only when none of the
             // ancestors can move anything the descendant inherits, so the fold below is the

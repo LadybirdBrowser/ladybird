@@ -1192,11 +1192,13 @@ impl RetainedState {
 
     /// One attempt at the synthetic pseudo-elements of an element whose record the host installed:
     /// the engine settles them against that record exactly as it settles them beside one of its
-    /// own. A resumed attempt has already brought the winners up to date. A refusal is a value the
-    /// engine cannot compute, or a container condition it cannot decide.
+    /// own, from what it would have settled them from there when it left them to the host. A
+    /// resumed attempt has already brought the winners up to date. A refusal is a value the engine
+    /// cannot compute, or a container condition it cannot decide.
     fn settle_pseudo_records_after_host_record_step(
         &mut self,
         node: StyleNodeID,
+        owed: Option<OwedPseudoSettle>,
         old_is_list_item: bool,
         republication: WinnerRepublication,
         scratch: &mut EngineComputedRecordScratch,
@@ -1218,11 +1220,11 @@ impl RetainedState {
         let generation = self.winner_groups.generation();
         if let Err(unanswered) = self.engine_pseudo_records(
             node,
-            None,
+            owed.and_then(|owed| owed.old_element_record),
             Some(old_is_list_item),
             record,
             generation,
-            None,
+            owed.and_then(|owed| owed.full_drive_reason),
             scratch,
             counters,
         ) {
@@ -1367,13 +1369,19 @@ impl StyleEngineState {
         if let Some(resolver) = &mut self.retained.font_resolution {
             resolver.prepare(font_environment_generation);
         }
-        let mut scratch = EngineComputedRecordScratch::default();
+        // What the engine left to the host when it settled the element's record; a settle it does
+        // not owe derives every pseudo-element afresh.
+        let owed = self.retained.pseudo_settles_owed.remove(&node);
+        let mut scratch = owed.map_or_else(EngineComputedRecordScratch::default, |owed| {
+            EngineComputedRecordScratch::under(owed.moves)
+        });
         let mut suspended_memory = MemoryLease::new(MemoryCategory::BatchScratch);
         // The settle runs in the host's style update, which publishes winners as a flush does.
         let republication = WinnerRepublication::for_flush();
         let attempt = loop {
             match self.retained.settle_pseudo_records_after_host_record_step(
                 node,
+                owed,
                 old_is_list_item,
                 republication,
                 &mut scratch,

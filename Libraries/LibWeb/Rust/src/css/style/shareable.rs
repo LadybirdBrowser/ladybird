@@ -101,6 +101,7 @@ fn every_retained_member_is_shareable(state: &RetainedState) {
         flush_stamp,
         parent_inputs_moved_nodes,
         engine_pseudo_record_cache,
+        pseudo_settles_owed,
         batch_answers_complete_but_for_custom_properties,
         batch_custom_property_matches,
         batch_backing_pseudo_matches,
@@ -215,6 +216,7 @@ fn every_retained_member_is_shareable(state: &RetainedState) {
     assert_member_is_sync(flush_stamp);
     assert_member_is_sync(parent_inputs_moved_nodes);
     assert_member_is_sync(engine_pseudo_record_cache);
+    assert_member_is_sync(pseudo_settles_owed);
     assert_member_is_sync(batch_answers_complete_but_for_custom_properties);
     assert_member_is_sync(batch_custom_property_matches);
     assert_member_is_sync(batch_backing_pseudo_matches);
