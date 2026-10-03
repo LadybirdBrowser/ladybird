@@ -1110,12 +1110,17 @@ static ThrowCompletionOr<Value> parse_simdjson_value(VM& vm, JSONParseState& sta
 
     // NB: raw_json_token() must be captured before the value is consumed by the get_* calls below.
     switch (type) {
-    case simdjson::ondemand::json_type::null:
+    case simdjson::ondemand::json_type::null: {
+        auto token = value.raw_json_token();
+        bool is_null_value;
+        if (value.is_null().get(is_null_value) || !is_null_value)
+            return vm.throw_completion<SyntaxError>(ErrorType::JsonMalformed);
         if (record) {
             record->value = js_null();
-            record->source = json_token_source(state.text, value.raw_json_token());
+            record->source = json_token_source(state.text, token);
         }
         return js_null();
+    }
     case simdjson::ondemand::json_type::boolean: {
         auto token = value.raw_json_token();
         bool boolean_value;
