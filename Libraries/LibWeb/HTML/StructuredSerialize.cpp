@@ -1371,7 +1371,7 @@ static WebIDL::ExceptionOr<void> serialize_viewed_array_buffer(JS::VM& vm, Struc
         //    [[ByteOffset]]: value.[[ByteOffset]], [[ArrayLength]]: value.[[ArrayLength]] }.
         data_holder.encode(ValueTag::ArrayBufferView);
         TRY(structured_serialize_internal(vm, data_holder, buffer, for_storage, memory, allow_shared_array_buffers)); // [[ArrayBufferSerialized]]
-        data_holder.encode(view.element_name().to_utf16_string());                                                    // [[Constructor]]
+        data_holder.encode(Utf16String::from_utf8(JS::typed_array_element_name(view.kind())));                        // [[Constructor]]
         serialize_byte_length(view.byte_length());
         data_holder.encode(view.byte_offset());
         serialize_byte_length(view.array_length());
