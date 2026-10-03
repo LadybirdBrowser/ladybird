@@ -27,7 +27,7 @@ mod questions;
 mod wait;
 
 pub use document_host::DocumentHost;
-pub(crate) use questions::{ArenaAnswer, ArenaQuery, CommittedRows, Lent, PreparationPending, Query, ask};
+pub(crate) use questions::{ArenaAnswer, ArenaQuery, CommittedRows, Lent, PreparationPending, ask};
 pub(crate) use wait::{LockstepProof, RenderWait, ReplyTo, ScriptForcedRead, wait_for_render_state, wait_from_entry};
 
 /// The host's name for one document's render state. The host mints it, so naming a new document needs no answer from
@@ -162,8 +162,6 @@ pub(crate) enum RenderMessage<'a> {
         pass: crate::painting::paint_passes::PaintPass,
         reply: ReplyTo<'a, crate::painting::paint_passes::PaintPassAnswer>,
     },
-    /// A question about a document's render state the host waits for the answer to.
-    Ask { document: DocumentId, query: Query<'a> },
     /// Panics answering, for a test that the host waiting for the answer crashes.
     PanicForTesting { reply: ReplyTo<'a, ()> },
 }
@@ -227,11 +225,6 @@ fn handle_message(_: &RenderingSide, message: RenderMessage<'_>) {
             // SAFETY: As for a change.
             pass.run(unsafe { &mut *arena }.arena_mut())
         }),
-        RenderMessage::Ask { document, query } => {
-            let (arena, engine) = state_parts(document).expect("a document the host asks about has a render state");
-            // SAFETY: As for a change.
-            unsafe { query.answer((*arena).arena_mut(), engine) };
-        }
         RenderMessage::PanicForTesting { reply } => reply.answer(|| panic!("the render state panicked for a test")),
     }
 }

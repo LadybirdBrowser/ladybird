@@ -454,8 +454,7 @@ pub unsafe fn replay_set_element_language(engine: StyleEngineHandle, node: u32, 
     );
 }
 
-/// A read of a document's style engine the host's style code makes, which [`crate::render_state::Query::Engine`]
-/// asks.
+/// A read of a document's style engine the host's style code makes.
 pub(crate) enum StyleQuery {
     /// The custom-property environment an element holds.
     ElementCustomPropertyData(StyleNodeID),
