@@ -188,6 +188,16 @@ public:
     virtual bool is_svg_clip_path_element() const { return false; }
     virtual bool is_svg_image_element() const { return false; }
     virtual bool is_svg_text_content_element() const { return false; }
+    virtual bool is_svg_path_element() const { return false; }
+    virtual bool is_svg_rect_element() const { return false; }
+    virtual bool is_svg_circle_element() const { return false; }
+    virtual bool is_svg_ellipse_element() const { return false; }
+    virtual bool is_svg_polyline_element() const { return false; }
+    virtual bool is_svg_polygon_element() const { return false; }
+    virtual bool is_svg_line_element() const { return false; }
+    virtual bool is_svg_text_positioning_element() const { return false; }
+    virtual bool is_svg_text_element() const { return false; }
+    virtual bool is_svg_text_path_element() const { return false; }
 
     bool in_a_document_tree() const;
 

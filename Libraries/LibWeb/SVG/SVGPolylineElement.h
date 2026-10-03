@@ -25,9 +25,18 @@ public:
     ReadonlySpan<Gfx::FloatPoint> points() const { return m_points; }
 
 private:
+    virtual bool is_svg_polyline_element() const final { return true; }
+
     SVGPolylineElement(DOM::Document&, DOM::QualifiedName);
 
     Vector<Gfx::FloatPoint> m_points;
 };
+
+}
+
+namespace Web::DOM {
+
+template<>
+inline bool Node::fast_is<SVG::SVGPolylineElement>() const { return is_svg_polyline_element(); }
 
 }
