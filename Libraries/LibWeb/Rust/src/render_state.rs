@@ -290,6 +290,7 @@ const _: () = {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::rc::Rc;
 
     trait AmbiguousIfSend<A> {
         fn marker() {}
@@ -360,6 +361,19 @@ mod tests {
         assert!(host.rows().is_none());
         host.fresh_rows(ScriptForcedRead::for_test());
         assert!(host.rows().is_some());
+        // SAFETY: The host is destroyed once, and nothing reaches it after.
+        unsafe { document_host::document_host_destroy(pointer) };
+    }
+
+    #[test]
+    fn a_host_that_lets_go_of_its_rows_reads_them_again() {
+        let pointer = document_host::document_host_create(0);
+        // SAFETY: The host lives until it is destroyed below.
+        let host = unsafe { &*pointer };
+        let rows = host.fresh_rows(ScriptForcedRead::for_test());
+        host.let_go_of_rows();
+        assert!(host.rows().is_none());
+        assert!(!Rc::ptr_eq(&rows, &host.fresh_rows(ScriptForcedRead::for_test())));
         // SAFETY: The host is destroyed once, and nothing reaches it after.
         unsafe { document_host::document_host_destroy(pointer) };
     }

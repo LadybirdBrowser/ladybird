@@ -63,6 +63,7 @@ pub(crate) unsafe fn run_layout_stage_job(
         return job.run(unsafe { &*arena_handle.cast::<crate::layout::ArenaHandle>() });
     };
     let document = host.document();
+    host.let_go_of_rows();
     crate::render_state::wait_from_entry(
         crate::render_state::LockstepProof::for_reason(&LAYOUT_UPDATE),
         main_thread,
