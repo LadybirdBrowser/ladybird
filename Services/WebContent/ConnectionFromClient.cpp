@@ -3055,11 +3055,17 @@ void ConnectionFromClient::set_gamepad_state_buffer(Web::Gamepad::GamepadStateBu
 void ConnectionFromClient::gamepad_connected(Web::Gamepad::GamepadDescription description)
 {
     dispatch_gamepad_change_event(Web::Gamepad::GamepadConnectedEvent { move(description) });
+    dispatch_changed_gamepad_states();
 }
 
 void ConnectionFromClient::gamepad_disconnected(Web::Gamepad::GamepadHandle handle)
 {
     dispatch_gamepad_change_event(Web::Gamepad::GamepadDisconnectedEvent { handle });
+}
+
+void ConnectionFromClient::gamepad_states_changed()
+{
+    dispatch_changed_gamepad_states();
 }
 
 void ConnectionFromClient::dispatch_gamepad_change_event(Web::Gamepad::GamepadChangeEvent const& event)

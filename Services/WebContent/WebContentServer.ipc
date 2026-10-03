@@ -147,6 +147,7 @@ endpoint WebContentServer routed by Web::PageId page_id
     set_gamepad_state_buffer(Web::Gamepad::GamepadStateBuffer gamepad_state_buffer) =|
     gamepad_connected(Web::Gamepad::GamepadDescription description) =|
     gamepad_disconnected(Web::Gamepad::GamepadHandle handle) =|
+    gamepad_states_changed() =|
 
     debug_request(Web::PageId page_id, ByteString request, ByteString argument) =|
     get_source(Web::PageId page_id) =|

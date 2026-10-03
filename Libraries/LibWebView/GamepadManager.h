@@ -67,6 +67,7 @@ public:
         Core::AnonymousBuffer state_buffer;
         Array<Web::Gamepad::GamepadHandle, Web::Gamepad::MAX_SHARED_GAMEPADS> slot_handles {};
         bool receives_real_devices { false };
+        bool has_pending_state_changes { false };
         Vector<Web::Gamepad::GamepadChangeEvent> buffered_virtual_gamepad_events;
     };
 
