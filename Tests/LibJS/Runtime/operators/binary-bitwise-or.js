@@ -62,3 +62,16 @@ test("or with non-numeric values", () => {
     expect(Infinity | Infinity).toBe(0);
     expect(-Infinity | Infinity).toBe(0);
 });
+
+test("or with NaN or Infinity and a value that is not an int32", () => {
+    function or(a, b) {
+        return a | b;
+    }
+
+    expect(or(NaN, 1.5)).toBe(1);
+    expect(or(1.5, NaN)).toBe(1);
+    expect(or(Infinity, -2.5)).toBe(-2);
+    expect(or("NaN", 2.5)).toBe(2);
+    expect(or(undefined, 2 ** 32 + 1)).toBe(1);
+    expect(or(NaN, -0)).toBe(0);
+});

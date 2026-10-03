@@ -61,3 +61,14 @@ test("xor with non-numeric values", () => {
     expect(Infinity ^ Infinity).toBe(0);
     expect(-Infinity ^ Infinity).toBe(0);
 });
+
+test("xor with NaN or Infinity and a value that is not an int32", () => {
+    function xor(a, b) {
+        return a ^ b;
+    }
+
+    expect(xor(NaN, 1.5)).toBe(1);
+    expect(xor(2 ** 32 + 1, Infinity)).toBe(1);
+    expect(xor(-Infinity, "3.7")).toBe(3);
+    expect(xor(-0, NaN)).toBe(0);
+});
