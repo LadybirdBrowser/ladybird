@@ -29,7 +29,7 @@ struct VisualLine {
 };
 
 // NB: Layout must be up to date when calling this.
-Vector<VisualLine> collect_visual_lines(DOM::Text const&);
+Vector<VisualLine> collect_visual_lines(Layout::BegunRead const&, DOM::Text const&);
 
 // A cursor position produced by caret navigation: the affinity determines which line the offset renders on when the
 // offset sits exactly at a soft wrap boundary.
@@ -52,7 +52,7 @@ CursorLinePosition find_visual_line_end(DOM::Text const&, size_t offset, TextAff
 // Helpers for caret navigation across node boundaries.
 // The absolute inline-axis coordinate of the caret at the given offset, used to keep the caret column when moving
 // between lines. Returns nothing for positions on lines without rendered text.
-Optional<CSSPixels> cursor_inline_coordinate(DOM::Text const&, size_t offset, TextAffinity);
+Optional<CSSPixels> cursor_inline_coordinate(Layout::BegunRead const&, DOM::Text const&, size_t offset, TextAffinity);
 
 // Cursor positions for entering a text node from an adjacent node. The "visual start" and "visual end" positions are
 // the rendered start of the first line and the rendered end of the last line; the "closest to" variants pick the
@@ -60,8 +60,8 @@ Optional<CSSPixels> cursor_inline_coordinate(DOM::Text const&, size_t offset, Te
 // coordinate). All return nothing for text with no rendered lines.
 Optional<CursorLinePosition> cursor_position_at_visual_start(DOM::Text const&);
 Optional<CursorLinePosition> cursor_position_at_visual_end(DOM::Text const&);
-Optional<CursorLinePosition> cursor_position_on_first_line_closest_to(DOM::Text const&, Optional<CSSPixels> inline_coordinate);
-Optional<CursorLinePosition> cursor_position_on_last_line_closest_to(DOM::Text const&, Optional<CSSPixels> inline_coordinate);
+Optional<CursorLinePosition> cursor_position_on_first_line_closest_to(Layout::BegunRead const&, DOM::Text const&, Optional<CSSPixels> inline_coordinate);
+Optional<CursorLinePosition> cursor_position_on_last_line_closest_to(Layout::BegunRead const&, DOM::Text const&, Optional<CSSPixels> inline_coordinate);
 
 // Whether any position in the text renders as an empty visual line (between two consecutive newlines, or after a
 

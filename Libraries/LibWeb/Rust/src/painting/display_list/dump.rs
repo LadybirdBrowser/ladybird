@@ -156,6 +156,7 @@ impl VisualContextNodeOwners {
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn painting_dump(
     host: *const crate::render_state::DocumentHost,
+    read: &crate::render_state::BegunRead,
     viewport: NodeSlotId,
     visual_context_tree: *const c_void,
     command_runs: *const DisplayListCommandRun,
@@ -171,7 +172,7 @@ pub unsafe extern "C" fn painting_dump(
     let command_runs = unsafe { libcompositing_rust::ffi::ffi_slice(command_runs, command_run_count) };
     // SAFETY: Guaranteed by the caller.
     let owners = unsafe {
-        crate::painting::ffi::read(host, viewport, |arena, viewport| {
+        crate::painting::ffi::read_arena(host, read, viewport, |arena, viewport| {
             let mut owners = VisualContextNodeOwners::collect(arena, viewport);
             for owners in [&mut owners.spatial, &mut owners.clip, &mut owners.effect] {
                 owners.retain(|_, &mut owner| arena.slot_is_live(owner));

@@ -217,7 +217,7 @@ static DOM::BoundaryPoint canonicalize_inserted_content_end(DOM::BoundaryPoint b
     return boundary;
 }
 
-static void replace_selection_with_block_fragment(DOM::Document& document, GC::Ref<DOM::Range> range, GC::Ref<DOM::Node> destination_block, ReplacementFragment& replacement_fragment, InsertedContent& inserted_content)
+static void replace_selection_with_block_fragment(Layout::BegunRead const& read, DOM::Document& document, GC::Ref<DOM::Range> range, GC::Ref<DOM::Node> destination_block, ReplacementFragment& replacement_fragment, InsertedContent& inserted_content)
 {
     auto& selection = *document.get_selection();
     inserted_content.track_replacement_boundary(range->start(), InsertedContent::ReplacementTopology::Block);
@@ -248,7 +248,7 @@ static void replace_selection_with_block_fragment(DOM::Document& document, GC::R
         right_block = split_containing_block_at_boundary(range->start(), *destination_block);
         inserted_content.insert_before(*destination_block->parent(), right_block.ptr());
     }
-    remove_redundant_styles_from_inserted_content(inserted_content);
+    remove_redundant_styles_from_inserted_content(read, inserted_content);
 
     // INTEROP: Blink integrates a pasted list with a destination list of the same type. Leaving the list wrapper in
     //          place would create a nested list between the two halves of the destination list item.
@@ -380,7 +380,7 @@ static void replace_selection_with_block_fragment(DOM::Document& document, GC::R
     }
 }
 
-static void replace_selection_with_inline_fragment(DOM::Document& document, GC::Ref<DOM::Range> range, ReplacementFragment& replacement_fragment, InsertedContent& inserted_content)
+static void replace_selection_with_inline_fragment(Layout::BegunRead const& read, DOM::Document& document, GC::Ref<DOM::Range> range, ReplacementFragment& replacement_fragment, InsertedContent& inserted_content)
 {
     auto& selection = *document.get_selection();
     inserted_content.track_replacement_boundary(range->start(), InsertedContent::ReplacementTopology::Inline);
@@ -409,7 +409,7 @@ static void replace_selection_with_inline_fragment(DOM::Document& document, GC::
     range->collapse(true);
 
     inserted_content.insert_into_range(*range, replacement_fragment.fragment());
-    remove_redundant_styles_from_inserted_content(inserted_content);
+    remove_redundant_styles_from_inserted_content(read, inserted_content);
     inserted_content.begin_tracking_content_boundaries();
 
     auto first_inserted = inserted_content.first_node();
@@ -447,6 +447,8 @@ static void replace_selection_with_inline_fragment(DOM::Document& document, GC::
 
 void replace_selection_with_fragment(DOM::Document& document, TrustedTypes::TrustedHTMLOrString const& value)
 {
+    // The editing command's own read of the render state.
+    Layout::ForcedReadScope read { document, false };
     auto range = active_range(document);
     VERIFY(range && range->collapsed());
 
@@ -458,11 +460,11 @@ void replace_selection_with_fragment(DOM::Document& document, TrustedTypes::Trus
     auto destination_block = block_node_of_node(*range->start_container());
     if (replacement_fragment.contains_block_content() && destination_block
         && destination_block != range->start_container()->editing_host()) {
-        replace_selection_with_block_fragment(document, *range, *destination_block, replacement_fragment, inserted_content);
+        replace_selection_with_block_fragment(read, document, *range, *destination_block, replacement_fragment, inserted_content);
         return;
     }
 
-    replace_selection_with_inline_fragment(document, *range, replacement_fragment, inserted_content);
+    replace_selection_with_inline_fragment(read, document, *range, replacement_fragment, inserted_content);
 }
 
 }

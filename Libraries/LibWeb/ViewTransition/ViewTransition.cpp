@@ -234,6 +234,7 @@ ErrorOr<void> ViewTransition::capture_the_old_state()
     // 1. Let document be transition’s relevant global object’s associated document.
     auto& document = this->document();
 
+    Layout::ForcedReadScope read { document, true };
     document.update_layout(DOM::UpdateLayoutReason::ViewTransitionCapture);
 
     // 2. Let namedElements be transition’s named elements.
@@ -264,7 +265,7 @@ ErrorOr<void> ViewTransition::capture_the_old_state()
 
         // OPTIMIZATION: Continue early if the element is not rendered, so we don't have to ensure the computed
         //               properties are up to date.
-        if (element.not_rendered())
+        if (element.not_rendered(read))
             return TraversalDecision::Continue;
 
         // 3. Let transitionName be the element’s document-scoped view transition name.
@@ -313,7 +314,7 @@ ErrorOr<void> ViewTransition::capture_the_old_state()
 
         // 3. Let originalRect be snapshot containing block if element is the document element, otherwise, the
         //    element's border box.
-        auto const* layout_node = element.layout_node();
+        auto const* layout_node = element.layout_node(read);
         VERIFY(element.is_document_element() || (layout_node && Painting::has_committed_box(*layout_node)));
         auto original_rect = element.is_document_element() ? snapshot_containing_block : Painting::absolute_border_box_rect(*layout_node);
 
@@ -329,25 +330,25 @@ ErrorOr<void> ViewTransition::capture_the_old_state()
         capture->old_transform = make_translation_transform(0, 0);
 
         // 7. Set capture’s old writing-mode to the computed value of writing-mode on element.
-        capture->old_writing_mode = element.layout_node()->writing_mode();
+        capture->old_writing_mode = element.layout_node(read)->writing_mode();
 
         // 8. Set capture’s old direction to the computed value of direction on element.
-        capture->old_direction = element.layout_node()->direction();
+        capture->old_direction = element.layout_node(read)->direction();
 
         // 9. Set capture’s old text-orientation to the computed value of text-orientation on element.
         // FIXME: Implement this once we have text-orientation.
 
         // 10. Set capture’s old mix-blend-mode to the computed value of mix-blend-mode on element.
-        capture->old_mix_blend_mode = element.layout_node()->mix_blend_mode();
+        capture->old_mix_blend_mode = element.layout_node(read)->mix_blend_mode();
 
         // 11. Set capture’s old backdrop-filter to the computed value of backdrop-filter on element.
-        capture->old_backdrop_filter = element.layout_node()->backdrop_filter().materialize();
+        capture->old_backdrop_filter = element.layout_node(read)->backdrop_filter().materialize();
 
         // 12. Set capture’s old color-scheme to the computed value of color-scheme on element.
-        capture->old_color_scheme = element.layout_node()->color_scheme();
+        capture->old_color_scheme = element.layout_node(read)->color_scheme();
 
         // 13. Let transitionName be the computed value of view-transition-name for element.
-        auto transition_name = element.layout_node()->view_transition_name();
+        auto transition_name = element.layout_node(read)->view_transition_name();
 
         // 14. Set namedElements[transitionName] to capture.
         named_elements.set(transition_name.value(), capture);
@@ -370,6 +371,7 @@ ErrorOr<void> ViewTransition::capture_the_new_state()
     // 1. Let document be transition’s relevant global object’s associated document.
     auto& document = this->document();
 
+    Layout::ForcedReadScope read { document, true };
     document.update_layout(DOM::UpdateLayoutReason::ViewTransitionCapture);
 
     // 2. Let namedElements be transition’s named elements.
@@ -386,7 +388,7 @@ ErrorOr<void> ViewTransition::capture_the_new_state()
 
         // OPTIMIZATION: Continue early if the element is not rendered, so we don't have to ensure the computed
         //               properties are up to date.
-        if (element.not_rendered())
+        if (element.not_rendered(read))
             return TraversalDecision::Continue;
 
         // 2. Let transitionName be the element’s document-scoped view transition name.
@@ -824,6 +826,8 @@ void ViewTransition::handle_transition_frame()
 // https://drafts.csswg.org/css-view-transitions-1/#update-pseudo-element-styles
 ErrorOr<void> ViewTransition::update_pseudo_element_styles()
 {
+    // The pseudo-elements' styles are the transition's own read of the render state.
+    Layout::ForcedReadScope read { *m_document, false };
     // To update pseudo-element styles for a ViewTransition transition:
 
     // 1. For each transitionName → capturedElement of transition’s named elements:
@@ -881,7 +885,7 @@ ErrorOr<void> ViewTransition::update_pseudo_element_styles()
             }
 
             //    - capturedElement’s new element is not rendered.
-            if (captured_element->new_element->not_rendered())
+            if (captured_element->new_element->not_rendered(read))
                 return Error::from_string_literal("capturedElement’s new element is not rendered.");
 
             //    - capturedElement has more than one box fragment.
@@ -894,7 +898,7 @@ ErrorOr<void> ViewTransition::update_pseudo_element_styles()
 
             // 2. Let newRect be the snapshot containing block if capturedElement’s new element is the
             //    document element, otherwise, capturedElement’s border box.
-            auto const* layout_node = captured_element->new_element->layout_node();
+            auto const* layout_node = captured_element->new_element->layout_node(read);
             VERIFY(captured_element->new_element->is_document_element() || (layout_node && Painting::has_committed_box(*layout_node)));
             auto new_rect = captured_element->new_element->is_document_element() ? captured_element->new_element->navigable()->snapshot_containing_block() : Painting::absolute_border_box_rect(*layout_node);
 
@@ -910,10 +914,10 @@ ErrorOr<void> ViewTransition::update_pseudo_element_styles()
             transform = make_translation_transform(offset.x(), offset.y());
 
             // 6. Set writingMode to the computed value of writing-mode on capturedElement’s new element.
-            writing_mode = captured_element->new_element->layout_node()->writing_mode();
+            writing_mode = captured_element->new_element->layout_node(read)->writing_mode();
 
             // 7. Set direction to the computed value of direction on capturedElement’s new element.
-            direction = captured_element->new_element->layout_node()->direction();
+            direction = captured_element->new_element->layout_node(read)->direction();
 
             // 8. Set textOrientation to the computed value of text-orientation on capturedElement’s new
             //    element.
@@ -921,13 +925,13 @@ ErrorOr<void> ViewTransition::update_pseudo_element_styles()
 
             // 9. Set mixBlendMode to the computed value of mix-blend-mode on capturedElement’s new
             //    element.
-            mix_blend_mode = captured_element->new_element->layout_node()->mix_blend_mode();
+            mix_blend_mode = captured_element->new_element->layout_node(read)->mix_blend_mode();
 
             // 10. Set backdropFilter to the computed value of backdrop-filter on capturedElement’s new element.
-            backdrop_filter = captured_element->new_element->layout_node()->backdrop_filter().materialize();
+            backdrop_filter = captured_element->new_element->layout_node(read)->backdrop_filter().materialize();
 
             // 11. Set colorScheme to the computed value of color-scheme on capturedElement’s new element.
-            color_scheme = captured_element->new_element->layout_node()->color_scheme();
+            color_scheme = captured_element->new_element->layout_node(read)->color_scheme();
         }
 
         // 4. If capturedElement’s group styles rule is null, then set capturedElement’s group styles rule to a new

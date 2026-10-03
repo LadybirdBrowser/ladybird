@@ -764,11 +764,11 @@ fn generate_style_engine_boundary(manifest_dir: &Path, out_dir: &Path) -> Result
         {
             writeln!(
                 rust,
-                "/// Generated from the StyleEngine boundary specification: asks the document's render state.\n///\n/// # Safety\n/// `document_host` must be a live document host, on the document's thread, and every borrowed argument must be live for this call.\n#[unsafe(no_mangle)]"
+                "/// Generated from the StyleEngine boundary specification: asks the document's render state, in `read`.\n///\n/// # Safety\n/// `document_host` must be a live document host, on the document's thread, and every borrowed argument must be live for this call.\n#[unsafe(no_mangle)]"
             )?;
             write!(
                 rust,
-                "pub unsafe extern \"C\" fn {ffi}(document_host: *const crate::render_state::DocumentHost"
+                "pub unsafe extern \"C\" fn {ffi}(document_host: *const crate::render_state::DocumentHost, read: &crate::render_state::BegunRead"
             )?;
             for (name, kind, (rust_type, _, _, _)) in &parsed_arguments {
                 write!(rust, ", {name}: {rust_type}")?;
@@ -790,7 +790,7 @@ fn generate_style_engine_boundary(manifest_dir: &Path, out_dir: &Path) -> Result
             }
             write!(
                 rust,
-                "        let document_host = unsafe {{ crate::css::style::engine_calls::document_host(document_host) }};\n        crate::css::style::engine_calls::with_engine(document_host, "
+                "        let document_host = unsafe {{ crate::css::style::engine_calls::document_host(document_host) }};\n        crate::css::style::engine_calls::with_engine(read, document_host, "
             )?;
             if parsed_arguments.is_empty() && receiver != "const" {
                 write!(rust, "operations::{operation_name}")?;
@@ -921,9 +921,11 @@ fn generate_style_engine_boundary(manifest_dir: &Path, out_dir: &Path) -> Result
         if return_kind != "void" {
             cpp_declarations.push_str("[[nodiscard]] ");
         }
-        write!(cpp_declarations, "{cpp_return} {cpp}(")?;
+        // A query reaches the render state where the host is, which only a read the host began does.
+        let cpp_read = if is_query { "Layout::BegunRead const& read" } else { "" };
+        write!(cpp_declarations, "{cpp_return} {cpp}({cpp_read}")?;
         for (index, (name, _, (_, cpp_type, _, _))) in parsed_arguments.iter().enumerate() {
-            if index != 0 {
+            if index != 0 || is_query {
                 cpp_declarations.push_str(", ");
             }
             write!(cpp_declarations, "{cpp_type} {name}")?;
@@ -934,9 +936,9 @@ fn generate_style_engine_boundary(manifest_dir: &Path, out_dir: &Path) -> Result
             cpp_declarations.push_str(");\n");
         }
 
-        write!(cpp_definitions, "{cpp_return} StyleEngine::{cpp}(")?;
+        write!(cpp_definitions, "{cpp_return} StyleEngine::{cpp}({cpp_read}")?;
         for (index, (name, _, (_, cpp_type, _, _))) in parsed_arguments.iter().enumerate() {
-            if index != 0 {
+            if index != 0 || is_query {
                 cpp_definitions.push_str(", ");
             }
             write!(cpp_definitions, "{cpp_type} {name}")?;
@@ -961,6 +963,9 @@ fn generate_style_engine_boundary(manifest_dir: &Path, out_dir: &Path) -> Result
             cpp_definitions.push_str("    ");
         }
         write!(cpp_definitions, "StyleEngineFFI::{ffi}(m_render_document->host()")?;
+        if is_query {
+            cpp_definitions.push_str(", &read");
+        }
         for (name, kind, _) in &parsed_arguments {
             if matches!(
                 *kind,
@@ -3007,9 +3012,13 @@ fn main() -> Result<(), Box<dyn Error>> {
         "Web::Layout::RustFFI::DocumentHost".to_string(),
     );
     style_value_config
+        .export
+        .rename
+        .insert("BegunRead".to_string(), "Web::Layout::RustFFI::BegunRead".to_string());
+    style_value_config
         .after_includes
         .get_or_insert_with(String::new)
-        .push_str("\nnamespace Web::Layout::RustFFI { struct DocumentHost; }");
+        .push_str("\nnamespace Web::Layout::RustFFI { struct DocumentHost; struct BegunRead; }");
 
     generate_ffi_header(
         style_value_config,
@@ -3059,9 +3068,13 @@ fn main() -> Result<(), Box<dyn Error>> {
         "Web::Layout::RustFFI::DocumentHost".to_string(),
     );
     value_parser_config
+        .export
+        .rename
+        .insert("BegunRead".to_string(), "Web::Layout::RustFFI::BegunRead".to_string());
+    value_parser_config
         .after_includes
         .get_or_insert_with(String::new)
-        .push_str("\nnamespace Web::Layout::RustFFI { struct DocumentHost; }");
+        .push_str("\nnamespace Web::Layout::RustFFI { struct DocumentHost; struct BegunRead; }");
 
     generate_ffi_header(
         value_parser_config,
@@ -3139,9 +3152,13 @@ fn main() -> Result<(), Box<dyn Error>> {
         "Web::Layout::RustFFI::DocumentHost".to_string(),
     );
     style_engine_config
+        .export
+        .rename
+        .insert("BegunRead".to_string(), "Web::Layout::RustFFI::BegunRead".to_string());
+    style_engine_config
         .after_includes
         .get_or_insert_with(String::new)
-        .push_str("\nnamespace Web::Layout::RustFFI { struct DocumentHost; }");
+        .push_str("\nnamespace Web::Layout::RustFFI { struct DocumentHost; struct BegunRead; }");
     // A style transaction flies only where nothing blocks it, which the layout header names as it does for a recording.
     style_engine_config.export.rename.insert(
         "FfiFlightBlocker".to_string(),
@@ -3242,10 +3259,14 @@ fn main() -> Result<(), Box<dyn Error>> {
         "Web::Layout::RustFFI::DocumentHost".to_string(),
     );
     computed_values_config
+        .export
+        .rename
+        .insert("BegunRead".to_string(), "Web::Layout::RustFFI::BegunRead".to_string());
+    computed_values_config
         .after_includes
         .as_mut()
         .unwrap()
-        .push_str("\nnamespace Web::Layout::RustFFI { struct DocumentHost; }");
+        .push_str("\nnamespace Web::Layout::RustFFI { struct DocumentHost; struct BegunRead; }");
 
     let libgfx_font_source = manifest_dir.join("../../LibGfx/Rust/src/font.rs");
     println!("cargo:rerun-if-changed={}", libgfx_font_source.display());
@@ -3325,6 +3346,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             manifest_dir.join("src/render_state.rs"),
             manifest_dir.join("src/render_state/devtools.rs"),
             manifest_dir.join("src/render_state/document_host.rs"),
+            manifest_dir.join("src/render_state/wait.rs"),
             manifest_dir.join("src/stage_thread.rs"),
             manifest_dir.join("../../RustAllocator.rs"),
         ],

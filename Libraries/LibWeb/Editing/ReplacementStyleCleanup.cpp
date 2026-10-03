@@ -36,7 +36,7 @@ static bool computed_property_values_are_equivalent(CSS::PropertyID property_id,
     return false;
 }
 
-void remove_redundant_styles_from_inserted_content(InsertedContent& inserted_content)
+void remove_redundant_styles_from_inserted_content(Layout::BegunRead const& read, InsertedContent& inserted_content)
 {
     GC::RootVector<GC::Ref<DOM::Element>> styled_elements;
     for (auto& node : inserted_content.nodes()) {
@@ -69,8 +69,8 @@ void remove_redundant_styles_from_inserted_content(InsertedContent& inserted_con
         auto style_with_inline_declaration = style_computer.reconstruct_computed_properties(*computed_values);
         // What the element would compute to without its inline declaration, which the style engine answers privately
         // without touching the live element. An element it gives no answer for keeps its inline style.
-        auto answer = style_computer.style_engine().answer_record_demand(element->style_node_id(), CSS::StyleEngine::RecordDemand::ElementReadWithoutInlineStyle).record;
-        auto view = style_computer.computed_style_record_view(CSS::StyleRecordID { answer.style_record });
+        auto answer = style_computer.style_engine().answer_record_demand(read, element->style_node_id(), CSS::StyleEngine::RecordDemand::ElementReadWithoutInlineStyle).record;
+        auto view = style_computer.computed_style_record_view(read, CSS::StyleRecordID { answer.style_record });
         if (!view)
             continue;
         auto style_without_inline_declaration = style_computer.reconstruct_computed_properties(*view);

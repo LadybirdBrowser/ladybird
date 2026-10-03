@@ -16,7 +16,7 @@ use crate::css::css_pixels::CssPixelPoint;
 use crate::css::style::NaturalSize;
 use crate::css::style::tree::StyleNodeID;
 use crate::painting::host::FfiNaturalSize;
-use crate::render_state::{ArenaChange, DocumentHost, LockstepProof, ask};
+use crate::render_state::{ArenaChange, DocumentHost, RenderWait, ask};
 use smallvec::SmallVec;
 
 /// One write of the host to a document's layout marks or layout facts, which the render state applies to the arena
@@ -52,6 +52,9 @@ pub(crate) enum LayoutChange {
         parent: NodeSlotId,
         child: NodeSlotId,
     },
+    /// The identity `node` names was handed to a node, which holds no layout tree update mark, whatever the node that
+    /// held it before left behind.
+    ClearLayoutTreeUpdateMarks(StyleNodeID),
     /// The DOM node identified by `old` took `new`. Its rows, and those of the pseudo-elements `generated_for` lists,
     /// take the new identity along with their bindings; the old one leaves every row carrying it, and the new one
     /// leaves the layout tree update marks its previous holder left.
@@ -206,6 +209,7 @@ impl LayoutChange {
                     arena.note_contained_abspos_child_removal(parent, child);
                 }
             }
+            Self::ClearLayoutTreeUpdateMarks(node) => arena.layout_tree_update_marks().borrow_mut().clear(node),
             Self::StyleNodeChanged {
                 old,
                 new,
@@ -401,16 +405,10 @@ impl LayoutWrite {
     }
 }
 
-/// The reason a host waits for a layout write: it pays what the write owes it before it goes on.
-pub(crate) struct HostPaysTheWrite {
-    _private: (),
-}
-
-const HOST_PAYS_THE_WRITE: HostPaysTheWrite = HostPaysTheWrite { _private: () };
-
-/// Has the render state of `host`'s document make `write`, and answers what the write owes the host.
-pub(crate) fn write(host: &DocumentHost, write: LayoutWrite) -> LayoutWritten {
-    ask(LockstepProof::for_reason(&HOST_PAYS_THE_WRITE), host, write)
+/// Has the render state of `host`'s document make `write`, spending `wait`, and answers what the write owes the host,
+/// which the host pays before it goes on.
+pub(crate) fn write(wait: impl RenderWait, host: &DocumentHost, write: LayoutWrite) -> LayoutWritten {
+    ask(wait, host, write)
 }
 
 /// Queues `change` for the render state of `host`'s document.

@@ -26,11 +26,11 @@ public:
     Element const& element() const { return m_element; }
     Optional<CSS::PseudoElement> pseudo_element() const { return m_pseudo_element; }
 
-    Layout::NodeWithStyle* layout_node();
-    Layout::NodeWithStyle const* layout_node() const { return const_cast<AbstractElement*>(this)->layout_node(); }
+    Layout::NodeWithStyle* layout_node(Layout::BegunRead const& read);
+    Layout::NodeWithStyle const* layout_node(Layout::BegunRead const& read) const { return const_cast<AbstractElement*>(this)->layout_node(read); }
 
-    Layout::NodeWithStyle* unsafe_layout_node();
-    Layout::NodeWithStyle const* unsafe_layout_node() const { return const_cast<AbstractElement*>(this)->unsafe_layout_node(); }
+    Layout::NodeWithStyle* unsafe_layout_node(Layout::BegunRead const& read);
+    Layout::NodeWithStyle const* unsafe_layout_node(Layout::BegunRead const& read) const { return const_cast<AbstractElement*>(this)->unsafe_layout_node(read); }
 
     struct TreeCountingFunctionResolutionContext {
         size_t sibling_count;

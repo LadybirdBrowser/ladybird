@@ -43,6 +43,11 @@ pub(crate) struct RecordingAnswer {
     trace: Option<PendingRecordingTrace>,
 }
 
+// The host waits for a recording only where it needs the recorder back.
+impl crate::stage_thread::Flown for RecordingAnswer {
+    type JoinRight = LockstepProof;
+}
+
 // A job reads nothing the document goes on writing, and an answer holds nothing of the document.
 const _: () = {
     const fn assert_send<T: Send + 'static>() {}

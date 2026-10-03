@@ -171,7 +171,7 @@ bool CustomPropertyData::declares_same_names(CustomPropertyData const& other) co
     return true;
 }
 
-RefPtr<CustomPropertyData const> CustomPropertyData::inheritable(DOM::Document const& document) const
+RefPtr<CustomPropertyData const> CustomPropertyData::inheritable(Layout::BegunRead const& read, DOM::Document const& document) const
 {
     auto document_identity = reinterpret_cast<FlatPtr>(&document);
     auto generation = document.custom_property_registration_generation();
@@ -183,20 +183,20 @@ RefPtr<CustomPropertyData const> CustomPropertyData::inheritable(DOM::Document c
 
     RefPtr<CustomPropertyData const> inheritable_parent;
     if (m_parent)
-        inheritable_parent = m_parent->inheritable(document);
+        inheritable_parent = m_parent->inheritable(read, document);
 
     // NB: What an environment the style engine resolved hands down is the engine's to name, under the registrations
     //     as they are now: the environments its records resolve over the element's are built over that one.
     RefPtr<CustomPropertyData const> inheritable;
     if (StyleEngine::is_engine_custom_property_environment(m_identity)) {
         auto const& style_computer = document.style_computer();
-        auto inheritable_identity = style_computer.style_engine().inheritable_custom_property_environment(m_identity);
+        auto inheritable_identity = style_computer.style_engine().inheritable_custom_property_environment(read, m_identity);
         if (inheritable_identity == m_identity)
             inheritable = this;
         else if (inheritable_identity == (inheritable_parent ? inheritable_parent->identity() : 0))
             inheritable = inheritable_parent;
         else
-            inheritable = style_computer.engine_custom_property_environment(inheritable_identity, inheritable_parent);
+            inheritable = style_computer.engine_custom_property_environment(read, inheritable_identity, inheritable_parent);
     }
     if (!inheritable) {
         inheritable = inheritable_impl(

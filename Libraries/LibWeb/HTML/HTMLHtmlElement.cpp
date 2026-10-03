@@ -36,7 +36,7 @@ void HTMLHtmlElement::publish_body_construction_facts()
     }
 }
 
-bool HTMLHtmlElement::should_use_body_background_properties() const
+bool HTMLHtmlElement::should_use_body_background_properties(Layout::BegunRead const& read) const
 {
     // https://drafts.csswg.org/css-contain-2/#contain-property
     // Additionally, when any containments are active on either the HTML <html> or <body> elements, propagation of
@@ -48,14 +48,14 @@ bool HTMLHtmlElement::should_use_body_background_properties() const
         return !layout_node.contain().is_empty();
     };
 
-    auto const* layout_node = unsafe_layout_node();
+    auto const* layout_node = unsafe_layout_node(read);
     if (!layout_node || has_containment(*layout_node))
         return false;
 
     auto const* body_element = first_child_of_type<HTML::HTMLBodyElement>();
     if (!body_element)
         return false;
-    auto const* body_layout_node = body_element->unsafe_layout_node();
+    auto const* body_layout_node = body_element->unsafe_layout_node(read);
     if (!body_layout_node || has_containment(*body_layout_node))
         return false;
 

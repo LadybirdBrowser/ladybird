@@ -66,19 +66,19 @@ RefPtr<StyleValue const> AbstractOrHypotheticalElement::get_custom_property(Utf1
         });
 }
 
-RefPtr<CustomPropertyData const> AbstractOrHypotheticalElement::inheritable_custom_property_data() const
+RefPtr<CustomPropertyData const> AbstractOrHypotheticalElement::inheritable_custom_property_data(Layout::BegunRead const& read) const
 {
     return visit(
-        [](DOM::AbstractElement const& abstract_element) -> RefPtr<CustomPropertyData const> {
+        [&read](DOM::AbstractElement const& abstract_element) -> RefPtr<CustomPropertyData const> {
             auto custom_property_data = abstract_element.custom_property_data();
 
             if (!custom_property_data)
                 return {};
 
-            return abstract_element.custom_property_data()->inheritable(abstract_element.document());
+            return abstract_element.custom_property_data()->inheritable(read, abstract_element.document());
         },
-        [](HypotheticalElement* hypothetical_element) -> RefPtr<CustomPropertyData const> {
-            auto inheritable_parent = hypothetical_element->parent.inheritable_custom_property_data();
+        [&read](HypotheticalElement* hypothetical_element) -> RefPtr<CustomPropertyData const> {
+            auto inheritable_parent = hypothetical_element->parent.inheritable_custom_property_data(read);
 
             return hypothetical_element->custom_property_data->inheritable_impl(
                 inheritable_parent,

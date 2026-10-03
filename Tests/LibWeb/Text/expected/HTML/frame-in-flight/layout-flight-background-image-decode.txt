@@ -1,0 +1,4 @@
+state in the next task: in-flight
+state after the decode: in-flight
+the box kept its height: 20
+the generated image is laid out: true

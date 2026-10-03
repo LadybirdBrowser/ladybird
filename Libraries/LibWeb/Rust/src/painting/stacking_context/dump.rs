@@ -55,6 +55,7 @@ impl FfiStackingContextDumpCallbacks {
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn render_state_dump_stacking_context_tree(
     host: *const crate::render_state::DocumentHost,
+    read: &crate::render_state::BegunRead,
     viewport: NodeSlotId,
     callbacks: FfiStackingContextDumpCallbacks,
 ) {
@@ -63,7 +64,7 @@ pub unsafe extern "C" fn render_state_dump_stacking_context_tree(
     let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY, &*host) };
     // SAFETY: As above.
     let lines = unsafe {
-        crate::painting::ffi::read(host, viewport, |arena, viewport| {
+        crate::painting::ffi::read_arena(host, read, viewport, |arena, viewport| {
             let mut lines = Vec::new();
             if arena.stacking_context_entries(viewport).is_some() {
                 visit(&mut lines, arena, viewport, 0);

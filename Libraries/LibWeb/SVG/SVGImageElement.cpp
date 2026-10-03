@@ -18,18 +18,13 @@
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/SharedResourceRequest.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
-#include <LibWeb/Layout/Box.h>
 #include <LibWeb/Namespace.h>
+#include <LibWeb/Painting/PaintFacts.h>
 #include <LibWeb/SVG/SVGDecodedImageData.h>
 
 namespace Web::SVG {
 
 GC_DEFINE_ALLOCATOR(SVGImageElement);
-
-Layout::Node const* SVGImageElement::image_provider_layout_node() const
-{
-    return unsafe_layout_node();
-}
 
 SVGImageElement::SVGImageElement(DOM::Document& document, DOM::QualifiedName qualified_name)
     : SVGGraphicsElement(document, move(qualified_name))
@@ -107,7 +102,7 @@ void SVGImageElement::fetch_the_document(URL::URL const& url)
             m_load_event_delayer.clear();
             register_with_decoded_image_data_if_needed();
             CSS::record_element_replaced_content_input(*this);
-            image_provider_contents_changed();
+            Painting::push_replaced_image_paint_facts(*this);
             set_needs_layout_update(DOM::SetNeedsLayoutReason::SVGImageElementFetchTheDocument);
 
             dispatch_event(DOM::Event::create(HTML::EventNames::load,
@@ -146,7 +141,7 @@ void SVGImageElement::decoded_image_data_did_update()
 {
     // An SVG image works out its natural size again after it redraws itself or changes color scheme.
     CSS::record_element_replaced_content_input(*this);
-    image_provider_contents_changed();
+    Painting::push_replaced_image_paint_facts(*this);
 }
 
 }

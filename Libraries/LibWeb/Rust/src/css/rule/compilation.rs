@@ -10,11 +10,12 @@ use crate::css::container_conditions::ContainerConditionsData;
 use crate::css::ffi_support::FfiUtf16View;
 use crate::css::parser::query_parser::{FfiMediaEnvironment, MediaEnvironment};
 use crate::css::style_sheet::NativeStyleSheet;
+use crate::render_state::BegunRead;
 use std::ffi::c_void;
 use std::rc::Rc;
 
 mod publication;
-use publication::{NativeCompilationResult, NativeStylePublication, SelectorInputs};
+use publication::{NativeCompilationResult, NativeStylePublication, Publication, SelectorInputs};
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
@@ -110,7 +111,7 @@ impl CompilationContext {
         source: *const c_void,
         environment: MediaEnvironment<'_>,
         callbacks: &NativeCompilationCallbacks,
-        publication: Option<&NativeStylePublication>,
+        publication: Option<&Publication<'_>>,
         matching: Option<Rc<crate::css::selector_parser::RustParsedSelectorList>>,
     ) -> Self {
         let mut context = self.clone();
@@ -164,7 +165,7 @@ unsafe fn visit_rule(
     context: &CompilationContext,
     environment: MediaEnvironment<'_>,
     callbacks: &NativeCompilationCallbacks,
-    publication: Option<&NativeStylePublication>,
+    publication: Option<&Publication<'_>>,
 ) {
     let selectors = publication.and_then(|_| unsafe { context.selectors.matching_selectors(rule) });
     if context.purpose == NativeCompilationPurpose::Selectors
@@ -223,7 +224,7 @@ unsafe fn visit_list(
     context: &CompilationContext,
     environment: MediaEnvironment<'_>,
     callbacks: &NativeCompilationCallbacks,
-    publication: Option<&NativeStylePublication>,
+    publication: Option<&Publication<'_>>,
 ) {
     let _ = list.visit_rules(&mut |rule| {
         unsafe {
@@ -316,7 +317,9 @@ pub unsafe extern "C" fn rust_style_sheet_compile(
     environment: FfiMediaEnvironment,
     callbacks: &NativeCompilationCallbacks,
     publication: &NativeStylePublication,
+    read: &BegunRead,
 ) {
+    let publication = Publication { to: *publication, read };
     unsafe {
         visit_compilation(
             sheet,
@@ -325,7 +328,7 @@ pub unsafe extern "C" fn rust_style_sheet_compile(
             source,
             environment.borrow(),
             callbacks,
-            Some(publication),
+            Some(&publication),
         );
     };
 }
@@ -342,7 +345,9 @@ pub unsafe extern "C" fn rust_style_sheet_replace_selectors(
     environment: FfiMediaEnvironment,
     callbacks: &NativeCompilationCallbacks,
     publication: &NativeStylePublication,
+    read: &BegunRead,
 ) {
+    let publication = &Publication { to: *publication, read };
     let environment = unsafe { environment.borrow() };
     let mut path = Vec::new();
     if !find_rule_path(sheet.rules(), sheet, rule_identity, &mut path) {
@@ -408,7 +413,8 @@ pub unsafe extern "C" fn rust_style_sheet_replace_selectors(
     for (rule, context, selectors) in affected {
         // SAFETY: Guaranteed by the caller.
         let host = unsafe { publication.host() };
-        let id = crate::css::style::engine_calls::with_engine(host, |engine| engine.native_rule_id(rule.identity));
+        let id =
+            crate::css::style::engine_calls::with_engine(read, host, |engine| engine.native_rule_id(rule.identity));
         if id.is_some() {
             unsafe { publication.replace_selectors(RuleRef::Materialized(&rule), target_sheet, &context, &selectors) };
             continue;
@@ -416,7 +422,7 @@ pub unsafe extern "C" fn rust_style_sheet_replace_selectors(
         // A previously empty selector list may become matchable. Publish that newly active
         // subtree with its current conditions and source-order position.
         let mut publication = *publication;
-        publication.before_rule = crate::css::style::engine_calls::with_engine(host, |engine| {
+        publication.to.before_rule = crate::css::style::engine_calls::with_engine(read, host, |engine| {
             crate::css::rule::mutation::successor(sheet, rule.identity, |identity| {
                 engine.native_rule_id(identity).map_or(0, |id| id.0 + 1)
             })
@@ -442,7 +448,7 @@ unsafe fn visit_compilation(
     source: *const c_void,
     environment: MediaEnvironment<'_>,
     callbacks: &NativeCompilationCallbacks,
-    publication: Option<&NativeStylePublication>,
+    publication: Option<&Publication<'_>>,
 ) {
     let context = CompilationContext {
         purpose,
@@ -474,7 +480,7 @@ unsafe fn visit_compilation(
         context: &CompilationContext,
         environment: MediaEnvironment<'_>,
         callbacks: &NativeCompilationCallbacks,
-        publication: Option<&NativeStylePublication>,
+        publication: Option<&Publication<'_>>,
     ) -> std::ops::ControlFlow<()> {
         if rule.identity() == identity {
             unsafe {
@@ -1333,6 +1339,7 @@ mod tests {
                 environment,
                 &callbacks,
                 &publication,
+                host.read(),
             );
         }
         assert_eq!(compiled.get(), 9);
@@ -1344,6 +1351,7 @@ mod tests {
                 sheets.as_ptr(),
                 sheets.len(),
                 host.host(),
+                host.read(),
                 0,
                 false,
                 std::ptr::null_mut(),
@@ -1372,6 +1380,7 @@ mod tests {
                 environment,
                 &callbacks,
                 &imported_publication,
+                imported_host.read(),
             );
         }
         assert_eq!(compiled.get(), 1);
@@ -1505,6 +1514,7 @@ mod tests {
                 environment,
                 &callbacks,
                 &exposed_publication,
+                exposed_host.read(),
             );
         }
         assert_eq!(compiled.get(), 9);

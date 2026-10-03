@@ -62,10 +62,10 @@ GC::Ptr<HTMLImageElement> HTMLMapElement::first_image_with_focusable_shapes() co
     });
 }
 
-GC::Ptr<HTMLImageElement> HTMLMapElement::first_painted_image_with_focusable_shapes() const
+GC::Ptr<HTMLImageElement> HTMLMapElement::first_painted_image_with_focusable_shapes(Layout::BegunRead const& read) const
 {
-    return first_associated_image_matching([](HTMLImageElement& image_element) {
-        auto const* layout_node = image_element.layout_node();
+    return first_associated_image_matching([&read](HTMLImageElement& image_element) {
+        auto const* layout_node = image_element.layout_node(read);
         return layout_node && Painting::has_committed_box(*layout_node) && !image_element.is_inert();
     });
 }

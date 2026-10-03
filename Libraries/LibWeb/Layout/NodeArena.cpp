@@ -23,14 +23,14 @@ NodeArena::NodeArena(RenderDocument& render_document)
 
 NodeArena::~NodeArena() = default;
 
-void NodeArena::free_subtree(Compositing::RustFFI::NodeSlotId root)
+void NodeArena::free_subtree(Layout::BegunRead const& read, Compositing::RustFFI::NodeSlotId root)
 {
-    RustFFI::render_state_drop_subtree(host(), root);
+    RustFFI::render_state_drop_subtree(host(), &read, root);
 }
 
-Node* NodeArena::node_if_live(Compositing::RustFFI::NodeSlotId slot) const
+Node* NodeArena::node_if_live(Layout::BegunRead const& read, Compositing::RustFFI::NodeSlotId slot) const
 {
-    return static_cast<Node*>(RustFFI::render_state_node_shell_if_live(host(), slot));
+    return static_cast<Node*>(RustFFI::render_state_node_shell_if_live(host(), &read, slot));
 }
 
 u64 NodeArena::table_cell_measurement_cache_miss_count() const
@@ -50,7 +50,8 @@ u64 NodeArena::intrinsic_inline_measurement_count() const
 
 bool destroy_layout_subtree(Node& node)
 {
-    return RustFFI::render_state_drop_subtree(node.document_host(), Node::slot_id(&node));
+    auto const& read = node.held_read();
+    return RustFFI::render_state_drop_subtree(node.document_host(), &read, Node::slot_id(&node));
 }
 
 void NodeArena::start_reporting_box_presence(Badge<DOM::Document>)
@@ -73,7 +74,9 @@ void NodeArena::stop_reporting_box_presence(Badge<DOM::Document>)
 
 void NodeArena::commit_box_presence(DOM::Node& node)
 {
-    auto const* layout_node = node.unsafe_layout_node();
+    // The caller's own read of the render state.
+    Layout::ForcedReadScope read { node.document(), false };
+    auto const* layout_node = node.unsafe_layout_node(read);
     node.set_box_presence({}, layout_node, layout_node && Painting::has_committed_box(*layout_node));
 }
 

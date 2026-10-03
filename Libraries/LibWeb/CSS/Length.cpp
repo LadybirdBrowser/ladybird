@@ -158,7 +158,9 @@ double Length::container_relative_length_to_px_without_rounding(ResolutionContex
             return viewport_length.to_double();
         }
 
-        auto const* layout_node = query_container->unsafe_layout_node();
+        // The container's box is the resolution's own read of the render state.
+        Layout::ForcedReadScope read { query_container->document(), false };
+        auto const* layout_node = query_container->unsafe_layout_node(read);
         if (!layout_node || !Painting::has_committed_box(*layout_node)) {
             // A running partial relayout pass reports layout as up to date, but a container
             // with no paintable yet still needs the post-layout evaluation, which routes the
@@ -248,6 +250,7 @@ Length::ResolutionContext Length::ResolutionContext::for_document(DOM::Document 
 
 Length::ResolutionContext Length::ResolutionContext::for_layout_node(Layout::NodeWithStyle const& node)
 {
+    auto const& read = node.held_read();
     Layout::NodeWithStyle const* root_layout_node;
     DOM::Element const* subject_element = nullptr;
 
@@ -257,8 +260,8 @@ Length::ResolutionContext Length::ResolutionContext::for_layout_node(Layout::Nod
         auto const* root_element = node.document().document_element();
         VERIFY(root_element);
         // NB: Called during CSS length resolution, which may happen during style recalculation.
-        VERIFY(root_element->unsafe_layout_node());
-        root_layout_node = root_element->unsafe_layout_node();
+        VERIFY(root_element->unsafe_layout_node(read));
+        root_layout_node = root_element->unsafe_layout_node(read);
     }
 
     if (auto const* dom_node = node.dom_node(); dom_node && is<DOM::Element>(*dom_node))

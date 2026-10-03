@@ -76,27 +76,27 @@ Optional<DOM::BoundaryPoint> VisiblePosition::canonical_boundary_for_extension(W
     return DOM::BoundaryPoint { location->node, static_cast<WebIDL::UnsignedLong>(location->offset) };
 }
 
-static bool has_rendered_text_before(DOM::Text const& text, size_t offset)
+static bool has_rendered_text_before(Layout::BegunRead const& read, DOM::Text const& text, size_t offset)
 {
-    auto const* layout_node = text.layout_node();
+    auto const* layout_node = text.layout_node(read);
     if (!layout_node)
         return false;
     return Layout::RustFFI::render_state_text_has_rendered_text_before(layout_node->document_host(), Layout::Node::slot_id(layout_node), offset);
 }
 
-static bool has_rendered_text_after(DOM::Text const& text, size_t offset)
+static bool has_rendered_text_after(Layout::BegunRead const& read, DOM::Text const& text, size_t offset)
 {
-    auto const* layout_node = text.layout_node();
+    auto const* layout_node = text.layout_node(read);
     if (!layout_node)
         return false;
     return Layout::RustFFI::render_state_text_has_rendered_text_after(layout_node->document_host(), Layout::Node::slot_id(layout_node), offset);
 }
 
-static bool is_rendered_atomic_inline(DOM::Node const& node)
+static bool is_rendered_atomic_inline(Layout::BegunRead const& read, DOM::Node const& node)
 {
     // NB: is_before_or_after_containing_block() reaches this without updating layout first, so it
     //     has to read whatever layout it finds.
-    auto const* layout_node = node.unsafe_layout_node();
+    auto const* layout_node = node.unsafe_layout_node(read);
     return layout_node && layout_node->is_atomic_inline();
 }
 
@@ -122,12 +122,12 @@ static bool has_sibling_toward(DOM::Node const& node, DOM::Node const& block, Sc
     return false;
 }
 
-static AdjacentContent scan_adjacent_content(Web::Selection::CaretLocation const& position, DOM::Node& block, ScanDirection direction)
+static AdjacentContent scan_adjacent_content(Layout::BegunRead const& read, Web::Selection::CaretLocation const& position, DOM::Node& block, ScanDirection direction)
 {
     auto scan_backward = direction == ScanDirection::Backward;
     if (auto const* text = as_if<DOM::Text>(*position.node)) {
-        if ((scan_backward && has_rendered_text_before(*text, position.offset))
-            || (!scan_backward && has_rendered_text_after(*text, position.offset)))
+        if ((scan_backward && has_rendered_text_before(read, *text, position.offset))
+            || (!scan_backward && has_rendered_text_after(read, *text, position.offset)))
             return AdjacentContent::RenderedContent;
     }
 
@@ -166,9 +166,9 @@ static AdjacentContent scan_adjacent_content(Web::Selection::CaretLocation const
         if (is_block_node(*node))
             return AdjacentContent::ParagraphBoundary;
         if (auto const* text = as_if<DOM::Text>(*node); text
-            && (scan_backward ? has_rendered_text_before(*text, text->length()) : has_rendered_text_after(*text, 0)))
+            && (scan_backward ? has_rendered_text_before(read, *text, text->length()) : has_rendered_text_after(read, *text, 0)))
             return AdjacentContent::RenderedContent;
-        if (is_rendered_atomic_inline(*node))
+        if (is_rendered_atomic_inline(read, *node))
             return AdjacentContent::RenderedContent;
         node = scan_backward ? node->previous_in_pre_order() : node->next_in_pre_order(&block);
     }
@@ -177,42 +177,46 @@ static AdjacentContent scan_adjacent_content(Web::Selection::CaretLocation const
 
 bool VisiblePosition::is_start_of_paragraph() const
 {
+    Layout::ForcedReadScope read { *m_document, true };
     m_document->update_layout_if_needed_for_node(m_boundary.node, DOM::UpdateLayoutReason::CursorLineNavigation);
     auto block = block_node_of_node(m_boundary.node);
     if (!block)
         return false;
 
-    return scan_adjacent_content(m_boundary, *block, ScanDirection::Backward) != AdjacentContent::RenderedContent;
+    return scan_adjacent_content(read, m_boundary, *block, ScanDirection::Backward) != AdjacentContent::RenderedContent;
 }
 
 bool VisiblePosition::is_end_of_paragraph() const
 {
+    Layout::ForcedReadScope read { *m_document, true };
     m_document->update_layout_if_needed_for_node(m_boundary.node, DOM::UpdateLayoutReason::CursorLineNavigation);
     auto block = block_node_of_node(m_boundary.node);
     if (!block)
         return false;
 
-    return scan_adjacent_content(m_boundary, *block, ScanDirection::Forward) != AdjacentContent::RenderedContent;
+    return scan_adjacent_content(read, m_boundary, *block, ScanDirection::Forward) != AdjacentContent::RenderedContent;
 }
 
 bool VisiblePosition::is_start_of_containing_block() const
 {
+    Layout::ForcedReadScope read { *m_document, true };
     m_document->update_layout_if_needed_for_node(m_boundary.node, DOM::UpdateLayoutReason::CursorLineNavigation);
     auto block = block_node_of_node(m_boundary.node);
     if (!block)
         return false;
 
-    return scan_adjacent_content(m_boundary, *block, ScanDirection::Backward) == AdjacentContent::BlockBoundary;
+    return scan_adjacent_content(read, m_boundary, *block, ScanDirection::Backward) == AdjacentContent::BlockBoundary;
 }
 
 bool VisiblePosition::is_end_of_containing_block() const
 {
+    Layout::ForcedReadScope read { *m_document, true };
     m_document->update_layout_if_needed_for_node(m_boundary.node, DOM::UpdateLayoutReason::CursorLineNavigation);
     auto block = block_node_of_node(m_boundary.node);
     if (!block)
         return false;
 
-    return scan_adjacent_content(m_boundary, *block, ScanDirection::Forward) == AdjacentContent::BlockBoundary;
+    return scan_adjacent_content(read, m_boundary, *block, ScanDirection::Forward) == AdjacentContent::BlockBoundary;
 }
 
 bool VisiblePosition::is_before_or_after_containing_block() const
@@ -221,13 +225,16 @@ bool VisiblePosition::is_before_or_after_containing_block() const
     if (!block || m_deep_equivalent.node.ptr() != block.ptr())
         return false;
 
+    // The caller's own read of the render state.
+    Layout::ForcedReadScope read { block->document(), false };
+
     // INTEROP: Blink and WebKit Positions retain whether a block-owned offset is anchored before or after an atomic
     //          inline. DOM::BoundaryPoint has no anchor type, but an adjacent rendered atomic child proves that the
     //          position is inside the paragraph rather than outside its containing block.
     auto* child_after = block->child_at_index(m_deep_equivalent.offset);
     auto* child_before = m_deep_equivalent.offset > 0 ? block->child_at_index(m_deep_equivalent.offset - 1) : nullptr;
-    auto is_adjacent_atomic = [](DOM::Node const* child) {
-        return child && is_rendered_atomic_inline(*child);
+    auto is_adjacent_atomic = [&read](DOM::Node const* child) {
+        return child && is_rendered_atomic_inline(read, *child);
     };
     return !is_adjacent_atomic(child_before) && !is_adjacent_atomic(child_after);
 }

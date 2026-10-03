@@ -9,14 +9,17 @@
 #include <LibWeb/CSS/Enums.h>
 #include <LibWeb/CSS/Serialize.h>
 #include <LibWeb/CSS/StyleScope.h>
+#include <LibWeb/Layout/RenderDocument.h>
 
 namespace Web::CSS {
 
 RefPtr<CounterStyle const> CounterStyleStyleValue::resolve_counter_style(StyleScope const& style_scope) const
 {
+    // The caller's own read of the render state.
+    Layout::ForcedReadScope read { style_scope.document(), false };
     return value().visit(
         [&](Utf16FlyString const& name) -> RefPtr<CounterStyle const> {
-            return style_scope.get_registered_counter_style(name);
+            return style_scope.get_registered_counter_style(read, name);
         },
         [&](SymbolsFunction const& symbols_function) -> RefPtr<CounterStyle const> {
             // https://drafts.csswg.org/css-counter-styles-3/#symbols-function
@@ -60,7 +63,7 @@ RefPtr<CounterStyle const> CounterStyleStyleValue::resolve_counter_style(StyleSc
                 CounterStylePad { 0, ""_utf16_fly_string });
 
             // NB: We don't need to pass registered counter styles here since we don't rely on extension.
-            return CounterStyle::from_counter_style_definition(definition, style_scope);
+            return CounterStyle::from_counter_style_definition(read, definition, style_scope);
         });
 }
 

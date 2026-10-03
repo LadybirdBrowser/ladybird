@@ -15,6 +15,6 @@ class InsertedContent;
 // Remove inline declarations which merely repeat the inserted element's cascade context. Clipboard serializers use
 // such declarations to transport rendered appearance between documents, but retaining them after insertion would
 // make the pasted content unnecessarily override its new document.
-void remove_redundant_styles_from_inserted_content(InsertedContent&);
+void remove_redundant_styles_from_inserted_content(Layout::BegunRead const&, InsertedContent&);
 
 }

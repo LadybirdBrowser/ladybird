@@ -519,7 +519,7 @@ static CSSPixelRect transform_rect_to_local(Layout::Node const& layout_node, CSS
     return { top_left, { bottom_right.x() - top_left.x(), bottom_right.y() - top_left.y() } };
 }
 
-void NavigableContainer::report_content_navigable_viewport_rect()
+void NavigableContainer::report_content_navigable_viewport_rect(Layout::BegunRead const& read)
 {
     if (!m_content_navigable)
         return;
@@ -528,7 +528,7 @@ void NavigableContainer::report_content_navigable_viewport_rect()
     // document before it records.
     if (!document().layout_is_up_to_date())
         return;
-    auto const* layout_node = this->layout_node();
+    auto const* layout_node = this->layout_node(read);
     if (!layout_node || !Painting::is_navigable_container_viewport_paintable(*layout_node))
         return;
 
@@ -542,9 +542,11 @@ void NavigableContainer::report_content_navigable_viewport_rect()
     auto navigable = document().navigable();
     for (; navigable && !navigable->is_local_root();) {
         auto container = navigable->container();
-        if (container && !container->document().layout_is_up_to_date())
+        if (!container || !container->document().layout_is_up_to_date())
             return;
-        auto const* container_layout_node = container ? container->layout_node() : nullptr;
+        // Each container's box is a read of the render state of its own document.
+        Layout::ForcedReadScope container_read { container->document(), false };
+        auto const* container_layout_node = container->layout_node(container_read);
         if (!container_layout_node || !Painting::is_navigable_container_viewport_paintable(*container_layout_node))
             return;
         // The content box's origin is the origin of the child's viewport, and the transforms above the container

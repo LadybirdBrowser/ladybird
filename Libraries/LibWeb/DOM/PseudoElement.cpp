@@ -39,11 +39,11 @@ void SyntheticPseudoElement::visit_edges(JS::Cell::Visitor& visitor)
     visitor.visit(m_originating_element);
 }
 
-Layout::NodeWithStyle* SyntheticPseudoElement::unsafe_layout_node() const
+Layout::NodeWithStyle* SyntheticPseudoElement::unsafe_layout_node(Layout::BegunRead const& read) const
 {
     if (!m_originating_element)
         return nullptr;
-    return m_originating_element->pseudo_element_unsafe_layout_node(m_type);
+    return m_originating_element->pseudo_element_unsafe_layout_node(read, m_type);
 }
 
 void SyntheticPseudoElement::set_scroll_offset(CSSPixelPoint offset)
@@ -83,11 +83,13 @@ void SyntheticPseudoElement::update_animated_properties(Badge<Web::Animations::K
 void SyntheticPseudoElement::replace_style_record(CSS::StyleRecordID style_record_identity)
 {
     VERIFY(m_originating_element);
+    // The caller's own read of the render state.
+    Layout::ForcedReadScope read { m_originating_element->document(), false };
     auto old_style_record_identity = m_style_record_identity;
     if (old_style_record_identity == style_record_identity)
         return;
     m_style_record_identity = style_record_identity;
-    if (auto* layout_node = unsafe_layout_node())
+    if (auto* layout_node = unsafe_layout_node(read))
         layout_node->set_style_record_identity(style_record_identity);
 }
 
@@ -102,11 +104,15 @@ void SyntheticPseudoElement::set_computed_style(CSS::StyleRecordID style_record_
 
 void SyntheticPseudoElement::clear_computed_style(RefPtr<CSS::ComputedValues const> style_to_preserve_for_detachment)
 {
-    if (auto* layout_node = unsafe_layout_node()) {
-        if (style_to_preserve_for_detachment)
-            layout_node->set_computed_values(style_to_preserve_for_detachment.release_nonnull());
-        else
-            layout_node->pin_style_record_for_detachment();
+    if (m_originating_element) {
+        // The caller's own read of the render state.
+        Layout::ForcedReadScope read { m_originating_element->document(), false };
+        if (auto* layout_node = unsafe_layout_node(read)) {
+            if (style_to_preserve_for_detachment)
+                layout_node->set_computed_values(read, style_to_preserve_for_detachment.release_nonnull());
+            else
+                layout_node->pin_style_record_for_detachment();
+        }
     }
     m_style_record_identity = 0;
 }
@@ -133,14 +139,14 @@ void SyntheticPseudoElementTreeNode::visit_edges(JS::Cell::Visitor& visitor)
     TreeNode::visit_edges(visitor);
 }
 
-Layout::NodeWithStyle* ElementReferencePseudoElement::layout_node() const
+Layout::NodeWithStyle* ElementReferencePseudoElement::layout_node(Layout::BegunRead const& read) const
 {
-    return m_referenced_element->layout_node();
+    return m_referenced_element->layout_node(read);
 }
 
-Layout::NodeWithStyle* ElementReferencePseudoElement::unsafe_layout_node() const
+Layout::NodeWithStyle* ElementReferencePseudoElement::unsafe_layout_node(Layout::BegunRead const& read) const
 {
-    return m_referenced_element->unsafe_layout_node();
+    return m_referenced_element->unsafe_layout_node(read);
 }
 
 Node& ElementReferencePseudoElement::root() const

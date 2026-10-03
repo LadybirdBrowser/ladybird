@@ -644,10 +644,11 @@ void Selection::scroll_focus_into_view()
     if (!focus)
         return;
 
+    Layout::ForcedReadScope read { *m_document, true };
     m_document->update_layout(DOM::UpdateLayoutReason::ScrollCursorIntoView);
 
     if (auto* text = as_if<DOM::Text>(*focus))
-        Painting::scroll_text_offset_into_view(*text, focus_offset(), m_focus_affinity);
+        Painting::scroll_text_offset_into_view(read, *text, focus_offset(), m_focus_affinity);
 }
 
 }

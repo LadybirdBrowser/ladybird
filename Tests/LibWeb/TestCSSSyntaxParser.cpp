@@ -15,6 +15,7 @@
 #include <LibWeb/CSS/RustRule.h>
 #include <LibWeb/CSS/StyleEngineBridge.h>
 #include <LibWeb/CSS/StyleSheetImport.h>
+#include <LibWeb/Layout/RenderDocument.h>
 #include <LibWeb/SelectorRustFFI.h>
 #include <LibWeb/StyleValueRustFFI.h>
 #include <LibWeb/ValueParserRustFFI.h>
@@ -394,10 +395,11 @@ TEST_CASE(style_engine_expands_presentation_hint_shorthands_in_rust)
     // Border expands through intermediate shorthands such as border-width. Each resulting
     // longhand after the first must reuse the same immutable keyword value. The 17 longhands
     // comprise four widths, four styles, four colors, and five border-image properties.
+    Layout::ForcedReadScope read { engine.render_document(), false };
     for (size_t index = 0;; ++index) {
         StringView name;
         u64 value = 0;
-        VERIFY(engine.counter(index, name, value));
+        VERIFY(engine.counter(read, index, name, value));
         if (name == "specifiedValuesReused"sv) {
             EXPECT_EQ(value, 16ull);
             break;

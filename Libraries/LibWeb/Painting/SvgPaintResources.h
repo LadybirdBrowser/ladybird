@@ -11,6 +11,6 @@
 
 namespace Web::Painting {
 
-WEB_API bool sync_svg_paint_resources(DOM::Document&);
+WEB_API bool sync_svg_paint_resources(Layout::BegunRead const&, DOM::Document&);
 
 }

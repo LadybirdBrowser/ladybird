@@ -30,7 +30,7 @@ struct HitTestResult {
     bool is_text_fragment { false };
 
     DOM::Node* dom_node() const;
-    Layout::Node* layout_node() const { return layout_node_for_committed_slot(*arena, hit_node); }
+    Layout::Node* layout_node(Layout::BegunRead const& read) const { return layout_node_for_committed_slot(read, *arena, hit_node); }
 };
 
 // A boundary point that names its node instead of pointing at it. A node that left the tree since
@@ -54,8 +54,8 @@ struct WEB_API CaretPosition {
     GC::Ptr<DOM::Node> boundary_node() const;
     Optional<DOM::BoundaryPoint> boundary_point() const;
     // The layout node the boundary's node is bound to, found in the arena rather than asked of that node.
-    Layout::Node* boundary_layout_node() const;
-    Layout::Node* layout_node() const { return layout_node_for_committed_slot(*arena, paintable); }
+    Layout::Node* boundary_layout_node(Layout::BegunRead const& read) const;
+    Layout::Node* layout_node(Layout::BegunRead const& read) const { return layout_node_for_committed_slot(read, *arena, paintable); }
 };
 
 }

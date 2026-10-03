@@ -1078,20 +1078,24 @@ bool KeyframeEffect::can_skip_per_frame_style_update() const
         return true;
 
     auto target = this->target();
+    if (!target)
+        return false;
+    // Asking whether the target's boxes are throttled is the update's own read of the render state.
+    Layout::ForcedReadScope read { target->document(), false };
     auto cache_result = [&](bool result) {
-        if (target && target->document().layout_is_up_to_date()) {
+        if (target->document().layout_is_up_to_date()) {
             m_can_skip_per_frame_style_update_cache = CanSkipPerFrameStyleUpdateCache {
                 .target_style_generation = target->animation_style_generation(),
                 .target_subtree_style_generation = target->animation_subtree_style_generation(),
                 .target_is_connected = target->is_connected(),
-                .layout_node = target->unsafe_layout_node(),
+                .layout_node = target->unsafe_layout_node(read),
                 .result = result,
             };
         }
         return result;
     };
-    if (target && target->document().layout_is_up_to_date()) {
-        auto const* layout_node = target->unsafe_layout_node();
+    if (target->document().layout_is_up_to_date()) {
+        auto const* layout_node = target->unsafe_layout_node(read);
         if (m_can_skip_per_frame_style_update_cache.has_value()
             && m_can_skip_per_frame_style_update_cache->target_style_generation == target->animation_style_generation()
             && m_can_skip_per_frame_style_update_cache->target_subtree_style_generation == target->animation_subtree_style_generation()
@@ -1109,8 +1113,6 @@ bool KeyframeEffect::can_skip_per_frame_style_update() const
     if (!isinf(iteration_count()) || pseudo_element_type().has_value())
         return cache_result(false);
 
-    if (!target)
-        return false;
     if (!target->is_connected())
         return cache_result(true);
     bool has_animated_property = false;
@@ -1143,7 +1145,7 @@ bool KeyframeEffect::can_skip_per_frame_style_update() const
 
     if (!target->document().layout_is_up_to_date())
         return false;
-    auto const* layout_node = target->unsafe_layout_node();
+    auto const* layout_node = target->unsafe_layout_node(read);
     if (!layout_node || layout_node->visibility() != CSS::Visibility::Hidden)
         return cache_result(false);
 
@@ -1226,12 +1228,14 @@ bool KeyframeEffect::can_skip_per_frame_animation_tick() const
 
 static bool is_in_display_none_subtree_ignoring_animations(DOM::AbstractElement abstract_element)
 {
+    // The caller's own read of the render state.
+    Layout::ForcedReadScope read { abstract_element.document(), false };
     if (abstract_element.pseudo_element().has_value()) {
         auto const& style_engine = abstract_element.document().style_computer().style_engine();
-        if (CSS::style_record_display_is_none(style_engine, abstract_element.style_record_identity()))
+        if (CSS::style_record_display_is_none(read, style_engine, abstract_element.style_record_identity()))
             return true;
     }
-    return abstract_element.element().has_inclusive_ancestor_with_display_none_ignoring_animations();
+    return abstract_element.element().has_inclusive_ancestor_with_display_none_ignoring_animations(read);
 }
 
 void KeyframeEffect::update_computed_properties(AnimationUpdateContext& context)
@@ -1254,12 +1258,14 @@ void KeyframeEffect::update_computed_properties(AnimationUpdateContext& context)
 
 void KeyframeEffect::update_computed_properties_for_style(AnimationUpdateContext& context, DOM::AbstractElement abstract_element)
 {
+    // The caller's own read of the render state.
+    Layout::ForcedReadScope read { abstract_element.document(), false };
     auto& style_computer = abstract_element.element().document().style_computer();
-    auto& element_data = context.elements.ensure(abstract_element, [&abstract_element, &style_computer] {
+    auto& element_data = context.elements.ensure(abstract_element, [&abstract_element, &style_computer, &read] {
         auto style_record = abstract_element.style_record_identity();
         if (!style_record)
             return AnimationUpdateContext::ElementData {};
-        auto computed_properties = style_computer.reconstruct_computed_properties_for_animation(style_record);
+        auto computed_properties = style_computer.reconstruct_computed_properties_for_animation(read, style_record);
         return AnimationUpdateContext::ElementData { style_record, move(computed_properties) };
     });
 

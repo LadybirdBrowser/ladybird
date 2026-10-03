@@ -80,7 +80,7 @@ public:
     // Builds the animation of one target kind from the effect's keyframes and timing for the nodes
     // of the target's box, and keeps it pending. The builder in Rust lowers and validates the
     // keyframes.
-    BuildOutcome build(CompositorAnimationKeyframes const&, Layout::Node const&, Compositing::RustFFI::FfiVisualAnimationTargetKind, TimingAnchor);
+    BuildOutcome build(Layout::BegunRead const&, CompositorAnimationKeyframes const&, Layout::Node const&, Compositing::RustFFI::FfiVisualAnimationTargetKind, TimingAnchor);
     void discard_pending(Compositing::RustFFI::FfiVisualAnimationTargetKind);
     bool has_pending() const;
     void clear_pending();

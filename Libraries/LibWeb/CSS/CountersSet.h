@@ -19,7 +19,7 @@ namespace Web::CSS {
 using CounterValue = i32;
 
 // NB: The CSS counters sets live in the layout node arena, which resolves them during the layout tree build.
-bool innermost_list_item_counter_is_own_forward_counter(DOM::Element const&);
+bool innermost_list_item_counter_is_own_forward_counter(Layout::BegunRead const&, DOM::Element const&);
 
 Utf16FlyString const& list_item_counter_name();
 

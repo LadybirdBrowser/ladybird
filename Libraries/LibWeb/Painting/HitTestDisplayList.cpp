@@ -19,7 +19,7 @@
 
 namespace Web::Painting {
 
-NonnullRefPtr<HitTestDisplayList> HitTestDisplayList::create_from_rust_recording(u64 visual_context_tree_structural_epoch, Layout::NodeArena& arena, ChromeWidgetRegistry& chrome_widget_registry)
+NonnullRefPtr<HitTestDisplayList> HitTestDisplayList::create_from_rust_recording(Layout::BegunRead const& read, u64 visual_context_tree_structural_epoch, Layout::NodeArena& arena, ChromeWidgetRegistry& chrome_widget_registry)
 {
     auto list = adopt_ref(*new HitTestDisplayList(visual_context_tree_structural_epoch, arena, chrome_widget_registry, Layout::RustFFI::layout_hit_test_list_generation(arena.host())));
     struct VisitContext {
@@ -27,7 +27,7 @@ NonnullRefPtr<HitTestDisplayList> HitTestDisplayList::create_from_rust_recording
         ChromeWidgetRegistry& chrome_widget_registry;
     };
     VisitContext visit_context { arena, chrome_widget_registry };
-    Layout::RustFFI::layout_hit_test_visit_chrome_widgets(arena.host(), &visit_context,
+    Layout::RustFFI::layout_hit_test_visit_chrome_widgets(arena.host(), &read, &visit_context,
         [](void* sink, Compositing::RustFFI::NodeSlotId paintable, u8 chrome_widget_kind) {
             auto& context = *static_cast<VisitContext*>(sink);
             switch (static_cast<ChromeWidgetKind>(chrome_widget_kind)) {
@@ -60,9 +60,9 @@ bool HitTestDisplayList::is_current() const
     return m_rust_generation != 0 && Layout::RustFFI::layout_hit_test_list_generation(m_arena->host()) == m_rust_generation;
 }
 
-HitTestDisplayList::Item HitTestDisplayList::item(size_t index) const
+HitTestDisplayList::Item HitTestDisplayList::item(Layout::BegunRead const& read, size_t index) const
 {
-    return { index, Layout::RustFFI::layout_hit_test_item_facts(m_arena->host(), index) };
+    return { index, Layout::RustFFI::layout_hit_test_item_facts(m_arena->host(), &read, index) };
 }
 
 Optional<CSSPixelPoint> HitTestDisplayList::local_point_for_visual_context(Compositing::ContextRef context, CSSPixelPoint point, HitTestQuery const& query) const
@@ -153,52 +153,52 @@ Optional<HitTestDisplayList::TopmostItem> HitTestDisplayList::topmost_item_from(
     return TopmostItem { item.index, item.local };
 }
 
-Optional<HitTestDisplayList::TopmostItem> HitTestDisplayList::find_topmost_item(CSSPixelPoint point, HitTestQuery const& query) const
+Optional<HitTestDisplayList::TopmostItem> HitTestDisplayList::find_topmost_item(Layout::BegunRead const& read, CSSPixelPoint point, HitTestQuery const& query) const
 {
     QueryContext context { &query, &query.chrome_metrics(), nullptr };
-    return topmost_item_from(Layout::RustFFI::layout_hit_test_find_topmost_item(m_arena->host(), context.callbacks(), point));
+    return topmost_item_from(Layout::RustFFI::layout_hit_test_find_topmost_item(m_arena->host(), &read, context.callbacks(), point));
 }
 
-void HitTestDisplayList::find_topmost_items_for_caret(CSSPixelPoint point, HitTestQuery const& query, Optional<TopmostItem>& caret_item, Optional<TopmostItem>& hit_item) const
+void HitTestDisplayList::find_topmost_items_for_caret(Layout::BegunRead const& read, CSSPixelPoint point, HitTestQuery const& query, Optional<TopmostItem>& caret_item, Optional<TopmostItem>& hit_item) const
 {
     QueryContext context { &query, &query.chrome_metrics(), nullptr };
-    auto items = Layout::RustFFI::layout_hit_test_find_topmost_items_for_caret(m_arena->host(), context.callbacks(), point);
+    auto items = Layout::RustFFI::layout_hit_test_find_topmost_items_for_caret(m_arena->host(), &read, context.callbacks(), point);
     caret_item = topmost_item_from(items.caret_item);
     hit_item = topmost_item_from(items.hit_item);
 }
 
-Vector<size_t> HitTestDisplayList::hit_item_indices_topmost_first(CSSPixelPoint point, HitTestQuery const& query) const
+Vector<size_t> HitTestDisplayList::hit_item_indices_topmost_first(Layout::BegunRead const& read, CSSPixelPoint point, HitTestQuery const& query) const
 {
     QueryContext context { &query, &query.chrome_metrics(), nullptr };
     Vector<size_t> indices;
-    Layout::RustFFI::layout_hit_test_all(m_arena->host(), context.callbacks(), point, &indices, [](void* sink, size_t index) {
+    Layout::RustFFI::layout_hit_test_all(m_arena->host(), &read, context.callbacks(), point, &indices, [](void* sink, size_t index) {
         static_cast<Vector<size_t>*>(sink)->append(index);
     });
     return indices;
 }
 
-size_t HitTestDisplayList::item_index_at_line_edge(size_t line_index, CaretPositionType type) const
+size_t HitTestDisplayList::item_index_at_line_edge(Layout::BegunRead const& read, size_t line_index, CaretPositionType type) const
 {
-    return Layout::RustFFI::layout_hit_test_item_at_line_edge(m_arena->host(), line_index, to_underlying(type));
+    return Layout::RustFFI::layout_hit_test_item_at_line_edge(m_arena->host(), &read, line_index, to_underlying(type));
 }
 
-Optional<HitTestDisplayList::CaretItemForLine> HitTestDisplayList::caret_item_for_line(size_t line_index, CSSPixelPoint local_point, CaretPositionMode mode) const
+Optional<HitTestDisplayList::CaretItemForLine> HitTestDisplayList::caret_item_for_line(Layout::BegunRead const& read, size_t line_index, CSSPixelPoint local_point, CaretPositionMode mode) const
 {
-    auto result = Layout::RustFFI::layout_hit_test_caret_item_for_line(m_arena->host(), line_index, local_point, to_underlying(mode));
+    auto result = Layout::RustFFI::layout_hit_test_caret_item_for_line(m_arena->host(), &read, line_index, local_point, to_underlying(mode));
     if (!result.has_item)
         return {};
     return CaretItemForLine { result.item_index, static_cast<CaretPositionType>(result.position_type) };
 }
 
-bool HitTestDisplayList::item_is_inline_adjacent_to_line(size_t item_index, size_t line_index) const
+bool HitTestDisplayList::item_is_inline_adjacent_to_line(Layout::BegunRead const& read, size_t item_index, size_t line_index) const
 {
-    return Layout::RustFFI::layout_hit_test_item_is_inline_adjacent_to_line(m_arena->host(), item_index, line_index);
+    return Layout::RustFFI::layout_hit_test_item_is_inline_adjacent_to_line(m_arena->host(), &read, item_index, line_index);
 }
 
-HitTestDisplayList::ClosestLine HitTestDisplayList::find_closest_line(CSSPixelPoint point, HitTestQuery const& query, CaretPositionMode mode, DOM::Node const* scope_dom_node, Compositing::AccumulatedVisualContextTree::ClipBehavior clip_behavior) const
+HitTestDisplayList::ClosestLine HitTestDisplayList::find_closest_line(Layout::BegunRead const& read, CSSPixelPoint point, HitTestQuery const& query, CaretPositionMode mode, DOM::Node const* scope_dom_node, Compositing::AccumulatedVisualContextTree::ClipBehavior clip_behavior) const
 {
     QueryContext context { &query, nullptr, scope_dom_node };
-    auto result = Layout::RustFFI::layout_hit_test_find_closest_line(m_arena->host(), context.callbacks(), point, to_underlying(mode), scope_dom_node != nullptr, clip_behavior == Compositing::AccumulatedVisualContextTree::ClipBehavior::Respect);
+    auto result = Layout::RustFFI::layout_hit_test_find_closest_line(m_arena->host(), &read, context.callbacks(), point, to_underlying(mode), scope_dom_node != nullptr, clip_behavior == Compositing::AccumulatedVisualContextTree::ClipBehavior::Respect);
     ClosestLine closest_line;
     if (result.has_index)
         closest_line.index = result.index;
@@ -207,9 +207,9 @@ HitTestDisplayList::ClosestLine HitTestDisplayList::find_closest_line(CSSPixelPo
     return closest_line;
 }
 
-Layout::Node const* HitTestDisplayList::layout_node_for_item(Item item) const
+Layout::Node const* HitTestDisplayList::layout_node_for_item(Layout::BegunRead const& read, Item item) const
 {
-    return layout_node_for_committed_slot(*m_arena, item.paintable());
+    return layout_node_for_committed_slot(read, *m_arena, item.paintable());
 }
 
 RefPtr<ChromeWidget> HitTestDisplayList::chrome_widget_for_item(Item item) const
@@ -227,36 +227,36 @@ RefPtr<ChromeWidget> HitTestDisplayList::chrome_widget_for_item(Item item) const
     VERIFY_NOT_REACHED();
 }
 
-DOM::Node const* HitTestDisplayList::item_dom_node(size_t item_index) const
+DOM::Node const* HitTestDisplayList::item_dom_node(Layout::BegunRead const& read, size_t item_index) const
 {
     auto* document = m_arena->document();
     if (!document)
         return nullptr;
-    return item_identity(item_index).resolve(*document).ptr();
+    return item_identity(read, item_index).resolve(*document).ptr();
 }
 
-DOM::NodeIdentity HitTestDisplayList::item_identity(size_t item_index) const
+DOM::NodeIdentity HitTestDisplayList::item_identity(Layout::BegunRead const& read, size_t item_index) const
 {
-    return node_identity_of(Layout::RustFFI::layout_hit_test_item_target(m_arena->host(), item_index));
+    return node_identity_of(Layout::RustFFI::layout_hit_test_item_target(m_arena->host(), &read, item_index));
 }
 
-DOM::NodeIdentity HitTestDisplayList::event_dispatch_identity_for_item(size_t item_index) const
+DOM::NodeIdentity HitTestDisplayList::event_dispatch_identity_for_item(Layout::BegunRead const& read, size_t item_index) const
 {
-    return node_identity_of(Layout::RustFFI::layout_hit_test_item_dispatch_target(m_arena->host(), item_index));
+    return node_identity_of(Layout::RustFFI::layout_hit_test_item_dispatch_target(m_arena->host(), &read, item_index));
 }
 
-DOM::Node const* HitTestDisplayList::event_dispatch_dom_node_for_item(size_t item_index) const
+DOM::Node const* HitTestDisplayList::event_dispatch_dom_node_for_item(Layout::BegunRead const& read, size_t item_index) const
 {
     auto* document = m_arena->document();
     if (!document)
         return nullptr;
-    return event_dispatch_identity_for_item(item_index).resolve(*document).ptr();
+    return event_dispatch_identity_for_item(read, item_index).resolve(*document).ptr();
 }
 
-bool HitTestDisplayList::item_is_direct_caret_target(size_t item_index) const
+bool HitTestDisplayList::item_is_direct_caret_target(Layout::BegunRead const& read, size_t item_index) const
 {
-    auto identity = item_identity(item_index);
-    return !identity.is_none() && identity == event_dispatch_identity_for_item(item_index);
+    auto identity = item_identity(read, item_index);
+    return !identity.is_none() && identity == event_dispatch_identity_for_item(read, item_index);
 }
 
 // https://html.spec.whatwg.org/multipage/image-maps.html#image-map-processing-model
@@ -273,12 +273,12 @@ static DOM::NodeIdentity image_map_area_for_point(Layout::Node const& layout_nod
     return DOM::NodeIdentity::of_style_node(CSS::StyleNodeID { area });
 }
 
-HitTestResult HitTestDisplayList::hit_test_result_for_item(Item item, CSSPixelPoint local_point) const
+HitTestResult HitTestDisplayList::hit_test_result_for_item(Layout::BegunRead const& read, Item item, CSSPixelPoint local_point) const
 {
-    auto const* paintable_layout_node = layout_node_for_item(item);
+    auto const* paintable_layout_node = layout_node_for_item(read, item);
     auto hit_node = item.hit_node();
 
-    auto const* named_layout_node = layout_node_for_committed_slot(*m_arena, hit_node);
+    auto const* named_layout_node = layout_node_for_committed_slot(read, *m_arena, hit_node);
     VERIFY(named_layout_node && as<Layout::NodeWithStyle>(*named_layout_node).pointer_events() != CSS::PointerEvents::None);
 
     // https://drafts.csswg.org/cssom-view/#dom-document-elementfrompoint
@@ -292,13 +292,13 @@ HitTestResult HitTestDisplayList::hit_test_result_for_item(Item item, CSSPixelPo
     GC::Ptr<DOM::Node> root_element;
     if (paintable_layout_node && paintable_layout_node->kind() == Layout::RustFFI::NodeKind::Viewport) {
         auto* named_element = const_cast<DOM::Element*>(paintable_layout_node->document().document_element());
-        if (auto* root_layout_node = named_element ? named_element->unsafe_layout_node() : nullptr; root_layout_node && has_committed_box(*root_layout_node)) {
+        if (auto* root_layout_node = named_element ? named_element->unsafe_layout_node(read) : nullptr; root_layout_node && has_committed_box(*root_layout_node)) {
             root_element = named_element;
             hit_node = committed_row_slot(*root_layout_node);
         }
     }
 
-    auto resolved = Layout::RustFFI::layout_hit_test_resolve_hit(m_arena->host(), item.index(), local_point);
+    auto resolved = Layout::RustFFI::layout_hit_test_resolve_hit(m_arena->host(), &read, item.index(), local_point);
     auto identity = DOM::NodeIdentity::of(root_element.ptr());
     // NB: Style runs before layout, so a laid-out document's style engine tracks its tree and every connected element
     //     in it has a StyleNodeID.
@@ -324,9 +324,9 @@ HitTestResult HitTestDisplayList::hit_test_result_for_item(Item item, CSSPixelPo
     return result;
 }
 
-Optional<CaretPosition> HitTestDisplayList::caret_position_for_item(Item item, CSSPixelPoint local_point, CaretPositionType type) const
+Optional<CaretPosition> HitTestDisplayList::caret_position_for_item(Layout::BegunRead const& read, Item item, CSSPixelPoint local_point, CaretPositionType type) const
 {
-    auto resolved = Layout::RustFFI::layout_hit_test_resolve_caret(m_arena->host(), item.index(), local_point, to_underlying(type));
+    auto resolved = Layout::RustFFI::layout_hit_test_resolve_caret(m_arena->host(), &read, item.index(), local_point, to_underlying(type));
     if (!resolved.has_position)
         return {};
     auto* document = m_arena->document();
@@ -379,9 +379,9 @@ Optional<CaretPosition> HitTestDisplayList::caret_position_for_item(Item item, C
     };
 }
 
-Optional<CaretPosition> HitTestDisplayList::caret_position_for_hit_container(Item item) const
+Optional<CaretPosition> HitTestDisplayList::caret_position_for_hit_container(Layout::BegunRead const& read, Item item) const
 {
-    auto dom_node = item_dom_node(item.index());
+    auto dom_node = item_dom_node(read, item.index());
     if (!dom_node)
         return {};
 
@@ -393,57 +393,57 @@ Optional<CaretPosition> HitTestDisplayList::caret_position_for_hit_container(Ite
     };
 }
 
-Optional<CaretPosition> HitTestDisplayList::caret_position_at_line_edge(DOM::Node const& node, size_t offset, TextAffinity affinity, CaretLineEdge edge) const
+Optional<CaretPosition> HitTestDisplayList::caret_position_at_line_edge(Layout::BegunRead const& read, DOM::Node const& node, size_t offset, TextAffinity affinity, CaretLineEdge edge) const
 {
     if (!is_current())
         return {};
     CaretPositionQueryContext context { node, offset };
-    auto line = Layout::RustFFI::layout_hit_test_caret_line_for_position(m_arena->host(), context.query, offset, affinity == TextAffinity::Downstream);
+    auto line = Layout::RustFFI::layout_hit_test_caret_line_for_position(m_arena->host(), &read, context.query, offset, affinity == TextAffinity::Downstream);
     if (!line.has_line)
         return {};
     auto type = edge == CaretLineEdge::Start ? CaretPositionType::Before : CaretPositionType::After;
-    return caret_position_for_item(item(item_index_at_line_edge(line.line_index, type)), {}, type);
+    return caret_position_for_item(read, item(read, item_index_at_line_edge(read, line.line_index, type)), {}, type);
 }
 
-Optional<CaretPosition> HitTestDisplayList::caret_position_on_adjacent_line(DOM::Node const& node, size_t offset, TextAffinity affinity, CaretLineDirection direction, CSSPixels inline_coordinate, DOM::Node const& scope) const
+Optional<CaretPosition> HitTestDisplayList::caret_position_on_adjacent_line(Layout::BegunRead const& read, DOM::Node const& node, size_t offset, TextAffinity affinity, CaretLineDirection direction, CSSPixels inline_coordinate, DOM::Node const& scope) const
 {
     if (!is_current())
         return {};
     CaretPositionQueryContext position_context { node, offset };
-    auto current_line = Layout::RustFFI::layout_hit_test_caret_line_for_position(m_arena->host(), position_context.query, offset, affinity == TextAffinity::Downstream);
+    auto current_line = Layout::RustFFI::layout_hit_test_caret_line_for_position(m_arena->host(), &read, position_context.query, offset, affinity == TextAffinity::Downstream);
     if (!current_line.has_line)
         return {};
 
     // INTEROP: Vertical caret movement in Chromium, WebKit, and Gecko follows rendered line geometry rather than DOM
     QueryContext context { nullptr, nullptr, &scope };
-    auto adjacent = Layout::RustFFI::layout_hit_test_adjacent_line(m_arena->host(), context.callbacks(), current_line.line_index, direction == CaretLineDirection::Next ? 1 : 0, inline_coordinate.raw_value());
+    auto adjacent = Layout::RustFFI::layout_hit_test_adjacent_line(m_arena->host(), &read, context.callbacks(), current_line.line_index, direction == CaretLineDirection::Next ? 1 : 0, inline_coordinate.raw_value());
     if (!adjacent.has_line)
         return {};
     // Reuse point-to-caret resolution after choosing the line so text, atomic boxes, and empty lines share one rule for
     // selecting the position closest to the preferred inline coordinate.
-    return caret_position_for_line(adjacent.line_index, { CSSPixels::from_raw(adjacent.point_x), CSSPixels::from_raw(adjacent.point_y) }, CaretPositionMode::Normal);
+    return caret_position_for_line(read, adjacent.line_index, { CSSPixels::from_raw(adjacent.point_x), CSSPixels::from_raw(adjacent.point_y) }, CaretPositionMode::Normal);
 }
 
-Optional<CSSPixels> HitTestDisplayList::caret_line_block_coordinate(DOM::Node const& node, size_t offset, TextAffinity affinity) const
+Optional<CSSPixels> HitTestDisplayList::caret_line_block_coordinate(Layout::BegunRead const& read, DOM::Node const& node, size_t offset, TextAffinity affinity) const
 {
     if (!is_current())
         return {};
     CaretPositionQueryContext context { node, offset };
-    auto line = Layout::RustFFI::layout_hit_test_caret_line_for_position(m_arena->host(), context.query, offset, affinity == TextAffinity::Downstream);
+    auto line = Layout::RustFFI::layout_hit_test_caret_line_for_position(m_arena->host(), &read, context.query, offset, affinity == TextAffinity::Downstream);
     if (!line.has_line)
         return {};
-    return CSSPixels::from_raw(Layout::RustFFI::layout_hit_test_line_block_coordinate(m_arena->host(), line.line_index));
+    return CSSPixels::from_raw(Layout::RustFFI::layout_hit_test_line_block_coordinate(m_arena->host(), &read, line.line_index));
 }
 
-Optional<CaretPosition> HitTestDisplayList::caret_position_for_line(size_t line_index, CSSPixelPoint local_point, CaretPositionMode mode) const
+Optional<CaretPosition> HitTestDisplayList::caret_position_for_line(Layout::BegunRead const& read, size_t line_index, CSSPixelPoint local_point, CaretPositionMode mode) const
 {
-    auto caret_item = caret_item_for_line(line_index, local_point, mode);
+    auto caret_item = caret_item_for_line(read, line_index, local_point, mode);
     if (!caret_item.has_value())
         return {};
-    return caret_position_for_item(item(caret_item->item_index), local_point, caret_item->type);
+    return caret_position_for_item(read, item(read, caret_item->item_index), local_point, caret_item->type);
 }
 
-Optional<CaretPosition> HitTestDisplayList::caret_position_from_point(CSSPixelPoint point, HitTestQuery const& query, CaretPositionMode mode, GC::Ptr<DOM::Node const> constraint_scope) const
+Optional<CaretPosition> HitTestDisplayList::caret_position_from_point(Layout::BegunRead const& read, CSSPixelPoint point, HitTestQuery const& query, CaretPositionMode mode, GC::Ptr<DOM::Node const> constraint_scope) const
 {
     // First find both the topmost hit-test item and the topmost item that can directly produce a caret.
     // Non-caret items are still needed to keep later line fallback scoped to the hit content.
@@ -451,15 +451,15 @@ Optional<CaretPosition> HitTestDisplayList::caret_position_from_point(CSSPixelPo
     //        planes inside 3D rendering contexts.
     Optional<TopmostItem> topmost_item;
     Optional<TopmostItem> topmost_hit_item;
-    find_topmost_items_for_caret(point, query, topmost_item, topmost_hit_item);
+    find_topmost_items_for_caret(read, point, query, topmost_item, topmost_hit_item);
 
     Optional<Item> topmost_hit_facts;
     if (topmost_hit_item.has_value())
-        topmost_hit_facts = item(topmost_hit_item->index);
+        topmost_hit_facts = item(read, topmost_hit_item->index);
 
     // A constrained search only accepts direct hits inside the constraint scope.
     if (constraint_scope && topmost_item.has_value()) {
-        auto const* item_node = item_dom_node(topmost_item->index);
+        auto const* item_node = item_dom_node(read, topmost_item->index);
         if (!item_node || !constraint_scope->is_inclusive_ancestor_of(*item_node))
             topmost_item = {};
     }
@@ -468,11 +468,11 @@ Optional<CaretPosition> HitTestDisplayList::caret_position_from_point(CSSPixelPo
     auto topmost_caret_item_matches_hit_item = [&] {
         return topmost_hit_item.has_value()
             && topmost_item->index == topmost_hit_item->index
-            && item_is_direct_caret_target(topmost_item->index);
+            && item_is_direct_caret_target(read, topmost_item->index);
     };
     if (topmost_item.has_value() && (constraint_scope || !topmost_hit_item.has_value() || topmost_caret_item_matches_hit_item())) {
-        auto item_facts = item(topmost_item->index);
-        if (auto caret_position = caret_position_for_item(item_facts, topmost_item->local_point); caret_position.has_value()) {
+        auto item_facts = item(read, topmost_item->index);
+        if (auto caret_position = caret_position_for_item(read, item_facts, topmost_item->local_point); caret_position.has_value()) {
             if (caret_position->debug_rect.has_value())
                 caret_position->debug_rect = viewport_rect_for_context(item_facts.context().spatial, *caret_position->debug_rect, query);
             return caret_position;
@@ -485,19 +485,19 @@ Optional<CaretPosition> HitTestDisplayList::caret_position_from_point(CSSPixelPo
     if (constraint_scope) {
         line_scope_dom_node = constraint_scope.ptr();
     } else if (topmost_hit_item.has_value()) {
-        if (!topmost_hit_facts->can_produce_caret_position() || !item_is_direct_caret_target(topmost_hit_item->index))
-            line_scope_dom_node = event_dispatch_dom_node_for_item(topmost_hit_item->index);
+        if (!topmost_hit_facts->can_produce_caret_position() || !item_is_direct_caret_target(read, topmost_hit_item->index))
+            line_scope_dom_node = event_dispatch_dom_node_for_item(read, topmost_hit_item->index);
     }
 
     // A constrained search must find a line even when the point is outside the scope's clipped area (e.g. dragging
     // a selection outside a textarea), so it transforms points without rejecting them against clips.
     auto clip_behavior = constraint_scope ? Compositing::AccumulatedVisualContextTree::ClipBehavior::Ignore : Compositing::AccumulatedVisualContextTree::ClipBehavior::Respect;
 
-    auto closest_line = find_closest_line(point, query, mode, line_scope_dom_node, clip_behavior);
+    auto closest_line = find_closest_line(read, point, query, mode, line_scope_dom_node, clip_behavior);
     if (line_scope_dom_node && !constraint_scope) {
         // The scoped search is only a guard against unrelated nearby content. If there is a plainly closer line
         // outside the scope, use it instead.
-        auto unscoped_closest_line = find_closest_line(point, query, mode, nullptr, clip_behavior);
+        auto unscoped_closest_line = find_closest_line(read, point, query, mode, nullptr, clip_behavior);
         if (!closest_line.index.has_value()
             || (unscoped_closest_line.index.has_value() && unscoped_closest_line.block_distance < closest_line.block_distance)) {
             closest_line = unscoped_closest_line;
@@ -506,29 +506,29 @@ Optional<CaretPosition> HitTestDisplayList::caret_position_from_point(CSSPixelPo
 
     if (!closest_line.index.has_value()) {
         if (!constraint_scope && topmost_hit_item.has_value()) {
-            auto caret_position = caret_position_for_hit_container(*topmost_hit_facts);
+            auto caret_position = caret_position_for_hit_container(read, *topmost_hit_facts);
             if (caret_position.has_value() && caret_position->debug_rect.has_value())
                 caret_position->debug_rect = viewport_rect_for_context(topmost_hit_facts->context().spatial, *caret_position->debug_rect, query);
             return caret_position;
         }
         return {};
     }
-    auto caret_position = caret_position_for_line(*closest_line.index, closest_line.local_point, mode);
+    auto caret_position = caret_position_for_line(read, *closest_line.index, closest_line.local_point, mode);
     if (!caret_position.has_value())
         return {};
     if (caret_position->debug_rect.has_value())
-        caret_position->debug_rect = viewport_rect_for_context(caret_line(*closest_line.index).context.spatial, *caret_position->debug_rect, query);
+        caret_position->debug_rect = viewport_rect_for_context(caret_line(read, *closest_line.index).context.spatial, *caret_position->debug_rect, query);
 
     if (!constraint_scope && topmost_hit_item.has_value()) {
         auto caret_boundary_node = caret_position->boundary_node();
-        if (auto const* topmost_hit_dom_node = event_dispatch_dom_node_for_item(topmost_hit_item->index); topmost_hit_dom_node && caret_boundary_node && !topmost_hit_dom_node->is_inclusive_ancestor_of(*caret_boundary_node)) {
-            if (topmost_hit_facts->can_produce_caret_position() && item_is_direct_caret_target(topmost_hit_item->index)) {
-                auto caret_position_for_topmost_hit_item = caret_position_for_item(*topmost_hit_facts, topmost_hit_item->local_point);
+        if (auto const* topmost_hit_dom_node = event_dispatch_dom_node_for_item(read, topmost_hit_item->index); topmost_hit_dom_node && caret_boundary_node && !topmost_hit_dom_node->is_inclusive_ancestor_of(*caret_boundary_node)) {
+            if (topmost_hit_facts->can_produce_caret_position() && item_is_direct_caret_target(read, topmost_hit_item->index)) {
+                auto caret_position_for_topmost_hit_item = caret_position_for_item(read, *topmost_hit_facts, topmost_hit_item->local_point);
                 if (caret_position_for_topmost_hit_item.has_value() && caret_position_for_topmost_hit_item->debug_rect.has_value())
                     caret_position_for_topmost_hit_item->debug_rect = viewport_rect_for_context(topmost_hit_facts->context().spatial, *caret_position_for_topmost_hit_item->debug_rect, query);
                 return caret_position_for_topmost_hit_item;
             }
-            if (item_is_inline_adjacent_to_line(topmost_hit_item->index, *closest_line.index))
+            if (item_is_inline_adjacent_to_line(read, topmost_hit_item->index, *closest_line.index))
                 return caret_position;
             return {};
         }
@@ -537,22 +537,22 @@ Optional<CaretPosition> HitTestDisplayList::caret_position_from_point(CSSPixelPo
     return caret_position;
 }
 
-Optional<HitTestResult> HitTestDisplayList::hit_test(CSSPixelPoint point, HitTestQuery const& query) const
+Optional<HitTestResult> HitTestDisplayList::hit_test(Layout::BegunRead const& read, CSSPixelPoint point, HitTestQuery const& query) const
 {
-    auto topmost_item = find_topmost_item(point, query);
+    auto topmost_item = find_topmost_item(read, point, query);
     if (!topmost_item.has_value())
         return {};
-    return hit_test_result_for_item(item(topmost_item->index), topmost_item->local_point);
+    return hit_test_result_for_item(read, item(read, topmost_item->index), topmost_item->local_point);
 }
 
-TraversalDecision HitTestDisplayList::hit_test_all(CSSPixelPoint point, HitTestQuery const& query, Function<TraversalDecision(HitTestResult)> const& callback) const
+TraversalDecision HitTestDisplayList::hit_test_all(Layout::BegunRead const& read, CSSPixelPoint point, HitTestQuery const& query, Function<TraversalDecision(HitTestResult)> const& callback) const
 {
-    for (auto item_index : hit_item_indices_topmost_first(point, query)) {
-        auto item_facts = item(item_index);
+    for (auto item_index : hit_item_indices_topmost_first(read, point, query)) {
+        auto item_facts = item(read, item_index);
         auto local_point = local_point_for_visual_context(item_facts.context(), point, query);
         if (!local_point.has_value())
             continue;
-        if (callback(hit_test_result_for_item(item_facts, *local_point)) == TraversalDecision::Break)
+        if (callback(hit_test_result_for_item(read, item_facts, *local_point)) == TraversalDecision::Break)
             return TraversalDecision::Break;
     }
 

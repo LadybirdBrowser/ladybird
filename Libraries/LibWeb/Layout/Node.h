@@ -58,6 +58,9 @@ public:
     u32 arena_slot_index() const { return m_slot.index; }
     NodeArena& node_arena() const { return *m_arena; }
     RustFFI::DocumentHost* document_host() const;
+    // The read this node was reached in, which it lends the calls the host makes about its document: a layout node is
+    // reached only through an entry that takes a read, which took the document's frame in.
+    BegunRead const& held_read() const { return *RustFFI::layout_row_read_of_held_node(document_host()); }
 
     Compositing::RustFFI::NodeSlotId linked_slot(RustFFI::FfiNodeLink link) const { return RustFFI::layout_row_link_slot(document_host(), m_slot, link); }
     bool has_parent() const { return linked_slot(RustFFI::FfiNodeLink::Parent).index != Compositing::RustFFI::INVALID_NODE_SLOT_INDEX; }
@@ -662,7 +665,7 @@ public:
     bool is_body() const { return has_identity_flag<RustFFI::NodeFlag::IsBody>(); }
     bool is_scroll_container() const;
 
-    void set_computed_values(NonnullRefPtr<CSS::ComputedValues const>);
+    void set_computed_values(Layout::BegunRead const& read, NonnullRefPtr<CSS::ComputedValues const>);
     void set_style_record_identity(CSS::StyleRecordID);
     void refresh_style_from_arena(CSS::StyleRecordID, void const* payloads, bool should_attach_resources);
     // The pin lives on the node's arena row and is released with it, so

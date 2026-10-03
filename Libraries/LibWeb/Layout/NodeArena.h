@@ -34,9 +34,10 @@ public:
     explicit NodeArena(RenderDocument&);
     ~NodeArena();
 
-    void free_subtree(Compositing::RustFFI::NodeSlotId);
-    Node* node_if_live(Compositing::RustFFI::NodeSlotId) const;
+    void free_subtree(Layout::BegunRead const& read, Compositing::RustFFI::NodeSlotId);
+    Node* node_if_live(Layout::BegunRead const& read, Compositing::RustFFI::NodeSlotId) const;
     RustFFI::DocumentHost* host() const { return m_render_document->host(); }
+    RenderDocument const& render_document() const { return *m_render_document; }
     u64 table_cell_measurement_cache_miss_count() const;
     u64 intrinsic_measurement_count() const;
     u64 intrinsic_inline_measurement_count() const;

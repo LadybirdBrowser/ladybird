@@ -56,17 +56,17 @@ void HTMLBRElement::apply_presentational_hints(Vector<CSS::StyleProperty>& prope
 }
 
 // Rendered inline content that would appear before a <br> on its line.
-static bool is_rendered_inline_content(DOM::Node const& node)
+static bool is_rendered_inline_content(Layout::BegunRead const& read, DOM::Node const& node)
 {
     if (auto const* text = as_if<DOM::Text>(node)) {
-        for (auto const& line : collect_visual_lines(*text)) {
+        for (auto const& line : collect_visual_lines(read, *text)) {
             if (line.has_fragments)
                 return true;
         }
         return false;
     }
     if (auto const* element = as_if<DOM::Element>(node)) {
-        auto const* layout_node = element->layout_node();
+        auto const* layout_node = element->layout_node(read);
         if (!layout_node)
             return false;
         if (layout_node->is_replaced_box())
@@ -79,12 +79,12 @@ static bool is_rendered_inline_content(DOM::Node const& node)
 
 // NB: Layout produces no fragments for <br>, so this walks the DOM back to the start of the containing block or a
 //     previous <br>, whichever comes first.
-bool HTMLBRElement::represents_empty_line() const
+bool HTMLBRElement::represents_empty_line(Layout::BegunRead const& read) const
 {
-    if (!layout_node())
+    if (!layout_node(read))
         return false;
 
-    auto const* containing_block = layout_node()->containing_block();
+    auto const* containing_block = layout_node(read)->containing_block();
     if (!containing_block)
         return false;
     auto const* containing_block_dom_node = containing_block->dom_node();
@@ -96,7 +96,7 @@ bool HTMLBRElement::represents_empty_line() const
             break;
         if (is<HTMLBRElement>(*previous))
             return true;
-        if (is_rendered_inline_content(*previous))
+        if (is_rendered_inline_content(read, *previous))
             return false;
     }
     return true;

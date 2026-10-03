@@ -980,7 +980,9 @@ void ConnectionFromClient::debug_request(Web::PageId page_id, ByteString request
     if (request == "dump-layout-tree") {
         if (auto doc = page->page().local_traversable()->active_document()) {
             page->page().local_traversable()->update_layout_of_hosted_inclusive_descendant_documents(Web::DOM::UpdateLayoutReason::Debugging);
-            if (auto* viewport = doc->layout_node())
+            // The dump's own read of the document's render state.
+            Web::Layout::ForcedReadScope read { *doc, false };
+            if (auto* viewport = doc->layout_node(read))
                 Web::dump_tree(*viewport);
         }
         return;
@@ -988,11 +990,13 @@ void ConnectionFromClient::debug_request(Web::PageId page_id, ByteString request
 
     if (request == "dump-stacking-context-tree") {
         if (auto doc = page->page().local_traversable()->active_document()) {
-            if (doc->layout_node()) {
+            // The dump's own read of the document's render state.
+            Web::Layout::ForcedReadScope read { *doc, false };
+            if (doc->layout_node(read)) {
                 VERIFY(doc->has_committed_viewport_box());
                 doc->update_paint_and_hit_testing_properties_if_needed();
                 StringBuilder builder;
-                Web::Painting::dump_stacking_context_tree(builder, *doc);
+                Web::Painting::dump_stacking_context_tree(read, builder, *doc);
                 dbgln("{}", builder.string_view());
             }
         }
@@ -1322,11 +1326,12 @@ void ConnectionFromClient::inspect_dom_node(Web::PageId page_id, WebView::DOMNod
         return;
     }
 
+    Web::Layout::ForcedReadScope read { node->document(), false };
     node->document().update_layout(Web::DOM::UpdateLayoutReason::Debugging);
 
     // Nodes without layout (aka non-visible nodes) do not have box metrics, but DevTools can still ask for their style
     // rules and computed properties.
-    if (property_type == WebView::DOMNodeProperties::Type::Layout && !node->layout_node()) {
+    if (property_type == WebView::DOMNodeProperties::Type::Layout && !node->layout_node(read)) {
         async_did_inspect_dom_node(page_id, { property_type, {} });
         return;
     }
@@ -1413,7 +1418,7 @@ void ConnectionFromClient::inspect_dom_node(Web::PageId page_id, WebView::DOMNod
         auto const& options = options_value.is_object() ? options_value.as_object() : empty_options;
         auto include_inherited = options.get_bool("inherited"sv).value_or(false);
         auto include_user_agent_styles = options.get_string("filter"sv).map([](auto const& filter) { return filter == "ua"sv; }).value_or(false);
-        return node->document().style_computer().collect_devtools_applied_style_rules(abstract_element, include_inherited, include_user_agent_styles);
+        return node->document().style_computer().collect_devtools_applied_style_rules(read, abstract_element, include_inherited, include_user_agent_styles);
     };
 
     JsonValue serialized;
@@ -1426,7 +1431,7 @@ void ConnectionFromClient::inspect_dom_node(Web::PageId page_id, WebView::DOMNod
         serialized = serialize_computed_style();
         break;
     case WebView::DOMNodeProperties::Type::Layout:
-        serialized = serialize_layout(element.layout_node());
+        serialized = serialize_layout(element.layout_node(read));
         break;
     case WebView::DOMNodeProperties::Type::UsedFonts:
         serialized = serialize_used_fonts();
@@ -1438,7 +1443,9 @@ void ConnectionFromClient::inspect_dom_node(Web::PageId page_id, WebView::DOMNod
 
 static Optional<JsonObject> flex_layout_for_node(Web::DOM::Node const& node)
 {
-    auto const* layout_node = node.layout_node();
+    // The inspector's own read of the node's render state.
+    Web::Layout::ForcedReadScope read { node.document(), false };
+    auto const* layout_node = node.layout_node(read);
     if (!layout_node || !Web::Painting::has_committed_box(*layout_node))
         return {};
 
@@ -1453,7 +1460,9 @@ static Optional<JsonObject> flex_layout_for_node(Web::DOM::Node const& node)
 
 static Optional<JsonObject> grid_layout_for_node(Web::DOM::Node const& node)
 {
-    auto const* layout_node = node.layout_node();
+    // The inspector's own read of the node's render state.
+    Web::Layout::ForcedReadScope read { node.document(), false };
+    auto const* layout_node = node.layout_node(read);
     if (!layout_node || !Web::Painting::has_committed_box(*layout_node))
         return {};
 
@@ -1682,8 +1691,9 @@ void ConnectionFromClient::highlight_dom_node(Web::PageId page_id, Web::UniqueNo
     if (!navigable || navigable->active_document() != GC::Ref { document })
         return;
 
+    Web::Layout::ForcedReadScope read { document, false };
     document.update_layout(Web::DOM::UpdateLayoutReason::Debugging);
-    if (!node->layout_node())
+    if (!node->layout_node(read))
         return;
 
     document.set_highlighted_node(node, pseudo_element);
@@ -1738,8 +1748,9 @@ void ConnectionFromClient::highlight_flexbox(Web::PageId page_id, Web::UniqueNod
         return;
 
     auto& document = node->document();
+    Web::Layout::ForcedReadScope read { document, false };
     document.update_layout(Web::DOM::UpdateLayoutReason::Debugging);
-    if (!node->layout_node())
+    if (!node->layout_node(read))
         return;
 
     document.set_flexbox_highlighted_node(node, flexbox_inspector_overlay_options_from_json(options));
@@ -1775,8 +1786,9 @@ void ConnectionFromClient::highlight_grid(Web::PageId page_id, Web::UniqueNodeID
         return;
 
     auto& document = node->document();
+    Web::Layout::ForcedReadScope read { document, false };
     document.update_layout(Web::DOM::UpdateLayoutReason::Debugging);
-    if (!node->layout_node())
+    if (!node->layout_node(read))
         return;
 
     document.set_grid_highlighted_node(node, grid_inspector_overlay_options_from_json(options));
@@ -2365,7 +2377,9 @@ static void append_layout_tree(Web::Page& page, StringBuilder& builder)
 
     page.local_traversable()->update_layout_of_hosted_inclusive_descendant_documents(Web::DOM::UpdateLayoutReason::Debugging);
 
-    auto* layout_root = document->layout_node();
+    // The dump's own read of the document's render state.
+    Web::Layout::ForcedReadScope read { *document, false };
+    auto* layout_root = document->layout_node(read);
     if (!layout_root) {
         builder.append("(no layout tree)"sv);
         return;
@@ -2382,9 +2396,10 @@ static void append_stacking_context_tree(Web::Page& page, StringBuilder& builder
         return;
     }
 
+    Web::Layout::ForcedReadScope read { *document, false };
     document->update_layout(Web::DOM::UpdateLayoutReason::Debugging);
 
-    auto* layout_root = document->layout_node();
+    auto* layout_root = document->layout_node(read);
     if (!layout_root) {
         builder.append("(no layout tree)"sv);
         return;
@@ -2395,7 +2410,7 @@ static void append_stacking_context_tree(Web::Page& page, StringBuilder& builder
     }
 
     document->update_paint_and_hit_testing_properties_if_needed();
-    Web::Painting::dump_stacking_context_tree(builder, *document);
+    Web::Painting::dump_stacking_context_tree(read, builder, *document);
 }
 
 static void append_gc_graph(StringBuilder& builder)
@@ -2465,8 +2480,10 @@ static WebView::DictionaryLookupTextStyle dictionary_lookup_text_style_from_layo
 
 static Web::Layout::Node const* layout_node_for_dictionary_lookup(Web::DOM::Node const& node)
 {
+    // The lookup's own read of the node's render state.
+    Web::Layout::ForcedReadScope read { node.document(), false };
     for (auto const* current = &node; current; current = current->parent_or_shadow_host_node()) {
-        auto const* layout_node = current->layout_node();
+        auto const* layout_node = current->layout_node(read);
         if (layout_node && layout_node->has_style_or_parent_with_style())
             return layout_node;
     }

@@ -104,6 +104,18 @@ void InvalidationJournal::note_paint_facts(NodeIdentity identity, Painting::Pain
     drain_if_layout_is_reading();
 }
 
+void InvalidationJournal::note_box_image_changed(Layout::Node& box, Painting::PaintFactsFamily families, InvalidateDisplayList invalidate_display_list)
+{
+    m_entries.append(Entry {
+        .box = box,
+        .invalidate_display_list = invalidate_display_list,
+        .needs_repaint = invalidate_display_list != InvalidateDisplayList::No,
+        .stale_paint_facts = families,
+    });
+    m_document->request_frame_for_pending_repaint({});
+    drain_if_layout_is_reading();
+}
+
 void InvalidationJournal::forget(CSS::StyleNodeID style_node)
 {
     // A drain holds the generation it writes through outside the index, where forgetting cannot reach it, so an
@@ -121,11 +133,14 @@ void InvalidationJournal::forget(CSS::StyleNodeID style_node)
 // one, nothing reads what these marks change before the next drain.
 void InvalidationJournal::drain_if_layout_is_reading()
 {
-    if (m_document->is_running_update_layout())
-        drain();
+    if (!m_document->is_running_update_layout())
+        return;
+    // The drain belongs to the read the layout update began.
+    Layout::ForcedReadScope read { *m_document, false };
+    drain(read);
 }
 
-void InvalidationJournal::drain()
+void InvalidationJournal::drain(Layout::BegunRead const& read)
 {
     // What the drain writes can mark more, and those marks land in the next generation of entries, which the loop below
     // drains in turn.
@@ -135,12 +150,16 @@ void InvalidationJournal::drain()
 
     while (!m_entries.is_empty()) {
         auto entries = move(m_entries);
-        m_entry_index_by_identity.clear_with_capacity();
+        // The index holds the identities of these entries alone, so taking them out of it costs what the entries
+        // number. Clearing it would zero every bucket it ever grew to, and a layout update drains once per mark.
+        for (auto const& entry : entries)
+            m_entry_index_by_identity.remove(entry.identity);
+        VERIFY(m_entry_index_by_identity.is_empty());
 
         if (auto* arena = m_document->layout_node_arena_if_created()) {
             for (auto const& entry : entries) {
-                // A node whose box went away between the mark and here has nothing left to mark.
-                auto* layout_node = entry.identity.bound_layout_node(*arena);
+                // A node whose box went away between the mark and here has nothing left to mark, nor has a box that did.
+                auto* layout_node = entry.box ? entry.box.ptr() : entry.identity.bound_layout_node(read, *arena);
                 if (!layout_node)
                     continue;
                 // The tree update goes first, so that a rebuild it escalates to an ancestor is known before the

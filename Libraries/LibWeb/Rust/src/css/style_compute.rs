@@ -5000,6 +5000,7 @@ fn settled_animation_plan(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_settled_animation_plan(
     host: *const crate::render_state::DocumentHost,
+    read: &crate::render_state::BegunRead,
     node: u32,
     pseudo_kind: u8,
     record: u64,
@@ -5013,9 +5014,11 @@ pub unsafe extern "C" fn rust_settled_animation_plan(
     // engine is borrowed while the host applies it: the definitions only point into the record.
     // SAFETY: Guaranteed by the caller.
     let host = unsafe { crate::css::style::engine_calls::document_host(host) };
-    let Some((definitions, in_display_none_subtree)) = crate::css::style::engine_calls::with_engine(host, |engine| {
-        settled_animation_plan(engine, node, pseudo_kind, record)
-    }) else {
+    let Some((definitions, in_display_none_subtree)) =
+        crate::css::style::engine_calls::with_engine(read, host, |engine| {
+            settled_animation_plan(engine, node, pseudo_kind, record)
+        })
+    else {
         return;
     };
     unsafe {
@@ -5729,6 +5732,7 @@ impl FfiHostAnimationSample {
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_sample_animation_effects(
     input: *const FfiHostAnimationSample,
+    read: &crate::render_state::BegunRead,
 ) -> FfiHostAnimationSampleResult {
     use crate::css::style::engine_calls::{document_host, with_engine};
 
@@ -5737,7 +5741,7 @@ pub unsafe extern "C" fn rust_sample_animation_effects(
     // SAFETY: As above.
     let host = unsafe { document_host(input.host) };
     // SAFETY: As above.
-    let sample = match with_engine(host, |engine| unsafe { begin_animation_sample(input, engine) }) {
+    let sample = match with_engine(read, host, |engine| unsafe { begin_animation_sample(input, engine) }) {
         AnimationSampleStep::Sampled(result) => return result,
         AnimationSampleStep::NeedsHostLengthContexts(sample) => sample,
     };
@@ -5754,7 +5758,7 @@ pub unsafe extern "C" fn rust_sample_animation_effects(
         length_contexts.assume_init()
     };
     // SAFETY: As above.
-    with_engine(host, |engine| unsafe {
+    with_engine(read, host, |engine| unsafe {
         finish_animation_sample(input, engine, sample, &length_contexts)
     })
 }
@@ -6425,6 +6429,7 @@ pub extern "C" fn rust_box_type_transformation_input(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_animated_box_type_transformation_input(
     host: *const crate::render_state::DocumentHost,
+    read: &crate::render_state::BegunRead,
     node: u32,
     pseudo_kind: u8,
 ) -> FfiBoxTypeTransformationInput {
@@ -6432,7 +6437,7 @@ pub unsafe extern "C" fn rust_animated_box_type_transformation_input(
         Some(node) => {
             // SAFETY: Guaranteed by the caller.
             let host = unsafe { crate::css::style::engine_calls::document_host(host) };
-            crate::css::style::engine_calls::with_engine(host, |engine| {
+            crate::css::style::engine_calls::with_engine(read, host, |engine| {
                 engine.composition_box_type_transformation_input(node, pseudo_kind)
             })
         }

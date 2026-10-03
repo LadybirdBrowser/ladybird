@@ -9,6 +9,7 @@
 //! a token nor call an entry that does.
 
 use super::*;
+use crate::render_state::BegunRead;
 
 /// Mints the main thread token for this module's FFI entry points; only this module can make one.
 pub(crate) struct MainThreadFfiEntry {
@@ -26,7 +27,11 @@ const MAIN_THREAD_FFI_ENTRY: MainThreadFfiEntry = MainThreadFfiEntry { _private:
 /// `host` must be a live document host with registered layout and layout update hosts, on its document's thread
 /// between `document_host_begin_update_layout` and its end, and `inputs` must remain valid for the call.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn render_state_update_layout(host: *const DocumentHost, inputs: *const FfiLayoutUpdateInputs) {
+pub unsafe extern "C" fn render_state_update_layout(
+    host: *const DocumentHost,
+    read: &BegunRead,
+    inputs: *const FfiLayoutUpdateInputs,
+) {
     assert!(!host.is_null(), "document host is null");
     assert!(!inputs.is_null());
     // SAFETY: Guaranteed by the caller.
@@ -35,12 +40,12 @@ pub unsafe extern "C" fn render_state_update_layout(host: *const DocumentHost, i
     let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY, host) };
     abort_on_panic(|| {
         // SAFETY: Guaranteed by the entry point's contract.
-        unsafe { update_layout(&main_thread, host, &*inputs) };
+        unsafe { update_layout(&main_thread, host, read, &*inputs) };
         // The image resources the update's tree builds owe are attached once its layout is done.
         host.host_tables()
             .layout_update_host
             .get()
             .expect("the document has no layout update host")
-            .attach_owed_image_resources(&main_thread, host);
+            .attach_owed_image_resources(&main_thread, host, read);
     });
 }

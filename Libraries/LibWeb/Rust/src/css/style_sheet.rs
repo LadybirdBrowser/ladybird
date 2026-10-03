@@ -532,10 +532,11 @@ pub unsafe extern "C" fn rust_style_sheet_evaluate_media_queries(
     environment: FfiMediaEnvironment,
     state: &mut NativeMediaEvaluationState,
     host: *const crate::render_state::DocumentHost,
+    read: &crate::render_state::BegunRead,
 ) -> NativeStyleSheetMediaEvaluation {
     // SAFETY: Guaranteed by the caller.
-    let host = unsafe { crate::css::style::engine_calls::sheet_writing_host(host) };
-    crate::css::style::engine_calls::with_engine(host, |engine| {
+    let host = unsafe { crate::css::style::engine_calls::sheet_writing_host(host, read) };
+    crate::css::style::engine_calls::with_engine(read, host, |engine| {
         sheet.evaluate_media_queries(unsafe { environment.borrow() }, state, &mut |identity, holds| {
             if let Some(rule) = engine.native_rule_id(identity) {
                 crate::css::style::bridge::operations::set_rule_conditions_hold(engine, rule.0 + 1, holds);
@@ -553,11 +554,12 @@ pub unsafe extern "C" fn rust_style_sheet_evaluate_media_queries(
 pub unsafe extern "C" fn rust_style_sheet_publish_conditions(
     sheet: &NativeStyleSheet,
     host: *const crate::render_state::DocumentHost,
+    read: &crate::render_state::BegunRead,
     environment: FfiMediaEnvironment,
 ) {
     // SAFETY: Guaranteed by the caller.
-    let host = unsafe { crate::css::style::engine_calls::sheet_writing_host(host) };
-    crate::css::style::engine_calls::with_engine(host, |engine| {
+    let host = unsafe { crate::css::style::engine_calls::sheet_writing_host(host, read) };
+    crate::css::style::engine_calls::with_engine(read, host, |engine| {
         sheet.publish_conditions(engine, unsafe { environment.borrow() });
     });
 }
@@ -618,6 +620,7 @@ pub unsafe extern "C" fn rust_style_sheet_publish_layer_order(
     sheets: *const *const NativeStyleSheet,
     count: usize,
     host: *const crate::render_state::DocumentHost,
+    read: &crate::render_state::BegunRead,
     tree_scope: u32,
     previously_had_layers: bool,
     context: *mut c_void,
@@ -635,8 +638,8 @@ pub unsafe extern "C" fn rust_style_sheet_publish_layer_order(
     if has_layers || previously_had_layers {
         unsafe { prepare(context) };
         // SAFETY: Guaranteed by the caller.
-        let host = unsafe { crate::css::style::engine_calls::sheet_writing_host(host) };
-        crate::css::style::engine_calls::with_engine(host, |engine| {
+        let host = unsafe { crate::css::style::engine_calls::sheet_writing_host(host, read) };
+        crate::css::style::engine_calls::with_engine(read, host, |engine| {
             let layers: Vec<_> = names
                 .iter()
                 .map(|name| {

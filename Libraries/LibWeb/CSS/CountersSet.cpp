@@ -20,12 +20,12 @@ static Layout::RustFFI::DocumentHost* document_host(DOM::Element const& element)
     return arena ? arena->host() : nullptr;
 }
 
-bool innermost_list_item_counter_is_own_forward_counter(DOM::Element const& element)
+bool innermost_list_item_counter_is_own_forward_counter(Layout::BegunRead const& read, DOM::Element const& element)
 {
     auto* host = document_host(element);
     if (!host)
         return false;
-    return Layout::RustFFI::render_state_innermost_list_item_counter_is_own_forward_counter(host, element.style_node_id().value());
+    return Layout::RustFFI::render_state_innermost_list_item_counter_is_own_forward_counter(host, &read, element.style_node_id().value());
 }
 
 Utf16FlyString const& list_item_counter_name()

@@ -124,8 +124,8 @@ public:
     [[nodiscard]] StyleRuleCache const& rule_cache() const;
     [[nodiscard]] bool has_valid_rule_cache() const;
     void invalidate_style_cache();
-    void publish_cascade_layer_order(StyleSheetState* pending_attachment = nullptr);
-    void publish_animation_keyframes();
+    void publish_cascade_layer_order(Layout::BegunRead const& read, StyleSheetState* pending_attachment = nullptr);
+    void publish_animation_keyframes(Layout::BegunRead const& read);
     void invalidate_user_style_sheet();
 
     // The `@keyframes` row a shadow root's scope published to the style engine, taken from the scope as the root
@@ -144,7 +144,7 @@ public:
 
     void make_rule_cache_for_cascade_origin(CascadeOrigin, StyleRuleCache&);
 
-    void build_rule_cache();
+    void build_rule_cache(Layout::BegunRead const& read);
     void build_rule_cache_if_needed() const;
     void populate_rule_cache(StyleRuleCache&);
 
@@ -153,17 +153,17 @@ public:
     void for_each_active_css_style_sheet(Function<void(CSS::StyleSheetState&)> const& callback) const;
 
     void invalidate_counter_style_cache();
-    void build_counter_style_cache();
-    u64 counter_style_environment_identity() const;
-    RefPtr<CSS::CounterStyle const> get_registered_counter_style(Utf16FlyString const& name) const;
-    void publish_counter_style_lookup_chain() const;
+    void build_counter_style_cache(Layout::BegunRead const& read);
+    u64 counter_style_environment_identity(Layout::BegunRead const& read) const;
+    RefPtr<CSS::CounterStyle const> get_registered_counter_style(Layout::BegunRead const& read, Utf16FlyString const& name) const;
+    void publish_counter_style_lookup_chain(Layout::BegunRead const& read) const;
 
     struct FunctionDefinitionAndScope {
         RustCompiledFunction function;
         StyleScope const& scope;
     };
-    Optional<FunctionDefinitionAndScope> get_function_definition(Utf16FlyString const& name) const;
-    void for_each_visible_function_definition(Function<void(FunctionDefinitionAndScope const&)> const&) const;
+    Optional<FunctionDefinitionAndScope> get_function_definition(Layout::BegunRead const& read, Utf16FlyString const& name) const;
+    void for_each_visible_function_definition(Layout::BegunRead const& read, Function<void(FunctionDefinitionAndScope const&)> const&) const;
 
     template<typename T>
     Optional<T> dereference_global_tree_scoped_reference(Function<Optional<T>(StyleScope const&)> const& callback) const;

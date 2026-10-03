@@ -15,7 +15,7 @@ namespace Web::ResizeObserver {
 GC_DEFINE_ALLOCATOR(ResizeObserverEntry);
 
 // https://drafts.csswg.org/resize-observer-1/#create-and-populate-resizeobserverentry-h
-WebIDL::ExceptionOr<GC::Ref<ResizeObserverEntry>> ResizeObserverEntry::create_and_populate(DOM::Element& target)
+WebIDL::ExceptionOr<GC::Ref<ResizeObserverEntry>> ResizeObserverEntry::create_and_populate(Layout::BegunRead const& read, DOM::Element& target)
 {
     // 1. Let this be a new ResizeObserverEntry.
     // 2. Set this.target slot to target.
@@ -43,7 +43,7 @@ WebIDL::ExceptionOr<GC::Ref<ResizeObserverEntry>> ResizeObserverEntry::create_an
     // NB: Layout was up to date when observations were gathered, but a previous
     //     observer's callback may have invalidated it before we get here.
     //     This matches the behavior of all major browsers.
-    auto const* layout_node = target.unsafe_layout_node();
+    auto const* layout_node = target.unsafe_layout_node(read);
     if (!target.is_svg_element() && layout_node && Painting::has_committed_box(*layout_node)) {
         auto absolute_padding_rect = Painting::absolute_padding_box_rect(*layout_node);
         // Set this.contentRect.top to target.padding top.

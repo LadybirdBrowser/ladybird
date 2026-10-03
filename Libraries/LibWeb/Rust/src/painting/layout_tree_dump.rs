@@ -21,6 +21,8 @@ use crate::painting::paintable_geometry;
 use crate::stage::MainThread;
 use std::ffi::c_void;
 
+crate::render_state::held_node_entries!();
+
 /// Mints the main thread token for this module's FFI entry points; only this module can make one.
 pub(crate) struct MainThreadFfiEntry {
     _private: (),
@@ -150,8 +152,9 @@ pub unsafe extern "C" fn render_state_dump_layout_tree(
     let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY, host) };
     // SAFETY: As above.
     let plan = unsafe {
-        crate::painting::ffi::read(
+        crate::painting::ffi::read_arena(
             host,
+            node_read(),
             (root, initial_indent, interactive),
             |arena, (root, initial_indent, interactive)| {
                 arena.measure_scrollable_overflow();

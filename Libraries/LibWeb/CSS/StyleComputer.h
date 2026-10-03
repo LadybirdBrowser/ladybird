@@ -70,8 +70,8 @@ public:
     void update_root_element_font_metrics(ComputedValues const&);
     // The style of a pseudo-element the element holds no style for, as the style engine derives it for one read alone;
     // null where the engine leaves the read to C++.
-    [[nodiscard]] RefPtr<ComputedValues const> engine_transient_pseudo_element_style(DOM::Element const&, StyleEngine::DemandedPseudoElement);
-    [[nodiscard]] JsonArray collect_devtools_applied_style_rules(DOM::AbstractElement, bool include_inherited, bool include_user_agent_styles);
+    [[nodiscard]] RefPtr<ComputedValues const> engine_transient_pseudo_element_style(Layout::BegunRead const& read, DOM::Element const&, StyleEngine::DemandedPseudoElement);
+    [[nodiscard]] JsonArray collect_devtools_applied_style_rules(Layout::BegunRead const& read, DOM::AbstractElement, bool include_inherited, bool include_user_agent_styles);
 
     // The way back from a StyleEngine rule identity to what that rule contributes to the cascade.
     // Matching in the engine answers with identities; the cascade needs a declaration and the place
@@ -79,7 +79,7 @@ public:
     // the source's document/loading state.
     // DevTools resolves native identities to CSSOM wrappers only when requested.
     void register_style_engine_sheet_source(StyleSheetState const&);
-    [[nodiscard]] Optional<StyleEngineRuleTarget> style_engine_rule_target(StyleEngineRuleID rule_id) const;
+    [[nodiscard]] Optional<StyleEngineRuleTarget> style_engine_rule_target(Layout::BegunRead const& read, StyleEngineRuleID rule_id) const;
 
     static CSSPixels default_user_font_size();
     static void ensure_style_metadata_tables_installed();
@@ -112,16 +112,16 @@ public:
         StyleEngineFFI::FfiAnimationInvalidation invalidation;
         StyleEngine::StyleRecordDelta publication;
     };
-    [[nodiscard]] SampledAnimationOverlayPublication publish_sampled_animation_overlay(DOM::AbstractElement, ComputedStyleWorkingSet&, StyleRecordID style_record, Function<void(StyleEngineFFI::FfiAnimationInvalidation const&)> const& before_publication = {}) const;
+    [[nodiscard]] SampledAnimationOverlayPublication publish_sampled_animation_overlay(Layout::BegunRead const& read, DOM::AbstractElement, ComputedStyleWorkingSet&, StyleRecordID style_record, Function<void(StyleEngineFFI::FfiAnimationInvalidation const&)> const& before_publication = {}) const;
     // Give a layout-only variant of an element or pseudo-element style an authoritative record
     // without replacing the StyleEngine assignment of its DOM target.
-    [[nodiscard]] StyleRecordID intern_computed_style_inputs(DOM::AbstractElement, ComputedValues const&) const;
+    [[nodiscard]] StyleRecordID intern_computed_style_inputs(Layout::BegunRead const& read, DOM::AbstractElement, ComputedValues const&) const;
     // Anonymous layout boxes have no style target, but their immutable group tuple is still an
     // authoritative shared record rather than layout-owned complete computed values.
-    [[nodiscard]] StyleRecordID intern_anonymous_layout_style(ComputedValues const&) const;
+    [[nodiscard]] StyleRecordID intern_anonymous_layout_style(Layout::BegunRead const& read, ComputedValues const&) const;
 
-    [[nodiscard]] ComputedStyleRecordView computed_style_record_view(StyleRecordID) const;
-    [[nodiscard]] void const* style_record_payloads(StyleRecordID) const;
+    [[nodiscard]] ComputedStyleRecordView computed_style_record_view(Layout::BegunRead const& read, StyleRecordID) const;
+    [[nodiscard]] void const* style_record_payloads(Layout::BegunRead const& read, StyleRecordID) const;
     void pin_style_record(StyleRecordID) const;
     void unpin_style_record(StyleRecordID) const;
     void begin_style_record_view_epoch() const;
@@ -132,7 +132,7 @@ public:
     // The environment the style engine resolved under `identity`, materialized over the data the
     // element inherits, which must be the environment the engine resolved it over. Nothing when
     // the identity is no engine environment or was resolved over another.
-    [[nodiscard]] RefPtr<CustomPropertyData const> engine_custom_property_environment(u64 identity, RefPtr<CustomPropertyData const> const& inherited) const;
+    [[nodiscard]] RefPtr<CustomPropertyData const> engine_custom_property_environment(Layout::BegunRead const& read, u64 identity, RefPtr<CustomPropertyData const> const& inherited) const;
 
     // Whether the collection refreshes a previously published style outside the drive; a refresh
     // re-runs the animated element style adjustments and leaves the non-inherited-property
@@ -141,15 +141,15 @@ public:
         No,
         Yes,
     };
-    void collect_animations_into(DOM::AbstractElement, ReadonlySpan<GC::Ref<Animations::KeyframeEffect>>, ComputedStyleWorkingSet&, AnimationRefresh) const;
+    void collect_animations_into(Layout::BegunRead const& read, DOM::AbstractElement, ReadonlySpan<GC::Ref<Animations::KeyframeEffect>>, ComputedStyleWorkingSet&, AnimationRefresh) const;
 
     void apply_animation_definitions(DOM::AbstractElement&, ReadonlySpan<ComputedValuesFFI::FfiComputedAnimation> animation_definitions, bool in_display_none_subtree) const;
     // Applies the animation plan the record an element or pseudo-element holds decides, for a record the style engine
     // settled, where applying it would change anything.
-    void apply_settled_animation_plan(DOM::AbstractElement&) const;
+    void apply_settled_animation_plan(Layout::BegunRead const& read, DOM::AbstractElement&) const;
     // Starts the CSS animations of an element or pseudo-element and composes its animations over the record the style
     // engine settled for it, once the host has installed it.
-    void compose_installed_engine_record(DOM::AbstractElement, StyleRecordID before_change_style_record) const;
+    void compose_installed_engine_record(Layout::BegunRead const& read, DOM::AbstractElement, StyleRecordID before_change_style_record) const;
 
     static NonnullRefPtr<StyleValue const> compute_font_size(NonnullRefPtr<StyleValue const> const& absolutized_value, int computed_math_depth, Optional<DOM::AbstractElement> const& inheritance_parent, CSSPixels initial_font_size = InitialValues::font_size());
     static NonnullRefPtr<StyleValue const> compute_font_style(NonnullRefPtr<StyleValue const> const& absolutized_value);
@@ -158,7 +158,7 @@ public:
 
     [[nodiscard]] NonnullRefPtr<ComputedStyleWorkingSet> reconstruct_computed_properties(ComputedValues const&) const;
     void apply_animated_properties_to_reconstruction(ComputedStyleWorkingSet&, ComputedValues const&) const;
-    [[nodiscard]] NonnullRefPtr<ComputedStyleWorkingSet> reconstruct_computed_properties_for_animation(StyleRecordID) const;
+    [[nodiscard]] NonnullRefPtr<ComputedStyleWorkingSet> reconstruct_computed_properties_for_animation(Layout::BegunRead const& read, StyleRecordID) const;
 
     void begin_transition_stabilization_epoch();
     // https://drafts.csswg.org/css-transitions-2/#defining-before-change-style
@@ -170,7 +170,7 @@ public:
     // Runs the whole transition step for an installed record, against the record the element moved away from, which
     // the caller keeps alive. Returns what publishing a started transition's values invalidates, which the caller
     // reacts to like to the rest of the style change.
-    [[nodiscard]] RequiredInvalidationAfterStyleChange run_transition_step_for_installed_record(DOM::AbstractElement, StyleRecordID before_change_style_record) const;
+    [[nodiscard]] RequiredInvalidationAfterStyleChange run_transition_step_for_installed_record(Layout::BegunRead const& read, DOM::AbstractElement, StyleRecordID before_change_style_record) const;
     void commit_transition_stabilization_epoch();
     void for_each_provisional_transition_effect(DOM::AbstractElement const&, Function<void(Animations::KeyframeEffect&)> const&) const;
 
@@ -180,16 +180,16 @@ public:
 private:
     virtual void visit_edges(Visitor&) override;
 
-    [[nodiscard]] StyleEngine::StyleRecordDelta record_computed_style_inputs(Optional<DOM::AbstractElement>, ComputedValues const&, StyleNodeID style_node_id) const;
+    [[nodiscard]] StyleEngine::StyleRecordDelta record_computed_style_inputs(Layout::BegunRead const& read, Optional<DOM::AbstractElement>, ComputedValues const&, StyleNodeID style_node_id) const;
 
 private:
     // `sampled_style_record` names the record the working set was reconstructed from, where it was.
-    void collect_animation_effects_into(DOM::AbstractElement, ReadonlySpan<GC::Ref<Animations::KeyframeEffect>>, ComputedStyleWorkingSet&, StyleRecordID sampled_style_record) const;
+    void collect_animation_effects_into(Layout::BegunRead const& read, DOM::AbstractElement, ReadonlySpan<GC::Ref<Animations::KeyframeEffect>>, ComputedStyleWorkingSet&, StyleRecordID sampled_style_record) const;
     void publish_animated_custom_properties(ComputedStyleWorkingSet&, DOM::AbstractElement) const;
     void invalidate_animated_custom_property_readers(DOM::AbstractElement, OrderedHashMap<Utf16FlyString, NonnullRefPtr<StyleValue const>> const& animated_values) const;
-    void start_needed_transitions(ComputedStyleWorkingSet&, DOM::AbstractElement, StyleRecordID before_change_style_record) const;
+    void start_needed_transitions(Layout::BegunRead const& read, ComputedStyleWorkingSet&, DOM::AbstractElement, StyleRecordID before_change_style_record) const;
     [[nodiscard]] bool has_provisional_transition_states(DOM::AbstractElement) const;
-    void finalize_style(ComputedStyleWorkingSet&, DOM::AbstractElement, ComputedValuesFFI::FfiStyleFinalizationMode) const;
+    void finalize_style(Layout::BegunRead const& read, ComputedStyleWorkingSet&, DOM::AbstractElement, ComputedValuesFFI::FfiStyleFinalizationMode) const;
 
     [[nodiscard]] CSSPixelRect viewport_rect() const { return m_viewport_rect; }
 
@@ -206,7 +206,7 @@ public:
     };
     [[nodiscard]] Vector<NonAuthorStyleSheet>& non_author_style_sheets() { return m_non_author_style_sheets; }
 
-    [[nodiscard]] StyleEngineRuleID style_engine_rule_id_for(RustRule const&) const;
+    [[nodiscard]] StyleEngineRuleID style_engine_rule_id_for(Layout::BegunRead const& read, RustRule const&) const;
     [[nodiscard]] SheetID style_engine_sheet_id_for(StyleSheetState const&) const;
     void set_style_engine_sheet_id_for(StyleSheetState&, SheetID);
 
@@ -293,8 +293,8 @@ private:
     // Whether the engine keeps a before-change style the current stabilization epoch recorded.
     mutable bool m_transition_baselines_recorded { false };
 
-    ComputationContext make_computation_context_for_property(PropertyID, ComputedStyleWorkingSet const&, Optional<DOM::AbstractElement>) const;
-    ComputationContext const& get_computation_context_for_property(PropertyID, ComputedStyleWorkingSet const&, Optional<DOM::AbstractElement>) const;
+    ComputationContext make_computation_context_for_property(Layout::BegunRead const& read, PropertyID, ComputedStyleWorkingSet const&, Optional<DOM::AbstractElement>) const;
+    ComputationContext const& get_computation_context_for_property(Layout::BegunRead const& read, PropertyID, ComputedStyleWorkingSet const&, Optional<DOM::AbstractElement>) const;
     void clear_computation_context_caches() const
     {
         const_cast<StyleComputer*>(this)->m_cached_font_computation_context = {};

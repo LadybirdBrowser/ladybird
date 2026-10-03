@@ -1434,11 +1434,12 @@ mod node_facts_tests {
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn render_state_take_changed_document_svg_root_natural_size(
     host: *const crate::render_state::DocumentHost,
+    read: &crate::render_state::BegunRead,
     natural_size: *mut crate::painting::host::FfiNaturalSize,
 ) -> bool {
     // SAFETY: Guaranteed by the caller.
     let changed = unsafe {
-        super::shell_reads::read(host, (), |arena, ()| {
+        super::shell_reads::read_arena(host, read, (), |arena, ()| {
             arena.take_changed_document_svg_root_natural_size()
         })
     };

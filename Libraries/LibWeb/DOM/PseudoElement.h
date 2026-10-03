@@ -30,8 +30,8 @@ class WEB_API PseudoElement : public JS::Cell {
     GC_DECLARE_ALLOCATOR(PseudoElement);
 
 public:
-    virtual Layout::NodeWithStyle* layout_node() const = 0;
-    virtual Layout::NodeWithStyle* unsafe_layout_node() const = 0;
+    virtual Layout::NodeWithStyle* layout_node(Layout::BegunRead const& read) const = 0;
+    virtual Layout::NodeWithStyle* unsafe_layout_node(Layout::BegunRead const& read) const = 0;
 
     virtual Node& root() const = 0;
 
@@ -50,8 +50,8 @@ public:
 
     CSS::PseudoElement type() const { return m_type; }
 
-    Layout::NodeWithStyle* layout_node() const override { return unsafe_layout_node(); }
-    Layout::NodeWithStyle* unsafe_layout_node() const override;
+    Layout::NodeWithStyle* layout_node(Layout::BegunRead const& read) const override { return unsafe_layout_node(read); }
+    Layout::NodeWithStyle* unsafe_layout_node(Layout::BegunRead const& read) const override;
 
     virtual Node& root() const override;
 
@@ -103,8 +103,8 @@ class WEB_API ElementReferencePseudoElement : public PseudoElement {
     {
     }
 
-    Layout::NodeWithStyle* layout_node() const override;
-    Layout::NodeWithStyle* unsafe_layout_node() const override;
+    Layout::NodeWithStyle* layout_node(Layout::BegunRead const& read) const override;
+    Layout::NodeWithStyle* unsafe_layout_node(Layout::BegunRead const& read) const override;
 
     virtual Node& root() const override;
 

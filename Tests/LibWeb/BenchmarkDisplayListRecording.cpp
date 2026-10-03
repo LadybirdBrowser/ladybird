@@ -22,6 +22,7 @@
 #include <LibWeb/HTML/LocalTraversableNavigable.h>
 #include <LibWeb/HTML/PaintConfig.h>
 #include <LibWeb/InvalidateDisplayList.h>
+#include <LibWeb/Layout/RenderDocument.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/DocumentPaintState.h>
 #include <LibWeb/Painting/PaintableTypes.h>
@@ -228,7 +229,8 @@ RefPtr<Compositing::DisplayList> record_display_list(LoadedPage& loaded_page)
 {
     auto& document = loaded_page.document();
     document.update_layout(Web::DOM::UpdateLayoutReason::Debugging);
-    return document.record_display_list(benchmark_paint_config(), loaded_page.display_list_resource_storage, Web::Painting::PaintCommandCacheMode::ReadWrite);
+    Web::Layout::ForcedReadScope read { document, false };
+    return document.record_display_list(read, benchmark_paint_config(), loaded_page.display_list_resource_storage, Web::Painting::PaintCommandCacheMode::ReadWrite);
 }
 
 OwnPtr<LoadedPage> load_page(DocumentShape shape)
@@ -352,8 +354,9 @@ void time_document_recordings(DocumentShape shape, StringView label, Optional<Mu
         layout_samples.microseconds.append(layout_timer.elapsed_time().to_microseconds());
         if (cache_state == CacheState::Cold)
             document.paint_state().invalidate_all_cached_paint(document);
+        Web::Layout::ForcedReadScope read { document, false };
         auto timer = Core::ElapsedTimer::start_new(Core::TimerType::Precise);
-        auto display_list = document.record_display_list(benchmark_paint_config(), loaded_page.display_list_resource_storage, Web::Painting::PaintCommandCacheMode::ReadWrite);
+        auto display_list = document.record_display_list(read, benchmark_paint_config(), loaded_page.display_list_resource_storage, Web::Painting::PaintCommandCacheMode::ReadWrite);
         samples.microseconds.append(timer.elapsed_time().to_microseconds());
         VERIFY(display_list);
         recorded_byte_count = display_list->command_bytes().size();
@@ -377,10 +380,11 @@ void time_rust_recordings(DocumentShape shape, StringView label)
         auto visual_context_tree = document.paint_state().visual_context_tree(document);
         auto placeholder_display_list = Compositing::DisplayList::create_from_command_bytes(visual_context_tree, {}, {});
         Web::Painting::InspectorOverlayInputs overlay_inputs;
+        Web::Layout::ForcedReadScope read { document, false };
         auto timer = Core::ElapsedTimer::start_new(Core::TimerType::Precise);
-        auto recording = Web::Painting::start_rust_display_list_recording(document, visual_context_tree, placeholder_display_list, Web::Painting::PaintCommandCacheMode::ReadWrite, benchmark_paint_config(), overlay_inputs, Web::Layout::RustFFI::FfiFlightBlocker::NotInRenderingUpdate);
+        auto recording = Web::Painting::start_rust_display_list_recording(read, document, visual_context_tree, placeholder_display_list, Web::Painting::PaintCommandCacheMode::ReadWrite, benchmark_paint_config(), overlay_inputs, Web::Layout::RustFFI::FfiFlightBlocker::NotInRenderingUpdate);
         VERIFY(recording.has_value());
-        auto display_list = Web::Painting::finish_rust_display_list_recording(document, *recording, loaded_page.display_list_resource_storage);
+        auto display_list = Web::Painting::finish_rust_display_list_recording(read, document, *recording, loaded_page.display_list_resource_storage);
         samples.microseconds.append(timer.elapsed_time().to_microseconds());
         VERIFY(display_list);
     }
@@ -403,8 +407,9 @@ void time_removal_recordings(DocumentShape shape, StringView label)
             MUST(parent->append_child(*card));
         document.update_layout(Web::DOM::UpdateLayoutReason::Debugging);
         layout_samples.microseconds.append(timer.elapsed_time().to_microseconds());
+        Web::Layout::ForcedReadScope read { document, false };
         timer = Core::ElapsedTimer::start_new(Core::TimerType::Precise);
-        VERIFY(document.record_display_list(benchmark_paint_config(), loaded_page.display_list_resource_storage, Web::Painting::PaintCommandCacheMode::ReadWrite));
+        VERIFY(document.record_display_list(read, benchmark_paint_config(), loaded_page.display_list_resource_storage, Web::Painting::PaintCommandCacheMode::ReadWrite));
         recording_samples.microseconds.append(timer.elapsed_time().to_microseconds());
     }
     layout_samples.report("  removal/attachment and layout"sv);
@@ -507,8 +512,9 @@ BENCHMARK_CASE(document_record_after_viewport_scroll_and_one_card_change)
         apply_mutation(*loaded_page, Mutation::OneCardBackground);
         document.update_layout(Web::DOM::UpdateLayoutReason::Debugging);
         layout_samples.microseconds.append(timer.elapsed_time().to_microseconds());
+        Web::Layout::ForcedReadScope read { document, false };
         timer = Core::ElapsedTimer::start_new(Core::TimerType::Precise);
-        VERIFY(document.record_display_list(benchmark_paint_config(), loaded_page->display_list_resource_storage, Web::Painting::PaintCommandCacheMode::ReadWrite));
+        VERIFY(document.record_display_list(read, benchmark_paint_config(), loaded_page->display_list_resource_storage, Web::Painting::PaintCommandCacheMode::ReadWrite));
         recording_samples.microseconds.append(timer.elapsed_time().to_microseconds());
     }
     layout_samples.report("  scrolling, mutation and layout"sv);

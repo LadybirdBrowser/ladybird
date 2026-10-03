@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<div id="box" style="width: 300px; height: 10px"></div>
+<div id="hidden" style="display: none">hidden text</div>
+<div id="destination"></div>
+<div id="target" style="height: 3000px">target</div>
+<script>
+    // Reads of a document's layout tree update marks and of a boxless element's style beside the frame that holds
+    // them: a fragment navigation asks whether layout is up to date to clamp the viewport's scroll offset, and a move
+    // asks whether the moved node contributes to the layout tree and whether its subtree already needs an update.
+    asyncTest(async done => {
+        const navigated = await whileRecordingInFlight(() => {
+            box.style.height = "20px";
+        }, state => {
+            location.hash = "#target";
+            return state;
+        });
+        println(`fragment navigation: state in the next task: ${navigated}`);
+        await twoFrames();
+        println(`fragment navigation: hash: ${location.hash}`);
+        println(`fragment navigation: box height: ${box.offsetHeight}`);
+
+        const movedElement = await whileRecordingInFlight(() => {
+            box.style.height = "30px";
+        }, state => {
+            destination.moveBefore(hidden, null);
+            return state;
+        });
+        println(`element move: state in the next task: ${movedElement}`);
+        await twoFrames();
+        println(`element move: parent: ${hidden.parentNode.id}`);
+        println(`element move: box height: ${box.offsetHeight}`);
+
+        const text = hidden.firstChild;
+        const movedText = await whileRecordingInFlight(() => {
+            box.style.height = "40px";
+        }, state => {
+            destination.moveBefore(text, null);
+            return state;
+        });
+        println(`text move: state in the next task: ${movedText}`);
+        await twoFrames();
+        println(`text move: parent: ${text.parentNode.id}`);
+        println(`text move: destination height: ${destination.offsetHeight > 0}`);
+        println(`text move: box height: ${box.offsetHeight}`);
+        done();
+    });
+</script>

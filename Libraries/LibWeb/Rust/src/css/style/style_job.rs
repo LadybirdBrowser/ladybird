@@ -23,8 +23,8 @@ use crate::css::style_compute::FfiLengthResolutionContext;
 use crate::painting::ffi::FfiFlightBlocker;
 use crate::painting::recording_slot::FlightLicense;
 use crate::render_state::{
-    DocumentHost, DocumentId, RenderJob, RenderMessage, ReplyTo, SpentWait, StyleJobPermit, TaskBoundary, fly,
-    force_read, force_read_flown_style, run_job,
+    BegunRead, DocumentHost, ReadRight, RenderJob, RenderMessage, RenderWait, ReplyTo, SpentWait, StyleJobPermit,
+    TaskBoundary, fly, force_read, run_job,
 };
 use std::ffi::c_void;
 use std::sync::Arc;
@@ -204,9 +204,8 @@ impl RenderJob for StyleJob {
     type Permit = StyleJobPermit;
     const IS_STYLE: bool = true;
 
-    fn message(self, document: DocumentId, reply: ReplyTo<'_, StyleJobAnswer>, spent: SpentWait) -> RenderMessage<'_> {
+    fn message(self, reply: ReplyTo<'_, StyleJobAnswer>, spent: SpentWait) -> RenderMessage<'_> {
         RenderMessage::Style {
-            document,
             job: self,
             reply,
             _spent: spent,
@@ -235,6 +234,7 @@ impl StyleJob {
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_take_style_transaction(
     host: *mut DocumentHost,
+    read: &BegunRead,
     root: u32,
     computation_inputs: FfiDocumentStyleComputationInputs,
 ) -> FfiStyleTransactionView {
@@ -254,7 +254,7 @@ pub unsafe extern "C" fn style_engine_take_style_transaction(
     // update's or a later wave's, is a style update's.
     let answer = match host.take_unstyled_read() {
         Some(read) => force_read(read, host, job),
-        None => run_job(StyleJobPermit::of_style_update(), host, job),
+        None => run_job(StyleJobPermit::of_style_update(read), host, job),
     };
     host.keep_style_transaction(answer).0.view()
 }
@@ -264,7 +264,7 @@ pub unsafe extern "C" fn style_engine_take_style_transaction(
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct FfiFlownStyleDrain {
-    pub drain: unsafe extern "C" fn(document: *mut c_void),
+    pub drain: unsafe extern "C" fn(document: *mut c_void, read: &BegunRead),
     pub document: *mut c_void,
 }
 
@@ -314,15 +314,17 @@ pub unsafe extern "C" fn style_engine_let_style_transaction_fly(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_take_flown_style_transaction(
     host: *const DocumentHost,
+    read: &BegunRead,
 ) -> FfiStyleTransactionView {
     assert!(!host.is_null(), "document host is null");
     // SAFETY: Guaranteed by the caller.
     let host = unsafe { &*host };
-    let answer = host.begin_style_drain();
-    // A read that joins the transaction spends itself on it, as on the first job it would have sent.
-    if let Some(read) = host.take_unstyled_read() {
-        force_read_flown_style(read, host);
-    }
+    // The read spends itself on the transaction where no job took it yet, as on the first job it would have sent,
+    // taking the frame in where it still flies.
+    let read = host
+        .take_unstyled_read()
+        .map_or_else(|| read.into_read_right(), ReadRight::Forced);
+    let answer = host.begin_style_drain(read);
     host.keep_style_transaction(answer).0.view()
 }
 
@@ -350,7 +352,7 @@ pub unsafe extern "C" fn style_engine_style_transaction_flies(host: *const Docum
     assert!(!host.is_null(), "document host is null");
     let boundary = TaskBoundary::at_event_loop_entry(&TAKES_FINISHED_STYLE_IN);
     // SAFETY: Guaranteed by the caller.
-    unsafe { &*host }.style_flies(&boundary)
+    unsafe { &*host }.frame_still_flies(&boundary)
 }
 
 /// The entry the event loop calls between two tasks to take a document's style transaction in where it has landed.
@@ -368,13 +370,14 @@ const TAKES_FINISHED_STYLE_IN: TakesFinishedStyleIn = TakesFinishedStyleIn { _pr
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_end_style_transaction(
     host: *mut DocumentHost,
+    read: &crate::render_state::BegunRead,
     allocator: *mut StyleNodeIdAllocator,
 ) {
     assert!(!host.is_null() && !allocator.is_null());
     // SAFETY: Guaranteed by the caller.
     unsafe { &*host }.end_style_transaction();
     // SAFETY: As above.
-    let StyleAnswer::Nodes(released) = (unsafe { ask_engine(host, StyleQuery::EndTransaction) }) else {
+    let StyleAnswer::Nodes(released) = (unsafe { ask_engine(host, read, StyleQuery::EndTransaction) }) else {
         unreachable!("the end of a transaction is answered with the identities it released");
     };
     // SAFETY: As above.

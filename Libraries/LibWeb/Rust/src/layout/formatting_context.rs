@@ -924,12 +924,14 @@ pub struct FfiLayoutHostCallbacks {
     context: *mut c_void,
     /// The commit messages a finished commit leaves for the document, in the order it produced
     /// them.
-    deliver_commit_messages: unsafe extern "C" fn(*mut c_void, *const commit::FfiCommitMessage, usize),
+    deliver_commit_messages:
+        unsafe extern "C" fn(*mut c_void, &crate::render_state::BegunRead, *const commit::FfiCommitMessage, usize),
     /// What a container-relative length on the element with the given identity resolves against.
     container_length_bases: unsafe extern "C" fn(*mut c_void, u32) -> svg_formatting_context::FfiContainerLengthBases,
     /// The scroll containers a finished layout tree build gave a style, each with whether it is a
     /// scroll snap container.
-    take_built_scroll_containers: unsafe extern "C" fn(*mut c_void, *const FfiBuiltScrollContainer, usize),
+    take_built_scroll_containers:
+        unsafe extern "C" fn(*mut c_void, &crate::render_state::BegunRead, *const FfiBuiltScrollContainer, usize),
 }
 
 /// A scroll container a layout tree build gave a style, with whether it was a scroll snap
@@ -950,34 +952,40 @@ impl FfiLayoutHostCallbacks {
             .expect("layout node arena has no layout host")
     }
 
+    /// Delivers `messages` to the document, in `read`.
+    ///
     /// # Safety
     ///
     /// The document may re-enter the arena, so no arena borrow may be held across this call.
     pub(crate) unsafe fn deliver_commit_messages(
         &self,
         _: &crate::stage::MainThread,
+        read: &crate::render_state::BegunRead,
         messages: &[commit::FfiCommitMessage],
     ) {
         if messages.is_empty() {
             return;
         }
         // SAFETY: The document registered the host with the arena and outlives this call.
-        unsafe { (self.deliver_commit_messages)(self.context, messages.as_ptr(), messages.len()) };
+        unsafe { (self.deliver_commit_messages)(self.context, read, messages.as_ptr(), messages.len()) };
     }
 
+    /// Hands the document the scroll containers a build gave a style, in `read`.
+    ///
     /// # Safety
     ///
     /// The document may re-enter the arena, so no arena borrow may be held across this call.
     pub(crate) unsafe fn take_built_scroll_containers(
         &self,
         _: &crate::stage::MainThread,
+        read: &crate::render_state::BegunRead,
         built: &[FfiBuiltScrollContainer],
     ) {
         if built.is_empty() {
             return;
         }
         // SAFETY: The document registered the host with the arena and outlives this call.
-        unsafe { (self.take_built_scroll_containers)(self.context, built.as_ptr(), built.len()) };
+        unsafe { (self.take_built_scroll_containers)(self.context, read, built.as_ptr(), built.len()) };
     }
 
     /// The one question a layout pass may ask the document while it runs.

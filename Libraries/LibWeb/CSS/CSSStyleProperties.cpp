@@ -38,6 +38,7 @@
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/Layout/Node.h>
+#include <LibWeb/Layout/RenderDocument.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/BoxModelMetrics.h>
 #include <LibWeb/Painting/BoxViews.h>
@@ -631,28 +632,28 @@ Optional<StyleProperty> CSSStyleProperties::get_property_internal(PropertyNameAn
 // Install the style engine's record for a synthetic pseudo-element a CSSOM read asks for, settled against its
 // element's installed record as a style update settles it. A pseudo-element the engine gives no answer for keeps the
 // record it holds.
-static void install_engine_pseudo_element_style(DOM::AbstractElement target)
+static void install_engine_pseudo_element_style(Layout::BegunRead const& read, DOM::AbstractElement target)
 {
     auto pseudo_element = *target.pseudo_element();
     auto& element = target.element();
     auto& style_engine = element.document().style_computer().style_engine();
-    auto answer = style_engine.answer_pseudo_element_record_demand(element.style_node_id(), StyleEngine::PseudoElementRecordDemand::CssomRead, *StyleEngine::demanded_pseudo_element(pseudo_element));
+    auto answer = style_engine.answer_pseudo_element_record_demand(read, element.style_node_id(), StyleEngine::PseudoElementRecordDemand::CssomRead, *StyleEngine::demanded_pseudo_element(pseudo_element));
     if (!answer.is_absent && answer.record.style_record == 0)
         return;
     StyleRecordID record { answer.record.style_record };
     element.set_computed_style(pseudo_element, record);
     // A pseudo-element that generates no box holds the environment its rules declare, if any rule styles it.
-    auto environment = !!record ? style_engine.style_record_custom_property_environment(record) : answer.custom_property_environment;
+    auto environment = !!record ? style_engine.style_record_custom_property_environment(read, record) : answer.custom_property_environment;
     if (!!record || environment != 0)
-        element.install_engine_pseudo_element_custom_property_data(pseudo_element, environment);
+        element.install_engine_pseudo_element_custom_property_data(read, pseudo_element, environment);
     else
         element.set_custom_property_data(pseudo_element, nullptr);
     if (!!record)
-        element.document().style_computer().compose_installed_engine_record(target, {});
+        element.document().style_computer().compose_installed_engine_record(read, target, {});
     style_engine.acknowledge_engine_computed_record(element.style_node_id());
 }
 
-static void ensure_pseudo_element_style_for_cssom(DOM::AbstractElement abstract_element)
+static void ensure_pseudo_element_style_for_cssom(Layout::BegunRead const& read, DOM::AbstractElement abstract_element)
 {
     auto pseudo_element = abstract_element.pseudo_element();
     if (!pseudo_element.has_value())
@@ -690,9 +691,9 @@ static void ensure_pseudo_element_style_for_cssom(DOM::AbstractElement abstract_
         for (auto ancestor = abstract_element.element().element_to_inherit_style_from({}); ancestor; ancestor = ancestor->element_to_inherit_style_from({}))
             ancestors.append({ *ancestor, pseudo_element });
         for (auto& ancestor : ancestors.in_reverse())
-            install_engine_pseudo_element_style(ancestor);
+            install_engine_pseudo_element_style(read, ancestor);
     }
-    install_engine_pseudo_element_style(abstract_element);
+    install_engine_pseudo_element_style(read, abstract_element);
 }
 
 static RefPtr<StyleValue const> resolve_color_style_value(StyleValue const&, Color, ColorResolutionContext const* = nullptr);
@@ -705,11 +706,14 @@ static Optional<Layout::NodeWithStyle*> prepare_computed_style_and_layout_for_pr
     if (!element_exposes_computed_style(abstract_element.element()))
         return {};
 
+    // The script API's read of the render state.
+    Layout::ForcedReadScope read { abstract_element.document(), true };
+
     // NB: We grab the layout node before deciding whether update_layout() is needed.
     //     For properties that don't need layout or a layout node (the else branch below),
     //     we skip update_layout() entirely and use whatever layout node already exists.
     //     For the other paths, we call update_layout() and re-fetch below.
-    Layout::NodeWithStyle* layout_node = abstract_element.unsafe_layout_node();
+    Layout::NodeWithStyle* layout_node = abstract_element.unsafe_layout_node(read);
 
     // Determine what work is needed for this property:
     // 1. Properties that need layout computation (used values) - always run update_layout()
@@ -722,7 +726,7 @@ static Optional<Layout::NodeWithStyle*> prepare_computed_style_and_layout_for_pr
         // Properties that need layout computation or layout node for special resolution
         // always need update_layout() to ensure both style and layout tree are up to date.
         abstract_element.document().update_layout_if_needed_for_node(abstract_element.element(), DOM::UpdateLayoutReason::ResolvedCSSStyleDeclarationProperty);
-        layout_node = abstract_element.layout_node();
+        layout_node = abstract_element.layout_node(read);
     }
     // Ensure styles are up to date. update_layout()/update_style() skip display:none subtrees,
     // so the leaf and its inheritance ancestors may still be stale at this point.
@@ -731,12 +735,12 @@ static Optional<Layout::NodeWithStyle*> prepare_computed_style_and_layout_for_pr
     auto style_record = abstract_element.style_record_identity();
     bool const style_is_in_display_none_subtree = !layout_node
         && !!style_record
-        && has_flag(abstract_element.document().style_computer().style_engine().style_record_dependency_flags(style_record), StyleRecordDependencyFlag::InDisplayNoneSubtree);
+        && has_flag(abstract_element.document().style_computer().style_engine().style_record_dependency_flags(read, style_record), StyleRecordDependencyFlag::InDisplayNoneSubtree);
     if (!style_record || style_is_in_display_none_subtree)
         abstract_element.document().update_style_for_element(abstract_element);
     else
         abstract_element.document().update_style_for_element(abstract_element, DOM::Document::StyleUpdateMode::OnlyIfNeeded);
-    ensure_pseudo_element_style_for_cssom(abstract_element);
+    ensure_pseudo_element_style_for_cssom(read, abstract_element);
 
     // Container queries and container-relative units need layout to resolve. Avoid forcing layout for every
     // getComputedStyle() call; only elements that actually depend on a query container need the post-layout style.
@@ -750,10 +754,10 @@ static Optional<Layout::NodeWithStyle*> prepare_computed_style_and_layout_for_pr
         && !abstract_element.document().layout_is_up_to_date();
     if (needs_layout_for_container_queries) {
         abstract_element.document().update_layout_if_needed_for_node(abstract_element.element(), DOM::UpdateLayoutReason::ResolvedCSSStyleDeclarationProperty);
-        layout_node = abstract_element.layout_node();
+        layout_node = abstract_element.layout_node(read);
         // A synthetic pseudo which is not rendered is not part of the layout-driven pseudo
         // recomputation above. Refresh its CSSOM-only style against the settled container size.
-        ensure_pseudo_element_style_for_cssom(abstract_element);
+        ensure_pseudo_element_style_for_cssom(read, abstract_element);
     }
 
     if (auto pseudo_element = abstract_element.pseudo_element(); layout_node && pseudo_element.has_value()) {
@@ -806,6 +810,8 @@ Optional<StyleProperty> CSSStyleProperties::get_direct_property(PropertyNameAndI
             return {};
 
         auto abstract_element = *owner_node();
+        // The script API's read of the render state.
+        Layout::ForcedReadScope read { abstract_element.document(), true };
 
         auto maybe_layout_node = prepare_computed_style_and_layout_for_property(abstract_element, property_id);
         if (!maybe_layout_node.has_value())
@@ -854,7 +860,7 @@ Optional<StyleProperty> CSSStyleProperties::get_direct_property(PropertyNameAndI
                 auto& style_computer = abstract_element.document().style_computer();
                 if (auto pseudo_element = abstract_element.pseudo_element(); pseudo_element.has_value()) {
                     if (auto demanded_pseudo_element = StyleEngine::demanded_pseudo_element(*pseudo_element); demanded_pseudo_element.has_value())
-                        transient_style = style_computer.engine_transient_pseudo_element_style(abstract_element.element(), *demanded_pseudo_element);
+                        transient_style = style_computer.engine_transient_pseudo_element_style(read, abstract_element.element(), *demanded_pseudo_element);
                 }
                 if (!transient_style)
                     return {};

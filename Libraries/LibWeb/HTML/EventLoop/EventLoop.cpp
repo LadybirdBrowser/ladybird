@@ -662,6 +662,7 @@ void EventLoop::update_the_rendering_from_style_and_layout(Vector<GC::Root<DOM::
         while (true) {
             // 1. Recalculate styles and update layout for doc.
             // NOTE: Recalculation of styles is handled by update_layout()
+            Layout::ForcedReadScope read { *document, false };
             document->update_layout(DOM::UpdateLayoutReason::HTMLEventLoopRenderingUpdate);
 
             // AD-HOC: Script that ran earlier in this rendering update may have spun the event loop (e.g. with a
@@ -687,7 +688,7 @@ void EventLoop::update_the_rendering_from_style_and_layout(Vector<GC::Root<DOM::
                 // 1. Run snapshot post-layout state steps for doc.
                 // NB: The state these steps snapshot is what scroll-state() container queries read. The content-visibility
                 //     steps below are part of them in that change, but they stay where they are until it lands.
-                bool snapshotted_state_changed = document->scroll_state_query_containers().snapshot_post_layout_state(*document, CSS::ScrollStateQueryContainers::Snapshot::AllContainers);
+                bool snapshotted_state_changed = document->scroll_state_query_containers().snapshot_post_layout_state(read, *document, CSS::ScrollStateQueryContainers::Snapshot::AllContainers);
 
                 // 2. Set didRunSnapshotPostLayoutStateSteps to true.
                 did_run_snapshot_post_layout_state_steps = true;
@@ -707,7 +708,7 @@ void EventLoop::update_the_rendering_from_style_and_layout(Vector<GC::Root<DOM::
             auto* document_element = document->document_element();
             if (document_element) {
                 for (auto box_slot : document->paint_state().boxes_with_auto_content_visibility()) {
-                    auto* layout_node = Painting::layout_node_for_committed_slot(document->layout_node_arena(), box_slot);
+                    auto* layout_node = Painting::layout_node_for_committed_slot(read, document->layout_node_arena(), box_slot);
                     if (!layout_node)
                         continue;
                     auto* element = as_if<DOM::Element>(layout_node->dom_node());
@@ -718,7 +719,7 @@ void EventLoop::update_the_rendering_from_style_and_layout(Vector<GC::Root<DOM::
                     bool check_for_initial_determination = element->proximity_to_the_viewport() == Web::DOM::ProximityToTheViewport::NotDetermined && !element->is_relevant_to_the_user();
 
                     // 2. Determine proximity to the viewport for element.
-                    element->determine_proximity_to_the_viewport();
+                    element->determine_proximity_to_the_viewport(read);
 
                     // 3. If checkForInitialDetermination is true and element is now relevant to the user, then set hadInitialVisibleContentVisibilityDetermination to true.
                     if (check_for_initial_determination && element->is_relevant_to_the_user()) {
@@ -737,7 +738,7 @@ void EventLoop::update_the_rendering_from_style_and_layout(Vector<GC::Root<DOM::
             // 6. If doc has active resize observations:
             if (document->has_active_resize_observations()) {
                 // 1. Set resizeObserverDepth to the result of broadcasting active resize observations given doc.
-                resize_observer_depth = document->broadcast_active_resize_observations();
+                resize_observer_depth = document->broadcast_active_resize_observations(read);
 
                 // 2. Continue.
                 continue;
@@ -835,8 +836,11 @@ void EventLoop::update_the_rendering_from_style_and_layout(Vector<GC::Root<DOM::
     //         UI process routes input over the container's content navigable by. Report the rects of the containers
     //         in docs, whose layout is up to date along with that of every document above them.
     for (auto* container : NavigableContainer::all_instances()) {
-        if (any_of(docs, [&](auto const& document) { return document.ptr() == &container->document(); }))
-            container->report_content_navigable_viewport_rect();
+        if (any_of(docs, [&](auto const& document) { return document.ptr() == &container->document(); })) {
+            // The container's box is the rendering update's own read of its document's render state.
+            Layout::ForcedReadScope read { container->document(), false };
+            container->report_content_navigable_viewport_rect(read);
+        }
     }
 
     // 23. For each doc of docs, process top layer removals given doc.

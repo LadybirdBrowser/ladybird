@@ -54,7 +54,7 @@ public:
     // The UI process routes input over a navigable another process hosts by the rect of its container's content box
     // in the viewport of the local root, and tells that navigable the part of it the top-level viewport shows. Both
     // are reported whenever they change.
-    void report_content_navigable_viewport_rect();
+    void report_content_navigable_viewport_rect(Layout::BegunRead const& read);
 
 protected:
     NavigableContainer(DOM::Document&, DOM::QualifiedName);

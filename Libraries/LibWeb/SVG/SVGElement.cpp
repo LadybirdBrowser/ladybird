@@ -401,8 +401,6 @@ bool SVGElement::describes_svg_paint_resource() const
 
 void SVGElement::note_svg_paint_resource_description_may_have_changed()
 {
-    if (!document().has_enrolled_svg_paint_resources())
-        return;
     if (describes_svg_paint_resource())
         document().note_svg_paint_resources_changed();
 }
@@ -410,8 +408,6 @@ void SVGElement::note_svg_paint_resource_description_may_have_changed()
 void SVGElement::moved_from(IsSubtreeRoot is_subtree_root, GC::Ptr<Node> old_ancestor)
 {
     Base::moved_from(is_subtree_root, old_ancestor);
-    if (!document().has_enrolled_svg_paint_resources())
-        return;
     auto const* old_svg_ancestor = as_if<SVGElement>(old_ancestor.ptr());
     if (describes_svg_paint_resource() || (old_svg_ancestor && old_svg_ancestor->describes_svg_paint_resource()))
         document().note_svg_paint_resources_changed();
@@ -615,14 +611,14 @@ GC::Ptr<SVGElement> SVGElement::viewport_element()
     return nullptr;
 }
 
-Gfx::Size<double> SVGElement::viewport_size_for_percentage_resolution()
+Gfx::Size<double> SVGElement::viewport_size_for_percentage_resolution(Layout::BegunRead const& read)
 {
     auto viewport_size_from_layout = [&](SVGSVGElement const& viewport_element) -> Gfx::Size<double> {
         // NB: A disconnected element may have stale layout objects from before it was removed.
         if (!viewport_element.is_connected())
             return {};
 
-        auto const* layout_node = viewport_element.layout_node();
+        auto const* layout_node = viewport_element.layout_node(read);
         if (layout_node && Painting::has_committed_box(*layout_node) && Painting::is_svg_svg_paintable(*layout_node))
             return Painting::svg_viewport_size(*layout_node).to_type<double>();
 

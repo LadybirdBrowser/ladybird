@@ -25,7 +25,7 @@ use super::record_replay::EventKind;
 use super::tree::{StyleNodeID, TreeScopeID};
 use super::{StyleEngine, StyleEngineHandle};
 use crate::css::transition::{FfiTransitionAction, FfiTransitionInput, TransitionDecision};
-use crate::render_state::{ArenaChange, DocumentHost};
+use crate::render_state::{ArenaChange, BegunRead, DocumentHost};
 use std::ffi::c_void;
 
 /// One hand-written write of the host to a document's style engine.
@@ -61,6 +61,20 @@ pub(crate) enum EngineWrite {
     TextData { node: u32, data: ak::Utf16String },
     /// The language an element resolves to, and the tag a `:lang()` range compares against.
     ElementLanguage { node: u32, language: u32, text: Box<[u16]> },
+    /// The presentational hints of one kind an element declares, expanded to the longhands they decide.
+    PresentationalHints {
+        node: StyleNodeID,
+        kind: super::bridge::FfiElementDeclarationKind,
+        properties: Box<[crate::css::declaration_block::DeclaredProperty]>,
+    },
+    /// A benchmark marker the page set, which a recording of the engine's calls keeps in their order.
+    #[cfg(feature = "style-recording")]
+    BenchmarkMarker(Box<[u16]>),
+    /// An element's inline declaration block, or none.
+    InlineStyle {
+        node: StyleNodeID,
+        data: Option<std::sync::Arc<crate::css::declaration_block::DeclarationBlockData>>,
+    },
 }
 
 /// An input transaction the host recorded, owned.
@@ -117,6 +131,24 @@ impl EngineWrite {
                 }
             }
             Self::ElementLanguage { node, language, text } => set_element_language(engine, node, language, &text),
+            Self::PresentationalHints { node, kind, properties } => {
+                super::bridge::register_element_declared_properties(engine, node, kind, &properties, &[]);
+            }
+            #[cfg(feature = "style-recording")]
+            Self::BenchmarkMarker(name) => {
+                if engine.recording_id().is_some() {
+                    engine.record_boundary_call(EventKind::BenchmarkMarker, |payload| payload.write_u16_slice(&name));
+                }
+            }
+            Self::InlineStyle { node, data } => {
+                super::bridge::register_element_declared_properties(
+                    engine,
+                    node,
+                    super::bridge::FfiElementDeclarationKind::InlineStyle,
+                    data.as_ref().map_or(&[], |data| data.properties.as_slice()),
+                    data.as_ref().map_or(&[], |data| data.custom_properties.as_slice()),
+                );
+            }
         }
     }
 }
@@ -230,7 +262,7 @@ impl EngineWrite {
 /// # Safety
 ///
 /// `host` must be a live document host, on the document's thread.
-unsafe fn queue(host: *const DocumentHost, write: EngineWrite) {
+pub(super) unsafe fn queue(host: *const DocumentHost, write: EngineWrite) {
     assert!(!host.is_null(), "document host is null");
     // SAFETY: Guaranteed by the caller.
     unsafe { &*host }.queue_change(ArenaChange::Engine(write));
@@ -552,14 +584,6 @@ impl StyleQuery {
     }
 }
 
-/// The reason the host waits for its document's style engine in the middle of a step of its own: a read of the engine
-/// the host's style code makes.
-pub(crate) struct EngineDoor {
-    _private: (),
-}
-
-const ENGINE_DOOR: EngineDoor = EngineDoor { _private: () };
-
 /// The document host `host` names.
 ///
 /// # Safety
@@ -571,49 +595,47 @@ pub(crate) unsafe fn document_host<'a>(host: *const DocumentHost) -> &'a Documen
     unsafe { &*host }
 }
 
-/// The document host `host` names, for a step that writes the document's style sheets to its engine in place, behind
-/// the drain of the style transaction that flew: the step's writes do not commute with the sheet writes the host queued
-/// beside the transaction, which wait for its drain.
+/// The document host `host` names, for a step in `read` that writes the document's style sheets to its engine in
+/// place, behind the drain of the style transaction that flew: the step's writes do not commute with the sheet writes
+/// the host queued beside the transaction, which wait for its drain.
 ///
 /// # Safety
 ///
 /// `host` must be a live document host, on its document's thread, which outlives the borrow.
-pub(crate) unsafe fn sheet_writing_host<'a>(host: *const DocumentHost) -> &'a DocumentHost {
+pub(crate) unsafe fn sheet_writing_host<'a>(host: *const DocumentHost, read: &BegunRead) -> &'a DocumentHost {
     // SAFETY: Guaranteed by the caller.
     let host = unsafe { document_host(host) };
-    host.drain_flown_style();
+    host.drain_flown_style(read);
     host
 }
 
-/// Runs `call` on the style engine of `host`'s document, waiting through the engine door, and answers what it answers.
-/// The engine is borrowed for the call alone, so a host callback that reaches the engine again runs after it.
-pub(crate) fn with_engine<R>(host: &DocumentHost, call: impl FnOnce(&mut StyleEngine) -> R) -> R {
-    crate::render_state::ask(
-        crate::render_state::LockstepProof::for_reason(&ENGINE_DOOR),
-        host,
-        crate::render_state::EngineCall(call),
-    )
+/// Runs `call` on the style engine of `host`'s document in `read`, and answers what it answers. The engine is borrowed
+/// for the call alone, so a host callback that reaches the engine again runs after it.
+pub(crate) fn with_engine<R>(read: &BegunRead, host: &DocumentHost, call: impl FnOnce(&mut StyleEngine) -> R) -> R {
+    crate::render_state::ask(read, host, crate::render_state::EngineCall(call))
 }
 
-/// Asks the style engine of `host`'s document `query`, waiting through the engine door.
+/// Asks the style engine of `host`'s document `query`, in `read`.
 ///
 /// # Safety
 ///
 /// `host` must be a live document host, on its document's thread.
-pub(crate) unsafe fn ask_engine(host: *const DocumentHost, query: StyleQuery) -> StyleAnswer {
-    use crate::render_state::{LockstepProof, ask};
+pub(crate) unsafe fn ask_engine(host: *const DocumentHost, read: &BegunRead, query: StyleQuery) -> StyleAnswer {
     assert!(!host.is_null(), "document host is null");
     // SAFETY: Guaranteed by the caller.
-    let host = unsafe { &*host };
-    ask(LockstepProof::for_reason(&ENGINE_DOOR), host, query)
+    crate::render_state::ask(read, unsafe { &*host }, query)
 }
 
 /// # Safety
 ///
 /// `host` must be a live document host, on its document's thread.
-unsafe fn ask_engine_number(host: *const DocumentHost, query: StyleQuery) -> u64 {
+unsafe fn ask_engine_number(
+    host: *const DocumentHost,
+    read: &crate::render_state::BegunRead,
+    query: StyleQuery,
+) -> u64 {
     // SAFETY: Guaranteed by the caller.
-    let StyleAnswer::Number(number) = (unsafe { ask_engine(host, query) }) else {
+    let StyleAnswer::Number(number) = (unsafe { ask_engine(host, read, query) }) else {
         unreachable!("the question is answered with a number");
     };
     number
@@ -622,9 +644,13 @@ unsafe fn ask_engine_number(host: *const DocumentHost, query: StyleQuery) -> u64
 /// # Safety
 ///
 /// `host` must be a live document host, on its document's thread.
-unsafe fn ask_engine_host_object(host: *const DocumentHost, query: StyleQuery) -> *const c_void {
+unsafe fn ask_engine_host_object(
+    host: *const DocumentHost,
+    read: &crate::render_state::BegunRead,
+    query: StyleQuery,
+) -> *const c_void {
     // SAFETY: Guaranteed by the caller.
-    let StyleAnswer::HostObject(address) = (unsafe { ask_engine(host, query) }) else {
+    let StyleAnswer::HostObject(address) = (unsafe { ask_engine(host, read, query) }) else {
         unreachable!("the question is answered with a host object");
     };
     std::ptr::with_exposed_provenance(address)
@@ -638,13 +664,14 @@ unsafe fn ask_engine_host_object(host: *const DocumentHost, query: StyleQuery) -
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_element_custom_property_data(
     host: *const DocumentHost,
+    read: &crate::render_state::BegunRead,
     node: u32,
 ) -> *const c_void {
     let Some(node) = StyleNodeID::from_raw(node) else {
         return std::ptr::null();
     };
     // SAFETY: Guaranteed by the caller.
-    unsafe { ask_engine_host_object(host, StyleQuery::ElementCustomPropertyData(node)) }
+    unsafe { ask_engine_host_object(host, read, StyleQuery::ElementCustomPropertyData(node)) }
 }
 
 /// The custom-property environment one of an element's synthetic pseudo-elements holds, or null.
@@ -655,6 +682,7 @@ pub unsafe extern "C" fn style_engine_element_custom_property_data(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_pseudo_element_custom_property_data(
     host: *const DocumentHost,
+    read: &crate::render_state::BegunRead,
     node: u32,
     pseudo: u8,
 ) -> *const c_void {
@@ -662,7 +690,7 @@ pub unsafe extern "C" fn style_engine_pseudo_element_custom_property_data(
         return std::ptr::null();
     };
     // SAFETY: Guaranteed by the caller.
-    unsafe { ask_engine_host_object(host, StyleQuery::PseudoElementCustomPropertyData { node, pseudo }) }
+    unsafe { ask_engine_host_object(host, read, StyleQuery::PseudoElementCustomPropertyData { node, pseudo }) }
 }
 
 /// Which of an element's synthetic pseudo-elements hold a custom-property environment, as a bit set by kind.
@@ -673,13 +701,14 @@ pub unsafe extern "C" fn style_engine_pseudo_element_custom_property_data(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_pseudo_elements_with_custom_property_data(
     host: *const DocumentHost,
+    read: &crate::render_state::BegunRead,
     node: u32,
 ) -> u64 {
     let Some(node) = StyleNodeID::from_raw(node) else {
         return 0;
     };
     // SAFETY: Guaranteed by the caller.
-    unsafe { ask_engine_number(host, StyleQuery::PseudoElementsWithCustomPropertyData(node)) }
+    unsafe { ask_engine_number(host, read, StyleQuery::PseudoElementsWithCustomPropertyData(node)) }
 }
 
 /// The nodes whose style depends on the viewport, handed to `append` one by one.
@@ -690,11 +719,12 @@ pub unsafe extern "C" fn style_engine_pseudo_elements_with_custom_property_data(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_viewport_dependent_nodes(
     host: *const DocumentHost,
+    read: &crate::render_state::BegunRead,
     context: *mut c_void,
     append: unsafe extern "C" fn(*mut c_void, u32),
 ) {
     // SAFETY: Guaranteed by the caller.
-    let StyleAnswer::Nodes(nodes) = (unsafe { ask_engine(host, StyleQuery::ViewportDependentNodes) }) else {
+    let StyleAnswer::Nodes(nodes) = (unsafe { ask_engine(host, read, StyleQuery::ViewportDependentNodes) }) else {
         unreachable!("viewport dependent nodes are answered with nodes");
     };
     for node in nodes {
@@ -712,6 +742,7 @@ pub unsafe extern "C" fn style_engine_viewport_dependent_nodes(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_element_random_base_values(
     host: *const DocumentHost,
+    read: &crate::render_state::BegunRead,
     node: u32,
     context: *mut c_void,
     visit: unsafe extern "C" fn(*mut c_void, *const u16, usize, u64),
@@ -725,7 +756,7 @@ pub unsafe extern "C" fn style_engine_element_random_base_values(
     }
     // SAFETY: Guaranteed by the caller.
     let StyleAnswer::RandomBaseValues(values) =
-        (unsafe { ask_engine(host, StyleQuery::ElementRandomBaseValues(node)) })
+        (unsafe { ask_engine(host, read, StyleQuery::ElementRandomBaseValues(node)) })
     else {
         unreachable!("random base values are answered as such");
     };
@@ -743,11 +774,12 @@ pub unsafe extern "C" fn style_engine_element_random_base_values(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_answer_record_demand(
     host: *const DocumentHost,
+    read: &crate::render_state::BegunRead,
     node: u32,
     demand: FfiRecordDemand,
 ) -> FfiRecordDemandAnswer {
     // SAFETY: Guaranteed by the caller.
-    unsafe { ask_record_demand(host, node, RecordDemand::Element(demand)) }
+    unsafe { ask_record_demand(host, read, node, RecordDemand::Element(demand)) }
 }
 
 /// Answer a read of one of an element's pseudo-elements the host makes before the next style update.
@@ -758,23 +790,30 @@ pub unsafe extern "C" fn style_engine_answer_record_demand(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_answer_pseudo_element_record_demand(
     host: *const DocumentHost,
+    read: &crate::render_state::BegunRead,
     node: u32,
     demand: FfiPseudoElementRecordDemand,
     pseudo_element: FfiDemandedPseudoElement,
 ) -> FfiRecordDemandAnswer {
     // SAFETY: Guaranteed by the caller.
-    unsafe { ask_record_demand(host, node, RecordDemand::PseudoElement(demand, pseudo_element)) }
+    unsafe { ask_record_demand(host, read, node, RecordDemand::PseudoElement(demand, pseudo_element)) }
 }
 
 /// # Safety
 ///
 /// `host` must be a live document host, on its document's thread.
-unsafe fn ask_record_demand(host: *const DocumentHost, node: u32, demand: RecordDemand) -> FfiRecordDemandAnswer {
+unsafe fn ask_record_demand(
+    host: *const DocumentHost,
+    read: &crate::render_state::BegunRead,
+    node: u32,
+    demand: RecordDemand,
+) -> FfiRecordDemandAnswer {
     let Some(node) = StyleNodeID::from_raw(node) else {
         return FfiRecordDemandAnswer::default();
     };
     // SAFETY: Guaranteed by the caller.
-    let StyleAnswer::RecordDemand(answer) = (unsafe { ask_engine(host, StyleQuery::RecordDemand { node, demand }) })
+    let StyleAnswer::RecordDemand(answer) =
+        (unsafe { ask_engine(host, read, StyleQuery::RecordDemand { node, demand }) })
     else {
         unreachable!("a record demand is answered with a record");
     };
@@ -789,10 +828,11 @@ unsafe fn ask_record_demand(host: *const DocumentHost, node: u32, demand: Record
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_style_record_dependency_flags(
     host: *const DocumentHost,
+    read: &crate::render_state::BegunRead,
     style_record: u64,
 ) -> u8 {
     // SAFETY: Guaranteed by the caller.
-    let flags = unsafe { ask_engine_number(host, StyleQuery::StyleRecordDependencyFlags(style_record)) };
+    let flags = unsafe { ask_engine_number(host, read, StyleQuery::StyleRecordDependencyFlags(style_record)) };
     u8::try_from(flags).expect("dependency flags fit a byte")
 }
 
@@ -804,10 +844,17 @@ pub unsafe extern "C" fn style_engine_style_record_dependency_flags(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_style_record_custom_property_environment(
     host: *const DocumentHost,
+    read: &crate::render_state::BegunRead,
     style_record: u64,
 ) -> u64 {
     // SAFETY: Guaranteed by the caller.
-    unsafe { ask_engine_number(host, StyleQuery::StyleRecordCustomPropertyEnvironment(style_record)) }
+    unsafe {
+        ask_engine_number(
+            host,
+            read,
+            StyleQuery::StyleRecordCustomPropertyEnvironment(style_record),
+        )
+    }
 }
 
 /// The engine's id of the native rule `identity` names, plus one, or 0 for none.
@@ -816,9 +863,13 @@ pub unsafe extern "C" fn style_engine_style_record_custom_property_environment(
 ///
 /// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_native_rule_id(host: *const DocumentHost, identity: u64) -> u32 {
+pub unsafe extern "C" fn style_engine_native_rule_id(
+    host: *const DocumentHost,
+    read: &crate::render_state::BegunRead,
+    identity: u64,
+) -> u32 {
     // SAFETY: Guaranteed by the caller.
-    let id = unsafe { ask_engine_number(host, StyleQuery::NativeRuleId(identity)) };
+    let id = unsafe { ask_engine_number(host, read, StyleQuery::NativeRuleId(identity)) };
     u32::try_from(id).expect("a native rule id fits 32 bits")
 }
 
@@ -830,12 +881,13 @@ pub unsafe extern "C" fn style_engine_native_rule_id(host: *const DocumentHost, 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_counter(
     host: *const DocumentHost,
+    read: &crate::render_state::BegunRead,
     index: usize,
     out_value: *mut u64,
     out_name_length: *mut usize,
 ) -> *const u8 {
     // SAFETY: Guaranteed by the caller.
-    let StyleAnswer::Counter(counter) = (unsafe { ask_engine(host, StyleQuery::Counter(index)) }) else {
+    let StyleAnswer::Counter(counter) = (unsafe { ask_engine(host, read, StyleQuery::Counter(index)) }) else {
         unreachable!("a counter is answered with a counter");
     };
     let Some((name, value)) = counter else {
@@ -860,6 +912,7 @@ pub unsafe extern "C" fn style_engine_counter(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_decide_transitions(
     host: *const DocumentHost,
+    read: &crate::render_state::BegunRead,
     before: u64,
     after: u64,
     input: *const FfiTransitionInput,
@@ -883,7 +936,8 @@ pub unsafe extern "C" fn style_engine_decide_transitions(
         properties: crate::render_state::Lent::new(properties),
     };
     // SAFETY: As above.
-    let StyleAnswer::Transitions(decided) = (unsafe { ask_engine(host, StyleQuery::DecideTransitions(decision)) })
+    let StyleAnswer::Transitions(decided) =
+        (unsafe { ask_engine(host, read, StyleQuery::DecideTransitions(decision)) })
     else {
         unreachable!("a transition step is answered with its decisions");
     };

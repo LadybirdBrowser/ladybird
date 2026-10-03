@@ -49,7 +49,7 @@ public:
     // https://github.com/whatwg/html/pull/11613
     // Snapshots the scroll state of the containers, invalidating the styles that queried a state that changed. Returns
     // whether any did.
-    bool snapshot_post_layout_state(DOM::Document&, Snapshot);
+    bool snapshot_post_layout_state(Layout::BegunRead const& read, DOM::Document&, Snapshot);
 
     // Whether a scroll-state() query asked about any container.
     bool has_containers() const { return !m_containers.is_empty(); }

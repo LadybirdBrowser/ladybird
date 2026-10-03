@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<div id="box" style="width: 300px; height: 10px"></div>
+<input id="input" value="before">
+<p id="paragraph">before</p>
+<script>
+    // Changes to the data of a text node that has a box, beside the frame that holds its box: setting an input's value
+    // writes the text node in its shadow tree, and setting a text node's data writes it directly.
+    asyncTest(async done => {
+        const valueSet = await whileRecordingInFlight(() => {
+            box.style.height = "20px";
+        }, state => {
+            input.value = "after";
+            return state;
+        });
+        println(`input value: state in the next task: ${valueSet}`);
+        await twoFrames();
+        println(`input value: value: ${input.value}`);
+        println(`input value: box height: ${box.offsetHeight}`);
+
+        const dataSet = await whileRecordingInFlight(() => {
+            box.style.height = "30px";
+        }, state => {
+            paragraph.firstChild.data = "after, and longer";
+            return state;
+        });
+        println(`text data: state in the next task: ${dataSet}`);
+        await twoFrames();
+        println(`text data: text: ${paragraph.innerText}`);
+        println(`text data: box height: ${box.offsetHeight}`);
+        done();
+    });
+</script>

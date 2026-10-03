@@ -114,8 +114,9 @@ WebIDL::ExceptionOr<GC::Ref<Geometry::DOMRect>> SVGGraphicsElement::get_b_box(Bi
     //        SVG coordinate space (before any viewbox or other transformations), so it should be possible to
     //        calculate this from SVG geometry without a full layout tree (at least for simple cases).
     //        See: https://svgwg.org/svg2-draft/coords.html#BoundingBoxes
+    Layout::ForcedReadScope read { document(), true };
     document().update_layout_if_needed_for_node(*this, DOM::UpdateLayoutReason::SVGGraphicsElementGetBBox);
-    auto const* self_layout_node = layout_node();
+    auto const* self_layout_node = layout_node(read);
     if (!self_layout_node)
         return Geometry::DOMRect::create();
     auto owner_svg_element = this->owner_svg_element();
@@ -148,7 +149,7 @@ WebIDL::ExceptionOr<GC::Ref<Geometry::DOMRect>> SVGGraphicsElement::get_b_box(Bi
         return Geometry::DOMRect::create(united_rect);
     }
 
-    auto const* owner_layout_node = owner_svg_element->layout_node();
+    auto const* owner_layout_node = owner_svg_element->layout_node(read);
     if (!owner_layout_node || !Painting::has_committed_box(*owner_layout_node) || !Painting::has_committed_box(*self_layout_node)) {
         // Throw only for non-rendered *graphics* elements where geometry isn't computable
         // (e.g. elements inside <marker>, <pattern>, etc.).
@@ -188,6 +189,7 @@ GC::Ptr<Geometry::DOMMatrix> SVGGraphicsElement::get_screen_ctm()
     if (!is_connected())
         return {};
 
+    Layout::ForcedReadScope read { document(), true };
     document().update_layout_if_needed_for_node(*this, DOM::UpdateLayoutReason::SVGGraphicsElementGetScreenCTM);
 
     // 2. If the current element is a non-rendered element, and the UA is not able to resolve the style of the element,
@@ -195,7 +197,7 @@ GC::Ptr<Geometry::DOMMatrix> SVGGraphicsElement::get_screen_ctm()
     //
     // NB: We currently require committed box data connected to the document's visual-context tree to compute this matrix.
     //     This also excludes geometry in resource-only subtrees such as masks, clip paths, and patterns.
-    auto const* layout_node = this->layout_node();
+    auto const* layout_node = this->layout_node(read);
     if (!layout_node || !Painting::has_committed_box(*layout_node) || !document().has_committed_viewport_box())
         return {};
 
