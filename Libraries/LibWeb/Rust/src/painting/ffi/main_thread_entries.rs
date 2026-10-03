@@ -780,9 +780,8 @@ pub unsafe extern "C" fn render_state_record_display_list(
     let Some(frame) = (unsafe { read(host, frame_inputs, freeze_recording_frame) }) else {
         return false;
     };
-    // SAFETY: The host lends the input arrays and buffers for this call. Only owned output and
-    // retained resources escape into the pending recording below.
-    let inputs = unsafe { inputs.borrow_recording_inputs(frame.tree_inputs, frame.root_background_source) };
+    // SAFETY: The host lends the input arrays and buffers for this call, and the inputs copy what they read of them.
+    let inputs = unsafe { inputs.recording_inputs(frame.tree_inputs, frame.root_background_source) };
     let job = crate::painting::recording_slot::RecordingJob::new(
         frame.frame,
         recording.take_recorder(),

@@ -27,7 +27,7 @@ pub(crate) struct FrameInputs {
 }
 
 impl FrameInputs {
-    pub(crate) fn from_recording_inputs(inputs: &RecordingInputs<'_>, paint_state: &PublishedPaintState) -> Self {
+    pub(crate) fn from_recording_inputs(inputs: &RecordingInputs, paint_state: &PublishedPaintState) -> Self {
         Self {
             device_pixels_per_css_pixel: inputs.device_pixels_per_css_pixel,
             force_dark_enabled: inputs.force_dark_enabled,

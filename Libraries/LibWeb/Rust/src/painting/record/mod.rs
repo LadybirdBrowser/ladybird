@@ -100,7 +100,7 @@ impl PaintPhase {
 pub struct PaintRecorder<'a, O: Observer> {
     pub(crate) source: &'a PaintSource<'a>,
     pub(crate) paint_state: &'a crate::painting::published_frame::PublishedPaintState,
-    pub(crate) inputs: &'a RecordingInputs<'a>,
+    pub(crate) inputs: &'a RecordingInputs,
     pub(crate) recorder: DisplayListRecorder,
     pub(crate) converter: DevicePixelConverter,
     pub(crate) svg_resource_walk: Option<SvgResourceWalk>,

@@ -61,15 +61,17 @@ pub struct FfiRecordingInputs {
 }
 
 impl FfiRecordingInputs {
+    /// The inputs of a recording, which copy what they read of the arrays and byte buffers.
+    ///
     /// # Safety
     ///
-    /// Nonempty arrays and byte buffers must be aligned, valid and immutable for the
-    /// returned inputs' lifetime. Fonts for enabled overlays must point to live `Gfx::Font`s.
-    pub(crate) unsafe fn borrow_recording_inputs(
+    /// Nonempty arrays and byte buffers must be aligned, valid and immutable for this call. Fonts
+    /// for enabled overlays must point to live `Gfx::Font`s.
+    pub(crate) unsafe fn recording_inputs(
         &self,
         tree_inputs: super::FfiVisualContextTreeInputs,
         root_background_source: super::RootBackgroundSource,
-    ) -> crate::painting::record::inputs::RecordingInputs<'_> {
+    ) -> crate::painting::record::inputs::RecordingInputs {
         use crate::painting::display_list::commands::UniqueNodeId;
         use crate::painting::force_dark::ForceDarkSettings;
         use crate::painting::record::inputs::{
@@ -78,7 +80,7 @@ impl FfiRecordingInputs {
         };
         use libcompositing_rust::ffi::ffi_slice;
 
-        // SAFETY: The caller lends these arrays and buffers for the returned inputs' lifetime.
+        // SAFETY: The caller lends these arrays and buffers for this call.
         let (grid_overlays, flex_overlays, outline_path) = unsafe {
             (
                 ffi_slice(self.grid_overlays, self.grid_overlay_count),
@@ -154,7 +156,7 @@ impl FfiRecordingInputs {
                 };
                 InspectorHighlight {
                     paintable: self.inspector_highlight_paintable,
-                    label: String::from_utf8_lossy(text),
+                    label: String::from_utf8_lossy(text).into_owned(),
                     fonts,
                 }
             }),
@@ -162,11 +164,11 @@ impl FfiRecordingInputs {
             tooltip_text_color: self.tooltip_text_color,
             tooltip_border_color: self.tooltip_border_color,
             grid_overlays: (!grid_overlays.is_empty()).then(|| GridOverlays {
-                inputs: grid_overlays,
+                inputs: grid_overlays.into(),
                 // SAFETY: The caller supplies live label fonts when grid overlays are enabled.
                 fonts: unsafe { self.grid_label_fonts.retain() },
             }),
-            flex_overlays,
+            flex_overlays: flex_overlays.into(),
             caret_debug_rect: self
                 .caret_debug_rect
                 .has_value
@@ -183,9 +185,9 @@ impl FfiRecordingInputs {
                 start: control.start,
                 end: control.end,
             }),
-            focused_area_outline: (!outline_path.is_empty()).then_some(FocusedAreaOutline {
+            focused_area_outline: (!outline_path.is_empty()).then(|| FocusedAreaOutline {
                 image: self.focused_area_outline.image,
-                path_bytes: outline_path,
+                path_bytes: outline_path.into(),
                 color: self.focused_area_outline.color,
                 width: self.focused_area_outline.width,
             }),
