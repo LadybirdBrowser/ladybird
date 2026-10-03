@@ -11,25 +11,17 @@
 #include <LibCompositing/DisplayList/DisplayListPlayerSkia.h>
 #include <LibCompositing/DisplayList/DisplayListResourceStorage.h>
 #include <LibGC/Heap.h>
+#include <LibGC/WeakHashMap.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibGfx/PaintingSurface.h>
 #include <LibJS/Runtime/ExternalMemory.h>
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/DOM/Document.h>
-#include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
-#include <LibWeb/HTML/BrowsingContext.h>
-#include <LibWeb/HTML/DocumentState.h>
+#include <LibWeb/DOM/XMLDocument.h>
 #include <LibWeb/HTML/LocalTraversableNavigable.h>
-#include <LibWeb/HTML/Navigable.h>
-#include <LibWeb/HTML/NavigationParams.h>
-#include <LibWeb/HTML/Parser/HTMLParser.h>
-#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Window.h>
-#include <LibWeb/HTML/WindowProxy.h>
-#include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Page/Page.h>
-#include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/Painting/DocumentPaintState.h>
 #include <LibWeb/Painting/PaintableTypes.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
@@ -42,6 +34,21 @@ namespace Web::SVG {
 
 GC_DEFINE_ALLOCATOR(SVGDecodedImageData);
 GC_DEFINE_ALLOCATOR(SVGDecodedImageData::SVGPageClient);
+
+static GC::Ref<SVGDecodedImageData::SVGPageClient> shared_svg_page_client_for_page(GC::Ref<Page> host_page)
+{
+    static NeverDestroyed<GC::WeakHashMap<Page, SVGDecodedImageData::SVGPageClient>> page_clients;
+    if (auto* page_client = page_clients->get(host_page))
+        return *page_client;
+
+    auto page_client = SVGDecodedImageData::SVGPageClient::create(*host_page);
+    auto page = Page::create(*page_client);
+    page->set_is_scripting_enabled(false);
+    page_client->m_svg_page = page.ptr();
+    page->set_top_level_traversable(HTML::LocalTraversableNavigable::create_a_new_top_level_traversable(page, nullptr, {}));
+    page_clients->set(host_page, page_client);
+    return page_client;
+}
 
 class ScopedSVGImageDocument {
 public:
@@ -89,40 +96,12 @@ private:
 
 ErrorOr<GC::Ref<SVGDecodedImageData>> SVGDecodedImageData::create(GC::Ref<Page> host_page, URL::URL const& url, ReadonlyBytes data)
 {
-    auto page_client = SVGPageClient::create(*host_page);
-    auto page = Page::create(*page_client);
-    page->set_is_scripting_enabled(false);
-    page_client->m_svg_page = page.ptr();
-    page->set_top_level_traversable(HTML::LocalTraversableNavigable::create_a_new_top_level_traversable(page, nullptr, {}));
-    auto navigable = page->local_traversable();
-    auto response = Fetch::Infrastructure::Response::create();
-    response->url_list().append(url);
-    auto origin = URL::Origin::create_opaque();
-    auto& heap = GC::Heap::the();
-    auto navigation_params = heap.allocate<HTML::NavigationParams>(OptionalNone {},
-        navigable,
-        nullptr,
-        response,
-        nullptr,
-        nullptr,
-        HTML::OpenerPolicyEnforcementResult { .url = url, .origin = origin, .opener_policy = HTML::OpenerPolicy {} },
-        nullptr,
-        origin,
-        heap.allocate<HTML::PolicyContainer>(heap),
-        HTML::SandboxingFlagSet {},
-        ReferrerPolicy::ReferrerPolicy::EmptyString,
-        HTML::OpenerPolicy {},
-        Bindings::NavigationTimingType::Navigate,
-        OptionalNone {},
-        HTML::UserNavigationInvolvement::None);
+    auto page_client = shared_svg_page_client_for_page(host_page);
+    auto& page = page_client->page();
 
-    auto document = MUST(DOM::Document::create_and_initialize(DOM::Document::Type::XML, "image/svg+xml"_utf16_fly_string, navigation_params));
-    navigable->set_ongoing_navigation({});
-    if (auto active_document = navigable->active_document())
-        active_document->destroy();
-    navigable->set_active_document(document);
-    auto& window = HTML::relevant_window(document);
-    document->browsing_context()->window_proxy()->set_window(GC::Ref { window });
+    auto document = DOM::XMLDocument::create(page, page_client->window(), url);
+    document->set_content_type("image/svg+xml"_utf16_fly_string);
+    document->set_origin(URL::Origin::create_opaque());
 
     ScopedSVGImageDocument scoped_document { *page_client, *document, ScopedSVGImageDocument::FrameRequests::Suppress };
 

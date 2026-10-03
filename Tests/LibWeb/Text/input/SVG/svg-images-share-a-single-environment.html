@@ -1,0 +1,40 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const countCells = name =>
+            Object.values(JSON.parse(internals.dumpGCGraph())).filter(cell => cell.class_name === name).length;
+
+        await internals.gcAsync();
+        const initialEnvironments = countCells("SVGDecodedImageData::SVGPageClient");
+        const initialImages = countCells("SVGDecodedImageData");
+
+        let frame = document.createElement("iframe");
+        frame.srcdoc = ["red", "blue"]
+            .map(
+                color =>
+                    `<img src='data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"><rect width="10" height="10" fill="${color}"/></svg>`)}'>`
+            )
+            .join("");
+        await new Promise(resolve => {
+            frame.onload = resolve;
+            document.body.append(frame);
+        });
+        println(`Additional environments: ${countCells("SVGDecodedImageData::SVGPageClient") - initialEnvironments}`);
+        println(`Additional SVG images: ${countCells("SVGDecodedImageData") - initialImages}`);
+
+        frame.remove();
+        frame = null;
+        for (let attempt = 0; attempt < 10; ++attempt) {
+            await internals.gcAsync();
+            if (
+                countCells("SVGDecodedImageData::SVGPageClient") === initialEnvironments &&
+                countCells("SVGDecodedImageData") === initialImages
+            )
+                break;
+        }
+        println(`Environment collected: ${countCells("SVGDecodedImageData::SVGPageClient") === initialEnvironments}`);
+        println(`Images collected: ${countCells("SVGDecodedImageData") === initialImages}`);
+        done();
+    });
+</script>
