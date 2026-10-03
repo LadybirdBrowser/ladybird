@@ -87,16 +87,14 @@ WebIDL::ExceptionOr<ImportMap> parse_import_map_string(JS::Realm& realm, Utf16Vi
     }
 
     // 9. If parsed's keys contains any items besides "imports", "scopes", or "integrity", then the user agent should report a warning to the console indicating that an invalid top-level key was present in the import map.
-    Vector<JS::PropertyKey> parsed_keys;
-    parsed_object.shape().for_each_property_in_insertion_order([&](auto const& key, auto const&) {
-        parsed_keys.append(key);
-    });
-    for (auto& key : parsed_keys) {
-        if (key.as_string().is_one_of("imports"sv, "scopes"sv, "integrity"sv))
+    auto parsed_keys = TRY(parsed_object.internal_own_property_keys());
+    for (auto const& key_value : parsed_keys) {
+        auto key = key_value.as_string().utf16_string();
+        if (key.is_one_of("imports"sv, "scopes"sv, "integrity"sv))
             continue;
 
         auto& console = realm.intrinsics().console_object()->console();
-        console.output_debug_message(JS::Console::LogLevel::Warn, Utf16String::formatted("An invalid top-level key ({}) was present in the import map", key.as_string()));
+        console.output_debug_message(JS::Console::LogLevel::Warn, Utf16String::formatted("An invalid top-level key ({}) was present in the import map", key));
     }
 
     // 10. Return an import map whose imports are sortedAndNormalizedImports, whose scopes are sortedAndNormalizedScopes, and whose integrity are normalizedIntegrity.
@@ -138,15 +136,13 @@ WebIDL::ExceptionOr<ModuleSpecifierMap> sort_and_normalise_module_specifier_map(
     ModuleSpecifierMap normalized;
 
     // 2. For each specifierKey → value of originalMap:
-    Vector<JS::PropertyKey> specifier_keys;
-    original_map.shape().for_each_property_in_insertion_order([&](auto const& specifier_key, auto const&) {
-        specifier_keys.append(specifier_key);
-    });
-    for (auto& specifier_key : specifier_keys) {
-        auto value = TRY(original_map.get(specifier_key.as_string()));
+    auto specifier_keys = TRY(original_map.internal_own_property_keys());
+    for (auto const& specifier_key_value : specifier_keys) {
+        auto specifier_key = specifier_key_value.as_string().utf16_string();
+        auto value = TRY(original_map.get(specifier_key));
 
         // 1. Let normalizedSpecifierKey be the result of normalizing a specifier key given specifierKey and baseURL.
-        auto normalized_specifier_key = normalize_specifier_key(realm, specifier_key.as_string().view(), base_url);
+        auto normalized_specifier_key = normalize_specifier_key(realm, specifier_key, base_url);
 
         // 2. If normalizedSpecifierKey is null, then continue.
         if (!normalized_specifier_key.has_value())
@@ -182,11 +178,11 @@ WebIDL::ExceptionOr<ModuleSpecifierMap> sort_and_normalise_module_specifier_map(
         }
 
         // 6. If specifierKey ends with U+002F (/), and the serialization of addressURL does not end with U+002F (/), then:
-        if (specifier_key.as_string().view().ends_with('/') && !address_url->serialize().ends_with('/')) {
+        if (specifier_key.utf16_view().ends_with('/') && !address_url->serialize().ends_with('/')) {
             // 1. The user agent may report a warning to the console indicating that an invalid address was given for the specifier key specifierKey; since specifierKey ends with a slash, the address needs to as well.
             auto& console = realm.intrinsics().console_object()->console();
             console.output_debug_message(JS::Console::LogLevel::Warn,
-                Utf16String::formatted("An invalid address was given for the specifier key ({}); since specifierKey ends with a slash, the address needs to as well", specifier_key.as_string()));
+                Utf16String::formatted("An invalid address was given for the specifier key ({}); since specifierKey ends with a slash, the address needs to as well", specifier_key));
 
             // 2. Set normalized[normalizedSpecifierKey] to null.
             normalized.set(normalized_specifier_key.value(), {});
@@ -210,26 +206,24 @@ WebIDL::ExceptionOr<HashMap<URL::URL, ModuleSpecifierMap>> sort_and_normalise_sc
     HashMap<URL::URL, ModuleSpecifierMap> normalized;
 
     // 2. For each scopePrefix → potentialSpecifierMap of originalMap:
-    Vector<JS::PropertyKey> scope_prefixes;
-    original_map.shape().for_each_property_in_insertion_order([&](auto const& scope_prefix, auto const&) {
-        scope_prefixes.append(scope_prefix);
-    });
-    for (auto& scope_prefix : scope_prefixes) {
-        auto potential_specifier_map = TRY(original_map.get(scope_prefix.as_string()));
+    auto scope_prefixes = TRY(original_map.internal_own_property_keys());
+    for (auto const& scope_prefix_value : scope_prefixes) {
+        auto scope_prefix = scope_prefix_value.as_string().utf16_string();
+        auto potential_specifier_map = TRY(original_map.get(scope_prefix));
 
         // 1. If potentialSpecifierMap is not an ordered map, then throw a TypeError indicating that the value of the scope with prefix scopePrefix needs to be a JSON object.
         if (!potential_specifier_map.is_object())
-            return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, Utf16String::formatted("The value of the scope with the prefix '{}' needs to be a JSON object.", scope_prefix.as_string()) };
+            return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, Utf16String::formatted("The value of the scope with the prefix '{}' needs to be a JSON object.", scope_prefix) };
 
         // 2. Let scopePrefixURL be the result of URL parsing scopePrefix with baseURL.
-        auto scope_prefix_url = DOMURL::parse(scope_prefix.as_string().view(), base_url);
+        auto scope_prefix_url = DOMURL::parse(scope_prefix, base_url);
 
         // 3. If scopePrefixURL is failure, then:
         if (!scope_prefix_url.has_value()) {
             // 1. The user agent may report a warning to the console that the scope prefix URL was not parseable.
             auto& console = realm.intrinsics().console_object()->console();
             console.output_debug_message(JS::Console::LogLevel::Warn,
-                Utf16String::formatted("The scope prefix URL ({}) was not parseable", scope_prefix.as_string()));
+                Utf16String::formatted("The scope prefix URL ({}) was not parseable", scope_prefix));
 
             // 2. Continue.
             continue;
@@ -251,22 +245,20 @@ WebIDL::ExceptionOr<ModuleIntegrityMap> normalize_module_integrity_map(JS::Realm
     ModuleIntegrityMap normalized;
 
     // 2. For each key → value of originalMap:
-    Vector<JS::PropertyKey> keys;
-    original_map.shape().for_each_property_in_insertion_order([&](auto const& key, auto const&) {
-        keys.append(key);
-    });
-    for (auto& key : keys) {
-        auto value = TRY(original_map.get(key.as_string()));
+    auto keys = TRY(original_map.internal_own_property_keys());
+    for (auto const& key_value : keys) {
+        auto key = key_value.as_string().utf16_string();
+        auto value = TRY(original_map.get(key));
 
         // 1. Let resolvedURL be the result of resolving a URL-like module specifier given key and baseURL.
-        auto resolved_url = resolve_url_like_module_specifier(key.as_string().view(), base_url);
+        auto resolved_url = resolve_url_like_module_specifier(key, base_url);
 
         // 2. If resolvedURL is null, then:
         if (!resolved_url.has_value()) {
             // 1. The user agent may report a warning to the console indicating that the key failed to resolve.
             auto& console = realm.intrinsics().console_object()->console();
             console.output_debug_message(JS::Console::LogLevel::Warn,
-                Utf16String::formatted("Failed to resolve key ({})", key.as_string()));
+                Utf16String::formatted("Failed to resolve key ({})", key));
 
             // 2. Continue.
             continue;
@@ -277,7 +269,7 @@ WebIDL::ExceptionOr<ModuleIntegrityMap> normalize_module_integrity_map(JS::Realm
             // 1. The user agent may report a warning to the console indicating that integrity metadata values need to be strings.
             auto& console = realm.intrinsics().console_object()->console();
             console.output_debug_message(JS::Console::LogLevel::Warn,
-                Utf16String::formatted("Integrity metadata value for '{}' needs to be a string", key.as_string()));
+                Utf16String::formatted("Integrity metadata value for '{}' needs to be a string", key));
 
             // 2. Continue.
             continue;
