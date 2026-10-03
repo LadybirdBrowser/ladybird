@@ -6,6 +6,7 @@
 
 #include <LibGC/Heap.h>
 #include <LibJS/Runtime/ModuleRequest.h>
+#include <LibJS/ScriptCompilation.h>
 #include <LibWeb/CSS/StyleSheetState.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/Fetching.h>
@@ -26,11 +27,14 @@ static void register_source(ModuleScript& script, ScriptRegistry::IsInlineSource
 {
     auto record = script.record();
     auto* module_record = record.get_pointer<GC::Ref<JS::SourceTextModule>>();
-    if (!module_record || !(*module_record)->cached_executable())
+    if (!module_record)
         return;
 
-    auto const& source_code = (*module_record)->cached_executable()->source_code;
-    register_javascript_source(script, source_code, ScriptRegistry::JavaScriptSource::Type::Module, is_inline_source, source_line_number);
+    auto source_code = JS::top_level_source_code(**module_record);
+    if (!source_code)
+        return;
+
+    register_javascript_source(script, source_code.release_nonnull(), ScriptRegistry::JavaScriptSource::Type::Module, is_inline_source, source_line_number);
 }
 
 ModuleScript::~ModuleScript() = default;
@@ -88,7 +92,7 @@ WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> ModuleScript::create_a_javascript_mod
     return script;
 }
 
-WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> ModuleScript::create_from_pre_parsed(ByteString const& filename, NonnullRefPtr<JS::SourceCode const> source_code, EnvironmentSettingsObject& settings, URL::URL base_url, JS::FFI::ParsedProgram* parsed)
+WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> ModuleScript::create_from_pre_parsed(ByteString const& filename, NonnullRefPtr<JS::SourceCode const> source_code, EnvironmentSettingsObject& settings, URL::URL base_url, JS::ParsedProgram parsed)
 {
     auto& realm = settings.realm();
     auto script = create_internal(move(base_url), filename, settings);
@@ -96,7 +100,7 @@ WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> ModuleScript::create_from_pre_parsed(
     script->set_parse_error(JS::js_null());
     script->set_error_to_rethrow(JS::js_null());
 
-    auto result = JS::SourceTextModule::parse_from_pre_parsed(parsed, move(source_code), realm, script->filename(), script.ptr());
+    auto result = JS::create_module(move(parsed), move(source_code), realm, script->filename(), script.ptr());
 
     if (result.is_error()) {
         auto& parse_error = result.error().first();
@@ -110,7 +114,7 @@ WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> ModuleScript::create_from_pre_parsed(
     return script;
 }
 
-WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> ModuleScript::create_from_pre_compiled(ByteString const& filename, NonnullRefPtr<JS::SourceCode const> source_code, EnvironmentSettingsObject& settings, URL::URL base_url, JS::FFI::CompiledProgram* compiled)
+WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> ModuleScript::create_from_pre_compiled(ByteString const& filename, NonnullRefPtr<JS::SourceCode const> source_code, EnvironmentSettingsObject& settings, URL::URL base_url, JS::CompiledProgram compiled)
 {
     auto& realm = settings.realm();
     auto script = create_internal(move(base_url), filename, settings);
@@ -118,7 +122,7 @@ WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> ModuleScript::create_from_pre_compile
     script->set_parse_error(JS::js_null());
     script->set_error_to_rethrow(JS::js_null());
 
-    auto result = JS::SourceTextModule::parse_from_pre_compiled(compiled, move(source_code), realm, script->filename(), script.ptr());
+    auto result = JS::create_module(move(compiled), move(source_code), realm, script->filename(), script.ptr());
 
     if (result.is_error()) {
         auto& parse_error = result.error().first();
@@ -132,7 +136,7 @@ WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> ModuleScript::create_from_pre_compile
     return script;
 }
 
-WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> ModuleScript::create_from_bytecode_cache(ByteString const& filename, NonnullRefPtr<JS::SourceCode const> source_code, EnvironmentSettingsObject& settings, URL::URL base_url, NonnullRefPtr<JS::RustIntegration::DecodedBytecodeCache> bytecode_cache)
+WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> ModuleScript::create_from_bytecode_cache(ByteString const& filename, NonnullRefPtr<JS::SourceCode const> source_code, EnvironmentSettingsObject& settings, URL::URL base_url, NonnullRefPtr<JS::DecodedBytecodeCache> bytecode_cache)
 {
     auto& realm = settings.realm();
     auto script = create_internal(move(base_url), filename, settings);
