@@ -2618,10 +2618,14 @@ void CanonicalTraversable::finalize_a_cross_document_navigation(HistoryOperation
     //      context is non-null; and
     //    - historyEntry's document's origin is not navigable's active document's origin,
     //    then set historyEntry's document state's navigable target name to the empty string.
+    // AD-HOC: Don't clear the name when leaving an initial about:blank in the same browsing context. A noopener popup's
+    //         initial about:blank has an opaque origin, so its first navigation would always lose the name it was
+    //         opened with.
     auto& browsing_context = document->browsing_context();
     if (navigable->parent() == nullptr
         && !(browsing_context.is_auxiliary() && browsing_context.opener_browsing_context())
-        && document->origin() != navigable->active_document().origin()) {
+        && document->origin() != navigable->active_document().origin()
+        && (!navigable->active_document().is_initial_about_blank() || &browsing_context != &navigable->active_browsing_context())) {
         history_entry->document_state->navigable_target_name = {};
     }
 
