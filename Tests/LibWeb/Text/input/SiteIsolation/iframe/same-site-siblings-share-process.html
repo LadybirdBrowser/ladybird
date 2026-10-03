@@ -7,8 +7,7 @@
         const hostname = uniqueLocalhostHostname("oop-siblings");
         const frames = [];
         const loadChild = async (frame, index) => {
-            const markerPath = `/oop-sibling-marker-${runId}-${index}`;
-            const marker = new URL(await server.createEcho("GET", markerPath, {
+            const marker = new URL(await server.createEcho("GET", `/oop-sibling-marker-${runId}-${index}`, {
                 status: 200,
                 body: "marker",
             }));
@@ -24,7 +23,7 @@
             let documentRan = false;
             for (let attempt = 0; attempt < 600 && !documentRan; ++attempt) {
                 try {
-                    documentRan = (await fetch(`${server.baseURL}/recorded-request-headers/echo${markerPath}`)).ok;
+                    documentRan = (await fetch(server.recordedRequestHeadersURL(marker))).ok;
                 } catch {}
                 if (!documentRan) await timeout(25);
             }

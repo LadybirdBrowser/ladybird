@@ -56,7 +56,7 @@
         document.body.appendChild(source);
 
         // The second document's script fetches the marker; the echo server records the request when it is made.
-        const recordedUrl = `${httpServer.baseURL}/recorded-request-headers/echo/oop-named-target-marker-${runId}`;
+        const recordedUrl = httpServer.recordedRequestHeadersURL(markerUrl);
         let siblingNavigated = false;
         for (let attempt = 0; attempt < 600 && !siblingNavigated; ++attempt) {
             try {

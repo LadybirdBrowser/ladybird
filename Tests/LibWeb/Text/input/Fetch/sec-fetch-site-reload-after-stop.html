@@ -19,7 +19,7 @@
         // The server keeps the headers of the last request only, so a fetch() between the stopped navigation and the
         // reload tells the two navigation requests apart.
         async function recorded(mode) {
-            const url = `${server.baseURL}/recorded-request-headers/echo/sec-fetch-site-reload-after-stop-${id}`;
+            const url = server.recordedRequestHeadersURL(slowURL);
             for (let attempt = 0; attempt < 200; ++attempt) {
                 try {
                     const response = await fetch(url);

@@ -32,7 +32,7 @@
         <\/script>`, { "Cache-Control": "no-store" });
 
         window.addEventListener("message", async () => {
-            const response = await fetch(`${server.baseURL}/recorded-request-headers/echo/sec-fetch-site-traversal-entry-${id}`);
+            const response = await fetch(server.recordedRequestHeadersURL(entryUrl));
             const headers = response.ok ? await response.json() : null;
             println(`entry fetched again by the traversal: ${headers?.["Sec-Fetch-Site"]?.[0]} (${headers?.["Sec-Fetch-Dest"]?.[0]})`);
             done();

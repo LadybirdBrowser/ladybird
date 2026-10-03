@@ -176,12 +176,23 @@ function promiseTest(f) {
     });
 }
 
+let __pageEchoScope = null;
+
+// The echo server, the HTTP cache and the cookie jar are shared by every test and every --repeat run, so echo paths
+// are scoped to the page that creates them. A test that spans page loads names a scope of its own to share them.
 class HTTPTestServer {
-    constructor(baseURL) {
+    constructor(baseURL, echoScope = null) {
         this.baseURL = baseURL;
+        this.echoScope = echoScope;
+    }
+    withEchoScope(echoScope) {
+        return new HTTPTestServer(this.baseURL, echoScope);
+    }
+    echoURL(path) {
+        return `${this.baseURL}${this.#echoPath(path)}`;
     }
     async createEcho(method, path, options) {
-        const echoPath = `/echo${path}`;
+        const echoPath = this.#echoPath(path);
         const result = await fetch(`${this.baseURL}/echo`, {
             method: "POST",
             headers: {
@@ -194,8 +205,15 @@ class HTTPTestServer {
         }
         return `${this.baseURL}${echoPath}`;
     }
+    recordedRequestHeadersURL(echoURL) {
+        return `${this.baseURL}/recorded-request-headers${new URL(echoURL).pathname}`;
+    }
     getStaticURL(path) {
         return `${this.baseURL}/static/${path}`;
+    }
+    #echoPath(path) {
+        const echoScope = this.echoScope ?? (__pageEchoScope ??= crypto.randomUUID());
+        return `/echo/${echoScope}${path}`;
     }
 }
 

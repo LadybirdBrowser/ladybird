@@ -37,7 +37,7 @@
         document.body.appendChild(link);
         link.click();
 
-        const headersUrl = `${httpServer.baseURL}/recorded-request-headers/echo/oop-iframe-referrer-target-${runId}`;
+        const headersUrl = httpServer.recordedRequestHeadersURL(targetUrl);
         let headers = null;
         for (let attempt = 0; attempt < 200 && headers === null; ++attempt) {
             try {

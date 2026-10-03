@@ -5,12 +5,13 @@
     // itself supplied. internals.loadURL() navigates the way the UI process does for a typed address, so the page it
     // loads gets none — while the iframe inside it, and the navigation that page starts itself, stay site-controlled.
     asyncTest(async done => {
-        const server = httpTestServer();
         const runId = new URLSearchParams(location.search).get("run");
+        const id = runId ?? crypto.randomUUID();
+        const server = httpTestServer().withEchoScope(id);
 
         if (runId) {
             async function recorded(path) {
-                const url = `${server.baseURL}/recorded-request-headers/echo/${path}`;
+                const url = server.recordedRequestHeadersURL(server.echoURL(path));
                 for (let attempt = 0; attempt < 600; ++attempt) {
                     try {
                         const response = await fetch(url);
@@ -21,20 +22,19 @@
                 return null;
             }
 
-            const typed = await recorded(`sec-fetch-site-typed-${runId}`);
+            const typed = await recorded(`/sec-fetch-site-typed-${runId}`);
             println(`typed address: ${typed?.["Sec-Fetch-Site"]?.[0]} (${typed?.["Sec-Fetch-Mode"]?.[0]})`);
 
-            const frame = await recorded(`sec-fetch-site-iframe-${runId}`);
+            const frame = await recorded(`/sec-fetch-site-iframe-${runId}`);
             println(`iframe in that page: ${frame?.["Sec-Fetch-Site"]?.[0]} (${frame?.["Sec-Fetch-Dest"]?.[0]})`);
 
-            const chosen = await recorded(`sec-fetch-site-page-chosen-${runId}`);
+            const chosen = await recorded(`/sec-fetch-site-page-chosen-${runId}`);
             println(`URL the page chose: ${chosen?.["Sec-Fetch-Site"]?.[0]} (${chosen?.["Sec-Fetch-Mode"]?.[0]})`);
 
             done();
             return;
         }
 
-        const id = crypto.randomUUID();
         const back = new URL(location.href);
         back.search = `?run=${id}`;
 
