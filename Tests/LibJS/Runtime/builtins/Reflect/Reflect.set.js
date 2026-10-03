@@ -99,4 +99,14 @@ describe("normal behavior", () => {
         Reflect.set(Error.prototype, "name", "Foo", e);
         expect(e.name).toBe("Foo");
     });
+
+    test("setting properties of array with primitive receiver", () => {
+        const a = [];
+        expect(Reflect.set(a, "foo", 1, 1)).toBeFalse();
+        expect(Reflect.set(a, 0, 1, "bar")).toBeFalse();
+        expect(Reflect.set(a, "length", 1, true)).toBeFalse();
+        expect(Reflect.set(a, Symbol.iterator, 1, Symbol())).toBeFalse();
+        expect(a).toHaveLength(0);
+        expect(Object.getOwnPropertyNames(a)).toEqual(["length"]);
+    });
 });
