@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<style>
+    p {
+        font-size: 20px;
+        line-height: 1.5;
+        margin: 10px 0;
+    }
+</style>
+<p id="target">The selection style is removed after it was painted</p>
+<script>
+    const range = document.createRange();
+    range.selectNodeContents(document.getElementById("target").firstChild);
+    getSelection().addRange(range);
+</script>

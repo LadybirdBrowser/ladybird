@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/selection-style-removed-after-paint-ref.html">
+<style>
+    p {
+        font-size: 20px;
+        line-height: 1.5;
+        margin: 10px 0;
+    }
+    .styled::selection {
+        background-color: lime;
+        color: blue;
+    }
+</style>
+<p id="target" class="styled">The selection style is removed after it was painted</p>
+<script>
+    const range = document.createRange();
+    range.selectNodeContents(document.getElementById("target").firstChild);
+    getSelection().addRange(range);
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            document.getElementById("target").className = "";
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    if (window.internals)
+                        internals.signalTestIsDone("PASS");
+                    else
+                        document.documentElement.classList.remove("reftest-wait");
+                });
+            });
+        });
+    });
+</script>
+</html>
