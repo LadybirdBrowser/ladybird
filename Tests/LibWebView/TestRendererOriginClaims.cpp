@@ -71,7 +71,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 
     auto view = WebView::HeadlessWebView::create(theme, { 800, 600 });
     auto& stub = static_cast<WebContentClientStub&>(view->page().client());
-    auto page_id = view->page_id();
+    auto page_id = view->page().id();
     auto& traversable = view->traversable();
 
     auto start_navigation = [&](URL::Origin initiator_origin) {

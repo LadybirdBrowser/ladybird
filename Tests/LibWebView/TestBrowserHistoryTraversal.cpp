@@ -141,7 +141,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     VERIFY(spare_view->url() == spare_view_url);
     // The page a spare process was started with is one its client may act for, and a page ID the client
     // was never given stays refused.
-    VERIFY(spare_view->page().client().may_act_for_page(spare_view->page_id()));
+    VERIFY(spare_view->page().client().may_act_for_page(spare_view->page().id()));
     VERIFY(!spare_view->page().client().may_act_for_page(0));
 
     auto url_a = URL::Parser::basic_parse("data:text/html,<title>A</title>first"sv).release_value();
@@ -330,7 +330,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         rejected_page_id = traversable.display_page()->id();
         return String {};
     };
-    auto rejected_popup = stub.did_request_new_web_view(restored_view->page_id(), Web::HTML::ActivateTab::No, {}, {}, {}, {}, {});
+    auto rejected_popup = stub.did_request_new_web_view(restored_view->page().id(), Web::HTML::ActivateTab::No, {}, {}, {}, {}, {});
     VERIFY(!rejected_popup.new_page_id().has_value());
     VERIFY(rejected_page_id != 0);
     VERIFY(!client.may_act_for_page(rejected_page_id));
@@ -408,7 +408,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     auto const& active_entry = restored_view->traversable().active_session_history_entry();
     VERIFY(active_entry);
     auto invalid_mode = static_cast<Web::HTML::ScrollRestorationMode>(to_underlying(Web::HTML::ScrollRestorationMode::Manual) + 1);
-    stub.did_update_session_history_entry_scroll_restoration_mode(restored_view->page_id(), restored_view->traversable().id(), active_entry->identity(), invalid_mode);
+    stub.did_update_session_history_entry_scroll_restoration_mode(restored_view->page().id(), restored_view->traversable().id(), active_entry->identity(), invalid_mode);
     VERIFY(!client.is_open());
 
     outln("PASS: browser history traversal");

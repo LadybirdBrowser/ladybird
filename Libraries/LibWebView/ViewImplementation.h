@@ -523,7 +523,6 @@ public:
     Action& toggle_bookmark_action() { return *m_toggle_bookmark_action; }
     Action& reset_zoom_action() { return *m_reset_zoom_action; }
 
-    Web::PageId page_id() const;
     WebContentPage& page() const;
 
     virtual Web::DevicePixelSize viewport_size() const = 0;

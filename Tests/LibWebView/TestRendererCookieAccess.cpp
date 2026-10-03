@@ -104,7 +104,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     // of it.
     cookie_jar.set_cookie(victim_url, HTTP::Cookie::ParsedCookie { .name = "visible"_string, .value = "secret"_string }, HTTP::Cookie::Source::Http);
     auto& stub = static_cast<WebContentClientStub&>(view->page().client());
-    auto page_id = view->page_id();
+    auto page_id = view->page().id();
     VERIFY(stub.did_request_cookie(page_id, victim_url, HTTP::Cookie::Source::NonHttp).cookie().cookie.is_empty());
     VERIFY(stub.did_request_all_cookies_cookiestore(page_id, victim_url).cookies().is_empty());
     stub.did_set_cookie(page_id, victim_url, HTTP::Cookie::ParsedCookie { .name = "visible"_string, .value = "attacker"_string }, HTTP::Cookie::Source::NonHttp);
@@ -130,7 +130,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         Optional<WebView::ViewImplementation::WebContentCrashReason> crash_reason;
         view->on_web_content_crashed = [&](auto reason) { crash_reason = reason; };
 
-        send(static_cast<WebContentClientStub&>(view->page().client()), view->page_id());
+        send(static_cast<WebContentClientStub&>(view->page().client()), view->page().id());
         Core::EventLoop::current().spin_until([&]() { return crash_reason.has_value(); });
 
         if (crash_reason != WebView::ViewImplementation::WebContentCrashReason::RejectedIPC) {
