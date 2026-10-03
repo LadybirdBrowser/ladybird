@@ -142,6 +142,27 @@ impl ArenaChange {
     }
 }
 
+/// The writes a host queued for its document's render state since the render side last took them, in the order the
+/// host made them. They go to the render side ahead of the host's next message, which they come before.
+pub(crate) struct QueuedChanges {
+    document: DocumentId,
+    changes: Vec<ArenaChange>,
+}
+
+impl QueuedChanges {
+    /// Applies the changes to `arena` and `engine`, the arena and style engine of their document.
+    ///
+    /// # Safety
+    ///
+    /// `engine` must name the live style engine `arena` links, which nothing else borrows meanwhile.
+    unsafe fn apply(self, arena: &mut crate::layout::LayoutNodeArena, engine: StyleEngineHandle) {
+        for change in self.changes {
+            // SAFETY: Guaranteed by the caller.
+            unsafe { change.apply(arena, engine) };
+        }
+    }
+}
+
 /// A message the host sends a document's render state.
 pub(crate) enum RenderMessage<'a> {
     /// Makes the render state of a new document.
@@ -183,14 +204,23 @@ thread_local! {
     static STATES: RefCell<HashMap<DocumentId, RenderState>> = RefCell::default();
 }
 
-/// Handles `message` on the render side.
-pub(crate) fn handle(message: RenderMessage<'_>) {
-    handle_message(
-        &RenderingSide {
-            not_send_or_sync: PhantomData,
-        },
-        message,
-    );
+/// Handles `message` on the render side, after the changes its host queued before it.
+fn handle(changes: QueuedChanges, message: RenderMessage<'_>) {
+    let side = RenderingSide {
+        not_send_or_sync: PhantomData,
+    };
+    apply_changes(&side, changes);
+    handle_message(&side, message);
+}
+
+fn apply_changes(_: &RenderingSide, changes: QueuedChanges) {
+    if changes.changes.is_empty() {
+        return;
+    }
+    let (arena, engine) = state_parts(changes.document).expect("a document the host changes has a render state");
+    // SAFETY: The state keeps the arena and the engine where they are while the changes are applied, and nothing else
+    // reaches them meanwhile.
+    unsafe { changes.apply((*arena).arena_mut(), engine) };
 }
 
 fn handle_message(_: &RenderingSide, message: RenderMessage<'_>) {
@@ -249,14 +279,16 @@ fn state_parts(document: DocumentId) -> Option<(*mut ArenaHandle, StyleEngineHan
     })
 }
 
-/// Sends `message` to the render side, the StyleLayout thread, and waits until it is handled, so the message may
-/// borrow from the calling frame. A message sent while the thread handles another (a child document's) is handled
-/// right there, and a unit test's render states stay on the test's own thread.
-pub(crate) fn send(message: RenderMessage<'_>) {
+/// Sends `message` about `host`'s document to the render side, the StyleLayout thread, behind the changes the host
+/// queued, and waits until it is handled, so the message may borrow from the calling frame. A message sent while the
+/// thread handles another (a child document's) is handled right there, and a unit test's render states stay on the
+/// test's own thread.
+pub(crate) fn send(host: &DocumentHost, message: RenderMessage<'_>) {
+    let changes = host.take_queued_changes();
     if cfg!(test) {
-        return handle(message);
+        return handle(changes, message);
     }
-    crate::stage_thread::style_layout_thread().run(|| handle(message));
+    crate::stage_thread::style_layout_thread().run(|| handle(changes, message));
 }
 
 // A render state lives on a thread of its own, where nothing of the host may follow it: the shells and the callbacks
@@ -266,6 +298,7 @@ const _: () = {
     const fn assert_send<T: Send + ?Sized>() {}
     assert_send::<RenderState>();
     assert_send::<RenderMessage>();
+    assert_send::<QueuedChanges>();
 };
 
 #[cfg(test)]
@@ -333,8 +366,8 @@ mod tests {
             device_class: FfiDeviceClass::ForegroundDesktop,
             reply,
         });
-        send(RenderMessage::Destroy { document });
-        send(RenderMessage::Destroy { document });
+        send(&host, RenderMessage::Destroy { document });
+        send(&host, RenderMessage::Destroy { document });
     }
 
     #[test]

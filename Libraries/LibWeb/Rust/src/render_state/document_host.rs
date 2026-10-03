@@ -8,8 +8,8 @@
 
 use super::questions::Question;
 use super::{
-    ArenaChange, CommittedRows, CreatedState, DocumentId, ForcedRead, LockstepProof, RenderMessage, RenderWait,
-    ScriptForcedRead, ask, send, wait_for_render_state,
+    ArenaChange, CommittedRows, CreatedState, DocumentId, ForcedRead, LockstepProof, QueuedChanges, RenderMessage,
+    RenderWait, ScriptForcedRead, ask, send, wait_for_render_state,
 };
 use crate::css::style::bridge::FfiDeviceClass;
 use crate::css::style::style_job::StyleJobAnswer;
@@ -49,6 +49,8 @@ pub struct DocumentHost {
     compositor_animations: RefCell<Vec<VisualAnimation>>,
     /// The read of the render state the host began and has not ended, if any.
     forced_read: RefCell<BegunRead>,
+    /// The writes the host queued that the render state has not applied yet, in the order the host made them.
+    changes: RefCell<Vec<ArenaChange>>,
 }
 
 /// A read of a document's render state the host began: how many of the read's scopes are open, and the read itself
@@ -71,6 +73,7 @@ impl DocumentHost {
             state: OnceCell::new(),
             compositor_animations: RefCell::default(),
             forced_read: RefCell::default(),
+            changes: RefCell::default(),
         }
     }
 
@@ -88,15 +91,32 @@ impl DocumentHost {
         &self.host_tables
     }
 
-    /// Writes `change` to the document's render state, before anything that reads what it changes.
-    ///
-    /// Until the host's style entries stop reaching the style engine directly, the host writes the render state where
-    /// it is, as those entries do: whenever the host runs, the render side waits for its next message.
+    /// Writes `change` to the document's render state, before anything that reads what it changes: the render side
+    /// applies it ahead of the host's next message, and the host ahead of the next question it answers where it is. A
+    /// write never reaches the render state as the host makes it.
     pub(crate) fn queue_change(&self, change: ArenaChange) {
+        self.changes.borrow_mut().push(change);
+    }
+
+    /// Takes the writes the host queued, for the render side to apply ahead of the host's next message.
+    pub(super) fn take_queued_changes(&self) -> QueuedChanges {
+        QueuedChanges {
+            document: self.document,
+            changes: self.changes.take(),
+        }
+    }
+
+    /// Applies the writes the host queued to the document's render state, where the host is, for a read the host
+    /// answers itself. Only a read that spends a wait may: the render side waits for the host meanwhile.
+    fn apply_queued_changes(&self, _wait: &impl RenderWait) {
+        let changes = self.take_queued_changes();
+        if changes.changes.is_empty() {
+            return;
+        }
         let state = self.created_state();
         // SAFETY: The state keeps its arena and engine where they are until it is destroyed, and nothing on the render
-        // side reaches them while the host runs.
-        unsafe { change.apply((*state.arena.as_ptr()).arena_mut(), state.engine) };
+        // side reaches them while the host waits.
+        unsafe { changes.apply((*state.arena.as_ptr()).arena_mut(), state.engine) };
     }
 
     /// Begins a read of the document's render state that the host waits for, for a script API call where `by_script`
@@ -160,8 +180,10 @@ impl DocumentHost {
         self.created_state().arena.as_ptr().cast()
     }
 
-    /// Answers `question` from the document's render state, where the host is.
-    pub(super) fn answer_in_place<Q: Question>(&self, question: Q) -> Q::Answer {
+    /// Answers `question` from the document's render state as of every write the host queued, where the host is,
+    /// spending `wait`.
+    pub(super) fn answer_in_place<Q: Question>(&self, wait: &impl RenderWait, question: Q) -> Q::Answer {
+        self.apply_queued_changes(wait);
         let state = self.created_state();
         // SAFETY: The state keeps its arena and engine where they are until it is destroyed, and nothing on the render
         // side reaches them while the host runs.
@@ -175,17 +197,17 @@ impl DocumentHost {
     }
 
     /// The rows the render state published last, unless the host wrote them since, or none were published yet.
-    /// Reading them waits for nothing.
-    #[cfg_attr(not(test), expect(dead_code, reason = "only tests read the rows without a wait yet"))]
+    #[cfg(test)]
     pub(crate) fn rows(&self) -> Option<Rc<RowSnapshot>> {
+        self.apply_queued_changes(&ScriptForcedRead::for_test());
         self.rows
             .borrow()
             .clone()
             .filter(|rows| self.still_reads_as_arena(rows))
     }
 
-    /// Whether `rows` read as the arena does now. The render state applies each change as the host queues it, so the
-    /// arena's rows version moves with every write to the rows, queued or direct, and with nothing else.
+    /// Whether `rows` read as the arena does now, once the writes the host queued are applied. The arena's rows version
+    /// moves with every write to the rows, queued or direct, and with nothing else.
     fn still_reads_as_arena(&self, rows: &RowSnapshot) -> bool {
         // SAFETY: The arena lives as long as the document's render state, which outlives its host's reads.
         self.state
@@ -203,6 +225,7 @@ impl DocumentHost {
     /// the rows it has where no write since changed them, as installing a style does not, and otherwise from rows the
     /// render state publishes again first, spending `wait`.
     pub(crate) fn row_identities(&self, wait: impl RenderWait) -> RowIdentities {
+        self.apply_queued_changes(&wait);
         if let Some(rows) = self
             .rows
             .borrow()
@@ -241,6 +264,7 @@ impl DocumentHost {
     }
 
     fn rows_as_of_writes(&self, wait: impl RenderWait, measure_overflow: bool) -> Rc<RowSnapshot> {
+        self.apply_queued_changes(&wait);
         let usable =
             |rows: &RowSnapshot| self.still_reads_as_arena(rows) && (!measure_overflow || rows.overflow_is_measured());
         if let Some(rows) = self.rows.borrow().as_ref().filter(|rows| usable(rows)) {
@@ -404,9 +428,12 @@ pub unsafe extern "C" fn document_host_destroy(host: *mut DocumentHost) {
     // SAFETY: Guaranteed by the caller.
     let host = unsafe { Box::from_raw(host) };
     // The render state goes first: freeing its rows may still answer to the host.
-    send(RenderMessage::Destroy {
-        document: host.document,
-    });
+    send(
+        &host,
+        RenderMessage::Destroy {
+            document: host.document,
+        },
+    );
     assert_eq!(
         host.host_tables.shells.borrow().len(),
         0,

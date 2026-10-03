@@ -211,13 +211,14 @@ impl ArenaQuery {
     }
 }
 
-/// Asks the render state of `host`'s document `question`, spending `_wait`, and answers what it answered.
+/// Asks the render state of `host`'s document `question`, spending `wait`, and answers what it answered as of every
+/// change the host queued before.
 ///
-/// The host answers the question itself, where it is, as it applies its changes:
+/// The host answers the question itself, where it is, once it has applied the changes it queued:
 /// the host asks while it installs what a job answered, a question per row, and asking across threads would make it
 /// wait for each one. Questions go to the render side once its jobs answer what the host would ask ahead.
-pub(crate) fn ask<Q: Question>(_wait: impl RenderWait, host: &DocumentHost, question: Q) -> Q::Answer {
-    host.answer_in_place(question)
+pub(crate) fn ask<Q: Question>(wait: impl RenderWait, host: &DocumentHost, question: Q) -> Q::Answer {
+    host.answer_in_place(&wait, question)
 }
 
 #[cfg(test)]
