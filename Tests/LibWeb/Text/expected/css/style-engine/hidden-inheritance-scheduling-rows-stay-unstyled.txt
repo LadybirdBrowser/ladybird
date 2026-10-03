@@ -1,0 +1,8 @@
+light scheduling nodes stay unstyled: true
+hidden padding: 13px
+visible padding: 13px
+visible ancestors have styles: true
+shadow scheduling nodes stay unstyled: true
+hidden padding: 13px
+visible padding: 13px
+visible ancestors have styles: true
