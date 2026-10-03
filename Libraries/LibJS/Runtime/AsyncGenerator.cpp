@@ -177,12 +177,12 @@ void AsyncGenerator::execute(VM& vm, Completion completion)
         if (result_value.is_throw_completion()) {
             m_yield_continuation = ExecutionContext::no_yield_continuation;
 
-            // 27.6.3.2 AsyncGeneratorStart ( generator, generatorBody ), https://tc39.es/ecma262/#sec-asyncgeneratorstart
+            // 27.9.3.2 AsyncGeneratorStart ( gen, genBody ), https://tc39.es/ecma262/#sec-asyncgeneratorstart
             // 4.e. Assert: If we return here, the async generator either threw an exception or performed either an implicit or explicit return.
             // 4.f. Remove acGenContext from the execution context stack and restore the execution context
             //      that is at the top of the execution context stack as the running execution context.
             vm.pop_execution_context();
-            m_async_generator_state = State::Completed;
+            m_async_generator_state = State::DrainingQueue;
             complete_step(result_value.release_error(), true);
             drain_queue();
             return;
@@ -262,23 +262,25 @@ void AsyncGenerator::execute(VM& vm, Completion completion)
             }
         }
 
-        // 27.6.3.2 AsyncGeneratorStart ( generator, generatorBody ), https://tc39.es/ecma262/#sec-asyncgeneratorstart
+        // 27.9.3.2 AsyncGeneratorStart ( gen, genBody ), https://tc39.es/ecma262/#sec-asyncgeneratorstart
         // 4.e. Assert: If we return here, the async generator either threw an exception or performed either an implicit or explicit return.
         // 4.f. Remove acGenContext from the execution context stack and restore the execution context that is at the top of the execution context stack as the running execution context.
         vm.pop_execution_context();
 
-        // 4.g. Set acGenerator.[[AsyncGeneratorState]] to completed.
-        m_async_generator_state = State::Completed;
+        // 4.g. Set acGen.[[AsyncGeneratorState]] to draining-queue.
+        m_async_generator_state = State::DrainingQueue;
 
-        // 4.h. If result.[[Type]] is normal, set result to NormalCompletion(undefined).
-        // 4.i. If result.[[Type]] is return, set result to NormalCompletion(result.[[Value]]).
-        // 4.j. Perform AsyncGeneratorCompleteStep(acGenerator, result, true).
+        // 4.h. If result is a normal completion, set result to NormalCompletion(undefined).
+        // 4.i. If result is a return completion, set result to NormalCompletion(result.[[Value]]).
+        // 4.j. Perform AsyncGeneratorCompleteStep(acGen, result, true).
         complete_step(normal_completion(value), true);
 
-        // 4.k. Perform AsyncGeneratorDrainQueue(acGenerator).
+        // 4.k. Perform AsyncGeneratorDrainQueue(acGen).
         drain_queue();
 
-        // 4.l. Return undefined.
+        // 4.l. Let callerContext be the running execution context.
+        // 4.m. Resume callerContext, passing NormalCompletion(undefined).
+        // 4.n. Assert: This step is never reached.
         return;
     }
 }
@@ -315,103 +317,102 @@ ThrowCompletionOr<void> AsyncGenerator::resume(VM& vm, Completion completion)
     return {};
 }
 
-// 27.6.3.9 AsyncGeneratorAwaitReturn ( generator ), https://tc39.es/ecma262/#sec-asyncgeneratorawaitreturn
-// With unmerged broken promise fixup from https://github.com/tc39/ecma262/pull/2683
+// 27.9.3.9 AsyncGeneratorAwaitReturn ( gen ), https://tc39.es/ecma262/#sec-asyncgeneratorawaitreturn
 void AsyncGenerator::await_return()
 {
     auto& vm = this->vm();
     auto& realm = *vm.current_realm();
 
-    // 1. Let queue be generator.[[AsyncGeneratorQueue]].
+    // 1. Assert: gen.[[AsyncGeneratorState]] is draining-queue.
+    VERIFY(m_async_generator_state == State::DrainingQueue);
+
+    // 2. Let queue be gen.[[AsyncGeneratorQueue]].
     auto& queue = m_async_generator_queue;
 
-    // 2. Assert: queue is not empty.
+    // 3. Assert: queue is not empty.
     VERIFY(!queue.is_empty());
 
-    // 3. Let next be the first element of queue.
+    // 4. Let next be the first element of queue.
     auto& next = m_async_generator_queue.first();
 
-    // 4. Let completion be Completion(next.[[Completion]]).
+    // 5. Let completion be Completion(next.[[Completion]]).
     auto completion = Completion(next.completion);
 
-    // 5. Assert: completion.[[Type]] is return.
+    // 6. Assert: completion is a return completion.
     VERIFY(completion.type() == Completion::Type::Return);
 
-    // 6. Let promiseCompletion be Completion(PromiseResolve(%Promise%, _completion_.[[Value]])).
+    // 7. Let promiseCompletion be Completion(PromiseResolve(%Promise%, completion.[[Value]])).
     auto promise_completion = promise_resolve(vm, realm.intrinsics().promise_constructor(), completion.value());
 
-    // 7. If promiseCompletion is an abrupt completion, then
+    // 8. If promiseCompletion is an abrupt completion, then
     if (promise_completion.is_throw_completion()) {
-        // a. Set generator.[[AsyncGeneratorState]] to completed.
-        m_async_generator_state = State::Completed;
-
-        // b. Perform AsyncGeneratorCompleteStep(generator, promiseCompletion, true).
+        // a. Perform AsyncGeneratorCompleteStep(gen, promiseCompletion, true).
         complete_step(promise_completion.release_error(), true);
 
-        // c. Perform AsyncGeneratorDrainQueue(generator).
+        // b. Perform AsyncGeneratorDrainQueue(gen).
         drain_queue();
 
-        // d. Return unused.
+        // c. Return unused.
         return;
     }
 
-    // 8. Assert: promiseCompletion.[[Type]] is normal.
+    // 9. Assert: promiseCompletion is a normal completion.
     VERIFY(!promise_completion.is_throw_completion());
 
-    // 9. Let promise be promiseCompletion.[[Value]].
+    // 10. Let promise be promiseCompletion.[[Value]].
     auto* promise = promise_completion.release_value();
 
-    // 10. Let fulfilledClosure be a new Abstract Closure with parameters (value) that captures generator and performs
+    // 11. Let fulfilledClosure be a new Abstract Closure with parameters (value) that captures gen and performs
     //    the following steps when called:
     auto fulfilled_closure = [this](VM& vm) -> ThrowCompletionOr<Value> {
-        // a. Set generator.[[AsyncGeneratorState]] to completed.
-        m_async_generator_state = State::Completed;
+        // a. Assert: gen.[[AsyncGeneratorState]] is draining-queue.
+        VERIFY(m_async_generator_state == State::DrainingQueue);
 
         // b. Let result be NormalCompletion(value).
         auto result = normal_completion(vm.argument(0));
 
-        // c. Perform AsyncGeneratorCompleteStep(generator, result, true).
+        // c. Perform AsyncGeneratorCompleteStep(gen, result, true).
         complete_step(result, true);
 
-        // d. Perform AsyncGeneratorDrainQueue(generator).
+        // d. Perform AsyncGeneratorDrainQueue(gen).
         drain_queue();
 
-        // e. Return undefined.
+        // e. Return NormalCompletion(undefined).
         return js_undefined();
     };
 
-    // 11. Let onFulfilled be CreateBuiltinFunction(fulfilledClosure, 1, "", « »).
+    // 12. Let onFulfilled be CreateBuiltinFunction(fulfilledClosure, 1, "", « »).
     auto on_fulfilled = NativeFunction::create(realm, move(fulfilled_closure), 1);
 
-    // 12. Let rejectedClosure be a new Abstract Closure with parameters (reason) that captures generator and performs
+    // 13. Let rejectedClosure be a new Abstract Closure with parameters (reason) that captures gen and performs
     //    the following steps when called:
     auto rejected_closure = [this](VM& vm) -> ThrowCompletionOr<Value> {
-        // a. Set generator.[[AsyncGeneratorState]] to completed.
-        m_async_generator_state = State::Completed;
+        // a. Assert: gen.[[AsyncGeneratorState]] is draining-queue.
+        VERIFY(m_async_generator_state == State::DrainingQueue);
 
         // b. Let result be ThrowCompletion(reason).
         auto result = throw_completion(vm.argument(0));
 
-        // c. Perform AsyncGeneratorCompleteStep(generator, result, true).
+        // c. Perform AsyncGeneratorCompleteStep(gen, result, true).
         complete_step(result, true);
 
-        // d. Perform AsyncGeneratorDrainQueue(generator).
+        // d. Perform AsyncGeneratorDrainQueue(gen).
         drain_queue();
 
-        // e. Return undefined.
+        // e. Return NormalCompletion(undefined).
         return js_undefined();
     };
 
-    // 13. Let onRejected be CreateBuiltinFunction(rejectedClosure, 1, "", « »).
+    // 14. Let onRejected be CreateBuiltinFunction(rejectedClosure, 1, "", « »).
     auto on_rejected = NativeFunction::create(realm, move(rejected_closure), 1);
 
-    // 14. Perform PerformPromiseThen(promise, onFulfilled, onRejected).
-    // NOTE: await_return should only be called when the generator is in SuspendedStart or Completed state,
+    // 15. Perform PerformPromiseThen(promise, onFulfilled, onRejected).
+    // NOTE: await_return should only be called when the generator is draining its queue,
     //       so an await shouldn't be running currently, so it should be safe to overwrite m_current_promise.
     m_current_promise = as<Promise>(promise);
     m_current_promise->perform_then(on_fulfilled, on_rejected, {});
 
-    // 15. Return unused.
+    // 16. Return unused.
     return;
 }
 
@@ -474,59 +475,46 @@ void AsyncGenerator::complete_step(Completion completion, bool done, Realm* real
     // 8. Return unused.
 }
 
-// 27.6.3.10 AsyncGeneratorDrainQueue ( generator ), https://tc39.es/ecma262/#sec-asyncgeneratordrainqueue
+// 27.9.3.10 AsyncGeneratorDrainQueue ( gen ), https://tc39.es/ecma262/#sec-asyncgeneratordrainqueue
 void AsyncGenerator::drain_queue()
 {
-    // 1. Assert: generator.[[AsyncGeneratorState]] is completed.
-    VERIFY(m_async_generator_state == State::Completed);
+    // 1. Assert: gen.[[AsyncGeneratorState]] is draining-queue.
+    VERIFY(m_async_generator_state == State::DrainingQueue);
 
-    // 2. Let queue be generator.[[AsyncGeneratorQueue]].
+    // 2. Let queue be gen.[[AsyncGeneratorQueue]].
     auto& queue = m_async_generator_queue;
 
-    // 3. If queue is empty, return unused.
-    if (queue.is_empty())
-        return;
-
-    // 4. Let done be false.
-    bool done = false;
-
-    // 5. Repeat, while done is false,
-    while (!done) {
+    // 3. Repeat, while queue is not empty,
+    while (!queue.is_empty()) {
         // a. Let next be the first element of queue.
-        auto& next = m_async_generator_queue.first();
+        auto& next = queue.first();
 
         // b. Let completion be Completion(next.[[Completion]]).
         auto completion = Completion(next.completion);
 
-        // c. If completion.[[Type]] is return, then
+        // c. If completion is a return completion, then
         if (completion.type() == Completion::Type::Return) {
-            // i. Set generator.[[AsyncGeneratorState]] to awaiting-return.
-            m_async_generator_state = State::AwaitingReturn;
-
-            // ii. Perform AsyncGeneratorAwaitReturn(generator).
+            // i. Perform AsyncGeneratorAwaitReturn(gen).
             await_return();
 
-            // iii. Set done to true.
-            done = true;
+            // ii. Return unused.
+            return;
         }
-        // d. Else,
-        else {
-            // i. If completion.[[Type]] is normal, then
-            if (completion.type() == Completion::Type::Normal) {
-                // 1. Set completion to NormalCompletion(undefined).
-                completion = normal_completion(js_undefined());
-            }
 
-            // ii. Perform AsyncGeneratorCompleteStep(generator, completion, true).
-            complete_step(completion, true);
-
-            // iii. If queue is empty, set done to true.
-            if (queue.is_empty())
-                done = true;
+        // d. If completion is a normal completion, then
+        if (completion.type() == Completion::Type::Normal) {
+            // i. Set completion to NormalCompletion(undefined).
+            completion = normal_completion(js_undefined());
         }
+
+        // e. Perform AsyncGeneratorCompleteStep(gen, completion, true).
+        complete_step(completion, true);
     }
 
-    // 6. Return unused.
+    // 4. Set gen.[[AsyncGeneratorState]] to completed.
+    m_async_generator_state = State::Completed;
+
+    // 5. Return unused.
 }
 
 }
