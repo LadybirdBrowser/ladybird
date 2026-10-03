@@ -64,6 +64,26 @@ test("shifting with non-numeric values", () => {
     expect(-Infinity << Infinity).toBe(0);
 });
 
+test("shift count that is not finite", () => {
+    function shift(a, b) {
+        return a << b;
+    }
+
+    expect(shift(1.5, Infinity)).toBe(1);
+    expect(
+        shift(
+            {
+                valueOf() {
+                    return 1.5;
+                },
+            },
+            NaN
+        )
+    ).toBe(1);
+    expect(shift(-0, NaN)).toBe(0);
+    expect(shift(2 ** 32 + 3, -Infinity)).toBe(3);
+});
+
 describe("logical left shift on big ints", () => {
     expect(3n << -1n).toBe(1n);
     expect(3n << -2n).toBe(0n);
