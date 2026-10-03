@@ -832,6 +832,11 @@ void EventLoop::ensure_frame_completion_registered()
     FrameCompletion::the().register_event_loop([] { main_thread_event_loop().schedule(); });
 }
 
+bool EventLoop::has_frame_in_flight() const
+{
+    return any_of(m_navigables_with_recordings_in_flight, [](auto const& navigable) { return navigable->has_recording_in_flight(); });
+}
+
 void EventLoop::take_finished_frames_in()
 {
     if (m_navigables_with_recordings_in_flight.is_empty())

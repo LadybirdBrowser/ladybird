@@ -82,6 +82,11 @@ GC::Ptr<Task> TaskQueue::take_first_runnable()
             continue;
         }
 
+        // While the frame of the last rendering task is in flight, the next keeps its place in the queue, and the
+        // tasks after it wait behind it until the frame has been taken in.
+        if (task.source() == Task::Source::Rendering && m_event_loop->holds_rendering_opportunity())
+            return nullptr;
+
         if (task.is_runnable()) {
             if (m_last_added_task.ptr() == &task)
                 m_last_added_task = {};
@@ -129,6 +134,8 @@ bool TaskQueue::has_runnable_tasks() const
     for (auto& task : m_tasks) {
         if (m_event_loop->running_rendering_task() && task.source() == Task::Source::Rendering)
             continue;
+        if (task.source() == Task::Source::Rendering && m_event_loop->holds_rendering_opportunity())
+            return false;
         if (task.is_runnable())
             return true;
     }

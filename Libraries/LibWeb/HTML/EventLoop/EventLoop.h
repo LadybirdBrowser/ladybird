@@ -140,6 +140,10 @@ public:
     void did_let_recording_fly(LocalNavigable&);
     // Called before a rendering update submits a recording, on a thread with a Core event loop.
     void ensure_frame_completion_registered();
+    bool has_frame_in_flight() const;
+    // A rendering task that would find a frame still in flight keeps its place in the queue until the frame has been
+    // taken in, rather than wait for it.
+    bool holds_rendering_opportunity() const { return has_frame_in_flight(); }
 
     RenderingSchedulerCounters const& rendering_scheduler_counters() const { return m_rendering_scheduler_counters; }
     void reset_rendering_scheduler_counters();
