@@ -5,23 +5,23 @@
     // back to it: by the browser's Back button, and by a page's own history.back() too — as in Blink and Gecko, which
     // replay what the entry's first navigation sent for every traversal.
     asyncTest(async done => {
-        const server = httpTestServer();
         const runId = new URLSearchParams(location.search).get("run");
+        const id = runId ?? crypto.randomUUID();
+        const server = httpTestServer().withEchoScope(id);
 
         if (runId) {
             async function recorded(path) {
-                const response = await fetch(`${server.baseURL}/recorded-request-headers/echo/${path}`);
+                const response = await fetch(server.recordedRequestHeadersURL(server.echoURL(path)));
                 return response.ok ? await response.json() : null;
             }
-            const ui = await recorded(`sec-fetch-site-back-button-${runId}`);
+            const ui = await recorded(`/sec-fetch-site-back-button-${runId}`);
             println(`typed page, fetched again by the Back button: ${ui?.["Sec-Fetch-Site"]?.[0]}`);
-            const script = await recorded(`sec-fetch-site-history-back-${runId}`);
+            const script = await recorded(`/sec-fetch-site-history-back-${runId}`);
             println(`typed page, fetched again by history.back(): ${script?.["Sec-Fetch-Site"]?.[0]}`);
             done();
             return;
         }
 
-        const id = crypto.randomUUID();
         const finish = new URL(location.href);
         finish.search = `?run=${id}`;
 

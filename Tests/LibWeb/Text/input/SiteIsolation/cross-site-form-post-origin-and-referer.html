@@ -33,7 +33,7 @@
 
         const popup = window.open(formPageUrl);
 
-        const headersUrl = `${httpServer.baseURL}/recorded-request-headers/echo/process-swap-post-target-${runId}`;
+        const headersUrl = httpServer.recordedRequestHeadersURL(targetUrl);
         let headers = null;
         while (headers === null) {
             // NB: The 404 response served before the POST has been recorded has no CORS headers, so fetch() throws.

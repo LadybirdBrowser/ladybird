@@ -21,6 +21,7 @@
             "top-named-child-is-second-child",
             "top-closed-is-false",
         ];
+        const reportPath = new URL(httpServer.echoURL(`/oop-ancestors-${runId}-`)).pathname;
         for (const check of checks) {
             await httpServer.createEcho("GET", `/oop-ancestors-${runId}-${check}-true`, {
                 status: 200,
@@ -34,7 +35,7 @@
                 status: 200,
                 headers: { "Content-Type": "text/html" },
                 body: `<!DOCTYPE html><script>
-                    const report = (check, ok) => fetch(new URL("/echo/oop-ancestors-${runId}-" + check + "-" + ok, location.href));
+                    const report = (check, ok) => fetch(new URL(${JSON.stringify(reportPath)} + check + "-" + ok, location.href));
                     const run = check => { try { return check(); } catch (e) { return "threw " + e.name; } };
                     const start = Date.now();
                     report("child-ran", true);
@@ -80,7 +81,7 @@
         document.body.appendChild(sibling);
 
         for (const check of checks) {
-            const recordedUrl = `${httpServer.baseURL}/recorded-request-headers/echo/oop-ancestors-${runId}-${check}-true`;
+            const recordedUrl = httpServer.recordedRequestHeadersURL(httpServer.echoURL(`/oop-ancestors-${runId}-${check}-true`));
             let recorded = false;
             for (let attempt = 0; attempt < 200 && !recorded; ++attempt) {
                 try {

@@ -10,9 +10,9 @@
             body: "hello",
         });
 
-        const url = new URL(echoURL);
         const parent = uniqueLocalhostHostname("hsts-subdomains");
-        const childURL = `http://sub.${parent}:${url.port}/echo/hsts-subdomains-test`;
+        const childURL = new URL(echoURL);
+        childURL.hostname = `sub.${parent}`;
 
         // The subdomain must reach the echo server pre-HSTS (this also proves multi-label
         // *.localhost resolves), otherwise the failure below would be a false PASS.

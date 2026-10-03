@@ -9,8 +9,8 @@
         const id = crypto.randomUUID();
         const platformCtrl = /mac/i.test(navigator.platform) ? internals.MOD_SUPER : internals.MOD_CTRL;
 
-        async function recorded(path) {
-            const url = `${server.baseURL}/recorded-request-headers/echo/${path}`;
+        async function recorded(echoURL) {
+            const url = server.recordedRequestHeadersURL(echoURL);
             for (let attempt = 0; attempt < 600; ++attempt) {
                 try {
                     const response = await fetch(url);
@@ -38,7 +38,7 @@
 
             const rect = link.getBoundingClientRect();
             internals.click(rect.x + rect.width / 2, rect.y + rect.height / 2, 1, button, modifiers);
-            const headers = await recorded(`sec-fetch-site-new-tab-${name}-${id}`);
+            const headers = await recorded(url);
             const referer = headers?.["Referer"]?.[0];
             println(`${name}: Sec-Fetch-Site ${headers?.["Sec-Fetch-Site"]?.[0]}, Sec-Fetch-User ${headers?.["Sec-Fetch-User"]?.[0]}, Referer ${referer === location.href ? "this page" : referer}`);
             link.remove();

@@ -33,8 +33,12 @@
 
                             if ("Referer" in headers) {
                                 const url = new URL(headers["Referer"][0]);
-                                url.port = "";
-                                referrer = url.href;
+                                if (url.href === location.href) {
+                                    referrer = "the iframe's URL";
+                                } else {
+                                    url.port = "";
+                                    referrer = url.href;
+                                }
                             }
 
                             parent.postMessage({policy, referrer}, "*");

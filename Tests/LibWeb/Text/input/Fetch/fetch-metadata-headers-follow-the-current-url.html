@@ -47,7 +47,7 @@
 
         window.addEventListener("message", async () => {
             async function recorded(path) {
-                const response = await fetch(`${server.baseURL}/recorded-request-headers/echo/${path}`);
+                const response = await fetch(server.recordedRequestHeadersURL(server.echoURL(path)));
                 return response.ok ? await response.json() : null;
             }
             function describe(headers) {
@@ -57,8 +57,8 @@
                 return names.length ? names.join(", ") : "no Sec-Fetch- headers";
             }
             for (const name of ["trustworthy-to-not", "not-to-trustworthy"]) {
-                const first = describe(await recorded(`fetch-metadata-${name}-start-${id}`));
-                const second = describe(await recorded(`fetch-metadata-${name}-target-${id}`));
+                const first = describe(await recorded(`/fetch-metadata-${name}-start-${id}`));
+                const second = describe(await recorded(`/fetch-metadata-${name}-target-${id}`));
                 println(`${name}: first hop ${first}; second hop ${second}`);
             }
             popup.close();
