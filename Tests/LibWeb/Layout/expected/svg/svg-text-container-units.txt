@@ -6,7 +6,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
         TextNode <#text> (not painted)
         SVGSVGBox <svg> at [0,0] [0+0+0 200 0+0+0] [0+0+0 100 0+0+0] viewport-transform=[1 0 0 1 0 0] [SVG] children: inline
           TextNode <#text> (not painted)
-          SVGTextBox <text#text> at [100.90625,35.546875] [0+0+0 15.9375 0+0+0] [0+0+0 13.4375 0+0+0] children: inline
+          SVGTextBox <text#text> at [100,34] [0+0+0 17.828125 0+0+0] [0+0+0 20 0+0+0] children: inline
             TextNode <#text> (not painted)
           TextNode <#text> (not painted)
         TextNode <#text> (not painted)

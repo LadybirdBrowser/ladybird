@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<title>SVGGraphicsElement.prototype.getBBox stroke options and text edge cases</title>
+<link rel="help" href="https://w3c.github.io/svgwg/svg2-draft/types.html#__svg__SVGGraphicsElement__getBBox">
+<link rel="help" href="https://w3c.github.io/svgwg/svg2-draft/coords.html#BoundingBoxes">
+<link rel="help" href="https://github.com/w3c/svgwg/issues/1018">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<svg width="0" height="0" style="position:absolute">
+
+  <!-- I. Stroked zero-dimension shapes -->
+  <line id="stroked_point" x1="10" y1="20" x2="10" y2="20"
+        stroke="red" stroke-width="4"/>
+  <line id="stroked_horiz" x1="10" y1="20" x2="50" y2="20"
+        stroke="red" stroke-width="4"/>
+  <line id="stroked_vert" x1="10" y1="20" x2="10" y2="60"
+        stroke="red" stroke-width="4"/>
+  <rect id="stroked_zero_w" x="10" y="20" width="0" height="50"
+        stroke="red" stroke-width="4"/>
+  <rect id="stroked_zero_h" x="10" y="20" width="50" height="0"
+        stroke="red" stroke-width="4"/>
+  <rect id="stroked_zero_wh" x="10" y="20" width="0" height="0"
+        stroke="red" stroke-width="4"/>
+  <circle id="stroked_zero_r" cx="10" cy="20" r="0"
+          stroke="red" stroke-width="4"/>
+  <path id="stroked_moveto" d="M10 20"
+        stroke="red" stroke-width="4" stroke-linecap="round"/>
+  <path id="stroked_zero_line" d="M10 20 h0"
+        stroke="red" stroke-width="4" stroke-linecap="round"/>
+  <ellipse id="stroked_zero_rx" cx="10" cy="20" rx="0" ry="30"
+           stroke="red" stroke-width="4"/>
+  <path id="stroked_horiz_path" d="M10 20 L50 20"
+        stroke="red" stroke-width="4" stroke-linecap="butt"/>
+
+  <!-- J. Text edge cases -->
+  <text id="text_empty"></text>
+  <text id="text_positioned" x="10" y="20"></text>
+  <text id="text_display_none" x="10" y="20" display="none">Hello</text>
+
+</svg>
+<script>
+function assert_bbox(id, expected_x, expected_y, expected_w, expected_h, options) {
+  var el = document.getElementById(id);
+  var bbox = options ? el.getBBox(options) : el.getBBox();
+  assert_approx_equals(bbox.x, expected_x, 0.01, "x");
+  assert_approx_equals(bbox.y, expected_y, 0.01, "y");
+  assert_approx_equals(bbox.width, expected_w, 0.01, "width");
+  assert_approx_equals(bbox.height, expected_h, 0.01, "height");
+}
+
+// ========================================================================
+// I. Stroke bounding box on zero-dimension shapes
+// Per resolution (issue #1018): non-rendered shapes return (0,0,0,0).
+// Rects with zero width/height and circles with zero radius are not rendered.
+// Lines and paths ARE rendered (they have stroke geometry).
+// ========================================================================
+
+// --- Fill bbox (default) ---
+
+test(function() {
+  assert_bbox("stroked_point", 10, 20, 0, 0);
+}, "stroked zero-length line: fill bbox is zero-area at the point");
+
+test(function() {
+  assert_bbox("stroked_horiz", 10, 20, 40, 0);
+}, "stroked horizontal line: fill bbox has zero height");
+
+test(function() {
+  assert_bbox("stroked_vert", 10, 20, 0, 40);
+}, "stroked vertical line: fill bbox has zero width");
+
+test(function() {
+  assert_bbox("stroked_zero_w", 0, 0, 0, 0);
+}, "stroked zero-width rect: not rendered, fill bbox is all zeros");
+
+test(function() {
+  assert_bbox("stroked_zero_h", 0, 0, 0, 0);
+}, "stroked zero-height rect: not rendered, fill bbox is all zeros");
+
+test(function() {
+  assert_bbox("stroked_zero_wh", 0, 0, 0, 0);
+}, "stroked zero-dim rect: not rendered, fill bbox is all zeros");
+
+test(function() {
+  assert_bbox("stroked_zero_r", 0, 0, 0, 0);
+}, "stroked zero-radius circle: not rendered, fill bbox is all zeros");
+
+test(function() {
+  assert_bbox("stroked_moveto", 10, 20, 0, 0);
+}, "stroked path with only MoveTo: fill bbox is zero-area at the point");
+
+// --- Stroke bbox via getBBox({stroke: true}) ---
+// getBBox({stroke: true}) returns the fill bbox — stroke-width does not
+// expand the bounding box values.
+// Rects/circles/ellipses with zero dims are not rendered → (0,0,0,0).
+
+test(function() {
+  assert_bbox("stroked_point", 10, 20, 0, 0, {stroke: true});
+}, "stroked zero-length line: stroke bbox same as fill bbox");
+
+test(function() {
+  assert_bbox("stroked_horiz", 10, 18, 40, 4, {stroke: true});
+}, "stroked horizontal line: stroke-width wide");
+
+test(function() {
+  assert_bbox("stroked_vert", 8, 20, 4, 40, {stroke: true});
+}, "stroked vertical line: stroke-width wide");
+
+test(function() {
+  // Zero-width rect: not rendered → (0,0,0,0) even with stroke option.
+  assert_bbox("stroked_zero_w", 0, 0, 0, 0, {stroke: true});
+}, "stroked zero-width rect: not rendered, stroke bbox is all zeros");
+
+test(function() {
+  // Zero-height rect: not rendered → (0,0,0,0) even with stroke option.
+  assert_bbox("stroked_zero_h", 0, 0, 0, 0, {stroke: true});
+}, "stroked zero-height rect: not rendered, stroke bbox is all zeros");
+
+test(function() {
+  // Zero-dim rect: not rendered → (0,0,0,0).
+  assert_bbox("stroked_zero_wh", 0, 0, 0, 0, {stroke: true});
+}, "stroked zero-dim rect: not rendered, stroke bbox is all zeros");
+
+test(function() {
+  // Zero-radius circle: not rendered → (0,0,0,0).
+  assert_bbox("stroked_zero_r", 0, 0, 0, 0, {stroke: true});
+}, "stroked zero-radius circle: not rendered, stroke bbox is all zeros");
+
+test(function() {
+  assert_bbox("stroked_moveto", 10, 20, 0, 0, {stroke: true});
+}, "stroked path MoveTo only with round linecap: stroke bbox same as fill bbox");
+
+test(function() {
+  assert_bbox("stroked_zero_line", 8, 18, 4, 4, {stroke: true});
+}, "stroked zero-length path segment with round linecap: stroke-width wide");
+
+test(function() {
+  // Ellipse with rx=0, ry=30: not rendered → (0,0,0,0).
+  assert_bbox("stroked_zero_rx", 0, 0, 0, 0, {stroke: true});
+}, "stroked ellipse with zero rx: not rendered, stroke bbox is all zeros");
+
+test(function() {
+  assert_bbox("stroked_horiz_path", 10, 18, 40, 4, {stroke: true});
+}, "stroked horizontal path with butt linecap: stroke-width wide");
+
+// --- Combined fill+stroke option ---
+
+test(function() {
+  assert_bbox("stroked_point", 10, 20, 0, 0, {fill: true, stroke: true});
+}, "stroked zero-length line: fill+stroke bbox same as fill bbox");
+
+test(function() {
+  // With both fill and stroke false, the bbox should be (0, 0, 0, 0).
+  assert_bbox("stroked_point", 0, 0, 0, 0, {fill: false, stroke: false});
+}, "zero-length line with fill:false stroke:false returns empty bbox");
+
+// ========================================================================
+// J. Text edge cases
+// ========================================================================
+
+test(function() {
+  var el = document.getElementById("text_empty");
+  var bbox = el.getBBox();
+  assert_equals(bbox.width, 0, "width");
+  assert_equals(bbox.height, 0, "height");
+}, "empty text element has zero-area bbox");
+
+test(function() {
+  var el = document.getElementById("text_positioned");
+  var bbox = el.getBBox();
+  assert_equals(bbox.width, 0, "width");
+  assert_equals(bbox.height, 0, "height");
+}, "positioned empty text element has zero-area bbox");
+
+test(function() {
+  // Per resolution (issue #1018): non-rendered elements return zero bbox.
+  assert_bbox("text_display_none", 0, 0, 0, 0);
+}, "display:none text element returns zero bbox");
+</script>
