@@ -610,7 +610,7 @@ JS::ThrowCompletionOr<Optional<JS::PropertyDescriptor>> {interface.name}Properti
         return descriptor;
     }}
 
-    return JS::Object::internal_get_own_property(property_name);
+    return ordinary_get_own_property(property_name);
 }}
 
 // https://webidl.spec.whatwg.org/#named-properties-object-defineownproperty
