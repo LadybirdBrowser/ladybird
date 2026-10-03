@@ -60,6 +60,48 @@ test("array with holes", () => {
     expect(result).toBe(NaN);
 });
 
+test("length getter that changes the array-like", () => {
+    function target(...args) {
+        return args;
+    }
+
+    const removesElement = {
+        0: 1,
+        get length() {
+            delete this[0];
+            return 2;
+        },
+    };
+    expect(target.apply(null, removesElement)).toEqual([undefined, undefined]);
+
+    const addsElements = {
+        0: 1,
+        get length() {
+            this[1] = 2;
+            this[2] = 3;
+            return 3;
+        },
+    };
+    expect(target.apply(null, addsElements)).toEqual([1, 2, 3]);
+});
+
+test("length is read once", () => {
+    function target(...args) {
+        return args;
+    }
+
+    let count = 0;
+    const arrayLike = {
+        0: 1,
+        get length() {
+            ++count;
+            return 2;
+        },
+    };
+    expect(target.apply(null, arrayLike)).toEqual([1, undefined]);
+    expect(count).toBe(1);
+});
+
 describe("errors", () => {
     test("does not accept non-function values", () => {
         expect(() => {
