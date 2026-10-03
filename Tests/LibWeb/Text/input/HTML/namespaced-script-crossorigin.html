@@ -46,7 +46,7 @@
         document.body.appendChild(script);
         await loaded;
 
-        const recordedHeadersURL = new URL(`/recorded-request-headers${scriptURL.pathname}`, scriptURL);
+        const recordedHeadersURL = server.recordedRequestHeadersURL(scriptURL);
         const headers = await (await fetch(recordedHeadersURL)).json();
         println(headers.Cookie ? "LEAK" : "PASS");
     });

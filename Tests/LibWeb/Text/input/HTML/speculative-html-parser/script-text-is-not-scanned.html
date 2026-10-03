@@ -49,7 +49,7 @@
 
         const hasRecordedRequest = async url => {
             try {
-                const response = await fetch(`${server.baseURL}/recorded-request-headers${new URL(url).pathname}`);
+                const response = await fetch(server.recordedRequestHeadersURL(url));
                 return response.ok;
             } catch {
                 return false;

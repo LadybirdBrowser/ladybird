@@ -38,7 +38,7 @@
         audio.src = mediaURL;
         document.body.appendChild(audio);
 
-        const recordedHeadersURL = new URL(`/recorded-request-headers${mediaURL.pathname}`, mediaURL);
+        const recordedHeadersURL = server.recordedRequestHeadersURL(mediaURL);
         for (;;) {
             try {
                 const response = await fetch(recordedHeadersURL);

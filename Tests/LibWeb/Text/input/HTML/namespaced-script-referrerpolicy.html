@@ -26,7 +26,7 @@
         document.body.appendChild(parent);
         await ready;
 
-        const recordedHeadersURL = new URL(`/recorded-request-headers${scriptURL.pathname}`, scriptURL);
+        const recordedHeadersURL = server.recordedRequestHeadersURL(scriptURL);
         const headers = await (await fetch(recordedHeadersURL)).json();
         println(headers.Referer ? "LEAK" : "PASS");
     });
