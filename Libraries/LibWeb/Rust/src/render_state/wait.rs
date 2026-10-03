@@ -11,8 +11,8 @@
 //! that owns its marker, so code elsewhere has no way to wait.
 
 use super::{DocumentHost, RenderMessage, send};
+use std::cell::Cell;
 use std::marker::PhantomData;
-use std::sync::mpsc::{Receiver, Sender, channel};
 
 /// The one wait of a script API call that needs a current answer: getComputedStyle, an element's geometry, hit
 /// testing, innerText and the like. The host entry the API calls mints it, and a wait takes it by value, so it is
@@ -101,29 +101,15 @@ lockstep_reason!(crate::layout::text_queries::InputSelectsByWord);
 lockstep_reason!(crate::css::style::engine_calls::EngineDoor);
 lockstep_reason!(crate::layout::LayoutUpdate);
 
-/// Where the render side answers a host that waits for it. Only an answer goes through it: a reply dropped unanswered
+/// Where the render side answers a host that waits for it: the slot in the waiting host's frame that the answer moves
+/// into, which the message borrows for as long as the host waits. Only an answer goes through it: a slot left empty
 /// is a render state that died.
-pub(crate) struct ReplyTo<R>(Sender<R>);
+pub(crate) struct ReplyTo<'a, R>(&'a Cell<Option<R>>);
 
-impl<R> ReplyTo<R> {
-    fn channel() -> (Self, Receiver<R>) {
-        let (reply, answered) = channel();
-        (Self(reply), answered)
-    }
-
-    /// Answers with what `job` answers. A panic in `job` drops the reply unanswered, which ends the process where the
-    /// host waits, and goes on to end the message.
+impl<R> ReplyTo<'_, R> {
+    /// Answers with what `job` answers. A panic in `job` leaves the slot empty and goes on to end the message.
     pub(crate) fn answer(self, job: impl FnOnce() -> R) {
-        match std::panic::catch_unwind(std::panic::AssertUnwindSafe(job)) {
-            // The waiting host keeps the receiver until it has the answer.
-            Ok(answer) => {
-                let _ = self.0.send(answer);
-            }
-            Err(payload) => {
-                drop(self);
-                std::panic::resume_unwind(payload);
-            }
-        }
+        self.0.set(Some(job()));
     }
 }
 
@@ -132,11 +118,9 @@ impl<R> ReplyTo<R> {
 pub(crate) fn wait_for_render_state<R>(
     _wait: impl RenderWait,
     _host: &DocumentHost,
-    message: impl FnOnce(ReplyTo<R>) -> RenderMessage,
+    message: impl FnOnce(ReplyTo<'_, R>) -> RenderMessage<'_>,
 ) -> R {
-    let (reply, answered) = ReplyTo::channel();
-    send(message(reply));
-    answered.try_recv().unwrap_or_else(|_| render_state_died())
+    send_and_wait(message)
 }
 
 /// Sends the render state of the document `main_thread` was minted for the message `message` makes of where it
@@ -145,11 +129,15 @@ pub(crate) fn wait_for_render_state<R>(
 pub(crate) fn wait_from_entry<R>(
     _wait: impl RenderWait,
     _main_thread: &crate::stage::MainThread,
-    message: impl FnOnce(ReplyTo<R>) -> RenderMessage,
+    message: impl FnOnce(ReplyTo<'_, R>) -> RenderMessage<'_>,
 ) -> R {
-    let (reply, answered) = ReplyTo::channel();
-    send(message(reply));
-    answered.try_recv().unwrap_or_else(|_| render_state_died())
+    send_and_wait(message)
+}
+
+fn send_and_wait<R>(message: impl FnOnce(ReplyTo<'_, R>) -> RenderMessage<'_>) -> R {
+    let answered = Cell::new(None);
+    send(message(ReplyTo(&answered)));
+    answered.into_inner().unwrap_or_else(|| render_state_died())
 }
 
 /// Ends the process, on a host whose wait for a render state found no answer: the message panicked, and may have left
@@ -162,7 +150,6 @@ pub(crate) fn render_state_died() -> ! {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::sync::mpsc::TryRecvError;
 
     trait AmbiguousIfSend<A> {
         fn marker() {}
@@ -184,18 +171,19 @@ mod tests {
 
     #[test]
     fn a_job_answers_through_its_reply() {
-        let (reply, answered) = ReplyTo::channel();
-        reply.answer(|| 7);
-        assert_eq!(answered.try_recv(), Ok(7));
+        let answered = Cell::new(None);
+        ReplyTo(&answered).answer(|| 7);
+        assert_eq!(answered.into_inner(), Some(7));
     }
 
     #[test]
-    fn a_panic_in_a_job_for_a_waiting_caller_drops_its_reply() {
-        let (reply, answered) = ReplyTo::<u32>::channel();
+    fn a_panic_in_a_job_for_a_waiting_caller_leaves_its_reply_empty() {
+        let answered = Cell::<Option<u32>>::new(None);
+        let reply = ReplyTo(&answered);
         let panicked = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
             reply.answer(|| panic!("the job panicked"));
         }));
         assert!(panicked.is_err());
-        assert_eq!(answered.try_recv(), Err(TryRecvError::Disconnected));
+        assert_eq!(answered.into_inner(), None);
     }
 }
