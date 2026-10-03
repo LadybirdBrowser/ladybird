@@ -11,6 +11,7 @@
 #include <LibCore/EventLoop.h>
 #include <LibDevTools/StorageHelpers.h>
 #include <LibHTTP/Cookie/ParsedCookie.h>
+#include <LibWebCommon/FileAPI/BlobURLStore.h>
 #include <LibWebCommon/HTML/BrowsingContext.h>
 #include <LibWebCommon/Page/InputEvent.h>
 #include <LibWebCommon/WebDriver/Error.h>
@@ -2555,6 +2556,11 @@ Messages::WebContentTestClient::DidRequestSessionStoreTabStateForTestingResponse
 // https://w3c.github.io/FileAPI/#add-an-entry
 Messages::WebContentClient::DidAddBlobUrlEntryResponse WebContentPage::did_add_blob_url_entry(Web::HTML::EnvironmentId environment_id, Utf16String url, Web::FileAPI::SerializedBlobURLEntry entry)
 {
+    if (!entry.object.has_value()) {
+        client().did_misbehave("did_add_blob_url_entry"sv, "entry without an object"sv);
+        return URL::BlobURLEntry::Token { 0 };
+    }
+
     // 3. Let entry be a new blob URL entry consisting of object and the current settings object.
     auto environment = hosted_environment(environment_id);
     if (!environment.has_value())
@@ -2572,6 +2578,46 @@ void WebContentPage::did_remove_blob_url_entries(Web::HTML::EnvironmentId enviro
     if (!environment.has_value())
         return;
     client().session().blob_url_store->remove_entries(urls, environment->origin(), WeakPtr<WebContentClient> { client() });
+}
+
+// https://w3c.github.io/FileAPI/#blob-url-resolve
+Messages::WebContentClient::DidRequestBlobUrlEntryResponse WebContentPage::did_request_blob_url_entry(Optional<Web::HTML::EnvironmentId> environment_id, Utf16String url, Optional<URL::BlobURLEntry::Token> token)
+{
+    auto entry = client().session().blob_url_store->resolve(url, token);
+    if (entry.has_value() && !may_obtain_blob_object(*entry, url, environment_id))
+        entry->object.clear();
+    return entry;
+}
+
+// https://w3c.github.io/FileAPI/#blob-url-obtain-object
+bool WebContentPage::may_obtain_blob_object(Web::FileAPI::SerializedBlobURLEntry const& entry, Utf16String const& url, Optional<Web::HTML::EnvironmentId> const& environment_id) const
+{
+    // NB: A navigation's fetch obtains the object as a top-level navigation, or for an environment created with url,
+    //     whose origin is the entry's.
+    bool populates_a_navigation_to_url = false;
+    traversable().for_each_in_inclusive_subtree([&](CanonicalNavigable const& navigable) {
+        auto const& navigation = navigable.ongoing_navigation();
+        populates_a_navigation_to_url = navigable.navigation_population_worker_matches(*this)
+            && navigation->url.has_value()
+            && Utf16String::from_utf8(navigation->url->serialize(URL::ExcludeFragment::Yes)) == url;
+        return populates_a_navigation_to_url ? IterationDecision::Break : IterationDecision::Continue;
+    });
+    if (populates_a_navigation_to_url)
+        return true;
+
+    if (!environment_id.has_value())
+        return false;
+    auto document = document_with_hosted_environment(*environment_id);
+    if (!document.has_value())
+        return false;
+
+    // NB: The top-level document's fetch of its own creation URL obtains the object as a top-level self-fetch.
+    if (&*document == &traversable().active_document() && Utf16String::from_utf8(document->creation_url().serialize(URL::ExcludeFragment::Yes)) == url)
+        return true;
+
+    // 2. If environment is an environment, then set isAuthorized to the result of checking for same-partition blob URL
+    //    usage with blobUrlEntry and environment.
+    return Web::FileAPI::check_for_same_partition_blob_url_usage(entry.origin, document->relevant_global_object().relevant_settings_object().origin());
 }
 
 void WebContentPage::did_set_cookie(URL::URL url, HTTP::Cookie::ParsedCookie cookie, HTTP::Cookie::Source source)

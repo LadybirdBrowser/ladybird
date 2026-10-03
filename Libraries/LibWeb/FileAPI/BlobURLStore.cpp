@@ -196,8 +196,9 @@ Optional<URL::BlobURLEntry> resolve_a_blob_url(URL::URL const& url)
 
 // https://url.spec.whatwg.org/#concept-url-blob-entry
 // The blob URL entry of url, from the URL record itself if the parser resolved one, and from the browser process
-// otherwise.
-Optional<SerializedBlobURLEntry> blob_url_entry_in_the_user_agent_store(Page& page, URL::URL const& url)
+// otherwise. The browser process resolves it for environment, and gives its object only where obtaining it is
+// authorized.
+Optional<SerializedBlobURLEntry> blob_url_entry_in_the_user_agent_store(Page& page, GC::Ptr<HTML::EnvironmentSettingsObject const> environment, URL::URL const& url)
 {
     if (url.scheme() != "blob"sv)
         return {};
@@ -225,7 +226,7 @@ Optional<SerializedBlobURLEntry> blob_url_entry_in_the_user_agent_store(Page& pa
     auto url_string = utf16_string_from_url_ascii(url.serialize(URL::ExcludeFragment::Yes));
 
     // 4. If store[url string] exists, return store[url string]; otherwise return failure.
-    return page.client().page_did_request_blob_url_entry(url_string, token);
+    return page.client().page_did_request_blob_url_entry(environment, url_string, token);
 }
 
 // The entry as this process's own store has it, for callers that need the object itself and not a copy of its bytes.

@@ -125,6 +125,30 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         VERIFY(blob_url_store.resolve(victim_blob_url, {}).has_value());
     }
 
+    // A blob URL entry resolves by its URL or its token, but with its object only for an environment in its partition.
+    auto blob_data = MUST(Core::AnonymousBuffer::create_with_size(1));
+    auto add_blob_entry = [&](Utf16String const& url, URL::Origin const& origin) {
+        return blob_url_store.add_entry(url, { .object = Web::FileAPI::SerializedBlobURLEntry::Blob { .type = "text/plain"_string, .data = blob_data }, .origin = origin }, WeakPtr<WebView::WebContentClient> {});
+    };
+    auto request_blob_url_entry = [&](Optional<Web::HTML::EnvironmentId> environment_id, Utf16String const& url, Optional<URL::BlobURLEntry::Token> token) {
+        return stub.did_request_blob_url_entry(page_id, move(environment_id), url, token).take_entry();
+    };
+    auto victim_object_blob_url = "blob:https://victim.example/object"_utf16;
+    auto victim_token = add_blob_entry(victim_object_blob_url, victim_url.origin());
+    for (auto const& token : Vector<Optional<URL::BlobURLEntry::Token>> { {}, victim_token }) {
+        for (auto const& environment_id : Vector<Optional<Web::HTML::EnvironmentId>> { {}, Web::HTML::EnvironmentId::generate(), page_environment_id }) {
+            auto entry = request_blob_url_entry(environment_id, victim_object_blob_url, token);
+            VERIFY(entry.has_value() && !entry->object.has_value() && entry->origin.is_same_origin(victim_url.origin()));
+        }
+    }
+    auto page_object_blob_url = "blob:https://page.example/object"_utf16;
+    auto page_token = add_blob_entry(page_object_blob_url, view->client().page(page_id)->traversable().active_document().origin());
+    VERIFY(request_blob_url_entry(page_environment_id, page_object_blob_url, {})->object.has_value());
+    VERIFY(request_blob_url_entry(page_environment_id, page_object_blob_url, page_token)->object.has_value());
+
+    // A token resolves only together with the URL of its entry.
+    VERIFY(!request_blob_url_entry(page_environment_id, page_object_blob_url, victim_token).has_value());
+
     auto expect_rejected = [&](StringView what, Function<void(WebContentClientStub&, Web::PageId)> send) {
         auto view = create_view();
         Optional<WebView::ViewImplementation::WebContentCrashReason> crash_reason;
