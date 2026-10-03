@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    .wide { width: 150px; }
+    #container > p { margin: 0; height: 12px; }
+</style>
+<div id="container" style="width: 300px"><div id="first" style="height: 10px">first</div><div id="second">second</div></div>
+<div id="toggled" style="display: none">toggled</div>
+<script>
+    // Insertions beside a frame in flight, one that builds the layout tree: what they record for the style engine and
+    // the tree build waits for the flight instead of taking it in, and the next layout sees every inserted node.
+    asyncTest(async done => {
+        const removed = second;
+        removed.remove();
+        const result = await whileRecordingInFlight(() => {
+            first.style.height = "20px";
+            toggled.style.display = "block";
+        }, state => {
+            const fresh = document.createElement("div");
+            fresh.id = "fresh";
+            fresh.className = "wide";
+            fresh.appendChild(document.createElement("p")).textContent = "paragraph";
+            container.appendChild(fresh);
+            container.appendChild(removed);
+            first.appendChild(document.createTextNode(" and more"));
+            return { state, afterInsertions: internals.frameSchedulerState() };
+        });
+        println(`state in the next task: ${result.state}`);
+        println(`state after the insertions: ${result.afterInsertions}`);
+        println(`fresh width: ${fresh.offsetWidth}`);
+        println(`fresh height: ${fresh.offsetHeight}`);
+        println(`first text: ${first.textContent}`);
+        println(`second connected: ${second.isConnected}`);
+        println(`container height: ${container.offsetHeight}`);
+        println(`toggled height: ${toggled.offsetHeight}`);
+        done();
+    });
+</script>

@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    #box { width: 50px; height: 50px; }
+    #box.wide { width: 80px; }
+</style>
+<div id="box"></div>
+<script>
+    // The page is hidden while its style and layout are in flight, so no rendering opportunity comes: the frame must
+    // still be taken in and the rendering update finished, and rendering goes on once the page is visible again.
+    asyncTest(async done => {
+        const result = await whileRecordingInFlight(() => {
+            box.classList.add("wide");
+        }, async state => {
+            await setSystemVisibilityState("hidden");
+            return { state, visibility: document.visibilityState, stateWhenHidden: internals.frameSchedulerState() };
+        });
+        println(`state in the next task: ${result.state}`);
+        println(`visibility: ${result.visibility}`);
+        println(`state once hidden: ${result.stateWhenHidden}`);
+        // The event loop takes the released frame in at the first task after the render side has finished it, however
+        // long that takes.
+        while (internals.frameSchedulerState() !== "idle")
+            await nextTask();
+        println(`state once released: ${internals.frameSchedulerState()}`);
+        println(`styled while hidden: ${getComputedStyle(box).width}, ${box.offsetWidth}`);
+        await setSystemVisibilityState("visible");
+        box.style.height = "60px";
+        await twoFrames();
+        println(`rendering resumed: ${document.visibilityState}, ${box.offsetHeight}`);
+        done();
+    });
+</script>

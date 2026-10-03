@@ -1,0 +1,17 @@
+insertion: state in the next task: in-flight
+insertion: state after the attribute changes: in-flight
+insertion: state after first-seen attribute names: in-flight
+insertion: state after the insertion: in-flight
+insertion: container height: 75
+insertion: first: 200x25 rgb(128, 0, 128)
+insertion: second: 200x40 rgb(0, 0, 255)
+insertion: third: 200x10 rgb(0, 128, 0)
+removal: state in the next task: in-flight
+removal: container height: 26
+removal: second connected: false
+removal: first: 200x10 rgb(128, 0, 128)
+removal: third: 200x16 rgb(0, 0, 0)
+replacement: state in the next task: in-flight
+replacement: children: 2
+replacement: fourth: 200x10 rgb(0, 0, 0)
+replacement: fifth: 200x40 rgb(0, 128, 0)

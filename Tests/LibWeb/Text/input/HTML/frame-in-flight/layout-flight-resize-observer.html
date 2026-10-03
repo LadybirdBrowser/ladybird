@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<div id="target" style="width: 50px; height: 50px"></div>
+<script>
+    // A ResizeObserver created beside a frame in flight: the rendering update gathers its observation after the frame,
+    // so it is delivered once, with the size the target has after the task that observed it, as when the task runs
+    // before the rendering update.
+    asyncTest(async done => {
+        const sizes = [];
+        let observer;
+        const state = await whileRecordingInFlight(() => {
+            target.style.width = "60px";
+        }, state => {
+            target.style.width = "90px";
+            observer = new ResizeObserver(entries => {
+                for (const entry of entries)
+                    sizes.push(`${entry.contentRect.width}x${entry.contentRect.height}`);
+            });
+            observer.observe(target);
+            return state;
+        });
+        println(`state in the next task: ${state}`);
+        await twoFrames();
+        println(`observed: ${sizes.join(",")}`);
+
+        // Once observed, the target's resize is gathered by the rendering update that lays it out.
+        target.style.width = "100px";
+        await twoFrames();
+        println(`resized: ${sizes.join(",")}`);
+        observer.disconnect();
+        done();
+    });
+</script>

@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<div id="container"></div>
+<script>
+    // A frame in flight builds boxes for elements that paint from facts their DOM node keeps, and the elements go away
+    // beside it: removed, or adopted into another document. A layout read takes the frame in afterwards, and the boxes
+    // it built are handed their style resources with no DOM node left to take those facts from. They paint from their
+    // style until the removal takes them away.
+    const image = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
+
+    function makeElements() {
+        const elements = [];
+        elements.push(document.createElement("video"));
+        elements.push(document.createElement("canvas"));
+        elements.push(document.createElement("iframe"));
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        elements.push(checkbox);
+        const radio = document.createElement("input");
+        radio.type = "radio";
+        elements.push(radio);
+        const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        const svgImage = document.createElementNS("http://www.w3.org/2000/svg", "image");
+        svgImage.setAttribute("href", image);
+        svgImage.setAttribute("width", "10");
+        svgImage.setAttribute("height", "10");
+        svg.appendChild(svgImage);
+        elements.push(svg);
+        const generated = document.createElement("span");
+        generated.className = "generated";
+        elements.push(generated);
+        return elements;
+    }
+
+    asyncTest(async done => {
+        const style = document.createElement("style");
+        style.textContent = `.generated::before { content: url(${image}); }`;
+        document.head.appendChild(style);
+
+        const otherDocument = document.implementation.createHTMLDocument();
+        for (const [name, goAway] of [
+            ["removed", element => element.remove()],
+            ["adopted", element => otherDocument.body.appendChild(otherDocument.adoptNode(element))],
+        ]) {
+            let elements = [];
+            const width = await whileRecordingInFlight(() => {
+                elements = makeElements();
+                for (const element of elements)
+                    container.appendChild(element);
+            }, () => {
+                for (const element of elements)
+                    goAway(element);
+                return container.offsetWidth;
+            });
+            println(`${name}: container laid out: ${width > 0}, children left: ${container.childElementCount}`);
+        }
+        done();
+    });
+</script>

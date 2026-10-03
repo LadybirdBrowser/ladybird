@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<div id="container" style="width: 300px"><div id="first" style="height: 10px">first</div><div id="second">second</div></div>
+<script>
+    // Attribute changes on elements outside the document beside a frame in flight: the style engine keeps nothing of
+    // such an element, so the change goes on beside the frame instead of taking it in, and the element is styled once
+    // it is inserted.
+    asyncTest(async done => {
+        const removed = second;
+        removed.remove();
+        let fresh;
+        const result = await whileRecordingInFlight(() => {
+            first.style.height = "20px";
+        }, state => {
+            fresh = document.createElement("div");
+            fresh.setAttribute("id", "fresh");
+            fresh.className = "wide";
+            fresh.setAttribute("style", "height: 30px");
+            removed.setAttribute("class", "wide");
+            removed.removeAttribute("id");
+            return { state, afterWrites: internals.frameSchedulerState() };
+        });
+        println(`state in the next task: ${result.state}`);
+        println(`state after the writes: ${result.afterWrites}`);
+        container.appendChild(fresh);
+        container.appendChild(removed);
+        println(`fresh height: ${fresh.offsetHeight}`);
+        println(`removed element class: ${removed.className}`);
+        println(`container height: ${container.offsetHeight}`);
+        done();
+    });
+</script>

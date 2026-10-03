@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<iframe id="a" srcdoc="<style>@font-face { font-family: FaceA; src: url(../../../../Assets/HashSans.woff); unicode-range: U+0041-005A; } body { font: 20px FaceA, monospace; }</style><body><div id=box style='height: 10px'></div></body>"></iframe>
+<iframe id="b" srcdoc="<style>@font-face { font-family: FaceB; src: url(../../../../Assets/Lato-Bold.ttf); unicode-range: U+0041-005A; } body { font: 20px FaceB, monospace; }</style><body><div id=box style='height: 10px'></div></body>"></iframe>
+<script>
+    // A face with a unicode-range loads once a layout reaches a code point it covers: the frame in flight leaves the
+    // want behind, and its document asks for the face once it takes the frame in. Another document laid out beside the
+    // frame must not take that want: the face stays unloaded while its document's frame is in flight, and then each
+    // document's face loads.
+    asyncTest(async done => {
+        if (document.readyState !== "complete")
+            await new Promise(resolve => window.addEventListener("load", resolve, { once: true }));
+        const docA = a.contentDocument;
+        const docB = b.contentDocument;
+        const faceA = [...docA.fonts][0];
+        const faceB = [...docB.fonts][0];
+
+        const result = await whileRecordingInFlight(() => {
+            docA.getElementById("box").style.height = "20px";
+            docA.body.insertAdjacentHTML("beforeend", "<span>ABC</span>");
+        }, () => {
+            docB.body.insertAdjacentHTML("beforeend", "<span id=text>XYZ</span>");
+            docB.body.offsetWidth;
+            return { state: internals.frameSchedulerState(), statusA: faceA.status };
+        });
+        // Only document A has anything to lay out in the frame, so a frame in flight is document A's.
+        println(`face A unloaded while its document's frame is in flight: ${result.state !== "in-flight" || result.statusA === "unloaded"}`);
+
+        await faceA.loaded;
+        await faceB.loaded;
+        println(`face A: ${faceA.status}`);
+        println(`face B: ${faceB.status}`);
+        done();
+    });
+</script>

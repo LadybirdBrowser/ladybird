@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    :root { --gap: 3px; }
+    :root.big { --gap: 6px; font-size: 20px; }
+    #outer { --size: 20px; width: 100px; }
+    #inner { width: var(--size, 50px); height: var(--gap); }
+</style>
+<div id="outer"><div id="inner"></div></div>
+<script>
+    // CSS.registerProperty() beside a frame in flight: the style pass in flight reads the document's registrations (the
+    // root declares a custom property), so the change waits for the flight instead of rewriting them under it or taking
+    // it in, and the next style update sees the registration.
+    asyncTest(async done => {
+        const result = await whileRecordingInFlight(() => {
+            document.documentElement.classList.add("big");
+        }, state => {
+            CSS.registerProperty({ name: "--size", syntax: "<length>", inherits: false, initialValue: "5px" });
+            return { state, afterRegistration: internals.frameSchedulerState() };
+        });
+        println(`state in the next task: ${result.state}`);
+        println(`state after the registration: ${result.afterRegistration}`);
+        await twoFrames();
+        println(`inner width (not inherited, initial value): ${inner.offsetWidth}`);
+        println(`inner height: ${inner.offsetHeight}`);
+        println(`outer --size: ${getComputedStyle(outer).getPropertyValue("--size")}`);
+        println(`inner --size: ${getComputedStyle(inner).getPropertyValue("--size")}`);
+        done();
+    });
+</script>

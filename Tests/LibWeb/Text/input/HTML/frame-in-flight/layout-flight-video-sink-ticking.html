@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<iframe id="videoFrame" srcdoc="<body></body>"></iframe>
+<iframe id="laterFrame" srcdoc="<body></body>"></iframe>
+<script>
+    // Whether a video sink ticks is decided once layout is settled, document by document. The frame of a later
+    // document is in flight while a task dirties the layout of an earlier document that holds a playing video: when the
+    // rendering update goes on, deciding the ticking for the outer document must not read the stale layout of that
+    // earlier iframe.
+    asyncTest(async done => {
+        if (document.readyState !== "complete")
+            await new Promise(resolve => window.addEventListener("load", resolve, { once: true }));
+        const videoDocument = videoFrame.contentDocument;
+        const laterDocument = laterFrame.contentDocument;
+        const video = videoDocument.createElement("video");
+        video.src = "../../../../Assets/solid-blue-160x120.webm";
+        videoDocument.body.appendChild(video);
+        await new Promise(resolve => video.addEventListener("loadedmetadata", resolve, { once: true }));
+
+        await whileRecordingInFlight(() => {
+            laterDocument.body.appendChild(laterDocument.createElement("div")).textContent = "later";
+        }, () => {
+            videoDocument.body.appendChild(videoDocument.createElement("div")).textContent = "beside the frame";
+        });
+        await twoFrames();
+        println(`video document laid out: ${videoDocument.body.offsetHeight > 0}`);
+        done();
+    });
+</script>

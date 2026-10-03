@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<div id="container" style="width: 300px"><div id="first" style="height: 10px">first</div><div id="second" style="height: 10px">second</div></div>
+<script>
+    // DOM mutations beside the frame whose layout lays them out: the tree changes beside the frame, and the next layout
+    // sees every change, whichever boxes the frame in flight still holds.
+    asyncTest(async done => {
+        const inserted = await whileRecordingInFlight(() => {
+            first.style.height = "20px";
+        }, state => {
+            const third = document.createElement("div");
+            third.id = "third";
+            third.style.height = "30px";
+            third.textContent = "third";
+            container.appendChild(third);
+            container.style.width = "200px";
+            return state;
+        });
+        println(`insertion: state in the next task: ${inserted}`);
+        await twoFrames();
+        println(`insertion: container height: ${container.offsetHeight}`);
+        println(`insertion: third width: ${third.offsetWidth}`);
+
+        // The node whose box the frame lays out leaves the tree, and the text of another changes.
+        const secondElement = second;
+        const removed = await whileRecordingInFlight(() => {
+            secondElement.style.height = "40px";
+        }, state => {
+            secondElement.remove();
+            first.firstChild.data = "first, changed";
+            first.style.height = "5px";
+            return state;
+        });
+        println(`removal: state in the next task: ${removed}`);
+        await twoFrames();
+        println(`removal: container height: ${container.offsetHeight}`);
+        println(`removal: second connected: ${secondElement.isConnected}`);
+        println(`removal: first text: ${first.textContent}`);
+
+        // The whole subtree is replaced beside the frame.
+        const replaced = await whileRecordingInFlight(() => {
+            container.style.width = "250px";
+        }, state => {
+            container.innerHTML = `<div id="fourth" style="height: 15px">fourth</div><span>inline</span>`;
+            return state;
+        });
+        println(`replacement: state in the next task: ${replaced}`);
+        await twoFrames();
+        println(`replacement: fourth width: ${fourth.offsetWidth}`);
+        println(`replacement: children: ${container.children.length}`);
+        println(`replacement: span laid out: ${container.querySelector("span").getClientRects().length > 0}`);
+        done();
+    });
+</script>

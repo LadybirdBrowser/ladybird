@@ -1,0 +1,9 @@
+reads: state in the next task: in-flight
+reads: offsetWidth: 150
+reads: getBoundingClientRect after a mutation: 170
+reads: computed width after a mutation: 180px
+geometry: state in the next task: in-flight
+geometry: getBoundingClientRect height: 60
+geometry: scrollHeight: 120
+geometry: hit test: true
+after: box: 180x60

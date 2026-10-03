@@ -1,0 +1,7 @@
+resize: child color: rgb(0, 128, 0)
+resize: child width: 300
+child resize: child color: rgb(0, 0, 0)
+navigation: new document: second, rgb(128, 0, 128)
+navigation: old document replaced: true
+collection: container height: 0
+removed, then collected: restyled: rgb(0, 0, 255), 10

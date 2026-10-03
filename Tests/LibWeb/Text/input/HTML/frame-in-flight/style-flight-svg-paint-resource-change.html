@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<svg id="svg" width="100" height="50"><defs><linearGradient id="gradient"><stop id="gradient-stop" offset="0" stop-color="red"/></linearGradient></defs><rect width="100" height="50" fill="url(#gradient)"/></svg>
+<div id="box"></div>
+<script>
+    // SVG attribute changes beside a frame in flight, in a document whose rows enrolled a paint resource: a presentation
+    // attribute's hints wait in the host's queue, and a change to the resource's own description is noted in a read of
+    // its own. The next rendering update shows both.
+    asyncTest(async done => {
+        const state = await whileRecordingInFlight(() => {
+            box.style.height = "30px";
+        }, state => {
+            svg.setAttribute("width", "120");
+            const afterOutside = internals.frameSchedulerState();
+            document.getElementById("gradient-stop").setAttribute("stop-color", "green");
+            return { state, afterOutside, afterResource: internals.frameSchedulerState() };
+        });
+        println(`state in the next task: ${state.state}`);
+        println(`state after a change outside the resource: ${state.afterOutside}`);
+        println(`state after a change to the resource: ${state.afterResource}`);
+        await twoFrames();
+        println(`svg width: ${svg.getBoundingClientRect().width}`);
+        done();
+    });
+</script>

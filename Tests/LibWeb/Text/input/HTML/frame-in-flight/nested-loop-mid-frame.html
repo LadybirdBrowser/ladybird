@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<div id="box" style="width: 50px; height: 50px; background: blue"></div>
+<script>
+    // The frame finishes on the render side while script runs a nested event loop (alert(), a synchronous XHR). The
+    // nested loop may take the frame in, but what the frame leaves to run after it (which can run script) waits for an
+    // empty stack, and the rendering updates after it go on as before.
+    asyncTest(async done => {
+        for (const [name, runNestedLoop] of [
+            ["alert", () => alert("nested")],
+            ["sync xhr", () => {
+                const xhr = new XMLHttpRequest();
+                xhr.open("GET", "data:text/plain,nested", false);
+                xhr.send();
+            }],
+        ]) {
+            const state = await whileRecordingInFlight(() => {
+                box.style.backgroundColor = box.style.backgroundColor === "green" ? "blue" : "green";
+            }, state => {
+                internals.releaseHeldFrame();
+                runNestedLoop();
+                return state;
+            });
+            println(`${name}: state in the next task: ${state}`);
+            await twoFrames();
+            println(`${name}: color: ${getComputedStyle(box).backgroundColor}`);
+            println(`${name}: hit test finds the box: ${document.elementFromPoint(20, 20) === box}`);
+        }
+        println(`box width: ${box.offsetWidth}`);
+        done();
+    });
+</script>

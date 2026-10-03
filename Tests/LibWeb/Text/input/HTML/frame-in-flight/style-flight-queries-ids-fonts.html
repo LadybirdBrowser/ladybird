@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style id="base">
+    #box { width: 100px; height: 20px; }
+    #renamed { width: 150px; }
+    .item { height: 10px; }
+    #text { font: 20px StyleFlightFace, monospace; }
+</style>
+<div id="box" class="item"></div>
+<div id="list"><div class="item">a</div><div class="item">b</div></div>
+<span id="text">flight</span>
+<script>
+    // Selector queries the DOM answers alone, a first-seen id and a font face added beside a frame in flight leave the
+    // frame in flight; a sheet's conditions, which the style engine evaluates in place, drain its style transaction
+    // first. The next style update sees each of them.
+    asyncTest(async done => {
+        const face = new FontFace("StyleFlightFace", "url(../../../../Assets/HashSans.woff)");
+        await face.load();
+        const element = box;
+        const widthBefore = text.offsetWidth;
+        let height = 20;
+
+        // `write` runs beside a frame of its own, so that a write that takes the frame in cannot hide whether the ones
+        // after it would. `after` reads the outcome once the next style update has taken the write in.
+        async function besideFrame(name, write, after) {
+            const result = await whileRecordingInFlight(() => {
+                element.style.height = `${++height}px`;
+            }, state => {
+                write();
+                return { state, afterWrite: internals.frameSchedulerState() };
+            });
+            println(`${name}: state in the next task: ${result.state}`);
+            println(`${name}: state after the write: ${result.afterWrite}`);
+            await twoFrames();
+            println(`${name}: after: ${after()}`);
+        }
+
+        let answers;
+        await besideFrame("queries the DOM answers", () => {
+            answers = [
+                document.querySelector("#box") === element,
+                document.querySelectorAll(".item").length,
+                element.matches(".item"),
+                list.firstChild.closest("#list") === list,
+            ];
+        }, () => answers.join(" "));
+        await besideFrame("a first-seen id", () => {
+            element.id = "renamed";
+        }, () => `width ${element.offsetWidth}, by id: ${document.getElementById("renamed") === element}`);
+        let constructed;
+        await besideFrame("a constructed sheet with a media list", () => {
+            constructed = new CSSStyleSheet({ media: "print" });
+        }, () => constructed.media.mediaText);
+        await besideFrame("adding a font face", () => {
+            document.fonts.add(face);
+        }, () => `the text width changed: ${text.offsetWidth !== widthBefore}`);
+        await besideFrame("a style element's media", () => {
+            base.media = "print";
+        }, () => `width ${element.offsetWidth}`);
+        done();
+    });
+</script>

@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<iframe id="frame" style="width: 200px; height: 100px; border: none" srcdoc="<style>@media (min-width: 250px) { #inner { height: 40px } }</style><body style='margin: 0'><div id=inner>child</div>"></iframe>
+<script>
+    // An iframe resized by the layout of the frame a rendering update lets fly, which the child's read takes in in the
+    // middle of a task. The parent has nothing left to lay out after that, and the child's box, viewport and media
+    // queries read in the same task all see the viewport size the parent's layout gave it.
+    asyncTest(async done => {
+        const frameElement = document.getElementById("frame");
+        if (!frameElement.contentDocument?.getElementById("inner"))
+            await new Promise(resolve => frameElement.addEventListener("load", resolve, { once: true }));
+        const child = frameElement.contentDocument;
+
+        const result = await whileRecordingInFlight(() => {
+            frameElement.style.width = "300px";
+        }, () => {
+            const inner = child.getElementById("inner");
+            return {
+                childBox: `${inner.offsetWidth}x${inner.offsetHeight}`,
+                innerWidth: child.defaultView.innerWidth,
+                matches: child.defaultView.matchMedia("(min-width: 250px)").matches,
+            };
+        });
+        println(`child viewport width: ${result.innerWidth}`);
+        println(`child media query matches: ${result.matches}`);
+        println(`child box: ${result.childBox}`);
+        done();
+    });
+</script>

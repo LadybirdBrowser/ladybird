@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<div id="container"></div>
+<script>
+    // Garbage collections beside a frame in flight: the elements the frame lays out lose their last script reference
+    // and leave the tree, and no collection may free what the frame in flight still reaches.
+    function fill(count) {
+        const elements = [];
+        for (let i = 0; i < count; ++i) {
+            const div = document.createElement("div");
+            div.textContent = `item ${i}`;
+            div.style.height = `${10 + (i % 3)}px`;
+            container.appendChild(div);
+            elements.push(div);
+        }
+        return elements;
+    }
+
+    asyncTest(async done => {
+        // Collected first, then removed, then collected again.
+        let doomed = [];
+        const collectedFirst = await whileRecordingInFlight(() => {
+            doomed = fill(50);
+        }, state => {
+            internals.gc();
+            doomed = null;
+            internals.gc();
+            container.innerHTML = "";
+            internals.gc();
+            return state;
+        });
+        println(`collected, then removed: state in the next task: ${collectedFirst}`);
+        await twoFrames();
+        println(`collected, then removed: container height: ${container.offsetHeight}`);
+
+        // Removed first, then collected with nothing referencing the elements but the layout the frame computed.
+        doomed = [];
+        const removedFirst = await whileRecordingInFlight(() => {
+            doomed = fill(50);
+        }, state => {
+            for (const element of doomed)
+                element.remove();
+            doomed = null;
+            internals.gc();
+            internals.gc();
+            return state;
+        });
+        println(`removed, then collected: state in the next task: ${removedFirst}`);
+        await twoFrames();
+        internals.gc();
+        container.textContent = "after";
+        println(`removed, then collected: container laid out: ${container.offsetHeight > 0}`);
+        done();
+    });
+</script>

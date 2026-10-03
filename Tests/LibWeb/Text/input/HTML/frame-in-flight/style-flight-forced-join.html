@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    .red { color: rgb(255, 0, 0); }
+    .green { color: rgb(0, 128, 0); }
+    #box { width: 100px; height: 20px; }
+    #box.wide { width: 150px; }
+    .tagged::before { content: "before"; }
+    #box[data-state="on"] { background-color: rgb(0, 0, 255); }
+    #list > li:nth-child(odd) { font-weight: 700; }
+</style>
+<div id="box" class="red"></div>
+<ul id="list"><li id="one">one</li><li id="two">two</li><li id="three">three</li></ul>
+<script>
+    // Style reads beside a frame whose style pass is in flight: each read joins the flight first and sees its result,
+    // and a read after a mutation beside the frame sees that mutation too.
+    asyncTest(async done => {
+        const reads = await whileRecordingInFlight(() => {
+            box.className = "green";
+        }, state => {
+            const color = getComputedStyle(box).color;
+            box.classList.add("wide");
+            const width = getComputedStyle(box).width;
+            box.dataset.state = "on";
+            const background = getComputedStyle(box).backgroundColor;
+            const matches = box.matches(".green.wide[data-state=on]");
+            box.classList.add("tagged");
+            const before = getComputedStyle(box, "::before").content;
+            const offsetWidth = box.offsetWidth;
+            return { state, color, width, background, matches, before, offsetWidth };
+        });
+        println(`reads: state in the next task: ${reads.state}`);
+        println(`reads: color: ${reads.color}`);
+        println(`reads: width after a class change: ${reads.width}`);
+        println(`reads: background after an attribute change: ${reads.background}`);
+        println(`reads: matches: ${reads.matches}`);
+        println(`reads: ::before content after a class change: ${reads.before}`);
+        println(`reads: offsetWidth: ${reads.offsetWidth}`);
+
+        // The frame in flight styles a removal, and the reads beside it depend on what the removal changed.
+        const removal = await whileRecordingInFlight(() => {
+            box.className = "red";
+            one.remove();
+        }, state => {
+            const color = getComputedStyle(box).color;
+            const weights = [...list.children].map(li => getComputedStyle(li).fontWeight).join(", ");
+            const declared = getComputedStyle(box).getPropertyValue("width");
+            const selected = document.querySelectorAll("#list > li:nth-child(odd)").length;
+            const closest = two.closest("ul#list") === list;
+            return { state, color, weights, declared, selected, closest };
+        });
+        println(`removal: state in the next task: ${removal.state}`);
+        println(`removal: color: ${removal.color}`);
+        println(`removal: font weights after a removal: ${removal.weights}`);
+        println(`removal: width: ${removal.declared}`);
+        println(`removal: querySelectorAll: ${removal.selected}`);
+        println(`removal: closest: ${removal.closest}`);
+
+        await twoFrames();
+        println(`after: ${getComputedStyle(box).color}, ${box.offsetWidth}, ${getComputedStyle(two).fontWeight}`);
+        done();
+    });
+</script>

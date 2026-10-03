@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<div id="container"></div>
+<script>
+    // Video elements collected beside a frame in flight: finalizing one releases its video sink, and the collection
+    // may not take the frame in there, since taking it in runs its effects, which allocate.
+    asyncTest(async done => {
+        let videos = [];
+        const result = await whileRecordingInFlight(() => {
+            for (let i = 0; i < 10; ++i) {
+                const div = document.createElement("div");
+                div.textContent = `item ${i}`;
+                container.appendChild(div);
+                videos.push(document.createElement("video"));
+            }
+            const video = document.createElement("video");
+            container.appendChild(video);
+            videos.push(video);
+        }, state => {
+            videos = null;
+            internals.gc();
+            return { state, afterCollection: internals.frameSchedulerState() };
+        });
+        println(`state in the next task: ${result.state}`);
+        println(`state after the collection: ${result.afterCollection}`);
+        await twoFrames();
+        println(`container laid out: ${container.offsetHeight > 0}`);
+        done();
+    });
+</script>

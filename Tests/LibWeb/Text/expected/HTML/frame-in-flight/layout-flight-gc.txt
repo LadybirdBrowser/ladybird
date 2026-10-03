@@ -1,0 +1,4 @@
+collected, then removed: state in the next task: in-flight
+collected, then removed: container height: 0
+removed, then collected: state in the next task: in-flight
+removed, then collected: container laid out: true

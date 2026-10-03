@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    #box { width: 10px; height: 10px; color: blue; }
+    #box.wide { width: 30px; color: green; }
+</style>
+<div id="container"><div id="box">box</div><div id="other">other</div></div>
+<script>
+    // A selector query beside a frame whose style and layout are in flight sees what a write beside the frame changed.
+    asyncTest(async done => {
+        const result = await whileRecordingInFlight(() => {
+            box.className = "wide";
+        }, state => {
+            other.className = "changed";
+            const queried = document.querySelector("#container > .changed");
+            return { state, queried: queried ? queried.id : "nothing" };
+        });
+        println(`state in the next task: ${result.state}`);
+        println(`query found: ${result.queried}`);
+        await twoFrames();
+        println(`box width: ${box.offsetWidth}`);
+        println(`box color: ${getComputedStyle(box).color}`);
+        done();
+    });
+</script>

@@ -1,0 +1,4 @@
+state in the next task: in-flight
+state after the adoption: idle
+color: rgb(0, 0, 255)
+color after reordering: rgb(255, 0, 0)

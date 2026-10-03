@@ -1,0 +1,11 @@
+insertion: state in the next task: in-flight
+insertion: container height: 60
+insertion: third width: 200
+removal: state in the next task: in-flight
+removal: container height: 35
+removal: second connected: false
+removal: first text: first, changed
+replacement: state in the next task: in-flight
+replacement: fourth width: 250
+replacement: children: 2
+replacement: span laid out: true

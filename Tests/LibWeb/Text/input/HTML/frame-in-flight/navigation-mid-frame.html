@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<iframe id="frame" style="width: 200px; height: 100px" srcdoc="<body style='background: blue'>first"></iframe>
+<script>
+    // An iframe navigates, and then has its document replaced by document.open(), beside the frame that paints it: the
+    // document whose frame is in flight is retired and the new one paints in a later frame.
+    function loaded() {
+        return new Promise(resolve => frame.addEventListener("load", resolve, { once: true }));
+    }
+
+    asyncTest(async done => {
+        if (frame.contentDocument?.readyState !== "complete")
+            await loaded();
+
+        await whileRecordingInFlight(() => {
+            frame.contentDocument.body.style.backgroundColor = "green";
+        }, () => {
+            frame.srcdoc = "<body style='background: orange'>second";
+        });
+        await loaded();
+        println(`navigation: new document: ${frame.contentDocument.body.textContent}`);
+
+        await whileRecordingInFlight(() => {
+            frame.contentDocument.body.style.backgroundColor = "purple";
+        }, () => {
+            const doc = frame.contentDocument;
+            doc.open();
+            doc.write("<body style='background: teal'>third");
+            doc.close();
+        });
+        await twoFrames();
+        println(`document.open: document: ${frame.contentDocument.body.textContent}`);
+        println(`document.open: body width: ${frame.contentDocument.body.offsetWidth > 0}`);
+        done();
+    });
+</script>

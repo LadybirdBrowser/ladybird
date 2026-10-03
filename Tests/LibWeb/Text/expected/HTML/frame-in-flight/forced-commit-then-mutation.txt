@@ -1,0 +1,6 @@
+state in the next task: in-flight
+width read beside the frame: 100
+width after mutation: 123
+computed width: 123px
+width at the end: 123
+hit test finds the grown box: true

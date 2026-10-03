@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<div id="container" style="width: 300px">
+    <div id="shown" style="display: none">shown<span id="inner">inner</span></div>
+    <div id="kept" style="height: 10px">kept</div>
+    <ol id="list"><li>one</li><li>two</li></ol>
+</div>
+<script>
+    // Tree changes beside a frame in flight that builds the layout tree before it lays out: the build and the layout
+    // run beside the task, and the next layout sees every change the task made, wherever the build had got to.
+    function report(label) {
+        println(`${label}: shown: ${shown.offsetWidth}x${shown.offsetHeight}`);
+        println(`${label}: children laid out: ${[...container.children].filter(child => child.getClientRects().length > 0).map(child => child.id || child.tagName).join(",")}`);
+        println(`${label}: list items: ${list.children.length}, list height > 0: ${list.offsetHeight > 0}`);
+        println(`${label}: tree matches a full rebuild: ${internals.compareLayoutTreeWithFullRebuild().matches}`);
+    }
+
+    asyncTest(async done => {
+        // The frame's build gives the shown element its boxes, and the task inserts into it and hides another.
+        const inserted = await whileRecordingInFlight(() => {
+            shown.style.display = "block";
+        }, state => {
+            const added = document.createElement("div");
+            added.id = "added";
+            added.textContent = "added";
+            added.style.height = "7px";
+            shown.appendChild(added);
+            kept.style.display = "none";
+            return state;
+        });
+        println(`insertion: state in the next task: ${inserted}`);
+        await twoFrames();
+        report("insertion");
+
+        // The task removes a node the build gave a box and shows one it took away.
+        const removed = await whileRecordingInFlight(() => {
+            inner.style.display = "block";
+            list.appendChild(document.createElement("li")).textContent = "three";
+        }, state => {
+            inner.remove();
+            kept.style.display = "block";
+            list.firstElementChild.remove();
+            return state;
+        });
+        println(`removal: state in the next task: ${removed}`);
+        await twoFrames();
+        report("removal");
+
+        // A layout read beside the build joins the flight and sees the new tree, and the display change the task makes
+        // after it is laid out by the next layout.
+        const read = await whileRecordingInFlight(() => {
+            shown.style.display = "inline-block";
+        }, state => {
+            const width = shown.getBoundingClientRect().width > 0;
+            shown.style.display = "none";
+            return { state, width };
+        });
+        println(`read: state in the next task: ${read.state}`);
+        println(`read: shown had a box: ${read.width}`);
+        await twoFrames();
+        report("read");
+        done();
+    });
+</script>

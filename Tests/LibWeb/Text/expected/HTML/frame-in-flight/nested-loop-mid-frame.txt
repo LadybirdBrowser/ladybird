@@ -1,0 +1,7 @@
+alert: state in the next task: in-flight
+alert: color: rgb(0, 128, 0)
+alert: hit test finds the box: true
+sync xhr: state in the next task: in-flight
+sync xhr: color: rgb(0, 0, 255)
+sync xhr: hit test finds the box: true
+box width: 50

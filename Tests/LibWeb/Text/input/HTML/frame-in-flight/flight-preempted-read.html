@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<div style="width: 100px; background: green"><span id="text">short</span></div>
+<script>
+    // A layout read beside a frame whose layout of a text change is in flight joins the flight and sees the new width,
+    // whatever the frame would go on to do after its layout, and the frames after it lay the text out the same.
+    asyncTest(async done => {
+        const result = await whileRecordingInFlight(() => {
+            text.firstChild.data = "a much longer text";
+        }, state => ({ state, width: text.offsetWidth }));
+        println(`state in the next task: ${result.state}`);
+        println(`read sees the new width: ${result.width > 50}`);
+        await twoFrames();
+        println(`width after: ${text.offsetWidth === result.width}`);
+        done();
+    });
+</script>

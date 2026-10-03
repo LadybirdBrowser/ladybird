@@ -1,0 +1,14 @@
+reads: state in the next task: in-flight
+reads: color: rgb(0, 128, 0)
+reads: width after a class change: 150px
+reads: background after an attribute change: rgb(0, 0, 255)
+reads: matches: true
+reads: ::before content after a class change: "before"
+reads: offsetWidth: 150
+removal: state in the next task: in-flight
+removal: color: rgb(255, 0, 0)
+removal: font weights after a removal: 700, 400
+removal: width: 100px
+removal: querySelectorAll: 1
+removal: closest: true
+after: rgb(255, 0, 0), 100, 700

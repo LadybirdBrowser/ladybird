@@ -1,0 +1,10 @@
+after a class change: offsetWidth 210
+after another class change: getBoundingClientRect height 50
+after ordered changes: offsetWidth 80
+after removing the inline width: offsetWidth 210
+iframe read with its container dirty: offsetWidth 120
+iframe read with its container dirty: getBoundingClientRect 120x7
+container read after it: offsetWidth 110
+doomed iframe read: offsetWidth 20
+beside a destroyed document: offsetHeight 50, offsetWidth 210
+after the frame: offsetWidth 110

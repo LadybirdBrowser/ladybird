@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    #box { width: 100px; height: 10px; padding: 3px; border: 2px solid black; }
+    #box.wide { width: 200px; }
+    #box.tall { height: 40px; }
+    iframe { width: 300px; height: 100px; border: 0; }
+</style>
+<div id="box"></div>
+<iframe id="frame" srcdoc="<style>body { margin: 0; } #inner { width: 50%; height: 5px; }</style><div id='inner'></div>"></iframe>
+<div id="doomedContainer"></div>
+<script>
+    // A geometry read that finds its document dirty is answered from the style and layout run for it: after a style
+    // change, after several changes in the order they were made, in an iframe whose container document is dirty too,
+    // and beside a frame in flight while another document's render state is destroyed.
+    asyncTest(async done => {
+        if (document.readyState !== "complete")
+            await new Promise(resolve => window.addEventListener("load", resolve, { once: true }));
+        const inner = frame.contentDocument.getElementById("inner");
+
+        // After a style change.
+        box.className = "wide";
+        println(`after a class change: offsetWidth ${box.offsetWidth}`);
+        box.className = "wide tall";
+        println(`after another class change: getBoundingClientRect height ${box.getBoundingClientRect().height}`);
+
+        // Changes apply in the order they were made: the last of them wins.
+        box.className = "";
+        box.style.width = "50px";
+        box.className = "wide";
+        box.style.width = "70px";
+        println(`after ordered changes: offsetWidth ${box.offsetWidth}`);
+        box.style.removeProperty("width");
+        println(`after removing the inline width: offsetWidth ${box.offsetWidth}`);
+
+        // In an iframe whose container document is dirty: the container resizes the iframe, and the read in the
+        // iframe sees the new viewport.
+        box.className = "";
+        frame.style.width = "240px";
+        inner.style.height = "7px";
+        println(`iframe read with its container dirty: offsetWidth ${inner.offsetWidth}`);
+        println(`iframe read with its container dirty: getBoundingClientRect ${inner.getBoundingClientRect().width}x${inner.getBoundingClientRect().height}`);
+        println(`container read after it: offsetWidth ${box.offsetWidth}`);
+
+        // A document's render state destroyed beside a frame in flight, with reads of another document queued
+        // around it.
+        let doomed = document.createElement("iframe");
+        doomed.srcdoc = "<div style='width: 10px'>doomed</div>";
+        const doomedLoaded = new Promise(resolve => doomed.addEventListener("load", resolve, { once: true }));
+        doomedContainer.appendChild(doomed);
+        await doomedLoaded;
+        doomed.contentDocument.body.firstChild.style.width = "20px";
+        println(`doomed iframe read: offsetWidth ${doomed.contentDocument.body.firstChild.offsetWidth}`);
+        const result = await whileRecordingInFlight(() => {
+            box.style.backgroundColor = "green";
+        }, () => {
+            doomed.remove();
+            doomed = null;
+            internals.gc();
+            box.className = "tall";
+            const height = box.offsetHeight;
+            internals.gc();
+            box.className = "wide";
+            return { height, width: box.offsetWidth };
+        });
+        println(`beside a destroyed document: offsetHeight ${result.height}, offsetWidth ${result.width}`);
+        await animationFrame();
+        internals.gc();
+        box.className = "";
+        println(`after the frame: offsetWidth ${box.offsetWidth}`);
+        done();
+    });
+</script>

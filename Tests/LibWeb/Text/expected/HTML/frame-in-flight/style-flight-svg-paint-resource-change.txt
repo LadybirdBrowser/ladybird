@@ -1,0 +1,4 @@
+state in the next task: in-flight
+state after a change outside the resource: in-flight
+state after a change to the resource: in-flight
+svg width: 120

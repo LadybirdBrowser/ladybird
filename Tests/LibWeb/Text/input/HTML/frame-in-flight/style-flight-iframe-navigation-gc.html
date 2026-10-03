@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    .item { height: 10px; color: rgb(0, 0, 255); }
+</style>
+<div id="box" style="width: 50px; height: 20px"></div>
+<div id="container"></div>
+<iframe id="frame" style="width: 200px; height: 100px; border: none" srcdoc="<style>@media (min-width: 250px) { #inner { color: rgb(0, 128, 0); } }</style><body style='margin: 0'><div id=inner>first</div>"></iframe>
+<script>
+    // Iframes resized and navigated, and garbage collected elements, beside a frame in flight: the child document's
+    // media queries follow its new viewport, a document whose style is in flight is retired, and no collection frees
+    // an element the frame in flight still styles.
+    function loaded() {
+        return new Promise(resolve => frame.addEventListener("load", resolve, { once: true }));
+    }
+
+    function inner() {
+        return frame.contentDocument.getElementById("inner");
+    }
+
+    function fill(count) {
+        const elements = [];
+        for (let i = 0; i < count; ++i) {
+            const div = document.createElement("div");
+            div.className = "item";
+            div.textContent = `item ${i}`;
+            container.appendChild(div);
+            elements.push(div);
+        }
+        return elements;
+    }
+
+    asyncTest(async done => {
+        if (frame.contentDocument?.readyState !== "complete" || !inner())
+            await loaded();
+
+        // The parent changes, and the child reads after its viewport grew past its media query.
+        const resized = await whileRecordingInFlight(() => {
+            box.style.width = "60px";
+        }, () => {
+            frame.style.width = "300px";
+            return { color: getComputedStyle(inner()).color, width: inner().offsetWidth };
+        });
+        println(`resize: child color: ${resized.color}`);
+        println(`resize: child width: ${resized.width}`);
+
+        // The child changes, and the parent's layout shrinks the child's viewport below its media query.
+        await whileRecordingInFlight(() => {
+            inner().style.height = "25px";
+        }, () => {
+            frame.style.width = "220px";
+            frame.offsetWidth;
+        });
+        await twoFrames();
+        println(`child resize: child color: ${getComputedStyle(inner()).color}`);
+
+        // The child changes, and the parent navigates it.
+        const child = frame.contentDocument;
+        await whileRecordingInFlight(() => {
+            inner().style.height = "30px";
+        }, () => {
+            frame.srcdoc = "<body style='margin: 0'><div id=inner style='color: rgb(128, 0, 128)'>second</div>";
+        });
+        await loaded();
+        println(`navigation: new document: ${inner().textContent}, ${getComputedStyle(inner()).color}`);
+        println(`navigation: old document replaced: ${frame.contentDocument !== child}`);
+
+        // The elements the frame styles lose their last script reference, leave the tree, and are collected.
+        let doomed = [];
+        await whileRecordingInFlight(() => {
+            doomed = fill(50);
+        }, () => {
+            internals.gc();
+            doomed = null;
+            container.innerHTML = "";
+            internals.gc();
+        });
+        await twoFrames();
+        println(`collection: container height: ${container.offsetHeight}`);
+
+        // Removed first and collected beside the frame, then styled again.
+        doomed = [];
+        await whileRecordingInFlight(() => {
+            doomed = fill(50);
+        }, () => {
+            for (const element of doomed)
+                element.remove();
+            doomed = null;
+            internals.gc();
+            internals.gc();
+        });
+        await twoFrames();
+        internals.gc();
+        fill(1);
+        println(`removed, then collected: restyled: ${getComputedStyle(container.firstChild).color}, ${container.offsetHeight}`);
+        done();
+    });
+</script>
