@@ -34,18 +34,29 @@ pub fn resolve_property(name: &str, value: Option<&str>) -> Option<ResolvedPrope
 pub fn compile(pattern: &Pattern) -> Program {
     let mut compiler = Compiler::new(pattern);
     compiler.compile_pattern(pattern);
-    compiler.program.named_groups = pattern
-        .named_groups
-        .iter()
-        .map(|ng| NamedGroupEntry {
-            name: ng.name.clone(),
-            index: ng.index,
-        })
-        .collect();
+    crate::optimizer::normalize_character_classes(&mut compiler.program);
+    compiler.program.minimum_length = crate::optimizer::minimum_length(&pattern.disjunction);
+    compiler.program.optimization = crate::optimizer::analyze(&compiler.program);
+    compiler.program
+}
+
+#[cfg(test)]
+pub(crate) fn compile_unoptimized(pattern: &Pattern) -> Program {
+    let mut compiler = Compiler::new(pattern);
+    compiler.optimize = false;
+    compiler.compile_pattern(pattern);
+    let len = compiler.program.instructions.len();
+    compiler.program.optimization = crate::optimizer::Optimization {
+        leading_match: vec![None; len],
+        atomic_loop: vec![false; len],
+        literal_runs: vec![None; len],
+    };
     compiler.program
 }
 
 struct Compiler {
+    #[cfg(test)]
+    optimize: bool,
     program: Program,
     /// Effective flags (affected by modifier groups).
     effective_ignore_case: bool,
@@ -90,7 +101,11 @@ impl Compiler {
         // Registers: 0-1 for group 0, then 2 per capture group.
         let register_count = 2 + pattern.capture_count * 2;
         Self {
+            #[cfg(test)]
+            optimize: true,
             program: Program {
+                optimization: Default::default(),
+                minimum_length: 0,
                 instructions: Vec::new(),
                 capture_count: pattern.capture_count,
                 register_count,
@@ -445,6 +460,14 @@ impl Compiler {
         // Save end of match (group 0).
         self.emit(Instruction::Save(1));
         self.emit(Instruction::Match);
+        self.program.named_groups = pattern
+            .named_groups
+            .iter()
+            .map(|ng| NamedGroupEntry {
+                name: ng.name.clone(),
+                index: ng.index,
+            })
+            .collect();
     }
 
     /// Lower `Disjunction` to a chain of split/jump choice points.
@@ -454,7 +477,83 @@ impl Compiler {
             self.compile_term(&term);
             return;
         }
-        self.emit_split_chain(&disj.alternatives, |s, alt| s.compile_alternative(alt));
+        #[cfg(test)]
+        if !self.optimize {
+            self.emit_split_chain(&disj.alternatives, |compiler, alt| compiler.compile_alternative(alt));
+            return;
+        }
+        self.compile_alternatives(&disj.alternatives, 0);
+    }
+
+    fn compile_alternatives(&mut self, alternatives: &[Alternative], depth: usize) {
+        fn term_at(alt: &Alternative, offset: usize, backward: bool) -> Option<&Term> {
+            let index = if backward {
+                alt.terms.len().checked_sub(offset + 1)?
+            } else {
+                offset
+            };
+            alt.terms.get(index)
+        }
+        if alternatives.len() == 1 {
+            self.compile_alternative(&alternatives[0]);
+            return;
+        }
+        if depth >= 64 {
+            self.emit_split_chain(alternatives, |compiler, alt| compiler.compile_alternative(alt));
+            return;
+        }
+        let mut groups = Vec::new();
+        let mut start = 0;
+        while start < alternatives.len() {
+            let first = term_at(&alternatives[start], 0, self.backward);
+            let mut end = start + 1;
+            if let Some(Term {
+                atom: Atom::Literal(_),
+                quantifier: None,
+            }) = first
+            {
+                while end < alternatives.len() && term_at(&alternatives[end], 0, self.backward) == first {
+                    end += 1;
+                }
+            }
+            groups.push(&alternatives[start..end]);
+            start = end;
+        }
+        self.emit_split_chain(&groups, |compiler, group| {
+            if group.len() == 1 {
+                compiler.compile_alternative(&group[0]);
+                return;
+            }
+            // Factor the whole common literal run at once.
+            let mut count = 0;
+            while let Some(
+                term @ Term {
+                    atom: Atom::Literal(_),
+                    quantifier: None,
+                },
+            ) = term_at(&group[0], count, compiler.backward)
+            {
+                if !group
+                    .iter()
+                    .all(|alt| term_at(alt, count, compiler.backward) == Some(term))
+                {
+                    break;
+                }
+                compiler.compile_term(term);
+                count += 1;
+            }
+            let tails: Vec<_> = group
+                .iter()
+                .map(|alt| Alternative {
+                    terms: if compiler.backward {
+                        alt.terms[..alt.terms.len() - count].to_vec()
+                    } else {
+                        alt.terms[count..].to_vec()
+                    },
+                })
+                .collect();
+            compiler.compile_alternatives(&tails, depth + 1);
+        });
     }
 
     /// Lower `Alternative` in the current direction.

@@ -443,7 +443,10 @@ fn first_filter_matches<I: Input>(program: &Program, input: I, pos: usize, filte
 
 #[inline(always)]
 fn next_candidate_start<I: Input>(program: &Program, input: I, hints: &PatternHints, mut pos: usize) -> Option<usize> {
-    while pos <= input.len() {
+    while pos <= input.len().saturating_sub(program.minimum_length) {
+        if input.len() - pos < program.minimum_length {
+            return None;
+        }
         if program.unicode
             && !hints.can_match_empty
             && pos > 0
@@ -509,6 +512,9 @@ pub fn execute_anchored_into_with_scratch<I: Input>(
     out: &mut [i32],
     scratch: &mut VmScratch,
 ) -> VmResult {
+    if start_pos > input.len() || input.len() - start_pos < program.minimum_length {
+        return VmResult::NoMatch;
+    }
     if fails_trailing_literal_hint(input, hints) {
         return VmResult::NoMatch;
     }
@@ -535,6 +541,9 @@ pub fn find_all_with_scratch<I: Input>(
     result_buf: &mut [i32],
     scratch: &mut VmScratch,
 ) -> i32 {
+    if start_pos > input.len() || input.len() - start_pos < program.minimum_length {
+        return 0;
+    }
     if fails_trailing_literal_hint(input, hints) {
         return 0;
     }
@@ -556,6 +565,9 @@ pub fn find_all_with_scratch<I: Input>(
         && !program.unicode
     {
         while let Some(candidate_pos) = next_literal_start_from_hint(input, pos, start_hint) {
+            if input.len() - candidate_pos < program.minimum_length {
+                break;
+            }
             vm.reset(candidate_pos);
             match vm.run() {
                 VmResult::Match => {
@@ -603,6 +615,9 @@ pub fn find_all_with_scratch<I: Input>(
     {
         let ch16 = ch as u16;
         while let Some(candidate_pos) = input.next_literal_start(pos, ch16) {
+            if input.len() - candidate_pos < program.minimum_length {
+                break;
+            }
             vm.reset(candidate_pos);
             match vm.run() {
                 VmResult::Match => {
@@ -696,6 +711,9 @@ fn execute_into_impl<I: Input>(
     out: &mut [i32],
     scratch: &mut VmScratch,
 ) -> VmResult {
+    if start_pos > input.len() || input.len() - start_pos < program.minimum_length {
+        return VmResult::NoMatch;
+    }
     if fails_trailing_literal_hint(input, hints) {
         return VmResult::NoMatch;
     }
@@ -732,6 +750,9 @@ fn execute_into_impl<I: Input>(
     {
         let mut pos = start_pos;
         while let Some(candidate_pos) = next_literal_start_from_hint(input, pos, start_hint) {
+            if input.len() - candidate_pos < program.minimum_length {
+                break;
+            }
             vm.reset(candidate_pos);
             match vm.run() {
                 VmResult::Match => {
@@ -759,6 +780,9 @@ fn execute_into_impl<I: Input>(
         let ch16 = ch as u16;
         let mut pos = start_pos;
         while let Some(candidate_pos) = input.next_literal_start(pos, ch16) {
+            if input.len() - candidate_pos < program.minimum_length {
+                break;
+            }
             vm.reset(candidate_pos);
             match vm.run() {
                 VmResult::Match => {
@@ -1183,7 +1207,7 @@ pub(crate) fn analyze_pattern(
                 negated: *negated,
             }),
             Some(Instruction::GreedyLoop { matcher, min, .. }) if *min >= 1 => Some(matcher.clone()),
-            _ => None,
+            _ => crate::optimizer::first_filter(program, filter_offset),
         }
     } else {
         None
@@ -1478,6 +1502,12 @@ impl<'a, I: Input> Vm<'a, I> {
             let inst = &instructions[pc];
             match inst {
                 Instruction::Char(c) => {
+                    if let Some(matched) = self.match_literal_run(pc) {
+                        if !matched && !self.backtrack() {
+                            return VmResult::NoMatch;
+                        }
+                        continue;
+                    }
                     let c = *c;
                     if self.pos < input_len {
                         let input_cp = input.code_unit(self.pos) as u32;
@@ -1592,8 +1622,20 @@ impl<'a, I: Input> Vm<'a, I> {
                     let prefer = *prefer;
                     let other = *other;
                     let pos = self.pos;
-                    self.push_backtrack(other, pos);
-                    self.pc = prefer;
+                    if !self.branch_can_match(prefer as usize) {
+                        if !self.branch_can_match(other as usize) {
+                            if !self.backtrack() {
+                                return VmResult::NoMatch;
+                            }
+                        } else {
+                            self.pc = other;
+                        }
+                    } else {
+                        if self.branch_can_match(other as usize) {
+                            self.push_backtrack(other, pos);
+                        }
+                        self.pc = prefer;
+                    }
                 }
 
                 Instruction::Save(reg) => {
@@ -1779,7 +1821,7 @@ impl<'a, I: Input> Vm<'a, I> {
                             return VmResult::NoMatch;
                         }
                     } else {
-                        if count > min {
+                        if count > min && !self.program.optimization.atomic_loop.get(pc).copied().unwrap_or(false) {
                             let greedy_pos = self.pos;
                             self.push_greedy_backtrack(self.pc, start_pos, greedy_pos, min);
                         }
@@ -1842,6 +1884,12 @@ impl<'a, I: Input> Vm<'a, I> {
             let inst = &instructions[pc];
             match inst {
                 Instruction::Char(c) => {
+                    if let Some(matched) = self.match_literal_run(pc) {
+                        if !matched && !self.backtrack() {
+                            return VmResult::NoMatch;
+                        }
+                        continue;
+                    }
                     if !self.match_char(*c) {
                         if !self.backtrack() {
                             return VmResult::NoMatch;
@@ -1955,8 +2003,20 @@ impl<'a, I: Input> Vm<'a, I> {
                     let prefer = *prefer;
                     let other = *other;
                     let pos = self.pos;
-                    self.push_backtrack(other, pos);
-                    self.pc = prefer;
+                    if !self.branch_can_match(prefer as usize) {
+                        if !self.branch_can_match(other as usize) {
+                            if !self.backtrack() {
+                                return VmResult::NoMatch;
+                            }
+                        } else {
+                            self.pc = other;
+                        }
+                    } else {
+                        if self.branch_can_match(other as usize) {
+                            self.push_backtrack(other, pos);
+                        }
+                        self.pc = prefer;
+                    }
                 }
 
                 Instruction::Save(reg) => {
@@ -2129,7 +2189,7 @@ impl<'a, I: Input> Vm<'a, I> {
                         }
                     } else {
                         // Push a greedy backtrack state only if we consumed more than min.
-                        if count > min {
+                        if count > min && !self.program.optimization.atomic_loop.get(pc).copied().unwrap_or(false) {
                             let greedy_pos = self.pos;
                             self.push_greedy_backtrack(self.pc, start_pos, greedy_pos, min);
                         }
@@ -2785,7 +2845,15 @@ impl<'a, I: Input> Vm<'a, I> {
                             start_pos - min as usize
                         };
 
-                        let next_inst = self.program.instructions.get(pc as usize + 1);
+                        let next_inst = self
+                            .program
+                            .optimization
+                            .leading_match
+                            .get(pc as usize + 1)
+                            .copied()
+                            .flatten()
+                            .and_then(|next| self.program.instructions.get(next))
+                            .or_else(|| self.program.instructions.get(pc as usize + 1));
                         let new_pos = if let Some(suffix_deficit) = same_matcher_loop_suffix_deficit {
                             let Some(pos) = self.advance_n_chars(current_pos, suffix_deficit) else {
                                 return self.backtrack();
@@ -2887,7 +2955,15 @@ impl<'a, I: Input> Vm<'a, I> {
                         // Optimization: peek at the next instruction. If it's a
                         // Char, scan backward for that char to skip positions
                         // that can't match.
-                        let next_inst = self.program.instructions.get(pc as usize + 1);
+                        let next_inst = self
+                            .program
+                            .optimization
+                            .leading_match
+                            .get(pc as usize + 1)
+                            .copied()
+                            .flatten()
+                            .and_then(|next| self.program.instructions.get(next))
+                            .or_else(|| self.program.instructions.get(pc as usize + 1));
                         let new_pos = if let Some(suffix_deficit) = same_matcher_loop_suffix_deficit {
                             let Some(pos) = self.retreat_n_chars(current_pos, suffix_deficit) else {
                                 return self.backtrack();
@@ -3014,6 +3090,64 @@ impl<'a, I: Input> Vm<'a, I> {
         } else {
             false
         }
+    }
+
+    fn branch_can_match(&self, pc: usize) -> bool {
+        let Some(next) = self.program.optimization.leading_match.get(pc).copied().flatten() else {
+            return true;
+        };
+        let Some(cp) = self.current_code_point() else {
+            return false;
+        };
+        match &self.program.instructions[next] {
+            Instruction::Char(c) => {
+                !self.modifiers.ignore_case && cp == *c
+                    || self.modifiers.ignore_case && case_fold_eq(cp, *c, self.program.unicode)
+            }
+            Instruction::CharNoCase(c, _) => case_fold_eq(cp, *c, self.program.unicode),
+            Instruction::AnyChar { dot_all } => *dot_all || self.modifiers.dot_all || !is_line_terminator(cp),
+            Instruction::CharClass { ranges, negated } => {
+                match_char_class(
+                    cp,
+                    ranges,
+                    self.modifiers.ignore_case,
+                    self.program.unicode,
+                    self.program.unicode_sets,
+                ) != *negated
+            }
+            Instruction::BuiltinClass(class) => {
+                match_builtin_class(cp, *class, self.modifiers.ignore_case && self.program.unicode)
+            }
+            Instruction::GreedyLoop { matcher, .. } | Instruction::LazyLoop { matcher, .. } => {
+                self.match_simple(cp, matcher)
+            }
+            _ => true,
+        }
+    }
+
+    fn match_literal_run(&mut self, pc: usize) -> Option<bool> {
+        if self.modifiers.ignore_case {
+            return None;
+        }
+        let literal = self.program.optimization.literal_runs.get(pc)?.as_deref()?;
+        let matched = if self.backward {
+            self.pos >= literal.len()
+                && literal
+                    .iter()
+                    .enumerate()
+                    .all(|(offset, expected)| self.input_code_unit(self.pos - offset - 1) == *expected)
+        } else {
+            self.input.matches_u16_at(self.pos, literal)
+        };
+        if matched {
+            if self.backward {
+                self.pos -= literal.len();
+            } else {
+                self.pos += literal.len();
+            }
+            self.pc += literal.len() as u32;
+        }
+        Some(matched)
     }
 
     /// Check if a code point matches a SimpleMatch.
@@ -3602,4 +3736,298 @@ pub(crate) fn match_unicode_property_resolved(
         return libunicode_rust::character_types::resolved_property_matches(cp, *r);
     }
     match_unicode_property(cp, name, value)
+}
+
+#[cfg(test)]
+mod optimizer_tests {
+    use super::*;
+    use crate::ast::Flags;
+    use crate::compiler;
+    use crate::parser;
+
+    fn run(program: &Program, input: &[u16], start: usize) -> (VmResult, Vec<i32>, u64) {
+        let mut scratch = VmScratch::new();
+        let mut vm = Vm::new(program, input, start, &mut scratch);
+        let result = vm.run();
+        (result, vm.registers.to_vec(), vm.steps)
+    }
+
+    fn compare(pattern: &str, flags: Flags, subjects: &[Vec<u16>]) {
+        let parsed = parser::parse(pattern, flags).unwrap();
+        let optimized = compiler::compile(&parsed);
+        let original = compiler::compile_unoptimized(&parsed);
+        let regex = crate::regex::Regex::compile(pattern, flags).unwrap();
+        for input in subjects {
+            let expected = (0..=input.len()).find_map(|start| {
+                let (result, captures, _) = run(&original, input, start);
+                (result == VmResult::Match).then_some(captures)
+            });
+            let mut out = vec![-1; (parsed.capture_count as usize + 1) * 2];
+            let result = regex.exec_into(input, 0, &mut out);
+            assert_eq!(
+                result == VmResult::Match,
+                expected.is_some(),
+                "search {pattern:?} {flags:?}, {input:?}"
+            );
+            if let Some(expected) = expected {
+                assert_eq!(
+                    out,
+                    expected[..out.len()],
+                    "search captures {pattern:?} {flags:?}, {input:?}"
+                );
+            }
+            for start in 0..=input.len() {
+                let (result, captures, _) = run(&optimized, input, start);
+                let (expected, expected_captures, _) = run(&original, input, start);
+                assert_eq!(result, expected, "{pattern:?} {flags:?}, {input:?} at {start}");
+                if result == VmResult::Match {
+                    let count = (parsed.capture_count as usize + 1) * 2;
+                    assert_eq!(
+                        &captures[..count],
+                        &expected_captures[..count],
+                        "{pattern:?} {flags:?}, {input:?} at {start}"
+                    );
+                    assert!(
+                        captures[1] as usize - captures[0] as usize >= optimized.minimum_length,
+                        "{pattern:?}"
+                    );
+                }
+                if input.iter().all(|cp| *cp < 128) {
+                    let ascii: Vec<_> = input.iter().map(|cp| *cp as u8).collect();
+                    let mut scratch = VmScratch::new();
+                    let mut vm = Vm::new(&optimized, ascii.as_slice(), start, &mut scratch);
+                    assert_eq!(vm.run(), expected, "ASCII {pattern:?}, {input:?} at {start}");
+                    if expected == VmResult::Match {
+                        let count = (parsed.capture_count as usize + 1) * 2;
+                        assert_eq!(&vm.registers[..count], &expected_captures[..count]);
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn optimizations_preserve_matches_and_captures() {
+        let mut subjects = vec![Vec::new()];
+        for _ in 0..4 {
+            let previous = subjects.clone();
+            for prefix in previous {
+                for cp in *b"aAbc \n" {
+                    let mut subject = prefix.clone();
+                    subject.push(cp as u16);
+                    subjects.push(subject);
+                }
+            }
+        }
+        subjects.sort();
+        subjects.dedup();
+        subjects.extend([
+            vec![0xD800],
+            vec![0xDC00],
+            vec![0xD800, 0xDC00],
+            vec![b'a' as u16, 0xD800, 0xDC00, b'b' as u16],
+            "ab\u{212a}a\u{017f}bc".encode_utf16().collect(),
+        ]);
+        let patterns = [
+            "(?<x>ab|ac)\\k<x>",
+            "([a-cb-da-b]*)([^a-c])a",
+            "(?:[a-b]c|[c-d]a|[x-z]b)",
+            "([a-b]c|[c-d]a|[x-z]b)",
+            "(ab|abc|a)(bc)?",
+            "(ab|a|abc)(b|bc)?",
+            "(ab|ac|a|abc)(.*)",
+            "(abc|b|ab)(c?)",
+            "(ab|ac)+b",
+            "((ab)|(ac))*c",
+            "(ab|ac|ad|b)*c",
+            "(?:ab|a|abc)+bc",
+            "(a*)(b)c",
+            "([a-b]*)(c|b)a",
+            "(a*?)(b|a)c",
+            "(a|b)*ac",
+            "(a)|(b)|(c)",
+            "(?:(a)|(b))+(c)?",
+            "(a*)[bc]+a",
+            "([^b]*)b.a",
+            "(\\w*)\\W.a",
+            "(\\d*)\\D.a",
+            "(\\s*)\\S.a",
+            "(.*)(ab)c",
+            "(.*)(a)b",
+            "(.*)(a*)b",
+            "(.*)(a|b)c",
+            "(.*?)(ab)c",
+            "(?<=abc|ab|ac)c",
+            "(?<=(a)(.*))b",
+            "(?<=(ab|ac))(.*)",
+            "(?=(a|ab))\\1b",
+            "(?!(ab|ac))(.*)",
+            "(a*)(?=a)b|a",
+            "(?i:a*)(?-i:A)b",
+            "(?-i:a*)(?i:A)b",
+            "(?s:.*)(a)b",
+            "(?-s:.*)(a)b",
+            "(a+)(a+)b",
+            "(?:a{2,4})(a)b",
+            "(a|)b",
+            "(?:|ab|ac)b",
+            "(abc)?a",
+            "(?=abc)a",
+            "(a)?\\1b",
+            "(?:abc|a)b",
+            "\\uD800+\\uDC00",
+            "(a*)\\u{212a}b",
+            "(s*)\\u{017f}b",
+            "(ab){0,3}c",
+            "(?:abc){2,4}",
+        ];
+        for flags in [
+            Flags::default(),
+            Flags {
+                ignore_case: true,
+                ..Flags::default()
+            },
+            Flags {
+                unicode: true,
+                ..Flags::default()
+            },
+            Flags {
+                unicode: true,
+                ignore_case: true,
+                ..Flags::default()
+            },
+            Flags {
+                unicode_sets: true,
+                dot_all: true,
+                ..Flags::default()
+            },
+        ] {
+            for pattern in patterns {
+                compare(pattern, flags, &subjects);
+            }
+        }
+    }
+
+    #[test]
+    fn literal_runs_and_prefixes_reduce_vm_work() {
+        for (pattern, subject) in [
+            ("(abcdefghijklmnopqrstuvwxyz)$", "abcdefghijklmnopqrstuvwxyz"),
+            ("(abcdefghijklX|abcdefghijklY|abcdefghijklZ)$", "abcdefghijklZ"),
+            ("^(.*)(a)bc$", "axyzaxyzaxyzaxyzabc"),
+        ] {
+            let parsed = parser::parse(pattern, Flags::default()).unwrap();
+            let input: Vec<_> = subject.encode_utf16().collect();
+            let optimized = run(&compiler::compile(&parsed), &input, 0);
+            let original = run(&compiler::compile_unoptimized(&parsed), &input, 0);
+            assert_eq!(optimized.0, VmResult::Match);
+            assert_eq!(optimized.0, original.0);
+            eprintln!("{pattern}: {} -> {} VM steps", original.2, optimized.2);
+            assert!(optimized.2 < original.2, "{pattern}: {} vs {}", optimized.2, original.2);
+        }
+    }
+
+    #[test]
+    #[ignore = "manual optimizer throughput comparison"]
+    fn optimizer_throughput() {
+        use std::hint::black_box;
+        use std::time::Instant;
+        for (pattern, subject) in [
+            (
+                "(abcdefghijklmnopqrstuvwxyz)$",
+                "abcdefghijklmnopqrstuvwxyz".to_string(),
+            ),
+            (
+                "(abcdefghijklX|abcdefghijklY|abcdefghijklZ)$",
+                "abcdefghijklZ".to_string(),
+            ),
+            ("^([ab]*)cd$", format!("{}cX", "ab".repeat(512))),
+            ("^(.*)(a)bc$", format!("{}abc", "xyz".repeat(512))),
+            ("(a)|(b)", "b".to_string()),
+            ("a.b", "acb".to_string()),
+        ] {
+            let parsed = parser::parse(pattern, Flags::default()).unwrap();
+            let original = compiler::compile_unoptimized(&parsed);
+            let optimized = compiler::compile(&parsed);
+            let input: Vec<_> = subject.encode_utf16().collect();
+            let measure = |program: &Program| {
+                let mut scratch = VmScratch::new();
+                let start = Instant::now();
+                for _ in 0..100_000 {
+                    let mut vm = Vm::new(black_box(program), black_box(input.as_slice()), 0, &mut scratch);
+                    black_box(vm.run());
+                }
+                start.elapsed()
+            };
+            let before = measure(&original);
+            let after = measure(&optimized);
+            eprintln!(
+                "{pattern}: {before:?} -> {after:?} ({:.2}x)",
+                before.as_secs_f64() / after.as_secs_f64()
+            );
+        }
+    }
+
+    #[test]
+    fn disjoint_loops_and_impossible_branches_do_not_save_registers() {
+        for flags in [
+            Flags::default(),
+            Flags {
+                ignore_case: true,
+                unicode: true,
+                ..Flags::default()
+            },
+        ] {
+            for (pattern, subject) in [
+                ("(a*)bc", "aaaaabc"),
+                ("([^b]*)bc", "aaaaabc"),
+                ("(\\w*)\\Wbc", "aaaaa bc"),
+                ("(a)|(b)", "b"),
+            ] {
+                let parsed = parser::parse(pattern, flags).unwrap();
+                let input: Vec<_> = subject.encode_utf16().collect();
+                let optimized = compiler::compile(&parsed);
+                let original = compiler::compile_unoptimized(&parsed);
+                let mut optimized_scratch = VmScratch::new();
+                let mut original_scratch = VmScratch::new();
+                assert_eq!(
+                    Vm::new(&optimized, input.as_slice(), 0, &mut optimized_scratch).run(),
+                    VmResult::Match
+                );
+                assert_eq!(
+                    Vm::new(&original, input.as_slice(), 0, &mut original_scratch).run(),
+                    VmResult::Match
+                );
+                assert_eq!(optimized_scratch.register_pool.capacity(), 0, "{pattern}");
+                assert!(original_scratch.register_pool.capacity() > 0, "{pattern}");
+            }
+        }
+    }
+
+    #[test]
+    fn minimum_length_search_keeps_optional_and_zero_width_matches() {
+        for (pattern, subject, matches) in [
+            ("(?:abc){1000000000}", "abc", false),
+            ("(?=abc)a", "abc", true),
+            ("(abc)?a", "a", true),
+            ("(abc)?\\1a", "a", true),
+            ("(?:abc|a)b", "ab", true),
+            ("[\\q{}]a", "a", true),
+            ("(?<=abc)", "abc", true),
+        ] {
+            let regex = crate::regex::Regex::compile(
+                pattern,
+                Flags {
+                    unicode_sets: true,
+                    ..Flags::default()
+                },
+            )
+            .unwrap();
+            let input: Vec<_> = subject.encode_utf16().collect();
+            assert_eq!(
+                regex.test(&input, 0),
+                if matches { VmResult::Match } else { VmResult::NoMatch },
+                "{pattern}"
+            );
+        }
+    }
 }
