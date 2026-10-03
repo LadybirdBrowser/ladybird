@@ -12,7 +12,7 @@
         const otherSite = uniqueLocalhostHostname("sec-fetch-site-traversal");
 
         async function echo(name, body, extraHeaders = {}) {
-            const url = new URL(await server.createEcho("GET", `/${name}-${id}`, {
+            const url = new URL(await server.createEcho("GET", `/${name}`, {
                 status: 200,
                 headers: { "Content-Type": "text/html", ...extraHeaders },
                 body,

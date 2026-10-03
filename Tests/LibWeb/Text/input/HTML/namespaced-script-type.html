@@ -4,7 +4,7 @@
     asyncTest(async done => {
         const server = httpTestServer();
         const scriptURL = new URL(
-            await server.createEcho("GET", `/namespaced-script-type-${crypto.randomUUID()}.js`, {
+            await server.createEcho("GET", "/namespaced-script-type.js", {
                 status: 200,
                 headers: { "Content-Type": "text/javascript" },
                 body: "window.didExecute = true;",
@@ -12,7 +12,7 @@
         );
         scriptURL.hostname = uniqueLocalhostHostname("namespaced-script-type");
 
-        const parentURL = await server.createEcho("GET", `/namespaced-script-type-${crypto.randomUUID()}.html`, {
+        const parentURL = await server.createEcho("GET", "/namespaced-script-type.html", {
             status: 200,
             headers: { "Content-Type": "text/html" },
             body: `<body><script>const script = document.createElement("script"); script.setAttributeNS("urn:test", "type", "text/javascript"); script.setAttributeNS(null, "type", "module"); script.onerror = () => top.postMessage("PASS", "*"); script.onload = () => top.postMessage(window.didExecute ? "LEAK" : "FAIL", "*"); script.src = "${scriptURL.href}"; document.body.appendChild(script);<\/script>`,

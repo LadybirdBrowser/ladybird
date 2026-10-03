@@ -86,7 +86,7 @@
 
         (async () => {
             const sameOriginUrl = async (path, headers, body) => {
-                const echo = await httpServer.createEcho("GET", `/${path}-${runId}`, { status: 200, headers, body });
+                const echo = await httpServer.createEcho("GET", `/${path}`, { status: 200, headers, body });
                 const url = new URL(echo);
                 url.hostname = location.hostname;
                 return url;
@@ -100,7 +100,7 @@
 
             // The iframe is cross-origin, so it hears from this page by postMessage, and answers the same way.
             const iframeUrl = new URL(
-                await httpServer.createEcho("GET", `/cross-origin-iframe-${runId}`, {
+                await httpServer.createEcho("GET", "/cross-origin-iframe", {
                     status: 200,
                     headers: {
                         "Content-Type": "text/html",

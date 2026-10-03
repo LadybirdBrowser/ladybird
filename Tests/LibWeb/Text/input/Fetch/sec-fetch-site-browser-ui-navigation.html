@@ -22,13 +22,13 @@
                 return null;
             }
 
-            const typed = await recorded(`/sec-fetch-site-typed-${runId}`);
+            const typed = await recorded("/sec-fetch-site-typed");
             println(`typed address: ${typed?.["Sec-Fetch-Site"]?.[0]} (${typed?.["Sec-Fetch-Mode"]?.[0]})`);
 
-            const frame = await recorded(`/sec-fetch-site-iframe-${runId}`);
+            const frame = await recorded("/sec-fetch-site-iframe");
             println(`iframe in that page: ${frame?.["Sec-Fetch-Site"]?.[0]} (${frame?.["Sec-Fetch-Dest"]?.[0]})`);
 
-            const chosen = await recorded(`/sec-fetch-site-page-chosen-${runId}`);
+            const chosen = await recorded("/sec-fetch-site-page-chosen");
             println(`URL the page chose: ${chosen?.["Sec-Fetch-Site"]?.[0]} (${chosen?.["Sec-Fetch-Mode"]?.[0]})`);
 
             done();
@@ -38,18 +38,18 @@
         const back = new URL(location.href);
         back.search = `?run=${id}`;
 
-        const frameURL = await server.createEcho("GET", `/sec-fetch-site-iframe-${id}`, {
+        const frameURL = await server.createEcho("GET", "/sec-fetch-site-iframe", {
             status: 200,
             headers: { "Content-Type": "text/html" },
             body: "<!DOCTYPE html>frame",
         });
         // A URL this page navigates itself to is site-controlled, whatever got the page here.
-        const chosenURL = await server.createEcho("GET", `/sec-fetch-site-page-chosen-${id}`, {
+        const chosenURL = await server.createEcho("GET", "/sec-fetch-site-page-chosen", {
             status: 200,
             headers: { "Content-Type": "text/html" },
             body: `<!DOCTYPE html><script>location.href = ${JSON.stringify(back.href)};<\/script>`,
         });
-        const typedURL = await server.createEcho("GET", `/sec-fetch-site-typed-${id}`, {
+        const typedURL = await server.createEcho("GET", "/sec-fetch-site-typed", {
             status: 200,
             headers: { "Content-Type": "text/html" },
             body: `<!DOCTYPE html><iframe src="${frameURL}"><\/iframe>`

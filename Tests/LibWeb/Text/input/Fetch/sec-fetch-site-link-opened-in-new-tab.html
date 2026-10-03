@@ -6,7 +6,6 @@
     // would, rather than going out as a URL the user agent supplied.
     asyncTest(async done => {
         const server = httpTestServer();
-        const id = crypto.randomUUID();
         const platformCtrl = /mac/i.test(navigator.platform) ? internals.MOD_SUPER : internals.MOD_CTRL;
 
         async function recorded(echoURL) {
@@ -23,7 +22,7 @@
         }
 
         async function open(name, button, modifiers, rel) {
-            const url = await server.createEcho("GET", `/sec-fetch-site-new-tab-${name}-${id}`, {
+            const url = await server.createEcho("GET", `/sec-fetch-site-new-tab-${name}`, {
                 status: 200,
                 headers: { "Content-Type": "text/html" },
                 body: "<!DOCTYPE html>",

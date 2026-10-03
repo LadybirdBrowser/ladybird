@@ -6,7 +6,7 @@
         const httpServer = httpTestServer();
         const testID = crypto.randomUUID();
         const imageToken = `document-open-cancels-parser-completion-${testID}`;
-        const imageURL = await httpServer.createEcho("GET", `/document-open-cancels-parser-completion-${testID}.svg`, {
+        const imageURL = await httpServer.createEcho("GET", "/document-open-cancels-parser-completion.svg", {
             status: 200,
             headers: {
                 "Content-Type": "image/svg+xml",

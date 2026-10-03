@@ -5,10 +5,9 @@
     // processes before removing the canonical subtree.
     promiseTest(async () => {
         const httpServer = httpTestServer();
-        const runId = crypto.randomUUID();
 
         const grandchildUrl = new URL(
-            await httpServer.createEcho("GET", `/oop-unload-grandchild-${runId}`, {
+            await httpServer.createEcho("GET", "/oop-unload-grandchild", {
                 status: 200,
                 headers: { "Content-Type": "text/html" },
                 body: `<!DOCTYPE html><script>
@@ -20,7 +19,7 @@
         grandchildUrl.hostname = uniqueLocalhostHostname("oop-unload-grandchild");
 
         const childUrl = new URL(
-            await httpServer.createEcho("GET", `/oop-unload-child-${runId}`, {
+            await httpServer.createEcho("GET", "/oop-unload-child", {
                 status: 200,
                 headers: { "Content-Type": "text/html" },
                 body: `<!DOCTYPE html><script>

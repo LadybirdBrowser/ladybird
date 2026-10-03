@@ -21,9 +21,8 @@
     // isolated iframe inside it keeps its CSS size under that transform, and sees the click where it landed in its own
     // viewport.
     promiseTest(async () => {
-        const runId = crypto.randomUUID();
         const childUrl = new URL(
-            await httpTestServer().createEcho("GET", `/oop-scaled-click-${runId}`, {
+            await httpTestServer().createEcho("GET", "/oop-scaled-click", {
                 status: 200,
                 headers: { "Content-Type": "text/html" },
                 body: `<!DOCTYPE html><body style="margin: 0"><script>

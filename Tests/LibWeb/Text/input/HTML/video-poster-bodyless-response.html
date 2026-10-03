@@ -3,11 +3,11 @@
 <script>
     promiseTest(async () => {
         const server = httpTestServer();
-        const posterURL = await server.createEcho("GET", `/video-poster-bodyless-${crypto.randomUUID()}`, {
+        const posterURL = await server.createEcho("GET", "/video-poster-bodyless", {
             status: 204,
             headers: { "Content-Type": "image/png" },
         });
-        const pageURL = await server.createEcho("GET", `/video-poster-page-${crypto.randomUUID()}`, {
+        const pageURL = await server.createEcho("GET", "/video-poster-page", {
             status: 200,
             headers: { "Content-Type": "text/html" },
             body: `<video poster="${posterURL}"></video>`,

@@ -5,12 +5,12 @@
         const server = httpTestServer();
         const runId = crypto.randomUUID();
         const responseHeaders = { "Content-Type": "text/html" };
-        const safeUrl = await server.createEcho("POST", `/form-action-safe-${runId}`, {
+        const safeUrl = await server.createEcho("POST", "/form-action-safe", {
             status: 200,
             headers: responseHeaders,
             body: `<script>parent.postMessage("safe", "*");<\/script>`,
         });
-        const namespacedUrl = await server.createEcho("POST", `/form-action-namespaced-${runId}`, {
+        const namespacedUrl = await server.createEcho("POST", "/form-action-namespaced", {
             status: 200,
             headers: responseHeaders,
             body: `<script>parent.postMessage("namespaced", "*");<\/script>`,

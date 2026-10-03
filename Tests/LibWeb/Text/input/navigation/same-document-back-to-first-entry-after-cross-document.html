@@ -11,8 +11,7 @@
         // The same phase driver runs in both pages; the phase is kept in
         // sessionStorage so it survives the cross-document navigations. The
         // session storage outlives the test in a reused top-level traversable,
-        // so each run keeps its phase under a key of its own, and serves its
-        // pages from paths of its own.
+        // so each run keeps its phase under a key of its own.
         const run = `${Date.now()}-${Math.floor(Math.random() * 1e9)}`;
         const phaseKey = `phase-${run}`;
         const driver = newsUrl => `
@@ -28,12 +27,12 @@
             addEventListener("load", () => setTimeout(act, 100));
         `;
 
-        const newsUrl = await server.createEcho("GET", `/nav-8700-news-${run}`, {
+        const newsUrl = await server.createEcho("GET", "/nav-8700-news", {
             status: 200,
             headers: { "Content-Type": "text/html" },
             body: `<!DOCTYPE html>news<script>${driver("")}<\/script>`,
         });
-        const homeUrl = await server.createEcho("GET", `/nav-8700-home-${run}`, {
+        const homeUrl = await server.createEcho("GET", "/nav-8700-home", {
             status: 200,
             headers: { "Content-Type": "text/html" },
             body: `<!DOCTYPE html>home<script>${driver(newsUrl)}<\/script>`,

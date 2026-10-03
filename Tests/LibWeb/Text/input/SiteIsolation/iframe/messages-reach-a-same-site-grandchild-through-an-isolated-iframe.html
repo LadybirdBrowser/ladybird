@@ -7,10 +7,9 @@
     // This page is served over HTTP so that the grandchild can be same origin with it.
     promiseTest(async () => {
         const httpServer = httpTestServer();
-        const runId = crypto.randomUUID();
         const childHostname = uniqueLocalhostHostname("oop-grandchild-messages");
 
-        const grandchildUrl = await httpServer.createEcho("GET", `/oop-grandchild-messages-${runId}-grandchild`, {
+        const grandchildUrl = await httpServer.createEcho("GET", "/oop-grandchild-messages-grandchild", {
             status: 200,
             headers: { "Content-Type": "text/html" },
             body: `<!DOCTYPE html><script>
@@ -23,7 +22,7 @@
         });
 
         const childUrl = new URL(
-            await httpServer.createEcho("GET", `/oop-grandchild-messages-${runId}-child`, {
+            await httpServer.createEcho("GET", "/oop-grandchild-messages-child", {
                 status: 200,
                 headers: { "Content-Type": "text/html" },
                 body: `<!DOCTYPE html><iframe src="${grandchildUrl}"></iframe><script>

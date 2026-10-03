@@ -9,11 +9,8 @@
         const httpServer = httpTestServer();
         const formPageOrigin = new URL(httpServer.baseURL).origin;
 
-        // NB: Unique per-run echo paths, so parallel runs (e.g. under --repeat) don't collide on the echo server.
-        const runId = crypto.randomUUID();
-
         const targetUrl = new URL(
-            await httpServer.createEcho("POST", `/process-swap-post-target-${runId}`, {
+            await httpServer.createEcho("POST", "/process-swap-post-target", {
                 status: 200,
                 headers: { "Content-Type": "text/html" },
                 body: "<!DOCTYPE html>target loaded",
@@ -21,7 +18,7 @@
         );
         targetUrl.hostname = uniqueLocalhostHostname("process-swap-post");
 
-        const formPageUrl = await httpServer.createEcho("GET", `/process-swap-post-form-${runId}`, {
+        const formPageUrl = await httpServer.createEcho("GET", "/process-swap-post-form", {
             status: 200,
             headers: { "Content-Type": "text/html" },
             body: `<!DOCTYPE html>

@@ -5,7 +5,7 @@
         const server = httpTestServer();
         const hostname = uniqueLocalhostHostname("namespaced-image-crossorigin");
         const setupURL = new URL(
-            await server.createEcho("GET", `/namespaced-image-setup-${crypto.randomUUID()}`, {
+            await server.createEcho("GET", "/namespaced-image-setup", {
                 status: 200,
                 headers: {
                     "Content-Type": "text/html",
@@ -16,7 +16,7 @@
         );
         setupURL.hostname = hostname;
         const imageURL = new URL(
-            await server.createEcho("GET", `/namespaced-image-${crypto.randomUUID()}.png`, {
+            await server.createEcho("GET", "/namespaced-image.png", {
                 status: 200,
                 headers: {
                     "Access-Control-Allow-Origin": "null",

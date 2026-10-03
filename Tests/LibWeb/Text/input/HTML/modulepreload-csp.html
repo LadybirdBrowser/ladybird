@@ -7,7 +7,7 @@
         const server = httpTestServer();
         const run = crypto.randomUUID();
         const parserGate = `${run}-parser`;
-        const path = name => `/modulepreload-csp-${run}-${name}`;
+        const path = name => `/modulepreload-csp-${name}`;
         const javascriptHeaders = { "Content-Type": "text/javascript" };
 
         const moduleURL = new URL(await server.createEcho("GET", path("cross-origin.js"), {

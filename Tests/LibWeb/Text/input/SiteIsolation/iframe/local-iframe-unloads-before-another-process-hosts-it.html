@@ -6,10 +6,9 @@
     // This page is served over HTTP so that the iframe's first document is same site with it.
     promiseTest(async () => {
         const httpServer = httpTestServer();
-        const runId = crypto.randomUUID();
 
         const firstUrl = new URL(
-            await httpServer.createEcho("GET", `/local-handoff-first-${runId}`, {
+            await httpServer.createEcho("GET", "/local-handoff-first", {
                 status: 200,
                 headers: { "Content-Type": "text/html" },
                 body: `<!DOCTYPE html><script>
@@ -20,7 +19,7 @@
         );
 
         const secondUrl = new URL(
-            await httpServer.createEcho("GET", `/local-handoff-second-${runId}`, {
+            await httpServer.createEcho("GET", "/local-handoff-second", {
                 status: 200,
                 headers: { "Content-Type": "text/html" },
                 body: `<!DOCTYPE html><script>

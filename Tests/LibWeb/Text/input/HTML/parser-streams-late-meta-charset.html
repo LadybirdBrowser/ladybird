@@ -6,9 +6,8 @@
         internals.setTestTimeout(5000);
 
         const httpServer = httpTestServer();
-        const token = crypto.randomUUID().replaceAll("-", "");
         async function runCase(name, declaration) {
-            const scriptURL = await httpServer.createEcho("GET", `/parser-streams-late-meta-script-${name}-${token}`, {
+            const scriptURL = await httpServer.createEcho("GET", `/parser-streams-late-meta-script-${name}`, {
                 status: 200,
                 headers: {
                     "Content-Type": "application/javascript",
@@ -17,7 +16,7 @@
             });
 
             const body = `<!DOCTYPE html><head><!--${"a".repeat(2000)}-->${declaration}<script src="${scriptURL}"><\/script></head><body><span id="target">©</span>`;
-            const url = await httpServer.createEcho("GET", `/parser-streams-late-meta-${name}-${token}`, {
+            const url = await httpServer.createEcho("GET", `/parser-streams-late-meta-${name}`, {
                 status: 200,
                 headers: {
                     "Content-Type": "text/html",
@@ -40,7 +39,7 @@
 
         async function runProgressiveCase() {
             const body = `<!DOCTYPE html><body>©<span id="target">ready</span>${" ".repeat(6000)}`;
-            const url = await httpServer.createEcho("GET", `/parser-streams-tentative-progressive-${token}`, {
+            const url = await httpServer.createEcho("GET", "/parser-streams-tentative-progressive", {
                 status: 200,
                 headers: {
                     "Content-Type": "text/html",
@@ -69,7 +68,7 @@
         }
 
         async function runPostEOFCase() {
-            const scriptURL = await httpServer.createEcho("GET", `/parser-streams-post-eof-script-${token}`, {
+            const scriptURL = await httpServer.createEcho("GET", "/parser-streams-post-eof-script", {
                 status: 200,
                 headers: {
                     "Content-Type": "application/javascript",
@@ -79,7 +78,7 @@
             });
 
             const body = `<!DOCTYPE html><head><script type="application/json">"<meta charset=windows-1252>"<\/script><!--${"a".repeat(1200)}--><script src="${scriptURL}"><\/script><meta charset="UTF-8"></head><body>ASCII`;
-            const url = await httpServer.createEcho("GET", `/parser-streams-post-eof-meta-${token}`, {
+            const url = await httpServer.createEcho("GET", "/parser-streams-post-eof-meta", {
                 status: 200,
                 headers: {
                     "Content-Type": "text/html",

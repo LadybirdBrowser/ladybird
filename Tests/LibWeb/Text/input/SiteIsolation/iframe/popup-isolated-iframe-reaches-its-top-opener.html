@@ -5,10 +5,9 @@
     // holds the opener's tab too, so top.opener in the iframe is the opener's window, which it can post a message to.
     promiseTest(async () => {
         const httpServer = httpTestServer();
-        const runId = crypto.randomUUID();
 
         const iframeUrl = new URL(
-            await httpServer.createEcho("GET", `/oop-popup-iframe-opener-${runId}`, {
+            await httpServer.createEcho("GET", "/oop-popup-iframe-opener", {
                 status: 200,
                 headers: { "Content-Type": "text/html" },
                 body: `<!DOCTYPE html><script>
@@ -21,7 +20,7 @@
         );
         iframeUrl.hostname = uniqueLocalhostHostname("oop-popup-iframe-opener");
 
-        const popupUrl = await httpServer.createEcho("GET", `/oop-popup-with-iframe-${runId}`, {
+        const popupUrl = await httpServer.createEcho("GET", "/oop-popup-with-iframe", {
             status: 200,
             headers: { "Content-Type": "text/html" },
             body: `<!DOCTYPE html><script>

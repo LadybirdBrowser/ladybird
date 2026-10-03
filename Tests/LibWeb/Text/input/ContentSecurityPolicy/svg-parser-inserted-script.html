@@ -3,7 +3,7 @@
 <script>
     asyncTest(async done => {
         const server = httpTestServer();
-        const payloadURL = await server.createEcho("GET", `/svg-parser-inserted-script-${crypto.randomUUID()}.js`, {
+        const payloadURL = await server.createEcho("GET", "/svg-parser-inserted-script.js", {
             status: 200,
             headers: { "Content-Type": "text/javascript" },
             body: "globalThis.svgParserInsertedScriptExecuted = true;",
@@ -14,7 +14,7 @@
             ${scriptStartTag} nonce="fixed">globalThis.svgParserInsertedScriptExecuted = false;${scriptEndTag}
             <svg xmlns="http://www.w3.org/2000/svg">${scriptStartTag} href="${payloadURL}">${scriptEndTag}</svg>
             ${scriptStartTag} nonce="fixed">parent.postMessage(svgParserInsertedScriptExecuted ? "executed" : "blocked", "*");${scriptEndTag}`;
-        const pageURL = await server.createEcho("GET", `/svg-parser-inserted-script-${crypto.randomUUID()}.html`, {
+        const pageURL = await server.createEcho("GET", "/svg-parser-inserted-script.html", {
             status: 200,
             headers: {
                 "Content-Type": "text/html",

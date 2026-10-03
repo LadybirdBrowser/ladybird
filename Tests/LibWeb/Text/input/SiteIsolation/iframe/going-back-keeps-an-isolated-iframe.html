@@ -6,10 +6,9 @@
     // finishes with the frame still hosted elsewhere.
     promiseTest(async () => {
         const httpServer = httpTestServer();
-        const runId = crypto.randomUUID();
 
         const childUrl = new URL(
-            await httpServer.createEcho("GET", `/oop-iframe-back-${runId}`, {
+            await httpServer.createEcho("GET", "/oop-iframe-back", {
                 status: 200,
                 headers: { "Content-Type": "text/html" },
                 body: "<!DOCTYPE html>child",

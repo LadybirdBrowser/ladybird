@@ -6,9 +6,8 @@
     // process hosting the document, before the document is unloaded there.
     promiseTest(async () => {
         const httpServer = httpTestServer();
-        const runId = crypto.randomUUID();
         const childUrl = new URL(
-            await httpServer.createEcho("GET", `/oop-navigation-api-abort-${runId}`, {
+            await httpServer.createEcho("GET", "/oop-navigation-api-abort", {
                 status: 200,
                 headers: { "Content-Type": "text/html" },
                 body: `<!DOCTYPE html><script>

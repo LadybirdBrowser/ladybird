@@ -5,10 +5,9 @@
     // navigation's initiator origin: a data: URL iframe and a sandboxed cross-site iframe stay with their parent.
     promiseTest(async () => {
         const httpServer = httpTestServer();
-        const runId = crypto.randomUUID();
 
         const sandboxedUrl = new URL(
-            await httpServer.createEcho("GET", `/oop-sandboxed-child-${runId}`, {
+            await httpServer.createEcho("GET", "/oop-sandboxed-child", {
                 status: 200,
                 headers: { "Content-Type": "text/html" },
                 body: "<!DOCTYPE html>sandboxed",

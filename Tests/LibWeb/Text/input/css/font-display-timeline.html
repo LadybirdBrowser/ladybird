@@ -5,7 +5,7 @@ promiseTest(async () => {
     const server = httpTestServer();
     const token = crypto.randomUUID();
     const bytes = new Uint8Array(await (await fetch("../../../Assets/HashSans.woff")).arrayBuffer());
-    const url = await server.createEcho("GET", `/font-display-${token}.woff`, {
+    const url = await server.createEcho("GET", "/font-display.woff", {
         status: 200,
         headers: { "Content-Type": "font/woff", "Access-Control-Allow-Origin": "*" },
         body: btoa(String.fromCharCode(...bytes)),
@@ -67,7 +67,7 @@ promiseTest(async () => {
     println(`Loaded preferred face leaves fallback unloaded: ${unused.status}`);
 
     const otherToken = crypto.randomUUID();
-    const failedURL = await server.createEcho("GET", `/font-display-error-${otherToken}.woff`, {
+    const failedURL = await server.createEcho("GET", "/font-display-error.woff", {
         status: 404,
         wait_for_unblock: otherToken,
     });

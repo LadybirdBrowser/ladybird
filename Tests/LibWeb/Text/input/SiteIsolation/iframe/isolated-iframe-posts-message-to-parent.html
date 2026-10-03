@@ -5,10 +5,9 @@
     // source the parent expects.
     promiseTest(async () => {
         const httpServer = httpTestServer();
-        const runId = crypto.randomUUID();
 
         const childUrl = new URL(
-            await httpServer.createEcho("GET", `/oop-post-message-child-${runId}`, {
+            await httpServer.createEcho("GET", "/oop-post-message-child", {
                 status: 200,
                 headers: { "Content-Type": "text/html" },
                 body: `<!DOCTYPE html><script>parent.postMessage({ greeting: "hello from the child" }, "*");<\/script>`,

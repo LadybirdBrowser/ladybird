@@ -3,7 +3,7 @@
 <script>
     asyncTest(async done => {
         const server = httpTestServer();
-        const styleUrl = await server.createEcho("GET", `/link-integrity-namespaced-${crypto.randomUUID()}`, {
+        const styleUrl = await server.createEcho("GET", "/link-integrity-namespaced", {
             status: 200,
             headers: {
                 "Access-Control-Allow-Origin": "*",

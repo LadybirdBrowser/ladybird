@@ -6,10 +6,9 @@
         internals.setTestTimeout(10000);
 
         const httpServer = httpTestServer();
-        const token = crypto.randomUUID().replaceAll("-", "");
 
         async function createBlockingScript(name) {
-            return httpServer.createEcho("GET", `/parser-streams-blocked-late-meta-script-${name}-${token}`, {
+            return httpServer.createEcho("GET", `/parser-streams-blocked-late-meta-script-${name}`, {
                 status: 200,
                 headers: {
                     "Content-Type": "application/javascript",
@@ -19,7 +18,7 @@
         }
 
         async function runCase(name, body, query) {
-            const url = await httpServer.createEcho("GET", `/parser-streams-blocked-late-meta-${name}-${token}`, {
+            const url = await httpServer.createEcho("GET", `/parser-streams-blocked-late-meta-${name}`, {
                 status: 200,
                 headers: {
                     "Content-Type": "text/html",
