@@ -1,0 +1,5 @@
+Received gamepadconnected event for 'Ladybird Virtual Gamepad' at index 0
+Received gamepadconnected event for 'Ladybird Virtual Gamepad' at index 1
+Received gamepaddisconnected event for 'Ladybird Virtual Gamepad' at index 1
+Connected gamepads: 1
+Received gamepaddisconnected event for 'Ladybird Virtual Gamepad' at index 0

@@ -58,12 +58,6 @@
 #    include <LibIPC/SingleServer.h>
 #endif
 
-#if defined(AK_OS_WINDOWS)
-#    include <objbase.h>
-#endif
-
-#include <SDL3/SDL_init.h>
-
 #if !defined(AK_OS_WINDOWS)
 #    include <signal.h>
 static void crash_signal_handler(int signo)
@@ -118,19 +112,6 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 #if !defined(AK_OS_WINDOWS)
     install_crash_signal_handlers();
 #endif
-
-#if defined(AK_OS_WINDOWS)
-    // NOTE: We need this here otherwise SDL inits COM in the APARTMENTTHREADED model which we don't want as we need to
-    // make calls across threads which would otherwise have a high overhead. It is safe for all the objects we use.
-    HRESULT hr = CoInitializeEx(0, COINIT_MULTITHREADED);
-    VERIFY(SUCCEEDED(hr));
-    ScopeGuard uninitialize_com = []() { CoUninitialize(); };
-#endif
-    // SDL is used for the Gamepad API.
-    if (!SDL_Init(SDL_INIT_GAMEPAD)) {
-        dbgln("Failed to initialize SDL3: {}", SDL_GetError());
-        return -1;
-    }
 
     auto& event_loop = Core::EventLoop::initialize_for_current_thread();
 

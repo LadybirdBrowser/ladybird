@@ -56,6 +56,7 @@
 #include <LibWeb/Dump.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
 #include <LibWeb/FileAPI/BlobURLStore.h>
+#include <LibWeb/Gamepad/GamepadRegistry.h>
 #include <LibWeb/Geometry/DOMRect.h>
 #include <LibWeb/HTML/AutoplaySettings.h>
 #include <LibWeb/HTML/BroadcastChannel.h>
@@ -3118,6 +3119,76 @@ void ConnectionFromClient::system_time_zone_changed()
 void ConnectionFromClient::set_system_font_family(String family)
 {
     Web::Platform::FontPlugin::the().set_system_font_family(FlyString { family });
+}
+
+void ConnectionFromClient::set_gamepad_state_buffer(Web::Gamepad::GamepadStateBuffer gamepad_state_buffer)
+{
+    Web::Gamepad::GamepadRegistry::the().set_shared_state_buffer(move(gamepad_state_buffer));
+}
+
+void ConnectionFromClient::gamepad_connected(Web::Gamepad::GamepadDescription description)
+{
+    dispatch_gamepad_change_event(Web::Gamepad::GamepadConnectedEvent { move(description) });
+    dispatch_changed_gamepad_states();
+}
+
+void ConnectionFromClient::gamepad_disconnected(Web::Gamepad::GamepadHandle handle)
+{
+    dispatch_gamepad_change_event(Web::Gamepad::GamepadDisconnectedEvent { handle });
+}
+
+void ConnectionFromClient::gamepad_states_changed()
+{
+    dispatch_changed_gamepad_states();
+}
+
+void ConnectionFromClient::dispatch_gamepad_change_event(Web::Gamepad::GamepadChangeEvent const& event)
+{
+    auto& registry = Web::Gamepad::GamepadRegistry::the();
+    event.visit(
+        [&](Web::Gamepad::GamepadConnectedEvent const& connected_event) {
+            registry.gamepad_connected(connected_event.description);
+            m_page_host->for_each_page([&](PageClient& page) {
+                page.page().handle_gamepad_connected(connected_event.description);
+            });
+        },
+        [&](Web::Gamepad::GamepadDisconnectedEvent const& disconnected_event) {
+            registry.gamepad_disconnected(disconnected_event.handle);
+            m_page_host->for_each_page([&](PageClient& page) {
+                page.page().handle_gamepad_disconnected(disconnected_event.handle);
+            });
+        });
+}
+
+void ConnectionFromClient::dispatch_changed_gamepad_states()
+{
+    for (auto const& state : Web::Gamepad::GamepadRegistry::the().take_changed_shared_states()) {
+        m_page_host->for_each_page([&](PageClient& page) {
+            page.page().handle_gamepad_updated(state);
+        });
+    }
+}
+
+void ConnectionFromClient::notify_started_using_gamepads()
+{
+    if (m_did_notify_started_using_gamepads)
+        return;
+    m_did_notify_started_using_gamepads = true;
+    async_did_start_using_gamepads();
+}
+
+void ConnectionFromClient::pump_and_dispatch_gamepad_events()
+{
+    auto* test_connection = this->test_connection();
+    if (!test_connection)
+        return;
+
+    auto response = test_connection->send_sync_but_allow_failure<Messages::WebContentTestClient::PumpGamepadEvents>();
+    if (!response)
+        return;
+    for (auto const& event : response->take_events())
+        dispatch_gamepad_change_event(event);
+    dispatch_changed_gamepad_states();
 }
 
 void ConnectionFromClient::set_document_cookie_version_buffer(Web::PageId page_id, Core::AnonymousBuffer document_cookie_version_buffer)

@@ -538,11 +538,22 @@ EventResult Page::handle_keyup(UIEvents::KeyCode key, unsigned modifiers, u32 co
     return navigable->event_handler().handle_keyup(key, modifiers, code_point, repeat);
 }
 
-void Page::handle_sdl_input_events()
+void Page::handle_gamepad_connected(Gamepad::GamepadDescription const& description)
 {
-    // The view's input reaches the page displaying the tab.
-    if (has_local_traversable())
-        local_traversable()->event_handler().handle_sdl_input_events();
+    for (auto const& root : local_roots())
+        root->event_handler().handle_gamepad_connected(description);
+}
+
+void Page::handle_gamepad_updated(Gamepad::GamepadState const& state)
+{
+    for (auto const& root : local_roots())
+        root->event_handler().handle_gamepad_updated(state);
+}
+
+void Page::handle_gamepad_disconnected(Gamepad::GamepadHandle handle)
+{
+    for (auto const& root : local_roots())
+        root->event_handler().handle_gamepad_disconnected(handle);
 }
 
 void Page::invalidate_compositor_keyboard_scroll_state()

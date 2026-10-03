@@ -1,0 +1,4 @@
+Connected gamepads: 8
+Connected gamepads after disconnecting the first: 8
+Gamepad at index 0 exists: true
+Button 0 of the gamepad at index 0 is pressed: true

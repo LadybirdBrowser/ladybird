@@ -437,8 +437,6 @@ void EventLoop::process_input_events() const
         while (!events_for_other_pages.is_empty()) {
             input_events_queue.enqueue(events_for_other_pages.dequeue());
         }
-
-        page.handle_sdl_input_events();
     };
 
     // Every page hosting a document takes the input events queued for it, once.

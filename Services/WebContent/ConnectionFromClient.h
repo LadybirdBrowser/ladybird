@@ -32,6 +32,8 @@
 #include <LibWebCommon/CSS/PreferredContrast.h>
 #include <LibWebCommon/CSS/PreferredMotion.h>
 #include <LibWebCommon/Forward.h>
+#include <LibWebCommon/Gamepad/GamepadSnapshot.h>
+#include <LibWebCommon/Gamepad/GamepadStateBuffer.h>
 #include <LibWebCommon/HTML/AutoplayPolicy.h>
 #include <LibWebCommon/HTML/WorkerAgentTypes.h>
 #include <LibWebCommon/Page/EventResult.h>
@@ -88,6 +90,9 @@ public:
 
     Queue<Web::QueuedInputEvent>& input_event_queue() { return m_input_event_queue; }
     void update_input_method_state(Web::PageId page_id);
+
+    void notify_started_using_gamepads();
+    void pump_and_dispatch_gamepad_events();
 
 private:
     ConnectionFromClient(NonnullOwnPtr<IPC::Transport>, bool enable_test_mode);
@@ -306,6 +311,13 @@ private:
     virtual void system_time_zone_changed() override;
     virtual void set_system_font_family(String family) override;
 
+    virtual void set_gamepad_state_buffer(Web::Gamepad::GamepadStateBuffer gamepad_state_buffer) override;
+    virtual void gamepad_connected(Web::Gamepad::GamepadDescription description) override;
+    virtual void gamepad_disconnected(Web::Gamepad::GamepadHandle handle) override;
+    virtual void gamepad_states_changed() override;
+    void dispatch_gamepad_change_event(Web::Gamepad::GamepadChangeEvent const&);
+    void dispatch_changed_gamepad_states();
+
     virtual void set_document_cookie_version_buffer(Web::PageId page_id, Core::AnonymousBuffer document_cookie_version_buffer) override;
     virtual void set_document_cookie_version_index(Web::PageId page_id, i64 document_id, Core::SharedVersionIndex document_index) override;
     virtual void cookies_changed(Web::PageId page_id, Vector<HTTP::Cookie::Cookie>) override;
@@ -324,6 +336,8 @@ private:
     RefPtr<Web::Compositor::CompositorConnection> m_compositor_connection;
     NonnullOwnPtr<PageHost> m_page_host;
     OwnPtr<DevToolsDebugger> m_devtools_debugger;
+
+    bool m_did_notify_started_using_gamepads { false };
 
     HashMap<int, Web::FileRequest> m_requested_files {};
     int last_id { 0 };

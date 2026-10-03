@@ -34,6 +34,7 @@
 #include <LibWebView/CookieJar.h>
 #include <LibWebView/FontService.h>
 #include <LibWebView/FontServiceConnection.h>
+#include <LibWebView/GamepadManager.h>
 #include <LibWebView/HSTSStore.h>
 #include <LibWebView/HelperProcess.h>
 #include <LibWebView/HistoryStore.h>
@@ -167,6 +168,7 @@ WebContentClient::~WebContentClient()
     cancel_navigation_transactions();
     remove_blob_url_entries();
     WorkerProcessManager::the().remove_web_content_owner(*this);
+    GamepadManager::the().client_disconnected(*this);
     clients().remove(this);
 }
 
@@ -180,6 +182,21 @@ Optional<WebContentClient&> WebContentClient::client_for_compositor_context_id(W
         return IterationDecision::Break;
     });
     return client;
+}
+
+void WebContentClient::did_start_using_gamepads()
+{
+    GamepadManager::the().client_did_start_using_gamepads(*this);
+}
+
+void WebContentClient::gamepad_play_effect(Web::Gamepad::GamepadHandle handle, Web::Gamepad::GamepadEffect effect)
+{
+    GamepadManager::the().play_effect(*this, handle, effect);
+}
+
+void WebContentClient::gamepad_stop_effects(Web::Gamepad::GamepadHandle handle)
+{
+    GamepadManager::the().stop_effects(*this, handle);
 }
 
 void WebContentClient::die()

@@ -14,6 +14,8 @@
 #include <LibWebCommon/Clipboard/SystemClipboard.h>
 #include <LibWebCommon/ContentSecurityPolicy/Directives/NavigationType.h>
 #include <LibWebCommon/Fullscreen/FullscreenRequestType.h>
+#include <LibWebCommon/Gamepad/GamepadSnapshot.h>
+#include <LibWebCommon/Gamepad/GamepadStateBuffer.h>
 #include <LibWebCommon/HTML/ApplyHistoryStep.h>
 #include <LibWebCommon/HTML/AudioPlayState.h>
 #include <LibWebCommon/HTML/AutoplayPolicy.h>
@@ -142,6 +144,11 @@ endpoint WebContentServer routed by Web::PageId page_id
     mouse_event_in_hosted_root(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::MouseEvent event) =|
     drag_event(Web::PageId page_id, Web::DragEvent event) =|
     pinch_event(Web::PageId page_id, Web::PinchEvent event) =|
+
+    set_gamepad_state_buffer(Web::Gamepad::GamepadStateBuffer gamepad_state_buffer) =|
+    gamepad_connected(Web::Gamepad::GamepadDescription description) =|
+    gamepad_disconnected(Web::Gamepad::GamepadHandle handle) =|
+    gamepad_states_changed() =|
 
     debug_request(Web::PageId page_id, ByteString request, ByteString argument) =|
     get_source(Web::PageId page_id) =|

@@ -8,6 +8,9 @@ set(SOURCES
     Fetch/Infrastructure/HTTP/Statuses.cpp
     FileAPI/BlobURLStore.cpp
     FileAPI/SerializedBlobURLEntry.cpp
+    Gamepad/GamepadSharedState.cpp
+    Gamepad/GamepadSnapshot.cpp
+    Gamepad/GamepadStateBuffer.cpp
     HTML/AutoplayPolicy.cpp
     HTML/BroadcastChannelMessage.cpp
     HTML/BrowsingContext.cpp
