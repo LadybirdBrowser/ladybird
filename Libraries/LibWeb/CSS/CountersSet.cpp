@@ -14,18 +14,18 @@
 
 namespace Web::CSS {
 
-static void* layout_node_arena_handle(DOM::Element const& element)
+static Layout::RustFFI::DocumentHost* document_host(DOM::Element const& element)
 {
     auto* arena = element.document().layout_node_arena_if_created();
-    return arena ? const_cast<Layout::NodeArena*>(arena)->handle() : nullptr;
+    return arena ? arena->host() : nullptr;
 }
 
 bool innermost_list_item_counter_is_own_forward_counter(DOM::Element const& element)
 {
-    auto* arena = layout_node_arena_handle(element);
-    if (!arena)
+    auto* host = document_host(element);
+    if (!host)
         return false;
-    return Layout::RustFFI::layout_arena_innermost_list_item_counter_is_own_forward_counter(arena, element.style_node_id().value());
+    return Layout::RustFFI::render_state_innermost_list_item_counter_is_own_forward_counter(host, element.style_node_id().value());
 }
 
 Utf16FlyString const& list_item_counter_name()

@@ -3105,6 +3105,15 @@ fn main() -> Result<(), Box<dyn Error>> {
         "FfiMediaFeatureValueKind".to_string(),
         "ParseContext".to_string(),
     ];
+    // A tree scope's counter styles are queued on the document host, which the layout header declares.
+    value_parser_config.export.rename.insert(
+        "DocumentHost".to_string(),
+        "Web::Layout::RustFFI::DocumentHost".to_string(),
+    );
+    value_parser_config
+        .after_includes
+        .get_or_insert_with(String::new)
+        .push_str("\nnamespace Web::Layout::RustFFI { struct DocumentHost; }");
 
     generate_ffi_header(
         value_parser_config,

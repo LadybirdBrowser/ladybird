@@ -20,8 +20,6 @@ use crate::painting::record::recorder_state::AbsoluteRectMemo;
 use crate::painting::recording_slot::RecordingSlot;
 use crate::painting::visual_animation::VisualAnimation;
 use std::cell::{OnceCell, RefCell, RefMut};
-use std::ffi::c_void;
-use std::ptr::NonNull;
 use std::rc::Rc;
 use std::sync::atomic::Ordering;
 
@@ -43,8 +41,8 @@ pub struct DocumentHost {
     /// from stays.
     absolute_rects: RefCell<AbsoluteRectMemo>,
     /// What the host keeps of the document's render state once it is made: the arena, whose rows version tells the host
-    /// whether the rows it has still read as the arena's after a write the host made through an entry that reaches the
-    /// arena directly, the style engine such entries reach, and whether any element has had random base values.
+    /// whether the rows it has still read as the arena's after a change the host applied where it is, the style engine
+    /// the host's style entries reach, and whether any element has had random base values.
     state: OnceCell<CreatedState>,
     /// The compositor animations the document's effects published in the current update pass, which the host hands
     /// the render state as the pass ends.
@@ -92,8 +90,8 @@ impl DocumentHost {
 
     /// Writes `change` to the document's render state, before anything that reads what it changes.
     ///
-    /// Until the host's entries stop reaching the render state directly, the host writes it where it is, as those
-    /// entries do: whenever the host runs, the render side waits for its next message.
+    /// Until the host's style entries stop reaching the style engine directly, the host writes the render state where
+    /// it is, as those entries do: whenever the host runs, the render side waits for its next message.
     pub(crate) fn queue_change(&self, change: ArenaChange) {
         let state = self.created_state();
         // SAFETY: The state keeps its arena and engine where they are until it is destroyed, and nothing on the render
@@ -156,17 +154,13 @@ impl DocumentHost {
             .is_some_and(|state| state.element_random_base_values_exist.load(Ordering::Relaxed))
     }
 
-    /// The arena of the document's render state, for the host's entries that still reach it directly.
-    ///
-    /// This is the one door from the host into a render state that does not go through a message; every use of it is
-    /// an entry that has not been converted yet. The arena stays at the address answered until the document is
-    /// destroyed.
-    pub(crate) fn arena_for_unconverted_entry(&self) -> *mut c_void {
+    /// The arena of the document's render state, for a unit test that writes it directly.
+    #[cfg(test)]
+    pub(crate) fn arena_for_test(&self) -> *mut crate::layout::LayoutNodeArena {
         self.created_state().arena.as_ptr().cast()
     }
 
-    /// The style engine of the document's render state, for the host's entries that still reach it directly, as
-    /// [`Self::arena_for_unconverted_entry`] answers its arena.
+    /// The style engine of the document's render state, for the host's style entries that still reach it directly.
     pub(crate) fn style_engine_for_unconverted_entry(&self) -> crate::css::style::StyleEngineHandle {
         self.created_state().engine
     }
@@ -313,20 +307,16 @@ pub extern "C" fn document_host_create(device_class: u8) -> *mut DocumentHost {
         _ => panic!("unknown device class {device_class}"),
     };
     let document = DocumentId::mint();
-    // The render state and the host's document hold the one pointer the box was let go of as.
-    let host = NonNull::from(Box::leak(Box::new(DocumentHost::new(document))));
-    // SAFETY: The host was made above, and only its document reaches it after.
-    let host_ref = unsafe { host.as_ref() };
-    let created = wait_for_render_state(LockstepProof::for_reason(&NEW_DOCUMENT), host_ref, |reply| {
+    let host = Box::new(DocumentHost::new(document));
+    let created = wait_for_render_state(LockstepProof::for_reason(&NEW_DOCUMENT), &host, |reply| {
         RenderMessage::Create {
             document,
-            host: crate::layout::HostOfEntries::new(host),
             device_class,
             reply,
         }
     });
-    assert!(host_ref.state.set(created).is_ok(), "a document has one render state");
-    host.as_ptr()
+    assert!(host.state.set(created).is_ok(), "a document has one render state");
+    Box::into_raw(host)
 }
 
 /// The reason a new document's host waits for its render state: it keeps where the state's arena and style engine are.
@@ -400,21 +390,8 @@ pub unsafe extern "C" fn document_host_destroy(host: *mut DocumentHost) {
     );
 }
 
-/// The arena of the render state of `host`'s document, which the host's entries that have not been converted to
-/// messages still take.
-///
-/// # Safety
-///
-/// `host` must come from [`document_host_create`] and not be destroyed yet.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn render_state_arena_for_unconverted_entry(host: *const DocumentHost) -> *mut c_void {
-    assert!(!host.is_null(), "document host is null");
-    // SAFETY: Guaranteed by the caller.
-    unsafe { &*host }.arena_for_unconverted_entry()
-}
-
-/// The style engine of the render state of `host`'s document, which the host's entries that have not been converted
-/// to messages still take.
+/// The style engine of the render state of `host`'s document, which the host's style entries that have not been
+/// converted to messages still take.
 ///
 /// # Safety
 ///

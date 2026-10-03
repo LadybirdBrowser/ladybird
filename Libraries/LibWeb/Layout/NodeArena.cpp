@@ -17,9 +17,7 @@ namespace Web::Layout {
 
 NodeArena::NodeArena(RenderDocument& render_document)
     : m_render_document(render_document)
-    , m_handle(RustFFI::render_state_arena_for_unconverted_entry(render_document.host()))
 {
-    VERIFY(m_handle);
     Painting::register_geometry_host(*this);
 }
 
@@ -32,7 +30,7 @@ void NodeArena::free_subtree(Compositing::RustFFI::NodeSlotId root)
 
 Node* NodeArena::node_if_live(Compositing::RustFFI::NodeSlotId slot) const
 {
-    return static_cast<Node*>(RustFFI::layout_arena_node_shell_if_live(m_handle, slot));
+    return static_cast<Node*>(RustFFI::render_state_node_shell_if_live(host(), slot));
 }
 
 u64 NodeArena::table_cell_measurement_cache_miss_count() const
@@ -57,7 +55,7 @@ bool destroy_layout_subtree(Node& node)
 
 void NodeArena::start_reporting_box_presence(Badge<DOM::Document>)
 {
-    RustFFI::layout_arena_set_box_presence_host(m_handle, this, [](void* context, u32 style_node, u8 bits) {
+    RustFFI::render_state_set_box_presence_host(host(), this, [](void* context, u32 style_node, u8 bits) {
         auto& document = *static_cast<NodeArena*>(context)->m_document;
         // The document has no StyleNodeID; it is named by 0.
         GC::Ptr<DOM::Node> node = &document;
@@ -70,7 +68,7 @@ void NodeArena::start_reporting_box_presence(Badge<DOM::Document>)
 
 void NodeArena::stop_reporting_box_presence(Badge<DOM::Document>)
 {
-    RustFFI::layout_arena_clear_box_presence_host(m_handle);
+    RustFFI::render_state_clear_box_presence_host(host());
 }
 
 void NodeArena::commit_box_presence(DOM::Node& node)
@@ -81,7 +79,7 @@ void NodeArena::commit_box_presence(DOM::Node& node)
 
 void NodeArena::sync_enrolled_content_for_layout()
 {
-    RustFFI::layout_arena_sync_enrolled_content_for_layout(m_handle);
+    RustFFI::render_state_sync_enrolled_content_for_layout(host());
 }
 
 }

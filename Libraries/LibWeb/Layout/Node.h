@@ -56,7 +56,6 @@ public:
     static Compositing::RustFFI::NodeSlotId slot_id(Node const*);
     RustFFI::NodeKind kind() const { return m_kind; }
     u32 arena_slot_index() const { return m_slot.index; }
-    void* arena_handle() const;
     NodeArena& node_arena() const { return *m_arena; }
     RustFFI::DocumentHost* document_host() const;
 
@@ -340,7 +339,7 @@ protected:
 
     void set_needs_compositor_animation_frame(RustFFI::CompositorAnimationFrameKind kind, bool value)
     {
-        RustFFI::layout_arena_set_node_needs_compositor_animation_frame(m_arena->handle(), m_slot, kind, value);
+        RustFFI::render_state_set_node_needs_compositor_animation_frame(m_arena->host(), m_slot, kind, value);
     }
 
     void set_flag(RustFFI::NodeFlag flag, bool value)

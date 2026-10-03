@@ -14,7 +14,6 @@ use crate::painting::dump::{
     Utf8Sink, dump_block_fragments, dump_inline_piece_fragments, format_float_like_ak, push_class_name,
     push_css_pixel_point, push_css_pixel_rect, push_css_pixels, push_indent,
 };
-use crate::painting::ffi::arena_from_handle;
 use crate::painting::host::FfiNodeIdentity;
 use crate::painting::node_painting;
 use crate::painting::paintable_data::FfiPixelBox;
@@ -133,43 +132,127 @@ impl FfiLayoutTreeDumpCallbacks {
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread, with no
-/// outstanding borrows of the arena. The host callbacks fill their sinks synchronously through
-/// `layout_arena_paint_push_bytes`; `dump_nested_layout_tree` may re-enter this function for a
-/// different document's arena.
+/// `host` must be a live document host, on its document's thread. The host callbacks fill their sinks synchronously
+/// through `layout_arena_paint_push_bytes`; `dump_nested_layout_tree` may re-enter this function for a different
+/// document.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_dump_layout_tree(
-    arena: *mut c_void,
+pub unsafe extern "C" fn render_state_dump_layout_tree(
+    host: *const crate::render_state::DocumentHost,
     root: NodeSlotId,
     initial_indent: usize,
     interactive: bool,
     callbacks: FfiLayoutTreeDumpCallbacks,
 ) {
+    assert!(!host.is_null(), "document host is null");
+    // SAFETY: Guaranteed by the caller.
+    let host = unsafe { &*host };
     // SAFETY: Guaranteed by the entry point's contract.
-    let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY, arena) };
+    let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY, host) };
     // SAFETY: As above.
-    unsafe { arena_from_handle(arena) }.measure_scrollable_overflow();
-    let context = LayoutTreeDumpContext {
-        arena_handle: arena,
-        interactive,
-        palette: DumpPalette::new(interactive),
-        callbacks: &callbacks,
-        main_thread: &main_thread,
+    let plan = unsafe {
+        crate::painting::ffi::read(
+            host,
+            (root, initial_indent, interactive),
+            |arena, (root, initial_indent, interactive)| {
+                arena.measure_scrollable_overflow();
+                let mut plan = DumpPlan::default();
+                plan_layout_node(
+                    &mut plan,
+                    arena,
+                    root,
+                    initial_indent,
+                    &DumpPalette::new(interactive),
+                    interactive,
+                );
+                plan
+            },
+        )
     };
     let mut output = Vec::new();
-    // SAFETY: Guaranteed by the caller.
-    unsafe {
-        dump_layout_node(&mut output, &context, root, initial_indent);
-    }
+    plan.write(&mut output, &callbacks, &main_thread, interactive);
     callbacks.append_text(&main_thread, &output);
 }
 
-struct LayoutTreeDumpContext<'a> {
-    arena_handle: *mut c_void,
-    interactive: bool,
-    palette: DumpPalette,
-    callbacks: &'a FfiLayoutTreeDumpCallbacks,
-    main_thread: &'a MainThread<'a>,
+/// What a layout tree dump writes: the text the rows answer, and at points in it what only the host can say.
+#[derive(Default)]
+struct DumpPlan {
+    text: Vec<u8>,
+    /// Each point in `text` where the host says something, in order.
+    host_parts: Vec<(usize, HostPart)>,
+}
+
+/// What the host says at a point of a layout tree dump.
+enum HostPart {
+    /// The tag name the host describes the node with, then the plan's text up to `identifier_at`, then the node's
+    /// identifier.
+    DomNode {
+        node: FfiNodeIdentity,
+        identifier_at: usize,
+    },
+    /// The URL and the layout tree of the document a navigable container shows, if it shows one.
+    NavigableContent { node: FfiNodeIdentity, indent: usize },
+    /// The isolated layout tree of the SVG-as-image the node shows, if it shows one.
+    SvgAsImage { node: FfiNodeIdentity, indent: usize },
+}
+
+impl DumpPlan {
+    /// Writes the dump to `output`, asking the host what only it can say where the plan says so.
+    fn write(
+        self,
+        output: &mut Vec<u8>,
+        callbacks: &FfiLayoutTreeDumpCallbacks,
+        main_thread: &MainThread,
+        interactive: bool,
+    ) {
+        let mut written = 0;
+        for (at, part) in self.host_parts {
+            output.extend_from_slice(&self.text[written..at]);
+            written = at;
+            match part {
+                HostPart::DomNode { node, identifier_at } => {
+                    let mut identifier = Vec::new();
+                    callbacks.describe_dom_node(main_thread, node, output, &mut identifier);
+                    output.extend_from_slice(&self.text[at..identifier_at]);
+                    output.extend_from_slice(&identifier);
+                    written = identifier_at;
+                }
+                HostPart::NavigableContent { node, indent } => {
+                    let Some((url, nested_layout_root_shell)) =
+                        callbacks.navigable_container_content_document(main_thread, node)
+                    else {
+                        continue;
+                    };
+                    output.extend_from_slice(b" (url: ");
+                    output.extend_from_slice(&url);
+                    output.extend_from_slice(b")\n");
+                    if !nested_layout_root_shell.is_null() {
+                        callbacks.dump_nested_layout_tree(
+                            main_thread,
+                            nested_layout_root_shell,
+                            indent + 1,
+                            interactive,
+                            output,
+                        );
+                    }
+                }
+                HostPart::SvgAsImage { node, indent } => {
+                    let svg_as_image_layout_root = callbacks.svg_as_image_layout_root(main_thread, node);
+                    if !svg_as_image_layout_root.is_null() {
+                        push_indent(output, indent + 1);
+                        output.extend_from_slice(b"(SVG-as-image isolated context)\n");
+                        callbacks.dump_nested_layout_tree(
+                            main_thread,
+                            svg_as_image_layout_root,
+                            indent + 1,
+                            interactive,
+                            output,
+                        );
+                    }
+                }
+            }
+        }
+        output.extend_from_slice(&self.text[written..]);
+    }
 }
 
 struct DumpPalette {
@@ -385,13 +468,13 @@ fn push_box_suffix(
 }
 
 fn push_layout_node_line(
-    output: &mut Vec<u8>,
+    plan: &mut DumpPlan,
     arena: &LayoutNodeArena,
     data: &NodeData,
     slot: NodeSlotId,
-    context: &LayoutTreeDumpContext<'_>,
+    palette: &DumpPalette,
 ) {
-    let palette = &context.palette;
+    let output = &mut plan.text;
     let kind = data.kind.get();
     let is_box = node_facts::kind_is_box(kind);
     let has_committed_box = arena.paintable_row_is_populated(slot);
@@ -408,20 +491,22 @@ fn push_layout_node_line(
     output.extend_from_slice(palette.off.as_bytes());
     output.extend_from_slice(b" <");
     output.extend_from_slice(tag_name_color.as_bytes());
-    let mut identifier = Vec::new();
-    if node_facts::has_flag(data, NodeFlag::Anonymous) {
+    let described = if node_facts::has_flag(data, NodeFlag::Anonymous) {
         output.extend_from_slice(b"(anonymous)");
+        None
     } else {
-        context.callbacks.describe_dom_node(
-            context.main_thread,
+        Some((
+            output.len(),
             crate::painting::hit_test::resolve::row_node_identity(arena, slot, false),
-            output,
-            &mut identifier,
-        );
-    }
+        ))
+    };
     output.extend_from_slice(if is_box { palette.off } else { "" }.as_bytes());
     output.extend_from_slice(identifier_color.as_bytes());
-    output.extend_from_slice(&identifier);
+    if let Some((at, node)) = described {
+        let identifier_at = output.len();
+        plan.host_parts.push((at, HostPart::DomNode { node, identifier_at }));
+    }
+    let output = &mut plan.text;
     output.extend_from_slice(if is_box { "" } else { palette.off }.as_bytes());
     output.extend_from_slice(b"> ");
 
@@ -445,109 +530,55 @@ fn push_layout_node_line(
     push_box_suffix(output, arena, data, slot, has_committed_box, palette);
 }
 
-/// # Safety
-///
-/// The context's arena handle must be live with no outstanding borrows; see
-/// `layout_arena_dump_layout_tree`.
-unsafe fn dump_layout_node(output: &mut Vec<u8>, context: &LayoutTreeDumpContext<'_>, slot: NodeSlotId, indent: usize) {
-    push_indent(output, indent);
-
-    let (layout_node, nested_navigable_document, dumps_block_fragments, dumps_inline_piece_fragments) = {
-        // SAFETY: Guaranteed by the caller; the borrow ends with this block.
-        let arena = unsafe { arena_from_handle(context.arena_handle) };
-        let Some(data) = arena.node_data_if_live(slot) else {
-            return;
-        };
-        push_layout_node_line(output, arena, data, slot, context);
-        let kind = data.kind.get();
-        // The host reads the row's DOM node, which the row names by identity.
-        let layout_node = arena
-            .node_is_dom_backed(slot)
-            .then(|| crate::painting::hit_test::resolve::row_node_identity(arena, slot, false));
-        let nested_navigable_document = layout_node
-            .filter(|_| kind == NodeKind::NavigableContainerViewport)
-            .and_then(|layout_node| {
-                context
-                    .callbacks
-                    .navigable_container_content_document(context.main_thread, layout_node)
-            });
-        let has_committed_box = arena.paintable_row_is_populated(slot);
-        let dumps_block_fragments = has_committed_box
-            && node_facts::kind_is_block_container(kind)
-            && node_facts::has_flag(data, NodeFlag::ChildrenAreInline)
-            && node_painting::has_lines(arena, slot);
-        let dumps_inline_piece_fragments = has_committed_box && node_painting::is_fragmented_inline(arena, slot);
-        (
-            layout_node,
-            nested_navigable_document,
-            dumps_block_fragments,
-            dumps_inline_piece_fragments,
-        )
+/// Plans the dump of the row in `slot` and its subtree, indented by `indent`.
+fn plan_layout_node(
+    plan: &mut DumpPlan,
+    arena: &LayoutNodeArena,
+    slot: NodeSlotId,
+    indent: usize,
+    palette: &DumpPalette,
+    interactive: bool,
+) {
+    let Some(data) = arena.node_data_if_live(slot) else {
+        return;
     };
-
-    if let Some((url, nested_layout_root_shell)) = nested_navigable_document {
-        output.extend_from_slice(b" (url: ");
-        output.extend_from_slice(&url);
-        output.extend_from_slice(b")\n");
-        if !nested_layout_root_shell.is_null() {
-            context.callbacks.dump_nested_layout_tree(
-                context.main_thread,
-                nested_layout_root_shell,
-                indent + 1,
-                context.interactive,
-                output,
-            );
-        }
+    push_indent(&mut plan.text, indent);
+    push_layout_node_line(plan, arena, data, slot, palette);
+    let kind = data.kind.get();
+    // The host reads the row's DOM node, which the row names by identity.
+    let layout_node = arena
+        .node_is_dom_backed(slot)
+        .then(|| crate::painting::hit_test::resolve::row_node_identity(arena, slot, false));
+    if let Some(node) = layout_node.filter(|_| kind == NodeKind::NavigableContainerViewport) {
+        plan.host_parts
+            .push((plan.text.len(), HostPart::NavigableContent { node, indent }));
     }
-
+    let has_committed_box = arena.paintable_row_is_populated(slot);
+    let rows = arena.paintable_rows();
+    if paintable_geometry::has_scrollable_overflow(&rows, slot)
+        && let Some(rect) = paintable_geometry::scrollable_overflow_rect(&rows, slot)
     {
-        // SAFETY: The dump's caller keeps the arena alive.
-        let arena = unsafe { arena_from_handle(context.arena_handle) };
-        let rows = arena.paintable_rows();
-        if paintable_geometry::has_scrollable_overflow(&rows, slot)
-            && let Some(rect) = paintable_geometry::scrollable_overflow_rect(&rows, slot)
-        {
-            output.extend_from_slice(b" overflow: ");
-            push_css_pixel_rect(&mut Utf8Sink(output), rect);
-        }
+        plan.text.extend_from_slice(b" overflow: ");
+        push_css_pixel_rect(&mut Utf8Sink(&mut plan.text), rect);
     }
-    output.push(b'\n');
-
-    if let Some(layout_node) = layout_node {
-        let svg_as_image_layout_root = context
-            .callbacks
-            .svg_as_image_layout_root(context.main_thread, layout_node);
-        if !svg_as_image_layout_root.is_null() {
-            push_indent(output, indent + 1);
-            output.extend_from_slice(b"(SVG-as-image isolated context)\n");
-            context.callbacks.dump_nested_layout_tree(
-                context.main_thread,
-                svg_as_image_layout_root,
-                indent + 1,
-                context.interactive,
-                output,
-            );
-        }
+    plan.text.push(b'\n');
+    if let Some(node) = layout_node {
+        plan.host_parts
+            .push((plan.text.len(), HostPart::SvgAsImage { node, indent }));
     }
-
-    let mut child = {
-        // SAFETY: No arena borrow is alive here; this one ends with the block.
-        let arena = unsafe { arena_from_handle(context.arena_handle) };
-        let rows = arena.paintable_rows();
-        if dumps_block_fragments {
-            dump_block_fragments(output, &rows, slot, indent, context.interactive);
-        }
-        if dumps_inline_piece_fragments {
-            dump_inline_piece_fragments(output, &rows, slot, indent, context.interactive);
-        }
-        arena.node_first_child_if_live(slot)
-    };
+    if has_committed_box
+        && node_facts::kind_is_block_container(kind)
+        && node_facts::has_flag(data, NodeFlag::ChildrenAreInline)
+        && node_painting::has_lines(arena, slot)
+    {
+        dump_block_fragments(&mut plan.text, &rows, slot, indent, interactive);
+    }
+    if has_committed_box && node_painting::is_fragmented_inline(arena, slot) {
+        dump_inline_piece_fragments(&mut plan.text, &rows, slot, indent, interactive);
+    }
+    let mut child = arena.node_first_child_if_live(slot);
     while let Some(current) = child {
-        // SAFETY: Guaranteed by the caller; no borrow is alive across the recursion.
-        unsafe {
-            dump_layout_node(output, context, current, indent + 1);
-        }
-        // SAFETY: The recursion left no borrow alive.
-        child = unsafe { arena_from_handle(context.arena_handle) }.node_next_sibling_if_live(current);
+        plan_layout_node(plan, arena, current, indent + 1, palette, interactive);
+        child = arena.node_next_sibling_if_live(current);
     }
 }

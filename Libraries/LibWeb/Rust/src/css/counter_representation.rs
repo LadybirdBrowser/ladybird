@@ -14,7 +14,6 @@
 use crate::css::css_string::CssString;
 use crate::css::style_value::StyleValueData;
 use std::collections::HashMap;
-use std::ffi::c_void;
 use std::sync::Arc;
 use std::sync::LazyLock;
 
@@ -1129,12 +1128,11 @@ pub unsafe extern "C" fn rust_counter_style_representation_depends_on_value(
 ///
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread. The name
-/// and style columns must address `count` elements, every name word must carry one leaked string
-/// reference, and every style handle must be live.
+/// `host` must be a live document host, on its document's thread. The name and style columns must address `count`
+/// elements, every name word must carry one leaked string reference, and every style handle must be live.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_publish_counter_styles(
-    arena: *mut c_void,
+pub unsafe extern "C" fn render_state_publish_counter_styles(
+    host: *const crate::render_state::DocumentHost,
     tree_scope: u32,
     parent_tree_scope: u32,
     has_parent_tree_scope: bool,
@@ -1165,9 +1163,11 @@ pub unsafe extern "C" fn rust_publish_counter_styles(
         scope.styles.insert(name, style.0.clone());
     }
 
+    assert!(!host.is_null(), "document host is null");
     // SAFETY: Guaranteed by the caller.
-    let arena = unsafe { crate::painting::ffi::arena_from_handle(arena) };
-    arena.publish_counter_styles(tree_scope, scope);
+    unsafe { &*host }.queue_change(crate::render_state::ArenaChange::Layout(
+        crate::layout::layout_changes::LayoutChange::CounterStyles { tree_scope, scope },
+    ));
 }
 
 #[cfg(test)]

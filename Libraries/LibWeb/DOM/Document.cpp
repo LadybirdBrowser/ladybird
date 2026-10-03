@@ -664,16 +664,16 @@ Layout::NodeArena& Document::layout_node_arena()
         m_layout_node_arena = make_ref_counted<Layout::NodeArena>(style_computer().style_engine().render_document());
         m_layout_node_arena->set_document({}, this);
         Layout::register_layout_host(*m_layout_node_arena, *this);
-        Layout::RustFFI::layout_arena_set_layout_update_host_callbacks(m_layout_node_arena->handle(), layout_update_host_callbacks());
+        Layout::RustFFI::document_host_set_layout_update_host_callbacks(m_layout_node_arena->host(), layout_update_host_callbacks());
         Layout::RustFFI::FfiStyleRecordHostCallbacks style_record_host_callbacks {
             .context = this,
             .shell_style_changed = [](void*, void* shell, u64 record, void const* payloads, bool attach_resources) {
                 as<Layout::NodeWithStyle>(*static_cast<Layout::Node*>(shell)).refresh_style_from_arena(CSS::StyleRecordID { record }, payloads, attach_resources);
             },
         };
-        Layout::RustFFI::layout_arena_set_style_record_host_callbacks(m_layout_node_arena->handle(), style_record_host_callbacks);
+        Layout::RustFFI::document_host_set_style_record_host_callbacks(m_layout_node_arena->host(), style_record_host_callbacks);
         m_layout_node_arena->start_reporting_box_presence({});
-        Layout::RustFFI::layout_arena_set_shell_factory(m_layout_node_arena->handle(), this, [](void* context, Compositing::RustFFI::NodeSlotId slot, Layout::RustFFI::NodeKind kind) {
+        Layout::RustFFI::document_host_set_shell_factory(m_layout_node_arena->host(), this, [](void* context, Compositing::RustFFI::NodeSlotId slot, Layout::RustFFI::NodeKind kind) {
             auto& document = *static_cast<Document*>(context);
             switch (kind) {
             case Layout::RustFFI::NodeKind::InlineNode:
@@ -698,8 +698,8 @@ Layout::NodeArena& Document::layout_node_arena()
                 return;
             }
         });
-        Layout::RustFFI::layout_arena_set_chrome_state_callback(
-            m_layout_node_arena->handle(), this,
+        Layout::RustFFI::document_host_set_chrome_state_callback(
+            m_layout_node_arena->host(), this,
             [](void* context, Compositing::RustFFI::NodeSlotId slot, Layout::RustFFI::PaintableRowResetKind kind) {
                 auto& document = *static_cast<Document*>(context);
                 document.chrome_widget_registry().drop_widgets_for_slot(slot);
@@ -721,7 +721,7 @@ void Document::reset_style_invalidation_counters() const
 
 bool Document::needs_full_layout_tree_update() const
 {
-    return m_layout_node_arena && Layout::RustFFI::layout_arena_needs_full_layout_tree_update(m_layout_node_arena->handle());
+    return m_layout_node_arena && Layout::RustFFI::render_state_needs_full_layout_tree_update(m_layout_node_arena->host());
 }
 
 // A document without an arena has no layout nodes, so its next build creates every box anyway.
@@ -733,7 +733,7 @@ void Document::set_needs_full_layout_tree_update(bool value)
 
 bool Document::is_running_update_layout() const
 {
-    return m_layout_node_arena && Layout::RustFFI::layout_arena_update_layout_is_running(m_layout_node_arena->handle());
+    return m_layout_node_arena && Layout::RustFFI::document_host_update_layout_is_running(m_layout_node_arena->host());
 }
 
 u64 Document::partial_layout_count() const
@@ -758,11 +758,11 @@ void Document::finalize()
         m_layout_node_arena->stop_reporting_box_presence({});
     tear_down_layout_tree();
     if (m_layout_node_arena) {
-        Layout::RustFFI::layout_arena_clear_chrome_state_callback(m_layout_node_arena->handle());
-        Layout::RustFFI::layout_arena_clear_style_record_host_callbacks(m_layout_node_arena->handle());
-        Layout::RustFFI::layout_arena_clear_layout_host_callbacks(m_layout_node_arena->handle());
-        Layout::RustFFI::layout_arena_clear_layout_update_host_callbacks(m_layout_node_arena->handle());
-        Layout::RustFFI::layout_arena_clear_shell_factory(m_layout_node_arena->handle());
+        Layout::RustFFI::document_host_clear_chrome_state_callback(m_layout_node_arena->host());
+        Layout::RustFFI::document_host_clear_style_record_host_callbacks(m_layout_node_arena->host());
+        Layout::RustFFI::document_host_clear_layout_host_callbacks(m_layout_node_arena->host());
+        Layout::RustFFI::document_host_clear_layout_update_host_callbacks(m_layout_node_arena->host());
+        Layout::RustFFI::document_host_clear_shell_factory(m_layout_node_arena->host());
         VERIFY(Layout::RustFFI::render_state_layout_counts(m_layout_node_arena->host()).live_slots == 0);
         m_layout_node_arena->set_document({}, nullptr);
     }
@@ -1550,7 +1550,7 @@ Compositing::RustFFI::NodeSlotId Document::layout_root_slot() const
 {
     if (!m_layout_node_arena)
         return Compositing::RustFFI::NodeSlotId_INVALID;
-    return Layout::RustFFI::layout_arena_layout_root(m_layout_node_arena->handle());
+    return Layout::RustFFI::render_state_layout_root(m_layout_node_arena->host());
 }
 
 Layout::Node* Document::layout_root_if_live() const
@@ -1964,7 +1964,7 @@ void Document::after_layout_commit(LayoutTreeChanged layout_tree_changed)
         // Broadcast the current viewport rect to any new committed boxes, so they know whether
         // they're visible or not. If necessary, re-collect the content-visibility:auto set.
         inform_all_viewport_clients_about_the_current_viewport_rect();
-        if (Layout::RustFFI::layout_arena_may_have_auto_content_visibility(layout_node_arena().handle()))
+        if (Layout::RustFFI::render_state_may_have_auto_content_visibility(layout_node_arena().host()))
             collect_boxes_with_auto_content_visibility();
     }
 
@@ -2112,8 +2112,8 @@ bool Document::reconcile_stale_list_item_counters_after_tree_build()
         GC::Ref<Document> document;
         HashTable<GC::Ptr<Node const>> dom_roots;
     } rebuilt_roots { *this, {} };
-    Layout::RustFFI::layout_arena_for_each_pending_rebuilt_subtree_root(
-        layout_node_arena().handle(), &rebuilt_roots,
+    Layout::RustFFI::render_state_for_each_pending_rebuilt_subtree_root(
+        layout_node_arena().host(), &rebuilt_roots,
         [](void* context, Layout::RustFFI::FfiNodeIdentity root) {
             auto& rebuilt_roots = *static_cast<RebuiltRoots*>(context);
             if (auto dom_node = Painting::node_identity_of(root).resolve(*rebuilt_roots.document))
@@ -2151,8 +2151,8 @@ bool Document::needs_style_update_after_layout()
 void Document::collect_boxes_with_auto_content_visibility()
 {
     Vector<Compositing::RustFFI::NodeSlotId> boxes_with_auto_content_visibility;
-    Layout::RustFFI::layout_arena_collect_boxes_with_auto_content_visibility(
-        layout_node_arena().handle(), Layout::Node::slot_id(unsafe_layout_node()), &boxes_with_auto_content_visibility,
+    Layout::RustFFI::render_state_collect_boxes_with_auto_content_visibility(
+        layout_node_arena().host(), Layout::Node::slot_id(unsafe_layout_node()), &boxes_with_auto_content_visibility,
         [](void* context, Compositing::RustFFI::NodeSlotId slot) {
             static_cast<Vector<Compositing::RustFFI::NodeSlotId>*>(context)->append(slot);
         });
@@ -2180,7 +2180,7 @@ bool Document::layout_is_up_to_date() const
     // Without an arena there is no layout root either, so there is a tree to build.
     if (!m_layout_node_arena)
         return false;
-    return Layout::RustFFI::layout_arena_layout_is_up_to_date(m_layout_node_arena->handle(),
+    return Layout::RustFFI::render_state_layout_is_up_to_date(m_layout_node_arena->host(),
         needs_layout_tree_update() || child_needs_layout_tree_update());
 }
 
@@ -5901,7 +5901,7 @@ void Document::set_style_node_id(CSS::StyleNodeID style_node_id)
     // The identity may have named a node that has since left, and the layout arena keys layout tree update marks by
     // identity alone, so the document starts with none.
     if (m_layout_node_arena && style_node_id != 0)
-        Layout::RustFFI::layout_arena_clear_layout_tree_update_marks(m_layout_node_arena->handle(), style_node_id.value());
+        Layout::RustFFI::render_state_clear_layout_tree_update_marks(m_layout_node_arena->host(), style_node_id.value());
 }
 
 void Document::ensure_style_engine_tracks_tree()
@@ -9962,19 +9962,19 @@ void Document::note_svg_paint_resources_changed()
 {
     if (!m_layout_node_arena)
         return;
-    if (Layout::RustFFI::layout_arena_note_svg_paint_resources_changed(m_layout_node_arena->handle()))
+    if (Layout::RustFFI::render_state_note_svg_paint_resources_changed(m_layout_node_arena->host()))
         set_needs_accumulated_visual_contexts_update(true);
 }
 
 bool Document::has_enrolled_svg_paint_resources() const
 {
-    return m_layout_node_arena && Layout::RustFFI::layout_arena_has_enrolled_svg_paint_resources(m_layout_node_arena->handle());
+    return m_layout_node_arena && Layout::RustFFI::render_state_has_enrolled_svg_paint_resources(m_layout_node_arena->host());
 }
 
 void Document::schedule_full_accumulated_visual_context_rebuild(Layout::RustFFI::FfiVisualContextGlobalRebuildReason reason)
 {
     if (m_layout_node_arena)
-        Layout::RustFFI::layout_arena_visual_context_request_full_rebuild(m_layout_node_arena->handle(), reason);
+        Layout::RustFFI::render_state_visual_context_request_full_rebuild(m_layout_node_arena->host(), reason);
     set_needs_accumulated_visual_contexts_update(true);
 }
 

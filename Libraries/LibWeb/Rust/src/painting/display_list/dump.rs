@@ -147,15 +147,15 @@ impl VisualContextNodeOwners {
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread, and
-/// `visual_context_tree` a live retained tree handle built from it; `command_runs` must address
+/// `host` must be a live document host, on its document's thread, and `visual_context_tree` a live retained tree
+/// handle built from its render state; `command_runs` must address
 /// `command_run_count` runs; `display_list` and every pointer returned by `callbacks` must remain
 /// live for this call. The callback byte spans must contain display-list records produced by this
 /// build of LibWeb. `debug_description` is called synchronously with a `Vec<u8>` sink the host
 /// fills through `layout_arena_paint_push_bytes`.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn painting_dump(
-    arena: *mut c_void,
+    host: *const crate::render_state::DocumentHost,
     viewport: NodeSlotId,
     visual_context_tree: *const c_void,
     command_runs: *const DisplayListCommandRun,
@@ -164,14 +164,23 @@ pub unsafe extern "C" fn painting_dump(
     callbacks: FfiPaintingDumpCallbacks,
 ) {
     assert!(!display_list.is_null());
+    assert!(!host.is_null(), "document host is null");
     // SAFETY: Guaranteed by the entry point's contract.
-    let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY, arena) };
-    let arena = unsafe { crate::painting::ffi::arena_from_handle(arena) };
+    let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY, &*host) };
     let visual_context_tree = unsafe { libcompositing_rust::ffi::tree_from_handle(visual_context_tree) };
     let command_runs = unsafe { libcompositing_rust::ffi::ffi_slice(command_runs, command_run_count) };
-    let owners = VisualContextNodeOwners::collect(arena, viewport);
+    // SAFETY: Guaranteed by the caller.
+    let owners = unsafe {
+        crate::painting::ffi::read(host, viewport, |arena, viewport| {
+            let mut owners = VisualContextNodeOwners::collect(arena, viewport);
+            for owners in [&mut owners.spatial, &mut owners.clip, &mut owners.effect] {
+                owners.retain(|_, &mut owner| arena.slot_is_live(owner));
+            }
+            owners
+        })
+    };
     let mut output = visual_context_tree.dump_nodes_reachable_from_runs(command_runs, |kind, index| {
-        let owner = owners.owner(kind, index).filter(|&owner| arena.slot_is_live(owner))?;
+        let owner = owners.owner(kind, index)?;
         Some(callbacks.debug_description(&main_thread, owner))
     });
     output.push_str("\nDisplayList:\n");

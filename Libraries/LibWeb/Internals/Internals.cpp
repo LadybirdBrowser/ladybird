@@ -988,9 +988,9 @@ WebIDL::UnsignedLongLong Internals::full_layout_count()
 
 void Internals::begin_layout_trace()
 {
-    Layout::RustFFI::layout_arena_begin_layout_trace(window().associated_document().layout_node_arena().handle(),
-        [](void* arena, Compositing::RustFFI::NodeSlotId slot, void* sink, void (*append)(void*, u8 const*, size_t)) {
-            auto description = static_cast<Layout::Node const*>(Layout::RustFFI::layout_arena_node_shell_if_live(arena, slot))->debug_description();
+    Layout::RustFFI::render_state_begin_layout_trace(window().associated_document().layout_node_arena().host(),
+        [](Layout::RustFFI::DocumentHost const* host, Compositing::RustFFI::NodeSlotId slot, void* sink, void (*append)(void*, u8 const*, size_t)) {
+            auto description = static_cast<Layout::Node const*>(Layout::RustFFI::render_state_node_shell_if_live(host, slot))->debug_description();
             append(sink, description.bytes().data(), description.bytes().size());
         });
 }
@@ -1003,7 +1003,7 @@ void Internals::update_layout_for_testing()
 Utf16String Internals::take_layout_trace()
 {
     StringBuilder builder;
-    Layout::RustFFI::layout_arena_take_layout_trace(window().associated_document().layout_node_arena().handle(), &builder,
+    Layout::RustFFI::render_state_take_layout_trace(window().associated_document().layout_node_arena().host(), &builder,
         [](void* context, u8 const* bytes, size_t length) {
             static_cast<StringBuilder*>(context)->append(StringView { bytes, length });
         });
@@ -1037,13 +1037,13 @@ void Internals::begin_display_list_trace()
 {
     auto& document = window().associated_document();
     (void)document.paint_state().take_recording_traces();
-    Layout::RustFFI::layout_arena_set_recording_trace_enabled(document.layout_node_arena().handle(), true);
+    Layout::RustFFI::render_state_set_recording_trace_enabled(document.layout_node_arena().host(), true);
 }
 
 Utf16String Internals::take_display_list_trace()
 {
     auto& document = window().associated_document();
-    Layout::RustFFI::layout_arena_set_recording_trace_enabled(document.layout_node_arena().handle(), false);
+    Layout::RustFFI::render_state_set_recording_trace_enabled(document.layout_node_arena().host(), false);
     StringBuilder builder;
     for (auto const& trace : document.paint_state().take_recording_traces())
         builder.append(trace);

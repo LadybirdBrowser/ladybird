@@ -81,7 +81,7 @@ static bool has_rendered_text_before(DOM::Text const& text, size_t offset)
     auto const* layout_node = text.layout_node();
     if (!layout_node)
         return false;
-    return Layout::RustFFI::layout_arena_text_has_rendered_text_before(layout_node->arena_handle(), Layout::Node::slot_id(layout_node), offset);
+    return Layout::RustFFI::render_state_text_has_rendered_text_before(layout_node->document_host(), Layout::Node::slot_id(layout_node), offset);
 }
 
 static bool has_rendered_text_after(DOM::Text const& text, size_t offset)
@@ -89,7 +89,7 @@ static bool has_rendered_text_after(DOM::Text const& text, size_t offset)
     auto const* layout_node = text.layout_node();
     if (!layout_node)
         return false;
-    return Layout::RustFFI::layout_arena_text_has_rendered_text_after(layout_node->arena_handle(), Layout::Node::slot_id(layout_node), offset);
+    return Layout::RustFFI::render_state_text_has_rendered_text_after(layout_node->document_host(), Layout::Node::slot_id(layout_node), offset);
 }
 
 static bool is_rendered_atomic_inline(DOM::Node const& node)

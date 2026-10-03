@@ -27,6 +27,25 @@ pub(crate) struct HostReadsItsOwnWrite {
 
 const HOST_READS_ITS_OWN_WRITE: HostReadsItsOwnWrite = HostReadsItsOwnWrite { _private: () };
 
+/// Answers `read` from the render state of `host`'s document and `args`, as of every write the host made.
+///
+/// # Safety
+///
+/// `host` must be a live document host on its document's thread.
+pub(crate) unsafe fn read<A, R>(
+    host: *const DocumentHost,
+    args: A,
+    read: fn(&mut super::LayoutNodeArena, A) -> R,
+) -> R {
+    assert!(!host.is_null(), "document host is null");
+    // SAFETY: Guaranteed by the caller.
+    crate::render_state::ask(
+        LockstepProof::for_reason(&HOST_READS_ITS_OWN_WRITE),
+        unsafe { &*host },
+        crate::render_state::ArenaRead::new(args, read),
+    )
+}
+
 /// The rows of `host`'s document as of every write the host made.
 ///
 /// # Safety

@@ -1421,7 +1421,7 @@ static void pin_bound_box_style_record_for_detachment(Node& node, Optional<CSS::
     if (!arena)
         return;
     auto generated_for = pseudo_element.has_value() ? Layout::Node::encode_generated_for(*pseudo_element) : 0;
-    Layout::RustFFI::layout_arena_pin_bound_box_style_record_for_detachment(arena->handle(), Layout::Node::style_node_of(&node).value(), generated_for);
+    Layout::RustFFI::render_state_pin_bound_box_style_record_for_detachment(arena->host(), Layout::Node::style_node_of(&node).value(), generated_for);
 }
 
 class RemovalStyleRecordPins {
@@ -1575,7 +1575,7 @@ void Node::detach_remaining_layout_nodes_for_removal()
         return;
     for_each_shadow_including_inclusive_descendant([&](Node& node) {
         // The node's boxes, its pseudo-elements' and its top layer placement, are found by the node's StyleNodeID.
-        Layout::RustFFI::rust_detach_remaining_layout_rows_for_removal(arena->handle(), Layout::Node::style_node_of(&node).value());
+        Layout::RustFFI::render_state_detach_remaining_rows_for_removal(arena->host(), Layout::Node::style_node_of(&node).value());
         return TraversalDecision::Continue;
     });
 }
@@ -2548,17 +2548,17 @@ static CSS::StyleNodeID mirror_identity_of(Node const& node)
 }
 
 // A document that has made no layout arena has made no layout tree update mark either.
-static void* layout_tree_update_marks_of(Document const& document)
+static Layout::RustFFI::DocumentHost* layout_tree_update_marks_of(Document const& document)
 {
     auto* arena = document.layout_node_arena_if_created();
-    return arena ? arena->handle() : nullptr;
+    return arena ? arena->host() : nullptr;
 }
 
 bool Node::needs_layout_tree_update() const
 {
     auto identity = mirror_identity_of(*this);
     auto* marks = layout_tree_update_marks_of(document());
-    return identity != 0 && marks && Layout::RustFFI::layout_arena_needs_layout_tree_update(marks, identity.value());
+    return identity != 0 && marks && Layout::RustFFI::render_state_needs_layout_tree_update(marks, identity.value());
 }
 
 u8 Node::layout_tree_update_reuse_reasons() const
@@ -2567,20 +2567,20 @@ u8 Node::layout_tree_update_reuse_reasons() const
     auto* marks = layout_tree_update_marks_of(document());
     if (identity == 0 || !marks)
         return 0;
-    return Layout::RustFFI::layout_arena_layout_tree_update_reuse_reasons(marks, identity.value());
+    return Layout::RustFFI::render_state_layout_tree_update_reuse_reasons(marks, identity.value());
 }
 
 bool Node::child_needs_layout_tree_update() const
 {
     auto identity = mirror_identity_of(*this);
     auto* marks = layout_tree_update_marks_of(document());
-    return identity != 0 && marks && Layout::RustFFI::layout_arena_child_needs_layout_tree_update(marks, identity.value());
+    return identity != 0 && marks && Layout::RustFFI::render_state_child_needs_layout_tree_update(marks, identity.value());
 }
 
 void Node::set_child_needs_layout_tree_update(bool value)
 {
     if (auto identity = mirror_identity_of(*this); identity != 0)
-        (void)Layout::RustFFI::layout_arena_set_child_needs_layout_tree_update(document().layout_node_arena().handle(), identity.value(), value);
+        (void)Layout::RustFFI::render_state_set_child_needs_layout_tree_update(document().layout_node_arena().host(), identity.value(), value);
 }
 
 // The identity the invalidation journal names a node's box by, or none if the node has no box. Retiring a node's
@@ -2617,8 +2617,8 @@ void Node::set_needs_layout_tree_update(bool value, SetNeedsLayoutTreeUpdateReas
     // NB: Every pending reason must permit reuse. Once a full rebuild is requested, later
     //     incremental changes cannot narrow it again. The arena folds both, and answers whether
     //     this mark was a transition, which is what the widenings below hang off.
-    auto* marks = value ? document().layout_node_arena().handle() : layout_tree_update_marks_of(document());
-    if (!marks || !Layout::RustFFI::layout_arena_merge_layout_tree_update_mark(marks, identity.value(), value, reuse_reason))
+    auto* marks = value ? document().layout_node_arena().host() : layout_tree_update_marks_of(document());
+    if (!marks || !Layout::RustFFI::render_state_merge_layout_tree_update_mark(marks, identity.value(), value, reuse_reason))
         return;
 
     if constexpr (UPDATE_LAYOUT_DEBUG) {
@@ -2663,7 +2663,7 @@ void Node::set_needs_layout_tree_update(bool value, SetNeedsLayoutTreeUpdateReas
             // An ancestor the style mirror has not named is on no path the build walks by identity.
             if (ancestor_identity == 0)
                 continue;
-            if (Layout::RustFFI::layout_arena_set_child_needs_layout_tree_update(marks, ancestor_identity.value(), true))
+            if (Layout::RustFFI::render_state_set_child_needs_layout_tree_update(marks, ancestor_identity.value(), true))
                 break;
         }
         if (update_is_inside_top_layer_member)
@@ -2694,8 +2694,8 @@ void Node::set_needs_layout_tree_update(bool value, SetNeedsLayoutTreeUpdateReas
 
 void Node::apply_layout_tree_update_mark(Layout::Node& layout_node, SetNeedsLayoutTreeUpdateReason reason)
 {
-    auto classification = Layout::RustFFI::layout_arena_classify_layout_tree_update(
-        layout_node.arena_handle(), Layout::Node::slot_id(&layout_node),
+    auto classification = Layout::RustFFI::render_state_classify_layout_tree_update(
+        layout_node.document_host(), Layout::Node::slot_id(&layout_node),
         is_structural_boundary_self_rebuild_reason(reason));
 
     if (classification.marks_partial_relayout_boundary_self_only) {

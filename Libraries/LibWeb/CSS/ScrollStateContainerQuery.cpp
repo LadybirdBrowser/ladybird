@@ -46,7 +46,7 @@ static u8 stuck_edges(DOM::Document& document, Layout::Node const& layout_node)
     auto const* node_with_style = as_if<Layout::NodeWithStyle>(layout_node);
     if (!node_with_style || !node_with_style->is_sticky_position())
         return 0;
-    auto sticky_node_index = Layout::RustFFI::layout_arena_sticky_spatial_node_index(layout_node.arena_handle(), Painting::committed_row_slot(layout_node));
+    auto sticky_node_index = Layout::RustFFI::render_state_sticky_spatial_node_index(layout_node.document_host(), Painting::committed_row_slot(layout_node));
     if (sticky_node_index == NumericLimits<u32>::max())
         return 0;
 

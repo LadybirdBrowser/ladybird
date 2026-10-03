@@ -72,7 +72,7 @@ Node::Node(DOM::Document& document, BindToPreparedArenaSlot, Compositing::RustFF
     , m_slot(slot)
     , m_kind(kind)
 {
-    RustFFI::layout_arena_attach_shell(m_arena->handle(), m_slot, this);
+    RustFFI::document_host_attach_shell(m_arena->host(), m_slot, this);
 }
 
 Node::~Node()
@@ -145,11 +145,6 @@ void Node::reset_cached_intrinsic_sizes_of_self_and_ancestors()
     RustFFI::render_state_reset_cached_intrinsic_sizes_of_self_and_ancestors(document_host(), slot_id(this));
 }
 
-void* Node::arena_handle() const
-{
-    return m_arena->handle();
-}
-
 RustFFI::DocumentHost* Node::document_host() const
 {
     return m_arena->host();
@@ -173,12 +168,12 @@ void Node::pin_style_record_for_detachment()
 
 void Node::prepare_for_detach_from_layout_tree()
 {
-    RustFFI::layout_arena_prepare_node_for_detach(arena_handle(), slot_id(this));
+    RustFFI::render_state_prepare_node_for_detach(document_host(), slot_id(this));
 }
 
 void Node::prepare_subtree_for_detach_from_layout_tree()
 {
-    RustFFI::layout_arena_prepare_subtree_for_detach(arena_handle(), slot_id(this));
+    RustFFI::render_state_prepare_subtree_for_detach(document_host(), slot_id(this));
 }
 
 Node* Node::topmost_layout_node_of_top_layer_placement()
@@ -271,7 +266,7 @@ NodeWithStyle::NodeWithStyle(DOM::Document& document, BindToPreparedArenaSlot bi
 
 bool NodeWithStyle::has_layout_derived_style() const
 {
-    return RustFFI::layout_arena_node_has_derived_style(arena_handle(), slot_id(this));
+    return RustFFI::render_state_node_has_derived_style(document_host(), slot_id(this));
 }
 
 NonnullRefPtr<CSS::ComputedValues const> NodeWithStyle::copy_computed_values() const
@@ -317,7 +312,7 @@ NodeWithStyle::~NodeWithStyle()
 
 void NodeWithStyle::clear_image_observers()
 {
-    delete static_cast<ImageObserverSlots*>(RustFFI::layout_arena_replace_image_observers(arena_handle(), slot_id(this), nullptr));
+    delete static_cast<ImageObserverSlots*>(RustFFI::document_host_replace_image_observers(document_host(), slot_id(this), nullptr));
 }
 
 void NodeWithStyle::rebuild_image_observers(Vector<RefPtr<CSS::CursorStyleValue const>> cursor_style_values)
@@ -344,12 +339,12 @@ void NodeWithStyle::rebuild_image_observers(Vector<RefPtr<CSS::CursorStyleValue 
     // TODO: Observe other <image> accepting properties once we support them.
 
     // Register the new observers before the old ones unregister so a shared resource is never dropped and refetched.
-    delete static_cast<ImageObserverSlots*>(RustFFI::layout_arena_replace_image_observers(arena_handle(), slot_id(this), new_observers.leak_ptr()));
+    delete static_cast<ImageObserverSlots*>(RustFFI::document_host_replace_image_observers(document_host(), slot_id(this), new_observers.leak_ptr()));
 }
 
 NodeWithStyle::ImageObserverSlots const* NodeWithStyle::image_observers() const
 {
-    return static_cast<ImageObserverSlots const*>(RustFFI::layout_arena_image_observers(arena_handle(), slot_id(this)));
+    return static_cast<ImageObserverSlots const*>(RustFFI::document_host_image_observers(document_host(), slot_id(this)));
 }
 
 ReadonlySpan<RefPtr<CSS::CursorStyleValue const>> NodeWithStyle::cursor_style_values() const
@@ -407,7 +402,7 @@ void NodeWithStyle::apply_style(CSS::StyleRecordID style_record_identity)
     set_flag(RustFFI::NodeFlag::HasAnimatedOpacityOrTransform, false);
     // A style change can introduce the properties that make a node carry replaced-content facts,
     // such as size containment arriving on a kept layout node.
-    RustFFI::layout_arena_reinherit_anonymous_descendants(arena_handle(), slot_id(this));
+    RustFFI::render_state_reinherit_anonymous_descendants(document_host(), slot_id(this));
     attach_style_resources();
     // A pseudo layout node can outlive replacement of the DOM pseudo's record until the layout
     // tree is rebuilt. Root its record across that gap, including metadata-only style changes that
@@ -552,7 +547,7 @@ Gfx::AffineTransform NodeWithStyle::used_svg_element_transform() const
 
 void NodeWithStyle::set_computed_values(NonnullRefPtr<CSS::ComputedValues const> computed_values)
 {
-    VERIFY(!RustFFI::layout_arena_layout_pass_is_running(arena_handle()));
+    VERIFY(!RustFFI::render_state_layout_pass_is_running(document_host()));
     CSS::StyleRecordID record;
     if (is_generated_for_pseudo_element())
         record = document().style_computer().intern_computed_style_inputs({ *pseudo_element_generator(), generated_for_pseudo_element() }, *computed_values);
@@ -560,7 +555,7 @@ void NodeWithStyle::set_computed_values(NonnullRefPtr<CSS::ComputedValues const>
         record = document().style_computer().intern_computed_style_inputs({ *element }, *computed_values);
     else
         record = document().style_computer().intern_anonymous_layout_style(*computed_values);
-    RustFFI::layout_arena_adopt_derived_node_style(arena_handle(), slot_id(this), record.value());
+    RustFFI::render_state_adopt_derived_node_style(document_host(), slot_id(this), record.value());
 }
 
 void NodeWithStyle::set_style_record_identity(CSS::StyleRecordID style_record_identity)
@@ -574,7 +569,7 @@ void NodeWithStyle::set_style_record_identity(CSS::StyleRecordID style_record_id
         return;
     }
 
-    bool should_repin_style_record = RustFFI::layout_arena_node_style_record_pinned_by_host(arena_handle(), slot_id(this)) != 0;
+    bool should_repin_style_record = RustFFI::render_state_node_style_record_pinned_by_host(document_host(), slot_id(this)) != 0;
     // Both answers come from the records themselves, so neither side needs a ComputedValues built
     // for it. An overlay record borrows different payloads than its base, so carrying one is already
     // reason enough to treat the style as layout-affecting.
@@ -607,12 +602,12 @@ void NodeWithStyle::set_style_record_identity(CSS::StyleRecordID style_record_id
 void NodeWithStyle::pin_style_record_for_cxx_consumers()
 {
     VERIFY(m_style_record_identity);
-    RustFFI::layout_arena_pin_node_style_record_for_host(arena_handle(), slot_id(this), m_style_record_identity.value());
+    RustFFI::render_state_pin_node_style_record_for_host(document_host(), slot_id(this), m_style_record_identity.value());
 }
 
 void NodeWithStyle::release_pinned_style_record()
 {
-    RustFFI::layout_arena_release_node_style_record_pin_for_host(arena_handle(), slot_id(this));
+    RustFFI::render_state_release_node_style_record_pin_for_host(document_host(), slot_id(this));
 }
 
 static Node const* scroll_snap_container_of(NodeWithStyle const& node)
@@ -630,7 +625,7 @@ void NodeWithStyle::publish_style_record_to_node_data()
     auto const* payloads = document().style_computer().style_engine().style_record_payloads(m_style_record_identity);
     VERIFY(payloads);
     m_style_payloads = payloads;
-    RustFFI::layout_arena_set_node_style(arena_handle(), slot_id(this), m_style_record_identity.value(), payloads);
+    RustFFI::render_state_set_node_style(document_host(), slot_id(this), m_style_record_identity.value(), payloads);
     did_update_style_record();
 }
 
@@ -667,8 +662,8 @@ void NodeWithStyle::synchronize_table_span_data()
 
 void NodeWithStyle::set_display(CSS::Display display)
 {
-    VERIFY(!RustFFI::layout_arena_layout_pass_is_running(arena_handle()));
-    RustFFI::layout_arena_set_layout_display(arena_handle(), slot_id(this), bit_cast<u32>(display));
+    VERIFY(!RustFFI::render_state_layout_pass_is_running(document_host()));
+    RustFFI::render_state_set_layout_display(document_host(), slot_id(this), bit_cast<u32>(display));
 }
 
 bool overflow_value_makes_box_a_scroll_container(CSS::Overflow overflow)
@@ -697,7 +692,7 @@ bool NodeWithStyle::is_scroll_container() const
 
 void Node::prepare_subtree_for_removal()
 {
-    RustFFI::layout_arena_prepare_subtree_for_removal(arena_handle(), slot_id(this));
+    RustFFI::render_state_prepare_subtree_for_removal(document_host(), slot_id(this));
 }
 
 DOM::Node const* Node::dom_node() const

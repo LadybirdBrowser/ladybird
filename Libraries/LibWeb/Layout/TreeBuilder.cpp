@@ -197,7 +197,7 @@ static CSS::PseudoElement css_pseudo_element(RustFFI::FfiPseudoElement pseudo_el
 
 bool attach_owed_style_resources(DOM::Document& document, Compositing::RustFFI::NodeSlotId slot, bool owns_content_replacement_image)
 {
-    auto* layout_node = static_cast<Node*>(RustFFI::layout_arena_node_shell_if_live(document.layout_node_arena().handle(), slot));
+    auto* layout_node = static_cast<Node*>(RustFFI::render_state_node_shell_if_live(document.layout_node_arena().host(), slot));
     VERIFY(layout_node);
     // A box that replaces its element's contents with a single image owns the provider that answers for it. The image
     // is named by the same style record the box was stamped from, and it loads before the resources the rest of that
@@ -222,10 +222,10 @@ bool attach_owed_generated_image(DOM::Document& document, Compositing::RustFFI::
     if (!element)
         return false;
     auto& arena = document.layout_node_arena();
-    auto& image_box = as<Box>(*static_cast<Node*>(RustFFI::layout_arena_node_shell_if_live(arena.handle(), slot)));
+    auto& image_box = as<Box>(*static_cast<Node*>(RustFFI::render_state_node_shell_if_live(arena.host(), slot)));
     auto image = [&] -> NonnullRefPtr<CSS::AbstractImageStyleValue const> {
         if (generated_image.kind == RustFFI::FfiGeneratedImageKind::ListStyleImage) {
-            auto& marker = as<NodeWithStyle>(*static_cast<Node*>(RustFFI::layout_arena_node_shell_if_live(arena.handle(), generated_image.marker)));
+            auto& marker = as<NodeWithStyle>(*static_cast<Node*>(RustFFI::render_state_node_shell_if_live(arena.host(), generated_image.marker)));
             return *marker.list_style_image();
         }
         auto const* payloads = DOM::AbstractElement { *element, css_pseudo_element(ffi_pseudo) }.style_record_payloads();

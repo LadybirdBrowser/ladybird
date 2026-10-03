@@ -1162,8 +1162,8 @@ void StyleScope::publish_counter_styles_if_changed() const
         names.unchecked_append(name.to_raw_leaked());
         counter_styles.unchecked_append(counter_style->rust_counter_style());
     }
-    Parser::ValueParserFFI::rust_publish_counter_styles(
-        document().layout_node_arena().handle(),
+    Parser::ValueParserFFI::render_state_publish_counter_styles(
+        document().layout_node_arena().host(),
         style_engine_tree_scope().value(),
         parent_tree_scope.has_value() ? parent_tree_scope->value() : 0,
         parent_tree_scope.has_value(),

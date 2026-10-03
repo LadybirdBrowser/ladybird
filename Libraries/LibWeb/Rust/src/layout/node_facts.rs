@@ -1430,15 +1430,19 @@ mod node_facts_tests {
 ///
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, and `natural_size` writable.
+/// `host` must be a live document host, on its document's thread, and `natural_size` writable.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_take_changed_document_svg_root_natural_size(
-    arena: *mut c_void,
+pub unsafe extern "C" fn render_state_take_changed_document_svg_root_natural_size(
+    host: *const crate::render_state::DocumentHost,
     natural_size: *mut crate::painting::host::FfiNaturalSize,
 ) -> bool {
     // SAFETY: Guaranteed by the caller.
-    let Some(changed) = unsafe { LayoutNodeArena::from_handle(arena) }.take_changed_document_svg_root_natural_size()
-    else {
+    let changed = unsafe {
+        super::shell_reads::read(host, (), |arena, ()| {
+            arena.take_changed_document_svg_root_natural_size()
+        })
+    };
+    let Some(changed) = changed else {
         return false;
     };
     // SAFETY: Guaranteed by the caller.

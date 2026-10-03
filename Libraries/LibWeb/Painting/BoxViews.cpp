@@ -74,7 +74,7 @@ Compositing::RustFFI::NodeSlotId viewport_row_slot(DOM::Document const& document
 
 Layout::RustFFI::PaintableData const* committed_row(Layout::Node const& node)
 {
-    return Layout::RustFFI::layout_arena_paintable_row(node.arena_handle(), committed_row_slot(node));
+    return Layout::RustFFI::render_state_paintable_row(node.document_host(), committed_row_slot(node));
 }
 
 bool has_committed_box(Layout::Node const& node)
@@ -152,13 +152,13 @@ CSSPixels border_box_height(Layout::Node const& node)
 
 bool has_scrollable_overflow(Layout::Node const& node)
 {
-    auto overflow = Layout::RustFFI::layout_arena_paintable_scrollable_overflow(node.arena_handle(), committed_row_slot(node));
+    auto overflow = Layout::RustFFI::render_state_paintable_scrollable_overflow(node.document_host(), committed_row_slot(node));
     return overflow.has_value && overflow.value.has_scrollable_overflow;
 }
 
 Optional<CSSPixelRect> scrollable_overflow_rect(Layout::Node const& node)
 {
-    auto overflow = Layout::RustFFI::layout_arena_paintable_scrollable_overflow(node.arena_handle(), committed_row_slot(node));
+    auto overflow = Layout::RustFFI::render_state_paintable_scrollable_overflow(node.document_host(), committed_row_slot(node));
     if (!overflow.has_value)
         return {};
     return overflow.value.rect;
@@ -284,17 +284,17 @@ Compositing::SpatialNodeIndex own_scroll_node_index(Layout::Node const& node)
 
 Gfx::Path const* committed_svg_path(Layout::Node const& node)
 {
-    return static_cast<Gfx::Path const*>(Layout::RustFFI::layout_arena_paintable_computed_svg_path(node.arena_handle(), committed_row_slot(node)));
+    return static_cast<Gfx::Path const*>(Layout::RustFFI::render_state_paintable_computed_svg_path(node.document_host(), committed_row_slot(node)));
 }
 
 CSSPixelSize svg_viewport_size(Layout::Node const& node)
 {
-    return Layout::RustFFI::layout_arena_paintable_svg_viewport_size(node.arena_handle(), committed_row_slot(node));
+    return Layout::RustFFI::render_state_paintable_svg_viewport_size(node.document_host(), committed_row_slot(node));
 }
 
 Optional<Gfx::AffineTransform> svg_viewport_transform(Layout::Node const& node)
 {
-    auto result = Layout::RustFFI::layout_arena_paintable_svg_viewport_transform(node.arena_handle(), committed_row_slot(node));
+    auto result = Layout::RustFFI::render_state_paintable_svg_viewport_transform(node.document_host(), committed_row_slot(node));
     if (!result.has_value)
         return {};
     auto const& transform = result.transform;
@@ -304,7 +304,7 @@ Optional<Gfx::AffineTransform> svg_viewport_transform(Layout::Node const& node)
 CSS::RustStyleValueHandle used_value_for_grid_template(Layout::Node const& node, CSS::PropertyID property)
 {
     VERIFY(property == CSS::PropertyID::GridTemplateColumns || property == CSS::PropertyID::GridTemplateRows);
-    auto* value = Layout::RustFFI::layout_arena_paintable_used_grid_tracks(node.arena_handle(), committed_row_slot(node), property == CSS::PropertyID::GridTemplateColumns);
+    auto* value = Layout::RustFFI::render_state_paintable_used_grid_tracks(node.document_host(), committed_row_slot(node), property == CSS::PropertyID::GridTemplateColumns);
     if (!value)
         return {};
     return CSS::RustStyleValueHandle { static_cast<CSS::StyleValueFFI::StyleValueData const*>(value) };
@@ -316,7 +316,7 @@ CSSPixelPoint box_type_agnostic_position(Layout::Node const& node)
     if (!row)
         return {};
     if (is_inline_paintable(node)) {
-        auto result = Layout::RustFFI::layout_arena_inline_paintable_first_piece_position(node.arena_handle(), committed_row_slot(node));
+        auto result = Layout::RustFFI::render_state_inline_paintable_first_piece_position(node.document_host(), committed_row_slot(node));
         if (result.has_value)
             return { result.x, result.y };
     }
@@ -327,7 +327,7 @@ static bool has_content(Layout::Node const& node)
 {
     // Interrupting block-in-inline children produce only placeholder pieces, so any child
     // paintable also counts as content.
-    return Layout::RustFFI::layout_arena_inline_paintable_has_content_pieces(node.arena_handle(), committed_row_slot(node))
+    return Layout::RustFFI::render_state_inline_paintable_has_content_pieces(node.document_host(), committed_row_slot(node))
         || Layout::RustFFI::layout_row_paintable_has_child_paintables(node.document_host(), committed_row_slot(node));
 }
 
@@ -416,8 +416,8 @@ CSSPixelRect caret_rect_for_child_offset(Layout::Node const& block, size_t offse
         GC::Ref<DOM::Node> child;
         Optional<CSSPixels> preceding_content_bottom;
     } preceding_context { const_cast<DOM::Node&>(*child), {} };
-    Layout::RustFFI::layout_arena_for_each_subtree_fragment_rect(
-        block.arena_handle(), committed_row_slot(block), &preceding_context,
+    Layout::RustFFI::render_state_for_each_subtree_fragment_rect(
+        block.document_host(), committed_row_slot(block), &preceding_context,
         [](void* context_pointer, Compositing::RustFFI::NodeSlotId fragment_slot, CSSPixelRect rect) {
             auto& context = *static_cast<PrecedingContentContext*>(context_pointer);
             auto const* fragment_layout_node = context.child->document().layout_node_arena().node_if_live(fragment_slot);
@@ -631,7 +631,7 @@ Optional<CSS::BorderData> outline_data(Layout::Node const& node, CSS::ComputedVa
 
 CSSPixelRect transform_reference_box(Layout::Node const& node)
 {
-    return Layout::RustFFI::layout_arena_paintable_transform_reference_box(node.arena_handle(), committed_row_slot(node));
+    return Layout::RustFFI::render_state_paintable_transform_reference_box(node.document_host(), committed_row_slot(node));
 }
 
 CSSPixelRect transform_rect_to_viewport(Layout::Node const& node, CSSPixelRect const& rect, Compositing::AccumulatedVisualContextTree::IncludeVisualViewportTransform include_visual_viewport_transform)
@@ -689,7 +689,7 @@ CSSPixelPoint transform_to_local_coordinates(Layout::Node const& node, CSSPixelP
 Optional<String> grid_layout_json(Layout::Node const& node, UniqueNodeID container_node_id)
 {
     Optional<String> result;
-    Layout::RustFFI::layout_arena_paintable_grid_layout_json(node.arena_handle(), committed_row_slot(node), container_node_id.value(), &result,
+    Layout::RustFFI::render_state_paintable_grid_layout_json(node.document_host(), committed_row_slot(node), container_node_id.value(), &result,
         [](void* context, u8 const* bytes, size_t length) {
             *static_cast<Optional<String>*>(context) = MUST(String::from_utf8(StringView { bytes, length }));
         });
@@ -708,8 +708,8 @@ static i64 devtools_node_id_for_style_node(void const* context, u32 style_node)
 Optional<String> flex_layout_json(Layout::Node const& node, UniqueNodeID container_node_id)
 {
     Optional<String> result;
-    Layout::RustFFI::layout_arena_paintable_flex_layout_json(
-        node.arena_handle(), committed_row_slot(node), container_node_id.value(), &result,
+    Layout::RustFFI::render_state_paintable_flex_layout_json(
+        node.document_host(), committed_row_slot(node), container_node_id.value(), &result,
         [](void* context, u8 const* bytes, size_t length) {
             *static_cast<Optional<String>*>(context) = MUST(String::from_utf8(StringView { bytes, length }));
         },

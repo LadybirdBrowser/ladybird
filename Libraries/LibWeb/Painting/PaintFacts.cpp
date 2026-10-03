@@ -359,7 +359,7 @@ void apply_paint_facts(Layout::Node const& layout_node, PaintFactsFamily familie
     // A box that owns its image's provider is handed it once the layout update that built the box is over, and handing
     // it over pushes these facts. A restyle within that update has no provider to read.
     if (has_flag(families, PaintFactsFamily::ReplacedImage) && paints_replaced_image_from_facts(layout_node)
-        && !Layout::RustFFI::layout_arena_image_box_awaits_owned_provider(layout_node.arena_handle(), Layout::Node::slot_id(&layout_node))) {
+        && !Layout::RustFFI::render_state_image_box_awaits_owned_provider(layout_node.document_host(), Layout::Node::slot_id(&layout_node))) {
         auto const& image_provider = layout_node.kind() == Layout::RustFFI::NodeKind::ImageBox
             ? static_cast<Layout::Box const&>(layout_node).image_provider()
             : static_cast<Layout::ImageProvider const&>(as<SVG::SVGImageElement>(*layout_node.dom_node()));
