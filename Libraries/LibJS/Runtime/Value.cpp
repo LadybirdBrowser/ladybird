@@ -1619,12 +1619,6 @@ ThrowCompletionOr<Value> left_shift(VM& vm, Value lhs, Value rhs)
     if (both_number(lhs_numeric, rhs_numeric)) {
         // 6.1.6.1.9 Number::leftShift ( x, y ), https://tc39.es/ecma262/#sec-numeric-types-number-leftShift
 
-        // OPTIMIZATION: Handle infinite values according to the results returned by ToInt32/ToUint32.
-        if (!lhs_numeric.is_finite_number())
-            return Value(0);
-        if (!rhs_numeric.is_finite_number())
-            return lhs_numeric;
-
         // 1. Let lnum be ! ToInt32(x).
         auto lhs_i32 = MUST(lhs_numeric.to_i32(vm));
 
@@ -1688,12 +1682,6 @@ ThrowCompletionOr<Value> right_shift(VM& vm, Value lhs, Value rhs)
     if (both_number(lhs_numeric, rhs_numeric)) {
         // 6.1.6.1.10 Number::signedRightShift ( x, y ), https://tc39.es/ecma262/#sec-numeric-types-number-signedRightShift
 
-        // OPTIMIZATION: Handle infinite values according to the results returned by ToInt32/ToUint32.
-        if (!lhs_numeric.is_finite_number())
-            return Value(0);
-        if (!rhs_numeric.is_finite_number())
-            return lhs_numeric;
-
         // 1. Let lnum be ! ToInt32(x).
         auto lhs_i32 = MUST(lhs_numeric.to_i32(vm));
 
@@ -1739,12 +1727,6 @@ ThrowCompletionOr<Value> unsigned_right_shift(VM& vm, Value lhs, Value rhs)
     // 8. Return operation(lnum, rnum).
     if (both_number(lhs_numeric, rhs_numeric)) {
         // 6.1.6.1.11 Number::unsignedRightShift ( x, y ), https://tc39.es/ecma262/#sec-numeric-types-number-unsignedRightShift
-
-        // OPTIMIZATION: Handle infinite values according to the results returned by ToUint32.
-        if (!lhs_numeric.is_finite_number())
-            return Value(0);
-        if (!rhs_numeric.is_finite_number())
-            return lhs_numeric;
 
         // 1. Let lnum be ! ToUint32(x).
         auto lhs_u32 = MUST(lhs_numeric.to_u32(vm));

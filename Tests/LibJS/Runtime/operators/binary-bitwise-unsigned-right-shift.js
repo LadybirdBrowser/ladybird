@@ -64,3 +64,22 @@ test("shifting with non-numeric values", () => {
     expect(Infinity >>> Infinity).toBe(0);
     expect(-Infinity >>> Infinity).toBe(0);
 });
+
+test("shift count that is not finite", () => {
+    function shift(a, b) {
+        return a >>> b;
+    }
+
+    expect(shift(-1, Infinity)).toBe(4294967295);
+    expect(
+        shift(
+            {
+                valueOf() {
+                    return -1.5;
+                },
+            },
+            NaN
+        )
+    ).toBe(4294967295);
+    expect(shift(2 ** 32 + 5, NaN)).toBe(5);
+});
