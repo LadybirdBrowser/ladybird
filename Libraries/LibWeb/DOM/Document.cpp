@@ -10127,12 +10127,12 @@ void Document::set_caret_hit_test_debug_rect(Optional<CSSPixelRect> rect)
     page().client().request_frame();
 }
 
-Painting::HitTestDisplayList const* Document::ensure_hit_test_display_list()
+Optional<Painting::HitTestQuery> Document::prepare_hit_test_query()
 {
     update_paint_and_hit_testing_properties_if_needed();
 
     if (!has_committed_viewport_box())
-        return nullptr;
+        return {};
 
     auto rebuild_hit_test_display_list = [&] {
         set_needs_to_record_display_list();
@@ -10147,16 +10147,31 @@ Painting::HitTestDisplayList const* Document::ensure_hit_test_display_list()
         (void)record_display_list(paint_config, throwaway_resource_storage_for_hit_test_only_recording, Painting::PaintCommandCacheMode::ReadOnly);
     };
 
-    if (!m_hit_test_display_list || !m_hit_test_display_list->is_current() || m_hit_test_display_list->visual_context_tree_structural_epoch() != visual_context_tree_structural_epoch())
+    // The paint properties were prepared above, and a query reads them as they were left there: preparing them again
+    // for every item a query converts would find nothing to do, but still ask the render state to do it.
+    auto hit_test_display_list_is_current = [&] {
+        return m_hit_test_display_list && m_hit_test_display_list->is_current() && m_hit_test_display_list->visual_context_tree_structural_epoch() == paint_state().visual_context_tree_structural_epoch_without_update();
+    };
+    if (!hit_test_display_list_is_current()) {
         rebuild_hit_test_display_list();
+        if (!hit_test_display_list_is_current())
+            return {};
+    }
 
-    return m_hit_test_display_list.ptr();
+    return Painting::HitTestQuery {
+        *m_hit_test_display_list,
+        paint_state().visual_context_tree_without_update(*this),
+        scroll_state_snapshot(),
+        page().client().device_pixels_per_css_pixel(),
+        page().chrome_metrics(),
+        Painting::overflow_values_applied_to_viewport_for_wheel_scrolling(*this),
+    };
 }
 
 Optional<Painting::HitTestResult> Document::hit_test(CSSPixelPoint position)
 {
-    auto hit_test_display_list = ensure_hit_test_display_list();
-    if (!hit_test_display_list)
+    auto query = prepare_hit_test_query();
+    if (!query.has_value())
         return {};
     // https://w3c.github.io/pointerevents/#hit-test
     // 1. Let pos be the x,y coordinates relative to the viewport
@@ -10170,7 +10185,7 @@ Optional<Painting::HitTestResult> Document::hit_test(CSSPixelPoint position)
     // 2. If there is a box in the viewport that would be a target for hit testing at coordinates x,y, when applying
     //    the transforms that apply to the descendants of the viewport, return the associated element and terminate
     //    these steps.
-    auto result = hit_test_display_list->hit_test(position, *this, page().client().device_pixels_per_css_pixel(), page().chrome_metrics());
+    auto result = query->list().hit_test(position, *query);
     if (result.has_value() && (result->chrome_widget || result->dom_node()))
         return result;
 
@@ -10183,58 +10198,58 @@ Optional<Painting::HitTestResult> Document::hit_test(CSSPixelPoint position)
 
 Optional<Painting::CaretPosition> Document::caret_position_from_point(CSSPixelPoint position)
 {
-    auto hit_test_display_list = ensure_hit_test_display_list();
-    if (!hit_test_display_list)
+    auto query = prepare_hit_test_query();
+    if (!query.has_value())
         return {};
-    return hit_test_display_list->caret_position_from_point(position, *this, page().client().device_pixels_per_css_pixel(), page().chrome_metrics(), Painting::CaretPositionMode::Normal);
+    return query->list().caret_position_from_point(position, *query, Painting::CaretPositionMode::Normal);
 }
 
 Optional<Painting::CaretPosition> Document::caret_position_from_point_for_selection_start(CSSPixelPoint position)
 {
-    auto hit_test_display_list = ensure_hit_test_display_list();
-    if (!hit_test_display_list)
+    auto query = prepare_hit_test_query();
+    if (!query.has_value())
         return {};
-    return hit_test_display_list->caret_position_from_point(position, *this, page().client().device_pixels_per_css_pixel(), page().chrome_metrics(), Painting::CaretPositionMode::SelectionStart);
+    return query->list().caret_position_from_point(position, *query, Painting::CaretPositionMode::SelectionStart);
 }
 
 Optional<Painting::CaretPosition> Document::caret_position_from_point_for_selection(CSSPixelPoint position, GC::Ptr<Node const> constraint_scope)
 {
-    auto hit_test_display_list = ensure_hit_test_display_list();
-    if (!hit_test_display_list)
+    auto query = prepare_hit_test_query();
+    if (!query.has_value())
         return {};
-    return hit_test_display_list->caret_position_from_point(position, *this, page().client().device_pixels_per_css_pixel(), page().chrome_metrics(), Painting::CaretPositionMode::Selection, constraint_scope);
+    return query->list().caret_position_from_point(position, *query, Painting::CaretPositionMode::Selection, constraint_scope);
 }
 
 Optional<Painting::CaretPosition> Document::caret_position_at_line_edge(Node const& node, size_t offset, TextAffinity affinity, Painting::CaretLineEdge edge)
 {
-    auto hit_test_display_list = ensure_hit_test_display_list();
-    if (!hit_test_display_list)
+    auto query = prepare_hit_test_query();
+    if (!query.has_value())
         return {};
-    return hit_test_display_list->caret_position_at_line_edge(node, offset, affinity, edge);
+    return query->list().caret_position_at_line_edge(node, offset, affinity, edge);
 }
 
 Optional<Painting::CaretPosition> Document::caret_position_on_adjacent_line(Node const& node, size_t offset, TextAffinity affinity, Painting::CaretLineDirection direction, CSSPixels inline_coordinate, Node const& scope)
 {
-    auto hit_test_display_list = ensure_hit_test_display_list();
-    if (!hit_test_display_list)
+    auto query = prepare_hit_test_query();
+    if (!query.has_value())
         return {};
-    return hit_test_display_list->caret_position_on_adjacent_line(node, offset, affinity, direction, inline_coordinate, scope);
+    return query->list().caret_position_on_adjacent_line(node, offset, affinity, direction, inline_coordinate, scope);
 }
 
 Optional<CSSPixels> Document::caret_line_block_coordinate(Node const& node, size_t offset, TextAffinity affinity)
 {
-    auto hit_test_display_list = ensure_hit_test_display_list();
-    if (!hit_test_display_list)
+    auto query = prepare_hit_test_query();
+    if (!query.has_value())
         return {};
-    return hit_test_display_list->caret_line_block_coordinate(node, offset, affinity);
+    return query->list().caret_line_block_coordinate(node, offset, affinity);
 }
 
 TraversalDecision Document::hit_test_all(CSSPixelPoint position, Function<TraversalDecision(Painting::HitTestResult)> const& callback)
 {
-    auto hit_test_display_list = ensure_hit_test_display_list();
-    if (!hit_test_display_list)
+    auto query = prepare_hit_test_query();
+    if (!query.has_value())
         return TraversalDecision::Continue;
-    return hit_test_display_list->hit_test_all(position, *this, page().client().device_pixels_per_css_pixel(), page().chrome_metrics(), callback);
+    return query->list().hit_test_all(position, *query, callback);
 }
 
 Unicode::Segmenter& Document::grapheme_segmenter() const
