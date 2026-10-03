@@ -1462,6 +1462,7 @@ impl LayoutNodeArena {
                 self.chunks_by_address
                     .insert(insertion_index, ChunkAddress { start, chunk_index });
                 self.chunks.push(chunk);
+                self.shape_writes.add_chunk(chunk_index);
             }
             self.slot_metadata.push(SlotMetadata::default());
             self.style_records.push(Cell::new(0));
@@ -1667,7 +1668,7 @@ impl LayoutNodeArena {
             .chunks
             .get(index / SLOTS_PER_CHUNK)
             .expect("invalid layout node arena slot ID")
-            .write_shape(index % SLOTS_PER_CHUNK, &self.shape_writes);
+            .write_shape(index / SLOTS_PER_CHUNK, index % SLOTS_PER_CHUNK, &self.shape_writes);
         assert_eq!(
             shape.slot_generation.get(),
             id.generation(),
@@ -1682,7 +1683,7 @@ impl LayoutNodeArena {
         &mut self,
     ) -> crate::cow_column::ColumnSnapshot<super::node_data::PaintNode, PUBLISHED_ROWS_PER_CHUNK> {
         self.tree_shape
-            .publish(&self.chunks, &self.style_records, &self.style_nodes)
+            .publish(&self.chunks, &self.style_records, &self.style_nodes, &self.shape_writes)
     }
 
     /// The shape of the node whose data `data` is, for writing.
@@ -5061,7 +5062,7 @@ impl LayoutNodeArena {
             .chunks
             .get_mut(index / SLOTS_PER_CHUNK)
             .expect("invalid layout node arena slot ID");
-        chunk.slot_mut(index % SLOTS_PER_CHUNK)
+        chunk.slot_mut(index / SLOTS_PER_CHUNK, index % SLOTS_PER_CHUNK, &self.shape_writes)
     }
 
     fn metadata(&self, index: u32) -> &SlotMetadata {
