@@ -873,6 +873,8 @@ bool CompositorState::try_present_frame_during_resize(Web::CompositorContextId c
     // Rasterize resize frames as soon as a backing store is available, so the previous size does not
     // remain visible for another display tick. prepare_frame() owns requeuing any blocked frame.
     present_frame(context_id, context, *pending_frame);
+    // The display tick does more than present frames, such as updating the video sinks that are painted.
+    vsync_scheduler_for_display(display_id_for_context(context)).schedule(display_refresh_rate_for_context(context));
     return true;
 }
 
