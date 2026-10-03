@@ -54,6 +54,10 @@ struct NavigationParams : GC::Cell {
     // AD-HOC: The agent cluster of the agent the UI process obtained for the new Document's window.
     Optional<u64> agent_cluster_id;
 
+    // AD-HOC: The group of the new top-level browsing context the UI process obtained for the new Document, when a
+    //         browsing context group switch gave it one.
+    Optional<u64> new_browsing_context_group_id;
+
     // null or an algorithm accepting a Document, once it has been created
     GC::Ptr<GC::Function<void(DOM::Document&)>> commit_early_hints { nullptr };
 

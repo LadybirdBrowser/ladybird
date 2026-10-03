@@ -371,7 +371,8 @@ void ConnectionFromClient::close_traversable_from_script(Web::PageId page_id, We
     auto page = this->page(page_id);
     if (!page.has_value())
         return;
-    auto source = page->page().navigable_with_id(source_navigable_id);
+    // The source is in another page of this process when it is in another tab.
+    auto source = Web::HTML::navigable_with_id_in_any_page(page->page(), source_navigable_id);
     if (!source)
         return;
     if (auto* traversable = as_if<Web::HTML::LocalTraversableNavigable>(page->page().navigable_with_id(navigable_id).ptr()))
@@ -405,7 +406,7 @@ void ConnectionFromClient::set_opener_of_navigable(Web::PageId page_id, Web::HTM
     if (!page.has_value())
         return;
     auto* navigable = as_if<Web::HTML::LocalNavigable>(page->page().navigable_with_id(navigable_id).ptr());
-    auto* opener = as_if<Web::HTML::RemoteNavigable>(page->page().navigable_with_id(opener_navigable_id).ptr());
+    auto opener = Web::HTML::navigable_with_id_in_any_page(page->page(), opener_navigable_id);
     if (!navigable || !navigable->active_browsing_context() || !opener)
         return;
     navigable->active_browsing_context()->set_opener_browsing_context(*opener);

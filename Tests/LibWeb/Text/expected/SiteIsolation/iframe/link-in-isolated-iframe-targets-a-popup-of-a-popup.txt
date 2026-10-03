@@ -1,0 +1,2 @@
+the second popup loaded
+the second popup was navigated by the link

@@ -305,7 +305,7 @@ bool WebContentPage::continue_navigation_population_in_selected_process(Web::HTM
     if (response_document.has_value()) {
         auto const& request = navigable->ongoing_navigation()->loader->request();
         auto document = navigable->create_and_initialize_a_document(*response_document);
-        navigable->ongoing_navigation()->loader->set_window(document->relevant_global_object());
+        navigable->ongoing_navigation()->loader->set_document(*document, *navigable);
         // NB: A navigation reconstructing a child navigable's history populates the entry it reconstructs.
         auto const& reconstructed_entry = navigable->ongoing_navigation()->reconstructed_entry;
         auto document_state = reconstructed_entry ? reconstructed_entry->document_state : CanonicalDocumentState::create(request.history_entry.document_state.id);
@@ -670,8 +670,9 @@ void WebContentPage::did_request_window_focus_of_navigable(Web::HTML::CrossProce
 void WebContentPage::did_request_set_opener_of_navigable(Web::HTML::CrossProcessId navigable_id, Web::HTML::CrossProcessId opener_navigable_id)
 {
     // window.open() on a navigable another process hosts sets the opener of its active browsing context there, to that
-    // of a navigable the requesting page hosts.
-    if (!hosted_navigable(opener_navigable_id).has_value())
+    // of a navigable the requesting process hosts. The request comes through the page holding the target's tab, which
+    // is not the opener's when the two are different tabs.
+    if (!client().hosted_navigable(opener_navigable_id).has_value())
         return;
 
     auto endpoint = endpoint_hosting_navigable_represented_by(navigable_id);
@@ -1494,8 +1495,9 @@ void WebContentPage::did_request_close_of_traversable(Web::HTML::CrossProcessId 
     if (traversable().id() != navigable_id)
         return;
 
-    // The page closing it must host the navigable it closes from.
-    if (!hosted_navigable(source_navigable_id).has_value())
+    // The process closing it must host the navigable it closes from. The request comes through the page holding the
+    // traversable's tab, which is not the source's when the two are different tabs.
+    if (!client().hosted_navigable(source_navigable_id).has_value())
         return;
 
     auto endpoint = endpoint_hosting_navigable_represented_by(navigable_id);

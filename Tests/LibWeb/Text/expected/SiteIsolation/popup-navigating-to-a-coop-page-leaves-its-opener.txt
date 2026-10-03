@@ -1,0 +1,3 @@
+arrived
+popup.closed before the navigation: false
+popup.closed after the navigation: true

@@ -260,15 +260,42 @@ BrowsingContext::BrowsingContext(GC::Ref<Page> page)
 
 BrowsingContext::~BrowsingContext() = default;
 
+GC::Ptr<WindowProxy> BrowsingContext::opener_browsing_context_window_proxy() const
+{
+    if (!opener_navigable())
+        return nullptr;
+    return m_opener_browsing_context_window_proxy;
+}
+
+Optional<CrossProcessId> BrowsingContext::opener_navigable_id() const
+{
+    if (auto navigable = opener_navigable())
+        return navigable->id();
+    return {};
+}
+
+GC::Ptr<Navigable> BrowsingContext::opener_navigable() const
+{
+    if (!m_opener_browsing_context_window_proxy)
+        return nullptr;
+    auto navigable = m_opener_browsing_context_window_proxy->navigable();
+    if (!navigable || navigable->has_been_destroyed())
+        return nullptr;
+    return navigable;
+}
+
 void BrowsingContext::set_opener_browsing_context(GC::Ptr<BrowsingContext> opener)
 {
     m_opener_browsing_context_window_proxy = opener ? opener->window_proxy() : nullptr;
 }
 
 // NB: The browsing context active in a navigable another process hosts is there, and its WindowProxy stands for it.
-void BrowsingContext::set_opener_browsing_context(RemoteNavigable& navigable)
+void BrowsingContext::set_opener_browsing_context(Navigable& navigable)
 {
-    m_opener_browsing_context_window_proxy = navigable.active_window_proxy();
+    if (auto* remote_navigable = as_if<RemoteNavigable>(navigable))
+        m_opener_browsing_context_window_proxy = remote_navigable->active_window_proxy_in_realm_of(*m_window_proxy->window());
+    else
+        m_opener_browsing_context_window_proxy = navigable.active_window_proxy();
 }
 
 void BrowsingContext::visit_edges(Cell::Visitor& visitor)

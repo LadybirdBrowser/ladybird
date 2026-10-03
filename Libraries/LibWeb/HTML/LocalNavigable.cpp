@@ -95,6 +95,7 @@
 #include <LibWeb/WebIDL/Promise.h>
 #include <LibWeb/XHR/FormData.h>
 #include <LibWebCommon/CSS/SystemColor.h>
+#include <LibWebCommon/HTML/CrossOrigin/OpenerPolicyEnforcement.h>
 #include <LibWebCommon/HTML/HistoryHandlingBehavior.h>
 #include <LibWebCommon/HTML/NavigationPopulationRequest.h>
 #include <LibWebCommon/HTML/POSTResource.h>
@@ -1448,20 +1449,12 @@ OpenerPolicy const& LocalNavigable::active_document_opener_policy() const
     return m_active_document->opener_policy();
 }
 
-static Optional<CrossProcessId> navigable_id_of(GC::Ptr<WindowProxy> window_proxy)
-{
-    if (!window_proxy)
-        return {};
-    if (auto navigable = window_proxy->navigable())
-        return navigable->id();
-    return {};
-}
-
 ReplicatedNavigableState LocalNavigable::replicated_state() const
 {
     VERIFY(m_active_document);
     VERIFY(m_active_session_history_entry);
     auto& settings = relevant_settings_object(*m_active_document);
+    auto const& browsing_context = *m_active_document->browsing_context();
     return {
         .target_name = target_name(),
         .active_document_url = m_active_document->url(),
@@ -1473,8 +1466,7 @@ ReplicatedNavigableState LocalNavigable::replicated_state() const
         .browsing_context_group_id = browsing_context_group_id(),
         .opener_policy = m_active_document->opener_policy(),
         .active_browsing_context_is_auxiliary = active_browsing_context_is_auxiliary(),
-        .active_browsing_context_has_opener = active_browsing_context_opener_window_proxy() != nullptr,
-        .opener_navigable_id = navigable_id_of(active_browsing_context_opener_window_proxy()),
+        .opener_navigable_id = browsing_context.opener_navigable_id(),
         .active_document_is_completely_loaded = m_active_document->is_completely_loaded(),
         .is_closing = m_closing,
         .container = container_state(),
@@ -1489,11 +1481,11 @@ bool LocalNavigable::active_browsing_context_is_auxiliary() const
     return m_active_document && m_active_document->browsing_context() && m_active_document->browsing_context()->is_auxiliary();
 }
 
-GC::Ptr<WindowProxy> LocalNavigable::active_browsing_context_opener_window_proxy() const
+GC::Ptr<Navigable> LocalNavigable::active_browsing_context_opener_navigable() const
 {
     if (!m_active_document || !m_active_document->browsing_context())
         return nullptr;
-    return m_active_document->browsing_context()->opener_browsing_context_window_proxy();
+    return m_active_document->browsing_context()->opener_navigable();
 }
 
 ReplicatedContainerState LocalNavigable::container_state() const
@@ -1542,7 +1534,7 @@ void LocalNavigable::report_hosted_state()
 // The opener browsing context is reported as the navigable it is active in.
 void LocalNavigable::report_opener_browsing_context()
 {
-    page().client().page_did_set_opener_browsing_context(id(), navigable_id_of(active_browsing_context_opener_window_proxy()));
+    page().client().page_did_set_opener_browsing_context(id(), active_browsing_context()->opener_navigable_id());
 }
 
 // A container in another process reads what it asks of its content navigable from the replicated state.
@@ -2015,10 +2007,8 @@ bool LocalNavigable::is_familiar_with(Navigable& other)
 
     // 3. If B is an auxiliary browsing context and A is familiar with B's opener browsing context, then return true.
     if (B.active_browsing_context_is_auxiliary()) {
-        if (auto opener = B.active_browsing_context_opener_window_proxy()) {
-            if (auto opener_navigable = opener->navigable(); opener_navigable && A.is_familiar_with(*opener_navigable))
-                return true;
-        }
+        if (auto opener_navigable = B.active_browsing_context_opener_navigable(); opener_navigable && A.is_familiar_with(*opener_navigable))
+            return true;
     }
 
     // 4. If there exists an ancestor browsing context of B whose active document has the same origin as the active document of A, then return true.
@@ -2455,16 +2445,27 @@ static void perform_navigation_params_fetch(JS::Realm& realm, GC::Ref<Navigation
         state_holder->response_origin = determine_the_origin(state_holder->response->url(), state_holder->final_sandbox_flags, state_holder->initiator_origin);
 
         // 12. If navigable is a top-level traversable, then:
-        if (state_holder->navigable->is_top_level_traversable()) {
+        // AD-HOC: Skip a network error, which may have no URL to enforce an opener policy with. This algorithm returns
+        //         null for it, so the enforcement result would go unused.
+        if (!state_holder->response->is_network_error() && state_holder->navigable->is_top_level_traversable()) {
             // 1. Set responseCOOP to the result of obtaining an opener policy given response and request's reserved client.
             state_holder->response_coop = obtain_an_opener_policy(*state_holder->response, state_holder->request->reserved_client());
 
-            // FIXME: 2. Set coopEnforcementResult to the result of enforcing the response's opener policy given navigable's active browsing context,
+            // 2. Set coopEnforcementResult to the result of enforcing the response's opener policy given navigable's active browsing context,
             //    response's URL, responseOrigin, responseCOOP, coopEnforcementResult and request's referrer.
+            auto const& active_document = *state_holder->navigable->active_document();
+            state_holder->coop_enforcement_result = enforce_a_responses_opener_policy(active_document.is_initial_about_blank(), state_holder->response->url().value(), *state_holder->response_origin, state_holder->response_coop, state_holder->coop_enforcement_result);
 
-            // FIXME: 3. If finalSandboxFlags is not empty and responseCOOP's value is not "unsafe-none", then set response to an appropriate network error and break.
+            // 3. If finalSandboxFlags is not empty and responseCOOP's value is not "unsafe-none", then set response to an appropriate network error and break.
             // NOTE: This results in a network error as one cannot simultaneously provide a clean slate to a response
             //       using opener policy and sandbox the result of navigating to that response.
+            if (state_holder->final_sandbox_flags != SandboxingFlagSet {} && state_holder->response_coop.value != OpenerPolicyValue::UnsafeNone) {
+                // AD-HOC: Stop the fetch, as nothing will consume the response this replaces.
+                state_holder->fetch_controller->stop_fetch();
+                state_holder->response = Fetch::Infrastructure::Response::network_error(realm.vm(), "Opener policy on a sandboxed navigation response"_string);
+                fetch_completion_steps->function()();
+                return;
+            }
         }
 
         // 13. FIXME: If response is not a network error, navigable is a child navigable, and the result of performing a cross-origin resource policy check
@@ -3580,8 +3581,12 @@ void LocalNavigable::deliver_posted_message_from_another_process(PostedMessageDe
     //     posting to its opener's tab, or the other way round, posts from a tab another page of this process holds.
     GC::Ptr<WindowProxy> source;
     if (message.source_navigable_id.has_value()) {
-        if (auto source_navigable = navigable_with_id_in_any_page(page(), *message.source_navigable_id))
-            source = source_navigable->active_window_proxy();
+        if (auto source_navigable = navigable_with_id_in_any_page(page(), *message.source_navigable_id)) {
+            if (auto* remote_source_navigable = as_if<RemoteNavigable>(*source_navigable))
+                source = remote_source_navigable->active_window_proxy_in_realm_of(*window);
+            else
+                source = source_navigable->active_window_proxy();
+        }
     }
 
     // 8. Queue a global task on the posted message task source given targetWindow to run the following steps:

@@ -53,6 +53,7 @@ public:
     Vector<GC::Root<Navigable>> document_tree_child_navigables();
 
     virtual GC::Ptr<WindowProxy> active_window_proxy() override;
+    GC::Ref<WindowProxy> active_window_proxy_in_realm_of(Window&);
     GC::Ref<RemoteWindow> active_window();
     virtual Utf16String const& target_name() const override { return m_replicated_state.target_name; }
     virtual Optional<u64> browsing_context_group_id() const override { return m_replicated_state.browsing_context_group_id; }
@@ -71,7 +72,8 @@ public:
     virtual bool active_document_has_cross_site_ancestor() const override { return m_replicated_state.has_cross_site_ancestor; }
     virtual OpenerPolicy const& active_document_opener_policy() const override { return m_replicated_state.opener_policy; }
     virtual bool active_browsing_context_is_auxiliary() const override { return m_replicated_state.active_browsing_context_is_auxiliary; }
-    virtual GC::Ptr<WindowProxy> active_browsing_context_opener_window_proxy() const override;
+    GC::Ptr<WindowProxy> active_browsing_context_opener_window_proxy() const;
+    virtual GC::Ptr<Navigable> active_browsing_context_opener_navigable() const override;
     virtual ReplicatedContainerState container_state() const override;
 
     virtual bool has_session_history_entry_and_ready_for_navigation() const override;
@@ -94,8 +96,6 @@ private:
     // https://html.spec.whatwg.org/multipage/document-sequences.html#nav-wp
     GC::Ptr<WindowProxy> m_window_proxy;
     GC::Ptr<RemoteWindow> m_active_window;
-
-    mutable GC::Ptr<WindowProxy> m_active_browsing_context_opener_window_proxy;
 
     GC::Ptr<LocalNavigable> m_provisional_navigable;
 

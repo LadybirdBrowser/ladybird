@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    iframe {
+        display: block;
+        width: 200px;
+        height: 100px;
+        border: 0;
+    }
+</style>
+<script>
+    // A click on a link in an isolated iframe targets a popup opened by the top-level's popup. The iframe is familiar
+    // with that popup through its opener, the top-level's popup, which the iframe's process holds only in a page hosting
+    // none of its documents.
+    promiseTest(async () => {
+        const httpServer = httpTestServer();
+        const runId = crypto.randomUUID();
+
+        const navigatedUrl = new URL(
+            await httpServer.createEcho("GET", `/oop-link-target-navigated-${runId}`, {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<!DOCTYPE html><script>opener.postMessage("the second popup was navigated by the link", "*"); window.close();<\/script>`,
+            })
+        );
+        navigatedUrl.hostname = uniqueLocalhostHostname("oop-link-target-navigated");
+
+        const secondPopupUrl = new URL(
+            await httpServer.createEcho("GET", `/oop-link-target-second-popup-${runId}`, {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<!DOCTYPE html><script>opener.postMessage("the second popup loaded", "*");<\/script>`,
+            })
+        );
+        secondPopupUrl.hostname = uniqueLocalhostHostname("oop-link-target-second-popup");
+
+        const firstPopupUrl = new URL(
+            await httpServer.createEcho("GET", `/oop-link-target-first-popup-${runId}`, {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<!DOCTYPE html><script>
+                    addEventListener("message", event => opener.postMessage(event.data, "*"));
+                    window.open(${JSON.stringify(secondPopupUrl.href)}, "second-popup");
+                <\/script>`,
+            })
+        );
+        firstPopupUrl.hostname = uniqueLocalhostHostname("oop-link-target-first-popup");
+
+        const iframeUrl = new URL(
+            await httpServer.createEcho("GET", `/oop-link-target-iframe-${runId}`, {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<!DOCTYPE html><style>body { margin: 0; } a { display: block; width: 200px; height: 100px; }</style>
+                    <a target="second-popup" href="${navigatedUrl.href}">link</a>
+                    <script>parent.postMessage("ready", "*");<\/script>`,
+            })
+        );
+        iframeUrl.hostname = uniqueLocalhostHostname("oop-link-target-iframe");
+
+        const nextMessage = () => new Promise(resolve => addEventListener("message", event => resolve(event.data), { once: true }));
+
+        const ready = nextMessage();
+        const iframe = document.createElement("iframe");
+        iframe.src = iframeUrl;
+        document.body.appendChild(iframe);
+        await ready;
+
+        const secondPopupLoaded = nextMessage();
+        const firstPopup = window.open(firstPopupUrl);
+        println(await secondPopupLoaded);
+
+        const navigated = nextMessage();
+        const rect = iframe.getBoundingClientRect();
+        internals.clickThroughUIProcess(rect.left + 30, rect.top + 20);
+        println(await navigated);
+        firstPopup.close();
+    });
+</script>

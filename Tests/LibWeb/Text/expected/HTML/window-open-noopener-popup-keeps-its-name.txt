@@ -1,0 +1,2 @@
+name after the first navigation: "plain-popup"
+name after a browsing context group switch: ""

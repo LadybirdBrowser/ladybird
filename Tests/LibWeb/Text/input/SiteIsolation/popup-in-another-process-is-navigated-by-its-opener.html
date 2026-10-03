@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A popup in another process than its opener is navigated by setting its location from the opener.
+    promiseTest(async () => {
+        const httpServer = httpTestServer();
+        const runId = crypto.randomUUID();
+        const nextMessage = () => new Promise(resolve => addEventListener("message", event => resolve(event.data), { once: true }));
+
+        // A popup's first navigation from this file keeps the opener's process, so it moves on to another site.
+        const crossSiteUrl = async (name, body) => {
+            const url = new URL(await httpServer.createEcho("GET", `/${name}-${runId}`, {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<!DOCTYPE html><script>${body}<\/script>`,
+            }));
+            url.hostname = uniqueLocalhostHostname(name);
+            return url.href;
+        };
+        const popupUrlMovingTo = async (name, url) => httpServer.createEcho("GET", `/${name}-${runId}`, {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: `<!DOCTYPE html><script>location.href = ${JSON.stringify(url)};<\/script>`,
+        });
+
+        const arrived = nextMessage();
+        const popup = window.open(await popupUrlMovingTo("navigate-first", await crossSiteUrl("navigate-cross-site", `opener.postMessage("arrived", "*");`)));
+        println(await arrived);
+        const navigated = nextMessage();
+        popup.location = await crossSiteUrl("navigate-target", `opener.postMessage("navigated by its opener", "*");`);
+        println(await navigated);
+        popup.close();
+    });
+</script>

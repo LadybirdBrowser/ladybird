@@ -123,6 +123,7 @@ struct NavigationParamsDescriptor {
     Optional<URL::URL> about_base_url;
     UserNavigationInvolvement user_involvement { UserNavigationInvolvement::None };
     Optional<u64> agent_cluster_id;
+    Optional<u64> new_browsing_context_group_id;
 };
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#non-fetch-scheme-navigation-params

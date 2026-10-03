@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A popup opened with noopener starts on an initial about:blank whose origin is opaque. Its first navigation keeps
+    // the name it was opened with, unless an opener policy switches its browsing context group.
+    promiseTest(async () => {
+        const httpServer = httpTestServer();
+        const runId = crypto.randomUUID();
+        const channelName = `noopener-name-${runId}`;
+        const channel = new BroadcastChannel(channelName);
+        const nextName = () => new Promise(resolve => channel.addEventListener("message", event => resolve(event.data), { once: true }));
+        const pageUrl = (label, headers) => httpServer.createEcho("GET", `/${label}-${runId}`, {
+            status: 200,
+            headers: { "Content-Type": "text/html", ...headers },
+            body: `<!DOCTYPE html><script>
+                const channel = new BroadcastChannel(${JSON.stringify(channelName)});
+                channel.onmessage = event => { if (event.data === "close") window.close(); };
+                channel.postMessage(window.name);
+            <\/script>`,
+        });
+
+        let name = nextName();
+        window.open(await pageUrl("plain", {}), "plain-popup", "noopener");
+        println(`name after the first navigation: "${await name}"`);
+
+        name = nextName();
+        window.open(await pageUrl("coop", { "Cross-Origin-Opener-Policy": "same-origin" }), "coop-popup", "noopener");
+        println(`name after a browsing context group switch: "${await name}"`);
+
+        channel.postMessage("close");
+    });
+</script>

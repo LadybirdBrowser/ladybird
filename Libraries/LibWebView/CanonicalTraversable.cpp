@@ -309,6 +309,22 @@ void CanonicalTraversable::represent_group_everywhere()
         represent_group_in(*client);
 }
 
+void CanonicalTraversable::did_switch_browsing_context_group()
+{
+    for (auto& page : Vector { m_representing_pages })
+        release_page_if_unused(page);
+
+    Vector<NonnullRefPtr<WebContentClient>> clients;
+    for_each_hosting_page([&](WebContentPage& page) {
+        if (!any_of(clients, [&](auto const& client) { return client.ptr() == &page.client(); }))
+            clients.append(page.client());
+    });
+    for (auto& client : clients)
+        client->release_unneeded_representing_pages();
+
+    represent_group_everywhere();
+}
+
 void CanonicalTraversable::forget_representing_page(WebContentPage& page)
 {
     m_representing_pages.remove_all_matching([&](auto const& representing_page) { return representing_page.ptr() == &page; });
@@ -392,11 +408,15 @@ void CanonicalTraversable::release_page_if_unused(NonnullRefPtr<WebContentPage> 
 {
     if (page_hosts_any(page))
         return;
-    if (is_representing_page(page)) {
-        if (page->client().holds_part_of_a_tab_in_the_group_of(*this))
-            return;
-        forget_representing_page(page);
+    // A page left hosting none of the tab's documents goes on representing the tab to a process holding part of
+    // another tab of its group, whose documents can hold the tab's WindowProxies.
+    if (page->client().holds_part_of_a_tab_in_the_group_of(*this)) {
+        if (!is_representing_page(page))
+            m_representing_pages.append(page);
+        return;
     }
+    if (is_representing_page(page))
+        forget_representing_page(page);
     page->discard();
     did_lose_page(page, WebContentProcessLost::No);
 }
@@ -469,6 +489,7 @@ ErrorOr<NonnullRefPtr<WebContentPage>> CanonicalTraversable::obtain_page_to_host
         represent_group_in(*host);
     }
     auto& page = *host->page(page_id);
+    give_stand_in_its_opener(page);
     view->prepare_page_for_tab(page);
     return page;
 }
@@ -588,6 +609,15 @@ void CanonicalTraversable::stand_in_for_lost_document(CanonicalNavigable& naviga
     if (!current_entry)
         return;
     reporting_page->async_begin_hosting_navigable(navigable.id(), current_entry->descriptor(), system_visibility_state());
+    if (&navigable == this)
+        give_stand_in_its_opener(*reporting_page);
+}
+
+// The page's process holds the opener's tab once it represents the tab's group.
+void CanonicalTraversable::give_stand_in_its_opener(WebContentPage& page)
+{
+    if (auto state = replicated_state(); state.has_value() && state->opener_navigable_id.has_value())
+        page.async_set_opener_of_navigable(id(), *state->opener_navigable_id);
 }
 
 // https://html.spec.whatwg.org/multipage/document-lifecycle.html#destroy-a-document-and-its-descendants
@@ -1450,7 +1480,7 @@ void CanonicalTraversable::continue_history_navigation_population(Web::HTML::Cro
         pending_job.value()->did_populate_document = CanonicalNavigable::DidPopulateDocument::Yes;
         auto document = navigable->create_and_initialize_a_document(*response_document);
         pending_job.value()->document = document;
-        loader->set_window(document->relevant_global_object());
+        loader->set_document(*document, *navigable);
         navigable->populate_document(pending_job.value()->job.target_entry->document_state, *document, loader->result().inline_content_origin);
 
         // A document created for inline content stands in for the resource the process that fetched it could not
@@ -2543,14 +2573,16 @@ void CanonicalTraversable::finalize_a_cross_document_navigation(HistoryOperation
         }
 
         // 8. Assert: initiatorOrigin is newDocument's origin.
-        // NB: The UI process creates its newDocument with initiatorOrigin.
+        // NB: The UI process creates its newDocument with initiatorOrigin, and with the opener policy evaluating a
+        //     javascript: URL gives it: targetNavigable's active document's opener policy.
+        auto const& coop = navigable->active_document().opener_policy();
         NavigationLoader::ResponseDocument response_document {
             .is_inline_content = false,
-            .coop_enforcement_result = { .url = history_entry->url, .origin = *initiator_origin, .opener_policy = {} },
+            .coop_enforcement_result = { .url = history_entry->url, .origin = *initiator_origin, .opener_policy = coop },
             .response_url = history_entry->url,
             .request_current_url = {},
             .origin = *initiator_origin,
-            .opener_policy = {},
+            .opener_policy = coop,
             .environment_id = parameters.environment_id,
         };
 
@@ -2589,10 +2621,14 @@ void CanonicalTraversable::finalize_a_cross_document_navigation(HistoryOperation
     //      context is non-null; and
     //    - historyEntry's document's origin is not navigable's active document's origin,
     //    then set historyEntry's document state's navigable target name to the empty string.
+    // AD-HOC: Don't clear the name when leaving an initial about:blank in the same browsing context. A noopener popup's
+    //         initial about:blank has an opaque origin, so its first navigation would always lose the name it was
+    //         opened with.
     auto& browsing_context = document->browsing_context();
     if (navigable->parent() == nullptr
         && !(browsing_context.is_auxiliary() && browsing_context.opener_browsing_context())
-        && document->origin() != navigable->active_document().origin()) {
+        && document->origin() != navigable->active_document().origin()
+        && (!navigable->active_document().is_initial_about_blank() || &browsing_context != &navigable->active_browsing_context())) {
         history_entry->document_state->navigable_target_name = {};
     }
 

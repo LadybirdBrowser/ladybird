@@ -814,7 +814,10 @@ GC::Ref<HTML::LocalNavigable> Page::begin_hosting(HTML::CrossProcessId id, HTML:
     // displays the tab through it until the document it populates activates, or the stand-in is discarded.
     if (!navigable->parent()) {
         auto stand_in = HTML::LocalTraversableNavigable::create_stand_in({}, *navigable, current_history_entry);
-        stand_in->active_browsing_context()->set_browsing_context_group_id(navigable->replicated_state().browsing_context_group_id);
+        auto const& replicated_state = navigable->replicated_state();
+        auto& browsing_context = *stand_in->active_browsing_context();
+        browsing_context.set_browsing_context_group_id(replicated_state.browsing_context_group_id);
+        browsing_context.set_is_auxiliary(replicated_state.active_browsing_context_is_auxiliary);
         VERIFY(m_top_level_traversable.ptr() == navigable.ptr());
         m_top_level_traversable = stand_in;
         update_needs_beforeunload_check();
@@ -994,6 +997,18 @@ void Page::discard()
             document->destroy_a_document_and_its_descendants();
         navigable->set_has_been_destroyed();
         navigable->remove_from_all_local_navigables();
+    }
+
+    // The navigables of other processes this page held no longer stand for anything here, and a WindowProxy a script
+    // of another page holds for one of them is closed.
+    Vector<GC::Ref<HTML::RemoteNavigable>> remote_navigables;
+    for (auto& remote_navigable : HTML::all_remote_navigables()) {
+        if (&remote_navigable->page() == this)
+            remote_navigables.append(remote_navigable);
+    }
+    for (auto& remote_navigable : remote_navigables) {
+        remote_navigable->set_has_been_destroyed();
+        remote_navigable->remove_from_all_remote_navigables();
     }
     client().page_did_close();
 }

@@ -299,6 +299,7 @@ void WebContentClient::discard_page_of_undisplayed_top_level_traversable(Web::Pa
 {
     if (auto page = m_pages.take(page_id); page.has_value())
         page.value()->close();
+    release_unneeded_representing_pages();
 }
 
 void WebContentClient::unregister_view(Web::PageId page_id)
@@ -368,7 +369,7 @@ bool WebContentClient::holds_part_of_a_tab_in_the_group_of(CanonicalTraversable 
         if (!page->is_open())
             continue;
         auto const& held = page->traversable();
-        if (!page->displays_tab() && held.is_representing_page(*page) && !held.page_hosts_any(*page))
+        if (!page->displays_tab() && !held.page_hosts_any(*page))
             continue;
         if (held.active_browsing_context().group() == group)
             return true;
