@@ -30,11 +30,16 @@ struct InterfaceObjectMetadata {
     Utf16View utf16_namespaced_name;
     EnsurePrototypeFunction ensure_parent_prototype { nullptr };
     EnsureConstructorFunction ensure_parent_constructor { nullptr };
+    // The value of the constructor's "prototype" property, when it is not the prototype registered under
+    // namespaced_name. A legacy factory function's is the prototype of the interface it constructs.
+    EnsurePrototypeFunction ensure_interface_prototype_object { nullptr };
     InitializeConstructorFunction initialize_constructor { nullptr };
     InitializePrototypeFunction initialize_prototype { nullptr };
     DefineUnforgeableAttributesFunction define_unforgeable_attributes { nullptr };
     ConstructFunction construct { nullptr };
+    i32 function_length { 0 };
     bool has_immutable_prototype { false };
+    bool is_legacy_factory_function { false };
 };
 
 class WEB_API InterfacePrototypeObject final : public JS::Object {
