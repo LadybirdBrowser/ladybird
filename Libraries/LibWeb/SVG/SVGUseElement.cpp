@@ -300,6 +300,9 @@ void SVGUseElement::fetch_the_document(URL::URL const& url)
         },
         [this] {
             m_load_event_delayer.clear();
+        },
+        [this] {
+            m_load_event_delayer.clear();
         });
 
     if (m_resource_request->needs_fetching()) {

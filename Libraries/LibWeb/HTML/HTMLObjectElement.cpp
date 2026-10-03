@@ -542,6 +542,9 @@ void HTMLObjectElement::load_image()
         [this] {
             run_object_representation_fallback_steps();
             m_document_load_event_delayer_for_resource_load.take_last();
+        },
+        [this] {
+            m_document_load_event_delayer_for_resource_load.take_last();
         });
 
     if (m_resource_request->needs_fetching()) {

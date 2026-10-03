@@ -1244,6 +1244,9 @@ void HTMLImageElement::add_callbacks_to_image_request(GC::Ref<ImageRequest> imag
                 dispatch_event(create_event_for_element(*this, HTML::EventNames::error));
 
             m_load_event_delayer.clear();
+        },
+        [this] {
+            m_load_event_delayer.clear();
         });
 }
 

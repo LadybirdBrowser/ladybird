@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const server = httpTestServer();
+        const token = `window-stop-releases-image-load-delay-${crypto.randomUUID()}`;
+        const imageURL = await server.createEcho("GET", `/${token}.svg`, {
+            status: 200,
+            headers: {
+                "Content-Type": "image/svg+xml",
+                "Cache-Control": "no-store",
+            },
+            body: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"/>',
+            wait_for_unblock: token,
+        });
+
+        const iframe = document.createElement("iframe");
+        const parsed = new Promise(resolve => (window.iframeParsed = resolve));
+        iframe.srcdoc = `<img src="${imageURL}"><script>addEventListener("DOMContentLoaded", parent.iframeParsed)<\/script>`;
+        document.body.appendChild(iframe);
+        await parsed;
+
+        const iframeDocument = iframe.contentDocument;
+        iframe.contentWindow.stop();
+
+        await fetch(new URL(`/unblock/${token}`, imageURL));
+
+        const replacementLoad = new Promise(resolve => iframe.addEventListener("load", resolve, { once: true }));
+        iframeDocument.open();
+        iframeDocument.write(`<img src="${imageURL}" onload="parent.println('Replacement image: load')">`);
+        iframeDocument.close();
+        await replacementLoad;
+        println("Replacement document loaded");
+    });
+</script>

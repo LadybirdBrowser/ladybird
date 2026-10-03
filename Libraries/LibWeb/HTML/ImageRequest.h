@@ -57,7 +57,7 @@ public:
     void prepare_for_presentation(HTMLImageElement&);
 
     void fetch_image(GC::Ref<Fetch::Infrastructure::Request>);
-    void add_callbacks(Function<void()> on_finish, Function<void()> on_fail);
+    void add_callbacks(Function<void()> on_finish, Function<void()> on_fail, Function<void()> on_stop = {});
 
     GC::Ptr<SharedResourceRequest const> shared_resource_request() const { return m_shared_resource_request; }
 
