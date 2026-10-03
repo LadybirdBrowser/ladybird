@@ -932,13 +932,13 @@ bool StyleEngine::defer_pending_transaction_for_geometry_read()
 {
     submit_recorded_input();
     m_geometry_read_deferred_transaction = true;
-    return StyleEngineFFI::style_engine_defer_pending_transaction_for_geometry_read(m_impl);
+    return StyleEngineFFI::style_engine_defer_pending_transaction_for_geometry_read(m_render_document->host());
 }
 
 bool StyleEngine::begin_deferred_geometry_transaction_flush()
 {
     submit_recorded_input();
-    return StyleEngineFFI::style_engine_begin_deferred_geometry_transaction_flush(m_impl);
+    return StyleEngineFFI::style_engine_begin_deferred_geometry_transaction_flush(m_render_document->host());
 }
 
 void StyleEngine::end_deferred_geometry_transaction_flush()
