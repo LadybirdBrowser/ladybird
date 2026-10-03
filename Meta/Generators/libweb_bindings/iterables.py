@@ -526,11 +526,12 @@ JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::for_each)
     auto this_arg = vm.argument(1);
 
     // 6. For each key → value of map:
-    for (auto [key, value] : *map) {{
+    TRY(map->for_each_entry([&](JS::Value key, JS::Value value) -> JS::ThrowCompletionOr<void> {{
         // 1. Let jsKey and jsValue be key and value converted to a JavaScript value.
         // 2. Perform ? Call(callbackFn, thisArg, « jsValue, jsKey, O »).
         TRY(JS::call(vm, callback.as_function(), this_arg, value, key, this_value));
-    }}
+        return {{}};
+    }}));
 
     // 7. Return undefined.
     return JS::js_undefined();
@@ -783,12 +784,13 @@ JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::for_each)
     auto this_arg = vm.argument(1);
 
     // 6. For each value of set:
-    for (auto value : *set) {{
+    TRY(set->for_each_value([&](JS::Value value) -> JS::ThrowCompletionOr<void> {{
         // 1. Let jsValue be value converted to a JavaScript value.
 
         // 2. Perform ? Call(callbackFn, thisArg, « jsValue, jsValue, O»).
         TRY(JS::call(vm, callback.as_function(), this_arg, value, value, this_value));
-    }}
+        return {{}};
+    }}));
 
     // 7. Return undefined.
     return JS::js_undefined();

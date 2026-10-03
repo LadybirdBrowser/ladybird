@@ -21,6 +21,13 @@ Map::Map(Object& prototype)
 {
 }
 
+ThrowCompletionOr<void> Map::for_each_entry(Function<ThrowCompletionOr<void>(Value key, Value value)> const& callback) const
+{
+    for (auto [key, value] : *this)
+        TRY(callback(key, value));
+    return {};
+}
+
 // 24.1.3.1 Map.prototype.clear ( ), https://tc39.es/ecma262/#sec-map.prototype.clear
 void Map::map_clear()
 {
