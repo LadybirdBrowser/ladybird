@@ -7,7 +7,10 @@
 #include <AK/Debug.h>
 #include <LibGC/Heap.h>
 #include <LibWeb/Bindings/MessagePort.h>
+#include <LibWeb/DOM/Document.h>
+#include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/MessagePort.h>
+#include <LibWeb/HTML/Navigable.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/WindowEnvironmentSettingsObject.h>
 #include <LibWeb/HTML/SharedWorker.h>
@@ -60,6 +63,13 @@ WebIDL::ExceptionOr<GC::Ref<Worker>> Worker::create(WindowOrWorkerGlobalScopeMix
 
     // 2. Let outsideSettings be this's relevant settings object.
     auto& outside_settings = HTML::relevant_settings_object(global_scope);
+
+    // AD-HOC: A detached Window cannot own a new worker agent.
+    if (auto document = outside_settings.responsible_document()) {
+        auto navigable = document->navigable();
+        if (!navigable || navigable->has_been_destroyed() || !document->is_fully_active())
+            return WebIDL::InvalidStateError::create("Document is not fully active"_utf16);
+    }
 
     // 3. Let workerURL be the result of encoding-parsing a URL given compliantScriptURL, relative to outsideSettings.
     auto worker_url = outside_settings.encoding_parse_url(compliant_script_url.utf16_view());
