@@ -114,6 +114,15 @@ impl ArenaChange {
         }
     }
 
+    /// Whether applying the change can alter what a published row is, or the row a node is bound to, which only a
+    /// change that alters the published rows can.
+    fn alters_published_identities(&self) -> bool {
+        match self {
+            Self::Layout(change) => change.alters_published_identities(),
+            Self::Paint(_) | Self::Style(_) | Self::Engine(_) => false,
+        }
+    }
+
     /// # Safety
     ///
     /// `engine` must name the live style engine `arena` links, which nothing else borrows meanwhile.
@@ -381,6 +390,49 @@ mod tests {
             .free_subtree(row)
             .destroy_shells_and_invoke_callbacks(&crate::stage::MainThread::for_test());
         assert!(host.rows().is_none());
+        // SAFETY: The host is destroyed once, and nothing reaches it after.
+        unsafe { document_host::document_host_destroy(pointer) };
+    }
+
+    #[test]
+    fn a_style_write_leaves_what_the_rows_are_to_read_from_the_rows_the_host_has() {
+        use crate::layout::node_data::{NodeFlag, NodeKind, StylePayloadsRef};
+        let pointer = document_host::document_host_create(0);
+        // SAFETY: The host lives until it is destroyed below.
+        let host = unsafe { &*pointer };
+        // SAFETY: The arena lives as long as the host's render state, and nothing else reaches it meanwhile.
+        let arena =
+            unsafe { &mut *arena_for_unconverted_entry(host.document()).cast::<crate::layout::LayoutNodeArena>() };
+        let row = arena.allocate_for_test().slot;
+        arena.write_shape(row).set_kind(NodeKind::BlockContainer);
+        host.fresh_rows(ScriptForcedRead::for_test());
+
+        let shape = arena.write_shape(row);
+        shape.set_style(StylePayloadsRef::new(NonNull::dangling().as_ptr()));
+        shape.mark();
+        assert!(host.rows().is_none(), "a style write leaves the rows stale");
+        let identities = host.row_identities(ScriptForcedRead::for_test());
+        assert_eq!(identities.identity_flags(row), 0);
+        assert!(host.rows().is_none(), "reading what the rows are publishes none again");
+
+        arena.set_node_flag(row, NodeFlag::Anonymous, true);
+        assert_eq!(
+            host.row_identities(ScriptForcedRead::for_test()).identity_flags(row),
+            NodeFlag::Anonymous as u32
+        );
+        assert!(
+            host.rows().is_some(),
+            "a write of what a row is publishes the rows again"
+        );
+
+        arena
+            .free_subtree(row)
+            .destroy_shells_and_invoke_callbacks(&crate::stage::MainThread::for_test());
+        assert!(
+            host.row_identities(ScriptForcedRead::for_test())
+                .shell_facts(row)
+                .is_none()
+        );
         // SAFETY: The host is destroyed once, and nothing reaches it after.
         unsafe { document_host::document_host_destroy(pointer) };
     }

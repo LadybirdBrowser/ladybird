@@ -7,10 +7,12 @@
 //! What the host asks about the rows of its document's layout: what a layout node asks about its own row (its flags,
 //! links and style), the row a node is bound to, and the shape and paint facts of a row. The host answers from the rows
 //! the document's render state published, which it asks for again only after the host wrote them, so none of these
-//! reaches the arena.
+//! reaches the arena. What a row is and the row a node is bound to are read through [`RowIdentities`], which the host
+//! reads again only after a write that changed them: installing a style, which a style update does for every element
+//! it restyles, does not.
 
 use super::node_data::{CompositorAnimationFrameKind, FfiNodeLink, NodeSlotId};
-use super::row_reads::RowSnapshot;
+use super::row_reads::{RowIdentities, RowSnapshot};
 use crate::css::style::tree::StyleNodeID;
 use crate::painting::paint_read::{GeometryRead, PaintRead, PaintSource};
 use crate::render_state::{DocumentHost, LockstepProof};
@@ -36,6 +38,17 @@ unsafe fn rows(host: *mut DocumentHost) -> Rc<RowSnapshot> {
     unsafe { &*host }.fresh_rows(LockstepProof::for_reason(&HOST_READS_ITS_OWN_WRITE))
 }
 
+/// What each row of `host`'s document is, and the row each node is bound to, as of every write the host made.
+///
+/// # Safety
+///
+/// As for [`rows`].
+unsafe fn identities(host: *mut DocumentHost) -> RowIdentities {
+    assert!(!host.is_null(), "document host is null");
+    // SAFETY: Guaranteed by the caller.
+    unsafe { &*host }.row_identities(LockstepProof::for_reason(&HOST_READS_ITS_OWN_WRITE))
+}
+
 /// # Safety
 ///
 /// `host` must be a live document host, on its document's thread, and `id` the slot of a live row.
@@ -43,6 +56,18 @@ unsafe fn rows(host: *mut DocumentHost) -> Rc<RowSnapshot> {
 pub unsafe extern "C" fn layout_row_flags(host: *mut DocumentHost, id: NodeSlotId) -> u32 {
     // SAFETY: Guaranteed by the caller.
     unsafe { rows(host) }.flags(id)
+}
+
+/// The row's flags that say what node it stands for (see [`super::node_data::NodeFlag::IDENTITY`]); every other flag
+/// reads as unset.
+///
+/// # Safety
+///
+/// As for [`layout_row_flags`].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_row_identity_flags(host: *mut DocumentHost, id: NodeSlotId) -> u32 {
+    // SAFETY: Guaranteed by the caller.
+    unsafe { identities(host) }.identity_flags(id)
 }
 
 /// # Safety
@@ -81,7 +106,7 @@ pub unsafe extern "C" fn layout_row_link_shell(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_row_generated_for(host: *mut DocumentHost, id: NodeSlotId) -> u8 {
     // SAFETY: Guaranteed by the caller.
-    unsafe { rows(host) }.generated_for(id)
+    unsafe { identities(host) }.generated_for(id)
 }
 
 /// # Safety
@@ -105,7 +130,7 @@ pub unsafe extern "C" fn layout_row_has_compositor_animation_frame(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_row_style_node(host: *mut DocumentHost, id: NodeSlotId) -> u32 {
     // SAFETY: Guaranteed by the caller.
-    unsafe { rows(host) }
+    unsafe { identities(host) }
         .style_node(id)
         .map_or(0, crate::css::style::tree::StyleNodeID::raw)
 }
@@ -164,7 +189,7 @@ unsafe fn read_rows<R>(host: *mut DocumentHost, read: impl FnOnce(&PaintSource<'
 /// `host` must be a live document host, on its document's thread.
 unsafe fn shell_of(host: *mut DocumentHost, id: Option<NodeSlotId>) -> *mut c_void {
     // SAFETY: Guaranteed by the caller. The factory reads the rows again, through the shared host.
-    let Some(facts) = id.and_then(|id| unsafe { rows(host) }.shell_facts(id)) else {
+    let Some(facts) = id.and_then(|id| unsafe { identities(host) }.shell_facts(id)) else {
         return std::ptr::null_mut();
     };
     // SAFETY: As above.
@@ -183,7 +208,7 @@ pub unsafe extern "C" fn layout_row_bound_shell(host: *mut DocumentHost, style_n
         return std::ptr::null_mut();
     };
     // SAFETY: Guaranteed by the caller.
-    let row = unsafe { rows(host) }.bound_row(style_node);
+    let row = unsafe { identities(host) }.bound_row(style_node);
     // SAFETY: As above.
     unsafe { shell_of(host, row) }
 }
@@ -204,7 +229,7 @@ pub unsafe extern "C" fn layout_row_bound_pseudo_element_shell(
         return std::ptr::null_mut();
     };
     // SAFETY: Guaranteed by the caller.
-    let row = unsafe { rows(host) }.bound_pseudo_element_row(style_node, generated_for);
+    let row = unsafe { identities(host) }.bound_pseudo_element_row(style_node, generated_for);
     // SAFETY: As above.
     unsafe { shell_of(host, row) }
 }
@@ -217,7 +242,7 @@ pub unsafe extern "C" fn layout_row_bound_pseudo_element_shell(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_row_bound_viewport_shell(host: *mut DocumentHost) -> *mut c_void {
     // SAFETY: Guaranteed by the caller.
-    let row = unsafe { rows(host) }.bound_viewport_row();
+    let row = unsafe { identities(host) }.bound_viewport_row();
     // SAFETY: As above.
     unsafe { shell_of(host, row) }
 }

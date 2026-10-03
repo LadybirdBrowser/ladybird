@@ -9,7 +9,7 @@
 use super::{Answer, ArenaChange, DocumentId, Query, RenderMessage, RenderWait, ask, send};
 use crate::css::style::bridge::FfiDeviceClass;
 use crate::css::style::style_job::StyleJobAnswer;
-use crate::layout::row_reads::RowSnapshot;
+use crate::layout::row_reads::{RowIdentities, RowSnapshot};
 use crate::layout::{HostTables, LayoutNodeArena};
 use crate::painting::paint_read::PaintSource;
 use crate::painting::record::recorder_state::AbsoluteRectMemo;
@@ -36,6 +36,9 @@ pub struct DocumentHost {
     rows: RefCell<Option<Rc<RowSnapshot>>>,
     /// Whether the host queued a change that alters the published rows since they were published.
     rows_may_be_stale: Cell<bool>,
+    /// Whether the host queued a change that alters what a published row is, or the row a node is bound to, since
+    /// they were published.
+    identities_may_be_stale: Cell<bool>,
     /// The reactions of the style transaction the host took last, which it reads until it ends the transaction.
     style_transaction: RefCell<Option<StyleJobAnswer>>,
     /// The absolute rects the host's reads of the rows computed, kept for as long as the geometry they were computed
@@ -59,6 +62,7 @@ impl DocumentHost {
             recording: RefCell::default(),
             rows: RefCell::default(),
             rows_may_be_stale: Cell::new(false),
+            identities_may_be_stale: Cell::new(false),
             style_transaction: RefCell::default(),
             absolute_rects: RefCell::default(),
             arena: Cell::new(None),
@@ -85,6 +89,9 @@ impl DocumentHost {
     pub(crate) fn queue_change(&self, change: ArenaChange) {
         if change.alters_published_rows() {
             self.rows_may_be_stale.set(true);
+        }
+        if change.alters_published_identities() {
+            self.identities_may_be_stale.set(true);
         }
         send(RenderMessage::Change {
             document: self.document,
@@ -141,6 +148,33 @@ impl DocumentHost {
         self.rows_as_of_writes(wait, false)
     }
 
+    /// What each row is and the row each node is bound to, as of every change the host queued. The host reads them from
+    /// the rows it has where no write since changed them, as installing a style does not, and otherwise from rows the
+    /// render state publishes again first, spending `wait`.
+    pub(crate) fn row_identities(&self, wait: impl RenderWait) -> RowIdentities {
+        if let Some(rows) = self
+            .rows
+            .borrow()
+            .as_ref()
+            .filter(|rows| self.identities_still_read_as_arena(rows))
+        {
+            return RowIdentities::of(Rc::clone(rows));
+        }
+        RowIdentities::of(self.rows_as_of_writes(wait, false))
+    }
+
+    /// Whether the host neither queued a change that alters what a row of `rows` is, or the row a node is bound to,
+    /// since they were published, nor wrote either in the arena directly.
+    fn identities_still_read_as_arena(&self, rows: &RowSnapshot) -> bool {
+        if self.identities_may_be_stale.get() {
+            return false;
+        }
+        // SAFETY: The arena lives as long as the document's render state, which outlives its host's reads.
+        self.arena
+            .get()
+            .is_none_or(|arena| rows.reads_identity_as(unsafe { arena.as_ref() }.rows_identity_version()))
+    }
+
     /// Like [`Self::fresh_rows`], with every row's scrollable overflow measured, as a read of overflow needs.
     pub(crate) fn fresh_measured_rows(&self, wait: impl RenderWait) -> Rc<RowSnapshot> {
         self.rows_as_of_writes(wait, true)
@@ -170,6 +204,7 @@ impl DocumentHost {
         let rows = Rc::new(rows);
         *self.rows.borrow_mut() = Some(Rc::clone(&rows));
         self.rows_may_be_stale.set(false);
+        self.identities_may_be_stale.set(false);
         rows
     }
 

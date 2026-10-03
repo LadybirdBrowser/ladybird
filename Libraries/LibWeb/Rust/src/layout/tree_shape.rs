@@ -17,7 +17,7 @@
 //! the chunk when a write changes it. A write the next publication would miss does not compile.
 
 use super::layout_node_arena::SLOTS_PER_CHUNK;
-use super::node_data::{NodeData, NodeKind, NodeSlotId, PaintNode, StylePayloadsRef};
+use super::node_data::{NodeData, NodeFlag, NodeKind, NodeSlotId, PaintNode, StylePayloadsRef};
 use crate::cow_column::{ColumnSnapshot, CowColumn};
 use crate::css::style::tree::StyleNodeID;
 use std::cell::Cell;
@@ -49,6 +49,36 @@ impl<T: Copy> ShapeCell<T> {
     }
 }
 
+/// How far the arena's nodes have been written, which tells a reader of the rows published before that they moved on.
+#[derive(Default)]
+pub(crate) struct ShapeWrites {
+    all: Cell<u64>,
+    identity: Cell<u64>,
+}
+
+impl ShapeWrites {
+    /// Every write that changed a node's shape, or the style record or node kept beside it.
+    pub(crate) fn all(&self) -> u64 {
+        self.all.get()
+    }
+
+    /// The writes among them that changed what a row is: its slot's generation, its kind, what it is generated for,
+    /// its [`NodeFlag::IDENTITY`] flags, and the node whose style it carries. Installing a style changes none of it.
+    pub(crate) fn identity(&self) -> u64 {
+        self.identity.get()
+    }
+
+    fn note(&self) {
+        self.all.set(self.all.get() + 1);
+    }
+
+    /// Notes a write that changed what a row is.
+    pub(crate) fn note_identity(&self) {
+        self.note();
+        self.identity.set(self.identity.get() + 1);
+    }
+}
+
 /// Writes the shape of one node, marking it in its chunk for the next publication when a write
 /// changes it. It reads as the
 /// node's [`NodeData`], so the fields the paint side does not read are written through it as
@@ -57,8 +87,7 @@ pub(crate) struct ShapeWriter<'a> {
     data: &'a NodeData,
     written_rows: &'a Cell<u64>,
     row_bit: u64,
-    /// The arena's count of shape writes, which tells a reader of published rows that they moved on.
-    shape_writes: &'a Cell<u64>,
+    writes: &'a ShapeWrites,
 }
 
 impl Deref for ShapeWriter<'_> {
@@ -79,10 +108,25 @@ impl ShapeWriter<'_> {
         }
     }
 
+    /// Like [`Self::write`], for a field that says what the row is.
+    #[inline]
+    fn write_identity<T: Copy + PartialEq>(&self, field: &ShapeCell<T>, value: T) {
+        if field.get() != value {
+            self.mark_identity();
+            field.set(value);
+        }
+    }
+
     /// Marks the node for the next publication, for a write to what the arena keeps beside it.
     pub(crate) fn mark(&self) {
         self.written_rows.set(self.written_rows.get() | self.row_bit);
-        self.shape_writes.set(self.shape_writes.get() + 1);
+        self.writes.note();
+    }
+
+    /// Like [`Self::mark`], for a write that changes what the row is.
+    pub(crate) fn mark_identity(&self) {
+        self.written_rows.set(self.written_rows.get() | self.row_bit);
+        self.writes.note_identity();
     }
 
     pub(crate) fn set_parent(&self, parent: NodeSlotId) {
@@ -106,15 +150,19 @@ impl ShapeWriter<'_> {
     }
 
     pub(crate) fn set_kind(&self, kind: NodeKind) {
-        self.write(&self.data.kind, kind);
+        self.write_identity(&self.data.kind, kind);
     }
 
     pub(crate) fn set_generated_for(&self, generated_for: u8) {
-        self.write(&self.data.generated_for, generated_for);
+        self.write_identity(&self.data.generated_for, generated_for);
     }
 
     pub(crate) fn set_flags(&self, flags: u32) {
-        self.write(&self.data.flags, flags);
+        if (self.data.flags.get() ^ flags) & NodeFlag::IDENTITY != 0 {
+            self.write_identity(&self.data.flags, flags);
+        } else {
+            self.write(&self.data.flags, flags);
+        }
     }
 
     pub(crate) fn set_dom_paint_facts(&self, facts: u8) {
@@ -174,12 +222,12 @@ impl Chunk {
     }
 
     #[inline]
-    pub(crate) fn write_shape<'a>(&'a self, offset: usize, shape_writes: &'a Cell<u64>) -> ShapeWriter<'a> {
+    pub(crate) fn write_shape<'a>(&'a self, offset: usize, writes: &'a ShapeWrites) -> ShapeWriter<'a> {
         ShapeWriter {
             data: &self.slots[offset],
             written_rows: &self.written_rows[offset / 64],
             row_bit: 1 << (offset % 64),
-            shape_writes,
+            writes,
         }
     }
 
@@ -247,29 +295,47 @@ mod tests {
     #[test]
     fn a_write_that_changes_a_node_marks_it_and_one_that_does_not_leaves_it_unmarked() {
         let mut chunk = Chunk::new();
-        let shape_writes = Cell::new(0);
+        let writes = ShapeWrites::default();
         assert!(chunk.is_marked(0), "a new chunk's nodes are all marked");
         chunk.clear_marks();
 
-        let shape = chunk.write_shape(3, &shape_writes);
+        let shape = chunk.write_shape(3, &writes);
         shape.set_kind(NodeKind::Unset);
         shape.set_parent(NodeSlotId::INVALID);
         shape.set_flags(0);
         assert!(!chunk.is_marked(3));
-        assert_eq!(shape_writes.get(), 0);
+        assert_eq!(writes.all(), 0);
 
-        chunk.write_shape(3, &shape_writes).set_kind(NodeKind::BlockContainer);
+        chunk.write_shape(3, &writes).set_kind(NodeKind::BlockContainer);
         assert!(chunk.is_marked(3));
         assert!(!chunk.is_marked(2) && !chunk.is_marked(4));
-        assert_eq!(shape_writes.get(), 1);
+        assert_eq!(writes.all(), 1);
 
-        chunk.write_shape(70, &shape_writes).set_dom_paint_facts(1);
+        chunk.write_shape(70, &writes).set_dom_paint_facts(1);
         assert!(chunk.is_marked(70));
         assert!(!chunk.is_marked(71));
 
         *chunk.slot_mut(100).slot_generation.get_mut() = 1;
         assert!(chunk.is_marked(100));
         assert_eq!(chunk.slot(3).kind.get(), NodeKind::BlockContainer);
+    }
+
+    #[test]
+    fn only_a_write_of_what_a_row_is_counts_as_an_identity_write() {
+        let chunk = Chunk::new();
+        let writes = ShapeWrites::default();
+        let shape = chunk.write_shape(3, &writes);
+        shape.set_parent(NodeSlotId::new(1, 1));
+        shape.set_style(StylePayloadsRef::new(std::ptr::NonNull::dangling().as_ptr()));
+        shape.set_flags(NodeFlag::HasStyle as u32);
+        shape.mark();
+        assert_eq!((writes.all(), writes.identity()), (4, 0));
+
+        shape.set_flags(NodeFlag::HasStyle as u32 | NodeFlag::IsBody as u32);
+        shape.set_kind(NodeKind::BlockContainer);
+        shape.set_generated_for(1);
+        shape.mark_identity();
+        assert_eq!((writes.all(), writes.identity()), (8, 4));
     }
 
     #[test]

@@ -13,12 +13,15 @@ use super::LayoutNodeArena;
 use super::RowsVersion;
 use super::host_tables::ShellFacts;
 use super::layout_node_arena::PublishedBoundRows;
-use super::node_data::{CompositorAnimationFrameKind, FfiNodeLink, NodeKind, NodeSlotId, PaintNode, StylePayloadsRef};
+use super::node_data::{
+    CompositorAnimationFrameKind, FfiNodeLink, NodeFlag, NodeKind, NodeSlotId, PaintNode, StylePayloadsRef,
+};
 use super::node_facts;
 use crate::css::style::tree::StyleNodeID;
 use crate::painting::image_map_areas::ImageMaps;
 use crate::painting::published_frame::PublishedRows;
 use crate::painting::visual_context::VisualContextTree;
+use std::rc::Rc;
 use std::sync::Arc;
 
 /// The rows of a document's layout as its render state published them. It is immutable and owns all of it, through the
@@ -49,6 +52,12 @@ impl RowSnapshot {
     /// Whether the rows read as the arena's do at `version`.
     pub(crate) fn reads_as(&self, version: RowsVersion) -> bool {
         self.version == version
+    }
+
+    /// Whether the rows answer what each row is, and the row each node is bound to, as the arena's do at the identity
+    /// version `identity` (see [`LayoutNodeArena::rows_identity_version`]).
+    pub(crate) fn reads_identity_as(&self, identity: u64) -> bool {
+        self.version.has_identity_version(identity)
     }
 
     /// Whether every row's scrollable overflow was measured when the rows were published, which a read of overflow
@@ -143,6 +152,46 @@ impl RowSnapshot {
     pub(crate) fn shell_facts(&self, id: NodeSlotId) -> Option<ShellFacts> {
         let kind = self.node(id)?.kind;
         (kind != NodeKind::Unset).then_some(ShellFacts { id, kind })
+    }
+}
+
+/// What each row of a document's layout is, and the row each node is bound to, read from published rows. Installing a
+/// style changes none of it, so the host reads it from rows published before the styles it installed since (see
+/// [`crate::render_state::DocumentHost::row_identities`]), and nothing else of those rows.
+pub(crate) struct RowIdentities(Rc<RowSnapshot>);
+
+impl RowIdentities {
+    pub(crate) fn of(rows: Rc<RowSnapshot>) -> Self {
+        Self(rows)
+    }
+
+    /// The row's [`NodeFlag::IDENTITY`] flags.
+    pub(crate) fn identity_flags(&self, id: NodeSlotId) -> u32 {
+        self.0.flags(id) & NodeFlag::IDENTITY
+    }
+
+    pub(crate) fn style_node(&self, id: NodeSlotId) -> Option<StyleNodeID> {
+        self.0.style_node(id)
+    }
+
+    pub(crate) fn generated_for(&self, id: NodeSlotId) -> u8 {
+        self.0.generated_for(id)
+    }
+
+    pub(crate) fn shell_facts(&self, id: NodeSlotId) -> Option<ShellFacts> {
+        self.0.shell_facts(id)
+    }
+
+    pub(crate) fn bound_row(&self, style_node: StyleNodeID) -> Option<NodeSlotId> {
+        self.0.bound_row(style_node)
+    }
+
+    pub(crate) fn bound_pseudo_element_row(&self, generator: StyleNodeID, generated_for: u8) -> Option<NodeSlotId> {
+        self.0.bound_pseudo_element_row(generator, generated_for)
+    }
+
+    pub(crate) fn bound_viewport_row(&self) -> Option<NodeSlotId> {
+        self.0.bound_viewport_row()
     }
 }
 

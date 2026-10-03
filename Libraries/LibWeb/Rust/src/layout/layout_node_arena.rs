@@ -11,7 +11,7 @@ use super::geometry::AvailableSize;
 use super::geometry::AvailableSpace;
 use super::rendered_text::{FfiTextSourceRange, PublishedTextSlot, RenderedTextBoundary, TextContent, TextFragments};
 use super::tree_builder::FfiLayoutTreeBuildOutcome;
-use super::tree_shape::{Chunk, PUBLISHED_ROWS_PER_CHUNK, ShapeWriter, TreeShape};
+use super::tree_shape::{Chunk, PUBLISHED_ROWS_PER_CHUNK, ShapeWriter, ShapeWrites, TreeShape};
 use super::update_layout::FfiLayoutTreeBuildStats;
 use super::used_values::SizeConstraint;
 use crate::cow_column::{ColumnSnapshot, CowColumn};
@@ -655,9 +655,20 @@ struct TextNodeState {
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
 pub(crate) struct RowsVersion {
     writes: u64,
+    /// The part of `writes` that changed what a row is or the row a node is bound to. See
+    /// [`LayoutNodeArena::rows_identity_version`].
+    identity: u64,
     /// Where the paint fact tables, the image maps and the visual context tree are, which moves
     /// when a write copies one a publication shares or replaces the tree.
     tables: [usize; 5],
+}
+
+impl RowsVersion {
+    /// Whether rows published at this version answer what each row is, and the row each node is bound to, as the
+    /// arena does at the identity version `identity`.
+    pub(crate) fn has_identity_version(&self, identity: u64) -> bool {
+        self.identity == identity
+    }
 }
 
 #[derive(Default)]
@@ -1051,7 +1062,7 @@ pub(crate) struct LayoutNodeArena {
     tree_shape: TreeShape,
     /// Advanced by every write to a node's shape, or to the style record or node kept beside it, which
     /// publication takes into the published rows.
-    shape_writes: Cell<u64>,
+    shape_writes: ShapeWrites,
     chunks_by_address: Vec<ChunkAddress>,
     slot_metadata: Vec<SlotMetadata>,
     style_records: Vec<Cell<u64>>,
@@ -1205,7 +1216,7 @@ impl LayoutNodeArena {
         Self {
             chunks: Vec::new(),
             tree_shape: TreeShape::default(),
-            shape_writes: Cell::new(0),
+            shape_writes: ShapeWrites::default(),
             chunks_by_address: Vec::new(),
             slot_metadata: Vec::new(),
             style_records: Vec::new(),
@@ -1803,7 +1814,7 @@ impl LayoutNodeArena {
             }
         }
         self.style_nodes[index].set(style_node);
-        self.write_shape(id).mark();
+        self.write_shape(id).mark_identity();
         if let Some(style_node) = style_node {
             let head = first_rows.head_mut(style_node);
             self.next_rows_with_same_style_node[index].set(*head);
@@ -3556,10 +3567,11 @@ impl LayoutNodeArena {
     /// sums only grows, and a table a publication shares is copied by the write that changes it.
     pub(crate) fn rows_version(&self) -> RowsVersion {
         RowsVersion {
-            writes: self.shape_writes.get()
+            writes: self.shape_writes.all()
                 + self.text_slots.published.version()
                 + self.bound_rows.borrow().version()
                 + self.paintable_rows_version(),
+            identity: self.rows_identity_version(),
             tables: [
                 Arc::as_ptr(&self.replaced_paint_facts.borrow()).addr(),
                 Arc::as_ptr(&self.layer_image_paint_facts.borrow()).addr(),
@@ -3573,6 +3585,13 @@ impl LayoutNodeArena {
                     .map_or(0, |tree| Arc::as_ptr(tree).addr()),
             ],
         }
+    }
+
+    /// How far what each row is (see [`ShapeWrites::identity`]) and the row each node is bound to have been written
+    /// since the arena was made. Installing a style leaves it as it is, so rows published before one still answer
+    /// these as the arena does.
+    pub(crate) fn rows_identity_version(&self) -> u64 {
+        self.shape_writes.identity() + self.bound_rows.borrow().version()
     }
 
     /// The text rows and the replaced, layer image and SVG paint resource tables as they are now,
@@ -5036,7 +5055,7 @@ impl LayoutNodeArena {
     }
 
     fn data_mut(&mut self, index: u32) -> &mut NodeData {
-        *self.shape_writes.get_mut() += 1;
+        self.shape_writes.note_identity();
         let index = index as usize;
         let chunk = self
             .chunks
