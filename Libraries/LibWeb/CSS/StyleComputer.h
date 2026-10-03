@@ -290,6 +290,8 @@ private:
     mutable Vector<ProvisionalTransitionState> m_provisional_transition_states;
     mutable HashMap<u64, size_t> m_provisional_transition_state_indices;
     mutable HashMap<u64, Vector<size_t>> m_provisional_transition_state_indices_by_target;
+    // Whether the engine keeps a before-change style the current stabilization epoch recorded.
+    mutable bool m_transition_baselines_recorded { false };
 
     ComputationContext make_computation_context_for_property(PropertyID, ComputedStyleWorkingSet const&, Optional<DOM::AbstractElement>) const;
     ComputationContext const& get_computation_context_for_property(PropertyID, ComputedStyleWorkingSet const&, Optional<DOM::AbstractElement>) const;

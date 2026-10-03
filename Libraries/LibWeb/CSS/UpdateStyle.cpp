@@ -763,6 +763,8 @@ static void update_style(DOM::Document& document, DocumentWithoutBrowsingContext
     timing_counters.style_update_submission_microseconds += (MonotonicTime::now() - submission_started_at).to_truncated_microseconds();
     if (document.has_completed_style_update()
         && !document.style_computer().style_engine().has_pending_transaction()) {
+        if (!document.needs_animated_style_update())
+            return;
         document.sample_animation_effects_needing_style_update();
         if (!document.style_computer().style_engine().has_pending_transaction())
             return;

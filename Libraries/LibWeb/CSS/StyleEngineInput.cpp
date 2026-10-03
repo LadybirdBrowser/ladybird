@@ -1709,7 +1709,7 @@ void record_shadow_root_connected(DOM::ShadowRoot& shadow_root)
 static void publish_document_kind(DOM::Document& document)
 {
     auto& style_engine = document.style_computer().style_engine();
-    style_engine.set_html_element_namespace(
+    style_engine.publish_html_element_namespace(
         document.document_type() == DOM::Document::Type::HTML
             ? style_engine.intern_case_sensitive_text_atom(Namespace::HTML.view())
             : 0);

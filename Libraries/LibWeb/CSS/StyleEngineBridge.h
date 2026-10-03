@@ -202,6 +202,10 @@ public:
     // The same, without the ASCII folding, for names compared literally such as namespace URIs.
     StyleAtomID intern_case_sensitive_text_atom(Utf16View);
 
+    // The namespace an element of an HTML document is an HTML element in, or none in any other document. It changes
+    // only with the document's kind, so only a change goes to the engine.
+    void publish_html_element_namespace(StyleAtomID);
+
     // Interns the exact identity an attribute fact uses and memoizes its namespace and folded
     // forms. Demand expansion revisits every live attribute, so these forms must not cross the
     // boundary again merely to recover an already published name.
@@ -388,6 +392,7 @@ private:
     Vector<StyleEngineFFI::FfiElementDeclarationDelta> m_element_declaration_deltas;
     bool m_css_transitions_may_observe_style_changes { false };
     mutable bool m_geometry_read_deferred_transaction { false };
+    StyleAtomID m_html_element_namespace;
 };
 
 }
