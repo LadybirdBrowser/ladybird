@@ -7,17 +7,11 @@
 #pragma once
 
 #include <AK/Utf16View.h>
+#include <LibJS/ScriptCompilation.h>
 #include <LibJS/SourceTextModule.h>
 #include <LibJS/SyntheticModule.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/HTML/Scripting/Script.h>
-
-namespace JS::FFI {
-
-struct ParsedProgram;
-struct CompiledProgram;
-
-}
 
 namespace Web::HTML {
 
@@ -31,9 +25,9 @@ class WEB_API ModuleScript : public Script {
 public:
     virtual ~ModuleScript() override;
 
-    static WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> create_from_pre_parsed(ByteString const& filename, NonnullRefPtr<JS::SourceCode const> source_code, EnvironmentSettingsObject&, URL::URL base_url, JS::FFI::ParsedProgram* parsed);
-    static WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> create_from_pre_compiled(ByteString const& filename, NonnullRefPtr<JS::SourceCode const> source_code, EnvironmentSettingsObject&, URL::URL base_url, JS::FFI::CompiledProgram* compiled);
-    static WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> create_from_bytecode_cache(ByteString const& filename, NonnullRefPtr<JS::SourceCode const> source_code, EnvironmentSettingsObject&, URL::URL base_url, NonnullRefPtr<JS::RustIntegration::DecodedBytecodeCache>);
+    static WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> create_from_pre_parsed(ByteString const& filename, NonnullRefPtr<JS::SourceCode const> source_code, EnvironmentSettingsObject&, URL::URL base_url, JS::ParsedProgram);
+    static WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> create_from_pre_compiled(ByteString const& filename, NonnullRefPtr<JS::SourceCode const> source_code, EnvironmentSettingsObject&, URL::URL base_url, JS::CompiledProgram);
+    static WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> create_from_bytecode_cache(ByteString const& filename, NonnullRefPtr<JS::SourceCode const> source_code, EnvironmentSettingsObject&, URL::URL base_url, NonnullRefPtr<JS::DecodedBytecodeCache>);
     static WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> create_a_javascript_module_script(ByteString const& filename, Utf16View source, EnvironmentSettingsObject&, URL::URL base_url, size_t source_line_number = 1, ScriptRegistry::IsInlineSource = ScriptRegistry::IsInlineSource::No);
     static WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> create_a_css_module_script(ByteString const& filename, Utf16View source, EnvironmentSettingsObject&);
     static WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> create_a_json_module_script(ByteString const& filename, Utf16View source, EnvironmentSettingsObject&);

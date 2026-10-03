@@ -6,6 +6,7 @@
 
 #include <AK/Array.h>
 #include <AK/ScopeGuard.h>
+#include <LibCore/EventLoop.h>
 #include <LibCore/File.h>
 #include <LibCore/ImmutableBytes.h>
 #include <LibCore/StandardPaths.h>
@@ -22,6 +23,7 @@
 #include <LibJS/Runtime/VM.h>
 #include <LibJS/RustIntegration.h>
 #include <LibJS/Script.h>
+#include <LibJS/ScriptCompilation.h>
 #include <LibJS/SourceCode.h>
 #include <LibJS/SourceTextModule.h>
 #include <LibTest/TestCase.h>
@@ -1154,4 +1156,93 @@ TEST_CASE(parse_snapshot_survives_independent_execution_and_cache_compilation)
         VERIFY(!result.is_throw_completion());
         EXPECT_EQ(result.value(), JS::Value(true));
     }
+}
+
+TEST_CASE(script_compilation_api_compiles_off_thread_and_round_trips_through_the_bytecode_cache)
+{
+    Core::EventLoop event_loop;
+    auto vm = JS::VM::create();
+    auto root_execution_context = JS::create_simple_execution_context<JS::GlobalObject>(*vm);
+    auto& realm = *root_execution_context->realm;
+
+    auto source = R"JS(
+        var make_doubler = function (value) { return () => value * 2; };
+        make_doubler(21)() === 42;
+    )JS"sv;
+    auto source_code = JS::SourceCode::create("api.js"_utf16, Utf16String::from_utf8(source));
+    ReadonlySpan<u16> source_text { source_code->utf16_data(), source_code->length_in_code_units() };
+
+    auto parsed = JS::ParsedProgram::parse(source_text, JS::ProgramType::Script, 1);
+    VERIFY(parsed);
+    EXPECT(!parsed.has_errors());
+    auto parsed_for_cache = parsed.clone();
+    VERIFY(parsed_for_cache);
+
+    auto compiled = JS::CompiledProgram::compile(move(parsed));
+    VERIFY(compiled);
+    auto script_or_error = JS::create_script(move(compiled), source_code, realm, "api.js"sv, nullptr);
+    VERIFY(!script_or_error.is_error());
+    auto script = script_or_error.release_value();
+    EXPECT_EQ(JS::top_level_source_code(*script).ptr(), source_code.ptr());
+
+    size_t submitted_work_count = 0;
+    size_t posted_task_count = 0;
+    JS::compile_remaining_functions_off_thread(*script, source_code,
+        {
+            .submit_work = [&](Function<void()> work) {
+                ++submitted_work_count;
+                work(); },
+            .post_to_main_thread = [&](Function<void()> task) {
+                ++posted_task_count;
+                task(); },
+        });
+    EXPECT_EQ(submitted_work_count, 1u);
+    EXPECT_EQ(posted_task_count, 1u);
+
+    auto result = vm->run(script);
+    VERIFY(!result.is_throw_completion());
+    EXPECT_EQ(result.value(), JS::Value(true));
+
+    auto compiled_for_cache = JS::CompiledProgram::compile_all_functions(move(parsed_for_cache));
+    VERIFY(compiled_for_cache);
+    auto source_hash = bytecode_cache_source_hash(source, "UTF-8"sv);
+    auto blob = Core::ImmutableBytes::adopt(compiled_for_cache.serialize_for_bytecode_cache(JS::ProgramType::Script, source_hash.bytes()));
+    VERIFY(!blob.bytes().is_empty());
+
+    EXPECT(!JS::decode_and_validate_bytecode_cache(blob, JS::ProgramType::Script, source_hash.bytes(), source_code->length_in_code_units() + 1, event_loop));
+    EXPECT(!JS::decode_and_validate_bytecode_cache(blob, JS::ProgramType::Module, source_hash.bytes(), source_code->length_in_code_units(), event_loop));
+    auto bytecode_cache = JS::decode_and_validate_bytecode_cache(blob, JS::ProgramType::Script, source_hash.bytes(), source_code->length_in_code_units(), event_loop);
+    VERIFY(bytecode_cache);
+
+    auto cached_script = JS::Script::create_from_bytecode_cache(bytecode_cache.release_nonnull(), source_code, realm, "api.js"sv);
+    VERIFY(!cached_script.is_error());
+    auto cached_result = vm->run(cached_script.release_value());
+    VERIFY(!cached_result.is_throw_completion());
+    EXPECT_EQ(cached_result.value(), JS::Value(true));
+
+    event_loop.pump(Core::EventLoop::WaitMode::PollForEvents);
+}
+
+TEST_CASE(script_compilation_api_reports_syntax_errors_when_creating_records)
+{
+    auto vm = JS::VM::create();
+    auto root_execution_context = JS::create_simple_execution_context<JS::GlobalObject>(*vm);
+    auto& realm = *root_execution_context->realm;
+
+    auto source_code = JS::SourceCode::create("broken.js"_utf16, "let = ;"_utf16);
+    ReadonlySpan<u16> source_text { source_code->utf16_data(), source_code->length_in_code_units() };
+
+    auto parsed_script = JS::ParsedProgram::parse(source_text, JS::ProgramType::Script, 1);
+    VERIFY(parsed_script);
+    EXPECT(parsed_script.has_errors());
+    auto script = JS::create_script(move(parsed_script), source_code, realm, "broken.js"sv, nullptr);
+    VERIFY(script.is_error());
+    EXPECT(!script.error().is_empty());
+
+    auto parsed_module = JS::ParsedProgram::parse(source_text, JS::ProgramType::Module, 0);
+    VERIFY(parsed_module);
+    EXPECT(parsed_module.has_errors());
+    auto module = JS::create_module(move(parsed_module), source_code, realm, "broken.mjs"sv, nullptr);
+    VERIFY(module.is_error());
+    EXPECT(!module.error().is_empty());
 }

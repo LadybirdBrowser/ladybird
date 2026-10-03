@@ -7,6 +7,7 @@
 #include <AK/Debug.h>
 #include <LibCore/ElapsedTimer.h>
 #include <LibGC/Heap.h>
+#include <LibJS/ScriptCompilation.h>
 #include <LibWeb/HTML/Scripting/ClassicScript.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/ExceptionReporter.h>
@@ -20,11 +21,14 @@ GC_DEFINE_ALLOCATOR(ClassicScript);
 static void register_source(ClassicScript& script, ScriptRegistry::IsInlineSource is_inline_source, size_t source_line_number)
 {
     auto script_record = script.script_record();
-    if (!script_record || !script_record->cached_executable())
+    if (!script_record)
         return;
 
-    auto const& source_code = script_record->cached_executable()->source_code;
-    register_javascript_source(script, source_code, ScriptRegistry::JavaScriptSource::Type::Script, is_inline_source, source_line_number);
+    auto source_code = JS::top_level_source_code(*script_record);
+    if (!source_code)
+        return;
+
+    register_javascript_source(script, source_code.release_nonnull(), ScriptRegistry::JavaScriptSource::Type::Script, is_inline_source, source_line_number);
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#creating-a-classic-script
@@ -80,7 +84,7 @@ GC::Ref<ClassicScript> ClassicScript::create(ByteString filename, Utf16View sour
     return script;
 }
 
-GC::Ref<ClassicScript> ClassicScript::create_from_pre_parsed(ByteString filename, NonnullRefPtr<JS::SourceCode const> source_code, EnvironmentSettingsObject& settings, URL::URL base_url, JS::FFI::ParsedProgram* parsed, MutedErrors muted_errors)
+GC::Ref<ClassicScript> ClassicScript::create_from_pre_parsed(ByteString filename, NonnullRefPtr<JS::SourceCode const> source_code, EnvironmentSettingsObject& settings, URL::URL base_url, JS::ParsedProgram parsed, MutedErrors muted_errors)
 {
     auto& realm = settings.realm();
 
@@ -94,7 +98,7 @@ GC::Ref<ClassicScript> ClassicScript::create_from_pre_parsed(ByteString filename
     script->set_error_to_rethrow(JS::js_null());
 
     auto parse_timer = Core::ElapsedTimer::start_new();
-    auto result = JS::Script::create_from_parsed(parsed, move(source_code), realm, script->filename(), script.ptr());
+    auto result = JS::create_script(move(parsed), move(source_code), realm, script->filename(), script.ptr());
     dbgln_if(HTML_SCRIPT_DEBUG, "ClassicScript: Compiled pre-parsed {} in {}ms", script->filename(), parse_timer.elapsed_milliseconds());
 
     if (result.is_error()) {
@@ -113,7 +117,7 @@ GC::Ref<ClassicScript> ClassicScript::create_from_pre_parsed(ByteString filename
     return script;
 }
 
-GC::Ref<ClassicScript> ClassicScript::create_from_pre_compiled(ByteString filename, NonnullRefPtr<JS::SourceCode const> source_code, EnvironmentSettingsObject& settings, URL::URL base_url, JS::FFI::CompiledProgram* compiled, MutedErrors muted_errors)
+GC::Ref<ClassicScript> ClassicScript::create_from_pre_compiled(ByteString filename, NonnullRefPtr<JS::SourceCode const> source_code, EnvironmentSettingsObject& settings, URL::URL base_url, JS::CompiledProgram compiled, MutedErrors muted_errors)
 {
     auto& realm = settings.realm();
 
@@ -127,7 +131,7 @@ GC::Ref<ClassicScript> ClassicScript::create_from_pre_compiled(ByteString filena
     script->set_error_to_rethrow(JS::js_null());
 
     auto parse_timer = Core::ElapsedTimer::start_new();
-    auto result = JS::Script::create_from_compiled(compiled, move(source_code), realm, script->filename(), script.ptr());
+    auto result = JS::create_script(move(compiled), move(source_code), realm, script->filename(), script.ptr());
     dbgln_if(HTML_SCRIPT_DEBUG, "ClassicScript: Materialized pre-compiled {} in {}ms", script->filename(), parse_timer.elapsed_milliseconds());
 
     if (result.is_error()) {
@@ -146,7 +150,7 @@ GC::Ref<ClassicScript> ClassicScript::create_from_pre_compiled(ByteString filena
     return script;
 }
 
-GC::Ref<ClassicScript> ClassicScript::create_from_bytecode_cache(ByteString filename, NonnullRefPtr<JS::SourceCode const> source_code, EnvironmentSettingsObject& settings, URL::URL base_url, NonnullRefPtr<JS::RustIntegration::DecodedBytecodeCache> bytecode_cache, MutedErrors muted_errors)
+GC::Ref<ClassicScript> ClassicScript::create_from_bytecode_cache(ByteString filename, NonnullRefPtr<JS::SourceCode const> source_code, EnvironmentSettingsObject& settings, URL::URL base_url, NonnullRefPtr<JS::DecodedBytecodeCache> bytecode_cache, MutedErrors muted_errors)
 {
     auto& realm = settings.realm();
 
