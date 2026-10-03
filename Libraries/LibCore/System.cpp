@@ -273,10 +273,10 @@ ErrorOr<int> anon_create([[maybe_unused]] size_t size, [[maybe_unused]] int opti
         return Error::from_errno(saved_errno);
     }
 
-    // FIXME: Sealing is enforced only on Linux, via the memfd F_SEAL_* seals below. On macOS, the flag is
-    //        accepted, but the fd stays resizable (ftruncate remains possible). SAB backing relies on this seal to stop
-    //        a transferred fd from being shrunk under a peer. POSIX shared memory has no equivalent seal — so a macOS
-    //        equivalent would require implementing backing of the block with a Mach memory entry instead of an shm fd.
+    // FIXME: Sealing is enforced only on Linux, via the memfd F_SEAL_* seals below. macOS needs no seal, because it
+    //        allows only one successful ftruncate() per POSIX shared memory object. On other platforms, the flag is
+    //        accepted, but the fd stays resizable. SAB backing relies on this seal to stop a transferred fd from being
+    //        shrunk under a peer.
 #if defined(AK_OS_LINUX)
     // Seal a fixed-size shared fd against resizing: A peer process holding the transferred fd must not be able to
     // ftruncate it smaller, and SIGBUS siblings that touch the now-missing pages. Writes stay allowed on purpose (no
