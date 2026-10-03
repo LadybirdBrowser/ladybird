@@ -520,11 +520,10 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
                 && reaction.gap != StyleEngineFFI::FfiStyleDeltaGap::Materialize
                 && reaction.gap != StyleEngineFFI::FfiStyleDeltaGap::Computed)
                 continue;
-            // An earlier display:none reaction in this batch can clear the style of a materialization gap after the
-            // inheritance closure was built. The gap must then rematerialize rather than letting its descendants
-            // compute against a missing inheritance parent.
+            // NB: An inheritance scheduling row carries no computation of its own. If an earlier display:none
+            //     reaction cleared its style and no derived input reached it, leave it unstyled until a read or reveal.
             if (reaction.gap == StyleEngineFFI::FfiStyleDeltaGap::Materialize && reaction.reaction == 0 && !element->has_style())
-                reaction.reaction = StyleEngine::RecomputeStyle;
+                continue;
 
             bool const needs_regular_style_recompute = reaction.reaction & (StyleEngine::PublishedStyle | StyleEngine::RecomputeStyle | StyleEngine::RecomputeDescendantStyles | StyleEngine::AncestorBecameVisible);
             bool const needs_custom_property_recompute = reaction.reaction & StyleEngine::InheritedCustomProperties;

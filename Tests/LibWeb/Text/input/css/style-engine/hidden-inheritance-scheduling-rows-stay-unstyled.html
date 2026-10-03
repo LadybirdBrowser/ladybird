@@ -1,0 +1,41 @@
+<!doctype html>
+<script src="../../include.js"></script>
+<style>
+    .hidden { display: none; }
+    .changed .target { padding-left: 13px; }
+</style>
+<script>
+    test(() => {
+        for (const shadow of [false, true]) {
+            const outer = document.createElement("div");
+            const middle = document.createElement("div");
+            const target = document.createElement("span");
+            target.className = "target";
+            target.textContent = "target";
+            middle.append(target);
+            outer.append(middle);
+            document.body.append(outer);
+
+            const schedulingNodes = [middle];
+            if (shadow) {
+                const root = middle.attachShadow({ mode: "open" });
+                root.innerHTML = "<a><slot></slot></a>";
+                schedulingNodes.push(...root.querySelectorAll("a, slot"));
+            }
+            document.body.offsetWidth;
+
+            // The outer and target have selector reactions, while the intervening nodes only
+            // carry inherited reactions through the batch. Hiding the outer clears their styles.
+            outer.className = "hidden changed";
+            internals.updateStyle();
+            println(`${shadow ? "shadow" : "light"} scheduling nodes stay unstyled: ${schedulingNodes.every(node => internals.styleRecordIdentity(node) === 0)}`);
+
+            println(`hidden padding: ${getComputedStyle(target).paddingLeft}`);
+            outer.className = "changed";
+            document.body.offsetWidth;
+            println(`visible padding: ${getComputedStyle(target).paddingLeft}`);
+            println(`visible ancestors have styles: ${schedulingNodes.every(node => internals.styleRecordIdentity(node) !== 0)}`);
+            outer.remove();
+        }
+    });
+</script>
