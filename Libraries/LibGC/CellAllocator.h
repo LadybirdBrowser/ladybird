@@ -28,6 +28,8 @@ class GC_API CellAllocatorDescriptorBase {
     AK_MAKE_NONMOVABLE(CellAllocatorDescriptorBase);
 
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     Optional<StringView> class_name() const { return m_class_name; }
     CellTypeInfo const& type_info() const { return m_type_info; }
     size_t cell_size() const { return m_type_info.cell_size; }
@@ -66,6 +68,7 @@ public:
 
     static BlockAllocator& shared_block_allocator();
 
+    CellAllocatorDescriptorBase const& descriptor() const { return m_descriptor; }
     Optional<StringView> class_name() const { return m_descriptor.class_name(); }
     size_t cell_size() const { return m_descriptor.cell_size(); }
     CellTypeInfo const& type_info() const { return m_descriptor.type_info(); }
@@ -123,5 +126,12 @@ public:
     {
     }
 };
+
+// Heap::allocate<T>() takes every cell from T::cell_allocator, and a subclass of T must declare an allocator of its own,
+// so a cell that came from T::cell_allocator is exactly a T. This identifies a cell's type without reading its vtable.
+inline bool cell_was_allocated_from(Cell const& cell, CellAllocatorDescriptorBase const& descriptor)
+{
+    return &HeapBlock::from_cell(&cell)->cell_allocator().descriptor() == &descriptor;
+}
 
 }

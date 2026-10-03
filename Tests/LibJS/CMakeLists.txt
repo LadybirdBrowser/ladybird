@@ -6,6 +6,7 @@ ladybird_test(test-debugger.cpp LibJS LIBS LibGC LibJS)
 ladybird_test(test-native-function-table.cpp LibJS LIBS LibGC LibJS)
 ladybird_test(test-type-error-realm.cpp LibJS LIBS LibGC LibJS)
 ladybird_test(test-console.cpp LibJS LIBS LibGC LibJS)
+ladybird_test(test-host-object.cpp LibJS LIBS LibGC LibJS)
 
 ladybird_testjs_test(test-js.cpp test-js NAME test-js-runtime NO_TEST LIBS LibGC)
 ladybird_utility(test-js SOURCES test-js-main.cpp LIBS LibMain)

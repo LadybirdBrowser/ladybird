@@ -64,14 +64,15 @@ public:
     template<typename T, typename... Args>
     Ref<T> allocate(Args&&... args)
     {
-        auto* memory = allocate_cell<T>();
-        defer_gc();
-        new (memory) T(forward<Args>(args)...);
-        auto* cell = static_cast<T*>(memory);
-        cell->set_cell_kind(T::cell_kind_for_class);
-        mark_if_allocated_during_incremental_sweep(*cell);
-        undefer_gc();
-        return *cell;
+        return construct_cell<T>(allocate_cell<T>(), forward<Args>(args)...);
+    }
+
+    // Like allocate(), but takes the cell from the given allocator instead of T's own. This lets one C++ type keep
+    // several kinds of objects apart, each in blocks of its own.
+    template<typename T, typename... Args>
+    Ref<T> allocate_with_descriptor(TypeIsolatingCellAllocator<T>& descriptor, Args&&... args)
+    {
+        return construct_cell<T>(allocate_cell(descriptor), forward<Args>(args)...);
     }
 
     enum class CollectionType {
@@ -149,6 +150,18 @@ private:
     void undefer_gc();
 
     void dump_allocators();
+
+    template<typename T, typename... Args>
+    Ref<T> construct_cell(Cell* memory, Args&&... args)
+    {
+        defer_gc();
+        new (memory) T(forward<Args>(args)...);
+        auto* cell = static_cast<T*>(memory);
+        cell->set_cell_kind(T::cell_kind_for_class);
+        mark_if_allocated_during_incremental_sweep(*cell);
+        undefer_gc();
+        return *cell;
+    }
 
     template<typename T>
     Cell* allocate_cell()

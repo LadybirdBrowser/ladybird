@@ -105,6 +105,7 @@ set(SOURCES
     Runtime/GeneratorPrototype.cpp
     Runtime/GlobalEnvironment.cpp
     Runtime/GlobalObject.cpp
+    Runtime/HostObject.cpp
     Runtime/IndexedProperties.cpp
     Runtime/Intl/AbstractOperations.cpp
     Runtime/Intl/Collator.cpp
