@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/ScopeGuard.h>
 #include <LibGC/RootVector.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
@@ -29,21 +30,26 @@ void TaskQueue::visit_edges(Visitor& visitor)
     for (auto& task : m_idle_tasks)
         visitor.visit(task);
     visitor.visit(m_last_added_task);
+    visitor.visit(m_discarded_tasks);
 }
 
 void TaskQueue::add(GC::Ref<Task> task)
 {
     // AD-HOC: Don't enqueue tasks for temporary (inert) documents used for fragment parsing.
     // FIXME: There's ongoing spec work to remove such documents: https://github.com/whatwg/html/pull/11970
-    if (task->document() && task->document()->is_temporary_document_for_fragment_parsing())
+    if (task->document() && task->document()->is_temporary_document_for_fragment_parsing()) {
+        task->discard();
         return;
+    }
 
     // AD-HOC: Don't enqueue a task for a destroyed document either: "destroy a document" removes the document's
     //         tasks from every task queue, and a destroyed document is never fully active again, so a task queued
     //         for it afterwards could never run. It would only sit in the queue — and queuing it wakes the event
     //         loop, which then scans the whole queue for a runnable task, but finds none.
-    if (task->document() && task->document()->has_been_destroyed())
+    if (task->document() && task->document()->has_been_destroyed()) {
+        task->discard();
         return;
+    }
 
     m_last_added_task = task.ptr();
     if (task->priority() == Task::Priority::Idle)
@@ -74,6 +80,8 @@ GC::Ptr<Task> TaskQueue::take_first_runnable()
     if (m_event_loop->execution_paused())
         return nullptr;
 
+    ScopeGuard run_discard_steps_guard { [&] { run_discard_steps(); } };
+
     for (auto it = m_tasks.begin(); it != m_tasks.end();) {
         auto& task = *it;
 
@@ -95,9 +103,8 @@ GC::Ptr<Task> TaskQueue::take_first_runnable()
         }
 
         if (task.is_permanently_unrunnable()) {
-            if (m_last_added_task.ptr() == &task)
-                m_last_added_task = {};
-            it.erase();
+            ++it;
+            remove_without_running(m_tasks, task);
             continue;
         }
 
@@ -115,9 +122,8 @@ GC::Ptr<Task> TaskQueue::take_first_runnable()
         }
 
         if (task.is_permanently_unrunnable()) {
-            if (m_last_added_task.ptr() == &task)
-                m_last_added_task = {};
-            it.erase();
+            ++it;
+            remove_without_running(m_idle_tasks, task);
             continue;
         }
 
@@ -152,21 +158,20 @@ void TaskQueue::remove_tasks_matching(Function<bool(HTML::Task const&)> filter)
     auto remove_matching_tasks = [&](auto& tasks) {
         for (auto it = tasks.begin(); it != tasks.end();) {
             auto& task = *it;
-            if (!filter(task)) {
-                ++it;
-                continue;
-            }
-            if (m_last_added_task.ptr() == &task)
-                m_last_added_task = {};
-            it.erase();
+            ++it;
+            if (filter(task))
+                remove_without_running(tasks, task);
         }
     };
     remove_matching_tasks(m_tasks);
     remove_matching_tasks(m_idle_tasks);
+    run_discard_steps();
 }
 
 GC::Ptr<Task> TaskQueue::take_first_runnable_matching(Function<bool(HTML::Task const&)> filter)
 {
+    ScopeGuard run_discard_steps_guard { [&] { run_discard_steps(); } };
+
     for (auto it = m_tasks.begin(); it != m_tasks.end();) {
         auto& task = *it;
 
@@ -178,9 +183,8 @@ GC::Ptr<Task> TaskQueue::take_first_runnable_matching(Function<bool(HTML::Task c
         }
 
         if (task.is_permanently_unrunnable()) {
-            if (m_last_added_task.ptr() == &task)
-                m_last_added_task = {};
-            it.erase();
+            ++it;
+            remove_without_running(m_tasks, task);
             continue;
         }
 
@@ -198,9 +202,8 @@ GC::Ptr<Task> TaskQueue::take_first_runnable_matching(Function<bool(HTML::Task c
         }
 
         if (task.is_permanently_unrunnable()) {
-            if (m_last_added_task.ptr() == &task)
-                m_last_added_task = {};
-            it.erase();
+            ++it;
+            remove_without_running(m_idle_tasks, task);
             continue;
         }
 
@@ -208,6 +211,24 @@ GC::Ptr<Task> TaskQueue::take_first_runnable_matching(Function<bool(HTML::Task c
     }
 
     return nullptr;
+}
+
+void TaskQueue::remove_without_running(Task::Queue& tasks, Task& task)
+{
+    if (m_last_added_task.ptr() == &task)
+        m_last_added_task = {};
+    tasks.remove(task);
+    m_discarded_tasks.append(task);
+}
+
+// NB: Discard steps run once the queue is no longer being walked, as they may queue or remove tasks.
+void TaskQueue::run_discard_steps()
+{
+    while (!m_discarded_tasks.is_empty()) {
+        auto discarded_tasks = move(m_discarded_tasks);
+        for (auto& task : discarded_tasks)
+            task->discard();
+    }
 }
 
 Task const* TaskQueue::last_added_task() const

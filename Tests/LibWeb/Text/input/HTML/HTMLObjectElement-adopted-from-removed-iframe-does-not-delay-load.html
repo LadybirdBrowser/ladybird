@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<body>
+<script>
+    const iframe = document.createElement("iframe");
+    window.adoptObjectAndRemoveIframe = iframeDocument => {
+        document.body.appendChild(document.adoptNode(iframeDocument.querySelector("object")));
+        iframe.remove();
+    };
+    iframe.srcdoc = `<object></object><script>parent.adoptObjectAndRemoveIframe(document)<\/script>`;
+    document.body.appendChild(iframe);
+
+    promiseTest(async () => {
+        await new Promise(resolve => window.addEventListener("load", resolve));
+        println("window load event");
+    });
+</script>

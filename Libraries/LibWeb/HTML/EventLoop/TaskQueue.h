@@ -39,11 +39,15 @@ public:
 private:
     virtual void visit_edges(Visitor&) override;
 
+    void remove_without_running(Task::Queue&, Task&);
+    void run_discard_steps();
+
     GC::Ref<HTML::EventLoop> m_event_loop;
 
     Task::Queue m_tasks;
     Task::Queue m_idle_tasks;
     GC::Ptr<HTML::Task const> m_last_added_task;
+    Vector<GC::Ref<HTML::Task>> m_discarded_tasks;
 };
 
 }

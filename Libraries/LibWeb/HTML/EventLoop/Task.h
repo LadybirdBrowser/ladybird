@@ -109,7 +109,7 @@ public:
         UniqueTaskSourceStart
     };
 
-    static GC::Ref<Task> create(Source, GC::Ptr<DOM::Document const>, GC::Ref<GC::Function<void()>> steps, Priority = Priority::Normal);
+    static GC::Ref<Task> create(Source, GC::Ptr<DOM::Document const>, GC::Ref<GC::Function<void()>> steps, Priority = Priority::Normal, GC::Ptr<GC::Function<void()>> discard_steps = {});
 
     virtual ~Task() override;
 
@@ -122,6 +122,7 @@ public:
     void set_timer_nesting_level(u32 nesting_level) { m_timer_nesting_level = nesting_level; }
 
     void execute();
+    void discard();
 
     DOM::Document const* document() const;
 
@@ -129,7 +130,7 @@ public:
     bool is_permanently_unrunnable() const;
 
 private:
-    Task(Source, GC::Ptr<DOM::Document const>, GC::Ref<GC::Function<void()>> steps, Priority);
+    Task(Source, GC::Ptr<DOM::Document const>, GC::Ref<GC::Function<void()>> steps, Priority, GC::Ptr<GC::Function<void()>> discard_steps);
 
     virtual void visit_edges(Visitor&) override;
 
@@ -138,6 +139,7 @@ private:
     Priority m_priority { Priority::Normal };
     u32 m_timer_nesting_level { 0 };
     GC::Ref<GC::Function<void()>> m_steps;
+    GC::Ptr<GC::Function<void()>> m_discard_steps;
     GC::Ptr<DOM::Document const> m_document;
 
     IntrusiveListNode<Task> m_task_queue_node;

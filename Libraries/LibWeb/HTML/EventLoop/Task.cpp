@@ -26,16 +26,17 @@ static IDAllocator& unique_task_source_allocator()
     return next_task_id++;
 }
 
-GC::Ref<Task> Task::create(Source source, GC::Ptr<DOM::Document const> document, GC::Ref<GC::Function<void()>> steps, Priority priority)
+GC::Ref<Task> Task::create(Source source, GC::Ptr<DOM::Document const> document, GC::Ref<GC::Function<void()>> steps, Priority priority, GC::Ptr<GC::Function<void()>> discard_steps)
 {
-    return GC::Heap::the().allocate<Task>(source, document, move(steps), priority);
+    return GC::Heap::the().allocate<Task>(source, document, move(steps), priority, discard_steps);
 }
 
-Task::Task(Source source, GC::Ptr<DOM::Document const> document, GC::Ref<GC::Function<void()>> steps, Priority priority)
+Task::Task(Source source, GC::Ptr<DOM::Document const> document, GC::Ref<GC::Function<void()>> steps, Priority priority, GC::Ptr<GC::Function<void()>> discard_steps)
     : m_id(allocate_task_id())
     , m_source(source)
     , m_priority(priority)
     , m_steps(steps)
+    , m_discard_steps(discard_steps)
     , m_document(document)
 {
 }
@@ -46,12 +47,21 @@ void Task::visit_edges(Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_steps);
+    visitor.visit(m_discard_steps);
     visitor.visit(m_document);
 }
 
 void Task::execute()
 {
     m_steps->function()();
+}
+
+void Task::discard()
+{
+    if (auto discard_steps = m_discard_steps) {
+        m_discard_steps = nullptr;
+        discard_steps->function()();
+    }
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#concept-task-runnable
