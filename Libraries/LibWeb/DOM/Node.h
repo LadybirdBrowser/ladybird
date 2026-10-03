@@ -616,7 +616,6 @@ protected:
         virtual void visit_edges(Cell::Visitor&);
         virtual size_t external_memory_size() const;
 
-        mutable Optional<UniqueNodeID> unique_id;
         Optional<String> webdriver_node_id;
 
         // https://dom.spec.whatwg.org/#registered-observer-list
@@ -664,6 +663,8 @@ protected:
     bool m_has_assigned_slot { false };
     bool m_inside_blocking_wheel_event_handler { false };
     u32 m_child_index_generation { 1 };
+    // The slot of the node directory that names the node by its unique id, or 0 before anything asked for the id.
+    mutable u32 m_node_directory_slot { 0 };
 
     void build_accessibility_tree(AccessibilityTreeNode& parent);
 

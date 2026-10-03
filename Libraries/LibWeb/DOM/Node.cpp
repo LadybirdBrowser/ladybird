@@ -16,7 +16,6 @@
 #include <LibGC/ConservativeVector.h>
 #include <LibGC/DeferGC.h>
 #include <LibGC/Heap.h>
-#include <LibGC/WeakHashMap.h>
 #include <LibJS/Runtime/ExternalMemory.h>
 #include <LibWeb/Animations/Animation.h>
 #include <LibWeb/Bindings/Node.h>
@@ -123,30 +122,76 @@ static Utf16String generated_content_accessible_text(Element const& element, CSS
         arena->host(), element.style_node_id().value(), Layout::Node::encode_generated_for(pseudo_element)));
 }
 
-static UniqueNodeID s_next_unique_id;
-static GC::WeakHashMap<UniqueNodeID, Node>& node_directory()
+// Every node the style engine hears of gets an identity as it connects, so handing one out and
+// giving it up again are paid per element. The directory is a slab: an identity names a slot and
+// the generation the slot was at when it was handed out, so an identity outliving its node never
+// names the node that takes the slot next. Freed slots are taken again oldest first, which spreads
+// the generations over every slot, and an identity stays within what a JavaScript number holds
+// exactly, as the ones handed to devtools and WebDriver clients are read. Slot 0 names no node, so
+// a node holds 0 until it is named, and ends the list of free slots.
+static constexpr u32 max_node_directory_generation = (1u << 21) - 1;
+
+struct NodeDirectorySlot {
+    GC::RawPtr<Node> node;
+    u32 generation { 0 };
+    // The free slot freed after this one, while this one is free.
+    u32 next_free { 0 };
+};
+
+static Vector<NodeDirectorySlot>& node_directory()
 {
-    static NeverDestroyed<GC::WeakHashMap<UniqueNodeID, Node>> directory;
+    static NeverDestroyed<Vector<NodeDirectorySlot>> directory { Vector<NodeDirectorySlot> { NodeDirectorySlot {} } };
     return *directory;
 }
 
-static UniqueNodeID allocate_unique_id(Node& node)
+// The ends of the list of free slots, oldest first.
+static u32 s_oldest_free_node_directory_slot;
+static u32 s_newest_free_node_directory_slot;
+
+static u32 allocate_node_directory_slot(Node& node)
 {
-    auto id = s_next_unique_id;
-    ++s_next_unique_id;
-    node_directory().set(id, node);
-    return id;
+    auto& directory = node_directory();
+    u32 index = s_oldest_free_node_directory_slot;
+    if (index != 0) {
+        s_oldest_free_node_directory_slot = directory[index].next_free;
+        if (s_oldest_free_node_directory_slot == 0)
+            s_newest_free_node_directory_slot = 0;
+    } else {
+        index = directory.size();
+        directory.append({});
+    }
+    auto& slot = directory[index];
+    // A generation is never zero, so neither is an identity.
+    slot.generation = (slot.generation % max_node_directory_generation) + 1;
+    slot.node = &node;
+    return index;
 }
 
-static void deallocate_unique_id(UniqueNodeID node_id)
+static UniqueNodeID unique_id_of_node_directory_slot(u32 index)
 {
-    if (!node_directory().remove(node_id))
-        VERIFY_NOT_REACHED();
+    return (static_cast<i64>(node_directory()[index].generation) << 32) | index;
+}
+
+static void free_node_directory_slot(u32 index)
+{
+    auto& directory = node_directory();
+    directory[index].node = nullptr;
+    directory[index].next_free = 0;
+    if (s_newest_free_node_directory_slot != 0)
+        directory[s_newest_free_node_directory_slot].next_free = index;
+    else
+        s_oldest_free_node_directory_slot = index;
+    s_newest_free_node_directory_slot = index;
 }
 
 Node* Node::from_unique_id(UniqueNodeID unique_id)
 {
-    return node_directory().get(unique_id);
+    auto index = static_cast<u32>(unique_id.value() & 0xffffffff);
+    auto generation = static_cast<u32>(unique_id.value() >> 32);
+    auto const& directory = node_directory();
+    if (index >= directory.size() || directory[index].generation != generation)
+        return nullptr;
+    return directory[index].node.ptr();
 }
 
 Node::Node(Document& document, NodeType type)
@@ -281,23 +326,22 @@ Node::RareData& Node::ensure_rare_data() const
 void Node::finalize()
 {
     Base::finalize();
-    if (m_rare_data && m_rare_data->unique_id.has_value())
-        deallocate_unique_id(*m_rare_data->unique_id);
+    if (m_node_directory_slot)
+        free_node_directory_slot(m_node_directory_slot);
 }
 
 UniqueNodeID Node::unique_id() const
 {
-    auto& unique_id = ensure_rare_data().unique_id;
-    if (!unique_id.has_value())
-        unique_id = allocate_unique_id(const_cast<Node&>(*this));
-    return *unique_id;
+    if (!m_node_directory_slot)
+        m_node_directory_slot = allocate_node_directory_slot(const_cast<Node&>(*this));
+    return unique_id_of_node_directory_slot(m_node_directory_slot);
 }
 
 Optional<UniqueNodeID> Node::unique_id_if_assigned() const
 {
-    if (!m_rare_data)
+    if (!m_node_directory_slot)
         return {};
-    return m_rare_data->unique_id;
+    return unique_id_of_node_directory_slot(m_node_directory_slot);
 }
 
 Optional<String> Node::webdriver_node_id() const
