@@ -1488,7 +1488,7 @@ impl RetainedState {
                         environment,
                         inputs.custom_property_registration_generation,
                     ),
-                    store.as_ref().ok().map(|store| store.uses_tree_counting_function(self)),
+                    store.as_ref().ok().map(|store| store.record_reads(self)),
                 );
                 let store = std::sync::Arc::new(store?);
                 scratch.store_capacity_bytes += store.capacity_bytes();
@@ -1539,6 +1539,7 @@ impl RetainedState {
         // The record reads the element's place among its siblings where its state's winners do, as
         // the store substitutes them.
         let reads_sibling_position = store.uses_tree_counting_function(self);
+        let no_resource_contexts = store.reads_no_resource_contexts(self);
         let donor = cache_key.and_then(|key| {
             let donor_key = ColdRecordDonorKey {
                 parent: key.parent,
@@ -1635,7 +1636,9 @@ impl RetainedState {
                         reads_sibling_position,
                     };
                     scratch.cold_cohorts.insert(cache_key, record);
-                    self.remember_cold_record(cache_key, record);
+                    if let Some(no_resource_contexts) = no_resource_contexts {
+                        self.remember_cold_record(cache_key, record, no_resource_contexts);
+                    }
                 }
                 scratch.element_explicitly_inherited_groups = explicitly_inherited_groups;
                 return Ok(ElementAnswer::Delta(assembly.delta));
@@ -1734,7 +1737,9 @@ impl RetainedState {
                 reads_sibling_position,
             };
             scratch.cold_cohorts.insert(cache_key, record);
-            self.remember_cold_record(cache_key, record);
+            if let Some(no_resource_contexts) = no_resource_contexts {
+                self.remember_cold_record(cache_key, record, no_resource_contexts);
+            }
         }
         scratch.element_explicitly_inherited_groups = explicitly_inherited_groups;
         self.note_engine_computed_record(
@@ -2556,7 +2561,7 @@ impl RetainedState {
 
     /// A later element alike in what a first record is computed from takes this record, the way a
     /// C++ computation shares across transactions. The cache is small and bounded.
-    fn remember_cold_record(&mut self, key: ColdRecordKey, record: ColdRecord) {
+    fn remember_cold_record(&mut self, key: ColdRecordKey, record: ColdRecord, _: ReadsNoResourceContexts) {
         if self.engine_cold_record_cache.len() >= COLD_RECORD_CACHE_LIMIT {
             self.engine_cold_record_cache.clear();
             self.engine_cold_record_donors.clear();
@@ -2589,18 +2594,18 @@ impl RetainedState {
         }
     }
 
-    /// Whether a record the engine computes from a winner state reads the node's place among its
-    /// siblings, or `None` when the state is not one the engine computes records from: every
+    /// What a record the engine computes from a winner state reads beside its winners, or `None`
+    /// when the state is not one the engine computes records from: every
     /// winner a plain rule declaration with a written value that needs no document context.
     /// Substituted declarations also depend on the custom-property environment and the registry
     /// used to parse them.
-    fn computable_state_reads_sibling_position(
+    fn computable_state_record_reads(
         &mut self,
         node: StyleNodeID,
         cascade_state: (u64, CascadeStateID),
         scratch: &mut EngineComputabilityScratch,
         counters: &mut Counters,
-    ) -> Option<bool> {
+    ) -> Option<StateRecordReads> {
         let environment = self
             .computed_group_sets
             .custom_property_environment_identity(node)
@@ -2638,19 +2643,20 @@ impl RetainedState {
                 counters,
             )
             .ok()
-            .map(|store| store.uses_tree_counting_function(self));
+            .map(|store| store.record_reads(self));
         scratch.remember(key, admitted);
         admitted
     }
 
     /// Whether C++ may publish one record as the answer for another element with this winner
-    /// state. Values which read per-element or external context are never shared opaquely.
-    fn state_is_opaque_record_shareable(
+    /// state. Values which read per-element or external context are never shared opaquely, and
+    /// no context-free value resolves a `url()`.
+    fn opaque_record_shareable_state(
         &mut self,
         node: StyleNodeID,
         state: CascadeStateID,
         counters: &mut Counters,
-    ) -> bool {
+    ) -> Option<ReadsNoResourceContexts> {
         for winner in self
             .winner_groups
             .winners_in_state(state)
@@ -2660,12 +2666,12 @@ impl RetainedState {
                 Ok(Some((_, _, checks))) if checks.whole_context_free => {}
                 Err(counter) => {
                     counters.bump(counter);
-                    return false;
+                    return None;
                 }
-                _ => return false,
+                _ => return None,
             }
         }
-        true
+        Some(ReadsNoResourceContexts(()))
     }
 
     /// The parent-side half of a first record's sharing key, or nothing when the parent's style
@@ -2838,18 +2844,24 @@ impl RetainedState {
         }
         // An opaque record is shared only when every winner is context-free, which no winner
         // reading the element's place among its siblings is.
-        let Some(reads_sibling_position) = self
-            .computable_state_reads_sibling_position(node, cascade_state, scratch, counters)
+        let Some(reads) = self
+            .computable_state_record_reads(node, cascade_state, scratch, counters)
             .or_else(|| {
-                self.state_is_opaque_record_shareable(node, cascade_state.1, counters)
-                    .then_some(false)
+                self.opaque_record_shareable_state(node, cascade_state.1, counters)
+                    .map(|no_resource_contexts| StateRecordReads {
+                        sibling_position: false,
+                        no_resource_contexts: Some(no_resource_contexts),
+                    })
             })
         else {
             return;
         };
         // The element holds the record whether or not a later element takes it, and a change
         // among its siblings has to drive one reading its place again in full.
-        self.note_sibling_position_reads(node, u8::MAX, reads_sibling_position);
+        self.note_sibling_position_reads(node, u8::MAX, reads.sibling_position);
+        let Some(no_resource_contexts) = reads.no_resource_contexts else {
+            return;
+        };
         // A record whose winners read beyond its environment is the element's alone, as is one
         // `records_are_the_elements_alone` says is.
         if self.state_reads_beyond_environment(node, cascade_state.1) || self.records_are_the_elements_alone(node) {
@@ -2879,8 +2891,9 @@ impl RetainedState {
                 record: style_record,
                 swap_eligible,
                 explicitly_inherited_groups: self.state_explicitly_inherited_groups(node, cascade_state.1),
-                reads_sibling_position,
+                reads_sibling_position: reads.sibling_position,
             },
+            no_resource_contexts,
         );
     }
 
@@ -4629,6 +4642,21 @@ pub(super) struct ColdRecord {
     reads_sibling_position: bool,
 }
 
+/// The proof that a record reads no resource context: no value its winners give it resolves a
+/// `url()` against a style sheet's or the document's base URL. The engine keeps only such records
+/// across transactions, so a move of those base URLs, which every `history.pushState()` makes
+/// without a `<base>`, leaves nothing it keeps to forget.
+#[derive(Clone, Copy)]
+pub(super) struct ReadsNoResourceContexts(());
+
+/// What a record computed from a winner state reads beside the state's winners: the element's
+/// place among its siblings, and whether a `url()` resolves against a resource context.
+#[derive(Clone, Copy)]
+pub(super) struct StateRecordReads {
+    pub(super) sibling_position: bool,
+    pub(super) no_resource_contexts: Option<ReadsNoResourceContexts>,
+}
+
 /// The value-independent half of a first-record key. Records under the same key may seed one
 /// another, with the semantic cascade delta selecting the values which must be recomputed.
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
@@ -4739,10 +4767,10 @@ impl WrittenValueChecks {
 
 #[derive(Default)]
 pub(super) struct EngineComputabilityScratch {
-    /// Whether a record computed from the state reads the node's place among its siblings, or
-    /// `None` when the engine computes none from it.
+    /// What a record computed from the state reads beside its winners, or `None` when the engine
+    /// computes none from it.
     // NB: Equal winner states can have different per-node written declaration inputs.
-    states: HashMap<(StyleNodeID, u64, CascadeStateID, u64, u64), Option<bool>>,
+    states: HashMap<(StyleNodeID, u64, CascadeStateID, u64, u64), Option<StateRecordReads>>,
 }
 
 impl EngineComputabilityScratch {
@@ -4755,7 +4783,7 @@ impl EngineComputabilityScratch {
         }
     }
 
-    fn remember(&mut self, key: (StyleNodeID, u64, CascadeStateID, u64, u64), admitted: Option<bool>) {
+    fn remember(&mut self, key: (StyleNodeID, u64, CascadeStateID, u64, u64), admitted: Option<StateRecordReads>) {
         if self.states.len() >= COLD_RECORD_CACHE_LIMIT {
             self.states.clear();
         }
@@ -5484,12 +5512,7 @@ mod tests {
                 assert_eq!(
                     engine
                         .state
-                        .computable_state_reads_sibling_position(
-                            node,
-                            cascade_state,
-                            &mut scratch,
-                            &mut engine.counters
-                        )
+                        .computable_state_record_reads(node, cascade_state, &mut scratch, &mut engine.counters)
                         .is_some(),
                     node == first,
                 );
