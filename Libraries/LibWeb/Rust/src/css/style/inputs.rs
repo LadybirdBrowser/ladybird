@@ -756,7 +756,14 @@ impl RetainedState {
     }
 
     fn published_box_facts(&self, style_record: Option<computed::FinalStyleRecordID>) -> Option<PublishedBoxFacts> {
-        let view = self.published_style_record_view(style_record)?;
+        self.style_record_box_facts(style_record?.raw())
+    }
+
+    /// The box facts a style record holds. `None` for a record that holds no payloads.
+    #[must_use]
+    pub fn style_record_box_facts(&self, style_record: u64) -> Option<PublishedBoxFacts> {
+        let payloads = self.computed_group_sets.style_record_payloads(style_record)?;
+        let view = crate::css::computed_value_views::ComputedValuesView::new(SharedPayload::as_pointer_slice(payloads));
         Some(PublishedBoxFacts {
             display: view.display(),
             content_visibility: view.content_visibility(),
