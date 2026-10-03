@@ -71,7 +71,6 @@ public:
 
     virtual WebIDL::ExceptionOr<void> cloned(Node&, bool) const override;
 
-    virtual void form_associated_element_was_inserted() override;
     virtual void form_associated_element_attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_) override;
 
     virtual void children_changed(ChildrenChangedMetadata const&) override;
@@ -156,6 +155,7 @@ private:
 
     // ^DOM::Element
     virtual i32 default_tab_index_value() const override;
+    virtual void prepare_for_style_computation() override { create_shadow_tree_if_needed(); }
 
     void create_shadow_tree_if_needed();
 

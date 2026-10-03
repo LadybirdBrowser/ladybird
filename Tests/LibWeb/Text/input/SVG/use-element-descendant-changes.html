@@ -1,0 +1,72 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        const SVG_NS = "http://www.w3.org/2000/svg";
+        const createSVGElement = name => document.createElementNS(SVG_NS, name);
+
+        function createRect(width) {
+            const rect = createSVGElement("rect");
+            rect.setAttribute("width", width);
+            rect.setAttribute("height", "10");
+            return rect;
+        }
+
+        function createUse(target) {
+            const use = createSVGElement("use");
+            use.setAttribute("href", `#${target}`);
+            return use;
+        }
+
+        window.addEventListener(
+            "load",
+            () => {
+                setTimeout(() => {
+                    {
+                        const svg = createSVGElement("svg");
+                        svg.style.visibility = "hidden";
+                        const target = createSVGElement("g");
+                        target.id = "idlessDescendantTarget";
+                        const rect = createRect("10");
+                        target.append(rect);
+                        const use = createUse(target.id);
+                        svg.append(target, use);
+                        document.body.append(svg);
+
+                    const initialWidth = use.getBBox().width;
+                    rect.setAttribute("width", "20");
+                    println(`ID-less descendant change updated use: ${initialWidth === 10 && use.getBBox().width === 20}`);
+                    }
+
+                    {
+                        const svg = createSVGElement("svg");
+                        svg.style.visibility = "hidden";
+                        const defs = createSVGElement("defs");
+                        const small = createSVGElement("g");
+                        small.id = "small";
+                        small.append(createRect("10"));
+                        const large = createSVGElement("g");
+                        large.id = "large";
+                        large.append(createRect("20"));
+                        const target = createSVGElement("g");
+                        target.id = "useDescendantTarget";
+                        const innerUse = createUse(small.id);
+                        innerUse.id = "innerUse";
+                        target.append(innerUse);
+                        const outerUse = createUse(target.id);
+                        defs.append(small, large, target);
+                        svg.append(defs, outerUse);
+                        document.body.append(svg);
+
+                    const initialWidth = outerUse.getBBox().width;
+                    innerUse.setAttribute("href", `#${large.id}`);
+                    println(`Descendant use change updated use: ${initialWidth === 10 && outerUse.getBBox().width === 20}`);
+                    }
+
+                    done();
+                }, 0);
+            },
+            { once: true }
+        );
+    });
+</script>
