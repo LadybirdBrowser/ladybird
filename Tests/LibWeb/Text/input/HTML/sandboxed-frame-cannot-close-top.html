@@ -1,0 +1,17 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        const popup = window.open("about:blank", "_blank");
+        const frame = popup.document.createElement("iframe");
+        frame.sandbox = "allow-scripts";
+        frame.srcdoc = `<script>top.close();<\/script>`;
+        popup.document.body.appendChild(frame);
+
+        setTimeout(() => {
+            println(`${popup.closed ? "FAIL" : "PASS"}: sandboxed frame cannot close its top-level page`);
+            popup.close();
+            done();
+        }, 100);
+    });
+</script>
