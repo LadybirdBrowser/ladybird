@@ -16,13 +16,6 @@
 
 namespace Web::Bindings {
 
-template<>
-void Intrinsics::create_web_prototype_and_constructor<FormDataIteratorPrototype>(JS::Realm& realm)
-{
-    auto prototype = realm.create<FormDataIteratorPrototype>(realm);
-    m_prototypes.set("FormDataIterator"_utf16_fly_string, prototype);
-}
-
 static void set_form_data_iterator_prototype(JS::Realm& realm, XHR::FormDataIterator& iterator)
 {
     static auto const& name = "FormDataIterator"_utf16_fly_string;

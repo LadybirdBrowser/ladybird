@@ -13,13 +13,6 @@
 
 namespace Web::Bindings {
 
-template<>
-void Intrinsics::create_web_prototype_and_constructor<HeadersIteratorPrototype>(JS::Realm& realm)
-{
-    auto prototype = realm.create<HeadersIteratorPrototype>(realm);
-    m_prototypes.set("HeadersIterator"_utf16_fly_string, prototype);
-}
-
 static void set_headers_iterator_prototype(JS::Realm& realm, Fetch::HeadersIterator& iterator)
 {
     static auto const& name = "HeadersIterator"_utf16_fly_string;

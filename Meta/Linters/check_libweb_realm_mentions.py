@@ -44,10 +44,10 @@ ALLOWED_REALM_MENTIONS = {
     "CookieStore": (2, 19, "cookie-store async callbacks and promise/value materialization still thread realms"),
     "Crypto": (8, 385, "WebCrypto algorithms still use realms for buffer/key/promise materialization"),
     "DOM": (10, 33, "DOM abort plumbing and node helpers still have callback/materialization realm use"),
-    "DOMURL": (2, 8, "URLSearchParams iterator objects still materialize JS iterator results in selected realms"),
+    "DOMURL": (2, 7, "URLSearchParams iterator objects still materialize JS iterator results in selected realms"),
     "Fetch": (
         22,
-        66,
+        65,
         "Fetch bodies, headers, requests, responses, and controllers still materialize JS values/streams; the body receiver's delivery and close tasks carry the realm its stream is enqueued and closed in",
     ),
     "FileAPI": (6, 11, "File/Blob/FileReader algorithms still create streams, buffers, and events in selected realms"),
@@ -72,7 +72,7 @@ ALLOWED_REALM_MENTIONS = {
     ),
     "Streams": (
         34,
-        214,
+        213,
         "Streams algorithms still use realms for controller/read/write operations and chunk conversion",
     ),
     "TrustedTypes": (2, 9, "Trusted Types policy factory operations still use selected realms"),
@@ -89,7 +89,7 @@ ALLOWED_REALM_MENTIONS = {
     "WebDriver": (2, 7, "WebDriver execute/JSON conversion still materializes JS values for automation"),
     "WebGL": (72, 120, "WebGL APIs still materialize buffers, typed arrays, extensions, and wrapper objects"),
     "WebLocks": (6, 7, "Web Locks queue/callback algorithms still use callback and promise realms"),
-    "XHR": (4, 11, "XHR/FormData/FileReader-style paths still materialize JS values and events"),
+    "XHR": (4, 10, "XHR/FormData/FileReader-style paths still materialize JS values and events"),
 }
 
 
