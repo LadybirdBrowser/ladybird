@@ -1,0 +1,12 @@
+document
+  generic
+    button name="Bold (on)" pressed
+      text leaf name="Bold (on)"
+    text leaf name="
+"
+    button name="Italic (off)" unpressed
+      text leaf name="Italic (off)"
+    text leaf name="
+"
+    button name="Partial" mixed
+      text leaf name="Partial"

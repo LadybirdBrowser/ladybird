@@ -1,0 +1,11 @@
+document
+  generic
+    textbox name="Text field" value="hello world" editable
+    text leaf name="
+"
+    searchbox name="Search field" value="a query" editable
+    text leaf name="
+"
+     name="Password field" value="●●●●●●●●●●●●●" editable password
+    textbox name="Notes" value="note text" editable multiline
+      text leaf name="note text"

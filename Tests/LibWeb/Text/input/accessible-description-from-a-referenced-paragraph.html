@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<button aria-describedby="help">Submit</button>
+<p id="help">Click to send the form</p>
+<button aria-describedby="hidden-help">Save</button>
+<p id="hidden-help" hidden>Saves the draft</p>
+<script>
+    test(() => {
+        const visit = (node) => {
+            if (node.role === "button")
+                println(`button "${node.name}" description="${node.description}"`);
+            for (const child of node.children ?? [])
+                visit(child);
+        };
+        visit(JSON.parse(internals.dumpAccessibilityTree()));
+    });
+</script>

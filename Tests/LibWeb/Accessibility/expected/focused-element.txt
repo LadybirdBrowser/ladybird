@@ -1,0 +1,7 @@
+document
+  generic
+    paragraph
+      textbox name="Focused field" focused editable
+    paragraph
+      button name="Unfocused button"
+        text leaf name="Unfocused button"
