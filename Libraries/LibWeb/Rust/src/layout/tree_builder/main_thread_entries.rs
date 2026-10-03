@@ -34,6 +34,12 @@ pub unsafe extern "C" fn rust_detach_remaining_layout_rows_for_removal(arena: *m
     let Some(node) = StyleNodeID::from_raw(style_node) else {
         return;
     };
+    // OPTIMIZATION: Every node of a removed subtree comes here, and one removed before any tree build reached it has
+    //               no box, so it skips the probe of each pseudo-element kind.
+    // SAFETY: As above.
+    if unsafe { LayoutNodeArena::from_handle(arena) }.has_no_rows_carrying(node) {
+        return;
+    }
     // A pseudo-element's boxes are found through its generator's identity, so they go while the
     // identity still finds them. A ::backdrop box sits outside the generator's box, so no rebuild
     // of the parent would free it.

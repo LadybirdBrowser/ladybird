@@ -1848,6 +1848,12 @@ impl LayoutNodeArena {
         self.document_style_node.set(Some(document_style_node));
     }
 
+    /// Whether no row carries `style_node`, which leaves the node, and every pseudo-element it
+    /// generates, without a bound row.
+    pub(crate) fn has_no_rows_carrying(&self, style_node: StyleNodeID) -> bool {
+        self.first_rows_by_style_node.borrow().head(style_node).is_invalid()
+    }
+
     /// The row the pseudo-element of kind `generated_for` on the element with `generator` is bound
     /// to, if any.
     pub(crate) fn bound_pseudo_element_row(&self, generator: StyleNodeID, generated_for: u8) -> NodeSlotId {
