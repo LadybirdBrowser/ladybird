@@ -3,7 +3,7 @@
 <script>
     promiseTest(async () => {
         const server = httpTestServer();
-        const path = `/preflight-cache-method-case-sensitive-${crypto.randomUUID()}`;
+        const path = "/preflight-cache-method-case-sensitive";
         await server.createEcho("OPTIONS", path, {
             status: 204,
             headers: {

@@ -2,7 +2,7 @@
 <script src="../include.js"></script>
 <script>
     promiseTest(async () => {
-        const imageURL = await httpTestServer().createEcho("GET", `/tainted-canvas-${crypto.randomUUID()}`, {
+        const imageURL = await httpTestServer().createEcho("GET", "/tainted-canvas", {
             status: 200,
             headers: { "Content-Type": "image/svg+xml" },
             body: '<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"></svg>',

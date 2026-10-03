@@ -11,7 +11,7 @@
         // The redirect target is an https URL on the echo server's plain-HTTP port, so its TLS handshake always fails —
         // which fails the navigation after the redirect.
         const failingURL = `https://127.0.0.1:${internals.getEchoServerPort()}/${token}`;
-        const redirectURL = await server.createEcho("GET", `/redirecttotlsfailure${token}`, {
+        const redirectURL = await server.createEcho("GET", "/redirecttotlsfailure", {
             status: 302,
             headers: { Location: failingURL },
         });

@@ -6,16 +6,15 @@
     // the new document activates, so their pagehide and unload handlers run; they record through cookies.
     promiseTest(async () => {
         const httpServer = httpTestServer();
-        const runId = crypto.randomUUID();
         const outgoingHostname = uniqueLocalhostHostname("outgoing-unload");
 
-        const targetMarkerUrl = await httpServer.createEcho("GET", `/outgoing-unload-target-loaded-${runId}`, {
+        const targetMarkerUrl = await httpServer.createEcho("GET", "/outgoing-unload-target-loaded", {
             status: 200,
             headers: { "Content-Type": "text/plain" },
             body: "recorded",
         });
         const targetUrl = new URL(
-            await httpServer.createEcho("GET", `/outgoing-unload-target-${runId}`, {
+            await httpServer.createEcho("GET", "/outgoing-unload-target", {
                 status: 200,
                 headers: { "Content-Type": "text/html" },
                 body: `<!DOCTYPE html>target<script>
@@ -26,7 +25,7 @@
         targetUrl.hostname = uniqueLocalhostHostname("outgoing-unload-target");
 
         const childUrl = new URL(
-            await httpServer.createEcho("GET", `/outgoing-unload-child-${runId}`, {
+            await httpServer.createEcho("GET", "/outgoing-unload-child", {
                 status: 200,
                 headers: { "Content-Type": "text/html" },
                 body: `<!DOCTYPE html>child<script>
@@ -37,7 +36,7 @@
         childUrl.hostname = outgoingHostname;
 
         const outgoingUrl = new URL(
-            await httpServer.createEcho("GET", `/outgoing-unload-outgoing-${runId}`, {
+            await httpServer.createEcho("GET", "/outgoing-unload-outgoing", {
                 status: 200,
                 headers: { "Content-Type": "text/html" },
                 body: `<!DOCTYPE html>outgoing<iframe src="${childUrl.href}"></iframe><script>

@@ -23,9 +23,8 @@
     // A banner over an isolated iframe takes the clicks on it: the top document hit-tests first, and only a click on
     // the part of the iframe nothing covers reaches the iframe's process.
     promiseTest(async () => {
-        const runId = crypto.randomUUID();
         const childUrl = new URL(
-            await httpTestServer().createEcho("GET", `/oop-overlay-click-${runId}`, {
+            await httpTestServer().createEcho("GET", "/oop-overlay-click", {
                 status: 200,
                 headers: { "Content-Type": "text/html" },
                 body: `<!DOCTYPE html><body style="margin: 0"><script>

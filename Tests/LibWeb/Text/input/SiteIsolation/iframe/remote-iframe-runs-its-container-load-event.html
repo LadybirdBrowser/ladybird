@@ -5,10 +5,9 @@
     // the container's WindowProxy stands for the navigable hosted there.
     promiseTest(async () => {
         const httpServer = httpTestServer();
-        const runId = crypto.randomUUID();
 
         const childUrl = new URL(
-            await httpServer.createEcho("GET", `/oop-iframe-load-event-${runId}`, {
+            await httpServer.createEcho("GET", "/oop-iframe-load-event", {
                 status: 200,
                 headers: { "Content-Type": "text/html" },
                 body: "<!DOCTYPE html>child",

@@ -13,14 +13,14 @@
         const httpServer = httpTestServer();
         const testID = crypto.randomUUID();
         const unblockToken = `img-pending-alt-text-${testID}`;
-        const pendingURL = await httpServer.createEcho("GET", `/img-pending-alt-text-${testID}`, {
+        const pendingURL = await httpServer.createEcho("GET", "/img-pending-alt-text", {
             status: 200,
             headers: { "Content-Type": "image/png" },
             body: TINY_PNG_BASE64,
             body_encoding: "base64",
             wait_for_unblock: unblockToken,
         });
-        const brokenURL = await httpServer.createEcho("GET", `/img-broken-alt-text-${testID}`, {
+        const brokenURL = await httpServer.createEcho("GET", "/img-broken-alt-text", {
             status: 404,
             body: "not found",
         });

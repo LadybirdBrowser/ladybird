@@ -6,10 +6,9 @@
     // context group switch, and the opener keeps its handle on the popup.
     promiseTest(async () => {
         const httpServer = httpTestServer();
-        const runId = crypto.randomUUID();
 
         const crossSiteUrl = new URL(
-            await httpServer.createEcho("GET", `/popup-cross-site-${runId}`, {
+            await httpServer.createEcho("GET", "/popup-cross-site", {
                 status: 200,
                 headers: { "Content-Type": "text/html" },
                 body: `<!DOCTYPE html><script>opener.postMessage("hello from " + location.hostname, "*");<\/script>`,
@@ -17,7 +16,7 @@
         );
         crossSiteUrl.hostname = uniqueLocalhostHostname("popup-cross-site");
 
-        const popupUrl = await httpServer.createEcho("GET", `/popup-same-site-${runId}`, {
+        const popupUrl = await httpServer.createEcho("GET", "/popup-same-site", {
             status: 200,
             headers: { "Content-Type": "text/html" },
             body: `<!DOCTYPE html><script>location.href = ${JSON.stringify(crossSiteUrl.href)};<\/script>`,

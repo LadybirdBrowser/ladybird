@@ -20,9 +20,8 @@
     // The top-level document hit-tests a click at its scrolled position and hands it to the isolated iframe under it,
     // which sees the click where it landed in its own viewport.
     promiseTest(async () => {
-        const runId = crypto.randomUUID();
         const childUrl = new URL(
-            await httpTestServer().createEcho("GET", `/oop-click-after-scroll-${runId}`, {
+            await httpTestServer().createEcho("GET", "/oop-click-after-scroll", {
                 status: 200,
                 headers: { "Content-Type": "text/html" },
                 body: `<!DOCTYPE html><body style="margin: 0"><script>

@@ -2,7 +2,7 @@
 <script src="../include.js"></script>
 <script>
     promiseTest(async () => {
-        const pageURL = await httpTestServer().createEcho("GET", `/javascript-url-policy-${crypto.randomUUID()}`, {
+        const pageURL = await httpTestServer().createEcho("GET", "/javascript-url-policy", {
             status: 200,
             headers: {
                 "Content-Type": "text/html",

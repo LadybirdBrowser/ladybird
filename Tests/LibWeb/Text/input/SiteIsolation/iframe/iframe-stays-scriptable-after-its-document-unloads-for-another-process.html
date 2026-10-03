@@ -6,10 +6,9 @@
     // of reach, and removing the iframe then tears the frame down.
     promiseTest(async () => {
         const httpServer = httpTestServer();
-        const runId = crypto.randomUUID();
         const remoteUrl = async (name, body) => {
             const url = new URL(
-                await httpServer.createEcho("GET", `/oop-after-unload-${name}-${runId}`, {
+                await httpServer.createEcho("GET", `/oop-after-unload-${name}`, {
                     status: 200,
                     headers: { "Content-Type": "text/html" },
                     body,

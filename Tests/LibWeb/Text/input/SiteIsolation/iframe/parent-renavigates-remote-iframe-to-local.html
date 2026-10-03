@@ -3,10 +3,9 @@
 <script>
     promiseTest(async () => {
         const httpServer = httpTestServer();
-        const runId = crypto.randomUUID();
 
         const remoteUrl = new URL(
-            await httpServer.createEcho("GET", `/oop-iframe-return-local-${runId}`, {
+            await httpServer.createEcho("GET", "/oop-iframe-return-local", {
                 status: 200,
                 headers: { "Content-Type": "text/html" },
                 body: "<!DOCTYPE html>remote",

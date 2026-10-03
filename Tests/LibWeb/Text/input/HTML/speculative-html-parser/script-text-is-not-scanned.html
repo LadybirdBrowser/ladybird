@@ -5,7 +5,7 @@
         const server = httpTestServer();
         const run = crypto.randomUUID();
         const parserGate = `${run}-parser`;
-        const path = name => `/speculative-html-parser-${run}-${name}`;
+        const path = name => `/speculative-html-parser-${name}`;
         const javascriptHeaders = { "Content-Type": "text/javascript" };
 
         const parserBlockerURL = await server.createEcho("GET", path("parser-blocker.js"), {

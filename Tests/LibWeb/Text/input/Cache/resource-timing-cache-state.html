@@ -16,8 +16,6 @@
 
     const server = httpTestServer();
 
-    const token = crypto.randomUUID();
-
     async function createRequest(path, headers) {
         await server.createEcho("OPTIONS", path, {
             status: 200,
@@ -63,7 +61,7 @@
         const previousMemoryCacheSetting = internals.setHttpMemoryCacheEnabled(false);
 
         try {
-            let url = await createRequest(`/cache-state/fresh-${token}`, {
+            let url = await createRequest("/cache-state/fresh", {
                 "Cache-Control": "max-age=999",
             });
 
@@ -73,7 +71,7 @@
             await cacheFetch(url);
             reportLastEntry("Served from the cache", url);
 
-            url = await createRequest(`/cache-state/revalidated-${token}`, {
+            url = await createRequest("/cache-state/revalidated", {
                 Age: "2",
                 "Cache-Control": "max-age=5,must-revalidate",
                 "Last-Modified": new Date().toUTCString(),

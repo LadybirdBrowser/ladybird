@@ -3,11 +3,10 @@
 <script>
     promiseTest(async () => {
         const server = httpTestServer();
-        const testID = crypto.randomUUID();
 
         async function redirectedUserAgent(name, initialMatches, finalMatches, explicitUserAgent) {
-            const initialPath = `/site-compatibility-user-agent-${name}-initial-${testID}`;
-            const finalPath = `/site-compatibility-user-agent-${name}-final-${testID}`;
+            const initialPath = `/site-compatibility-user-agent-${name}-initial`;
+            const finalPath = `/site-compatibility-user-agent-${name}-final`;
             const finalURL = await server.createEcho("GET", finalPath, {
                 status: 200,
                 headers: { "Content-Type": "application/json" },

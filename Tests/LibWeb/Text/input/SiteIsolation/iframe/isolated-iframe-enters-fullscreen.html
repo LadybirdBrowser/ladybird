@@ -15,10 +15,9 @@
     // the iframe element there before the request settles, and unfullscreens it before the iframe's exit settles.
     promiseTest(async () => {
         const httpServer = httpTestServer();
-        const runId = crypto.randomUUID();
 
         const childUrl = new URL(
-            await httpServer.createEcho("GET", `/oop-fullscreen-${runId}`, {
+            await httpServer.createEcho("GET", "/oop-fullscreen", {
                 status: 200,
                 headers: { "Content-Type": "text/html" },
                 body: `<!DOCTYPE html><script>

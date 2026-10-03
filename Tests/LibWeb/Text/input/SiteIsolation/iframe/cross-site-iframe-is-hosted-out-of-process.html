@@ -4,10 +4,9 @@
     // A cross-site iframe moves to its own WebContent process when iframe site isolation is enabled.
     promiseTest(async () => {
         const httpServer = httpTestServer();
-        const runId = crypto.randomUUID();
 
         const childUrl = new URL(
-            await httpServer.createEcho("GET", `/oop-iframe-child-${runId}`, {
+            await httpServer.createEcho("GET", "/oop-iframe-child", {
                 status: 200,
                 headers: { "Content-Type": "text/html" },
                 body: "<!DOCTYPE html>child",

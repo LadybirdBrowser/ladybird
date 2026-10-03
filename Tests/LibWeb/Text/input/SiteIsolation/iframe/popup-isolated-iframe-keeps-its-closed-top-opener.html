@@ -5,10 +5,9 @@
     // removed, top.opener in the popup's isolated iframe is still that iframe's WindowProxy, and its window is closed.
     promiseTest(async () => {
         const httpServer = httpTestServer();
-        const runId = crypto.randomUUID();
 
         const iframeUrl = new URL(
-            await httpServer.createEcho("GET", `/oop-popup-iframe-closed-opener-${runId}`, {
+            await httpServer.createEcho("GET", "/oop-popup-iframe-closed-opener", {
                 status: 200,
                 headers: { "Content-Type": "text/html" },
                 body: `<!DOCTYPE html><script>
@@ -37,7 +36,7 @@
         );
         iframeUrl.hostname = uniqueLocalhostHostname("oop-popup-iframe-closed-opener");
 
-        const popupUrl = await httpServer.createEcho("GET", `/oop-popup-closed-opener-${runId}`, {
+        const popupUrl = await httpServer.createEcho("GET", "/oop-popup-closed-opener", {
             status: 200,
             headers: { "Content-Type": "text/html" },
             body: `<!DOCTYPE html><script>

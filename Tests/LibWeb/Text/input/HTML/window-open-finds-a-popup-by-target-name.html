@@ -9,7 +9,7 @@
         const channelName = `popups-${runId}`;
         const channel = new BroadcastChannel(channelName);
         const nextReport = () => new Promise(resolve => channel.addEventListener("message", event => resolve(event.data), { once: true }));
-        const pageUrl = label => httpServer.createEcho("GET", `/${label}-${runId}`, {
+        const pageUrl = label => httpServer.createEcho("GET", `/${label}`, {
             status: 200,
             headers: { "Content-Type": "text/html" },
             body: `<!DOCTYPE html><script>

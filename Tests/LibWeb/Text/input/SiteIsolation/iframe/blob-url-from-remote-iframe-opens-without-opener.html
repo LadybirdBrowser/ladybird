@@ -10,14 +10,14 @@
 
         // The child publishes its blob URL as an echo, then releases the parent's request for it.
         const urlPath = `/echo/oop-blob-popup-url-${runId}`;
-        const urlReady = await httpServer.createEcho("GET", `/oop-blob-popup-ready-${runId}`, {
+        const urlReady = await httpServer.createEcho("GET", "/oop-blob-popup-ready", {
             status: 204,
             headers: corsHeaders,
             wait_for_unblock: `oop-blob-popup-${runId}`,
         });
 
         const childUrl = new URL(
-            await httpServer.createEcho("GET", `/oop-blob-popup-child-${runId}`, {
+            await httpServer.createEcho("GET", "/oop-blob-popup-child", {
                 status: 200,
                 headers: { "Content-Type": "text/html" },
                 body: `<!DOCTYPE html><script>

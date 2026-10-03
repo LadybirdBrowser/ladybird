@@ -5,10 +5,9 @@
     // before the new document is activated in the parent's process, and only then makes the frame local.
     promiseTest(async () => {
         const httpServer = httpTestServer();
-        const runId = crypto.randomUUID();
 
         const remoteUrl = new URL(
-            await httpServer.createEcho("GET", `/oop-return-first-${runId}`, {
+            await httpServer.createEcho("GET", "/oop-return-first", {
                 status: 200,
                 headers: { "Content-Type": "text/html" },
                 body: `<!DOCTYPE html><script>

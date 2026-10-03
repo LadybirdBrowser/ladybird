@@ -9,14 +9,14 @@
     promiseTest(async () => {
         const server = httpTestServer();
         const token = crypto.randomUUID();
-        const fontUrl = await server.createEcho("GET", `/removing-stylesheet-preserves-non-layout-descendant-record-${token}.ttf`, {
+        const fontUrl = await server.createEcho("GET", "/removing-stylesheet-preserves-non-layout-descendant-record.ttf", {
             status: 200,
             headers: { "Content-Type": "font/ttf" },
             body: "blocked font response",
             wait_for_unblock: token,
         });
 
-        const stylesheetUrl = await server.createEcho("GET", `/removing-stylesheet-preserves-non-layout-descendant-record-${token}.css`, {
+        const stylesheetUrl = await server.createEcho("GET", "/removing-stylesheet-preserves-non-layout-descendant-record.css", {
             status: 200,
             headers: { "Content-Type": "text/css" },
             body: `@font-face { font-family: SlowAhem; src: url("${fontUrl}"); }`,

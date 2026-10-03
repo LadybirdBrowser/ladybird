@@ -21,7 +21,7 @@
     }
 
     asyncTest(async done => {
-        const crossOriginURL = new URL(await httpTestServer().createEcho("GET", `/cross-origin-Location-NodeFilter-callback-${crypto.randomUUID()}`, {
+        const crossOriginURL = new URL(await httpTestServer().createEcho("GET", "/cross-origin-Location-NodeFilter-callback", {
             status: 200,
             headers: { "Content-Type": "text/html" },
             body: '<!DOCTYPE html><p id="cross-origin-marker">cross-origin-value</p>',

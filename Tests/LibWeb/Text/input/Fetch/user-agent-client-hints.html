@@ -5,11 +5,10 @@
     // User-Agent claiming another browser, or no Chrome at all, never gets a brand list that contradicts it.
     promiseTest(async () => {
         const server = httpTestServer();
-        const testID = crypto.randomUUID();
         let echoCount = 0;
 
         async function hintsFor(userAgent) {
-            const url = await server.createEcho("GET", `/ua-client-hints-${++echoCount}-${testID}`, {
+            const url = await server.createEcho("GET", `/ua-client-hints-${++echoCount}`, {
                 status: 200,
                 headers: {
                     "Content-Type": "application/json",

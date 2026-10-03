@@ -2,7 +2,7 @@
 <script src="../include.js"></script>
 <script>
     asyncTest(async done => {
-        const frameURL = await httpTestServer().createEcho("GET", `/initial-about-blank-top-level-origin-${crypto.randomUUID()}`, {
+        const frameURL = await httpTestServer().createEcho("GET", "/initial-about-blank-top-level-origin", {
             status: 200,
             headers: { "Content-Type": "text/html" },
             body: `<!DOCTYPE html><body><script>

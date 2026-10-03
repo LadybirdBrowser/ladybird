@@ -3,16 +3,15 @@
 <script>
     promiseTest(async () => {
         const server = httpTestServer();
-        const runId = crypto.randomUUID();
         const hostname = uniqueLocalhostHostname("oop-siblings");
         const frames = [];
         const loadChild = async (frame, index) => {
-            const marker = new URL(await server.createEcho("GET", `/oop-sibling-marker-${runId}-${index}`, {
+            const marker = new URL(await server.createEcho("GET", `/oop-sibling-marker-${index}`, {
                 status: 200,
                 body: "marker",
             }));
             marker.hostname = hostname;
-            const url = new URL(await server.createEcho("GET", `/oop-sibling-${runId}-${index}`, {
+            const url = new URL(await server.createEcho("GET", `/oop-sibling-${index}`, {
                 status: 200,
                 headers: { "Content-Type": "text/html" },
                 body: `<!doctype html><script>fetch(${JSON.stringify(marker.href)});<\/script>`,

@@ -5,13 +5,13 @@
         const server = httpTestServer();
         const hostname = uniqueLocalhostHostname("namespaced-hyperlink-rel");
         const openerURL = new URL(
-            await server.createEcho("GET", `/namespaced-rel-opener-${crypto.randomUUID()}`, {
+            await server.createEcho("GET", "/namespaced-rel-opener", {
                 status: 200,
                 body: "ok",
             })
         );
         const noOpenerURL = new URL(
-            await server.createEcho("GET", `/namespaced-rel-no-opener-${crypto.randomUUID()}`, {
+            await server.createEcho("GET", "/namespaced-rel-no-opener", {
                 status: 200,
                 body: "ok",
             })
@@ -19,7 +19,7 @@
         openerURL.hostname = hostname;
         noOpenerURL.hostname = hostname;
         const popupURL = new URL(
-            await server.createEcho("GET", `/namespaced-rel-popup-${crypto.randomUUID()}`, {
+            await server.createEcho("GET", "/namespaced-rel-popup", {
                 status: 200,
                 headers: { "Content-Type": "text/html" },
                 body: `<script>fetch(opener ? "${openerURL.href}" : "${noOpenerURL.href}");<\/script>`,

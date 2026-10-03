@@ -5,12 +5,11 @@
     // the Location stands for the remote navigable, and the navigate request crosses to its process via the UI process.
     promiseTest(async () => {
         const httpServer = httpTestServer();
-        const runId = crypto.randomUUID();
         const childHostname = uniqueLocalhostHostname("oop-parent-location-child");
         const grandchildHostname = uniqueLocalhostHostname("oop-parent-location-grandchild");
 
         const markerUrl = new URL(
-            await httpServer.createEcho("GET", `/oop-parent-location-marker-${runId}`, {
+            await httpServer.createEcho("GET", "/oop-parent-location-marker", {
                 status: 200,
                 headers: { "Content-Type": "text/plain" },
                 body: "marker",
@@ -19,7 +18,7 @@
         markerUrl.hostname = childHostname;
 
         const secondChildUrl = new URL(
-            await httpServer.createEcho("GET", `/oop-parent-location-second-${runId}`, {
+            await httpServer.createEcho("GET", "/oop-parent-location-second", {
                 status: 200,
                 headers: { "Content-Type": "text/html" },
                 body: `<!DOCTYPE html>second<script>fetch(${JSON.stringify(markerUrl.href)});<\/script>`,
@@ -28,7 +27,7 @@
         secondChildUrl.hostname = childHostname;
 
         const grandchildUrl = new URL(
-            await httpServer.createEcho("GET", `/oop-parent-location-grandchild-${runId}`, {
+            await httpServer.createEcho("GET", "/oop-parent-location-grandchild", {
                 status: 200,
                 headers: { "Content-Type": "text/html" },
                 body: `<!DOCTYPE html><script>parent.location = ${JSON.stringify(secondChildUrl.href)};<\/script>`,
@@ -37,7 +36,7 @@
         grandchildUrl.hostname = grandchildHostname;
 
         const firstChildUrl = new URL(
-            await httpServer.createEcho("GET", `/oop-parent-location-first-${runId}`, {
+            await httpServer.createEcho("GET", "/oop-parent-location-first", {
                 status: 200,
                 headers: { "Content-Type": "text/html" },
                 body: `<!DOCTYPE html>first<iframe src="${grandchildUrl.href}"></iframe>`,

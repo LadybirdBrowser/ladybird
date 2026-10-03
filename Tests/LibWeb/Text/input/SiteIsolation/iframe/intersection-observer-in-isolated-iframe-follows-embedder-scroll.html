@@ -20,9 +20,8 @@
     // shows, so a target filling the iframe intersects by as much of the iframe as the top-level document scrolls
     // into view.
     promiseTest(async () => {
-        const runId = crypto.randomUUID();
         const childUrl = new URL(
-            await httpTestServer().createEcho("GET", `/oop-intersection-observer-${runId}`, {
+            await httpTestServer().createEcho("GET", "/oop-intersection-observer", {
                 status: 200,
                 headers: { "Content-Type": "text/html" },
                 body: `<!DOCTYPE html><body style="margin: 0"><div style="width: 100vw; height: 100vh"></div><script>

@@ -6,7 +6,7 @@
         const server = httpTestServer();
         const testID = crypto.randomUUID();
         const token = `image-request-cache-after-adoption-${testID}`;
-        const imageURL = await server.createEcho("GET", `/image-request-cache-after-adoption-${testID}.svg`, {
+        const imageURL = await server.createEcho("GET", "/image-request-cache-after-adoption.svg", {
             status: 200,
             headers: {
                 "Access-Control-Allow-Origin": "*",

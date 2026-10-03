@@ -19,7 +19,7 @@
     }
 
     asyncTest(async done => {
-        const victimURL = new URL(await httpTestServer().createEcho("GET", `/cross-origin-WindowProxy-security-check-${crypto.randomUUID()}`, {
+        const victimURL = new URL(await httpTestServer().createEcho("GET", "/cross-origin-WindowProxy-security-check", {
             status: 200,
             headers: { "Content-Type": "text/html" },
             body: `<!DOCTYPE html><script>localStorage.setItem("secret", "victim");<\/script>`,
