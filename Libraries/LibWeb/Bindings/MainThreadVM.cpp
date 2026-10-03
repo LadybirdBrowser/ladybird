@@ -73,6 +73,16 @@
 
 namespace Web::Bindings {
 
+GC_DEFINE_ALLOCATOR(WebEngineCustomJobCallbackData);
+
+void WebEngineCustomJobCallbackData::visit_edges(Cell::Visitor& visitor)
+{
+    Base::visit_edges(visitor);
+    visitor.visit(incumbent_settings);
+    if (active_script_context)
+        active_script_context->visit_edges(visitor);
+}
+
 static auto& main_thread_vm_ptr()
 {
     static NeverDestroyed<RefPtr<JS::VM>> vm;
@@ -417,8 +427,8 @@ void initialize_main_thread_vm(HTML::AgentType type)
         }
 
         // 5. Return the JobCallback Record { [[Callback]]: callable, [[HostDefined]]: { [[IncumbentSettings]]: incumbent settings, [[ActiveScriptContext]]: script execution context } }.
-        auto host_defined = adopt_own(*new WebEngineCustomJobCallbackData(incumbent_settings, move(script_execution_context)));
-        return JS::JobCallback::create(*main_thread_vm_ptr(), callable, move(host_defined));
+        auto host_defined = main_thread_vm_ptr()->heap().allocate<WebEngineCustomJobCallbackData>(incumbent_settings, move(script_execution_context));
+        return JS::JobCallback::create(*main_thread_vm_ptr(), callable, host_defined);
     };
 
     // 8.1.6.7.1 HostGetImportMetaProperties(moduleRecord), https://html.spec.whatwg.org/multipage/webappapis.html#hostgetimportmetaproperties

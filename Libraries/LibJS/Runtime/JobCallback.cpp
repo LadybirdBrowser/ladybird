@@ -11,15 +11,16 @@ namespace JS {
 
 GC_DEFINE_ALLOCATOR(JobCallback);
 
-GC::Ref<JobCallback> JobCallback::create(JS::VM& vm, FunctionObject& callback, OwnPtr<CustomData> custom_data)
+GC::Ref<JobCallback> JobCallback::create(JS::VM& vm, FunctionObject& callback, GC::Ptr<GC::Cell> custom_data)
 {
-    return vm.heap().allocate<JobCallback>(callback, move(custom_data));
+    return vm.heap().allocate<JobCallback>(callback, custom_data);
 }
 
 void JobCallback::visit_edges(Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_callback);
+    visitor.visit(m_custom_data);
 }
 
 // 9.5.2 HostMakeJobCallback ( callback ), https://tc39.es/ecma262/#sec-hostmakejobcallback

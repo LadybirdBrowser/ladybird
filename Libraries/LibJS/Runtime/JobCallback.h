@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <AK/OwnPtr.h>
 #include <LibGC/Root.h>
 #include <LibJS/Export.h>
 #include <LibJS/Runtime/Completion.h>
@@ -21,26 +20,22 @@ class JS_API JobCallback : public JS::Cell {
     GC_DECLARE_ALLOCATOR(JobCallback);
 
 public:
-    struct CustomData {
-        virtual ~CustomData() = default;
-    };
+    [[nodiscard]] static GC::Ref<JobCallback> create(JS::VM& vm, FunctionObject& callback, GC::Ptr<GC::Cell> custom_data);
 
-    [[nodiscard]] static GC::Ref<JobCallback> create(JS::VM& vm, FunctionObject& callback, OwnPtr<CustomData> custom_data);
-
-    JobCallback(FunctionObject& callback, OwnPtr<CustomData> custom_data)
+    JobCallback(FunctionObject& callback, GC::Ptr<GC::Cell> custom_data)
         : m_callback(callback)
-        , m_custom_data(move(custom_data))
+        , m_custom_data(custom_data)
     {
     }
 
     void visit_edges(Visitor& visitor) override;
 
     FunctionObject& callback() { return m_callback; }
-    CustomData* custom_data() { return m_custom_data; }
+    GC::Ptr<GC::Cell> custom_data() const { return m_custom_data; }
 
 private:
     GC::Ref<FunctionObject> m_callback;
-    OwnPtr<CustomData> m_custom_data { nullptr };
+    GC::Ptr<GC::Cell> m_custom_data; // [[HostDefined]]
 };
 
 GC::Ref<JobCallback> make_job_callback(FunctionObject& callback);
