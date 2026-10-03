@@ -2334,13 +2334,13 @@ Messages::WebContentClient::DidRequestNewWebViewResponse WebContentPage::did_req
 
 void WebContentPage::did_close_browsing_context()
 {
-    auto displays_tab = this->displays_tab();
     traversable().remove_page(*this);
     // NB: Before unregistering, so an acknowledged embedded discard closes an otherwise-unused server immediately.
     m_detached_close_pending = false;
+    close();
     client().unregister_embedded_page(m_id);
 
-    if (displays_tab) {
+    if (displays_tab()) {
         auto& view = this->view();
         view.did_close_browsing_context({});
         if (view.on_close)

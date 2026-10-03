@@ -425,7 +425,7 @@ RefPtr<WebContentPage> CanonicalTraversable::display_page() const
 
 void CanonicalTraversable::set_page_standing_in_for_lost_document(Badge<ViewImplementation>, NonnullRefPtr<WebContentPage> page)
 {
-    VERIFY(!active_document().host());
+    active_document().set_host(nullptr);
     m_page_standing_in_for_lost_document = move(page);
 }
 
@@ -568,9 +568,6 @@ void CanonicalTraversable::remove_page(WebContentPage& page)
         if (auto navigable = find(navigable_id); navigable.has_value())
             stand_in_for_lost_document(*navigable);
     }
-
-    if (active_document().host() == &page)
-        active_document().set_host(nullptr);
 }
 
 void CanonicalTraversable::stand_in_for_lost_document(CanonicalNavigable& navigable)
@@ -1289,7 +1286,7 @@ void CanonicalTraversable::did_lose_page(WebContentPage& page, WebContentProcess
 void CanonicalTraversable::did_not_receive_reply(OwedReply const& owed)
 {
     // The tab's document is recovered by applying the interrupted step again in a page obtained after the crash.
-    auto awaits_crash_recovery = !display_page();
+    auto awaits_crash_recovery = !display_page()->is_open();
 
     switch (owed.kind) {
     case OwedReply::Kind::BeforeunloadCheck: {

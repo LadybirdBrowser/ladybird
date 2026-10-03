@@ -31,7 +31,7 @@ public:
         for (auto& child : m_child_web_views) {
             child->close_child_web_views();
             // Children sharing a crashed WebContent process are discarded by their pending crash callbacks.
-            if (!child->handle().is_empty() && child->page().client().is_open()) {
+            if (!child->handle().is_empty() && child->page().is_open()) {
                 child->request_close();
                 child->schedule_forced_close();
             }
