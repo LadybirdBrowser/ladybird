@@ -215,6 +215,7 @@ bool is_exposed(InterfaceName, JS::Realm&);
 def write_intrinsic_definitions_implementation(out: TextIO, interface_sets: InterfaceSets) -> None:
     out.write(
         """#include <LibGC/DeferGC.h>
+#include <LibJS/Runtime/Intrinsics.h>
 #include <LibJS/Runtime/Object.h>
 #include <LibWeb/Bindings/InterfaceObject.h>
 #include <LibWeb/Bindings/Intrinsics.h>
@@ -396,7 +397,9 @@ def write_namespace_creation(out: TextIO, interface: Interface, interfaces: List
         f"""template<>
 void Intrinsics::create_web_namespace<{interface.namespace_class}>(JS::Realm& realm)
 {{
-    auto namespace_object = realm.create<{interface.namespace_class}>(realm);
+    // https://webidl.spec.whatwg.org/#namespace-object
+    auto namespace_object = JS::Object::create(realm, realm.intrinsics().object_prototype());
+    {interface.namespace_class}::initialize(realm, namespace_object);
     m_namespaces.set("{interface.name}"_utf16_fly_string, namespace_object);
 
     [[maybe_unused]] static constexpr u8 attr = JS::Attribute::Writable | JS::Attribute::Configurable;
