@@ -51,7 +51,6 @@ public:
 
 private:
     Iterator(Object& prototype, GC::Ref<IteratorRecord> iterated);
-    explicit Iterator(Object& prototype);
 
     virtual void visit_edges(Cell::Visitor&) override;
 

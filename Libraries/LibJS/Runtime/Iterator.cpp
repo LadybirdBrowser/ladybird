@@ -29,11 +29,6 @@ Iterator::Iterator(Object& prototype, GC::Ref<IteratorRecord> iterated)
 {
 }
 
-Iterator::Iterator(Object& prototype)
-    : Iterator(prototype, prototype.heap().allocate<IteratorRecord>(nullptr, js_undefined(), false))
-{
-}
-
 void Iterator::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
