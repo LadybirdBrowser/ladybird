@@ -1284,13 +1284,17 @@ void Document::update_style()
 
 bool Document::update_style_for_element(AbstractElement const& abstract_element)
 {
-    update_selection_style_observability();
-    flush_throttled_animation_style_update_for_node(abstract_element.element());
-    return CSS::update_style_for_element(*this, abstract_element, StyleUpdateMode::Normal);
+    return update_style_for_element(abstract_element, StyleUpdateMode::Normal);
 }
 
 bool Document::update_style_for_element(AbstractElement const& abstract_element, StyleUpdateMode mode)
 {
+    // A script API reads the element's style: its waits for the render state are one forced read.
+    auto* host = style_computer().style_engine().render_document().host();
+    Layout::RustFFI::document_host_begin_forced_read(host, true);
+    ScopeGuard end_forced_read = [&] {
+        Layout::RustFFI::document_host_end_forced_read(host);
+    };
     update_selection_style_observability();
     flush_throttled_animation_style_update_for_node(abstract_element.element());
     return CSS::update_style_for_element(*this, abstract_element, mode);

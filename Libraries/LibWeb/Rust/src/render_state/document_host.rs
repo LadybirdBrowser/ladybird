@@ -8,8 +8,8 @@
 
 use super::questions::Question;
 use super::{
-    ArenaChange, CommittedRows, CreatedState, DocumentId, LockstepProof, RenderMessage, RenderWait, ask, send,
-    wait_for_render_state,
+    ArenaChange, CommittedRows, CreatedState, DocumentId, ForcedRead, LockstepProof, RenderMessage, RenderWait,
+    ScriptForcedRead, ask, send, wait_for_render_state,
 };
 use crate::css::style::bridge::FfiDeviceClass;
 use crate::css::style::style_job::StyleJobAnswer;
@@ -49,6 +49,16 @@ pub struct DocumentHost {
     /// The compositor animations the document's effects published in the current update pass, which the host hands
     /// the render state as the pass ends.
     compositor_animations: RefCell<Vec<VisualAnimation>>,
+    /// The read of the render state the host began and has not ended, if any.
+    forced_read: RefCell<BegunRead>,
+}
+
+/// A read of a document's render state the host began: how many of the read's scopes are open, and the read itself
+/// until its first job takes it.
+#[derive(Default)]
+struct BegunRead {
+    scopes: u32,
+    read: Option<ForcedRead>,
 }
 
 impl DocumentHost {
@@ -62,6 +72,7 @@ impl DocumentHost {
             absolute_rects: RefCell::default(),
             state: OnceCell::new(),
             compositor_animations: RefCell::default(),
+            forced_read: RefCell::default(),
         }
     }
 
@@ -88,6 +99,54 @@ impl DocumentHost {
         // SAFETY: The state keeps its arena and engine where they are until it is destroyed, and nothing on the render
         // side reaches them while the host runs.
         unsafe { change.apply((*state.arena.as_ptr()).arena_mut(), state.engine) };
+    }
+
+    /// Begins a read of the document's render state that the host waits for, for a script API call where `by_script`
+    /// and for the host's own read otherwise. A scope begun inside the document's open read belongs to that read.
+    pub(super) fn begin_forced_read(&self, by_script: bool) {
+        let mut begun = self.forced_read.borrow_mut();
+        begun.scopes += 1;
+        if begun.scopes > 1 {
+            return;
+        }
+        begun.read = Some(if by_script {
+            ForcedRead::Script(ScriptForcedRead::at_script_entry(&FORCED_READ_SCOPE))
+        } else {
+            ForcedRead::Host(LockstepProof::for_reason(&HOST_READS_LAYOUT))
+        });
+    }
+
+    /// Ends a scope of the read the host began. The outermost drops the read where no job took it.
+    pub(super) fn end_forced_read(&self) {
+        let mut begun = self.forced_read.borrow_mut();
+        assert!(begun.scopes > 0, "a forced read ends where it began");
+        begun.scopes -= 1;
+        if begun.scopes == 0 {
+            begun.read = None;
+        }
+    }
+
+    /// Takes the read the host began, where no job took it yet, for the read's first layout round.
+    pub(crate) fn take_forced_read(&self) -> Option<ForcedRead> {
+        self.forced_read.borrow_mut().read.take()
+    }
+
+    /// Takes the read the host began, where no job took it yet, for the read's style transaction. A read whose first
+    /// job was a style transaction keeps what that left its first layout round.
+    pub(crate) fn take_unstyled_read(&self) -> Option<ForcedRead> {
+        let mut begun = self.forced_read.borrow_mut();
+        match begun.read {
+            Some(ForcedRead::Script(_) | ForcedRead::Host(_)) => begun.read.take(),
+            Some(ForcedRead::AfterStyle(_)) | None => None,
+        }
+    }
+
+    /// Leaves `read` to the next job of the read the host began, where one is open.
+    pub(super) fn leave_forced_read(&self, read: ForcedRead) {
+        let mut begun = self.forced_read.borrow_mut();
+        if begun.scopes > 0 {
+            begun.read = Some(read);
+        }
     }
 
     /// Whether some element may have random base values to keep, which only then is worth asking the render state.
@@ -276,6 +335,48 @@ pub(crate) struct NewDocument {
 }
 
 const NEW_DOCUMENT: NewDocument = NewDocument { _private: () };
+
+/// Marks the scope of a read of a document's render state that a script API call begins, which mints the call's
+/// forced read.
+pub(crate) struct ForcedReadScope {
+    _private: (),
+}
+
+const FORCED_READ_SCOPE: ForcedReadScope = ForcedReadScope { _private: () };
+
+/// The reason the host waits for its document's render state in a read of its own, for no script API call: an event's
+/// dispatch, a child document's style update, an inspection, a rendering update.
+pub(crate) struct HostReadsLayout {
+    _private: (),
+}
+
+const HOST_READS_LAYOUT: HostReadsLayout = HostReadsLayout { _private: () };
+
+/// Begins a read of the render state of `host`'s document that the host waits for, for a script API call where
+/// `by_script` and for the host's own read otherwise. The read's first style or layout job spends it.
+///
+/// # Safety
+///
+/// `host` must come from [`document_host_create`] and not be destroyed yet, on its document's thread, with a
+/// [`document_host_end_forced_read`] for each call. `by_script` only for a scope a script API call opens.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn document_host_begin_forced_read(host: *const DocumentHost, by_script: bool) {
+    assert!(!host.is_null(), "document host is null");
+    // SAFETY: Guaranteed by the caller.
+    unsafe { &*host }.begin_forced_read(by_script);
+}
+
+/// Ends a scope of the read of the render state of `host`'s document that the host began.
+///
+/// # Safety
+///
+/// As for [`document_host_begin_forced_read`], once for each of its calls.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn document_host_end_forced_read(host: *const DocumentHost) {
+    assert!(!host.is_null(), "document host is null");
+    // SAFETY: Guaranteed by the caller.
+    unsafe { &*host }.end_forced_read();
+}
 
 /// Destroys `host` and the render state of its document.
 ///

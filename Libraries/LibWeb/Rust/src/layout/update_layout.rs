@@ -28,29 +28,9 @@ mod main_thread_entries;
 
 pub(crate) use main_thread_entries::MainThreadFfiEntry;
 
-/// The reason the host waits for its document's render state in a rendering update: the style and layout jobs it
-/// runs.
-pub(crate) struct LayoutUpdate {
-    _private: (),
-}
-
-const LAYOUT_UPDATE: LayoutUpdate = LayoutUpdate { _private: () };
-
-/// Runs `job`, the style transaction of `host`'s document, on its render state, and answers what it answered.
-pub(crate) fn run_style_job(
-    host: &crate::render_state::DocumentHost,
-    job: crate::css::style::style_job::StyleJob,
-) -> crate::css::style::style_job::StyleJobAnswer {
-    let document = host.document();
-    crate::render_state::wait_for_render_state(
-        crate::render_state::LockstepProof::for_reason(&LAYOUT_UPDATE),
-        host,
-        |reply| crate::render_state::RenderMessage::Style { document, job, reply },
-    )
-}
-
 /// Runs `job`, a layout round of the document whose arena `arena_handle` names, on the document's render state, and
-/// answers what the round owes the host. A unit test's arena has no render state, and its round runs in place.
+/// answers what the round owes the host. The update's first round spends the read the host began, where no job took it
+/// yet, and every other round `permit`. A unit test's arena has no render state, and its round runs in place.
 ///
 /// # Safety
 ///
@@ -60,18 +40,37 @@ unsafe fn run_layout_round_job(
     main_thread: &MainThread,
     arena_handle: *mut c_void,
     job: LayoutRoundJob,
+    permit: impl FnOnce() -> crate::render_state::FrameJobPermit,
 ) -> LayoutRoundAnswer {
     let Some(host) = main_thread.host() else {
         // SAFETY: Guaranteed by the caller.
         return job.run(unsafe { &mut *arena_handle.cast() });
     };
-    let document = host.document();
     host.let_go_of_rows();
-    crate::render_state::wait_from_entry(
-        crate::render_state::LockstepProof::for_reason(&LAYOUT_UPDATE),
-        main_thread,
-        |reply| crate::render_state::RenderMessage::LayoutRound { document, job, reply },
-    )
+    match host.take_forced_read() {
+        Some(read) => crate::render_state::force_read(read, host, job),
+        None => crate::render_state::run_job(permit(), host, job),
+    }
+}
+
+impl crate::render_state::RenderJob for LayoutRoundJob {
+    type Answer = LayoutRoundAnswer;
+    type Permit = crate::render_state::FrameJobPermit;
+    const IS_STYLE: bool = false;
+
+    fn message(
+        self,
+        document: crate::render_state::DocumentId,
+        reply: crate::render_state::ReplyTo<'_, LayoutRoundAnswer>,
+        spent: crate::render_state::SpentWait,
+    ) -> crate::render_state::RenderMessage<'_> {
+        crate::render_state::RenderMessage::LayoutRound {
+            document,
+            job: self,
+            reply,
+            _spent: spent,
+        }
+    }
 }
 
 /// The document-side steps of a layout update. Each callback receives the registered
@@ -533,6 +532,7 @@ unsafe fn update_layout(main_thread: &MainThread, arena_handle: *mut c_void, inp
     // freshly parsed document after the layout update has already started. The bound is at least
     // the ordinary limit, so the passes within it do not ask for the count.
     let mut layout_pass: u64 = 0;
+    let mut first_job = true;
     while layout_pass <= ORDINARY_STABILIZATION_ROUND_LIMIT
         || layout_pass < ORDINARY_STABILIZATION_ROUND_LIMIT + u64::from(host.connected_element_count(main_thread)) + 1
     {
@@ -579,7 +579,17 @@ unsafe fn update_layout(main_thread: &MainThread, arena_handle: *mut c_void, inp
             trace: trace.clone(),
         };
         let end = loop {
-            let mut answer = unsafe { run_layout_round_job(main_thread, arena_handle, job) };
+            // The update's first job spends the read the host began; one that finds it spent lays the read out again.
+            // Every job after it in the update is another round's.
+            let permit = || {
+                if first_job {
+                    crate::render_state::FrameJobPermit::read_lays_out_again()
+                } else {
+                    crate::render_state::FrameJobPermit::for_next_round()
+                }
+            };
+            let mut answer = unsafe { run_layout_round_job(main_thread, arena_handle, job, permit) };
+            first_job = false;
             unsafe { answer.pay(main_thread, arena_handle, &host) };
             let built = matches!(answer.end, LayoutRoundEnd::Built { .. });
             if needs_layout_tree_rebuild && host.reconcile_stale_list_item_counters_after_tree_build(main_thread) {

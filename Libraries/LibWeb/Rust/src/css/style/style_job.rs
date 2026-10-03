@@ -15,7 +15,9 @@ use super::bridge::{
 use super::engine_calls::{StyleAnswer, StyleQuery, ask_engine};
 use super::identities::StyleNodeIdAllocator;
 use super::tree::StyleNodeID;
-use crate::render_state::{DocumentHost, Lent};
+use crate::render_state::{
+    DocumentHost, DocumentId, Lent, RenderJob, RenderMessage, ReplyTo, SpentWait, StyleJobPermit, force_read, run_job,
+};
 
 /// Takes the pending style transaction under `root`, with the document computation inputs the host gathered, which
 /// it lends the job.
@@ -27,6 +29,21 @@ pub(crate) struct StyleJob {
 /// What a style job answers: the reactions of the transaction, owned, which the host keeps until it ends the
 /// transaction.
 pub(crate) struct StyleJobAnswer(FfiStyleTransactionOutput);
+
+impl RenderJob for StyleJob {
+    type Answer = StyleJobAnswer;
+    type Permit = StyleJobPermit;
+    const IS_STYLE: bool = true;
+
+    fn message(self, document: DocumentId, reply: ReplyTo<'_, StyleJobAnswer>, spent: SpentWait) -> RenderMessage<'_> {
+        RenderMessage::Style {
+            document,
+            job: self,
+            reply,
+            _spent: spent,
+        }
+    }
+}
 
 impl StyleJob {
     /// Runs the job on `engine`, the engine of the document it was sent for.
@@ -59,13 +76,16 @@ pub unsafe extern "C" fn style_engine_take_style_transaction(
     assert!(!host.is_null(), "document host is null");
     // SAFETY: Guaranteed by the caller.
     let host = unsafe { &*host };
-    let answer = crate::layout::run_style_job(
-        host,
-        StyleJob {
-            root,
-            computation_inputs: Lent::new(&computation_inputs),
-        },
-    );
+    let job = StyleJob {
+        root,
+        computation_inputs: Lent::new(&computation_inputs),
+    };
+    // The first style transaction of a read the host waits for is the read's first job; any other, a rendering
+    // update's or a later wave's, is a style update's.
+    let answer = match host.take_unstyled_read() {
+        Some(read) => force_read(read, host, job),
+        None => run_job(StyleJobPermit::of_style_update(), host, job),
+    };
     host.keep_style_transaction(answer).0.view()
 }
 
