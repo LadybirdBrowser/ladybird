@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    #contents { display: contents; }
+    .item { height: 10px; }
+    #box { width: 50px; height: 20px; }
+    #box.wide { width: 80px; }
+</style>
+<div id="outer"><div id="contents"><div class="item">one</div></div></div>
+<ol id="list"><li>a</li><li>b</li><li>c</li></ol>
+<div id="box"></div>
+<script>
+    // A task beside a frame in flight that reads elements' installed styles: an insertion under a display: contents
+    // parent, a list item's removal and an animation started from script each read what the host installed last.
+    asyncTest(async done => {
+        const states = await whileRecordingInFlight(() => {
+            box.classList.add("wide");
+        }, state => {
+            const states = [`next task: ${state}`];
+            const item = document.createElement("div");
+            item.className = "item";
+            item.textContent = "two";
+            contents.appendChild(item);
+            states.push(`after an insertion under display: contents: ${internals.frameSchedulerState()}`);
+            list.firstElementChild.remove();
+            states.push(`after a list item's removal: ${internals.frameSchedulerState()}`);
+            const animation = box.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 100000 });
+            animation.pause();
+            animation.currentTime = 50000;
+            states.push(`after element.animate(): ${internals.frameSchedulerState()}`);
+            return states;
+        });
+        for (const state of states)
+            println(`state ${state}`);
+        await twoFrames();
+        println(`outer height: ${outer.offsetHeight}`);
+        println(`list items: ${list.children.length}, height: ${list.offsetHeight}`);
+        println(`box: ${box.offsetWidth}x${box.offsetHeight} opacity ${getComputedStyle(box).opacity}`);
+        done();
+    });
+</script>

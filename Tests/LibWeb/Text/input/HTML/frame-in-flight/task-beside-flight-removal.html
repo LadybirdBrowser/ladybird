@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    li { height: 10px; }
+</style>
+<div id="first"><div id="target" style="width: random(1px, 1000000px); height: 5px"></div></div>
+<div id="second"></div>
+<ol id="list"><li>a</li><li>b</li><li id="middle">c</li><li>d</li></ol>
+<div id="doomed"><span>doomed</span><div>box</div></div>
+<script>
+    // A task beside a frame in flight that removes elements: an element with random values keeps them across its
+    // removal and reinsertion, a list renumbers, and the boxes of a removed subtree are paid for.
+    asyncTest(async done => {
+        const target = document.getElementById("target");
+        const doomed = document.getElementById("doomed");
+        const before = getComputedStyle(target).width;
+        const states = await whileRecordingInFlight(() => {
+            list.style.marginTop = "1px";
+        }, state => {
+            const states = [`next task: ${state}`];
+            target.remove();
+            states.push(`after removing an element with random values: ${internals.frameSchedulerState()}`);
+            second.appendChild(target);
+            states.push(`after inserting it again: ${internals.frameSchedulerState()}`);
+            middle.remove();
+            states.push(`after removing a list item: ${internals.frameSchedulerState()}`);
+            doomed.remove();
+            states.push(`after removing a subtree with boxes: ${internals.frameSchedulerState()}`);
+            return states;
+        });
+        for (const state of states)
+            println(`state ${state}`);
+        await twoFrames();
+        println(`random width kept: ${getComputedStyle(target).width === before}`);
+        println(`target parent: ${target.parentElement.id}, height ${target.offsetHeight}`);
+        println(`list items: ${list.children.length}, height: ${list.offsetHeight}`);
+        println(`doomed connected: ${doomed.isConnected}, body children: ${document.body.children.length}`);
+        done();
+    });
+</script>

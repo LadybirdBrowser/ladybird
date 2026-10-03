@@ -218,7 +218,8 @@ interface Internals {
     undefined resetRenderingSchedulerCounters();
     undefined setManualRenderingOpportunities(boolean enabled);
     undefined injectRenderingOpportunity(double frameTimeMs);
-    // "in-flight" while a rendering update's recording flies beside the event loop, "idle" otherwise.
+    // "in-flight" while a rendering update's frame or recording flies beside the event loop, "landed" once the event
+    // loop took the frame in and the update has not run its steps from its style and layout on yet, "idle" otherwise.
     DOMString frameSchedulerState();
     // Keeps the next recording that flies in flight, before it reads its frame, until releaseHeldFrame(), or until a
     // read waits for it.

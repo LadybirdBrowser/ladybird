@@ -1,0 +1,6 @@
+state next task: in-flight
+state after the image's data arrived: landed
+state after an SVG gradient edit: landed
+image: 7x7 complete true
+stop color: rgb(0, 128, 0)
+box height: 12

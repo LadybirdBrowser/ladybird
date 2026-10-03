@@ -1,0 +1,10 @@
+state next task: in-flight
+state after a <style> insertion: landed
+state after adopting a sheet: landed
+state after replaceSync(): landed
+state after a sheet's media change: landed
+state after insertRule(): landed
+state after deleteRule(): landed
+state after a selectorText edit: landed
+state after a rule.style edit: landed
+box: 154x29 rgb(0, 128, 0) rgb(0, 0, 255) 2px margin-left 3px

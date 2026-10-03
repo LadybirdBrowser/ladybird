@@ -933,7 +933,7 @@ void EventLoop::ensure_frame_completion_registered()
 
 bool EventLoop::has_frame_in_flight() const
 {
-    if (m_rendering_update_in_flight && m_rendering_update_in_flight->docs.first()->has_flown_style_transaction())
+    if (m_rendering_update_in_flight && m_rendering_update_in_flight->docs.first()->style_computer().style_engine().render_document().frame_flies())
         return true;
     return any_of(m_navigables_with_recordings_in_flight, [](auto const& navigable) { return navigable->has_recording_in_flight(); });
 }

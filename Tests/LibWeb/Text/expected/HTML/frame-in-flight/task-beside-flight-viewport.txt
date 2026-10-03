@@ -1,0 +1,3 @@
+state next task: in-flight
+state after a visual viewport reset: landed
+box: 400x12, viewport 800x600 offset 0,0

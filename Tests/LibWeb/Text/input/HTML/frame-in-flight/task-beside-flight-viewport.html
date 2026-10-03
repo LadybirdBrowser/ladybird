@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    #box { width: 50vw; height: 10px; }
+</style>
+<div id="box"></div>
+<script>
+    // A task beside a frame in flight that resets the visual viewport: the reset is a write to the paint state the
+    // next rendering update reads.
+    asyncTest(async done => {
+        const states = await whileRecordingInFlight(() => {
+            box.style.height = "12px";
+        }, state => {
+            const states = [`next task: ${state}`];
+            internals.resetZoom();
+            states.push(`after a visual viewport reset: ${internals.frameSchedulerState()}`);
+            return states;
+        });
+        for (const state of states)
+            println(`state ${state}`);
+        await twoFrames();
+        println(`box: ${box.offsetWidth}x${box.offsetHeight}, viewport ${visualViewport.width}x${visualViewport.height} offset ${visualViewport.offsetLeft},${visualViewport.offsetTop}`);
+        done();
+    });
+</script>

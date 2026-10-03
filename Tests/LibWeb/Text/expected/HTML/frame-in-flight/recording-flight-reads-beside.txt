@@ -1,6 +1,6 @@
 state in the next task: in-flight
 clean reads: rgb(0, 0, 255) 10
-state after the clean reads: idle
+state after the clean reads: landed
 dirty read: 20
-state after the dirty read: idle
+state after the dirty read: landed
 hit test finds the grown box: true

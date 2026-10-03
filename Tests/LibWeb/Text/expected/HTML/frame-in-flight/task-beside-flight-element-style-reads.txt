@@ -1,0 +1,7 @@
+state next task: in-flight
+state after an insertion under display: contents: landed
+state after a list item's removal: landed
+state after element.animate(): landed
+outer height: 20
+list items: 2, height: 32
+box: 80x20 opacity 0.5

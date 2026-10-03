@@ -1,4 +1,4 @@
 state in the next task: in-flight
 read of the new body: rgb(0, 128, 0) hello
-state after the read: idle
+state after the read: landed
 old body back: rgb(0, 0, 255)

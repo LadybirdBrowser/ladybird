@@ -1,0 +1,4 @@
+state next task: in-flight
+read beside the frame: 70px, 70
+state after the read: landed
+box: 70x12

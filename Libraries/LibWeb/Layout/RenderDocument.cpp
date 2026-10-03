@@ -24,6 +24,11 @@ RenderDocument::~RenderDocument()
     RustFFI::document_host_destroy(m_host);
 }
 
+bool RenderDocument::frame_flies() const
+{
+    return RustFFI::document_host_frame_flies(m_host);
+}
+
 ForcedReadScope::ForcedReadScope(DOM::Document const& document, bool by_script)
     : ForcedReadScope(document.style_computer().style_engine().render_document(), by_script)
 {

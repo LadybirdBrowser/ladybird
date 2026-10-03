@@ -1,0 +1,7 @@
+state next task: in-flight
+state after an inline style write: in-flight
+state after a style attribute write: in-flight
+state after a transitioned inline style write: in-flight
+plain: 80x14
+transitions: 1
+transitioned width halfway: 100px

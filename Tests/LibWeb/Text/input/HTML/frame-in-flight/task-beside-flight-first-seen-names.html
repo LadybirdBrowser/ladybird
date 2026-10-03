@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    .target { width: 50px; height: 10px; }
+    .first-seen-class { height: 20px; }
+    #first-seen-id { width: 60px; }
+    [data-first-seen="Value" i] { color: rgb(0, 128, 0); }
+    .target { background-color: var(--first-seen-property); }
+</style>
+<div id="box" class="target"></div>
+<script>
+    // A task beside a frame in flight that names what no element carried before: a class, an id, an attribute and the
+    // value text a case-insensitive attribute selector compares, and a registered custom property. The host names
+    // each as it goes, and the next style update sees them all.
+    asyncTest(async done => {
+        const box = document.getElementById("box");
+        const states = await whileRecordingInFlight(() => {
+            box.style.height = "15px";
+        }, state => {
+            const states = [`next task: ${state}`];
+            box.classList.add("first-seen-class");
+            states.push(`after a first-seen class: ${internals.frameSchedulerState()}`);
+            box.id = "first-seen-id";
+            states.push(`after a first-seen id: ${internals.frameSchedulerState()}`);
+            box.setAttribute("data-first-seen", "VALUE");
+            states.push(`after a first-seen attribute value: ${internals.frameSchedulerState()}`);
+            CSS.registerProperty({ name: "--first-seen-property", syntax: "<color>", inherits: false, initialValue: "rgb(0, 0, 255)" });
+            states.push(`after registerProperty(): ${internals.frameSchedulerState()}`);
+            return states;
+        });
+        for (const state of states)
+            println(`state ${state}`);
+        await twoFrames();
+        const style = getComputedStyle(box);
+        println(`box: ${box.id} ${box.offsetWidth}x${box.offsetHeight} ${style.color} ${style.backgroundColor}`);
+        done();
+    });
+</script>

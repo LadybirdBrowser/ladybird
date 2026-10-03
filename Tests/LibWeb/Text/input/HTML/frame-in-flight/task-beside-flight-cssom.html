@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style id="base">
+    #box { width: 100px; height: 20px; color: rgb(255, 0, 0); }
+    .unused { color: rgb(1, 2, 3); }
+    .renamed { padding-top: 5px; }
+</style>
+<style id="media" media="print">
+    #box { background-color: rgb(0, 0, 255); }
+</style>
+<div id="box" class="target"></div>
+<script>
+    // A task beside a frame in flight that edits the document's style sheets through the CSSOM: each edit is a write the
+    // render state applies after the frame, in the order the host made it, and the next style update sees them all.
+    function describe() {
+        const style = getComputedStyle(box);
+        return `${box.offsetWidth}x${box.offsetHeight} ${style.color} ${style.backgroundColor} ${style.borderTopWidth}`;
+    }
+
+    asyncTest(async done => {
+        const adopted = new CSSStyleSheet();
+        const states = await whileRecordingInFlight(() => {
+            box.style.marginTop = "1px";
+        }, state => {
+            const states = [`next task: ${state}`];
+            const style = document.createElement("style");
+            style.textContent = "#box { margin-left: 3px; }";
+            document.head.appendChild(style);
+            states.push(`after a <style> insertion: ${internals.frameSchedulerState()}`);
+            adopted.replaceSync("#box { width: 140px; }");
+            document.adoptedStyleSheets = [adopted];
+            states.push(`after adopting a sheet: ${internals.frameSchedulerState()}`);
+            adopted.replaceSync("#box { width: 150px; }");
+            states.push(`after replaceSync(): ${internals.frameSchedulerState()}`);
+            media.media = "all";
+            states.push(`after a sheet's media change: ${internals.frameSchedulerState()}`);
+            const sheet = base.sheet;
+            sheet.insertRule("#box { border: 2px solid; }", sheet.cssRules.length);
+            states.push(`after insertRule(): ${internals.frameSchedulerState()}`);
+            sheet.deleteRule(1);
+            states.push(`after deleteRule(): ${internals.frameSchedulerState()}`);
+            sheet.cssRules[1].selectorText = ".target";
+            states.push(`after a selectorText edit: ${internals.frameSchedulerState()}`);
+            sheet.cssRules[0].style.color = "rgb(0, 128, 0)";
+            states.push(`after a rule.style edit: ${internals.frameSchedulerState()}`);
+            return states;
+        });
+        for (const state of states)
+            println(`state ${state}`);
+        await twoFrames();
+        println(`box: ${describe()} margin-left ${getComputedStyle(box).marginLeft}`);
+        done();
+    });
+</script>

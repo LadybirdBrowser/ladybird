@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    #plain { width: 50px; height: 10px; }
+    #transitioned { width: 50px; height: 10px; transition: width 1000s linear; }
+</style>
+<div id="plain"></div>
+<div id="transitioned"></div>
+<script>
+    // A task beside a frame in flight that writes elements' inline styles, one whose properties transition and one
+    // whose do not: the writes reach the next style update, and the transition starts once.
+    asyncTest(async done => {
+        const states = await whileRecordingInFlight(() => {
+            plain.style.height = "12px";
+        }, state => {
+            const states = [`next task: ${state}`];
+            plain.style.width = "70px";
+            states.push(`after an inline style write: ${internals.frameSchedulerState()}`);
+            plain.setAttribute("style", "width: 80px; height: 14px");
+            states.push(`after a style attribute write: ${internals.frameSchedulerState()}`);
+            transitioned.style.width = "150px";
+            states.push(`after a transitioned inline style write: ${internals.frameSchedulerState()}`);
+            return states;
+        });
+        for (const state of states)
+            println(`state ${state}`);
+        await twoFrames();
+        println(`plain: ${plain.offsetWidth}x${plain.offsetHeight}`);
+        const animations = transitioned.getAnimations();
+        println(`transitions: ${animations.length}`);
+        for (const animation of animations) {
+            animation.pause();
+            animation.currentTime = 500000;
+        }
+        println(`transitioned width halfway: ${getComputedStyle(transitioned).width}`);
+        done();
+    });
+</script>

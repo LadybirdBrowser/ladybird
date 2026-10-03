@@ -149,7 +149,10 @@ public:
     void did_let_recording_fly(LocalNavigable&);
     // Called before a rendering update submits a recording, on a thread with a Core event loop.
     void ensure_frame_completion_registered();
+    // Whether a frame flies beside the event loop, which has not taken it in yet.
     bool has_frame_in_flight() const;
+    // Whether a rendering update has let its frame fly and has not run its steps from its style and layout on yet.
+    bool has_rendering_update_in_flight() const { return m_rendering_update_in_flight; }
     // Runs the steps of the rendering update whose style transaction flies, which take the transaction in.
     void finish_rendering_update_in_flight();
     // A rendering task that would find a frame still in flight, or a rendering update not yet finished, keeps its place
