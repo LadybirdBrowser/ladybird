@@ -1,4 +1,7 @@
 unpadded: channels=1 keptAllAudio=true
 zero padded: channels=1 keptAllAudio=true
 garbage padded: channels=1 keptAllAudio=true
+damaged: channels=1 keptAudioAfterDamage=true
+one frame then garbage: EncodingError
+three frames then garbage: channels=1 decodedFrames=true
 garbage only: EncodingError
