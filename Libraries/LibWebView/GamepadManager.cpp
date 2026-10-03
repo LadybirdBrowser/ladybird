@@ -357,6 +357,8 @@ void GamepadManager::set_virtual_gamepad_button(WebContentClient& client, Web::G
     if (!device)
         return;
     SDL_SetJoystickVirtualButton(device->virtual_sdl_joystick, button, down);
+    drain_sdl_events();
+    publish_changed_input_states();
 }
 
 void GamepadManager::set_virtual_gamepad_axis(WebContentClient& client, Web::Gamepad::GamepadHandle handle, i32 axis, i16 value)
@@ -365,6 +367,8 @@ void GamepadManager::set_virtual_gamepad_axis(WebContentClient& client, Web::Gam
     if (!device)
         return;
     SDL_SetJoystickVirtualAxis(device->virtual_sdl_joystick, axis, value);
+    drain_sdl_events();
+    publish_changed_input_states();
 }
 
 void GamepadManager::disconnect_virtual_gamepad(WebContentClient& client, Web::Gamepad::GamepadHandle handle)
@@ -439,14 +443,21 @@ void GamepadManager::publish_changed_input_states()
         device.last_published_state = m_scratch_state;
         publish_device_state(device);
     }
+
+    for (auto& entry : m_consumers) {
+        if (exchange(entry.value->has_pending_state_changes, false))
+            entry.key->async_gamepad_states_changed();
+    }
 }
 
 void GamepadManager::publish_device_state(Device const& device)
 {
     for (auto& entry : m_consumers) {
         auto& consumer = *entry.value;
-        if (auto slot_index = slot_index_for_device(consumer, device.description.handle); slot_index.has_value())
+        if (auto slot_index = slot_index_for_device(consumer, device.description.handle); slot_index.has_value()) {
             Web::Gamepad::publish_gamepad_state_to_slot(shared_state_slot(consumer, *slot_index), device.last_published_state);
+            consumer.has_pending_state_changes = true;
+        }
     }
 }
 

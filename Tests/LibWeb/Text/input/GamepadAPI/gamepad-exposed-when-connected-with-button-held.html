@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script src="gamepad-helper.js"></script>
+<script>
+    promiseTest(async () => {
+        listenForGamepadConnected();
+        navigator.getGamepads();
+        await pumpGamepadEvents();
+
+        const gamepad = internals.connectVirtualGamepad();
+        gamepad.setButton(gamepad.buttons[0], true);
+        await pumpGamepadEvents();
+        println(`After connecting with a button held: ${getStringifiedGamepads()}`);
+
+        const secondGamepad = internals.connectVirtualGamepad();
+        secondGamepad.setButton(secondGamepad.buttons[1], true);
+        gamepad.setButton(gamepad.buttons[2], true);
+        await new Promise(resolve => {
+            const poll = () => {
+                if (navigator.getGamepads()[0].buttons[2].pressed)
+                    resolve();
+                else
+                    setTimeout(poll, 10);
+            };
+            poll();
+        });
+        await pumpGamepadEvents();
+        println(`Button 1 of the second gamepad is pressed: ${navigator.getGamepads()[1]?.buttons[1].pressed}`);
+
+        listenForGamepadDisconnected();
+        gamepad.disconnect();
+        secondGamepad.disconnect();
+        await pumpGamepadEvents();
+    });
+</script>

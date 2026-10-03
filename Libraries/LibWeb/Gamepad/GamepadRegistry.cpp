@@ -41,9 +41,15 @@ Vector<GamepadState> GamepadRegistry::take_changed_shared_states()
     Vector<GamepadState> changed_states;
     auto const& slots = m_shared_state_buffer.data()->slots;
     for (size_t slot_index = 0; slot_index < slots.size(); ++slot_index) {
-        auto state = read_gamepad_state_from_slot(slots[slot_index], m_last_observed_slot_sequences[slot_index]);
+        auto& last_observed_sequence = m_last_observed_slot_sequences[slot_index];
+        auto previously_observed_sequence = last_observed_sequence;
+        auto state = read_gamepad_state_from_slot(slots[slot_index], last_observed_sequence);
         if (!state.has_value())
             continue;
+        if (!m_descriptions.contains(state->handle)) {
+            last_observed_sequence = previously_observed_sequence;
+            continue;
+        }
         if (auto latest_state = m_latest_states.get(state->handle); latest_state.has_value() && *latest_state == *state)
             continue;
         m_latest_states.set(state->handle, *state);

@@ -306,6 +306,7 @@ private:
     virtual void set_gamepad_state_buffer(Web::Gamepad::GamepadStateBuffer gamepad_state_buffer) override;
     virtual void gamepad_connected(Web::Gamepad::GamepadDescription description) override;
     virtual void gamepad_disconnected(Web::Gamepad::GamepadHandle handle) override;
+    virtual void gamepad_states_changed() override;
     void dispatch_gamepad_change_event(Web::Gamepad::GamepadChangeEvent const&);
     void dispatch_changed_gamepad_states();
 
