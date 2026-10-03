@@ -10,6 +10,7 @@
 #if !defined(AK_OS_WINDOWS)
 #    include <AK/Platform.h>
 #    include <signal.h>
+#    include <sys/mman.h>
 #    include <sys/wait.h>
 #    include <unistd.h>
 #endif
@@ -117,6 +118,68 @@ TEST_CASE(resize_and_zero_fill_growth)
 
     storage.free(handle);
 }
+
+TEST_CASE(zero_fill_growth_after_shrinking)
+{
+    auto& storage = GC::PrimitiveStorage::the();
+    auto handle = MUST(storage.try_allocate(256 * KiB, GC::PrimitiveStorage::ZeroFillNewBytes::Yes));
+    for (size_t i = 0; i < storage.size(handle); ++i)
+        *storage.data(handle, i) = 0x7b;
+
+    MUST(storage.try_resize(handle, 16, GC::PrimitiveStorage::ZeroFillNewBytes::Yes));
+    MUST(storage.try_resize(handle, 256 * KiB, GC::PrimitiveStorage::ZeroFillNewBytes::Yes));
+    EXPECT_EQ(*storage.data(handle, 15), 0x7b);
+    for (size_t i = 16; i < storage.size(handle); ++i)
+        EXPECT_EQ(*storage.data(handle, i), 0u);
+
+    storage.free(handle);
+}
+
+#if !defined(AK_OS_WINDOWS)
+static size_t resident_page_count(u8 const* data, size_t size)
+{
+    auto page_size = static_cast<size_t>(sysconf(_SC_PAGESIZE));
+    auto start = reinterpret_cast<uintptr_t>(data) & ~(page_size - 1);
+    auto length = reinterpret_cast<uintptr_t>(data) + size - start;
+    Vector<u8> pages;
+    pages.resize(ceil_div(length, page_size));
+#    if defined(AK_OS_LINUX) || defined(AK_OS_ANDROID)
+    VERIFY(mincore(reinterpret_cast<void*>(start), length, pages.data()) == 0);
+#    else
+    VERIFY(mincore(reinterpret_cast<void*>(start), length, reinterpret_cast<char*>(pages.data())) == 0);
+#    endif
+    size_t resident = 0;
+    for (auto page : pages)
+        resident += page & 1;
+    return resident;
+}
+
+TEST_CASE(zero_filled_large_storage_is_not_touched_up_front)
+{
+    constexpr size_t size = 64 * MiB;
+    auto page_count = size / static_cast<size_t>(sysconf(_SC_PAGESIZE));
+    auto& storage = GC::PrimitiveStorage::the();
+
+    auto allocated = MUST(storage.try_allocate(size, GC::PrimitiveStorage::ZeroFillNewBytes::Yes));
+    EXPECT(resident_page_count(storage.data(allocated), size) < page_count / 2);
+    EXPECT_EQ(*storage.data(allocated, size / 2), 0u);
+    storage.free(allocated);
+
+    auto grown = MUST(storage.try_reserve(0, size, GC::PrimitiveStorage::ZeroFillNewBytes::Yes));
+    MUST(storage.try_resize(grown, size, GC::PrimitiveStorage::ZeroFillNewBytes::Yes));
+    EXPECT(resident_page_count(storage.data(grown), size) < page_count / 2);
+    EXPECT_EQ(*storage.data(grown, size - 1), 0u);
+    storage.free(grown);
+
+    auto reallocated = MUST(storage.try_allocate(128 * KiB, GC::PrimitiveStorage::ZeroFillNewBytes::Yes));
+    *storage.data(reallocated, 0) = 0x7b;
+    MUST(storage.try_resize(reallocated, size, GC::PrimitiveStorage::ZeroFillNewBytes::Yes));
+    EXPECT(resident_page_count(storage.data(reallocated), size) < page_count / 2);
+    EXPECT_EQ(*storage.data(reallocated, 0), 0x7b);
+    EXPECT_EQ(*storage.data(reallocated, size - 1), 0u);
+    storage.free(reallocated);
+}
+#endif
 
 TEST_CASE(reserve_capacity)
 {

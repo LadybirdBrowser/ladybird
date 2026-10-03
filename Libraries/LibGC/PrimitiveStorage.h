@@ -116,7 +116,7 @@ private:
         };
 
         ErrorOr<Allocation> allocate_small_storage(size_t size, ZeroFillNewBytes);
-        ErrorOr<Allocation> allocate_large_storage(size_t size, size_t capacity, ZeroFillNewBytes, size_t guard_size);
+        ErrorOr<Allocation> allocate_large_storage(size_t size, size_t capacity, size_t guard_size);
         ErrorOr<Allocation> allocate_from_new_slab(u16 size_class_index, size_t slot_size, ZeroFillNewBytes, size_t requested_size);
         ErrorOr<size_t> allocate_cage_range(size_t reservation_size);
         ErrorOr<void> commit_large_storage(Allocation&, size_t new_size);
