@@ -8,7 +8,7 @@
 //!
 //! A document's [`RenderState`] is what its style, layout and paint preparation compute over: its layout arena and
 //! what lives beside it. The host holds the document's id and reaches the state by sending a [`RenderMessage`]
-//! through [`send`], which handles it in place on the calling thread. Only [`handle`] mints the [`RenderingSide`]
+//! through [`send`] to the StyleLayout thread, which the states live on. Only [`handle`] mints the [`RenderingSide`]
 //! that the states are reached with, so code that is not handed one cannot reach a document's render state.
 
 use crate::css::style::StyleEngineHandle;
@@ -28,7 +28,9 @@ mod wait;
 
 pub use document_host::DocumentHost;
 pub(crate) use questions::{ArenaAnswer, ArenaQuery, CommittedRows, Lent, PreparationPending, ask};
-pub(crate) use wait::{LockstepProof, RenderWait, ReplyTo, ScriptForcedRead, wait_for_render_state, wait_from_entry};
+pub(crate) use wait::{
+    LockstepProof, RenderWait, ReplyTo, ScriptForcedRead, render_state_died, wait_for_render_state, wait_from_entry,
+};
 
 /// The host's name for one document's render state. The host mints it, so naming a new document needs no answer from
 /// the render side.
@@ -236,9 +238,14 @@ fn state_parts(document: DocumentId) -> Option<(*mut ArenaHandle, StyleEngineHan
     })
 }
 
-/// Sends `message` to the render side, which handles it right here.
+/// Sends `message` to the render side, the StyleLayout thread, and waits until it is handled, so the message may
+/// borrow from the calling frame. A message sent while the thread handles another (a child document's) is handled
+/// right there, and a unit test's render states stay on the test's own thread.
 pub(crate) fn send(message: RenderMessage<'_>) {
-    handle(message);
+    if cfg!(test) {
+        return handle(message);
+    }
+    crate::stage_thread::style_layout_thread().run(|| handle(message));
 }
 
 // A render state lives on a thread of its own, where nothing of the host may follow it: the shells and the callbacks

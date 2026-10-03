@@ -1206,10 +1206,14 @@ foreach(angle_target IN LISTS ANGLE_TARGETS)
     target_compile_options(LibWeb PRIVATE $<TARGET_PROPERTY:${angle_target},INTERFACE_COMPILE_OPTIONS>)
 endforeach()
 
+set(libweb_rust_features style-recording)
+if (ENABLE_THREAD_SANITIZER)
+    list(APPEND libweb_rust_features thread-sanitizer)
+endif()
 import_rust_crate(
     MANIFEST_PATH Rust/Cargo.toml
     CRATE_NAME libweb_rust
-    FEATURES style-recording
+    FEATURES ${libweb_rust_features}
     FFI_HEADERS
         HTML/Parser/RustFFI.h
         RustFFI.h

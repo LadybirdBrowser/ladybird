@@ -39,7 +39,6 @@ use std::ffi::c_void;
 use std::hash::{Hash, Hasher};
 use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
-use std::thread;
 
 mod main_thread_entries;
 
@@ -1213,7 +1212,6 @@ pub(crate) struct LayoutNodeArena {
     /// counter is used in, not from the scope the style was written in.
     counter_styles: RefCell<crate::css::counter_representation::CounterStyleRegistry>,
     style_node_tables: StyleNodeTables,
-    owner_thread: thread::ThreadId,
 }
 
 impl LayoutNodeArena {
@@ -1302,7 +1300,6 @@ impl LayoutNodeArena {
             layout_tree_update_marks: RefCell::default(),
             counter_styles: RefCell::default(),
             style_node_tables: StyleNodeTables::default(),
-            owner_thread: thread::current().id(),
         }
     }
 
@@ -1362,8 +1359,10 @@ impl LayoutNodeArena {
         });
     }
 
+    /// Checks that the calling thread may reach the arena: the StyleLayout thread, which the arena's render state lives
+    /// on, or the host's, while the StyleLayout thread waits for its next message.
     pub(crate) fn assert_owner_thread(&self) {
-        debug_assert_eq!(self.owner_thread, thread::current().id());
+        debug_assert!(crate::stage_thread::may_reach_render_states());
     }
 
     // Freshly created chunks are default-initialized and free() resets slots on release, so

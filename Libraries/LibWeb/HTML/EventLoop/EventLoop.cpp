@@ -10,6 +10,7 @@
 #include <AK/TemporaryChange.h>
 #include <LibCore/EventLoop.h>
 #include <LibGC/Heap.h>
+#include <LibGC/HeapAccess.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibWeb/Animations/ScrollTimeline.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
@@ -30,6 +31,7 @@
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/IndexedDB/Internal/Algorithms.h>
 #include <LibWeb/Layout/Node.h>
+#include <LibWeb/Layout/TreeBuilderRustFFI.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/Painting/DocumentPaintState.h>
@@ -44,6 +46,11 @@ GC_DEFINE_ALLOCATOR(EventLoop);
 EventLoop::EventLoop(Type type)
     : m_type(type)
 {
+    // The threads a window's rendering runs on only read what the host lends them and never touch the heap themselves.
+    // This makes that a debug assertion (and a collection there a verification failure) for whatever C++ code they
+    // call.
+    if (m_type == Type::Window)
+        Layout::RustFFI::stage_thread_set_thread_setup([] { GC::forbid_heap_access_on_this_thread(); });
     m_task_queue = GC::Heap::the().allocate<TaskQueue>(*this);
 
     m_rendering_task_function = GC::create_function(GC::Heap::the(), [this] {

@@ -25,6 +25,7 @@ pub mod layout;
 pub mod painting;
 pub mod render_state;
 pub(crate) mod stage;
+pub mod stage_thread;
 pub mod svg;
 
 pub use libweb_html_tokenizer as html_tokenizer;
