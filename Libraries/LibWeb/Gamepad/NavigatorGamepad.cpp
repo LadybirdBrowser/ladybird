@@ -146,21 +146,26 @@ void NavigatorGamepadPartial::handle_gamepad_connected(GamepadDescription const&
 void NavigatorGamepadPartial::handle_gamepad_updated(Badge<EventHandler>, GamepadState const& state)
 {
     // When the system receives new button or axis input values, run the following steps:
-    // 1. Let gamepad be the Gamepad object representing the device that received new button or axis input values.
-    auto gamepad = m_gamepads.find_if([&state](GC::Ptr<Gamepad> gamepad) {
-        return gamepad && gamepad->handle() == state.handle;
-    });
-
-    if (gamepad.is_end())
+    if (!m_available_gamepads.contains_slow(state.handle))
         return;
-
-    (*gamepad)->set_latest_state({}, state);
 
     // 2. Queue a global task on the gamepad task source with gamepad's relevant global object to update gamepad state
     //    for gamepad.
-    auto& global = (*gamepad)->window().principal_realm().global_object();
-    HTML::queue_global_task(HTML::Task::Source::Gamepad, global, GC::create_function(GC::Heap::the(), [gamepad = GC::Ref { **gamepad }] {
-        gamepad->update_gamepad_state({});
+    // AD-HOC: Step 1 runs in the task. A newly available gamepad is created by an earlier task on the same task
+    //         source, so input received before that task has run still reaches the gamepad.
+    auto& window = as<HTML::Navigator>(*this).window();
+    HTML::queue_global_task(HTML::Task::Source::Gamepad, window.principal_realm().global_object(), GC::create_function(GC::Heap::the(), [&window, state] {
+        // 1. Let gamepad be the Gamepad object representing the device that received new button or axis input values.
+        auto navigator = window.navigator();
+        auto gamepad = navigator->m_gamepads.find_if([&state](GC::Ptr<Gamepad> gamepad) {
+            return gamepad && gamepad->handle() == state.handle;
+        });
+
+        if (gamepad.is_end())
+            return;
+
+        (*gamepad)->set_latest_state({}, state);
+        (*gamepad)->update_gamepad_state({});
     }));
 }
 

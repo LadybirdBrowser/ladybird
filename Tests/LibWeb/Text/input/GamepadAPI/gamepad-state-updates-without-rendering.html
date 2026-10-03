@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script src="gamepad-helper.js"></script>
+<script>
+    promiseTest(async () => {
+        const gamepad = internals.connectVirtualGamepad();
+        await pumpGamepadEvents();
+
+        gamepad.setButton(gamepad.buttons[0], true);
+        await new Promise(resolve => {
+            const poll = () => {
+                if (navigator.getGamepads()[0]?.buttons[0].pressed)
+                    resolve();
+                else
+                    setTimeout(poll, 10);
+            };
+            poll();
+        });
+        println(`After pressing button ${gamepad.buttons[0]} without pumping: ${getStringifiedGamepads()}`);
+
+        gamepad.disconnect();
+    });
+</script>
