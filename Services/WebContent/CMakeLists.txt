@@ -36,7 +36,6 @@ if (ENABLE_CRANELIFT_JIT)
     target_link_libraries(webcontentservice PUBLIC LibWasmCompilerClient)
 endif()
 target_link_libraries(webcontentservice PRIVATE OpenSSL::Crypto OpenSSL::SSL)
-target_link_libraries(webcontentservice PRIVATE SDL3::SDL3)
 target_compile_options(webcontentservice PRIVATE $<$<COMPILE_LANG_AND_ID:CXX,Clang,AppleClang>:-Wexit-time-destructors>)
 
 add_executable(WebContent main.cpp)

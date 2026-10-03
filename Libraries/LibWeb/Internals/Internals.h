@@ -200,7 +200,7 @@ public:
     bool has_shadow_root(GC::Ref<DOM::Element>);
     GC::Ptr<DOM::ShadowRoot> get_shadow_root(GC::Ref<DOM::Element>);
 
-    void handle_sdl_input_events();
+    void pump_gamepad_events();
 
     GC::Ref<InternalGamepad> connect_virtual_gamepad();
     void disconnect_virtual_gamepad(GC::Ref<InternalGamepad>);

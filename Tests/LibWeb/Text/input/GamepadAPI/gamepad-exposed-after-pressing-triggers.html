@@ -4,7 +4,7 @@
 <script>
     promiseTest(async () => {
         const gamepad = internals.connectVirtualGamepad();
-        await handleSDLInputEvents();
+        await pumpGamepadEvents();
         listenForGamepadConnected();
 
         const shortMax = 32628;
@@ -15,12 +15,12 @@
             const axisValueAsInt = Math.floor(axisValue * shortMax);
             println(`Before moving trigger axis ${trigger} to ${axisValue} (${axisValueAsInt}): ${getStringifiedGamepads()}`);
             gamepad.setAxis(trigger, axisValueAsInt);
-            await handleSDLInputEvents();
+            await pumpGamepadEvents();
             println(`After moving trigger axis ${trigger} to ${axisValue} (${axisValueAsInt}): ${getStringifiedGamepads()}`);
         }
 
         listenForGamepadDisconnected();
         gamepad.disconnect();
-        await handleSDLInputEvents();
+        await pumpGamepadEvents();
     });
 </script>

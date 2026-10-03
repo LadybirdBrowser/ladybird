@@ -16,6 +16,7 @@
 #include <LibWeb/CSS/FontFaceSet.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
+#include <LibWeb/Gamepad/GamepadRegistry.h>
 #include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/HTMLMediaElement.h>
@@ -420,8 +421,6 @@ void EventLoop::process_input_events() const
         while (!events_for_other_pages.is_empty()) {
             input_events_queue.enqueue(events_for_other_pages.dequeue());
         }
-
-        page.handle_sdl_input_events();
     };
 
     // Every page hosting a document takes the input events queued for it, once.
@@ -438,6 +437,11 @@ void EventLoop::process_input_events() const
 
     for (auto const& page : pages)
         process_input_events_queue(*page);
+
+    for (auto const& state : Gamepad::GamepadRegistry::the().take_changed_shared_states()) {
+        for (auto const& page : pages)
+            page->handle_gamepad_updated(state);
+    }
 }
 
 static GC::RootVector<GC::Ref<Page>> pages_of_local_roots()

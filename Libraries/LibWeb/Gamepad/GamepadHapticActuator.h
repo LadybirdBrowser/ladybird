@@ -44,7 +44,7 @@ private:
 
     void document_became_hidden();
     void issue_haptic_effect(GamepadHapticEffectType, GamepadEffectParameters const&, GC::Ref<GC::Function<void()>> on_complete);
-    bool stop_haptic_effects();
+    void stop_haptic_effects();
     void clear_playing_effect_timers();
 
     GC::Ref<Gamepad> m_gamepad;

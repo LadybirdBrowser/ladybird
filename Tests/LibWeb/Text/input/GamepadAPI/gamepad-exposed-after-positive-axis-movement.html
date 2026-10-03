@@ -6,7 +6,7 @@
         println(`Initial: ${getStringifiedGamepads()}`);
 
         const gamepad = internals.connectVirtualGamepad();
-        await handleSDLInputEvents();
+        await pumpGamepadEvents();
         listenForGamepadConnected();
 
         const shortMax = 32628;
@@ -15,12 +15,12 @@
             const axisAsInt = Math.floor(axisValue * shortMax);
             println(`Before user gesture of moving axis to ${axisValue} (${axisAsInt}): ${getStringifiedGamepads()}`);
             gamepad.setAxis(gamepad.axes[0], axisAsInt);
-            await handleSDLInputEvents();
+            await pumpGamepadEvents();
             println(`After user gesture of moving axis to ${axisValue} (${axisAsInt}): ${getStringifiedGamepads()}`);
         }
 
         listenForGamepadDisconnected();
         gamepad.disconnect();
-        await handleSDLInputEvents();
+        await pumpGamepadEvents();
     });
 </script>

@@ -1,6 +1,6 @@
 (() => {
-    globalThis.handleSDLInputEvents = () => {
-        internals.handleSDLInputEvents();
+    globalThis.pumpGamepadEvents = () => {
+        internals.pumpGamepadEvents();
         return new Promise(resolve => {
             setTimeout(() => resolve(), 0);
         });

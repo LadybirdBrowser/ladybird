@@ -4,15 +4,15 @@
 <script>
     asyncTest(async (done) => {
         const gamepad = internals.connectVirtualGamepad();
-        await handleSDLInputEvents();
+        await pumpGamepadEvents();
         listenForGamepadConnected();
 
         println(`Before pressing button in top level: ${getStringifiedGamepads()}`);
         gamepad.setButton(gamepad.buttons[0], true);
-        await handleSDLInputEvents();
+        await pumpGamepadEvents();
         println(`After pressing button in top level: ${getStringifiedGamepads()}`);
         gamepad.setButton(gamepad.buttons[0], false);
-        await handleSDLInputEvents();
+        await pumpGamepadEvents();
 
         const iframe = document.createElement("iframe");
         iframe.onload = async () => {
@@ -30,7 +30,7 @@
 
             // New navigables will automatically connect to available gamepads, otherwise this wouldn't do anything.
             gamepad.setButton(gamepad.buttons[0], true);
-            await handleSDLInputEvents();
+            await pumpGamepadEvents();
 
             println(`Gamepad is now exposed in the new navigable: ${await sendMessageAndWait("getGamepads")}`);
 

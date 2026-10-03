@@ -46,6 +46,7 @@ public:
     void remove_page(Badge<PageClient>, Web::PageId page_id);
     Web::HTML::CrossProcessId allocate_cross_process_id();
     Web::HTML::CrossProcessId allocate_navigable_id();
+    void for_each_page(Function<void(PageClient&)>);
 
     ConnectionFromClient& client() const { return m_client; }
     void ensure_compositor_host();

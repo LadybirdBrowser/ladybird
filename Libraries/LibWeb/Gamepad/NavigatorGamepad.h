@@ -9,8 +9,8 @@
 #include <LibGC/Ptr.h>
 #include <LibGC/RootVector.h>
 #include <LibWeb/Forward.h>
-#include <LibWeb/Gamepad/SDLGamepadForward.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
+#include <LibWebCommon/Gamepad/GamepadSnapshot.h>
 
 namespace Web::Gamepad {
 
@@ -20,9 +20,9 @@ public:
 
     size_t select_an_unused_gamepad_index(Badge<Gamepad>);
 
-    void handle_gamepad_connected(SDL_JoystickID sdl_joystick_id);
-    void handle_gamepad_updated(Badge<EventHandler>, SDL_JoystickID sdl_joystick_id);
-    void handle_gamepad_disconnected(Badge<EventHandler>, SDL_JoystickID sdl_joystick_id);
+    void handle_gamepad_connected(GamepadDescription const&);
+    void handle_gamepad_updated(Badge<EventHandler>, GamepadState const&);
+    void handle_gamepad_disconnected(Badge<EventHandler>, GamepadHandle);
 
     bool has_gamepad_gesture() const { return m_has_gamepad_gesture; }
     void set_has_gamepad_gesture(Badge<Gamepad>, bool);
@@ -49,8 +49,8 @@ private:
 
     // Non-standard attribute to know which gamepads are available to the system. This is used to prevent duplicate
     // connections for the same gamepad ID (e.g. if the navigator object is initialized and checks for connected gamepads
-    // and also receives an SDL gamepad connected event)
-    Vector<SDL_JoystickID> m_available_gamepads;
+    // and also receives a gamepad connected event)
+    Vector<GamepadHandle> m_available_gamepads;
 };
 
 }

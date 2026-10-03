@@ -7,8 +7,6 @@
 #include <LibGC/Heap.h>
 #include <LibWeb/Gamepad/GamepadButton.h>
 
-#include <SDL3/SDL_gamepad.h>
-
 namespace Web::Gamepad {
 
 GC_DEFINE_ALLOCATOR(GamepadButton);

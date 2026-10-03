@@ -346,6 +346,15 @@ private:
     virtual void page_did_update_primary_selection(Utf16String const&) override;
     virtual void page_did_change_audio_play_state(Web::HTML::AudioPlayState) override;
     virtual void page_did_change_screen_wake_lock_state(Web::ScreenWakeLockState) override;
+    virtual void page_did_start_using_gamepads() override;
+    virtual void page_did_play_gamepad_effect(Web::Gamepad::GamepadHandle, Web::Gamepad::GamepadEffect const&) override;
+    virtual void page_did_request_stop_gamepad_effects(Web::Gamepad::GamepadHandle) override;
+    virtual Optional<Web::Gamepad::VirtualGamepad> create_virtual_gamepad() override;
+    virtual void set_virtual_gamepad_button(Web::Gamepad::GamepadHandle, i32 button, bool down) override;
+    virtual void set_virtual_gamepad_axis(Web::Gamepad::GamepadHandle, i32 axis, i16 value) override;
+    virtual void disconnect_virtual_gamepad(Web::Gamepad::GamepadHandle) override;
+    virtual Web::Gamepad::ReceivedRumbleEffects virtual_gamepad_received_rumble_effects(Web::Gamepad::GamepadHandle) override;
+    virtual void pump_gamepad_events() override;
     virtual Web::HTML::WorkerAgentId start_worker_agent(Web::HTML::WorkerAgentStartRequest&&) override;
     virtual void close_worker_agent(Web::HTML::WorkerAgentId, Web::HTML::WorkerAgentOwnerToken) override;
     virtual void page_did_mutate_dom(Utf16FlyString const& type, Web::DOM::Node const& target, Web::DOM::NodeList& added_nodes, Web::DOM::NodeList& removed_nodes, GC::Ptr<Web::DOM::Node> previous_sibling, GC::Ptr<Web::DOM::Node> next_sibling, Optional<Utf16FlyString> const& attribute_name) override;

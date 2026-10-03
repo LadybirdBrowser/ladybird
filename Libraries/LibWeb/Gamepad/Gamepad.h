@@ -9,7 +9,7 @@
 
 #include <LibWeb/Bindings/Gamepad.h>
 #include <LibWeb/Bindings/Wrappable.h>
-#include <LibWeb/Gamepad/SDLGamepadForward.h>
+#include <LibWebCommon/Gamepad/GamepadSnapshot.h>
 #include <LibWebCommon/HighResolutionTime/DOMHighResTimeStamp.h>
 
 namespace Web::Gamepad {
@@ -22,10 +22,10 @@ class Gamepad final : public Bindings::GCAllocatedWrappable {
     GC_DECLARE_ALLOCATOR(Gamepad);
 
 public:
-    static GC::Ref<Gamepad> create(HTML::Window&, SDL_JoystickID);
+    static GC::Ref<Gamepad> create(HTML::Window&, GamepadDescription const&);
 
-    SDL_JoystickID sdl_joystick_id() const { return m_sdl_joystick_id; }
-    SDL_Gamepad* sdl_gamepad() const { return m_sdl_gamepad; }
+    GamepadHandle handle() const { return m_description.handle; }
+    GamepadDescription const& description() const { return m_description; }
 
     Utf16String const& id() const { return m_id; }
 
@@ -49,13 +49,13 @@ public:
 
     GC::Ref<GamepadHapticActuator> vibration_actuator() const;
 
+    void set_latest_state(Badge<NavigatorGamepadPartial>, GamepadState);
     void update_gamepad_state(Badge<NavigatorGamepadPartial>);
 
 private:
-    explicit Gamepad(HTML::Window&, SDL_JoystickID);
+    explicit Gamepad(HTML::Window&, GamepadDescription const&);
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
-    virtual void finalize() override;
 
     void select_a_mapping();
     void initialize_axes();
@@ -153,8 +153,8 @@ private:
     GamepadMappingType m_mapping { GamepadMappingType::Standard };
 
     GC::Ref<HTML::Window> m_window;
-    SDL_JoystickID m_sdl_joystick_id { 0 };
-    SDL_Gamepad* m_sdl_gamepad { nullptr };
+    GamepadDescription m_description;
+    GamepadState m_latest_state;
 };
 
 }
