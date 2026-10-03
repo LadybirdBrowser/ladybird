@@ -40,6 +40,8 @@ public:
     REFLECT_ANIMATED_LENGTH_ATTRIBUTE(y2, Vertical, SVGLengthValue::number(0));
 
 private:
+    virtual bool is_svg_line_element() const final { return true; }
+
     SVGLineElement(DOM::Document&, DOM::QualifiedName);
 
     Optional<NumberPercentage> m_x1;
@@ -47,5 +49,12 @@ private:
     Optional<NumberPercentage> m_x2;
     Optional<NumberPercentage> m_y2;
 };
+
+}
+
+namespace Web::DOM {
+
+template<>
+inline bool Node::fast_is<SVG::SVGLineElement>() const { return is_svg_line_element(); }
 
 }

@@ -21,7 +21,16 @@ public:
     virtual Gfx::Path get_path(CSSPixelSize viewport_size, CSS::ComputedValues const&) override;
 
 private:
+    virtual bool is_svg_path_element() const final { return true; }
+
     SVGPathElement(DOM::Document&, DOM::QualifiedName);
 };
+
+}
+
+namespace Web::DOM {
+
+template<>
+inline bool Node::fast_is<SVG::SVGPathElement>() const { return is_svg_path_element(); }
 
 }

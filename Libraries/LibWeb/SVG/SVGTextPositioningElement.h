@@ -40,6 +40,8 @@ protected:
     virtual void visit_edges(Visitor&) override;
 
 private:
+    virtual bool is_svg_text_positioning_element() const final { return true; }
+
     GC::Ref<SVGAnimatedLengthList> ensure_length_list(GC::Ptr<SVGAnimatedLengthList>&, Utf16FlyString const& attribute_name) const;
 
     GC::Ptr<SVGAnimatedLengthList> m_x;
@@ -48,5 +50,12 @@ private:
     GC::Ptr<SVGAnimatedLengthList> m_dy;
     GC::Ptr<SVGAnimatedNumberList> m_rotate;
 };
+
+}
+
+namespace Web::DOM {
+
+template<>
+inline bool Node::fast_is<SVG::SVGTextPositioningElement>() const { return is_svg_text_positioning_element(); }
 
 }

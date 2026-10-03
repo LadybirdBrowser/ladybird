@@ -37,7 +37,16 @@ public:
     REFLECT_ANIMATED_LENGTH_ATTRIBUTE(ry, Vertical, SVGLengthValue::number(0));
 
 private:
+    virtual bool is_svg_ellipse_element() const final { return true; }
+
     SVGEllipseElement(DOM::Document&, DOM::QualifiedName);
 };
+
+}
+
+namespace Web::DOM {
+
+template<>
+inline bool Node::fast_is<SVG::SVGEllipseElement>() const { return is_svg_ellipse_element(); }
 
 }
