@@ -139,7 +139,7 @@ impl ArenaChange {
 }
 
 /// A message the host sends a document's render state.
-pub(crate) enum RenderMessage {
+pub(crate) enum RenderMessage<'a> {
     /// Makes the render state of a new document, whose arena names the document's host.
     Create {
         document: DocumentId,
@@ -154,28 +154,28 @@ pub(crate) enum RenderMessage {
     Style {
         document: DocumentId,
         job: crate::css::style::style_job::StyleJob,
-        reply: ReplyTo<crate::css::style::style_job::StyleJobAnswer>,
+        reply: ReplyTo<'a, crate::css::style::style_job::StyleJobAnswer>,
     },
     /// A layout round of the document the host waits for: its tree build and layout stages.
     LayoutRound {
         document: DocumentId,
         job: crate::layout::LayoutRoundJob,
-        reply: ReplyTo<crate::layout::LayoutRoundAnswer>,
+        reply: ReplyTo<'a, crate::layout::LayoutRoundAnswer>,
     },
     /// A step of paint preparation the host waits for.
     Paint {
         document: DocumentId,
         pass: crate::painting::paint_passes::PaintPass,
-        reply: ReplyTo<crate::painting::paint_passes::PaintPassAnswer>,
+        reply: ReplyTo<'a, crate::painting::paint_passes::PaintPassAnswer>,
     },
     /// A question about a document's render state the host waits for the answer to.
     Ask {
         document: DocumentId,
         query: Query,
-        reply: ReplyTo<Answer>,
+        reply: ReplyTo<'a, Answer>,
     },
     /// Panics answering, for a test that the host waiting for the answer crashes.
-    PanicForTesting { reply: ReplyTo<()> },
+    PanicForTesting { reply: ReplyTo<'a, ()> },
 }
 
 thread_local! {
@@ -184,7 +184,7 @@ thread_local! {
 }
 
 /// Handles `message` on the render side.
-pub(crate) fn handle(message: RenderMessage) {
+pub(crate) fn handle(message: RenderMessage<'_>) {
     handle_message(
         &RenderingSide {
             not_send_or_sync: PhantomData,
@@ -193,7 +193,7 @@ pub(crate) fn handle(message: RenderMessage) {
     );
 }
 
-fn handle_message(_: &RenderingSide, message: RenderMessage) {
+fn handle_message(_: &RenderingSide, message: RenderMessage<'_>) {
     match message {
         RenderMessage::Create {
             document,
@@ -266,7 +266,7 @@ fn state_parts(document: DocumentId) -> Option<(*mut ArenaHandle, StyleEngineHan
 }
 
 /// Sends `message` to the render side, which handles it right here.
-pub(crate) fn send(message: RenderMessage) {
+pub(crate) fn send(message: RenderMessage<'_>) {
     handle(message);
 }
 
