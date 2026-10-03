@@ -1,0 +1,3 @@
+before replacing: red 0
+after replacing ahead: red 0
+playing past 6: red

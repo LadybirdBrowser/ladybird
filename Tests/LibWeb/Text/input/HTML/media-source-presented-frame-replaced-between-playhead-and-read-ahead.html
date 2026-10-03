@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<script>internals.setAutoplayPolicy("allow-audio-and-video");</script>
+<script src="../include.js"></script>
+<script src="media-source-presented-frame-include.js"></script>
+<script>
+    // Pauses long enough for frames after the playhead to be decoded ahead, then replaces some of them without touching
+    // the frames the decoder reads next. A seek into the replaced frames must not resolve with the stale decoded ones.
+    promiseTest(async () => {
+        const red = await fetchColoredStream("red");
+        const blue = await fetchColoredStream("blue");
+
+        const video = document.createElement("video");
+        video.muted = true;
+        document.body.append(video);
+        const { sourceBuffer } = await openColoredStreamSource(video);
+
+        await appendWithinWindow(sourceBuffer, red);
+        await seekAndWait(video, 5.55);
+        println(`before replacing: ${await samplePresentedFrameOnceItMatches(video, "red 0")}`);
+        await timeout(500);
+
+        // Frames are at multiples of 0.1, so this replaces the frames at 5.7, 5.8 and 5.9.
+        await appendWithinWindow(sourceBuffer, blue, 5.65, 5.95);
+        await seekAndWait(video, 5.85);
+        println(`after seeking into the replaced frames: ${await samplePresentedFrameOnceItMatches(video, "blue 0")}`);
+    });
+</script>

@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<script>internals.setAutoplayPolicy("allow-audio-and-video");</script>
+<script src="../include.js"></script>
+<script src="media-source-presented-frame-include.js"></script>
+<script>
+    // Pauses long enough for frames after the playhead to be decoded ahead, then replaces those frames. Playback must
+    // present the new frames rather than the ones that were decoded before the replacement.
+    promiseTest(async () => {
+        const red = await fetchColoredStream("red");
+        const blue = await fetchColoredStream("blue");
+
+        const video = document.createElement("video");
+        video.muted = true;
+        document.body.append(video);
+        const { sourceBuffer } = await openColoredStreamSource(video);
+
+        await appendWithinWindow(sourceBuffer, red);
+        await seekAndWait(video, 5.55);
+        println(`before replacing: ${await samplePresentedFrameOnceItMatches(video, "red 0")}`);
+        await timeout(500);
+
+        // Frames are at multiples of 0.1, so this keeps the presented frame at 5.5 and the next at 5.6.
+        await appendWithinWindow(sourceBuffer, blue, 5.65, 8);
+        println(`after replacing ahead: ${samplePresentedFrame(video)}`);
+
+        await video.play();
+        await waitForCondition(() => video.currentTime >= 6.05, 200, 10);
+        // Only the stream is printed, since whether stale frames get presented is timing-dependent.
+        const sample = await samplePresentedFrameOnceItMatches(video, "blue 1");
+        println(`playing past 6: ${sample.split(" ")[0]}`);
+        video.pause();
+    });
+</script>

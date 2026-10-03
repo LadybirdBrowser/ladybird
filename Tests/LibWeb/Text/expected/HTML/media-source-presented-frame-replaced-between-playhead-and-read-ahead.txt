@@ -1,0 +1,2 @@
+before replacing: red 0
+after seeking into the replaced frames: red 0

@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<script>internals.setAutoplayPolicy("allow-audio-and-video");</script>
+<script src="../include.js"></script>
+<script src="media-source-presented-frame-include.js"></script>
+<script>
+    // Replaces the frame presented at a paused playhead with an overlapping append. The new frame should be
+    // presented, and seeks that land on the replaced frame must not be satisfied by the frame that was replaced.
+    promiseTest(async () => {
+        const red = await fetchColoredStream("red");
+        const blue = await fetchColoredStream("blue");
+
+        const video = document.createElement("video");
+        video.muted = true;
+        document.body.append(video);
+        const { sourceBuffer } = await openColoredStreamSource(video);
+
+        await appendWithinWindow(sourceBuffer, red);
+        await seekAndWait(video, 5.55);
+        println(`before replacing: ${await samplePresentedFrameOnceItMatches(video, "red 0")}`);
+
+        await appendWithinWindow(sourceBuffer, blue, 4, 8);
+        println(`after replacing: ${await samplePresentedFrameOnceItMatches(video, "blue 0")}`);
+
+        await seekAndWait(video, 5.55);
+        println(`after seeking to the same time: ${await samplePresentedFrameOnceItMatches(video, "blue 0")}`);
+
+        await appendWithinWindow(sourceBuffer, red, 4, 8);
+        await seekAndWait(video, 5.58);
+        println(`after replacing again and seeking within the same frame: ${await samplePresentedFrameOnceItMatches(video, "red 0")}`);
+    });
+</script>

@@ -1,0 +1,4 @@
+before replacing: red 0
+after replacing: red 0
+after seeking to the same time: red 0
+after replacing again and seeking within the same frame: red 0
