@@ -37,21 +37,6 @@ def interface_has_cross_origin_property_descriptor_map(interface: Interface) -> 
     return interface.name in ("Location", "Window")
 
 
-def interface_requires_custom_prototype(interface: Interface) -> bool:
-    return (
-        "Global" in interface.extended_attributes
-        or interface.indexed_property_getter is not None
-        or interface.named_property_getter is not None
-        or interface.named_property_setter is not None
-        or interface.named_property_deleter is not None
-        or interface.indexed_property_setter is not None
-        or interface.maplike is not None
-        or interface.setlike is not None
-        or (interface.iterable is not None and interface.iterable.key_type is not None)
-        or interface.async_iterable is not None
-    )
-
-
 def write_declaration(
     out: TextIO, includes: GeneratedIncludes, context: GenerationContext, interface: Interface
 ) -> None:
@@ -191,39 +176,22 @@ private:
 
 """
     )
-    if interface_requires_custom_prototype(interface):
-        out.write(
-            f"""class {interface.prototype_class} : public JS::Object {{
-    JS_OBJECT({interface.prototype_class}, JS::Object);
-    GC_DECLARE_ALLOCATOR({interface.prototype_class});
-
-public:
-    static void define_unforgeable_attributes(JS::Realm&, JS::Object&);
-
-    explicit {interface.prototype_class}(JS::Realm&);
-    virtual void initialize(JS::Realm&) override;
-    virtual ~{interface.prototype_class}() override;
-"""
-        )
-        if "Global" in interface.extended_attributes:
-            out.write("    virtual JS::ThrowCompletionOr<bool> internal_set_prototype_of(JS::Object*) override;\n")
-        out.write(
-            """
-private:
-"""
-        )
-    else:
-        out.write(
-            f"""struct {interface.prototype_class} {{
+    out.write(
+        f"""struct {interface.prototype_class} {{
 public:
     static void initialize(JS::Realm&, JS::Object&);
-    static void define_unforgeable_attributes(JS::Realm&, JS::Object&);
-
+"""
+    )
+    # NB: The unforgeable attributes of a [Global] interface live on the global object, which its global mixin defines.
+    if "Global" not in interface.extended_attributes:
+        out.write("    static void define_unforgeable_attributes(JS::Realm&, JS::Object&);\n")
+    out.write(
+        """
 private:
 """
-        )
-        if interface_has_cross_origin_property_descriptor_map(interface):
-            out.write(f"    friend class {wrapper_class_name(interface)};\n\n")
+    )
+    if interface_has_cross_origin_property_descriptor_map(interface):
+        out.write(f"    friend class {wrapper_class_name(interface)};\n\n")
     for attribute in interface.regular_attributes:
         if "FIXME" in attribute.extended_attributes:
             continue

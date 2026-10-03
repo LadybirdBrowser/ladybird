@@ -155,24 +155,6 @@ def interface_needs_wrapper(interface: Interface) -> bool:
     return not interface.constants
 
 
-def can_use_shared_interface_constructor(interface: Interface) -> bool:
-    return not interface.is_namespace and not interface.is_callback_interface
-
-
-def can_use_shared_interface_prototype(interface: Interface) -> bool:
-    return (
-        not interface.is_namespace
-        and not interface.is_callback_interface
-        and "Global" not in interface.extended_attributes
-        and not interface.has_special_member
-        and interface.named_property_getter is None
-        and interface.indexed_property_getter is None
-        and interface.named_property_setter is None
-        and interface.named_property_deleter is None
-        and interface.indexed_property_setter is None
-    )
-
-
 def interface_prototype_has_immutable_prototype(interface: Interface) -> bool:
     # NB: This currently assumes only Workers and Window can be globals.
     return (
@@ -453,22 +435,25 @@ WEB_API void Intrinsics::create_web_prototype_and_constructor<{interface.prototy
         )
         return
 
-    if can_use_shared_interface_prototype(interface):
-        out.write(
-            f"""template<>
+    out.write(
+        f"""template<>
 WEB_API void Intrinsics::create_web_prototype_and_constructor<{interface.prototype_class}>(JS::Realm& realm)
 {{
 """
-        )
+    )
 
-        ensure_parent_prototype = "nullptr"
-        ensure_parent_constructor = "nullptr"
-        if interface.parent_name:
-            ensure_parent_prototype = f"""[](JS::Realm& realm) -> JS::Object& {{ return Web::Bindings::ensure_web_prototype<{interface.parent_name}Prototype>(realm, "{interface.parent_name}"_utf16_fly_string); }}"""
-            ensure_parent_constructor = f"""[](JS::Realm& realm) -> JS::NativeFunction& {{ return Web::Bindings::ensure_web_constructor<{interface.parent_name}Prototype>(realm, "{interface.parent_name}"_utf16_fly_string); }}"""
+    ensure_parent_prototype = "nullptr"
+    ensure_parent_constructor = "nullptr"
+    if interface.parent_name:
+        ensure_parent_prototype = f"""[](JS::Realm& realm) -> JS::Object& {{ return Web::Bindings::ensure_web_prototype<{interface.parent_name}Prototype>(realm, "{interface.parent_name}"_utf16_fly_string); }}"""
+        ensure_parent_constructor = f"""[](JS::Realm& realm) -> JS::NativeFunction& {{ return Web::Bindings::ensure_web_constructor<{interface.parent_name}Prototype>(realm, "{interface.parent_name}"_utf16_fly_string); }}"""
 
-        out.write(
-            f"""    static constexpr InterfaceObjectMetadata metadata {{
+    define_unforgeable_attributes = f"&{interface.prototype_class}::define_unforgeable_attributes"
+    if "Global" in interface.extended_attributes:
+        define_unforgeable_attributes = "nullptr"
+
+    out.write(
+        f"""    static constexpr InterfaceObjectMetadata metadata {{
         .name = "{interface.name}"sv,
         .namespaced_name = "{interface.namespaced_name}"sv,
         .utf16_name = "{interface.name}"sv,
@@ -477,111 +462,23 @@ WEB_API void Intrinsics::create_web_prototype_and_constructor<{interface.prototy
         .ensure_parent_constructor = {ensure_parent_constructor},
         .initialize_constructor = &{interface.constructor_class}::initialize,
         .initialize_prototype = &{interface.prototype_class}::initialize,
-        .define_unforgeable_attributes = &{interface.prototype_class}::define_unforgeable_attributes,
+        .define_unforgeable_attributes = {define_unforgeable_attributes},
         .construct = &{interface.constructor_class}::construct,
         .has_immutable_prototype = {str(interface_prototype_has_immutable_prototype(interface)).lower()},
     }};
-    create_web_prototype_and_constructor(realm, metadata);
-"""
-        )
-
-        legacy_constructor = lookup_legacy_constructor(interface)
-        if legacy_constructor is not None:
-            out.write(
-                f"""    auto legacy_constructor = realm.create<{legacy_constructor.constructor_class}>(realm);
-    m_constructors.set("{legacy_constructor.name}"_utf16_fly_string, legacy_constructor.ptr());
-"""
-            )
-
-        out.write(
-            """}
-"""
-        )
-        return
-
-    if can_use_shared_interface_constructor(interface):
-        out.write(
-            f"""template<>
-WEB_API void Intrinsics::create_web_prototype_and_constructor<{interface.prototype_class}>(JS::Realm& realm)
-{{
-"""
-        )
-
-        ensure_parent_constructor = "nullptr"
-        if interface.parent_name:
-            ensure_parent_constructor = f"""[](JS::Realm& realm) -> JS::NativeFunction& {{ return Web::Bindings::ensure_web_constructor<{interface.parent_name}Prototype>(realm, "{interface.parent_name}"_utf16_fly_string); }}"""
-
-        out.write(
-            f"""    static constexpr InterfaceObjectMetadata metadata {{
-        .name = "{interface.name}"sv,
-        .namespaced_name = "{interface.namespaced_name}"sv,
-        .utf16_name = "{interface.name}"sv,
-        .utf16_namespaced_name = "{interface.namespaced_name}"sv,
-        .ensure_parent_constructor = {ensure_parent_constructor},
-        .initialize_constructor = &{interface.constructor_class}::initialize,
-        .construct = &{interface.constructor_class}::construct,
-    }};
-
-"""
-        )
-
-        if interface_supports_named_properties(interface):
-            out.write(
-                f"""    auto named_properties_object = realm.create<{interface.name}Properties>(realm);
-    m_prototypes.set("{interface.name}Properties"_utf16_fly_string, named_properties_object);
-
-"""
-            )
-
-        out.write(
-            f"""    auto prototype = realm.create<{interface.prototype_class}>(realm);
-    m_prototypes.set("{interface.namespaced_name}"_utf16_fly_string, prototype);
-
-    create_web_constructor(realm, metadata, prototype);
-"""
-        )
-
-        legacy_constructor = lookup_legacy_constructor(interface)
-        if legacy_constructor is not None:
-            out.write(
-                f"""    auto legacy_constructor = realm.create<{legacy_constructor.constructor_class}>(realm);
-    m_constructors.set("{legacy_constructor.name}"_utf16_fly_string, legacy_constructor.ptr());
-"""
-            )
-
-        out.write(
-            """}
-"""
-        )
-        return
-
-    out.write(
-        f"""template<>
-WEB_API void Intrinsics::create_web_prototype_and_constructor<{interface.prototype_class}>(JS::Realm& realm)
-{{
-    auto& vm = realm.vm();
-
 """
     )
 
+    # https://webidl.spec.whatwg.org/#named-properties-object
+    # The interface prototype object's [[Prototype]] is its named properties object, so that has to exist first.
     if interface_supports_named_properties(interface):
         out.write(
             f"""    auto named_properties_object = realm.create<{interface.name}Properties>(realm);
     m_prototypes.set("{interface.name}Properties"_utf16_fly_string, named_properties_object);
-
 """
         )
 
-    out.write(
-        f"""    auto prototype = realm.create<{interface.prototype_class}>(realm);
-    m_prototypes.set("{interface.namespaced_name}"_utf16_fly_string, prototype);
-
-    auto constructor = realm.create<{interface.constructor_class}>(realm);
-    m_constructors.set("{interface.namespaced_name}"_utf16_fly_string, constructor);
-
-    prototype->define_direct_property(vm.names.constructor, constructor.ptr(), JS::Attribute::Writable | JS::Attribute::Configurable);
-"""
-    )
+    out.write("    create_web_prototype_and_constructor(realm, metadata);\n")
 
     legacy_constructor = lookup_legacy_constructor(interface)
     if legacy_constructor is not None:
