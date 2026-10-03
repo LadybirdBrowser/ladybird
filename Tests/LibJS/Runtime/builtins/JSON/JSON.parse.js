@@ -123,6 +123,14 @@ test("string escape sequences", () => {
     expect(JSON.parse('"\\u0000"')).toBe("\0");
 });
 
+test("malformed literals inside arrays and objects", () => {
+    expect(() => JSON.parse("[nope]")).toThrow(SyntaxError);
+    expect(() => JSON.parse("[nul]")).toThrow(SyntaxError);
+    expect(() => JSON.parse("[nulltrue]")).toThrow(SyntaxError);
+    expect(() => JSON.parse('{"a":nonsense}')).toThrow(SyntaxError);
+    expect(JSON.parse('[null, {"a": null}]')).toEqual([null, { a: null }]);
+});
+
 test("unicode and surrogate pairs", () => {
     expect(JSON.parse('"café"')).toBe("café");
     expect(JSON.parse('"日本語"')).toBe("日本語");
