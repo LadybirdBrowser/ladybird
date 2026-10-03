@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<script>internals.setAutoplayPolicy("allow-audio-and-video");</script>
+<script src="../include.js"></script>
+<script src="media-source-presented-frame-include.js"></script>
+<script>
+    // Plays straight after the first seek resolves, so the video is first painted once playback has started. Painted
+    // video is only updated on the display's vsync, so that paint must start it for the presented frame to advance.
+    promiseTest(async () => {
+        const red = await fetchColoredStream("red");
+
+        const video = document.createElement("video");
+        video.muted = true;
+        document.body.append(video);
+        const { sourceBuffer } = await openColoredStreamSource(video);
+
+        await appendWithinWindow(sourceBuffer, red);
+        await seekAndWait(video, 5.55);
+        await video.play();
+        await waitForCondition(() => video.currentTime >= 6.2, 200, 10);
+        println(`playing past 6.2: ${await samplePresentedFrameOnceItMatches(video, "red 1")}`);
+        video.pause();
+    });
+</script>
