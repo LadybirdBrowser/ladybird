@@ -16,6 +16,11 @@
 
 namespace JS {
 
+ThrowCompletionOr<Value> PromiseJob::run() const
+{
+    return static_cast<GC::Function<ThrowCompletionOr<Value>()> const&>(*m_steps).function()();
+}
+
 // 27.2.2.1 NewPromiseReactionJob ( reaction, argument ), https://tc39.es/ecma262/#sec-newpromisereactionjob
 static ThrowCompletionOr<Value> run_reaction_job(VM& vm, PromiseReaction& reaction, Value argument)
 {
@@ -84,7 +89,7 @@ static ThrowCompletionOr<Value> run_reaction_job(VM& vm, PromiseReaction& reacti
 }
 
 // 27.2.2.1 NewPromiseReactionJob ( reaction, argument ), https://tc39.es/ecma262/#sec-newpromisereactionjob
-PromiseJob create_promise_reaction_job(VM& vm, PromiseReaction& reaction, Value argument)
+PromiseJobRecord create_promise_reaction_job(VM& vm, PromiseReaction& reaction, Value argument)
 {
     // 1. Let job be a new Job Abstract Closure with no parameters that captures reaction and argument and performs the following steps when called:
     //    See run_reaction_job for "the following steps".
@@ -113,7 +118,7 @@ PromiseJob create_promise_reaction_job(VM& vm, PromiseReaction& reaction, Value 
     }
 
     // 4. Return the Record { [[Job]]: job, [[Realm]]: handlerRealm }.
-    return { job, handler_realm };
+    return { PromiseJob { job }, handler_realm };
 }
 
 // 27.2.2.2 NewPromiseResolveThenableJob ( promiseToResolve, thenable, then ), https://tc39.es/ecma262/#sec-newpromiseresolvethenablejob
@@ -142,7 +147,7 @@ static ThrowCompletionOr<Value> run_resolve_thenable_job(VM& vm, Promise& promis
 }
 
 // 27.2.2.2 NewPromiseResolveThenableJob ( promiseToResolve, thenable, then ), https://tc39.es/ecma262/#sec-newpromiseresolvethenablejob
-PromiseJob create_promise_resolve_thenable_job(VM& vm, Promise& promise_to_resolve, Value thenable, GC::Ref<JobCallback> then)
+PromiseJobRecord create_promise_resolve_thenable_job(VM& vm, Promise& promise_to_resolve, Value thenable, GC::Ref<JobCallback> then)
 {
     // 2. Let getThenRealmResult be Completion(GetFunctionRealm(then.[[Callback]])).
     auto get_then_realm_result = get_function_realm(vm, then->callback());
@@ -167,7 +172,7 @@ PromiseJob create_promise_resolve_thenable_job(VM& vm, Promise& promise_to_resol
     });
 
     // 6. Return the Record { [[Job]]: job, [[Realm]]: thenRealm }.
-    return { job, then_realm };
+    return { PromiseJob { job }, then_realm };
 }
 
 }

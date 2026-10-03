@@ -111,7 +111,7 @@ static ThrowCompletionOr<Value> invoke_promise_all_then(VM& vm, Realm& realm, Va
                 auto job = GC::create_function(vm.heap(), [&vm, values = GC::Ref { values }, resolve_values_array = GC::Ref { *resolve_values_array }, remaining_elements_count = GC::Ref { remaining_elements_count }, index, value] {
                     return run_promise_all_resolve_element_job(vm, values, resolve_values_array, remaining_elements_count, index, value);
                 });
-                vm.host_enqueue_promise_job(job, &realm);
+                vm.host_enqueue_promise_job(PromiseJob { job }, &realm);
                 promise->set_is_handled();
                 return js_undefined();
             }
@@ -125,7 +125,7 @@ static ThrowCompletionOr<Value> invoke_promise_all_then(VM& vm, Realm& realm, Va
                 auto job = GC::create_function(vm.heap(), [&vm, reject, reason] {
                     return call(vm, *reject, js_undefined(), reason);
                 });
-                vm.host_enqueue_promise_job(job, &realm);
+                vm.host_enqueue_promise_job(PromiseJob { job }, &realm);
                 promise->set_is_handled();
                 return js_undefined();
             }
