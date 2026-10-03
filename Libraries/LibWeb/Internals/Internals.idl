@@ -43,6 +43,8 @@ interface Internals {
     XMLHttpRequest createXMLHttpRequestForDocument(Document document);
     [ImplementedAs=hit_test_result] object hitTest(double x, double y);
     object? takeContextMenuRequest();
+    // Enters or exits Picture-in-Picture for the media context menu's video, as the menu's item does.
+    undefined toggleMediaContextMenuPictureInPicture();
 
     // Spellchecking
     undefined addSpellingErrorForTesting(Node node, unsigned long start, unsigned long end);

@@ -83,6 +83,7 @@ public:
     Optional<Painting::HitTestResult> hit_test(double x, double y);
     GC::Ptr<JS::Object> hit_test_result(double x, double y);
     GC::Ptr<JS::Object> take_context_menu_request();
+    void toggle_media_context_menu_picture_in_picture();
 
     WebIDL::ExceptionOr<void> add_spelling_error_for_testing(GC::Ref<DOM::Node>, WebIDL::UnsignedLong start, WebIDL::UnsignedLong end);
     Utf16String spelling_error_ranges(GC::Ref<DOM::Node>);
