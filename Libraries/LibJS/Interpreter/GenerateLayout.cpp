@@ -107,6 +107,7 @@ int main()
     outln("const OBJECT_FLAG_IS_ECMASCRIPT_FUNCTION_OBJECT = {}", Object::Flag::IsECMAScriptFunctionObject);
     outln("const OBJECT_FLAG_IS_RAW_NATIVE_FUNCTION = {}", Object::Flag::IsRawNativeFunction);
     outln("const OBJECT_FLAG_IS_DIRECT_GETTER_FUNCTION = {}", Object::Flag::IsDirectGetterFunction);
+    outln("const OBJECT_FLAG_IS_PLATFORM_OBJECT = {}", Object::Flag::IsPlatformObject);
     outln("const OBJECT_FLAG_IS_GLOBAL_OBJECT = {}", Object::Flag::IsGlobalObject);
     outln("const OBJECT_FLAG_IS_HTMLDDA = {}", Object::Flag::IsHTMLDDA);
 

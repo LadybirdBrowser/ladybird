@@ -57,6 +57,9 @@ inline fn load_direct_getter_value(
     else failure: Label
 ) -> Value {
     let direct_getter: DirectGetterFunction = alias(function);
+    # The validated cache entry only pins the receiver's shape, and an ordinary object created from a wrapper's
+    # prototype shares that shape while being too small to have an implementation slot.
+    guard receiver_object.flags has OBJECT_FLAG_IS_PLATFORM_OBJECT else failure;
     let wrapper_words: Sequence<u64> = alias(receiver_object);
     let implementation = wrapper_words[direct_getter.wrapper_implementation_word_offset];
     guard implementation != 0 else failure;
