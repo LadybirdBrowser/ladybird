@@ -16,6 +16,8 @@
 
 namespace JS {
 
+GC_DEFINE_ALLOCATOR(ErrorDataCell);
+
 static auto& dummy_source_range()
 {
     static NeverDestroyed<SourceRange> source_range { SourceRange { SourceCode::create({}, Utf16String {}), {} } };
@@ -45,6 +47,27 @@ size_t ErrorData::external_memory_size() const
     for (auto const& frame : m_traceback)
         size = saturating_add_external_memory_size(size, utf16_string_external_memory_size(frame.function_name));
     return size;
+}
+
+GC::Ref<ErrorDataCell> ErrorDataCell::capture(VM& vm)
+{
+    return vm.heap().allocate<ErrorDataCell>(vm);
+}
+
+ErrorDataCell::ErrorDataCell(VM& vm)
+    : ErrorData(vm)
+{
+}
+
+void ErrorDataCell::visit_edges(Cell::Visitor& visitor)
+{
+    Base::visit_edges(visitor);
+    ErrorData::visit_edges(visitor);
+}
+
+size_t ErrorDataCell::external_memory_size() const
+{
+    return Base::external_memory_size() + ErrorData::external_memory_size();
 }
 
 void ErrorData::populate_stack(VM& vm)

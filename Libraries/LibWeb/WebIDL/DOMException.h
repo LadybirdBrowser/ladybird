@@ -98,7 +98,6 @@ static u16 get_legacy_code_for_name(Utf16FlyString const& name)
 // https://webidl.spec.whatwg.org/#idl-DOMException
 class WEB_API DOMException
     : public Bindings::GCAllocatedWrappable
-    , public JS::ErrorData
     , public Bindings::Serializable {
     WEB_WRAPPABLE(DOMException, Bindings::GCAllocatedWrappable);
     GC_DECLARE_ALLOCATOR(DOMException);
@@ -115,6 +114,9 @@ public:
     Utf16FlyString const& message() const { return m_message; }
     u16 code() const { return get_legacy_code_for_name(m_name); }
 
+    JS::ErrorDataCell& error_data() { return *m_error_data; }
+    JS::ErrorDataCell const& error_data() const { return *m_error_data; }
+
     virtual WebIDL::ExceptionOr<void> serialization_steps(HTML::StructuredSerializeWriter&, bool for_storage, HTML::SerializationMemory&) override;
     virtual WebIDL::ExceptionOr<void> deserialization_steps(JS::Realm&, HTML::StructuredSerializeReader&, HTML::DeserializationMemory&) override;
 
@@ -124,8 +126,8 @@ protected:
     DOMException();
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
-    virtual size_t external_memory_size() const override;
 
+    GC::Ref<JS::ErrorDataCell> m_error_data;
     Utf16FlyString m_name;
     Utf16FlyString m_message;
 };
