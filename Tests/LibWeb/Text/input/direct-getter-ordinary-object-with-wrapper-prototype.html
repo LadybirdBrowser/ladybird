@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    test(() => {
+        function parentNodeOf(object) {
+            return object.parentNode;
+        }
+        for (let i = 0; i < 3; ++i)
+            parentNodeOf(document.body);
+
+        const ordinaryObject = Object.create(HTMLBodyElement.prototype);
+        try {
+            parentNodeOf(ordinaryObject);
+            println("FAIL: no exception");
+        } catch (e) {
+            println(e.name);
+        }
+        println(parentNodeOf(document.body) === document.documentElement);
+    });
+</script>

@@ -4403,7 +4403,7 @@ asm_handler_GetById:
     ldr x3, [x3, x4, lsl #3]
     cbz x3, .Lasm_GetById.ssa_block_1
     and x3, x3, #0xfffffffffffffffc
-    cbz x3, .Lasm_GetById.assert_predicate_failure_265
+    cbz x3, .Lasm_GetById.assert_predicate_failure_261
     ldr x9, [x3, #24]
     cmp x9, x2
     b.ne .Lasm_GetById.ssa_block_1
@@ -11873,6 +11873,10 @@ asm_handler_GetById_cold:
 .Lasm_GetById.ssa_block_15:
     ldrb w9, [x3, #12]
     cbz w9, .Lasm_GetById.ssa_block_3
+    ldrh w0, [x1, #10]
+    tbnz x0, #9, 1f
+    b .Lasm_GetById.ssa_block_3
+1:
     ldr w0, [x2, #108]
     ldr x0, [x1, x0, lsl #3]
     cbz x0, .Lasm_GetById.ssa_block_3
@@ -11885,10 +11889,10 @@ asm_handler_GetById_cold:
     b.ne .Lasm_GetById.ssa_block_3
     ldr w1, [x2, #112]
     ldr x0, [x0, x1, lsl #3]
-    cbnz x0, .Lasm_GetById.ssa_block_31
+    cbnz x0, .Lasm_GetById.ssa_block_32
     movz x0, #0x7fff, lsl #48
-    b .Lasm_GetById.ssa_block_32
-.Lasm_GetById.ssa_block_31:
+    b .Lasm_GetById.ssa_block_33
+.Lasm_GetById.ssa_block_32:
     ldr x0, [x0, x3, lsl #3]
     cbz x0, .Lasm_GetById.ssa_block_3
     ldr x0, [x0, x4, lsl #3]
@@ -11900,7 +11904,7 @@ asm_handler_GetById_cold:
     and x0, x0, #0x3ffffffffff
     movz x1, #0xfff9, lsl #48
     orr x0, x0, x1
-.Lasm_GetById.ssa_block_32:
+.Lasm_GetById.ssa_block_33:
     ldr w9, [x21, #4]
     str x0, [x27, x9, lsl #3]
     ldrb w9, [x21, #24]
@@ -11986,7 +11990,7 @@ asm_handler_GetById_cold:
     b.hs .Lasm_GetById.assert_predicate_failure_224
     cbnz x1, .Lasm_GetById.ssa_block_6
     ldr x1, [x28, #96]
-    cbz x1, .Lasm_GetById.assert_predicate_failure_237
+    cbz x1, .Lasm_GetById.assert_predicate_failure_233
     mov x2, x20
     str x1, [x2, #15288]
     str x28, [x2, #15368]
@@ -18726,7 +18730,7 @@ asm_assertion_failure_traps:
     brk #0
 .Lasm_GetById.assert_failure_1:
     brk #0
-.Lasm_GetById.assert_predicate_failure_265:
+.Lasm_GetById.assert_predicate_failure_261:
     brk #0
 .Lasm_GetById.assert_failure_2:
     brk #0
@@ -18754,7 +18758,7 @@ asm_assertion_failure_traps:
     brk #0
 .Lasm_GetById.assert_predicate_failure_224:
     brk #0
-.Lasm_GetById.assert_predicate_failure_237:
+.Lasm_GetById.assert_predicate_failure_233:
     brk #0
 .Lasm_GetById.assert_predicate_failure_25:
     brk #0
