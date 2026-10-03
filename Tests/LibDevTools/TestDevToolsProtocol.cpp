@@ -12,9 +12,13 @@
 #include <AK/OwnPtr.h>
 #include <AK/ScopeGuard.h>
 #include <AK/Time.h>
+#if defined(AK_OS_WINDOWS)
+#    include <AK/Windows.h>
+#endif
 #include <LibCore/EventLoop.h>
 #include <LibCore/Socket.h>
 #include <LibCore/System.h>
+#include <LibCore/TCPServer.h>
 #include <LibDevTools/Connection.h>
 #include <LibDevTools/DevToolsDelegate.h>
 #include <LibDevTools/DevToolsServer.h>
@@ -1973,6 +1977,44 @@ static size_t source_actor_count(DevTools::DevToolsServer const& server)
             ++count;
     }
     return count;
+}
+
+TEST_CASE(devtools_send_does_not_wait_for_a_slow_peer)
+{
+    Core::EventLoop loop;
+    auto server = MUST(Core::TCPServer::try_create());
+    MUST(server->listen(IPv4Address { 127, 0, 0, 1 }, 0, Core::TCPServer::AllowAddressReuse::Yes));
+    auto port = server->local_port();
+    EXPECT(port.has_value());
+
+    auto peer = MUST(Core::TCPSocket::connect("127.0.0.1", *port));
+    auto sender_socket = MUST(server->accept());
+    int send_buffer_size = 4096;
+    TRY_OR_FAIL(Core::System::setsockopt(sender_socket->fd(), SOL_SOCKET, SO_SNDBUF, &send_buffer_size, sizeof(send_buffer_size)));
+    auto connection = DevTools::Connection::create(MUST(Core::BufferedTCPSocket::create(move(sender_socket))));
+
+    JsonObject message;
+    message.set("payload"sv, MUST(String::repeated('a', 8 * 1024 * 1024)));
+    IGNORE_USE_IN_ESCAPING_LAMBDA Atomic<bool> send_returned { false };
+    auto send_thread = Threading::Thread::construct("DevTools send"sv, [connection, message = move(message), &send_returned] -> intptr_t {
+        connection->send_message(message);
+        send_returned = true;
+        return 0;
+    });
+    send_thread->start();
+
+    for (size_t i = 0; i < 5000 && !send_returned; ++i) {
+        if (MUST(peer->pending_bytes()) > 0)
+            break;
+        MUST(Core::System::sleep_ms(1));
+    }
+    for (size_t i = 0; i < 1000 && !send_returned; ++i)
+        MUST(Core::System::sleep_ms(1));
+    auto returned_without_reader = send_returned.load();
+
+    peer->close();
+    MUST(send_thread->join());
+    EXPECT(returned_without_reader);
 }
 
 TEST_CASE(devtools_server_reports_connection_state)
