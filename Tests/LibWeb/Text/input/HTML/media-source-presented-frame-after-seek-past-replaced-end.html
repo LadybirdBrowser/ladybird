@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<script>internals.setAutoplayPolicy("allow-audio-and-video");</script>
+<script src="../include.js"></script>
+<script src="media-source-presented-frame-include.js"></script>
+<script>
+    // Mirrors a player reusing a MediaSource after its media ended: remove everything, then seek past the old end of
+    // the stream where new data is appended. The end of stream reached by the old data must not satisfy the seek.
+    promiseTest(async () => {
+        const red = await fetchColoredStream("red");
+        const blue = await fetchColoredStream("blue");
+
+        async function playRedToEndAndEmpty() {
+            const video = document.createElement("video");
+            video.muted = true;
+            document.body.append(video);
+            const { mediaSource, sourceBuffer } = await openColoredStreamSource(video);
+
+            await appendWithinWindow(sourceBuffer, red, 0, 3);
+            mediaSource.endOfStream();
+            await seekAndWait(video, 2.5);
+            const ended = new Promise(resolve => video.addEventListener("ended", resolve, { once: true }));
+            await video.play();
+            await ended;
+            println(`at the end: ${samplePresentedFrame(video)}`);
+
+            await new Promise(resolve => {
+                sourceBuffer.remove(0, Infinity);
+                sourceBuffer.addEventListener("updateend", resolve, { once: true });
+            });
+            mediaSource.duration = 12;
+            return { video, sourceBuffer };
+        }
+
+        println("Seeking before appending:");
+        {
+            const { video, sourceBuffer } = await playRedToEndAndEmpty();
+            const seeked = new Promise(resolve => video.addEventListener("seeked", resolve, { once: true }));
+            video.currentTime = 10;
+            await appendWithinWindow(sourceBuffer, blue);
+            await seeked;
+            println(`after seeking to 10: ${await samplePresentedFrameOnceItMatches(video, "blue 0")}`);
+            video.remove();
+        }
+
+        println("Appending before seeking:");
+        {
+            const { video, sourceBuffer } = await playRedToEndAndEmpty();
+            await appendWithinWindow(sourceBuffer, blue);
+            await seekAndWait(video, 10);
+            println(`after seeking to 10: ${await samplePresentedFrameOnceItMatches(video, "blue 0")}`);
+            video.remove();
+        }
+    });
+</script>
