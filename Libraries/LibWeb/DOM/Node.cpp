@@ -2603,15 +2603,12 @@ void Node::set_child_needs_layout_tree_update(Layout::BegunRead const& read, boo
         (void)Layout::RustFFI::render_state_set_child_needs_layout_tree_update(document().layout_node_arena().host(), &read, identity.value(), value);
 }
 
-// The identity the invalidation journal names a node's box by, or none if the node has no box. Retiring a node's
-// identity unbinds its box and clears its box presence, so a node with a box always has one.
+// The identity the invalidation journal names a node's box by, or none for a node the style mirror has not named. The
+// node is named whether or not the host knows of a box for it: a frame may have built one the host hears of only once
+// it pays the frame's layout round. The journal's drain skips a node that has no box by then.
 static NodeIdentity identity_of_box_owner(Node const& node)
 {
-    if (!node.has_layout_box())
-        return {};
-    auto identity = NodeIdentity::of(node);
-    VERIFY(identity);
-    return identity;
+    return NodeIdentity::of(node);
 }
 
 void Node::set_needs_layout_tree_update(bool value, SetNeedsLayoutTreeUpdateReason reason)
