@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @font-face {
+        font-family: Ahem;
+        src: url("../../../Ref/data/fonts/Ahem.ttf");
+    }
+    body {
+        margin: 0;
+    }
+    svg {
+        display: block;
+        font: 50px Ahem;
+    }
+</style>
+<svg width="600" height="400">
+    <text id="only-tspan" x="10" y="100"><tspan id="only-tspan-child" x="10">XX</tspan></text>
+    <text id="own-and-tspan" x="10" y="200">X<tspan id="own-and-tspan-child" x="200" y="250">XX</tspan></text>
+    <text id="stroked" x="10" y="330" stroke="black" stroke-width="10"><tspan>X</tspan></text>
+    <g id="group"><text x="400" y="100"><tspan>X</tspan></text></g>
+    <text id="transformed" x="400" y="300" transform="translate(0, -100)">X<tspan>X</tspan></text>
+    <text id="empty" x="400" y="300"><tspan></tspan></text>
+</svg>
+<script>
+    const format = rect => `${rect.x},${rect.y} ${rect.width}x${rect.height}`;
+
+    asyncTest(async done => {
+        await document.fonts.load("50px Ahem");
+
+        for (const id of ["only-tspan", "only-tspan-child", "own-and-tspan", "own-and-tspan-child", "stroked", "group", "transformed", "empty"])
+            println(`${id}: getBBox() ${format(document.getElementById(id).getBBox())}`);
+        for (const id of ["only-tspan", "stroked"])
+            println(`${id}: getBoundingClientRect() ${format(document.getElementById(id).getBoundingClientRect())}`);
+
+        // A script-created <svg> measuring a <tspan> in a <text>, as Mermaid's calculateTextDimensions() does.
+        const ns = "http://www.w3.org/2000/svg";
+        const svg = document.body.appendChild(document.createElementNS(ns, "svg"));
+        const text = svg.appendChild(document.createElementNS(ns, "text"));
+        text.setAttribute("x", 0);
+        text.setAttribute("y", 0);
+        const tspan = text.appendChild(document.createElementNS(ns, "tspan"));
+        tspan.setAttribute("x", 0);
+        tspan.textContent = "XXX";
+        println(`script-created: getBBox() ${format(text.getBBox())}`);
+        svg.remove();
+
+        done();
+    });
+</script>

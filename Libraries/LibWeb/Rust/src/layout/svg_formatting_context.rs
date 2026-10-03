@@ -250,6 +250,27 @@ impl SvgCssPixelRect {
         self.y -= height / 2;
         self.height += height;
     }
+
+    fn is_empty(&self) -> bool {
+        self.width <= CssPixels::default() || self.height <= CssPixels::default()
+    }
+
+    /// Grows this rect to cover `other` too. An empty rect covers nothing, so it doesn't take part.
+    fn unite(&mut self, other: SvgCssPixelRect) {
+        if other.is_empty() {
+            return;
+        }
+        if self.is_empty() {
+            *self = other;
+            return;
+        }
+        let right = (self.x + self.width).max(other.x + other.width);
+        let bottom = (self.y + self.height).max(other.y + other.height);
+        self.x = self.x.min(other.x);
+        self.y = self.y.min(other.y);
+        self.width = right - self.x;
+        self.height = bottom - self.y;
+    }
 }
 
 impl From<FfiAffineTransform> for libgfx_rust::AffineTransform {
@@ -998,15 +1019,17 @@ impl<'pass> SvgFormattingContext<'pass> {
     }
 
     /// Mirrors Gfx::shape_text(baseline_start, text, font_cascade_list): one run per stretch of
-    /// text the cascade resolves to the same font, each starting where the last one ended.
+    /// text the cascade resolves to the same font, each starting where the last one ended. Also
+    /// returns the union of the runs' glyph cells, each run's measured with its own font.
     fn shape_svg_text(
         &self,
         style: StyleValues<'_>,
         text: &[u16],
         baseline_start: FfiFloatPoint,
-    ) -> (Vec<libgfx_rust::path::GlyphRun>, f32) {
+    ) -> (Vec<libgfx_rust::path::GlyphRun>, f32, SvgCssPixelRect) {
         let mut runs = Vec::new();
         let mut advance = 0.0f32;
+        let mut glyph_cells = SvgCssPixelRect::default();
         Self::for_each_svg_font_run(style, text, |font, run_text| {
             let shaped = libgfx_rust::text_layout::shape_text(
                 font,
@@ -1016,6 +1039,20 @@ impl<'pass> SvgFormattingContext<'pass> {
                 0.0,
                 0.0,
             );
+            // https://svgwg.org/svg2-draft/coords.html#BoundingBoxes
+            // The full glyph cell must have width equal to the horizontal advance and height equal to the EM box for
+            // horizontal text.
+            // For example, for horizontal text, the calculations must assume that each glyph extends vertically to the
+            // full ascent and descent values for the font.
+            // NB: The glyphs of one run sit side by side on one baseline, so the union of their cells is a single rect.
+            // FIXME: Take writing mode into account.
+            let facts = font.facts();
+            glyph_cells.unite(float_rect_to_css_pixels(FfiFloatRect {
+                x: baseline_start.x + advance,
+                y: baseline_start.y - facts.ascent,
+                width: shaped.width(),
+                height: facts.ascent + facts.descent,
+            }));
             advance += shaped.width();
             let mut glyph_buffer = shaped.into_glyphs();
             let glyphs = glyph_buffer.to_mut();
@@ -1029,7 +1066,7 @@ impl<'pass> SvgFormattingContext<'pass> {
                 glyphs: std::mem::take(glyphs),
             });
         });
-        (runs, advance)
+        (runs, advance, glyph_cells)
     }
 
     /// The advance of the text run rendered by the given box; that is, of its direct child text.
@@ -1112,8 +1149,8 @@ impl<'pass> SvgFormattingContext<'pass> {
         measurement
     }
 
-    /// The glyph outlines a <text> or <tspan> renders, and the current text position it leaves.
-    fn svg_text_box_path(&mut self, text_box: Node) -> libgfx_rust::path::OwnedPath {
+    /// The glyph outlines a <text> or <tspan> renders and the cells they occupy, advancing the current text position.
+    fn svg_text_box_path(&mut self, text_box: Node) -> (libgfx_rust::path::OwnedPath, SvgCssPixelRect) {
         let attributes = self.svg_attributes(text_box);
         // https://svgwg.org/svg2-draft/text.html#TextElementXAttribute
         // the starting X (Y) coordinate for rendering the glyphs corresponding to the given
@@ -1158,13 +1195,15 @@ impl<'pass> SvgFormattingContext<'pass> {
             y: self.current_text_position.y + self.svg_dominant_baseline_offset(style),
         };
         let text = self.svg_text_contents(text_box);
-        let (runs, advance) = self.shape_svg_text(style, &text, text_offset);
+        let (runs, advance, glyph_cells) = self.shape_svg_text(style, &text, text_offset);
+
         // https://svgwg.org/svg2-draft/text.html#TextLayoutIntroduction
         // After each glyph is placed, the current text position is advanced by the glyph's advance
         // value (typically the width for horizontal text or height for vertical text).
         // FIXME: Take writing mode and text direction into account.
         self.current_text_position.x += advance;
-        libgfx_rust::path::OwnedPath::from_glyph_runs(&runs)
+
+        (libgfx_rust::path::OwnedPath::from_glyph_runs(&runs), glyph_cells)
     }
 
     /// The glyph outlines a <textPath> renders: its whole subtree's text, shaped from the origin
@@ -1178,7 +1217,7 @@ impl<'pass> SvgFormattingContext<'pass> {
 
         let style = self.style(text_path_box);
         let text = self.rendered_svg_text_contents(text_path_box);
-        let (runs, total_advance) = self.shape_svg_text(style, &text, FfiFloatPoint::default());
+        let (runs, total_advance, _) = self.shape_svg_text(style, &text, FfiFloatPoint::default());
 
         // https://svgwg.org/svg2-draft/text.html#TextPathElementStartOffsetAttribute
         let mut start_offset = self
@@ -1692,26 +1731,52 @@ impl<'pass> SvgFormattingContext<'pass> {
     ) {
         // A shape's geometry is its own attributes and computed style against the viewport, and
         // text is its own character data shaped with its own font cascade, so the pass draws both.
-        let path = match self.node_kind(graphics_box) {
-            NodeKind::SVGGeometryBox => self.svg_geometry_path(graphics_box),
-            NodeKind::SVGTextBox => self.svg_text_box_path(graphics_box),
-            NodeKind::SVGTextPathBox => self.svg_text_path_box_path(graphics_box),
-            _ => libgfx_rust::path::PathBuilder::new().build(),
+        let kind = self.node_kind(graphics_box);
+        let (path, glyph_cells) = match kind {
+            NodeKind::SVGGeometryBox => (self.svg_geometry_path(graphics_box), None),
+            NodeKind::SVGTextBox => {
+                let (path, glyph_cells) = self.svg_text_box_path(graphics_box);
+                (path, Some(glyph_cells))
+            }
+            NodeKind::SVGTextPathBox => (self.svg_text_path_box_path(graphics_box), None),
+            _ => (libgfx_rust::path::PathBuilder::new().build(), None),
         };
 
-        if self.node_kind(graphics_box) == NodeKind::SVGTextBox {
-            // <text> and <tspan> elements can contain more text elements.
+        // https://svgwg.org/svg2-draft/coords.html#BoundingBoxes
+        // Let fill-shape be the equivalent path of element if it is a shape, or a shape that includes each of the glyph
+        // cells corresponding to the text within the elements otherwise.
+        // NB: A text content element's box is its bounding box: The box getBBox() and getBoundingClientRect() report.
+        let is_text_content_box = matches!(kind, NodeKind::SVGTextBox | NodeKind::SVGTextPathBox);
+        let [x, y, width, height] = path.bounding_box();
+        let mut bounding_box = float_rect_to_css_pixels(FfiFloatRect { x, y, width, height });
+        // AD-HOC: The spec's fill-shape for text is just its glyph cells. We follow what other engines do: Cover the
+        //         glyph outlines, so a glyph that overflows its cell (an italic's overhang, e.g.) stays within the box.
+        // FIXME: A <textPath>'s box covers its glyph outlines, not the glyph cells laid along its path.
+        if let Some(glyph_cells) = glyph_cells {
+            bounding_box.unite(glyph_cells);
+        }
+        if !is_text_content_box {
+            // Stroke increases the path's size by stroke_width/2 per side.
+            let stroke_width = CssPixels::nearest_value_for_f32(facts.visible_stroke_width);
+            bounding_box.inflate(stroke_width, stroke_width);
+        }
+
+        if kind == NodeKind::SVGTextBox {
+            // <text> and <tspan> elements can contain more text elements, whose glyph cells count toward this box too.
             for child in self.run.callbacks.children(graphics_box) {
                 if matches!(self.node_kind(child), NodeKind::SVGTextBox | NodeKind::SVGTextPathBox) {
                     self.layout_graphics_element(run, child, input);
+                    let child_used = self.used_values(child);
+                    let offset = child_used.content_offset.get();
+                    bounding_box.unite(SvgCssPixelRect {
+                        x: offset.x,
+                        y: offset.y,
+                        width: child_used.content_inline_size.get(),
+                        height: child_used.content_block_size.get(),
+                    });
                 }
             }
         }
-        let [x, y, width, height] = path.bounding_box();
-        let mut bounding_box = float_rect_to_css_pixels(FfiFloatRect { x, y, width, height });
-        // Stroke increases the path's size by stroke_width/2 per side.
-        let stroke_width = CssPixels::nearest_value_for_f32(facts.visible_stroke_width);
-        bounding_box.inflate(stroke_width, stroke_width);
 
         let used_pointer = self.used_values(graphics_box);
         let used = &used_pointer;

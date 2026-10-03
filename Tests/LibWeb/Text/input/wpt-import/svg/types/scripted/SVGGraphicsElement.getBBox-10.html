@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<title>SVGGraphicsElement.prototype.getBBox with CSS zoom</title>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<link rel="help" href="https://w3c.github.io/svgwg/svg2-draft/geometry.html#Sizing">
+<link rel="help" href="https://w3c.github.io/svgwg/svg2-draft/types.html#__svg__SVGGraphicsElement__getBBox">
+<link rel="help" href="https://w3c.github.io/svgwg/svg2-draft/coords.html#BoundingBoxes">
+<svg viewBox="0 0 500 500" width="500px" height="500px" style="zoom: 3">
+
+  <!-- text -->
+  <text id="text1" font-size="20px" text-rendering="geometricPrecision" font-family="monospace" x="0" y="50">99</text>
+
+  <!-- image -->
+  <image id="image1" x="150" y="150" width="200" height="200" preserveApectRatio="none"
+   xlink:href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAIAAACQkWg2AAAAKXRFWHRDcmVhdGlvbiBUaW1lAJCFIDMwIDQgMjAxNCAwOToyODo0MyArMDkwMH73aTcAAAAHdElNRQfeBB4AHhEfV06+AAAACXBIWXMAAB7BAAAewQHDaVRTAAAABGdBTUEAALGPC/xhBQAAABlJREFUeNpjZPj/n4EUwESS6lENoxqGlAYASU8CHux7qQ4AAAAASUVORK5CYII="/>
+
+  <!-- path -->
+  <path id="path1" d="M10,50 L25,100 H110 V50 Q60,0 10,50" stroke="black" stroke-width="8" stroke-miterlimit="1" stroke-linejoin="miter" fill="lightcyan" marker-mid="url(#m_atr)"/>
+
+  <!-- foreignObject -->
+  <foreignObject id="fo1" x="2" y="2" width="200" height="200">
+    <div xmlns="http://www.w3.org/1999/xhtml" style="background-color:pink;width:100%;height:100%;">
+There are issues of dynamic loading required for tiling. According to 'postpone' attribute of Resource Priorities, the dynamic loading is controlled by positional relation with bounding box of embedded contents and container's viewport. However, each bounding boxes of embedded contents should be whole earth basically when this method is used. (green part on Example) Tiling is impossible unless this situation is changed.
+    </div>
+  </foreignObject>
+
+</svg>
+<svg style="position: absolute; visibility: hidden;"
+  viewBox="0 0 500 500" width="500px" height="500px">
+  <text id="text1-ref" font-size="20px" text-rendering="geometricPrecision" font-family="monospace" x="0" y="50">99</text>
+</svg>
+
+<script>
+  function assert_bbox(id, x, y, width, height) {
+    let bbox = document.getElementById(id).getBBox();
+    assert_approx_equals(bbox.x, x, 0.1, id + ".getBBox().x");
+    assert_approx_equals(bbox.y, y, 0.1, id + ".getBBox().y");
+    assert_approx_equals(bbox.width, width, 0.1, id + ".getBBox().width");
+    assert_approx_equals(bbox.height, height, 0.1, id + ".getBBox().height");
+  }
+
+  function compare_bbox_size(id1, id2) {
+    let bbox1 = document.getElementById(id1).getBBox();
+    let bbox2 = document.getElementById(id2).getBBox();
+    assert_approx_equals(bbox1.x, bbox2.x, 0.1, id1 + ".getBBox().x");
+    assert_approx_equals(bbox1.y, bbox2.y, 0.1, id1 + ".getBBox().y");
+    assert_approx_equals(bbox1.width, bbox2.width, 0.1, id1 + ".getBBox().width");
+    assert_approx_equals(bbox1.height, bbox2.height, 0.1, id1 + ".getBBox().height");
+  }
+
+test(t => {
+  compare_bbox_size("text1", "text1-ref");
+}, "text with zoom");
+
+test(t => {
+  assert_bbox("image1", 150, 150, 200, 200);
+}, "image with zoom");
+
+test(t => {
+  assert_bbox("path1", 10, 25, 100, 75);
+}, "path with zoom");
+
+test(t => {
+  assert_bbox("fo1", 2, 2, 200, 200);
+}, "foreignObject with zoom");
+</script>

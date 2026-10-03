@@ -160,6 +160,17 @@ WebIDL::ExceptionOr<GC::Ref<Geometry::DOMRect>> SVGGraphicsElement::get_b_box(Bi
             "Element is not rendered and geometry is not computable"_utf16);
     }
 
+    // https://svgwg.org/svg2-draft/coords.html#BoundingBoxes
+    // Let fill-shape be the equivalent path of element if it is a shape, or a shape that includes each of the glyph
+    // cells corresponding to the text within the elements otherwise.
+    // NB: Layout sizes a text content element's box to exactly that: The glyph cells of all the text within it.
+    if (self_layout_node->kind() == Layout::RustFFI::NodeKind::SVGTextBox || self_layout_node->kind() == Layout::RustFFI::NodeKind::SVGTextPathBox) {
+        auto rect = Painting::absolute_rect(*self_layout_node).to_type<float>();
+        if (rect.is_empty())
+            return Geometry::DOMRect::create();
+        return Geometry::DOMRect::create(rect);
+    }
+
     // A path-like element's bounding box covers its geometry alone; the committed content rect is
     // inflated by the visible stroke width, so take the unstroked path bounds directly.
     if (auto const* committed_path = Painting::committed_svg_path(*self_layout_node))

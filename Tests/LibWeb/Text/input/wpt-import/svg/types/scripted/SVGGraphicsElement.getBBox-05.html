@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<title>SVGGraphicsElement.prototype.getBBox for SVGBoundingBoxOptions options</title>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<link rel="help" href="https://w3c.github.io/svgwg/svg2-draft/geometry.html#Sizing">
+<link rel="help" href="https://w3c.github.io/svgwg/svg2-draft/types.html#__svg__SVGGraphicsElement__getBBox">
+<link rel="help" href="https://w3c.github.io/svgwg/svg2-draft/coords.html#BoundingBoxes">
+<svg xmlns="http://www.w3.org/2000/svg"  xmlns:xlink="http://www.w3.org/1999/xlink"
+  viewBox="0 0 500 500" width="500px" height="500px">
+  <defs>
+    <clipPath id="rect01" clip-rule="evenodd" clipPathUnits="objectBoundingBox">
+      <rect x="0" y="0" width="0.5" height="1.0"/>
+    </clipPath>
+    <clipPath id="rect02" clip-rule="evenodd" clipPathUnits="objectBoundingBox">
+      <rect x="0.5" y="0" width="0.5" height="1.0"/>
+    </clipPath>
+    <clipPath id="rect03" clip-rule="evenodd" clipPathUnits="objectBoundingBox">
+      <rect x="0.5" y="0" width="0.5" height="1.0"/>
+    </clipPath>
+    <clipPath id="rect04" clip-rule="evenodd" clipPathUnits="objectBoundingBox">
+      <rect x="0" y="0" width="0.5" height="1.0"/>
+    </clipPath>
+    <clipPath id="rect05" clip-rule="evenodd">
+      <rect x="0" y="60" width="10px" height="23px"/>
+    </clipPath>
+    <clipPath id="rect06" clip-rule="evenodd">
+      <rect x="10" y="60" width="10px" height="23px"/>
+    </clipPath>
+    <clipPath id="rect4" clip-rule="evenodd">
+      <rect x="200" y="200" width="200" height="200"/>
+    </clipPath>
+    <clipPath id="rect-none" clip-rule="evenodd">
+    </clipPath>
+    <clipPath id="rect5" clip-rule="evenodd">
+      <rect x="0" y="0" width="100" height="100"/>
+    </clipPath>
+    <clipPath id="rect6" clip-rule="evenodd">
+      <rect x="150" y="0" width="100" height="100"/>
+    </clipPath>
+    <clipPath id="rect7" clip-rule="evenodd">
+      <rect x="0" y="100" width="100" height="100"/>
+    </clipPath>
+    <clipPath id="rect8" clip-rule="evenodd">
+      <rect x="10" y="10" width="180" height="180"/>
+    </clipPath>
+    <clipPath id="rect9" clip-rule="evenodd">
+      <rect x="100" y="100" width="200" height="200"/>
+    </clipPath>
+
+    <clipPath id="circle1" clip-rule="evenodd">
+      <circle cx="203" cy="203" r="150"/>
+    </clipPath>
+    <clipPath id="circle2" clip-rule="evenodd" clipPathUnits="objectBoundingBox">
+      <circle cx="0.5" cy="0.5" r="0.25"/>
+    </clipPath>
+    <clipPath id="circle3" clip-rule="evenodd">
+      <circle cx="100" cy="100" r="50"/>
+      <circle cx="300" cy="300" r="50"/>
+    </clipPath>
+
+    <clipPath id="circle4" clip-rule="evenodd">
+      <circle cx="50" cy="50" r="50"/>
+    </clipPath>
+    <clipPath id="circle5" clip-rule="evenodd">
+      <circle cx="150" cy="50" r="50"/>
+    </clipPath>
+    <clipPath id="circle6" clip-rule="evenodd">
+      <circle cx="50" cy="200" r="50"/>
+    </clipPath>
+    <clipPath id="circle7" clip-rule="evenodd" clipPathUnits="objectBoundingBox">
+      <circle cx="0.5" cy="0.5" r="0.5"/>
+    </clipPath>
+
+    <clipPath id="circle8" clip-rule="evenodd" clipPathUnits="userSpaceOnUse">
+      <circle cx="110"  cy="20"  r="90"/>
+    </clipPath>
+
+    <clipPath id="circle9" clip-rule="evenodd" clipPathUnits="userSpaceOnUse">
+      <circle cx="290"  cy="20" r="90"/>
+    </clipPath>
+
+    <clipPath id="circle10" clip-rule="evenodd" clipPathUnits="userSpaceOnUse">
+      <circle cx="110" cy="200"  r="90"/>
+    </clipPath>
+
+    <clipPath id="circle11" clip-rule="evenodd">
+      <circle cx="0" cy="0" r="150"/>
+    </clipPath>
+
+    <clipPath id="star" clip-rule="evenodd">
+      <path d="M400,25 L619,703 43,283 757,283 181,703 z" />
+    </clipPath>
+
+    <marker id="m_atr" markerUnits="strokeWidth" markerWidth="3" markerHeight="3" viewBox="0 0 10 10" refX="5" refY="5">
+        <polygon points="0,0 5,5 0,10 10,5" fill="red"/>
+    </marker>
+
+    <switch>
+      <rect id="rect-10" x="20"  y="20"  width="180" height="180" fill="blue"  stroke="cyan" stroke-width="8"/>
+      <rect id="rect-11" x="200" y="20"  width="180" height="180" fill="lightgreen" stroke="none" />
+      <rect id="rect-12" x="20"  y="200" width="180" height="180" fill="darkcyan" stroke="none" />
+    </switch>
+
+    <clipPath id="clipCircle1">
+      <circle id="c1" cx="100" cy="100" r="50"/>
+    </clipPath>
+
+    <clipPath id="clipCircle2">
+      <circle id="c2" cx="150" cy="150" r="50"/>
+    </clipPath>
+
+    <clipPath id="clipPath1">
+      <path id="p1" d="M10 10l100 0 0 100 -100 0ZM50 50l40 0 0 40 -40 0Z" clip-rule="evenodd"/>
+    </clipPath>
+
+    <!-- "If a valid 'clip-path' reference is placed on one of the children of a 'clipPath' element,
+        then the given child element is clipped by the referenced clipping path before OR'ing the
+      silhouette of the child element with the silhouettes of the other child elements." -->
+
+    <clipPath id="clipRects1">
+      <rect x="50" y="30" width="25" height="100"/>
+      <rect x="25" y="50" width="10" height="10" clip-path="url(#clipTwoCircles)"/>
+    </clipPath>
+
+    <!-- Test use in a clipPath -->
+    <clipPath id="clipTwoCircles">
+      <use xlink:href="#c1"/>
+      <use xlink:href="#c2"/>
+    </clipPath>
+
+    <clipPath id="clipInClip1">
+      <use xlink:href="#c2" clip-path="url(#clipCircle1)"/>
+      <use xlink:href="#p1"/>
+    </clipPath>
+
+    <clipPath id="clipOnClip1" clip-path="url(#clipCircle1)">
+      <use xlink:href="#c2"/>
+      <use xlink:href="#p1"/>
+    </clipPath>
+
+  </defs>
+
+  <!-- text -->
+  <text id="text1" font-size="20px" font-family="monospace" fill="red"  x="0" y="50" clip-path="url('#rect01')">99</text>
+  <text id="text2" font-size="20px" font-family="monospace" fill="blue" x="100" y="120" clip-path="url('#rect02')">99</text>
+  <text id="text3" font-size="20px" font-family="monospace" clip-path="url('#rect03')" x="0" y="120">
+    <tspan x="0" y="50" fill="red">99</tspan>
+  </text>
+  <text id="text4" font-size="20px" font-family="monospace" clip-path="url('#rect04')" x="0" y="120">
+    <tspan x="100" y="120" fill="blue">99</tspan>
+  </text>
+  <text id="text5" font-size="20px" font-family="monospace" fill="red"  x="0" y="80" clip-path="url('#rect05')">99</text>
+  <text id="text6" font-size="20px" font-family="monospace" fill="blue" x="0" y="80" clip-path="url('#rect06')">99</text>
+
+  <!-- image -->
+  <image id="image1" x="150" y="150" width="200" height="200" preserveApectRatio="none" clip="rect(10px,90px,90px,10px)"
+   xlink:href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAIAAACQkWg2AAAAKXRFWHRDcmVhdGlvbiBUaW1lAJCFIDMwIDQgMjAxNCAwOToyODo0MyArMDkwMH73aTcAAAAHdElNRQfeBB4AHhEfV06+AAAACXBIWXMAAB7BAAAewQHDaVRTAAAABGdBTUEAALGPC/xhBQAAABlJREFUeNpjZPj/n4EUwESS6lENoxqGlAYASU8CHux7qQ4AAAAASUVORK5CYII="/>
+
+  <image id="image2" x="2" y="2" width="200" height="200" clip-path="url('#circle1')" preserveApectRatio="none"
+   xlink:href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAIAAACQkWg2AAAAKXRFWHRDcmVhdGlvbiBUaW1lAJCFIDMwIDQgMjAxNCAwOToyODo0MyArMDkwMH73aTcAAAAHdElNRQfeBB4AHhEfV06+AAAACXBIWXMAAB7BAAAewQHDaVRTAAAABGdBTUEAALGPC/xhBQAAABlJREFUeNpjZPj/n4EUwESS6lENoxqGlAYASU8CHux7qQ4AAAAASUVORK5CYII="/>
+
+  <image id="image3" x="205" y="2" width="200" height="200" clip-path="url('#circle1')" preserveApectRatio="none"
+   xlink:href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAIAAACQkWg2AAAAKXRFWHRDcmVhdGlvbiBUaW1lAJCFIDMwIDQgMjAxNCAwOToyODo0MyArMDkwMH73aTcAAAAHdElNRQfeBB4AHhEfV06+AAAACXBIWXMAAB7BAAAewQHDaVRTAAAABGdBTUEAALGPC/xhBQAAABlJREFUeNpjZPj/n4EUwESS6lENoxqGlAYASU8CHux7qQ4AAAAASUVORK5CYII="/>
+
+  <image id="image4" x="2" y="205" width="200" height="200" clip-path="url('#circle1')" preserveApectRatio="none"
+   xlink:href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAIAAACQkWg2AAAAKXRFWHRDcmVhdGlvbiBUaW1lAJCFIDMwIDQgMjAxNCAwOToyODo0MyArMDkwMH73aTcAAAAHdElNRQfeBB4AHhEfV06+AAAACXBIWXMAAB7BAAAewQHDaVRTAAAABGdBTUEAALGPC/xhBQAAABlJREFUeNpjZPj/n4EUwESS6lENoxqGlAYASU8CHux7qQ4AAAAASUVORK5CYII="/>
+
+  <image id="image5" x="205" y="205" width="200" height="200" clip-path="url('#circle1')" preserveApectRatio="none"
+   xlink:href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAIAAACQkWg2AAAAKXRFWHRDcmVhdGlvbiBUaW1lAJCFIDMwIDQgMjAxNCAwOToyODo0MyArMDkwMH73aTcAAAAHdElNRQfeBB4AHhEfV06+AAAACXBIWXMAAB7BAAAewQHDaVRTAAAABGdBTUEAALGPC/xhBQAAABlJREFUeNpjZPj/n4EUwESS6lENoxqGlAYASU8CHux7qQ4AAAAASUVORK5CYII="/>
+
+  <image id="image6" x="2" y="2" width="200" height="200" clip-path="url('#circle2')" preserveApectRatio="none"
+   xlink:href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAIAAACQkWg2AAAAKXRFWHRDcmVhdGlvbiBUaW1lAJCFIDMwIDQgMjAxNCAwOToyODo0MyArMDkwMH73aTcAAAAHdElNRQfeBB4AHhEfV06+AAAACXBIWXMAAB7BAAAewQHDaVRTAAAABGdBTUEAALGPC/xhBQAAABlJREFUeNpjZPj/n4EUwESS6lENoxqGlAYASU8CHux7qQ4AAAAASUVORK5CYII="/>
+
+  <image id="image7" x="205" y="2" width="200" height="200" clip-path="url('#circle2')" preserveApectRatio="none"
+   xlink:href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAIAAACQkWg2AAAAKXRFWHRDcmVhdGlvbiBUaW1lAJCFIDMwIDQgMjAxNCAwOToyODo0MyArMDkwMH73aTcAAAAHdElNRQfeBB4AHhEfV06+AAAACXBIWXMAAB7BAAAewQHDaVRTAAAABGdBTUEAALGPC/xhBQAAABlJREFUeNpjZPj/n4EUwESS6lENoxqGlAYASU8CHux7qQ4AAAAASUVORK5CYII="/>
+
+  <image id="image8" x="2" y="205" width="200" height="200" clip-path="url('#circle2')" preserveApectRatio="none"
+   xlink:href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAIAAACQkWg2AAAAKXRFWHRDcmVhdGlvbiBUaW1lAJCFIDMwIDQgMjAxNCAwOToyODo0MyArMDkwMH73aTcAAAAHdElNRQfeBB4AHhEfV06+AAAACXBIWXMAAB7BAAAewQHDaVRTAAAABGdBTUEAALGPC/xhBQAAABlJREFUeNpjZPj/n4EUwESS6lENoxqGlAYASU8CHux7qQ4AAAAASUVORK5CYII="/>
+
+  <image id="image9" x="205" y="205" width="200" height="200" clip-path="url('#circle2')" preserveApectRatio="none"
+   xlink:href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAIAAACQkWg2AAAAKXRFWHRDcmVhdGlvbiBUaW1lAJCFIDMwIDQgMjAxNCAwOToyODo0MyArMDkwMH73aTcAAAAHdElNRQfeBB4AHhEfV06+AAAACXBIWXMAAB7BAAAewQHDaVRTAAAABGdBTUEAALGPC/xhBQAAABlJREFUeNpjZPj/n4EUwESS6lENoxqGlAYASU8CHux7qQ4AAAAASUVORK5CYII="/>
+
+  <image id="image10" x="0" y="0" width="400" height="400" clip-path="url('#rect4')"
+   xlink:href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAIAAACQkWg2AAAAKXRFWHRDcmVhdGlvbiBUaW1lAJCFIDMwIDQgMjAxNCAwOToyODo0MyArMDkwMH73aTcAAAAHdElNRQfeBB4AHhEfV06+AAAACXBIWXMAAB7BAAAewQHDaVRTAAAABGdBTUEAALGPC/xhBQAAABlJREFUeNpjZPj/n4EUwESS6lENoxqGlAYASU8CHux7qQ4AAAAASUVORK5CYII="/>
+
+  <image id="image11" x="0" y="0" width="400" height="400" clip-path="url('#rect-none')"
+   xlink:href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAIAAACQkWg2AAAAKXRFWHRDcmVhdGlvbiBUaW1lAJCFIDMwIDQgMjAxNCAwOToyODo0MyArMDkwMH73aTcAAAAHdElNRQfeBB4AHhEfV06+AAAACXBIWXMAAB7BAAAewQHDaVRTAAAABGdBTUEAALGPC/xhBQAAABlJREFUeNpjZPj/n4EUwESS6lENoxqGlAYASU8CHux7qQ4AAAAASUVORK5CYII="/>
+
+  <image id="image12" x="25" y="43" width="768" height="768" clip-path="url('#star')" preserveApectRatio="none"
+   xlink:href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAIAAACQkWg2AAAAKXRFWHRDcmVhdGlvbiBUaW1lAJCFIDMwIDQgMjAxNCAwOToyODo0MyArMDkwMH73aTcAAAAHdElNRQfeBB4AHhEfV06+AAAACXBIWXMAAB7BAAAewQHDaVRTAAAABGdBTUEAALGPC/xhBQAAABlJREFUeNpjZPj/n4EUwESS6lENoxqGlAYASU8CHux7qQ4AAAAASUVORK5CYII="/>
+
+  <image id="image13" x="0" y="0" width="400" height="400" clip-path="url('#circle3')"
+   xlink:href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAIAAACQkWg2AAAAKXRFWHRDcmVhdGlvbiBUaW1lAJCFIDMwIDQgMjAxNCAwOToyODo0MyArMDkwMH73aTcAAAAHdElNRQfeBB4AHhEfV06+AAAACXBIWXMAAB7BAAAewQHDaVRTAAAABGdBTUEAALGPC/xhBQAAABlJREFUeNpjZPj/n4EUwESS6lENoxqGlAYASU8CHux7qQ4AAAAASUVORK5CYII="/>
+
+  <image id="image14" x="0" y="0" width="400" height="400" clip-path="url('#m_atr')"
+   xlink:href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAIAAACQkWg2AAAAKXRFWHRDcmVhdGlvbiBUaW1lAJCFIDMwIDQgMjAxNCAwOToyODo0MyArMDkwMH73aTcAAAAHdElNRQfeBB4AHhEfV06+AAAACXBIWXMAAB7BAAAewQHDaVRTAAAABGdBTUEAALGPC/xhBQAAABlJREFUeNpjZPj/n4EUwESS6lENoxqGlAYASU8CHux7qQ4AAAAASUVORK5CYII="/>
+
+  <!-- path -->
+  <path id="path1" d="M10,50 L25,100 H110 V50 Q60,0 10,50" stroke="black" stroke-width="8" stroke-miterlimit="1" stroke-linejoin="miter" fill="lightcyan" marker-mid="url(#m_atr)"/>
+  <path id="path2" d="M160,50 L175,100 H260 V50 Q210,0 160,50" stroke="black" stroke-width="8" stroke-linejoin="bevel" fill="lightcyan" marker-mid="url(#m_atr)"/>
+  <path id="path3" d="M10,150 L25,200 H110 V150 Q60,100 10,150" stroke="black" stroke-width="8" stroke-linejoin="round" fill="lightcyan" marker-mid="url(#m_atr)"/>
+
+
+  <path id="path4" d="M10,50 L25,100 H110 V50 Q60,0 10,50" stroke="black" stroke-width="8" stroke-miterlimit="1" stroke-linejoin="miter" fill="lightcyan"
+    marker-mid="url(#m_atr)" clip-path="url(#circle4)"/>
+
+  <path id="path5" d="M160,50 L175,100 H260 V50 Q210,0 160,50" stroke="black" stroke-width="8" stroke-linejoin="bevel" fill="lightcyan"
+    marker-mid="url(#m_atr)" clip-path="url(#circle5)"/>
+
+  <path id="path6" d="M10,150 L25,200 H110 V150 Q60,100 10,150" stroke="black" stroke-width="8" stroke-linejoin="round" fill="lightcyan"
+    marker-mid="url(#m_atr)" clip-path="url(#circle6)"/>
+
+  <path id="path7" d="M10,50 L25,100 H110 V50 Q60,0 10,50"
+        stroke="black" stroke-width="8" stroke-miterlimit="1" stroke-linejoin="miter" fill="lightcyan"
+        clip-path="url('#rect5')" marker-mid="url(#m_atr)"/>
+
+  <path id="path8" d="M160,50 L175,100 H260 V50 Q210,0 160,50"
+        stroke="black" stroke-width="8" stroke-linejoin="bevel" fill="lightcyan"
+        clip-path="url('#rect6')" marker-mid="url(#m_atr)"/>
+
+  <path id="path9" d="M10,150 L25,200 H110 V150 Q60,100 10,150"
+        stroke="black" stroke-width="8" stroke-linejoin="round" fill="lightcyan"
+        clip-path="url('#rect7')" marker-mid="url(#m_atr)"/>
+
+  <path id="path10" d="M10,50 L25,100 H110 V50 Q60,0 10,50"
+        stroke="black" stroke-width="8" stroke-miterlimit="1" stroke-linejoin="miter" fill="lightcyan"
+        clip-path="url('#circle7')" marker-mid="url(#m_atr)"/>
+
+  <path id="path11" d="M160,50 L175,100 H260 V50 Q210,0 160,50"
+        stroke="black" stroke-width="8" stroke-linejoin="bevel" fill="lightcyan"
+        clip-path="url('#circle7')" marker-mid="url(#m_atr)"/>
+
+  <path id="path12" d="M10,150 L25,200 H110 V150 Q60,100 10,150"
+        stroke="black" stroke-width="8" stroke-linejoin="round" fill="lightcyan"
+        clip-path="url('#circle7')" marker-mid="url(#m_atr)"/>
+
+  <path id="path13" d="M50,0 C 130,0 50,0 100,50
+                       C 100,130 100,50 50,100
+                       C -30,100 50,100 0,50
+                       C 0,-30 0,50 50,0Z" />
+
+  <!-- use -->
+  <use id="use1" xlink:href="#rect-10" x="50" y="50" clip-path="url('#circle8')"/>
+  <use id="use2" xlink:href="#rect-11" x="50" y="50" clip-path="url('#circle9')"/>
+  <use id="use3" xlink:href="#rect-12" x="50" y="50" clip-path="url('#circle10')"/>
+
+  <use id="use4" xlink:href="#rect-10" x="2"   y="2"   width="200" height="200" clip-path="url('#circle11')"/>
+  <use id="use5" xlink:href="#rect-10" x="205" y="2"   width="200" height="200" clip-path="url('#circle11')"/>
+  <use id="use6" xlink:href="#rect-10" x="2"   y="205" width="200" height="200" clip-path="url('#circle11')"/>
+  <use id="use7" xlink:href="#rect-10" x="205" y="205" width="200" height="200" clip-path="url('#circle11')"/>
+
+  <use id="use8" xlink:href="#rect-10" x="50" y="50" clip-path="url('#m_atr')"/>
+
+  <!-- foreignObject -->
+  <foreignObject id="fo1" x="2" y="2" width="200" height="200" clip-path="url('#circle1')" clip="rect(2px,102px,102px,2px)">
+    <div xmlns="http://www.w3.org/1999/xhtml" style="background-color:pink;width:100%;height:100%;">
+There are issues of dynamic loading required for tiling. According to 'postpone' attribute of Resource Priorities, the dynamic loading is controlled by positional relation with bounding box of embedded contents and container's viewport. However, each bounding boxes of embedded contents should be whole earth basically when this method is used. (green part on Example) Tiling is impossible unless this situation is changed.
+    </div>
+  </foreignObject>
+  <foreignObject id="fo2" x="205" y="2" width="200" height="200" clip-path="url('#circle1')" >
+    <div xmlns="http://www.w3.org/1999/xhtml" style="background-color:pink;width:100%;height:100%;">
+There are issues of dynamic loading required for tiling. According to 'postpone' attribute of Resource Priorities, the dynamic loading is controlled by positional relation with bounding box of embedded contents and container's viewport. However, each bounding boxes of embedded contents should be whole earth basically when this method is used. (green part on Example) Tiling is impossible unless this situation is changed.
+    </div>
+  </foreignObject>
+  <foreignObject id="fo3" x="2" y="205" width="200" height="200" clip-path="url('#circle1')" >
+    <div xmlns="http://www.w3.org/1999/xhtml" style="background-color:pink;width:100%;height:100%;">
+There are issues of dynamic loading required for tiling. According to 'postpone' attribute of Resource Priorities, the dynamic loading is controlled by positional relation with bounding box of embedded contents and container's viewport. However, each bounding boxes of embedded contents should be whole earth basically when this method is used. (green part on Example) Tiling is impossible unless this situation is changed.
+    </div>
+  </foreignObject>
+  <foreignObject id="fo4" x="205" y="205" width="200" height="200" clip-path="url('#circle1')" clip="rect(2px,102px,102px,2px)">
+    <div xmlns="http://www.w3.org/1999/xhtml" style="background-color:pink;width:100%;height:100%;">
+There are issues of dynamic loading required for tiling. According to 'postpone' attribute of Resource Priorities, the dynamic loading is controlled by positional relation with bounding box of embedded contents and container's viewport. However, each bounding boxes of embedded contents should be whole earth basically when this method is used. (green part on Example) Tiling is impossible unless this situation is changed.
+    </div>
+  </foreignObject>
+
+  <foreignObject id="fo5" x="250" y="250" width="200" height="200" clip-path="url('#rect8')">
+    <div xmlns="http://www.w3.org/1999/xhtml" style="background-color:pink;width:100%;height:100%;">
+There are issues of dynamic loading required for tiling. According to 'postpone' attribute of Resource Priorities, the dynamic loading is controlled by positional relation with bounding box of embedded contents and container's viewport. However, each bounding boxes of embedded contents should be whole earth basically when this method is used. (green part on Example) Tiling is impossible unless this situation is changed.
+    </div>
+  </foreignObject>
+
+  <foreignObject id="fo6" x="0" y="0" width="200" height="200" clip-path="url('#rect9')">
+    <div xmlns="http://www.w3.org/1999/xhtml" style="background-color:pink;width:100%;height:100%;">
+There are issues of dynamic loading required for tiling. According to 'postpone' attribute of Resource Priorities, the dynamic loading is controlled by positional relation with bounding box of embedded contents and container's viewport. However, each bounding boxes of embedded contents should be whole earth basically when this method is used. (green part on Example) Tiling is impossible unless this situation is changed.
+    </div>
+  </foreignObject>
+
+  <foreignObject id="fo7" x="0" y="0" width="200" height="200" clip-path="url('#rect8')">
+    <div xmlns="http://www.w3.org/1999/xhtml" style="background-color:pink;width:100%;height:100%;">
+There are issues of dynamic loading required for tiling. According to 'postpone' attribute of Resource Priorities, the dynamic loading is controlled by positional relation with bounding box of embedded contents and container's viewport. However, each bounding boxes of embedded contents should be whole earth basically when this method is used. (green part on Example) Tiling is impossible unless this situation is changed.
+    </div>
+  </foreignObject>
+
+  <foreignObject id="fo8" x="0" y="0" width="200" height="200" clip-path="url('#m_atr')">
+    <div xmlns="http://www.w3.org/1999/xhtml" style="background-color:pink;width:100%;height:100%;">
+There are issues of dynamic loading required for tiling. According to 'postpone' attribute of Resource Priorities, the dynamic loading is controlled by positional relation with bounding box of embedded contents and container's viewport. However, each bounding boxes of embedded contents should be whole earth basically when this method is used. (green part on Example) Tiling is impossible unless this situation is changed.
+    </div>
+  </foreignObject>
+
+  <!-- -->
+  <rect id="rect-1" width="200" height="200" fill="blue" clip-path="url(#clipInClip1)"/>
+  <rect id="rect-2" width="200" height="200" fill="blue" clip-path="url(#clipRects1)"/>
+  <rect id="rect-3" width="300" height="300" fill="blue" clip-path="url(#clipOnClip1)"/>
+
+  <g clip-path="url(#clipCircle1)" id="g1">
+    <use xlink:href="#c2" fill="red"/>
+    <use xlink:href="#p1" fill="red" fill-rule="evenodd"/>
+  </g>
+
+</svg>
+
+<script>
+  function assert_bbox(id, opt, x, y, width, height, epsilon) {
+    if (epsilon == undefined) {
+      epsilon = 0.1;
+    }
+    let bbox = document.getElementById(id).getBBox(opt);
+    assert_approx_equals(bbox.x, x, epsilon, id + ".getBBox().x " + JSON.stringify(opt));
+    assert_approx_equals(bbox.y, y, epsilon, id + ".getBBox().y " + JSON.stringify(opt));
+    assert_approx_equals(bbox.width, width, epsilon, id + ".getBBox().width " + JSON.stringify(opt));
+    assert_approx_equals(bbox.height, height, epsilon, id + ".getBBox().height " + JSON.stringify(opt));
+  }
+
+  function compare_bbox(id1, id2, opt) {
+    let bbox1 = document.getElementById(id1).getBBox(opt);
+    let bbox2 = document.getElementById(id2).getBBox(opt);
+    assert_equals(bbox1.x, bbox2.x, id1 + ".getBBox().x");
+    assert_equals(bbox1.y, bbox2.y, id1 + ".getBBox().y");
+    assert_approx_equals(bbox1.width, bbox2.width, 0.0002, id1 + ".getBBox().width");
+    assert_approx_equals(bbox1.height, bbox2.height, 0.0001, id1 + ".getBBox().height");
+  }
+
+  function compare_bbox_without_x(id1, id2, opt) {
+    let bbox1 = document.getElementById(id1).getBBox(opt);
+    let bbox2 = document.getElementById(id2).getBBox(opt);
+    assert_equals(bbox1.y, bbox2.y, id1 + ".getBBox().y");
+    assert_approx_equals(bbox1.width, bbox2.width, 0.0002, id1 + ".getBBox().width");
+    assert_approx_equals(bbox1.height, bbox2.height, 0.0001, id1 + ".getBBox().height");
+  }
+
+test(t => {
+  let opt = { fill: true, stroke: false, markers: false, clipped: false };
+  compare_bbox("text1", "text3", opt);
+  compare_bbox("text2", "text4", opt);
+  compare_bbox("text5", "text6", opt);
+}, "text with fill");
+
+test(t => {
+  let opt = { fill: true, stroke: true, markers: true, clipped: true };
+  compare_bbox_without_x("text1", "text3", opt);
+  compare_bbox_without_x("text2", "text4", opt);
+  compare_bbox_without_x("text5", "text6", opt);
+}, "text with fill, stroke, markers and clipping");
+
+test(t => {
+  let opt = { fill: false, stroke: false, markers: false, clipped: true };
+  compare_bbox_without_x("text1", "text3", opt);
+  compare_bbox_without_x("text2", "text4", opt);
+  compare_bbox_without_x("text5", "text6", opt);
+}, "text with clipping");
+
+test(t => {
+  let opt = { fill: true, stroke: true, markers: true, clipped: true };
+  assert_bbox("image1", opt, 160, 160, 80, 80);
+  assert_bbox("image2", opt, 53, 53, 149, 149);
+  assert_bbox("image3", opt, 205, 53, 148, 149);
+  assert_bbox("image4", opt, 53, 205, 149, 148);
+  assert_bbox("image5", opt, 205, 205, 148, 148);
+  assert_bbox("image6", opt, 52, 52, 100, 100);
+  assert_bbox("image7", opt, 255, 52, 100, 100);
+  assert_bbox("image8", opt, 52, 255, 100, 100);
+  assert_bbox("image9", opt, 255, 255, 100, 100);
+  assert_bbox("image10", opt, 200, 200, 200, 200);
+  assert_bbox("image11", opt, 0, 0, 0, 0);
+  assert_bbox("image12", opt, 43, 43, 714, 660);
+  assert_bbox("image13", opt, 50, 50, 300, 300);
+  assert_bbox("image14", opt, 0, 0, 0, 0);
+}, "image with fill, stroke, markers and clipping");
+
+test(t => {
+  let opt = { fill: true, stroke: false, markers: false, clipped: false };
+  assert_bbox("image1", opt, 150, 150, 200, 200);
+  assert_bbox("image2", opt, 2, 2, 200, 200);
+  assert_bbox("image3", opt, 205, 2, 200, 200);
+  assert_bbox("image4", opt, 2, 205, 200, 200);
+  assert_bbox("image5", opt, 205, 205, 200, 200);
+  assert_bbox("image6", opt, 2, 2, 200, 200);
+  assert_bbox("image7", opt, 205, 2, 200, 200);
+  assert_bbox("image8", opt, 2, 205, 200, 200);
+  assert_bbox("image9", opt, 205, 205, 200, 200);
+  assert_bbox("image10", opt, 0, 0, 400, 400);
+  assert_bbox("image11", opt, 0, 0, 400, 400);
+  assert_bbox("image12", opt, 25, 43, 768, 768);
+  assert_bbox("image13", opt, 0, 0, 400, 400);
+}, "image with fill");
+
+test(t => {
+  let opt = { fill: true, stroke: true, markers: true, clipped: true };
+  assert_bbox("path1", opt, 6.2, 21, 115.8, 91, 0.1);
+  assert_bbox("path2", opt, 156.2, 21, 115.8, 91, 0.1);
+  assert_bbox("path3", opt, 6.2, 121, 115.8, 91, 0.1);
+  assert_bbox("path4", opt, 6.2, 21, 93.8, 79, 0.1);
+  assert_bbox("path5", opt, 156.2, 21, 43.8, 79, 0.1);
+  assert_bbox("path6", opt, 6.2, 150, 93.8, 62, 0.1);
+  assert_bbox("path7", opt, 6.2, 21, 93.8, 79, 0.1);
+  assert_bbox("path8", opt, 156.2, 21, 93.8, 79, 0.1);
+  assert_bbox("path9", opt, 6.2, 121, 93.8, 79, 0.1);
+  assert_bbox("path10", opt, 10, 25, 100, 75);
+  assert_bbox("path11", opt, 160, 25, 100, 75);
+  assert_bbox("path12", opt, 10, 125, 100, 75);
+}, "path with fill, stroke, markers and clipping");
+
+test(t => {
+  let opt = { fill: true, stroke: false, markers: false, clipped: true };
+  assert_bbox("path1", opt, 10, 25, 100, 75);
+  assert_bbox("path2", opt, 160, 25, 100, 75);
+  assert_bbox("path3", opt, 10, 125, 100, 75);
+  assert_bbox("path4", opt, 10, 25, 90, 75);
+  assert_bbox("path5", opt, 160, 25, 40, 75);
+  assert_bbox("path6", opt, 10, 150, 90, 50);
+  assert_bbox("path7", opt, 10, 25, 90, 75);
+  assert_bbox("path8", opt, 160, 25, 90, 75);
+  assert_bbox("path9", opt, 10, 125, 90, 75);
+  assert_bbox("path10", opt, 10, 25, 100, 75);
+  assert_bbox("path11", opt, 160, 25, 100, 75);
+  assert_bbox("path12", opt, 10, 125, 100, 75);
+}, "path with fill and clipping");
+
+test(t => {
+  let opt = { fill: true, stroke: false, markers: false, clipped: false };
+  assert_bbox("path1", opt, 10, 25, 100, 75);
+  assert_bbox("path2", opt, 160, 25, 100, 75);
+  assert_bbox("path3", opt, 10, 125, 100, 75);
+  assert_bbox("path4", opt, 10, 25, 100, 75);
+  assert_bbox("path5", opt, 160, 25, 100, 75);
+  assert_bbox("path6", opt, 10, 125, 100, 75);
+  assert_bbox("path7", opt, 10, 25, 100, 75);
+  assert_bbox("path8", opt, 160, 25, 100, 75);
+  assert_bbox("path9", opt, 10, 125, 100, 75);
+  assert_bbox("path10", opt, 10, 25, 100, 75);
+  assert_bbox("path11", opt, 160, 25, 100, 75);
+  assert_bbox("path12", opt, 10, 125, 100, 75);
+  assert_bbox("path13", opt, 0, 0, 100, 100);
+}, "path with fill");
+
+test(t => {
+  let opt = { fill: false, stroke: true, markers: false, clipped: false };
+  assert_bbox("path1", opt, 6.2, 21, 107.8, 83, 0.1);
+  assert_bbox("path2", opt, 156.2, 21, 107.8, 83, 0.1);
+  assert_bbox("path3", opt, 6.2, 121, 107.8, 83, 0.1);
+  assert_bbox("path4", opt, 6.2, 21, 107.8, 83, 0.1);
+  assert_bbox("path5", opt, 156.2, 21, 107.8, 83, 0.1);
+  assert_bbox("path6", opt, 6.2, 121, 107.8, 83, 0.1);
+  assert_bbox("path7", opt, 6.2, 21, 107.8, 83, 0.1);
+  assert_bbox("path8", opt, 156.2, 21, 107.8, 83, 0.1);
+  assert_bbox("path9", opt, 6.2, 121, 107.8, 83, 0.1);
+  assert_bbox("path10", opt, 6.2, 21, 107.8, 83, 0.1);
+  assert_bbox("path11", opt, 156.2, 21, 107.8, 83, 0.1);
+  assert_bbox("path12", opt, 6.2, 121, 107.8, 83, 0.1);
+}, "path with stroke");
+
+test(t => {
+  let opt = { fill: false, stroke: false, markers: true, clipped: false };
+  assert_bbox("path1", opt, 10, 25, 112, 87);
+  assert_bbox("path2", opt, 160, 25, 112, 87);
+  assert_bbox("path3", opt, 10, 125, 112, 87);
+  assert_bbox("path4", opt, 10, 25, 112, 87);
+  assert_bbox("path5", opt, 160, 25, 112, 87);
+  assert_bbox("path6", opt, 10, 125, 112, 87);
+  assert_bbox("path7", opt, 10, 25, 112, 87);
+  assert_bbox("path8", opt, 160, 25, 112, 87);
+  assert_bbox("path9", opt, 10, 125, 112, 87);
+  assert_bbox("path10", opt, 10, 25, 112, 87);
+  assert_bbox("path11", opt, 160, 25, 112, 87);
+  assert_bbox("path12", opt, 10, 125, 112, 87);
+}, "path with markers");
+
+test(t => {
+  let opt = { fill: true, stroke: false, markers: false, clipped: false };
+  assert_bbox("use1", opt, 70, 70, 180, 180);
+  assert_bbox("use2", opt, 250, 70, 180, 180);
+  assert_bbox("use3", opt, 70, 250, 180, 180);
+  assert_bbox("use4", opt, 22, 22, 180, 180);
+  assert_bbox("use5", opt, 225, 22, 180, 180);
+  assert_bbox("use6", opt, 22, 225, 180, 180);
+  assert_bbox("use7", opt, 225, 225, 180, 180);
+}, "use with fill");
+
+test(t => {
+  let opt = { fill: true, stroke: true, markers: true, clipped: true };
+  assert_bbox("use1", opt, 70, 66, 180, 94);
+  assert_bbox("use2", opt, 250, 70, 180, 90);
+  assert_bbox("use3", opt, 70, 250, 180, 90);
+  assert_bbox("use4", opt, 18, 18, 134, 134);
+  assert_bbox("use5", opt, 221, 18, 134, 134);
+  assert_bbox("use6", opt, 18, 221, 134, 134);
+  assert_bbox("use7", opt, 221, 221, 134, 134);
+  assert_bbox("use8", opt, 0, 0, 0, 0);
+}, "use with fill, stroke, markers and clipping");
+
+test(t => {
+  let opt = { fill: true, stroke: false, markers: false, clipped: false };
+  assert_bbox("fo1", opt, 2, 2, 200, 200);
+  assert_bbox("fo2", opt, 205, 2, 200, 200);
+  assert_bbox("fo3", opt, 2, 205, 200, 200);
+  assert_bbox("fo4", opt, 205, 205, 200, 200);
+  assert_bbox("fo5", opt, 250, 250, 200, 200);
+  assert_bbox("fo6", opt, 0, 0, 200, 200);
+  assert_bbox("fo7", opt, 0, 0, 200, 200);
+}, "foreignObject with fill");
+
+test(t => {
+  let opt = { fill: true, stroke: true, markers: true, clipped: true };
+  assert_bbox("fo1", opt, 53, 53, 51, 51);
+  assert_bbox("fo2", opt, 205, 53, 148, 149);
+  assert_bbox("fo3", opt, 53, 205, 149, 148);
+  assert_bbox("fo4", opt, 207, 207, 100, 100);
+  assert_bbox("fo5", opt, 0, 0, 0, 0);
+  assert_bbox("fo6", opt, 100, 100, 100, 100);
+  assert_bbox("fo7", opt, 10, 10, 180, 180);
+  assert_bbox("fo8", opt, 0, 0, 0, 0);
+}, "foreignObject with fill, stroke, markers and clipping");
+
+// from http://www.w3.org/Graphics/SVG/Test/20110816/harness/htmlObjectApproved/masking-path-07-b.html
+test(t => {
+  let opt = { fill: true, stroke: true, markers: true, clipped: true };
+  assert_bbox("rect-1", opt, 10, 10, 140, 140);
+  assert_bbox("rect-2", opt, 50, 30, 25, 100);
+  assert_bbox("rect-3", opt, 50, 50, 100, 100);
+  assert_bbox("g1", opt, 50, 50, 100, 100);
+}, "masking-path-07-b.html with fill, stroke, markers and clipping");
+</script>
