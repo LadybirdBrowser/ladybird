@@ -6,10 +6,12 @@
 
 #pragma once
 
+#include <AK/Function.h>
 #include <AK/HashMap.h>
 #include <AK/Optional.h>
 #include <AK/Vector.h>
 #include <LibJS/Export.h>
+#include <LibJS/Runtime/Completion.h>
 #include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/Object.h>
 #include <LibJS/Runtime/Value.h>
@@ -45,10 +47,14 @@ public:
 
     virtual size_t external_memory_size() const override;
 
+    // Calls the callback with the key and value of every entry, in insertion order, and stops at the first error
+    // the callback returns. The callback may modify the map; this visits entries the way Map.prototype.forEach does.
+    ThrowCompletionOr<void> for_each_entry(Function<ThrowCompletionOr<void>(Value key, Value value)> const&) const;
+
     // Calls the callback with the key and value of every entry, in insertion order.
     // The callback must not modify the map.
     template<typename Callback>
-    void for_each_entry(Callback callback) const
+    void for_each_entry_without_modification(Callback callback) const
     {
         [[maybe_unused]] auto generation = m_generation;
         [[maybe_unused]] auto entry_count = m_entries.size();

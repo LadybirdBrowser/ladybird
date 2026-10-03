@@ -2650,7 +2650,7 @@ DEFINE_SLOW_PATH(asm_slow_path_array_append, ArrayAppend)
             if (rhs_set && set_iteration_is_unobservable(*vm->current_realm(), *iterator_method)
                 && rhs_set->set_size() <= NumericLimits<u32>::max() - lhs_size) {
                 auto index = lhs_size;
-                rhs_set->for_each_value([&](Value value) { lhs_array.indexed_put(index++, value); });
+                rhs_set->for_each_value_without_modification([&](Value value) { lhs_array.indexed_put(index++, value); });
                 return continue_after_slow_path(pc + sizeof(Op::ArrayAppend));
             }
             if (rhs_map && map_iteration_is_unobservable(*vm->current_realm(), *iterator_method)
@@ -2658,7 +2658,7 @@ DEFINE_SLOW_PATH(asm_slow_path_array_append, ArrayAppend)
                 // NB: Creating the entry arrays can trigger garbage collection, which does not modify maps.
                 auto& realm = *vm->current_realm();
                 auto index = lhs_size;
-                rhs_map->for_each_entry([&](Value key, Value value) {
+                rhs_map->for_each_entry_without_modification([&](Value key, Value value) {
                     lhs_array.indexed_put(index++, JS::Array::create_from(realm, { key, value }));
                 });
                 return continue_after_slow_path(pc + sizeof(Op::ArrayAppend));

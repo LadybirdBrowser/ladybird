@@ -36,11 +36,15 @@ public:
     void set_add(Value const& key) { m_values->map_set(key, js_undefined()); }
     size_t set_size() const { return m_values->map_size(); }
 
+    // Calls the callback with every value, in insertion order, and stops at the first error the callback returns.
+    // The callback may modify the set; this visits values the way Set.prototype.forEach does.
+    ThrowCompletionOr<void> for_each_value(Function<ThrowCompletionOr<void>(Value)> const&) const;
+
     // Calls the callback with every value, in insertion order. The callback must not modify the set.
     template<typename Callback>
-    void for_each_value(Callback callback) const
+    void for_each_value_without_modification(Callback callback) const
     {
-        m_values->for_each_entry([&](Value key, Value) { callback(key); });
+        m_values->for_each_entry_without_modification([&](Value key, Value) { callback(key); });
     }
 
     struct EndIterator {

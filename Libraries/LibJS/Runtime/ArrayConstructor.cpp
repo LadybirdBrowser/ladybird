@@ -152,7 +152,7 @@ static GC::Ptr<Array> array_from_set_or_map(Realm& realm, Object& items, Functio
         auto array = MUST(Array::create(realm, 0));
         auto elements = array->set_indexed_property_elements_to_undefined(static_cast<u32>(set->set_size()));
         size_t index = 0;
-        set->for_each_value([&](Value value) { elements[index++] = value; });
+        set->for_each_value_without_modification([&](Value value) { elements[index++] = value; });
         return array;
     }
     if (auto const* map = as_if<Map>(items)) {
@@ -162,7 +162,7 @@ static GC::Ptr<Array> array_from_set_or_map(Realm& realm, Object& items, Functio
         auto array = MUST(Array::create(realm, 0));
         auto elements = array->set_indexed_property_elements_to_undefined(static_cast<u32>(map->map_size()));
         size_t index = 0;
-        map->for_each_entry([&](Value key, Value value) {
+        map->for_each_entry_without_modification([&](Value key, Value value) {
             elements[index++] = Array::create_from(realm, { key, value });
         });
         return array;

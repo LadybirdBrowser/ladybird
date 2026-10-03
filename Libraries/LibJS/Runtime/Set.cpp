@@ -28,6 +28,13 @@ void Set::initialize(Realm& realm)
     m_values = Map::create(realm);
 }
 
+ThrowCompletionOr<void> Set::for_each_value(Function<ThrowCompletionOr<void>(Value)> const& callback) const
+{
+    for (auto value : *this)
+        TRY(callback(value));
+    return {};
+}
+
 GC::Ref<Set> Set::copy() const
 {
     auto& vm = this->vm();
