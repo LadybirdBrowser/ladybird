@@ -543,8 +543,22 @@ WebIDL::ExceptionOr<URL::URL> resolve_module_specifier(Optional<Script&> referri
 // https://html.spec.whatwg.org/multipage/webappapis.html#resolving-an-imports-match
 WebIDL::ExceptionOr<Optional<URL::URL>> resolve_imports_match(Utf16View normalized_specifier, Optional<URL::URL> as_url, ModuleSpecifierMap const& specifier_map)
 {
+    // ModuleSpecifierMap does not preserve the code unit order established while parsing an import map.
+    // Find the entry that would appear first in a correctly sorted map before resolving it.
+    Optional<size_t> longest_matching_key_length;
+    for (auto const& [specifier_key, _] : specifier_map) {
+        auto key = specifier_key.utf16_view();
+        auto is_match = key == normalized_specifier
+            || (key.ends_with('/') && Infra::is_code_unit_prefix(key, normalized_specifier) && (!as_url.has_value() || as_url->is_special()));
+        if (is_match && (!longest_matching_key_length.has_value() || key.length_in_code_units() > longest_matching_key_length.value()))
+            longest_matching_key_length = key.length_in_code_units();
+    }
+
     // 1. For each specifierKey → resolutionResult of specifierMap:
     for (auto const& [specifier_key, resolution_result] : specifier_map) {
+        if (!longest_matching_key_length.has_value() || specifier_key.length_in_code_units() != longest_matching_key_length.value())
+            continue;
+
         // 1. If specifierKey is normalizedSpecifier, then:
         if (specifier_key.utf16_view() == normalized_specifier) {
             // 1. If resolutionResult is null, then throw a TypeError indicating that resolution of specifierKey was blocked by a null entry.
