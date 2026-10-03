@@ -7,12 +7,10 @@
 
 #include <LibGC/Heap.h>
 #include <LibGC/Timer.h>
-#include <LibJS/Runtime/ECMAScriptFunctionObject.h>
 #include <LibJS/Runtime/GlobalEnvironment.h>
 #include <LibJS/Runtime/ObjectEnvironment.h>
 #include <LibJS/Runtime/PromiseConstructor.h>
-#include <LibJS/Runtime/SharedFunctionInstanceData.h>
-#include <LibJS/RustIntegration.h>
+#include <LibJS/ScriptCompilation.h>
 #include <LibWeb/Bindings/Window.h>
 #include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/DOM/Document.h>
@@ -60,11 +58,10 @@ static JS::ThrowCompletionOr<JS::Value> execute_a_function_body(HTML::BrowsingCo
         }})~~~",
         body_utf16);
 
-    auto rust_compilation = JS::RustIntegration::compile_dynamic_function(
-        realm.vm(), source_text, Utf16String {}, body_utf16, JS::FunctionKind::Normal);
+    auto compiled_function = JS::CompiledDynamicFunction::compile(realm.vm(), source_text, Utf16String {}, body_utf16, JS::FunctionKind::Normal);
 
     // 4. If body is not parsable as a FunctionBody or if parsing detects an early error, return Completion { [[Type]]: normal, [[Value]]: null, [[Target]]: empty }.
-    if (!rust_compilation.has_value() || rust_compilation->is_error())
+    if (compiled_function.is_error())
         return JS::js_null();
 
     // 6. Prepare to run script with environment settings.
@@ -74,11 +71,7 @@ static JS::ThrowCompletionOr<JS::Value> execute_a_function_body(HTML::BrowsingCo
     HTML::prepare_to_run_callback(environment_settings);
 
     // 8. Let function be the result of calling FunctionCreate.
-    auto function = JS::ECMAScriptFunctionObject::create_from_function_data(
-        realm,
-        rust_compilation->value(),
-        &global_scope,
-        nullptr);
+    auto function = compiled_function.value().instantiate(realm, global_scope, nullptr, realm.vm().get_active_script_or_module());
 
     // 9. Let completion be Function.[[Call]](window, parameters) with function as the this value.
     // NOTE: This is not entirely clear, but I don't think they mean actually passing `function` as

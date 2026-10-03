@@ -268,6 +268,7 @@ set(SOURCES
     Runtime/WeakSetPrototype.cpp
     Runtime/WrapForValidIteratorPrototype.cpp
     Script.cpp
+    ScriptCompilation.cpp
     SourceCode.cpp
     SourceTextModule.cpp
     SyntaxHighlighter.cpp
