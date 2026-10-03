@@ -338,23 +338,6 @@ pub unsafe extern "C" fn layout_arena_first_wheel_scrollable_box_in_containing_b
     )
 }
 
-/// # Safety
-///
-/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_paintable_cleared_from_node(arena: *mut c_void, layout_node: NodeSlotId) {
-    // SAFETY: Guaranteed by the entry point's contract.
-    let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY, arena) };
-    // SAFETY: As above.
-    unsafe {
-        paintable_cleared_from_node(
-            crate::layout::tree_mutation::HostCalls::Now(&main_thread),
-            arena,
-            layout_node,
-        );
-    };
-}
-
 /// Prepares the document of `host` for rendering, and stores the scroll offsets the new overflow moved out of range.
 ///
 /// # Safety

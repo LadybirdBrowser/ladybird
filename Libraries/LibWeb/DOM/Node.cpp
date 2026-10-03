@@ -1548,11 +1548,7 @@ void Node::update_layout_tree_for_removal(Node& parent, LayoutSubtreeRemoval rem
             && parent_box && removed_box->containing_block() == parent_box;
         if (parent_contains_removed_abspos_box)
             Layout::RustFFI::render_state_note_contained_abspos_child_removal(parent_box->document_host(), Layout::Node::slot_id(parent_box), Layout::Node::slot_id(layout_node));
-        layout_node->for_each_in_inclusive_subtree([](Layout::Node& node) {
-            node.clear_committed_box();
-            return TraversalDecision::Continue;
-        });
-        layout_node->prepare_subtree_for_detach_from_layout_tree();
+        layout_node->prepare_subtree_for_removal();
         VERIFY(Layout::destroy_layout_subtree(*layout_node));
         if (auto* parent_layout_node = parent.unsafe_layout_node(); !parent_layout_node->has_children())
             parent_layout_node->set_children_are_inline(false);
