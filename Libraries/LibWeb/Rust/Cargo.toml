@@ -14,6 +14,7 @@ required-features = ["style-replay"]
 [features]
 style-recording = []
 style-replay = ["style-recording"]
+thread-sanitizer = []
 
 # After changing dependencies, regenerate the Flatpak sources:
 #   python3 Meta/CMake/flatpak/generate-cargo-sources.py

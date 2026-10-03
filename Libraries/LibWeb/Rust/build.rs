@@ -3349,6 +3349,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             manifest_dir.join("src/render_state.rs"),
             manifest_dir.join("src/render_state/devtools.rs"),
             manifest_dir.join("src/render_state/document_host.rs"),
+            manifest_dir.join("src/stage_thread.rs"),
             manifest_dir.join("../../RustAllocator.rs"),
         ],
         &out_dir,
