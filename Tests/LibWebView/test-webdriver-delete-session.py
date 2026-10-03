@@ -8,6 +8,8 @@ import argparse
 import concurrent.futures
 import http.client
 import json
+import pathlib
+import platform
 import socket
 import subprocess
 import time
@@ -31,6 +33,16 @@ def wait_for_port(port):
         except OSError:
             time.sleep(0.05)
     raise RuntimeError(f"Timed out waiting for port {port}")
+
+
+def listener_address(port):
+    encoded_port = f"{port:04X}"
+    for line in pathlib.Path("/proc/net/tcp").read_text().splitlines()[1:]:
+        fields = line.split()
+        address, candidate_port = fields[1].split(":")
+        if candidate_port == encoded_port and fields[3] == "0A":
+            return address
+    raise RuntimeError(f"Did not find listener for port {port}")
 
 
 def request(webdriver_port, method, path, body=None):
@@ -64,9 +76,11 @@ def create_session(webdriver_port):
 
 def run_test(webdriver_binary):
     webdriver_port = unused_port()
-    webdriver = subprocess.Popen([webdriver_binary, "--headless", "-l", "127.0.0.1", "-p", str(webdriver_port)])
+    webdriver = subprocess.Popen([webdriver_binary, "--headless", "-p", str(webdriver_port)])
     try:
         wait_for_port(webdriver_port)
+        if platform.system() == "Linux" and listener_address(webdriver_port) != "0100007F":
+            raise AssertionError("WebDriver did not default to loopback")
         session_id = create_session(webdriver_port)
 
         expected_responses = (
