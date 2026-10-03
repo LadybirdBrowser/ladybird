@@ -511,23 +511,30 @@ double local_time(double time)
 }
 
 // 21.4.1.26 UTC ( t ), https://tc39.es/ecma262/#sec-utc-t
-// 14.5.7 UTC ( t ), https://tc39.es/proposal-temporal/#sec-utc-t
+// 14.6.7 UTC ( t ), https://tc39.es/proposal-temporal/#sec-utc-t
 double utc_time(double time)
 {
-    // 1. Let systemTimeZoneIdentifier be SystemTimeZoneIdentifier().
+    // 1. If t is not finite, return NaN.
+    if (!isfinite(time))
+        return NAN;
+
+    if (fabs(time) > max_time_value + ms_per_day)
+        return NAN;
+
+    // 2. Let systemTimeZoneIdentifier be SystemTimeZoneIdentifier().
     auto system_time_zone_identifier = JS::system_time_zone_identifier();
 
-    // 2. Let parseResult be ! ParseTimeZoneIdentifier(systemTimeZoneIdentifier).
+    // 3. Let parseResult be ! ParseTimeZoneIdentifier(systemTimeZoneIdentifier).
     auto parse_result = Temporal::parse_time_zone_identifier(system_time_zone_identifier.utf16_view());
 
     double offset_nanoseconds { 0 };
 
-    // 3. If parseResult.[[OffsetMinutes]] is not EMPTY, then
+    // 4. If parseResult.[[OffsetMinutes]] is not EMPTY, then
     if (parse_result.offset_minutes.has_value()) {
         // a. Let offsetNs be parseResult.[[OffsetMinutes]] × (60 × 10**9).
         offset_nanoseconds = static_cast<double>(*parse_result.offset_minutes) * 60'000'000'000;
     }
-    // 4. Else,
+    // 5. Else,
     else {
         // a. Let isoDateTime be TimeValueToISODateTimeRecord(t).
         auto iso_date_time = Temporal::time_value_to_iso_date_time_record(time);
@@ -572,10 +579,10 @@ double utc_time(double time)
         offset_nanoseconds = static_cast<double>(offset.offset.to_nanoseconds());
     }
 
-    // 5. Let offsetMs be truncate(offsetNs / 10^6).
+    // 6. Let offsetMs be truncate(offsetNs / 10^6).
     auto offset_milliseconds = trunc(offset_nanoseconds / 1e6);
 
-    // 6. Return t - 𝔽(offsetMs).
+    // 7. Return t - 𝔽(offsetMs).
     return time - offset_milliseconds;
 }
 
