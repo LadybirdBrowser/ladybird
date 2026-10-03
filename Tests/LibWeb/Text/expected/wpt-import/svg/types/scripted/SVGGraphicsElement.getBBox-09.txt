@@ -1,0 +1,30 @@
+Harness status: OK
+
+Found 24 tests
+
+19 Pass
+5 Fail
+Pass	stroked zero-length line: fill bbox is zero-area at the point
+Pass	stroked horizontal line: fill bbox has zero height
+Pass	stroked vertical line: fill bbox has zero width
+Pass	stroked zero-width rect: not rendered, fill bbox is all zeros
+Pass	stroked zero-height rect: not rendered, fill bbox is all zeros
+Pass	stroked zero-dim rect: not rendered, fill bbox is all zeros
+Pass	stroked zero-radius circle: not rendered, fill bbox is all zeros
+Pass	stroked path with only MoveTo: fill bbox is zero-area at the point
+Pass	stroked zero-length line: stroke bbox same as fill bbox
+Fail	stroked horizontal line: stroke-width wide
+Fail	stroked vertical line: stroke-width wide
+Pass	stroked zero-width rect: not rendered, stroke bbox is all zeros
+Pass	stroked zero-height rect: not rendered, stroke bbox is all zeros
+Pass	stroked zero-dim rect: not rendered, stroke bbox is all zeros
+Pass	stroked zero-radius circle: not rendered, stroke bbox is all zeros
+Pass	stroked path MoveTo only with round linecap: stroke bbox same as fill bbox
+Fail	stroked zero-length path segment with round linecap: stroke-width wide
+Pass	stroked ellipse with zero rx: not rendered, stroke bbox is all zeros
+Fail	stroked horizontal path with butt linecap: stroke-width wide
+Pass	stroked zero-length line: fill+stroke bbox same as fill bbox
+Fail	zero-length line with fill:false stroke:false returns empty bbox
+Pass	empty text element has zero-area bbox
+Pass	positioned empty text element has zero-area bbox
+Pass	display:none text element returns zero bbox

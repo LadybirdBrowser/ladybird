@@ -1,0 +1,21 @@
+Harness status: OK
+
+Found 15 tests
+
+5 Pass
+10 Fail
+Pass	text with fill
+Pass	text with fill, stroke, markers and clipping
+Pass	text with clipping
+Fail	image with fill, stroke, markers and clipping
+Pass	image with fill
+Fail	path with fill, stroke, markers and clipping
+Fail	path with fill and clipping
+Fail	path with fill
+Fail	path with stroke
+Fail	path with markers
+Fail	use with fill
+Fail	use with fill, stroke, markers and clipping
+Pass	foreignObject with fill
+Fail	foreignObject with fill, stroke, markers and clipping
+Fail	masking-path-07-b.html with fill, stroke, markers and clipping

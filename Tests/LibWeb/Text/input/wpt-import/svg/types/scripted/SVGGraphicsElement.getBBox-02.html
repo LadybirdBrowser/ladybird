@@ -1,0 +1,24 @@
+<!doctype html>
+<title>SVGGraphicsElement.prototype.getBBox on &lt;tspan&gt;</title>
+<link rel="help" href="https://w3c.github.io/svgwg/svg2-draft/types.html#__svg__SVGGraphicsElement__getBBox">
+<link rel="help" href="https://w3c.github.io/svgwg/svg2-draft/coords.html#BoundingBoxes">
+<link rel="stylesheet" type="text/css" href="../../../fonts/ahem.css">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<svg height="100">
+  <text y="180" font-size="100" font-family="Ahem" fill="lightblue"
+        transform="translate(0, -100)">X<tspan fill="blue">X</tspan></text>
+</svg>
+<script>
+  setup({ explicit_done: true });
+
+  document.fonts.ready.then(() => {
+    test(() => {
+      let tspan = document.querySelector('tspan');
+      let bbox = tspan.getBBox();
+      for (let property of ['x', 'y', 'width', 'height'])
+        assert_equals(bbox[property], 100, property);
+    });
+    done();
+  });
+</script>
