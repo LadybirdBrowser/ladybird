@@ -6,9 +6,8 @@
     // hosting it: the iframe's window gets a focus event and its document has focus, while the iframe becomes the
     // top-level document's active element.
     promiseTest(async () => {
-        const runId = crypto.randomUUID();
         const remoteUrl = new URL(
-            await httpTestServer().createEcho("GET", `/oop-focusing-iframe-${runId}`, {
+            await httpTestServer().createEcho("GET", "/oop-focusing-iframe", {
                 status: 200,
                 headers: { "Content-Type": "text/html" },
                 body: `<!DOCTYPE html><script>

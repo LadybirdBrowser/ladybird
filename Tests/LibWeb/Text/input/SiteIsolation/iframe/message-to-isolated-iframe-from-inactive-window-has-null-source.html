@@ -5,9 +5,8 @@
     // a message it posts there arrives with a null source. The removed iframe's listener posts with its window as the
     // incumbent.
     promiseTest(async () => {
-        const runId = crypto.randomUUID();
         const remoteUrl = new URL(
-            await httpTestServer().createEcho("GET", `/oop-message-from-inactive-window-${runId}`, {
+            await httpTestServer().createEcho("GET", "/oop-message-from-inactive-window", {
                 status: 200,
                 headers: { "Content-Type": "text/html" },
                 body: `<!DOCTYPE html><script>

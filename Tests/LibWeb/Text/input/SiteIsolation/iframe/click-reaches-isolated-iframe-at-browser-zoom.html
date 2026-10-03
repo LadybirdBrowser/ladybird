@@ -16,9 +16,8 @@
     // Every process showing part of the tab lays out and converts input at the tab's zoom level, so an isolated
     // iframe keeps its CSS size when the browser zooms, and sees a click where it landed in its own viewport.
     promiseTest(async () => {
-        const runId = crypto.randomUUID();
         const childUrl = new URL(
-            await httpTestServer().createEcho("GET", `/oop-click-at-zoom-${runId}`, {
+            await httpTestServer().createEcho("GET", "/oop-click-at-zoom", {
                 status: 200,
                 headers: { "Content-Type": "text/html" },
                 body: `<!DOCTYPE html><body style="margin: 0"><script>

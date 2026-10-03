@@ -20,14 +20,13 @@
     // it waits until the top-level document scrolls it into view.
     promiseTest(async () => {
         const httpServer = httpTestServer();
-        const runId = crypto.randomUUID();
-        const imageUrl = await httpServer.createEcho("GET", `/oop-lazy-image-${runId}`, {
+        const imageUrl = await httpServer.createEcho("GET", "/oop-lazy-image", {
             status: 200,
             headers: { "Content-Type": "image/png" },
             body: "not an image",
         });
         const childUrl = new URL(
-            await httpServer.createEcho("GET", `/oop-lazy-image-frame-${runId}`, {
+            await httpServer.createEcho("GET", "/oop-lazy-image-frame", {
                 status: 200,
                 headers: { "Content-Type": "text/html" },
                 body: `<!DOCTYPE html><body style="margin: 0"><img loading="lazy" src="${imageUrl}"><script>

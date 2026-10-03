@@ -4,9 +4,8 @@
     // The system focus of the tab is its top-level traversable's, so a focused isolated iframe's document stops having
     // focus when the window loses it, as the top-level document does.
     promiseTest(async () => {
-        const runId = crypto.randomUUID();
         const remoteUrl = new URL(
-            await httpTestServer().createEcho("GET", `/oop-has-focus-follows-system-focus-${runId}`, {
+            await httpTestServer().createEcho("GET", "/oop-has-focus-follows-system-focus", {
                 status: 200,
                 headers: { "Content-Type": "text/html" },
                 body: `<!DOCTYPE html><input id="input"><script>

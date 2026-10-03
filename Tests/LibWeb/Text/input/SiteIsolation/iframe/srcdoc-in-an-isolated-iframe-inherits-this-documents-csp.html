@@ -5,9 +5,8 @@
     // current document, where this document is not. The srcdoc document still inherits this document's policy
     // container, so the content security policy served with this page applies to it.
     promiseTest(async () => {
-        const runId = crypto.randomUUID();
         const remoteUrl = new URL(
-            await httpTestServer().createEcho("GET", `/oop-iframe-before-srcdoc-${runId}`, {
+            await httpTestServer().createEcho("GET", "/oop-iframe-before-srcdoc", {
                 status: 200,
                 headers: { "Content-Type": "text/html" },
                 body: "<!DOCTYPE html>remote",

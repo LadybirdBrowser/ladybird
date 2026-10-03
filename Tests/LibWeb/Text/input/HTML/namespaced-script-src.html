@@ -2,7 +2,7 @@
 <script src="../include.js"></script>
 <script>
     promiseTest(async () => {
-        const scriptURL = await httpTestServer().createEcho("GET", `/namespaced-script-src-${crypto.randomUUID()}.js`, {
+        const scriptURL = await httpTestServer().createEcho("GET", "/namespaced-script-src.js", {
             status: 200,
             headers: { "Content-Type": "text/javascript" },
             body: 'top.postMessage("LEAK", "*");',

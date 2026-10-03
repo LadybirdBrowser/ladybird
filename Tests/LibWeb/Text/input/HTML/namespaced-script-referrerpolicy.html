@@ -4,14 +4,14 @@
     promiseTest(async () => {
         const server = httpTestServer();
         const scriptURL = new URL(
-            await server.createEcho("GET", `/namespaced-script-referrer-${crypto.randomUUID()}.js`, {
+            await server.createEcho("GET", "/namespaced-script-referrer.js", {
                 status: 200,
                 headers: { "Content-Type": "text/javascript" },
                 body: "",
             })
         );
         scriptURL.hostname = uniqueLocalhostHostname("namespaced-script-referrer");
-        const parentURL = await server.createEcho("GET", `/namespaced-script-parent-${crypto.randomUUID()}`, {
+        const parentURL = await server.createEcho("GET", "/namespaced-script-parent", {
             status: 200,
             headers: {
                 "Content-Type": "text/html",

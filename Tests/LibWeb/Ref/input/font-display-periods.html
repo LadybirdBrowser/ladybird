@@ -13,7 +13,7 @@ body { margin: 0; }
 addEventListener("load", async () => {
     const server = httpTestServer();
     const token = crypto.randomUUID();
-    const url = await server.createEcho("GET", `/font-display-periods-${token}.woff`, {
+    const url = await server.createEcho("GET", "/font-display-periods.woff", {
         status: 404,
         headers: { "Access-Control-Allow-Origin": "*" },
         wait_for_unblock: token,

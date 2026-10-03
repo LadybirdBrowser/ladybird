@@ -19,7 +19,7 @@
                     parent.postMessage({ "The traversal committed the entry that pushState() cleared": true }, "*");
                 }
             <\/script>`;
-        const secondPageUrl = await server.createEcho("GET", `/push-state-during-traversal-second-page-${runId}`, {
+        const secondPageUrl = await server.createEcho("GET", "/push-state-during-traversal-second-page", {
             status: 200,
             headers: { "Content-Type": "text/html" },
             body: secondPageBody,
@@ -47,7 +47,7 @@
                     history.back();
                 }, 0));
             <\/script>`;
-        const firstPageUrl = await server.createEcho("GET", `/push-state-during-traversal-first-page-${runId}`, {
+        const firstPageUrl = await server.createEcho("GET", "/push-state-during-traversal-first-page", {
             status: 200,
             headers: { "Content-Type": "text/html" },
             body: firstPageBody,

@@ -3,10 +3,9 @@
 <script>
     promiseTest(async () => {
         const httpServer = httpTestServer();
-        const runId = crypto.randomUUID();
 
         const childUrl = new URL(
-            await httpServer.createEcho("GET", `/oop-iframe-crash-child-${runId}`, {
+            await httpServer.createEcho("GET", "/oop-iframe-crash-child", {
                 status: 200,
                 headers: { "Content-Type": "text/html" },
                 body: "<!DOCTYPE html>child",
@@ -37,7 +36,7 @@
 
         // The frame's lost document is navigated as it would be: a new entry follows its entry.
         const nextChildUrl = new URL(
-            await httpServer.createEcho("GET", `/oop-iframe-crash-next-child-${runId}`, {
+            await httpServer.createEcho("GET", "/oop-iframe-crash-next-child", {
                 status: 200,
                 headers: { "Content-Type": "text/html" },
                 body: "<!DOCTYPE html>next child",

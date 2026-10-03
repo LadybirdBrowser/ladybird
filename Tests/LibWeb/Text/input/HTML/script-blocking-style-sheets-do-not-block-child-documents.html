@@ -12,7 +12,7 @@
         const testID = crypto.randomUUID();
         const cssToken = `script-blocking-sheet-css-${testID}`;
 
-        const cssURL = await httpServer.createEcho("GET", `/script-blocking-sheet-${testID}.css`, {
+        const cssURL = await httpServer.createEcho("GET", "/script-blocking-sheet.css", {
             status: 200,
             headers: { "Content-Type": "text/css", "Cache-Control": "no-store" },
             body: "",

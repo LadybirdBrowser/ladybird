@@ -19,7 +19,7 @@
             fetch(`${httpServer.baseURL}/unblock/oop-blob-${name}-${runId}`, { mode: "no-cors" });
         };
         const awaitReport = async name => {
-            const ready = await httpServer.createEcho("GET", `/oop-blob-${name}-ready-${runId}`, {
+            const ready = await httpServer.createEcho("GET", `/oop-blob-${name}-ready`, {
                 status: 204,
                 headers: corsHeaders,
                 wait_for_unblock: `oop-blob-${name}-${runId}`,
@@ -29,7 +29,7 @@
         };
 
         const childUrl = new URL(
-            await httpServer.createEcho("GET", `/oop-blob-creator-${runId}`, {
+            await httpServer.createEcho("GET", "/oop-blob-creator", {
                 status: 200,
                 headers: { "Content-Type": "text/html" },
                 body: `<!DOCTYPE html><script>

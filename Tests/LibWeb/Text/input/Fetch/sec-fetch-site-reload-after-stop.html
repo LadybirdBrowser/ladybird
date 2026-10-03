@@ -6,11 +6,10 @@
     // and the referrer it first went out with, rather than as a URL the user agent supplied.
     asyncTest(async done => {
         const server = httpTestServer();
-        const id = crypto.randomUUID();
 
         // The response is held back long enough for the navigation to still be in flight when it's stopped, and the
         // 204 it ends with leaves this page in place to read what the server recorded.
-        const slowURL = await server.createEcho("GET", `/sec-fetch-site-reload-after-stop-${id}`, {
+        const slowURL = await server.createEcho("GET", "/sec-fetch-site-reload-after-stop", {
             status: 204,
             delay_ms: 1000,
             headers: { "Cache-Control": "no-store" },

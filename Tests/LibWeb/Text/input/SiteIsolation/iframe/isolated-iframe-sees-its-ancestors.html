@@ -6,7 +6,6 @@
     // This page is served over HTTP so that its second iframe is same origin with it and reachable by name.
     promiseTest(async () => {
         const httpServer = httpTestServer();
-        const runId = crypto.randomUUID();
         const childHostname = uniqueLocalhostHostname("oop-ancestors");
 
         const checks = [
@@ -21,9 +20,9 @@
             "top-named-child-is-second-child",
             "top-closed-is-false",
         ];
-        const reportPath = new URL(httpServer.echoURL(`/oop-ancestors-${runId}-`)).pathname;
+        const reportPath = new URL(httpServer.echoURL(`/oop-ancestors-`)).pathname;
         for (const check of checks) {
-            await httpServer.createEcho("GET", `/oop-ancestors-${runId}-${check}-true`, {
+            await httpServer.createEcho("GET", `/oop-ancestors-${check}-true`, {
                 status: 200,
                 headers: { "Content-Type": "text/plain" },
                 body: "recorded",
@@ -31,7 +30,7 @@
         }
 
         const childUrl = new URL(
-            await httpServer.createEcho("GET", `/oop-ancestors-child-${runId}`, {
+            await httpServer.createEcho("GET", "/oop-ancestors-child", {
                 status: 200,
                 headers: { "Content-Type": "text/html" },
                 body: `<!DOCTYPE html><script>
@@ -59,7 +58,7 @@
         );
         childUrl.hostname = childHostname;
 
-        const siblingUrl = await httpServer.createEcho("GET", `/oop-ancestors-sibling-${runId}`, {
+        const siblingUrl = await httpServer.createEcho("GET", "/oop-ancestors-sibling", {
             status: 200,
             headers: { "Content-Type": "text/html" },
             body: "<!DOCTYPE html>sibling",
@@ -81,7 +80,7 @@
         document.body.appendChild(sibling);
 
         for (const check of checks) {
-            const recordedUrl = httpServer.recordedRequestHeadersURL(httpServer.echoURL(`/oop-ancestors-${runId}-${check}-true`));
+            const recordedUrl = httpServer.recordedRequestHeadersURL(httpServer.echoURL(`/oop-ancestors-${check}-true`));
             let recorded = false;
             for (let attempt = 0; attempt < 200 && !recorded; ++attempt) {
                 try {

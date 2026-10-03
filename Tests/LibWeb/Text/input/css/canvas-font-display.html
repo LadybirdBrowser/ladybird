@@ -5,7 +5,7 @@ promiseTest(async () => {
     const server = httpTestServer();
     const token = crypto.randomUUID();
     const bytes = new Uint8Array(await (await fetch("../../../Assets/HashSans.woff")).arrayBuffer());
-    const url = await server.createEcho("GET", `/canvas-font-display-${token}.woff`, {
+    const url = await server.createEcho("GET", "/canvas-font-display.woff", {
         status: 200,
         headers: { "Content-Type": "font/woff", "Access-Control-Allow-Origin": "*", "Cache-Control": "no-store" },
         body: btoa(String.fromCharCode(...bytes)),

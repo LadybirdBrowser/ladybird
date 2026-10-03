@@ -12,7 +12,7 @@
     }
 
     asyncTest(async done => {
-        const crossOriginURL = new URL(await httpTestServer().createEcho("GET", `/cross-origin-property-this-value-${crypto.randomUUID()}`, {
+        const crossOriginURL = new URL(await httpTestServer().createEcho("GET", "/cross-origin-property-this-value", {
             status: 200,
             headers: { "Content-Type": "text/html" },
             body: "<!DOCTYPE html>",

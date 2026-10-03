@@ -3,8 +3,7 @@
 <script>
     promiseTest(async () => {
         const server = httpTestServer();
-        const runId = crypto.randomUUID();
-        const childUrl = new URL(await server.createEcho("GET", `/embedded-page-cookie-${runId}`, {
+        const childUrl = new URL(await server.createEcho("GET", "/embedded-page-cookie", {
             status: 200,
             headers: { "Content-Type": "text/html" },
             body: `<!doctype html><script>

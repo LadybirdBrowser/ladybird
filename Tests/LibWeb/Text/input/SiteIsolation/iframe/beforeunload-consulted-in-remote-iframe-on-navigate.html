@@ -6,11 +6,10 @@
     // This page is served over HTTP so that the navigating iframe is same origin with it and hosted here.
     promiseTest(async () => {
         const httpServer = httpTestServer();
-        const runId = crypto.randomUUID();
         const grandchildHostname = uniqueLocalhostHostname("oop-beforeunload-navigate");
 
         const grandchildUrl = new URL(
-            await httpServer.createEcho("GET", `/oop-beforeunload-navigate-grandchild-${runId}`, {
+            await httpServer.createEcho("GET", "/oop-beforeunload-navigate-grandchild", {
                 status: 200,
                 headers: { "Content-Type": "text/html" },
                 body: `<!DOCTYPE html><script>
@@ -21,13 +20,13 @@
         );
         grandchildUrl.hostname = grandchildHostname;
 
-        const secondUrl = await httpServer.createEcho("GET", `/oop-beforeunload-navigate-second-${runId}`, {
+        const secondUrl = await httpServer.createEcho("GET", "/oop-beforeunload-navigate-second", {
             status: 200,
             headers: { "Content-Type": "text/html" },
             body: `<!DOCTYPE html><script>document.cookie = "secondLoaded=1; path=/";<\/script>`,
         });
 
-        const firstUrl = await httpServer.createEcho("GET", `/oop-beforeunload-navigate-first-${runId}`, {
+        const firstUrl = await httpServer.createEcho("GET", "/oop-beforeunload-navigate-first", {
             status: 200,
             headers: { "Content-Type": "text/html" },
             body: `<!DOCTYPE html><iframe src="${grandchildUrl}"></iframe><script>

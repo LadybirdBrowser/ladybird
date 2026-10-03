@@ -5,10 +5,9 @@
     // another process, and here again.
     promiseTest(async () => {
         const httpServer = httpTestServer();
-        const runId = crypto.randomUUID();
 
         const remoteUrl = new URL(
-            await httpServer.createEcho("GET", `/oop-window-identity-${runId}`, {
+            await httpServer.createEcho("GET", "/oop-window-identity", {
                 status: 200,
                 headers: { "Content-Type": "text/html" },
                 body: "<!DOCTYPE html>remote",

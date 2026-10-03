@@ -6,11 +6,10 @@
     // include noreferrer — whatever its referrerpolicy attribute says.
     asyncTest(async done => {
         const server = httpTestServer();
-        const id = crypto.randomUUID();
         const frame = document.querySelector("iframe");
 
         async function follow(name, attributes) {
-            const url = await server.createEcho("GET", `/hyperlink-${name}-${id}`, {
+            const url = await server.createEcho("GET", `/hyperlink-${name}`, {
                 status: 200,
                 headers: { "Content-Type": "text/html" },
                 body: "<!DOCTYPE html>",

@@ -5,11 +5,10 @@
     // replicates to the frame's page, and navigates it through the UI process.
     promiseTest(async () => {
         const httpServer = httpTestServer();
-        const runId = crypto.randomUUID();
         const hostname = uniqueLocalhostHostname("oop-named-target");
 
         const markerUrl = new URL(
-            await httpServer.createEcho("GET", `/oop-named-target-marker-${runId}`, {
+            await httpServer.createEcho("GET", "/oop-named-target-marker", {
                 status: 200,
                 headers: { "Content-Type": "text/plain" },
                 body: "marker",
@@ -18,7 +17,7 @@
         markerUrl.hostname = hostname;
 
         const secondUrl = new URL(
-            await httpServer.createEcho("GET", `/oop-named-target-second-${runId}`, {
+            await httpServer.createEcho("GET", "/oop-named-target-second", {
                 status: 200,
                 headers: { "Content-Type": "text/html" },
                 body: `<!DOCTYPE html>second<script>fetch(${JSON.stringify(markerUrl.href)});<\/script>`,
@@ -27,7 +26,7 @@
         secondUrl.hostname = hostname;
 
         const firstUrl = new URL(
-            await httpServer.createEcho("GET", `/oop-named-target-first-${runId}`, {
+            await httpServer.createEcho("GET", "/oop-named-target-first", {
                 status: 200,
                 headers: { "Content-Type": "text/html" },
                 body: `<!DOCTYPE html>first`,
@@ -36,7 +35,7 @@
         firstUrl.hostname = hostname;
 
         const sourceUrl = new URL(
-            await httpServer.createEcho("GET", `/oop-named-target-source-${runId}`, {
+            await httpServer.createEcho("GET", "/oop-named-target-source", {
                 status: 200,
                 headers: { "Content-Type": "text/html" },
                 body: `<!DOCTYPE html><a id="link" target="target" href="${secondUrl.href}">sibling</a>
