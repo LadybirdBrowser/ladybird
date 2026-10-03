@@ -7052,7 +7052,7 @@ Layout::RustFFI::FfiFlightBlocker LocalNavigable::recording_flight_blocker(DOM::
     return Layout::RustFFI::FfiFlightBlocker::None;
 }
 
-bool LocalNavigable::paint_next_frame_if_needed(DOM::UpdateLayoutReason layout_reason)
+bool LocalNavigable::paint_next_frame_if_needed(DOM::UpdateLayoutReason layout_reason, Layout::RustFFI::FfiFlightBlocker blocker)
 {
     // The marks the document's invalidation journal holds decide what this paint has to redo.
     if (auto document = active_document())
@@ -7070,7 +7070,7 @@ bool LocalNavigable::paint_next_frame_if_needed(DOM::UpdateLayoutReason layout_r
         if (document->font_computer().should_defer_initial_paint())
             return false;
     }
-    paint_next_frame(recording_flight_blocker(layout_reason));
+    paint_next_frame(blocker != Layout::RustFFI::FfiFlightBlocker::None ? blocker : recording_flight_blocker(layout_reason));
     return true;
 }
 

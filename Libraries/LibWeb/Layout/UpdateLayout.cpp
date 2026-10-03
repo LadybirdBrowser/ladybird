@@ -198,6 +198,7 @@ void Document::update_layout(UpdateLayoutReason reason, ThrottledAnimationSampli
     ScopeGuard end_forced_read = [&] {
         Layout::RustFFI::document_host_end_forced_read(host);
     };
+    drain_flown_style_transaction();
 
     // An image box that owns its image's provider is handed it once the layout update that built the box is over, and
     // the update lays it out without an image. If the image was already there, the box lays out again with it before

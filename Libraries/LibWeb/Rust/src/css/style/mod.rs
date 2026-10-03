@@ -1172,10 +1172,20 @@ pub struct HostState {
     /// Whether transaction settlement performed an atom sweep, including a sweep that reclaimed
     /// no identities. Recording consumes this alongside the release batch.
     style_atoms_swept: bool,
-    /// Replay reconstructs semantic engine state but not the C++ references to atoms. The recorded
-    /// release batch supplies their lifetime boundary while still requiring every released atom to
-    /// be reclaimable from replay's complete semantic root set.
-    replay_reclaimed_style_atoms: Option<Vec<StyleAtomID>>,
+    /// Replay reconstructs semantic engine state but not the C++ references to atoms, nor the host's
+    /// reasons to defer a sweep, so the recording decides whether the next transaction sweeps.
+    replay_atom_sweep: Option<ReplayAtomSweep>,
+    /// Whether the transaction under way leaves its atom sweep to a later one: it runs beside the host, which may name
+    /// an atom meanwhile that the sweep would reclaim before the host hears of it.
+    defers_atom_sweep: bool,
+}
+
+/// The atom sweep a replayed transaction performs, as recorded.
+pub(super) enum ReplayAtomSweep {
+    Skip,
+    /// The recorded release batch supplies the atoms' lifetime boundary while still requiring every
+    /// released atom to be reclaimable from replay's complete semantic root set.
+    Reclaim(Vec<StyleAtomID>),
 }
 
 /// Mutable engine state; operations borrow their instrumentation from the boundary.

@@ -20,15 +20,22 @@ use crate::css::custom_properties::{CustomPropertyRegistry, retain_custom_proper
 use crate::css::parser::query_parser::FfiMediaFeatureValue;
 use crate::css::rule::CompiledFunction;
 use crate::css::style_compute::FfiLengthResolutionContext;
+use crate::painting::ffi::FfiFlightBlocker;
+use crate::painting::recording_slot::FlightLicense;
 use crate::render_state::{
-    DocumentHost, DocumentId, RenderJob, RenderMessage, ReplyTo, SpentWait, StyleJobPermit, force_read, run_job,
+    DocumentHost, DocumentId, RenderJob, RenderMessage, ReplyTo, SpentWait, StyleJobPermit, TaskBoundary, fly,
+    force_read, force_read_flown_style, run_job,
 };
+use std::ffi::c_void;
 use std::sync::Arc;
 
 /// Takes the pending style transaction under `root`, with the document computation inputs the host sealed for it.
 pub(crate) struct StyleJob {
     root: StyleNodeID,
     computation_inputs: SealedStyleInputs,
+    /// Whether the transaction flies beside the host, which leaves its atom sweep to a later transaction: the host may
+    /// name an atom meanwhile that the sweep would reclaim before the host hears of it.
+    flies: bool,
 }
 
 /// A style transaction's document computation inputs, sealed on the host's thread: the job owns a copy of every buffer
@@ -210,8 +217,11 @@ impl RenderJob for StyleJob {
 impl StyleJob {
     /// Runs the job on `engine`, the engine of the document it was sent for.
     pub(crate) fn run(self, engine: &mut StyleEngine) -> StyleJobAnswer {
+        engine.defer_atom_sweep(self.flies);
         // SAFETY: The sealed inputs name only what they own, and live until the transaction has taken them in.
-        StyleJobAnswer(unsafe { take_style_transaction(engine, self.root, self.computation_inputs.inputs) })
+        let output = unsafe { take_style_transaction(engine, self.root, self.computation_inputs.inputs) };
+        engine.defer_atom_sweep(false);
+        StyleJobAnswer(output)
     }
 }
 
@@ -238,6 +248,7 @@ pub unsafe extern "C" fn style_engine_take_style_transaction(
         root,
         // SAFETY: Guaranteed by the caller.
         computation_inputs: unsafe { SealedStyleInputs::seal(computation_inputs) },
+        flies: false,
     };
     // The first style transaction of a read the host waits for is the read's first job; any other, a rendering
     // update's or a later wave's, is a style update's.
@@ -247,6 +258,107 @@ pub unsafe extern "C" fn style_engine_take_style_transaction(
     };
     host.keep_style_transaction(answer).0.view()
 }
+
+/// How a document drains the reactions of its style transaction that flew: `drain` called with `document`, which does
+/// nothing where the drain has begun. The host calls it where it writes the document's style sheets in place.
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct FfiFlownStyleDrain {
+    pub drain: unsafe extern "C" fn(document: *mut c_void),
+    pub document: *mut c_void,
+}
+
+/// Lets the pending style transaction under `root` fly beside the host, with the document computation inputs the host
+/// gathered, where `blocker` is none and no transaction the host let fly before waits to be drained. The host's next
+/// style update drains its reactions first, as does `drain` where the host writes the document's style sheets in place
+/// before it. Answers whether the transaction flies.
+///
+/// # Safety
+///
+/// `host` must be a live document host, on its document's thread, and the buffers `computation_inputs` names must be
+/// live for this call. `drain` must stay callable on the document's thread for as long as the host lives.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn style_engine_let_style_transaction_fly(
+    host: *mut DocumentHost,
+    root: u32,
+    computation_inputs: FfiDocumentStyleComputationInputs,
+    blocker: FfiFlightBlocker,
+    drain: FfiFlownStyleDrain,
+) -> bool {
+    let (Some(root), Some(license)) = (StyleNodeID::from_raw(root), FlightLicense::for_blocker(blocker)) else {
+        return false;
+    };
+    assert!(!host.is_null(), "document host is null");
+    // SAFETY: Guaranteed by the caller.
+    let host = unsafe { &*host };
+    if host.has_flown_style() {
+        return false;
+    }
+    let job = StyleJob {
+        root,
+        // SAFETY: Guaranteed by the caller.
+        computation_inputs: unsafe { SealedStyleInputs::seal(computation_inputs) },
+        flies: true,
+    };
+    fly(host, job, drain, &license);
+    true
+}
+
+/// Takes in the style transaction of `host`'s document that the host let fly, waiting for it to land, for the host to
+/// drain its reactions against the inputs it was sealed with. What the host wrote beside the transaction reaches the
+/// render state only once style_engine_end_flown_style_drain() ends the drain: it is the next transaction's.
+///
+/// # Safety
+///
+/// `host` must be a live document host, on its document's thread, that let a style transaction fly.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn style_engine_take_flown_style_transaction(
+    host: *const DocumentHost,
+) -> FfiStyleTransactionView {
+    assert!(!host.is_null(), "document host is null");
+    // SAFETY: Guaranteed by the caller.
+    let host = unsafe { &*host };
+    let answer = host.begin_style_drain();
+    // A read that joins the transaction spends itself on it, as on the first job it would have sent.
+    if let Some(read) = host.take_unstyled_read() {
+        force_read_flown_style(read, host);
+    }
+    host.keep_style_transaction(answer).0.view()
+}
+
+/// Ends the drain of the style transaction of `host`'s document that flew, behind which the writes the host made beside
+/// it reach the render state.
+///
+/// # Safety
+///
+/// `host` must be a live document host, on its document's thread, that drains a style transaction that flew.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn style_engine_end_flown_style_drain(host: *const DocumentHost) {
+    assert!(!host.is_null(), "document host is null");
+    // SAFETY: Guaranteed by the caller.
+    unsafe { &*host }.end_style_drain();
+}
+
+/// Whether the style transaction of `host`'s document the host let fly still flies; one that has landed is taken in.
+/// The event loop asks between two tasks, so this never waits.
+///
+/// # Safety
+///
+/// `host` must be a live document host, on its document's thread, and the event loop must call this between two tasks.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn style_engine_style_transaction_flies(host: *const DocumentHost) -> bool {
+    assert!(!host.is_null(), "document host is null");
+    let boundary = TaskBoundary::at_event_loop_entry(&TAKES_FINISHED_STYLE_IN);
+    // SAFETY: Guaranteed by the caller.
+    unsafe { &*host }.style_flies(&boundary)
+}
+
+/// The entry the event loop calls between two tasks to take a document's style transaction in where it has landed.
+pub(crate) struct TakesFinishedStyleIn {
+    _private: (),
+}
+
+const TAKES_FINISHED_STYLE_IN: TakesFinishedStyleIn = TakesFinishedStyleIn { _private: () };
 
 /// Ends the transaction the host took last, and has `allocator` mint the identities its end released again first.
 ///

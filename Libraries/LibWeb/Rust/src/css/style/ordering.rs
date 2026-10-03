@@ -2270,14 +2270,16 @@ impl StyleEngineState {
     }
 
     pub(super) fn sweep_style_atoms(&mut self, counters: &mut Counters) {
-        if !self.retained.atoms.should_sweep() && self.host.replay_reclaimed_style_atoms.is_none() {
-            return;
-        }
+        let replay_reclaimed = match self.host.replay_atom_sweep.take() {
+            Some(ReplayAtomSweep::Skip) => return,
+            Some(ReplayAtomSweep::Reclaim(atoms)) => Some(atoms),
+            None if self.retained.atoms.should_sweep() && !self.host.defers_atom_sweep => None,
+            None => return,
+        };
         if self.retained.batch_matching_traversal.is_some() {
             counters.bump(Counter::AtomSweepsDeferredForActiveTraversal);
             return;
         }
-        let replay_reclaimed = self.host.replay_reclaimed_style_atoms.take();
         self.host.style_atoms_swept = true;
         self.retained.facts.sweep_auxiliary_catalogs_without_sync();
         let (mut live, visited) = self.collect_live_style_atoms();

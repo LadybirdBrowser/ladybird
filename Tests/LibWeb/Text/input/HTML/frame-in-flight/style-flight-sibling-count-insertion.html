@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    #counted { math-depth: sibling-count(); }
+    .indexed { math-depth: sibling-index(); }
+</style>
+<div id="container"><div id="first"></div></div>
+<div id="other"><div id="last"></div></div>
+<script>
+    // The style pass in flight computes a style that reads sibling-count() or sibling-index() for an element whose style
+    // has never read one before. Siblings inserted beside the frame have to reach that style, although the element only
+    // learns that its style reads a tree-counting function once the frame is taken in.
+    asyncTest(async done => {
+        const counted = document.createElement("div");
+        counted.id = "counted";
+        const state = await whileRecordingInFlight(() => {
+            container.appendChild(counted);
+            last.className = "indexed";
+            other.prepend(document.createElement("div"));
+        }, state => {
+            container.appendChild(document.createElement("div"));
+            container.appendChild(document.createElement("div"));
+            other.prepend(document.createElement("div"));
+            return state;
+        });
+        println(`state in the next task: ${state}`);
+        await twoFrames();
+        println(`sibling-count: ${getComputedStyle(counted).mathDepth}`);
+        println(`sibling-index: ${getComputedStyle(last).mathDepth}`);
+        done();
+    });
+</script>

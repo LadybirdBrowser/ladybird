@@ -480,8 +480,6 @@ pub(crate) enum StyleQuery {
     EndTransaction,
     /// What a transition step's change of records does to its target's transitions.
     DecideTransitions(crate::css::transition::TransitionDecision),
-    /// A read the boundary generator writes.
-    Generated(super::bridge::GeneratedStyleQuery),
 }
 
 /// The answer to a [`StyleQuery`].
@@ -494,13 +492,11 @@ pub(crate) enum StyleAnswer {
     RecordDemand(FfiRecordDemandAnswer),
     Counter(Option<(&'static str, u64)>),
     Transitions(Vec<crate::css::transition::DecidedTransition>),
-    Generated(super::bridge::GeneratedStyleAnswer),
 }
 
 impl StyleQuery {
     pub(crate) fn answer(self, engine: &mut StyleEngine) -> StyleAnswer {
         match self {
-            Self::Generated(query) => StyleAnswer::Generated(query.answer(engine)),
             Self::EndTransaction => StyleAnswer::Nodes(super::bridge::end_style_transaction(engine)),
             Self::DecideTransitions(decision) => StyleAnswer::Transitions(decision.answer(engine)),
             Self::ElementCustomPropertyData(node) => {
@@ -570,6 +566,20 @@ pub(crate) unsafe fn document_host<'a>(host: *const DocumentHost) -> &'a Documen
     unsafe { &*host }
 }
 
+/// The document host `host` names, for a step that writes the document's style sheets to its engine in place, behind
+/// the drain of the style transaction that flew: the step's writes do not commute with the sheet writes the host queued
+/// beside the transaction, which wait for its drain.
+///
+/// # Safety
+///
+/// `host` must be a live document host, on its document's thread, which outlives the borrow.
+pub(crate) unsafe fn sheet_writing_host<'a>(host: *const DocumentHost) -> &'a DocumentHost {
+    // SAFETY: Guaranteed by the caller.
+    let host = unsafe { document_host(host) };
+    host.drain_flown_style();
+    host
+}
+
 /// Runs `call` on the style engine of `host`'s document, waiting through the engine door, and answers what it answers.
 /// The engine is borrowed for the call alone, so a host callback that reaches the engine again runs after it.
 pub(crate) fn with_engine<R>(host: &DocumentHost, call: impl FnOnce(&mut StyleEngine) -> R) -> R {
@@ -591,22 +601,6 @@ pub(crate) unsafe fn ask_engine(host: *const DocumentHost, query: StyleQuery) ->
     // SAFETY: Guaranteed by the caller.
     let host = unsafe { &*host };
     ask(LockstepProof::for_reason(&ENGINE_DOOR), host, query)
-}
-
-/// Asks the style engine of `host`'s document a read the boundary generator writes.
-///
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread.
-pub(crate) unsafe fn ask_engine_generated(
-    host: *const DocumentHost,
-    query: super::bridge::GeneratedStyleQuery,
-) -> super::bridge::GeneratedStyleAnswer {
-    // SAFETY: Guaranteed by the caller.
-    let StyleAnswer::Generated(answer) = (unsafe { ask_engine(host, StyleQuery::Generated(query)) }) else {
-        unreachable!("a generated read is answered by its generated answer");
-    };
-    answer
 }
 
 /// # Safety

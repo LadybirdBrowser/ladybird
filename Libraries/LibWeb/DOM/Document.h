@@ -483,6 +483,20 @@ public:
     void obtain_theme_color();
 
     void update_style();
+    // A style update, or a read of style or layout, joins the style transaction that flew beside the event loop first,
+    // and drains its reactions against the inputs it was sealed with: what was written beside it is the next
+    // transaction's. Where none flew, that is one test.
+    void drain_flown_style_transaction()
+    {
+        if (m_has_flown_style_transaction) [[unlikely]]
+            drain_style_transaction_that_flew();
+    }
+    // Whether a style transaction flew whose reactions no style update has drained yet.
+    bool has_flown_style_transaction() const { return m_has_flown_style_transaction; }
+    // Records what a style update records before it takes the document's style transaction, and lets the transaction
+    // fly beside the event loop where `blocker` is none. The next style update takes its reactions in. Answers whether
+    // the transaction flies.
+    bool let_style_update_fly(Layout::RustFFI::FfiFlightBlocker blocker);
     void note_throttled_animation_style_update() { m_has_throttled_animation_style_update = true; }
     void note_animations_that_can_skip_per_frame_style_updates();
     void flush_throttled_animation_style_update();
@@ -554,6 +568,8 @@ public:
 
     Painting::DocumentPaintState& paint_state();
     Painting::DocumentPaintState const& paint_state() const;
+    // Whether the last layout committed a box whose `content-visibility` is `auto`.
+    bool has_boxes_with_auto_content_visibility() const;
     Compositing::AccumulatedVisualContextTree visual_context_tree() const;
     u64 visual_context_tree_structural_epoch() const;
     Compositing::ScrollStateSnapshot const& scroll_state_snapshot() const;
@@ -1018,6 +1034,7 @@ public:
     void unregister_intersection_observer(Badge<IntersectionObserver::IntersectionObserver>, IntersectionObserver::IntersectionObserver&);
 
     void register_resize_observer(Badge<ResizeObserver::ResizeObserver>, ResizeObserver::ResizeObserver&);
+    bool has_resize_observers() const { return !m_resize_observers.is_empty(); }
     void unregister_resize_observer(Badge<ResizeObserver::ResizeObserver>, ResizeObserver::ResizeObserver&);
 
     void run_the_update_intersection_observations_steps(HighResolutionTime::DOMHighResTimeStamp time);
@@ -1403,6 +1420,7 @@ public:
     void view_transition_page_visibility_change_steps();
 
     GC::Ptr<ViewTransition::ViewTransition> active_view_transition() const { return m_active_view_transition; }
+    bool has_active_view_transition() const { return !!m_active_view_transition; }
     void set_active_view_transition(GC::Ptr<ViewTransition::ViewTransition> view_transition) { m_active_view_transition = view_transition; }
     static constexpr size_t active_view_transition_offset() { return offsetof(Document, m_active_view_transition); }
     bool rendering_suppression_for_view_transitions() const { return m_rendering_suppression_for_view_transitions; }
@@ -1549,6 +1567,8 @@ private:
 
     void finish_animated_style_update();
     void service_compositor_animation_wakeup(double timestamp);
+
+    void drain_style_transaction_that_flew();
 
     GC::Ref<WebIDL::ObservableArray> adopted_style_sheets() const;
 
@@ -1809,6 +1829,7 @@ private:
     GC::WeakHashSet<Animations::KeyframeEffect> m_effects_needing_animated_style_update_after_current_update;
     bool m_is_updating_animated_style { false };
     bool m_has_throttled_animation_style_update { false };
+    bool m_has_flown_style_transaction { false };
     bool m_needs_throttled_animation_style_update_check { false };
     bool m_force_throttled_animation_style_update { false };
     Optional<u64> m_last_forced_throttled_animation_style_update_task_generation;

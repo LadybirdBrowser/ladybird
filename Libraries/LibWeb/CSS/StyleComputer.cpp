@@ -297,6 +297,7 @@ void StyleComputer::unregister_style_node(StyleNodeID style_node_id)
     if (index < m_element_style_nodes.size()) {
         m_element_style_nodes[index] = nullptr;
         m_style_engine.consume_recorded_element_style_input_change(style_node_id);
+        m_style_engine.note_style_node_arrived_or_retired(style_node_id);
     }
 }
 

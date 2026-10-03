@@ -618,10 +618,6 @@ fn generate_style_engine_boundary(manifest_dir: &Path, out_dir: &Path) -> Result
     // the order the host made them.
     let mut style_change_variants = String::new();
     let mut style_change_arms = String::new();
-    // The reads the host asks the document's render state, which answers them from the engine.
-    let mut style_query_variants = String::new();
-    let mut style_answer_variants = String::new();
-    let mut style_query_arms = String::new();
 
     for operation in operations {
         let object = operation.as_object().ok_or("boundary operation is not an object")?;
@@ -781,43 +777,31 @@ fn generate_style_engine_boundary(manifest_dir: &Path, out_dir: &Path) -> Result
                 }
             }
             writeln!(rust, ") -> {rust_return} {{\n    abort_on_panic(|| {{")?;
-            write!(style_query_variants, "    {event} {{")?;
-            write!(style_query_arms, "            Self::{event} {{")?;
+            // A read is answered in place, while the host waits, so it borrows its arguments and names its operation
+            // directly: nothing about it is boxed, sent or dispatched on.
             for (name, kind, (rust_type, _, _, _)) in &parsed_arguments {
                 if kind.ends_with("_slice") {
                     let element_type = rust_type.trim_start_matches("*const ");
                     writeln!(
                         rust,
-                        "        let {name}: Box<[{element_type}]> = if {name}_count == 0 || {name}.is_null() {{ Box::default() }} else {{ unsafe {{ std::slice::from_raw_parts({name}, {name}_count) }}.into() }};"
+                        "        let {name}: &[{element_type}] = if {name}_count == 0 || {name}.is_null() {{ &[] }} else {{ unsafe {{ std::slice::from_raw_parts({name}, {name}_count) }} }};"
                     )?;
-                    write!(style_query_variants, " {name}: Box<[{element_type}]>,")?;
-                } else {
-                    write!(style_query_variants, " {name}: {rust_type},")?;
                 }
-                write!(style_query_arms, " {name},")?;
             }
-            style_query_variants.push_str(" },\n");
-            writeln!(style_answer_variants, "    {event}({rust_return}),")?;
             write!(
-                style_query_arms,
-                " }} => GeneratedStyleAnswer::{event}(operations::{operation_name}(engine"
-            )?;
-            for (name, kind, _) in &parsed_arguments {
-                if kind.ends_with("_slice") {
-                    write!(style_query_arms, ", &{name}")?;
-                } else {
-                    write!(style_query_arms, ", {name}")?;
-                }
-            }
-            style_query_arms.push_str(")),\n");
-            write!(rust, "        let query = GeneratedStyleQuery::{event} {{")?;
-            for (name, _, _) in &parsed_arguments {
-                write!(rust, " {name},")?;
-            }
-            writeln!(
                 rust,
-                " }};\n        let GeneratedStyleAnswer::{event}(result) = (unsafe {{ crate::css::style::engine_calls::ask_engine_generated(document_host, query) }}) else {{ unreachable!(\"a read is answered with its own result\") }};\n        result\n    }})\n}}\n"
+                "        let document_host = unsafe {{ crate::css::style::engine_calls::document_host(document_host) }};\n        crate::css::style::engine_calls::with_engine(document_host, "
             )?;
+            if parsed_arguments.is_empty() && receiver != "const" {
+                write!(rust, "operations::{operation_name}")?;
+            } else {
+                write!(rust, "|engine| operations::{operation_name}(engine")?;
+                for (name, _, _) in &parsed_arguments {
+                    write!(rust, ", {name}")?;
+                }
+                rust.push(')');
+            }
+            rust.push_str(")\n    })\n}\n\n");
         }
         let native_receiver = if receiver == "const" {
             "&StyleEngine"
@@ -1022,10 +1006,6 @@ fn generate_style_engine_boundary(manifest_dir: &Path, out_dir: &Path) -> Result
     write!(
         rust,
         "\n/// A write of the host to the document's style engine, which the render state applies to it.\npub(crate) enum StyleChange {{\n{style_change_variants}}}\n\nimpl StyleChange {{\n    pub(crate) fn apply(self, engine: &mut StyleEngine) {{\n        match self {{\n{style_change_arms}        }}\n    }}\n}}\n"
-    )?;
-    write!(
-        rust,
-        "\n/// A read of the host of the document's style engine, which the render state answers from it.\npub(crate) enum GeneratedStyleQuery {{\n{style_query_variants}}}\n\n/// The answer to a [`GeneratedStyleQuery`].\npub(crate) enum GeneratedStyleAnswer {{\n{style_answer_variants}}}\n\nimpl GeneratedStyleQuery {{\n    pub(crate) fn answer(self, engine: &mut StyleEngine) -> GeneratedStyleAnswer {{\n        match self {{\n{style_query_arms}        }}\n    }}\n}}\n"
     )?;
     std::fs::write(out_dir.join("style_engine_boundary_generated.rs"), rust)?;
     std::fs::write(out_dir.join("style_engine_replay_generated.rs"), replay)?;
@@ -3162,6 +3142,15 @@ fn main() -> Result<(), Box<dyn Error>> {
         .after_includes
         .get_or_insert_with(String::new)
         .push_str("\nnamespace Web::Layout::RustFFI { struct DocumentHost; }");
+    // A style transaction flies only where nothing blocks it, which the layout header names as it does for a recording.
+    style_engine_config.export.rename.insert(
+        "FfiFlightBlocker".to_string(),
+        "Web::Layout::RustFFI::FfiFlightBlocker".to_string(),
+    );
+    style_engine_config
+        .after_includes
+        .get_or_insert_with(String::new)
+        .push_str("\nnamespace Web::Layout::RustFFI { enum class FfiFlightBlocker : uint8_t; }");
 
     generate_ffi_header(
         style_engine_config,

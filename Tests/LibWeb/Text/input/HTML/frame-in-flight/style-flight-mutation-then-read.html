@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    .changed div { color: blue; }
+</style>
+<div id="old">Old</div>
+<script>
+    // A read beside a style transaction in flight joins it, and drains its reactions against the tree it was sealed
+    // with first. The body removed beside it, and the body and sheet added beside it, are the next transaction's, which
+    // the read then runs in step.
+    asyncTest(async done => {
+        const html = document.documentElement;
+        const result = await whileRecordingInFlight(() => {
+            html.className = "changed";
+        }, state => {
+            const oldBody = document.body;
+            oldBody.remove();
+            const body = document.createElement("body");
+            const target = document.createElement("div");
+            target.textContent = "New";
+            body.appendChild(target);
+            const sheet = document.createElement("style");
+            sheet.textContent = "#new { color: green; --plain: hello }";
+            target.id = "new";
+            body.appendChild(sheet);
+            html.appendChild(body);
+            const style = getComputedStyle(target);
+            const read = `${style.color} ${style.getPropertyValue("--plain")}`;
+            const afterRead = internals.frameSchedulerState();
+            body.remove();
+            html.appendChild(oldBody);
+            return { state, read, afterRead, old: getComputedStyle(old).color };
+        });
+        println(`state in the next task: ${result.state}`);
+        println(`read of the new body: ${result.read}`);
+        println(`state after the read: ${result.afterRead}`);
+        println(`old body back: ${result.old}`);
+        done();
+    });
+</script>

@@ -1991,6 +1991,9 @@ void Document::update_layout_if_needed_for_node(Node const& node, UpdateLayoutRe
     if (!node.is_connected())
         return;
 
+    // NB: Whether the read finds style or layout pending is asked behind the style transaction that flew.
+    drain_flown_style_transaction();
+
     if (reason != UpdateLayoutReason::HTMLEventLoopRenderingUpdate)
         flush_throttled_animation_style_update_for_node(node);
 
@@ -6803,6 +6806,11 @@ Painting::DocumentPaintState& Document::paint_state()
 {
     VERIFY(m_paint_state);
     return *m_paint_state;
+}
+
+bool Document::has_boxes_with_auto_content_visibility() const
+{
+    return m_paint_state && !m_paint_state->boxes_with_auto_content_visibility().is_empty();
 }
 
 Painting::DocumentPaintState const& Document::paint_state() const

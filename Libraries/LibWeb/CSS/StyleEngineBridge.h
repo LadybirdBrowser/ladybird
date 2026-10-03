@@ -13,6 +13,7 @@
 #include <AK/Optional.h>
 #include <AK/Span.h>
 #include <AK/StringView.h>
+#include <AK/Time.h>
 #include <AK/Types.h>
 #include <AK/Utf16FlyString.h>
 #include <AK/Vector.h>
@@ -300,6 +301,33 @@ public:
     //     explicit discard. Consume them synchronously before asking the engine anything else.
     bool take_diagnostic_style_transaction(StyleNodeID root, Function<void(ReadonlySpan<StyleNodeID>)>&&);
     PublishedStyleTransaction take_style_transaction(StyleNodeID root);
+    // Lets the pending style transaction under root fly beside the event loop, where `blocker` is none, and answers
+    // whether it flies. The next style update drains it first, with take_flown_style_transaction().
+    [[nodiscard]] bool let_style_transaction_fly(StyleNodeID root, Layout::RustFFI::FfiFlightBlocker blocker);
+    // Whether the style transaction that flew still flies. One that has landed is taken in, which only the event loop
+    // does, between two tasks.
+    [[nodiscard]] bool style_transaction_flies();
+    // Whether a style transaction flew whose reactions no style update has drained yet, which its document knows.
+    [[nodiscard]] bool has_flown_style_transaction() const;
+    // Takes the style transaction that flew in, waiting for it to land, to drain its reactions against the inputs it
+    // was sealed with. What was written beside it waits for end_flown_style_drain(): it is the next transaction's.
+    PublishedStyleTransaction take_flown_style_transaction();
+    void end_flown_style_drain();
+    // The transaction that flew knows an element that arrived or was removed beside it as it was sealed: the drain
+    // leaves its change, and what inherits from it, to the next transaction.
+    void note_style_node_arrived_or_retired(StyleNodeID);
+    [[nodiscard]] bool style_node_arrived_or_retired_beside_flown_transaction(StyleNodeID style_node) const { return m_style_nodes_beside_flown_transaction.contains(style_node); }
+    // Has the engine recompute the children of `parent` whose style reads their place among their siblings, where some
+    // child's does.
+    void restyle_children_reading_sibling_position(DOM::Element& parent);
+    // The transaction that flew counted the children of `parent` as they were when it was sealed. A child whose style
+    // it found to read their count is known to only once the drain installs that style, so the drain's end recounts
+    // them.
+    void note_children_changed_beside_flown_transaction(StyleNodeID parent)
+    {
+        if (parent != 0)
+            m_parents_whose_children_changed_beside_flown_transaction.set(parent);
+    }
     void sort_style_deltas_for_direct_application(Span<PublishedStyleDelta>) const;
     void discard_style_transaction_outputs();
 
@@ -356,6 +384,10 @@ public:
 private:
     using InputTransaction = StyleEngineFFI::FfiStyleInputTransaction;
 
+    struct LentComputationInputs;
+    void gather_computation_inputs(LentComputationInputs&);
+    PublishedStyleTransaction publish_style_transaction_view(StyleEngineFFI::FfiStyleTransactionView const&, MonotonicTime submission_started_at, MonotonicTime bridge_started_at);
+
     void apply_transaction(InputTransaction const&);
     void submit_recorded_input();
     bool refresh_attribute_value_text_requirements();
@@ -382,6 +414,8 @@ private:
     HashTable<StyleNodeID> m_declaration_changes_during_apply;
     size_t m_element_match_capacity { 64 };
 
+    HashTable<StyleNodeID> m_style_nodes_beside_flown_transaction;
+    HashTable<StyleNodeID> m_parents_whose_children_changed_beside_flown_transaction;
     Vector<StyleEngineFFI::FfiTreeDelta> m_tree_deltas;
     Vector<StyleEngineFFI::FfiElementArrival> m_element_arrivals;
     Vector<u32> m_arrival_custom_state_atoms;

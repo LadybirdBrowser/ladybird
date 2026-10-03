@@ -24,8 +24,8 @@
 //! and asks for a run of `StyleNodeID` values, Rust owns the arena and the relation columns keyed by
 //! them.
 
-use super::StyleEngineHandle;
-use super::engine_calls::{document_host, with_engine};
+use super::engine_calls::{document_host, sheet_writing_host, with_engine};
+use super::{ReplayAtomSweep, StyleEngineHandle};
 use crate::render_state::DocumentHost;
 use std::ffi::c_void;
 
@@ -3837,7 +3837,7 @@ pub unsafe extern "C" fn style_engine_native_rule_declarations_changed(
     notify: unsafe extern "C" fn(*mut c_void, u32),
 ) -> bool {
     // SAFETY: Guaranteed by the caller.
-    let host = unsafe { document_host(host) };
+    let host = unsafe { sheet_writing_host(host) };
     // SAFETY: Guaranteed by the caller.
     let rule = unsafe { &*rule.cast::<crate::css::rule::NativeRule>() };
     let Some(id) = with_engine(host, |engine| native_rule_declaration_owner(engine, rule)) else {
@@ -3882,7 +3882,7 @@ pub unsafe extern "C" fn style_engine_native_rule_successor(
     identity: u64,
 ) -> u32 {
     // SAFETY: Guaranteed by the caller.
-    let host = unsafe { document_host(host) };
+    let host = unsafe { sheet_writing_host(host) };
     with_engine(host, |engine| {
         let sheet = unsafe { &*sheet.cast::<crate::css::style_sheet::NativeStyleSheet>() };
         crate::css::rule::mutation::successor(sheet, identity, |identity| {
@@ -3924,7 +3924,7 @@ pub unsafe extern "C" fn style_engine_remove_native_rule(
         .any(|rule| RuleRef::Materialized(rule).rule_type() == NativeRuleType::CounterStyle);
     unsafe { begin(context, changes_environment, has_counter_style) };
     // SAFETY: Guaranteed by the caller.
-    let host = unsafe { document_host(host) };
+    let host = unsafe { sheet_writing_host(host) };
     for rule in removed {
         let declares_layer = mutation::declares_layer(&rule);
         let identity = RuleRef::Materialized(&rule).identity();
@@ -3950,7 +3950,7 @@ pub unsafe extern "C" fn style_engine_native_rule_target(
     result: &mut FfiNativeRuleTarget,
 ) -> bool {
     // SAFETY: Guaranteed by the caller.
-    let host = unsafe { document_host(host) };
+    let host = unsafe { sheet_writing_host(host) };
     // SAFETY: Guaranteed by the caller.
     with_engine(host, |engine| unsafe { native_rule_target(engine, rule, result) })
 }
@@ -4293,24 +4293,31 @@ pub unsafe extern "C" fn style_engine_sort_style_deltas_for_direct_application(
     });
 }
 
-/// Installs the authoritative release order recorded for the next replay transaction.
+/// Installs the atom sweep recorded for the next replay transaction: none unless `swept`, else the
+/// authoritative release order.
 ///
 /// # Safety
 /// `engine` must be live and `atoms` must name `count` readable atom identities.
-pub unsafe fn style_engine_set_replay_reclaimed_style_atoms(
+pub unsafe fn style_engine_set_replay_atom_sweep(
     engine: crate::css::style::StyleEngineHandle,
+    swept: bool,
     atoms: *const u32,
     count: usize,
 ) {
     let engine = unsafe { engine.get_mut() };
-    assert!(engine.host.replay_reclaimed_style_atoms.is_none());
+    assert!(engine.host.replay_atom_sweep.is_none());
+    assert!(swept || count == 0);
     let atoms = if count == 0 {
         &[]
     } else {
         assert!(!atoms.is_null());
         unsafe { std::slice::from_raw_parts(atoms, count) }
     };
-    engine.host.replay_reclaimed_style_atoms = Some(atoms.iter().copied().map(StyleAtomID).collect());
+    engine.host.replay_atom_sweep = Some(if swept {
+        ReplayAtomSweep::Reclaim(atoms.iter().copied().map(StyleAtomID).collect())
+    } else {
+        ReplayAtomSweep::Skip
+    });
 }
 
 /// Reads one counter by index, returning its stable name and writing its value and name length, or
