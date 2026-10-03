@@ -162,6 +162,10 @@ void JavaScriptDialog::open(Type type, QString const& title, QString const& mess
     if (ok_button && cancel_button)
         QWidget::setTabOrder(ok_button, cancel_button);
 
+    // NB: A hidden native widget's platform window keeps the size it was created with (often Qt's default 100x30, from
+    //     before the view was laid out) and reports that back as a resize, undoing the geometry the event filter set.
+    //     So take the parent's rect again here, before laying out the panel.
+    setGeometry(parentWidget()->rect());
     update_geometry_constraints();
     show();
     raise();
