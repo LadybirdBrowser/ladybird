@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 4 tests
+
+3 Pass
+1 Fail
+Pass	text with zoom
+Pass	image with zoom
+Fail	path with zoom
+Pass	foreignObject with zoom

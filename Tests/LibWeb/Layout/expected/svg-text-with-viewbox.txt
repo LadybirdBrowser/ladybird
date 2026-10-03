@@ -5,16 +5,16 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
       SVGSVGBox <svg> at [8,8] [0+0+0 784 0+0+0] [0+0+0 261.328125 0+0+0] viewport-transform=[3.2666016 0 0 3.2666016 0 0] [SVG] children: inline
         TextNode <#text> (not painted)
         TextNode <#text> (not painted)
-        SVGTextBox <text.small> at [20.9375,25.1875] [0+0+0 13.796875 0+0+0] [0+0+0 10.890625 0+0+0] children: inline
+        SVGTextBox <text.small> at [20,24.609375] [0+0+0 15.390625 0+0+0] [0+0+0 13 0+0+0] children: inline
           TextNode <#text> (not painted)
         TextNode <#text> (not painted)
-        SVGTextBox <text.heavy> at [41.53125,15.375] [0+0+0 43.859375 0+0+0] [0+0+0 20.03125 0+0+0] children: inline
+        SVGTextBox <text.heavy> at [40,11] [0+0+0 47.046875 0+0+0] [0+0+0 30 0+0+0] children: inline
           TextNode <#text> (not painted)
         TextNode <#text> (not painted)
-        SVGTextBox <text.small> at [55.828125,45.21875] [0+0+0 9.765625 0+0+0] [0+0+0 10 0+0+0] children: inline
+        SVGTextBox <text.small> at [55,44.609375] [0+0+0 11.296875 0+0+0] [0+0+0 13 0+0+0] children: inline
           TextNode <#text> (not painted)
         TextNode <#text> (not painted)
-        SVGTextBox <text.Rrrrr> at [67.03125,25.859375] [0+0+0 157 0+0+0] [0+0+0 32.46875 0+0+0] children: inline
+        SVGTextBox <text.Rrrrr> at [65,23] [0+0+0 161.265625 0+0+0] [0+0+0 40 0+0+0] children: inline
           TextNode <#text> (not painted)
         TextNode <#text> (not painted)
       TextNode <#text> (not painted)
