@@ -6,6 +6,7 @@
 
 //! What the host keeps of a document's render state.
 
+use super::questions::Question;
 use super::{
     ArenaChange, CommittedRows, CreatedState, DocumentId, LockstepProof, RenderMessage, RenderWait, ask, send,
     wait_for_render_state,
@@ -106,6 +107,14 @@ impl DocumentHost {
     /// [`Self::arena_for_unconverted_entry`] answers its arena.
     pub(crate) fn style_engine_for_unconverted_entry(&self) -> crate::css::style::StyleEngineHandle {
         self.created_state().engine
+    }
+
+    /// Answers `question` from the document's render state, where the host is.
+    pub(super) fn answer_in_place<Q: Question>(&self, question: Q) -> Q::Answer {
+        let state = self.created_state();
+        // SAFETY: The state keeps its arena and engine where they are until it is destroyed, and nothing on the render
+        // side reaches them while the host runs.
+        unsafe { question.answer((*state.arena.as_ptr()).arena_mut(), state.engine) }
     }
 
     fn created_state(&self) -> &CreatedState {
