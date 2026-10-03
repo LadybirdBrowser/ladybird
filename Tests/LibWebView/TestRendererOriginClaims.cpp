@@ -70,9 +70,9 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     auto theme = TRY(Gfx::load_system_theme(theme_path.string()));
 
     auto view = WebView::HeadlessWebView::create(theme, { 800, 600 });
-    auto& stub = static_cast<WebContentClientStub&>(view->client());
+    auto& stub = static_cast<WebContentClientStub&>(view->page().client());
     auto page_id = view->page_id();
-    auto& traversable = view->client().page(page_id)->traversable();
+    auto& traversable = view->traversable();
 
     auto start_navigation = [&](URL::Origin initiator_origin) {
         auto uuid = generate_random_uuid();

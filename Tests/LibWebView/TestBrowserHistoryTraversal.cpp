@@ -141,8 +141,8 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     VERIFY(spare_view->url() == spare_view_url);
     // The page a spare process was started with is one its client may act for, and a page ID the client
     // was never given stays refused.
-    VERIFY(spare_view->client().may_act_for_page(spare_view->page_id()));
-    VERIFY(!spare_view->client().may_act_for_page(0));
+    VERIFY(spare_view->page().client().may_act_for_page(spare_view->page_id()));
+    VERIFY(!spare_view->page().client().may_act_for_page(0));
 
     auto url_a = URL::Parser::basic_parse("data:text/html,<title>A</title>first"sv).release_value();
     auto url_b = URL::Parser::basic_parse("data:text/html,<title>B</title>second"sv).release_value();
@@ -258,7 +258,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     VERIFY(!app->has_spare_web_content_process());
 
     auto restored_view = WebView::HeadlessWebView::create(restored_theme, { 800, 600 });
-    VERIFY(&restored_view->client() != &spare_consumer->client());
+    VERIFY(&restored_view->page().client() != &spare_consumer->page().client());
 
     // The restored URL is shown before the traversal runs, so wait for the document behind it to load.
     size_t restored_view_loads_finished = 0;
@@ -287,8 +287,8 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     };
     restored_view->run_javascript("window.open('about:blank')"_string);
     Core::EventLoop::current().spin_until([&] { return popup_loaded; });
-    auto& client = restored_view->client();
-    VERIFY(&popup->client() == &client);
+    auto& client = restored_view->page().client();
+    VERIFY(&popup->page().client() == &client);
     VERIFY(client.may_act_for_page(popup_page_id));
     VERIFY(!client.may_act_for_page(0));
     auto cookie_url = URL::Parser::basic_parse("https://example.com/"sv).release_value();

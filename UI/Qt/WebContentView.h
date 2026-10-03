@@ -134,8 +134,6 @@ public:
     void update_palette(WebView::WebContentPage&, PaletteMode = PaletteMode::Default);
     Optional<QPixmap> tab_preview_pixmap(QSize const& maximum_size) const;
 
-    using ViewImplementation::client;
-
     QPoint map_point_to_global_position(Gfx::IntPoint) const;
 
 signals:

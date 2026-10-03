@@ -113,10 +113,10 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     auto theme = TRY(Gfx::load_system_theme(LexicalPath::join(WebView::s_ladybird_resource_root, "themes"sv, "Default.ini"sv).string()));
     app->reset_private_browsing_session();
     auto old_private_view = WebView::HeadlessWebView::create(theme, { 800, 600 }, WebView::IsPrivate::Yes);
-    auto& old_private_session = old_private_view->client().session();
+    auto& old_private_session = old_private_view->page().client().session();
     app->reset_private_browsing_session();
     auto new_private_view = WebView::HeadlessWebView::create(theme, { 800, 600 }, WebView::IsPrivate::Yes);
-    auto& new_private_session = new_private_view->client().session();
+    auto& new_private_session = new_private_view->page().client().session();
     VERIFY(&old_private_session != &new_private_session);
 
     // Pages that a private view opens are private too, whether they share its process or get their own.

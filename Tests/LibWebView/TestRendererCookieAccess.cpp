@@ -95,7 +95,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     };
 
     auto view = create_view();
-    auto& cookie_jar = *view->client().session().cookie_jar;
+    auto& cookie_jar = *view->page().client().session().cookie_jar;
     cookie_jar.set_cookie(victim_url, HTTP::Cookie::ParsedCookie { .name = "session"_string, .value = "secret"_string, .http_only_attribute_present = true }, HTTP::Cookie::Source::Http);
     VERIFY(victim_cookie_value(cookie_jar) == "secret"sv);
 
@@ -103,16 +103,16 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     // other access sees and changes nothing, but is not misbehavior: a document can outlive the UI process's record
     // of it.
     cookie_jar.set_cookie(victim_url, HTTP::Cookie::ParsedCookie { .name = "visible"_string, .value = "secret"_string }, HTTP::Cookie::Source::Http);
-    auto& stub = static_cast<WebContentClientStub&>(view->client());
+    auto& stub = static_cast<WebContentClientStub&>(view->page().client());
     auto page_id = view->page_id();
     VERIFY(stub.did_request_cookie(page_id, victim_url, HTTP::Cookie::Source::NonHttp).cookie().cookie.is_empty());
     VERIFY(stub.did_request_all_cookies_cookiestore(page_id, victim_url).cookies().is_empty());
     stub.did_set_cookie(page_id, victim_url, HTTP::Cookie::ParsedCookie { .name = "visible"_string, .value = "attacker"_string }, HTTP::Cookie::Source::NonHttp);
     VERIFY(victim_cookie_value(cookie_jar, "visible"sv) == "secret"sv);
-    auto page_environment_id = view->client().page(page_id)->traversable().active_document().relevant_global_object().relevant_settings_object().id();
+    auto page_environment_id = view->traversable().active_document().relevant_global_object().relevant_settings_object().id();
 
     // A blob URL entry has the origin of the environment that added it, and only that origin revokes it.
-    auto& blob_url_store = *view->client().session().blob_url_store;
+    auto& blob_url_store = *view->page().client().session().blob_url_store;
     auto victim_blob_url = "blob:https://victim.example/entry"_utf16;
     auto forged_blob_url = "blob:https://victim.example/forged"_utf16;
     Web::FileAPI::SerializedBlobURLEntry victim_entry { .object = Web::FileAPI::SerializedBlobURLEntry::MediaSource {}, .origin = victim_url.origin() };
@@ -130,7 +130,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         Optional<WebView::ViewImplementation::WebContentCrashReason> crash_reason;
         view->on_web_content_crashed = [&](auto reason) { crash_reason = reason; };
 
-        send(static_cast<WebContentClientStub&>(view->client()), view->page_id());
+        send(static_cast<WebContentClientStub&>(view->page().client()), view->page_id());
         Core::EventLoop::current().spin_until([&]() { return crash_reason.has_value(); });
 
         if (crash_reason != WebView::ViewImplementation::WebContentCrashReason::RejectedIPC) {
