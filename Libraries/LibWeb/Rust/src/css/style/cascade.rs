@@ -1474,6 +1474,9 @@ pub struct WinnerGroups {
     admitting: bool,
     residency: MemoryLease,
     nested_residency: MemoryLease,
+    /// The columns keyed by element identity, which span the identity space whatever rows they
+    /// hold: they are charged with the tree's relation columns, as no closed admission shrinks them.
+    identity_residency: MemoryLease,
     #[cfg(test)]
     group_hash_computations: usize,
 }
@@ -1536,6 +1539,7 @@ impl Default for WinnerGroups {
             admitting: true,
             residency: MemoryLease::new(MemoryCategory::CascadeWinnerGroup),
             nested_residency: MemoryLease::new(MemoryCategory::CascadeWinnerGroup),
+            identity_residency: MemoryLease::new(MemoryCategory::RelationColumns),
             #[cfg(test)]
             group_hash_computations: 0,
         }
@@ -1586,6 +1590,7 @@ impl WinnerGroups {
             admitting: self.admitting,
             residency: MemoryLease::new(MemoryCategory::CascadeWinnerGroup),
             nested_residency: MemoryLease::new(MemoryCategory::CascadeWinnerGroup),
+            identity_residency: MemoryLease::new(MemoryCategory::RelationColumns),
             #[cfg(test)]
             group_hash_computations: self.group_hash_computations,
         }
@@ -2584,6 +2589,7 @@ impl WinnerGroups {
     pub fn evict(&mut self) {
         self.residency.release();
         self.nested_residency.release();
+        self.identity_residency.release();
         self.generation = self.generation.wrapping_add(1);
         self.states = InternTable::default();
         self.state_custom_declarations = Vec::new();
@@ -2618,9 +2624,6 @@ impl WinnerGroups {
                 self.provenance_groups,
                 self.priorities,
                 self.continuations,
-                self.column,
-                self.pseudo_rows_by_node,
-                self.priority_current,
                 self.state_custom_declarations,
                 self.custom_declaration_list_ids,
                 self.state_reference_counts,
@@ -2628,11 +2631,15 @@ impl WinnerGroups {
                 self.state_winning_rules,
                 self.state_reads,
                 self.winner_rule_references,
-                self.stamps,
             ];
             cached [self.nested_residency.bytes()];
             nested [self.pseudo_row_capacity_bytes];
             skip [
+                self.column,
+                self.pseudo_rows_by_node,
+                self.priority_current,
+                self.stamps,
+                self.identity_residency,
                 self.residency,
                 self.generation,
                 self.winner_entry_count,
@@ -2645,11 +2652,22 @@ impl WinnerGroups {
         }
     }
 
+    fn identity_capacity_bytes(&self) -> u64 {
+        capacity_bytes! {
+            shallow [self.column, self.stamps, self.pseudo_rows_by_node, self.priority_current];
+            cached [];
+            nested [];
+            skip [];
+        }
+    }
+
     pub fn settle_memory(&mut self, memory: &mut MemoryController) {
         let nested = self.nested_residency.bytes();
         self.nested_residency.reconcile_committed(memory, nested);
         let current = self.capacity_bytes() - self.nested_residency.bytes();
         self.residency.reconcile_committed(memory, current);
+        let identity = self.identity_capacity_bytes();
+        self.identity_residency.reconcile_committed(memory, identity);
     }
 
     pub(super) fn update_admission(&mut self, memory: &MemoryController) {
@@ -3448,6 +3466,21 @@ mod tests {
         assert!(groups.set(StyleNodeID::element(2), state, ProgramVersion(1)));
         groups.restore_admission(admitting);
         assert!(!groups.set(StyleNodeID::element(3), state, ProgramVersion(1)));
+    }
+
+    #[test]
+    fn winner_columns_spanning_the_identity_space_are_charged_as_relation_columns() {
+        let mut memory = memory();
+        let mut groups = WinnerGroups::new();
+        let state = groups.intern_sorted(&[winner(1, 1, 3)], None);
+        // One row at a high identity, as a document that minted many elements in one transaction has.
+        assert!(groups.set(StyleNodeID::element(50_000), state, ProgramVersion(1)));
+        groups.settle_memory(&mut memory);
+        assert!(memory.bytes_in_category(MemoryCategory::RelationColumns) >= 50_000);
+        assert!(memory.bytes_in_category(MemoryCategory::CascadeWinnerGroup) < 4096);
+
+        groups.evict();
+        assert_eq!(memory.bytes_in_category(MemoryCategory::RelationColumns), 0);
     }
 
     #[test]
