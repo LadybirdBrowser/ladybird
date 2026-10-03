@@ -8,7 +8,8 @@
 //!
 //! The host waits only with a [`ScriptForcedRead`], which the host entries script APIs call mint for a current answer,
 //! or a [`LockstepProof`], whose reasons are the waits internal code makes. Each right is minted only by the module
-//! that owns its marker, so code elsewhere has no way to wait.
+//! that owns its marker, so code elsewhere has no way to wait. What runs beside the host is taken in without a wait
+//! only at a [`TaskBoundary`], which the entries the event loop calls between two tasks mint.
 //!
 //! A style or layout job is sent only by [`force_read`], the first job of a read the host waits for, or by
 //! [`run_job`] with a permit that says why the job is another one, as only this module makes the [`SpentWait`] the
@@ -30,9 +31,16 @@ pub(crate) struct LockstepProof {
     not_send_or_sync: PhantomData<*const ()>,
 }
 
+/// The top of the host's event loop, between two tasks, where the host takes in what has finished beside it and waits
+/// for nothing. It stays on the host's thread.
+pub(crate) struct TaskBoundary {
+    not_send_or_sync: PhantomData<*const ()>,
+}
+
 mod private {
     pub trait ScriptEntry {}
     pub trait LockstepReason {}
+    pub trait EventLoopEntry {}
     pub trait RenderWait {}
 }
 
@@ -41,6 +49,10 @@ pub(crate) trait ScriptEntry: private::ScriptEntry {}
 
 /// A marker that only the module waiting for its reason can construct, which mints a [`LockstepProof`].
 pub(crate) trait LockstepReason: private::LockstepReason {}
+
+/// A marker that only a host entry the event loop calls between two tasks can construct, which mints a
+/// [`TaskBoundary`].
+pub(crate) trait EventLoopEntry: private::EventLoopEntry {}
 
 /// What a wait for a document's render state spends: a script's forced read, or a [`LockstepProof`].
 pub(crate) trait RenderWait: private::RenderWait {}
@@ -74,6 +86,23 @@ impl ScriptForcedRead {
 impl LockstepProof {
     /// The right to wait for the reason `_` marks.
     pub(crate) fn for_reason(_: &impl LockstepReason) -> Self {
+        Self {
+            not_send_or_sync: PhantomData,
+        }
+    }
+}
+
+impl TaskBoundary {
+    /// A task boundary for a unit test.
+    #[cfg(test)]
+    pub(crate) fn for_test() -> Self {
+        Self {
+            not_send_or_sync: PhantomData,
+        }
+    }
+
+    /// The task boundary at which the event loop calls the entry `_` marks.
+    pub(crate) fn at_event_loop_entry(_: &impl EventLoopEntry) -> Self {
         Self {
             not_send_or_sync: PhantomData,
         }
@@ -267,6 +296,11 @@ mod tests {
     #[test]
     fn a_lockstep_proof_is_not_send() {
         <LockstepProof as AmbiguousIfSend<_>>::marker();
+    }
+
+    #[test]
+    fn a_task_boundary_is_not_send() {
+        <TaskBoundary as AmbiguousIfSend<_>>::marker();
     }
 
     #[test]
