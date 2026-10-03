@@ -304,11 +304,12 @@ pub(crate) fn fly(
 ) {
     let mut changes = host.take_queued_changes_for_flight();
     host.let_frame_fly(drain, |mut state| {
-        let run = move || {
+        // A host that waits for the frame says the stop word, and the frame comes back with its style alone.
+        let run = move |stop: &crate::stage_thread::StopWord| {
             state.apply(changes.drain(..));
             let style = job.run(state.engine_mut());
             let round = round
-                .filter(|_| style.restyles_nothing())
+                .filter(|_| !stop.is_said() && style.restyles_nothing())
                 .and_then(|round| round.run(&mut state.arena));
             Landing {
                 state,
@@ -318,7 +319,7 @@ pub(crate) fn fly(
             }
         };
         #[cfg(test)]
-        return crate::stage_thread::InFlight::landed(run());
+        return crate::stage_thread::InFlight::landed(run(&crate::stage_thread::StopWord::default()));
         #[cfg(not(test))]
         crate::stage_thread::style_layout_thread().submit(run)
     });

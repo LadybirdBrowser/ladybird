@@ -83,7 +83,7 @@ impl RecordingJob {
     /// before the event loop's next task.
     pub(crate) fn fly(self, inputs: RecordingInputs, _license: FlightLicense) -> InFlight<RecordingAnswer> {
         let held = take_recording_hold_for_testing();
-        crate::stage_thread::paint_thread().submit(move || {
+        crate::stage_thread::paint_thread().submit(move |_| {
             if held {
                 wait_while_recording_is_held_for_testing();
             }
@@ -496,7 +496,7 @@ mod tests {
     /// A flight of the slot's recorder state that answers it back with a recording pending.
     fn flight_of(slot: &mut RecordingSlot, publishes_recording: bool) -> InFlight<RecordingAnswer> {
         let recorder = slot.take_recorder();
-        crate::stage_thread::paint_thread().submit(move || RecordingAnswer {
+        crate::stage_thread::paint_thread().submit(move |_| RecordingAnswer {
             recorder,
             pending: pending(publishes_recording),
             trace: None,
