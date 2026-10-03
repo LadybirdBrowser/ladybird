@@ -757,6 +757,8 @@ static ThrowCompletionOr<Value> pad_string(VM& vm, GC::Ref<PrimitiveString> stri
     // 8. Let fillLen be intMaxLength - stringLength.
     auto fill_length = int_max_length - string_length;
 
+    TRY(checked_js_string_length_sum(vm, string_length, fill_length, ErrorType::StringSizeMustNotOverflow));
+
     Utf16StringBuilder truncated_string_filler_builder;
     auto fill_code_units = filler.length_in_code_units();
     for (size_t i = 0; i < fill_length / fill_code_units; ++i)

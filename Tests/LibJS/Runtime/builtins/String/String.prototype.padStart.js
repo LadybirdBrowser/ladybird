@@ -32,3 +32,13 @@ test("UTF-16", () => {
     expect(s.padStart(4, "😀")).toBe("😀😀");
     expect(s.padStart(5, "😀")).toBe("😀\ud83d😀");
 });
+
+test("result longer than the maximum string length", () => {
+    expect(() => {
+        "a".padStart(2 ** 32);
+    }).toThrowWithMessage(RangeError, "string size must not overflow");
+    expect(() => {
+        "a".padStart(2 ** 53 - 1, "xyz");
+    }).toThrowWithMessage(RangeError, "string size must not overflow");
+    expect("a".padStart(2 ** 53 - 1, "")).toBe("a");
+});
