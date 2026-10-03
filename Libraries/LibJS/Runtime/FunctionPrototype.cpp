@@ -72,18 +72,23 @@ JS_DEFINE_NATIVE_FUNCTION(FunctionPrototype::apply)
     if (!arg_array.is_object())
         return vm.throw_completion<TypeError>(ErrorType::NotAnObject, arg_array);
 
-    // OPTIMIZATION: If argArray has a simple indexed storage without holes and doesn't interfere with indexed property access,
-    //               we can skip CreateListFromArrayLike and directly use the storage elements.
     auto& arg_array_object = arg_array.as_object();
+
+    // 4. Let argList be ? CreateListFromArrayLike(argArray).
+    auto length = TRY(length_of_array_like(vm, arg_array_object));
+
+    // OPTIMIZATION: If argArray has a simple indexed storage without holes and doesn't interfere with indexed property access,
+    //               we can skip building argList and directly use the storage elements.
     if (!arg_array_object.may_interfere_with_indexed_property_access() && arg_array_object.indexed_storage_kind() == IndexedStorageKind::Packed) {
-        auto length = TRY(length_of_array_like(vm, arg_array_object));
         auto span = arg_array_object.indexed_packed_elements_span();
         if (span.size() >= length)
             return TRY(JS::call(vm, function, this_arg, span.slice(0, length)));
     }
 
-    // 4. Let argList be ? CreateListFromArrayLike(argArray).
-    auto arguments = TRY(create_list_from_array_like(vm, arg_array));
+    GC::RootVector<Value> arguments;
+    arguments.ensure_capacity(length);
+    for (size_t i = 0; i < length; ++i)
+        arguments.unchecked_append(TRY(arg_array_object.get(PropertyKey { i })));
 
     // FIXME: 5. Perform PrepareForTailCall().
 
