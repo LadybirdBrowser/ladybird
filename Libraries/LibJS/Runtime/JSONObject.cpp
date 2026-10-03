@@ -869,7 +869,7 @@ static void append_code_unit_offsets(Vector<size_t>& offsets, StringView bytes, 
     }
 }
 
-static ErrorOr<JSONTextBytes> json_text_bytes(Utf16View text, TrackCodeUnitOffsets track_code_unit_offsets)
+static ErrorOr<Optional<JSONTextBytes>> json_text_bytes(Utf16View text, TrackCodeUnitOffsets track_code_unit_offsets)
 {
     auto maximum_length = text.has_ascii_storage() ? text.length_in_code_units() : 3 * text.length_in_code_units();
     JSONTextBytes text_bytes { text, StringBuilder { maximum_length + simdjson::SIMDJSON_PADDING }, {} };
@@ -898,6 +898,11 @@ static ErrorOr<JSONTextBytes> json_text_bytes(Utf16View text, TrackCodeUnitOffse
             }
             if (all_valid)
                 break;
+
+            auto converted_so_far = utf8.string_view();
+            auto preceding_backslashes = converted_so_far.length() - converted_so_far.trim("\\"sv, TrimMode::Right).length();
+            if (preceding_backslashes % 2 != 0)
+                return OptionalNone {};
 
             TRY(utf8.try_appendff("\\u{:04X}", remaining.code_unit_at(valid_code_units)));
             if (track_offsets) {
@@ -1247,7 +1252,10 @@ ThrowCompletionOr<Value> JSONObject::parse_json(VM& vm, Utf16View text, JSONPars
     if (text.length_in_code_units() >= 1 && text.code_unit_at(0) == 0xFEFF)
         return vm.throw_completion<SyntaxError>(ErrorType::JsonMalformed);
 
-    JSONParseState state { json_text_bytes(text, root_record ? TrackCodeUnitOffsets::Yes : TrackCodeUnitOffsets::No).release_value_but_fixme_should_propagate_errors(), {} };
+    auto json_text = json_text_bytes(text, root_record ? TrackCodeUnitOffsets::Yes : TrackCodeUnitOffsets::No).release_value_but_fixme_should_propagate_errors();
+    if (!json_text.has_value())
+        return vm.throw_completion<SyntaxError>(ErrorType::JsonMalformed);
+    JSONParseState state { json_text.release_value(), {} };
 
     simdjson::ondemand::parser parser;
     simdjson::ondemand::document document;
@@ -1383,10 +1391,12 @@ JS_DEFINE_NATIVE_FUNCTION(JSONObject::raw_json)
     //    if it is not a valid JSON text as defined in that specification, or if its outermost value is an object or
     //    array as defined in that specification.
     auto json_text = json_text_bytes(json_string_view, TrackCodeUnitOffsets::No).release_value_but_fixme_should_propagate_errors();
+    if (!json_text.has_value())
+        return vm.throw_completion<SyntaxError>(ErrorType::JsonMalformed);
 
     simdjson::ondemand::parser parser;
     simdjson::ondemand::document doc;
-    if (parser.iterate(json_text.padded_view()).get(doc))
+    if (parser.iterate(json_text->padded_view()).get(doc))
         return vm.throw_completion<SyntaxError>(ErrorType::JsonMalformed);
 
     simdjson::ondemand::json_type type;
