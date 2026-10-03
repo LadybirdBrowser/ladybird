@@ -530,6 +530,15 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
                 settled_pseudo_element_records.clear();
             }
 
+            // NB: An earlier row's environment move can republish the record an element holds over the moved environment.
+            //     A swap of its inherited groups planned over the record it held before would undo the move: the row is
+            //     answered from its demand, over the record the element holds now.
+            if (reaction.gap == StyleEngineFFI::FfiStyleDeltaGap::None && element->has_style() && reaction.old_style_record != element->style_record_identity().value()) {
+                reaction.gap = StyleEngineFFI::FfiStyleDeltaGap::Materialize;
+                reaction.new_style_record = 0;
+                reaction.damage = StyleEngineFFI::FfiStyleDeltaDamage::None;
+            }
+
             // A reaction the engine derived for this element while applying an earlier one in
             // this batch joins the element's own reaction where it covers it, which a C++
             // computation of the element, a failed retry's included, always does.

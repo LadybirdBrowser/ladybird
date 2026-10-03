@@ -2852,28 +2852,37 @@ impl ComputedGroupSets {
         node: StyleNodeID,
         environment: u64,
     ) -> Option<(FinalStyleRecordID, FinalStyleRecordID)> {
+        let old_style_record = self.assigned_style_record(node)?;
+        let new_style_record = self.republish_style_record_with_environment(node, old_style_record, environment)?;
+        Some((old_style_record, new_style_record))
+    }
+
+    /// Move `style_record`, a record of `node`'s, to another custom-property environment, keeping
+    /// everything else it holds; one its animations compose has no base record to move. The node's
+    /// assignment moves with it where it is `style_record`: a newer one, which a row the host has
+    /// yet to apply installs, is that row's.
+    pub(super) fn republish_style_record_with_environment(
+        &mut self,
+        node: StyleNodeID,
+        style_record: FinalStyleRecordID,
+        environment: u64,
+    ) -> Option<FinalStyleRecordID> {
         let index = node.element_index()? as usize;
-        if self.columns.animation_overlay_slot(index).is_some() {
-            return None;
-        }
-        let old_style_record = *self.style_record_column.get(index)?.as_ref()?;
-        let old_record = *self.style_records.get_index(old_style_record.index())?;
+        let old_record = *self.style_records.get_index(style_record.base_record()?.index())?;
         let custom_properties = self.intern_custom_property_environment(environment).0;
         if custom_properties == old_record.custom_properties {
-            let record = self.final_base_style_record(old_style_record);
-            return Some((record, record));
+            return Some(style_record);
         }
         let new_record = StyleRecord {
             custom_properties,
             ..old_record
         };
         let new_style_record = self.intern_style_record(new_record).0;
-        self.columns.custom_properties[index] = custom_properties.0;
-        self.style_record_column[index] = Some(new_style_record);
-        Some((
-            self.final_base_style_record(old_style_record),
-            self.final_base_style_record(new_style_record),
-        ))
+        if self.assigned_style_record(node) == Some(style_record) {
+            self.columns.custom_properties[index] = custom_properties.0;
+            self.style_record_column[index] = Some(new_style_record);
+        }
+        Some(self.final_base_style_record(new_style_record))
     }
 
     /// Every raw custom-property environment identity a live record was published with.

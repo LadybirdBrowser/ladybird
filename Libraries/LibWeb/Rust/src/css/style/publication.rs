@@ -1204,16 +1204,17 @@ impl RetainedState {
         Ok(ElementAnswer::Delta(delta))
     }
 
-    /// Account for a record the engine derived and leave its commitment to C++'s acknowledgement.
-    /// Move a node's record to the environment C++ refreshed its inherited custom-property data
-    /// to, without recomputing anything: what an inherited-custom-properties reaction C++ settled
-    /// by refreshing the data alone publishes. The new record's identity, or nothing when the node
-    /// holds no base record to move.
+    /// Move the record the host holds for a node to the environment C++ refreshed its inherited
+    /// custom-property data to, without recomputing anything: what an inherited-custom-properties
+    /// reaction C++ settled by refreshing the data alone publishes. The host installs it in the
+    /// middle of a batch, so it is never a record the engine assigned for a row the host has yet to
+    /// apply, which moves more than the environment. The new record's identity, or nothing when the
+    /// node holds no base record to move.
     pub(crate) fn republish_record_environment(&mut self, node: StyleNodeID, environment: u64) -> Option<u64> {
-        let (_, new_style_record) = self
-            .computed_group_sets
-            .republish_engine_record_with_environment(node, environment)?;
-        Some(new_style_record.raw())
+        let held_style_record = computed::FinalStyleRecordID::from_raw(*self.held_style_records.get(&node)?)?;
+        self.computed_group_sets
+            .republish_style_record_with_environment(node, held_style_record, environment)
+            .map(|style_record| style_record.raw())
     }
 
     /// Note whether the node's record was computed with a substituted winner, for C++ to record
