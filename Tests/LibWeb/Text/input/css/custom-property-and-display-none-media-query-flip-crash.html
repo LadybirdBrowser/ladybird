@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const iframe = document.createElement("iframe");
+        iframe.style.width = "1000px";
+        const loaded = new Promise(resolve => iframe.addEventListener("load", resolve, { once: true }));
+        iframe.srcdoc = `
+            <!DOCTYPE html>
+            <style>
+                .container { display: flex; height: 120px; }
+                .item { display: flex; flex: 1; }
+                canvas { display: block; width: 100%; height: 20px; }
+                @media (max-width: 939px) {
+                    .container { --gap: 1px; }
+                    .item { display: none; }
+                }
+            </style>
+            <div class="container"><div class="item"><canvas></canvas></div></div>
+        `;
+        document.body.append(iframe);
+        await loaded;
+        iframe.contentDocument.body.offsetHeight;
+
+        // The media query moves the container's custom properties and takes the item's box away
+        // in the same style update.
+        iframe.style.width = "400px";
+        // Lay out the parent first, so the iframe's viewport has its new width when its own layout is read.
+        document.body.offsetWidth;
+        iframe.contentDocument.body.offsetHeight;
+        println("PASS (didn't crash)");
+    });
+</script>
