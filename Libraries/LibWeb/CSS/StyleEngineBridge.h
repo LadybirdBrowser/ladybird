@@ -352,8 +352,6 @@ public:
 
     // The host of the document's render state, which every entry into the document's style engine goes through.
     [[nodiscard]] Layout::RustFFI::DocumentHost* host() const { return m_render_document->host(); }
-    [[nodiscard]] void* rust_handle() { return m_impl; }
-    [[nodiscard]] void const* rust_handle() const { return m_impl; }
 
 private:
     using InputTransaction = StyleEngineFFI::FfiStyleInputTransaction;
@@ -367,8 +365,6 @@ private:
     Optional<StyleSheetResourceContexts> m_style_sheet_resource_contexts;
 
     NonnullRefPtr<Layout::RenderDocument> m_render_document;
-    // The engine in the render state, which the bridge's entries still reach directly.
-    void* m_impl { nullptr };
     StyleEngineFFI::StyleNodeIdAllocator* m_style_node_ids { nullptr };
     u64 m_published_font_environment_generation { 0 };
     GC::Ptr<StyleComputer> m_style_computer;
