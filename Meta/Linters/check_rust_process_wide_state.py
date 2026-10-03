@@ -171,6 +171,7 @@ RENDER_STATE_ALLOWED = {
     f"{RENDER_STATE_CRATE}/src/render_state.rs:STATES": "the render states of the documents whose messages this thread handles; only it reaches them",
     f"{RENDER_STATE_CRATE}/src/stage_thread.rs:THREAD_SETUP": "set once before the first stage thread starts, which runs it; read-only after",
     f"{RENDER_STATE_CRATE}/src/stage_thread.rs:STYLE_LAYOUT_THREAD": "the process's one StyleLayout thread, which every thread hands its jobs to",
+    f"{RENDER_STATE_CRATE}/src/stage_thread.rs:PAINT_THREAD": "the process's one Paint thread, which every thread hands its jobs to",
     f"{RENDER_STATE_CRATE}/src/stage_thread.rs:THREAD": "test only",
 }
 

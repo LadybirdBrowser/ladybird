@@ -750,7 +750,7 @@ pub unsafe extern "C" fn layout_arena_record_display_list(
         viewport,
         trace_recordings,
     );
-    let answer = job.run(&inputs);
+    let answer = job.run_on_paint_thread(&inputs);
     recording.accept_recording_answer(answer);
     true
 }

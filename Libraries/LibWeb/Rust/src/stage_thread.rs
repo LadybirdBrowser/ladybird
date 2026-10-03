@@ -4,13 +4,13 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! The thread a document's rendering runs on beside the host's: the StyleLayout thread, which every document's render
-//! state lives on.
+//! The threads a document's rendering runs on beside the host's: the StyleLayout thread, which every document's
+//! render state lives on, and the Paint thread, which records display lists from the frames the render states publish.
 //!
-//! There is one per process, spawned the first time it is handed a job. A WebContent process runs every document it
-//! hosts on its one main thread, so a thread per process is also a thread per event loop. The host waits for every job
-//! it hands the thread, so nothing it runs overlaps the host: what changes is where the work runs, and so what it may
-//! reach.
+//! There is one of each per process, spawned the first time it is handed a job. A WebContent process runs every
+//! document it hosts on its one main thread, so a thread per process is also a thread per event loop. The host waits
+//! for every job it hands either thread, so nothing they run overlaps the host: what changes is where the work runs,
+//! and so what it may reach.
 
 use std::cell::UnsafeCell;
 use std::panic::AssertUnwindSafe;
@@ -71,7 +71,7 @@ pub extern "C" fn stage_thread_set_thread_setup(setup: extern "C" fn()) {
     let _ = THREAD_SETUP.set(setup);
 }
 
-// The size Linux and macOS give a process's main thread, where style and layout ran before.
+// The size Linux and macOS give a process's main thread, where style, layout and recording ran before.
 const STAGE_THREAD_STACK_SIZE: usize = 8 * 1024 * 1024;
 
 impl StageThread {
@@ -254,6 +254,12 @@ pub(crate) fn may_reach_render_states() -> bool {
     STYLE_LAYOUT_THREAD
         .get()
         .is_none_or(|thread| thread.is_current() || !thread.shared.busy.load(Ordering::Acquire))
+}
+
+/// The Paint thread, which records display lists from the frames the render states publish.
+pub(crate) fn paint_thread() -> &'static StageThread {
+    static PAINT_THREAD: OnceLock<StageThread> = OnceLock::new();
+    PAINT_THREAD.get_or_init(|| StageThread::spawn("Paint"))
 }
 
 #[cfg(test)]
