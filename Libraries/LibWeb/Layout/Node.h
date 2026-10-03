@@ -186,8 +186,8 @@ public:
         return false;
     }
 
-    bool is_anonymous() const { return has_flag(RustFFI::NodeFlag::Anonymous); }
-    bool is_document_element() const { return has_flag(RustFFI::NodeFlag::IsDocumentElement); }
+    bool is_anonymous() const { return has_identity_flag<RustFFI::NodeFlag::Anonymous>(); }
+    bool is_document_element() const { return has_identity_flag<RustFFI::NodeFlag::IsDocumentElement>(); }
     bool insets_use_anchor_functions() const { return has_flag(RustFFI::NodeFlag::InsetsUseAnchorFunctions); }
     DOM::Node const* dom_node() const;
     DOM::Node* dom_node();
@@ -321,6 +321,15 @@ protected:
     bool has_flag(RustFFI::NodeFlag flag) const
     {
         return (RustFFI::layout_row_flags(document_host(), m_slot) & static_cast<u32>(flag)) != 0;
+    }
+
+    // A flag that says what node the row stands for, which installing a style never changes, so reading it waits for
+    // no rows to be published again after one.
+    template<RustFFI::NodeFlag flag>
+    bool has_identity_flag() const
+    {
+        static_assert(flag == RustFFI::NodeFlag::Anonymous || flag == RustFFI::NodeFlag::IsBody || flag == RustFFI::NodeFlag::IsDocumentElement);
+        return (RustFFI::layout_row_identity_flags(document_host(), m_slot) & static_cast<u32>(flag)) != 0;
     }
 
     bool has_compositor_animation_frame(RustFFI::CompositorAnimationFrameKind kind) const
@@ -650,7 +659,7 @@ public:
     Gfx::Font const& first_available_font() const;
     CSS::StyleScope const& style_scope() const;
 
-    bool is_body() const { return has_flag(RustFFI::NodeFlag::IsBody); }
+    bool is_body() const { return has_identity_flag<RustFFI::NodeFlag::IsBody>(); }
     bool is_scroll_container() const;
 
     void set_computed_values(NonnullRefPtr<CSS::ComputedValues const>);

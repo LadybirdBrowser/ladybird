@@ -207,6 +207,11 @@ pub enum NodeFlag {
     EstablishesFixedPositionContainingBlock = 0x8000_0000,
 }
 
+impl NodeFlag {
+    /// The flags that say what node a row stands for. A row is built with them, and installing a style changes none.
+    pub(crate) const IDENTITY: u32 = Self::Anonymous as u32 | Self::IsBody as u32 | Self::IsDocumentElement as u32;
+}
+
 /// Facts a node takes from its ancestors. They are derived when the node is attached or its
 /// ancestors' styles change, so laying out a subtree never reads above it to learn them.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

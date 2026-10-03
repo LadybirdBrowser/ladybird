@@ -142,6 +142,16 @@ impl LayoutChange {
         }
     }
 
+    /// Whether applying the change can alter what a published row is, or the row a node is bound to (see
+    /// [`crate::layout::LayoutNodeArena::rows_identity_version`]).
+    pub(crate) fn alters_published_identities(&self) -> bool {
+        match self {
+            Self::StyleNodeChanged { .. } => true,
+            Self::SetNodeFlag { flag, .. } => *flag as u32 & NodeFlag::IDENTITY != 0,
+            _ => false,
+        }
+    }
+
     /// Applies the change to `arena`, the arena of the document it was queued for. A node freed since then has nothing
     /// left to change.
     pub(crate) fn apply(self, arena: &mut LayoutNodeArena) {
