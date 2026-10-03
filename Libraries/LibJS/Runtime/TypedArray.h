@@ -156,6 +156,19 @@ constexpr u32 typed_array_element_size(TypedArrayBase::Kind kind)
     VERIFY_NOT_REACHED();
 }
 
+// https://tc39.es/ecma262/#table-the-typedarray-constructors
+constexpr StringView typed_array_element_name(TypedArrayBase::Kind kind)
+{
+    switch (kind) {
+#define __JS_ENUMERATE(ClassName, snake_name, PrototypeName, ConstructorName, Type) \
+    case TypedArrayBase::Kind::ClassName:                                           \
+        return #ClassName##sv;
+        JS_ENUMERATE_TYPED_ARRAYS
+#undef __JS_ENUMERATE
+    }
+    VERIFY_NOT_REACHED();
+}
+
 // 10.4.5.9 TypedArray With Buffer Witness Records, https://tc39.es/ecma262/#sec-typedarray-with-buffer-witness-records
 struct TypedArrayWithBufferWitness {
     GC::Ref<TypedArrayBase const> object; // [[Object]]

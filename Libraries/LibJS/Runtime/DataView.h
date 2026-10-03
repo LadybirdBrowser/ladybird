@@ -30,12 +30,16 @@ public:
 private:
     DataView(GC::Ptr<ArrayBuffer>, ByteLength byte_length, size_t byte_offset, Object& prototype);
 
+    virtual bool is_data_view() const final { return true; }
     virtual void visit_edges(Visitor& visitor) override;
 
     GC::Ptr<ArrayBuffer> m_viewed_array_buffer;
     ByteLength m_byte_length { 0 };
     size_t m_byte_offset { 0 };
 };
+
+template<>
+inline bool Object::fast_is<DataView>() const { return is_data_view(); }
 
 // 25.3.1.1 DataView With Buffer Witness Records, https://tc39.es/ecma262/#sec-dataview-with-buffer-witness-records
 struct DataViewWithBufferWitness {

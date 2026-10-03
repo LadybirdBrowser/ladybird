@@ -244,7 +244,7 @@ JS::ThrowCompletionOr<ResolvedOverload> resolve_overload(JS::VM& vm, EffectiveOv
         //    then remove from S all other entries.
         else if (value.is_object() && value.as_object().is_typed_array()
             && has_overload_with_argument_type_or_subtype_matching(overloads, i, [&](Type const& type) {
-                   if (type.is_plain() && (type.name() == static_cast<JS::TypedArrayBase const&>(value.as_object()).element_name() || type.name() == "BufferSource" || type.name() == "ArrayBufferView"))
+                   if (type.is_plain() && (type.name() == JS::typed_array_element_name(static_cast<JS::TypedArrayBase const&>(value.as_object()).kind()) || type.name() == "BufferSource" || type.name() == "ArrayBufferView"))
                        return true;
                    if (type.is_object())
                        return true;
