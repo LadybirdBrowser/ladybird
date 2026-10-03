@@ -1,0 +1,7 @@
+getElementById: true
+querySelector: true
+named property: true
+color: rgb(0, 128, 0)
+after rename, old name: null
+after rename, new name: true
+after rename, color: rgb(0, 0, 0)
