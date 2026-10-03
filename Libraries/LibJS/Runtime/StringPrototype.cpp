@@ -547,6 +547,7 @@ static constexpr AK::Array<u8, 128> ascii_collation_tertiary_weights {
 static Optional<int> try_fast_ascii_string_compare(StringView a, StringView b)
 {
     auto len = min(a.length(), b.length());
+    int tertiary_result = 0;
 
     for (size_t i = 0; i < len; i++) {
         auto a_character = a[i];
@@ -562,18 +563,22 @@ static Optional<int> try_fast_ascii_string_compare(StringView a, StringView b)
                 return {};
             if (a_primary_weight != b_primary_weight)
                 return a_primary_weight < b_primary_weight ? -1 : 1;
-            if (a.length() != b.length())
-                return a.length() < b.length() ? -1 : 1;
-            auto a_tertiary_weight = ascii_collation_tertiary_weights[a_character];
-            auto b_tertiary_weight = ascii_collation_tertiary_weights[b_character];
-            if (a_tertiary_weight != b_tertiary_weight)
-                return a_tertiary_weight < b_tertiary_weight ? -1 : 1;
+            if (tertiary_result == 0) {
+                auto a_tertiary_weight = ascii_collation_tertiary_weights[a_character];
+                auto b_tertiary_weight = ascii_collation_tertiary_weights[b_character];
+                if (a_tertiary_weight != b_tertiary_weight)
+                    tertiary_result = a_tertiary_weight < b_tertiary_weight ? -1 : 1;
+            }
         }
     }
-    if (a.length() != b.length())
-        return a.length() < b.length() ? -1 : 1;
 
-    return 0;
+    auto longer = a.length() > b.length() ? a : b;
+    for (size_t i = len; i < longer.length(); i++) {
+        if (ascii_collation_primary_weights[longer[i]] != 0)
+            return a.length() < b.length() ? -1 : 1;
+    }
+
+    return tertiary_result;
 }
 
 // 22.1.3.12 String.prototype.localeCompare ( that [ , reserved1 [ , reserved2 ] ] ), https://tc39.es/ecma262/#sec-string.prototype.localecompare
