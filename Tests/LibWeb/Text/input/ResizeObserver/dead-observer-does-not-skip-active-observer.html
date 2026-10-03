@@ -10,7 +10,7 @@
 <script>
     let deadBox = null;
 
-    promiseTest(async () => {
+    function observeDeadBox() {
         let deadObserver = new ResizeObserver(() => {
             println("dead observer callback");
         });
@@ -21,6 +21,10 @@
         document.body.appendChild(deadBox);
         deadObserver.observe(deadBox);
         deadBox.remove();
+    }
+
+    promiseTest(async () => {
+        observeDeadBox();
         internals.markAsGarbage("deadBox");
         internals.gc();
 
