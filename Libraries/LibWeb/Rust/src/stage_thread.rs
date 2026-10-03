@@ -12,16 +12,19 @@
 //! for a job it hands a thread with [`StageThread::run`], which may borrow from the host's frame. A job it submits
 //! with [`StageThread::submit`] owns everything it reads instead, and runs beside the host: the host goes on, and
 //! takes the job's answer in from its [`InFlight`] once it has finished.
+//!
+//! A thread waiting on the other side of a hand-off sleeps until that side wakes it: a stage thread for its next job,
+//! a host for the answer of a job it handed out. Nothing spins or polls, so a waiting thread takes no CPU from the
+//! threads that run.
 
 use crate::render_state::{RenderWait, TaskBoundary, render_state_died};
-use std::cell::UnsafeCell;
+use std::cell::{Cell, UnsafeCell};
 use std::marker::PhantomData;
 use std::panic::AssertUnwindSafe;
 use std::ptr::NonNull;
 use std::sync::atomic::{AtomicBool, AtomicPtr, Ordering};
 use std::sync::{Arc, Mutex, OnceLock, PoisonError};
 use std::thread::Thread;
-use std::time::{Duration, Instant};
 
 // This crate is not instrumented by ThreadSanitizer, so TSan cannot see the ordering the hand-off gives between the
 // host's thread and a stage thread. Tell it explicitly, or every access a stage thread makes to what the host wrote
@@ -59,7 +62,8 @@ pub(crate) struct StageThread {
 
 /// What a stage thread shares with the threads that hand it jobs.
 struct Shared {
-    /// The job handed to the thread and not taken yet, if any.
+    /// The jobs handed to the thread and not taken yet, the last one handed first, each linked to the one handed
+    /// before it.
     handed: AtomicPtr<JobHeader>,
     /// Whether the thread runs a job, rather than waiting for the next one. Its address names the thread to
     /// ThreadSanitizer.
@@ -102,16 +106,19 @@ impl StageThread {
                     setup();
                 }
                 loop {
-                    // Only this thread takes a job, so one it sees stays there until it takes it.
-                    let job = wait_for(|| {
-                        NonNull::new(shared.handed.load(Ordering::Relaxed))?;
-                        NonNull::new(shared.handed.swap(std::ptr::null_mut(), Ordering::Acquire))
-                    });
+                    let last = wait_for(|| NonNull::new(shared.handed.swap(std::ptr::null_mut(), Ordering::Acquire)));
                     tsan::acquire(&shared.busy);
-                    shared.busy.store(true, Ordering::Relaxed);
-                    // SAFETY: `StageThread::run` keeps the job it hands out live until it is done, and
-                    // `StageThread::submit` gives up the job it hands out to this thread.
-                    unsafe { (job.as_ref().run)(job, &shared.busy) };
+                    let mut next = Some(in_handed_order(last));
+                    while let Some(job) = next {
+                        // SAFETY: `StageThread::run` keeps the job it hands out live until it is done, and
+                        // `StageThread::submit` gives up the job it hands out to this thread. Its link is read before
+                        // it runs, as the thread that handed it may leave the frame it is in once it is done.
+                        unsafe {
+                            next = job.as_ref().next.get();
+                            shared.busy.store(true, Ordering::Relaxed);
+                            (job.as_ref().run)(job, &shared.busy);
+                        }
+                    }
                 }
             })
             .expect("a stage thread could not be started");
@@ -161,25 +168,35 @@ impl StageThread {
         }
     }
 
-    /// Hands the job `header` heads to this thread, once the thread has taken the job handed to it before.
+    /// Hands the job `header` heads to this thread, which runs it after the jobs handed to it before.
     fn hand(&self, header: NonNull<JobHeader>) {
         tsan::release(&self.shared.busy);
-        // Another thread's job leaves the slot as soon as this thread takes it.
-        while self
+        let before = self
             .shared
             .handed
-            .compare_exchange_weak(
-                std::ptr::null_mut(),
-                header.as_ptr(),
-                Ordering::Release,
-                Ordering::Relaxed,
-            )
-            .is_err()
-        {
-            std::thread::yield_now();
+            .update(Ordering::Release, Ordering::Relaxed, |before| {
+                // SAFETY: Nothing else reaches the job until it is handed out.
+                unsafe { header.as_ref() }.next.set(NonNull::new(before));
+                header.as_ptr()
+            });
+        // The thread takes every job handed to it at once, so the one that handed the first job it has not taken yet
+        // wakes it for all of them.
+        if before.is_null() {
+            self.thread.unpark();
         }
-        self.thread.unpark();
     }
+}
+
+/// Relinks the jobs a stage thread took, the last one handed `last` and each linked to the one handed before it, so
+/// that each links to the one handed after it, and answers the first one handed.
+fn in_handed_order(last: NonNull<JobHeader>) -> NonNull<JobHeader> {
+    let (mut job, mut after) = (last, None);
+    // SAFETY: A job handed out and not run yet stays live, and only the stage thread that took it reaches it.
+    while let Some(before) = unsafe { job.as_ref() }.next.replace(after) {
+        after = Some(job);
+        job = before;
+    }
+    job
 }
 
 /// What a stage thread knows of a job handed to it: how to run it, which the job's kind says.
@@ -187,6 +204,9 @@ struct JobHeader {
     /// Runs the job this header heads, and tells whoever takes its answer that it is done, after it has stored
     /// `false` to the thread's busy flag it is handed.
     run: unsafe fn(NonNull<JobHeader>, &AtomicBool),
+    /// Until the stage thread takes the job, the job handed to it before this one and not taken yet; then, the job it
+    /// runs after this one.
+    next: Cell<Option<NonNull<JobHeader>>>,
 }
 
 /// Stores that the stage thread whose busy flag `busy` is has run its job.
@@ -210,7 +230,10 @@ impl<F: FnOnce() + Send> JobInFrame<F> {
     /// A job the calling thread is to hand out and wait for.
     fn new(job: F) -> Self {
         Self {
-            header: JobHeader { run: Self::run_handed },
+            header: JobHeader {
+                run: Self::run_handed,
+                next: Cell::new(None),
+            },
             waiting: UnsafeCell::new(Some(std::thread::current())),
             done: AtomicBool::new(false),
             job: UnsafeCell::new(Some(job)),
@@ -256,6 +279,7 @@ impl<F: FnOnce() -> R + Send, R: Send> SubmittedJob<F, R> {
         let job = Box::new(Self {
             header: JobHeader {
                 run: Self::run_submitted,
+                next: Cell::new(None),
             },
             job,
             flight,
@@ -369,33 +393,15 @@ impl<R> InFlight<R> {
     }
 }
 
-/// How long a thread spins for what the other side of a hand-off answers before it sleeps. The host and a stage thread
-/// take turns, and a turn is mostly shorter than waking a sleeping thread takes.
-const SPIN: Duration = Duration::from_micros(200);
-
-/// How long a thread then sleeps in slices of [`LIGHT_SLEEP_SLICE`] before it sleeps until woken. A thread that sleeps
-/// with no timeout lets its core idle deeply, which takes tens of microseconds to leave; a short timeout keeps the core
-/// in a light idle state, which it leaves in a few. A thread that just handed or took a job mostly sees the next well
-/// within this.
-const LIGHT_SLEEP: Duration = Duration::from_millis(10);
-const LIGHT_SLEEP_SLICE: Duration = Duration::from_micros(250);
-
-/// Waits until `ready` answers something, which the other side of a hand-off makes it answer before it wakes the
-/// calling thread: spins for [`SPIN`], sleeps lightly until [`LIGHT_SLEEP`], then sleeps until woken.
+/// Waits until `ready` answers something, sleeping until woken. The other side of the hand-off makes `ready` answer
+/// before it wakes the calling thread, and knows to wake it before the calling thread first asks `ready`, so the wake
+/// is never lost: a thread woken before it sleeps does not sleep.
 fn wait_for<T>(mut ready: impl FnMut() -> Option<T>) -> T {
-    let started = Instant::now();
     loop {
         if let Some(value) = ready() {
             return value;
         }
-        let waited = started.elapsed();
-        if waited < SPIN {
-            std::hint::spin_loop();
-        } else if waited < LIGHT_SLEEP {
-            std::thread::park_timeout(LIGHT_SLEEP_SLICE);
-        } else {
-            std::thread::park();
-        }
+        std::thread::park();
     }
 }
 
@@ -423,6 +429,7 @@ pub(crate) fn paint_thread() -> &'static StageThread {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::atomic::AtomicUsize;
 
     fn test_thread() -> &'static StageThread {
         static THREAD: OnceLock<StageThread> = OnceLock::new();
@@ -517,6 +524,25 @@ mod tests {
         test_thread().run(|| ());
         assert!(flight.has_finished());
         assert!(matches!(flight.try_take(&TaskBoundary::for_test()), Ok(7)));
+    }
+
+    #[test]
+    fn jobs_handed_while_the_thread_is_busy_run_in_the_order_they_were_handed() {
+        let (open, wait) = gate();
+        drop(test_thread().submit(wait));
+        let ran = Arc::new(AtomicUsize::new(0));
+        let flights: Vec<_> = (0..8)
+            .map(|_| {
+                let ran = Arc::clone(&ran);
+                test_thread().submit(move || ran.fetch_add(1, Ordering::Relaxed))
+            })
+            .collect();
+        open.store(true, Ordering::Release);
+        let order: Vec<_> = flights
+            .into_iter()
+            .map(|flight| flight.join(crate::render_state::ScriptForcedRead::for_test()))
+            .collect();
+        assert_eq!(order, (0..8).collect::<Vec<_>>());
     }
 
     #[test]
