@@ -199,6 +199,13 @@ unsafe fn lent_bytes<'a>(bytes: FfiHostHandle, length: usize) -> &'a [u8] {
 /// transaction.
 pub(crate) struct StyleJobAnswer(FfiStyleTransactionOutput);
 
+impl StyleJobAnswer {
+    /// Whether the transaction answered no row to restyle.
+    pub(crate) fn restyles_nothing(&self) -> bool {
+        self.0.answers().is_empty()
+    }
+}
+
 impl RenderJob for StyleJob {
     type Answer = StyleJobAnswer;
     type Permit = StyleJobPermit;
@@ -285,12 +292,14 @@ pub unsafe extern "C" fn style_engine_let_style_transaction_fly(
     blocker: FfiFlightBlocker,
     drain: FfiFlownStyleDrain,
 ) -> bool {
-    let (Some(root), Some(license)) = (StyleNodeID::from_raw(root), FlightLicense::for_blocker(blocker)) else {
-        return false;
-    };
     assert!(!host.is_null(), "document host is null");
     // SAFETY: Guaranteed by the caller.
     let host = unsafe { &*host };
+    // The round the host sealed for the frame flies with it, or not at all.
+    let round = host.take_sealed_round();
+    let (Some(root), Some(license)) = (StyleNodeID::from_raw(root), FlightLicense::for_blocker(blocker)) else {
+        return false;
+    };
     if host.has_flown_style() {
         return false;
     }
@@ -300,7 +309,7 @@ pub unsafe extern "C" fn style_engine_let_style_transaction_fly(
         computation_inputs: unsafe { SealedStyleInputs::seal(computation_inputs) },
         flies: true,
     };
-    fly(host, job, drain, &license);
+    fly(host, job, round, drain, &license);
     true
 }
 

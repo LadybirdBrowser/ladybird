@@ -221,6 +221,25 @@ void Document::update_layout(UpdateLayoutReason reason, ThrottledAnimationSampli
         update_style_and_layout();
 }
 
+// The first round of the rendering update's layout reads the document's facts as they are before its style flies, and
+// runs after the style in the frame. List items that wait to be renumbered and top layer work are the layout update's
+// to do first, so nothing is sealed while either waits.
+void Document::seal_first_layout_round(Layout::BegunRead const& read)
+{
+    auto navigable = this->navigable();
+    if (!navigable || navigable->active_document().ptr() != this || !m_layout_node_arena)
+        return;
+    if (!m_list_owners_pending_item_renumber.is_empty() || !m_elements_with_pending_top_layer_membership_change.is_empty() || m_top_layer_needs_layout_zone_rebuild)
+        return;
+    drain_invalidation_journal(read);
+    Layout::RustFFI::FfiLayoutUpdateInputs inputs {
+        .reason_is_inspect_devtools_layout_data = false,
+        .is_template_contents_document = m_created_for_appropriate_template_contents,
+        .reason_name = ffi_utf16_view(to_string(UpdateLayoutReason::HTMLEventLoopRenderingUpdate)),
+    };
+    Layout::RustFFI::render_state_seal_first_layout_round(m_layout_node_arena->host(), &read, &inputs);
+}
+
 void Document::update_style_and_layout_once(Layout::BegunRead const& read, UpdateLayoutReason reason, ThrottledAnimationSamplingScope animation_sampling_scope)
 {
     auto navigable = this->navigable();

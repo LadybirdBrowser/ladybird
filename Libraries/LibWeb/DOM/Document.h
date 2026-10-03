@@ -502,6 +502,8 @@ public:
     // fly beside the event loop where `blocker` is none. The next style update takes its reactions in. Answers whether
     // the transaction flies.
     bool let_style_update_fly(Layout::RustFFI::FfiFlightBlocker blocker);
+    // Seals the first round of a rendering update's layout for the frame its style flies in.
+    void seal_first_layout_round(Layout::BegunRead const&);
     void note_throttled_animation_style_update() { m_has_throttled_animation_style_update = true; }
     void note_animations_that_can_skip_per_frame_style_updates();
     void flush_throttled_animation_style_update();

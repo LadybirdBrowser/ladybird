@@ -364,6 +364,43 @@ pub(crate) struct LayoutRoundAnswer {
     end: LayoutRoundEnd,
 }
 
+/// The first round of a rendering update's layout, sealed on the host's thread with the facts it read there, to run in
+/// the frame the update lets fly.
+pub(crate) struct SealedRound {
+    job: LayoutRoundJob,
+    /// Whether the round builds the tree.
+    rebuilds_tree: bool,
+}
+
+impl SealedRound {
+    /// Runs the round over `state` in the frame's flight, where the frame's style left its layout to do: the rows a
+    /// round runs over are bound to the styles the host has. The flight reaches nothing of the host, so a length only
+    /// the host resolves leaves the layout for the host to lay out again.
+    pub(crate) fn run(self, state: &mut ArenaHandle) -> Option<FlownRound> {
+        if state
+            .arena()
+            .layout_is_up_to_date(self.job.facts.document_needs_layout_tree_build)
+        {
+            return None;
+        }
+        let answer = self.job.run(state);
+        let arena = state.arena();
+        if arena.take_unresolved_container_lengths() && !arena.layout_root().is_invalid() {
+            arena.set_needs_layout_update(arena.layout_root(), false);
+        }
+        Some(FlownRound {
+            answer,
+            rebuilds_tree: self.rebuilds_tree,
+        })
+    }
+}
+
+/// What a round that flew owes the host, which the layout update after the frame's landing pays first.
+pub(crate) struct FlownRound {
+    answer: LayoutRoundAnswer,
+    rebuilds_tree: bool,
+}
+
 impl LayoutRoundJob {
     /// Runs the round over `state`, and resolves what it owes the host as it ends.
     pub(crate) fn run(self, state: &mut ArenaHandle) -> LayoutRoundAnswer {
@@ -520,6 +557,83 @@ impl LayoutRoundAnswer {
     }
 }
 
+/// The job the layout update goes on with: one it sends, or what the round that flew answered.
+enum NextRound {
+    Job(LayoutRoundJob),
+    Flown(LayoutRoundAnswer),
+}
+
+/// Readies the next round of the layout update of `document_host`'s document, which lays it out as of `facts`, with a
+/// tree build where the tree needs one.
+fn next_round(
+    main_thread: &MainThread,
+    document_host: &DocumentHost,
+    read: &BegunRead,
+    host: &FfiLayoutUpdateHostCallbacks,
+    facts: FfiLayoutUpdateDocumentFacts,
+    trace: &UpdateLayoutTrace,
+) -> SealedRound {
+    let layout_host = FfiLayoutHostCallbacks::of(main_thread);
+    let rebuilds_tree = facts.document_needs_layout_tree_build
+        || read_arena(document_host, read, (), |arena, ()| {
+            arena.layout_root().is_invalid() || arena.needs_full_layout_tree_update()
+        });
+    let build = rebuilds_tree.then(|| {
+        let document_style_node = StyleNodeID::from_raw(facts.document_style_node)
+            .expect("a document that lays out is named in the style mirror");
+        let may_create_viewport = read_arena(
+            document_host,
+            read,
+            document_style_node,
+            |arena, document_style_node| arena.tree_build_may_create_viewport(Some(document_style_node)),
+        );
+        TreeBuildJob::new(
+            document_style_node,
+            host.prepare_layout_tree_build(main_thread, read, may_create_viewport),
+        )
+    });
+    SealedRound {
+        job: LayoutRoundJob {
+            facts,
+            build,
+            layout: RoundLayout::PartialIfPlanned,
+            container_query_evaluation_is_pending: host.container_query_evaluation_is_pending(main_thread, read),
+            container_length_bases: layout_host.container_length_bases_query(main_thread),
+            trace: trace.clone(),
+        },
+        rebuilds_tree,
+    }
+}
+
+/// Seals the first round of a rendering update's layout of `document_host`'s document, which the frame the update lets
+/// fly next runs after its style, where the document needs one.
+///
+/// # Safety
+///
+/// As for [`update_layout`].
+unsafe fn seal_first_round(
+    main_thread: &MainThread,
+    document_host: &DocumentHost,
+    read: &BegunRead,
+    inputs: &FfiLayoutUpdateInputs,
+) {
+    let host = document_host
+        .host_tables()
+        .layout_update_host
+        .get()
+        .expect("the document has no layout update host");
+    let facts = host.document_facts(main_thread, read);
+    if inputs.is_template_contents_document || host_layout_is_up_to_date(document_host, read, &facts) {
+        return;
+    }
+    // SAFETY: Guaranteed by the caller.
+    let trace = unsafe { UpdateLayoutTrace::new(inputs.reason_name) };
+    let mut round = next_round(main_thread, document_host, read, &host, facts, &trace);
+    // The round runs beside the host, which it cannot ask.
+    round.job.container_length_bases = round.job.container_length_bases.sealed();
+    document_host.seal_round(round);
+}
+
 /// # Safety
 ///
 /// The layout update host's callbacks must answer synchronously from the live document, and `inputs` must satisfy
@@ -557,65 +671,54 @@ unsafe fn update_layout(
         layout_pass += 1;
 
         host.update_style(main_thread, read);
-        host.process_pending_list_item_renumbers(main_thread, read);
-        host.process_pending_top_layer_layout_changes(main_thread, read);
+        // A round that flew in the frame the update took in is the update's first, which the host pays before
+        // anything else of the update reads the layout.
+        let (rebuilds_tree, mut next) = match document_host.take_flown_round() {
+            Some(FlownRound { answer, rebuilds_tree }) => {
+                first_job = false;
+                (rebuilds_tree, NextRound::Flown(answer))
+            }
+            None => {
+                host.process_pending_list_item_renumbers(main_thread, read);
+                host.process_pending_top_layer_layout_changes(main_thread, read);
 
-        let facts = host.document_facts(main_thread, read);
-        let force_devtools_layout_data_collection =
-            facts.should_collect_devtools_layout_data && inputs.reason_is_inspect_devtools_layout_data;
+                let facts = host.document_facts(main_thread, read);
+                let force_devtools_layout_data_collection =
+                    facts.should_collect_devtools_layout_data && inputs.reason_is_inspect_devtools_layout_data;
+                if host_layout_is_up_to_date(document_host, read, &facts) && !force_devtools_layout_data_collection {
+                    host.prepare_for_rendering(main_thread, read);
+                    return;
+                }
 
-        if host_layout_is_up_to_date(document_host, read, &facts) && !force_devtools_layout_data_collection {
-            host.prepare_for_rendering(main_thread, read);
-            return;
-        }
+                // NOTE: If this is a document hosting <template> contents, layout is unnecessary.
+                if inputs.is_template_contents_document {
+                    return;
+                }
 
-        // NOTE: If this is a document hosting <template> contents, layout is unnecessary.
-        if inputs.is_template_contents_document {
-            return;
-        }
-
-        let needs_layout_tree_rebuild = facts.document_needs_layout_tree_build
-            || read_arena(document_host, read, (), |arena, ()| {
-                arena.layout_root().is_invalid() || arena.needs_full_layout_tree_update()
-            });
-        let build = needs_layout_tree_rebuild.then(|| {
-            let document_style_node = StyleNodeID::from_raw(facts.document_style_node)
-                .expect("a document that lays out is named in the style mirror");
-            let may_create_viewport = read_arena(
-                document_host,
-                read,
-                document_style_node,
-                |arena, document_style_node| arena.tree_build_may_create_viewport(Some(document_style_node)),
-            );
-            TreeBuildJob::new(
-                document_style_node,
-                host.prepare_layout_tree_build(main_thread, read, may_create_viewport),
-            )
-        });
-        let mut job = LayoutRoundJob {
-            facts,
-            build,
-            layout: RoundLayout::PartialIfPlanned,
-            container_query_evaluation_is_pending: host.container_query_evaluation_is_pending(main_thread, read),
-            container_length_bases: layout_host.container_length_bases_query(main_thread),
-            trace: trace.clone(),
+                let round = next_round(main_thread, document_host, read, &host, facts, &trace);
+                (round.rebuilds_tree, NextRound::Job(round.job))
+            }
         };
         let end = loop {
-            // The update's first job spends the read the host began; one that finds it spent lays the read out again.
-            // Every job after it in the update is another round's.
-            let permit = || {
-                if first_job {
-                    crate::render_state::FrameJobPermit::read_lays_out_again(read)
-                } else {
-                    crate::render_state::FrameJobPermit::for_next_round(read)
+            let mut answer = match next {
+                NextRound::Flown(answer) => answer,
+                NextRound::Job(job) => {
+                    // The update's first job spends the read the host began; one that finds it spent lays the read out
+                    // again. Every job after it in the update is another round's.
+                    let first = std::mem::replace(&mut first_job, false);
+                    let permit = || {
+                        if first {
+                            crate::render_state::FrameJobPermit::read_lays_out_again(read)
+                        } else {
+                            crate::render_state::FrameJobPermit::for_next_round(read)
+                        }
+                    };
+                    run_layout_round_job(document_host, job, permit)
                 }
             };
-            let mut answer = run_layout_round_job(document_host, job, permit);
-            first_job = false;
             unsafe { answer.pay(main_thread, &host, read) };
             let built = matches!(answer.end, LayoutRoundEnd::Built { .. });
-            if needs_layout_tree_rebuild && host.reconcile_stale_list_item_counters_after_tree_build(main_thread, read)
-            {
+            if rebuilds_tree && host.reconcile_stale_list_item_counters_after_tree_build(main_thread, read) {
                 // The stale counters marked more of the tree for a rebuild, which the next round runs.
                 debug_assert!(
                     built,
@@ -632,7 +735,7 @@ unsafe fn update_layout(
             };
             // The round goes on to lay out what it built, as of the document's facts now: paying for the build may
             // have resized this document's viewport through its embedding document.
-            job = LayoutRoundJob {
+            next = NextRound::Job(LayoutRoundJob {
                 facts: host.document_facts(main_thread, read),
                 build: None,
                 layout,
@@ -640,14 +743,14 @@ unsafe fn update_layout(
                     && host.container_query_evaluation_is_pending(main_thread, read),
                 container_length_bases: layout_host.container_length_bases_query(main_thread),
                 trace: trace.clone(),
-            };
+            });
         };
 
         match end {
             None | Some(LayoutRoundEnd::Built { .. }) => continue,
             Some(LayoutRoundEnd::PartialLayout) => {
                 // A round that built the tree changed it, whichever of its jobs ran the build.
-                host.after_layout_commit(main_thread, read, needs_layout_tree_rebuild);
+                host.after_layout_commit(main_thread, read, rebuilds_tree);
                 if host.needs_style_update_after_layout(main_thread, read)
                     || !host_layout_is_up_to_date(document_host, read, &host.document_facts(main_thread, read))
                 {

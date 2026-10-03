@@ -14,7 +14,8 @@ use super::*;
 #[derive(Clone, Copy)]
 pub(crate) struct ContainerLengthBasesQuery {
     context: *mut c_void,
-    query: unsafe extern "C" fn(*mut c_void, u32) -> svg_formatting_context::FfiContainerLengthBases,
+    /// The query, or none for a pass that runs beside the host and cannot ask it.
+    query: Option<unsafe extern "C" fn(*mut c_void, u32) -> svg_formatting_context::FfiContainerLengthBases>,
 }
 
 // SAFETY: A layout job calls the query while the host waits for the job's answer, so the document the C++ side reads
@@ -27,16 +28,27 @@ impl ContainerLengthBasesQuery {
         context: *mut c_void,
         query: unsafe extern "C" fn(*mut c_void, u32) -> svg_formatting_context::FfiContainerLengthBases,
     ) -> Self {
-        Self { context, query }
+        Self {
+            context,
+            query: Some(query),
+        }
     }
 
-    /// What `cqw` and `cqh` are 100 of for `element`.
+    /// The query for a pass that runs beside the host, which answers nothing.
+    pub(crate) fn sealed(self) -> Self {
+        Self {
+            context: std::ptr::null_mut(),
+            query: None,
+        }
+    }
+
+    /// What `cqw` and `cqh` are 100 of for `element`, where the pass can ask the host.
     pub(crate) fn bases(
         self,
         element: crate::css::style::tree::StyleNodeID,
-    ) -> svg_formatting_context::FfiContainerLengthBases {
-        // SAFETY: The document registered the query with the arena and outlives the pass.
-        unsafe { (self.query)(self.context, element.raw()) }
+    ) -> Option<svg_formatting_context::FfiContainerLengthBases> {
+        // SAFETY: The document registered the query with the arena and outlives the pass, which the host waits for.
+        self.query.map(|query| unsafe { query(self.context, element.raw()) })
     }
 }
 

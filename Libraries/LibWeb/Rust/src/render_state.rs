@@ -106,11 +106,13 @@ impl RenderState {
     }
 }
 
-/// What a frame that flew brings its host back: the render state it took, what its job answered, and the emptied buffer
-/// of the writes it took, which the host's queue keeps.
+/// What a frame that flew brings its host back: the render state it took, what its style transaction answered, what
+/// its first layout round owes, where it ran one, and the emptied buffer of the writes it took, which the host's queue
+/// keeps.
 pub(crate) struct Landing {
     state: RenderState,
     style: crate::css::style::style_job::StyleJobAnswer,
+    round: Option<crate::layout::FlownRound>,
     changes: Vec<ArenaChange>,
 }
 
@@ -287,12 +289,16 @@ pub(crate) fn send(host: &DocumentHost, read: ReadRight, message: RenderMessage<
 }
 
 /// Submits `job`, a style transaction of `host`'s document, to the render side, the StyleLayout thread, with the
-/// document's render state and the writes the host queued, and goes on: the frame flies with the state until the host
-/// takes it in, and the document drains the transaction's reactions with `drain`. Only a transaction that `_license`
-/// lets fly is submitted.
+/// document's render state, the writes the host queued and `round`, the layout round the host sealed, and goes on: the
+/// frame flies with the state until the host takes it in, and the document drains the transaction's reactions with
+/// `drain`. Only a transaction that `_license` lets fly is submitted.
+///
+/// The round lays out the rows as they are bound, to the styles the host has, so it runs only where the transaction
+/// answered no row to restyle.
 pub(crate) fn fly(
     host: &DocumentHost,
     job: crate::css::style::style_job::StyleJob,
+    round: Option<crate::layout::SealedRound>,
     drain: crate::css::style::style_job::FfiFlownStyleDrain,
     _license: &crate::painting::recording_slot::FlightLicense,
 ) {
@@ -301,7 +307,15 @@ pub(crate) fn fly(
         let run = move || {
             state.apply(changes.drain(..));
             let style = job.run(state.engine_mut());
-            Landing { state, style, changes }
+            let round = round
+                .filter(|_| style.restyles_nothing())
+                .and_then(|round| round.run(&mut state.arena));
+            Landing {
+                state,
+                style,
+                round,
+                changes,
+            }
         };
         #[cfg(test)]
         return crate::stage_thread::InFlight::landed(run());
