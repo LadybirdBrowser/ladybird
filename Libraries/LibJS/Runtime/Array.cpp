@@ -324,11 +324,8 @@ ThrowCompletionOr<bool> Array::internal_set(PropertyKey const& property_key, Val
 {
     auto& vm = this->vm();
 
-    VERIFY(receiver.is_object());
-    auto& receiver_object = receiver.as_object();
-
     // Fast path for arrays with intact prototype chain
-    if (&receiver_object == this && !m_is_proxy_target && default_prototype_chain_intact()) {
+    if (receiver.is_object() && &receiver.as_object() == this && !m_is_proxy_target && default_prototype_chain_intact()) {
         if (property_key.is_number() && indexed_storage_kind() != IndexedStorageKind::Dictionary) {
             auto index = property_key.as_number();
             auto property_descriptor = TRY(internal_get_own_property(property_key));
