@@ -274,6 +274,7 @@ private:
     virtual void toggle_media_mute_state(Web::PageId page_id) override;
     virtual void toggle_media_loop_state(Web::PageId page_id) override;
     virtual void toggle_media_fullscreen_state(Web::PageId page_id) override;
+    virtual void toggle_media_picture_in_picture_state(Web::PageId page_id) override;
     virtual void toggle_media_controls_state(Web::PageId page_id) override;
 
     virtual void set_page_mute_state(Web::PageId page_id, Web::HTML::MuteState mute_state) override;

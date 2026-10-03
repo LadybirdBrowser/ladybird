@@ -20,6 +20,8 @@ struct MediaContextMenu {
     bool has_user_agent_controls { false };
     bool is_looping { false };
     bool is_fullscreen { false };
+    bool is_picture_in_picture { false };
+    bool can_enter_picture_in_picture { false };
 };
 
 }

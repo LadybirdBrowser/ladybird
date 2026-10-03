@@ -752,6 +752,8 @@ protected:
     RefPtr<Action> m_media_loop_action;
     RefPtr<Action> m_media_enter_fullscreen_action;
     RefPtr<Action> m_media_exit_fullscreen_action;
+    RefPtr<Action> m_media_enter_picture_in_picture_action;
+    RefPtr<Action> m_media_exit_picture_in_picture_action;
 
     struct PendingInputEvent {
         Web::InputEvent event;

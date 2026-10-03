@@ -18,6 +18,8 @@ ErrorOr<void> IPC::encode(Encoder& encoder, Web::MediaContextMenu const& menu)
     TRY(encoder.encode(menu.has_user_agent_controls));
     TRY(encoder.encode(menu.is_looping));
     TRY(encoder.encode(menu.is_fullscreen));
+    TRY(encoder.encode(menu.is_picture_in_picture));
+    TRY(encoder.encode(menu.can_enter_picture_in_picture));
     return {};
 }
 
@@ -32,5 +34,7 @@ ErrorOr<Web::MediaContextMenu> IPC::decode(Decoder& decoder)
         .has_user_agent_controls = TRY(decoder.decode<bool>()),
         .is_looping = TRY(decoder.decode<bool>()),
         .is_fullscreen = TRY(decoder.decode<bool>()),
+        .is_picture_in_picture = TRY(decoder.decode<bool>()),
+        .can_enter_picture_in_picture = TRY(decoder.decode<bool>()),
     };
 }

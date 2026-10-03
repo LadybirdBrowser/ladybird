@@ -352,6 +352,7 @@ public:
         };
         Kind kind { Kind::Page };
         GC::Ref<DOM::Node> target;
+        Optional<Web::MediaContextMenu> media {};
     };
     void record_context_menu_request(Badge<EventHandler>, ContextMenuRequest);
     void clear_context_menu_request() { m_context_menu_request.clear(); }
@@ -363,6 +364,7 @@ public:
     void toggle_media_mute_state();
     void toggle_media_loop_state();
     void toggle_media_fullscreen_state();
+    void toggle_media_picture_in_picture_state();
     void toggle_media_controls_state();
 
     HTML::MuteState page_mute_state() const { return m_mute_state; }

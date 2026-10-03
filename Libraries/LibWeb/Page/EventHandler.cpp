@@ -3036,7 +3036,8 @@ void EventHandler::maybe_show_context_menu(GC::Ref<DOM::Node> node, MouseEventCo
             }
         } else if (is<HTML::HTMLMediaElement>(*context_menu_node)) {
             auto& media_element = as<HTML::HTMLMediaElement>(*context_menu_node);
-            auto is_video = is<HTML::HTMLVideoElement>(*context_menu_node);
+            auto* video_element = as_if<HTML::HTMLVideoElement>(*context_menu_node);
+            auto is_video = video_element != nullptr;
 
             // A media element without a source, or one whose source does not resolve against the document's base
             // URL, has no URL to open or copy.
@@ -3052,12 +3053,14 @@ void EventHandler::maybe_show_context_menu(GC::Ref<DOM::Node> node, MouseEventCo
                 .has_user_agent_controls = media_element.has_attribute(HTML::AttributeNames::controls),
                 .is_looping = media_element.has_attribute(HTML::AttributeNames::loop),
                 .is_fullscreen = is_video && media_element.is_fullscreen_element(),
+                .is_picture_in_picture = media_element.is_picture_in_picture_element(),
+                .can_enter_picture_in_picture = is_video && video_element->can_enter_picture_in_picture(),
             };
 
             auto navigation = menu.media_url.map([&](auto const& url) {
                 return HTML::prepare_navigation_from_document(media_element.document(), url, ReferrerPolicy::ReferrerPolicy::EmptyString);
             });
-            m_navigable->page().record_context_menu_request({}, { .kind = Page::ContextMenuRequest::Kind::Media, .target = media_element });
+            m_navigable->page().record_context_menu_request({}, { .kind = Page::ContextMenuRequest::Kind::Media, .target = media_element, .media = menu });
             m_navigable->page().did_request_media_context_menu(media_element.unique_id(), local_root_id, page_viewport_position, "", modifiers, menu, move(navigation));
         } else {
             select_context_menu_text(read, document, coordinates.visual_viewport_position);

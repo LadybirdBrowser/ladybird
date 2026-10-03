@@ -483,6 +483,15 @@ GC::Ref<WebIDL::Promise> HTMLVideoElement::request_picture_in_picture()
     return promise;
 }
 
+// NB: These are the checks of requestPictureInPicture() that come before the one for user activation.
+bool HTMLVideoElement::can_enter_picture_in_picture() const
+{
+    return document().picture_in_picture_enabled()
+        && ready_state() != ReadyState::HaveNothing
+        && video_tracks()->length() != 0
+        && !has_attribute(AttributeNames::disablepictureinpicture);
+}
+
 bool HTMLVideoElement::has_pending_picture_in_picture_promise(WebIDL::Promise const& promise) const
 {
     return any_of(m_pending_picture_in_picture_promises, [&](auto const& pending_promise) {

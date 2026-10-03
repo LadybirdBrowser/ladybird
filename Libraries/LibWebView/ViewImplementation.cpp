@@ -3802,6 +3802,12 @@ void ViewImplementation::initialize_context_menus()
     m_media_exit_fullscreen_action = Action::create("Exit Full Screen"sv, ActionID::ExitFullscreen, [this]() {
         send_to_media_context_menu_page([](auto& page) { page.async_toggle_media_fullscreen_state(); });
     });
+    m_media_enter_picture_in_picture_action = Action::create("Picture-in-Picture"sv, ActionID::EnterPictureInPicture, [this]() {
+        send_to_media_context_menu_page([](auto& page) { page.async_toggle_media_picture_in_picture_state(); });
+    });
+    m_media_exit_picture_in_picture_action = Action::create("Exit Picture-in-Picture"sv, ActionID::ExitPictureInPicture, [this]() {
+        send_to_media_context_menu_page([](auto& page) { page.async_toggle_media_picture_in_picture_state(); });
+    });
 
     auto add_open_url_actions = [this](Menu& menu) {
         menu.add_action(*m_open_in_new_tab_action);
@@ -3871,6 +3877,8 @@ void ViewImplementation::initialize_context_menus()
     m_media_context_menu->add_action(*m_media_loop_action);
     m_media_context_menu->add_action(*m_media_enter_fullscreen_action);
     m_media_context_menu->add_action(*m_media_exit_fullscreen_action);
+    m_media_context_menu->add_action(*m_media_enter_picture_in_picture_action);
+    m_media_context_menu->add_action(*m_media_exit_picture_in_picture_action);
     m_media_context_menu->add_separator();
     m_media_context_menu->add_action(*m_open_audio_action);
     m_media_context_menu->add_action(*m_open_video_action);
@@ -4225,6 +4233,8 @@ void ViewImplementation::did_request_media_context_menu(Badge<WebContentPage>, W
 
         weak_this->m_media_enter_fullscreen_action->set_visible(menu.is_video && !menu.is_fullscreen);
         weak_this->m_media_exit_fullscreen_action->set_visible(menu.is_video && menu.is_fullscreen);
+        weak_this->m_media_enter_picture_in_picture_action->set_visible(menu.can_enter_picture_in_picture && !menu.is_picture_in_picture);
+        weak_this->m_media_exit_picture_in_picture_action->set_visible(menu.is_picture_in_picture);
 
         if (weak_this->m_media_context_menu->on_activation)
             weak_this->m_media_context_menu->on_activation(weak_this->to_widget_position(content_position));

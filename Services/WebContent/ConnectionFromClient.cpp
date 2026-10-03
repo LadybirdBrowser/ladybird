@@ -3380,6 +3380,12 @@ void ConnectionFromClient::toggle_media_fullscreen_state(Web::PageId page_id)
         page->page().toggle_media_fullscreen_state();
 }
 
+void ConnectionFromClient::toggle_media_picture_in_picture_state(Web::PageId page_id)
+{
+    if (auto page = this->page(page_id); page.has_value())
+        page->page().toggle_media_picture_in_picture_state();
+}
+
 void ConnectionFromClient::toggle_media_controls_state(Web::PageId page_id)
 {
     if (auto page = this->page(page_id); page.has_value())

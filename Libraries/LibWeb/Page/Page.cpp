@@ -44,6 +44,7 @@
 #include <LibWeb/PictureInPicture/PictureInPictureController.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/Selection/Selection.h>
+#include <LibWeb/WebIDL/Promise.h>
 #include <LibWebCommon/Clipboard/SystemClipboard.h>
 #include <LibWebCommon/HTML/NavigationPopulationRequest.h>
 #include <LibWebCommon/HTML/SelectedFile.h>
@@ -1564,6 +1565,25 @@ void Page::toggle_media_fullscreen_state()
 
     HTML::TemporaryExecutionContext execution_context { media_element->document().relevant_settings_object() };
     media_element->toggle_fullscreen();
+}
+
+void Page::toggle_media_picture_in_picture_state()
+{
+    auto* video_element = as_if<HTML::HTMLVideoElement>(media_context_menu_element().ptr());
+    if (!video_element)
+        return;
+
+    auto& document = video_element->document();
+    if (video_element->is_picture_in_picture_element()) {
+        picture_in_picture_controller().enqueue_exit(document, nullptr);
+        return;
+    }
+
+    // AD-HOC: An execution context is required for Promise creation hooks.
+    HTML::TemporaryExecutionContext execution_context { document.relevant_settings_object() };
+
+    // The request is the page's own, so a page that has changed since the menu opened can still reject it.
+    WebIDL::mark_promise_as_handled(video_element->request_picture_in_picture());
 }
 
 void Page::toggle_media_controls_state()
