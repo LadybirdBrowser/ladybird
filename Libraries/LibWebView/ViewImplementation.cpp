@@ -121,12 +121,12 @@ CanonicalTraversable& ViewImplementation::traversable() const
     return *m_top_level_traversable;
 }
 
-void ViewImplementation::display_traversable(CanonicalTraversable& traversable)
+void ViewImplementation::display_traversable(CanonicalTraversable& traversable, Web::HTML::VisibilityState system_visibility_state)
 {
     VERIFY(!m_top_level_traversable);
     m_top_level_traversable = &traversable;
     traversable.set_view({}, *this);
-    traversable.set_system_visibility_state(m_system_visibility_state);
+    traversable.set_system_visibility_state(system_visibility_state);
     traversable.on_session_history_changed = [this] {
         notify_session_history_changed();
     };
@@ -253,7 +253,6 @@ void ViewImplementation::set_window_size(Gfx::IntSize size)
 
 void ViewImplementation::set_system_visibility_state(Web::HTML::VisibilityState visibility_state)
 {
-    m_system_visibility_state = visibility_state;
     if (!has_display_page())
         return;
 
@@ -2215,14 +2214,14 @@ void ViewImplementation::handle_resize()
     }
 }
 
-void ViewImplementation::initialize_tab(Optional<CanonicalTraversable&> traversable)
+void ViewImplementation::initialize_tab(Web::HTML::VisibilityState system_visibility_state, Optional<CanonicalTraversable&> traversable)
 {
     if (!traversable.has_value()) {
         // FIXME: Fail to open the tab, rather than crashing the whole application if this fails.
-        auto page = MUST(Application::the().open_page_for_new_tab(m_is_private, m_system_visibility_state));
+        auto page = MUST(Application::the().open_page_for_new_tab(m_is_private));
         traversable = page->traversable();
     }
-    display_traversable(*traversable);
+    display_traversable(*traversable, system_visibility_state);
     // The launched process's initial page, or the page the opener's process opened for the tab, displays it.
     VERIFY(has_display_page());
     VERIFY(page().client().is_private() == m_is_private);

@@ -253,14 +253,13 @@ void WebContentClient::remember_compositor_context(Web::CompositorContextId cont
     m_compositor_contexts.set(context_id, page_id);
 }
 
-WebContentPage& WebContentClient::open_initial_page_for_new_top_level_traversable(Web::HTML::VisibilityState system_visibility_state)
+WebContentPage& WebContentClient::open_initial_page_for_new_top_level_traversable()
 {
     auto initial_page_id = m_unassigned_initial_page_id.release_value();
 
     // A tab's first process creates its traversable, in the page that displays the tab.
     VERIFY(m_initial_top_level_history_entry.has_value());
     auto& traversable = CanonicalTraversable::create_a_new_top_level_traversable(m_root_navigable_id, {}, m_initial_top_level_history_entry.release_value());
-    traversable.set_system_visibility_state(system_visibility_state);
     auto& page = open_page_for_new_top_level_traversable(initial_page_id, traversable);
     page.async_set_browsing_context_group(traversable.active_browsing_context().group()->id());
     return page;

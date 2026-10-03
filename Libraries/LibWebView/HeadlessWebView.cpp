@@ -15,7 +15,7 @@ static constexpr auto child_close_timeout_ms = 1000;
 NonnullOwnPtr<HeadlessWebView> HeadlessWebView::create(Core::AnonymousBuffer theme, Web::DevicePixelSize window_size, IsPrivate is_private)
 {
     auto view = adopt_own(*new HeadlessWebView(move(theme), window_size, is_private));
-    view->initialize_tab();
+    view->initialize_tab(Web::HTML::VisibilityState::Visible);
 
     return view;
 }
@@ -23,7 +23,7 @@ NonnullOwnPtr<HeadlessWebView> HeadlessWebView::create(Core::AnonymousBuffer the
 NonnullOwnPtr<HeadlessWebView> HeadlessWebView::create_child(HeadlessWebView& parent, CanonicalTraversable& traversable)
 {
     auto view = adopt_own(*new HeadlessWebView(parent.m_theme, parent.m_viewport_size, parent.is_private()));
-    view->initialize_tab(traversable);
+    view->initialize_tab(Web::HTML::VisibilityState::Visible, traversable);
 
     return view;
 }
@@ -140,8 +140,6 @@ HeadlessWebView::HeadlessWebView(Core::AnonymousBuffer theme, Web::DevicePixelSi
         m_pending_dialog = Web::PendingDialog::None;
         m_pending_prompt_text.clear();
     };
-
-    set_system_visibility_state(Web::HTML::VisibilityState::Visible);
 }
 
 void HeadlessWebView::propagate_web_content_crash(WebContentCrashReason crash_reason)

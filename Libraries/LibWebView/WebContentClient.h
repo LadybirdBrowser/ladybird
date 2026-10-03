@@ -100,7 +100,7 @@ public:
     WebContentTestClient* test_connection() { return m_test_connection; }
 
     void set_initial_top_level_history_entry(Badge<Application>, Web::HTML::SessionHistoryEntryDescriptor entry) { m_initial_top_level_history_entry = move(entry); }
-    WebContentPage& open_initial_page_for_new_top_level_traversable(Web::HTML::VisibilityState system_visibility_state);
+    WebContentPage& open_initial_page_for_new_top_level_traversable();
     WebContentPage& open_page_for_new_top_level_traversable(Web::PageId, CanonicalTraversable&);
     void discard_page_of_undisplayed_top_level_traversable(Web::PageId);
     void close_page_of_closed_tab(Web::PageId page_id);
