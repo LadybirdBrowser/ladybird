@@ -233,9 +233,12 @@ void HTMLObjectElement::queue_element_task_to_run_object_representation_steps()
 
     // This task being queued or actively running must delay the load event of the element's node document.
     m_document_load_event_delayer_for_object_representation_task.empend(document());
+    auto release_load_event_delay = GC::create_function(GC::Heap::the(), [this] {
+        m_document_load_event_delayer_for_object_representation_task.take_last();
+    });
 
-    queue_an_element_task(HTML::Task::Source::DOMManipulation, [this]() {
-        ScopeGuard guard { [&]() { m_document_load_event_delayer_for_object_representation_task.take_last(); } };
+    auto steps = [this, release_load_event_delay]() {
+        ScopeGuard guard { [&] { release_load_event_delay->function()(); } };
 
         auto& realm = HTML::relevant_realm(*this);
         // FIXME: 1. If the user has indicated a preference that this object element's fallback content be shown instead of the
@@ -327,7 +330,9 @@ void HTMLObjectElement::queue_element_task_to_run_object_representation_steps()
             //       response callback to invoke the fallback steps. This prevents the fallback layout from flashing very
             //       briefly between here and the resource loading.
         }
-    });
+    };
+
+    queue_an_element_task(HTML::Task::Source::DOMManipulation, move(steps), release_load_event_delay);
 }
 
 // https://html.spec.whatwg.org/multipage/iframe-embed-object.html#the-object-element:concept-event-fire-2
