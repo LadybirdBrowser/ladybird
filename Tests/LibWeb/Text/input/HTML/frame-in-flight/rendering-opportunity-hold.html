@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<div id="box" style="width: 10px; height: 10px; background: green"></div>
+<script>
+    // A rendering task that would find the last rendering update's recording still in flight does not wait for it: it
+    // keeps its place in the queue. The tasks queued before it run beside the recording, and those queued after it
+    // wait behind it until the recording has been taken in.
+    asyncTest(async done => {
+        const order = [];
+        const state = await whileRecordingInFlight(
+            () => {
+                box.style.width = "20px";
+            },
+            state => {
+                const { promise, resolve } = Promise.withResolvers();
+                window.addEventListener("message", event => {
+                    if (event.data === "before") {
+                        order.push(`task before: ${internals.frameSchedulerState()}`);
+                        internals.releaseHeldFrame();
+                    } else if (event.data === "after") {
+                        order.push("task after");
+                        resolve(state);
+                    }
+                });
+                window.postMessage("before", "*");
+                requestAnimationFrame(() => order.push("animation frame"));
+                internals.injectRenderingOpportunity(performance.now());
+                window.postMessage("after", "*");
+                return promise;
+            }
+        );
+        println(`state in the next task: ${state}`);
+        println(`order: ${order.join(", ")}`);
+        done();
+    });
+</script>

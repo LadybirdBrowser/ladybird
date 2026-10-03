@@ -144,6 +144,8 @@ public:
     // A rendering task that would find a frame still in flight keeps its place in the queue until the frame has been
     // taken in, rather than wait for it.
     bool holds_rendering_opportunity() const { return has_frame_in_flight(); }
+    void hold_next_frame_for_testing() { m_holds_next_frame_for_testing = true; }
+    void release_held_frames_for_testing();
 
     RenderingSchedulerCounters const& rendering_scheduler_counters() const { return m_rendering_scheduler_counters; }
     void reset_rendering_scheduler_counters();
@@ -210,6 +212,7 @@ private:
     // The navigables whose recordings fly beside the event loop.
     Vector<GC::Ref<LocalNavigable>> m_navigables_with_recordings_in_flight;
     bool m_frame_completion_registered { false };
+    bool m_holds_next_frame_for_testing { false };
 };
 
 WEB_API EventLoop& main_thread_event_loop();

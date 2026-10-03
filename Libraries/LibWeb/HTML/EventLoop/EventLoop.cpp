@@ -817,6 +817,8 @@ void EventLoop::update_the_rendering()
 
 void EventLoop::did_let_recording_fly(LocalNavigable& navigable)
 {
+    if (exchange(m_holds_next_frame_for_testing, false))
+        navigable.hold_recording_in_flight_for_testing();
     if (!m_navigables_with_recordings_in_flight.contains_slow(GC::Ref { navigable }))
         m_navigables_with_recordings_in_flight.append(navigable);
 }
@@ -846,6 +848,14 @@ void EventLoop::take_finished_frames_in()
         if (!navigable->take_recording_in_flight_in(LocalNavigable::TakeIn::IfFinished))
             m_navigables_with_recordings_in_flight.append(navigable);
     }
+}
+
+void EventLoop::release_held_frames_for_testing()
+{
+    m_holds_next_frame_for_testing = false;
+    for (auto& navigable : m_navigables_with_recordings_in_flight)
+        navigable->release_recording_in_flight_for_testing();
+    schedule();
 }
 
 void run_when_event_loop_reaches_step_1(GC::Ref<GC::Function<void()>> steps)

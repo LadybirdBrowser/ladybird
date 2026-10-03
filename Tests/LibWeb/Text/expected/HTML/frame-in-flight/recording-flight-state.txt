@@ -1,0 +1,3 @@
+state in the next task: in-flight
+state once released: idle
+color: rgb(0, 0, 255)

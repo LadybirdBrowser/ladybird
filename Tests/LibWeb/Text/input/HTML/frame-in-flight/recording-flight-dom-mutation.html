@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    .item { height: 10px; }
+</style>
+<div id="container"><div id="first" class="item">first</div><div id="second" class="item">second</div></div>
+<script>
+    // DOM mutations and a garbage collection beside a recording in flight: the recording owns the frame it records, so
+    // they go on beside it, and the next rendering update lays out and paints the tree they left.
+    asyncTest(async done => {
+        const result = await whileRecordingInFlight(() => {
+            first.style.height = "20px";
+        }, state => {
+            second.remove();
+            const added = document.createElement("div");
+            added.className = "item";
+            added.textContent = "added";
+            container.appendChild(added);
+            internals.gc();
+            return { state, afterMutations: internals.frameSchedulerState() };
+        });
+        println(`state in the next task: ${result.state}`);
+        println(`state after the mutations: ${result.afterMutations}`);
+        await twoFrames();
+        internals.gc();
+        println(`container height: ${container.offsetHeight}`);
+        println(`container text: ${container.innerText.replaceAll("\n", " ")}`);
+        println(`hit test finds the added item: ${document.elementFromPoint(5, 25) === container.lastElementChild}`);
+        done();
+    });
+</script>

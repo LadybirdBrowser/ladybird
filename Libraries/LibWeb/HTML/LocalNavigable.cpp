@@ -677,6 +677,7 @@ struct LocalNavigable::RecordingInFlight {
     GC::Ref<DOM::Document> document;
     PaintConfig paint_config;
     Painting::DisplayListRecording recording;
+    bool held_for_testing { false };
 };
 
 LocalNavigable::LocalNavigable(
@@ -6943,6 +6944,8 @@ bool LocalNavigable::take_recording_in_flight_in(TakeIn take_in)
 {
     if (!m_recording_in_flight)
         return true;
+    if (take_in == TakeIn::IfFinished && m_recording_in_flight->held_for_testing)
+        return false;
     auto* host = m_recording_in_flight->document->layout_node_arena().host();
     auto landing = take_in == TakeIn::Wait
         ? Layout::RustFFI::render_state_join_recording_in_flight(host)
@@ -6979,6 +6982,18 @@ bool LocalNavigable::take_recording_in_flight_in(TakeIn take_in)
     if (frame.has_value())
         submit_painted_frame(frame.release_value());
     return true;
+}
+
+void LocalNavigable::hold_recording_in_flight_for_testing()
+{
+    if (m_recording_in_flight)
+        m_recording_in_flight->held_for_testing = true;
+}
+
+void LocalNavigable::release_recording_in_flight_for_testing()
+{
+    if (m_recording_in_flight)
+        m_recording_in_flight->held_for_testing = false;
 }
 
 bool LocalNavigable::record_display_list_and_scroll_state(PaintConfig paint_config)
