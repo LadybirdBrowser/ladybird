@@ -46,7 +46,10 @@ u8 Node::dom_paint_facts_of(DOM::Node const* node)
     u8 facts = 0;
     if (node->is_inert())
         facts |= static_cast<u8>(RustFFI::DomPaintFact::Inert);
-    if (node->is_editable_or_editing_host())
+    // OPTIMIZATION: Every node that connects is asked, and nearly none is editable. Only an editable node or an editing
+    //               host sets its editable subtree flag, except a child of a document whose design mode makes it an
+    //               editing host even with contenteditable=false, so the flag rules out the rest without the full test.
+    if ((node->in_editable_subtree() || is<DOM::Document>(node->parent())) && node->is_editable_or_editing_host())
         facts |= static_cast<u8>(RustFFI::DomPaintFact::EditableOrEditingHost);
     if (node->inside_blocking_wheel_event_handler())
         facts |= static_cast<u8>(RustFFI::DomPaintFact::InsideBlockingWheelEventHandler);
