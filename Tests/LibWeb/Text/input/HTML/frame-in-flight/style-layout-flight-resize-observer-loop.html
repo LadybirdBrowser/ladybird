@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<div id="outer" style="width: 50px; height: 50px"><div id="inner" style="width: 20px; height: 10px"></div></div>
+<script>
+    // A resize observation callback that resizes a deeper element after a flown layout: the rendering update lays the
+    // element out again in step, and delivers its observation in the same update, before any task after it.
+    asyncTest(async done => {
+        const events = [];
+        const innerWidthFor = { 60: "30px", 80: "40px" };
+        const observer = new ResizeObserver(entries => {
+            for (const entry of entries) {
+                events.push(`${entry.target.id} ${entry.contentRect.width}`);
+                if (entry.target === outer && innerWidthFor[entry.contentRect.width])
+                    inner.style.width = innerWidthFor[entry.contentRect.width];
+            }
+        });
+        observer.observe(outer);
+        observer.observe(inner);
+
+        // A held frame lets the next task run beside the update, ahead of what the update does after its layout.
+        const result = await whileRecordingInFlight(() => {
+            events.length = 0;
+            outer.style.width = "60px";
+        }, state => ({ state, before: events.join(", ") || "nothing" }));
+        println(`state in the next task: ${result.state}`);
+        println(`observed before the next task: ${result.before}`);
+        await twoFrames();
+        println(`observed: ${events.join(", ")}`);
+
+        events.length = 0;
+        requestAnimationFrame(() => {
+            outer.style.width = "80px";
+            setTimeout(() => events.push("timeout"), 0);
+        });
+        await twoFrames();
+        println(`observed with a task queued: ${events.join(", ")}`);
+        observer.disconnect();
+        done();
+    });
+</script>
