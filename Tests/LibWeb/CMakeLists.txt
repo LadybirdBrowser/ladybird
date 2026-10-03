@@ -21,6 +21,7 @@ set(TEST_SOURCES
     TestMimeSniff.cpp
     TestNumbers.cpp
     TestSecureContexts.cpp
+    TestSRI.cpp
     TestSessionHistoryEntry.cpp
     TestSharedCompiledStyleSheet.cpp
     TestSimpleRealm.cpp
