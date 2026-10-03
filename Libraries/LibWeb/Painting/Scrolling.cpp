@@ -26,7 +26,7 @@ CSSPixelPoint scroll_offset(Layout::Node const& node)
 {
     if (!has_committed_box(node))
         return {};
-    return Layout::RustFFI::layout_arena_row_scroll_offset(node.arena_handle(), committed_row_slot(node));
+    return Layout::RustFFI::render_state_row_scroll_offset(node.document_host(), committed_row_slot(node));
 }
 
 CSSPixelPoint minimum_scroll_offset(Layout::Node const& node)
@@ -287,8 +287,8 @@ Layout::Node* wheel_scroll_along_containing_block_chain(Layout::Node& node, doub
     };
     Vector<WheelScrollableBox, 4> wheel_scrollable_boxes;
     auto overflow = viewport_wheel_overflow(node.document());
-    Layout::RustFFI::layout_arena_for_each_wheel_scrollable_box_in_containing_block_chain(
-        node.arena_handle(), committed_row_slot(node), wheel_delta_x, wheel_delta_y, overflow.x, overflow.y,
+    Layout::RustFFI::render_state_for_each_wheel_scrollable_box_in_containing_block_chain(
+        node.document_host(), committed_row_slot(node), wheel_delta_x, wheel_delta_y, overflow.x, overflow.y,
         &wheel_scrollable_boxes, [](void* context, Compositing::RustFFI::NodeSlotId slot, double accepted_delta_x, double accepted_delta_y) {
             static_cast<Vector<WheelScrollableBox, 4>*>(context)->append({ slot, accepted_delta_x, accepted_delta_y });
         });
@@ -303,15 +303,15 @@ Layout::Node* wheel_scroll_along_containing_block_chain(Layout::Node& node, doub
 Layout::Node* scrolling_box_for_scroll_step_in_containing_block_chain(Layout::Node& target, CSSPixelPoint delta)
 {
     auto overflow = viewport_wheel_overflow(target.document());
-    return target.node_arena().node_if_live(Layout::RustFFI::layout_arena_scrolling_box_for_scroll_step(
-        target.arena_handle(), committed_row_slot(target), viewport_row_slot(target.document()), delta, overflow.x, overflow.y));
+    return target.node_arena().node_if_live(Layout::RustFFI::render_state_scrolling_box_for_scroll_step(
+        target.document_host(), committed_row_slot(target), viewport_row_slot(target.document()), delta, overflow.x, overflow.y));
 }
 
 Layout::Node* first_wheel_scrollable_box_in_containing_block_chain(Layout::Node const& node)
 {
     auto overflow = viewport_wheel_overflow(node.document());
-    return node.node_arena().node_if_live(Layout::RustFFI::layout_arena_first_wheel_scrollable_box_in_containing_block_chain(
-        node.arena_handle(), committed_row_slot(node), overflow.x, overflow.y));
+    return node.node_arena().node_if_live(Layout::RustFFI::render_state_first_wheel_scrollable_box_in_containing_block_chain(
+        node.document_host(), committed_row_slot(node), overflow.x, overflow.y));
 }
 
 static void scroll_into_view(Layout::Node& node, CSSPixelRect rect)

@@ -77,7 +77,7 @@ void ShadowRoot::set_style_node_id(CSS::StyleNodeID style_node_id)
     // The layout arena keys layout tree update marks by identity alone, so one handed to this root holds none, whatever
     // the node that held it before left behind.
     if (auto* arena = document().layout_node_arena_if_created(); arena && style_node_id != 0)
-        Layout::RustFFI::layout_arena_clear_layout_tree_update_marks(arena->handle(), style_node_id.value());
+        Layout::RustFFI::render_state_clear_layout_tree_update_marks(arena->host(), style_node_id.value());
     // The style engine keeps the mark of the children that explicitly inherit by identity too.
     if (style_node_id != 0)
         publish_children_explicitly_inherit_mark();

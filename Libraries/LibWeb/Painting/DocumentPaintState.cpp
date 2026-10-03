@@ -31,7 +31,7 @@ void DocumentPaintState::ensure_visual_context_tree(DOM::Document const& documen
 
 bool DocumentPaintState::has_visual_context_tree() const
 {
-    return Layout::RustFFI::layout_arena_has_visual_context_tree(m_layout_node_arena->handle());
+    return Layout::RustFFI::render_state_has_visual_context_tree(m_layout_node_arena->host());
 }
 
 Compositing::AccumulatedVisualContextTree DocumentPaintState::visual_context_tree_without_update(DOM::Document const& document) const
@@ -53,7 +53,7 @@ u64 DocumentPaintState::visual_context_tree_structural_epoch(DOM::Document const
 
 u64 DocumentPaintState::visual_context_tree_structural_epoch_without_update() const
 {
-    return Layout::RustFFI::layout_arena_visual_context_tree_structural_epoch(m_layout_node_arena->handle());
+    return Layout::RustFFI::render_state_visual_context_tree_structural_epoch(m_layout_node_arena->host());
 }
 
 BlockingWheelEventRegionState DocumentPaintState::collect_root_blocking_wheel_event_regions(DOM::Document& document)
@@ -131,7 +131,7 @@ void DocumentPaintState::publish_compositor_animations(DOM::Document& document, 
 
 void DocumentPaintState::republish_visual_animations(DOM::Document& document)
 {
-    if (!Layout::RustFFI::layout_arena_visual_context_tree_has_visual_animations(m_layout_node_arena->handle()))
+    if (!Layout::RustFFI::render_state_visual_context_tree_has_visual_animations(m_layout_node_arena->host()))
         return;
     m_visual_context_tree_needs_compositor_update = true;
     ++document.style_invalidation_counters().compositor_visual_animation_updates;

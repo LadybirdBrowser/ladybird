@@ -15,11 +15,12 @@ use super::node_data::NodeSlotId;
 use super::node_facts;
 use super::partial_relayout::FfiPartialRelayoutHostFacts;
 use super::tree_builder::{FfiGeneratedImage, FfiPseudoElement, TreeBuildAnswer, TreeBuildJob};
-use super::tree_mutation::OwedHostWork;
-use super::{ArenaHandle, HostTables, LayoutNodeArena};
+use super::tree_mutation::{HostWorkDue, OwedHostWork};
+use super::{ArenaHandle, LayoutNodeArena};
 use crate::abort_on_panic;
 use crate::css::ffi_support::FfiUtf16View;
 use crate::css::style::tree::StyleNodeID;
+use crate::render_state::DocumentHost;
 use crate::stage::MainThread;
 use std::ffi::c_void;
 use std::time::Instant;
@@ -28,29 +29,36 @@ mod main_thread_entries;
 
 pub(crate) use main_thread_entries::MainThreadFfiEntry;
 
-/// Runs `job`, a layout round of the document whose arena `arena_handle` names, on the document's render state, and
-/// answers what the round owes the host. The update's first round spends the read the host began, where no job took it
-/// yet, and every other round `permit`. A unit test's arena has no render state, and its round runs in place.
-///
-/// # Safety
-///
-/// `arena_handle` must be a live handle on the document thread, and what the job's inputs name must stay live and
-/// unchanged until it is over.
-unsafe fn run_layout_round_job(
-    main_thread: &MainThread,
-    arena_handle: *mut c_void,
+/// Runs `job`, a layout round of `host`'s document, on the document's render state, and answers what the round owes the
+/// host. The update's first round spends the read the host began, where no job took it yet, and every other round
+/// `permit`.
+fn run_layout_round_job(
+    host: &DocumentHost,
     job: LayoutRoundJob,
     permit: impl FnOnce() -> crate::render_state::FrameJobPermit,
 ) -> LayoutRoundAnswer {
-    let Some(host) = main_thread.host() else {
-        // SAFETY: Guaranteed by the caller.
-        return job.run(unsafe { &mut *arena_handle.cast() });
-    };
     host.let_go_of_rows();
     match host.take_forced_read() {
         Some(read) => crate::render_state::force_read(read, host, job),
         None => crate::render_state::run_job(permit(), host, job),
     }
+}
+
+/// The reason the host's layout update reads its document's render state between rounds: whether the layout is up to
+/// date, and what the next round's build needs.
+pub(crate) struct LayoutUpdateReads {
+    _private: (),
+}
+
+const LAYOUT_UPDATE_READS: LayoutUpdateReads = LayoutUpdateReads { _private: () };
+
+/// Answers `read` from the render state of `host`'s document and `args`.
+fn read<A, R>(host: &DocumentHost, args: A, read: fn(&mut LayoutNodeArena, A) -> R) -> R {
+    crate::render_state::ask(
+        crate::render_state::LockstepProof::for_reason(&LAYOUT_UPDATE_READS),
+        host,
+        crate::render_state::ArenaRead::new(args, read),
+    )
 }
 
 impl crate::render_state::RenderJob for LayoutRoundJob {
@@ -222,15 +230,17 @@ impl FfiLayoutUpdateHostCallbacks {
     /// Hands the boxes the tree builds of the update stamped the image resources they are owed,
     /// in the order the builds came to owe them. Until now a box that owns its image's provider
     /// had no image; one handed a provider whose image is already there lays out again.
-    fn attach_owed_image_resources(&self, _: &MainThread, arena_handle: *mut c_void) {
-        let owed = unsafe { arena(arena_handle) }.take_image_resources_owed_to_host();
-        for (row, owed) in owed {
+    fn attach_owed_image_resources(&self, _: &MainThread, host: &DocumentHost) {
+        let owed = read(host, (), |arena, ()| {
+            let mut owed = arena.take_image_resources_owed_to_host();
             // A later build of the update may have freed the row.
-            let arena = unsafe { arena(arena_handle) };
-            if !arena.slot_is_live(row) {
-                continue;
+            owed.retain(|&(row, _)| arena.slot_is_live(row));
+            for &(row, _) in &owed {
+                arena.note_owned_provider_handed_over(row);
             }
-            arena.note_owned_provider_handed_over(row);
+            owed
+        });
+        for (row, owed) in owed {
             match owed {
                 OwedImageResources::StyleResources {
                     owns_content_replacement_image,
@@ -254,6 +264,11 @@ fn layout_is_up_to_date(arena: &LayoutNodeArena, facts: &FfiLayoutUpdateDocument
         return true;
     }
     arena.layout_is_up_to_date(facts.document_needs_layout_tree_build)
+}
+
+/// Whether the layout of `host`'s document is up to date, as [`layout_is_up_to_date`] answers.
+fn host_layout_is_up_to_date(host: &DocumentHost, facts: &FfiLayoutUpdateDocumentFacts) -> bool {
+    read(host, *facts, |arena, facts| layout_is_up_to_date(arena, &facts))
 }
 
 /// The `TREEBUILD` and `LAYOUT` timing lines, off unless `LIBWEB_UPDATE_LAYOUT_TRACE` is set.
@@ -300,15 +315,6 @@ impl UpdateLayoutTrace {
 }
 
 const ORDINARY_STABILIZATION_ROUND_LIMIT: u64 = 8;
-
-/// # Safety
-///
-/// `arena_handle` must be a live handle with registered layout and layout update hosts, used on
-/// the document thread between `layout_arena_begin_update_layout` and its end.
-unsafe fn arena<'a>(arena_handle: *mut c_void) -> &'a LayoutNodeArena {
-    // SAFETY: Guaranteed by the caller.
-    unsafe { LayoutNodeArena::from_handle(arena_handle) }
-}
 
 /// One round of a layout update past its style, which the host sends its document's render state: the layout tree
 /// build, where the tree needs one, then a partial relayout of the boundaries the round plans or else a full layout,
@@ -358,19 +364,26 @@ pub(crate) struct LayoutRoundAnswer {
     build: Option<(NodeSlotId, TreeBuildAnswer)>,
     /// The host calls the round's tree build and the styles the viewport took over owe, after what
     /// the host hears of the boxes nodes gained and lost in the round.
-    work: OwedHostWork,
+    work: HostWorkDue,
     /// What committing each layout stage of the round owes.
     commits: Vec<CommitNotifications>,
     end: LayoutRoundEnd,
 }
 
 impl LayoutRoundJob {
-    /// Runs the round over `state`.
-    pub(crate) fn run(mut self, state: &mut ArenaHandle) -> LayoutRoundAnswer {
+    /// Runs the round over `state`, and resolves what it owes the host as it ends.
+    pub(crate) fn run(self, state: &mut ArenaHandle) -> LayoutRoundAnswer {
+        let work = OwedHostWork::default();
+        let mut answer = self.run_owing(state, &work);
+        answer.work = work.resolve(state.arena());
+        answer
+    }
+
+    fn run_owing(mut self, state: &mut ArenaHandle, work: &OwedHostWork) -> LayoutRoundAnswer {
         let facts = self.facts;
         let mut answer = LayoutRoundAnswer {
             build: None,
-            work: OwedHostWork::default(),
+            work: HostWorkDue::default(),
             commits: Vec::new(),
             end: LayoutRoundEnd::FullLayout,
         };
@@ -399,7 +412,7 @@ impl LayoutRoundJob {
         {
             if let Some(build) = self.build.take() {
                 let tree_build_started = self.trace.now();
-                let needs_another_build_pass = Self::build(state, build, &mut answer);
+                let needs_another_build_pass = Self::build(state, build, work, &mut answer);
                 if needs_another_build_pass || facts.has_stale_list_item_counters {
                     answer.end = LayoutRoundEnd::Built {
                         needs_another_build_pass,
@@ -420,8 +433,7 @@ impl LayoutRoundJob {
                 for boundary in &planned {
                     debug_assert!(node_facts::kind_is_box(arena.data(boundary.root()).kind.get()));
                 }
-                // SAFETY: The state is live, and the sync borrows its arena only for its own call.
-                unsafe { sync_enrolled_content_for_layout(std::ptr::from_mut(state).cast()) };
+                sync_enrolled_content_for_layout(state.arena_mut());
                 for boundary in planned {
                     answer.commits.push(lay_out_boundary(state, boundary, stage));
                 }
@@ -433,7 +445,7 @@ impl LayoutRoundJob {
 
         let layout_started = self.trace.now();
         if let Some(build) = self.build.take() {
-            if Self::build(state, build, &mut answer) {
+            if Self::build(state, build, work, &mut answer) {
                 answer.end = LayoutRoundEnd::Built {
                     needs_another_build_pass: true,
                     layout: RoundLayout::Full,
@@ -457,7 +469,7 @@ impl LayoutRoundJob {
         assert!(!layout_root.is_invalid(), "a full layout pass needs a layout root");
         let commit = lay_out_root(
             state,
-            &answer.work,
+            work,
             layout_root,
             stage,
             facts.should_collect_devtools_layout_data,
@@ -469,9 +481,14 @@ impl LayoutRoundJob {
     }
 
     /// Runs `build`, records it, and answers whether it asks for another pass.
-    fn build(state: &mut ArenaHandle, build: TreeBuildJob, answer: &mut LayoutRoundAnswer) -> bool {
+    fn build(
+        state: &mut ArenaHandle,
+        build: TreeBuildJob,
+        work: &OwedHostWork,
+        answer: &mut LayoutRoundAnswer,
+    ) -> bool {
         let replaced_viewport = state.arena().layout_root();
-        let built = build.run(state, &answer.work);
+        let built = build.run(state, work);
         state.arena().record_layout_tree_build(&built.outcome);
         let needs_another_build_pass = built.outcome.needs_another_build_pass;
         answer.build = Some((replaced_viewport, built));
@@ -487,11 +504,11 @@ impl LayoutRoundAnswer {
     ///
     /// # Safety
     ///
-    /// As for [`arena`], with no arena borrow held across the call.
-    unsafe fn pay(&mut self, main_thread: &MainThread, arena_handle: *mut c_void, host: &FfiLayoutUpdateHostCallbacks) {
+    /// The host's callbacks must answer synchronously from its live document.
+    unsafe fn pay(&mut self, main_thread: &MainThread, host: &FfiLayoutUpdateHostCallbacks) {
         let layout_host = FfiLayoutHostCallbacks::of(main_thread);
         // SAFETY (for every call below): Guaranteed by the caller.
-        std::mem::take(&mut self.work).apply(main_thread, unsafe { arena(arena_handle) });
+        std::mem::take(&mut self.work).pay(main_thread);
         if let Some((replaced_viewport, built)) = self.build.take() {
             unsafe {
                 layout_host.deliver_commit_messages(main_thread, &built.reports);
@@ -505,23 +522,24 @@ impl LayoutRoundAnswer {
         for commit in self.commits.drain(..) {
             unsafe { commit.notify_host(main_thread, &layout_host) };
         }
-        unsafe { arena(arena_handle) }.name_layout_trace_owners(main_thread);
+        super::trace::name_layout_trace_owners(main_thread);
     }
 }
 
 /// # Safety
 ///
-/// As for [`arena`], and `inputs` must satisfy [`UpdateLayoutTrace::new`]'s requirements.
-unsafe fn update_layout(main_thread: &MainThread, arena_handle: *mut c_void, inputs: &FfiLayoutUpdateInputs) {
-    // SAFETY (for every derive below): Guaranteed by the caller; no borrow spans a host call.
-    let host = main_thread
+/// The layout update host's callbacks must answer synchronously from the live document, and `inputs` must satisfy
+/// [`UpdateLayoutTrace::new`]'s requirements.
+unsafe fn update_layout(main_thread: &MainThread, document_host: &DocumentHost, inputs: &FfiLayoutUpdateInputs) {
+    let host = document_host
         .host_tables()
-        .and_then(|host_tables| host_tables.layout_update_host.get())
-        .expect("layout node arena has no layout update host");
+        .layout_update_host
+        .get()
+        .expect("the document has no layout update host");
     let layout_host = FfiLayoutHostCallbacks::of(main_thread);
     assert!(
-        unsafe { arena(arena_handle) }.update_layout_is_running(),
-        "the layout update runs between layout_arena_begin_update_layout and its end"
+        document_host.host_tables().update_layout_running.get(),
+        "the layout update runs between document_host_begin_update_layout and its end"
     );
     let trace = unsafe { UpdateLayoutTrace::new(inputs.reason_name) };
 
@@ -546,7 +564,7 @@ unsafe fn update_layout(main_thread: &MainThread, arena_handle: *mut c_void, inp
         let force_devtools_layout_data_collection =
             facts.should_collect_devtools_layout_data && inputs.reason_is_inspect_devtools_layout_data;
 
-        if layout_is_up_to_date(unsafe { arena(arena_handle) }, &facts) && !force_devtools_layout_data_collection {
+        if host_layout_is_up_to_date(document_host, &facts) && !force_devtools_layout_data_collection {
             host.prepare_for_rendering(main_thread);
             return;
         }
@@ -556,15 +574,16 @@ unsafe fn update_layout(main_thread: &MainThread, arena_handle: *mut c_void, inp
             return;
         }
 
-        let arena_now = unsafe { arena(arena_handle) };
-        let needs_layout_tree_rebuild = arena_now.layout_root().is_invalid()
-            || facts.document_needs_layout_tree_build
-            || arena_now.needs_full_layout_tree_update();
+        let needs_layout_tree_rebuild = facts.document_needs_layout_tree_build
+            || read(document_host, (), |arena, ()| {
+                arena.layout_root().is_invalid() || arena.needs_full_layout_tree_update()
+            });
         let build = needs_layout_tree_rebuild.then(|| {
             let document_style_node = StyleNodeID::from_raw(facts.document_style_node)
                 .expect("a document that lays out is named in the style mirror");
-            let may_create_viewport =
-                unsafe { arena(arena_handle) }.tree_build_may_create_viewport(Some(document_style_node));
+            let may_create_viewport = read(document_host, document_style_node, |arena, document_style_node| {
+                arena.tree_build_may_create_viewport(Some(document_style_node))
+            });
             TreeBuildJob::new(
                 document_style_node,
                 host.prepare_layout_tree_build(main_thread, may_create_viewport),
@@ -588,9 +607,9 @@ unsafe fn update_layout(main_thread: &MainThread, arena_handle: *mut c_void, inp
                     crate::render_state::FrameJobPermit::for_next_round()
                 }
             };
-            let mut answer = unsafe { run_layout_round_job(main_thread, arena_handle, job, permit) };
+            let mut answer = run_layout_round_job(document_host, job, permit);
             first_job = false;
-            unsafe { answer.pay(main_thread, arena_handle, &host) };
+            unsafe { answer.pay(main_thread, &host) };
             let built = matches!(answer.end, LayoutRoundEnd::Built { .. });
             if needs_layout_tree_rebuild && host.reconcile_stale_list_item_counters_after_tree_build(main_thread) {
                 // The stale counters marked more of the tree for a rebuild, which the next round runs.
@@ -626,7 +645,7 @@ unsafe fn update_layout(main_thread: &MainThread, arena_handle: *mut c_void, inp
                 // A round that built the tree changed it, whichever of its jobs ran the build.
                 host.after_layout_commit(main_thread, needs_layout_tree_rebuild);
                 if host.needs_style_update_after_layout(main_thread)
-                    || !layout_is_up_to_date(unsafe { arena(arena_handle) }, &host.document_facts(main_thread))
+                    || !host_layout_is_up_to_date(document_host, &host.document_facts(main_thread))
                 {
                     continue;
                 }
@@ -651,13 +670,13 @@ unsafe fn update_layout(main_thread: &MainThread, arena_handle: *mut c_void, inp
         }
 
         // Layout-only invalidations still need to be flushed before we can exit.
-        if layout_is_up_to_date(unsafe { arena(arena_handle) }, &facts) {
+        if host_layout_is_up_to_date(document_host, &facts) {
             break;
         }
     }
 
     if host.needs_style_update_after_layout(main_thread)
-        || !layout_is_up_to_date(unsafe { arena(arena_handle) }, &host.document_facts(main_thread))
+        || !host_layout_is_up_to_date(document_host, &host.document_facts(main_thread))
     {
         host.record_stabilization_bound_failure(main_thread);
         unreachable!("the layout update did not stabilize within its exact bound");
@@ -666,56 +685,59 @@ unsafe fn update_layout(main_thread: &MainThread, arena_handle: *mut c_void, inp
 
 /// # Safety
 ///
-/// `arena` must be a live handle on the document thread. The callbacks must remain valid until
-/// they are cleared or the arena is destroyed.
+/// `host` must be a live document host, on its document's thread. The callbacks must remain valid until they are
+/// cleared or the host is destroyed.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_set_layout_update_host_callbacks(
-    arena: *mut c_void,
+pub unsafe extern "C" fn document_host_set_layout_update_host_callbacks(
+    host: *const DocumentHost,
     callbacks: FfiLayoutUpdateHostCallbacks,
 ) {
-    // SAFETY: The caller keeps the arena alive for this synchronous call.
-    unsafe { HostTables::from_handle(arena) }
-        .layout_update_host
-        .set(Some(callbacks));
+    assert!(!host.is_null(), "document host is null");
+    // SAFETY: Guaranteed by the caller.
+    unsafe { &*host }.host_tables().layout_update_host.set(Some(callbacks));
 }
 
 /// # Safety
 ///
-/// `arena` must be a live handle on the document thread.
+/// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_clear_layout_update_host_callbacks(arena: *mut c_void) {
-    // SAFETY: As above.
-    unsafe { HostTables::from_handle(arena) }.layout_update_host.set(None);
+pub unsafe extern "C" fn document_host_clear_layout_update_host_callbacks(host: *const DocumentHost) {
+    assert!(!host.is_null(), "document host is null");
+    // SAFETY: Guaranteed by the caller.
+    unsafe { &*host }.host_tables().layout_update_host.set(None);
 }
 
 /// # Safety
 ///
-/// `arena` must be a live handle on the document thread, with no layout update running.
+/// `host` must be a live document host, on its document's thread, with no layout update running. A document runs
+/// one layout update at a time; a nested request is a caller bug.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_begin_update_layout(arena: *mut c_void) {
-    assert!(!arena.is_null(), "layout node arena handle is null");
-    // SAFETY: As above.
-    unsafe { LayoutNodeArena::from_handle(arena) }.begin_update_layout();
+pub unsafe extern "C" fn document_host_begin_update_layout(host: *const DocumentHost) {
+    assert!(!host.is_null(), "document host is null");
+    // SAFETY: Guaranteed by the caller.
+    let running = &unsafe { &*host }.host_tables().update_layout_running;
+    assert!(!running.replace(true), "a layout update is already running");
 }
 
 /// # Safety
 ///
-/// `arena` must be a live handle on the document thread, with a layout update running.
+/// `host` must be a live document host, on its document's thread, with a layout update running.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_end_update_layout(arena: *mut c_void) {
-    assert!(!arena.is_null(), "layout node arena handle is null");
-    // SAFETY: As above.
-    unsafe { LayoutNodeArena::from_handle(arena) }.end_update_layout();
+pub unsafe extern "C" fn document_host_end_update_layout(host: *const DocumentHost) {
+    assert!(!host.is_null(), "document host is null");
+    // SAFETY: Guaranteed by the caller.
+    let running = &unsafe { &*host }.host_tables().update_layout_running;
+    assert!(running.replace(false), "no layout update is running");
 }
 
 /// # Safety
 ///
-/// `arena` must be a live handle on the document thread.
+/// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_update_layout_is_running(arena: *mut c_void) -> bool {
-    assert!(!arena.is_null(), "layout node arena handle is null");
-    // SAFETY: As above.
-    unsafe { LayoutNodeArena::from_handle(arena) }.update_layout_is_running()
+pub unsafe extern "C" fn document_host_update_layout_is_running(host: *const DocumentHost) -> bool {
+    assert!(!host.is_null(), "document host is null");
+    // SAFETY: Guaranteed by the caller.
+    unsafe { &*host }.host_tables().update_layout_running.get()
 }
 
 #[cfg(test)]

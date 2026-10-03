@@ -81,7 +81,7 @@ void TextNode::invalidate_text_for_rendering()
 
 Utf16View TextNode::text_for_rendering() const
 {
-    auto view = RustFFI::layout_arena_text_for_rendering(arena_handle(), slot_id(this));
+    auto view = RustFFI::render_state_text_for_rendering(document_host(), slot_id(this));
     return Utf16View { reinterpret_cast<char16_t const*>(view.text), view.length_in_code_units };
 }
 

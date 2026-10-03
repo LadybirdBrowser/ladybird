@@ -259,37 +259,45 @@ pub unsafe extern "C" fn layout_row_scroll_snap_axes(
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
+/// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_scrolling_box_for_scroll_step(
-    arena: *mut c_void,
+pub unsafe extern "C" fn render_state_scrolling_box_for_scroll_step(
+    host: *const crate::render_state::DocumentHost,
     target: NodeSlotId,
     viewport: NodeSlotId,
     delta: FfiCssPixelPoint,
     viewport_wheel_overflow_x: u8,
     viewport_wheel_overflow_y: u8,
 ) -> NodeSlotId {
-    let arena = unsafe { arena_from_handle(arena) };
-    arena.measure_scrollable_overflow();
-    crate::painting::scroll_chain::scrolling_box_for_scroll_step(
-        &arena.paintable_rows(),
-        target,
-        viewport,
-        delta.into(),
-        ViewportWheelOverflow {
-            x: viewport_wheel_overflow_x,
-            y: viewport_wheel_overflow_y,
-        },
-    )
+    let overflow = ViewportWheelOverflow {
+        x: viewport_wheel_overflow_x,
+        y: viewport_wheel_overflow_y,
+    };
+    // SAFETY: Guaranteed by the caller.
+    unsafe {
+        read(
+            host,
+            (target, viewport, delta, overflow),
+            |arena, (target, viewport, delta, overflow)| {
+                arena.measure_scrollable_overflow();
+                crate::painting::scroll_chain::scrolling_box_for_scroll_step(
+                    &arena.paintable_rows(),
+                    target,
+                    viewport,
+                    delta.into(),
+                    overflow,
+                )
+            },
+        )
+    }
 }
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread. The
-/// host callback receives the slots of live rows.
+/// `host` must be a live document host, on its document's thread. The host callback receives the slots of live rows.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_for_each_wheel_scrollable_box_in_containing_block_chain(
-    arena: *mut c_void,
+pub unsafe extern "C" fn render_state_for_each_wheel_scrollable_box_in_containing_block_chain(
+    host: *const crate::render_state::DocumentHost,
     start: NodeSlotId,
     wheel_delta_x: f64,
     wheel_delta_y: f64,
@@ -298,44 +306,61 @@ pub unsafe extern "C" fn layout_arena_for_each_wheel_scrollable_box_in_containin
     context: *mut c_void,
     push_scrollable_box: unsafe extern "C" fn(*mut c_void, NodeSlotId, f64, f64),
 ) {
-    let arena = unsafe { arena_from_handle(arena) };
-    arena.measure_scrollable_overflow();
-    crate::painting::scroll_chain::for_each_wheel_scrollable_box_in_containing_block_chain(
-        &arena.paintable_rows(),
-        start,
-        wheel_delta_x,
-        wheel_delta_y,
-        ViewportWheelOverflow {
-            x: viewport_wheel_overflow_x,
-            y: viewport_wheel_overflow_y,
-        },
-        |node, accepted_delta_x, accepted_delta_y| {
-            // SAFETY: The C++ callback appends the slot and deltas to a caller-owned collection.
-            unsafe { push_scrollable_box(context, node, accepted_delta_x, accepted_delta_y) };
-        },
-    );
+    let overflow = ViewportWheelOverflow {
+        x: viewport_wheel_overflow_x,
+        y: viewport_wheel_overflow_y,
+    };
+    // SAFETY: Guaranteed by the caller.
+    let boxes = unsafe {
+        read(
+            host,
+            (start, wheel_delta_x, wheel_delta_y, overflow),
+            |arena, (start, wheel_delta_x, wheel_delta_y, overflow)| {
+                arena.measure_scrollable_overflow();
+                let mut boxes = Vec::new();
+                crate::painting::scroll_chain::for_each_wheel_scrollable_box_in_containing_block_chain(
+                    &arena.paintable_rows(),
+                    start,
+                    wheel_delta_x,
+                    wheel_delta_y,
+                    overflow,
+                    |node, accepted_delta_x, accepted_delta_y| boxes.push((node, accepted_delta_x, accepted_delta_y)),
+                );
+                boxes
+            },
+        )
+    };
+    for (node, accepted_delta_x, accepted_delta_y) in boxes {
+        // SAFETY: The C++ callback appends the slot and deltas to a caller-owned collection.
+        unsafe { push_scrollable_box(context, node, accepted_delta_x, accepted_delta_y) };
+    }
 }
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
+/// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_first_wheel_scrollable_box_in_containing_block_chain(
-    arena: *mut c_void,
+pub unsafe extern "C" fn render_state_first_wheel_scrollable_box_in_containing_block_chain(
+    host: *const crate::render_state::DocumentHost,
     start: NodeSlotId,
     viewport_wheel_overflow_x: u8,
     viewport_wheel_overflow_y: u8,
 ) -> NodeSlotId {
-    let arena = unsafe { arena_from_handle(arena) };
-    arena.measure_scrollable_overflow();
-    crate::painting::scroll_chain::first_wheel_scrollable_box_in_containing_block_chain(
-        &arena.paintable_rows(),
-        start,
-        ViewportWheelOverflow {
-            x: viewport_wheel_overflow_x,
-            y: viewport_wheel_overflow_y,
-        },
-    )
+    let overflow = ViewportWheelOverflow {
+        x: viewport_wheel_overflow_x,
+        y: viewport_wheel_overflow_y,
+    };
+    // SAFETY: Guaranteed by the caller.
+    unsafe {
+        read(host, (start, overflow), |arena, (start, overflow)| {
+            arena.measure_scrollable_overflow();
+            crate::painting::scroll_chain::first_wheel_scrollable_box_in_containing_block_chain(
+                &arena.paintable_rows(),
+                start,
+                overflow,
+            )
+        })
+    }
 }
 
 /// Prepares the document of `host` for rendering, and stores the scroll offsets the new overflow moved out of range.
@@ -364,7 +389,7 @@ pub unsafe extern "C" fn render_state_prepare_for_rendering(
     };
     if !prepared.clamped_scroll_offsets.is_empty() {
         // SAFETY: Guaranteed by the caller.
-        let main_thread = unsafe { crate::stage::from_ffi_entry_with_host(&MAIN_THREAD_FFI_ENTRY, host) };
+        let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY, host) };
         if let Some(geometry_host) = host.host_tables().geometry_host.get() {
             for (slot, offset) in prepared.clamped_scroll_offsets {
                 // SAFETY: The pass clamped the offsets of live rows, and the host holds no borrow of the arena.
@@ -562,68 +587,90 @@ pub unsafe extern "C" fn render_state_refresh_scroll_state(
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread. The
-/// host callback receives each snap area's geometry, valid for the duration of the call.
+/// `host` must be a live document host, on its document's thread. The host callback receives each snap area's
+/// geometry, valid for the duration of the call.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_for_each_snap_area(
-    arena: *mut c_void,
+pub unsafe extern "C" fn render_state_for_each_snap_area(
+    host: *const crate::render_state::DocumentHost,
     snap_container: NodeSlotId,
     context: *mut c_void,
     push_snap_area: unsafe extern "C" fn(*mut c_void, *const crate::painting::host::FfiSnapAreaGeometry),
 ) {
-    let arena = unsafe { arena_from_handle(arena) };
-    crate::painting::scroll_snap::for_each_snap_area(&arena.paintable_rows(), snap_container, |slot, mut area| {
-        // A re-snap right after layout runs ahead of the visual context tree that names the area's
-        // element, so the area is named by what the build stamped onto its row.
-        area.node_id = arena.unique_node_ids().id(slot);
+    // SAFETY: Guaranteed by the caller.
+    let areas = unsafe {
+        read(host, snap_container, |arena, snap_container| {
+            let mut areas = Vec::new();
+            crate::painting::scroll_snap::for_each_snap_area(
+                &arena.paintable_rows(),
+                snap_container,
+                |slot, mut area| {
+                    // A re-snap right after layout runs ahead of the visual context tree that names the area's
+                    // element, so the area is named by what the build stamped onto its row.
+                    area.node_id = arena.unique_node_ids().id(slot);
+                    areas.push(area);
+                },
+            );
+            areas
+        })
+    };
+    for area in &areas {
         // SAFETY: The C++ callback copies the geometry into a caller-owned collection.
-        unsafe { push_snap_area(context, &raw const area) };
-    });
+        unsafe { push_snap_area(context, area) };
+    }
 }
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`; the callbacks in `publish` are
-/// called synchronously with their context while the recording's resources are live. `out` must
-/// point to writable storage.
+/// `host` must be a live document host, on its document's thread; the callbacks in `publish` are called
+/// synchronously with their context while the recording's resources are live. `out` must point to writable storage.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_publish_recording(
-    arena: *mut c_void,
+pub unsafe extern "C" fn render_state_publish_recording(
+    host: *const crate::render_state::DocumentHost,
     publish: crate::painting::host::FfiRecordingPublishCallbacks,
     out: *mut crate::painting::ffi::FfiPresentedRecording,
 ) {
+    assert!(!host.is_null(), "document host is null");
+    // SAFETY: Guaranteed by the caller.
+    let host = unsafe { &*host };
     // SAFETY: Guaranteed by the entry point's contract.
-    let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY, arena) };
-    let arena = unsafe { arena_from_handle(arena) };
-    let mut recording = document_host(&main_thread).recording();
-    let pending = recording.take_pending_recording();
-    if let Some(pending) = pending {
-        crate::painting::record::publish::publish_recording(arena, &mut recording, pending, &main_thread, &publish);
+    let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY, host) };
+    let mut recording = host.recording();
+    if let Some(pending) = recording.take_pending_recording() {
+        crate::painting::record::publish::publish_recording(host, &mut recording, pending, &main_thread, &publish);
     }
     drop(recording);
+    let presented = unsafe {
+        read(host, (), |arena, ()| {
+            crate::painting::ffi::FfiPresentedRecording::of_last_recording(arena)
+        })
+    };
     // SAFETY: The caller provides writable storage for what it reads of the recording.
-    unsafe { out.write(crate::painting::ffi::FfiPresentedRecording::of_last_recording(arena)) };
+    unsafe { out.write(presented) };
 }
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`; `describe_node` and `append_text`
-/// are called synchronously with `context`, and the slots handed to `describe_node` name the
-/// last recording's live paintables.
+/// `host` must be a live document host, on its document's thread; `describe_node` and `append_text` are called
+/// synchronously with `context`, and the slots handed to `describe_node` name the last recording's live paintables.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_take_recording_trace(
-    arena: *mut c_void,
+pub unsafe extern "C" fn render_state_take_recording_trace(
+    host: *const crate::render_state::DocumentHost,
     context: *mut c_void,
     describe_node: unsafe extern "C" fn(*mut c_void, NodeSlotId, *mut c_void),
     append_text: unsafe extern "C" fn(*mut c_void, *const u8, usize),
 ) -> bool {
-    // SAFETY: Guaranteed by the entry point's contract.
-    let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY, arena) };
-    let arena = unsafe { arena_from_handle(arena) };
-    let Some(pending) = document_host(&main_thread).recording().take_pending_recording_trace() else {
+    assert!(!host.is_null(), "document host is null");
+    // SAFETY: Guaranteed by the caller.
+    let Some(pending) = unsafe { &*host }.recording().take_pending_recording_trace() else {
         return false;
     };
-    let Some(recording) = arena.paint_state().borrow().last_recording.clone() else {
+    // SAFETY: As above.
+    let recording = unsafe {
+        read(host, (), |arena, ()| {
+            arena.paint_state().borrow().last_recording.clone()
+        })
+    };
+    let Some(recording) = recording else {
         return false;
     };
     let Some(log) = recording.capture_log_for_verification.as_ref() else {
@@ -650,62 +697,117 @@ pub unsafe extern "C" fn layout_arena_take_recording_trace(
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
+/// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_for_each_subtree_fragment_rect(
-    arena: *mut c_void,
+pub unsafe extern "C" fn render_state_for_each_subtree_fragment_rect(
+    host: *const crate::render_state::DocumentHost,
     root: NodeSlotId,
     context: *mut c_void,
     consume: unsafe extern "C" fn(*mut c_void, NodeSlotId, FfiCssPixelRect),
 ) {
-    let arena = unsafe { arena_from_handle(arena) };
-    let paintable_rows = arena.paintable_rows();
-    if !paintable_rows.paintable_row_is_populated(root) {
-        return;
+    // SAFETY: Guaranteed by the caller.
+    let rects = unsafe {
+        read(host, root, |arena, root| {
+            let paintable_rows = arena.paintable_rows();
+            let mut rects = Vec::new();
+            if !paintable_rows.paintable_row_is_populated(root) {
+                return rects;
+            }
+            crate::painting::paint_order::for_each_in_paint_subtree(&paintable_rows, root, |current| {
+                for fragment in arena.committed_side_data(current).fragments() {
+                    rects.push((
+                        fragment.layout_node,
+                        crate::painting::text_fragment::absolute_rect(&paintable_rows, fragment).into(),
+                    ));
+                }
+            });
+            rects
+        })
+    };
+    for (layout_node, rect) in rects {
+        // SAFETY: The consumer copies its plain-data arguments synchronously.
+        unsafe { consume(context, layout_node, rect) };
     }
-    crate::painting::paint_order::for_each_in_paint_subtree(&paintable_rows, root, |current| {
-        for fragment in arena.committed_side_data(current).fragments() {
-            let rect = crate::painting::text_fragment::absolute_rect(&paintable_rows, fragment).into();
-            // SAFETY: The consumer copies its plain-data arguments synchronously.
-            unsafe { consume(context, fragment.layout_node, rect) };
-        }
-    });
 }
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
-/// Input arrays and byte buffers must remain valid and immutable throughout this call;
-/// fonts for enabled overlays must be live `Gfx::Font`s.
+/// `host` must be a live document host, on its document's thread. Input arrays and byte buffers must remain valid
+/// and immutable throughout this call; fonts for enabled overlays must be live `Gfx::Font`s.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_record_display_list(
-    arena: *mut c_void,
+pub unsafe extern "C" fn render_state_record_display_list(
+    host: *const crate::render_state::DocumentHost,
     viewport: NodeSlotId,
     inputs: crate::painting::host::FfiRecordingInputs,
 ) -> bool {
-    // SAFETY: Guaranteed by the entry point's contract.
-    let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY, arena) };
-    let mut recording = document_host(&main_thread).recording();
-    let arena = unsafe { arena_from_handle_mut(arena) };
-    // Recording reads overflow, and reading overflow never measures it.
-    arena.measure_scrollable_overflow();
+    assert!(!host.is_null(), "document host is null");
+    // SAFETY: Guaranteed by the caller.
+    let host = unsafe { &*host };
+    let mut recording = host.recording();
     debug_assert!(
         !recording.has_pending_recording(),
         "a recording must be published before the next one starts"
     );
     recording.discard_pending_recording();
-    if !arena.paintable_row_is_populated(viewport) || arena.stacking_context_entries(viewport).is_none() {
+    let frame_inputs = FrameInputs {
+        viewport,
+        css_viewport_rect: inputs.css_viewport_rect.into(),
+        publishes_recording: inputs.publishes_recording,
+        published_root_background_canvas_rect: recording
+            .recorder()
+            .published_recording
+            .as_ref()
+            .map(|recording| recording.root_background_canvas_rect),
+        hit_test_item_capacity_hint: recording.hit_test_item_capacity_hint(),
+    };
+    // SAFETY: As above.
+    let Some(frame) = (unsafe { read(host, frame_inputs, freeze_recording_frame) }) else {
         return false;
+    };
+    // SAFETY: The host lends the input arrays and buffers for this call. Only owned output and
+    // retained resources escape into the pending recording below.
+    let inputs = unsafe { inputs.borrow_recording_inputs(frame.tree_inputs, frame.root_background_source) };
+    let job = crate::painting::recording_slot::RecordingJob::new(
+        frame.frame,
+        recording.take_recorder(),
+        viewport,
+        frame.trace_recordings,
+    );
+    let answer = job.run_on_paint_thread(&inputs);
+    recording.accept_recording_answer(answer);
+    true
+}
+
+/// What the host knows that freezing a document's frame for a recording reads.
+struct FrameInputs {
+    viewport: NodeSlotId,
+    css_viewport_rect: crate::css::css_pixels::CssPixelRect,
+    publishes_recording: bool,
+    /// The canvas rect the root background painted in the recording published last, if any.
+    published_root_background_canvas_rect: Option<crate::css::css_pixels::CssPixelRect>,
+    hit_test_item_capacity_hint: usize,
+}
+
+/// A document's frame, frozen for a recording, with what the recording reads beside it.
+struct FrozenFrame {
+    frame: crate::painting::published_frame::PublishedFrame,
+    tree_inputs: crate::painting::host::FfiVisualContextTreeInputs,
+    root_background_source: crate::painting::host::RootBackgroundSource,
+    trace_recordings: bool,
+}
+
+/// Freezes the frame of the document whose arena `arena` is for a recording of its viewport, or none where the
+/// viewport has no box to paint.
+fn freeze_recording_frame(arena: &mut LayoutNodeArena, inputs: FrameInputs) -> Option<FrozenFrame> {
+    // Recording reads overflow, and reading overflow never measures it.
+    arena.measure_scrollable_overflow();
+    if !arena.paintable_row_is_populated(inputs.viewport) || arena.stacking_context_entries(inputs.viewport).is_none() {
+        return None;
     }
     // The root background paints the union of the viewport and the root's overflow, so it is the
     // one output a viewport move can change. Drop its caches before the frame is published instead
     // of treating the viewport position as a frame-wide input.
-    let published_root_background_canvas_rect = recording
-        .recorder()
-        .published_recording
-        .as_ref()
-        .map(|recording| recording.root_background_canvas_rect);
-    if let Some(published_canvas_rect) = published_root_background_canvas_rect {
+    if let Some(published_canvas_rect) = inputs.published_root_background_canvas_rect {
         let root = arena
             .paint_state()
             .borrow()
@@ -715,7 +817,7 @@ pub unsafe extern "C" fn layout_arena_record_display_list(
         let canvas_rect = crate::painting::record::paint::background_resolution::root_background_canvas_rect(
             &arena.paintable_rows(),
             root,
-            inputs.css_viewport_rect.into(),
+            inputs.css_viewport_rect,
         );
         if canvas_rect != published_canvas_rect {
             arena.push_paint_damage(root, crate::painting::record::damage::PaintDamage::DRAW_BACKGROUND);
@@ -724,40 +826,20 @@ pub unsafe extern "C" fn layout_arena_record_display_list(
     if inputs.publishes_recording {
         arena.note_publishing_paint_recording_started();
     }
-    // The recording reads the document as it is now, and nothing writes the document before it is
-    // done.
-    let frame = arena.freeze_frame(recording.hit_test_item_capacity_hint());
-    let arena: &LayoutNodeArena = arena;
-    let (tree_inputs, root_background_source, trace_recordings) = {
-        let paint_state = arena.paint_state().borrow();
-        (
-            paint_state
-                .visual_context
-                .last_tree_inputs
-                .expect("a recording follows a visual context update"),
-            paint_state
-                .root_background_source
-                .expect("a recording follows paint preparation"),
-            paint_state.trace_recordings,
-        )
-    };
-    // SAFETY: The host lends the input arrays and buffers for this call. Only owned output and
-    // retained resources escape into the pending recording below.
-    let inputs = unsafe { inputs.borrow_recording_inputs(tree_inputs, root_background_source) };
-    let job = crate::painting::recording_slot::RecordingJob::new(
+    // The recording reads the document as it is now, and nothing writes the document before it is done.
+    let frame = arena.freeze_frame(inputs.hit_test_item_capacity_hint);
+    let paint_state = arena.paint_state().borrow();
+    Some(FrozenFrame {
         frame,
-        recording.take_recorder(),
-        viewport,
-        trace_recordings,
-    );
-    let answer = job.run_on_paint_thread(&inputs);
-    recording.accept_recording_answer(answer);
-    true
-}
-
-/// The host of the document an entry's token was minted for.
-fn document_host<'host>(main_thread: &crate::stage::MainThread<'host>) -> &'host crate::render_state::DocumentHost {
-    main_thread.host().expect("an entry's token names its document's host")
+        tree_inputs: paint_state
+            .visual_context
+            .last_tree_inputs
+            .expect("a recording follows a visual context update"),
+        root_background_source: paint_state
+            .root_background_source
+            .expect("a recording follows paint preparation"),
+        trace_recordings: paint_state.trace_recordings,
+    })
 }
 
 /// Answers `query` from the hit-test list of the last recording `host`'s document published, built up by `build`, and
@@ -1189,7 +1271,7 @@ pub unsafe extern "C" fn layout_hit_test_find_closest_line(
     respect_clip: bool,
 ) -> crate::painting::host::FfiClosestLine {
     // SAFETY: Guaranteed by the entry point's contract.
-    let main_thread = unsafe { crate::stage::from_ffi_entry_with_host(&MAIN_THREAD_FFI_ENTRY, &*host) };
+    let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY, &*host) };
     with_hit_test_list_spatial_indexes_and_visual_context_tree(host, true, Default::default(), |list, tree, arena| {
         let closest = list.find_closest_line(
             &main_thread,
@@ -1232,7 +1314,7 @@ pub unsafe extern "C" fn layout_hit_test_adjacent_line(
         crate::painting::hit_test::caret::CaretLineDirection::Previous
     };
     // SAFETY: Guaranteed by the entry point's contract.
-    let main_thread = unsafe { crate::stage::from_ffi_entry_with_host(&MAIN_THREAD_FFI_ENTRY, &*host) };
+    let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY, &*host) };
     with_hit_test_list_and_caret_lines(host, Default::default(), |list, arena| {
         match list.adjacent_line(
             &main_thread,

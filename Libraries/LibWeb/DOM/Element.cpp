@@ -1403,7 +1403,7 @@ static bool content_counter_styles_changed(DOM::AbstractElement const& abstract_
     if (!pseudo_element.has_value())
         return false;
     abstract_element.style_scope().publish_counter_style_lookup_chain();
-    return Layout::RustFFI::layout_arena_content_counter_styles_changed(arena->handle(), abstract_element.element().style_node_id().value(), Layout::Node::encode_generated_for(*pseudo_element));
+    return Layout::RustFFI::render_state_content_counter_styles_changed(arena->host(), abstract_element.element().style_node_id().value(), Layout::Node::encode_generated_for(*pseudo_element));
 }
 
 static void add_element_dependent_invalidation(CSS::RequiredInvalidationAfterStyleChange& invalidation, CSS::ComputedValues const& new_computed_values, ElementDependentInvalidationState const& old_state, DOM::AbstractElement& abstract_element)

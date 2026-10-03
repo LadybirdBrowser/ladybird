@@ -185,7 +185,7 @@ WebIDL::ExceptionOr<void> CharacterData::replace_data(size_t offset, size_t coun
         CSS::record_text_data_changed(as<Text>(*this));
         auto whitespace_only_changed = old_data.is_ascii_whitespace() != m_data.is_ascii_whitespace();
         auto* text_layout_node = as_if<Layout::TextNode>(unsafe_layout_node());
-        if (text_layout_node && Layout::RustFFI::layout_arena_text_has_source_range(text_layout_node->arena_handle(), Layout::Node::slot_id(text_layout_node))) {
+        if (text_layout_node && Layout::RustFFI::render_state_text_has_source_range(text_layout_node->document_host(), Layout::Node::slot_id(text_layout_node))) {
             // First-letter source ranges are determined while building the layout tree.
             if (parent())
                 parent()->set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::CharacterDataReplaceData);

@@ -7,9 +7,8 @@
 //! The capability separating code that may call into C++ from code that computes layout or
 //! records paint.
 
-use crate::layout::{ArenaHandle, HostTables};
+use crate::layout::HostTables;
 use crate::render_state::DocumentHost;
-use std::ffi::c_void;
 use std::marker::PhantomData;
 
 /// Proof that a call entered Rust from the document's main thread, and the way to that document's
@@ -62,7 +61,7 @@ impl<'host> MainThread<'host> {
     }
 }
 
-/// Mint a main thread token for an FFI entry point called on the arena `arena_handle` names.
+/// Mint a main thread token for an FFI entry point called with the document host `host`.
 ///
 /// The marker's type can only be constructed by the module that owns it, and this module lists
 /// those types below, so code elsewhere cannot mint a token with a marker of its own. A module
@@ -72,26 +71,8 @@ impl<'host> MainThread<'host> {
 ///
 /// # Safety
 ///
-/// The caller must be an FFI entry point whose C++ contract requires the document thread, and
-/// `arena_handle` must come from `render_state_arena_for_unconverted_entry` and outlive the token.
-pub(crate) unsafe fn from_ffi_entry<'host>(_: &impl FfiEntry, arena_handle: *mut c_void) -> MainThread<'host> {
-    // SAFETY: Guaranteed by the caller.
-    let host = unsafe { ArenaHandle::host(arena_handle) };
-    MainThread {
-        host: Some(host),
-        not_send_or_sync: PhantomData,
-    }
-}
-
-/// Mint a main thread token for an FFI entry point called with the document host `host`.
-///
-/// # Safety
-///
 /// The caller must be an FFI entry point whose C++ contract requires the document thread.
-pub(crate) unsafe fn from_ffi_entry_with_host<'host>(
-    _: &impl FfiEntry,
-    host: &'host DocumentHost,
-) -> MainThread<'host> {
+pub(crate) unsafe fn from_ffi_entry<'host>(_: &impl FfiEntry, host: &'host DocumentHost) -> MainThread<'host> {
     MainThread {
         host: Some(host),
         not_send_or_sync: PhantomData,

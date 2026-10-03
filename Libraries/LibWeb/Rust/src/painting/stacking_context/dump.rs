@@ -50,53 +50,77 @@ impl FfiStackingContextDumpCallbacks {
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `render_state_arena_for_unconverted_entry`, used on the document thread.
-/// `debug_description` is called synchronously with a `Vec<u8>` sink the host fills through
+/// `host` must be a live document host, on its document's thread. `debug_description` is called synchronously with a `Vec<u8>` sink the host fills through
 /// `layout_arena_paint_push_bytes`, and `append_text` copies the completed dump synchronously.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_dump_stacking_context_tree(
-    arena: *mut c_void,
+pub unsafe extern "C" fn render_state_dump_stacking_context_tree(
+    host: *const crate::render_state::DocumentHost,
     viewport: NodeSlotId,
     callbacks: FfiStackingContextDumpCallbacks,
 ) {
-    // SAFETY: Guaranteed by the entry point's contract.
-    let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY, arena) };
-    // SAFETY: The caller guarantees a live arena handle borrowed for this call.
-    let arena = unsafe { LayoutNodeArena::from_handle(arena) };
-    if arena.stacking_context_entries(viewport).is_none() {
+    assert!(!host.is_null(), "document host is null");
+    // SAFETY: Guaranteed by the caller.
+    let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY, &*host) };
+    // SAFETY: As above.
+    let lines = unsafe {
+        crate::painting::ffi::read(host, viewport, |arena, viewport| {
+            let mut lines = Vec::new();
+            if arena.stacking_context_entries(viewport).is_some() {
+                visit(&mut lines, arena, viewport, 0);
+            }
+            lines
+        })
+    };
+    if lines.is_empty() {
         return;
     }
     let mut output = String::new();
-    visit(&main_thread, &mut output, arena, viewport, 0, &callbacks);
+    for line in lines {
+        output.extend(std::iter::repeat_n(' ', line.depth));
+        match line.context {
+            None => output.push_str("SC for (gone)\n"),
+            Some(context) => push_line(
+                &mut output,
+                &callbacks.debug_description(&main_thread, context.slot),
+                context.rect,
+                context.effective_z_index,
+                context.has_transform,
+            ),
+        }
+    }
     callbacks.append_text(&main_thread, &output);
 }
 
-fn visit(
-    main_thread: &MainThread,
-    output: &mut String,
-    arena: &LayoutNodeArena,
-    root: NodeSlotId,
+/// One line of a stacking context dump: how deep the context is, and what its row says of it, or none for a row that
+/// is gone.
+struct DumpLine {
     depth: usize,
-    callbacks: &FfiStackingContextDumpCallbacks,
-) {
-    output.extend(std::iter::repeat_n(' ', depth));
-    if !arena.slot_is_live(root) {
-        output.push_str("SC for (gone)\n");
-    } else {
-        push_line(
-            output,
-            &callbacks.debug_description(main_thread, root),
-            paintable_geometry::absolute_rect_or_default(&arena.paintable_rows(), root),
-            effective_z_index(arena, root),
-            has_css_transform(arena, root),
-        );
-    }
+    context: Option<DumpedContext>,
+}
+
+struct DumpedContext {
+    slot: NodeSlotId,
+    rect: CssPixelRect,
+    effective_z_index: Option<i32>,
+    has_transform: bool,
+}
+
+fn visit(lines: &mut Vec<DumpLine>, arena: &LayoutNodeArena, root: NodeSlotId, depth: usize) {
+    lines.push(DumpLine {
+        depth,
+        context: arena.slot_is_live(root).then(|| DumpedContext {
+            slot: root,
+            rect: paintable_geometry::absolute_rect_or_default(&arena.paintable_rows(), root),
+            effective_z_index: effective_z_index(arena, root),
+            has_transform: has_css_transform(arena, root),
+        }),
+    });
 
     let Some(entries) = arena.stacking_context_entries(root) else {
         return;
     };
     for entry in entries.negative_z_index_child_contexts() {
-        visit(main_thread, output, arena, entry.slot, depth + 1, callbacks);
+        visit(lines, arena, entry.slot, depth + 1);
     }
     for &descendant in &entries.stack_level_zero_boxes {
         if arena.paintable_row_is_populated(descendant)
@@ -105,11 +129,11 @@ fn visit(
                 .paintable_data(descendant)
                 .establishes_stacking_context
         {
-            visit(main_thread, output, arena, descendant, depth + 1, callbacks);
+            visit(lines, arena, descendant, depth + 1);
         }
     }
     for entry in entries.positive_z_index_child_contexts() {
-        visit(main_thread, output, arena, entry.slot, depth + 1, callbacks);
+        visit(lines, arena, entry.slot, depth + 1);
     }
 }
 

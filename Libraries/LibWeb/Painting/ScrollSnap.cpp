@@ -67,8 +67,8 @@ Vector<Compositing::SnapAreaGeometry> collect_snap_areas(Layout::Node const& sna
     if (!has_committed_box(snap_container))
         return areas;
 
-    Layout::RustFFI::layout_arena_for_each_snap_area(
-        snap_container.arena_handle(), committed_row_slot(snap_container), &areas, [](void* context, Layout::RustFFI::FfiSnapAreaGeometry const* area) {
+    Layout::RustFFI::render_state_for_each_snap_area(
+        snap_container.document_host(), committed_row_slot(snap_container), &areas, [](void* context, Layout::RustFFI::FfiSnapAreaGeometry const* area) {
             static_cast<Vector<Compositing::SnapAreaGeometry>*>(context)->append({
                 .identity = { UniqueNodeID { area->node_id }, area->pseudo_element_type },
                 .rect = area->rect,

@@ -66,7 +66,7 @@ void ImageProvider::image_provider_contents_changed() const
     if (layout_node->kind() == RustFFI::NodeKind::ImageBox) {
         auto const& image_box = static_cast<Box const&>(*layout_node);
         // A box that owns its provider is handed it once the layout update that built the box is over.
-        if (RustFFI::layout_arena_image_box_awaits_owned_provider(image_box.arena_handle(), Node::slot_id(&image_box)) || &image_box.image_provider() != this)
+        if (RustFFI::render_state_image_box_awaits_owned_provider(image_box.document_host(), Node::slot_id(&image_box)) || &image_box.image_provider() != this)
             return;
     }
     Painting::push_replaced_image_paint_facts(*layout_node);

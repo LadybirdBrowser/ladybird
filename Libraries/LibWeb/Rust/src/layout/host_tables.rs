@@ -18,7 +18,6 @@ use super::update_layout::FfiLayoutUpdateHostCallbacks;
 use crate::css::style::fast_hash::FastMap as HashMap;
 use crate::painting::host::FfiGeometryHostCallbacks;
 use crate::painting::paintable_rows::ChromeStateCallback;
-use crate::render_state::DocumentHost;
 use std::cell::Cell;
 use std::cell::RefCell;
 use std::ffi::c_void;
@@ -37,9 +36,6 @@ pub(crate) struct HostTables {
     pub(super) layout_update_host: Cell<Option<FfiLayoutUpdateHostCallbacks>>,
     /// Makes the shell of an anonymous row the first time something asks for it.
     pub(super) shell_factory: Cell<Option<ShellFactory>>,
-    /// Whether the shell factory is making a layout node, which a reader asking for a row's box
-    /// can cause while it borrows the arena, so nothing may borrow the arena mutably meanwhile.
-    pub(super) making_shell: Cell<bool>,
     pub(super) shell_style_changed_host: Cell<Option<ShellStyleChangedHost>>,
     pub(crate) chrome_state_callback: Cell<Option<ChromeStateCallback>>,
     /// What the overflow pass tells the document once it has settled a box's scroll offset.
@@ -56,21 +52,11 @@ pub(crate) struct HostTables {
     /// not name. A row is keyed with its generation, so a slot restamped before the layout node of
     /// the row it replaced is destroyed holds both apart.
     pub(crate) shells: RefCell<HashMap<NodeSlotId, NonNull<c_void>>>,
+    /// Whether the document runs a layout update, which it does one at a time.
+    pub(crate) update_layout_running: Cell<bool>,
 }
 
 impl HostTables {
-    /// The host tables of the arena `handle` names.
-    ///
-    /// # Safety
-    ///
-    /// `handle` must come from `render_state_arena_for_unconverted_entry` and its document host
-    /// stay live for `'a`.
-    pub(crate) unsafe fn from_handle<'a>(handle: *mut c_void) -> &'a Self {
-        assert!(!handle.is_null(), "layout node arena handle is null");
-        // SAFETY: Guaranteed by the caller.
-        unsafe { ArenaHandle::host(handle) }.host_tables()
-    }
-
     /// The layout node of the row `facts` describes, made by the shell factory the first time
     /// something asks for it.
     pub(crate) fn shell_of(&self, facts: ShellFacts) -> *mut c_void {
@@ -80,11 +66,9 @@ impl HostTables {
         let Some((context, factory)) = self.shell_factory.get() else {
             return std::ptr::null_mut();
         };
-        self.making_shell.set(true);
         // SAFETY: Registration and unregistration keep the factory context live. The factory's
         // layout node attaches itself to the table, which no borrow is held of across the call.
         unsafe { factory(context, facts.id, facts.kind) };
-        self.making_shell.set(false);
         self.shells
             .borrow()
             .get(&facts.id)
@@ -137,54 +121,22 @@ impl HostTables {
     }
 }
 
-/// The arena of a document's render state, first, so that a handle is also a pointer to it, the
-/// layout stage's scratch beside it, and the document's host, which entries the host calls with
-/// the handle reach through the main thread token until they reach the render state through
-/// messages.
+/// The arena of a document's render state, first, so that a pointer to the state is also one to the arena, and the
+/// layout stage's scratch beside it.
 #[repr(C)]
 pub(crate) struct ArenaHandle {
     arena: LayoutNodeArena,
-    host: HostOfEntries,
     layout_scratch: super::run_records::LayoutScratch,
 }
-
-/// The document's host, as the host's entries called with an arena handle reach it.
-#[derive(Clone, Copy)]
-pub(crate) struct HostOfEntries(NonNull<DocumentHost>);
-
-impl HostOfEntries {
-    pub(crate) fn new(host: NonNull<DocumentHost>) -> Self {
-        Self(host)
-    }
-}
-
-// SAFETY: The render state that holds the handle never reads the host through it; only the host's entries do, on the
-// host's thread.
-unsafe impl Send for HostOfEntries {}
 
 const _: () = assert!(std::mem::offset_of!(ArenaHandle, arena) == 0);
 
 impl ArenaHandle {
-    /// An arena whose entries answer to `host`, which must outlive every entry called with the
-    /// handle.
-    pub(crate) fn new(host: HostOfEntries) -> Self {
+    pub(crate) fn new() -> Self {
         Self {
             arena: LayoutNodeArena::new(),
-            host,
             layout_scratch: Default::default(),
         }
-    }
-
-    /// The document host the arena `handle` names.
-    ///
-    /// # Safety
-    ///
-    /// `handle` must come from `render_state_arena_for_unconverted_entry` and its document host
-    /// stay live for `'a`.
-    pub(crate) unsafe fn host<'a>(handle: *mut c_void) -> &'a DocumentHost {
-        assert!(!handle.is_null(), "layout node arena handle is null");
-        // SAFETY: Guaranteed by the caller. The projection does not borrow the arena beside it.
-        unsafe { (*handle.cast::<ArenaHandle>()).host.0.as_ref() }
     }
 
     pub(crate) fn arena(&self) -> &LayoutNodeArena {
@@ -271,7 +223,7 @@ mod tests {
         host_tables.attach_shell(freed, object(8));
 
         // A walk frees the row and stamps another in its slot before its host work is applied.
-        HostCalls::Owed(&work).free_subtree(&raw mut arena, freed);
+        HostCalls(&work).free_subtree(&raw mut arena, freed);
         let reused = arena.allocate_for_test().slot;
         assert_eq!(reused.slot_index(), freed.slot_index());
         assert!(host_tables.shells.borrow().get(&reused).is_none());
@@ -282,7 +234,7 @@ mod tests {
         // The walk can ask for the new row's layout node before the old one is destroyed.
         host_tables.attach_shell(reused, object(16));
 
-        work.apply(&main_thread, &arena);
+        work.resolve(&arena).pay(&main_thread);
         assert_eq!(
             host_tables.shells.borrow().get(&reused).map(|shell| shell.as_ptr()),
             Some(object(16))
@@ -336,7 +288,7 @@ mod tests {
             .set_kind(super::super::node_data::NodeKind::BlockContainer);
         host_tables.replace_image_observers(freed, object(8));
 
-        let host_calls = HostCalls::Owed(&work);
+        let host_calls = HostCalls(&work);
         super::super::layout_node_arena::prepare_subtree_for_detach(host_calls, &arena, freed);
         host_calls.free_subtree(&raw mut arena, freed);
         // The walk owes the host the observers it let go of, so they stay until the walk is over.
@@ -347,7 +299,7 @@ mod tests {
         assert_eq!(reused.slot_index(), freed.slot_index());
         host_tables.replace_image_observers(reused, object(16));
 
-        work.apply(&main_thread, &arena);
+        work.resolve(&arena).pay(&main_thread);
         assert!(host_tables.image_observers(freed).is_null());
         assert_eq!(host_tables.image_observers(reused), object(16));
         host_tables.replace_image_observers(reused, std::ptr::null_mut());
@@ -374,11 +326,14 @@ mod tests {
         host_tables.replace_image_observers(root, object(8));
         host_tables.replace_image_observers(text, object(16));
 
+        let work = crate::layout::tree_mutation::OwedHostWork::default();
+        arena.queue_box_presence();
         super::super::layout_node_arena::prepare_subtree_for_detach(
-            crate::layout::tree_mutation::HostCalls::Now(&main_thread),
+            crate::layout::tree_mutation::HostCalls(&work),
             &arena,
             root,
         );
+        work.resolve(&arena).pay(&main_thread);
 
         assert!(host_tables.image_observers(root).is_null());
         assert_eq!(host_tables.image_observers(text), object(16));

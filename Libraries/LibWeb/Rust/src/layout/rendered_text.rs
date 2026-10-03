@@ -9,7 +9,6 @@ use super::text_transform::{TextRenderingOptions, may_require_bidi_processing, r
 use super::{ComputedValuesView, LayoutNodeArena};
 use crate::css::css_enums::text_transform;
 use std::cell::{OnceCell, RefCell};
-use std::ffi::c_void;
 use std::sync::Arc;
 
 /// Selects the beginning or end of a transformed span for offsets inside it.
@@ -352,18 +351,18 @@ pub(super) fn length_in_code_units(text: &ak::Utf16String) -> usize {
 
 /// # Safety
 ///
-/// The arena must be live on the document thread.
+/// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_text_has_source_range(arena: *mut c_void, id: NodeSlotId) -> bool {
-    // SAFETY: The caller lends the arena for this synchronous metadata query.
-    unsafe { LayoutNodeArena::from_handle(arena) }.text_has_source_range(id)
+pub unsafe extern "C" fn render_state_text_has_source_range(
+    host: *const crate::render_state::DocumentHost,
+    id: NodeSlotId,
+) -> bool {
+    // SAFETY: Guaranteed by the caller.
+    unsafe { super::shell_reads::read(host, id, |arena, id| arena.text_has_source_range(id)) }
 }
 
-/// The arena must be live on the document thread with no outstanding borrows.
-/// `id` must name a live text node with a styled parent.
-pub(super) unsafe fn ensure_text_content(arena: *mut LayoutNodeArena, id: NodeSlotId) {
-    // SAFETY: The caller lends the arena for this invalidation check and the publication after it.
-    let arena = unsafe { &mut *arena };
+/// Publishes the rendered text of `id`, a live text node with a styled parent, where what it renders changed.
+pub(super) fn ensure_text_content(arena: &mut LayoutNodeArena, id: NodeSlotId) {
     if arena.text_content_needs_sync(id) {
         sync_text_content(arena, id);
     }
@@ -424,20 +423,25 @@ fn sync_text_content(arena: &mut LayoutNodeArena, id: NodeSlotId) {
 
 /// # Safety
 ///
-/// The arena must be exclusively available on the document thread, and `id`
-/// must name a live text node with a styled parent. Refresh may request source
-/// facts from the host. The returned view lasts until republication or freeing.
+/// `host` must be a live document host, on its document's thread, and `id` must name a live text node with a styled
+/// parent. The returned view lasts until the text is published again or the row is freed.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_text_for_rendering(arena: *mut c_void, id: NodeSlotId) -> FfiRenderedTextView {
-    // SAFETY: The caller lends the arena for refresh before borrowing its text.
-    unsafe { ensure_text_content(arena.cast(), id) };
-    // SAFETY: The host keeps the arena and its published text live during the read.
-    let content = unsafe { LayoutNodeArena::from_handle(arena) }
-        .text_content(id)
-        .expect("text must be published before borrowing its rendered view");
-    FfiRenderedTextView {
-        text: content.text.as_ptr(),
-        length_in_code_units: content.text.len(),
+pub unsafe extern "C" fn render_state_text_for_rendering(
+    host: *const crate::render_state::DocumentHost,
+    id: NodeSlotId,
+) -> FfiRenderedTextView {
+    // SAFETY: Guaranteed by the caller.
+    unsafe {
+        super::shell_reads::read(host, id, |arena, id| {
+            ensure_text_content(arena, id);
+            let content = arena
+                .text_content(id)
+                .expect("text must be published before borrowing its rendered view");
+            FfiRenderedTextView {
+                text: content.text.as_ptr(),
+                length_in_code_units: content.text.len(),
+            }
+        })
     }
 }
 

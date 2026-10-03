@@ -77,6 +77,28 @@ impl Question for StyleQuery {
     }
 }
 
+/// A read of a document's layout arena that `read` answers from the arena and `args`, which the host hands over by
+/// value: the read reaches nothing of the host's, so it is answered wherever the render state is. It may bring what it
+/// reads up to date first, as only the render state can.
+pub(crate) struct ArenaRead<A, R> {
+    read: fn(&mut LayoutNodeArena, A) -> R,
+    args: A,
+}
+
+impl<A, R> ArenaRead<A, R> {
+    pub(crate) fn new(args: A, read: fn(&mut LayoutNodeArena, A) -> R) -> Self {
+        Self { read, args }
+    }
+}
+
+impl<A, R> Question for ArenaRead<A, R> {
+    type Answer = R;
+
+    unsafe fn answer(self, arena: &mut LayoutNodeArena, _: StyleEngineHandle) -> R {
+        (self.read)(arena, self.args)
+    }
+}
+
 /// A read of a document's layout arena.
 pub(crate) enum ArenaQuery {
     /// The text a pseudo-element's generated content resolved to when its box was built: its alt text when it has one,
@@ -178,7 +200,7 @@ impl ArenaQuery {
 
 /// Asks the render state of `host`'s document `question`, spending `_wait`, and answers what it answered.
 ///
-/// The host answers the question itself, where it is, as its entries that still reach the render state directly do:
+/// The host answers the question itself, where it is, as it applies its changes:
 /// the host asks while it installs what a job answered, a question per row, and asking across threads would make it
 /// wait for each one. Questions go to the render side once its jobs answer what the host would ask ahead.
 pub(crate) fn ask<Q: Question>(_wait: impl RenderWait, host: &DocumentHost, question: Q) -> Q::Answer {
@@ -199,7 +221,7 @@ mod tests {
 
     fn arena_of(host: &DocumentHost) -> &'static mut LayoutNodeArena {
         // SAFETY: The arena lives as long as the host's render state, and the test reaches it only between questions.
-        unsafe { &mut *host.arena_for_unconverted_entry().cast::<LayoutNodeArena>() }
+        unsafe { &mut *host.arena_for_test() }
     }
 
     fn destroy(pointer: *mut DocumentHost) {
@@ -237,9 +259,7 @@ mod tests {
             LayoutWrite::DropSubtree { root: parent },
         );
         assert!(!written.was_attached);
-        written
-            .host_work
-            .apply(&crate::stage::MainThread::for_test(), arena_of(host));
+        written.host_work.pay(&crate::stage::MainThread::for_test());
         assert_eq!(arena_of(host).live_slot_count(), 0);
         destroy(pointer);
     }

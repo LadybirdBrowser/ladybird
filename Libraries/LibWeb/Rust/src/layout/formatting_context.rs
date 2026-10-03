@@ -991,23 +991,26 @@ impl FfiLayoutHostCallbacks {
 
 /// # Safety
 ///
-/// `arena` must be a live handle on the document thread. The callbacks must remain valid until
-/// they are cleared or the arena is destroyed.
+/// `host` must be a live document host, on its document's thread. The callbacks must remain valid until they are
+/// cleared or the host is destroyed.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_set_layout_host_callbacks(arena: *mut c_void, callbacks: FfiLayoutHostCallbacks) {
-    // SAFETY: The caller keeps the arena alive for this synchronous call.
-    unsafe { HostTables::from_handle(arena) }
-        .layout_host
-        .set(Some(callbacks));
+pub unsafe extern "C" fn document_host_set_layout_host_callbacks(
+    host: *const crate::render_state::DocumentHost,
+    callbacks: FfiLayoutHostCallbacks,
+) {
+    assert!(!host.is_null(), "document host is null");
+    // SAFETY: Guaranteed by the caller.
+    unsafe { &*host }.host_tables().layout_host.set(Some(callbacks));
 }
 
 /// # Safety
 ///
-/// `arena` must be a live handle on the document thread.
+/// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_clear_layout_host_callbacks(arena: *mut c_void) {
-    // SAFETY: As above.
-    unsafe { HostTables::from_handle(arena) }.layout_host.set(None);
+pub unsafe extern "C" fn document_host_clear_layout_host_callbacks(host: *const crate::render_state::DocumentHost) {
+    assert!(!host.is_null(), "document host is null");
+    // SAFETY: Guaranteed by the caller.
+    unsafe { &*host }.host_tables().layout_host.set(None);
 }
 
 pub(crate) struct FormattingContextRun<'pass> {
@@ -2346,13 +2349,12 @@ pub(crate) fn lay_out_root(
     // follows them, and both precede the pass, which caches decoded style.
     let arena = state.arena();
     viewport_propagation::propagate_root_styles_to_viewport(
-        super::tree_mutation::HostCalls::Owed(work),
+        super::tree_mutation::HostCalls(work),
         arena,
         root,
         &viewport_propagation::viewport_propagation_facts(arena),
     );
-    // SAFETY: The state is live, and the sync borrows its arena only for its own call.
-    unsafe { super::layout_node_arena::sync_enrolled_content_for_layout(std::ptr::from_mut(state).cast()) };
+    super::layout_node_arena::sync_enrolled_content_for_layout(state.arena_mut());
     LayoutStageJob {
         kind: LayoutStageKind::Root {
             should_collect_devtools_layout_data,

@@ -236,9 +236,9 @@ void Document::update_style_and_layout_once(UpdateLayoutReason reason, Throttled
     drain_invalidation_journal();
 
     auto& arena = layout_node_arena();
-    Layout::RustFFI::layout_arena_begin_update_layout(arena.handle());
+    Layout::RustFFI::document_host_begin_update_layout(arena.host());
     ScopeGuard guard = [&] {
-        Layout::RustFFI::layout_arena_end_update_layout(arena.handle());
+        Layout::RustFFI::document_host_end_update_layout(arena.host());
 
         if (m_needs_scroll_container_resnap) {
             if (auto navigable = this->navigable(); navigable && navigable->active_document().ptr() == this)
@@ -265,7 +265,7 @@ void Document::update_style_and_layout_once(UpdateLayoutReason reason, Throttled
         .is_template_contents_document = m_created_for_appropriate_template_contents,
         .reason_name = ffi_utf16_view(to_string(reason)),
     };
-    Layout::RustFFI::layout_arena_update_layout(arena.handle(), &inputs);
+    Layout::RustFFI::render_state_update_layout(arena.host(), &inputs);
 
     // A pass that reached a web face still waiting on its load cannot start the fetch itself: the fetch, the
     // font-display timer and the load-event delayer are all document state. It leaves the face's number behind
@@ -278,7 +278,7 @@ void Document::update_style_and_layout_once(UpdateLayoutReason reason, Throttled
     // document's layout works out. Hand it over as it changes.
     if (auto* object = as_if<HTML::HTMLObjectElement>(navigable->container().ptr())) {
         Layout::RustFFI::FfiNaturalSize natural_size {};
-        if (Layout::RustFFI::layout_arena_take_changed_document_svg_root_natural_size(arena.handle(), &natural_size)) {
+        if (Layout::RustFFI::render_state_take_changed_document_svg_root_natural_size(arena.host(), &natural_size)) {
             CSS::SizeWithAspectRatio size { natural_size.width, natural_size.height, {} };
             if (natural_size.has_aspect_ratio)
                 size.aspect_ratio = CSSPixelFraction(natural_size.aspect_ratio_numerator, natural_size.aspect_ratio_denominator);

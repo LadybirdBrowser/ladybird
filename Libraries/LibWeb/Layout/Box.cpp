@@ -38,7 +38,7 @@ static ImageProvider const& image_provider_for_element(DOM::Element const& eleme
 
 ImageProvider* Box::owned_image_provider() const
 {
-    return static_cast<ImageProvider*>(RustFFI::layout_arena_owned_image_provider(arena_handle(), Node::slot_id(this)));
+    return static_cast<ImageProvider*>(RustFFI::document_host_owned_image_provider(document_host(), Node::slot_id(this)));
 }
 
 ImageProvider const& Box::image_provider() const
@@ -55,12 +55,12 @@ ImageProvider const& Box::image_provider() const
 void Box::set_owned_image_provider(NonnullOwnPtr<ImageProvider> image_provider)
 {
     VERIFY(kind() == RustFFI::NodeKind::ImageBox);
-    RustFFI::layout_arena_set_owned_image_provider(arena_handle(), Node::slot_id(this), image_provider.leak_ptr());
+    RustFFI::document_host_set_owned_image_provider(document_host(), Node::slot_id(this), image_provider.leak_ptr());
 }
 
 bool Box::is_partial_relayout_boundary() const
 {
-    return RustFFI::layout_arena_node_is_partial_relayout_boundary(arena_handle(), Node::slot_id(this));
+    return RustFFI::render_state_node_is_partial_relayout_boundary(document_host(), Node::slot_id(this));
 }
 
 }

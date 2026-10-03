@@ -9,8 +9,7 @@
 //! holds them, keyed by the style node identity the build walks by.
 
 use crate::css::style::tree::StyleNodeID;
-use crate::layout::LayoutNodeArena;
-use std::ffi::c_void;
+use crate::render_state::{ArenaRead, DocumentHost, LockstepProof, ask};
 
 /// Which narrower rebuild the marks a node has collected so far still permit, as
 /// `Node::LayoutTreeUpdateReuseReason` spells them. Nothing set means only a full rebuild will do.
@@ -123,56 +122,87 @@ impl LayoutTreeUpdateMarks {
     }
 }
 
-/// Runs `access` on the layout tree update marks of the arena `arena` names, for the node
-/// `style_node` names. An identity of 0 names no node, and `access` is not run for it.
+/// The reason the host reads and writes its document's layout tree update marks where they are, between the render
+/// state's jobs: it marks the nodes a mutation leaves to be rebuilt, and decides how far each mark reaches from the
+/// marks already there.
+pub(crate) struct HostMarksLayoutTree {
+    _private: (),
+}
+
+const HOST_MARKS_LAYOUT_TREE: HostMarksLayoutTree = HostMarksLayoutTree { _private: () };
+
+/// Runs `access` on the layout tree update marks of `host`'s document, for the node `style_node` names. An identity of
+/// 0 names no node, and `access` is not run for it.
 ///
 /// # Safety
 ///
-/// `arena` must be a live arena handle, on the document thread.
-unsafe fn with_marks<R: Default>(
-    arena: *mut c_void,
+/// `host` must be a live document host, on its document's thread.
+unsafe fn with_marks<A, R: Default>(
+    host: *const DocumentHost,
     style_node: u32,
-    access: impl FnOnce(&mut LayoutTreeUpdateMarks, StyleNodeID) -> R,
+    args: A,
+    access: fn(&mut LayoutTreeUpdateMarks, StyleNodeID, A) -> R,
 ) -> R {
     let Some(style_node) = StyleNodeID::from_raw(style_node) else {
         return R::default();
     };
+    assert!(!host.is_null(), "document host is null");
     // SAFETY: Guaranteed by the caller.
-    let arena = unsafe { LayoutNodeArena::from_handle(arena) };
-    access(&mut arena.layout_tree_update_marks().borrow_mut(), style_node)
+    let host = unsafe { &*host };
+    ask(
+        LockstepProof::for_reason(&HOST_MARKS_LAYOUT_TREE),
+        host,
+        ArenaRead::new((style_node, args, access), |arena, (style_node, args, access)| {
+            access(&mut arena.layout_tree_update_marks().borrow_mut(), style_node, args)
+        }),
+    )
 }
 
 /// Whether the node `style_node` names holds a layout tree update mark of its own.
 ///
 /// # Safety
 ///
-/// The arena must remain valid for the duration of the call.
+/// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_needs_layout_tree_update(arena: *mut c_void, style_node: u32) -> bool {
+pub unsafe extern "C" fn render_state_needs_layout_tree_update(host: *const DocumentHost, style_node: u32) -> bool {
     // SAFETY: Guaranteed by the caller.
-    unsafe { with_marks(arena, style_node, |marks, style_node| marks.needs(style_node)) }
+    unsafe { with_marks(host, style_node, (), |marks, style_node, ()| marks.needs(style_node)) }
 }
 
 /// Which narrower rebuilds the marks the node `style_node` names has collected still permit.
 ///
 /// # Safety
 ///
-/// The arena must remain valid for the duration of the call.
+/// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_layout_tree_update_reuse_reasons(arena: *mut c_void, style_node: u32) -> u8 {
+pub unsafe extern "C" fn render_state_layout_tree_update_reuse_reasons(
+    host: *const DocumentHost,
+    style_node: u32,
+) -> u8 {
     // SAFETY: Guaranteed by the caller.
-    unsafe { with_marks(arena, style_node, |marks, style_node| marks.reuse_reasons(style_node)) }
+    unsafe {
+        with_marks(host, style_node, (), |marks, style_node, ()| {
+            marks.reuse_reasons(style_node)
+        })
+    }
 }
 
 /// Whether a flat-tree descendant of the node `style_node` names holds a layout tree update mark.
 ///
 /// # Safety
 ///
-/// The arena must remain valid for the duration of the call.
+/// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_child_needs_layout_tree_update(arena: *mut c_void, style_node: u32) -> bool {
+pub unsafe extern "C" fn render_state_child_needs_layout_tree_update(
+    host: *const DocumentHost,
+    style_node: u32,
+) -> bool {
     // SAFETY: Guaranteed by the caller.
-    unsafe { with_marks(arena, style_node, |marks, style_node| marks.child_needs(style_node)) }
+    unsafe {
+        with_marks(host, style_node, (), |marks, style_node, ()| {
+            marks.child_needs(style_node)
+        })
+    }
 }
 
 /// Folds a layout tree update mark into the one the node `style_node` names holds, answering
@@ -180,19 +210,22 @@ pub unsafe extern "C" fn layout_arena_child_needs_layout_tree_update(arena: *mut
 ///
 /// # Safety
 ///
-/// The arena must remain valid for the duration of the call.
+/// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_merge_layout_tree_update_mark(
-    arena: *mut c_void,
+pub unsafe extern "C" fn render_state_merge_layout_tree_update_mark(
+    host: *const DocumentHost,
     style_node: u32,
     value: bool,
     reuse_reason: u8,
 ) -> bool {
     // SAFETY: Guaranteed by the caller.
     unsafe {
-        with_marks(arena, style_node, |marks, style_node| {
-            marks.merge(style_node, value, reuse_reason)
-        })
+        with_marks(
+            host,
+            style_node,
+            (value, reuse_reason),
+            |marks, style_node, (value, reuse_reason)| marks.merge(style_node, value, reuse_reason),
+        )
     }
 }
 
@@ -201,16 +234,16 @@ pub unsafe extern "C" fn layout_arena_merge_layout_tree_update_mark(
 ///
 /// # Safety
 ///
-/// The arena must remain valid for the duration of the call.
+/// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_set_child_needs_layout_tree_update(
-    arena: *mut c_void,
+pub unsafe extern "C" fn render_state_set_child_needs_layout_tree_update(
+    host: *const DocumentHost,
     style_node: u32,
     value: bool,
 ) -> bool {
     // SAFETY: Guaranteed by the caller.
     unsafe {
-        with_marks(arena, style_node, |marks, style_node| {
+        with_marks(host, style_node, value, |marks, style_node, value| {
             marks.set_child_needs(style_node, value)
         })
     }
@@ -221,11 +254,11 @@ pub unsafe extern "C" fn layout_arena_set_child_needs_layout_tree_update(
 ///
 /// # Safety
 ///
-/// The arena must remain valid for the duration of the call.
+/// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_clear_layout_tree_update_marks(arena: *mut c_void, style_node: u32) {
+pub unsafe extern "C" fn render_state_clear_layout_tree_update_marks(host: *const DocumentHost, style_node: u32) {
     // SAFETY: Guaranteed by the caller.
-    unsafe { with_marks(arena, style_node, |marks, style_node| marks.clear(style_node)) }
+    unsafe { with_marks(host, style_node, (), |marks, style_node, ()| marks.clear(style_node)) }
 }
 
 #[cfg(test)]

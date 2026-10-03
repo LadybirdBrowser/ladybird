@@ -201,6 +201,9 @@ macro_rules! lockstep_reason {
 // The waits internal code makes, each minted only by the module its marker belongs to.
 lockstep_reason!(crate::layout::layout_changes::HostPaysTheWrite);
 lockstep_reason!(crate::layout::shell_reads::HostReadsItsOwnWrite);
+lockstep_reason!(crate::layout::LayoutUpdateReads);
+lockstep_reason!(crate::layout::tree_update_marks::HostMarksLayoutTree);
+lockstep_reason!(crate::painting::ffi::HostReadsPaintState);
 lockstep_reason!(crate::painting::ffi::InputReadsBoxes);
 lockstep_reason!(crate::painting::ffi::ScrollSnaps);
 lockstep_reason!(crate::painting::paint_passes::HostPaintStep);

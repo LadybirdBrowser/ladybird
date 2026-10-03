@@ -22,7 +22,7 @@ use crate::layout::node_data::{
     GENERATED_FOR_MARKER, NodeData, NodeFlag, NodeKind, NodeSlotId, SELECTION_PSEUDO_KIND, pseudo_kind_of,
 };
 use crate::layout::text_chunker::{GraphemeSegmenter, code_point_at, code_unit_length_for_code_point};
-use crate::layout::tree_mutation::{HostCalls, OwedHostWork, UnplacedLayoutNode, free_subtree_and_destroy_shells};
+use crate::layout::tree_mutation::{HostCalls, OwedHostWork, UnplacedLayoutNode};
 use crate::layout::tree_update_marks::layout_tree_update_reuse_reason;
 use crate::layout::{ComputedValuesView, FfiDisplay};
 
@@ -1272,7 +1272,7 @@ impl DomTreeBuilderHost<'_> {
     }
 
     fn host_calls(&self) -> HostCalls<'_> {
-        HostCalls::Owed(self.work)
+        HostCalls(self.work)
     }
 }
 
@@ -1562,7 +1562,7 @@ impl StaleSubtreeHost<'_> {
             }
             // SAFETY: The arena handle is the one the walk was given, and the clear borrows the
             // arena for itself.
-            unsafe { crate::painting::ffi::paintable_cleared_from_node(self.host_calls, self.arena.cast(), row) };
+            unsafe { crate::painting::ffi::paintable_cleared_from_node(self.host_calls, self.arena, row) };
             super::layout_node_arena::prepare_row_for_detach(self.host_calls, self.arena(), row);
             self.arena().unbind_row(row);
             let parent = self.arena().data(row).parent.get();
@@ -1621,6 +1621,41 @@ fn node_kind_is_svg_resource_box(kind: NodeKind) -> bool {
 }
 
 /// Every pseudo-element of the element gives up the box it holds, subtree and all.
+/// Detaches what is left of the boxes of the node `node` names as the node leaves the document, while its identity
+/// still names them. Its box is read until the parent's rebuild frees it, so its style record is pinned and its
+/// committed box cleared now. Its box's top layer placement is a viewport child rather than part of the parent's box
+/// subtree, so the parent's rebuild never reaches it, and it is detached and freed here. The rows are found by
+/// identity, so this makes no shell.
+pub(crate) fn detach_remaining_rows_for_removal(
+    host_calls: HostCalls<'_>,
+    arena: *mut LayoutNodeArena,
+    node: StyleNodeID,
+) {
+    // A pseudo-element's boxes are found through its generator's identity, so they go while the identity still finds
+    // them. A ::backdrop box sits outside the generator's box, so no rebuild of the parent would free it.
+    if node.element_index().is_some() {
+        clear_synthetic_pseudo_element_boxes(host_calls, arena, node);
+    }
+    // SAFETY: The render state holds the arena, and nothing else reaches it meanwhile.
+    let row = unsafe { &*arena }.bound_row(node);
+    if row.is_invalid() {
+        return;
+    }
+    // SAFETY: As above.
+    unsafe { &*arena }.pin_style_record_for_detachment(row);
+    // SAFETY: As above; the clear borrows the arena for itself.
+    unsafe { crate::painting::ffi::paintable_cleared_from_node(host_calls, arena, row) };
+    let top_layer_placement = topmost_layout_node_of_top_layer_placement(arena, row);
+    if !top_layer_placement.is_invalid() {
+        // SAFETY: As above; the shared borrow ends before the subtree is freed.
+        super::layout_node_arena::prepare_subtree_for_detach(host_calls, unsafe { &*arena }, top_layer_placement);
+        // SAFETY: As above.
+        let was_attached = unsafe { &*arena }.detach_from_parent(top_layer_placement);
+        assert!(was_attached, "a top layer placement is a viewport child");
+        host_calls.free_subtree(arena, top_layer_placement);
+    }
+}
+
 pub(crate) fn clear_synthetic_pseudo_element_boxes(
     host_calls: HostCalls<'_>,
     arena: *mut LayoutNodeArena,
@@ -1650,7 +1685,7 @@ fn free_pseudo_element_box(
     for row in rows {
         // SAFETY: The arena handle is the one the walk was given, and the clear borrows the arena
         // for itself.
-        unsafe { crate::painting::ffi::paintable_cleared_from_node(host_calls, arena.cast(), row) };
+        unsafe { crate::painting::ffi::paintable_cleared_from_node(host_calls, arena, row) };
     }
     super::layout_node_arena::prepare_subtree_for_detach(host_calls, arena_ref, row);
     let was_attached = arena_ref.detach_from_parent(row);
@@ -3974,7 +4009,7 @@ impl TreeBuilderHost<'_> {
     }
 
     fn host_calls(&self) -> HostCalls<'_> {
-        HostCalls::Owed(self.work)
+        HostCalls(self.work)
     }
 
     fn parent(&self, node: LayoutNode) -> LayoutNode {
@@ -4941,7 +4976,7 @@ fn is_tabular_container(host: &TreeBuilderHost<'_>, node: LayoutNode) -> bool {
 
 fn text_is_ascii_whitespace(host: &TreeBuilderHost<'_>, node: LayoutNode) -> bool {
     // SAFETY: Tree building owns the arena; no borrowed node data crosses the refresh.
-    unsafe { super::rendered_text::ensure_text_content(host.arena, node) };
+    super::rendered_text::ensure_text_content(unsafe { &mut *host.arena }, node);
     host.arena()
         .text_content(node)
         .expect("text was just refreshed")
@@ -5547,11 +5582,14 @@ mod tests {
         arena.set_node_flag(parent, NodeFlag::ChildrenAreInline, true);
 
         let main_thread = MainThread::for_test();
+        let work = crate::layout::tree_mutation::OwedHostWork::default();
+        arena.queue_box_presence();
         let host = super::StaleSubtreeHost {
             arena: &raw mut arena,
-            host_calls: crate::layout::tree_mutation::HostCalls::Now(&main_thread),
+            host_calls: crate::layout::tree_mutation::HostCalls(&work),
         };
         assert!(!host.clear_stale_layout_node(element, None));
+        work.resolve(&arena).pay(&main_thread);
 
         assert!(!arena.slot_is_live(element_box));
         assert!(!arena.slot_is_live(before_box));

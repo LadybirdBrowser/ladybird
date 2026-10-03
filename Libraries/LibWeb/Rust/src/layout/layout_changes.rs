@@ -10,7 +10,7 @@
 use super::LayoutNodeArena;
 use super::node_data::{NodeFlag, NodeSlotId};
 use super::svg_formatting_context::{FfiFloatPoint, FfiSvgAttributeFacts};
-use super::tree_mutation::{HostCalls, OwedHostWork};
+use super::tree_mutation::{HostCalls, HostWorkDue, OwedHostWork};
 use super::used_values::FfiCssPixelPoint;
 use crate::css::css_pixels::CssPixelPoint;
 use crate::css::style::NaturalSize;
@@ -114,6 +114,55 @@ pub(crate) enum LayoutChange {
     RestampTableSpans {
         node: NodeSlotId,
     },
+    /// The row `added` was built for the DOM node the row `bound` is bound to.
+    NoteRowsShareDomNode {
+        bound: NodeSlotId,
+        added: NodeSlotId,
+    },
+    /// The row is bound to the node it was built for.
+    BindRow(NodeSlotId),
+    /// The row is no longer bound to the node it was built for.
+    UnbindRow(NodeSlotId),
+    /// Whether the row needs a frame of the compositor's animation of `kind`.
+    SetNodeNeedsCompositorAnimationFrame {
+        node: NodeSlotId,
+        kind: super::node_data::CompositorAnimationFrameKind,
+        value: bool,
+    },
+    /// The row takes the style record `record`, whose payloads `payloads` holds.
+    SetNodeStyle {
+        node: NodeSlotId,
+        record: u64,
+        payloads: super::node_data::StylePayloadsRef,
+    },
+    /// The style record of the box the node `style_node` is bound to, or of the box of its pseudo-element
+    /// `generated_for`, stays readable once the node has left the document.
+    PinBoundBoxStyleRecordForDetachment {
+        style_node: StyleNodeID,
+        generated_for: u8,
+    },
+    /// The host's readers of the row hold the style record `record` until the host releases it or the row is freed.
+    PinNodeStyleRecordForHost {
+        node: NodeSlotId,
+        record: u64,
+    },
+    /// The host's readers of the row let go of the style record they held.
+    ReleaseNodeStyleRecordPinForHost {
+        node: NodeSlotId,
+    },
+    /// How the host learns what boxes a DOM node has, or none.
+    SetBoxPresenceHost(Option<super::layout_node_arena::BoxPresenceHost>),
+    /// The text content and replaced-content facts of every node enrolled since the last sync are refreshed.
+    SyncEnrolledContentForLayout,
+    /// The document's layout passes are traced from now on.
+    BeginLayoutTrace,
+    /// The boxes of the traced events at these lines are named so.
+    NameLayoutTraceOwners(Vec<(usize, String)>),
+    /// The tree scope registers these counter styles now.
+    CounterStyles {
+        tree_scope: u32,
+        scope: crate::css::counter_representation::CounterStyleScope,
+    },
 }
 
 impl LayoutChange {
@@ -210,6 +259,39 @@ impl LayoutChange {
                     arena.set_needs_layout_update(node, true);
                 }
             }
+            Self::NoteRowsShareDomNode { bound, added } => arena.note_rows_share_dom_node(bound, added),
+            Self::BindRow(node) => arena.bind_row(node),
+            Self::UnbindRow(node) => arena.unbind_row(node),
+            Self::SetNodeNeedsCompositorAnimationFrame { node, kind, value } => {
+                arena.set_node_needs_compositor_animation_frame(node, kind, value);
+            }
+            Self::SetNodeStyle { node, record, payloads } => {
+                if arena.set_node_style(node, record, payloads) {
+                    arena.refresh_style_flags(node);
+                }
+                arena.publish_new_size_container_geometry(node);
+                arena.enroll_node_for_svg_paint_resources_sync(node);
+            }
+            Self::PinBoundBoxStyleRecordForDetachment {
+                style_node,
+                generated_for,
+            } => {
+                let row = if generated_for == 0 {
+                    arena.bound_row(style_node)
+                } else {
+                    arena.bound_pseudo_element_row(style_node, generated_for)
+                };
+                if !row.is_invalid() {
+                    arena.pin_style_record_for_detachment(row);
+                }
+            }
+            Self::PinNodeStyleRecordForHost { node, record } => arena.pin_node_style_record_for_host(node, record),
+            Self::ReleaseNodeStyleRecordPinForHost { node } => arena.release_node_style_record_pin_for_host(node),
+            Self::SetBoxPresenceHost(host) => arena.set_box_presence_host(host),
+            Self::SyncEnrolledContentForLayout => super::layout_node_arena::sync_enrolled_content_for_layout(arena),
+            Self::BeginLayoutTrace => arena.layout_trace.begin(),
+            Self::NameLayoutTraceOwners(names) => arena.name_layout_trace_owners(names),
+            Self::CounterStyles { tree_scope, scope } => arena.publish_counter_styles(tree_scope, scope),
         }
     }
 }
@@ -222,20 +304,37 @@ pub(crate) enum LayoutWrite {
     DropSubtree { root: NodeSlotId },
     /// Detaches the layout placement of the top layer element and clears every stale projected subtree of it.
     DetachTopLayerElement(StyleNodeID),
+    /// Detaches what is left of the boxes of the node as it leaves the document, while its identity still names them:
+    /// its synthetic pseudo-elements' boxes and its box's top layer placement go, and its box is cleared for the
+    /// parent's rebuild to free.
+    DetachRemainingRowsForRemoval(StyleNodeID),
+    /// The row takes the derived style record `record` its layout node made.
+    AdoptDerivedNodeStyle { node: NodeSlotId, record: u64 },
+    /// The row's layout style takes the display `display`.
+    SetLayoutDisplay { node: NodeSlotId, display: u32 },
+    /// The anonymous rows below the row inherit its style again.
+    ReinheritAnonymousDescendants { node: NodeSlotId },
+    /// Prepares the row for leaving the layout tree.
+    PrepareRowForDetach { row: NodeSlotId },
+    /// Prepares every row of the subtree the row heads for leaving the layout tree.
+    PrepareSubtreeForDetach { root: NodeSlotId },
+    /// Clears the committed box of every row of the subtree the row heads, and prepares each for leaving the layout
+    /// tree, as a removal does before it drops the subtree.
+    PrepareSubtreeForRemoval { root: NodeSlotId },
 }
 
 /// What a write answers: whether the subtree it dropped was attached, and what it owes the host.
 #[derive(Default)]
 pub(crate) struct LayoutWritten {
     pub(crate) was_attached: bool,
-    pub(crate) host_work: OwedHostWork,
+    pub(crate) host_work: HostWorkDue,
 }
 
 impl LayoutWrite {
     /// Makes the write to the arena `arena` names, owing the host what it would have paid on its thread.
     pub(crate) fn apply(self, arena: *mut LayoutNodeArena) -> LayoutWritten {
         let host_work = OwedHostWork::default();
-        let host_calls = HostCalls::Owed(&host_work);
+        let host_calls = HostCalls(&host_work);
         // SAFETY: The render state holds the arena, and nothing else reaches it while the write runs.
         let arena_ref = unsafe { &*arena };
         arena_ref.queue_box_presence();
@@ -253,10 +352,51 @@ impl LayoutWrite {
                 super::tree_builder::detach_top_layer_element_layout_subtree(host_calls, arena, element);
                 false
             }
+            Self::DetachRemainingRowsForRemoval(node) => {
+                super::tree_builder::detach_remaining_rows_for_removal(host_calls, arena, node);
+                false
+            }
+            Self::AdoptDerivedNodeStyle { node, record } => {
+                let derived = arena_ref.with_style_engine(|engine| {
+                    crate::css::style::layout_style::DerivedStyleRecord::pin(engine, record)
+                });
+                arena_ref.apply_reinherited_style_record(host_calls, node, derived);
+                false
+            }
+            Self::SetLayoutDisplay { node, display } => {
+                arena_ref.update_layout_style(host_calls, node, |style| {
+                    style.set_display(crate::css::display::FfiDisplay::from_raw(display));
+                });
+                false
+            }
+            Self::ReinheritAnonymousDescendants { node } => {
+                arena_ref.reinherit_anonymous_descendants(host_calls, node);
+                false
+            }
+            Self::PrepareRowForDetach { row } => {
+                super::layout_node_arena::prepare_row_for_detach(host_calls, arena_ref, row);
+                false
+            }
+            Self::PrepareSubtreeForDetach { root } => {
+                super::layout_node_arena::prepare_subtree_for_detach(host_calls, arena_ref, root);
+                false
+            }
+            Self::PrepareSubtreeForRemoval { root } => {
+                let mut rows = Vec::new();
+                arena_ref.for_each_node_in_layout_subtree_in_pre_order(root, |row| rows.push(row));
+                for &row in &rows {
+                    // SAFETY: The render state holds the arena, and the clear borrows it for itself.
+                    unsafe { crate::painting::ffi::paintable_cleared_from_node(host_calls, arena, row) };
+                }
+                for row in rows {
+                    super::layout_node_arena::prepare_row_for_detach(host_calls, arena_ref, row);
+                }
+                false
+            }
         };
         LayoutWritten {
             was_attached,
-            host_work,
+            host_work: host_work.resolve(arena_ref),
         }
     }
 }
@@ -278,7 +418,7 @@ pub(crate) fn write(host: &DocumentHost, write: LayoutWrite) -> LayoutWritten {
 /// # Safety
 ///
 /// `host` must come from `document_host_create` and not be destroyed yet, on the document's thread.
-unsafe fn queue(host: *const DocumentHost, change: LayoutChange) {
+pub(crate) unsafe fn queue(host: *const DocumentHost, change: LayoutChange) {
     assert!(!host.is_null(), "document host is null");
     // SAFETY: Guaranteed by the caller.
     unsafe { &*host }.queue_change(ArenaChange::Layout(change));
@@ -653,10 +793,10 @@ mod tests {
         let written = LayoutWrite::DropSubtree { root: child }.apply(&raw mut arena);
         assert!(written.was_attached);
         assert!(!arena.slot_is_live(child));
-        written.host_work.apply(&crate::stage::MainThread::for_test(), &arena);
+        written.host_work.pay(&crate::stage::MainThread::for_test());
         let written = LayoutWrite::DropSubtree { root: parent }.apply(&raw mut arena);
         assert!(!written.was_attached);
-        written.host_work.apply(&crate::stage::MainThread::for_test(), &arena);
+        written.host_work.pay(&crate::stage::MainThread::for_test());
         assert_eq!(arena.live_slot_count(), 0);
     }
 }

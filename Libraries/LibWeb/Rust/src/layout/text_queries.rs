@@ -128,8 +128,8 @@ unsafe fn ensure_text_fragments(arena: *mut LayoutNodeArena, primary: NodeSlotId
     // SAFETY: The caller lends the live arena; the IDs do not borrow it.
     let fragments = unsafe { &*arena }.text_fragments(primary);
     for &node in fragments.as_slice() {
-        // SAFETY: No arena borrow crosses the refresh's source callback.
-        unsafe { ensure_text_content(arena, node) };
+        // SAFETY: The caller lends the live arena, which nothing else borrows meanwhile.
+        ensure_text_content(unsafe { &mut *arena }, node);
     }
 }
 
@@ -324,8 +324,7 @@ fn ensure_searchable_text(
                 if !is_searchable(text) {
                     continue;
                 }
-                // SAFETY: The arena is borrowed exclusively.
-                unsafe { ensure_text_content(arena, node) };
+                ensure_text_content(arena, node);
                 let content = arena.text_content(node).expect("search text was refreshed");
                 builder.append(node, &content.text, collapses_whitespace(arena, node));
             }

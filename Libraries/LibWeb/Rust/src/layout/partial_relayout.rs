@@ -10,7 +10,6 @@ use crate::layout::formatting_context::{FormattingContextType, formatting_contex
 use crate::layout::node_data::{NodeFlag, NodeKind, NodeSlotId};
 use crate::layout::node_facts;
 use crate::painting::paint_read::PaintRead;
-use std::ffi::c_void;
 
 #[repr(C)]
 pub struct FfiLayoutTreeUpdateClassification {
@@ -750,12 +749,14 @@ impl LayoutNodeArena {
 
 /// # Safety
 ///
-/// The arena must remain valid for the duration of the call, and `node` must name a live node
-/// in this arena.
+/// `host` must be a live document host, on its document's thread, and `node` must name a live row of its document.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_node_is_partial_relayout_boundary(arena: *mut c_void, node: NodeSlotId) -> bool {
-    // SAFETY: The C++ caller keeps the arena alive for this synchronous call.
-    unsafe { LayoutNodeArena::from_handle(arena) }.node_is_partial_relayout_boundary(node)
+pub unsafe extern "C" fn render_state_node_is_partial_relayout_boundary(
+    host: *const crate::render_state::DocumentHost,
+    node: NodeSlotId,
+) -> bool {
+    // SAFETY: Guaranteed by the caller.
+    unsafe { super::shell_reads::read(host, node, |arena, node| arena.node_is_partial_relayout_boundary(node)) }
 }
 
 /// The facts the host owns that take an update off the partial relayout path.
@@ -767,17 +768,23 @@ pub(crate) struct FfiPartialRelayoutHostFacts {
 
 /// # Safety
 ///
-/// The arena must remain valid for the duration of the call, and `node` must name a live node
-/// in this arena.
+/// `host` must be a live document host, on its document's thread, and `node` must name a live row of its document.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_classify_layout_tree_update(
-    arena: *mut c_void,
+pub unsafe extern "C" fn render_state_classify_layout_tree_update(
+    host: *const crate::render_state::DocumentHost,
     node: NodeSlotId,
     reason_is_structural_boundary_self_rebuild: bool,
 ) -> FfiLayoutTreeUpdateClassification {
-    // SAFETY: The C++ caller keeps the arena alive for this synchronous call.
-    unsafe { LayoutNodeArena::from_handle(arena) }
-        .classify_layout_tree_update(node, reason_is_structural_boundary_self_rebuild)
+    // SAFETY: Guaranteed by the caller.
+    unsafe {
+        super::shell_reads::read(
+            host,
+            (node, reason_is_structural_boundary_self_rebuild),
+            |arena, (node, reason_is_structural_boundary_self_rebuild)| {
+                arena.classify_layout_tree_update(node, reason_is_structural_boundary_self_rebuild)
+            },
+        )
+    }
 }
 
 #[cfg(test)]
