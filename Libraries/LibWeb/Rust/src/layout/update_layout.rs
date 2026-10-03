@@ -87,6 +87,9 @@ pub struct FfiLayoutUpdateHostCallbacks {
     process_pending_list_item_renumbers: unsafe extern "C" fn(*mut c_void),
     process_pending_top_layer_layout_changes: unsafe extern "C" fn(*mut c_void),
     document_facts: unsafe extern "C" fn(*mut c_void) -> FfiLayoutUpdateDocumentFacts,
+    /// True when a size container waits for its queries to be evaluated after the next full layout. Only an update
+    /// that may take the partial relayout path asks.
+    container_query_evaluation_is_pending: unsafe extern "C" fn(*mut c_void) -> bool,
     needs_style_update_after_layout: unsafe extern "C" fn(*mut c_void) -> bool,
     prepare_for_rendering: unsafe extern "C" fn(*mut c_void),
     /// Readies the document for a layout tree build, and answers the document's style, interned as a
@@ -120,7 +123,6 @@ pub struct FfiLayoutUpdateDocumentFacts {
     pub document_is_active: bool,
     /// The document node or one of its descendants needs a layout tree update.
     pub document_needs_layout_tree_build: bool,
-    pub container_query_evaluation_is_pending: bool,
     /// A top layer membership change or zone rebuild is waiting for the next pass.
     pub top_layer_work_pending: bool,
     pub should_collect_devtools_layout_data: bool,
@@ -175,6 +177,10 @@ impl FfiLayoutUpdateHostCallbacks {
 
     fn document_facts(&self, _: &MainThread) -> FfiLayoutUpdateDocumentFacts {
         unsafe { (self.document_facts)(self.context) }
+    }
+
+    fn container_query_evaluation_is_pending(&self, _: &MainThread) -> bool {
+        unsafe { (self.container_query_evaluation_is_pending)(self.context) }
     }
 
     fn needs_style_update_after_layout(&self, _: &MainThread) -> bool {
@@ -316,6 +322,9 @@ pub(crate) struct LayoutRoundJob {
     build: Option<TreeBuildJob>,
     /// The layout the round goes on with, which a round that stopped after its build had chosen.
     layout: RoundLayout,
+    /// Whether a size container waits for its queries to be evaluated after the next full layout, which only a round
+    /// that may lay out partially reads.
+    container_query_evaluation_is_pending: bool,
     container_length_bases: super::layout_pass::ContainerLengthBasesQuery,
     trace: UpdateLayoutTrace,
 }
@@ -378,7 +387,7 @@ impl LayoutRoundJob {
         // build runs here when the tree needs one, so a round that is not eligible goes on to the full layout without
         // building again.
         let partial_relayout_facts = FfiPartialRelayoutHostFacts {
-            container_query_evaluation_is_pending: facts.container_query_evaluation_is_pending,
+            container_query_evaluation_is_pending: self.container_query_evaluation_is_pending,
             should_collect_devtools_layout_data: facts.should_collect_devtools_layout_data,
         };
         let arena = state.arena();
@@ -521,9 +530,12 @@ unsafe fn update_layout(main_thread: &MainThread, arena_handle: *mut c_void, inp
     // therefore acyclic, and a coherent style/layout pass can settle at least one more level of
     // a nested dependency chain. One pass per connected element is a conservative exact bound.
     // Recompute it after each pass because an initial style update can enroll the elements of a
-    // freshly parsed document after the layout update has already started.
+    // freshly parsed document after the layout update has already started. The bound is at least
+    // the ordinary limit, so the passes within it do not ask for the count.
     let mut layout_pass: u64 = 0;
-    while layout_pass < ORDINARY_STABILIZATION_ROUND_LIMIT + u64::from(host.connected_element_count(main_thread)) + 1 {
+    while layout_pass <= ORDINARY_STABILIZATION_ROUND_LIMIT
+        || layout_pass < ORDINARY_STABILIZATION_ROUND_LIMIT + u64::from(host.connected_element_count(main_thread)) + 1
+    {
         layout_pass += 1;
 
         host.update_style(main_thread);
@@ -562,6 +574,7 @@ unsafe fn update_layout(main_thread: &MainThread, arena_handle: *mut c_void, inp
             facts,
             build,
             layout: RoundLayout::PartialIfPlanned,
+            container_query_evaluation_is_pending: host.container_query_evaluation_is_pending(main_thread),
             container_length_bases: layout_host.container_length_bases_query(main_thread),
             trace: trace.clone(),
         };
@@ -590,6 +603,8 @@ unsafe fn update_layout(main_thread: &MainThread, arena_handle: *mut c_void, inp
                 facts: host.document_facts(main_thread),
                 build: None,
                 layout,
+                container_query_evaluation_is_pending: layout == RoundLayout::PartialIfPlanned
+                    && host.container_query_evaluation_is_pending(main_thread),
                 container_length_bases: layout_host.container_length_bases_query(main_thread),
                 trace: trace.clone(),
             };
@@ -702,7 +717,6 @@ mod tests {
         FfiLayoutUpdateDocumentFacts {
             document_is_active: true,
             document_needs_layout_tree_build: false,
-            container_query_evaluation_is_pending: false,
             top_layer_work_pending: false,
             should_collect_devtools_layout_data: false,
             document_in_quirks_mode: false,

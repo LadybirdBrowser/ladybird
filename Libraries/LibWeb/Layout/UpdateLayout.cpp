@@ -48,7 +48,6 @@ Layout::RustFFI::FfiLayoutUpdateHostCallbacks Document::layout_update_host_callb
             return {
                 .document_is_active = document_is_active,
                 .document_needs_layout_tree_build = document.needs_layout_tree_update() || document.child_needs_layout_tree_update(),
-                .container_query_evaluation_is_pending = document.has_size_containers_needing_evaluation_after_layout(),
                 .top_layer_work_pending = document.m_top_layer_needs_layout_zone_rebuild || !document.m_elements_with_pending_top_layer_membership_change.is_empty(),
                 .should_collect_devtools_layout_data = document.page().client().has_active_devtools_client(),
                 .document_in_quirks_mode = document.in_quirks_mode(),
@@ -57,6 +56,7 @@ Layout::RustFFI::FfiLayoutUpdateHostCallbacks Document::layout_update_host_callb
                 .document_style_node = document.style_node_id().value(),
                 .has_stale_list_item_counters = !document.m_list_owners_with_stale_item_counters.is_empty(),
             }; },
+        .container_query_evaluation_is_pending = [](void* context) -> bool { return static_cast<Document*>(context)->has_size_containers_needing_evaluation_after_layout(); },
         .needs_style_update_after_layout = [](void* context) -> bool { return static_cast<Document*>(context)->needs_style_update_after_layout(); },
         .prepare_for_rendering = [](void* context) { static_cast<Document*>(context)->prepare_for_rendering(); },
         .prepare_layout_tree_build = [](void* context, bool may_create_viewport) -> u64 {
