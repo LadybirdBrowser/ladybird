@@ -92,7 +92,7 @@ size_t GraphLoadingState::external_memory_size() const
 }
 
 // 16.2.1.5.1 LoadRequestedModules ( [ hostDefined ] ), https://tc39.es/ecma262/#sec-LoadRequestedModules
-PromiseCapability& CyclicModule::load_requested_modules(GC::Ptr<GraphLoadingState::HostDefined> host_defined)
+PromiseCapability& CyclicModule::load_requested_modules(GC::Ptr<GC::Cell> host_defined)
 {
     auto& vm = this->vm();
 

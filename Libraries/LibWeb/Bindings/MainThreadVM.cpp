@@ -469,7 +469,7 @@ void initialize_main_thread_vm(HTML::AgentType type)
     };
 
     // 8.1.6.7.3 HostLoadImportedModule(referrer, moduleRequest, loadState, payload), https://html.spec.whatwg.org/multipage/webappapis.html#hostloadimportedmodule
-    main_thread_vm_ptr()->host_load_imported_module = [](JS::ImportedModuleReferrer referrer, JS::ModuleRequest const& module_request, GC::Ptr<JS::GraphLoadingState::HostDefined> load_state, JS::ImportedModulePayload payload) -> void {
+    main_thread_vm_ptr()->host_load_imported_module = [](JS::ImportedModuleReferrer referrer, JS::ModuleRequest const& module_request, GC::Ptr<GC::Cell> load_state, JS::ImportedModulePayload payload) -> void {
         auto& vm = *main_thread_vm_ptr();
 
         // 1. Let settingsObject be the current settings object.

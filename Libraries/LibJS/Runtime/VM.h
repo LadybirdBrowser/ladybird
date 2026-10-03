@@ -488,7 +488,7 @@ public:
     ScriptOrModule get_active_script_or_module() const;
 
     // 16.2.1.10 HostLoadImportedModule ( referrer, moduleRequest, hostDefined, payload ), https://tc39.es/ecma262/#sec-HostLoadImportedModule
-    Function<void(ImportedModuleReferrer, ModuleRequest const&, GC::Ptr<GraphLoadingState::HostDefined>, ImportedModulePayload)> host_load_imported_module;
+    Function<void(ImportedModuleReferrer, ModuleRequest const&, GC::Ptr<GC::Cell> load_state, ImportedModulePayload)> host_load_imported_module;
 
     Function<HashMap<PropertyKey, Value>(SourceTextModule&)> host_get_import_meta_properties;
     Function<void(Object*, SourceTextModule const&)> host_finalize_import_meta;
@@ -578,7 +578,7 @@ private:
         size_t type_error_realm_override_depth { 0 };
     };
 
-    void load_imported_module(ImportedModuleReferrer, ModuleRequest const&, GC::Ptr<GraphLoadingState::HostDefined>, ImportedModulePayload);
+    void load_imported_module(ImportedModuleReferrer, ModuleRequest const&, GC::Ptr<GC::Cell> load_state, ImportedModulePayload);
     ThrowCompletionOr<void> link_and_eval_module(CyclicModule&);
     ThrowCompletionOr<void> link_and_eval_module(SourceTextModule&);
 
