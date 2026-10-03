@@ -13,7 +13,7 @@
         frame.srcdoc = ["red", "blue"]
             .map(
                 color =>
-                    `<img src='data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"><rect width="10" height="10" fill="${color}"/></svg>`)}'>`
+                    `<img src='data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"><style>rect { fill: ${color}; }</style><rect width="10" height="10"/></svg>`)}'>`
             )
             .join("");
         await new Promise(resolve => {

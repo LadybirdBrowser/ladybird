@@ -63,7 +63,15 @@ bool Task::is_runnable() const
 
 bool Task::is_permanently_unrunnable() const
 {
-    return m_document && m_document->has_been_destroyed();
+    if (!m_document)
+        return false;
+    if (m_document->has_been_destroyed())
+        return true;
+
+    // NB: A decoded SVG image document is only active while SVGDecodedImageData has it installed in the shared SVG
+    //     image environment, which never spans a turn of the event loop. A task queued for it (e.g. a style element's
+    //     load event) can never run, and would otherwise keep the document and the shared environment alive.
+    return m_document->is_decoded_svg() && !m_document->is_fully_active();
 }
 
 DOM::Document const* Task::document() const
