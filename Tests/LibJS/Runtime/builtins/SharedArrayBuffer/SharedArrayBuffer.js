@@ -17,3 +17,11 @@ test("SharedArrayBuffer size limit", () => {
         new SharedArrayBuffer(2 ** 53);
     }).toThrowWithMessage(RangeError, "Invalid shared array buffer length");
 });
+
+test("SharedArrayBuffer cannot be detached", () => {
+    const buffer = new SharedArrayBuffer(1);
+    expect(() => {
+        detachArrayBuffer(buffer);
+    }).toThrowWithMessage(TypeError, "The array buffer object cannot be a SharedArrayBuffer");
+    expect(buffer.byteLength).toBe(1);
+});
