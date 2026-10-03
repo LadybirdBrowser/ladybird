@@ -3021,6 +3021,15 @@ fn main() -> Result<(), Box<dyn Error>> {
     .map(String::from)
     .to_vec();
     expose_compositing_types_as_cpp_types(&mut style_value_config);
+    // A compositor keyframe value is substituted by the document's style engine, which the document host reaches.
+    style_value_config.export.rename.insert(
+        "DocumentHost".to_string(),
+        "Web::Layout::RustFFI::DocumentHost".to_string(),
+    );
+    style_value_config
+        .after_includes
+        .get_or_insert_with(String::new)
+        .push_str("\nnamespace Web::Layout::RustFFI { struct DocumentHost; }");
 
     generate_ffi_header(
         style_value_config,
@@ -3238,6 +3247,16 @@ fn main() -> Result<(), Box<dyn Error>> {
         .as_mut()
         .unwrap()
         .push_str("\nnamespace Web::CSS::Parser::ValueParserFFI { struct DeclarationBlockData; }");
+    // An animation sample and plan read the document's style engine, which the document host reaches.
+    computed_values_config.export.rename.insert(
+        "DocumentHost".to_string(),
+        "Web::Layout::RustFFI::DocumentHost".to_string(),
+    );
+    computed_values_config
+        .after_includes
+        .as_mut()
+        .unwrap()
+        .push_str("\nnamespace Web::Layout::RustFFI { struct DocumentHost; }");
 
     let libgfx_font_source = manifest_dir.join("../../LibGfx/Rust/src/font.rs");
     println!("cargo:rerun-if-changed={}", libgfx_font_source.display());

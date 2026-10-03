@@ -14,6 +14,8 @@ use crate::css::style::bridge::{
     BoundScopeChain, operations, publish_rule_declarations, publish_style_rule, publish_style_rule_selectors,
 };
 use crate::css::style::compiler::NamespaceScope;
+use crate::css::style::engine_calls::{document_host, with_engine};
+use crate::render_state::DocumentHost;
 use std::rc::Rc;
 
 #[derive(Clone, Copy, Default)]
@@ -24,11 +26,12 @@ pub struct NativeCompilationResult {
 }
 
 // All pointers are borrowed for main-thread compilation. Neither the parser nor the native
-// stylesheet graph retains document engines, interners, or host callbacks.
+// stylesheet graph retains document hosts, interners, or host callbacks.
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct NativeStylePublication {
-    pub engine: crate::css::style::StyleEngineHandle,
+    /// The host of the document whose style engine the rules are published to.
+    pub host: *const DocumentHost,
     pub sheet: u32,
     pub before_rule: u32,
 }
@@ -132,6 +135,16 @@ impl SelectorInputs {
 }
 
 impl NativeStylePublication {
+    /// The host of the document whose style engine the rules are published to.
+    ///
+    /// # Safety
+    ///
+    /// The publication's host must be a live document host, on its document's thread.
+    pub(super) unsafe fn host(&self) -> &DocumentHost {
+        // SAFETY: Guaranteed by the caller.
+        unsafe { document_host(self.host) }
+    }
+
     pub(super) unsafe fn replace_selectors(
         &self,
         rule: RuleRef<'_>,
@@ -139,13 +152,15 @@ impl NativeStylePublication {
         context: &CompilationContext,
         selectors: &RustParsedSelectorList,
     ) {
-        let engine = unsafe { self.engine.get_mut() };
-        let id = engine.native_rule_id(rule.identity()).map_or(0, |id| id.0 + 1);
-        let namespaces = NamespaceScope::from_rule_list(source.rules(), |text| {
-            crate::css::style::bridge::intern_native_text(engine, text)
+        // SAFETY: Guaranteed by the caller.
+        with_engine(unsafe { self.host() }, |engine| {
+            let id = engine.native_rule_id(rule.identity()).map_or(0, |id| id.0 + 1);
+            let namespaces = NamespaceScope::from_rule_list(source.rules(), |text| {
+                crate::css::style::bridge::intern_native_text(engine, text)
+            });
+            let compiled: Vec<_> = selectors.selectors.iter().map(|selector| selector.as_ref()).collect();
+            publish_style_rule_selectors(engine, id, &compiled, namespaces, &context.selectors.scope);
         });
-        let compiled: Vec<_> = selectors.selectors.iter().map(|selector| selector.as_ref()).collect();
-        publish_style_rule_selectors(engine, id, &compiled, namespaces, &context.selectors.scope);
     }
 
     pub(super) unsafe fn compile(
@@ -155,72 +170,76 @@ impl NativeStylePublication {
         context: &CompilationContext,
         selectors: Option<&RustParsedSelectorList>,
     ) -> NativeCompilationResult {
-        let mut result = NativeCompilationResult::default();
-        let engine = unsafe { self.engine.get_mut() };
-        let sheet = self.sheet;
-        let before = self.before_rule;
-        // Reuse the engine's recorded publication operations so recording and replay see the
-        // same semantic inputs as incremental CSSOM edits.
-        result.rule_id = match rule.rule_type() {
-            NativeRuleType::Style | NativeRuleType::NestedDeclarations => {
-                let selectors = selectors.unwrap();
-                if selectors.selectors.is_empty() {
-                    return result;
+        // SAFETY: Guaranteed by the caller.
+        with_engine(unsafe { self.host() }, |engine| {
+            let mut result = NativeCompilationResult::default();
+            let sheet = self.sheet;
+            let before = self.before_rule;
+            // Reuse the engine's recorded publication operations so recording and replay see the
+            // same semantic inputs as incremental CSSOM edits.
+            result.rule_id = match rule.rule_type() {
+                NativeRuleType::Style | NativeRuleType::NestedDeclarations => {
+                    let selectors = selectors.unwrap();
+                    if selectors.selectors.is_empty() {
+                        return result;
+                    }
+                    let namespaces = NamespaceScope::from_rule_list(source.rules(), |text| {
+                        crate::css::style::bridge::intern_native_text(engine, text)
+                    });
+                    let compiled: Vec<_> = selectors.selectors.iter().map(|selector| selector.as_ref()).collect();
+                    let id = publish_style_rule(engine, sheet, before, &compiled, namespaces, &context.selectors.scope);
+                    let declarations = rule.cascade_declarations().unwrap();
+                    result.declares_transitions = publish_rule_declarations(engine, id, &declarations);
+                    if context.gated_by_container_query {
+                        operations::set_rule_gated_by_container_query(engine, id);
+                    }
+                    id
                 }
-                let namespaces = NamespaceScope::from_rule_list(source.rules(), |text| {
-                    crate::css::style::bridge::intern_native_text(engine, text)
-                });
-                let compiled: Vec<_> = selectors.selectors.iter().map(|selector| selector.as_ref()).collect();
-                let id = publish_style_rule(engine, sheet, before, &compiled, namespaces, &context.selectors.scope);
-                let declarations = rule.cascade_declarations().unwrap();
-                result.declares_transitions = publish_rule_declarations(engine, id, &declarations);
-                if context.gated_by_container_query {
-                    operations::set_rule_gated_by_container_query(engine, id);
+                NativeRuleType::FontFeatureValues => operations::add_font_feature_values_rule(engine, sheet, before),
+                NativeRuleType::CounterStyle => operations::add_counter_style_rule(engine, sheet, before),
+                NativeRuleType::Function => operations::add_function_rule(engine, sheet, before),
+                NativeRuleType::Property => {
+                    let name =
+                        crate::css::style::bridge::intern_native_text(engine, rule.definition_name().unwrap().units())
+                            .0;
+                    operations::add_property_rule(engine, sheet, before, name)
                 }
-                id
+                NativeRuleType::Keyframes => {
+                    let name =
+                        crate::css::style::bridge::intern_native_text(engine, rule.definition_name().unwrap().units())
+                            .0;
+                    operations::add_keyframes_rule(engine, sheet, before, name)
+                }
+                _ => 0,
+            };
+            if result.rule_id != 0 {
+                if !context.conditions_hold {
+                    operations::set_rule_conditions_hold(engine, result.rule_id, false);
+                }
+                if context.in_a_layer
+                    && matches!(
+                        rule.rule_type(),
+                        NativeRuleType::Style | NativeRuleType::NestedDeclarations | NativeRuleType::CounterStyle
+                    )
+                {
+                    let layer = crate::css::style::bridge::intern_native_text(engine, &context.layer_name).0;
+                    operations::set_rule_in_a_layer(engine, result.rule_id);
+                    operations::set_rule_layer(engine, result.rule_id, layer);
+                }
             }
-            NativeRuleType::FontFeatureValues => operations::add_font_feature_values_rule(engine, sheet, before),
-            NativeRuleType::CounterStyle => operations::add_counter_style_rule(engine, sheet, before),
-            NativeRuleType::Function => operations::add_function_rule(engine, sheet, before),
-            NativeRuleType::Property => {
-                let name =
-                    crate::css::style::bridge::intern_native_text(engine, rule.definition_name().unwrap().units()).0;
-                operations::add_property_rule(engine, sheet, before, name)
+            if result.rule_id != 0 {
+                unsafe {
+                    engine.register_native_rule(
+                        crate::css::style::program::RuleID(result.rule_id - 1),
+                        rule.identity(),
+                        rule.cascade_declarations(),
+                        source.identity(),
+                        &context.layer_name,
+                        &context.containers,
+                    );
+                }
             }
-            NativeRuleType::Keyframes => {
-                let name =
-                    crate::css::style::bridge::intern_native_text(engine, rule.definition_name().unwrap().units()).0;
-                operations::add_keyframes_rule(engine, sheet, before, name)
-            }
-            _ => 0,
-        };
-        if result.rule_id != 0 {
-            if !context.conditions_hold {
-                operations::set_rule_conditions_hold(engine, result.rule_id, false);
-            }
-            if context.in_a_layer
-                && matches!(
-                    rule.rule_type(),
-                    NativeRuleType::Style | NativeRuleType::NestedDeclarations | NativeRuleType::CounterStyle
-                )
-            {
-                let layer = crate::css::style::bridge::intern_native_text(engine, &context.layer_name).0;
-                operations::set_rule_in_a_layer(engine, result.rule_id);
-                operations::set_rule_layer(engine, result.rule_id, layer);
-            }
-        }
-        if result.rule_id != 0 {
-            unsafe {
-                engine.register_native_rule(
-                    crate::css::style::program::RuleID(result.rule_id - 1),
-                    rule.identity(),
-                    rule.cascade_declarations(),
-                    source.identity(),
-                    &context.layer_name,
-                    &context.containers,
-                );
-            }
-        }
-        result
+            result
+        })
     }
 }

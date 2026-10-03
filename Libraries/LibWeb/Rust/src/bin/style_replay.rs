@@ -330,7 +330,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                     let engine = read_engine(&mut event.payload, &live_engines)?;
                     let token = usize::try_from(event.payload.read_u64()?)?;
                     let expected = event.payload.read_u32()?;
-                    let actual = unsafe { bridge::style_engine_intern_atom(engine, token) };
+                    let actual = unsafe { bridge::intern_atom(engine.get_mut(), token) };
                     assert_identity("atom", expected, actual)?;
                 }
                 EventKind::ReplaceStyleRuleSelectors => {
@@ -383,8 +383,8 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                     let inheritable = event.payload.read_u64()?;
                     // Replay has no stores, only the identities that name them.
                     unsafe {
-                        bridge::style_engine_note_custom_property_environment(
-                            engine,
+                        bridge::note_custom_property_environment(
+                            engine.get_mut(),
                             identity,
                             std::ptr::null(),
                             inheritable,
@@ -591,8 +591,8 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                         capacity
                     ];
                     let actual_result = unsafe {
-                        bridge::style_engine_match_element(
-                            engine,
+                        bridge::match_element(
+                            engine.get_mut(),
                             node,
                             actual.as_mut_ptr(),
                             capacity,
@@ -750,7 +750,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                     };
                     let expected_present = event.payload.read_u8()?;
                     let actual = unsafe {
-                        bridge::style_engine_settle_pseudo_records_after_host_record(engine, node, old_is_list_item)
+                        bridge::settle_pseudo_records_after_host_record(engine.get_mut(), node, old_is_list_item)
                     };
                     if actual.refused != expected_refused || actual.pseudo_records_present != expected_present {
                         return Err(format!(
@@ -768,7 +768,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                     } else {
                         None
                     };
-                    let actual = unsafe { bridge::style_engine_retry_engine_record_after_ancestor(engine, node) };
+                    let actual = unsafe { bridge::retry_engine_record_after_ancestor(engine.get_mut(), node) };
                     if actual.style_record != expected
                         || expected_uses_substitution.is_some_and(|expected| actual.uses_substitution != expected)
                     {
@@ -784,7 +784,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                     let pseudo_kind = event.payload.read_u8()?;
                     let expected_old = event.payload.read_u64()?;
                     let expected_new = event.payload.read_u64()?;
-                    let actual = unsafe { bridge::style_engine_remove_computed_pseudo(engine, node, pseudo_kind) };
+                    let actual = unsafe { bridge::remove_computed_pseudo(engine.get_mut(), node, pseudo_kind) };
                     if (actual.old_style_record, actual.new_style_record) != (expected_old, expected_new) {
                         return Err(format!(
                             "removed pseudo style records diverged: expected ({expected_old}, {expected_new}), got ({}, {})",
@@ -1032,8 +1032,8 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                         table
                     };
                     let actual = unsafe {
-                        bridge::style_engine_publish_computed_groups(
-                            engine,
+                        bridge::publish_computed_groups(
+                            engine.get_mut(),
                             node,
                             pseudo_kind,
                             computed_group_payloads.as_ptr(),
@@ -1097,7 +1097,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                         .get(index)
                         .and_then(Option::as_ref)
                         .ok_or_else(|| format!("style record {style_record} payload response was not defined"))?;
-                    let actual = unsafe { bridge::style_engine_style_record_payloads(engine, style_record) };
+                    let actual = unsafe { bridge::style_record_payloads(engine.get_mut(), style_record) };
                     if actual.is_null() == expected.is_some() {
                         return Err(format!("style record {style_record} payload presence diverged").into());
                     }
@@ -1142,7 +1142,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                         .get(index)
                         .and_then(Option::as_ref)
                         .ok_or_else(|| format!("style record {style_record} view response was not defined"))?;
-                    let actual = unsafe { bridge::style_engine_style_record_view(engine, style_record) };
+                    let actual = unsafe { bridge::style_record_view(engine.get_mut(), style_record) };
                     if actual.present != expected.is_some() {
                         return Err(format!("style record {style_record} view presence diverged").into());
                     }
@@ -2388,7 +2388,7 @@ fn replay_atom_mappings(
             0 => {
                 let token = usize::try_from(payload.read_u64()?)?;
                 let expected = payload.read_u32()?;
-                let actual = unsafe { bridge::style_engine_intern_atom(engine, token) };
+                let actual = unsafe { bridge::intern_atom(engine.get_mut(), token) };
                 assert_identity("selector atom", expected, actual)?;
             }
             1 => {

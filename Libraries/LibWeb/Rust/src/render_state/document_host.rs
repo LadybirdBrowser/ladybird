@@ -319,6 +319,35 @@ pub extern "C" fn document_host_create(device_class: u8) -> *mut DocumentHost {
     Box::into_raw(host)
 }
 
+/// A document host with a render state, for a unit test, which destroys both when it is dropped.
+#[cfg(test)]
+pub(crate) struct TestHost(*mut DocumentHost);
+
+#[cfg(test)]
+impl TestHost {
+    pub(crate) fn new() -> Self {
+        Self(document_host_create(0))
+    }
+
+    pub(crate) fn host(&self) -> *const DocumentHost {
+        self.0
+    }
+
+    /// The style engine of the host's document, which the test reaches between the host's calls.
+    pub(crate) fn engine(&self) -> crate::css::style::StyleEngineHandle {
+        // SAFETY: The host lives until the test host is dropped.
+        unsafe { &*self.0 }.created_state().engine
+    }
+}
+
+#[cfg(test)]
+impl Drop for TestHost {
+    fn drop(&mut self) {
+        // SAFETY: The test host made the host, and destroys it once.
+        unsafe { document_host_destroy(self.0) };
+    }
+}
+
 /// The reason a new document's host waits for its render state: it keeps where the state's arena and style engine are.
 pub(crate) struct NewDocument {
     _private: (),

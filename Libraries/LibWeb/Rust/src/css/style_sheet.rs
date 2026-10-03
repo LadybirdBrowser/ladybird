@@ -524,33 +524,42 @@ pub extern "C" fn rust_style_sheet_reset_media_state(sheet: &NativeStyleSheet) {
 /// Evaluate media queries throughout the sheet graph from one document environment snapshot.
 ///
 /// # Safety
-/// Engine must be exclusively available and the environment must contain valid media feature data.
+/// `host` must be a live document host, on its document's thread, and the environment must contain
+/// valid media feature data.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_style_sheet_evaluate_media_queries(
     sheet: &NativeStyleSheet,
     environment: FfiMediaEnvironment,
     state: &mut NativeMediaEvaluationState,
-    engine: crate::css::style::StyleEngineHandle,
+    host: *const crate::render_state::DocumentHost,
 ) -> NativeStyleSheetMediaEvaluation {
-    let engine = unsafe { engine.get_mut() };
-    sheet.evaluate_media_queries(unsafe { environment.borrow() }, state, &mut |identity, holds| {
-        if let Some(rule) = engine.native_rule_id(identity) {
-            crate::css::style::bridge::operations::set_rule_conditions_hold(engine, rule.0 + 1, holds);
-        }
+    // SAFETY: Guaranteed by the caller.
+    let host = unsafe { crate::css::style::engine_calls::document_host(host) };
+    crate::css::style::engine_calls::with_engine(host, |engine| {
+        sheet.evaluate_media_queries(unsafe { environment.borrow() }, state, &mut |identity, holds| {
+            if let Some(rule) = engine.native_rule_id(identity) {
+                crate::css::style::bridge::operations::set_rule_conditions_hold(engine, rule.0 + 1, holds);
+            }
+        })
     })
 }
 
 /// Publish inherited condition gates directly into the document engine.
 ///
 /// # Safety
-/// Engine and environment must be live and exclusively available for this call.
+/// `host` must be a live document host, on its document's thread, and the environment live for this
+/// call.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_style_sheet_publish_conditions(
     sheet: &NativeStyleSheet,
-    engine: crate::css::style::StyleEngineHandle,
+    host: *const crate::render_state::DocumentHost,
     environment: FfiMediaEnvironment,
 ) {
-    sheet.publish_conditions(unsafe { engine.get_mut() }, unsafe { environment.borrow() });
+    // SAFETY: Guaranteed by the caller.
+    let host = unsafe { crate::css::style::engine_calls::document_host(host) };
+    crate::css::style::engine_calls::with_engine(host, |engine| {
+        sheet.publish_conditions(engine, unsafe { environment.borrow() });
+    });
 }
 
 // Keep first-seen sibling order and emit descendants before their parent, including the
@@ -602,13 +611,13 @@ fn cascade_layer_order<'a>(sheets: impl IntoIterator<Item = &'a NativeStyleSheet
 /// Publish the layer order of the host's ordered, active author sheets.
 ///
 /// # Safety
-/// Sheets and engine must be live. prepare must flush host changes without destroying them.
-/// The engine is not borrowed during prepare.
+/// Sheets must be live, and `host` a live document host, on its document's thread. prepare must
+/// flush host changes without destroying them. The engine is not borrowed during prepare.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_style_sheet_publish_layer_order(
     sheets: *const *const NativeStyleSheet,
     count: usize,
-    engine: crate::css::style::StyleEngineHandle,
+    host: *const crate::render_state::DocumentHost,
     tree_scope: u32,
     previously_had_layers: bool,
     context: *mut c_void,
@@ -625,18 +634,21 @@ pub unsafe extern "C" fn rust_style_sheet_publish_layer_order(
     // must clear the engine's old ranks.
     if has_layers || previously_had_layers {
         unsafe { prepare(context) };
-        let engine = unsafe { engine.get_mut() };
-        let layers: Vec<_> = names
-            .iter()
-            .map(|name| {
-                if name.is_empty() {
-                    0
-                } else {
-                    crate::css::style::bridge::intern_native_text(engine, name).0
-                }
-            })
-            .collect();
-        crate::css::style::bridge::operations::set_layer_order(engine, tree_scope, &layers);
+        // SAFETY: Guaranteed by the caller.
+        let host = unsafe { crate::css::style::engine_calls::document_host(host) };
+        crate::css::style::engine_calls::with_engine(host, |engine| {
+            let layers: Vec<_> = names
+                .iter()
+                .map(|name| {
+                    if name.is_empty() {
+                        0
+                    } else {
+                        crate::css::style::bridge::intern_native_text(engine, name).0
+                    }
+                })
+                .collect();
+            crate::css::style::bridge::operations::set_layer_order(engine, tree_scope, &layers);
+        });
     }
     has_layers
 }

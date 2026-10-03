@@ -104,7 +104,7 @@ mod tests {
         use crate::css::rule::{rust_rule_list_clear, rust_rule_retain};
         use crate::css::style::StyleEngine;
         use crate::css::style::bridge::{
-            FfiNativeRuleTarget, style_engine_native_rule_declarations_changed, style_engine_native_rule_target,
+            FfiNativeRuleTarget, native_rule_declaration_owner, native_rule_target, publish_native_rule_declarations,
         };
         use crate::css::style::memory::DeviceClass;
         use crate::css::style::program::{CascadeOrigin, RuleKind, StyleSheetObjectID};
@@ -135,13 +135,7 @@ mod tests {
         };
         // All fields are integers, nullable pointers, booleans, or enums whose zero variant is valid.
         let mut target: FfiNativeRuleTarget = unsafe { std::mem::zeroed() };
-        assert!(unsafe {
-            style_engine_native_rule_target(
-                crate::css::style::StyleEngineHandle::from_raw((&raw const engine).cast_mut()),
-                id.0 + 1,
-                &mut target,
-            )
-        });
+        assert!(unsafe { native_rule_target(&mut engine, id.0 + 1, &mut target,) });
         let snapshot = unsafe { Arc::from_raw(target.declarations.cast::<DeclarationBlockData>()) };
         assert_eq!(target.source_identity, source_identity);
         assert!(style.declarations.is_immutable());
@@ -151,22 +145,9 @@ mod tests {
 
         let mut declarations = style.declarations.clone();
         assert!(declarations.remove(property_id::WIDTH));
-        unsafe extern "C" fn notify(_: *mut c_void, _: u32) {}
-        unsafe {
-            style_engine_native_rule_declarations_changed(
-                crate::css::style::StyleEngineHandle::from_raw(&raw mut engine),
-                std::ptr::from_ref(rule).cast(),
-                std::ptr::null_mut(),
-                notify,
-            );
-        }
-        assert!(unsafe {
-            style_engine_native_rule_target(
-                crate::css::style::StyleEngineHandle::from_raw((&raw const engine).cast_mut()),
-                id.0 + 1,
-                &mut target,
-            )
-        });
+        let owner = native_rule_declaration_owner(&engine, rule).expect("the rule owns its declarations");
+        publish_native_rule_declarations(&mut engine, rule, owner);
+        assert!(unsafe { native_rule_target(&mut engine, id.0 + 1, &mut target,) });
         let edited_snapshot = unsafe { Arc::from_raw(target.declarations.cast::<DeclarationBlockData>()) };
         assert_eq!(target.identity, identity);
         assert_ne!(target.declaration_version, version);
@@ -178,25 +159,13 @@ mod tests {
         assert!(source_lifetime.upgrade().is_none());
         assert!(rule_lifetime.upgrade().is_none());
         // The program reads its published snapshot, not a live document-local rule record.
-        assert!(unsafe {
-            style_engine_native_rule_target(
-                crate::css::style::StyleEngineHandle::from_raw((&raw const engine).cast_mut()),
-                id.0 + 1,
-                &mut target,
-            )
-        });
+        assert!(unsafe { native_rule_target(&mut engine, id.0 + 1, &mut target,) });
         let surviving_snapshot = unsafe { Arc::from_raw(target.declarations.cast::<DeclarationBlockData>()) };
         assert!(Arc::ptr_eq(&edited_snapshot, &surviving_snapshot));
         assert_eq!(target.identity, identity);
         assert_eq!(target.source_identity, source_identity);
         engine.remove_style_rule(id);
-        assert!(!unsafe {
-            style_engine_native_rule_target(
-                crate::css::style::StyleEngineHandle::from_raw((&raw const engine).cast_mut()),
-                id.0 + 1,
-                &mut target,
-            )
-        });
+        assert!(!unsafe { native_rule_target(&mut engine, id.0 + 1, &mut target,) });
         drop(engine);
         assert!(
             snapshot

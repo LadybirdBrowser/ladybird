@@ -27,7 +27,11 @@ mod questions;
 mod wait;
 
 pub use document_host::DocumentHost;
-pub(crate) use questions::{ArenaAnswer, ArenaQuery, ArenaRead, CommittedRows, Lent, PreparationPending, ask};
+#[cfg(test)]
+pub(crate) use document_host::TestHost;
+pub(crate) use questions::{
+    ArenaAnswer, ArenaQuery, ArenaRead, CommittedRows, EngineCall, Lent, PreparationPending, ask,
+};
 pub(crate) use wait::{
     ForcedRead, FrameJobPermit, LockstepProof, RenderJob, RenderWait, ReplyTo, ScriptForcedRead, SpentWait,
     StyleJobPermit, force_read, render_state_died, run_job, wait_for_render_state,

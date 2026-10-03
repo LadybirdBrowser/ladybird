@@ -152,7 +152,7 @@ public:
     // A block's contents change while the CSSOM object stays the same, so its address is not what
     // makes one version of it different from the next. A version is: an edit that reported the same
     // identity on both sides would cancel in the journal and invalidate nothing.
-    [[nodiscard]] u32 next_declaration_block_version() { return StyleEngineFFI::style_engine_next_declaration_block_version(m_impl); }
+    [[nodiscard]] u32 next_declaration_block_version() { return StyleEngineFFI::style_engine_next_declaration_block_version(host()); }
 
     // Interns one selector-mentioned name and returns its process-global atom, retained by this
     // document.
@@ -350,6 +350,8 @@ public:
     [[nodiscard]] Layout::RenderDocument& render_document() { return *m_render_document; }
     [[nodiscard]] Layout::RenderDocument const& render_document() const { return *m_render_document; }
 
+    // The host of the document's render state, which every entry into the document's style engine goes through.
+    [[nodiscard]] Layout::RustFFI::DocumentHost* host() const { return m_render_document->host(); }
     [[nodiscard]] void* rust_handle() { return m_impl; }
     [[nodiscard]] void const* rust_handle() const { return m_impl; }
 

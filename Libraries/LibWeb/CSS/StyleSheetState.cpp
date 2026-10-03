@@ -700,7 +700,7 @@ bool StyleSheetState::evaluate_media_queries(DOM::Document const& document, Pars
         state = m_document_media_states.end() - 1;
     }
     MediaEnvironmentSnapshot environment { document };
-    result = Parser::ValueParserFFI::rust_style_sheet_evaluate_media_queries(m_native_sheet.handle(), environment.ffi_environment(), (*state)->state, mutable_document.style_computer().style_engine().rust_handle());
+    result = Parser::ValueParserFFI::rust_style_sheet_evaluate_media_queries(m_native_sheet.handle(), environment.ffi_environment(), (*state)->state, mutable_document.style_computer().style_engine().host());
     if (result.sheet_changed)
         record_conditions_for_owners();
     if (result.any_changed) {

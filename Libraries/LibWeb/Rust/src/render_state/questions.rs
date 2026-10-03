@@ -99,6 +99,19 @@ impl<A, R> Question for ArenaRead<A, R> {
     }
 }
 
+/// A call of the host into a document's style engine that the host waits for: `call` reaches the engine and what the
+/// host lends it for the call, its arrays and its callbacks among them, so it is answered where the host is.
+pub(crate) struct EngineCall<F>(pub(crate) F);
+
+impl<R, F: FnOnce(&mut crate::css::style::StyleEngine) -> R> Question for EngineCall<F> {
+    type Answer = R;
+
+    unsafe fn answer(self, _: &mut LayoutNodeArena, engine: StyleEngineHandle) -> R {
+        // SAFETY: Guaranteed by the caller. The call reaches the engine only through this borrow.
+        (self.0)(unsafe { engine.get_mut() })
+    }
+}
+
 /// A read of a document's layout arena.
 pub(crate) enum ArenaQuery {
     /// The text a pseudo-element's generated content resolved to when its box was built: its alt text when it has one,

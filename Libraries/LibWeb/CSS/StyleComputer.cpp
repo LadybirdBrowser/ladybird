@@ -639,7 +639,7 @@ void StyleComputer::collect_animation_effects_into(DOM::AbstractElement abstract
         ComputedStyleWorkingSet& computed_properties;
     } sample_context { *this, abstract_element, computed_properties };
     ComputedValuesFFI::FfiHostAnimationSample input {
-        .style_engine = m_style_engine.rust_handle(),
+        .host = m_style_engine.host(),
         .style_node = abstract_element.element().style_node_id().value(),
         .pseudo_kind = abstract_element.pseudo_element().map([](auto pseudo_element) { return static_cast<u8>(to_underlying(pseudo_element)); }).value_or(NumericLimits<u8>::max()),
         .effects = sampled_effects.data(),
@@ -917,7 +917,7 @@ void StyleComputer::apply_settled_animation_plan(DOM::AbstractElement& abstract_
         GC::Ref<StyleComputer const> style_computer;
         DOM::AbstractElement& abstract_element;
     } context { *this, abstract_element };
-    ComputedValuesFFI::rust_settled_animation_plan(m_style_engine.rust_handle(), abstract_element.element().style_node_id().value(), pseudo_element_to_ffi(abstract_element.pseudo_element()), abstract_element.style_record_identity().value(), &context, [](void* context_pointer, ComputedValuesFFI::FfiComputedAnimation const* definitions, size_t count, bool in_display_none_subtree) {
+    ComputedValuesFFI::rust_settled_animation_plan(m_style_engine.host(), abstract_element.element().style_node_id().value(), pseudo_element_to_ffi(abstract_element.pseudo_element()), abstract_element.style_record_identity().value(), &context, [](void* context_pointer, ComputedValuesFFI::FfiComputedAnimation const* definitions, size_t count, bool in_display_none_subtree) {
         auto& context = *static_cast<Context*>(context_pointer);
         context.style_computer->apply_animation_definitions(context.abstract_element, { definitions, count }, in_display_none_subtree);
     });
@@ -1392,7 +1392,7 @@ void StyleComputer::register_style_engine_sheet_source(StyleSheetState const& sh
 Optional<StyleEngineRuleTarget> StyleComputer::style_engine_rule_target(StyleEngineRuleID rule_id) const
 {
     StyleEngineFFI::FfiNativeRuleTarget target {};
-    if (!StyleEngineFFI::style_engine_native_rule_target(m_style_engine.rust_handle(), rule_id.value(), &target))
+    if (!StyleEngineFFI::style_engine_native_rule_target(m_style_engine.host(), rule_id.value(), &target))
         return {};
     RustDeclarationBlockSnapshot declaration { static_cast<Parser::ValueParserFFI::DeclarationBlockData const*>(target.declarations) };
     auto source = m_style_engine_sheet_sources.get(target.source_identity);
@@ -2151,7 +2151,7 @@ void StyleComputer::finalize_style(ComputedStyleWorkingSet& style, DOM::Abstract
     input.mode = mode;
     // A composition sampled over a record is transformed against the input the engine drove the record against.
     input.box_type = animated_box_type
-        ? ComputedValuesFFI::rust_animated_box_type_transformation_input(m_style_engine.rust_handle(), abstract_element.element().style_node_id().value(), pseudo_element_to_ffi(abstract_element.pseudo_element()))
+        ? ComputedValuesFFI::rust_animated_box_type_transformation_input(m_style_engine.host(), abstract_element.element().style_node_id().value(), pseudo_element_to_ffi(abstract_element.pseudo_element()))
         : make_box_type_transformation_input(abstract_element);
     auto line_height_metrics = input_line_height_metrics(style, abstract_element, input.box_type.check_input_line_height);
     auto* animated_overlay = style.prepare_animated_overlay_for_rust_finalization(
@@ -2233,7 +2233,7 @@ StyleComputer::SampledAnimationOverlayPublication StyleComputer::publish_sampled
         },
     };
     Array<void const*, to_underlying(StyleGroupIndex::Count)> payloads;
-    auto const overlay_payloads = StyleEngineFFI::style_engine_build_animation_overlay_payloads(m_style_engine.rust_handle(), &payload_input, payloads.data(), payloads.size());
+    auto const overlay_payloads = StyleEngineFFI::style_engine_build_animation_overlay_payloads(m_style_engine.host(), &payload_input, payloads.data(), payloads.size());
     VERIFY(overlay_payloads.present);
     ScopeGuard release_rebuilt_payloads = [&] {
         StyleEngineFFI::style_engine_release_animation_overlay_payloads(payloads.data(), payloads.size(), overlay_payloads.rebuilt_groups);

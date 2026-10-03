@@ -52,7 +52,7 @@ static CSS::StyleRecordID declared_only_style_record(CSS::StyleComputer& style_c
     }
     auto inline_style = element.inline_style();
     return CSS::StyleRecordID { CSS::StyleEngineFFI::style_engine_declared_only_record(
-        style_computer.style_engine().rust_handle(),
+        style_computer.style_engine().host(),
         document.style_node_id().value(),
         CSS::element_box_type_adjustment_facts(element),
         CSS::StyleEngineFFI::FfiElementDeclarationKind::SvgPresentationAttribute,

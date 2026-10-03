@@ -262,7 +262,7 @@ mod tests {
     #[test]
     fn declaration_edits_resolve_native_owners_and_use_engine_revisions() {
         use crate::css::rule::rust_rule_children;
-        use crate::css::style::bridge::style_engine_native_rule_declarations_changed;
+        use crate::css::style::bridge::{native_rule_declaration_owner, publish_native_rule_declarations};
         let source = source();
         let rule = unsafe { &*rust_rule_list_at(source.rules(), 0) };
         let children = unsafe { &*rust_rule_children(rule) };
@@ -281,42 +281,25 @@ mod tests {
             )
         };
         let mut notifications = Vec::<u32>::new();
-        unsafe extern "C" fn notify(context: *mut std::ffi::c_void, rule: u32) {
-            unsafe { &mut *context.cast::<Vec<u32>>() }.push(rule);
-        }
+        // What the host's entry does: it is told of the owner before the edit is published.
+        let declarations_changed = |engine: &mut StyleEngine, notifications: &mut Vec<u32>| {
+            if let Some(owner) = native_rule_declaration_owner(engine, &child) {
+                notifications.push(owner.0 + 1);
+                publish_native_rule_declarations(engine, &child, owner);
+            }
+        };
         let initial = engine.current_rule_version(id).declaration_block;
-        unsafe {
-            style_engine_native_rule_declarations_changed(
-                crate::css::style::StyleEngineHandle::from_raw(&raw mut engine),
-                Rc::as_ptr(&child).cast(),
-                (&raw mut notifications).cast(),
-                notify,
-            );
-        }
+        declarations_changed(&mut engine, &mut notifications);
         let first = engine.current_rule_version(id).declaration_block;
         assert_ne!(initial, first);
         // Inline declarations and whole-sheet replacement use the same revision issuer.
         engine.next_declaration_block_version();
-        unsafe {
-            style_engine_native_rule_declarations_changed(
-                crate::css::style::StyleEngineHandle::from_raw(&raw mut engine),
-                Rc::as_ptr(&child).cast(),
-                (&raw mut notifications).cast(),
-                notify,
-            );
-        }
+        declarations_changed(&mut engine, &mut notifications);
         let second = engine.current_rule_version(id).declaration_block;
         assert_ne!(first, second);
         assert_eq!(notifications, [id.0 + 1, id.0 + 1]);
         rust_rule_list_clear(children);
-        unsafe {
-            style_engine_native_rule_declarations_changed(
-                crate::css::style::StyleEngineHandle::from_raw(&raw mut engine),
-                Rc::as_ptr(&child).cast(),
-                (&raw mut notifications).cast(),
-                notify,
-            );
-        }
+        declarations_changed(&mut engine, &mut notifications);
         assert_eq!(engine.current_rule_version(id).declaration_block, second);
         assert_eq!(notifications.len(), 2);
     }

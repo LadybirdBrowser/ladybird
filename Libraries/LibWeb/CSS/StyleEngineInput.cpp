@@ -1250,7 +1250,7 @@ void record_element_animation_effect_descriptions(DOM::Element& element, u8 slot
     versions.ensure_capacity(effects.size());
     for (auto const& effect : effects)
         versions.unchecked_append({ .identity = effect->animation_preparation_identity(), .generation = effect->animation_preparation_generation() });
-    if (StyleEngineFFI::style_engine_describes_animation_effects(style_engine->rust_handle(), element.style_node_id().value(), slot, versions.data(), versions.size()))
+    if (StyleEngineFFI::style_engine_describes_animation_effects(style_engine->host(), element.style_node_id().value(), slot, versions.data(), versions.size()))
         return;
 
     Vector<StyleEngineFFI::FfiPublishedAnimationEffect> ffi_effects;
@@ -1341,7 +1341,7 @@ void record_element_animation_effect_descriptions(DOM::Element& element, u8 slot
         ffi_effects.unchecked_append(row);
     }
 
-    StyleEngineFFI::style_engine_set_element_animation_effect_descriptions(style_engine->rust_handle(),
+    StyleEngineFFI::style_engine_set_element_animation_effect_descriptions(style_engine->host(),
         element.style_node_id().value(), slot,
         ffi_effects.data(), ffi_effects.size(),
         ffi_keyframes.data(), ffi_keyframes.size(),
@@ -1792,7 +1792,7 @@ static void publish_layer_order_for_sheet(StyleSheetState const& sheet, DOM::Doc
 static void compile_rules_into(RuleCompilationContext const& context, StyleSheetState const& sheet, u64 rule_identity = 0, Parser::ValueParserFFI::NativeCompilationPurpose purpose = Parser::ValueParserFFI::NativeCompilationPurpose::Rules)
 {
     Parser::ValueParserFFI::NativeStylePublication publication {
-        .engine = context.style_engine.rust_handle(),
+        .host = context.style_engine.host(),
         .sheet = context.sheet_handle.value(),
         .before_rule = context.before_rule.value(),
     };
@@ -1974,7 +1974,7 @@ static void record_style_rule_inserted_in(u64 identity, bool changes_environment
     RuleCompilationContext context {
         style_computer.style_engine(),
         sheet_id,
-        StyleEngineRuleID { StyleEngineFFI::style_engine_native_rule_successor(style_computer.style_engine().rust_handle(), sheet.native_sheet().handle(), identity) },
+        StyleEngineRuleID { StyleEngineFFI::style_engine_native_rule_successor(style_computer.style_engine().host(), sheet.native_sheet().handle(), identity) },
         document,
         style_computer
     };
@@ -2032,7 +2032,7 @@ void record_style_rule_removed(StyleSheetState& sheet_it_left, RustRule const& r
             StyleSheetState& sheet;
         } context { document, sheet_it_left };
         StyleEngineFFI::style_engine_remove_native_rule(
-            style_computer.style_engine().rust_handle(),
+            style_computer.style_engine().host(),
             sheet_it_left.native_sheet().handle(),
             rule.handle(),
             detached_import ? detached_import->native_sheet().handle() : nullptr,
@@ -2097,7 +2097,7 @@ void record_style_rule_declarations_changed(RustRule const& rule, StyleSheetStat
         } context { document, rule.type() != RustRule::Type::Keyframe && rule_change_needs_style_environment_bump(rule) };
         auto& style_engine = document.style_computer().style_engine();
         if (StyleEngineFFI::style_engine_native_rule_declarations_changed(
-                style_engine.rust_handle(), rule.handle(), &context,
+                style_engine.host(), rule.handle(), &context,
                 [](void* opaque, u32) {
                     auto& context = *static_cast<ChangeContext*>(opaque);
                     if (context.changes_environment)
@@ -2305,7 +2305,7 @@ void record_stylesheet_rule_conditions(StyleSheetState& sheet, DOM::Document& do
     // sheet would lose those gates and could re-enable rules beneath a non-matching import.
     MediaEnvironmentSnapshot environment { document };
     Parser::ValueParserFFI::rust_style_sheet_publish_conditions(
-        engine_sheet->native_sheet().handle(), style_computer.style_engine().rust_handle(), environment.ffi_environment());
+        engine_sheet->native_sheet().handle(), style_computer.style_engine().host(), environment.ffi_environment());
 }
 
 void record_stylesheet_conditions(StyleSheetState& sheet, DOM::Node& document_or_shadow_root, bool conditions_hold)

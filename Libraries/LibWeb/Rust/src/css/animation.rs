@@ -7062,11 +7062,11 @@ pub(crate) struct PublishedAnimationDeclarations {
 /// substitute, or null where the engine knows no such element.
 ///
 /// # Safety
-/// `style_engine` must point to a live style engine, each store must be null or live, and `value`
-/// must be a live style value.
+/// `host` must be a live document host, on its document's thread, each store must be null or live,
+/// and `value` must be a live style value.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_substitute_compositor_keyframe_value(
-    style_engine: crate::css::style::StyleEngineHandle,
+    host: *const crate::render_state::DocumentHost,
     style_node: u32,
     pseudo_kind: u8,
     custom_property_store: *const std::ffi::c_void,
@@ -7074,26 +7074,30 @@ pub unsafe extern "C" fn rust_substitute_compositor_keyframe_value(
     property_id: u16,
     value: *const StyleValueData,
 ) -> *const StyleValueData {
-    let engine = unsafe { style_engine.get() };
-    let Some(node) = crate::css::style::tree::StyleNodeID::from_raw(style_node) else {
-        return std::ptr::null();
-    };
-    let pseudo = (pseudo_kind != crate::css::cascaded_properties::NO_PSEUDO_ELEMENT).then_some(pseudo_kind);
-    let written =
-        unsafe { RetainedStyleValueData::from_retained_pointer(crate::css::style_value::retain_style_value(value)) };
-    // What a `style()` query reads is recorded when the main thread samples the same value.
-    let style_query_references = std::cell::RefCell::new(None);
-    let substituted = engine.substitute_keyframe_value(
-        node,
-        pseudo,
-        custom_property_store,
-        inheritance_custom_property_store,
-        property_id,
-        &[],
-        &written,
-        &style_query_references,
-    );
-    std::sync::Arc::into_raw(substituted.into_arc())
+    // SAFETY: Guaranteed by the caller.
+    let host = unsafe { crate::css::style::engine_calls::document_host(host) };
+    crate::css::style::engine_calls::with_engine(host, |engine| {
+        let Some(node) = crate::css::style::tree::StyleNodeID::from_raw(style_node) else {
+            return std::ptr::null();
+        };
+        let pseudo = (pseudo_kind != crate::css::cascaded_properties::NO_PSEUDO_ELEMENT).then_some(pseudo_kind);
+        let written = unsafe {
+            RetainedStyleValueData::from_retained_pointer(crate::css::style_value::retain_style_value(value))
+        };
+        // What a `style()` query reads is recorded when the main thread samples the same value.
+        let style_query_references = std::cell::RefCell::new(None);
+        let substituted = engine.substitute_keyframe_value(
+            node,
+            pseudo,
+            custom_property_store,
+            inheritance_custom_property_store,
+            property_id,
+            &[],
+            &written,
+            &style_query_references,
+        );
+        std::sync::Arc::into_raw(substituted.into_arc())
+    })
 }
 
 /// Resolve the declarations of the effects an element samples from their descriptions: each
