@@ -34,6 +34,7 @@ void FetchController::visit_edges(JS::Cell::Visitor& visitor)
     visitor.visit(m_next_manual_redirect_steps);
     visitor.visit(m_fetch_params);
     visitor.visit(m_pending_preloaded_response);
+    visitor.visit(m_stop_steps);
 }
 
 void FetchController::set_pending_request(RefPtr<Requests::Request> const& request)
@@ -151,6 +152,11 @@ void FetchController::stop_fetch()
     }
 
     stop_request();
+
+    if (auto stop_steps = m_stop_steps) {
+        m_stop_steps = nullptr;
+        stop_steps->function()();
+    }
 }
 
 void FetchController::stop_request()

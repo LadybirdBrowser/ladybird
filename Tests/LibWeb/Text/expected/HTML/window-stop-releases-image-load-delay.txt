@@ -1,0 +1,2 @@
+Replacement image: load
+Replacement document loaded

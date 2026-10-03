@@ -1892,6 +1892,9 @@ WebIDL::ExceptionOr<void> HTMLInputElement::handle_src_attribute(Utf16View value
             //     now that the load failed it renders its alt text instead.
             update_image_button_alt_text_shadow_tree();
             set_needs_layout_tree_update(true, DOM::SetNeedsLayoutTreeUpdateReason::HTMLInputElementSrcAttribute);
+        },
+        [this]() {
+            m_load_event_delayer.clear();
         });
 
     if (m_resource_request->needs_fetching()) {

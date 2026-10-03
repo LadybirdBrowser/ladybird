@@ -36,7 +36,7 @@ public:
 
     void fetch_resource(GC::Ref<Fetch::Infrastructure::Request>);
 
-    void add_callbacks(Function<void()> on_finish, Function<void()> on_fail);
+    void add_callbacks(Function<void()> on_finish, Function<void()> on_fail, Function<void()> on_stop = {});
 
     bool is_fetching() const;
     bool needs_fetching() const;
@@ -54,13 +54,16 @@ private:
 
     void handle_successful_fetch(URL::URL const&, IsSVGImage, ByteBuffer data, bool image_data_is_cors_cross_origin);
     void handle_failed_fetch();
+    void handle_stopped_fetch();
     void handle_successful_resource_load();
+    void remove_from_document();
 
     enum class State {
         New,
         Fetching,
         Finished,
         Failed,
+        Stopped,
     };
 
     State m_state { State::New };
@@ -70,6 +73,7 @@ private:
     struct Callbacks {
         GC::Ptr<GC::Function<void()>> on_finish;
         GC::Ptr<GC::Function<void()>> on_fail;
+        GC::Ptr<GC::Function<void()>> on_stop;
     };
     Vector<Callbacks> m_callbacks;
 

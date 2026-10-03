@@ -127,10 +127,10 @@ void ImageRequest::fetch_image(GC::Ref<Fetch::Infrastructure::Request> request)
         m_shared_resource_request->fetch_resource(request);
 }
 
-void ImageRequest::add_callbacks(Function<void()> on_finish, Function<void()> on_fail)
+void ImageRequest::add_callbacks(Function<void()> on_finish, Function<void()> on_fail, Function<void()> on_stop)
 {
     VERIFY(m_shared_resource_request);
-    m_shared_resource_request->add_callbacks(move(on_finish), move(on_fail));
+    m_shared_resource_request->add_callbacks(move(on_finish), move(on_fail), move(on_stop));
 }
 
 }

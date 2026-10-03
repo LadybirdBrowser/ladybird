@@ -118,6 +118,9 @@ void SVGImageElement::fetch_the_document(URL::URL const& url)
 
             dispatch_event(DOM::Event::create(HTML::EventNames::error,
                 HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(*this))));
+        },
+        [this] {
+            m_load_event_delayer.clear();
         });
 
     if (m_resource_request->needs_fetching()) {
