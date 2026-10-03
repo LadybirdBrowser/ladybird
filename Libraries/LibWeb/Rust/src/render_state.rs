@@ -29,7 +29,8 @@ mod wait;
 pub use document_host::DocumentHost;
 pub(crate) use questions::{ArenaAnswer, ArenaQuery, CommittedRows, Lent, PreparationPending, ask};
 pub(crate) use wait::{
-    LockstepProof, RenderWait, ReplyTo, ScriptForcedRead, render_state_died, wait_for_render_state, wait_from_entry,
+    ForcedRead, FrameJobPermit, LockstepProof, RenderJob, RenderWait, ReplyTo, ScriptForcedRead, SpentWait,
+    StyleJobPermit, force_read, render_state_died, run_job, wait_for_render_state,
 };
 
 /// The host's name for one document's render state. The host mints it, so naming a new document needs no answer from
@@ -153,12 +154,16 @@ pub(crate) enum RenderMessage<'a> {
         document: DocumentId,
         job: crate::css::style::style_job::StyleJob,
         reply: ReplyTo<'a, crate::css::style::style_job::StyleJobAnswer>,
+        /// What shows that a forced read or a job's permit sent the transaction.
+        _spent: SpentWait,
     },
     /// A layout round of the document the host waits for: its tree build and layout stages.
     LayoutRound {
         document: DocumentId,
         job: crate::layout::LayoutRoundJob,
         reply: ReplyTo<'a, crate::layout::LayoutRoundAnswer>,
+        /// What shows that a forced read or a job's permit sent the round.
+        _spent: SpentWait,
     },
     /// A step of paint preparation the host waits for.
     Paint {
@@ -206,14 +211,18 @@ fn handle_message(_: &RenderingSide, message: RenderMessage<'_>) {
                 state.retire();
             }
         }
-        RenderMessage::Style { document, job, reply } => reply.answer(|| {
+        RenderMessage::Style {
+            document, job, reply, ..
+        } => reply.answer(|| {
             let (_, engine) = state_parts(document).expect("a document the host styles has a render state");
             // SAFETY: The state keeps the arena and the engine where they are while the message is handled, and nothing
             // else reaches them meanwhile. The host lends the job its inputs, and what they name, until it has the
             // answer.
             unsafe { job.run(engine.get_mut()) }
         }),
-        RenderMessage::LayoutRound { document, job, reply } => reply.answer(|| {
+        RenderMessage::LayoutRound {
+            document, job, reply, ..
+        } => reply.answer(|| {
             let (arena, _) = state_parts(document).expect("a document the host lays out has a render state");
             // SAFETY: As for a style job. The host keeps what the job's inputs name until it has the answer.
             job.run(unsafe { &mut *arena })
@@ -277,6 +286,21 @@ mod tests {
 
     fn state_count() -> usize {
         STATES.with_borrow(HashMap::len)
+    }
+
+    #[test]
+    fn a_forced_read_is_begun_by_its_outermost_scope_and_spent_once() {
+        let host = DocumentHost::for_test();
+        host.begin_forced_read(true);
+        host.begin_forced_read(false);
+        assert!(matches!(host.take_unstyled_read(), Some(ForcedRead::Script(_))));
+        assert!(host.take_forced_read().is_none(), "a read is spent once");
+        host.end_forced_read();
+        host.end_forced_read();
+        host.begin_forced_read(false);
+        assert!(matches!(host.take_forced_read(), Some(ForcedRead::Host(_))));
+        host.end_forced_read();
+        assert!(host.take_forced_read().is_none(), "a read ends with its scope");
     }
 
     #[test]

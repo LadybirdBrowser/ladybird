@@ -9,8 +9,12 @@
 //! The host waits only with a [`ScriptForcedRead`], which the host entries script APIs call mint for a current answer,
 //! or a [`LockstepProof`], whose reasons are the waits internal code makes. Each right is minted only by the module
 //! that owns its marker, so code elsewhere has no way to wait.
+//!
+//! A style or layout job is sent only by [`force_read`], the first job of a read the host waits for, or by
+//! [`run_job`] with a permit that says why the job is another one, as only this module makes the [`SpentWait`] the
+//! job's message carries.
 
-use super::{DocumentHost, RenderMessage, send};
+use super::{DocumentHost, DocumentId, RenderMessage, send};
 use std::marker::PhantomData;
 
 /// The one wait of a script API call that needs a current answer: getComputedStyle, an element's geometry, hit
@@ -45,6 +49,10 @@ impl private::RenderWait for ScriptForcedRead {}
 impl RenderWait for ScriptForcedRead {}
 impl private::RenderWait for LockstepProof {}
 impl RenderWait for LockstepProof {}
+impl private::RenderWait for StyleJobPermit {}
+impl RenderWait for StyleJobPermit {}
+impl private::RenderWait for FrameJobPermit {}
+impl RenderWait for FrameJobPermit {}
 
 impl ScriptForcedRead {
     /// A forced read for a unit test.
@@ -72,6 +80,105 @@ impl LockstepProof {
     }
 }
 
+/// What a read of a document's render state the host waits for spends on its first style or layout job, through
+/// [`force_read`]: the read of the script API call it is made for, or the host's own (an event's dispatch, a child
+/// document's style update, an inspection, a rendering update). The scope that brackets the read begins it (see
+/// [`DocumentHost::begin_forced_read`]), and the read's first job takes it.
+pub(crate) enum ForcedRead {
+    Script(ScriptForcedRead),
+    Host(LockstepProof),
+    /// The read's first job was its style transaction, which spent the read: the read's first layout round is its
+    /// second wait, which the type shows.
+    AfterStyle(StyledFirst),
+}
+
+/// What a forced read whose first job was its style transaction leaves its first layout round. Only [`force_read`]
+/// makes one.
+pub(crate) struct StyledFirst {
+    not_send_or_sync: PhantomData<*const ()>,
+}
+
+/// The right to send a document's render state a style transaction that is not a forced read's first job, and wait for
+/// it. Only the constructor below mints one.
+pub(crate) struct StyleJobPermit {
+    not_send_or_sync: PhantomData<*const ()>,
+}
+
+impl StyleJobPermit {
+    /// A style transaction no read waits for, as a rendering update's, or a style wave after a read's first.
+    pub(crate) fn of_style_update() -> Self {
+        Self {
+            not_send_or_sync: PhantomData,
+        }
+    }
+}
+
+/// The right to send a document's render state a layout round that is not a forced read's first job, and wait for it.
+/// Only the constructors below mint one, so every extra round of a read says why it is one.
+pub(crate) struct FrameJobPermit {
+    not_send_or_sync: PhantomData<*const ()>,
+}
+
+impl FrameJobPermit {
+    /// A round after one that left the update another round: it built a tree to lay out after the host was paid for
+    /// it, or style or layout work came back from what the host did after it.
+    pub(crate) fn for_next_round() -> Self {
+        Self {
+            not_send_or_sync: PhantomData,
+        }
+    }
+
+    /// The first round of a layout update in a read whose first job was spent already: another pass for an image that
+    /// arrived or a scroll-state snapshot, or a second update the read's call runs.
+    pub(crate) fn read_lays_out_again() -> Self {
+        Self {
+            not_send_or_sync: PhantomData,
+        }
+    }
+}
+
+/// What the message of a style or layout job carries to show that [`force_read`] or [`run_job`] sent it. Only this
+/// module makes one, so nothing else sends such a job.
+pub(crate) struct SpentWait(());
+
+/// A style or layout job of a document's render state, which only [`force_read`] and [`run_job`] send.
+pub(crate) trait RenderJob {
+    /// What the render state answers the job with.
+    type Answer;
+
+    /// The permit that sends the job where it is not a forced read's first.
+    type Permit: RenderWait;
+
+    /// Whether the job is a style transaction, which leaves a forced read's layout to a job of its own.
+    const IS_STYLE: bool;
+
+    /// The message that sends the job for `document`, which answers through `reply`.
+    fn message(self, document: DocumentId, reply: ReplyTo<'_, Self::Answer>, spent: SpentWait) -> RenderMessage<'_>;
+}
+
+/// The first job of a read of `host`'s document's render state the host waits for: spends `read` on `job`, and waits
+/// for its answer. A read whose first job is its style transaction leaves its first layout round a [`StyledFirst`].
+pub(crate) fn force_read<J: RenderJob>(_read: ForcedRead, host: &DocumentHost, job: J) -> J::Answer {
+    let answer = send_job(host, job);
+    if J::IS_STYLE {
+        host.leave_forced_read(ForcedRead::AfterStyle(StyledFirst {
+            not_send_or_sync: PhantomData,
+        }));
+    }
+    answer
+}
+
+/// Runs `job`, a style or layout job of `host`'s document that is not a forced read's first, spending `_permit`, and
+/// waits for its answer.
+pub(crate) fn run_job<J: RenderJob>(_permit: J::Permit, host: &DocumentHost, job: J) -> J::Answer {
+    send_job(host, job)
+}
+
+fn send_job<J: RenderJob>(host: &DocumentHost, job: J) -> J::Answer {
+    let document = host.document();
+    send_and_wait(|reply| job.message(document, reply, SpentWait(())))
+}
+
 macro_rules! script_entry {
     ($marker:path) => {
         impl private::ScriptEntry for $marker {}
@@ -81,6 +188,7 @@ macro_rules! script_entry {
 
 // The host entries script APIs call, which may each spend one forced read.
 script_entry!(super::devtools::DevtoolsEntry);
+script_entry!(super::document_host::ForcedReadScope);
 script_entry!(crate::layout::script_entries::ScriptEntry);
 
 macro_rules! lockstep_reason {
@@ -98,7 +206,7 @@ lockstep_reason!(crate::painting::ffi::ScrollSnaps);
 lockstep_reason!(crate::painting::paint_passes::HostPaintStep);
 lockstep_reason!(crate::layout::text_queries::InputSelectsByWord);
 lockstep_reason!(crate::css::style::engine_calls::EngineDoor);
-lockstep_reason!(crate::layout::LayoutUpdate);
+lockstep_reason!(super::document_host::HostReadsLayout);
 lockstep_reason!(super::document_host::NewDocument);
 
 /// Where the render side answers a host that waits for it: the slot in the waiting host's frame that the answer moves
@@ -118,17 +226,6 @@ impl<R> ReplyTo<'_, R> {
 pub(crate) fn wait_for_render_state<R>(
     _wait: impl RenderWait,
     _host: &DocumentHost,
-    message: impl FnOnce(ReplyTo<'_, R>) -> RenderMessage<'_>,
-) -> R {
-    send_and_wait(message)
-}
-
-/// Sends the render state of the document `main_thread` was minted for the message `message` makes of where it
-/// answers, and waits for the answer, spending `_wait`. An entry that runs a step of the host sends its jobs this way:
-/// it holds the host only through its token, so it borrows nothing of what a wait could change.
-pub(crate) fn wait_from_entry<R>(
-    _wait: impl RenderWait,
-    _main_thread: &crate::stage::MainThread,
     message: impl FnOnce(ReplyTo<'_, R>) -> RenderMessage<'_>,
 ) -> R {
     send_and_wait(message)
