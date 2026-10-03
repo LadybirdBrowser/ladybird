@@ -4084,8 +4084,7 @@ impl RetainedState {
     }
 
     /// Publish a driven row's winners again from its retained selector answer, or from a fresh
-    /// match where that answer is gone. The row a drive reads next is no cache the memory budget
-    /// may decline, so it is admitted whatever the budget. Whether the winners are complete.
+    /// match where that answer is gone. Whether the winners are complete.
     pub(super) fn republish_driven_winners(
         &mut self,
         node: StyleNodeID,
@@ -4094,7 +4093,7 @@ impl RetainedState {
     ) -> bool {
         let matches = self.matches_to_republish(node, counters);
         debug_assert!(matches.is_some(), "a driven row without the facts to match it");
-        self.republish_demanded_winners(node, matches.unwrap_or_default(), republication, counters)
+        self.republish_winners_from_matches(node, matches.unwrap_or_default(), republication, counters)
     }
 
     /// Publish new winners from the retained selector answer, matching from published facts when
@@ -4116,7 +4115,7 @@ impl RetainedState {
     pub(super) fn republish_pseudo_winners_from_retained_answer(
         &mut self,
         node: StyleNodeID,
-        _: publication::WinnerRepublication,
+        republication: publication::WinnerRepublication,
         counters: &mut Counters,
     ) -> Option<()> {
         let identity = self.current_answer_identity(node)?;
@@ -4132,7 +4131,9 @@ impl RetainedState {
         effects
             .winners
             .preserve_equal_pseudo_states(&mut self.winner_groups, node);
+        let admitting = self.winner_groups.admit_republished_rows(republication);
         self.install_answer_effects(effects);
+        self.winner_groups.restore_admission(admitting);
         Some(())
     }
 
@@ -4145,20 +4146,7 @@ impl RetainedState {
         counters: &mut Counters,
     ) -> bool {
         let matches = self.match_element_for_cascade(node, counters).unwrap_or_default();
-        self.republish_demanded_winners(node, matches, republication, counters)
-    }
-
-    fn republish_demanded_winners(
-        &mut self,
-        node: StyleNodeID,
-        matches: Vec<RuleMatch>,
-        republication: publication::WinnerRepublication,
-        counters: &mut Counters,
-    ) -> bool {
-        let admitting = self.winner_groups.admit_demanded_rows();
-        let complete = self.republish_winners_from_matches(node, matches, republication, counters);
-        self.winner_groups.restore_admission(admitting);
-        complete
+        self.republish_winners_from_matches(node, matches, republication, counters)
     }
 
     fn matches_to_republish(&mut self, node: StyleNodeID, counters: &mut Counters) -> Option<Vec<RuleMatch>> {
@@ -4181,7 +4169,7 @@ impl RetainedState {
         &mut self,
         node: StyleNodeID,
         matches: Vec<RuleMatch>,
-        _: publication::WinnerRepublication,
+        republication: publication::WinnerRepublication,
         counters: &mut Counters,
     ) -> bool {
         // Winners published on their own decide the node's gated rules over its containers as
@@ -4214,9 +4202,11 @@ impl RetainedState {
                 })
                 .collect::<Vec<_>>()
         });
+        let admitting = self.winner_groups.admit_republished_rows(republication);
         let compact = self.matches_for_cascade(&mut effects, matches, true, Some(node), counters);
         self.remember_cascade_input_with_effects(&mut effects, node, &compact, counters);
         self.install_answer_effects(effects);
+        self.winner_groups.restore_admission(admitting);
         // A record loop reading this transaction's answers reads the one just published instead.
         if let Some(batch) = self.batch_answers_complete_but_for_custom_properties.get_mut(&node) {
             *batch = complete_but_for_custom_properties;
