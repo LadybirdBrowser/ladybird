@@ -108,9 +108,13 @@ private:
     Compositor::CompositorHost* m_compositor_host { nullptr };
 };
 
+static u64 s_next_remote_fetch_data_id = 0;
+
 struct HTMLMediaElement::RemoteFetchData {
     AK_ALLOC_WITH_KMALLOC;
 
+    // Tells one resource fetch from the next one, whatever range fetches each of them makes.
+    u64 id { s_next_remote_fetch_data_id++ };
     URL::URL url_record;
     RefPtr<MediaClient::RemoteMediaStream> stream;
     GC::Weak<Fetch::Infrastructure::FetchController> fetch_controller;
@@ -954,7 +958,16 @@ public:
 
         // 9. Run the resource fetch algorithm with urlRecord. If that algorithm returns without aborting this one, then
         //    the load failed.
-        m_media_element->load_url_resource(*url_record, [self = GC::make_root(this)](auto const&) { self->failed_with_elements(); });
+        // NB: The callback holds the selector weakly — so a fetch that outlives the selection doesn't keep the element
+        // and its whole document alive. The element itself holds the selector until on_metadata_parsed(), and that's as
+        // long as the callback can run: Once readyState is past HAVE_NOTHING, every failure takes the media data
+        // processing steps instead (MEDIA_ERR_NETWORK or MEDIA_ERR_DECODE). Gecko/WebKit/Blink also leave their
+        // <source> cursor to the media element alone (Blink's current_source_node_ and next_child_node_to_consider_,
+        // WebKit's m_currentSourceNode and m_nextChildNodeToConsider, Gecko's mSourcePointer and mSourceLoadCandidate).
+        // And a failed candidate resumes the search from the element itself thru a one-shot task (Blink's load_timer_,
+        // Gecko's QueueLoadFromSourceTask(), WebKit's queueCancellableTaskKeepingObjectAlive()) — so none of them keeps
+        // a source cursor alive on its own.
+        m_media_element->load_url_resource(*url_record, GC::weak_callback(*this, [](auto& self, auto const&) { self.failed_with_elements(); }));
     }
 
     void process_next_candidate()
@@ -1493,8 +1506,25 @@ void HTMLMediaElement::run_remote_mode_resource_fetch_steps(ByteRange byte_range
         // NOTE: We do this step before creating the updateMedia task so that we can invoke the failure callback.
         auto maybe_verify_response_failure = self->verify_response_or_get_failure_reason(response, byte_range);
         if (maybe_verify_response_failure.has_value()) {
-            fetch_data->stream->close();
-            fetch_data->failure_callback(maybe_verify_response_failure.value());
+            // NB: A response to a range fetch that a later one has replaced has nothing left to report.
+            if (fetch_generation != self->m_current_fetch_generation)
+                return;
+
+            // -> If the media data cannot be fetched at all, due to network errors, causing the user agent to give up trying to
+            //    fetch the resource
+            if (self->m_ready_state == ReadyState::HaveNothing) {
+                fetch_data->stream->close();
+                fetch_data->failure_callback(maybe_verify_response_failure.release_value());
+                return;
+            }
+
+            // -> If the connection is interrupted after some media data has been received, causing the user agent to give up trying
+            //    to fetch the resource
+            // NB: Once readyState is past HAVE_NOTHING, a failed response answers a refetch the playback manager asked
+            //     for (a seek past the buffered data, e.g.) — so it's a fatal network error, not a candidate to fail
+            //     over from. Gecko/WebKit/Blink agree: In Blink's MediaLoadingFailed(), WebKit's mediaLoadingFailed(),
+            //     and Gecko's NetworkError(), a network error at HAVE_METADATA or later is MEDIA_ERR_NETWORK.
+            self->queue_interrupted_fetch_steps();
             return;
         }
 
@@ -1545,11 +1575,7 @@ void HTMLMediaElement::run_remote_mode_resource_fetch_steps(ByteRange byte_range
             if (fetch_generation != weak_self->m_current_fetch_generation)
                 return;
 
-            weak_self->m_remote_fetch_data->fetch_controller = nullptr;
-            weak_self->m_remote_fetch_data->stream->close();
-            weak_self->queue_a_media_element_task([](HTMLMediaElement& self) {
-                self.process_media_data(FetchingStatus::Interrupted);
-            });
+            weak_self->queue_interrupted_fetch_steps();
         });
 
         VERIFY(response->body());
@@ -2284,6 +2310,25 @@ void HTMLMediaElement::set_up_playback_manager_for_local(Function<void(Utf16Stri
     });
 }
 
+void HTMLMediaElement::queue_interrupted_fetch_steps()
+{
+    VERIFY(m_remote_fetch_data);
+    if (auto& fetch_controller = m_remote_fetch_data->fetch_controller) {
+        fetch_controller->stop_fetch();
+        fetch_controller = nullptr;
+    }
+    m_remote_fetch_data->stream->close();
+
+    // NB: The task checks for the same fetch data, not the same fetch generation — since a data request the media
+    //     server sent before the stream closed can start a range fetch before the task runs, and the steps then cancel
+    //     that fetch as well.
+    queue_a_media_element_task([fetch_data_id = m_remote_fetch_data->id](HTMLMediaElement& self) {
+        if (!self.m_remote_fetch_data || self.m_remote_fetch_data->id != fetch_data_id || self.m_error)
+            return;
+        self.process_media_data(FetchingStatus::Interrupted);
+    });
+}
+
 // https://html.spec.whatwg.org/multipage/media.html#media-data-processing-steps-list
 void HTMLMediaElement::process_media_data(FetchingStatus fetching_status)
 {
@@ -2301,6 +2346,9 @@ void HTMLMediaElement::process_media_data(FetchingStatus fetching_status)
         // If the user agent ever discards any media data and then needs to resume the network activity to obtain it
         // again, then it must queue a media element task given the media element to set the networkState to NETWORK_LOADING.
         queue_a_media_element_task([](HTMLMediaElement& self) {
+            // NB: Once an error has been set in the meantime, the network state stays where that error left it.
+            if (self.m_error)
+                return;
             self.m_network_state = NetworkState::Loading;
         });
 
