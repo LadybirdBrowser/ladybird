@@ -918,7 +918,7 @@ JS::Value to_js_value(JS::Realm& realm, Wasm::Value& wasm_value, Wasm::ValueType
 {
     switch (type.kind()) {
     case Wasm::ValueType::I64:
-        return realm.create<JS::BigInt>(::Crypto::SignedBigInteger { wasm_value.to<i64>() });
+        return JS::BigInt::create(realm.vm(), ::Crypto::SignedBigInteger { wasm_value.to<i64>() });
     case Wasm::ValueType::I32:
         return JS::Value(wasm_value.to<i32>());
     case Wasm::ValueType::F64:

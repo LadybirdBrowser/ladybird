@@ -15,6 +15,14 @@ namespace JS {
 GC_DEFINE_ALLOCATOR(ModuleEnvironment);
 
 // 9.1.2.6 NewModuleEnvironment ( E ), https://tc39.es/ecma262/#sec-newmoduleenvironment
+GC::Ref<ModuleEnvironment> new_module_environment(GC::Ptr<Environment> outer_environment)
+{
+    // 1. Let env be a new Module Environment Record containing no bindings.
+    // 2. Set env.[[OuterEnv]] to E.
+    // 3. Return env.
+    return GC::Heap::the().allocate<ModuleEnvironment>(outer_environment.ptr());
+}
+
 ModuleEnvironment::ModuleEnvironment(Environment* outer_environment)
     : DeclarativeEnvironment(outer_environment)
 {

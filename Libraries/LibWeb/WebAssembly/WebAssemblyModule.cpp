@@ -172,7 +172,7 @@ JS::ThrowCompletionOr<void> WebAssemblyModule::initialize_environment(JS::VM& vm
     auto* record = this;
 
     // 2. Let env be NewModuleEnvironment(null).
-    auto env = GC::Heap::the().allocate<JS::ModuleEnvironment>(nullptr);
+    auto env = JS::new_module_environment(nullptr);
 
     // 3. Set record.[[Environment]] to env.
     record->set_environment(env);
