@@ -13,13 +13,6 @@
 
 namespace Web::Bindings {
 
-template<>
-void Intrinsics::create_web_prototype_and_constructor<ReadableStreamAsyncIteratorPrototype>(JS::Realm& realm)
-{
-    auto prototype = realm.create<ReadableStreamAsyncIteratorPrototype>(realm);
-    m_prototypes.set("ReadableStreamAsyncIterator"_utf16_fly_string, prototype);
-}
-
 static void set_readable_stream_async_iterator_prototype(JS::Realm& realm, Streams::ReadableStreamAsyncIterator& iterator)
 {
     static auto const& name = "ReadableStreamAsyncIterator"_utf16_fly_string;

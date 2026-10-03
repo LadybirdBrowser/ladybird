@@ -297,6 +297,7 @@ bool is_exposed(InterfaceName name, JS::Realm& realm)
             write_namespace_creation(out, interface, interface_sets.intrinsics)
         else:
             write_interface_creation(out, interface)
+            write_iterator_prototype_creation(out, interface)
 
     out.write(
         """}
@@ -509,6 +510,28 @@ WEB_API void Intrinsics::create_web_prototype_and_constructor<{interface.prototy
         """}
 """
     )
+
+
+# https://webidl.spec.whatwg.org/#dfn-iterator-prototype-object
+# https://webidl.spec.whatwg.org/#dfn-asynchronous-iterator-prototype-object
+def write_iterator_prototype_creation(out: TextIO, interface: Interface) -> None:
+    iterator_prototypes = []
+    if interface.iterable is not None and interface.iterable.key_type is not None:
+        iterator_prototypes.append((f"{interface.name}Iterator", "iterator_prototype"))
+    if interface.async_iterable is not None:
+        iterator_prototypes.append((f"{interface.name}AsyncIterator", "async_iterator_prototype"))
+
+    for iterator_name, parent_prototype_intrinsic in iterator_prototypes:
+        out.write(
+            f"""template<>
+WEB_API void Intrinsics::create_web_prototype_and_constructor<{iterator_name}Prototype>(JS::Realm& realm)
+{{
+    auto prototype = JS::Object::create(realm, realm.intrinsics().{parent_prototype_intrinsic}());
+    {iterator_name}Prototype::initialize(realm, prototype);
+    m_prototypes.set("{iterator_name}"_utf16_fly_string, prototype);
+}}
+"""
+        )
 
 
 def write_exposed_interface_header(out: TextIO, class_name: str) -> None:

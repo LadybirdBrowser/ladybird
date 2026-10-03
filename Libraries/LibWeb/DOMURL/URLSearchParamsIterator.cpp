@@ -12,13 +12,6 @@
 
 namespace Web::Bindings {
 
-template<>
-void Intrinsics::create_web_prototype_and_constructor<URLSearchParamsIteratorPrototype>(JS::Realm& realm)
-{
-    auto prototype = realm.create<URLSearchParamsIteratorPrototype>(realm);
-    m_prototypes.set("URLSearchParamsIterator"_utf16_fly_string, prototype);
-}
-
 static void set_url_search_params_iterator_prototype(JS::Realm& realm, DOMURL::URLSearchParamsIterator& iterator)
 {
     static auto const& name = "URLSearchParamsIterator"_utf16_fly_string;
