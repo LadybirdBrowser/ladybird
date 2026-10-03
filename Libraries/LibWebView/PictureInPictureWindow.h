@@ -21,8 +21,10 @@ public:
     AK_ALLOC_WITH_KMALLOC;
 
     static Gfx::IntSize aspect_ratio(Gfx::IntSize video_size);
+    static Gfx::IntSize minimum_size(Gfx::IntSize video_size);
+    static Gfx::IntSize maximum_size(Gfx::IntSize video_size, Gfx::IntSize screen_size);
     static Gfx::IntSize initial_size(Gfx::IntSize video_size, Gfx::IntSize screen_size);
-    // The window keeps its width as its video changes shape, unless that would make it too tall for the screen.
+    // The window keeps its width as its video changes shape, as far as its minimum and maximum sizes allow.
     static Gfx::IntSize size_for_video_size(Gfx::IntSize window_size, Gfx::IntSize video_size, Gfx::IntSize screen_size);
 
     virtual ~PictureInPictureWindow() = default;

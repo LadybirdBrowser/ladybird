@@ -125,14 +125,15 @@ public:
         // A frameless window cannot be resized from its edges on macOS unless AppKit is told it is resizable.
         make_appkit_window_resizable(*this);
 #endif
-        lock_aspect_ratio(video_size);
+        set_size_limits(video_size);
+        lock_aspect_ratio();
 
-#if defined(AK_OS_LINUX)
-        // Qt also replaces the size hints when the window moves to a screen with another scale factor.
+        // The maximum size depends on the screen, and on X11 Qt replaces the size hints when the window moves to a screen
+        // with another scale factor.
         connect(windowHandle(), &QWindow::screenChanged, this, [this] {
-            set_x11_window_aspect_ratio(*this, m_aspect_ratio);
+            set_size_limits(m_aspect_ratio);
+            lock_aspect_ratio();
         });
-#endif
     }
 
     virtual Gfx::IntSize size() const override { return { width(), height() }; }
@@ -141,6 +142,9 @@ public:
 
     virtual void set_video_size(Gfx::IntSize video_size) override
     {
+        // The limits change with the video's shape first, so that they allow the window's new size.
+        set_size_limits(video_size);
+
         auto available = screen()->availableGeometry();
         auto size = size_for_video_size({ width(), height() }, video_size, { available.width(), available.height() });
         if (size != Gfx::IntSize { width(), height() }) {
@@ -154,7 +158,7 @@ public:
             setGeometry(new_geometry);
         }
 
-        lock_aspect_ratio(video_size);
+        lock_aspect_ratio();
     }
 
 private:
@@ -237,10 +241,21 @@ private:
         return edges;
     }
 
-    // On X11, Qt replaces the window's size hints whenever it changes the window's geometry, so this runs after that.
-    void lock_aspect_ratio(Gfx::IntSize video_size)
+    void set_size_limits(Gfx::IntSize video_size)
     {
         m_aspect_ratio = aspect_ratio(video_size);
+
+        auto available = screen()->availableGeometry();
+        auto minimum = minimum_size(m_aspect_ratio);
+        auto maximum = maximum_size(m_aspect_ratio, { available.width(), available.height() });
+        setMinimumSize(minimum.width(), minimum.height());
+        setMaximumSize(maximum.width(), maximum.height());
+    }
+
+    // On X11, Qt replaces the window's size hints whenever it changes the window's geometry or size limits, so this runs
+    // after those.
+    void lock_aspect_ratio()
+    {
 #if defined(AK_OS_MACOS)
         set_appkit_window_content_aspect_ratio(*this, m_aspect_ratio);
 #elif defined(AK_OS_LINUX)
