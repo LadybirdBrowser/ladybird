@@ -48,3 +48,11 @@ test("JSON.rawJSON error cases", () => {
         JSON.rawJSON("");
     }).toThrow(SyntaxError);
 });
+
+test("JSON.rawJSON parses its text as JSON", () => {
+    expect(JSON.rawJSON("1e400").rawJSON).toBe("1e400");
+    expect(JSON.stringify({ a: JSON.rawJSON("1e400") })).toBe('{"a":1e400}');
+    expect(() => JSON.rawJSON('"\\x"')).toThrow(SyntaxError);
+    expect(() => JSON.rawJSON("\uFEFF1")).toThrow(SyntaxError);
+    expect(() => JSON.rawJSON("falsy")).toThrow(SyntaxError);
+});
