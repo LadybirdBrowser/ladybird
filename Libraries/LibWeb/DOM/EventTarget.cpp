@@ -11,7 +11,6 @@
 #include <AK/StringBuilder.h>
 #include <LibGC/Heap.h>
 #include <LibJS/Runtime/AbstractOperations.h>
-#include <LibJS/Runtime/ECMAScriptFunctionObject.h>
 #include <LibJS/Runtime/ExternalMemory.h>
 #include <LibJS/Runtime/GlobalEnvironment.h>
 #include <LibJS/Runtime/NativeFunction.h>
@@ -19,7 +18,7 @@
 #include <LibJS/Runtime/PrimitiveString.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibJS/Runtime/Value.h>
-#include <LibJS/RustIntegration.h>
+#include <LibJS/ScriptCompilation.h>
 #include <LibWeb/Bindings/EventTarget.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/Bindings/Wrappable.h>
@@ -698,11 +697,10 @@ WebIDL::CallbackType* EventTarget::get_current_value_of_event_handler(Utf16FlySt
 
         auto& vm = Bindings::main_thread_vm();
 
-        auto rust_compilation = JS::RustIntegration::compile_dynamic_function(
-            vm, source_text, parameters_string, body, JS::FunctionKind::Normal);
+        auto compiled_function = JS::CompiledDynamicFunction::compile(vm, source_text, parameters_string, body, JS::FunctionKind::Normal);
 
         // 7. If body is not parsable as FunctionBody or if parsing detects an early error, then follow these substeps:
-        if (!rust_compilation.has_value() || rust_compilation->is_error()) {
+        if (compiled_function.is_error()) {
             // 1. Set eventHandler's value to null.
             event_handler->value = GC::Ptr<WebIDL::CallbackType> {};
 
@@ -736,18 +734,14 @@ WebIDL::CallbackType* EventTarget::get_current_value_of_event_handler(Utf16FlySt
             scope = Bindings::new_event_handler_object_environment(realm, GC::Ref { *element }, scope);
 
         // 9. Let function be the result of calling OrdinaryFunctionCreate.
-        auto function = JS::ECMAScriptFunctionObject::create_from_function_data(
-            realm,
-            rust_compilation->value(),
-            scope,
-            nullptr);
+        auto function = compiled_function.value().instantiate(realm, *scope, nullptr, JS::ScriptOrModule {});
 
         // 10. Remove settings object's realm execution context from the JavaScript execution context stack.
         auto* popped_execution_context = vm.pop_execution_context();
         VERIFY(popped_execution_context == &settings_object.realm_execution_context());
 
         // 11. Set function.[[ScriptOrModule]] to null.
-        function->set_script_or_module({});
+        // NB: Step 9 already did this by instantiating the function with an empty script or module.
 
         // 12. Set eventHandler's value to the result of creating a Web IDL EventHandler callback function object whose object reference is function and whose callback context is settings object.
         // FIXME: Update this comment once the ShadowRealm proposal is merged to pass realm.
