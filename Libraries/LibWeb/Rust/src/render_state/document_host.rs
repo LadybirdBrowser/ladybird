@@ -160,11 +160,6 @@ impl DocumentHost {
         self.created_state().arena.as_ptr().cast()
     }
 
-    /// The style engine of the document's render state, for the host's style entries that still reach it directly.
-    pub(crate) fn style_engine_for_unconverted_entry(&self) -> crate::css::style::StyleEngineHandle {
-        self.created_state().engine
-    }
-
     /// Answers `question` from the document's render state, where the host is.
     pub(super) fn answer_in_place<Q: Question>(&self, question: Q) -> Q::Answer {
         let state = self.created_state();
@@ -417,19 +412,4 @@ pub unsafe extern "C" fn document_host_destroy(host: *mut DocumentHost) {
         0,
         "document host destroyed with layout nodes"
     );
-}
-
-/// The style engine of the render state of `host`'s document, which the host's style entries that have not been
-/// converted to messages still take.
-///
-/// # Safety
-///
-/// `host` must come from [`document_host_create`] and not be destroyed yet.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn render_state_style_engine_for_unconverted_entry(
-    host: *const DocumentHost,
-) -> crate::css::style::StyleEngineHandle {
-    assert!(!host.is_null(), "document host is null");
-    // SAFETY: Guaranteed by the caller.
-    unsafe { &*host }.style_engine_for_unconverted_entry()
 }

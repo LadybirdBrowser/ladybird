@@ -72,15 +72,14 @@ pub(crate) struct CreatedState {
     /// Where the state keeps its arena until it is destroyed, for the changes and questions the host applies and
     /// answers where it is.
     pub(crate) arena: NonNull<ArenaHandle>,
-    /// Where the state keeps its style engine until it is destroyed, for the same, and for the host's style entries
-    /// that still reach the engine directly.
+    /// Where the state keeps its style engine until it is destroyed, for the same.
     pub(crate) engine: StyleEngineHandle,
     /// The flag the state raises once any element has random base values, and never lowers.
     pub(crate) element_random_base_values_exist: Arc<AtomicBool>,
 }
 
-// SAFETY: The host reaches the arena and the engine only through its changes, its questions and its style entries,
-// which run while nothing on the render side reaches them.
+// SAFETY: The host reaches the arena and the engine only through its changes and its questions, which run while nothing
+// on the render side reaches them.
 unsafe impl Send for CreatedState {}
 
 impl RenderState {
