@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style id="first">#box { color: rgb(0, 0, 255); }</style>
+<style id="third">#box { background-color: rgb(0, 0, 255); }</style>
+<div id="box">box</div>
+<script>
+    // Style elements are removed and added beside a frame in flight, and their changes wait for the flight. They go in
+    // one at a time and in their order: the removal of a sheet's last copy retires its rules in one step, which the
+    // changes after it wait for.
+    asyncTest(async done => {
+        const state = await whileRecordingInFlight(() => {
+            box.style.height = "11px";
+        }, state => {
+            document.getElementById("first").remove();
+            const second = document.createElement("style");
+            second.textContent = "#box { color: rgb(0, 128, 0); }";
+            document.head.appendChild(second);
+            document.getElementById("third").remove();
+            return state;
+        });
+        println(`state in the next task: ${state}`);
+        await twoFrames();
+        println(`box: ${getComputedStyle(box).color} ${getComputedStyle(box).backgroundColor} ${getComputedStyle(box).height}`);
+        done();
+    });
+</script>

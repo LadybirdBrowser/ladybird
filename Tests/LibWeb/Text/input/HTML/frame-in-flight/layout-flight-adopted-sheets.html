@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<div id="box" style="height: 10px"></div>
+<div class="x" id="target">x</div>
+<script>
+    // Style sheets adopted beside a frame in flight drain its style transaction first, and reach the style engine in
+    // the order they were adopted: each attachment publishes more input as it runs, which goes in with it, ahead of
+    // the attachments queued behind it.
+    asyncTest(async done => {
+        const first = new CSSStyleSheet();
+        first.replaceSync(".x { color: rgb(255, 0, 0); }");
+        const second = new CSSStyleSheet();
+        second.replaceSync(".x { color: rgb(0, 0, 255); }");
+        const result = await whileRecordingInFlight(() => {
+            box.style.height = "20px";
+        }, state => {
+            document.adoptedStyleSheets = [first, second];
+            return { state, afterAdoption: internals.frameSchedulerState() };
+        });
+        println(`state in the next task: ${result.state}`);
+        println(`state after the adoption: ${result.afterAdoption}`);
+        println(`color: ${getComputedStyle(target).color}`);
+        document.adoptedStyleSheets = [second, first];
+        println(`color after reordering: ${getComputedStyle(target).color}`);
+        done();
+    });
+</script>

@@ -1,0 +1,6 @@
+state in the next task: in-flight
+state after the registration: in-flight
+inner width (not inherited, initial value): 5
+inner height: 6
+outer --size: 20px
+inner --size: 5px

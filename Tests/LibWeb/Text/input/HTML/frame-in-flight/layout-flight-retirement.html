@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<iframe id="frame" style="width: 200px; height: 100px" srcdoc="<body style='background: blue'><div id=inner>first</div>"></iframe>
+<script>
+    // The document whose frame is in flight goes away beside it: its iframe is removed, or a window the page opened is
+    // closed. The frame in flight is taken in, its document retired, and the documents that remain lay out in later
+    // rendering updates. navigation-mid-frame covers a navigation and document.open().
+    asyncTest(async done => {
+        const iframe = document.getElementById("frame");
+        if (!iframe.contentDocument?.getElementById("inner"))
+            await new Promise(resolve => iframe.addEventListener("load", resolve, { once: true }));
+
+        await whileRecordingInFlight(() => {
+            iframe.contentDocument.getElementById("inner").style.width = "120px";
+        }, () => {
+            iframe.remove();
+            internals.gc();
+        });
+        await twoFrames();
+        internals.gc();
+        println(`removal: iframes left: ${document.querySelectorAll("iframe").length}`);
+
+        const popup = window.open();
+        popup.document.body.innerHTML = "<div id=popupBox style='width: 40px'>popup</div>";
+        await whileRecordingInFlight(() => {
+            popup.document.getElementById("popupBox").style.width = "80px";
+            document.body.style.width = "300px";
+        }, () => {
+            popup.close();
+            internals.gc();
+        });
+        await twoFrames();
+        internals.gc();
+        println(`window close: closed: ${popup.closed}`);
+        println(`window close: opener laid out: ${document.body.offsetWidth}`);
+        done();
+    });
+</script>

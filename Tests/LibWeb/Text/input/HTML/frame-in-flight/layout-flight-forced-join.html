@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<div id="box" style="width: 100px; height: 50px; background: blue"></div>
+<div id="scroller" style="width: 100px; height: 50px; overflow: auto"><div id="content" style="width: 100px; height: 80px"></div></div>
+<script>
+    // Layout reads beside a frame whose layout is in flight: each read joins the flight first and sees its result, and a
+    // read after a mutation beside the frame sees that mutation too.
+    asyncTest(async done => {
+        const reads = await whileRecordingInFlight(() => {
+            box.style.width = "150px";
+        }, state => {
+            const offsetWidth = box.offsetWidth;
+            box.style.width = "170px";
+            const rectWidth = box.getBoundingClientRect().width;
+            box.style.width = "180px";
+            const computedWidth = getComputedStyle(box).width;
+            return { state, offsetWidth, rectWidth, computedWidth };
+        });
+        println(`reads: state in the next task: ${reads.state}`);
+        println(`reads: offsetWidth: ${reads.offsetWidth}`);
+        println(`reads: getBoundingClientRect after a mutation: ${reads.rectWidth}`);
+        println(`reads: computed width after a mutation: ${reads.computedWidth}`);
+
+        // Geometry the frame in flight lays out: a box's size, a scroller's overflow and what a hit test finds.
+        const geometry = await whileRecordingInFlight(() => {
+            box.style.height = "60px";
+            content.style.height = "120px";
+        }, state => {
+            const rectHeight = box.getBoundingClientRect().height;
+            const scrollHeight = scroller.scrollHeight;
+            const hit = document.elementFromPoint(10, 10) === box;
+            return { state, rectHeight, scrollHeight, hit };
+        });
+        println(`geometry: state in the next task: ${geometry.state}`);
+        println(`geometry: getBoundingClientRect height: ${geometry.rectHeight}`);
+        println(`geometry: scrollHeight: ${geometry.scrollHeight}`);
+        println(`geometry: hit test: ${geometry.hit}`);
+
+        await twoFrames();
+        println(`after: box: ${box.offsetWidth}x${box.offsetHeight}`);
+        done();
+    });
+</script>

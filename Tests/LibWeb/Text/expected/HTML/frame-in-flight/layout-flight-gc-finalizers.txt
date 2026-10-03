@@ -1,0 +1,3 @@
+objects: the collection left the frame in flight: true
+iframe document: the collection left the frame in flight: true
+container laid out: true

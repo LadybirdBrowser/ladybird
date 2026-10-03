@@ -1,0 +1,7 @@
+initial: true
+moved out: state in the next task: in-flight
+moved out: false
+observed beside the frame: true
+moved in: state in the next task: in-flight
+moved in: false,true
+disconnected beside the frame: true

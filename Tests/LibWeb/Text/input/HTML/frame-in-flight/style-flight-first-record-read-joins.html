@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    #box { width: 100px; height: 20px; }
+    #box.wide { width: 150px; }
+    #contents { display: contents; }
+    #list > li { height: 10px; }
+</style>
+<div id="box"></div>
+<div id="contents"><span>contents</span></div>
+<ul id="list"><li id="one">one</li><li id="two">two</li><li id="three">three</li></ul>
+<script>
+    // Mutations beside a frame in flight that read an element's style for the first time since its style pass flew:
+    // an insertion reads its parent's display (display: contents), and a removal reads the removed list item's. They
+    // join the flight, and a read after them sees what the pass computed.
+    asyncTest(async done => {
+        const mutated = await whileRecordingInFlight(() => {
+            box.classList.add("wide");
+        }, state => {
+            const span = document.createElement("span");
+            span.textContent = "inserted";
+            contents.appendChild(span);
+            two.remove();
+            return { state, width: getComputedStyle(box).width };
+        });
+        println(`state in the next task: ${mutated.state}`);
+        println(`width: ${mutated.width}`);
+        await twoFrames();
+        println(`contents children: ${contents.children.length}`);
+        println(`list height: ${list.offsetHeight}`);
+        println(`box width: ${box.offsetWidth}`);
+        done();
+    });
+</script>

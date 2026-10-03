@@ -1,0 +1,5 @@
+state in the next task: in-flight
+the shadow roots were collected: true
+state after the collection: in-flight
+the document's keyframes animate the box: 20px
+a new scope's keyframes animate its element: 350px

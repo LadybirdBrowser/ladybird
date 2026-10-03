@@ -1,0 +1,4 @@
+state in the next task: in-flight
+box: 10 5 30x10
+inner left: 10
+other width: 200

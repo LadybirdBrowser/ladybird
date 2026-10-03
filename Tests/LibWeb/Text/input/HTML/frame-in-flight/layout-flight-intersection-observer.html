@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<div id="target" style="position: absolute; top: 0; width: 50px; height: 50px"></div>
+<div id="other" style="position: absolute; top: 0; left: 100px; width: 50px; height: 50px"></div>
+<script>
+    // IntersectionObserver calls beside a frame in flight. The rendering update has not run its intersection steps for
+    // the frame yet, so takeRecords() returns what earlier updates queued, and observe() and disconnect() change what
+    // the steps read later: every entry is delivered exactly once, either to takeRecords() or to the callback, as when
+    // the task runs before or after the rendering update.
+    asyncTest(async done => {
+        const seen = [];
+        const seenByOther = [];
+        const observer = new IntersectionObserver(entries => {
+            for (const entry of entries)
+                seen.push(entry.isIntersecting);
+        });
+        observer.observe(target);
+        await twoFrames();
+        await nextTask();
+        println(`initial: ${seen.splice(0).join(",")}`);
+
+        let otherObserver;
+        const movedOut = await whileRecordingInFlight(() => {
+            target.style.top = "5000px";
+        }, state => {
+            for (const entry of observer.takeRecords())
+                seen.push(entry.isIntersecting);
+            otherObserver = new IntersectionObserver(entries => {
+                for (const entry of entries)
+                    seenByOther.push(entry.isIntersecting);
+            });
+            otherObserver.observe(other);
+            return state;
+        });
+        println(`moved out: state in the next task: ${movedOut}`);
+        await twoFrames();
+        await nextTask();
+        println(`moved out: ${seen.join(",")}`);
+        println(`observed beside the frame: ${seenByOther.join(",")}`);
+
+        const movedIn = await whileRecordingInFlight(() => {
+            target.style.top = "0px";
+        }, state => {
+            for (const entry of observer.takeRecords())
+                seen.push(entry.isIntersecting);
+            observer.observe(target);
+            otherObserver.disconnect();
+            return state;
+        });
+        println(`moved in: state in the next task: ${movedIn}`);
+        await twoFrames();
+        await nextTask();
+        println(`moved in: ${seen.join(",")}`);
+        println(`disconnected beside the frame: ${seenByOther.join(",")}`);
+        observer.disconnect();
+        done();
+    });
+</script>

@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    #box { width: 100px; height: 20px; background: blue; }
+</style>
+<div id="box"></div>
+<script>
+    // A layout read with layout to do beside a frame in flight, and a mutation right after it: the read sees the layout
+    // as it was then, and the mutation reaches the next read and the frames after it.
+    asyncTest(async done => {
+        const result = await whileRecordingInFlight(() => {
+            box.style.backgroundColor = "green";
+        }, state => {
+            box.style.height = "25px";
+            const widthAtRead = box.offsetWidth;
+            box.style.width = "123px";
+            box.textContent = "mutated";
+            const widthAfterMutation = box.offsetWidth;
+            const computedWidth = getComputedStyle(box).width;
+            return { state, widthAtRead, widthAfterMutation, computedWidth };
+        });
+        println(`state in the next task: ${result.state}`);
+        println(`width read beside the frame: ${result.widthAtRead}`);
+        println(`width after mutation: ${result.widthAfterMutation}`);
+        println(`computed width: ${result.computedWidth}`);
+        await twoFrames();
+        println(`width at the end: ${box.offsetWidth}`);
+        println(`hit test finds the grown box: ${document.elementFromPoint(120, 30) === box}`);
+        done();
+    });
+</script>

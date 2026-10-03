@@ -1,0 +1,7 @@
+parent changed, parent reads: iframe width: 300
+parent changed, parent reads: child viewport width: 300
+parent changed, parent reads: child box width: 300
+parent changed, child reads: child box width: 250
+parent changed, child reads: child viewport width: 250
+child changed: child viewport width: 220
+child changed: child box: 220x30

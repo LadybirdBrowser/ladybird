@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    #container { container-type: inline-size; width: 400px; }
+    #container.narrow { width: 200px; }
+    #subject { color: rgb(0, 0, 255); height: 10px; }
+    @container (min-width: 300px) {
+        #subject.wide-only { color: rgb(0, 128, 0); }
+    }
+</style>
+<div id="container"><div id="subject">subject</div></div>
+<script>
+    // In one rendering update, an element comes to depend on its query container, and the same update narrows the
+    // container below what the condition asks for: the element's style follows the container's new size, whether the
+    // update's style runs on the main thread or in the frame in flight.
+    asyncTest(async done => {
+        await whileRecordingInFlight(() => {
+            subject.className = "wide-only";
+            container.className = "narrow";
+        }, () => {});
+        await twoFrames();
+        println(`container width: ${container.offsetWidth}`);
+        println(`subject color: ${getComputedStyle(subject).color}`);
+        done();
+    });
+</script>

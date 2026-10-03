@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<iframe id="frame" style="width: 200px; height: 100px" srcdoc="<body><div id=inner>first</div>"></iframe>
+<script>
+    // An iframe is removed beside the frame in flight of its document, after that frame built boxes it owes style
+    // resources: removing the iframe retires the document's render state, which takes the frame in first. The boxes go
+    // away with the render state, so the document drops what the frame left for them instead of attaching it.
+    const iframe = document.getElementById("frame");
+    const image = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
+
+    function buildBoxesOwingResources() {
+        const doc = iframe.contentDocument;
+        const inner = doc.getElementById("inner");
+        inner.style.width = "120px";
+        for (let i = 0; i < 8; ++i) {
+            const plain = doc.createElement("div");
+            plain.textContent = `plain ${i}`;
+            doc.body.appendChild(plain);
+            const background = doc.createElement("div");
+            background.style.cssText = `width: 10px; height: 10px; background-image: url(${image})`;
+            doc.body.appendChild(background);
+            const img = doc.createElement("img");
+            img.src = image;
+            doc.body.appendChild(img);
+            const replaced = doc.createElement("div");
+            replaced.style.content = `url(${image})`;
+            doc.body.appendChild(replaced);
+            const generated = doc.createElement("span");
+            generated.className = "generated";
+            doc.body.appendChild(generated);
+        }
+        const style = doc.createElement("style");
+        style.textContent = `.generated::before { content: url(${image}); } .generated::after { content: "after"; }`;
+        doc.head.appendChild(style);
+    }
+
+    asyncTest(async done => {
+        if (!iframe.contentDocument?.getElementById("inner"))
+            await new Promise(resolve => iframe.addEventListener("load", resolve, { once: true }));
+
+        await whileRecordingInFlight(buildBoxesOwingResources, () => {
+            iframe.remove();
+            internals.gc();
+        });
+        await twoFrames();
+        internals.gc();
+        println(`iframes left: ${document.querySelectorAll("iframe").length}`);
+
+        document.body.style.width = "300px";
+        println(`container laid out: ${document.body.offsetWidth}`);
+        done();
+    });
+</script>

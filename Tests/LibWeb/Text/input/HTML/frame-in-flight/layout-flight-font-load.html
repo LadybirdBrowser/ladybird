@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    #text { font: 20px LayoutFlightFace, monospace; }
+</style>
+<div id="box" style="height: 10px"></div>
+<span id="text">flight</span>
+<script>
+    // A font face that becomes available or goes away beside a frame in flight: the change waits for the flight instead
+    // of taking it in, and the next style update resolves the text against the faces as they are.
+    asyncTest(async done => {
+        const face = new FontFace("LayoutFlightFace", "url(../../../../Assets/HashSans.woff)");
+        await face.load();
+        const widthWithoutFace = text.offsetWidth;
+
+        const added = await whileRecordingInFlight(() => {
+            box.style.height = "20px";
+        }, state => {
+            document.fonts.add(face);
+            return { state, afterChange: internals.frameSchedulerState() };
+        });
+        println(`added: state in the next task: ${added.state}`);
+        println(`added: state after the change: ${added.afterChange}`);
+        await twoFrames();
+        println(`added: the text width changed: ${text.offsetWidth !== widthWithoutFace}`);
+
+        const deleted = await whileRecordingInFlight(() => {
+            box.style.height = "30px";
+        }, state => {
+            document.fonts.delete(face);
+            return { state, afterChange: internals.frameSchedulerState() };
+        });
+        println(`deleted: state in the next task: ${deleted.state}`);
+        println(`deleted: state after the change: ${deleted.afterChange}`);
+        await twoFrames();
+        println(`deleted: the text width is back: ${text.offsetWidth === widthWithoutFace}`);
+        done();
+    });
+</script>

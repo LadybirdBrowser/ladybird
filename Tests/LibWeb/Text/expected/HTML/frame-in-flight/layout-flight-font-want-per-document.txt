@@ -1,0 +1,3 @@
+face A unloaded while its document's frame is in flight: true
+face A: loaded
+face B: loaded

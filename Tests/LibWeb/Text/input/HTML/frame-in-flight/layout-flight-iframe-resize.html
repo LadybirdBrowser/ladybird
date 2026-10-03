@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<div id="box" style="width: 50px; height: 20px"></div>
+<iframe id="frame" style="width: 200px; height: 100px; border: none" srcdoc="<body style='margin: 0'><div id=inner>child</div>"></iframe>
+<script>
+    // An iframe resized beside a frame in flight: the child document sees the viewport size its parent's layout gives
+    // it, whichever document's frame is in flight and whichever document reads first.
+    function frameElement() {
+        return document.getElementById("frame");
+    }
+
+    function inner(doc) {
+        return doc.getElementById("inner");
+    }
+
+    asyncTest(async done => {
+        if (!frameElement().contentDocument?.getElementById("inner"))
+            await new Promise(resolve => frameElement().addEventListener("load", resolve, { once: true }));
+        const child = frameElement().contentDocument;
+
+        // The parent changes, and the parent reads first.
+        const parentFirst = await whileRecordingInFlight(() => {
+            box.style.width = "60px";
+        }, () => {
+            frameElement().style.width = "300px";
+            const offsetWidth = frameElement().offsetWidth;
+            return { offsetWidth, innerWidth: child.defaultView.innerWidth, childWidth: inner(child).offsetWidth };
+        });
+        println(`parent changed, parent reads: iframe width: ${parentFirst.offsetWidth}`);
+        println(`parent changed, parent reads: child viewport width: ${parentFirst.innerWidth}`);
+        println(`parent changed, parent reads: child box width: ${parentFirst.childWidth}`);
+
+        // The parent changes, and the child reads first: its layout lays its parent out first.
+        const childFirst = await whileRecordingInFlight(() => {
+            box.style.width = "70px";
+        }, () => {
+            frameElement().style.width = "250px";
+            return { childWidth: inner(child).offsetWidth, innerWidth: child.defaultView.innerWidth };
+        });
+        println(`parent changed, child reads: child box width: ${childFirst.childWidth}`);
+        println(`parent changed, child reads: child viewport width: ${childFirst.innerWidth}`);
+
+        // The child changes, and the parent resizes it without reading.
+        await whileRecordingInFlight(() => {
+            inner(child).style.height = "30px";
+        }, () => {
+            frameElement().style.width = "220px";
+        });
+        await twoFrames();
+        println(`child changed: child viewport width: ${child.defaultView.innerWidth}`);
+        println(`child changed: child box: ${inner(child).offsetWidth}x${inner(child).offsetHeight}`);
+        done();
+    });
+</script>

@@ -1,0 +1,2 @@
+container width: 200
+subject color: rgb(0, 0, 255)

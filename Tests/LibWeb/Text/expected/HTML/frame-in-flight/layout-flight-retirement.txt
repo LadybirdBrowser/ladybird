@@ -1,0 +1,3 @@
+removal: iframes left: 0
+window close: closed: true
+window close: opener laid out: 300

@@ -1,0 +1,5 @@
+state in the next task: in-flight
+state after the writes: idle
+styled: 80x25
+sized: 120x15
+container height: 60

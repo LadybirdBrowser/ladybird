@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    #container { position: relative; width: 200px; height: 100px; }
+    #box { position: absolute; left: 10px; top: 5px; width: 10px; height: 10px; }
+    #box.wide { width: 30px; }
+</style>
+<div id="container"><div id="box"><span id="inner">box</span></div><div id="other">other</div></div>
+<script>
+    // A style change in a frame in flight that relayouts an absolutely positioned partial relayout boundary: the
+    // relayout stays confined to the boundary, and the box and what it holds are laid out at their new size.
+    asyncTest(async done => {
+        const state = await whileRecordingInFlight(() => {
+            box.className = "wide";
+        }, state => state);
+        println(`state in the next task: ${state}`);
+        await twoFrames();
+        println(`box: ${box.offsetLeft} ${box.offsetTop} ${box.offsetWidth}x${box.offsetHeight}`);
+        println(`inner left: ${inner.getBoundingClientRect().left - container.getBoundingClientRect().left}`);
+        println(`other width: ${other.offsetWidth}`);
+        done();
+    });
+</script>

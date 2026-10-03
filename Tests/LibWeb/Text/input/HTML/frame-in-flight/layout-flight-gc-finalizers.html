@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<div id="container"></div>
+<script>
+    // Collections beside a frame in flight, of every kind of object whose finalizer reaches its document: none of them
+    // may take the frame in, since taking it in runs its effects, which allocate in the middle of the collection.
+    function makeDoomed() {
+        const doomed = [];
+        for (let i = 0; i < 5; ++i) {
+            const host = document.createElement("div");
+            host.attachShadow({ mode: "open" }).innerHTML = `<style>p { color: green }</style><p>shadow ${i}</p>`;
+            doomed.push(host);
+
+            const img = document.createElement("img");
+            img.src = "../../../../Assets/120.png";
+            doomed.push(img);
+
+            const canvas = document.createElement("canvas");
+            canvas.getContext("2d").fillRect(0, 0, 10, 10);
+            doomed.push(canvas);
+
+            const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+            svg.innerHTML = `<defs><pattern id="p${i}" width="4" height="4"></pattern></defs><use href="#p${i}"/>`;
+            doomed.push(svg);
+
+            const animated = document.createElement("div");
+            animated.animate([{ opacity: 0 }, { opacity: 1 }], 1000);
+            doomed.push(animated);
+
+            const range = document.createRange();
+            range.selectNodeContents(host);
+            doomed.push(range);
+
+            // A document whose resize observers observe anything may lay out in step, so this one observes nothing
+            // any more.
+            const resizeObserver = new ResizeObserver(() => {});
+            resizeObserver.observe(host);
+            resizeObserver.unobserve(host);
+            doomed.push(resizeObserver);
+            const intersectionObserver = new IntersectionObserver(() => {});
+            intersectionObserver.observe(host);
+            doomed.push(intersectionObserver);
+
+            doomed.push(document.createNodeIterator(host));
+        }
+        return doomed;
+    }
+
+    asyncTest(async done => {
+        // An iframe's document is collected once the iframe is removed and forgotten.
+        let iframe = document.createElement("iframe");
+        iframe.srcdoc = "<p>inner</p>";
+        container.appendChild(iframe);
+        await new Promise(resolve => iframe.addEventListener("load", resolve, { once: true }));
+
+        // The iframe may keep its container document's frames from flying, so the collections check the state they
+        // leave only where the frame flew.
+        const leftInFlight = frame => frame.state !== "in-flight" || frame.afterCollection === "in-flight";
+        let doomed = null;
+        const objects = await whileRecordingInFlight(() => {
+            doomed = makeDoomed();
+            for (let i = 0; i < 10; ++i) {
+                const div = document.createElement("div");
+                div.textContent = `item ${i}`;
+                container.appendChild(div);
+            }
+        }, state => {
+            doomed = null;
+            internals.gc();
+            internals.gc();
+            return { state, afterCollection: internals.frameSchedulerState() };
+        });
+        println(`objects: the collection left the frame in flight: ${leftInFlight(objects)}`);
+
+        // The iframe is removed in one frame and its document collected beside the next one.
+        iframe.remove();
+        iframe = null;
+        const iframeDocument = await whileRecordingInFlight(() => {
+            container.appendChild(document.createElement("div")).textContent = "after the iframe";
+        }, state => {
+            internals.gc();
+            internals.gc();
+            return { state, afterCollection: internals.frameSchedulerState() };
+        });
+        println(`iframe document: the collection left the frame in flight: ${leftInFlight(iframeDocument)}`);
+        await twoFrames();
+        println(`container laid out: ${container.offsetHeight > 0}`);
+        done();
+    });
+</script>

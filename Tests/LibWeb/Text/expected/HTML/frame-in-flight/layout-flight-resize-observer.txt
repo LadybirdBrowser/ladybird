@@ -1,0 +1,3 @@
+state in the next task: in-flight
+observed: 90x50
+resized: 90x50,100x50

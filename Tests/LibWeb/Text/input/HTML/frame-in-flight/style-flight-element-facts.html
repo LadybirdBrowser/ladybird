@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    #box { height: 20px; }
+    input:disabled { color: rgb(0, 128, 0); }
+    div:dir(rtl) { color: rgb(0, 0, 255); }
+</style>
+<div id="box"></div>
+<div id="pop" popover>popover</div>
+<input id="field">
+<input id="check" type="checkbox">
+<div id="text">text</div>
+<div id="host"></div>
+<script>
+    // Facts about elements that the style engine keeps beside their features, changed beside a frame in flight: the
+    // top layer, form control disabledness, directionality and slot assignment. None of them takes the frame in, and
+    // the next style update sees each of them.
+    asyncTest(async done => {
+        const shadow = host.attachShadow({ mode: "open" });
+        shadow.innerHTML = `<style>::slotted(span) { color: rgb(128, 0, 128); }</style><slot></slot>`;
+        let height = 20;
+
+        // `write` runs beside a frame of its own, so that a write that takes the frame in cannot hide whether the ones
+        // after it would. `after` reads the outcome once the next style update has taken the write in.
+        async function besideFrame(name, write, after) {
+            const result = await whileRecordingInFlight(() => {
+                box.style.height = `${++height}px`;
+            }, state => {
+                write();
+                return { state, afterWrite: internals.frameSchedulerState() };
+            });
+            println(`${name}: state in the next task: ${result.state}`);
+            println(`${name}: state after the write: ${result.afterWrite}`);
+            await twoFrames();
+            println(`${name}: after: ${after()}`);
+        }
+
+        await besideFrame("a popover shown", () => {
+            pop.showPopover();
+        }, () => `open: ${pop.matches(":popover-open")}, position: ${getComputedStyle(pop).position}`);
+        await besideFrame("disabled inputs", () => {
+            field.disabled = true;
+            check.disabled = true;
+        }, () => `${getComputedStyle(field).color} ${getComputedStyle(check).color}`);
+        await besideFrame("a direction", () => {
+            text.dir = "rtl";
+        }, () => getComputedStyle(text).color);
+        const slotted = document.createElement("span");
+        slotted.textContent = "slotted";
+        await besideFrame("a slotted child", () => {
+            host.appendChild(slotted);
+        }, () => getComputedStyle(slotted).color);
+        done();
+    });
+</script>

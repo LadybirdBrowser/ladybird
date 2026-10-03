@@ -1,0 +1,11 @@
+custom properties: state in the next task: in-flight
+custom properties: state after the writes: in-flight
+custom properties: color: rgb(0, 128, 0)
+custom properties: fill: rgb(0, 0, 255)
+custom properties: registered: 12px
+custom properties: child inherits: rgb(0, 128, 0)
+animations: state in the next task: in-flight
+animations: running on box: grow, opacity
+animations: css animation width: 150px
+animations: web animation opacity: 0.25
+animations: transition started: true

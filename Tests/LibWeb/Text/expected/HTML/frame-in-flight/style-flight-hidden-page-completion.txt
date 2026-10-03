@@ -1,0 +1,6 @@
+state in the next task: in-flight
+visibility: hidden
+state once hidden: in-flight
+state once released: idle
+styled while hidden: 80px, 80
+rendering resumed: visible, 60

@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; width: 200px; }
+    body.narrow { width: 100px; }
+    #box { position: absolute; left: 0; top: 0; width: 50%; height: 10px; }
+</style>
+<div id="flow">flow</div><div id="box"></div>
+<script>
+    // A style change in a frame in flight that relayouts the body, which the viewport propagates its overflow, writing
+    // mode and direction from: the relayout is a full one.
+    asyncTest(async done => {
+        const state = await whileRecordingInFlight(() => {
+            document.body.className = "narrow";
+        }, state => state);
+        println(`state in the next task: ${state}`);
+        await twoFrames();
+        println(`body width: ${document.body.offsetWidth}`);
+        println(`flow width: ${flow.offsetWidth}`);
+        println(`box width: ${box.offsetWidth}`);
+        done();
+    });
+</script>

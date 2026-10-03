@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style id="base">
+    #box { height: 10px; }
+    [data-size="wide"] { width: 120px; }
+</style>
+<div id="container" style="width: 300px"><div id="box"></div><div id="sized">sized</div><div id="styled">styled</div></div>
+<script>
+    // Style inputs beside a frame in flight: a style sheet attached, a rule inserted, an inline style edited and an
+    // attribute value a selector reads. A write that reaches the style engine in place, as a sheet write does, drains
+    // the frame's style transaction first, and the next style update takes all of them.
+    asyncTest(async done => {
+        const result = await whileRecordingInFlight(() => {
+            box.style.height = "20px";
+        }, state => {
+            const sheet = document.createElement("style");
+            sheet.textContent = "#styled { height: 25px; }";
+            document.head.appendChild(sheet);
+            base.sheet.insertRule("#sized { height: 15px; }", base.sheet.cssRules.length);
+            styled.style.width = "80px";
+            sized.setAttribute("data-size", "wide");
+            return { state, afterWrites: internals.frameSchedulerState() };
+        });
+        println(`state in the next task: ${result.state}`);
+        println(`state after the writes: ${result.afterWrites}`);
+        println(`styled: ${styled.offsetWidth}x${styled.offsetHeight}`);
+        println(`sized: ${sized.offsetWidth}x${sized.offsetHeight}`);
+        println(`container height: ${container.offsetHeight}`);
+        done();
+    });
+</script>

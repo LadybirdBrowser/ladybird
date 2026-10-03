@@ -1,0 +1,16 @@
+insertion: state in the next task: in-flight
+insertion: shown: 300x23
+insertion: children laid out: shown,list
+insertion: list items: 2, list height > 0: true
+insertion: tree matches a full rebuild: true
+removal: state in the next task: in-flight
+removal: shown: 300x23
+removal: children laid out: shown,kept,list
+removal: list items: 2, list height > 0: true
+removal: tree matches a full rebuild: true
+read: state in the next task: in-flight
+read: shown had a box: true
+read: shown: 0x0
+read: children laid out: kept,list
+read: list items: 2, list height > 0: true
+read: tree matches a full rebuild: true
