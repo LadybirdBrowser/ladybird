@@ -951,6 +951,8 @@ static ThrowCompletionOr<Value> parse_simdjson_number(VM& vm, T& value, StringVi
     if (error != simdjson::NUMBER_ERROR)
         return vm.throw_completion<SyntaxError>(ErrorType::JsonMalformed);
 
+    raw_sv = raw_sv.trim(" \t\n\r"sv, TrimMode::Right);
+
     // Validate JSON number format (parse_first_number is more lenient than spec)
     // - No leading zeros (except "0" or "0.xxx")
     // - No trailing decimal point (e.g., "1." is invalid)
@@ -1193,6 +1195,8 @@ static ThrowCompletionOr<Value> parse_simdjson_document(VM& vm, JSONParseState& 
         bool boolean_value;
         if (document.get_bool().get(boolean_value))
             return vm.throw_completion<SyntaxError>(ErrorType::JsonMalformed);
+        if (!StringView { raw_token.data(), raw_token.size() }.starts_with(boolean_value ? "true"sv : "false"sv))
+            return vm.throw_completion<SyntaxError>(ErrorType::JsonMalformed);
         if (!document.at_end())
             return vm.throw_completion<SyntaxError>(ErrorType::JsonMalformed);
         if (record) {
@@ -1203,8 +1207,10 @@ static ThrowCompletionOr<Value> parse_simdjson_document(VM& vm, JSONParseState& 
     }
     case simdjson::ondemand::json_type::number: {
         StringView raw_sv { raw_token.data(), raw_token.size() };
-        auto trimmed = raw_sv.trim_whitespace();
-        auto parsed = TRY(parse_simdjson_number(vm, document, trimmed));
+        auto text_bytes = state.text.bytes();
+        if (raw_sv.characters_without_null_termination() + raw_sv.length() != text_bytes.characters_without_null_termination() + text_bytes.length())
+            return vm.throw_completion<SyntaxError>(ErrorType::JsonMalformed);
+        auto parsed = TRY(parse_simdjson_number(vm, document, raw_sv));
         if (record) {
             record->value = parsed;
             record->source = json_token_source(state.text, raw_token);
