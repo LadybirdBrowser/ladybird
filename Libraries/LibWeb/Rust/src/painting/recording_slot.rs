@@ -8,9 +8,10 @@
 //! that runs on it.
 //!
 //! A [`RecordingJob`] owns the frame it records and the recorder state it records with, and returns
-//! what it recorded with that state in a [`RecordingAnswer`]. Neither names the layout arena. The
-//! slot is the document host's, on the host's thread: only the recording entry, the publication
-//! and the trace reach it, through [`crate::render_state::DocumentHost::recording`].
+//! what it recorded with that state in a [`RecordingAnswer`]. Neither names the layout arena, and the
+//! job runs on the Paint thread. The slot is the document host's, on the host's thread: only the
+//! recording entry, the publication and the trace reach it, through
+//! [`crate::render_state::DocumentHost::recording`].
 
 use crate::layout::node_data::NodeSlotId;
 use crate::painting::hit_test::HitTestList;
@@ -58,9 +59,18 @@ impl RecordingJob {
         }
     }
 
+    /// Records the frame with the host's `inputs` on the Paint thread, and waits for what it recorded. The inputs are
+    /// shared with the Paint thread meanwhile, which the compiler checks they may be.
+    pub(crate) fn run_on_paint_thread(self, inputs: &RecordingInputs<'_>) -> RecordingAnswer {
+        if cfg!(test) {
+            return self.run(inputs);
+        }
+        crate::stage_thread::paint_thread().run(|| self.run(inputs))
+    }
+
     /// Records the frame with the host's `inputs`. It takes no main thread token, so nothing it calls
     /// can reach the host.
-    pub(crate) fn run(self, inputs: &RecordingInputs<'_>) -> RecordingAnswer {
+    fn run(self, inputs: &RecordingInputs<'_>) -> RecordingAnswer {
         let Self {
             frame,
             mut recorder,
