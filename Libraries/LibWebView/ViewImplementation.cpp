@@ -2779,12 +2779,10 @@ void ViewImplementation::did_close_browsing_context(Badge<WebContentPage>)
     auto window_handle = move(m_window_handle);
 
     // Headless views retain their closed children. Remove the view from routing immediately so a command racing
-    // with the close cannot be sent to a page that no longer exists.
+    // with the close cannot reach the closed page.
     all_views().remove(m_view_id);
     traversable().discard_pending_host();
     traversable().discard_representing_pages();
-    if (has_display_page())
-        page().client().close_page_of_closed_tab(page_id());
 
     if (!window_handle.is_empty())
         Application::the().notify_webdriver_window_closed(window_handle);
@@ -3303,7 +3301,6 @@ void ViewImplementation::respawn_web_content_process_after_crash()
     // The tab is displayed by a page of a new process, standing in for the document the crashed process destroyed
     // until a document activates in the tab: the traversal recovering the tab populates one in that page.
     // FIXME: Fail the tab, rather than crashing the whole application, if no process can be launched.
-    traversable().active_document().set_host(nullptr);
     auto page = MUST(traversable().obtain_page_to_host_traversable({}));
     traversable().set_page_standing_in_for_lost_document({}, page);
     display_page_changed({});
