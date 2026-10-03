@@ -63,22 +63,14 @@ struct GraphLoadingState : public Cell {
     GC_DECLARE_ALLOCATOR(GraphLoadingState);
 
 public:
-    struct HostDefined : Cell {
-        GC_CELL(HostDefined, Cell);
-        GC_DECLARE_ALLOCATOR(HostDefined);
-
-    public:
-        virtual ~HostDefined() = default;
-    };
-
     GC::Ptr<PromiseCapability> promise_capability; // [[PromiseCapability]]
     bool is_loading { false };                     // [[IsLoading]]
     size_t pending_module_count { 0 };             // [[PendingModulesCount]]
     HashTable<GC::Ptr<CyclicModule>> visited;      // [[Visited]]
-    GC::Ptr<HostDefined> host_defined;             // [[HostDefined]]
+    GC::Ptr<GC::Cell> host_defined;                // [[HostDefined]]
 
 private:
-    GraphLoadingState(GC::Ptr<PromiseCapability> promise_capability, bool is_loading, size_t pending_module_count, HashTable<GC::Ptr<CyclicModule>> visited, GC::Ptr<HostDefined> host_defined)
+    GraphLoadingState(GC::Ptr<PromiseCapability> promise_capability, bool is_loading, size_t pending_module_count, HashTable<GC::Ptr<CyclicModule>> visited, GC::Ptr<GC::Cell> host_defined)
         : promise_capability(move(promise_capability))
         , is_loading(is_loading)
         , pending_module_count(pending_module_count)
@@ -120,7 +112,7 @@ public:
     virtual ThrowCompletionOr<u32> inner_module_linking(VM& vm, GC::RootVector<GC::Ref<Module>>& stack, u32 index);
     virtual ThrowCompletionOr<u32> inner_module_evaluation(VM& vm, GC::RootVector<GC::Ref<Module>>& stack, u32 index);
 
-    virtual PromiseCapability& load_requested_modules(GC::Ptr<GraphLoadingState::HostDefined>) = 0;
+    virtual PromiseCapability& load_requested_modules(GC::Ptr<GC::Cell> host_defined) = 0;
 
 protected:
     Module(Realm&, ByteString filename, GC::Ptr<GC::Cell> host_defined = nullptr);

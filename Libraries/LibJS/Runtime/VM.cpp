@@ -140,7 +140,7 @@ VM::VM(ErrorMessages error_messages)
         return make_job_callback(function_object);
     };
 
-    host_load_imported_module = [this](ImportedModuleReferrer referrer, ModuleRequest const& module_request, GC::Ptr<GraphLoadingState::HostDefined> load_state, ImportedModulePayload payload) -> void {
+    host_load_imported_module = [this](ImportedModuleReferrer referrer, ModuleRequest const& module_request, GC::Ptr<GC::Cell> load_state, ImportedModulePayload payload) -> void {
         return load_imported_module(referrer, module_request, load_state, move(payload));
     };
 
@@ -786,7 +786,7 @@ static ByteString resolve_module_filename(StringView filename, Utf16View const& 
 }
 
 // 16.2.1.8 HostLoadImportedModule ( referrer, specifier, hostDefined, payload ), https://tc39.es/ecma262/#sec-HostLoadImportedModule
-void VM::load_imported_module(ImportedModuleReferrer referrer, ModuleRequest const& module_request, GC::Ptr<GraphLoadingState::HostDefined>, ImportedModulePayload payload)
+void VM::load_imported_module(ImportedModuleReferrer referrer, ModuleRequest const& module_request, GC::Ptr<GC::Cell>, ImportedModulePayload payload)
 {
     // An implementation of HostLoadImportedModule must conform to the following requirements:
     //

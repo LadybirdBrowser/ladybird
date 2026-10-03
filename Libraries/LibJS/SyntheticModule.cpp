@@ -98,7 +98,7 @@ ThrowCompletionOr<void> SyntheticModule::set_synthetic_module_export(Utf16FlyStr
 }
 
 // 16.2.1.8.4.1 LoadRequestedModules ( ), https://tc39.es/ecma262/#sec-smr-LoadRequestedModules
-PromiseCapability& SyntheticModule::load_requested_modules(GC::Ptr<GraphLoadingState::HostDefined>)
+PromiseCapability& SyntheticModule::load_requested_modules(GC::Ptr<GC::Cell>)
 {
     auto& realm = this->realm();
     auto& vm = realm.vm();
