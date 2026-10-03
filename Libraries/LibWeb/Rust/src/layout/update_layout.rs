@@ -66,6 +66,7 @@ unsafe fn run_layout_round_job(
         return job.run(unsafe { &mut *arena_handle.cast() });
     };
     let document = host.document();
+    host.let_go_of_rows();
     crate::render_state::wait_from_entry(
         crate::render_state::LockstepProof::for_reason(&LAYOUT_UPDATE),
         main_thread,

@@ -71,6 +71,17 @@ pub(crate) struct RenderingPreparation {
 }
 
 impl PaintPass {
+    /// Whether the pass writes the rows throughout: it measures every unmeasured overflow, or brings the visual
+    /// context of every dirty box up to date.
+    fn rewrites_rows(&self) -> bool {
+        matches!(
+            self,
+            Self::PrepareForRendering { .. }
+                | Self::UpdateAccumulatedVisualContexts { .. }
+                | Self::RefreshScrollState { .. }
+        )
+    }
+
     /// Runs the pass over `arena`.
     pub(crate) fn run(self, arena: &mut LayoutNodeArena) -> PaintPassAnswer {
         match self {
@@ -118,6 +129,9 @@ const HOST_PAINT_STEP: HostPaintStep = HostPaintStep { _private: () };
 /// Runs `pass` on the render state of `host`'s document, and answers what it answered.
 pub(crate) fn run(host: &DocumentHost, pass: PaintPass) -> PaintPassAnswer {
     let document = host.document();
+    if pass.rewrites_rows() {
+        host.let_go_of_rows();
+    }
     wait_for_render_state(LockstepProof::for_reason(&HOST_PAINT_STEP), host, |reply| {
         RenderMessage::Paint { document, pass, reply }
     })

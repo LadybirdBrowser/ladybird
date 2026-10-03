@@ -208,6 +208,14 @@ impl DocumentHost {
         rows
     }
 
+    /// Lets go of the rows the render state published last, before a job the host waits for writes them. The host
+    /// reads none while the job runs, and those it reads after the job are published after it, so the job writes the
+    /// chunks nothing else holds in place rather than copying them for rows nobody reads again. Rows an outer call
+    /// still reads stay with it.
+    pub(crate) fn let_go_of_rows(&self) {
+        self.rows.borrow_mut().take();
+    }
+
     /// Keeps what the style transaction the host took answered, until the host ends the transaction.
     pub(crate) fn keep_style_transaction(&self, answer: StyleJobAnswer) -> std::cell::Ref<'_, StyleJobAnswer> {
         *self.style_transaction.borrow_mut() = Some(answer);
