@@ -514,7 +514,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
                         case Wasm::ValueType::V128: {
                             auto value = arg.to<u128>();
                             ReadonlyBytes data { bit_cast<u8 const*>(&value), sizeof(u128) };
-                            js_args.append(vm->heap().allocate<JS::BigInt>(Crypto::SignedBigInteger { Crypto::UnsignedBigInteger { data } }));
+                            js_args.append(JS::BigInt::create(*vm, Crypto::SignedBigInteger { Crypto::UnsignedBigInteger { data } }));
                             break;
                         }
                         default:

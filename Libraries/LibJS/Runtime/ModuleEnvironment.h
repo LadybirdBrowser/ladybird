@@ -46,4 +46,6 @@ private:
     HashMap<Utf16FlyString, IndirectBinding> m_indirect_bindings;
 };
 
+JS_API GC::Ref<ModuleEnvironment> new_module_environment(GC::Ptr<Environment> outer_environment);
+
 }
