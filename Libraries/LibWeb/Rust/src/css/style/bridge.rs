@@ -4237,6 +4237,11 @@ pub(crate) unsafe fn take_style_transaction(
 }
 
 impl FfiStyleTransactionOutput {
+    /// The rows the transaction answered.
+    pub(crate) fn answers(&self) -> &[FfiStyleDelta] {
+        &self.answers
+    }
+
     /// The output as C++ reads it, for as long as the output stays where it is.
     pub(crate) fn view(&self) -> FfiStyleTransactionView {
         FfiStyleTransactionView {
