@@ -34,11 +34,6 @@ pub struct DocumentHost {
     recording: RefCell<RecordingSlot>,
     /// The rows the render state published last, which the host reads between messages.
     rows: RefCell<Option<Rc<RowSnapshot>>>,
-    /// Whether the host queued a change that alters the published rows since they were published.
-    rows_may_be_stale: Cell<bool>,
-    /// Whether the host queued a change that alters what a published row is, or the row a node is bound to, since
-    /// they were published.
-    identities_may_be_stale: Cell<bool>,
     /// The reactions of the style transaction the host took last, which it reads until it ends the transaction.
     style_transaction: RefCell<Option<StyleJobAnswer>>,
     /// The absolute rects the host's reads of the rows computed, kept for as long as the geometry they were computed
@@ -61,8 +56,6 @@ impl DocumentHost {
             host_tables: HostTables::default(),
             recording: RefCell::default(),
             rows: RefCell::default(),
-            rows_may_be_stale: Cell::new(false),
-            identities_may_be_stale: Cell::new(false),
             style_transaction: RefCell::default(),
             absolute_rects: RefCell::default(),
             arena: Cell::new(None),
@@ -87,12 +80,6 @@ impl DocumentHost {
 
     /// Queues `change` for the document's render state, which applies it before anything that reads what it changes.
     pub(crate) fn queue_change(&self, change: ArenaChange) {
-        if change.alters_published_rows() {
-            self.rows_may_be_stale.set(true);
-        }
-        if change.alters_published_identities() {
-            self.identities_may_be_stale.set(true);
-        }
         send(RenderMessage::Change {
             document: self.document,
             change,
@@ -130,12 +117,9 @@ impl DocumentHost {
             .filter(|rows| self.still_reads_as_arena(rows))
     }
 
-    /// Whether the host neither queued a change that alters `rows` since they were published nor wrote the arena
-    /// directly.
+    /// Whether `rows` read as the arena does now. The render state applies each change as the host queues it, so the
+    /// arena's rows version moves with every write to the rows, queued or direct, and with nothing else.
     fn still_reads_as_arena(&self, rows: &RowSnapshot) -> bool {
-        if self.rows_may_be_stale.get() {
-            return false;
-        }
         // SAFETY: The arena lives as long as the document's render state, which outlives its host's reads.
         self.arena
             .get()
@@ -163,12 +147,9 @@ impl DocumentHost {
         RowIdentities::of(self.rows_as_of_writes(wait, false))
     }
 
-    /// Whether the host neither queued a change that alters what a row of `rows` is, or the row a node is bound to,
-    /// since they were published, nor wrote either in the arena directly.
+    /// Whether what each row of `rows` is, and the row each node is bound to, read as the arena's do now (see
+    /// [`Self::still_reads_as_arena`]).
     fn identities_still_read_as_arena(&self, rows: &RowSnapshot) -> bool {
-        if self.identities_may_be_stale.get() {
-            return false;
-        }
         // SAFETY: The arena lives as long as the document's render state, which outlives its host's reads.
         self.arena
             .get()
@@ -203,8 +184,6 @@ impl DocumentHost {
         };
         let rows = Rc::new(rows);
         *self.rows.borrow_mut() = Some(Rc::clone(&rows));
-        self.rows_may_be_stale.set(false);
-        self.identities_may_be_stale.set(false);
         rows
     }
 
