@@ -102,7 +102,7 @@ ViewImplementation::~ViewImplementation()
         m_top_level_traversable->discard_pending_host();
         m_top_level_traversable->discard_representing_pages();
         if (page().is_open())
-            page().client().close_page_of_closed_tab(page_id());
+            page().client().close_page_of_closed_tab(page().id());
     }
 
     // A headless parent can own and destroy its child view without the child receiving a browsing-context-close
@@ -139,11 +139,6 @@ WebContentPage& ViewImplementation::page() const
     auto page = traversable().display_page();
     VERIFY(page);
     return *page;
-}
-
-Web::PageId ViewImplementation::page_id() const
-{
-    return page().id();
 }
 
 void ViewImplementation::set_url(URL::URL url)
@@ -205,7 +200,7 @@ void ViewImplementation::server_did_paint(Badge<WebContentPage>, i32 bitmap_id, 
     }
 
     dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI received presented bitmap {} for page {} size={}x{} did_swap={} front={}",
-        bitmap_id, page_id(), size.width(), size.height(), did_swap_bitmap, m_front_bitmap.id);
+        bitmap_id, page().id(), size.width(), size.height(), did_swap_bitmap, m_front_bitmap.id);
 
     auto bitmap_to_release = did_swap_bitmap ? previous_front_bitmap_id : bitmap_id;
     if (!defer_backing_store_release(bitmap_to_release))
@@ -2128,7 +2123,7 @@ void ViewImplementation::install_backing_stores(Vector<i32> bitmap_ids, Vector<G
     VERIFY(bitmap_ids.size() == backing_stores.size());
     VERIFY(!bitmap_ids.is_empty());
     dbgln_if(COMPOSITOR_DEBUG, "[Compositor] UI installing {} backing stores for page {} had_usable_bitmap={}",
-        backing_stores.size(), page_id(), m_has_usable_bitmap);
+        backing_stores.size(), page().id(), m_has_usable_bitmap);
     if (m_has_usable_bitmap) {
         // NOTE: We keep the outgoing front bitmap as a backup so we have something to paint until we get a new one.
         m_backup_shared_image_buffer = move(m_front_bitmap.shared_image_buffer);
@@ -3158,7 +3153,7 @@ void ViewImplementation::dump_session_history(StringView reason, SessionHistoryD
         loading_url = traversable().ongoing_navigation()->url;
 
     dbgln("[History] UI session history page={} pid={} reason={} url='{}' uncommitted_navigation={} loading_url={} pending_traversal_target={} pending_traversal_stage={} queued_same_document_entries={} back={} forward={} entries={}",
-        page_id(),
+        page().id(),
         page().client().pid(),
         reason,
         m_url,
