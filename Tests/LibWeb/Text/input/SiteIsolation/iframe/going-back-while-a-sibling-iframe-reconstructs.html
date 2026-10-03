@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    // Going back to a page recreates its iframes, and each navigates to the entry its nested history kept. The
+    // same-site iframe finishes first, while the response for the cross-site one is still held back. Finalizing the
+    // first navigation must leave the second iframe to its own navigation.
+    asyncTest(async done => {
+        const server = httpTestServer();
+        const runId = crypto.randomUUID();
+        const unblockToken = `sibling-reconstructs-${runId}`;
+
+        const fastChildUrl = await server.createEcho("GET", `/sibling-reconstructs-fast-${runId}`, {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: `<!DOCTYPE html><script>top.postMessage("fast-child-loaded", "*");<\/script>`,
+        });
+
+        const slowChildEcho = {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: `<!DOCTYPE html><script>top.postMessage("slow-child-loaded", "*");<\/script>`,
+            wait_for_unblock: unblockToken,
+        };
+        const slowChildUrl = new URL(
+            await server.createEcho("GET", `/sibling-reconstructs-slow-${runId}`, slowChildEcho)
+        );
+        slowChildUrl.hostname = uniqueLocalhostHostname("sibling-reconstructs");
+        const unblockSlowChild = () => fetch(new URL(`/unblock/${unblockToken}`, fastChildUrl));
+
+        const middleUrl = await server.createEcho("GET", `/sibling-reconstructs-middle-${runId}`, {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: `<!DOCTYPE html><iframe src="${fastChildUrl}"></iframe><iframe src="${slowChildUrl}"></iframe>
+                <script>addEventListener("load", () => top.postMessage("middle-loaded", "*"));<\/script>`,
+        });
+
+        const awayUrl = await server.createEcho("GET", `/sibling-reconstructs-away-${runId}`, {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: `<!DOCTYPE html><script>
+                addEventListener("message", () => history.back());
+                addEventListener("pageshow", () => top.postMessage("away-shown", "*"));
+            <\/script>`,
+        });
+
+        let sawAway = false;
+        let waiting = null;
+        const messageArrived = expected =>
+            new Promise(resolve => {
+                waiting = { expected, resolve };
+            });
+        window.addEventListener("message", event => {
+            if (event.data === "fast-child-loaded" && sawAway)
+                unblockSlowChild();
+            if (waiting && event.data === waiting.expected) {
+                const { resolve } = waiting;
+                waiting = null;
+                resolve();
+            }
+        });
+
+        const outer = document.createElement("iframe");
+        document.body.appendChild(outer);
+
+        await unblockSlowChild();
+        let arrived = messageArrived("middle-loaded");
+        outer.src = middleUrl;
+        await arrived;
+        println("middle page loaded");
+
+        arrived = messageArrived("away-shown");
+        outer.src = awayUrl;
+        await arrived;
+        println("navigated away");
+
+        // Registering the same echo again holds back its response until the next unblock.
+        await server.createEcho("GET", `/sibling-reconstructs-slow-${runId}`, slowChildEcho);
+        sawAway = true;
+
+        arrived = messageArrived("middle-loaded");
+        outer.contentWindow.postMessage("back", "*");
+        await arrived;
+        println("middle page loaded again");
+
+        outer.remove();
+        done();
+    });
+</script>
