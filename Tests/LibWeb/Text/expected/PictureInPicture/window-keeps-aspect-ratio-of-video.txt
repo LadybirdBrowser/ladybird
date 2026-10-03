@@ -1,0 +1,2 @@
+window for a 854x480 video: 480x269
+window for a 160x120 video: 480x360
