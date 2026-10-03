@@ -1,0 +1,3 @@
+a has a box: true
+b has a box: false
+matches full rebuild: true
