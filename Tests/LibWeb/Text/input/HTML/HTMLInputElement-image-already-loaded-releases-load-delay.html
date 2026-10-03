@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const imageURL = new URL("../../../Assets/120.png", location.href).href;
+
+        const iframe = document.createElement("iframe");
+        const initialLoad = new Promise(resolve => iframe.addEventListener("load", resolve, { once: true }));
+        document.body.appendChild(iframe);
+        await initialLoad;
+
+        const iframeDocument = iframe.contentDocument;
+        const image = iframeDocument.createElement("img");
+        image.src = imageURL;
+        await new Promise(resolve => (image.onload = resolve));
+
+        const reopenedLoad = new Promise(resolve => iframe.addEventListener("load", resolve, { once: true }));
+        iframeDocument.open();
+        iframeDocument.write(`<input type="image" src="${imageURL}">`);
+        iframeDocument.close();
+        await reopenedLoad;
+
+        println("Reopened document loaded");
+    });
+</script>

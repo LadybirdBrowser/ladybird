@@ -1856,6 +1856,10 @@ WebIDL::ExceptionOr<void> HTMLInputElement::handle_src_attribute(Utf16View value
     request->set_use_url_credentials(true);
 
     // 4. Fetch request, with processResponseEndOfBody set to the following steps given response response:
+    // NB: Fetching the image must delay the load event of the element's node document until the task that is queued by
+    //     the networking task source once the resource has been fetched (defined below) has been run.
+    m_load_event_delayer.emplace(document());
+
     m_resource_request = SharedResourceRequest::get_or_create(document(), request->url());
     CSS::record_element_replaced_content_input(*this);
     m_resource_request->add_callbacks(
@@ -1894,10 +1898,6 @@ WebIDL::ExceptionOr<void> HTMLInputElement::handle_src_attribute(Utf16View value
         m_resource_request->fetch_resource(request);
     }
     update_image_button_alt_text_shadow_tree();
-
-    // Fetching the image must delay the load event of the element's node document until the task that is queued by the
-    // networking task source once the resource has been fetched (defined below) has been run.
-    m_load_event_delayer.emplace(document());
 
     return {};
 }
