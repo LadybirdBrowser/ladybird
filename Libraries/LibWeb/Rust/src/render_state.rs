@@ -34,7 +34,7 @@ pub(crate) use questions::{
 };
 pub(crate) use wait::{
     ForcedRead, FrameJobPermit, LockstepProof, RenderJob, RenderWait, ReplyTo, ScriptForcedRead, SpentWait,
-    StyleJobPermit, force_read, render_state_died, run_job, wait_for_render_state,
+    StyleJobPermit, TaskBoundary, force_read, render_state_died, run_job, wait_for_render_state,
 };
 
 /// The host's name for one document's render state. The host mints it, so naming a new document needs no answer from
