@@ -2867,6 +2867,17 @@ impl LayoutNodeArena {
         self.with_style_store(|engine| engine.element_published_box_facts(style_node))
     }
 
+    /// The record an element's box is built from, the one [`Self::stamp_published_style`] gives its
+    /// row, with the box facts the record holds. A text node, an anonymous row and the document have
+    /// no record and answer nothing.
+    pub(crate) fn element_box_style_record(&self, style_node: Option<StyleNodeID>) -> Option<(u64, PublishedBoxFacts)> {
+        let style_node = style_node?;
+        self.with_style_store(|engine| {
+            let record = engine.element_published_style_record(style_node)?;
+            Some((record, engine.style_record_box_facts(record)?))
+        })
+    }
+
     /// Whether the element's published style record holds a `::first-letter`. A text node, an
     /// anonymous row that names no element and the document have no record and answer no.
     pub(crate) fn has_published_first_letter_style(&self, style_node: Option<StyleNodeID>) -> bool {
@@ -3336,15 +3347,11 @@ impl LayoutNodeArena {
         }
     }
 
-    /// Gives a row stamped for `element` the style record the element published, as a layout node
-    /// built from the element's record gave it.
-    pub(crate) fn stamp_published_style(&self, slot: NodeSlotId, element: StyleNodeID) {
-        let published = self.with_style_engine(|engine| {
-            let record = engine
-                .element_published_style_record(element)
-                .expect("an element the build stamps a box for has published its style");
-            DerivedStyleRecord::pin(engine, record)
-        });
+    /// Gives a row stamped for an element the style record the element published, the one
+    /// [`Self::element_box_style_record`] names, as a layout node built from the element's record
+    /// gave it.
+    pub(crate) fn stamp_published_style(&self, slot: NodeSlotId, record: u64) {
+        let published = self.with_style_engine(|engine| DerivedStyleRecord::pin(engine, record));
         self.stamp_published_style_record(slot, published);
     }
 

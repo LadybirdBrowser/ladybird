@@ -2481,22 +2481,32 @@ fn construct_principal_layout_node(
                 context.layout_svg_pattern,
             );
             let box_kind = host.layout().arena().element_box_kind(update.style_node);
+            // NB: A box's kind comes from the record its row is stamped with, not from the engine's newest assignment.
+            //     The two differ while the element's host holds an older record than the engine assigned (a record that
+            //     starts a CSS animation is installed only once the host applies the animation), and a row whose kind
+            //     disagrees with its own style can't be laid out: a flex box styled display:none, e.g., forms no
+            //     containing block for its children. Blink (LayoutTreeBuilderForElement::CreateLayoutObject), WebKit
+            //     (RenderElement::createFor) and Gecko (nsCSSFrameConstructor::ConstructFrameFromItemInternal) likewise
+            //     pick the type of a box from the one computed style that the box then carries. And that's per spec:
+            //     For each element, "CSS generates zero or more boxes as specified by that element's display property",
+            //     and "A box is assigned the same styles as its generating element".
+            //     https://drafts.csswg.org/css-display-3/#intro
+            let (record, facts) = host
+                .layout()
+                .arena()
+                .element_box_style_record(update.style_node)
+                .expect("an element the walk builds a box for has published its style");
             let kind = match layout_kind {
                 FfiElementLayoutKind::ContentReplacement => Some(NodeKind::ImageBox),
                 FfiElementLayoutKind::SvgMask => Some(NodeKind::SVGMaskBox),
                 FfiElementLayoutKind::SvgClipPath => Some(NodeKind::SVGClipBox),
                 FfiElementLayoutKind::SvgPattern => Some(NodeKind::SVGPatternBox),
                 FfiElementLayoutKind::Normal => {
-                    let facts = host
-                        .layout()
-                        .arena()
-                        .published_box_facts(update.style_node)
-                        .expect("an element the walk builds a box for has published its style");
                     node_kind_for_element_box_kind(box_kind, facts.display, facts.appearance)
                 }
             };
             if let Some(kind) = kind {
-                let created = host.layout().create_element_box(update.identity, kind);
+                let created = host.layout().create_element_box(update.identity, kind, record);
                 layout_node = created;
                 created_box = Some(host.layout().created(created));
                 owns_content_replacement_image = layout_kind == FfiElementLayoutKind::ContentReplacement;
@@ -3777,11 +3787,11 @@ impl TreeBuilderHost<'_> {
         UnplacedLayoutNode::new(slot)
     }
 
-    /// The row an element's principal box of `kind` is built in, stamped with the style the
-    /// element published. A fieldset and a media element adjust their box as it is built.
-    fn create_element_box(&self, element: StyleNodeID, kind: NodeKind) -> NodeSlotId {
+    /// The row an element's principal box of `kind` is built in, stamped with `record`, the style
+    /// record the element published. A fieldset and a media element adjust their box as it is built.
+    fn create_element_box(&self, element: StyleNodeID, kind: NodeKind, record: u64) -> NodeSlotId {
         let slot = self.stamp_dom_box(kind, Some(element));
-        self.arena().stamp_published_style(slot, element);
+        self.arena().stamp_published_style(slot, record);
         match kind {
             // https://html.spec.whatwg.org/multipage/rendering.html#the-fieldset-and-legend-elements
             // If the computed outer display type is inline, the fieldset is expected to behave as inline-block.
