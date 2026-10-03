@@ -97,6 +97,8 @@ enum class ActionID {
     ToggleMediaLoopState,
     EnterFullscreen,
     ExitFullscreen,
+    EnterPictureInPicture,
+    ExitPictureInPicture,
 
     ZoomIn,
     ZoomOut,
