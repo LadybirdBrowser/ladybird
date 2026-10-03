@@ -104,7 +104,7 @@ ViewImplementation::~ViewImplementation()
         m_top_level_traversable->discard_representing_pages();
     }
     if (has_display_page())
-        client().unregister_view(page_id());
+        page().client().unregister_view(page_id());
 
     // A headless parent can own and destroy its child view without the child receiving a browsing-context-close
     // notification. Do not strand a WebDriver command which raced with that teardown.
@@ -147,16 +147,6 @@ bool ViewImplementation::has_display_page() const
         return false;
     auto page = traversable().display_page();
     return page && page->is_open();
-}
-
-WebContentClient& ViewImplementation::client()
-{
-    return page().client();
-}
-
-WebContentClient const& ViewImplementation::client() const
-{
-    return page().client();
 }
 
 Web::PageId ViewImplementation::page_id() const
@@ -250,7 +240,7 @@ void ViewImplementation::set_window_position(Gfx::IntPoint position)
     if (!has_display_page())
         return;
 
-    client().async_set_window_position(page_id(), position.to_type<Web::DevicePixels>());
+    page().async_set_window_position(position.to_type<Web::DevicePixels>());
 }
 
 void ViewImplementation::set_window_size(Gfx::IntSize size)
@@ -258,7 +248,7 @@ void ViewImplementation::set_window_size(Gfx::IntSize size)
     if (!has_display_page())
         return;
 
-    client().async_set_window_size(page_id(), size.to_type<Web::DevicePixels>());
+    page().async_set_window_size(size.to_type<Web::DevicePixels>());
 }
 
 void ViewImplementation::set_system_visibility_state(Web::HTML::VisibilityState visibility_state)
@@ -493,7 +483,7 @@ void ViewImplementation::stop_loading()
     set_loading_state(false);
     traversable().clear_ongoing_navigation();
     traversable().clear_active_document_load();
-    client().async_stop_loading(page_id());
+    page().async_stop_loading();
 }
 
 void ViewImplementation::traverse_the_history_by_delta(
@@ -640,7 +630,7 @@ void ViewImplementation::reset_zoom()
 {
     m_zoom_level = 1.0;
     update_zoom();
-    client().async_reset_zoom(page_id());
+    page().async_reset_zoom();
 
     if (m_is_private == IsPrivate::No)
         Application::settings().set_zoom_for_host(current_host_for_settings(), m_zoom_level);
@@ -762,11 +752,11 @@ void ViewImplementation::enqueue_input_event(Web::InputEvent event)
             auto cloned_event = event.clone_without_browser_data();
             cloned_event.files = move(event.files);
 
-            client().async_drag_event(page_id(), cloned_event);
+            page().async_drag_event(cloned_event);
         },
         [this](Web::PinchEvent const& event) {
             page().handle_pinch_event_in_compositor(event);
-            client().async_pinch_event(page_id(), event);
+            page().async_pinch_event(event);
         });
 }
 
@@ -1084,7 +1074,7 @@ void ViewImplementation::notify_cookies_changed(HashTable<String> const& changed
     }
 
     if (!page_cookies.is_empty())
-        client().async_cookies_changed(page_id(), page_cookies);
+        page().async_cookies_changed(page_cookies);
     if (m_on_host_cookie_change)
         m_on_host_cookie_change(Vector<HTTP::Cookie::Cookie> { host_cookies });
 }
@@ -1318,57 +1308,57 @@ void ViewImplementation::redo()
 
 void ViewImplementation::find_in_page(Utf16String const& query, CaseSensitivity case_sensitivity)
 {
-    client().async_find_in_page(page_id(), query, case_sensitivity);
+    page().async_find_in_page(query, case_sensitivity);
 }
 
 void ViewImplementation::find_in_page_next_match()
 {
-    client().async_find_in_page_next_match(page_id());
+    page().async_find_in_page_next_match();
 }
 
 void ViewImplementation::find_in_page_previous_match()
 {
-    client().async_find_in_page_previous_match(page_id());
+    page().async_find_in_page_previous_match();
 }
 
 void ViewImplementation::get_source()
 {
-    client().async_get_source(page_id());
+    page().async_get_source();
 }
 
 void ViewImplementation::inspect_dom_tree()
 {
-    client().async_inspect_dom_tree(page_id());
+    page().async_inspect_dom_tree();
 }
 
 void ViewImplementation::inspect_storage(Web::StorageAPI::StorageEndpointType storage_endpoint, u64 request_id)
 {
-    client().async_inspect_storage(page_id(), storage_endpoint, request_id);
+    page().async_inspect_storage(storage_endpoint, request_id);
 }
 
 Optional<StorageSetResult> ViewImplementation::set_session_storage_item(Utf16String const& key, Utf16String const& value)
 {
-    return client().set_session_storage_item(page_id(), key, value);
+    return page().set_session_storage_item(key, value);
 }
 
 Optional<Utf16String> ViewImplementation::remove_session_storage_item(Utf16String const& key)
 {
-    return client().remove_session_storage_item(page_id(), key);
+    return page().remove_session_storage_item(key);
 }
 
 bool ViewImplementation::clear_session_storage()
 {
-    return client().clear_session_storage(page_id());
+    return page().clear_session_storage();
 }
 
 void ViewImplementation::inspect_accessibility_tree()
 {
-    client().async_inspect_accessibility_tree(page_id());
+    page().async_inspect_accessibility_tree();
 }
 
 void ViewImplementation::get_hovered_node_id()
 {
-    client().async_get_hovered_node_id(page_id());
+    page().async_get_hovered_node_id();
 }
 
 void ViewImplementation::start_node_picker(DevTools::DevToolsDelegate::OnNodePickerEvent on_node_picker_event)
@@ -1431,7 +1421,7 @@ void ViewImplementation::request_node_picker_hit_test(NodePickerRequestType type
 
     auto request_id = m_next_node_picker_request_id++;
     m_pending_node_picker_requests.set(request_id, type);
-    client().async_get_node_id_at_position(page_id(), request_id, position);
+    page().async_get_node_id_at_position(request_id, position);
 }
 
 void ViewImplementation::did_receive_node_picker_hit_test(u64 request_id, Web::UniqueNodeID node_id)
@@ -1477,29 +1467,29 @@ void ViewImplementation::did_receive_node_picker_hit_test(u64 request_id, Web::U
 
 void ViewImplementation::inspect_dom_node(Web::UniqueNodeID node_id, DOMNodeProperties::Type property_type, Optional<Web::CSS::PseudoElement> pseudo_element, JsonValue options)
 {
-    client().async_inspect_dom_node(page_id(), property_type, node_id, pseudo_element, move(options));
+    page().async_inspect_dom_node(property_type, node_id, pseudo_element, move(options));
 }
 
 void ViewImplementation::inspect_grid_layouts(Web::UniqueNodeID root_node_id)
 {
-    client().async_inspect_grid_layouts(page_id(), root_node_id);
+    page().async_inspect_grid_layouts(root_node_id);
 }
 
 void ViewImplementation::inspect_current_grid(Web::UniqueNodeID node_id)
 {
-    client().async_inspect_current_grid(page_id(), node_id);
+    page().async_inspect_current_grid(node_id);
 }
 
 void ViewImplementation::inspect_current_flexbox(Web::UniqueNodeID node_id, bool only_look_at_parents)
 {
-    client().async_inspect_current_flexbox(page_id(), node_id, only_look_at_parents);
+    page().async_inspect_current_flexbox(node_id, only_look_at_parents);
 }
 
 void ViewImplementation::inspect_indexed_database_storage(DevTools::DevToolsDelegate::OnIndexedDBInspectionComplete on_complete)
 {
     auto request_id = m_next_indexed_database_inspection_request_id++;
     m_pending_indexed_database_inspection_requests.set(request_id, move(on_complete));
-    client().async_inspect_indexed_database_storage(page_id(), request_id);
+    page().async_inspect_indexed_database_storage(request_id);
 }
 
 void ViewImplementation::inspect_indexed_database_objects(String const& host, Optional<JsonArray> names, JsonObject options, DevTools::DevToolsDelegate::OnIndexedDBInspectionComplete on_complete)
@@ -1507,30 +1497,30 @@ void ViewImplementation::inspect_indexed_database_objects(String const& host, Op
     auto request_id = m_next_indexed_database_inspection_request_id++;
     m_pending_indexed_database_inspection_requests.set(request_id, move(on_complete));
     if (names.has_value())
-        client().async_inspect_indexed_database_objects(page_id(), request_id, host, JsonValue { names.release_value() }, JsonValue { move(options) });
+        page().async_inspect_indexed_database_objects(request_id, host, JsonValue { names.release_value() }, JsonValue { move(options) });
     else
-        client().async_inspect_indexed_database_objects(page_id(), request_id, host, JsonValue {}, JsonValue { move(options) });
+        page().async_inspect_indexed_database_objects(request_id, host, JsonValue {}, JsonValue { move(options) });
 }
 
 void ViewImplementation::delete_indexed_database(String const& host, String const& name, DevTools::DevToolsDelegate::OnIndexedDBInspectionComplete on_complete)
 {
     auto request_id = m_next_indexed_database_inspection_request_id++;
     m_pending_indexed_database_inspection_requests.set(request_id, move(on_complete));
-    client().async_delete_indexed_database(page_id(), request_id, host, name);
+    page().async_delete_indexed_database(request_id, host, name);
 }
 
 void ViewImplementation::clear_indexed_database_object_store(String const& host, String const& name, DevTools::DevToolsDelegate::OnIndexedDBInspectionComplete on_complete)
 {
     auto request_id = m_next_indexed_database_inspection_request_id++;
     m_pending_indexed_database_inspection_requests.set(request_id, move(on_complete));
-    client().async_clear_indexed_database_object_store(page_id(), request_id, host, name);
+    page().async_clear_indexed_database_object_store(request_id, host, name);
 }
 
 void ViewImplementation::delete_indexed_database_record(String const& host, String const& name, DevTools::DevToolsDelegate::OnIndexedDBInspectionComplete on_complete)
 {
     auto request_id = m_next_indexed_database_inspection_request_id++;
     m_pending_indexed_database_inspection_requests.set(request_id, move(on_complete));
-    client().async_delete_indexed_database_record(page_id(), request_id, host, name);
+    page().async_delete_indexed_database_record(request_id, host, name);
 }
 
 void ViewImplementation::did_receive_indexed_database_inspection(u64 request_id, JsonObject result)
@@ -1551,12 +1541,12 @@ void ViewImplementation::retrieve_devtools_sources(DevTools::DevToolsDelegate::O
 {
     auto request_id = m_next_devtools_sources_request_id++;
     on_received_devtools_sources.set(request_id, move(on_complete));
-    client().async_list_devtools_sources(page_id(), request_id);
+    page().async_list_devtools_sources(request_id);
 }
 
 void ViewImplementation::request_devtools_source(Web::HTML::ScriptRegistryIdentifier const& source_id)
 {
-    client().async_request_devtools_source(page_id(), source_id);
+    page().async_request_devtools_source(source_id);
 }
 
 void ViewImplementation::attach_debugger(DevTools::DevToolsDelegate::OnDebuggerPaused on_paused, DevTools::DevToolsDelegate::OnDebuggerResumed on_resumed)
@@ -1564,12 +1554,12 @@ void ViewImplementation::attach_debugger(DevTools::DevToolsDelegate::OnDebuggerP
     on_debugger_paused = move(on_paused);
     on_debugger_resumed = move(on_resumed);
     m_debugger_is_attached = true;
-    client().async_attach_debugger(page_id());
+    page().async_attach_debugger();
 }
 
 void ViewImplementation::configure_debugger(DebuggerConfiguration configuration)
 {
-    client().async_configure_debugger(page_id(), configuration);
+    page().async_configure_debugger(configuration);
 }
 
 void ViewImplementation::detach_debugger()
@@ -1578,17 +1568,17 @@ void ViewImplementation::detach_debugger()
     m_debugger_is_attached = false;
     on_debugger_paused = nullptr;
     on_debugger_resumed = nullptr;
-    client().async_detach_debugger(page_id());
+    page().async_detach_debugger();
 }
 
 void ViewImplementation::interrupt_debugger()
 {
-    client().async_interrupt_debugger(page_id());
+    page().async_interrupt_debugger();
 }
 
 void ViewImplementation::resume_debugger(DebuggerResumeMode mode)
 {
-    client().async_resume_debugger(page_id(), mode);
+    page().async_resume_debugger(mode);
 }
 
 template<typename Callback, typename ErrorFactory>
@@ -1675,21 +1665,21 @@ void ViewImplementation::update_paused_debugger_overlay()
 
 void ViewImplementation::update_debugger_blackboxing(Utf16String url, Vector<DebuggerBlackboxRange> ranges, DebuggerBlackboxingOperation operation)
 {
-    client().async_update_debugger_blackboxing(page_id(), move(url), move(ranges), operation);
+    page().async_update_debugger_blackboxing(move(url), move(ranges), operation);
 }
 
 void ViewImplementation::set_debugger_breakpoint(DebuggerBreakpointLocation location, DebuggerBreakpointOptions options, DevTools::DevToolsDelegate::OnDebuggerBreakpointOperationComplete on_complete)
 {
     auto request_id = m_next_debugger_breakpoint_request_id++;
     m_pending_debugger_breakpoint_requests.set(request_id, move(on_complete));
-    client().async_set_debugger_breakpoint(page_id(), request_id, move(location), move(options));
+    page().async_set_debugger_breakpoint(request_id, move(location), move(options));
 }
 
 void ViewImplementation::remove_debugger_breakpoint(DebuggerBreakpointLocation location, DevTools::DevToolsDelegate::OnDebuggerBreakpointOperationComplete on_complete)
 {
     auto request_id = m_next_debugger_breakpoint_request_id++;
     m_pending_debugger_breakpoint_requests.set(request_id, move(on_complete));
-    client().async_remove_debugger_breakpoint(page_id(), request_id, move(location));
+    page().async_remove_debugger_breakpoint(request_id, move(location));
 }
 
 void ViewImplementation::did_complete_debugger_breakpoint_operation(u64 request_id, Optional<String> error)
@@ -1710,45 +1700,45 @@ void ViewImplementation::retrieve_debugger_environments(u64 frame_id, DevTools::
 {
     auto request_id = m_next_debugger_environments_request_id++;
     m_pending_debugger_environments_requests.set(request_id, move(on_complete));
-    client().async_get_debugger_environments(page_id(), request_id, frame_id);
+    page().async_get_debugger_environments(request_id, frame_id);
 }
 
 void ViewImplementation::evaluate_javascript_in_debugger_frame(u64 frame_id, String const& source_text, DevTools::DevToolsDelegate::OnDebuggerEvaluationComplete on_complete)
 {
     auto request_id = m_next_debugger_evaluation_request_id++;
     m_pending_debugger_evaluation_requests.set(request_id, move(on_complete));
-    client().async_evaluate_javascript_in_debugger_frame(page_id(), request_id, frame_id, Utf16String::from_utf8(source_text));
+    page().async_evaluate_javascript_in_debugger_frame(request_id, frame_id, Utf16String::from_utf8(source_text));
 }
 
 void ViewImplementation::retrieve_debugger_object_properties(u64 object_id, DevTools::DevToolsDelegate::OnDebuggerObjectPropertiesReceived on_complete)
 {
     auto request_id = m_next_debugger_object_properties_request_id++;
     m_pending_debugger_object_properties_requests.set(request_id, move(on_complete));
-    client().async_get_debugger_object_properties(page_id(), request_id, object_id);
+    page().async_get_debugger_object_properties(request_id, object_id);
 }
 
 void ViewImplementation::retrieve_debugger_source_positions(Web::HTML::ScriptRegistryIdentifier source_id, DevTools::DevToolsDelegate::OnDebuggerSourcePositionsReceived on_complete)
 {
     auto request_id = m_next_debugger_source_positions_request_id++;
     m_pending_debugger_source_positions_requests.set(request_id, move(on_complete));
-    client().async_get_debugger_source_positions(page_id(), request_id, source_id);
+    page().async_get_debugger_source_positions(request_id, source_id);
 }
 
 void ViewImplementation::resolve_dom_node_url(Optional<Web::UniqueNodeID> node_id, String const& url, DevTools::DevToolsDelegate::OnResolvedURLReceived on_complete)
 {
     auto request_id = m_next_resolve_dom_node_url_request_id++;
     on_resolved_dom_node_url.set(request_id, move(on_complete));
-    client().async_resolve_dom_node_url(page_id(), request_id, node_id, url);
+    page().async_resolve_dom_node_url(request_id, node_id, url);
 }
 
 void ViewImplementation::clear_inspected_dom_node()
 {
-    client().async_clear_inspected_dom_node(page_id());
+    page().async_clear_inspected_dom_node();
 }
 
 void ViewImplementation::highlight_dom_node(Web::UniqueNodeID node_id, Optional<Web::CSS::PseudoElement> pseudo_element)
 {
-    client().async_highlight_dom_node(page_id(), node_id, pseudo_element);
+    page().async_highlight_dom_node(node_id, pseudo_element);
 }
 
 void ViewImplementation::clear_highlighted_dom_node()
@@ -1758,109 +1748,109 @@ void ViewImplementation::clear_highlighted_dom_node()
 
 void ViewImplementation::highlight_flexbox(Web::UniqueNodeID node_id, JsonValue options)
 {
-    client().async_highlight_flexbox(page_id(), node_id, move(options));
+    page().async_highlight_flexbox(node_id, move(options));
 }
 
 void ViewImplementation::clear_flexbox_highlight(Web::UniqueNodeID node_id)
 {
-    client().async_clear_flexbox_highlight(page_id(), node_id);
+    page().async_clear_flexbox_highlight(node_id);
 }
 
 void ViewImplementation::highlight_grid(Web::UniqueNodeID node_id, JsonValue options)
 {
-    client().async_highlight_grid(page_id(), node_id, move(options));
+    page().async_highlight_grid(node_id, move(options));
 }
 
 void ViewImplementation::clear_grid_highlight(Web::UniqueNodeID node_id)
 {
-    client().async_clear_grid_highlight(page_id(), node_id);
+    page().async_clear_grid_highlight(node_id);
 }
 
 void ViewImplementation::set_listen_for_dom_mutations(bool listen_for_dom_mutations)
 {
-    client().async_set_listen_for_dom_mutations(page_id(), listen_for_dom_mutations);
+    page().async_set_listen_for_dom_mutations(listen_for_dom_mutations);
 }
 
 void ViewImplementation::did_connect_devtools_client()
 {
     m_devtools_connected = true;
-    client().async_did_connect_devtools_client(page_id());
+    page().async_did_connect_devtools_client();
 }
 
 void ViewImplementation::did_disconnect_devtools_client()
 {
     m_devtools_connected = false;
-    client().async_did_disconnect_devtools_client(page_id());
+    page().async_did_disconnect_devtools_client();
 }
 
 void ViewImplementation::get_dom_node_inner_html(Web::UniqueNodeID node_id)
 {
-    client().async_get_dom_node_inner_html(page_id(), node_id);
+    page().async_get_dom_node_inner_html(node_id);
 }
 
 void ViewImplementation::get_dom_node_outer_html(Web::UniqueNodeID node_id)
 {
-    client().async_get_dom_node_outer_html(page_id(), node_id);
+    page().async_get_dom_node_outer_html(node_id);
 }
 
 void ViewImplementation::set_dom_node_outer_html(Web::UniqueNodeID node_id, String const& html)
 {
-    client().async_set_dom_node_outer_html(page_id(), node_id, html);
+    page().async_set_dom_node_outer_html(node_id, html);
 }
 
 void ViewImplementation::set_dom_node_text(Web::UniqueNodeID node_id, String const& text)
 {
-    client().async_set_dom_node_text(page_id(), node_id, text);
+    page().async_set_dom_node_text(node_id, text);
 }
 
 void ViewImplementation::set_dom_node_tag(Web::UniqueNodeID node_id, Utf16FlyString const& name)
 {
-    client().async_set_dom_node_tag(page_id(), node_id, name);
+    page().async_set_dom_node_tag(node_id, name);
 }
 
 void ViewImplementation::add_dom_node_attributes(Web::UniqueNodeID node_id, ReadonlySpan<Attribute> attributes)
 {
-    client().async_add_dom_node_attributes(page_id(), node_id, attributes);
+    page().async_add_dom_node_attributes(node_id, attributes);
 }
 
 void ViewImplementation::replace_dom_node_attribute(Web::UniqueNodeID node_id, Utf16FlyString const& name, ReadonlySpan<Attribute> replacement_attributes)
 {
-    client().async_replace_dom_node_attribute(page_id(), node_id, name, replacement_attributes);
+    page().async_replace_dom_node_attribute(node_id, name, replacement_attributes);
 }
 
 void ViewImplementation::create_child_element(Web::UniqueNodeID node_id)
 {
-    client().async_create_child_element(page_id(), node_id);
+    page().async_create_child_element(node_id);
 }
 
 void ViewImplementation::create_child_text_node(Web::UniqueNodeID node_id)
 {
-    client().async_create_child_text_node(page_id(), node_id);
+    page().async_create_child_text_node(node_id);
 }
 
 void ViewImplementation::insert_dom_node_before(Web::UniqueNodeID node_id, Web::UniqueNodeID parent_node_id, Optional<Web::UniqueNodeID> sibling_node_id)
 {
-    client().async_insert_dom_node_before(page_id(), node_id, parent_node_id, sibling_node_id);
+    page().async_insert_dom_node_before(node_id, parent_node_id, sibling_node_id);
 }
 
 void ViewImplementation::clone_dom_node(Web::UniqueNodeID node_id)
 {
-    client().async_clone_dom_node(page_id(), node_id);
+    page().async_clone_dom_node(node_id);
 }
 
 void ViewImplementation::remove_dom_node(Web::UniqueNodeID node_id)
 {
-    client().async_remove_dom_node(page_id(), node_id);
+    page().async_remove_dom_node(node_id);
 }
 
 void ViewImplementation::list_style_sheets()
 {
-    client().async_list_style_sheets(page_id());
+    page().async_list_style_sheets();
 }
 
 void ViewImplementation::request_style_sheet_source(Web::CSS::StyleSheetIdentifier const& identifier)
 {
-    client().async_request_style_sheet_source(page_id(), identifier);
+    page().async_request_style_sheet_source(identifier);
 }
 
 void ViewImplementation::debug_request(ByteString const& request, ByteString const& argument)
@@ -1872,22 +1862,22 @@ void ViewImplementation::debug_request(ByteString const& request, ByteString con
         return;
     }
 
-    client().async_debug_request(page_id(), request, argument);
+    page().async_debug_request(request, argument);
 }
 
 void ViewImplementation::run_javascript(String const& js_source)
 {
-    client().async_run_javascript(page_id(), js_source);
+    page().async_run_javascript(js_source);
 }
 
 void ViewImplementation::js_console_input(String const& js_source)
 {
-    client().async_js_console_input(page_id(), js_source);
+    page().async_js_console_input(js_source);
 }
 
 void ViewImplementation::exit_fullscreen()
 {
-    client().async_exit_fullscreen(page_id());
+    page().async_exit_fullscreen();
 }
 
 void ViewImplementation::set_is_fullscreen(Web::ViewportIsFullscreen is_fullscreen)
@@ -2044,7 +2034,7 @@ void ViewImplementation::insert_clipboard_item(Web::Clipboard::SystemClipboardIt
 void ViewImplementation::toggle_page_mute_state()
 {
     m_mute_state = Web::HTML::invert_mute_state(m_mute_state);
-    client().async_set_page_mute_state(page_id(), m_mute_state);
+    page().async_set_page_mute_state(m_mute_state);
 }
 
 void ViewImplementation::did_change_audio_play_state(Badge<WebContentPage>, Web::HTML::AudioPlayState play_state)
@@ -2217,7 +2207,7 @@ void ViewImplementation::handle_resize()
     if (!has_display_page())
         return;
 
-    client().async_set_viewport(page_id(), viewport_size(), m_device_pixel_ratio, m_is_fullscreen);
+    page().async_set_viewport(viewport_size(), m_device_pixel_ratio, m_is_fullscreen);
     Application::the().update_compositor_viewport(page().compositor_context_id(), viewport_size().to_type<int>(), Compositing::WindowResizingInProgress::Yes);
     if (m_debugger_paused) {
         m_debugger_overlay_pointer_state.cancel();
@@ -2379,7 +2369,7 @@ void ViewImplementation::initialize_client(CreateNewClient create_new_client)
 
     // If DevTools is connected, notify the new WebContent process.
     if (m_devtools_connected)
-        client().async_did_connect_devtools_client(page_id());
+        page().async_did_connect_devtools_client();
 }
 
 void ViewImplementation::cancel_all_native_geolocation_requests()
@@ -2494,7 +2484,7 @@ bool ViewImplementation::cancel_uncommitted_top_level_navigation(StringView reas
     traversable().clear_ongoing_navigation();
     set_loading_state(false);
     if (stop_loading)
-        client().async_stop_loading(page_id());
+        page().async_stop_loading();
 
     auto const* current_entry = traversable().session_history().current_entry();
     if (!current_entry) {
@@ -2799,7 +2789,7 @@ void ViewImplementation::did_close_browsing_context(Badge<WebContentPage>)
     traversable().discard_pending_host();
     traversable().discard_representing_pages();
     if (has_display_page())
-        client().unregister_view(page_id());
+        page().client().unregister_view(page_id());
 
     if (!window_handle.is_empty())
         Application::the().notify_webdriver_window_closed(window_handle);
@@ -2833,7 +2823,7 @@ void ViewImplementation::run_webdriver_user_prompt_handling(Function<void(Web::W
 
     auto request_id = m_next_webdriver_user_prompt_request_id++;
     m_pending_webdriver_user_prompt_requests.set(request_id, move(on_complete));
-    client().async_run_webdriver_user_prompt_handling(page_id(), request_id);
+    page().async_run_webdriver_user_prompt_handling(request_id);
 }
 
 void ViewImplementation::did_complete_webdriver_user_prompt_handling(Badge<WebContentPage>, u64 request_id, Web::WebDriver::Response response)
@@ -2947,7 +2937,7 @@ JsonValue ViewImplementation::webdriver_session_history() const
 {
     JsonObject serialized;
     serialized.set("currentURL"sv, m_url.serialize());
-    serialized.set("webContentProcessID"sv, client().pid());
+    serialized.set("webContentProcessID"sv, page().client().pid());
     serialized.set("backButtonEnabled"sv, m_navigate_back_action->enabled());
     serialized.set("forwardButtonEnabled"sv, m_navigate_forward_action->enabled());
     serialized.set("crashOverlayActive"sv, crash_overlay_active());
@@ -3142,8 +3132,8 @@ NonnullRefPtr<Core::Promise<Empty>> ViewImplementation::reset_session_history_fo
     // entry so canonical history is reset before anything queued behind the reset runs.
     traversable().append_history_queue_steps([this](NonnullRefPtr<Core::Promise<Empty>> promise) {
         m_pending_session_history_reset_queue_promise = move(promise);
-        if (auto* test_connection = client().test_connection()) {
-            client().transport().flush();
+        if (auto* test_connection = page().client().test_connection()) {
+            page().client().transport().flush();
             test_connection->async_reset_session_history_for_testing(page_id());
         }
     });
@@ -3208,7 +3198,7 @@ void ViewImplementation::dump_session_history(StringView reason, SessionHistoryD
 
     dbgln("[History] UI session history page={} pid={} reason={} url='{}' uncommitted_navigation={} loading_url={} pending_traversal_target={} pending_traversal_stage={} queued_same_document_entries={} back={} forward={} entries={}",
         page_id(),
-        client().pid(),
+        page().client().pid(),
         reason,
         m_url,
         traversable().has_uncommitted_navigation(),
@@ -3545,14 +3535,14 @@ NonnullRefPtr<Core::Promise<LexicalPath>> ViewImplementation::take_screenshot(Sc
         } else {
             // GPU-shared backing stores have no CPU-visible pixels, so ask WebContent to paint a screenshot for us.
             m_pending_screenshot = promise;
-            client().async_take_document_screenshot(page_id());
+            page().async_take_document_screenshot();
         }
         break;
     }
 
     case ScreenshotType::Full:
         m_pending_screenshot = promise;
-        client().async_take_document_screenshot(page_id());
+        page().async_take_document_screenshot();
         break;
     }
 
@@ -3571,7 +3561,7 @@ NonnullRefPtr<Core::Promise<LexicalPath>> ViewImplementation::take_dom_node_scre
     }
 
     m_pending_screenshot = promise;
-    client().async_take_dom_node_screenshot(page_id(), node_id);
+    page().async_take_dom_node_screenshot(node_id);
 
     return promise;
 }
@@ -3599,7 +3589,7 @@ NonnullRefPtr<Core::Promise<String>> ViewImplementation::request_internal_page_i
     }
 
     m_pending_info_request = promise;
-    client().async_request_internal_page_info(page_id(), type);
+    page().async_request_internal_page_info(type);
 
     return promise;
 }
@@ -4228,7 +4218,7 @@ void ViewImplementation::request_close()
     }
 
     if (needs_beforeunload_check()) {
-        client().async_request_close(page_id());
+        page().async_request_close();
         return;
     }
 
@@ -4237,7 +4227,7 @@ void ViewImplementation::request_close()
 
 void ViewImplementation::force_close()
 {
-    client().async_force_close(page_id());
+    page().async_force_close();
 }
 
 Function<void()> ViewImplementation::prepare_for_immediate_close()

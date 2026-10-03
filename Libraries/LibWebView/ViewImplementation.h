@@ -526,8 +526,6 @@ public:
     Action& toggle_bookmark_action() { return *m_toggle_bookmark_action; }
     Action& reset_zoom_action() { return *m_reset_zoom_action; }
 
-    WebContentClient& client();
-    WebContentClient const& client() const;
     Web::PageId page_id() const;
     WebContentPage& page() const;
 

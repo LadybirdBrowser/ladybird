@@ -1327,7 +1327,7 @@ void WebContentView::set_vertical_tab_overlay_insets([[maybe_unused]] int left, 
 void WebContentView::set_zoom_level(double zoom_level)
 {
     m_zoom_level = zoom_level;
-    client().async_set_zoom_level(page_id(), m_zoom_level);
+    page().async_set_zoom_level(m_zoom_level);
     update_zoom();
 }
 
@@ -1340,7 +1340,7 @@ void WebContentView::set_display_metadata(Optional<u64> display_id, double maxim
 {
     m_display_id = display_id;
     m_maximum_frames_per_second = maximum_frames_per_second;
-    client().async_set_maximum_frames_per_second(page_id(), m_maximum_frames_per_second);
+    page().async_set_maximum_frames_per_second(m_maximum_frames_per_second);
     update_compositor_display_metadata();
 }
 

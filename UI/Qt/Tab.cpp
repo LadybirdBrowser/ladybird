@@ -1327,7 +1327,7 @@ QString Tab::title() const
     if (!WebView::Application::settings().config_variable_as_bool(WebView::ConfigVariableID::ShowWebContentProcessIDInTabTitle))
         return m_title;
 
-    return QString("%1 [%2]").arg(m_title).arg(view().client().pid());
+    return QString("%1 [%2]").arg(m_title).arg(view().page().client().pid());
 }
 
 void Tab::update_tab_title()

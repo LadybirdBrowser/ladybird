@@ -400,7 +400,7 @@ void ProcessManagerWindow::refresh()
                 || (current->view == &view && kind == PageKind::TopLevel && current->kind == PageKind::Frame))
                 process_pages.set(pid, ProcessPage { &view, url, kind });
         };
-        add_page(view.client().pid(), view.url(), PageKind::TopLevel);
+        add_page(view.page().client().pid(), view.url(), PageKind::TopLevel);
         view.traversable().for_each_in_subtree([&](auto const& navigable) {
             if (navigable.has_remote_host() && navigable.replicated_state().has_value())
                 add_page(navigable.remote_host().client().pid(), navigable.replicated_state()->active_document_url, PageKind::Frame);

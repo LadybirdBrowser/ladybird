@@ -46,13 +46,13 @@ HeadlessWebView::HeadlessWebView(Core::AnonymousBuffer theme, Web::DevicePixelSi
 
     on_reposition_window = [this](auto position) {
         m_previous_dimensions.set_location(position.template to_type<Web::DevicePixels>());
-        client().async_set_window_position(page_id(), position.template to_type<Web::DevicePixels>());
+        page().async_set_window_position(position.template to_type<Web::DevicePixels>());
     };
 
     on_resize_window = [this](auto size) {
         m_viewport_size = size.template to_type<Web::DevicePixels>();
 
-        client().async_set_window_size(page_id(), m_viewport_size);
+        page().async_set_window_size(m_viewport_size);
         handle_resize();
     };
 
@@ -68,8 +68,8 @@ HeadlessWebView::HeadlessWebView(Core::AnonymousBuffer theme, Web::DevicePixelSi
         m_viewport_size = screen_rect.size();
         m_previous_dimensions = screen_rect;
 
-        client().async_set_window_position(page_id(), screen_rect.location());
-        client().async_set_window_size(page_id(), screen_rect.size());
+        page().async_set_window_position(screen_rect.location());
+        page().async_set_window_size(screen_rect.size());
         handle_resize();
     };
 
@@ -77,16 +77,16 @@ HeadlessWebView::HeadlessWebView(Core::AnonymousBuffer theme, Web::DevicePixelSi
         m_previous_dimensions.set_size(m_viewport_size);
         m_viewport_size = screen_rect.size();
 
-        client().async_set_window_position(page_id(), screen_rect.location());
-        client().async_set_window_size(page_id(), screen_rect.size());
+        page().async_set_window_position(screen_rect.location());
+        page().async_set_window_size(screen_rect.size());
         set_is_fullscreen(Web::ViewportIsFullscreen::Yes);
     };
 
     on_exit_fullscreen_window = [this]() {
         m_viewport_size = m_previous_dimensions.size();
 
-        client().async_set_window_position(page_id(), m_previous_dimensions.location());
-        client().async_set_window_size(page_id(), m_previous_dimensions.size());
+        page().async_set_window_position(m_previous_dimensions.location());
+        page().async_set_window_size(m_previous_dimensions.size());
         set_is_fullscreen(Web::ViewportIsFullscreen::No);
     };
 
@@ -206,7 +206,7 @@ void HeadlessWebView::schedule_forced_close()
 {
     if (!m_forced_close_timer) {
         m_forced_close_timer = Core::Timer::create_single_shot(child_close_timeout_ms, [weak_this = make_weak_ptr<HeadlessWebView>()] {
-            if (!weak_this || weak_this->handle().is_empty() || !weak_this->client().is_open())
+            if (!weak_this || weak_this->handle().is_empty() || !weak_this->page().client().is_open())
                 return;
             weak_this->force_close();
         });
@@ -229,7 +229,7 @@ void HeadlessWebView::reset_viewport_size(Web::DevicePixelSize size)
 {
     m_viewport_size = size;
 
-    client().async_set_window_size(page_id(), m_viewport_size);
+    page().async_set_window_size(m_viewport_size);
     handle_resize();
 }
 
