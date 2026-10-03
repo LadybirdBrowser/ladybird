@@ -9898,8 +9898,13 @@ void Document::set_needs_repaint(InvalidateDisplayList should_invalidate_display
 void Document::request_frame_for_pending_repaint()
 {
     auto navigable = this->navigable();
-    if (!navigable)
+    if (!navigable) {
+        // NB: SVG image documents only have a navigable while being rendered. A resource that finishes
+        //     loading between renders must still invalidate the image's cached rendering and notify its clients.
+        if (page().client().is_svg_page_client())
+            page().client().request_frame();
         return;
+    }
 
     navigable->set_needs_repaint();
 
