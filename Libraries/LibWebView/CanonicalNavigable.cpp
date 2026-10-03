@@ -1054,11 +1054,13 @@ bool CanonicalNavigable::active_document_is(CanonicalSessionHistoryEntry const& 
     return m_active_session_history_entry && entry.document_state->document == &active_document();
 }
 
-void CanonicalNavigable::did_commit_navigation(CanonicalSessionHistoryEntry& entry, Web::HTML::HostedNavigableState hosted_state, Optional<Utf16String> const& navigation_id, DidPopulateDocument did_populate_document, RefPtr<WebContentPage> host)
+void CanonicalNavigable::did_commit_navigation(CanonicalSessionHistoryEntry& entry, Web::HTML::HostedNavigableState hosted_state, u64 operation_sequence_number, Optional<Utf16String const&> navigation_id, DidPopulateDocument did_populate_document, RefPtr<WebContentPage> host)
 {
+    // A navigation admitted after the operation, such as one a same-document traversal yields to, is newer than it.
     auto commits_ongoing_navigation = !m_ongoing_navigation.has_value()
-        || !navigation_id.has_value()
-        || navigation_id == m_ongoing_navigation->navigation_id;
+        || (navigation_id.has_value()
+                ? navigation_id == m_ongoing_navigation->navigation_id
+                : m_ongoing_navigation->sequence_number < operation_sequence_number);
 
     auto active_document_changed = !active_document_is(entry);
     NonnullRefPtr previous_document = active_document();

@@ -203,7 +203,9 @@ public:
         No,
         Yes,
     };
-    void did_commit_navigation(CanonicalSessionHistoryEntry&, Web::HTML::HostedNavigableState, Optional<Utf16String> const& navigation_id, DidPopulateDocument, RefPtr<WebContentPage> host);
+    // A history operation activated the entry. It commits the navigation it names, or with none named, the ongoing
+    // navigation admitted before the operation's sequence number.
+    void did_commit_navigation(CanonicalSessionHistoryEntry&, Web::HTML::HostedNavigableState, u64 operation_sequence_number, Optional<Utf16String const&> navigation_id, DidPopulateDocument, RefPtr<WebContentPage> host);
 
     Optional<CanonicalNavigation>& ongoing_navigation() { return m_ongoing_navigation; }
     Optional<CanonicalNavigation> const& ongoing_navigation() const { return m_ongoing_navigation; }
