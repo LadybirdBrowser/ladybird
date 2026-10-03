@@ -1940,8 +1940,7 @@ void ViewImplementation::color_picker_update(Optional<Color> picked_color, Web::
     NonnullRefPtr<WebContentPage> target = m_color_picker_page ? *m_color_picker_page : page();
     if (state == Web::HTML::ColorPickerUpdateState::Closed)
         m_color_picker_page.clear();
-    if (target->is_open())
-        target->async_color_picker_update(picked_color, state);
+    target->async_color_picker_update(picked_color, state);
 }
 
 void ViewImplementation::did_request_file_picker(Badge<WebContentPage>, WebContentPage& requesting_page, Web::HTML::FileFilter const& accepted_file_types, Web::HTML::AllowMultipleFiles allow_multiple_files)
@@ -1959,8 +1958,7 @@ void ViewImplementation::file_picker_closed(Vector<Web::HTML::SelectedFile> sele
 {
     NonnullRefPtr<WebContentPage> target = m_file_picker_page ? *m_file_picker_page : page();
     m_file_picker_page.clear();
-    if (target->is_open())
-        target->async_file_picker_closed(move(selected_files));
+    target->async_file_picker_closed(move(selected_files));
 }
 
 void ViewImplementation::did_request_select_dropdown(Badge<WebContentPage>, WebContentPage& requesting_page, Gfx::IntPoint content_position, i32 minimum_width, Vector<Web::HTML::SelectItem> items)
@@ -1978,8 +1976,7 @@ void ViewImplementation::select_dropdown_closed(Optional<u32> const& selected_it
 {
     NonnullRefPtr<WebContentPage> target = m_select_dropdown_page ? *m_select_dropdown_page : page();
     m_select_dropdown_page.clear();
-    if (target->is_open())
-        target->async_select_dropdown_closed(selected_item_id);
+    target->async_select_dropdown_closed(selected_item_id);
 }
 
 // The page hosting the tab's focused navigable, which the view's own page is when no other process hosts it.
@@ -3435,15 +3432,13 @@ void ViewImplementation::geolocation_settings_changed()
         auto geolocation_position_request_ids = move(m_geolocation_position_request_ids);
         for (auto const& request : geolocation_position_request_ids) {
             Application::the().cancel_geolocation_position_request(request.value);
-            if (request.key.page->is_open())
-                request.key.page->async_geolocation_position_response(request.key.request_id, {}, to_underlying(ErrorCode::PermissionDenied));
+            request.key.page->async_geolocation_position_response(request.key.request_id, {}, to_underlying(ErrorCode::PermissionDenied));
         }
 
         auto geolocation_watch_ids = move(m_geolocation_watch_ids);
         for (auto const& watch : geolocation_watch_ids) {
             Application::the().stop_watching_geolocation_position(watch.value);
-            if (watch.key.page->is_open())
-                watch.key.page->async_geolocation_position_response(watch.key.request_id, {}, to_underlying(ErrorCode::PermissionDenied));
+            watch.key.page->async_geolocation_position_response(watch.key.request_id, {}, to_underlying(ErrorCode::PermissionDenied));
         }
     }
 
