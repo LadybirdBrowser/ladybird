@@ -59,18 +59,17 @@ impl RecordingJob {
         }
     }
 
-    /// Records the frame with the host's `inputs` on the Paint thread, and waits for what it recorded. The inputs are
-    /// shared with the Paint thread meanwhile, which the compiler checks they may be.
-    pub(crate) fn run_on_paint_thread(self, inputs: &RecordingInputs<'_>) -> RecordingAnswer {
+    /// Records the frame with `inputs` on the Paint thread, and waits for what it recorded.
+    pub(crate) fn run_on_paint_thread(self, inputs: &RecordingInputs) -> RecordingAnswer {
         if cfg!(test) {
             return self.run(inputs);
         }
         crate::stage_thread::paint_thread().run(|| self.run(inputs))
     }
 
-    /// Records the frame with the host's `inputs`. It takes no main thread token, so nothing it calls
-    /// can reach the host.
-    fn run(self, inputs: &RecordingInputs<'_>) -> RecordingAnswer {
+    /// Records the frame with `inputs`. It takes no main thread token, so nothing it calls can reach
+    /// the host.
+    fn run(self, inputs: &RecordingInputs) -> RecordingAnswer {
         let Self {
             frame,
             mut recorder,
