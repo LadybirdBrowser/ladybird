@@ -728,6 +728,7 @@ impl RetainedState {
                 scope_proximity: entry.scope_proximity,
                 own_tree_priority: (entry.tree_scope != TreeScopeID::DOCUMENT).then(|| {
                     self.cascade_priority_of(
+                        entry.node,
                         entry.rule,
                         entry.tree_scope,
                         entry.specificity,
