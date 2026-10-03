@@ -34,6 +34,10 @@ test("throws correct range errors", () => {
     expect(() => {
         "foo".repeat(2 ** 64);
     }).toThrowWithMessage(RangeError, "repeat count must not overflow");
+
+    expect(() => {
+        "a".repeat(2 ** 32 - 1);
+    }).toThrowWithMessage(RangeError, "repeat count must not overflow");
 });
 
 test("UTF-16", () => {
