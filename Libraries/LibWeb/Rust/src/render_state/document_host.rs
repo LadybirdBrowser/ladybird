@@ -6,7 +6,7 @@
 
 //! What the host keeps of a document's render state.
 
-use super::{Answer, ArenaChange, DocumentId, Query, RenderMessage, RenderWait, ask, send};
+use super::{ArenaChange, CommittedRows, DocumentId, RenderMessage, RenderWait, ask, send};
 use crate::css::style::bridge::FfiDeviceClass;
 use crate::css::style::style_job::StyleJobAnswer;
 use crate::layout::row_reads::{RowIdentities, RowSnapshot};
@@ -198,10 +198,7 @@ impl DocumentHost {
         if let Some(rows) = self.rows.borrow().as_ref().filter(|rows| usable(rows)) {
             return Rc::clone(rows);
         }
-        let Answer::Rows(rows) = ask(wait, self, Query::CommittedRows { measure_overflow }) else {
-            unreachable!("the rows are answered with rows");
-        };
-        let rows = Rc::new(rows);
+        let rows = Rc::new(ask(wait, self, CommittedRows { measure_overflow }));
         *self.rows.borrow_mut() = Some(Rc::clone(&rows));
         self.rows_may_be_stale.set(false);
         self.identities_may_be_stale.set(false);

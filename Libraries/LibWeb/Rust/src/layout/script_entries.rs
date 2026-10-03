@@ -21,7 +21,7 @@ use crate::painting::ffi::{
     FfiBoxModelMetrics, FfiCaretRectResult, FfiEmptyLineCaretRect, FfiOptionalCssPixelRect, FfiRectToViewportTransform,
 };
 use crate::painting::paint_read::{GeometryRead, PaintRead, PaintSource};
-use crate::render_state::{Answer, ArenaAnswer, ArenaQuery, DocumentHost, LentSlice, Query, ScriptForcedRead, ask};
+use crate::render_state::{ArenaAnswer, ArenaQuery, DocumentHost, Lent, ScriptForcedRead, ask};
 use std::ffi::c_void;
 
 /// Mints the forced read of a script call that reaches the host through one of this module's entries.
@@ -452,14 +452,7 @@ fn ask_arena(host: *mut DocumentHost, query: ArenaQuery) -> ArenaAnswer {
     assert!(!host.is_null(), "document host is null");
     // SAFETY: Every entry here is called with a live document host, on its document's thread.
     let host = unsafe { &*host };
-    let Answer::Arena(answer) = ask(
-        ScriptForcedRead::at_script_entry(&SCRIPT_ENTRY),
-        host,
-        Query::Arena(query),
-    ) else {
-        unreachable!("an arena question is answered from the arena");
-    };
-    answer
+    ask(ScriptForcedRead::at_script_entry(&SCRIPT_ENTRY), host, query)
 }
 
 fn text_of(answer: ArenaAnswer) -> Vec<u16> {
@@ -559,9 +552,9 @@ pub unsafe extern "C" fn layout_script_find_matching_text(
         host,
         ArenaQuery::FindText {
             viewport,
-            query: LentSlice::new(&query),
+            query: Lent::new(&*query),
             case_sensitive,
-            excluded: LentSlice::new(&excluded),
+            excluded: Lent::new(excluded.as_slice()),
         },
     ) else {
         unreachable!("a search is answered with text ranges");

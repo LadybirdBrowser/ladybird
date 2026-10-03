@@ -354,7 +354,7 @@ pub(crate) struct TransitionDecision {
     /// The target's style node, where the target is an element: only an element's own record inherits from its
     /// inheritance parent.
     pub(crate) element: Option<crate::css::style::tree::StyleNodeID>,
-    pub(crate) properties: crate::render_state::LentSlice<FfiTransitionPropertyInput>,
+    pub(crate) properties: crate::render_state::Lent<[FfiTransitionPropertyInput]>,
 }
 
 /// What the style engine decided for one property of a [`TransitionDecision`], with the values it compared, which

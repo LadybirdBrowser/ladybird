@@ -6,7 +6,7 @@
 
 //! The entries tests and the developer tools call to ask a document's render state about itself.
 
-use super::{Answer, DocumentHost, Query, RenderMessage, ScriptForcedRead, ask, wait_for_render_state};
+use super::{DocumentHost, RenderMessage, ScriptForcedRead, ask, wait_for_render_state};
 use crate::layout::LayoutNodeArena;
 use crate::layout::node_data::NodeSlotId;
 use std::ffi::c_void;
@@ -126,14 +126,7 @@ fn ask_devtools(host: *mut DocumentHost, query: DevToolsQuery) -> DevToolsAnswer
     assert!(!host.is_null(), "document host is null");
     // SAFETY: Every entry here is called with a live document host, on its document's thread.
     let host = unsafe { &*host };
-    let Answer::DevTools(answer) = ask(
-        ScriptForcedRead::at_script_entry(&DEVTOOLS_ENTRY),
-        host,
-        Query::DevTools(query),
-    ) else {
-        unreachable!("a devtools question is answered for devtools");
-    };
-    answer
+    ask(ScriptForcedRead::at_script_entry(&DEVTOOLS_ENTRY), host, query)
 }
 
 fn number(answer: DevToolsAnswer) -> u64 {

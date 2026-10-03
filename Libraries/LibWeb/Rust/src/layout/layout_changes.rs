@@ -16,7 +16,7 @@ use crate::css::css_pixels::CssPixelPoint;
 use crate::css::style::NaturalSize;
 use crate::css::style::tree::StyleNodeID;
 use crate::painting::host::FfiNaturalSize;
-use crate::render_state::{Answer, ArenaChange, DocumentHost, LockstepProof, Query, ask};
+use crate::render_state::{ArenaChange, DocumentHost, LockstepProof, ask};
 use smallvec::SmallVec;
 
 /// One write of the host to a document's layout marks or layout facts, which the render state applies to the arena
@@ -305,14 +305,7 @@ const HOST_PAYS_THE_WRITE: HostPaysTheWrite = HostPaysTheWrite { _private: () };
 
 /// Has the render state of `host`'s document make `write`, and answers what the write owes the host.
 pub(crate) fn write(host: &DocumentHost, write: LayoutWrite) -> LayoutWritten {
-    let Answer::Written(written) = ask(
-        LockstepProof::for_reason(&HOST_PAYS_THE_WRITE),
-        host,
-        Query::Write(write),
-    ) else {
-        unreachable!("a write is answered with what it wrote");
-    };
-    written
+    ask(LockstepProof::for_reason(&HOST_PAYS_THE_WRITE), host, write)
 }
 
 /// Queues `change` for the render state of `host`'s document.
