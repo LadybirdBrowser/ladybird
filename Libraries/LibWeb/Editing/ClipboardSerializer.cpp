@@ -47,9 +47,9 @@ public:
     {
     }
 
-    Utf16String serialize()
+    Utf16String serialize(Layout::BegunRead const& read)
     {
-        collect(m_range->common_ancestor_container());
+        collect(read, m_range->common_ancestor_container());
         if (m_pending_break_is_explicit)
             flush_pending_breaks();
         return m_builder.to_string();
@@ -98,12 +98,12 @@ private:
             && DOM::position_of_boundary_point_relative_to_other_boundary_point(after_node, m_range->end()) != DOM::RelativeBoundaryPointPosition::After;
     }
 
-    void collect(DOM::Node const& node)
+    void collect(Layout::BegunRead const& read, DOM::Node const& node)
     {
         if (!m_range->intersects_node(const_cast<DOM::Node&>(node)))
             return;
 
-        auto const* layout_node = node.layout_node();
+        auto const* layout_node = node.layout_node(read);
         bool is_rendered_block = false;
         if (layout_node && is<Layout::NodeWithStyle>(*layout_node)) {
             auto display = as<Layout::NodeWithStyle>(*layout_node).display();
@@ -118,7 +118,7 @@ private:
                 return;
             // Source formatting whitespace between blocks has a layout node but produces no painted text. TextIterator
             // based engines omit it from the plain-text clipboard representation.
-            if (collect_visual_lines(*text).is_empty())
+            if (collect_visual_lines(read, *text).is_empty())
                 return;
 
             Utf16String data;
@@ -139,7 +139,7 @@ private:
                 append(image->alt());
         } else {
             node.for_each_child([&](DOM::Node const& child) {
-                collect(child);
+                collect(read, child);
                 return IterationDecision::Continue;
             });
         }
@@ -164,7 +164,9 @@ private:
 
 Utf16String serialize_range_as_plain_text_for_clipboard(DOM::Range const& range)
 {
-    return ClipboardTextSerializer { range }.serialize();
+    // The text is serialized as it renders, which the copy reads as its own read of the render state.
+    Layout::ForcedReadScope read { range.start_container()->document(), false };
+    return ClipboardTextSerializer { range }.serialize(read);
 }
 
 Utf16String serialize_range_as_html_for_clipboard(DOM::Range& range)

@@ -46,6 +46,7 @@
 #include <LibWeb/HTML/NavigableContainer.h>
 #include <LibWeb/Layout/ImageProvider.h>
 #include <LibWeb/Layout/LayoutRustBridge.h>
+#include <LibWeb/Layout/RenderDocument.h>
 #include <LibWeb/SVG/SVGClipPathElement.h>
 #include <LibWeb/SVG/SVGElement.h>
 #include <LibWeb/SVG/SVGGraphicsElement.h>
@@ -1024,32 +1025,23 @@ static void record_element_initial_features(DOM::Element& element)
     if (!style_engine || element.style_node_id() == no_style_node)
         return;
 
-    publish_element_selector_features(
-        *style_engine,
-        element,
-        element.style_node_id(),
-        [&](auto kind, auto name_atom, auto value_kind, auto value_atom) {
-            style_engine->record_local_feature_delta({
-                .node = element.style_node_id().value(),
-                .feature_kind = kind,
-                .name_atom = name_atom.value(),
-                .old_kind = StyleEngineFFI::FfiFeatureValueKind::Absent,
-                .old_atom = 0,
-                .new_kind = value_kind,
-                .new_atom = value_atom.value(),
-            });
-        },
-        [&](bool has_nonempty_text_child) {
-            style_engine->record_local_feature_delta({
-                .node = element.style_node_id().value(),
-                .feature_kind = StyleEngineFFI::FfiFeatureKind::Emptiness,
-                .name_atom = 0,
-                .old_kind = has_nonempty_text_child ? StyleEngineFFI::FfiFeatureValueKind::Present : StyleEngineFFI::FfiFeatureValueKind::Absent,
-                .old_atom = 0,
-                .new_kind = has_nonempty_text_child ? StyleEngineFFI::FfiFeatureValueKind::Absent : StyleEngineFFI::FfiFeatureValueKind::Present,
-                .new_atom = 0,
-            });
-        });
+    publish_element_selector_features(*style_engine, element, element.style_node_id(), [&](auto kind, auto name_atom, auto value_kind, auto value_atom) { style_engine->record_local_feature_delta({
+                                                                                                                                                              .node = element.style_node_id().value(),
+                                                                                                                                                              .feature_kind = kind,
+                                                                                                                                                              .name_atom = name_atom.value(),
+                                                                                                                                                              .old_kind = StyleEngineFFI::FfiFeatureValueKind::Absent,
+                                                                                                                                                              .old_atom = 0,
+                                                                                                                                                              .new_kind = value_kind,
+                                                                                                                                                              .new_atom = value_atom.value(),
+                                                                                                                                                          }); }, [&](bool has_nonempty_text_child) { style_engine->record_local_feature_delta({
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                               .node = element.style_node_id().value(),
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                               .feature_kind = StyleEngineFFI::FfiFeatureKind::Emptiness,
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                               .name_atom = 0,
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                               .old_kind = has_nonempty_text_child ? StyleEngineFFI::FfiFeatureValueKind::Present : StyleEngineFFI::FfiFeatureValueKind::Absent,
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                               .old_atom = 0,
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                               .new_kind = has_nonempty_text_child ? StyleEngineFFI::FfiFeatureValueKind::Absent : StyleEngineFFI::FfiFeatureValueKind::Present,
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                               .new_atom = 0,
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                           }); });
 
     if (auto const& id = element.id(); id.has_value())
         style_engine->set_element_id_name(element.style_node_id(), style_engine->intern_atom(*id));
@@ -1359,7 +1351,7 @@ static void describe_easing(EasingFunction const& easing, StyleEngineFFI::FfiPub
 //
 // Everything a keyframe declares that does not depend on the element being sampled is settled here. What
 // does, a value or an easing still to be substituted against the element, travels as written.
-void record_element_animation_effect_descriptions(DOM::Element& element, u8 slot, ReadonlySpan<GC::Ref<Animations::KeyframeEffect>> effects)
+void record_element_animation_effect_descriptions(Layout::BegunRead const& read, DOM::Element& element, u8 slot, ReadonlySpan<GC::Ref<Animations::KeyframeEffect>> effects)
 {
     auto* style_engine = style_engine_for(element);
     if (!style_engine || element.style_node_id() == no_style_node)
@@ -1369,7 +1361,7 @@ void record_element_animation_effect_descriptions(DOM::Element& element, u8 slot
     versions.ensure_capacity(effects.size());
     for (auto const& effect : effects)
         versions.unchecked_append({ .identity = effect->animation_preparation_identity(), .generation = effect->animation_preparation_generation() });
-    if (StyleEngineFFI::style_engine_describes_animation_effects(style_engine->host(), element.style_node_id().value(), slot, versions.data(), versions.size()))
+    if (StyleEngineFFI::style_engine_describes_animation_effects(style_engine->host(), &read, element.style_node_id().value(), slot, versions.data(), versions.size()))
         return;
 
     Vector<StyleEngineFFI::FfiPublishedAnimationEffect> ffi_effects;
@@ -1461,7 +1453,7 @@ void record_element_animation_effect_descriptions(DOM::Element& element, u8 slot
     }
 
     StyleEngineFFI::style_engine_set_element_animation_effect_descriptions(style_engine->host(),
-        element.style_node_id().value(), slot,
+        &read, element.style_node_id().value(), slot,
         ffi_effects.data(), ffi_effects.size(),
         ffi_keyframes.data(), ffi_keyframes.size(),
         ffi_declarations.data(), ffi_declarations.size(),
@@ -1861,7 +1853,7 @@ static StyleNodeID implicit_scope_root_of(StyleSheetState const* owner_style_she
 
 using CompilationVisitor = Function<bool(RustRule::Type, StyleSheetState const&, Parser::ValueParserFFI::NativeCompilationContext const&, Parser::ValueParserFFI::NativeCompilationResult const&)>;
 
-static void visit_compilation(StyleSheetState const& sheet, u64 rule_identity, DOM::Document const& document, Parser::ValueParserFFI::NativeCompilationPurpose purpose, CompilationVisitor const& visit, Parser::ValueParserFFI::NativeStylePublication const& publication)
+static void visit_compilation(Layout::BegunRead const& read, StyleSheetState const& sheet, u64 rule_identity, DOM::Document const& document, Parser::ValueParserFFI::NativeCompilationPurpose purpose, CompilationVisitor const& visit, Parser::ValueParserFFI::NativeStylePublication const& publication)
 {
     // An implicit scope is named by its root's identity, which a root still waiting to arrive takes first.
     if (sheet.native_rules().has_implicit_scope())
@@ -1881,9 +1873,9 @@ static void visit_compilation(StyleSheetState const& sheet, u64 rule_identity, D
         .visit_rule = [](void const* context, void const* source, u64, RustRule::Type rule_type, Parser::ValueParserFFI::NativeCompilationContext const* compilation, Parser::ValueParserFFI::NativeCompilationResult result) { return (*static_cast<CompilationVisitor const*>(context))(rule_type, *static_cast<StyleSheetState const*>(source), *compilation, result); },
     };
     if (purpose == Parser::ValueParserFFI::NativeCompilationPurpose::Rules)
-        Parser::ValueParserFFI::rust_style_sheet_compile(sheet.native_sheet().handle(), rule_identity, &sheet, environment.ffi_environment(), &callbacks, &publication);
+        Parser::ValueParserFFI::rust_style_sheet_compile(sheet.native_sheet().handle(), rule_identity, &sheet, environment.ffi_environment(), &callbacks, &publication, &read);
     else
-        Parser::ValueParserFFI::rust_style_sheet_replace_selectors(sheet.native_sheet().handle(), rule_identity, &sheet, environment.ffi_environment(), &callbacks, &publication);
+        Parser::ValueParserFFI::rust_style_sheet_replace_selectors(sheet.native_sheet().handle(), rule_identity, &sheet, environment.ffi_environment(), &callbacks, &publication, &read);
 }
 
 struct RuleCompilationContext {
@@ -1903,15 +1895,15 @@ struct RuleCompilationContext {
     GC::Ref<StyleComputer> style_computer;
 };
 
-static void publish_layer_order_for_sheet(StyleSheetState const& sheet, DOM::Document const& document)
+static void publish_layer_order_for_sheet(Layout::BegunRead const& read, StyleSheetState const& sheet, DOM::Document const& document)
 {
     sheet.for_each_owning_style_scope([&](StyleScope& scope) {
         if (&scope.document() == &document)
-            scope.publish_cascade_layer_order();
+            scope.publish_cascade_layer_order(read);
     });
 }
 
-static void compile_rules_into(RuleCompilationContext const& context, StyleSheetState const& sheet, u64 rule_identity = 0, Parser::ValueParserFFI::NativeCompilationPurpose purpose = Parser::ValueParserFFI::NativeCompilationPurpose::Rules)
+static void compile_rules_into(Layout::BegunRead const& read, RuleCompilationContext const& context, StyleSheetState const& sheet, u64 rule_identity = 0, Parser::ValueParserFFI::NativeCompilationPurpose purpose = Parser::ValueParserFFI::NativeCompilationPurpose::Rules)
 {
     Parser::ValueParserFFI::NativeStylePublication publication {
         .host = context.style_engine.host(),
@@ -1932,9 +1924,9 @@ static void compile_rules_into(RuleCompilationContext const& context, StyleSheet
             context.style_computer->register_style_engine_sheet_source(source);
         return true;
     };
-    visit_compilation(sheet, rule_identity, *context.document, purpose, visit, publication);
+    visit_compilation(read, sheet, rule_identity, *context.document, purpose, visit, publication);
     if (purpose == Parser::ValueParserFFI::NativeCompilationPurpose::Rules)
-        publish_layer_order_for_sheet(sheet, *context.document);
+        publish_layer_order_for_sheet(read, sheet, *context.document);
 }
 
 // The sheet a rule's compiled rules belong to. An imported sheet's rules cascade in the importing
@@ -2011,7 +2003,7 @@ static bool sheet_can_share_compiled_style_sheet(StyleSheetState const& sheet)
     return !sheet.native_rules().has_implicit_scope();
 }
 
-static RefPtr<SharedCompiledStyleSheet> shared_compiled_style_sheet_for(StyleSheetState& sheet, TreeScopeID tree_scope, DOM::Document& document)
+static RefPtr<SharedCompiledStyleSheet> shared_compiled_style_sheet_for(Layout::BegunRead const& read, StyleSheetState& sheet, TreeScopeID tree_scope, DOM::Document& document)
 {
     if (!sheet_can_share_compiled_style_sheet(sheet))
         return nullptr;
@@ -2029,11 +2021,11 @@ static RefPtr<SharedCompiledStyleSheet> shared_compiled_style_sheet_for(StyleShe
     auto contents = StyleSheetState::create(sheet.native_rules().clone_shared_contents(), &document, RustMediaList {}, {});
     contents->set_base_url(sheet.style_resource_base_url().value_or(document.base_url()));
     auto sheet_id = style_engine.add_sheet(
-        static_cast<u32>(reinterpret_cast<FlatPtr>(contents.ptr()) >> 3),
+        read, static_cast<u32>(reinterpret_cast<FlatPtr>(contents.ptr()) >> 3),
         StyleEngineFFI::FfiCascadeOrigin::Author);
     contents->set_style_engine_sheet_id(sheet_id);
     RuleCompilationContext context { style_engine, sheet_id, 0, document, style_computer };
-    compile_rules_into(context, *contents);
+    compile_rules_into(read, context, *contents);
     contents->evaluate_media_queries(document);
     contents->load_pending_image_resources(document);
     auto shared_compiled_style_sheet = make_ref_counted<SharedCompiledStyleSheet>(move(key), move(contents), sheet_id);
@@ -2043,6 +2035,8 @@ static RefPtr<SharedCompiledStyleSheet> shared_compiled_style_sheet_for(StyleShe
 
 static void detach_shared_compiled_style_sheet(SharedCompiledStyleSheet& sheet, u64 occurrence, TreeScopeID tree_scope, StyleComputer& style_computer)
 {
+    // The caller's own read of the render state.
+    Layout::ForcedReadScope read { style_computer.document(), false };
     auto& style_engine = style_computer.style_engine();
     style_engine.detach_sheet_occurrence(tree_scope, occurrence);
     sheet.remove_attachment(tree_scope);
@@ -2050,7 +2044,7 @@ static void detach_shared_compiled_style_sheet(SharedCompiledStyleSheet& sheet, 
         return;
 
     style_engine.begin_sheet_rules_replacement(sheet.sheet_id());
-    style_engine.finish_sheet_rules_replacement(sheet.sheet_id());
+    style_engine.finish_sheet_rules_replacement(read, sheet.sheet_id());
     auto& shared_compiled_style_sheets = style_computer.shared_compiled_style_sheets();
     shared_compiled_style_sheets.remove(sheet.key());
     if (shared_compiled_style_sheets.is_empty())
@@ -2084,6 +2078,8 @@ bool stop_sharing_compiled_style_sheet(StyleSheetState& sheet)
 // position it holds there.
 static void record_style_rule_inserted_in(u64 identity, bool changes_environment, StyleSheetState& sheet, DOM::Document& document)
 {
+    // The edit compiles into the document's style engine as its own read of the render state.
+    Layout::ForcedReadScope read { document, false };
     document.flush_deferred_style_change_event();
     auto& style_computer = document.style_computer();
     auto sheet_id = style_computer.style_engine_sheet_id_for(sheet);
@@ -2096,11 +2092,11 @@ static void record_style_rule_inserted_in(u64 identity, bool changes_environment
     RuleCompilationContext context {
         style_computer.style_engine(),
         sheet_id,
-        StyleEngineRuleID { StyleEngineFFI::style_engine_native_rule_successor(style_computer.style_engine().host(), sheet.native_sheet().handle(), identity) },
+        StyleEngineRuleID { StyleEngineFFI::style_engine_native_rule_successor(style_computer.style_engine().host(), read, sheet.native_sheet().handle(), identity) },
         document,
         style_computer
     };
-    compile_rules_into(context, sheet, identity);
+    compile_rules_into(read, context, sheet, identity);
 }
 
 // A rule arrived. Compile it, and everything it brings with it, into the position it holds.
@@ -2147,15 +2143,18 @@ void record_style_rule_removed(StyleSheetState& sheet_it_left, RustRule const& r
     if (stop_sharing_compiled_style_sheet(sheet_it_left))
         return;
     for_each_document_with_engine_copy(sheet_it_left, [&](DOM::Document& document) {
+        // The edit compiles into the document's style engine as its own read of the render state.
+        Layout::ForcedReadScope read { document, false };
         document.flush_deferred_style_change_event();
         auto& style_computer = document.style_computer();
         struct RemovalContext {
             GC::Ref<DOM::Document> document;
             StyleSheetState& sheet;
-        } context { document, sheet_it_left };
+            Layout::BegunRead const& read;
+        } context { document, sheet_it_left, read };
         StyleEngineFFI::style_engine_remove_native_rule(
             style_computer.style_engine().host(),
-            sheet_it_left.native_sheet().handle(),
+            read, sheet_it_left.native_sheet().handle(),
             rule.handle(),
             detached_import ? detached_import->native_sheet().handle() : nullptr,
             style_computer.style_engine_sheet_id_for(sheet_it_left).value(),
@@ -2175,7 +2174,7 @@ void record_style_rule_removed(StyleSheetState& sheet_it_left, RustRule const& r
             [](void* opaque, u32, bool declares_layer) {
                 auto& context = *static_cast<RemovalContext*>(opaque);
                 if (declares_layer)
-                    publish_layer_order_for_sheet(context.sheet, context.document);
+                    publish_layer_order_for_sheet(context.read, context.sheet, context.document);
             });
     });
 }
@@ -2188,13 +2187,15 @@ void record_style_rule_selector_changed(CSSStyleRule& rule)
         return;
 
     for_each_document_with_engine_copy(*sheet, [&](DOM::Document& document) {
+        // The edit compiles into the document's style engine as its own read of the render state.
+        Layout::ForcedReadScope read { document, false };
         document.flush_deferred_style_change_event();
         auto& style_computer = document.style_computer();
         auto sheet_id = style_computer.style_engine_sheet_id_for(*sheet);
         if (sheet_id == 0)
             return;
         RuleCompilationContext context { style_computer.style_engine(), sheet_id, 0, document, style_computer };
-        compile_rules_into(context, *sheet, rule.native_rule().identity(), Parser::ValueParserFFI::NativeCompilationPurpose::Selectors);
+        compile_rules_into(read, context, *sheet, rule.native_rule().identity(), Parser::ValueParserFFI::NativeCompilationPurpose::Selectors);
     });
 }
 
@@ -2212,6 +2213,8 @@ void record_style_rule_declarations_changed(RustRule const& rule, StyleSheetStat
         return;
 
     for_each_document_with_engine_copy(*sheet, [&](DOM::Document& document) {
+        // The edit compiles into the document's style engine as its own read of the render state.
+        Layout::ForcedReadScope read { document, false };
         document.flush_deferred_style_change_event();
         struct ChangeContext {
             GC::Ref<DOM::Document> document;
@@ -2219,7 +2222,7 @@ void record_style_rule_declarations_changed(RustRule const& rule, StyleSheetStat
         } context { document, rule.type() != RustRule::Type::Keyframe && rule_change_needs_style_environment_bump(rule) };
         auto& style_engine = document.style_computer().style_engine();
         if (StyleEngineFFI::style_engine_native_rule_declarations_changed(
-                style_engine.host(), rule.handle(), &context,
+                style_engine.host(), read, rule.handle(), &context,
                 [](void* opaque, u32) {
                     auto& context = *static_cast<ChangeContext*>(opaque);
                     if (context.changes_environment)
@@ -2235,6 +2238,8 @@ void record_stylesheet_rules_replaced(StyleSheetState& sheet)
     if (stop_sharing_compiled_style_sheet(sheet))
         return;
     for_each_document_with_engine_copy(sheet, [&](DOM::Document& document) {
+        // The edit compiles into the document's style engine as its own read of the render state.
+        Layout::ForcedReadScope read { document, false };
         document.flush_deferred_style_change_event();
         auto& style_computer = document.style_computer();
         auto sheet_id = style_computer.style_engine_sheet_id_for(sheet);
@@ -2243,13 +2248,15 @@ void record_stylesheet_rules_replaced(StyleSheetState& sheet)
         auto& style_engine = style_computer.style_engine();
         style_engine.begin_sheet_rules_replacement(sheet_id);
         RuleCompilationContext context { style_engine, sheet_id, 0, document, style_computer };
-        compile_rules_into(context, sheet);
-        style_engine.finish_sheet_rules_replacement(sheet_id);
+        compile_rules_into(read, context, sheet);
+        style_engine.finish_sheet_rules_replacement(read, sheet_id);
     });
 }
 
 void record_stylesheet_attached(StyleSheetState& sheet, DOM::Node& document_or_shadow_root, StyleSheetState* before)
 {
+    // The attachment compiles into the document's style engine as its own read of the render state.
+    Layout::ForcedReadScope read { document_or_shadow_root.document(), false };
     document_or_shadow_root.document().flush_deferred_style_change_event();
     // The attachment may compile the sheet's rules into a shared snapshot, whose native sheet they then name.
     document_or_shadow_root.document().note_style_sheet_set_change();
@@ -2260,14 +2267,14 @@ void record_stylesheet_attached(StyleSheetState& sheet, DOM::Node& document_or_s
     auto first_attachment = sheet_id == 0;
     auto tree_scope = tree_scope_of(document_or_shadow_root);
     if (first_attachment) {
-        if (auto shared_compiled_style_sheet = shared_compiled_style_sheet_for(sheet, tree_scope, document_or_shadow_root.document())) {
+        if (auto shared_compiled_style_sheet = shared_compiled_style_sheet_for(read, sheet, tree_scope, document_or_shadow_root.document())) {
             sheet_id = shared_compiled_style_sheet->sheet_id();
             sheet.set_shared_compiled_style_sheet(move(shared_compiled_style_sheet));
         } else {
             // The CSSOM object's identity is what the program keys its wrapper by; the semantic sheet
             // is a separate identity that survives edits to its contents.
             sheet_id = style_engine.add_sheet(
-                static_cast<u32>(reinterpret_cast<FlatPtr>(&sheet) >> 3),
+                read, static_cast<u32>(reinterpret_cast<FlatPtr>(&sheet) >> 3),
                 StyleEngineFFI::FfiCascadeOrigin::Author);
         }
         style_computer.set_style_engine_sheet_id_for(sheet, sheet_id);
@@ -2300,9 +2307,9 @@ void record_stylesheet_attached(StyleSheetState& sheet, DOM::Node& document_or_s
     // first transaction for a new shadow tree from matching with the document scope's order. The
     // rule-cache build is too late: it can happen while consuming that transaction's answers.
     if (auto* shadow_root = as_if<DOM::ShadowRoot>(document_or_shadow_root))
-        shadow_root->style_scope().publish_cascade_layer_order(&sheet);
+        shadow_root->style_scope().publish_cascade_layer_order(read, &sheet);
     else
-        document_or_shadow_root.document().style_scope().publish_cascade_layer_order(&sheet);
+        document_or_shadow_root.document().style_scope().publish_cascade_layer_order(read, &sheet);
 
     // A sheet arrives with a condition state, and that state is otherwise only published when it
     // moves. A constructed sheet is built disabled or given media before anything adopts it, with no
@@ -2315,7 +2322,7 @@ void record_stylesheet_attached(StyleSheetState& sheet, DOM::Node& document_or_s
     if (!first_attachment || sheet.shared_compiled_style_sheet())
         return;
     RuleCompilationContext context { style_engine, sheet_id, 0, document_or_shadow_root.document(), style_computer };
-    compile_rules_into(context, sheet);
+    compile_rules_into(read, context, sheet);
 }
 
 // The user-agent and user origins have no style sheet list to attach from, so nothing announces
@@ -2328,7 +2335,7 @@ void record_stylesheet_attached(StyleSheetState& sheet, DOM::Node& document_or_s
 // the sheet object the way an author sheet's does; they are held here, per document, alongside the
 // sheets they name. The user sheet is rebuilt rather than edited when content blockers change, so
 // the set is compared by identity and re-attached whole when it differs.
-void record_non_author_stylesheets(DOM::Document& document)
+void record_non_author_stylesheets(Layout::BegunRead const& read, DOM::Document& document)
 {
     auto& style_computer = document.style_computer();
     auto& style_scope = document.style_scope();
@@ -2379,11 +2386,11 @@ void record_non_author_stylesheets(DOM::Document& document)
 
     for (size_t index = 0; index < sheets.size(); ++index) {
         auto sheet_id = style_engine.add_sheet(
-            static_cast<u32>(reinterpret_cast<FlatPtr>(sheets[index].ptr()) >> 3),
+            read, static_cast<u32>(reinterpret_cast<FlatPtr>(sheets[index].ptr()) >> 3),
             origins[index]);
         style_engine.attach_sheet(sheet_id, document_tree_scope, first_author_sheet);
         RuleCompilationContext context { style_engine, sheet_id, 0, document, style_computer };
-        compile_rules_into(context, *sheets[index]);
+        compile_rules_into(read, context, *sheets[index]);
         recorded.append({ sheets[index], sheet_id });
     }
 }
@@ -2426,8 +2433,10 @@ void record_stylesheet_rule_conditions(StyleSheetState& sheet, DOM::Document& do
     // Imported rules inherit the conditions of every enclosing import. Starting at an imported
     // sheet would lose those gates and could re-enable rules beneath a non-matching import.
     MediaEnvironmentSnapshot environment { document };
+    // The rules' conditions are published as the host's own read of the render state.
+    Layout::ForcedReadScope read { document, false };
     Parser::ValueParserFFI::rust_style_sheet_publish_conditions(
-        engine_sheet->native_sheet().handle(), style_computer.style_engine().host(), environment.ffi_environment());
+        engine_sheet->native_sheet().handle(), style_computer.style_engine().host(), read, environment.ffi_environment());
 }
 
 void record_stylesheet_conditions(StyleSheetState& sheet, DOM::Node& document_or_shadow_root, bool conditions_hold)

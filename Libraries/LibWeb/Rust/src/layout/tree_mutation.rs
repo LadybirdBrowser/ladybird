@@ -242,12 +242,10 @@ fn next_sibling_of(arena: &LayoutNodeArena, node: NodeSlotId) -> NodeSlotId {
 
 impl LayoutNodeArena {
     pub(crate) fn attach_child(&self, parent: NodeSlotId, child: UnplacedLayoutNode, before: NodeSlotId) {
-        self.assert_owner_thread();
         self.insert_child(parent, child.into_slot(), before);
     }
 
     pub(crate) fn detach_child(&self, parent: NodeSlotId, child: NodeSlotId) {
-        self.assert_owner_thread();
         self.remove_child(parent, child);
     }
 
@@ -261,7 +259,6 @@ impl LayoutNodeArena {
     }
 
     pub(crate) fn move_child(&self, child: NodeSlotId, new_parent: NodeSlotId, before: NodeSlotId) {
-        self.assert_owner_thread();
         let old_parent = parent_of(self, child);
         assert!(!old_parent.is_invalid(), "moved layout node has no parent");
         self.remove_child(old_parent, child);

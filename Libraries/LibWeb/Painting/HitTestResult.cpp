@@ -42,9 +42,9 @@ Optional<DOM::BoundaryPoint> CaretPosition::boundary_point() const
     return boundary.resolve(*document);
 }
 
-Layout::Node* CaretPosition::boundary_layout_node() const
+Layout::Node* CaretPosition::boundary_layout_node(Layout::BegunRead const& read) const
 {
-    return boundary.node.bound_layout_node(*arena);
+    return boundary.node.bound_layout_node(read, *arena);
 }
 
 }

@@ -20,7 +20,7 @@ namespace Web::CSS::Invalidation {
 // rules it gates and the elements those decide for. Nothing here marks style: what it does is
 // evaluate the queries, reload fonts whose availability the new match state changes, publish the
 // conditions, and drop the scope's cached rule set.
-void evaluate_media_rules_and_publish_conditions(DOM::Document& document)
+void evaluate_media_rules_and_publish_conditions(Layout::BegunRead const& read, DOM::Document& document)
 {
     ++document.style_invalidation_counters().media_rule_evaluations;
 
@@ -72,7 +72,7 @@ void evaluate_media_rules_and_publish_conditions(DOM::Document& document)
     }
 
     for (auto* style_scope : scopes_with_changed_layer_order)
-        style_scope->publish_cascade_layer_order();
+        style_scope->publish_cascade_layer_order(read);
 }
 
 }

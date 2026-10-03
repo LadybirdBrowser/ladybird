@@ -6,14 +6,10 @@
 
 #pragma once
 
-namespace Web::DOM {
-
-class Document;
-
-}
+#include <LibWeb/Forward.h>
 
 namespace Web::CSS::Invalidation {
 
-void evaluate_media_rules_and_publish_conditions(DOM::Document&);
+void evaluate_media_rules_and_publish_conditions(Layout::BegunRead const&, DOM::Document&);
 
 }

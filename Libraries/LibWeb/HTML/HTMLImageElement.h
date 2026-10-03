@@ -148,7 +148,6 @@ private:
     void set_needs_layout_update_or_repaint_after_image_data_change(DOM::SetNeedsLayoutReason);
 
     virtual void decoded_image_data_did_update() override;
-    virtual Layout::Node const* image_provider_layout_node() const override;
 
     Optional<DOM::DocumentLoadEventDelayer> m_load_event_delayer;
 

@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    #generated { line-height: 0; }
+    #generated.loading::before { content: var(--image); }
+</style>
+<div id="box" style="width: 20px; height: 10px"></div>
+<div id="generated"></div>
+<script>
+    // A background image and a generated image that finish decoding beside a frame in flight: each decode's task marks
+    // the box that shows the image for its new paint facts without taking the frame in, and the next rendering update
+    // paints the image.
+    function delayedImage(name) {
+        return httpTestServer().createEcho("GET", `/layout-flight-${name}-decode.png`, {
+            status: 200,
+            headers: { "Content-Type": "image/png", "Cache-Control": "no-store" },
+            body: "iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAD0lEQVR4nGNgaGAAIQgFAA4OAgFhGn2EAAAAAElFTkSuQmCC",
+            body_encoding: "base64",
+            delay_ms: 500,
+        });
+    }
+
+    asyncTest(async done => {
+        const url = await delayedImage("background-image");
+        const generatedURL = await delayedImage("generated-image");
+        box.style.backgroundImage = `url(${url})`;
+        generated.style.setProperty("--image", `url(${generatedURL})`);
+        generated.classList.add("loading");
+
+        const result = await whileRecordingInFlight(() => {
+            box.style.height = "20px";
+        }, async state => {
+            while (performance.getEntriesByName(url).length === 0 || performance.getEntriesByName(generatedURL).length === 0)
+                await new Promise(resolve => setTimeout(resolve, 10));
+            // The decode answers in a task of its own after the fetch.
+            await new Promise(resolve => setTimeout(resolve, 200));
+            return { state, afterDecode: internals.frameSchedulerState() };
+        });
+        println(`state in the next task: ${result.state}`);
+        println(`state after the decode: ${result.afterDecode}`);
+        await twoFrames();
+        println(`the box kept its height: ${box.offsetHeight}`);
+        println(`the generated image is laid out: ${generated.offsetHeight > 0}`);
+        done();
+    });
+</script>

@@ -388,7 +388,7 @@ public:
         Apply,
         LeftToCaller,
     };
-    CSS::RequiredInvalidationAfterStyleChange apply_engine_computed_style_record(CSS::StyleRecordID new_style_record, EnginePseudoElementRecords const&, bool uses_substitution, u8 record_reads, u32 explicitly_inherited_non_inherited_style_groups, bool& did_change_custom_properties, DisplayNoneChange, EngineRecordDamages const* = nullptr);
+    CSS::RequiredInvalidationAfterStyleChange apply_engine_computed_style_record(Layout::BegunRead const& read, CSS::StyleRecordID new_style_record, EnginePseudoElementRecords const&, bool uses_substitution, u8 record_reads, u32 explicitly_inherited_non_inherited_style_groups, bool& did_change_custom_properties, DisplayNoneChange, EngineRecordDamages const* = nullptr);
     // Whether an element's display is none, with its animations and ignoring them.
     struct DisplayNoneState {
         bool display_is_none { true };
@@ -400,30 +400,30 @@ public:
     [[nodiscard]] Optional<DisplayNoneState> display_none_state() const;
     // Terminates or resumes the animations of a subtree whose display, ignoring animations, left or entered none since
     // `before`, and clears the styles of a subtree that became display:none.
-    void apply_display_none_change(DisplayNoneState before);
+    void apply_display_none_change(Layout::BegunRead const& read, DisplayNoneState before);
     // Refreshes the pseudo-element styles of an element whose record the engine settled without them, once the host has
     // composed the element's animations over the record, which the pseudo-elements inherit. `old_computed_values` is
     // the style the element held before the record.
-    CSS::RequiredInvalidationAfterStyleChange refresh_pseudo_element_styles_over_composition(CSS::ComputedValues const* old_computed_values, bool& did_change_custom_properties);
+    CSS::RequiredInvalidationAfterStyleChange refresh_pseudo_element_styles_over_composition(Layout::BegunRead const& read, CSS::ComputedValues const* old_computed_values, bool& did_change_custom_properties);
     // The custom-property environment an engine-computed record was published with: the one the
     // element inherits, or one the engine resolved over it. Nothing when it cannot be installed.
-    [[nodiscard]] RefPtr<CSS::CustomPropertyData const> custom_property_environment_of_engine_record(CSS::StyleRecordID, bool& installable) const;
-    CSS::RequiredInvalidationAfterStyleChange recompute_pseudo_element_styles();
+    [[nodiscard]] RefPtr<CSS::CustomPropertyData const> custom_property_environment_of_engine_record(Layout::BegunRead const& read, CSS::StyleRecordID, bool& installable) const;
+    CSS::RequiredInvalidationAfterStyleChange recompute_pseudo_element_styles(Layout::BegunRead const& read);
 
-    void set_needs_layout_tree_rebuild(SetNeedsLayoutTreeUpdateReason, CSS::LayoutTreeRebuildRoot);
-    bool apply_box_presence_change_in_place(SetNeedsLayoutTreeUpdateReason);
+    void set_needs_layout_tree_rebuild(Layout::BegunRead const& read, SetNeedsLayoutTreeUpdateReason, CSS::LayoutTreeRebuildRoot);
+    bool apply_box_presence_change_in_place(Layout::BegunRead const& read, SetNeedsLayoutTreeUpdateReason);
 
     Optional<CSS::PseudoElement> associated_shadow_host_pseudo_element() const;
     void set_associated_shadow_host_pseudo_element(CSS::PseudoElement pseudo_element);
 
-    Layout::NodeWithStyle* layout_node();
-    Layout::NodeWithStyle const* layout_node() const;
+    Layout::NodeWithStyle* layout_node(Layout::BegunRead const& read);
+    Layout::NodeWithStyle const* layout_node(Layout::BegunRead const& read) const;
 
     // The box that CSSOM View geometry describes. For a table, this is the table wrapper box.
-    Layout::NodeWithStyle const* principal_layout_node() const;
+    Layout::NodeWithStyle const* principal_layout_node(Layout::BegunRead const& read) const;
 
-    Layout::NodeWithStyle* unsafe_layout_node();
-    Layout::NodeWithStyle const* unsafe_layout_node() const;
+    Layout::NodeWithStyle* unsafe_layout_node(Layout::BegunRead const& read);
+    Layout::NodeWithStyle const* unsafe_layout_node(Layout::BegunRead const& read) const;
 
     [[nodiscard]] CSS::ComputedStyleRecordView computed_style(Optional<CSS::PseudoElement> = {}) const;
     [[nodiscard]] CSS::StyleRecordID style_record_identity(Optional<CSS::PseudoElement> = {}) const;
@@ -444,7 +444,7 @@ public:
     void set_computed_style(Optional<CSS::PseudoElement>, CSS::StyleRecordID);
     void refresh_computed_style(Optional<CSS::PseudoElement>, CSS::StyleRecordID);
     // Install the custom properties beside a pseudo-element record the style engine derived.
-    void install_engine_pseudo_element_custom_property_data(CSS::PseudoElement, u64 environment);
+    void install_engine_pseudo_element_custom_property_data(Layout::BegunRead const& read, CSS::PseudoElement, u64 environment);
     void update_animated_properties(Badge<Web::Animations::KeyframeEffect> const&, Optional<CSS::PseudoElement>, Web::Animations::KeyframeEffect&, Web::Animations::AnimationUpdateContext&);
     void update_animated_properties_for_abstract_element(Badge<Web::Animations::KeyframeEffect> const&, DOM::AbstractElement, Web::Animations::KeyframeEffect&, Web::Animations::AnimationUpdateContext&);
 
@@ -575,7 +575,7 @@ public:
 
     // Publish the environment the element's custom-property data moved to on its record, so the
     // engine reads the environment the element holds.
-    void republish_style_record_environment();
+    void republish_style_record_environment(Layout::BegunRead const& read);
 
     // What the element's last computation was allowed to read, so a later one can ask whether any of
     // it moved before deriving a style that would be identical. Retired by anything that moves what
@@ -689,7 +689,7 @@ public:
     [[nodiscard]] Vector<CSSPixelRect> get_client_rects() const;
 
     [[nodiscard]] CSSPixelRect bounding_client_rect_assuming_layout_clean() const;
-    [[nodiscard]] CSSPixelRect bounding_client_rect_assuming_layout_clean(Compositing::AccumulatedVisualContextTree const&) const;
+    [[nodiscard]] CSSPixelRect bounding_client_rect_assuming_layout_clean(Layout::BegunRead const& read, Compositing::AccumulatedVisualContextTree const&) const;
 
     // Which principal box this element asks for, before its computed style has a say.
     virtual CSS::ElementBoxKind box_kind() const;
@@ -699,12 +699,12 @@ public:
     bool should_indicate_focus() const;
     virtual bool is_focusable() const override;
 
-    Layout::NodeWithStyle* pseudo_element_layout_node(CSS::PseudoElement) const;
-    Layout::NodeWithStyle* pseudo_element_unsafe_layout_node(CSS::PseudoElement) const;
+    Layout::NodeWithStyle* pseudo_element_layout_node(Layout::BegunRead const& read, CSS::PseudoElement) const;
+    Layout::NodeWithStyle* pseudo_element_unsafe_layout_node(Layout::BegunRead const& read, CSS::PseudoElement) const;
 
-    bool has_synthetic_pseudo_elements() const;
+    bool has_synthetic_pseudo_elements(Layout::BegunRead const& read) const;
 
-    void serialize_children_as_json(JsonObjectSerializer<Utf16StringBuilder>&) const;
+    void serialize_children_as_json(Layout::BegunRead const& read, JsonObjectSerializer<Utf16StringBuilder>&) const;
 
     i32 tab_index() const;
     void set_tab_index(i32 tab_index);
@@ -753,11 +753,11 @@ public:
     virtual Element& to_element() override { return *this; }
     virtual Element const& to_element() const override { return *this; }
 
-    bool is_hidden() const;
-    bool has_hidden_ancestor() const;
+    bool is_hidden(Layout::BegunRead const& read) const;
+    bool has_hidden_ancestor(Layout::BegunRead const& read) const;
 
     bool is_referenced() const;
-    bool has_referenced_and_hidden_ancestor() const;
+    bool has_referenced_and_hidden_ancestor(Layout::BegunRead const& read) const;
 
     void enqueue_a_custom_element_upgrade_reaction(HTML::CustomElementDefinition& custom_element_definition);
     void enqueue_a_custom_element_callback_reaction(Utf16FlyString const& callback_name);
@@ -848,7 +848,7 @@ public:
     bool rendered_in_top_layer() const { return m_rendered_in_top_layer; }
 
     ProximityToTheViewport proximity_to_the_viewport() const;
-    void determine_proximity_to_the_viewport();
+    void determine_proximity_to_the_viewport(Layout::BegunRead const& read);
     bool is_relevant_to_the_user();
 
     // https://drafts.csswg.org/css-contain-2/#skips-its-contents
@@ -872,7 +872,7 @@ public:
     void set_captured_in_a_view_transition(bool);
 
     // https://drafts.csswg.org/css-images-4/#element-not-rendered
-    bool not_rendered() const;
+    bool not_rendered(Layout::BegunRead const& read) const;
 
     bool meets_focusable_area_rendering_requirements() const;
 
@@ -954,7 +954,7 @@ private:
     AttributeList& ensure_attribute_list();
     void append_to_attribute_list(QualifiedName, Utf16String value);
 
-    void install_custom_property_data(Optional<CSS::PseudoElement>, RefPtr<CSS::CustomPropertyData const>);
+    void install_custom_property_data(Layout::BegunRead const& read, Optional<CSS::PseudoElement>, RefPtr<CSS::CustomPropertyData const>);
     void synchronize_attribute(Utf16FlyString const& qualified_name) const;
     void synchronize_attribute_ns(Optional<Utf16FlyString> const&, Utf16FlyString const& local_name) const;
     void synchronize_style_attribute() const;
@@ -982,13 +982,13 @@ private:
     Utf16FlyString make_html_uppercased_qualified_name() const;
 
     void exit_fullscreen_on_element_removal();
-    CSS::RequiredInvalidationAfterStyleChange recompute_pseudo_element_styles(bool& did_change_custom_properties, bool had_list_marker, CSS::ComputedValues const* old_originating_style, EnginePseudoElementRecords const* = nullptr, EngineRecordDamages const* = nullptr);
-    void apply_computed_style_to_layout_node_if_needed(CSS::RequiredInvalidationAfterStyleChange const&);
-    void apply_computed_pseudo_element_styles_to_layout_nodes_if_needed(CSS::RequiredInvalidationAfterStyleChange const&);
-    void publish_custom_property_names();
+    CSS::RequiredInvalidationAfterStyleChange recompute_pseudo_element_styles(Layout::BegunRead const& read, bool& did_change_custom_properties, bool had_list_marker, CSS::ComputedValues const* old_originating_style, EnginePseudoElementRecords const* = nullptr, EngineRecordDamages const* = nullptr);
+    void apply_computed_style_to_layout_node_if_needed(Layout::BegunRead const& read, CSS::RequiredInvalidationAfterStyleChange const&);
+    void apply_computed_pseudo_element_styles_to_layout_nodes_if_needed(Layout::BegunRead const& read, CSS::RequiredInvalidationAfterStyleChange const&);
+    void publish_custom_property_names(Layout::BegunRead const& read);
     void update_anchor_name_registry(CSS::ComputedValues const* old_computed_values, CSS::ComputedValues const& new_computed_values);
     void replace_style_record(CSS::StyleRecordID);
-    void clear_computed_styles_from_display_none_descendants();
+    void clear_computed_styles_from_display_none_descendants(Layout::BegunRead const& read);
 
     WebIDL::ExceptionOr<GC::Ptr<Node>> insert_adjacent(Utf16View where, GC::Ref<Node> node);
 

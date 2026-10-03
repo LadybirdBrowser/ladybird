@@ -219,10 +219,15 @@ void Page::process_screenshot_requests()
     while (!m_screenshot_tasks.is_empty()) {
         auto task = m_screenshot_tasks.dequeue();
         if (task.node_id.has_value()) {
-            auto* dom_node = DOM::Node::from_unique_id(*task.node_id);
-            if (dom_node)
+            auto const* layout_node = [&]() -> Layout::Node const* {
+                auto* dom_node = DOM::Node::from_unique_id(*task.node_id);
+                if (!dom_node)
+                    return nullptr;
+                // The screenshot reads the node's box as the page's own read of its document's render state.
+                Layout::ForcedReadScope read { dom_node->document(), false };
                 dom_node->document().update_layout(DOM::UpdateLayoutReason::ProcessScreenshot);
-            auto const* layout_node = dom_node ? dom_node->layout_node() : nullptr;
+                return dom_node->layout_node(read);
+            }();
             if (!layout_node || !Painting::has_committed_box(*layout_node)) {
                 client.page_did_take_screenshot({});
                 continue;
@@ -240,8 +245,10 @@ void Page::process_screenshot_requests()
                 client.page_did_take_screenshot(bitmap->to_shareable_bitmap());
             });
         } else {
+            // The screenshot reads the viewport's box as the page's own read of the document's render state.
+            Layout::ForcedReadScope read { *navigable->active_document(), false };
             navigable->active_document()->update_layout(DOM::UpdateLayoutReason::ProcessScreenshot);
-            auto const* layout_node = navigable->active_document()->layout_node();
+            auto const* layout_node = navigable->active_document()->layout_node(read);
             VERIFY(layout_node && Painting::has_committed_box(*layout_node));
             auto scrollable_overflow_rect = Painting::scrollable_overflow_rect(*layout_node);
             auto rect = enclosing_device_rect(scrollable_overflow_rect.value());

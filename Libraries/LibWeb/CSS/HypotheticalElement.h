@@ -35,7 +35,7 @@ public:
 
     Optional<CustomPropertyRegistration const&> get_registered_custom_property(Utf16FlyString const& name) const;
     RefPtr<StyleValue const> get_custom_property(Utf16FlyString const& name) const;
-    RefPtr<CustomPropertyData const> inheritable_custom_property_data() const;
+    RefPtr<CustomPropertyData const> inheritable_custom_property_data(Layout::BegunRead const& read) const;
     RefPtr<CustomPropertyData const> custom_property_data() const;
     StyleScope const& style_scope() const;
 };

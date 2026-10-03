@@ -16,7 +16,7 @@ use crate::css::style::bridge::{
 };
 use crate::css::style::compiler::NamespaceScope;
 use crate::css::style::engine_calls::{sheet_writing_host, with_engine};
-use crate::render_state::DocumentHost;
+use crate::render_state::{BegunRead, DocumentHost};
 use std::rc::Rc;
 
 #[derive(Clone, Copy, Default)]
@@ -35,6 +35,13 @@ pub struct NativeStylePublication {
     pub host: *const DocumentHost,
     pub sheet: u32,
     pub before_rule: u32,
+}
+
+/// A publication the host makes in a read it began, which reaches the style engine in place.
+#[derive(Clone, Copy)]
+pub(super) struct Publication<'a> {
+    pub(super) to: NativeStylePublication,
+    pub(super) read: &'a BegunRead,
 }
 
 // Binding belongs to this document-thread traversal, not to the shared rule graph.
@@ -135,7 +142,7 @@ impl SelectorInputs {
     }
 }
 
-impl NativeStylePublication {
+impl Publication<'_> {
     /// The host of the document whose style engine the rules are published to, behind the drain of its style
     /// transaction that flew.
     ///
@@ -144,7 +151,7 @@ impl NativeStylePublication {
     /// The publication's host must be a live document host, on its document's thread.
     pub(super) unsafe fn host(&self) -> &DocumentHost {
         // SAFETY: Guaranteed by the caller.
-        unsafe { sheet_writing_host(self.host) }
+        unsafe { sheet_writing_host(self.to.host, self.read) }
     }
 
     pub(super) unsafe fn replace_selectors(
@@ -155,7 +162,7 @@ impl NativeStylePublication {
         selectors: &RustParsedSelectorList,
     ) {
         // SAFETY: Guaranteed by the caller.
-        with_engine(unsafe { self.host() }, |engine| {
+        with_engine(self.read, unsafe { self.host() }, |engine| {
             let id = engine.native_rule_id(rule.identity()).map_or(0, |id| id.0 + 1);
             let namespaces = NamespaceScope::from_rule_list(source.rules(), |text| {
                 crate::css::style::bridge::intern_native_text(engine, text)
@@ -173,10 +180,10 @@ impl NativeStylePublication {
         selectors: Option<&RustParsedSelectorList>,
     ) -> NativeCompilationResult {
         // SAFETY: Guaranteed by the caller.
-        with_engine(unsafe { self.host() }, |engine| {
+        with_engine(self.read, unsafe { self.host() }, |engine| {
             let mut result = NativeCompilationResult::default();
-            let sheet = self.sheet;
-            let before = self.before_rule;
+            let sheet = self.to.sheet;
+            let before = self.to.before_rule;
             // Reuse the engine's recorded publication operations so recording and replay see the
             // same semantic inputs as incremental CSSOM edits.
             result.rule_id = match rule.rule_type() {

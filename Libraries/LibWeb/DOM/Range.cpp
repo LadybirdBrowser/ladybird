@@ -109,8 +109,10 @@ void Range::set_associated_selection(Badge<Selection::Selection>, GC::Ptr<Select
         // The range this selection painted through is no longer its range; take the highlight back.
         auto& document = m_start_container->document();
         if (document.has_committed_viewport_box()) {
-            document.paint_state().reset_selection_states(document);
-            Painting::set_needs_repaint(*document.unsafe_layout_node(), InvalidateDisplayList::PaintCommands);
+            // Taking the highlight back is the selection's own read of the paint state.
+            Layout::ForcedReadScope read { document, false };
+            document.paint_state().reset_selection_states(read, document);
+            static_cast<DOM::Node&>(document).set_needs_repaint(InvalidateDisplayList::PaintCommands);
         }
 
         // https://w3c.github.io/selection-api/#selectionchange-event
@@ -129,10 +131,12 @@ void Range::update_associated_selection()
 
     auto& document = m_start_container->document();
 
-    // NB: Called during selection update after range change.
+    // NB: Called during selection update after range change. Painting the selection is its own read of the paint
+    //     state.
     if (document.has_committed_viewport_box()) {
-        document.paint_state().recompute_selection_states(document, *this);
-        Painting::set_needs_repaint(*document.unsafe_layout_node(), InvalidateDisplayList::PaintCommands);
+        Layout::ForcedReadScope read { document, false };
+        document.paint_state().recompute_selection_states(read, document, *this);
+        static_cast<DOM::Node&>(document).set_needs_repaint(InvalidateDisplayList::PaintCommands);
     }
 
     document.reset_cursor_blink_cycle();
@@ -1304,6 +1308,7 @@ GC::Ref<Geometry::DOMRectList> Range::get_client_rects()
         return Geometry::DOMRectList::create({});
 
     auto& document = start_container()->document();
+    Layout::ForcedReadScope read { document, true };
     document.update_layout(DOM::UpdateLayoutReason::RangeGetClientRects);
 
     Vector<GC::Root<Geometry::DOMRect>> rects;
@@ -1378,7 +1383,7 @@ GC::Ref<Geometry::DOMRectList> Range::get_client_rects()
             if (selection_state == Painting::SelectionState::None)
                 continue;
 
-            auto const* layout_node = text.layout_node();
+            auto const* layout_node = text.layout_node(read);
             if (!layout_node) {
                 dbgln("FIXME: Failed to get client rects for node {}", node->debug_description());
                 continue;

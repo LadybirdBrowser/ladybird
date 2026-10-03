@@ -232,7 +232,7 @@ impl ArenaQuery {
 /// the host asks while it installs what a job answered, a question per row, and asking across threads would make it
 /// wait for each one. Questions go to the render side once its jobs answer what the host would ask ahead.
 pub(crate) fn ask<Q: Question>(wait: impl RenderWait, host: &DocumentHost, question: Q) -> Q::Answer {
-    host.answer_in_place(&wait, question)
+    host.answer_in_place(wait, question)
 }
 
 #[cfg(test)]

@@ -21,7 +21,7 @@ use crate::painting::visual_context::dirty::{VisualContextGlobalRebuildReason, V
 use crate::painting::visual_context::incremental::{
     IncrementalUpdateResult, debug_assert_every_live_node_is_owned, update_visual_context_tree,
 };
-use crate::render_state::{DocumentHost, LockstepProof, PreparationPending, RenderMessage, ask, wait_for_render_state};
+use crate::render_state::{BegunRead, DocumentHost, PreparationPending, RenderMessage, ask, wait_for_render_state};
 use libgfx_rust::FloatPoint;
 
 /// One step of paint preparation over a document's render state. A pass that reads the viewport the render side draws
@@ -144,22 +144,13 @@ impl PaintPass {
     }
 }
 
-/// The reason the host waits for its document's render state as it prepares to paint.
-pub(crate) struct HostPaintStep {
-    _private: (),
-}
-
-const HOST_PAINT_STEP: HostPaintStep = HostPaintStep { _private: () };
-
-/// Runs `pass` on the render state of `host`'s document, and answers what it answered.
-pub(crate) fn run(host: &DocumentHost, pass: PaintPass) -> PaintPassAnswer {
-    let document = host.document();
+/// Runs `pass` on the render state of `host`'s document in `read`, as the host prepares to paint, and answers what it
+/// answered.
+pub(crate) fn run(read: &BegunRead, host: &DocumentHost, pass: PaintPass) -> PaintPassAnswer {
     if pass.rewrites_rows() {
         host.let_go_of_rows();
     }
-    wait_for_render_state(LockstepProof::for_reason(&HOST_PAINT_STEP), host, |reply| {
-        RenderMessage::Paint { document, pass, reply }
-    })
+    wait_for_render_state(read, host, |reply| RenderMessage::Paint { pass, reply })
 }
 
 /// Proof that preparing a document for rendering has something to do, which only [`rendering_preparation_pending`]
@@ -182,9 +173,9 @@ pub(crate) fn rendering_preparation_pending(arena: &LayoutNodeArena) -> Option<P
     pending.then_some(PendingPreparation { root_background_source })
 }
 
-/// Asks the render state of `host`'s document whether preparing it for rendering has something to do.
-pub(crate) fn pending_preparation(host: &DocumentHost) -> Option<PendingPreparation> {
-    ask(LockstepProof::for_reason(&HOST_PAINT_STEP), host, PreparationPending)
+/// Asks the render state of `host`'s document in `read` whether preparing it for rendering has something to do.
+pub(crate) fn pending_preparation(read: &BegunRead, host: &DocumentHost) -> Option<PendingPreparation> {
+    ask(read, host, PreparationPending)
 }
 
 pub(crate) fn prepare_for_rendering(

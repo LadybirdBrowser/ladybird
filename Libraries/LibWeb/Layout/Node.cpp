@@ -215,9 +215,10 @@ GC::Ptr<HTML::LocalNavigable> Node::navigable() const
 
 Viewport& Node::root()
 {
+    auto const& read = held_read();
     // NB: Called during layout, which is in progress.
-    VERIFY(document().unsafe_layout_node());
-    return *document().unsafe_layout_node();
+    VERIFY(document().unsafe_layout_node(read));
+    return *document().unsafe_layout_node(read);
 }
 
 bool NodeWithStyle::is_floating() const
@@ -258,10 +259,9 @@ NodeWithStyle::NodeWithStyle(DOM::Document& document, BindToPreparedArenaSlot bi
 {
     m_style_record_identity = CSS::StyleRecordID { RustFFI::layout_row_style_record(document_host(), slot) };
     VERIFY(m_style_record_identity);
+    // The layout node reads its style through the row's payloads, which only a live record keeps.
     m_style_payloads = RustFFI::layout_row_style_payloads(document_host(), slot);
     VERIFY(m_style_payloads);
-    // The layout node reads its style through the row's payloads, which only a live record keeps.
-    VERIFY(document.style_computer().style_record_payloads(m_style_record_identity));
 }
 
 bool NodeWithStyle::has_layout_derived_style() const
@@ -278,8 +278,9 @@ NonnullRefPtr<CSS::ComputedValues const> NodeWithStyle::copy_computed_values() c
 
 CSS::ComputedStyleRecordView NodeWithStyle::computed_style_record_view() const
 {
+    auto const& read = held_read();
     VERIFY(m_style_record_identity);
-    return document().style_computer().computed_style_record_view(m_style_record_identity);
+    return document().style_computer().computed_style_record_view(read, m_style_record_identity);
 }
 
 NodeWithStyle::ImageObserver::ImageObserver(NodeWithStyle& owner, NonnullRefPtr<CSS::ImageStyleValue const> image)
@@ -297,10 +298,7 @@ NodeWithStyle::ImageObserver::~ImageObserver()
 void NodeWithStyle::ImageObserver::image_style_value_did_update(CSS::ImageStyleValue&)
 {
     VERIFY(m_owner);
-
     Painting::push_layer_image_paint_facts(*m_owner);
-    if (Painting::has_committed_box(*m_owner))
-        Painting::set_needs_repaint(*m_owner, InvalidateDisplayList::PaintCommands);
 }
 
 NodeWithStyle::~NodeWithStyle()
@@ -411,17 +409,18 @@ void NodeWithStyle::apply_style(CSS::StyleRecordID style_record_identity)
         pin_style_record_for_cxx_consumers();
 }
 
-static bool style_record_holds_image_values(CSS::StyleEngine const& style_engine, CSS::StyleRecordID style_record)
+static bool style_record_holds_image_values(Layout::BegunRead const& read, CSS::StyleEngine const& style_engine, CSS::StyleRecordID style_record)
 {
-    return has_flag(style_engine.style_record_dependency_flags(style_record), CSS::StyleRecordDependencyFlag::HoldsImageValues);
+    return has_flag(style_engine.style_record_dependency_flags(read, style_record), CSS::StyleRecordDependencyFlag::HoldsImageValues);
 }
 
 void NodeWithStyle::attach_style_resources()
 {
+    auto const& read = held_read();
     // The style engine notes at publication whether a record holds an <image> anywhere this node would load and
     // observe one. Nearly every style holds none, and that answer is one flag read; the walk below stays for the
     // styles that do.
-    if (!style_record_holds_image_values(document().style_computer().style_engine(), m_style_record_identity)) {
+    if (!style_record_holds_image_values(read, document().style_computer().style_engine(), m_style_record_identity)) {
         clear_image_observers();
         Painting::push_paint_facts_after_style_attach(*this, Painting::StyleHoldsImageValues::No);
         return;
@@ -545,21 +544,22 @@ Gfx::AffineTransform NodeWithStyle::used_svg_element_transform() const
     return transform;
 }
 
-void NodeWithStyle::set_computed_values(NonnullRefPtr<CSS::ComputedValues const> computed_values)
+void NodeWithStyle::set_computed_values(Layout::BegunRead const& read, NonnullRefPtr<CSS::ComputedValues const> computed_values)
 {
     VERIFY(!RustFFI::render_state_layout_pass_is_running(document_host()));
     CSS::StyleRecordID record;
     if (is_generated_for_pseudo_element())
-        record = document().style_computer().intern_computed_style_inputs({ *pseudo_element_generator(), generated_for_pseudo_element() }, *computed_values);
+        record = document().style_computer().intern_computed_style_inputs(read, { *pseudo_element_generator(), generated_for_pseudo_element() }, *computed_values);
     else if (auto* element = as_if<DOM::Element>(dom_node()))
-        record = document().style_computer().intern_computed_style_inputs({ *element }, *computed_values);
+        record = document().style_computer().intern_computed_style_inputs(read, { *element }, *computed_values);
     else
-        record = document().style_computer().intern_anonymous_layout_style(*computed_values);
+        record = document().style_computer().intern_anonymous_layout_style(read, *computed_values);
     RustFFI::render_state_adopt_derived_node_style(document_host(), slot_id(this), record.value());
 }
 
 void NodeWithStyle::set_style_record_identity(CSS::StyleRecordID style_record_identity)
 {
+    auto const& read = held_read();
     // A detached or layout-derived record is independent of its DOM target's record. A
     // rendering consequence replaces and re-derives it explicitly through apply_style().
     if (has_layout_derived_style())
@@ -574,11 +574,11 @@ void NodeWithStyle::set_style_record_identity(CSS::StyleRecordID style_record_id
     // for it. An overlay record borrows different payloads than its base, so carrying one is already
     // reason enough to treat the style as layout-affecting.
     auto const& style_engine = document().style_computer().style_engine();
-    auto const new_record_view = style_engine.style_record_view(style_record_identity);
+    auto const new_record_view = style_engine.style_record_view(read, style_record_identity);
     VERIFY(new_record_view.present);
     CSS::StyleEngine::StyleRecordView old_record_view {};
     if (!!m_style_record_identity)
-        old_record_view = style_engine.style_record_view(m_style_record_identity);
+        old_record_view = style_engine.style_record_view(read, m_style_record_identity);
     bool changes_layout_affecting_style = !old_record_view.present
         || old_record_view.animation_overlay_identity != 0
         || new_record_view.animation_overlay_identity != 0
@@ -612,9 +612,10 @@ void NodeWithStyle::release_pinned_style_record()
 
 static Node const* scroll_snap_container_of(NodeWithStyle const& node)
 {
+    auto const& read = node.held_read();
     // The scroll snap properties specified on the root element apply to the viewport rather than to its own box.
     if (node.is_viewport() || (node.dom_node() && node.dom_node() == node.document().document_element()))
-        return node.document().unsafe_layout_node();
+        return node.document().unsafe_layout_node(read);
     if (!node.is_scroll_container())
         return nullptr;
     return &node;
@@ -622,7 +623,8 @@ static Node const* scroll_snap_container_of(NodeWithStyle const& node)
 
 void NodeWithStyle::publish_style_record_to_node_data()
 {
-    auto const* payloads = document().style_computer().style_engine().style_record_payloads(m_style_record_identity);
+    auto const& read = held_read();
+    auto const* payloads = document().style_computer().style_engine().style_record_payloads(read, m_style_record_identity);
     VERIFY(payloads);
     m_style_payloads = payloads;
     RustFFI::render_state_set_node_style(document_host(), slot_id(this), m_style_record_identity.value(), payloads);

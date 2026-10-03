@@ -89,9 +89,10 @@ CSSPixelPoint AutoScrollHandler::process(CSSPixelPoint mouse_position)
 {
     m_mouse_position = mouse_position;
 
+    Layout::ForcedReadScope read { m_container_element->document(), false };
     m_container_element->document().update_layout(DOM::UpdateLayoutReason::AutoScrollSelection);
 
-    auto* layout_node = auto_scroll_layout_node(m_container_element);
+    auto* layout_node = auto_scroll_layout_node(read, m_container_element);
     if (!layout_node)
         return mouse_position;
 
@@ -126,11 +127,11 @@ GC::Ptr<DOM::Element> AutoScrollHandler::find_scrollable_ancestor(Layout::Node c
 
 // Returns the layout node that manages the scrollport for an auto-scroll container element. When the element is the
 // document's scrolling element, the viewport node is the scroll container.
-Layout::Node* AutoScrollHandler::auto_scroll_layout_node(DOM::Element& element)
+Layout::Node* AutoScrollHandler::auto_scroll_layout_node(Layout::BegunRead const& read, DOM::Element& element)
 {
-    Layout::Node* layout_node = element.layout_node();
+    Layout::Node* layout_node = element.layout_node(read);
     if (element.document().scrolling_element().ptr() == &element)
-        layout_node = element.document().layout_node();
+        layout_node = element.document().layout_node(read);
     return layout_node && Painting::has_committed_box(*layout_node) ? layout_node : nullptr;
 }
 
@@ -160,10 +161,16 @@ void AutoScrollHandler::perform_tick()
         return;
     }
 
+    // NB: The navigable may have navigated away from the container's document, whose boxes it no longer shows.
     auto& document = *m_navigable->active_document();
+    if (&m_container_element->document() != &document) {
+        deactivate();
+        return;
+    }
+    Layout::ForcedReadScope read { document, false };
     document.update_layout(DOM::UpdateLayoutReason::AutoScrollSelection);
 
-    auto* layout_node = auto_scroll_layout_node(m_container_element);
+    auto* layout_node = auto_scroll_layout_node(read, m_container_element);
     if (!layout_node || !document.has_committed_viewport_box()) {
         deactivate();
         return;
@@ -198,7 +205,7 @@ void AutoScrollHandler::perform_tick()
     if (Painting::scroll_by(*layout_node, scroll_x, scroll_y) == Painting::ScrollHandled::No)
         return;
 
-    m_navigable->event_handler().apply_mouse_selection(constrained(m_mouse_position, *scrollport));
+    m_navigable->event_handler().apply_mouse_selection(read, constrained(m_mouse_position, *scrollport));
 }
 
 }

@@ -47,9 +47,11 @@
 #include <LibWeb/HTML/SupportedImageTypes.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Layout/Box.h>
+#include <LibWeb/Layout/RenderDocument.h>
 #include <LibWeb/Loader/ResourceLoader.h>
 #include <LibWeb/Namespace.h>
 #include <LibWeb/Painting/BoxViews.h>
+#include <LibWeb/Painting/PaintFacts.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/Platform/ImageCodecPlugin.h>
 #include <LibWeb/SVG/SVGDecodedImageData.h>
@@ -132,7 +134,9 @@ void HTMLImageElement::set_needs_layout_update_or_repaint_after_image_data_chang
     CSS::record_element_replaced_content_input(*this);
     update_alt_text_shadow_tree();
 
-    auto layout_node = unsafe_layout_node();
+    // Which box the image has is the host's own read of the render state.
+    Layout::ForcedReadScope read { document(), false };
+    auto layout_node = unsafe_layout_node(read);
     auto* image_box = layout_node && layout_node->kind() == Layout::RustFFI::NodeKind::ImageBox ? static_cast<Layout::Box*>(layout_node) : nullptr;
 
     // The request state change may have flipped which kind of box box_kind()
@@ -145,21 +149,16 @@ void HTMLImageElement::set_needs_layout_update_or_repaint_after_image_data_chang
     }
 
     if (!image_box || image_element_dimensions_may_depend_on_intrinsic_size(*image_box)) {
-        image_provider_contents_changed();
+        Painting::push_replaced_image_paint_facts(*this);
         set_needs_layout_update(reason);
         return;
     }
 
     reset_intrinsic_size_caches_after_image_data_change(*image_box);
-    image_provider_contents_changed();
+    Painting::push_replaced_image_paint_facts(*this);
 }
 
 GC_DEFINE_ALLOCATOR(HTMLImageElement);
-
-Layout::Node const* HTMLImageElement::image_provider_layout_node() const
-{
-    return unsafe_layout_node();
-}
 
 static GC::Ref<DOM::Event> create_event_for_element(HTMLElement& element, Utf16FlyString const& event_name)
 {
@@ -371,10 +370,11 @@ void HTMLImageElement::update_alt_text_shadow_tree()
 // https://html.spec.whatwg.org/multipage/embedded-content.html#dom-img-width
 WebIDL::UnsignedLong HTMLImageElement::width() const
 {
+    Layout::ForcedReadScope read { document(), true };
     const_cast<DOM::Document&>(document()).update_layout_if_needed_for_node(*this, DOM::UpdateLayoutReason::HTMLImageElementWidth);
 
     // Return the rendered width of the image, in CSS pixels, if the image is being rendered.
-    if (auto const* layout_node = this->layout_node(); layout_node && Painting::has_committed_box(*layout_node))
+    if (auto const* layout_node = this->layout_node(read); layout_node && Painting::has_committed_box(*layout_node))
         return Painting::content_width(*layout_node).to_int();
 
     // On setting [the width or height IDL attribute], they must act as if they reflected the respective content attributes of the same name.
@@ -402,10 +402,11 @@ void HTMLImageElement::set_width(WebIDL::UnsignedLong width)
 // https://html.spec.whatwg.org/multipage/embedded-content.html#dom-img-height
 WebIDL::UnsignedLong HTMLImageElement::height() const
 {
+    Layout::ForcedReadScope read { document(), true };
     const_cast<DOM::Document&>(document()).update_layout_if_needed_for_node(*this, DOM::UpdateLayoutReason::HTMLImageElementHeight);
 
     // Return the rendered height of the image, in CSS pixels, if the image is being rendered.
-    if (auto const* layout_node = this->layout_node(); layout_node && Painting::has_committed_box(*layout_node))
+    if (auto const* layout_node = this->layout_node(read); layout_node && Painting::has_committed_box(*layout_node))
         return Painting::content_height(*layout_node).to_int();
 
     // On setting [the width or height IDL attribute], they must act as if they reflected the respective content attributes of the same name.
@@ -478,9 +479,10 @@ int HTMLImageElement::x() const
     // The x attribute, on getting, must return the scaled x-coordinate of the left border edge of the first box
     // associated with the element, relative to the initial containing block origin, ignoring any transforms that apply
     // to the element and its ancestors, or zero if there is no box.
+    Layout::ForcedReadScope read { document(), true };
     const_cast<DOM::Document&>(document()).update_layout_if_needed_for_node(*this, DOM::UpdateLayoutReason::HTMLImageElementX);
 
-    auto const* layout_node = this->layout_node();
+    auto const* layout_node = this->layout_node(read);
     if (!layout_node || !Painting::has_committed_box(*layout_node))
         return 0;
 
@@ -497,9 +499,10 @@ int HTMLImageElement::y() const
     // The y attribute, on getting, must return the scaled y-coordinate of the top border edge of the first box
     // associated with the element, relative to the initial containing block origin, ignoring any transforms that apply
     // to the element and its ancestors, or zero if there is no box.
+    Layout::ForcedReadScope read { document(), true };
     const_cast<DOM::Document&>(document()).update_layout_if_needed_for_node(*this, DOM::UpdateLayoutReason::HTMLImageElementY);
 
-    auto const* layout_node = this->layout_node();
+    auto const* layout_node = this->layout_node(read);
     if (!layout_node || !Painting::has_committed_box(*layout_node))
         return 0;
 
@@ -1637,7 +1640,7 @@ void HTMLImageElement::decoded_image_data_did_update()
 {
     // An SVG image works out its natural size again after it redraws itself or changes color scheme.
     CSS::record_element_replaced_content_input(*this);
-    image_provider_contents_changed();
+    Painting::push_replaced_image_paint_facts(*this);
 }
 
 bool HTMLImageElement::is_image_pending() const

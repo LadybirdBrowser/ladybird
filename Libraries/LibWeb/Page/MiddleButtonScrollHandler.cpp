@@ -26,18 +26,12 @@ MiddleButtonScrollHandler::MiddleButtonScrollHandler(DOM::Element& container, CS
     , m_origin(origin)
     , m_mouse_position(origin)
 {
-    auto const* layout_node = m_container_element->document().layout_node();
-    if (layout_node && Painting::has_committed_box(*layout_node))
-        Painting::set_needs_repaint(*layout_node, InvalidateDisplayList::PaintCommands);
+    static_cast<DOM::Node&>(m_container_element->document()).set_needs_repaint(InvalidateDisplayList::PaintCommands);
 }
 
 MiddleButtonScrollHandler::~MiddleButtonScrollHandler()
 {
-    if (!m_container_element->document().layout_is_up_to_date())
-        return;
-    auto const* layout_node = m_container_element->document().layout_node();
-    if (layout_node && Painting::has_committed_box(*layout_node))
-        Painting::set_needs_repaint(*layout_node, InvalidateDisplayList::PaintCommands);
+    static_cast<DOM::Node&>(m_container_element->document()).set_needs_repaint(InvalidateDisplayList::PaintCommands);
 }
 
 void MiddleButtonScrollHandler::visit_edges(JS::Cell::Visitor& visitor) const
@@ -73,10 +67,11 @@ void MiddleButtonScrollHandler::perform_tick()
     if (auto distance = AK::hypot(distance_x, distance_y); distance < DEAD_ZONE_RADIUS)
         return;
 
+    Layout::ForcedReadScope read { m_container_element->document(), false };
     m_container_element->document().update_layout(DOM::UpdateLayoutReason::AutoScrollSelection);
     m_mouse_has_moved_beyond_dead_zone = true;
 
-    auto* layout_node = AutoScrollHandler::auto_scroll_layout_node(m_container_element);
+    auto* layout_node = AutoScrollHandler::auto_scroll_layout_node(read, m_container_element);
     if (!layout_node)
         return;
 

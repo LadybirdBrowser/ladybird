@@ -43,15 +43,27 @@ GC::Ptr<Node> NodeIdentity::resolve(Document& document) const
     VERIFY_NOT_REACHED();
 }
 
-Layout::Node* NodeIdentity::bound_layout_node(Layout::NodeArena& arena) const
+Layout::Node* NodeIdentity::bound_layout_node(Layout::BegunRead const& read, Layout::NodeArena& arena) const
 {
     switch (m_kind) {
     case Kind::None:
         return nullptr;
     case Kind::StyleNode:
-        return static_cast<Layout::Node*>(Layout::RustFFI::layout_row_bound_shell(arena.host(), m_style_node.value()));
+        return static_cast<Layout::Node*>(Layout::RustFFI::layout_row_bound_shell(arena.host(), &read, m_style_node.value()));
     case Kind::Document:
-        return static_cast<Layout::Node*>(Layout::RustFFI::layout_row_bound_viewport_shell(arena.host()));
+        return static_cast<Layout::Node*>(Layout::RustFFI::layout_row_bound_viewport_shell(arena.host(), &read));
+    }
+    VERIFY_NOT_REACHED();
+}
+
+bool NodeIdentity::binds(Layout::Node const& layout_node) const
+{
+    switch (m_kind) {
+    case Kind::None:
+        return false;
+    case Kind::StyleNode:
+    case Kind::Document:
+        return Layout::RustFFI::layout_row_is_bound_to(layout_node.document_host(), Layout::Node::slot_id(&layout_node), style_node().value());
     }
     VERIFY_NOT_REACHED();
 }

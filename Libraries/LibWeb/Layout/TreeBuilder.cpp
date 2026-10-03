@@ -40,6 +40,7 @@
 #include <LibWeb/Layout/TreeBuilderRustFFI.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Painting/BoxViews.h>
+#include <LibWeb/Painting/PaintFacts.h>
 #include <LibWeb/SVG/SVGClipPathElement.h>
 #include <LibWeb/SVG/SVGMaskElement.h>
 #include <LibWeb/SVG/SVGPatternElement.h>
@@ -80,7 +81,6 @@ public:
     virtual Optional<CSSPixels> intrinsic_width() const override { return natural_size().width; }
     virtual Optional<CSSPixels> intrinsic_height() const override { return natural_size().height; }
     virtual Optional<CSSPixelFraction> intrinsic_aspect_ratio() const override { return natural_size().aspect_ratio; }
-    virtual Layout::Node const* image_provider_layout_node() const override { return m_layout_node.ptr(); }
 
 private:
     class ImageClient final : public CSS::ImageStyleValue::Client {
@@ -103,7 +103,7 @@ private:
             if (!m_owner.m_layout_node)
                 return;
             m_owner.publish_natural_size();
-            m_owner.image_provider_contents_changed();
+            Painting::push_replaced_image_paint_facts(*m_owner.m_layout_node);
             m_owner.m_layout_node->set_needs_layout_update(DOM::SetNeedsLayoutReason::GeneratedContentImageFinishedLoading);
         }
 
@@ -195,9 +195,9 @@ static CSS::PseudoElement css_pseudo_element(RustFFI::FfiPseudoElement pseudo_el
     VERIFY_NOT_REACHED();
 }
 
-bool attach_owed_style_resources(DOM::Document& document, Compositing::RustFFI::NodeSlotId slot, bool owns_content_replacement_image)
+bool attach_owed_style_resources(Layout::BegunRead const& read, DOM::Document& document, Compositing::RustFFI::NodeSlotId slot, bool owns_content_replacement_image)
 {
-    auto* layout_node = static_cast<Node*>(RustFFI::render_state_node_shell_if_live(document.layout_node_arena().host(), slot));
+    auto* layout_node = static_cast<Node*>(RustFFI::render_state_node_shell_if_live(document.layout_node_arena().host(), &read, slot));
     VERIFY(layout_node);
     // A box that replaces its element's contents with a single image owns the provider that answers for it. The image
     // is named by the same style record the box was stamped from, and it loads before the resources the rest of that
@@ -214,7 +214,7 @@ bool attach_owed_style_resources(DOM::Document& document, Compositing::RustFFI::
     return image_was_available;
 }
 
-bool attach_owed_generated_image(DOM::Document& document, Compositing::RustFFI::NodeSlotId slot, u32 element_style_node, RustFFI::FfiPseudoElement ffi_pseudo, RustFFI::FfiGeneratedImage generated_image)
+bool attach_owed_generated_image(Layout::BegunRead const& read, DOM::Document& document, Compositing::RustFFI::NodeSlotId slot, u32 element_style_node, RustFFI::FfiPseudoElement ffi_pseudo, RustFFI::FfiGeneratedImage generated_image)
 {
     // A generator that went away since the build made its pseudo-element's boxes names no image any more, and the boxes
     // go away with it.
@@ -222,10 +222,10 @@ bool attach_owed_generated_image(DOM::Document& document, Compositing::RustFFI::
     if (!element)
         return false;
     auto& arena = document.layout_node_arena();
-    auto& image_box = as<Box>(*static_cast<Node*>(RustFFI::render_state_node_shell_if_live(arena.host(), slot)));
+    auto& image_box = as<Box>(*static_cast<Node*>(RustFFI::render_state_node_shell_if_live(arena.host(), &read, slot)));
     auto image = [&] -> NonnullRefPtr<CSS::AbstractImageStyleValue const> {
         if (generated_image.kind == RustFFI::FfiGeneratedImageKind::ListStyleImage) {
-            auto& marker = as<NodeWithStyle>(*static_cast<Node*>(RustFFI::render_state_node_shell_if_live(arena.host(), generated_image.marker)));
+            auto& marker = as<NodeWithStyle>(*static_cast<Node*>(RustFFI::render_state_node_shell_if_live(arena.host(), &read, generated_image.marker)));
             return *marker.list_style_image();
         }
         auto const* payloads = DOM::AbstractElement { *element, css_pseudo_element(ffi_pseudo) }.style_record_payloads();
@@ -241,9 +241,9 @@ bool attach_owed_generated_image(DOM::Document& document, Compositing::RustFFI::
     return image_was_available;
 }
 
-void detach_top_layer_element_layout_subtree(DOM::Element& element)
+void detach_top_layer_element_layout_subtree(Layout::BegunRead const& read, DOM::Element& element)
 {
-    RustFFI::render_state_detach_top_layer_element(element.document().layout_node_arena().host(), element.style_node_id().value());
+    RustFFI::render_state_detach_top_layer_element(element.document().layout_node_arena().host(), &read, element.style_node_id().value());
 }
 
 // https://drafts.csswg.org/css-tables-3/#fixup-algorithm

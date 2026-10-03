@@ -40,13 +40,14 @@ pub struct FfiGeometryHostCallbacks {
     context: *mut std::ffi::c_void,
     set_scroll_offset: unsafe extern "C" fn(
         *mut std::ffi::c_void,
+        &crate::render_state::BegunRead,
         crate::layout::node_data::NodeSlotId,
         crate::layout::used_values::FfiCssPixelPoint,
     ),
 }
 
 impl FfiGeometryHostCallbacks {
-    /// Stores a scroll offset the overflow pass settled on, after the pass.
+    /// Stores a scroll offset the overflow pass settled on, after the pass, in `read`.
     ///
     /// # Safety
     ///
@@ -55,10 +56,11 @@ impl FfiGeometryHostCallbacks {
     pub(crate) unsafe fn set_scroll_offset(
         &self,
         _: &crate::stage::MainThread,
+        read: &crate::render_state::BegunRead,
         slot: crate::layout::node_data::NodeSlotId,
         offset: crate::layout::used_values::FfiCssPixelPoint,
     ) {
         // SAFETY: Guaranteed by the caller.
-        unsafe { (self.set_scroll_offset)(self.context, slot, offset) };
+        unsafe { (self.set_scroll_offset)(self.context, read, slot, offset) };
     }
 }

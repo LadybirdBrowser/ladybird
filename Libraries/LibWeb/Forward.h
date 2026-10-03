@@ -956,15 +956,24 @@ class IntersectionObserverEntry;
 
 }
 
+namespace Web::Layout::RustFFI {
+
+struct BegunRead;
+
+}
+
 namespace Web::Layout {
 
 class ImageProvider;
 class Box;
+class ForcedReadScope;
 class Node;
 class NodeArena;
 class NodeWithStyle;
 class TextNode;
 class Viewport;
+
+using BegunRead = RustFFI::BegunRead;
 
 }
 

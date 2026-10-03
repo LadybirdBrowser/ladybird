@@ -28,16 +28,16 @@ NonnullRefPtr<CounterStyle const> CounterStyle::disc()
     return disc_counter_style;
 }
 
-NonnullRefPtr<CounterStyle const> CounterStyle::from_counter_style_definition(CounterStyleDefinition const& definition, StyleScope const& style_scope)
+NonnullRefPtr<CounterStyle const> CounterStyle::from_counter_style_definition(Layout::BegunRead const& read, CounterStyleDefinition const& definition, StyleScope const& style_scope)
 {
     return definition.algorithm().visit(
         [&](CounterStyleSystemStyleValue::Extends const& extends) {
             // NB: The caller should ensure that any dependencies (i.e. counter styles that occur in the extends chain)
             //     of this counter style are registered before this counter style.
-            auto extended_counter_style = style_scope.get_registered_counter_style(extends.name);
+            auto extended_counter_style = style_scope.get_registered_counter_style(read, extends.name);
 
             if (!extended_counter_style)
-                extended_counter_style = style_scope.get_registered_counter_style("decimal"_utf16_fly_string);
+                extended_counter_style = style_scope.get_registered_counter_style(read, "decimal"_utf16_fly_string);
 
             return CounterStyle::create(
                 definition.name(),

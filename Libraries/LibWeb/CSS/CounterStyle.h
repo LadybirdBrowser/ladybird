@@ -23,7 +23,7 @@ namespace Web::CSS {
 class CounterStyle : public RefCounted<CounterStyle> {
 public:
     static NonnullRefPtr<CounterStyle const> disc();
-    static NonnullRefPtr<CounterStyle const> from_counter_style_definition(CounterStyleDefinition const&, StyleScope const&);
+    static NonnullRefPtr<CounterStyle const> from_counter_style_definition(Layout::BegunRead const& read, CounterStyleDefinition const&, StyleScope const&);
 
     static NonnullRefPtr<CounterStyle const> create(Utf16FlyString name, CounterStyleAlgorithm algorithm, CounterStyleNegativeSign negative_sign, Utf16FlyString prefix, Utf16FlyString suffix, Vector<CounterStyleRangeEntry> range, Optional<Utf16FlyString> fallback, CounterStylePad pad)
     {

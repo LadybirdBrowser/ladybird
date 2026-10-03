@@ -426,12 +426,12 @@ void register_layout_host(NodeArena& arena, DOM::Document& document)
     static_assert(to_underlying(SVG::SVGUnits::UserSpaceOnUse) == 1);
     RustFFI::FfiLayoutHostCallbacks callbacks {
         .context = &document,
-        .deliver_commit_messages = [](void* context, RustFFI::FfiCommitMessage const* messages, size_t count) {
+        .deliver_commit_messages = [](void* context, BegunRead const* read, RustFFI::FfiCommitMessage const* messages, size_t count) {
             auto& commit_messages = static_cast<DOM::Document*>(context)->commit_messages();
             for (size_t index = 0; index < count; ++index)
-                commit_messages.append(messages[index]);
+                commit_messages.append(*read, messages[index]);
             // The pass that produced them reads back what they change before it ends.
-            commit_messages.apply(); },
+            commit_messages.apply(*read); },
         .container_length_bases = [](void* document_pointer, u32 style_node) -> RustFFI::FfiContainerLengthBases {
             auto& document = *static_cast<DOM::Document*>(document_pointer);
             auto element = document.style_computer().element_for_style_node(style_node);
@@ -441,10 +441,10 @@ void register_layout_host(NodeArena& arena, DOM::Document& document)
                 .width = CSS::Length(100, CSS::LengthUnit::Cqw).to_px_without_rounding(context),
                 .height = CSS::Length(100, CSS::LengthUnit::Cqh).to_px_without_rounding(context),
             }; },
-        .take_built_scroll_containers = [](void* context, RustFFI::FfiBuiltScrollContainer const* built, size_t count) {
+        .take_built_scroll_containers = [](void* context, BegunRead const* read, RustFFI::FfiBuiltScrollContainer const* built, size_t count) {
             auto& document = *static_cast<DOM::Document*>(context);
             for (auto const& scroll_container : ReadonlySpan<RustFFI::FfiBuiltScrollContainer> { built, count })
-                Painting::take_built_scroll_container(document, scroll_container.slot, scroll_container.is_scroll_snap_container); },
+                Painting::take_built_scroll_container(*read, document, scroll_container.slot, scroll_container.is_scroll_snap_container); },
     };
     RustFFI::document_host_set_layout_host_callbacks(arena.host(), callbacks);
     RustFFI::render_state_set_document_is_decoded_svg(arena.host(), document.is_decoded_svg());

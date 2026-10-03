@@ -32,7 +32,7 @@ WEB_API bool is_scroll_snap_container(Layout::Node const&);
 
 // Registers a scroll container a layout tree build gave a style as a scroll snap container, or forgets its snapped areas
 // if it does not snap.
-WEB_API void take_built_scroll_container(DOM::Document&, Compositing::RustFFI::NodeSlotId, bool is_scroll_snap_container);
+WEB_API void take_built_scroll_container(Layout::BegunRead const&, DOM::Document&, Compositing::RustFFI::NodeSlotId, bool is_scroll_snap_container);
 
 // The geometry snap position selection runs over, collected from the layout of a snap container and of the snap areas
 // it captures.

@@ -37,7 +37,7 @@ CSS::ElementBoxKind SVGGeometryElement::box_kind() const
 // The style of an element outside the document, where no rule reaches it: the style engine cascades its own
 // presentation attributes and inline style over the initial values. The record comes back pinned for the caller, or
 // zero where the engine leaves the computation to C++.
-static CSS::StyleRecordID declared_only_style_record(CSS::StyleComputer& style_computer, DOM::Document const& document, SVGGeometryElement& element)
+static CSS::StyleRecordID declared_only_style_record(Layout::BegunRead const& read, CSS::StyleComputer& style_computer, DOM::Document const& document, SVGGeometryElement& element)
 {
     auto hints = CSS::StyleComputer::collect_presentational_hint_properties({ element });
     Vector<CSS::Parser::ValueParserFFI::FfiDeclaredProperty> declarations;
@@ -53,7 +53,7 @@ static CSS::StyleRecordID declared_only_style_record(CSS::StyleComputer& style_c
     auto inline_style = element.inline_style();
     return CSS::StyleRecordID { CSS::StyleEngineFFI::style_engine_declared_only_record(
         style_computer.style_engine().host(),
-        document.style_node_id().value(),
+        &read, document.style_node_id().value(),
         CSS::element_box_type_adjustment_facts(element),
         CSS::StyleEngineFFI::FfiElementDeclarationKind::SvgPresentationAttribute,
         declarations.data(),
@@ -68,9 +68,10 @@ WebIDL::ExceptionOr<float> SVGGeometryElement::get_total_length()
     // is returned.
 
     // NB: Update layout so that the viewport size is resolved correctly
+    Layout::ForcedReadScope read { document(), true };
     document().update_layout(DOM::UpdateLayoutReason::SVGPathLength);
 
-    auto viewport_size = viewport_size_for_percentage_resolution();
+    auto viewport_size = viewport_size_for_percentage_resolution(read);
 
     // NB: Update style for the element so that the correct computed values are used to generate the path - this is done
     //     separately from the layout update above since it may have been skipped if the element was display: none.
@@ -89,14 +90,16 @@ WebIDL::ExceptionOr<float> SVGGeometryElement::get_total_length()
     auto const has_no_style_node = style_node_id() == CSS::StyleNodeID {};
     auto& style_document = has_no_style_node ? HTML::relevant_window(*this).associated_document() : document();
     auto& style_computer = style_document.style_computer();
+    // The style comes from the engine of the document that computes it, as that document's read.
+    Layout::ForcedReadScope style_read { style_document, true };
     auto record = has_no_style_node
-        ? declared_only_style_record(style_computer, style_document, *this)
-        : CSS::StyleRecordID { style_computer.style_engine().answer_record_demand(style_node_id(), CSS::StyleEngine::RecordDemand::ElementRead).record.style_record };
+        ? declared_only_style_record(style_read, style_computer, style_document, *this)
+        : CSS::StyleRecordID { style_computer.style_engine().answer_record_demand(style_read, style_node_id(), CSS::StyleEngine::RecordDemand::ElementRead).record.style_record };
     ScopeGuard unpin_record = [&] {
         if (has_no_style_node && !!record)
             style_computer.unpin_style_record(record);
     };
-    auto view = style_computer.computed_style_record_view(record);
+    auto view = style_computer.computed_style_record_view(style_read, record);
     if (!view)
         return 0;
     return get_path({ viewport_size.width(), viewport_size.height() }, *view).length();

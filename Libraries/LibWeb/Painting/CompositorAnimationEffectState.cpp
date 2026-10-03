@@ -114,7 +114,7 @@ CompositorAnimationKeyframes::CompositorAnimationKeyframes(Animations::KeyframeE
 
 CompositorAnimationKeyframes::~CompositorAnimationKeyframes() = default;
 
-static RefPtr<CSS::StyleValue const> resolved_compositor_animation_style_value(CSS::PropertyID property_id, CSS::RustStyleValueHandle const& value, DOM::AbstractElement target)
+static RefPtr<CSS::StyleValue const> resolved_compositor_animation_style_value(Layout::BegunRead const& read, CSS::PropertyID property_id, CSS::RustStyleValueHandle const& value, DOM::AbstractElement target)
 {
     ++target.document().style_invalidation_counters().compositor_keyframe_value_resolutions;
     auto style_value = CSS::StyleValue::adopt_rust_style_value_data(CSS::StyleValueFFI::rust_style_value_retain(value.data()));
@@ -126,7 +126,7 @@ static RefPtr<CSS::StyleValue const> resolved_compositor_animation_style_value(C
         auto inheritance_custom_property_data = inheritance_parent.has_value() ? inheritance_parent->custom_property_data() : nullptr;
         auto const* substituted = CSS::StyleValueFFI::rust_substitute_compositor_keyframe_value(
             target.document().style_computer().style_engine().host(),
-            target.element().style_node_id().value(),
+            &read, target.element().style_node_id().value(),
             CSS::pseudo_element_to_ffi(target.pseudo_element()),
             custom_property_data ? custom_property_data->rust_store() : nullptr,
             inheritance_custom_property_data ? inheritance_custom_property_data->rust_store() : nullptr,
@@ -145,9 +145,15 @@ static RefPtr<CSS::StyleValue const> resolved_compositor_animation_style_value(C
     return style_value->absolutized(computation_context);
 }
 
+// What a build lends the callbacks the animation's host makes: the keyframes it builds from, in the read it builds in.
+struct CompositorAnimationBuild {
+    CompositorAnimationKeyframes::Data& data;
+    Layout::BegunRead const& read;
+};
+
 static void const* resolved_compositor_keyframe_value(void* context, size_t keyframe_index, u16 property_id, bool uses_underlying_style)
 {
-    auto& data = *static_cast<CompositorAnimationKeyframes::Data*>(context);
+    auto& [data, read] = *static_cast<CompositorAnimationBuild*>(context);
     auto property = static_cast<CSS::PropertyID>(property_id);
     RefPtr<CSS::StyleValue const> style_value;
     if (uses_underlying_style) {
@@ -160,7 +166,7 @@ static void const* resolved_compositor_keyframe_value(void* context, size_t keyf
         auto value = data.entries[keyframe_index]->properties.get(CSS::PropertyNameAndID::from_id(property));
         if (!value.has_value() || !value->has<CSS::RustStyleValueHandle>())
             return nullptr;
-        style_value = resolved_compositor_animation_style_value(property, value->get<CSS::RustStyleValueHandle>(), data.target);
+        style_value = resolved_compositor_animation_style_value(read, property, value->get<CSS::RustStyleValueHandle>(), data.target);
     }
     if (!style_value)
         return nullptr;
@@ -169,7 +175,7 @@ static void const* resolved_compositor_keyframe_value(void* context, size_t keyf
 
 static bool resolve_compositor_animation_color(void* context, void const* value, Gfx::Color* color)
 {
-    auto& data = *static_cast<CompositorAnimationKeyframes::Data*>(context);
+    auto& data = static_cast<CompositorAnimationBuild*>(context)->data;
     auto style_value = CSS::StyleValue::adopt_rust_style_value_data(CSS::StyleValueFFI::rust_style_value_retain(static_cast<CSS::StyleValueFFI::StyleValueData const*>(value)));
     auto resolved = style_value->to_color(CSS::ColorResolutionContext::for_element(data.target));
     if (!resolved.has_value())
@@ -178,10 +184,10 @@ static bool resolve_compositor_animation_color(void* context, void const* value,
     return true;
 }
 
-static Layout::RustFFI::FfiCompositorAnimationHost compositor_animation_host(CompositorAnimationKeyframes::Data& data)
+static Layout::RustFFI::FfiCompositorAnimationHost compositor_animation_host(CompositorAnimationBuild& lent)
 {
     return {
-        .context = &data,
+        .context = &lent,
         .resolved_keyframe_value = resolved_compositor_keyframe_value,
         .resolve_color = resolve_compositor_animation_color,
     };
@@ -229,15 +235,17 @@ static Layout::RustFFI::FfiCompositorAnimationRequest compositor_animation_reque
 
 bool CompositorAnimationKeyframes::transform_preserves_axes(Layout::Node const& layout_node) const
 {
+    CompositorAnimationBuild lent { *m_data, layout_node.held_read() };
     auto request = compositor_animation_request(*m_data, layout_node, Compositing::RustFFI::FfiVisualAnimationTargetKind::Transform);
-    auto host = compositor_animation_host(*m_data);
+    auto host = compositor_animation_host(lent);
     return Layout::RustFFI::compositor_animation_effect_transform_preserves_axes(&request, &host);
 }
 
 bool CompositorAnimationKeyframes::only_translates_horizontally(Layout::Node const& layout_node) const
 {
+    CompositorAnimationBuild lent { *m_data, layout_node.held_read() };
     auto request = compositor_animation_request(*m_data, layout_node, Compositing::RustFFI::FfiVisualAnimationTargetKind::Transform);
-    auto host = compositor_animation_host(*m_data);
+    auto host = compositor_animation_host(lent);
     return Layout::RustFFI::compositor_animation_effect_only_translates_horizontally(&request, &host);
 }
 
@@ -256,7 +264,7 @@ CompositorAnimationEffectState::~CompositorAnimationEffectState()
     Layout::RustFFI::compositor_animation_effect_state_destroy(m_handle);
 }
 
-CompositorAnimationEffectState::BuildOutcome CompositorAnimationEffectState::build(CompositorAnimationKeyframes const& keyframes, Layout::Node const& layout_node, Compositing::RustFFI::FfiVisualAnimationTargetKind target_kind, TimingAnchor timing_anchor)
+CompositorAnimationEffectState::BuildOutcome CompositorAnimationEffectState::build(Layout::BegunRead const& read, CompositorAnimationKeyframes const& keyframes, Layout::Node const& layout_node, Compositing::RustFFI::FfiVisualAnimationTargetKind target_kind, TimingAnchor timing_anchor)
 {
     auto& data = *keyframes.m_data;
     auto const& effect = *data.effect;
@@ -275,7 +283,8 @@ CompositorAnimationEffectState::BuildOutcome CompositorAnimationEffectState::bui
         : Compositing::RustFFI::FfiVisualAnimationFillMode::None;
     request.timing.easing = CSS::to_ffi_easing_descriptor<Compositing::RustFFI::FfiEasingDescriptor>(effect.timing_function(), effect_easing_points);
 
-    auto host = compositor_animation_host(data);
+    CompositorAnimationBuild lent { data, read };
+    auto host = compositor_animation_host(lent);
     auto outcome = Layout::RustFFI::compositor_animation_effect_build(m_handle, document_host(data.target.document()), &request, &host);
     return {
         .built = outcome.built,

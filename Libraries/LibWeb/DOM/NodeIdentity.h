@@ -39,7 +39,9 @@ public:
 
     [[nodiscard]] GC::Ptr<Node> resolve(Document&) const;
     // The layout node the arena has bound to this identity's node, if any. No DOM node is asked for its layout node.
-    [[nodiscard]] Layout::Node* bound_layout_node(Layout::NodeArena&) const;
+    [[nodiscard]] Layout::Node* bound_layout_node(Layout::BegunRead const& read, Layout::NodeArena&) const;
+    // Whether `layout_node`, which the caller holds, is the one the arena has bound to this identity's node.
+    [[nodiscard]] bool binds(Layout::Node const& layout_node) const;
 
 private:
     enum class Kind : u8 {

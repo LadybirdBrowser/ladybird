@@ -324,7 +324,7 @@ static void encode_empty_list_item_boundaries(DOM::Range const& range, DOM::Docu
     }
 }
 
-static void classify_cloned_text_for_interchange(StyledMarkupAccumulator const& accumulator,
+static void classify_cloned_text_for_interchange(Layout::BegunRead const& read, StyledMarkupAccumulator const& accumulator,
     GC::RootVector<GC::Ref<DOM::Text>>& text_with_preserved_breaks,
     GC::RootVector<GC::Ref<DOM::Text>>& unrendered_text)
 {
@@ -332,7 +332,7 @@ static void classify_cloned_text_for_interchange(StyledMarkupAccumulator const& 
         auto white_space_collapse = resolved_keyword(*text.source, CSS::PropertyID::WhiteSpaceCollapse);
         if (white_space_collapse.has_value() && white_space_collapse != CSS::Keyword::Collapse) {
             text_with_preserved_breaks.append(*text.serialized);
-        } else if (collect_visual_lines(*text.source).is_empty()) {
+        } else if (collect_visual_lines(read, *text.source).is_empty()) {
             unrendered_text.append(*text.serialized);
         }
     }
@@ -387,6 +387,7 @@ Utf16String serialize_styled_markup_for_clipboard(DOM::Range& range)
     if (range.collapsed())
         return {};
 
+    Layout::ForcedReadScope read { range.start_container()->document(), true };
     range.start_container()->document().update_layout_if_needed_for_node(range.common_ancestor_container(), DOM::UpdateLayoutReason::NavigableSelectedText);
     StyledMarkupSelection selection { range };
     // INTEROP: Blink and WebKit represent a selection containing exactly one rendered paragraph boundary with a
@@ -397,7 +398,7 @@ Utf16String serialize_styled_markup_for_clipboard(DOM::Range& range)
     auto fragment = accumulator.fragment();
     GC::RootVector<GC::Ref<DOM::Text>> text_with_preserved_breaks;
     GC::RootVector<GC::Ref<DOM::Text>> unrendered_text;
-    classify_cloned_text_for_interchange(accumulator, text_with_preserved_breaks, unrendered_text);
+    classify_cloned_text_for_interchange(read, accumulator, text_with_preserved_breaks, unrendered_text);
     // INTEROP: A range ending at offset zero has not entered its final text run. Blink keeps a selected leading
     //          paragraph boundary at the fragment edge in that case, while ranges containing final-run text move the
     //          boundary into the selected structure. Preserve that distinction after removing unrendered edge text.

@@ -202,6 +202,7 @@ enum class UpdateLayoutReason {
 }
 
 [[nodiscard]] Utf16View to_string(UpdateLayoutReason);
+[[nodiscard]] bool reason_is_script_api(UpdateLayoutReason);
 
 #define ENUMERATE_PARTIAL_RELAYOUT_ESCAPE_REASONS(X) \
     X(AnchorNamesUnregisteredByElementRemoval)       \
@@ -399,8 +400,8 @@ public:
 
     void set_highlighted_node(GC::Ptr<Node>, Optional<CSS::PseudoElement>);
     GC::Ptr<Node const> highlighted_node() const { return m_highlighted_node; }
-    Layout::Node* highlighted_layout_node();
-    Layout::Node const* highlighted_layout_node() const { return const_cast<Document*>(this)->highlighted_layout_node(); }
+    Layout::Node* highlighted_layout_node(Layout::BegunRead const& read);
+    Layout::Node const* highlighted_layout_node(Layout::BegunRead const& read) const { return const_cast<Document*>(this)->highlighted_layout_node(read); }
     void set_flexbox_highlighted_node(GC::Ptr<Node>, Painting::FlexboxInspectorOverlayOptions);
     void clear_flexbox_highlighted_node(GC::Ptr<Node>);
     void set_grid_highlighted_node(GC::Ptr<Node>, Painting::GridInspectorOverlayOptions);
@@ -462,10 +463,10 @@ public:
     Page const& page() const;
     GC::Ref<EventTarget> relevant_global_event_target() const { return m_relevant_global_event_target; }
 
-    Color background_color() const;
-    Color canvas_background_color() const;
-    CSS::PreferredColorScheme canvas_color_scheme() const;
-    CSS::ImageRendering background_image_rendering() const;
+    Color background_color(Layout::BegunRead const& read) const;
+    Color canvas_background_color(Layout::BegunRead const& read) const;
+    CSS::PreferredColorScheme canvas_color_scheme(Layout::BegunRead const& read) const;
+    CSS::ImageRendering background_image_rendering(Layout::BegunRead const& read) const;
 
     Optional<Color> normal_link_color() const;
     void set_normal_link_color(Optional<Color>);
@@ -484,16 +485,16 @@ public:
     void set_supported_color_schemes(Optional<Vector<Utf16FlyString>>, bool only = false);
     void obtain_supported_color_schemes();
 
-    void obtain_theme_color();
+    void obtain_theme_color(Layout::BegunRead const& read);
 
     void update_style();
     // A style update, or a read of style or layout, joins the style transaction that flew beside the event loop first,
     // and drains its reactions against the inputs it was sealed with: what was written beside it is the next
     // transaction's. Where none flew, that is one test.
-    void drain_flown_style_transaction()
+    void drain_flown_style_transaction(Layout::BegunRead const& read)
     {
         if (m_has_flown_style_transaction) [[unlikely]]
-            drain_style_transaction_that_flew();
+            drain_style_transaction_that_flew(read);
     }
     // Whether a style transaction flew whose reactions no style update has drained yet.
     bool has_flown_style_transaction() const { return m_has_flown_style_transaction; }
@@ -532,13 +533,13 @@ public:
     };
     void update_layout(UpdateLayoutReason);
     void update_layout(UpdateLayoutReason, ThrottledAnimationSamplingScope);
-    void update_style_and_layout_once(UpdateLayoutReason, ThrottledAnimationSamplingScope);
+    void update_style_and_layout_once(Layout::BegunRead const&, UpdateLayoutReason, ThrottledAnimationSamplingScope);
     void update_layout_if_needed_for_node(Node const&, UpdateLayoutReason);
     [[nodiscard]] u64 partial_layout_count() const;
     [[nodiscard]] u64 full_layout_count() const;
     [[nodiscard]] bool layout_is_up_to_date() const;
     void clear_devtools_layout_inspection_data();
-    void prepare_for_rendering();
+    void prepare_for_rendering(Layout::BegunRead const& read);
     void update_paint_and_hit_testing_properties_if_needed();
     void sample_animation_effects_needing_style_update();
     void update_style_computer_viewport_rect();
@@ -553,7 +554,7 @@ public:
 
     // The marks the DOM side has made on this document's layout and paint state but not written there yet.
     [[nodiscard]] InvalidationJournal& invalidation_journal() { return *m_invalidation_journal; }
-    void drain_invalidation_journal() const;
+    void drain_invalidation_journal(Layout::BegunRead const&) const;
     // What layout has told this document and the document has not acted on yet.
     [[nodiscard]] CommitMessages& commit_messages() { return *m_commit_messages; }
 
@@ -563,11 +564,11 @@ public:
 
     virtual bool is_child_allowed(Node const&) const override;
 
-    Layout::Viewport const* layout_node() const;
-    Layout::Viewport* layout_node();
+    Layout::Viewport const* layout_node(Layout::BegunRead const& read) const;
+    Layout::Viewport* layout_node(Layout::BegunRead const& read);
 
-    Layout::Viewport const* unsafe_layout_node() const;
-    Layout::Viewport* unsafe_layout_node();
+    Layout::Viewport const* unsafe_layout_node(Layout::BegunRead const& read) const;
+    Layout::Viewport* unsafe_layout_node(Layout::BegunRead const& read);
     bool has_committed_viewport_box() const;
 
     Painting::DocumentPaintState& paint_state();
@@ -575,7 +576,6 @@ public:
     // Whether the last layout committed a box whose `content-visibility` is `auto`.
     bool has_boxes_with_auto_content_visibility() const;
     Compositing::AccumulatedVisualContextTree visual_context_tree() const;
-    u64 visual_context_tree_structural_epoch() const;
     Compositing::ScrollStateSnapshot const& scroll_state_snapshot() const;
 
     GC::Ref<NodeList> get_elements_by_name(Utf16View);
@@ -820,7 +820,7 @@ public:
 
     void evaluate_media_queries_and_report_changes();
     bool needs_media_rule_evaluation() const { return m_needs_media_rule_evaluation; }
-    void evaluate_media_rules_for_style_update() { evaluate_media_rules(); }
+    void evaluate_media_rules_for_style_update(Layout::BegunRead const& read) { evaluate_media_rules(read); }
     void set_needs_media_query_evaluation()
     {
         m_needs_media_query_list_evaluation = true;
@@ -889,9 +889,9 @@ public:
     }
     void set_needs_registered_properties_cache_update() { m_needs_registered_properties_cache_update = true; }
     void set_needs_container_query_evaluation_after_layout(Element const& query_container);
-    [[nodiscard]] bool has_size_containers_needing_evaluation_after_layout() const;
+    [[nodiscard]] bool has_size_containers_needing_evaluation_after_layout(Layout::BegunRead const& read) const;
 
-    [[nodiscard]] bool needs_full_layout_tree_update() const;
+    [[nodiscard]] bool needs_full_layout_tree_update(Layout::BegunRead const& read) const;
     void set_needs_full_layout_tree_update(bool);
 
     CSS::ScrollStateQueryContainers& scroll_state_query_containers() { return m_scroll_state_query_containers; }
@@ -1084,7 +1084,7 @@ public:
     void append_pending_animation_event(PendingAnimationEvent const&);
     void update_animations_and_send_events(double timestamp);
     void prepare_to_observe_css_animation_events();
-    void update_compositor_animations();
+    void update_compositor_animations(Layout::BegunRead const& read);
     void dispatch_events_for_animation_if_necessary(GC::Ref<Animations::Animation>);
     void remove_replaced_animations();
 
@@ -1212,7 +1212,7 @@ public:
         u64 style_values_microseconds { 0 };
     };
     StyleInvalidationCounters& style_invalidation_counters() const { return m_style_invalidation_counters; }
-    void reset_style_invalidation_counters() const;
+    void reset_style_invalidation_counters(Layout::BegunRead const& read) const;
 
     // Confinement report of the most recent layout tree build, for tests observing whether a
     // partial rebuild stayed inside its rebuilt subtrees.
@@ -1229,10 +1229,9 @@ public:
     void register_svg_pattern_element(Badge<SVG::SVGPatternElement>, SVG::SVGPatternElement&);
     void unregister_svg_pattern_element(Badge<SVG::SVGPatternElement>, SVG::SVGPatternElement&);
     void republish_svg_patterns_inheriting_from(Utf16FlyString const& id);
-    bool has_enrolled_svg_paint_resources() const;
     void schedule_full_accumulated_visual_context_rebuild(Layout::RustFFI::FfiVisualContextGlobalRebuildReason);
     bool can_compute_client_rects_without_accumulated_visual_contexts_update(Layout::Node const&) const;
-    void schedule_accumulated_visual_context_update(Element&, AccumulatedVisualContextUpdateScope);
+    void schedule_accumulated_visual_context_update(Layout::BegunRead const& read, Element&, AccumulatedVisualContextUpdateScope);
     void schedule_accumulated_visual_context_update(Layout::Node const&, AccumulatedVisualContextUpdateScope);
 
     Compositing::SnappedAreas const& snapped_areas_of_scroll_container(Web::AsyncScrollNodeStableID const&) const;
@@ -1260,7 +1259,7 @@ public:
     [[nodiscard]] bool may_have_dom_paint_facts() const { return m_may_have_dom_paint_facts; }
 
     void register_scroll_snap_container(Layout::Node const&);
-    [[nodiscard]] Vector<Compositing::RustFFI::NodeSlotId> collect_scroll_snap_containers();
+    [[nodiscard]] Vector<Compositing::RustFFI::NodeSlotId> collect_scroll_snap_containers(Layout::BegunRead const& read);
 
     virtual Vector<Utf16FlyString> supported_property_names() const override;
     Vector<GC::Ref<DOM::Element>> const& potentially_named_elements() const { return m_potentially_named_elements; }
@@ -1268,7 +1267,7 @@ public:
     static bool is_named_element_with_name(Element const&, Utf16FlyString const&);
 
     void gather_active_observations_at_depth(size_t depth);
-    [[nodiscard]] size_t broadcast_active_resize_observations();
+    [[nodiscard]] size_t broadcast_active_resize_observations(Layout::BegunRead const& read);
     [[nodiscard]] bool has_active_resize_observations();
     [[nodiscard]] bool has_skipped_resize_observations();
 
@@ -1279,7 +1278,7 @@ public:
 
     void register_shadow_root(Badge<DOM::ShadowRoot>, DOM::ShadowRoot&);
     void unregister_shadow_root(Badge<DOM::ShadowRoot>, DOM::ShadowRoot&);
-    void publish_animation_keyframes_for_style_update();
+    void publish_animation_keyframes_for_style_update(Layout::BegunRead const& read);
     template<typename Callback>
     void for_each_shadow_root(Callback&& callback)
     {
@@ -1323,7 +1322,7 @@ public:
 
     size_t transition_generation() const { return m_transition_generation; }
     void begin_style_stabilization_epoch();
-    void record_style_stabilization_pass();
+    void record_style_stabilization_pass(Layout::BegunRead const& read);
     void end_style_stabilization_epoch();
     void note_style_stabilization_has_style_reactions()
     {
@@ -1366,22 +1365,22 @@ public:
     void request_frame_for_pending_repaint(Badge<InvalidationJournal>) { request_frame_for_pending_repaint(); }
 
     // Records the document's display list in step with the host, once a recording in flight has been taken in.
-    RefPtr<Compositing::DisplayList> record_display_list(HTML::PaintConfig, Compositing::DisplayListResourceStorage&, Painting::PaintCommandCacheMode);
+    RefPtr<Compositing::DisplayList> record_display_list(Layout::BegunRead const& read, HTML::PaintConfig, Compositing::DisplayListResourceStorage&, Painting::PaintCommandCacheMode);
     // Starts recording the document's display list as the document is now, beside the event loop where `blocker` is
     // none, and makes the display list of a recording that has landed and stands.
-    Optional<Painting::DisplayListRecording> start_display_list_recording(HTML::PaintConfig, Painting::PaintCommandCacheMode, Layout::RustFFI::FfiFlightBlocker);
-    RefPtr<Compositing::DisplayList> finish_display_list_recording(Painting::DisplayListRecording const&, Compositing::DisplayListResourceStorage&);
-    Optional<Painting::HitTestQuery> prepare_hit_test_query();
-    Optional<Painting::HitTestResult> hit_test(CSSPixelPoint);
-    Optional<Painting::CaretPosition> caret_position_from_point(CSSPixelPoint);
-    Optional<Painting::CaretPosition> caret_position_from_point_for_selection_start(CSSPixelPoint);
-    Optional<Painting::CaretPosition> caret_position_from_point_for_selection(CSSPixelPoint, GC::Ptr<Node const> constraint_scope = nullptr);
-    Optional<Painting::CaretPosition> caret_position_at_line_edge(Node const&, size_t offset, TextAffinity, Painting::CaretLineEdge);
-    Optional<Painting::CaretPosition> caret_position_on_adjacent_line(Node const&, size_t offset, TextAffinity, Painting::CaretLineDirection, CSSPixels inline_coordinate, Node const& scope);
-    Optional<CSSPixels> caret_line_block_coordinate(Node const&, size_t offset, TextAffinity);
+    Optional<Painting::DisplayListRecording> start_display_list_recording(Layout::BegunRead const& read, HTML::PaintConfig, Painting::PaintCommandCacheMode, Layout::RustFFI::FfiFlightBlocker);
+    RefPtr<Compositing::DisplayList> finish_display_list_recording(Layout::BegunRead const& read, Painting::DisplayListRecording const&, Compositing::DisplayListResourceStorage&);
+    Optional<Painting::HitTestQuery> prepare_hit_test_query(Layout::BegunRead const& read);
+    Optional<Painting::HitTestResult> hit_test(Layout::BegunRead const& read, CSSPixelPoint);
+    Optional<Painting::CaretPosition> caret_position_from_point(Layout::BegunRead const& read, CSSPixelPoint);
+    Optional<Painting::CaretPosition> caret_position_from_point_for_selection_start(Layout::BegunRead const& read, CSSPixelPoint);
+    Optional<Painting::CaretPosition> caret_position_from_point_for_selection(Layout::BegunRead const& read, CSSPixelPoint, GC::Ptr<Node const> constraint_scope = nullptr);
+    Optional<Painting::CaretPosition> caret_position_at_line_edge(Layout::BegunRead const& read, Node const&, size_t offset, TextAffinity, Painting::CaretLineEdge);
+    Optional<Painting::CaretPosition> caret_position_on_adjacent_line(Layout::BegunRead const& read, Node const&, size_t offset, TextAffinity, Painting::CaretLineDirection, CSSPixels inline_coordinate, Node const& scope);
+    Optional<CSSPixels> caret_line_block_coordinate(Layout::BegunRead const& read, Node const&, size_t offset, TextAffinity);
     using CaretPositionFromPointOptions = Bindings::CaretPositionFromPointOptions;
     GC::Ptr<CaretPosition> caret_position_from_point(double x, double y, CaretPositionFromPointOptions const&);
-    TraversalDecision hit_test_all(CSSPixelPoint, Function<TraversalDecision(Painting::HitTestResult)> const&);
+    TraversalDecision hit_test_all(Layout::BegunRead const& read, CSSPixelPoint, Function<TraversalDecision(Painting::HitTestResult)> const&);
 
     void set_caret_hit_test_debug_rect(Optional<CSSPixelRect>);
 
@@ -1562,7 +1561,7 @@ protected:
 private:
     // Whether nothing this document has pending could change layout geometry: style, layout and every input
     // that feeds them are settled.
-    [[nodiscard]] bool is_clean_for_layout_geometry_read() const;
+    [[nodiscard]] bool is_clean_for_layout_geometry_read(Layout::BegunRead const& read) const;
 
     void did_add_supported_property_name();
     friend struct AdoptedStyleSheetsAccess;
@@ -1572,7 +1571,7 @@ private:
     void finish_animated_style_update();
     void service_compositor_animation_wakeup(double timestamp);
 
-    void drain_style_transaction_that_flew();
+    void drain_style_transaction_that_flew(Layout::BegunRead const&);
 
     GC::Ref<WebIDL::ObservableArray> adopted_style_sheets() const;
 
@@ -1589,28 +1588,29 @@ private:
 
     // The row the document's layout tree is rooted at. The tree build records it in the arena, so
     // the document keeps no copy of its own.
-    [[nodiscard]] Compositing::RustFFI::NodeSlotId layout_root_slot() const;
-    [[nodiscard]] bool has_layout_root() const { return layout_root_slot().index != Compositing::RustFFI::INVALID_NODE_SLOT_INDEX; }
-    [[nodiscard]] Layout::Node* layout_root_if_live() const;
+    [[nodiscard]] Compositing::RustFFI::NodeSlotId layout_root_slot(Layout::BegunRead const& read) const;
+    // The layout node arena reports the presence of the viewport's box, the layout tree's root, as it builds it.
+    [[nodiscard]] bool has_layout_root() const { return has_layout_box(); }
+    [[nodiscard]] Layout::Node* layout_root_if_live(Layout::BegunRead const& read) const;
     void tear_down_layout_tree();
-    void process_pending_top_layer_layout_changes();
+    void process_pending_top_layer_layout_changes(Layout::BegunRead const& read);
 
     void update_active_element();
-    void collect_boxes_with_auto_content_visibility();
-    bool needs_style_update_after_layout();
+    void collect_boxes_with_auto_content_visibility(Layout::BegunRead const& read);
+    bool needs_style_update_after_layout(Layout::BegunRead const& read);
     Layout::RustFFI::FfiLayoutUpdateHostCallbacks layout_update_host_callbacks();
 
     void process_pending_list_item_renumbers();
-    bool reconcile_stale_list_item_counters_after_tree_build();
+    bool reconcile_stale_list_item_counters_after_tree_build(Layout::BegunRead const& read);
     enum class LayoutTreeChanged : u8 {
         No,
         Yes,
     };
-    void after_layout_commit(LayoutTreeChanged);
+    void after_layout_commit(Layout::BegunRead const& read, LayoutTreeChanged);
 
     void run_unloading_cleanup_steps();
 
-    void evaluate_media_rules();
+    void evaluate_media_rules(Layout::BegunRead const& read);
 
     enum class AddLineFeed {
         Yes,

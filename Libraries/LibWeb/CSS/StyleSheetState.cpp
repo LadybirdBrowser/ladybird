@@ -31,6 +31,7 @@
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/Infra/SerializedURL.h>
+#include <LibWeb/Layout/RenderDocument.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
@@ -700,7 +701,9 @@ bool StyleSheetState::evaluate_media_queries(DOM::Document const& document, Pars
         state = m_document_media_states.end() - 1;
     }
     MediaEnvironmentSnapshot environment { document };
-    result = Parser::ValueParserFFI::rust_style_sheet_evaluate_media_queries(m_native_sheet.handle(), environment.ffi_environment(), (*state)->state, mutable_document.style_computer().style_engine().host());
+    // Which conditions changed is the evaluation's own read of the render state.
+    Layout::ForcedReadScope read { document, false };
+    result = Parser::ValueParserFFI::rust_style_sheet_evaluate_media_queries(m_native_sheet.handle(), environment.ffi_environment(), (*state)->state, mutable_document.style_computer().style_engine().host(), read);
     if (result.sheet_changed)
         record_conditions_for_owners();
     if (result.any_changed) {

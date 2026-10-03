@@ -26,6 +26,7 @@ const MAIN_THREAD_FFI_ENTRY: MainThreadFfiEntry = MainThreadFfiEntry { _private:
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn render_state_detach_remaining_rows_for_removal(
     host: *const crate::render_state::DocumentHost,
+    read: &crate::render_state::BegunRead,
     style_node: u32,
 ) {
     let Some(node) = StyleNodeID::from_raw(style_node) else {
@@ -35,6 +36,7 @@ pub unsafe extern "C" fn render_state_detach_remaining_rows_for_removal(
     // SAFETY: Guaranteed by the caller.
     let host = unsafe { &*host };
     let written = crate::layout::layout_changes::write(
+        read,
         host,
         crate::layout::layout_changes::LayoutWrite::DetachRemainingRowsForRemoval(node),
     );

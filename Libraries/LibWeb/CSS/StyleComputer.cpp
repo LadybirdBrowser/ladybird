@@ -202,11 +202,11 @@ Parser::ValueParserFFI::FfiMediaEnvironment const* StyleComputer::ensure_media_e
     return &*m_style_update_ffi_media_environment;
 }
 
-ComputedStyleRecordView StyleComputer::computed_style_record_view(StyleRecordID style_record_identity) const
+ComputedStyleRecordView StyleComputer::computed_style_record_view(Layout::BegunRead const& read, StyleRecordID style_record_identity) const
 {
     if (!style_record_identity)
         return {};
-    auto view = m_style_engine.style_record_view(style_record_identity);
+    auto view = m_style_engine.style_record_view(read, style_record_identity);
     if (!view.present)
         return {};
     bool owns_style_record_pin = m_style_record_view_epoch_depth == 0 || view.animation_overlay_identity != 0;
@@ -217,11 +217,11 @@ ComputedStyleRecordView StyleComputer::computed_style_record_view(StyleRecordID 
     return ComputedStyleRecordView { view, *this, style_record_identity, owns_style_record_pin };
 }
 
-void const* StyleComputer::style_record_payloads(StyleRecordID style_record_identity) const
+void const* StyleComputer::style_record_payloads(Layout::BegunRead const& read, StyleRecordID style_record_identity) const
 {
     if (!style_record_identity)
         return nullptr;
-    return m_style_engine.style_record_payloads(style_record_identity);
+    return m_style_engine.style_record_payloads(read, style_record_identity);
 }
 
 void StyleComputer::pin_style_record(StyleRecordID style_record_identity) const
@@ -534,24 +534,24 @@ void StyleComputer::for_each_property_expanding_shorthands(PropertyID property_i
     }
 }
 
-static RefPtr<CustomPropertyData const> inheritable_custom_property_data(DOM::AbstractElement abstract_element)
+static RefPtr<CustomPropertyData const> inheritable_custom_property_data(Layout::BegunRead const& read, DOM::AbstractElement abstract_element)
 {
     auto data = abstract_element.custom_property_data();
     if (!data)
         return nullptr;
-    return data->inheritable(abstract_element.document());
+    return data->inheritable(read, abstract_element.document());
 }
 
-void StyleComputer::collect_animations_into(DOM::AbstractElement abstract_element, ReadonlySpan<GC::Ref<Animations::KeyframeEffect>> effects, ComputedStyleWorkingSet& computed_properties, AnimationRefresh refresh) const
+void StyleComputer::collect_animations_into(Layout::BegunRead const& read, DOM::AbstractElement abstract_element, ReadonlySpan<GC::Ref<Animations::KeyframeEffect>> effects, ComputedStyleWorkingSet& computed_properties, AnimationRefresh refresh) const
 {
     if (refresh == AnimationRefresh::No) {
-        collect_animation_effects_into(abstract_element, effects, computed_properties, {});
+        collect_animation_effects_into(read, abstract_element, effects, computed_properties, {});
         publish_animated_custom_properties(computed_properties, abstract_element);
         return;
     }
     m_keyframes_inherited_non_inherited_style_groups = 0;
     // A refresh samples over the record the element holds, which the working set was reconstructed from.
-    collect_animation_effects_into(abstract_element, effects, computed_properties, abstract_element.style_record_identity());
+    collect_animation_effects_into(read, abstract_element, effects, computed_properties, abstract_element.style_record_identity());
     publish_animated_custom_properties(computed_properties, abstract_element);
     // An animation-only overlay update resolves keyframe values just like a full style computation does, so a
     // keyframe-borne `inherit` on a non-inherited property discovered here must leave the same invalidation
@@ -563,16 +563,16 @@ void StyleComputer::collect_animations_into(DOM::AbstractElement abstract_elemen
     }
     if (computed_properties.requires_animated_post_compute_adjustments()) {
         computed_properties.prepare_for_animated_post_compute_adjustments(Badge<StyleComputer> {});
-        finalize_style(computed_properties, abstract_element, ComputedValuesFFI::FfiStyleFinalizationMode::AnimatedBoxType);
+        finalize_style(read, computed_properties, abstract_element, ComputedValuesFFI::FfiStyleFinalizationMode::AnimatedBoxType);
     }
 }
 
-void StyleComputer::collect_animation_effects_into(DOM::AbstractElement abstract_element, ReadonlySpan<GC::Ref<Animations::KeyframeEffect>> effects, ComputedStyleWorkingSet& computed_properties, StyleRecordID sampled_style_record) const
+void StyleComputer::collect_animation_effects_into(Layout::BegunRead const& read, DOM::AbstractElement abstract_element, ReadonlySpan<GC::Ref<Animations::KeyframeEffect>> effects, ComputedStyleWorkingSet& computed_properties, StyleRecordID sampled_style_record) const
 {
     // The style engine samples each effect from the description it holds of it, kept current here, right before
     // the element is sampled.
     auto const animation_slot = abstract_element.pseudo_element().map([](auto pseudo_element) { return static_cast<u8>(to_underlying(pseudo_element) + 1); }).value_or(0);
-    record_element_animation_effect_descriptions(abstract_element.element(), animation_slot, effects);
+    record_element_animation_effect_descriptions(read, abstract_element.element(), animation_slot, effects);
 
     // The effects and the key each samples at are the host's; what their keyframes compute to is the engine's.
     Vector<ComputedValuesFFI::FfiSampledAnimationEffect, 1> sampled_effects;
@@ -599,7 +599,7 @@ void StyleComputer::collect_animation_effects_into(DOM::AbstractElement abstract
     auto inheritance_parent = abstract_element.element_to_inherit_style_from();
     auto inheritance_custom_property_data = inheritance_parent.has_value() ? inheritance_parent->custom_property_data() : nullptr;
     bool const element_declares_own_custom_properties = base_custom_property_data
-        && !(inheritance_parent.has_value() && inheritable_custom_property_data(*inheritance_parent).ptr() == base_custom_property_data.ptr());
+        && !(inheritance_parent.has_value() && inheritable_custom_property_data(read, *inheritance_parent).ptr() == base_custom_property_data.ptr());
 
     // The document's side of the environment keyframes compute in; the engine fills in the element's.
     Vector<u8> document_supported_color_scheme_codes;
@@ -638,7 +638,8 @@ void StyleComputer::collect_animation_effects_into(DOM::AbstractElement abstract
         GC::Ref<StyleComputer const> style_computer;
         DOM::AbstractElement abstract_element;
         ComputedStyleWorkingSet& computed_properties;
-    } sample_context { *this, abstract_element, computed_properties };
+        Layout::BegunRead const& read;
+    } sample_context { *this, abstract_element, computed_properties, read };
     ComputedValuesFFI::FfiHostAnimationSample input {
         .host = m_style_engine.host(),
         .style_node = abstract_element.element().style_node_id().value(),
@@ -670,21 +671,21 @@ void StyleComputer::collect_animation_effects_into(DOM::AbstractElement abstract
             auto& sample = *static_cast<SampleContext*>(context);
             auto length_context_for = [&](PropertyID property_id) {
                 return to_ffi_length_resolution_context_with_container_bases(
-                    sample.style_computer->get_computation_context_for_property(property_id, sample.computed_properties, sample.abstract_element).length_resolution_context,
+                    sample.style_computer->get_computation_context_for_property(sample.read, property_id, sample.computed_properties, sample.abstract_element).length_resolution_context,
                     container_relative_length_unit_mask);
             };
             contexts->font = length_context_for(PropertyID::FontFamily);
             contexts->line_height = length_context_for(PropertyID::LineHeight);
             contexts->remaining = length_context_for(PropertyID::Color); },
     };
-    if (auto const* layout_node = abstract_element.element().unsafe_layout_node(); layout_node && Painting::has_committed_box(*layout_node)) {
+    if (auto const* layout_node = abstract_element.element().unsafe_layout_node(read); layout_node && Painting::has_committed_box(*layout_node)) {
         auto reference_box = Painting::transform_reference_box(*layout_node);
         input.has_transform_reference_box = true;
         input.transform_reference_box_width = reference_box.width().to_double();
         input.transform_reference_box_height = reference_box.height().to_double();
     }
     VERIFY(computation_context_cache_is_empty());
-    auto result = ComputedValuesFFI::rust_sample_animation_effects(&input);
+    auto result = ComputedValuesFFI::rust_sample_animation_effects(&input, &read);
     clear_computation_context_caches();
 
     // What the substituted values read is what the element's style now depends on, as for a value its cascade
@@ -912,13 +913,13 @@ void StyleComputer::apply_animation_definitions(DOM::AbstractElement& abstract_e
     abstract_element.set_css_defined_animations(move(new_animations));
 }
 
-void StyleComputer::apply_settled_animation_plan(DOM::AbstractElement& abstract_element) const
+void StyleComputer::apply_settled_animation_plan(Layout::BegunRead const& read, DOM::AbstractElement& abstract_element) const
 {
     struct Context {
         GC::Ref<StyleComputer const> style_computer;
         DOM::AbstractElement& abstract_element;
     } context { *this, abstract_element };
-    ComputedValuesFFI::rust_settled_animation_plan(m_style_engine.host(), abstract_element.element().style_node_id().value(), pseudo_element_to_ffi(abstract_element.pseudo_element()), abstract_element.style_record_identity().value(), &context, [](void* context_pointer, ComputedValuesFFI::FfiComputedAnimation const* definitions, size_t count, bool in_display_none_subtree) {
+    ComputedValuesFFI::rust_settled_animation_plan(m_style_engine.host(), &read, abstract_element.element().style_node_id().value(), pseudo_element_to_ffi(abstract_element.pseudo_element()), abstract_element.style_record_identity().value(), &context, [](void* context_pointer, ComputedValuesFFI::FfiComputedAnimation const* definitions, size_t count, bool in_display_none_subtree) {
         auto& context = *static_cast<Context*>(context_pointer);
         context.style_computer->apply_animation_definitions(context.abstract_element, { definitions, count }, in_display_none_subtree);
     });
@@ -931,9 +932,9 @@ void StyleComputer::apply_settled_animation_plan(DOM::AbstractElement& abstract_
 // https://drafts.csswg.org/css-transitions-2/#defining-before-change-style
 // Sampling the installed record can keep the epoch's before-change style, and the record held by then is the
 // after-change one, so a record that owes the transition step keeps the record it moved away from first.
-void StyleComputer::compose_installed_engine_record(DOM::AbstractElement abstract_element, StyleRecordID before_change_style_record) const
+void StyleComputer::compose_installed_engine_record(Layout::BegunRead const& read, DOM::AbstractElement abstract_element, StyleRecordID before_change_style_record) const
 {
-    apply_settled_animation_plan(abstract_element);
+    apply_settled_animation_plan(read, abstract_element);
     if (!!before_change_style_record && document().is_in_style_stabilization_epoch())
         record_transition_stabilization_baseline(abstract_element, before_change_style_record);
     auto& element = abstract_element.element();
@@ -942,7 +943,7 @@ void StyleComputer::compose_installed_engine_record(DOM::AbstractElement abstrac
     auto style_record = abstract_element.style_record_identity();
     if (!style_record)
         return;
-    Animations::AnimationUpdateContext::ElementData element_data { style_record, reconstruct_computed_properties_for_animation(style_record) };
+    Animations::AnimationUpdateContext::ElementData element_data { style_record, reconstruct_computed_properties_for_animation(read, style_record) };
     element_data.base_is_current = true;
     Animations::AnimationUpdateContext context;
     context.elements.set(abstract_element, move(element_data));
@@ -970,7 +971,7 @@ static void collect_dimension_attribute(Vector<StyleProperty>& properties, DOM::
 // keep the frame from jumping; publishing that is the same animation overlay publication an animation sample performs,
 // on the same element, over the same base, and the step samples the transitions over the installed record as such a
 // sample does: the box-type transformation of the values they take adjusts the composition, and the base stays current.
-RequiredInvalidationAfterStyleChange StyleComputer::run_transition_step_for_installed_record(DOM::AbstractElement abstract_element, StyleRecordID before_change_style_record) const
+RequiredInvalidationAfterStyleChange StyleComputer::run_transition_step_for_installed_record(Layout::BegunRead const& read, DOM::AbstractElement abstract_element, StyleRecordID before_change_style_record) const
 {
     auto installed_style_record = abstract_element.style_record_identity();
     if (!installed_style_record || !before_change_style_record)
@@ -983,7 +984,7 @@ RequiredInvalidationAfterStyleChange StyleComputer::run_transition_step_for_inst
     // OPTIMIZATION: The two lists `start_needed_transitions` decides over, plus this element's own provisional states.
     //               With none of them there is nothing to decide, and the after-change style need not be
     //               reconstructed at all.
-    if (element.property_ids_with_matching_transition_property_entry(pseudo_element).is_empty()
+    if (element.property_ids_with_matching_transition_property_entry(read, pseudo_element).is_empty()
         && element.property_ids_with_existing_transitions(pseudo_element).is_empty()
         && !has_provisional_transition_states(abstract_element))
         return {};
@@ -992,10 +993,10 @@ RequiredInvalidationAfterStyleChange StyleComputer::run_transition_step_for_inst
     // display: none. The installed record may itself be display: none; checking it would skip the discrete transition
     // into that state.
     if (m_transition_baselines_recorded) {
-        if (auto baseline = m_style_engine.transition_baseline(element.style_node_id(), pseudo_element_to_ffi(pseudo_element)); baseline != 0)
+        if (auto baseline = m_style_engine.transition_baseline(read, element.style_node_id(), pseudo_element_to_ffi(pseudo_element)); baseline != 0)
             before_change_style_record = StyleRecordID { baseline };
     }
-    if (has_flag(m_style_engine.style_record_dependency_flags(before_change_style_record), StyleRecordDependencyFlag::InDisplayNoneSubtree))
+    if (has_flag(m_style_engine.style_record_dependency_flags(read, before_change_style_record), StyleRecordDependencyFlag::InDisplayNoneSubtree))
         return {};
     if (auto parent = abstract_element.element_to_inherit_style_from(); parent.has_value()) {
         if (auto parent_style = parent->computed_style(); parent_style && parent_style->in_display_none_subtree())
@@ -1006,21 +1007,21 @@ RequiredInvalidationAfterStyleChange StyleComputer::run_transition_step_for_inst
     ScopeGuard end_style_update = [&] { this->end_style_update(); };
     // The after-change style is the installed record with every value its overlay holds: the current values of the
     // element's running transitions and animations, as the computation that installed it collected them.
-    auto new_style = reconstruct_computed_properties_for_animation(installed_style_record);
-    auto const* installed_overlay = static_cast<ComputedValuesFFI::AnimatedOverlay const*>(m_style_engine.style_record_view(installed_style_record).animated_overlay);
+    auto new_style = reconstruct_computed_properties_for_animation(read, installed_style_record);
+    auto const* installed_overlay = static_cast<ComputedValuesFFI::AnimatedOverlay const*>(m_style_engine.style_record_view(read, installed_style_record).animated_overlay);
     if (installed_overlay)
         new_style->install_animated_overlay(Badge<StyleComputer> {}, installed_overlay);
-    start_needed_transitions(*new_style, abstract_element, before_change_style_record);
+    start_needed_transitions(read, *new_style, abstract_element, before_change_style_record);
     clear_computation_context_caches();
 
     // A step that starts, ends or replaces nothing leaves the installed record as it stands.
     if (installed_overlay) {
-        if (!m_style_engine.animation_overlay_changed(installed_style_record, new_style->animated_overlay()))
+        if (!m_style_engine.animation_overlay_changed(read, installed_style_record, new_style->animated_overlay()))
             return {};
     } else if (auto animated_properties = new_style->animated_properties_snapshot(); !animated_properties || animated_properties->is_empty()) {
         return {};
     }
-    auto publication = publish_sampled_animation_overlay(abstract_element, *new_style, installed_style_record);
+    auto publication = publish_sampled_animation_overlay(read, abstract_element, *new_style, installed_style_record);
     element.refresh_computed_style(pseudo_element, publication.publication.new_style_record);
     if (auto* svg_element = as_if<SVG::SVGElement>(element); svg_element && !pseudo_element.has_value())
         svg_element->note_svg_paint_resource_description_may_have_changed();
@@ -1028,7 +1029,7 @@ RequiredInvalidationAfterStyleChange StyleComputer::run_transition_step_for_inst
 }
 
 // https://drafts.csswg.org/css-transitions/#starting
-void StyleComputer::start_needed_transitions(ComputedStyleWorkingSet& new_style, DOM::AbstractElement abstract_element, StyleRecordID before_change_style_record) const
+void StyleComputer::start_needed_transitions(Layout::BegunRead const& read, ComputedStyleWorkingSet& new_style, DOM::AbstractElement abstract_element, StyleRecordID before_change_style_record) const
 {
     auto had_pending_animated_style_update = m_document->needs_animated_style_update();
 
@@ -1091,7 +1092,7 @@ void StyleComputer::start_needed_transitions(ComputedStyleWorkingSet& new_style,
         .transform_reference_box_width = 0,
         .transform_reference_box_height = 0,
     };
-    if (auto const* layout_node = abstract_element.element().unsafe_layout_node(); layout_node && Painting::has_committed_box(*layout_node)) {
+    if (auto const* layout_node = abstract_element.element().unsafe_layout_node(read); layout_node && Painting::has_committed_box(*layout_node)) {
         auto reference_box = Painting::transform_reference_box(*layout_node);
         transition_animation_context.has_transform_reference_box = true;
         transition_animation_context.transform_reference_box_width = reference_box.width().to_double();
@@ -1234,7 +1235,7 @@ void StyleComputer::start_needed_transitions(ComputedStyleWorkingSet& new_style,
     actions.resize(prepared_transitions.size());
     // The after-change style is the record the element installed, with its overlay, and the transitions resolve their
     // lengths against it.
-    m_style_engine.decide_transitions(before_change_style_record, abstract_element.style_record_identity(), input, actions.data());
+    m_style_engine.decide_transitions(read, before_change_style_record, abstract_element.style_record_identity(), input, actions.data());
     auto retain_style_value = [](StyleValueFFI::StyleValueData const* value) -> RefPtr<StyleValue const> {
         if (!value)
             return {};
@@ -1356,13 +1357,13 @@ void StyleComputer::start_needed_transitions(ComputedStyleWorkingSet& new_style,
                 remaining_effects.append(keyframe_effect);
             }
             if (!remaining_effects.is_empty())
-                collect_animations_into(abstract_element, remaining_effects.span(), new_style, AnimationRefresh::Yes);
+                collect_animations_into(read, abstract_element, remaining_effects.span(), new_style, AnimationRefresh::Yes);
         }
     }
 
     // Immediately set the properties to the transitions' current values, to prevent single-frame jumps.
     if (!newly_started_transition_effects.is_empty()) {
-        collect_animations_into(abstract_element, newly_started_transition_effects.span(), new_style, AnimationRefresh::Yes);
+        collect_animations_into(read, abstract_element, newly_started_transition_effects.span(), new_style, AnimationRefresh::Yes);
         // NB: Construction does not invalidate animated style because the effects were just evaluated. Request the
         //     first animation frame directly so timeline updates can schedule subsequent animated style updates.
         m_document->page().client().request_frame();
@@ -1390,10 +1391,10 @@ void StyleComputer::register_style_engine_sheet_source(StyleSheetState const& sh
     m_style_engine_sheet_sources.set(identity, sheet.make_weak_ptr<StyleSheetState const>());
 }
 
-Optional<StyleEngineRuleTarget> StyleComputer::style_engine_rule_target(StyleEngineRuleID rule_id) const
+Optional<StyleEngineRuleTarget> StyleComputer::style_engine_rule_target(Layout::BegunRead const& read, StyleEngineRuleID rule_id) const
 {
     StyleEngineFFI::FfiNativeRuleTarget target {};
-    if (!StyleEngineFFI::style_engine_native_rule_target(m_style_engine.host(), rule_id.value(), &target))
+    if (!StyleEngineFFI::style_engine_native_rule_target(m_style_engine.host(), &read, rule_id.value(), &target))
         return {};
     RustDeclarationBlockSnapshot declaration { static_cast<Parser::ValueParserFFI::DeclarationBlockData const*>(target.declarations) };
     auto source = m_style_engine_sheet_sources.get(target.source_identity);
@@ -1414,9 +1415,9 @@ Optional<StyleEngineRuleTarget> StyleComputer::style_engine_rule_target(StyleEng
     };
 }
 
-StyleEngineRuleID StyleComputer::style_engine_rule_id_for(RustRule const& rule) const
+StyleEngineRuleID StyleComputer::style_engine_rule_id_for(Layout::BegunRead const& read, RustRule const& rule) const
 {
-    return StyleEngineRuleID { StyleEngineFFI::style_engine_native_rule_id(m_style_engine.render_document().host(), rule.identity()) };
+    return StyleEngineRuleID { StyleEngineFFI::style_engine_native_rule_id(m_style_engine.render_document().host(), &read, rule.identity()) };
 }
 
 SheetID StyleComputer::style_engine_sheet_id_for(StyleSheetState const& sheet) const
@@ -1785,7 +1786,7 @@ static void append_devtools_applied_style_entry(JsonArray& entries, JsonObject r
     entries.must_append(move(entry));
 }
 
-JsonArray StyleComputer::collect_devtools_applied_style_rules(DOM::AbstractElement abstract_element, bool include_inherited, bool include_user_agent_styles)
+JsonArray StyleComputer::collect_devtools_applied_style_rules(Layout::BegunRead const& read, DOM::AbstractElement abstract_element, bool include_inherited, bool include_user_agent_styles)
 {
     JsonArray entries;
 
@@ -1799,7 +1800,7 @@ JsonArray StyleComputer::collect_devtools_applied_style_rules(DOM::AbstractEleme
         if (node == 0)
             return;
         Vector<StyleEngine::RuleMatch> matches;
-        if (!style_engine().match_element(node, matches, StyleEngine::MatchPurpose::Exact))
+        if (!style_engine().match_element(read, node, matches, StyleEngine::MatchPurpose::Exact))
             return;
 
         // The engine reports the rules in the order the cascade applies them, and the panel lists
@@ -1807,7 +1808,7 @@ JsonArray StyleComputer::collect_devtools_applied_style_rules(DOM::AbstractEleme
         for (auto const& match : matches.in_reverse()) {
             if (match.pseudo_element != NumericLimits<u32>::max())
                 continue;
-            auto target = style_engine_rule_target(StyleEngineRuleID { match.rule });
+            auto target = style_engine_rule_target(read, StyleEngineRuleID { match.rule });
             if (!target.has_value() || !target->source_style_sheet)
                 continue;
             if (target->cascade_origin == CascadeOrigin::UserAgent && !include_user_agent_styles)
@@ -1876,14 +1877,14 @@ Vector<StyleProperty> StyleComputer::collect_presentational_hint_properties(DOM:
     return properties;
 }
 
-RefPtr<CustomPropertyData const> StyleComputer::engine_custom_property_environment(u64 identity, RefPtr<CustomPropertyData const> const& inherited) const
+RefPtr<CustomPropertyData const> StyleComputer::engine_custom_property_environment(Layout::BegunRead const& read, u64 identity, RefPtr<CustomPropertyData const> const& inherited) const
 {
     if (!StyleEngine::is_engine_custom_property_environment(identity))
         return {};
     if (auto existing = m_engine_custom_property_environments.get(identity); existing.has_value())
         return *existing;
     u64 parent_identity = 0;
-    auto const* store = m_style_engine.borrow_engine_custom_property_environment(identity, parent_identity);
+    auto const* store = m_style_engine.borrow_engine_custom_property_environment(read, identity, parent_identity);
     if (!store)
         return {};
     if (parent_identity != (inherited ? inherited->identity() : 0)) {
@@ -1904,8 +1905,8 @@ RefPtr<CustomPropertyData const> StyleComputer::engine_custom_property_environme
     auto data = CustomPropertyData::create(move(own_values), inherited, store, identity);
     m_engine_custom_property_environments.set(identity, data);
     // What its children inherit is the engine's to name too: the children's environments are resolved over it.
-    if (auto inheritable = m_style_engine.inheritable_custom_property_environment(identity); inheritable != identity)
-        data->set_inheritable(document(), inheritable == (inherited ? inherited->identity() : 0) ? inherited : engine_custom_property_environment(inheritable, inherited));
+    if (auto inheritable = m_style_engine.inheritable_custom_property_environment(read, identity); inheritable != identity)
+        data->set_inheritable(document(), inheritable == (inherited ? inherited->identity() : 0) ? inherited : engine_custom_property_environment(read, inheritable, inherited));
     return data;
 }
 
@@ -1956,11 +1957,11 @@ CSSPixels StyleComputer::absolute_size_mapping(AbsoluteSize absolute_size, CSSPi
     VERIFY_NOT_REACHED();
 }
 
-ComputationContext StyleComputer::make_computation_context_for_property(PropertyID property_id, ComputedStyleWorkingSet const& style, Optional<DOM::AbstractElement> abstract_element) const
+ComputationContext StyleComputer::make_computation_context_for_property(Layout::BegunRead const& read, PropertyID property_id, ComputedStyleWorkingSet const& style, Optional<DOM::AbstractElement> abstract_element) const
 {
     auto subject_inline_axis_is_horizontal = [&]() {
         auto writing_mode = [&](DOM::AbstractElement const& candidate) -> Optional<WritingMode> {
-            auto record = m_style_engine.style_record_view(candidate.style_record_identity());
+            auto record = m_style_engine.style_record_view(read, candidate.style_record_identity());
             if (!record.present)
                 return {};
             auto const* inherited_box = static_cast<ComputedValuesFFI::InheritedBoxValues const*>(record.payloads[to_underlying(StyleGroupIndex::InheritedBoxValues)]);
@@ -2065,7 +2066,7 @@ ComputationContext StyleComputer::make_computation_context_for_property(Property
     VERIFY_NOT_REACHED();
 }
 
-ComputationContext const& StyleComputer::get_computation_context_for_property(PropertyID property_id, ComputedStyleWorkingSet const& style, Optional<DOM::AbstractElement> abstract_element) const
+ComputationContext const& StyleComputer::get_computation_context_for_property(Layout::BegunRead const& read, PropertyID property_id, ComputedStyleWorkingSet const& style, Optional<DOM::AbstractElement> abstract_element) const
 {
     switch (property_id) {
     case PropertyID::ColorScheme:
@@ -2088,15 +2089,15 @@ ComputationContext const& StyleComputer::get_computation_context_for_property(Pr
     case PropertyID::MathDepth:
     case PropertyID::TextRendering:
         if (!m_cached_font_computation_context.has_value())
-            m_cached_font_computation_context = make_computation_context_for_property(property_id, style, abstract_element);
+            m_cached_font_computation_context = make_computation_context_for_property(read, property_id, style, abstract_element);
         return m_cached_font_computation_context.value();
     case PropertyID::LineHeight:
         if (!m_cached_line_height_computation_context.has_value())
-            m_cached_line_height_computation_context = make_computation_context_for_property(property_id, style, abstract_element);
+            m_cached_line_height_computation_context = make_computation_context_for_property(read, property_id, style, abstract_element);
         return m_cached_line_height_computation_context.value();
     default:
         if (!m_cached_generic_computation_context.has_value())
-            m_cached_generic_computation_context = make_computation_context_for_property(property_id, style, abstract_element);
+            m_cached_generic_computation_context = make_computation_context_for_property(read, property_id, style, abstract_element);
         return m_cached_generic_computation_context.value();
     }
 }
@@ -2144,7 +2145,7 @@ static ComputedValuesFFI::FfiInputLineHeightMetrics input_line_height_metrics(Co
     return line_height_metrics;
 }
 
-void StyleComputer::finalize_style(ComputedStyleWorkingSet& style, DOM::AbstractElement abstract_element, ComputedValuesFFI::FfiStyleFinalizationMode mode) const
+void StyleComputer::finalize_style(Layout::BegunRead const& read, ComputedStyleWorkingSet& style, DOM::AbstractElement abstract_element, ComputedValuesFFI::FfiStyleFinalizationMode mode) const
 {
     bool const animated_box_type = mode == ComputedValuesFFI::FfiStyleFinalizationMode::AnimatedBoxType;
     VERIFY(animated_box_type || mode == ComputedValuesFFI::FfiStyleFinalizationMode::BoxType);
@@ -2152,7 +2153,7 @@ void StyleComputer::finalize_style(ComputedStyleWorkingSet& style, DOM::Abstract
     input.mode = mode;
     // A composition sampled over a record is transformed against the input the engine drove the record against.
     input.box_type = animated_box_type
-        ? ComputedValuesFFI::rust_animated_box_type_transformation_input(m_style_engine.host(), abstract_element.element().style_node_id().value(), pseudo_element_to_ffi(abstract_element.pseudo_element()))
+        ? ComputedValuesFFI::rust_animated_box_type_transformation_input(m_style_engine.host(), &read, abstract_element.element().style_node_id().value(), pseudo_element_to_ffi(abstract_element.pseudo_element()))
         : make_box_type_transformation_input(abstract_element);
     auto line_height_metrics = input_line_height_metrics(style, abstract_element, input.box_type.check_input_line_height);
     auto* animated_overlay = style.prepare_animated_overlay_for_rust_finalization(
@@ -2209,7 +2210,7 @@ static bool computed_style_depends_on_counter_style_environment(ComputedValues c
             && (is_pseudo || !base.list_style_type_uses_non_overridable_counter_style()));
 }
 
-StyleComputer::SampledAnimationOverlayPublication StyleComputer::publish_sampled_animation_overlay(DOM::AbstractElement abstract_element, ComputedStyleWorkingSet& style, StyleRecordID style_record, Function<void(StyleEngineFFI::FfiAnimationInvalidation const&)> const& before_publication) const
+StyleComputer::SampledAnimationOverlayPublication StyleComputer::publish_sampled_animation_overlay(Layout::BegunRead const& read, DOM::AbstractElement abstract_element, ComputedStyleWorkingSet& style, StyleRecordID style_record, Function<void(StyleEngineFFI::FfiAnimationInvalidation const&)> const& before_publication) const
 {
     // The engine composes the overlay over the record, rebuilding only the groups the overlay writes. The animated
     // platform font is the one thing it asks for.
@@ -2234,7 +2235,7 @@ StyleComputer::SampledAnimationOverlayPublication StyleComputer::publish_sampled
         },
     };
     Array<void const*, to_underlying(StyleGroupIndex::Count)> payloads;
-    auto const overlay_payloads = StyleEngineFFI::style_engine_build_animation_overlay_payloads(m_style_engine.host(), &payload_input, payloads.data(), payloads.size());
+    auto const overlay_payloads = StyleEngineFFI::style_engine_build_animation_overlay_payloads(m_style_engine.host(), &read, &payload_input, payloads.data(), payloads.size());
     VERIFY(overlay_payloads.present);
     ScopeGuard release_rebuilt_payloads = [&] {
         StyleEngineFFI::style_engine_release_animation_overlay_payloads(payloads.data(), payloads.size(), overlay_payloads.rebuilt_groups);
@@ -2244,7 +2245,7 @@ StyleComputer::SampledAnimationOverlayPublication StyleComputer::publish_sampled
         counters.animated_style_full_builds++;
     else
         counters.animated_style_overlay_builds++;
-    auto invalidation = m_style_engine.compare_animation_overlay(style_record, style.animated_overlay(), payloads,
+    auto invalidation = m_style_engine.compare_animation_overlay(read, style_record, style.animated_overlay(), payloads,
         !abstract_element.pseudo_element().has_value() && element.is_document_element());
     if (before_publication)
         before_publication(invalidation);
@@ -2252,7 +2253,7 @@ StyleComputer::SampledAnimationOverlayPublication StyleComputer::publish_sampled
     bool const publishes_overlay = animated_properties && !animated_properties->is_empty();
     auto& style_engine = const_cast<StyleComputer&>(*this).style_engine();
     auto publication = style_engine.publish_animation_overlay(
-        element.style_node_id(),
+        read, element.style_node_id(),
         pseudo_element_to_ffi(abstract_element.pseudo_element()),
         publishes_overlay ? animated_properties->identity() : 0,
         publishes_overlay ? animated_properties->overlay() : nullptr,
@@ -2260,11 +2261,11 @@ StyleComputer::SampledAnimationOverlayPublication StyleComputer::publish_sampled
     // A pseudo-element the engine holds no assignment for owns no overlay slot, so its record is published again
     // whole, with the overlay over the same base.
     if (!publication.has_value()) {
-        auto base = m_style_engine.style_record_view(style_record);
+        auto base = m_style_engine.style_record_view(read, style_record);
         VERIFY(base.present);
         auto custom_property_data = abstract_element.custom_property_data();
         publication = style_engine.publish_computed_groups(
-            element.style_node_id(),
+            read, element.style_node_id(),
             pseudo_element_to_ffi(abstract_element.pseudo_element()),
             { base.base_payloads, base.payload_count },
             ComputedValues::inherited_style_group_count,
@@ -2280,17 +2281,17 @@ StyleComputer::SampledAnimationOverlayPublication StyleComputer::publish_sampled
     return { invalidation, *publication };
 }
 
-StyleRecordID StyleComputer::intern_computed_style_inputs(DOM::AbstractElement abstract_element, ComputedValues const& values) const
+StyleRecordID StyleComputer::intern_computed_style_inputs(Layout::BegunRead const& read, DOM::AbstractElement abstract_element, ComputedValues const& values) const
 {
-    return record_computed_style_inputs(Optional<DOM::AbstractElement> { abstract_element }, values, 0).new_style_record;
+    return record_computed_style_inputs(read, Optional<DOM::AbstractElement> { abstract_element }, values, 0).new_style_record;
 }
 
-StyleRecordID StyleComputer::intern_anonymous_layout_style(ComputedValues const& values) const
+StyleRecordID StyleComputer::intern_anonymous_layout_style(Layout::BegunRead const& read, ComputedValues const& values) const
 {
-    return record_computed_style_inputs({}, values, 0).new_style_record;
+    return record_computed_style_inputs(read, {}, values, 0).new_style_record;
 }
 
-StyleEngine::StyleRecordDelta StyleComputer::record_computed_style_inputs(Optional<DOM::AbstractElement> abstract_element, ComputedValues const& values, StyleNodeID style_node_id) const
+StyleEngine::StyleRecordDelta StyleComputer::record_computed_style_inputs(Layout::BegunRead const& read, Optional<DOM::AbstractElement> abstract_element, ComputedValues const& values, StyleNodeID style_node_id) const
 {
     auto const& base = values.base_values();
     // An unassigned record cannot own an animation overlay, so a layout-derived copy of an
@@ -2305,7 +2306,7 @@ StyleEngine::StyleRecordDelta StyleComputer::record_computed_style_inputs(Option
     u64 counter_style_environment_identity = 0;
     if (abstract_element.has_value()
         && computed_style_depends_on_counter_style_environment(values, abstract_element->pseudo_element().has_value()))
-        counter_style_environment_identity = abstract_element->style_scope().counter_style_environment_identity();
+        counter_style_environment_identity = abstract_element->style_scope().counter_style_environment_identity(read);
     auto animated_properties = style_node_id != 0 ? values.animated_properties() : nullptr;
     u64 animation_overlay_identity = animated_properties ? animated_properties->identity() : 0;
     Array<void const*, to_underlying(StyleGroupIndex::Count)> animation_overlay_payloads;
@@ -2314,14 +2315,14 @@ StyleEngine::StyleRecordDelta StyleComputer::record_computed_style_inputs(Option
             animation_overlay_payloads[index] = values.style_group_payload(static_cast<StyleGroupIndex>(index));
     }
     auto pseudo_kind = pseudo_element_to_ffi(abstract_element.has_value() ? abstract_element->pseudo_element() : Optional<CSS::PseudoElement> {});
-    auto publication = const_cast<StyleComputer&>(*this).style_engine().publish_computed_groups(style_node_id, pseudo_kind, payloads, ComputedValues::inherited_style_group_count, custom_property_environment ? custom_property_environment->identity() : 0, false, counter_style_environment_identity, animation_overlay_identity, animated_properties ? animated_properties->overlay() : nullptr, animated_properties ? animation_overlay_payloads.span() : ReadonlySpan<void const*> {}, base.computed_longhand_table(), custom_property_environment ? custom_property_environment->rust_store() : nullptr);
+    auto publication = const_cast<StyleComputer&>(*this).style_engine().publish_computed_groups(read, style_node_id, pseudo_kind, payloads, ComputedValues::inherited_style_group_count, custom_property_environment ? custom_property_environment->identity() : 0, false, counter_style_environment_identity, animation_overlay_identity, animated_properties ? animated_properties->overlay() : nullptr, animated_properties ? animation_overlay_payloads.span() : ReadonlySpan<void const*> {}, base.computed_longhand_table(), custom_property_environment ? custom_property_environment->rust_store() : nullptr);
     return publication;
 }
 
-RefPtr<ComputedValues const> StyleComputer::engine_transient_pseudo_element_style(DOM::Element const& element, StyleEngine::DemandedPseudoElement pseudo_element)
+RefPtr<ComputedValues const> StyleComputer::engine_transient_pseudo_element_style(Layout::BegunRead const& read, DOM::Element const& element, StyleEngine::DemandedPseudoElement pseudo_element)
 {
-    auto answer = m_style_engine.answer_pseudo_element_record_demand(element.style_node_id(), StyleEngine::PseudoElementRecordDemand::ReadOnly, pseudo_element);
-    auto view = computed_style_record_view(StyleRecordID { answer.record.style_record });
+    auto answer = m_style_engine.answer_pseudo_element_record_demand(read, element.style_node_id(), StyleEngine::PseudoElementRecordDemand::ReadOnly, pseudo_element);
+    auto view = computed_style_record_view(read, StyleRecordID { answer.record.style_record });
     if (!view)
         return {};
     // The engine holds the record only until the element's styles are next read or settled.
@@ -2359,9 +2360,9 @@ void StyleComputer::apply_animated_properties_to_reconstruction(ComputedStyleWor
     }
 }
 
-NonnullRefPtr<ComputedStyleWorkingSet> StyleComputer::reconstruct_computed_properties_for_animation(StyleRecordID style_record) const
+NonnullRefPtr<ComputedStyleWorkingSet> StyleComputer::reconstruct_computed_properties_for_animation(Layout::BegunRead const& read, StyleRecordID style_record) const
 {
-    auto record = m_style_engine.style_record_view(style_record);
+    auto record = m_style_engine.style_record_view(read, style_record);
     VERIFY(record.present);
     auto style = ComputedStyleWorkingSet::create_for_animation_update(
         static_cast<ComputedValuesFFI::ComputedLonghandTable const*>(record.longhand_table),

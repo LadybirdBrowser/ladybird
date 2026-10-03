@@ -11,6 +11,7 @@
 #include <LibWeb/CSS/RustDeclarationBlock.h>
 #include <LibWeb/CSS/StyleEngineBridge.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
+#include <LibWeb/Layout/RenderDocument.h>
 
 TEST_CASE(interned_atoms_are_released_with_the_style_engine)
 {
@@ -30,13 +31,14 @@ TEST_CASE(unowned_atoms_are_released_in_one_transaction_batch)
     auto initial_fly_string_count = Utf16FlyString::number_of_utf16_fly_strings();
     Web::CSS::StyleEngine engine(Web::CSS::StyleEngine::DeviceClass::ForegroundDesktop);
     auto root = engine.mint_style_node();
+    Web::Layout::ForcedReadScope read { engine.render_document(), false };
     for (size_t index = 0; index < 256; ++index) {
         auto name = MUST(String::formatted("style-engine-atom-churn-{}", index));
         engine.intern_atom(Utf16FlyString::from_utf8_without_validation(name));
     }
     EXPECT_EQ(Utf16FlyString::number_of_utf16_fly_strings(), initial_fly_string_count + 256);
     auto initial_generation = engine.atom_generation();
-    (void)engine.take_style_transaction(root);
+    (void)engine.take_style_transaction(read, root);
     EXPECT_EQ(engine.atom_generation(), initial_generation + 1);
     EXPECT_EQ(Utf16FlyString::number_of_utf16_fly_strings(), initial_fly_string_count);
 }
@@ -63,10 +65,11 @@ TEST_CASE(flush_does_not_recycle_atoms_before_the_bridge_can_forget_them)
 
 static u64 counter_value(Web::CSS::StyleEngine const& engine, StringView expected_name)
 {
+    Web::Layout::ForcedReadScope read { engine.render_document(), false };
     for (size_t index = 0;; ++index) {
         StringView name;
         u64 value = 0;
-        if (!engine.counter(index, name, value))
+        if (!engine.counter(read, index, name, value))
             VERIFY_NOT_REACHED();
         if (name == expected_name)
             return value;
@@ -77,6 +80,7 @@ TEST_CASE(reclaimed_language_atoms_republish_their_text)
 {
     Web::CSS::StyleEngine engine(Web::CSS::StyleEngine::DeviceClass::ForegroundDesktop);
     auto root = engine.mint_style_node();
+    Web::Layout::ForcedReadScope read { engine.render_document(), false };
     auto language = Utf16FlyString::from_utf8_without_validation("reclaimed-language"sv);
     engine.intern_language_atom(language.view());
     for (size_t index = 0; index < 255; ++index) {
@@ -86,7 +90,7 @@ TEST_CASE(reclaimed_language_atoms_republish_their_text)
     EXPECT_EQ(counter_value(engine, "languageTextsPublished"sv), 1ull);
 
     engine.flush();
-    (void)engine.take_style_transaction(root);
+    (void)engine.take_style_transaction(read, root);
     engine.intern_language_atom(language.view());
 
     EXPECT_EQ(counter_value(engine, "languageTextsPublished"sv), 2ull);
@@ -96,9 +100,10 @@ TEST_CASE(reclaimed_custom_property_atoms_republish_their_names)
 {
     Web::CSS::StyleEngine engine(Web::CSS::StyleEngine::DeviceClass::ForegroundDesktop);
     auto root = engine.mint_style_node();
+    Web::Layout::ForcedReadScope read { engine.render_document(), false };
     auto old_name = Utf16FlyString::from_utf8_without_validation("--reclaimed-custom-property"sv);
     auto old_atom = engine.intern_atom(old_name);
-    engine.note_custom_property_name(old_atom, old_name);
+    engine.note_custom_property_name(read, old_atom, old_name);
     for (size_t index = 0; index < 255; ++index) {
         auto name = MUST(String::formatted("style-engine-custom-property-sweep-{}", index));
         engine.intern_atom(Utf16FlyString::from_utf8_without_validation(name));
@@ -106,11 +111,11 @@ TEST_CASE(reclaimed_custom_property_atoms_republish_their_names)
     EXPECT_EQ(counter_value(engine, "customPropertyNamesPublished"sv), 1ull);
 
     engine.flush();
-    (void)engine.take_style_transaction(root);
+    (void)engine.take_style_transaction(read, root);
     auto new_name = Utf16FlyString::from_utf8_without_validation("--new-custom-property"sv);
     auto new_atom = engine.intern_atom(new_name);
     EXPECT_EQ(new_atom, old_atom);
-    engine.note_custom_property_name(new_atom, new_name);
+    engine.note_custom_property_name(read, new_atom, new_name);
 
     EXPECT_EQ(counter_value(engine, "customPropertyNamesPublished"sv), 2ull);
 }
@@ -119,6 +124,7 @@ TEST_CASE(inline_custom_declaration_names_survive_without_computed_environments)
 {
     Web::CSS::StyleEngine engine(Web::CSS::StyleEngine::DeviceClass::ForegroundDesktop);
     auto root = engine.mint_style_node();
+    Web::Layout::ForcedReadScope read { engine.render_document(), false };
     auto name = Utf16FlyString::from_utf8_without_validation("--retained-inline-property"sv);
     auto atom = engine.intern_atom(name);
     {
@@ -132,7 +138,7 @@ TEST_CASE(inline_custom_declaration_names_survive_without_computed_environments)
         engine.intern_atom(Utf16FlyString::from_utf8_without_validation(churn));
     }
     auto generation = engine.atom_generation();
-    (void)engine.take_style_transaction(root);
+    (void)engine.take_style_transaction(read, root);
     EXPECT(engine.atom_generation() > generation);
     engine.intern_atom(Utf16FlyString::from_utf8_without_validation("--replacement-property"sv));
     EXPECT_EQ(engine.intern_atom(name), atom);

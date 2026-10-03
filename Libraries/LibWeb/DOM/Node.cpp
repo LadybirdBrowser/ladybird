@@ -88,6 +88,7 @@
 #include <LibWeb/Layout/LayoutRustBridge.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Layout/NodeArena.h>
+#include <LibWeb/Layout/RenderDocument.h>
 #include <LibWeb/Layout/TextNode.h>
 #include <LibWeb/Layout/TreeBuilderRustFFI.h>
 #include <LibWeb/MathML/MathMLElement.h>
@@ -103,13 +104,15 @@ namespace Web::DOM {
 
 static bool final_direct_list_item_does_not_renumber_existing_content(Element const& list_item)
 {
+    // The caller's own read of the render state.
+    Layout::ForcedReadScope read { list_item.document(), false };
     auto list_owner = list_item.parent_element();
     if (!list_owner || !list_owner->is_html_ol_ul_menu_element() || list_item.next_element_sibling())
         return false;
     if (list_owner->after_pseudo_element_style_depends_on_list_item_counter())
         return false;
 
-    return CSS::innermost_list_item_counter_is_own_forward_counter(*list_owner);
+    return CSS::innermost_list_item_counter_is_own_forward_counter(read, *list_owner);
 }
 
 // The text the pseudo-element's content resolved to when its box was built: its alt text when it has one, otherwise
@@ -1121,19 +1124,21 @@ void Node::insert_nodes_before(ReadonlySpan<GC::Ref<Node>> nodes, GC::Ptr<Node> 
 
     auto is_boxless_style_element = (is_html_style_element() || is_svg_style_element()) && !has_layout_box();
     if (is_connected() && !is_boxless_style_element) {
-        // NB: Called during DOM insertion, layout is not up to date.
+        // NB: Called during DOM insertion, layout is not up to date. The reads of style and layout tree marks are the
+        //     insertion's own read of the render state of the document the nodes are now in.
+        Layout::ForcedReadScope read { document(), false };
         if (auto* element = as_if<Element>(*this); element && element->has_style() && CSS::display_from_ffi_display(element->style_group<CSS::ComputedValues::BoxValues>()->display).is_contents() && parent_element()) {
             parent_element()->set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::NodeInsertBeforeWithDisplayContents);
         }
         set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::NodeInsertBefore);
         for (auto& inserted_node : nodes) {
-            auto inserted_subtree_already_needs_layout_tree_update = inserted_node->needs_layout_tree_update() || inserted_node->child_needs_layout_tree_update();
+            auto inserted_subtree_already_needs_layout_tree_update = inserted_node->needs_layout_tree_update(read) || inserted_node->child_needs_layout_tree_update(read);
             inserted_node->set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::NodeInsertBefore);
 
             // An inserted subtree may already need a layout tree update, for example after being adopted from another
             // document. Setting the same value again is coalesced, so explicitly propagate it through its new parent.
             if (inserted_subtree_already_needs_layout_tree_update)
-                set_child_needs_layout_tree_update(true);
+                set_child_needs_layout_tree_update(read, true);
         }
     }
 
@@ -1304,8 +1309,9 @@ static bool node_contributes_to_layout_tree(Node const& node)
         return true;
 
     auto const* element = as_if<Element>(node);
-    return element && element->has_style()
-        && CSS::display_from_ffi_display(element->style_group<CSS::ComputedValues::BoxValues>()->display).is_contents();
+    if (!element || !element->has_style())
+        return false;
+    return CSS::display_from_ffi_display(element->style_group<CSS::ComputedValues::BoxValues>()->display).is_contents();
 }
 
 // Which kind of box a detached child is. DOM removal reads it from the child's style; a style
@@ -1316,10 +1322,10 @@ enum class DetachedBoxLevel {
     AtomicInline,
 };
 
-static bool can_detach_layout_subtree_for_removal(Node const& node, Node const& parent, DetachedBoxLevel box_level = DetachedBoxLevel::FromStyle)
+static bool can_detach_layout_subtree_for_removal(Layout::BegunRead const& read, Node const& node, Node const& parent, DetachedBoxLevel box_level = DetachedBoxLevel::FromStyle)
 {
-    auto const* layout_node = as_if<Layout::NodeWithStyle>(node.unsafe_layout_node());
-    auto const* parent_layout_node = parent.unsafe_layout_node();
+    auto const* layout_node = as_if<Layout::NodeWithStyle>(node.unsafe_layout_node(read));
+    auto const* parent_layout_node = parent.unsafe_layout_node(read);
     if (!layout_node || !parent_layout_node)
         return false;
     if (CSS::subtree_affects_generated_content_state(node))
@@ -1352,7 +1358,7 @@ static bool can_detach_layout_subtree_for_removal(Node const& node, Node const& 
     auto sibling_is_direct_layout_child = [&](Node const* sibling) {
         if (!sibling)
             return true;
-        if (auto const* sibling_layout_node = sibling->unsafe_layout_node())
+        if (auto const* sibling_layout_node = sibling->unsafe_layout_node(read))
             return sibling_layout_node->parent() == parent_layout_node;
         auto const* sibling_element = as_if<Element>(*sibling);
         return !sibling_element || !sibling_element->has_style()
@@ -1403,9 +1409,9 @@ static bool can_detach_layout_subtree_for_removal(Node const& node, Node const& 
     return box_level == DetachedBoxLevel::AtomicInline;
 }
 
-bool Node::can_detach_layout_subtree_in_place(Node const& node, Node const& parent, bool box_is_block_level)
+bool Node::can_detach_layout_subtree_in_place(Layout::BegunRead const& read, Node const& node, Node const& parent, bool box_is_block_level)
 {
-    return can_detach_layout_subtree_for_removal(node, parent, box_is_block_level ? DetachedBoxLevel::Block : DetachedBoxLevel::AtomicInline);
+    return can_detach_layout_subtree_for_removal(read, node, parent, box_is_block_level ? DetachedBoxLevel::Block : DetachedBoxLevel::AtomicInline);
 }
 
 bool Node::list_item_box_change_renumbers_list(Element const& list_item)
@@ -1527,7 +1533,7 @@ void Node::report_removal_to_style_engine(Node& parent)
     CSS::record_subtree_disconnecting(*this);
 }
 
-void Node::update_layout_tree_for_removal(Node& parent, LayoutSubtreeRemoval removal, AncestorsMayHaveFirstLetter ancestors_may_have_first_letter)
+void Node::update_layout_tree_for_removal(Layout::BegunRead const& read, Node& parent, LayoutSubtreeRemoval removal, AncestorsMayHaveFirstLetter ancestors_may_have_first_letter)
 {
     // A display: contents element has no principal layout node of its own, but removing it also removes
     // all of its children's boxes from the parent's layout subtree.
@@ -1535,23 +1541,23 @@ void Node::update_layout_tree_for_removal(Node& parent, LayoutSubtreeRemoval rem
         return;
 
     if (ancestors_may_have_first_letter == AncestorsMayHaveFirstLetter::Yes) {
-        if (auto* first_letter_owner = first_letter_owner_for_layout_subtree_from(parent)) {
+        if (auto* first_letter_owner = first_letter_owner_for_layout_subtree_from(read, parent)) {
             first_letter_owner->set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::NodeRemove);
             return;
         }
     }
 
-    if (removal == LayoutSubtreeRemoval::DetachInPlace && can_detach_layout_subtree_for_removal(*this, parent)) {
-        auto* layout_node = unsafe_layout_node();
+    if (removal == LayoutSubtreeRemoval::DetachInPlace && can_detach_layout_subtree_for_removal(read, *this, parent)) {
+        auto* layout_node = unsafe_layout_node(read);
         auto const* removed_box = as_if<Layout::NodeWithStyle>(layout_node);
-        auto* parent_box = parent.unsafe_layout_node();
+        auto* parent_box = parent.unsafe_layout_node(read);
         bool const parent_contains_removed_abspos_box = removed_box && removed_box->position() == CSS::Positioning::Absolute
             && parent_box && removed_box->containing_block() == parent_box;
         if (parent_contains_removed_abspos_box)
             Layout::RustFFI::render_state_note_contained_abspos_child_removal(parent_box->document_host(), Layout::Node::slot_id(parent_box), Layout::Node::slot_id(layout_node));
         layout_node->prepare_subtree_for_removal();
         VERIFY(Layout::destroy_layout_subtree(*layout_node));
-        if (auto* parent_layout_node = parent.unsafe_layout_node(); !parent_layout_node->has_children())
+        if (auto* parent_layout_node = parent.unsafe_layout_node(read); !parent_layout_node->has_children())
             parent_layout_node->set_children_are_inline(false);
         if (parent_contains_removed_abspos_box) {
             // No layout commit follows, so do what one would have done for the box that left.
@@ -1574,9 +1580,11 @@ void Node::detach_remaining_layout_nodes_for_removal()
     auto* arena = document().layout_node_arena_if_created();
     if (!arena)
         return;
+    // The removal pays what detaching the boxes owes the host as it goes, which is its own read of the render state.
+    Layout::ForcedReadScope read { arena->render_document(), false };
     for_each_shadow_including_inclusive_descendant([&](Node& node) {
         // The node's boxes, its pseudo-elements' and its top layer placement, are found by the node's StyleNodeID.
-        Layout::RustFFI::render_state_detach_remaining_rows_for_removal(arena->host(), Layout::Node::style_node_of(&node).value());
+        Layout::RustFFI::render_state_detach_remaining_rows_for_removal(arena->host(), read, Layout::Node::style_node_of(&node).value());
         return TraversalDecision::Continue;
     });
 }
@@ -1705,11 +1713,13 @@ void Node::remove(bool suppress_observers)
     RemovalStyleRecordPins removal_style_record_pins { document().style_computer() };
     removal_style_record_pins.pin_style_records_before_removal(*this, was_tracked_by_style_engine);
     if (was_tracked_by_style_engine) {
+        // The removal's reads of style and layout are its own read of the render state.
+        Layout::ForcedReadScope read { document(), false };
         // A suppressed-observer removal may be the first half of a compound mutation that immediately reinserts
         // this node. Keep the old parent on the conservative rebuild path so the later insertion can relocate it.
         auto layout_subtree_removal = suppress_observers ? LayoutSubtreeRemoval::RebuildParent : LayoutSubtreeRemoval::DetachInPlace;
         // Layout goes first, while the removed nodes still have the StyleNodeIDs the style engine retires.
-        update_layout_tree_for_removal(*parent, layout_subtree_removal, AncestorsMayHaveFirstLetter::Yes);
+        update_layout_tree_for_removal(read, *parent, layout_subtree_removal, AncestorsMayHaveFirstLetter::Yes);
         detach_remaining_layout_nodes_for_removal();
         report_removal_to_style_engine(*parent);
     }
@@ -1932,6 +1942,8 @@ WebIDL::ExceptionOr<GC::Ref<Node>> Node::clone_node(GC::Ptr<Document> document, 
 // https://dom.spec.whatwg.org/#move
 WebIDL::ExceptionOr<void> Node::move_node(Node& new_parent, Node* child)
 {
+    // The move's reads of style and layout are its own read of the render state.
+    Layout::ForcedReadScope read { document(), false };
     // 1. If newParent’s shadow-including root is not the same as node’s shadow-including root, then throw a "HierarchyRequestError" DOMException.
     if (&new_parent.shadow_including_root() != &shadow_including_root())
         return WebIDL::HierarchyRequestError::create("New parent is not in the same shadow tree"_utf16);
@@ -2023,7 +2035,7 @@ WebIDL::ExceptionOr<void> Node::move_node(Node& new_parent, Node* child)
         //       after we have been removed from the DOM.
         // NB: Called during DOM node move, layout is not up to date.
         if (node_contributes_to_layout_tree(*this)) {
-            if (auto* first_letter_owner = first_letter_owner_for_layout_subtree_from(*old_parent))
+            if (auto* first_letter_owner = first_letter_owner_for_layout_subtree_from(read, *old_parent))
                 first_letter_owner->set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::NodeRemove);
             else
                 old_parent->set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::NodeRemove);
@@ -2110,11 +2122,11 @@ WebIDL::ExceptionOr<void> Node::move_node(Node& new_parent, Node* child)
         }
     }
     if (is_connected()) {
-        auto moved_subtree_already_needs_layout_tree_update = needs_layout_tree_update() || child_needs_layout_tree_update();
+        auto moved_subtree_already_needs_layout_tree_update = needs_layout_tree_update(read) || child_needs_layout_tree_update(read);
         set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::NodeInsertBefore);
         new_parent.set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::NodeInsertBefore);
         if (moved_subtree_already_needs_layout_tree_update)
-            new_parent.set_child_needs_layout_tree_update(true);
+            new_parent.set_child_needs_layout_tree_update(read, true);
     }
 
     // 21. If newParent is a shadow host whose shadow root’s slot assignment is "named" and node is a slottable, then assign a slot for node.
@@ -2389,7 +2401,9 @@ bool Node::recompute_editable_subtree_flag()
 
 void Node::recompute_editable_subtree_flags_and_repaint()
 {
-    for_each_in_inclusive_subtree([](Node& node) {
+    // The caller's own read of the render state.
+    Layout::ForcedReadScope read { document(), false };
+    for_each_in_inclusive_subtree([&read](Node& node) {
         // Editability determines each node's empty-editable caret target in the hit-test
         // display list, so a flip must invalidate the recorded output.
         if (node.recompute_editable_subtree_flag())
@@ -2406,7 +2420,7 @@ void Node::recompute_editable_subtree_flags_and_repaint()
         // (an editing host gains a minimum block size, an empty editable text node gains
         // a zero-width fragment), so the affected node also needs a relayout.
         node.publish_dom_paint_facts();
-        if (auto* layout_node = node.unsafe_layout_node()) {
+        if (auto* layout_node = node.unsafe_layout_node(read)) {
             auto is_editing_host = node.is_editing_host();
             if (layout_node->is_editing_host() != is_editing_host) {
                 layout_node->set_is_editing_host(is_editing_host);
@@ -2560,33 +2574,33 @@ static Layout::RustFFI::DocumentHost* layout_tree_update_marks_of(Document const
     return arena ? arena->host() : nullptr;
 }
 
-bool Node::needs_layout_tree_update() const
+bool Node::needs_layout_tree_update(Layout::BegunRead const& read) const
 {
     auto identity = mirror_identity_of(*this);
     auto* marks = layout_tree_update_marks_of(document());
-    return identity != 0 && marks && Layout::RustFFI::render_state_needs_layout_tree_update(marks, identity.value());
+    return identity != 0 && marks && Layout::RustFFI::render_state_needs_layout_tree_update(marks, &read, identity.value());
 }
 
-u8 Node::layout_tree_update_reuse_reasons() const
+u8 Node::layout_tree_update_reuse_reasons(Layout::BegunRead const& read) const
 {
     auto identity = mirror_identity_of(*this);
     auto* marks = layout_tree_update_marks_of(document());
     if (identity == 0 || !marks)
         return 0;
-    return Layout::RustFFI::render_state_layout_tree_update_reuse_reasons(marks, identity.value());
+    return Layout::RustFFI::render_state_layout_tree_update_reuse_reasons(marks, &read, identity.value());
 }
 
-bool Node::child_needs_layout_tree_update() const
+bool Node::child_needs_layout_tree_update(Layout::BegunRead const& read) const
 {
     auto identity = mirror_identity_of(*this);
     auto* marks = layout_tree_update_marks_of(document());
-    return identity != 0 && marks && Layout::RustFFI::render_state_child_needs_layout_tree_update(marks, identity.value());
+    return identity != 0 && marks && Layout::RustFFI::render_state_child_needs_layout_tree_update(marks, &read, identity.value());
 }
 
-void Node::set_child_needs_layout_tree_update(bool value)
+void Node::set_child_needs_layout_tree_update(Layout::BegunRead const& read, bool value)
 {
     if (auto identity = mirror_identity_of(*this); identity != 0)
-        (void)Layout::RustFFI::render_state_set_child_needs_layout_tree_update(document().layout_node_arena().host(), identity.value(), value);
+        (void)Layout::RustFFI::render_state_set_child_needs_layout_tree_update(document().layout_node_arena().host(), &read, identity.value(), value);
 }
 
 // The identity the invalidation journal names a node's box by, or none if the node has no box. Retiring a node's
@@ -2610,8 +2624,11 @@ void Node::set_needs_layout_tree_update(bool value, SetNeedsLayoutTreeUpdateReas
     if (identity == 0)
         return;
 
+    // The mark is folded into those already there, and an insertion finds the first-letter box it reaches, as the
+    // mark's own read of the render state.
+    Layout::ForcedReadScope read { document(), false };
     if (value && reason == SetNeedsLayoutTreeUpdateReason::NodeInsertBefore) {
-        if (auto* first_letter_owner = first_letter_owner_for_layout_subtree_from(*this); first_letter_owner && first_letter_owner != this)
+        if (auto* first_letter_owner = first_letter_owner_for_layout_subtree_from(read, *this); first_letter_owner && first_letter_owner != this)
             first_letter_owner->set_needs_layout_tree_update(true, reason);
     }
 
@@ -2624,7 +2641,9 @@ void Node::set_needs_layout_tree_update(bool value, SetNeedsLayoutTreeUpdateReas
     //     incremental changes cannot narrow it again. The arena folds both, and answers whether
     //     this mark was a transition, which is what the widenings below hang off.
     auto* marks = value ? document().layout_node_arena().host() : layout_tree_update_marks_of(document());
-    if (!marks || !Layout::RustFFI::render_state_merge_layout_tree_update_mark(marks, identity.value(), value, reuse_reason))
+    if (!marks)
+        return;
+    if (!Layout::RustFFI::render_state_merge_layout_tree_update_mark(marks, read, identity.value(), value, reuse_reason))
         return;
 
     if constexpr (UPDATE_LAYOUT_DEBUG) {
@@ -2633,7 +2652,7 @@ void Node::set_needs_layout_tree_update(bool value, SetNeedsLayoutTreeUpdateReas
             auto navigable = this->navigable();
             bool any_ancestor_needs_layout_tree_update = false;
             for (auto* ancestor = flat_tree_parent(); ancestor; ancestor = ancestor->flat_tree_parent()) {
-                if (ancestor->needs_layout_tree_update()) {
+                if (ancestor->needs_layout_tree_update(read)) {
                     any_ancestor_needs_layout_tree_update = true;
                     break;
                 }
@@ -2669,11 +2688,11 @@ void Node::set_needs_layout_tree_update(bool value, SetNeedsLayoutTreeUpdateReas
             // An ancestor the style mirror has not named is on no path the build walks by identity.
             if (ancestor_identity == 0)
                 continue;
-            if (Layout::RustFFI::render_state_set_child_needs_layout_tree_update(marks, ancestor_identity.value(), true))
+            if (Layout::RustFFI::render_state_set_child_needs_layout_tree_update(marks, read, ancestor_identity.value(), true))
                 break;
         }
         if (update_is_inside_top_layer_member)
-            document().set_child_needs_layout_tree_update(true);
+            document().set_child_needs_layout_tree_update(read, true);
 
         // A <mask>, <clipPath>, or <pattern> is laid out as a resource box under each element that references it,
         // not at its own DOM position. So a layout tree change inside one must rebuild those referencing subtrees.
@@ -2700,8 +2719,9 @@ void Node::set_needs_layout_tree_update(bool value, SetNeedsLayoutTreeUpdateReas
 
 void Node::apply_layout_tree_update_mark(Layout::Node& layout_node, SetNeedsLayoutTreeUpdateReason reason)
 {
+    auto const& read = layout_node.held_read();
     auto classification = Layout::RustFFI::render_state_classify_layout_tree_update(
-        layout_node.document_host(), Layout::Node::slot_id(&layout_node),
+        layout_node.document_host(), &read, Layout::Node::slot_id(&layout_node),
         is_structural_boundary_self_rebuild_reason(reason));
 
     if (classification.marks_partial_relayout_boundary_self_only) {
@@ -2861,29 +2881,31 @@ bool Node::update_inside_blocking_wheel_event_handler_state()
     return flipped;
 }
 
-static void set_needs_repaint_of_top_layer_boxes(Element& element, Layout::Node const* layout_node_repainted_by_caller)
+static void set_needs_repaint_of_top_layer_boxes(Layout::BegunRead const& read, Element& element, Layout::Node const* layout_node_repainted_by_caller)
 {
-    if (auto* layout_node = element.unsafe_layout_node(); layout_node && layout_node != layout_node_repainted_by_caller)
+    if (auto* layout_node = element.unsafe_layout_node(read); layout_node && layout_node != layout_node_repainted_by_caller)
         Painting::set_needs_repaint_in_subtree(*layout_node);
-    if (auto* backdrop_layout_node = element.pseudo_element_unsafe_layout_node(CSS::PseudoElement::Backdrop))
+    if (auto* backdrop_layout_node = element.pseudo_element_unsafe_layout_node(read, CSS::PseudoElement::Backdrop))
         Painting::set_needs_repaint_in_subtree(*backdrop_layout_node);
 }
 
 void Node::update_inside_blocking_wheel_event_handler_state_for_subtree()
 {
+    // The caller's own read of the render state.
+    Layout::ForcedReadScope read { document(), false };
     if (is_root_wheel_event_target(*this)) {
         (void)update_inside_blocking_wheel_event_handler_state();
         return;
     }
 
-    auto* subtree_layout_node = unsafe_layout_node();
+    auto* subtree_layout_node = unsafe_layout_node(read);
     bool any_descendant_flipped_blocking_wheel_state = false;
     for_each_shadow_including_inclusive_descendant([&](Node& node) {
         if (!node.update_inside_blocking_wheel_event_handler_state())
             return TraversalDecision::Continue;
         any_descendant_flipped_blocking_wheel_state = true;
         if (auto* element = as_if<Element>(node); element && element->rendered_in_top_layer())
-            set_needs_repaint_of_top_layer_boxes(*element, subtree_layout_node);
+            set_needs_repaint_of_top_layer_boxes(read, *element, subtree_layout_node);
         else if (!subtree_layout_node)
             node.set_needs_repaint();
         return TraversalDecision::Continue;
@@ -3040,7 +3062,9 @@ void Node::remove_all_children(bool suppress_observers)
         RemovalStyleRecordPins removal_style_record_pins { document().style_computer() };
         removal_style_record_pins.pin_style_records_before_removal(*child, was_tracked_by_style_engine);
         if (was_tracked_by_style_engine) {
-            child->update_layout_tree_for_removal(*this, LayoutSubtreeRemoval::RebuildParent, ancestors_may_have_first_letter);
+            // The removal's reads of style and layout are its own read of the render state.
+            Layout::ForcedReadScope read { document(), false };
+            child->update_layout_tree_for_removal(read, *this, LayoutSubtreeRemoval::RebuildParent, ancestors_may_have_first_letter);
             child->detach_remaining_layout_nodes_for_removal();
             child->report_removal_to_style_engine(*this);
         }
@@ -3216,13 +3240,15 @@ GC::Ptr<Document> Node::owner_document() const
 // - Rendered whitespace between block-level elements
 bool Node::is_uninteresting_whitespace_node() const
 {
+    // The caller's own read of the render state.
+    Layout::ForcedReadScope read { document(), false };
     if (!is<Text>(*this))
         return false;
     if (!static_cast<Text const&>(*this).data().is_ascii_whitespace())
         return false;
-    if (!layout_node())
+    if (!layout_node(read))
         return true;
-    if (auto parent = layout_node()->parent(); parent && parent->is_anonymous())
+    if (auto parent = layout_node(read)->parent(); parent && parent->is_anonymous())
         return true;
     return false;
 }
@@ -3239,6 +3265,8 @@ IterationDecision Node::serialize_child_as_json(JsonArraySerializer<Utf16StringB
 
 void Node::serialize_tree_as_json(JsonObjectSerializer<Utf16StringBuilder>& object) const
 {
+    // The serialization reads what renders, as the caller's own read of the render state.
+    Layout::ForcedReadScope read { document(), false };
     MUST(object.add("name"sv, node_name().view()));
     MUST(object.add("id"sv, unique_id().value()));
     if (is_document()) {
@@ -3270,7 +3298,7 @@ void Node::serialize_tree_as_json(JsonObjectSerializer<Utf16StringBuilder>& obje
             }
         }
 
-        auto const* layout_node = this->layout_node();
+        auto const* layout_node = this->layout_node(read);
         if (layout_node && Painting::has_committed_box(*layout_node)) {
             MUST(object.add("display"sv, Painting::display(*layout_node).to_string()));
             if (Painting::could_be_scrolled_by_wheel_event(*layout_node)) {
@@ -3296,10 +3324,10 @@ void Node::serialize_tree_as_json(JsonObjectSerializer<Utf16StringBuilder>& obje
         MUST(object.add("mode"sv, static_cast<DOM::ShadowRoot const&>(*this).mode() == ShadowRootMode::Open ? "open"sv : "closed"sv));
     }
 
-    MUST((object.add("visible"sv, !!layout_node())));
+    MUST((object.add("visible"sv, !!layout_node(read))));
 
     if (auto const* element = as_if<Element>(this)) {
-        element->serialize_children_as_json(object);
+        element->serialize_children_as_json(read, object);
     } else if (has_child_nodes()) {
         auto children = MUST(object.add_array("children"sv));
         auto add_child = [this, &children](Node const& child) {
@@ -3903,27 +3931,27 @@ size_t Node::length() const
     return child_count();
 }
 
-Layout::Node const* Node::layout_node() const
+Layout::Node const* Node::layout_node(Layout::BegunRead const& read) const
 {
-    auto const* layout_node = unsafe_layout_node();
+    auto const* layout_node = unsafe_layout_node(read);
     if (layout_node)
         VERIFY(document().layout_is_up_to_date());
     return layout_node;
 }
 
-Layout::Node* Node::layout_node()
+Layout::Node* Node::layout_node(Layout::BegunRead const& read)
 {
-    return const_cast<Layout::Node*>(static_cast<Node const*>(this)->layout_node());
+    return const_cast<Layout::Node*>(static_cast<Node const*>(this)->layout_node(read));
 }
 
 // A node's layout node is the one the arena has bound to its StyleNodeID. The document has no StyleNodeID; it is
 // bound to a viewport. Any other node without one has no layout node, which needs no question to the arena.
-Layout::Node const* Node::unsafe_layout_node() const
+Layout::Node const* Node::unsafe_layout_node(Layout::BegunRead const& read) const
 {
     auto* arena = m_document->layout_node_arena_if_created();
     if (!arena)
         return nullptr;
-    return NodeIdentity::of(*this).bound_layout_node(*arena);
+    return NodeIdentity::of(*this).bound_layout_node(read, *arena);
 }
 
 void Node::set_needs_repaint(InvalidateDisplayList should_invalidate_display_list)
@@ -4220,7 +4248,7 @@ static void for_each_ascii_whitespace_separated_token(Utf16View input, Function<
     }
 }
 
-ErrorOr<Utf16String> Node::name_or_description(NameOrDescription target, Document const& document, HashTable<UniqueNodeID>& visited_nodes, IsDescendant is_descendant, ShouldComputeRole should_compute_role) const
+ErrorOr<Utf16String> Node::name_or_description(Layout::BegunRead const& read, NameOrDescription target, Document const& document, HashTable<UniqueNodeID>& visited_nodes, IsDescendant is_descendant, ShouldComputeRole should_compute_role) const
 {
     // The text alternative for a given element is computed as follows:
     // 1. Set the root node to the given element, the current node to the root node, and the total accumulated text to the
@@ -4319,7 +4347,7 @@ ErrorOr<Utf16String> Node::name_or_description(NameOrDescription target, Documen
                 // a. Set the current node to the node referenced by the IDREF.
                 current_node = node.ptr();
                 // b. Compute the text alternative of the current node beginning with step 2. Set the result to that text alternative.
-                auto result = TRY(node->name_or_description(target, document, visited_nodes));
+                auto result = TRY(node->name_or_description(read, target, document, visited_nodes));
                 // c. Append the result, with a space, to the accumulated text.
                 total_accumulated_text.append_ascii(' ');
                 total_accumulated_text.append(result);
@@ -4529,7 +4557,7 @@ ErrorOr<Utf16String> Node::name_or_description(NameOrDescription target, Documen
 
             // FIXME: Do we need to update layout before checking this? If so we can avoid using the unsafe layout node
             //        getter here.
-            if (element->pseudo_element_unsafe_layout_node(CSS::PseudoElement::Before)) {
+            if (element->pseudo_element_unsafe_layout_node(read, CSS::PseudoElement::Before)) {
                 // NB: The build that registers this box also resolves its content — and it stays put until the box is
                 //     rebuilt. So, a registered box in an up-to-date layout tree always has one.
                 total_accumulated_text.append(generated_content_accessible_text(*element, CSS::PseudoElement::Before));
@@ -4560,7 +4588,7 @@ ErrorOr<Utf16String> Node::name_or_description(NameOrDescription target, Documen
                     continue;
                 bool should_add_space = true;
                 const_cast<DOM::Document&>(document).update_layout(DOM::UpdateLayoutReason::NodeNameOrDescription);
-                auto const* layout_node = child_node->layout_node();
+                auto const* layout_node = child_node->layout_node(read);
                 if (layout_node) {
                     auto const* layout_node_with_style = as_if<Layout::NodeWithStyle>(*layout_node);
                     if (!layout_node_with_style || (layout_node_with_style->display().is_inline_outside() && layout_node_with_style->display().is_flow_inside())) {
@@ -4574,7 +4602,7 @@ ErrorOr<Utf16String> Node::name_or_description(NameOrDescription target, Documen
                 current_node = child_node.ptr();
 
                 // b. Compute the text alternative of the current node beginning with step 2. Set the result to that text alternative.
-                auto result = MUST(current_node->name_or_description(target, document, visited_nodes, IsDescendant::Yes, should_compute_role));
+                auto result = MUST(current_node->name_or_description(read, target, document, visited_nodes, IsDescendant::Yes, should_compute_role));
 
                 // J. Append a space character and the result of each step above to the total accumulated text.
                 // AD-HOC: Doing the space-adding here is in a different order from what the spec states.
@@ -4588,7 +4616,7 @@ ErrorOr<Utf16String> Node::name_or_description(NameOrDescription target, Documen
             // NOTE: See step ii.b above.
             // FIXME: Do we need to update layout before checking this? If so we can avoid using the unsafe layout node
             //        getter here.
-            if (element->pseudo_element_unsafe_layout_node(CSS::PseudoElement::After)) {
+            if (element->pseudo_element_unsafe_layout_node(read, CSS::PseudoElement::After)) {
                 // NB: See the ::before case above.
                 total_accumulated_text.append(generated_content_accessible_text(*element, CSS::PseudoElement::After));
             }
@@ -4610,8 +4638,8 @@ ErrorOr<Utf16String> Node::name_or_description(NameOrDescription target, Documen
     // appear to achieve what it seems to be intended to achieve. Specifically, the spec algorithm as written doesn’t
     // cause traversal through element subtrees in way that’s necessary to check for descendants that are referenced by
     // aria-labelledby or aria-describedby and/or un-hidden. See the comment for substep A above.
-    if (is_text() && (!parent_element() || (parent_element()->is_referenced() || !parent_element()->is_hidden() || !parent_element()->has_hidden_ancestor() || parent_element()->has_referenced_and_hidden_ancestor()))) {
-        if (auto const* text_node = as_if<Layout::TextNode>(layout_node())) {
+    if (is_text() && (!parent_element() || (parent_element()->is_referenced() || !parent_element()->is_hidden(read) || !parent_element()->has_hidden_ancestor(read) || parent_element()->has_referenced_and_hidden_ancestor(read)))) {
+        if (auto const* text_node = as_if<Layout::TextNode>(layout_node(read))) {
             auto text = text_node->rendered_text_for_dom(false);
             if (!text.is_empty())
                 return text;
@@ -4649,14 +4677,18 @@ ErrorOr<Utf16String> Node::name_or_description(NameOrDescription target, Documen
 // https://www.w3.org/TR/accname-1.2/#mapping_additional_nd_name
 ErrorOr<Utf16String> Node::accessible_name(Document const& document, ShouldComputeRole should_compute_role) const
 {
+    // The name reads what renders, as the caller's own read of the render state.
+    Layout::ForcedReadScope read { document, false };
     HashTable<UniqueNodeID> visited_nodes;
     // User agents MUST compute an accessible name using the rules outlined below in the section titled Accessible Name and Description Computation.
-    return name_or_description(NameOrDescription::Name, document, visited_nodes, IsDescendant::No, should_compute_role);
+    return name_or_description(read, NameOrDescription::Name, document, visited_nodes, IsDescendant::No, should_compute_role);
 }
 
 // https://www.w3.org/TR/accname-1.2/#mapping_additional_nd_description
 ErrorOr<Utf16String> Node::accessible_description(Document const& document) const
 {
+    // The caller's own read of the render state.
+    Layout::ForcedReadScope read { document, false };
     // If aria-describedby is present, user agents MUST compute the accessible description by concatenating the text alternatives for elements referenced by an aria-describedby attribute on the current element.
     // The text alternatives for the referenced elements are computed using a number of methods, outlined below in the section titled Accessible Name and Description Computation.
     if (!is_element())
@@ -4677,7 +4709,7 @@ ErrorOr<Utf16String> Node::accessible_description(Document const& document) cons
     for (auto id : id_list) {
         if (auto description_element = document.get_element_by_id(id)) {
             auto description = TRY(
-                description_element->name_or_description(NameOrDescription::Description, document,
+                description_element->name_or_description(read, NameOrDescription::Description, document,
                     visited_nodes));
             if (!description.is_empty()) {
                 if (builder.is_empty()) {
@@ -4726,7 +4758,7 @@ Vector<GC::Ref<RegisteredObserver>> const* Node::registered_observer_list() cons
     return m_rare_data ? m_rare_data->registered_observer_list.ptr() : nullptr;
 }
 
-Element const* Node::first_letter_owner_for_layout_subtree_from(Node const& inclusive_ancestor) const
+Element const* Node::first_letter_owner_for_layout_subtree_from(Layout::BegunRead const& read, Node const& inclusive_ancestor) const
 {
     // NB: Look the boxes up only once an ancestor has ::first-letter style, so an insertion without such an ancestor
     //     does not reach the layout tree here.
@@ -4737,11 +4769,11 @@ Element const* Node::first_letter_owner_for_layout_subtree_from(Node const& incl
             continue;
 
         if (!layout_subtree_root.has_value())
-            layout_subtree_root = unsafe_layout_node();
+            layout_subtree_root = unsafe_layout_node(read);
         if (!*layout_subtree_root)
             return nullptr;
 
-        auto const* first_letter_layout_node = element->pseudo_element_unsafe_layout_node(CSS::PseudoElement::FirstLetter);
+        auto const* first_letter_layout_node = element->pseudo_element_unsafe_layout_node(read, CSS::PseudoElement::FirstLetter);
         if (!first_letter_layout_node)
             return element;
         for (auto const* layout_ancestor = first_letter_layout_node; layout_ancestor; layout_ancestor = layout_ancestor->parent()) {
@@ -4752,7 +4784,7 @@ Element const* Node::first_letter_owner_for_layout_subtree_from(Node const& incl
     return nullptr;
 }
 
-bool Node::has_inclusive_ancestor_with_display_none_ignoring_animations() const
+bool Node::has_inclusive_ancestor_with_display_none_ignoring_animations(Layout::BegunRead const& read) const
 {
     // NB: Only each ancestor's display matters here, so read it out of the record's box group
     //     payload instead of materializing a full style record view.
@@ -4761,7 +4793,7 @@ bool Node::has_inclusive_ancestor_with_display_none_ignoring_animations() const
         auto const* ancestor_element = as_if<Element>(ancestor);
         if (!ancestor_element)
             continue;
-        if (CSS::style_record_display_is_none(style_engine, ancestor_element->style_record_identity()))
+        if (CSS::style_record_display_is_none(read, style_engine, ancestor_element->style_record_identity()))
             return true;
     }
     return false;

@@ -15,7 +15,8 @@ use std::fmt::Write;
 
 type AppendText = unsafe extern "C" fn(*mut c_void, *const u8, usize);
 /// Describes the row in the slot of the document whose host it is handed, as the row's layout node describes itself.
-pub(crate) type DescribeNode = unsafe extern "C" fn(*const DocumentHost, NodeSlotId, *mut c_void, AppendText);
+pub(crate) type DescribeNode =
+    unsafe extern "C" fn(*const DocumentHost, &crate::render_state::BegunRead, NodeSlotId, *mut c_void, AppendText);
 
 struct Trace {
     lines: Vec<Line>,
@@ -191,12 +192,13 @@ fn name_from_row(arena: &LayoutNodeArena, root: NodeSlotId) -> Option<String> {
 /// outermost pass is over, while the boxes the pass ran for are still live: a later mutation may remove them or reuse
 /// their arena slots before JavaScript takes the trace. The host describes them through the callback it registered
 /// when tracing began. Nothing happens without a trace.
-pub(crate) fn name_layout_trace_owners(main_thread: &MainThread) {
+pub(crate) fn name_layout_trace_owners(main_thread: &MainThread, read: &crate::render_state::BegunRead) {
     let Some(host) = main_thread.host() else {
         return;
     };
     // SAFETY: The host is live for the token's entry.
-    let owners = unsafe { super::shell_reads::read(host, (), |arena, ()| arena.layout_trace.unnamed_owners(arena)) };
+    let owners =
+        unsafe { super::shell_reads::read_arena(host, read, (), |arena, ()| arena.layout_trace.unnamed_owners(arena)) };
     if owners.is_empty() {
         return;
     }
@@ -210,7 +212,9 @@ pub(crate) fn name_layout_trace_owners(main_thread: &MainThread) {
         .map(|owner| {
             (
                 owner.line,
-                owner.name.unwrap_or_else(|| describe_node(host, owner.row, describe)),
+                owner
+                    .name
+                    .unwrap_or_else(|| describe_node(host, read, owner.row, describe)),
             )
         })
         .collect();
@@ -218,7 +222,12 @@ pub(crate) fn name_layout_trace_owners(main_thread: &MainThread) {
     unsafe { super::layout_changes::queue(host, super::layout_changes::LayoutChange::NameLayoutTraceOwners(names)) };
 }
 
-fn describe_node(host: &DocumentHost, row: NodeSlotId, describe: DescribeNode) -> String {
+fn describe_node(
+    host: &DocumentHost,
+    read: &crate::render_state::BegunRead,
+    row: NodeSlotId,
+    describe: DescribeNode,
+) -> String {
     unsafe extern "C" fn append(sink: *mut c_void, bytes: *const u8, length: usize) {
         // SAFETY: describe receives this live vector and supplies bytes valid for this call.
         unsafe { &mut *sink.cast::<Vec<u8>>() }.extend_from_slice(unsafe { std::slice::from_raw_parts(bytes, length) });
@@ -226,7 +235,7 @@ fn describe_node(host: &DocumentHost, row: NodeSlotId, describe: DescribeNode) -
     let mut bytes = Vec::<u8>::new();
     // SAFETY: The pass is over, and the rows it ran for are live; describe copies the row's description synchronously
     // without changing layout.
-    unsafe { describe(host, row, (&raw mut bytes).cast(), append) };
+    unsafe { describe(host, read, row, (&raw mut bytes).cast(), append) };
     String::from_utf8(bytes).expect("layout trace label must be UTF-8")
 }
 
@@ -258,11 +267,12 @@ pub unsafe extern "C" fn render_state_begin_layout_trace(host: *const DocumentHo
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn render_state_take_layout_trace(
     host: *const DocumentHost,
+    read: &crate::render_state::BegunRead,
     context: *mut c_void,
     append_text: AppendText,
 ) {
     // SAFETY: Guaranteed by the caller.
-    let text = unsafe { super::shell_reads::read(host, (), |arena, ()| arena.layout_trace.take()) };
+    let text = unsafe { super::shell_reads::read_arena(host, read, (), |arena, ()| arena.layout_trace.take()) };
     unsafe { append_text(context, text.as_ptr(), text.len()) };
 }
 
@@ -311,7 +321,13 @@ mod tests {
 
     #[test]
     fn owners_are_named_through_the_registered_callback_once_the_pass_is_over() {
-        unsafe extern "C" fn describe(_: *const DocumentHost, _: NodeSlotId, sink: *mut c_void, append: AppendText) {
+        unsafe extern "C" fn describe(
+            _: *const DocumentHost,
+            _: &crate::render_state::BegunRead,
+            _: NodeSlotId,
+            sink: *mut c_void,
+            append: AppendText,
+        ) {
             let name = b"Box<div>#owner";
             // SAFETY: The trace hands a live sink and its append function.
             unsafe { append(sink, name.as_ptr(), name.len()) };
@@ -341,7 +357,9 @@ mod tests {
             .map(|owner| {
                 (
                     owner.line,
-                    owner.name.unwrap_or_else(|| describe_node(&host, owner.row, describe)),
+                    owner
+                        .name
+                        .unwrap_or_else(|| describe_node(&host, host.read_for_test(), owner.row, describe)),
                 )
             })
             .collect();

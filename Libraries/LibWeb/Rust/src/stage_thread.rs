@@ -17,7 +17,7 @@
 //! a host for the answer of a job it handed out. Nothing spins or polls, so a waiting thread takes no CPU from the
 //! threads that run.
 
-use crate::render_state::{RenderWait, TaskBoundary, render_state_died};
+use crate::render_state::{TaskBoundary, render_state_died};
 use std::cell::{Cell, UnsafeCell};
 use std::marker::PhantomData;
 use std::panic::AssertUnwindSafe;
@@ -348,6 +348,11 @@ impl<R> Flight<R> {
     }
 }
 
+/// What a job that flies answers, and the right the thread that submitted it spends to wait for it.
+pub(crate) trait Flown {
+    type JoinRight;
+}
+
 /// A job a stage thread runs beside the thread that submitted it, until that thread takes its answer in, which only it
 /// does: the flight stays on its thread. The submitting thread never waits for a flight at the top of its event loop,
 /// and waits for one elsewhere only by spending the right to.
@@ -386,8 +391,11 @@ impl<R> InFlight<R> {
         Ok(self.take_answer())
     }
 
-    /// Waits for the job to finish, spending `_wait`, and answers what it answered.
-    pub(crate) fn join(self, _wait: impl RenderWait) -> R {
+    /// Waits for the job to finish, spending `_right`, and answers what it answered.
+    pub(crate) fn join(self, _right: R::JoinRight) -> R
+    where
+        R: Flown,
+    {
         {
             let mut landing = self.flight.landing();
             if landing.answer.is_none() {
@@ -427,14 +435,6 @@ pub(crate) fn style_layout_thread() -> &'static StageThread {
     STYLE_LAYOUT_THREAD.get_or_init(|| StageThread::spawn("StyleLayout"))
 }
 
-/// Whether the calling thread may reach what the render states hold: it is the StyleLayout thread, or that thread
-/// waits for its next job, as it does whenever the host runs.
-pub(crate) fn may_reach_render_states() -> bool {
-    STYLE_LAYOUT_THREAD
-        .get()
-        .is_none_or(|thread| thread.is_current() || !thread.shared.busy.load(Ordering::Acquire))
-}
-
 /// The Paint thread, which records display lists from the frames the render states publish.
 pub(crate) fn paint_thread() -> &'static StageThread {
     static PAINT_THREAD: OnceLock<StageThread> = OnceLock::new();
@@ -449,6 +449,18 @@ mod tests {
     fn test_thread() -> &'static StageThread {
         static THREAD: OnceLock<StageThread> = OnceLock::new();
         THREAD.get_or_init(|| StageThread::spawn("Test"))
+    }
+
+    impl Flown for std::thread::ThreadId {
+        type JoinRight = ();
+    }
+
+    impl Flown for u32 {
+        type JoinRight = ();
+    }
+
+    impl Flown for usize {
+        type JoinRight = ();
     }
 
     #[test]
@@ -528,7 +540,7 @@ mod tests {
             };
         }
         open.store(true, Ordering::Release);
-        let ran_on = flight.join(crate::render_state::ScriptForcedRead::for_test());
+        let ran_on = flight.join(());
         assert_eq!(ran_on, test_thread().thread.id());
     }
 
@@ -553,19 +565,14 @@ mod tests {
             })
             .collect();
         open.store(true, Ordering::Release);
-        let order: Vec<_> = flights
-            .into_iter()
-            .map(|flight| flight.join(crate::render_state::ScriptForcedRead::for_test()))
-            .collect();
+        let order: Vec<_> = flights.into_iter().map(|flight| flight.join(())).collect();
         assert_eq!(order, (0..8).collect::<Vec<_>>());
     }
 
     #[test]
     fn a_submitted_job_that_panics_panics_where_it_is_taken_in() {
         let flight = test_thread().submit(|| -> u32 { panic!("the job panicked") });
-        let panicked = std::panic::catch_unwind(AssertUnwindSafe(|| {
-            flight.join(crate::render_state::ScriptForcedRead::for_test())
-        }));
+        let panicked = std::panic::catch_unwind(AssertUnwindSafe(|| flight.join(())));
         assert!(panicked.is_err());
         assert_eq!(test_thread().run(|| 7), 7, "the stage thread goes on");
     }

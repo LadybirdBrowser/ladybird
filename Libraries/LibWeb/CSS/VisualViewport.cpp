@@ -13,6 +13,7 @@
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Window.h>
+#include <LibWeb/Layout/RenderDocument.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/Painting/DocumentPaintState.h>
@@ -229,8 +230,10 @@ void VisualViewport::reset()
 
 void VisualViewport::update_accumulated_visual_context()
 {
-    if (m_document->has_committed_viewport_box() && m_document->paint_state().has_visual_context_tree()) {
-        m_document->paint_state().update_visual_viewport_accumulated_visual_context(*m_document);
+    // Whether the viewport's box is committed is the host's own read of the render state.
+    Layout::ForcedReadScope read { *m_document, false };
+    if (m_document->has_committed_viewport_box() && m_document->paint_state().has_visual_context_tree(read)) {
+        m_document->paint_state().update_visual_viewport_accumulated_visual_context(read, *m_document);
         return;
     }
 

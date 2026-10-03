@@ -379,13 +379,13 @@ struct RequiredLineBreakCount {
 };
 
 // https://html.spec.whatwg.org/multipage/dom.html#rendered-text-collection-steps
-static Vector<Variant<Utf16String, RequiredLineBreakCount>> rendered_text_collection_steps(DOM::Node const& node)
+static Vector<Variant<Utf16String, RequiredLineBreakCount>> rendered_text_collection_steps(Layout::BegunRead const& read, DOM::Node const& node)
 {
     // 1. Let items be the result of running the rendered text collection steps with each child node of node in tree
     //    order, and then concatenating the results to a single list.
     Vector<Variant<Utf16String, RequiredLineBreakCount>> items;
     node.for_each_child([&](auto const& child) {
-        auto child_items = rendered_text_collection_steps(child);
+        auto child_items = rendered_text_collection_steps(read, child);
         items.extend(move(child_items));
         return IterationDecision::Continue;
     });
@@ -398,7 +398,7 @@ static Vector<Variant<Utf16String, RequiredLineBreakCount>> rendered_text_collec
     //    FIXME: - select elements have an associated non-replaced inline CSS box whose child boxes include only those of optgroup and option element child nodes;
     //    FIXME: - optgroup elements have an associated non-replaced block-level CSS box whose child boxes include only those of option element child nodes; and
     //    FIXME: - option elements have an associated non-replaced block-level CSS box whose child boxes are as normal for non-replaced block-level CSS boxes.
-    auto* layout_node = node.layout_node();
+    auto* layout_node = node.layout_node(read);
     if (!layout_node)
         return items;
     if (!layout_node->has_style_or_parent_with_style())
@@ -464,6 +464,7 @@ static Vector<Variant<Utf16String, RequiredLineBreakCount>> rendered_text_collec
 Utf16String HTMLElement::get_the_text_steps()
 {
     // 1. If element is not being rendered or if the user agent is a non-CSS user agent, then return element's descendant text content.
+    Layout::ForcedReadScope read { document(), true };
     document().update_layout(DOM::UpdateLayoutReason::HTMLElementGetTheTextSteps);
     if (!has_layout_box())
         return descendant_text_content();
@@ -475,7 +476,7 @@ Utf16String HTMLElement::get_the_text_steps()
     for_each_child([&](Node const& node) {
         // 1. Let current be the list resulting in running the rendered text collection steps with node.
         //    Each item in results will either be a string or a positive integer (a required line break count).
-        auto current = rendered_text_collection_steps(node);
+        auto current = rendered_text_collection_steps(read, node);
 
         // 2. For each item item in current, append item to results.
         results.extend(move(current));
@@ -545,6 +546,7 @@ static bool any_ancestor_establishes_a_fixed_position_containing_block(Layout::N
 GC::Ptr<DOM::Element> HTMLElement::scroll_parent() const
 {
     // NOTE: We have to ensure that the layout is up-to-date before querying the layout tree.
+    Layout::ForcedReadScope read { document(), true };
     const_cast<DOM::Document&>(document()).update_layout_if_needed_for_node(*this, DOM::UpdateLayoutReason::HTMLElementScrollParent);
 
     // 1. If any of the following holds true, return null and terminate this algorithm:
@@ -552,18 +554,18 @@ GC::Ptr<DOM::Element> HTMLElement::scroll_parent() const
     //    - The element is the root element.
     //    - The element is the body element.
     //    - The element’s computed value of the position property is fixed and no ancestor establishes a fixed position containing block.
-    if (!layout_node())
+    if (!layout_node(read))
         return nullptr;
     if (is_document_element())
         return nullptr;
     if (is_html_body_element())
         return nullptr;
-    bool const no_ancestor_establishes_a_fixed_position_containing_block = !any_ancestor_establishes_a_fixed_position_containing_block(*layout_node());
-    if (layout_node()->is_fixed_position() && no_ancestor_establishes_a_fixed_position_containing_block)
+    bool const no_ancestor_establishes_a_fixed_position_containing_block = !any_ancestor_establishes_a_fixed_position_containing_block(*layout_node(read));
+    if (layout_node(read)->is_fixed_position() && no_ancestor_establishes_a_fixed_position_containing_block)
         return nullptr;
 
     // 2. Let ancestor be the containing block of the element in the flat tree and repeat these substeps:
-    auto ancestor = layout_node()->containing_block();
+    auto ancestor = layout_node(read)->containing_block();
     while (ancestor) {
         // 1. If ancestor is the initial containing block, return the scrollingElement for the element’s document if it
         //    is not closed-shadow-hidden from the element, otherwise return null.
@@ -597,6 +599,7 @@ GC::Ptr<DOM::Element> HTMLElement::scroll_parent() const
 GC::Ptr<DOM::Element> HTMLElement::offset_parent() const
 {
     // NOTE: We have to ensure that the layout is up-to-date before querying the layout tree.
+    Layout::ForcedReadScope read { document(), true };
     const_cast<DOM::Document&>(document()).update_layout_if_needed_for_node(*this, DOM::UpdateLayoutReason::HTMLElementOffsetParent);
 
     // 1. If any of the following holds true return null and terminate this algorithm:
@@ -604,20 +607,20 @@ GC::Ptr<DOM::Element> HTMLElement::offset_parent() const
     //    - The element is the root element.
     //    - The element is the HTML body element.
     //    - The element’s computed value of the position property is fixed and no ancestor establishes a fixed position containing block.
-    if (!layout_node())
+    if (!layout_node(read))
         return nullptr;
     if (is_document_element())
         return nullptr;
     if (is_html_body_element())
         return nullptr;
-    bool const no_ancestor_establishes_a_fixed_position_containing_block = !any_ancestor_establishes_a_fixed_position_containing_block(*layout_node());
-    if (layout_node()->is_fixed_position() && no_ancestor_establishes_a_fixed_position_containing_block)
+    bool const no_ancestor_establishes_a_fixed_position_containing_block = !any_ancestor_establishes_a_fixed_position_containing_block(*layout_node(read));
+    if (layout_node(read)->is_fixed_position() && no_ancestor_establishes_a_fixed_position_containing_block)
         return nullptr;
 
     // NB: The spec does not define "the element is in a fixed position containing block".  Other engines treat it as
     //     holding only when the element itself is fixed-positioned. We also set it to true for the remainder of the
     //     walk once a fixed-positioned ancestor is crossed.
-    auto element_is_in_a_fixed_position_containing_block = layout_node()->is_fixed_position();
+    auto element_is_in_a_fixed_position_containing_block = layout_node(read)->is_fixed_position();
 
     // 2. Let ancestor be the parent of the element in the flat tree and repeat these substeps:
     auto ancestor = first_flat_tree_ancestor_of_type<DOM::Element>();
@@ -629,7 +632,7 @@ GC::Ptr<DOM::Element> HTMLElement::offset_parent() const
         auto const* ancestor_box_values = ancestor->style_group<CSS::ComputedValues::BoxValues>();
         VERIFY(ancestor_box_values);
         bool ancestor_is_fixed_position = static_cast<CSS::Positioning>(ancestor_box_values->position) == CSS::Positioning::Fixed;
-        auto const* ancestor_layout_node = ancestor->layout_node();
+        auto const* ancestor_layout_node = ancestor->layout_node(read);
         if (ancestor_is_closed_shadow_hidden
             && ancestor_is_fixed_position
             && no_ancestor_establishes_a_fixed_position_containing_block)
@@ -690,9 +693,10 @@ int HTMLElement::offset_top() const
         return 0;
 
     // NOTE: Ensure that layout is up-to-date before looking at metrics.
+    Layout::ForcedReadScope read { document(), true };
     const_cast<DOM::Document&>(document()).update_layout_if_needed_for_node(*this, DOM::UpdateLayoutReason::HTMLElementOffsetTop);
 
-    auto const* layout_node = principal_layout_node();
+    auto const* layout_node = principal_layout_node(read);
     if (!layout_node || !Painting::has_committed_box(*layout_node))
         return 0;
 
@@ -703,7 +707,7 @@ int HTMLElement::offset_top() const
     //    relative to the initial containing block origin,
     //    ignoring any transforms that apply to the element and its ancestors, and terminate this algorithm.
     auto offset_parent = this->offset_parent();
-    auto const* offset_parent_layout_node = offset_parent ? offset_parent->layout_node() : nullptr;
+    auto const* offset_parent_layout_node = offset_parent ? offset_parent->layout_node(read) : nullptr;
     if (!offset_parent_layout_node || !Painting::has_committed_box(*offset_parent_layout_node)) {
         return top_border_edge_of_element.to_int();
     }
@@ -734,9 +738,10 @@ int HTMLElement::offset_left() const
         return 0;
 
     // NOTE: Ensure that layout is up-to-date before looking at metrics.
+    Layout::ForcedReadScope read { document(), true };
     const_cast<DOM::Document&>(document()).update_layout_if_needed_for_node(*this, DOM::UpdateLayoutReason::HTMLElementOffsetLeft);
 
-    auto const* layout_node = principal_layout_node();
+    auto const* layout_node = principal_layout_node(read);
     if (!layout_node || !Painting::has_committed_box(*layout_node))
         return 0;
 
@@ -747,7 +752,7 @@ int HTMLElement::offset_left() const
     //    relative to the initial containing block origin,
     //    ignoring any transforms that apply to the element and its ancestors, and terminate this algorithm.
     auto offset_parent = this->offset_parent();
-    auto const* offset_parent_layout_node = offset_parent ? offset_parent->layout_node() : nullptr;
+    auto const* offset_parent_layout_node = offset_parent ? offset_parent->layout_node(read) : nullptr;
     if (!offset_parent_layout_node || !Painting::has_committed_box(*offset_parent_layout_node)) {
         return left_border_edge_of_element.to_int();
     }
@@ -774,10 +779,11 @@ int HTMLElement::offset_left() const
 int HTMLElement::offset_width() const
 {
     // NOTE: Ensure that layout is up-to-date before looking at metrics.
+    Layout::ForcedReadScope read { document(), true };
     const_cast<DOM::Document&>(document()).update_layout_if_needed_for_node(*this, DOM::UpdateLayoutReason::HTMLElementOffsetWidth);
 
     // 1. If the element does not have any associated box return zero and terminate this algorithm.
-    auto const* layout_node = principal_layout_node();
+    auto const* layout_node = principal_layout_node(read);
     if (!layout_node || !Painting::has_committed_box(*layout_node))
         return 0;
 
@@ -793,10 +799,11 @@ int HTMLElement::offset_width() const
 int HTMLElement::offset_height() const
 {
     // NOTE: Ensure that layout is up-to-date before looking at metrics.
+    Layout::ForcedReadScope read { document(), true };
     const_cast<DOM::Document&>(document()).update_layout_if_needed_for_node(*this, DOM::UpdateLayoutReason::HTMLElementOffsetHeight);
 
     // 1. If the element does not have any associated box return zero and terminate this algorithm.
-    auto const* layout_node = principal_layout_node();
+    auto const* layout_node = principal_layout_node(read);
     if (!layout_node || !Painting::has_committed_box(*layout_node))
         return 0;
 

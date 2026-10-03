@@ -51,10 +51,14 @@ static void note_paint_facts(DOM::Node const& node, PaintFactsFamily families)
 {
     if (!node.has_layout_box())
         return;
-    if (auto identity = DOM::NodeIdentity::of(node))
+    if (auto identity = DOM::NodeIdentity::of(node)) {
         const_cast<DOM::Document&>(node.document()).invalidation_journal().note_paint_facts(identity, families);
-    else
-        apply_paint_facts(*node.unsafe_layout_node(), families);
+        return;
+    }
+    // A node the style mirror has not named has nowhere to hold a journal entry, so its box is asked for as the note's
+    // own read of the render state.
+    Layout::ForcedReadScope read { node.document(), false };
+    apply_paint_facts(*node.unsafe_layout_node(read), families);
 }
 
 void push_form_control_paint_facts(HTML::HTMLInputElement& input)
@@ -105,12 +109,12 @@ static Optional<u64> composited_context_id_for_navigable_container(HTML::Navigab
     return context_id->value();
 }
 
-void reconcile_navigable_container_paint_facts(DOM::Document const& document)
+void reconcile_navigable_container_paint_facts(Layout::BegunRead const& read, DOM::Document const& document)
 {
     for (auto const* navigable_container : HTML::NavigableContainer::all_instances()) {
         if (&navigable_container->document() != &document)
             continue;
-        auto const* layout_node = navigable_container->layout_node();
+        auto const* layout_node = navigable_container->layout_node(read);
         if (!layout_node || !is_navigable_container_viewport_paintable(*layout_node))
             continue;
         Layout::RustFFI::FfiNavigableContainerPaintFacts facts {};
@@ -258,15 +262,20 @@ static void note_box_paint_facts(Layout::Node const& layout_node, PaintFactsFami
         apply_paint_facts(layout_node, families);
 }
 
-void push_layer_image_paint_facts(Layout::NodeWithStyle const& layout_node)
+void push_layer_image_paint_facts(Layout::NodeWithStyle& layout_node)
 {
-    note_box_paint_facts(layout_node, PaintFactsFamily::LayerImages);
+    layout_node.document().invalidation_journal().note_box_image_changed(layout_node, PaintFactsFamily::LayerImages, InvalidateDisplayList::PaintCommands);
 }
 
-void push_replaced_image_paint_facts(Layout::Node const& layout_node)
+void push_replaced_image_paint_facts(Layout::Node& layout_node)
 {
     if (paints_replaced_image_from_facts(layout_node))
-        note_box_paint_facts(layout_node, PaintFactsFamily::ReplacedImage);
+        layout_node.document().invalidation_journal().note_box_image_changed(layout_node, PaintFactsFamily::ReplacedImage, InvalidateDisplayList::No);
+}
+
+void push_replaced_image_paint_facts(DOM::Element const& element)
+{
+    note_paint_facts(element, PaintFactsFamily::ReplacedImage);
 }
 
 void push_video_paint_facts(HTML::HTMLVideoElement const& video_element)
@@ -310,16 +319,16 @@ static void push_image_map_area_facts_onto(GC::Ptr<HTML::HTMLMapElement> map_ele
 // of the document can decide any image's areas and there is no smaller funnel than the document. The funnels only mark
 // the document, and this runs before the next hit test, after layout, so the association it reads is current and a
 // map that gains many areas is walked once. Nearly every page has no image map at all, and never marks it.
-void publish_image_map_area_facts_if_needed(DOM::Document& document)
+void publish_image_map_area_facts_if_needed(Layout::BegunRead const& read, DOM::Document& document)
 {
     if (!document.take_image_map_areas_need_publication())
         return;
-    document.for_each_shadow_including_descendant([](DOM::Node& node) {
+    document.for_each_shadow_including_descendant([&read](DOM::Node& node) {
         auto* image_element = as_if<HTML::HTMLImageElement>(node);
         if (!image_element)
             return TraversalDecision::Continue;
         // NB: Any box an image has answers for its map, including the one it takes when it renders as its alt text.
-        if (auto const* layout_node = image_element->unsafe_layout_node())
+        if (auto const* layout_node = image_element->unsafe_layout_node(read))
             push_image_map_area_facts_onto(image_element->associated_map_element(), *layout_node);
         return TraversalDecision::Continue;
     });

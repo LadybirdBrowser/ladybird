@@ -211,6 +211,7 @@
 #include <LibWeb/IntersectionObserver/IntersectionObserver.h>
 #include <LibWeb/Layout/LayoutRustBridge.h>
 #include <LibWeb/Layout/NodeArena.h>
+#include <LibWeb/Layout/RenderDocument.h>
 #include <LibWeb/Layout/TextNode.h>
 #include <LibWeb/Layout/TreeBuilder.h>
 #include <LibWeb/Layout/Viewport.h>
@@ -729,18 +730,18 @@ Layout::NodeArena& Document::layout_node_arena()
     return *m_layout_node_arena;
 }
 
-void Document::reset_style_invalidation_counters() const
+void Document::reset_style_invalidation_counters(Layout::BegunRead const& read) const
 {
     m_style_invalidation_counters = {};
-    (void)const_cast<CSS::StyleEngine&>(style_computer().style_engine()).size_query_container_scan_visits(true);
+    (void)const_cast<CSS::StyleEngine&>(style_computer().style_engine()).size_query_container_scan_visits(read, true);
     if (m_layout_node_arena)
         Layout::RustFFI::render_state_scrollable_overflow_recalculation_count(m_layout_node_arena->host(), true);
     CSS::reset_longhand_wrappers_minted();
 }
 
-bool Document::needs_full_layout_tree_update() const
+bool Document::needs_full_layout_tree_update(Layout::BegunRead const& read) const
 {
-    return m_layout_node_arena && Layout::RustFFI::render_state_needs_full_layout_tree_update(m_layout_node_arena->host());
+    return m_layout_node_arena && Layout::RustFFI::render_state_needs_full_layout_tree_update(m_layout_node_arena->host(), &read);
 }
 
 // A document without an arena has no layout nodes, so its next build creates every box anyway.
@@ -1048,12 +1049,14 @@ void Document::set_find_in_page_active_match(GC::Ptr<Range> active_match)
     set_needs_highlight_style_update(CSS::PseudoElement::SearchText);
     if (!has_committed_viewport_box())
         return;
+    // Painting the match is the find's own read of the paint state.
+    Layout::ForcedReadScope read { *this, false };
     if (active_match) {
-        paint_state().recompute_search_text_states(*this, *active_match);
+        paint_state().recompute_search_text_states(read, *this, *active_match);
     } else {
         paint_state().reset_search_text_states();
     }
-    Painting::set_needs_repaint(*unsafe_layout_node(), InvalidateDisplayList::PaintCommands);
+    static_cast<Node&>(*this).set_needs_repaint(InvalidateDisplayList::PaintCommands);
 }
 
 static bool realign_find_in_page_match_to_its_text(Range& match, Utf16String const& text)
@@ -1608,27 +1611,29 @@ WebIDL::ExceptionOr<void> Document::set_title(Utf16View title)
     return {};
 }
 
-Compositing::RustFFI::NodeSlotId Document::layout_root_slot() const
+Compositing::RustFFI::NodeSlotId Document::layout_root_slot(Layout::BegunRead const& read) const
 {
     if (!m_layout_node_arena)
         return Compositing::RustFFI::NodeSlotId_INVALID;
-    return Layout::RustFFI::render_state_layout_root(m_layout_node_arena->host());
+    return Layout::RustFFI::render_state_layout_root(m_layout_node_arena->host(), &read);
 }
 
-Layout::Node* Document::layout_root_if_live() const
+Layout::Node* Document::layout_root_if_live(Layout::BegunRead const& read) const
 {
-    return m_layout_node_arena ? m_layout_node_arena->node_if_live(layout_root_slot()) : nullptr;
+    return m_layout_node_arena ? m_layout_node_arena->node_if_live(read, layout_root_slot(read)) : nullptr;
 }
 
 void Document::tear_down_layout_tree()
 {
-    auto* layout_root = layout_root_if_live();
+    // The teardown is the host's own read of the render state: a frame in flight lands first.
+    Layout::ForcedReadScope read { *this, false };
+    auto* layout_root = layout_root_if_live(read);
     if (layout_root)
         layout_root->prepare_subtree_for_detach_from_layout_tree();
     m_hit_test_display_list = nullptr;
     m_chrome_widget_registry->clear();
     if (layout_root)
-        layout_node_arena().free_subtree(Layout::Node::slot_id(layout_root));
+        layout_node_arena().free_subtree(read, Layout::Node::slot_id(layout_root));
     m_paint_state = nullptr;
     set_needs_full_layout_tree_update(true);
 }
@@ -1638,19 +1643,19 @@ void Document::tear_down_layout_tree_for_svg_image_document(Badge<SVG::SVGDecode
     tear_down_layout_tree();
 }
 
-Color Document::background_color() const
+Color Document::background_color(Layout::BegunRead const& read) const
 {
     // CSS2 says we should use the HTML element's background color unless it's transparent...
     // NB: Called during painting inside update_layout().
-    if (auto* html_element = this->html_element(); html_element && html_element->unsafe_layout_node()) {
-        auto color = html_element->unsafe_layout_node()->background_color();
+    if (auto* html_element = this->html_element(); html_element && html_element->unsafe_layout_node(read)) {
+        auto color = html_element->unsafe_layout_node(read)->background_color();
         if (color.alpha())
             return color;
     }
 
     // ...in which case we use the BODY element's background color.
-    if (auto* body_element = body(); body_element && body_element->unsafe_layout_node()) {
-        auto color = body_element->unsafe_layout_node()->background_color();
+    if (auto* body_element = body(); body_element && body_element->unsafe_layout_node(read)) {
+        auto color = body_element->unsafe_layout_node(read)->background_color();
         return color;
     }
 
@@ -1659,19 +1664,19 @@ Color Document::background_color() const
     return Color::Transparent;
 }
 
-Color Document::canvas_background_color() const
+Color Document::canvas_background_color(Layout::BegunRead const& read) const
 {
-    return CSS::SystemColor::canvas(canvas_color_scheme()).blend(background_color());
+    return CSS::SystemColor::canvas(canvas_color_scheme(read)).blend(background_color(read));
 }
 
-CSS::PreferredColorScheme Document::canvas_color_scheme() const
+CSS::PreferredColorScheme Document::canvas_color_scheme(Layout::BegunRead const& read) const
 {
     auto color_scheme = CSS::PreferredColorScheme::Light;
     auto root_color_scheme_is_normal = true;
     auto root_color_scheme_was_computed = false;
-    if (auto* html_element = this->html_element(); html_element && html_element->layout_node()) {
+    if (auto* html_element = this->html_element(); html_element && html_element->layout_node(read)) {
         root_color_scheme_was_computed = true;
-        auto const& layout_node = *html_element->layout_node();
+        auto const& layout_node = *html_element->layout_node(read);
         root_color_scheme_is_normal = layout_node.color_schemes().is_empty();
         if (layout_node.color_scheme() == CSS::PreferredColorScheme::Dark) {
             color_scheme = CSS::PreferredColorScheme::Dark;
@@ -1694,14 +1699,14 @@ CSS::PreferredColorScheme Document::canvas_color_scheme() const
     return color_scheme;
 }
 
-CSS::ImageRendering Document::background_image_rendering() const
+CSS::ImageRendering Document::background_image_rendering(Layout::BegunRead const& read) const
 {
     auto* body_element = body();
     if (!body_element)
         return CSS::ImageRendering::Auto;
 
     // NB: Called during painting inside update_layout().
-    auto body_layout_node = body_element->unsafe_layout_node();
+    auto body_layout_node = body_element->unsafe_layout_node(read);
     if (!body_layout_node)
         return CSS::ImageRendering::Auto;
 
@@ -1938,9 +1943,9 @@ void Document::set_needs_container_query_evaluation_after_layout(Element const& 
     style_computer().style_engine().note_size_container_needs_evaluation_after_layout(query_container.style_node_id());
 }
 
-bool Document::has_size_containers_needing_evaluation_after_layout() const
+bool Document::has_size_containers_needing_evaluation_after_layout(Layout::BegunRead const& read) const
 {
-    return style_computer().style_engine().has_size_containers_needing_evaluation_after_layout();
+    return style_computer().style_engine().has_size_containers_needing_evaluation_after_layout(read);
 }
 
 void Document::begin_style_stabilization_epoch()
@@ -1957,7 +1962,7 @@ void Document::begin_style_stabilization_epoch()
     ++m_transition_generation;
 }
 
-void Document::record_style_stabilization_pass()
+void Document::record_style_stabilization_pass(Layout::BegunRead const& read)
 {
     VERIFY(m_style_stabilization_epoch_depth > 0);
     ++m_style_invalidation_counters.provisional_style_passes;
@@ -1974,7 +1979,7 @@ void Document::record_style_stabilization_pass()
     // Size-query and style-reaction dependencies are acyclic, so a coherent pass settles at
     // least one more connected element. Include inner StyleEngine transactions in the same exact
     // bound as layout feedback so neither feedback path can spin independently of the epoch.
-    auto const exact_stabilization_round_limit = static_cast<u64>(style_computer().style_engine().connected_element_count()) + 1;
+    auto const exact_stabilization_round_limit = static_cast<u64>(style_computer().style_engine().connected_element_count(read)) + 1;
     if (m_style_stabilization_pass_count > ordinary_stabilization_round_limit + exact_stabilization_round_limit) {
         ++m_style_invalidation_counters.style_stabilization_bound_failures;
         VERIFY_NOT_REACHED();
@@ -2008,7 +2013,7 @@ void Document::end_style_stabilization_epoch()
 
 // Refreshes every structure derived from committed layout results, shared by the partial and
 // full layout paths so neither can forget one.
-void Document::after_layout_commit(LayoutTreeChanged layout_tree_changed)
+void Document::after_layout_commit(Layout::BegunRead const& read, LayoutTreeChanged layout_tree_changed)
 {
     // NB: Called during layout update.
     Layout::RustFFI::render_state_invalidate_searchable_text(layout_node_arena().host());
@@ -2016,14 +2021,14 @@ void Document::after_layout_commit(LayoutTreeChanged layout_tree_changed)
     set_needs_to_record_display_list();
 
     set_needs_accumulated_visual_contexts_update(true);
-    prepare_for_rendering();
+    prepare_for_rendering(read);
 
     // A tree update can replace layout nodes referenced by selection state.
     if (auto range = get_selection()->range())
-        paint_state().recompute_selection_states(*this, *range);
+        paint_state().recompute_selection_states(read, *this, *range);
     collapse_find_in_page_active_match_if_its_text_changed();
     if (m_find_in_page_active_match) {
-        paint_state().recompute_search_text_states(*this, *m_find_in_page_active_match);
+        paint_state().recompute_search_text_states(read, *this, *m_find_in_page_active_match);
     } else {
         paint_state().reset_search_text_states();
     }
@@ -2032,8 +2037,8 @@ void Document::after_layout_commit(LayoutTreeChanged layout_tree_changed)
         // Broadcast the current viewport rect to any new committed boxes, so they know whether
         // they're visible or not. If necessary, re-collect the content-visibility:auto set.
         inform_all_viewport_clients_about_the_current_viewport_rect();
-        if (Layout::RustFFI::render_state_may_have_auto_content_visibility(layout_node_arena().host()))
-            collect_boxes_with_auto_content_visibility();
+        if (Layout::RustFFI::render_state_may_have_auto_content_visibility(layout_node_arena().host(), &read))
+            collect_boxes_with_auto_content_visibility(read);
     }
 
     schedule_scroll_container_resnap();
@@ -2041,15 +2046,15 @@ void Document::after_layout_commit(LayoutTreeChanged layout_tree_changed)
     m_document->set_needs_repaint();
 }
 
-bool Document::is_clean_for_layout_geometry_read() const
+bool Document::is_clean_for_layout_geometry_read(Layout::BegunRead const& read) const
 {
     return m_has_completed_style_update
         && layout_is_up_to_date()
         && m_elements_with_dirty_style_attributes.is_empty()
-        && !style_computer().style_engine().has_pending_transaction()
+        && !style_computer().style_engine().has_pending_transaction(read)
         && !m_needs_media_rule_evaluation
         && !m_needs_animated_style_update
-        && !has_size_containers_needing_evaluation_after_layout()
+        && !has_size_containers_needing_evaluation_after_layout(read)
         && m_elements_with_pending_top_layer_membership_change.is_empty()
         && !m_top_layer_needs_layout_zone_rebuild;
 }
@@ -2059,8 +2064,10 @@ void Document::update_layout_if_needed_for_node(Node const& node, UpdateLayoutRe
     if (!node.is_connected())
         return;
 
-    // NB: Whether the read finds style or layout pending is asked behind the style transaction that flew.
-    drain_flown_style_transaction();
+    // NB: Whether the read finds style or layout pending is asked behind the style transaction that flew, which lands
+    //     for the read.
+    Layout::ForcedReadScope read { style_computer().style_engine().render_document(), reason_is_script_api(reason) };
+    drain_flown_style_transaction(read);
 
     if (reason != UpdateLayoutReason::HTMLEventLoopRenderingUpdate)
         flush_throttled_animation_style_update_for_node(node);
@@ -2072,7 +2079,9 @@ void Document::update_layout_if_needed_for_node(Node const& node, UpdateLayoutRe
             auto embedding_document = navigable->container_document();
             if (!embedding_document || embedding_document.ptr() == embedded_document)
                 return true;
-            if (!embedding_document->is_clean_for_layout_geometry_read())
+            // The embedding document's state is that document's own read.
+            Layout::ForcedReadScope embedding_read { *embedding_document, false };
+            if (!embedding_document->is_clean_for_layout_geometry_read(embedding_read))
                 return false;
             embedded_document = embedding_document.ptr();
         }
@@ -2083,7 +2092,7 @@ void Document::update_layout_if_needed_for_node(Node const& node, UpdateLayoutRe
     // would find no work to do. A geometry read also seals the before-change style that a later CSS
     // transition starts from, but with no style input pending there is nothing left to seal, so a
     // document that declares transitions does not have to give up its clean reads over it either.
-    if (reads_layout_geometry && is_clean_for_layout_geometry_read() && embedding_document_chain_is_clean())
+    if (reads_layout_geometry && is_clean_for_layout_geometry_read(read) && embedding_document_chain_is_clean())
         return;
 
     auto* document_element = this->document_element();
@@ -2093,18 +2102,18 @@ void Document::update_layout_if_needed_for_node(Node const& node, UpdateLayoutRe
         && layout_is_up_to_date()
         && !m_needs_media_rule_evaluation
         && !m_needs_animated_style_update
-        && !has_size_containers_needing_evaluation_after_layout()
+        && !has_size_containers_needing_evaluation_after_layout(read)
         && m_elements_with_pending_top_layer_membership_change.is_empty()
         && !m_top_layer_needs_layout_zone_rebuild
         && !style_computer().style_engine().css_transitions_may_observe_style_changes()
         && !may_have_style_query_dependencies) {
         if (embedding_document_chain_is_clean()) {
             synchronize_dirty_style_attributes();
-            if (!style_computer().style_engine().pending_transaction_may_affect_layout_geometry()) {
+            if (!style_computer().style_engine().pending_transaction_may_affect_layout_geometry(read)) {
                 // A later inline transition declaration still needs the pending style as its
                 // before-change style, even though this geometry read can reuse the current layout.
-                if (!style_computer().style_engine().has_pending_transaction()
-                    || style_computer().style_engine().defer_pending_transaction_for_geometry_read()) {
+                if (!style_computer().style_engine().has_pending_transaction(read)
+                    || style_computer().style_engine().defer_pending_transaction_for_geometry_read(read)) {
                     return;
                 }
             }
@@ -2117,10 +2126,15 @@ void Document::update_layout_if_needed_for_node(Node const& node, UpdateLayoutRe
 void Document::flush_deferred_style_change_event()
 {
     auto& style_engine = style_computer().style_engine();
-    if (!style_engine.has_deferred_geometry_transaction())
+    // Only a geometry read defers a transaction, so until one has, the flush has nothing to read.
+    if (!style_engine.may_have_deferred_geometry_transaction())
+        return;
+    // The flush is the host's own read of the render state.
+    Layout::ForcedReadScope read { *this, false };
+    if (!style_engine.has_deferred_geometry_transaction(read))
         return;
 
-    if (!style_engine.begin_deferred_geometry_transaction_flush()) {
+    if (!style_engine.begin_deferred_geometry_transaction_flush(read)) {
         // All non-replayable style inputs consume the boundary before changing their authoritative
         // state. Reaching this fallback means exact local-fact journalling coarsened, so preserve
         // correctness by settling the combined transaction even though it cannot remain a distinct
@@ -2170,7 +2184,7 @@ void Document::did_render_list_item_counter_value(Element& element)
     }
 }
 
-bool Document::reconcile_stale_list_item_counters_after_tree_build()
+bool Document::reconcile_stale_list_item_counters_after_tree_build(Layout::BegunRead const& read)
 {
     if (m_list_owners_with_stale_item_counters.is_empty()) {
         m_stale_list_item_counter_rendered = false;
@@ -2184,7 +2198,7 @@ bool Document::reconcile_stale_list_item_counters_after_tree_build()
         HashTable<GC::Ptr<Node const>> dom_roots;
     } rebuilt_roots { *this, {} };
     Layout::RustFFI::render_state_for_each_pending_rebuilt_subtree_root(
-        layout_node_arena().host(), &rebuilt_roots,
+        layout_node_arena().host(), &read, &rebuilt_roots,
         [](void* context, Layout::RustFFI::FfiNodeIdentity root) {
             auto& rebuilt_roots = *static_cast<RebuiltRoots*>(context);
             if (auto dom_node = Painting::node_identity_of(root).resolve(*rebuilt_roots.document))
@@ -2211,19 +2225,19 @@ bool Document::reconcile_stale_list_item_counters_after_tree_build()
     return true;
 }
 
-bool Document::needs_style_update_after_layout()
+bool Document::needs_style_update_after_layout(Layout::BegunRead const& read)
 {
-    return has_size_containers_needing_evaluation_after_layout()
+    return has_size_containers_needing_evaluation_after_layout(read)
         || m_needs_animated_style_update
-        || style_computer().style_engine().has_pending_transaction();
+        || style_computer().style_engine().has_pending_transaction(read);
 }
 
 // Collect elements with content-visibility: auto. This is used in the HTML event loop to avoid traversing the whole tree every time.
-void Document::collect_boxes_with_auto_content_visibility()
+void Document::collect_boxes_with_auto_content_visibility(Layout::BegunRead const& read)
 {
     Vector<Compositing::RustFFI::NodeSlotId> boxes_with_auto_content_visibility;
     Layout::RustFFI::render_state_collect_boxes_with_auto_content_visibility(
-        layout_node_arena().host(), Layout::Node::slot_id(unsafe_layout_node()), &boxes_with_auto_content_visibility,
+        layout_node_arena().host(), &read, Layout::Node::slot_id(unsafe_layout_node(read)), &boxes_with_auto_content_visibility,
         [](void* context, Compositing::RustFFI::NodeSlotId slot) {
             static_cast<Vector<Compositing::RustFFI::NodeSlotId>*>(context)->append(slot);
         });
@@ -2236,23 +2250,27 @@ void Document::clear_devtools_layout_inspection_data()
     clear_flexbox_highlighted_node(nullptr);
 }
 
-void Document::drain_invalidation_journal() const
+void Document::drain_invalidation_journal(Layout::BegunRead const& read) const
 {
-    m_invalidation_journal->drain();
+    m_invalidation_journal->drain(read);
 }
 
 bool Document::layout_is_up_to_date() const
 {
     if (!navigable() || navigable()->active_document().ptr() != this)
         return true;
+    // A frame in flight, or a round that flew and is not paid yet, brings layout the host waits for, which the host
+    // knows without reading the render state.
+    if (m_layout_node_arena && m_layout_node_arena->render_document().waits_for_frame())
+        return false;
     // NB: Every question about pending layout work comes through here, so draining first keeps a journalled mark from
-    //     hiding behind an up-to-date answer.
-    drain_invalidation_journal();
+    //     hiding behind an up-to-date answer. No frame flies, so the drain's read takes none in.
+    Layout::ForcedReadScope read { *this, false };
+    drain_invalidation_journal(read);
     // Without an arena there is no layout root either, so there is a tree to build.
     if (!m_layout_node_arena)
         return false;
-    return Layout::RustFFI::render_state_layout_is_up_to_date(m_layout_node_arena->host(),
-        needs_layout_tree_update() || child_needs_layout_tree_update());
+    return Layout::RustFFI::render_state_layout_is_up_to_date(m_layout_node_arena->host(), style_node_id().value());
 }
 
 void Document::update_style_computer_viewport_rect()
@@ -2327,8 +2345,10 @@ void Document::invalidate_style_for_viewport_change()
     // The viewport is one of the document's published inputs, and the style engine drives a record
     // that read it again once it moves, so the readers are rows the engine settles. They are still
     // named here: what moved is in none of their winners.
+    // Which records read the viewport is the viewport change's own read of the render state.
+    Layout::ForcedReadScope read { *this, false };
     auto& style_engine = style_computer().style_engine();
-    for (auto style_node : style_engine.viewport_dependent_style_nodes()) {
+    for (auto style_node : style_engine.viewport_dependent_style_nodes(read)) {
         auto element = style_computer().element_for_style_node(style_node.value());
         if (!element || !element->is_connected() || &element->document() != this)
             continue;
@@ -2350,6 +2370,7 @@ void Document::invalidate_style_for_viewport_change()
 
 void Document::sample_animation_effects_needing_style_update()
 {
+    Layout::ForcedReadScope read { *this, false };
     if (!m_needs_animated_style_update)
         return;
 
@@ -2461,6 +2482,8 @@ void Document::flush_throttled_animation_style_update()
 
 void Document::flush_throttled_animation_style_update_for_node(Node const& node)
 {
+    // What the flush finds pending is its own read of the render state.
+    Layout::ForcedReadScope read { *this, false };
     // Only an animation that can skip a per-frame style update has anything for this read to catch
     // up on. Sampling and painting record whether any can, as do reads after a visibility or layout
     // tree change, and the document-wide flush above already trusts that record, so walking every
@@ -2594,12 +2617,12 @@ void Document::finish_animated_style_update()
         effect->request_observation_sample();
 }
 
-void Document::prepare_for_rendering()
+void Document::prepare_for_rendering(Layout::BegunRead const& read)
 {
     if (!m_layout_node_arena)
         return;
 
-    auto outcome = Painting::rust_prepare_for_rendering(*this, m_needs_accumulated_visual_contexts_update);
+    auto outcome = Painting::rust_prepare_for_rendering(read, *this, m_needs_accumulated_visual_contexts_update);
     if (outcome.requires_visual_context_update)
         set_needs_accumulated_visual_contexts_update(true);
     if (outcome.visual_context_values_changed)
@@ -2612,9 +2635,11 @@ void Document::prepare_for_rendering()
 
 void Document::update_paint_and_hit_testing_properties_if_needed()
 {
+    // The caller's own read of the render state.
+    Layout::ForcedReadScope read { *this, false };
     // NB: Called during paint property resolution.
     // Everything that reads paint state comes through here, so the marks that describe it go through first.
-    drain_invalidation_journal();
+    drain_invalidation_journal(read);
 
     // Nothing was written to the render state since the properties were prepared from it: every pass below would find
     // nothing to do, so none is sent to the render owner.
@@ -2626,18 +2651,18 @@ void Document::update_paint_and_hit_testing_properties_if_needed()
     if (host)
         Layout::RustFFI::document_host_note_paint_preparation_is_current(host);
 
-    prepare_for_rendering();
-    Painting::publish_image_map_area_facts_if_needed(*this);
+    prepare_for_rendering(read);
+    Painting::publish_image_map_area_facts_if_needed(read, *this);
     if (m_needs_accumulated_visual_contexts_update) {
         m_needs_accumulated_visual_contexts_update = false;
         if (has_committed_viewport_box())
-            paint_state().update_accumulated_visual_contexts(*this);
+            paint_state().update_accumulated_visual_contexts(read, *this);
     }
 
     // Scroll nodes are (re)created by the visual context tree build above, so scroll offsets and
     // the snapshot must be derived only after structure work is done.
     if (has_committed_viewport_box())
-        paint_state().refresh_scroll_state(*this);
+        paint_state().refresh_scroll_state(read, *this);
 }
 
 bool Document::can_compute_client_rects_without_accumulated_visual_contexts_update(Layout::Node const& layout_node) const
@@ -2731,7 +2756,7 @@ void Document::obtain_supported_color_schemes()
 }
 
 // https://html.spec.whatwg.org/multipage/semantics.html#meta-theme-color
-void Document::obtain_theme_color()
+void Document::obtain_theme_color(Layout::BegunRead const& read)
 {
     Color theme_color = Color::Transparent;
 
@@ -2763,8 +2788,8 @@ void Document::obtain_theme_color()
             if (!css_value.is_null() && css_value->has_color()) {
                 CSS::ColorResolutionContext color_resolution_context {};
                 // NB: Called during theme color computation, layout may be stale.
-                if (html_element() && html_element()->unsafe_layout_node()) {
-                    color_resolution_context = CSS::ColorResolutionContext::for_layout_node_with_style(*html_element()->unsafe_layout_node());
+                if (html_element() && html_element()->unsafe_layout_node(read)) {
+                    color_resolution_context = CSS::ColorResolutionContext::for_layout_node_with_style(*html_element()->unsafe_layout_node(read));
                 }
 
                 theme_color = css_value->to_color(color_resolution_context).value();
@@ -2779,30 +2804,31 @@ void Document::obtain_theme_color()
     document().page().client().page_did_change_theme_color(theme_color);
 }
 
-Layout::Viewport const* Document::layout_node() const
+Layout::Viewport const* Document::layout_node(Layout::BegunRead const& read) const
 {
-    return static_cast<Layout::Viewport const*>(Node::layout_node());
+    return static_cast<Layout::Viewport const*>(Node::layout_node(read));
 }
 
-Layout::Viewport* Document::layout_node()
+Layout::Viewport* Document::layout_node(Layout::BegunRead const& read)
 {
-    return static_cast<Layout::Viewport*>(Node::layout_node());
+    return static_cast<Layout::Viewport*>(Node::layout_node(read));
 }
 
-Layout::Viewport const* Document::unsafe_layout_node() const
+Layout::Viewport const* Document::unsafe_layout_node(Layout::BegunRead const& read) const
 {
-    return static_cast<Layout::Viewport const*>(Node::unsafe_layout_node());
+    return static_cast<Layout::Viewport const*>(Node::unsafe_layout_node(read));
 }
 
-Layout::Viewport* Document::unsafe_layout_node()
+Layout::Viewport* Document::unsafe_layout_node(Layout::BegunRead const& read)
 {
-    return static_cast<Layout::Viewport*>(Node::unsafe_layout_node());
+    return static_cast<Layout::Viewport*>(Node::unsafe_layout_node(read));
 }
 
 bool Document::has_committed_viewport_box() const
 {
-    auto const* layout_root = layout_root_if_live();
-    return layout_root && Painting::has_committed_box(*layout_root);
+    // The layout node arena reports the presence of the viewport's box as it commits it, so the host knows without
+    // reading the render state.
+    return is_rendered();
 }
 
 void Document::set_inspected_node(GC::Ptr<Node> node)
@@ -2812,16 +2838,18 @@ void Document::set_inspected_node(GC::Ptr<Node> node)
 
 void Document::set_highlighted_node(GC::Ptr<Node> node, Optional<CSS::PseudoElement> pseudo_element)
 {
+    // Highlighting reads the node's boxes as the inspector's own read of the render state.
+    Layout::ForcedReadScope read { *this, false };
     if (m_highlighted_node == node && m_highlighted_pseudo_element == pseudo_element)
         return;
 
-    if (auto layout_node = highlighted_layout_node(); layout_node && Painting::has_committed_box(*layout_node))
+    if (auto layout_node = highlighted_layout_node(read); layout_node && Painting::has_committed_box(*layout_node))
         Painting::set_needs_repaint(*layout_node, InvalidateDisplayList::PaintCommands);
 
     m_highlighted_node = node;
     m_highlighted_pseudo_element = pseudo_element;
 
-    if (auto layout_node = highlighted_layout_node(); layout_node && Painting::has_committed_box(*layout_node))
+    if (auto layout_node = highlighted_layout_node(read); layout_node && Painting::has_committed_box(*layout_node))
         Painting::set_needs_repaint(*layout_node, InvalidateDisplayList::PaintCommands);
 }
 
@@ -2901,17 +2929,17 @@ void Document::clear_grid_highlighted_node(GC::Ptr<Node> node)
         node->set_needs_repaint(InvalidateDisplayList::PaintCommands);
 }
 
-Layout::Node* Document::highlighted_layout_node()
+Layout::Node* Document::highlighted_layout_node(Layout::BegunRead const& read)
 {
     if (!m_highlighted_node)
         return nullptr;
 
     // NB: Called during painting inside update_layout().
     if (!m_highlighted_pseudo_element.has_value() || !m_highlighted_node->is_element())
-        return m_highlighted_node->unsafe_layout_node();
+        return m_highlighted_node->unsafe_layout_node(read);
 
     auto const& element = static_cast<Element const&>(*m_highlighted_node);
-    return element.pseudo_element_unsafe_layout_node(m_highlighted_pseudo_element.value());
+    return element.pseudo_element_unsafe_layout_node(read, m_highlighted_pseudo_element.value());
 }
 
 static Node* find_common_ancestor(Node* a, Node* b)
@@ -2982,7 +3010,7 @@ static CSSPixelPoint compute_mouse_event_offset(CSSPixelPoint position, Layout::
     return offset_position - top_left_of_layout_node;
 }
 
-static CSSPixelPoint hover_event_offset_for_target(Optional<HoverEventData> const& hover_event_data, Node const& target)
+static CSSPixelPoint hover_event_offset_for_target(Layout::BegunRead const& read, Optional<HoverEventData> const& hover_event_data, Node const& target)
 {
     if (!hover_event_data.has_value())
         return {};
@@ -2990,7 +3018,7 @@ static CSSPixelPoint hover_event_offset_for_target(Optional<HoverEventData> cons
     // Boundary events are dispatched in a batch, and earlier listeners in the batch can invalidate layout. The event
     // offsets still need to be based on the layout tree that was used for the platform hit-test, so avoid helpers that
     // assert layout is up to date.
-    auto* layout_node = target.unsafe_layout_node();
+    auto* layout_node = target.unsafe_layout_node(read);
     if (!layout_node)
         return hover_event_data->viewport_position;
 
@@ -3008,6 +3036,8 @@ static void mark_mouse_transition_event_as_trusted_if_needed(Event& event, Optio
 
 void Document::set_hovered_node(GC::Ptr<Node> node, Optional<HoverEventData> hover_event_data)
 {
+    // Hover reads the boxes the hovered node has, as its own read of the render state.
+    Layout::ForcedReadScope read { *this, false };
     if (m_hovered_node == node)
         return;
 
@@ -3024,18 +3054,18 @@ void Document::set_hovered_node(GC::Ptr<Node> node, Optional<HoverEventData> hov
     };
 
     auto make_hover_event_target = [&](Node& target) {
-        return HoverEventTarget { target, hover_event_offset_for_target(hover_event_data, target) };
+        return HoverEventTarget { target, hover_event_offset_for_target(read, hover_event_data, target) };
     };
 
     // Boundary event listeners can invalidate layout while the batch is still being dispatched. Compute all offsets
     // against the layout and paint trees from the original platform hit-test before firing the first event.
     Optional<CSSPixelPoint> old_hovered_node_offset;
     if (old_hovered_node)
-        old_hovered_node_offset = hover_event_offset_for_target(hover_event_data, *old_hovered_node);
+        old_hovered_node_offset = hover_event_offset_for_target(read, hover_event_data, *old_hovered_node);
 
     Optional<CSSPixelPoint> hovered_node_offset;
     if (node)
-        hovered_node_offset = hover_event_offset_for_target(hover_event_data, *node);
+        hovered_node_offset = hover_event_offset_for_target(read, hover_event_data, *node);
 
     Vector<HoverEventTarget> pointer_leave_targets;
     if (old_hovered_node && (!node || !node->is_descendant_of(*old_hovered_node))) {
@@ -4690,6 +4720,7 @@ void Document::set_bg_color(Utf16View value)
 
 Utf16String Document::dump_dom_tree_as_json() const
 {
+    Layout::ForcedReadScope read { *this, true };
     const_cast<Document&>(*this).update_layout(UpdateLayoutReason::InspectDOMTree);
 
     Utf16StringBuilder builder;
@@ -4919,6 +4950,8 @@ void Document::add_media_query_list(GC::Ref<CSS::MediaQueryList> media_query_lis
 // https://drafts.csswg.org/cssom-view/#evaluate-media-queries-and-report-changes
 void Document::evaluate_media_queries_and_report_changes()
 {
+    // The rendering update's own read of the render state.
+    Layout::ForcedReadScope read { *this, false };
     if (!m_needs_media_query_list_evaluation && !m_needs_media_rule_evaluation)
         return;
 
@@ -4961,13 +4994,13 @@ void Document::evaluate_media_queries_and_report_changes()
 
     // Also not in the spec, but this is as good a place as any to evaluate @media rules!
     if (m_needs_media_rule_evaluation)
-        evaluate_media_rules();
+        evaluate_media_rules(read);
 }
 
-void Document::evaluate_media_rules()
+void Document::evaluate_media_rules(Layout::BegunRead const& read)
 {
     m_needs_media_rule_evaluation = false;
-    CSS::Invalidation::evaluate_media_rules_and_publish_conditions(*this);
+    CSS::Invalidation::evaluate_media_rules_and_publish_conditions(read, *this);
 }
 
 DOMImplementation* Document::implementation()
@@ -6458,7 +6491,7 @@ void Document::queue_an_intersection_observer_entry(IntersectionObserver::Inters
 }
 
 // https://www.w3.org/TR/intersection-observer/#compute-the-intersection
-static CSSPixelRect compute_intersection(GC::Ref<Element> target, CSSPixelRect target_rect, IntersectionObserver::IntersectionObserver const& observer, Layout::Box const* root_layout_box, CSSPixelRect const& root_bounds, Compositing::AccumulatedVisualContextTree const& visual_context_tree)
+static CSSPixelRect compute_intersection(Layout::BegunRead const& read, GC::Ref<Element> target, CSSPixelRect target_rect, IntersectionObserver::IntersectionObserver const& observer, Layout::Box const* root_layout_box, CSSPixelRect const& root_bounds, Compositing::AccumulatedVisualContextTree const& visual_context_tree)
 {
     auto& document = target->document();
     auto const& scroll_margin = observer.scroll_margin_values();
@@ -6474,7 +6507,7 @@ static CSSPixelRect compute_intersection(GC::Ref<Element> target, CSSPixelRect t
         return clip_rect;
     };
     return Layout::RustFFI::layout_script_intersection_observer_intersection_rect(
-        document.layout_node_arena().host(), Layout::Node::slot_id(target->layout_node()), target_rect,
+        document.layout_node_arena().host(), Layout::Node::slot_id(target->layout_node(read)), target_rect,
         Layout::Node::slot_id(root_layout_box), root_bounds,
         Painting::rect_to_viewport_transform(document, visual_context_tree),
         const_cast<Vector<CSS::LengthPercentage>*>(&scroll_margin), inflate_scroll_container_clip_rect_by_scroll_margin);
@@ -6515,18 +6548,22 @@ void Document::run_the_update_intersection_observations_steps(HighResolutionTime
     };
 
     for (auto& observer : intersection_observers) {
+        auto intersection_root_node = observer->intersection_root_node();
+        // NB: The root and the targets may each be in another document than this one, and their boxes are reads of
+        //     the render state of their own documents.
+        Layout::ForcedReadScope root_read { intersection_root_node->document(), false };
+
         // 1. Let rootBounds be observer’s root intersection rectangle.
-        auto root_visual_context_tree = sampled_visual_context_tree(observer->intersection_root_node()->document());
+        auto root_visual_context_tree = sampled_visual_context_tree(intersection_root_node->document());
         if (!root_visual_context_tree.has_value())
             continue;
-        auto root_bounds = observer->root_intersection_rectangle(&*root_visual_context_tree);
+        auto root_bounds = observer->root_intersection_rectangle(root_read, &*root_visual_context_tree);
 
         // Pre-compute per-observer values to avoid repeated work in the per-target loop.
-        auto intersection_root_node = observer->intersection_root_node();
         // An inline element root has a committed box but no Layout::Box. No containing block chain passes
         // through it, so it stops no walk.
         Layout::Box const* root_layout_box = nullptr;
-        if (auto const* root_layout_node = intersection_root_node->layout_node(); root_layout_node && Painting::has_committed_box(*root_layout_node))
+        if (auto const* root_layout_node = intersection_root_node->layout_node(root_read); root_layout_node && Painting::has_committed_box(*root_layout_node))
             root_layout_box = as_if<Layout::Box>(root_layout_node);
         bool is_implicit_root = observer->is_implicit_root();
         bool root_is_element = intersection_root_node->is_element();
@@ -6564,17 +6601,18 @@ void Document::run_the_update_intersection_observations_steps(HighResolutionTime
             // NOTE: Check if target has a layout node is not in the spec but required to match other browsers.
             // AD-HOC: A target whose document was excluded from this rendering update has stale layout; treat it as
             //         not intersecting like other engines instead of reading its geometry.
-            if (!root_is_hidden && target->document().layout_is_up_to_date() && target->layout_node() && (is_implicit_root || &target->document() == &intersection_root_node->document()) && !(root_is_element && !target->is_descendant_of(*intersection_root_node))) {
+            Layout::ForcedReadScope target_read { target->document(), false };
+            if (!root_is_hidden && target->document().layout_is_up_to_date() && target->layout_node(target_read) && (is_implicit_root || &target->document() == &intersection_root_node->document()) && !(root_is_element && !target->is_descendant_of(*intersection_root_node))) {
                 auto target_visual_context_tree = sampled_visual_context_tree(target->document());
                 if (!target_visual_context_tree.has_value())
                     continue;
 
                 // 4. Set targetRect to the DOMRectReadOnly obtained by getting the bounding box for target.
-                target_rect = target->bounding_client_rect_assuming_layout_clean(*target_visual_context_tree);
+                target_rect = target->bounding_client_rect_assuming_layout_clean(target_read, *target_visual_context_tree);
 
                 // 5. Let intersectionRect be the result of running the compute the intersection algorithm on target and
                 //    observer’s intersection root.
-                intersection_rect = compute_intersection(target, target_rect, *observer, root_layout_box, root_bounds, *target_visual_context_tree);
+                intersection_rect = compute_intersection(target_read, target, target_rect, *observer, root_layout_box, root_bounds, *target_visual_context_tree);
 
                 // 6. Let targetArea be targetRect’s area.
                 auto target_area = target_rect.width() * target_rect.height();
@@ -6901,11 +6939,6 @@ Painting::DocumentPaintState const& Document::paint_state() const
 Compositing::AccumulatedVisualContextTree Document::visual_context_tree() const
 {
     return paint_state().visual_context_tree(*this);
-}
-
-u64 Document::visual_context_tree_structural_epoch() const
-{
-    return paint_state().visual_context_tree_structural_epoch(*this);
 }
 
 Compositing::ScrollStateSnapshot const& Document::scroll_state_snapshot() const
@@ -7276,7 +7309,7 @@ static Painting::CompositorAnimationKeyframes const& compositor_animation_keyfra
 // Builds the compositor animation of one target kind for an effect the compositor could drive, and
 // keeps it pending with the effect. The checks here are the ones that read the animation objects; the
 // builder in Rust lowers and validates the keyframes.
-static Painting::CompositorAnimationEffectState::BuildOutcome build_compositor_animation(Animations::KeyframeEffect& effect, Compositing::RustFFI::FfiVisualAnimationTargetKind target_kind, CompositorAnimationKeyframesByEffect& keyframes_by_effect)
+static Painting::CompositorAnimationEffectState::BuildOutcome build_compositor_animation(Layout::BegunRead const& read, Animations::KeyframeEffect& effect, Compositing::RustFFI::FfiVisualAnimationTargetKind target_kind, CompositorAnimationKeyframesByEffect& keyframes_by_effect)
 {
     auto animation = effect.associated_animation();
     if (!animation || animation->play_state() != Bindings::AnimationPlayState::Running)
@@ -7323,7 +7356,7 @@ static Painting::CompositorAnimationEffectState::BuildOutcome build_compositor_a
     if (target->element().namespace_uri() == Namespace::SVG) {
         // NB: An outer SVG viewport embedded in HTML uses the CSS box transform independently of its SVG
         //     contents. Internal SVG transforms also affect SVG geometry and must remain on the main thread.
-        auto const* layout_node = target->unsafe_layout_node();
+        auto const* layout_node = target->unsafe_layout_node(read);
         auto parent = target->element().parent_element();
         if (!targets_transform || !layout_node || layout_node->kind() != Layout::RustFFI::NodeKind::SVGSVGBox
             || !parent || parent->namespace_uri() != Namespace::HTML)
@@ -7353,7 +7386,7 @@ static Painting::CompositorAnimationEffectState::BuildOutcome build_compositor_a
     }();
     if (!monotonic_time_at_anchor_ms.has_value())
         return {};
-    auto const* layout_node = target->unsafe_layout_node();
+    auto const* layout_node = target->unsafe_layout_node(read);
     if (!layout_node)
         return {};
     if (targets_transform) {
@@ -7377,7 +7410,7 @@ static Painting::CompositorAnimationEffectState::BuildOutcome build_compositor_a
         .monotonic_time_ms = *monotonic_time_at_anchor_ms,
         .local_time_ms = current_time->value,
     };
-    return effect.compositor_animation_state().build(keyframes, *layout_node, target_kind, timing_anchor);
+    return effect.compositor_animation_state().build(read, keyframes, *layout_node, target_kind, timing_anchor);
 }
 
 static Optional<double> next_throttled_animation_iteration_event_time(Animations::Animation const& animation, Animations::KeyframeEffect const& effect)
@@ -7478,8 +7511,11 @@ void Document::service_compositor_animation_wakeup(double timestamp)
     if (next_wakeup_delay_ms.has_value())
         schedule_compositor_animation_wakeup(*next_wakeup_delay_ms);
     if (reached_wakeup) {
-        if (reached_compositor_active_start)
-            paint_state().republish_visual_animations(*this);
+        if (reached_compositor_active_start) {
+            // The wake-up's own read of the render state.
+            Layout::ForcedReadScope read { *this, false };
+            paint_state().republish_visual_animations(read, *this);
+        }
         ++m_style_invalidation_counters.animation_frame_pump_requests;
         page().client().request_frame();
     }
@@ -7498,7 +7534,7 @@ void Document::force_visual_context_tree_rebuild_on_next_compositor_animation_up
     m_force_visual_context_tree_rebuild_on_next_compositor_animation_update_for_testing = true;
 }
 
-void Document::update_compositor_animations()
+void Document::update_compositor_animations(Layout::BegunRead const& read)
 {
     struct CompetingPropertyEffects {
         GC::Ptr<Animations::KeyframeEffect> winner;
@@ -7586,7 +7622,7 @@ void Document::update_compositor_animations()
     };
 
     auto ancestor_transform_can_map_horizontal_motion_to_vertical = [&](Element const& animated_target, Node const& observation_root) {
-        auto const* layout_node = animated_target.unsafe_layout_node();
+        auto const* layout_node = animated_target.unsafe_layout_node(read);
         if (!layout_node)
             return true;
         for (auto const* ancestor = layout_node->parent(); ancestor; ancestor = ancestor->parent()) {
@@ -7606,8 +7642,8 @@ void Document::update_compositor_animations()
         return false;
     };
 
-    auto transform_subtree_is_clipped_outside = [this, &visual_context_tree](Element const& animated_target, CSSPixelRect const& root_bounds) {
-        auto const* layout_node = animated_target.unsafe_layout_node();
+    auto transform_subtree_is_clipped_outside = [this, &visual_context_tree, &read](Element const& animated_target, CSSPixelRect const& root_bounds) {
+        auto const* layout_node = animated_target.unsafe_layout_node(read);
         if (!layout_node)
             return false;
         return Layout::RustFFI::layout_script_transform_subtree_is_clipped_outside(
@@ -7668,7 +7704,7 @@ void Document::update_compositor_animations()
             }
         }
 
-        auto const* layout_node = abstract_target.unsafe_layout_node();
+        auto const* layout_node = abstract_target.unsafe_layout_node(read);
         if (!layout_node || !layout_node->is_box())
             return false;
 
@@ -7783,7 +7819,7 @@ void Document::update_compositor_animations()
             auto root = observer.intersection_root_node();
             if (root->is_element() && animated_target.is_shadow_including_inclusive_ancestor_of(*root))
                 return true;
-            bool subtree_is_clipped_outside_root = transform_subtree_is_clipped_outside(animated_target, observer.root_intersection_rectangle());
+            bool subtree_is_clipped_outside_root = transform_subtree_is_clipped_outside(animated_target, observer.root_intersection_rectangle(read));
             for (auto const& observation : observer.observation_targets()) {
                 if (!animated_target.is_shadow_including_inclusive_ancestor_of(*observation.target) || subtree_is_clipped_outside_root)
                     continue;
@@ -7795,7 +7831,7 @@ void Document::update_compositor_animations()
                     auto const& target_rect = observation_target_rect_cache.ensure(observation.target, [&] {
                         return observation.target->bounding_client_rect_assuming_layout_clean();
                     });
-                    auto root_rect = observer.root_intersection_rectangle();
+                    auto root_rect = observer.root_intersection_rectangle(read);
                     bool vertical_bands_are_disjoint = target_rect.bottom() < root_rect.top() || target_rect.top() > root_rect.bottom();
                     if (vertical_bands_are_disjoint)
                         continue;
@@ -7823,7 +7859,7 @@ void Document::update_compositor_animations()
         if (effect.is_offscreen_throttled())
             previously_offscreen_throttled_effects.set(effect);
         if (auto target = effect.target_abstract_element(); target.has_value()) {
-            if (auto* layout_node = target->unsafe_layout_node()) {
+            if (auto* layout_node = target->unsafe_layout_node(read)) {
                 previous_content_retention.ensure(*layout_node, [&] { return layout_node->retains_compositor_animated_content(); });
             }
         }
@@ -7897,8 +7933,8 @@ void Document::update_compositor_animations()
         if (!effect || opacity_affects_visibility_observation(target.element()) || !can_force_opacity_effects_layer(*effect))
             continue;
 
-        bool missing_visual_context_node = build_compositor_animation(*effect, Compositing::RustFFI::FfiVisualAnimationTargetKind::Opacity, keyframes_by_effect).missing_visual_context_node;
-        auto* layout_node = target.unsafe_layout_node();
+        bool missing_visual_context_node = build_compositor_animation(read, *effect, Compositing::RustFFI::FfiVisualAnimationTargetKind::Opacity, keyframes_by_effect).missing_visual_context_node;
+        auto* layout_node = target.unsafe_layout_node(read);
         if (!layout_node)
             continue;
         auto layout_node_slot = Layout::Node::slot_id(layout_node);
@@ -8018,10 +8054,10 @@ void Document::update_compositor_animations()
         bool background_color_animation_was_built = false;
         bool background_color_animation_is_valid = false;
         if (selected_for_background_color) {
-            if (auto* layout_node = abstract_target->unsafe_layout_node()) {
+            if (auto* layout_node = abstract_target->unsafe_layout_node(read)) {
                 if (!force_dark_applies && Painting::rust_background_color_can_be_compositor_animated(*layout_node)) {
                     background_color_layout_node = layout_node;
-                    auto build = build_compositor_animation(effect, Compositing::RustFFI::FfiVisualAnimationTargetKind::BackgroundColor, keyframes_by_effect);
+                    auto build = build_compositor_animation(read, effect, Compositing::RustFFI::FfiVisualAnimationTargetKind::BackgroundColor, keyframes_by_effect);
                     background_color_animation_was_built = build.built;
                     background_color_animation_is_valid = build.built || build.missing_visual_context_node;
                     if (!background_color_animation_is_valid) {
@@ -8043,9 +8079,9 @@ void Document::update_compositor_animations()
         bool filter_animation_was_built = false;
         bool filter_animation_is_valid = false;
         if (selected_for_filter) {
-            if (auto* layout_node = abstract_target->unsafe_layout_node()) {
+            if (auto* layout_node = abstract_target->unsafe_layout_node(read)) {
                 filter_layout_node = layout_node;
-                auto build = build_compositor_animation(effect, Compositing::RustFFI::FfiVisualAnimationTargetKind::Filter, keyframes_by_effect);
+                auto build = build_compositor_animation(read, effect, Compositing::RustFFI::FfiVisualAnimationTargetKind::Filter, keyframes_by_effect);
                 filter_animation_was_built = build.built;
                 filter_animation_is_valid = build.built || build.missing_visual_context_node;
                 if (!filter_animation_is_valid) {
@@ -8078,7 +8114,7 @@ void Document::update_compositor_animations()
 
         auto& compositor_animation_state = effect.compositor_animation_state();
         bool opacity_was_handed_off = !selected_for_opacity;
-        if (selected_for_opacity && build_compositor_animation(effect, Compositing::RustFFI::FfiVisualAnimationTargetKind::Opacity, keyframes_by_effect).built)
+        if (selected_for_opacity && build_compositor_animation(read, effect, Compositing::RustFFI::FfiVisualAnimationTargetKind::Opacity, keyframes_by_effect).built)
             opacity_was_handed_off = true;
         bool background_color_was_handed_off = !selected_for_background_color;
         if (background_color_animation_was_built)
@@ -8104,7 +8140,7 @@ void Document::update_compositor_animations()
         }
         bool transform_was_handed_off = !selected_for_transform;
         if (selected_for_transform) {
-            auto build = build_compositor_animation(effect, Compositing::RustFFI::FfiVisualAnimationTargetKind::Transform, keyframes_by_effect);
+            auto build = build_compositor_animation(read, effect, Compositing::RustFFI::FfiVisualAnimationTargetKind::Transform, keyframes_by_effect);
             transform_was_handed_off = build.built;
             if (build.only_translates_horizontally.has_value())
                 only_translates_horizontally_cache.set(effect, *build.only_translates_horizontally);
@@ -8119,7 +8155,7 @@ void Document::update_compositor_animations()
         bool requires_main_thread_observation_sampling = false;
         if (selected_for_transform) {
             auto only_translates_horizontally = only_translates_horizontally_cache.ensure(effect, [&] {
-                auto const* layout_node = abstract_target->unsafe_layout_node();
+                auto const* layout_node = abstract_target->unsafe_layout_node(read);
                 if (!layout_node || !effect.key_frame_set())
                     return false;
                 return compositor_animation_keyframes(keyframes_by_effect, effect, animation, *abstract_target).only_translates_horizontally(*layout_node);
@@ -8148,7 +8184,7 @@ void Document::update_compositor_animations()
             previously_published_effects.contains(GC::Ref { effect })
                 ? Painting::CompositorAnimationEffectState::ReuseRetainedTimingAnchors::Yes
                 : Painting::CompositorAnimationEffectState::ReuseRetainedTimingAnchors::No);
-        if (auto* layout_node = abstract_target->unsafe_layout_node())
+        if (auto* layout_node = abstract_target->unsafe_layout_node(read))
             retained_this_pass.set(*layout_node);
         published_compositor_animation = true;
     }
@@ -8165,7 +8201,7 @@ void Document::update_compositor_animations()
     }
 
     for (auto stale_slot : layout_nodes_with_stale_forced_effects_layer) {
-        auto* layout_node = layout_node_arena().node_if_live(stale_slot);
+        auto* layout_node = layout_node_arena().node_if_live(read, stale_slot);
         if (!layout_node)
             continue;
         layout_node->set_needs_compositor_effects_layer(false);
@@ -8175,7 +8211,7 @@ void Document::update_compositor_animations()
         Painting::repaint_after_style_change(*layout_node, invalidation);
     }
     for (auto stale_slot : layout_nodes_with_stale_forced_background_color_frame) {
-        auto* layout_node = layout_node_arena().node_if_live(stale_slot);
+        auto* layout_node = layout_node_arena().node_if_live(read, stale_slot);
         if (!layout_node)
             continue;
         layout_node->set_needs_compositor_background_color_frame(false);
@@ -8196,12 +8232,12 @@ void Document::update_compositor_animations()
     // A descriptor must target the tree it is published with. The selection pass above can force
     // or release animation-only visual context nodes, so redo it after applying those updates.
     if (m_needs_accumulated_visual_contexts_update) {
-        paint_state().publish_compositor_animations(*this, Painting::DocumentPaintState::PublishPendingCompositorAnimations::No);
-        update_compositor_animations();
+        paint_state().publish_compositor_animations(read, *this, Painting::DocumentPaintState::PublishPendingCompositorAnimations::No);
+        update_compositor_animations(read);
         return;
     }
 
-    paint_state().publish_compositor_animations(*this, Painting::DocumentPaintState::PublishPendingCompositorAnimations::Yes);
+    paint_state().publish_compositor_animations(read, *this, Painting::DocumentPaintState::PublishPendingCompositorAnimations::Yes);
 
     if (compositor_animation_wakeup_delay_ms.has_value())
         schedule_compositor_animation_wakeup(*compositor_animation_wakeup_delay_ms);
@@ -8693,6 +8729,8 @@ static Element* retarget_from_ua_internal_shadow_root(Element& element)
 // https://drafts.csswg.org/cssom-view/#dom-document-elementfrompoint
 Element const* Document::element_from_point(double x, double y)
 {
+    // The script API's read of the render state.
+    Layout::ForcedReadScope read { *this, true };
     // 1. If either argument is negative, x is greater than the viewport width excluding the size of a rendered scroll
     //    bar (if any), or y is greater than the viewport height excluding the size of a rendered scroll bar (if any), or
     //    there is no viewport associated with the document, return null and terminate these steps.
@@ -8708,7 +8746,7 @@ Element const* Document::element_from_point(double x, double y)
     // 2. If there is a box in the viewport that would be a target for hit testing at coordinates x,y, when applying the transforms
     //    that apply to the descendants of the viewport, return the associated element and terminate these steps.
     GC::Ptr<Element> hit_element;
-    (void)hit_test_all(position, [&](Painting::HitTestResult result) {
+    (void)hit_test_all(read, position, [&](Painting::HitTestResult result) {
         if (auto* element = as_if<Element>(result.dom_node())) {
             hit_element = element;
             return TraversalDecision::Break;
@@ -8731,6 +8769,8 @@ Element const* Document::element_from_point(double x, double y)
 // https://drafts.csswg.org/cssom-view/#dom-document-elementsfrompoint
 GC::RootVector<GC::Ref<Element>> Document::elements_from_point(double x, double y)
 {
+    // The caller's own read of the render state.
+    Layout::ForcedReadScope read { *this, false };
     // 1. Let sequence be a new empty sequence.
     GC::RootVector<GC::Ref<Element>> sequence;
 
@@ -8749,7 +8789,7 @@ GC::RootVector<GC::Ref<Element>> Document::elements_from_point(double x, double 
     // 3. For each box in the viewport, in paint order, starting with the topmost box, that would be a target for
     //    hit testing at coordinates x,y even if nothing would be overlapping it, when applying the transforms that
     //    apply to the descendants of the viewport, append the associated element to sequence.
-    (void)hit_test_all(position, [&](Painting::HitTestResult result) {
+    (void)hit_test_all(read, position, [&](Painting::HitTestResult result) {
         if (auto* element = as_if<Element>(result.dom_node())) {
             // AD-HOC: If element is inside a UA internal shadow root, retarget to the host.
             element = retarget_from_ua_internal_shadow_root(*element);
@@ -8782,6 +8822,7 @@ static bool shadow_root_is_allowed_for_caret_position(ShadowRoot const& shadow_r
 // https://drafts.csswg.org/cssom-view/#dom-document-caretpositionfrompoint
 GC::Ptr<CaretPosition> Document::caret_position_from_point(double x, double y, CaretPositionFromPointOptions const& options)
 {
+    Layout::ForcedReadScope read { *this, false };
     // 1. If there is no viewport associated with the document, return null.
     // 2. If either argument is negative, x is greater than the viewport width excluding the size of a rendered scroll
     //    bar (if any), or y is greater than the viewport height excluding the size of a rendered scroll bar (if any),
@@ -8797,7 +8838,7 @@ GC::Ptr<CaretPosition> Document::caret_position_from_point(double x, double y, C
 
     // 3. If at the coordinates x,y in the viewport no text insertion point indicator would have been inserted when
     //    applying the transforms that apply to the descendants of the viewport, return null.
-    auto caret_position = caret_position_from_point(position);
+    auto caret_position = caret_position_from_point(read, position);
     if (!caret_position.has_value())
         return nullptr;
 
@@ -9000,7 +9041,7 @@ void Document::gather_active_observations_at_depth(size_t depth)
 }
 
 // https://drafts.csswg.org/resize-observer-1/#broadcast-active-resize-observations
-size_t Document::broadcast_active_resize_observations()
+size_t Document::broadcast_active_resize_observations(Layout::BegunRead const& read)
 {
     // 1. Let shallowestTargetDepth be ∞
     auto shallowest_target_depth = NumericLimits<size_t>::max();
@@ -9039,7 +9080,7 @@ size_t Document::broadcast_active_resize_observations()
                 continue;
 
             // 1. Let entry be the result of running create and populate a ResizeObserverEntry given observation.target.
-            auto entry = ResizeObserver::ResizeObserverEntry::create_and_populate(*target).release_value_but_fixme_should_propagate_errors();
+            auto entry = ResizeObserver::ResizeObserverEntry::create_and_populate(read, *target).release_value_but_fixme_should_propagate_errors();
 
             // 2. Add entry to entries.
             entries.append(entry);
@@ -9229,7 +9270,7 @@ void Document::unregister_shadow_root(Badge<DOM::ShadowRoot>, DOM::ShadowRoot& s
 // scope does whenever its rule cache is built. So before a style transaction, the rows of the shadow roots that left
 // are given up and every scope's rule cache is built. A rule cache is invalidated only with a change of the style sheet
 // set, as is a shadow root's departure, so without one since the last transaction every row is current.
-void Document::publish_animation_keyframes_for_style_update()
+void Document::publish_animation_keyframes_for_style_update(Layout::BegunRead const& read)
 {
     if (m_animation_keyframes_published_generation == m_style_sheet_set_generation)
         return;
@@ -9237,7 +9278,7 @@ void Document::publish_animation_keyframes_for_style_update()
     m_animation_keyframes_published_generation = m_style_sheet_set_generation;
     auto* host = style_computer().style_engine().host();
     for (auto const& departed : m_departed_animation_keyframes)
-        CSS::StyleEngineFFI::style_engine_set_tree_scope_animation_keyframes(host, departed.tree_scope.value(), departed.shadow_root_identity, nullptr, nullptr, 0, nullptr, 0);
+        CSS::StyleEngineFFI::style_engine_set_tree_scope_animation_keyframes(host, &read, departed.tree_scope.value(), departed.shadow_root_identity, nullptr, nullptr, 0, nullptr, 0);
     m_departed_animation_keyframes.clear();
     style_scope().build_rule_cache_if_needed();
     for_each_shadow_root([](DOM::ShadowRoot& shadow_root) {
@@ -9329,7 +9370,7 @@ void Document::process_top_layer_removals()
 // subtree of every rendered member and re-marks the members, after which the top layer pass of
 // the tree builder recreates all their boxes in top layer order. Runs after style update so
 // that elements that left the top layer are classified by their up-to-date computed display.
-void Document::process_pending_top_layer_layout_changes()
+void Document::process_pending_top_layer_layout_changes(Layout::BegunRead const& read)
 {
     if (m_elements_with_pending_top_layer_membership_change.is_empty() && !m_top_layer_needs_layout_zone_rebuild)
         return;
@@ -9338,7 +9379,7 @@ void Document::process_pending_top_layer_layout_changes()
     m_top_layer_needs_layout_zone_rebuild = false;
 
     // An already pending full build recreates every box anyway.
-    if (!has_layout_root() || needs_full_layout_tree_update())
+    if (!has_layout_root() || needs_full_layout_tree_update(read))
         return;
 
     // Marks are applied only after every detach has run: detaching clears the flags across the
@@ -9352,7 +9393,7 @@ void Document::process_pending_top_layer_layout_changes()
             // anonymous wrappers and inline fragments behind; the parent subtree rebuild heals
             // that structure, while the top layer pass rebuilds the element itself.
             // NB: Called during top layer processing, outside layout tree construction.
-            auto* element_layout_node = element->unsafe_layout_node();
+            auto* element_layout_node = element->unsafe_layout_node(read);
             bool element_has_box_at_normal_position = element_layout_node && element_layout_node->parent() && !element_layout_node->topmost_layout_node_of_top_layer_placement();
             if (element_has_box_at_normal_position) {
                 if (auto* flat_tree_parent = element->flat_tree_parent(); flat_tree_parent && !flat_tree_parent->is_document())
@@ -9369,7 +9410,7 @@ void Document::process_pending_top_layer_layout_changes()
                 invalidate_layout_tree(InvalidateLayoutTreeReason::TopLayerElementStillRenderedAfterRemoval);
                 return;
             }
-            Layout::detach_top_layer_element_layout_subtree(element);
+            Layout::detach_top_layer_element_layout_subtree(read, element);
             if (element->is_connected())
                 elements_to_mark_for_layout_tree_update.append(element);
         }
@@ -9378,7 +9419,7 @@ void Document::process_pending_top_layer_layout_changes()
     for (auto const& member : m_top_layer_elements) {
         if (!member->rendered_in_top_layer())
             continue;
-        Layout::detach_top_layer_element_layout_subtree(member);
+        Layout::detach_top_layer_element_layout_subtree(read, member);
         elements_to_mark_for_layout_tree_update.append(member);
     }
 
@@ -9412,10 +9453,12 @@ void Document::invalidate_scroll_state()
 
 Vector<GC::Root<Range>> Document::find_matching_text(Utf16View query, CaseSensitivity case_sensitivity)
 {
+    // The caller's own read of the render state.
+    Layout::ForcedReadScope read { *this, false };
     // Ensure the layout tree exists before searching for text matches.
     update_layout(UpdateLayoutReason::DocumentFindMatchingText);
 
-    if (!layout_node())
+    if (!layout_node(read))
         return {};
 
     struct Search {
@@ -9434,7 +9477,7 @@ Vector<GC::Root<Range>> Document::find_matching_text(Utf16View query, CaseSensit
         .length = query.length_in_code_units(),
     };
     Layout::RustFFI::layout_script_find_matching_text(
-        layout_node()->document_host(), Layout::Node::slot_id(layout_node()), query_view,
+        layout_node(read)->document_host(), Layout::Node::slot_id(layout_node(read)), query_view,
         case_sensitivity == CaseSensitivity::CaseSensitive,
         [](void* context, u32 identity) {
             // Inert text is excluded from find-in-page.
@@ -9868,6 +9911,8 @@ GC::Ptr<DOM::Position> Document::cursor_position() const
 
 Optional<CSSPixelRect> Document::current_caret_rect()
 {
+    // The caller's own read of the render state.
+    Layout::ForcedReadScope read { *this, false };
     // Returns the bounds of the current text caret in viewport-relative CSS pixels. Used to position platform overlays
     // such as the IME candidate window. Returns nothing when no editable element is focused or when layout isn't ready.
     auto position = cursor_position();
@@ -9877,7 +9922,7 @@ Optional<CSSPixelRect> Document::current_caret_rect()
 
     update_layout(UpdateLayoutReason::InputCaretRect);
 
-    auto* layout_node = dom_node.layout_node();
+    auto* layout_node = dom_node.layout_node(read);
     if (!layout_node)
         return {};
 
@@ -9903,7 +9948,7 @@ Optional<CSSPixelRect> Document::current_caret_rect()
     // painting, including empty lines rendered by <br>.
     if (auto* node_with_style = as_if<Layout::NodeWithStyle>(*layout_node)) {
         if (Painting::has_committed_box(*node_with_style))
-            return to_viewport_rect(Painting::caret_rect_for_child_offset(*node_with_style, position->offset()));
+            return to_viewport_rect(Painting::caret_rect_for_child_offset(read, *node_with_style, position->offset()));
     }
     return {};
 }
@@ -9916,13 +9961,7 @@ void Document::reset_cursor_blink_cycle()
 void Document::set_cursor_position_needs_repaint()
 {
     auto repaint_position = [](DOM::Position& position) {
-        auto node = position.node();
-        if (auto* text = as_if<DOM::Text>(*node)) {
-            if (auto* layout_text_node = as_if<Layout::TextNode>(text->unsafe_layout_node()))
-                layout_text_node->set_needs_repaint(InvalidateDisplayList::PaintCommands);
-            return;
-        }
-        node->set_needs_repaint(InvalidateDisplayList::PaintCommands);
+        position.node()->set_needs_repaint(InvalidateDisplayList::PaintCommands);
     };
 
     auto position = cursor_position();
@@ -10051,13 +10090,10 @@ void Document::note_svg_paint_resources_changed()
 {
     if (!m_layout_node_arena)
         return;
-    if (Layout::RustFFI::render_state_note_svg_paint_resources_changed(m_layout_node_arena->host()))
+    // Whether a row enrolled a resource is the note's own read of the render state.
+    Layout::ForcedReadScope read { m_layout_node_arena->render_document(), false };
+    if (Layout::RustFFI::render_state_note_svg_paint_resources_changed(m_layout_node_arena->host(), read))
         set_needs_accumulated_visual_contexts_update(true);
-}
-
-bool Document::has_enrolled_svg_paint_resources() const
-{
-    return m_layout_node_arena && Layout::RustFFI::render_state_has_enrolled_svg_paint_resources(m_layout_node_arena->host());
 }
 
 void Document::schedule_full_accumulated_visual_context_rebuild(Layout::RustFFI::FfiVisualContextGlobalRebuildReason reason)
@@ -10082,12 +10118,12 @@ void Document::schedule_accumulated_visual_context_update(Layout::Node const& la
     set_needs_accumulated_visual_contexts_update(true);
 }
 
-void Document::schedule_accumulated_visual_context_update(Element& element, AccumulatedVisualContextUpdateScope scope)
+void Document::schedule_accumulated_visual_context_update(Layout::BegunRead const& read, Element& element, AccumulatedVisualContextUpdateScope scope)
 {
-    if (auto* layout_node = element.unsafe_layout_node())
+    if (auto* layout_node = element.unsafe_layout_node(read))
         schedule_accumulated_visual_context_update(*layout_node, scope);
     element.for_each_synthetic_pseudo_element([&](CSS::PseudoElement, SyntheticPseudoElement const& pseudo_element) {
-        if (auto* pseudo_element_layout_node = pseudo_element.unsafe_layout_node())
+        if (auto* pseudo_element_layout_node = pseudo_element.unsafe_layout_node(read))
             schedule_accumulated_visual_context_update(*pseudo_element_layout_node, scope);
     });
 }
@@ -10126,13 +10162,13 @@ void Document::register_scroll_snap_container(Layout::Node const& snap_container
     m_scroll_snap_containers.append(snap_container_slot);
 }
 
-Vector<Compositing::RustFFI::NodeSlotId> Document::collect_scroll_snap_containers()
+Vector<Compositing::RustFFI::NodeSlotId> Document::collect_scroll_snap_containers(Layout::BegunRead const& read)
 {
     Vector<Compositing::RustFFI::NodeSlotId> snap_containers;
     snap_containers.ensure_capacity(m_scroll_snap_containers.size());
     m_scroll_snap_containers.remove_all_matching([&](auto registered_slot) {
         // A registered box whose layout node a style or layout update dropped is no longer a box of this document.
-        auto const* registered = layout_node_arena().node_if_live(registered_slot);
+        auto const* registered = layout_node_arena().node_if_live(read, registered_slot);
         if (!registered)
             return true;
         // The scroll snap properties of a registered box can stop making it a snap container without its layout node
@@ -10156,19 +10192,19 @@ void Document::set_needs_to_record_display_list_keeping_hit_test_display_list()
         navigable->set_needs_to_record_display_list();
 }
 
-RefPtr<Compositing::DisplayList> Document::record_display_list(HTML::PaintConfig config, Compositing::DisplayListResourceStorage& resource_storage, Painting::PaintCommandCacheMode cache_mode)
+RefPtr<Compositing::DisplayList> Document::record_display_list(Layout::BegunRead const& read, HTML::PaintConfig config, Compositing::DisplayListResourceStorage& resource_storage, Painting::PaintCommandCacheMode cache_mode)
 {
     // The host reads this recording right after it, so a recording in flight is taken in first: it has the recorder
     // state.
     if (auto navigable = this->navigable())
         navigable->take_recording_in_flight_in(HTML::LocalNavigable::TakeIn::Wait);
-    auto recording = start_display_list_recording(config, cache_mode, Layout::RustFFI::FfiFlightBlocker::NotInRenderingUpdate);
+    auto recording = start_display_list_recording(read, config, cache_mode, Layout::RustFFI::FfiFlightBlocker::NotInRenderingUpdate);
     if (!recording.has_value())
         return nullptr;
-    return finish_display_list_recording(*recording, resource_storage);
+    return finish_display_list_recording(read, *recording, resource_storage);
 }
 
-Optional<Painting::DisplayListRecording> Document::start_display_list_recording(HTML::PaintConfig config, Painting::PaintCommandCacheMode cache_mode, Layout::RustFFI::FfiFlightBlocker blocker)
+Optional<Painting::DisplayListRecording> Document::start_display_list_recording(Layout::BegunRead const& read, HTML::PaintConfig config, Painting::PaintCommandCacheMode cache_mode, Layout::RustFFI::FfiFlightBlocker blocker)
 {
     update_paint_and_hit_testing_properties_if_needed();
     VERIFY(has_committed_viewport_box());
@@ -10185,42 +10221,42 @@ Optional<Painting::DisplayListRecording> Document::start_display_list_recording(
     // https://drafts.csswg.org/css-color-adjust-1/#color-scheme-effect
     // On the root element, the used color scheme additionally must affect the surface color of the canvas, and the viewport’s scrollbars.
     if (navigable()->is_top_level_traversable()) {
-        auto canvas_background_color = this->canvas_background_color();
+        auto canvas_background_color = this->canvas_background_color(read);
         placeholder_display_list->set_surface_clear_color(canvas_background_color);
         page().client().page_did_change_background_color(canvas_background_color);
     }
 
     Painting::InspectorOverlayInputs overlay_inputs;
-    if (auto const* layout_node = highlighted_layout_node(); layout_node && Painting::has_committed_box(*layout_node))
+    if (auto const* layout_node = highlighted_layout_node(read); layout_node && Painting::has_committed_box(*layout_node))
         overlay_inputs.highlighted_layout_node = layout_node;
     auto const& palette = page().palette();
     overlay_inputs.tooltip_color = palette.color(Gfx::ColorRole::Tooltip);
     overlay_inputs.tooltip_text_color = palette.color(Gfx::ColorRole::TooltipText);
     overlay_inputs.tooltip_border_color = palette.threed_shadow1();
     for (auto const& flexbox_highlight : m_flexbox_highlights) {
-        if (auto const* layout_node = flexbox_highlight.node ? flexbox_highlight.node->unsafe_layout_node() : nullptr; layout_node && Painting::has_committed_box(*layout_node))
+        if (auto const* layout_node = flexbox_highlight.node ? flexbox_highlight.node->unsafe_layout_node(read) : nullptr; layout_node && Painting::has_committed_box(*layout_node))
             overlay_inputs.flex_highlights.append({ layout_node, flexbox_highlight.options });
     }
     for (auto const& grid_highlight : m_grid_highlights) {
-        if (auto const* layout_node = grid_highlight.node ? grid_highlight.node->unsafe_layout_node() : nullptr; layout_node && Painting::has_committed_box(*layout_node))
+        if (auto const* layout_node = grid_highlight.node ? grid_highlight.node->unsafe_layout_node(read) : nullptr; layout_node && Painting::has_committed_box(*layout_node))
             overlay_inputs.grid_highlights.append({ layout_node, grid_highlight.options });
     }
     if (config.should_show_caret_hit_test_debug_overlay)
         overlay_inputs.caret_debug_rect = m_caret_hit_test_debug_rect;
 
-    return Painting::start_rust_display_list_recording(*this, move(visual_context_tree), move(placeholder_display_list), cache_mode, config, overlay_inputs, blocker);
+    return Painting::start_rust_display_list_recording(read, *this, move(visual_context_tree), move(placeholder_display_list), cache_mode, config, overlay_inputs, blocker);
 }
 
-RefPtr<Compositing::DisplayList> Document::finish_display_list_recording(Painting::DisplayListRecording const& recording, Compositing::DisplayListResourceStorage& resource_storage)
+RefPtr<Compositing::DisplayList> Document::finish_display_list_recording(Layout::BegunRead const& read, Painting::DisplayListRecording const& recording, Compositing::DisplayListResourceStorage& resource_storage)
 {
-    auto display_list = Painting::finish_rust_display_list_recording(*this, recording, resource_storage);
+    auto display_list = Painting::finish_rust_display_list_recording(read, *this, recording, resource_storage);
     if (!display_list)
         return nullptr;
 
     auto& document_paint_state = paint_state();
     bool const recording_returned_the_paint_command_cache_source = display_list == document_paint_state.display_list_used_as_paint_command_cache_source();
     if (!recording_returned_the_paint_command_cache_source || !m_hit_test_display_list || !m_hit_test_display_list->is_current())
-        m_hit_test_display_list = Painting::HitTestDisplayList::create_from_rust_recording(recording.visual_context_tree.structural_epoch(), layout_node_arena(), *m_chrome_widget_registry);
+        m_hit_test_display_list = Painting::HitTestDisplayList::create_from_rust_recording(read, recording.visual_context_tree.structural_epoch(), layout_node_arena(), *m_chrome_widget_registry);
 
     if (recording.cache_mode == Painting::PaintCommandCacheMode::ReadWrite && !recording_returned_the_paint_command_cache_source) {
         document_paint_state.set_display_list_used_as_paint_command_cache_source(display_list, resource_storage.collect_referenced_resources(*display_list));
@@ -10239,7 +10275,7 @@ void Document::set_caret_hit_test_debug_rect(Optional<CSSPixelRect> rect)
     page().client().request_frame();
 }
 
-Optional<Painting::HitTestQuery> Document::prepare_hit_test_query()
+Optional<Painting::HitTestQuery> Document::prepare_hit_test_query(Layout::BegunRead const& read)
 {
     update_paint_and_hit_testing_properties_if_needed();
 
@@ -10252,17 +10288,17 @@ Optional<Painting::HitTestQuery> Document::prepare_hit_test_query()
         if (auto navigable = this->navigable()) {
             if (navigable->record_display_list_and_scroll_state(paint_config))
                 return;
-            (void)record_display_list(paint_config, navigable->display_list_resource_storage(), Painting::PaintCommandCacheMode::ReadWrite);
+            (void)record_display_list(read, paint_config, navigable->display_list_resource_storage(), Painting::PaintCommandCacheMode::ReadWrite);
             return;
         }
         Compositing::DisplayListResourceStorage throwaway_resource_storage_for_hit_test_only_recording;
-        (void)record_display_list(paint_config, throwaway_resource_storage_for_hit_test_only_recording, Painting::PaintCommandCacheMode::ReadOnly);
+        (void)record_display_list(read, paint_config, throwaway_resource_storage_for_hit_test_only_recording, Painting::PaintCommandCacheMode::ReadOnly);
     };
 
     // The paint properties were prepared above, and a query reads them as they were left there: preparing them again
     // for every item a query converts would find nothing to do, but still ask the render state to do it.
     auto hit_test_display_list_is_current = [&] {
-        return m_hit_test_display_list && m_hit_test_display_list->is_current() && m_hit_test_display_list->visual_context_tree_structural_epoch() == paint_state().visual_context_tree_structural_epoch_without_update();
+        return m_hit_test_display_list && m_hit_test_display_list->is_current() && m_hit_test_display_list->visual_context_tree_structural_epoch() == paint_state().visual_context_tree_structural_epoch_without_update(read);
     };
     // The recording in flight replaces the hit-test list once it lands, so a list that is not current waits for it
     // first.
@@ -10278,7 +10314,7 @@ Optional<Painting::HitTestQuery> Document::prepare_hit_test_query()
 
     return Painting::HitTestQuery {
         *m_hit_test_display_list,
-        paint_state().visual_context_tree_without_update(*this),
+        paint_state().visual_context_tree_without_update(read, *this),
         scroll_state_snapshot(),
         page().client().device_pixels_per_css_pixel(),
         page().chrome_metrics(),
@@ -10286,9 +10322,9 @@ Optional<Painting::HitTestQuery> Document::prepare_hit_test_query()
     };
 }
 
-Optional<Painting::HitTestResult> Document::hit_test(CSSPixelPoint position)
+Optional<Painting::HitTestResult> Document::hit_test(Layout::BegunRead const& read, CSSPixelPoint position)
 {
-    auto query = prepare_hit_test_query();
+    auto query = prepare_hit_test_query(read);
     if (!query.has_value())
         return {};
     // https://w3c.github.io/pointerevents/#hit-test
@@ -10303,7 +10339,7 @@ Optional<Painting::HitTestResult> Document::hit_test(CSSPixelPoint position)
     // 2. If there is a box in the viewport that would be a target for hit testing at coordinates x,y, when applying
     //    the transforms that apply to the descendants of the viewport, return the associated element and terminate
     //    these steps.
-    auto result = query->list().hit_test(position, *query);
+    auto result = query->list().hit_test(read, position, *query);
     if (result.has_value() && (result->chrome_widget || result->dom_node()))
         return result;
 
@@ -10314,60 +10350,60 @@ Optional<Painting::HitTestResult> Document::hit_test(CSSPixelPoint position)
     return {};
 }
 
-Optional<Painting::CaretPosition> Document::caret_position_from_point(CSSPixelPoint position)
+Optional<Painting::CaretPosition> Document::caret_position_from_point(Layout::BegunRead const& read, CSSPixelPoint position)
 {
-    auto query = prepare_hit_test_query();
+    auto query = prepare_hit_test_query(read);
     if (!query.has_value())
         return {};
-    return query->list().caret_position_from_point(position, *query, Painting::CaretPositionMode::Normal);
+    return query->list().caret_position_from_point(read, position, *query, Painting::CaretPositionMode::Normal);
 }
 
-Optional<Painting::CaretPosition> Document::caret_position_from_point_for_selection_start(CSSPixelPoint position)
+Optional<Painting::CaretPosition> Document::caret_position_from_point_for_selection_start(Layout::BegunRead const& read, CSSPixelPoint position)
 {
-    auto query = prepare_hit_test_query();
+    auto query = prepare_hit_test_query(read);
     if (!query.has_value())
         return {};
-    return query->list().caret_position_from_point(position, *query, Painting::CaretPositionMode::SelectionStart);
+    return query->list().caret_position_from_point(read, position, *query, Painting::CaretPositionMode::SelectionStart);
 }
 
-Optional<Painting::CaretPosition> Document::caret_position_from_point_for_selection(CSSPixelPoint position, GC::Ptr<Node const> constraint_scope)
+Optional<Painting::CaretPosition> Document::caret_position_from_point_for_selection(Layout::BegunRead const& read, CSSPixelPoint position, GC::Ptr<Node const> constraint_scope)
 {
-    auto query = prepare_hit_test_query();
+    auto query = prepare_hit_test_query(read);
     if (!query.has_value())
         return {};
-    return query->list().caret_position_from_point(position, *query, Painting::CaretPositionMode::Selection, constraint_scope);
+    return query->list().caret_position_from_point(read, position, *query, Painting::CaretPositionMode::Selection, constraint_scope);
 }
 
-Optional<Painting::CaretPosition> Document::caret_position_at_line_edge(Node const& node, size_t offset, TextAffinity affinity, Painting::CaretLineEdge edge)
+Optional<Painting::CaretPosition> Document::caret_position_at_line_edge(Layout::BegunRead const& read, Node const& node, size_t offset, TextAffinity affinity, Painting::CaretLineEdge edge)
 {
-    auto query = prepare_hit_test_query();
+    auto query = prepare_hit_test_query(read);
     if (!query.has_value())
         return {};
-    return query->list().caret_position_at_line_edge(node, offset, affinity, edge);
+    return query->list().caret_position_at_line_edge(read, node, offset, affinity, edge);
 }
 
-Optional<Painting::CaretPosition> Document::caret_position_on_adjacent_line(Node const& node, size_t offset, TextAffinity affinity, Painting::CaretLineDirection direction, CSSPixels inline_coordinate, Node const& scope)
+Optional<Painting::CaretPosition> Document::caret_position_on_adjacent_line(Layout::BegunRead const& read, Node const& node, size_t offset, TextAffinity affinity, Painting::CaretLineDirection direction, CSSPixels inline_coordinate, Node const& scope)
 {
-    auto query = prepare_hit_test_query();
+    auto query = prepare_hit_test_query(read);
     if (!query.has_value())
         return {};
-    return query->list().caret_position_on_adjacent_line(node, offset, affinity, direction, inline_coordinate, scope);
+    return query->list().caret_position_on_adjacent_line(read, node, offset, affinity, direction, inline_coordinate, scope);
 }
 
-Optional<CSSPixels> Document::caret_line_block_coordinate(Node const& node, size_t offset, TextAffinity affinity)
+Optional<CSSPixels> Document::caret_line_block_coordinate(Layout::BegunRead const& read, Node const& node, size_t offset, TextAffinity affinity)
 {
-    auto query = prepare_hit_test_query();
+    auto query = prepare_hit_test_query(read);
     if (!query.has_value())
         return {};
-    return query->list().caret_line_block_coordinate(node, offset, affinity);
+    return query->list().caret_line_block_coordinate(read, node, offset, affinity);
 }
 
-TraversalDecision Document::hit_test_all(CSSPixelPoint position, Function<TraversalDecision(Painting::HitTestResult)> const& callback)
+TraversalDecision Document::hit_test_all(Layout::BegunRead const& read, CSSPixelPoint position, Function<TraversalDecision(Painting::HitTestResult)> const& callback)
 {
-    auto query = prepare_hit_test_query();
+    auto query = prepare_hit_test_query(read);
     if (!query.has_value())
         return TraversalDecision::Continue;
-    return query->list().hit_test_all(position, *query, callback);
+    return query->list().hit_test_all(read, position, *query, callback);
 }
 
 Unicode::Segmenter& Document::grapheme_segmenter() const
@@ -10722,25 +10758,29 @@ ElementByIdMap& Document::element_by_id() const
 
 Utf16String Document::dump_display_list()
 {
+    // The dump's own read of the render state.
+    Layout::ForcedReadScope read { *this, false };
     update_layout(UpdateLayoutReason::DumpDisplayList);
 
     if (!has_committed_viewport_box())
         return "No paintable"_utf16;
 
-    if (paint_state().has_visual_context_tree())
+    if (paint_state().has_visual_context_tree(read))
         schedule_full_accumulated_visual_context_rebuild(Layout::RustFFI::FfiVisualContextGlobalRebuildReason::CanonicalDumpRequested);
 
     auto& resource_storage = navigable()->display_list_resource_storage();
-    auto display_list = record_display_list(HTML::PaintConfig {}, resource_storage, Painting::PaintCommandCacheMode::ReadOnly);
+    auto display_list = record_display_list(read, HTML::PaintConfig {}, resource_storage, Painting::PaintCommandCacheMode::ReadOnly);
     if (!display_list)
         return "No display list"_utf16;
 
     auto visual_context_tree = paint_state().visual_context_tree(*this);
-    return Painting::serialize_painting_dump(*this, visual_context_tree, *display_list, resource_storage);
+    return Painting::serialize_painting_dump(read, *this, visual_context_tree, *display_list, resource_storage);
 }
 
 Utf16String Document::dump_stacking_context_tree()
 {
+    // The caller's own read of the render state.
+    Layout::ForcedReadScope read { *this, false };
     update_layout(UpdateLayoutReason::DumpDisplayList);
 
     if (!has_committed_viewport_box())
@@ -10749,7 +10789,7 @@ Utf16String Document::dump_stacking_context_tree()
     update_paint_and_hit_testing_properties_if_needed();
 
     StringBuilder builder;
-    Painting::dump_stacking_context_tree(builder, *this);
+    Painting::dump_stacking_context_tree(read, builder, *this);
     if (builder.is_empty())
         return "No stacking context"_utf16;
     return Utf16String::from_utf8_without_validation(builder.string_view());

@@ -46,7 +46,7 @@ public:
 
     StyleProperty const* get(Utf16FlyString const& name) const;
     RefPtr<CustomPropertyData const> inheritable_impl(RefPtr<CustomPropertyData const> inheritable_parent, AK::Function<Optional<CustomPropertyRegistration const&>(Utf16FlyString const&)> get_custom_property_registration) const;
-    RefPtr<CustomPropertyData const> inheritable(DOM::Document const&) const;
+    RefPtr<CustomPropertyData const> inheritable(Layout::BegunRead const& read, DOM::Document const&) const;
     // What a child inherits of an environment the style engine resolved, which the engine decided.
     void set_inheritable(DOM::Document const&, RefPtr<CustomPropertyData const>) const;
 

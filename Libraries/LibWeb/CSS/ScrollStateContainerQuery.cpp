@@ -30,11 +30,11 @@ static bool is_scroll_state_container(DOM::Element const& element)
 
 // The scrolling box a scroll-state(scrollable) or scroll-state(scrolled) query asks about. The root element's is the
 // viewport's.
-static Layout::Node* scrolling_box_of(DOM::Document& document, DOM::Element& element)
+static Layout::Node* scrolling_box_of(Layout::BegunRead const& read, DOM::Document& document, DOM::Element& element)
 {
     if (&element == document.document_element())
-        return document.unsafe_layout_node();
-    auto* layout_node = element.unsafe_layout_node();
+        return document.unsafe_layout_node(read);
+    auto* layout_node = element.unsafe_layout_node(read);
     if (!layout_node || !layout_node->is_scroll_container())
         return nullptr;
     return layout_node;
@@ -163,7 +163,7 @@ void ScrollStateQueryContainers::did_scroll_relatively(Layout::Node const& scrol
         m_viewport_last_relative_scroll_direction = direction;
 }
 
-bool ScrollStateQueryContainers::snapshot_post_layout_state(DOM::Document& document, Snapshot which)
+bool ScrollStateQueryContainers::snapshot_post_layout_state(Layout::BegunRead const& read, DOM::Document& document, Snapshot which)
 {
     if (m_containers.is_empty())
         return false;
@@ -185,11 +185,11 @@ bool ScrollStateQueryContainers::snapshot_post_layout_state(DOM::Document& docum
         }
 
         ScrollStateSnapshot snapshot;
-        if (auto* layout_node = element->unsafe_layout_node(); layout_node && Painting::has_committed_box(*layout_node)) {
+        if (auto* layout_node = element->unsafe_layout_node(read); layout_node && Painting::has_committed_box(*layout_node)) {
             snapshot.stuck = stuck_edges(document, *layout_node);
             snapshot.snapped = snapped_axes(document, element, *layout_node);
         }
-        if (auto* scrolling_box = scrolling_box_of(document, element)) {
+        if (auto* scrolling_box = scrolling_box_of(read, document, element)) {
             snapshot.scrollable = scrollable_edges(*scrolling_box);
             snapshot.scrolled = scrolling_box->is_viewport() ? m_viewport_last_relative_scroll_direction : element->last_relative_scroll_direction();
         }

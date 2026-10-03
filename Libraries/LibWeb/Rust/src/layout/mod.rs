@@ -90,8 +90,10 @@ pub(crate) use geometry::{
     RootSizingDirectives,
 };
 pub(crate) use host_tables::{ArenaHandle, HostTables};
+pub(crate) use layout_node_arena::HeldNode as ArenaHeldNode;
 pub(crate) use layout_pass::LayoutPass;
 pub(crate) use node_facts::NodeFacts;
+pub(crate) use partial_relayout::HeldNode as PartialRelayoutHeldNode;
 pub(crate) use rendered_text::{PublishedTextSlot, RenderedText, RenderedTextBoundary, TextFragments};
 pub(crate) use run_records::RunRecords;
 use std::cell::Cell;
@@ -103,5 +105,5 @@ use std::ffi::c_void;
 pub(crate) use style_values::StyleValues;
 pub(crate) use tree_builder::MainThreadFfiEntry as TreeBuildMainThreadFfiEntry;
 pub(crate) use update_layout::MainThreadFfiEntry as UpdateMainThreadFfiEntry;
-pub(crate) use update_layout::{LayoutRoundAnswer, LayoutRoundJob, LayoutUpdateReads};
+pub(crate) use update_layout::{LayoutRoundAnswer, LayoutRoundJob};
 pub(crate) use used_values::{FfiCssPixelPoint, FfiCssPixelRect, FfiCssPixelSize, SizeConstraint, UsedValues};

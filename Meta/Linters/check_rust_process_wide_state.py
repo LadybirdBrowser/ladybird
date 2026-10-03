@@ -112,7 +112,6 @@ RENDER_STATE_ALLOWED = {
             "css/style/prefix.rs:NEXT",
             "css/style_sheet.rs:NEXT_SHEET_IDENTITY",
             "layout/fragment_tree.rs:NEXT_IDENTITY",
-            "render_state.rs:NEXT",
         ],
     ),
     **render_state_entries(
@@ -171,7 +170,6 @@ RENDER_STATE_ALLOWED = {
     f"{RENDER_STATE_CRATE}/src/css/style_value.rs:VALUES": "built-once keyword values, and a replay-only table of the same name",
     f"{RENDER_STATE_CRATE}/src/painting/recording_slot.rs:RECORDING_HOLD": "a test's hold on the next recording that flies, behind a mutex; only internals arms it",
     f"{RENDER_STATE_CRATE}/src/painting/recording_slot.rs:RECORDING_HOLD_RELEASED": "wakes the recording a test held once it lets it go",
-    f"{RENDER_STATE_CRATE}/src/render_state.rs:STATES": "the render states of the documents whose messages this thread handles; only it reaches them",
     f"{RENDER_STATE_CRATE}/src/stage_thread.rs:THREAD_SETUP": "set once before the first stage thread starts, which runs it; read-only after",
     f"{RENDER_STATE_CRATE}/src/stage_thread.rs:FLIGHT_FINISHED": "set once before the first job is submitted, which a stage thread calls when one finishes; read-only after",
     f"{RENDER_STATE_CRATE}/src/stage_thread.rs:STYLE_LAYOUT_THREAD": "the process's one StyleLayout thread, which every thread hands its jobs to",

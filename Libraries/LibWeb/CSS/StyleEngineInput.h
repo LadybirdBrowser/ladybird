@@ -186,7 +186,7 @@ WEB_API bool record_element_presentational_hint_properties(DOM::Element&, Readon
 WEB_API void republish_presentational_hints(DOM::Element&);
 WEB_API void record_element_animation_names(DOM::Element&, ReadonlySpan<Utf16FlyString>);
 WEB_API void record_element_css_defined_animations(DOM::Element&, u8 slot, ReadonlySpan<Utf16FlyString> names, ReadonlySpan<StyleEngineFFI::FfiAppliedAnimationDefinition> definitions);
-WEB_API void record_element_animation_effect_descriptions(DOM::Element&, u8 slot, ReadonlySpan<GC::Ref<Animations::KeyframeEffect>>);
+WEB_API void record_element_animation_effect_descriptions(Layout::BegunRead const&, DOM::Element&, u8 slot, ReadonlySpan<GC::Ref<Animations::KeyframeEffect>>);
 WEB_API void record_element_custom_property_names(DOM::Element&, ReadonlySpan<Utf16FlyString>, bool uses_unnamed, bool uses_custom_functions);
 
 // The same index, from the environments the element and its pseudo-elements resolved to, plus
@@ -209,7 +209,7 @@ WEB_API void record_element_state_changed(DOM::Element&, PseudoClass, bool new_v
 
 // Called before each style flush. The user-agent and user origins have no sheet list to announce
 // themselves from, so the engine is told about them from here.
-WEB_API void record_non_author_stylesheets(DOM::Document&);
+WEB_API void record_non_author_stylesheets(Layout::BegunRead const&, DOM::Document&);
 
 // Called once a sheet has taken its place in the sheet list, so its successor is known.
 WEB_API void record_stylesheet_attached(StyleSheetState&, DOM::Node& document_or_shadow_root, StyleSheetState* before);

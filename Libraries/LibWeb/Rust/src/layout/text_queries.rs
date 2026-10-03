@@ -14,6 +14,8 @@ use std::ops::Range;
 
 use RenderedTextBoundary::{End, Start};
 
+crate::render_state::held_node_entries!();
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 struct TextPosition {
     node: NodeSlotId,
@@ -404,15 +406,8 @@ pub(crate) fn find_matching_text(
     matches
 }
 
-/// The reason the host waits for its document's render state as input selects the word at a point.
-pub(crate) struct InputSelectsByWord {
-    _private: (),
-}
-
-const INPUT_SELECTS_BY_WORD: InputSelectsByWord = InputSelectsByWord { _private: () };
-
 /// The DOM range of the word at `dom_offset` in the text the rows of the text node whose primary row is `primary`
-/// render.
+/// render, which input reads in `read` as it selects the word at a point.
 ///
 /// # Safety
 ///
@@ -424,12 +419,12 @@ pub unsafe extern "C" fn layout_text_word_range(
     primary: NodeSlotId,
     dom_offset: usize,
 ) -> FfiTextSourceRange {
-    use crate::render_state::{ArenaAnswer, ArenaQuery, LockstepProof, ask};
+    use crate::render_state::{ArenaAnswer, ArenaQuery, ask};
     assert!(!host.is_null(), "document host is null");
     let query = ArenaQuery::WordRange { primary, dom_offset };
     // SAFETY: Guaranteed by the caller.
     let host = unsafe { &*host };
-    let ArenaAnswer::Range(range) = ask(LockstepProof::for_reason(&INPUT_SELECTS_BY_WORD), host, query) else {
+    let ArenaAnswer::Range(range) = ask(node_read(), host, query) else {
         unreachable!("a word range is answered with a range");
     };
     range

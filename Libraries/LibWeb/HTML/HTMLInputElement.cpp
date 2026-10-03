@@ -93,11 +93,6 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(HTMLInputElement);
 
-Layout::Node const* HTMLInputElement::image_provider_layout_node() const
-{
-    return unsafe_layout_node();
-}
-
 static GC::Ref<DOM::Event> create_event_for_element(HTMLElement& element, Utf16FlyString const& event_name, DOM::EventInit const& event_init = {})
 {
     return DOM::Event::create(
@@ -2550,6 +2545,7 @@ WebIDL::ExceptionOr<void> HTMLInputElement::set_size(WebIDL::UnsignedLong value)
 // https://html.spec.whatwg.org/multipage/input.html#dom-input-height
 WebIDL::UnsignedLong HTMLInputElement::height() const
 {
+    Layout::ForcedReadScope read { document(), true };
     const_cast<DOM::Document&>(document()).update_layout_if_needed_for_node(*this, DOM::UpdateLayoutReason::HTMLInputElementHeight);
 
     // When the input element's type attribute is not in the Image Button state, then no image is available.
@@ -2557,7 +2553,7 @@ WebIDL::UnsignedLong HTMLInputElement::height() const
         return 0;
 
     // Return the rendered height of the image, in CSS pixels, if the image is being rendered.
-    if (auto const* layout_node = this->layout_node(); layout_node && Painting::has_committed_box(*layout_node))
+    if (auto const* layout_node = this->layout_node(read); layout_node && Painting::has_committed_box(*layout_node))
         return Painting::content_height(*layout_node).to_int();
 
     // On setting [the width or height IDL attribute], they must act as if they reflected the respective content attributes of the same name.
@@ -2585,6 +2581,7 @@ void HTMLInputElement::set_height(WebIDL::UnsignedLong value)
 // https://html.spec.whatwg.org/multipage/input.html#dom-input-width
 WebIDL::UnsignedLong HTMLInputElement::width() const
 {
+    Layout::ForcedReadScope read { document(), true };
     const_cast<DOM::Document&>(document()).update_layout_if_needed_for_node(*this, DOM::UpdateLayoutReason::HTMLInputElementWidth);
 
     // When the input element's type attribute is not in the Image Button state, then no image is available.
@@ -2592,7 +2589,7 @@ WebIDL::UnsignedLong HTMLInputElement::width() const
         return 0;
 
     // Return the rendered width of the image, in CSS pixels, if the image is being rendered.
-    if (auto const* layout_node = this->layout_node(); layout_node && Painting::has_committed_box(*layout_node))
+    if (auto const* layout_node = this->layout_node(read); layout_node && Painting::has_committed_box(*layout_node))
         return Painting::content_width(*layout_node).to_int();
 
     // On setting [the width or height IDL attribute], they must act as if they reflected the respective content attributes of the same name.

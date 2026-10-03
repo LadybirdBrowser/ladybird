@@ -801,11 +801,11 @@ void ComputedValues::borrow_style_record_payloads(ReadonlySpan<void const*> payl
     VERIFY(index == payloads.size());
 }
 
-bool style_record_display_is_none(StyleEngine const& style_engine, StyleRecordID style_record)
+bool style_record_display_is_none(Layout::BegunRead const& read, StyleEngine const& style_engine, StyleRecordID style_record)
 {
     if (!style_record)
         return false;
-    auto view = style_engine.style_record_view(style_record);
+    auto view = style_engine.style_record_view(read, style_record);
     if (!view.present)
         return false;
     // The record's base payloads are the ones an animation overlay was layered on top of, matching

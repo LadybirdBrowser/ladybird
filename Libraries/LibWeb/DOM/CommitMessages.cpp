@@ -30,22 +30,23 @@ static HTML::LocalNavigable* local_content_navigable(Layout::Node& navigable_con
     return container ? as_if<HTML::LocalNavigable>(container->content_navigable().ptr()) : nullptr;
 }
 
-Layout::Node* CommitMessages::bound_layout_node(NodeIdentity identity) const
+Layout::Node* CommitMessages::bound_layout_node(Layout::BegunRead const& read, NodeIdentity identity) const
 {
     auto* arena = m_document->layout_node_arena_if_created();
-    return arena ? identity.bound_layout_node(*arena) : nullptr;
+    return arena ? identity.bound_layout_node(read, *arena) : nullptr;
 }
 
 void CommitMessages::note_needs_layout_tree_update(NodeIdentity identity, SetNeedsLayoutTreeUpdateReason reason)
 {
     m_messages.append({ .identity = identity, .kind = Kind::NeedsLayoutTreeUpdate, .layout_tree_update_reason = reason });
     // The mark decides what the next tree build does, and the DOM side reads that back as soon as the mutation that
-    // made it returns.
-    apply();
+    // made it returns, as the mutation's own read of the render state.
+    Layout::ForcedReadScope read { *m_document, false };
+    apply(read);
 }
 
 // A message from layout names its node by the style node the style tree gave it, with 0 for the document.
-void CommitMessages::append(Layout::RustFFI::FfiCommitMessage const& message)
+void CommitMessages::append(Layout::BegunRead const& read, Layout::RustFFI::FfiCommitMessage const& message)
 {
     auto identity = message.style_node == 0
         ? NodeIdentity::of_document()
@@ -56,7 +57,7 @@ void CommitMessages::append(Layout::RustFFI::FfiCommitMessage const& message)
         return;
     case Layout::RustFFI::FfiCommitMessageKind::NavigableContainerViewportCommitted:
         // A viewport the container's content navigable already has would change nothing where it is applied.
-        if (auto* box = bound_layout_node(identity)) {
+        if (auto* box = bound_layout_node(read, identity)) {
             if (auto* content_navigable = local_content_navigable(*box); content_navigable && content_navigable->viewport_size() == Painting::content_size(*box))
                 return;
         }
@@ -92,7 +93,7 @@ void CommitMessages::append(Layout::RustFFI::FfiCommitMessage const& message)
     VERIFY_NOT_REACHED();
 }
 
-void CommitMessages::apply()
+void CommitMessages::apply(Layout::BegunRead const& read)
 {
     // A message appended while the list is being applied belongs after the ones in progress, and the loop below
     // reaches it there.
@@ -104,11 +105,11 @@ void CommitMessages::apply()
     while (!m_messages.is_empty()) {
         auto messages = move(m_messages);
         for (auto const& message : messages)
-            apply(message);
+            apply(read, message);
     }
 }
 
-void CommitMessages::apply(Message const& message)
+void CommitMessages::apply(Layout::BegunRead const& read, Message const& message)
 {
     switch (message.kind) {
     case Kind::ContentSizeChangedForContainerQueries:
@@ -121,7 +122,7 @@ void CommitMessages::apply(Message const& message)
     case Kind::NavigableContainerViewportCommitted:
         // A navigable another process hosts learns its viewport from the UI process, which the container tells of
         // the viewport's rect when its document is painted.
-        if (auto* box = bound_layout_node(message.identity)) {
+        if (auto* box = bound_layout_node(read, message.identity)) {
             if (auto* content_navigable = local_content_navigable(*box))
                 content_navigable->set_viewport_size(Painting::content_size(*box));
         }
@@ -158,7 +159,7 @@ void CommitMessages::apply(Message const& message)
         }
         return;
     case Kind::UnexpectedFragmentedInline:
-        if (auto* box = bound_layout_node(message.identity)) {
+        if (auto* box = bound_layout_node(read, message.identity)) {
             dbgln("FIXME: InlineFormattingContext::dimension_box_on_line got unexpected box in inline context:");
             dump_tree(*box);
         }

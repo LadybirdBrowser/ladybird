@@ -4,22 +4,18 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! Each document's render state, named by a [`DocumentId`] and reached only through messages.
+//! Each document's render state, which its host owns.
 //!
 //! A document's [`RenderState`] is what its style, layout and paint preparation compute over: its layout arena and
-//! what lives beside it. The host holds the document's id and reaches the state by sending a [`RenderMessage`]
-//! through [`send`] to the StyleLayout thread, which the states live on. Only [`handle`] mints the [`RenderingSide`]
-//! that the states are reached with, so code that is not handed one cannot reach a document's render state.
+//! what lives beside it. The [`DocumentHost`] owns it in its frame: the state is either here, where the host lends it
+//! to a [`RenderMessage`] it [`send`]s to the StyleLayout thread and waits for, or flying, moved into the job of a frame
+//! that runs beside the host until the host takes it in again. Code that runs beside a flying frame has no state to
+//! reach.
 
 use crate::css::style::StyleEngineHandle;
 use crate::css::style::bridge::{FfiDeviceClass, create_document_style_engine};
-use crate::fast_hash::FastMap as HashMap;
 use crate::layout::ArenaHandle;
 use std::cell::{Cell, RefCell};
-use std::marker::PhantomData;
-use std::ptr::NonNull;
-use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 
 mod devtools;
 mod document_host;
@@ -32,77 +28,35 @@ pub(crate) use document_host::TestHost;
 pub(crate) use questions::{
     ArenaAnswer, ArenaQuery, ArenaRead, CommittedRows, EngineCall, Lent, PreparationPending, ask,
 };
+pub use wait::BegunRead;
+pub(crate) use wait::held_node_entries;
 pub(crate) use wait::{
-    ForcedRead, FrameJobPermit, LockstepProof, RenderJob, RenderWait, ReplyTo, ScriptForcedRead, SpentWait,
-    StyleJobPermit, TaskBoundary, force_read, force_read_flown_style, render_state_died, run_job,
-    wait_for_render_state,
+    ForcedRead, FrameJobPermit, LockstepProof, NodeRead, ReadRight, RenderJob, RenderWait, ReplyTo, ScriptForcedRead,
+    SpentWait, StyleJobPermit, TaskBoundary, force_read, render_state_died, run_job, wait_for_render_state,
 };
-
-/// The host's name for one document's render state. The host mints it, so naming a new document needs no answer from
-/// the render side.
-#[repr(transparent)]
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, Default)]
-pub struct DocumentId(pub u64);
-
-impl DocumentId {
-    fn mint() -> Self {
-        static NEXT: AtomicU64 = AtomicU64::new(1);
-        Self(NEXT.fetch_add(1, Ordering::Relaxed))
-    }
-}
-
-/// Proof that the caller handles a render message, and so may reach the render states.
-///
-/// Only [`handle`] mints one, for as long as it handles a message. The raw pointer marker makes the proof neither
-/// [`Send`] nor [`Sync`], so it cannot leave the thread that handles the message.
-pub(crate) struct RenderingSide {
-    not_send_or_sync: PhantomData<*const ()>,
-}
 
 /// One document's render state.
 pub(crate) struct RenderState {
     /// The layout arena. It links the style engine below, which outlives it.
     arena: Box<ArenaHandle>,
     /// The document's style engine, which the state owns through the handle the arena links. Every borrow of the
-    /// engine comes from this one pointer, and a message borrows it mutably only where it reaches the engine alone.
+    /// engine comes from this one pointer, and a borrow of the state borrows it mutably only where it reaches the
+    /// engine alone.
     engine: StyleEngineHandle,
 }
 
-/// What the host keeps of its document's new render state.
-pub(crate) struct CreatedState {
-    /// Where the state keeps its arena until it is destroyed, for the changes and questions the host applies and
-    /// answers where it is.
-    pub(crate) arena: NonNull<ArenaHandle>,
-    /// Where the state keeps its style engine until it is destroyed, for the same.
-    pub(crate) engine: StyleEngineHandle,
-    /// The flag the state raises once any element has random base values, and never lowers.
-    pub(crate) element_random_base_values_exist: Arc<AtomicBool>,
-}
-
-// SAFETY: The host reaches the arena and the engine only through its changes and its questions, which run while nothing
-// on the render side reaches them.
-unsafe impl Send for CreatedState {}
-
 impl RenderState {
-    /// Makes the state of a document, and answers what the host keeps of it.
-    fn new(device_class: FfiDeviceClass) -> (Self, CreatedState) {
+    /// Makes the state of a document whose device is of class `device_class`.
+    fn new(device_class: FfiDeviceClass) -> Self {
         let mut arena = Box::new(ArenaHandle::new());
-        let engine = create_document_style_engine(device_class);
-        let element_random_base_values_exist = engine.element_random_base_values_exist();
-        let engine = StyleEngineHandle::create(engine);
-        arena.arena().set_style_engine(engine);
-        let created = CreatedState {
-            arena: NonNull::from(&mut *arena),
-            engine,
-            element_random_base_values_exist,
-        };
-        (Self { arena, engine }, created)
+        let engine = StyleEngineHandle::create(create_document_style_engine(device_class));
+        arena.arena_mut().set_style_engine(engine);
+        Self { arena, engine }
     }
 
     /// Drops the state, which must hold no layout node any more.
     fn retire(self) {
         let Self { arena, engine } = self;
-        arena.arena().assert_owner_thread();
         assert_eq!(
             arena.arena().live_slot_count(),
             0,
@@ -112,6 +66,52 @@ impl RenderState {
         // SAFETY: The state made the handle, and the arena that linked it is gone.
         unsafe { engine.destroy() }.end_recording();
     }
+
+    /// Applies `changes`, writes the host queued, in the order the host made them.
+    fn apply(&mut self, changes: std::vec::Drain<'_, ArenaChange>) {
+        for change in changes {
+            // SAFETY: The state is borrowed mutably, and so is the engine its arena links.
+            unsafe { change.apply(self.arena.arena_mut(), self.engine) };
+        }
+    }
+
+    /// Answers `question`, as of what the state holds now.
+    fn answer<Q: questions::Question>(&mut self, question: Q) -> Q::Answer {
+        // SAFETY: As for a change.
+        unsafe { question.answer(self.arena.arena_mut(), self.engine) }
+    }
+
+    /// The style engine, to read.
+    fn engine_ref(&self) -> &crate::css::style::StyleEngine {
+        // SAFETY: The engine lives as long as the state, and is borrowed mutably only through a mutable borrow of it.
+        unsafe { self.engine.get() }
+    }
+
+    /// The style engine, borrowed for as long as the state is.
+    fn engine_mut(&mut self) -> &mut crate::css::style::StyleEngine {
+        // SAFETY: As for a change.
+        unsafe { self.engine.get_mut() }
+    }
+
+    /// Handles `message`, after `changes`, the writes its host queued before it.
+    fn handle(&mut self, changes: std::vec::Drain<'_, ArenaChange>, message: RenderMessage<'_>) {
+        self.apply(changes);
+        match message {
+            RenderMessage::Style { job, reply, .. } => reply.answer(|| job.run(self.engine_mut())),
+            // The host keeps what the job's inputs name until it has the answer.
+            RenderMessage::LayoutRound { job, reply, .. } => reply.answer(|| job.run(&mut self.arena)),
+            RenderMessage::Paint { pass, reply } => reply.answer(|| pass.run(self.arena.arena_mut())),
+            RenderMessage::PanicForTesting { reply } => reply.answer(|| panic!("the render state panicked for a test")),
+        }
+    }
+}
+
+/// What a frame that flew brings its host back: the render state it took, what its job answered, and the emptied buffer
+/// of the writes it took, which the host's queue keeps.
+pub(crate) struct Landing {
+    state: RenderState,
+    style: crate::css::style::style_job::StyleJobAnswer,
+    changes: Vec<ArenaChange>,
 }
 
 /// A write the host makes to a document's render state, as owned data the state applies in the order the host made
@@ -131,7 +131,7 @@ impl ArenaChange {
     /// # Safety
     ///
     /// `engine` must name the live style engine `arena` links, which nothing else borrows meanwhile.
-    pub(crate) unsafe fn apply(self, arena: &mut crate::layout::LayoutNodeArena, engine: StyleEngineHandle) {
+    unsafe fn apply(self, arena: &mut crate::layout::LayoutNodeArena, engine: StyleEngineHandle) {
         match self {
             Self::Layout(change) => change.apply(arena),
             Self::Paint(change) => change.apply(arena),
@@ -154,8 +154,8 @@ impl ArenaChange {
 }
 
 /// Proof that the host's document has no frame in flight: the host has taken it in, or let none fly. Only
-/// DocumentHost::take_frame_in() mints it.
-struct NoFrameInFlight(());
+/// DocumentHost::take_frame_in() and DocumentHost::layout_waits_for_no_frame() mint it.
+pub(crate) struct NoFrameInFlight(());
 
 /// The writes a host queued for its document's render state, in the order the host made them, in two buffers the queue
 /// keeps: the writes are applied out of one as the host queues more into the other, so queueing a write allocates only
@@ -180,26 +180,23 @@ impl ChangeQueue {
         self.settled.get()
     }
 
-    /// Lends the queued writes of `document` to `apply`, which applies them, and keeps their emptied buffer as the
-    /// spare. A write the host queues meanwhile, as the writes are applied or the render side works, waits for the next
-    /// application, as do the style writes where `hold_style`.
-    fn drain(
+    /// Lends the queued writes to `apply`, which applies them, and keeps their emptied buffer as the spare. A write the
+    /// host queues meanwhile, as the writes are applied or the render side works, waits for the next application, as do
+    /// the style writes where `hold_style`.
+    fn drain<R>(
         &self,
         _landed: NoFrameInFlight,
-        document: DocumentId,
         hold_style: bool,
-        apply: impl FnOnce(QueuedChanges<'_>),
-    ) {
+        apply: impl FnOnce(std::vec::Drain<'_, ArenaChange>) -> R,
+    ) -> R {
         let mut queued = self.queued.replace(self.spare.take());
         if hold_style {
             self.queue_style_writes_of(&mut queued);
         }
-        apply(QueuedChanges {
-            document,
-            changes: queued.drain(..),
-        });
+        let answer = apply(queued.drain(..));
         self.spare.set(queued);
         self.settled.set(self.queued.borrow().is_empty());
+        answer
     }
 
     /// Moves the style writes of `changes` back into the queue, where they wait for the next application.
@@ -238,61 +235,28 @@ impl ChangeQueue {
     }
 }
 
-/// The writes a host queued for its document's render state since the render side last applied them, in the order the
-/// host made them, lent out of the host's queue. They go to the render side ahead of the host's next message, which
-/// they come before.
-pub(crate) struct QueuedChanges<'a> {
-    document: DocumentId,
-    changes: std::vec::Drain<'a, ArenaChange>,
-}
-
-impl QueuedChanges<'_> {
-    /// Applies the changes to `arena` and `engine`, the arena and style engine of their document.
-    ///
-    /// # Safety
-    ///
-    /// `engine` must name the live style engine `arena` links, which nothing else borrows meanwhile.
-    unsafe fn apply(self, arena: &mut crate::layout::LayoutNodeArena, engine: StyleEngineHandle) {
-        for change in self.changes {
-            // SAFETY: Guaranteed by the caller.
-            unsafe { change.apply(arena, engine) };
-        }
-    }
-}
-
-/// A message the host sends a document's render state.
+/// A message the host sends its document's render state, which it lends the message to while it waits.
 #[expect(
     clippy::large_enum_variant,
     reason = "a message is made once, in the frame of the host that waits for it"
 )]
 pub(crate) enum RenderMessage<'a> {
-    /// Makes the render state of a new document.
-    Create {
-        document: DocumentId,
-        device_class: FfiDeviceClass,
-        reply: ReplyTo<'a, CreatedState>,
-    },
-    /// Drops the render state of a document the host has let go of.
-    Destroy { document: DocumentId },
-    /// A style transaction of the document the host waits for.
+    /// A style transaction of the document.
     Style {
-        document: DocumentId,
         job: crate::css::style::style_job::StyleJob,
         reply: ReplyTo<'a, crate::css::style::style_job::StyleJobAnswer>,
         /// What shows that a forced read or a job's permit sent the transaction.
         _spent: SpentWait,
     },
-    /// A layout round of the document the host waits for: its tree build and layout stages.
+    /// A layout round of the document: its tree build and layout stages.
     LayoutRound {
-        document: DocumentId,
         job: crate::layout::LayoutRoundJob,
         reply: ReplyTo<'a, crate::layout::LayoutRoundAnswer>,
         /// What shows that a forced read or a job's permit sent the round.
         _spent: SpentWait,
     },
-    /// A step of paint preparation the host waits for.
+    /// A step of paint preparation.
     Paint {
-        document: DocumentId,
         pass: crate::painting::paint_passes::PaintPass,
         reply: ReplyTo<'a, crate::painting::paint_passes::PaintPassAnswer>,
     },
@@ -300,88 +264,32 @@ pub(crate) enum RenderMessage<'a> {
     PanicForTesting { reply: ReplyTo<'a, ()> },
 }
 
-thread_local! {
-    // The render state of each document, on the thread that handles render messages.
-    static STATES: RefCell<HashMap<DocumentId, RenderState>> = RefCell::default();
-}
-
-/// Handles `message` on the render side, after the changes its host queued before it.
-fn handle(changes: QueuedChanges<'_>, message: RenderMessage<'_>) {
-    let side = RenderingSide {
-        not_send_or_sync: PhantomData,
-    };
-    apply_changes(&side, changes);
-    handle_message(&side, message);
-}
-
-fn apply_changes(_: &RenderingSide, changes: QueuedChanges<'_>) {
-    if changes.changes.len() == 0 {
-        return;
+/// Runs `job` on the render side, the StyleLayout thread, and waits for it, so it may borrow from the calling frame. A
+/// job handed from that thread itself, as a child document's while it handles another, runs right there, and a unit
+/// test's jobs run on the test's own thread.
+fn on_render_side<R: Send>(job: impl FnOnce() -> R + Send) -> R {
+    if cfg!(test) {
+        return job();
     }
-    let (arena, engine) = state_parts(changes.document).expect("a document the host changes has a render state");
-    // SAFETY: The state keeps the arena and the engine where they are while the changes are applied, and nothing else
-    // reaches them meanwhile.
-    unsafe { changes.apply((*arena).arena_mut(), engine) };
+    crate::stage_thread::style_layout_thread().run(job)
 }
 
-fn handle_message(_: &RenderingSide, message: RenderMessage<'_>) {
-    match message {
-        RenderMessage::Create {
-            document,
-            device_class,
-            reply,
-        } => reply.answer(|| {
-            let (state, created) = RenderState::new(device_class);
-            let previous = STATES.with_borrow_mut(|states| states.insert(document, state));
-            debug_assert!(previous.is_none(), "document {document:?} created twice");
-            created
-        }),
-        RenderMessage::Destroy { document } => {
-            let state = STATES.with_borrow_mut(|states| states.remove(&document));
-            // A document with no state is a bug of the sender's, which leaves nothing to drop.
-            debug_assert!(state.is_some(), "document {document:?} destroyed twice");
-            if let Some(state) = state {
-                state.retire();
-            }
-        }
-        RenderMessage::Style {
-            document, job, reply, ..
-        } => reply.answer(|| {
-            let (_, engine) = state_parts(document).expect("a document the host styles has a render state");
-            // SAFETY: The state keeps the engine where it is while the message is handled, and nothing else reaches it
-            // meanwhile.
-            job.run(unsafe { engine.get_mut() })
-        }),
-        RenderMessage::LayoutRound {
-            document, job, reply, ..
-        } => reply.answer(|| {
-            let (arena, _) = state_parts(document).expect("a document the host lays out has a render state");
-            // SAFETY: As for a style job. The host keeps what the job's inputs name until it has the answer.
-            job.run(unsafe { &mut *arena })
-        }),
-        RenderMessage::Paint { document, pass, reply } => reply.answer(|| {
-            let (arena, _) = state_parts(document).expect("a document the host paints has a render state");
-            // SAFETY: As for a style job.
-            pass.run(unsafe { &mut *arena }.arena_mut())
-        }),
-        RenderMessage::PanicForTesting { reply } => reply.answer(|| panic!("the render state panicked for a test")),
+/// Sends `message` to the render state of `host`'s document, after the writes the host queued, and waits until it is
+/// handled. The host lends the state to the message, taking a frame in flight in first with `read`. A message writes the
+/// render state, unless it is a paint pass that leaves the paint and hit testing properties current.
+pub(crate) fn send(host: &DocumentHost, read: ReadRight, message: RenderMessage<'_>) {
+    if !matches!(&message, RenderMessage::Paint { pass, .. } if pass.leaves_paint_preparation_current()) {
+        host.note_render_state_write();
     }
+    host.drain_queued_changes(read, |changes| {
+        host.with_state(|state| on_render_side(move || state.handle(changes, message)));
+    });
 }
 
-/// The arena and the style engine of `document`'s render state, which stay where they are until the state is destroyed.
-/// The map is not borrowed while a message reaches them, so a message handled meanwhile for another document finds its
-/// own.
-fn state_parts(document: DocumentId) -> Option<(*mut ArenaHandle, StyleEngineHandle)> {
-    STATES.with_borrow_mut(|states| {
-        let state = states.get_mut(&document);
-        debug_assert!(state.is_some(), "document {document:?} has no render state");
-        state.map(|state| (std::ptr::from_mut::<ArenaHandle>(&mut state.arena), state.engine))
-    })
-}
-
-/// Submits `job`, a style transaction of `host`'s document, to the render side, the StyleLayout thread, behind the frame
-/// in flight and the changes the host queued, and goes on: the host takes what the job answers in from the flight, and
-/// the document drains its reactions with `drain`. Only a transaction that `_license` lets fly is submitted.
+/// Submits `job`, a style transaction of `host`'s document, to the render side, the StyleLayout thread, with the
+/// document's render state and the writes the host queued, and goes on: the frame flies with the state until the host
+/// takes it in, and the document drains the transaction's reactions with `drain`. Only a transaction that `_license`
+/// lets fly is submitted.
 pub(crate) fn fly(
     host: &DocumentHost,
     job: crate::css::style::style_job::StyleJob,
@@ -389,77 +297,40 @@ pub(crate) fn fly(
     _license: &crate::painting::recording_slot::FlightLicense,
 ) {
     let mut changes = host.take_queued_changes_for_flight();
-    let document = host.document();
-    let run = move || {
-        let side = RenderingSide {
-            not_send_or_sync: PhantomData,
+    host.let_frame_fly(drain, |mut state| {
+        let run = move || {
+            state.apply(changes.drain(..));
+            let style = job.run(state.engine_mut());
+            Landing { state, style, changes }
         };
-        apply_changes(
-            &side,
-            QueuedChanges {
-                document,
-                changes: changes.drain(..),
-            },
-        );
-        let (_, engine) = state_parts(document).expect("a document whose style flies has a render state");
-        // SAFETY: The state keeps the engine where it is while the job runs, and the host reaches the state again only
-        // once it has taken the flight in.
-        (job.run(unsafe { engine.get_mut() }), changes)
-    };
-    #[cfg(test)]
-    host.let_style_fly(crate::stage_thread::InFlight::landed(run()), drain);
-    #[cfg(not(test))]
-    host.let_style_fly(crate::stage_thread::style_layout_thread().submit(run), drain);
-}
-
-/// Sends `message` about `host`'s document to the render side, the StyleLayout thread, behind the frame in flight and
-/// the changes the host queued, and waits until it is handled, so the message may borrow from the calling frame. A message sent while the
-/// thread handles another (a child document's) is handled right there, and a unit test's render states stay on the
-/// test's own thread. A message writes the render state, unless it is a paint pass that leaves the paint and hit testing
-/// properties current.
-pub(crate) fn send(host: &DocumentHost, message: RenderMessage<'_>) {
-    if !matches!(&message, RenderMessage::Paint { pass, .. } if pass.leaves_paint_preparation_current()) {
-        host.note_render_state_write();
-    }
-    host.drain_queued_changes(|changes| {
-        if cfg!(test) {
-            return handle(changes, message);
-        }
-        crate::stage_thread::style_layout_thread().run(|| handle(changes, message));
+        #[cfg(test)]
+        return crate::stage_thread::InFlight::landed(run());
+        #[cfg(not(test))]
+        crate::stage_thread::style_layout_thread().submit(run)
     });
 }
 
-// A render state lives on a thread of its own, where nothing of the host may follow it: the shells and the callbacks
-// into the host's DOM are main-thread objects because of what they hold and do, and stay with the host. The state and
-// every message the host sends it may cross, which the compiler checks here.
+// A render state runs on a thread of its own, where nothing of the host may follow it: the shells and the callbacks
+// into the host's DOM are main-thread objects because of what they hold and do, and stay with the host. The state,
+// what a frame brings back, and every message and write the host sends it may cross, which the compiler checks here.
 const _: () = {
     const fn assert_send<T: Send + ?Sized>() {}
     assert_send::<RenderState>();
+    assert_send::<Landing>();
     assert_send::<RenderMessage>();
-    assert_send::<QueuedChanges>();
+    assert_send::<ArenaChange>();
 };
+
+// Only a forced read waits for a frame in flight.
+impl crate::stage_thread::Flown for Landing {
+    type JoinRight = ForcedRead;
+}
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::ptr::NonNull;
     use std::rc::Rc;
-
-    trait AmbiguousIfSend<A> {
-        fn marker() {}
-    }
-
-    impl<T: ?Sized> AmbiguousIfSend<()> for T {}
-    impl<T: ?Sized + Send> AmbiguousIfSend<u8> for T {}
-
-    // Fails to compile, as the call is ambiguous, if the proof ever becomes Send.
-    #[test]
-    fn the_rendering_side_is_not_send() {
-        <RenderingSide as AmbiguousIfSend<_>>::marker();
-    }
-
-    fn state_count() -> usize {
-        STATES.with_borrow(HashMap::len)
-    }
 
     #[test]
     fn a_forced_read_is_begun_by_its_outermost_scope_and_spent_once() {
@@ -477,14 +348,6 @@ mod tests {
     }
 
     #[test]
-    fn document_ids_are_minted_by_the_host() {
-        let first = DocumentId::mint();
-        let second = DocumentId::mint();
-        assert!(first != DocumentId::default() && second != DocumentId::default());
-        assert_ne!(first, second);
-    }
-
-    #[test]
     fn applying_queued_changes_keeps_the_queues_buffers() {
         use crate::layout::layout_changes::LayoutChange;
         let queue = ChangeQueue::default();
@@ -495,45 +358,19 @@ mod tests {
                 queue.push(write());
             }
             *buffer = queue.queued.borrow().as_ptr();
-            queue.drain(NoFrameInFlight(()), DocumentId::default(), false, |changes| {
-                assert_eq!(changes.changes.count(), 8)
-            });
+            queue.drain(NoFrameInFlight(()), false, |changes| assert_eq!(changes.count(), 8));
         }
         assert_eq!(buffers[0], buffers[2]);
         assert_eq!(buffers[1], buffers[3]);
         queue.push(write());
-        queue.drain(NoFrameInFlight(()), DocumentId::default(), false, |changes| {
-            assert_eq!(changes.changes.count(), 1);
+        queue.drain(NoFrameInFlight(()), false, |changes| {
+            assert_eq!(changes.count(), 1);
             queue.push(write());
         });
         assert!(
             !queue.is_settled(),
             "a write queued meanwhile waits for the next application"
         );
-    }
-
-    #[test]
-    fn a_document_host_holds_a_render_state_until_it_is_destroyed() {
-        let host = document_host::document_host_create(0);
-        assert_eq!(state_count(), 1);
-        // SAFETY: As above.
-        unsafe { document_host::document_host_destroy(host) };
-        assert_eq!(state_count(), 0);
-    }
-
-    #[cfg(debug_assertions)]
-    #[test]
-    #[should_panic(expected = "destroyed twice")]
-    fn destroying_a_document_twice_is_a_senders_bug() {
-        let host = DocumentHost::for_test();
-        let document = DocumentId::mint();
-        wait_for_render_state(ScriptForcedRead::for_test(), &host, |reply| RenderMessage::Create {
-            document,
-            device_class: FfiDeviceClass::ForegroundDesktop,
-            reply,
-        });
-        send(&host, RenderMessage::Destroy { document });
-        send(&host, RenderMessage::Destroy { document });
     }
 
     #[test]

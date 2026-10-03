@@ -105,9 +105,9 @@ void StyleEngine::set_element_parts(StyleNodeID node, ReadonlySpan<StyleAtomID> 
     StyleEngineFFI::style_engine_set_element_parts(m_render_document->host(), node.value(), reinterpret_cast<u32 const*>(names.data()), reinterpret_cast<u32 const*>(hosts.data()), names.size());
 }
 
-void StyleEngine::finish_sheet_rules_replacement(SheetID sheet)
+void StyleEngine::finish_sheet_rules_replacement(Layout::BegunRead const& read, SheetID sheet)
 {
-    StyleEngineFFI::style_engine_finish_sheet_rules_replacement(m_render_document->host(), sheet.value(), next_declaration_block_version());
+    StyleEngineFFI::style_engine_finish_sheet_rules_replacement(m_render_document->host(), sheet.value(), next_declaration_block_version(read));
 }
 
 void StyleEngine::set_element_inline_style_properties(StyleNodeID node, RustDeclarationBlock const* declarations)
@@ -132,83 +132,83 @@ void StyleEngine::set_element_presentational_hint_properties(StyleNodeID node, S
         note_css_transitions_may_observe_style_changes();
 }
 
-StyleEngine::StyleRecordDelta StyleEngine::publish_computed_groups(StyleNodeID node, u8 pseudo_kind, ReadonlySpan<void const*> payloads, size_t inherited_group_count, u64 custom_property_environment, bool inherited_group_swap_candidate, u64 counter_style_environment_identity, u64 animation_overlay_identity, void const* animated_overlay, ReadonlySpan<void const*> animation_overlay_payloads, void const* computed_longhand_table, void const* custom_property_store)
+StyleEngine::StyleRecordDelta StyleEngine::publish_computed_groups(Layout::BegunRead const& read, StyleNodeID node, u8 pseudo_kind, ReadonlySpan<void const*> payloads, size_t inherited_group_count, u64 custom_property_environment, bool inherited_group_swap_candidate, u64 counter_style_environment_identity, u64 animation_overlay_identity, void const* animated_overlay, ReadonlySpan<void const*> animation_overlay_payloads, void const* computed_longhand_table, void const* custom_property_store)
 {
     VERIFY(inherited_group_count <= payloads.size());
-    auto delta = StyleEngineFFI::style_engine_publish_computed_groups(host(), node.value(), pseudo_kind, payloads.data(), payloads.size(), inherited_group_count, custom_property_environment, inherited_group_swap_candidate, counter_style_environment_identity, animation_overlay_identity, animated_overlay, animation_overlay_payloads.data(), animation_overlay_payloads.size(), computed_longhand_table, custom_property_store);
+    auto delta = StyleEngineFFI::style_engine_publish_computed_groups(host(), &read, node.value(), pseudo_kind, payloads.data(), payloads.size(), inherited_group_count, custom_property_environment, inherited_group_swap_candidate, counter_style_environment_identity, animation_overlay_identity, animated_overlay, animation_overlay_payloads.data(), animation_overlay_payloads.size(), computed_longhand_table, custom_property_store);
     return { StyleRecordID { delta.old_style_record }, StyleRecordID { delta.new_style_record } };
 }
 
-Optional<StyleEngine::StyleRecordDelta> StyleEngine::publish_animation_overlay(StyleNodeID node, u8 pseudo_kind, u64 animation_overlay_identity, void const* animated_overlay, ReadonlySpan<void const*> payloads)
+Optional<StyleEngine::StyleRecordDelta> StyleEngine::publish_animation_overlay(Layout::BegunRead const& read, StyleNodeID node, u8 pseudo_kind, u64 animation_overlay_identity, void const* animated_overlay, ReadonlySpan<void const*> payloads)
 {
-    auto delta = StyleEngineFFI::style_engine_publish_animation_overlay(host(), node.value(), pseudo_kind, animation_overlay_identity, animated_overlay, payloads.data(), payloads.size());
+    auto delta = StyleEngineFFI::style_engine_publish_animation_overlay(host(), &read, node.value(), pseudo_kind, animation_overlay_identity, animated_overlay, payloads.data(), payloads.size());
     if (delta.new_style_record == 0)
         return {};
     return StyleRecordDelta { StyleRecordID { delta.old_style_record }, StyleRecordID { delta.new_style_record } };
 }
 
-void const* StyleEngine::style_record_payloads(StyleRecordID style_record) const
+void const* StyleEngine::style_record_payloads(Layout::BegunRead const& read, StyleRecordID style_record) const
 {
-    return StyleEngineFFI::style_engine_style_record_payloads(host(), style_record.value());
+    return StyleEngineFFI::style_engine_style_record_payloads(host(), &read, style_record.value());
 }
 
-StyleRecordDependencyFlag StyleEngine::style_record_dependency_flags(StyleRecordID style_record) const
+StyleRecordDependencyFlag StyleEngine::style_record_dependency_flags(Layout::BegunRead const& read, StyleRecordID style_record) const
 {
-    return static_cast<StyleRecordDependencyFlag>(StyleEngineFFI::style_engine_style_record_dependency_flags(m_render_document->host(), style_record.value()));
+    return static_cast<StyleRecordDependencyFlag>(StyleEngineFFI::style_engine_style_record_dependency_flags(m_render_document->host(), &read, style_record.value()));
 }
 
-u64 StyleEngine::style_record_custom_property_environment(StyleRecordID style_record) const
+u64 StyleEngine::style_record_custom_property_environment(Layout::BegunRead const& read, StyleRecordID style_record) const
 {
-    return StyleEngineFFI::style_engine_style_record_custom_property_environment(m_render_document->host(), style_record.value());
+    return StyleEngineFFI::style_engine_style_record_custom_property_environment(m_render_document->host(), &read, style_record.value());
 }
 
-u32 StyleEngine::compare_style_records(StyleRecordID old_style_record, StyleRecordID new_style_record) const
+u32 StyleEngine::compare_style_records(Layout::BegunRead const& read, StyleRecordID old_style_record, StyleRecordID new_style_record) const
 {
-    return StyleEngineFFI::style_engine_compare_style_records(host(), old_style_record.value(), new_style_record.value());
+    return StyleEngineFFI::style_engine_compare_style_records(host(), &read, old_style_record.value(), new_style_record.value());
 }
 
-u32 StyleEngine::element_record_damage(StyleNodeID node, StyleRecordID old_style_record, StyleRecordID new_style_record) const
+u32 StyleEngine::element_record_damage(Layout::BegunRead const& read, StyleNodeID node, StyleRecordID old_style_record, StyleRecordID new_style_record) const
 {
-    return StyleEngineFFI::style_engine_element_record_damage(host(), node.value(), old_style_record.value(), new_style_record.value());
+    return StyleEngineFFI::style_engine_element_record_damage(host(), &read, node.value(), old_style_record.value(), new_style_record.value());
 }
 
-u32 StyleEngine::pseudo_element_record_damage(StyleNodeID node, PseudoElement pseudo_element, StyleRecordID old_style_record, StyleRecordID new_style_record, StyleRecordID originating_style_record, bool counter_styles_changed) const
+u32 StyleEngine::pseudo_element_record_damage(Layout::BegunRead const& read, StyleNodeID node, PseudoElement pseudo_element, StyleRecordID old_style_record, StyleRecordID new_style_record, StyleRecordID originating_style_record, bool counter_styles_changed) const
 {
-    return StyleEngineFFI::style_engine_pseudo_element_record_damage(host(), node.value(), to_underlying(pseudo_element), old_style_record.value(), new_style_record.value(), originating_style_record.value(), counter_styles_changed);
+    return StyleEngineFFI::style_engine_pseudo_element_record_damage(host(), &read, node.value(), to_underlying(pseudo_element), old_style_record.value(), new_style_record.value(), originating_style_record.value(), counter_styles_changed);
 }
 
-bool StyleEngine::animation_overlay_changed(StyleRecordID old_style_record, void const* animated_overlay) const
+bool StyleEngine::animation_overlay_changed(Layout::BegunRead const& read, StyleRecordID old_style_record, void const* animated_overlay) const
 {
-    return StyleEngineFFI::style_engine_animation_overlay_changed(host(), old_style_record.value(), animated_overlay);
+    return StyleEngineFFI::style_engine_animation_overlay_changed(host(), &read, old_style_record.value(), animated_overlay);
 }
 
-StyleEngineFFI::FfiAnimationInvalidation StyleEngine::compare_animation_overlay(StyleRecordID old_style_record, void const* animated_overlay, ReadonlySpan<void const*> payloads, bool is_document_element) const
+StyleEngineFFI::FfiAnimationInvalidation StyleEngine::compare_animation_overlay(Layout::BegunRead const& read, StyleRecordID old_style_record, void const* animated_overlay, ReadonlySpan<void const*> payloads, bool is_document_element) const
 {
-    return StyleEngineFFI::style_engine_compare_animation_overlay(host(), old_style_record.value(), animated_overlay, payloads.data(), payloads.size(), is_document_element);
+    return StyleEngineFFI::style_engine_compare_animation_overlay(host(), &read, old_style_record.value(), animated_overlay, payloads.data(), payloads.size(), is_document_element);
 }
 
-StyleEngine::StyleRecordView StyleEngine::style_record_view(StyleRecordID style_record) const
+StyleEngine::StyleRecordView StyleEngine::style_record_view(Layout::BegunRead const& read, StyleRecordID style_record) const
 {
-    return StyleEngineFFI::style_engine_style_record_view(host(), style_record.value());
+    return StyleEngineFFI::style_engine_style_record_view(host(), &read, style_record.value());
 }
 
-double StyleEngine::ensure_random_base_value(StyleNodeID node, Utf16View name, bool element_shared)
+double StyleEngine::ensure_random_base_value(Layout::BegunRead const& read, StyleNodeID node, Utf16View name, bool element_shared)
 {
     Vector<u16, 32> code_units;
     code_units.ensure_capacity(name.length_in_code_units());
     for (size_t i = 0; i < name.length_in_code_units(); ++i)
         code_units.unchecked_append(name.code_unit_at(i));
-    return bit_cast<double>(ensure_random_base_value_bits(node, code_units, element_shared));
+    return bit_cast<double>(ensure_random_base_value_bits(read, node, code_units, element_shared));
 }
 
-void StyleEngine::element_random_base_values(StyleNodeID node, Vector<u32>& name_lengths, Vector<u16>& name_units, Vector<u64>& value_bits) const
+void StyleEngine::element_random_base_values(Layout::BegunRead const& read, StyleNodeID node, Vector<u32>& name_lengths, Vector<u16>& name_units, Vector<u64>& value_bits) const
 {
     struct Values {
         Vector<u32>& name_lengths;
         Vector<u16>& name_units;
         Vector<u64>& value_bits;
     } values { name_lengths, name_units, value_bits };
-    StyleEngineFFI::style_engine_element_random_base_values(m_render_document->host(), node.value(), &values, [](void* context, u16 const* name, size_t length, u64 bits) {
+    StyleEngineFFI::style_engine_element_random_base_values(m_render_document->host(), &read, node.value(), &values, [](void* context, u16 const* name, size_t length, u64 bits) {
         auto& values = *static_cast<Values*>(context);
         values.name_lengths.append(static_cast<u32>(length));
         values.name_units.append(name, length);
@@ -216,14 +216,14 @@ void StyleEngine::element_random_base_values(StyleNodeID node, Vector<u32>& name
     });
 }
 
-void StyleEngine::decide_transitions(StyleRecordID before_style_record, StyleRecordID after_style_record, StyleValueFFI::FfiTransitionInput const& input, StyleValueFFI::FfiTransitionAction* actions) const
+void StyleEngine::decide_transitions(Layout::BegunRead const& read, StyleRecordID before_style_record, StyleRecordID after_style_record, StyleValueFFI::FfiTransitionInput const& input, StyleValueFFI::FfiTransitionAction* actions) const
 {
-    StyleEngineFFI::style_engine_decide_transitions(m_render_document->host(), before_style_record.value(), after_style_record.value(), &input, actions);
+    StyleEngineFFI::style_engine_decide_transitions(m_render_document->host(), &read, before_style_record.value(), after_style_record.value(), &input, actions);
 }
 
-StyleEngine::StyleRecordDelta StyleEngine::remove_computed_pseudo(StyleNodeID node, u8 pseudo_kind)
+StyleEngine::StyleRecordDelta StyleEngine::remove_computed_pseudo(Layout::BegunRead const& read, StyleNodeID node, u8 pseudo_kind)
 {
-    auto delta = StyleEngineFFI::style_engine_remove_computed_pseudo(host(), node.value(), pseudo_kind);
+    auto delta = StyleEngineFFI::style_engine_remove_computed_pseudo(host(), &read, node.value(), pseudo_kind);
     return { StyleRecordID { delta.old_style_record }, StyleRecordID { delta.new_style_record } };
 }
 
@@ -240,12 +240,14 @@ StyleAtomID StyleEngine::intern_atom(Utf16FlyString const& name)
         Utf16FlyString::unref_raw(raw);
         return atom.release_value();
     }
-    auto atom = StyleAtomID { StyleEngineFFI::style_engine_intern_atom(host(), raw) };
+    // The engine owns the atom table, so a new atom is the host's own read of the render state.
+    Layout::ForcedReadScope read { render_document(), false };
+    auto atom = StyleAtomID { StyleEngineFFI::style_engine_intern_atom(host(), read, raw) };
     m_atoms.set(raw, atom);
     return atom;
 }
 
-void StyleEngine::note_custom_property_name(StyleAtomID atom, Utf16FlyString const& name)
+void StyleEngine::note_custom_property_name(Layout::BegunRead const& read, StyleAtomID atom, Utf16FlyString const& name)
 {
     if (m_published_custom_property_names.contains(atom))
         return;
@@ -257,13 +259,13 @@ void StyleEngine::note_custom_property_name(StyleAtomID atom, Utf16FlyString con
         code_units.unchecked_append(view.code_unit_at(i));
     // The engine retains the fly string itself; this reference only carries it across.
     auto raw = name.to_raw_leaked();
-    StyleEngineFFI::style_engine_note_custom_property_name(host(), atom.value(), raw, code_units.data(), code_units.size());
+    StyleEngineFFI::style_engine_note_custom_property_name(host(), &read, atom.value(), raw, code_units.data(), code_units.size());
     Utf16FlyString::unref_raw(raw);
 }
 
-StyleRecordID StyleEngine::republish_record_environment(StyleNodeID node, u64 environment, void const* store)
+StyleRecordID StyleEngine::republish_record_environment(Layout::BegunRead const& read, StyleNodeID node, u64 environment, void const* store)
 {
-    return StyleRecordID { StyleEngineFFI::style_engine_republish_record_environment(host(), node.value(), environment, store) };
+    return StyleRecordID { StyleEngineFFI::style_engine_republish_record_environment(host(), &read, node.value(), environment, store) };
 }
 
 #define ASSERT_DEMANDED_PSEUDO_ELEMENT_KIND(name) \
@@ -292,29 +294,29 @@ Optional<StyleEngine::DemandedPseudoElement> StyleEngine::demanded_pseudo_elemen
     }
 }
 
-StyleEngineFFI::FfiRecordDemandAnswer StyleEngine::answer_record_demand(StyleNodeID node, RecordDemand demand)
+StyleEngineFFI::FfiRecordDemandAnswer StyleEngine::answer_record_demand(Layout::BegunRead const& read, StyleNodeID node, RecordDemand demand)
 {
-    return StyleEngineFFI::style_engine_answer_record_demand(m_render_document->host(), node.value(), demand);
+    return StyleEngineFFI::style_engine_answer_record_demand(m_render_document->host(), &read, node.value(), demand);
 }
 
-StyleEngineFFI::FfiRecordDemandAnswer StyleEngine::answer_pseudo_element_record_demand(StyleNodeID node, PseudoElementRecordDemand demand, DemandedPseudoElement pseudo_element)
+StyleEngineFFI::FfiRecordDemandAnswer StyleEngine::answer_pseudo_element_record_demand(Layout::BegunRead const& read, StyleNodeID node, PseudoElementRecordDemand demand, DemandedPseudoElement pseudo_element)
 {
-    return StyleEngineFFI::style_engine_answer_pseudo_element_record_demand(m_render_document->host(), node.value(), demand, pseudo_element);
+    return StyleEngineFFI::style_engine_answer_pseudo_element_record_demand(m_render_document->host(), &read, node.value(), demand, pseudo_element);
 }
 
-StyleEngineFFI::FfiSettledPseudoRecords StyleEngine::settle_pseudo_records_after_host_record(StyleNodeID node, bool old_is_list_item)
+StyleEngineFFI::FfiSettledPseudoRecords StyleEngine::settle_pseudo_records_after_host_record(Layout::BegunRead const& read, StyleNodeID node, bool old_is_list_item)
 {
-    return StyleEngineFFI::style_engine_settle_pseudo_records_after_host_record(host(), node.value(), old_is_list_item);
+    return StyleEngineFFI::style_engine_settle_pseudo_records_after_host_record(host(), &read, node.value(), old_is_list_item);
 }
 
-u64 StyleEngine::inheritable_custom_property_environment(u64 identity) const
+u64 StyleEngine::inheritable_custom_property_environment(Layout::BegunRead const& read, u64 identity) const
 {
-    return StyleEngineFFI::style_engine_inheritable_custom_property_environment(host(), identity);
+    return StyleEngineFFI::style_engine_inheritable_custom_property_environment(host(), &read, identity);
 }
 
-void const* StyleEngine::borrow_engine_custom_property_environment(u64 identity, u64& parent_identity) const
+void const* StyleEngine::borrow_engine_custom_property_environment(Layout::BegunRead const& read, u64 identity, u64& parent_identity) const
 {
-    return StyleEngineFFI::style_engine_borrow_engine_custom_property_environment(host(), identity, &parent_identity);
+    return StyleEngineFFI::style_engine_borrow_engine_custom_property_environment(host(), &read, identity, &parent_identity);
 }
 
 StyleAtomID StyleEngine::intern_text_atom(Utf16View text)
@@ -367,12 +369,14 @@ StyleAtomID StyleEngine::intern_attribute_name(Utf16FlyString const& local_name,
     if (auto name = names_by_namespace.get(namespace_atom); name.has_value())
         return name.release_value();
 
+    // The engine owns the atom table, so a new attribute name is the host's own read of the render state.
+    Layout::ForcedReadScope read { render_document(), false };
     auto in_namespace = [&](StyleAtomID name) {
         if (namespace_atom == 0)
             return name;
-        return intern_qualified_atom(namespace_atom, name);
+        return intern_qualified_atom(read, namespace_atom, name);
     };
-    auto any_namespace = intern_qualified_atom(StyleEngine::any_namespace, local);
+    auto any_namespace = intern_qualified_atom(read, StyleEngine::any_namespace, local);
     auto name = in_namespace(local);
 
     StyleAtomID folded_name;
@@ -380,7 +384,7 @@ StyleAtomID StyleEngine::intern_attribute_name(Utf16FlyString const& local_name,
     if (auto folded = local_name.to_ascii_lowercase(); folded != local_name) {
         auto folded_atom = intern_atom(folded);
         folded_name = in_namespace(folded_atom);
-        folded_local = intern_qualified_atom(StyleEngine::any_namespace, folded_atom);
+        folded_local = intern_qualified_atom(read, StyleEngine::any_namespace, folded_atom);
     }
 
     note_attribute_name_forms(name, any_namespace, folded_name, folded_local);
@@ -419,8 +423,10 @@ void StyleEngine::backfill_attribute_value_text_if_required(StyleAtomID name, Ut
 void StyleEngine::publish_attribute_value_text(StyleAtomID atom, Utf16View value)
 {
     // The engine holds one copy of the text per currently used value. Ask whether it survived
-    // reclamation before copying it out of the attribute's representation again.
-    if (StyleEngineFFI::style_engine_has_attribute_value_text(m_render_document->host(), atom.value()))
+    // reclamation before copying it out of the attribute's representation again, as the host's own read of the render
+    // state.
+    Layout::ForcedReadScope read { render_document(), false };
+    if (StyleEngineFFI::style_engine_has_attribute_value_text(m_render_document->host(), read, atom.value()))
         return;
 
     Vector<u16> code_units;
@@ -430,9 +436,9 @@ void StyleEngine::publish_attribute_value_text(StyleAtomID atom, Utf16View value
     StyleEngineFFI::style_engine_set_attribute_value_text(m_render_document->host(), atom.value(), code_units.data(), code_units.size());
 }
 
-bool StyleEngine::refresh_attribute_value_text_requirements()
+bool StyleEngine::refresh_attribute_value_text_requirements(Layout::BegunRead const& read)
 {
-    auto version = StyleEngineFFI::style_engine_attribute_value_text_requirements_version(m_render_document->host());
+    auto version = StyleEngineFFI::style_engine_attribute_value_text_requirements_version(m_render_document->host(), &read);
     if (version == m_attribute_value_text_requirements_version)
         return false;
     m_attribute_value_text_requirements_version = version;
@@ -443,7 +449,9 @@ bool StyleEngine::refresh_attribute_value_text_requirements()
 bool StyleEngine::attribute_name_requires_value_text(StyleAtomID name)
 {
     return m_attribute_names_requiring_value_text.ensure(name, [&] {
-        return StyleEngineFFI::style_engine_attribute_name_requires_value_text(m_render_document->host(), name.value());
+        // A name the host has not asked about yet is the host's own read of the render state.
+        Layout::ForcedReadScope read { render_document(), false };
+        return StyleEngineFFI::style_engine_attribute_name_requires_value_text(m_render_document->host(), read, name.value());
     });
 }
 
@@ -479,7 +487,9 @@ static void request_frame_for_first_recorded_input(StyleEngine const& style_engi
 
 static void flush_deferred_geometry_transaction_before_non_replayable_input(StyleEngine const& style_engine, GC::Ptr<StyleComputer> style_computer)
 {
-    if (style_computer && style_engine.has_deferred_geometry_transaction())
+    // The flush asks the engine whether the transaction a geometry read deferred is still deferred, as its own read of
+    // the render state, only where one may be.
+    if (style_computer && style_engine.may_have_deferred_geometry_transaction())
         style_computer->document().flush_deferred_style_change_event();
 }
 
@@ -572,19 +582,19 @@ void StyleEngine::record_size_container_query_dependents(StyleNodeID container)
     record_size_container_query_dependent_inputs(container);
 }
 
-void StyleEngine::evaluate_size_containers_needing_evaluation_after_layout()
+void StyleEngine::evaluate_size_containers_needing_evaluation_after_layout(Layout::BegunRead const& read)
 {
-    if (!has_size_containers_needing_evaluation_after_layout())
+    if (!has_size_containers_needing_evaluation_after_layout(read))
         return;
     flush_deferred_geometry_transaction_before_non_replayable_input(*this, m_style_computer);
     request_frame_for_first_recorded_input(*this, m_style_computer);
     record_dependent_inputs_of_size_containers_needing_evaluation_after_layout();
 }
 
-Vector<StyleNodeID> StyleEngine::viewport_dependent_style_nodes()
+Vector<StyleNodeID> StyleEngine::viewport_dependent_style_nodes(Layout::BegunRead const& read)
 {
     Vector<StyleNodeID> nodes;
-    StyleEngineFFI::style_engine_viewport_dependent_nodes(m_render_document->host(), &nodes, [](void* context, u32 node) {
+    StyleEngineFFI::style_engine_viewport_dependent_nodes(m_render_document->host(), &read, &nodes, [](void* context, u32 node) {
         static_cast<Vector<StyleNodeID>*>(context)->append(StyleNodeID { node });
     });
     return nodes;
@@ -610,12 +620,14 @@ bool StyleEngine::has_recorded_input() const
 
 void StyleEngine::submit_recorded_input()
 {
+    // Submitting what was recorded is the host's own read of the render state.
+    Layout::ForcedReadScope read { render_document(), false };
     if (m_style_computer) {
         take_in_pending_style_arrivals(m_style_computer->document());
         publish_pending_element_features(*this, *m_style_computer);
     }
     if (!has_recorded_input()) {
-        if (refresh_attribute_value_text_requirements() && m_style_computer)
+        if (refresh_attribute_value_text_requirements(read) && m_style_computer)
             publish_required_attribute_value_texts(*this, *m_style_computer);
         return;
     }
@@ -647,7 +659,7 @@ void StyleEngine::submit_recorded_input()
 
     // Selector demand can arrive while the program change and element facts are still staged.
     // Refresh after applying the fact batch, then backfill values before matching observes it.
-    if (refresh_attribute_value_text_requirements() && m_style_computer)
+    if (refresh_attribute_value_text_requirements(read) && m_style_computer)
         publish_required_attribute_value_texts(*this, *m_style_computer);
 }
 
@@ -662,7 +674,7 @@ void StyleEngine::flush()
     StyleEngineFFI::style_engine_flush(m_render_document->host());
 }
 
-bool StyleEngine::take_diagnostic_style_transaction(StyleNodeID root, Function<void(ReadonlySpan<StyleNodeID>)>&& consume)
+bool StyleEngine::take_diagnostic_style_transaction(Layout::BegunRead const& read, StyleNodeID root, Function<void(ReadonlySpan<StyleNodeID>)>&& consume)
 {
     Vector<StyleNodeID> reaction_nodes;
     auto take_reaction_nodes = [&](auto const& reactions) {
@@ -673,22 +685,22 @@ bool StyleEngine::take_diagnostic_style_transaction(StyleNodeID root, Function<v
             reaction_nodes.append(StyleNodeID { reaction.style_node });
         }
     };
-    auto transaction = take_style_transaction(root);
+    auto transaction = take_style_transaction(read, root);
     take_reaction_nodes(transaction.reactions);
     // A pass the host would install in waves reports every wave.
-    while (StyleEngineFFI::style_engine_has_suspended_style_pass(m_render_document->host()))
-        take_reaction_nodes(take_style_transaction(root).reactions);
-    discard_style_transaction_outputs();
+    while (StyleEngineFFI::style_engine_has_suspended_style_pass(m_render_document->host(), &read))
+        take_reaction_nodes(take_style_transaction(read, root).reactions);
+    discard_style_transaction_outputs(read);
     if (!transaction.is_scoped)
         return false;
     consume(reaction_nodes.span());
     return true;
 }
 
-void StyleEngine::discard_style_transaction_outputs()
+void StyleEngine::discard_style_transaction_outputs(Layout::BegunRead const& read)
 {
     // The end of the transaction releases the identities no reader can name any more, which are minted again first.
-    StyleEngineFFI::style_engine_end_style_transaction(m_render_document->host(), m_style_node_ids);
+    StyleEngineFFI::style_engine_end_style_transaction(m_render_document->host(), &read, m_style_node_ids);
 }
 
 namespace {
@@ -757,12 +769,12 @@ struct StyleEngine::LentComputationInputs {
     Vector<StyleEngineFFI::FfiCustomFunctionEntry> custom_functions;
 };
 
-void StyleEngine::gather_computation_inputs(LentComputationInputs& lent)
+void StyleEngine::gather_computation_inputs(Layout::BegunRead const& read, LentComputationInputs& lent)
 {
     if (!m_style_computer)
         return;
     auto& document = m_style_computer->document();
-    document.publish_animation_keyframes_for_style_update();
+    document.publish_animation_keyframes_for_style_update(read);
     lent.document_base_url = document.serialized_base_url();
     auto document_api_base_url = HTML::relevant_settings_object(document).api_base_url().to_string();
     if (!m_style_sheet_resource_contexts.has_value()
@@ -808,7 +820,7 @@ void StyleEngine::gather_computation_inputs(LentComputationInputs& lent)
         document.for_each_shadow_root([&](DOM::ShadowRoot& shadow_root) { append_scope(shadow_root.style_scope()); });
         for (size_t index = 0; index < scopes.size(); ++index) {
             auto const& scope = *scopes[index];
-            scope.for_each_visible_function_definition([&](StyleScope::FunctionDefinitionAndScope const& definition) {
+            scope.for_each_visible_function_definition(read, [&](StyleScope::FunctionDefinitionAndScope const& definition) {
                 lent.custom_functions.append({
                     .function = definition.function.handle(),
                     .caller_scope = bit_cast<FlatPtr>(&scope),
@@ -872,26 +884,26 @@ void StyleEngine::gather_computation_inputs(LentComputationInputs& lent)
     }
 }
 
-StyleEngine::PublishedStyleTransaction StyleEngine::take_style_transaction(StyleNodeID root)
+StyleEngine::PublishedStyleTransaction StyleEngine::take_style_transaction(Layout::BegunRead const& read, StyleNodeID root)
 {
     auto submission_started_at = MonotonicTime::now();
     submit_recorded_input();
     LentComputationInputs lent;
-    gather_computation_inputs(lent);
+    gather_computation_inputs(read, lent);
     auto bridge_started_at = MonotonicTime::now();
     if (m_style_computer)
         publish_font_faces(m_style_computer->document().font_computer());
-    auto view = StyleEngineFFI::style_engine_take_style_transaction(m_render_document->host(), root.value(), lent.inputs);
+    auto view = StyleEngineFFI::style_engine_take_style_transaction(m_render_document->host(), &read, root.value(), lent.inputs);
     return publish_style_transaction_view(view, submission_started_at, bridge_started_at);
 }
 
-StyleEngine::PublishedStyleTransaction StyleEngine::take_flown_style_transaction()
+StyleEngine::PublishedStyleTransaction StyleEngine::take_flown_style_transaction(Layout::BegunRead const& read)
 {
     auto submission_started_at = MonotonicTime::now();
     // What was recorded beside the transaction is queued behind its drain, as the next transaction's input.
     submit_recorded_input();
     auto bridge_started_at = MonotonicTime::now();
-    auto view = StyleEngineFFI::style_engine_take_flown_style_transaction(m_render_document->host());
+    auto view = StyleEngineFFI::style_engine_take_flown_style_transaction(m_render_document->host(), &read);
     // The transaction's reactions were read inside the style record view epoch its seal opened.
     if (m_style_computer)
         m_style_computer->end_style_record_view_epoch();
@@ -971,13 +983,13 @@ StyleEngine::PublishedStyleTransaction StyleEngine::publish_style_transaction_vi
     };
 }
 
-bool StyleEngine::let_style_transaction_fly(StyleNodeID root, Layout::RustFFI::FfiFlightBlocker blocker)
+bool StyleEngine::let_style_transaction_fly(Layout::BegunRead const& read, StyleNodeID root, Layout::RustFFI::FfiFlightBlocker blocker)
 {
     if (!m_style_computer)
         return false;
     submit_recorded_input();
     LentComputationInputs lent;
-    gather_computation_inputs(lent);
+    gather_computation_inputs(read, lent);
     publish_font_faces(m_style_computer->document().font_computer());
     // The reactions are read inside the style record view epoch the transaction is taken in, which stays open until
     // take_style_transaction() takes them.
@@ -985,7 +997,7 @@ bool StyleEngine::let_style_transaction_fly(StyleNodeID root, Layout::RustFFI::F
     // The host drains the transaction where it writes the document's style sheets to the engine in place before the
     // next style update drains it, so that the write lands behind the sheet writes queued beside the transaction.
     StyleEngineFFI::FfiFlownStyleDrain drain {
-        .drain = [](void* document) { static_cast<DOM::Document*>(document)->drain_flown_style_transaction(); },
+        .drain = [](void* document, Layout::BegunRead const* read) { static_cast<DOM::Document*>(document)->drain_flown_style_transaction(*read); },
         .document = &m_style_computer->document(),
     };
     if (StyleEngineFFI::style_engine_let_style_transaction_fly(m_render_document->host(), root.value(), lent.inputs, blocker, drain))
@@ -999,53 +1011,53 @@ bool StyleEngine::style_transaction_flies()
     return StyleEngineFFI::style_engine_style_transaction_flies(m_render_document->host());
 }
 
-void StyleEngine::sort_style_deltas_for_direct_application(Span<PublishedStyleDelta> deltas) const
+void StyleEngine::sort_style_deltas_for_direct_application(Layout::BegunRead const& read, Span<PublishedStyleDelta> deltas) const
 {
-    StyleEngineFFI::style_engine_sort_style_deltas_for_direct_application(host(), deltas.data(), deltas.size());
+    StyleEngineFFI::style_engine_sort_style_deltas_for_direct_application(host(), &read, deltas.data(), deltas.size());
 }
 
-bool StyleEngine::has_pending_transaction() const
+bool StyleEngine::has_pending_transaction(Layout::BegunRead const& read) const
 {
-    return has_recorded_input() || has_flown_style_transaction() || StyleEngineFFI::style_engine_has_pending_transaction(m_render_document->host());
+    return has_recorded_input() || has_flown_style_transaction() || StyleEngineFFI::style_engine_has_pending_transaction(m_render_document->host(), &read);
 }
 
-bool StyleEngine::pending_transaction_may_affect_layout_geometry()
+bool StyleEngine::pending_transaction_may_affect_layout_geometry(Layout::BegunRead const& read)
 {
     submit_recorded_input();
-    return StyleEngineFFI::style_engine_pending_transaction_may_affect_layout_geometry(m_render_document->host());
+    return StyleEngineFFI::style_engine_pending_transaction_may_affect_layout_geometry(m_render_document->host(), &read);
 }
 
-bool StyleEngine::has_deferred_geometry_transaction() const
+bool StyleEngine::has_deferred_geometry_transaction(Layout::BegunRead const& read) const
 {
     // Only a geometry read defers a transaction, so until one has, every input recorded meanwhile is spared the
     // question.
     if (!m_geometry_read_deferred_transaction)
         return false;
-    m_geometry_read_deferred_transaction = StyleEngineFFI::style_engine_has_deferred_geometry_transaction(m_render_document->host());
+    m_geometry_read_deferred_transaction = StyleEngineFFI::style_engine_has_deferred_geometry_transaction(m_render_document->host(), &read);
     return m_geometry_read_deferred_transaction;
 }
 
-bool StyleEngine::has_deferred_element_style_inputs() const
+bool StyleEngine::has_deferred_element_style_inputs(Layout::BegunRead const& read) const
 {
-    return StyleEngineFFI::style_engine_has_deferred_element_style_inputs(m_render_document->host());
+    return StyleEngineFFI::style_engine_has_deferred_element_style_inputs(m_render_document->host(), &read);
 }
 
-bool StyleEngine::has_deferred_element_style_input(StyleNodeID style_node) const
+bool StyleEngine::has_deferred_element_style_input(Layout::BegunRead const& read, StyleNodeID style_node) const
 {
-    return StyleEngineFFI::style_engine_has_deferred_element_style_input(m_render_document->host(), style_node.value());
+    return StyleEngineFFI::style_engine_has_deferred_element_style_input(m_render_document->host(), &read, style_node.value());
 }
 
-bool StyleEngine::defer_pending_transaction_for_geometry_read()
+bool StyleEngine::defer_pending_transaction_for_geometry_read(Layout::BegunRead const& read)
 {
     submit_recorded_input();
     m_geometry_read_deferred_transaction = true;
-    return StyleEngineFFI::style_engine_defer_pending_transaction_for_geometry_read(m_render_document->host());
+    return StyleEngineFFI::style_engine_defer_pending_transaction_for_geometry_read(m_render_document->host(), &read);
 }
 
-bool StyleEngine::begin_deferred_geometry_transaction_flush()
+bool StyleEngine::begin_deferred_geometry_transaction_flush(Layout::BegunRead const& read)
 {
     submit_recorded_input();
-    return StyleEngineFFI::style_engine_begin_deferred_geometry_transaction_flush(m_render_document->host());
+    return StyleEngineFFI::style_engine_begin_deferred_geometry_transaction_flush(m_render_document->host(), &read);
 }
 
 void StyleEngine::end_deferred_geometry_transaction_flush()
@@ -1053,25 +1065,25 @@ void StyleEngine::end_deferred_geometry_transaction_flush()
     StyleEngineFFI::style_engine_end_deferred_geometry_transaction_flush(m_render_document->host());
 }
 
-bool StyleEngine::match_element(StyleNodeID node, Vector<RuleMatch>& matches, MatchPurpose purpose)
+bool StyleEngine::match_element(Layout::BegunRead const& read, StyleNodeID node, Vector<RuleMatch>& matches, MatchPurpose purpose)
 {
     // A synchronous match is an observation boundary. Most matching follows a published style
     // transaction, but detached-document style reads can arrive directly while mutation facts are
     // still staged. Settle those facts before asking the committed arrangement.
-    if (has_pending_transaction())
+    if (has_pending_transaction(read))
         flush();
     matches.resize(max(m_element_match_capacity, 16u));
-    auto read = [&] {
-        return StyleEngineFFI::style_engine_match_element(host(), node.value(), matches.data(), matches.size(), purpose == MatchPurpose::Cascade);
+    auto match = [&] {
+        return StyleEngineFFI::style_engine_match_element(host(), &read, node.value(), matches.data(), matches.size(), purpose == MatchPurpose::Cascade);
     };
-    auto count = read();
+    auto count = match();
     if (count == NumericLimits<size_t>::max())
         return false;
     if (count > matches.size()) {
         // Nothing was written, so grow and ask again rather than reporting a truncated answer.
         m_element_match_capacity = count * 2;
         matches.resize(m_element_match_capacity);
-        count = read();
+        count = match();
         if (count == NumericLimits<size_t>::max() || count > matches.size())
             return false;
     }
@@ -1079,17 +1091,17 @@ bool StyleEngine::match_element(StyleNodeID node, Vector<RuleMatch>& matches, Ma
     return true;
 }
 
-bool StyleEngine::counter(size_t index, StringView& out_name, u64& out_value) const
+bool StyleEngine::counter(Layout::BegunRead const& read, size_t index, StringView& out_name, u64& out_value) const
 {
     size_t name_length = 0;
-    auto const* name = StyleEngineFFI::style_engine_counter(m_render_document->host(), index, &out_value, &name_length);
+    auto const* name = StyleEngineFFI::style_engine_counter(m_render_document->host(), &read, index, &out_value, &name_length);
     if (!name)
         return false;
     out_name = StringView { name, name_length };
     return true;
 }
 
-void StyleEngine::set_element_custom_property_data(DOM::Element const& element, CustomPropertyData const* data)
+void StyleEngine::set_element_custom_property_data(Layout::BegunRead const& read, DOM::Element const& element, CustomPropertyData const* data)
 {
     // A move of the environment the element inherits reads whether this is its animation overlay, and
     // whether what the element's style resolves to declares custom properties of its own.
@@ -1098,8 +1110,8 @@ void StyleEngine::set_element_custom_property_data(DOM::Element const& element, 
     // The engine resolves the children's environments over what the element hands down, and substitutes the
     // element's own values under what its animations sampled, laid over what its style resolves to.
     auto note = [&](CustomPropertyData const& environment) {
-        auto inheritable = environment.inheritable(element.document());
-        StyleEngineFFI::style_engine_note_custom_property_environment(host(), environment.identity(), environment.rust_store(),
+        auto inheritable = environment.inheritable(read, element.document());
+        StyleEngineFFI::style_engine_note_custom_property_environment(host(), &read, environment.identity(), environment.rust_store(),
             inheritable ? inheritable->identity() : 0, inheritable ? inheritable->rust_store() : nullptr);
     };
     if (base)
@@ -1110,9 +1122,9 @@ void StyleEngine::set_element_custom_property_data(DOM::Element const& element, 
         base ? base->identity() : 0);
 }
 
-CustomPropertyData const* StyleEngine::element_custom_property_data(StyleNodeID node) const
+CustomPropertyData const* StyleEngine::element_custom_property_data(Layout::BegunRead const& read, StyleNodeID node) const
 {
-    return static_cast<CustomPropertyData const*>(StyleEngineFFI::style_engine_element_custom_property_data(m_render_document->host(), node.value()));
+    return static_cast<CustomPropertyData const*>(StyleEngineFFI::style_engine_element_custom_property_data(m_render_document->host(), &read, node.value()));
 }
 
 static_assert(to_underlying(PseudoElement::KnownPseudoElementCount) <= 64);
@@ -1122,14 +1134,14 @@ void StyleEngine::set_pseudo_element_custom_property_data(StyleNodeID node, Pseu
     StyleEngineFFI::style_engine_set_pseudo_element_custom_property_data(m_render_document->host(), node.value(), to_underlying(pseudo_element), data, data ? data->identity() : 0);
 }
 
-CustomPropertyData const* StyleEngine::pseudo_element_custom_property_data(StyleNodeID node, PseudoElement pseudo_element) const
+CustomPropertyData const* StyleEngine::pseudo_element_custom_property_data(Layout::BegunRead const& read, StyleNodeID node, PseudoElement pseudo_element) const
 {
-    return static_cast<CustomPropertyData const*>(StyleEngineFFI::style_engine_pseudo_element_custom_property_data(m_render_document->host(), node.value(), to_underlying(pseudo_element)));
+    return static_cast<CustomPropertyData const*>(StyleEngineFFI::style_engine_pseudo_element_custom_property_data(m_render_document->host(), &read, node.value(), to_underlying(pseudo_element)));
 }
 
-u64 StyleEngine::pseudo_elements_with_custom_property_data(StyleNodeID node) const
+u64 StyleEngine::pseudo_elements_with_custom_property_data(Layout::BegunRead const& read, StyleNodeID node) const
 {
-    return StyleEngineFFI::style_engine_pseudo_elements_with_custom_property_data(m_render_document->host(), node.value());
+    return StyleEngineFFI::style_engine_pseudo_elements_with_custom_property_data(m_render_document->host(), &read, node.value());
 }
 
 // The engine resolves fonts against the @font-face table and cascade memo it was given, at the generation of the

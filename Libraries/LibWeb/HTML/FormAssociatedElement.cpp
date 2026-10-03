@@ -1395,6 +1395,7 @@ void FormAssociatedTextControlElement::move_selection_end_to(size_t offset, Text
 void FormAssociatedTextControlElement::scroll_cursor_into_view()
 {
     auto& element = text_control_to_html_element();
+    Layout::ForcedReadScope read { element.document(), true };
     element.document().update_layout(DOM::UpdateLayoutReason::ScrollCursorIntoView);
 
     auto text_node = form_associated_element_to_text_node();
@@ -1406,7 +1407,7 @@ void FormAssociatedTextControlElement::scroll_cursor_into_view()
     auto scroll_block_direction = is<HTMLInputElement>(element)
         ? Painting::ScrollBlockDirection::No
         : Painting::ScrollBlockDirection::Yes;
-    Painting::scroll_text_offset_into_view(*text_node, m_selection_end, m_selection_end_affinity, scroll_block_direction);
+    Painting::scroll_text_offset_into_view(read, *text_node, m_selection_end, m_selection_end_affinity, scroll_block_direction);
 }
 
 void FormAssociatedTextControlElement::selection_was_changed(SelectionSource source)
@@ -1420,17 +1421,15 @@ void FormAssociatedTextControlElement::selection_was_changed(SelectionSource sou
         VERIFY_NOT_REACHED();
     }
 
+    // NB: Called during selection change handling, layout may be stale. The text's box repaints once the document's
+    //     invalidation journal drains, so the change reads nothing of the render state.
     auto text_node = form_associated_element_to_text_node();
-    if (!text_node)
-        return;
-    // NB: Called during selection change handling, layout may be stale.
-    auto* layout_text_node = as_if<Layout::TextNode>(text_node->unsafe_layout_node());
-    if (!layout_text_node)
+    if (!text_node || !text_node->has_layout_box())
         return;
 
     if (m_selection_start == m_selection_end)
         text_node->document().reset_cursor_blink_cycle();
-    layout_text_node->set_needs_repaint(InvalidateDisplayList::PaintCommands);
+    text_node->set_needs_repaint(InvalidateDisplayList::PaintCommands);
 
     // AD-HOC: Only scroll the cursor into view for UI-driven selection changes (like keyboard input). Programmatic
     //         changes (input.value, setSelectionRange) do not cause the cursor to scroll into view. This matches the

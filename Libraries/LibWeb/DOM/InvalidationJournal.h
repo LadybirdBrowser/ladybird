@@ -8,6 +8,7 @@
 
 #include <AK/HashMap.h>
 #include <AK/Vector.h>
+#include <AK/WeakPtr.h>
 #include <LibWeb/CSS/StyleEngineIdentifiers.h>
 #include <LibWeb/DOM/Node.h>
 #include <LibWeb/DOM/NodeIdentity.h>
@@ -44,17 +45,23 @@ public:
     void note_propagated_text_decoration_caches_invalidation(NodeIdentity);
     // The node's facts of these families are stale. The drain reads them from the node.
     void note_paint_facts(NodeIdentity, Painting::PaintFactsFamily);
+    // The image a box shows changed, in a task of its own that may run beside a frame in flight: the box's facts of
+    // these families are stale, and it repaints. The box is named by its layout node, which asks the render state
+    // nothing and names an anonymous box too. A box gone by the drain has nothing left to mark.
+    void note_box_image_changed(Layout::Node&, Painting::PaintFactsFamily, InvalidateDisplayList);
 
     // The identity is retired and may name another node once it is handed out again, so what was noted for the node
     // that had it must not land on that one. Nothing may retire an identity while the journal drains.
     void forget(CSS::StyleNodeID);
 
     // Writes every entry through to the layout and paint state and empties the journal.
-    void drain();
+    void drain(Layout::BegunRead const& read);
 
 private:
     struct Entry {
-        NodeIdentity identity;
+        NodeIdentity identity {};
+        // The box an entry names instead of a node, which identity then does not name.
+        WeakPtr<Layout::Node> box {};
         // The reason of the first layout mark. Only the layout update trace reads it.
         SetNeedsLayoutReason layout_reason { SetNeedsLayoutReason::StyleChange };
         Layout::LayoutUpdatePropagation layout_propagation {};

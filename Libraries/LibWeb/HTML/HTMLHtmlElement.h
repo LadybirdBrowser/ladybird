@@ -19,7 +19,7 @@ class WEB_API HTMLHtmlElement final : public HTMLElement {
 public:
     virtual ~HTMLHtmlElement() override;
 
-    bool should_use_body_background_properties() const;
+    bool should_use_body_background_properties(Layout::BegunRead const& read) const;
 
     // Being the document's body is one of the facts a layout row is built with, and which child is the body moves
     // with this element's children. Called wherever they move.

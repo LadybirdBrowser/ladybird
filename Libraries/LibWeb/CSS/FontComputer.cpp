@@ -32,6 +32,7 @@
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/MIME.h>
 #include <LibWeb/Fetch/Response.h>
+#include <LibWeb/Layout/RenderDocument.h>
 #include <LibWeb/MimeSniff/Resource.h>
 #include <LibWeb/Platform/FontPlugin.h>
 
@@ -591,6 +592,8 @@ void FontComputer::did_load_font(FontFaceKey const& changed_face)
         return true;
     });
     if (!invalidated_font_lists.is_empty()) {
+        // The walk reads each element's style as its own read of the render state.
+        Layout::ForcedReadScope read { document(), false };
         document().for_each_shadow_including_inclusive_descendant([&](DOM::Node& node) {
             auto* element = as_if<DOM::Element>(node);
             if (!element)

@@ -89,9 +89,9 @@ bool is_scroll_snap_container(Layout::Node const& node)
     return !snap_axes_of_scroll_container(node).is_empty();
 }
 
-void take_built_scroll_container(DOM::Document& document, Compositing::RustFFI::NodeSlotId slot, bool is_scroll_snap_container)
+void take_built_scroll_container(Layout::BegunRead const& read, DOM::Document& document, Compositing::RustFFI::NodeSlotId slot, bool is_scroll_snap_container)
 {
-    auto const* scroll_container = document.layout_node_arena().node_if_live(slot);
+    auto const* scroll_container = document.layout_node_arena().node_if_live(read, slot);
     if (!scroll_container)
         return;
     if (is_scroll_snap_container) {

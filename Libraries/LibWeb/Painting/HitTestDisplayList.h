@@ -76,22 +76,22 @@ private:
 
 class WEB_API HitTestDisplayList : public RefCounted<HitTestDisplayList> {
 public:
-    static NonnullRefPtr<HitTestDisplayList> create_from_rust_recording(u64 visual_context_tree_structural_epoch, Layout::NodeArena&, ChromeWidgetRegistry&);
+    static NonnullRefPtr<HitTestDisplayList> create_from_rust_recording(Layout::BegunRead const& read, u64 visual_context_tree_structural_epoch, Layout::NodeArena&, ChromeWidgetRegistry&);
 
     u64 visual_context_tree_structural_epoch() const { return m_visual_context_tree_structural_epoch; }
     [[nodiscard]] bool is_current() const;
-    [[nodiscard]] Optional<HitTestResult> hit_test(CSSPixelPoint, HitTestQuery const&) const;
+    [[nodiscard]] Optional<HitTestResult> hit_test(Layout::BegunRead const& read, CSSPixelPoint, HitTestQuery const&) const;
     // When constraint_scope is given, the caret position is constrained to lines inside that node, and points
     // outside it resolve to the closest position within it.
-    [[nodiscard]] Optional<CaretPosition> caret_position_from_point(CSSPixelPoint, HitTestQuery const&, CaretPositionMode = CaretPositionMode::Normal, GC::Ptr<DOM::Node const> constraint_scope = nullptr) const;
+    [[nodiscard]] Optional<CaretPosition> caret_position_from_point(Layout::BegunRead const& read, CSSPixelPoint, HitTestQuery const&, CaretPositionMode = CaretPositionMode::Normal, GC::Ptr<DOM::Node const> constraint_scope = nullptr) const;
     // Resolve Home/End against the painted line containing the caret. A visual line can span several DOM nodes and
     // atomic inline boxes, so a text-node or block-element boundary is not necessarily a rendered line boundary.
-    [[nodiscard]] Optional<CaretPosition> caret_position_at_line_edge(DOM::Node const&, size_t offset, TextAffinity, CaretLineEdge) const;
+    [[nodiscard]] Optional<CaretPosition> caret_position_at_line_edge(Layout::BegunRead const& read, DOM::Node const&, size_t offset, TextAffinity, CaretLineEdge) const;
     // Find the visually adjacent caret line within scope, preserving the requested inline-axis coordinate. This is a
     // rendered-content query: DOM adjacency alone cannot describe wrapping, writing modes, floats, or empty lines.
-    [[nodiscard]] Optional<CaretPosition> caret_position_on_adjacent_line(DOM::Node const&, size_t offset, TextAffinity, CaretLineDirection, CSSPixels inline_coordinate, DOM::Node const& scope) const;
-    [[nodiscard]] Optional<CSSPixels> caret_line_block_coordinate(DOM::Node const&, size_t offset, TextAffinity) const;
-    TraversalDecision hit_test_all(CSSPixelPoint, HitTestQuery const&, Function<TraversalDecision(HitTestResult)> const&) const;
+    [[nodiscard]] Optional<CaretPosition> caret_position_on_adjacent_line(Layout::BegunRead const& read, DOM::Node const&, size_t offset, TextAffinity, CaretLineDirection, CSSPixels inline_coordinate, DOM::Node const& scope) const;
+    [[nodiscard]] Optional<CSSPixels> caret_line_block_coordinate(Layout::BegunRead const& read, DOM::Node const&, size_t offset, TextAffinity) const;
+    TraversalDecision hit_test_all(Layout::BegunRead const& read, CSSPixelPoint, HitTestQuery const&, Function<TraversalDecision(HitTestResult)> const&) const;
 
 private:
     HitTestDisplayList(u64 visual_context_tree_structural_epoch, Layout::NodeArena&, ChromeWidgetRegistry&, u64 rust_generation);
@@ -133,30 +133,30 @@ private:
 
     struct QueryContext;
     static Optional<TopmostItem> topmost_item_from(Layout::RustFFI::FfiTopmostItem const&);
-    [[nodiscard]] Item item(size_t index) const;
-    [[nodiscard]] Layout::RustFFI::FfiCaretLineExport caret_line(size_t line_index) const { return Layout::RustFFI::layout_hit_test_caret_line(m_arena->host(), line_index); }
+    [[nodiscard]] Item item(Layout::BegunRead const& read, size_t index) const;
+    [[nodiscard]] Layout::RustFFI::FfiCaretLineExport caret_line(Layout::BegunRead const& read, size_t line_index) const { return Layout::RustFFI::layout_hit_test_caret_line(m_arena->host(), &read, line_index); }
 
-    [[nodiscard]] Optional<TopmostItem> find_topmost_item(CSSPixelPoint, HitTestQuery const&) const;
-    void find_topmost_items_for_caret(CSSPixelPoint, HitTestQuery const&, Optional<TopmostItem>& caret_item, Optional<TopmostItem>& hit_item) const;
-    [[nodiscard]] Vector<size_t> hit_item_indices_topmost_first(CSSPixelPoint, HitTestQuery const&) const;
-    [[nodiscard]] size_t item_index_at_line_edge(size_t line_index, CaretPositionType) const;
-    [[nodiscard]] Optional<CaretItemForLine> caret_item_for_line(size_t line_index, CSSPixelPoint local_point, CaretPositionMode) const;
-    [[nodiscard]] bool item_is_inline_adjacent_to_line(size_t item_index, size_t line_index) const;
-    [[nodiscard]] ClosestLine find_closest_line(CSSPixelPoint, HitTestQuery const&, CaretPositionMode, DOM::Node const* scope_dom_node, Compositing::AccumulatedVisualContextTree::ClipBehavior) const;
+    [[nodiscard]] Optional<TopmostItem> find_topmost_item(Layout::BegunRead const& read, CSSPixelPoint, HitTestQuery const&) const;
+    void find_topmost_items_for_caret(Layout::BegunRead const& read, CSSPixelPoint, HitTestQuery const&, Optional<TopmostItem>& caret_item, Optional<TopmostItem>& hit_item) const;
+    [[nodiscard]] Vector<size_t> hit_item_indices_topmost_first(Layout::BegunRead const& read, CSSPixelPoint, HitTestQuery const&) const;
+    [[nodiscard]] size_t item_index_at_line_edge(Layout::BegunRead const& read, size_t line_index, CaretPositionType) const;
+    [[nodiscard]] Optional<CaretItemForLine> caret_item_for_line(Layout::BegunRead const& read, size_t line_index, CSSPixelPoint local_point, CaretPositionMode) const;
+    [[nodiscard]] bool item_is_inline_adjacent_to_line(Layout::BegunRead const& read, size_t item_index, size_t line_index) const;
+    [[nodiscard]] ClosestLine find_closest_line(Layout::BegunRead const& read, CSSPixelPoint, HitTestQuery const&, CaretPositionMode, DOM::Node const* scope_dom_node, Compositing::AccumulatedVisualContextTree::ClipBehavior) const;
 
     [[nodiscard]] Optional<CSSPixelPoint> local_point_for_visual_context(Compositing::ContextRef, CSSPixelPoint, HitTestQuery const&) const;
     [[nodiscard]] CSSPixelRect viewport_rect_for_context(Compositing::SpatialNodeIndex, CSSPixelRect const&, HitTestQuery const&) const;
-    [[nodiscard]] Layout::Node const* layout_node_for_item(Item) const;
+    [[nodiscard]] Layout::Node const* layout_node_for_item(Layout::BegunRead const& read, Item) const;
     [[nodiscard]] RefPtr<ChromeWidget> chrome_widget_for_item(Item) const;
-    [[nodiscard]] DOM::Node const* item_dom_node(size_t item_index) const;
-    [[nodiscard]] DOM::NodeIdentity item_identity(size_t item_index) const;
-    [[nodiscard]] DOM::NodeIdentity event_dispatch_identity_for_item(size_t item_index) const;
-    [[nodiscard]] DOM::Node const* event_dispatch_dom_node_for_item(size_t item_index) const;
-    [[nodiscard]] bool item_is_direct_caret_target(size_t item_index) const;
-    [[nodiscard]] HitTestResult hit_test_result_for_item(Item, CSSPixelPoint local_point) const;
-    [[nodiscard]] Optional<CaretPosition> caret_position_for_item(Item, CSSPixelPoint local_point, CaretPositionType = CaretPositionType::Closest) const;
-    [[nodiscard]] Optional<CaretPosition> caret_position_for_hit_container(Item) const;
-    [[nodiscard]] Optional<CaretPosition> caret_position_for_line(size_t line_index, CSSPixelPoint local_point, CaretPositionMode) const;
+    [[nodiscard]] DOM::Node const* item_dom_node(Layout::BegunRead const& read, size_t item_index) const;
+    [[nodiscard]] DOM::NodeIdentity item_identity(Layout::BegunRead const& read, size_t item_index) const;
+    [[nodiscard]] DOM::NodeIdentity event_dispatch_identity_for_item(Layout::BegunRead const& read, size_t item_index) const;
+    [[nodiscard]] DOM::Node const* event_dispatch_dom_node_for_item(Layout::BegunRead const& read, size_t item_index) const;
+    [[nodiscard]] bool item_is_direct_caret_target(Layout::BegunRead const& read, size_t item_index) const;
+    [[nodiscard]] HitTestResult hit_test_result_for_item(Layout::BegunRead const& read, Item, CSSPixelPoint local_point) const;
+    [[nodiscard]] Optional<CaretPosition> caret_position_for_item(Layout::BegunRead const& read, Item, CSSPixelPoint local_point, CaretPositionType = CaretPositionType::Closest) const;
+    [[nodiscard]] Optional<CaretPosition> caret_position_for_hit_container(Layout::BegunRead const& read, Item) const;
+    [[nodiscard]] Optional<CaretPosition> caret_position_for_line(Layout::BegunRead const& read, size_t line_index, CSSPixelPoint local_point, CaretPositionMode) const;
 
     u64 m_visual_context_tree_structural_epoch { 0 };
     NonnullRefPtr<Layout::NodeArena> m_arena;

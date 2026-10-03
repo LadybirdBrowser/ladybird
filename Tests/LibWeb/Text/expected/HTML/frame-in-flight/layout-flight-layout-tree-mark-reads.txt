@@ -1,0 +1,10 @@
+fragment navigation: state in the next task: in-flight
+fragment navigation: hash: #target
+fragment navigation: box height: 20
+element move: state in the next task: in-flight
+element move: parent: destination
+element move: box height: 30
+text move: state in the next task: in-flight
+text move: parent: destination
+text move: destination height: true
+text move: box height: 40

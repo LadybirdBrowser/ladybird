@@ -765,6 +765,7 @@ set(SOURCES
     Layout/LayoutRustBridge.cpp
     Layout/Node.cpp
     Layout/NodeArena.cpp
+    Layout/RenderDocument.cpp
     Layout/TextNode.cpp
     Layout/TreeBuilder.cpp
     Layout/UpdateLayout.cpp

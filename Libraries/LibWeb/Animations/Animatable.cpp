@@ -303,12 +303,12 @@ void Animatable::cancel_css_animations_and_transitions()
         animation->cancel(Animation::ShouldInvalidate::No);
 }
 
-static void const* installed_longhand_table(DOM::Element const& element, Optional<CSS::PseudoElement> pseudo_element)
+static void const* installed_longhand_table(Layout::BegunRead const& read, DOM::Element const& element, Optional<CSS::PseudoElement> pseudo_element)
 {
     auto style_record = element.style_record_identity(pseudo_element);
     if (!style_record)
         return nullptr;
-    auto style = element.document().style_computer().style_engine().style_record_view(style_record);
+    auto style = element.document().style_computer().style_engine().style_record_view(read, style_record);
     return style.present ? style.longhand_table : nullptr;
 }
 
@@ -324,16 +324,16 @@ bool Animatable::has_matching_transition_property_entry(Optional<CSS::PseudoElem
     return CSS::StyleValueFFI::rust_transition_has_entries(longhand_table);
 }
 
-bool Animatable::has_matching_transition_property_entry(Optional<CSS::PseudoElement> pseudo_element) const
+bool Animatable::has_matching_transition_property_entry(Layout::BegunRead const& read, Optional<CSS::PseudoElement> pseudo_element) const
 {
-    return has_matching_transition_property_entry(pseudo_element, installed_longhand_table(static_cast<DOM::Element const&>(*this), pseudo_element));
+    return has_matching_transition_property_entry(pseudo_element, installed_longhand_table(read, static_cast<DOM::Element const&>(*this), pseudo_element));
 }
 
 // The longhands the element's installed style gives a matching transition-property entry, read from
 // the style's transition longhands.
-Vector<CSS::PropertyID> Animatable::property_ids_with_matching_transition_property_entry(Optional<CSS::PseudoElement> pseudo_element) const
+Vector<CSS::PropertyID> Animatable::property_ids_with_matching_transition_property_entry(Layout::BegunRead const& read, Optional<CSS::PseudoElement> pseudo_element) const
 {
-    auto const* longhand_table = installed_longhand_table(static_cast<DOM::Element const&>(*this), pseudo_element);
+    auto const* longhand_table = installed_longhand_table(read, static_cast<DOM::Element const&>(*this), pseudo_element);
     if (!has_matching_transition_property_entry(pseudo_element, longhand_table))
         return {};
     auto entries = CSS::StyleValueFFI::rust_transition_entries(longhand_table);

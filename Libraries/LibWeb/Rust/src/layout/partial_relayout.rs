@@ -11,6 +11,8 @@ use crate::layout::node_data::{NodeFlag, NodeKind, NodeSlotId};
 use crate::layout::node_facts;
 use crate::painting::paint_read::PaintRead;
 
+crate::render_state::held_node_entries!();
+
 #[repr(C)]
 pub struct FfiLayoutTreeUpdateClassification {
     pub marks_partial_relayout_boundary_self_only: bool,
@@ -756,7 +758,11 @@ pub unsafe extern "C" fn render_state_node_is_partial_relayout_boundary(
     node: NodeSlotId,
 ) -> bool {
     // SAFETY: Guaranteed by the caller.
-    unsafe { super::shell_reads::read(host, node, |arena, node| arena.node_is_partial_relayout_boundary(node)) }
+    unsafe {
+        super::shell_reads::read_arena(host, node_read(), node, |arena, node| {
+            arena.node_is_partial_relayout_boundary(node)
+        })
+    }
 }
 
 /// The facts the host owns that take an update off the partial relayout path.
@@ -772,13 +778,15 @@ pub(crate) struct FfiPartialRelayoutHostFacts {
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn render_state_classify_layout_tree_update(
     host: *const crate::render_state::DocumentHost,
+    read: &crate::render_state::BegunRead,
     node: NodeSlotId,
     reason_is_structural_boundary_self_rebuild: bool,
 ) -> FfiLayoutTreeUpdateClassification {
     // SAFETY: Guaranteed by the caller.
     unsafe {
-        super::shell_reads::read(
+        super::shell_reads::read_arena(
             host,
+            read,
             (node, reason_is_structural_boundary_self_rebuild),
             |arena, (node, reason_is_structural_boundary_self_rebuild)| {
                 arena.classify_layout_tree_update(node, reason_is_structural_boundary_self_rebuild)

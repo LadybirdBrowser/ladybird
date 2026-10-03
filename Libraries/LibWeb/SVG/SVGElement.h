@@ -42,7 +42,7 @@ public:
     bool should_include_in_accessibility_tree() const;
     virtual Optional<ARIA::Role> default_role() const override;
 
-    Gfx::Size<double> viewport_size_for_percentage_resolution();
+    Gfx::Size<double> viewport_size_for_percentage_resolution(Layout::BegunRead const& read);
 
     // Republishes the element's parsed attributes to the layout node arena, which is where a running
     // layout pass reads them.

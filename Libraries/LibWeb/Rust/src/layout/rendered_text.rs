@@ -11,6 +11,8 @@ use crate::css::css_enums::text_transform;
 use std::cell::{OnceCell, RefCell};
 use std::sync::Arc;
 
+crate::render_state::held_node_entries!();
+
 /// Selects the beginning or end of a transformed span for offsets inside it.
 #[derive(Clone, Copy)]
 #[repr(C)]
@@ -358,7 +360,7 @@ pub unsafe extern "C" fn render_state_text_has_source_range(
     id: NodeSlotId,
 ) -> bool {
     // SAFETY: Guaranteed by the caller.
-    unsafe { super::shell_reads::read(host, id, |arena, id| arena.text_has_source_range(id)) }
+    unsafe { super::shell_reads::read_arena(host, node_read(), id, |arena, id| arena.text_has_source_range(id)) }
 }
 
 /// Publishes the rendered text of `id`, a live text node with a styled parent, where what it renders changed.
@@ -432,7 +434,7 @@ pub unsafe extern "C" fn render_state_text_for_rendering(
 ) -> FfiRenderedTextView {
     // SAFETY: Guaranteed by the caller.
     unsafe {
-        super::shell_reads::read(host, id, |arena, id| {
+        super::shell_reads::read_arena(host, node_read(), id, |arena, id| {
             ensure_text_content(arena, id);
             let content = arena
                 .text_content(id)

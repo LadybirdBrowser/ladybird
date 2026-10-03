@@ -33,7 +33,7 @@ public:
     }
 
     GC::Ptr<HTMLImageElement> first_image_with_focusable_shapes() const;
-    GC::Ptr<HTMLImageElement> first_painted_image_with_focusable_shapes() const;
+    GC::Ptr<HTMLImageElement> first_painted_image_with_focusable_shapes(Layout::BegunRead const& read) const;
 
 private:
     HTMLMapElement(DOM::Document&, DOM::QualifiedName);

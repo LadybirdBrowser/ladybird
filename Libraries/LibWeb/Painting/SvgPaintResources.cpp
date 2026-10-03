@@ -37,18 +37,24 @@ static void push_svg_paint_server_description(Layout::NodeWithStyle const& layou
         pattern->push_paint_server_description(sink, layout_node);
 }
 
-bool sync_svg_paint_resources(DOM::Document& document)
+bool sync_svg_paint_resources(Layout::BegunRead const& read, DOM::Document& document)
 {
-    auto& arena = document.layout_node_arena();
+    // The boxes the resources are drawn from are found in the read the sync is made in.
+    struct Context {
+        Layout::NodeArena& arena;
+        Layout::BegunRead const& read;
+    } context { document.layout_node_arena(), read };
     return Layout::RustFFI::render_state_sync_svg_paint_resources(
-        arena.host(),
-        &arena,
-        [](void* arena, Compositing::RustFFI::NodeSlotId slot, void const* url_value, void* sink) -> bool {
-            auto const& layout_node = as<Layout::NodeWithStyle>(*static_cast<Layout::NodeArena*>(arena)->node_if_live(slot));
+        context.arena.host(),
+        &read, &context,
+        [](void* context_pointer, Compositing::RustFFI::NodeSlotId slot, void const* url_value, void* sink) -> bool {
+            auto& context = *static_cast<Context*>(context_pointer);
+            auto const& layout_node = as<Layout::NodeWithStyle>(*context.arena.node_if_live(context.read, slot));
             return push_svg_filter_reference(url_value, layout_node, sink);
         },
-        [](void* arena, Compositing::RustFFI::NodeSlotId slot, bool is_stroke, void* sink) {
-            auto const& layout_node = as<Layout::NodeWithStyle>(*static_cast<Layout::NodeArena*>(arena)->node_if_live(slot));
+        [](void* context_pointer, Compositing::RustFFI::NodeSlotId slot, bool is_stroke, void* sink) {
+            auto& context = *static_cast<Context*>(context_pointer);
+            auto const& layout_node = as<Layout::NodeWithStyle>(*context.arena.node_if_live(context.read, slot));
             push_svg_paint_server_description(layout_node, is_stroke, sink);
         });
 }
