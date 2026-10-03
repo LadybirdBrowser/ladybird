@@ -14,14 +14,14 @@ namespace JS {
 
 using namespace HostABI;
 
-GC::Ref<HostModule> HostModule::create(Realm& realm, JSHostClass const& host_class, StringView filename, Vector<ModuleRequest> requested_modules, Script::HostDefined* host_defined, GC::Ptr<GC::Cell> host_data)
+GC::Ref<HostModule> HostModule::create(Realm& realm, JSHostClass const& host_class, StringView filename, Vector<ModuleRequest> requested_modules, GC::Ptr<GC::Cell> host_defined, GC::Ptr<GC::Cell> host_data)
 {
     auto module = realm.heap().allocate_with_descriptor(cell_allocator_for_host_class<HostModule>(host_class), realm, host_class, filename, move(requested_modules), host_defined, host_data);
     static_cast<Cell&>(*module).initialize(realm);
     return module;
 }
 
-HostModule::HostModule(Realm& realm, JSHostClass const& host_class, StringView filename, Vector<ModuleRequest> requested_modules, Script::HostDefined* host_defined, GC::Ptr<GC::Cell> host_data)
+HostModule::HostModule(Realm& realm, JSHostClass const& host_class, StringView filename, Vector<ModuleRequest> requested_modules, GC::Ptr<GC::Cell> host_defined, GC::Ptr<GC::Cell> host_data)
     : CyclicModule(realm, filename, false, move(requested_modules), host_defined)
     , m_host_class(&host_class)
     , m_host_data(host_data)

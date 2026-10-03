@@ -25,7 +25,7 @@ GC_DEFINE_ALLOCATOR(Module);
 GC_DEFINE_ALLOCATOR(GraphLoadingState);
 GC_DEFINE_ALLOCATOR(GraphLoadingState::HostDefined);
 
-Module::Module(Realm& realm, ByteString filename, Script::HostDefined* host_defined)
+Module::Module(Realm& realm, ByteString filename, GC::Ptr<GC::Cell> host_defined)
     : m_realm(realm)
     , m_host_defined(host_defined)
     , m_filename(move(filename))
@@ -40,8 +40,7 @@ void Module::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_realm);
     visitor.visit(m_environment);
     visitor.visit(m_namespace);
-    if (m_host_defined)
-        m_host_defined->visit_host_defined_self(visitor);
+    visitor.visit(m_host_defined);
 }
 
 size_t Module::external_memory_size() const

@@ -46,7 +46,7 @@ public:
     Vector<LoadedModuleRequest>& loaded_modules() { return m_loaded_modules; }
 
 protected:
-    CyclicModule(Realm& realm, StringView filename, bool has_top_level_await, Vector<ModuleRequest> requested_modules, Script::HostDefined* host_defined);
+    CyclicModule(Realm& realm, StringView filename, bool has_top_level_await, Vector<ModuleRequest> requested_modules, GC::Ptr<GC::Cell> host_defined);
 
     virtual void visit_edges(Cell::Visitor&) override;
     virtual size_t external_memory_size() const override;

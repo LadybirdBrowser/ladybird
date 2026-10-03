@@ -22,7 +22,7 @@ bool g_dump_ast_use_color = false;
 GC_DEFINE_ALLOCATOR(Script);
 
 // 16.1.5 ParseScript ( sourceText, realm, hostDefined ), https://tc39.es/ecma262/#sec-parse-script
-Result<GC::Ref<Script>, Vector<ParserError>> Script::parse(Utf16View source_text, Realm& realm, StringView filename, Utf16View display_filename, HostDefined* host_defined, size_t line_number_offset)
+Result<GC::Ref<Script>, Vector<ParserError>> Script::parse(Utf16View source_text, Realm& realm, StringView filename, Utf16View display_filename, GC::Ptr<GC::Cell> host_defined, size_t line_number_offset)
 {
     auto fallback_display_filename = display_filename.is_empty() ? Utf16String::from_utf8(filename) : Utf16String {};
     if (display_filename.is_empty())
@@ -36,7 +36,7 @@ Result<GC::Ref<Script>, Vector<ParserError>> Script::parse(Utf16View source_text
     return realm.heap().allocate<Script>(realm, filename, move(rust_compilation->value()), ExecutableBacking::source(), host_defined);
 }
 
-Result<GC::Ref<Script>, Vector<ParserError>> Script::create_from_parsed(FFI::ParsedProgram* parsed, NonnullRefPtr<SourceCode const> source_code, Realm& realm, StringView filename, HostDefined* host_defined)
+Result<GC::Ref<Script>, Vector<ParserError>> Script::create_from_parsed(FFI::ParsedProgram* parsed, NonnullRefPtr<SourceCode const> source_code, Realm& realm, StringView filename, GC::Ptr<GC::Cell> host_defined)
 {
     auto rust_compilation = RustIntegration::compile_parsed_script(parsed, move(source_code), realm);
     if (!rust_compilation.has_value())
@@ -46,7 +46,7 @@ Result<GC::Ref<Script>, Vector<ParserError>> Script::create_from_parsed(FFI::Par
     return realm.heap().allocate<Script>(realm, filename, move(rust_compilation->value()), ExecutableBacking::source(), host_defined);
 }
 
-Result<GC::Ref<Script>, Vector<ParserError>> Script::create_from_compiled(FFI::CompiledProgram* compiled, NonnullRefPtr<SourceCode const> source_code, Realm& realm, StringView filename, HostDefined* host_defined)
+Result<GC::Ref<Script>, Vector<ParserError>> Script::create_from_compiled(FFI::CompiledProgram* compiled, NonnullRefPtr<SourceCode const> source_code, Realm& realm, StringView filename, GC::Ptr<GC::Cell> host_defined)
 {
     auto rust_compilation = RustIntegration::materialize_compiled_script(compiled, move(source_code), realm);
     if (!rust_compilation.has_value())
@@ -56,7 +56,7 @@ Result<GC::Ref<Script>, Vector<ParserError>> Script::create_from_compiled(FFI::C
     return realm.heap().allocate<Script>(realm, filename, move(rust_compilation->value()), ExecutableBacking::heap_bytecode(), host_defined);
 }
 
-Result<GC::Ref<Script>, Vector<ParserError>> Script::create_from_bytecode_cache(NonnullRefPtr<RustIntegration::DecodedBytecodeCache> bytecode_cache, NonnullRefPtr<SourceCode const> source_code, Realm& realm, StringView filename, HostDefined* host_defined)
+Result<GC::Ref<Script>, Vector<ParserError>> Script::create_from_bytecode_cache(NonnullRefPtr<RustIntegration::DecodedBytecodeCache> bytecode_cache, NonnullRefPtr<SourceCode const> source_code, Realm& realm, StringView filename, GC::Ptr<GC::Cell> host_defined)
 {
     auto rust_compilation = RustIntegration::materialize_bytecode_cache_script(bytecode_cache, move(source_code), realm);
     if (!rust_compilation.has_value())
@@ -134,7 +134,7 @@ void Script::complete_bytecode_cache_install(GC::Ref<Bytecode::Executable> execu
     verify_executable_backing_invariants();
 }
 
-Script::Script(Realm& realm, StringView filename, RustIntegration::ScriptResult&& result, ExecutableBacking executable_backing, HostDefined* host_defined)
+Script::Script(Realm& realm, StringView filename, RustIntegration::ScriptResult&& result, ExecutableBacking executable_backing, GC::Ptr<GC::Cell> host_defined)
     : m_realm(realm)
     , m_executable(result.executable)
     , m_executable_backing(executable_backing)
@@ -312,8 +312,7 @@ void Script::visit_edges(Cell::Visitor& visitor)
     m_shared_function_data.visit_edges(visitor);
     for (auto const& function : m_functions_to_initialize)
         visitor.visit(function.shared_data);
-    if (m_host_defined)
-        m_host_defined->visit_host_defined_self(visitor);
+    visitor.visit(m_host_defined);
     for (auto const& loaded_module : m_loaded_modules)
         visitor.visit(loaded_module.module);
 }

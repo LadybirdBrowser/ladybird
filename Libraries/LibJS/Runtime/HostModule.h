@@ -20,7 +20,7 @@ class JS_API HostModule : public CyclicModule {
     GC_CELL_WITH_CUSTOM_CLASS_NAME(HostModule, CyclicModule);
 
 public:
-    static GC::Ref<HostModule> create(Realm&, JSHostClass const&, StringView filename, Vector<ModuleRequest> requested_modules, Script::HostDefined* = nullptr, GC::Ptr<GC::Cell> host_data = {});
+    static GC::Ref<HostModule> create(Realm&, JSHostClass const&, StringView filename, Vector<ModuleRequest> requested_modules, GC::Ptr<GC::Cell> host_defined = {}, GC::Ptr<GC::Cell> host_data = {});
 
     virtual ~HostModule() override = default;
 
@@ -39,7 +39,7 @@ public:
     using Module::set_environment;
 
 protected:
-    HostModule(Realm&, JSHostClass const&, StringView filename, Vector<ModuleRequest> requested_modules, Script::HostDefined*, GC::Ptr<GC::Cell> host_data);
+    HostModule(Realm&, JSHostClass const&, StringView filename, Vector<ModuleRequest> requested_modules, GC::Ptr<GC::Cell> host_defined, GC::Ptr<GC::Cell> host_data);
 
     virtual void visit_edges(Cell::Visitor&) override;
 

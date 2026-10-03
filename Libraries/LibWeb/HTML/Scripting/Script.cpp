@@ -62,11 +62,6 @@ EnvironmentSettingsObject& Script::settings_object()
     return m_settings;
 }
 
-void Script::visit_host_defined_self(JS::Cell::Visitor& visitor)
-{
-    visitor.visit(*this);
-}
-
 void Script::visit_edges(Visitor& visitor)
 {
     Base::visit_edges(visitor);
