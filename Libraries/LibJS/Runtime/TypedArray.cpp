@@ -621,6 +621,34 @@ void TypedArrayBase::finalize()
 JS_ENUMERATE_TYPED_ARRAYS
 #undef __JS_ENUMERATE
 
+GC::Ref<TypedArrayBase> TypedArrayBase::create_from_slots(Realm& realm, Kind kind, ArrayBuffer& array_buffer, ByteLength array_length, ByteLength byte_length, u32 byte_offset)
+{
+    auto element_size = typed_array_element_size(kind);
+    VERIFY(array_length.is_auto() == byte_length.is_auto());
+    VERIFY(byte_offset % element_size == 0);
+    if (!array_length.is_auto()) {
+        Checked<u32> byte_length_of_array_length = array_length.length();
+        byte_length_of_array_length *= element_size;
+        VERIFY(!byte_length_of_array_length.has_overflow());
+        VERIFY(byte_length_of_array_length.value() == byte_length.length());
+    }
+
+    GC::Ptr<TypedArrayBase> typed_array;
+    switch (kind) {
+#define __JS_ENUMERATE(ClassName, snake_name, PrototypeName, ConstructorName, Type) \
+    case Kind::ClassName:                                                           \
+        typed_array = ClassName::create(realm, 0, array_buffer);                    \
+        break;
+        JS_ENUMERATE_TYPED_ARRAYS
+#undef __JS_ENUMERATE
+    }
+
+    typed_array->set_array_length(move(array_length));
+    typed_array->set_byte_length(move(byte_length));
+    typed_array->set_byte_offset(byte_offset);
+    return *typed_array;
+}
+
 // 10.4.5.10 MakeTypedArrayWithBufferWitnessRecord ( obj, order ), https://tc39.es/ecma262/#sec-maketypedarraywithbufferwitnessrecord
 TypedArrayWithBufferWitness make_typed_array_with_buffer_witness_record(TypedArrayBase const& typed_array, ArrayBuffer::Order order)
 {

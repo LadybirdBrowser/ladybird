@@ -2004,18 +2004,17 @@ public:
             } else {
                 auto array_length = TRY(deserialize_byte_length());
 
-                GC::Ptr<JS::TypedArrayBase> typed_array;
+                Optional<JS::TypedArrayBase::Kind> kind;
 #define __JS_ENUMERATE(ClassName, snake_name, PrototypeName, ConstructorName, Type) \
     if (constructor_name == #ClassName##sv)                                         \
-        typed_array = JS::ClassName::create(realm, 0, array_buffer);
+        kind = JS::TypedArrayBase::Kind::ClassName;
                 JS_ENUMERATE_TYPED_ARRAYS
 #undef __JS_ENUMERATE
-#undef CREATE_TYPED_ARRAY
 
-                if (!typed_array)
+                if (!kind.has_value())
                     return data_clone_error_from_serialization_error(realm, AK::Error::from_string_literal("Unknown ArrayBufferView constructor"));
 
-                auto element_size = typed_array->element_size();
+                auto element_size = JS::typed_array_element_size(*kind);
 
                 // Reject combinations a real typed array could not produce.
                 auto consistent_slots = byte_length.is_auto() == array_length.is_auto() && byte_offset % element_size == 0;
@@ -2027,10 +2026,7 @@ public:
                 if (!consistent_slots || !length_fits_buffer(array_length, element_size))
                     return data_clone_error_from_serialization_error(realm, AK::Error::from_string_literal("ArrayBufferView does not fit its ArrayBuffer"));
 
-                typed_array->set_array_length(array_length);
-                typed_array->set_byte_length(byte_length);
-                typed_array->set_byte_offset(byte_offset);
-                value = typed_array;
+                value = JS::TypedArrayBase::create_from_slots(realm, *kind, array_buffer, move(array_length), move(byte_length), byte_offset);
             }
             break;
         }
