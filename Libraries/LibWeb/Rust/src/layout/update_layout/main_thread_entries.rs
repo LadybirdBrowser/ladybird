@@ -50,6 +50,28 @@ pub unsafe extern "C" fn render_state_update_layout(
     });
 }
 
+/// Pays what the layout round a frame ran owes the host, where the frame flew with one, landing it first with `read`:
+/// the host's teardown of the layout tree pays it before the tree goes.
+///
+/// # Safety
+///
+/// `host` must be a live document host with registered layout and layout update hosts, on its document's thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn render_state_pay_flown_round(host: *const DocumentHost, read: &BegunRead) {
+    assert!(!host.is_null(), "document host is null");
+    // SAFETY: Guaranteed by the caller.
+    let host = unsafe { &*host };
+    // SAFETY: Guaranteed by the entry point's contract.
+    let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY, host) };
+    abort_on_panic(|| {
+        host.take_frame_in_with(read);
+        if let Some(round) = host.take_flown_round() {
+            // SAFETY: Guaranteed by the entry point's contract.
+            unsafe { round.pay(&main_thread, host, read) };
+        }
+    });
+}
+
 /// Seals the first round of the layout of a rendering update whose style is about to fly, as of the document's facts
 /// now, where the document needs one: the frame runs it after its style.
 ///

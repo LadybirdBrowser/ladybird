@@ -1625,8 +1625,11 @@ Layout::Node* Document::layout_root_if_live(Layout::BegunRead const& read) const
 
 void Document::tear_down_layout_tree()
 {
-    // The teardown is the host's own read of the render state: a frame in flight lands first.
+    // The teardown is the host's own read of the render state: a frame in flight lands first, and the host pays the
+    // layout round it ran, whose build may have replaced boxes the host still holds, before the tree goes.
     Layout::ForcedReadScope read { *this, false };
+    if (m_layout_node_arena)
+        Layout::RustFFI::render_state_pay_flown_round(m_layout_node_arena->host(), read);
     auto* layout_root = layout_root_if_live(read);
     if (layout_root)
         layout_root->prepare_subtree_for_detach_from_layout_tree();
