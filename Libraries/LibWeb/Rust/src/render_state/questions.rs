@@ -20,6 +20,7 @@ use crate::layout::node_data::NodeSlotId;
 use crate::layout::rendered_text::FfiTextSourceRange;
 use crate::layout::row_reads::RowSnapshot;
 use crate::layout::text_queries::FfiDomTextRange;
+use crate::painting::paint_passes::{PendingPreparation, rendering_preparation_pending};
 
 /// A question the host asks about a document's render state, answered as of every change it queued before.
 pub(crate) trait Question {
@@ -42,6 +43,8 @@ pub(crate) enum Query<'a> {
     Write(LayoutWrite, ReplyTo<'a, LayoutWritten>),
     /// The document's rows, which the render state publishes.
     CommittedRows(CommittedRows, ReplyTo<'a, RowSnapshot>),
+    /// Whether preparing the document for rendering has something to do.
+    PreparationPending(PreparationPending, ReplyTo<'a, Option<PendingPreparation>>),
 }
 
 /// The document's rows, which the render state publishes: with every row's scrollable overflow measured first where
@@ -49,6 +52,9 @@ pub(crate) enum Query<'a> {
 pub(crate) struct CommittedRows {
     pub(crate) measure_overflow: bool,
 }
+
+/// Whether preparing the document for rendering has something to do, answered with the proof that it has.
+pub(crate) struct PreparationPending;
 
 macro_rules! question {
     ($question:ty, $answer:ty, $variant:ident) => {
@@ -67,6 +73,7 @@ question!(StyleQuery, StyleAnswer, Engine);
 question!(DevToolsQuery, DevToolsAnswer, DevTools);
 question!(LayoutWrite, LayoutWritten, Write);
 question!(CommittedRows, RowSnapshot, CommittedRows);
+question!(PreparationPending, Option<PendingPreparation>, PreparationPending);
 
 /// A read of a document's layout arena.
 pub(crate) enum ArenaQuery {
@@ -142,6 +149,9 @@ impl Query<'_> {
             Self::Write(write, reply) => reply.answer(|| write.apply(arena)),
             Self::CommittedRows(CommittedRows { measure_overflow }, reply) => {
                 reply.answer(|| arena.publish_row_snapshot(measure_overflow));
+            }
+            Self::PreparationPending(PreparationPending, reply) => {
+                reply.answer(|| rendering_preparation_pending(arena));
             }
         }
     }

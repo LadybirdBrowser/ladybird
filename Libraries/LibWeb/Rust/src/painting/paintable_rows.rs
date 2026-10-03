@@ -726,6 +726,12 @@ impl LayoutNodeArena {
         self.needs_full_scrollable_overflow_recalculation.set(true);
     }
 
+    /// Whether a scrollable overflow recalculation is scheduled, which the next rendering preparation settles.
+    pub(crate) fn scrollable_overflow_recalculation_is_scheduled(&self) -> bool {
+        self.needs_full_scrollable_overflow_recalculation.get()
+            || !self.boxes_needing_scrollable_overflow_recalculation.borrow().is_empty()
+    }
+
     pub(crate) fn take_scrollable_overflow_recalculation_state(&self) -> (Vec<NodeSlotId>, bool) {
         (
             std::mem::take(&mut *self.boxes_needing_scrollable_overflow_recalculation.borrow_mut()),
