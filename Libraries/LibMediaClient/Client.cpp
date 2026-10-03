@@ -70,8 +70,6 @@ void Client::die()
     auto pending_decoder_capabilities_requests = move(m_pending_decoder_capabilities_requests);
     for (auto& [id, promise] : pending_decoder_capabilities_requests)
         promise->reject(Error::from_string_literal("The media server is gone"));
-    if (on_death)
-        on_death();
 }
 
 u64 Client::allocate_id()

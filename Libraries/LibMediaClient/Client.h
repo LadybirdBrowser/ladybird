@@ -48,8 +48,6 @@ public:
 
     u64 generation() const { return m_generation; }
 
-    Function<void()> on_death;
-
     ErrorOr<IPC::TransportHandle> create_video_presentation_channel();
 
     // The synchronous queries serve APIs that must answer on the spot; everything else asks through a promise.

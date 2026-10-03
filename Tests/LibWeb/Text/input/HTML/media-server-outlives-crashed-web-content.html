@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<audio id="audio"></audio>
+<script>
+    // The browser holds this process's connection to its media server. The process crashes while that media server is
+    // up, and the media server exits after it. That must not take down the browser.
+    asyncTest(done => {
+        audio.src = "../../../Assets/test-webm-audio.ogg";
+        audio.addEventListener("canplay", () => {
+            internals.panicRenderStateForTesting();
+            println("FAIL: WebContent survived its render state's panic");
+            done();
+        });
+    });
+</script>
