@@ -24,7 +24,7 @@
         });
 
         const echoUrl = new URL(url);
-        const response = await fetch(`${echoUrl.origin}/recorded-request-headers${echoUrl.pathname}`);
+        const response = await fetch(httpServer.recordedRequestHeadersURL(echoUrl));
         const headers = await response.json();
 
         println(headers["Accept"][0]);

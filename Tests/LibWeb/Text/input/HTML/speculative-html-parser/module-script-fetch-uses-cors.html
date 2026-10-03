@@ -44,7 +44,7 @@
             // Until the path has been requested, the endpoint answers 404 without CORS headers, so the fetch rejects.
             let response;
             try {
-                response = await fetch(`${server.baseURL}/recorded-request-headers${new URL(url).pathname}`);
+                response = await fetch(server.recordedRequestHeadersURL(url));
             } catch {
                 return null;
             }
