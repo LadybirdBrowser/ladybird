@@ -2665,8 +2665,9 @@ impl WinnerGroups {
         self.admitting
     }
 
-    /// Admit rows until `restore_admission` puts back the returned admission.
-    pub(super) fn admit_demanded_rows(&mut self) -> bool {
+    /// Admit rows until `restore_admission` puts back the returned admission. Only a drive's leave
+    /// to republish lifts the budget: the rows it publishes are the ones it reads next, no cache.
+    pub(super) fn admit_republished_rows(&mut self, _: super::publication::WinnerRepublication) -> bool {
         std::mem::replace(&mut self.admitting, true)
     }
 
@@ -3427,6 +3428,26 @@ mod tests {
         assert!(!groups.rule_is_a_winner(RuleID(100_000)));
         assert!(groups.winner_rule_references.entries.is_empty());
         assert_eq!(groups.winner_rule_references.posting_bytes, 0);
+    }
+
+    #[test]
+    fn closed_winner_admission_admits_a_drive_republication() {
+        let mut memory = memory();
+        memory.set_tier3_limit_for_test(0);
+        memory.begin_tier3_quota_period();
+        let mut groups = WinnerGroups::new();
+        let state = groups.intern_sorted(&[winner(1, 1, 3)], None);
+        assert!(groups.set(StyleNodeID::element(1), state, ProgramVersion(1)));
+        groups.settle_memory(&mut memory);
+        memory.finish_evaluation_loop();
+        groups.update_admission(&memory);
+        assert!(!groups.admits_new_rows());
+
+        // The row a drive reads next is published whatever the budget.
+        let admitting = groups.admit_republished_rows(crate::css::style::publication::WinnerRepublication::for_flush());
+        assert!(groups.set(StyleNodeID::element(2), state, ProgramVersion(1)));
+        groups.restore_admission(admitting);
+        assert!(!groups.set(StyleNodeID::element(3), state, ProgramVersion(1)));
     }
 
     #[test]
