@@ -1174,6 +1174,15 @@ ThrowCompletionOr<Value> Object::internal_get(PropertyKey const& property_key, V
     return result;
 }
 
+ThrowCompletionOr<Value> Object::internal_get_as_prototype_of(PropertyKey const& property_key, Value receiver, CacheableGetPropertyMetadata* metadata_for_caller) const
+{
+    CacheableGetPropertyMetadata metadata;
+    auto value = TRY(internal_get(property_key, receiver, &metadata, PropertyLookupPhase::PrototypeChain));
+    if (metadata_for_caller && metadata.type == CacheableGetPropertyMetadata::Type::GetPropertyInPrototypeChain)
+        *metadata_for_caller = metadata;
+    return value;
+}
+
 static ThrowCompletionOr<bool> create_data_property_for_set(Object& receiver, PropertyKey const& property_key, Value value, CacheableSetPropertyMetadata* cacheable_metadata)
 {
     Optional<PropertyDescriptor> no_existing_descriptor;

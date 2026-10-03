@@ -23,6 +23,8 @@
 #include <LibJS/Runtime/Shape.h>
 #include <LibJS/Runtime/Value.h>
 
+struct JSHostClass;
+
 namespace JS {
 
 #define JS_OBJECT(class_, base_class) GC_CELL(class_, base_class)
@@ -180,6 +182,11 @@ public:
     virtual ThrowCompletionOr<bool> internal_set(PropertyKey const&, Value value, Value receiver, CacheableSetPropertyMetadata* = nullptr, PropertyLookupPhase = PropertyLookupPhase::OwnProperty);
     virtual ThrowCompletionOr<bool> internal_delete(PropertyKey const&);
     virtual ThrowCompletionOr<GC::RootVector<Value>> internal_own_property_keys() const;
+
+    // Runs [[Get]] on this object as one found in the prototype chain of the lookup that metadata_for_caller belongs to,
+    // and fills that metadata only for a hit that an inline cache can keep. An object that forwards its lookups to
+    // another one can then cache them without reading the metadata itself.
+    ThrowCompletionOr<Value> internal_get_as_prototype_of(PropertyKey const&, Value receiver, CacheableGetPropertyMetadata* metadata_for_caller) const;
 
     // NOTE: Any subclass of Object that overrides property access slots ([[Get]], [[Set]] etc)
     //       to customize access to indexed properties (properties where the name is a positive integer)
@@ -431,7 +438,11 @@ protected:
     Object(ConstructWithPrototypeTag, Object& prototype, MayInterfereWithIndexedPropertyAccess = MayInterfereWithIndexedPropertyAccess::No);
     explicit Object(Shape&, MayInterfereWithIndexedPropertyAccess = MayInterfereWithIndexedPropertyAccess::No);
 
+    virtual JSHostClass const* host_class_if_host_object() const { return nullptr; }
+
 private:
+    friend JSHostClass const* host_class_of(Object const&);
+
     class StoragePointer {
     public:
         constexpr StoragePointer() = default;
@@ -532,5 +543,12 @@ private:
 #if !defined(AK_OS_WINDOWS)
 static_assert(sizeof(Object) <= 72, "Keep the size of JS::Object down!");
 #endif
+
+// The table that implements the object's internal methods (see LibJS/HostObjectABI.h), or null for an object that the
+// engine implements.
+inline JSHostClass const* host_class_of(Object const& object)
+{
+    return object.host_class_if_host_object();
+}
 
 }
