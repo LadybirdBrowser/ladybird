@@ -131,6 +131,7 @@ private:
     void create_web_prototype_and_constructor(JS::Realm& realm);
     void create_web_prototype_and_constructor(JS::Realm& realm, InterfaceObjectMetadata const&);
     void create_web_constructor(JS::Realm& realm, InterfaceObjectMetadata const&, JS::Object& prototype);
+    void create_legacy_factory_function(JS::Realm& realm, InterfaceObjectMetadata const&);
 
     HashMap<Utf16FlyString, GC::Ref<JS::Object>> m_namespaces;
     HashMap<Utf16FlyString, GC::Ref<JS::Object>> m_prototypes;

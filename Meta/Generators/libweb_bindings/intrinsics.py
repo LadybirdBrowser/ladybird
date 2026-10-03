@@ -12,11 +12,13 @@ from typing import TextIO
 from Generators.libweb_bindings.cpp_types import fully_qualified_name_for_interface
 from Generators.libweb_bindings.cpp_types import implementation_header_for_interface
 from Generators.libweb_bindings.named_and_indexed_properties import interface_supports_named_properties
+from Generators.libweb_bindings.overload_resolution import parameter_list_length
 from Generators.libweb_bindings.wrappers import interface_needs_wrapper as wrapper_interface_needs_wrapper
 from Generators.libweb_bindings.wrappers import wrapper_class_name
 from Utils.utils import title_case_to_snake_case
 from Utils.webidl_parser import Interface
 from Utils.webidl_parser import Module
+from Utils.webidl_parser import Parser
 
 ALL_WORKERS_EXPOSURE = {
     "DedicatedWorker",
@@ -66,6 +68,7 @@ class InterfaceSets:
 class LegacyConstructor:
     name: str
     constructor_class: str
+    length: int
 
 
 def collect_interface_sets(modules: List[Module]) -> InterfaceSets:
@@ -169,17 +172,17 @@ def lookup_legacy_constructor(interface: Interface) -> Optional[LegacyConstructo
     if not legacy_factory_function:
         return None
 
-    legacy_factory_function = legacy_factory_function.lstrip()
-    name = []
-    for character in legacy_factory_function:
-        if character.isspace() or character == "(":
-            break
-        name.append(character)
+    name, opening_parenthesis, rest_of_argument_list = legacy_factory_function.partition("(")
+    parameters = []
+    if opening_parenthesis:
+        argument_list = opening_parenthesis + rest_of_argument_list
+        parameters = Parser(interface.path, argument_list).parse_parenthesized_parameters()
 
-    constructor_name = "".join(name)
+    constructor_name = name.strip()
     return LegacyConstructor(
         name=constructor_name,
         constructor_class=f"{constructor_name}Constructor",
+        length=parameter_list_length(parameters),
     )
 
 
@@ -483,8 +486,19 @@ WEB_API void Intrinsics::create_web_prototype_and_constructor<{interface.prototy
     legacy_constructor = lookup_legacy_constructor(interface)
     if legacy_constructor is not None:
         out.write(
-            f"""    auto legacy_constructor = realm.create<{legacy_constructor.constructor_class}>(realm);
-    m_constructors.set("{legacy_constructor.name}"_utf16_fly_string, legacy_constructor.ptr());
+            f"""
+    // https://webidl.spec.whatwg.org/#legacy-factory-functions
+    static constexpr InterfaceObjectMetadata legacy_factory_function_metadata {{
+        .name = "{legacy_constructor.name}"sv,
+        .namespaced_name = "{legacy_constructor.name}"sv,
+        .utf16_name = "{legacy_constructor.name}"sv,
+        .utf16_namespaced_name = "{legacy_constructor.name}"sv,
+        .ensure_interface_prototype_object = [](JS::Realm& realm) -> JS::Object& {{ return Web::Bindings::ensure_web_prototype<{interface.prototype_class}>(realm, "{interface.namespaced_name}"_utf16_fly_string); }},
+        .construct = &{legacy_constructor.constructor_class}::construct,
+        .function_length = {legacy_constructor.length},
+        .is_legacy_factory_function = true,
+    }};
+    create_legacy_factory_function(realm, legacy_factory_function_metadata);
 """
         )
 

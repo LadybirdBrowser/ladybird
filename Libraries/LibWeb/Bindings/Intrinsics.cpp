@@ -72,6 +72,13 @@ void Intrinsics::create_web_constructor(JS::Realm& realm, InterfaceObjectMetadat
     prototype.define_direct_property(vm.names.constructor, constructor.ptr(), JS::Attribute::Writable | JS::Attribute::Configurable);
 }
 
+// https://webidl.spec.whatwg.org/#legacy-factory-functions
+void Intrinsics::create_legacy_factory_function(JS::Realm& realm, InterfaceObjectMetadata const& metadata)
+{
+    auto legacy_factory_function = realm.create<InterfaceConstructor>(realm, metadata);
+    m_constructors.set(Utf16FlyString::from_utf16(metadata.utf16_name), legacy_factory_function);
+}
+
 }
 
 namespace AK {

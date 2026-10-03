@@ -18,34 +18,12 @@
 
 namespace Web::Bindings {
 
-GC_DEFINE_ALLOCATOR(ImageConstructor);
-
-ImageConstructor::ImageConstructor(JS::Realm& realm)
-    : NativeFunction(realm.intrinsics().function_prototype())
-{
-}
-
-void ImageConstructor::initialize(JS::Realm& realm)
-{
-    auto& vm = this->vm();
-    Base::initialize(realm);
-
-    define_direct_property(vm.names.length, JS::Value(0), JS::Attribute::Configurable);
-    define_direct_property(vm.names.name, JS::PrimitiveString::create(vm, "Image"_utf16_fly_string), JS::Attribute::Configurable);
-    define_direct_property(vm.names.prototype, &ensure_web_prototype<Bindings::HTMLImageElementPrototype>(realm, "HTMLImageElement"_utf16_fly_string), 0);
-}
-
-JS::ThrowCompletionOr<JS::Value> ImageConstructor::call()
-{
-    return vm().throw_completion<JS::TypeError>(JS::ErrorType::ConstructorWithoutNew, "Image");
-}
-
 // https://html.spec.whatwg.org/multipage/embedded-content.html#dom-image
 // https://webidl.spec.whatwg.org/#legacy-factory-functions
-JS::ThrowCompletionOr<GC::Ref<JS::Object>> ImageConstructor::construct(FunctionObject& new_target)
+JS::ThrowCompletionOr<GC::Ref<JS::Object>> ImageConstructor::construct(InterfaceConstructor& constructor, JS::FunctionObject& new_target)
 {
-    auto& vm = this->vm();
-    auto& realm = *this->realm();
+    auto& vm = constructor.vm();
+    auto& realm = *constructor.realm();
 
     // 1. Let document be the current global object's associated Document.
     auto& window = HTML::current_window();

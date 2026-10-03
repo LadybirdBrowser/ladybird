@@ -52,8 +52,17 @@ JS::ThrowCompletionOr<bool> InterfacePrototypeObject::internal_set_prototype_of(
     return Base::internal_set_prototype_of(prototype);
 }
 
+// Legacy factory functions have never had a NativeFunction name, so Function.prototype.toString() renders them as
+// "function () { [native code] }" and call stacks show them unnamed.
+static Utf16FlyString native_function_name_for(InterfaceObjectMetadata const& metadata)
+{
+    if (metadata.is_legacy_factory_function)
+        return {};
+    return Utf16FlyString::from_utf16(metadata.utf16_name);
+}
+
 InterfaceConstructor::InterfaceConstructor(JS::Realm& realm, InterfaceObjectMetadata const& metadata)
-    : NativeFunction(Utf16FlyString::from_utf16(metadata.utf16_name), realm.intrinsics().function_prototype())
+    : NativeFunction(native_function_name_for(metadata), realm.intrinsics().function_prototype())
     , m_metadata(metadata)
 {
 }
@@ -83,9 +92,12 @@ void InterfaceConstructor::initialize(JS::Realm& realm)
 
     if (m_metadata.ensure_parent_constructor)
         set_prototype(&m_metadata.ensure_parent_constructor(realm));
-    define_direct_property(vm.names.length, JS::Value(0), JS::Attribute::Configurable);
+    define_direct_property(vm.names.length, JS::Value(m_metadata.function_length), JS::Attribute::Configurable);
     define_direct_property(vm.names.name, JS::PrimitiveString::create(vm, m_metadata.utf16_name), JS::Attribute::Configurable);
-    define_direct_property(vm.names.prototype, &host_defined_intrinsics(realm).existing_web_prototype(Utf16FlyString::from_utf16(m_metadata.utf16_namespaced_name)), 0);
+    auto& interface_prototype_object = m_metadata.ensure_interface_prototype_object
+        ? m_metadata.ensure_interface_prototype_object(realm)
+        : host_defined_intrinsics(realm).existing_web_prototype(Utf16FlyString::from_utf16(m_metadata.utf16_namespaced_name));
+    define_direct_property(vm.names.prototype, &interface_prototype_object, 0);
 }
 
 }
