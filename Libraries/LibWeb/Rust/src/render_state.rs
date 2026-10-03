@@ -197,6 +197,10 @@ impl QueuedChanges<'_> {
 }
 
 /// A message the host sends a document's render state.
+#[expect(
+    clippy::large_enum_variant,
+    reason = "a message is made once, in the frame of the host that waits for it"
+)]
 pub(crate) enum RenderMessage<'a> {
     /// Makes the render state of a new document.
     Create {
@@ -280,10 +284,9 @@ fn handle_message(_: &RenderingSide, message: RenderMessage<'_>) {
             document, job, reply, ..
         } => reply.answer(|| {
             let (_, engine) = state_parts(document).expect("a document the host styles has a render state");
-            // SAFETY: The state keeps the arena and the engine where they are while the message is handled, and nothing
-            // else reaches them meanwhile. The host lends the job its inputs, and what they name, until it has the
-            // answer.
-            unsafe { job.run(engine.get_mut()) }
+            // SAFETY: The state keeps the engine where it is while the message is handled, and nothing else reaches it
+            // meanwhile.
+            job.run(unsafe { engine.get_mut() })
         }),
         RenderMessage::LayoutRound {
             document, job, reply, ..
