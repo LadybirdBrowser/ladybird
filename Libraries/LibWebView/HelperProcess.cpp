@@ -553,12 +553,8 @@ ErrorOr<IPC::TransportHandle> connect_new_image_decoder_client()
 
 ErrorOr<IPC::TransportHandle> connect_new_media_server_client(RefPtr<MediaClient::Client>& controller)
 {
-    if (!controller) {
+    if (!controller || !controller->is_open())
         controller = TRY(launch_media_server_process());
-        controller->on_death = [&controller] {
-            controller = nullptr;
-        };
-    }
 
     auto response = controller->send_sync_but_allow_failure<Messages::MediaServer::ConnectNewClient>();
     if (!response || !response->handle().has_value())
