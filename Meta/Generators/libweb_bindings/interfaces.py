@@ -20,7 +20,6 @@ from Generators.libweb_bindings.context import GenerationContext
 from Generators.libweb_bindings.cpp_types import fully_qualified_name_for_interface
 from Generators.libweb_bindings.cpp_types import implementation_header_for_interface
 from Generators.libweb_bindings.includes import GeneratedIncludes
-from Generators.libweb_bindings.interface_declaration import interface_requires_custom_prototype
 from Generators.libweb_bindings.named_and_indexed_properties import interface_supports_named_properties
 from Generators.libweb_bindings.overload_resolution import parameter_list_length
 from Generators.libweb_bindings.wrappers import has_legacy_override_built_ins_interface_extended_attribute
@@ -428,36 +427,7 @@ JS::ThrowCompletionOr<GC::Ref<JS::Object>> {interface.constructor_class}::constr
         for overload_index, constructor in enumerate(interface.constructors):
             constructors.write_constructor_function(out, context, includes, interface, constructor, overload_index)
 
-    if interface_requires_custom_prototype(interface):
-        out.write(
-            f"""GC_DEFINE_ALLOCATOR({interface.prototype_class});
-
-{interface.prototype_class}::{interface.prototype_class}([[maybe_unused]] JS::Realm& realm)
-    : Object(ConstructWithPrototypeTag::Tag, {parent_prototype})
-{{
-}}
-
-{interface.prototype_class}::~{interface.prototype_class}()
-{{
-}}
-
-"""
-        )
-        if "Global" in interface.extended_attributes:
-            out.write(f"""JS::ThrowCompletionOr<bool> {interface.prototype_class}::internal_set_prototype_of(JS::Object* prototype)
-{{
-    // 1. Return ? SetImmutablePrototype(O, V).
-    return set_immutable_prototype(prototype);
-}}
-
-""")
-        out.write(f"""
-void {interface.prototype_class}::initialize(JS::Realm& realm)
-{{
-    auto& object = *this;
-""")
-    else:
-        out.write(f"""void {interface.prototype_class}::initialize(JS::Realm& realm, JS::Object& object)
+    out.write(f"""void {interface.prototype_class}::initialize(JS::Realm& realm, JS::Object& object)
 {{
 """)
     out.write(
@@ -477,8 +447,6 @@ void {interface.prototype_class}::initialize(JS::Realm& realm)
         out.write(
             f'    object.define_direct_property(vm.well_known_symbol_to_string_tag(), JS::PrimitiveString::create(vm, "{interface.namespaced_name}"_utf16), JS::Attribute::Configurable);\n'
         )
-        if interface_requires_custom_prototype(interface):
-            out.write("    Base::initialize(realm);\n")
         out.write("}\n\n")
 
         write_impl_from(out, includes, interface)
@@ -506,8 +474,6 @@ void {interface.prototype_class}::initialize(JS::Realm& realm)
     out.write(
         f'    object.define_direct_property(vm.well_known_symbol_to_string_tag(), JS::PrimitiveString::create(vm, "{interface.namespaced_name}"_utf16), JS::Attribute::Configurable);\n'
     )
-    if interface_requires_custom_prototype(interface):
-        out.write("    Base::initialize(realm);\n")
 
     out.write(f"""}}
 

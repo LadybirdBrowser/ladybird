@@ -495,7 +495,7 @@ JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::entries)
     GC::Ref<JS::Map> map = map_entries(this_object_realm, *this_impl);
 
     // 3. Return the result of creating a map iterator from map with kind "key+value".
-    return JS::MapIterator::create(this_object_realm, *map, PropertyKind::KeyAndValue);
+    return JS::MapIterator::create(this_object_realm, *map, JS::Object::PropertyKind::KeyAndValue);
 }}
 
 // https://webidl.spec.whatwg.org/#js-map-keys
@@ -514,7 +514,7 @@ JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::keys)
     GC::Ref<JS::Map> map = map_entries(this_object_realm, *this_impl);
 
     // 3. Return the result of creating a map iterator from map with kind "key".
-    return JS::MapIterator::create(this_object_realm, *map, PropertyKind::Key);
+    return JS::MapIterator::create(this_object_realm, *map, JS::Object::PropertyKind::Key);
 }}
 
 // https://webidl.spec.whatwg.org/#js-map-values
@@ -533,7 +533,7 @@ JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::values)
     GC::Ref<JS::Map> map = map_entries(this_object_realm, *this_impl);
 
     // 3. Return the result of creating a map iterator from map with kind "value".
-    return JS::MapIterator::create(this_object_realm, *map, PropertyKind::Value);
+    return JS::MapIterator::create(this_object_realm, *map, JS::Object::PropertyKind::Value);
 }}
 
 // https://webidl.spec.whatwg.org/#js-map-forEach
@@ -770,7 +770,7 @@ JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::entries)
     GC::Ref<JS::Set> set = setlike_entries(this_object_realm, wrapper_world, *this_impl);
 
     // 3. Return the result of creating a set iterator from set with kind "key+value".
-    return JS::SetIterator::create(realm, *set, PropertyKind::KeyAndValue);
+    return JS::SetIterator::create(realm, *set, JS::Object::PropertyKind::KeyAndValue);
 }}
 
 // https://webidl.spec.whatwg.org/#js-set-values
@@ -790,7 +790,7 @@ JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::values)
     GC::Ref<JS::Set> set = setlike_entries(this_object_realm, wrapper_world, *this_impl);
 
     // 3. Return the result of creating a set iterator from set with kind "value".
-    return JS::SetIterator::create(realm, *set, PropertyKind::Value);
+    return JS::SetIterator::create(realm, *set, JS::Object::PropertyKind::Value);
 }}
 
 // https://webidl.spec.whatwg.org/#js-set-forEach
