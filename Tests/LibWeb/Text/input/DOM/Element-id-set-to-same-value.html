@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<style>
+    #target { color: rgb(0, 128, 0); }
+</style>
+<div id="target"></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const target = document.getElementById("target");
+        target.id = "target";
+        target.setAttribute("id", "target");
+        println(`getElementById: ${document.getElementById("target") === target}`);
+        println(`querySelector: ${document.querySelector("#target") === target}`);
+        println(`named property: ${window.target === target}`);
+        println(`color: ${getComputedStyle(target).color}`);
+
+        target.id = "other";
+        println(`after rename, old name: ${document.getElementById("target")}`);
+        println(`after rename, new name: ${document.getElementById("other") === target}`);
+        println(`after rename, color: ${getComputedStyle(target).color}`);
+    });
+</script>

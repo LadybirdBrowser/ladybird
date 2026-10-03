@@ -6218,21 +6218,19 @@ void Element::attribute_changed(Utf16FlyString const& local_name, Optional<Utf16
     if (local_name == HTML::AttributeNames::id) {
         // StyleEngine keys local features by interned atom, so capture the old side before the
         // element's own copy is replaced.
-        auto old_style_engine_id = m_id;
+        auto old_id = m_id;
 
         if (value_or_empty.is_empty())
             m_id = {};
         else
             m_id = Utf16FlyString::from_utf16(value_or_empty);
 
-        if (is_connected()) {
-            Optional<Utf16FlyString> old_id;
-            if (old_value.has_value())
-                old_id = Utf16FlyString::from_utf16(old_value->utf16_view());
-            document().element_id_changed({}, *this, old_id);
+        // Setting the id an element already has moves nothing that is keyed by it.
+        if (m_id != old_id) {
+            if (is_connected())
+                document().element_id_changed({}, *this, old_id);
+            CSS::record_element_id_changed(*this, old_id, m_id);
         }
-
-        CSS::record_element_id_changed(*this, old_style_engine_id, m_id);
     } else if (local_name == HTML::AttributeNames::name) {
         m_has_name = !value_or_empty.is_empty();
         if (m_has_name) {
