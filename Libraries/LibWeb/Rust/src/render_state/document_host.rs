@@ -268,11 +268,12 @@ impl DocumentHost {
             previous.is_none(),
             "one style transaction of a document flies at a time"
         );
-        // A layout round that flew with the frame wrote the render state the paint properties are prepared from.
-        if round.is_some() {
+        if let Some((round, rows)) = round {
+            // The layout round that flew with the frame wrote the render state the paint properties are prepared from.
             self.note_render_state_write();
+            *self.flown_round.borrow_mut() = Some(round);
+            *self.rows.borrow_mut() = Some(Rc::new(rows));
         }
-        *self.flown_round.borrow_mut() = round;
         Frame::Here(UnsafeCell::new(state))
     }
 
