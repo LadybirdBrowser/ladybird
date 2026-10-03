@@ -1,0 +1,63 @@
+<!doctype html>
+<script src="../../include.js"></script>
+<style>
+    .hidden { display: none; }
+    .transitioning-parent { color: red; transition: color 1000s steps(2, start); }
+    .transitioning-parent.changed-parent { color: blue; }
+    .transitioning-child { transition: color 1000s steps(2, start); }
+    .target { width: 10px; color: var(--color); transition: width 100s linear; }
+    .changed { width: 20px; }
+</style>
+<script>
+    test(() => {
+        for (const hidden of [false, true]) {
+            const ancestor = document.createElement("div");
+            ancestor.style.setProperty("--color", "red");
+            const target = document.createElement("div");
+            target.className = "target";
+            ancestor.append(target);
+            document.body.append(ancestor);
+
+            const animation = target.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 1000, fill: "both" });
+            animation.pause();
+            animation.currentTime = 500;
+            println(`initial opacity: ${getComputedStyle(target).opacity}`);
+
+            ancestor.style.setProperty("--color", "blue");
+            if (hidden)
+                ancestor.className = "hidden";
+            target.className = "target changed";
+            internals.updateStyle();
+            const transitions = target.getAnimations().filter(animation => animation instanceof CSSTransition);
+            println(`${hidden ? "hidden" : "visible"} transitions: ${transitions.length}`);
+            for (const transition of transitions)
+                transition.finish();
+            println(`updated width: ${getComputedStyle(target).width}`);
+            println(`updated color: ${getComputedStyle(target).color}`);
+
+            ancestor.className = "";
+            internals.updateStyle();
+            println(`revealed width: ${getComputedStyle(target).width}`);
+            println(`revealed opacity: ${getComputedStyle(target).opacity}`);
+            animation.cancel();
+            ancestor.remove();
+            internals.updateStyle();
+        }
+
+        const ancestor = document.createElement("div");
+        ancestor.className = "transitioning-parent";
+        const target = document.createElement("div");
+        target.className = "transitioning-child";
+        ancestor.append(target);
+        document.body.append(ancestor);
+        const animation = target.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 1000, fill: "both" });
+        animation.pause();
+        animation.currentTime = 500;
+        getComputedStyle(target).opacity;
+        ancestor.classList.add("changed-parent");
+        internals.updateStyle();
+        println(`transitioning child opacity: ${getComputedStyle(target).opacity}`);
+        println(`transitioning child color: ${getComputedStyle(target).color}`);
+        println(`transitioning child animations: ${target.getAnimations().length}`);
+    });
+</script>

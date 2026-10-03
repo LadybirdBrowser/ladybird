@@ -117,7 +117,9 @@
         internals.updateStyle();
         const cssAnimation = animated.getAnimations()[0];
         const animationCounters = measureUpdate("animations and transitions", () => {
-            cssAnimation.currentTime = 7500;
+            // The -5s delay puts this time 7.5s into the 10s animation, so evaluation
+            // measures an active interval rather than an endpoint or an expired effect.
+            cssAnimation.currentTime = 2500;
             animated.style.color = "rgb(30, 20, 10)";
             animated.style.width = "20px";
         });
