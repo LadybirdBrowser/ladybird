@@ -2210,7 +2210,7 @@ RefPtr<CSS::CustomPropertyData const> Element::custom_property_environment_of_en
 static void record_engine_container_query_effects(Element& element)
 {
     auto& style_computer = element.document().style_computer();
-    auto taken = CSS::StyleEngineFFI::style_engine_take_container_effects(style_computer.style_engine().rust_handle(), element.style_node_id().value(), &element, [](void* context, CSS::StyleEngineFFI::FfiContainerEffect effect) {
+    auto taken = CSS::StyleEngineFFI::style_engine_take_container_effects(style_computer.style_engine().host(), element.style_node_id().value(), &element, [](void* context, CSS::StyleEngineFFI::FfiContainerEffect effect) {
         auto& element = *static_cast<Element*>(context);
         auto& document = element.document();
         auto container = document.style_computer().element_for_style_node(CSS::StyleNodeID { effect.node });

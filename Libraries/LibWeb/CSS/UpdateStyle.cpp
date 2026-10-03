@@ -306,7 +306,7 @@ static void move_custom_property_environment_below(DOM::Document& document, DOM:
         .new_inheritable_data = new_inheritable.ptr(),
         .new_inheritable_declares = new_inheritable && new_inheritable->declared_count() > 0,
     };
-    auto answer = StyleEngineFFI::style_engine_move_custom_property_environment(style_engine.rust_handle(), element.style_node_id().value(), moved);
+    auto answer = StyleEngineFFI::style_engine_move_custom_property_environment(style_engine.host(), element.style_node_id().value(), moved);
     // The answer lives until the engine is next called, which acting on it does.
     Vector<StyleEngineFFI::FfiEnvironmentMoveAction> actions;
     actions.append(answer.actions, answer.count);

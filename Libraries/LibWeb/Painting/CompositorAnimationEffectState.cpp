@@ -125,7 +125,7 @@ static RefPtr<CSS::StyleValue const> resolved_compositor_animation_style_value(C
         auto inheritance_parent = target.element_to_inherit_style_from();
         auto inheritance_custom_property_data = inheritance_parent.has_value() ? inheritance_parent->custom_property_data() : nullptr;
         auto const* substituted = CSS::StyleValueFFI::rust_substitute_compositor_keyframe_value(
-            target.document().style_computer().style_engine().rust_handle(),
+            target.document().style_computer().style_engine().host(),
             target.element().style_node_id().value(),
             CSS::pseudo_element_to_ffi(target.pseudo_element()),
             custom_property_data ? custom_property_data->rust_store() : nullptr,

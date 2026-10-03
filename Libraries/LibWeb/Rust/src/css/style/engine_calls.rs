@@ -559,6 +559,27 @@ pub(crate) struct EngineDoor {
 
 const ENGINE_DOOR: EngineDoor = EngineDoor { _private: () };
 
+/// The document host `host` names.
+///
+/// # Safety
+///
+/// `host` must be a live document host, on its document's thread, which outlives the borrow.
+pub(crate) unsafe fn document_host<'a>(host: *const DocumentHost) -> &'a DocumentHost {
+    assert!(!host.is_null(), "document host is null");
+    // SAFETY: Guaranteed by the caller.
+    unsafe { &*host }
+}
+
+/// Runs `call` on the style engine of `host`'s document, waiting through the engine door, and answers what it answers.
+/// The engine is borrowed for the call alone, so a host callback that reaches the engine again runs after it.
+pub(crate) fn with_engine<R>(host: &DocumentHost, call: impl FnOnce(&mut StyleEngine) -> R) -> R {
+    crate::render_state::ask(
+        crate::render_state::LockstepProof::for_reason(&ENGINE_DOOR),
+        host,
+        crate::render_state::EngineCall(call),
+    )
+}
+
 /// Asks the style engine of `host`'s document `query`, waiting through the engine door.
 ///
 /// # Safety

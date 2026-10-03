@@ -109,7 +109,7 @@ void StyleEngine::finish_sheet_rules_replacement(SheetID sheet)
 
 void StyleEngine::set_element_inline_style_properties(StyleNodeID node, RustDeclarationBlock const* declarations)
 {
-    if (StyleEngineFFI::style_engine_set_element_inline_style_properties(m_impl, node.value(), declarations ? declarations->handle() : nullptr))
+    if (StyleEngineFFI::style_engine_set_element_inline_style_properties(host(), node.value(), declarations ? declarations->handle() : nullptr))
         note_css_transitions_may_observe_style_changes();
 }
 
@@ -125,20 +125,20 @@ void StyleEngine::set_element_presentational_hint_properties(StyleNodeID node, S
             .name = {},
         });
     }
-    if (StyleEngineFFI::style_engine_set_element_presentational_hint_properties(m_impl, node.value(), kind, declarations.data(), declarations.size()))
+    if (StyleEngineFFI::style_engine_set_element_presentational_hint_properties(host(), node.value(), kind, declarations.data(), declarations.size()))
         note_css_transitions_may_observe_style_changes();
 }
 
 StyleEngine::StyleRecordDelta StyleEngine::publish_computed_groups(StyleNodeID node, u8 pseudo_kind, ReadonlySpan<void const*> payloads, size_t inherited_group_count, u64 custom_property_environment, bool inherited_group_swap_candidate, u64 counter_style_environment_identity, u64 animation_overlay_identity, void const* animated_overlay, ReadonlySpan<void const*> animation_overlay_payloads, void const* computed_longhand_table, void const* custom_property_store)
 {
     VERIFY(inherited_group_count <= payloads.size());
-    auto delta = StyleEngineFFI::style_engine_publish_computed_groups(m_impl, node.value(), pseudo_kind, payloads.data(), payloads.size(), inherited_group_count, custom_property_environment, inherited_group_swap_candidate, counter_style_environment_identity, animation_overlay_identity, animated_overlay, animation_overlay_payloads.data(), animation_overlay_payloads.size(), computed_longhand_table, custom_property_store);
+    auto delta = StyleEngineFFI::style_engine_publish_computed_groups(host(), node.value(), pseudo_kind, payloads.data(), payloads.size(), inherited_group_count, custom_property_environment, inherited_group_swap_candidate, counter_style_environment_identity, animation_overlay_identity, animated_overlay, animation_overlay_payloads.data(), animation_overlay_payloads.size(), computed_longhand_table, custom_property_store);
     return { StyleRecordID { delta.old_style_record }, StyleRecordID { delta.new_style_record } };
 }
 
 Optional<StyleEngine::StyleRecordDelta> StyleEngine::publish_animation_overlay(StyleNodeID node, u8 pseudo_kind, u64 animation_overlay_identity, void const* animated_overlay, ReadonlySpan<void const*> payloads)
 {
-    auto delta = StyleEngineFFI::style_engine_publish_animation_overlay(m_impl, node.value(), pseudo_kind, animation_overlay_identity, animated_overlay, payloads.data(), payloads.size());
+    auto delta = StyleEngineFFI::style_engine_publish_animation_overlay(host(), node.value(), pseudo_kind, animation_overlay_identity, animated_overlay, payloads.data(), payloads.size());
     if (delta.new_style_record == 0)
         return {};
     return StyleRecordDelta { StyleRecordID { delta.old_style_record }, StyleRecordID { delta.new_style_record } };
@@ -146,7 +146,7 @@ Optional<StyleEngine::StyleRecordDelta> StyleEngine::publish_animation_overlay(S
 
 void const* StyleEngine::style_record_payloads(StyleRecordID style_record) const
 {
-    return StyleEngineFFI::style_engine_style_record_payloads(m_impl, style_record.value());
+    return StyleEngineFFI::style_engine_style_record_payloads(host(), style_record.value());
 }
 
 StyleRecordDependencyFlag StyleEngine::style_record_dependency_flags(StyleRecordID style_record) const
@@ -161,32 +161,32 @@ u64 StyleEngine::style_record_custom_property_environment(StyleRecordID style_re
 
 u32 StyleEngine::compare_style_records(StyleRecordID old_style_record, StyleRecordID new_style_record) const
 {
-    return StyleEngineFFI::style_engine_compare_style_records(m_impl, old_style_record.value(), new_style_record.value());
+    return StyleEngineFFI::style_engine_compare_style_records(host(), old_style_record.value(), new_style_record.value());
 }
 
 u32 StyleEngine::element_record_damage(StyleNodeID node, StyleRecordID old_style_record, StyleRecordID new_style_record) const
 {
-    return StyleEngineFFI::style_engine_element_record_damage(m_impl, node.value(), old_style_record.value(), new_style_record.value());
+    return StyleEngineFFI::style_engine_element_record_damage(host(), node.value(), old_style_record.value(), new_style_record.value());
 }
 
 u32 StyleEngine::pseudo_element_record_damage(StyleNodeID node, PseudoElement pseudo_element, StyleRecordID old_style_record, StyleRecordID new_style_record, StyleRecordID originating_style_record, bool counter_styles_changed) const
 {
-    return StyleEngineFFI::style_engine_pseudo_element_record_damage(m_impl, node.value(), to_underlying(pseudo_element), old_style_record.value(), new_style_record.value(), originating_style_record.value(), counter_styles_changed);
+    return StyleEngineFFI::style_engine_pseudo_element_record_damage(host(), node.value(), to_underlying(pseudo_element), old_style_record.value(), new_style_record.value(), originating_style_record.value(), counter_styles_changed);
 }
 
 bool StyleEngine::animation_overlay_changed(StyleRecordID old_style_record, void const* animated_overlay) const
 {
-    return StyleEngineFFI::style_engine_animation_overlay_changed(m_impl, old_style_record.value(), animated_overlay);
+    return StyleEngineFFI::style_engine_animation_overlay_changed(host(), old_style_record.value(), animated_overlay);
 }
 
 StyleEngineFFI::FfiAnimationInvalidation StyleEngine::compare_animation_overlay(StyleRecordID old_style_record, void const* animated_overlay, ReadonlySpan<void const*> payloads, bool is_document_element) const
 {
-    return StyleEngineFFI::style_engine_compare_animation_overlay(m_impl, old_style_record.value(), animated_overlay, payloads.data(), payloads.size(), is_document_element);
+    return StyleEngineFFI::style_engine_compare_animation_overlay(host(), old_style_record.value(), animated_overlay, payloads.data(), payloads.size(), is_document_element);
 }
 
 StyleEngine::StyleRecordView StyleEngine::style_record_view(StyleRecordID style_record) const
 {
-    return StyleEngineFFI::style_engine_style_record_view(m_impl, style_record.value());
+    return StyleEngineFFI::style_engine_style_record_view(host(), style_record.value());
 }
 
 double StyleEngine::ensure_random_base_value(StyleNodeID node, Utf16View name, bool element_shared)
@@ -220,7 +220,7 @@ void StyleEngine::decide_transitions(StyleRecordID before_style_record, StyleRec
 
 StyleEngine::StyleRecordDelta StyleEngine::remove_computed_pseudo(StyleNodeID node, u8 pseudo_kind)
 {
-    auto delta = StyleEngineFFI::style_engine_remove_computed_pseudo(m_impl, node.value(), pseudo_kind);
+    auto delta = StyleEngineFFI::style_engine_remove_computed_pseudo(host(), node.value(), pseudo_kind);
     return { StyleRecordID { delta.old_style_record }, StyleRecordID { delta.new_style_record } };
 }
 
@@ -237,7 +237,7 @@ StyleAtomID StyleEngine::intern_atom(Utf16FlyString const& name)
         Utf16FlyString::unref_raw(raw);
         return atom.release_value();
     }
-    auto atom = StyleAtomID { StyleEngineFFI::style_engine_intern_atom(m_impl, raw) };
+    auto atom = StyleAtomID { StyleEngineFFI::style_engine_intern_atom(host(), raw) };
     m_atoms.set(raw, atom);
     return atom;
 }
@@ -254,18 +254,18 @@ void StyleEngine::note_custom_property_name(StyleAtomID atom, Utf16FlyString con
         code_units.unchecked_append(view.code_unit_at(i));
     // The engine retains the fly string itself; this reference only carries it across.
     auto raw = name.to_raw_leaked();
-    StyleEngineFFI::style_engine_note_custom_property_name(m_impl, atom.value(), raw, code_units.data(), code_units.size());
+    StyleEngineFFI::style_engine_note_custom_property_name(host(), atom.value(), raw, code_units.data(), code_units.size());
     Utf16FlyString::unref_raw(raw);
 }
 
 StyleRecordID StyleEngine::republish_record_environment(StyleNodeID node, u64 environment, void const* store)
 {
-    return StyleRecordID { StyleEngineFFI::style_engine_republish_record_environment(m_impl, node.value(), environment, store) };
+    return StyleRecordID { StyleEngineFFI::style_engine_republish_record_environment(host(), node.value(), environment, store) };
 }
 
 StyleEngineFFI::FfiEngineComputedRecord StyleEngine::retry_engine_record_after_ancestor(StyleNodeID node)
 {
-    return StyleEngineFFI::style_engine_retry_engine_record_after_ancestor(m_impl, node.value());
+    return StyleEngineFFI::style_engine_retry_engine_record_after_ancestor(host(), node.value());
 }
 
 #define ASSERT_DEMANDED_PSEUDO_ELEMENT_KIND(name) \
@@ -305,17 +305,17 @@ StyleEngineFFI::FfiRecordDemandAnswer StyleEngine::answer_pseudo_element_record_
 
 StyleEngineFFI::FfiSettledPseudoRecords StyleEngine::settle_pseudo_records_after_host_record(StyleNodeID node, bool old_is_list_item)
 {
-    return StyleEngineFFI::style_engine_settle_pseudo_records_after_host_record(m_impl, node.value(), old_is_list_item);
+    return StyleEngineFFI::style_engine_settle_pseudo_records_after_host_record(host(), node.value(), old_is_list_item);
 }
 
 u64 StyleEngine::inheritable_custom_property_environment(u64 identity) const
 {
-    return StyleEngineFFI::style_engine_inheritable_custom_property_environment(m_impl, identity);
+    return StyleEngineFFI::style_engine_inheritable_custom_property_environment(host(), identity);
 }
 
 void const* StyleEngine::borrow_engine_custom_property_environment(u64 identity, u64& parent_identity) const
 {
-    return StyleEngineFFI::style_engine_borrow_engine_custom_property_environment(m_impl, identity, &parent_identity);
+    return StyleEngineFFI::style_engine_borrow_engine_custom_property_environment(host(), identity, &parent_identity);
 }
 
 StyleAtomID StyleEngine::intern_text_atom(Utf16View text)
@@ -586,7 +586,7 @@ void StyleEngine::record_benchmark_marker(Utf16View name)
     auto const* data = name.has_ascii_storage()
         ? static_cast<void const*>(name.bytes().data())
         : static_cast<void const*>(name.utf16_span().data());
-    StyleEngineFFI::style_engine_record_benchmark_marker(m_impl, data, name.length_in_code_units(), name.has_ascii_storage());
+    StyleEngineFFI::style_engine_record_benchmark_marker(host(), data, name.length_in_code_units(), name.has_ascii_storage());
 }
 
 bool StyleEngine::has_recorded_input() const
@@ -894,7 +894,7 @@ StyleEngine::PublishedStyleTransaction StyleEngine::take_style_transaction(Style
 
 void StyleEngine::sort_style_deltas_for_direct_application(Span<PublishedStyleDelta> deltas) const
 {
-    StyleEngineFFI::style_engine_sort_style_deltas_for_direct_application(m_impl, deltas.data(), deltas.size());
+    StyleEngineFFI::style_engine_sort_style_deltas_for_direct_application(host(), deltas.data(), deltas.size());
 }
 
 bool StyleEngine::has_pending_transaction() const
@@ -955,7 +955,7 @@ bool StyleEngine::match_element(StyleNodeID node, Vector<RuleMatch>& matches, Ma
         flush();
     matches.resize(max(m_element_match_capacity, 16u));
     auto read = [&] {
-        return StyleEngineFFI::style_engine_match_element(m_impl, node.value(), matches.data(), matches.size(), purpose == MatchPurpose::Cascade);
+        return StyleEngineFFI::style_engine_match_element(host(), node.value(), matches.data(), matches.size(), purpose == MatchPurpose::Cascade);
     };
     auto count = read();
     if (count == NumericLimits<size_t>::max())
@@ -992,7 +992,7 @@ void StyleEngine::set_element_custom_property_data(DOM::Element const& element, 
     // element's own values under what its animations sampled, laid over what its style resolves to.
     auto note = [&](CustomPropertyData const& environment) {
         auto inheritable = environment.inheritable(element.document());
-        StyleEngineFFI::style_engine_note_custom_property_environment(m_impl, environment.identity(), environment.rust_store(),
+        StyleEngineFFI::style_engine_note_custom_property_environment(host(), environment.identity(), environment.rust_store(),
             inheritable ? inheritable->identity() : 0, inheritable ? inheritable->rust_store() : nullptr);
     };
     if (base)
