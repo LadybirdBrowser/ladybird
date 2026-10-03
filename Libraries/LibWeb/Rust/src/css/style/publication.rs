@@ -215,6 +215,12 @@ impl RetainedState {
         let held = self
             .held_custom_property_environment(node, &mut Counters::default())
             .ok()?;
+        // An ancestor outside the batch can have no retained answer for the current rule program.
+        // That does not mean it declares no custom properties: keep its own resolved values when
+        // refreshing what it inherits from a parent that moved.
+        let has_match_answer = self
+            .try_for_each_answer_match(node, None, |_, _, _, _| std::ops::ControlFlow::<()>::Continue(()))
+            .is_some();
         let animates =
             self.computed_group_sets.adjustment_facts(node) & bridge::element_adjustment_fact::HAS_ANIMATIONS != 0
                 || self.element_samples_custom_properties(node);
@@ -225,15 +231,53 @@ impl RetainedState {
                 self.current_custom_property_environment(parent, inputs, scratch)?,
             ))
         }) {
+            Some((parent, parent_environment))
+                if !has_match_answer
+                    && self.computed_group_sets.custom_property_environment_identity(parent)
+                        != Some(parent_environment) =>
+            {
+                let inherited = self.custom_property_environments.inheritable(parent_environment);
+                let previously_inherited = self
+                    .computed_group_sets
+                    .custom_property_environment_identity(parent)
+                    .map(|environment| self.custom_property_environments.inheritable(environment));
+                if previously_inherited == Some(held) {
+                    inherited
+                } else {
+                    let store = self.custom_property_environments.store(held)?;
+                    let parent_store = self
+                        .custom_property_environments
+                        .store(inherited)
+                        .unwrap_or(std::ptr::null());
+                    // SAFETY: The catalog keeps both stores alive. The rebuilt store transfers its
+                    //         one Arc reference to the engine environment.
+                    unsafe {
+                        let store = &*store.cast::<crate::css::custom_properties::CustomPropertyStore>();
+                        let values = store
+                            .declared_names
+                            .iter()
+                            .map(|&name| (name, store.own_values[&name].value.clone_retained()))
+                            .collect();
+                        let rebuilt = store.resolved_child(parent_store, values);
+                        self.custom_property_environments.adopt_engine_environment(
+                            rebuilt,
+                            inherited,
+                            parent_store,
+                            inputs.custom_property_registry(),
+                        )
+                    }
+                }
+            }
             // A node declaring none inherits its parent's environment as it is now.
-            Some((_, parent_environment)) if !self.node_declares_custom_properties(node) => {
+            Some((_, parent_environment)) if has_match_answer && !self.node_declares_custom_properties(node) => {
                 self.custom_property_environments.inheritable(parent_environment)
             }
             // A node declaring custom properties was resolved over its parent's environment as the
             // parent holds it, so it is stale only beneath a parent that moved.
             Some((parent, parent_environment))
-                if self.computed_group_sets.custom_property_environment_identity(parent)
-                    != Some(parent_environment) =>
+                if has_match_answer
+                    && self.computed_group_sets.custom_property_environment_identity(parent)
+                        != Some(parent_environment) =>
             {
                 self.engine_custom_property_environment(
                     node,
@@ -5386,6 +5430,91 @@ fn value_computes_without_document_context(value: &StyleValueData) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn cold_ancestor_refreshes_inheritance_without_losing_own_custom_properties() {
+        use crate::css::custom_properties::CustomPropertyStore;
+        use crate::css::style_value::RetainedStyleValueData;
+        use std::sync::Arc;
+
+        let inherited_name = ak::Utf16FlyString::from_utf16(&"--inherited".encode_utf16().collect::<Vec<_>>());
+        let own_name = ak::Utf16FlyString::from_utf16(&"--own".encode_utf16().collect::<Vec<_>>());
+        let make_store = |parent, name: &ak::Utf16FlyString, text: &str, value| {
+            let value = RetainedStyleValueData::from_owned(StyleValueData::Number { value });
+            // SAFETY: The parent is null or retained by this test, and both the name and value
+            //         remain live while cascaded_child retains them.
+            let raw = unsafe {
+                CustomPropertyStore::cascaded_child(
+                    parent,
+                    vec![(
+                        name.raw_identity(),
+                        text.encode_utf16().collect::<Vec<_>>().into(),
+                        false,
+                        value.pointer().cast(),
+                    )],
+                )
+            };
+            // SAFETY: cascaded_child transfers one Arc reference to its caller.
+            unsafe { Arc::from_raw(raw.cast::<CustomPropertyStore>()) }
+        };
+        let old_parent = make_store(std::ptr::null(), &inherited_name, "--inherited", 1.0);
+        let new_parent = make_store(std::ptr::null(), &inherited_name, "--inherited", 2.0);
+        let own = make_store(Arc::as_ptr(&old_parent).cast(), &own_name, "--own", 42.0);
+        let mut engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
+        let mut raw_nodes = [0; 3];
+        engine.allocate_style_nodes(&mut raw_nodes);
+        let [root, ancestor, inheritor] = raw_nodes.map(|node| StyleNodeID::from_raw(node).unwrap());
+        engine.tree.set_parent(ancestor, Some(root));
+        engine.tree.set_parent(inheritor, Some(root));
+        for (identity, store) in [(1, &old_parent), (2, &new_parent), (3, &own)] {
+            // SAFETY: The test keeps these stores alive while the catalog retains them.
+            unsafe {
+                engine
+                    .state
+                    .retained
+                    .custom_property_environments
+                    .retain(identity, Arc::as_ptr(store).cast())
+            };
+        }
+        for (node, environment) in [(root, 1), (ancestor, 3), (inheritor, 1)] {
+            engine.publish_computed_groups(
+                computed::ComputedStyleTarget::new(node, u8::MAX),
+                &[],
+                0,
+                environment,
+                computed::ComputedMetadataInput {
+                    pseudo_element_styles: 0,
+                    dependency_flags: 0,
+                    counter_style_environment_identity: 0,
+                    animation_overlay_identity: 0,
+                    animated_overlay: HostShared::null(),
+                    animation_overlay_payloads: &[],
+                    longhand_table: HostShared::null(),
+                },
+            );
+        }
+        let mut scratch = EngineComputedRecordScratch::default();
+        scratch.current_custom_property_environments.insert(root, 2);
+        let retained = &mut engine.state.retained;
+        let current = retained
+            .current_custom_property_environment(ancestor, &Default::default(), &mut scratch)
+            .unwrap();
+        let store = retained.custom_property_environments.store(current).unwrap();
+        // SAFETY: The catalog retains the refreshed environment.
+        let store = unsafe { &*store.cast::<CustomPropertyStore>() };
+        assert!(matches!(
+            store.get(inherited_name.raw_identity()).unwrap().value.data(),
+            StyleValueData::Number { value: 2.0 }
+        ));
+        assert!(matches!(
+            store.get(own_name.raw_identity()).unwrap().value.data(),
+            StyleValueData::Number { value: 42.0 }
+        ));
+        assert_eq!(
+            retained.current_custom_property_environment(inheritor, &Default::default(), &mut scratch),
+            Some(2)
+        );
+    }
 
     #[test]
     fn retained_highlight_inheritance_parent_uses_nearest_ancestor_pseudo_record() {

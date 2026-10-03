@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>:root { --root: 1; --inherited: green; }</style>
+<div id="host"></div>
+<script>
+    test(() => {
+        const host = document.getElementById("host");
+        const root = host.attachShadow({ mode: "open" });
+        root.innerHTML = `
+            <style>:host { --color: red; display: block; }</style>
+            <div id="middle"></div>
+        `;
+        document.body.offsetHeight;
+
+        const nested = document.createElement("div");
+        root.getElementById("middle").append(nested);
+        nested.attachShadow({ mode: "open" }).innerHTML = `
+            <style>span { color: var(--color); }</style>
+            <span>nested shadow child</span>
+        `;
+        document.body.offsetHeight;
+
+        println(`host: ${getComputedStyle(host).getPropertyValue("--color")}`);
+        println(`nested: ${getComputedStyle(nested).getPropertyValue("--color")}`);
+        println(`child: ${getComputedStyle(nested.shadowRoot.querySelector("span")).color}`);
+
+        document.documentElement.style.setProperty("--inherited", "blue");
+        const arriving = document.createElement("div");
+        root.getElementById("middle").append(arriving);
+        arriving.attachShadow({ mode: "open" }).innerHTML = `
+            <style>span { color: var(--inherited); background-color: var(--color); }</style>
+            <span>child arriving while its parent's environment changes</span>
+        `;
+        document.body.offsetHeight;
+        const child = arriving.shadowRoot.querySelector("span");
+        println(`arriving inherited color: ${getComputedStyle(child).color}`);
+        println(`arriving own color: ${getComputedStyle(child).backgroundColor}`);
+    });
+</script>
