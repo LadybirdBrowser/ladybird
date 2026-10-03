@@ -1,0 +1,15 @@
+initial opacity: 0.5
+visible transitions: 1
+updated width: 20px
+updated color: rgb(0, 0, 255)
+revealed width: 20px
+revealed opacity: 0.5
+initial opacity: 0.5
+hidden transitions: 0
+updated width: 20px
+updated color: rgb(0, 0, 255)
+revealed width: 20px
+revealed opacity: 0.5
+transitioning child opacity: 0.5
+transitioning child color: rgb(128, 0, 128)
+transitioning child animations: 2
