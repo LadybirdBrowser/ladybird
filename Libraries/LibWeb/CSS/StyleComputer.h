@@ -23,6 +23,7 @@
 #include <LibWeb/CSS/ComputedStyleWorkingSet.h>
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/CustomPropertyData.h>
+#include <LibWeb/CSS/InstalledStyle.h>
 #include <LibWeb/CSS/MediaQuery.h>
 #include <LibWeb/CSS/RustDeclarationBlock.h>
 #include <LibWeb/CSS/Selector.h>
@@ -121,7 +122,9 @@ public:
     [[nodiscard]] StyleRecordID intern_anonymous_layout_style(Layout::BegunRead const& read, ComputedValues const&) const;
 
     [[nodiscard]] ComputedStyleRecordView computed_style_record_view(Layout::BegunRead const& read, StyleRecordID) const;
-    [[nodiscard]] void const* style_record_payloads(Layout::BegunRead const& read, StyleRecordID) const;
+    [[nodiscard]] ComputedStyleRecordView computed_style_record_view(InstalledStyle const&) const;
+    // The style an element or a pseudo-element installs as `style_record`, which a style update answered.
+    [[nodiscard]] InstalledStyle install_style(Layout::BegunRead const& read, StyleRecordID style_record) const;
     void pin_style_record(StyleRecordID) const;
     void unpin_style_record(StyleRecordID) const;
     void begin_style_record_view_epoch() const;

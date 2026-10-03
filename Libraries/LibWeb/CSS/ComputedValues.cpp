@@ -10,6 +10,7 @@
 #include <LibWeb/CSS/ComputedStyleWorkingSet.h>
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/CountersSet.h>
+#include <LibWeb/CSS/InstalledStyle.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleGroupPayloadPins.h>
 #include <LibWeb/CSS/StyleScope.h>
@@ -801,16 +802,13 @@ void ComputedValues::borrow_style_record_payloads(ReadonlySpan<void const*> payl
     VERIFY(index == payloads.size());
 }
 
-bool style_record_display_is_none(Layout::BegunRead const& read, StyleEngine const& style_engine, StyleRecordID style_record)
+bool InstalledStyle::display_is_none() const
 {
-    if (!style_record)
-        return false;
-    auto view = style_engine.style_record_view(read, style_record);
-    if (!view.present)
+    if (!m_view.present)
         return false;
     // The record's base payloads are the ones an animation overlay was layered on top of, matching
     // what ComputedValues::base_values() exposes.
-    auto const* payloads = view.base_payloads ? view.base_payloads : view.payloads;
+    auto const* payloads = m_view.base_payloads ? m_view.base_payloads : m_view.payloads;
     if (!payloads)
         return false;
     auto const* box = static_cast<ComputedValuesFFI::BoxValues const*>(payloads[to_underlying(StyleGroupIndex::BoxValues)]);

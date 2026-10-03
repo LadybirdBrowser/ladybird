@@ -147,11 +147,6 @@ Optional<StyleEngine::StyleRecordDelta> StyleEngine::publish_animation_overlay(L
     return StyleRecordDelta { StyleRecordID { delta.old_style_record }, StyleRecordID { delta.new_style_record } };
 }
 
-void const* StyleEngine::style_record_payloads(Layout::BegunRead const& read, StyleRecordID style_record) const
-{
-    return StyleEngineFFI::style_engine_style_record_payloads(host(), &read, style_record.value());
-}
-
 StyleRecordDependencyFlag StyleEngine::style_record_dependency_flags(Layout::BegunRead const& read, StyleRecordID style_record) const
 {
     return static_cast<StyleRecordDependencyFlag>(StyleEngineFFI::style_engine_style_record_dependency_flags(m_render_document->host(), &read, style_record.value()));

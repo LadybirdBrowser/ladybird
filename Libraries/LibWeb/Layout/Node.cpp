@@ -259,7 +259,7 @@ NodeWithStyle::NodeWithStyle(DOM::Document& document, BindToPreparedArenaSlot bi
 {
     m_style_record_identity = CSS::StyleRecordID { RustFFI::layout_row_style_record(document_host(), slot) };
     VERIFY(m_style_record_identity);
-    // The layout node reads its style through the row's payloads, which only a live record keeps.
+    // The layout node reads its style through the row's payloads, which the row's live record keeps.
     m_style_payloads = RustFFI::layout_row_style_payloads(document_host(), slot);
     VERIFY(m_style_payloads);
 }
@@ -623,9 +623,9 @@ static Node const* scroll_snap_container_of(NodeWithStyle const& node)
 
 void NodeWithStyle::publish_style_record_to_node_data()
 {
-    auto const& read = held_read();
-    auto const* payloads = document().style_computer().style_engine().style_record_payloads(read, m_style_record_identity);
-    VERIFY(payloads);
+    auto const view = document().style_computer().style_engine().style_record_view(held_read(), m_style_record_identity);
+    VERIFY(view.present);
+    auto const* payloads = view.payloads;
     m_style_payloads = payloads;
     RustFFI::render_state_set_node_style(document_host(), slot_id(this), m_style_record_identity.value(), payloads);
     did_update_style_record();

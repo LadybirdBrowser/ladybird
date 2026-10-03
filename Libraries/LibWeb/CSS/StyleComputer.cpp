@@ -204,24 +204,27 @@ Parser::ValueParserFFI::FfiMediaEnvironment const* StyleComputer::ensure_media_e
 
 ComputedStyleRecordView StyleComputer::computed_style_record_view(Layout::BegunRead const& read, StyleRecordID style_record_identity) const
 {
-    if (!style_record_identity)
-        return {};
-    auto view = m_style_engine.style_record_view(read, style_record_identity);
-    if (!view.present)
-        return {};
-    bool owns_style_record_pin = m_style_record_view_epoch_depth == 0 || view.animation_overlay_identity != 0;
-    if (owns_style_record_pin) {
-        pin_style_record(style_record_identity);
-        ++m_computed_style_record_view_pin_count;
-    }
-    return ComputedStyleRecordView { view, *this, style_record_identity, owns_style_record_pin };
+    return computed_style_record_view(install_style(read, style_record_identity));
 }
 
-void const* StyleComputer::style_record_payloads(Layout::BegunRead const& read, StyleRecordID style_record_identity) const
+ComputedStyleRecordView StyleComputer::computed_style_record_view(InstalledStyle const& style) const
 {
-    if (!style_record_identity)
-        return nullptr;
-    return m_style_engine.style_record_payloads(read, style_record_identity);
+    if (!style)
+        return {};
+    // A view held across a later install keeps the record it borrows from live.
+    bool owns_style_record_pin = m_style_record_view_epoch_depth == 0 || style.view().animation_overlay_identity != 0;
+    if (owns_style_record_pin) {
+        pin_style_record(style.record());
+        ++m_computed_style_record_view_pin_count;
+    }
+    return ComputedStyleRecordView { style.view(), *this, style.record(), owns_style_record_pin };
+}
+
+InstalledStyle StyleComputer::install_style(Layout::BegunRead const& read, StyleRecordID style_record) const
+{
+    if (!style_record)
+        return {};
+    return { style_record, m_style_engine.style_record_view(read, style_record) };
 }
 
 void StyleComputer::pin_style_record(StyleRecordID style_record_identity) const
@@ -984,7 +987,7 @@ RequiredInvalidationAfterStyleChange StyleComputer::run_transition_step_for_inst
     // OPTIMIZATION: The two lists `start_needed_transitions` decides over, plus this element's own provisional states.
     //               With none of them there is nothing to decide, and the after-change style need not be
     //               reconstructed at all.
-    if (element.property_ids_with_matching_transition_property_entry(read, pseudo_element).is_empty()
+    if (element.property_ids_with_matching_transition_property_entry(pseudo_element).is_empty()
         && element.property_ids_with_existing_transitions(pseudo_element).is_empty()
         && !has_provisional_transition_states(abstract_element))
         return {};

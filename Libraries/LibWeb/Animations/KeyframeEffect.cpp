@@ -1228,14 +1228,9 @@ bool KeyframeEffect::can_skip_per_frame_animation_tick() const
 
 static bool is_in_display_none_subtree_ignoring_animations(DOM::AbstractElement abstract_element)
 {
-    // The caller's own read of the render state.
-    Layout::ForcedReadScope read { abstract_element.document(), false };
-    if (abstract_element.pseudo_element().has_value()) {
-        auto const& style_engine = abstract_element.document().style_computer().style_engine();
-        if (CSS::style_record_display_is_none(read, style_engine, abstract_element.style_record_identity()))
-            return true;
-    }
-    return abstract_element.element().has_inclusive_ancestor_with_display_none_ignoring_animations(read);
+    if (abstract_element.pseudo_element().has_value() && abstract_element.element().installed_style(abstract_element.pseudo_element()).display_is_none())
+        return true;
+    return abstract_element.element().has_inclusive_ancestor_with_display_none_ignoring_animations();
 }
 
 void KeyframeEffect::update_computed_properties(AnimationUpdateContext& context)

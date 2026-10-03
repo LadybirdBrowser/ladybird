@@ -614,7 +614,7 @@ public:
 
     bool is_inert() const;
 
-    bool has_inclusive_ancestor_with_display_none_ignoring_animations(Layout::BegunRead const& read) const;
+    bool has_inclusive_ancestor_with_display_none_ignoring_animations() const;
     bool has_inclusive_ancestor_with_event_listener(Utf16FlyString const& type) const;
 
     GC::Ptr<ShadowRoot> containing_shadow_root();

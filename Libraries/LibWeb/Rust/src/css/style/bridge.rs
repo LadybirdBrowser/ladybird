@@ -2777,29 +2777,11 @@ pub unsafe extern "C" fn style_engine_publish_animation_overlay(
     })
 }
 
-/// Returns the StyleEngine-owned group payload array for a base or live animation-overlay record.
+/// The StyleEngine-owned group payload array for a base or live animation-overlay record, which the style replay tool
+/// reads where a recording asked for it.
 ///
 /// # Safety
-/// `host` must be a live document host, on its document's thread, and its document's style engine
-/// must stay as it is for every read through the returned pointer.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_style_record_payloads(
-    host: *const DocumentHost,
-    read: &crate::render_state::BegunRead,
-    style_record: u64,
-) -> *const c_void {
-    // SAFETY: Guaranteed by the caller.
-    let host = unsafe { document_host(host) };
-    // SAFETY: Guaranteed by the caller.
-    with_engine(read, host, |engine| unsafe {
-        style_record_payloads(engine, style_record)
-    })
-}
-
-/// [`style_engine_style_record_payloads`] on `engine`, which the style replay tool calls as well.
-///
-/// # Safety
-/// As for [`style_engine_style_record_payloads`], for the arguments after `engine`.
+/// `engine` must stay as it is for every read through the returned pointer.
 pub unsafe fn style_record_payloads(engine: &mut StyleEngine, style_record: u64) -> *const c_void {
     let payloads = engine.style_record_payloads(style_record);
     let result = payloads.map_or(std::ptr::null(), |payloads| payloads.as_ptr().cast());
