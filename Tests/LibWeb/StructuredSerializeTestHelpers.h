@@ -35,7 +35,6 @@
 #include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/Crypto/CryptoKey.h>
 #include <LibWeb/Crypto/CryptoKeySerializationTags.h>
-#include <LibWeb/Crypto/KeyAlgorithms.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/FileAPI/Blob.h>
 #include <LibWeb/Geometry/DOMPoint.h>

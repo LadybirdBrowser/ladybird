@@ -14,7 +14,6 @@
 #include <LibJS/Runtime/TypedArray.h>
 #include <LibWeb/Bindings/Serializable.h>
 #include <LibWeb/Crypto/CryptoKeySerializationTags.h>
-#include <LibWeb/Crypto/KeyAlgorithms.h>
 #include <LibWeb/FileAPI/File.h>
 #include <LibWeb/FileAPI/FileList.h>
 #include <LibWeb/Geometry/DOMMatrix.h>
