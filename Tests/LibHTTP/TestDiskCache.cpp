@@ -220,3 +220,37 @@ TEST_CASE(associated_data_participates_in_cache_eviction)
     auto retrieved_bytecode = TRY_OR_FAIL(disk_cache.retrieve_associated_data(url, "GET"sv, *request_headers, {}, HTTP::CacheEntryAssociatedData::JavaScriptBytecode));
     EXPECT(!retrieved_bytecode.has_value());
 }
+
+TEST_CASE(force_cache_does_not_override_must_revalidate)
+{
+    auto disk_cache = MUST(HTTP::DiskCache::create(HTTP::DiskCache::Mode::Testing, test_cache_root())).release_value();
+    TestCacheRequest request;
+    auto url = parse_url("https://example.com/private"sv);
+    auto request_headers = create_cacheable_request_headers();
+    auto response_headers = HTTP::HeaderList::create({
+        { "Cache-Control"sv, "max-age=60, must-revalidate"sv },
+        { "ETag"sv, "\"private\""sv },
+    });
+    auto expired_request_headers = HTTP::HeaderList::create({
+        { HTTP::TEST_CACHE_ENABLED_HEADER, "1"sv },
+        { HTTP::TEST_CACHE_REQUEST_TIME_OFFSET, "120"sv },
+    });
+
+    auto& writer = create_cache_entry(disk_cache, request, url, *request_headers);
+    TRY_OR_FAIL(writer.write_status_and_reason(200, "OK"_string, *request_headers, *response_headers));
+    TRY_OR_FAIL(writer.write_data("private"sv.bytes()));
+    TRY_OR_FAIL(writer.flush(request_headers, response_headers));
+
+    Optional<HTTP::CacheEntryReader&> reader;
+    disk_cache.open_entry(request, url, "GET"sv, *expired_request_headers, HTTP::CacheMode::ForceCache, HTTP::DiskCache::OpenMode::Read)
+        .visit(
+            [&](Optional<HTTP::CacheEntryReader&> cache_entry_reader) {
+                reader = cache_entry_reader;
+            },
+            [](HTTP::DiskCache::CacheHasOpenEntry) {
+                FAIL("Cache entry was unexpectedly open");
+            });
+
+    VERIFY(reader.has_value());
+    EXPECT_EQ(reader->revalidation_type(), HTTP::CacheEntryReader::RevalidationType::MustRevalidate);
+}
