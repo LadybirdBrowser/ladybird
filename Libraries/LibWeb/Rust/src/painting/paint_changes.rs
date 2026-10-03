@@ -89,9 +89,6 @@ pub(crate) enum PaintChange {
     InvalidateNearestSelfPaintingInlinePaintCache { node: NodeSlotId },
     /// Every row paints again.
     InvalidateAllPaintCaches,
-    /// What the render side needs to know about the viewport it draws into: the device scale, where the visual
-    /// viewport sits and how far it is zoomed, and the overflow the viewport applies to a wheel.
-    VisualContextTreeInputs(super::host::FfiVisualContextTreeInputs),
     /// The visual context tree is built again whole before it is published next.
     RequestFullVisualContextRebuild(super::visual_context::dirty::VisualContextGlobalRebuildReason),
     /// The SVG paint resources the rows enrolled may have changed: they are synced again before they are painted next.
@@ -216,7 +213,6 @@ impl PaintChange {
                 }
             }
             Self::InvalidateAllPaintCaches => arena.push_all_paint_damage(),
-            Self::VisualContextTreeInputs(inputs) => arena.publish_visual_context_tree_inputs(inputs),
             Self::RequestFullVisualContextRebuild(reason) => arena.request_full_visual_context_rebuild(reason),
             Self::SvgPaintResourcesChanged => {
                 arena.svg_paint_resources().note_changed();
@@ -573,22 +569,6 @@ pub unsafe extern "C" fn render_state_invalidate_nearest_self_painting_inline_pa
 pub unsafe extern "C" fn render_state_invalidate_all_paint_caches(host: *const DocumentHost) {
     // SAFETY: Guaranteed by the caller.
     unsafe { queue(host, PaintChange::InvalidateAllPaintCaches) };
-}
-
-/// Publishes what the render side needs to know about the viewport it draws into: the device
-/// scale, where the visual viewport sits and how far it is zoomed, and the overflow the viewport
-/// applies to a wheel. The document publishes it before each pass that reads it, so no pass asks.
-///
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn render_state_publish_visual_context_tree_inputs(
-    host: *const DocumentHost,
-    inputs: crate::painting::host::FfiVisualContextTreeInputs,
-) {
-    // SAFETY: Guaranteed by the caller.
-    unsafe { queue(host, PaintChange::VisualContextTreeInputs(inputs)) };
 }
 
 /// # Safety

@@ -11,7 +11,8 @@ use crate::css::css_pixels::CssPixelPoint;
 use crate::layout::LayoutNodeArena;
 use crate::layout::node_data::NodeSlotId;
 use crate::painting::host::{
-    FfiCompositorAnimationPublishOutcome, FfiVisualContextUpdateOutcome, RootBackgroundSource,
+    FfiCompositorAnimationPublishOutcome, FfiVisualContextTreeInputs, FfiVisualContextUpdateOutcome,
+    RootBackgroundSource,
 };
 use crate::painting::svg_paint_resources::{PublishedSvgFilter, PublishedSvgPaintServer, SvgPaintResourceKind};
 use crate::painting::visual_animation::VisualAnimation;
@@ -23,19 +24,27 @@ use crate::painting::visual_context::incremental::{
 use crate::render_state::{DocumentHost, LockstepProof, PreparationPending, RenderMessage, ask, wait_for_render_state};
 use libgfx_rust::FloatPoint;
 
-/// One step of paint preparation over a document's render state.
+/// One step of paint preparation over a document's render state. A pass that reads the viewport the render side draws
+/// into carries what the host knows of it, so the host hands it over only to a pass that runs.
 pub(crate) enum PaintPass {
     /// Settles the scrollable overflow left unmeasured, and with it the root background and the sticky constraints.
     PrepareForRendering {
         pending: PendingPreparation,
         visual_context_update_pending: bool,
+        inputs: FfiVisualContextTreeInputs,
     },
     /// Brings the visual context tree up to date with the rows, rebuilding what the dirty boxes name.
-    UpdateAccumulatedVisualContexts { viewport: NodeSlotId },
+    UpdateAccumulatedVisualContexts {
+        viewport: NodeSlotId,
+        inputs: FfiVisualContextTreeInputs,
+    },
     /// Gives the visual context tree the transform of the visual viewport.
-    UpdateVisualViewportTransform,
+    UpdateVisualViewportTransform(FfiVisualContextTreeInputs),
     /// Re-reads the scroll containers' offsets, when something invalidated them or `force` asks.
-    RefreshScrollState { force: bool },
+    RefreshScrollState {
+        force: bool,
+        device_pixels_per_css_pixel: f64,
+    },
     /// Answers the SVG paint resources of the enrolled rows the host resolves from the DOM, if they changed since they
     /// were resolved last.
     SvgPaintResourceRequests,
@@ -91,19 +100,24 @@ impl PaintPass {
             Self::PrepareForRendering {
                 pending,
                 visual_context_update_pending,
+                inputs,
             } => PaintPassAnswer::Prepared(prepare_for_rendering(
                 arena,
                 pending.root_background_source,
                 visual_context_update_pending,
+                &inputs,
             )),
-            Self::UpdateAccumulatedVisualContexts { viewport } => {
-                PaintPassAnswer::VisualContexts(update_accumulated_visual_contexts(arena, viewport))
+            Self::UpdateAccumulatedVisualContexts { viewport, inputs } => {
+                PaintPassAnswer::VisualContexts(update_accumulated_visual_contexts(arena, viewport, inputs))
             }
-            Self::UpdateVisualViewportTransform => {
-                update_visual_viewport_transform(arena);
+            Self::UpdateVisualViewportTransform(inputs) => {
+                update_visual_viewport_transform(arena, &inputs);
                 PaintPassAnswer::VisualViewportTransform
             }
-            Self::RefreshScrollState { force } => PaintPassAnswer::ScrollState(refresh_scroll_state(arena, force)),
+            Self::RefreshScrollState {
+                force,
+                device_pixels_per_css_pixel,
+            } => PaintPassAnswer::ScrollState(refresh_scroll_state(arena, force, device_pixels_per_css_pixel)),
             Self::SvgPaintResourceRequests => {
                 PaintPassAnswer::SvgPaintResourceRequests(svg_paint_resource_requests(arena))
             }
@@ -168,6 +182,7 @@ pub(crate) fn prepare_for_rendering(
     arena: &LayoutNodeArena,
     root_background_source: RootBackgroundSource,
     visual_context_update_pending: bool,
+    inputs: &FfiVisualContextTreeInputs,
 ) -> RenderingPreparation {
     let background_source_changed = arena
         .paint_state()
@@ -189,7 +204,7 @@ pub(crate) fn prepare_for_rendering(
                 &rows,
                 &state.scroll_state,
                 tree,
-                &arena.visual_context_tree_inputs(),
+                inputs,
             );
         }
         state.needs_to_refresh_scroll_state = true;
@@ -204,7 +219,11 @@ pub(crate) fn prepare_for_rendering(
     }
 }
 
-fn refresh_scroll_state(arena: &LayoutNodeArena, force: bool) -> Option<Vec<FloatPoint>> {
+fn refresh_scroll_state(
+    arena: &LayoutNodeArena,
+    force: bool,
+    device_pixels_per_css_pixel: f64,
+) -> Option<Vec<FloatPoint>> {
     arena.measure_scrollable_overflow();
     let paintable_rows = arena.paintable_rows();
     let mut paint_state = arena.paint_state().borrow_mut();
@@ -214,9 +233,7 @@ fn refresh_scroll_state(arena: &LayoutNodeArena, force: bool) -> Option<Vec<Floa
     }
     state.needs_to_refresh_scroll_state = false;
     crate::painting::visual_context::refresh::refresh_scroll_state(&paintable_rows, &mut state.scroll_state);
-    let mut snapshot = state
-        .scroll_state
-        .snapshot(arena.visual_context_tree_inputs().device_pixels_per_css_pixel);
+    let mut snapshot = state.scroll_state.snapshot(device_pixels_per_css_pixel);
     // https://drafts.csswg.org/css-position/#sticky-pos
     if let Some(tree) = state.tree.as_deref() {
         tree.resolve_sticky_offsets_in_place(&mut snapshot);
@@ -224,13 +241,11 @@ fn refresh_scroll_state(arena: &LayoutNodeArena, force: bool) -> Option<Vec<Floa
     Some(snapshot)
 }
 
-fn update_visual_viewport_transform(arena: &LayoutNodeArena) {
+fn update_visual_viewport_transform(arena: &LayoutNodeArena, inputs: &FfiVisualContextTreeInputs) {
     let mut paint_state = arena.paint_state().borrow_mut();
     if let Some(tree) = &mut paint_state.visual_context.tree {
         std::sync::Arc::make_mut(tree).set_visual_viewport_transform(
-            crate::painting::visual_context::node_values::visual_viewport_transform_data(
-                &arena.visual_context_tree_inputs(),
-            ),
+            crate::painting::visual_context::node_values::visual_viewport_transform_data(inputs),
         );
     }
 }
@@ -238,12 +253,12 @@ fn update_visual_viewport_transform(arena: &LayoutNodeArena) {
 fn update_accumulated_visual_contexts(
     arena: &mut LayoutNodeArena,
     viewport: NodeSlotId,
+    inputs: FfiVisualContextTreeInputs,
 ) -> FfiVisualContextUpdateOutcome {
     arena.measure_scrollable_overflow();
     if !arena.paintable_row_is_populated(viewport) {
         return FfiVisualContextUpdateOutcome::default();
     }
-    let inputs = arena.visual_context_tree_inputs();
     let mut state = std::mem::take(&mut arena.paint_state().borrow_mut().visual_context);
     state.release_quarantined_slots_while_no_handle_is_retained();
 

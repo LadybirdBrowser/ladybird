@@ -185,9 +185,8 @@ static Layout::NodeWithStyle::ImageObserver const* layer_image_observer(Layout::
     VERIFY_NOT_REACHED();
 }
 
-// The render side draws into a viewport it never asks about: this is published before every pass that reads it, and a
-// pass reads what was published rather than the document.
-void publish_visual_context_tree_inputs(DOM::Document& document)
+// The render side draws into a viewport it never asks about: every pass that reads it is handed this.
+static Compositing::RustFFI::FfiVisualContextTreeInputs visual_context_tree_inputs(DOM::Document& document)
 {
     Compositing::RustFFI::FfiVisualContextTreeInputs inputs {};
     inputs.device_pixels_per_css_pixel = document.page().client().device_pixels_per_css_pixel();
@@ -199,7 +198,7 @@ void publish_visual_context_tree_inputs(DOM::Document& document)
     auto viewport_overflow = overflow_values_applied_to_viewport_for_wheel_scrolling(document);
     inputs.viewport_wheel_overflow_x = static_cast<u8>(to_underlying(viewport_overflow.x));
     inputs.viewport_wheel_overflow_y = static_cast<u8>(to_underlying(viewport_overflow.y));
-    Layout::RustFFI::render_state_publish_visual_context_tree_inputs(document.layout_node_arena().host(), inputs);
+    return inputs;
 }
 
 }
@@ -227,8 +226,7 @@ static Layout::RustFFI::DocumentHost* document_host(DOM::Document const& documen
 Layout::RustFFI::FfiVisualContextUpdateOutcome rust_update_accumulated_visual_contexts(DOM::Document& document)
 {
     auto update_timer = Core::ElapsedTimer::start_new(Core::TimerType::Precise);
-    publish_visual_context_tree_inputs(document);
-    auto outcome = Layout::RustFFI::render_state_update_accumulated_visual_contexts(document.layout_node_arena().host(), viewport_row_slot(document));
+    auto outcome = Layout::RustFFI::render_state_update_accumulated_visual_contexts(document.layout_node_arena().host(), viewport_row_slot(document), visual_context_tree_inputs(document));
     if (rust_painting_timing_enabled())
         dbgln("AVC_UPDATE rust={} µs {}", update_timer.elapsed_time().to_microseconds(), outcome.performed_full_build ? "full"sv : "incremental"sv);
     return outcome;
@@ -281,8 +279,8 @@ void register_geometry_host(Layout::NodeArena& arena)
 
 Layout::RustFFI::FfiRenderingPreparationOutcome rust_prepare_for_rendering(DOM::Document& document, bool visual_context_update_pending)
 {
-    publish_visual_context_tree_inputs(document);
-    return Layout::RustFFI::render_state_prepare_for_rendering(document.layout_node_arena().host(), visual_context_update_pending);
+    return Layout::RustFFI::render_state_prepare_for_rendering(document.layout_node_arena().host(), visual_context_update_pending, &document,
+        [](void* document) { return visual_context_tree_inputs(*static_cast<DOM::Document*>(document)); });
 }
 
 static CSS::PreferredColorScheme image_color_scheme(Layout::NodeWithStyle const& layout_node)
@@ -319,15 +317,13 @@ CSS::ColorResolutionContext gradient_stop_color_resolution_context(Layout::NodeW
 
 void rust_update_visual_viewport_transform(DOM::Document& document)
 {
-    publish_visual_context_tree_inputs(document);
-    Layout::RustFFI::render_state_update_visual_viewport_transform(document.layout_node_arena().host());
+    Layout::RustFFI::render_state_update_visual_viewport_transform(document.layout_node_arena().host(), visual_context_tree_inputs(document));
 }
 
 bool rust_refresh_scroll_state(DOM::Document& document, Compositing::ScrollStateSnapshot& snapshot, ForceScrollStateRefresh force)
 {
-    publish_visual_context_tree_inputs(document);
     return Layout::RustFFI::render_state_refresh_scroll_state(
-        document.layout_node_arena().host(), force == ForceScrollStateRefresh::Yes,
+        document.layout_node_arena().host(), force == ForceScrollStateRefresh::Yes, document.page().client().device_pixels_per_css_pixel(),
         &snapshot, [](void* sink, Gfx::FloatPoint const* offsets, size_t count) {
             static_cast<Compositing::ScrollStateSnapshot*>(sink)->assign_device_offsets({ offsets, count });
         });
