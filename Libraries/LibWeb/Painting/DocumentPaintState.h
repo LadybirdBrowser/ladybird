@@ -72,6 +72,7 @@ public:
     // Passive access for consumers of an already settled recording.
     Compositing::AccumulatedVisualContextTree visual_context_tree_without_update(DOM::Document const&) const;
     u64 visual_context_tree_structural_epoch(DOM::Document const&) const;
+    u64 visual_context_tree_structural_epoch_without_update() const;
 
     void set_display_list_used_as_paint_command_cache_source(RefPtr<Compositing::DisplayList> display_list, Compositing::DisplayListResourceSet referenced_resources)
     {

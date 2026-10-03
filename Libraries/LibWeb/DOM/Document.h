@@ -1345,8 +1345,7 @@ public:
     void request_frame_for_pending_repaint(Badge<InvalidationJournal>) { request_frame_for_pending_repaint(); }
 
     RefPtr<Compositing::DisplayList> record_display_list(HTML::PaintConfig, Compositing::DisplayListResourceStorage&, Painting::PaintCommandCacheMode);
-    Painting::HitTestDisplayList const* hit_test_display_list() const { return m_hit_test_display_list.ptr(); }
-    Painting::HitTestDisplayList const* ensure_hit_test_display_list();
+    Optional<Painting::HitTestQuery> prepare_hit_test_query();
     Optional<Painting::HitTestResult> hit_test(CSSPixelPoint);
     Optional<Painting::CaretPosition> caret_position_from_point(CSSPixelPoint);
     Optional<Painting::CaretPosition> caret_position_from_point_for_selection_start(CSSPixelPoint);
