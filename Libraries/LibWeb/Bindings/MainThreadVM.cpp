@@ -328,7 +328,7 @@ void initialize_main_thread_vm(HTML::AgentType type)
     };
 
     // 8.1.5.4.3 HostEnqueuePromiseJob(job, realm), https://html.spec.whatwg.org/multipage/webappapis.html#hostenqueuepromisejob
-    main_thread_vm_ptr()->host_enqueue_promise_job = [](GC::Ref<GC::Function<JS::ThrowCompletionOr<JS::Value>()>> job, GC::Ptr<JS::Realm> realm) {
+    main_thread_vm_ptr()->host_enqueue_promise_job = [](JS::PromiseJob job, GC::Ptr<JS::Realm> realm) {
         auto& vm = *main_thread_vm_ptr();
 
         // IMPLEMENTATION DEFINED: The JS spec says we must take implementation defined steps to make the currently active script or module at the time of HostEnqueuePromiseJob being invoked
@@ -372,7 +372,7 @@ void initialize_main_thread_vm(HTML::AgentType type)
             }
 
             // 2. Let result be job().
-            auto result = job->function()();
+            auto result = job.run();
 
             // 3. If job settings is not null, then clean up after running script with job settings.
             if (job_settings) {

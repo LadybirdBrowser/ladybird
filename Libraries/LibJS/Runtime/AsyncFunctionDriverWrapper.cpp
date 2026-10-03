@@ -140,12 +140,12 @@ void AsyncFunctionDriverWrapper::schedule_resume(Value value, bool is_fulfilled)
 {
     auto& vm = this->vm();
     vm.host_enqueue_promise_job(
-        GC::create_function(vm.heap(), [this, value, is_fulfilled, &vm]() -> ThrowCompletionOr<Value> {
+        PromiseJob { GC::create_function(vm.heap(), [this, value, is_fulfilled, &vm]() -> ThrowCompletionOr<Value> {
             TRY(vm.push_execution_context(*m_suspended_execution_context, {}));
             continue_async_execution(vm, value, is_fulfilled);
             vm.pop_execution_context();
             return js_undefined();
-        }),
+        }) },
         vm.current_realm());
 }
 

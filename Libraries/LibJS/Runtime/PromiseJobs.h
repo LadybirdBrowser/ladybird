@@ -11,16 +11,17 @@
 #include <LibJS/Runtime/JobCallback.h>
 #include <LibJS/Runtime/NativeFunction.h>
 #include <LibJS/Runtime/Promise.h>
+#include <LibJS/Runtime/PromiseJob.h>
 
 namespace JS {
 
-struct PromiseJob {
-    GC::Ref<GC::Function<ThrowCompletionOr<Value>()>> job;
-    GC::Ptr<Realm> realm;
+struct PromiseJobRecord {
+    PromiseJob job;       // [[Job]]
+    GC::Ptr<Realm> realm; // [[Realm]]
 };
 
-// NOTE: These return a PromiseJob to prevent awkward casting at call sites.
-PromiseJob create_promise_reaction_job(VM&, PromiseReaction&, Value argument);
-PromiseJob create_promise_resolve_thenable_job(VM&, Promise&, Value thenable, GC::Ref<JobCallback> then);
+// NOTE: These return a PromiseJobRecord to prevent awkward casting at call sites.
+PromiseJobRecord create_promise_reaction_job(VM&, PromiseReaction&, Value argument);
+PromiseJobRecord create_promise_resolve_thenable_job(VM&, Promise&, Value thenable, GC::Ref<JobCallback> then);
 
 }

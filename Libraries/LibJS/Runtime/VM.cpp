@@ -128,7 +128,7 @@ VM::VM(ErrorMessages error_messages)
         enqueue_finalization_registry_cleanup_job(finalization_registry);
     };
 
-    host_enqueue_promise_job = [this](GC::Ref<GC::Function<ThrowCompletionOr<Value>()>> job, GC::Ptr<Realm> realm) {
+    host_enqueue_promise_job = [this](PromiseJob job, GC::Ptr<Realm> realm) {
         enqueue_promise_job(job, realm);
     };
 
@@ -396,7 +396,7 @@ void VM::gather_roots(HashMap<GC::Cell*, GC::HeapRoot>& roots)
     }
 
     for (auto& job : m_promise_jobs)
-        roots.set(job.ptr(), GC::HeapRoot { .type = GC::HeapRoot::Type::VM });
+        roots.set(job.m_steps.ptr(), GC::HeapRoot { .type = GC::HeapRoot::Type::VM });
 }
 
 // 9.1.2.1 GetIdentifierReference ( env, name, strict ), https://tc39.es/ecma262/#sec-getidentifierreference
@@ -543,12 +543,12 @@ void VM::run_queued_promise_jobs_impl()
         auto job = m_promise_jobs.take_first();
         dbgln_if(PROMISE_DEBUG, "Calling promise job function");
 
-        [[maybe_unused]] auto result = job->function()();
+        [[maybe_unused]] auto result = job.run();
     }
 }
 
 // 9.5.4 HostEnqueuePromiseJob ( job, realm ), https://tc39.es/ecma262/#sec-hostenqueuepromisejob
-void VM::enqueue_promise_job(GC::Ref<GC::Function<ThrowCompletionOr<Value>()>> job, GC::Ptr<Realm>)
+void VM::enqueue_promise_job(PromiseJob job, GC::Ptr<Realm>)
 {
     // An implementation of HostEnqueuePromiseJob must conform to the requirements in 9.5 as well as the following:
     // - FIXME: If realm is not null, each time job is invoked the implementation must perform implementation-defined steps such that execution is prepared to evaluate ECMAScript code at the time of job's invocation.
