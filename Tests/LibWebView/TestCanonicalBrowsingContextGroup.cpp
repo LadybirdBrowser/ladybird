@@ -170,7 +170,7 @@ TEST_CASE(response_browsing_context_is_activated_only_at_commit)
         .delays_the_load_event_of_its_container = false,
         .compositor_context_id = {},
     };
-    traversable.did_commit_navigation(*committed_entry, move(committed_state), navigation_id, WebView::CanonicalNavigable::DidPopulateDocument::Yes, {});
+    traversable.did_commit_navigation(*committed_entry, move(committed_state), 1, navigation_id, WebView::CanonicalNavigable::DidPopulateDocument::Yes, {});
     EXPECT_EQ(&traversable.active_browsing_context(), destination_context);
     EXPECT(initial_group->browsing_context_set().is_empty());
     EXPECT(!traversable.ongoing_navigation().has_value());
@@ -279,7 +279,7 @@ TEST_CASE(document_claimed_by_a_history_job_outlives_a_newer_navigation)
         .delays_the_load_event_of_its_container = false,
         .compositor_context_id = {},
     };
-    traversable.did_commit_navigation(*WebView::CanonicalSessionHistoryEntry::create(claimed_document_state), move(committed_state), claimed_navigation_id, WebView::CanonicalNavigable::DidPopulateDocument::Yes, {});
+    traversable.did_commit_navigation(*WebView::CanonicalSessionHistoryEntry::create(claimed_document_state), move(committed_state), 1, claimed_navigation_id, WebView::CanonicalNavigable::DidPopulateDocument::Yes, {});
     EXPECT_EQ(&traversable.active_document(), claimed_document.ptr());
     EXPECT_EQ(traversable.pending_document().ptr(), newer_document.ptr());
     EXPECT(traversable.ongoing_navigation().has_value());
@@ -305,9 +305,37 @@ TEST_CASE(populated_document_replaces_tracked_load_when_document_state_is_reused
         .delays_the_load_event_of_its_container = false,
         .compositor_context_id = {},
     };
-    traversable.did_commit_navigation(*entry, move(committed_state), navigation_id, WebView::CanonicalNavigable::DidPopulateDocument::Yes, {});
+    traversable.did_commit_navigation(*entry, move(committed_state), 1, navigation_id, WebView::CanonicalNavigable::DidPopulateDocument::Yes, {});
 
     EXPECT_EQ(traversable.active_document_load().navigation_id, navigation_id);
+}
+
+TEST_CASE(same_document_traversal_commits_only_navigations_admitted_before_it)
+{
+    WebView::CanonicalTraversable traversable;
+    auto entry = WebView::CanonicalSessionHistoryEntry::create(WebView::CanonicalDocumentState::create(Web::HTML::CrossProcessId { 1, 1 }, WebView::CanonicalBrowsingContext::create_a_new_top_level_browsing_context_and_document().document));
+    traversable.set_active_session_history_entry(entry);
+    auto committed_state = [] {
+        return Web::HTML::HostedNavigableState {
+            .active_document_url = URL::about_blank(),
+            .active_document_is_fully_active = true,
+            .opener_policy = {},
+            .active_document_is_completely_loaded = true,
+            .is_closing = false,
+            .container = {},
+            .delays_the_load_event_of_its_container = false,
+            .compositor_context_id = {},
+        };
+    };
+
+    // A navigation admitted after the traversal was requested goes on past the traversal's activation.
+    traversable.set_ongoing_navigation({ .navigation_id = Utf16String::from_utf8("newer"sv), .sequence_number = 2 });
+    traversable.did_commit_navigation(*entry, committed_state(), 1, {}, WebView::CanonicalNavigable::DidPopulateDocument::No, {});
+    EXPECT(traversable.ongoing_navigation().has_value());
+
+    // One admitted before it does not.
+    traversable.did_commit_navigation(*entry, committed_state(), 3, {}, WebView::CanonicalNavigable::DidPopulateDocument::No, {});
+    EXPECT(!traversable.ongoing_navigation().has_value());
 }
 
 TEST_CASE(site_keyed_agent_clusters)

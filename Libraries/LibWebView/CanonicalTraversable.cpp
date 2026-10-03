@@ -1631,9 +1631,9 @@ void CanonicalTraversable::did_activate_history_entry(HistoryOperation& operatio
         host = source_page;
 
     auto navigation_id = operation.parameters.visit(
-        [](Web::FinalizeCrossDocumentNavigationHistoryOperationParameters const& parameters) { return parameters.navigation_id; },
-        [](auto const&) { return Optional<Utf16String> {}; });
-    navigable->did_commit_navigation(target_entry, move(activated_navigable_state), navigation_id, did_populate_document, move(host));
+        [](Web::FinalizeCrossDocumentNavigationHistoryOperationParameters const& parameters) -> Optional<Utf16String const&> { return parameters.navigation_id; },
+        [](auto const&) -> Optional<Utf16String const&> { return {}; });
+    navigable->did_commit_navigation(target_entry, move(activated_navigable_state), operation.sequence_number, navigation_id, did_populate_document, move(host));
 
     if (navigable_id == id()) {
         if (auto view = this->view(); view.has_value()) {
