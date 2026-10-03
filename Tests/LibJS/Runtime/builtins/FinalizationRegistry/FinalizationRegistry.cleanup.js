@@ -83,7 +83,7 @@ test("held values are kept alive until cleanup", () => {
     expect(heldValue.marker).toBe(1);
 });
 
-test.xfail("unregister tokens are kept alive", () => {
+test("unregister tokens are kept alive", () => {
     var registry = new FinalizationRegistry(() => {});
     var target = {};
     evaluateSource("var __finalizationRegistryUnregisterToken = {};");

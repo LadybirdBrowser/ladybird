@@ -184,9 +184,9 @@ void print_gc_report(i64 total_us, size_t live_block_count)
     dbgln("      cell lookup               {:>10} us ({:>5.1f}%)", t.conservative_cell_lookup_us, pct(t.conservative_cell_lookup_us));
     dbgln("    explicit roots              {:>10} us ({:>5.1f}%)", t.gather_explicit_roots_us, pct(t.gather_explicit_roots_us));
     dbgln("  mark_live_cells               {:>10} us ({:>5.1f}%)", t.mark_live_cells_us, pct(t.mark_live_cells_us));
+    dbgln("    clear uprooted              {:>10} us ({:>5.1f}%)", t.mark_clear_uprooted_us, pct(t.mark_clear_uprooted_us));
     dbgln("    initial visit               {:>10} us ({:>5.1f}%)", t.mark_initial_visit_us, pct(t.mark_initial_visit_us));
     dbgln("    BFS marking                 {:>10} us ({:>5.1f}%)", t.mark_bfs_us, pct(t.mark_bfs_us));
-    dbgln("    clear uprooted              {:>10} us ({:>5.1f}%)", t.mark_clear_uprooted_us, pct(t.mark_clear_uprooted_us));
     dbgln("  finalize_unmarked_cells       {:>10} us ({:>5.1f}%)", t.finalize_unmarked_cells_us, pct(t.finalize_unmarked_cells_us));
     dbgln("  sweep_weak_blocks             {:>10} us ({:>5.1f}%)", t.sweep_weak_blocks_us, pct(t.sweep_weak_blocks_us));
     dbgln("  prune_weak_containers         {:>10} us ({:>5.1f}%)", t.prune_weak_containers_us, pct(t.prune_weak_containers_us));
@@ -1159,15 +1159,25 @@ private:
     FlatPtr m_heap_region_end;
 };
 
-void Heap::mark_live_cells(HashMap<Cell*, HeapRoot> const& roots)
+void Heap::mark_live_cells(HashMap<Cell*, HeapRoot>& roots)
 {
     Heap* domain[] = { this };
     mark_live_cells_across(domain, roots);
 }
 
-void Heap::mark_live_cells_across(ReadonlySpan<Heap* const> heaps, HashMap<Cell*, HeapRoot> const& roots)
+void Heap::mark_live_cells_across(ReadonlySpan<Heap* const> heaps, HashMap<Cell*, HeapRoot>& roots)
 {
     dbgln_if(HEAP_DEBUG, "mark_live_cells:");
+
+    {
+        ScopedPhaseTimer timer { g_recording_phase_timings, g_phase_timings.mark_clear_uprooted_us };
+        for (auto* heap : heaps) {
+            for (auto& cell : heap->m_uprooted_cells)
+                roots.remove(cell.ptr());
+
+            heap->m_uprooted_cells.clear();
+        }
+    }
 
     Optional<MarkingVisitor> visitor;
     {
@@ -1178,16 +1188,6 @@ void Heap::mark_live_cells_across(ReadonlySpan<Heap* const> heaps, HashMap<Cell*
     {
         ScopedPhaseTimer timer { g_recording_phase_timings, g_phase_timings.mark_bfs_us };
         visitor->mark_all_live_cells();
-    }
-
-    {
-        ScopedPhaseTimer timer { g_recording_phase_timings, g_phase_timings.mark_clear_uprooted_us };
-        for (auto* heap : heaps) {
-            for (auto& inverse_root : heap->m_uprooted_cells)
-                inverse_root->set_marked(false);
-
-            heap->m_uprooted_cells.clear();
-        }
     }
 }
 
