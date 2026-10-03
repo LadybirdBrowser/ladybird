@@ -62,7 +62,7 @@ ThrowCompletionOr<GC::Ref<Object>> IteratorConstructor::construct(FunctionObject
         return vm.throw_completion<TypeError>(ErrorType::ClassIsAbstract, "Iterator");
 
     // 2. Return ? OrdinaryCreateFromConstructor(NewTarget, "%Iterator.prototype%").
-    return TRY(ordinary_create_from_constructor<Iterator>(vm, new_target, &Intrinsics::iterator_prototype));
+    return TRY(ordinary_create_from_constructor<Object>(vm, new_target, &Intrinsics::iterator_prototype, ConstructWithPrototypeTag::Tag));
 }
 
 class ConcatIterator : public Cell {

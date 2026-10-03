@@ -5,6 +5,25 @@ describe("errors", () => {
         }).toThrowWithMessage(TypeError, "Symbol(Symbol.hasInstance) is not a string");
     });
 
+    test("wrapper methods called on other iterators", () => {
+        const WrapForValidIteratorPrototype = Object.getPrototypeOf(Iterator.from({ next() {} }));
+        class SubIterator extends Iterator {}
+
+        for (const value of [
+            new SubIterator(),
+            Iterator.prototype,
+            Object.create(WrapForValidIteratorPrototype),
+            [].values(),
+        ]) {
+            expect(() => {
+                WrapForValidIteratorPrototype.next.call(value);
+            }).toThrow(TypeError);
+            expect(() => {
+                WrapForValidIteratorPrototype.return.call(value);
+            }).toThrow(TypeError);
+        }
+    });
+
     test("@@iterator is not callable", () => {
         const iterable = {};
         iterable[Symbol.iterator] = 12389;
