@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<div id="target" style="width: 50px; height: 50px"></div>
+<script>
+    // A resize observation of the size a flown layout produced is delivered by the rest of its rendering update, before
+    // any task after it.
+    asyncTest(async done => {
+        const events = [];
+        const observer = new ResizeObserver(entries => {
+            for (const entry of entries)
+                events.push(`observed ${entry.contentRect.width}x${entry.contentRect.height}`);
+        });
+        observer.observe(target);
+
+        // A held frame lets the next task run beside the update, ahead of what the update does after its layout.
+        const result = await whileRecordingInFlight(() => {
+            events.length = 0;
+            target.style.width = "60px";
+        }, state => ({ state, before: events.join(", ") || "nothing" }));
+        println(`state in the next task: ${result.state}`);
+        println(`observed before the next task: ${result.before}`);
+        await twoFrames();
+        println(`observed: ${events.join(", ")}`);
+
+        // Without a hold, the observation comes before a task queued by the animation frame callback that resized.
+        events.length = 0;
+        requestAnimationFrame(() => {
+            target.style.width = "80px";
+            setTimeout(() => events.push("timeout"), 0);
+        });
+        await twoFrames();
+        println(`order: ${events.join(", ")}`);
+        observer.disconnect();
+        done();
+    });
+</script>
