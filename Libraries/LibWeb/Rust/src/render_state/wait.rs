@@ -176,7 +176,7 @@ pub(crate) fn run_job<J: RenderJob>(_permit: J::Permit, host: &DocumentHost, job
 
 fn send_job<J: RenderJob>(host: &DocumentHost, job: J) -> J::Answer {
     let document = host.document();
-    send_and_wait(|reply| job.message(document, reply, SpentWait(())))
+    send_and_wait(host, |reply| job.message(document, reply, SpentWait(())))
 }
 
 macro_rules! script_entry {
@@ -228,15 +228,15 @@ impl<R> ReplyTo<'_, R> {
 /// answer, spending `_wait`. The host is only ever shared, so what an outer call holds of it stays live across the wait.
 pub(crate) fn wait_for_render_state<R>(
     _wait: impl RenderWait,
-    _host: &DocumentHost,
+    host: &DocumentHost,
     message: impl FnOnce(ReplyTo<'_, R>) -> RenderMessage<'_>,
 ) -> R {
-    send_and_wait(message)
+    send_and_wait(host, message)
 }
 
-fn send_and_wait<R>(message: impl FnOnce(ReplyTo<'_, R>) -> RenderMessage<'_>) -> R {
+fn send_and_wait<R>(host: &DocumentHost, message: impl FnOnce(ReplyTo<'_, R>) -> RenderMessage<'_>) -> R {
     let mut answered = None;
-    send(message(ReplyTo(&mut answered)));
+    send(host, message(ReplyTo(&mut answered)));
     answered.unwrap_or_else(|| render_state_died())
 }
 
