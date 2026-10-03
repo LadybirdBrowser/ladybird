@@ -401,6 +401,23 @@ pub(crate) struct FlownRound {
     rebuilds_tree: bool,
 }
 
+impl FlownRound {
+    /// Pays what the round owes `host` in `read`, where no layout update goes on from it.
+    ///
+    /// # Safety
+    ///
+    /// The host's layout update callbacks must answer synchronously from its live document.
+    pub(crate) unsafe fn pay(mut self, main_thread: &MainThread, host: &DocumentHost, read: &BegunRead) {
+        let callbacks = host
+            .host_tables()
+            .layout_update_host
+            .get()
+            .expect("the document has no layout update host");
+        // SAFETY: Guaranteed by the caller.
+        unsafe { self.answer.pay(main_thread, &callbacks, read) };
+    }
+}
+
 impl LayoutRoundJob {
     /// Runs the round over `state`, and resolves what it owes the host as it ends.
     pub(crate) fn run(self, state: &mut ArenaHandle) -> LayoutRoundAnswer {

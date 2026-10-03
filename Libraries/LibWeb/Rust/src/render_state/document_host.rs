@@ -231,6 +231,15 @@ impl DocumentHost {
         force_read_flown_style(read, self);
     }
 
+    /// Takes the frame in flight in, where one flies, spending `read`.
+    pub(crate) fn take_frame_in_with(&self, read: &BegunRead) {
+        assert!(
+            read.reaches(self),
+            "a begun read reaches only the render state of its own document"
+        );
+        self.take_frame_in(read.into_read_right());
+    }
+
     /// Lands the frame in flight, waiting for it, spending `read`: the render state is here again, and the style
     /// transaction that flew with it waits to be drained.
     pub(super) fn land(&self, read: ForcedRead) {
