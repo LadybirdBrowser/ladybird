@@ -33,4 +33,9 @@ GC::Ref<FunctionObject> CompiledDynamicFunction::instantiate(Realm& realm, Envir
     return function;
 }
 
+Vector<Position> breakpoint_positions_for_source(SourceCode const& source_code, ProgramType type, size_t line_number_offset)
+{
+    return RustIntegration::breakpoint_positions_for_source(source_code, type, line_number_offset);
+}
+
 }

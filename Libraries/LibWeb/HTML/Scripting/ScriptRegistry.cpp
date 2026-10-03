@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibJS/RustIntegration.h>
+#include <LibJS/ScriptCompilation.h>
 #include <LibJS/SourceCode.h>
 #include <LibURL/Parser.h>
 #include <LibWeb/HTML/Scripting/ScriptRegistry.h>
@@ -101,9 +101,9 @@ ReadonlySpan<JS::Position> ScriptRegistry::breakpoint_positions(u64 script_id) c
                 // Function bodies are compiled lazily, so the live Executables do not necessarily contain every breakpoint
                 // position. Recompile a GC-free copy once when DevTools first requests the complete set.
                 auto program_type = source.type == JavaScriptSource::Type::Script
-                    ? JS::RustIntegration::ProgramType::Script
-                    : JS::RustIntegration::ProgramType::Module;
-                source.breakpoint_positions = JS::RustIntegration::breakpoint_positions_for_source(*source.source_code, program_type, source.line_number_offset);
+                    ? JS::ProgramType::Script
+                    : JS::ProgramType::Module;
+                source.breakpoint_positions = JS::breakpoint_positions_for_source(*source.source_code, program_type, source.line_number_offset);
             }
             return source.breakpoint_positions->span();
         });
