@@ -121,6 +121,24 @@ impl WinnerStore {
             .any(|declaration| view.dependencies(declaration).uses_tree_counting_function)
     }
 
+    /// The proof that no value the store holds resolves a `url()`, or `None` when one may.
+    pub(super) fn reads_no_resource_contexts(&self, engine: &RetainedState) -> Option<ReadsNoResourceContexts> {
+        let view = self.view(engine);
+        (!self
+            .declarations
+            .iter()
+            .any(|declaration| view.dependencies(declaration).may_need_style_sheet_resource_context))
+        .then_some(ReadsNoResourceContexts(()))
+    }
+
+    /// What a record computed from the store reads beside its winners.
+    pub(super) fn record_reads(&self, engine: &RetainedState) -> StateRecordReads {
+        StateRecordReads {
+            sibling_position: self.uses_tree_counting_function(engine),
+            no_resource_contexts: self.reads_no_resource_contexts(engine),
+        }
+    }
+
     /// Whether a value the store holds resolves a container-relative length, which the drive
     /// resolves against the element's query containers.
     pub(super) fn reads_container_units(&self, engine: &RetainedState) -> bool {
@@ -198,14 +216,10 @@ impl WinnerStore {
         &self,
         engine: &RetainedState,
     ) -> Vec<crate::css::style_compute::FfiStyleSheetResourceContext> {
-        let view = self.view(engine);
-        if !self
-            .declarations
-            .iter()
-            .any(|declaration| view.dependencies(declaration).may_need_style_sheet_resource_context)
-        {
+        if self.reads_no_resource_contexts(engine).is_some() {
             return Vec::new();
         }
+        let view = self.view(engine);
         self.declarations
             .iter()
             .map(|declaration| {

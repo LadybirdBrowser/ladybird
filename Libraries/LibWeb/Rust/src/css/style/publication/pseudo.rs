@@ -618,10 +618,9 @@ impl RetainedState {
                     // A record that is the element's alone answers for no other pseudo-element.
                     if let Some(key) = key.filter(|_| !self.records_are_the_elements_alone(node)) {
                         scratch.pseudo_cohorts.insert(key, record);
-                        if self.engine_pseudo_record_cache.len() >= COLD_RECORD_CACHE_LIMIT {
-                            self.engine_pseudo_record_cache.clear();
+                        if let Some(no_resource_contexts) = store.reads_no_resource_contexts(self) {
+                            self.remember_pseudo_record(key, record, no_resource_contexts);
                         }
-                        self.engine_pseudo_record_cache.insert(key, record);
                     }
                     (record, longhand_evaluations, detached_composition)
                 }
@@ -645,6 +644,20 @@ impl RetainedState {
         }
         scratch.pseudo_uses_substitution = pseudo_uses_substitution;
         Ok(())
+    }
+
+    /// A later pseudo-element alike in what this record is computed from takes it in a later
+    /// transaction. The cache is small and bounded.
+    fn remember_pseudo_record(
+        &mut self,
+        key: PseudoCohortKey,
+        record: computed::FinalStyleRecordID,
+        _: ReadsNoResourceContexts,
+    ) {
+        if self.engine_pseudo_record_cache.len() >= COLD_RECORD_CACHE_LIMIT {
+            self.engine_pseudo_record_cache.clear();
+        }
+        self.engine_pseudo_record_cache.insert(key, record);
     }
 
     /// Account for a pseudo-element record the engine settled (a removal when `new_style_record`

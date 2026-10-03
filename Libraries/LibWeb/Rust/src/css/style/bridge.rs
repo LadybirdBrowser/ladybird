@@ -3848,7 +3848,7 @@ pub(crate) unsafe fn take_style_transaction(
     mut computation_inputs: FfiDocumentStyleComputationInputs,
 ) -> FfiStyleTransactionOutput {
     // SAFETY: Guaranteed by the caller.
-    let resource_contexts_moved = unsafe { engine.document_resource_contexts.take_in(&mut computation_inputs) };
+    unsafe { engine.document_resource_contexts.take_in(&mut computation_inputs) };
     // SAFETY: The host lends the media environment the inputs name for this call.
     unsafe { engine.document_media.take_in(&mut computation_inputs) };
     // SAFETY: The host lends the custom functions the inputs name for this call.
@@ -3860,9 +3860,10 @@ pub(crate) unsafe fn take_style_transaction(
     if engine.custom_property_registrations_changed {
         engine.custom_property_environments.registrations_changed();
     }
-    if engine.document_style_computation_inputs != computation_inputs || resource_contexts_moved {
+    if engine.document_style_computation_inputs != computation_inputs {
         // Persistent records are derived from every document computation input, not only the
-        // font generation carried in their keys.
+        // font generation carried in their keys. None reads a resource context, so a move of those
+        // keeps them (`ReadsNoResourceContexts`).
         engine.engine_cold_record_cache.clear();
         engine.engine_cold_record_donors.clear();
         engine.engine_pseudo_record_cache.clear();
