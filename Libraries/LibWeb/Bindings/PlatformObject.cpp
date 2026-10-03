@@ -21,12 +21,12 @@ JS::ThrowCompletionOr<bool> ordinary_define_own_property_and_preserve_wrapper_if
 {
     Optional<JS::PropertyDescriptor> own_property;
     if (!precomputed_get_own_property) {
-        own_property = TRY(object.Object::internal_get_own_property(property_name));
+        own_property = TRY(object.ordinary_get_own_property(property_name));
         precomputed_get_own_property = &own_property;
     }
 
     bool already_had_own_property = precomputed_get_own_property->has_value();
-    auto result = TRY(object.Object::internal_define_own_property(property_name, property_descriptor, precomputed_get_own_property));
+    auto result = TRY(object.ordinary_define_own_property(property_name, property_descriptor, precomputed_get_own_property));
     if (result && !already_had_own_property && object.realm().host_defined()) {
         if (auto* wrappable = wrappable_impl_from(&object)) {
             preserve_wrapper(*wrappable, object);
@@ -150,7 +150,7 @@ JS::ThrowCompletionOr<bool> PlatformObject::is_named_property_exposed_on_object(
 
     // 2. If O has an own property named P, then return false.
     // NOTE: This has to be done manually instead of using Object::has_own_property, as that would use the overridden internal_get_own_property.
-    auto own_property_named_p = MUST(Object::internal_get_own_property(property_key));
+    auto own_property_named_p = MUST(ordinary_get_own_property(property_key));
 
     if (own_property_named_p.has_value())
         return false;
@@ -253,7 +253,7 @@ JS::ThrowCompletionOr<Optional<JS::PropertyDescriptor>> PlatformObject::legacy_p
     }
 
     // 3. Return OrdinaryGetOwnProperty(O, P).
-    return TRY(Object::internal_get_own_property(property_name));
+    return TRY(ordinary_get_own_property(property_name));
 }
 
 // https://webidl.spec.whatwg.org/#invoke-indexed-setter
@@ -326,7 +326,7 @@ JS::ThrowCompletionOr<Optional<JS::PropertyDescriptor>> PlatformObject::internal
         // 1. Return ? PlatformObjectGetOwnProperty(O, P, false).
         return TRY(legacy_platform_object_get_own_property(property_name, IgnoreNamedProps::No));
     } else {
-        return Base::internal_get_own_property(property_name);
+        return ordinary_get_own_property(property_name);
     }
 }
 
@@ -334,7 +334,7 @@ JS::ThrowCompletionOr<Optional<JS::PropertyDescriptor>> PlatformObject::internal
 JS::ThrowCompletionOr<bool> PlatformObject::internal_set(JS::PropertyKey const& property_name, JS::Value value, JS::Value receiver, JS::CacheableSetPropertyMetadata* metadata, PropertyLookupPhase phase)
 {
     if (!m_legacy_platform_object_flags.has_value() || m_legacy_platform_object_flags->has_global_interface_extended_attribute)
-        return TRY(Base::internal_set(property_name, value, receiver, metadata, phase));
+        return TRY(ordinary_set(property_name, value, receiver, metadata, phase));
 
     auto& vm = this->vm();
 
@@ -410,7 +410,7 @@ JS::ThrowCompletionOr<bool> PlatformObject::internal_define_own_property(JS::Pro
         if (!m_legacy_platform_object_flags->has_legacy_override_built_ins_interface_extended_attribute) {
             // AD-HOC: Avoid computing the [[GetOwnProperty]] multiple times.
             if (!precomputed_get_own_property) {
-                get_own_property_result = TRY(Object::internal_get_own_property(property_name));
+                get_own_property_result = TRY(ordinary_get_own_property(property_name));
                 precomputed_get_own_property = &get_own_property_result;
             }
         }
@@ -442,7 +442,7 @@ JS::ThrowCompletionOr<bool> PlatformObject::internal_define_own_property(JS::Pro
 JS::ThrowCompletionOr<bool> PlatformObject::internal_delete(JS::PropertyKey const& property_name)
 {
     if (!m_legacy_platform_object_flags.has_value() || m_legacy_platform_object_flags->has_global_interface_extended_attribute)
-        return Base::internal_delete(property_name);
+        return ordinary_delete(property_name);
 
     auto& vm = this->vm();
 
@@ -491,7 +491,7 @@ JS::ThrowCompletionOr<bool> PlatformObject::internal_delete(JS::PropertyKey cons
 
     // 3. If O has an own property with name P, then:
     // NOTE: This has to be done manually instead of using Object::has_own_property, as that would use the overridden internal_get_own_property.
-    auto own_property_named_p_descriptor = TRY(Object::internal_get_own_property(property_name));
+    auto own_property_named_p_descriptor = TRY(ordinary_get_own_property(property_name));
 
     if (own_property_named_p_descriptor.has_value()) {
         // 1. If the property is not configurable, then return false.
@@ -509,7 +509,7 @@ JS::ThrowCompletionOr<bool> PlatformObject::internal_delete(JS::PropertyKey cons
 JS::ThrowCompletionOr<bool> PlatformObject::internal_set_prototype_of(JS::Object* prototype)
 {
     auto* old_prototype = shape().prototype();
-    auto result = TRY(Base::internal_set_prototype_of(prototype));
+    auto result = TRY(ordinary_set_prototype_of(prototype));
     if (result && old_prototype != shape().prototype() && realm().host_defined()) {
         if (auto* wrappable = wrappable_impl())
             preserve_wrapper(*wrappable, *this);
@@ -522,7 +522,7 @@ JS::ThrowCompletionOr<bool> PlatformObject::internal_prevent_extensions()
 {
     if (!m_legacy_platform_object_flags.has_value() || m_legacy_platform_object_flags->has_global_interface_extended_attribute) {
         auto was_extensible = extensible();
-        auto result = TRY(Base::internal_prevent_extensions());
+        auto result = TRY(ordinary_prevent_extensions());
         if (result && was_extensible && !extensible() && realm().host_defined()) {
             if (auto* wrappable = wrappable_impl())
                 preserve_wrapper(*wrappable, *this);
@@ -539,7 +539,7 @@ JS::ThrowCompletionOr<bool> PlatformObject::internal_prevent_extensions()
 JS::ThrowCompletionOr<GC::RootVector<JS::Value>> PlatformObject::internal_own_property_keys() const
 {
     if (!m_legacy_platform_object_flags.has_value() || m_legacy_platform_object_flags->has_global_interface_extended_attribute)
-        return Base::internal_own_property_keys();
+        return ordinary_own_property_keys();
 
     auto& vm = this->vm();
 
@@ -565,17 +565,10 @@ JS::ThrowCompletionOr<GC::RootVector<JS::Value>> PlatformObject::internal_own_pr
     }
 
     // 4. For each P of O’s own property keys that is a String, in ascending chronological order of property creation, append P to keys.
-    // NB: A PropertyKey containing a number is a String (it can only be a String or a Symbol, the number representation is an optimization).
-    shape().for_each_property_in_insertion_order([&](auto const& property_key, auto const&) {
-        if (property_key.is_string() || property_key.is_number())
-            keys.append(property_key.to_value(vm));
-    });
-
     // 5. For each P of O’s own property keys that is a Symbol, in ascending chronological order of property creation, append P to keys.
-    shape().for_each_property_in_insertion_order([&](auto const& property_key, auto const&) {
-        if (property_key.is_symbol() && !property_key.is_private())
-            keys.append(property_key.to_value(vm));
-    });
+    // NB: OrdinaryOwnPropertyKeys lists every String key before any Symbol key, but puts array indices first, in ascending
+    //     numeric order, rather than in order of creation.
+    keys.extend(TRY(ordinary_own_property_keys()));
 
     // FIXME: 6. Assert: keys has no duplicate items.
 

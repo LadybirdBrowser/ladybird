@@ -188,6 +188,20 @@ public:
     // another one can then cache them without reading the metadata itself.
     ThrowCompletionOr<Value> internal_get_as_prototype_of(PropertyKey const&, Value receiver, CacheableGetPropertyMetadata* metadata_for_caller) const;
 
+    // OrdinaryGetPrototypeOf ( O ) through OrdinaryOwnPropertyKeys ( O ), for exotic objects whose internal methods
+    // defer to the ordinary ones. These never dispatch to an override.
+    ThrowCompletionOr<Object*> ordinary_get_prototype_of() const { return Object::internal_get_prototype_of(); }
+    ThrowCompletionOr<bool> ordinary_set_prototype_of(Object* prototype) { return Object::internal_set_prototype_of(prototype); }
+    ThrowCompletionOr<bool> ordinary_is_extensible() const { return Object::internal_is_extensible(); }
+    ThrowCompletionOr<bool> ordinary_prevent_extensions() { return Object::internal_prevent_extensions(); }
+    ThrowCompletionOr<Optional<PropertyDescriptor>> ordinary_get_own_property(PropertyKey const& property_key) const { return Object::internal_get_own_property(property_key); }
+    ThrowCompletionOr<bool> ordinary_define_own_property(PropertyKey const& property_key, PropertyDescriptor& property_descriptor, Optional<PropertyDescriptor>* precomputed_get_own_property = nullptr) { return Object::internal_define_own_property(property_key, property_descriptor, precomputed_get_own_property); }
+    ThrowCompletionOr<bool> ordinary_has_property(PropertyKey const& property_key) const { return Object::internal_has_property(property_key); }
+    ThrowCompletionOr<Value> ordinary_get(PropertyKey const& property_key, Value receiver, CacheableGetPropertyMetadata* cacheable_metadata = nullptr, PropertyLookupPhase phase = PropertyLookupPhase::OwnProperty) const { return Object::internal_get(property_key, receiver, cacheable_metadata, phase); }
+    ThrowCompletionOr<bool> ordinary_set(PropertyKey const& property_key, Value value, Value receiver, CacheableSetPropertyMetadata* cacheable_metadata = nullptr, PropertyLookupPhase phase = PropertyLookupPhase::OwnProperty) { return Object::internal_set(property_key, value, receiver, cacheable_metadata, phase); }
+    ThrowCompletionOr<bool> ordinary_delete(PropertyKey const& property_key) { return Object::internal_delete(property_key); }
+    ThrowCompletionOr<GC::RootVector<Value>> ordinary_own_property_keys() const { return Object::internal_own_property_keys(); }
+
     // NOTE: Any subclass of Object that overrides property access slots ([[Get]], [[Set]] etc)
     //       to customize access to indexed properties (properties where the name is a positive integer)
     //       must return true for this, to opt out of optimizations that rely on assumptions that

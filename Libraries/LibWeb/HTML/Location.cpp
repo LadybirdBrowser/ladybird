@@ -111,7 +111,7 @@ void LocationWrapper::initialize_location_object(JS::Realm& realm)
     //     Pass the known-absent current descriptor explicitly because our lazy initialization may otherwise make
     //     OrdinaryDefineOwnProperty ask Location's custom [[GetOwnProperty]], which can take the cross-origin path.
     Optional<JS::PropertyDescriptor> no_current_property;
-    MUST(JS::Object::internal_define_own_property(vm.names.valueOf, value_of_property_descriptor, &no_current_property));
+    MUST(ordinary_define_own_property(vm.names.valueOf, value_of_property_descriptor, &no_current_property));
 
     // 4. Perform ! location.[[DefineOwnProperty]](%Symbol.toPrimitive%, { [[Value]]: undefined, [[Writable]]: false, [[Enumerable]]: false, [[Configurable]]: false }).
     auto to_primitive_property_descriptor = JS::PropertyDescriptor {
@@ -120,7 +120,7 @@ void LocationWrapper::initialize_location_object(JS::Realm& realm)
         .enumerable = false,
         .configurable = false,
     };
-    MUST(JS::Object::internal_define_own_property(vm.well_known_symbol_to_primitive(), to_primitive_property_descriptor, &no_current_property));
+    MUST(ordinary_define_own_property(vm.well_known_symbol_to_primitive(), to_primitive_property_descriptor, &no_current_property));
 
     // 5. Set the value of the [[DefaultProperties]] internal slot of location to location.[[OwnPropertyKeys]]().
     // NB: [[DefaultProperties]] is only consulted by [[GetOwnProperty]] and [[DefineOwnProperty]] steps that we don't
@@ -132,7 +132,7 @@ JS::ThrowCompletionOr<JS::Object*> LocationWrapper::internal_get_prototype_of() 
 {
     // 1. If IsPlatformObjectSameOrigin(this) is true, then return ! OrdinaryGetPrototypeOf(this).
     if (HTML::is_platform_object_same_origin(impl()))
-        return MUST(JS::Object::internal_get_prototype_of());
+        return MUST(ordinary_get_prototype_of());
 
     // 2. Return null.
     return nullptr;
@@ -167,7 +167,7 @@ JS::ThrowCompletionOr<Optional<JS::PropertyDescriptor>> LocationWrapper::interna
     // 1. If IsPlatformObjectSameOrigin(this) is true, then:
     if (HTML::is_platform_object_same_origin(impl())) {
         // 1. Let desc be OrdinaryGetOwnProperty(this, P).
-        auto descriptor = MUST(JS::Object::internal_get_own_property(property_key));
+        auto descriptor = MUST(ordinary_get_own_property(property_key));
 
         // 2. If the value of the [[DefaultProperties]] internal slot of this contains P, then set desc.[[Configurable]] to true.
         // NB: We don't do this, matching other engines and WPT, which report these properties as non-configurable.
@@ -218,7 +218,7 @@ JS::ThrowCompletionOr<JS::Value> LocationWrapper::internal_get(JS::PropertyKey c
 
     // 1. If IsPlatformObjectSameOrigin(this) is true, then return ? OrdinaryGet(this, P, Receiver).
     if (HTML::is_platform_object_same_origin(impl()))
-        return JS::Object::internal_get(property_key, receiver, cacheable_metadata, phase);
+        return ordinary_get(property_key, receiver, cacheable_metadata, phase);
 
     // 2. Return ? CrossOriginGet(this, P, Receiver).
     return HTML::cross_origin_get(vm, static_cast<JS::Object const&>(*this), property_key, receiver);
@@ -231,7 +231,7 @@ JS::ThrowCompletionOr<bool> LocationWrapper::internal_set(JS::PropertyKey const&
 
     // 1. If IsPlatformObjectSameOrigin(this) is true, then return ? OrdinarySet(this, P, V, Receiver).
     if (HTML::is_platform_object_same_origin(impl()))
-        return JS::Object::internal_set(property_key, value, receiver, cacheable_metadata, phase);
+        return ordinary_set(property_key, value, receiver, cacheable_metadata, phase);
 
     // 2. Return ? CrossOriginSet(this, P, V, Receiver).
     return HTML::cross_origin_set(vm, static_cast<JS::Object&>(*this), property_key, value, receiver);
@@ -242,7 +242,7 @@ JS::ThrowCompletionOr<bool> LocationWrapper::internal_delete(JS::PropertyKey con
 {
     // 1. If IsPlatformObjectSameOrigin(this) is true, then return ? OrdinaryDelete(this, P).
     if (HTML::is_platform_object_same_origin(impl()))
-        return JS::Object::internal_delete(property_key);
+        return ordinary_delete(property_key);
 
     // 2. Throw a "SecurityError" DOMException.
     return throw_completion(realm(), WebIDL::SecurityError::create(realm(), Utf16String::formatted("Can't delete property '{}' on cross-origin object", property_key)));
@@ -253,7 +253,7 @@ JS::ThrowCompletionOr<GC::RootVector<JS::Value>> LocationWrapper::internal_own_p
 {
     // 1. If IsPlatformObjectSameOrigin(this) is true, then return OrdinaryOwnPropertyKeys(this).
     if (HTML::is_platform_object_same_origin(impl()))
-        return JS::Object::internal_own_property_keys();
+        return ordinary_own_property_keys();
 
     // 2. Return CrossOriginOwnPropertyKeys(this).
     return HTML::cross_origin_own_property_keys(impl());

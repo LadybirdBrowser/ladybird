@@ -197,7 +197,7 @@ JS::ThrowCompletionOr<JS::Value> WindowProxy::internal_get(JS::PropertyKey const
                 *cacheable_metadata = window_metadata;
             return value;
         }
-        return JS::Object::internal_get(property_key, receiver);
+        return ordinary_get(property_key, receiver);
     }
 
     // 4. Return ? CrossOriginGet(this, P, Receiver).

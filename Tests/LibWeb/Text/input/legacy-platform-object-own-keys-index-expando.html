@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    test(() => {
+        Object.defineProperty(document, "0", { value: 1, configurable: true, enumerable: true });
+        document.expando = 2;
+        const keys = Reflect.ownKeys(document).filter(key => key === "0" || key === "location" || key === "expando");
+        println(JSON.stringify(keys));
+        println(Object.keys(document).includes("0"));
+    });
+</script>
