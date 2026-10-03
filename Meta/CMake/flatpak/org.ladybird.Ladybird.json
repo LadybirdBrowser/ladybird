@@ -619,7 +619,8 @@
       "build-commands": [
         "./Configure enable-static-engine enable-capieng no-apps no-docs no-tests shared --prefix=/app --openssldir=/app/ssl --libdir=lib",
         "make -j$(nproc)",
-        "make install"
+        "make install",
+        "ln -sf /etc/ssl/certs/ca-certificates.crt /app/ssl/cert.pem"
       ],
       "sources": [
         {
