@@ -30,7 +30,7 @@
                 headers: { Authorization: "Bearer test-token" },
             });
             const echoURL = new URL(url);
-            const recordedHeadersURL = `${echoURL.origin}/recorded-request-headers${echoURL.pathname}`;
+            const recordedHeadersURL = server.recordedRequestHeadersURL(echoURL);
             let preflightHeaders = null;
             for (let attempt = 0; attempt < 100; ++attempt) {
                 try {

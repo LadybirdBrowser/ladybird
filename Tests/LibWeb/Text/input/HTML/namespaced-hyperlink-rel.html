@@ -35,16 +35,15 @@
         document.body.appendChild(anchor);
         anchor.click();
 
-        const recordedHeadersURL = url => new URL(`/recorded-request-headers${url.pathname}`, url);
         for (;;) {
             try {
-                if ((await fetch(recordedHeadersURL(openerURL))).ok) {
+                if ((await fetch(server.recordedRequestHeadersURL(openerURL))).ok) {
                     println("LEAK");
                     break;
                 }
             } catch {}
             try {
-                if ((await fetch(recordedHeadersURL(noOpenerURL))).ok) {
+                if ((await fetch(server.recordedRequestHeadersURL(noOpenerURL))).ok) {
                     println("PASS");
                     break;
                 }

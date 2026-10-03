@@ -45,7 +45,7 @@
     }
 
     async function recordedRequestHeaderNames(url) {
-        const recordedRequestHeadersURL = url.replace("/echo/", "/recorded-request-headers/echo/");
+        const recordedRequestHeadersURL = server.recordedRequestHeadersURL(url);
         const response = await fetch(recordedRequestHeadersURL);
         const headers = await response.json();
         return Object.keys(headers).map(name => name.toLowerCase());
