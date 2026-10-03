@@ -2138,7 +2138,7 @@ private:
     HashMap<Utf16FlyString, CSS::CustomPropertyRegistration> m_cached_registered_properties_from_css_property_rules;
     bool m_needs_registered_properties_cache_update { true };
     size_t m_custom_property_registration_generation { 0 };
-    void* m_rust_custom_property_registry { nullptr };
+    void const* m_rust_custom_property_registry { nullptr };
     bool m_rust_custom_property_registry_synced { false };
 
     CSS::StyleScope m_style_scope;

@@ -10762,7 +10762,8 @@ void Document::sync_custom_property_registrations_to_rust()
         .document_base_url = document_base_url.bytes().data(),
         .document_base_url_length = document_base_url.bytes().size(),
     };
-    CSS::ComputedValuesFFI::rust_custom_property_registry_update(
+    // A style transaction may still read the registry this replaces, so the registry is made anew.
+    m_rust_custom_property_registry = CSS::ComputedValuesFFI::rust_custom_property_registry_update(
         m_rust_custom_property_registry, &context, registrations.data(), registrations.size());
 }
 

@@ -3799,32 +3799,39 @@ mod tests {
     }
 }
 
+/// A document's registry of custom properties, which the document holds a reference to: a style
+/// transaction that read it holds one of its own, so a change makes the registry anew rather than
+/// writing the one a transaction may still read.
 #[unsafe(no_mangle)]
-pub extern "C" fn rust_custom_property_registry_create() -> *mut c_void {
-    Box::into_raw(Box::new(CustomPropertyRegistry::empty())).cast()
+pub extern "C" fn rust_custom_property_registry_create() -> *const c_void {
+    Arc::into_raw(Arc::new(CustomPropertyRegistry::empty())).cast()
 }
 
-/// Replaces the effective registered custom-property names for one document.
+/// Makes the registry of one document anew with its effective registered custom properties,
+/// gives up the document's reference to `registry`, the one it replaces, and answers the new one.
 ///
 /// # Safety
-/// `registry` must be a live pointer returned by `rust_custom_property_registry_create`, and
-/// `registrations` must point at `registration_count` valid entries.
+/// `registry` must be the document's live registry from `rust_custom_property_registry_create`
+/// or this function, which it gives up, and `registrations` must point at `registration_count`
+/// valid entries.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_custom_property_registry_update(
-    registry: *mut c_void,
+    registry: *const c_void,
     context: *const FfiCustomPropertyRegistryContext,
     registrations: *const FfiCustomPropertyRegistration,
     registration_count: usize,
-) {
+) -> *const c_void {
     let Some(context) = (unsafe { context.as_ref() }) else {
-        return;
+        return registry;
     };
     let registrations = if registration_count == 0 {
         &[]
     } else {
         unsafe { std::slice::from_raw_parts(registrations, registration_count) }
     };
-    let registry = unsafe { &mut *registry.cast::<CustomPropertyRegistry>() };
+    // SAFETY: Guaranteed by the caller.
+    drop(unsafe { Arc::from_raw(registry.cast::<CustomPropertyRegistry>()) });
+    let mut registry = CustomPropertyRegistry::empty();
     registry.document_url = unsafe { crate::bytes_from_raw(context.document_url, context.document_url_length) }
         .unwrap_or_default()
         .to_vec();
@@ -3832,12 +3839,6 @@ pub unsafe extern "C" fn rust_custom_property_registry_update(
         unsafe { crate::bytes_from_raw(context.document_base_url, context.document_base_url_length) }
             .unwrap_or_default()
             .to_vec();
-    registry.registrations.clear();
-    registry
-        .parses
-        .get_mut()
-        .expect("the parse memo is not poisoned")
-        .clear();
     registry.registrations.reserve(registrations.len());
     for registration in registrations {
         let name = unsafe { registration.name.to_utf16() }.expect("invalid registered custom property name");
@@ -3869,14 +3870,33 @@ pub unsafe extern "C" fn rust_custom_property_registry_update(
             },
         );
     }
+    Arc::into_raw(Arc::new(registry)).cast()
 }
 
+/// Gives up the document's reference to its registry.
+///
 /// # Safety
-/// `registry` must be a pointer returned by `rust_custom_property_registry_create` that has not
-/// already been destroyed.
+/// `registry` must be the document's live registry, which it gives up once.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_custom_property_registry_destroy(registry: *mut c_void) {
-    drop(unsafe { Box::from_raw(registry.cast::<CustomPropertyRegistry>()) });
+pub unsafe extern "C" fn rust_custom_property_registry_destroy(registry: *const c_void) {
+    drop(unsafe { Arc::from_raw(registry.cast::<CustomPropertyRegistry>()) });
+}
+
+/// Takes a reference of its own to the document registry `registry`, for a style transaction that
+/// reads it beside the document, which may make the document's registry anew meanwhile.
+///
+/// # Safety
+/// `registry` must be null or a document's live registry.
+pub(crate) unsafe fn retain_custom_property_registry(registry: *const c_void) -> Option<Arc<CustomPropertyRegistry>> {
+    let registry = registry.cast::<CustomPropertyRegistry>();
+    if registry.is_null() {
+        return None;
+    }
+    // SAFETY: Guaranteed by the caller.
+    unsafe {
+        Arc::increment_strong_count(registry);
+        Some(Arc::from_raw(registry))
+    }
 }
 
 /// Creates one Rust store node. Each entry transfers a leaked fly-string reference and a
