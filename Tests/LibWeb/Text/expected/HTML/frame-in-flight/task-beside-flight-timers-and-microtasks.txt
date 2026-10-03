@@ -1,0 +1,6 @@
+state next task: in-flight
+state after timer 1: in-flight
+state after timer 2: in-flight
+state after timer 3: in-flight
+state after a posted message: in-flight
+box: 50x12

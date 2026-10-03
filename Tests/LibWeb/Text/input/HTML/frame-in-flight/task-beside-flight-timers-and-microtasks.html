@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<div id="box" style="width: 50px; height: 10px"></div>
+<script>
+    // Tasks and microtasks beside a frame in flight: a chain of timers and promise jobs runs while the frame flies, and
+    // reaches nothing the frame owns.
+    asyncTest(async done => {
+        const states = await whileRecordingInFlight(() => {
+            box.style.height = "12px";
+        }, async state => {
+            const states = [`next task: ${state}`];
+            let count = 0;
+            for (let i = 0; i < 3; ++i) {
+                await new Promise(resolve => setTimeout(resolve, 0));
+                await Promise.resolve();
+                ++count;
+                states.push(`after timer ${count}: ${internals.frameSchedulerState()}`);
+            }
+            await nextTask();
+            states.push(`after a posted message: ${internals.frameSchedulerState()}`);
+            return states;
+        });
+        for (const state of states)
+            println(`state ${state}`);
+        await twoFrames();
+        println(`box: ${box.offsetWidth}x${box.offsetHeight}`);
+        done();
+    });
+</script>

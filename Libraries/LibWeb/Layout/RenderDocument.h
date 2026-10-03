@@ -35,6 +35,9 @@ public:
     // not paid yet. The host keeps it up to date, so asking costs a load.
     bool waits_for_frame() const { return *m_read_scope_view.waits_for_frame; }
 
+    // Whether the document's frame flies beside the host, which has not taken it in yet.
+    bool frame_flies() const;
+
 private:
     friend class ForcedReadScope;
 

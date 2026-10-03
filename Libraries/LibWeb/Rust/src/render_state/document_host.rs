@@ -753,6 +753,18 @@ pub unsafe extern "C" fn document_host_read_scope_view(host: *const DocumentHost
     }
 }
 
+/// Whether the frame of `host`'s document flies, where the host has not taken it in yet, whether or not it landed.
+///
+/// # Safety
+///
+/// `host` must come from [`document_host_create`] and not be destroyed yet, on its document's thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn document_host_frame_flies(host: *const DocumentHost) -> bool {
+    assert!(!host.is_null(), "document host is null");
+    // SAFETY: Guaranteed by the caller.
+    unsafe { &*host }.frame_flies()
+}
+
 /// Destroys `host` and the render state of its document.
 ///
 /// # Safety

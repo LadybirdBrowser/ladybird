@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<img id="image">
+<svg width="40" height="40">
+    <defs><linearGradient id="gradient"><stop id="gradient-stop" offset="0" stop-color="rgb(255, 0, 0)"/></linearGradient></defs>
+    <rect id="rect" width="40" height="40" fill="url(#gradient)"/>
+</svg>
+<div id="box" style="height: 10px"></div>
+<script>
+    // A task beside a frame in flight that an image's data arrives in, and one that edits an SVG paint server: each
+    // marks what it changes for the next rendering update, which lays out and paints with it.
+    const pixel = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
+
+    asyncTest(async done => {
+        const states = await whileRecordingInFlight(() => {
+            box.style.height = "12px";
+        }, async state => {
+            const states = [`next task: ${state}`];
+            image.width = 7;
+            image.src = pixel;
+            await new Promise(resolve => image.addEventListener("load", resolve, { once: true }));
+            states.push(`after the image's data arrived: ${internals.frameSchedulerState()}`);
+            document.getElementById("gradient-stop").setAttribute("stop-color", "rgb(0, 128, 0)");
+            states.push(`after an SVG gradient edit: ${internals.frameSchedulerState()}`);
+            return states;
+        });
+        for (const state of states)
+            println(`state ${state}`);
+        await twoFrames();
+        println(`image: ${image.offsetWidth}x${image.offsetHeight} complete ${image.complete}`);
+        println(`stop color: ${getComputedStyle(document.getElementById("gradient-stop")).stopColor}`);
+        println(`box height: ${box.offsetHeight}`);
+        done();
+    });
+</script>

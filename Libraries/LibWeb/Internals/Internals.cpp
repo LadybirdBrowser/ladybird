@@ -1665,7 +1665,12 @@ void Internals::inject_rendering_opportunity(double frame_time_ms)
 
 Utf16String Internals::frame_scheduler_state() const
 {
-    return HTML::main_thread_event_loop().has_frame_in_flight() ? "in-flight"_utf16 : "idle"_utf16;
+    auto const& event_loop = HTML::main_thread_event_loop();
+    if (event_loop.has_frame_in_flight())
+        return "in-flight"_utf16;
+    if (event_loop.has_rendering_update_in_flight())
+        return "landed"_utf16;
+    return "idle"_utf16;
 }
 
 void Internals::hold_next_frame()

@@ -1,0 +1,9 @@
+state next task: in-flight
+state after removing an element with random values: landed
+state after inserting it again: landed
+state after removing a list item: landed
+state after removing a subtree with boxes: landed
+random width kept: true
+target parent: second, height 5
+list items: 3, height: 30
+doomed connected: false, body children: 5

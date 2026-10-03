@@ -1,6 +1,6 @@
 added: state in the next task: in-flight
-added: state after the change: in-flight
+added: state after the change: landed
 added: the text width changed: true
 deleted: state in the next task: in-flight
-deleted: state after the change: in-flight
+deleted: state after the change: landed
 deleted: the text width is back: true

@@ -1,0 +1,6 @@
+state next task: in-flight
+state after a first-seen class: landed
+state after a first-seen id: landed
+state after a first-seen attribute value: landed
+state after registerProperty(): landed
+box: first-seen-id 60x15 rgb(0, 128, 0) rgb(0, 0, 255)

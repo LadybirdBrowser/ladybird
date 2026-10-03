@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    #box { width: 50px; height: 10px; }
+</style>
+<div id="box"></div>
+<script>
+    // A task beside a frame in flight that writes and then reads in the same task: the read waits for the frame, and
+    // sees the write.
+    asyncTest(async done => {
+        const result = await whileRecordingInFlight(() => {
+            box.style.height = "12px";
+        }, state => {
+            box.style.width = "70px";
+            const width = getComputedStyle(box).width;
+            return { state, width, afterRead: internals.frameSchedulerState(), offsetWidth: box.offsetWidth };
+        });
+        println(`state next task: ${result.state}`);
+        println(`read beside the frame: ${result.width}, ${result.offsetWidth}`);
+        println(`state after the read: ${result.afterRead}`);
+        await twoFrames();
+        println(`box: ${box.offsetWidth}x${box.offsetHeight}`);
+        done();
+    });
+</script>
