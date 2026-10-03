@@ -13,6 +13,9 @@
 #include <LibJS/HostObjectABI.h>
 #include <LibJS/Runtime/Completion.h>
 #include <LibJS/Runtime/FunctionObject.h>
+#include <LibJS/Runtime/HostArray.h>
+#include <LibJS/Runtime/HostFunction.h>
+#include <LibJS/Runtime/HostModule.h>
 #include <LibJS/Runtime/HostObject.h>
 #include <LibJS/Runtime/Object.h>
 #include <LibJS/Runtime/PropertyDescriptor.h>
@@ -49,6 +52,10 @@ static_assert(alignof(JSPropertyKey) == alignof(PropertyKey));
 static_assert(offsetof(JSPropertyKey, bits) == 0);
 static_assert(to_underlying(Object::PropertyLookupPhase::OwnProperty) == JS_PROPERTY_LOOKUP_PHASE_OWN_PROPERTY);
 static_assert(to_underlying(Object::PropertyLookupPhase::PrototypeChain) == JS_PROPERTY_LOOKUP_PHASE_PROTOTYPE_CHAIN);
+static_assert(static_cast<int>(ResolvedBinding::BindingName) == JS_RESOLVED_BINDING_BINDING_NAME);
+static_assert(static_cast<int>(ResolvedBinding::Namespace) == JS_RESOLVED_BINDING_NAMESPACE);
+static_assert(static_cast<int>(ResolvedBinding::Ambiguous) == JS_RESOLVED_BINDING_AMBIGUOUS);
+static_assert(static_cast<int>(ResolvedBinding::Null) == JS_RESOLVED_BINDING_NULL);
 
 inline JSValue value_to_abi(Value value)
 {
@@ -176,6 +183,76 @@ inline Optional<PropertyDescriptor> property_descriptor_from_abi(JSPropertyDescr
     if (flags & JS_PD_HAS_PROPERTY_OFFSET)
         descriptor.property_offset = abi_descriptor.property_offset;
     return descriptor;
+}
+
+inline JSVM* vm_to_abi(VM& vm)
+{
+    return reinterpret_cast<JSVM*>(&vm);
+}
+
+inline VM& vm_from_abi(JSVM* vm)
+{
+    return *reinterpret_cast<VM*>(vm);
+}
+
+inline JSModule* module_to_abi(Module const* module)
+{
+    return reinterpret_cast<JSModule*>(const_cast<Module*>(module));
+}
+
+inline Module* module_from_abi(JSModule* module)
+{
+    return reinterpret_cast<Module*>(module);
+}
+
+inline JSPromiseCapability* promise_capability_to_abi(GC::Ptr<PromiseCapability> capability)
+{
+    return reinterpret_cast<JSPromiseCapability*>(capability.ptr());
+}
+
+inline GC::Ptr<PromiseCapability> promise_capability_from_abi(JSPromiseCapability* capability)
+{
+    return reinterpret_cast<PromiseCapability*>(capability);
+}
+
+inline u8 resolved_binding_type_to_abi(ResolvedBinding::Type type)
+{
+    return static_cast<u8>(type);
+}
+
+inline ResolvedBinding::Type resolved_binding_type_from_abi(u8 type)
+{
+    VERIFY(type <= JS_RESOLVED_BINDING_NULL);
+    return static_cast<ResolvedBinding::Type>(type);
+}
+
+inline Utf16FlyString string_from_abi(u16 const* code_units, size_t length_in_code_units)
+{
+    return Utf16FlyString::from_utf16(Utf16View { reinterpret_cast<char16_t const*>(code_units), length_in_code_units });
+}
+
+// Strings cross the ABI as 16-bit code units, which an ASCII string only has once widened.
+template<typename Callback>
+void with_string_as_abi(Utf16FlyString const& string, Callback callback)
+{
+    auto view = string.view();
+    if (!view.has_ascii_storage()) {
+        auto code_units = view.utf16_span();
+        callback(reinterpret_cast<u16 const*>(code_units.data()), code_units.size());
+        return;
+    }
+    Vector<u16, 64> widened_code_units;
+    widened_code_units.ensure_capacity(view.length_in_code_units());
+    for (auto ascii_character : view.ascii_span())
+        widened_code_units.unchecked_append(static_cast<u8>(ascii_character));
+    callback(widened_code_units.data(), widened_code_units.size());
+}
+
+inline void append_string_to_abi_sink(JSStringSink& sink, Utf16FlyString const& string)
+{
+    with_string_as_abi(string, [&](u16 const* code_units, size_t length_in_code_units) {
+        sink.append(sink.context, code_units, length_in_code_units);
+    });
 }
 
 inline JSCompletion normal_completion_to_abi(u64 payload)
@@ -320,6 +397,80 @@ struct HostObjectHookThunks {
     }
 };
 
+template<typename Traits>
+struct HostFunctionHookThunks {
+    static HostFunction& host_function_from_abi(JSObject* function)
+    {
+        return static_cast<HostFunction&>(*object_from_abi(function));
+    }
+
+    static JSCompletion call(JSObject* function, JSVM* vm)
+    {
+        return completion_to_abi(Traits::call(host_function_from_abi(function), vm_from_abi(vm)));
+    }
+
+    static JSCompletion construct(JSObject* function, JSVM* vm, JSObject* new_target)
+    {
+        return completion_to_abi(Traits::construct(host_function_from_abi(function), vm_from_abi(vm), static_cast<FunctionObject&>(*object_from_abi(new_target))));
+    }
+
+    static void finalize(JSObject* function)
+    {
+        Traits::finalize(host_function_from_abi(function));
+    }
+};
+
+template<typename Traits>
+struct HostArrayHookThunks {
+    static HostArray& host_array_from_abi(JSObject* array)
+    {
+        return static_cast<HostArray&>(*object_from_abi(array));
+    }
+
+    static JSCompletion set(JSObject* array, JSPropertyKey property_key, JSValue value, JSValue receiver, JSSetCacheMetadata* metadata, u8 phase)
+    {
+        return completion_to_abi(Traits::set(host_array_from_abi(array), property_key_from_abi(property_key), value_from_abi(value), value_from_abi(receiver), set_cache_metadata_from_abi(metadata), lookup_phase_from_abi(phase)));
+    }
+
+    static JSCompletion delete_property(JSObject* array, JSPropertyKey property_key)
+    {
+        return completion_to_abi(Traits::delete_property(host_array_from_abi(array), property_key_from_abi(property_key)));
+    }
+};
+
+template<typename Traits>
+struct HostModuleHookThunks {
+    static HostModule& host_module_from_abi(JSModule* module)
+    {
+        return static_cast<HostModule&>(*module_from_abi(module));
+    }
+
+    static void get_exported_names(JSModule* module, JSStringSink* names)
+    {
+        for (auto const& name : Traits::get_exported_names(host_module_from_abi(module)))
+            append_string_to_abi_sink(*names, name);
+    }
+
+    static void resolve_export(JSModule* module, u16 const* export_name, size_t export_name_length, JSResolvedBinding* out)
+    {
+        auto binding = Traits::resolve_export(host_module_from_abi(module), string_from_abi(export_name, export_name_length));
+        out->type = resolved_binding_type_to_abi(binding.type);
+        out->module = module_to_abi(binding.module.ptr());
+        if (binding.type == ResolvedBinding::BindingName)
+            append_string_to_abi_sink(out->binding_name, binding.export_name);
+    }
+
+    static JSCompletion initialize_environment(JSModule* module)
+    {
+        return completion_to_abi(Traits::initialize_environment(host_module_from_abi(module)));
+    }
+
+    static JSCompletion execute_module(JSModule* module, JSPromiseCapability* capability)
+    {
+        return completion_to_abi(Traits::execute_module(host_module_from_abi(module), promise_capability_from_abi(capability)));
+    }
+};
+
 }
 
 namespace JS {
@@ -358,6 +509,45 @@ consteval JSHostObjectHooks make_host_object_hooks()
     if constexpr (requires { &Traits::finalize; })
         hooks.finalize = &Thunks::finalize;
     return hooks;
+}
+
+template<typename Traits>
+consteval JSHostFunctionHooks make_host_function_hooks()
+{
+    using Thunks = HostABI::HostFunctionHookThunks<Traits>;
+    JSHostFunctionHooks hooks {};
+    if constexpr (requires { &Traits::call; })
+        hooks.call = &Thunks::call;
+    if constexpr (requires { &Traits::construct; })
+        hooks.construct = &Thunks::construct;
+    if constexpr (requires { &Traits::finalize; })
+        hooks.finalize = &Thunks::finalize;
+    return hooks;
+}
+
+template<typename Traits>
+consteval JSHostArrayHooks make_host_array_hooks()
+{
+    using Thunks = HostABI::HostArrayHookThunks<Traits>;
+    JSHostArrayHooks hooks {};
+    if constexpr (requires { &Traits::set; })
+        hooks.set = &Thunks::set;
+    if constexpr (requires { &Traits::delete_property; })
+        hooks.delete_property = &Thunks::delete_property;
+    return hooks;
+}
+
+// All four module hooks are required.
+template<typename Traits>
+consteval JSHostModuleHooks make_host_module_hooks()
+{
+    using Thunks = HostABI::HostModuleHookThunks<Traits>;
+    return JSHostModuleHooks {
+        .get_exported_names = &Thunks::get_exported_names,
+        .resolve_export = &Thunks::resolve_export,
+        .initialize_environment = &Thunks::initialize_environment,
+        .execute_module = &Thunks::execute_module,
+    };
 }
 
 consteval JSHostClass make_host_class(u8 kind, StringView name, JSHostClass const* parent, void const* hooks, void const* user_data, u32 flags)

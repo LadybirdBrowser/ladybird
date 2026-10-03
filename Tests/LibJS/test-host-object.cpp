@@ -12,10 +12,17 @@
 #include <LibGC/WeakInlines.h>
 #include <LibJS/HostClassBuilder.h>
 #include <LibJS/Runtime/Error.h>
+#include <LibJS/Runtime/ErrorConstructor.h>
 #include <LibJS/Runtime/GlobalObject.h>
+#include <LibJS/Runtime/HostArray.h>
+#include <LibJS/Runtime/HostFunction.h>
+#include <LibJS/Runtime/HostModule.h>
 #include <LibJS/Runtime/HostObject.h>
+#include <LibJS/Runtime/ModuleEnvironment.h>
 #include <LibJS/Runtime/NativeFunction.h>
 #include <LibJS/Runtime/PrimitiveString.h>
+#include <LibJS/Runtime/Promise.h>
+#include <LibJS/Runtime/PromiseCapability.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibJS/Script.h>
@@ -93,9 +100,9 @@ bool key_is(JS::PropertyKey const& property_key, StringView name)
     return property_key.is_string() && property_key.as_string() == Utf16FlyString::from_utf8(name);
 }
 
-JS::Completion hook_error(JS::HostObject const& object, StringView hook)
+JS::Completion hook_error(JS::Cell const& cell, StringView hook)
 {
-    return object.vm().throw_completion<JS::TypeError>(Utf16String::formatted("{} threw", hook));
+    return cell.vm().throw_completion<JS::TypeError>(Utf16String::formatted("{} threw", hook));
 }
 
 bool s_keyless_hooks_throw = false;
@@ -773,4 +780,309 @@ TEST_CASE(get_as_prototype_of_passes_on_only_cacheable_prototype_chain_hits)
     EXPECT(host_metadata.type == JS::CacheableGetPropertyMetadata::Type::NotCacheable);
 
     EXPECT_EQ(MUST(holder->internal_get_as_prototype_of(own_key, receiver, nullptr)), JS::Value(2));
+}
+
+namespace {
+
+size_t s_finalized_host_functions = 0;
+
+// Sums its arguments, and throws when there are none.
+struct AdderTraits {
+    static JS::ThrowCompletionOr<JS::Value> call(JS::HostFunction& function, JS::VM& vm)
+    {
+        if (vm.argument_count() == 0)
+            return hook_error(function, "call"sv);
+        double sum = 0;
+        for (size_t i = 0; i < vm.argument_count(); ++i)
+            sum += TRY(vm.argument(i).to_double(vm));
+        return JS::Value(sum);
+    }
+
+    static void finalize(JS::HostFunction&) { ++s_finalized_host_functions; }
+};
+
+// Makes { value } objects from new.target's prototype, and throws without an argument.
+struct MakerTraits {
+    static JS::ThrowCompletionOr<JS::Value> call(JS::HostFunction& function, JS::VM&)
+    {
+        return hook_error(function, "call"sv);
+    }
+
+    static JS::ThrowCompletionOr<GC::Ref<JS::Object>> construct(JS::HostFunction& function, JS::VM& vm, JS::FunctionObject& new_target)
+    {
+        if (vm.argument_count() == 0)
+            return hook_error(function, "construct"sv);
+        auto& realm = *vm.current_realm();
+        auto prototype = TRY(new_target.get(vm.names.prototype));
+        auto object = JS::Object::create(realm, prototype.is_object() ? &prototype.as_object() : realm.intrinsics().object_prototype().ptr());
+        object->define_direct_property("value"_utf16_fly_string, vm.argument(0), JS::default_attributes);
+        return object;
+    }
+};
+
+constexpr JSHostFunctionHooks adder_hooks = JS::make_host_function_hooks<AdderTraits>();
+constexpr JSHostClass adder_class = JS::make_host_class(JS_HOST_CLASS_FUNCTION, "Adder"sv, nullptr, &adder_hooks, nullptr, 0);
+constexpr JSHostFunctionHooks maker_hooks = JS::make_host_function_hooks<MakerTraits>();
+constexpr JSHostClass maker_class = JS::make_host_class(JS_HOST_CLASS_FUNCTION, "Maker"sv, nullptr, &maker_hooks, nullptr, JS_HOST_CLASS_HAS_CONSTRUCTOR);
+
+Optional<JS::Value> s_last_deleted_element;
+
+// Doubles numbers stored at indices and rejects negative ones, then lets the array store them.
+struct DoublingArrayTraits {
+    static JS::ThrowCompletionOr<bool> set(JS::HostArray& array, JS::PropertyKey const& property_key, JS::Value value, JS::Value receiver, JS::CacheableSetPropertyMetadata* metadata, JS::Object::PropertyLookupPhase phase)
+    {
+        if (property_key.is_number() && value.is_number()) {
+            if (value.as_double() < 0)
+                return hook_error(array, "set"sv);
+            value = JS::Value(value.as_double() * 2);
+        }
+        return array.array_set(property_key, value, receiver, metadata, phase);
+    }
+
+    static JS::ThrowCompletionOr<bool> delete_property(JS::HostArray& array, JS::PropertyKey const& property_key)
+    {
+        if (key_is(property_key, "throwing"sv))
+            return hook_error(array, "delete_property"sv);
+        if (property_key.is_number()) {
+            if (auto element = array.indexed_get(property_key.as_number()); element.has_value())
+                s_last_deleted_element = element->value;
+        }
+        return array.array_delete(property_key);
+    }
+};
+
+constexpr JSHostArrayHooks doubling_array_hooks = JS::make_host_array_hooks<DoublingArrayTraits>();
+constexpr JSHostClass doubling_array_class = JS::make_host_class(JS_HOST_CLASS_ARRAY, "DoublingArray"sv, nullptr, &doubling_array_hooks, nullptr, JS_HOST_CLASS_MAY_INTERFERE_WITH_INDEXED_PROPERTY_ACCESS);
+constexpr JSHostClass hookless_array_class = JS::make_host_class(JS_HOST_CLASS_ARRAY, "HooklessArray"sv, nullptr, nullptr, nullptr, 0);
+
+bool s_module_environment_throws = false;
+bool s_module_execution_throws = false;
+
+Vector<Utf16FlyString> exported_names_of_test_module()
+{
+    return { "answer"_utf16_fly_string, Utf16FlyString::from_utf8("名前"sv) };
+}
+
+// Exports two bindings and fills them in when executed, like a WebAssembly module record.
+struct ExportingModuleTraits {
+    static Vector<Utf16FlyString> get_exported_names(JS::HostModule&)
+    {
+        return exported_names_of_test_module();
+    }
+
+    static JS::ResolvedBinding resolve_export(JS::HostModule& module, Utf16FlyString const& export_name)
+    {
+        if (exported_names_of_test_module().contains_slow(export_name))
+            return JS::ResolvedBinding { JS::ResolvedBinding::Type::BindingName, &module, export_name };
+        return JS::ResolvedBinding::null();
+    }
+
+    static JS::ThrowCompletionOr<void> initialize_environment(JS::HostModule& module)
+    {
+        if (s_module_environment_throws)
+            return hook_error(module, "initialize_environment"sv);
+        auto& vm = module.vm();
+        auto environment = vm.heap().allocate<JS::ModuleEnvironment>(nullptr);
+        module.set_environment(environment);
+        for (auto const& name : exported_names_of_test_module())
+            MUST(environment->create_immutable_binding(vm, name, true));
+        return {};
+    }
+
+    static JS::ThrowCompletionOr<void> execute_module(JS::HostModule& module, GC::Ptr<JS::PromiseCapability> capability)
+    {
+        VERIFY(!capability);
+        if (s_module_execution_throws)
+            return hook_error(module, "execute_module"sv);
+        auto& vm = module.vm();
+        auto names = exported_names_of_test_module();
+        MUST(module.environment()->initialize_binding(vm, names[0], JS::Value(42), JS::Environment::InitializeBindingHint::Normal));
+        MUST(module.environment()->initialize_binding(vm, names[1], JS::PrimitiveString::create(vm, "value"_utf16), JS::Environment::InitializeBindingHint::Normal));
+        return {};
+    }
+};
+
+constexpr JSHostModuleHooks exporting_module_hooks = JS::make_host_module_hooks<ExportingModuleTraits>();
+constexpr JSHostClass exporting_module_class = JS::make_host_class(JS_HOST_CLASS_MODULE, "ExportingModule"sv, nullptr, &exporting_module_hooks, nullptr, 0);
+
+NEVER_INLINE void allocate_unreachable_host_functions(JS::Realm& realm, size_t count)
+{
+    for (size_t i = 0; i < count; ++i)
+        (void)JS::HostFunction::create(realm, adder_class, "add"_utf16_fly_string, 2);
+}
+
+String message_of(JS::Value error)
+{
+    return error.as_object().get_without_side_effects("message"_utf16_fly_string).to_utf16_string_without_side_effects().to_utf8();
+}
+
+}
+
+TEST_CASE(host_function_calls)
+{
+    TestEnvironment environment;
+    auto& realm = environment.realm();
+    auto host_data = realm.heap().allocate<TestHostData>();
+    auto adder = JS::HostFunction::create(realm, adder_class, "add"_utf16_fly_string, 2, nullptr, host_data);
+    environment.define_global("add"sv, adder);
+
+    EXPECT_EQ(environment.evaluate("add(1, 2, 3)"sv), "6"sv);
+    EXPECT_EQ(environment.evaluate("typeof add"sv), "function"sv);
+    EXPECT_EQ(environment.evaluate("Object.getOwnPropertyNames(add).join()"sv), "length,name"sv);
+    EXPECT_EQ(environment.evaluate("add.name + add.length"sv), "add2"sv);
+    EXPECT_EQ(environment.evaluate("Object.getPrototypeOf(add) === Function.prototype"sv), "true"sv);
+    EXPECT_EQ(environment.exception_from("add()"sv), "TypeError: call threw"sv);
+    EXPECT(environment.exception_from("new add(1)"sv).starts_with_bytes("TypeError: "sv));
+
+    EXPECT_EQ(adder->class_name(), "Adder"sv);
+    EXPECT_EQ(adder->name(), "add"_utf16_fly_string);
+    EXPECT(!adder->has_constructor());
+    EXPECT_EQ(adder->realm(), &realm);
+    EXPECT_EQ(JS::host_class_of(*adder), &adder_class);
+    EXPECT(is<JS::HostFunction>(static_cast<JS::Object&>(*adder)));
+    EXPECT(!is<JS::HostObject>(static_cast<JS::Object&>(*adder)));
+    EXPECT_EQ(JS::host_data_if<TestHostData>(*adder), host_data.ptr());
+}
+
+TEST_CASE(host_function_constructs)
+{
+    TestEnvironment environment;
+    auto& realm = environment.realm();
+    auto& vm = environment.vm();
+    auto maker = JS::HostFunction::create(realm, maker_class, "Maker"_utf16_fly_string, 1);
+    maker->define_direct_property(vm.names.prototype, JS::Object::create(realm, realm.intrinsics().object_prototype()), 0);
+    environment.define_global("Maker"sv, maker);
+
+    EXPECT(maker->has_constructor());
+    EXPECT_EQ(environment.evaluate("const made = new Maker(5); made.value + ' ' + (made instanceof Maker)"sv), "5 true"sv);
+    EXPECT_EQ(environment.evaluate("class Derived extends Maker {} const derived = new Derived(3); derived.value + ' ' + (derived instanceof Derived)"sv), "3 true"sv);
+    EXPECT_EQ(environment.exception_from("new Maker()"sv), "TypeError: construct threw"sv);
+    EXPECT_EQ(environment.exception_from("Maker(1)"sv), "TypeError: call threw"sv);
+}
+
+TEST_CASE(host_function_without_own_properties)
+{
+    TestEnvironment environment;
+    auto& realm = environment.realm();
+    auto& vm = environment.vm();
+    auto function = JS::HostFunction::create_without_own_properties(realm, adder_class, "bare"_utf16_fly_string, realm.intrinsics().error_constructor());
+    environment.define_global("bare"sv, function);
+
+    EXPECT_EQ(environment.evaluate("Object.getOwnPropertyNames(bare).length"sv), "0"sv);
+    EXPECT_EQ(environment.evaluate("Object.getPrototypeOf(bare) === Error"sv), "true"sv);
+
+    function->define_direct_property(vm.names.prototype, JS::Object::create(realm, nullptr), 0);
+    function->define_direct_property(vm.names.name, JS::PrimitiveString::create(vm, "bare"_utf16), JS::Attribute::Configurable);
+    function->define_direct_property(vm.names.length, JS::Value(1), JS::Attribute::Configurable);
+    EXPECT_EQ(environment.evaluate("Object.getOwnPropertyNames(bare).join()"sv), "prototype,name,length"sv);
+}
+
+TEST_CASE(host_function_finalize_hook)
+{
+    TestEnvironment environment;
+    environment.vm().heap().set_incremental_sweep_enabled(false);
+
+    s_finalized_host_functions = 0;
+    allocate_unreachable_host_functions(environment.realm(), 32);
+    scrub_stack();
+    environment.vm().heap().collect_garbage();
+    EXPECT(s_finalized_host_functions > 0);
+}
+
+TEST_CASE(host_array_hooks)
+{
+    TestEnvironment environment;
+    auto& realm = environment.realm();
+    auto host_data = realm.heap().allocate<TestHostData>();
+    auto array = JS::HostArray::create(realm, doubling_array_class, nullptr, host_data);
+    environment.define_global("doubling"sv, array);
+
+    EXPECT_EQ(environment.evaluate("doubling[0] = 2; doubling[1] = 5; doubling.push(7); doubling.join()"sv), "4,10,14"sv);
+    EXPECT_EQ(environment.evaluate("doubling.length + ' ' + Array.isArray(doubling)"sv), "3 true"sv);
+    EXPECT_EQ(environment.evaluate("Object.getPrototypeOf(doubling) === Array.prototype"sv), "true"sv);
+
+    s_last_deleted_element.clear();
+    EXPECT_EQ(environment.evaluate("delete doubling[1]"sv), "true"sv);
+    EXPECT_EQ(s_last_deleted_element, JS::Value(10));
+    EXPECT_EQ(environment.evaluate("doubling.length + ' ' + (1 in doubling)"sv), "3 false"sv);
+
+    EXPECT_EQ(environment.exception_from("doubling[0] = -1"sv), "TypeError: set threw"sv);
+    EXPECT_EQ(environment.exception_from("delete doubling.throwing"sv), "TypeError: delete_property threw"sv);
+    EXPECT_EQ(environment.evaluate("doubling[0]"sv), "4"sv);
+
+    EXPECT(array->may_interfere_with_indexed_property_access());
+    EXPECT_EQ(array->class_name(), "DoublingArray"sv);
+    EXPECT_EQ(JS::host_class_of(*array), &doubling_array_class);
+    EXPECT(is<JS::HostArray>(static_cast<JS::Object&>(*array)));
+    EXPECT_EQ(JS::host_data_if<TestHostData>(*array), host_data.ptr());
+}
+
+TEST_CASE(host_array_without_hooks_is_an_array)
+{
+    TestEnvironment environment;
+    auto& realm = environment.realm();
+    auto array = JS::HostArray::create(realm, hookless_array_class);
+    environment.define_global("hookless"sv, array);
+
+    EXPECT_EQ(environment.evaluate("hookless.push(1, 2); hookless[5] = 3; delete hookless[0]; hookless.length + ' ' + JSON.stringify(hookless)"sv), "6 [null,2,null,null,null,3]"sv);
+    EXPECT(!array->may_interfere_with_indexed_property_access());
+}
+
+TEST_CASE(host_module_links_and_evaluates)
+{
+    TestEnvironment environment;
+    auto& realm = environment.realm();
+    auto& vm = environment.vm();
+    auto host_data = realm.heap().allocate<TestHostData>();
+    auto module = JS::HostModule::create(realm, exporting_module_class, "exporting.wasm"sv, {}, nullptr, host_data);
+
+    EXPECT_EQ(module->class_name(), "ExportingModule"sv);
+    EXPECT_EQ(JS::host_class_of(static_cast<JS::Module const&>(*module)), &exporting_module_class);
+    EXPECT(JS::is_host_instance_of(*module, exporting_module_class));
+    EXPECT_EQ(JS::host_data_if<TestHostData>(*module), host_data.ptr());
+    EXPECT_EQ(JS::host_data_if<OtherTestHostData>(*module), nullptr);
+
+    EXPECT_EQ(module->get_exported_names(vm), exported_names_of_test_module());
+
+    auto non_ascii_name = exported_names_of_test_module()[1];
+    auto binding = module->resolve_export(vm, non_ascii_name);
+    EXPECT(binding.type == JS::ResolvedBinding::BindingName);
+    EXPECT_EQ(binding.module.ptr(), static_cast<JS::Module*>(module.ptr()));
+    EXPECT_EQ(binding.export_name, non_ascii_name);
+    EXPECT(module->resolve_export(vm, "missing"_utf16_fly_string).type == JS::ResolvedBinding::Null);
+
+    module->load_requested_modules({});
+    MUST(module->link(vm));
+    auto evaluation = MUST(module->evaluate(vm));
+    EXPECT(static_cast<JS::Promise&>(*evaluation->promise()).state() == JS::Promise::State::Fulfilled);
+
+    environment.define_global("namespaceObject"sv, module->get_module_namespace(vm));
+    EXPECT_EQ(environment.evaluate("Object.keys(namespaceObject).length + ' ' + namespaceObject.answer"sv), "2 42"sv);
+    EXPECT_EQ(environment.evaluate("namespaceObject[Object.keys(namespaceObject)[1]]"sv), "value"sv);
+    EXPECT_EQ(environment.evaluate("Object.keys(namespaceObject)[1].charCodeAt(0)"sv), "21517"sv);
+}
+
+TEST_CASE(host_module_hooks_throw)
+{
+    TestEnvironment environment;
+    auto& realm = environment.realm();
+    auto& vm = environment.vm();
+
+    auto unlinkable = JS::HostModule::create(realm, exporting_module_class, "unlinkable.wasm"sv, {});
+    unlinkable->load_requested_modules({});
+    s_module_environment_throws = true;
+    auto link_result = unlinkable->link(vm);
+    s_module_environment_throws = false;
+    VERIFY(link_result.is_error());
+    EXPECT_EQ(message_of(link_result.error_value()), "initialize_environment threw"sv);
+
+    auto failing = JS::HostModule::create(realm, exporting_module_class, "failing.wasm"sv, {});
+    failing->load_requested_modules({});
+    MUST(failing->link(vm));
+    s_module_execution_throws = true;
+    auto evaluation = MUST(failing->evaluate(vm));
+    s_module_execution_throws = false;
+    auto& promise = static_cast<JS::Promise&>(*evaluation->promise());
+    VERIFY(promise.state() == JS::Promise::State::Rejected);
+    EXPECT_EQ(message_of(promise.result()), "execute_module threw"sv);
 }

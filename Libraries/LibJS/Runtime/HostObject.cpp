@@ -6,7 +6,9 @@
 
 #include <LibJS/HostClassBuilder.h>
 #include <LibJS/Runtime/ErrorData.h>
+#include <LibJS/Runtime/HostArray.h>
 #include <LibJS/Runtime/HostClassInternals.h>
+#include <LibJS/Runtime/HostFunction.h>
 #include <LibJS/Runtime/HostObject.h>
 #include <LibJS/Runtime/Realm.h>
 
@@ -236,6 +238,10 @@ GC::Ptr<GC::Cell> host_data_of(Object const& object)
     switch (host_class->kind) {
     case JS_HOST_CLASS_OBJECT:
         return static_cast<HostObject const&>(object).host_data();
+    case JS_HOST_CLASS_FUNCTION:
+        return static_cast<HostFunction const&>(object).host_data();
+    case JS_HOST_CLASS_ARRAY:
+        return static_cast<HostArray const&>(object).host_data();
     default:
         VERIFY_NOT_REACHED();
     }
