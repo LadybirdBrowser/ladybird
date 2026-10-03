@@ -423,13 +423,12 @@ pub unsafe extern "C" fn layout_text_word_range(
     primary: NodeSlotId,
     dom_offset: usize,
 ) -> FfiTextSourceRange {
-    use crate::render_state::{Answer, ArenaAnswer, ArenaQuery, LockstepProof, Query, ask};
+    use crate::render_state::{ArenaAnswer, ArenaQuery, LockstepProof, ask};
     assert!(!host.is_null(), "document host is null");
-    let query = Query::Arena(ArenaQuery::WordRange { primary, dom_offset });
+    let query = ArenaQuery::WordRange { primary, dom_offset };
     // SAFETY: Guaranteed by the caller.
     let host = unsafe { &*host };
-    let Answer::Arena(ArenaAnswer::Range(range)) = ask(LockstepProof::for_reason(&INPUT_SELECTS_BY_WORD), host, query)
-    else {
+    let ArenaAnswer::Range(range) = ask(LockstepProof::for_reason(&INPUT_SELECTS_BY_WORD), host, query) else {
         unreachable!("a word range is answered with a range");
     };
     range

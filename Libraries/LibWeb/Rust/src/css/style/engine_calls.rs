@@ -566,14 +566,11 @@ const ENGINE_DOOR: EngineDoor = EngineDoor { _private: () };
 ///
 /// `host` must be a live document host, on its document's thread.
 pub(crate) unsafe fn ask_engine(host: *const DocumentHost, query: StyleQuery) -> StyleAnswer {
-    use crate::render_state::{Answer, LockstepProof, Query, ask};
+    use crate::render_state::{LockstepProof, ask};
     assert!(!host.is_null(), "document host is null");
     // SAFETY: Guaranteed by the caller.
     let host = unsafe { &*host };
-    let Answer::Style(answer) = ask(LockstepProof::for_reason(&ENGINE_DOOR), host, Query::Engine(query)) else {
-        unreachable!("an engine question is answered by the engine");
-    };
-    answer
+    ask(LockstepProof::for_reason(&ENGINE_DOOR), host, query)
 }
 
 /// Asks the style engine of `host`'s document a read the boundary generator writes.
@@ -864,7 +861,7 @@ pub unsafe extern "C" fn style_engine_decide_transitions(
         element: (input.target_pseudo_kind == u8::MAX)
             .then(|| StyleNodeID::from_raw(input.target_node))
             .flatten(),
-        properties: crate::render_state::LentSlice::new(properties),
+        properties: crate::render_state::Lent::new(properties),
     };
     // SAFETY: As above.
     let StyleAnswer::Transitions(decided) = (unsafe { ask_engine(host, StyleQuery::DecideTransitions(decision)) })

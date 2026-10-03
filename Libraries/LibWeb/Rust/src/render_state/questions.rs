@@ -5,10 +5,11 @@
  */
 
 //! The questions the host asks a document's render state, and the answers it waits for: reads of the layout arena and
-//! of the style engine, writes the host pays for, and the rows as of every change the host queued.
+//! of the style engine, writes the host pays for, and the rows as of every change the host queued. Each question has
+//! the slot its own answer moves into, so the host waits for exactly what it asked.
 
 use super::devtools::{DevToolsAnswer, DevToolsQuery};
-use super::{DocumentHost, RenderMessage, RenderWait, wait_for_render_state};
+use super::{DocumentHost, RenderMessage, RenderWait, ReplyTo, wait_for_render_state};
 use crate::css::style::StyleEngineHandle;
 use crate::css::style::engine_calls::{StyleAnswer, StyleQuery};
 use crate::css::style::tree::StyleNodeID;
@@ -21,21 +22,53 @@ use crate::layout::row_reads::RowSnapshot;
 use crate::layout::text_queries::FfiDomTextRange;
 
 /// A question the host asks about a document's render state, answered as of every change it queued before.
-pub(crate) enum Query {
-    /// A read of the document's layout arena.
-    Arena(ArenaQuery),
-    /// A read of the document's style engine the host's style code makes.
-    Engine(StyleQuery),
-    /// A read for tests and debugging.
-    DevTools(DevToolsQuery),
-    /// A write to the document's layout tree the host waits for, answered with what it owes the host.
-    Write(LayoutWrite),
-    /// The document's rows, which the render state publishes: with every row's scrollable overflow measured first
-    /// where `measure_overflow`.
-    CommittedRows { measure_overflow: bool },
+pub(crate) trait Question {
+    /// What the render state answers the question with.
+    type Answer;
+
+    /// The question as the render state reads it, with `reply`, where its answer goes.
+    fn with_reply(self, reply: ReplyTo<'_, Self::Answer>) -> Query<'_>;
 }
 
-/// A read of a document's layout arena, which [`Query::Arena`] asks.
+/// A question the host waits for the answer to, as a render message carries it, with where the answer goes.
+pub(crate) enum Query<'a> {
+    /// A read of the document's layout arena.
+    Arena(ArenaQuery, ReplyTo<'a, ArenaAnswer>),
+    /// A read of the document's style engine the host's style code makes.
+    Engine(StyleQuery, ReplyTo<'a, StyleAnswer>),
+    /// A read for tests and debugging.
+    DevTools(DevToolsQuery, ReplyTo<'a, DevToolsAnswer>),
+    /// A write to the document's layout tree the host waits for, answered with what it owes the host.
+    Write(LayoutWrite, ReplyTo<'a, LayoutWritten>),
+    /// The document's rows, which the render state publishes.
+    CommittedRows(CommittedRows, ReplyTo<'a, RowSnapshot>),
+}
+
+/// The document's rows, which the render state publishes: with every row's scrollable overflow measured first where
+/// `measure_overflow`.
+pub(crate) struct CommittedRows {
+    pub(crate) measure_overflow: bool,
+}
+
+macro_rules! question {
+    ($question:ty, $answer:ty, $variant:ident) => {
+        impl Question for $question {
+            type Answer = $answer;
+
+            fn with_reply(self, reply: ReplyTo<'_, $answer>) -> Query<'_> {
+                Query::$variant(self, reply)
+            }
+        }
+    };
+}
+
+question!(ArenaQuery, ArenaAnswer, Arena);
+question!(StyleQuery, StyleAnswer, Engine);
+question!(DevToolsQuery, DevToolsAnswer, DevTools);
+question!(LayoutWrite, LayoutWritten, Write);
+question!(CommittedRows, RowSnapshot, CommittedRows);
+
+/// A read of a document's layout arena.
 pub(crate) enum ArenaQuery {
     /// The text a pseudo-element's generated content resolved to when its box was built: its alt text when it has one,
     /// otherwise every string in it.
@@ -58,41 +91,31 @@ pub(crate) enum ArenaQuery {
     /// sorted, where it is built for the query.
     FindText {
         viewport: NodeSlotId,
-        query: LentSlice<u16>,
+        query: Lent<[u16]>,
         case_sensitive: bool,
-        excluded: LentSlice<StyleNodeID>,
+        excluded: Lent<[StyleNodeID]>,
     },
 }
 
-/// A slice the host lends the render state with a question it waits for the answer to.
-#[derive(Clone, Copy)]
-pub(crate) struct LentSlice<T: 'static>(std::ptr::NonNull<[T]>);
+/// What the host lends the render state with a message it waits for the answer to.
+pub(crate) struct Lent<T: ?Sized + 'static>(std::ptr::NonNull<T>);
 
-// SAFETY: The host waits for the answer to the question that carries the slice, which keeps the slice live and
+// SAFETY: The host waits for the answer to the message that carries the loan, which keeps what it lends live and
 // unwritten until the render state has answered.
-unsafe impl<T: Sync> Send for LentSlice<T> {}
+unsafe impl<T: ?Sized + Sync> Send for Lent<T> {}
 
-impl<T> LentSlice<T> {
-    pub(crate) fn new(slice: &[T]) -> Self {
-        Self(std::ptr::NonNull::from(slice))
+impl<T: ?Sized> Lent<T> {
+    pub(crate) fn new(value: &T) -> Self {
+        Self(std::ptr::NonNull::from(value))
     }
 
     /// # Safety
     ///
-    /// Only in answering the question that carries the slice, which the host waits for.
-    pub(crate) unsafe fn get<'a>(self) -> &'a [T] {
+    /// Only in answering the message that carries the loan, which the host waits for.
+    pub(crate) unsafe fn get<'a>(self) -> &'a T {
         // SAFETY: Guaranteed by the caller.
         unsafe { self.0.as_ref() }
     }
-}
-
-/// The answer to a [`Query`].
-pub(crate) enum Answer {
-    Arena(ArenaAnswer),
-    Style(StyleAnswer),
-    DevTools(DevToolsAnswer),
-    Written(LayoutWritten),
-    Rows(RowSnapshot),
 }
 
 /// The answer to an [`ArenaQuery`].
@@ -104,20 +127,22 @@ pub(crate) enum ArenaAnswer {
     TextRanges(Vec<FfiDomTextRange>),
 }
 
-impl Query {
+impl Query<'_> {
     /// Answers the question from `arena` and `engine`, the arena and style engine of the document it was asked about.
     ///
     /// # Safety
     ///
     /// `engine` must name the live style engine `arena` links, which nothing else borrows meanwhile.
-    pub(super) unsafe fn answer(self, arena: &mut LayoutNodeArena, engine: StyleEngineHandle) -> Answer {
+    pub(super) unsafe fn answer(self, arena: &mut LayoutNodeArena, engine: StyleEngineHandle) {
         match self {
-            Self::Arena(query) => Answer::Arena(query.answer(arena)),
+            Self::Arena(query, reply) => reply.answer(|| query.answer(arena)),
             // SAFETY: Guaranteed by the caller. An engine question reaches the engine only through this borrow.
-            Self::Engine(query) => Answer::Style(query.answer(unsafe { engine.get_mut() })),
-            Self::DevTools(query) => Answer::DevTools(query.answer(arena)),
-            Self::Write(write) => Answer::Written(write.apply(arena)),
-            Self::CommittedRows { measure_overflow } => Answer::Rows(arena.publish_row_snapshot(measure_overflow)),
+            Self::Engine(query, reply) => reply.answer(|| query.answer(unsafe { engine.get_mut() })),
+            Self::DevTools(query, reply) => reply.answer(|| query.answer(arena)),
+            Self::Write(write, reply) => reply.answer(|| write.apply(arena)),
+            Self::CommittedRows(CommittedRows { measure_overflow }, reply) => {
+                reply.answer(|| arena.publish_row_snapshot(measure_overflow));
+            }
         }
     }
 }
@@ -162,10 +187,13 @@ impl ArenaQuery {
     }
 }
 
-/// Asks the render state of `host`'s document `query`, spending `wait`, and answers what it answered.
-pub(crate) fn ask(wait: impl RenderWait, host: &DocumentHost, query: Query) -> Answer {
+/// Asks the render state of `host`'s document `question`, spending `wait`, and answers what it answered.
+pub(crate) fn ask<Q: Question>(wait: impl RenderWait, host: &DocumentHost, question: Q) -> Q::Answer {
     let document = host.document();
-    wait_for_render_state(wait, host, |reply| RenderMessage::Ask { document, query, reply })
+    wait_for_render_state(wait, host, |reply| RenderMessage::Ask {
+        document,
+        query: question.with_reply(reply),
+    })
 }
 
 #[cfg(test)]
@@ -194,13 +222,11 @@ mod tests {
     fn a_question_about_the_rows_answers_them_as_of_the_arena() {
         let (pointer, host) = host();
         let row = arena_of(host).allocate_for_test().slot;
-        let Answer::Rows(rows) = ask(
+        let rows = ask(
             ScriptForcedRead::for_test(),
             host,
-            Query::CommittedRows { measure_overflow: true },
-        ) else {
-            panic!("rows are answered with rows");
-        };
+            CommittedRows { measure_overflow: true },
+        );
         assert!(rows.node(row).is_some());
         assert!(rows.overflow_is_measured());
         arena_of(host)
@@ -216,13 +242,11 @@ mod tests {
         let parent = arena.allocate_for_test().slot;
         let child = arena.allocate_for_test().slot;
         arena.insert_child(parent, child, NodeSlotId::INVALID);
-        let Answer::Written(written) = ask(
+        let written = ask(
             ScriptForcedRead::for_test(),
             host,
-            Query::Write(LayoutWrite::DropSubtree { root: parent }),
-        ) else {
-            panic!("a write is answered with what it wrote");
-        };
+            LayoutWrite::DropSubtree { root: parent },
+        );
         assert!(!written.was_attached);
         written
             .host_work
@@ -239,13 +263,7 @@ mod tests {
         arena.write_shape(row).set_kind(NodeKind::GeneratedTextNode);
         let text: Vec<u16> = "Hello".encode_utf16().collect();
         arena.set_generated_text(row, ak::Utf16String::from(ak::Utf16FlyString::from_utf16(&text)));
-        let Answer::Arena(answer) = ask(
-            ScriptForcedRead::for_test(),
-            host,
-            Query::Arena(ArenaQuery::GeneratedText(row)),
-        ) else {
-            panic!("an arena question is answered from the arena");
-        };
+        let answer = ask(ScriptForcedRead::for_test(), host, ArenaQuery::GeneratedText(row));
         assert_eq!(answer, ArenaAnswer::Text(text));
         arena_of(host)
             .free_subtree(row)

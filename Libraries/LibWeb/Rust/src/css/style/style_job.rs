@@ -15,12 +15,13 @@ use super::bridge::{
 use super::engine_calls::{StyleAnswer, StyleQuery, ask_engine};
 use super::identities::StyleNodeIdAllocator;
 use super::tree::StyleNodeID;
-use crate::render_state::DocumentHost;
+use crate::render_state::{DocumentHost, Lent};
 
-/// Takes the pending style transaction under `root`, with the document computation inputs the host gathered.
+/// Takes the pending style transaction under `root`, with the document computation inputs the host gathered, which
+/// it lends the job.
 pub(crate) struct StyleJob {
     root: StyleNodeID,
-    computation_inputs: FfiDocumentStyleComputationInputs,
+    computation_inputs: Lent<FfiDocumentStyleComputationInputs>,
 }
 
 /// What a style job answers: the reactions of the transaction, owned, which the host keeps until it ends the
@@ -32,10 +33,10 @@ impl StyleJob {
     ///
     /// # Safety
     ///
-    /// The host must lend the buffers the computation inputs name until the job is over.
+    /// The host must lend the computation inputs, and the buffers they name, until the job is over.
     pub(crate) unsafe fn run(self, engine: &mut StyleEngine) -> StyleJobAnswer {
         // SAFETY: Guaranteed by the caller.
-        StyleJobAnswer(unsafe { take_style_transaction(engine, self.root, self.computation_inputs) })
+        StyleJobAnswer(unsafe { take_style_transaction(engine, self.root, *self.computation_inputs.get()) })
     }
 }
 
@@ -62,7 +63,7 @@ pub unsafe extern "C" fn style_engine_take_style_transaction(
         host,
         StyleJob {
             root,
-            computation_inputs,
+            computation_inputs: Lent::new(&computation_inputs),
         },
     );
     host.keep_style_transaction(answer).0.view()
