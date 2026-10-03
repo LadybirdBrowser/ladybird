@@ -77,7 +77,7 @@ public:
 
     WebContentClient& client() const;
     Web::PageId id() const { return m_id; }
-    WebContentClient* routed_connection() const { return m_client.ptr(); }
+    WebContentClient* routed_connection() const { return m_is_open ? m_client.ptr() : nullptr; }
     Web::PageId routed_page_id() const { return m_id; }
 
     CanonicalTraversable& traversable() const;

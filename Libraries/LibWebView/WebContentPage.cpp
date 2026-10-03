@@ -456,6 +456,8 @@ void WebContentPage::discard()
 
 Web::CompositorContextId WebContentPage::compositor_context_id()
 {
+    if (!m_is_open)
+        return Web::compositor_context_id_for_page(m_id);
     return client().compositor_context_id_for_page(m_id);
 }
 
@@ -581,7 +583,7 @@ Optional<WebContentPage::PresentedBackingStores> WebContentPage::take_presented_
 void WebContentPage::release_presented_bitmap(i32 bitmap_id)
 {
     auto context_id = Web::compositor_context_id_for_page(m_id);
-    if (client().page_id_for_compositor_context_id(context_id) != m_id)
+    if (!m_is_open || client().page_id_for_compositor_context_id(context_id) != m_id)
         return;
 
     Application::the().notify_compositor_presented_bitmap_ready_to_paint(context_id, bitmap_id);
@@ -2506,11 +2508,11 @@ void WebContentPage::did_request_traverse_history_by_delta_for_testing(i32 delta
 
 void WebContentPage::reset_session_history_for_testing()
 {
-    auto* test_connection = client().test_connection();
-    if (!test_connection)
+    auto* client = routed_connection();
+    if (!client || !client->test_connection())
         return;
-    client().transport().flush();
-    test_connection->async_reset_session_history_for_testing(m_id);
+    client->transport().flush();
+    client->test_connection()->async_reset_session_history_for_testing(m_id);
 }
 
 void WebContentPage::did_reset_session_history_for_testing(Web::HTML::SessionHistoryEntryDescriptor active_entry)

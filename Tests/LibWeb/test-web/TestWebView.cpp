@@ -88,10 +88,7 @@ void TestWebView::on_test_complete(TestCompletion completion)
     m_pending_prompt_text.clear();
     m_is_fullscreen = Web::ViewportIsFullscreen::No;
 
-    // A crash of a child view's WebContent completes the test through its parent view, which can share the crashed
-    // process and not have replaced it yet. The replacement process gets the view's viewport when it is set up.
-    if (page().routed_connection())
-        page().async_set_viewport(viewport_size(), 1.0, Web::ViewportIsFullscreen::No);
+    page().async_set_viewport(viewport_size(), 1.0, Web::ViewportIsFullscreen::No);
 
     m_test_promise->resolve(move(completion));
 }
