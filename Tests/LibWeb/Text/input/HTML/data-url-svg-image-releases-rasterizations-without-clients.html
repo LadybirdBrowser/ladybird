@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        // A fragment keeps the image out of the cache when the test is repeated in the same process.
+        const url = "data:image/svg+xml," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512"><rect width="512" height="512" fill="green"/></svg>') + `#nocache=${Math.random()}`;
+
+        const image = new Image();
+        image.src = url;
+        await new Promise(resolve => { image.onload = resolve; });
+        const sizeBeforeDrawing = internals.dataURLImageCacheEntryExternalMemorySize(url);
+
+        const canvas = document.createElement("canvas");
+        canvas.width = canvas.height = 512;
+        canvas.getContext("2d").drawImage(image, 0, 0);
+        println(`drawing grew the cached image: ${internals.dataURLImageCacheEntryExternalMemorySize(url) - sizeBeforeDrawing >= 512 * 512 * 4}`);
+
+        image.removeAttribute("src");
+        await internals.gcAsync();
+        println(`image still cached: ${internals.dataURLImageCacheEntryMemorySize(url) > 0}`);
+        println(`rasterizations released: ${internals.dataURLImageCacheEntryExternalMemorySize(url) <= sizeBeforeDrawing}`);
+    });
+</script>

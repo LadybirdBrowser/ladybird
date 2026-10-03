@@ -134,6 +134,12 @@ interface Internals {
     unsigned long long intrinsicMeasurementCount();
     unsigned long long intrinsicInlineMeasurementCount();
     unsigned long long accumulatedVisualContextTreeBuildCount();
+    unsigned long long dataURLImageCacheHitCount();
+    unsigned long long dataURLImageCacheEntryMemorySize(USVString url);
+    unsigned long long dataURLImageCacheEntryExternalMemorySize(USVString url);
+    unsigned long long dataURLFontCacheHitCount();
+    unsigned long long dataURLScriptBytecodeCacheHitCount();
+    boolean dataURLScriptBytecodeCacheContains(USVString url);
     undefined beginDisplayListTrace();
     DOMString takeDisplayListTrace();
     [ImplementedAs=recorded_async_scrolling_state_object] object recordedAsyncScrollingState();

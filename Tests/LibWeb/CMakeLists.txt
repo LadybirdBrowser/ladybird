@@ -20,6 +20,7 @@ set(TEST_SOURCES
     TestMicrosyntax.cpp
     TestMimeSniff.cpp
     TestNumbers.cpp
+    TestResourceCache.cpp
     TestSecureContexts.cpp
     TestSessionHistoryEntry.cpp
     TestSharedCompiledStyleSheet.cpp
@@ -53,6 +54,9 @@ foreach(source IN LISTS TEST_SOURCES)
     set(test_libraries LibCompositing LibWeb)
     if (source STREQUAL "TestSimpleRealm.cpp")
         list(APPEND test_libraries LibGC LibJS)
+    endif()
+    if (source STREQUAL "TestResourceCache.cpp")
+        list(APPEND test_libraries LibGC LibURL)
     endif()
     ladybird_test("${source}" LibWeb LIBS ${test_libraries})
 endforeach()

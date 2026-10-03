@@ -1,0 +1,3 @@
+drawing grew the cached image: true
+image still cached: true
+rasterizations released: true

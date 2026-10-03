@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        // A fragment keeps the images out of the cache when the test is repeated in the same process.
+        const nocache = `#nocache=${Math.random()}`;
+        const svgURL = "data:image/svg+xml," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"><rect width="10" height="10" fill="green"/></svg>') + nocache;
+        const pngURL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==" + nocache;
+
+        const loadImageInNewDocument = async url => {
+            const iframe = document.createElement("iframe");
+            iframe.srcdoc = `<img src="${url}">`;
+            document.body.appendChild(iframe);
+            await new Promise(resolve => { iframe.onload = resolve; });
+            const image = iframe.contentDocument.querySelector("img");
+            iframe.remove();
+            return image.naturalWidth;
+        };
+
+        for (const [name, url] of [["SVG", svgURL], ["PNG", pngURL]]) {
+            const hitsBefore = internals.dataURLImageCacheHitCount();
+            for (let i = 1; i <= 3; ++i) {
+                const width = await loadImageInNewDocument(url);
+                println(`${name} document ${i}: width ${width}, cache hits ${internals.dataURLImageCacheHitCount() - hitsBefore}`);
+            }
+        }
+    });
+</script>

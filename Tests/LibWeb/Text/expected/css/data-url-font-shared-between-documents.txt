@@ -1,0 +1,6 @@
+WOFF document 1: loaded, cache hits 0
+WOFF document 2: loaded, cache hits 1
+WOFF document 3: loaded, cache hits 2
+WOFF2 document 1: loaded, cache hits 0
+WOFF2 document 2: loaded, cache hits 1
+WOFF2 document 3: loaded, cache hits 2
