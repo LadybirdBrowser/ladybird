@@ -235,6 +235,7 @@ private:
     virtual void page_did_request_fullscreen_window() override;
     virtual void page_did_request_exit_fullscreen() override;
     virtual void page_did_exit_picture_in_picture() override;
+    virtual void page_did_change_picture_in_picture_video_size(Gfx::IntSize) override;
     virtual void page_did_request_tooltip_override(Web::CSSPixelPoint, ByteString const&) override;
     virtual void page_did_stop_tooltip_override() override;
     virtual void page_did_enter_tooltip_area(ByteString const&) override;

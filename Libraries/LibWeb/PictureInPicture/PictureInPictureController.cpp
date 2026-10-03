@@ -362,6 +362,16 @@ void PictureInPictureController::window_did_resize(Gfx::IntSize window_size)
     }));
 }
 
+// The window keeps the aspect ratio of its video, including while it opens.
+void PictureInPictureController::video_size_did_change(HTML::HTMLVideoElement& video, Gfx::IntSize video_size)
+{
+    auto is_open_window_video = m_open_window && &m_open_window->video() == &video;
+    auto is_opening_window_video = m_window_awaiting_open.has_value() && m_window_awaiting_open->request.video.ptr() == &video;
+    if (!is_open_window_video && !is_opening_window_video)
+        return;
+    m_page->client().page_did_change_picture_in_picture_video_size(video_size);
+}
+
 void PictureInPictureController::window_did_close()
 {
     if (m_open_window)

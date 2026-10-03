@@ -23,6 +23,14 @@
 #    include <UI/Qt/MacWindow.h>
 #endif
 
+#if defined(AK_OS_WINDOWS)
+#    include <AK/Windows.h>
+#endif
+
+#if defined(AK_OS_LINUX)
+#    include <UI/Qt/X11Window.h>
+#endif
+
 namespace Ladybird {
 
 static constexpr int screen_edge_margin = 16;
@@ -117,11 +125,37 @@ public:
         // A frameless window cannot be resized from its edges on macOS unless AppKit is told it is resizable.
         make_appkit_window_resizable(*this);
 #endif
+        lock_aspect_ratio(video_size);
+
+#if defined(AK_OS_LINUX)
+        // Qt also replaces the size hints when the window moves to a screen with another scale factor.
+        connect(windowHandle(), &QWindow::screenChanged, this, [this] {
+            set_x11_window_aspect_ratio(*this, m_aspect_ratio);
+        });
+#endif
     }
 
     virtual Gfx::IntSize size() const override { return { width(), height() }; }
     virtual String handle() const override { return m_view->handle(); }
     virtual void hide() override { QWidget::hide(); }
+
+    virtual void set_video_size(Gfx::IntSize video_size) override
+    {
+        auto available = screen()->availableGeometry();
+        auto size = size_for_video_size({ width(), height() }, video_size, { available.width(), available.height() });
+        if (size != Gfx::IntSize { width(), height() }) {
+            // The window stays in the corner of the screen it is nearest.
+            auto old_geometry = geometry();
+            QRect new_geometry { old_geometry.topLeft(), QSize { size.width(), size.height() } };
+            if (old_geometry.center().x() > available.center().x())
+                new_geometry.moveRight(old_geometry.right());
+            if (old_geometry.center().y() > available.center().y())
+                new_geometry.moveBottom(old_geometry.bottom());
+            setGeometry(new_geometry);
+        }
+
+        lock_aspect_ratio(video_size);
+    }
 
 private:
     // A drag moves the window, unless the page claims the press that starts it, as the media controls do to scrub. Every
@@ -203,6 +237,52 @@ private:
         return edges;
     }
 
+    // On X11, Qt replaces the window's size hints whenever it changes the window's geometry, so this runs after that.
+    void lock_aspect_ratio(Gfx::IntSize video_size)
+    {
+        m_aspect_ratio = aspect_ratio(video_size);
+#if defined(AK_OS_MACOS)
+        set_appkit_window_content_aspect_ratio(*this, m_aspect_ratio);
+#elif defined(AK_OS_LINUX)
+        set_x11_window_aspect_ratio(*this, m_aspect_ratio);
+#endif
+        // Wayland has no window hint for an aspect ratio, so there the window takes its video's shape only when it opens
+        // or that shape changes.
+    }
+
+#if defined(AK_OS_WINDOWS)
+    // Windows lets a window adjust the rect that each step of a resize from its edges would give it.
+    virtual bool nativeEvent(QByteArray const& event_type, void* message, qintptr* result) override
+    {
+        auto* windows_message = static_cast<MSG*>(message);
+        if (windows_message->message != WM_SIZING)
+            return QWidget::nativeEvent(event_type, message, result);
+
+        auto& rect = *reinterpret_cast<RECT*>(windows_message->lParam);
+        auto width = rect.right - rect.left;
+        auto height = rect.bottom - rect.top;
+
+        // A top or bottom edge sets the height, and any other edge or corner sets the width. The other dimension then
+        // moves the edge that is being dragged, or else the right or bottom edge.
+        switch (windows_message->wParam) {
+        case WMSZ_TOP:
+        case WMSZ_BOTTOM:
+            rect.right = rect.left + height * m_aspect_ratio.width() / m_aspect_ratio.height();
+            break;
+        case WMSZ_TOPLEFT:
+        case WMSZ_TOPRIGHT:
+            rect.top = rect.bottom - width * m_aspect_ratio.height() / m_aspect_ratio.width();
+            break;
+        default:
+            rect.bottom = rect.top + width * m_aspect_ratio.height() / m_aspect_ratio.width();
+            break;
+        }
+
+        *result = TRUE;
+        return true;
+    }
+#endif
+
     virtual void resizeEvent(QResizeEvent* event) override
     {
         QWidget::resizeEvent(event);
@@ -221,6 +301,7 @@ private:
 
     WebContentView* m_view { nullptr };
     WindowScreenObserver* m_screen_observer { nullptr };
+    Gfx::IntSize m_aspect_ratio;
 
     enum class PressClaim : u8 {
         Unknown,

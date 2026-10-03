@@ -217,6 +217,7 @@ endpoint WebContentClient routed by Web::PageId page_id
     did_request_fullscreen_window(Web::PageId page_id) =|
     did_request_exit_fullscreen(Web::PageId page_id) =|
     did_exit_picture_in_picture(Web::PageId page_id) =|
+    did_change_picture_in_picture_video_size(Web::PageId page_id, Gfx::IntSize video_size) =|
     did_request_file(Web::PageId page_id, ByteString path, i32 request_id) =|
     did_request_color_picker(Web::PageId page_id, Color current_color) =|
     did_request_geolocation_position(Web::PageId page_id, u64 request_id) =|

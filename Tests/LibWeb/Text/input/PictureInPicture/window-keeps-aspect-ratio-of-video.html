@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<video src="../../../Assets/test-webm.webm"></video>
+<script>
+    asyncTest(async done => {
+        const video = document.querySelector("video");
+        if (video.readyState === HTMLMediaElement.HAVE_NOTHING)
+            await new Promise(resolve => video.addEventListener("loadedmetadata", resolve, { once: true }));
+
+        internals.grantTransientActivation();
+        const pipWindow = await video.requestPictureInPicture();
+        println(`window for a ${video.videoWidth}x${video.videoHeight} video: ${pipWindow.width}x${pipWindow.height}`);
+
+        const resized = new Promise(resolve => pipWindow.addEventListener("resize", resolve, { once: true }));
+        video.src = "../../../Assets/solid-blue-160x120.webm";
+        await resized;
+        println(`window for a ${video.videoWidth}x${video.videoHeight} video: ${pipWindow.width}x${pipWindow.height}`);
+
+        await document.exitPictureInPicture();
+        done();
+    });
+</script>

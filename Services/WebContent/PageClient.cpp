@@ -891,6 +891,11 @@ void PageClient::page_did_exit_picture_in_picture()
     client().async_did_exit_picture_in_picture(m_id);
 }
 
+void PageClient::page_did_change_picture_in_picture_video_size(Gfx::IntSize video_size)
+{
+    client().async_did_change_picture_in_picture_video_size(m_id, video_size);
+}
+
 void PageClient::page_did_request_tooltip_override(Web::CSSPixelPoint position, ByteString const& title)
 {
     auto device_position = page().css_to_device_point(position);

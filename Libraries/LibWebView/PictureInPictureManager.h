@@ -31,6 +31,7 @@ public:
     // Returns the window's handle, or an empty string when no window could be opened.
     String open_window(WebContentPage& requesting_page, CanonicalTraversable&, Gfx::IntSize video_size);
     void close_window(WebContentPage&);
+    void video_size_did_change(WebContentPage&, Gfx::IntSize);
 
 private:
     struct Window {

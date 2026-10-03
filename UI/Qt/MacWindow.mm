@@ -8,6 +8,7 @@
 
 #include <LibGfx/Color.h>
 #include <LibGfx/Point.h>
+#include <LibGfx/Size.h>
 #include <QAbstractNativeEventFilter>
 #include <QCoreApplication>
 #include <QMouseEvent>
@@ -397,6 +398,14 @@ void keep_appkit_window_visible_while_inactive(QWidget& widget)
     if (!view || !view.window)
         return;
     view.window.hidesOnDeactivate = NO;
+}
+
+void set_appkit_window_content_aspect_ratio(QWidget& widget, Gfx::IntSize aspect_ratio)
+{
+    auto* view = reinterpret_cast<NSView*>(widget.winId());
+    if (!view || !view.window)
+        return;
+    view.window.contentAspectRatio = NSMakeSize(aspect_ratio.width(), aspect_ratio.height());
 }
 
 void offset_appkit_window_controls(QWidget& widget, int x_offset, int y_offset)

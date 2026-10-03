@@ -34,6 +34,7 @@ public:
 
     void did_open_window(Gfx::IntSize window_size);
     void window_did_resize(Gfx::IntSize);
+    void video_size_did_change(HTML::HTMLVideoElement&, Gfx::IntSize);
     void window_did_close();
 
     bool is_waiting_for_window_to_open() const { return m_window_awaiting_open.has_value(); }

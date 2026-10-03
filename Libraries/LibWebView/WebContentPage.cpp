@@ -1251,6 +1251,11 @@ void WebContentPage::did_exit_picture_in_picture()
     PictureInPictureManager::the().close_window(*this);
 }
 
+void WebContentPage::did_change_picture_in_picture_video_size(Gfx::IntSize video_size)
+{
+    PictureInPictureManager::the().video_size_did_change(*this, video_size);
+}
+
 void WebContentPage::did_request_file(ByteString path, i32 request_id)
 {
     auto file = Core::File::open(path, Core::File::OpenMode::Read);

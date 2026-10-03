@@ -160,6 +160,8 @@ void HTMLVideoElement::set_intrinsic_video_dimensions(Optional<Gfx::Size<u32>> d
         queue_a_media_element_task([](HTMLMediaElement& self) {
             self.dispatch_event(DOM::Event::create(HTML::relevant_global_object(self), HTML::EventNames::resize));
         });
+
+        document().page().picture_in_picture_controller().video_size_did_change(*this, dimensions->to_type<int>());
     }
 
     update_natural_dimensions();

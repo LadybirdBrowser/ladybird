@@ -18,6 +18,7 @@ endif()
 if (LINUX AND NOT ANDROID)
     find_package(PkgConfig REQUIRED)
     pkg_check_modules(GIO REQUIRED IMPORTED_TARGET gio-2.0 gio-unix-2.0)
+    pkg_check_modules(XCB_ICCCM REQUIRED IMPORTED_TARGET xcb-icccm)
 endif()
 
 qt_add_executable(ladybird main.cpp)
@@ -70,8 +71,8 @@ if (TARGET Qt6::Positioning)
 endif()
 
 if (LINUX AND NOT ANDROID)
-    target_sources(ladybird PRIVATE ExternalURLActivationToken.cpp ExternalURLHandler.cpp)
-    target_link_libraries(ladybird PRIVATE LibThreading PkgConfig::GIO Qt::GuiPrivate)
+    target_sources(ladybird PRIVATE ExternalURLActivationToken.cpp ExternalURLHandler.cpp X11Window.cpp X11Window.h)
+    target_link_libraries(ladybird PRIVATE LibThreading PkgConfig::GIO PkgConfig::XCB_ICCCM Qt::GuiPrivate)
 endif()
 
 if (APPLE)
