@@ -124,9 +124,14 @@ void InvalidationJournal::forget(CSS::StyleNodeID style_node)
     auto index = m_entry_index_by_identity.take(NodeIdentity::of_style_node(style_node));
     if (!index.has_value())
         return;
-    // The entry keeps its place so that the index stays valid for the entries after it. Naming no node, it drains
-    // nowhere.
-    m_entries[*index] = {};
+    // The last entry takes the forgotten one's place, so that the index moves for that entry alone, and a journal no
+    // drain empties, as that of a document no event loop renders, holds no more entries than the nodes it names at once.
+    auto last = m_entries.take_last();
+    if (*index == m_entries.size())
+        return;
+    if (last.identity)
+        m_entry_index_by_identity.set(last.identity, *index);
+    m_entries[*index] = move(last);
 }
 
 // A mark made from inside a layout update is one the update is about to read, so it goes through at once. Outside
