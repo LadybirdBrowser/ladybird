@@ -141,6 +141,14 @@ ErrorOr<MachPort> MachPort::insert_right(MessageRight right)
     return MachPort(associated_port_right(right), m_port);
 }
 
+ErrorOr<MachPort> MachPort::copy_send_right() const
+{
+    auto const ret = mach_port_mod_refs(mach_task_self(), m_port, MACH_PORT_RIGHT_SEND, 1);
+    if (ret != KERN_SUCCESS)
+        return mach_error_to_error(ret);
+    return MachPort(PortRight::Send, m_port);
+}
+
 #if defined(AK_OS_MACOS)
 
 #    pragma GCC diagnostic push
