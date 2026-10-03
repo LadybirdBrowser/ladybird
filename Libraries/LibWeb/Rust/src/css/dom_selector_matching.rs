@@ -680,9 +680,12 @@ impl<'q> SelectorSubject for DomSubject<'q> {
 
     #[inline]
     fn sibling_index(&mut self, position: NthPosition, node: DomNode) -> Result<Option<i64>, Infallible> {
-        // A fixed position, such as `:last-child` or `:nth-child(3)`, is found by a scan of at most that many siblings
-        // from the near end. An index could cost a walk over the whole child list after it changes.
-        if position.step == 0 {
+        // A fixed position near the end it counts from, such as `:last-child` or `:nth-child(3)`, is found by a scan of
+        // at most that many siblings. An index could cost a walk over the whole child list after it changes. A scan to a
+        // far position costs as much as that walk, though, and one per candidate makes asking for every position of a
+        // list quadratic, while the element keeps its index once it is counted.
+        const NEAR_POSITION_SCAN_LIMIT: i32 = 8;
+        if position.step == 0 && position.offset <= NEAR_POSITION_SCAN_LIMIT {
             return Ok(None);
         }
         let which = match (position.of_type, position.from_end) {
