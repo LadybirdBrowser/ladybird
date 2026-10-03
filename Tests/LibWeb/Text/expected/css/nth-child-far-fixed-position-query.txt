@@ -1,0 +1,20 @@
+:nth-child(9): 8 PASS
+:nth-child(30): 29 PASS
+:nth-last-child(12): 28 PASS
+span:nth-of-type(20): 26 PASS
+p:nth-last-of-type(9): 4 PASS
+:nth-child(41):  PASS
+after inserting at the start:
+:nth-child(9): 8 PASS
+:nth-child(30): 29 PASS
+:nth-last-child(12): 29 PASS
+span:nth-of-type(20): 27 PASS
+p:nth-last-of-type(9): 5 PASS
+:nth-child(41): 40 PASS
+after removing from the middle:
+:nth-child(9): 8 PASS
+:nth-child(30): 29 PASS
+:nth-last-child(12): 28 PASS
+span:nth-of-type(20): 26 PASS
+p:nth-last-of-type(9): 1 PASS
+:nth-child(41):  PASS

@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="list"></div>
+<script>
+    test(() => {
+        const list = document.getElementById("list");
+        for (let i = 0; i < 40; ++i)
+            list.append(document.createElement(i % 4 === 0 ? "p" : "span"), document.createTextNode(" "));
+
+        function check(selector, predicate) {
+            const all = Array.from(list.children);
+            const expected = all.filter(predicate);
+            const found = Array.from(list.querySelectorAll(selector));
+            const same = found.length === expected.length && found.every((element, i) => element === expected[i]);
+            println(`${selector}: ${found.map(element => all.indexOf(element)).join(",")} ${same ? "PASS" : "FAIL"}`);
+        }
+
+        function run() {
+            const all = Array.from(list.children);
+            const ofType = element => all.filter(other => other.localName === element.localName);
+            check(":nth-child(9)", element => all.indexOf(element) === 8);
+            check(":nth-child(30)", element => all.indexOf(element) === 29);
+            check(":nth-last-child(12)", element => all.length - all.indexOf(element) === 12);
+            check("span:nth-of-type(20)", element => element.localName === "span" && ofType(element).indexOf(element) === 19);
+            check("p:nth-last-of-type(9)", element => element.localName === "p" && ofType(element).length - ofType(element).indexOf(element) === 9);
+            check(":nth-child(41)", element => all.indexOf(element) === 40);
+        }
+
+        run();
+        println("after inserting at the start:");
+        list.prepend(document.createElement("p"));
+        run();
+        println("after removing from the middle:");
+        list.children[17].remove();
+        run();
+    });
+</script>
