@@ -30,21 +30,21 @@ GC::Ref<DOMException> DOMException::create()
 }
 
 DOMException::DOMException(FlyString name, Utf16String const& message)
-    : ErrorData(JS::VM::the())
+    : m_error_data(JS::ErrorDataCell::capture(JS::VM::the()))
     , m_name(Utf16FlyString::from_fly_string(name))
     , m_message(message)
 {
 }
 
 DOMException::DOMException(Utf16FlyString name, Utf16String const& message)
-    : ErrorData(JS::VM::the())
+    : m_error_data(JS::ErrorDataCell::capture(JS::VM::the()))
     , m_name(move(name))
     , m_message(message)
 {
 }
 
 DOMException::DOMException()
-    : ErrorData(JS::VM::the())
+    : m_error_data(JS::ErrorDataCell::capture(JS::VM::the()))
 {
 }
 
@@ -53,12 +53,7 @@ DOMException::~DOMException() = default;
 void DOMException::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
-    ErrorData::visit_edges(visitor);
-}
-
-size_t DOMException::external_memory_size() const
-{
-    return Base::external_memory_size() + ErrorData::external_memory_size();
+    visitor.visit(m_error_data);
 }
 
 WebIDL::ExceptionOr<void> DOMException::serialization_steps(HTML::StructuredSerializeWriter& serialized, bool, HTML::SerializationMemory&)

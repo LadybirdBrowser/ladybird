@@ -51,4 +51,21 @@ private:
     GC::Ptr<PrimitiveString> m_cached_string;
 };
 
+// The error data of a host object that is not an Error, such as a DOMException, kept in a cell of its own.
+class JS_API ErrorDataCell final
+    : public Cell
+    , public ErrorData {
+    GC_CELL(ErrorDataCell, Cell);
+    GC_DECLARE_ALLOCATOR(ErrorDataCell);
+
+public:
+    static GC::Ref<ErrorDataCell> capture(VM&);
+
+private:
+    explicit ErrorDataCell(VM&);
+
+    virtual void visit_edges(Cell::Visitor&) override;
+    virtual size_t external_memory_size() const override;
+};
+
 }

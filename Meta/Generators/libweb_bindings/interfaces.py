@@ -178,12 +178,12 @@ def write_wrapper_implementation(
         out.write(
             f"""JS::ErrorData* {wrapper_class}::error_data()
 {{
-    return &impl();
+    return &impl().error_data();
 }}
 
 JS::ErrorData const* {wrapper_class}::error_data() const
 {{
-    return &impl();
+    return &impl().error_data();
 }}
 
 """
