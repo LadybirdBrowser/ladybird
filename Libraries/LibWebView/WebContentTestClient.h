@@ -41,6 +41,12 @@ private:
     virtual Messages::WebContentTestClient::DidRequestRestoreSessionHistorySnapshotForTestingResponse did_request_restore_session_history_snapshot_for_testing(Web::PageId page_id) override;
     virtual Messages::WebContentTestClient::DidRequestRegisterSessionStoreTabForTestingResponse did_request_register_session_store_tab_for_testing(Web::PageId page_id) override;
     virtual Messages::WebContentTestClient::DidRequestSessionStoreTabStateForTestingResponse did_request_session_store_tab_state_for_testing(Web::PageId page_id) override;
+    virtual Messages::WebContentTestClient::CreateVirtualGamepadResponse create_virtual_gamepad() override;
+    virtual void set_virtual_gamepad_button(Web::Gamepad::GamepadHandle handle, i32 button, bool down) override;
+    virtual void set_virtual_gamepad_axis(Web::Gamepad::GamepadHandle handle, i32 axis, i16 value) override;
+    virtual void disconnect_virtual_gamepad(Web::Gamepad::GamepadHandle handle) override;
+    virtual Messages::WebContentTestClient::PumpGamepadEventsResponse pump_gamepad_events() override;
+    virtual Messages::WebContentTestClient::GetVirtualGamepadReceivedRumbleEffectsResponse get_virtual_gamepad_received_rumble_effects(Web::Gamepad::GamepadHandle handle) override;
 
     WebContentClient& m_client;
 };

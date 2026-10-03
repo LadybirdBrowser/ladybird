@@ -1,5 +1,6 @@
 #include <LibHTTP/HSTS/ParsedHSTSPolicy.h>
 #include <LibURL/Origin.h>
+#include <LibWebCommon/Gamepad/GamepadSnapshot.h>
 #include <LibWebCommon/HTML/CrossProcessId.h>
 #include <LibWebCommon/HTML/SessionHistoryEntryDescriptor.h>
 #include <LibWebCommon/Page/PageId.h>
@@ -28,4 +29,11 @@ endpoint WebContentTestClient routed by Web::PageId page_id
     [NotRouted] did_request_restore_session_history_snapshot_for_testing(Web::PageId page_id) => (bool restored)
     [NotRouted] did_request_register_session_store_tab_for_testing(Web::PageId page_id) => (bool registered)
     [NotRouted] did_request_session_store_tab_state_for_testing(Web::PageId page_id) => (String state)
+
+    create_virtual_gamepad() => (Optional<Web::Gamepad::VirtualGamepad> virtual_gamepad)
+    set_virtual_gamepad_button(Web::Gamepad::GamepadHandle handle, i32 button, bool down) =|
+    set_virtual_gamepad_axis(Web::Gamepad::GamepadHandle handle, i32 axis, i16 value) =|
+    disconnect_virtual_gamepad(Web::Gamepad::GamepadHandle handle) =|
+    pump_gamepad_events() => (Vector<Web::Gamepad::GamepadChangeEvent> events)
+    get_virtual_gamepad_received_rumble_effects(Web::Gamepad::GamepadHandle handle) => (Vector<Web::Gamepad::ReceivedDualRumbleEffect> dual_rumble_effects, Vector<Web::Gamepad::ReceivedTriggerRumbleEffect> trigger_rumble_effects)
 }

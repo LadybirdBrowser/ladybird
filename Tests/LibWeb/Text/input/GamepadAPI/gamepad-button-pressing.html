@@ -4,21 +4,21 @@
 <script>
     promiseTest(async () => {
         const gamepad = internals.connectVirtualGamepad();
-        await handleSDLInputEvents();
+        await pumpGamepadEvents();
         listenForGamepadConnected();
 
         for (const button of gamepad.buttons) {
             println(`Before pressing button ${button}: ${getStringifiedGamepads()}`);
             gamepad.setButton(button, true);
-            await handleSDLInputEvents();
+            await pumpGamepadEvents();
             println(`After pressing button ${button}: ${getStringifiedGamepads()}`);
             gamepad.setButton(button, false);
-            await handleSDLInputEvents();
+            await pumpGamepadEvents();
             println(`After unpressed button: ${getStringifiedGamepads()}`);
         }
 
         listenForGamepadDisconnected();
         gamepad.disconnect();
-        await handleSDLInputEvents();
+        await pumpGamepadEvents();
     });
 </script>

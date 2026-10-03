@@ -30,6 +30,7 @@
 #include <LibWebCommon/Bindings/Navigation.h>
 #include <LibWebCommon/CSS/StyleSheetIdentifier.h>
 #include <LibWebCommon/Forward.h>
+#include <LibWebCommon/Gamepad/GamepadSnapshot.h>
 #include <LibWebCommon/HTML/ActivateTab.h>
 #include <LibWebCommon/HTML/ApplyHistoryStep.h>
 #include <LibWebCommon/HTML/CrossProcessId.h>
@@ -174,6 +175,9 @@ private:
     virtual Messages::WebContentClient::DidIsKnownHstsHostResponse did_is_known_hsts_host(String) override;
     virtual Messages::WebContentClient::DidLoseRequestServerConnectionResponse did_lose_request_server_connection() override;
     virtual Messages::WebContentClient::RequestMediaServerConnectionResponse request_media_server_connection() override;
+    virtual void did_start_using_gamepads() override;
+    virtual void gamepad_play_effect(Web::Gamepad::GamepadHandle handle, Web::Gamepad::GamepadEffect effect) override;
+    virtual void gamepad_stop_effects(Web::Gamepad::GamepadHandle handle) override;
 
     void remember_compositor_context(Web::CompositorContextId, Optional<Web::PageId> page_id);
     void fail_renderer_owned_downloads();

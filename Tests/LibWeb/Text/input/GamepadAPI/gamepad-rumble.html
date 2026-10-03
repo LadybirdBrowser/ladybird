@@ -4,10 +4,10 @@
 <script>
     promiseTest(async () => {
         const gamepad = internals.connectVirtualGamepad();
-        await handleSDLInputEvents();
+        await pumpGamepadEvents();
 
         gamepad.setButton(gamepad.buttons[0], true);
-        await handleSDLInputEvents();
+        await pumpGamepadEvents();
 
         const navGamepad = navigator.getGamepads()[0];
 
@@ -43,11 +43,11 @@
 
         println("Playing valid dual rumble effect");
         const dualRumbleResult = await navGamepad.vibrationActuator.playEffect("dual-rumble", { duration: 2, weakMagnitude: 0.5, strongMagnitude: 0.5 });
-        await handleSDLInputEvents();
+        await pumpGamepadEvents();
         println(`Dual rumble promise resolved with '${dualRumbleResult}'`);
         println("Playing valid trigger rumble effect");
         const triggerRumbleResult = await navGamepad.vibrationActuator.playEffect("trigger-rumble", { duration: 2, leftTrigger: 0.5, rightTrigger: 0.5 });
-        await handleSDLInputEvents();
+        await pumpGamepadEvents();
         println(`Trigger rumble promise resolved with '${triggerRumbleResult}'`);
 
         println("Testing preempting a rumble effect");
@@ -56,10 +56,10 @@
 
         // Wait until the first effect reaches the gamepad, so that the next effect preempts an effect that is playing.
         while (gamepad.getReceivedRumbleEffects().length === receivedEffectCount)
-            await handleSDLInputEvents();
+            await pumpGamepadEvents();
 
         const newDualRumbleResult = await navGamepad.vibrationActuator.playEffect("dual-rumble", { duration: 2, strongMagnitude: 1.0, weakMagnitude: 1.0 });
-        await handleSDLInputEvents();
+        await pumpGamepadEvents();
         const preemptedResult = await effectToPreemptPromise;
         println(`newDualRumbleResult: '${newDualRumbleResult}', preemptedResult: '${preemptedResult}'`);
 
@@ -68,6 +68,6 @@
 
         listenForGamepadDisconnected();
         gamepad.disconnect();
-        await handleSDLInputEvents();
+        await pumpGamepadEvents();
     });
 </script>

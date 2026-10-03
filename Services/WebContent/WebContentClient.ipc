@@ -23,6 +23,7 @@
 #include <LibWebCommon/Fetch/Infrastructure/HTTP/RequestPriority.h>
 #include <LibWebCommon/FileAPI/SerializedBlobURLEntry.h>
 #include <LibWebCommon/Fullscreen/FullscreenRequestType.h>
+#include <LibWebCommon/Gamepad/GamepadSnapshot.h>
 #include <LibWebCommon/HTML/ActivateTab.h>
 #include <LibWebCommon/HTML/ApplyHistoryStep.h>
 #include <LibWebCommon/HTML/AudioPlayState.h>
@@ -259,6 +260,10 @@ endpoint WebContentClient routed by Web::PageId page_id
 
     did_change_audio_play_state(Web::PageId page_id, Web::HTML::AudioPlayState play_state) =|
     did_change_screen_wake_lock_state(Web::PageId page_id, Web::ScreenWakeLockState wake_lock_state) =|
+
+    did_start_using_gamepads() =|
+    gamepad_play_effect(Web::Gamepad::GamepadHandle handle, Web::Gamepad::GamepadEffect effect) =|
+    gamepad_stop_effects(Web::Gamepad::GamepadHandle handle) =|
 
     did_execute_js_console_input(Web::PageId page_id, JsonValue result) =|
     did_output_js_console_message(Web::PageId page_id, WebView::ConsoleOutput console_output) =|

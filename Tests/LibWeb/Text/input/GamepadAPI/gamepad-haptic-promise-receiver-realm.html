@@ -4,10 +4,10 @@
 <script>
     promiseTest(async () => {
         const gamepad = internals.connectVirtualGamepad();
-        await handleSDLInputEvents();
+        await pumpGamepadEvents();
 
         gamepad.setButton(gamepad.buttons[0], true);
-        await handleSDLInputEvents();
+        await pumpGamepadEvents();
 
         const iframe = document.createElement("iframe");
         document.body.append(iframe);
@@ -33,6 +33,6 @@
         println(`reset promise is parent realm: ${resetPromise instanceof Promise}`);
 
         gamepad.disconnect();
-        await handleSDLInputEvents();
+        await pumpGamepadEvents();
     });
 </script>
