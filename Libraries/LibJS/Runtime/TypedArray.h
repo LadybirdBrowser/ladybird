@@ -37,6 +37,10 @@ public:
 #undef __JS_ENUMERATE
     };
 
+    // Restores a view from its [[ArrayLength]], [[ByteLength]] and [[ByteOffset]], as StructuredDeserialize does. The
+    // caller must already have checked that the view fits inside the buffer.
+    static GC::Ref<TypedArrayBase> create_from_slots(Realm&, Kind, ArrayBuffer&, ByteLength array_length, ByteLength byte_length, u32 byte_offset);
+
     ByteLength const& array_length() const { return m_array_length; }
     ByteLength const& byte_length() const { return m_byte_length; }
     u32 byte_offset() const { return m_byte_offset; }
@@ -138,6 +142,19 @@ private:
 
 template<>
 inline bool Object::fast_is<TypedArrayBase>() const { return is_typed_array_base(); }
+
+// https://tc39.es/ecma262/#table-the-typedarray-constructors
+constexpr u32 typed_array_element_size(TypedArrayBase::Kind kind)
+{
+    switch (kind) {
+#define __JS_ENUMERATE(ClassName, snake_name, PrototypeName, ConstructorName, Type) \
+    case TypedArrayBase::Kind::ClassName:                                           \
+        return sizeof(Conditional<IsSame<ClampedU8, Type>, u8, Type>);
+        JS_ENUMERATE_TYPED_ARRAYS
+#undef __JS_ENUMERATE
+    }
+    VERIFY_NOT_REACHED();
+}
 
 // 10.4.5.9 TypedArray With Buffer Witness Records, https://tc39.es/ecma262/#sec-typedarray-with-buffer-witness-records
 struct TypedArrayWithBufferWitness {
