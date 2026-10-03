@@ -10069,6 +10069,18 @@ void Document::set_needs_to_record_display_list_keeping_hit_test_display_list()
 
 RefPtr<Compositing::DisplayList> Document::record_display_list(HTML::PaintConfig config, Compositing::DisplayListResourceStorage& resource_storage, Painting::PaintCommandCacheMode cache_mode)
 {
+    // The host reads this recording right after it, so a recording in flight is taken in first: it has the recorder
+    // state.
+    if (auto navigable = this->navigable())
+        navigable->take_recording_in_flight_in(HTML::LocalNavigable::TakeIn::Wait);
+    auto recording = start_display_list_recording(config, cache_mode, Layout::RustFFI::FfiFlightBlocker::NotInRenderingUpdate);
+    if (!recording.has_value())
+        return nullptr;
+    return finish_display_list_recording(*recording, resource_storage);
+}
+
+Optional<Painting::DisplayListRecording> Document::start_display_list_recording(HTML::PaintConfig config, Painting::PaintCommandCacheMode cache_mode, Layout::RustFFI::FfiFlightBlocker blocker)
+{
     update_paint_and_hit_testing_properties_if_needed();
     VERIFY(has_committed_viewport_box());
 
@@ -10107,15 +10119,21 @@ RefPtr<Compositing::DisplayList> Document::record_display_list(HTML::PaintConfig
     if (config.should_show_caret_hit_test_debug_overlay)
         overlay_inputs.caret_debug_rect = m_caret_hit_test_debug_rect;
 
-    auto display_list = Painting::record_rust_display_list(*this, *placeholder_display_list, resource_storage, cache_mode, config, overlay_inputs);
+    return Painting::start_rust_display_list_recording(*this, move(visual_context_tree), move(placeholder_display_list), cache_mode, config, overlay_inputs, blocker);
+}
+
+RefPtr<Compositing::DisplayList> Document::finish_display_list_recording(Painting::DisplayListRecording const& recording, Compositing::DisplayListResourceStorage& resource_storage)
+{
+    auto display_list = Painting::finish_rust_display_list_recording(*this, recording, resource_storage);
     if (!display_list)
         return nullptr;
 
+    auto& document_paint_state = paint_state();
     bool const recording_returned_the_paint_command_cache_source = display_list == document_paint_state.display_list_used_as_paint_command_cache_source();
     if (!recording_returned_the_paint_command_cache_source || !m_hit_test_display_list || !m_hit_test_display_list->is_current())
-        m_hit_test_display_list = Painting::HitTestDisplayList::create_from_rust_recording(visual_context_tree.structural_epoch(), layout_node_arena(), *m_chrome_widget_registry);
+        m_hit_test_display_list = Painting::HitTestDisplayList::create_from_rust_recording(recording.visual_context_tree.structural_epoch(), layout_node_arena(), *m_chrome_widget_registry);
 
-    if (cache_mode == Painting::PaintCommandCacheMode::ReadWrite && !recording_returned_the_paint_command_cache_source) {
+    if (recording.cache_mode == Painting::PaintCommandCacheMode::ReadWrite && !recording_returned_the_paint_command_cache_source) {
         document_paint_state.set_display_list_used_as_paint_command_cache_source(display_list, resource_storage.collect_referenced_resources(*display_list));
     }
 
@@ -10157,6 +10175,12 @@ Optional<Painting::HitTestQuery> Document::prepare_hit_test_query()
     auto hit_test_display_list_is_current = [&] {
         return m_hit_test_display_list && m_hit_test_display_list->is_current() && m_hit_test_display_list->visual_context_tree_structural_epoch() == paint_state().visual_context_tree_structural_epoch_without_update();
     };
+    // The recording in flight replaces the hit-test list once it lands, so a list that is not current waits for it
+    // first.
+    if (!hit_test_display_list_is_current()) {
+        if (auto navigable = this->navigable())
+            navigable->take_recording_in_flight_in(HTML::LocalNavigable::TakeIn::Wait);
+    }
     if (!hit_test_display_list_is_current()) {
         rebuild_hit_test_display_list();
         if (!hit_test_display_list_is_current())

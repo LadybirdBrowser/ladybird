@@ -540,7 +540,7 @@ static OverlayLabelFonts overlay_label_fonts(float css_size, double device_pixel
 
 }
 
-RefPtr<Compositing::DisplayList> record_rust_display_list(DOM::Document& document, Compositing::DisplayList const& placeholder_display_list, Compositing::DisplayListResourceStorage& resource_storage, PaintCommandCacheMode cache_mode, HTML::PaintConfig const& config, InspectorOverlayInputs const& overlay_inputs)
+Optional<DisplayListRecording> start_rust_display_list_recording(DOM::Document& document, Compositing::AccumulatedVisualContextTree visual_context_tree, NonnullRefPtr<Compositing::DisplayList> placeholder_display_list, PaintCommandCacheMode cache_mode, HTML::PaintConfig const& config, InspectorOverlayInputs const& overlay_inputs, Layout::RustFFI::FfiFlightBlocker blocker)
 {
     auto* host = document_host(document);
     auto device_pixels_per_css_pixel = document.page().client().device_pixels_per_css_pixel();
@@ -650,10 +650,28 @@ RefPtr<Compositing::DisplayList> record_rust_display_list(DOM::Document& documen
         inputs.background_color = document.background_color();
     }
     reconcile_navigable_container_paint_facts(document);
+    // The recording copies what it reads of the overlay arrays and buffers, which live until here.
+    auto start = Layout::RustFFI::render_state_record_display_list(host, viewport_row_slot(document), inputs, blocker);
+    if (start == Layout::RustFFI::FfiRecordingStart::NothingToRecord)
+        return {};
+    return DisplayListRecording {
+        .visual_context_tree = move(visual_context_tree),
+        .placeholder_display_list = move(placeholder_display_list),
+        .cache_mode = cache_mode,
+        .in_flight = start == Layout::RustFFI::FfiRecordingStart::InFlight,
+        .device_viewport_rect = device_viewport_rect,
+        .wheel_event_region_state = wheel_event_region_state,
+    };
+}
+
+RefPtr<Compositing::DisplayList> finish_rust_display_list_recording(DOM::Document& document, DisplayListRecording const& recording, Compositing::DisplayListResourceStorage& resource_storage)
+{
+    auto* host = document_host(document);
+    auto const& placeholder_display_list = *recording.placeholder_display_list;
+    auto device_viewport_rect = recording.device_viewport_rect;
+    auto wheel_event_region_state = recording.wheel_event_region_state;
     RecordingPublishContext publish_context { resource_storage, document };
     auto rust_timer = Core::ElapsedTimer::start_new(Core::TimerType::Precise);
-    if (!Layout::RustFFI::render_state_record_display_list(host, viewport_row_slot(document), inputs))
-        return nullptr;
     Layout::RustFFI::FfiPresentedRecording presented {};
     Layout::RustFFI::render_state_publish_recording(host, recording_publish_callbacks(publish_context), &presented);
     take_recording_trace_if_pending(document);
@@ -680,7 +698,7 @@ RefPtr<Compositing::DisplayList> record_rust_display_list(DOM::Document& documen
         }
     }
 
-    auto display_list = Compositing::DisplayList::share_rust_command_storage(document.visual_context_tree(), presented.display_list);
+    auto display_list = Compositing::DisplayList::share_rust_command_storage(recording.visual_context_tree, presented.display_list);
     if (rust_painting_timing_enabled())
         dbgln("PAINT_RECORD rust={} µs commands={} bytes", rust_timer.elapsed_time().to_microseconds(), display_list->command_bytes().size());
 

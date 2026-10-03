@@ -136,6 +136,11 @@ public:
 
     bool running_rendering_task() const { return m_running_rendering_task; }
 
+    // A rendering update's recording flies beside the event loop until the event loop takes it in between two tasks.
+    void did_let_recording_fly(LocalNavigable&);
+    // Called before a rendering update submits a recording, on a thread with a Core event loop.
+    void ensure_frame_completion_registered();
+
     RenderingSchedulerCounters const& rendering_scheduler_counters() const { return m_rendering_scheduler_counters; }
     void reset_rendering_scheduler_counters();
 
@@ -146,6 +151,7 @@ private:
 
     void process_input_events() const;
     void update_the_rendering();
+    void take_finished_frames_in();
 
     Type m_type { Type::Window };
 
@@ -196,6 +202,10 @@ private:
     double m_last_rendering_update_end_time { 0 };
 
     GC::Ptr<GC::Function<void()>> m_rendering_task_function;
+
+    // The navigables whose recordings fly beside the event loop.
+    Vector<GC::Ref<LocalNavigable>> m_navigables_with_recordings_in_flight;
+    bool m_frame_completion_registered { false };
 };
 
 WEB_API EventLoop& main_thread_event_loop();

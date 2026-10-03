@@ -15,6 +15,7 @@
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/PaintConfig.h>
 #include <LibWeb/Layout/LayoutRustFFI.h>
+#include <LibWeb/Painting/DocumentPaintState.h>
 #include <LibWeb/Painting/FlexboxInspectorOverlay.h>
 #include <LibWeb/Painting/GridInspectorOverlay.h>
 #include <LibWeb/Painting/PaintableTypes.h>
@@ -61,7 +62,22 @@ struct InspectorOverlayInputs {
     Optional<CSSPixelRect> caret_debug_rect;
 };
 
-WEB_API RefPtr<Compositing::DisplayList> record_rust_display_list(DOM::Document&, Compositing::DisplayList const& placeholder_display_list, Compositing::DisplayListResourceStorage&, PaintCommandCacheMode, HTML::PaintConfig const&, InspectorOverlayInputs const&);
+// A recording of a document's display list, started from the document as it was then: done in step with the host, or
+// in flight beside the event loop until the event loop takes it in. Its display list is made once it has landed.
+struct DisplayListRecording {
+    Compositing::AccumulatedVisualContextTree visual_context_tree;
+    NonnullRefPtr<Compositing::DisplayList> placeholder_display_list;
+    PaintCommandCacheMode cache_mode;
+    bool in_flight { false };
+    DevicePixelRect device_viewport_rect;
+    BlockingWheelEventRegionState wheel_event_region_state;
+};
+
+// Starts recording the document's viewport against `visual_context_tree`, unless it has no box to record. The recording
+// flies where `blocker` is none.
+WEB_API Optional<DisplayListRecording> start_rust_display_list_recording(DOM::Document&, Compositing::AccumulatedVisualContextTree, NonnullRefPtr<Compositing::DisplayList> placeholder_display_list, PaintCommandCacheMode, HTML::PaintConfig const&, InspectorOverlayInputs const&, Layout::RustFFI::FfiFlightBlocker);
+// Publishes the recording, which has landed and stands, and makes its display list.
+WEB_API RefPtr<Compositing::DisplayList> finish_rust_display_list_recording(DOM::Document&, DisplayListRecording const&, Compositing::DisplayListResourceStorage&);
 WEB_API Utf16String serialize_painting_dump(DOM::Document const&, Compositing::AccumulatedVisualContextTree const&, Compositing::DisplayList const&, Compositing::DisplayListResourceStorage const&);
 
 WEB_API CSS::ColorResolutionContext gradient_stop_color_resolution_context(Layout::NodeWithStyle const&);
