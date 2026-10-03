@@ -563,7 +563,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                     let engine = read_engine(&mut event.payload, &live_engines)?;
                     let root = event.payload.read_u32()?;
                     let expected = usize::try_from(event.payload.read_u64()?)?;
-                    let actual = unsafe { bridge::style_engine_match_document(engine, root) };
+                    let actual = bridge::operations::match_document(unsafe { engine.get_mut() }, root);
                     if actual != expected {
                         return Err(format!("document match count diverged: expected {expected}, got {actual}").into());
                     }
@@ -626,13 +626,10 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                     let engine = read_engine(&mut event.payload, &live_engines)?;
                     let nodes = event.payload.read_u32_vec()?;
                     let expected = event.payload.read_bool()?;
-                    let actual = unsafe {
-                        bridge::style_engine_complete_published_match_answers_for_closure(
-                            engine,
-                            nodes.as_ptr(),
-                            nodes.len(),
-                        )
-                    };
+                    let actual = bridge::operations::complete_published_match_answers_for_closure(
+                        unsafe { engine.get_mut() },
+                        &nodes,
+                    );
                     if actual != expected {
                         return Err(format!(
                             "published match closure completion diverged: expected {expected}, got {actual}"
@@ -663,7 +660,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                     let root = event.payload.read_u32()?;
                     let expected = event.payload.read_bool()?;
                     let start = Instant::now();
-                    let actual = unsafe { bridge::style_engine_begin_cold_matching_batch(engine, root) };
+                    let actual = bridge::operations::begin_cold_matching_batch(unsafe { engine.get_mut() }, root);
                     let elapsed = start.elapsed();
                     boundary_time += elapsed;
                     record_boundary_timing(
@@ -683,7 +680,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                     let engine = read_engine(&mut event.payload, &live_engines)?;
                     let root = event.payload.read_u32()?;
                     let start = Instant::now();
-                    unsafe { bridge::style_engine_begin_adaptive_cold_matching_batch(engine, root) };
+                    bridge::operations::begin_adaptive_cold_matching_batch(unsafe { engine.get_mut() }, root);
                     let elapsed = start.elapsed();
                     boundary_time += elapsed;
                     record_boundary_timing(
@@ -697,7 +694,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                 EventKind::EndColdMatchingBatch => {
                     let engine = read_engine(&mut event.payload, &live_engines)?;
                     let start = Instant::now();
-                    unsafe { bridge::style_engine_end_cold_matching_batch(engine) };
+                    bridge::operations::end_cold_matching_batch(unsafe { engine.get_mut() });
                     let elapsed = start.elapsed();
                     boundary_time += elapsed;
                     record_boundary_timing(
@@ -1201,7 +1198,8 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                 EventKind::DeferPendingTransactionForGeometryRead => {
                     let engine = read_engine(&mut event.payload, &live_engines)?;
                     let expected = event.payload.read_bool()?;
-                    let actual = unsafe { bridge::style_engine_defer_pending_transaction_for_geometry_read(engine) };
+                    let actual =
+                        bridge::operations::defer_pending_transaction_for_geometry_read(unsafe { engine.get_mut() });
                     if actual != expected {
                         return Err(format!(
                             "geometry transaction deferral diverged: expected {expected}, got {actual}"
@@ -1212,7 +1210,8 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                 EventKind::BeginDeferredGeometryTransactionFlush => {
                     let engine = read_engine(&mut event.payload, &live_engines)?;
                     let expected = event.payload.read_bool()?;
-                    let actual = unsafe { bridge::style_engine_begin_deferred_geometry_transaction_flush(engine) };
+                    let actual =
+                        bridge::operations::begin_deferred_geometry_transaction_flush(unsafe { engine.get_mut() });
                     if actual != expected {
                         return Err(format!(
                             "deferred geometry flush start diverged: expected {expected}, got {actual}"

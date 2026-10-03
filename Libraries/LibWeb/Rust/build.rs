@@ -654,6 +654,9 @@ fn generate_style_engine_boundary(manifest_dir: &Path, out_dir: &Path) -> Result
         if is_query && (return_kind == "void" || ffi.is_none()) {
             return Err(format!("the query {event} must be an FFI read that answers something").into());
         }
+        if ffi.is_some() && !is_change && !is_query {
+            return Err(format!("the FFI operation {event} must be a change or a query of the document host").into());
+        }
         if let Some(ffi) = ffi
             && !ffi_names.insert(ffi)
         {
@@ -706,13 +709,11 @@ fn generate_style_engine_boundary(manifest_dir: &Path, out_dir: &Path) -> Result
                 (rust_type, cpp_type, writer, reader)
             }
         };
-        let engine_type = "crate::css::style::StyleEngineHandle";
-        let engine_borrow = if receiver == "const" {
+        let replay_engine_borrow = if receiver == "const" {
             "engine.get()"
         } else {
             "engine.get_mut()"
         };
-        let replay_engine_borrow = engine_borrow;
 
         if let Some(ffi) = ffi
             && is_change
@@ -817,27 +818,6 @@ fn generate_style_engine_boundary(manifest_dir: &Path, out_dir: &Path) -> Result
                 rust,
                 " }};\n        let GeneratedStyleAnswer::{event}(result) = (unsafe {{ crate::css::style::engine_calls::ask_engine_generated(document_host, query) }}) else {{ unreachable!(\"a read is answered with its own result\") }};\n        result\n    }})\n}}\n"
             )?;
-        } else if let Some(ffi) = ffi {
-            writeln!(
-                rust,
-                "/// Generated from the StyleEngine boundary specification.\n///\n/// # Safety\n/// `engine` and every borrowed argument must be live for this call.\n#[unsafe(no_mangle)]"
-            )?;
-            write!(rust, "pub unsafe extern \"C\" fn {ffi}(engine: {engine_type}")?;
-            for (name, kind, (rust_type, _, _, _)) in &parsed_arguments {
-                write!(rust, ", {name}: {rust_type}")?;
-                if kind.ends_with("_slice") {
-                    write!(rust, ", {name}_count: usize")?;
-                }
-            }
-            if return_kind != "void" {
-                writeln!(rust, ") -> {rust_return} {{")?;
-            } else {
-                rust.push_str(") {\n");
-            }
-            writeln!(
-                rust,
-                "    abort_on_panic(|| {{\n        let engine = unsafe {{ {engine_borrow} }};"
-            )?;
         }
         let native_receiver = if receiver == "const" {
             "&StyleEngine"
@@ -849,12 +829,6 @@ fn generate_style_engine_boundary(manifest_dir: &Path, out_dir: &Path) -> Result
             if kind.ends_with("_slice") {
                 let element_type = rust_type.trim_start_matches("*const ");
                 write!(native, ", {name}: &[{element_type}]")?;
-                if ffi.is_some() && !is_change && !is_query {
-                    writeln!(
-                        rust,
-                        "        let {name}: &[{element_type}] = if {name}_count == 0 || {name}.is_null() {{ &[] }} else {{ unsafe {{ std::slice::from_raw_parts({name}, {name}_count) }} }};"
-                    )?;
-                }
             } else {
                 write!(native, ", {name}: {rust_type}")?;
             }
@@ -863,17 +837,6 @@ fn generate_style_engine_boundary(manifest_dir: &Path, out_dir: &Path) -> Result
             native.push_str(") {\n");
         } else {
             writeln!(native, ") -> {rust_return} {{")?;
-        }
-        if ffi.is_some() && !is_change && !is_query {
-            write!(rust, "        operations::{operation_name}(engine")?;
-            for (name, _, _) in &parsed_arguments {
-                write!(rust, ", {name}")?;
-            }
-            rust.push_str(if return_kind == "void" {
-                ");\n    });\n}\n\n"
-            } else {
-                ")\n    })\n}\n\n"
-            });
         }
         for (name, _, _) in &parsed_arguments {
             writeln!(native, "        let recorded_{name} = {name};")?;
@@ -1013,11 +976,7 @@ fn generate_style_engine_boundary(manifest_dir: &Path, out_dir: &Path) -> Result
         } else {
             cpp_definitions.push_str("    ");
         }
-        if is_change || is_query {
-            write!(cpp_definitions, "StyleEngineFFI::{ffi}(m_render_document->host()")?;
-        } else {
-            write!(cpp_definitions, "StyleEngineFFI::{ffi}(m_impl")?;
-        }
+        write!(cpp_definitions, "StyleEngineFFI::{ffi}(m_render_document->host()")?;
         for (name, kind, _) in &parsed_arguments {
             if matches!(
                 *kind,
