@@ -20,13 +20,16 @@ use crate::painting::visual_context::dirty::{VisualContextGlobalRebuildReason, V
 use crate::painting::visual_context::incremental::{
     IncrementalUpdateResult, debug_assert_every_live_node_is_owned, update_visual_context_tree,
 };
-use crate::render_state::{DocumentHost, LockstepProof, RenderMessage, wait_for_render_state};
+use crate::render_state::{DocumentHost, LockstepProof, PreparationPending, RenderMessage, ask, wait_for_render_state};
 use libgfx_rust::FloatPoint;
 
 /// One step of paint preparation over a document's render state.
 pub(crate) enum PaintPass {
     /// Settles the scrollable overflow left unmeasured, and with it the root background and the sticky constraints.
-    PrepareForRendering { visual_context_update_pending: bool },
+    PrepareForRendering {
+        pending: PendingPreparation,
+        visual_context_update_pending: bool,
+    },
     /// Brings the visual context tree up to date with the rows, rebuilding what the dirty boxes name.
     UpdateAccumulatedVisualContexts { viewport: NodeSlotId },
     /// Gives the visual context tree the transform of the visual viewport.
@@ -86,15 +89,13 @@ impl PaintPass {
     pub(crate) fn run(self, arena: &mut LayoutNodeArena) -> PaintPassAnswer {
         match self {
             Self::PrepareForRendering {
+                pending,
                 visual_context_update_pending,
-            } => {
-                let root_background_source = crate::layout::viewport_propagation::root_background_source(arena);
-                PaintPassAnswer::Prepared(prepare_for_rendering(
-                    arena,
-                    root_background_source,
-                    visual_context_update_pending,
-                ))
-            }
+            } => PaintPassAnswer::Prepared(prepare_for_rendering(
+                arena,
+                pending.root_background_source,
+                visual_context_update_pending,
+            )),
             Self::UpdateAccumulatedVisualContexts { viewport } => {
                 PaintPassAnswer::VisualContexts(update_accumulated_visual_contexts(arena, viewport))
             }
@@ -135,6 +136,32 @@ pub(crate) fn run(host: &DocumentHost, pass: PaintPass) -> PaintPassAnswer {
     wait_for_render_state(LockstepProof::for_reason(&HOST_PAINT_STEP), host, |reply| {
         RenderMessage::Paint { document, pass, reply }
     })
+}
+
+/// Proof that preparing a document for rendering has something to do, which only [`rendering_preparation_pending`]
+/// mints: a host never sends a preparation that would answer that nothing changed. It carries the root background
+/// source it was found with, for the preparation to take over.
+pub(crate) struct PendingPreparation {
+    root_background_source: RootBackgroundSource,
+}
+
+/// Whether preparing `arena` for rendering would change anything: its root background source moved, or scrollable
+/// overflow is left to settle or to measure, or a measurement changed what the preparation answers.
+pub(crate) fn rendering_preparation_pending(arena: &LayoutNodeArena) -> Option<PendingPreparation> {
+    let root_background_source = crate::layout::viewport_propagation::root_background_source(arena);
+    let overflow = &arena.scrollable_overflow;
+    let pending = arena.paint_state().borrow().root_background_source != Some(root_background_source)
+        || overflow.full_layout_commit.get()
+        || overflow.geometry_changed.get()
+        || overflow.scrollability_changed.get()
+        || arena.scrollable_overflow_recalculation_is_scheduled()
+        || !arena.scrollable_overflow_is_measured();
+    pending.then_some(PendingPreparation { root_background_source })
+}
+
+/// Asks the render state of `host`'s document whether preparing it for rendering has something to do.
+pub(crate) fn pending_preparation(host: &DocumentHost) -> Option<PendingPreparation> {
+    ask(LockstepProof::for_reason(&HOST_PAINT_STEP), host, PreparationPending)
 }
 
 pub(crate) fn prepare_for_rendering(

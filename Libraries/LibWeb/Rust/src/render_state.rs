@@ -27,7 +27,7 @@ mod questions;
 mod wait;
 
 pub use document_host::DocumentHost;
-pub(crate) use questions::{ArenaAnswer, ArenaQuery, CommittedRows, Lent, Query, ask};
+pub(crate) use questions::{ArenaAnswer, ArenaQuery, CommittedRows, Lent, PreparationPending, Query, ask};
 pub(crate) use wait::{LockstepProof, RenderWait, ReplyTo, ScriptForcedRead, wait_for_render_state, wait_from_entry};
 
 /// The host's name for one document's render state. The host mints it, so naming a new document needs no answer from

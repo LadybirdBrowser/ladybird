@@ -9,7 +9,7 @@
 //! a token nor call an entry that does.
 
 use super::*;
-use crate::painting::paint_passes::{PaintPass, PaintPassAnswer, run as run_paint_pass};
+use crate::painting::paint_passes::{PaintPass, PaintPassAnswer, pending_preparation, run as run_paint_pass};
 
 /// Mints the main thread token for this module's FFI entry points; only this module can make one.
 pub(crate) struct MainThreadFfiEntry {
@@ -349,9 +349,14 @@ pub unsafe extern "C" fn render_state_prepare_for_rendering(
     visual_context_update_pending: bool,
 ) -> crate::painting::paint_passes::FfiRenderingPreparationOutcome {
     // SAFETY: Guaranteed by the caller.
+    let host = unsafe { &*host };
+    let Some(pending) = pending_preparation(host) else {
+        return Default::default();
+    };
     let PaintPassAnswer::Prepared(prepared) = run_paint_pass(
-        unsafe { &*host },
+        host,
         PaintPass::PrepareForRendering {
+            pending,
             visual_context_update_pending,
         },
     ) else {
@@ -359,8 +364,6 @@ pub unsafe extern "C" fn render_state_prepare_for_rendering(
     };
     if !prepared.clamped_scroll_offsets.is_empty() {
         // SAFETY: Guaranteed by the caller.
-        let host = unsafe { &*host };
-        // SAFETY: As above.
         let main_thread = unsafe { crate::stage::from_ffi_entry_with_host(&MAIN_THREAD_FFI_ENTRY, host) };
         if let Some(geometry_host) = host.host_tables().geometry_host.get() {
             for (slot, offset) in prepared.clamped_scroll_offsets {
