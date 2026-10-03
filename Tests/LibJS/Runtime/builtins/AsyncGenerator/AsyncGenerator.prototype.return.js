@@ -130,6 +130,43 @@ describe("correct behavior", () => {
             });
         runQueuedPromiseJobs();
     });
+
+    function returnWhileSettlingFirstRequest(generatorBody) {
+        const log = [];
+        async function* generator() {
+            generatorBody(generatorObject, log);
+        }
+        const generatorObject = generator();
+        let armed = true;
+        Object.defineProperty(Object.prototype, "then", {
+            configurable: true,
+            get() {
+                if (armed) {
+                    armed = false;
+                    generatorObject.return(1).then(result => log.push(`return ${result.value} ${result.done}`));
+                }
+            },
+        });
+        try {
+            generatorObject.next().then(result => log.push(`next ${result.value} ${result.done}`));
+        } finally {
+            delete Object.prototype.then;
+        }
+        runQueuedPromiseJobs();
+        return log;
+    }
+
+    test("return called while the completed generator settles a request", () => {
+        const log = returnWhileSettlingFirstRequest(() => {});
+        expect(log).toEqual(["next undefined true", "return 1 true"]);
+    });
+
+    test("return called while the completed generator settles a request with more queued", () => {
+        const log = returnWhileSettlingFirstRequest((generatorObject, log) => {
+            generatorObject.next(2).then(result => log.push(`queued next ${result.value} ${result.done}`));
+        });
+        expect(log).toEqual(["queued next undefined true", "next undefined true", "return 1 true"]);
+    });
 });
 
 describe("errors", () => {

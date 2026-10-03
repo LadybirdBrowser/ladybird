@@ -24,7 +24,7 @@ public:
         SuspendedStart,
         SuspendedYield,
         Executing,
-        AwaitingReturn,
+        DrainingQueue,
         Completed,
     };
 

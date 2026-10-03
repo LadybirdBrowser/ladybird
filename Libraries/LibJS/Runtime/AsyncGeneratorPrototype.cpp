@@ -94,55 +94,55 @@ JS_DEFINE_NATIVE_FUNCTION(AsyncGeneratorPrototype::next)
     }
     // 10. Else,
     else {
-        // a. Assert: state is either executing or awaiting-return.
-        VERIFY(state == AsyncGenerator::State::Executing || state == AsyncGenerator::State::AwaitingReturn);
+        // a. Assert: state is either executing or draining-queue.
+        VERIFY(state == AsyncGenerator::State::Executing || state == AsyncGenerator::State::DrainingQueue);
     }
 
     // 11. Return promiseCapability.[[Promise]].
     return promise_capability->promise();
 }
 
-// 27.6.1.3 AsyncGenerator.prototype.return ( value ), https://tc39.es/ecma262/#sec-asyncgenerator-prototype-return
+// 27.9.1.3 %AsyncGeneratorPrototype%.return ( value ), https://tc39.es/ecma262/#sec-asyncgenerator-prototype-return
 JS_DEFINE_NATIVE_FUNCTION(AsyncGeneratorPrototype::return_)
 {
     auto& realm = *vm.current_realm();
 
-    // 1. Let generator be the this value.
+    // 1. Let gen be the this value.
     auto generator_this_value = vm.this_value();
 
     // 2. Let promiseCapability be ! NewPromiseCapability(%Promise%).
     auto promise_capability = MUST(new_promise_capability(vm, realm.intrinsics().promise_constructor()));
 
-    // 3. Let result be Completion(AsyncGeneratorValidate(generator, empty)).
+    // 3. Let result be Completion(AsyncGeneratorValidate(gen, empty)).
     // 4. IfAbruptRejectPromise(result, promiseCapability).
     auto generator = TRY_OR_REJECT(vm, promise_capability, async_generator_validate(vm, generator_this_value, OptionalNone {}));
 
-    // 5. Let completion be Completion Record { [[Type]]: return, [[Value]]: value, [[Target]]: empty }.
+    // 5. Let completion be ReturnCompletion(value).
     auto completion = Completion(Completion::Type::Return, vm.argument(0));
 
-    // 6. Perform AsyncGeneratorEnqueue(generator, completion, promiseCapability).
+    // 6. Perform AsyncGeneratorEnqueue(gen, completion, promiseCapability).
     generator->async_generator_enqueue(completion, promise_capability);
 
-    // 7. Let state be generator.[[AsyncGeneratorState]].
+    // 7. Let state be gen.[[AsyncGeneratorState]].
     auto state = generator->async_generator_state();
 
-    // 8. If state is either suspendedStart or completed, then
+    // 8. If state is either suspended-start or completed, then
     if (state == AsyncGenerator::State::SuspendedStart || state == AsyncGenerator::State::Completed) {
-        // a. Set generator.[[AsyncGeneratorState]] to awaiting-return.
-        generator->set_async_generator_state({}, AsyncGenerator::State::AwaitingReturn);
+        // a. Set gen.[[AsyncGeneratorState]] to draining-queue.
+        generator->set_async_generator_state({}, AsyncGenerator::State::DrainingQueue);
 
-        // b. Perform AsyncGeneratorAwaitReturn(generator).
+        // b. Perform AsyncGeneratorAwaitReturn(gen).
         generator->await_return();
     }
-    // 9. Else if state is suspendedYield, then
+    // 9. Else if state is suspended-yield, then
     else if (state == AsyncGenerator::State::SuspendedYield) {
-        // a. Perform AsyncGeneratorResume(generator, completion).
+        // a. Perform AsyncGeneratorResume(gen, completion).
         TRY_OR_REJECT(vm, promise_capability, generator->resume(vm, completion));
     }
     // 10. Else,
     else {
-        // a. Assert: state is either executing or awaiting-return.
-        VERIFY(state == AsyncGenerator::State::Executing || state == AsyncGenerator::State::AwaitingReturn);
+        // a. Assert: state is either executing or draining-queue.
+        VERIFY(state == AsyncGenerator::State::Executing || state == AsyncGenerator::State::DrainingQueue);
     }
 
     // 11. Return promiseCapability.[[Promise]].
@@ -200,8 +200,8 @@ JS_DEFINE_NATIVE_FUNCTION(AsyncGeneratorPrototype::throw_)
     }
     // 11. Else,
     else {
-        // a. Assert: state is either executing or awaiting-return.
-        VERIFY(state == AsyncGenerator::State::Executing || state == AsyncGenerator::State::AwaitingReturn);
+        // a. Assert: state is either executing or draining-queue.
+        VERIFY(state == AsyncGenerator::State::Executing || state == AsyncGenerator::State::DrainingQueue);
     }
 
     // 12. Return promiseCapability.[[Promise]].
