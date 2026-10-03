@@ -695,9 +695,9 @@ bool NodeWithStyle::is_scroll_container() const
         || overflow_value_makes_box_a_scroll_container(overflow_y());
 }
 
-void Node::clear_committed_box()
+void Node::prepare_subtree_for_removal()
 {
-    RustFFI::layout_arena_paintable_cleared_from_node(arena_handle(), slot_id(this));
+    RustFFI::layout_arena_prepare_subtree_for_removal(arena_handle(), slot_id(this));
 }
 
 DOM::Node const* Node::dom_node() const

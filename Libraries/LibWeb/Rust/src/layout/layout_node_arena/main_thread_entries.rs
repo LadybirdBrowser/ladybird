@@ -187,6 +187,36 @@ pub unsafe extern "C" fn layout_arena_prepare_subtree_for_detach(arena: *mut c_v
     );
 }
 
+/// Clears the committed box of every row of the subtree `root` heads and prepares each for leaving the layout tree,
+/// as a removal does before it drops the subtree. The host lets go of its rows first: the drop that follows changes
+/// what they are, so the host reads none of them again, and these writes go in place rather than to copies of the
+/// chunks its rows share.
+///
+/// # Safety
+///
+/// `arena` must be a live handle on the document thread, and `root` a live row.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_prepare_subtree_for_removal(arena: *mut c_void, root: NodeSlotId) {
+    // SAFETY: Guaranteed by the entry point's contract.
+    let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY, arena) };
+    if let Some(host) = main_thread.host() {
+        host.let_go_of_rows();
+    }
+    let mut rows = Vec::new();
+    // SAFETY: As above.
+    unsafe { LayoutNodeArena::from_handle(arena) }
+        .for_each_node_in_layout_subtree_in_pre_order(root, |row| rows.push(row));
+    for &row in &rows {
+        // SAFETY: As above.
+        unsafe { crate::painting::ffi::paintable_cleared_from_node(HostCalls::Now(&main_thread), arena, row) };
+    }
+    // SAFETY: As above.
+    let arena = unsafe { LayoutNodeArena::from_handle(arena) };
+    for row in rows {
+        prepare_row_for_detach(HostCalls::Now(&main_thread), arena, row);
+    }
+}
+
 /// Detaches the layout subtree `root` heads from its parent, if it has one, and frees it, every C++-side detach
 /// preparation that walks the subtree having run. Answers whether the subtree was attached.
 ///
