@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    @keyframes grow { from { font-size: var(--size); } to { font-size: calc(var(--size) * 2); } }
+    #wrapper { --size: 10px; --color: blue; animation: grow 1s linear paused; }
+    #wrapper.moved { --size: 20px; --color: red; }
+    a { color: var(--color); }
+</style>
+<div id="wrapper"><a><b>x<span>y</span></b></a></div>
+<script>
+    // Moving the link's custom-property environment reaches its descendants before their own rows in the same batch,
+    // which install their new inherited font size.
+    test(() => {
+        const bold = document.querySelector("b");
+        const span = document.querySelector("span");
+        const height_before = bold.getBoundingClientRect().height;
+        document.getElementById("wrapper").classList.add("moved");
+        document.body.offsetWidth;
+        println(`b: ${getComputedStyle(bold).fontSize} ${getComputedStyle(bold).color}`);
+        println(`span: ${getComputedStyle(span).fontSize} ${getComputedStyle(span).color}`);
+        println(`b laid out taller: ${bold.getBoundingClientRect().height > height_before * 1.5}`);
+    });
+</script>

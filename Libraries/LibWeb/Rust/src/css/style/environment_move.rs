@@ -426,7 +426,14 @@ mod tests {
 
     /// A record for `node` to hold, published as one of no style groups.
     fn held_record(engine: &mut StyleEngine, node: StyleNodeID) -> u64 {
-        let record = engine
+        let record = assigned_record(engine, node, 0);
+        engine.set_held_style_record(node, record);
+        record
+    }
+
+    /// A record of no style groups assigned to `node`, told apart by its dependency flags.
+    fn assigned_record(engine: &mut StyleEngine, node: StyleNodeID, dependency_flags: u8) -> u64 {
+        engine
             .publish_computed_groups(
                 computed::ComputedStyleTarget::new(node, u8::MAX),
                 &[],
@@ -434,7 +441,7 @@ mod tests {
                 0,
                 computed::ComputedMetadataInput {
                     pseudo_element_styles: 0,
-                    dependency_flags: 0,
+                    dependency_flags,
                     counter_style_environment_identity: 0,
                     animation_overlay_identity: 0,
                     animated_overlay: crate::css::host_shared::HostShared::null(),
@@ -443,9 +450,7 @@ mod tests {
                 },
             )
             .style_record_identity
-            .raw();
-        engine.set_held_style_record(node, record);
-        record
+            .raw()
     }
 
     /// The republished records a walk answered, by node and the environment they replaced, after
@@ -532,6 +537,28 @@ mod tests {
                 EnvironmentMoveAction::Recompute(nodes[1]),
                 EnvironmentMoveAction::Recompute(nodes[2]),
             ]
+        );
+    }
+
+    #[test]
+    fn a_move_republishes_the_record_the_host_holds_beneath_a_newer_assignment() {
+        let (mut engine, nodes) = linear_document();
+        discard_transaction(&mut engine);
+        held_record(&mut engine, nodes[1]);
+        engine.set_element_var_reads(nodes[1], true, true, &[]);
+        engine.set_element_custom_property_data(nodes[1], Some(data(0x1000)), 1, None, false);
+        // A row the host has yet to apply installs the newer assignment, which moves more than the environment.
+        let assigned = assigned_record(&mut engine, nodes[1], 1);
+        let actions = walk(&mut engine, nodes[0], &moved(1, 2));
+        assert_eq!(republished(&engine, &actions, 2), [(nodes[1], 1)]);
+        let records = &engine.computed_group_sets;
+        assert!(matches!(
+            actions[..],
+            [EnvironmentMoveAction::Republish { style_record, .. }] if records.style_record_dependency_flags(style_record) == Some(0)
+        ));
+        assert_eq!(
+            records.assigned_style_record(nodes[1]).map(|record| record.raw()),
+            Some(assigned)
         );
     }
 
