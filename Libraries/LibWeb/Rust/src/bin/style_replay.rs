@@ -54,7 +54,7 @@ use libweb_rust::css::style::record_replay::PayloadReader;
 use libweb_rust::css::style::record_replay::PayloadWriter;
 use libweb_rust::css::style::selector::SelectorProgram;
 
-struct ReplayCustomPropertyRegistry(*mut c_void);
+struct ReplayCustomPropertyRegistry(*const c_void);
 
 impl ReplayCustomPropertyRegistry {
     fn new() -> Self {

@@ -58,6 +58,7 @@ fn every_retained_member_is_shareable(state: &RetainedState) {
         document_resource_contexts,
         document_media,
         document_functions,
+        custom_property_registry,
         font_resolution,
         monospace_font_family,
         layer_topology_version,
@@ -174,6 +175,7 @@ fn every_retained_member_is_shareable(state: &RetainedState) {
     assert_member_is_sync(document_resource_contexts);
     assert_member_is_sync(document_media);
     assert_member_is_sync(document_functions);
+    assert_member_is_sync(custom_property_registry);
     assert_member_is_sync(layer_topology_version);
     assert_member_is_sync(sheet_order_version);
     assert_member_is_sync(monospace_font_family);

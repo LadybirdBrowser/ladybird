@@ -4136,6 +4136,12 @@ pub(crate) unsafe fn take_style_transaction(
         engine.engine_cold_record_donors.clear();
         engine.engine_pseudo_record_cache.clear();
     }
+    // SAFETY: The inputs name the document's live registry, or none.
+    engine.custom_property_registry = unsafe {
+        crate::css::custom_properties::retain_custom_property_registry(
+            computation_inputs.custom_property_registry.as_pointer(),
+        )
+    };
     engine.document_style_computation_inputs = computation_inputs;
     engine.clear_ffi_style_transaction_output();
     let mut output = FfiStyleTransactionOutput::default();

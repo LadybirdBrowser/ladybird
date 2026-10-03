@@ -1813,6 +1813,7 @@ impl StyleEngineState {
                 document_resource_contexts: Default::default(),
                 document_media: Default::default(),
                 document_functions: Default::default(),
+                custom_property_registry: None,
                 monospace_font_family: RetainedStyleValueData::from_owned(
                     crate::css::parser::value_parser::value_list(
                         vec![StyleValueData::Keyword {
@@ -3335,6 +3336,7 @@ impl RetainedState {
             document_resource_contexts: _,
             document_media: _,
             document_functions: _,
+            custom_property_registry: _,
             font_resolution: _,
             monospace_font_family: _,
             layer_topology_version: _,

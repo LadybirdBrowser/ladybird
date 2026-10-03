@@ -849,6 +849,10 @@ pub struct RetainedState {
     document_media: custom_property_cascade::DocumentMediaSnapshot,
     /// The `@function` definitions each scope sees, retained from each transaction's inputs.
     document_functions: custom_property_cascade::DocumentFunctionSnapshot,
+    /// The custom-property registry the last transaction's inputs name, which the engine holds a
+    /// reference to for as long as it reads the registry: the document makes its registry anew
+    /// when the registrations change.
+    custom_property_registry: Option<std::sync::Arc<crate::css::custom_properties::CustomPropertyRegistry>>,
     /// Every font resolution this document has been given. An evaluation step reads it; only a
     /// host round between passes adds to it.
     font_resolution: Option<font_resolution::FontResolutionCache>,
