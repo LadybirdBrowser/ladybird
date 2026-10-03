@@ -127,7 +127,6 @@ public:
 
     void set_window_position(Gfx::IntPoint);
     void set_window_size(Gfx::IntSize);
-    Web::HTML::VisibilityState system_visibility_state() const { return m_system_visibility_state; }
     void set_system_visibility_state(Web::HTML::VisibilityState);
     void set_has_system_focus(bool);
 
@@ -594,8 +593,8 @@ protected:
     void set_page_background_color(Gfx::Color);
     Gfx::Color preferred_canvas_background_color() const;
 
-    void initialize_tab(Optional<CanonicalTraversable&> = {});
-    void display_traversable(CanonicalTraversable&);
+    void initialize_tab(Web::HTML::VisibilityState, Optional<CanonicalTraversable&> = {});
+    void display_traversable(CanonicalTraversable&, Web::HTML::VisibilityState);
     void display_page_changed(RefPtr<WebContentPage> previous_page);
     void cancel_all_native_geolocation_requests();
     void send_geolocation_emulated_position(WebContentPage&);
@@ -834,7 +833,6 @@ protected:
     Web::HTML::MuteState m_mute_state { Web::HTML::MuteState::Unmuted };
 
     CanonicalTraversable* m_top_level_traversable { nullptr };
-    Web::HTML::VisibilityState m_system_visibility_state { Web::HTML::VisibilityState::Hidden };
     Optional<SessionTabId> m_session_tab_id;
     Optional<SessionHistorySnapshot> m_captured_session_history_snapshot_for_testing;
     RefPtr<Core::Promise<Empty>> m_pending_session_history_reset_for_testing;

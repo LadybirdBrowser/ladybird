@@ -17,7 +17,7 @@ namespace TestWeb {
 NonnullOwnPtr<TestWebView> TestWebView::create(Core::AnonymousBuffer theme, Web::DevicePixelSize window_size)
 {
     auto view = adopt_own(*new TestWebView(move(theme), window_size));
-    view->initialize_tab();
+    view->initialize_tab(Web::HTML::VisibilityState::Visible);
 
     return view;
 }

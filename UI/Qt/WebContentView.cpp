@@ -158,7 +158,7 @@ WebContentView::WebContentView(QWidget* window, Optional<WebView::CanonicalTrave
                 this);
     });
 
-    initialize_tab(traversable);
+    initialize_tab(Web::HTML::VisibilityState::Hidden, traversable);
 
     on_ready_to_paint = [this]() {
 #ifdef LADYBIRD_QT_USE_RHI_WIDGET
