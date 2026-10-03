@@ -5,11 +5,10 @@
     // destination comes from the container's replicated local name, so the server sees an iframe request.
     promiseTest(async () => {
         const httpServer = httpTestServer();
-        const runId = crypto.randomUUID();
         const childHostname = uniqueLocalhostHostname("oop-sec-fetch-dest");
 
         const secondUrl = new URL(
-            await httpServer.createEcho("GET", `/oop-sec-fetch-dest-second-${runId}`, {
+            await httpServer.createEcho("GET", "/oop-sec-fetch-dest-second", {
                 status: 200,
                 headers: { "Content-Type": "text/html" },
                 body: "<!DOCTYPE html>second",
@@ -18,7 +17,7 @@
         secondUrl.hostname = childHostname;
 
         const firstUrl = new URL(
-            await httpServer.createEcho("GET", `/oop-sec-fetch-dest-first-${runId}`, {
+            await httpServer.createEcho("GET", "/oop-sec-fetch-dest-first", {
                 status: 200,
                 headers: { "Content-Type": "text/html" },
                 body: `<!DOCTYPE html>first<script>location.href = ${JSON.stringify(secondUrl.href)};<\/script>`,
@@ -30,7 +29,7 @@
         iframe.src = firstUrl;
         document.body.appendChild(iframe);
 
-        const recordedUrl = `${httpServer.baseURL}/recorded-request-headers/echo/oop-sec-fetch-dest-second-${runId}`;
+        const recordedUrl = httpServer.recordedRequestHeadersURL(secondUrl);
         let headers = null;
         for (let attempt = 0; attempt < 600 && headers === null; ++attempt) {
             try {

@@ -5,10 +5,9 @@
     // displayed before the new document is activated, and only then hands the frame to the new process.
     promiseTest(async () => {
         const httpServer = httpTestServer();
-        const runId = crypto.randomUUID();
 
         const firstUrl = new URL(
-            await httpServer.createEcho("GET", `/oop-handoff-first-${runId}`, {
+            await httpServer.createEcho("GET", "/oop-handoff-first", {
                 status: 200,
                 headers: { "Content-Type": "text/html" },
                 body: `<!DOCTYPE html><script>
@@ -20,7 +19,7 @@
         firstUrl.hostname = uniqueLocalhostHostname("oop-handoff-first");
 
         const secondUrl = new URL(
-            await httpServer.createEcho("GET", `/oop-handoff-second-${runId}`, {
+            await httpServer.createEcho("GET", "/oop-handoff-second", {
                 status: 200,
                 headers: { "Content-Type": "text/html" },
                 body: `<!DOCTYPE html><script>

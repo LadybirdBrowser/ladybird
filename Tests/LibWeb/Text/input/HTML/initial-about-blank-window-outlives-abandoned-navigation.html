@@ -11,7 +11,7 @@
         const server = httpTestServer();
         const id = crypto.randomUUID();
         const sameOrigin = async (path, options) => {
-            const url = new URL(await server.createEcho("GET", `/${path}-${id}`, options));
+            const url = new URL(await server.createEcho("GET", `/${path}`, options));
             url.hostname = location.hostname;
             return url.href;
         };
@@ -28,7 +28,7 @@
 
         // The poster is cross-site, so it runs in another process, and posts a BroadcastChannel message on request.
         const posterURL = new URL(
-            await server.createEcho("GET", `/poster-${id}`, {
+            await server.createEcho("GET", "/poster", {
                 status: 200,
                 headers: { "Content-Type": "text/html" },
                 body: `<!DOCTYPE html><script>

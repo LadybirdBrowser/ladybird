@@ -9,8 +9,7 @@ promiseTest(async () => {
     for (const byte of bytes)
         binary += String.fromCharCode(byte);
     const fontBody = btoa(binary);
-    const warmToken = crypto.randomUUID();
-    const warmURL = await server.createEcho("GET", `/font-cache-warm-${warmToken}.woff2`, {
+    const warmURL = await server.createEcho("GET", "/font-cache-warm.woff2", {
         status: 200,
         headers: {
             "Content-Type": "font/woff2",
@@ -21,7 +20,7 @@ promiseTest(async () => {
         body_encoding: "base64",
     });
     // Opt into the test runner's disk cache when priming it, without creating or decoding a FontFace.
-    await server.createEcho("OPTIONS", `/font-cache-warm-${warmToken}.woff2`, {
+    await server.createEcho("OPTIONS", "/font-cache-warm.woff2", {
         status: 200,
         headers: {
             "Access-Control-Allow-Origin": "*",
@@ -64,7 +63,7 @@ promiseTest(async () => {
     disk.iframe.remove();
 
     const coldToken = crypto.randomUUID();
-    const coldURL = await server.createEcho("GET", `/font-cache-cold-${coldToken}.woff2`, {
+    const coldURL = await server.createEcho("GET", "/font-cache-cold.woff2", {
         status: 200,
         headers: { "Content-Type": "font/woff2", "Cache-Control": "no-store" },
         body: fontBody,

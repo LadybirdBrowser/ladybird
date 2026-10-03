@@ -4,7 +4,7 @@
     promiseTest(async () => {
         const server = httpTestServer();
         const token = crypto.randomUUID();
-        const fontURL = await server.createEcho("GET", `/font-face-media-query-change-during-rendering-${token}.woff`, {
+        const fontURL = await server.createEcho("GET", "/font-face-media-query-change-during-rendering.woff", {
             status: 404,
             headers: { "Content-Type": "font/woff" },
             wait_for_unblock: token,

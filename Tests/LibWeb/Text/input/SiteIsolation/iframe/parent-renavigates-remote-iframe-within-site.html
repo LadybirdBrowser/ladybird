@@ -6,11 +6,10 @@
     // fetched by the parent's process, so the document must be handed to the frame's process to be created.
     promiseTest(async () => {
         const httpServer = httpTestServer();
-        const runId = crypto.randomUUID();
         const childHostname = uniqueLocalhostHostname("oop-iframe-renavigate");
 
         const firstChildUrl = new URL(
-            await httpServer.createEcho("GET", `/oop-iframe-renavigate-first-${runId}`, {
+            await httpServer.createEcho("GET", "/oop-iframe-renavigate-first", {
                 status: 200,
                 headers: { "Content-Type": "text/html" },
                 body: "<!DOCTYPE html>first",
@@ -19,7 +18,7 @@
         firstChildUrl.hostname = childHostname;
 
         const markerUrl = new URL(
-            await httpServer.createEcho("GET", `/oop-iframe-renavigate-marker-${runId}`, {
+            await httpServer.createEcho("GET", "/oop-iframe-renavigate-marker", {
                 status: 200,
                 headers: { "Content-Type": "text/plain" },
                 body: "marker",
@@ -28,7 +27,7 @@
         markerUrl.hostname = childHostname;
 
         const secondChildUrl = new URL(
-            await httpServer.createEcho("GET", `/oop-iframe-renavigate-second-${runId}`, {
+            await httpServer.createEcho("GET", "/oop-iframe-renavigate-second", {
                 status: 200,
                 headers: { "Content-Type": "text/html" },
                 body: `<!DOCTYPE html>second<script>fetch(${JSON.stringify(markerUrl.href)});<\/script>`,
@@ -47,7 +46,7 @@
         iframe.src = secondChildUrl;
 
         // The second document's script fetches the marker; the echo server records the request when it is made.
-        const recordedUrl = `${httpServer.baseURL}/recorded-request-headers/echo/oop-iframe-renavigate-marker-${runId}`;
+        const recordedUrl = httpServer.recordedRequestHeadersURL(markerUrl);
         let secondDocumentRan = false;
         for (let attempt = 0; attempt < 600 && !secondDocumentRan; ++attempt) {
             try {

@@ -5,11 +5,10 @@
     // platform's Ctrl key held — opens in a view of its own.
     asyncTest(async done => {
         const server = httpTestServer();
-        const id = crypto.randomUUID();
         const platformCtrl = /mac/i.test(navigator.platform) ? internals.MOD_SUPER : internals.MOD_CTRL;
 
-        async function recorded(path) {
-            const url = `${server.baseURL}/recorded-request-headers/echo/${path}`;
+        async function recorded(echoURL) {
+            const url = server.recordedRequestHeadersURL(echoURL);
             for (let attempt = 0; attempt < 600; ++attempt) {
                 try {
                     const response = await fetch(url);
@@ -22,7 +21,7 @@
         }
 
         async function open(name, button, modifiers) {
-            const url = await server.createEcho("GET", `/link-new-tab-${name}-${id}`, {
+            const url = await server.createEcho("GET", `/link-new-tab-${name}`, {
                 status: 200,
                 headers: { "Content-Type": "text/html" },
                 body: "<!DOCTYPE html>",
@@ -35,7 +34,7 @@
 
             const rect = link.getBoundingClientRect();
             internals.click(rect.x + rect.width / 2, rect.y + rect.height / 2, 1, button, modifiers);
-            const headers = await recorded(`link-new-tab-${name}-${id}`);
+            const headers = await recorded(url);
             println(`${name}: ${headers ? "opened" : "not opened"}; this page still at ${location.pathname.split("/").pop()}`);
             link.remove();
         }

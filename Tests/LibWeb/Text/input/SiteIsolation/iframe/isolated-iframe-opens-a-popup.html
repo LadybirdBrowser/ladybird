@@ -14,9 +14,8 @@
     // through. The iframe keeps a live handle on the popup, which loads with the name it was given.
     promiseTest(async () => {
         const httpServer = httpTestServer();
-        const runId = crypto.randomUUID();
 
-        const popupUrl = await httpServer.createEcho("GET", `/oop-iframe-popup-${runId}`, {
+        const popupUrl = await httpServer.createEcho("GET", "/oop-iframe-popup", {
             status: 200,
             headers: { "Content-Type": "text/html" },
             body: `<!DOCTYPE html><script>
@@ -25,7 +24,7 @@
         });
 
         const iframeUrl = new URL(
-            await httpServer.createEcho("GET", `/oop-iframe-popup-opener-${runId}`, {
+            await httpServer.createEcho("GET", "/oop-iframe-popup-opener", {
                 status: 200,
                 headers: { "Content-Type": "text/html" },
                 body: `<!DOCTYPE html><script>

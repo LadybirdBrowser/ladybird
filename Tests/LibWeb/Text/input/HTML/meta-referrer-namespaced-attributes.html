@@ -3,13 +3,12 @@
 <script>
     asyncTest(async done => {
         const server = httpTestServer();
-        const runId = crypto.randomUUID();
-        const reflectorUrl = await server.createEcho("GET", `/meta-referrer-reflector-${runId}`, {
+        const reflectorUrl = await server.createEcho("GET", "/meta-referrer-reflector", {
             status: 200,
             headers: { "Content-Type": "application/json" },
             reflect_headers_in_body: true,
         });
-        const pageUrl = await server.createEcho("GET", `/meta-referrer-page-${runId}`, {
+        const pageUrl = await server.createEcho("GET", "/meta-referrer-page", {
             status: 200,
             headers: {
                 "Content-Type": "text/html",

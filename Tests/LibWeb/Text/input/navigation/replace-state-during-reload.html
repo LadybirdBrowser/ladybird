@@ -29,7 +29,7 @@
                     }, "*");
                 }
             <\/script>`;
-        const pageUrl = await server.createEcho("GET", `/replace-state-during-reload-${runId}`, {
+        const pageUrl = await server.createEcho("GET", "/replace-state-during-reload", {
             status: 200,
             headers: { "Content-Type": "text/html" },
             body: pageBody,

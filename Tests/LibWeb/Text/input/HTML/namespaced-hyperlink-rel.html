@@ -5,13 +5,13 @@
         const server = httpTestServer();
         const hostname = uniqueLocalhostHostname("namespaced-hyperlink-rel");
         const openerURL = new URL(
-            await server.createEcho("GET", `/namespaced-rel-opener-${crypto.randomUUID()}`, {
+            await server.createEcho("GET", "/namespaced-rel-opener", {
                 status: 200,
                 body: "ok",
             })
         );
         const noOpenerURL = new URL(
-            await server.createEcho("GET", `/namespaced-rel-no-opener-${crypto.randomUUID()}`, {
+            await server.createEcho("GET", "/namespaced-rel-no-opener", {
                 status: 200,
                 body: "ok",
             })
@@ -19,7 +19,7 @@
         openerURL.hostname = hostname;
         noOpenerURL.hostname = hostname;
         const popupURL = new URL(
-            await server.createEcho("GET", `/namespaced-rel-popup-${crypto.randomUUID()}`, {
+            await server.createEcho("GET", "/namespaced-rel-popup", {
                 status: 200,
                 headers: { "Content-Type": "text/html" },
                 body: `<script>fetch(opener ? "${openerURL.href}" : "${noOpenerURL.href}");<\/script>`,
@@ -35,16 +35,15 @@
         document.body.appendChild(anchor);
         anchor.click();
 
-        const recordedHeadersURL = url => new URL(`/recorded-request-headers${url.pathname}`, url);
         for (;;) {
             try {
-                if ((await fetch(recordedHeadersURL(openerURL))).ok) {
+                if ((await fetch(server.recordedRequestHeadersURL(openerURL))).ok) {
                     println("LEAK");
                     break;
                 }
             } catch {}
             try {
-                if ((await fetch(recordedHeadersURL(noOpenerURL))).ok) {
+                if ((await fetch(server.recordedRequestHeadersURL(noOpenerURL))).ok) {
                     println("PASS");
                     break;
                 }

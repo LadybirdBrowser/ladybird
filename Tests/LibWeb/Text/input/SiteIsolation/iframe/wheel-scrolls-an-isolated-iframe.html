@@ -9,9 +9,8 @@
     // The Compositor scrolls that frame for its process, and the document there follows in the rendering update the
     // Compositor prompts it for, although the page it belongs to presents through another process.
     promiseTest(async () => {
-        const runId = crypto.randomUUID();
         const remoteUrl = new URL(
-            await httpTestServer().createEcho("GET", `/oop-iframe-wheel-${runId}`, {
+            await httpTestServer().createEcho("GET", "/oop-iframe-wheel", {
                 status: 200,
                 headers: { "Content-Type": "text/html" },
                 body: `<!DOCTYPE html><style>body { margin: 0; height: 3000px; }</style><script>

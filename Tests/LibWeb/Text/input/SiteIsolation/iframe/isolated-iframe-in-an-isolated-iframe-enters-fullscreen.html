@@ -15,10 +15,9 @@
     // decides on leaving the window's fullscreen, and each document below settles only after the one above.
     promiseTest(async () => {
         const httpServer = httpTestServer();
-        const runId = crypto.randomUUID();
 
         const innerUrl = new URL(
-            await httpServer.createEcho("GET", `/oop-nested-fullscreen-inner-${runId}`, {
+            await httpServer.createEcho("GET", "/oop-nested-fullscreen-inner", {
                 status: 200,
                 headers: { "Content-Type": "text/html" },
                 body: `<!DOCTYPE html><body style="margin: 0"><script>
@@ -39,7 +38,7 @@
         innerUrl.hostname = uniqueLocalhostHostname("oop-nested-fullscreen-inner");
 
         const middleUrl = new URL(
-            await httpServer.createEcho("GET", `/oop-nested-fullscreen-middle-${runId}`, {
+            await httpServer.createEcho("GET", "/oop-nested-fullscreen-middle", {
                 status: 200,
                 headers: { "Content-Type": "text/html" },
                 body: `<!DOCTYPE html><body style="margin: 0">

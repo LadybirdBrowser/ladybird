@@ -3,9 +3,8 @@
 <script>
     asyncTest(async done => {
         const server = httpTestServer();
-        const token = crypto.randomUUID();
 
-        const secondChildURL = await server.createEcho("GET", `/navigation-timing-type-history-child-second-${token}`, {
+        const secondChildURL = await server.createEcho("GET", "/navigation-timing-type-history-child-second", {
             status: 200,
             headers: { "Content-Type": "text/html" },
             body: `
@@ -20,7 +19,7 @@
                 <\/script>
             `,
         });
-        const firstChildURL = await server.createEcho("GET", `/navigation-timing-type-history-child-first-${token}`, {
+        const firstChildURL = await server.createEcho("GET", "/navigation-timing-type-history-child-first", {
             status: 200,
             headers: { "Content-Type": "text/html" },
             body: `
@@ -35,12 +34,12 @@
                 <\/script>
             `,
         });
-        const firstParentURL = await server.createEcho("GET", `/navigation-timing-type-history-parent-first-${token}`, {
+        const firstParentURL = await server.createEcho("GET", "/navigation-timing-type-history-parent-first", {
             status: 200,
             headers: { "Content-Type": "text/html" },
             body: `<!DOCTYPE html><iframe src=${JSON.stringify(firstChildURL)}></iframe>`,
         });
-        const secondParentURL = await server.createEcho("GET", `/navigation-timing-type-history-parent-second-${token}`, {
+        const secondParentURL = await server.createEcho("GET", "/navigation-timing-type-history-parent-second", {
             status: 200,
             headers: { "Content-Type": "text/html" },
             body: `

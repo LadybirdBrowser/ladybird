@@ -6,12 +6,11 @@
     // which no allow-* token lifts for document.domain.
     promiseTest(async () => {
         const httpServer = httpTestServer();
-        const runId = crypto.randomUUID();
         const childHostname = uniqueLocalhostHostname("oop-sandboxed-self-navigation");
 
         const markerUrl = async outcome => {
             const url = new URL(
-                await httpServer.createEcho("GET", `/oop-sandboxed-self-navigation-${outcome}-${runId}`, {
+                await httpServer.createEcho("GET", `/oop-sandboxed-self-navigation-${outcome}`, {
                     status: 200,
                     headers: { "Content-Type": "text/plain" },
                     body: outcome,
@@ -24,7 +23,7 @@
         const allowedUrl = await markerUrl("allowed");
 
         const secondUrl = new URL(
-            await httpServer.createEcho("GET", `/oop-sandboxed-self-navigation-second-${runId}`, {
+            await httpServer.createEcho("GET", "/oop-sandboxed-self-navigation-second", {
                 status: 200,
                 headers: { "Content-Type": "text/html" },
                 body: `<!DOCTYPE html>second<script>
@@ -41,7 +40,7 @@
         secondUrl.hostname = childHostname;
 
         const firstUrl = new URL(
-            await httpServer.createEcho("GET", `/oop-sandboxed-self-navigation-first-${runId}`, {
+            await httpServer.createEcho("GET", "/oop-sandboxed-self-navigation-first", {
                 status: 200,
                 headers: { "Content-Type": "text/html" },
                 body: `<!DOCTYPE html>first<script>location.href = ${JSON.stringify(secondUrl.href)};<\/script>`,
@@ -54,21 +53,17 @@
         iframe.src = firstUrl;
         document.body.appendChild(iframe);
 
-        const recorded = async outcome => {
+        const recorded = async url => {
             try {
-                return (
-                    await fetch(
-                        `${httpServer.baseURL}/recorded-request-headers/echo/oop-sandboxed-self-navigation-${outcome}-${runId}`
-                    )
-                ).ok;
+                return (await fetch(httpServer.recordedRequestHeadersURL(url))).ok;
             } catch {
                 return false;
             }
         };
         let outcome = null;
         for (let attempt = 0; attempt < 600 && outcome === null; ++attempt) {
-            if (await recorded("blocked")) outcome = "blocked";
-            else if (await recorded("allowed")) outcome = "allowed";
+            if (await recorded(blockedUrl)) outcome = "blocked";
+            else if (await recorded(allowedUrl)) outcome = "allowed";
             else await timeout(25);
         }
         println(`setting document.domain in the sandboxed iframe after it navigated itself: ${outcome}`);

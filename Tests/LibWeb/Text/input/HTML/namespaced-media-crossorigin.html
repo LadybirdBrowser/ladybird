@@ -5,7 +5,7 @@
         const server = httpTestServer();
         const hostname = uniqueLocalhostHostname("namespaced-media-crossorigin");
         const setupURL = new URL(
-            await server.createEcho("GET", `/namespaced-media-setup-${crypto.randomUUID()}`, {
+            await server.createEcho("GET", "/namespaced-media-setup", {
                 status: 200,
                 headers: {
                     "Content-Type": "text/html",
@@ -16,7 +16,7 @@
         );
         setupURL.hostname = hostname;
         const mediaURL = new URL(
-            await server.createEcho("GET", `/namespaced-media-${crypto.randomUUID()}.ogg`, {
+            await server.createEcho("GET", "/namespaced-media.ogg", {
                 status: 200,
                 headers: { "Content-Type": "audio/ogg" },
                 body: "x",
@@ -38,7 +38,7 @@
         audio.src = mediaURL;
         document.body.appendChild(audio);
 
-        const recordedHeadersURL = new URL(`/recorded-request-headers${mediaURL.pathname}`, mediaURL);
+        const recordedHeadersURL = server.recordedRequestHeadersURL(mediaURL);
         for (;;) {
             try {
                 const response = await fetch(recordedHeadersURL);

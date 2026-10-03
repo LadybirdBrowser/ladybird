@@ -6,9 +6,8 @@
     // blurred and the iframe becomes the top-level document's active element. Focusing the top-level input again blurs
     // the iframe's input and leaves the iframe's document without focus.
     promiseTest(async () => {
-        const runId = crypto.randomUUID();
         const remoteUrl = new URL(
-            await httpTestServer().createEcho("GET", `/oop-focus-moves-${runId}`, {
+            await httpTestServer().createEcho("GET", "/oop-focus-moves", {
                 status: 200,
                 headers: { "Content-Type": "text/html" },
                 body: `<!DOCTYPE html><input id="input"><script>

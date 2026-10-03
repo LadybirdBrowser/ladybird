@@ -6,11 +6,10 @@
     // frame focused, so what is typed next reaches its new document instead of the document displaying the tab.
     promiseTest(async () => {
         const httpServer = httpTestServer();
-        const runId = crypto.randomUUID();
         const childHostname = uniqueLocalhostHostname("oop-typing-navigate");
 
         const firstUrl = new URL(
-            await httpServer.createEcho("GET", `/oop-typing-navigate-first-${runId}`, {
+            await httpServer.createEcho("GET", "/oop-typing-navigate-first", {
                 status: 200,
                 headers: { "Content-Type": "text/html" },
                 body: `<!DOCTYPE html><input id="input"><script>
@@ -26,7 +25,7 @@
         firstUrl.hostname = childHostname;
 
         const secondUrl = new URL(
-            await httpServer.createEcho("GET", `/oop-typing-navigate-second-${runId}`, {
+            await httpServer.createEcho("GET", "/oop-typing-navigate-second", {
                 status: 200,
                 headers: { "Content-Type": "text/html" },
                 body: `<!DOCTYPE html>second<script>

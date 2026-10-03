@@ -5,7 +5,7 @@
         const server = httpTestServer();
         const hostname = uniqueLocalhostHostname("namespaced-script-crossorigin");
         const setupURL = new URL(
-            await server.createEcho("GET", `/namespaced-script-setup-${crypto.randomUUID()}`, {
+            await server.createEcho("GET", "/namespaced-script-setup", {
                 status: 200,
                 headers: {
                     "Content-Type": "text/html",
@@ -16,7 +16,7 @@
         );
         setupURL.hostname = hostname;
         const scriptURL = new URL(
-            await server.createEcho("GET", `/namespaced-script-${crypto.randomUUID()}.js`, {
+            await server.createEcho("GET", "/namespaced-script.js", {
                 status: 200,
                 headers: {
                     "Access-Control-Allow-Origin": "null",
@@ -46,7 +46,7 @@
         document.body.appendChild(script);
         await loaded;
 
-        const recordedHeadersURL = new URL(`/recorded-request-headers${scriptURL.pathname}`, scriptURL);
+        const recordedHeadersURL = server.recordedRequestHeadersURL(scriptURL);
         const headers = await (await fetch(recordedHeadersURL)).json();
         println(headers.Cookie ? "LEAK" : "PASS");
     });

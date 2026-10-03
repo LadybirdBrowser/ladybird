@@ -7,8 +7,7 @@
     // browsing context.
     promiseTest(async () => {
         const httpServer = httpTestServer();
-        const runId = crypto.randomUUID();
-        const popupPage = label => httpServer.createEcho("GET", `/popup-${label}-${runId}`, {
+        const popupPage = label => httpServer.createEcho("GET", `/popup-${label}`, {
             status: 200,
             headers: { "Content-Type": "text/html" },
             body: `<!DOCTYPE html><script>opener.postMessage({ popup: ${JSON.stringify(label)}, name: window.name }, "*");<\/script>`,
@@ -16,7 +15,7 @@
         const [first, second] = await Promise.all(["first", "second"].map(popupPage));
 
         const iframeUrl = new URL(
-            await httpServer.createEcho("GET", `/isolated-iframe-${runId}`, {
+            await httpServer.createEcho("GET", "/isolated-iframe", {
                 status: 200,
                 headers: { "Content-Type": "text/html" },
                 body: `<!DOCTYPE html><script>

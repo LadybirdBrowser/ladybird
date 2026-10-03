@@ -6,11 +6,10 @@
     promiseTest(async () => {
         const httpServer = httpTestServer();
         const pageOrigin = new URL(httpServer.baseURL).origin;
-        const runId = crypto.randomUUID();
         const childHost = uniqueLocalhostHostname("oop-iframe-referrer");
 
         async function echo(name) {
-            const url = new URL(await httpServer.createEcho("GET", `/${name}-${runId}`, {
+            const url = new URL(await httpServer.createEcho("GET", `/${name}`, {
                 status: 200,
                 headers: { "Content-Type": "text/html" },
                 body: "<!DOCTYPE html>",
@@ -37,7 +36,7 @@
         document.body.appendChild(link);
         link.click();
 
-        const headersUrl = `${httpServer.baseURL}/recorded-request-headers/echo/oop-iframe-referrer-target-${runId}`;
+        const headersUrl = httpServer.recordedRequestHeadersURL(targetUrl);
         let headers = null;
         for (let attempt = 0; attempt < 200 && headers === null; ++attempt) {
             try {

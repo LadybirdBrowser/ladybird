@@ -5,10 +5,9 @@
     // activating the new document.
     promiseTest(async () => {
         const httpServer = httpTestServer();
-        const runId = crypto.randomUUID();
 
         const childUrl = new URL(
-            await httpServer.createEcho("GET", `/oop-nav-child-${runId}`, {
+            await httpServer.createEcho("GET", "/oop-nav-child", {
                 status: 200,
                 headers: { "Content-Type": "text/html" },
                 body: `<!DOCTYPE html><script>
@@ -21,7 +20,7 @@
 
         const parentHostname = uniqueLocalhostHostname("oop-nav-parent");
         const nextParentUrl = new URL(
-            await httpServer.createEcho("GET", `/oop-nav-parent-next-${runId}`, {
+            await httpServer.createEcho("GET", "/oop-nav-parent-next", {
                 status: 200,
                 headers: { "Content-Type": "text/html" },
                 body: `<!DOCTYPE html><script>document.cookie = "committed=1; path=/";<\/script>`,
@@ -33,7 +32,7 @@
         // load event before it can initiate the parent navigation. The parent navigates when told to, once this
         // document has seen the child hosted out of process.
         const parentUrl = new URL(
-            await httpServer.createEcho("GET", `/oop-nav-parent-${runId}`, {
+            await httpServer.createEcho("GET", "/oop-nav-parent", {
                 status: 200,
                 headers: { "Content-Type": "text/html" },
                 body: `<!DOCTYPE html><script>

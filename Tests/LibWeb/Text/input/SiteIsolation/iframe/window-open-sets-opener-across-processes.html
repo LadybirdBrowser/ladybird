@@ -6,9 +6,8 @@
     // the iframe by name makes itself the iframe's opener. Both sides see the opener, through the window or the
     // WindowProxy standing for it in the other process.
     promiseTest(async () => {
-        const runId = crypto.randomUUID();
         const remoteUrl = new URL(
-            await httpTestServer().createEcho("GET", `/oop-window-open-opener-${runId}`, {
+            await httpTestServer().createEcho("GET", "/oop-window-open-opener", {
                 status: 200,
                 headers: { "Content-Type": "text/html" },
                 body: `<!DOCTYPE html><script>

@@ -3,10 +3,9 @@
 <script>
     asyncTest(async done => {
         const server = httpTestServer();
-        const token = crypto.randomUUID();
 
         async function createDestination(label) {
-            return server.createEcho("GET", `/navigation-timing-unload-destination-${label}-${token}`, {
+            return server.createEcho("GET", `/navigation-timing-unload-destination-${label}`, {
                 status: 200,
                 headers: { "Content-Type": "text/html" },
                 body: `
@@ -25,7 +24,7 @@
         }
 
         async function createSource(label) {
-            return server.createEcho("GET", `/navigation-timing-unload-source-${label}-${token}`, {
+            return server.createEcho("GET", `/navigation-timing-unload-source-${label}`, {
                 status: 200,
                 headers: { "Content-Type": "text/html" },
                 body: `
@@ -48,13 +47,13 @@
         const sameOriginDestination = await createDestination("same-origin");
         const redirectedDestination = await createDestination("cross-origin-redirect");
 
-        const intermediateURL = new URL(await server.createEcho("GET", `/navigation-timing-unload-intermediate-${token}`, {
+        const intermediateURL = new URL(await server.createEcho("GET", "/navigation-timing-unload-intermediate", {
             status: 302,
             headers: { Location: redirectedDestination },
         }));
         intermediateURL.hostname = uniqueLocalhostHostname("navigation-timing-unload-intermediate");
 
-        const crossOriginRedirectDestination = await server.createEcho("GET", `/navigation-timing-unload-redirect-${token}`, {
+        const crossOriginRedirectDestination = await server.createEcho("GET", "/navigation-timing-unload-redirect", {
             status: 302,
             headers: { Location: intermediateURL.href },
         });

@@ -3,8 +3,7 @@
 <script>
     asyncTest(async done => {
         const server = httpTestServer();
-        const token = crypto.randomUUID();
-        const url = await server.createEcho("GET", `/navigation-timing-type-${token}`, {
+        const url = await server.createEcho("GET", "/navigation-timing-type", {
             status: 200,
             headers: { "Content-Type": "text/html" },
             body: `

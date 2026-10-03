@@ -12,17 +12,17 @@
 
         const httpServer = httpTestServer();
         const testID = crypto.randomUUID();
-        const imageURL = await httpServer.createEcho("GET", `/img-swap-image-${testID}`, {
+        const imageURL = await httpServer.createEcho("GET", "/img-swap-image", {
             status: 200,
             headers: { "Content-Type": "image/png" },
             body: TINY_PNG_BASE64,
             body_encoding: "base64",
         });
-        const brokenURL = await httpServer.createEcho("GET", `/img-swap-broken-${testID}`, {
+        const brokenURL = await httpServer.createEcho("GET", "/img-swap-broken", {
             status: 404,
             body: "not found",
         });
-        const secondBrokenURL = await httpServer.createEcho("GET", `/img-swap-broken-2-${testID}`, {
+        const secondBrokenURL = await httpServer.createEcho("GET", "/img-swap-broken-2", {
             status: 404,
             body: "still not found",
         });

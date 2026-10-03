@@ -5,9 +5,8 @@
     // again before that process has reported anything back. The frame's document still sees the focus and the blur in
     // that order, and the report does not take focus back from this document.
     promiseTest(async () => {
-        const runId = crypto.randomUUID();
         const remoteUrl = new URL(
-            await httpTestServer().createEcho("GET", `/oop-focus-then-blur-${runId}`, {
+            await httpTestServer().createEcho("GET", "/oop-focus-then-blur", {
                 status: 200,
                 headers: { "Content-Type": "text/html" },
                 body: `<!DOCTYPE html><body><script>

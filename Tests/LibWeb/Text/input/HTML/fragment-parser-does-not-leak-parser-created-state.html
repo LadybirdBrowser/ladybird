@@ -24,7 +24,7 @@
         const httpServer = httpTestServer();
         const testID = crypto.randomUUID();
         const styleSheetToken = `fragment-link-style-sheet-${testID}`;
-        const styleSheetURL = await httpServer.createEcho("GET", `/fragment-link-style-sheet-${testID}.css`, {
+        const styleSheetURL = await httpServer.createEcho("GET", "/fragment-link-style-sheet.css", {
             status: 200,
             headers: { "Content-Type": "text/css", "Cache-Control": "no-store" },
             body: "",

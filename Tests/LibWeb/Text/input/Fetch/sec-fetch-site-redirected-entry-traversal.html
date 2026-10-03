@@ -6,28 +6,28 @@
     // entry, re-fetches the redirect target as site-controlled, rather than with the Sec-Fetch-Site:none the typed
     // address got.
     asyncTest(async done => {
-        const server = httpTestServer();
         const runId = new URLSearchParams(location.search).get("run");
+        const id = runId ?? crypto.randomUUID();
+        const server = httpTestServer().withEchoScope(id);
 
         if (runId) {
-            const response = await fetch(`${server.baseURL}/recorded-request-headers/echo/sec-fetch-site-redirect-target-${runId}`);
+            const response = await fetch(server.recordedRequestHeadersURL(server.echoURL("/sec-fetch-site-redirect-target")));
             const headers = response.ok ? await response.json() : null;
             println(`redirect target, fetched again by the traversal: ${headers?.["Sec-Fetch-Site"]?.[0]} (${headers?.["Sec-Fetch-Mode"]?.[0]})`);
             done();
             return;
         }
 
-        const id = crypto.randomUUID();
         const back = new URL(location.href);
         back.search = `?run=${id}`;
 
-        const nextURL = await server.createEcho("GET", `/sec-fetch-site-redirect-next-${id}`, {
+        const nextURL = await server.createEcho("GET", "/sec-fetch-site-redirect-next", {
             status: 200,
             headers: { "Content-Type": "text/html" },
             body: `<!DOCTYPE html><script>onload = () => setTimeout(() => internals.traverseHistoryThroughUIProcess(-1));<\/script>`,
         });
         // The unload handler keeps the target's document from being kept for the traversal, which then fetches it again.
-        const targetURL = await server.createEcho("GET", `/sec-fetch-site-redirect-target-${id}`, {
+        const targetURL = await server.createEcho("GET", "/sec-fetch-site-redirect-target", {
             status: 200,
             headers: { "Content-Type": "text/html", "Cache-Control": "no-store" },
             body: `<!DOCTYPE html><script>
@@ -38,7 +38,7 @@
                     onload = () => setTimeout(() => { sessionStorage.setItem(${JSON.stringify(id)}, "1"); location.href = ${JSON.stringify(nextURL)}; });
             <\/script>`,
         });
-        const redirectURL = await server.createEcho("GET", `/sec-fetch-site-redirect-${id}`, {
+        const redirectURL = await server.createEcho("GET", "/sec-fetch-site-redirect", {
             status: 302,
             headers: { "Location": targetURL },
         });

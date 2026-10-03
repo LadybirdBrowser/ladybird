@@ -5,10 +5,9 @@
     // traversable those steps are phrased on is hosted by another process.
     promiseTest(async () => {
         const httpServer = httpTestServer();
-        const runId = crypto.randomUUID();
 
         const markerUrl = new URL(
-            await httpServer.createEcho("GET", `/oop-fragment-marker-${runId}`, {
+            await httpServer.createEcho("GET", "/oop-fragment-marker", {
                 status: 200,
                 headers: { "Content-Type": "text/plain" },
                 body: "marker",
@@ -16,7 +15,7 @@
         );
         markerUrl.hostname = uniqueLocalhostHostname("oop-fragment-child");
         const childUrl = new URL(
-            await httpServer.createEcho("GET", `/oop-fragment-child-${runId}`, {
+            await httpServer.createEcho("GET", "/oop-fragment-child", {
                 status: 200,
                 headers: { "Content-Type": "text/html" },
                 body: `<!DOCTYPE html><p id="target" tabindex="0">target</p><script>addEventListener("load", () => fetch(${JSON.stringify(markerUrl.href)}));<\/script>`,
@@ -29,7 +28,7 @@
         iframe.src = childUrl;
         document.body.appendChild(iframe);
 
-        const recordedUrl = `${httpServer.baseURL}/recorded-request-headers/echo/oop-fragment-marker-${runId}`;
+        const recordedUrl = httpServer.recordedRequestHeadersURL(markerUrl);
         let loaded = false;
         for (let attempt = 0; attempt < 200 && !loaded; ++attempt) {
             try {

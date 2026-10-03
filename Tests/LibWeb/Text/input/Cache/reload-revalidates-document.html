@@ -9,11 +9,10 @@
 
     // The echo path keys both the server-side recording of the most-recent request headers and the disk cache entry.
     // Give each run its own path, so parallel runner clones of this test don't overwrite each other's recording.
-    const token = crypto.randomUUID();
 
     // A page served with an explicit freshness lifetime and Last-Modified validator. Reloading this must revalidate it
     // with the server even though the cached response is still fresh; the reload must not be served straight from cache.
-    const DOCUMENT_PATH = `/reload-revalidates-document-${token}`;
+    const DOCUMENT_PATH = "/reload-revalidates-document";
     const DOCUMENT_BODY =
         "<!DOCTYPE html><script>window.onmessage = () => { location.reload(); };<\/script>reload test document";
 
@@ -46,7 +45,7 @@
     }
 
     async function recordedRequestHeaderNames(url) {
-        const recordedRequestHeadersURL = url.replace("/echo/", "/recorded-request-headers/echo/");
+        const recordedRequestHeadersURL = server.recordedRequestHeadersURL(url);
         const response = await fetch(recordedRequestHeadersURL);
         const headers = await response.json();
         return Object.keys(headers).map(name => name.toLowerCase());

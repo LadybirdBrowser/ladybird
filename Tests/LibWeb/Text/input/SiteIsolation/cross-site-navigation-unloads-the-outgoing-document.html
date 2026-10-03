@@ -6,28 +6,26 @@
     // the new document activates, so their pagehide and unload handlers run; they record through cookies.
     promiseTest(async () => {
         const httpServer = httpTestServer();
-        const runId = crypto.randomUUID();
         const outgoingHostname = uniqueLocalhostHostname("outgoing-unload");
 
-        const targetMarkerPath = `/outgoing-unload-target-loaded-${runId}`;
-        await httpServer.createEcho("GET", targetMarkerPath, {
+        const targetMarkerUrl = await httpServer.createEcho("GET", "/outgoing-unload-target-loaded", {
             status: 200,
             headers: { "Content-Type": "text/plain" },
             body: "recorded",
         });
         const targetUrl = new URL(
-            await httpServer.createEcho("GET", `/outgoing-unload-target-${runId}`, {
+            await httpServer.createEcho("GET", "/outgoing-unload-target", {
                 status: 200,
                 headers: { "Content-Type": "text/html" },
                 body: `<!DOCTYPE html>target<script>
-                    fetch(new URL("/echo${targetMarkerPath}", location.href)).finally(() => window.close());
+                    fetch(new URL(${JSON.stringify(new URL(targetMarkerUrl).pathname)}, location.href)).finally(() => window.close());
                 <\/script>`,
             })
         );
         targetUrl.hostname = uniqueLocalhostHostname("outgoing-unload-target");
 
         const childUrl = new URL(
-            await httpServer.createEcho("GET", `/outgoing-unload-child-${runId}`, {
+            await httpServer.createEcho("GET", "/outgoing-unload-child", {
                 status: 200,
                 headers: { "Content-Type": "text/html" },
                 body: `<!DOCTYPE html>child<script>
@@ -38,7 +36,7 @@
         childUrl.hostname = outgoingHostname;
 
         const outgoingUrl = new URL(
-            await httpServer.createEcho("GET", `/outgoing-unload-outgoing-${runId}`, {
+            await httpServer.createEcho("GET", "/outgoing-unload-outgoing", {
                 status: 200,
                 headers: { "Content-Type": "text/html" },
                 body: `<!DOCTYPE html>outgoing<iframe src="${childUrl.href}"></iframe><script>
@@ -60,7 +58,7 @@
         const recorded = name => internals.hasCookieForURL(outgoingUrl.href, name, "1");
         println(`outgoing document loaded: ${await waitForCondition(() => recorded("loaded"))}`);
 
-        const recordedUrl = `${httpServer.baseURL}/recorded-request-headers/echo${targetMarkerPath}`;
+        const recordedUrl = httpServer.recordedRequestHeadersURL(targetMarkerUrl);
         let targetLoaded = false;
         for (let attempt = 0; attempt < 400 && !targetLoaded; ++attempt) {
             try {

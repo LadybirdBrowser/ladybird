@@ -12,8 +12,6 @@
     //     concurrent runs of this test all share one UI process.
     promiseTest(async () => {
         const server = httpTestServer();
-        // Repeated runs of this test share the echo server, so its echoes are per-run.
-        const runId = crypto.randomUUID();
 
         const secondPageBody = `<!DOCTYPE html>
             <script>
@@ -27,7 +25,7 @@
                     }, "*");
                 }, 0));
             <\/script>`;
-        const secondPageUrl = await server.createEcho("GET", `/push-state-flood-second-page-${runId}`, {
+        const secondPageUrl = await server.createEcho("GET", "/push-state-flood-second-page", {
             status: 200,
             headers: { "Content-Type": "text/html" },
             body: secondPageBody,
@@ -52,7 +50,7 @@
                     location.href = ${JSON.stringify(secondPageUrl)};
                 }, 0));
             <\/script>`;
-        const firstPageUrl = await server.createEcho("GET", `/push-state-flood-first-page-${runId}`, {
+        const firstPageUrl = await server.createEcho("GET", "/push-state-flood-first-page", {
             status: 200,
             headers: { "Content-Type": "text/html" },
             body: firstPageBody,

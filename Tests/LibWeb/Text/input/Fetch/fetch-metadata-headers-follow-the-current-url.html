@@ -7,7 +7,6 @@
     // checks would stop from requesting 0.0.0.0 at all.
     asyncTest(async done => {
         const server = httpTestServer();
-        const id = crypto.randomUUID();
 
         function onHost(url, hostname) {
             const result = new URL(url);
@@ -16,12 +15,12 @@
         }
 
         async function redirectStart(name, fromHost, toHost) {
-            const target = await server.createEcho("GET", `/fetch-metadata-${name}-target-${id}`, {
+            const target = await server.createEcho("GET", `/fetch-metadata-${name}-target`, {
                 status: 200,
                 headers: { "Content-Type": "text/plain" },
                 body: "target",
             });
-            const start = await server.createEcho("GET", `/fetch-metadata-${name}-start-${id}`, {
+            const start = await server.createEcho("GET", `/fetch-metadata-${name}-start`, {
                 status: 302,
                 headers: { "Location": onHost(target, toHost) },
             });
@@ -33,7 +32,7 @@
             await redirectStart("not-to-trustworthy", "0.0.0.0", "localhost"),
         ];
         // The responses are cross-origin and opaque, and may well be blocked; only the requests matter here.
-        const popupURL = await server.createEcho("GET", `/fetch-metadata-popup-${id}`, {
+        const popupURL = await server.createEcho("GET", "/fetch-metadata-popup", {
             status: 200,
             headers: { "Content-Type": "text/html" },
             body: `<!DOCTYPE html><script>
@@ -47,7 +46,7 @@
 
         window.addEventListener("message", async () => {
             async function recorded(path) {
-                const response = await fetch(`${server.baseURL}/recorded-request-headers/echo/${path}`);
+                const response = await fetch(server.recordedRequestHeadersURL(server.echoURL(path)));
                 return response.ok ? await response.json() : null;
             }
             function describe(headers) {
@@ -57,8 +56,8 @@
                 return names.length ? names.join(", ") : "no Sec-Fetch- headers";
             }
             for (const name of ["trustworthy-to-not", "not-to-trustworthy"]) {
-                const first = describe(await recorded(`fetch-metadata-${name}-start-${id}`));
-                const second = describe(await recorded(`fetch-metadata-${name}-target-${id}`));
+                const first = describe(await recorded(`/fetch-metadata-${name}-start`));
+                const second = describe(await recorded(`/fetch-metadata-${name}-target`));
                 println(`${name}: first hop ${first}; second hop ${second}`);
             }
             popup.close();

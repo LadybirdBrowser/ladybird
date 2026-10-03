@@ -3,9 +3,8 @@
 <script>
     asyncTest(async done => {
         const server = httpTestServer();
-        const token = crypto.randomUUID();
 
-        const destinationURL = await server.createEcho("GET", `/navigation-timing-legacy-destination-${token}`, {
+        const destinationURL = await server.createEcho("GET", "/navigation-timing-legacy-destination", {
             status: 200,
             headers: { "Content-Type": "text/html" },
             body: `
@@ -43,7 +42,7 @@
             `,
         });
 
-        const sourceURL = await server.createEcho("GET", `/navigation-timing-legacy-source-${token}`, {
+        const sourceURL = await server.createEcho("GET", "/navigation-timing-legacy-source", {
             status: 200,
             headers: { "Content-Type": "text/html" },
             body: `

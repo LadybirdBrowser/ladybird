@@ -6,10 +6,9 @@
     // can post back to the source it was given.
     promiseTest(async () => {
         const httpServer = httpTestServer();
-        const runId = crypto.randomUUID();
 
         const iframeUrl = new URL(
-            await httpServer.createEcho("GET", `/oop-popup-iframe-source-${runId}`, {
+            await httpServer.createEcho("GET", "/oop-popup-iframe-source", {
                 status: 200,
                 headers: { "Content-Type": "text/html" },
                 body: `<!DOCTYPE html><script>
@@ -20,7 +19,7 @@
         );
         iframeUrl.hostname = uniqueLocalhostHostname("oop-popup-iframe-source");
 
-        const popupUrl = await httpServer.createEcho("GET", `/oop-popup-with-iframe-source-${runId}`, {
+        const popupUrl = await httpServer.createEcho("GET", "/oop-popup-with-iframe-source", {
             status: 200,
             headers: { "Content-Type": "text/html" },
             body: `<!DOCTYPE html><iframe src="${iframeUrl}"></iframe>`,

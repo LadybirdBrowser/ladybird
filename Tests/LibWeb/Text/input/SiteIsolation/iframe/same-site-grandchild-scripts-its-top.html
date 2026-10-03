@@ -8,7 +8,6 @@
     // This page is served over HTTP so that the grandchild can be same origin with it.
     promiseTest(async () => {
         const httpServer = httpTestServer();
-        const runId = crypto.randomUUID();
         const childHostname = uniqueLocalhostHostname("oop-grandchild");
 
         const checks = [
@@ -20,19 +19,20 @@
             "top-first-child-is-parent",
             "top-document-body-has-iframe",
         ];
+        const reportPath = new URL(httpServer.echoURL("/oop-grandchild-")).pathname;
         for (const check of checks) {
-            await httpServer.createEcho("GET", `/oop-grandchild-${runId}-${check}-true`, {
+            await httpServer.createEcho("GET", `/oop-grandchild-${check}-true`, {
                 status: 200,
                 headers: { "Content-Type": "text/plain" },
                 body: "recorded",
             });
         }
 
-        const grandchildUrl = await httpServer.createEcho("GET", `/oop-grandchild-${runId}`, {
+        const grandchildUrl = await httpServer.createEcho("GET", "/oop-grandchild", {
             status: 200,
             headers: { "Content-Type": "text/html" },
             body: `<!DOCTYPE html><script>
-                const report = (check, ok) => fetch(new URL("/echo/oop-grandchild-${runId}-" + check + "-" + ok, location.href));
+                const report = (check, ok) => fetch(new URL(${JSON.stringify(reportPath)} + check + "-" + ok, location.href));
                 const run = check => { try { return check(); } catch (e) { return "threw " + e.name; } };
                 report("grandchild-ran", true);
                 report("top-is-not-parent", run(() => top !== parent));
@@ -45,7 +45,7 @@
         });
 
         const childUrl = new URL(
-            await httpServer.createEcho("GET", `/oop-grandchild-child-${runId}`, {
+            await httpServer.createEcho("GET", "/oop-grandchild-child", {
                 status: 200,
                 headers: { "Content-Type": "text/html" },
                 body: `<!DOCTYPE html>child<iframe src="${grandchildUrl}"></iframe>`,
@@ -58,7 +58,7 @@
         document.body.appendChild(iframe);
 
         for (const check of checks) {
-            const recordedUrl = `${httpServer.baseURL}/recorded-request-headers/echo/oop-grandchild-${runId}-${check}-true`;
+            const recordedUrl = httpServer.recordedRequestHeadersURL(httpServer.echoURL(`/oop-grandchild-${check}-true`));
             let recorded = false;
             for (let attempt = 0; attempt < 400 && !recorded; ++attempt) {
                 try {

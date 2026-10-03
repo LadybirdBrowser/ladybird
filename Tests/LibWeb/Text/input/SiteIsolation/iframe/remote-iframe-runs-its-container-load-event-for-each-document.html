@@ -5,12 +5,11 @@
     // finishes loading: the one the parent navigates the frame to, and the one that document navigates the frame to.
     promiseTest(async () => {
         const httpServer = httpTestServer();
-        const runId = crypto.randomUUID();
         const childHostname = uniqueLocalhostHostname("oop-iframe-load-event-each-document");
 
         const createChildUrl = async (name, body) => {
             const url = new URL(
-                await httpServer.createEcho("GET", `/oop-iframe-load-event-${name}-${runId}`, {
+                await httpServer.createEcho("GET", `/oop-iframe-load-event-${name}`, {
                     status: 200,
                     headers: { "Content-Type": "text/html" },
                     body,

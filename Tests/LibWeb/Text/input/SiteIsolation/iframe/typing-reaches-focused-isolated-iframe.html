@@ -5,9 +5,8 @@
     // Keyboard input goes to the tab's focused navigable. With an isolated iframe's input focused, the UI process sends
     // what is typed to the page hosting the iframe's document, not to the page displaying the tab.
     promiseTest(async () => {
-        const runId = crypto.randomUUID();
         const remoteUrl = new URL(
-            await httpTestServer().createEcho("GET", `/oop-typing-${runId}`, {
+            await httpTestServer().createEcho("GET", "/oop-typing", {
                 status: 200,
                 headers: { "Content-Type": "text/html" },
                 body: `<!DOCTYPE html><input id="input"><script>

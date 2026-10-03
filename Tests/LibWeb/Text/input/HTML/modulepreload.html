@@ -8,7 +8,7 @@
         const run = crypto.randomUUID();
         const moduleGate = `${run}-module`;
         const parserGate = `${run}-parser`;
-        const path = name => `/modulepreload-${run}-${name}`;
+        const path = name => `/modulepreload-${name}`;
         const javascriptHeaders = { "Content-Type": "text/javascript" };
 
         const dependencyURL = await server.createEcho("GET", path("dependency.js"), {
@@ -188,7 +188,7 @@
         const hasRecordedRequest = async url => {
             const resourceURL = new URL(url);
             try {
-                const response = await fetch(`${server.baseURL}/recorded-request-headers${resourceURL.pathname}`);
+                const response = await fetch(server.recordedRequestHeadersURL(resourceURL));
                 return response.ok;
             } catch {
                 return false;

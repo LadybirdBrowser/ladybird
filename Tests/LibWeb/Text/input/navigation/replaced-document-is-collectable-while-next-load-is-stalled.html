@@ -10,23 +10,23 @@
         // Repeated runs of this test share the echo server, so its echoes and the image's unblock token are per-run.
         const runId = crypto.randomUUID();
         const token = `stalled-load-${runId}`;
-        const blockedImageURL = await server.createEcho("GET", `/stalled-load-image-${runId}`, {
+        const blockedImageURL = await server.createEcho("GET", "/stalled-load-image", {
             status: 404,
             headers: { "Cache-Control": "no-store" },
             body: "",
             wait_for_unblock: token,
         });
-        const zerothURL = await server.createEcho("GET", `/stalled-load-zeroth-${runId}`, {
+        const zerothURL = await server.createEcho("GET", "/stalled-load-zeroth", {
             status: 200,
             headers: { "Content-Type": "text/html" },
             body: "<!DOCTYPE html><p>zeroth</p>",
         });
-        const firstURL = await server.createEcho("GET", `/stalled-load-first-${runId}`, {
+        const firstURL = await server.createEcho("GET", "/stalled-load-first", {
             status: 200,
             headers: { "Content-Type": "text/html" },
             body: "<!DOCTYPE html><p>first</p>",
         });
-        const secondURL = await server.createEcho("GET", `/stalled-load-second-${runId}`, {
+        const secondURL = await server.createEcho("GET", "/stalled-load-second", {
             status: 200,
             headers: { "Content-Type": "text/html" },
             body: `<!DOCTYPE html>
