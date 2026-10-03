@@ -66,6 +66,7 @@ public:
     static MachPort adopt_right(mach_port_t, PortRight);
 
     ErrorOr<MachPort> insert_right(MessageRight);
+    ErrorOr<MachPort> copy_send_right() const;
 
 #if defined(AK_OS_MACOS)
     // https://opensource.apple.com/source/launchd/launchd-842.92.1/liblaunch/bootstrap.h.auto.html

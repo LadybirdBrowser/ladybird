@@ -15,15 +15,6 @@
 #    include <LibGfx/D3DSharedTexture.h>
 #endif
 
-#ifdef AK_OS_MACOS
-static Core::MachPort copy_send_right(Core::MachPort const& port)
-{
-    auto result = mach_port_mod_refs(mach_task_self(), port.port(), MACH_PORT_RIGHT_SEND, +1);
-    VERIFY(result == KERN_SUCCESS);
-    return Core::MachPort::adopt_right(port.port(), Core::MachPort::PortRight::Send);
-}
-#endif
-
 namespace Gfx {
 
 #ifdef AK_OS_MACOS
@@ -149,7 +140,7 @@ template<>
 ErrorOr<void> encode(Encoder& encoder, Gfx::SharedImage const& shared_image)
 {
 #ifdef AK_OS_MACOS
-    TRY(encoder.append_attachment(Attachment::from_mach_port(copy_send_right(shared_image.m_port), Core::MachPort::MessageRight::MoveSend)));
+    TRY(encoder.append_attachment(Attachment::from_mach_port(TRY(shared_image.m_port.copy_send_right()), Core::MachPort::MessageRight::MoveSend)));
 #else
     return shared_image.m_data.visit(
         [&](Gfx::ShareableBitmap const& shareable_bitmap) -> ErrorOr<void> {
