@@ -26,7 +26,7 @@
             link.click();
             await loaded;
 
-            const response = await fetch(`${server.baseURL}/recorded-request-headers/echo/hyperlink-${name}-${id}`);
+            const response = await fetch(server.recordedRequestHeadersURL(url));
             const headers = response.ok ? await response.json() : null;
             println(`${name}: Referer ${headers?.["Referer"] ? "sent" : "not sent"}`);
         }

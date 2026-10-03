@@ -9,8 +9,7 @@
         const runId = crypto.randomUUID();
         const outgoingHostname = uniqueLocalhostHostname("outgoing-unload");
 
-        const targetMarkerPath = `/outgoing-unload-target-loaded-${runId}`;
-        await httpServer.createEcho("GET", targetMarkerPath, {
+        const targetMarkerUrl = await httpServer.createEcho("GET", `/outgoing-unload-target-loaded-${runId}`, {
             status: 200,
             headers: { "Content-Type": "text/plain" },
             body: "recorded",
@@ -20,7 +19,7 @@
                 status: 200,
                 headers: { "Content-Type": "text/html" },
                 body: `<!DOCTYPE html>target<script>
-                    fetch(new URL("/echo${targetMarkerPath}", location.href)).finally(() => window.close());
+                    fetch(new URL(${JSON.stringify(new URL(targetMarkerUrl).pathname)}, location.href)).finally(() => window.close());
                 <\/script>`,
             })
         );
@@ -60,7 +59,7 @@
         const recorded = name => internals.hasCookieForURL(outgoingUrl.href, name, "1");
         println(`outgoing document loaded: ${await waitForCondition(() => recorded("loaded"))}`);
 
-        const recordedUrl = `${httpServer.baseURL}/recorded-request-headers/echo${targetMarkerPath}`;
+        const recordedUrl = httpServer.recordedRequestHeadersURL(targetMarkerUrl);
         let targetLoaded = false;
         for (let attempt = 0; attempt < 400 && !targetLoaded; ++attempt) {
             try {

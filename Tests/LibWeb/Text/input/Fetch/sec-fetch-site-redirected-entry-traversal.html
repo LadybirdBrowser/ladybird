@@ -6,18 +6,18 @@
     // entry, re-fetches the redirect target as site-controlled, rather than with the Sec-Fetch-Site:none the typed
     // address got.
     asyncTest(async done => {
-        const server = httpTestServer();
         const runId = new URLSearchParams(location.search).get("run");
+        const id = runId ?? crypto.randomUUID();
+        const server = httpTestServer().withEchoScope(id);
 
         if (runId) {
-            const response = await fetch(`${server.baseURL}/recorded-request-headers/echo/sec-fetch-site-redirect-target-${runId}`);
+            const response = await fetch(server.recordedRequestHeadersURL(server.echoURL(`/sec-fetch-site-redirect-target-${runId}`)));
             const headers = response.ok ? await response.json() : null;
             println(`redirect target, fetched again by the traversal: ${headers?.["Sec-Fetch-Site"]?.[0]} (${headers?.["Sec-Fetch-Mode"]?.[0]})`);
             done();
             return;
         }
 
-        const id = crypto.randomUUID();
         const back = new URL(location.href);
         back.search = `?run=${id}`;
 

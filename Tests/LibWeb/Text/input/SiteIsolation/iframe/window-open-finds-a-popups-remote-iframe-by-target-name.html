@@ -51,7 +51,7 @@
         println(`window.open() onto the iframe's name returned its window: ${found === popup.frames[0]}`);
 
         // The second document's script fetches the marker; the echo server records the request when it is made.
-        const recordedUrl = `${httpServer.baseURL}/recorded-request-headers/echo/popup-iframe-marker-${runId}`;
+        const recordedUrl = httpServer.recordedRequestHeadersURL(markerUrl);
         let navigated = false;
         for (let attempt = 0; attempt < 600 && !navigated; ++attempt) {
             try {

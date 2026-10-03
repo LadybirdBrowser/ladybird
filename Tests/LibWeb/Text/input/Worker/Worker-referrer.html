@@ -48,10 +48,8 @@
         });
 
         window.onmessage = e => {
-            const referrer = new URL(e.data["Referer"][0]);
-            referrer.port = "";
-
-            println("Got referrer: " + referrer);
+            const referrer = e.data["Referer"][0];
+            println(`Got referrer: ${referrer === workerUrl ? "the worker's URL" : referrer}`);
             done();
         };
 

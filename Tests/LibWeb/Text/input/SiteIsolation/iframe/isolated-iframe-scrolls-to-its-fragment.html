@@ -29,7 +29,7 @@
         iframe.src = childUrl;
         document.body.appendChild(iframe);
 
-        const recordedUrl = `${httpServer.baseURL}/recorded-request-headers/echo/oop-fragment-marker-${runId}`;
+        const recordedUrl = httpServer.recordedRequestHeadersURL(markerUrl);
         let loaded = false;
         for (let attempt = 0; attempt < 200 && !loaded; ++attempt) {
             try {
