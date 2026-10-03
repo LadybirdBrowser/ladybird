@@ -616,18 +616,6 @@ static bool cell_is_dead(Cell const* cell)
     return cell->state() != Cell::State::Live || !cell->is_marked();
 }
 
-static void clear_cache_entry_if_dead(PropertyLookupCache::Entry& entry)
-{
-    if (entry.from_shape && cell_is_dead(entry.from_shape.ptr()))
-        entry.from_shape = nullptr;
-    if (entry.shape && cell_is_dead(entry.shape.ptr()))
-        entry.shape = nullptr;
-    if (entry.prototype && cell_is_dead(entry.prototype.ptr()))
-        entry.prototype = nullptr;
-    if (entry.prototype_chain_validity && cell_is_dead(entry.prototype_chain_validity.ptr()))
-        entry.prototype_chain_validity = nullptr;
-}
-
 static bool cache_entry_has_dead_cell(PropertyLookupCache::Entry const& entry)
 {
     return (entry.from_shape && cell_is_dead(entry.from_shape.ptr()))
@@ -636,19 +624,20 @@ static bool cache_entry_has_dead_cell(PropertyLookupCache::Entry const& entry)
         || (entry.prototype_chain_validity && cell_is_dead(entry.prototype_chain_validity.ptr()));
 }
 
+static void clear_cache_entry_if_dead(PropertyLookupCache::Entry& entry)
+{
+    if (cache_entry_has_dead_cell(entry))
+        entry = {};
+}
+
 void PropertyLookupCache::remove_dead_entries()
 {
     if (auto* data = megamorphic_data()) {
-        for (auto& entry : data->primary_entries) {
-            if (cache_entry_has_dead_cell(entry))
-                entry = {};
-        }
-        for (auto& entry : data->secondary_entries) {
-            if (cache_entry_has_dead_cell(entry))
-                entry = {};
-        }
-        if (cache_entry_has_dead_cell(data->entry))
-            data->entry = {};
+        for (auto& entry : data->primary_entries)
+            clear_cache_entry_if_dead(entry);
+        for (auto& entry : data->secondary_entries)
+            clear_cache_entry_if_dead(entry);
+        clear_cache_entry_if_dead(data->entry);
         return;
     }
 
