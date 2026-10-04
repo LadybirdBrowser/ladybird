@@ -103,7 +103,7 @@ public:
     // Returns false, populating nothing, for a document that would hold access the active document lacks.
     bool populate_document_for_javascript_url(NonnullRefPtr<CanonicalDocumentState>, NonnullRefPtr<CanonicalDocument>);
     void did_create_populated_document_with_an_origin_of_its_own(WebContentPage const& host, Web::HTML::CrossProcessId document_id, Web::HTML::PopulatedDocumentOrigin, Web::HTML::EnvironmentId const& environment_id);
-    Optional<CanonicalNavigation> take_navigation_to_finalize(Utf16String const& navigation_id, WebContentPage const&);
+    bool take_navigation_to_finalize(Utf16String const& navigation_id, WebContentPage const&);
     void abandon_populated_document(CanonicalDocument const&);
     void place_pending_document(WebContentPage&);
 
@@ -232,9 +232,10 @@ public:
     void clear_ongoing_navigation_state();
     void set_navigation_host(WebContentPage&);
     bool cancel_navigation_for_client(WebContentClient&);
+    CanonicalNavigation const* navigation_being_finalized() const { return m_navigation_being_finalized.has_value() ? &*m_navigation_being_finalized : nullptr; }
     void did_finish_finalizing_navigation(Utf16String const& navigation_id, Web::HTML::CrossProcessId document_state_id, Web::HTML::HistoryStepResult);
     bool has_uncommitted_navigation() const { return ongoing_navigation(); }
-    bool matches_ongoing_navigation(Optional<Utf16String> const& navigation_id) const;
+    Optional<Utf16String> tracked_load_navigation_id() const;
 
     ActiveDocumentLoad const& active_document_load() const { return m_active_document_load; }
     void clear_active_document_load() { m_active_document_load = {}; }
@@ -259,6 +260,7 @@ private:
         Web::HTML::CrossProcessId operation_id;
     };
     Variant<Empty, Traversal, CanonicalNavigation> m_ongoing_navigation;
+    Optional<CanonicalNavigation> m_navigation_being_finalized;
     Optional<Web::HTML::PreparedNavigationDescriptor> m_navigation_waiting_for_traversal;
     struct RoutedNavigation {
         Utf16String navigation_id;

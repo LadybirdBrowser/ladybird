@@ -918,21 +918,19 @@ void CanonicalNavigable::did_create_populated_document_with_an_origin_of_its_own
     populated_document->document = move(document);
 }
 
-// The history operation finalizing the navigation takes it from the navigable at its queue position. A newer navigation
-// can still start before the operation applies the history step, which sets the ongoing navigation to "traversal". The
-// document populated for the navigation waits on the navigable as a history job's until the operation activates it.
-Optional<CanonicalNavigation> CanonicalNavigable::take_navigation_to_finalize(Utf16String const& navigation_id, WebContentPage const& page)
+// A newer navigation can start before the history operation finalizing this one applies the history step.
+bool CanonicalNavigable::take_navigation_to_finalize(Utf16String const& navigation_id, WebContentPage const& page)
 {
     auto* navigation = ongoing_navigation();
     if (!navigation || navigation->navigation_id != navigation_id || navigation->host() != &page)
-        return {};
+        return false;
     if (navigation->populated_document.has_value()) {
         abandon_populated_document(m_document_populated_by_history_job);
         m_document_populated_by_history_job = navigation->populated_document.release_value();
     }
-    auto taken_navigation = move(*navigation);
+    m_navigation_being_finalized = move(*navigation);
     m_ongoing_navigation = Empty {};
-    return taken_navigation;
+    return true;
 }
 
 void CanonicalNavigable::abandon_populated_document(CanonicalDocument const& document)
@@ -1371,6 +1369,9 @@ bool CanonicalNavigable::cancel_navigation_for_client(WebContentClient& client)
 // going to be.
 void CanonicalNavigable::did_finish_finalizing_navigation(Utf16String const& navigation_id, Web::HTML::CrossProcessId document_state_id, Web::HTML::HistoryStepResult result)
 {
+    if (!m_navigation_being_finalized.has_value() || m_navigation_being_finalized->navigation_id != navigation_id)
+        return;
+    m_navigation_being_finalized.clear();
     if (auto const* populated_document = populated_document_with_state_id(document_state_id)) {
         NonnullRefPtr document = populated_document->document;
         abandon_populated_document(*document);
@@ -1379,14 +1380,13 @@ void CanonicalNavigable::did_finish_finalizing_navigation(Utf16String const& nav
         clear_active_document_load();
 }
 
-bool CanonicalNavigable::matches_ongoing_navigation(Optional<Utf16String> const& navigation_id) const
+Optional<Utf16String> CanonicalNavigable::tracked_load_navigation_id() const
 {
-    // A live transaction owns the view's loading state, so completion signals must name it.
-    if (ongoing_navigation())
-        return navigation_id == ongoing_navigation()->navigation_id;
-
-    // Otherwise completion signals concern the active document's tracked load.
-    return navigation_id == m_active_document_load.navigation_id;
+    if (auto const* navigation = ongoing_navigation())
+        return navigation->navigation_id;
+    if (m_navigation_being_finalized.has_value())
+        return m_navigation_being_finalized->navigation_id;
+    return m_active_document_load.navigation_id;
 }
 
 }

@@ -453,8 +453,9 @@ void ViewImplementation::stop_loading()
     if (!m_is_loading)
         return;
     // Only a stopped navigation that never activated its document needs reissuing on reload; a stopped
-    // active-document load reloads through the session history.
-    m_last_stopped_navigation = navigation_to_retry_for_ongoing_navigation();
+    // active-document load reloads through the session history. A navigation a history operation is finalizing is
+    // not stopped, and activates its document.
+    m_last_stopped_navigation = traversable().has_uncommitted_navigation() ? navigation_to_retry_for_ongoing_navigation() : Optional<NavigationToRetry> {};
     if (cancel_uncommitted_top_level_navigation("stop-loading"sv, true))
         return;
     set_loading_state(false);
@@ -2488,13 +2489,7 @@ void ViewImplementation::did_start_navigation(Optional<Utf16String> const& navig
 
 bool ViewImplementation::did_cancel_navigation(Optional<Utf16String> const& navigation_id)
 {
-    auto const* ongoing = traversable().ongoing_navigation();
-    if (!ongoing)
-        ongoing = traversable().navigation_being_finalized();
-    auto stale = ongoing
-        ? navigation_id != ongoing->navigation_id
-        : navigation_id != traversable().active_document_load().navigation_id;
-    if (stale)
+    if (navigation_id != traversable().tracked_load_navigation_id())
         return false;
 
     set_loading_state(false);
@@ -2526,11 +2521,6 @@ void ViewImplementation::did_cancel_loading(Optional<Utf16String> const& navigat
         if (listener.on_load_finish)
             listener.on_load_finish(client_url);
     }
-}
-
-bool ViewImplementation::matches_ongoing_navigation(Optional<Utf16String> const& navigation_id) const
-{
-    return traversable().matches_ongoing_navigation(navigation_id);
 }
 
 void ViewImplementation::did_finish_navigation()
