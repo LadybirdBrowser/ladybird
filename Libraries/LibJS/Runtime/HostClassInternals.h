@@ -16,7 +16,8 @@ namespace JS {
 
 // Each host class gets an allocator of its own, named after the class, so that objects of different host classes never
 // share heap blocks, as GC_DECLARE_ALLOCATOR ensures for C++ classes. Like those, the allocators live as long as the
-// process.
+// process. A class with JS_HOST_CLASS_SHARES_ALLOCATOR_WITH_PARENT uses the allocator of its nearest ancestor without
+// that flag instead.
 template<typename HostCell>
 GC::TypeIsolatingCellAllocator<HostCell>& cell_allocator_for_host_class(JSHostClass const& host_class)
 {
@@ -28,8 +29,14 @@ GC::TypeIsolatingCellAllocator<HostCell>& cell_allocator_for_host_class(JSHostCl
     if (&host_class == last_host_class)
         return *last_allocator;
 
-    auto& allocator = *allocators->ensure(&host_class, [&] {
-        return new Allocator(StringView { host_class.name, host_class.name_length });
+    auto const* allocating_class = &host_class;
+    while (allocating_class->flags & JS_HOST_CLASS_SHARES_ALLOCATOR_WITH_PARENT) {
+        VERIFY(allocating_class->parent && allocating_class->parent->kind == allocating_class->kind);
+        allocating_class = allocating_class->parent;
+    }
+
+    auto& allocator = *allocators->ensure(allocating_class, [&] {
+        return new Allocator(StringView { allocating_class->name, allocating_class->name_length });
     });
     last_host_class = &host_class;
     last_allocator = &allocator;

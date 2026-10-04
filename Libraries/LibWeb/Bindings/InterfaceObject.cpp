@@ -33,4 +33,7 @@ struct InterfaceConstructorTraits {
 
 constexpr JSHostFunctionHooks interface_constructor_hooks = JS::make_host_function_hooks<InterfaceConstructorTraits>();
 
+constexpr JSHostClass interface_prototype_object_parent_host_class = JS::make_host_class(JS_HOST_CLASS_OBJECT, "InterfacePrototypeObject"sv, nullptr, nullptr, nullptr, 0);
+constexpr JSHostClass interface_constructor_parent_host_class = JS::make_host_class(JS_HOST_CLASS_FUNCTION, "InterfaceConstructor"sv, nullptr, &interface_constructor_hooks, nullptr, JS_HOST_CLASS_HAS_CONSTRUCTOR);
+
 }

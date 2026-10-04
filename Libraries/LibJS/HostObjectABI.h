@@ -150,6 +150,11 @@ enum {
 
     // Only for JS_HOST_CLASS_FUNCTION, which must then have a construct hook.
     JS_HOST_CLASS_HAS_CONSTRUCTOR = 1 << 8,
+
+    // For every kind. Each host class otherwise gets a cell allocator of its own, so that objects of different classes
+    // never share heap blocks. A class with this flag allocates its objects from its parent's allocator instead, which
+    // suits many classes with few objects each. The parent must be of the same kind.
+    JS_HOST_CLASS_SHARES_ALLOCATOR_WITH_PARENT = 1 << 9,
 };
 
 // The essential internal methods of kind JS_HOST_CLASS_OBJECT, plus engine queries. A completion's payload is the
