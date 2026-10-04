@@ -113,7 +113,13 @@ void NavigableContainer::create_new_child_navigable()
     // 10. Let historyEntry be navigable's active session history entry.
     auto history_entry = navigable->active_session_history_entry();
 
-    page.client().page_did_create_child_frame(parent_navigable->id(), navigable->id(), navigable->hosted_state(), create_pending_session_history_entry_descriptor(*history_entry), document->origin(), document->relevant_settings_object().id, document->id());
+    page.client().page_did_create_child_frame(parent_navigable->id(), this->document(), navigable->id(), navigable->hosted_state(), create_pending_session_history_entry_descriptor(*history_entry), document->origin(), document->relevant_settings_object().id, document->id());
+
+    // NB: An SVG image's page has no UI process to run the traversal steps.
+    if (page.client().is_svg_page_client()) {
+        navigable->set_has_session_history_entry_and_ready_for_navigation();
+        return;
+    }
 
     // 12. Append the following session history traversal steps to traversable:
     page.history_executor().request_history_operation(

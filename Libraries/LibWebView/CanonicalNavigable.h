@@ -97,6 +97,7 @@ public:
     RefPtr<CanonicalDocumentState> populating_document_state() const;
     RefPtr<CanonicalDocument> pending_document() const;
     RefPtr<CanonicalDocument> document_populated_for(CanonicalDocumentState const&) const;
+    RefPtr<CanonicalDocument> document_with_id(Web::HTML::CrossProcessId) const;
     void populate_document(NonnullRefPtr<CanonicalDocumentState>, NonnullRefPtr<CanonicalDocument>, Optional<URL::Origin> inline_content_origin = {});
     void populate_document_for_ongoing_navigation(NonnullRefPtr<CanonicalDocumentState>, NonnullRefPtr<CanonicalDocument>, Optional<URL::Origin> inline_content_origin = {});
     // Returns false, populating nothing, for a document that would hold access the active document lacks.

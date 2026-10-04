@@ -1070,20 +1070,6 @@ CanonicalTraversable::~CanonicalTraversable()
     });
 }
 
-// A page holds the document of a navigable that it hosts, or the document of the navigable's next activation that it
-// populates while another page hosts the active document.
-CanonicalDocument& CanonicalTraversable::document_active_in(CanonicalNavigable& navigable, WebContentPage const& page) const
-{
-    if (navigable.active_document().host() == &page)
-        return navigable.active_document();
-    RefPtr<CanonicalDocument> document;
-    navigable.for_each_populated_document([&](PopulatedDocument const& populated_document) {
-        if (populated_document.document->host() == &page)
-            document = populated_document.document;
-    });
-    return document ? *document : navigable.active_document();
-}
-
 Optional<size_t> CanonicalTraversable::effective_current_session_history_step_index() const
 {
     for (auto const& operation : m_history_operations) {

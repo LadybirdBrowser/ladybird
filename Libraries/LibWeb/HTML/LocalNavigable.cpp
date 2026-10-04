@@ -3667,6 +3667,10 @@ void LocalNavigable::begin_navigation(PreparedNavigation navigation)
     if (!active_window())
         return;
 
+    // AD-HOC: An SVG image's page has no UI process to navigate in, so its navigables keep their initial documents.
+    if (active_browsing_context()->page().client().is_svg_page_client())
+        return;
+
     // NB: A provisional navigable's document stands in for one another page hosts, which the navigation navigates.
     VERIFY(!is_provisional());
 

@@ -794,6 +794,18 @@ RefPtr<CanonicalDocument> CanonicalNavigable::document_populated_for(CanonicalDo
     return document;
 }
 
+RefPtr<CanonicalDocument> CanonicalNavigable::document_with_id(Web::HTML::CrossProcessId id) const
+{
+    if (active_document().id() == id)
+        return active_document();
+    RefPtr<CanonicalDocument> document;
+    for_each_populated_document([&](PopulatedDocument const& populated_document) {
+        if (populated_document.document->id() == id)
+            document = populated_document.document;
+    });
+    return document;
+}
+
 void CanonicalNavigable::populate_document(NonnullRefPtr<CanonicalDocumentState> document_state, NonnullRefPtr<CanonicalDocument> document, Optional<URL::Origin> inline_content_origin)
 {
     document->determine_whether_it_is_local_file_content(blob_url_store());
@@ -1192,16 +1204,13 @@ void CanonicalNavigable::did_commit_navigation(CanonicalSessionHistoryEntry& ent
     }
     update_hosted_state(move(hosted_state));
 
-    // The displaced document is gone, and its child navigables with it. The page that hosted it reported their
-    // destruction when it unloaded the document, unless another page hosts the activated document: that page holds
-    // the navigable remotely from now on, and the child navigables of the displaced document go here.
+    // The displaced document is gone, and its child navigables with it. When another page hosts the activated
+    // document, the page that hosted the displaced one holds the navigable remotely from now on.
     if (document != previous_document) {
-        if (auto previous_host = previous_document->host(); previous_host != document->host()) {
-            auto& traversable = top_level_traversable();
-            traversable.remove_child_navigables_of(*this, *previous_document);
-            if (previous_host && previous_host->is_open())
-                traversable.stop_hosting_in_page(*this, previous_host.release_nonnull());
-        }
+        auto& traversable = top_level_traversable();
+        traversable.remove_child_navigables_of(*this, *previous_document);
+        if (auto previous_host = previous_document->host(); previous_host && previous_host != document->host() && previous_host->is_open())
+            traversable.stop_hosting_in_page(*this, previous_host.release_nonnull());
     }
 
     // A navigation can commit while a newer navigation is already in flight. In that case update the replicated
