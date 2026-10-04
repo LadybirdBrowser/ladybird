@@ -111,6 +111,8 @@ public:
     CanonicalTraversable& traversable() const;
     virtual void prepare_page_for_tab(WebContentPage&);
     void did_change_display_page(Badge<CanonicalNavigable>, RefPtr<WebContentPage> previous_page);
+    void did_cancel_loading(Badge<CanonicalNavigable>, bool canceled_ongoing_navigation);
+    void did_stop_loading(Badge<CanonicalTraversable>, bool stopped_navigation);
 
     void set_url(Badge<WebContentPage>, URL::URL url) { set_url(move(url)); }
     URL::URL const& url() const { return m_url; }
@@ -146,7 +148,6 @@ public:
     void reload();
     void stop_loading();
     bool is_loading() const { return m_is_loading; }
-    void cancel_uncommitted_top_level_navigation_for_browser_traversal();
 
     bool crash_overlay_active() const { return m_crash_state.has_value(); }
     String crash_overlay_failed_url() const;
@@ -566,10 +567,9 @@ protected:
     explicit ViewImplementation(IsPrivate = IsPrivate::No);
 
     void set_url(URL::URL);
-    void did_start_navigation(Optional<Utf16String> const& navigation_id);
-    void did_cancel_loading(Optional<Utf16String> const& navigation_id);
-    bool did_cancel_navigation(Optional<Utf16String> const& navigation_id);
+    void did_start_navigation();
     void did_finish_navigation();
+    void did_end_uncommitted_navigation(StringView reason);
     void set_loading_state(bool);
     void complete_webdriver_navigation_completion(u64 request_id, Web::WebDriver::Response);
     void set_webdriver_current_browsing_context(CanonicalNavigable const&);
@@ -590,7 +590,6 @@ protected:
     void dump_session_history(StringView reason, SessionHistoryDumpMode = SessionHistoryDumpMode::IfDebuggingEnabled) const;
     void recover_current_session_history_entry_with_history_operation();
     void reconstruct_current_session_history_entry_with_history_operation(StringView reason);
-    bool cancel_uncommitted_top_level_navigation(StringView reason, bool stop_loading);
     NonnullRefPtr<Core::Promise<Empty>> reset_session_history_for_testing();
 
     virtual void update_zoom();
