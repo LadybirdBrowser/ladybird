@@ -238,18 +238,20 @@ pub unsafe extern "C" fn render_state_paintable_scrollable_overflow(
     host: *const DocumentHost,
     slot: NodeSlotId,
 ) -> FfiOptionalOverflowData {
+    // The host reads the overflow from the rows it holds, where they were measured and still read as the arena.
+    // SAFETY: Guaranteed by the caller.
+    let known = unsafe { &*host }.read_known_rows(|rows, source| {
+        rows.overflow_is_measured()
+            .then(|| FfiOptionalOverflowData::of(source, slot))
+    });
+    if let Some(Some(overflow)) = known {
+        return overflow;
+    }
     // SAFETY: Guaranteed by the caller.
     unsafe {
         read_arena(host, node_read(), slot, |arena, slot| {
             arena.measure_scrollable_overflow();
-            let Some(rect) =
-                crate::painting::paintable_geometry::scrollable_overflow_rect(&arena.paintable_rows(), slot)
-            else {
-                return FfiOptionalOverflowData::default();
-            };
-            let mut value = arena.committed_side_data(slot).overflow_relative_to_padding_box;
-            value.rect = rect.into();
-            FfiOptionalOverflowData { has_value: true, value }
+            FfiOptionalOverflowData::of(&arena.paintable_rows(), slot)
         })
     }
 }
@@ -259,6 +261,18 @@ pub unsafe extern "C" fn render_state_paintable_scrollable_overflow(
 pub struct FfiOptionalOverflowData {
     pub has_value: bool,
     pub value: crate::painting::paintable_data::FfiOverflowData,
+}
+
+impl FfiOptionalOverflowData {
+    /// The scrollable overflow of the row in `slot` of `rows`, whose overflow is measured.
+    fn of(rows: &impl GeometryRead, slot: NodeSlotId) -> Self {
+        let Some(rect) = crate::painting::paintable_geometry::scrollable_overflow_rect(rows, slot) else {
+            return Self::default();
+        };
+        let mut value = rows.committed_side_data(slot).overflow_relative_to_padding_box;
+        value.rect = rect.into();
+        Self { has_value: true, value }
+    }
 }
 
 #[repr(C)]
@@ -1328,12 +1342,18 @@ pub unsafe extern "C" fn render_state_visual_context_tree_structural_epoch(
     read: &crate::render_state::BegunRead,
 ) -> u64 {
     // SAFETY: Guaranteed by the caller.
-    unsafe {
+    let known = unsafe { &*host }.read_known_rows(|rows, _| {
+        rows.visual_context_tree
+            .as_ref()
+            .map_or(0, |tree| tree.structural_epoch)
+    });
+    // SAFETY: Guaranteed by the caller.
+    known.unwrap_or_else(|| unsafe {
         read_arena(host, read, (), |arena, ()| {
             let paint_state = arena.paint_state().borrow();
             paint_state.visual_context.structural_epoch()
         })
-    }
+    })
 }
 
 /// # Safety
