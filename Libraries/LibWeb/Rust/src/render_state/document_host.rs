@@ -749,6 +749,21 @@ impl DocumentHost {
         RowStyles::of(self.rows_as_of_writes(wait, false))
     }
 
+    /// Whether the row in `slot` is populated, as of every change the host queued, where the host knows it without
+    /// asking: only a layout round or a paint pass populates a row, and only a write of what a row is resets one.
+    pub(crate) fn known_paintable_row_is_populated(&self, slot: crate::layout::node_data::NodeSlotId) -> Option<bool> {
+        let rows = self.rows.borrow();
+        let rows = rows.as_ref().filter(|rows| {
+            !self.in_job.get()
+                && !self.changes.may_write_row_identities()
+                && self
+                    .arena_version
+                    .get()
+                    .is_some_and(|version| rows.reads_population_as(version))
+        })?;
+        Some(rows.paintable.paintable_row_is_populated(slot))
+    }
+
     /// What each row is and the row each node is bound to, as of every change the host queued, where the host knows
     /// them without asking.
     pub(crate) fn known_row_identities(&self) -> Option<RowIdentities> {

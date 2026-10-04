@@ -79,7 +79,7 @@ Layout::RustFFI::PaintableData const* committed_row(Layout::Node const& node)
 
 bool has_committed_box(Layout::Node const& node)
 {
-    return committed_row(node) != nullptr;
+    return Layout::RustFFI::render_state_has_paintable_row(node.document_host(), committed_row_slot(node));
 }
 
 Layout::Node* layout_node_for_committed_slot(Layout::BegunRead const& read, Layout::NodeArena& arena, Compositing::RustFFI::NodeSlotId slot)

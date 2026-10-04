@@ -65,6 +65,11 @@ impl RowSnapshot {
         self.version.has_identity_version(identity)
     }
 
+    /// Whether the rows answer which rows are populated as the arena's do at `version`.
+    pub(crate) fn reads_population_as(&self, version: RowsVersion) -> bool {
+        self.version.has_population_of(version)
+    }
+
     /// Whether the rows answer what each row is, and the style record it has, as the arena's do at `version`.
     pub(crate) fn reads_styles_as(&self, version: RowsVersion) -> bool {
         self.version.has_styles_of(version)
