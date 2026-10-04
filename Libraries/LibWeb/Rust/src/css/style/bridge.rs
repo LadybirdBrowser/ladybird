@@ -4357,6 +4357,17 @@ pub(super) unsafe fn borrow<'a, T>(pointer: *const T, count: usize) -> &'a [T] {
 
 include!(concat!(env!("OUT_DIR"), "/style_engine_boundary_generated.rs"));
 
+impl StyleChange {
+    /// Whether the change notes what an attribute name's forms are, or what an `attr()` reads it as: what the name is,
+    /// which no style transaction can answer differently, so it need not wait for the drain of one that flew.
+    pub(crate) fn notes_attribute_name(&self) -> bool {
+        matches!(
+            self,
+            Self::NoteAttributeNameForms { .. } | Self::NoteAttributeSubstitutionName { .. }
+        )
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
