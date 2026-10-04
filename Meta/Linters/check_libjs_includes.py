@@ -25,6 +25,7 @@ ALLOWED_HEADERS = {
     "LibJS/HostClassBuilder.h",
     "LibJS/HostObjectABI.h",
     "LibJS/Module.h",
+    "LibJS/ParserError.h",
     "LibJS/Position.h",
     "LibJS/Print.h",
     "LibJS/Runtime/AbstractOperations.h",

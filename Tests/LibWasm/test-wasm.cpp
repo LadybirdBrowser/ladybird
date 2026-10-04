@@ -6,8 +6,17 @@
 
 #include <AK/ByteBuffer.h>
 #include <AK/MemoryStream.h>
+#include <LibCore/File.h>
+#include <LibJS/Runtime/Array.h>
+#include <LibJS/Runtime/ArrayBuffer.h>
+#include <LibJS/Runtime/BigInt.h>
+#include <LibJS/Runtime/Intrinsics.h>
+#include <LibJS/Runtime/Object.h>
+#include <LibJS/Runtime/Realm.h>
+#include <LibJS/Runtime/TypedArray.h>
+#include <LibJS/Runtime/VM.h>
 #include <LibJS/Runtime/ValueInlines.h>
-#include <LibTest/JavaScriptTestRunner.h>
+#include <LibTest/JavaScriptTestHost.h>
 #include <LibWasm/AbstractMachine/BytecodeInterpreter.h>
 #include <LibWasm/AbstractMachine/Validator.h>
 #include <LibWasm/Types.h>
