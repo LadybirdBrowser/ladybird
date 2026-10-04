@@ -141,7 +141,7 @@ GC::Ref<FontFace> FontFace::create(FontFaceState& state)
 
 GC::Ref<FontFace> FontFace::create_for_constructor(JS::Object& global, Utf16String family, FontFaceSource source, Bindings::FontFaceDescriptors const& descriptors)
 {
-    return FontFaceState::create_for_constructor(global, move(family), move(source), descriptors)->cssom_font_face();
+    return FontFaceState::create_for_constructor(global, move(family), move(source), descriptors);
 }
 
 FontFace::FontFace(FontFaceState& state)
@@ -175,7 +175,7 @@ static void resolve_font_face_promise(JS::Realm& realm, WebIDL::Promise const& p
 }
 
 // https://drafts.csswg.org/css-font-loading/#font-face-constructor
-NonnullRefPtr<FontFaceState> FontFaceState::create_for_constructor(JS::Object& relevant_global_object, Utf16String family, FontFaceSource source, Bindings::FontFaceDescriptors const& descriptors)
+GC::Ref<FontFace> FontFaceState::create_for_constructor(JS::Object& relevant_global_object, Utf16String family, FontFaceSource source, Bindings::FontFaceDescriptors const& descriptors)
 {
     auto& global_scope = HTML::relevant_window_or_worker_global_scope(relevant_global_object);
     auto& environment = HTML::relevant_settings_object(global_scope);
@@ -183,7 +183,11 @@ NonnullRefPtr<FontFaceState> FontFaceState::create_for_constructor(JS::Object& r
 
     // 1. Let font face be a fresh FontFace object. Set font face’s status attribute to "unloaded",
     //    Set its internal [[FontStatusPromise]] slot to a fresh pending Promise object.
-    auto font_face = adopt_ref(*new FontFaceState(GC::Ref { environment }, WebIDL::create_promise_for(environment)));
+    // NB: The state's GC edges are only visited through an owner, so create its FontFace before anything that the GC
+    //     could collect is stored in the state.
+    auto font_face = adopt_ref(*new FontFaceState(GC::Ref { environment }));
+    GC::Ref cssom_font_face = font_face->cssom_font_face();
+    font_face->m_font_status_promise = WebIDL::create_promise_for(environment);
 
     //    Parse the family argument, and the members of the descriptors argument,
     //    according to the grammars of the corresponding descriptors of the CSS @font-face rule.
@@ -223,7 +227,7 @@ NonnullRefPtr<FontFaceState> FontFaceState::create_for_constructor(JS::Object& r
     //    otherwise, complete the rest of these steps asynchronously.
     // FIXME: Do the rest of this asynchronously.
     if (font_face->status() == FontFaceLoadStatus::Error)
-        return font_face;
+        return cssom_font_face;
 
     // 2. If the source argument was a CSSOMString, set font face’s internal [[Urls]] slot to the string.
     //    If the source argument was a BinaryData, set font face’s internal [[Data]] slot to the passed argument.
@@ -246,7 +250,7 @@ NonnullRefPtr<FontFaceState> FontFaceState::create_for_constructor(JS::Object& r
 
     // 3. If font face’s [[Data]] slot is not null, queue a task to run the following steps synchronously:
     if (font_face->m_binary_data.is_empty())
-        return font_face;
+        return cssom_font_face;
 
     HTML::queue_global_task(HTML::Task::Source::FontLoading, font_face->task_global_object(), GC::create_function(GC::Heap::the(), [font_root = font_face->keep_alive_during_load()] {
         auto font_face = font_root->elements().first();
@@ -328,7 +332,7 @@ NonnullRefPtr<FontFaceState> FontFaceState::create_for_constructor(JS::Object& r
         });
     }));
 
-    return font_face;
+    return cssom_font_face;
 }
 
 // https://drafts.csswg.org/css-font-loading/#font-face-css-connection
@@ -403,11 +407,10 @@ static HashMap<u64, FontFaceState*>& font_faces_by_id()
 
 static u64 s_next_font_face_id { 1 };
 
-FontFaceState::FontFaceState(GC::Ref<HTML::EnvironmentSettingsObject> environment, GC::Ptr<WebIDL::Promise> font_status_promise)
+FontFaceState::FontFaceState(GC::Ref<HTML::EnvironmentSettingsObject> environment)
     : m_id(s_next_font_face_id++)
     , m_environment(environment)
     , m_status(FontFaceLoadStatus::Unloaded)
-    , m_font_status_promise(font_status_promise)
 {
     font_faces_by_id().set(m_id, this);
 }
