@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<style>
+    li {
+        color: rgb(0, 0, 0);
+    }
+    li:first-child {
+        color: rgb(255, 0, 0);
+    }
+    li:nth-child(2) {
+        color: rgb(0, 128, 0);
+    }
+    li:last-child {
+        color: rgb(0, 0, 255);
+    }
+    .a + .b {
+        color: rgb(128, 0, 128);
+    }
+</style>
+<ul id="list"><li>first</li><li>last</li></ul>
+<div id="siblings"><p class="a">a</p><p class="b" id="b">b</p></div>
+<div id="moves"><section id="from"></section><section id="to"><li>stays</li></section></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const color = element => getComputedStyle(element).color;
+
+        // Markup replaced several times before anything reads style.
+        for (let i = 0; i < 5; ++i)
+            list.innerHTML = `<li>${i}</li><li>x</li><li>y</li>`;
+        println(`replaced list: ${[...list.children].map(color).join(" ")}`);
+
+        // A node inserted between two siblings that have arrived, then read.
+        const between = document.createElement("span");
+        b.before(between);
+        println(`behind an inserted sibling: ${color(b)}`);
+
+        // A node inserted between them and removed again before any read.
+        between.remove();
+        const transient = document.createElement("span");
+        b.before(transient);
+        transient.remove();
+        println(`after the inserted siblings left: ${color(b)}`);
+
+        // A node inserted after a waiting sibling.
+        const first = document.createElement("p");
+        first.className = "a";
+        const second = document.createElement("p");
+        second.className = "b";
+        siblings.append(first, second);
+        println(`two inserted siblings: ${color(second)}`);
+
+        // A node slotted into a shadow tree that was filled in the same task.
+        const host = document.createElement("div");
+        document.body.appendChild(host);
+        const shadow = host.attachShadow({ mode: "open" });
+        shadow.innerHTML = "<style>::slotted(b) { color: rgb(0, 128, 0); }</style><slot></slot>";
+        const slotted = document.createElement("b");
+        host.appendChild(slotted);
+        println(`slotted: ${color(slotted)}`);
+
+        // A node moved before it was ever read.
+        const moved = document.createElement("li");
+        from.appendChild(moved);
+        to.moveBefore(moved, null);
+        println(`moved: ${color(moved)} ${color(to.firstElementChild)}`);
+
+        // A dialog shown as modal right after it connected.
+        const dialog = document.createElement("dialog");
+        document.body.appendChild(dialog);
+        dialog.showModal();
+        println(`modal dialog position: ${getComputedStyle(dialog).position}`);
+        dialog.close();
+
+        // An implicit scope rooted at a parent that connected in the same task.
+        const scope_root = document.createElement("div");
+        scope_root.innerHTML = "<style>@scope { p { color: rgb(0, 0, 255); } }</style><p>scoped</p>";
+        document.body.appendChild(scope_root);
+        const outside = document.createElement("p");
+        document.body.appendChild(outside);
+        println(`scoped: ${color(scope_root.querySelector("p"))}, outside: ${color(outside)}`);
+
+        // Layout of nodes nothing read the style of.
+        const box = document.createElement("div");
+        box.style.width = "30px";
+        box.style.height = "20px";
+        document.body.appendChild(box);
+        println(`box: ${box.offsetWidth}x${box.offsetHeight}`);
+        const input = document.createElement("input");
+        input.value = "hello";
+        document.body.appendChild(input);
+        println(`input has a box: ${input.offsetHeight > 0}`);
+    });
+</script>

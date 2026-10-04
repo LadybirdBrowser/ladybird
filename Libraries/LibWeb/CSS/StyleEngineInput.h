@@ -38,17 +38,22 @@ WEB_API void flush_deferred_style_change_events_for_rule(CSSRule&);
 // the document's style node identity, which is the parent every top-level child names.
 WEB_API void record_document_tree_tracked(DOM::Document&);
 
-// Called once a subtree has been linked into a connected tree. Allocates a style node identity for
-// every element and shadow root in it that has none yet, and records the arrival of each element.
+// Called once a subtree has been linked into a connected tree. Marks it as waiting to arrive: the
+// elements, text nodes and shadow roots in it that have no style node identity yet take one, and
+// the elements record their arrival, only once something observes the style engine.
 WEB_API void record_subtree_connecting(DOM::Node& root);
 
-// Called once a node has been linked into a connected tree. Allocates the element's style node
-// identity if it does not have one yet.
+// Called once a node has been linked into a connected tree. Marks the element as waiting to arrive
+// if it has no style node identity yet and no subtree waiting to arrive covers it.
 WEB_API void record_element_connected(DOM::Element&);
 
-// Called once a text node has been linked into a connected tree that no subtree arrival covered.
-// Allocates the text node's style node identity if it does not have one yet.
+// Called once a text node has been linked into a connected tree. Marks it as waiting to arrive if it
+// has no style node identity yet and no subtree waiting to arrive covers it.
 WEB_API void record_text_connected(DOM::Text&);
+
+// Gives every node waiting to arrive its style node identity and records its arrival, in tree
+// order. Whatever reads the style engine, or a connected node's identity, calls this first.
+WEB_API void take_in_pending_style_arrivals(DOM::Document&);
 
 // Called whenever a text node's data is replaced. The mirror carries the characters, which the layout tree build
 // renders, and whether they are nothing but ASCII whitespace.

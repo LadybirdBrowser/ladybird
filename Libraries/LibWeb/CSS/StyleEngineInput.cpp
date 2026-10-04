@@ -7,6 +7,7 @@
 #include <AK/HashTable.h>
 #include <AK/QuickSort.h>
 #include <AK/SetUnion.h>
+#include <AK/TemporaryChange.h>
 #include <LibWeb/Animations/KeyframeEffect.h>
 #include <LibWeb/CSS/CSSAnimation.h>
 #include <LibWeb/CSS/CSSPropertyRule.h>
@@ -27,6 +28,7 @@
 #include <LibWeb/DOM/Slottable.h>
 #include <LibWeb/DOM/Text.h>
 #include <LibWeb/HTML/CustomElements/CustomStateSet.h>
+#include <LibWeb/HTML/FormAssociatedElement.h>
 #include <LibWeb/HTML/HTMLBRElement.h>
 #include <LibWeb/HTML/HTMLBodyElement.h>
 #include <LibWeb/HTML/HTMLCanvasElement.h>
@@ -218,6 +220,27 @@ static StyleNodeID style_tree_parent_of(DOM::Element& element, StyleEngine& styl
     return no_style_node;
 }
 
+// The engine's tree is the DOM without the subtrees still waiting to arrive, so a sibling relation
+// names the nearest sibling that has arrived, starting at `element`. While arrivals are taken in,
+// every waiting node already has its identity, and that is the sibling itself.
+static StyleNodeID identity_of_arrived_previous_sibling(GC::Ptr<DOM::Element> element)
+{
+    for (; element; element = element->previous_element_sibling()) {
+        if (element->style_node_id() != no_style_node)
+            return element->style_node_id();
+    }
+    return no_style_node;
+}
+
+static StyleNodeID identity_of_arrived_next_sibling(GC::Ptr<DOM::Element> element)
+{
+    for (; element; element = element->next_element_sibling()) {
+        if (element->style_node_id() != no_style_node)
+            return element->style_node_id();
+    }
+    return no_style_node;
+}
+
 static StyleEngineFFI::FfiTreeRelations relations_of(DOM::Element& element, StyleEngine& style_engine, TreeScopeID tree_scope)
 {
     auto assigned_slot = no_style_node;
@@ -226,8 +249,8 @@ static StyleEngineFFI::FfiTreeRelations relations_of(DOM::Element& element, Styl
 
     return StyleEngineFFI::FfiTreeRelations {
         .parent = style_tree_parent_of(element, style_engine).value(),
-        .previous_element_sibling = identity_of(element.previous_element_sibling()).value(),
-        .next_element_sibling = identity_of(element.next_element_sibling()).value(),
+        .previous_element_sibling = identity_of_arrived_previous_sibling(element.previous_element_sibling()).value(),
+        .next_element_sibling = identity_of_arrived_next_sibling(element.next_element_sibling()).value(),
         .tree_scope = tree_scope.value(),
         .assigned_slot = assigned_slot.value(),
         .reserved = 0,
@@ -311,26 +334,51 @@ void publish_pending_element_features(StyleEngine& style_engine, StyleComputer& 
     }
 }
 
+// A node that connects takes no identity at once. Script often inserts markup and replaces it again before anything
+// reads style, and a node nothing observes then costs the engine nothing: its subtree is marked as waiting to arrive,
+// and take_in_pending_style_arrivals() gives it its identity once something observes the engine.
+//
+// Every connected node without an identity has a shadow-including inclusive ancestor marked as waiting, and every
+// ancestor above that one is marked as having a waiting descendant, which is the path the take-in walks down.
+static void mark_style_arrival_pending(DOM::Node& node, StyleEngine& style_engine)
+{
+    style_engine.note_pending_arrivals(1);
+    node.set_style_arrival_pending(true);
+    for (auto* ancestor = node.parent_or_shadow_host(); ancestor; ancestor = ancestor->parent_or_shadow_host()) {
+        if (ancestor->descendant_style_arrival_pending() || ancestor->style_arrival_pending())
+            break;
+        ancestor->set_descendant_style_arrival_pending(true);
+    }
+}
+
+// Whether a subtree already waiting to arrive holds the node. An element without an identity is always in one.
+static bool waits_to_arrive_with_an_ancestor(DOM::Node& node)
+{
+    for (auto* ancestor = node.parent_or_shadow_host(); ancestor; ancestor = ancestor->parent_or_shadow_host()) {
+        if (ancestor->style_arrival_pending())
+            return true;
+        if (auto* element = as_if<DOM::Element>(*ancestor))
+            return element->style_node_id() == no_style_node;
+        if (!is<DOM::ShadowRoot>(*ancestor))
+            return false;
+    }
+    return false;
+}
+
+static void record_node_connected(DOM::Node& node, StyleEngine& style_engine)
+{
+    if (waits_to_arrive_with_an_ancestor(node))
+        style_engine.note_pending_arrivals(1);
+    else
+        mark_style_arrival_pending(node, style_engine);
+}
+
 void record_element_connected(DOM::Element& element)
 {
     auto* style_engine = style_engine_for(element);
     if (!style_engine || element.style_node_id() != no_style_node)
         return;
-    element.set_style_node_id(style_engine->mint_style_node());
-    element.document().style_computer().register_style_node(element.style_node_id(), element);
-    // The name the document knows the element by arrives with the identity. A box built for one of
-    // the element's pseudo-elements answers by it even when the element itself has no box.
-    style_engine->set_element_unique_node_id(element.style_node_id(), static_cast<u64>(element.unique_id().value()));
-    Layout::publish_table_spans(element);
-    // A newly minted identity holds none of the facts the element's style noted before.
-    if (element.style_recomputes_on_environment_move())
-        element.publish_style_recomputes_on_environment_move();
-    if (element.is_size_query_container() || element.style_depends_on_size_container_query())
-        element.publish_size_container_query_facts();
-    record_element_arrival_delta(element, *style_engine, tree_scope_of(element.root()));
-    ensure_dom_order_parent_identity(element.parent(), *style_engine);
-    link_in_dom_order(*style_engine, element);
-    republish_assigned_slot_of(element);
+    record_node_connected(element, *style_engine);
 }
 
 // A text node's row records one of the facts an element's row does, whether it sits in a user agent shadow tree. A
@@ -347,17 +395,7 @@ void record_text_connected(DOM::Text& text)
     auto* style_engine = style_engine_for(text);
     if (!style_engine || text.style_node_id() != no_style_node)
         return;
-    StyleNodeID identity;
-    style_engine->mint_text_style_nodes({ &identity, 1 });
-    text.set_style_node_id(identity);
-    text.document().style_computer().register_style_node(identity, text);
-    style_engine->set_text_is_ascii_whitespace(identity, text.data().is_ascii_whitespace());
-    style_engine->set_text_is_in_user_agent_shadow_tree(identity, text_is_in_user_agent_shadow_tree(text));
-    style_engine->set_text_is_password_input(identity, text.is_password_input());
-    style_engine->set_text_data(identity, text.data());
-    ensure_dom_order_parent_identity(text.parent(), *style_engine);
-    link_in_dom_order(*style_engine, text);
-    republish_assigned_slot_of(text);
+    record_node_connected(text, *style_engine);
 }
 
 // Data only ever arrives with the node or is replaced wholesale, so those are the two places it is published from.
@@ -388,9 +426,18 @@ void record_document_tree_tracked(DOM::Document& document)
 
 void record_subtree_connecting(DOM::Node& root)
 {
-    if (!root.parent() || !style_engine_for(*root.parent()))
+    if (!root.parent())
         return;
-    auto& style_computer = root.document().style_computer();
+    if (auto* style_engine = style_engine_for(*root.parent()))
+        mark_style_arrival_pending(root, *style_engine);
+}
+
+// Every node in the subtrees waiting to arrive, in tree order, takes its identity, and every element records its
+// arrival. The subtrees are taken in together, so each identity is assigned before the first arrival is recorded:
+// an arrival names its parent and siblings, and a sibling that waited in another subtree has arrived by then.
+static void record_subtree_arrivals(DOM::Document& document, ReadonlySpan<GC::Ref<DOM::Node>> roots)
+{
+    auto& style_computer = document.style_computer();
     auto& style_engine = style_computer.style_engine();
     struct Arrival {
         GC::Ref<DOM::Node> node;
@@ -403,6 +450,8 @@ void record_subtree_connecting(DOM::Node& root)
     Vector<GC::Ref<DOM::Node>, 64> dom_order_arrivals;
     size_t element_count = 0;
     auto collect = [&](DOM::Node& node, TreeScopeID tree_scope) {
+        node.set_style_arrival_pending(false);
+        node.set_descendant_style_arrival_pending(false);
         if (auto* element = as_if<DOM::Element>(node); element && element->style_node_id() == no_style_node) {
             arrivals.append({ *element, tree_scope });
             dom_order_arrivals.append(*element);
@@ -414,9 +463,10 @@ void record_subtree_connecting(DOM::Node& root)
             dom_order_arrivals.append(*text);
         }
     };
-    for_each_shadow_including_inclusive_descendant_with_scope(root, tree_scope_of(root.root()), collect);
-    if (!dom_order_arrivals.is_empty())
-        ensure_dom_order_parent_identity(root.parent(), style_engine);
+    for (auto const& root : roots) {
+        ensure_dom_order_parent_identity(root->parent(), style_engine);
+        for_each_shadow_including_inclusive_descendant_with_scope(*root, tree_scope_of(root->root()), collect);
+    }
 
     if (!text_arrivals.is_empty()) {
         Vector<StyleNodeID, 64> identities;
@@ -460,8 +510,6 @@ void record_subtree_connecting(DOM::Node& root)
             }
         }
 
-        // An arrival names the element's parent and siblings, so every identity in the subtree is
-        // assigned before the first arrival is recorded.
         for (auto const& arrival : arrivals) {
             if (auto* element = as_if<DOM::Element>(*arrival.node))
                 record_element_arrival_delta(*element, style_engine, arrival.tree_scope);
@@ -478,6 +526,66 @@ void record_subtree_connecting(DOM::Node& root)
 
     for (auto const& node : dom_order_arrivals)
         republish_assigned_slot_of(node);
+
+    // What the insertion steps publish about a node under its identity waited for the identity (see Node::inserted()).
+    auto focused_area = document.focused_area();
+    auto const* focused_text_control = is<HTML::FormAssociatedTextControlElement>(focused_area.ptr()) ? focused_area.ptr() : nullptr;
+    for (auto const& node : dom_order_arrivals) {
+        // Inertness, editability and the wheel handler state are inherited from the place the node arrived in.
+        node->publish_dom_paint_facts();
+        // As is being in the shadow tree of the focused text control.
+        if (focused_text_control) {
+            if (auto* shadow_root = as_if<DOM::ShadowRoot>(node->root()); shadow_root && shadow_root->host() == focused_text_control)
+                Layout::publish_is_in_focused_text_control(*node);
+        }
+    }
+
+    // The top layer is published whole, naming only the members that have arrived.
+    if (any_of(arrivals, [](auto const& arrival) { auto* element = as_if<DOM::Element>(*arrival.node); return element && element->in_top_layer(); }))
+        record_top_layer_changed(document);
+
+    // The insertion that connected a subtree marked it for the layout tree build under the identity it did not have
+    // yet, so the mark is made here, as the insertion would have made it.
+    for (auto const& root : roots) {
+        auto const* parent = root->parent();
+        if (parent && (parent->is_html_style_element() || parent->is_svg_style_element()) && !parent->has_layout_box())
+            continue;
+        root->set_needs_layout_tree_update(true, DOM::SetNeedsLayoutTreeUpdateReason::NodeInsertBefore);
+    }
+}
+
+// The subtrees waiting to arrive, in tree order, found along the marks their ancestors carry. The marks are cleared on
+// the way: a subtree that left the tree before this walk leaves marks behind that nothing waits under.
+static void collect_pending_style_arrival_roots(DOM::Node& node, Vector<GC::Ref<DOM::Node>, 16>& roots)
+{
+    node.set_descendant_style_arrival_pending(false);
+    auto visit = [&](DOM::Node& child) {
+        if (child.style_arrival_pending())
+            roots.append(child);
+        else if (child.descendant_style_arrival_pending())
+            collect_pending_style_arrival_roots(child, roots);
+    };
+    if (auto* element = as_if<DOM::Element>(node); element && element->shadow_root())
+        visit(*element->shadow_root());
+    for (auto* child = node.first_child(); child; child = child->next_sibling())
+        visit(*child);
+}
+
+static bool s_taking_in_pending_style_arrivals = false;
+
+void take_in_pending_style_arrivals(DOM::Document& document)
+{
+    if (s_taking_in_pending_style_arrivals)
+        return;
+    // Nodes that waited and left the tree again are counted too, and nothing is left of them to take in.
+    document.style_computer().style_engine().forget_pending_arrivals();
+    if (!document.descendant_style_arrival_pending())
+        return;
+    TemporaryChange taking_in { s_taking_in_pending_style_arrivals, true };
+    Vector<GC::Ref<DOM::Node>, 16> roots;
+    collect_pending_style_arrival_roots(document, roots);
+    if (!roots.is_empty() && document.style_engine_tracks_tree())
+        record_subtree_arrivals(document, roots);
 }
 
 // Publish every selector-visible fact intrinsic to one element.
@@ -983,8 +1091,8 @@ void record_element_moved(DOM::Element& element, DOM::Node* old_parent, DOM::Ele
         previous.parent = old_parent_element->style_node_id().value();
     else if (auto* old_shadow_root = as_if<DOM::ShadowRoot>(old_parent))
         previous.parent = old_shadow_root->style_node_id().value();
-    previous.previous_element_sibling = identity_of(old_previous_sibling).value();
-    previous.next_element_sibling = identity_of(old_next_sibling).value();
+    previous.previous_element_sibling = identity_of_arrived_previous_sibling(old_previous_sibling).value();
+    previous.next_element_sibling = identity_of_arrived_next_sibling(old_next_sibling).value();
     if (previous.parent == relations.parent
         && previous.previous_element_sibling == relations.previous_element_sibling
         && previous.next_element_sibling == relations.next_element_sibling) {
@@ -1087,8 +1195,9 @@ void record_slot_assignment_changed(HTML::HTMLSlotElement& slot)
     slot.document().style_computer().style_engine().set_slot_assigned_nodes(slot.style_node_id(), identities.span());
 }
 
-// Only a connected element in a fully active document enters the top layer, so every member has an identity when it
-// does. One that has since disconnected, waiting in the pending removals, has given its identity up.
+// Only a connected element in a fully active document enters the top layer. A member still waiting to arrive has no
+// identity yet, and its arrival publishes the top layer again. One that has since disconnected, waiting in the pending
+// removals, has given its identity up.
 void record_top_layer_changed(DOM::Document& document)
 {
     if (!document.style_engine_tracks_tree())
@@ -1754,6 +1863,9 @@ using CompilationVisitor = Function<bool(RustRule::Type, StyleSheetState const&,
 
 static void visit_compilation(StyleSheetState const& sheet, u64 rule_identity, DOM::Document const& document, Parser::ValueParserFFI::NativeCompilationPurpose purpose, CompilationVisitor const& visit, Parser::ValueParserFFI::NativeStylePublication const& publication)
 {
+    // An implicit scope is named by its root's identity, which a root still waiting to arrive takes first.
+    if (sheet.native_rules().has_implicit_scope())
+        take_in_pending_style_arrivals(const_cast<DOM::Document&>(document));
     MediaEnvironmentSnapshot environment { document };
     Parser::ValueParserFFI::NativeCompilationCallbacks callbacks {
         .context = &visit,

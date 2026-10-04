@@ -1,0 +1,10 @@
+replaced list: rgb(255, 0, 0) rgb(0, 128, 0) rgb(0, 0, 255)
+behind an inserted sibling: rgb(0, 0, 0)
+after the inserted siblings left: rgb(128, 0, 128)
+two inserted siblings: rgb(128, 0, 128)
+slotted: rgb(0, 128, 0)
+moved: rgb(0, 0, 255) rgb(255, 0, 0)
+modal dialog position: fixed
+scoped: rgb(0, 0, 255), outside: rgb(0, 0, 0)
+box: 30x20
+input has a box: true
