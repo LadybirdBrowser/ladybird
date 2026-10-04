@@ -308,41 +308,15 @@ bool WebContentPage::continue_navigation_population_in_selected_process(Web::HTM
     if (!acquiring)
         return false;
     ongoing_navigation->state = CanonicalNavigation::ChoosingHost { acquiring->worker, move(acquiring->loader) };
-    auto is_still_choosing_host = [&] {
-        auto const* ongoing_navigation = navigable->ongoing_navigation();
-        return ongoing_navigation
-            && ongoing_navigation->navigation_id == navigation_id
-            && ongoing_navigation->state.has<CanonicalNavigation::ChoosingHost>();
-    };
 
-    // The task queued by step 5 of attempting to populate the history entry's document runs in the process hosting
-    // the browsing context that the document it creates belongs to. A response that creates no document is finished
-    // by the process that fetched it.
-    RefPtr<WebContentPage> host = this;
-    auto response_document = navigable->ongoing_navigation()->loader()->response_document();
-    if (response_document.has_value()) {
-        response_document->document_id = Application::the().allocate_ui_process_cross_process_id();
-        NonnullRefPtr history_entry = *navigable->ongoing_navigation()->history_entry;
-        auto document = navigable->create_and_initialize_a_document(*response_document);
-        navigable->ongoing_navigation()->loader()->set_document(*document, *navigable);
-        navigable->populate_document_for_ongoing_navigation(*document, navigable->ongoing_navigation()->loader()->result().inline_content_origin);
-
-        // A document created for inline content stands in for the resource the process that fetched it could not
-        // load; that process hosts it.
-        if (!response_document->is_inline_content || navigable->is_top_level_traversable()) {
-            auto host_or_error = navigable->obtain_page_to_host(*document, history_entry->document_state->initiator_origin);
-            if (host_or_error.is_error()) {
-                warnln("Unable to obtain a page to host the navigation's document: {}", host_or_error.error());
-                return false;
-            }
-            host = host_or_error.release_value();
-            // Obtaining the page can replace the tab's process, whose change callbacks can reenter navigation.
-            if (!is_still_choosing_host())
-                return false;
-        }
-        // The host takes the navigable over when the document is activated, after the displayed document is unloaded.
-        navigable->place_populated_document(*document, *host);
+    NonnullRefPtr history_entry = *ongoing_navigation->history_entry;
+    auto host_or_error = navigable->obtain_page_to_populate_document(history_entry, *ongoing_navigation->loader(), *this);
+    if (host_or_error.is_error()) {
+        warnln("Unable to obtain a page to populate the navigation's document: {}", host_or_error.error());
+        return false;
     }
+    auto host = host_or_error.release_value().page;
+
     auto& loader = *navigable->ongoing_navigation()->loader();
     navigable->set_navigation_host(*host);
     auto finish_handoff = [page = NonnullRefPtr<WebContentPage>(*this), host, navigable_id, navigation_id](bool succeeded) {
