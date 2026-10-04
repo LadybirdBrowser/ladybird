@@ -1118,10 +1118,6 @@ pub struct RetainedState {
 pub struct HostState {
     /// The style pass the host is installing wave by wave, between two of its waves.
     suspended_style_pass: Option<flush::StylePass>,
-    /// What the flush whose rows the host is installing moved under every row.
-    batch_moves_for_retries: publication::BatchMoves,
-    /// Why the flush would have driven a row it left to a retry in full, its winners standing.
-    retry_full_drive_reasons: HashMap<StyleNodeID, publication::FullDriveReason>,
     /// The host's synchronous font resolver. A step that misses the cache returns `NeedsInput`;
     /// the round outside the step calls this and the node is retried.
     font_resolver: Option<font_resolution::FontResolverHost>,

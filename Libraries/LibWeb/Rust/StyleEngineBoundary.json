@@ -94,7 +94,6 @@
     [101, "PublishedPseudoStyleMask"],
     [102, "NoteCustomPropertyName"],
     [103, "RepublishRecordEnvironment"],
-    [104, "RetryEngineRecordAfterAncestor"],
     [105, "NodeDeclaresCustomProperties"],
     [109, "SetPseudoElementStyleDeferred"],
     [111, "RecordDerivedElementStyleInput"],
@@ -264,7 +263,6 @@
   "bespoke_events": [
     "SetTextData",
     "AnswerRecordDemand",
-    "RetryEngineRecordAfterAncestor",
     "SettlePseudoRecordsAfterHostRecord",
     "CreateGraph",
     "DestroyGraph",

@@ -173,7 +173,6 @@ public:
     // Moves a node's record to the environment its inherited custom-property data was refreshed
     // to; the new record's identity, or zero when nothing moved.
     [[nodiscard]] StyleRecordID republish_record_environment(StyleNodeID, u64 environment, void const* store);
-    [[nodiscard]] StyleEngineFFI::FfiEngineComputedRecord retry_engine_record_after_ancestor(StyleNodeID);
     // What a read of an element's style, or one of its pseudo-elements', made before the next style update asks of
     // the style engine, and the pseudo-element a demand may read.
     using RecordDemand = StyleEngineFFI::FfiRecordDemand;

@@ -108,20 +108,20 @@ pub struct FfiAnimationInvalidation {
     pub requires_style_resource_update: bool,
 }
 
+/// How a row stands. The tags are the ones recordings hold.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]
 pub enum FfiStyleDeltaGap {
-    None,
-    Materialize,
+    None = 0,
+    /// The engine did not settle the row: the host answers it from the element's record demand.
+    Materialize = 1,
     /// The engine computed the new record itself from the moved cascade winners; C++ applies it
     /// without running a style computation.
-    Computed,
-    /// Retry a cold drive while applying the preorder batch, after its parent is authoritative.
-    RetryAfterAncestor,
+    Computed = 2,
     /// The element needs no style: the host holds none for it in a display:none subtree, and
     /// neither it nor any element inheriting from it reads style while hidden. A read or the
     /// subtree's reveal asks for its record.
-    Hidden,
+    Hidden = 4,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -174,7 +174,7 @@ pub struct FfiStyleDelta {
     pub composed_by_the_host: bool,
 }
 
-/// A retried engine record and the metadata needed to install it.
+/// An engine record a demand settled and the metadata needed to install it.
 #[derive(Clone, Copy, Debug, Default)]
 #[repr(C)]
 pub struct FfiEngineComputedRecord {
@@ -193,7 +193,7 @@ pub struct FfiEngineComputedRecord {
     /// The synthetic pseudo-element kinds whose records the engine settled beside the
     /// element's, as a bit per kind; a present slot holding zero is a removal.
     pub pseudo_records_present: u8,
-    pub pseudo_records: [u64; RETRY_PSEUDO_RECORD_SLOTS],
+    pub pseudo_records: [u64; PSEUDO_RECORD_SLOTS],
 }
 
 /// The synthetic pseudo-element records the engine settled beside an element's installed record.
@@ -213,11 +213,11 @@ pub struct FfiSettledPseudoRecords {
     /// The kinds whose records the engine settled, as a bit per kind; a present slot holding zero
     /// is a removal, and an absent kind keeps its record.
     pub pseudo_records_present: u8,
-    pub pseudo_records: [u64; RETRY_PSEUDO_RECORD_SLOTS],
+    pub pseudo_records: [u64; PSEUDO_RECORD_SLOTS],
 }
 
-/// One record slot per synthetic pseudo-element kind in a retried record.
-pub const RETRY_PSEUDO_RECORD_SLOTS: usize = 8;
+/// One record slot per synthetic pseudo-element kind in an engine record answer.
+pub const PSEUDO_RECORD_SLOTS: usize = 8;
 
 #[derive(Default)]
 pub(crate) struct FfiStyleTransactionOutput {
@@ -3436,59 +3436,6 @@ pub unsafe fn replay_republish_record_environment(
     StyleNodeID::from_raw(node)
         .and_then(|node| engine.republish_record_environment(node, environment))
         .unwrap_or(0)
-}
-
-/// Retry after the ancestor's style was installed, returning installation metadata together
-/// with the record instead of requiring a later query of the node.
-///
-/// # Safety
-/// `host` must be a live document host, on its document's thread.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_retry_engine_record_after_ancestor(
-    host: *const DocumentHost,
-    node: u32,
-) -> FfiEngineComputedRecord {
-    // SAFETY: Guaranteed by the caller.
-    let host = unsafe { document_host(host) };
-    // SAFETY: Guaranteed by the caller.
-    with_engine(host, |engine| unsafe {
-        retry_engine_record_after_ancestor(engine, node)
-    })
-}
-
-/// [`style_engine_retry_engine_record_after_ancestor`] on `engine`, which the style replay tool
-/// calls as well.
-///
-/// # Safety
-/// As for [`style_engine_retry_engine_record_after_ancestor`], for the arguments after `engine`.
-pub unsafe fn retry_engine_record_after_ancestor(engine: &mut StyleEngine, node: u32) -> FfiEngineComputedRecord {
-    abort_on_panic(|| {
-        let Some(style_node) = StyleNodeID::from_raw(node) else {
-            return FfiEngineComputedRecord::default();
-        };
-        let retried = engine.retry_engine_record_after_ancestor(style_node);
-        let result = FfiEngineComputedRecord {
-            style_record: retried.style_record,
-            uses_substitution: retried.style_record != 0 && engine.nodes_with_substituted_records.contains(&style_node),
-            record_reads: if retried.style_record != 0 {
-                engine.node_record_reads(style_node)
-            } else {
-                0
-            },
-            explicitly_inherited_groups: retried.explicitly_inherited_groups,
-            owes_an_animation_plan: retried.owes_an_animation_plan,
-            owes_a_transition_step: retried.owes_a_transition_step,
-            composed_by_the_host: retried.composed_by_the_host,
-            pseudo_records_present: retried.pseudo_records_present,
-            pseudo_records: retried.pseudo_records,
-        };
-        engine.record_boundary_call(EventKind::RetryEngineRecordAfterAncestor, |payload| {
-            payload.write_u32(node);
-            payload.write_u64(result.style_record);
-            payload.write_bool(result.uses_substitution);
-        });
-        result
-    })
 }
 
 /// What a read of one element's style the host makes before the next style update asks of the

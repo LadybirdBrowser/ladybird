@@ -789,16 +789,10 @@ impl RetainedState {
         }
     }
 
-    /// Whether the node is an element standing for its shadow host's pseudo-element (the element
-    /// a `::placeholder` or a slider part is): its style is that pseudo-element's, cascaded from
-    /// the host's rules, and its own cascade decides nothing.
-    pub(crate) fn backs_host_pseudo_element(&self, node: StyleNodeID) -> bool {
-        self.backed_host_pseudo_element(node).is_some()
-    }
-
-    /// The pseudo-element kind an element stands for and the shadow host it stands for it on. The
-    /// host publishes the kind with the element's facts, and an element in no shadow tree stands
-    /// for nothing.
+    /// The pseudo-element kind an element stands for (the element a `::placeholder` or a slider part
+    /// is), whose style is that pseudo-element's, cascaded from the host's rules, and the shadow
+    /// host it stands for it on. The host publishes the kind with the element's facts, and an
+    /// element in no shadow tree stands for nothing.
     pub(super) fn backed_host_pseudo_element(&self, node: StyleNodeID) -> Option<(u8, StyleNodeID)> {
         let kind = self.computed_group_sets.associated_pseudo_kind(node)?;
         Some((kind, self.tree.shadow_host_of(node)?))
@@ -1008,7 +1002,7 @@ impl RetainedState {
         {
             root_inputs.apply_to(&mut inputs);
         }
-        let subject = self.element_drive_subject(node, scratch.installed_ancestors.as_ref(), counters)?;
+        let subject = self.element_drive_subject(node, counters)?;
         let parent_record = subject
             .parent
             .and_then(|parent| self.computed_group_sets.assigned_style_record(parent));
@@ -1399,7 +1393,7 @@ impl StyleEngineState {
         settled.explicitly_inherited_groups = scratch.element_explicitly_inherited_groups;
         for delta in &scratch.pseudo_deltas {
             let kind = usize::from(delta.kind);
-            if kind < bridge::RETRY_PSEUDO_RECORD_SLOTS {
+            if kind < bridge::PSEUDO_RECORD_SLOTS {
                 settled.pseudo_records_present |= 1 << kind;
                 settled.pseudo_records[kind] = delta.new_style_record.raw();
             }

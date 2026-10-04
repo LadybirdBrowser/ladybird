@@ -39,7 +39,7 @@ pub(crate) enum RecordDemandAnswer {
     /// The element's record with the pseudo-element records settled beside it, or the
     /// pseudo-element's record, and whether it was computed with a substituted winner.
     Record {
-        record: RetriedEngineRecord,
+        record: DemandedEngineRecord,
         uses_substitution: bool,
     },
     /// The pseudo-element asked for generates no box. Its rules still declare custom properties
@@ -409,14 +409,14 @@ impl StyleEngineState {
                 delta => break delta?,
             }
         };
-        let mut answered = RetriedEngineRecord {
+        let mut answered = DemandedEngineRecord {
             style_record: record.raw(),
             explicitly_inherited_groups: scratch.element_explicitly_inherited_groups,
-            ..RetriedEngineRecord::default()
+            ..DemandedEngineRecord::default()
         };
         for delta in &scratch.pseudo_deltas {
             let kind = usize::from(delta.kind);
-            if kind < bridge::RETRY_PSEUDO_RECORD_SLOTS {
+            if kind < bridge::PSEUDO_RECORD_SLOTS {
                 answered.pseudo_records_present |= 1 << kind;
                 answered.pseudo_records[kind] = delta.new_style_record.raw();
             }
@@ -525,9 +525,9 @@ impl StyleEngineState {
         };
         Ok(match record {
             Some(record) => RecordDemandAnswer::Record {
-                record: RetriedEngineRecord {
+                record: DemandedEngineRecord {
                     style_record: record.raw(),
-                    ..RetriedEngineRecord::default()
+                    ..DemandedEngineRecord::default()
                 },
                 uses_substitution: scratch.pseudo_uses_substitution,
             },
@@ -762,5 +762,17 @@ impl RetainedState {
             }
         }
         Ok(WinnerStore::new(winners))
+    }
+}
+
+impl RetainedState {
+    /// What the host owes an element when it installs the record `settled` names over the one it
+    /// holds, as it owes a flush row: the animation plan the record decides, the transition step,
+    /// and whether it composes the record before anything inherits from it.
+    fn note_what_installing_owes(&self, node: StyleNodeID, settled: &mut DemandedEngineRecord) {
+        let held_style_record = self.held_style_records.get(&node).copied().unwrap_or(0);
+        settled.owes_an_animation_plan = self.row_owes_an_animation_plan(node, held_style_record, settled.style_record);
+        settled.owes_a_transition_step = self.row_owes_a_transition_step(node);
+        settled.composed_by_the_host = self.host_composes_row(node, held_style_record, settled.style_record);
     }
 }

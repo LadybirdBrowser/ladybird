@@ -1001,14 +1001,6 @@ impl StyleEngine {
         self.state.abandon_demanded_records(node, &mut self.counters);
     }
 
-    /// Retry a record after C++ has installed earlier records in the same preorder batch. A record
-    /// rejected while the batch was planned may become computable once its inheritance parent is
-    /// authoritative.
-    #[inline]
-    pub(crate) fn retry_engine_record_after_ancestor(&mut self, node: StyleNodeID) -> publication::RetriedEngineRecord {
-        self.state.retry_engine_record_after_ancestor(node, &mut self.counters)
-    }
-
     /// Answer a read of one element's style the host makes before the next style update.
     #[inline]
     pub(super) fn answer_record_demand(

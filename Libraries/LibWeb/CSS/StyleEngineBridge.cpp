@@ -263,11 +263,6 @@ StyleRecordID StyleEngine::republish_record_environment(StyleNodeID node, u64 en
     return StyleRecordID { StyleEngineFFI::style_engine_republish_record_environment(host(), node.value(), environment, store) };
 }
 
-StyleEngineFFI::FfiEngineComputedRecord StyleEngine::retry_engine_record_after_ancestor(StyleNodeID node)
-{
-    return StyleEngineFFI::style_engine_retry_engine_record_after_ancestor(host(), node.value());
-}
-
 #define ASSERT_DEMANDED_PSEUDO_ELEMENT_KIND(name) \
     static_assert(to_underlying(StyleEngine::DemandedPseudoElement::name) == to_underlying(PseudoElement::name));
 ASSERT_DEMANDED_PSEUDO_ELEMENT_KIND(After)
