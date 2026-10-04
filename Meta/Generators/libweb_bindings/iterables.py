@@ -265,8 +265,8 @@ def write_iterator_prototype_implementation(
     if interface.iterable is None or interface.iterable.key_type is None:
         return
 
-    includes.add("AK/TypeCasts.h")
     includes.add("LibJS/Runtime/Error.h")
+    includes.add("LibJS/Runtime/HostObject.h")
     includes.add("LibJS/Runtime/IteratorPrototype.h")
     includes.add("LibJS/Runtime/PrimitiveString.h")
     includes.add("LibJS/Runtime/ValueInlines.h")
@@ -284,9 +284,10 @@ def write_iterator_prototype_implementation(
 static JS::ThrowCompletionOr<{fully_qualified_name_for_interface(interface)}Iterator*> {make_name_acceptable_cpp(title_case_to_snake_case(iterator_interface_name))}_impl_from(JS::VM& vm)
 {{
     auto this_object = TRY(vm.this_value().to_object(vm));
-    if (!is<{fully_qualified_name_for_interface(interface)}Iterator>(*this_object))
+    auto* iterator = JS::host_data_if<{fully_qualified_name_for_interface(interface)}Iterator>(*this_object);
+    if (!iterator)
         return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "{iterator_interface_name}");
-    return static_cast<{fully_qualified_name_for_interface(interface)}Iterator*>(this_object.ptr());
+    return iterator;
 }}
 
 JS_DEFINE_NATIVE_FUNCTION({interface.name}IteratorPrototype::next)

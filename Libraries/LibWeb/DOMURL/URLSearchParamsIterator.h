@@ -6,24 +6,30 @@
 
 #pragma once
 
+#include <LibJS/Heap/Cell.h>
+#include <LibJS/Runtime/HostObject.h>
 #include <LibJS/Runtime/Object.h>
 #include <LibWeb/DOMURL/URLSearchParams.h>
 
 namespace Web::DOMURL {
 
-class URLSearchParamsIterator : public JS::Object {
-    JS_OBJECT(URLSearchParamsIterator, JS::Object);
+// The state of a URLSearchParams iterator. The iterator's JS object is a host object that carries this cell as its
+// host data.
+class URLSearchParamsIterator final : public JS::Cell {
+    GC_CELL(URLSearchParamsIterator, JS::Cell);
     GC_DECLARE_ALLOCATOR(URLSearchParamsIterator);
 
 public:
-    static WebIDL::ExceptionOr<GC::Ref<URLSearchParamsIterator>> create(JS::Realm&, URLSearchParams const&, JS::Object::PropertyKind iteration_kind);
+    using JSValueConversionIsForbidden = void;
+
+    static WebIDL::ExceptionOr<GC::Ref<JS::HostObject>> create(JS::Realm&, URLSearchParams const&, JS::Object::PropertyKind iteration_kind);
 
     virtual ~URLSearchParamsIterator() override;
 
     JS::Object* next(JS::Realm&);
 
 private:
-    URLSearchParamsIterator(JS::Realm&, URLSearchParams const&, JS::Object::PropertyKind iteration_kind);
+    URLSearchParamsIterator(URLSearchParams const&, JS::Object::PropertyKind iteration_kind);
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
 
