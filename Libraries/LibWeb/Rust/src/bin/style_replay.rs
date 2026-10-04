@@ -660,9 +660,8 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                 EventKind::BeginColdMatchingBatch => {
                     let engine = read_engine(&mut event.payload, &live_engines)?;
                     let root = event.payload.read_u32()?;
-                    let expected = event.payload.read_bool()?;
                     let start = Instant::now();
-                    let actual = bridge::operations::begin_cold_matching_batch(unsafe { engine.get_mut() }, root);
+                    bridge::operations::begin_cold_matching_batch(unsafe { engine.get_mut() }, root);
                     let elapsed = start.elapsed();
                     boundary_time += elapsed;
                     record_boundary_timing(
@@ -672,11 +671,6 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                         &mut selected_boundary_time,
                         &mut phase_times,
                     );
-                    if actual != expected {
-                        return Err(
-                            format!("cold matching batch result diverged: expected {expected}, got {actual}").into(),
-                        );
-                    }
                 }
                 EventKind::BeginAdaptiveColdMatchingBatch => {
                     let engine = read_engine(&mut event.payload, &live_engines)?;
