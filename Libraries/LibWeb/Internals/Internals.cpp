@@ -443,10 +443,9 @@ WebIDL::ExceptionOr<Utf16String> Internals::set_time_zone(Utf16String const& tim
 
 bool Internals::wrapper_is_preserved(JS::Object& object)
 {
-    auto* platform_object = as_if<Bindings::PlatformObject>(&object);
-    if (!platform_object)
+    if (!Bindings::wrappable_impl_from(&object))
         return false;
-    return Bindings::wrapper_is_preserved(*platform_object);
+    return Bindings::wrapper_is_preserved(as<Bindings::PlatformObject>(object));
 }
 
 bool Internals::has_activity_root(JS::Object& object)
@@ -2154,7 +2153,7 @@ void Internals::set_hidden_document_intensive_timer_throttling(double wake_up_in
 
 WebIDL::UnsignedLongLong Internals::active_timer_count(JS::Object& object)
 {
-    if (auto* window_proxy = as_if<HTML::WindowProxy>(object)) {
+    if (auto* window_proxy = HTML::WindowProxy::from_object(object)) {
         if (auto window = window_proxy->window())
             return window->active_timer_count({});
         return 0;

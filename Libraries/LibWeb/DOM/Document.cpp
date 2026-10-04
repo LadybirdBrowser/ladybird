@@ -11359,8 +11359,10 @@ JS::Value document_named_item_value(WrapperWorld& wrapper_world, JS::Realm& real
     //    then return the active WindowProxy of the element's content navigable.
     if (elements.size() == 1 && is<HTML::HTMLIFrameElement>(*elements.first())) {
         auto& iframe_element = static_cast<HTML::HTMLIFrameElement&>(*elements.first());
-        if (iframe_element.content_navigable() != nullptr)
-            return iframe_element.content_navigable()->active_window_proxy();
+        if (iframe_element.content_navigable() != nullptr) {
+            auto window_proxy = iframe_element.content_navigable()->active_window_proxy();
+            return window_proxy ? JS::Value { &window_proxy->object() } : JS::js_null();
+        }
     }
 
     // 3. Otherwise, if elements has only one element, return that element.

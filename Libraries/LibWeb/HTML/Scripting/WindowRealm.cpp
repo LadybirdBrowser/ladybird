@@ -24,7 +24,7 @@ NonnullOwnPtr<JS::ExecutionContext> create_window_realm(GC::Ptr<Window>& window,
         },
         [&](JS::Realm&) -> GC::Ref<JS::Object> {
             // For the global this binding, use browsingContext's WindowProxy object.
-            return *browsing_context.window_proxy();
+            return browsing_context.window_proxy()->object();
         });
 }
 

@@ -749,7 +749,7 @@ WebIDL::ExceptionOr<i32> WindowOrWorkerGlobalScopeMixin::run_timer_initializatio
             [&](GC::Root<WebIDL::CallbackType> const& callback) {
                 auto this_value = [&]() -> JS::Value {
                     if (auto* window = as_if<Window>(this_impl()))
-                        return window->window();
+                        return &window->window()->object();
                     return Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, GC::Ref { this_impl() });
                 }();
                 (void)WebIDL::invoke_callback(*callback, this_value, WebIDL::ExceptionBehavior::Report, arguments);

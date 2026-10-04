@@ -599,15 +599,15 @@ Web::WebDriver::Response WebDriverConnection::switch_to_frame(JsonValue payload)
             auto window = current_browsing_context().active_document()->window()->window();
 
             // 5. If id is not a supported property index of window, return error with error code no such frame.
-            auto property = window->get(id);
+            auto property = window->object().get(id);
 
-            if (property.is_error() || !property.value().is_object() || !is<Web::HTML::WindowProxy>(property.value().as_object())) {
+            if (property.is_error() || !property.value().is_object() || !Web::HTML::WindowProxy::from_object(property.value().as_object())) {
                 driver_execution_complete(Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchFrame, MUST(String::formatted("Frame ID {} not found", id))));
                 return;
             }
 
             // 6. Let child window be the WindowProxy object obtained by calling window.[[GetOwnProperty]] (id).
-            auto const& child_window = static_cast<Web::HTML::WindowProxy const&>(property.value().as_object());
+            auto const& child_window = *Web::HTML::WindowProxy::from_object(property.value().as_object());
 
             // 7. Set the current browsing context with session and child window's browsing context.
             auto child_navigable = child_window.navigable();

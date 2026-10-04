@@ -42,17 +42,19 @@ GC::Ref<Origin> Origin::construct_impl()
 
 static Optional<URL::Origin> extract_origin_from_platform_object(JS::Value value)
 {
-    auto object = value.as_if<Bindings::PlatformObject>();
-    if (!object)
+    if (!value.is_object())
         return {};
-    return object->extract_an_origin();
+    auto const* wrappable = Bindings::wrappable_impl_from(&value.as_object());
+    if (!wrappable)
+        return {};
+    return wrappable->extract_an_origin();
 }
 
 // https://html.spec.whatwg.org/multipage/browsers.html#dom-origin-from
 WebIDL::ExceptionOr<GC::Ref<Origin>> Origin::from(JS::Value value)
 {
     // NB: IDL only ever sees HTML::WindowProxy but we want to use HTML::Window.
-    if (auto window_proxy = value.as_if<HTML::WindowProxy>()) {
+    if (auto* window_proxy = value.is_object() ? HTML::WindowProxy::from_object(value.as_object()) : nullptr) {
         if (auto window = window_proxy->window()) {
             auto origin = window->extract_an_origin();
             if (origin.has_value())

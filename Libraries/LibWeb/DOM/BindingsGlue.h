@@ -58,7 +58,7 @@ WEB_API JS::Completion invoke_event_handler(WebIDL::CallbackType&, DOM::Event&, 
 WEB_API DOM::Event* event_from_value(JS::Value);
 WEB_API DOM::Event* event_from_callback_argument(JS::VM&);
 WEB_API JS::Value event(JS::Realm&, GC::Ref<DOM::Event>);
-WEB_API GC::Ptr<PlatformObject> current_target_wrapper(JS::Realm&, DOM::Event const&);
+WEB_API GC::Ptr<JS::Object> current_target_wrapper(JS::Realm&, DOM::Event const&);
 WEB_API JS::Value current_target_value(JS::Realm&, DOM::Event const&);
 
 WEB_API JS::Value document(JS::Realm&, GC::Ref<DOM::Document>);

@@ -35,7 +35,9 @@ namespace Web::HTML {
 
 GC::Ptr<RemoteWindow> remote_window_from(JS::Value value)
 {
-    if (auto window_proxy = value.as_if<WindowProxy>())
+    if (!value.is_object())
+        return {};
+    if (auto* window_proxy = WindowProxy::from_object(value.as_object()))
         return window_proxy->remote_window();
     return {};
 }
@@ -44,7 +46,7 @@ static Optional<Variant<GC::Ref<Location const>, GC::Ref<Window const>, GC::Ref<
 {
     // NOTE: A WindowProxy is checked against its [[Window]], which is the Window object the bindings operate on, or the
     //       RemoteWindow standing for one hosted by another process.
-    if (auto const* window_proxy = as_if<WindowProxy>(object)) {
+    if (auto const* window_proxy = WindowProxy::from_object(object)) {
         if (auto remote_window = window_proxy->remote_window())
             return GC::Ref<RemoteWindow const> { *remote_window };
         if (auto window = window_proxy->window())
