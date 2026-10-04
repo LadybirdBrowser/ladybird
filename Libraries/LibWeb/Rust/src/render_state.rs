@@ -131,6 +131,8 @@ impl RenderState {
             )
             .is_some(),
             owes_image_resources: self.arena.arena().owes_image_resources_to_host(),
+            selector_attribute_value_text_requirements_version: engine
+                .selector_attribute_value_text_requirements_version(),
         };
         Owed {
             work: std::mem::take(&mut self.owed),
@@ -231,6 +233,8 @@ pub(crate) struct StateFacts {
     /// Whether the layout tree builds owe the host image resources, which no write moves (see
     /// [`DocumentHost::known_owed_image_resources`]).
     pub(crate) owes_image_resources: bool,
+    /// Where the engine's selectors' requirements of attribute value text are.
+    pub(crate) selector_attribute_value_text_requirements_version: u64,
 }
 
 // Every write the host makes is moved through its queue and into the render state, so a variant that carries a large

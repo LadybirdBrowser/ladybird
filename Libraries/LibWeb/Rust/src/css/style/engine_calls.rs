@@ -1404,6 +1404,27 @@ pub unsafe extern "C" fn style_engine_has_size_containers_needing_evaluation_aft
     }
 }
 
+/// Where the engine's requirements of attribute value text are, which the host knows without asking where it wrote
+/// nothing since its last job.
+///
+/// # Safety
+///
+/// `host` must be a live document host, on its document's thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn style_engine_attribute_value_text_requirements_version(
+    host: *const DocumentHost,
+    read: &BegunRead,
+) -> u64 {
+    // SAFETY: Guaranteed by the caller.
+    let host = unsafe { document_host(host) };
+    match host.known_facts() {
+        Some(facts) => super::inputs::with_attr_names_read(facts.selector_attribute_value_text_requirements_version),
+        None => with_engine(read, host, |engine| {
+            super::bridge::operations::attribute_value_text_requirements_version(engine)
+        }),
+    }
+}
+
 /// Folds the style input `node` owes into the reaction the host is about to apply to it, where the reaction covers it,
 /// and answers the merged reaction in the low byte and the merged inherited style groups in the next, or zero, as
 /// [`super::StyleEngineState::absorb_element_style_input`] does. The host answers where it knows the answer, and the
