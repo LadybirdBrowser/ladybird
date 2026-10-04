@@ -311,13 +311,9 @@ bool WebContentPage::continue_navigation_population_in_selected_process(Web::HTM
         auto const& request = navigable->ongoing_navigation()->loader->request();
         auto document = navigable->create_and_initialize_a_document(*response_document);
         navigable->ongoing_navigation()->loader->set_document(*document, *navigable);
-        // NB: A navigation reconstructing a child navigable's history populates the entry it reconstructs.
-        auto const& reconstructed_entry = navigable->ongoing_navigation()->reconstructed_entry;
-        auto document_state = reconstructed_entry ? reconstructed_entry->document_state : CanonicalDocumentState::create(request.history_entry.document_state.id);
-        if (!reconstructed_entry) {
-            document_state->initiator_origin = request.history_entry.document_state.initiator_origin;
-            document_state->origin = request.history_entry.document_state.origin;
-        }
+        auto document_state = CanonicalDocumentState::create(request.history_entry.document_state.id);
+        document_state->initiator_origin = request.history_entry.document_state.initiator_origin;
+        document_state->origin = request.history_entry.document_state.origin;
         navigable->populate_document_for_ongoing_navigation(move(document_state), *document, navigable->ongoing_navigation()->loader->result().inline_content_origin);
 
         // A document created for inline content stands in for the resource the process that fetched it could not
@@ -2013,85 +2009,6 @@ void WebContentPage::did_complete_navigation_unload_check(Web::HTML::CrossProces
     if (navigable->is_top_level_traversable()) {
         if (displays_tab())
             begin_top_level_load(move(navigation_id), ongoing_navigation->loader->request().history_entry.url);
-    }
-}
-
-void WebContentPage::did_request_navigation_population(Web::HTML::CrossProcessId navigable_id, Web::NavigationTarget target, Web::HTML::NavigationPopulationRequest request)
-{
-    auto const& target_url = request.history_entry.url;
-
-    CanonicalNavigable* target_navigable = &traversable();
-    Optional<CanonicalNavigable&> child_frame;
-    if (target == Web::NavigationTarget::IFrame) {
-        child_frame = traversable().top_level_traversable().find(navigable_id);
-        target_navigable = child_frame.has_value() ? &*child_frame : nullptr;
-    }
-
-    // AD-HOC: A population request can race with the UI traversal queue in the same way as a navigation-start
-    //         request, so validate the canonical ongoing-navigation value before admitting it.
-    auto navigation_is_blocked_by_history_traversal = target_navigable
-        && target_navigable->ongoing_navigation_is_traversal();
-    if (!target_navigable
-        || target_navigable->id() != navigable_id
-        || request.navigable_id != navigable_id
-        || navigation_is_blocked_by_history_traversal) {
-        async_cancel_navigation_params_creation(navigable_id, request.navigation_id);
-        return;
-    }
-
-    if (auto const& ongoing_navigation = target_navigable->ongoing_navigation(); ongoing_navigation.has_value()
-        && ongoing_navigation->navigation_id == request.navigation_id
-        && ongoing_navigation->loader) {
-        async_cancel_navigation_params_creation(navigable_id, request.navigation_id);
-        return;
-    }
-
-    // A reconstructed child navigation was admitted in the populating phase without a request of its own;
-    // only the process hosting the child's document may deliver its population request.
-    auto continues_reconstructed_child_navigation = target_navigable->ongoing_navigation().has_value()
-        && target_navigable->ongoing_navigation()->navigation_id == request.navigation_id
-        && target_navigable->ongoing_navigation()->phase == CanonicalNavigation::Phase::Populating
-        && !target_navigable->ongoing_navigation()->loader
-        && target_navigable->navigation_host_matches(*this);
-
-    // A population request names the URL to populate, so it reaches local file content only from local file content, or
-    // to continue a navigation to that file: URL the UI process admitted.
-    if (target_url.scheme() == "file"sv && !may_navigate_to_a_local_file(client(), request.source_snapshot_params)) {
-        auto continues_admitted_file_navigation = continues_reconstructed_child_navigation
-            && target_navigable->ongoing_navigation()->url == target_url;
-        if (!continues_admitted_file_navigation) {
-            async_cancel_navigation_params_creation(navigable_id, request.navigation_id);
-            return;
-        }
-    }
-
-    if (continues_reconstructed_child_navigation) {
-        auto& ongoing_navigation = *target_navigable->ongoing_navigation();
-        ongoing_navigation.url = target_url;
-        ongoing_navigation.phase = CanonicalNavigation::Phase::Populating;
-        ongoing_navigation.loader = NavigationLoader::create(client().is_private(), move(request));
-    } else {
-        target_navigable->set_ongoing_navigation(CanonicalNavigation {
-            .url = target_url,
-            .navigation_id = request.navigation_id,
-            .sequence_number = target_navigable->top_level_traversable().next_sequence_number(),
-            .phase = CanonicalNavigation::Phase::Populating,
-            .loader = NavigationLoader::create(client().is_private(), move(request)),
-        });
-    }
-
-    // The UI process owns the in-parallel population work. Dispatch the document-dependent
-    // steps through step 4 to the process with the live source document. The response URL then
-    // determines which process receives the task queued by step 5.
-    if (!target_navigable->ongoing_navigation()->population_worker)
-        target_navigable->set_navigation_population_worker(*this);
-    async_create_navigation_params(target_navigable->ongoing_navigation()->loader->request());
-
-    // Requesting navigation params starts the fetch, so a view's top-level population begins its recorded
-    // load here.
-    if (target_navigable->is_top_level_traversable()) {
-        if (displays_tab())
-            begin_top_level_load(target_navigable->ongoing_navigation()->navigation_id, target_navigable->ongoing_navigation()->loader->request().history_entry.url);
     }
 }
 

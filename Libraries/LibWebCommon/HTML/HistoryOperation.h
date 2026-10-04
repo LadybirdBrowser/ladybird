@@ -32,11 +32,6 @@ struct FinalizeCrossDocumentNavigationHistoryOperationParameters {
     Optional<HTML::CrossProcessId> document_id;
 };
 
-struct ReconstructedChildNavigation {
-    HTML::SessionHistoryEntryDescriptor target_entry;
-    Utf16String navigation_id;
-};
-
 using HistoryOperationReadyResult = Variant<Empty, HTML::HistoryStepResult>;
 
 struct ReloadHistoryOperationParameters {
@@ -121,11 +116,6 @@ template<>
 WEBCOMMON_API ErrorOr<void> encode(Encoder&, Web::FinalizeCrossDocumentNavigationHistoryOperationParameters const&);
 template<>
 WEBCOMMON_API ErrorOr<Web::FinalizeCrossDocumentNavigationHistoryOperationParameters> decode(Decoder&);
-
-template<>
-WEBCOMMON_API ErrorOr<void> encode(Encoder&, Web::ReconstructedChildNavigation const&);
-template<>
-WEBCOMMON_API ErrorOr<Web::ReconstructedChildNavigation> decode(Decoder&);
 
 template<>
 WEBCOMMON_API ErrorOr<void> encode(Encoder&, Web::ReloadHistoryOperationParameters const&);

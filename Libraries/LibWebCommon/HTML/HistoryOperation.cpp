@@ -36,23 +36,6 @@ ErrorOr<Web::FinalizeCrossDocumentNavigationHistoryOperationParameters> IPC::dec
 }
 
 template<>
-ErrorOr<void> IPC::encode(Encoder& encoder, Web::ReconstructedChildNavigation const& navigation)
-{
-    TRY(encoder.encode(navigation.target_entry));
-    TRY(encoder.encode(navigation.navigation_id));
-    return {};
-}
-
-template<>
-ErrorOr<Web::ReconstructedChildNavigation> IPC::decode(Decoder& decoder)
-{
-    return Web::ReconstructedChildNavigation {
-        .target_entry = TRY(decoder.decode<Web::HTML::SessionHistoryEntryDescriptor>()),
-        .navigation_id = TRY(decoder.decode<Utf16String>()),
-    };
-}
-
-template<>
 ErrorOr<void> IPC::encode(Encoder& encoder, Web::ReloadHistoryOperationParameters const& parameters)
 {
     TRY(encoder.encode(parameters.navigable_id));

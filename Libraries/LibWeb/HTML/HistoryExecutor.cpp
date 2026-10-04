@@ -342,13 +342,17 @@ bool HistoryExecutor::run_changing_navigable_history_step_job_impl(ChangingNavig
     //         navigable was created or destroyed — which no other engine does. So we skip such applying-the-target-
     //         entry-would-cross-documents navigables here.
     //         https://github.com/whatwg/html/issues/12724
+    //         A navigable still awaiting the update for its creation has only its initial about:blank, and populates
+    //         the entry its nested history kept.
     if (!job.navigation_type.has_value()) {
         bool would_cross_documents = claimed_target_entry->document_state()->document_id() != navigable->active_document_id()
             || claimed_target_entry->document_state()->reload_pending();
-        if (would_cross_documents) {
+        if (would_cross_documents && navigable->has_session_history_entry_and_ready_for_navigation()) {
             on_complete->function()({ ChangingNavigableHistoryStepJobDisposition::Skipped, nullptr });
             return false;
         }
+        if (would_cross_documents)
+            navigable->drop_container_navigation_for_restored_entry();
     }
 
     // https://html.spec.whatwg.org/multipage/nav-history-apis.html#fire-a-traverse-navigate-event
@@ -887,6 +891,11 @@ void HistoryExecutor::run_ui_changing_navigable_history_job(CrossProcessId opera
     if (!navigable) {
         on_complete->function()(ChangingNavigableHistoryStepJobDisposition::Skipped, UnloadDisplayedDocument::No);
         return;
+    }
+    // A navigable created by a repopulated document targets the entry its nested history kept, not its initial one.
+    if (local_target_entry && !navigation_type.has_value() && !navigable->has_session_history_entry_and_ready_for_navigation()
+        && local_target_entry->document_state() && local_target_entry->document_state()->cross_process_id() != target_entry.document_state.id) {
+        local_target_entry = nullptr;
     }
     if (local_target_entry) {
         auto document_state = local_target_entry->document_state();
