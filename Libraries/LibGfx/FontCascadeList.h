@@ -10,6 +10,7 @@
 #include <AK/AtomicRefCounted.h>
 #include <AK/Function.h>
 #include <AK/HashMap.h>
+#include <AK/HashTable.h>
 #include <LibGfx/Font/Font.h>
 #include <LibGfx/Font/UnicodeRange.h>
 
@@ -182,7 +183,8 @@ private:
 
     RefPtr<Font const> m_last_resort_font;
     mutable Vector<Entry> m_fonts;
-    mutable Vector<Entry> m_fallback_fonts;
+    Vector<Entry> m_fallback_fonts;
+    mutable HashTable<NonnullRefPtr<Font const>> m_retained_system_fallback_fonts;
     struct PendingEntry {
         size_t font_index;
         NonnullRefPtr<PendingFace> face;

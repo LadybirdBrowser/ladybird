@@ -308,8 +308,9 @@ Gfx::Font const& FontCascadeList::font_for_code_point(u32 code_point, EmojiPrese
     if (m_system_font_fallback_callback) {
         if (auto fallback = m_system_font_fallback_callback(code_point, emoji_presentation.presentation, first())) {
             if (presentation_matches(*fallback) || (!author_glyph_match && !fallback_glyph_match)) {
-                m_fallback_fonts.append({ fallback.release_nonnull(), {} });
-                return cache_and_return(*m_fallback_fonts.last().font);
+                auto const& fallback_font = *fallback;
+                m_retained_system_fallback_fonts.set(fallback.release_nonnull());
+                return cache_and_return(fallback_font);
             }
         }
     }
