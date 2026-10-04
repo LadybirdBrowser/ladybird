@@ -259,6 +259,7 @@ private:
     WeakBlock::List m_full_weak_blocks;
 
     bool m_incremental_sweep_active { false };
+    size_t m_block_sweeps_in_progress { 0 };
     size_t m_sweep_live_cell_bytes { 0 };
     size_t m_sweep_live_external_bytes { 0 };
     Vector<GC::Ptr<Cell>> m_cells_allocated_during_sweep;
