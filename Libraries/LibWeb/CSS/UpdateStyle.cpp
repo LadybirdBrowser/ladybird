@@ -462,10 +462,29 @@ static Optional<StyleEngineFFI::FfiEngineComputedRecord> answer_targeted_record_
     return answer;
 }
 
-// The engine declined the row. Nothing else computes styles: the element keeps the record it holds.
-static RequiredInvalidationAfterStyleChange refuse_style_row(DOM::Element& element)
+// Whether an element the element inherits from owes a style input, which the next transaction answers.
+static bool inheritance_ancestor_owes_style_input(DOM::Element& element)
 {
-    element.document().style_computer().style_engine().consume_recorded_element_style_input_change(element.style_node_id());
+    auto const& style_engine = element.document().style_computer().style_engine();
+    for (auto ancestor = DOM::AbstractElement { element }.element_to_inherit_style_from(); ancestor.has_value(); ancestor = ancestor->element_to_inherit_style_from()) {
+        if (style_engine.has_deferred_element_style_input(ancestor->element().style_node_id()))
+            return true;
+    }
+    return false;
+}
+
+// The engine declined the row. Nothing else computes styles: the element keeps the record it holds. The engine answers
+// no demand below an ancestor that owes a style input, such as one whose custom-property animations published new
+// values as an earlier row of the batch installed its record. That ancestor's style moves in the next transaction, so
+// the row is owed to it too, which plans the row after the ancestor's.
+static RequiredInvalidationAfterStyleChange refuse_style_row(DOM::Element& element, u8 row_reaction, u8 row_inherited_style_groups)
+{
+    auto& style_engine = element.document().style_computer().style_engine();
+    if (inheritance_ancestor_owes_style_input(element)) {
+        style_engine.record_derived_element_style_input_change(element.style_node_id(), row_reaction, row_inherited_style_groups);
+        return {};
+    }
+    style_engine.consume_recorded_element_style_input_change(element.style_node_id());
     if (!element.has_style())
         dbgln("StyleEngine: refused the first style of <{}> (style node {})", element.local_name(), element.style_node_id().value());
     return {};
@@ -473,11 +492,11 @@ static RequiredInvalidationAfterStyleChange refuse_style_row(DOM::Element& eleme
 
 // A row the engine did not settle in its transaction, or a targeted update: ask the engine for the element's record
 // now, and install it as one the engine computed, moving the element from the record it holds.
-static RequiredInvalidationAfterStyleChange apply_engine_record_demand(DOM::Element& element, bool& did_change_custom_properties)
+static RequiredInvalidationAfterStyleChange apply_engine_record_demand(DOM::Element& element, u8 row_reaction, u8 row_inherited_style_groups, bool& did_change_custom_properties)
 {
     auto answer = answer_targeted_record_demand(element);
     if (!answer.has_value())
-        return refuse_style_row(element);
+        return refuse_style_row(element, row_reaction, row_inherited_style_groups);
     StyleEngine::PublishedStyleDelta reaction {};
     reaction.style_node = element.style_node_id().value();
     reaction.old_style_record = element.style_record_identity().value();
@@ -635,7 +654,7 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
                 // the engine swapped, which the element inherits in place of the base ones: the
                 // row is answered from its demand.
                 if (parent_style_has_animated_values(*element))
-                    invalidation = apply_engine_record_demand(*element, did_change_custom_properties);
+                    invalidation = apply_engine_record_demand(*element, reaction.reaction, reaction.inherited_style_groups, did_change_custom_properties);
                 else
                     invalidation = install_engine_computed_records(*element, reaction, {}, engine_record_damages, false, did_change_custom_properties);
             } else if (reaction.gap == StyleEngineFFI::FfiStyleDeltaGap::Computed) {
@@ -660,13 +679,13 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
                 if (!engine_computed_record_environment_is_installable(*element, StyleRecordID { reaction.new_style_record })) {
                     // The engine resolved the record's environment over the parent's own, which an earlier row of the
                     // batch moved: the row is answered from a fresh demand.
-                    invalidation = apply_engine_record_demand(*element, did_change_custom_properties);
+                    invalidation = apply_engine_record_demand(*element, reaction.reaction, reaction.inherited_style_groups, did_change_custom_properties);
                 } else {
                     invalidation = install_engine_computed_records(*element, reaction, pseudo_element_records, engine_record_damages, true, did_change_custom_properties);
                 }
             } else if (needs_regular_style_recompute || needs_inherited_style_recompute || needs_full_custom_property_recompute) {
                 // The engine declined the row's demand above.
-                invalidation = refuse_style_row(*element);
+                invalidation = refuse_style_row(*element, reaction.reaction, reaction.inherited_style_groups);
             }
             // A row that owes only a moved inherited environment on an element whose style reads none
             // has nothing left for the host: the engine moved the element's environment, and the
@@ -1307,7 +1326,7 @@ static bool update_style_for_element(DOM::Document& document, DOM::AbstractEleme
         auto const* previous_box_values = element->style_group<ComputedValues::BoxValues>();
         bool const was_display_none = previous_box_values && display_from_ffi_display(previous_box_values->display).is_none();
         auto const previous_display = previous_box_values ? Optional<Display> { display_from_ffi_display(previous_box_values->display) } : Optional<Display> {};
-        auto invalidation = apply_engine_record_demand(element, did_change_custom_properties);
+        auto invalidation = apply_engine_record_demand(element, StyleEngine::PublishedStyle | StyleEngine::RecomputeStyle, 0, did_change_custom_properties);
         auto const* current_box_values = element->style_group<ComputedValues::BoxValues>();
         bool const display_changed = previous_display.has_value() && current_box_values && *previous_display != display_from_ffi_display(current_box_values->display);
         apply_targeted_style_invalidation(element, invalidation, did_change_custom_properties, descendant_style_recompute_needed, was_unstyled, was_display_none, display_changed);

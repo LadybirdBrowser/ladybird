@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<style>
+    @keyframes light { from, to { --accent: red; } }
+    @keyframes dark { from, to { --accent: blue; } }
+    html { animation: light 1s infinite; }
+    html.dark { animation-name: dark; }
+    .dark #box { color: green; }
+</style>
+<body>
+<div id="box">text</div>
+<script src="../../include.js"></script>
+<script>
+    test(() => {
+        document.body.offsetWidth;
+        // The root's new animation publishes its custom properties as its row installs, while a row below the
+        // body is in the same batch.
+        document.documentElement.classList.add("dark");
+        document.body.offsetWidth;
+        const added = document.body.appendChild(document.createElement("div"));
+        println(`body: ${getComputedStyle(document.body).getPropertyValue("--accent")}`);
+        println(`added: ${getComputedStyle(added).getPropertyValue("--accent")}`);
+        println(`scrollHeight is positive: ${document.documentElement.scrollHeight > 0}`);
+    });
+</script>
