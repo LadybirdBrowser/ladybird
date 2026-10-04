@@ -300,31 +300,34 @@ bool WebContentPage::continue_navigation_population_in_selected_process(Web::HTM
     if (!navigable.has_value())
         return false;
 
-    auto navigation_awaits_population = [&](CanonicalNavigation::Phase phase) {
+    auto* ongoing_navigation = navigable->ongoing_navigation();
+    auto* acquiring = ongoing_navigation && ongoing_navigation->navigation_id == navigation_id
+        ? ongoing_navigation->state.get_pointer<CanonicalNavigation::AcquiringResponseBody>()
+        : nullptr;
+    if (!acquiring)
+        return false;
+    ongoing_navigation->state = CanonicalNavigation::ChoosingHost { acquiring->worker, move(acquiring->loader) };
+    auto is_still_choosing_host = [&] {
         auto const* ongoing_navigation = navigable->ongoing_navigation();
         return ongoing_navigation
             && ongoing_navigation->navigation_id == navigation_id
-            && ongoing_navigation->phase == phase
-            && ongoing_navigation->loader;
+            && ongoing_navigation->state.has<CanonicalNavigation::ChoosingHost>();
     };
-    if (!navigation_awaits_population(CanonicalNavigation::Phase::AwaitingResponseBody))
-        return false;
-    navigable->ongoing_navigation()->phase = CanonicalNavigation::Phase::Populating;
 
     // The task queued by step 5 of attempting to populate the history entry's document runs in the process hosting
     // the browsing context that the document it creates belongs to. A response that creates no document is finished
     // by the process that fetched it.
     RefPtr<WebContentPage> host = this;
-    auto response_document = navigable->ongoing_navigation()->loader->response_document();
+    auto response_document = navigable->ongoing_navigation()->loader()->response_document();
     if (response_document.has_value()) {
         response_document->document_id = Application::the().allocate_ui_process_cross_process_id();
-        auto const& request = navigable->ongoing_navigation()->loader->request();
+        auto const& request = navigable->ongoing_navigation()->loader()->request();
         auto document = navigable->create_and_initialize_a_document(*response_document);
-        navigable->ongoing_navigation()->loader->set_document(*document, *navigable);
+        navigable->ongoing_navigation()->loader()->set_document(*document, *navigable);
         auto document_state = CanonicalDocumentState::create(request.history_entry.document_state.id);
         document_state->initiator_origin = request.history_entry.document_state.initiator_origin;
         document_state->origin = request.history_entry.document_state.origin;
-        navigable->populate_document_for_ongoing_navigation(move(document_state), *document, navigable->ongoing_navigation()->loader->result().inline_content_origin);
+        navigable->populate_document_for_ongoing_navigation(move(document_state), *document, navigable->ongoing_navigation()->loader()->result().inline_content_origin);
 
         // A document created for inline content stands in for the resource the process that fetched it could not
         // load; that process hosts it.
@@ -336,13 +339,13 @@ bool WebContentPage::continue_navigation_population_in_selected_process(Web::HTM
             }
             host = host_or_error.release_value();
             // Obtaining the page can replace the tab's process, whose change callbacks can reenter navigation.
-            if (!navigation_awaits_population(CanonicalNavigation::Phase::Populating))
+            if (!is_still_choosing_host())
                 return false;
         }
         // The host takes the navigable over when the document is activated, after the displayed document is unloaded.
         navigable->place_pending_document(*host);
     }
-    auto& loader = *navigable->ongoing_navigation()->loader;
+    auto& loader = *navigable->ongoing_navigation()->loader();
     navigable->set_navigation_host(*host);
     auto finish_handoff = [page = NonnullRefPtr<WebContentPage>(*this), host, navigable_id, navigation_id](bool succeeded) {
         if (!page->is_open())
@@ -381,7 +384,7 @@ Optional<CanonicalNavigable&> WebContentPage::population_worker_navigable(Web::H
         return navigable;
 
     auto navigable = traversable().top_level_traversable().find(navigable_id);
-    if (!navigable.has_value() || !navigable->navigation_population_worker_matches(*this))
+    if (!navigable.has_value() || !navigable->ongoing_navigation() || navigable->ongoing_navigation()->worker() != this)
         return {};
     return *navigable;
 }
@@ -1453,7 +1456,7 @@ bool WebContentPage::populates_a_navigation_to_local_file(ByteString const& path
     traversable().for_each_in_inclusive_subtree([&](CanonicalNavigable const& navigable) {
         auto const* ongoing_navigation = navigable.ongoing_navigation();
         result = ongoing_navigation
-            && ongoing_navigation->population_worker.ptr() == this
+            && ongoing_navigation->worker() == this
             && ongoing_navigation->url.has_value()
             && ongoing_navigation->url->scheme() == "file"sv
             && ongoing_navigation->url->file_path() == path;
@@ -1983,8 +1986,8 @@ void WebContentPage::did_request_navigation_start(Web::HTML::CrossProcessId navi
             .url = url,
             .navigation_id = navigation_id,
             .sequence_number = sequence_number,
+            .state = CanonicalNavigation::EvaluatingJavaScriptURL { *this },
         });
-        target_navigable->set_navigation_population_worker(*this);
         if (target_navigable->is_top_level_traversable()) {
             if (displays_tab())
                 begin_top_level_load(move(navigation_id), url);
@@ -1996,12 +1999,10 @@ void WebContentPage::did_request_navigation_start(Web::HTML::CrossProcessId navi
     target_navigable->set_ongoing_navigation(CanonicalNavigation {
         .url = move(url),
         .navigation_id = navigation_id,
-        .start_request = move(start_request),
         .retry = move(retry),
         .sequence_number = sequence_number,
-        .phase = CanonicalNavigation::Phase::AwaitingUnloadCheck,
+        .state = CanonicalNavigation::CheckingIfUnloadingIsCanceled { *this, start_request.release_value() },
     });
-    target_navigable->set_navigation_population_worker(*this);
     begin_navigation_unload_check(*target_navigable, navigation_id);
 }
 
@@ -2035,27 +2036,22 @@ void WebContentPage::did_complete_navigation_unload_check(Web::HTML::CrossProces
         return;
 
     auto* ongoing_navigation = navigable->ongoing_navigation();
-    if (!ongoing_navigation
-        || ongoing_navigation->navigation_id != navigation_id
-        || ongoing_navigation->phase != CanonicalNavigation::Phase::AwaitingUnloadCheck
-        || ongoing_navigation->population_worker != *this
-        || !ongoing_navigation->start_request.has_value()) {
+    auto* checking = ongoing_navigation ? ongoing_navigation->state.get_pointer<CanonicalNavigation::CheckingIfUnloadingIsCanceled>() : nullptr;
+    if (!checking || ongoing_navigation->navigation_id != navigation_id || checking->worker.ptr() != this)
         return;
-    }
 
     auto population_request = Web::HTML::create_navigation_population_request(
-        ongoing_navigation->start_request.release_value(),
+        move(checking->start_request),
         Application::the().allocate_ui_process_cross_process_id());
     population_request.target_snapshot_params.sandboxing_flags |= navigable->snapshot_target_snapshot_params().sandboxing_flags;
-    ongoing_navigation->loader = NavigationLoader::create(client().is_private(), move(population_request));
-    ongoing_navigation->phase = CanonicalNavigation::Phase::Populating;
-    async_create_navigation_params(ongoing_navigation->loader->request());
+    ongoing_navigation->state = CanonicalNavigation::CreatingNavigationParams { *this, NavigationLoader::create(client().is_private(), move(population_request)) };
+    async_create_navigation_params(ongoing_navigation->loader()->request());
 
     // Requesting navigation params starts the fetch, so a view's top-level population begins its recorded
     // load here.
     if (navigable->is_top_level_traversable()) {
         if (displays_tab())
-            begin_top_level_load(move(navigation_id), ongoing_navigation->loader->request().history_entry.url);
+            begin_top_level_load(move(navigation_id), ongoing_navigation->loader()->request().history_entry.url);
     }
 }
 
@@ -2068,7 +2064,11 @@ void WebContentPage::did_finish_navigation_params_creation(Web::HTML::CrossProce
         return;
     }
 
-    if (!navigable->navigation_population_matches(*this, navigation_id)) {
+    auto* ongoing_navigation = navigable->ongoing_navigation();
+    auto* creating = ongoing_navigation && ongoing_navigation->navigation_id == navigation_id
+        ? ongoing_navigation->state.get_pointer<CanonicalNavigation::CreatingNavigationParams>()
+        : nullptr;
+    if (!creating || creating->worker.ptr() != this) {
         if (result.has_value())
             NavigationLoader::discard(client().is_private(), *result);
         return;
@@ -2087,21 +2087,15 @@ void WebContentPage::did_finish_navigation_params_creation(Web::HTML::CrossProce
         return;
     }
 
-    auto* ongoing_navigation = navigable->ongoing_navigation();
-    if (!ongoing_navigation || !ongoing_navigation->loader) {
-        NavigationLoader::discard(client().is_private(), *result);
-        end_recorded_load_for_canceled_navigation();
-        navigable->clear_ongoing_navigation();
-        return;
-    }
-
     // Steps 1-4 have produced final navigation params. Keep the pending entry in
     // sync with redirects before choosing the process that will run step 5.
-    ongoing_navigation->phase = CanonicalNavigation::Phase::AwaitingResponseBody;
-    ongoing_navigation->loader->did_finish_navigation_params_creation(result.release_value());
-    ongoing_navigation->url = ongoing_navigation->loader->request().history_entry.url;
+    auto loader = move(creating->loader);
+    ongoing_navigation->state = CanonicalNavigation::AcquiringResponseBody { *this, move(loader) };
+    auto& acquiring_loader = *ongoing_navigation->loader();
+    acquiring_loader.did_finish_navigation_params_creation(result.release_value());
+    ongoing_navigation->url = acquiring_loader.request().history_entry.url;
 
-    ongoing_navigation->loader->acquire_response_body([page = NonnullRefPtr<WebContentPage>(*this), navigable_id, navigation_id = move(navigation_id)](bool succeeded) {
+    acquiring_loader.acquire_response_body([page = NonnullRefPtr<WebContentPage>(*this), navigable_id, navigation_id = move(navigation_id)](bool succeeded) {
         // The page may have closed while the body was fetched; its navigation then has nothing left to finish.
         if (!page->is_open())
             return;
@@ -2143,13 +2137,13 @@ void WebContentPage::did_fail_navigation_population(Web::HTML::CrossProcessId na
     auto* ongoing_navigation = navigable->ongoing_navigation();
     if (!ongoing_navigation
         || ongoing_navigation->navigation_id != navigation_id
-        || !navigable->navigation_owner_matches(*this)) {
+        || (ongoing_navigation->worker() != this && ongoing_navigation->host() != this)) {
         return;
     }
 
     // Only a failed population handoff owns the loader's response body.
-    if (ongoing_navigation->loader && navigable->navigation_host_matches(*this))
-        ongoing_navigation->loader->reclaim_response_body_after_failed_handoff();
+    if (auto* populating = ongoing_navigation->state.get_pointer<CanonicalNavigation::Populating>(); populating && populating->host.ptr() == this)
+        populating->loader->reclaim_response_body_after_failed_handoff();
 
     m_history_recorded_url_for_current_load.clear();
     if (navigable->is_top_level_traversable()) {
@@ -2256,9 +2250,9 @@ Messages::WebContentClient::DidStartDownloadResponse WebContentPage::did_start_d
         auto const* ongoing_navigation = navigable->ongoing_navigation();
         if (ongoing_navigation
             && ongoing_navigation->navigation_id == navigation_id
-            && ongoing_navigation->phase == CanonicalNavigation::Phase::Populating
-            && ongoing_navigation->loader
-            && ongoing_navigation->loader->response_body_matches(request_server_client_id, request_server_request_id)) {
+            && !ongoing_navigation->state.has<CanonicalNavigation::AcquiringResponseBody>()
+            && ongoing_navigation->loader()
+            && ongoing_navigation->loader()->response_body_matches(request_server_client_id, request_server_request_id)) {
             if (navigable->is_top_level_traversable()) {
                 if (displays_tab())
                     view().did_cancel_loading(ongoing_navigation->navigation_id);

@@ -1340,11 +1340,7 @@ bool CanonicalTraversable::navigation_transaction_matches(HistoryOperation const
     auto const& parameters = operation.parameters.get<Web::FinalizeCrossDocumentNavigationHistoryOperationParameters>();
     if (reply_navigable_id.has_value() && *reply_navigable_id != parameters.navigable_id)
         return true;
-    auto navigable = find(parameters.navigable_id);
-    if (!navigable.has_value())
-        return false;
-
-    return operation.finalized_navigation.has_value() && operation.finalized_navigation->is_conducted_by(page);
+    return operation.finalized_navigation.has_value() && operation.finalized_navigation->host() == &page;
 }
 
 void CanonicalTraversable::add_history_operation_completion_endpoint(HistoryOperation& operation, NonnullRefPtr<WebContentPage> endpoint)
@@ -2564,7 +2560,7 @@ void CanonicalTraversable::finalize_a_cross_document_navigation(HistoryOperation
     // NB: The process running a javascript: URL navigation evaluates it, creates newDocument in navigable's active
     //     browsing context, and reports historyEntry with these steps. The UI process runs the steps that decide
     //     newDocument's origin, and populates the document it holds for historyEntry's document state.
-    if (auto const& url = operation.finalized_navigation->url; url.has_value() && url->scheme() == "javascript"sv) {
+    if (operation.finalized_navigation->state.has<CanonicalNavigation::EvaluatingJavaScriptURL>()) {
         auto const& initiator_origin = history_entry->document_state->initiator_origin;
 
         // 4. If initiatorOrigin is not same origin-domain with targetNavigable's active document's origin, then return.

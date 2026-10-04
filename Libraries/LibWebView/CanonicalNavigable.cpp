@@ -55,17 +55,36 @@ static Utf16String generate_a_random_uuid()
     return Utf16String::from_ascii_without_validation(uuid.bytes());
 }
 
-// A navigation made again from the same source — one the user stopped, or a crash cut short — as a GET: A retry
-// shouldn't resubmit a form behind the user's back, so the document resource isn't sent again.
-// The page conducting the navigation: the one evaluating a javascript: URL, otherwise the one hosting the document it
-// populated.
-bool CanonicalNavigation::is_conducted_by(WebContentPage const& page) const
+WebContentPage* CanonicalNavigation::worker() const
 {
-    if (url.has_value() && url->scheme() == "javascript"sv)
-        return population_worker == &page;
-    return phase == Phase::Populating && host == &page;
+    return state.visit(
+        [](Admitted const&) -> WebContentPage* { return nullptr; },
+        [](EvaluatingJavaScriptURL const&) -> WebContentPage* { return nullptr; },
+        [](Populating const&) -> WebContentPage* { return nullptr; },
+        [](auto const& state) -> WebContentPage* { return state.worker.ptr(); });
 }
 
+WebContentPage* CanonicalNavigation::host() const
+{
+    if (auto const* evaluating = state.get_pointer<EvaluatingJavaScriptURL>())
+        return evaluating->host.ptr();
+    if (auto const* populating = state.get_pointer<Populating>())
+        return populating->host.ptr();
+    return nullptr;
+}
+
+NavigationLoader* CanonicalNavigation::loader() const
+{
+    return state.visit(
+        [](CreatingNavigationParams const& state) -> NavigationLoader* { return state.loader.ptr(); },
+        [](AcquiringResponseBody const& state) -> NavigationLoader* { return state.loader.ptr(); },
+        [](ChoosingHost const& state) -> NavigationLoader* { return state.loader.ptr(); },
+        [](Populating const& state) -> NavigationLoader* { return state.loader.ptr(); },
+        [](auto const&) -> NavigationLoader* { return nullptr; });
+}
+
+// A navigation made again from the same source — one the user stopped, or a crash cut short — as a GET: A retry
+// shouldn't resubmit a form behind the user's back, so the document resource isn't sent again.
 Web::HTML::PreparedNavigationDescriptor prepare_navigation_to_retry(Web::HTML::PreparedNavigationDescriptor navigation)
 {
     navigation.document_resource = {};
@@ -255,7 +274,7 @@ void CanonicalNavigable::begin_navigation(Web::HTML::PreparedNavigationDescripto
 
     // 20. If url's scheme is "javascript", then:
     if (is_javascript_url) {
-        set_navigation_population_worker(*host);
+        ongoing_navigation()->state = CanonicalNavigation::EvaluatingJavaScriptURL { *host };
         if (is_top_level_traversable() && host->displays_tab())
             host->begin_top_level_load(navigation_id, url);
 
@@ -284,8 +303,7 @@ void CanonicalNavigable::begin_navigation(Web::HTML::PreparedNavigationDescripto
         clear_ongoing_navigation();
         return;
     }
-    auto& ongoing = *ongoing_navigation();
-    ongoing.start_request = Web::HTML::NavigationStartRequest {
+    auto start_request = Web::HTML::NavigationStartRequest {
         .navigable_id = id(),
         .url = url,
         .document_resource = move(navigation.document_resource),
@@ -305,9 +323,9 @@ void CanonicalNavigable::begin_navigation(Web::HTML::PreparedNavigationDescripto
         .navigation_api_key = generate_a_random_uuid(),
         .navigation_api_id = generate_a_random_uuid(),
     };
-    ongoing.retry = prepare_navigation_to_retry(*ongoing.start_request);
-    ongoing.phase = CanonicalNavigation::Phase::AwaitingUnloadCheck;
-    set_navigation_population_worker(*worker);
+    auto& ongoing = *ongoing_navigation();
+    ongoing.retry = prepare_navigation_to_retry(start_request);
+    ongoing.state = CanonicalNavigation::CheckingIfUnloadingIsCanceled { *worker, move(start_request) };
     worker->async_set_ongoing_navigation(id(), navigation_id);
     worker->begin_navigation_unload_check(*this, navigation_id);
 }
@@ -906,7 +924,7 @@ void CanonicalNavigable::did_create_populated_document_with_an_origin_of_its_own
 Optional<CanonicalNavigation> CanonicalNavigable::take_navigation_to_finalize(Utf16String const& navigation_id, WebContentPage const& page)
 {
     auto* navigation = ongoing_navigation();
-    if (!navigation || navigation->navigation_id != navigation_id || !navigation->is_conducted_by(page))
+    if (!navigation || navigation->navigation_id != navigation_id || navigation->host() != &page)
         return {};
     if (navigation->populated_document.has_value()) {
         abandon_populated_document(m_document_populated_by_history_job);
@@ -1327,56 +1345,22 @@ void CanonicalNavigable::retain_blob_url_token(URL::BlobURLEntry::Token token)
         m_pending_navigation_blob_url = BlobURLHandle { *store, token };
 }
 
-void CanonicalNavigable::set_navigation_population_worker(WebContentPage& page)
-{
-    VERIFY(ongoing_navigation());
-    auto& navigation = *ongoing_navigation();
-    VERIFY(!navigation.population_worker);
-    navigation.population_worker = page;
-}
-
-bool CanonicalNavigable::navigation_population_matches(WebContentPage const& page, Utf16String const& navigation_id) const
-{
-    return ongoing_navigation()
-        && ongoing_navigation()->navigation_id == navigation_id
-        && ongoing_navigation()->phase == CanonicalNavigation::Phase::Populating
-        && navigation_population_worker_matches(page);
-}
-
-bool CanonicalNavigable::navigation_population_worker_matches(WebContentPage const& page) const
-{
-    return ongoing_navigation() && ongoing_navigation()->population_worker.ptr() == &page;
-}
-
 void CanonicalNavigable::set_navigation_host(WebContentPage& page)
 {
-    VERIFY(ongoing_navigation());
     auto& navigation = *ongoing_navigation();
-    navigation.host = page;
-
-    // The population worker conducts the navigation until the hosting process takes over.
-    navigation.population_worker = nullptr;
+    auto loader = move(navigation.state.get<CanonicalNavigation::ChoosingHost>().loader);
+    navigation.state = CanonicalNavigation::Populating { page, move(loader) };
 }
 
-bool CanonicalNavigable::navigation_host_matches(WebContentPage const& page) const
-{
-    return ongoing_navigation() && ongoing_navigation()->host.ptr() == &page;
-}
-
-bool CanonicalNavigable::navigation_owner_matches(WebContentPage const& page) const
-{
-    return navigation_population_worker_matches(page) || navigation_host_matches(page);
-}
-
-bool CanonicalNavigable::cancel_navigation_transaction_for_client(WebContentClient& client)
+bool CanonicalNavigable::cancel_navigation_for_client(WebContentClient& client)
 {
     if (!ongoing_navigation())
         return false;
 
-    auto is_page_of_client = [&](RefPtr<WebContentPage> const& page) {
+    auto is_page_of_client = [&](WebContentPage const* page) {
         return page && &page->client() == &client;
     };
-    if (!is_page_of_client(ongoing_navigation()->population_worker) && !is_page_of_client(ongoing_navigation()->host))
+    if (!is_page_of_client(ongoing_navigation()->worker()) && !is_page_of_client(ongoing_navigation()->host()))
         return false;
 
     clear_ongoing_navigation();
