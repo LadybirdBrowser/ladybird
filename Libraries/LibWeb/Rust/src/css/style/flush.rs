@@ -2075,8 +2075,6 @@ impl StyleEngineState {
                     engine_computed_record_scratch.capacity_bytes(),
                 );
             }
-            self.host.batch_moves_for_retries = engine_computed_record_scratch.batch_moves();
-            self.host.retry_full_drive_reasons.clear();
             // Each published node's pseudo-element inventory, read from the answer this transaction
             // publishes for it before that answer is installed and kept with the node's record
             // columns for as long as that answer stands, and beside it, for the record loop, the

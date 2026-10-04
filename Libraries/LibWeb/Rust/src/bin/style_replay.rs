@@ -758,25 +758,6 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                         .into());
                     }
                 }
-                EventKind::RetryEngineRecordAfterAncestor => {
-                    let engine = read_engine(&mut event.payload, &live_engines)?;
-                    let node = event.payload.read_u32()?;
-                    let expected = event.payload.read_u64()?;
-                    let expected_uses_substitution = if format_version >= 16 {
-                        Some(event.payload.read_bool()?)
-                    } else {
-                        None
-                    };
-                    let actual = unsafe { bridge::retry_engine_record_after_ancestor(engine.get_mut(), node) };
-                    if actual.style_record != expected
-                        || expected_uses_substitution.is_some_and(|expected| actual.uses_substitution != expected)
-                    {
-                        return Err(format!(
-                            "retried cold style record diverged for node {node}: expected {expected} (substitution {expected_uses_substitution:?}), got {actual:?}"
-                        )
-                        .into());
-                    }
-                }
                 EventKind::RemoveComputedPseudo => {
                     let engine = read_engine(&mut event.payload, &live_engines)?;
                     let node = event.payload.read_u32()?;
@@ -2308,7 +2289,6 @@ fn read_style_transaction_outputs(
                     0 => FfiStyleDeltaGap::None,
                     1 => FfiStyleDeltaGap::Materialize,
                     2 => FfiStyleDeltaGap::Computed,
-                    3 => FfiStyleDeltaGap::RetryAfterAncestor,
                     4 => FfiStyleDeltaGap::Hidden,
                     tag => return Err(format!("unknown style delta gap tag {tag}").into()),
                 },

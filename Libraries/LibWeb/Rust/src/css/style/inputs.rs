@@ -1936,8 +1936,6 @@ impl StyleEngineState {
             },
             host: HostState {
                 suspended_style_pass: None,
-                batch_moves_for_retries: Default::default(),
-                retry_full_drive_reasons: HashMap::default(),
                 font_resolver: None,
                 #[cfg(feature = "style-recording")]
                 recording_id: None,

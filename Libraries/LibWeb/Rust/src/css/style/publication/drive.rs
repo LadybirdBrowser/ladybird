@@ -371,7 +371,6 @@ impl RetainedState {
         store: &WinnerStore,
         selected: &[u64],
         inputs: &bridge::FfiDocumentStyleComputationInputs,
-        installed_ancestors: Option<&InstalledAncestors>,
         counters: &mut Counters,
     ) -> Drive<PartialDrive> {
         let random_base_values = store
@@ -408,7 +407,7 @@ impl RetainedState {
             return Ok(PartialDrive::DriverInputMoved);
         };
         let parent = self
-            .record_inheritance_parent(node, installed_ancestors)
+            .record_inheritance_parent(node)
             .inspect_err(|_| counters.bump(Counter::EngineComputedRecordBailRecordParent))?;
         let snapshot = match parent.and_then(|parent| self.computed_group_sets.assigned_style_record(parent)) {
             None => None,

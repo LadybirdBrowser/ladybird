@@ -375,8 +375,8 @@ static void propagate_custom_property_environment_move(DOM::Document& document, 
     move_custom_property_environment_below(document, origin, old_origin_base, new_origin_base, old_origin_base.ptr(), new_origin_base.ptr());
 }
 
-// A record the engine settled for a row it published unsettled, by a retry or a demand: the row installs it as one
-// the engine computed, with the pseudo-element records settled beside it.
+// A record the engine settled for a row it published unsettled, by a demand: the row installs it as one the engine
+// computed, with the pseudo-element records settled beside it.
 static DOM::Element::EnginePseudoElementRecords take_engine_record(StyleEngine::PublishedStyleDelta& reaction, StyleEngineFFI::FfiEngineComputedRecord const& record)
 {
     reaction.new_style_record = record.style_record;
@@ -528,15 +528,8 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
                 continue;
             auto reaction = published_reaction;
 
-            // The pseudo-element records a retry or a demand settled beside the element's record.
+            // The pseudo-element records a demand settled beside the element's record.
             Optional<DOM::Element::EnginePseudoElementRecords> settled_pseudo_element_records;
-            if (reaction.gap == StyleEngineFFI::FfiStyleDeltaGap::RetryAfterAncestor) {
-                if (auto retried = document.style_computer().style_engine().retry_engine_record_after_ancestor(reaction.style_node); retried.style_record != 0) {
-                    settled_pseudo_element_records = take_engine_record(reaction, retried);
-                } else {
-                    reaction.gap = StyleEngineFFI::FfiStyleDeltaGap::Materialize;
-                }
-            }
 
             // A host that rewrote the element's declarations while an earlier row was applied (a form control restyling
             // its shadow tree as its own style moves) leaves the record the engine computed from the old ones: the row is
@@ -559,8 +552,8 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
             }
 
             // A reaction the engine derived for this element while applying an earlier one in
-            // this batch joins the element's own reaction where it covers it, which a C++
-            // computation of the element, a failed retry's included, always does.
+            // this batch joins the element's own reaction where it covers it, which a demand for
+            // the element's record always does.
             if (auto absorbed = document.style_computer().style_engine().absorb_element_style_input(
                     StyleNodeID { reaction.style_node }, reaction.reaction, reaction.inherited_style_groups,
                     reaction.gap == StyleEngineFFI::FfiStyleDeltaGap::Materialize);
