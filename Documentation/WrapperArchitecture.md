@@ -130,12 +130,14 @@ clear.
 ## Window and Location cross-origin descriptors
 
 Cross-origin property descriptor maps live on the per-world wrapper, not on the
-implementation object. `WindowWrapper` and `LocationWrapper` both follow this
-pattern. Descriptor cache reachability is ordinary wrapper reachability: cached
-descriptor values and accessors are traced through the wrapper, but they are not
-roots, so a wrapper/realm cycle can still be collected when nothing outside the
-cycle reaches it. This removes the need for world serials or detach-time pruning
-of implementation-owned maps.
+implementation object. The Window and Location wrappers both keep theirs in a
+companion cell in the wrapper's host data slot, created on the first
+cross-origin property access and reached through
+`HTML::cross_origin_property_descriptor_map()`. Descriptor cache reachability is
+ordinary wrapper reachability: cached descriptor values and accessors are traced
+through the wrapper, but they are not roots, so a wrapper/realm cycle can still
+be collected when nothing outside the cycle reaches it. This removes the need
+for world serials or detach-time pruning of implementation-owned maps.
 
 Each world's wrapper has its own descriptor map. A descriptor cached for one
 world cannot alias another world's descriptor because it is stored in a

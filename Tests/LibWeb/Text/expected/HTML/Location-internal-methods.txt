@@ -1,0 +1,40 @@
+Same-origin Location
+[[GetPrototypeOf]]: true
+[[SetPrototypeOf]] to its prototype: true
+[[SetPrototypeOf]] to another object: false
+[[IsExtensible]]: true
+[[PreventExtensions]]: false
+[[GetOwnProperty]] href: get=function set=function enumerable=true configurable=false
+[[GetOwnProperty]] valueOf: value=function writable=false enumerable=false configurable=false
+[[GetOwnProperty]] missing: undefined
+[[DefineOwnProperty]] expando: true
+[[DefineOwnProperty]] valueOf: false
+[[Get]] expando: 1
+[[Set]] expando: 2
+[[Delete]] expando: true
+[[Delete]] valueOf: false
+[[OwnPropertyKeys]]: href, origin, protocol, host, hostname, port, pathname, search, hash, assign, replace, reload, toString, valueOf, Symbol(Symbol.toPrimitive)
+Cross-origin Location
+[[GetPrototypeOf]]: null
+[[SetPrototypeOf]] to null: true
+[[SetPrototypeOf]] to another object: false
+[[IsExtensible]]: true
+[[PreventExtensions]]: false
+[[GetOwnProperty]] href: get=undefined set=function enumerable=false configurable=true
+[[GetOwnProperty]] replace: value=function writable=false enumerable=false configurable=true
+[[GetOwnProperty]] then: value=undefined writable=false enumerable=false configurable=true
+[[GetOwnProperty]] @@toStringTag: value=undefined writable=false enumerable=false configurable=true
+[[GetOwnProperty]] hash: SecurityError
+[[GetOwnProperty]] returns the same href setter: true
+[[DefineOwnProperty]]: SecurityError
+[[Get]] replace: function
+[[Get]] returns the same replace: true
+[[Get]] href: SecurityError
+[[Get]] hash: SecurityError
+[[Set]] replace: SecurityError
+[[Set]] hash: SecurityError
+[[Delete]] replace: SecurityError
+[[OwnPropertyKeys]]: href, replace, then, Symbol(Symbol.toStringTag), Symbol(Symbol.hasInstance), Symbol(Symbol.isConcatSpreadable)
+Cross-origin Window
+[[Get]] returns the same postMessage: true
+[[GetOwnProperty]] returns the same location getter: true

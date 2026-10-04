@@ -167,14 +167,14 @@ def wrapper_host_class_flags(context: GenerationContext, interface: Interface) -
         flags.append("JS_HOST_CLASS_IS_HTMLDDA")
     if is_global:
         flags.append("JS_HOST_CLASS_IS_GLOBAL_OBJECT")
-    if is_global or is_location:
+    if is_global:
         flags.append("JS_HOST_CLASS_IMMUTABLE_PROTOTYPE")
     if is_legacy_platform_object or is_location:
         flags.append("JS_HOST_CLASS_NOT_CACHEABLE_FOR_PROPERTY_ABSENCE")
     return flags
 
 
-# Location's internal methods are overrides of LocationWrapper in LibWeb/HTML/Location.cpp, which also defines its hooks.
+# Location's internal methods are hooks defined in LibWeb/HTML/Location.cpp.
 LOCATION_WRAPPER_HOOKS = "location_wrapper_hooks"
 
 

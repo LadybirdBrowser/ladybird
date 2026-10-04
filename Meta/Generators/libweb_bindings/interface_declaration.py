@@ -35,7 +35,7 @@ def interface_is_location_object(interface: Interface) -> bool:
     return interface.name == "Location"
 
 
-def interface_has_cross_origin_property_descriptor_map(interface: Interface) -> bool:
+def interface_has_cross_origin_properties(interface: Interface) -> bool:
     return interface.name in ("Location", "Window")
 
 
@@ -58,26 +58,18 @@ def write_declaration(
     if interface_needs_wrapper(interface):
         includes.add("LibWeb/Bindings/PlatformObject.h")
         base_class = wrapper_base_class_name(context, interface)
-        if interface_has_cross_origin_property_descriptor_map(interface):
-            includes.add("LibWeb/HTML/CrossOrigin/CrossOriginPropertyDescriptorMap.h")
         impl_type = fully_qualified_name_for_interface(interface)
         if interface.parent_name:
             parent_interface = context.interfaces.get(interface.parent_name)
             if parent_interface is not None:
                 includes.add_binding(parent_interface.implemented_name)
-        # Wrappers that carry native-side state (such as a cross-origin property
-        # descriptor map) are reached via concrete-type downcasts from other
-        # modules, e.g. LibWeb's native tests. That requires their typeinfo to be
-        # exported from the shared library, otherwise UBSan's vptr checks fail to
-        # link against a hidden typeinfo symbol.
-        export_macro = "WEB_API " if interface_has_cross_origin_property_descriptor_map(interface) else ""
         includes.add("LibJS/HostObjectABI.h")
         out.write(f"extern JSHostClass const {wrapper_host_class_name(interface)};\n")
         if interface_is_location_object(interface):
             out.write(f"extern JSHostObjectHooks const {LOCATION_WRAPPER_HOOKS};\n")
         out.write(
             f"""
-class {export_macro}{wrapper_class_name(interface)} : public {base_class} {{
+class {wrapper_class_name(interface)} : public {base_class} {{
     WEB_PLATFORM_OBJECT({wrapper_class_name(interface)}, {base_class});
     GC_DECLARE_ALLOCATOR({wrapper_class_name(interface)});
 
@@ -88,12 +80,9 @@ public:
     virtual void initialize(JS::Realm&) override;
 """
         )
-        if interface_has_cross_origin_property_descriptor_map(interface):
+        if interface_has_cross_origin_properties(interface):
             out.write(
                 """
-    HTML::CrossOriginPropertyDescriptorMap const& cross_origin_property_descriptor_map() const { return m_cross_origin_property_descriptor_map; }
-    HTML::CrossOriginPropertyDescriptorMap& cross_origin_property_descriptor_map() { return m_cross_origin_property_descriptor_map; }
-
     static GC::Ref<JS::NativeFunction> create_cross_origin_method(JS::Realm&, Utf16FlyString const& property);
 """
             )
@@ -117,32 +106,9 @@ public:
     virtual JS::ErrorData const* error_data() const override;
 """
             )
-        if interface_is_location_object(interface):
-            out.write(
-                """
-    virtual JS::ThrowCompletionOr<JS::Object*> internal_get_prototype_of() const override;
-    virtual JS::ThrowCompletionOr<bool> internal_set_prototype_of(JS::Object*) override;
-    virtual JS::ThrowCompletionOr<bool> internal_is_extensible() const override;
-    virtual JS::ThrowCompletionOr<bool> internal_prevent_extensions() override;
-    virtual JS::ThrowCompletionOr<Optional<JS::PropertyDescriptor>> internal_get_own_property(JS::PropertyKey const&) const override;
-    virtual JS::ThrowCompletionOr<bool> internal_define_own_property(JS::PropertyKey const&, JS::PropertyDescriptor&, Optional<JS::PropertyDescriptor>* precomputed_get_own_property = nullptr) override;
-    virtual JS::ThrowCompletionOr<JS::Value> internal_get(JS::PropertyKey const&, JS::Value receiver, JS::CacheableGetPropertyMetadata*, PropertyLookupPhase) const override;
-    virtual JS::ThrowCompletionOr<bool> internal_set(JS::PropertyKey const&, JS::Value, JS::Value receiver, JS::CacheableSetPropertyMetadata*, PropertyLookupPhase) override;
-    virtual JS::ThrowCompletionOr<bool> internal_delete(JS::PropertyKey const&) override;
-    virtual JS::ThrowCompletionOr<GC::RootVector<JS::Value>> internal_own_property_keys() const override;
-"""
-            )
-
         out.write("\nprotected:\n")
         out.write(f"    {impl_type}& impl();\n")
         out.write(f"    {impl_type} const& impl() const;\n")
-
-        if interface_has_cross_origin_property_descriptor_map(interface):
-            out.write("    virtual void visit_edges(JS::Cell::Visitor&) override;\n")
-
-        if interface_has_cross_origin_property_descriptor_map(interface):
-            out.write("\nprivate:\n")
-            out.write("    HTML::CrossOriginPropertyDescriptorMap m_cross_origin_property_descriptor_map;\n")
         out.write("};\n\n")
 
         write_legacy_platform_object_function_declarations(out, interface)
@@ -193,7 +159,7 @@ public:
 private:
 """
     )
-    if interface_has_cross_origin_property_descriptor_map(interface):
+    if interface_has_cross_origin_properties(interface):
         out.write(f"    friend class {wrapper_class_name(interface)};\n\n")
     for attribute in interface.regular_attributes:
         if "FIXME" in attribute.extended_attributes:

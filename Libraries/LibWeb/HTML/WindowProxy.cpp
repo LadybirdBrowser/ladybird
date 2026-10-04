@@ -12,7 +12,6 @@
 #include <LibJS/Runtime/PropertyDescriptor.h>
 #include <LibJS/Runtime/PropertyKey.h>
 #include <LibWeb/Bindings/PlatformObject.h>
-#include <LibWeb/Bindings/Window.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/DOM/Document.h>
@@ -428,10 +427,8 @@ OrderedHashMap<Utf16FlyString, GC::Ref<Navigable>> WindowProxy::document_tree_ch
 Optional<JS::PropertyDescriptor> WindowProxy::cross_origin_get_own_property_helper(JS::PropertyKey const& property_key) const
 {
     if (m_remote_window)
-        return HTML::cross_origin_get_own_property_helper(*m_object, *m_remote_window, m_remote_window->cross_origin_property_descriptor_map(), property_key);
-
-    auto& window_wrapper = static_cast<Bindings::WindowWrapper&>(cross_origin_window_wrapper());
-    return HTML::cross_origin_get_own_property_helper(window_wrapper, *m_window, window_wrapper.cross_origin_property_descriptor_map(), property_key);
+        return HTML::cross_origin_get_own_property_helper(*m_object, *m_remote_window, property_key);
+    return HTML::cross_origin_get_own_property_helper(cross_origin_window_wrapper(), *m_window, property_key);
 }
 
 GC::RootVector<JS::Value> WindowProxy::cross_origin_own_property_keys() const

@@ -207,19 +207,6 @@ JS::ErrorData const* {wrapper_class}::error_data() const
 
 """
     )
-    if interface.name in ("Location", "Window"):
-        out.write(
-            f"""void {wrapper_class}::visit_edges(JS::Cell::Visitor& visitor)
-{{
-    Base::visit_edges(visitor);
-"""
-        )
-        out.write("    visitor.visit(m_cross_origin_property_descriptor_map);\n")
-        out.write(
-            """}
-
-"""
-        )
 
 
 def write_impl_from(out: TextIO, includes: GeneratedIncludes, interface: Interface) -> None:
