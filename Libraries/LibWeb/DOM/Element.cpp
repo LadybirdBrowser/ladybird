@@ -1747,7 +1747,7 @@ void Element::set_needs_layout_tree_rebuild(Layout::BegunRead const& read, SetNe
     // the insertion-specific invalidation on its parent instead of widening it to StyleChange.
     // An existing display:none element can have the same marker after a child insertion; its box
     // presence change must still schedule the new box for insertion into the retained parent.
-    if (!layout_node && may_reuse_layout_node_for_child_list_insertion(read)
+    if (!layout_node && may_reuse_layout_node_for_child_list_insertion()
         && rebuild_root != CSS::LayoutTreeRebuildRoot::BoxPresenceChange)
         return;
     if (rebuild_root == CSS::LayoutTreeRebuildRoot::BoxPresenceChange && apply_box_presence_change_in_place(read, reason))

@@ -466,18 +466,18 @@ public:
 
     // The layout tree update marks live in the layout arena, keyed by the node's identity in the style mirror. A node
     // the style mirror has not named holds none.
-    [[nodiscard]] bool needs_layout_tree_update(Layout::BegunRead const& read) const;
+    [[nodiscard]] bool needs_layout_tree_update() const;
     void set_needs_layout_tree_update(bool, SetNeedsLayoutTreeUpdateReason);
     // The half of a layout tree update mark that reads the layout tree: whether the node's box relays out alone, defers
     // to the insertion, or dirties its ancestors, and whether the rebuild has to climb past anonymous parents. The
     // invalidation journal holds it back until it drains, and hands in the box it found bound to the node.
     void apply_layout_tree_update_mark(Layout::Node&, SetNeedsLayoutTreeUpdateReason);
 
-    [[nodiscard]] bool needs_pseudo_element_layout_tree_update(Layout::BegunRead const& read) const { return layout_tree_update_reuse_reasons(read) & PseudoElementChange; }
-    [[nodiscard]] bool may_reuse_layout_node_for_child_list_insertion(Layout::BegunRead const& read) const { return layout_tree_update_reuse_reasons(read) & ChildListInsertion; }
+    [[nodiscard]] bool needs_pseudo_element_layout_tree_update() const { return layout_tree_update_reuse_reasons() & PseudoElementChange; }
+    [[nodiscard]] bool may_reuse_layout_node_for_child_list_insertion() const { return layout_tree_update_reuse_reasons() & ChildListInsertion; }
 
-    [[nodiscard]] bool child_needs_layout_tree_update(Layout::BegunRead const& read) const;
-    void set_child_needs_layout_tree_update(Layout::BegunRead const& read, bool);
+    [[nodiscard]] bool child_needs_layout_tree_update() const;
+    void set_child_needs_layout_tree_update(bool);
 
     // The number of animations associated with this node's shadow-including inclusive subtree. A
     // synchronous read of layout geometry has to catch up the style of a throttled animation that
@@ -671,7 +671,7 @@ protected:
         ChildListInsertion = 1,
         PseudoElementChange = 2,
     };
-    [[nodiscard]] u8 layout_tree_update_reuse_reasons(Layout::BegunRead const& read) const;
+    [[nodiscard]] u8 layout_tree_update_reuse_reasons() const;
 
     u32 m_children_explicitly_inherited_non_inherited_style_groups { 0 };
     u32 m_associated_animation_count_in_subtree { 0 };

@@ -40,14 +40,14 @@ Layout::RustFFI::FfiLayoutUpdateHostCallbacks Document::layout_update_host_callb
         .update_style = [](void* context, Layout::BegunRead const*) { static_cast<Document*>(context)->update_style(); },
         .process_pending_list_item_renumbers = [](void* context, Layout::BegunRead const*) { static_cast<Document*>(context)->process_pending_list_item_renumbers(); },
         .process_pending_top_layer_layout_changes = [](void* context, Layout::BegunRead const* read) { static_cast<Document*>(context)->process_pending_top_layer_layout_changes(*read); },
-        .document_facts = [](void* context, Layout::BegunRead const* read) -> Layout::RustFFI::FfiLayoutUpdateDocumentFacts {
+        .document_facts = [](void* context, Layout::BegunRead const*) -> Layout::RustFFI::FfiLayoutUpdateDocumentFacts {
             auto& document = *static_cast<Document*>(context);
             auto navigable = document.navigable();
             bool document_is_active = navigable && navigable->active_document().ptr() == &document;
             auto viewport_rect = document_is_active ? navigable->viewport_rect() : CSSPixelRect {};
             return {
                 .document_is_active = document_is_active,
-                .document_needs_layout_tree_build = document.needs_layout_tree_update(*read) || document.child_needs_layout_tree_update(*read),
+                .document_needs_layout_tree_build = document.needs_layout_tree_update() || document.child_needs_layout_tree_update(),
                 .top_layer_work_pending = document.m_top_layer_needs_layout_zone_rebuild || !document.m_elements_with_pending_top_layer_membership_change.is_empty(),
                 .should_collect_devtools_layout_data = document.page().client().has_active_devtools_client(),
                 .document_in_quirks_mode = document.in_quirks_mode(),

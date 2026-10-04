@@ -1513,22 +1513,16 @@ pub unsafe extern "C" fn layout_arena_paint_push_svg_filter_primitive(
 }
 
 /// Notes that the SVG paint resources the document's rows enrolled may have changed, and answers whether any row
-/// enrolled one, which only then are synced again.
+/// enrolled one, which only then are synced again. A row a frame in flight enrolls is synced as it enrolls.
 ///
 /// # Safety
 ///
 /// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn render_state_note_svg_paint_resources_changed(
-    host: *const DocumentHost,
-    read: &crate::render_state::BegunRead,
-) -> bool {
+pub unsafe extern "C" fn render_state_note_svg_paint_resources_changed(host: *const DocumentHost) -> bool {
     // SAFETY: Guaranteed by the caller.
-    let enrolled = unsafe {
-        read_arena(host, read, (), |arena, ()| {
-            arena.svg_paint_resources().has_enrolled_entries()
-        })
-    };
+    let enrolled =
+        unsafe { crate::css::style::engine_calls::document_host(host) }.svg_paint_resources_may_be_enrolled();
     if enrolled {
         // SAFETY: As above.
         unsafe { queue(host, PaintChange::SvgPaintResourcesChanged) };

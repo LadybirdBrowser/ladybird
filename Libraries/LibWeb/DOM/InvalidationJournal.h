@@ -49,6 +49,10 @@ public:
     // these families are stale, and it repaints. The box is named by its layout node, which asks the render state
     // nothing and names an anonymous box too. A box gone by the drain has nothing left to mark.
     void note_box_image_changed(Layout::Node&, Painting::PaintFactsFamily, InvalidateDisplayList);
+    // An image element's data changed, which changes its box as the box's kind and sizing decide.
+    void note_image_data_changed(NodeIdentity, SetNeedsLayoutReason);
+    // A text node's data changed, which changes its box as the box decides.
+    void note_text_data_changed(NodeIdentity, bool whitespace_only_changed);
 
     // The identity is retired and may name another node once it is handed out again, so what was noted for the node
     // that had it must not land on that one. Nothing may retire an identity while the journal drains.
@@ -75,6 +79,10 @@ private:
         bool needs_subtree_repaint { false };
         bool invalidate_propagated_text_decoration_caches { false };
         bool has_dom_paint_facts { false };
+        bool image_data_changed { false };
+        bool text_data_changed { false };
+        bool whitespace_only_text_changed { false };
+        SetNeedsLayoutReason image_data_change_reason { SetNeedsLayoutReason::StyleChange };
         u8 dom_paint_facts { 0 };
         Painting::PaintFactsFamily stale_paint_facts {};
     };

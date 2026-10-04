@@ -2,7 +2,7 @@ queries the DOM answers: state in the next task: in-flight
 queries the DOM answers: state after the write: in-flight
 queries the DOM answers: after: true 3 true true
 a first-seen id: state in the next task: in-flight
-a first-seen id: state after the write: landed
+a first-seen id: state after the write: in-flight
 a first-seen id: after: width 150, by id: true
 a constructed sheet with a media list: state in the next task: in-flight
 a constructed sheet with a media list: state after the write: landed

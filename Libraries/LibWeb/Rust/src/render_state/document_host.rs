@@ -17,6 +17,7 @@ use crate::css::style::flight_style_rows::FlightStyleRow;
 use crate::css::style::style_job::{FfiFlownStyleDrain, StyleJobAnswer};
 use crate::css::style::tree::StyleNodeID;
 use crate::layout::row_reads::{RowIdentities, RowSnapshot};
+use crate::layout::tree_update_marks::LayoutTreeUpdateMarks;
 use crate::layout::{FlownRound, HostTables, SealedRound};
 use crate::painting::paint_read::PaintSource;
 use crate::painting::record::recorder_state::AbsoluteRectMemo;
@@ -52,6 +53,8 @@ pub struct DocumentHost {
     absolute_rects: RefCell<AbsoluteRectMemo>,
     /// The flag the render state raises once any element has random base values, and never lowers.
     element_random_base_values_exist: Arc<AtomicBool>,
+    /// The flag the render state raises while any row has enrolled an SVG paint resource.
+    svg_paint_resources_enrolled: Arc<AtomicBool>,
     /// The compositor animations the document's effects published in the current update pass, which the host hands
     /// the render state as the pass ends.
     compositor_animations: RefCell<Vec<VisualAnimation>>,
@@ -74,6 +77,9 @@ pub struct DocumentHost {
     sealed_round: RefCell<Option<SealedRound>>,
     /// The layout round that flew with the frame, from its landing until the host's next layout update pays it.
     flown_round: RefCell<Option<FlownRound>>,
+    /// The layout tree update marks the host made beside the frame in flight, which answer the host's questions about
+    /// marks while the frame holds the document's own. Each write to them is queued for the document's marks as well.
+    marks_beside_flight: RefCell<LayoutTreeUpdateMarks>,
 }
 
 /// Where a document's render state is: here, where the host lends it to the messages it waits for, or flying, moved
@@ -107,6 +113,7 @@ impl DocumentHost {
     fn new(state: RenderState) -> Self {
         Self {
             element_random_base_values_exist: state.engine_ref().element_random_base_values_exist(),
+            svg_paint_resources_enrolled: state.arena.arena().svg_paint_resources().enrolled_flag(),
             frame: RefCell::new(Frame::Here(UnsafeCell::new(state))),
             waits_for_frame: Cell::new(false),
             host_tables: HostTables::default(),
@@ -123,6 +130,7 @@ impl DocumentHost {
             paint_preparation_is_current: Cell::new(false),
             sealed_round: RefCell::default(),
             flown_round: RefCell::default(),
+            marks_beside_flight: RefCell::default(),
         }
     }
 
@@ -260,6 +268,8 @@ impl DocumentHost {
         }: Landing,
     ) -> Frame {
         self.changes.give_back(changes);
+        // The marks made beside the frame were queued for the document's own, which answer from here on.
+        self.marks_beside_flight.take();
         let previous = self
             .flown_style
             .borrow_mut()
@@ -292,6 +302,16 @@ impl DocumentHost {
         let round = self.flown_round.borrow_mut().take();
         self.note_frame_wait();
         round
+    }
+
+    /// The layout tree update marks the host made beside the frame in flight, which answer the host's questions about
+    /// marks while the frame holds the document's own, or proof that no frame flies, where the document's own answer.
+    pub(crate) fn marks_beside_flight(&self) -> Result<RefMut<'_, LayoutTreeUpdateMarks>, NoFrameInFlight> {
+        if self.frame_flies() {
+            Ok(self.marks_beside_flight.borrow_mut())
+        } else {
+            Err(NoFrameInFlight(()))
+        }
     }
 
     /// Proof that no frame flies, where the document's layout waits for none: neither a frame that flies nor a round
@@ -461,6 +481,11 @@ impl DocumentHost {
         if begun.scopes > 0 {
             begun.read = Some(read);
         }
+    }
+
+    /// Whether some row may have enrolled an SVG paint resource, which only then has to be synced again.
+    pub(crate) fn svg_paint_resources_may_be_enrolled(&self) -> bool {
+        self.svg_paint_resources_enrolled.load(Ordering::Relaxed)
     }
 
     /// Whether some element may have random base values to keep, which only then is worth asking the render state.

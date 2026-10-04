@@ -23,6 +23,7 @@
 #include <LibWeb/DOM/DocumentObserver.h>
 #include <LibWeb/DOM/ElementFactory.h>
 #include <LibWeb/DOM/Event.h>
+#include <LibWeb/DOM/InvalidationJournal.h>
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/DOM/Text.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
@@ -134,16 +135,21 @@ void HTMLImageElement::set_needs_layout_update_or_repaint_after_image_data_chang
     CSS::record_element_replaced_content_input(*this);
     update_alt_text_shadow_tree();
 
-    // Which box the image has is the host's own read of the render state.
-    Layout::ForcedReadScope read { document(), false };
-    auto layout_node = unsafe_layout_node(read);
-    auto* image_box = layout_node && layout_node->kind() == Layout::RustFFI::NodeKind::ImageBox ? static_cast<Layout::Box*>(layout_node) : nullptr;
+    // What the new data changes depends on the box the image has, which the invalidation journal finds as it drains:
+    // the data may arrive in a task beside a frame in flight, which holds the boxes.
+    if (auto identity = DOM::NodeIdentity::of(*this))
+        document().invalidation_journal().note_image_data_changed(identity, reason);
+}
+
+void HTMLImageElement::apply_image_data_change(Badge<DOM::InvalidationJournal>, Layout::Node& layout_node, DOM::SetNeedsLayoutReason reason)
+{
+    auto* image_box = layout_node.kind() == Layout::RustFFI::NodeKind::ImageBox ? static_cast<Layout::Box*>(&layout_node) : nullptr;
 
     // The request state change may have flipped which kind of box box_kind()
     // asks for (ImageBox vs. non-replaced alt text container); if the existing node no longer
     // matches, it has to be rebuilt, not just laid out again. (An img whose box comes from
     // `content: url(...)` reads as a mismatch here and takes a wasted rebuild — harmless.)
-    if (layout_node && (image_box != nullptr) == (renders_as_alt_text() && !alt().is_empty())) {
+    if ((image_box != nullptr) == (renders_as_alt_text() && !alt().is_empty())) {
         set_needs_layout_tree_update(true, DOM::SetNeedsLayoutTreeUpdateReason::HTMLImageElementUpdateTheImageData);
         return;
     }
