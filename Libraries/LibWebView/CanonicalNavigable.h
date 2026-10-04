@@ -101,7 +101,7 @@ public:
     void populate_document_for_ongoing_navigation(NonnullRefPtr<CanonicalDocumentState>, NonnullRefPtr<CanonicalDocument>, Optional<URL::Origin> inline_content_origin = {});
     // Returns false, populating nothing, for a document that would hold access the active document lacks.
     bool populate_document_for_javascript_url(NonnullRefPtr<CanonicalDocumentState>, NonnullRefPtr<CanonicalDocument>);
-    void did_create_populated_document_with_an_origin_of_its_own(WebContentPage const& host, Web::HTML::PopulatedDocumentOrigin, Web::HTML::EnvironmentId const& environment_id);
+    void did_create_populated_document_with_an_origin_of_its_own(WebContentPage const& host, Web::HTML::CrossProcessId document_id, Web::HTML::PopulatedDocumentOrigin, Web::HTML::EnvironmentId const& environment_id);
     void claim_document_populated_for_ongoing_navigation(CanonicalDocument const&);
     void abandon_populated_document(CanonicalDocument const&);
     void place_pending_document(WebContentPage&);

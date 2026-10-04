@@ -480,6 +480,7 @@ WebIDL::ExceptionOr<GC::Ref<Document>> Document::create_and_initialize(Type type
     document->m_was_created_via_cross_origin_redirects = navigation_params.response->redirect_taint() != Fetch::Infrastructure::RedirectTaint::SameOrigin;
     document->m_about_base_url = navigation_params.about_base_url;
     document->set_url(*creation_url);
+    document->set_id(navigation_params.document_id.has_value() ? *navigation_params.document_id : browsing_context->page().client().allocate_cross_process_id());
 
     // AD-HOC: Record when the readiness becomes "loading" for PerformanceTiming's domLoading. The window is not yet
     //         associated with document, so relate the time to loadTimingInfo directly.
@@ -1870,6 +1871,12 @@ void Document::respond_to_base_url_changes(URL::URL const& old_document_url, URL
     //        ...
 
     // FIXME: 4. Consider speculative loads given document.
+}
+
+void Document::set_id(HTML::CrossProcessId id)
+{
+    VERIFY(!m_id.has_value());
+    m_id = id;
 }
 
 // https://html.spec.whatwg.org/multipage/urls-and-fetching.html#set-the-url

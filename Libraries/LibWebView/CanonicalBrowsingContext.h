@@ -15,6 +15,7 @@
 #include <AK/WeakPtr.h>
 #include <LibURL/Origin.h>
 #include <LibWebCommon/Forward.h>
+#include <LibWebCommon/HTML/CrossProcessId.h>
 #include <LibWebCommon/HTML/SandboxingFlagSet.h>
 #include <LibWebView/CanonicalDocument.h>
 #include <LibWebView/Export.h>
@@ -30,9 +31,9 @@ public:
         NonnullRefPtr<CanonicalDocument> document;
     };
 
-    static BrowsingContextAndDocument create_a_new_browsing_context_and_document(CanonicalDocument const* creator, Optional<Web::HTML::ReplicatedContainerState const&> embedder, CanonicalBrowsingContextGroup&, Optional<Web::HTML::EnvironmentId> environment_id, Optional<URL::Origin> given_origin = {});
-    static BrowsingContextAndDocument create_a_new_top_level_browsing_context_and_document(Optional<URL::Origin> given_origin = {});
-    static BrowsingContextAndDocument create_a_new_auxiliary_browsing_context_and_document(CanonicalNavigable& opener);
+    static BrowsingContextAndDocument create_a_new_browsing_context_and_document(CanonicalDocument const* creator, Optional<Web::HTML::ReplicatedContainerState const&> embedder, CanonicalBrowsingContextGroup&, Web::HTML::CrossProcessId document_id, Optional<Web::HTML::EnvironmentId> environment_id, Optional<URL::Origin> given_origin = {});
+    static BrowsingContextAndDocument create_a_new_top_level_browsing_context_and_document(Web::HTML::CrossProcessId document_id, Optional<URL::Origin> given_origin = {});
+    static BrowsingContextAndDocument create_a_new_auxiliary_browsing_context_and_document(CanonicalNavigable& opener, Web::HTML::CrossProcessId document_id);
 
     ~CanonicalBrowsingContext();
 

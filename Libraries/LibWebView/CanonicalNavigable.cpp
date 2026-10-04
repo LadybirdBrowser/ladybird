@@ -341,7 +341,7 @@ CanonicalBrowsingContext::BrowsingContextAndDocument CanonicalNavigable::obtain_
 
     // 10. Let newBrowsingContext be the first return value of creating a new top-level browsing context and document.
     // NB: The navigation response's document replaces that document before any process creates it.
-    auto new_browsing_context = CanonicalBrowsingContext::create_a_new_top_level_browsing_context_and_document();
+    auto new_browsing_context = CanonicalBrowsingContext::create_a_new_top_level_browsing_context_and_document({});
 
     // 11. Let navigationCOOP be navigationParams's cross-origin opener policy.
     auto const& navigation_coop = navigation_params.opener_policy;
@@ -416,7 +416,7 @@ NonnullRefPtr<CanonicalDocument> CanonicalNavigable::create_and_initialize_a_doc
     //    opener policy: navigationParams's cross-origin opener policy
     //    URL: creationURL
     // NB: The process hosting window's agent creates the document, with its other fields, and runs the remaining steps.
-    auto document = CanonicalDocument::create(move(creation_url), navigation_params.origin, browsing_context, window.release_nonnull(), CanonicalDocument::IsInitialAboutBlank::No);
+    auto document = CanonicalDocument::create(navigation_params.document_id, move(creation_url), navigation_params.origin, browsing_context, window.release_nonnull(), CanonicalDocument::IsInitialAboutBlank::No);
     document->set_opener_policy(navigation_params.opener_policy);
 
     // 22. Return document.
@@ -830,36 +830,36 @@ bool CanonicalNavigable::populate_document_for_javascript_url(NonnullRefPtr<Cano
 
 // The process hosting a document populated for the navigable created it with an origin other than its navigation
 // params': a document for inline content in place of a response it found blocked, or the PDF viewer.
-void CanonicalNavigable::did_create_populated_document_with_an_origin_of_its_own(WebContentPage const& host, Web::HTML::PopulatedDocumentOrigin populated_document_origin, Web::HTML::EnvironmentId const& environment_id)
+void CanonicalNavigable::did_create_populated_document_with_an_origin_of_its_own(WebContentPage const& host, Web::HTML::CrossProcessId document_id, Web::HTML::PopulatedDocumentOrigin populated_document_origin, Web::HTML::EnvironmentId const& environment_id)
 {
-    auto replace = [&](Optional<PopulatedDocument>& populated_document) {
-        if (!populated_document.has_value() || populated_document->document->host() != &host)
-            return false;
-
-        auto is_inline_content = populated_document_origin == Web::HTML::PopulatedDocumentOrigin::InlineContent;
-        if (is_inline_content && !populated_document->inline_content_origin.has_value())
-            return false;
-        // AD-HOC: The PDF viewer runs with an origin of its own.
-        auto origin = is_inline_content ? *populated_document->inline_content_origin : URL::Origin { "resource"_string, String {}, {} };
-
-        auto url = is_inline_content ? URL::about_error() : populated_document->document->creation_url();
-        NavigationLoader::ResponseDocument response_document {
-            .is_inline_content = is_inline_content,
-            .coop_enforcement_result = { .url = url, .origin = origin, .opener_policy = {} },
-            .response_url = url,
-            .request_current_url = {},
-            .origin = origin,
-            .opener_policy = {},
-            .environment_id = environment_id,
-        };
-        auto document = create_and_initialize_a_document(response_document);
-        document->set_host(populated_document->document->host());
-        populated_document->document = move(document);
-        return true;
-    };
-    if (m_ongoing_navigation.has_value() && replace(m_ongoing_navigation->populated_document))
+    Optional<PopulatedDocument&> populated_document;
+    if (m_ongoing_navigation.has_value() && m_ongoing_navigation->populated_document.has_value() && m_ongoing_navigation->populated_document->document->id() == document_id)
+        populated_document = *m_ongoing_navigation->populated_document;
+    else if (m_document_populated_by_history_job.has_value() && m_document_populated_by_history_job->document->id() == document_id)
+        populated_document = *m_document_populated_by_history_job;
+    if (!populated_document.has_value() || populated_document->document->host() != &host)
         return;
-    replace(m_document_populated_by_history_job);
+
+    auto is_inline_content = populated_document_origin == Web::HTML::PopulatedDocumentOrigin::InlineContent;
+    if (is_inline_content && !populated_document->inline_content_origin.has_value())
+        return;
+    // AD-HOC: The PDF viewer runs with an origin of its own.
+    auto origin = is_inline_content ? *populated_document->inline_content_origin : URL::Origin { "resource"_string, String {}, {} };
+
+    auto url = is_inline_content ? URL::about_error() : populated_document->document->creation_url();
+    NavigationLoader::ResponseDocument response_document {
+        .is_inline_content = is_inline_content,
+        .coop_enforcement_result = { .url = url, .origin = origin, .opener_policy = {} },
+        .response_url = url,
+        .request_current_url = {},
+        .origin = origin,
+        .opener_policy = {},
+        .environment_id = environment_id,
+        .document_id = document_id,
+    };
+    auto document = create_and_initialize_a_document(response_document);
+    document->set_host(populated_document->document->host());
+    populated_document->document = move(document);
 }
 
 // The history job finalizing the ongoing navigation is going to activate the document populated for it, even if a

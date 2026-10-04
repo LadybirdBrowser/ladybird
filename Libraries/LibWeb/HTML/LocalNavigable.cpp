@@ -959,6 +959,7 @@ void LocalNavigable::continue_navigation_at_population(NavigationPopulationReque
     output->classic_history_api_state = move(result.classic_history_api_state);
     output->resource_cleared = result.resource_cleared;
     output->inline_content_origin = move(result.inline_content_origin);
+    output->document_id = result.document_id;
 
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#attempt-to-populate-the-history-entry's-document
     // 5. Queue a global task on the navigation and traversal task source, given navigable's active window, to run
@@ -1893,7 +1894,7 @@ LocalNavigable::ChosenNavigable LocalNavigable::choose_a_navigable(Utf16View nam
             window_type = new_window_type;
 
             auto create_new_traversable = [&](GC::Ptr<BrowsingContext> opener) -> GC::Ref<LocalTraversableNavigable> {
-                auto traversable = LocalTraversableNavigable::create_a_new_top_level_traversable(*new_web_view.page, opener, new_web_view.initial_history_entry.release_value());
+                auto traversable = LocalTraversableNavigable::create_a_new_top_level_traversable(*new_web_view.page, opener, new_web_view.initial_history_entry.release_value(), new_web_view.initial_document_id.release_value());
                 traversable->active_document()->relevant_settings_object().id = new_web_view.initial_environment_id.release_value();
                 traversable->active_browsing_context()->set_browsing_context_group_id(new_web_view.browsing_context_group_id);
                 new_web_view.page->set_top_level_traversable(traversable);
@@ -3120,13 +3121,13 @@ static void report_a_document_with_an_origin_of_its_own(LocalNavigable& navigabl
     auto origin = output.inline_content_origin.has_value() && output.document->origin().is_same_origin(*output.inline_content_origin)
         ? PopulatedDocumentOrigin::InlineContent
         : PopulatedDocumentOrigin::PdfViewer;
-    navigable.page().client().page_did_create_populated_document_with_an_origin_of_its_own(navigable.id(), origin, output.document->relevant_settings_object().id);
+    navigable.page().client().page_did_create_populated_document_with_an_origin_of_its_own(navigable.id(), output.document->id(), origin, output.document->relevant_settings_object().id);
 }
 
-static GC::Ref<DOM::Document> create_navigation_error_document(LocalNavigable& navigable, Optional<Utf16String> const& navigation_id, Bindings::NavigationTimingType navigation_timing_type, UserNavigationInvolvement user_involvement, URL::Origin const& origin, URL::URL const& url, Utf16String const& error_message)
+static GC::Ref<DOM::Document> create_navigation_error_document(LocalNavigable& navigable, Optional<Utf16String> const& navigation_id, Bindings::NavigationTimingType navigation_timing_type, UserNavigationInvolvement user_involvement, URL::Origin const& origin, Optional<CrossProcessId> document_id, URL::URL const& url, Utf16String const& error_message)
 {
     auto error_html = load_error_page(url, error_message.to_utf8()).release_value_but_fixme_should_propagate_errors();
-    return create_document_for_inline_content(&navigable, navigation_id, navigation_timing_type, user_involvement, origin, [error_html](auto& document) {
+    return create_document_for_inline_content(&navigable, navigation_id, navigation_timing_type, user_involvement, origin, document_id, [error_html](auto& document) {
         auto scripting_mode = document.is_scripting_enabled() ? HTML::ParserScriptingMode::Normal : HTML::ParserScriptingMode::Disabled;
         auto parser = HTMLParser::create_from_byte_string(document, error_html, scripting_mode, "utf-8"sv);
         document.set_url(URL::about_error());
@@ -3161,6 +3162,7 @@ static void load_document_or_handle_download(GC::Ref<NavigationParams> navigatio
             navigation_params->navigation_timing_type,
             navigation_params->user_involvement,
             output.inline_content_origin.value(),
+            navigation_params->document_id,
             output.redirected_url.value_or(url),
             error_message);
 
@@ -3195,6 +3197,8 @@ void LocalNavigable::queue_navigation_and_traversal_task_for_session_history_ent
         stop_or_resume_response_body_delivery(navigation_params);
         return;
     }
+    if (auto* params = navigation_params.get_pointer<GC::Ref<NavigationParams>>())
+        (*params)->document_id = output->document_id;
 
     // 5. Queue a global task on the navigation and traversal task source, given navigable's active window, to run these steps:
     queue_global_task(Task::Source::NavigationAndTraversal, HTML::relevant_global_object(*active_window()), GC::create_function(heap(), [this, url, source_allows_downloading, source_interface_origin, user_involvement, navigation_id, navigation_params, csp_navigation_type, navigation_timing_type, output, completion_steps]() mutable {
@@ -3243,7 +3247,7 @@ void LocalNavigable::queue_navigation_and_traversal_task_for_session_history_ent
             // AD-HOC: Name the URL that actually failed to load: The last URL the navigation was redirected to, if
             //         any — rather than the URL it started at.
             auto error_url = output->redirected_url.value_or(url);
-            output->document = create_navigation_error_document(*this, navigation_id, navigation_timing_type, user_involvement, output->inline_content_origin.value(), error_url, error_message);
+            output->document = create_navigation_error_document(*this, navigation_id, navigation_timing_type, user_involvement, output->inline_content_origin.value(), output->document_id, error_url, error_message);
 
             // 2. Make document unsalvageable given entry's document state's document and "navigation-failure".
             if (output->document)
@@ -4702,6 +4706,7 @@ void finalize_a_cross_document_navigation(GC::Ref<LocalNavigable> navigable, His
             .history_handling = history_handling,
             .user_involvement = user_involvement,
             .environment_id = pending_document ? Optional<Web::HTML::EnvironmentId> { pending_document->relevant_settings_object().id } : Optional<Web::HTML::EnvironmentId> {},
+            .document_id = pending_document ? Optional<CrossProcessId> { pending_document->id() } : Optional<CrossProcessId> {},
         },
         {
             .pending_document = pending_document,

@@ -34,7 +34,7 @@ namespace Web::HTML {
 GC_DEFINE_ALLOCATOR(BrowsingContext);
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#creating-a-new-auxiliary-browsing-context
-BrowsingContext::BrowsingContextAndDocument BrowsingContext::create_a_new_auxiliary_browsing_context_and_document(GC::Ref<Page> page, GC::Ref<HTML::BrowsingContext> opener)
+BrowsingContext::BrowsingContextAndDocument BrowsingContext::create_a_new_auxiliary_browsing_context_and_document(GC::Ref<Page> page, GC::Ref<HTML::BrowsingContext> opener, Optional<CrossProcessId> document_id)
 {
     // 1. Let openerTopLevelBrowsingContext be opener's top-level traversable's active browsing context.
     // 2. Let group be openerTopLevelBrowsingContext's group.
@@ -42,7 +42,7 @@ BrowsingContext::BrowsingContextAndDocument BrowsingContext::create_a_new_auxili
     // NB: The UI process holds the group.
 
     // 4. Set browsingContext and document be the result of creating a new browsing context and document with opener's active document, null, and group.
-    auto [browsing_context, document] = create_a_new_browsing_context_and_document(page, opener->active_document(), nullptr);
+    auto [browsing_context, document] = create_a_new_browsing_context_and_document(page, opener->active_document(), nullptr, {}, {}, document_id);
 
     // 5. Set browsingContext's is auxiliary to true.
     browsing_context->m_is_auxiliary = true;
@@ -72,7 +72,7 @@ static void populate_with_html_head_body(GC::Ref<DOM::Document> document)
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#creating-a-new-browsing-context
-BrowsingContext::BrowsingContextAndDocument BrowsingContext::create_a_new_browsing_context_and_document(GC::Ref<Page> page, GC::Ptr<DOM::Document> creator, GC::Ptr<DOM::Element> embedder, GC::Ptr<WindowProxy> existing_window_proxy, Optional<URL::Origin> determined_origin)
+BrowsingContext::BrowsingContextAndDocument BrowsingContext::create_a_new_browsing_context_and_document(GC::Ref<Page> page, GC::Ptr<DOM::Document> creator, GC::Ptr<DOM::Element> embedder, GC::Ptr<WindowProxy> existing_window_proxy, Optional<URL::Origin> determined_origin, Optional<CrossProcessId> document_id)
 {
     // 1. Let browsingContext be a new browsing context.
     GC::Ref<BrowsingContext> browsing_context = *GC::Heap::the().allocate<BrowsingContext>(page);
@@ -165,6 +165,7 @@ BrowsingContext::BrowsingContextAndDocument BrowsingContext::create_a_new_browsi
     // Non-standard
     window->set_associated_document(*document);
     document->set_window(*window);
+    document->set_id(document_id.has_value() ? *document_id : page->client().allocate_cross_process_id());
 
     // type: "html"
     document->set_document_type(DOM::Document::Type::HTML);

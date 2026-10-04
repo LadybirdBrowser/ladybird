@@ -111,13 +111,13 @@ struct TestTraversable {
     TestTraversable()
     {
         traversable.set_id(root_id());
-        traversable.set_active_session_history_entry(WebView::CanonicalSessionHistoryEntry::create(WebView::CanonicalDocumentState::create({}, WebView::CanonicalBrowsingContext::create_a_new_top_level_browsing_context_and_document().document)));
+        traversable.set_active_session_history_entry(WebView::CanonicalSessionHistoryEntry::create(WebView::CanonicalDocumentState::create({}, WebView::CanonicalBrowsingContext::create_a_new_top_level_browsing_context_and_document({}).document)));
     }
 
     WebView::CanonicalNavigable& add_child(Web::HTML::CrossProcessId id)
     {
         auto& child = traversable.append_child(make<WebView::CanonicalNavigable>(id));
-        child.set_active_session_history_entry(WebView::CanonicalSessionHistoryEntry::create(WebView::CanonicalDocumentState::create({}, WebView::CanonicalBrowsingContext::create_a_new_top_level_browsing_context_and_document().document)));
+        child.set_active_session_history_entry(WebView::CanonicalSessionHistoryEntry::create(WebView::CanonicalDocumentState::create({}, WebView::CanonicalBrowsingContext::create_a_new_top_level_browsing_context_and_document({}).document)));
         return child;
     }
 

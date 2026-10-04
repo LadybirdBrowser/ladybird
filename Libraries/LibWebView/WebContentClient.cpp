@@ -242,7 +242,7 @@ WebContentPage& WebContentClient::open_initial_page_for_new_top_level_traversabl
 
     // A tab's first process creates its traversable, in the page that displays the tab.
     VERIFY(m_initial_top_level_history_entry.has_value());
-    auto& traversable = CanonicalTraversable::create_a_new_top_level_traversable(m_root_navigable_id, {}, m_initial_top_level_history_entry.release_value());
+    auto& traversable = CanonicalTraversable::create_a_new_top_level_traversable(m_root_navigable_id, {}, m_initial_top_level_history_entry.release_value(), m_initial_top_level_document_id);
     auto& page = open_page_for_new_top_level_traversable(initial_page_id, traversable);
     page.async_set_browsing_context_group(traversable.active_browsing_context().group()->id());
     return page;
@@ -707,7 +707,7 @@ Messages::WebContentClient::DidRequestNewWebViewResponse WebContentClient::did_r
     if (auto* page = this->page(page_id))
         return page->did_request_new_web_view(activate_tab, hints, opener_navigable_id, move(opener_base_url), move(target_name), popup_sandboxing_flag_set);
 
-    return { Optional<Web::PageId> {}, Optional<Web::HTML::CrossProcessId> {}, Optional<Web::HTML::SessionHistoryEntryDescriptor> {}, Optional<Web::HTML::EnvironmentId> {}, Optional<u64> {}, Web::HTML::VisibilityState::Hidden, String {} };
+    return { Optional<Web::PageId> {}, Optional<Web::HTML::CrossProcessId> {}, Optional<Web::HTML::SessionHistoryEntryDescriptor> {}, Optional<Web::HTML::EnvironmentId> {}, Optional<Web::HTML::CrossProcessId> {}, Optional<u64> {}, Web::HTML::VisibilityState::Hidden, String {} };
 }
 
 Messages::WebContentClient::StartWorkerAgentResponse WebContentClient::start_worker_agent(Web::PageId page_id, Web::HTML::WorkerAgentStartRequest request)

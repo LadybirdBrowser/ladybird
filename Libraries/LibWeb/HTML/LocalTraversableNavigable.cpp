@@ -44,7 +44,7 @@ LocalTraversableNavigable::LocalTraversableNavigable(GC::Ref<Page> page)
 LocalTraversableNavigable::~LocalTraversableNavigable() = default;
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#creating-a-new-top-level-traversable
-GC::Ref<LocalTraversableNavigable> LocalTraversableNavigable::create_a_new_top_level_traversable(GC::Ref<Page> page, GC::Ptr<HTML::BrowsingContext> opener, Optional<SessionHistoryEntryDescriptor> initial_history_entry_from_owner)
+GC::Ref<LocalTraversableNavigable> LocalTraversableNavigable::create_a_new_top_level_traversable(GC::Ref<Page> page, GC::Ptr<HTML::BrowsingContext> opener, Optional<SessionHistoryEntryDescriptor> initial_history_entry_from_owner, Optional<CrossProcessId> document_id)
 {
     auto& vm = Bindings::main_thread_vm();
     page->ensure_compositor_host();
@@ -61,12 +61,12 @@ GC::Ref<LocalTraversableNavigable> LocalTraversableNavigable::create_a_new_top_l
     // 2. If opener is null, then set document to the second return value of creating a new top-level browsing context and document.
     // NB: The UI process holds the group a top-level browsing context is created in.
     if (!opener) {
-        document = BrowsingContext::create_a_new_browsing_context_and_document(page, nullptr, nullptr, {}, initial_entry.document_state.origin).document;
+        document = BrowsingContext::create_a_new_browsing_context_and_document(page, nullptr, nullptr, {}, initial_entry.document_state.origin, document_id).document;
     }
 
     // 3. Otherwise, set document to the second return value of creating a new auxiliary browsing context and document given opener.
     else {
-        document = BrowsingContext::create_a_new_auxiliary_browsing_context_and_document(page, *opener).document;
+        document = BrowsingContext::create_a_new_auxiliary_browsing_context_and_document(page, *opener, document_id).document;
     }
 
     // 4. Let documentState be a new document state, with
@@ -118,10 +118,10 @@ GC::Ref<LocalTraversableNavigable> LocalTraversableNavigable::create_a_new_top_l
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#create-a-fresh-top-level-traversable
-GC::Ref<LocalTraversableNavigable> LocalTraversableNavigable::create_a_fresh_top_level_traversable(GC::Ref<Page> page, SessionHistoryEntryDescriptor initial_history_entry)
+GC::Ref<LocalTraversableNavigable> LocalTraversableNavigable::create_a_fresh_top_level_traversable(GC::Ref<Page> page, SessionHistoryEntryDescriptor initial_history_entry, CrossProcessId document_id)
 {
     // 1. Let traversable be the result of creating a new top-level traversable given null and the empty string.
-    auto traversable = create_a_new_top_level_traversable(page, nullptr, move(initial_history_entry));
+    auto traversable = create_a_new_top_level_traversable(page, nullptr, move(initial_history_entry), document_id);
     page->set_top_level_traversable(traversable);
 
     // AD-HOC: Mark the about:blank document as finished parsing. This matches the behavior of the window open steps.

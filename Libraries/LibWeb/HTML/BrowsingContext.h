@@ -30,8 +30,8 @@ public:
         GC::Ref<DOM::Document> document;
     };
 
-    static BrowsingContextAndDocument create_a_new_browsing_context_and_document(GC::Ref<Page> page, GC::Ptr<DOM::Document> creator, GC::Ptr<DOM::Element> embedder, GC::Ptr<WindowProxy> existing_window_proxy = {}, Optional<URL::Origin> determined_origin = {});
-    static BrowsingContextAndDocument create_a_new_auxiliary_browsing_context_and_document(GC::Ref<Page> page, GC::Ref<HTML::BrowsingContext> opener);
+    static BrowsingContextAndDocument create_a_new_browsing_context_and_document(GC::Ref<Page> page, GC::Ptr<DOM::Document> creator, GC::Ptr<DOM::Element> embedder, GC::Ptr<WindowProxy> existing_window_proxy = {}, Optional<URL::Origin> determined_origin = {}, Optional<CrossProcessId> document_id = {});
+    static BrowsingContextAndDocument create_a_new_auxiliary_browsing_context_and_document(GC::Ref<Page> page, GC::Ref<HTML::BrowsingContext> opener, Optional<CrossProcessId> document_id);
 
     virtual ~BrowsingContext() override;
 
