@@ -45,7 +45,7 @@ public:
 
     bool has_loaded_icon() const;
     bool has_icon_keyword() const;
-    RefPtr<Gfx::Bitmap const> load_favicon_if_window_is_active();
+    RefPtr<Gfx::Bitmap const> associated_favicon() { return m_loaded_icon; }
 
     static void load_fallback_favicon_if_needed(GC::Ref<DOM::Document>);
 
@@ -195,13 +195,7 @@ private:
     GC::Ptr<Fetch::Infrastructure::FetchController> m_fetch_controller;
     Optional<DOM::DocumentLoadEventDelayer> m_document_load_event_delayer;
 
-    struct LoadedIcon {
-        URL::URL url;
-        ByteBuffer icon;
-        Optional<MimeSniff::MimeType> mime_type;
-    };
-
-    Optional<LoadedIcon> m_loaded_icon;
+    RefPtr<Gfx::Bitmap const> m_loaded_icon;
     RefPtr<CSS::StyleSheetState> m_loaded_style_sheet;
 
     GC::Ptr<DOM::DOMTokenList> m_rel_list;
