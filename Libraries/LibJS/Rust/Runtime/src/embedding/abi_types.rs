@@ -382,6 +382,20 @@ pub fn error_kind_from_abi(kind: JSErrorKind) -> ErrorKind {
     }
 }
 
+/// Where the runtime writes bytes, such as printed text, which C++ appends to an AK::Stream. `append` returns false
+/// when it could not take the bytes, which stops the operation that writes them.
+#[repr(C)]
+pub struct JSByteSink {
+    pub context: *mut c_void,
+    pub append: Option<unsafe extern "C" fn(context: *mut c_void, bytes: *const u8, length: usize) -> bool>,
+}
+
+/// A SourceCode, which the runtime shares through reference counting. Its address identifies it: every function that
+/// hands one out returns the same pointer for the same source code.
+pub struct JSSourceCode {
+    _opaque: [u8; 0],
+}
+
 /// Hands `value` to the embedder's sink.
 pub fn append_to_value_sink(sink: &JSValueSink, value: Value) {
     let append = sink.append.expect("a value sink has an append function");

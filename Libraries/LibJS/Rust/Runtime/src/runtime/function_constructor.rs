@@ -205,7 +205,13 @@ impl FunctionConstructor {
             body_arg,
         )?;
 
-        let function_data = compile_dynamic_function(vm, &source_text, &parameters_string, &body_parse_string, kind)?;
+        let function_data =
+            match compile_dynamic_function(vm, &source_text, &parameters_string, &body_parse_string, kind) {
+                Ok(function_data) => function_data,
+                Err(parser_error) => {
+                    return vm.throw_completion_with_message(ErrorKind::SyntaxError, parser_error.to_string());
+                }
+            };
 
         // 25. Let proto be ? GetPrototypeFromConstructor(newTarget, fallbackProto).
         let mut prototype = get_prototype_from_constructor(vm, new_target, fallback_prototype)?;
@@ -324,15 +330,16 @@ impl FunctionConstructor {
 }
 
 /// Steps 17 to 24 of CreateDynamicFunction, which RustIntegration::compile_dynamic_function performs: the shared data of
-/// the function `source_text` defines, after checking its parameters and its body on their own. The first error any
-/// of these steps reports becomes a SyntaxError.
-fn compile_dynamic_function(
+/// the function `source_text` defines, after checking its parameters and its body on their own, or the first error any
+/// of these steps reports, which CreateDynamicFunction throws as a SyntaxError. Hosts compile event handlers and
+/// WebDriver scripts through this as well.
+pub fn compile_dynamic_function(
     vm: &Vm,
     source_text: &Utf16String,
     parameters_string: &[u16],
     body_parse_string: &[u16],
     kind: FunctionKind,
-) -> ThrowCompletionOr<Gc<SharedFunctionInstanceData>> {
+) -> Result<Gc<SharedFunctionInstanceData>, ParserError> {
     let source_code = SourceCode::create(Utf16String::default(), source_text.clone());
     let mut full_source = Vec::with_capacity(source_code.length_in_code_units());
     Utf16View::of_string(source_code.code()).append_to(&mut full_source);
@@ -344,12 +351,11 @@ fn compile_dynamic_function(
         Ok(description) => description,
         Err(errors) => {
             let error = errors.first().expect("a failed compilation reports an error");
-            let parser_error = ParserError {
+            return Err(ParserError {
                 message: error.message.clone(),
                 line: error.line,
                 column: error.column,
-            };
-            return vm.throw_completion_with_message(ErrorKind::SyntaxError, parser_error.to_string());
+            });
         }
     };
 

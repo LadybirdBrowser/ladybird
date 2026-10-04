@@ -16,6 +16,7 @@ use libjs_runtime_macros::Trace;
 
 use crate::bytecode::executable::{PropertyLookupCache, StaticPropertyLookupCacheSite};
 use crate::bytecode::property_access::{Strict, put_by_property_key};
+use crate::embedding::abi_types::JSRealm;
 use crate::gc::class::{Class, Extends, GcCell, define_cell};
 use crate::gc::gc_ref_cell::GcRefCell;
 use crate::gc::heap::RuntimeClassAllocator;
@@ -25,6 +26,7 @@ use crate::interpreter::vm::Vm;
 use crate::layout::cell::{CellHeader, Gc};
 use crate::layout::execution_context::ExecutionContext;
 use crate::layout::function_object::{EcmascriptFunctionObject, FunctionObject};
+use crate::layout::host_class::JSValue;
 pub use crate::layout::object::{
     INDEXED_ELEMENTS_HEADER_SIZE, INLINE_NAMED_STORAGE_CAPACITY, IndexedStorageKind, Object, object_flag,
 };
@@ -473,7 +475,7 @@ pub enum IntrinsicAccessor {
 pub type NativeIntrinsicAccessor = fn(&Vm, Gc<Realm>) -> Value;
 
 /// An intrinsic accessor that an embedder defines through the C ABI, which returns the encoded value.
-pub type HostIntrinsicAccessor = unsafe extern "C" fn(realm: *mut Realm) -> u64;
+pub type HostIntrinsicAccessor = unsafe extern "C" fn(realm: *mut JSRealm) -> JSValue;
 
 impl IntrinsicAccessor {
     fn compute_value(self, vm: &Vm, realm: Gc<Realm>) -> Value {
@@ -1589,6 +1591,32 @@ impl Object {
         phase: PropertyLookupPhase,
     ) -> ThrowCompletionOr<Value> {
         (self.methods().internal_get)(self, vm, property_key, receiver, cacheable_metadata, phase)
+    }
+
+    /// Runs [[Get]] on this object as one found in the prototype chain of the lookup that `metadata_for_caller`
+    /// belongs to, and fills that metadata only for a hit that an inline cache can keep. An object that forwards its
+    /// lookups to another one can then cache them without reading the metadata itself.
+    pub fn internal_get_as_prototype_of(
+        &self,
+        vm: &Vm,
+        property_key: &PropertyKey,
+        receiver: Value,
+        metadata_for_caller: Option<&mut CacheableGetPropertyMetadata>,
+    ) -> ThrowCompletionOr<Value> {
+        let mut metadata = CacheableGetPropertyMetadata::default();
+        let value = self.internal_get(
+            vm,
+            property_key,
+            receiver,
+            Some(&mut metadata),
+            PropertyLookupPhase::PrototypeChain,
+        )?;
+        if let Some(metadata_for_caller) = metadata_for_caller
+            && metadata.r#type == CacheableGetPropertyMetadataType::GetPropertyInPrototypeChain
+        {
+            *metadata_for_caller = metadata;
+        }
+        Ok(value)
     }
 
     pub fn internal_set(

@@ -58,8 +58,20 @@ fn configuration() -> cbindgen::Config {
         .iter()
         .map(|name| name.to_string())
         .collect();
+    configuration.defines = CFG_PREDICATES_AS_C_MACROS
+        .iter()
+        .map(|(predicate, macro_name)| (predicate.to_string(), macro_name.to_string()))
+        .collect();
     configuration
 }
+
+/// The predefined macros that stand for the cfg predicates of items in src/embedding, which cbindgen turns into #if
+/// conditions, as JSNativeFunction depends on how the target returns a C++ ThrowCompletionOr<Value>.
+const CFG_PREDICATES_AS_C_MACROS: &[(&str, &str)] = &[
+    ("target_arch = x86_64", "__x86_64__"),
+    ("target_vendor = apple", "__APPLE__"),
+    ("target_os = windows", "_WIN32"),
+];
 
 /// Parses the embedding module, whose mod.rs leads cbindgen to every file under it, and writes the header to `output`
 /// if it changed.
