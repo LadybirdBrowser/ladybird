@@ -71,7 +71,7 @@ ALLOWED_REALM_MENTIONS = {
     ),
     "Streams": (
         34,
-        213,
+        212,
         "Streams algorithms still use realms for controller/read/write operations and chunk conversion",
     ),
     "TrustedTypes": (2, 9, "Trusted Types policy factory operations still use selected realms"),

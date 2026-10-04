@@ -229,10 +229,10 @@ GC::Ref<WebIDL::Promise> ReadableStream::pipe_to(WritableStream& destination, St
     return readable_stream_pipe_to(realm, *this, destination, options.prevent_close, options.prevent_abort, options.prevent_cancel, signal);
 }
 
-WebIDL::ExceptionOr<GC::Ref<ReadableStreamAsyncIterator>> ReadableStream::values(ReadableStreamIteratorOptions options)
+WebIDL::ExceptionOr<GC::Ref<JS::Object>> ReadableStream::values(ReadableStreamIteratorOptions options)
 {
     auto& realm = this->realm();
-    return ReadableStreamAsyncIterator::create(realm, JS::Object::PropertyKind::Value, *this, options);
+    return TRY(ReadableStreamAsyncIterator::create(realm, JS::Object::PropertyKind::Value, *this, options));
 }
 
 // https://streams.spec.whatwg.org/#readablestream-tee
