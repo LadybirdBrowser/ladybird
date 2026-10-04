@@ -789,6 +789,19 @@ impl DocumentHost {
         read(&PaintSource::over_rows(&rows.paintable, &self.absolute_rects))
     }
 
+    /// Answers `read` from the rows the host has, where it knows they read as the arena does as of every write it made,
+    /// through the paint side's reads.
+    pub(crate) fn read_known_rows<R>(&self, read: impl FnOnce(&RowSnapshot, &PaintSource<'_>) -> R) -> Option<R> {
+        let rows = self.rows.borrow();
+        let rows = rows
+            .as_ref()
+            .filter(|rows| !self.in_job.get() && self.knows_rows_read_as_arena(rows))?;
+        Some(read(
+            rows,
+            &PaintSource::over_rows(&rows.paintable, &self.absolute_rects),
+        ))
+    }
+
     /// The rows as of every write the host made: the ones the host has where it knows they still read as the arena,
     /// and otherwise those the render state answers, spending `wait`, which are the ones the host has where they still
     /// read as the arena once the owner has applied the host's writes.
