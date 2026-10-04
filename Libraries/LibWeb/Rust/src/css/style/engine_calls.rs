@@ -1666,8 +1666,9 @@ pub unsafe extern "C" fn style_engine_counter(
 
 /// Decides what each property `input` prepared does to the transitions of its target, as the target's style changes
 /// from the record `before` to the record `after` it installed. Writes the values each decision compared into its
-/// property, and the decision into `actions`. The render owner reads the transform reference box of the target's
-/// element's box as it decides.
+/// property, and the decision into `actions`. The style transaction the host drains decided the step beside the row of
+/// an element whose step nothing but the engine's records decides; any other the render owner decides, reading the
+/// transform reference box of the target's element's box as it does.
 ///
 /// # Safety
 ///
@@ -1702,12 +1703,20 @@ pub unsafe extern "C" fn style_engine_decide_transitions(
         element: (input.target_pseudo_kind == u8::MAX)
             .then(|| StyleNodeID::from_raw(input.target_node))
             .flatten(),
-        element_box: crate::layout::node_data::NodeSlotId {
-            index: input.element_box_slot,
-        },
     };
     // SAFETY: As above.
-    with_engine_and_arena(read, unsafe { document_host(host) }, |engine, arena| {
-        decision.decide(engine, arena, properties, actions);
+    let host = unsafe { document_host(host) };
+    if decision.element.is_some()
+        && host.answer_decided_transition_step(input.target_node, &decision, properties, actions)
+    {
+        return;
+    }
+    let element_box = crate::layout::node_data::NodeSlotId {
+        index: input.element_box_slot,
+    };
+    with_engine_and_arena(read, host, |engine, arena| {
+        let reference_box =
+            crate::painting::ffi::committed_transform_reference_box(&arena.paintable_rows(), element_box);
+        decision.decide(engine, reference_box, properties, actions);
     });
 }

@@ -111,6 +111,11 @@ impl RetainedState {
         }
     }
 
+    /// The baseline of `node`'s element or pseudo-element of kind `pseudo_kind`, or 0 before a pass has recorded one.
+    pub(crate) fn transition_baseline(&self, node: StyleNodeID, pseudo_kind: u8) -> u64 {
+        self.transition_baselines.get(node, pseudo_kind)
+    }
+
     /// Where an inherited value of `property` in `table`, a record of `node`'s, comes from when an
     /// ancestor animates it. A record the engine derives holds the animated value its parent passed
     /// on in its table, where a transition decides against the value beneath the animations: an

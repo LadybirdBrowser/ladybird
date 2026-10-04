@@ -203,6 +203,9 @@ pub(crate) struct StyleJobAnswer {
     /// pseudo-style mask, by element, which the host reads as it settles the element's pseudo-elements over the
     /// composition.
     composed_pseudo_styles: Box<[(u32, u64)]>,
+    /// The transition steps the transaction decided beside the rows that owe them, by element, which the host's steps
+    /// read rather than ask.
+    decided_transition_steps: Box<[crate::css::transition::DecidedTransitionStep]>,
 }
 
 /// The view of each record a transaction's rows name and the custom-property environment it was computed in, by record,
@@ -233,6 +236,13 @@ impl StyleJobAnswer {
         let masks = &self.composed_pseudo_styles;
         let index = masks.binary_search_by_key(&node, |&(node, _)| node).ok()?;
         Some(masks[index].1)
+    }
+
+    /// The transition step the transaction decided beside the row of `node`, if it decided one.
+    pub(crate) fn decided_transition_step(&self, node: u32) -> Option<&crate::css::transition::DecidedTransitionStep> {
+        let steps = &self.decided_transition_steps;
+        let index = steps.binary_search_by_key(&node, |step| step.node()).ok()?;
+        Some(&steps[index])
     }
 }
 
@@ -297,10 +307,19 @@ impl StyleJob {
             })
             .collect();
         composed_pseudo_styles.sort_unstable_by_key(|&(node, _)| node);
+        // The host's transition step for a row that owes one asks how the row's move starts the element's transitions,
+        // which the transaction answers beside the row where nothing but the engine's records decides it.
+        let mut decided_transition_steps: Vec<_> = output
+            .answers()
+            .iter()
+            .filter_map(|row| crate::css::transition::DecidedTransitionStep::of_row(engine, row))
+            .collect();
+        decided_transition_steps.sort_unstable_by_key(crate::css::transition::DecidedTransitionStep::node);
         StyleJobAnswer {
             output,
             records: NamedRecords(records),
             composed_pseudo_styles: composed_pseudo_styles.into_boxed_slice(),
+            decided_transition_steps: decided_transition_steps.into_boxed_slice(),
         }
     }
 }
