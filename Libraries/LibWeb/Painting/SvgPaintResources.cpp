@@ -21,7 +21,8 @@ static bool push_svg_filter_reference(void const* url_value, Layout::NodeWithSty
     auto filter_element = resolve_svg_filter_reference({ .pointer = url_value }, layout_node);
     if (!filter_element)
         return false;
-    filter_element->push_primitives(sink);
+    auto dest_size = Gfx::enclosing_int_rect(absolute_rect(layout_node).to_type<float>()).size();
+    filter_element->push_primitives(sink, dest_size);
     return true;
 }
 

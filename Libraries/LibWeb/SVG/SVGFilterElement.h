@@ -29,7 +29,7 @@ public:
 
     // Hands every supported child primitive to the Rust primitive list behind `sink` as attribute
     // facts, with the frame an feImage draws for the list to retain.
-    void push_primitives(void* sink);
+    void push_primitives(void* sink, Gfx::IntSize dest_size);
 
     GC::Ref<SVGAnimatedEnumeration> filter_units() const;
     GC::Ref<SVGAnimatedEnumeration> primitive_units() const;
