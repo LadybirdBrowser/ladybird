@@ -569,15 +569,6 @@ void ConnectionFromClient::history_operation_started(Web::PageId page_id, Web::H
     }));
 }
 
-void ConnectionFromClient::reconstruct_child_navigable_history(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::ReconstructedChildNavigation navigation)
-{
-    auto page = this->page(page_id);
-    auto* navigable = page.has_value() ? as_if<Web::HTML::LocalNavigable>(page->page().navigable_with_id(navigable_id).ptr()) : nullptr;
-    if (!navigable || navigable->has_been_destroyed())
-        return;
-    navigable->route_child_created_during_history_reconstruction(move(navigation));
-}
-
 void ConnectionFromClient::run_beforeunload_check(Web::PageId page_id, Web::HTML::CrossProcessId check_id, Vector<Web::HTML::CrossProcessId> navigable_ids, Optional<Web::HTML::SessionHistoryEntryDescriptor> target_entry, Optional<Web::HTML::UserNavigationInvolvement> user_involvement_for_navigate_event, Web::HTML::UnloadPromptShown unload_prompt_shown)
 {
     auto page = this->page(page_id);

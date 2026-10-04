@@ -250,11 +250,6 @@ void PageClient::request_navigation_start(Web::HTML::LocalNavigable& navigable, 
     client().async_did_request_navigation_start(m_id, navigable.id(), target, url, move(navigation_id), move(start_request));
 }
 
-void PageClient::request_navigation_population(Web::HTML::LocalNavigable& navigable, Web::NavigationTarget target, Web::HTML::NavigationPopulationRequest request)
-{
-    client().async_did_request_navigation_population(m_id, navigable.id(), target, move(request));
-}
-
 void PageClient::request_navigation_of_navigable(Web::HTML::Navigable& navigable, Web::HTML::PreparedNavigationDescriptor navigation)
 {
     client().async_did_request_navigation_of_navigable(m_id, navigable.id(), move(navigation));

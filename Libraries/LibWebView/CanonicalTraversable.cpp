@@ -6,7 +6,6 @@
 
 #include <AK/NeverDestroyed.h>
 #include <AK/NumericLimits.h>
-#include <AK/Random.h>
 #include <AK/StringBuilder.h>
 #include <LibCore/EventLoop.h>
 #include <LibWebCommon/WebView/SiteIsolation.h>
@@ -1562,7 +1561,11 @@ void CanonicalTraversable::dispatch_changing_navigable_history_step_continuation
     } else {
         // 11. Otherwise:
         // 1. Assert: navigationType is not null.
-        VERIFY(pending_job.value()->job.navigation_type.has_value());
+        // AD-HOC: Except for a navigable created by a document repopulated for its entry, which displays its initial
+        //         about:blank until an update for a navigable's creation or destruction restores the entry its nested
+        //         history kept. See https://github.com/whatwg/html/issues/12724.
+        auto navigable = find(navigable_id);
+        VERIFY(pending_job.value()->job.navigation_type.has_value() || (navigable.has_value() && navigable->active_document().is_initial_about_blank()));
 
         // 2. Deactivate displayedDocument, given userInvolvement, targetEntry, navigationType, and
         //    afterPotentialUnloads.
@@ -2459,27 +2462,10 @@ void CanonicalTraversable::run_direct_history_operation(HistoryOperation& operat
                 return;
             }
 
-            // A navigable created by a document repopulated for its entry navigates to the entry its nested history
-            // kept, rather than starting from about:blank.
-            if (auto* target_entry = m_session_history.get_the_target_history_entry(*child_navigable, *current_step)) {
-                auto uuid = generate_random_uuid();
-                auto navigation_id = Utf16String::from_ascii_without_validation(uuid.bytes());
-                auto ongoing_navigation = CanonicalNavigation {
-                    .url = target_entry->url,
-                    .navigation_id = navigation_id,
-                    .sequence_number = next_sequence_number(),
-                    .has_started = true,
-                    .phase = CanonicalNavigation::Phase::Populating,
-                    .reconstructed_entry = target_entry,
-                };
-                child_navigable->set_ongoing_navigation(move(ongoing_navigation));
-                child_navigable->set_navigation_host(*operation.initiating_page);
-                auto reconstructed_child_navigation = Web::ReconstructedChildNavigation {
-                    .target_entry = target_entry->descriptor(),
-                    .navigation_id = move(navigation_id),
-                };
-                operation.initiating_page->async_reconstruct_child_navigable_history(parameters.navigable_id, move(reconstructed_child_navigation));
-                finish_history_operation(operation.operation_id, Web::HTML::HistoryStepResult::Applied, {});
+            // A navigable created by a document repopulated for its entry already has the nested history that entry
+            // kept. Updating for its creation populates the entry the history holds for it at the current step.
+            if (m_session_history.get_the_target_history_entry(*child_navigable, *current_step)) {
+                update_for_navigable_creation_or_destruction(operation);
                 return;
             }
 
@@ -2680,13 +2666,8 @@ void CanonicalTraversable::finalize_a_cross_document_navigation(HistoryOperation
 
     // 5. Let entryToReplace be navigable's active session history entry if historyHandling is "replace", otherwise null.
     RefPtr<CanonicalSessionHistoryEntry> entry_to_replace;
-    if (parameters.history_handling == Web::HTML::HistoryHandlingBehavior::Replace) {
+    if (parameters.history_handling == Web::HTML::HistoryHandlingBehavior::Replace)
         entry_to_replace = navigable->active_session_history_entry();
-
-        // AD-HOC: A navigation reconstructing the navigable's history replaces the entry whose document it populates.
-        if (auto const& ongoing_navigation = navigable->ongoing_navigation(); ongoing_navigation.has_value() && ongoing_navigation->reconstructed_entry && ongoing_navigation->navigation_id == parameters.navigation_id)
-            entry_to_replace = ongoing_navigation->reconstructed_entry;
-    }
     if (parameters.history_handling == Web::HTML::HistoryHandlingBehavior::Replace && !entry_to_replace) {
         finish_history_operation(operation.operation_id, Web::HTML::HistoryStepResult::NoMatchingEntry, {});
         return;

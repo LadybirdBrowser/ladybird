@@ -130,17 +130,6 @@ void ApplyHistoryStep::get_changing_and_nonchanging_navigables()
     //    or reload given traversable and targetStep.
     m_changing_navigables = m_session_history.get_all_navigables_whose_current_session_history_entry_will_change_or_reload(m_traversable_navigable, m_target_step);
 
-    // AD-HOC: A navigation reconstructing a child navigable's history populates the entry it reconstructs, and
-    //         activates its document once it is finalized. A step targeting that entry before then leaves the
-    //         navigable to the navigation.
-    m_changing_navigables.remove_all_matching([&](auto navigable_id) {
-        auto const* navigable = find_navigable(navigable_id);
-        if (!navigable || !navigable->ongoing_navigation().has_value())
-            return false;
-        auto const& reconstructed_entry = navigable->ongoing_navigation()->reconstructed_entry;
-        return reconstructed_entry && reconstructed_entry == m_session_history.get_the_target_history_entry(*navigable, m_target_step);
-    });
-
     // 7. Let nonchangingNavigablesThatStillNeedUpdates be the result of getting all navigables that only need
     //    history object length/index update given traversable and targetStep.
     m_nonchanging_navigables_that_still_need_updates = m_session_history.get_all_navigables_that_only_need_history_object_length_index_update(m_traversable_navigable, m_target_step);

@@ -2143,11 +2143,6 @@ void PageClient::request_navigation_start(HTML::LocalNavigable&, NavigationTarge
     VERIFY_NOT_REACHED();
 }
 
-void PageClient::request_navigation_population(HTML::LocalNavigable&, NavigationTarget, HTML::NavigationPopulationRequest)
-{
-    VERIFY_NOT_REACHED();
-}
-
 void PageClient::navigation_params_creation_finished(HTML::LocalNavigable&, HTML::NavigationPopulationRequest, HTML::NavigationPopulationResult)
 {
     VERIFY_NOT_REACHED();

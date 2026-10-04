@@ -901,24 +901,6 @@ void LocalNavigable::set_current_session_history_entry(RefPtr<SessionHistoryEntr
     m_current_session_history_entry = move(entry);
 }
 
-void LocalNavigable::route_child_created_during_history_reconstruction(Web::ReconstructedChildNavigation navigation)
-{
-    prepare_to_populate_reconstructed_history_entry(navigation.target_entry.navigation_api_key);
-
-    auto source_snapshot_params = snapshot_source_snapshot_params(nullptr);
-    auto request = NavigationPopulationRequest {
-        .navigable_id = id(),
-        .history_entry = create_pending_session_history_entry_descriptor(move(navigation.target_entry)),
-        .source_snapshot_params = create_navigation_source_snapshot(source_snapshot_params),
-        .target_snapshot_params = snapshot_target_snapshot_params(*this),
-        .csp_navigation_type = ContentSecurityPolicy::Directives::Directive::NavigationType::Other,
-        .history_handling = Bindings::NavigationHistoryBehavior::Replace,
-        .user_involvement = UserNavigationInvolvement::BrowserUI,
-        .navigation_id = move(navigation.navigation_id),
-    };
-    request_population_for_reconstructed_history_entry(move(request));
-}
-
 // AD-HOC: The UI process ran steps 1-4 of attempting to populate the history entry's document. Continue at the
 //         algorithm's queued-global-task boundary instead of restarting the algorithm in this process.
 void LocalNavigable::continue_navigation_at_population(NavigationPopulationRequest request, NavigationPopulationResult result)
@@ -1760,19 +1742,14 @@ void LocalNavigable::process_pending_navigations()
     }
 }
 
-void LocalNavigable::prepare_to_populate_reconstructed_history_entry(Utf16String navigation_api_key)
+// The entry a child navigable's nested history kept is restored in place of the navigation its container started.
+void LocalNavigable::drop_container_navigation_for_restored_entry()
 {
     auto index = m_pending_navigations.find_first_index_if([](auto const& pending) {
         return !pending.population_navigation_id.has_value();
     });
     if (index.has_value())
         m_pending_navigations.remove(*index);
-
-    auto initial_entry = active_session_history_entry();
-    VERIFY(initial_entry);
-    initial_entry->set_navigation_api_key(move(navigation_api_key));
-
-    set_delaying_load_events(true);
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#the-rules-for-choosing-a-navigable
@@ -3984,23 +3961,6 @@ bool LocalNavigable::resume_navigation_params_creation(Utf16String const& naviga
     VERIFY(pending->continue_steps);
     pending->continue_steps->function()(move(pending->navigation), move(request));
     return true;
-}
-
-void LocalNavigable::request_population_for_reconstructed_history_entry(NavigationPopulationRequest request)
-{
-    set_ongoing_navigation(request.navigation_id);
-    auto source_snapshot_params = snapshot_source_snapshot_params(nullptr);
-    auto navigation_id = request.navigation_id;
-    auto continue_steps = GC::create_function(heap(), [this, source_snapshot_params](Optional<PreparedNavigation> pending_navigation, Optional<NavigationPopulationRequest> population_request) mutable {
-        VERIFY(!pending_navigation.has_value());
-        VERIFY(population_request.has_value());
-        auto request = population_request.release_value();
-        auto navigation_timing_type = request.history_entry.document_state.reload_pending ? Bindings::NavigationTimingType::Reload : Bindings::NavigationTimingType::BackForward;
-        create_navigation_params_for_navigation(move(request), source_snapshot_params, NullOrError {}, navigation_timing_type);
-    });
-
-    park_navigation_for_population(navigation_id, {}, continue_steps);
-    page().client().request_navigation_population(*this, NavigationTarget::IFrame, move(request));
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#navigate-fragid

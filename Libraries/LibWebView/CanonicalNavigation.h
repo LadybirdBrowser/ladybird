@@ -52,9 +52,6 @@ public:
     OwnPtr<NavigationLoader> loader {};
     RefPtr<WebContentPage> population_worker {};
     RefPtr<WebContentPage> host {};
-    // AD-HOC: The session history entry whose document a navigation reconstructing a child navigable's history
-    //         populates.
-    RefPtr<CanonicalSessionHistoryEntry> reconstructed_entry {};
     Optional<PopulatedDocument> populated_document {};
 };
 

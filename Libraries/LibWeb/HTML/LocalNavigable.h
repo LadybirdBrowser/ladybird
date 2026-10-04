@@ -199,8 +199,6 @@ public:
     void navigate_to_a_fragment(URL::URL const&, HistoryHandlingBehavior, UserNavigationInvolvement, GC::Ptr<DOM::Element> source_element, Optional<StorageSerializationRecord> navigation_api_state, Utf16String navigation_id, GC::Ptr<NavigationAPIMethodTracker> api_method_tracker);
     void deliver_posted_message_from_another_process(PostedMessageDescriptor);
     void run_navigation_unload_check(Utf16String const& navigation_id, UnloadPromptShown, GC::Ref<GC::Function<void(bool)>> completion_steps);
-    void request_population_for_reconstructed_history_entry(NavigationPopulationRequest);
-    void route_child_created_during_history_reconstruction(Web::ReconstructedChildNavigation);
     void continue_navigation_at_population(NavigationPopulationRequest, NavigationPopulationResult);
 
     void populate_session_history_entry_document(
@@ -303,7 +301,7 @@ public:
     bool has_pending_navigations() const { return !m_pending_navigations.is_empty(); }
     bool has_navigation_parked_for_population(Utf16String const& navigation_id) const;
     void clear_pending_navigations();
-    void prepare_to_populate_reconstructed_history_entry(Utf16String navigation_api_key);
+    void drop_container_navigation_for_restored_entry();
 
     // Commits the frame that brings the compositor context up to date to the render owner, which presents it beside the
     // event loop: a new display list, or what changed for the one it has. Answers whether it committed one.
