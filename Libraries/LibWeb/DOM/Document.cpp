@@ -1969,8 +1969,10 @@ void Document::record_style_stabilization_pass(Layout::BegunRead const& read)
     constexpr u64 ordinary_stabilization_round_limit = 8;
     if (m_style_stabilization_pass_count == ordinary_stabilization_round_limit + 1)
         ++m_style_invalidation_counters.style_stabilization_round_guard_hits;
-    if (m_style_stabilization_pass_count > ordinary_stabilization_round_limit)
-        ++m_style_invalidation_counters.exact_stabilization_passes;
+    // The exact bound is never reached within the ordinary rounds, so they need not ask the engine for it.
+    if (m_style_stabilization_pass_count <= ordinary_stabilization_round_limit)
+        return;
+    ++m_style_invalidation_counters.exact_stabilization_passes;
 
     // Size-query and style-reaction dependencies are acyclic, so a coherent pass settles at
     // least one more connected element. Include inner StyleEngine transactions in the same exact
