@@ -11,6 +11,7 @@ use ak::{ScopeGuard, Utf16FlyString};
 use libjs_runtime_macros::Trace;
 
 use crate::gc::class::{GcCell, define_cell};
+use crate::gc::foreign::ForeignCellSlot;
 use crate::gc::visitor::{Trace, Visitor};
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
@@ -79,7 +80,7 @@ impl Deref for SyntheticModule {
 }
 
 pub const SYNTHETIC_MODULE_METHODS: ModuleMethods = ModuleMethods {
-    load_requested_modules: |module, vm| as_synthetic_module(module).load_requested_modules(vm),
+    load_requested_modules: |module, vm, _| as_synthetic_module(module).load_requested_modules(vm),
     get_exported_names: |module, _, _: &ExportStarSet<'_>| as_synthetic_module(module).get_exported_names(),
     resolve_export: |module, _, export_name, _: ResolveSet<'_>| as_synthetic_module(module).resolve_export(export_name),
     link: |module, vm| as_synthetic_module(module).link(vm),
@@ -117,7 +118,7 @@ impl SyntheticModule {
             );
         };
         let module = vm.heap().allocate(SyntheticModule {
-            base: Module::new(Self::CLASS, realm, filename),
+            base: Module::new(Self::CLASS, realm, filename, ForeignCellSlot::empty()),
             export_names,
             evaluation_steps: OnceCell::new(),
         });

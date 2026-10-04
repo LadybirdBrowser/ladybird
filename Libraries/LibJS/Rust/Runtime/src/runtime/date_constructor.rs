@@ -28,10 +28,16 @@ use crate::runtime::value::PreferredType;
 use crate::runtime::value_conversions::to_integer_or_infinity;
 use crate::utf16::Utf16View;
 
-fn parse_date_string(date_string: Utf16View<'_>) -> f64 {
-    // NB: The C++ calls vm.host_unrecognized_date_string() when the result compares equal to NAN, which no double
-    //     does, so it never calls it.
-    DateParser::parse(date_string)
+fn parse_date_string(vm: &Vm, date_string: Utf16View<'_>) -> f64 {
+    let result = DateParser::parse(date_string);
+    // NB: The C++ compares the result with NAN, which no double equals, so it never tells the host.
+    if result.is_nan() {
+        // NB: The view can be into the string an unresolved substring was taken from, which a collection may free
+        //     once the hook runs code that resolves the substring.
+        let date_string = date_string.to_utf16_string();
+        (vm.host_unrecognized_date_string())(vm, Utf16View::of_string(&date_string));
+    }
+    result
 }
 
 #[repr(C)]
@@ -139,7 +145,7 @@ impl DateConstructor {
                     if primitive.is_string() {
                         // 1. Assert: The next step never returns an abrupt completion because Type(v) is String.
                         // 2. Let tv be the result of parsing v as a date, in exactly the same manner as for the parse method (21.4.3.2).
-                        parse_date_string(primitive.as_string().utf16_string_view())
+                        parse_date_string(vm, primitive.as_string().utf16_string_view())
                     }
                     // iii. Else,
                     else {
@@ -223,7 +229,10 @@ impl DateConstructor {
 
         // Otherwise, this function interprets the resulting String as a date and time; it returns a Number, the UTC time
         // value corresponding to the date and time.
-        Ok(Value::from_f64(parse_date_string(Utf16View::of_string(&date_string))))
+        Ok(Value::from_f64(parse_date_string(
+            vm,
+            Utf16View::of_string(&date_string),
+        )))
     }
 
     // 21.4.3.4 Date.UTC ( year [ , month [ , date [ , hours [ , minutes [ , seconds [ , ms ] ] ] ] ] ] ), https://tc39.es/ecma262/#sec-date.utc

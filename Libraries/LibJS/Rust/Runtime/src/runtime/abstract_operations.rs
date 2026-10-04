@@ -2589,6 +2589,7 @@ pub fn perform_import_call(vm: &Vm, specifier: Value, options: Value) -> ThrowCo
         vm,
         referrer,
         &request,
+        None,
         ImportedModulePayload::PromiseCapability(promise_capability),
     );
 

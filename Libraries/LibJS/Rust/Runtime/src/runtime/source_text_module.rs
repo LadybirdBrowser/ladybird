@@ -13,6 +13,7 @@ use libjs_runtime_macros::Trace;
 
 use crate::bytecode::executable::Executable;
 use crate::gc::class::{GcCell, define_cell};
+use crate::gc::foreign::ForeignCellSlot;
 use crate::gc::gc_ref_cell::GcRefCell;
 use crate::gc::root::MarkedVec;
 use crate::interpreter::execution_context::OwnedExecutionContext;
@@ -174,15 +175,25 @@ impl SourceTextModule {
     ) -> Gc<SourceTextModule> {
         assert!(parsed.program_type() == ProgramType::Module && !parsed.has_errors());
         let source_length = source_code.length_in_code_units();
-        Self::create(vm, realm, filename, compile_module(parsed, source_length), source_code)
+        Self::create(
+            vm,
+            realm,
+            filename,
+            compile_module(parsed, source_length),
+            source_code,
+            ForeignCellSlot::empty(),
+        )
     }
 
-    fn create(
+    /// The Source Text Module Record of a module compiled, on any thread, from the code of `source_code`, whose
+    /// filename the module's code reports. Module loading resolves the module's imports against `filename`.
+    pub fn create(
         vm: &Vm,
         realm: Gc<Realm>,
         filename: &str,
         compiled: CompiledModule,
         source_code: Rc<SourceCode>,
+        host_defined: ForeignCellSlot,
     ) -> Gc<SourceTextModule> {
         let CompiledModule {
             executable,
@@ -275,6 +286,7 @@ impl SourceTextModule {
                 filename.to_string(),
                 has_top_level_await,
                 requested_modules,
+                host_defined,
             ),
             execution_context: OwnedExecutionContext::create(0, 0, 0),
             import_meta: Cell::new(None),

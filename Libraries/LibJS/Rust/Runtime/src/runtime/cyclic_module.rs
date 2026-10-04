@@ -10,6 +10,7 @@ use core::ops::Deref;
 use libjs_runtime_macros::Trace;
 
 use crate::gc::class::{Class, define_cell};
+use crate::gc::foreign::ForeignCellSlot;
 use crate::gc::gc_ref_cell::GcRefCell;
 use crate::gc::root::MarkedVec;
 use crate::interpreter::vm::Vm;
@@ -76,7 +77,9 @@ impl Deref for CyclicModule {
 pub const CYCLIC_MODULE_METHODS: ModuleMethods = ModuleMethods {
     link: |module, vm| as_cyclic_module(module).link(vm),
     evaluate: |module, vm| as_cyclic_module(module).evaluate(vm),
-    load_requested_modules: |module, vm| as_cyclic_module(module).load_requested_modules(vm),
+    load_requested_modules: |module, vm, host_defined| {
+        as_cyclic_module(module).load_requested_modules(vm, host_defined)
+    },
     inner_module_linking: |module, vm, stack, index| as_cyclic_module(module).inner_module_linking(vm, stack, index),
     inner_module_evaluation: |module, vm, stack, index| {
         as_cyclic_module(module).inner_module_evaluation(vm, stack, index)
@@ -103,17 +106,18 @@ fn new_intrinsic_promise_capability(vm: &Vm, realm: Gc<Realm>) -> Gc<PromiseCapa
 }
 
 impl CyclicModule {
-    /// CyclicModule(Realm&, StringView filename, bool has_top_level_await, Vector<ModuleRequest> requested_modules),
-    /// for `class`, which extends CyclicModule.
+    /// CyclicModule(Realm&, StringView filename, bool has_top_level_await, Vector<ModuleRequest> requested_modules,
+    /// GC::Ptr<GC::Cell> host_defined), for `class`, which extends CyclicModule.
     pub fn new(
         class: &'static Class,
         realm: Gc<Realm>,
         filename: String,
         has_top_level_await: bool,
         requested_modules: Vec<ModuleRequest>,
+        host_defined: ForeignCellSlot,
     ) -> CyclicModule {
         CyclicModule {
-            base: Module::new(class, realm, filename),
+            base: Module::new(class, realm, filename, host_defined),
             status: Cell::new(ModuleStatus::New),
             evaluation_error: Cell::new(None),
             dfs_index: Cell::new(None),
@@ -173,16 +177,16 @@ impl CyclicModule {
     }
 
     // 16.2.1.5.1 LoadRequestedModules ( [ hostDefined ] ), https://tc39.es/ecma262/#sec-LoadRequestedModules
-    fn load_requested_modules(&self, vm: &Vm) -> Gc<PromiseCapability> {
+    fn load_requested_modules(&self, vm: &Vm, host_defined: ForeignCellSlot) -> Gc<PromiseCapability> {
         // 1. If hostDefined is not present, let hostDefined be EMPTY.
-        // NOTE: The empty state is handled by hostDefined being an optional without value.
+        // NOTE: The empty state is handled by hostDefined being an empty slot.
 
         // 2. Let pc be ! NewPromiseCapability(%Promise%).
         let realm = vm.current_realm().expect("LoadRequestedModules runs in a realm");
         let promise_capability = new_intrinsic_promise_capability(vm, realm);
 
         // 3. Let state be the GraphLoadingState Record { [[IsLoading]]: true, [[PendingModulesCount]]: 1, [[Visited]]: « », [[PromiseCapability]]: pc, [[HostDefined]]: hostDefined }.
-        let state = GraphLoadingState::create(vm, promise_capability, true, 1);
+        let state = GraphLoadingState::create(vm, promise_capability, true, 1, host_defined);
 
         // 4. Perform InnerModuleLoading(state, module).
         inner_module_loading(vm, state, self.as_gc());
@@ -1007,6 +1011,7 @@ pub fn inner_module_loading(vm: &Vm, state: Gc<GraphLoadingState>, module: Gc<Mo
                     vm,
                     ImportedModuleReferrer::CyclicModule(cyclic_module),
                     &request,
+                    state.host_defined(),
                     ImportedModulePayload::GraphLoadingState(state),
                 );
 
@@ -1110,7 +1115,7 @@ pub fn continue_dynamic_import(
     };
 
     // 3. Let loadPromise be module.LoadRequestedModules().
-    let load_promise = module.load_requested_modules(vm);
+    let load_promise = module.load_requested_modules(vm, ForeignCellSlot::empty());
 
     // 4. Let rejectedClosure be a new Abstract Closure with parameters (reason) that captures promiseCapability and performs the
     //    following steps when called:

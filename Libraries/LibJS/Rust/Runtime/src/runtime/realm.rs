@@ -5,14 +5,18 @@
  */
 
 use core::cell::Cell;
+use core::ffi::c_void;
+use core::ptr::NonNull;
 
 use crate::gc::class::{Extends, GcCell, define_cell};
+use crate::gc::foreign::ForeignCellSlot;
 use crate::gc::visitor::{Trace, Visitor};
 use crate::interpreter::execution_context::OwnedExecutionContext;
 use crate::interpreter::vm::Vm;
 use crate::layout::accessor::Accessor;
 use crate::layout::cell::{CellHeader, Gc};
 use crate::layout::environment::{DeclarativeEnvironment, GlobalEnvironment};
+use crate::layout::execution_context::{ExecutionContext, ScriptOrModule};
 use crate::layout::function_object::FunctionObject;
 use crate::layout::object::Object;
 pub use crate::layout::realm::Realm;
@@ -22,7 +26,7 @@ use crate::runtime::intrinsics::Intrinsics;
 use crate::runtime::object::allocate_object;
 use crate::runtime::shape::Shape;
 
-/// The parts of a realm the interpreter does not read. [[HostDefined]] comes with the hosts that define it.
+/// The parts of a realm the interpreter does not read.
 #[derive(Default)]
 pub struct RealmStorage {}
 
@@ -35,6 +39,7 @@ unsafe impl Trace for Realm {
         self.global_object.trace(visitor);
         self.global_environment.trace(visitor);
         self.global_declarative_environment.trace(visitor);
+        self.host_defined.trace(visitor);
     }
 }
 
@@ -107,17 +112,32 @@ impl Realm {
             global_declarative_environment: Cell::new(None),
             global_environment: Cell::new(None),
             intrinsics: Cell::new(None),
+            host_defined: ForeignCellSlot::empty(),
             storage: RealmStorage::default(),
         })
     }
 
     // 9.3.1 InitializeHostDefinedRealm ( ), https://tc39.es/ecma262/#sec-initializehostdefinedrealm
-    #[allow(clippy::unnecessary_wraps, reason = "the operation can throw in the spec")]
     pub fn initialize_host_defined_realm(
         vm: &Vm,
         create_global_object: Option<&dyn Fn(Gc<Realm>) -> Gc<Object>>,
         create_global_this_value: Option<&dyn Fn(Gc<Realm>) -> Gc<Object>>,
     ) -> ThrowCompletionOr<OwnedExecutionContext> {
+        // 7. Let newContext be a new execution context.
+        let new_context = OwnedExecutionContext::create(0, 0, 0);
+        Self::initialize_host_defined_realm_in(vm, &new_context, create_global_object, create_global_this_value)?;
+        Ok(new_context)
+    }
+
+    /// InitializeHostDefinedRealm with `new_context`, a new execution context of the caller's, as its newContext. The
+    /// context stays on the execution context stack, as the running execution context, until the caller pops it.
+    #[allow(clippy::unnecessary_wraps, reason = "the operation can throw in the spec")]
+    pub fn initialize_host_defined_realm_in(
+        vm: &Vm,
+        new_context: &ExecutionContext,
+        create_global_object: Option<&dyn Fn(Gc<Realm>) -> Gc<Object>>,
+        create_global_this_value: Option<&dyn Fn(Gc<Realm>) -> Gc<Object>>,
+    ) -> ThrowCompletionOr<Gc<Realm>> {
         // 1. Let realm be a new Realm Record
         let realm = Realm::create(vm);
 
@@ -133,7 +153,7 @@ impl Realm {
         // FIXME: 6. Set realm.[[TemplateMap]] to a new empty List.
 
         // 7. Let newContext be a new execution context.
-        let new_context = OwnedExecutionContext::create(0, 0, 0);
+        // NOTE: The caller passes it in.
 
         // 8. Set the Function of newContext to null.
         new_context.function.set(None);
@@ -142,12 +162,10 @@ impl Realm {
         new_context.realm.set(Some(realm));
 
         // 10. Set the ScriptOrModule of newContext to null.
-        new_context
-            .script_or_module
-            .set(crate::layout::execution_context::ScriptOrModule::Empty);
+        new_context.script_or_module.set(ScriptOrModule::Empty);
 
         // 11. Push newContext onto the execution context stack; newContext is now the running execution context.
-        vm.push_execution_context(new_context.as_non_null());
+        vm.push_execution_context(NonNull::from(new_context));
 
         // 12. If the host requires use of an exotic object to serve as realm's global object, then
         let global = if let Some(create_global_object) = create_global_object {
@@ -186,7 +204,7 @@ impl Realm {
         global.initialize(vm, realm);
 
         // 20. Return unused.
-        Ok(new_context)
+        Ok(realm)
     }
 
     /// Realm::create<T>(): allocates an object and runs its initialize(), which defines the properties of built-in
@@ -229,6 +247,11 @@ impl Realm {
         self.global_environment.set(Some(environment));
         self.global_declarative_environment
             .set(Some(environment.declarative_record()));
+    }
+
+    /// [[HostDefined]]
+    pub fn host_defined(&self) -> Option<NonNull<c_void>> {
+        self.host_defined.get()
     }
 
     pub fn global_declarative_environment(&self) -> Gc<DeclarativeEnvironment> {

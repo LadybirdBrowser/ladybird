@@ -4,18 +4,24 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use crate::embedding::hooks::EmbedderAgent;
 use crate::interpreter::vm::Vm;
 
-/// The fields of the surrounding agent's Agent Record that the runtime reads, 9.7 Agents.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+/// The fields of the surrounding agent's Agent Record that the runtime reads, 9.7 Agents, and the event loop of the
+/// agent if the embedder provides it.
+#[derive(Clone, Copy)]
 pub struct AgentRecord {
     pub can_block: bool, // [[CanBlock]]
+    pub embedder_agent: Option<EmbedderAgent>,
 }
 
 /// The agent of a VM whose embedder provides none, such as standalone LibJS.
 impl Default for AgentRecord {
     fn default() -> Self {
-        Self { can_block: true }
+        Self {
+            can_block: true,
+            embedder_agent: None,
+        }
     }
 }
 

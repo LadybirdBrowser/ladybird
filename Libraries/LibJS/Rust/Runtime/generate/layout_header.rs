@@ -321,6 +321,7 @@ pub fn generate() -> LayoutHeader {
     offset!(w, "REALM_GLOBAL_OBJECT", Realm, global_object);
     offset!(w, "REALM_GLOBAL_ENVIRONMENT", Realm, global_environment);
     offset!(w, "REALM_INTRINSICS", Realm, intrinsics);
+    offset!(w, "REALM_HOST_DEFINED", Realm, host_defined);
 
     w.section("ExecutionContext, whose value slots follow it directly");
     every_field_offset!(w, "EXECUTION_CONTEXT", ExecutionContext {

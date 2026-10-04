@@ -12,12 +12,15 @@
 //! C++ class overrides.
 
 use core::cell::Cell;
+use core::ffi::c_void;
+use core::ptr::NonNull;
 
 use ak::{Utf16FlyString, Utf16String};
 use libjs_runtime_macros::Trace;
 
 use crate::gc::class::{Class, GcCell, define_cell};
 use crate::gc::class_id::ClassId;
+use crate::gc::foreign::ForeignCellSlot;
 use crate::gc::gc_ref_cell::GcRefCell;
 use crate::gc::root::MarkedVec;
 use crate::interpreter::vm::Vm;
@@ -108,7 +111,6 @@ pub fn module_stack_contains(stack: &ModuleStack<'_>, module: Gc<Module>) -> boo
 }
 
 // https://tc39.es/ecma262/#graphloadingstate-record
-// NB: [[HostDefined]] is not ported: no host passes one yet.
 #[repr(C)]
 #[derive(Trace)]
 pub struct GraphLoadingState {
@@ -117,6 +119,7 @@ pub struct GraphLoadingState {
     is_loading: Cell<bool>,                    // [[IsLoading]]
     pending_module_count: Cell<usize>,         // [[PendingModulesCount]]
     visited: GcRefCell<Vec<Gc<CyclicModule>>>, // [[Visited]]
+    host_defined: ForeignCellSlot,             // [[HostDefined]]
 }
 
 define_cell!(GraphLoadingState, Other);
@@ -127,6 +130,7 @@ impl GraphLoadingState {
         promise_capability: Gc<PromiseCapability>,
         is_loading: bool,
         pending_module_count: usize,
+        host_defined: ForeignCellSlot,
     ) -> Gc<GraphLoadingState> {
         vm.heap().allocate(GraphLoadingState {
             header: CellHeader::for_class(Self::CLASS),
@@ -134,11 +138,16 @@ impl GraphLoadingState {
             is_loading: Cell::new(is_loading),
             pending_module_count: Cell::new(pending_module_count),
             visited: GcRefCell::new(Vec::new()),
+            host_defined,
         })
     }
 
     pub fn promise_capability(&self) -> Gc<PromiseCapability> {
         self.promise_capability
+    }
+
+    pub fn host_defined(&self) -> Option<NonNull<c_void>> {
+        self.host_defined.get()
     }
 
     pub fn is_loading(&self) -> bool {
@@ -183,7 +192,7 @@ pub struct ModuleMethods {
     pub resolve_export: fn(&Module, &Vm, &Utf16FlyString, ResolveSet<'_>) -> ResolvedBinding,
     pub inner_module_linking: fn(&Module, &Vm, &ModuleStack<'_>, u32) -> ThrowCompletionOr<u32>,
     pub inner_module_evaluation: fn(&Module, &Vm, &ModuleStack<'_>, u32) -> ThrowCompletionOr<u32>,
-    pub load_requested_modules: fn(&Module, &Vm) -> Gc<PromiseCapability>,
+    pub load_requested_modules: fn(&Module, &Vm, ForeignCellSlot) -> Gc<PromiseCapability>,
 }
 
 pub const MODULE_METHODS: ModuleMethods = ModuleMethods {
@@ -193,11 +202,10 @@ pub const MODULE_METHODS: ModuleMethods = ModuleMethods {
     resolve_export: |_, _, _, _| unreachable!("Module::resolve_export is pure virtual"),
     inner_module_linking: Module::inner_module_linking_of_module,
     inner_module_evaluation: Module::inner_module_evaluation_of_module,
-    load_requested_modules: |_, _| unreachable!("Module::load_requested_modules is pure virtual"),
+    load_requested_modules: |_, _, _| unreachable!("Module::load_requested_modules is pure virtual"),
 };
 
 // 16.2.1.4 Abstract Module Records, https://tc39.es/ecma262/#sec-abstract-module-records
-// NB: [[HostDefined]] is not ported: no host passes one yet.
 #[repr(C)]
 #[derive(Trace)]
 pub struct Module {
@@ -205,6 +213,7 @@ pub struct Module {
     realm: Gc<Realm>,                                 // [[Realm]]
     environment: Cell<Option<Gc<ModuleEnvironment>>>, // [[Environment]]
     namespace: Cell<Option<Gc<Object>>>,              // [[Namespace]]
+    host_defined: ForeignCellSlot,                    // [[HostDefined]]
 
     // Needed for potential lookups of modules.
     filename: String,
@@ -213,13 +222,14 @@ pub struct Module {
 define_cell!(Module, Other);
 
 impl Module {
-    /// Module(Realm&, ByteString filename), for `class`, which extends Module.
-    pub fn new(class: &'static Class, realm: Gc<Realm>, filename: String) -> Module {
+    /// Module(Realm&, ByteString filename, GC::Ptr<GC::Cell> host_defined), for `class`, which extends Module.
+    pub fn new(class: &'static Class, realm: Gc<Realm>, filename: String, host_defined: ForeignCellSlot) -> Module {
         Module {
             header: CellHeader::for_class(class),
             realm,
             environment: Cell::new(None),
             namespace: Cell::new(None),
+            host_defined,
             filename,
         }
     }
@@ -259,6 +269,10 @@ impl Module {
 
     pub fn filename(&self) -> &str {
         &self.filename
+    }
+
+    pub fn host_defined(&self) -> Option<NonNull<c_void>> {
+        self.host_defined.get()
     }
 
     pub fn environment(&self) -> Option<Gc<ModuleEnvironment>> {
@@ -311,9 +325,9 @@ impl Module {
         (self.methods().inner_module_evaluation)(self, vm, stack, index)
     }
 
-    /// LoadRequestedModules ( [ hostDefined ] ), without the hostDefined that no host passes yet.
-    pub fn load_requested_modules(&self, vm: &Vm) -> Gc<PromiseCapability> {
-        (self.methods().load_requested_modules)(self, vm)
+    /// LoadRequestedModules ( [ hostDefined ] ), where an empty slot stands for a hostDefined that is not present.
+    pub fn load_requested_modules(&self, vm: &Vm, host_defined: ForeignCellSlot) -> Gc<PromiseCapability> {
+        (self.methods().load_requested_modules)(self, vm, host_defined)
     }
 
     // 16.2.1.5.1 EvaluateModuleSync ( module ), https://tc39.es/ecma262/#sec-EvaluateModuleSync

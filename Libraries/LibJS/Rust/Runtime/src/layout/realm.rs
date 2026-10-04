@@ -9,7 +9,7 @@ use core::cell::Cell;
 use super::cell::{CellHeader, Gc};
 use super::environment::{DeclarativeEnvironment, GlobalEnvironment};
 use super::object::Object;
-use crate::layout_forward::{Intrinsics, RealmStorage};
+use crate::layout_forward::{ForeignCellSlot, Intrinsics, RealmStorage};
 
 #[repr(C)]
 pub struct Realm {
@@ -19,5 +19,7 @@ pub struct Realm {
     pub global_declarative_environment: Cell<Option<Gc<DeclarativeEnvironment>>>,
     pub global_environment: Cell<Option<Gc<GlobalEnvironment>>>,
     pub intrinsics: Cell<Option<Gc<Intrinsics>>>,
+    /// [[HostDefined]]: a cell of the embedder, such as the settings object of a web realm.
+    pub host_defined: ForeignCellSlot,
     pub storage: RealmStorage,
 }
