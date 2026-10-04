@@ -43,7 +43,6 @@ enum class ForceScrollStateRefresh {
 // Refreshes the snapshot from the Rust scroll state; false when nothing had invalidated it and
 // the refresh was not forced.
 WEB_API bool rust_refresh_scroll_state(Layout::BegunRead const&, DOM::Document&, Compositing::ScrollStateSnapshot&, ForceScrollStateRefresh = ForceScrollStateRefresh::No);
-WEB_API void rust_invalidate_scroll_state(DOM::Document&);
 struct InspectorOverlayInputs {
     Layout::Node const* highlighted_layout_node { nullptr };
     Color tooltip_color;

@@ -158,8 +158,8 @@ void EventLoop::process()
 
     m_task_generation++;
 
-    // AD-HOC: A rendering update's recording flies beside the tasks after it, and is taken in once it has finished,
-    //         between two tasks.
+    // AD-HOC: A rendering update's style transaction and recording fly beside the tasks after it, and each is taken in
+    //         once it has finished, between two tasks.
     take_finished_frames_in();
 
     // Some algorithms request that steps or states only occur once the event loop has reached step 1.
@@ -945,12 +945,10 @@ bool EventLoop::holds_rendering_opportunity() const
 
 void EventLoop::take_finished_frames_in()
 {
-    // A rendering update whose style transaction has landed goes on, and so does one that a task would run beside,
-    // waiting for the transaction to land: the engine answers what the task asks of it in place, which the drain of the
-    // transaction must not see. Neither goes on in a nested event loop or a pause, which run inside a task: its steps
-    // run script.
+    // A rendering update whose style transaction has landed goes on; the tasks before that run beside it. It does not
+    // go on in a nested event loop or a pause, which run inside a task: its steps run script.
     if (m_rendering_update_in_flight && !m_rendering_update_in_flight->held_for_testing && m_spin_depth == 0 && !execution_paused()
-        && (m_task_queue->has_runnable_tasks() || !m_rendering_update_in_flight->docs.first()->style_computer().style_engine().style_transaction_flies()))
+        && !m_rendering_update_in_flight->docs.first()->style_computer().style_engine().style_transaction_flies())
         resume_rendering_update_in_flight();
 
     if (m_navigables_with_recordings_in_flight.is_empty())

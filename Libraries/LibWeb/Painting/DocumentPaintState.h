@@ -63,8 +63,6 @@ public:
 
     void invalidate_all_cached_paint(DOM::Document&);
 
-    void invalidate_scroll_state(DOM::Document&);
-
     Compositing::ScrollStateSnapshot const& scroll_state_snapshot() const { return m_scroll_state_snapshot; }
 
     void set_boxes_with_auto_content_visibility(Vector<Compositing::RustFFI::NodeSlotId> boxes) { m_boxes_with_auto_content_visibility = move(boxes); }

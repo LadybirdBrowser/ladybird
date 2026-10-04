@@ -329,11 +329,6 @@ bool rust_refresh_scroll_state(Layout::BegunRead const& read, DOM::Document& doc
         });
 }
 
-void rust_invalidate_scroll_state(DOM::Document& document)
-{
-    Layout::RustFFI::render_state_invalidate_scroll_state(document.layout_node_arena().host());
-}
-
 // Describes the row in the slot as its layout node describes itself, for a dump or a trace.
 static void push_debug_description(DOM::Document const& document, Compositing::RustFFI::NodeSlotId slot, void* description_sink)
 {
