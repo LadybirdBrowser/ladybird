@@ -63,6 +63,57 @@ describe("[[Construct]] trap normal behavior", () => {
 
         Reflect.construct(p, [15], theNewTarget);
     });
+
+    test("only the passed arguments are supplied to the trap", () => {
+        const handler = {
+            construct(target, arguments_) {
+                return { arguments_ };
+            },
+        };
+        const p = new Proxy(function (a, b, c) {}, handler);
+
+        expect(new p().arguments_).toEqual([]);
+        expect(new p(1).arguments_).toEqual([1]);
+        expect(new p(1, 2, 3, 4).arguments_).toEqual([1, 2, 3, 4]);
+        expect(Reflect.construct(p, [1]).arguments_).toEqual([1]);
+        expect(new (p.bind(null, 1))(2).arguments_).toEqual([1, 2]);
+        expect(new new Proxy(p, {})(1).arguments_).toEqual([1]);
+
+        class C extends p {
+            constructor(...arguments_) {
+                return super(...arguments_);
+            }
+        }
+        expect(new C(1).arguments_).toEqual([1]);
+    });
+
+    test("only the passed arguments are forwarded to the target", () => {
+        function f(a, b, c) {
+            this.argumentCount = arguments.length;
+        }
+        const p = new Proxy(f, {});
+
+        expect(new p().argumentCount).toBe(0);
+        expect(new p(1).argumentCount).toBe(1);
+        expect(new p(1, 2, 3, 4).argumentCount).toBe(4);
+        expect(Reflect.construct(p, [1]).argumentCount).toBe(1);
+        expect(new (p.bind(null, 1))(2).argumentCount).toBe(2);
+        expect(new new Proxy(p, {})(1).argumentCount).toBe(1);
+        expect(new new Proxy(f.bind(null, 1), {})(2).argumentCount).toBe(2);
+    });
+
+    test("rest parameters of the target only receive the passed arguments", () => {
+        function f(a, b, ...rest) {
+            this.rest = rest;
+        }
+        const p = new Proxy(f, {});
+
+        expect(new p(1).rest).toEqual([]);
+        expect(new p(1, 2).rest).toEqual([]);
+        expect(new p(1, 2, 3).rest).toEqual([3]);
+        expect(new new Proxy(p, {})(1).rest).toEqual([]);
+        expect(new new Proxy(f.bind(null, 1), {})(2).rest).toEqual([]);
+    });
 });
 
 describe("[[Construct]] invariants", () => {
