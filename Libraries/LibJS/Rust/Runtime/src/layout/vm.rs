@@ -33,3 +33,8 @@ pub struct VmHead {
     /// Non-null while a debugger is attached; the interpreter then dispatches through its breakpoint-checking table.
     pub debugger: Cell<*mut c_void>,
 }
+
+/// The storage an embedder reserves to construct a Vm in place, and its alignment. build.rs cannot see the Vm, only its
+/// head, so these are a capacity that the crate checks the Vm against rather than its exact size and alignment.
+pub const VM_SIZE: usize = 16 * 1024;
+pub const VM_ALIGN: usize = 16;

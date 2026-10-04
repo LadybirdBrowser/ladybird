@@ -20,7 +20,7 @@ use crate::runtime::completion::ThrowCompletionOr;
 use crate::runtime::error::ErrorKind;
 use crate::runtime::error_types::ErrorType;
 use crate::runtime::function_object::FunctionObject;
-use crate::runtime::object::{IntrinsicAccessor, MayInterfereWithIndexedPropertyAccess};
+use crate::runtime::object::{MayInterfereWithIndexedPropertyAccess, NativeIntrinsicAccessor};
 use crate::runtime::primitive_string::PrimitiveString;
 use crate::runtime::property_attributes::{Attribute, PropertyAttributes};
 use crate::runtime::property_key::PropertyKey;
@@ -78,7 +78,7 @@ pub fn set_default_global_bindings(vm: &Vm, realm: Gc<Realm>) {
 
     let attr = PropertyAttributes::new(Attribute::WRITABLE | Attribute::CONFIGURABLE);
     let none = PropertyAttributes::new(0);
-    let define_intrinsic_accessor = |name: &PropertyKey, accessor: IntrinsicAccessor| {
+    let define_intrinsic_accessor = |name: &PropertyKey, accessor: NativeIntrinsicAccessor| {
         global.define_intrinsic_accessor(vm, name, attr, accessor);
     };
 

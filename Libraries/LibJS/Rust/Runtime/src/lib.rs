@@ -23,6 +23,7 @@ pub mod console;
 pub mod console_log_level;
 pub mod contrib;
 pub mod debugger;
+pub mod embedding;
 pub mod frontend_host;
 pub mod futex;
 pub mod gc;

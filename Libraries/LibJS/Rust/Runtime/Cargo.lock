@@ -427,6 +427,7 @@ name = "libjs_runtime_rust"
 version = "0.1.0"
 dependencies = [
  "ak",
+ "cbindgen",
  "cc",
  "flapc",
  "foldhash",

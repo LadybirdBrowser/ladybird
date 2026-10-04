@@ -9,6 +9,7 @@ use core::ffi::c_void;
 use core::ops::ControlFlow;
 use core::ptr::NonNull;
 use std::collections::HashMap;
+use std::collections::HashSet;
 use std::collections::VecDeque;
 use std::rc::Rc;
 
@@ -23,6 +24,8 @@ use crate::bytecode::executable::{
 };
 use crate::bytecode::property_access::Strict;
 use crate::debugger::Debugger;
+use crate::embedding::hooks::Embedder;
+use crate::embedding::host::registry::HostClassRegistry;
 use crate::gc::capi::{self, GCVisitor};
 use crate::gc::class::{GcCell, define_cell};
 use crate::gc::gc_ref_cell::GcRefCell;
@@ -42,6 +45,7 @@ use crate::layout::vm::{InterpreterStack, VmHead};
 use crate::layout_forward::RawNativeFunctionPointer;
 use crate::lexical_path;
 use crate::runtime::abstract_operations::get_this_environment;
+use crate::runtime::agent::AgentRecord;
 use crate::runtime::array_buffer::{ArrayBuffer, ZeroFillNewBytes};
 use crate::runtime::big_int::SignedBigInteger;
 use crate::runtime::common_property_names::CommonPropertyNames;
@@ -99,6 +103,10 @@ pub type IntrinsicAccessorMap = HashMap<
     foldhash::fast::RandomState,
 >;
 
+/// The properties defined with Object::define_unimplemented_property, by the address of their object.
+pub type UnimplementedPropertyMap =
+    HashMap<usize, HashSet<Utf16FlyString, foldhash::fast::RandomState>, foldhash::fast::RandomState>;
+
 /// HostEnsureCanAddPrivateElement, which hosts that are web browsers may override.
 pub type HostEnsureCanAddPrivateElement = fn(&Vm, &Object) -> ThrowCompletionOr<()>;
 
@@ -142,6 +150,29 @@ pub type HostSystemUTCEpochNanoseconds = fn(&Vm, &Object) -> SignedBigInteger;
 /// VM::on_promise_unhandled_rejection and VM::on_promise_rejection_handled, which the default
 /// HostPromiseRejectionTracker calls.
 pub type PromiseRejectionCallback = fn(&Vm, Gc<Promise>);
+
+/// VM::on_unimplemented_property_access, which [[GetOwnProperty]] calls for a missing property that was defined with
+/// Object::define_unimplemented_property.
+pub type OnUnimplementedPropertyAccess = fn(&Vm, &Object, &PropertyKey);
+
+/// How a VM is set up, which is fixed once it is created.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct VmOptions {
+    /// Makes the VM's heap the one GC::Heap::the() returns, so that the embedder's C++ cells are allocated from it.
+    pub become_process_default_heap: bool,
+    /// Backs SharedArrayBuffers with shared memory, which other processes can map.
+    pub shared_memory_shared_array_buffers: bool,
+}
+
+/// An execution context stack that VM::save_execution_context_stack() set aside, with the TypeErrorRealmScope that
+/// was active on it.
+pub struct SavedExecutionContextStack {
+    pub execution_context_stack: Vec<NonNull<ExecutionContext>>,
+    pub previous_running_execution_contexts: Vec<*mut ExecutionContext>,
+    pub running_execution_context: *mut ExecutionContext,
+    pub type_error_realm_override: Option<Gc<Realm>>,
+    pub type_error_realm_override_depth: usize,
+}
 
 fn default_host_promise_rejection_tracker(vm: &Vm, promise: Gc<Promise>, operation: RejectionOperation) {
     vm.promise_rejection_tracker(promise, operation);
@@ -467,12 +498,28 @@ pub struct Vm {
     type_error_realm_override_depth: Cell<usize>,
     /// VM::m_debugger, which the head points to while it is attached.
     debugger: RefCell<Option<Rc<Debugger>>>,
+    /// The properties defined with Object::define_unimplemented_property, the C++ static unimplemented_property_map().
+    /// The objects are weak: the sweep callback forgets the ones that die.
+    unimplemented_properties: RefCell<UnimplementedPropertyMap>,
+    on_unimplemented_property_access: Cell<Option<OnUnimplementedPropertyAccess>>,
+
+    options: VmOptions,
+    embedder: Cell<Option<Embedder>>,
+    /// VM::m_agent.
+    agent: Cell<AgentRecord>,
+    /// VM::m_saved_execution_context_stacks.
+    saved_execution_context_stacks: RefCell<Vec<SavedExecutionContextStack>>,
+    host_classes: RefCell<HostClassRegistry>,
 }
 
 const _: () = assert!(core::mem::offset_of!(Vm, head) == 0);
 
 impl Vm {
     pub fn create() -> Box<Vm> {
+        Self::create_with(VmOptions::default())
+    }
+
+    pub fn create_with(options: VmOptions) -> Box<Vm> {
         // SAFETY: Initializes the region cell pointers are relative to.
         let heap_region_base = unsafe { capi::gc_heap_region_base() };
         let primitive_storage_cage_base = crate::runtime::array_buffer::primitive_storage_cage_base();
@@ -549,10 +596,17 @@ impl Vm {
             type_error_realm_override: Cell::new(None),
             type_error_realm_override_depth: Cell::new(0),
             debugger: RefCell::new(None),
+            unimplemented_properties: RefCell::new(HashMap::default()),
+            on_unimplemented_property_access: Cell::new(None),
+            options,
+            embedder: Cell::new(None),
+            agent: Cell::new(AgentRecord::default()),
+            saved_execution_context_stacks: RefCell::new(Vec::new()),
+            host_classes: RefCell::new(HashMap::default()),
         });
         let context = core::ptr::from_ref::<Vm>(&vm).cast_mut().cast();
         // SAFETY: The VM is boxed, so its address is stable, and it destroys the heap before anything else.
-        let heap = unsafe { Heap::new(gather_roots, context) };
+        let heap = unsafe { Heap::new(gather_roots, context, options.become_process_default_heap) };
         // SAFETY: As above.
         unsafe { heap.register_sweep_callback(sweep, context) };
         vm.head.stack_base.set(heap.stack_bounds().0);
@@ -813,18 +867,66 @@ impl Vm {
         }
     }
 
-    /// Forgets the intrinsic accessors of objects that died in this collection, as JS::Object::~Object does.
-    fn remove_dead_objects_from_intrinsic_accessors(&self) {
-        self.intrinsic_accessors.borrow_mut().retain(|&object, _| {
-            // SAFETY: The map only holds objects that were live when their accessors were defined, and a dead object
-            //         is intact until the sweep that follows this callback.
+    /// Forgets the intrinsic accessors and unimplemented properties of objects that died in this collection, as
+    /// JS::Object::~Object does.
+    fn remove_dead_objects_from_intrinsic_accessors_and_unimplemented_properties(&self) {
+        let is_live = |object: usize| {
+            // SAFETY: The maps only hold objects that were live when their entries were added, and a dead object is
+            //         intact until the sweep that follows this callback.
             let object = unsafe { Gc::from_non_null(NonNull::new_unchecked(object as *mut Object)) };
             !cell_is_dead(object)
-        });
+        };
+        self.intrinsic_accessors
+            .borrow_mut()
+            .retain(|&object, _| is_live(object));
+        self.unimplemented_properties
+            .borrow_mut()
+            .retain(|&object, _| is_live(object));
     }
 
     pub fn intrinsic_accessors(&self) -> &RefCell<IntrinsicAccessorMap> {
         &self.intrinsic_accessors
+    }
+
+    pub fn unimplemented_properties(&self) -> &RefCell<UnimplementedPropertyMap> {
+        &self.unimplemented_properties
+    }
+
+    pub fn on_unimplemented_property_access(&self) -> Option<OnUnimplementedPropertyAccess> {
+        self.on_unimplemented_property_access.get()
+    }
+
+    pub fn set_on_unimplemented_property_access(&self, callback: Option<OnUnimplementedPropertyAccess>) {
+        self.on_unimplemented_property_access.set(callback);
+    }
+
+    pub fn options(&self) -> VmOptions {
+        self.options
+    }
+
+    pub fn embedder(&self) -> Option<Embedder> {
+        self.embedder.get()
+    }
+
+    pub fn set_embedder(&self, embedder: Option<Embedder>) {
+        self.embedder.set(embedder);
+    }
+
+    /// The Agent Record of the surrounding agent.
+    pub fn agent(&self) -> AgentRecord {
+        self.agent.get()
+    }
+
+    pub fn set_agent(&self, agent: AgentRecord) {
+        self.agent.set(agent);
+    }
+
+    pub fn saved_execution_context_stacks(&self) -> &RefCell<Vec<SavedExecutionContextStack>> {
+        &self.saved_execution_context_stacks
+    }
+
+    pub fn host_classes(&self) -> &RefCell<HostClassRegistry> {
+        &self.host_classes
     }
 
     /// The realm vm.throw_completion() creates a TypeError in.
@@ -1471,7 +1573,7 @@ unsafe extern "C" fn sweep(context: *mut c_void) {
     vm.remove_dead_cells_from_weak_containers();
     vm.remove_dead_strings_from_weak_caches();
     vm.remove_dead_cells_from_property_lookup_caches();
-    vm.remove_dead_objects_from_intrinsic_accessors();
+    vm.remove_dead_objects_from_intrinsic_accessors_and_unimplemented_properties();
     if let Some(debugger) = vm.debugger() {
         debugger.remove_dead_executables();
     }

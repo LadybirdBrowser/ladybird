@@ -6,14 +6,18 @@
 
 macro_rules! define_class_ids {
     ($($name:ident,)*) => {
-        /// Every class of cell the runtime allocates, which indexes each heap's table of allocators.
+        /// Every class of cell the runtime defines, which indexes each heap's table of allocators. A class derived at
+        /// run time has the id of the class it extends.
         #[derive(Clone, Copy, Debug, PartialEq, Eq)]
         #[repr(u16)]
         pub enum ClassId {
             $($name,)*
         }
 
-        pub const CLASS_COUNT: usize = [$(ClassId::$name,)*].len();
+        /// Every class id, in the order of their values.
+        pub const ALL_CLASS_IDS: &[ClassId] = &[$(ClassId::$name,)*];
+
+        pub const CLASS_COUNT: usize = ALL_CLASS_IDS.len();
     };
 }
 
@@ -327,4 +331,10 @@ define_class_ids! {
     RelativeTimeFormat,
     RelativeTimeFormatPrototype,
     RelativeTimeFormatConstructor,
+    // The cells an embedder defines through the host class tables of LibJS/HostObjectABI.h.
+    HostObject,
+    HostFunction,
+    HostArray,
+    HostModule,
+    HostConsoleClient,
 }
