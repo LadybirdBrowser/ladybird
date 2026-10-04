@@ -9,8 +9,9 @@ use core::cell::Cell;
 use ak::Utf16String;
 use libjs_runtime_macros::Trace;
 
+use crate::gc::class::{GcCell, define_cell};
 use crate::interpreter::vm::Vm;
-use crate::layout::cell::Gc;
+use crate::layout::cell::{CellHeader, Gc};
 use crate::runtime::primitive_string::PrimitiveString;
 use crate::source_range::SourceRange;
 use crate::utf16::Utf16View;
@@ -22,7 +23,7 @@ pub struct TracebackFrame {
 
 impl TracebackFrame {
     /// The filename, line and column of the frame's source range, which are empty for a frame without one.
-    fn source_position(&self) -> (Utf16View<'_>, u32, u32) {
+    pub fn source_position(&self) -> (Utf16View<'_>, u32, u32) {
         match &self.cached_source_range {
             Some(source_range) => (
                 Utf16View::of_string(source_range.filename()),
@@ -159,5 +160,30 @@ impl ErrorData {
         }
 
         Utf16String::from_utf16(&stack_string_builder)
+    }
+}
+
+/// The [[ErrorData]] of a host object that is not an Error, such as a DOMException, in a cell of its own, which the
+/// embedder keeps alive with the object.
+#[repr(C)]
+#[derive(Trace)]
+pub struct ErrorDataCell {
+    header: CellHeader,
+    error_data: ErrorData,
+}
+
+define_cell!(ErrorDataCell, Other);
+
+impl ErrorDataCell {
+    /// ErrorDataCell::capture(vm): error data with the call stack of the running execution context.
+    pub fn capture(vm: &Vm) -> Gc<ErrorDataCell> {
+        vm.heap().allocate(Self {
+            header: CellHeader::for_class(Self::CLASS),
+            error_data: ErrorData::new(vm),
+        })
+    }
+
+    pub fn error_data(&self) -> &ErrorData {
+        &self.error_data
     }
 }

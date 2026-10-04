@@ -390,6 +390,16 @@ impl PrimitiveString {
         )
     }
 
+    /// A view of the string's own code units, resolving a rope or a substring first. Unlike utf16_string_view(), the
+    /// view stays valid for as long as the string lives, since a resolved string never changes.
+    pub fn resolved_utf16_string_view(&self) -> Utf16View<'_> {
+        self.resolve_if_needed();
+        Utf16View::of_string(
+            self.resolved_utf16_string()
+                .expect("a resolved string has its UTF-16 string"),
+        )
+    }
+
     fn resolved_utf16_string(&self) -> Option<&Utf16String> {
         // SAFETY: The slot is only written while it is empty, so a string read out of it is never replaced.
         unsafe { (*self.utf16_string.0.get()).as_ref() }

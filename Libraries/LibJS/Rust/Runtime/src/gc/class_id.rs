@@ -83,6 +83,7 @@ define_class_ids! {
     Error,
     ErrorPrototype,
     ErrorConstructor,
+    ErrorDataCell,
     EvalError,
     EvalErrorPrototype,
     EvalErrorConstructor,
