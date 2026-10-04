@@ -206,7 +206,8 @@ pub(crate) struct StyleJobAnswer {
 struct NamedRecords(Box<[(u64, super::bridge::FfiStyleRecordView, Option<u64>)]>);
 
 // SAFETY: A view points into a published record, which never changes while it is live, and the host reads one only for
-// a record it installs from the transaction, which keeps it live.
+// a record it installs from the transaction, which keeps it live, or one a row replaces, which the engine reclaims no
+// sooner than its next transaction.
 unsafe impl Send for NamedRecords {}
 
 impl StyleJobAnswer {
@@ -245,10 +246,17 @@ impl StyleJob {
         // SAFETY: The sealed inputs name only what they own, and live until the transaction has taken them in.
         let output = unsafe { take_style_transaction(engine, self.root, self.computation_inputs.inputs) };
         engine.defer_atom_sweep(false);
+        // The host reads the record each row replaces as well, as it compares a box's old style with its new one. Only a
+        // live base record comes along: the host asks about a replaced overlay record itself.
         let mut records: Vec<u64> = output
             .answers()
             .iter()
-            .map(|row| row.new_style_record)
+            .flat_map(|row| {
+                let old = Some(row.old_style_record)
+                    .filter(|&old| engine.computed_group_sets.final_style_record_is_live(old));
+                [old, Some(row.new_style_record)]
+            })
+            .flatten()
             .filter(|&record| record != 0)
             .collect();
         records.sort_unstable();
