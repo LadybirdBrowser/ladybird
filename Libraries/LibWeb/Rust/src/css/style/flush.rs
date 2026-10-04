@@ -1961,9 +1961,8 @@ impl StyleEngineState {
             // published ancestor's change is exact for a descendant only when none of the
             // ancestors can move anything the descendant inherits, so the fold below is the
             // upward walk the gate used to run for every node: it stops at the first row a
-            // settled ancestor left behind, fills in the rows of the nodes it crossed, and keeps
-            // a row only once every fact folded into it is final. A published ancestor the walk
-            // has not processed yet is folded fresh, exactly as the walk re-read it.
+            // settled ancestor left behind and fills in the rows of the nodes it crossed. The
+            // rows settle after the rows they inherit from, so every fact it folds is final.
             type DerivedChildInputRows = column::PagedColumn<column::PagedValuePage<publication::DerivedChildInputs>>;
             let row_of = |rows: &DerivedChildInputRows, node: StyleNodeID| {
                 node.element_index().and_then(|index| rows.get(index as usize))
@@ -1986,24 +1985,19 @@ impl StyleEngineState {
                     crossed.push(ancestor);
                     current = engine.tree.inheritance_parent(ancestor);
                 };
-                let mut chain_is_final = true;
                 for &ancestor in crossed.iter().rev() {
                     let row = row_of(rows, ancestor);
-                    // Only a node the walk has processed holds a row; everything else is either
-                    // published and still to come, or published nothing at all.
-                    let published = row.is_some() || published_match_answers.lookup(ancestor).is_some();
+                    // A node of the batch holds a row from where it was processed, before the rows
+                    // inheriting from it; the walk stops at any other row.
+                    let published = row.is_some();
                     // An ancestor whose answer the winners do not hold whole is C++'s to compute, and
                     // what its winner delta says it moved is not all it moves.
                     let answer_is_incomplete = published_match_answers.lookup(ancestor).is_some_and(|answer| {
                         !answer.cascade_winners_are_complete
                             && !engine.cascade_winners_are_complete_but_for_custom_properties(ancestor)
                     });
-                    // So is one still to come, such as the slot a slotted element inherits from,
-                    // which the flush reaches after the element: what it moves is decided only once
-                    // it is processed.
                     let unconfined = published
-                        && (row.is_none()
-                            || answer_is_incomplete
+                        && (answer_is_incomplete
                             || !(style_input_reactions
                                 .binary_search_by_key(&ancestor, |&(style_node, _, _)| style_node)
                                 .is_err()
@@ -2011,8 +2005,7 @@ impl StyleEngineState {
                                 && !engine.node_environment_may_move(ancestor)));
                     let settled = row.is_some_and(|row| row.settled);
                     chain = publication::AncestorChain::fold(chain, published, unconfined, settled);
-                    chain_is_final = chain_is_final && (row.is_some() || !published);
-                    if chain_is_final && let Some(index) = ancestor.element_index() {
+                    if let Some(index) = ancestor.element_index() {
                         let mut row = row.unwrap_or_default();
                         row.chain = Some(chain);
                         rows.insert(index as usize, row);
@@ -2073,6 +2066,21 @@ impl StyleEngineState {
                     && hidden_style_readers.insert(element)
                 {
                     current = self.tree.inheritance_parent(element);
+                }
+            }
+            // The rows settle in the order the host applies them, each after the rows of the batch
+            // it inherits from, which it then finds settled rather than still to come.
+            if published_nodes.len() > 1 {
+                let ranks = self.tree.style_reaction_order_ranks(published_nodes.iter().copied());
+                let mut rows: Vec<_> = published_nodes
+                    .iter()
+                    .copied()
+                    .zip(previous_cascade_inputs.iter().copied())
+                    .collect();
+                rows.sort_unstable_by_key(|(node, _)| ranks[node]);
+                for (index, (node, previous_cascade_input)) in rows.into_iter().enumerate() {
+                    published_nodes[index] = node;
+                    previous_cascade_inputs[index] = previous_cascade_input;
                 }
             }
             let mut next_published_index = 0;
@@ -2163,12 +2171,8 @@ impl StyleEngineState {
                     .then(|| self.retained.tree.inheritance_parent(node))
                     .flatten()
                     .filter(|&parent| {
-                        // A parent this flush reaches after the node, a slot a slotted element
-                        // inherits from, has yet to decide what it passes on.
-                        row_of(&engine_computed_record_scratch.derived_child_inputs, parent).map_or_else(
-                            || published_match_answers.lookup(parent).is_none(),
-                            |row| !row.inheritance_unresolved,
-                        )
+                        !row_of(&engine_computed_record_scratch.derived_child_inputs, parent)
+                            .is_some_and(|row| row.inheritance_unresolved)
                     })
                     .and_then(|parent| {
                         self.computed_group_sets.replace_engine_resolvable_inherited_groups(

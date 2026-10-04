@@ -4963,7 +4963,7 @@ pub(super) struct DerivedChildInputs {
     /// parent's own unresolved fact.
     pub(super) inheritance_unresolved: bool,
     /// The proof about everything from this node upwards, folded on the first ask a child makes
-    /// and kept only once every fact it folds is final.
+    /// and kept for the asks after it.
     pub(super) chain: Option<AncestorChain>,
 }
 
