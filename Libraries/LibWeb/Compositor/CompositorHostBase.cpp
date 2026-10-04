@@ -253,6 +253,13 @@ void CompositorHostBase::submit_frame(PresentationTurn, CompositorFrame&& frame)
         connection->submit_frame(move(frame));
 }
 
+RefPtr<CompositorFrameSink> CompositorHostBase::frame_sink()
+{
+    if (auto* connection = compositor_connection())
+        return connection->frame_sink();
+    return nullptr;
+}
+
 void CompositorHostBase::add_video_sink(Media::VideoSinkHandle video_sink_handle)
 {
     if (auto* connection = compositor_connection())

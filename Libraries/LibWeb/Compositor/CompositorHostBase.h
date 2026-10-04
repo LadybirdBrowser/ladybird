@@ -28,6 +28,7 @@ public:
     virtual void stop_presenting_to_client(Web::CompositorContextId) override;
 
     virtual void submit_frame(PresentationTurn, CompositorFrame&&) override;
+    virtual RefPtr<CompositorFrameSink> frame_sink() override;
     virtual void add_video_sink(Media::VideoSinkHandle) override;
     virtual void remove_video_sink(Media::VideoSinkHandle) override;
     virtual void set_video_sink_ticking(Media::VideoSinkHandle, bool should_tick) override;
