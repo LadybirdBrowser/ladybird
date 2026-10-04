@@ -31,6 +31,7 @@ class PresentationQueue;
 
 namespace Web::Compositor {
 
+class CompositorFrameSink;
 class CompositorHost;
 struct CompositorFrame;
 
@@ -118,6 +119,8 @@ public:
     virtual void stop_presenting_to_client(Web::CompositorContextId) = 0;
 
     virtual void submit_frame(PresentationTurn, CompositorFrame&&) = 0;
+    // What takes the frames of this host's contexts from any thread, while the compositor can be reached.
+    virtual RefPtr<CompositorFrameSink> frame_sink() = 0;
     virtual void add_video_sink(Media::VideoSinkHandle) = 0;
     virtual void remove_video_sink(Media::VideoSinkHandle) = 0;
     virtual void set_video_sink_ticking(Media::VideoSinkHandle, bool should_tick) = 0;

@@ -8,6 +8,7 @@
 #include <LibWeb/Compositor/CompositorConnection.h>
 
 #include <AK/Debug.h>
+#include <AK/Mutex.h>
 #include <LibCore/AnonymousBuffer.h>
 #include <LibCore/ElapsedTimer.h>
 #include <LibCore/Environment.h>
@@ -32,9 +33,45 @@ static bool display_list_timing_enabled()
     return enabled;
 }
 
-CompositorConnection::CompositorConnection(NonnullOwnPtr<IPC::Transport> transport)
-    : IPC::ConnectionToServer<CompositorWebContentClientEndpoint, CompositorWebContentServerEndpoint>(*this, move(transport))
+// Posts frames straight to the connection's transport, which queues messages from any thread for its IO thread to send.
+// The rest of the connection stays with the thread that made it.
+class CompositorConnectionFrameSink final : public CompositorFrameSink {
+public:
+    AK_ALLOC_WITH_KMALLOC;
+
+    explicit CompositorConnectionFrameSink(IPC::Transport& transport)
+        : m_transport(&transport)
+    {
+    }
+
+    // Called by the connection once the compositor is lost or the connection goes away.
+    void detach()
+    {
+        MutexLocker locker(m_mutex);
+        m_transport = nullptr;
+    }
+
+    virtual bool submit(CompositorFrame&&) override;
+
+private:
+    bool post(IPC::MessageBuffer&);
+    bool post_resource_additions_in_batches(Web::CompositorContextId, Compositing::DisplayListResourceTransaction&);
+    bool post_display_list_update(Web::CompositorContextId, CompositorFrame::DisplayListUpdate&);
+
+    // Held while a frame is posted, so that frames submitted from different threads do not interleave.
+    Mutex m_mutex;
+    IPC::Transport* m_transport { nullptr };
+};
+
+bool CompositorConnectionFrameSink::post(IPC::MessageBuffer& buffer)
 {
+    // A transport that failed to take a message is closed, and the connection learns of that on its own thread. Until
+    // then, drop the rest of this frame and every later one.
+    if (!m_transport->is_open() || buffer.transfer_message(*m_transport).is_error()) {
+        m_transport = nullptr;
+        return false;
+    }
+    return true;
 }
 
 void CompositorConnection::die()
@@ -95,7 +132,7 @@ void CompositorConnection::destroy_context(Web::CompositorContextId context_id)
 static constexpr size_t max_resources_per_message = 100;
 static_assert(max_resources_per_message <= IPC::MAX_MESSAGE_FD_COUNT);
 
-bool CompositorConnection::post_resource_additions_in_batches(Web::CompositorContextId context_id, Compositing::DisplayListResourceTransaction& resource_transaction)
+bool CompositorConnectionFrameSink::post_resource_additions_in_batches(Web::CompositorContextId context_id, Compositing::DisplayListResourceTransaction& resource_transaction)
 {
     auto fonts = move(resource_transaction.fonts);
     auto image_frames = move(resource_transaction.image_frames);
@@ -118,17 +155,15 @@ bool CompositorConnection::post_resource_additions_in_batches(Web::CompositorCon
         room -= take(fonts, fonts_taken, room, batch.fonts);
         room -= take(image_frames, image_frames_taken, room, batch.image_frames);
         auto encoded_batch = MUST(Messages::CompositorWebContentServer::UpdateDisplayListResources::static_encode(context_id, batch));
-        if (post_message(encoded_batch).is_error()) {
-            did_lose_compositor();
+        if (!post(encoded_batch))
             return false;
-        }
     }
     return true;
 }
 
 // Returns false once the compositor is lost. A display list that cannot be placed in shared memory is
 // skipped, and the rest of the frame still goes over.
-bool CompositorConnection::post_display_list_update(Web::CompositorContextId context_id, CompositorFrame::DisplayListUpdate& update)
+bool CompositorConnectionFrameSink::post_display_list_update(Web::CompositorContextId context_id, CompositorFrame::DisplayListUpdate& update)
 {
     if (!post_resource_additions_in_batches(context_id, update.resource_transaction))
         return false;
@@ -145,38 +180,65 @@ bool CompositorConnection::post_display_list_update(Web::CompositorContextId con
     auto copy_time = timer.elapsed_time();
 
     auto encoded_message = MUST(Messages::CompositorWebContentServer::UpdateDisplayList::static_encode(context_id, shared_tape_buffer.value(), display_list.command_bytes().size(), display_list.command_runs().size(), display_list.properties(), update.visual_context_tree, update.resource_transaction, update.scroll_state_snapshot));
-    if (post_message(encoded_message).is_error()) {
-        did_lose_compositor();
+    if (!post(encoded_message))
         return false;
-    }
     if (display_list_timing_enabled())
         dbgln("DISPLAY_LIST_PUBLISH bytes={} copy={} µs encode+post={} µs", display_list.command_bytes().size(), copy_time.to_microseconds(), (timer.elapsed_time() - copy_time).to_microseconds());
     return true;
+}
+
+bool CompositorConnectionFrameSink::submit(CompositorFrame&& frame)
+{
+    MutexLocker locker(m_mutex);
+    if (!m_transport)
+        return false;
+
+    auto context_id = frame.context_id;
+    if (auto& update = frame.display_list_update; update.has_value()) {
+        if (!post_display_list_update(context_id, *update))
+            return false;
+    }
+    if (auto& update = frame.visual_context_tree_update; update.has_value()) {
+        if (!post_resource_additions_in_batches(context_id, update->resource_transaction))
+            return false;
+        auto encoded_message = MUST(Messages::CompositorWebContentServer::UpdateVisualContextTree::static_encode(context_id, update->visual_context_tree, update->resource_transaction));
+        if (!post(encoded_message))
+            return false;
+    }
+    if (auto& update = frame.scroll_state_update; update.has_value()) {
+        auto encoded_message = MUST(Messages::CompositorWebContentServer::UpdateScrollState::static_encode(context_id, update->scroll_state_snapshot, update->keyboard_scroll_state));
+        if (!post(encoded_message))
+            return false;
+    }
+    if (frame.present_viewport_rect.has_value()) {
+        auto encoded_message = MUST(Messages::CompositorWebContentServer::PresentFrame::static_encode(context_id, *frame.present_viewport_rect));
+        return post(encoded_message);
+    }
+    return true;
+}
+
+CompositorConnection::CompositorConnection(NonnullOwnPtr<IPC::Transport> transport)
+    : IPC::ConnectionToServer<CompositorWebContentClientEndpoint, CompositorWebContentServerEndpoint>(*this, move(transport))
+    , m_frame_sink(adopt_ref(*new CompositorConnectionFrameSink(this->transport())))
+{
+}
+
+CompositorConnection::~CompositorConnection()
+{
+    m_frame_sink->detach();
+}
+
+NonnullRefPtr<CompositorFrameSink> CompositorConnection::frame_sink() const
+{
+    return m_frame_sink;
 }
 
 void CompositorConnection::submit_frame(CompositorFrame&& frame)
 {
     if (!can_send_message_to_compositor())
         return;
-
-    auto context_id = frame.context_id;
-    if (auto& update = frame.display_list_update; update.has_value()) {
-        if (!post_display_list_update(context_id, *update))
-            return;
-    }
-    if (auto& update = frame.visual_context_tree_update; update.has_value()) {
-        if (!post_resource_additions_in_batches(context_id, update->resource_transaction))
-            return;
-        auto encoded_message = MUST(Messages::CompositorWebContentServer::UpdateVisualContextTree::static_encode(context_id, update->visual_context_tree, update->resource_transaction));
-        if (post_message(encoded_message).is_error()) {
-            did_lose_compositor();
-            return;
-        }
-    }
-    if (auto& update = frame.scroll_state_update; update.has_value())
-        async_update_scroll_state(context_id, update->scroll_state_snapshot, update->keyboard_scroll_state);
-    if (frame.present_viewport_rect.has_value())
-        async_present_frame(context_id, *frame.present_viewport_rect);
+    if (!m_frame_sink->submit(move(frame)))
+        did_lose_compositor();
 }
 
 void CompositorConnection::add_video_sink(Media::VideoSinkHandle video_sink_handle)
@@ -611,6 +673,7 @@ void CompositorConnection::did_lose_compositor()
     if (m_has_lost_compositor)
         return;
     m_has_lost_compositor = true;
+    m_frame_sink->detach();
 
     for (auto& entry : m_screenshots) {
         if (entry.value.callback)

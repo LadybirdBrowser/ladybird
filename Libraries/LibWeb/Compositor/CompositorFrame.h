@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/AtomicRefCounted.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/Optional.h>
 #include <LibCompositing/DisplayList/AccumulatedVisualContext.h>
@@ -14,11 +15,13 @@
 #include <LibCompositing/Scrolling/ScrollState.h>
 #include <LibCompositing/Types.h>
 #include <LibGfx/Rect.h>
+#include <LibWeb/Export.h>
 #include <LibWebCommon/Page/CompositorContextId.h>
 
 namespace Web::Compositor {
 
-// What a navigable hands its compositor context for one frame. The frame owns everything its messages carry.
+// What a navigable hands its compositor context for one frame. The frame owns everything its messages carry, so it
+// can be handed to the compositor from any thread.
 struct CompositorFrame {
     // A newly recorded display list, with the visual context tree, resources and scroll state it paints with.
     struct DisplayListUpdate {
@@ -47,6 +50,17 @@ struct CompositorFrame {
     Optional<ScrollStateUpdate> scroll_state_update;
     // Set when the frame is presented once the compositor has applied it.
     Optional<Gfx::IntRect> present_viewport_rect;
+};
+
+// Hands finished frames to the compositor. Unlike the rest of a compositor connection, which belongs to the thread that
+// made it, a frame sink takes frames from any thread. The messages of one frame reach the compositor together, and
+// frames reach it in the order they were submitted.
+class WEB_API CompositorFrameSink : public AtomicRefCounted<CompositorFrameSink> {
+public:
+    virtual ~CompositorFrameSink() = default;
+
+    // Returns false once the compositor can no longer be reached.
+    virtual bool submit(CompositorFrame&&) = 0;
 };
 
 }
