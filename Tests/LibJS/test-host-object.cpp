@@ -307,6 +307,14 @@ constexpr JSHostClass base_class = JS::make_host_class(JS_HOST_CLASS_OBJECT, "Ba
 constexpr JSHostClass derived_class = JS::make_host_class(JS_HOST_CLASS_OBJECT, "Derived"sv, &base_class, nullptr, nullptr, 0);
 constexpr JSHostClass allocator_a_class = JS::make_host_class(JS_HOST_CLASS_OBJECT, "AllocatorA"sv, nullptr, nullptr, nullptr, 0);
 constexpr JSHostClass allocator_b_class = JS::make_host_class(JS_HOST_CLASS_OBJECT, "AllocatorB"sv, nullptr, nullptr, nullptr, 0);
+constexpr JSHostClass allocator_a_sharing_child_class = JS::make_host_class(JS_HOST_CLASS_OBJECT, "AllocatorASharingChild"sv, &allocator_a_class, nullptr, nullptr, JS_HOST_CLASS_SHARES_ALLOCATOR_WITH_PARENT);
+constexpr JSHostClass allocator_a_sharing_grandchild_class = JS::make_host_class(JS_HOST_CLASS_OBJECT, "AllocatorASharingGrandchild"sv, &allocator_a_sharing_child_class, nullptr, nullptr, JS_HOST_CLASS_SHARES_ALLOCATOR_WITH_PARENT);
+constexpr JSHostClass allocator_a_isolated_child_class = JS::make_host_class(JS_HOST_CLASS_OBJECT, "AllocatorAIsolatedChild"sv, &allocator_a_class, nullptr, nullptr, 0);
+
+GC::CellAllocator& allocator_of(JS::Object const& object)
+{
+    return GC::HeapBlock::from_cell(&object)->cell_allocator();
+}
 
 GC::Ref<JS::HostObject> create_intercepting_object(TestEnvironment& environment)
 {
@@ -727,14 +735,29 @@ TEST_CASE(each_host_class_has_its_own_allocator)
     auto b = JS::HostObject::create(realm, allocator_b_class, nullptr);
     auto ordinary = JS::Object::create(realm, nullptr);
 
-    auto allocator_of = [](JS::Object const& object) -> GC::CellAllocator& {
-        return GC::HeapBlock::from_cell(&object)->cell_allocator();
-    };
     EXPECT_EQ(&allocator_of(*first_a), &allocator_of(*second_a));
     EXPECT_NE(&allocator_of(*first_a), &allocator_of(*b));
     EXPECT_NE(&allocator_of(*first_a), &allocator_of(*ordinary));
     EXPECT_EQ(allocator_of(*first_a).class_name(), "AllocatorA"sv);
     EXPECT_EQ(allocator_of(*b).class_name(), "AllocatorB"sv);
+}
+
+TEST_CASE(host_classes_can_share_their_parents_allocator)
+{
+    TestEnvironment environment;
+    auto& realm = environment.realm();
+    auto a = JS::HostObject::create(realm, allocator_a_class, nullptr);
+    auto sharing_child = JS::HostObject::create(realm, allocator_a_sharing_child_class, nullptr);
+    auto sharing_grandchild = JS::HostObject::create(realm, allocator_a_sharing_grandchild_class, nullptr);
+    auto isolated_child = JS::HostObject::create(realm, allocator_a_isolated_child_class, nullptr);
+
+    EXPECT_EQ(&allocator_of(*sharing_child), &allocator_of(*a));
+    EXPECT_EQ(&allocator_of(*sharing_grandchild), &allocator_of(*a));
+    EXPECT_NE(&allocator_of(*isolated_child), &allocator_of(*a));
+    EXPECT_EQ(allocator_of(*isolated_child).class_name(), "AllocatorAIsolatedChild"sv);
+
+    EXPECT_EQ(JS::host_class_of(*sharing_grandchild), &allocator_a_sharing_grandchild_class);
+    EXPECT_EQ(sharing_grandchild->class_name(), "AllocatorASharingGrandchild"sv);
 }
 
 TEST_CASE(get_as_prototype_of_passes_on_only_cacheable_prototype_chain_hits)

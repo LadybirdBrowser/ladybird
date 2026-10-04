@@ -561,16 +561,16 @@ consteval JSHostClass make_host_class(u8 kind, StringView name, JSHostClass cons
         | JS_HOST_CLASS_NOT_CACHEABLE_FOR_PROPERTY_ABSENCE
         | JS_HOST_CLASS_NOT_ELIGIBLE_FOR_OWN_PROPERTY_ENUMERATION_FAST_PATH;
 
-    u32 allowed_flags = 0;
+    u32 allowed_flags = JS_HOST_CLASS_SHARES_ALLOCATOR_WITH_PARENT;
     switch (kind) {
     case JS_HOST_CLASS_OBJECT:
-        allowed_flags = flags_copied_into_objects | host_object_flags;
+        allowed_flags |= flags_copied_into_objects | host_object_flags;
         break;
     case JS_HOST_CLASS_FUNCTION:
-        allowed_flags = flags_copied_into_objects | JS_HOST_CLASS_HAS_CONSTRUCTOR;
+        allowed_flags |= flags_copied_into_objects | JS_HOST_CLASS_HAS_CONSTRUCTOR;
         break;
     case JS_HOST_CLASS_ARRAY:
-        allowed_flags = flags_copied_into_objects;
+        allowed_flags |= flags_copied_into_objects;
         break;
     case JS_HOST_CLASS_MODULE:
         break;
@@ -578,6 +578,7 @@ consteval JSHostClass make_host_class(u8 kind, StringView name, JSHostClass cons
         VERIFY_NOT_REACHED();
     }
     VERIFY(!(flags & ~allowed_flags));
+    VERIFY(!(flags & JS_HOST_CLASS_SHARES_ALLOCATOR_WITH_PARENT) || parent);
 
     return JSHostClass {
         .abi_version = JS_HOST_ABI_VERSION,

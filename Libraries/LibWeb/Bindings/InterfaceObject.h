@@ -38,4 +38,9 @@ struct InterfaceObjectMetadata {
 // The [[Call]] and [[Construct]] behavior of every interface object and legacy factory function.
 extern JSHostFunctionHooks const interface_constructor_hooks;
 
+// The parents of every interface's prototype_host_class and constructor_host_class. Those classes share the parents'
+// allocators, as each of them has only one object per realm.
+extern JSHostClass const interface_prototype_object_parent_host_class;
+extern JSHostClass const interface_constructor_parent_host_class;
+
 }
