@@ -1858,7 +1858,7 @@ impl StyleEngineState {
                 container_effects_for_host: HashMap::default(),
                 published_container_verdicts: HashMap::default(),
                 container_gates_unheld: HashSet::default(),
-                container_input_nodes: HashSet::default(),
+                row_inputs_moved: flush::RowInputsMoved::default(),
                 container_query_inputs: Default::default(),
                 layout_style_snapshots: HashMap::default(),
                 size_container_queries: Default::default(),
@@ -1879,7 +1879,6 @@ impl StyleEngineState {
                 engine_computed_records_pending: HashMap::default(),
                 demand_records: HashMap::default(),
                 flush_stamp: 0,
-                parent_inputs_moved_nodes: HashSet::default(),
                 engine_pseudo_record_cache: HashMap::default(),
                 batch_answers_complete_but_for_custom_properties: HashMap::default(),
                 batch_custom_property_matches: HashMap::default(),
@@ -1936,6 +1935,7 @@ impl StyleEngineState {
                 diagnostic_plan_capture: None,
             },
             host: HostState {
+                suspended_style_pass: None,
                 batch_moves_for_retries: Default::default(),
                 retry_full_drive_reasons: HashMap::default(),
                 font_resolver: None,
@@ -2162,6 +2162,13 @@ impl StyleEngineState {
             || !self.host.tree_staging.is_empty()
             || self.host.program_staging.is_dirty()
             || self.host.sheet_rule_replacement.is_some()
+            || self.host.suspended_style_pass.is_some()
+    }
+
+    /// Whether the host is installing a style pass wave by wave, between two of its waves.
+    #[must_use]
+    pub fn has_suspended_style_pass(&self) -> bool {
+        self.host.suspended_style_pass.is_some()
     }
 
     #[must_use]
@@ -2182,7 +2189,7 @@ impl StyleEngineState {
     /// can, deciding the node's gated rules again and publishing its winners anew from its
     /// retained answer where a verdict moved.
     pub fn record_container_query_input(&mut self, node: StyleNodeID) {
-        self.retained.container_input_nodes.insert(node);
+        self.retained.row_inputs_moved.note_containers_moved(node);
         self.record_derived_element_style_input(
             node,
             transaction::STYLE_REACTION_PUBLISHED_STYLE | transaction::STYLE_REACTION_RECOMPUTE_STYLE,
@@ -3373,7 +3380,7 @@ impl RetainedState {
             container_effects_for_host,
             published_container_verdicts,
             container_gates_unheld,
-            container_input_nodes,
+            row_inputs_moved,
             container_query_inputs,
             layout_style_snapshots,
             size_container_queries,
@@ -3398,8 +3405,6 @@ impl RetainedState {
             engine_computed_records_pending: _,
             demand_records,
             flush_stamp: _,
-            // Taken by the transaction that fills them.
-            parent_inputs_moved_nodes: _,
             engine_pseudo_record_cache: _,
             // Filled and cleared within one transaction's record loop.
             batch_answers_complete_but_for_custom_properties: _,
@@ -3479,7 +3484,7 @@ impl RetainedState {
         container_effects_for_host.remove(&node);
         published_container_verdicts.remove(&node);
         container_gates_unheld.remove(&node);
-        container_input_nodes.remove(&node);
+        row_inputs_moved.forget(node);
         container_query_inputs.clear(node);
         layout_style_snapshots.remove(&node);
         demand_records.retain(|target, record| {

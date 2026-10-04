@@ -20,7 +20,8 @@ pub(in crate::css::style) enum Unanswered {
     Suspended(Suspension),
     Refused,
     /// The row inherits from a parent that holds no record yet: one the host styles in the same
-    /// update. The host retries the row once it has applied the rows before it.
+    /// update. The style pass settles the row in its next wave, once the host installed the rows
+    /// before it.
     AwaitsParent,
 }
 

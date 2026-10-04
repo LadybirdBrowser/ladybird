@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .flat select { appearance: none; }
+    #hidden.hidden { display: none; }
+    #reaction.before { color: red; }
+    #reaction.after { color: green; }
+</style>
+<div id="box"><select id="select"><option>One</option></select></div>
+<div id="hidden" class="hidden"></div>
+<span id="query"></span>
+<script>
+    test(() => {
+        const box = document.getElementById("box");
+        const hidden = document.getElementById("hidden");
+        const query = document.getElementById("query");
+        internals.updateStyle();
+
+        const middle = document.createElement("div");
+        const reaction = document.createElement("span");
+        reaction.id = "reaction";
+        reaction.className = "before";
+        middle.appendChild(reaction);
+        hidden.appendChild(middle);
+        getComputedStyle(query).color;
+        internals.updateStyle();
+
+        // The row under the revealed element waits for the next wave. Installing the select before
+        // it rewrites the declarations of the select's own shadow tree as its appearance flips,
+        // which the pass was not planned from: it is given up, and the row is owed to the
+        // transaction that takes the declarations.
+        box.className = "flat";
+        reaction.className = "after";
+        hidden.className = "";
+        internals.updateStyle();
+
+        println("select appearance: " + getComputedStyle(document.getElementById("select")).appearance);
+        println("reaction color: " + getComputedStyle(reaction).color);
+    });
+</script>

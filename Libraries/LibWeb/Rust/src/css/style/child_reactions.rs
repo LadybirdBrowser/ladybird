@@ -84,7 +84,7 @@ impl StyleEngineState {
         for child in derived {
             self.record_derived_element_style_input(child.child, child.reaction, child.inherited_style_groups);
             if child.parent_display_moved {
-                self.retained.parent_inputs_moved_nodes.insert(child.child);
+                self.retained.row_inputs_moved.note_parent_display_moved(child.child);
             }
         }
     }

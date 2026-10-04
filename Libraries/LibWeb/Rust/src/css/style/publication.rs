@@ -366,7 +366,7 @@ impl RetainedState {
         counters: &mut Counters,
     ) -> Drive<RecordDelta> {
         // A child of an element the host composes once it installs the element's record inherits
-        // that composition, which the host has made by the time it asks for the child again.
+        // that composition, which the host has made by the next wave of the pass.
         if self
             .tree
             .inheritance_parent(node)
@@ -4787,7 +4787,7 @@ impl ParentInputsMoved {
 }
 
 /// Why a row's record is driven again in full, its pseudo-elements with it, while its winners
-/// stand: its reaction moved inputs no winner shows.
+/// stand: inputs no winner shows moved under it.
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(super) enum FullDriveReason {
     /// A descendant recompute, for the root's font metrics or an ancestor's direction, writing
@@ -4803,6 +4803,9 @@ pub(super) enum FullDriveReason {
     /// A container moved that the element's or a pseudo-element's values measure, through a
     /// container-relative length or a substitution.
     ContainerMoved,
+    /// A style pass gave the row up, and with it what moved under the record that only the pass
+    /// saw, such as the viewport.
+    PassGivenUp,
 }
 
 /// Static checks attached to the original declaration spelling at input preparation.
@@ -5983,7 +5986,7 @@ impl StyleEngineState {
             counters.bump(Counter::RootFontInputsPrepared);
         } else {
             // NB: Preserve the current host root-metric route. Unproven font inputs do not
-            //     turn every descendant into a host-boundary retry.
+            //     make every descendant wait for the host.
             counters.bump(Counter::RootFontInputsUnprovenFallbacks);
         }
         if scratch.font_drive.is_pending_for(node) {
@@ -6000,6 +6003,18 @@ impl EngineComputedRecordScratch {
             document_environment: self.document_environment_moved,
             viewport: self.viewport_moved,
             root_font_inputs: self.root_font_inputs_changed,
+        }
+    }
+
+    /// The scratch of the next wave of a style pass, which drives its rows under what the pass
+    /// moved under every row. What it cached of the rows the host installed since is gone.
+    pub(super) fn for_next_wave(&self) -> Self {
+        Self {
+            document_environment_moved: self.document_environment_moved,
+            viewport_moved: self.viewport_moved,
+            root_font_inputs_changed: self.root_font_inputs_changed,
+            host_applies_animation_plans: true,
+            ..Self::default()
         }
     }
 }

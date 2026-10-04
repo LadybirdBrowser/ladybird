@@ -918,9 +918,9 @@ pub struct RetainedState {
     /// Nodes whose winners were published while an ancestor's answer was moving in the same
     /// transaction, so their gated rules' conditions could not be decided when they were.
     container_gates_unheld: HashSet<StyleNodeID>,
-    /// Nodes a moved container asked to compute again in the transaction being recorded: what a
-    /// query or a container-relative length read of a container moved under them.
-    container_input_nodes: HashSet<StyleNodeID>,
+    /// What moved under the records of the elements the transaction being recorded owes a style
+    /// input, which no winner of theirs shows: their containers, or their parent's display.
+    row_inputs_moved: flush::RowInputsMoved,
     /// Whether, and as what, each element's published record makes it a query container.
     container_query_inputs: tree::ContainerQueryInputColumns,
     /// What the last layout commit and scroll state say of each container's box, for the
@@ -990,9 +990,6 @@ pub struct RetainedState {
     /// alike in that to share.
     /// Counts the style transactions taken; the winner rows record which one published them.
     flush_stamp: u64,
-    /// Elements whose parent's display moved under their record this transaction: their
-    /// box-type transformation reads it, so their record is driven again in full.
-    parent_inputs_moved_nodes: HashSet<StyleNodeID>,
     engine_pseudo_record_cache: HashMap<publication::PseudoCohortKey, computed::FinalStyleRecordID>,
     /// Whether the answer the current transaction publishes for each node has winners complete
     /// but for custom properties, read for the record loop: the answers are installed after it.
@@ -1119,6 +1116,8 @@ pub struct RetainedState {
 /// Host-facing engine state: C++ ownership, journal intake and the record/replay adapters.
 /// Never reachable from an evaluation step.
 pub struct HostState {
+    /// The style pass the host is installing wave by wave, between two of its waves.
+    suspended_style_pass: Option<flush::StylePass>,
     /// What the flush whose rows the host is installing moved under every row.
     batch_moves_for_retries: publication::BatchMoves,
     /// Why the flush would have driven a row it left to a retry in full, its winners standing.

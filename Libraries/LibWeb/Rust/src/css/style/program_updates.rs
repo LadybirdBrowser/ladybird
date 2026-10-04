@@ -1299,6 +1299,9 @@ impl StyleEngineState {
 
     /// Answers the identities the end of the transaction released, for the host to mint again.
     pub(super) fn discard_style_transaction_outputs(&mut self, counters: &mut Counters) -> Vec<u32> {
+        if let Some(pass) = self.host.suspended_style_pass.take() {
+            self.abandon_style_pass(pass);
+        }
         self.clear_ffi_style_transaction_output();
         self.discard_engine_computed_records(counters);
         self.retain_prefix_states();
@@ -1408,6 +1411,11 @@ impl StyleEngineState {
             scoped: true,
         });
         let _ = self.take_style_transaction(root, |_, _, _| {}, counters);
+        // A pass the host would install in waves reports every wave, as the host's diagnostic take
+        // does.
+        while self.host.suspended_style_pass.is_some() {
+            let _ = self.take_style_transaction(root, |_, _, _| {}, counters);
+        }
         let capture = self
             .diagnostic_plan_capture
             .take()

@@ -143,7 +143,8 @@
     [160, "SetElementTableSpans"],
     [161, "SetTopLayerElements"],
     [162, "MintStyleNodes"],
-    [163, "NoteCustomPropertyEnvironment"]
+    [163, "NoteCustomPropertyEnvironment"],
+    [164, "HasSuspendedStylePass"]
   ],
   "operations": [
     { "event": "SetPseudoElementStyleDeferred", "ffi": "style_engine_set_pseudo_element_style_deferred", "owner": "change", "cpp": "set_pseudo_element_style_deferred", "return": "void", "args": [["kind", "u8"], ["deferred", "bool"]], "body": "engine.deferred_pseudo_element = deferred.then_some(crate::css::style::tree::PseudoElementKind(u16::from(kind)));" },
@@ -184,6 +185,7 @@
     { "event": "SetElementCustomStates", "ffi": "style_engine_set_element_custom_states", "owner": "change", "cpp": "set_element_custom_states", "return": "void", "args": [["node", "style_node"], ["states", "style_atom_slice"]], "body": "let Some(node) = StyleNodeID::from_raw(node) else { return; }; let states = states.iter().copied().map(StyleAtomID).collect::<Vec<_>>(); engine.set_element_custom_states(node, &states);" },
     { "event": "ConnectedElementCount", "ffi": "style_engine_connected_element_count", "owner": "query", "cpp": "connected_element_count", "return": "u32", "receiver": "const", "args": [], "body": "let result = engine.connected_element_count();" },
     { "event": "HasPendingTransaction", "ffi": "style_engine_has_pending_transaction", "owner": "query", "return": "bool", "receiver": "const", "args": [], "body": "let result = engine.has_pending_transaction();" },
+    { "event": "HasSuspendedStylePass", "ffi": "style_engine_has_suspended_style_pass", "owner": "query", "return": "bool", "receiver": "const", "args": [], "body": "let result = engine.has_suspended_style_pass();" },
     { "event": "PendingTransactionMayAffectLayoutGeometry", "ffi": "style_engine_pending_transaction_may_affect_layout_geometry", "owner": "query", "return": "bool", "receiver": "const", "args": [], "body": "let result = engine.pending_transaction_may_affect_layout_geometry();" },
     { "event": "DeferPendingTransactionForGeometryRead", "ffi": "style_engine_defer_pending_transaction_for_geometry_read", "owner": "query", "return": "bool", "args": [], "body": "let result = engine.defer_pending_transaction_for_geometry_read();" },
     { "event": "BeginDeferredGeometryTransactionFlush", "ffi": "style_engine_begin_deferred_geometry_transaction_flush", "owner": "query", "return": "bool", "args": [], "body": "let result = engine.begin_deferred_geometry_transaction_flush();" },

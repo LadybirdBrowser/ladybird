@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const frame = document.createElement("iframe");
+        frame.style.cssText = "width: 300px; height: 100px; border: 0";
+        frame.srcdoc = `<!DOCTYPE html>
+            <style>
+                .flat select { appearance: none; }
+                #hidden.hidden { display: none; }
+                #reaction.before { color: red; }
+                #reaction.after { color: green; }
+                #late { width: 10vw; }
+            </style>
+            <div id="box"><select><option>One</option></select></div>
+            <div id="hidden" class="hidden"></div>
+            <div id="late"></div>
+            <span id="query"></span>`;
+        const loaded = new Promise(resolve => frame.addEventListener("load", resolve, { once: true }));
+        document.body.appendChild(frame);
+        await loaded;
+
+        const child = frame.contentWindow;
+        const doc = child.document;
+        const hidden = doc.getElementById("hidden");
+        const late = doc.getElementById("late");
+        child.internals.updateStyle();
+        const reaction = hidden.appendChild(doc.createElement("div")).appendChild(doc.createElement("span"));
+        reaction.id = "reaction";
+        reaction.className = "before";
+        child.getComputedStyle(doc.getElementById("query")).color;
+        child.internals.updateStyle();
+        println(`initial width: ${child.getComputedStyle(late).width}`);
+
+        // The viewport moves while the row under the revealed element waits for the next wave, and
+        // installing the select before it gives the pass up as its appearance flips. The row after
+        // them measures the viewport, whose move only the given-up pass saw.
+        frame.style.width = "500px";
+        document.body.offsetWidth;
+        doc.getElementById("box").className = "flat";
+        reaction.className = "after";
+        hidden.className = "";
+        child.internals.updateStyle();
+        println(`resized width: ${child.getComputedStyle(late).width}`);
+        println(`reaction color: ${child.getComputedStyle(reaction).color}`);
+    });
+</script>

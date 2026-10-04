@@ -666,13 +666,19 @@ void StyleEngine::flush()
 bool StyleEngine::take_diagnostic_style_transaction(StyleNodeID root, Function<void(ReadonlySpan<StyleNodeID>)>&& consume)
 {
     Vector<StyleNodeID> reaction_nodes;
+    auto take_reaction_nodes = [&](auto const& reactions) {
+        for (auto const& reaction : reactions) {
+            // A pseudo-element record is part of its element's reaction.
+            if (reaction.pseudo_kind != NumericLimits<u8>::max())
+                continue;
+            reaction_nodes.append(StyleNodeID { reaction.style_node });
+        }
+    };
     auto transaction = take_style_transaction(root);
-    for (auto const& reaction : transaction.reactions) {
-        // A pseudo-element record is part of its element's reaction.
-        if (reaction.pseudo_kind != NumericLimits<u8>::max())
-            continue;
-        reaction_nodes.append(StyleNodeID { reaction.style_node });
-    }
+    take_reaction_nodes(transaction.reactions);
+    // A pass the host would install in waves reports every wave.
+    while (StyleEngineFFI::style_engine_has_suspended_style_pass(m_render_document->host()))
+        take_reaction_nodes(take_style_transaction(root).reactions);
     discard_style_transaction_outputs();
     if (!transaction.is_scoped)
         return false;
