@@ -127,6 +127,11 @@ impl RowSnapshot {
         self.live_node(id).style
     }
 
+    /// Whether the arena derived the row's style record.
+    pub(crate) fn style_is_derived(&self, id: NodeSlotId) -> bool {
+        self.live_node(id).style_is_derived
+    }
+
     pub(crate) fn is_atomic_inline(&self, id: NodeSlotId) -> bool {
         let node = self.live_node(id);
         node_facts::node_is_atomic_inline(node, node.style())
@@ -186,6 +191,10 @@ impl RowStyles {
 
     pub(crate) fn style_payloads(&self, id: NodeSlotId) -> StylePayloadsRef {
         self.0.style_payloads(id)
+    }
+
+    pub(crate) fn style_is_derived(&self, id: NodeSlotId) -> bool {
+        self.0.style_is_derived(id)
     }
 }
 

@@ -319,6 +319,7 @@ impl TreeShape {
         chunks: &[Box<Chunk>],
         style_records: &[Cell<u64>],
         style_nodes: &[Cell<Option<StyleNodeID>>],
+        style_is_derived: impl Fn(usize) -> bool,
         writes: &ShapeWrites,
     ) -> ColumnSnapshot<PaintNode, PUBLISHED_ROWS_PER_CHUNK> {
         self.nodes.grow_to(chunks.len() * SLOTS_PER_CHUNK);
@@ -334,6 +335,7 @@ impl TreeShape {
                         &chunk.slots[offset],
                         style_records.get(index).map_or(0, Cell::get),
                         style_nodes.get(index).and_then(Cell::get),
+                        style_is_derived(index),
                     );
                     self.nodes.set(index, row).expect("the column holds every chunk");
                 }

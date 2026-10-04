@@ -763,14 +763,14 @@ pub const BOX_PRESENCE_HAS_COMMITTED_BOX: u8 = 1 << 1;
 #[repr(C)]
 pub struct FfiStyleRecordHostCallbacks {
     pub context: *mut c_void,
-    pub shell_style_changed: unsafe extern "C" fn(*mut c_void, *mut c_void, u64, *const c_void, bool),
+    pub shell_style_changed: unsafe extern "C" fn(*mut c_void, *mut c_void, u64, *const c_void, bool, bool),
 }
 
 /// How the host learns that a shell's row took a new style: the shell, its new record and
-/// payloads, and whether the shell should attach the style's resources.
+/// payloads, whether the arena derived the record, and whether the shell should attach the style's resources.
 pub(crate) type ShellStyleChangedHost = (
     *mut c_void,
-    unsafe extern "C" fn(*mut c_void, *mut c_void, u64, *const c_void, bool),
+    unsafe extern "C" fn(*mut c_void, *mut c_void, u64, *const c_void, bool, bool),
 );
 
 fn style_payloads_equal_in_layout_affecting_groups(a: StylePayloadsRef, b: StylePayloadsRef) -> bool {
@@ -1734,8 +1734,17 @@ impl LayoutNodeArena {
     pub(crate) fn publish_paint_tree(
         &mut self,
     ) -> crate::cow_column::ColumnSnapshot<super::node_data::PaintNode, PUBLISHED_ROWS_PER_CHUNK> {
-        self.tree_shape
-            .publish(&self.chunks, &self.style_records, &self.style_nodes, &self.shape_writes)
+        self.tree_shape.publish(
+            &self.chunks,
+            &self.style_records,
+            &self.style_nodes,
+            |index| {
+                self.style_record_pins
+                    .get(index)
+                    .is_some_and(|pin| pin.get() == ArenaStylePin::Derived)
+            },
+            &self.shape_writes,
+        )
     }
 
     /// The shape of the node whose data `data` is, for writing.
@@ -5395,16 +5404,6 @@ pub unsafe extern "C" fn render_state_release_node_style_record_pin_for_host(
 ) {
     // SAFETY: Guaranteed by the caller.
     unsafe { queue(host, LayoutChange::ReleaseNodeStyleRecordPinForHost { node: slot }) };
-}
-
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn render_state_node_has_derived_style(host: *const DocumentHost, node: NodeSlotId) -> bool {
-    // SAFETY: Guaranteed by the caller.
-    unsafe {
-        read_arena(host, node_read(), node, |arena, node| {
-            arena.node_style_record_is_derived(node)
-        })
-    }
 }
 
 #[unsafe(no_mangle)]
