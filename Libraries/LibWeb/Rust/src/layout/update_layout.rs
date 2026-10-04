@@ -236,10 +236,10 @@ impl FfiLayoutUpdateHostCallbacks {
             return;
         }
         // Each box reads whether its style holds image values, which the engine answers with the rows rather than
-        // once per box.
-        let owed = read_arena(host, read, (), |arena, ()| {
+        // once per box, and what its row is, which the rows published with them answer.
+        let (owed, rows) = read_arena(host, read, (), |arena, ()| {
             let owed = arena.take_image_resources_owed_to_host();
-            arena.with_style_engine(|engine| {
+            let owed = arena.with_style_engine(|engine| {
                 owed.into_iter()
                     // A later build of the update may have freed the row.
                     .filter(|&(row, _)| arena.slot_is_live(row))
@@ -248,8 +248,13 @@ impl FfiLayoutUpdateHostCallbacks {
                         (row, owed, FfiStyleImageFacts::of(engine, arena.node_style_record(row)))
                     })
                     .collect::<Vec<_>>()
-            })
+            });
+            let rows = (!owed.is_empty()).then(|| arena.publish_row_snapshot(false));
+            (owed, rows)
         });
+        if let Some(rows) = rows {
+            host.keep_rows(rows);
+        }
         for (row, owed, images) in owed {
             match owed {
                 OwedImageResources::StyleResources {

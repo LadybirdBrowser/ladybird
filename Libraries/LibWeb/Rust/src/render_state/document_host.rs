@@ -898,6 +898,11 @@ impl DocumentHost {
         }
     }
 
+    /// Keeps `rows`, which the render state published as a job of the host's ended, as the rows it holds.
+    pub(crate) fn keep_rows(&self, rows: RowSnapshot) {
+        *self.rows.borrow_mut() = Some(Rc::new(rows));
+    }
+
     /// Lets go of the rows the render state published last, before a job the host waits for writes them. The host
     /// reads none while the job runs, and those it reads after the job are published after it, so the job writes the
     /// chunks nothing else holds in place rather than copying them for rows nobody reads again. Rows an outer call
