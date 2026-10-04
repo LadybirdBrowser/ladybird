@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<style>
+    .scroller {
+        width: 100px;
+        height: 100px;
+        overflow: scroll;
+    }
+
+    .content {
+        height: 1000px;
+    }
+</style>
+<script src="include.js"></script>
+<div id="listened-scroller" class="scroller"><div class="content"></div></div>
+<script>
+    function scrollAndRemoveScrollerNothingElseReferences() {
+        const scroller = document.createElement("div");
+        scroller.className = "scroller";
+        scroller.innerHTML = `<div class="content"></div>`;
+        document.body.appendChild(scroller);
+        scroller.scrollTop = 100;
+        scroller.remove();
+        document.body.offsetWidth;
+    }
+
+    asyncTest(done => {
+        const listenedScroller = document.getElementById("listened-scroller");
+        listenedScroller.addEventListener("scroll", () => {
+            println(`listened scroller scrolled to y=${listenedScroller.scrollTop}`);
+            // The second collection finishes sweeping what the first one found unreachable.
+            internals.gc();
+            internals.gc();
+        });
+        listenedScroller.scrollTop = 100;
+        scrollAndRemoveScrollerNothingElseReferences();
+
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                println("PASS (didn't crash)");
+                done();
+            });
+        });
+    });
+</script>

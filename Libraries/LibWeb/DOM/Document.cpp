@@ -4834,7 +4834,8 @@ void Document::run_the_scroll_steps()
 
     // 2. For each item (target, type) in doc’s pending scroll events, in the order they were added to the list, run
     //    these substeps:
-    auto pending_scroll_events = move(m_pending_scroll_events);
+    // NB: Firing an event allocates, and a target removed from its document may be referenced only by this list.
+    GC::ConservativeVector<PendingScrollEvent> pending_scroll_events { exchange(m_pending_scroll_events, {}) };
     for (auto const& [target, type] : pending_scroll_events) {
         // 1. If target is a Document, and type is "scroll" or "scrollend", fire an event named type that bubbles at target.
         if (is<Document>(*target) && (type == HTML::EventNames::scroll || type == HTML::EventNames::scrollend)) {

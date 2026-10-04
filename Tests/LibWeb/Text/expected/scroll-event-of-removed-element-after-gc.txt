@@ -1,0 +1,2 @@
+listened scroller scrolled to y=100
+PASS (didn't crash)
