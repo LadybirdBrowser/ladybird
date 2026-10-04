@@ -272,6 +272,16 @@ void WebContentPage::spoof_document_origin_for_testing(Web::HTML::EnvironmentId 
         document->set_origin_for_testing(move(origin));
 }
 
+// A child frame's container speaks for it only in the page holding the container. Any other page naming it, the
+// traversable included, misbehaves.
+bool WebContentPage::holds_container_of(CanonicalNavigable const& child_frame, StringView message_name)
+{
+    if (child_frame.reporting_page() == *this)
+        return true;
+    client().did_misbehave(message_name, "frame whose container the page does not hold"sv);
+    return false;
+}
+
 RefPtr<WebContentPage> WebContentPage::endpoint_hosting_navigable_represented_by(Web::HTML::CrossProcessId navigable_id) const
 {
     auto target = traversable().find(navigable_id);
@@ -681,6 +691,10 @@ void WebContentPage::did_post_message_to_navigable(Web::HTML::CrossProcessId nav
 
 void WebContentPage::did_request_focusing_steps_for_navigable(Web::HTML::CrossProcessId navigable_id, Web::HTML::FocusTrigger focus_trigger)
 {
+    auto navigable = traversable().find(navigable_id);
+    if (!navigable.has_value() || !holds_container_of(*navigable, "did_request_focusing_steps_for_navigable"sv))
+        return;
+
     // The focusing steps for a navigable container go on in the process hosting its content navigable's document.
     auto endpoint = endpoint_hosting_navigable_represented_by(navigable_id);
     if (!endpoint)
@@ -688,8 +702,7 @@ void WebContentPage::did_request_focusing_steps_for_navigable(Web::HTML::CrossPr
     // The requesting page has moved focus to the container, so the tab's focused navigable is the content navigable
     // from here on. Recording it before the host runs the steps keeps a report the requesting page makes meanwhile
     // ahead of the host's, which only confirms this.
-    if (auto navigable = traversable().top_level_traversable().find(navigable_id); navigable.has_value())
-        navigable->top_level_traversable().set_focused_navigable(*navigable, *this);
+    traversable().set_focused_navigable(*navigable, *this);
     endpoint->async_run_focusing_steps_for_navigable(navigable_id, focus_trigger);
 }
 
@@ -1642,6 +1655,9 @@ void WebContentPage::descendant_unload_task_complete(Web::HTML::CrossProcessId u
 
 void WebContentPage::request_navigable_document_abort(Web::HTML::CrossProcessId navigable_id)
 {
+    auto navigable = traversable().find(navigable_id);
+    if (!navigable.has_value() || !holds_container_of(*navigable, "request_navigable_document_abort"sv))
+        return;
     auto endpoint = endpoint_hosting_navigable_represented_by(navigable_id);
     if (!endpoint)
         return;
@@ -1716,6 +1732,8 @@ RefPtr<WebContentPage> WebContentPage::page_hosting_navigable(Web::HTML::CrossPr
 
 void WebContentPage::request_child_navigable_unload(Web::HTML::CrossProcessId navigable_id)
 {
+    if (auto navigable = traversable().find(navigable_id); navigable.has_value() && !holds_container_of(*navigable, "request_child_navigable_unload"sv))
+        return;
     traversable().did_receive_child_navigable_unload_request(*this, navigable_id);
 }
 
@@ -2138,25 +2156,26 @@ void WebContentPage::did_set_opener_browsing_context(Web::HTML::CrossProcessId n
 
 void WebContentPage::did_change_navigable_container_state(Web::HTML::CrossProcessId navigable_id, Web::HTML::ReplicatedContainerState state)
 {
-    // Only the page holding a navigable's container speaks for it.
-    auto navigable = traversable().top_level_traversable().find(navigable_id);
-    if (!navigable.has_value() || navigable->reporting_page() != *this)
+    auto navigable = traversable().find(navigable_id);
+    if (!navigable.has_value() || !holds_container_of(*navigable, "did_change_navigable_container_state"sv))
         return;
     navigable->update_container_state(move(state));
 }
 
 void WebContentPage::did_update_child_frame_viewport(Web::HTML::CrossProcessId frame_id, Web::DevicePixelRect viewport_rect, Web::DevicePixelRect viewport_intersection, double device_pixel_ratio)
 {
-    if (auto child_frame = traversable().top_level_traversable().find(frame_id); child_frame.has_value())
-        child_frame->set_viewport(viewport_rect, viewport_intersection, device_pixel_ratio);
+    auto child_frame = traversable().find(frame_id);
+    if (!child_frame.has_value() || !holds_container_of(*child_frame, "did_update_child_frame_viewport"sv))
+        return;
+    child_frame->set_viewport(viewport_rect, viewport_intersection, device_pixel_ratio);
 }
 
 // The page found the pointer over a child frame another process hosts, and hands the event down to that process. The
 // view displaying the tab waits for the event until the process it went to finishes it.
 void WebContentPage::did_forward_mouse_event_to_child_frame(Web::HTML::CrossProcessId frame_id, Web::MouseEvent event)
 {
-    auto child_frame = traversable().top_level_traversable().find(frame_id);
-    if (!child_frame.has_value() || child_frame->reporting_page() != *this || !child_frame->has_remote_host()) {
+    auto child_frame = traversable().find(frame_id);
+    if (!child_frame.has_value() || !holds_container_of(*child_frame, "did_forward_mouse_event_to_child_frame"sv) || !child_frame->has_remote_host()) {
         did_finish_handling_input_event(event.id, Web::EventResult::Dropped);
         return;
     }
@@ -2168,8 +2187,10 @@ void WebContentPage::did_forward_mouse_event_to_child_frame(Web::HTML::CrossProc
 
 void WebContentPage::did_destroy_child_frame(Web::HTML::CrossProcessId frame_id)
 {
-    if (auto child_frame = traversable().top_level_traversable().find(frame_id); child_frame.has_value())
-        traversable().remove(*child_frame);
+    auto child_frame = traversable().find(frame_id);
+    if (!child_frame.has_value() || !holds_container_of(*child_frame, "did_destroy_child_frame"sv))
+        return;
+    traversable().remove(*child_frame);
 }
 
 Messages::WebContentClient::DidStartDownloadWithoutRequestResponse WebContentPage::did_start_download_without_request(URL::URL url, ByteString suggested_filename, Optional<u64> total_size)
