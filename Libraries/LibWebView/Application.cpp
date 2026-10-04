@@ -31,7 +31,6 @@
 #include <LibHTTP/Cookie/IncludeCredentials.h>
 #include <LibHTTP/HeaderList.h>
 #include <LibIPC/TransportHandle.h>
-#include <LibImageDecoderClient/Client.h>
 #include <LibRequests/NetworkError.h>
 #include <LibRequests/Request.h>
 #include <LibRequests/RequestClient.h>
@@ -1042,7 +1041,7 @@ ErrorOr<NonnullRefPtr<WebContentClient>> Application::create_web_content_client(
 {
     // The client's WebContentClient picks up this same session when it is created.
     auto request_server_connection = TRY(connect_new_request_server_client(session_for_new_view(is_private), RequestServer::SiteBinding::Bound));
-    auto image_decoder_handle = TRY(connect_new_image_decoder_client());
+    auto image_decoder = TRY(launch_image_decoder_process());
 #if defined(HAVE_WASM_COMPILER_SERVICE)
     auto wasm_compiler_handle = TRY(connect_new_wasm_compiler_client());
 #endif
@@ -1074,7 +1073,7 @@ ErrorOr<NonnullRefPtr<WebContentClient>> Application::create_web_content_client(
     client->request_server_site_bindings().did_connect(request_server_connection.client_id);
     client->async_connect_to_request_server(move(request_server_connection.handle));
     client->async_set_site_compatibility_data(m_site_compatibility_data);
-    client->async_connect_to_image_decoder(image_decoder_handle);
+    connect_to_image_decoder(*client, move(image_decoder));
 #if defined(HAVE_WASM_COMPILER_SERVICE)
     client->async_connect_to_wasm_compiler(wasm_compiler_handle);
 #endif
@@ -1667,7 +1666,6 @@ ErrorOr<void> Application::launch_services()
     }
 
     TRY(launch_request_server());
-    TRY(launch_image_decoder_server());
 #if defined(HAVE_WASM_COMPILER_SERVICE)
     TRY(launch_wasm_compiler_server());
 #endif
@@ -1921,35 +1919,9 @@ ErrorOr<void> Application::launch_request_server()
     return {};
 }
 
-ErrorOr<void> Application::launch_image_decoder_server()
+void Application::set_image_decoder_exit_handler(pid_t pid, Function<void()> handler)
 {
-    m_image_decoder_client = TRY(launch_image_decoder_process());
-
-    m_image_decoder_client->on_death = [this]() {
-        m_image_decoder_client = nullptr;
-
-        if (Core::EventLoop::current().was_exit_requested())
-            return;
-
-        if (auto result = launch_image_decoder_server(); result.is_error()) {
-            dbgln("Failed to restart image decoder: {}", result.error());
-            VERIFY_NOT_REACHED();
-        }
-
-        auto client_count = WebContentClient::client_count();
-        auto image_decoder_response = m_image_decoder_client->send_sync_but_allow_failure<Messages::ImageDecoderServer::ConnectNewClients>(client_count);
-        if (!image_decoder_response || image_decoder_response->handles().is_empty()) {
-            dbgln("Failed to connect {} new clients to ImageDecoder", client_count);
-            VERIFY_NOT_REACHED();
-        }
-
-        WebContentClient::for_each_client([handles = image_decoder_response->take_handles()](WebContentClient& client) mutable {
-            client.async_connect_to_image_decoder(handles.take_last());
-            return IterationDecision::Continue;
-        });
-    };
-
-    return {};
+    m_image_decoder_exit_handlers.set(pid, move(handler));
 }
 
 #if defined(HAVE_WASM_COMPILER_SERVICE)
@@ -2152,12 +2124,8 @@ void Application::process_did_exit(Process&& process, Optional<int>)
         }
         break;
     case ProcessType::ImageDecoder:
-        if (auto client = process.client<ImageDecoderClient::Client>()) {
-            dbgln_if(WEBVIEW_PROCESS_DEBUG, "Restart ImageDecoder process");
-            if (auto on_death = move(client->on_death)) {
-                on_death();
-            }
-        }
+        if (auto handler = m_image_decoder_exit_handlers.take(process.pid()); handler.has_value())
+            (*handler)();
         break;
     case ProcessType::MediaServer:
         // The connection's holder launches a new MediaServer when it next connects a client.

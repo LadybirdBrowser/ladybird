@@ -171,6 +171,15 @@ static void watch_with_process_reaper(pid_t pid)
 }
 #endif
 
+ErrorOr<Process::ProcessAndTransport> Process::spawn_with_transport(ProcessType type, Core::ProcessSpawnOptions const& options, bool capture_output)
+{
+    auto [core_process, transport, output_capture] = TRY(spawn_and_connect_to_process(type, options, capture_output));
+
+    Process process { type, nullptr, move(core_process) };
+    process.m_output_capture = move(output_capture);
+    return ProcessAndTransport { move(process), move(transport) };
+}
+
 ErrorOr<Process::ProcessAndIPCTransport> Process::spawn_and_connect_to_process([[maybe_unused]] ProcessType type, Core::ProcessSpawnOptions const& options, bool capture_output)
 {
     // Set up pipes for stdout/stderr capture if requested

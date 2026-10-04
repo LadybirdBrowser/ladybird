@@ -39,6 +39,11 @@ public:
     template<typename ClientType, typename... ClientArguments>
     static ErrorOr<ProcessAndClient<ClientType>> spawn(ProcessType type, Core::ProcessSpawnOptions const& options, bool capture_output, ClientArguments&&... client_arguments);
 
+    struct ProcessAndTransport;
+
+    // For a helper that serves another process: The caller hands the transport over instead of connecting to it.
+    static ErrorOr<ProcessAndTransport> spawn_with_transport(ProcessType type, Core::ProcessSpawnOptions const& options, bool capture_output);
+
     ProcessType type() const { return m_type; }
 
     Optional<Utf16String> const& title() const { return m_title; }
@@ -105,6 +110,11 @@ template<typename ClientType>
 struct Process::ProcessAndClient {
     Process process;
     NonnullRefPtr<ClientType> client;
+};
+
+struct Process::ProcessAndTransport {
+    Process process;
+    NonnullOwnPtr<IPC::Transport> transport;
 };
 
 template<typename ClientType, typename... ClientArguments>
