@@ -112,7 +112,6 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
         let mut element_fact_calls = 0_u64;
         let mut element_declaration_calls = 0_u64;
         let mut element_animation_name_calls = 0_u64;
-        let mut attribute_value_text_queries = 0_u64;
         let mut attribute_value_text_publications = 0_u64;
         let mut selector_program_sharing = SelectorProgramSharing::default();
         let mut flush_count = 0_u64;
@@ -156,7 +155,6 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                 | EventKind::SetElementHeadingLevel => element_fact_calls += 1,
                 EventKind::SetElementDeclaredProperties => element_declaration_calls += 1,
                 EventKind::SetElementAnimationNames => element_animation_name_calls += 1,
-                EventKind::HasAttributeValueText => attribute_value_text_queries += 1,
                 EventKind::SetAttributeValueText => attribute_value_text_publications += 1,
                 _ => {}
             }
@@ -1331,7 +1329,6 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             );
             println!("  elementDeclarationCalls: {element_declaration_calls}");
             println!("  elementAnimationNameCalls: {element_animation_name_calls}");
-            println!("  attributeValueTextQueries: {attribute_value_text_queries}");
             println!("  attributeValueTextPublications: {attribute_value_text_publications}");
             println!(
                 "  selectorProgramCompilations: {}",
@@ -1362,7 +1359,6 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                 "element_fact_calls_per_arrival": element_fact_calls as f64 / element_arrivals.max(1) as f64,
                 "element_declaration_calls": element_declaration_calls,
                 "element_animation_name_calls": element_animation_name_calls,
-                "attribute_value_text_queries": attribute_value_text_queries,
                 "attribute_value_text_publications": attribute_value_text_publications,
                 "selector_program_compilations": selector_program_sharing.compilations,
                 "selector_programs_distinct_documents": selector_program_sharing.document_distinct_count(),

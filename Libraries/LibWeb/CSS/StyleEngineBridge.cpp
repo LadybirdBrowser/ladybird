@@ -433,13 +433,8 @@ void StyleEngine::backfill_attribute_value_text_if_required(StyleAtomID name, Ut
 
 void StyleEngine::publish_attribute_value_text(StyleAtomID atom, Utf16View value)
 {
-    // The engine holds one copy of the text per currently used value. Ask whether it survived
-    // reclamation before copying it out of the attribute's representation again, as the host's own read of the render
-    // state.
-    Layout::ForcedReadScope read { render_document(), false };
-    if (StyleEngineFFI::style_engine_has_attribute_value_text(m_render_document->host(), read, atom.value()))
-        return;
-
+    // The engine holds one copy of the text per currently used value, and keeps the one it holds where it still has
+    // it, so the host hands the text over without asking whether it survived reclamation.
     Vector<u16> code_units;
     code_units.ensure_capacity(value.length_in_code_units());
     for (size_t i = 0; i < value.length_in_code_units(); ++i)
