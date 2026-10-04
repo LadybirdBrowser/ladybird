@@ -53,6 +53,7 @@ Optional<NavigationLoader::ResponseDocument> NavigationLoader::response_document
             .origin = origin,
             .opener_policy = {},
             .environment_id = {},
+            .document_id = {},
         };
     }
 
@@ -79,6 +80,7 @@ Optional<NavigationLoader::ResponseDocument> NavigationLoader::response_document
         .origin = fetched_navigation_params.origin,
         .opener_policy = fetched_navigation_params.opener_policy,
         .environment_id = {},
+        .document_id = {},
     };
 }
 
@@ -288,12 +290,14 @@ Web::HTML::NavigationPopulationResult const& NavigationLoader::result() const
     return *m_result;
 }
 
-// The window of the document the navigation params create takes over their reserved environment's id, which the UI
-// process generates, and is in the agent cluster of the agent the UI process obtained for it. A navigation without a
-// reserved environment gets one with the id.
+// The document the result creates takes the UI process's id for it. Its window takes over the navigation params'
+// reserved environment's id, which the UI process generates, and is in the agent cluster of the agent the UI process
+// obtained for it. A navigation without a reserved environment gets one with the id.
 void NavigationLoader::set_document(CanonicalDocument const& document, CanonicalNavigable const& navigable)
 {
     VERIFY(m_result.has_value());
+    m_result->document_id = document.id();
+
     auto* navigation_params = m_result->navigation_params.get_pointer<Web::HTML::NavigationParamsDescriptor>();
     if (!navigation_params)
         return;

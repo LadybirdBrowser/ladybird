@@ -20,6 +20,7 @@
 #include <LibWeb/HTML/UserNavigationInvolvement.h>
 #include <LibWebCommon/HTML/CrossOrigin/OpenerPolicy.h>
 #include <LibWebCommon/HTML/CrossOrigin/OpenerPolicyEnforcementResult.h>
+#include <LibWebCommon/HTML/CrossProcessId.h>
 #include <LibWebCommon/HTML/NavigationParamsDescriptor.h>
 #include <LibWebCommon/HTML/SandboxingFlagSet.h>
 #include <LibWebCommon/ReferrerPolicy/ReferrerPolicy.h>
@@ -53,6 +54,9 @@ struct NavigationParams : GC::Cell {
 
     // AD-HOC: The agent cluster of the agent the UI process obtained for the new Document's window.
     Optional<u64> agent_cluster_id;
+
+    // AD-HOC: The id the UI process gave the new Document.
+    Optional<CrossProcessId> document_id;
 
     // AD-HOC: The group of the new top-level browsing context the UI process obtained for the new Document, when a
     //         browsing context group switch gave it one.

@@ -66,6 +66,7 @@ struct NavigationPopulationResult {
     bool resource_cleared { false };
     // The origin the UI process gives a document created for inline content in place of the response.
     Optional<URL::Origin> inline_content_origin {};
+    Optional<CrossProcessId> document_id {};
 };
 
 struct HistoryNavigationPopulation {

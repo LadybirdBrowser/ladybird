@@ -97,7 +97,11 @@ public:
     // Null outside test mode: the test endpoint is only connected when the UI process runs tests.
     WebContentTestClient* test_connection() { return m_test_connection; }
 
-    void set_initial_top_level_history_entry(Badge<Application>, Web::HTML::SessionHistoryEntryDescriptor entry) { m_initial_top_level_history_entry = move(entry); }
+    void set_initial_top_level_history_entry(Badge<Application>, Web::HTML::SessionHistoryEntryDescriptor entry, Web::HTML::CrossProcessId document_id)
+    {
+        m_initial_top_level_history_entry = move(entry);
+        m_initial_top_level_document_id = document_id;
+    }
     WebContentPage& open_initial_page_for_new_top_level_traversable();
     WebContentPage& open_page_for_new_top_level_traversable(Web::PageId, CanonicalTraversable&);
     void discard_page_of_undisplayed_top_level_traversable(Web::PageId);
@@ -222,6 +226,7 @@ private:
     Optional<Web::PageId> m_unassigned_initial_page_id;
     Web::HTML::CrossProcessId m_root_navigable_id;
     Optional<Web::HTML::SessionHistoryEntryDescriptor> m_initial_top_level_history_entry;
+    Web::HTML::CrossProcessId m_initial_top_level_document_id;
 
     ProcessHandle m_process_handle;
 

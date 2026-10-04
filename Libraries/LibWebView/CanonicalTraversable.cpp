@@ -723,18 +723,18 @@ bool CanonicalTraversable::is_origin_held_by_a_document(URL::Origin const& origi
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#creating-a-new-top-level-traversable
-CanonicalTraversable& CanonicalTraversable::create_a_new_top_level_traversable(Web::HTML::CrossProcessId id, Optional<CanonicalNavigable&> opener, Web::HTML::SessionHistoryEntryDescriptor initial_history_entry)
+CanonicalTraversable& CanonicalTraversable::create_a_new_top_level_traversable(Web::HTML::CrossProcessId id, Optional<CanonicalNavigable&> opener, Web::HTML::SessionHistoryEntryDescriptor initial_history_entry, Web::HTML::CrossProcessId document_id)
 {
     // 1. Let document be null.
     RefPtr<CanonicalDocument> document;
 
     // 2. If opener is null, then set document to the second return value of creating a new top-level browsing context and document.
     if (!opener.has_value()) {
-        document = CanonicalBrowsingContext::create_a_new_top_level_browsing_context_and_document(initial_history_entry.document_state.origin).document;
+        document = CanonicalBrowsingContext::create_a_new_top_level_browsing_context_and_document(document_id, initial_history_entry.document_state.origin).document;
     }
     // 3. Otherwise, set document to the second return value of creating a new auxiliary browsing context and document given opener.
     else {
-        document = CanonicalBrowsingContext::create_a_new_auxiliary_browsing_context_and_document(*opener).document;
+        document = CanonicalBrowsingContext::create_a_new_auxiliary_browsing_context_and_document(*opener, document_id).document;
     }
 
     // 4. Let documentState be a new document state, with
@@ -1481,6 +1481,7 @@ void CanonicalTraversable::continue_history_navigation_population(Web::HTML::Cro
     // by the process that fetched it.
     auto response_document = loader->response_document();
     if (response_document.has_value()) {
+        response_document->document_id = Application::the().allocate_ui_process_cross_process_id();
         pending_job.value()->did_populate_document = CanonicalNavigable::DidPopulateDocument::Yes;
         auto document = navigable->create_and_initialize_a_document(*response_document);
         pending_job.value()->document = document;
@@ -2618,6 +2619,11 @@ void CanonicalTraversable::finalize_a_cross_document_navigation(HistoryOperation
             return;
         }
 
+        if (!parameters.document_id.has_value()) {
+            finish_history_operation(operation.operation_id, Web::HTML::HistoryStepResult::NoMatchingEntry, {});
+            return;
+        }
+
         // 8. Assert: initiatorOrigin is newDocument's origin.
         // NB: The UI process creates its newDocument with initiatorOrigin, and with the opener policy evaluating a
         //     javascript: URL gives it: targetNavigable's active document's opener policy.
@@ -2630,6 +2636,7 @@ void CanonicalTraversable::finalize_a_cross_document_navigation(HistoryOperation
             .origin = *initiator_origin,
             .opener_policy = coop,
             .environment_id = parameters.environment_id,
+            .document_id = *parameters.document_id,
         };
 
         // 11. Let documentState be a new document state with

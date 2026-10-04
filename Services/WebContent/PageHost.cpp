@@ -22,7 +22,7 @@ PageHost::PageHost(ConnectionFromClient& client)
 {
 }
 
-void PageHost::initialize(Web::PageId initial_page_id, Vector<Web::HTML::RemoteNavigableDescriptor> remote_navigables, Web::HTML::CrossProcessId root_navigable_id, Web::HTML::CrossProcessIdAllocator cross_process_id_allocator, Web::HTML::SessionHistoryEntryDescriptor initial_history_entry, Web::HTML::VisibilityState system_visibility_state)
+void PageHost::initialize(Web::PageId initial_page_id, Vector<Web::HTML::RemoteNavigableDescriptor> remote_navigables, Web::HTML::CrossProcessId root_navigable_id, Web::HTML::CrossProcessIdAllocator cross_process_id_allocator, Web::HTML::SessionHistoryEntryDescriptor initial_history_entry, Web::HTML::CrossProcessId initial_document_id, Web::HTML::VisibilityState system_visibility_state)
 {
     VERIFY(m_pages.is_empty());
     m_cross_process_id_allocator = cross_process_id_allocator;
@@ -32,7 +32,7 @@ void PageHost::initialize(Web::PageId initial_page_id, Vector<Web::HTML::RemoteN
     if (remote_navigables.is_empty()) {
         auto& first_page = create_page(initial_page_id, root_navigable_id);
         first_page.page().set_system_visibility_state(system_visibility_state);
-        Web::HTML::LocalTraversableNavigable::create_a_fresh_top_level_traversable(first_page.page(), move(initial_history_entry));
+        Web::HTML::LocalTraversableNavigable::create_a_fresh_top_level_traversable(first_page.page(), move(initial_history_entry), initial_document_id);
         return;
     }
     auto& first_page = create_page(initial_page_id);

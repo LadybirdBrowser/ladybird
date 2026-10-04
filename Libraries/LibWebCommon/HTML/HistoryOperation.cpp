@@ -17,6 +17,7 @@ ErrorOr<void> IPC::encode(Encoder& encoder, Web::FinalizeCrossDocumentNavigation
     TRY(encoder.encode(parameters.history_handling));
     TRY(encoder.encode(parameters.user_involvement));
     TRY(encoder.encode(parameters.environment_id));
+    TRY(encoder.encode(parameters.document_id));
     return {};
 }
 
@@ -30,6 +31,7 @@ ErrorOr<Web::FinalizeCrossDocumentNavigationHistoryOperationParameters> IPC::dec
         .history_handling = TRY(decoder.decode<Web::HTML::HistoryHandlingBehavior>()),
         .user_involvement = TRY(decoder.decode<Web::HTML::UserNavigationInvolvement>()),
         .environment_id = TRY(decoder.decode<Optional<Web::HTML::EnvironmentId>>()),
+        .document_id = TRY(decoder.decode<Optional<Web::HTML::CrossProcessId>>()),
     };
 }
 

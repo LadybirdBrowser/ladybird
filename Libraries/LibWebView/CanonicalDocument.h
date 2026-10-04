@@ -13,6 +13,7 @@
 #include <LibURL/Origin.h>
 #include <LibURL/URL.h>
 #include <LibWebCommon/HTML/CrossOrigin/OpenerPolicy.h>
+#include <LibWebCommon/HTML/CrossProcessId.h>
 #include <LibWebView/Export.h>
 #include <LibWebView/Forward.h>
 
@@ -28,9 +29,11 @@ public:
         Yes,
     };
 
-    static NonnullRefPtr<CanonicalDocument> create(URL::URL creation_url, URL::Origin, NonnullRefPtr<CanonicalBrowsingContext>, NonnullRefPtr<CanonicalWindow>, IsInitialAboutBlank);
+    static NonnullRefPtr<CanonicalDocument> create(Web::HTML::CrossProcessId id, URL::URL creation_url, URL::Origin, NonnullRefPtr<CanonicalBrowsingContext>, NonnullRefPtr<CanonicalWindow>, IsInitialAboutBlank);
 
     ~CanonicalDocument();
+
+    Web::HTML::CrossProcessId id() const { return m_id; }
 
     // https://html.spec.whatwg.org/multipage/webappapis.html#concept-environment-creation-url
     URL::URL const& creation_url() const { return m_creation_url; }
@@ -75,8 +78,9 @@ public:
     void make_active();
 
 private:
-    CanonicalDocument(URL::URL creation_url, URL::Origin, NonnullRefPtr<CanonicalBrowsingContext>, NonnullRefPtr<CanonicalWindow>, IsInitialAboutBlank);
+    CanonicalDocument(Web::HTML::CrossProcessId id, URL::URL creation_url, URL::Origin, NonnullRefPtr<CanonicalBrowsingContext>, NonnullRefPtr<CanonicalWindow>, IsInitialAboutBlank);
 
+    Web::HTML::CrossProcessId m_id;
     URL::URL m_creation_url;
     URL::Origin m_origin;
     NonnullRefPtr<CanonicalBrowsingContext> m_browsing_context;

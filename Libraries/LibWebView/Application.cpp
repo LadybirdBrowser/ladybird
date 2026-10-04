@@ -1070,6 +1070,7 @@ ErrorOr<NonnullRefPtr<WebContentClient>> Application::create_web_content_client(
     auto root_navigable_id = navigable_to_adopt.has_value() ? *navigable_to_adopt : cross_process_id_allocator.allocate();
     if (!initial_document_state_id.has_value())
         initial_document_state_id = cross_process_id_allocator.allocate();
+    auto initial_document_id = cross_process_id_allocator.allocate();
 
     auto client = TRY(WebView::launch_web_content_process(is_private, initial_page_id, root_navigable_id));
     TRY(Application::the().connect_web_content_to_compositor(*client));
@@ -1085,10 +1086,10 @@ ErrorOr<NonnullRefPtr<WebContentClient>> Application::create_web_content_client(
         entry.document_state.origin = URL::Origin::create_opaque();
         return entry;
     }();
-    client->async_initialize(initial_page_id, move(remote_navigables), root_navigable_id, cross_process_id_allocator, initial_history_entry, system_visibility_state);
+    client->async_initialize(initial_page_id, move(remote_navigables), root_navigable_id, cross_process_id_allocator, initial_history_entry, initial_document_id, system_visibility_state);
 
     if (!navigable_to_adopt.has_value())
-        client->set_initial_top_level_history_entry({}, move(initial_history_entry));
+        client->set_initial_top_level_history_entry({}, move(initial_history_entry), initial_document_id);
 
     client->request_server_site_bindings().did_connect(request_server_connection.client_id);
     client->async_connect_to_request_server(move(request_server_connection.handle), request_server_connection.client_id);

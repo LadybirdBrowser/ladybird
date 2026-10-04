@@ -45,6 +45,7 @@ public:
         Web::HTML::OpenerPolicy opener_policy;
         // The id of the window environment a process created the document with before the UI process heard of it.
         Optional<Web::HTML::EnvironmentId> environment_id;
+        Web::HTML::CrossProcessId document_id;
     };
     Optional<ResponseDocument> response_document() const;
     void set_document(CanonicalDocument const&, CanonicalNavigable const&);

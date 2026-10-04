@@ -307,6 +307,7 @@ bool WebContentPage::continue_navigation_population_in_selected_process(Web::HTM
     RefPtr<WebContentPage> host = this;
     auto response_document = navigable->ongoing_navigation()->loader->response_document();
     if (response_document.has_value()) {
+        response_document->document_id = Application::the().allocate_ui_process_cross_process_id();
         auto const& request = navigable->ongoing_navigation()->loader->request();
         auto document = navigable->create_and_initialize_a_document(*response_document);
         navigable->ongoing_navigation()->loader->set_document(*document, *navigable);
@@ -728,13 +729,13 @@ void WebContentPage::did_completely_finish_loading(Web::HTML::CrossProcessId nav
     navigable->active_document_completely_finished_loading();
 }
 
-void WebContentPage::did_create_populated_document_with_an_origin_of_its_own(Web::HTML::CrossProcessId navigable_id, Web::HTML::PopulatedDocumentOrigin origin, Web::HTML::EnvironmentId environment_id)
+void WebContentPage::did_create_populated_document_with_an_origin_of_its_own(Web::HTML::CrossProcessId navigable_id, Web::HTML::CrossProcessId document_id, Web::HTML::PopulatedDocumentOrigin origin, Web::HTML::EnvironmentId environment_id)
 {
     if (auto navigable = traversable().find(navigable_id); navigable.has_value())
-        navigable->did_create_populated_document_with_an_origin_of_its_own(*this, origin, environment_id);
+        navigable->did_create_populated_document_with_an_origin_of_its_own(*this, document_id, origin, environment_id);
 }
 
-void WebContentPage::did_create_child_frame(Web::HTML::CrossProcessId parent_frame_id, Web::HTML::CrossProcessId frame_id, Web::HTML::HostedNavigableState hosted_state, Web::HTML::PendingSessionHistoryEntryDescriptor initial_history_entry, URL::Origin origin, Web::HTML::EnvironmentId environment_id)
+void WebContentPage::did_create_child_frame(Web::HTML::CrossProcessId parent_frame_id, Web::HTML::CrossProcessId frame_id, Web::HTML::HostedNavigableState hosted_state, Web::HTML::PendingSessionHistoryEntryDescriptor initial_history_entry, URL::Origin origin, Web::HTML::EnvironmentId environment_id, Web::HTML::CrossProcessId document_id)
 {
     auto& traversable = this->traversable();
 
@@ -768,7 +769,7 @@ void WebContentPage::did_create_child_frame(Web::HTML::CrossProcessId parent_fra
     auto group = container_document.browsing_context().top_level_browsing_context().group();
 
     // 3. Let browsingContext and document be the result of creating a new browsing context and document given element's node document, element, and group.
-    auto document = CanonicalBrowsingContext::create_a_new_browsing_context_and_document(&container_document, hosted_state.container, *group, move(environment_id), move(origin)).document;
+    auto document = CanonicalBrowsingContext::create_a_new_browsing_context_and_document(&container_document, hosted_state.container, *group, document_id, move(environment_id), move(origin)).document;
 
     // 6. Let documentState be a new document state, with
     //    document: document
@@ -2574,18 +2575,19 @@ Messages::WebContentClient::DidRequestNewWebViewResponse WebContentPage::did_req
     if (opener_navigable_id.has_value()) {
         opener = hosted_navigable(*opener_navigable_id);
         if (!opener.has_value())
-            return { {}, {}, {}, {}, {}, Web::HTML::VisibilityState::Hidden, {} };
+            return { {}, {}, {}, {}, {}, {}, Web::HTML::VisibilityState::Hidden, {} };
     }
 
     // The popup blocker runs in the renderer, which a compromised renderer skips. Each popup takes the activation of
     // input the UI process delivered to the page, as the renderer's popup consumes the activation of its window.
     if (Application::the().blocks_pop_ups() && !consume_transient_user_activation())
-        return { {}, {}, {}, {}, {}, Web::HTML::VisibilityState::Hidden, {} };
+        return { {}, {}, {}, {}, {}, {}, Web::HTML::VisibilityState::Hidden, {} };
 
     auto root_navigable_id = Application::the().allocate_ui_process_cross_process_id();
     auto initial_history_entry = Web::HTML::create_initial_session_history_entry_descriptor(
         Application::the().allocate_ui_process_cross_process_id(), move(opener_base_url), move(target_name));
-    auto& traversable = CanonicalTraversable::create_a_new_top_level_traversable(root_navigable_id, opener, move(initial_history_entry));
+    auto document_id = Application::the().allocate_ui_process_cross_process_id();
+    auto& traversable = CanonicalTraversable::create_a_new_top_level_traversable(root_navigable_id, opener, move(initial_history_entry), document_id);
     traversable.active_browsing_context().set_popup_sandboxing_flag_set(popup_sandboxing_flag_set);
 
     auto new_page_id = Application::the().allocate_page_id();
@@ -2598,13 +2600,13 @@ Messages::WebContentClient::DidRequestNewWebViewResponse WebContentPage::did_req
     if (!traversable.view().has_value()) {
         client().discard_page_of_undisplayed_top_level_traversable(new_page_id);
         CanonicalTraversable::remove_from_user_agent_top_level_traversable_set(traversable);
-        return { {}, {}, {}, {}, {}, Web::HTML::VisibilityState::Hidden, move(window_handle) };
+        return { {}, {}, {}, {}, {}, {}, Web::HTML::VisibilityState::Hidden, move(window_handle) };
     }
     traversable.represent_group_everywhere();
 
     auto environment_id = traversable.active_document().relevant_global_object().relevant_settings_object().id();
     Optional<u64> browsing_context_group_id = traversable.active_browsing_context().group()->id();
-    return { new_page_id, root_navigable_id, traversable.active_session_history_entry()->descriptor(), move(environment_id), browsing_context_group_id, traversable.system_visibility_state(), move(window_handle) };
+    return { new_page_id, root_navigable_id, traversable.active_session_history_entry()->descriptor(), move(environment_id), document_id, browsing_context_group_id, traversable.system_visibility_state(), move(window_handle) };
 }
 
 void WebContentPage::did_close_browsing_context()

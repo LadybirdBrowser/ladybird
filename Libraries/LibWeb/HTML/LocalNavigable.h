@@ -723,6 +723,7 @@ public:
     RefPtr<DocumentState> replacement_document_state;
     bool resource_cleared = false;
     Optional<URL::Origin> inline_content_origin;
+    Optional<CrossProcessId> document_id;
 
     void apply_to(NonnullRefPtr<SessionHistoryEntry> entry);
 
