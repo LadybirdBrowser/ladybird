@@ -5391,7 +5391,7 @@ void Document::check_favicon_after_loading_link_resource()
         // If the user agent tries to use an icon but that icon is determined, upon closer examination, to in fact be
         // inappropriate (e.g. because it uses an unsupported format), then the user agent must try the
         // next-most-appropriate icon as determined by the attributes.
-        if (auto icon = link_element->load_favicon_if_window_is_active()) {
+        if (auto icon = link_element->associated_favicon()) {
             if (!largest_icon || icon->size().area() > largest_icon->size().area()) {
                 m_active_favicon = link_element;
                 largest_icon = move(icon);

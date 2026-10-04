@@ -88,5 +88,41 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         Core::EventLoop::current().spin_until([&]() { return favicon_changed; });
     }
 
+    {
+        bool favicon_changed = false;
+        Gfx::Color expected_color = Gfx::Color::Blue;
+
+        view->on_favicon_change = [&](Optional<Gfx::Bitmap const&> bitmap) {
+            if (bitmap.has_value()) {
+                VERIFY(bitmap->width() == 32);
+                VERIFY(bitmap->height() == 32);
+                VERIFY(bitmap->get_pixel(0, 0) == expected_color);
+                favicon_changed = true;
+            }
+        };
+
+        view->load_html(R"(<!doctype html>
+            <link rel="icon" href='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32"><rect width="32" height="32" fill="blue"/></svg>'>
+            <link id="preferred" rel="icon">
+        )"sv);
+
+        Core::EventLoop::current().spin_until([&]() { return favicon_changed; });
+
+        for (auto invalid_icon : { "data:image/png,invalid"sv, "data:image/svg+xml,invalid"sv }) {
+            expected_color = Gfx::Color::from_named_css_color_string("lime"sv).value();
+            favicon_changed = false;
+            view->run_javascript(R"(
+                document.getElementById("preferred").href = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32"><rect width="32" height="32" fill="lime"/></svg>';
+            )"_string);
+            Core::EventLoop::current().spin_until([&]() { return favicon_changed; });
+
+            // A failed replacement must discard this icon's cached bitmap and if it was the preferred icon, select the next most appropriate one.
+            expected_color = Gfx::Color::Blue;
+            favicon_changed = false;
+            view->run_javascript(MUST(String::formatted("document.getElementById('preferred').href = '{}';", invalid_icon)));
+            Core::EventLoop::current().spin_until([&]() { return favicon_changed; });
+        }
+    }
+
     return 0;
 }
