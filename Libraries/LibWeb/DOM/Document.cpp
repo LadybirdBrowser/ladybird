@@ -11237,7 +11237,7 @@ GC::Ref<CSS::StyleSheetList> style_sheets(DOM::Document& document)
 
 JS::Value adopted_style_sheets(DOM::Document& document)
 {
-    return DOM::AdoptedStyleSheetsAccess::adopted_style_sheets(document).ptr();
+    return DOM::AdoptedStyleSheetsAccess::adopted_style_sheets(document)->array_object();
 }
 
 WebIDL::ExceptionOr<void> set_adopted_style_sheets(DOM::Document& document, JS::Value new_value)

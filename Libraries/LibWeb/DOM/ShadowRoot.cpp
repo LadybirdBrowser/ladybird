@@ -401,7 +401,7 @@ GC::Ref<CSS::StyleSheetList> style_sheets(DOM::ShadowRoot& shadow_root)
 
 JS::Value adopted_style_sheets(DOM::ShadowRoot& shadow_root)
 {
-    return DOM::AdoptedStyleSheetsAccess::adopted_style_sheets(shadow_root).ptr();
+    return DOM::AdoptedStyleSheetsAccess::adopted_style_sheets(shadow_root)->array_object();
 }
 
 WebIDL::ExceptionOr<void> set_adopted_style_sheets(DOM::ShadowRoot& shadow_root, JS::Value new_value)
