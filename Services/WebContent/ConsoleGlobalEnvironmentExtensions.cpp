@@ -6,8 +6,10 @@
  */
 
 #include "ConsoleGlobalEnvironmentExtensions.h"
+#include <LibJS/HostClassBuilder.h>
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/Completion.h>
+#include <LibJS/Runtime/HostObject.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Bindings/WrapperWorld.h>
@@ -21,41 +23,49 @@ namespace WebContent {
 
 GC_DEFINE_ALLOCATOR(ConsoleGlobalEnvironmentExtensions);
 
-ConsoleGlobalEnvironmentExtensions::ConsoleGlobalEnvironmentExtensions(JS::Realm& realm, Web::HTML::Window& window)
-    : Object(realm, nullptr)
-    , m_window_object(window)
+static constexpr JSHostClass console_global_environment_extensions_host_class = JS::make_host_class(JS_HOST_CLASS_OBJECT, "ConsoleGlobalEnvironmentExtensions"sv, nullptr, nullptr, nullptr, 0);
+
+GC::Ref<ConsoleGlobalEnvironmentExtensions> ConsoleGlobalEnvironmentExtensions::create(JS::Realm& realm, Web::HTML::Window& window)
 {
+    auto extensions = realm.create<ConsoleGlobalEnvironmentExtensions>(window);
+
+    auto binding_object = JS::HostObject::create(realm, console_global_environment_extensions_host_class, nullptr, nullptr, extensions);
+    binding_object->define_native_accessor(realm, "$0"_utf16_fly_string, $0_getter, nullptr, 0);
+    binding_object->define_native_accessor(realm, "$_"_utf16_fly_string, $__getter, nullptr, 0);
+    binding_object->define_native_function(realm, "$"_utf16_fly_string, $_function, 2, JS::default_attributes);
+    binding_object->define_native_function(realm, "$$"_utf16_fly_string, $$_function, 2, JS::default_attributes);
+    extensions->m_binding_object = binding_object;
+
+    return extensions;
 }
 
-void ConsoleGlobalEnvironmentExtensions::initialize(JS::Realm& realm)
+ConsoleGlobalEnvironmentExtensions::ConsoleGlobalEnvironmentExtensions(Web::HTML::Window& window)
+    : m_window_object(window)
 {
-    Base::initialize(realm);
-
-    define_native_accessor(realm, "$0"_utf16_fly_string, $0_getter, nullptr, 0);
-    define_native_accessor(realm, "$_"_utf16_fly_string, $__getter, nullptr, 0);
-    define_native_function(realm, "$"_utf16_fly_string, $_function, 2, JS::default_attributes);
-    define_native_function(realm, "$$"_utf16_fly_string, $$_function, 2, JS::default_attributes);
 }
 
 void ConsoleGlobalEnvironmentExtensions::visit_edges(Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_window_object);
+    visitor.visit(m_binding_object);
     visitor.visit(m_most_recent_result);
 }
 
 static JS::ThrowCompletionOr<ConsoleGlobalEnvironmentExtensions*> get_console(JS::VM& vm)
 {
-    if (auto console = vm.this_value().as_if<ConsoleGlobalEnvironmentExtensions>())
-        return console.ptr();
+    if (auto this_value = vm.this_value(); this_value.is_object()) {
+        if (auto* extensions = JS::host_data_if<ConsoleGlobalEnvironmentExtensions>(this_value.as_object()))
+            return extensions;
+    }
     return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "ConsoleGlobalEnvironmentExtensions");
 }
 
 JS_DEFINE_NATIVE_FUNCTION(ConsoleGlobalEnvironmentExtensions::$0_getter)
 {
-    auto* console_global_object = TRY(get_console(vm));
-    auto& realm = console_global_object->shape().realm();
-    auto& window = *console_global_object->m_window_object;
+    auto* extensions = TRY(get_console(vm));
+    auto& realm = extensions->binding_object().shape().realm();
+    auto& window = *extensions->m_window_object;
     auto inspected_node = window.associated_document().inspected_node();
     if (!inspected_node)
         return JS::js_undefined();
@@ -65,15 +75,15 @@ JS_DEFINE_NATIVE_FUNCTION(ConsoleGlobalEnvironmentExtensions::$0_getter)
 
 JS_DEFINE_NATIVE_FUNCTION(ConsoleGlobalEnvironmentExtensions::$__getter)
 {
-    auto* console_global_object = TRY(get_console(vm));
-    return console_global_object->m_most_recent_result;
+    auto* extensions = TRY(get_console(vm));
+    return extensions->m_most_recent_result;
 }
 
 JS_DEFINE_NATIVE_FUNCTION(ConsoleGlobalEnvironmentExtensions::$_function)
 {
-    auto* console_global_object = TRY(get_console(vm));
-    auto& realm = console_global_object->shape().realm();
-    auto& window = *console_global_object->m_window_object;
+    auto* extensions = TRY(get_console(vm));
+    auto& realm = extensions->binding_object().shape().realm();
+    auto& window = *extensions->m_window_object;
 
     auto selector = TRY(vm.argument(0).to_utf16_string(vm));
 
@@ -100,9 +110,9 @@ JS_DEFINE_NATIVE_FUNCTION(ConsoleGlobalEnvironmentExtensions::$_function)
 
 JS_DEFINE_NATIVE_FUNCTION(ConsoleGlobalEnvironmentExtensions::$$_function)
 {
-    auto* console_global_object = TRY(get_console(vm));
-    auto& realm = console_global_object->shape().realm();
-    auto& window = *console_global_object->m_window_object;
+    auto* extensions = TRY(get_console(vm));
+    auto& realm = extensions->binding_object().shape().realm();
+    auto& window = *extensions->m_window_object;
 
     auto selector = TRY(vm.argument(0).to_utf16_string(vm));
 

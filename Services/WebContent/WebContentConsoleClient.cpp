@@ -39,11 +39,11 @@ void WebContentConsoleClient::visit_edges(JS::Cell::Visitor& visitor)
 
 void WebContentConsoleClient::handle_input(StringView js_source)
 {
-    auto& settings = Web::HTML::relevant_settings_object(*m_console_global_environment_extensions);
+    auto& settings = Web::HTML::relevant_settings_object(m_console_global_environment_extensions->binding_object());
     auto script_source = Utf16String::from_utf8(js_source);
     auto script = Web::HTML::ClassicScript::create("(console)", script_source, settings, settings.api_base_url());
 
-    auto with_scope = JS::new_object_environment(*m_console_global_environment_extensions, true, &settings.realm().global_environment());
+    auto with_scope = JS::new_object_environment(m_console_global_environment_extensions->binding_object(), true, &settings.realm().global_environment());
 
     // FIXME: Add parse error printouts back once ClassicScript can report parse errors.
     auto result = script->run(Web::HTML::ClassicScript::RethrowErrors::No, with_scope);
