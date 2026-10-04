@@ -1,4 +1,3 @@
-#include <LibGfx/Font/SharedFontProvider.h>
 #include <LibHTTP/Cookie/Cookie.h>
 #include <LibHTTP/HSTS/ParsedHSTSPolicy.h>
 #include <LibIPC/File.h>
@@ -10,11 +9,6 @@
 #include <LibWebCommon/HTML/WorkerAgentTypes.h>
 
 endpoint WebWorkerClient {
-    open_system_font(u64 generation, u64 face_id) => (Gfx::BrokeredFont font)
-    match_system_font(String family, u16 weight, u16 width, u8 slope) => (Gfx::BrokeredFont font)
-    match_system_font_for_code_point(u32 code_point, u16 weight, u16 width, u8 slope, bool prefer_color_emoji) => (Gfx::BrokeredFont font)
-    resolve_generic_font(String family, u16 weight, u8 slope) => (Optional<String> resolved_family)
-
     did_add_blob_url_entry(Web::HTML::EnvironmentId environment_id, Utf16String url, Web::FileAPI::SerializedBlobURLEntry entry) => (URL::BlobURLEntry::Token token)
     did_remove_blob_url_entries(Web::HTML::EnvironmentId environment_id, Vector<Utf16String> urls) => ()
     did_request_blob_url_entry(Utf16String url, Optional<URL::BlobURLEntry::Token> token) => (Optional<Web::FileAPI::SerializedBlobURLEntry> entry)
