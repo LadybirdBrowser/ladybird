@@ -477,13 +477,26 @@ pub unsafe extern "C" fn layout_script_rendered_text(
     context: *mut c_void,
     append: unsafe extern "C" fn(*mut c_void, FfiRenderedTextView),
 ) {
-    let text = text_of(ask_arena(
-        host,
-        ArenaQuery::RenderedText {
-            primary,
-            collapse_whitespace,
+    assert!(!host.is_null(), "document host is null");
+    // The rows carry the text each text row renders, unless the row waits for its text to be rendered again, which only
+    // the render state does.
+    // SAFETY: Guaranteed by the caller.
+    let from_rows = unsafe { &*host }.read_rows_with_rendered_text(
+        ScriptForcedRead::at_script_entry(&SCRIPT_ENTRY),
+        |rows, awaiting_render| {
+            crate::layout::text_queries::rendered_text_of_rows(rows, awaiting_render, primary, collapse_whitespace)
         },
-    ));
+    );
+    let text = match from_rows {
+        Some(text) => text,
+        None => text_of(ask_arena(
+            host,
+            ArenaQuery::RenderedText {
+                primary,
+                collapse_whitespace,
+            },
+        )),
+    };
     let view = FfiRenderedTextView {
         text: text.as_ptr(),
         length_in_code_units: text.len(),

@@ -10,6 +10,7 @@ use super::node_facts::{kind_is_box, kind_is_text, node_style_view};
 use super::rendered_text::{FfiTextSourceRange, RenderedTextBoundary, ensure_text_content};
 use crate::css::css_enums::{visibility, white_space_collapse};
 use crate::css::style::tree::StyleNodeID;
+use crate::painting::paint_read::PaintRead;
 use std::ops::Range;
 
 use RenderedTextBoundary::{End, Start};
@@ -115,10 +116,11 @@ impl MappedText {
     }
 }
 
-fn collapses_whitespace(arena: &LayoutNodeArena, node: NodeSlotId) -> bool {
-    let parent = arena.data(node).parent.get();
+fn collapses_whitespace(rows: &impl PaintRead, node: NodeSlotId) -> bool {
+    let parent = rows.node_parent_if_live(node);
     matches!(
-        node_style_view(arena.data(parent))
+        parent
+            .and_then(|parent| rows.node_style_if_live(parent))
             .expect("text parent has style")
             .inherited_text()
             .white_space_collapse,
@@ -143,20 +145,56 @@ pub(crate) fn rendered_text(arena: &mut LayoutNodeArena, primary: NodeSlotId, co
     let mut text = Vec::new();
     for &node in arena.text_fragments(primary).as_slice() {
         let content = arena.text_content(node).expect("fragment was refreshed");
-        if !collapse_whitespace || !collapses_whitespace(arena, node) {
-            text.extend_from_slice(&content.text);
-            continue;
-        }
-        let mut previous_is_space = false;
-        for &unit in &content.text {
-            let is_space = matches!(unit, 0x09..=0x0d | 0x20);
-            if !is_space || !previous_is_space {
-                text.push(unit);
-            }
-            previous_is_space = is_space;
-        }
+        append_rendered_text(
+            &mut text,
+            &content.text,
+            collapse_whitespace && collapses_whitespace(&*arena, node),
+        );
     }
     text
+}
+
+/// [`rendered_text`] as `rows` carry it, where they carry the rendered text of each of the text node's rows: a text row
+/// carries what [`rendered_text`] answers unless it is among `awaiting_render`, the rows that wait for their text to be
+/// rendered again, by slot index.
+pub(crate) fn rendered_text_of_rows(
+    rows: &impl PaintRead,
+    awaiting_render: &[NodeSlotId],
+    primary: NodeSlotId,
+    collapse_whitespace: bool,
+) -> Option<Vec<u16>> {
+    let mut text = Vec::new();
+    for &node in rows.text_fragments(primary).as_slice() {
+        if awaiting_render
+            .binary_search_by_key(&node.index, |row| row.index)
+            .is_ok()
+        {
+            return None;
+        }
+        let rendered = &rows.rendered_text(node)?.text;
+        append_rendered_text(
+            &mut text,
+            rendered,
+            collapse_whitespace && collapses_whitespace(rows, node),
+        );
+    }
+    Some(text)
+}
+
+/// Appends `rendered` to `text`, with runs of whitespace collapsed to their first character where `collapse`.
+fn append_rendered_text(text: &mut Vec<u16>, rendered: &[u16], collapse: bool) {
+    if !collapse {
+        text.extend_from_slice(rendered);
+        return;
+    }
+    let mut previous_is_space = false;
+    for &unit in rendered {
+        let is_space = matches!(unit, 0x09..=0x0d | 0x20);
+        if !is_space || !previous_is_space {
+            text.push(unit);
+        }
+        previous_is_space = is_space;
+    }
 }
 
 fn word_range(
