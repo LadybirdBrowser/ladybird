@@ -326,8 +326,12 @@ public:
     void release_recording_in_flight_for_testing();
 
     void render_screenshot(Gfx::PaintingSurface&, PaintConfig, Function<void()>&& callback);
-    Compositing::DisplayListResourceStorage& display_list_resource_storage() { return m_presenter.display_list_resource_storage(); }
-    Compositing::DisplayListResourceStorage const& display_list_resource_storage() const { return m_presenter.display_list_resource_storage(); }
+    Compositing::DisplayListResourceStorage& display_list_resource_storage() { return presenter().display_list_resource_storage(); }
+
+    // What this navigable presents to its compositor context from. Only the holder of the presenter presents, so frames
+    // reach the compositor in the order they were made: a frame of the active document that holds it is taken in first,
+    // which gives it back.
+    Compositor::NavigablePresenter& presenter();
 
     bool needs_repaint() const { return m_needs_repaint; }
     void set_needs_repaint() { m_needs_repaint = true; }
@@ -607,7 +611,9 @@ private:
     i32 m_force_dark_foreground_threshold { default_force_dark_foreground_threshold };
     i32 m_force_dark_background_threshold { default_force_dark_background_threshold };
     bool m_should_show_caret_hit_test_debug_overlay { false };
-    Compositor::NavigablePresenter m_presenter;
+    // The navigable's presenter, here or held by a frame of the document that presents with it.
+    using PresenterSlot = Variant<NonnullOwnPtr<Compositor::NavigablePresenter>, GC::Ref<DOM::Document>>;
+    PresenterSlot m_presenter_slot { make<Compositor::NavigablePresenter>() };
     OwnPtr<Compositor::CompositorContextHandle> m_compositor_context;
     RefPtr<Core::Timer> m_async_scroll_hover_update_timer;
     Vector<PendingUserScrollendTarget> m_pending_user_scrollend_targets;
