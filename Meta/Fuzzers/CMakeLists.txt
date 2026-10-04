@@ -33,7 +33,8 @@ foreach(target IN LISTS FUZZER_TARGETS)
   add_simple_fuzzer("Fuzz${target}" "${FUZZER_DEPENDENCIES_${target}}")
 endforeach()
 
-if (ENABLE_FUZZERS_LIBFUZZER)
+# FIXME: Build FuzzilliJs on the Rust LibJS runtime as well once it no longer subclasses the C++ runtime's GlobalObject.
+if (ENABLE_FUZZERS_LIBFUZZER AND LIBJS_RUNTIME STREQUAL "Cpp")
 set(CMAKE_EXE_LINKER_FLAGS "${ORIGINAL_CMAKE_EXE_LINKER_FLAGS} -fsanitize=address")
 set(CMAKE_SHARED_LINKER_FLAGS "${ORIGINAL_CMAKE_SHARED_LINKER_FLAGS} -fsanitize=address")
 set(CMAKE_MODULE_LINKER_FLAGS "${ORIGINAL_CMAKE_MODULE_LINKER_FLAGS} -fsanitize=address")

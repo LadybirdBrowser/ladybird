@@ -1,0 +1,16 @@
+# Files of Libraries/LibJS, relative to it, that the C++ runtime and the facade over the Rust runtime both use verbatim.
+# With LIBJS_RUNTIME=Rust the facade's LibJS builds the sources listed here, and Meta/CMake/libjs_facade.cmake leaves
+# the headers reachable instead of poisoning them. The only LibJS headers that a shared file may include are other
+# shared headers and headers that the facade provides.
+ConsoleLogLevel.h
+Forward.h
+HostClassBuilder.h
+HostObjectABI.h
+Position.h
+Runtime/ByteLength.h
+Runtime/ErrorTypes.cpp
+Runtime/ErrorTypes.h
+Runtime/ExternalMemory.h
+Runtime/FunctionKind.h
+Runtime/PropertyAttributes.h
+Token.h

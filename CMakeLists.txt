@@ -111,6 +111,10 @@ include_directories(${CMAKE_BINARY_DIR})
 include_directories(${CMAKE_BINARY_DIR}/Libraries)
 include_directories(${CMAKE_BINARY_DIR}/Services)
 
+if (LIBJS_RUNTIME STREQUAL "Rust")
+    include(libjs_facade)
+endif()
+
 include(lagom_install)
 
 include(rust_crate)

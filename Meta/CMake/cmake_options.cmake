@@ -10,6 +10,20 @@ option(INCLUDE_WASM_SPEC_TESTS "Download and include the WebAssembly spec testsu
 option(ENABLE_CRANELIFT_JIT "Enable Cranelift-based AOT compilation for WebAssembly" ON)
 option(ENABLE_LIBJS_RUST_RUNTIME "Build the Rust LibJS runtime and the tools that run on it" OFF)
 
+set(LIBJS_RUNTIME "Cpp" CACHE STRING "The LibJS runtime that LibJS's users run on: Cpp, or Rust through the LibJS facade")
+set_property(CACHE LIBJS_RUNTIME PROPERTY STRINGS Cpp Rust)
+if (NOT LIBJS_RUNTIME MATCHES "^(Cpp|Rust)$")
+    message(FATAL_ERROR "LIBJS_RUNTIME must be Cpp or Rust, not '${LIBJS_RUNTIME}'")
+endif()
+if (LIBJS_RUNTIME STREQUAL "Rust")
+    if (WIN32)
+        message(FATAL_ERROR "LIBJS_RUNTIME=Rust is not supported on Windows yet")
+    endif()
+    if (NOT ENABLE_LIBJS_RUST_RUNTIME)
+        set(ENABLE_LIBJS_RUST_RUNTIME ON CACHE BOOL "Build the Rust LibJS runtime and the tools that run on it" FORCE)
+    endif()
+endif()
+
 set(LADYBIRD_CACHE_DIR "${PROJECT_BINARY_DIR}/../caches" CACHE PATH "Location of shared cache of downloaded files")
 option(ENABLE_NETWORK_DOWNLOADS "Allow downloads of required files. If OFF, required files must already be present in LADYBIRD_CACHE_DIR" ON)
 
