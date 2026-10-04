@@ -689,6 +689,20 @@ TEST_CASE(frozen_cascade_matches_the_live_lookup)
         EXPECT_EQ(&cascade->frozen_font_for_code_point(code_point), &cascade->font_for_code_point(code_point));
 }
 
+TEST_CASE(system_fallback_does_not_depend_on_earlier_lookups)
+{
+    auto first_font = load_text_font(16);
+    auto second_font = load_text_font(24);
+    auto cascade = Gfx::FontCascadeList::create();
+    cascade->set_last_resort_font(first_font);
+    cascade->set_system_font_fallback_callback([first_font, second_font](u32 code_point, Gfx::EmojiPresentation, Gfx::Font const&) -> RefPtr<Gfx::Font const> {
+        return code_point == 'a' ? first_font : second_font;
+    });
+
+    EXPECT_EQ(&cascade->font_for_code_point('a'), first_font.ptr());
+    EXPECT_EQ(&cascade->font_for_code_point('b'), second_font.ptr());
+}
+
 // https://drafts.csswg.org/css-fonts-4/#font-display-timeline
 // A face in its block period renders invisibly and one in its swap period renders with the
 // fallback, and the frozen cascade decides that from the period it recorded, not by resolving.
