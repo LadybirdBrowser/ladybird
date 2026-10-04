@@ -2258,8 +2258,9 @@ bool Document::layout_is_up_to_date() const
     if (!navigable() || navigable()->active_document().ptr() != this)
         return true;
     // A frame in flight, or a round that flew and is not paid yet, brings layout the host waits for, which the host
-    // knows without reading the render state.
-    if (m_layout_node_arena && m_layout_node_arena->render_document().waits_for_frame())
+    // knows without reading the render state. So does style that flew, which is pending until a read of the document
+    // drains it: a read of a document it embeds asks here, and lays the document out to drain it.
+    if (has_flown_style_transaction() || (m_layout_node_arena && m_layout_node_arena->render_document().waits_for_frame()))
         return false;
     // NB: Every question about pending layout work comes through here, so draining first keeps a journalled mark from
     //     hiding behind an up-to-date answer. No frame flies, so the drain's read takes none in.

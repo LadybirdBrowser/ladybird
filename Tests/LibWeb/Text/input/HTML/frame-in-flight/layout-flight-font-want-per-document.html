@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <script src="../../include.js"></script>
 <script src="frame-in-flight.js"></script>
-<iframe id="a" srcdoc="<style>@font-face { font-family: FaceA; src: url(../../../../Assets/HashSans.woff); unicode-range: U+0041-005A; } body { font: 20px FaceA, monospace; }</style><body><div id=box style='height: 10px'></div></body>"></iframe>
 <iframe id="b" srcdoc="<style>@font-face { font-family: FaceB; src: url(../../../../Assets/Lato-Bold.ttf); unicode-range: U+0041-005A; } body { font: 20px FaceB, monospace; }</style><body><div id=box style='height: 10px'></div></body>"></iframe>
+<iframe id="a" srcdoc="<style>@font-face { font-family: FaceA; src: url(../../../../Assets/HashSans.woff); unicode-range: U+0041-005A; } body { font: 20px FaceA, monospace; }</style><body><div id=box style='height: 10px'></div></body>"></iframe>
 <script>
     // A face with a unicode-range loads once a layout reaches a code point it covers: the frame in flight leaves the
     // want behind, and its document asks for the face once it takes the frame in. Another document laid out beside the
@@ -24,7 +24,8 @@
             docB.body.offsetWidth;
             return { state: internals.frameSchedulerState(), statusA: faceA.status };
         });
-        // Only document A has anything to lay out in the frame, so a frame in flight is document A's.
+        // Only document A has anything to lay out in the frame, and it is the rendering update's last document, whose
+        // style and layout fly: a frame in flight is document A's.
         println(`face A unloaded while its document's frame is in flight: ${result.state !== "in-flight" || result.statusA === "unloaded"}`);
 
         await faceA.loaded;

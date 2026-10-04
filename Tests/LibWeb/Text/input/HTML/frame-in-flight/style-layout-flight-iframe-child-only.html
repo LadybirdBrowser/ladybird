@@ -5,8 +5,8 @@
 <iframe id="frame" style="width: 200px; height: 100px; border: none" srcdoc="<body style='margin: 0'><div id=inner style='width: 50px; height: 20px'>child</div>"></iframe>
 <script>
     // Only the document of an iframe changes in an animation frame callback. The container has no style to update, and
-    // the child's style and layout fly in its turn. The child's resize observation shows whether the update delivered it
-    // before the task a held frame lets run beside it, which it does not where the update flew.
+    // the child's style and layout fly as the update's last document. The child's resize observation shows whether the
+    // update delivered it before the task a held frame lets run beside it, which it does not where the update flew.
     asyncTest(async done => {
         const frameElement = document.getElementById("frame");
         if (!frameElement.contentDocument?.getElementById("inner"))

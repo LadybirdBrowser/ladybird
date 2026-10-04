@@ -1,5 +1,5 @@
-state in the next task: idle
-child resize observed before the next task: 80x20
+state in the next task: in-flight
+child resize observed before the next task: nothing
 child resize observed: 80x20
 child box: 80x20
 container styles recomputed: 0

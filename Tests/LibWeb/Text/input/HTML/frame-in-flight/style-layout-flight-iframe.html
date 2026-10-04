@@ -4,9 +4,9 @@
 <iframe id="frame" style="width: 200px; height: 100px; border: none" srcdoc="<style>#inner { height: 20px } @media (min-width: 250px) { #inner { height: 40px } }</style><body style='margin: 0'><div id=inner>child</div>"></iframe>
 <script>
     // A container resizes its iframe in an animation frame callback. The child's viewport, media queries and box follow
-    // the new size in the same rendering update, which delivers the child's resize observation before any task after
-    // it. The observation shows whether the update delivered it before the task a held frame lets run beside it, which
-    // it does not where the update flew.
+    // the new size in the same rendering update, which delivers the child's resize observation before any task of the
+    // child after it. The observation shows whether the update delivered it before the task a held frame lets run
+    // beside it, which it does not where the update flew.
     asyncTest(async done => {
         const frameElement = document.getElementById("frame");
         if (!frameElement.contentDocument?.getElementById("inner"))
@@ -32,14 +32,16 @@
         println(`child media query matches: ${child.defaultView.matchMedia("(min-width: 250px)").matches}`);
         println(`child box: ${inner.offsetWidth}x${inner.offsetHeight}`);
 
-        // Without a hold, the child's observation comes before a task queued by the callback that resized its iframe.
+        // Without a hold, a task of the container queued by the callback that resized the iframe may run beside the
+        // child's frame, which holds back only the child's tasks, and the child's observation comes once it lands.
         observed.length = 0;
+        let timeoutRan = false;
         requestAnimationFrame(() => {
             frameElement.style.width = "220px";
-            setTimeout(() => observed.push("timeout"), 0);
+            setTimeout(() => timeoutRan = true, 0);
         });
         await twoFrames();
-        println(`order: ${observed.join(", ")}`);
+        println(`observed without a hold: ${observed.join(", ")}, timeout ran: ${timeoutRan}`);
         observer.disconnect();
         done();
     });
