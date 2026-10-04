@@ -86,6 +86,9 @@ bool is_scroll_snap_container(Layout::Node const& node)
     auto const* node_with_style = as_if<Layout::NodeWithStyle>(node);
     if (!node_with_style || !node_with_style->is_scroll_container())
         return false;
+    // Only the viewport takes its snap type from another box's style, so any other box without one snaps nothing.
+    if (!node.is_viewport() && node_with_style->scroll_snap_type().strictness == CSS::ScrollSnapStrictness::None)
+        return false;
     return !snap_axes_of_scroll_container(node).is_empty();
 }
 
