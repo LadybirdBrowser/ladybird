@@ -1,5 +1,5 @@
 state in the next task: in-flight
-resize observed before the next task: 60
+resize observed before the next task: nothing
 resize observed: 60
 animated width: 150px
 animated box width: 150

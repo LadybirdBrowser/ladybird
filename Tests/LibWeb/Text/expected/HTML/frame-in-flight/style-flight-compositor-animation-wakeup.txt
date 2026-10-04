@@ -1,0 +1,4 @@
+state in the next task: in-flight
+wake-up republishes beside the frame: 1
+wake-up requests a frame: 1
+probe box width: 60

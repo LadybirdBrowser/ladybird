@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<div id="box" style="width: 100px; height: 10px"></div>
+<svg id="svg" width="40" height="20"><rect id="rect" width="10" height="10" fill="green"/></svg>
+<script>
+    // An SVG element's attributes changed beside the frame whose style pass is in flight. Whether the change touches a
+    // paint resource the rows enrolled is read only for an element that describes one, as the note's own read of the
+    // render state.
+    asyncTest(async done => {
+        const state = await whileRecordingInFlight(() => {
+            box.style.height = "20px";
+        }, state => {
+            svg.setAttribute("data-step", "1");
+            rect.setAttribute("width", "30");
+            return state;
+        });
+        println(`state in the next task: ${state}`);
+        await twoFrames();
+        println(`box height: ${box.offsetHeight}`);
+        println(`rect width: ${rect.getBoundingClientRect().width}`);
+        done();
+    });
+</script>
