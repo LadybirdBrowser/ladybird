@@ -251,6 +251,8 @@ private:
     TraversableApplyHistoryStepState m_apply_history_step_traversable_state;
     u64 m_next_sequence_number { 1 };
     HashMap<Web::HTML::CrossProcessId, NonnullOwnPtr<HistoryOperation>> m_history_operations;
+    // The traversal from the browser's UI among the operations, if any.
+    HistoryOperation* m_browser_history_traversal { nullptr };
     RefPtr<WebContentPage> m_page_standing_in_for_lost_document;
 
     // Steps 2-5 of unload-a-document-and-its-descendants for one document, keyed by a generated unload id and
