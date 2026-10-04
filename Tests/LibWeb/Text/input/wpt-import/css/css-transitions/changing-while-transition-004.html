@@ -1,0 +1,56 @@
+<!doctype html>
+<html>
+<head>
+<meta charset=utf-8>
+<title>CSS Transitions Test: behavior when transition changes to default while transitioning</title>
+<meta name="assert" content="Checks a change to the transition-duration property does not affect an in-flight transition">
+<link rel="help" title="3. Starting of transitions" href="https://drafts.csswg.org/css-transitions/#starting">
+
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="./support/helper.js"></script>
+
+</head>
+<body>
+<div id="log"></div>
+
+<script>
+promise_test(async t => {
+  // Start a 100s transition 50% of the way through
+  const div = addDiv(t, {
+    style: 'transition: height 100s -50s linear; height: 0px',
+  });
+  getComputedStyle(div).height;
+  div.style.height = '100px';
+  assert_equals(
+    getComputedStyle(div).height,
+    '50px',
+    'Transition should be initially 50% complete'
+  );
+
+  // Unset the transition property (with default all 0s).
+  div.style.transition = '';
+
+  // If the change to the transition-duration was reflected, the
+  // transition would be cancelled and the computed height
+  // would now be '25px'.
+  assert_equals(
+    getComputedStyle(div).height,
+    '50px',
+    'Even after unsetting transition, the transition should be 50% complete'
+  );
+
+  // Wait a frame just to be sure that the changed duration is not later
+  // updated.
+  await waitForFrame();
+
+  assert_greater_than_equal(
+    parseInt(getComputedStyle(div).height),
+    50,
+    'Even in the next frame the updated transition should not apply'
+  );
+}, 'Unsetting transition should not affect in-flight transitions');
+</script>
+
+</body>
+</html>

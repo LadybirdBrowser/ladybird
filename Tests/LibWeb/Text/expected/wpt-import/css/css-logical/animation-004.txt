@@ -1,0 +1,21 @@
+Harness status: OK
+
+Found 16 tests
+
+16 Pass
+Pass	Logical properties can be transitioned
+Pass	Logical properties in transitions respect the writing-mode
+Pass	Logical properties in transitions respect the direction
+Pass	Declaration order is respected within declaration blocks
+Pass	Logical properties are able to override physical properties in declaration blocks
+Pass	Declaration order is respected amongst logical properties within declaration blocks
+Pass	Physical properties and logical properties can be mixed
+Pass	Declaration order is respected on each keyframe individually
+Pass	Transitions update when the writing-mode is changed
+Pass	Filling transitions update when the writing-mode is changed
+Pass	The number of interpolating properties can be increased when the writing-mode is changed
+Pass	The number of interpolating properties can be decreased when the writing-mode is changed
+Pass	Transitions update when the writing-mode is changed through a CSS variable
+Pass	Transitions update when the direction is changed
+Pass	Transitions from logical to physical update when the direction is changed
+Pass	Transitions from physical to logical update when the direction is changed

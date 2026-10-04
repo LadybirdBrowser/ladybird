@@ -72,6 +72,7 @@ public:
     bool has_matching_transition_property_entry(Optional<CSS::PseudoElement>, void const* longhand_table) const;
     void set_transition(Optional<CSS::PseudoElement>, CSS::PropertyID, GC::Ref<CSS::CSSTransition>);
     void remove_transition(Optional<CSS::PseudoElement>, CSS::PropertyID);
+    bool has_existing_transitions(Optional<CSS::PseudoElement>) const;
     Vector<CSS::PropertyID> property_ids_with_existing_transitions(Optional<CSS::PseudoElement>) const;
     GC::Ptr<CSS::CSSTransition> property_transition(Optional<CSS::PseudoElement>, CSS::PropertyID) const;
 

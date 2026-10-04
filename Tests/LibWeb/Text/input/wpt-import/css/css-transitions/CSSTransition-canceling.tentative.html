@@ -1,0 +1,252 @@
+<!doctype html>
+<meta charset=utf-8>
+<title>Canceling a CSS transition</title>
+<link rel="help" href="https://drafts.csswg.org/css-transitions/#starting">
+<!-- TODO: Add a more specific link for this once it is specified. -->
+<link rel="help" href="https://drafts.csswg.org/css-transitions-2/#csstransition">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="support/helper.js"></script>
+<div id="log"></div>
+<script>
+'use strict';
+
+promise_test(async t => {
+  const div = addDiv(t, { style: 'margin-left: 0px' });
+  getComputedStyle(div).marginLeft;
+
+  div.style.transition = 'margin-left 100s';
+  div.style.marginLeft = '1000px';
+
+  const transition = div.getAnimations()[0];
+  await transition.ready;
+  await waitForFrame();
+
+  assert_not_equals(getComputedStyle(div).marginLeft, '1000px',
+                    'transform style is animated before canceling');
+  transition.cancel();
+  assert_equals(getComputedStyle(div).marginLeft, div.style.marginLeft,
+                'transform style is no longer animated after canceling');
+}, 'Animated style is cleared after canceling a running CSS transition');
+
+promise_test(async t => {
+  const div = addDiv(t, { style: 'margin-left: 0px' });
+  getComputedStyle(div).marginLeft;
+
+  div.style.transition = 'margin-left 100s';
+  div.style.marginLeft = '1000px';
+
+  const transition = div.getAnimations()[0];
+  await transition.ready;
+
+  transition.cancel();
+  assert_equals(getComputedStyle(div).marginLeft, '1000px',
+                'margin-left style is not animated after canceling');
+  transition.play();
+  assert_equals(getComputedStyle(div).marginLeft, '0px',
+                'margin-left style is animated after re-starting transition');
+
+  await transition.ready;
+
+  assert_equals(transition.playState, 'running',
+                'Transition succeeds in running after being re-started');
+}, 'After canceling a transition, it can still be re-used');
+
+promise_test(async t => {
+  const div = addDiv(t, { style: 'margin-left: 0px' });
+  getComputedStyle(div).marginLeft;
+
+  div.style.transition = 'margin-left 100s';
+  div.style.marginLeft = '1000px';
+
+  const transition = div.getAnimations()[0];
+  await transition.ready;
+
+  transition.finish();
+  transition.cancel();
+  assert_equals(getComputedStyle(div).marginLeft, '1000px',
+                'margin-left style is not animated after canceling');
+  transition.play();
+  assert_equals(getComputedStyle(div).marginLeft, '0px',
+                'margin-left style is animated after re-starting transition');
+
+  await transition.ready;
+
+  assert_equals(transition.playState, 'running',
+                'Transition succeeds in running after being re-started');
+}, 'After canceling a finished transition, it can still be re-used');
+
+test(t => {
+  const div = addDiv(t, { style: 'margin-left: 0px' });
+  getComputedStyle(div).marginLeft;
+
+  div.style.transition = 'margin-left 100s';
+  div.style.marginLeft = '1000px';
+
+  const transition = div.getAnimations()[0];
+  transition.cancel();
+  assert_equals(getComputedStyle(div).marginLeft, '1000px',
+                'margin-left style is not animated after canceling');
+
+  // Trigger a change to a transition property and check that this
+  // doesn't cause the animation to become live again
+  div.style.transitionDuration = '200s';
+  getComputedStyle(div).marginLeft;
+  assert_equals(getComputedStyle(div).marginLeft, '1000px',
+                'margin-left style is still not animated after updating'
+                + ' transition-duration');
+  assert_equals(transition.playState, 'idle',
+                'Transition is still idle after updating transition-duration');
+}, 'After canceling a transition, updating transition properties doesn\'t make'
+   + ' it live again');
+
+promise_test(async t => {
+  const div = addDiv(t, { style: 'margin-left: 0px' });
+  getComputedStyle(div).marginLeft;
+
+  div.style.transition = 'margin-left 100s';
+  div.style.marginLeft = '1000px';
+
+  const transition = div.getAnimations()[0];
+  await transition.ready;
+
+  assert_equals(transition.playState, 'running');
+  div.style.display = 'none';
+
+  await waitForFrame();
+
+  assert_equals(transition.playState, 'idle');
+  assert_equals(getComputedStyle(div).marginLeft, '1000px');
+}, 'Setting display:none on an element cancels its transitions');
+
+promise_test(async t => {
+  const parentDiv = addDiv(t);
+  const childDiv = document.createElement('div');
+  parentDiv.appendChild(childDiv);
+  childDiv.setAttribute('style', 'margin-left: 0px');
+
+  getComputedStyle(childDiv).marginLeft;
+
+  childDiv.style.transition = 'margin-left 100s';
+  childDiv.style.marginLeft = '1000px';
+
+  const transition = childDiv.getAnimations()[0];
+  await transition.ready;
+
+  assert_equals(transition.playState, 'running');
+  parentDiv.style.display = 'none';
+  await waitForFrame();
+
+  assert_equals(transition.playState, 'idle');
+  assert_equals(getComputedStyle(childDiv).marginLeft, '1000px');
+}, 'Setting display:none cancels transitions on a child element');
+
+promise_test(async t => {
+  const div = addDiv(t, { style: 'margin-left: 0px' });
+  getComputedStyle(div).marginLeft;
+
+  div.style.transition = 'margin-left 100s';
+  div.style.marginLeft = '1000px';
+
+  const transition = div.getAnimations()[0];
+  await transition.ready;
+
+  assert_equals(transition.playState, 'running');
+  // Set an unrecognized property value
+  div.style.transitionProperty = 'none';
+  getComputedStyle(div).marginLeft;
+  await waitForFrame();
+
+  assert_equals(transition.playState, 'idle');
+  assert_equals(getComputedStyle(div).marginLeft, '1000px');
+}, 'Removing a property from transition-property cancels transitions on that '+
+   'property');
+
+promise_test(async t => {
+  const div = addDiv(t, { style: 'margin-left: 0px' });
+  getComputedStyle(div).marginLeft;
+
+  div.style.transition = 'margin-left 100s';
+  div.style.marginLeft = '1000px';
+
+  const transition = div.getAnimations()[0];
+  await transition.ready;
+
+  assert_equals(transition.playState, 'running');
+  div.style.transition = 'margin-left 10s -10s'; // combined duration is zero
+
+  // Note that simply setting the combined duration to zero is not enough to
+  // cancel the transition. We must also update the end value so that the,
+  // "the end value of the running transition is not equal to the value of the
+  // property in the after-change style" condition is true.
+  //
+  // (And note that the zero combined duration is not strictly necessary to
+  // cancel the original transition--but it does ensure another transition is
+  // not generated in its place.)
+
+  div.style.marginLeft = '2000px';
+  getComputedStyle(div).marginLeft;
+  await waitForFrame();
+
+  assert_equals(transition.playState, 'idle');
+  assert_equals(getComputedStyle(div).marginLeft, '2000px');
+}, 'Setting zero combined duration');
+
+promise_test(async t => {
+  const div = addDiv(t, { style: 'margin-left: 0px' });
+  getComputedStyle(div).marginLeft;
+
+  div.style.transition = 'margin-left 100s';
+  div.style.marginLeft = '1000px';
+
+  const transition = div.getAnimations()[0];
+  await transition.ready;
+
+  assert_equals(transition.playState, 'running');
+  div.style.marginLeft = '2000px';
+  getComputedStyle(div).marginLeft;
+  await waitForFrame();
+
+  assert_equals(transition.playState, 'idle');
+}, 'Changing style to another interpolable value cancels the original ' +
+   'transition');
+
+promise_test(async t => {
+  const div = addDiv(t, { style: 'margin-left: 0px' });
+  getComputedStyle(div).marginLeft;
+
+  div.style.transition = 'margin-left 100s';
+  div.style.marginLeft = '1000px';
+
+  const transition = div.getAnimations()[0];
+  await transition.ready;
+
+  assert_equals(transition.playState, 'running');
+  div.style.marginLeft = 'auto';
+  getComputedStyle(div).marginLeft;
+  await waitForFrame();
+
+  assert_equals(div.getAnimations().length, 0,
+                'There should be no transitions');
+  assert_equals(transition.playState, 'idle');
+}, 'An after-change style value can\'t be interpolated');
+
+promise_test(async t => {
+  const div = addDiv(t, { style: 'margin-left: 0px' });
+  getComputedStyle(div).marginLeft;
+
+  div.style.transition = 'margin-left 100s';
+  div.style.marginLeft = '1000px';
+
+  const transition = div.getAnimations()[0];
+  await transition.ready;
+
+  assert_equals(transition.playState, 'running');
+  div.style.marginLeft = '0px';
+  getComputedStyle(div).marginLeft;
+  await waitForFrame();
+
+  assert_equals(transition.playState, 'idle');
+}, 'Reversing a running transition cancels the original transition');
+
+</script>
