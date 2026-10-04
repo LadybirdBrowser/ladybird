@@ -157,9 +157,11 @@ impl RetainedState {
         }
     }
 
-    /// Whether any element has had random base values, as a flag that stays raised once it is.
-    pub(crate) fn element_random_base_values_exist(&self) -> Arc<AtomicBool> {
-        Arc::clone(&self.random_base_values.element_rows_exist)
+    /// Raises `flag`, which the document's host reads, once any element has random base values, rather than a flag
+    /// of the engine's own. The engine has none yet.
+    pub(crate) fn share_element_random_base_values_exist(&mut self, flag: Arc<AtomicBool>) {
+        debug_assert!(!self.random_base_values.element_rows_exist.load(Ordering::Relaxed));
+        self.random_base_values.element_rows_exist = flag;
     }
 
     /// The random base value of the random caching key for a node's style and a sharing name.

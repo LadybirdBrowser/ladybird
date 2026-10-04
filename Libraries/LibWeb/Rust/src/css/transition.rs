@@ -367,6 +367,13 @@ pub(crate) struct DecidedTransition {
     pub(crate) current_value: *const crate::css::style_value::StyleValueData,
 }
 
+// SAFETY: The values a decision names are immutable style values its records hold, which the host reads once the render
+// owner has answered it.
+unsafe impl Send for DecidedTransition {}
+
+// SAFETY: The host lends what a decision's context and properties name, and waits for the render owner's answer.
+unsafe impl Send for TransitionDecision {}
+
 impl TransitionDecision {
     /// Runs the CSS Transitions decision algorithm for every property of the decision.
     pub(crate) fn answer(self, engine: &crate::css::style::StyleEngine) -> Vec<DecidedTransition> {

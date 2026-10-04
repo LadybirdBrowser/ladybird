@@ -8,8 +8,6 @@
 //! can be made only here, and this module is private, so the parent's own code can neither mint
 //! a token nor call an entry that does.
 
-use super::*;
-
 /// Mints the main thread token for this module's FFI entry points; only this module can make one.
 pub(crate) struct MainThreadFfiEntry {
     _private: (),
@@ -17,28 +15,29 @@ pub(crate) struct MainThreadFfiEntry {
 
 const MAIN_THREAD_FFI_ENTRY: MainThreadFfiEntry = MainThreadFfiEntry { _private: () };
 
-/// Detaches what is left of the boxes of the node `style_node` names as the node leaves the document (see
-/// [`super::detach_remaining_rows_for_removal`]), and pays what that owes the host.
+/// Detaches what is left of the boxes of the `count` nodes `style_nodes` names as they leave the document (see
+/// [`super::detach_remaining_rows_for_removal`]), and pays what that owes the host. An identity of 0 names no node.
 ///
 /// # Safety
 ///
-/// `host` must be a live document host, on its document's thread.
+/// `host` must be a live document host, on its document's thread, and `style_nodes` must point at `count` identities.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn render_state_detach_remaining_rows_for_removal(
     host: *const crate::render_state::DocumentHost,
     read: &crate::render_state::BegunRead,
-    style_node: u32,
+    style_nodes: *const u32,
+    count: usize,
 ) {
-    let Some(node) = StyleNodeID::from_raw(style_node) else {
+    if count == 0 {
         return;
-    };
+    }
     assert!(!host.is_null(), "document host is null");
     // SAFETY: Guaranteed by the caller.
-    let host = unsafe { &*host };
+    let (host, style_nodes) = unsafe { (&*host, std::slice::from_raw_parts(style_nodes, count)) };
     let written = crate::layout::layout_changes::write(
         read,
         host,
-        crate::layout::layout_changes::LayoutWrite::DetachRemainingRowsForRemoval(node),
+        crate::layout::layout_changes::LayoutWrite::DetachRemainingRowsForRemoval(style_nodes),
     );
     // SAFETY: Guaranteed by the entry point's contract.
     let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY, host) };

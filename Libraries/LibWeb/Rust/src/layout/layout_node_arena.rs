@@ -674,6 +674,11 @@ impl RowsVersion {
     pub(crate) fn has_identity_version(&self, identity: u64) -> bool {
         self.identity == identity
     }
+
+    /// See [`LayoutNodeArena::rows_identity_version`].
+    pub(crate) fn identity(&self) -> u64 {
+        self.identity
+    }
 }
 
 #[derive(Default)]
@@ -2343,6 +2348,11 @@ impl LayoutNodeArena {
 
     pub(crate) fn svg_paint_resources(&self) -> &crate::painting::svg_paint_resources::SvgPaintResources {
         &self.svg_paint_resources
+    }
+
+    /// See [`crate::painting::svg_paint_resources::SvgPaintResources::share_enrolled_flag`].
+    pub(crate) fn share_svg_paint_resources_enrolled(&mut self, flag: std::sync::Arc<std::sync::atomic::AtomicBool>) {
+        self.svg_paint_resources.share_enrolled_flag(flag);
     }
 
     pub(crate) fn node_style_record(&self, id: NodeSlotId) -> u64 {
@@ -5508,6 +5518,7 @@ pub unsafe extern "C" fn render_state_layout_is_up_to_date(
             arena.layout_is_up_to_date(document_needs_layout_tree_build)
         }),
     )
+    .0
 }
 
 /// # Safety

@@ -43,6 +43,7 @@ pub(crate) unsafe fn read_arena<A, R>(
         unsafe { &*host },
         crate::render_state::ArenaRead::new(args, answer),
     )
+    .0
 }
 
 /// The rows of `host`'s document as of every write the host made, spending `wait`.

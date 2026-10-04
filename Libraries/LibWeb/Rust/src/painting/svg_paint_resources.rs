@@ -231,9 +231,11 @@ impl SvgPaintResources {
         }
     }
 
-    /// Whether any row enrolled a resource, as a flag the document's host reads.
-    pub(crate) fn enrolled_flag(&self) -> Arc<AtomicBool> {
-        Arc::clone(&self.enrolled)
+    /// Raises `flag`, which the document's host reads, while any row enrolled a resource, rather than a flag of its
+    /// own. No row has enrolled one yet.
+    pub(crate) fn share_enrolled_flag(&mut self, flag: Arc<AtomicBool>) {
+        debug_assert!(!self.enrolled.load(Ordering::Relaxed));
+        self.enrolled = flag;
     }
 
     pub(crate) fn has_enrolled_entries(&self) -> bool {

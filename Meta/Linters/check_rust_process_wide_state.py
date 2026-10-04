@@ -112,7 +112,12 @@ RENDER_STATE_ALLOWED = {
             "css/style/prefix.rs:NEXT",
             "css/style_sheet.rs:NEXT_SHEET_IDENTITY",
             "layout/fragment_tree.rs:NEXT_IDENTITY",
+            "render_state/owner.rs:NEXT",
         ],
+    ),
+    **render_state_entries(
+        "the render owner's own states; only the owner's thread reaches its documents' render states",
+        ["render_state/owner.rs:STATES"],
     ),
     **render_state_entries(
         BUILT_ONCE,

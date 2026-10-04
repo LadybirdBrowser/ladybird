@@ -53,6 +53,7 @@ pub(crate) unsafe fn read_arena<A, R>(
         unsafe { &*host },
         crate::render_state::ArenaRead::new(args, answer),
     )
+    .0
 }
 
 /// The host tables of `host`'s document.
