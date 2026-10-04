@@ -18,6 +18,7 @@ use core::ptr::NonNull;
 use ak::{Utf16FlyString, Utf16String};
 use libjs_runtime_macros::Trace;
 
+use crate::embedding::host::host_module::HOST_MODULE_METHODS;
 use crate::gc::class::{Class, GcCell, define_cell};
 use crate::gc::class_id::ClassId;
 use crate::gc::foreign::ForeignCellSlot;
@@ -184,7 +185,7 @@ impl GraphLoadingState {
     }
 }
 
-/// The virtual methods of Module.
+/// The virtual methods of Module, and those of CyclicModule, which only the classes that extend it implement.
 pub struct ModuleMethods {
     pub link: fn(&Module, &Vm) -> ThrowCompletionOr<()>,
     pub evaluate: fn(&Module, &Vm) -> ThrowCompletionOr<Gc<PromiseCapability>>,
@@ -193,6 +194,8 @@ pub struct ModuleMethods {
     pub inner_module_linking: fn(&Module, &Vm, &ModuleStack<'_>, u32) -> ThrowCompletionOr<u32>,
     pub inner_module_evaluation: fn(&Module, &Vm, &ModuleStack<'_>, u32) -> ThrowCompletionOr<u32>,
     pub load_requested_modules: fn(&Module, &Vm, ForeignCellSlot) -> Gc<PromiseCapability>,
+    pub initialize_environment: fn(&CyclicModule, &Vm) -> ThrowCompletionOr<()>,
+    pub execute_module: fn(&CyclicModule, &Vm, Option<Gc<PromiseCapability>>) -> ThrowCompletionOr<()>,
 }
 
 pub const MODULE_METHODS: ModuleMethods = ModuleMethods {
@@ -203,6 +206,8 @@ pub const MODULE_METHODS: ModuleMethods = ModuleMethods {
     inner_module_linking: Module::inner_module_linking_of_module,
     inner_module_evaluation: Module::inner_module_evaluation_of_module,
     load_requested_modules: |_, _, _| unreachable!("Module::load_requested_modules is pure virtual"),
+    initialize_environment: |_, _| unreachable!("only Cyclic Module Records have InitializeEnvironment"),
+    execute_module: |_, _, _| unreachable!("only Cyclic Module Records have ExecuteModule"),
 };
 
 // 16.2.1.4 Abstract Module Records, https://tc39.es/ecma262/#sec-abstract-module-records
@@ -238,10 +243,11 @@ impl Module {
         self.header.class
     }
 
-    fn methods(&self) -> &'static ModuleMethods {
+    pub(crate) fn methods(&self) -> &'static ModuleMethods {
         match self.class().id {
             ClassId::SourceTextModule => &SOURCE_TEXT_MODULE_METHODS,
             ClassId::SyntheticModule => &SYNTHETIC_MODULE_METHODS,
+            ClassId::HostModule => &HOST_MODULE_METHODS,
             class_id => unreachable!("{class_id:?} is not a class of module"),
         }
     }
