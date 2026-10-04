@@ -1,5 +1,5 @@
 state next task: in-flight
-state after a first-seen class: landed
+state after a first-seen class: in-flight
 state after a first-seen id: landed
 state after a first-seen attribute value: landed
 state after registerProperty(): landed

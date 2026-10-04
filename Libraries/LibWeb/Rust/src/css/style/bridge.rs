@@ -3755,37 +3755,13 @@ pub unsafe extern "C" fn style_engine_borrow_engine_custom_property_environment(
     })
 }
 
-/// Records what a custom property's name atom spells, and the fly string it is. The fly string is
-/// retained and never recorded: a replay has no strings, and names its entries by atom alone.
-///
-/// # Safety
-/// `host` must be a live document host, on its document's thread, `raw` must be a live
-/// `AK::Utf16FlyString` raw representation, and `text` must name `length` code units.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_note_custom_property_name(
-    host: *const DocumentHost,
-    read: &crate::render_state::BegunRead,
-    name: u32,
-    raw: usize,
-    text: *const u16,
-    length: usize,
-) {
-    // SAFETY: Guaranteed by the caller.
-    let host = unsafe { document_host(host) };
-    with_engine(read, host, |engine| {
-        if name == 0 || (length != 0 && text.is_null()) {
-            return;
-        }
-        let text = match length {
-            0 => &[],
-            _ => unsafe { std::slice::from_raw_parts(text, length) },
-        };
-        unsafe { note_native_custom_property_name(engine, StyleAtomID(name), raw, text) };
-    });
-}
-
 // The raw identity must remain a live Utf16FlyString for the native engine to retain it.
-unsafe fn note_native_custom_property_name(engine: &mut StyleEngine, name: StyleAtomID, raw: usize, text: &[u16]) {
+pub(super) unsafe fn note_native_custom_property_name(
+    engine: &mut StyleEngine,
+    name: StyleAtomID,
+    raw: usize,
+    text: &[u16],
+) {
     unsafe { engine.note_custom_property_name(name, raw, text) };
     engine.record_boundary_call(EventKind::NoteCustomPropertyName, |payload| {
         payload.write_u32(name.0);
@@ -4072,29 +4048,11 @@ pub unsafe extern "C" fn style_engine_take_container_effects(
     }
 }
 
-/// Interns one name identity and returns its document-local atom.
-///
-/// The caller passes the one-word identity of an interned string it holds a reference to, so the
-/// identity cannot be reused while the atom is live.
+/// Interns the name whose raw identity is `raw` in `engine`, as it adopts the atom its host interned, and as the style
+/// replay tool does.
 ///
 /// # Safety
-/// `host` must be a live document host, on its document's thread.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_intern_atom(
-    host: *const DocumentHost,
-    read: &crate::render_state::BegunRead,
-    raw: usize,
-) -> u32 {
-    // SAFETY: Guaranteed by the caller.
-    let host = unsafe { document_host(host) };
-    // SAFETY: Guaranteed by the caller.
-    with_engine(read, host, |engine| unsafe { intern_atom(engine, raw) })
-}
-
-/// [`style_engine_intern_atom`] on `engine`, which the style replay tool calls as well.
-///
-/// # Safety
-/// As for [`style_engine_intern_atom`], for the arguments after `engine`.
+/// `raw` must be the raw identity of a live `AK::Utf16FlyString`, or a replay token.
 pub unsafe fn intern_atom(engine: &mut StyleEngine, raw: usize) -> u32 {
     let result = engine.intern_atom(raw);
     record_interned_atom(engine, raw, result);
