@@ -932,6 +932,8 @@ void StyleEngine::end_flown_style_drain()
         if (auto element = m_style_computer->element_for_style_node(parent); element && element->child_style_uses_tree_counting_function())
             restyle_children_reading_sibling_position(*element);
     }
+    // So are the elements whose styles use a font that resolves differently since the transaction flew.
+    m_style_computer->document().font_computer().did_end_flown_style_drain();
 }
 
 void StyleEngine::restyle_children_reading_sibling_position(DOM::Element& parent)
@@ -1165,6 +1167,8 @@ void StyleEngine::publish_font_faces(FontComputer const& font_computer)
     if (m_published_font_environment_generation == font_computer.environment_generation())
         return;
     m_published_font_environment_generation = font_computer.environment_generation();
+    // The engine resolves against this table from here on, and nothing it named from an older one is read again.
+    font_computer.font_cascade_memo().release_retired();
     auto snapshot = font_computer.font_face_snapshot();
     auto shadow_scopes = snapshot->font_feature_values_shadow_scopes();
     StyleEngineFFI::style_engine_publish_font_faces(m_render_document->host(), &snapshot.leak_ref(), &NonnullRefPtr { font_computer.font_cascade_memo() }.leak_ref(), reinterpret_cast<u32 const*>(shadow_scopes.data()), shadow_scopes.size());

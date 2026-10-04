@@ -172,6 +172,8 @@ public:
     void clear_font_feature_values_cache(Utf16FlyString const& family_name);
     void did_load_font(Utf16FlyString const& family_name);
     void did_load_font(FontFaceKey const&);
+    // The style transaction that flew has been drained, so the styles it computed are the elements' own.
+    void did_end_flown_style_drain();
 
     void register_font_face(NonnullRefPtr<FontFaceState>);
     void unregister_font_face(NonnullRefPtr<FontFaceState>);
@@ -205,6 +207,8 @@ private:
     void begin_font_face_change_batch();
     void end_font_face_change_batch();
     void clear_computed_font_cache_for_families(Vector<Utf16FlyString> const& family_names);
+    using ElementUsesChangedFonts = Function<bool(DOM::Element const&)>;
+    void record_font_input_changes(ElementUsesChangedFonts);
 
     FontFeatureValues const& font_feature_values_for_family(Utf16FlyString const& family_name, TreeScopeID) const;
     FontFeatureValues font_feature_values_in_scope(Utf16FlyString const& family_name, TreeScopeID) const;
@@ -227,6 +231,9 @@ private:
     u64 m_environment_generation { 1 };
     mutable RefPtr<FontFaceSnapshot const> m_font_face_snapshot;
     Vector<Utf16FlyString> m_batched_font_face_change_families;
+    // What font resolution answers changed beside a style transaction that flew, which computed styles from the old
+    // answers: the elements that use the changed fonts are found once the transaction's drain installed them.
+    Vector<ElementUsesChangedFonts> m_font_changes_beside_flown_transaction;
 };
 
 }
