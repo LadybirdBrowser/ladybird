@@ -97,6 +97,7 @@ ALLOWED_HEADERS = {
     "LibJS/SyntaxHighlighter.h",
     "LibJS/SyntheticModule.h",
     "LibJS/Token.h",
+    "LibJS/ToolEntryPoints.h",
 }
 
 ENGINE_INTERNAL_HEADER_DIRECTORIES = (

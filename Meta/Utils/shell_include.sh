@@ -54,6 +54,9 @@ get_build_dir() {
         "Debug")
             BUILD_DIR="${LADYBIRD_SOURCE_DIR}/Build/debug"
             ;;
+        "RustRuntime")
+            BUILD_DIR="${LADYBIRD_SOURCE_DIR}/Build/rust"
+            ;;
         "Sanitizer")
             BUILD_DIR="${LADYBIRD_SOURCE_DIR}/Build/sanitizer"
             ;;

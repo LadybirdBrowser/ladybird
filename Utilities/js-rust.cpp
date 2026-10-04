@@ -22,9 +22,22 @@ struct JSLineEditor {
     int (*write_history)(char const* path);
     void (*set_line_completion_function)(LineCompletionFunction complete_line);
 };
-
-int libjs_runtime_rust_js_main(int argc, char** argv, JSLineEditor const* line_editor);
 }
+
+#ifdef LIBJS_TOOL_ENTRY_POINTS_IN_FACADE
+#    include <LibJS/ToolEntryPoints.h>
+#else
+extern "C" int libjs_runtime_rust_js_main(int argc, char** argv, JSLineEditor const* line_editor);
+
+namespace JS {
+
+static int js_main(int argc, char** argv, JSLineEditor const* line_editor)
+{
+    return libjs_runtime_rust_js_main(argc, argv, line_editor);
+}
+
+}
+#endif
 
 #if !defined(AK_OS_WINDOWS) && !defined(AK_OS_ANDROID)
 static LineCompletionFunction s_complete_line;
@@ -56,5 +69,5 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 #else
     JSLineEditor const* line_editor = &s_libedit_line_editor;
 #endif
-    return libjs_runtime_rust_js_main(arguments.argc, arguments.argv, line_editor);
+    return JS::js_main(arguments.argc, arguments.argv, line_editor);
 }

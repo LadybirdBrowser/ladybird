@@ -22,6 +22,11 @@ if (TARGET LibWeb)
     list(APPEND FUZZER_TARGETS CSSParser)
 endif()
 
+# FIXME: Fuzz the Rust LibJS runtime as well once FuzzJs builds against the LibJS facade.
+if (LIBJS_RUNTIME STREQUAL "Rust")
+    list(REMOVE_ITEM FUZZER_TARGETS Js)
+endif()
+
 set(FUZZER_DEPENDENCIES_ASN1 LibCrypto LibTLS)
 set(FUZZER_DEPENDENCIES_BMPLoader LibGfx LibImageDecoders)
 set(FUZZER_DEPENDENCIES_CSSParser LibWeb)

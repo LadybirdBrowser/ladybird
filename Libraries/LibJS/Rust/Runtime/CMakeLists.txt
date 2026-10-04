@@ -28,3 +28,14 @@ if ((LINUX OR BSD) AND NOT BUILD_SHARED_LIBS)
     # LibUnicode, whose exported symbols then appear twice in static ELF links.
     target_link_options(libjs_runtime_rust INTERFACE LINKER:--allow-multiple-definition)
 endif()
+
+# js-rust, test262-runner-rust and test-js-runtime-rust are written in the runtime and have thin C++ mains. With the C++
+# runtime they link the runtime directly. The facade hides the runtime's symbols, so with the facade they reach the
+# runtime through LibJS instead.
+add_library(libjs_runtime_rust_tool_entry_points INTERFACE)
+if (LIBJS_RUNTIME STREQUAL "Rust")
+    target_link_libraries(libjs_runtime_rust_tool_entry_points INTERFACE LibJS)
+    target_compile_definitions(libjs_runtime_rust_tool_entry_points INTERFACE LIBJS_TOOL_ENTRY_POINTS_IN_FACADE)
+else()
+    target_link_libraries(libjs_runtime_rust_tool_entry_points INTERFACE libjs_runtime_rust)
+endif()

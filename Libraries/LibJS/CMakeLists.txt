@@ -1,3 +1,8 @@
+if (LIBJS_RUNTIME STREQUAL "Rust")
+    include("${CMAKE_CURRENT_SOURCE_DIR}/Facade/CMakeLists.txt")
+    return()
+endif()
+
 include(libjs_generators)
 
 build_rust_binary(
