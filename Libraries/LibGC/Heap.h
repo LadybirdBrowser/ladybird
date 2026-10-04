@@ -124,6 +124,7 @@ public:
     CellAllocator& cell_allocator_for(Badge<CellAllocatorDescriptorBase>, CellAllocatorDescriptorBase&);
 
     void uproot_cell(Cell* cell);
+    void uproot_cell(ForeignCell* cell) { uproot_cell(as_cell(cell)); }
 
     bool is_gc_deferred() const { return m_gc_deferrals > 0; }
     bool is_incremental_sweep_active() const { return m_incremental_sweep_active; }

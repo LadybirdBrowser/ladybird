@@ -39,20 +39,43 @@ private:
     std::vector<T const*> m_matches;
 };
 
-static bool record_inherits_from_cell(clang::CXXRecordDecl const& record)
+// GC::ForeignCell's subclasses name cells that a foreign implementation, such as the Rust LibJS runtime, lays out,
+// creates and visits. C++ code holds and visits them like GC::Cell's subclasses, so the checks of how cells are held
+// apply to both kinds, while the checks of how a C++ cell class is written apply only to GC::Cell's subclasses.
+enum class CellBaseOfRecord {
+    NotACell,
+    Cell,
+    ForeignCell,
+};
+
+static CellBaseOfRecord cell_base_named_by_record(clang::CXXRecordDecl const& record)
+{
+    auto qualified_name = record.getQualifiedNameAsString();
+    if (qualified_name == "GC::Cell")
+        return CellBaseOfRecord::Cell;
+    if (qualified_name == "GC::ForeignCell")
+        return CellBaseOfRecord::ForeignCell;
+    return CellBaseOfRecord::NotACell;
+}
+
+static CellBaseOfRecord cell_base_of_record(clang::CXXRecordDecl const& record)
 {
     if (!record.isCompleteDefinition())
-        return false;
+        return CellBaseOfRecord::NotACell;
 
-    bool inherits_from_cell = record.getQualifiedNameAsString() == "GC::Cell";
+    auto cell_base = cell_base_named_by_record(record);
+    if (cell_base != CellBaseOfRecord::NotACell)
+        return cell_base;
     record.forallBases([&](clang::CXXRecordDecl const* base) -> bool {
-        if (base->getQualifiedNameAsString() == "GC::Cell") {
-            inherits_from_cell = true;
-            return false;
-        }
-        return true;
+        cell_base = cell_base_named_by_record(*base);
+        return cell_base == CellBaseOfRecord::NotACell;
     });
-    return inherits_from_cell;
+    return cell_base;
+}
+
+static bool record_inherits_from_cell(clang::CXXRecordDecl const& record)
+{
+    return cell_base_of_record(record) != CellBaseOfRecord::NotACell;
 }
 
 // Check if a type has a visit_edges method that takes GC::Cell::Visitor&
@@ -366,7 +389,8 @@ bool LibJSGCVisitor::VisitCXXRecordDecl(clang::CXXRecordDecl* record)
     auto& diag_engine = m_context.getDiagnostics();
     std::vector<clang::FieldDecl const*> fields_that_need_visiting;
     std::vector<clang::FieldDecl const*> substruct_fields_that_need_visiting;
-    auto record_is_cell = record_inherits_from_cell(*record);
+    auto record_cell_base = cell_base_of_record(*record);
+    auto record_is_cell = record_cell_base != CellBaseOfRecord::NotACell;
 
     for (clang::FieldDecl const* field : record->fields()) {
         // Skip anonymous structs/unions - their members are accessed indirectly
@@ -374,8 +398,12 @@ bool LibJSGCVisitor::VisitCXXRecordDecl(clang::CXXRecordDecl* record)
         if (field->isAnonymousStructOrUnion())
             continue;
 
-        if (auto const* field_record = m_context.getBaseElementType(field->getType())->getAsCXXRecordDecl(); field_record && record_inherits_from_cell(*field_record)) {
-            auto diag_id = diag_engine.getCustomDiagID(clang::DiagnosticsEngine::Error, "GC::Cell type %0 must be allocated with GC::Heap::allocate(), not stored by value");
+        auto const* field_record = m_context.getBaseElementType(field->getType())->getAsCXXRecordDecl();
+        auto field_cell_base = field_record ? cell_base_of_record(*field_record) : CellBaseOfRecord::NotACell;
+        if (field_cell_base != CellBaseOfRecord::NotACell) {
+            auto diag_id = field_cell_base == CellBaseOfRecord::ForeignCell
+                ? diag_engine.getCustomDiagID(clang::DiagnosticsEngine::Error, "GC::ForeignCell type %0 is allocated by its foreign implementation, not stored by value")
+                : diag_engine.getCustomDiagID(clang::DiagnosticsEngine::Error, "GC::Cell type %0 must be allocated with GC::Heap::allocate(), not stored by value");
             auto builder = diag_engine.Report(field->getLocation(), diag_id);
             builder << field_record->getName();
             continue;
@@ -431,7 +459,9 @@ bool LibJSGCVisitor::VisitCXXRecordDecl(clang::CXXRecordDecl* record)
         // Check if this non-Cell type has a visit_edges method
         clang::DeclarationName name = &m_context.Idents.get("visit_edges");
         auto const* visit_edges_method = record->lookup(name).find_first<clang::CXXMethodDecl>();
-        if (visit_edges_method && visit_edges_method->getBody()) {
+        // A struct that a foreign implementation lays out, such as an execution context of the Rust LibJS runtime, can
+        // hand its visit to that implementation, which visits every member.
+        if (visit_edges_method && visit_edges_method->getBody() && !decl_has_annotation(visit_edges_method, "ladybird::visits_through_foreign_implementation")) {
             // Verify that all GC pointer fields are visited
             if (!fields_that_need_visiting.empty() || !substruct_fields_that_need_visiting.empty()) {
                 MatchFinder field_access_finder;
@@ -472,6 +502,11 @@ bool LibJSGCVisitor::VisitCXXRecordDecl(clang::CXXRecordDecl* record)
         }
         return true;
     }
+
+    // The checks below are about how a C++ cell class is written. A foreign cell has no vtable for the GC_CELL macros
+    // to override, and its foreign implementation visits its edges and destroys it.
+    if (record_cell_base == CellBaseOfRecord::ForeignCell)
+        return true;
 
     // The macros are written in the class template, not in an explicit instantiation of it.
     if (!record->getTemplateInstantiationPattern())

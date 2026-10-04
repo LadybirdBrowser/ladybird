@@ -103,6 +103,11 @@ private:
 };
 
 struct CAPI {
+    static_assert(offsetof(ForeignCell, m_word_owned_by_the_foreign_implementation) == 0);
+    static_assert(offsetof(ForeignCell, m_mark) == offsetof(Cell, m_mark));
+    static_assert(offsetof(ForeignCell, m_state) == offsetof(Cell, m_state));
+    static_assert(offsetof(ForeignCell, m_cell_kind) == offsetof(Cell, m_cell_kind));
+
     static void get_layout(GCLayout& layout)
     {
         layout = {
@@ -137,7 +142,7 @@ using namespace GC;
 
 static Heap& as_heap(GCHeap* heap) { return *reinterpret_cast<Heap*>(heap); }
 static Heap const& as_heap(GCHeap const* heap) { return *reinterpret_cast<Heap const*>(heap); }
-static Cell* as_cell(GCCell* cell) { return reinterpret_cast<Cell*>(cell); }
+static Cell* from_gc_cell(GCCell* cell) { return reinterpret_cast<Cell*>(cell); }
 static GCCell* as_gc_cell(Cell* cell) { return reinterpret_cast<GCCell*>(cell); }
 static Cell::Visitor& as_visitor(GCVisitor* visitor) { return *reinterpret_cast<Cell::Visitor*>(visitor); }
 static WeakImpl* as_weak_impl(GCWeakImpl* impl) { return reinterpret_cast<WeakImpl*>(impl); }
@@ -239,7 +244,7 @@ void gc_heap_set_incremental_sweep_enabled(GCHeap* heap, bool enabled)
 
 void gc_heap_uproot_cell(GCHeap* heap, GCCell* cell)
 {
-    as_heap(heap).uproot_cell(as_cell(cell));
+    as_heap(heap).uproot_cell(from_gc_cell(cell));
 }
 
 void gc_heap_stack_bounds(GCHeap const* heap, uintptr_t* base, uintptr_t* top)
@@ -297,7 +302,7 @@ GCCellTypeInfo const* gc_cell_type_info(GCCell const* cell)
 
 GCRoot* gc_root_create(GCCell* cell)
 {
-    return reinterpret_cast<GCRoot*>(new Root<Cell>(as_cell(cell)));
+    return reinterpret_cast<GCRoot*>(new Root<Cell>(from_gc_cell(cell)));
 }
 
 void gc_root_destroy(GCRoot* root)
@@ -312,7 +317,7 @@ GCCell* gc_root_cell(GCRoot const* root)
 
 GCWeakImpl* gc_heap_create_weak_impl(GCHeap* heap, GCCell* cell)
 {
-    auto* impl = as_heap(heap).create_weak_impl(as_cell(cell));
+    auto* impl = as_heap(heap).create_weak_impl(from_gc_cell(cell));
     // NB: A weak impl without references is reclaimed by the next weak block sweep.
     impl->ref();
     return as_gc_weak_impl(impl);
@@ -336,14 +341,14 @@ void gc_weak_impl_unref(GCWeakImpl* impl)
 
 void gc_visitor_visit_cell(GCVisitor* visitor, GCCell* cell)
 {
-    as_visitor(visitor).visit(as_cell(cell));
+    as_visitor(visitor).visit(from_gc_cell(cell));
 }
 
 void gc_visitor_visit_cells(GCVisitor* visitor, GCCell* const* cells, size_t count)
 {
     auto& cell_visitor = as_visitor(visitor);
     for (size_t i = 0; i < count; ++i)
-        cell_visitor.visit(as_cell(cells[i]));
+        cell_visitor.visit(from_gc_cell(cells[i]));
 }
 
 void gc_visitor_visit_values(GCVisitor* visitor, uint64_t const* values, size_t count)

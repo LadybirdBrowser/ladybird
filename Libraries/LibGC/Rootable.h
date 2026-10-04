@@ -13,8 +13,14 @@
 namespace GC::Detail {
 
 template<typename T>
+inline constexpr bool IsPointerToForeignCell = false;
+
+template<typename T>
+inline constexpr bool IsPointerToForeignCell<T*> = IsBaseOf<ForeignCell, T>;
+
+template<typename T>
 struct RootableValueTraits {
-    static constexpr bool is_rootable = IsBaseOf<NanBoxedValue, T> || IsConvertible<T, Cell const*>;
+    static constexpr bool is_rootable = IsBaseOf<NanBoxedValue, T> || IsConvertible<T, Cell const*> || IsPointerToForeignCell<T>;
 
     static Cell* cell(T const& value)
     {
@@ -23,6 +29,8 @@ struct RootableValueTraits {
                 return &const_cast<T&>(value).as_cell();
         } else if constexpr (IsConvertible<T, Cell const*>) {
             return const_cast<Cell*>(static_cast<Cell const*>(value));
+        } else if constexpr (IsPointerToForeignCell<T>) {
+            return const_cast<Cell*>(as_cell(value));
         }
 
         return nullptr;
