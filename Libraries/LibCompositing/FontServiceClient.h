@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/AtomicRefCounted.h>
 #include <AK/ConditionVariable.h>
 #include <AK/Error.h>
 #include <AK/Function.h>
@@ -22,21 +23,20 @@ namespace Compositing {
 
 class FontServiceConnectionToServer;
 
-// A connection to the UI process's font service that any thread may ask on.
+// A process's one connection to the font service, which any thread may ask on.
 //
 // LibIPC pins a connection to the thread that constructed it, and that thread must have a
 // Core::EventLoop. This client owns a thread that does nothing else: a caller hands it a question
 // and blocks until the answer comes back, and needs neither a connection nor an event loop of its
-// own. A renderer's render side asks its font questions here, because the connection the
-// renderer's document thread owns is pumped by that thread alone.
-class COMPOSITING_API FontServiceClient {
+// own. So no font question waits for a busy main thread on either end.
+class COMPOSITING_API FontServiceClient final : public AtomicRefCounted<FontServiceClient> {
     AK_MAKE_NONCOPYABLE(FontServiceClient);
     AK_MAKE_NONMOVABLE(FontServiceClient);
 
 public:
     AK_ALLOC_WITH_KMALLOC;
 
-    static ErrorOr<NonnullOwnPtr<FontServiceClient>> create(IPC::TransportHandle);
+    static ErrorOr<NonnullRefPtr<FontServiceClient>> create(IPC::TransportHandle);
     ~FontServiceClient();
 
     // If the font service goes away, every question answers as if nothing matched.
@@ -66,5 +66,12 @@ private:
 
     NonnullRefPtr<Threading::Thread> m_thread;
 };
+
+// Connects to the font service and creates a font provider over its catalog that asks every question, from any
+// thread, on that one connection.
+COMPOSITING_API ErrorOr<NonnullOwnPtr<Gfx::SharedFontProvider>> create_font_provider(IPC::TransportHandle, IPC::File catalog, u64 catalog_size, u64 generation);
+
+// Installs such a provider as this process's system font provider.
+COMPOSITING_API ErrorOr<Gfx::SystemFontProvider*> install_font_service(IPC::TransportHandle, IPC::File catalog, u64 catalog_size, u64 generation);
 
 }

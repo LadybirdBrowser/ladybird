@@ -17,6 +17,7 @@
 #include <AK/QuickSort.h>
 #include <AK/Utf16FlyString.h>
 #include <AK/Utf16String.h>
+#include <LibCompositing/FontServiceClient.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/Process.h>
 #include <LibCore/System.h>
@@ -24,8 +25,6 @@
 #include <LibGC/Heap.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/Color.h>
-#include <LibGfx/Font/FontDatabase.h>
-#include <LibGfx/Font/SharedFontProvider.h>
 #include <LibGfx/SystemTheme.h>
 #include <LibIPC/Transport.h>
 #include <LibJS/Runtime/ConsoleObject.h>
@@ -139,84 +138,10 @@ Messages::WebContentServer::InitTransportResponse ConnectionFromClient::init_tra
     VERIFY_NOT_REACHED();
 }
 
-void ConnectionFromClient::set_font_catalog(IPC::File file, u64 size, u64 generation)
+void ConnectionFromClient::set_font_service(IPC::TransportHandle handle, IPC::File catalog, u64 catalog_size, u64 generation)
 {
-    if (m_font_provider) {
-        if (auto result = m_font_provider->replace_catalog(move(file), size, generation); result.is_error())
-            dbgln("WebContent: Unable to replace font catalog: {}", result.error());
-        else
-            Web::Platform::FontPlugin::the().update_generic_fonts();
-        return;
-    }
-
-    Gfx::SharedFontProviderCallbacks callbacks;
-    callbacks.match_local_font = [this](String const& name) {
-        auto response = send_sync_but_allow_failure<Messages::WebContentClient::MatchLocalFont>(name);
-        if (!response)
-            return Gfx::BrokeredFont {};
-        return response->take_font();
-    };
-    callbacks.open_font = [this](u64 requested_generation, u64 face_id) {
-        auto response = send_sync_but_allow_failure<Messages::WebContentClient::OpenSystemFont>(requested_generation, face_id);
-        if (!response)
-            return Gfx::BrokeredFont {};
-        return response->take_font();
-    };
-    callbacks.match_font = [this](String const& family, u16 weight, u16 width, u8 slope) {
-        auto response = send_sync_but_allow_failure<Messages::WebContentClient::MatchSystemFont>(family, weight, width, slope);
-        if (!response)
-            return Gfx::BrokeredFont {};
-        return response->take_font();
-    };
-    callbacks.match_font_for_code_point = [this](u32 code_point, u16 weight, u16 width, u8 slope, bool prefer_color_emoji) {
-        auto response = send_sync_but_allow_failure<Messages::WebContentClient::MatchSystemFontForCodePoint>(code_point, weight, width, slope, prefer_color_emoji);
-        if (!response)
-            return Gfx::BrokeredFont {};
-        return response->take_font();
-    };
-    callbacks.resolve_generic_family = [this](String const& family, u16 weight, u8 slope) -> Optional<FlyString> {
-        auto response = send_sync_but_allow_failure<Messages::WebContentClient::ResolveGenericFont>(family, weight, slope);
-        if (!response)
-            return {};
-        auto resolved_family = response->take_resolved_family();
-        if (!resolved_family.has_value())
-            return {};
-        return FlyString { resolved_family.release_value() };
-    };
-
-    auto provider = Gfx::SharedFontProvider::create_from_catalog_file_or_empty(move(file), size, generation, move(callbacks));
-    if (provider.is_error()) {
-        dbgln("WebContent: Unable to install fallback font catalog: {}", provider.error());
-        return;
-    }
-    m_font_provider = provider.value().ptr();
-    Gfx::FontDatabase::the().install_system_font_provider(provider.release_value());
-    Web::Platform::FontPlugin::install(*new Web::Platform::FontPlugin(m_enable_test_mode, m_font_provider));
-}
-
-void ConnectionFromClient::set_render_side_font_service_transport(IPC::TransportHandle handle)
-{
-    // NB: A renderer cannot run without this connection: a font question from any thread but the document's would
-    //     otherwise go out on the connection the document thread owns.
-    m_render_side_font_service = MUST(Compositing::FontServiceClient::create(move(handle)));
-    if (!m_font_provider)
-        return;
-
-    // NB: There is no match_local_font: only a @font-face src: local() asks it, which is the document thread's work.
-    Gfx::SharedFontProviderCallbacks callbacks;
-    callbacks.open_font = [this](u64 generation, u64 face_id) {
-        return m_render_side_font_service->open_font(generation, face_id);
-    };
-    callbacks.match_font = [this](String const& family, u16 weight, u16 width, u8 slope) {
-        return m_render_side_font_service->match_font(family, weight, width, slope);
-    };
-    callbacks.match_font_for_code_point = [this](u32 code_point, u16 weight, u16 width, u8 slope, bool prefer_color_emoji) {
-        return m_render_side_font_service->match_font_for_code_point(code_point, weight, width, slope, prefer_color_emoji);
-    };
-    callbacks.resolve_generic_family = [this](String const& family, u16 weight, u8 slope) {
-        return m_render_side_font_service->resolve_generic_family(family, weight, slope);
-    };
-    m_font_provider->set_callbacks_for_other_threads(move(callbacks));
+    auto* font_provider = MUST(Compositing::install_font_service(move(handle), move(catalog), catalog_size, generation));
+    Web::Platform::FontPlugin::install(*new Web::Platform::FontPlugin(m_enable_test_mode, font_provider));
 }
 
 void ConnectionFromClient::initialize(Web::PageId initial_page_id, Vector<Web::HTML::RemoteNavigableDescriptor> remote_navigables, Web::HTML::CrossProcessId root_navigable_id, Web::HTML::CrossProcessIdAllocator cross_process_id_allocator, Web::HTML::SessionHistoryEntryDescriptor initial_history_entry, Web::HTML::VisibilityState system_visibility_state)

@@ -8,7 +8,9 @@
 #include <LibCompositing/FontServerEndpoint.h>
 #include <LibCompositing/FontServiceClient.h>
 #include <LibCore/EventLoop.h>
+#include <LibCore/Process.h>
 #include <LibCore/System.h>
+#include <LibGfx/Font/FontDatabase.h>
 #include <LibIPC/ConnectionToServer.h>
 #include <LibIPC/Transport.h>
 #include <LibThreading/Thread.h>
@@ -22,15 +24,17 @@ private:
     explicit FontServiceConnectionToServer(NonnullOwnPtr<IPC::Transport> transport)
         : IPC::ConnectionToServer<FontClientEndpoint, FontServerEndpoint>(*this, move(transport))
     {
+        set_peer_owns_this_process(true);
     }
 
-    // Not fatal: every later question fails to send and answers as if nothing matched.
-    virtual void die() override { }
+    // The UI process serves the fonts, so a process that loses it can answer no font question and exits, as it does
+    // when its main connection to the UI process goes.
+    virtual void die() override { Core::Process::terminate_immediately(0); }
 };
 
-ErrorOr<NonnullOwnPtr<FontServiceClient>> FontServiceClient::create(IPC::TransportHandle handle)
+ErrorOr<NonnullRefPtr<FontServiceClient>> FontServiceClient::create(IPC::TransportHandle handle)
 {
-    auto client = adopt_own(*new FontServiceClient(move(handle)));
+    auto client = adopt_ref(*new FontServiceClient(move(handle)));
 
     MutexLocker locker(client->m_mutex);
     client->m_condition.wait_while([&] { return !client->m_initialized; });
@@ -165,9 +169,39 @@ intptr_t FontServiceClient::thread_main()
         m_condition.broadcast();
     }
 
+    // A client that is done closes its side, which is not losing the service: shutdown() would end the process.
     if (connection->is_open())
-        connection->shutdown();
+        connection->transport().close();
     return 0;
+}
+
+ErrorOr<NonnullOwnPtr<Gfx::SharedFontProvider>> create_font_provider(IPC::TransportHandle handle, IPC::File catalog, u64 catalog_size, u64 generation)
+{
+    auto client = TRY(FontServiceClient::create(move(handle)));
+
+    Gfx::SharedFontProviderCallbacks callbacks;
+    callbacks.open_font = [client](u64 generation, u64 face_id) {
+        return client->open_font(generation, face_id);
+    };
+    callbacks.match_local_font = [client](String const& name) {
+        return client->match_local_font(name);
+    };
+    callbacks.match_font = [client](String const& family, u16 weight, u16 width, u8 slope) {
+        return client->match_font(family, weight, width, slope);
+    };
+    callbacks.match_font_for_code_point = [client](u32 code_point, u16 weight, u16 width, u8 slope, bool prefer_color_emoji) {
+        return client->match_font_for_code_point(code_point, weight, width, slope, prefer_color_emoji);
+    };
+    callbacks.resolve_generic_family = [client](String const& family, u16 weight, u8 slope) {
+        return client->resolve_generic_family(family, weight, slope);
+    };
+    return Gfx::SharedFontProvider::create_from_catalog_file_or_empty(move(catalog), catalog_size, generation, move(callbacks));
+}
+
+ErrorOr<Gfx::SystemFontProvider*> install_font_service(IPC::TransportHandle handle, IPC::File catalog, u64 catalog_size, u64 generation)
+{
+    auto provider = TRY(create_font_provider(move(handle), move(catalog), catalog_size, generation));
+    return &Gfx::FontDatabase::the().install_system_font_provider(move(provider));
 }
 
 }
