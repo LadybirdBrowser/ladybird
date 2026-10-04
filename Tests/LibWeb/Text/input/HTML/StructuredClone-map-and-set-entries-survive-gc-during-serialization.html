@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // Serializing the first entry runs a getter that empties the collection and collects garbage, so the remaining
+    // entries are only reachable through the list that StructuredSerializeInternal copied them into.
+    function emptyCollectionAndCollectGarbage(collection) {
+        collection.clear();
+        internals.gc();
+        const garbage = [];
+        for (let i = 0; i < 50_000; ++i)
+            garbage.push({ garbage: i });
+        internals.gc();
+    }
+
+    test(() => {
+        const map = new Map();
+        map.set(
+            {
+                get trigger() {
+                    emptyCollectionAndCollectGarbage(map);
+                    return 1;
+                },
+            },
+            0
+        );
+        for (let i = 0; i < 100; ++i)
+            map.set(i, { marker: `map value ${i}` });
+
+        let intactMapValues = 0;
+        for (const [key, value] of structuredClone(map)) {
+            if (typeof key === "number" && value.marker === `map value ${key}`)
+                ++intactMapValues;
+        }
+        println(`Map values intact: ${intactMapValues}`);
+
+        const set = new Set();
+        set.add({
+            get trigger() {
+                emptyCollectionAndCollectGarbage(set);
+                return 1;
+            },
+        });
+        for (let i = 0; i < 100; ++i)
+            set.add({ marker: `set value ${i}` });
+
+        let intactSetValues = 0;
+        for (const value of structuredClone(set)) {
+            if (value.marker === `set value ${intactSetValues}`)
+                ++intactSetValues;
+        }
+        println(`Set values intact: ${intactSetValues}`);
+    });
+</script>
