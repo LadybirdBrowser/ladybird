@@ -276,7 +276,7 @@ void CanonicalNavigable::begin_navigation(Web::HTML::PreparedNavigationDescripto
     if (is_javascript_url) {
         ongoing_navigation()->state = CanonicalNavigation::EvaluatingJavaScriptURL { *host };
         if (is_top_level_traversable() && host->displays_tab())
-            host->begin_top_level_load(navigation_id, url);
+            host->begin_top_level_load(url);
 
         // 1. Let request be a new request whose URL is url and whose policy container is sourceSnapshotParams's source
         //    policy container.
@@ -1390,6 +1390,23 @@ void CanonicalNavigable::did_finish_finalizing_navigation(Utf16String const& nav
         abandon_populated_document(navigation.history_entry->document_state);
     if (result != Web::HTML::HistoryStepResult::Applied && m_active_document_load.navigation_id == navigation.navigation_id)
         clear_active_document_load();
+}
+
+void CanonicalNavigable::did_cancel_navigation(Utf16String navigation_id)
+{
+    if (tracked_load_navigation_id() != navigation_id)
+        return;
+
+    auto canceled_ongoing_navigation = has_uncommitted_navigation();
+    if (canceled_ongoing_navigation)
+        clear_ongoing_navigation();
+    else
+        clear_active_document_load();
+
+    if (!is_top_level_traversable())
+        return;
+    if (auto view = top_level_traversable().view(); view.has_value())
+        view->did_cancel_loading({}, canceled_ongoing_navigation);
 }
 
 Optional<Utf16String> CanonicalNavigable::tracked_load_navigation_id() const

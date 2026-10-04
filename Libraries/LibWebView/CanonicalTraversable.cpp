@@ -659,6 +659,12 @@ void CanonicalTraversable::reload(OnHistoryOperationComplete on_complete)
 {
     auto user_involvement = Web::HTML::UserNavigationInvolvement::BrowserUI;
 
+    // NB: A reload from the browser's UI is the newest navigation. The navigation under way is abandoned, and the
+    //     active document's load is no longer the one tracked.
+    if (has_uncommitted_navigation())
+        clear_ongoing_navigation();
+    clear_active_document_load();
+
     // 2. Set navigable's active session history entry's document state's reload pending to true.
     NonnullRefPtr reloading_entry = *active_session_history_entry();
     reloading_entry->document_state->reload_pending = true;
@@ -680,6 +686,27 @@ void CanonicalTraversable::reload(OnHistoryOperationComplete on_complete)
         if (on_complete)
             on_complete(result, committed_step);
     });
+}
+
+// https://html.spec.whatwg.org/multipage/document-lifecycle.html#nav-stop
+void CanonicalTraversable::stop_loading()
+{
+    // 1. Let document be navigable's active document.
+    // 2. If document's unload counter is 0, and navigable's ongoing navigation is a navigation ID, then set the ongoing
+    //    navigation for navigable to null.
+    auto stopped_navigation = !is_unloading_document_of(id()) && has_uncommitted_navigation();
+    if (stopped_navigation)
+        clear_ongoing_navigation();
+    else
+        clear_active_document_load();
+
+    // 3. Abort a document and its descendants given document.
+    // NB: The page hosting document runs this step.
+    if (auto page = display_page(); page && page->is_open())
+        page->async_stop_loading();
+
+    if (auto view = this->view(); view.has_value())
+        view->did_stop_loading({}, stopped_navigation);
 }
 
 bool CanonicalTraversable::is_origin_held_by_a_document(URL::Origin const& origin)
@@ -1132,7 +1159,7 @@ void CanonicalTraversable::run_browser_ui_traversal_at_queue_position(Function<O
     VERIFY(view.has_value());
     auto canceled_uncommitted_navigation = check_for_cancelation == CheckForCancelation::Yes && has_uncommitted_navigation();
     if (canceled_uncommitted_navigation)
-        view->cancel_uncommitted_top_level_navigation_for_browser_traversal();
+        stop_loading();
 
     auto current_step = m_session_history.current_step();
     auto target_step = select_target_step();
@@ -1164,10 +1191,8 @@ void CanonicalTraversable::supersede_browser_history_traversal(HistoryOperation&
     auto promise = operation.queue_promise.release_nonnull();
     auto operation_id = operation.operation_id;
 
-    auto view = this->view();
-    VERIFY(view.has_value());
     if (has_uncommitted_navigation())
-        view->cancel_uncommitted_top_level_navigation_for_browser_traversal();
+        stop_loading();
     finish_history_operation(operation_id, Web::HTML::HistoryStepResult::CanceledByNavigate, {});
     run_browser_history_traversal_at_queue_position(
         Web::TraverseToStepHistoryOperationParameters {
@@ -1220,6 +1245,10 @@ CanonicalNavigation const* CanonicalTraversable::finalized_navigation(HistoryOpe
 
 void CanonicalTraversable::recover_from_web_content_process_crash(OnHistoryOperationComplete on_complete)
 {
+    if (has_uncommitted_navigation())
+        clear_ongoing_navigation();
+    clear_active_document_load();
+
     // The step a traversal the crash interrupted was applying is applied again, otherwise the current step is.
     Optional<i32> target_step;
     if (auto* traversal = ongoing_browser_history_traversal())
@@ -1362,8 +1391,11 @@ bool CanonicalTraversable::select_changing_navigable_history_step_job_endpoint(H
     // dispatched instead of having the job echo it back.
     if (navigable->is_top_level_traversable()
         && operation.parameters.has<Web::ReloadHistoryOperationParameters>()) {
-        if (endpoint->is_open())
-            endpoint->begin_top_level_load({}, job.target_entry->url);
+        if (endpoint->is_open()) {
+            // A load a history operation starts, rather than a navigation, is tracked as the active document's.
+            clear_active_document_load();
+            endpoint->begin_top_level_load(job.target_entry->url);
+        }
     }
     return true;
 }
@@ -2612,10 +2644,7 @@ void CanonicalTraversable::finalize_a_cross_document_navigation(HistoryOperation
     if (auto const& populated_document = history_entry->document_state->populated_document; populated_document.has_value())
         document = populated_document->document;
     if (!document) {
-        if (navigable->is_top_level_traversable()) {
-            if (auto view = this->view(); view.has_value())
-                view->did_cancel_loading(parameters.navigation_id);
-        }
+        navigable->did_cancel_navigation(parameters.navigation_id);
         finish_history_operation(operation.operation_id, Web::HTML::HistoryStepResult::Applied, {});
         return;
     }

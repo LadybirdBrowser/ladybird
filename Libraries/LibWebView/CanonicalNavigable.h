@@ -237,6 +237,7 @@ public:
     CanonicalNavigation const* navigation_being_finalized() const { return m_navigation_being_finalized.has_value() ? &*m_navigation_being_finalized : nullptr; }
     void did_finish_finalizing_navigation(Utf16String const& navigation_id, Web::HTML::HistoryStepResult);
     bool has_uncommitted_navigation() const { return ongoing_navigation(); }
+    void did_cancel_navigation(Utf16String navigation_id);
     Optional<Utf16String> tracked_load_navigation_id() const;
 
     ActiveDocumentLoad const& active_document_load() const { return m_active_document_load; }
