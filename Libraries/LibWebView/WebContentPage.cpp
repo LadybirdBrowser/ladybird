@@ -720,13 +720,16 @@ void WebContentPage::did_request_set_opener_of_navigable(Web::HTML::CrossProcess
     endpoint->async_set_opener_of_navigable(navigable_id, opener_navigable_id);
 }
 
-void WebContentPage::did_completely_finish_loading(Web::HTML::CrossProcessId navigable_id)
+void WebContentPage::did_completely_finish_loading(Web::HTML::CrossProcessId navigable_id, Web::HTML::CrossProcessId document_id)
 {
-    // Only the process hosting a navigable's active document speaks for it.
-    auto navigable = hosted_navigable(navigable_id);
+    // Only the process hosting a document speaks for it.
+    auto navigable = traversable().find(navigable_id);
     if (!navigable.has_value())
         return;
-    navigable->active_document_completely_finished_loading();
+    auto document = navigable->document_with_id(document_id);
+    if (!document || document->host() != this)
+        return;
+    navigable->document_completely_finished_loading(*document);
 }
 
 void WebContentPage::did_create_populated_document_with_an_origin_of_its_own(Web::HTML::CrossProcessId navigable_id, Web::HTML::CrossProcessId document_id, Web::HTML::PopulatedDocumentOrigin origin, Web::HTML::EnvironmentId environment_id)

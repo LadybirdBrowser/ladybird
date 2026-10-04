@@ -4700,7 +4700,7 @@ void Document::completely_finish_loading()
     //     document, reached through the UI process, which mirrors that the document is completely loaded.
     if (container)
         container->content_navigable_completely_finished_loading();
-    navigable->page().client().page_did_completely_finish_loading(navigable->id());
+    navigable->page().client().page_did_completely_finish_loading(navigable->id(), *this);
 }
 
 // https://html.spec.whatwg.org/multipage/dom.html#dom-document-cookie

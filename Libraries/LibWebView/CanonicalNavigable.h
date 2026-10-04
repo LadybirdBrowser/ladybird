@@ -188,7 +188,7 @@ public:
     bool active_document_has_cross_site_ancestor() const;
     // Whether the navigable's active session history entry is among its session history entries.
     bool has_session_history_entry_and_ready_for_navigation() const;
-    void active_document_completely_finished_loading();
+    void document_completely_finished_loading(CanonicalDocument&);
     void update_container_state(Web::HTML::ReplicatedContainerState);
 
     // https://html.spec.whatwg.org/multipage/document-sequences.html#nav-current-history-entry
@@ -240,6 +240,8 @@ public:
     void clear_active_document_load() { m_active_document_load = {}; }
 
 private:
+    void send_completely_finished_loading_to_container() const;
+
     Web::HTML::CrossProcessId m_id;
     CanonicalNavigable* m_parent { nullptr };
     RefPtr<CanonicalDocument> m_container_document;

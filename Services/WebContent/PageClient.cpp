@@ -391,9 +391,9 @@ void PageClient::page_did_set_opener_browsing_context(Web::HTML::CrossProcessId 
     client().async_did_set_opener_browsing_context(m_id, navigable_id, opener_navigable_id);
 }
 
-void PageClient::page_did_completely_finish_loading(Web::HTML::CrossProcessId navigable_id)
+void PageClient::page_did_completely_finish_loading(Web::HTML::CrossProcessId navigable_id, Web::DOM::Document const& document)
 {
-    client().async_did_completely_finish_loading(m_id, navigable_id);
+    client().async_did_completely_finish_loading(m_id, navigable_id, document.id());
 }
 
 void PageClient::page_did_change_navigable_container_state(Web::HTML::CrossProcessId navigable_id, Web::HTML::ReplicatedContainerState const& state)
