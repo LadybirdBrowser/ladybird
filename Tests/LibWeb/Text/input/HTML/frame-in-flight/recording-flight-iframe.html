@@ -2,9 +2,12 @@
 <script src="../../include.js"></script>
 <script src="frame-in-flight.js"></script>
 <div id="box" style="width: 10px; height: 10px; background: green"></div>
+<div style="content-visibility: auto">in step</div>
 <iframe id="frame" srcdoc="<p>child</p>"></iframe>
 <script>
-    // A document that hosts a navigable is presented in step with it, so its recording does not fly.
+    // A document that hosts a navigable is presented in step with it, so its recording does not fly. An element of
+    // content-visibility: auto keeps the document's style in step with the rendering update, so what could fly here is
+    // the recording alone.
     asyncTest(async done => {
         const state = await whileRecordingInFlight(() => {
             box.style.backgroundColor = "blue";
