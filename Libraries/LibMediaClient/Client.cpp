@@ -54,6 +54,8 @@ Client::~Client() = default;
 void Client::die()
 {
     verify_event_loop();
+    // NB: Forgetting this client below, or running its on_death callback, can drop the last reference to it.
+    NonnullRefPtr keep_client_alive_until_death_is_handled = *this;
     if (*s_client == this)
         *s_client = nullptr;
 
