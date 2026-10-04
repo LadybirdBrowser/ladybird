@@ -55,8 +55,10 @@ Messages::ImageDecoderServer::InitTransportResponse ConnectionFromClient::init_t
 #ifdef AK_OS_WINDOWS
     m_transport->set_peer_pid(peer_pid);
     return Core::System::getpid();
+#else
+    did_misbehave("Unexpected image decoder transport initialization");
+    return 0;
 #endif
-    VERIFY_NOT_REACHED();
 }
 
 ErrorOr<IPC::TransportHandle> ConnectionFromClient::connect_new_client()
