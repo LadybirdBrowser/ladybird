@@ -17,7 +17,6 @@
 #include <LibJS/Runtime/Completion.h>
 #include <LibJS/Runtime/HostFunction.h>
 #include <LibJS/Runtime/NativeFunction.h>
-#include <LibJS/Runtime/PrototypeObject.h>
 #include <LibJS/Runtime/Value.h>
 #include <LibURL/URL.h>
 #include <LibWasm/AbstractMachine/AbstractMachine.h>
@@ -119,78 +118,21 @@ JS::ThrowCompletionOr<JS::HandledByHost> host_grow_shared_array_buffer(JS::VM&, 
 
 }
 
-#define WASM_ENUMERATE_NATIVE_ERRORS                                                                                          \
-    __WASM_ENUMERATE(CompileError, "WebAssembly.CompileError", compile_error, CompileErrorPrototype, CompileErrorConstructor) \
-    __WASM_ENUMERATE(LinkError, "WebAssembly.LinkError", link_error, LinkErrorPrototype, LinkErrorConstructor)                \
-    __WASM_ENUMERATE(RuntimeError, "WebAssembly.RuntimeError", runtime_error, RuntimeErrorPrototype, RuntimeErrorConstructor)
+#define WASM_ENUMERATE_NATIVE_ERRORS                           \
+    __WASM_ENUMERATE(CompileError, "WebAssembly.CompileError") \
+    __WASM_ENUMERATE(LinkError, "WebAssembly.LinkError")       \
+    __WASM_ENUMERATE(RuntimeError, "WebAssembly.RuntimeError")
 
-// NOTE: This is technically not allowed by ECMA262, as the set of native errors is closed
-//       our implementation uses this fact in places, but for the purposes of wasm returning
-//       *some* kind of error, named e.g. 'WebAssembly.RuntimeError', this is sufficient.
-#define DECLARE_WASM_NATIVE_ERROR(ClassName, FullClassName, snake_name, PrototypeName, ConstructorName) \
-    class WEB_API ClassName final : public JS::Error {                                                  \
-        JS_OBJECT(ClassName, Error);                                                                    \
-        GC_DECLARE_ALLOCATOR(ClassName);                                                                \
-                                                                                                        \
-    public:                                                                                             \
-        static GC::Ref<ClassName> create(JS::Realm&);                                                   \
-        static GC::Ref<ClassName> create(JS::Realm&, Utf16String message);                              \
-        static GC::Ref<ClassName> create(JS::Realm&, StringView message);                               \
-                                                                                                        \
-        explicit ClassName(Object& prototype);                                                          \
-        virtual ~ClassName() override = default;                                                        \
+// https://webassembly.github.io/spec/js-api/#error-objects
+// Errors of these types are Error objects whose prototype is the error type's prototype object in their realm. The
+// types only create such errors, for VM::throw_completion<CompileError>(...) and the like.
+#define __WASM_ENUMERATE(ClassName, FullClassName)                         \
+    struct WEB_API ClassName {                                             \
+        static GC::Ref<JS::Error> create(JS::Realm&);                      \
+        static GC::Ref<JS::Error> create(JS::Realm&, Utf16String message); \
+        static GC::Ref<JS::Error> create(JS::Realm&, StringView message);  \
     };
-
-#define DECLARE_WASM_NATIVE_ERROR_CONSTRUCTOR(ClassName, FullClassName, snake_name, PrototypeName, ConstructorName) \
-    class ConstructorName final : public JS::NativeFunction {                                                       \
-        JS_OBJECT(ConstructorName, NativeFunction);                                                                 \
-        GC_DECLARE_ALLOCATOR(ConstructorName);                                                                      \
-                                                                                                                    \
-    public:                                                                                                         \
-        virtual void initialize(JS::Realm&) override;                                                               \
-        virtual ~ConstructorName() override;                                                                        \
-        virtual JS::ThrowCompletionOr<JS::Value> call() override;                                                   \
-        virtual JS::ThrowCompletionOr<GC::Ref<JS::Object>> construct(JS::FunctionObject& new_target) override;      \
-                                                                                                                    \
-    private:                                                                                                        \
-        explicit ConstructorName(JS::Realm&);                                                                       \
-                                                                                                                    \
-        virtual bool has_constructor() const override                                                               \
-        {                                                                                                           \
-            return true;                                                                                            \
-        }                                                                                                           \
-    };
-
-#define DECLARE_WASM_NATIVE_ERROR_PROTOTYPE(ClassName, FullClassName, snake_name, PrototypeName, ConstructorName) \
-    class PrototypeName final : public JS::PrototypeObject<PrototypeName, ClassName> {                            \
-        JS_PROTOTYPE_OBJECT(PrototypeName, ClassName, ClassName);                                                 \
-        GC_DECLARE_ALLOCATOR(PrototypeName);                                                                      \
-                                                                                                                  \
-    public:                                                                                                       \
-        virtual void initialize(JS::Realm&) override;                                                             \
-        virtual ~PrototypeName() override = default;                                                              \
-                                                                                                                  \
-    private:                                                                                                      \
-        explicit PrototypeName(JS::Realm&);                                                                       \
-    };
-
-#define __WASM_ENUMERATE(ClassName, FullClassName, snake_name, PrototypeName, ConstructorName) \
-    DECLARE_WASM_NATIVE_ERROR(ClassName, FullClassName, snake_name, PrototypeName, ConstructorName)
 WASM_ENUMERATE_NATIVE_ERRORS
 #undef __WASM_ENUMERATE
-
-#define __WASM_ENUMERATE(ClassName, FullClassName, snake_name, PrototypeName, ConstructorName) \
-    DECLARE_WASM_NATIVE_ERROR_CONSTRUCTOR(ClassName, FullClassName, snake_name, PrototypeName, ConstructorName)
-WASM_ENUMERATE_NATIVE_ERRORS
-#undef __WASM_ENUMERATE
-
-#define __WASM_ENUMERATE(ClassName, FullClassName, snake_name, PrototypeName, ConstructorName) \
-    DECLARE_WASM_NATIVE_ERROR_PROTOTYPE(ClassName, FullClassName, snake_name, PrototypeName, ConstructorName)
-WASM_ENUMERATE_NATIVE_ERRORS
-#undef __WASM_ENUMERATE
-
-#undef DECLARE_WASM_NATIVE_ERROR
-#undef DECLARE_WASM_NATIVE_ERROR_PROTOTYPE
-#undef DECLARE_WASM_NATIVE_ERROR_CONSTRUCTOR
 
 }
