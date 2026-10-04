@@ -8,7 +8,6 @@
 // expected-no-diagnostics
 
 #include <LibJS/Runtime/PrototypeObject.h>
-#include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Bindings/Wrappable.h>
 
 class TestCellClass : JS::Cell {
@@ -21,10 +20,6 @@ class TestObjectClass : JS::Object {
 
 class TestEnvironmentClass : JS::Environment {
     JS_ENVIRONMENT(TestEnvironmentClass, JS::Environment);
-};
-
-class TestPlatformClass : Web::Bindings::PlatformObject {
-    WEB_NON_IDL_PLATFORM_OBJECT(TestPlatformClass, Web::Bindings::PlatformObject);
 };
 
 class TestWrappableClass : Web::Bindings::Wrappable {

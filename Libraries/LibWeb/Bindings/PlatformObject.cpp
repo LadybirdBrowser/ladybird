@@ -13,6 +13,7 @@
 #include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/Window.h>
+#include <LibWeb/WebIDL/DOMException.h>
 #include <LibWeb/WebIDL/ExceptionOrUtils.h>
 
 namespace Web::Bindings {
@@ -27,12 +28,6 @@ static Wrappable* wrappable_of(JS::HostObject const& wrapper)
     return static_cast<Wrappable*>(wrapper.wrappable().ptr());
 }
 
-// Every host object whose class has one of the platform object hook tables is a PlatformObject.
-static PlatformObject& as_platform_object(JS::HostObject& wrapper)
-{
-    return static_cast<PlatformObject&>(wrapper);
-}
-
 JS::ThrowCompletionOr<bool> ordinary_define_own_property_and_preserve_wrapper_if_needed(JS::HostObject& object, JS::PropertyKey const& property_name, JS::PropertyDescriptor& property_descriptor, Optional<JS::PropertyDescriptor>* precomputed_get_own_property)
 {
     Optional<JS::PropertyDescriptor> own_property;
@@ -45,7 +40,7 @@ JS::ThrowCompletionOr<bool> ordinary_define_own_property_and_preserve_wrapper_if
     auto result = TRY(object.ordinary_define_own_property(property_name, property_descriptor, precomputed_get_own_property));
     if (result && !already_had_own_property && wrapper_realm(object).host_defined()) {
         if (auto* wrappable = wrappable_of(object)) {
-            preserve_wrapper(*wrappable, as_platform_object(object));
+            preserve_wrapper(*wrappable, object);
             // Preservation is one-shot and sticky (append-only per wrapper), so once a
             // non-legacy wrapper has been preserved there is no reason to keep routing its
             // expando writes through the slow add-own-property path: clearing the flag lets
@@ -66,7 +61,7 @@ static JS::ThrowCompletionOr<bool> ordinary_set_prototype_of_and_preserve_wrappe
     auto result = TRY(wrapper.ordinary_set_prototype_of(prototype));
     if (result && old_prototype != wrapper.shape().prototype() && wrapper_realm(wrapper).host_defined()) {
         if (auto* wrappable = wrappable_of(wrapper))
-            preserve_wrapper(*wrappable, as_platform_object(wrapper));
+            preserve_wrapper(*wrappable, wrapper);
     }
     return result;
 }
@@ -77,7 +72,7 @@ static JS::ThrowCompletionOr<bool> ordinary_prevent_extensions_and_preserve_wrap
     auto result = TRY(wrapper.ordinary_prevent_extensions());
     if (result && was_extensible && !wrapper.extensible() && wrapper_realm(wrapper).host_defined()) {
         if (auto* wrappable = wrappable_of(wrapper))
-            preserve_wrapper(*wrappable, as_platform_object(wrapper));
+            preserve_wrapper(*wrappable, wrapper);
     }
     return result;
 }
@@ -90,51 +85,7 @@ void finalize_platform_object(JS::HostObject& wrapper)
 
     auto& realm = wrapper_realm(wrapper);
     if (realm.host_defined())
-        host_defined_wrapper_world(realm).clear_wrapper(*wrappable, as_platform_object(wrapper));
-}
-
-#if !defined(AK_OS_WINDOWS)
-static_assert(sizeof(PlatformObject) == JS_HOST_OBJECT_SIZE);
-#endif
-
-PlatformObject::PlatformObject(JS::Realm& realm, JSHostClass const& host_class)
-    : JS::HostObject(realm, host_class, nullptr, nullptr, nullptr)
-{
-    VERIFY((host_class.flags & platform_object_host_class_flags) == platform_object_host_class_flags);
-}
-
-PlatformObject::PlatformObject(JS::Realm& realm, JSHostClass const& host_class, GC::Ref<Bindings::Wrappable> wrappable)
-    : JS::HostObject(realm, host_class, nullptr, wrappable, nullptr)
-{
-    VERIFY((host_class.flags & platform_object_host_class_flags) == platform_object_host_class_flags);
-}
-
-PlatformObject::~PlatformObject() = default;
-
-JS::Realm& PlatformObject::realm() const
-{
-    return shape().realm();
-}
-
-bool PlatformObject::implements_interface(String const& interface) const
-{
-    if (auto const* wrappable = wrappable_impl())
-        return wrappable->implements_interface(interface);
-    return false;
-}
-
-Bindings::InterfaceName PlatformObject::interface_name() const
-{
-    if (auto const* wrappable = wrappable_impl())
-        return wrappable->interface_name();
-    VERIFY_NOT_REACHED();
-}
-
-Optional<URL::Origin> PlatformObject::extract_an_origin() const
-{
-    if (auto const* wrappable = wrappable_impl())
-        return wrappable->extract_an_origin();
-    return {};
+        host_defined_wrapper_world(realm).clear_wrapper(*wrappable, wrapper);
 }
 
 static Utf16FlyString property_key_to_utf16_fly_string(JS::PropertyKey const& property_key)
@@ -358,7 +309,7 @@ static WebIDL::ExceptionOr<void> invoke_indexed_property_setter(JS::HostObject& 
     // 2. Let creating be true if index is not a supported property index, and false otherwise.
     bool creating = !is_supported_property_index(wrapper, index);
 
-    // FIXME: We do not have this information at this point, so converting the value is left as an exercise to the inheritor of PlatformObject.
+    // FIXME: We do not have this information at this point, so converting the value is left as an exercise to the generated special operations of the interface.
     // 3. Let operation be the operation used to declare the indexed property setter.
     // 4. Let T be the type of the second argument of operation.
     // 5. Let value be the result of converting V to an IDL value of type T.
@@ -386,7 +337,7 @@ static WebIDL::ExceptionOr<void> invoke_named_property_setter(JS::HostObject& wr
     // 1. Let creating be true if P is not a supported property name, and false otherwise.
     bool creating = !is_supported_property_name(wrapper, property_name);
 
-    // FIXME: We do not have this information at this point, so converting the value is left as an exercise to the inheritor of PlatformObject.
+    // FIXME: We do not have this information at this point, so converting the value is left as an exercise to the generated special operations of the interface.
     // 2. Let operation be the operation used to declare the indexed property setter.
     // 3. Let T be the type of the second argument of operation.
     // 4. Let value be the result of converting V to an IDL value of type T.
@@ -426,6 +377,13 @@ struct PlatformObjectTraits {
     static void finalize(JS::HostObject& wrapper)
     {
         finalize_platform_object(wrapper);
+    }
+};
+
+struct DOMExceptionWrapperTraits : PlatformObjectTraits {
+    static JS::ErrorData* error_data(JS::HostObject& wrapper)
+    {
+        return &wrapped_implementation_of<WebIDL::DOMException>(wrapper).error_data();
     }
 };
 
@@ -739,6 +697,7 @@ consteval JSHostObjectHooks make_legacy_platform_object_hooks()
 
 constexpr JSHostObjectHooks platform_object_hooks = JS::make_host_object_hooks<PlatformObjectTraits>();
 constexpr JSHostObjectHooks global_platform_object_hooks = JS::make_host_object_hooks<GlobalPlatformObjectTraits>();
+constexpr JSHostObjectHooks dom_exception_wrapper_hooks = JS::make_host_object_hooks<DOMExceptionWrapperTraits>();
 constexpr JSHostObjectHooks legacy_platform_object_hooks = make_legacy_platform_object_hooks();
 
 }

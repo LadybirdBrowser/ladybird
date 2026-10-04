@@ -19,7 +19,7 @@ static bool is_platform_object(JS::Value value)
 {
     if (!value.is_object())
         return false;
-    return is<Bindings::PlatformObject>(value.as_object());
+    return value.as_object().is_platform_object();
 }
 
 static bool platform_object_implements_interface(JS::Value value, StringView interface_name)

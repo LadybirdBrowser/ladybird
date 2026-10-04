@@ -1045,7 +1045,7 @@ def union_to_idl_value(
         includes.add("LibWeb/Bindings/PlatformObject.h")
         includes.add("LibWeb/Bindings/Wrappable.h")
         append("""
-            if (is<PlatformObject>(object)) {
+            if (object.is_platform_object()) {
 """)
         for interface_type in types.interface_types:
             interface_like_type = interface_like_type_for_idl_type(interface_type, context)

@@ -538,7 +538,7 @@ GC::Ptr<WebIDL::CallbackType> MessagePort::onmessage()
 
 namespace Web::Bindings {
 
-GC::Ref<PlatformObject> message_port(JS::Realm& realm, GC::Ref<HTML::MessagePort> message_port)
+GC::Ref<JS::HostObject> message_port(JS::Realm& realm, GC::Ref<HTML::MessagePort> message_port)
 {
     return wrap(host_defined_wrapper_world(realm), realm, message_port);
 }

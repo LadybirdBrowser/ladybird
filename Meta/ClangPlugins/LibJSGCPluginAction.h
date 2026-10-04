@@ -16,7 +16,6 @@ struct LibJSCellMacro {
         JSObject,
         JSEnvironment,
         JSPrototypeObject,
-        WebPlatformObject,
         WebWrappable,
     };
 

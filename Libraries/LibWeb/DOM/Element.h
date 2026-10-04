@@ -71,14 +71,13 @@ class HTMLOrSVGOrMathMLElement;
 
 namespace Web::Bindings {
 
-class PlatformObject;
 class WrapperWorld;
 enum class ScrollBehavior : u8;
 enum class ScrollIntoViewContainer : u8;
 enum class ScrollLogicalPosition : u8;
 struct GetHTMLOptions;
 struct PointerLockOptions;
-WEB_API void set_prototype_from_custom_element_definition_if_needed(DOM::Element&, PlatformObject&);
+WEB_API void set_prototype_from_custom_element_definition_if_needed(DOM::Element&, JS::HostObject& wrapper);
 WEB_API JS::Value element(JS::Realm&, GC::Ref<DOM::Element>);
 WEB_API DOM::Element* element_from_value(JS::Value);
 WEB_API GC::Ref<Geometry::DOMRect> get_bounding_client_rect(DOM::Element const&);
@@ -943,7 +942,7 @@ protected:
     CustomElementState custom_element_state() const { return m_custom_element_state; }
     GC::Ptr<HTML::CustomElementDefinition> custom_element_definition() const;
 
-    friend void Bindings::set_prototype_from_custom_element_definition_if_needed(Element&, Bindings::PlatformObject&);
+    friend void Bindings::set_prototype_from_custom_element_definition_if_needed(Element&, JS::HostObject&);
     template<typename>
     friend class HTML::HTMLOrSVGOrMathMLElement;
 

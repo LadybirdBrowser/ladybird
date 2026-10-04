@@ -28,12 +28,6 @@ enum class NamedPropertyDeletionResult : u8 {
     DidFail,
 };
 
-#define WEB_NON_IDL_PLATFORM_OBJECT(class_, base_class) \
-    JS_OBJECT(class_, base_class)
-
-#define WEB_PLATFORM_OBJECT(class_, base_class) \
-    JS_OBJECT_WITH_CUSTOM_CLASS_NAME(class_, base_class)
-
 // The engine flags of every platform object's host class.
 constexpr u32 platform_object_host_class_flags = JS_HOST_CLASS_IS_PLATFORM_OBJECT
     | JS_HOST_CLASS_REQUIRES_SLOW_ADD_OWN_PROPERTY
@@ -96,43 +90,34 @@ template<typename Implementation>
 // The internal methods of wrapper host classes. Wrappers of [Global] interfaces and of interfaces without special
 // operations have the ordinary internal methods, but preserve the wrapper once script gives it state of its own: a new
 // own property, another prototype or non-extensibility. A [Global] wrapper's prototype is immutable through its host
-// class flags instead. Legacy platform objects have the internal methods that WebIDL defines for them.
+// class flags instead. Legacy platform objects have the internal methods that WebIDL defines for them. A DOMException
+// wrapper is an ordinary wrapper that also exposes the error data of its implementation object.
 //
 // Outside LibWeb, their addresses are not constant expressions on Windows, where the tables are imported from a DLL.
 extern WEB_API JSHostObjectHooks const platform_object_hooks;
 extern WEB_API JSHostObjectHooks const global_platform_object_hooks;
 extern WEB_API JSHostObjectHooks const legacy_platform_object_hooks;
+extern JSHostObjectHooks const dom_exception_wrapper_hooks;
 
 // The finalize hook of every wrapper host class calls this to remove the wrapper from its world.
 void finalize_platform_object(JS::HostObject& wrapper);
 
 // https://webidl.spec.whatwg.org/#dfn-platform-object
-class WEB_API PlatformObject : public JS::HostObject {
-    JS_OBJECT_WITH_CUSTOM_CLASS_NAME(PlatformObject, JS::HostObject);
+// Only host classes give objects the platform object flag, so every platform object is a host object: a wrapper, whose
+// wrappable slot holds its implementation object, or a WindowProxy, whose wrappable slot is null.
+[[nodiscard]] inline JS::HostObject* as_platform_object(JS::Object& object)
+{
+    if (!object.is_platform_object())
+        return nullptr;
+    return static_cast<JS::HostObject*>(&object);
+}
 
-public:
-    virtual ~PlatformObject() override;
-
-    JS::Realm& realm() const;
-
-    // https://webidl.spec.whatwg.org/#implements
-    [[nodiscard]] bool implements_interface(String const&) const;
-
-    // Only valid on platform objects that are exposed over IDL.
-    [[nodiscard]] Bindings::InterfaceName interface_name() const;
-
-    // https://html.spec.whatwg.org/multipage/browsers.html#extract-an-origin
-    // Platform objects have an extract an origin operation, which returns null unless otherwise specified.
-    Optional<URL::Origin> extract_an_origin() const;
-
-protected:
-    // The host class must have every flag in platform_object_host_class_flags.
-    PlatformObject(JS::Realm&, JSHostClass const&);
-    PlatformObject(JS::Realm&, JSHostClass const&, GC::Ref<Bindings::Wrappable>);
-
-    [[nodiscard]] Bindings::Wrappable* wrappable_impl() { return static_cast<Bindings::Wrappable*>(wrappable().ptr()); }
-    [[nodiscard]] Bindings::Wrappable const* wrappable_impl() const { return static_cast<Bindings::Wrappable const*>(wrappable().ptr()); }
-};
+[[nodiscard]] inline JS::HostObject const* as_platform_object(JS::Object const& object)
+{
+    if (!object.is_platform_object())
+        return nullptr;
+    return static_cast<JS::HostObject const*>(&object);
+}
 
 // https://webidl.spec.whatwg.org/#dfn-named-property-visibility
 // The wrapper must be a legacy platform object or the wrapper of a [Global] interface.
@@ -140,10 +125,7 @@ WEB_API JS::ThrowCompletionOr<bool> is_named_property_exposed_on_object(JS::Host
 
 // Defines the property via OrdinaryDefineOwnProperty and, if that created a new own property,
 // preserves the object's wrapper so the expando stays alive as long as the wrappable does.
-// Wrapper classes with custom [[DefineOwnProperty]] must route their ordinary path through this.
+// Wrapper host classes with a custom [[DefineOwnProperty]] must route their ordinary path through this.
 WEB_API JS::ThrowCompletionOr<bool> ordinary_define_own_property_and_preserve_wrapper_if_needed(JS::HostObject& wrapper, JS::PropertyKey const&, JS::PropertyDescriptor&, Optional<JS::PropertyDescriptor>* precomputed_get_own_property);
 
 }
-
-template<>
-inline bool JS::Object::fast_is<Web::Bindings::PlatformObject>() const { return is_platform_object(); }

@@ -18,7 +18,7 @@ from Generators.libweb_bindings.realms import member_realm_expr
 from Generators.libweb_bindings.to_idl_value import to_idl_value
 from Generators.libweb_bindings.to_js_value import to_javascript_value
 from Generators.libweb_bindings.wrappers import interface_and_inherited_interfaces
-from Generators.libweb_bindings.wrappers import wrapper_class_name
+from Generators.libweb_bindings.wrappers import wrapper_name
 from Utils.utils import title_case_to_snake_case
 from Utils.webidl_parser import IDLType
 from Utils.webidl_parser import Interface
@@ -74,7 +74,7 @@ LEGACY_PLATFORM_OBJECT_INFO_FUNCTIONS = (
 
 
 def legacy_platform_object_function_name(interface: Interface, function: str) -> str:
-    return f"{title_case_to_snake_case(wrapper_class_name(interface))}_{function}"
+    return f"{wrapper_name(interface)}_{function}"
 
 
 def legacy_platform_object_function_signature(interface: Interface, function: str) -> str:

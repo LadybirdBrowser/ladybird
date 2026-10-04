@@ -102,7 +102,7 @@
 
 namespace Web::Bindings {
 
-GC::Ref<JS::NativeFunction> WindowWrapper::create_cross_origin_method(JS::Realm& realm, Utf16FlyString const& property)
+GC::Ref<JS::NativeFunction> create_window_cross_origin_method(JS::Realm& realm, Utf16FlyString const& property)
 {
     if (property == u"close"sv)
         return JS::NativeFunction::create(realm, WindowGlobalMixin::close, 0, property);
@@ -115,7 +115,7 @@ GC::Ref<JS::NativeFunction> WindowWrapper::create_cross_origin_method(JS::Realm&
     VERIFY_NOT_REACHED();
 }
 
-GC::Ref<JS::NativeFunction> WindowWrapper::create_cross_origin_getter(JS::Realm& realm, Utf16FlyString const& property)
+GC::Ref<JS::NativeFunction> create_window_cross_origin_getter(JS::Realm& realm, Utf16FlyString const& property)
 {
     if (property == u"window"sv)
         return JS::NativeFunction::create(realm, WindowGlobalMixin::window_getter, 0, property, &realm, "get"sv);
@@ -138,7 +138,7 @@ GC::Ref<JS::NativeFunction> WindowWrapper::create_cross_origin_getter(JS::Realm&
     VERIFY_NOT_REACHED();
 }
 
-GC::Ref<JS::NativeFunction> WindowWrapper::create_cross_origin_setter(JS::Realm& realm, Utf16FlyString const& property)
+GC::Ref<JS::NativeFunction> create_window_cross_origin_setter(JS::Realm& realm, Utf16FlyString const& property)
 {
     VERIFY(property == u"location"sv);
     return JS::NativeFunction::create(realm, WindowGlobalMixin::location_setter, 1, property, &realm, "set"sv);
@@ -154,15 +154,15 @@ HTML::Window const* window_from_global_object(JS::Object const& object)
     return Bindings::impl_from<HTML::Window>(&object);
 }
 
-PlatformObject& platform_object_for_window(HTML::Window& window)
+JS::HostObject& platform_object_for_window(HTML::Window& window)
 {
-    auto* wrapper = as_if<PlatformObject>(window.principal_realm().global_object());
+    auto* wrapper = as_platform_object(window.principal_realm().global_object());
     VERIFY(wrapper);
     VERIFY(window_from_global_object(*wrapper) == &window);
     return *wrapper;
 }
 
-PlatformObject& platform_object_for_window(HTML::Window& window, JS::Realm& realm)
+JS::HostObject& platform_object_for_window(HTML::Window& window, JS::Realm& realm)
 {
     auto& wrapper_world = Bindings::host_defined_wrapper_world(realm);
     return *Bindings::wrap(wrapper_world, realm, GC::Ref { window });
@@ -351,7 +351,7 @@ JS::Realm& Window::principal_realm() const
 
     auto wrapper = cached_main_world_wrapper();
     VERIFY(wrapper);
-    return wrapper->realm();
+    return wrapper->shape().realm();
 }
 
 EnvironmentSettingsObject& Window::relevant_settings_object() const

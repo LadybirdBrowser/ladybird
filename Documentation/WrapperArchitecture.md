@@ -5,9 +5,10 @@ three-layer wrapper model:
 
 1. `Web::Bindings::Wrappable` is the implementation-side base for objects that
    can be reflected into JavaScript.
-2. The WebIDL generator emits `PlatformObject` wrapper classes in
-   `Web::Bindings`. These wrappers hold the implementation object and implement
-   the Web-facing object behavior.
+2. Wrappers are `JS::HostObject`s that hold the implementation object in their
+   wrappable slot. For each interface, the WebIDL generator emits a host class
+   table, whose hooks implement the Web-facing object behavior, and a
+   `create_*_wrapper()` function in `Web::Bindings`.
 3. `Web::Bindings::WrapperWorld` owns wrapper identity for one observable world.
    Wrapping an implementation object means looking up or creating the wrapper in
    the caller's `WrapperWorld`.

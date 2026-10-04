@@ -80,7 +80,7 @@ private:
     JS::ThrowCompletionOr<bool> internal_delete(JS::PropertyKey const&);
     JS::ThrowCompletionOr<GC::RootVector<JS::Value>> internal_own_property_keys() const;
 
-    Bindings::PlatformObject& cross_origin_window_wrapper() const;
+    JS::HostObject& cross_origin_window_wrapper() const;
 
     bool is_platform_object_same_origin() const;
     Vector<GC::Root<Navigable>> document_tree_child_navigables() const;
@@ -99,7 +99,7 @@ private:
 
     // Keeps the per-realm Window wrapper alive while cross-origin property descriptors cached on it can be reused
     // through this WindowProxy.
-    mutable GC::Ptr<Bindings::PlatformObject> m_cross_origin_window_wrapper;
+    mutable GC::Ptr<JS::HostObject> m_cross_origin_window_wrapper;
 };
 
 }

@@ -91,7 +91,6 @@ namespace Web::Bindings {
 
 class Intrinsics;
 enum class NamedPropertyDeletionResult : u8;
-class PlatformObject;
 class Wrappable;
 class WrapperWorld;
 

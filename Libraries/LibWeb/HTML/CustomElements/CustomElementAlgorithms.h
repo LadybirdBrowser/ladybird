@@ -31,12 +31,16 @@ class HTMLElement;
 
 }
 
+namespace JS {
+
+class HostObject;
+
+}
+
 namespace Web::Bindings {
 
-class PlatformObject;
-
 WEB_API void remember_custom_element_definition_prototype(HTML::CustomElementDefinition&, JS::Object&);
-WEB_API void set_prototype_from_custom_element_definition_if_needed(DOM::Element&, PlatformObject&);
+WEB_API void set_prototype_from_custom_element_definition_if_needed(DOM::Element&, JS::HostObject& wrapper);
 WEB_API JS::ThrowCompletionOr<void> upgrade_custom_element(DOM::Element&, GC::Ref<HTML::CustomElementDefinition>);
 WEB_API JS::ThrowCompletionOr<GC::Ref<HTML::HTMLElement>> construct_autonomous_custom_element(DOM::Document&, Utf16FlyString const& local_name, Optional<Utf16FlyString> const& prefix, GC::Ptr<HTML::CustomElementRegistry>, GC::Ref<HTML::CustomElementDefinition>);
 WEB_API void invoke_custom_element_lifecycle_callback(DOM::Element&, WebIDL::CallbackType&);

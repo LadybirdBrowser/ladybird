@@ -38,41 +38,37 @@ def interface_needs_wrapper(interface: Interface) -> bool:
     )
 
 
-def wrapper_needs_wrappable_impl(context: GenerationContext, interface: Interface) -> bool:
-    if not interface_needs_wrapper(interface):
-        return False
-
-    if not interface.parent_name:
-        return True
-
-    parent_interface = context.interfaces.get(interface.parent_name)
-    if parent_interface is None:
-        raise RuntimeError(f"Interface '{interface.name}' inherits from unknown interface '{interface.parent_name}'")
-
-    return not interface_needs_wrapper(parent_interface)
-
-
-def wrapper_class_name(interface: Interface) -> str:
-    return f"{interface.implemented_name}Wrapper"
-
-
-def wrapper_base_class_name(context: GenerationContext, interface: Interface) -> str:
-    if not interface.parent_name:
-        return "PlatformObject"
-
-    parent_interface = context.interfaces.get(interface.parent_name)
-    if parent_interface is None:
-        raise RuntimeError(f"Interface '{interface.name}' inherits from unknown interface '{interface.parent_name}'")
-
-    return wrapper_class_name(parent_interface)
+# The stem of the names of everything generated for an interface's wrappers, such as node_list_wrapper.
+def wrapper_name(interface: Interface) -> str:
+    return title_case_to_snake_case(f"{interface.implemented_name}Wrapper")
 
 
 def wrapper_host_class_name(interface: Interface) -> str:
-    return f"{title_case_to_snake_case(wrapper_class_name(interface))}_host_class"
+    return f"{wrapper_name(interface)}_host_class"
 
 
 def wrapper_legacy_platform_object_info_name(interface: Interface) -> str:
-    return f"{title_case_to_snake_case(wrapper_class_name(interface))}_legacy_platform_object_info"
+    return f"{wrapper_name(interface)}_legacy_platform_object_info"
+
+
+def create_wrapper_function_name(interface: Interface) -> str:
+    return f"create_{wrapper_name(interface)}"
+
+
+def interface_has_cross_origin_properties(interface: Interface) -> bool:
+    return interface.name in ("Location", "Window")
+
+
+# The functions that create the functions of the cross-origin properties of a Location or a Window, which
+# LibWeb/HTML/Location.cpp and LibWeb/HTML/Window.cpp define.
+def cross_origin_property_function_declarations(interface: Interface) -> list[str]:
+    assert interface_has_cross_origin_properties(interface)
+    snake_case_name = title_case_to_snake_case(interface.name)
+    kinds = ["method", "setter"] if interface.name == "Location" else ["method", "getter", "setter"]
+    return [
+        f"GC::Ref<JS::NativeFunction> create_{snake_case_name}_cross_origin_{kind}(JS::Realm&, Utf16FlyString const& property)"
+        for kind in kinds
+    ]
 
 
 def parent_interface(context: GenerationContext, interface: Interface) -> Optional[Interface]:
@@ -181,6 +177,9 @@ LOCATION_WRAPPER_HOOKS = "location_wrapper_hooks"
 def wrapper_host_class_hooks(context: GenerationContext, interface: Interface) -> str:
     if interface.name == "Location":
         return LOCATION_WRAPPER_HOOKS
+    interfaces = interface_and_inherited_interfaces(context, interface)
+    if any(interface_in_chain.name == "DOMException" for interface_in_chain in interfaces):
+        return "dom_exception_wrapper_hooks"
     legacy_platform_object_info_fields_of_wrapper = legacy_platform_object_info_fields(context, interface)
     if legacy_platform_object_info_fields_of_wrapper is None:
         return "platform_object_hooks"

@@ -282,10 +282,10 @@ static Optional<JS::PropertyDescriptor> cross_origin_get_own_property_helper_imp
             // 2. If IsCallable(value) is true, then set value to an anonymous built-in function, created in the current Realm Record, that performs the same steps as the IDL operation P on object O.
             JS::Value value = platform_object.visit(
                 [&](HTML::Location const*) {
-                    return Bindings::LocationWrapper::create_cross_origin_method(realm, entry.property);
+                    return Bindings::create_location_cross_origin_method(realm, entry.property);
                 },
                 [&](auto*) {
-                    return Bindings::WindowWrapper::create_cross_origin_method(realm, entry.property);
+                    return Bindings::create_window_cross_origin_method(realm, entry.property);
                 });
 
             // 3. Set crossOriginDesc to PropertyDescriptor { [[Value]]: value, [[Enumerable]]: false, [[Writable]]: false, [[Configurable]]: true }.
@@ -299,7 +299,7 @@ static Optional<JS::PropertyDescriptor> cross_origin_get_own_property_helper_imp
             // 2. If e.[[NeedsGet]] is true, then set crossOriginGet to an anonymous built-in function, created in the current Realm Record, that performs the same steps as the getter of the IDL attribute P on object O.
             if (*entry.needs_get) {
                 VERIFY(!platform_object.has<HTML::Location const*>());
-                cross_origin_get = Bindings::WindowWrapper::create_cross_origin_getter(realm, entry.property).ptr();
+                cross_origin_get = Bindings::create_window_cross_origin_getter(realm, entry.property).ptr();
             }
 
             // 3. Let crossOriginSet be undefined.
@@ -309,10 +309,10 @@ static Optional<JS::PropertyDescriptor> cross_origin_get_own_property_helper_imp
             if (*entry.needs_set) {
                 cross_origin_set = platform_object.visit(
                     [&](HTML::Location const*) -> GC::Ptr<JS::FunctionObject> {
-                        return Bindings::LocationWrapper::create_cross_origin_setter(realm, entry.property).ptr();
+                        return Bindings::create_location_cross_origin_setter(realm, entry.property).ptr();
                     },
                     [&](auto*) -> GC::Ptr<JS::FunctionObject> {
-                        return Bindings::WindowWrapper::create_cross_origin_setter(realm, entry.property).ptr();
+                        return Bindings::create_window_cross_origin_setter(realm, entry.property).ptr();
                     });
             }
 

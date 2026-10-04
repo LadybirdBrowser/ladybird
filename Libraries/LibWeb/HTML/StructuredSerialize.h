@@ -30,9 +30,9 @@
 #include <LibWeb/HTML/StructuredSerializeTypes.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
-namespace Web::Bindings {
+namespace JS {
 
-class PlatformObject;
+class HostObject;
 
 }
 
@@ -228,7 +228,6 @@ WEB_API WebIDL::ExceptionOr<JS::Value> structured_deserialize_with_transfer_inte
 
 namespace Web::Bindings {
 
-class PlatformObject;
 class Serializable;
 class Transferable;
 
@@ -241,7 +240,7 @@ struct SerializablePlatformObject {
 WEB_API Transferable* transferable_from_object(JS::Object&);
 WEB_API Optional<SerializablePlatformObject> serializable_from_object(JS::Object&);
 WEB_API bool is_platform_object(JS::Object const&);
-WEB_API GC::Ref<PlatformObject> create_serialized_platform_object(InterfaceName, JS::Realm&);
-WEB_API WebIDL::ExceptionOr<GC::Ref<PlatformObject>> create_transferred_platform_object(HTML::TransferType, JS::Realm&, HTML::TransferDataDecoder&);
+WEB_API GC::Ref<JS::HostObject> create_serialized_platform_object(InterfaceName, JS::Realm&);
+WEB_API WebIDL::ExceptionOr<GC::Ref<JS::HostObject>> create_transferred_platform_object(HTML::TransferType, JS::Realm&, HTML::TransferDataDecoder&);
 
 }

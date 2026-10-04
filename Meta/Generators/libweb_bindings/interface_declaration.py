@@ -24,19 +24,16 @@ from Generators.libweb_bindings.named_and_indexed_properties import write_named_
 from Generators.libweb_bindings.namespaces import write_namespace_declaration
 from Generators.libweb_bindings.overload_resolution import operation_callback_names
 from Generators.libweb_bindings.wrappers import LOCATION_WRAPPER_HOOKS
+from Generators.libweb_bindings.wrappers import create_wrapper_function_name
+from Generators.libweb_bindings.wrappers import cross_origin_property_function_declarations
+from Generators.libweb_bindings.wrappers import interface_has_cross_origin_properties
 from Generators.libweb_bindings.wrappers import interface_needs_wrapper
-from Generators.libweb_bindings.wrappers import wrapper_base_class_name
-from Generators.libweb_bindings.wrappers import wrapper_class_name
 from Generators.libweb_bindings.wrappers import wrapper_host_class_name
 from Utils.webidl_parser import Interface
 
 
 def interface_is_location_object(interface: Interface) -> bool:
     return interface.name == "Location"
-
-
-def interface_has_cross_origin_properties(interface: Interface) -> bool:
-    return interface.name in ("Location", "Window")
 
 
 def write_declaration(
@@ -56,60 +53,29 @@ def write_declaration(
     operation_callbacks = operation_callback_names(interface)
 
     if interface_needs_wrapper(interface):
+        includes.add("LibJS/HostObjectABI.h")
+        includes.add("LibJS/Runtime/HostObject.h")
         includes.add("LibWeb/Bindings/PlatformObject.h")
-        base_class = wrapper_base_class_name(context, interface)
         impl_type = fully_qualified_name_for_interface(interface)
         if interface.parent_name:
             parent_interface = context.interfaces.get(interface.parent_name)
             if parent_interface is not None:
                 includes.add_binding(parent_interface.implemented_name)
-        includes.add("LibJS/HostObjectABI.h")
-        out.write(f"extern JSHostClass const {wrapper_host_class_name(interface)};\n")
+        out.write(f"extern WEB_API JSHostClass const {wrapper_host_class_name(interface)};\n")
         if interface_is_location_object(interface):
             out.write(f"extern JSHostObjectHooks const {LOCATION_WRAPPER_HOOKS};\n")
         out.write(
             f"""
-class {wrapper_class_name(interface)} : public {base_class} {{
-    WEB_PLATFORM_OBJECT({wrapper_class_name(interface)}, {base_class});
-    GC_DECLARE_ALLOCATOR({wrapper_class_name(interface)});
-
-public:
-    {wrapper_class_name(interface)}(JS::Realm&, JSHostClass const&, GC::Ref<{impl_type}>);
-    virtual ~{wrapper_class_name(interface)}() override;
-
-    virtual void initialize(JS::Realm&) override;
+GC::Ref<JS::HostObject> {create_wrapper_function_name(interface)}(JS::Realm&, GC::Ref<{impl_type}>);
 """
         )
         if interface_has_cross_origin_properties(interface):
-            out.write(
-                """
-    static GC::Ref<JS::NativeFunction> create_cross_origin_method(JS::Realm&, Utf16FlyString const& property);
-"""
-            )
-            if not interface_is_location_object(interface):
-                out.write(
-                    "    static GC::Ref<JS::NativeFunction> create_cross_origin_getter(JS::Realm&, Utf16FlyString const& property);\n"
-                )
-            out.write(
-                "    static GC::Ref<JS::NativeFunction> create_cross_origin_setter(JS::Realm&, Utf16FlyString const& property);\n"
-            )
+            out.write("\n")
+            for declaration in cross_origin_property_function_declarations(interface):
+                out.write(f"{declaration};\n")
         if interface_is_location_object(interface):
-            out.write(
-                """
-
-    void initialize_location_object(JS::Realm&);
-"""
-            )
-        if interface.name == "DOMException":
-            out.write(
-                """    virtual JS::ErrorData* error_data() override;
-    virtual JS::ErrorData const* error_data() const override;
-"""
-            )
-        out.write("\nprotected:\n")
-        out.write(f"    {impl_type}& impl();\n")
-        out.write(f"    {impl_type} const& impl() const;\n")
-        out.write("};\n\n")
+            out.write("void initialize_location_object(JS::Realm&, JS::HostObject& location_wrapper);\n")
+        out.write("\n")
 
         write_legacy_platform_object_function_declarations(out, interface)
 
@@ -159,8 +125,10 @@ public:
 private:
 """
     )
-    if interface_has_cross_origin_properties(interface):
-        out.write(f"    friend class {wrapper_class_name(interface)};\n\n")
+    if interface_is_location_object(interface):
+        for declaration in cross_origin_property_function_declarations(interface):
+            out.write(f"    friend {declaration};\n")
+        out.write("\n")
     for attribute in interface.regular_attributes:
         if "FIXME" in attribute.extended_attributes:
             continue

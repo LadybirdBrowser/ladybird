@@ -15,9 +15,8 @@ from Generators.libweb_bindings.named_and_indexed_properties import create_named
 from Generators.libweb_bindings.named_and_indexed_properties import interface_supports_named_properties
 from Generators.libweb_bindings.named_and_indexed_properties import named_properties_object_name
 from Generators.libweb_bindings.overload_resolution import parameter_list_length
+from Generators.libweb_bindings.wrappers import create_wrapper_function_name
 from Generators.libweb_bindings.wrappers import interface_needs_wrapper as wrapper_interface_needs_wrapper
-from Generators.libweb_bindings.wrappers import wrapper_class_name
-from Generators.libweb_bindings.wrappers import wrapper_host_class_name
 from Utils.utils import title_case_to_snake_case
 from Utils.webidl_parser import Interface
 from Utils.webidl_parser import Module
@@ -704,7 +703,7 @@ def write_wrapper_factory_implementation(out: TextIO, interface_sets: InterfaceS
         """
 namespace Web::Bindings {
 
-GC::Ref<PlatformObject> create_wrapper_for_wrappable(JS::Realm& realm, GC::Ref<Wrappable> wrappable)
+GC::Ref<JS::HostObject> create_wrapper_for_wrappable(JS::Realm& realm, GC::Ref<Wrappable> wrappable)
 {
     switch (wrappable->interface_name()) {
 """
@@ -713,7 +712,7 @@ GC::Ref<PlatformObject> create_wrapper_for_wrappable(JS::Realm& realm, GC::Ref<W
     for interface in interfaces:
         out.write(
             f"""    case InterfaceName::{interface.name}:
-        return realm.create<{wrapper_class_name(interface)}>(realm, {wrapper_host_class_name(interface)}, GC::Ref {{ static_cast<{fully_qualified_name_for_interface(interface)}&>(*wrappable) }});
+        return {create_wrapper_function_name(interface)}(realm, GC::Ref {{ static_cast<{fully_qualified_name_for_interface(interface)}&>(*wrappable) }});
 """
         )
 
