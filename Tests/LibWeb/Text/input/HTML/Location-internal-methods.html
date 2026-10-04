@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    function describe(value) {
+        if (typeof value === "symbol")
+            return value.toString();
+        if (typeof value === "function")
+            return "function";
+        if (value === null)
+            return "null";
+        if (typeof value === "object")
+            return "object";
+        return String(value);
+    }
+
+    function describeDescriptor(descriptor) {
+        if (descriptor === undefined)
+            return "undefined";
+        const fields = "value" in descriptor
+            ? [`value=${describe(descriptor.value)}`, `writable=${descriptor.writable}`]
+            : [`get=${describe(descriptor.get)}`, `set=${describe(descriptor.set)}`];
+        return [...fields, `enumerable=${descriptor.enumerable}`, `configurable=${descriptor.configurable}`].join(" ");
+    }
+
+    function test(description, callback) {
+        try {
+            println(`${description}: ${callback()}`);
+        } catch (e) {
+            println(`${description}: ${e.name}`);
+        }
+    }
+
+    function testSameOriginLocation() {
+        println("Same-origin Location");
+        test("[[GetPrototypeOf]]", () => Object.getPrototypeOf(location) === Location.prototype);
+        test("[[SetPrototypeOf]] to its prototype", () => Reflect.setPrototypeOf(location, Location.prototype));
+        test("[[SetPrototypeOf]] to another object", () => Reflect.setPrototypeOf(location, {}));
+        test("[[IsExtensible]]", () => Reflect.isExtensible(location));
+        test("[[PreventExtensions]]", () => Reflect.preventExtensions(location));
+        test("[[GetOwnProperty]] href", () => describeDescriptor(Object.getOwnPropertyDescriptor(location, "href")));
+        test("[[GetOwnProperty]] valueOf", () => describeDescriptor(Object.getOwnPropertyDescriptor(location, "valueOf")));
+        test("[[GetOwnProperty]] missing", () => describeDescriptor(Object.getOwnPropertyDescriptor(location, "expando")));
+        test("[[DefineOwnProperty]] expando", () => Reflect.defineProperty(location, "expando", { value: 1, writable: true, configurable: true }));
+        test("[[DefineOwnProperty]] valueOf", () => Reflect.defineProperty(location, "valueOf", { value: 1 }));
+        test("[[Get]] expando", () => location.expando);
+        test("[[Set]] expando", () => Reflect.set(location, "expando", 2) && location.expando);
+        test("[[Delete]] expando", () => Reflect.deleteProperty(location, "expando"));
+        test("[[Delete]] valueOf", () => Reflect.deleteProperty(location, "valueOf"));
+        test("[[OwnPropertyKeys]]", () => Reflect.ownKeys(location).map(describe).join(", "));
+    }
+
+    function testCrossOriginLocation(crossOriginLocation) {
+        println("Cross-origin Location");
+        test("[[GetPrototypeOf]]", () => describe(Object.getPrototypeOf(crossOriginLocation)));
+        test("[[SetPrototypeOf]] to null", () => Reflect.setPrototypeOf(crossOriginLocation, null));
+        test("[[SetPrototypeOf]] to another object", () => Reflect.setPrototypeOf(crossOriginLocation, Location.prototype));
+        test("[[IsExtensible]]", () => Reflect.isExtensible(crossOriginLocation));
+        test("[[PreventExtensions]]", () => Reflect.preventExtensions(crossOriginLocation));
+        test("[[GetOwnProperty]] href", () => describeDescriptor(Object.getOwnPropertyDescriptor(crossOriginLocation, "href")));
+        test("[[GetOwnProperty]] replace", () => describeDescriptor(Object.getOwnPropertyDescriptor(crossOriginLocation, "replace")));
+        test("[[GetOwnProperty]] then", () => describeDescriptor(Object.getOwnPropertyDescriptor(crossOriginLocation, "then")));
+        test("[[GetOwnProperty]] @@toStringTag", () => describeDescriptor(Object.getOwnPropertyDescriptor(crossOriginLocation, Symbol.toStringTag)));
+        test("[[GetOwnProperty]] hash", () => describeDescriptor(Object.getOwnPropertyDescriptor(crossOriginLocation, "hash")));
+        test("[[GetOwnProperty]] returns the same href setter", () => Object.getOwnPropertyDescriptor(crossOriginLocation, "href").set === Object.getOwnPropertyDescriptor(crossOriginLocation, "href").set);
+        test("[[DefineOwnProperty]]", () => Reflect.defineProperty(crossOriginLocation, "expando", { value: 1 }));
+        test("[[Get]] replace", () => describe(crossOriginLocation.replace));
+        test("[[Get]] returns the same replace", () => crossOriginLocation.replace === crossOriginLocation.replace);
+        test("[[Get]] href", () => crossOriginLocation.href);
+        test("[[Get]] hash", () => crossOriginLocation.hash);
+        test("[[Set]] replace", () => Reflect.set(crossOriginLocation, "replace", 1));
+        test("[[Set]] hash", () => Reflect.set(crossOriginLocation, "hash", "#x"));
+        test("[[Delete]] replace", () => Reflect.deleteProperty(crossOriginLocation, "replace"));
+        test("[[OwnPropertyKeys]]", () => Reflect.ownKeys(crossOriginLocation).map(describe).join(", "));
+    }
+
+    function testCrossOriginWindow(crossOriginWindow) {
+        println("Cross-origin Window");
+        test("[[Get]] returns the same postMessage", () => crossOriginWindow.postMessage === crossOriginWindow.postMessage);
+        test("[[GetOwnProperty]] returns the same location getter", () => Object.getOwnPropertyDescriptor(crossOriginWindow, "location").get === Object.getOwnPropertyDescriptor(crossOriginWindow, "location").get);
+    }
+
+    asyncTest(async done => {
+        testSameOriginLocation();
+
+        const crossOriginURL = new URL(await httpTestServer().createEcho("GET", `/Location-internal-methods-${crypto.randomUUID()}`, {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: "<!DOCTYPE html>",
+        }));
+        crossOriginURL.hostname = uniqueLocalhostHostname("Location-internal-methods");
+
+        const iframe = document.createElement("iframe");
+        iframe.onload = () => {
+            testCrossOriginLocation(iframe.contentWindow.location);
+            testCrossOriginWindow(iframe.contentWindow);
+            done();
+        };
+        iframe.src = crossOriginURL.href;
+        document.body.appendChild(iframe);
+    });
+</script>
