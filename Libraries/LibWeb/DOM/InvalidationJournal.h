@@ -103,6 +103,13 @@ private:
         SetNeedsLayoutReason image_data_change_reason { SetNeedsLayoutReason::StyleChange };
         u8 dom_paint_facts { 0 };
         Painting::PaintFactsFamily stale_paint_facts {};
+
+        // Whether the entry marks anything but the layout tree, which the drain finds the node's box for.
+        bool has_marks_for_box() const
+        {
+            return needs_layout_update || needs_repaint || needs_subtree_repaint || needs_backdrop_repaint || invalidate_propagated_text_decoration_caches
+                || has_dom_paint_facts || image_data_changed || text_data_changed || stale_paint_facts != Painting::PaintFactsFamily::None;
+        }
     };
 
     Entry& entry_for(NodeIdentity);

@@ -206,6 +206,40 @@ void InvalidationJournal::drain_if_layout_is_reading()
     drain(read);
 }
 
+// Whether the reason describes a mutation that only affects the node's children and can never
+// change the node's own box kind, so a rebuild on a partial relayout boundary stays confined
+// to its subtree. Reasons not classified here forfeit partial relayout for their mutations.
+static bool is_structural_boundary_self_rebuild_reason(SetNeedsLayoutTreeUpdateReason reason)
+{
+    switch (reason) {
+    case SetNeedsLayoutTreeUpdateReason::NodeInsertBefore:
+    case SetNeedsLayoutTreeUpdateReason::NodeRemove:
+    case SetNeedsLayoutTreeUpdateReason::NodeSetTextContent:
+    case SetNeedsLayoutTreeUpdateReason::CharacterDataReplaceData:
+    case SetNeedsLayoutTreeUpdateReason::ElementSetInnerHTML:
+    case SetNeedsLayoutTreeUpdateReason::ShadowRootSetInnerHTML:
+    case SetNeedsLayoutTreeUpdateReason::SlotAssignmentChange:
+    // The box of an element that entered the top layer leaves the parent's subtree,
+    // which is a child-list change.
+    case SetNeedsLayoutTreeUpdateReason::TopLayerMembershipChange:
+        return true;
+    default:
+        return false;
+    }
+}
+
+// What a layout tree update mark made for `reason` asks of the box it marks, which the render state applies: whether the
+// box relays out alone, defers to the insertion, or dirties its ancestors, and whether the rebuild has to climb past
+// anonymous parents, reads the layout tree.
+static Layout::RustFFI::FfiLayoutTreeUpdateMark layout_tree_update_mark(SetNeedsLayoutTreeUpdateReason reason)
+{
+    return {
+        .reuse_reason = Node::layout_tree_update_reuse_reason(reason),
+        .is_child_list_insertion = reason == SetNeedsLayoutTreeUpdateReason::NodeInsertBefore,
+        .is_structural_boundary_self_rebuild = is_structural_boundary_self_rebuild_reason(reason),
+    };
+}
+
 void InvalidationJournal::drain_marks(Layout::BegunRead const& read)
 {
     // What the drain writes can mark more, and those marks land in the next generation of entries, which the loop below
@@ -246,14 +280,16 @@ void InvalidationJournal::drain_marks(Layout::BegunRead const& read)
 
         if (auto* arena = m_document->layout_node_arena_if_created()) {
             for (auto const& entry : entries) {
+                // The render state finds the node's box as it applies a tree update, which goes first, so that a
+                // rebuild it escalates to an ancestor is known before the node's other marks. The document is named by 0.
+                if (entry.needs_layout_tree_update)
+                    Layout::RustFFI::render_state_apply_layout_tree_update_mark(arena->host(), entry.identity.style_node().value(), layout_tree_update_mark(entry.layout_tree_update_reason));
+                if (!entry.has_marks_for_box())
+                    continue;
                 // A node whose box went away between the mark and here has nothing left to mark, nor has a box that did.
                 auto* layout_node = entry.box ? entry.box.ptr() : entry.identity.bound_layout_node(read, *arena);
                 if (!layout_node)
                     continue;
-                // The tree update goes first, so that a rebuild it escalates to an ancestor is known before the
-                // node's other marks.
-                if (entry.needs_layout_tree_update)
-                    layout_node->dom_node()->apply_layout_tree_update_mark(*layout_node, entry.layout_tree_update_reason);
                 if (entry.text_data_changed) {
                     if (auto* text_node = as_if<Layout::TextNode>(*layout_node))
                         as<CharacterData>(*layout_node->dom_node()).apply_text_data_change({}, *text_node, entry.whitespace_only_text_changed);
