@@ -842,15 +842,15 @@ void CanonicalNavigable::populate_document_for_ongoing_navigation(NonnullRefPtr<
 // NB: newDocument's URL is the active document's, as the process hosting both reports it. Whatever URL it reports,
 //     newDocument holds no local file content and displays no WebUI unless the active document does, as its contents
 //     come from that process.
-bool CanonicalNavigable::populate_document_for_javascript_url(NonnullRefPtr<CanonicalDocumentState> document_state, NonnullRefPtr<CanonicalDocument> document)
+void CanonicalNavigable::populate_document_for_javascript_url(NonnullRefPtr<CanonicalSessionHistoryEntry> history_entry, NonnullRefPtr<CanonicalDocument> document)
 {
     document->determine_whether_it_is_local_file_content(blob_url_store());
     if (document->is_local_file_content() && !active_document().is_local_file_content())
-        return false;
+        return;
     if (document->web_ui_host().has_value() && document->web_ui_host() != active_document().web_ui_host())
-        return false;
-    populate_document(move(document_state), move(document));
-    return true;
+        return;
+    ongoing_navigation()->history_entry = move(history_entry);
+    populate_document_for_ongoing_navigation(move(document));
 }
 
 // The process hosting a document populated for the navigable created it with an origin other than its navigation

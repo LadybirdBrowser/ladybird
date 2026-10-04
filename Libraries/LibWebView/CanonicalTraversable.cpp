@@ -2035,6 +2035,10 @@ void CanonicalTraversable::run_history_operation_at_queue_position(Web::HTML::Cr
     // The traversal queue can outlive an embedded page which appended work to it. Such a page cannot run the
     // preparation step or receive completion, so discard its queued operation instead of waiting forever.
     if (requesting_page && !requesting_page->is_open()) {
+        if (auto const* parameters = request.get_pointer<Web::FinalizeCrossDocumentNavigationHistoryOperationParameters>()) {
+            if (auto navigable = find(parameters->navigable_id); navigable.has_value())
+                navigable->did_finish_finalizing_navigation(parameters->navigation_id, Web::HTML::HistoryStepResult::CanceledByMissingPage);
+        }
         promise->resolve({});
         return;
     }
@@ -2093,6 +2097,72 @@ NonnullRefPtr<CanonicalSessionHistoryEntry> CanonicalTraversable::session_histor
     return entry;
 }
 
+// https://html.spec.whatwg.org/multipage/browsing-the-web.html#navigate
+// NB: The page conducting a navigation reports historyEntry once attempting to populate its document is over. The
+//     completion steps, which append the steps finalizing the navigation, run here.
+void CanonicalTraversable::did_attempt_to_populate_the_history_entry_document(WebContentPage& source_page, Web::FinalizeCrossDocumentNavigationHistoryOperationParameters const& parameters)
+{
+    auto navigable = find(parameters.navigable_id);
+    if (!navigable.has_value())
+        return;
+    auto* navigation = navigable->ongoing_navigation();
+    if (!navigation || navigation->navigation_id != parameters.navigation_id || navigation->host() != &source_page)
+        return;
+
+    // NB: Populating historyEntry's document saves state in the entry, which the page that populated it reports.
+    auto history_entry_descriptor = Web::HTML::create_session_history_entry_descriptor(parameters.history_entry, 0);
+    if (!navigation->state.has<CanonicalNavigation::EvaluatingJavaScriptURL>()) {
+        if (navigation->history_entry && history_entry_descriptor.document_state.id == navigation->history_entry->document_state->id)
+            (void)navigation->history_entry->update_from_descriptor(history_entry_descriptor);
+        return;
+    }
+
+    auto history_entry_or_error = CanonicalSessionHistoryEntry::create_from_descriptor(history_entry_descriptor);
+    if (history_entry_or_error.is_error())
+        return;
+    auto history_entry = history_entry_or_error.release_value();
+
+    // https://html.spec.whatwg.org/multipage/browsing-the-web.html#navigate-to-a-javascript:-url
+    // NB: The process running a javascript: URL navigation evaluates it, creates newDocument in navigable's active
+    //     browsing context, and reports historyEntry. The UI process runs the steps that decide newDocument's origin,
+    //     and populates the document it holds for historyEntry's document state.
+    auto const& initiator_origin = history_entry->document_state->initiator_origin;
+
+    // 4. If initiatorOrigin is not same origin-domain with targetNavigable's active document's origin, then return.
+    if (!initiator_origin.has_value() || !initiator_origin->is_same_origin_domain(navigable->active_document().origin()))
+        return;
+
+    if (!parameters.document_id.has_value())
+        return;
+
+    // 8. Assert: initiatorOrigin is newDocument's origin.
+    // NB: The UI process creates its newDocument with initiatorOrigin, and with the opener policy evaluating a
+    //     javascript: URL gives it: targetNavigable's active document's opener policy.
+    auto const& coop = navigable->active_document().opener_policy();
+    NavigationLoader::ResponseDocument response_document {
+        .is_inline_content = false,
+        .coop_enforcement_result = { .url = history_entry->url, .origin = *initiator_origin, .opener_policy = coop },
+        .response_url = history_entry->url,
+        .request_current_url = {},
+        .origin = *initiator_origin,
+        .opener_policy = coop,
+        .final_sandboxing_flag_set = navigable->active_document().active_sandboxing_flag_set(),
+        .environment_id = parameters.environment_id,
+        .document_id = *parameters.document_id,
+    };
+
+    // 11. Let documentState be a new document state with
+    //     [...]
+    //     initiator origin: initiatorOrigin
+    //     origin: initiatorOrigin
+    history_entry->document_state->origin = initiator_origin;
+
+    // 12. Let historyEntry be a new session history entry, with
+    //     URL: entryToReplace's URL
+    //     document state: documentState
+    navigable->populate_document_for_javascript_url(move(history_entry), navigable->create_and_initialize_a_document(response_document));
+}
+
 void CanonicalTraversable::enqueue_history_operation(Web::HTML::CrossProcessId operation_id, Web::HistoryOperationParameters request, RefPtr<WebContentPage> requesting_page, u64 sequence_number, OnHistoryOperationComplete on_complete)
 {
     // https://html.spec.whatwg.org/multipage/document-sequences.html#destroy-a-child-navigable
@@ -2103,6 +2173,9 @@ void CanonicalTraversable::enqueue_history_operation(Web::HTML::CrossProcessId o
         if (auto parent_navigable = find(parameters.parent_navigable_id); parent_navigable.has_value())
             remove_nested_history(*parent_navigable, parameters.parent_document_state_id, parameters.navigable_id);
     }
+
+    if (auto const* parameters = request.get_pointer<Web::FinalizeCrossDocumentNavigationHistoryOperationParameters>(); parameters && requesting_page)
+        did_attempt_to_populate_the_history_entry_document(*requesting_page, *parameters);
 
     Optional<Web::HTML::CrossProcessId> synchronous_navigation_target;
     RefPtr<CanonicalSessionHistoryEntry> target_entry;
@@ -2211,13 +2284,11 @@ void CanonicalTraversable::update_for_navigable_creation_or_destruction(HistoryO
     apply_history_step(operation, *step, false, {}, Web::HTML::UserNavigationInvolvement::None, {});
 }
 
-// Finalizing a cross-document navigation and resuming a traversal begin, at their queue position, with steps in the
-// requesting process, which can find a newer navigation there. The other operations have their complete input in
-// canonical state.
+// Resuming a traversal begins, at its queue position, with steps in the requesting process, which can find the
+// intercepted navigate event aborted there. The other operations have their complete input in canonical state.
 static bool history_operation_needs_preparation(Web::HistoryOperationParameters const& parameters)
 {
-    return parameters.has<Web::FinalizeCrossDocumentNavigationHistoryOperationParameters>()
-        || parameters.has<Web::ResumeTraverseHistoryOperationParameters>();
+    return parameters.has<Web::ResumeTraverseHistoryOperationParameters>();
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#traverse-the-history-by-a-delta
@@ -2473,6 +2544,15 @@ void CanonicalTraversable::run_direct_history_operation(HistoryOperation& operat
             // Flush is a queue barrier; completing at the queue position is the whole operation.
             finish_history_operation(operation.operation_id, Web::HTML::HistoryStepResult::Applied, {});
         },
+        [&](Web::FinalizeCrossDocumentNavigationHistoryOperationParameters const& parameters) {
+            // The navigation is committed from here on. One that a newer navigation replaced meanwhile is not finalized.
+            auto navigable = find(parameters.navigable_id);
+            if (!navigable.has_value() || !operation.initiating_page || !navigable->take_navigation_to_finalize(parameters.navigation_id, *operation.initiating_page)) {
+                finish_history_operation(operation.operation_id, Web::HTML::HistoryStepResult::Applied, {});
+                return;
+            }
+            finalize_a_cross_document_navigation(operation);
+        },
         [&](auto const&) {
             VERIFY_NOT_REACHED();
         });
@@ -2507,14 +2587,6 @@ void CanonicalTraversable::start_history_operation(HistoryOperation& operation, 
         return;
     }
 
-    if (auto const* parameters = operation.parameters.get_pointer<Web::FinalizeCrossDocumentNavigationHistoryOperationParameters>()) {
-        auto navigable = find(parameters->navigable_id);
-        if (!navigable.has_value() || !navigable->take_navigation_to_finalize(parameters->navigation_id, *operation.initiating_page)) {
-            finish_history_operation(operation.operation_id, Web::HTML::HistoryStepResult::Applied, {});
-            return;
-        }
-    }
-
     operation.initiating_page->async_history_operation_started(operation.operation_id);
 }
 
@@ -2528,68 +2600,12 @@ void CanonicalTraversable::finalize_a_cross_document_navigation(HistoryOperation
         return;
     }
 
-    // NB: historyEntry is the navigation's, as the process that populated its document reports it: populating saves
-    //     state in the entry.
-    auto& navigation = *navigable->navigation_being_finalized();
-    CanonicalSessionHistoryEntry::DocumentStates document_states;
-    if (navigation.history_entry)
-        document_states.set(navigation.history_entry->document_state->id, navigation.history_entry->document_state);
-    auto history_entry_or_error = CanonicalSessionHistoryEntry::create_from_descriptor(Web::HTML::create_session_history_entry_descriptor(parameters.history_entry, 0), document_states, CanonicalSessionHistoryEntry::UpdateDocumentState::Yes);
-    if (history_entry_or_error.is_error()) {
+    // NB: historyEntry is the navigation's. A javascript: URL navigation whose document was refused has none.
+    if (!navigable->navigation_being_finalized()->history_entry) {
         finish_history_operation(operation.operation_id, Web::HTML::HistoryStepResult::NoMatchingEntry, {});
         return;
     }
-    auto history_entry = history_entry_or_error.release_value();
-
-    // https://html.spec.whatwg.org/multipage/browsing-the-web.html#navigate-to-a-javascript:-url
-    // NB: The process running a javascript: URL navigation evaluates it, creates newDocument in navigable's active
-    //     browsing context, and reports historyEntry with these steps. The UI process runs the steps that decide
-    //     newDocument's origin, and populates the document it holds for historyEntry's document state.
-    if (navigation.state.has<CanonicalNavigation::EvaluatingJavaScriptURL>()) {
-        auto const& initiator_origin = history_entry->document_state->initiator_origin;
-
-        // 4. If initiatorOrigin is not same origin-domain with targetNavigable's active document's origin, then return.
-        if (!initiator_origin.has_value() || !initiator_origin->is_same_origin_domain(navigable->active_document().origin())) {
-            finish_history_operation(operation.operation_id, Web::HTML::HistoryStepResult::NoMatchingEntry, {});
-            return;
-        }
-
-        if (!parameters.document_id.has_value()) {
-            finish_history_operation(operation.operation_id, Web::HTML::HistoryStepResult::NoMatchingEntry, {});
-            return;
-        }
-
-        // 8. Assert: initiatorOrigin is newDocument's origin.
-        // NB: The UI process creates its newDocument with initiatorOrigin, and with the opener policy evaluating a
-        //     javascript: URL gives it: targetNavigable's active document's opener policy.
-        auto const& coop = navigable->active_document().opener_policy();
-        NavigationLoader::ResponseDocument response_document {
-            .is_inline_content = false,
-            .coop_enforcement_result = { .url = history_entry->url, .origin = *initiator_origin, .opener_policy = coop },
-            .response_url = history_entry->url,
-            .request_current_url = {},
-            .origin = *initiator_origin,
-            .opener_policy = coop,
-            .final_sandboxing_flag_set = navigable->active_document().active_sandboxing_flag_set(),
-            .environment_id = parameters.environment_id,
-            .document_id = *parameters.document_id,
-        };
-
-        // 11. Let documentState be a new document state with
-        //     [...]
-        //     initiator origin: initiatorOrigin
-        //     origin: initiatorOrigin
-        history_entry->document_state->origin = initiator_origin;
-
-        // 12. Let historyEntry be a new session history entry, with
-        //     URL: entryToReplace's URL
-        //     document state: documentState
-        navigation.history_entry = history_entry;
-        if (!navigable->populate_document_for_javascript_url(history_entry->document_state, navigable->create_and_initialize_a_document(response_document))) {
-            finish_history_operation(operation.operation_id, Web::HTML::HistoryStepResult::NoMatchingEntry, {});
-            return;
-        }
-    }
+    NonnullRefPtr history_entry = *navigable->navigation_being_finalized()->history_entry;
 
     // 1. Assert: this is running on navigable's traversable navigable's session history traversal queue.
     VERIFY(operation.queue_promise);
@@ -2597,8 +2613,8 @@ void CanonicalTraversable::finalize_a_cross_document_navigation(HistoryOperation
     VERIFY(&navigable->top_level_traversable() == this);
 
     // 2. Set navigable's is delaying load events to false.
-    // NB: The process hosting navigable performed this step when the operation reached its queue position, before
-    //     answering that it started.
+    // NB: The page that populated historyEntry's document performs this step: when it reports that there is no
+    //     document, or as its job for these steps begins.
 
     // 3. If historyEntry's document is null, then return.
     // NB: The document populated for historyEntry waits in its document state until historyEntry is activated.
@@ -2701,25 +2717,13 @@ void CanonicalTraversable::did_receive_history_operation_ready(WebContentPage& s
     auto* operation = find_history_operation(operation_id);
     if (!operation || operation->algorithm || !history_operation_needs_preparation(operation->parameters) || !operation->was_initiated_by(source_page))
         return;
-    if (!navigation_transaction_matches(*operation, source_page)) {
-        finish_history_operation(operation_id, Web::HTML::HistoryStepResult::Applied, {});
-        return;
-    }
     if (auto const* step_result = result.get_pointer<Web::HTML::HistoryStepResult>()) {
         finish_history_operation(operation_id, *step_result, {});
         return;
     }
 
-    operation->parameters.visit(
-        [&](Web::FinalizeCrossDocumentNavigationHistoryOperationParameters const&) {
-            finalize_a_cross_document_navigation(*operation);
-        },
-        [&](Web::ResumeTraverseHistoryOperationParameters const& parameters) {
-            resume_applying_the_traverse_history_step(*operation, parameters.target_step, parameters.user_involvement);
-        },
-        [](auto const&) {
-            VERIFY_NOT_REACHED();
-        });
+    auto const& parameters = operation->parameters.get<Web::ResumeTraverseHistoryOperationParameters>();
+    resume_applying_the_traverse_history_step(*operation, parameters.target_step, parameters.user_involvement);
 }
 
 void CanonicalTraversable::finish_history_operation(Web::HTML::CrossProcessId operation_id, Web::HTML::HistoryStepResult result, Optional<i32> committed_step)

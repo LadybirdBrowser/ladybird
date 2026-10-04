@@ -45,8 +45,6 @@ public:
     using OnHistoryOperationPreSteps = GC::Function<void(GC::Ref<OnHistoryOperationReady>)>;
     struct HistoryOperationState {
         GC::Ptr<DOM::Document> pending_document {};
-        GC::Ptr<LocalNavigable> expected_ongoing_navigation_navigable {};
-        Optional<Utf16String> expected_ongoing_navigation_id {};
         GC::Ptr<SourceSnapshotParams> source_snapshot_params {};
         Optional<NavigationSourceSnapshot> serialized_source_snapshot_params {};
         Optional<CrossProcessId> local_target_navigable_id {};
@@ -59,8 +57,6 @@ public:
         HashTable<CrossProcessId> claimed_navigables_awaiting_continuation {};
         HashMap<CrossProcessId, GC::Ref<ChangingNavigableContinuationState>> changing_navigable_continuations {};
         HashMap<CrossProcessId, GC::Ref<GC::Function<void(HistoryNavigationPopulation)>>> pending_populations {};
-
-        bool expected_ongoing_navigation_was_superseded() const;
     };
 
     void request_history_operation(HistoryOperationParameters);

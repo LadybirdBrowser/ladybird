@@ -219,6 +219,7 @@ private:
     void enqueue_browser_history_traversal(Web::TraverseToStepHistoryOperationParameters, bool check_for_cancelation, OnHistoryOperationComplete = nullptr);
     void run_browser_history_traversal_at_queue_position(Web::TraverseToStepHistoryOperationParameters, bool check_for_cancelation, u64 sequence_number, Function<void()> on_ready, OnHistoryOperationComplete, NonnullRefPtr<Core::Promise<Empty>>);
     void start_history_operation(HistoryOperation&, NonnullRefPtr<Core::Promise<Empty>>);
+    void did_attempt_to_populate_the_history_entry_document(WebContentPage& source_page, Web::FinalizeCrossDocumentNavigationHistoryOperationParameters const&);
     void finalize_a_cross_document_navigation(HistoryOperation&);
     void apply_history_step(HistoryOperation&, i32 step, bool check_for_cancelation, Optional<Web::HTML::CrossProcessId> initiator_to_check, Web::HTML::UserNavigationInvolvement, Optional<Web::Bindings::NavigationType>, Optional<Web::InitiatorSourceSnapshot> initiator_source_snapshot = {});
     void apply_the_push_or_replace_history_step(HistoryOperation&, i32 step, Web::HTML::HistoryHandlingBehavior, Web::HTML::UserNavigationInvolvement);
