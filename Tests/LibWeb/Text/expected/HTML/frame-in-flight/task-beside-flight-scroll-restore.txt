@@ -1,0 +1,3 @@
+state next task: in-flight
+state after the traversal: in-flight, scrollY 100
+restored: first entry, scrollY 300, box 3001

@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    #box { height: 3000px; }
+</style>
+<div id="box"></div>
+<script>
+    // A task beside a frame in flight that traverses history restores the scroll position of the entry it traverses to:
+    // the scroll of the viewport invalidates the scroll state, a write the next rendering update reads.
+    asyncTest(async done => {
+        if (document.readyState !== "complete")
+            await new Promise(resolve => window.addEventListener("load", resolve, { once: true }));
+        await twoFrames();
+        scrollTo(0, 300);
+        history.pushState(null, "", "#second");
+        scrollTo(0, 100);
+        await internals.flushSessionHistoryTraversalQueue();
+
+        const states = await whileRecordingInFlight(() => {
+            box.style.height = "3001px";
+        }, async state => {
+            const states = [`next task: ${state}`];
+            const popped = new Promise(resolve => window.addEventListener("popstate", resolve, { once: true }));
+            history.back();
+            await popped;
+            states.push(`after the traversal: ${internals.frameSchedulerState()}, scrollY ${scrollY}`);
+            return states;
+        });
+        for (const state of states)
+            println(`state ${state}`);
+        await twoFrames();
+        println(`restored: ${location.hash === "" ? "first entry" : location.hash}, scrollY ${scrollY}, box ${box.offsetHeight}`);
+        done();
+    });
+</script>
