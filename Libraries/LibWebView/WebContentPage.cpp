@@ -456,7 +456,7 @@ void WebContentPage::begin_top_level_load(Optional<Utf16String> navigation_id, U
     auto& view = this->view();
     view.m_history_visit_transition_for_current_load = view.m_history_visit_transition_for_next_load;
     view.m_history_visit_transition_for_next_load = HistoryVisitTransition::Link;
-    view.did_start_navigation(move(navigation_id), url);
+    view.did_start_navigation(navigation_id);
 
     view.set_url({}, url);
     view.set_title({}, Utf16String::from_utf8(url.serialize()));

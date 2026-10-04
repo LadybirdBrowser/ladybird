@@ -218,7 +218,6 @@ public:
     Optional<CanonicalNavigation>& ongoing_navigation() { return m_ongoing_navigation; }
     Optional<CanonicalNavigation> const& ongoing_navigation() const { return m_ongoing_navigation; }
     bool ongoing_navigation_is_traversal() const { return m_ongoing_navigation_traversal_operation_id.has_value(); }
-    CanonicalNavigation& ensure_ongoing_navigation();
 
     // Held so that revoking a blob URL cannot take the entry away from a navigation on its way to this navigable, or
     // from the document it loaded. Session history holds none, so a revoked blob URL cannot be traversed back to.
