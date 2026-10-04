@@ -128,7 +128,6 @@ EXEMPT_PATHS = (
     "Libraries/LibTest/JavaScriptTestRunner.h",
     "Libraries/LibTest/JavaScriptTestRunnerMain.cpp",
     "Meta/Fuzzers/FuzzJs.cpp",
-    "Meta/Fuzzers/FuzzilliJs.cpp",
     "Tests/ClangPlugins/",
     "Tests/LibJS/",
     "Utilities/js.cpp",

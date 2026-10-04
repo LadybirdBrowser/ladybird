@@ -121,31 +121,7 @@ extern "C" void __sanitizer_cov_trace_pc_guard(uint32_t* guard)
 // END FUZZING CODE
 //
 
-class TestRunnerGlobalObject final : public JS::GlobalObject {
-    JS_OBJECT(TestRunnerGlobalObject, JS::GlobalObject);
-    GC_DECLARE_ALLOCATOR(TestRunnerGlobalObject);
-
-public:
-    TestRunnerGlobalObject(JS::Realm&);
-    virtual void initialize(JS::Realm&) override;
-    virtual ~TestRunnerGlobalObject() override;
-
-private:
-    JS_DECLARE_NATIVE_FUNCTION(fuzzilli);
-};
-
-GC_DEFINE_ALLOCATOR(TestRunnerGlobalObject);
-
-TestRunnerGlobalObject::TestRunnerGlobalObject(JS::Realm& realm)
-    : GlobalObject(realm)
-{
-}
-
-TestRunnerGlobalObject::~TestRunnerGlobalObject()
-{
-}
-
-JS_DEFINE_NATIVE_FUNCTION(TestRunnerGlobalObject::fuzzilli)
+static JS_DEFINE_NATIVE_FUNCTION(fuzzilli)
 {
     if (!vm.argument_count())
         return JS::js_undefined();
@@ -176,13 +152,6 @@ JS_DEFINE_NATIVE_FUNCTION(TestRunnerGlobalObject::fuzzilli)
     return JS::js_undefined();
 }
 
-void TestRunnerGlobalObject::initialize(JS::Realm& realm)
-{
-    Base::initialize(realm);
-    define_direct_property("global"_utf16_fly_string, this, JS::Attribute::Enumerable);
-    define_native_function(realm, "fuzzilli"_utf16_fly_string, fuzzilli, 2, JS::default_attributes);
-}
-
 int main(int, char**)
 {
     char* reprl_input = nullptr;
@@ -197,8 +166,11 @@ int main(int, char**)
     VERIFY(reprl_input != MAP_FAILED);
 
     auto vm = JS::VM::create();
-    auto root_execution_context = JS::create_simple_execution_context<TestRunnerGlobalObject>(*vm);
+    auto root_execution_context = JS::create_simple_execution_context<JS::GlobalObject>(*vm);
     auto& realm = *root_execution_context->realm;
+    auto& global_object = realm.global_object();
+    global_object.define_direct_property("global"_utf16_fly_string, &global_object, JS::Attribute::Enumerable);
+    global_object.define_native_function(realm, "fuzzilli"_utf16_fly_string, fuzzilli, 2, JS::default_attributes);
 
     while (true) {
         unsigned action;
