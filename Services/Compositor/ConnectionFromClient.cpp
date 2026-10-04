@@ -8,11 +8,10 @@
 #include <AK/Math.h>
 #include <Compositor/ConnectionFromClient.h>
 #include <Compositor/ConnectionFromWebContent.h>
+#include <LibCompositing/FontServiceClient.h>
 #include <LibCompositing/PausedDebuggerOverlay.h>
 #include <LibCore/Process.h>
 #include <LibCore/System.h>
-#include <LibGfx/Font/FontDatabase.h>
-#include <LibGfx/Font/SharedFontProvider.h>
 #include <LibIPC/Transport.h>
 
 namespace Compositor {
@@ -72,78 +71,9 @@ Messages::CompositorControlServer::InitTransportResponse ConnectionFromClient::i
     VERIFY_NOT_REACHED();
 }
 
-void ConnectionFromClient::set_font_service_transport(IPC::TransportHandle handle)
+void ConnectionFromClient::set_font_service(IPC::TransportHandle handle, IPC::File catalog, u64 catalog_size, u64 generation)
 {
-    auto transport = handle.create_transport();
-    if (transport.is_error()) {
-        dbgln("Compositor: Unable to create font service transport: {}", transport.error());
-        return;
-    }
-
-    m_font_client = FontClient::construct(transport.release_value());
-#ifdef AK_OS_WINDOWS
-    auto response = m_font_client->send_sync_but_allow_failure<FontClient::InitTransport>(Core::System::getpid());
-    if (!response) {
-        dbgln("Compositor: Unable to initialize font service transport");
-        m_font_client = nullptr;
-        return;
-    }
-    m_font_client->transport().set_peer_pid(response->peer_pid());
-#endif
-}
-
-void ConnectionFromClient::set_font_catalog(IPC::File file, u64 size, u64 generation)
-{
-    if (m_font_provider) {
-        if (auto result = m_font_provider->replace_catalog(move(file), size, generation); result.is_error())
-            dbgln("Compositor: Unable to replace font catalog: {}", result.error());
-        return;
-    }
-
-    Gfx::SharedFontProviderCallbacks callbacks;
-    callbacks.open_font = [this](u64 requested_generation, u64 face_id) {
-        if (!m_font_client)
-            return Gfx::BrokeredFont {};
-        auto response = m_font_client->send_sync_but_allow_failure<Messages::FontServer::OpenFont>(requested_generation, face_id);
-        if (!response)
-            return Gfx::BrokeredFont {};
-        return response->take_font();
-    };
-    callbacks.match_font = [this](String const& family, u16 weight, u16 width, u8 slope) {
-        if (!m_font_client)
-            return Gfx::BrokeredFont {};
-        auto response = m_font_client->send_sync_but_allow_failure<Messages::FontServer::MatchFont>(family, weight, width, slope);
-        if (!response)
-            return Gfx::BrokeredFont {};
-        return response->take_font();
-    };
-    callbacks.match_font_for_code_point = [this](u32 code_point, u16 weight, u16 width, u8 slope, bool prefer_color_emoji) {
-        if (!m_font_client)
-            return Gfx::BrokeredFont {};
-        auto response = m_font_client->send_sync_but_allow_failure<Messages::FontServer::MatchFontForCodePoint>(code_point, weight, width, slope, prefer_color_emoji);
-        if (!response)
-            return Gfx::BrokeredFont {};
-        return response->take_font();
-    };
-    callbacks.resolve_generic_family = [this](String const& family, u16 weight, u8 slope) -> Optional<FlyString> {
-        if (!m_font_client)
-            return {};
-        auto response = m_font_client->send_sync_but_allow_failure<Messages::FontServer::ResolveGenericFamily>(family, weight, slope);
-        if (!response)
-            return {};
-        auto resolved_family = response->take_resolved_family();
-        if (!resolved_family.has_value())
-            return {};
-        return FlyString { resolved_family.release_value() };
-    };
-
-    auto provider = Gfx::SharedFontProvider::create_from_catalog_file_or_empty(move(file), size, generation, move(callbacks));
-    if (provider.is_error()) {
-        dbgln("Compositor: Unable to install fallback font catalog: {}", provider.error());
-        return;
-    }
-    m_font_provider = provider.value().ptr();
-    Gfx::FontDatabase::the().install_system_font_provider(provider.release_value());
+    MUST(Compositing::install_font_service(move(handle), move(catalog), catalog_size, generation));
 }
 
 Messages::CompositorControlServer::ConnectWebContentResponse ConnectionFromClient::connect_web_content()

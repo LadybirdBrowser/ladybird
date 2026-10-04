@@ -215,25 +215,6 @@ TEST_CASE(catalog_file_factory_handles_mapping_failure)
     EXPECT_EQ(match_count, 1u);
 }
 
-TEST_CASE(rejecting_replacement_preserves_current_catalog)
-{
-    auto catalog = make_catalog();
-    size_t open_count = 0;
-    Gfx::SharedFontProviderCallbacks callbacks;
-    callbacks.open_font = [&](u64, u64 face_id) {
-        ++open_count;
-        return open_test_font(face_id);
-    };
-
-    auto provider = MUST(Gfx::SharedFontProvider::create(map_bytes(catalog), 9, move(callbacks)));
-    auto malformed = MUST(ByteBuffer::copy("not a font catalog"sv.bytes()));
-    auto file = copy_bytes_to_file(malformed);
-    EXPECT(provider->replace_catalog(move(file), malformed.size(), 9).is_error());
-
-    EXPECT(provider->get_font("Brokered Test"_fly_string, 12, 400, Gfx::FontWidth::Normal, 0));
-    EXPECT_EQ(open_count, 1u);
-}
-
 TEST_CASE(unknown_width_uses_normal_variation_width)
 {
     Gfx::SharedFontProviderCallbacks callbacks;
@@ -273,25 +254,6 @@ TEST_CASE(caches_code_point_fallback_matches_and_misses)
     EXPECT(provider->get_font_for_code_point('A', 12, 700, Gfx::FontWidth::Normal, 0, false));
     EXPECT(provider->get_font_for_code_point('A', 12, 400, Gfx::FontWidth::Normal, 0, true));
     EXPECT_EQ(match_count, 4u);
-}
-
-TEST_CASE(replacing_catalog_clears_code_point_fallback_cache)
-{
-    size_t match_count = 0;
-    Gfx::SharedFontProviderCallbacks callbacks;
-    callbacks.match_font_for_code_point = [&](u32, u16, u16, u8, bool) {
-        ++match_count;
-        return open_test_font(95);
-    };
-
-    auto provider = MUST(Gfx::SharedFontProvider::create_empty(9, move(callbacks)));
-    EXPECT(provider->get_font_for_code_point('A', 12, 400, Gfx::FontWidth::Normal, 0, false));
-    EXPECT_EQ(match_count, 1u);
-
-    auto replacement = make_catalog();
-    MUST(provider->replace_catalog(map_bytes(replacement), 9));
-    EXPECT(provider->get_font_for_code_point('A', 12, 400, Gfx::FontWidth::Normal, 0, false));
-    EXPECT_EQ(match_count, 2u);
 }
 
 TEST_CASE(matches_referenced_system_fonts_in_process)

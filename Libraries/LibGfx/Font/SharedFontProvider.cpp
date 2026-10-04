@@ -8,7 +8,6 @@
 #include <LibCore/AnonymousBuffer.h>
 #include <LibGfx/Font/Font.h>
 #include <LibGfx/Font/SharedFontProvider.h>
-#include <LibGfx/Font/SystemFallbackFonts.h>
 #include <LibGfx/Font/TypefaceSkia.h>
 #include <LibGfx/Font/WOFF/Loader.h>
 #include <LibIPC/Decoder.h>
@@ -72,38 +71,8 @@ SharedFontProvider::SharedFontProvider(NonnullOwnPtr<Core::MappedFile> mapping, 
 
 SharedFontProvider::~SharedFontProvider()
 {
-    clear_typeface_cache();
-}
-
-void SharedFontProvider::clear_typeface_cache()
-{
     for (auto const& entry : m_typeface_cache)
         entry.value->clear_font_cache();
-    m_typeface_cache.clear();
-}
-
-ErrorOr<void> SharedFontProvider::replace_catalog(NonnullOwnPtr<Core::MappedFile> mapping, u64 generation)
-{
-    auto catalog = TRY(FontCatalog::parse(mapping->bytes(), generation));
-    {
-        MutexLocker locker(m_mutex);
-        m_catalog = move(catalog);
-        m_catalog_mapping = move(mapping);
-        clear_typeface_cache();
-        m_failed_face_ids.clear();
-        m_code_point_cache.clear();
-    }
-    // NB: Not under m_mutex: the fallback memo asks this provider while holding its own lock.
-    clear_system_fallback_font_cache();
-    return {};
-}
-
-ErrorOr<void> SharedFontProvider::replace_catalog(IPC::File file, u64 size, u64 generation)
-{
-    if (size == 0 || size > NumericLimits<size_t>::max())
-        return Error::from_string_literal("Invalid font catalog size");
-    auto mapping = TRY(Core::MappedFile::map_from_fd_range_and_close(file.take_fd(), "font catalog"sv, 0, static_cast<size_t>(size)));
-    return replace_catalog(move(mapping), generation);
 }
 
 static FontVariationSettings default_variations(float point_size, unsigned weight, unsigned width)

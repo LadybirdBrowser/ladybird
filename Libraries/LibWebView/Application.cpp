@@ -1663,7 +1663,6 @@ ErrorOr<void> Application::launch_compositor_process()
 {
     VERIFY(!m_compositor_client);
     m_compositor_client = TRY(WebView::launch_compositor_process());
-    m_compositor_client->async_set_font_service_transport(TRY(m_font_service_host->connect()));
     m_compositor_client->on_death = [this]() {
         handle_compositor_process_death();
     };
