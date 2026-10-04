@@ -97,6 +97,13 @@ pub struct DocumentHost {
     engine_memo: crate::css::style::engine_calls::EngineMemo,
 }
 
+/// Pays what the writes a job applied owe the host, which only [`DocumentHost::pay`] makes.
+pub(crate) struct OwedWorkPayment {
+    _private: (),
+}
+
+const OWED_WORK_PAYMENT: OwedWorkPayment = OwedWorkPayment { _private: () };
+
 /// The layout tree update marks of a host's document: here, between the render owner's jobs, or lent to a job.
 struct HostMarks {
     /// The document's marks, unless a job or the frame in flight has them.
@@ -233,7 +240,7 @@ impl DocumentHost {
     /// it, taking the frame in flight in first with `read`. A host callback the job makes may reach the state again, as
     /// a layout round's read of an element's style does, which runs right there on the owner.
     pub(super) fn reach<R: Send>(&self, read: ReadRight, job: impl FnOnce(&mut RenderState) -> R + Send) -> R {
-        let ((answer, version), marks) = self.drain_queued_changes(read, |changes| {
+        let ((answer, version, owed), marks) = self.drain_queued_changes(read, |changes| {
             let (document, seed, marks) = (self.document, self.seed.take(), self.lend_marks());
             let in_job = self.in_job.replace(true);
             let answer = on_render_side(move || {
@@ -241,7 +248,7 @@ impl DocumentHost {
                     state.with_marks(marks, |state| {
                         state.apply(changes);
                         let answer = job(state);
-                        (answer, state.rows_version())
+                        (answer, state.rows_version(), state.take_owed())
                     })
                 })
             });
@@ -253,7 +260,21 @@ impl DocumentHost {
         // A write a host callback of the job queued comes after the version the job answered, which the host's reads of
         // the rows learn from the queue.
         self.arena_version.set(Some(version));
+        self.pay(owed);
         answer
+    }
+
+    /// Pays what the writes a job or a frame applied owe the host, now that the host has it back.
+    fn pay(&self, owed: Vec<crate::layout::tree_mutation::HostWorkDue>) {
+        if owed.is_empty() {
+            return;
+        }
+        // SAFETY: The host has its job or frame back, on its document's thread, or on the render owner in a host
+        // callback of a job the host waits for, as every host callback runs.
+        let main_thread = unsafe { crate::stage::from_ffi_entry(&OWED_WORK_PAYMENT, self) };
+        for work in owed {
+            work.pay(&main_thread);
+        }
     }
 
     /// Lets the frame fly beside the host, in the job `flight` submits to the owner with the document's name, until the
@@ -320,10 +341,12 @@ impl DocumentHost {
             round,
             changes,
             marks,
+            owed,
         }: Landing,
     ) {
         self.changes.give_back(changes);
         self.take_marks_back(marks);
+        self.pay(owed);
         self.layout_up_to_date.set(None);
         let previous = self
             .flown_style

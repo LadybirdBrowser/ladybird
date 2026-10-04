@@ -88,11 +88,11 @@ macro_rules! ffi_entry {
 
 ffi_entry!(crate::layout::ArenaMainThreadFfiEntry);
 ffi_entry!(crate::layout::UpdateMainThreadFfiEntry);
-ffi_entry!(crate::layout::TreeBuildMainThreadFfiEntry);
 ffi_entry!(crate::painting::ffi::MainThreadFfiEntry);
 ffi_entry!(crate::painting::display_list::dump::MainThreadFfiEntry);
 ffi_entry!(crate::painting::layout_tree_dump::MainThreadFfiEntry);
 ffi_entry!(crate::painting::stacking_context::dump::MainThreadFfiEntry);
+ffi_entry!(crate::render_state::OwedWorkPayment);
 
 #[cfg(test)]
 mod tests {

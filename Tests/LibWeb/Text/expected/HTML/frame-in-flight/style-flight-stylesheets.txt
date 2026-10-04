@@ -6,6 +6,6 @@ replaceSync: state after adopting: in-flight
 replaceSync: after: 140px rgb(0, 128, 0) rgb(255, 255, 0) 15px
 removal: state in the next task: in-flight
 removal: state after disabling: in-flight
-removal: state after removing a sheet: landed
+removal: state after removing a sheet: in-flight
 removal: after: 784px rgb(0, 0, 0) rgba(0, 0, 0, 0) 0px, 50
 restored: 140px rgb(0, 128, 0) rgb(255, 255, 0) 15px

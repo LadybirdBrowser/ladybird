@@ -1588,9 +1588,8 @@ void Node::detach_remaining_layout_nodes_for_removal()
     });
     if (style_nodes.is_empty())
         return;
-    // The removal pays what detaching the boxes owes the host, which is its own read of the render state.
-    Layout::ForcedReadScope read { arena->render_document(), false };
-    Layout::RustFFI::render_state_detach_remaining_rows_for_removal(arena->host(), read, style_nodes.data(), style_nodes.size());
+    // The detach is queued for the render state, and the host pays what it owes once the job that applies it is done.
+    Layout::RustFFI::render_state_detach_remaining_rows_for_removal(arena->host(), style_nodes.data(), style_nodes.size());
 }
 
 void Node::assign_slottables_after_removal(Node& parent, Node& parent_root)
