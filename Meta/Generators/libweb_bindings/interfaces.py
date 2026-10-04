@@ -476,5 +476,4 @@ void {interface.prototype_class}::define_unforgeable_attributes(JS::Realm& realm
     named_and_indexed_properties.write_named_property_getter(out, context, includes, interface)
     named_and_indexed_properties.write_named_property_setter(out, context, includes, interface)
     named_and_indexed_properties.write_named_property_deleter(out, context, includes, interface)
-    named_and_indexed_properties.write_named_properties_object_implementation(out, includes, interface)
     global_mixins.write_global_mixin_implementation(out, context, includes, interface)

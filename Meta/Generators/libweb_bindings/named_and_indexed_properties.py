@@ -563,38 +563,26 @@ def write_named_item_value_implementation(
     )
 
 
+def named_properties_object_name(interface: Interface) -> str:
+    return f"{interface.name}Properties"
+
+
+def named_properties_object_host_class_name(interface: Interface) -> str:
+    return f"{title_case_to_snake_case(named_properties_object_name(interface))}_host_class"
+
+
+def create_named_properties_object_function_name(interface: Interface) -> str:
+    return f"create_{title_case_to_snake_case(named_properties_object_name(interface))}"
+
+
 def write_named_properties_object_declaration(out: TextIO, includes: GeneratedIncludes, interface: Interface) -> None:
-    includes.add("AK/Optional.h")
     includes.add("LibGC/Ptr.h")
-    includes.add("LibJS/Runtime/Object.h")
-    includes.add("LibJS/Runtime/PropertyDescriptor.h")
-    includes.add("LibJS/Runtime/PropertyKey.h")
+    includes.add("LibJS/Forward.h")
+    includes.add("LibJS/HostObjectABI.h")
     out.write(
-        f"""class {interface.name}Properties : public JS::Object {{
-    JS_OBJECT({interface.name}Properties, JS::Object);
-    GC_DECLARE_ALLOCATOR({interface.name}Properties);
-
-public:
-    explicit {interface.name}Properties(JS::Realm&);
-    virtual void initialize(JS::Realm&) override;
-    virtual ~{interface.name}Properties() override;
-
-    JS::Realm& realm() const {{ return m_realm; }}
-
-private:
-    virtual JS::ThrowCompletionOr<Optional<JS::PropertyDescriptor>> internal_get_own_property(JS::PropertyKey const&) const override;
-    virtual bool is_cacheable_for_property_absence() const override {{ return false; }}
-    virtual JS::ThrowCompletionOr<bool> internal_define_own_property(JS::PropertyKey const&, JS::PropertyDescriptor&, Optional<JS::PropertyDescriptor>* precomputed_get_own_property = nullptr) override;
-    virtual JS::ThrowCompletionOr<bool> internal_delete(JS::PropertyKey const&) override;
-    virtual JS::ThrowCompletionOr<bool> internal_set_prototype_of(JS::Object* prototype) override;
-    virtual JS::ThrowCompletionOr<bool> internal_prevent_extensions() override;
-
-    virtual bool eligible_for_own_property_enumeration_fast_path() const override final {{ return false; }}
-
-    virtual void visit_edges(Visitor&) override;
-
-    GC::Ref<JS::Realm> m_realm;
-}};
+        f"""// https://webidl.spec.whatwg.org/#named-properties-object
+extern JSHostClass const {named_properties_object_host_class_name(interface)};
+GC::Ref<JS::Object> {create_named_properties_object_function_name(interface)}(JS::Realm&);
 
 """
     )
@@ -608,128 +596,93 @@ def write_named_properties_object_implementation(
     if not interface_supports_named_properties(interface):
         return
 
+    # The named properties object finds the values of named properties through the Window that is its realm's global
+    # object, and Window is the only [Global] interface with a named property getter.
+    if interface.name != "Window":
+        raise RuntimeError(f"{interface.name} would need a named properties object, which only Window has")
+
     includes.add("AK/TypeCasts.h")
     includes.add("AK/Utf16FlyString.h")
+    includes.add("LibJS/HostClassBuilder.h")
+    includes.add("LibJS/Runtime/HostObject.h")
     includes.add("LibJS/Runtime/PrimitiveString.h")
     includes.add("LibJS/Runtime/PropertyDescriptor.h")
     includes.add("LibJS/Runtime/PropertyKey.h")
     includes.add("LibWeb/Bindings/Intrinsics.h")
-    includes.add(implementation_header_for_interface(interface))
-    if interface.name == "Window":
-        includes.add("LibWeb/Bindings/PlatformObject.h")
-        includes.add("LibWeb/Bindings/WrapperWorld.h")
-        includes.add("LibWeb/Bindings/Wrappable.h")
-        includes.add("LibWeb/HTML/Window.h")
-    parent_prototype = "realm.intrinsics().object_prototype()"
-    if interface.parent_name:
-        parent_prototype = f'&ensure_web_prototype<{interface.parent_name}Prototype>(realm, "{interface.parent_name}"_utf16_fly_string)'
-    out.write(
-        f"""GC_DEFINE_ALLOCATOR({interface.name}Properties);
+    includes.add("LibWeb/Bindings/PlatformObject.h")
+    includes.add("LibWeb/Bindings/WrapperWorld.h")
+    includes.add("LibWeb/Bindings/Wrappable.h")
+    includes.add("LibWeb/HTML/Window.h")
 
-{interface.name}Properties::{interface.name}Properties(JS::Realm& realm)
-    : JS::Object(realm, nullptr, MayInterfereWithIndexedPropertyAccess::Yes)
-    , m_realm(realm)
-{{
-}}
-
-{interface.name}Properties::~{interface.name}Properties()
-{{
-}}
-
-void {interface.name}Properties::initialize(JS::Realm& realm)
-{{
-    Base::initialize(realm);
-    auto& vm = realm.vm();
-
-    define_direct_property(vm.well_known_symbol_to_string_tag(), JS::PrimitiveString::create(vm, "{interface.name}Properties"_utf16), JS::Attribute::Configurable);
-
-    set_prototype({parent_prototype});
-}}
-
-// https://webidl.spec.whatwg.org/#named-properties-object-getownproperty
-JS::ThrowCompletionOr<Optional<JS::PropertyDescriptor>> {interface.name}Properties::internal_get_own_property(JS::PropertyKey const& property_name) const
-{{
-    auto& realm = this->realm();
-
-"""
+    name = named_properties_object_name(interface)
+    traits = f"{name}Traits"
+    hooks = f"{title_case_to_snake_case(name)}_hooks"
+    host_class = named_properties_object_host_class_name(interface)
+    parent_prototype = (
+        f'&ensure_web_prototype<{interface.parent_name}Prototype>(realm, "{interface.parent_name}"_utf16_fly_string)'
     )
-    if interface.name == "Window":
-        out.write(
-            """    auto* object = as_if<PlatformObject>(&realm.global_object());
-    VERIFY(object);
-    auto* window = Web::Bindings::impl_from<HTML::Window>(&realm.global_object());
-    VERIFY(window);
-"""
-        )
-    else:
-        out.write(
-            f"""    using A = {fully_qualified_name_for_interface(interface)};
-    auto* object = &as<A>(realm.global_object());
-"""
-        )
+    enumerable = "false" if "LegacyUnenumerableNamedProperties" in interface.extended_attributes else "true"
+
     out.write(
-        """
+        f"""namespace {{
 
-    if (TRY(is_named_property_exposed_on_object(*object, property_name))) {
-        auto property_name_string = Utf16FlyString { property_name.to_utf16_string() };
+struct {traits} {{
+    // https://webidl.spec.whatwg.org/#named-properties-object-getownproperty
+    static JS::ThrowCompletionOr<Optional<JS::PropertyDescriptor>> get_own_property(JS::HostObject const& named_properties_object, JS::PropertyKey const& property_name)
+    {{
+        auto& realm = named_properties_object.shape().realm();
+        auto& window_wrapper = as<JS::HostObject>(realm.global_object());
+        auto* window = Web::Bindings::impl_from<HTML::Window>(&window_wrapper);
+        VERIFY(window);
 
-"""
-    )
-    if interface.name == "Window":
-        out.write(
-            "        auto value = window_named_item_value(host_defined_wrapper_world(realm), realm, *window, property_name_string);\n"
-        )
-    else:
-        out.write("        auto value = object->named_item_value(realm, property_name_string);\n")
-    out.write(
-        f"""
+        if (TRY(is_named_property_exposed_on_object(window_wrapper, property_name))) {{
+            auto property_name_string = Utf16FlyString {{ property_name.to_utf16_string() }};
+            auto value = window_named_item_value(host_defined_wrapper_world(realm), realm, *window, property_name_string);
+            return JS::PropertyDescriptor {{ .value = value, .writable = true, .enumerable = {enumerable}, .configurable = true }};
+        }}
 
-        JS::PropertyDescriptor descriptor;
-
-        descriptor.value = value;
-
-        descriptor.enumerable = {"false" if "LegacyUnenumerableNamedProperties" in interface.extended_attributes else "true"};
-
-        descriptor.writable = true;
-        descriptor.configurable = true;
-
-        return descriptor;
+        return named_properties_object.ordinary_get_own_property(property_name);
     }}
 
-    return ordinary_get_own_property(property_name);
+    // https://webidl.spec.whatwg.org/#named-properties-object-defineownproperty
+    static JS::ThrowCompletionOr<bool> define_own_property(JS::HostObject&, JS::PropertyKey const&, JS::PropertyDescriptor&, Optional<JS::PropertyDescriptor>*)
+    {{
+        return false;
+    }}
+
+    // https://webidl.spec.whatwg.org/#named-properties-object-delete
+    static JS::ThrowCompletionOr<bool> delete_property(JS::HostObject&, JS::PropertyKey const&)
+    {{
+        return false;
+    }}
+
+    // https://webidl.spec.whatwg.org/#named-properties-object-preventextensions
+    // NB: Failing keeps the named properties object extensible.
+    static JS::ThrowCompletionOr<bool> prevent_extensions(JS::HostObject&)
+    {{
+        return false;
+    }}
+}};
+
 }}
 
-// https://webidl.spec.whatwg.org/#named-properties-object-defineownproperty
-JS::ThrowCompletionOr<bool> {interface.name}Properties::internal_define_own_property(JS::PropertyKey const&, JS::PropertyDescriptor&, Optional<JS::PropertyDescriptor>*)
-{{
-    return false;
-}}
-
-// https://webidl.spec.whatwg.org/#named-properties-object-delete
-JS::ThrowCompletionOr<bool> {interface.name}Properties::internal_delete(JS::PropertyKey const&)
-{{
-    return false;
-}}
+static constexpr JSHostObjectHooks {hooks} = JS::make_host_object_hooks<{traits}>();
 
 // https://webidl.spec.whatwg.org/#named-properties-object-setprototypeof
-JS::ThrowCompletionOr<bool> {interface.name}Properties::internal_set_prototype_of(JS::Object* prototype)
-{{
-    // NB: This is only ever true for ShadowRealms.
+// NB: Only a ShadowRealm's global prototype chain is mutable, so [[SetPrototypeOf]] is always SetImmutablePrototype, which
+//     the class flag gives the object.
+constexpr JSHostClass {host_class} = JS::make_host_class(JS_HOST_CLASS_OBJECT, "{name}"sv, nullptr, &{hooks}, nullptr,
+    JS_HOST_CLASS_MAY_INTERFERE_WITH_INDEXED_PROPERTY_ACCESS
+        | JS_HOST_CLASS_IMMUTABLE_PROTOTYPE
+        | JS_HOST_CLASS_NOT_CACHEABLE_FOR_PROPERTY_ABSENCE
+        | JS_HOST_CLASS_NOT_ELIGIBLE_FOR_OWN_PROPERTY_ENUMERATION_FAST_PATH);
 
-    return set_immutable_prototype(prototype);
-}}
-
-// https://webidl.spec.whatwg.org/#named-properties-object-preventextensions
-JS::ThrowCompletionOr<bool> {interface.name}Properties::internal_prevent_extensions()
+GC::Ref<JS::Object> {create_named_properties_object_function_name(interface)}(JS::Realm& realm)
 {{
-    // Note: this keeps named properties object extensible by making [[PreventExtensions]] fail.
-    return false;
-}}
-
-void {interface.name}Properties::visit_edges(Visitor& visitor)
-{{
-    Base::visit_edges(visitor);
-    visitor.visit(m_realm);
+    auto& vm = realm.vm();
+    auto named_properties_object = JS::HostObject::create(realm, {host_class}, {parent_prototype});
+    named_properties_object->define_direct_property(vm.well_known_symbol_to_string_tag(), JS::PrimitiveString::create(vm, "{name}"_utf16), JS::Attribute::Configurable);
+    return named_properties_object;
 }}
 
 """
