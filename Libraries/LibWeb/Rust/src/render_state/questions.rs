@@ -27,6 +27,12 @@ pub(crate) trait Question {
     /// What the render state answers the question with.
     type Answer;
 
+    /// Whether answering the question leaves the paint and hit testing properties the host prepared from the render
+    /// state current: it reads, or writes only what the passes that prepare them do not read until a message of the
+    /// host's reaches the render state. Overflow a question measures as it reads is not part of this: the host checks
+    /// what each measurement leaves for the preparation as it answers.
+    const LEAVES_PAINT_PREPARATION_CURRENT: bool;
+
     /// Answers the question from `arena` and `engine`, the arena and style engine of the document it was asked about.
     ///
     /// # Safety
@@ -45,11 +51,12 @@ pub(crate) struct CommittedRows {
 pub(crate) struct PreparationPending;
 
 /// Implements [`Question`] for `$question`, whose answer is `$answer`, as `$body` answers it from `$arena`, a question
-/// that only reads or writes the arena.
+/// that only reads or writes the arena, leaving the paint preparation current where `$leaves_current`.
 macro_rules! arena_question {
-    ($question:ty, $answer:ty, |$self:ident, $arena:ident| $body:expr) => {
+    ($question:ty, $answer:ty, $leaves_current:expr, |$self:ident, $arena:ident| $body:expr) => {
         impl Question for $question {
             type Answer = $answer;
+            const LEAVES_PAINT_PREPARATION_CURRENT: bool = $leaves_current;
 
             unsafe fn answer($self, $arena: &mut LayoutNodeArena, _: StyleEngineHandle) -> $answer {
                 $body
@@ -58,18 +65,20 @@ macro_rules! arena_question {
     };
 }
 
-arena_question!(ArenaQuery, ArenaAnswer, |self, arena| self.answer(arena));
-arena_question!(DevToolsQuery, DevToolsAnswer, |self, arena| self.answer(arena));
-arena_question!(LayoutWrite, LayoutWritten, |self, arena| self.apply(arena));
-arena_question!(CommittedRows, RowSnapshot, |self, arena| {
+arena_question!(ArenaQuery, ArenaAnswer, true, |self, arena| self.answer(arena));
+arena_question!(DevToolsQuery, DevToolsAnswer, true, |self, arena| self.answer(arena));
+arena_question!(LayoutWrite, LayoutWritten, false, |self, arena| self.apply(arena));
+arena_question!(CommittedRows, RowSnapshot, true, |self, arena| {
     arena.publish_row_snapshot(self.measure_overflow)
 });
-arena_question!(PreparationPending, Option<PendingPreparation>, |self, arena| {
+arena_question!(PreparationPending, Option<PendingPreparation>, true, |self, arena| {
     rendering_preparation_pending(arena)
 });
 
 impl Question for StyleQuery {
     type Answer = StyleAnswer;
+    // NB: The passes that prepare the paint properties read no style engine.
+    const LEAVES_PAINT_PREPARATION_CURRENT: bool = true;
 
     unsafe fn answer(self, _: &mut LayoutNodeArena, engine: StyleEngineHandle) -> StyleAnswer {
         // SAFETY: Guaranteed by the caller. An engine question reaches the engine only through this borrow.
@@ -93,6 +102,9 @@ impl<A, R> ArenaRead<A, R> {
 
 impl<A, R> Question for ArenaRead<A, R> {
     type Answer = R;
+    // NB: What a read brings up to date first, a preparation leaves up to date, or only a layout round reads, except
+    //     for overflow it measures, which the host checks as it answers.
+    const LEAVES_PAINT_PREPARATION_CURRENT: bool = true;
 
     unsafe fn answer(self, arena: &mut LayoutNodeArena, _: StyleEngineHandle) -> R {
         (self.read)(arena, self.args)
@@ -105,6 +117,8 @@ pub(crate) struct EngineCall<F>(pub(crate) F);
 
 impl<R, F: FnOnce(&mut crate::css::style::StyleEngine) -> R> Question for EngineCall<F> {
     type Answer = R;
+    // NB: The passes that prepare the paint properties read no style engine.
+    const LEAVES_PAINT_PREPARATION_CURRENT: bool = true;
 
     unsafe fn answer(self, _: &mut LayoutNodeArena, engine: StyleEngineHandle) -> R {
         // SAFETY: Guaranteed by the caller. The call reaches the engine only through this borrow.
@@ -290,6 +304,48 @@ mod tests {
         assert_eq!(answer, ArenaAnswer::Text(text));
         arena_of(host)
             .free_subtree(row)
+            .destroy_shells_and_invoke_callbacks(&crate::stage::MainThread::for_test());
+        destroy(pointer);
+    }
+
+    #[test]
+    fn a_read_that_first_measures_a_scrollability_flip_leaves_the_paint_preparation_stale() {
+        use crate::render_state::document_host::{
+            document_host_note_paint_preparation_is_current, document_host_paint_preparation_is_current,
+        };
+        fn measure(arena: &mut LayoutNodeArena, (): ()) {
+            arena.measure_scrollable_overflow();
+        }
+
+        let (pointer, host) = host();
+        let arena = arena_of(host);
+        let viewport = arena.allocate_for_test().slot;
+        arena.write_shape(viewport).set_kind(NodeKind::Viewport);
+        arena.populate_paintable_row(viewport);
+        arena.scrollable_overflow.viewport.set(Some(viewport));
+        // The viewport had scrollable overflow before it was laid out again, and a read measures it first since.
+        arena
+            .committed_side_data_mut(viewport)
+            .overflow_relative_to_padding_box
+            .has_scrollable_overflow = true;
+        arena.note_row_overflow_unmeasured(viewport);
+
+        // SAFETY: The host is live, on this thread.
+        unsafe { document_host_note_paint_preparation_is_current(pointer) };
+        ask(ScriptForcedRead::for_test(), host, ArenaRead::new((), measure));
+        // SAFETY: As above.
+        assert!(!unsafe { document_host_paint_preparation_is_current(pointer) });
+        assert!(arena_of(host).scrollable_overflow.scrollability_changed.get());
+
+        // A read that measures nothing leaves the preparation as it is.
+        // SAFETY: As above.
+        unsafe { document_host_note_paint_preparation_is_current(pointer) };
+        ask(ScriptForcedRead::for_test(), host, ArenaRead::new((), measure));
+        // SAFETY: As above.
+        assert!(unsafe { document_host_paint_preparation_is_current(pointer) });
+
+        arena_of(host)
+            .free_subtree(viewport)
             .destroy_shells_and_invoke_callbacks(&crate::stage::MainThread::for_test());
         destroy(pointer);
     }

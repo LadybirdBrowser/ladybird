@@ -311,10 +311,10 @@ impl OverflowAssignment {
                 layout_arena.push_paint_damage(source.root_layout_node, PaintDamage::DRAW_BACKGROUND);
             }
         }
+        // A flip changes what rendering preparation answers even where it is the box's first measurement since it
+        // was laid out: the visual context of the box goes stale either way.
         if scrollability_flipped {
-            if previously_measured {
-                layout_arena.scrollable_overflow.scrollability_changed.set(true);
-            }
+            layout_arena.scrollable_overflow.scrollability_changed.set(true);
             layout_arena.push_paint_damage(self.box_paintable, PaintDamage::ALL_PRODUCERS);
             layout_arena.push_paint_damage_to_paint_subtree(self.box_paintable, PaintDamage::SCROLL_METADATA);
             layout_arena.note_visual_context_box_dirty(
@@ -723,6 +723,13 @@ pub(crate) struct ScrollableOverflowState {
     /// Rows whose overflow a read could find unmeasured: new rows, and rows whose measurement was
     /// invalidated. Reading overflow never measures it, so the pass measures these first.
     pub(crate) rows_to_measure: RefCell<Vec<NodeSlotId>>,
+}
+
+impl ScrollableOverflowState {
+    /// Whether a measurement changed what rendering preparation answers, which no preparation settled since.
+    pub(crate) fn measurement_awaits_preparation(&self) -> bool {
+        self.geometry_changed.get() || self.scrollability_changed.get()
+    }
 }
 
 impl LayoutNodeArena {
