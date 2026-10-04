@@ -199,6 +199,10 @@ unsafe fn lent_bytes<'a>(bytes: FfiHostHandle, length: usize) -> &'a [u8] {
 pub(crate) struct StyleJobAnswer {
     output: FfiStyleTransactionOutput,
     records: NamedRecords,
+    /// The synthetic pseudo-elements each element whose row the host composes has rules for, as a C++ record's
+    /// pseudo-style mask, by element, which the host reads as it settles the element's pseudo-elements over the
+    /// composition.
+    composed_pseudo_styles: Box<[(u32, u64)]>,
 }
 
 /// The view of each record a transaction's rows name and the custom-property environment it was computed in, by record,
@@ -222,6 +226,13 @@ impl StyleJobAnswer {
         let index = records.binary_search_by_key(&record, |&(record, ..)| record).ok()?;
         let (_, view, environment) = records[index];
         Some((view, environment))
+    }
+
+    /// The synthetic pseudo-elements `node` has rules for, where the host composes its row.
+    pub(crate) fn composed_pseudo_style_mask(&self, node: u32) -> Option<u64> {
+        let masks = &self.composed_pseudo_styles;
+        let index = masks.binary_search_by_key(&node, |&(node, _)| node).ok()?;
+        Some(masks[index].1)
     }
 }
 
@@ -274,9 +285,22 @@ impl StyleJob {
                 })
             })
             .collect();
+        // The host settles the pseudo-elements of a row it composes only once it has composed the row, which asks
+        // which of them have rules: the transaction that matched the element answers it beside the row.
+        let mut composed_pseudo_styles: Vec<(u32, u64)> = output
+            .answers()
+            .iter()
+            .filter(|row| row.composed_by_the_host)
+            .filter_map(|row| {
+                let node = StyleNodeID::from_raw(row.style_node)?;
+                Some((row.style_node, engine.published_pseudo_style_mask(node)))
+            })
+            .collect();
+        composed_pseudo_styles.sort_unstable_by_key(|&(node, _)| node);
         StyleJobAnswer {
             output,
             records: NamedRecords(records),
+            composed_pseudo_styles: composed_pseudo_styles.into_boxed_slice(),
         }
     }
 }
