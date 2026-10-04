@@ -1448,54 +1448,64 @@ static bool typed_array_element_types_have_same_bit_encoding(TypedArrayBase cons
     return source.is_bigint_element_type() && target.is_bigint_element_type();
 }
 
-// 23.2.3.26.1 SetTypedArrayFromTypedArray ( target, targetOffset, source ), https://tc39.es/ecma262/#sec-settypedarrayfromtypedarray
+static Value get_value_from_buffer(ArrayBuffer& array_buffer, size_t byte_index, TypedArrayBase::Kind type, ArrayBuffer::Order order)
+{
+    switch (type) {
+#define __JS_ENUMERATE(ClassName, snake_name, PrototypeName, ConstructorName, Type) \
+    case TypedArrayBase::Kind::ClassName:                                           \
+        return array_buffer.get_value<Type>(byte_index, true, order);
+        JS_ENUMERATE_TYPED_ARRAYS
+#undef __JS_ENUMERATE
+    }
+    VERIFY_NOT_REACHED();
+}
+
+// 23.2.3.26.2 SetTypedArrayFromTypedArray ( target, targetOffset, source ), https://tc39.es/ecma262/#sec-settypedarrayfromtypedarray
 static ThrowCompletionOr<void> set_typed_array_from_typed_array(VM& vm, TypedArrayBase& target, double target_offset, TypedArrayBase const& source)
 {
     // 1. Let targetBuffer be target.[[ViewedArrayBuffer]].
     auto* target_buffer = target.viewed_array_buffer();
 
-    // 2. Let targetRecord be MakeTypedArrayWithBufferWitnessRecord(target, seq-cst)
+    // 2. Let targetRecord be ? ValidateTypedArrayBounds(target, seq-cst).
     auto target_record = make_typed_array_with_buffer_witness_record(target, ArrayBuffer::Order::SeqCst);
-
-    // 3. If IsTypedArrayOutOfBounds(targetRecord) is true, throw a TypeError exception.
     if (is_typed_array_out_of_bounds(target_record))
         return vm.throw_completion<TypeError>(ErrorType::BufferOutOfBounds, "TypedArray"sv);
 
-    // 4. Let targetLength be TypedArrayLength(targetRecord).
+    // 3. Let targetLength be TypedArrayLength(targetRecord).
     auto target_length = typed_array_length(target_record);
 
-    // 5. Let srcBuffer be source.[[ViewedArrayBuffer]].
+    // 4. Let sourceBuffer be source.[[ViewedArrayBuffer]].
     auto* source_buffer = source.viewed_array_buffer();
 
-    // 6. Let srcRecord be MakeTypedArrayWithBufferWitnessRecord(source, seq-cst).
+    // 5. Let sourceRecord be ? ValidateTypedArrayBounds(source, seq-cst).
     auto source_record = make_typed_array_with_buffer_witness_record(source, ArrayBuffer::Order::SeqCst);
-
-    // 7. If IsTypedArrayOutOfBounds(srcRecord) is true, throw a TypeError exception.
     if (is_typed_array_out_of_bounds(source_record))
         return vm.throw_completion<TypeError>(ErrorType::BufferOutOfBounds, "TypedArray"sv);
 
-    // 8. Let srcLength be TypedArrayLength(srcRecord).
+    // 6. Let sourceLength be TypedArrayLength(sourceRecord).
     auto source_length = typed_array_length(source_record);
 
-    // 9. Let targetType be TypedArrayElementType(target).
-    // 10. Let targetElementSize be TypedArrayElementSize(target).
+    // 7. Let targetType be TypedArrayElementType(target).
+    // 8. Let targetElementSize be TypedArrayElementSize(target).
     auto target_element_size = target.element_size();
 
-    // 11. Let targetByteOffset be target.[[ByteOffset]].
+    // 9. Let targetByteOffset be target.[[ByteOffset]].
     auto target_byte_offset = target.byte_offset();
 
-    // 12. Let srcType be TypedArrayElementType(source).
-    // 13. Let srcElementSize be TypedArrayElementSize(source).
+    // 10. Let sourceType be TypedArrayElementType(source).
+    auto source_type = source.kind();
+
+    // 11. Let sourceElementSize be TypedArrayElementSize(source).
     auto source_element_size = source.element_size();
 
-    // 14. Let srcByteOffset be source.[[ByteOffset]].
+    // 12. Let sourceByteOffset be source.[[ByteOffset]].
     auto source_byte_offset = source.byte_offset();
 
-    // 15. If targetOffset = +∞, throw a RangeError exception.
+    // 13. If targetOffset = +∞, throw a RangeError exception.
     if (Value { target_offset }.is_positive_infinity())
         return vm.throw_completion<RangeError>(ErrorType::TypedArrayInvalidTargetOffset, "finite");
 
-    // 16. If srcLength + targetOffset > targetLength, throw a RangeError exception.
+    // 14. If sourceLength + targetOffset > targetLength, throw a RangeError exception.
     if (target_offset > MAX_ARRAY_LIKE_INDEX)
         return vm.throw_completion<RangeError>(ErrorType::TypedArrayOverflowOrOutOfBounds, "target offset");
 
@@ -1505,36 +1515,36 @@ static ThrowCompletionOr<void> set_typed_array_from_typed_array(VM& vm, TypedArr
     if (checked.has_overflow() || checked.value() > target_length)
         return vm.throw_completion<RangeError>(ErrorType::TypedArrayOverflowOrOutOfBounds, "target length");
 
-    // 17. If target.[[ContentType]] is not source.[[ContentType]], throw a TypeError exception.
+    // 15. If target.[[ContentType]] is not source.[[ContentType]], throw a TypeError exception.
     if (target.content_type() != source.content_type())
         return vm.throw_completion<TypeError>(ErrorType::TypedArrayInvalidCopy, target.class_name(), source.class_name());
 
     auto same_shared_array_buffer = false;
 
-    // 18. If IsSharedArrayBuffer(srcBuffer) is true, IsSharedArrayBuffer(targetBuffer) is true, and srcBuffer.[[ArrayBufferData]] is targetBuffer.[[ArrayBufferData]], let sameSharedArrayBuffer be true; otherwise, let sameSharedArrayBuffer be false.
+    // 16. If IsSharedArrayBuffer(sourceBuffer) is true, IsSharedArrayBuffer(targetBuffer) is true, and sourceBuffer.[[ArrayBufferData]] is targetBuffer.[[ArrayBufferData]], let sameSharedArrayBuffer be true; else let sameSharedArrayBuffer be false.
     if (source_buffer->is_shared_array_buffer() && target_buffer->is_shared_array_buffer() && source_buffer->shares_storage_with(*target_buffer))
         same_shared_array_buffer = true;
 
     size_t source_byte_index = 0;
 
-    // 19. If SameValue(srcBuffer, targetBuffer) is true or sameSharedArrayBuffer is true, then
+    // 17. If SameValue(sourceBuffer, targetBuffer) is true or sameSharedArrayBuffer is true, then
     if (same_shared_array_buffer || same_value(source_buffer, target_buffer)) {
-        // a. Let srcByteLength be TypedArrayByteLength(srcRecord).
+        // a. Let sourceByteLength be TypedArrayByteLength(sourceRecord).
         auto source_byte_length = typed_array_byte_length(source_record);
 
-        // b. Set srcBuffer to ? CloneArrayBuffer(srcBuffer, srcByteOffset, srcByteLength).
+        // b. Set sourceBuffer to ? CloneArrayBuffer(sourceBuffer, sourceByteOffset, sourceByteLength).
         source_buffer = TRY(clone_array_buffer(vm, *source_buffer, source_byte_offset, source_byte_length));
 
-        // c. Let srcByteIndex be 0.
+        // c. Let sourceByteIndex be 0.
         source_byte_index = 0;
     }
-    // 20. Else,
+    // 18. Else,
     else {
-        // a. Let srcByteIndex be srcByteOffset.
+        // a. Let sourceByteIndex be sourceByteOffset.
         source_byte_index = source_byte_offset;
     }
 
-    // 21. Let targetByteIndex be targetOffset × targetElementSize + targetByteOffset.
+    // 19. Let targetByteIndex be (targetOffset × targetElementSize) + targetByteOffset.
     Checked<size_t> checked_target_byte_index(static_cast<size_t>(target_offset));
     checked_target_byte_index *= target_element_size;
     checked_target_byte_index += target_byte_offset;
@@ -1542,7 +1552,7 @@ static ThrowCompletionOr<void> set_typed_array_from_typed_array(VM& vm, TypedArr
         return vm.throw_completion<RangeError>(ErrorType::TypedArrayOverflow, "target byte index");
     auto target_byte_index = checked_target_byte_index.value();
 
-    // 22. Let limit be targetByteIndex + targetElementSize × srcLength.
+    // 20. Let limit be targetByteIndex + (targetElementSize × sourceLength).
     Checked<size_t> checked_limit(source_length);
     checked_limit *= target_element_size;
     checked_limit += target_byte_index;
@@ -1550,17 +1560,17 @@ static ThrowCompletionOr<void> set_typed_array_from_typed_array(VM& vm, TypedArr
         return vm.throw_completion<RangeError>(ErrorType::TypedArrayOverflow, "target limit");
     auto limit = checked_limit.value();
 
-    // 23. If srcType is targetType, then
+    // 21. If sourceType is targetType, then
     if (typed_array_element_types_have_same_bit_encoding(source, target)) {
         // a. NOTE: The transfer must be performed in a manner that preserves the bit-level encoding of the source data.
         // b. Repeat, while targetByteIndex < limit,
-        //     i. Let value be GetValueFromBuffer(srcBuffer, srcByteIndex, Uint8, true, Unordered).
-        //     ii. Perform SetValueInBuffer(targetBuffer, targetByteIndex, Uint8, value, true, Unordered).
-        //     iii. Set srcByteIndex to srcByteIndex + 1.
+        //     i. Let value be GetValueFromBuffer(sourceBuffer, sourceByteIndex, uint8, true, unordered).
+        //     ii. Perform SetValueInBuffer(targetBuffer, targetByteIndex, uint8, value, true, unordered).
+        //     iii. Set sourceByteIndex to sourceByteIndex + 1.
         //     iv. Set targetByteIndex to targetByteIndex + 1.
         // OPTIMIZATION: If neither buffer is shared, a single bulk copy realizes the byte-granular Unordered events
         //               above. A shared buffer instead uses per-byte relaxed-atomic accesses so the copy never races
-        //               another agent with a non-atomic memcpy. (Step 19 above cloned srcBuffer if it aliased
+        //               another agent with a non-atomic memcpy. (Step 17 above cloned sourceBuffer if it aliased
         //               targetBuffer — so the two never overlap here.)
         if (!source_buffer->is_shared_array_buffer() && !target_buffer->is_shared_array_buffer()) {
             source_buffer->copy_data_to(*target_buffer, source_byte_index, target_byte_index, limit - target_byte_index);
@@ -1573,17 +1583,17 @@ static ThrowCompletionOr<void> set_typed_array_from_typed_array(VM& vm, TypedArr
             }
         }
     }
-    // 24. Else,
+    // 22. Else,
     else {
         // a. Repeat, while targetByteIndex < limit,
         while (target_byte_index < limit) {
-            // i. Let value be GetValueFromBuffer(srcBuffer, srcByteIndex, srcType, true, Unordered).
-            auto value = source.get_value_from_buffer(source_byte_index, ArrayBuffer::Unordered);
+            // i. Let value be GetValueFromBuffer(sourceBuffer, sourceByteIndex, sourceType, true, unordered).
+            auto value = get_value_from_buffer(*source_buffer, source_byte_index, source_type, ArrayBuffer::Unordered);
 
-            // ii. Perform SetValueInBuffer(targetBuffer, targetByteIndex, targetType, value, true, Unordered).
+            // ii. Perform SetValueInBuffer(targetBuffer, targetByteIndex, targetType, value, true, unordered).
             target.set_value_in_buffer(target_byte_index, value, ArrayBuffer::Unordered);
 
-            // iii. Set srcByteIndex to srcByteIndex + srcElementSize.
+            // iii. Set sourceByteIndex to sourceByteIndex + sourceElementSize.
             source_byte_index += source_element_size;
 
             // iv. Set targetByteIndex to targetByteIndex + targetElementSize.
@@ -1591,7 +1601,7 @@ static ThrowCompletionOr<void> set_typed_array_from_typed_array(VM& vm, TypedArr
         }
     }
 
-    // 25. Return unused.
+    // 23. Return unused.
     return {};
 }
 
