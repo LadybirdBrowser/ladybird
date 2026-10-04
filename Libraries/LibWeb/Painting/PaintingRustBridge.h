@@ -68,14 +68,16 @@ struct DisplayListRecording {
     NonnullRefPtr<Compositing::DisplayList> placeholder_display_list;
     PaintCommandCacheMode cache_mode;
     bool in_flight { false };
-    DevicePixelRect device_viewport_rect;
-    BlockingWheelEventRegionState wheel_event_region_state;
+    // What its display list is stamped with for async scrolling, sealed where the recording began, and the display list
+    // it copied paint commands from then, which it publishes again where it recorded the same.
+    Optional<Compositing::DisplayList::AsyncScrollingMetadata> async_scrolling_metadata;
+    RefPtr<Compositing::DisplayList> paint_command_cache_source;
 };
 
 // Starts recording the document's viewport against `visual_context_tree`, unless it has no box to record. The recording
 // flies where `blocker` is none.
 WEB_API Optional<DisplayListRecording> start_rust_display_list_recording(Layout::BegunRead const&, DOM::Document&, Compositing::AccumulatedVisualContextTree, NonnullRefPtr<Compositing::DisplayList> placeholder_display_list, PaintCommandCacheMode, HTML::PaintConfig const&, InspectorOverlayInputs const&, Layout::RustFFI::FfiFlightBlocker);
-// Publishes the recording, which has landed and stands, and makes its display list.
+// Publishes the recording, which has landed and stands, and makes its display list from what was sealed where it began.
 WEB_API RefPtr<Compositing::DisplayList> finish_rust_display_list_recording(Layout::BegunRead const&, DOM::Document&, DisplayListRecording const&, Compositing::DisplayListResourceStorage&);
 WEB_API Utf16String serialize_painting_dump(Layout::BegunRead const&, DOM::Document const&, Compositing::AccumulatedVisualContextTree const&, Compositing::DisplayList const&, Compositing::DisplayListResourceStorage const&);
 
