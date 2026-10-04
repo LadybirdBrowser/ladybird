@@ -222,6 +222,17 @@ pub struct FfiAnimationContext {
     pub transform_reference_box_height: f64,
 }
 
+impl FfiAnimationContext {
+    /// Has transforms interpolate against `reference_box`, where there is one.
+    pub(crate) fn set_transform_reference_box(&mut self, reference_box: Option<crate::css::css_pixels::CssPixelRect>) {
+        if let Some(reference_box) = reference_box {
+            self.has_transform_reference_box = true;
+            self.transform_reference_box_width = reference_box.width.to_double();
+            self.transform_reference_box_height = reference_box.height.to_double();
+        }
+    }
+}
+
 #[repr(C)]
 pub struct FfiAnimationKeyframeValue {
     pub key: i64,

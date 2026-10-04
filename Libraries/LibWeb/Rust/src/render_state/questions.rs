@@ -119,9 +119,9 @@ impl<A, R> Question for ArenaRead<A, R> {
     }
 }
 
-/// A call of the host into a document's style engine that the host waits for: `call` reaches the engine and what the
-/// host lends it for the call, its arrays and its callbacks among them, which the render owner reaches while the host
-/// waits.
+/// A call of the host into a document's style engine that the host waits for: `call` reaches the engine, reads the
+/// layout arena beside it, and reaches what the host lends it for the call, its arrays and its callbacks among them,
+/// which the render owner reaches while the host waits.
 pub(crate) struct EngineCall<F>(pub(crate) F);
 
 // SAFETY: The host waits for the answer to the call, so what the call borrows of the host's stays live and unwritten
@@ -129,14 +129,14 @@ pub(crate) struct EngineCall<F>(pub(crate) F);
 // owner while the host waits, as a style transaction's do.
 unsafe impl<F> Send for EngineCall<F> {}
 
-impl<R, F: FnOnce(&mut crate::css::style::StyleEngine) -> R> Question for EngineCall<F> {
+impl<R, F: FnOnce(&mut crate::css::style::StyleEngine, &LayoutNodeArena) -> R> Question for EngineCall<F> {
     type Answer = Waited<R>;
-    // NB: The passes that prepare the paint properties read no style engine.
+    // NB: The passes that prepare the paint properties read no style engine, and the call only reads the arena.
     const LEAVES_PAINT_PREPARATION_CURRENT: bool = true;
 
-    unsafe fn answer(self, _: &mut LayoutNodeArena, engine: StyleEngineHandle) -> Waited<R> {
+    unsafe fn answer(self, arena: &mut LayoutNodeArena, engine: StyleEngineHandle) -> Waited<R> {
         // SAFETY: Guaranteed by the caller. The call reaches the engine only through this borrow.
-        Waited((self.0)(unsafe { engine.get_mut() }))
+        Waited((self.0)(unsafe { engine.get_mut() }, arena))
     }
 }
 

@@ -343,13 +343,7 @@ pub unsafe extern "C" fn render_state_paintable_transform_reference_box(
     slot: NodeSlotId,
 ) -> FfiCssPixelRect {
     fn reference_box(rows: &impl PaintRead, slot: NodeSlotId) -> FfiCssPixelRect {
-        if !rows.paintable_row_is_populated(slot) {
-            return FfiCssPixelRect::default();
-        }
-        let Some(style) = rows.node_style_if_live(slot) else {
-            return FfiCssPixelRect::default();
-        };
-        crate::painting::visual_context::node_values::transform_reference_box(style, rows, slot).into()
+        committed_transform_reference_box(rows, slot).map_or_else(FfiCssPixelRect::default, Into::into)
     }
     // SAFETY: Guaranteed by the caller.
     if let Some(rect) = unsafe { &*host }.read_rows_between_jobs(node_read(), |rows| reference_box(rows, slot)) {
@@ -361,6 +355,17 @@ pub unsafe extern "C" fn render_state_paintable_transform_reference_box(
             reference_box(&arena.paintable_rows(), slot)
         })
     }
+}
+
+/// The transform reference box of the box in `slot`, where the box was laid out.
+pub(crate) fn committed_transform_reference_box(rows: &impl PaintRead, slot: NodeSlotId) -> Option<CssPixelRect> {
+    if !rows.paintable_row_is_populated(slot) {
+        return None;
+    }
+    let style = rows.node_style_if_live(slot)?;
+    Some(crate::painting::visual_context::node_values::transform_reference_box(
+        style, rows, slot,
+    ))
 }
 
 /// # Safety
