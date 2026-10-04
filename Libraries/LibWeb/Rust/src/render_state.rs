@@ -204,7 +204,7 @@ impl ArenaChange {
     /// not: it makes them live, in the order the host minted them.
     fn writes_style(&self) -> bool {
         match self {
-            Self::Style(_) => true,
+            Self::Style(change) => !change.notes_attribute_name(),
             Self::Engine(write) => !matches!(write, crate::css::style::engine_calls::EngineWrite::MintStyleNodes(_)),
             Self::Layout(_) | Self::Paint(_) => false,
         }

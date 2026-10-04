@@ -1090,6 +1090,8 @@ void record_element_moved(DOM::Element& element, DOM::Node* old_parent, DOM::Ele
         && previous.next_element_sibling == relations.next_element_sibling) {
         return;
     }
+    // A style transaction that flew styled the element where it was, and what inherits from it under where it was.
+    style_engine->note_style_node_arrived_or_retired(element.style_node_id());
 
     // A heading's level counts the heading offset its ancestors declare, so moving under a
     // different ancestor can change it without the element itself changing at all.

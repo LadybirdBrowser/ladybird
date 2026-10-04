@@ -992,6 +992,10 @@ static void update_style(Layout::BegunRead const& read, DOM::Document& document,
             for (auto ancestor = DOM::AbstractElement { *element }.element_to_inherit_style_from(); ancestor.has_value(); ancestor = ancestor->element_to_inherit_style_from()) {
                 auto ancestor_style_node = ancestor->element().style_node_id();
                 VERIFY(ancestor_style_node != 0);
+                // NB: The transaction that flew knows nothing of a node that arrived beside it, nor of the descendants
+                //     the node took in. The next transaction styles them under it.
+                if (drains_flown_transaction && document.style_computer().style_engine().style_node_arrived_or_retired_beside_flown_transaction(ancestor_style_node))
+                    break;
                 if (reaction_set.contains(ancestor_style_node)) {
                     for (auto style_node : inheritance_gap) {
                         if (reaction_set.set(style_node) == AK::HashSetResult::InsertedNewEntry) {
