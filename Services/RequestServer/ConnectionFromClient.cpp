@@ -16,6 +16,7 @@
 #include <LibRequests/NetworkError.h>
 #include <LibRequests/WebSocket.h>
 #include <LibURL/Parser.h>
+#include <LibURL/Site.h>
 #include <LibWebSocket/ConnectionInfo.h>
 #include <LibWebSocket/Message.h>
 #include <RequestServer/AIA.h>
@@ -83,9 +84,10 @@ static auto time_curl_call(StringView label, F&& f)
 static constexpr i64 BURST_WINDOW_MS = 100;
 static constexpr u64 BURST_REPORT_THRESHOLD = 5;
 
-ConnectionFromClient::ConnectionFromClient(NonnullOwnPtr<IPC::Transport> transport, IsPrivate is_private, ConnectionMap& connections, RequestTransferLeaseMap& request_transfer_leases, Optional<HTTP::DiskCache&> disk_cache, ByteString alt_svc_cache_path)
+ConnectionFromClient::ConnectionFromClient(NonnullOwnPtr<IPC::Transport> transport, IsPrivate is_private, SiteBinding site_binding, ConnectionMap& connections, RequestTransferLeaseMap& request_transfer_leases, Optional<HTTP::DiskCache&> disk_cache, ByteString alt_svc_cache_path)
     : IPC::ConnectionFromClient<RequestClientEndpoint, RequestServerEndpoint>(*this, move(transport), s_client_ids.allocate())
     , m_is_private(is_private)
+    , m_site_binding(site_binding)
     , m_connections(connections)
     , m_request_transfer_leases(request_transfer_leases)
     , m_disk_cache(disk_cache)
@@ -187,6 +189,39 @@ void ConnectionFromClient::die()
         Core::EventLoop::current().quit(0);
 }
 
+void ConnectionFromClient::bind_to_site(Badge<ControlConnectionFromClient>, Utf16String const& top_level_site, Optional<Utf16String> const& frame_site)
+{
+    m_bound_top_level_sites.set(top_level_site);
+    if (frame_site.has_value())
+        m_bound_sites.set({ top_level_site, *frame_site });
+}
+
+// A bound client may use only the network isolation keys of the documents that the UI process has its process host, so a
+// compromised process cannot reach the cache entries of another site.
+bool ConnectionFromClient::may_use_network_isolation_key(HTTP::NetworkIsolationKey const& key, URL::URL const* request_url) const
+{
+    if (m_site_binding == SiteBinding::Unrestricted)
+        return true;
+
+    // FIXME: The process of the document that starts a navigation makes the navigation's requests, not the process that
+    //        will host the new document. Until the UI process makes navigation requests itself, a client may make a
+    //        request whose key is that of a navigation to the request's URL. Such keys only reach the partitions of
+    //        navigations, never the one a site's own documents use for their subresources.
+    if (request_url) {
+        auto url_site = URL::Site::serialize_for_partitioning(request_url->origin());
+        if (url_site.has_value() && key.frame_site == url_site) {
+            if (!key.is_subframe_document && key.is_cross_site_main_frame_navigation && key.top_level_site == *url_site)
+                return true;
+            if (key.is_subframe_document && m_bound_top_level_sites.contains(key.top_level_site))
+                return true;
+        }
+    }
+
+    if (!key.frame_site.has_value())
+        return m_bound_top_level_sites.contains(key.top_level_site);
+    return m_bound_sites.contains(BoundSite { key.top_level_site, *key.frame_site });
+}
+
 Messages::RequestServer::InitTransportResponse ConnectionFromClient::init_transport([[maybe_unused]] int peer_pid)
 {
 #ifdef AK_OS_WINDOWS
@@ -216,6 +251,12 @@ void ConnectionFromClient::start_request(u64 request_id, ByteString method, URL:
     Requests::RequestTransferLeaseKey lease_key { client_id(), request_id };
     if (m_active_requests.contains(request_id) || m_request_transfer_leases.contains(lease_key)) {
         did_misbehave("reused live request ID");
+        return;
+    }
+
+    if (network_isolation_key.has_value() && !may_use_network_isolation_key(*network_isolation_key, &url)) {
+        dbgln("RequestServer: Client {} is not bound to the network isolation key of its request for {}", client_id(), url);
+        async_request_finished(request_id, 0, {}, Requests::NetworkError::Unknown);
         return;
     }
 
@@ -628,6 +669,9 @@ void ConnectionFromClient::ensure_connection(u64 request_id, URL::URL url, ::Req
 
 Messages::RequestServer::StoreCacheAssociatedDataResponse ConnectionFromClient::store_cache_associated_data(Optional<HTTP::NetworkIsolationKey> network_isolation_key, URL::URL url, ByteString method, Vector<HTTP::Header> request_headers, Optional<u64> vary_key, HTTP::CacheEntryAssociatedData associated_data, Core::AnonymousBuffer data)
 {
+    if (network_isolation_key.has_value() && !may_use_network_isolation_key(*network_isolation_key))
+        return false;
+
     auto partition = network_isolation_key.has_value() ? network_isolation_key->disk_cache_partition() : OptionalNone {};
     if (!m_disk_cache.has_value() || !partition.has_value() || !data.is_valid())
         return false;
@@ -643,6 +687,9 @@ Messages::RequestServer::StoreCacheAssociatedDataResponse ConnectionFromClient::
 
 Messages::RequestServer::RetrieveCacheAssociatedDataResponse ConnectionFromClient::retrieve_cache_associated_data(Optional<HTTP::NetworkIsolationKey> network_isolation_key, URL::URL url, ByteString method, Vector<HTTP::Header> request_headers, Optional<u64> vary_key, HTTP::CacheEntryAssociatedData associated_data)
 {
+    if (network_isolation_key.has_value() && !may_use_network_isolation_key(*network_isolation_key))
+        return Optional<Core::AnonymousBuffer> {};
+
     auto partition = network_isolation_key.has_value() ? network_isolation_key->disk_cache_partition() : OptionalNone {};
     if (!m_disk_cache.has_value() || !partition.has_value())
         return Optional<Core::AnonymousBuffer> {};
@@ -667,6 +714,9 @@ Messages::RequestServer::RetrieveCacheAssociatedDataResponse ConnectionFromClien
 
 Messages::RequestServer::CreateSyntheticCacheEntryResponse ConnectionFromClient::create_synthetic_cache_entry(Optional<HTTP::NetworkIsolationKey> network_isolation_key, URL::URL url, ByteString method)
 {
+    if (network_isolation_key.has_value() && !may_use_network_isolation_key(*network_isolation_key))
+        return false;
+
     auto partition = network_isolation_key.has_value() ? network_isolation_key->disk_cache_partition() : OptionalNone {};
     if (!m_disk_cache.has_value() || !partition.has_value())
         return false;

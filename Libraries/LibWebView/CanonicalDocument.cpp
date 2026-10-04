@@ -45,8 +45,10 @@ CanonicalDocument::~CanonicalDocument() = default;
 void CanonicalDocument::set_host(RefPtr<WebContentPage> host)
 {
     m_host = move(host);
-    if (m_host)
+    if (m_host) {
         m_relevant_global_object->agent().set_hosting_process_if_unset(m_host->client());
+        m_host->client().request_server_site_bindings().bind_sites_of(*this);
+    }
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#make-active

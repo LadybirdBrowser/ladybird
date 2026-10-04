@@ -130,7 +130,7 @@ public:
         auto pair = MUST(IPC::Transport::create_paired());
         m_remote_transport = MUST(pair.remote_handle.create_transport());
         m_connection = RequestServer::ConnectionFromClient::construct(
-            move(pair.local), RequestServer::IsPrivate::No,
+            move(pair.local), RequestServer::IsPrivate::No, RequestServer::SiteBinding::Unrestricted,
             m_server.connections, m_server.request_transfer_leases, Optional<HTTP::DiskCache&> {}, ByteString {});
 #ifdef AK_OS_WINDOWS
         auto pid = Core::System::getpid();

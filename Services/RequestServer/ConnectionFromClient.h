@@ -9,6 +9,7 @@
 #include <AK/Badge.h>
 #include <AK/ByteBuffer.h>
 #include <AK/HashMap.h>
+#include <AK/HashTable.h>
 #include <AK/Optional.h>
 #include <AK/Time.h>
 #include <AK/Vector.h>
@@ -26,6 +27,7 @@
 #include <RequestServer/IsPrivate.h>
 #include <RequestServer/RequestClientEndpoint.h>
 #include <RequestServer/RequestServerEndpoint.h>
+#include <RequestServer/SiteBinding.h>
 
 namespace RequestServer {
 
@@ -68,12 +70,18 @@ public:
 
     IsPrivate is_private() const { return m_is_private; }
 
+    // Lets a bound client make requests for documents of frame_site under a top-level document of top_level_site. A
+    // frame site of nothing stands for documents with opaque origins.
+    void bind_to_site(Badge<ControlConnectionFromClient>, Utf16String const& top_level_site, Optional<Utf16String> const& frame_site);
+
     void start_revalidation_request(Badge<Request>, HTTP::NetworkIsolationKey, ByteString method, URL::URL, NonnullRefPtr<HTTP::HeaderList> request_headers, ByteBuffer request_body, HTTP::Cookie::IncludeCredentials);
     void request_complete(Badge<Request>, Request const&);
     void fetch_aia_intermediate(Badge<Request>, ByteString const& url, u64 for_request_id);
 
 private:
-    ConnectionFromClient(NonnullOwnPtr<IPC::Transport>, IsPrivate, ConnectionMap&, RequestTransferLeaseMap&, Optional<HTTP::DiskCache&>, ByteString alt_svc_cache_path);
+    ConnectionFromClient(NonnullOwnPtr<IPC::Transport>, IsPrivate, SiteBinding, ConnectionMap&, RequestTransferLeaseMap&, Optional<HTTP::DiskCache&>, ByteString alt_svc_cache_path);
+
+    bool may_use_network_isolation_key(HTTP::NetworkIsolationKey const&, URL::URL const* request_url = nullptr) const;
 
     virtual Messages::RequestServer::InitTransportResponse init_transport(int peer_pid) override;
 
@@ -105,6 +113,21 @@ private:
     void connect_websocket(u64 websocket_id, URL::URL, ByteString origin, Vector<ByteString> protocols, Vector<ByteString> extensions, Vector<HTTP::Header> request_headers);
 
     IsPrivate m_is_private { IsPrivate::No };
+
+    SiteBinding m_site_binding { SiteBinding::Bound };
+    struct BoundSite {
+        Utf16String top_level_site;
+        Utf16String frame_site;
+
+        bool operator==(BoundSite const&) const = default;
+    };
+    struct BoundSiteTraits : public DefaultTraits<BoundSite> {
+        static unsigned hash(BoundSite const& site) { return pair_int_hash(site.top_level_site.hash(), site.frame_site.hash()); }
+    };
+
+    // NB: Bindings are only ever added, for the life of the client. See WebView::RequestServerSiteBindings.
+    HashTable<Utf16String> m_bound_top_level_sites;
+    HashTable<BoundSite, BoundSiteTraits> m_bound_sites;
 
     ConnectionMap& m_connections;
     RequestTransferLeaseMap& m_request_transfer_leases;

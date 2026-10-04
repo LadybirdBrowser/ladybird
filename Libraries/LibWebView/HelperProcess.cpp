@@ -537,13 +537,13 @@ ErrorOr<NonnullRefPtr<Requests::RequestControlClient>> launch_request_server_pro
     return client;
 }
 
-ErrorOr<IPC::TransportHandle> connect_new_request_server_client(BrowsingSession& session)
+ErrorOr<RequestServerClientConnection> connect_new_request_server_client(BrowsingSession& session, RequestServer::SiteBinding site_binding)
 {
-    auto response = Application::request_server_control_client().send_sync_but_allow_failure<Messages::RequestServerControl::ConnectNewClient>(session.is_private() == IsPrivate::Yes ? RequestServer::IsPrivate::Yes : RequestServer::IsPrivate::No);
+    auto response = Application::request_server_control_client().send_sync_but_allow_failure<Messages::RequestServerControl::ConnectNewClient>(session.is_private() == IsPrivate::Yes ? RequestServer::IsPrivate::Yes : RequestServer::IsPrivate::No, site_binding);
     if (!response || response->client_id() < 0)
         return Error::from_string_literal("Failed to connect to RequestServer");
     Application::the().did_connect_request_server_client(response->client_id(), session);
-    return response->take_handle();
+    return RequestServerClientConnection { .handle = response->take_handle(), .client_id = response->client_id() };
 }
 
 ErrorOr<IPC::TransportHandle> connect_new_image_decoder_client()

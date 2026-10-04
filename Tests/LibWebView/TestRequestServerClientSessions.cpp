@@ -56,8 +56,8 @@ int client_id_of(Requests::RequestClient& client)
 
 int connect_request_server_client(WebView::BrowsingSession& session)
 {
-    auto handle = MUST(WebView::connect_new_request_server_client(session));
-    auto client = make_ref_counted<Requests::RequestClient>(MUST(handle.create_transport()));
+    auto connection = MUST(WebView::connect_new_request_server_client(session, RequestServer::SiteBinding::Bound));
+    auto client = make_ref_counted<Requests::RequestClient>(MUST(connection.handle.create_transport()));
     auto client_id = client->send_sync<Messages::RequestServer::GetClientId>()->client_id();
     s_clients.append(move(client));
     return client_id;

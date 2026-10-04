@@ -730,13 +730,14 @@ Messages::WebContentClient::DidIsKnownHstsHostResponse WebContentClient::did_is_
 
 Messages::WebContentClient::DidLoseRequestServerConnectionResponse WebContentClient::did_lose_request_server_connection()
 {
-    auto handle = connect_new_request_server_client(*m_session);
-    if (handle.is_error()) {
-        warnln("Unable to connect a replacement RequestServer client: {}", handle.error());
+    auto connection = connect_new_request_server_client(*m_session, RequestServer::SiteBinding::Bound);
+    if (connection.is_error()) {
+        warnln("Unable to connect a replacement RequestServer client: {}", connection.error());
         return OptionalNone {};
     }
 
-    return handle.release_value();
+    m_request_server_site_bindings.did_connect(connection.value().client_id);
+    return move(connection.value().handle);
 }
 
 Messages::WebContentClient::RequestMediaServerConnectionResponse WebContentClient::request_media_server_connection()
