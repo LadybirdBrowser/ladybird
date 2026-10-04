@@ -1506,18 +1506,23 @@ pub unsafe fn style_engine_use_registered_style_groups(engine: StyleEngineHandle
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_note_custom_property_environment(
     host: *const DocumentHost,
-    read: &crate::render_state::BegunRead,
     identity: u64,
     store: *const c_void,
     inheritable: u64,
     inheritable_store: *const c_void,
 ) {
+    use super::custom_property_environments::RetainedCustomPropertyStore;
     // SAFETY: Guaranteed by the caller.
-    let host = unsafe { document_host(host) };
+    let retain =
+        |store: *const c_void| (!store.is_null()).then(|| unsafe { RetainedCustomPropertyStore::from_borrowed(store) });
+    let write = super::engine_calls::EngineWrite::NoteCustomPropertyEnvironment {
+        identity,
+        store: retain(store),
+        inheritable,
+        inheritable_store: retain(inheritable_store),
+    };
     // SAFETY: Guaranteed by the caller.
-    with_engine(read, host, |engine| unsafe {
-        note_custom_property_environment(engine, identity, store, inheritable, inheritable_store);
-    });
+    unsafe { super::engine_calls::queue(host, write) };
 }
 
 /// [`style_engine_note_custom_property_environment`] on `engine`, which the style replay tool calls
@@ -3417,7 +3422,7 @@ pub unsafe extern "C" fn style_engine_move_custom_property_environment(
 ) -> FfiEnvironmentMoveActions {
     // SAFETY: Guaranteed by the caller.
     let host = unsafe { document_host(host) };
-    with_engine(read, host, |engine| {
+    let (answer, moved) = with_engine(read, host, |engine| {
         let mut actions = std::mem::take(&mut engine.host.environment_move_actions);
         actions.clear();
         if let Some(origin) = StyleNodeID::from_raw(origin) {
@@ -3439,9 +3444,30 @@ pub unsafe extern "C" fn style_engine_move_custom_property_environment(
             actions: actions.as_ptr(),
             count: actions.len(),
         };
+        // Each element the move left an environment takes the record republished over it.
+        let mut moved = Vec::new();
+        for action in &actions {
+            let Some(node) =
+                StyleNodeID::from_raw(action.node).filter(|_| action.kind == FfiEnvironmentMoveActionKind::Republish)
+            else {
+                continue;
+            };
+            moved.push((
+                node,
+                None,
+                engine.element_custom_property_data(node).expose_provenance(),
+            ));
+            moved.extend(
+                engine
+                    .pseudo_element_custom_property_environments(node)
+                    .map(|(pseudo, data)| (node, Some(pseudo), data.expose_provenance())),
+            );
+        }
         engine.host.environment_move_actions = actions;
-        answer
-    })
+        (answer, moved)
+    });
+    host.engine_memo().held.borrow_mut().follow_moved(&moved);
+    answer
 }
 
 /// Replays a record moved to a refreshed environment.

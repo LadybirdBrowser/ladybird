@@ -10,7 +10,6 @@
 //! what it hands over: borrowed arrays are copied, and the host's objects are referenced, as the entry queues the
 //! change.
 
-use super::StyleAtomID;
 use super::atoms::{AtomKey, AtomLease};
 use super::bridge::{
     FfiDemandedPseudoElement, FfiElementArrival, FfiElementDeclarationDelta, FfiElementStyleInput,
@@ -25,6 +24,7 @@ use super::publication::RecordDemand;
 use super::random_bases::{NamedBaseValue, ParkedBaseValues};
 use super::record_replay::EventKind;
 use super::tree::{StyleNodeID, TreeScopeID};
+use super::{HashMap, StyleAtomID};
 use super::{StyleEngine, StyleEngineHandle};
 use crate::css::transition::{FfiTransitionAction, FfiTransitionInput, TransitionDecision};
 use crate::render_state::{ArenaChange, BegunRead, DocumentHost};
@@ -84,6 +84,14 @@ pub(crate) enum EngineWrite {
     ParkRandomBaseValues { node: StyleNodeID, slot: ParkedBaseValues },
     /// An element's new style node takes back the random base values the element kept in `slot`.
     UnparkRandomBaseValues { node: StyleNodeID, slot: ParkedBaseValues },
+    /// The store behind an environment an element holds, and what a child inherits of it, `inheritable` with its
+    /// store.
+    NoteCustomPropertyEnvironment {
+        identity: u64,
+        store: Option<super::custom_property_environments::RetainedCustomPropertyStore>,
+        inheritable: u64,
+        inheritable_store: Option<super::custom_property_environments::RetainedCustomPropertyStore>,
+    },
     /// What a custom property's name atom spells, and the fly string it is.
     NoteCustomPropertyName {
         name: StyleAtomID,
@@ -183,6 +191,26 @@ impl EngineWrite {
                 let row = std::mem::take(&mut *slot.lock().expect("a parked row is never poisoned"));
                 if !row.is_empty() {
                     unpark_random_base_values(engine, node, &row);
+                }
+            }
+            Self::NoteCustomPropertyEnvironment {
+                identity,
+                store,
+                inheritable,
+                inheritable_store,
+            } => {
+                let pointer = |store: &Option<super::custom_property_environments::RetainedCustomPropertyStore>| {
+                    store.as_ref().map_or(std::ptr::null(), |store| store.pointer())
+                };
+                // SAFETY: The write retains both stores.
+                unsafe {
+                    super::bridge::note_custom_property_environment(
+                        engine,
+                        identity,
+                        pointer(&store),
+                        inheritable,
+                        pointer(&inheritable_store),
+                    );
                 }
             }
             Self::NoteCustomPropertyName { name, string, text } => {
@@ -390,6 +418,9 @@ pub unsafe extern "C" fn style_engine_set_element_custom_property_data(
         return;
     };
     // SAFETY: Guaranteed by the caller.
+    let host = unsafe { document_host(host) };
+    host.engine_memo().held.borrow_mut().follow_element(node, data);
+    // SAFETY: Guaranteed by the caller.
     let data = (!data.is_null()).then(|| unsafe { RetainedCustomPropertyData::retain(data) });
     let write = EngineWrite::ElementCustomPropertyData {
         node,
@@ -398,8 +429,7 @@ pub unsafe extern "C" fn style_engine_set_element_custom_property_data(
         sampled_over: is_animation_overlay.then_some(base),
         declares,
     };
-    // SAFETY: Guaranteed by the caller.
-    unsafe { queue(host, write) };
+    host.queue_change(ArenaChange::Engine(write));
 }
 
 /// Keeps the custom-property environment one of an element's synthetic pseudo-elements now holds, named by
@@ -419,6 +449,12 @@ pub unsafe extern "C" fn style_engine_set_pseudo_element_custom_property_data(
         return;
     };
     // SAFETY: Guaranteed by the caller.
+    let host = unsafe { document_host(host) };
+    host.engine_memo()
+        .held
+        .borrow_mut()
+        .follow_pseudo_element(node, pseudo, data);
+    // SAFETY: Guaranteed by the caller.
     let data = (!data.is_null()).then(|| unsafe { RetainedCustomPropertyData::retain(data) });
     let write = EngineWrite::PseudoElementCustomPropertyData {
         node,
@@ -426,8 +462,7 @@ pub unsafe extern "C" fn style_engine_set_pseudo_element_custom_property_data(
         data,
         identity,
     };
-    // SAFETY: Guaranteed by the caller.
-    unsafe { queue(host, write) };
+    host.queue_change(ArenaChange::Engine(write));
 }
 
 /// Interns the name whose raw identity is `raw` for the document, without its engine: the host takes a reference to
@@ -620,18 +655,10 @@ pub unsafe fn replay_set_element_language(engine: StyleEngineHandle, node: u32, 
 
 /// A read of a document's style engine the host's style code makes.
 pub(crate) enum StyleQuery {
-    /// The custom-property environment an element holds.
-    ElementCustomPropertyData(StyleNodeID),
-    /// The custom-property environment one of an element's synthetic pseudo-elements holds.
-    PseudoElementCustomPropertyData { node: StyleNodeID, pseudo: u8 },
-    /// Which of an element's synthetic pseudo-elements hold a custom-property environment, as a bit set by kind.
-    PseudoElementsWithCustomPropertyData(StyleNodeID),
     /// The nodes whose style depends on the viewport.
     ViewportDependentNodes,
     /// The record of an element or one of its pseudo-elements the host reads before the next style update.
     RecordDemand { node: StyleNodeID, demand: RecordDemand },
-    /// What a style record's values depend on.
-    StyleRecordDependencyFlags(u64),
     /// The engine's id of the native rule the host names by `identity`.
     NativeRuleId(u64),
     /// The engine's counter at `index`.
@@ -644,8 +671,6 @@ pub(crate) enum StyleQuery {
 
 /// The answer to a [`StyleQuery`].
 pub(crate) enum StyleAnswer {
-    /// The address of a host object the engine holds, or 0.
-    HostObject(usize),
     Number(u64),
     Nodes(Vec<u32>),
     RecordDemand(FfiRecordDemandAnswer),
@@ -658,15 +683,6 @@ impl StyleQuery {
         match self {
             Self::EndTransaction => StyleAnswer::Nodes(super::bridge::end_style_transaction(engine)),
             Self::DecideTransitions(decision) => StyleAnswer::Transitions(decision.answer(engine)),
-            Self::ElementCustomPropertyData(node) => {
-                StyleAnswer::HostObject(engine.element_custom_property_data(node).addr())
-            }
-            Self::PseudoElementCustomPropertyData { node, pseudo } => {
-                StyleAnswer::HostObject(engine.pseudo_element_custom_property_data(node, pseudo).addr())
-            }
-            Self::PseudoElementsWithCustomPropertyData(node) => {
-                StyleAnswer::Number(engine.pseudo_elements_with_custom_property_data(node))
-            }
             Self::ViewportDependentNodes => {
                 StyleAnswer::Nodes(engine.computed_group_sets.viewport_dependent_nodes(|environment| {
                     engine.custom_property_environments.reads_viewport(environment)
@@ -674,9 +690,6 @@ impl StyleQuery {
             }
             Self::RecordDemand { node, demand } => {
                 StyleAnswer::RecordDemand(super::bridge::answer_record_demand(engine, node, demand))
-            }
-            Self::StyleRecordDependencyFlags(record) => {
-                StyleAnswer::Number(engine.style_record_dependency_flags(record).unwrap_or(0).into())
             }
             Self::NativeRuleId(identity) => {
                 StyleAnswer::Number(engine.native_rule_id(identity).map_or(0, |id| u64::from(id.0) + 1))
@@ -744,21 +757,6 @@ unsafe fn ask_engine_number(
     number
 }
 
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread.
-unsafe fn ask_engine_host_object(
-    host: *const DocumentHost,
-    read: &crate::render_state::BegunRead,
-    query: StyleQuery,
-) -> *const c_void {
-    // SAFETY: Guaranteed by the caller.
-    let StyleAnswer::HostObject(address) = (unsafe { ask_engine(host, read, query) }) else {
-        unreachable!("the question is answered with a host object");
-    };
-    std::ptr::with_exposed_provenance(address)
-}
-
 /// The custom-property environment an element holds, or null.
 ///
 /// # Safety
@@ -767,14 +765,13 @@ unsafe fn ask_engine_host_object(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_element_custom_property_data(
     host: *const DocumentHost,
-    read: &crate::render_state::BegunRead,
     node: u32,
 ) -> *const c_void {
     let Some(node) = StyleNodeID::from_raw(node) else {
         return std::ptr::null();
     };
     // SAFETY: Guaranteed by the caller.
-    unsafe { ask_engine_host_object(host, read, StyleQuery::ElementCustomPropertyData(node)) }
+    unsafe { document_host(host) }.engine_memo().held.borrow().element(node)
 }
 
 /// The custom-property environment one of an element's synthetic pseudo-elements holds, or null.
@@ -785,7 +782,6 @@ pub unsafe extern "C" fn style_engine_element_custom_property_data(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_pseudo_element_custom_property_data(
     host: *const DocumentHost,
-    read: &crate::render_state::BegunRead,
     node: u32,
     pseudo: u8,
 ) -> *const c_void {
@@ -793,7 +789,11 @@ pub unsafe extern "C" fn style_engine_pseudo_element_custom_property_data(
         return std::ptr::null();
     };
     // SAFETY: Guaranteed by the caller.
-    unsafe { ask_engine_host_object(host, read, StyleQuery::PseudoElementCustomPropertyData { node, pseudo }) }
+    unsafe { document_host(host) }
+        .engine_memo()
+        .held
+        .borrow()
+        .pseudo_element(node, pseudo)
 }
 
 /// Which of an element's synthetic pseudo-elements hold a custom-property environment, as a bit set by kind.
@@ -804,14 +804,17 @@ pub unsafe extern "C" fn style_engine_pseudo_element_custom_property_data(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_pseudo_elements_with_custom_property_data(
     host: *const DocumentHost,
-    read: &crate::render_state::BegunRead,
     node: u32,
 ) -> u64 {
     let Some(node) = StyleNodeID::from_raw(node) else {
         return 0;
     };
     // SAFETY: Guaranteed by the caller.
-    unsafe { ask_engine_number(host, read, StyleQuery::PseudoElementsWithCustomPropertyData(node)) }
+    unsafe { document_host(host) }
+        .engine_memo()
+        .held
+        .borrow()
+        .pseudo_element_kinds(node)
 }
 
 /// The nodes whose style depends on the viewport, handed to `append` one by one.
@@ -966,8 +969,16 @@ pub unsafe extern "C" fn style_engine_style_record_dependency_flags(
     style_record: u64,
 ) -> u8 {
     // SAFETY: Guaranteed by the caller.
-    let flags = unsafe { ask_engine_number(host, read, StyleQuery::StyleRecordDependencyFlags(style_record)) };
-    u8::try_from(flags).expect("dependency flags fit a byte")
+    let host = unsafe { document_host(host) };
+    let memo = &host.engine_memo().dependency_flags;
+    if let Some(flags) = memo.get(style_record) {
+        return flags;
+    }
+    let Some(flags) = with_engine(read, host, |engine| engine.style_record_dependency_flags(style_record)) else {
+        return 0;
+    };
+    memo.set(style_record, flags);
+    flags
 }
 
 /// The identity of the custom-property environment a style record was computed in, or 0.
@@ -983,7 +994,7 @@ pub unsafe extern "C" fn style_engine_style_record_custom_property_environment(
 ) -> u64 {
     // SAFETY: Guaranteed by the caller.
     let host = unsafe { document_host(host) };
-    let memo = &host.engine_memo().environments;
+    let memo = &host.engine_memo().record_environments;
     if let Some(environment) = memo.get(style_record) {
         return environment;
     }
@@ -998,21 +1009,102 @@ pub unsafe extern "C" fn style_engine_style_record_custom_property_environment(
     environment
 }
 
-/// What the host learned of its document's style engine, which answers the host's reads again without asking the
-/// render owner.
+/// What the host knows of its document's style engine, which answers the host's reads without asking the render owner.
 pub(crate) struct EngineMemo {
-    /// The view of each style record the host asked about, and the custom-property environment it was computed in: a
-    /// published record never changes while it is live, and no other record ever takes its identity, as each identity
-    /// carries the generation of its slot.
+    /// The view of each style record the host asked about, the custom-property environment it was computed in, and
+    /// what its values depend on: a published record never changes while it is live, and no other record ever takes
+    /// its identity, as each identity carries the generation of its slot.
     pub(crate) views: Memo<super::bridge::FfiStyleRecordView>,
-    pub(crate) environments: Memo<u64>,
+    pub(crate) record_environments: Memo<u64>,
+    pub(crate) dependency_flags: Memo<u8>,
+    /// The custom-property environments the engine holds for elements.
+    pub(crate) held: std::cell::RefCell<HeldEnvironments>,
 }
 
 impl Default for EngineMemo {
     fn default() -> Self {
         Self {
             views: Memo::new(super::bridge::FfiStyleRecordView::missing()),
-            environments: Memo::new(0),
+            record_environments: Memo::new(0),
+            dependency_flags: Memo::new(0),
+            held: Default::default(),
+        }
+    }
+}
+
+/// The custom-property environment each element and each of its synthetic pseudo-elements holds in the engine, as the
+/// host's object for it, which the engine keeps alive while it holds it. The host follows every write of them, so it
+/// never asks: it makes them itself, but for a move of the environment some elements inherit, which answers the host
+/// what it moved, and the retirement of a node, whose identity the host takes back from the transaction that retired
+/// it.
+#[derive(Default)]
+pub(crate) struct HeldEnvironments {
+    elements: HashMap<StyleNodeID, *const c_void>,
+    pseudo_elements: HashMap<StyleNodeID, Vec<(u8, *const c_void)>>,
+}
+
+/// An environment a move left an element (`None`) or one of its synthetic pseudo-elements, by the address of the host's
+/// object for it. A moved element's entries come together, its own first.
+pub(crate) type MovedEnvironment = (StyleNodeID, Option<u8>, usize);
+
+impl HeldEnvironments {
+    fn element(&self, node: StyleNodeID) -> *const c_void {
+        self.elements.get(&node).copied().unwrap_or(std::ptr::null())
+    }
+
+    fn pseudo_element(&self, node: StyleNodeID, pseudo: u8) -> *const c_void {
+        self.pseudo_elements
+            .get(&node)
+            .and_then(|environments| environments.iter().find(|&&(kind, _)| kind == pseudo))
+            .map_or(std::ptr::null(), |&(_, data)| data)
+    }
+
+    fn pseudo_element_kinds(&self, node: StyleNodeID) -> u64 {
+        self.pseudo_elements.get(&node).map_or(0, |environments| {
+            environments.iter().fold(0, |kinds, &(kind, _)| kinds | (1 << kind))
+        })
+    }
+
+    /// Follows `data`, null for none, which the host hands the engine for `node`.
+    fn follow_element(&mut self, node: StyleNodeID, data: *const c_void) {
+        if data.is_null() {
+            self.elements.remove(&node);
+        } else {
+            self.elements.insert(node, data);
+        }
+    }
+
+    /// Follows `data`, null for none, which the host hands the engine for a synthetic pseudo-element of `node`.
+    fn follow_pseudo_element(&mut self, node: StyleNodeID, pseudo: u8, data: *const c_void) {
+        let environments = self.pseudo_elements.entry(node).or_default();
+        environments.retain(|&(kind, _)| kind != pseudo);
+        if !data.is_null() {
+            environments.push((pseudo, data));
+        }
+        if environments.is_empty() {
+            self.pseudo_elements.remove(&node);
+        }
+    }
+
+    /// Follows what a move left the elements it moved.
+    pub(crate) fn follow_moved(&mut self, moved: &[MovedEnvironment]) {
+        for &(node, pseudo, address) in moved {
+            let data = std::ptr::with_exposed_provenance(address);
+            match pseudo {
+                None => {
+                    self.follow_element(node, data);
+                    self.pseudo_elements.remove(&node);
+                }
+                Some(pseudo) => self.follow_pseudo_element(node, pseudo, data),
+            }
+        }
+    }
+
+    /// Forgets what the nodes a transaction retired held, whose identities it `released`.
+    pub(crate) fn forget(&mut self, released: &[u32]) {
+        for node in released.iter().filter_map(|&raw| StyleNodeID::from_raw(raw)) {
+            self.elements.remove(&node);
+            self.pseudo_elements.remove(&node);
         }
     }
 }

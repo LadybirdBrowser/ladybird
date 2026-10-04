@@ -1182,22 +1182,16 @@ impl RetainedState {
         }
     }
 
-    /// The custom-property environment one of an element's synthetic pseudo-elements holds, or null.
-    pub(crate) fn pseudo_element_custom_property_data(&self, node: StyleNodeID, pseudo: u8) -> *const std::ffi::c_void {
+    /// The custom-property environments an element's synthetic pseudo-elements hold, by kind.
+    pub(crate) fn pseudo_element_custom_property_environments(
+        &self,
+        node: StyleNodeID,
+    ) -> impl Iterator<Item = (u8, *const std::ffi::c_void)> + '_ {
         self.pseudo_element_custom_property_data
             .get(&node)
-            .and_then(|environments| environments.iter().find(|(kind, _)| *kind == pseudo))
-            .map_or(std::ptr::null(), |(_, environment)| environment.data.data())
-    }
-
-    /// The kinds of an element's synthetic pseudo-elements that hold a custom-property environment,
-    /// one bit per kind.
-    pub(crate) fn pseudo_elements_with_custom_property_data(&self, node: StyleNodeID) -> u64 {
-        self.pseudo_element_custom_property_data
-            .get(&node)
-            .map_or(0, |environments| {
-                environments.iter().fold(0, |kinds, (kind, _)| kinds | (1 << kind))
-            })
+            .into_iter()
+            .flatten()
+            .map(|(kind, environment)| (*kind, environment.data.data()))
     }
 
     /// Record whether the element's style reads its custom-property environment other than through

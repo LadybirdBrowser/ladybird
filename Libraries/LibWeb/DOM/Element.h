@@ -987,7 +987,7 @@ private:
     CSS::RequiredInvalidationAfterStyleChange recompute_pseudo_element_styles(Layout::BegunRead const& read, bool& did_change_custom_properties, bool had_list_marker, CSS::ComputedValues const* old_originating_style, EnginePseudoElementRecords const* = nullptr, EngineRecordDamages const* = nullptr);
     void apply_computed_style_to_layout_node_if_needed(Layout::BegunRead const& read, CSS::RequiredInvalidationAfterStyleChange const&);
     void apply_computed_pseudo_element_styles_to_layout_nodes_if_needed(Layout::BegunRead const& read, CSS::RequiredInvalidationAfterStyleChange const&);
-    void publish_custom_property_names(Layout::BegunRead const& read);
+    void publish_custom_property_names();
     void update_anchor_name_registry(CSS::ComputedValues const* old_computed_values, CSS::ComputedValues const& new_computed_values);
     void replace_style_record(CSS::StyleRecordID);
     void clear_computed_styles_from_display_none_descendants(Layout::BegunRead const& read);
