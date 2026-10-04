@@ -16,10 +16,10 @@ namespace Web::Bindings {
 
 GC_DEFINE_ALLOCATOR(WrapperWorld);
 
-static void verify_cache_entry(WrapperWorld const& world, Wrappable const& wrappable, PlatformObject const& wrapper)
+static void verify_cache_entry(WrapperWorld const& world, Wrappable const& wrappable, JS::HostObject const& wrapper)
 {
-    VERIFY(wrapper.realm().host_defined());
-    VERIFY(&host_defined_wrapper_world(wrapper.realm()) == &world);
+    VERIFY(wrapper.shape().realm().host_defined());
+    VERIFY(&host_defined_wrapper_world(wrapper.shape().realm()) == &world);
     VERIFY(wrappable_impl_from(&wrapper) == &wrappable);
 }
 
@@ -55,7 +55,7 @@ void WrapperWorld::register_preserved_wrappable(GCAllocatedWrappable& wrappable)
     m_preserved_wrappables.set(wrappable);
 }
 
-GC::Ptr<PlatformObject> WrapperWorld::wrapper_for(Wrappable const& wrappable, JS::Realm& realm) const
+GC::Ptr<JS::HostObject> WrapperWorld::wrapper_for(Wrappable const& wrappable, JS::Realm& realm) const
 {
     if (is_main_world()) {
         if (auto wrapper = wrappable.cached_main_world_wrapper(*this))
@@ -64,13 +64,13 @@ GC::Ptr<PlatformObject> WrapperWorld::wrapper_for(Wrappable const& wrappable, JS
     }
 
     if (auto* wrapper = m_wrappers.get(wrappable)) {
-        VERIFY(&wrapper->realm() == &realm);
-        return const_cast<PlatformObject*>(wrapper);
+        VERIFY(&wrapper->shape().realm() == &realm);
+        return const_cast<JS::HostObject*>(wrapper);
     }
     return nullptr;
 }
 
-void WrapperWorld::set_wrapper(Wrappable& wrappable, PlatformObject& wrapper)
+void WrapperWorld::set_wrapper(Wrappable& wrappable, JS::HostObject& wrapper)
 {
     VERIFY(!is_detached());
     verify_cache_entry(*this, wrappable, wrapper);
@@ -82,13 +82,13 @@ void WrapperWorld::set_wrapper(Wrappable& wrappable, PlatformObject& wrapper)
 
     if (auto* existing = m_wrappers.get(wrappable)) {
         VERIFY(existing == &wrapper);
-        VERIFY(&existing->realm() == &wrapper.realm());
+        VERIFY(&existing->shape().realm() == &wrapper.shape().realm());
         return;
     }
     m_wrappers.set(wrappable, wrapper);
 }
 
-void WrapperWorld::clear_wrapper(Wrappable& wrappable, PlatformObject const& wrapper)
+void WrapperWorld::clear_wrapper(Wrappable& wrappable, JS::HostObject const& wrapper)
 {
     verify_cache_entry(*this, wrappable, wrapper);
 

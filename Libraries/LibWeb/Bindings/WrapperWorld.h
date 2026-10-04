@@ -43,9 +43,9 @@ public:
     // world. Main worlds are agent-lifetime objects and must not detach.
     void detach();
 
-    [[nodiscard]] GC::Ptr<PlatformObject> wrapper_for(Wrappable const&, JS::Realm&) const;
-    void set_wrapper(Wrappable&, PlatformObject&);
-    void clear_wrapper(Wrappable&, PlatformObject const&);
+    [[nodiscard]] GC::Ptr<JS::HostObject> wrapper_for(Wrappable const&, JS::Realm&) const;
+    void set_wrapper(Wrappable&, JS::HostObject&);
+    void clear_wrapper(Wrappable&, JS::HostObject const&);
     void register_preserved_wrappable(GCAllocatedWrappable&);
 
 private:
@@ -57,7 +57,7 @@ private:
     // Non-main cache cells are realm-local; a logical isolated world that spans
     // multiple realms must allocate one WrapperWorld cell per realm. Both sides
     // are weak; the cache cannot keep either implementation or wrapper alive.
-    GC::WeakHashMap<Wrappable, PlatformObject> m_wrappers;
+    GC::WeakHashMap<Wrappable, JS::HostObject> m_wrappers;
     GC::WeakHashSet<GCAllocatedWrappable> m_preserved_wrappables;
 };
 

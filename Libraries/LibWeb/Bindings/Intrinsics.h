@@ -176,8 +176,8 @@ JS::ThrowCompletionOr<void> set_prototype_from_new_target(JS::Realm& target_real
     // the cross-realm case where new.target resolves to a different realm than the
     // wrapper's own (e.g. Reflect.construct with a bound function from another
     // realm), so target_realm's default prototype is not the wrapper realm's.
-    if (auto* wrapper = as_if<PlatformObject>(&object)) {
-        auto& interface_prototype = ensure_web_prototype<PrototypeType>(wrapper->realm(), interface_name);
+    if (auto* wrapper = as_platform_object(object)) {
+        auto& interface_prototype = ensure_web_prototype<PrototypeType>(wrapper->shape().realm(), interface_name);
         if (&prototype.as_object() != &interface_prototype) {
             if (auto* wrappable = wrappable_impl_from(wrapper))
                 preserve_wrapper(*wrappable, *wrapper);

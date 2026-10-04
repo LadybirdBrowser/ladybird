@@ -10,8 +10,6 @@
 #include <LibJS/Runtime/PrototypeObject.h>
 #include <LibWeb/Bindings/Wrappable.h>
 
-// Note: Using WEB_PLATFORM_OBJECT() on a class that doesn't inherit from Web::Bindings::PlatformObject
-//       is a compilation error, so that is not tested here.
 // Note: It's pretty hard to have the incorrect type in a JS::PrototypeObject, since the base name would
 //       have a comma in it, and wouldn't be passable as the basename without a typedef.
 

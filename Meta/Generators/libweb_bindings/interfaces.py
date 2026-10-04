@@ -23,11 +23,11 @@ from Generators.libweb_bindings.includes import GeneratedIncludes
 from Generators.libweb_bindings.named_and_indexed_properties import interface_supports_named_properties
 from Generators.libweb_bindings.named_and_indexed_properties import legacy_platform_object_info_functions
 from Generators.libweb_bindings.overload_resolution import parameter_list_length
+from Generators.libweb_bindings.wrappers import create_wrapper_function_name
+from Generators.libweb_bindings.wrappers import interface_and_inherited_interfaces
 from Generators.libweb_bindings.wrappers import interface_needs_wrapper
 from Generators.libweb_bindings.wrappers import legacy_platform_object_info_fields
 from Generators.libweb_bindings.wrappers import parent_interface
-from Generators.libweb_bindings.wrappers import wrapper_base_class_name
-from Generators.libweb_bindings.wrappers import wrapper_class_name
 from Generators.libweb_bindings.wrappers import wrapper_host_class_flags
 from Generators.libweb_bindings.wrappers import wrapper_host_class_hooks
 from Generators.libweb_bindings.wrappers import wrapper_host_class_name
@@ -92,121 +92,54 @@ def write_wrapper_host_class(
     )
 
 
+def write_create_wrapper_function(out: TextIO, context: GenerationContext, interface: Interface) -> None:
+    impl_type = fully_qualified_name_for_interface(interface)
+    host_class = wrapper_host_class_name(interface)
+    out.write(
+        f"""GC::Ref<JS::HostObject> {create_wrapper_function_name(interface)}(JS::Realm& realm, GC::Ref<{impl_type}> impl)
+{{
+"""
+    )
+    is_global = "Global" in interface.extended_attributes
+    if is_global:
+        # NB: The realm of a [Global] wrapper gets its host-defined data after the wrapper is created, and only then does
+        #     setting up the realm's interfaces give the wrapper its prototype.
+        out.write(
+            f"""    if (!realm.host_defined())
+        return JS::HostObject::create(realm, {host_class}, nullptr, impl);
+"""
+        )
+    out.write(
+        f"""    static auto const& name = "{interface.namespaced_name}"_utf16_fly_string;
+    auto wrapper = JS::HostObject::create(realm, {host_class}, &ensure_web_prototype<{interface.prototype_class}>(realm, name), impl);
+"""
+    )
+    # NB: The unforgeable attributes of a [Global] interface live on the global object, which its global mixin defines.
+    for interface_in_chain in reversed(interface_and_inherited_interfaces(context, interface)):
+        if "Global" in interface_in_chain.extended_attributes:
+            continue
+        out.write(f"    {interface_in_chain.prototype_class}::define_unforgeable_attributes(realm, *wrapper);\n")
+    if interface.name == "Location":
+        out.write("    initialize_location_object(realm, *wrapper);\n")
+    out.write(
+        """    return wrapper;
+}
+
+"""
+    )
+
+
 def write_wrapper_implementation(
     out: TextIO, context: GenerationContext, includes: GeneratedIncludes, interface: Interface
 ) -> None:
     if not interface_needs_wrapper(interface):
         return
 
-    wrapper_class = wrapper_class_name(interface)
-    base_class = wrapper_base_class_name(context, interface)
-    impl_type = fully_qualified_name_for_interface(interface)
-
+    includes.add("LibJS/Runtime/HostObject.h")
     write_wrapper_host_class(out, context, includes, interface)
-    out.write(
-        f"""GC_DEFINE_ALLOCATOR({wrapper_class});
-
-{wrapper_class}::{wrapper_class}(JS::Realm& realm, JSHostClass const& host_class, GC::Ref<{impl_type}> impl)
-    : {base_class}(realm, host_class, impl)
-{{
-}}
-"""
-    )
-
-    out.write(
-        f"""
-{wrapper_class}::~{wrapper_class}()
-{{
-"""
-    )
-    out.write(
-        """}
-
-"""
-    )
-
-    if interface.parent_name:
-        out.write(
-            f"""{impl_type}& {wrapper_class}::impl()
-{{
-    return static_cast<{impl_type}&>(Base::impl());
-}}
-
-{impl_type} const& {wrapper_class}::impl() const
-{{
-    return static_cast<{impl_type} const&>(Base::impl());
-}}
-
-"""
-        )
-    else:
-        out.write(
-            f"""{impl_type}& {wrapper_class}::impl()
-{{
-    return static_cast<{impl_type}&>(*wrappable_impl());
-}}
-
-{impl_type} const& {wrapper_class}::impl() const
-{{
-    return static_cast<{impl_type} const&>(*wrappable_impl());
-}}
-
-"""
-        )
-
-    if interface.name == "DOMException":
-        out.write(
-            f"""JS::ErrorData* {wrapper_class}::error_data()
-{{
-    return &impl().error_data();
-}}
-
-JS::ErrorData const* {wrapper_class}::error_data() const
-{{
-    return &impl().error_data();
-}}
-
-"""
-        )
-
     named_and_indexed_properties.write_legacy_platform_object_hook_implementations(out, context, includes, interface)
     named_and_indexed_properties.write_named_item_value_implementation(out, context, includes, interface)
-
-    out.write(
-        f"""void {wrapper_class}::initialize(JS::Realm& realm)
-{{
-"""
-    )
-    if "Global" in interface.extended_attributes:
-        out.write(
-            """    if (!realm.host_defined()) {
-        PlatformObject::initialize(realm);
-        return;
-    }
-"""
-        )
-    out.write(
-        f"""    static auto const& name = "{interface.namespaced_name}"_utf16_fly_string;
-    if (!shape().prototype())
-        set_prototype(&ensure_web_prototype<{interface.prototype_class}>(realm, name));
-    Base::initialize(realm);
-"""
-    )
-    if "Global" not in interface.extended_attributes:
-        out.write(
-            f"""    {interface.prototype_class}::define_unforgeable_attributes(realm, *this);
-"""
-        )
-    if interface.name == "Location":
-        out.write(
-            """    initialize_location_object(realm);
-"""
-        )
-    out.write(
-        """}
-
-"""
-    )
+    write_create_wrapper_function(out, context, interface)
 
 
 def write_impl_from(out: TextIO, includes: GeneratedIncludes, interface: Interface) -> None:

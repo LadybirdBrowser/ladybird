@@ -226,7 +226,7 @@ private:
     //     An object, failure, or null, initially null.
     Variant<GC::Ref<DOM::Document>, GC::Ref<FileAPI::Blob>, Failure, Empty> m_response_object;
     struct CachedResponseObject {
-        GC::Weak<Bindings::PlatformObject> wrapper;
+        GC::Weak<JS::HostObject> wrapper;
         GC::Ptr<JS::Object> object;
     };
     Vector<CachedResponseObject> m_cached_response_objects;

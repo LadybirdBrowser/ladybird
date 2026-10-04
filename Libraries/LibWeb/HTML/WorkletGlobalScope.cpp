@@ -14,7 +14,7 @@ JS::Realm& main_world_realm(HTML::WorkletGlobalScope const& worklet_global_scope
 {
     auto wrapper = worklet_global_scope.cached_main_world_wrapper();
     VERIFY(wrapper);
-    return wrapper->realm();
+    return wrapper->shape().realm();
 }
 
 }

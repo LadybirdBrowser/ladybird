@@ -158,7 +158,7 @@ private:
     InternalKeyData m_key_data; // [[handle]]
     mutable Utf16String m_algorithm_name;
     struct CachedAlgorithmObject {
-        GC::Weak<Bindings::PlatformObject> wrapper;
+        GC::Weak<JS::HostObject> wrapper;
         GC::Ptr<JS::Object> object;
     };
     Vector<CachedAlgorithmObject> m_cached_algorithm_objects;

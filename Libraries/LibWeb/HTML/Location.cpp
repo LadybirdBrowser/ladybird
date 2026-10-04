@@ -79,20 +79,20 @@ void Location::visit_edges(GC::Cell::Visitor& visitor)
 
 namespace Web::Bindings {
 
-GC::Ref<JS::NativeFunction> LocationWrapper::create_cross_origin_method(JS::Realm& realm, Utf16FlyString const& property)
+GC::Ref<JS::NativeFunction> create_location_cross_origin_method(JS::Realm& realm, Utf16FlyString const& property)
 {
     VERIFY(property == u"replace"sv);
     return JS::NativeFunction::create(realm, LocationPrototype::replace, 1, property);
 }
 
-GC::Ref<JS::NativeFunction> LocationWrapper::create_cross_origin_setter(JS::Realm& realm, Utf16FlyString const& property)
+GC::Ref<JS::NativeFunction> create_location_cross_origin_setter(JS::Realm& realm, Utf16FlyString const& property)
 {
     VERIFY(property == u"href"sv);
     return JS::NativeFunction::create(realm, LocationPrototype::href_setter, 1, property, &realm, "set"sv);
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#the-location-interface
-void LocationWrapper::initialize_location_object(JS::Realm& realm)
+void initialize_location_object(JS::Realm& realm, JS::HostObject& location_wrapper)
 {
     auto& vm = realm.vm();
 
@@ -112,7 +112,7 @@ void LocationWrapper::initialize_location_object(JS::Realm& realm)
     //     Pass the known-absent current descriptor explicitly because our lazy initialization may otherwise make
     //     OrdinaryDefineOwnProperty ask Location's custom [[GetOwnProperty]], which can take the cross-origin path.
     Optional<JS::PropertyDescriptor> no_current_property;
-    MUST(ordinary_define_own_property(vm.names.valueOf, value_of_property_descriptor, &no_current_property));
+    MUST(location_wrapper.ordinary_define_own_property(vm.names.valueOf, value_of_property_descriptor, &no_current_property));
 
     // 4. Perform ! location.[[DefineOwnProperty]](%Symbol.toPrimitive%, { [[Value]]: undefined, [[Writable]]: false, [[Enumerable]]: false, [[Configurable]]: false }).
     auto to_primitive_property_descriptor = JS::PropertyDescriptor {
@@ -121,7 +121,7 @@ void LocationWrapper::initialize_location_object(JS::Realm& realm)
         .enumerable = false,
         .configurable = false,
     };
-    MUST(ordinary_define_own_property(vm.well_known_symbol_to_primitive(), to_primitive_property_descriptor, &no_current_property));
+    MUST(location_wrapper.ordinary_define_own_property(vm.well_known_symbol_to_primitive(), to_primitive_property_descriptor, &no_current_property));
 
     // 5. Set the value of the [[DefaultProperties]] internal slot of location to location.[[OwnPropertyKeys]]().
     // NB: [[DefaultProperties]] is only consulted by [[GetOwnProperty]] and [[DefineOwnProperty]] steps that we don't

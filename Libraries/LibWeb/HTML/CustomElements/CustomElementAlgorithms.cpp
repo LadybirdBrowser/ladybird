@@ -80,7 +80,7 @@ static GC::Ptr<JS::Object> custom_element_definition_prototype(HTML::CustomEleme
     return nullptr;
 }
 
-void set_prototype_from_custom_element_definition_if_needed(DOM::Element& element, PlatformObject& wrapper)
+void set_prototype_from_custom_element_definition_if_needed(DOM::Element& element, JS::HostObject& wrapper)
 {
     if (!element.is_custom())
         return;
@@ -89,7 +89,7 @@ void set_prototype_from_custom_element_definition_if_needed(DOM::Element& elemen
     if (!definition)
         return;
 
-    auto prototype = custom_element_definition_prototype(*definition, wrapper.realm());
+    auto prototype = custom_element_definition_prototype(*definition, wrapper.shape().realm());
     if (!prototype)
         return;
 

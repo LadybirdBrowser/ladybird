@@ -91,7 +91,7 @@ namespace Web::Bindings {
 
 static void resolve_image_bitmap_promise(JS::Realm& realm, WebIDL::Promise& promise, GC::Ref<HTML::ImageBitmap> image_bitmap)
 {
-    // Force the wrapper through JS::Object here. Passing GC::Ref<PlatformObject>
+    // Force the wrapper through JS::Object here. Passing GC::Ref<JS::HostObject>
     // directly can select JS::Value's generic Cell constructor and produce an
     // untagged cell value instead of an object value.
     auto wrapper = Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, image_bitmap);

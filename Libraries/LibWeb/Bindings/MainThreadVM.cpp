@@ -486,7 +486,7 @@ void initialize_main_thread_vm(HTML::AgentType type)
         GC::Ref<HTML::EnvironmentSettingsObject> settings_object = HTML::current_settings_object();
 
         // 2. If settingsObject's global object implements WorkletGlobalScope or ServiceWorkerGlobalScope and loadState is undefined, then:
-        auto const* global_object = as_if<PlatformObject>(settings_object->global_object());
+        auto const* global_object = wrappable_impl_from(&settings_object->global_object());
         if (global_object && (global_object->implements_interface("WorkletGlobalScope"_string) || global_object->implements_interface("ServiceWorkerGlobalScope"_string)) && !load_state) {
             // 1. Perform FinishLoadingImportedModule(referrer, moduleRequest, payload, ThrowCompletion(a new TypeError)).
             auto completion = JS::throw_completion(JS::TypeError::create(settings_object->realm(), "Dynamic Import not available for Worklets or ServiceWorkers"_utf16));
@@ -778,7 +778,7 @@ GC::Ref<JS::Realm> create_a_simple_javascript_realm()
 
     auto& vm = main_thread_vm();
     GC::Ptr<HTML::Window> window;
-    GC::Ptr<PlatformObject> global_this;
+    GC::Ptr<JS::HostObject> global_this;
     auto execution_context = create_a_new_javascript_realm(
         vm,
         [&](JS::Realm& realm) -> GC::Ref<JS::Object> {
@@ -867,7 +867,7 @@ GC::Ref<JS::Realm> create_a_principal_javascript_realm()
     page_client->m_page = page;
 
     GC::Ptr<HTML::Window> window;
-    GC::Ptr<PlatformObject> global_this;
+    GC::Ptr<JS::HostObject> global_this;
     auto execution_context = create_a_new_javascript_realm(
         main_thread_vm(),
         [&](JS::Realm& realm) -> GC::Ref<JS::Object> {

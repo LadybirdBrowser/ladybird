@@ -10,7 +10,6 @@ REPO_ROOT = pathlib.Path(__file__).resolve().parents[2]
 LIBWEB_ROOT = pathlib.Path("Libraries/LibWeb")
 
 REALM_PATTERN = re.compile(r"JS::Realm|LibJS/Runtime/Realm\.h")
-PLATFORM_OBJECT_IMPLEMENTATION_PATTERN = re.compile(r"public\s+Bindings::PlatformObject")
 
 # This check is intentionally coarse: component-level counts cannot see an
 # intra-component swap, and it counts JS::Realm spellings rather than realm
@@ -116,17 +115,11 @@ def tracked_libweb_paths():
 
 def main():
     actual = collections.defaultdict(lambda: [0, 0])
-    platform_object_implementations = []
 
     for path in tracked_libweb_paths():
-        text = (REPO_ROOT / path).read_text(encoding="utf-8", errors="ignore")
-        if path != pathlib.Path(
-            "Libraries/LibWeb/HTML/WindowProxy.h"
-        ) and PLATFORM_OBJECT_IMPLEMENTATION_PATTERN.search(text):
-            platform_object_implementations.append(path)
-
         if is_excluded(path):
             continue
+        text = (REPO_ROOT / path).read_text(encoding="utf-8", errors="ignore")
         mention_count = len(REALM_PATTERN.findall(text))
         if mention_count == 0:
             continue
@@ -136,13 +129,6 @@ def main():
         actual[component][1] += mention_count
 
     failures = []
-
-    if platform_object_implementations:
-        print("LibWeb IDL implementations must derive from Bindings::Wrappable, not Bindings::PlatformObject.")
-        print("WindowProxy is the sole exception because it is itself a spec-defined exotic JavaScript object.")
-        for path in platform_object_implementations:
-            print(f"  {path}")
-        print()
 
     for component in sorted(set(actual) | set(ALLOWED_REALM_MENTIONS)):
         actual_counts = tuple(actual.get(component, (0, 0)))
@@ -168,7 +154,7 @@ def main():
         print()
         print("If counts decreased, tighten ALLOWED_REALM_MENTIONS in this script.")
         print("If counts increased, justify the new realm use in the allowlist reason.")
-    if failures or platform_object_implementations:
+    if failures:
         return 1
 
     print("LibWeb implementation-side realm mention baseline is unchanged.")

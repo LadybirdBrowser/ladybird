@@ -127,7 +127,7 @@ private:
     virtual void visit_edges(Cell::Visitor&) override;
     virtual void inserted() override;
 
-    // ^PlatformObject
+    // ^Bindings::Wrappable
     virtual bool is_supported_property_name(Utf16FlyString const&) const override;
     virtual Vector<Utf16FlyString> supported_property_names() const override;
 

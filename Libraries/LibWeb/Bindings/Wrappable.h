@@ -16,6 +16,7 @@
 #include <LibGC/Weak.h>
 #include <LibJS/Forward.h>
 #include <LibJS/Heap/Cell.h>
+#include <LibJS/Runtime/HostObject.h>
 #include <LibJS/Runtime/Object.h>
 #include <LibJS/Runtime/Value.h>
 #include <LibURL/Origin.h>
@@ -57,15 +58,15 @@ decltype(auto) invoke_first_available_static(FirstCall&& first_call, SecondCall&
 
 // The realm passed to these helpers is the preferred realm for wrapper allocation.
 // Wrapper identity is keyed by the caller's WrapperWorld.
-WEB_API GC::Ref<PlatformObject> create_global_object_wrapper(JS::Realm& wrapper_realm, GC::Ref<Wrappable>);
-WEB_API GC::Ref<PlatformObject> create_wrapper_for_wrappable(JS::Realm& wrapper_realm, GC::Ref<Wrappable>);
+WEB_API GC::Ref<JS::HostObject> create_global_object_wrapper(JS::Realm& wrapper_realm, GC::Ref<Wrappable>);
+WEB_API GC::Ref<JS::HostObject> create_wrapper_for_wrappable(JS::Realm& wrapper_realm, GC::Ref<Wrappable>);
 WEB_API JS::Realm& wrapper_realm_for_wrappable(WrapperWorld const& wrapper_world, JS::Realm& preferred_realm, GC::Ref<Wrappable>);
 WEB_API JS::Realm& wrapper_realm_for_node(WrapperWorld const& wrapper_world, JS::Realm& preferred_realm, DOM::Node&);
-WEB_API GC::Ref<PlatformObject> wrap(WrapperWorld& wrapper_world, JS::Realm& preferred_realm, GC::Ref<Wrappable>);
+WEB_API GC::Ref<JS::HostObject> wrap(WrapperWorld& wrapper_world, JS::Realm& preferred_realm, GC::Ref<Wrappable>);
 WEB_API JS::Realm& this_value_realm(JS::Realm& fallback_realm, JS::Value);
 WEB_API JS::ThrowCompletionOr<void> set_prototype_of_cached_main_world_wrapper(Wrappable&, JS::Object&);
-WEB_API void preserve_wrapper(Wrappable&, PlatformObject&);
-WEB_API bool wrapper_is_preserved(PlatformObject const&);
+WEB_API void preserve_wrapper(Wrappable&, JS::HostObject&);
+WEB_API bool wrapper_is_preserved(JS::HostObject const&);
 
 #ifndef WEB_WRAPPABLE
 #    define WEB_WRAPPABLE(class_, base_class)                                               \
@@ -102,7 +103,7 @@ WEB_API bool wrapper_is_preserved(PlatformObject const&);
 #endif
 
 // Base class for internal implementation objects that can be reflected into JS
-// by a PlatformObject wrapper.
+// by a wrapper, a host object that holds the implementation object in its wrappable slot.
 class WEB_API Wrappable : public JS::Cell {
     GC_CELL(Wrappable, JS::Cell);
 
@@ -141,7 +142,7 @@ public:
     }
 
     // https://html.spec.whatwg.org/multipage/browsers.html#extract-an-origin
-    // Wrappers forward PlatformObject's extract an origin operation here.
+    // A wrapper's extract an origin operation is its implementation object's.
     virtual Optional<URL::Origin> extract_an_origin() const;
 
     // Wrappers forward legacy platform object enumeration hooks here.
@@ -155,30 +156,30 @@ public:
 protected:
     Wrappable();
 
-    [[nodiscard]] GC::Ptr<PlatformObject> cached_main_world_wrapper() const;
-    [[nodiscard]] GC::Ptr<PlatformObject> cached_main_world_wrapper(WrapperWorld const&) const;
+    [[nodiscard]] GC::Ptr<JS::HostObject> cached_main_world_wrapper() const;
+    [[nodiscard]] GC::Ptr<JS::HostObject> cached_main_world_wrapper(WrapperWorld const&) const;
 
-    virtual GC::Ref<PlatformObject> create_wrapper(JS::Realm& wrapper_realm);
+    virtual GC::Ref<JS::HostObject> create_wrapper(JS::Realm& wrapper_realm);
     virtual void visit_edges(GC::Cell::Visitor&) override;
 
 private:
     friend class GCAllocatedWrappable;
     friend class WrapperWorld;
-    friend WEB_API GC::Ref<PlatformObject> create_global_object_wrapper(JS::Realm& wrapper_realm, GC::Ref<Wrappable>);
+    friend WEB_API GC::Ref<JS::HostObject> create_global_object_wrapper(JS::Realm& wrapper_realm, GC::Ref<Wrappable>);
     friend WEB_API JS::Realm& wrapper_realm_for_wrappable(WrapperWorld const&, JS::Realm&, GC::Ref<Wrappable>);
-    friend WEB_API GC::Ref<PlatformObject> wrap(WrapperWorld& wrapper_world, JS::Realm& preferred_realm, GC::Ref<Wrappable>);
+    friend WEB_API GC::Ref<JS::HostObject> wrap(WrapperWorld& wrapper_world, JS::Realm& preferred_realm, GC::Ref<Wrappable>);
     friend WEB_API JS::ThrowCompletionOr<void> set_prototype_of_cached_main_world_wrapper(Wrappable&, JS::Object&);
-    friend WEB_API void preserve_wrapper(Wrappable&, PlatformObject&);
-    friend WEB_API bool wrapper_is_preserved(PlatformObject const&);
+    friend WEB_API void preserve_wrapper(Wrappable&, JS::HostObject&);
+    friend WEB_API bool wrapper_is_preserved(JS::HostObject const&);
 
-    void set_cached_main_world_wrapper(PlatformObject&);
-    void clear_cached_main_world_wrapper(PlatformObject const&);
+    void set_cached_main_world_wrapper(JS::HostObject&);
+    void clear_cached_main_world_wrapper(JS::HostObject const&);
 
     // Main-world preservation intentionally survives document navigation: an
     // adopted node may still be observed through its original wrapper realm,
     // and clearing this edge would make wrapper state depend on bfcache-like
     // resurrection timing. Non-main-world entries are removed by detach().
-    GC::Weak<PlatformObject> m_main_world_wrapper;
+    GC::Weak<JS::HostObject> m_main_world_wrapper;
 };
 
 static_assert(sizeof(Wrappable) == 24);
@@ -200,8 +201,8 @@ protected:
 
 private:
     friend class WrapperWorld;
-    friend WEB_API void preserve_wrapper(Wrappable&, PlatformObject&);
-    friend WEB_API bool wrapper_is_preserved(PlatformObject const&);
+    friend WEB_API void preserve_wrapper(Wrappable&, JS::HostObject&);
+    friend WEB_API bool wrapper_is_preserved(JS::HostObject const&);
 
     enum PreservationFlag : u8 {
         MainWorldWrapperIsPreserved = 1 << 0,
@@ -241,23 +242,23 @@ static_assert(!IsConstructible<JS::Value, GC::Root<Wrappable> const&>);
 
 template<typename T>
 requires(IsBaseOf<Wrappable, T> && !IsSameIgnoringCV<T, Wrappable>)
-[[nodiscard]] GC::Ref<PlatformObject> create_global_object_wrapper(JS::Realm& wrapper_realm, GC::Ref<T> wrappable)
+[[nodiscard]] GC::Ref<JS::HostObject> create_global_object_wrapper(JS::Realm& wrapper_realm, GC::Ref<T> wrappable)
 {
     return create_global_object_wrapper(wrapper_realm, GC::Ref<Wrappable> { wrappable });
 }
 
-WEB_API GC::Ptr<PlatformObject> wrap(WrapperWorld& wrapper_world, JS::Realm& preferred_realm, GC::Ptr<Wrappable>);
+WEB_API GC::Ptr<JS::HostObject> wrap(WrapperWorld& wrapper_world, JS::Realm& preferred_realm, GC::Ptr<Wrappable>);
 
 template<typename T>
 requires(IsBaseOf<Wrappable, T> && !IsSameIgnoringCV<T, Wrappable>)
-[[nodiscard]] GC::Ref<PlatformObject> wrap(WrapperWorld& wrapper_world, JS::Realm& preferred_realm, GC::Ref<T> wrappable)
+[[nodiscard]] GC::Ref<JS::HostObject> wrap(WrapperWorld& wrapper_world, JS::Realm& preferred_realm, GC::Ref<T> wrappable)
 {
     return wrap(wrapper_world, preferred_realm, GC::Ref<Wrappable> { wrappable });
 }
 
 template<typename T>
 requires(IsBaseOf<Wrappable, T> && !IsSameIgnoringCV<T, Wrappable>)
-[[nodiscard]] GC::Ptr<PlatformObject> wrap(WrapperWorld& wrapper_world, JS::Realm& preferred_realm, GC::Ptr<T> wrappable)
+[[nodiscard]] GC::Ptr<JS::HostObject> wrap(WrapperWorld& wrapper_world, JS::Realm& preferred_realm, GC::Ptr<T> wrappable)
 {
     return wrap(wrapper_world, preferred_realm, GC::Ptr<Wrappable> { wrappable });
 }

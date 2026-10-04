@@ -21,7 +21,7 @@ from Generators.libweb_bindings.operations import define_the_regular_operations
 from Generators.libweb_bindings.operations import define_the_stringifier
 from Generators.libweb_bindings.operations import write_regular_operations_for_receiver
 from Generators.libweb_bindings.operations import write_stringifier
-from Generators.libweb_bindings.wrappers import wrapper_class_name
+from Generators.libweb_bindings.wrappers import cross_origin_property_function_declarations
 from Utils.webidl_parser import Interface
 
 
@@ -55,7 +55,9 @@ private:
 """
     )
     if interface.name == "Window":
-        out.write(f"    friend class {wrapper_class_name(interface)};\n\n")
+        for declaration in cross_origin_property_function_declarations(interface):
+            out.write(f"    friend {declaration};\n")
+        out.write("\n")
     declared_callbacks: set[str] = set()
     for attribute in interface.regular_attributes:
         if "FIXME" in attribute.extended_attributes:

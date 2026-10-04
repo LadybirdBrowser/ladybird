@@ -445,7 +445,7 @@ bool Internals::wrapper_is_preserved(JS::Object& object)
 {
     if (!Bindings::wrappable_impl_from(&object))
         return false;
-    return Bindings::wrapper_is_preserved(as<Bindings::PlatformObject>(object));
+    return Bindings::wrapper_is_preserved(*Bindings::as_platform_object(object));
 }
 
 bool Internals::has_activity_root(JS::Object& object)

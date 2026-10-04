@@ -19,7 +19,7 @@ TEST_CASE(simple_javascript_realm_caches_global_window_wrapper)
 {
     auto realm = Web::Bindings::create_a_simple_javascript_realm();
 
-    auto* global = as_if<Web::Bindings::PlatformObject>(&realm->global_object());
+    auto* global = Web::Bindings::as_platform_object(realm->global_object());
     EXPECT(global);
     auto* window = Web::Bindings::impl_from<Web::HTML::Window>(global);
     EXPECT(window);

@@ -758,9 +758,6 @@ static std::optional<CellTypeWithOrigin> find_cell_type_with_origin(clang::CXXRe
             if (base_name == "JS::PrototypeObject")
                 return CellTypeWithOrigin { *base_record, LibJSCellMacro::Type::JSPrototypeObject };
 
-            if (base_name == "Web::Bindings::PlatformObject")
-                return CellTypeWithOrigin { *base_record, LibJSCellMacro::Type::WebPlatformObject };
-
             if (base_name == "Web::Bindings::Wrappable")
                 return CellTypeWithOrigin { *base_record, LibJSCellMacro::Type::WebWrappable };
 
@@ -916,8 +913,6 @@ char const* LibJSCellMacro::type_name(Type type)
         return "JS_ENVIRONMENT";
     case Type::JSPrototypeObject:
         return "JS_PROTOTYPE_OBJECT";
-    case Type::WebPlatformObject:
-        return "WEB_PLATFORM_OBJECT";
     case Type::WebWrappable:
         return "WEB_WRAPPABLE";
     default:
@@ -945,8 +940,6 @@ void LibJSPPCallbacks::MacroExpands(clang::Token const& name_token, clang::Macro
             { "JS_OBJECT_WITH_CUSTOM_CLASS_NAME", LibJSCellMacro::Type::JSObject },
             { "JS_ENVIRONMENT", LibJSCellMacro::Type::JSEnvironment },
             { "JS_PROTOTYPE_OBJECT", LibJSCellMacro::Type::JSPrototypeObject },
-            { "WEB_PLATFORM_OBJECT", LibJSCellMacro::Type::WebPlatformObject },
-            { "WEB_NON_IDL_PLATFORM_OBJECT", LibJSCellMacro::Type::WebPlatformObject },
             { "WEB_WRAPPABLE", LibJSCellMacro::Type::WebWrappable },
             { "WEB_NON_IDL_WRAPPABLE", LibJSCellMacro::Type::WebWrappable },
         };

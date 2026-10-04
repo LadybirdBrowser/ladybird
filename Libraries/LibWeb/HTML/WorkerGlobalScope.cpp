@@ -252,7 +252,7 @@ JS::Realm& main_world_realm(HTML::WorkerGlobalScope const& worker_global_scope)
 {
     auto wrapper = worker_global_scope.cached_main_world_wrapper();
     VERIFY(wrapper);
-    return wrapper->realm();
+    return wrapper->shape().realm();
 }
 
 void initialize_worker_web_interfaces(HTML::WorkerGlobalScope& worker_global_scope)

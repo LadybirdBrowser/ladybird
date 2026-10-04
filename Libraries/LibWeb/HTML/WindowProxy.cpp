@@ -438,7 +438,7 @@ GC::RootVector<JS::Value> WindowProxy::cross_origin_own_property_keys() const
     return HTML::cross_origin_own_property_keys(*m_window);
 }
 
-Bindings::PlatformObject& WindowProxy::cross_origin_window_wrapper() const
+JS::HostObject& WindowProxy::cross_origin_window_wrapper() const
 {
     if (m_cross_origin_window_wrapper)
         return *m_cross_origin_window_wrapper;
