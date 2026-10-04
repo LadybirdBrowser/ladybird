@@ -50,7 +50,6 @@ public:
     virtual ~CanonicalTraversable() override;
 
     virtual bool is_top_level_traversable() const override { return true; }
-    CanonicalDocument& document_active_in(CanonicalNavigable&, WebContentPage const&) const;
 
     // Apply-the-history-step coordination. Operations serialize on the traversable's session history traversal
     // queue; the algorithm runs here and dispatches its per-navigable jobs to the processes hosting the documents.
