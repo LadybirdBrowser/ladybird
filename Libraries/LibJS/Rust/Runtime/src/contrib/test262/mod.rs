@@ -8,6 +8,8 @@
 //! it, with print() and $262.
 
 pub mod agent_object;
+#[cfg(unix)]
+pub mod agents;
 /// $262. Like 262Object.cpp, its file has no dollar sign in its name, which some tools do not handle.
 #[path = "262_object.rs"]
 pub mod dollar_262_object;
