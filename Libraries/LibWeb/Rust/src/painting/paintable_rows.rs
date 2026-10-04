@@ -417,10 +417,6 @@ impl<Arena> PaintableRows<Arena>
 where
     Arena: Deref<Target = LayoutNodeArena>,
 {
-    pub(crate) fn paintable_data_ptr(&self, id: NodeSlotId) -> *const PaintableData {
-        self.arena.live_paintable_data(id)
-    }
-
     pub(crate) fn clear_cached_overflow_data(&self, id: NodeSlotId) {
         if !self.paintable_row_is_populated(id) {
             return;
