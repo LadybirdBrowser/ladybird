@@ -14,6 +14,8 @@
 <a id="link" href="https://example.com/link">a link</a>
 <img id="image" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGM4YWMDAAMQAUEiFmcFAAAAAElFTkSuQmCC">
 <video id="media" src="does-not-exist.webm"></video>
+<a id="link-around-host" href="https://example.com/around-host"><span id="host-in-link"></span></a>
+<div id="slot-host">slotted text</div>
 <script>
     test(() => {
         const describe = () => {
@@ -62,5 +64,17 @@
         document.body.offsetWidth;
         rightClickText(shadow.firstChild);
         println(`right-click text in a shadow root's anonymous block: ${describe()}`);
+
+        // The link around a shadow host covers the host's shadow tree, and a link in a shadow tree covers the content
+        // assigned to a slot in it.
+        const shadowInLink = document.getElementById('host-in-link').attachShadow({ mode: 'open' });
+        shadowInLink.innerHTML = 'shadow text';
+        const slotHost = document.getElementById('slot-host');
+        slotHost.attachShadow({ mode: 'open' }).innerHTML = '<a id="link-in-shadow-tree" href="https://example.com/in-shadow-tree"><slot></slot></a>';
+        document.body.offsetWidth;
+        rightClickText(shadowInLink.firstChild);
+        println(`right-click text in a shadow tree inside a link: ${describe()}`);
+        rightClickText(slotHost.firstChild);
+        println(`right-click text assigned to a slot in a link: ${describe()}`);
     });
 </script>
