@@ -19,6 +19,8 @@
             }
             await nextTask();
             states.push(`after a posted message: ${internals.frameSchedulerState()}`);
+            performance.mark("beside the frame");
+            states.push(`after performance.mark(): ${internals.frameSchedulerState()}`);
             return states;
         });
         for (const state of states)
