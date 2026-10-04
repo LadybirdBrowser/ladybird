@@ -104,15 +104,13 @@ namespace Web::DOM {
 
 static bool final_direct_list_item_does_not_renumber_existing_content(Element const& list_item)
 {
-    // The caller's own read of the render state.
-    Layout::ForcedReadScope read { list_item.document(), false };
     auto list_owner = list_item.parent_element();
     if (!list_owner || !list_owner->is_html_ol_ul_menu_element() || list_item.next_element_sibling())
         return false;
     if (list_owner->after_pseudo_element_style_depends_on_list_item_counter())
         return false;
 
-    return CSS::innermost_list_item_counter_is_own_forward_counter(read, *list_owner);
+    return CSS::innermost_list_item_counter_is_own_forward_counter(*list_owner);
 }
 
 // The text the pseudo-element's content resolved to when its box was built: its alt text when it has one, otherwise
@@ -2878,37 +2876,30 @@ bool Node::update_inside_blocking_wheel_event_handler_state()
     return flipped;
 }
 
-static void set_needs_repaint_of_top_layer_boxes(Layout::BegunRead const& read, Element& element, Layout::Node const* layout_node_repainted_by_caller)
-{
-    if (auto* layout_node = element.unsafe_layout_node(read); layout_node && layout_node != layout_node_repainted_by_caller)
-        Painting::set_needs_repaint_in_subtree(*layout_node);
-    if (auto* backdrop_layout_node = element.pseudo_element_unsafe_layout_node(read, CSS::PseudoElement::Backdrop))
-        Painting::set_needs_repaint_in_subtree(*backdrop_layout_node);
-}
-
 void Node::update_inside_blocking_wheel_event_handler_state_for_subtree()
 {
-    // The caller's own read of the render state.
-    Layout::ForcedReadScope read { document(), false };
     if (is_root_wheel_event_target(*this)) {
         (void)update_inside_blocking_wheel_event_handler_state();
         return;
     }
 
-    auto* subtree_layout_node = unsafe_layout_node(read);
+    // The boxes to repaint are found by the invalidation journal as it drains: a listener may change beside a frame in
+    // flight, which holds the boxes. A top layer element's boxes are outside the subtree's box.
+    auto& journal = document().invalidation_journal();
+    auto subtree_identity = has_layout_box() ? NodeIdentity::of(*this) : NodeIdentity {};
     bool any_descendant_flipped_blocking_wheel_state = false;
     for_each_shadow_including_inclusive_descendant([&](Node& node) {
         if (!node.update_inside_blocking_wheel_event_handler_state())
             return TraversalDecision::Continue;
         any_descendant_flipped_blocking_wheel_state = true;
         if (auto* element = as_if<Element>(node); element && element->rendered_in_top_layer())
-            set_needs_repaint_of_top_layer_boxes(read, *element, subtree_layout_node);
-        else if (!subtree_layout_node)
+            journal.note_top_layer_boxes_repaint(NodeIdentity::of(*element));
+        else if (!subtree_identity)
             node.set_needs_repaint();
         return TraversalDecision::Continue;
     });
-    if (any_descendant_flipped_blocking_wheel_state && subtree_layout_node)
-        Painting::set_needs_repaint_in_subtree(*subtree_layout_node);
+    if (any_descendant_flipped_blocking_wheel_state && subtree_identity)
+        journal.note_needs_repaint_in_subtree(subtree_identity);
 }
 
 ParentNode* Node::parent_or_shadow_host()

@@ -11,8 +11,11 @@
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Layout/NodeArena.h>
 #include <LibWeb/Layout/TextNode.h>
+#include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Painting/BoxViews.h>
+#include <LibWeb/Painting/DocumentPaintState.h>
 #include <LibWeb/Painting/PaintFacts.h>
+#include <LibWeb/Selection/Selection.h>
 
 namespace Web::DOM {
 
@@ -135,6 +138,26 @@ void InvalidationJournal::note_text_data_changed(NodeIdentity identity, bool whi
     drain_if_layout_is_reading();
 }
 
+void InvalidationJournal::note_top_layer_boxes_repaint(NodeIdentity identity)
+{
+    entry_for(identity).needs_backdrop_repaint = true;
+    note_needs_repaint_in_subtree(identity);
+}
+
+void InvalidationJournal::note_selection_changed()
+{
+    m_selection_changed = true;
+    m_document->request_frame_for_pending_repaint({});
+    drain_if_layout_is_reading();
+}
+
+void InvalidationJournal::note_search_text_changed()
+{
+    m_search_text_changed = true;
+    m_document->request_frame_for_pending_repaint({});
+    drain_if_layout_is_reading();
+}
+
 void InvalidationJournal::forget(CSS::StyleNodeID style_node)
 {
     // A drain holds the generation it writes through outside the index, where forgetting cannot reach it, so an
@@ -164,13 +187,30 @@ void InvalidationJournal::drain_if_layout_is_reading()
     drain(read);
 }
 
-void InvalidationJournal::drain(Layout::BegunRead const& read)
+void InvalidationJournal::drain_marks(Layout::BegunRead const& read)
 {
     // What the drain writes can mark more, and those marks land in the next generation of entries, which the loop below
     // drains in turn.
-    if (m_draining)
-        return;
     TemporaryChange draining { m_draining, true };
+
+    if (exchange(m_selection_changed, false) && m_document->has_committed_viewport_box()) {
+        // The selection's range now decides the states, or a selection without one takes the highlight back. A document
+        // without a browsing context has no selection.
+        auto selection = m_document->get_selection();
+        if (auto range = selection ? selection->range() : nullptr)
+            m_document->paint_state().recompute_selection_states(read, *m_document, *range);
+        else
+            m_document->paint_state().reset_selection_states(read, *m_document);
+        static_cast<Node&>(*m_document).set_needs_repaint(InvalidateDisplayList::PaintCommands);
+    }
+
+    if (exchange(m_search_text_changed, false) && m_document->has_committed_viewport_box()) {
+        if (auto match = m_document->find_in_page_active_match())
+            m_document->paint_state().recompute_search_text_states(read, *m_document, *match);
+        else
+            m_document->paint_state().reset_search_text_states();
+        static_cast<Node&>(*m_document).set_needs_repaint(InvalidateDisplayList::PaintCommands);
+    }
 
     while (!m_entries.is_empty()) {
         auto entries = move(m_entries);
@@ -214,6 +254,12 @@ void InvalidationJournal::drain(Layout::BegunRead const& read)
                     Painting::apply_paint_cache_invalidation(*layout_node, Painting::PaintCacheInvalidation::PropagatedTextDecorations);
                 if (entry.needs_subtree_repaint)
                     Painting::apply_subtree_repaint_damage(*layout_node);
+                if (entry.needs_backdrop_repaint) {
+                    if (auto* element = as_if<Element>(layout_node->dom_node())) {
+                        if (auto* backdrop_layout_node = element->pseudo_element_unsafe_layout_node(read, CSS::PseudoElement::Backdrop))
+                            Painting::set_needs_repaint_in_subtree(*backdrop_layout_node);
+                    }
+                }
                 if (needs_repaint) {
                     if (auto* text_node = as_if<Layout::TextNode>(*layout_node))
                         Painting::apply_text_repaint_damage(*text_node, invalidate_display_list);

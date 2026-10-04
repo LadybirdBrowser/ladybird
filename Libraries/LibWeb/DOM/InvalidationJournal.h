@@ -53,13 +53,26 @@ public:
     void note_image_data_changed(NodeIdentity, SetNeedsLayoutReason);
     // A text node's data changed, which changes its box as the box decides.
     void note_text_data_changed(NodeIdentity, bool whitespace_only_changed);
+    // A top layer element's boxes repaint: its own subtree's and its backdrop's.
+    void note_top_layer_boxes_repaint(NodeIdentity);
+    // The document's selection changed, or lost its range, so the selection states of the boxes it paints through are
+    // stale.
+    void note_selection_changed();
+    // The document's active find-in-page match changed, or went away, so the search text states of the boxes it paints
+    // through are stale.
+    void note_search_text_changed();
 
     // The identity is retired and may name another node once it is handed out again, so what was noted for the node
     // that had it must not land on that one. Nothing may retire an identity while the journal drains.
     void forget(CSS::StyleNodeID);
 
-    // Writes every entry through to the layout and paint state and empties the journal.
-    void drain(Layout::BegunRead const& read);
+    // Writes every entry through to the layout and paint state and empties the journal. Nearly every drain finds the
+    // journal empty, which it answers without leaving the caller.
+    void drain(Layout::BegunRead const& read)
+    {
+        if (!m_draining && has_marks())
+            drain_marks(read);
+    }
 
 private:
     struct Entry {
@@ -77,6 +90,7 @@ private:
         bool needs_layout_tree_update { false };
         bool needs_repaint { false };
         bool needs_subtree_repaint { false };
+        bool needs_backdrop_repaint { false };
         bool invalidate_propagated_text_decoration_caches { false };
         bool has_dom_paint_facts { false };
         bool image_data_changed { false };
@@ -89,11 +103,18 @@ private:
 
     Entry& entry_for(NodeIdentity);
     void drain_if_layout_is_reading();
+    bool has_marks() const
+    {
+        return !m_entries.is_empty() || m_selection_changed || m_search_text_changed;
+    }
+    void drain_marks(Layout::BegunRead const&);
 
     GC::Ref<Document> m_document;
     Vector<Entry> m_entries;
     HashMap<NodeIdentity, size_t> m_entry_index_by_identity;
     bool m_draining { false };
+    bool m_selection_changed { false };
+    bool m_search_text_changed { false };
 };
 
 }

@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<input id="field" value="frame in flight">
+<p id="text">some text to select</p>
+<ol id="list"><li>a</li><li>b</li></ol>
+<div id="scroller" style="height: 10px"></div>
+<div id="box" style="height: 10px"></div>
+<script>
+    // A task beside a frame in flight that changes a text control's selection and the document's selection, adds a
+    // wheel listener that blocks scrolling, and appends a list item: each marks what it changes for the next rendering
+    // update, which paints and lays out with it.
+    asyncTest(async done => {
+        const states = await whileRecordingInFlight(() => {
+            box.style.height = "12px";
+        }, state => {
+            const states = [`next task: ${state}`];
+            field.setSelectionRange(2, 5);
+            states.push(`after a text control selection: ${internals.frameSchedulerState()}`);
+            getSelection().collapse(text.firstChild, 3);
+            states.push(`after a document selection: ${internals.frameSchedulerState()}`);
+            getSelection().removeAllRanges();
+            states.push(`after removing the selection's range: ${internals.frameSchedulerState()}`);
+            scroller.addEventListener("wheel", event => event.preventDefault(), { passive: false });
+            states.push(`after a blocking wheel listener: ${internals.frameSchedulerState()}`);
+            const item = document.createElement("li");
+            item.textContent = "c";
+            list.appendChild(item);
+            states.push(`after a list item: ${internals.frameSchedulerState()}`);
+            return states;
+        });
+        for (const state of states)
+            println(`state ${state}`);
+        await twoFrames();
+        println(`selection: ${field.selectionStart}-${field.selectionEnd}, document ranges: ${getSelection().rangeCount}`);
+        println(`list items: ${list.children.length}, height: ${list.offsetHeight}`);
+        println(`box height: ${box.offsetHeight}`);
+        done();
+    });
+</script>
