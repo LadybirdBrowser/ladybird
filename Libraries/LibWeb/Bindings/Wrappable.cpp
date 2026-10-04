@@ -348,7 +348,7 @@ void cache_global_object_wrapper(JS::Realm& realm)
     auto* platform_object = as_if<PlatformObject>(&realm.global_object());
     VERIFY(platform_object);
 
-    auto* wrappable = platform_object->wrappable_impl();
+    auto* wrappable = wrappable_impl_from(platform_object);
     VERIFY(wrappable);
 
     host_defined_wrapper_world(realm).set_wrapper(*wrappable, *platform_object);
@@ -363,7 +363,7 @@ Wrappable* wrappable_impl_from(JS::Object* object)
     auto* platform_object = as_if<PlatformObject>(object);
     if (!platform_object)
         return nullptr;
-    return platform_object->wrappable_impl();
+    return static_cast<Wrappable*>(platform_object->wrappable().ptr());
 }
 
 Wrappable const* wrappable_impl_from(JS::Object const* object)
@@ -371,7 +371,7 @@ Wrappable const* wrappable_impl_from(JS::Object const* object)
     auto const* platform_object = as_if<PlatformObject>(object);
     if (!platform_object)
         return nullptr;
-    return platform_object->wrappable_impl();
+    return static_cast<Wrappable const*>(platform_object->wrappable().ptr());
 }
 
 }

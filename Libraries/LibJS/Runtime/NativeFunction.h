@@ -93,7 +93,7 @@ inline bool Object::fast_is<RawNativeFunction>() const { return is_raw_native_fu
 
 struct DirectGetterConfiguration {
     // These are byte offsets to pointer-sized fields read directly by the interpreter. The bindings
-    // generator obtains them from PlatformObject::wrapped_implementation_offset(), the implementation
+    // generator obtains them from HostObject::wrappable_offset(), the implementation
     // field's generated offset helper, Wrappable::main_world_wrapper_offset(), and
     // GC::WeakImpl::value_offset(), respectively. DirectGetterFunction validates their alignment and
     // converts them to word offsets.

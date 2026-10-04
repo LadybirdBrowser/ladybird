@@ -8,6 +8,7 @@
 #include <LibCore/EventLoop.h>
 #include <LibGC/CellAllocator.h>
 #include <LibGC/Weak.h>
+#include <LibJS/HostClassBuilder.h>
 #include <LibJS/Runtime/Completion.h>
 #include <LibJS/Runtime/NativeFunction.h>
 #include <LibJS/Runtime/Object.h>
@@ -135,6 +136,15 @@ private:
     Optional<URL::Origin> m_origin;
 };
 
+constexpr Web::Bindings::LegacyPlatformObjectInfo test_wrapper_object_legacy_platform_object_info {
+    .supports_indexed_properties = true,
+    .supports_named_properties = true,
+};
+
+constexpr JSHostClass test_wrapper_object_host_class = JS::make_host_class(JS_HOST_CLASS_OBJECT, "TestWrapperObject"sv, nullptr, nullptr,
+    &test_wrapper_object_legacy_platform_object_info,
+    Web::Bindings::platform_object_host_class_flags | JS_HOST_CLASS_NOT_CACHEABLE_FOR_PROPERTY_ABSENCE);
+
 class TestWrapperObject final : public Web::Bindings::PlatformObject {
     WEB_NON_IDL_PLATFORM_OBJECT(TestWrapperObject, Web::Bindings::PlatformObject);
     GC_DECLARE_ALLOCATOR(TestWrapperObject);
@@ -144,11 +154,8 @@ public:
     using PlatformObject::set_value_of_new_indexed_property;
 
     TestWrapperObject(JS::Realm& realm, GC::Ref<Web::Bindings::Wrappable> impl)
-        : PlatformObject(realm, impl)
+        : PlatformObject(realm, test_wrapper_object_host_class, impl)
     {
-        m_legacy_platform_object_flags = LegacyPlatformObjectFlags {};
-        m_legacy_platform_object_flags->supports_indexed_properties = true;
-        m_legacy_platform_object_flags->supports_named_properties = true;
     }
 
     virtual Web::WebIDL::ExceptionOr<void> set_value_of_named_property(JS::Realm& realm, Utf16FlyString const&, JS::Value) override

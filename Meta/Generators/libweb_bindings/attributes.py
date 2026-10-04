@@ -246,13 +246,13 @@ def define_the_attributes(
                 attribute
             )
             includes.add("LibGC/Weak.h")
+            includes.add("LibJS/Runtime/HostObject.h")
             includes.add("LibJS/Runtime/NativeFunction.h")
-            includes.add("LibWeb/Bindings/PlatformObject.h")
             includes.add("LibWeb/Bindings/Wrappable.h")
             implementation_type = fully_qualified_name_for_interface(interface)
             definition.write(
                 f"""    auto {native_getter_name} = JS::DirectGetterFunction::create(realm, {getter_name}, 0, {cpp_name}_id, {{
-        .wrapper_implementation_offset = PlatformObject::wrapped_implementation_offset(),
+        .wrapper_implementation_offset = JS::HostObject::wrappable_offset(),
         .implementation_value_offset = {implementation_type}::{direct_getter_field}_offset(),
         .main_world_wrapper_offset = Wrappable::main_world_wrapper_offset(),
         .weak_impl_value_offset = GC::WeakImpl::value_offset(),

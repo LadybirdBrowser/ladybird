@@ -6,6 +6,7 @@
 
 #include <AK/Optional.h>
 #include <LibGC/RootVector.h>
+#include <LibJS/HostClassBuilder.h>
 #include <LibJS/Runtime/Completion.h>
 #include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/PropertyDescriptor.h>
@@ -28,14 +29,22 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(WindowProxy);
 
+static constexpr JSHostClass window_proxy_host_class = JS::make_host_class(JS_HOST_CLASS_OBJECT, "WindowProxy"sv, nullptr, nullptr, nullptr,
+    Bindings::platform_object_host_class_flags
+        | JS_HOST_CLASS_MAY_INTERFERE_WITH_INDEXED_PROPERTY_ACCESS
+        | JS_HOST_CLASS_IMMUTABLE_PROTOTYPE
+        | JS_HOST_CLASS_NOT_CACHEABLE_FOR_PROPERTY_ABSENCE);
+
 GC::Ref<WindowProxy> WindowProxy::create(JS::Realm& realm)
 {
     return realm.create<WindowProxy>(realm);
 }
 
 // 7.2.3 The WindowProxy exotic object, https://html.spec.whatwg.org/multipage/nav-history-apis.html#the-windowproxy-exotic-object
+// NB: Direct getters read the wrappable slot of any platform object without checking what it holds, so it stays null
+//     here. [[Window]] is not an implementation object that this proxy wraps.
 WindowProxy::WindowProxy(JS::Realm& realm)
-    : PlatformObject(realm, MayInterfereWithIndexedPropertyAccess::Yes)
+    : PlatformObject(realm, window_proxy_host_class)
 {
 }
 

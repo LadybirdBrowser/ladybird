@@ -44,39 +44,23 @@ JS::ThrowCompletionOr<bool> ordinary_define_own_property_and_preserve_wrapper_if
     return result;
 }
 
-PlatformObject::PlatformObject(JS::Realm& realm, MayInterfereWithIndexedPropertyAccess may_interfere_with_indexed_property_access)
-    : JS::Object(realm, nullptr, may_interfere_with_indexed_property_access)
+#if !defined(AK_OS_WINDOWS)
+static_assert(sizeof(PlatformObject) == JS_HOST_OBJECT_SIZE);
+#endif
+
+PlatformObject::PlatformObject(JS::Realm& realm, JSHostClass const& host_class)
+    : JS::HostObject(realm, host_class, nullptr, nullptr, nullptr)
 {
-    set_is_platform_object();
-    set_requires_slow_add_own_property();
+    VERIFY((host_class.flags & platform_object_host_class_flags) == platform_object_host_class_flags);
 }
 
-PlatformObject::PlatformObject(JS::Object& prototype, MayInterfereWithIndexedPropertyAccess may_interfere_with_indexed_property_access)
-    : JS::Object(ConstructWithPrototypeTag::Tag, prototype, may_interfere_with_indexed_property_access)
+PlatformObject::PlatformObject(JS::Realm& realm, JSHostClass const& host_class, GC::Ref<Bindings::Wrappable> wrappable)
+    : JS::HostObject(realm, host_class, nullptr, wrappable, nullptr)
 {
-    set_is_platform_object();
-    set_requires_slow_add_own_property();
-}
-
-PlatformObject::PlatformObject(JS::Realm& realm, GC::Ref<Bindings::Wrappable> wrappable, MayInterfereWithIndexedPropertyAccess may_interfere_with_indexed_property_access)
-    : PlatformObject(realm, may_interfere_with_indexed_property_access)
-{
-    m_wrappable = wrappable;
-}
-
-PlatformObject::PlatformObject(JS::Object& prototype, GC::Ref<Bindings::Wrappable> wrappable, MayInterfereWithIndexedPropertyAccess may_interfere_with_indexed_property_access)
-    : PlatformObject(prototype, may_interfere_with_indexed_property_access)
-{
-    m_wrappable = wrappable;
+    VERIFY((host_class.flags & platform_object_host_class_flags) == platform_object_host_class_flags);
 }
 
 PlatformObject::~PlatformObject() = default;
-
-void PlatformObject::visit_edges(JS::Cell::Visitor& visitor)
-{
-    Base::visit_edges(visitor);
-    visitor.visit(m_wrappable);
-}
 
 void PlatformObject::finalize()
 {
@@ -130,11 +114,14 @@ JS::ThrowCompletionOr<bool> PlatformObject::is_named_property_exposed_on_object(
     if (property_key.is_symbol())
         return false;
 
+    auto const* legacy_info = legacy_platform_object_info();
+    VERIFY(legacy_info);
+
     // OPTIMIZATION: A stored property on an ordinary prototype masks a named property independently of whether
     //               the name is supported. Check without invoking internal methods so that a collection's built-in
     //               properties do not need its named-property cache. Stop before exotic objects, preserving the
     //               order of their observable operations in the algorithm below.
-    if (!m_legacy_platform_object_flags->has_legacy_override_built_ins_interface_extended_attribute && property_key.is_string()) {
+    if (!legacy_info->has_legacy_override_built_ins_interface_extended_attribute && property_key.is_string()) {
         for (auto const* prototype = this->prototype(); prototype; prototype = prototype->prototype()) {
             if (!prototype->eligible_for_own_property_enumeration_fast_path() || prototype->is_ecmascript_function_object())
                 break;
@@ -156,7 +143,7 @@ JS::ThrowCompletionOr<bool> PlatformObject::is_named_property_exposed_on_object(
         return false;
 
     // 3. If O implements an interface that has the [LegacyOverrideBuiltIns] extended attribute, then return true.
-    if (m_legacy_platform_object_flags->has_legacy_override_built_ins_interface_extended_attribute)
+    if (legacy_info->has_legacy_override_built_ins_interface_extended_attribute)
         return true;
 
     // 4. Let prototype be O.[[GetPrototypeOf]]().
@@ -183,11 +170,14 @@ JS::ThrowCompletionOr<bool> PlatformObject::is_named_property_exposed_on_object(
 // https://webidl.spec.whatwg.org/#LegacyPlatformObjectGetOwnProperty
 JS::ThrowCompletionOr<Optional<JS::PropertyDescriptor>> PlatformObject::legacy_platform_object_get_own_property(JS::PropertyKey const& property_name, IgnoreNamedProps ignore_named_props) const
 {
+    auto const* legacy_info = legacy_platform_object_info();
+    VERIFY(legacy_info);
+
     auto& wrapper_realm = realm();
     auto& wrapper_world = host_defined_wrapper_world(wrapper_realm);
 
     // 1. If O supports indexed properties and P is an array index, then:
-    if (m_legacy_platform_object_flags->supports_indexed_properties && property_name.is_number()) {
+    if (legacy_info->supports_indexed_properties && property_name.is_number()) {
         // 1. Let index be the result of calling ToUint32(P).
         u32 index = property_name.as_number();
 
@@ -206,7 +196,7 @@ JS::ThrowCompletionOr<Optional<JS::PropertyDescriptor>> PlatformObject::legacy_p
             descriptor.value = value;
 
             // 7. If O implements an interface with an indexed property setter, then set desc.[[Writable]] to true, otherwise set it to false.
-            descriptor.writable = m_legacy_platform_object_flags->has_indexed_property_setter;
+            descriptor.writable = legacy_info->has_indexed_property_setter;
 
             // 8. Set desc.[[Enumerable]] and desc.[[Configurable]] to true.
             descriptor.enumerable = true;
@@ -221,7 +211,7 @@ JS::ThrowCompletionOr<Optional<JS::PropertyDescriptor>> PlatformObject::legacy_p
     }
 
     // 2. If O supports named properties and ignoreNamedProps is false, then:
-    if (m_legacy_platform_object_flags->supports_named_properties && ignore_named_props == IgnoreNamedProps::No) {
+    if (legacy_info->supports_named_properties && ignore_named_props == IgnoreNamedProps::No) {
         // 1. If the result of running the named property visibility algorithm with property name P and object O is true, then:
         if (TRY(is_named_property_exposed_on_object(property_name))) {
             auto property_name_utf16 = property_key_to_utf16_fly_string(property_name);
@@ -239,10 +229,10 @@ JS::ThrowCompletionOr<Optional<JS::PropertyDescriptor>> PlatformObject::legacy_p
             descriptor.value = value;
 
             // 7. If O implements an interface with a named property setter, then set desc.[[Writable]] to true, otherwise set it to false.
-            descriptor.writable = m_legacy_platform_object_flags->has_named_property_setter;
+            descriptor.writable = legacy_info->has_named_property_setter;
 
             // 8. If O implements an interface with the [LegacyUnenumerableNamedProperties] extended attribute, then set desc.[[Enumerable]] to false, otherwise set it to true.
-            descriptor.enumerable = !m_legacy_platform_object_flags->has_legacy_unenumerable_named_properties_interface_extended_attribute;
+            descriptor.enumerable = !legacy_info->has_legacy_unenumerable_named_properties_interface_extended_attribute;
 
             // 9. Set desc.[[Configurable]] to true.
             descriptor.configurable = true;
@@ -259,6 +249,9 @@ JS::ThrowCompletionOr<Optional<JS::PropertyDescriptor>> PlatformObject::legacy_p
 // https://webidl.spec.whatwg.org/#invoke-indexed-setter
 WebIDL::ExceptionOr<void> PlatformObject::invoke_indexed_property_setter(JS::PropertyKey const& property_name, JS::Value value)
 {
+    auto const* legacy_info = legacy_platform_object_info();
+    VERIFY(legacy_info);
+
     // 1. Let index be the result of calling ? ToUint32(P).
     auto index = property_name.as_number();
 
@@ -271,7 +264,7 @@ WebIDL::ExceptionOr<void> PlatformObject::invoke_indexed_property_setter(JS::Pro
     // 5. Let value be the result of converting V to an IDL value of type T.
 
     // 6. If operation was defined without an identifier, then:
-    if (!m_legacy_platform_object_flags->indexed_property_setter_has_identifier) {
+    if (!legacy_info->indexed_property_setter_has_identifier) {
         // 1. If creating is true, then perform the steps listed in the interface description to set the value of a new indexed property with index as the index and value as the value.
         if (creating)
             return set_value_of_new_indexed_property(realm(), index, value);
@@ -287,6 +280,9 @@ WebIDL::ExceptionOr<void> PlatformObject::invoke_indexed_property_setter(JS::Pro
 // https://webidl.spec.whatwg.org/#invoke-named-setter
 WebIDL::ExceptionOr<void> PlatformObject::invoke_named_property_setter(Utf16FlyString const& property_name, JS::Value value)
 {
+    auto const* legacy_info = legacy_platform_object_info();
+    VERIFY(legacy_info);
+
     // 1. Let creating be true if P is not a supported property name, and false otherwise.
     bool creating = !is_supported_property_name(property_name);
 
@@ -296,7 +292,7 @@ WebIDL::ExceptionOr<void> PlatformObject::invoke_named_property_setter(Utf16FlyS
     // 4. Let value be the result of converting V to an IDL value of type T.
 
     // 5. If operation was defined without an identifier, then:
-    if (!m_legacy_platform_object_flags->named_property_setter_has_identifier) {
+    if (!legacy_info->named_property_setter_has_identifier) {
         // 1. If creating is true, then perform the steps listed in the interface description to set the value of a new named property with P as the name and value as the value.
         if (creating)
             return set_value_of_new_named_property(realm(), property_name, value);
@@ -311,10 +307,11 @@ WebIDL::ExceptionOr<void> PlatformObject::invoke_named_property_setter(Utf16FlyS
 
 bool PlatformObject::is_cacheable_for_inherited_property() const
 {
-    if (!is_legacy_platform_object())
+    auto const* legacy_info = legacy_platform_object_info();
+    if (!legacy_info)
         return true;
-    if (!m_legacy_platform_object_flags->supports_named_properties
-        || !m_legacy_platform_object_flags->has_legacy_override_built_ins_interface_extended_attribute)
+    if (!legacy_info->supports_named_properties
+        || !legacy_info->has_legacy_override_built_ins_interface_extended_attribute)
         return true;
     return is<DOM::Document>(wrappable_impl()) && host_defined_wrapper_world(realm()).is_main_world();
 }
@@ -322,7 +319,8 @@ bool PlatformObject::is_cacheable_for_inherited_property() const
 // https://webidl.spec.whatwg.org/#legacy-platform-object-getownproperty
 JS::ThrowCompletionOr<Optional<JS::PropertyDescriptor>> PlatformObject::internal_get_own_property(JS::PropertyKey const& property_name) const
 {
-    if (m_legacy_platform_object_flags.has_value() && !m_legacy_platform_object_flags->has_global_interface_extended_attribute) {
+    auto const* legacy_info = legacy_platform_object_info();
+    if (legacy_info && !legacy_info->has_global_interface_extended_attribute) {
         // 1. Return ? PlatformObjectGetOwnProperty(O, P, false).
         return TRY(legacy_platform_object_get_own_property(property_name, IgnoreNamedProps::No));
     } else {
@@ -333,7 +331,8 @@ JS::ThrowCompletionOr<Optional<JS::PropertyDescriptor>> PlatformObject::internal
 // https://webidl.spec.whatwg.org/#legacy-platform-object-set
 JS::ThrowCompletionOr<bool> PlatformObject::internal_set(JS::PropertyKey const& property_name, JS::Value value, JS::Value receiver, JS::CacheableSetPropertyMetadata* metadata, PropertyLookupPhase phase)
 {
-    if (!m_legacy_platform_object_flags.has_value() || m_legacy_platform_object_flags->has_global_interface_extended_attribute)
+    auto const* legacy_info = legacy_platform_object_info();
+    if (!legacy_info || legacy_info->has_global_interface_extended_attribute)
         return TRY(ordinary_set(property_name, value, receiver, metadata, phase));
 
     auto& vm = this->vm();
@@ -341,7 +340,7 @@ JS::ThrowCompletionOr<bool> PlatformObject::internal_set(JS::PropertyKey const& 
     // 1. If O and Receiver are the same object, then:
     if (receiver.as_if<JS::Object>() == GC::Ptr<JS::Object> { *this }) {
         // 1. If O implements an interface with an indexed property setter and P is an array index, then:
-        if (m_legacy_platform_object_flags->has_indexed_property_setter && property_name.is_number()) {
+        if (legacy_info->has_indexed_property_setter && property_name.is_number()) {
             // 1. Invoke the indexed property setter on O with P and V.
             TRY(WebIDL::throw_dom_exception_if_needed(vm, realm(), [&] { return invoke_indexed_property_setter(property_name, value); }));
 
@@ -351,7 +350,7 @@ JS::ThrowCompletionOr<bool> PlatformObject::internal_set(JS::PropertyKey const& 
 
         // 2. If O implements an interface with a named property setter and P is a String, then:
         // NB: A PropertyKey containing a number is a String (it can only be a String or a Symbol, the number representation is an optimization).
-        if (m_legacy_platform_object_flags->has_named_property_setter && (property_name.is_string() || property_name.is_number())) {
+        if (legacy_info->has_named_property_setter && (property_name.is_string() || property_name.is_number())) {
             // 1. Invoke the named property setter on O with P and V.
             TRY(WebIDL::throw_dom_exception_if_needed(vm, realm(), [&] { return invoke_named_property_setter(property_key_to_utf16_fly_string(property_name), value); }));
 
@@ -374,19 +373,20 @@ JS::ThrowCompletionOr<bool> PlatformObject::internal_define_own_property(JS::Pro
 {
     Optional<JS::PropertyDescriptor> get_own_property_result = {};
 
-    if (!m_legacy_platform_object_flags.has_value() || m_legacy_platform_object_flags->has_global_interface_extended_attribute)
+    auto const* legacy_info = legacy_platform_object_info();
+    if (!legacy_info || legacy_info->has_global_interface_extended_attribute)
         return ordinary_define_own_property_and_preserve_wrapper_if_needed(*this, property_name, property_descriptor, precomputed_get_own_property);
 
     auto& vm = this->vm();
 
     // 1. If O supports indexed properties and P is an array index, then:
-    if (m_legacy_platform_object_flags->supports_indexed_properties && property_name.is_number()) {
+    if (legacy_info->supports_indexed_properties && property_name.is_number()) {
         // 1. If the result of calling IsDataDescriptor(Desc) is false, then return false.
         if (!property_descriptor.is_data_descriptor())
             return false;
 
         // 2. If O does not implement an interface with an indexed property setter, then return false.
-        if (!m_legacy_platform_object_flags->has_indexed_property_setter)
+        if (!legacy_info->has_indexed_property_setter)
             return false;
 
         // 3. Invoke the indexed property setter on O with P and Desc.[[Value]].
@@ -399,7 +399,7 @@ JS::ThrowCompletionOr<bool> PlatformObject::internal_define_own_property(JS::Pro
     // 2. If O supports named properties, O does not implement an interface with the [Global] extended attribute, P is a String, and P is not an unforgeable property name of O, then:
     // NB: A PropertyKey containing a number is a String (it can only be a String or a Symbol, the number representation is an optimization).
     // FIXME: Check if P is not an unforgeable property name of O
-    if (m_legacy_platform_object_flags->supports_named_properties && !m_legacy_platform_object_flags->has_global_interface_extended_attribute && (property_name.is_string() || property_name.is_number())) {
+    if (legacy_info->supports_named_properties && !legacy_info->has_global_interface_extended_attribute && (property_name.is_string() || property_name.is_number())) {
         auto const property_name_utf16 = property_key_to_utf16_fly_string(property_name);
 
         // 1. Let creating be true if P is not a supported property name, and false otherwise.
@@ -407,20 +407,20 @@ JS::ThrowCompletionOr<bool> PlatformObject::internal_define_own_property(JS::Pro
 
         // 2. If O implements an interface with the [LegacyOverrideBuiltIns] extended attribute or O does not have an own property named P, then:
         // NOTE: Own property lookup has to be done manually instead of using Object::has_own_property, as that would use the overridden internal_get_own_property.
-        if (!m_legacy_platform_object_flags->has_legacy_override_built_ins_interface_extended_attribute) {
+        if (!legacy_info->has_legacy_override_built_ins_interface_extended_attribute) {
             // AD-HOC: Avoid computing the [[GetOwnProperty]] multiple times.
             if (!precomputed_get_own_property) {
                 get_own_property_result = TRY(ordinary_get_own_property(property_name));
                 precomputed_get_own_property = &get_own_property_result;
             }
         }
-        if (m_legacy_platform_object_flags->has_legacy_override_built_ins_interface_extended_attribute || !precomputed_get_own_property->has_value()) {
+        if (legacy_info->has_legacy_override_built_ins_interface_extended_attribute || !precomputed_get_own_property->has_value()) {
             // 1. If creating is false and O does not implement an interface with a named property setter, then return false.
-            if (!creating && !m_legacy_platform_object_flags->has_named_property_setter)
+            if (!creating && !legacy_info->has_named_property_setter)
                 return false;
 
             // 2. If O implements an interface with a named property setter, then:
-            if (m_legacy_platform_object_flags->has_named_property_setter) {
+            if (legacy_info->has_named_property_setter) {
                 // 1. If the result of calling IsDataDescriptor(Desc) is false, then return false.
                 if (!property_descriptor.is_data_descriptor())
                     return false;
@@ -441,13 +441,14 @@ JS::ThrowCompletionOr<bool> PlatformObject::internal_define_own_property(JS::Pro
 // https://webidl.spec.whatwg.org/#legacy-platform-object-delete
 JS::ThrowCompletionOr<bool> PlatformObject::internal_delete(JS::PropertyKey const& property_name)
 {
-    if (!m_legacy_platform_object_flags.has_value() || m_legacy_platform_object_flags->has_global_interface_extended_attribute)
+    auto const* legacy_info = legacy_platform_object_info();
+    if (!legacy_info || legacy_info->has_global_interface_extended_attribute)
         return ordinary_delete(property_name);
 
     auto& vm = this->vm();
 
     // 1. If O supports indexed properties and P is an array index, then:
-    if (m_legacy_platform_object_flags->supports_indexed_properties && property_name.is_number()) {
+    if (legacy_info->supports_indexed_properties && property_name.is_number()) {
         // 1. Let index be the result of calling ! ToUint32(P).
         u32 index = property_name.as_number();
 
@@ -461,11 +462,11 @@ JS::ThrowCompletionOr<bool> PlatformObject::internal_delete(JS::PropertyKey cons
 
     // 2. If O supports named properties, O does not implement an interface with the [Global] extended attribute and
     //    the result of calling the named property visibility algorithm with property name P and object O is true, then:
-    if (m_legacy_platform_object_flags->supports_named_properties
-        && !m_legacy_platform_object_flags->has_global_interface_extended_attribute
+    if (legacy_info->supports_named_properties
+        && !legacy_info->has_global_interface_extended_attribute
         && TRY(is_named_property_exposed_on_object(property_name))) {
         // 1. If O does not implement an interface with a named property deleter, then return false.
-        if (!m_legacy_platform_object_flags->has_named_property_deleter)
+        if (!legacy_info->has_named_property_deleter)
             return false;
 
         // FIXME: It's unfortunate that this is done twice, once in is_named_property_exposed_on_object and here.
@@ -479,7 +480,7 @@ JS::ThrowCompletionOr<bool> PlatformObject::internal_delete(JS::PropertyKey cons
         //    1. Perform method steps of operation with O as this and « P » as the argument values.
         //    2. If operation was declared with a return type of boolean and the steps returned false, then return false.
         auto did_deletion_fail = TRY(WebIDL::throw_dom_exception_if_needed(vm, realm(), [&] { return delete_value(property_name_utf16); }));
-        if (!m_legacy_platform_object_flags->named_property_deleter_has_identifier)
+        if (!legacy_info->named_property_deleter_has_identifier)
             VERIFY(did_deletion_fail != NamedPropertyDeletionResult::NotRelevant);
 
         if (did_deletion_fail == NamedPropertyDeletionResult::DidFail)
@@ -508,6 +509,9 @@ JS::ThrowCompletionOr<bool> PlatformObject::internal_delete(JS::PropertyKey cons
 
 JS::ThrowCompletionOr<bool> PlatformObject::internal_set_prototype_of(JS::Object* prototype)
 {
+    if (host_class().flags & JS_HOST_CLASS_IMMUTABLE_PROTOTYPE)
+        return set_immutable_prototype(prototype);
+
     auto* old_prototype = shape().prototype();
     auto result = TRY(ordinary_set_prototype_of(prototype));
     if (result && old_prototype != shape().prototype() && realm().host_defined()) {
@@ -520,7 +524,8 @@ JS::ThrowCompletionOr<bool> PlatformObject::internal_set_prototype_of(JS::Object
 // https://webidl.spec.whatwg.org/#legacy-platform-object-preventextensions
 JS::ThrowCompletionOr<bool> PlatformObject::internal_prevent_extensions()
 {
-    if (!m_legacy_platform_object_flags.has_value() || m_legacy_platform_object_flags->has_global_interface_extended_attribute) {
+    auto const* legacy_info = legacy_platform_object_info();
+    if (!legacy_info || legacy_info->has_global_interface_extended_attribute) {
         auto was_extensible = extensible();
         auto result = TRY(ordinary_prevent_extensions());
         if (result && was_extensible && !extensible() && realm().host_defined()) {
@@ -538,7 +543,8 @@ JS::ThrowCompletionOr<bool> PlatformObject::internal_prevent_extensions()
 // https://webidl.spec.whatwg.org/#legacy-platform-object-ownpropertykeys
 JS::ThrowCompletionOr<GC::RootVector<JS::Value>> PlatformObject::internal_own_property_keys() const
 {
-    if (!m_legacy_platform_object_flags.has_value() || m_legacy_platform_object_flags->has_global_interface_extended_attribute)
+    auto const* legacy_info = legacy_platform_object_info();
+    if (!legacy_info || legacy_info->has_global_interface_extended_attribute)
         return ordinary_own_property_keys();
 
     auto& vm = this->vm();
@@ -547,7 +553,7 @@ JS::ThrowCompletionOr<GC::RootVector<JS::Value>> PlatformObject::internal_own_pr
     GC::RootVector<JS::Value> keys;
 
     // 2. If O supports indexed properties, then for each index of O’s supported property indices, in ascending numerical order, append ! ToString(index) to keys.
-    if (m_legacy_platform_object_flags->supports_indexed_properties) {
+    if (legacy_info->supports_indexed_properties) {
         for (u64 index = 0; index <= NumericLimits<u32>::max(); ++index) {
             if (is_supported_property_index(index))
                 keys.append(JS::PrimitiveString::create_from_unsigned_integer(vm, index));
@@ -557,7 +563,7 @@ JS::ThrowCompletionOr<GC::RootVector<JS::Value>> PlatformObject::internal_own_pr
     }
 
     // 3. If O supports named properties, then for each P of O’s supported property names that is visible according to the named property visibility algorithm, append P to keys.
-    if (m_legacy_platform_object_flags->supports_named_properties) {
+    if (legacy_info->supports_named_properties) {
         for (auto& named_property : supported_property_names()) {
             if (TRY(is_named_property_exposed_on_object(named_property)))
                 keys.append(JS::PrimitiveString::create(vm, named_property));
