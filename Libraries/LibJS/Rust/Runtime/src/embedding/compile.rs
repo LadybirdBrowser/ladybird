@@ -21,6 +21,7 @@ use core::ffi::c_void;
 use std::borrow::Cow;
 use std::sync::Arc;
 
+use crate::bytecode::bytecode_cache::ExecutableBacking;
 use crate::bytecode::executable::Executable;
 use crate::embedding::abi_types::{JSRealm, JSSourceCode, JSUtf16View, cell_from_abi, cell_into_abi, vm_from_abi};
 use crate::embedding::script::{JSParserErrorSink, JSScript, append_to_parser_error_sink, host_defined_slot_from_abi};
@@ -170,6 +171,22 @@ pub unsafe extern "C" fn js_compile_parsed_program_has_errors(parsed: *const JSP
     unsafe { parsed_program_from_abi(parsed) }.program.has_errors()
 }
 
+/// ParsedProgram::clone(): a copy of a program without errors, which compiles independently of it, such as for the
+/// bytecode cache while the original runs. The caller owns the copy. Any thread may call this.
+///
+/// # Safety
+///
+/// `parsed` must be a live parsed program without errors.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn js_compile_parsed_program_clone(parsed: *const JSParsedProgram) -> *mut JSParsedProgram {
+    // SAFETY: The caller passes a live parsed program.
+    let parsed = unsafe { parsed_program_from_abi(parsed) };
+    parsed_program_into_abi(ParsedSourceText {
+        program: parsed.program.clone_for_separate_compilation(),
+        source_length_in_code_units: parsed.source_length_in_code_units,
+    })
+}
+
 /// Destroys a parsed program that the caller owns. Null does nothing. Any thread may call this.
 ///
 /// # Safety
@@ -201,6 +218,36 @@ pub unsafe extern "C" fn js_compile_parsed_program(parsed: *mut JSParsedProgram)
         parsed.source_length_in_code_units,
         FunctionPrecompileMode::EagerOnly,
     ))
+}
+
+/// CompiledProgram::compile_all_functions(ParsedProgram): compiles a program that parsed without errors, which this
+/// consumes, with every function it contains, as the bytecode cache needs: the result only feeds
+/// js_bytecode_cache_serialize(), and never becomes a script or module. The caller owns the compiled program. Any thread
+/// may call this.
+///
+/// # Safety
+///
+/// `parsed` must be a live parsed program without errors, which the caller gives up.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn js_compile_parsed_program_with_all_functions(
+    parsed: *mut JSParsedProgram,
+) -> *mut JSCompiledProgram {
+    // SAFETY: The caller gives up a live parsed program.
+    let parsed = unsafe { take_parsed_program_from_abi(parsed) };
+    compiled_program_into_abi(compile_parsed_program_off_thread(
+        parsed.program,
+        parsed.source_length_in_code_units,
+        FunctionPrecompileMode::All,
+    ))
+}
+
+/// # Safety
+///
+/// `compiled` must be a compiled program the ABI handed out and that is still alive for `'a`.
+pub unsafe fn compiled_program_from_abi<'a>(compiled: *const JSCompiledProgram) -> &'a CompiledProgram {
+    assert!(!compiled.is_null(), "the embedder passes a compiled program");
+    // SAFETY: The caller passes a live compiled program, which is a boxed CompiledProgram.
+    unsafe { &*compiled.cast::<CompiledProgram>() }
 }
 
 /// Destroys a compiled program that the caller owns and that will not run, freeing what the frontend compiled for it.
@@ -280,6 +327,7 @@ pub unsafe extern "C" fn js_compile_create_script_from_parsed_program(
         source_code,
         &filename,
         host_defined,
+        ExecutableBacking::Source,
     ))
 }
 
@@ -319,6 +367,7 @@ pub unsafe extern "C" fn js_compile_create_script_from_compiled_program(
         source_code,
         &filename,
         host_defined,
+        ExecutableBacking::HeapBytecode,
     ))
 }
 
@@ -364,6 +413,7 @@ pub unsafe extern "C" fn js_compile_create_module_from_parsed_program(
         compile_module(parsed, source_length),
         source_code,
         host_defined,
+        ExecutableBacking::Source,
     ))
 }
 
@@ -401,6 +451,7 @@ pub unsafe extern "C" fn js_compile_create_module_from_compiled_program(
         compiled.into_module(),
         source_code,
         host_defined,
+        ExecutableBacking::HeapBytecode,
     ))
 }
 

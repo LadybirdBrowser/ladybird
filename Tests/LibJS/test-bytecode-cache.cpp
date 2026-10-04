@@ -278,6 +278,7 @@ static size_t top_level_bytecode_payload_offset(ReadonlyBytes blob)
 
     reader.skip(8);           // Magic.
     reader.skip(sizeof(u32)); // Format version.
+    reader.skip(1);           // Runtime.
     reader.skip(1);           // Program type.
     reader.skip(32);          // Source hash.
     reader.skip(sizeof(u32)); // Source length in code units.
@@ -417,6 +418,7 @@ static size_t first_declaration_function_bytecode_payload_offset(ReadonlyBytes b
 
     reader.skip(8);           // Magic.
     reader.skip(sizeof(u32)); // Format version.
+    reader.skip(1);           // Runtime.
     reader.skip(1);           // Program type.
     reader.skip(32);          // Source hash.
     reader.skip(sizeof(u32)); // Source length in code units.
@@ -463,6 +465,7 @@ static size_t first_declaration_function_source_text_start_offset(ReadonlyBytes 
 
     reader.skip(8);           // Magic.
     reader.skip(sizeof(u32)); // Format version.
+    reader.skip(1);           // Runtime.
     reader.skip(1);           // Program type.
     reader.skip(32);          // Source hash.
     reader.skip(sizeof(u32)); // Source length in code units.

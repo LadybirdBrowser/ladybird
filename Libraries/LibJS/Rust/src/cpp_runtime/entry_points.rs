@@ -15,6 +15,7 @@ use crate::bytecode;
 use crate::bytecode::executable::ExecutableData;
 use crate::bytecode::generator::PendingSharedFunctionData;
 use crate::bytecode::generator::PrecompiledFunction;
+use crate::bytecode_cache::BytecodeCacheRuntime;
 use crate::bytecode_cache::CloneBytecodeCacheBlobOwner;
 use crate::bytecode_cache::DecodedCacheBlob;
 use crate::bytecode_cache::ForeignBytecodeCacheBlobOwner;
@@ -285,23 +286,7 @@ fn compile_parsed_program_off_thread_into_raw(
 /// `parsed` must point to a valid parsed program with no errors.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_clone_parsed_program(parsed: *const ParsedProgram) -> *mut ParsedProgram {
-    unsafe {
-        abort_on_panic(|| {
-            let parsed = &*parsed;
-            assert!(parsed.errors.is_empty());
-            Box::into_raw(Box::new(ParsedProgram {
-                program: parsed.program.clone(),
-                function_table: parsed.function_table.clone(),
-                arena: parsed.arena.clone(),
-                scope_ref: parsed.scope_ref,
-                program_type: parsed.program_type,
-                is_strict_mode: parsed.is_strict_mode,
-                has_top_level_await: parsed.has_top_level_await,
-                errors: Vec::new(),
-                ast_dump: None,
-            }))
-        })
-    }
+    unsafe { abort_on_panic(|| Box::into_raw(Box::new((*parsed).clone_for_separate_compilation()))) }
 }
 
 /// Compile a parsed program to an off-thread bytecode artifact.
@@ -404,7 +389,7 @@ pub unsafe extern "C" fn rust_serialize_compiled_program_for_bytecode_cache(
             let source_hash = std::slice::from_raw_parts(source_hash, source_hash_len)
                 .try_into()
                 .expect("source hash length was checked");
-            let bytes = serialize_compiled_program(&*compiled, program_type, source_hash);
+            let bytes = serialize_compiled_program(&*compiled, program_type, source_hash, BytecodeCacheRuntime::Cpp);
             let length = bytes.len();
             let mut bytes = bytes.into_boxed_slice();
             let data = bytes.as_mut_ptr();
@@ -470,9 +455,10 @@ pub unsafe extern "C" fn rust_decode_bytecode_cache_blob_with_owner(
                 std::slice::from_raw_parts(data, length),
                 expected_program_type,
                 expected_source_hash,
+                BytecodeCacheRuntime::Cpp,
                 ForeignBytecodeCacheBlobOwner {
                     owner,
-                    clone_owner,
+                    clone_owner: Some(clone_owner),
                     free_owner,
                 },
             ) else {

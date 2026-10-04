@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+pub mod bytecode_cache;
 pub mod class_blueprint;
 pub mod executable;
 pub mod operand;
