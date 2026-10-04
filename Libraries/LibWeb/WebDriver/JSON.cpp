@@ -302,19 +302,17 @@ static Response internal_json_clone(HTML::BrowsingContext const& browsing_contex
     }
 
     // -> a WindowProxy object
-    if (is<HTML::WindowProxy>(object)) {
-        auto const& window_proxy = static_cast<HTML::WindowProxy const&>(object);
-
+    if (auto const* window_proxy = HTML::WindowProxy::from_object(object)) {
         // If the associated browsing context of the WindowProxy object in value has been destroyed, return error
         // with error code stale element reference.
-        auto browsing_context = window_proxy.associated_browsing_context();
+        auto browsing_context = window_proxy->associated_browsing_context();
         if (!browsing_context || browsing_context->has_navigable_been_destroyed()) {
             return WebDriver::Error::from_code(ErrorCode::StaleElementReference, "Browsing context has been discarded"sv);
         }
         // Otherwise:
         else {
             // 1. Let reference be the WindowProxy reference object for value.
-            auto reference = window_proxy_reference_object(window_proxy);
+            auto reference = window_proxy_reference_object(*window_proxy);
 
             // 2. Return success with data reference.
             return JsonValue { move(reference) };
@@ -383,13 +381,13 @@ static ErrorOr<JS::Value, WebDriver::Error> internal_json_deserialize(HTML::Brow
     // -> Object that represents a web frame
     if (represents_a_web_frame(value)) {
         // Return the deserialized web frame of value.
-        return deserialize_web_frame(value.as_object());
+        return &TRY(deserialize_web_frame(value.as_object()))->object();
     }
 
     // -> Object that represents a web window
     if (represents_a_web_window(value)) {
         // Return the deserialized web window of value.
-        return deserialize_web_window(value.as_object());
+        return &TRY(deserialize_web_window(value.as_object()))->object();
     }
 
     // -> instance of Array

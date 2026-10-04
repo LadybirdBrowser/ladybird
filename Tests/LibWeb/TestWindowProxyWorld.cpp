@@ -88,7 +88,9 @@ TEST_CASE(per_world_windowproxy_and_window_wrapper)
 
     auto& main_wrapper = Web::Bindings::platform_object_for_window(*window, window->principal_realm());
     auto main_proxy = browsing_context->window_proxy();
-    EXPECT(main_proxy->shape().prototype() == &main_wrapper);
+    EXPECT(main_proxy->object().shape().prototype() == &main_wrapper);
+    EXPECT(Web::HTML::WindowProxy::from_object(main_proxy->object()) == main_proxy);
+    EXPECT(!Web::HTML::WindowProxy::from_object(main_wrapper));
 
     auto run_script = [&](JS::Realm& realm, Utf16View source) {
         auto script_or_error = JS::Script::parse(source, realm);
@@ -109,7 +111,7 @@ TEST_CASE(per_world_windowproxy_and_window_wrapper)
             return Web::Bindings::create_global_object_wrapper(realm, GC::Ref { *window });
         },
         [&](JS::Realm& realm) -> GC::Ref<JS::Object> {
-            return *browsing_context->window_proxy_for(*extension_world, realm);
+            return browsing_context->window_proxy_for(*extension_world, realm)->object();
         });
     auto& extension_realm = *extension_execution_context->realm;
     auto intrinsics = extension_realm.create<Web::Bindings::Intrinsics>(extension_realm);
@@ -126,8 +128,8 @@ TEST_CASE(per_world_windowproxy_and_window_wrapper)
     EXPECT(extension_proxy != main_proxy);
     EXPECT(extension_proxy == browsing_context->window_proxy_for(*extension_world, extension_realm));
     EXPECT(extension_proxy->window().ptr() == window.ptr());
-    EXPECT(extension_proxy->shape().prototype() == nullptr);
-    EXPECT(&Web::Bindings::this_value_realm(extension_realm, extension_proxy) == &extension_realm);
+    EXPECT(extension_proxy->object().shape().prototype() == nullptr);
+    EXPECT(&Web::Bindings::this_value_realm(extension_realm, &extension_proxy->object()) == &extension_realm);
 
     auto& extension_wrapper = Web::Bindings::platform_object_for_window(*window, extension_realm);
     EXPECT(&extension_wrapper != &main_wrapper);
@@ -137,14 +139,16 @@ TEST_CASE(per_world_windowproxy_and_window_wrapper)
     vm.push_execution_context(*extension_execution_context);
 
     auto proxy_marker = JS::PropertyKey { "proxy-marker"_utf16_fly_string };
-    EXPECT(MUST(extension_proxy->internal_set(proxy_marker, JS::Value(123), JS::Value(extension_proxy), nullptr, JS::Object::PropertyLookupPhase::OwnProperty)));
-    EXPECT(MUST(extension_proxy->internal_get(proxy_marker, JS::Value(extension_proxy), nullptr, JS::Object::PropertyLookupPhase::OwnProperty)).as_i32() == 123);
-    EXPECT(MUST(main_proxy->internal_get(proxy_marker, JS::Value(main_proxy), nullptr, JS::Object::PropertyLookupPhase::OwnProperty)).is_undefined());
+    auto& extension_proxy_object = extension_proxy->object();
+    auto& main_proxy_object = main_proxy->object();
+    EXPECT(MUST(extension_proxy_object.internal_set(proxy_marker, JS::Value(123), &extension_proxy_object, nullptr, JS::Object::PropertyLookupPhase::OwnProperty)));
+    EXPECT(MUST(extension_proxy_object.internal_get(proxy_marker, &extension_proxy_object, nullptr, JS::Object::PropertyLookupPhase::OwnProperty)).as_i32() == 123);
+    EXPECT(MUST(main_proxy_object.internal_get(proxy_marker, &main_proxy_object, nullptr, JS::Object::PropertyLookupPhase::OwnProperty)).is_undefined());
 
     for (auto const& property_name : { "self"_utf16_fly_string, "top"_utf16_fly_string, "parent"_utf16_fly_string }) {
-        auto value = MUST(extension_proxy->internal_get(JS::PropertyKey { property_name }, JS::Value(extension_proxy), nullptr, JS::Object::PropertyLookupPhase::OwnProperty));
+        auto value = MUST(extension_proxy_object.internal_get(JS::PropertyKey { property_name }, &extension_proxy_object, nullptr, JS::Object::PropertyLookupPhase::OwnProperty));
         EXPECT(value.is_object());
-        EXPECT(&value.as_object() == extension_proxy);
+        EXPECT(&value.as_object() == &extension_proxy_object);
         EXPECT(&value.as_object().shape().realm() == &extension_realm);
     }
 
@@ -156,7 +160,7 @@ TEST_CASE(per_world_windowproxy_and_window_wrapper)
 
             auto this_value = vm.this_value();
             EXPECT(this_value.is_object());
-            EXPECT(&this_value.as_object() == extension_proxy);
+            EXPECT(&this_value.as_object() == &extension_proxy->object());
             EXPECT(&this_value.as_object().shape().realm() == &extension_realm);
 
             auto event_value = vm.argument(0);
@@ -169,7 +173,7 @@ TEST_CASE(per_world_windowproxy_and_window_wrapper)
 
             auto current_target = TRY(event_value.as_object().internal_get(JS::PropertyKey { "currentTarget"_utf16_fly_string }, event_value));
             EXPECT(current_target.is_object());
-            EXPECT(&current_target.as_object() == extension_proxy);
+            EXPECT(&current_target.as_object() == &extension_proxy->object());
             EXPECT(&current_target.as_object().shape().realm() == &extension_realm);
 
             return JS::js_undefined();
@@ -190,8 +194,8 @@ TEST_CASE(per_world_windowproxy_and_window_wrapper)
     browsing_context->set_active_window(replacement_window);
     EXPECT(main_proxy->window().ptr() == replacement_window.ptr());
     EXPECT(extension_proxy->window().ptr() == replacement_window.ptr());
-    EXPECT(main_proxy->shape().prototype() == &Web::Bindings::platform_object_for_window(*replacement_window, main_proxy->realm()));
-    EXPECT(extension_proxy->shape().prototype() == nullptr);
+    EXPECT(main_proxy->object().shape().prototype() == &Web::Bindings::platform_object_for_window(*replacement_window, main_proxy->realm()));
+    EXPECT(extension_proxy->object().shape().prototype() == nullptr);
 
     vm.pop_execution_context();
 }

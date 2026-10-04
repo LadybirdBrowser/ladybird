@@ -607,12 +607,11 @@ def interface_to_idl_value(
     includes.add("LibJS/Runtime/ValueInlines.h")
     includes.add(interface_like_type.implementation_header)
     if interface_like_type.name == "WindowProxy":
-        includes.add("AK/TypeCasts.h")
         return f"""[&]() -> JS::ThrowCompletionOr<GC::Ref<{interface_like_type.fully_qualified_name}>> {{
         if (!{value_name}.is_object())
             return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "{interface_like_type.name}");
 
-        if (auto* window_proxy = as_if<{interface_like_type.fully_qualified_name}>({value_name}.as_object()))
+        if (auto* window_proxy = {interface_like_type.fully_qualified_name}::from_object({value_name}.as_object()))
             return GC::Ref {{ *window_proxy }};
         return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "{interface_like_type.name}");
     }}()"""
@@ -1055,7 +1054,7 @@ def union_to_idl_value(
             includes.add(interface_like_type.implementation_header)
             if interface_like_type.name == "WindowProxy":
                 append(f"""
-                if (auto* window_proxy = as_if<{platform_object_cpp_type}>(object))
+                if (auto* window_proxy = {platform_object_cpp_type}::from_object(object))
                     return {variant_type} {{ GC::Ref {{ *window_proxy }} }};
 """)
                 continue

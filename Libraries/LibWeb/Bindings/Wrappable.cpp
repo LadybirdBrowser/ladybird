@@ -232,7 +232,7 @@ JS::Realm& this_value_realm(JS::Realm& fallback_realm, JS::Value this_value)
         return fallback_realm;
 
     auto& object = this_value.as_object();
-    if (auto* window_proxy = as_if<HTML::WindowProxy>(&object)) {
+    if (auto* window_proxy = HTML::WindowProxy::from_object(object)) {
         // NB: A Window hosted by another process has no realm in this one, so the caller's realm stands in.
         if (window_proxy->remote_window())
             return fallback_realm;
@@ -358,20 +358,20 @@ void cache_global_object_wrapper(JS::Realm& realm)
     });
 }
 
+// NB: Only host classes give objects the platform object flag, so every platform object is a host object. Not every one
+//     is a PlatformObject: a WindowProxy is a host object without a wrappable.
 Wrappable* wrappable_impl_from(JS::Object* object)
 {
-    auto* platform_object = as_if<PlatformObject>(object);
-    if (!platform_object)
+    if (!object || !object->is_platform_object())
         return nullptr;
-    return static_cast<Wrappable*>(platform_object->wrappable().ptr());
+    return static_cast<Wrappable*>(static_cast<JS::HostObject*>(object)->wrappable().ptr());
 }
 
 Wrappable const* wrappable_impl_from(JS::Object const* object)
 {
-    auto const* platform_object = as_if<PlatformObject>(object);
-    if (!platform_object)
+    if (!object || !object->is_platform_object())
         return nullptr;
-    return static_cast<Wrappable const*>(platform_object->wrappable().ptr());
+    return static_cast<Wrappable const*>(static_cast<JS::HostObject const*>(object)->wrappable().ptr());
 }
 
 }

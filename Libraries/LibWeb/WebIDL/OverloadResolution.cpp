@@ -24,11 +24,11 @@ static bool is_platform_object(JS::Value value)
 
 static bool platform_object_implements_interface(JS::Value value, StringView interface_name)
 {
-    auto const* platform_object = as_if<Bindings::PlatformObject>(&value.as_object());
-    if (!platform_object)
+    auto const* wrappable = Bindings::wrappable_impl_from(&value.as_object());
+    if (!wrappable)
         return false;
 
-    return platform_object->implements_interface(MUST(String::from_utf8(interface_name)));
+    return wrappable->implements_interface(MUST(String::from_utf8(interface_name)));
 }
 
 // https://webidl.spec.whatwg.org/#dfn-convert-ecmascript-to-idl-value

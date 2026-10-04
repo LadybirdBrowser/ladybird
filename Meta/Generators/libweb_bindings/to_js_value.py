@@ -250,7 +250,7 @@ def interface_to_javascript_value(
     includes.add(interface_like_type.implementation_header)
     wrapper_world_argument = wrapper_world or f"host_defined_wrapper_world({realm})"
     if interface_like_type.name == "WindowProxy":
-        # WindowProxy is already a PlatformObject, but is not a Wrappable.
+        # WindowProxy is not a Wrappable. Its JS value is the exotic object it holds.
         includes.add("LibWeb/Bindings/WrapperWorld.h")
         includes.add("LibWeb/HTML/BrowsingContext.h")
         return f"""[&]() -> JS::Value {{
@@ -264,8 +264,8 @@ def interface_to_javascript_value(
         if (!object)
             return JS::js_null();
         if (auto browsing_context = object->associated_browsing_context())
-            return browsing_context->window_proxy_for({wrapper_world_argument}, {realm});
-        return object.ptr();
+            return &browsing_context->window_proxy_for({wrapper_world_argument}, {realm})->object();
+        return &object->object();
     }}()"""
     if interface_like_type.name == "EventTarget":
         includes.add("AK/TypeCasts.h")
@@ -286,7 +286,7 @@ def interface_to_javascript_value(
             return JS::js_null();
         if (auto* window = as_if<HTML::Window>(object.ptr())) {{
             if (auto browsing_context = window->browsing_context())
-                return JS::Value(static_cast<JS::Object*>(browsing_context->window_proxy_for({wrapper_world_argument}, {realm})));
+                return JS::Value(&browsing_context->window_proxy_for({wrapper_world_argument}, {realm})->object());
         }}
         return JS::Value(static_cast<JS::Object*>(wrap({wrapper_world_argument}, {realm}, GC::Ref {{ *object }}).ptr()));
     }}()"""

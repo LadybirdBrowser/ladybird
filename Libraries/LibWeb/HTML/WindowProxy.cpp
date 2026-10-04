@@ -11,6 +11,7 @@
 #include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/PropertyDescriptor.h>
 #include <LibJS/Runtime/PropertyKey.h>
+#include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Bindings/Window.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Bindings/WrapperWorld.h>
@@ -29,23 +30,97 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(WindowProxy);
 
-static constexpr JSHostClass window_proxy_host_class = JS::make_host_class(JS_HOST_CLASS_OBJECT, "WindowProxy"sv, nullptr, nullptr, nullptr,
+// The internal methods of the exotic object are those of the WindowProxy in its host data.
+struct WindowProxyHostObjectTraits {
+    static WindowProxy& window_proxy_of(JS::HostObject const& object)
+    {
+        return static_cast<WindowProxy&>(*object.host_data());
+    }
+
+    static JS::ThrowCompletionOr<JS::Object*> get_prototype_of(JS::HostObject const& object)
+    {
+        return window_proxy_of(object).internal_get_prototype_of();
+    }
+
+    static JS::ThrowCompletionOr<bool> set_prototype_of(JS::HostObject const& object, JS::Object* prototype)
+    {
+        return window_proxy_of(object).internal_set_prototype_of(prototype);
+    }
+
+    static JS::ThrowCompletionOr<bool> is_extensible(JS::HostObject const& object)
+    {
+        return window_proxy_of(object).internal_is_extensible();
+    }
+
+    static JS::ThrowCompletionOr<bool> prevent_extensions(JS::HostObject const& object)
+    {
+        return window_proxy_of(object).internal_prevent_extensions();
+    }
+
+    static JS::ThrowCompletionOr<Optional<JS::PropertyDescriptor>> get_own_property(JS::HostObject const& object, JS::PropertyKey const& property_key)
+    {
+        return window_proxy_of(object).internal_get_own_property(property_key);
+    }
+
+    static JS::ThrowCompletionOr<bool> define_own_property(JS::HostObject const& object, JS::PropertyKey const& property_key, JS::PropertyDescriptor& descriptor, Optional<JS::PropertyDescriptor>*)
+    {
+        return window_proxy_of(object).internal_define_own_property(property_key, descriptor);
+    }
+
+    static JS::ThrowCompletionOr<JS::Value> get(JS::HostObject const& object, JS::PropertyKey const& property_key, JS::Value receiver, JS::CacheableGetPropertyMetadata* cacheable_metadata, JS::Object::PropertyLookupPhase phase)
+    {
+        return window_proxy_of(object).internal_get(property_key, receiver, cacheable_metadata, phase);
+    }
+
+    static JS::ThrowCompletionOr<bool> set(JS::HostObject const& object, JS::PropertyKey const& property_key, JS::Value value, JS::Value receiver, JS::CacheableSetPropertyMetadata*, JS::Object::PropertyLookupPhase)
+    {
+        return window_proxy_of(object).internal_set(property_key, value, receiver);
+    }
+
+    static JS::ThrowCompletionOr<bool> delete_property(JS::HostObject const& object, JS::PropertyKey const& property_key)
+    {
+        return window_proxy_of(object).internal_delete(property_key);
+    }
+
+    static JS::ThrowCompletionOr<GC::RootVector<JS::Value>> own_property_keys(JS::HostObject const& object)
+    {
+        return window_proxy_of(object).internal_own_property_keys();
+    }
+};
+
+static constexpr JSHostObjectHooks window_proxy_hooks = JS::make_host_object_hooks<WindowProxyHostObjectTraits>();
+
+constexpr JSHostClass window_proxy_host_class = JS::make_host_class(JS_HOST_CLASS_OBJECT, "WindowProxy"sv, nullptr, &window_proxy_hooks, nullptr,
     Bindings::platform_object_host_class_flags
         | JS_HOST_CLASS_MAY_INTERFERE_WITH_INDEXED_PROPERTY_ACCESS
-        | JS_HOST_CLASS_IMMUTABLE_PROTOTYPE
         | JS_HOST_CLASS_NOT_CACHEABLE_FOR_PROPERTY_ABSENCE);
 
-GC::Ref<WindowProxy> WindowProxy::create(JS::Realm& realm)
-{
-    return realm.create<WindowProxy>(realm);
-}
-
-// 7.2.3 The WindowProxy exotic object, https://html.spec.whatwg.org/multipage/nav-history-apis.html#the-windowproxy-exotic-object
 // NB: Direct getters read the wrappable slot of any platform object without checking what it holds, so it stays null
 //     here. [[Window]] is not an implementation object that this proxy wraps.
-WindowProxy::WindowProxy(JS::Realm& realm)
-    : PlatformObject(realm, window_proxy_host_class)
+GC::Ref<WindowProxy> WindowProxy::create(JS::Realm& realm)
 {
+    auto object = JS::HostObject::create(realm, window_proxy_host_class, nullptr);
+    auto window_proxy = realm.create<WindowProxy>(object);
+    object->set_host_data(window_proxy);
+    return window_proxy;
+}
+
+WindowProxy::WindowProxy(GC::Ref<JS::HostObject> object)
+    : m_object(object)
+{
+}
+
+JS::Realm& WindowProxy::realm() const
+{
+    return m_object->shape().realm();
+}
+
+static JS::Value active_window_proxy_value(Navigable& navigable)
+{
+    auto window_proxy = navigable.active_window_proxy();
+    if (!window_proxy)
+        return JS::js_null();
+    return &window_proxy->object();
 }
 
 // 7.2.3.1 [[GetPrototypeOf]] ( ), https://html.spec.whatwg.org/multipage/nav-history-apis.html#windowproxy-getprototypeof
@@ -62,10 +137,10 @@ JS::ThrowCompletionOr<JS::Object*> WindowProxy::internal_get_prototype_of() cons
 }
 
 // 7.2.3.2 [[SetPrototypeOf]] ( V ), https://html.spec.whatwg.org/multipage/nav-history-apis.html#windowproxy-setprototypeof
-JS::ThrowCompletionOr<bool> WindowProxy::internal_set_prototype_of(Object* prototype)
+JS::ThrowCompletionOr<bool> WindowProxy::internal_set_prototype_of(JS::Object* prototype)
 {
     // 1. Return ! SetImmutablePrototype(this, V).
-    return MUST(set_immutable_prototype(prototype));
+    return MUST(m_object->set_immutable_prototype(prototype));
 }
 
 // 7.2.3.3 [[IsExtensible]] ( ), https://html.spec.whatwg.org/multipage/nav-history-apis.html#windowproxy-isextensible
@@ -106,7 +181,7 @@ JS::ThrowCompletionOr<Optional<JS::PropertyDescriptor>> WindowProxy::internal_ge
             // NOTE: children are coming sorted in required order from document_tree_child_navigables()
 
             // 2. Set value to children[index]'s active WindowProxy.
-            value = children[index]->active_window_proxy();
+            value = active_window_proxy_value(*children[index]);
         }
 
         // 5. If value is undefined, then:
@@ -143,7 +218,7 @@ JS::ThrowCompletionOr<Optional<JS::PropertyDescriptor>> WindowProxy::internal_ge
             return TRY(cross_origin_property_fallback(vm, property_key));
 
         // 1. Let value be the active WindowProxy of the named object of W with the name P.
-        auto value = navigable.value()->active_window_proxy();
+        auto value = active_window_proxy_value(*navigable.value());
 
         // 2. Return PropertyDescriptor { [[Value]]: value, [[Enumerable]]: false, [[Writable]]: false, [[Configurable]]: true }.
         // NOTE: The reason the property descriptors are non-enumerable, despite this mismatching the same-origin behavior, is for compatibility with existing web content. See issue #3183 for details.
@@ -155,7 +230,7 @@ JS::ThrowCompletionOr<Optional<JS::PropertyDescriptor>> WindowProxy::internal_ge
 }
 
 // 7.2.3.6 [[DefineOwnProperty]] ( P, Desc ), https://html.spec.whatwg.org/multipage/nav-history-apis.html#windowproxy-defineownproperty
-JS::ThrowCompletionOr<bool> WindowProxy::internal_define_own_property(JS::PropertyKey const& property_key, JS::PropertyDescriptor& descriptor, Optional<JS::PropertyDescriptor>*)
+JS::ThrowCompletionOr<bool> WindowProxy::internal_define_own_property(JS::PropertyKey const& property_key, JS::PropertyDescriptor& descriptor)
 {
     // 1. Let W be the value of the [[Window]] internal slot of this.
 
@@ -175,7 +250,7 @@ JS::ThrowCompletionOr<bool> WindowProxy::internal_define_own_property(JS::Proper
 }
 
 // 7.2.3.7 [[Get]] ( P, Receiver ), https://html.spec.whatwg.org/multipage/nav-history-apis.html#windowproxy-get
-JS::ThrowCompletionOr<JS::Value> WindowProxy::internal_get(JS::PropertyKey const& property_key, JS::Value receiver, JS::CacheableGetPropertyMetadata* cacheable_metadata, PropertyLookupPhase phase) const
+JS::ThrowCompletionOr<JS::Value> WindowProxy::internal_get(JS::PropertyKey const& property_key, JS::Value receiver, JS::CacheableGetPropertyMetadata* cacheable_metadata, JS::Object::PropertyLookupPhase phase) const
 {
     auto& vm = this->vm();
 
@@ -196,26 +271,19 @@ JS::ThrowCompletionOr<JS::Value> WindowProxy::internal_get(JS::PropertyKey const
             if (!Bindings::host_defined_wrapper_world(realm()).is_main_world())
                 return window_wrapper.internal_get(property_key, receiver);
 
-            JS::CacheableGetPropertyMetadata window_metadata;
-            auto value = TRY(window_wrapper.internal_get(property_key, receiver, &window_metadata, PropertyLookupPhase::PrototypeChain));
-
-            if (cacheable_metadata
-                && vm.current_realm() == &realm()
-                && phase == PropertyLookupPhase::OwnProperty
-                && window_metadata.type == JS::CacheableGetPropertyMetadata::Type::GetPropertyInPrototypeChain)
-                *cacheable_metadata = window_metadata;
-            return value;
+            auto may_cache_lookup = vm.current_realm() == &realm() && phase == JS::Object::PropertyLookupPhase::OwnProperty;
+            return window_wrapper.internal_get_as_prototype_of(property_key, receiver, may_cache_lookup ? cacheable_metadata : nullptr);
         }
-        return ordinary_get(property_key, receiver);
+        return m_object->ordinary_get(property_key, receiver);
     }
 
     // 4. Return ? CrossOriginGet(this, P, Receiver).
     // NOTE: this is passed rather than W as OrdinaryGet and CrossOriginGet will invoke the [[GetOwnProperty]] internal method.
-    return cross_origin_get(vm, *this, property_key, receiver);
+    return cross_origin_get(vm, *m_object, property_key, receiver);
 }
 
 // 7.2.3.8 [[Set]] ( P, V, Receiver ), https://html.spec.whatwg.org/multipage/nav-history-apis.html#windowproxy-set
-JS::ThrowCompletionOr<bool> WindowProxy::internal_set(JS::PropertyKey const& property_key, JS::Value value, JS::Value receiver, JS::CacheableSetPropertyMetadata*, PropertyLookupPhase)
+JS::ThrowCompletionOr<bool> WindowProxy::internal_set(JS::PropertyKey const& property_key, JS::Value value, JS::Value receiver)
 {
     auto& vm = this->vm();
 
@@ -236,7 +304,7 @@ JS::ThrowCompletionOr<bool> WindowProxy::internal_set(JS::PropertyKey const& pro
 
     // 4. Return ? CrossOriginSet(this, P, V, Receiver).
     // NOTE: this is passed rather than W as CrossOriginSet will invoke the [[GetOwnProperty]] internal method.
-    return cross_origin_set(vm, *this, property_key, value, receiver);
+    return cross_origin_set(vm, *m_object, property_key, value, receiver);
 }
 
 // 7.2.3.9 [[Delete]] ( P ), https://html.spec.whatwg.org/multipage/nav-history-apis.html#windowproxy-delete
@@ -297,6 +365,7 @@ JS::ThrowCompletionOr<GC::RootVector<JS::Value>> WindowProxy::internal_own_prope
 void WindowProxy::visit_edges(JS::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
+    visitor.visit(m_object);
     visitor.visit(m_window);
     visitor.visit(m_remote_window);
     visitor.visit(m_cross_origin_window_wrapper);
@@ -309,7 +378,7 @@ void WindowProxy::set_window(GC::Ref<Window> window)
     m_cross_origin_window_wrapper = nullptr;
 
     if (!realm().host_defined() || !Bindings::host_defined_wrapper_world(realm()).is_main_world()) {
-        set_prototype(nullptr);
+        m_object->set_prototype(nullptr);
         return;
     }
 
@@ -319,7 +388,7 @@ void WindowProxy::set_window(GC::Ref<Window> window)
     // can guard and load through this hidden link. Retargeting the proxy after
     // navigation changes its shape and invalidates those caches naturally.
     auto& window_wrapper = Bindings::platform_object_for_window(*m_window, realm());
-    set_prototype(&window_wrapper);
+    m_object->set_prototype(&window_wrapper);
 }
 
 void WindowProxy::set_window(GC::Ref<RemoteWindow> window)
@@ -332,7 +401,7 @@ void WindowProxy::set_remote_window_over_provisional_window(GC::Ref<RemoteWindow
 {
     m_remote_window = window;
     m_cross_origin_window_wrapper = nullptr;
-    set_prototype(nullptr);
+    m_object->set_prototype(nullptr);
 }
 
 bool WindowProxy::is_platform_object_same_origin() const
@@ -359,7 +428,7 @@ OrderedHashMap<Utf16FlyString, GC::Ref<Navigable>> WindowProxy::document_tree_ch
 Optional<JS::PropertyDescriptor> WindowProxy::cross_origin_get_own_property_helper(JS::PropertyKey const& property_key) const
 {
     if (m_remote_window)
-        return HTML::cross_origin_get_own_property_helper(const_cast<WindowProxy&>(*this), *m_remote_window, m_remote_window->cross_origin_property_descriptor_map(), property_key);
+        return HTML::cross_origin_get_own_property_helper(*m_object, *m_remote_window, m_remote_window->cross_origin_property_descriptor_map(), property_key);
 
     auto& window_wrapper = static_cast<Bindings::WindowWrapper&>(cross_origin_window_wrapper());
     return HTML::cross_origin_get_own_property_helper(window_wrapper, *m_window, window_wrapper.cross_origin_property_descriptor_map(), property_key);

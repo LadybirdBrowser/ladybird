@@ -346,13 +346,13 @@ JS::Value event(JS::Realm& realm, GC::Ref<DOM::Event> event)
     return wrap(host_defined_wrapper_world(realm), realm, event);
 }
 
-GC::Ptr<PlatformObject> current_target_wrapper(JS::Realm& realm, DOM::Event const& event)
+GC::Ptr<JS::Object> current_target_wrapper(JS::Realm& realm, DOM::Event const& event)
 {
     auto current_target = event.current_target();
     if (auto* window = as_if<HTML::Window>(current_target.ptr())) {
         if (auto browsing_context = window->browsing_context())
-            return browsing_context->window_proxy_for(Bindings::host_defined_wrapper_world(realm), realm);
-        return window->window();
+            return browsing_context->window_proxy_for(Bindings::host_defined_wrapper_world(realm), realm)->object();
+        return window->window()->object();
     }
     return wrap(host_defined_wrapper_world(realm), realm, current_target);
 }

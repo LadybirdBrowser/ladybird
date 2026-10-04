@@ -131,7 +131,7 @@ BrowsingContext::BrowsingContextAndDocument BrowsingContext::create_a_new_browsi
         },
         [&](JS::Realm&) -> GC::Ref<JS::Object> {
             // - For the global this binding, use browsingContext's WindowProxy object.
-            return *browsing_context->window_proxy();
+            return browsing_context->window_proxy()->object();
         });
 
     auto& realm = *realm_execution_context->realm;

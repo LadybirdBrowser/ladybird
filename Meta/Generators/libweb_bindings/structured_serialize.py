@@ -57,11 +57,7 @@ bool is_platform_object(JS::Object const& object)
 
 Transferable* transferable_from_object(JS::Object& object)
 {
-    auto* platform_object = as_if<Bindings::PlatformObject>(object);
-    if (!platform_object)
-        return nullptr;
-
-    auto* wrappable = Bindings::wrappable_impl_from(platform_object);
+    auto* wrappable = Bindings::wrappable_impl_from(&object);
     if (!wrappable)
         return nullptr;
 
@@ -70,11 +66,7 @@ Transferable* transferable_from_object(JS::Object& object)
 
 Optional<SerializablePlatformObject> serializable_from_object(JS::Object& object)
 {
-    auto* platform_object = as_if<Bindings::PlatformObject>(object);
-    if (!platform_object)
-        return {};
-
-    auto* wrappable = Bindings::wrappable_impl_from(platform_object);
+    auto* wrappable = Bindings::wrappable_impl_from(&object);
     if (!wrappable)
         return {};
 
@@ -82,7 +74,7 @@ Optional<SerializablePlatformObject> serializable_from_object(JS::Object& object
     if (!serializable)
         return {};
 
-    return SerializablePlatformObject { serializable, platform_object->interface_name(), &platform_object->realm() };
+    return SerializablePlatformObject { serializable, wrappable->interface_name(), &object.shape().realm() };
 }
 
 GC::Ref<PlatformObject> create_serialized_platform_object(InterfaceName serialize_type, JS::Realm& realm)

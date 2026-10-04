@@ -112,17 +112,21 @@ GC::Ptr<WindowProxy const> RemoteWindow::top() const
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-opener
-GC::Ptr<WindowProxy const> RemoteWindow::opener() const
+JS::Value RemoteWindow::opener() const
 {
     // 1. Let current be this's browsing context.
     // 2. If current is null, then return null.
     auto navigable = this->navigable();
     if (!navigable)
-        return {};
+        return JS::js_null();
 
     // 3. If current's opener browsing context is null, then return null.
+    auto opener_window_proxy = navigable->active_browsing_context_opener_window_proxy();
+    if (!opener_window_proxy)
+        return JS::js_null();
+
     // 4. Return current's opener browsing context's WindowProxy object.
-    return navigable->active_browsing_context_opener_window_proxy();
+    return &opener_window_proxy->object();
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-parent
