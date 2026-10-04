@@ -33,8 +33,6 @@ protected:
 private:
     CanvasRenderingContext2D(JS::Realm&, HTMLCanvasElement&, HTML::CanvasRenderingContext2DSettings);
 
-    virtual bool is_canvas_rendering_context_2d() const final { return true; }
-
     virtual void visit_edges(Cell::Visitor&) override;
 
     GC::Ref<HTMLCanvasElement> m_element;

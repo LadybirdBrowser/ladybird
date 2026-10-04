@@ -175,8 +175,6 @@ class WEB_API Element
 public:
     virtual ~Element() override;
 
-    virtual bool is_dom_element() const final { return true; }
-
     virtual Node& slottable_as_node() override { return *this; }
 
     Utf16FlyString const& qualified_name() const { return m_qualified_name.as_string(); }
