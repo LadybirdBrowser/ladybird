@@ -70,6 +70,8 @@ Optional<MemoryCache::Entry const&> MemoryCache::open_entry(URL::URL const& url,
     case CacheLifetimeStatus::Expired:
     case CacheLifetimeStatus::MustRevalidate:
     case CacheLifetimeStatus::StaleWhileRevalidate:
+        // NB: The "force-cache" and "only-if-cached" cache modes use a stored response "not paying attention to
+        //     staleness", which includes responses that must be revalidated. Other engines behave the same way.
         if (cache_mode_permits_stale_responses(cache_mode)) {
             dbgln_if(HTTP_MEMORY_CACHE_DEBUG, "\033[37m[memory]\033[0m \033[32;1mOpened expired cache entry for\033[0m {} (lifetime={}s age={}s) ({} bytes)", url, freshness_lifetime.to_seconds(), current_age.to_seconds(), cache_entry->response_body.size());
             return cache_entry;

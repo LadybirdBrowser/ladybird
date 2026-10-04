@@ -150,3 +150,22 @@ TEST_CASE(no_store_permanent_redirects_are_not_reused)
 
     EXPECT(!cache->open_entry(url, "GET"sv, *request_headers, HTTP::CacheMode::Default).has_value());
 }
+
+TEST_CASE(force_cache_reuses_stale_must_revalidate_entries)
+{
+    auto cache = HTTP::MemoryCache::create();
+    auto url = parse_url("https://example.com/must-revalidate"sv);
+    auto request_headers = create_cacheable_request_headers();
+    auto response_headers = HTTP::HeaderList::create({
+        { "Age"sv, "120"sv },
+        { "Cache-Control"sv, "max-age=60, must-revalidate"sv },
+        { "ETag"sv, "\"v1\""sv },
+    });
+
+    cache->create_entry(url, "GET"sv, *request_headers, UnixDateTime::now(), 200, "OK"sv, *response_headers);
+    cache->finalize_entry(url, "GET"sv, *request_headers, 200, *response_headers, immutable_bytes("data"sv));
+
+    EXPECT(cache->open_entry(url, "GET"sv, *request_headers, HTTP::CacheMode::ForceCache).has_value());
+    EXPECT(cache->open_entry(url, "GET"sv, *request_headers, HTTP::CacheMode::OnlyIfCached).has_value());
+    EXPECT(!cache->open_entry(url, "GET"sv, *request_headers, HTTP::CacheMode::Default).has_value());
+}

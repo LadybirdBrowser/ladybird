@@ -198,6 +198,8 @@ Variant<Optional<CacheEntryReader&>, DiskCache::CacheHasOpenEntry> DiskCache::op
         break;
 
     case CacheLifetimeStatus::MustRevalidate:
+        // NB: The "force-cache" and "only-if-cached" cache modes use a stored response "not paying attention to
+        //     staleness", which includes responses that must be revalidated. Other engines behave the same way.
         if (cache_mode_permits_stale_responses(cache_mode)) {
             dbgln_if(HTTP_DISK_CACHE_DEBUG, "\033[36m[disk]\033[0m \033[32;1mOpened expired cache entry for\033[0m {} (lifetime={}s age={}s) ({} bytes)", url, freshness_lifetime.to_seconds(), current_age.to_seconds(), index_entry->data_size);
         } else if (open_mode == OpenMode::Read) {

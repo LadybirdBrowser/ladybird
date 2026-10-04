@@ -90,3 +90,22 @@ TEST_CASE(state_changing_response_fields_are_not_stored)
     EXPECT(!stored_headers->contains("Set-Cookie"sv));
     EXPECT(!stored_headers->contains("Strict-Transport-Security"sv));
 }
+
+TEST_CASE(must_revalidate_takes_precedence_over_stale_while_revalidate)
+{
+    auto request_headers = HTTP::HeaderList::create();
+    auto freshness_lifetime = AK::Duration::from_seconds(60);
+    auto current_age = AK::Duration::from_seconds(70);
+
+    auto response_headers = HTTP::HeaderList::create({
+        { "Cache-Control", "max-age=60, stale-while-revalidate=30, must-revalidate" },
+        { "ETag", "\"v1\"" },
+    });
+    EXPECT_EQ(HTTP::cache_lifetime_status(*request_headers, *response_headers, freshness_lifetime, current_age), HTTP::CacheLifetimeStatus::MustRevalidate);
+
+    response_headers = HTTP::HeaderList::create({
+        { "Cache-Control", "max-age=60, stale-while-revalidate=30" },
+        { "ETag", "\"v1\"" },
+    });
+    EXPECT_EQ(HTTP::cache_lifetime_status(*request_headers, *response_headers, freshness_lifetime, current_age), HTTP::CacheLifetimeStatus::StaleWhileRevalidate);
+}
