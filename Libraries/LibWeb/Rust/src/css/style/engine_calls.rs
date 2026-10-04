@@ -1404,8 +1404,8 @@ pub unsafe extern "C" fn style_engine_has_size_containers_needing_evaluation_aft
     }
 }
 
-/// Where the engine's requirements of attribute value text are, which the host knows without asking where it wrote
-/// nothing since its last job.
+/// Where the engine's requirements of attribute value text are, which the host knows without asking where it queued no
+/// rule since its last job.
 ///
 /// # Safety
 ///
@@ -1417,8 +1417,8 @@ pub unsafe extern "C" fn style_engine_attribute_value_text_requirements_version(
 ) -> u64 {
     // SAFETY: Guaranteed by the caller.
     let host = unsafe { document_host(host) };
-    match host.known_facts() {
-        Some(facts) => super::inputs::with_attr_names_read(facts.selector_attribute_value_text_requirements_version),
+    match host.known_selector_attribute_value_text_requirements_version() {
+        Some(version) => super::inputs::with_attr_names_read(version),
         None => with_engine(read, host, |engine| {
             super::bridge::operations::attribute_value_text_requirements_version(engine)
         }),
