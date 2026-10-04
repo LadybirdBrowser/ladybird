@@ -1,0 +1,4 @@
+eight inputs and eight sheetless shadow roots | scopeRuleCacheBuilds=1
+animation from the document's keyframes: opacity=0.5
+after adopting a sheet: opacity=0.25 | scopeRuleCacheBuilds=1
+after dropping the sheet: opacity=0.5

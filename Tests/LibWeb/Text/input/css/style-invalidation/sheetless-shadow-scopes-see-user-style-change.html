@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<style>
+    @keyframes probe { from { opacity: 0.5; } to { opacity: 0.5; } }
+</style>
+<script src="../../include.js"></script>
+<script>
+    test(() => {
+        const host = document.createElement("div");
+        const span = document.createElement("span");
+        span.textContent = "x";
+        span.style.animation = "probe 1s paused";
+        host.attachShadow({ mode: "open" }).appendChild(span);
+        document.body.appendChild(host);
+        println(`before a user style: opacity=${getComputedStyle(span).opacity}`);
+
+        internals.setUserStyle("@keyframes probe { from { opacity: 0.25; } to { opacity: 0.25; } }");
+        println(`with a user style: opacity=${getComputedStyle(span).opacity}`);
+
+        internals.setUserStyle("");
+        println(`after the user style: opacity=${getComputedStyle(span).opacity}`);
+    });
+</script>
