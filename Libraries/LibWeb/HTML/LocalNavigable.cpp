@@ -5060,7 +5060,27 @@ static void queue_async_scroll_operation_promise_resolution(GC::Ref<WebIDL::Prom
     }));
 }
 
-void LocalNavigable::queue_scrollend_event_and_promise_resolution_for_finished_scroll(Optional<Web::AsyncScrollNodeStableID> stable_node_id, ScrollTrigger trigger, Optional<CSSPixelPoint> scroll_offset_before_scroll, ScrollPromises const& promises)
+LocalNavigable::FinishedScroll LocalNavigable::finished_scroll(PendingAsyncScrollOperation const& operation)
+{
+    return {
+        .stable_node_id = operation.stable_node_id,
+        .initial_scroll_offset = operation.initial_scroll_offset,
+        .promises = GC::RootVector<GC::Ref<WebIDL::Promise>> { operation.promises.span() },
+        .trigger = operation.trigger,
+    };
+}
+
+LocalNavigable::FinishedScroll LocalNavigable::finished_scroll(MainThreadSmoothScroll const& smooth_scroll)
+{
+    return {
+        .stable_node_id = smooth_scroll.stable_node_id,
+        .initial_scroll_offset = smooth_scroll.initial_scroll_offset,
+        .promises = GC::RootVector<GC::Ref<WebIDL::Promise>> { smooth_scroll.promises.span() },
+        .trigger = smooth_scroll.trigger,
+    };
+}
+
+void LocalNavigable::queue_scrollend_event_and_promise_resolution_for_finished_scroll(Optional<Web::AsyncScrollNodeStableID> stable_node_id, ScrollTrigger trigger, Optional<CSSPixelPoint> scroll_offset_before_scroll, ReadonlySpan<GC::Ref<WebIDL::Promise>> promises)
 {
     if (stable_node_id.has_value() && scroll_offset_before_scroll.has_value()) {
         auto final_scroll_offset = scroll_offset_for(*stable_node_id);
@@ -5115,11 +5135,11 @@ void LocalNavigable::resolve_async_scroll_operation(Compositing::AsyncScrollOper
 {
     // Notifying a scroll's completion can start the next scroll of the same scrolling box, so the finished scroll
     // leaves the list of scrolls in progress before it is reported.
-    Optional<PendingAsyncScrollOperation> finished;
+    Optional<FinishedScroll> finished;
     m_pending_async_scroll_operations.remove_first_matching([&](auto const& pending) {
         if (pending.operation_id != operation_id)
             return false;
-        finished = pending;
+        finished = finished_scroll(pending);
         return true;
     });
     if (!finished.has_value())
@@ -5139,12 +5159,12 @@ void LocalNavigable::resolve_async_scroll_operation(Compositing::AsyncScrollOper
 void LocalNavigable::resolve_all_pending_async_scroll_operations()
 {
     while (!m_pending_async_scroll_operations.is_empty()) {
-        auto pending = m_pending_async_scroll_operations.take_last();
+        auto pending = finished_scroll(m_pending_async_scroll_operations.take_last());
         queue_scrollend_event_and_promise_resolution_for_finished_scroll(pending.stable_node_id, pending.trigger, pending.initial_scroll_offset, pending.promises);
     }
 
     while (!m_main_thread_smooth_scrolls.is_empty()) {
-        auto smooth_scroll = m_main_thread_smooth_scrolls.take_last();
+        auto smooth_scroll = finished_scroll(m_main_thread_smooth_scrolls.take_last());
         queue_scrollend_event_and_promise_resolution_for_finished_scroll(smooth_scroll.stable_node_id, smooth_scroll.trigger, smooth_scroll.initial_scroll_offset, smooth_scroll.promises);
     }
 
@@ -5722,19 +5742,19 @@ void LocalNavigable::user_scroll_did_settle(UserScrollSettlement settlement)
 
 void LocalNavigable::resolve_pending_smooth_scrolls(Web::AsyncScrollNodeStableID stable_node_id, SmoothScrollAbortCause abort_cause)
 {
-    Vector<PendingAsyncScrollOperation> finished_async_scroll_operations;
+    Vector<FinishedScroll> finished_async_scroll_operations;
     m_pending_async_scroll_operations.remove_all_matching([&](auto const& pending) {
         if (pending.stable_node_id != stable_node_id)
             return false;
-        finished_async_scroll_operations.append(pending);
+        finished_async_scroll_operations.append(finished_scroll(pending));
         return true;
     });
 
-    Vector<MainThreadSmoothScroll> finished_smooth_scrolls;
+    Vector<FinishedScroll> finished_smooth_scrolls;
     m_main_thread_smooth_scrolls.remove_all_matching([&](auto const& smooth_scroll) {
         if (smooth_scroll.stable_node_id != stable_node_id)
             return false;
-        finished_smooth_scrolls.append(smooth_scroll);
+        finished_smooth_scrolls.append(finished_scroll(smooth_scroll));
         return true;
     });
 
@@ -5758,7 +5778,7 @@ void LocalNavigable::process_main_thread_smooth_scrolls()
 {
     auto now = MonotonicTime::now();
 
-    Vector<MainThreadSmoothScroll> finished_smooth_scrolls;
+    Vector<FinishedScroll> finished_smooth_scrolls;
     for (size_t index = 0; index < m_main_thread_smooth_scrolls.size();) {
         auto& smooth_scroll = m_main_thread_smooth_scrolls[index];
         if (!scroll_offset_for(smooth_scroll.stable_node_id).has_value()) {
@@ -5775,7 +5795,7 @@ void LocalNavigable::process_main_thread_smooth_scrolls()
         auto sample = smooth_scroll.animation.sample(smooth_scroll.elapsed);
         set_scroll_offset_for(smooth_scroll.stable_node_id, sample.offset.to_type<CSSPixels>());
         if (sample.complete) {
-            finished_smooth_scrolls.append(m_main_thread_smooth_scrolls.take(index));
+            finished_smooth_scrolls.append(finished_scroll(m_main_thread_smooth_scrolls.take(index)));
         } else {
             ++index;
         }
