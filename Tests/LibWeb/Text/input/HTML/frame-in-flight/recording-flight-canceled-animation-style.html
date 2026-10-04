@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    @keyframes slide {
+        from { margin-left: 0px; }
+        to { margin-left: 100px; }
+    }
+    #box {
+        width: 50px;
+        height: 50px;
+        border-radius: 10px;
+        background: green;
+        animation: slide 100s linear paused;
+    }
+</style>
+<div id="box"></div>
+<script>
+    // A recording in flight reads the animated style its frame was published with. Canceling the animation beside it
+    // drops that style for the next frame, and the dropped style stays readable until the recording is done, however
+    // much the document styles meanwhile. Once the recording lands, the dropped style is freed though nothing styles.
+    asyncTest(async done => {
+        const animation = box.getAnimations()[0];
+        const retiredOverlays = () => internals.styleEngineCounters().retiredAnimationOverlayRecords;
+        const keptBeside = await whileRecordingInFlight(() => {
+            animation.currentTime = 10000;
+        }, () => {
+            animation.cancel();
+            box.offsetWidth;
+            for (let i = 0; i < 3000; ++i) {
+                const element = document.createElement("div");
+                element.style.setProperty("--filler", "x".repeat(150 + (i % 40)));
+                element.style.width = `${i}px`;
+                document.body.appendChild(element);
+            }
+            document.body.offsetWidth;
+            return retiredOverlays();
+        });
+        await twoFrames();
+        println(`dropped overlays kept beside the recording: ${keptBeside > 0}`);
+        println(`dropped overlays kept once it landed: ${retiredOverlays()}`);
+        println(`margin-left: ${getComputedStyle(box).marginLeft}`);
+        println(`hit test finds the box: ${document.elementFromPoint(30, 30) === box}`);
+        done();
+    });
+</script>

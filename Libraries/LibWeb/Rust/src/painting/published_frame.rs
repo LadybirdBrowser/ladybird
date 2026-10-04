@@ -14,6 +14,7 @@
 
 use crate::cow_column::ColumnSnapshot;
 use crate::css::css_pixels::CssPixelPoint;
+use crate::css::style::StyleRecordLease;
 use crate::layout::LayoutNodeArena;
 use crate::layout::PublishedTextSlot;
 use crate::layout::SLOTS_PER_CHUNK;
@@ -182,19 +183,20 @@ impl PublishedPaintState {
 }
 
 /// What a document published for one recording to read: its rows, its paint damage and the paint
-/// state the recording reads. [`LayoutNodeArena::freeze_frame`] is its only constructor and it has
-/// no `Clone`: a recording takes a frame and drops it before it returns, and nothing keeps one past
-/// the next write to the arena.
+/// state the recording reads, with a lease on the style records its rows name. [`LayoutNodeArena::freeze_frame`] is
+/// its only constructor and it has no `Clone`: a recording takes a frame and drops it before it returns, and nothing
+/// keeps one past the next write to the arena.
 pub(crate) struct PublishedFrame {
     pub(super) rows: PublishedRows,
     damage: FrameDamage,
     paint_state: PublishedPaintState,
+    _style_records: StyleRecordLease,
 }
 
 // A frame is read on whichever thread paints it while the document writes its live columns: it
 // holds no cell and no borrow of the document, and owns everything it reads but its nodes' styles.
-// Those are `HostShared` pointers to style records, which stay valid only because no style record
-// is released while a recording runs.
+// Those are `HostShared` pointers to style records, which stay valid because the engine frees no
+// record's payloads while the frame holds its lease, even after the document has replaced them.
 const _: () = {
     const fn assert_published<T: Send + Sync + 'static>() {}
     assert_published::<PublishedFrame>();
@@ -209,6 +211,7 @@ impl LayoutNodeArena {
             rows,
             damage: self.paint_damage_for_frame(),
             paint_state: PublishedPaintState::new(&self.paint_state().borrow(), hit_test_item_capacity_hint),
+            _style_records: self.with_style_engine(|engine| engine.lease_style_records()),
         }
     }
 }
@@ -285,7 +288,9 @@ mod tests {
 
     #[test]
     fn published_rows_answer_every_row_read_as_the_arena_does() {
+        let mut engine = crate::css::style::StyleEngine::new(crate::css::style::memory::DeviceClass::ForegroundDesktop);
         let mut arena = LayoutNodeArena::new();
+        arena.set_style_engine(crate::css::style::StyleEngineHandle::from_raw(&raw mut engine));
         let mut slots = Vec::new();
         for index in 0..PAINTABLE_SLOTS_PER_CHUNK + 3 {
             let node = arena.allocate_for_test().slot;

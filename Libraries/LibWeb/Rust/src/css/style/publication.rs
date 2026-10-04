@@ -3937,6 +3937,10 @@ impl RetainedState {
         self.computed_group_sets.pin_style_record(style_record);
     }
 
+    pub(crate) fn lease_style_records(&self) -> computed::StyleRecordLease {
+        self.computed_group_sets.lease_style_records()
+    }
+
     pub(crate) fn begin_style_record_view_epoch(&mut self) {
         self.computed_group_sets.begin_style_record_view_epoch();
     }
@@ -4507,30 +4511,47 @@ impl RetainedState {
 
 impl StyleEngineState {
     pub(super) fn reclaim_computed_memory_if_needed(&mut self, counters: &mut Counters) {
+        self.reclaim_unreachable_computed_records(counters);
+        self.settle_computed_memory();
+    }
+
+    /// Frees what the engine kept for the leases of published frames, once none is held. The host calls it as it
+    /// takes a recording in, so that a document that styles nothing more still frees what its recording kept.
+    pub(crate) fn free_style_records_kept_for_leases(&mut self, counters: &mut Counters) {
+        let freed_overlays = self.retained.computed_group_sets.free_retired_animation_overlays();
+        if self.reclaim_unreachable_computed_records(counters) || freed_overlays {
+            self.settle_computed_memory();
+        }
+    }
+
+    /// Reclaims the unreachable computed records, if they are due and nothing views them, and answers whether it did.
+    fn reclaim_unreachable_computed_records(&mut self, counters: &mut Counters) -> bool {
         // Recording dictionaries are keyed by computed identities. Reusing an identity for new
         // semantics would make later events refer to the first definition replay saw for it.
-        if self.recording_id().is_none()
-            && let Some(retention) = self.retained.computed_group_sets.reclaim_unreachable_if_needed()
-        {
-            counters.set(Counter::ComputedGroupsRetained, retention.retained as u64);
-            counters.set(Counter::ComputedGroupsReachable, retention.reachable as u64);
-            // An element's animation overlay is named by no record, only by the element holding it.
-            let live: super::fast_hash::FastSet<u64> = self
-                .retained
-                .computed_group_sets
-                .live_custom_property_environments()
-                .chain(
-                    self.retained
-                        .element_custom_property_data
-                        .values()
-                        .map(|held| held.identity),
-                )
-                .collect();
-            self.retained
-                .custom_property_environments
-                .retain_only(|identity| live.contains(&identity));
+        if self.recording_id().is_some() {
+            return false;
         }
-        self.settle_computed_memory();
+        let Some(retention) = self.retained.computed_group_sets.reclaim_unreachable_if_needed() else {
+            return false;
+        };
+        counters.set(Counter::ComputedGroupsRetained, retention.retained as u64);
+        counters.set(Counter::ComputedGroupsReachable, retention.reachable as u64);
+        // An element's animation overlay is named by no record, only by the element holding it.
+        let live: super::fast_hash::FastSet<u64> = self
+            .retained
+            .computed_group_sets
+            .live_custom_property_environments()
+            .chain(
+                self.retained
+                    .element_custom_property_data
+                    .values()
+                    .map(|held| held.identity),
+            )
+            .collect();
+        self.retained
+            .custom_property_environments
+            .retain_only(|identity| live.contains(&identity));
+        true
     }
 
     pub(super) fn publish_animation_overlay_impl(

@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    @keyframes slide {
+        from { margin-left: 0px; }
+        to { margin-left: 100px; }
+    }
+    #box {
+        width: 50px;
+        height: 50px;
+        border-radius: 10px;
+        background: green;
+        animation: slide 100s linear paused;
+    }
+</style>
+<div id="box"></div>
+<script>
+    // A recording in flight reads the animated style its frame was published with. Moving the animation beside it
+    // replaces that style for the next frame, and the replaced style stays readable until the recording is done.
+    // Once the recording lands, the replaced style is freed though nothing styles.
+    asyncTest(async done => {
+        const animation = box.getAnimations()[0];
+        const retiredOverlays = () => internals.styleEngineCounters().retiredAnimationOverlayRecords;
+        const keptBeside = await whileRecordingInFlight(() => {
+            animation.currentTime = 10000;
+        }, () => {
+            animation.currentTime = 50000;
+            box.offsetWidth;
+            return retiredOverlays();
+        });
+        await twoFrames();
+        println(`replaced overlays kept beside the recording: ${keptBeside > 0}`);
+        println(`replaced overlays kept once it landed: ${retiredOverlays()}`);
+        println(`margin-left: ${getComputedStyle(box).marginLeft}`);
+        println(`hit test finds the box: ${document.elementFromPoint(80, 30) === box}`);
+        done();
+    });
+</script>

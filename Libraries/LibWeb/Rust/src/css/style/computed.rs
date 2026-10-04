@@ -321,6 +321,12 @@ impl Drop for DetachedComposition {
     }
 }
 
+/// A reader's hold on the payloads of every style record published so far: while one is held, the
+/// engine frees no record's payloads, which a reader on another thread may be reading.
+pub(crate) struct StyleRecordLease {
+    _lease: std::sync::Arc<()>,
+}
+
 struct AnimationOverlayRecord {
     // NB: No sampled value enters a permanent interning table. The current assignment owns one
     //     reference, while detached layout and stabilization baselines can pin an old generation.
@@ -341,6 +347,88 @@ impl Drop for AnimationOverlayRecord {
     fn drop(&mut self) {
         for (index, &payload) in self.payloads.iter().enumerate() {
             release_group_payload(index, payload.as_ptr());
+        }
+    }
+}
+
+mod animation_overlay_slots {
+    use super::{AnimationOverlayRecord, FinalStyleRecordID};
+    use crate::css::style::capacity::ShallowCapacityBytes;
+
+    /// The animation-overlay records by slot. A record leaves its slot only to be retired, never dropped, so that a
+    /// reader holding a style-record lease keeps reading its payloads until the owner frees the retired records.
+    #[derive(Default)]
+    pub(super) struct AnimationOverlaySlots {
+        slots: Vec<Option<AnimationOverlayRecord>>,
+        free: Vec<u32>,
+        retired: Vec<AnimationOverlayRecord>,
+    }
+
+    impl AnimationOverlaySlots {
+        pub(super) fn get(&self, slot: u32) -> Option<&AnimationOverlayRecord> {
+            self.slots[slot as usize].as_ref()
+        }
+
+        pub(super) fn get_mut(&mut self, slot: u32) -> Option<&mut AnimationOverlayRecord> {
+            self.slots[slot as usize].as_mut()
+        }
+
+        pub(super) fn iter(&self) -> impl Iterator<Item = &AnimationOverlayRecord> {
+            self.slots.iter().flatten()
+        }
+
+        /// Puts `record` in a free slot, and answers the slot and whether it is a new one.
+        pub(super) fn fill(&mut self, record: AnimationOverlayRecord) -> (u32, bool) {
+            if let Some(slot) = self.free.pop() {
+                self.slots[slot as usize] = Some(record);
+                return (slot, false);
+            }
+            let slot = u32::try_from(self.slots.len()).expect("animation-overlay slot space exhausted");
+            self.slots.push(Some(record));
+            (slot, true)
+        }
+
+        /// Retires the record in `slot` and frees the slot, answering the record's identity.
+        pub(super) fn retire(&mut self, slot: u32) -> FinalStyleRecordID {
+            let record = self.slots[slot as usize]
+                .take()
+                .expect("animation-overlay slot is live");
+            self.free.push(slot);
+            self.retire_record(record)
+        }
+
+        /// Retires the record in `slot` for `record`, answering the retired record's identity.
+        pub(super) fn replace(&mut self, slot: u32, record: AnimationOverlayRecord) -> FinalStyleRecordID {
+            let retired = self.slots[slot as usize]
+                .replace(record)
+                .expect("animation-overlay slot is live");
+            self.retire_record(retired)
+        }
+
+        fn retire_record(&mut self, record: AnimationOverlayRecord) -> FinalStyleRecordID {
+            let final_style_record = record.final_style_record;
+            self.retired.push(record);
+            final_style_record
+        }
+
+        pub(super) fn retired_records(&self) -> usize {
+            self.retired.len()
+        }
+
+        /// Frees the retired records, which no reader may still read, and answers their payload bytes.
+        pub(super) fn free_retired(&mut self) -> u64 {
+            self.retired
+                .drain(..)
+                .map(|record| size_of_val(record.payloads.as_ref()) as u64)
+                .sum()
+        }
+    }
+
+    impl ShallowCapacityBytes for AnimationOverlaySlots {
+        fn shallow_capacity_bytes(&self) -> u64 {
+            self.slots.shallow_capacity_bytes()
+                + self.free.shallow_capacity_bytes()
+                + self.retired.shallow_capacity_bytes()
         }
     }
 }
@@ -764,9 +852,10 @@ pub struct ComputedGroupSets {
     columns: PublishedComputedColumns,
     // Recyclable animation overlays are deliberately separate from the permanent base records
     // above. Dense element assignments and sparse pseudo assignments pin at most one slot each.
-    animation_overlay_slots: Vec<Option<AnimationOverlayRecord>>,
+    animation_overlay_slots: animation_overlay_slots::AnimationOverlaySlots,
     animation_overlay_slots_by_record: HashMap<FinalStyleRecordID, u32>,
-    free_animation_overlay_slots: Vec<u32>,
+    /// Shared with every lease held.
+    leases: std::sync::Arc<()>,
     live_animation_overlay_assignments: usize,
     next_animation_overlay_generation: u64,
     pending_cascade_states: HashMap<StyleNodeID, (u64, CascadeStateID)>,
@@ -797,9 +886,9 @@ impl Default for ComputedGroupSets {
             style_record_column: Vec::new(),
             base_style_record_pins: HashMap::default(),
             columns: PublishedComputedColumns::default(),
-            animation_overlay_slots: Vec::new(),
+            animation_overlay_slots: animation_overlay_slots::AnimationOverlaySlots::default(),
             animation_overlay_slots_by_record: HashMap::default(),
-            free_animation_overlay_slots: Vec::new(),
+            leases: std::sync::Arc::default(),
             live_animation_overlay_assignments: 0,
             next_animation_overlay_generation: 0,
             pending_cascade_states: HashMap::default(),
@@ -821,6 +910,30 @@ impl ComputedGroupSets {
             .style_record_view_epoch_depth
             .checked_add(1)
             .expect("style-record view epoch depth overflow");
+    }
+
+    pub(crate) fn lease_style_records(&self) -> StyleRecordLease {
+        StyleRecordLease {
+            _lease: std::sync::Arc::clone(&self.leases),
+        }
+    }
+
+    fn style_records_are_leased(&mut self) -> bool {
+        std::sync::Arc::get_mut(&mut self.leases).is_none()
+    }
+
+    /// Frees the retired overlay records, if no lease is held, and answers whether it freed any.
+    pub(super) fn free_retired_animation_overlays(&mut self) -> bool {
+        if self.animation_overlay_slots.retired_records() == 0 || self.style_records_are_leased() {
+            return false;
+        }
+        let payload_bytes = self.animation_overlay_slots.free_retired();
+        self.animation_overlay_nested_memory.shrink_committed(payload_bytes);
+        true
+    }
+
+    pub(super) fn retired_animation_overlay_records(&self) -> usize {
+        self.animation_overlay_slots.retired_records()
     }
 
     pub(crate) fn end_style_record_view_epoch(&mut self) {
@@ -1079,7 +1192,7 @@ impl ComputedGroupSets {
             return Some(record);
         }
         let slot = *self.animation_overlay_slots_by_record.get(&record)?;
-        let overlay = self.animation_overlay_slots[slot as usize].as_ref()?;
+        let overlay = self.animation_overlay_slots.get(slot)?;
         Some(self.final_base_style_record(overlay.base_style_record))
     }
 
@@ -1122,7 +1235,7 @@ impl ComputedGroupSets {
     pub(super) fn detach_composition_of(&mut self, target: ComputedStyleTarget) -> Option<DetachedComposition> {
         let (_, slot) = self.assigned_record_and_overlay_slot(target)?;
         let slot = slot?;
-        let overlay = self.animation_overlay_slots[slot as usize].as_ref()?;
+        let overlay = self.animation_overlay_slots.get(slot)?;
         let detached = DetachedComposition {
             record: overlay.final_style_record,
             base: self.final_base_style_record(overlay.base_style_record),
@@ -1150,7 +1263,7 @@ impl ComputedGroupSets {
             && self
                 .assigned_record_and_overlay_slot(target)
                 .is_some_and(|(assigned, current)| current.is_none() && Some(assigned) == base.base_record())
-            && let Some(overlay) = self.animation_overlay_slots[slot as usize].as_mut()
+            && let Some(overlay) = self.animation_overlay_slots.get_mut(slot)
         {
             overlay.is_assigned = true;
             self.live_animation_overlay_assignments += 1;
@@ -1830,38 +1943,27 @@ impl ComputedGroupSets {
         self.animation_overlay_nested_memory
             .grow_committed(size_of_val(record.payloads.as_ref()) as u64);
         let final_style_record = record.final_style_record;
-        let (slot, slot_allocated) = if let Some(slot) = self.free_animation_overlay_slots.pop() {
-            self.animation_overlay_slots[slot as usize] = Some(record);
-            (slot, false)
-        } else {
-            let slot =
-                u32::try_from(self.animation_overlay_slots.len()).expect("animation-overlay slot space exhausted");
-            self.animation_overlay_slots.push(Some(record));
-            (slot, true)
-        };
+        let (slot, slot_allocated) = self.animation_overlay_slots.fill(record);
         self.animation_overlay_slots_by_record.insert(final_style_record, slot);
         self.live_animation_overlay_assignments += 1;
         (slot, final_style_record, slot_allocated)
     }
 
     fn reclaim_animation_overlay_slot(&mut self, slot: u32) {
-        let record = self.animation_overlay_slots[slot as usize]
-            .as_ref()
+        let record = self
+            .animation_overlay_slots
+            .get(slot)
             .expect("animation-overlay slot is live");
         assert!(!record.is_assigned && record.pin_count == 0);
-        let final_style_record = record.final_style_record;
-        let payload_bytes = size_of_val(record.payloads.as_ref()) as u64;
+        let final_style_record = self.animation_overlay_slots.retire(slot);
         self.animation_overlay_slots_by_record.remove(&final_style_record);
-        self.animation_overlay_slots[slot as usize] = None;
-        self.free_animation_overlay_slots.push(slot);
-        self.animation_overlay_nested_memory.shrink_committed(payload_bytes);
+        self.free_retired_animation_overlays();
     }
 
     fn release_animation_overlay_assignment(&mut self, slot: u32) {
         let record = self
             .animation_overlay_slots
-            .get_mut(slot as usize)
-            .and_then(Option::as_mut)
+            .get_mut(slot)
             .expect("animation-overlay slot is live");
         assert!(record.is_assigned, "animation-overlay slot has an assignment");
         record.is_assigned = false;
@@ -1894,8 +1996,9 @@ impl ComputedGroupSets {
         }
 
         if let Some(slot) = current_slot {
-            let current = self.animation_overlay_slots[slot as usize]
-                .as_ref()
+            let current = self
+                .animation_overlay_slots
+                .get(slot)
                 .expect("animation-overlay slot is live");
             if current.base_style_record == base_style_record
                 && current.source_identity == source_identity
@@ -1910,8 +2013,6 @@ impl ComputedGroupSets {
                 };
             }
             if current.pin_count == 0 {
-                let old_final_style_record = current.final_style_record;
-                let old_payload_bytes = size_of_val(current.payloads.as_ref()) as u64;
                 let record = self.make_animation_overlay_record(
                     base_style_record,
                     source_identity,
@@ -1923,18 +2024,13 @@ impl ComputedGroupSets {
                     payloads,
                     in_display_none_subtree,
                 );
-                let new_payload_bytes = size_of_val(record.payloads.as_ref()) as u64;
-                if new_payload_bytes >= old_payload_bytes {
-                    self.animation_overlay_nested_memory
-                        .grow_committed(new_payload_bytes - old_payload_bytes);
-                } else {
-                    self.animation_overlay_nested_memory
-                        .shrink_committed(old_payload_bytes - new_payload_bytes);
-                }
+                self.animation_overlay_nested_memory
+                    .grow_committed(size_of_val(record.payloads.as_ref()) as u64);
                 let final_style_record = record.final_style_record;
-                self.animation_overlay_slots_by_record.remove(&old_final_style_record);
-                self.animation_overlay_slots[slot as usize] = Some(record);
+                let retired = self.animation_overlay_slots.replace(slot, record);
+                self.animation_overlay_slots_by_record.remove(&retired);
                 self.animation_overlay_slots_by_record.insert(final_style_record, slot);
+                self.free_retired_animation_overlays();
                 return AnimationOverlayPublication {
                     slot: Some(slot),
                     final_style_record,
@@ -1970,8 +2066,8 @@ impl ComputedGroupSets {
         animation_overlay_slot.map_or_else(
             || self.final_base_style_record(base_style_record),
             |slot| {
-                self.animation_overlay_slots[slot as usize]
-                    .as_ref()
+                self.animation_overlay_slots
+                    .get(slot)
                     .expect("animation-overlay slot is live")
                     .final_style_record
             },
@@ -3192,7 +3288,6 @@ impl ComputedGroupSets {
             shallow [
                 self.animation_overlay_slots,
                 self.animation_overlay_slots_by_record,
-                self.free_animation_overlay_slots,
                 self.columns.animation_overlay_slots,
             ];
             cached [self.animation_overlay_nested_memory.bytes()];
@@ -3237,7 +3332,7 @@ impl ComputedGroupSets {
                     mark_style_record(assignment.style_record);
                 }
             }
-            for overlay in self.animation_overlay_slots.iter().flatten() {
+            for overlay in self.animation_overlay_slots.iter() {
                 mark_style_record(overlay.base_style_record);
             }
             for &identity in self.base_style_record_pins.keys() {
@@ -3294,6 +3389,7 @@ impl ComputedGroupSets {
     }
 
     pub(super) fn reclaim_unreachable(&mut self) -> ComputedGroupRetention {
+        assert!(!self.style_records_are_leased(), "style records are leased");
         let reachable = self.reachability();
         let retention = ComputedGroupRetention {
             retained: self.groups.live_identities().len(),
@@ -3418,7 +3514,8 @@ impl ComputedGroupSets {
     }
 
     pub(super) fn reclaim_unreachable_if_needed(&mut self) -> Option<ComputedGroupRetention> {
-        if self.style_record_view_epoch_depth != 0 {
+        self.free_retired_animation_overlays();
+        if self.style_record_view_epoch_depth != 0 || self.style_records_are_leased() {
             return None;
         }
         if self.style_records_interned_since_reclamation < self.next_reclamation_after {
@@ -3435,7 +3532,7 @@ impl ComputedGroupSets {
         if raw_style_record & FinalStyleRecordID::ANIMATION_OVERLAY_TAG != 0 {
             let style_record = final_style_record;
             let slot = *self.animation_overlay_slots_by_record.get(&style_record)?;
-            let record = self.animation_overlay_slots[slot as usize].as_ref()?;
+            let record = self.animation_overlay_slots.get(slot)?;
             return (!record.payloads.is_empty()).then_some(record.payloads.as_ref());
         }
         let style_record = final_style_record.base_record()?;
@@ -3451,7 +3548,7 @@ impl ComputedGroupSets {
         let final_style_record = FinalStyleRecordID(raw_style_record);
         let Some(style_record) = final_style_record.base_record() else {
             let slot = *self.animation_overlay_slots_by_record.get(&final_style_record)?;
-            return Some(self.animation_overlay_slots[slot as usize].as_ref()?.dependency_flags);
+            return Some(self.animation_overlay_slots.get(slot)?.dependency_flags);
         };
         assert!(
             self.style_record_generation_is_live(style_record, final_style_record.base_generation()),
@@ -3474,7 +3571,7 @@ impl ComputedGroupSets {
             }
             None => {
                 let slot = *self.animation_overlay_slots_by_record.get(&final_style_record)?;
-                self.animation_overlay_slots[slot as usize].as_ref()?.base_style_record
+                self.animation_overlay_slots.get(slot)?.base_style_record
             }
         };
         assert!(
@@ -3516,7 +3613,7 @@ impl ComputedGroupSets {
             }
             None => {
                 let slot = *self.animation_overlay_slots_by_record.get(&final_style_record)?;
-                self.animation_overlay_slots[slot as usize].as_ref()?.base_style_record
+                self.animation_overlay_slots.get(slot)?.base_style_record
             }
         };
         assert!(
@@ -3553,7 +3650,7 @@ impl ComputedGroupSets {
                 )
             } else {
                 let slot = *self.animation_overlay_slots_by_record.get(&final_style_record)?;
-                let overlay = self.animation_overlay_slots[slot as usize].as_ref()?;
+                let overlay = self.animation_overlay_slots.get(slot)?;
                 (
                     overlay.base_style_record,
                     overlay.payloads.as_ref(),
@@ -3604,8 +3701,9 @@ impl ComputedGroupSets {
             .animation_overlay_slots_by_record
             .get(&final_style_record)
             .expect("animation-overlay record is live");
-        let record = self.animation_overlay_slots[slot as usize]
-            .as_mut()
+        let record = self
+            .animation_overlay_slots
+            .get_mut(slot)
             .expect("animation-overlay slot is live");
         record.pin_count = record
             .pin_count
@@ -3636,8 +3734,9 @@ impl ComputedGroupSets {
             .animation_overlay_slots_by_record
             .get(&final_style_record)
             .expect("animation-overlay record is live");
-        let record = self.animation_overlay_slots[slot as usize]
-            .as_mut()
+        let record = self
+            .animation_overlay_slots
+            .get_mut(slot)
             .expect("animation-overlay slot is live");
         record.pin_count = record
             .pin_count
@@ -4163,6 +4262,34 @@ mod tests {
                 .contains_key(&first.style_record_identity)
         );
         sets.remove(node);
+        assert_eq!(sets.live_animation_overlay_records(), 0);
+    }
+
+    #[test]
+    fn a_style_record_lease_keeps_a_replaced_animation_overlay_until_it_drops() {
+        let mut sets = ComputedGroupSets::default();
+        let node = StyleNodeID::from_raw(1).unwrap();
+        let target = ComputedStyleTarget::new(node, u8::MAX);
+        let animated_overlay = crate::css::animated_overlay::AnimatedOverlay::default();
+        let publish = |sets: &mut ComputedGroupSets, identity| {
+            let mut metadata = metadata(0, 0, 0);
+            metadata.animation_overlay_identity = identity;
+            metadata.animated_overlay = HostShared::new(std::ptr::from_ref(&animated_overlay));
+            sets.publish_unowned(Some(target), &[], 0, 0, metadata)
+        };
+        let first = publish(&mut sets, 1);
+
+        let lease = sets.lease_style_records();
+        let second = publish(&mut sets, 2);
+        assert!(!second.animation_overlay_slot_allocated);
+        assert_ne!(first.style_record_identity, second.style_record_identity);
+        assert_eq!(sets.retired_animation_overlay_records(), 1);
+        sets.remove(node);
+        assert_eq!(sets.retired_animation_overlay_records(), 2);
+
+        drop(lease);
+        assert!(sets.free_retired_animation_overlays());
+        assert_eq!(sets.retired_animation_overlay_records(), 0);
         assert_eq!(sets.live_animation_overlay_records(), 0);
     }
 

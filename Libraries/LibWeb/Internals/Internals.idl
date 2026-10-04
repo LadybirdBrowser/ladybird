@@ -215,7 +215,8 @@ interface Internals {
     undefined injectRenderingOpportunity(double frameTimeMs);
     // "in-flight" while a rendering update's recording flies beside the event loop, "idle" otherwise.
     DOMString frameSchedulerState();
-    // Keeps the next recording that flies in flight until releaseHeldFrame(), or until a read waits for it.
+    // Keeps the next recording that flies in flight, before it reads its frame, until releaseHeldFrame(), or until a
+    // read waits for it.
     undefined holdNextFrame();
     undefined releaseHeldFrame();
     undefined updateCompositorAnimations();

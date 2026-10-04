@@ -277,6 +277,8 @@ define_counters! {
     AnimationOverlaySlotsReleased => "animationOverlaySlotsReleased",
     AnimationOverlayRecordsUpdated => "animationOverlayRecordsUpdated",
     LiveAnimationOverlayRecords => "liveAnimationOverlayRecords",
+    // Read when counters are read: the reclaimed overlay records a published frame's lease still keeps.
+    RetiredAnimationOverlayRecords => "retiredAnimationOverlayRecords",
     ComputedPseudoAssignmentsPublished => "computedPseudoAssignmentsPublished",
     ComputedPseudoAssignmentsRemoved => "computedPseudoAssignmentsRemoved",
     ProgramCandidatesRejectedByCascade => "programCandidatesRejectedByCascade",

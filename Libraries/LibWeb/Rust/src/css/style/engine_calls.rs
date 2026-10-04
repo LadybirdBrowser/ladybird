@@ -19,6 +19,7 @@ use super::bridge::{
 };
 use super::font_resolution::{FontResolverHost, PublishedFontFaces};
 use super::inputs::RetainedCustomPropertyData;
+use super::instrumentation::Counter;
 use super::publication::RecordDemand;
 use super::record_replay::EventKind;
 use super::tree::{StyleNodeID, TreeScopeID};
@@ -532,6 +533,10 @@ impl StyleQuery {
                 StyleAnswer::Number(engine.native_rule_id(identity).map_or(0, |id| u64::from(id.0) + 1))
             }
             Self::Counter(index) => {
+                let retired = engine.computed_group_sets.retired_animation_overlay_records();
+                engine
+                    .counters
+                    .set(Counter::RetiredAnimationOverlayRecords, retired as u64);
                 let counter = engine.counters().iter().nth(index);
                 engine.record_boundary_call(EventKind::Counter, |payload| {
                     payload.write_u64(u64::try_from(index).expect("counter index exceeds u64"));

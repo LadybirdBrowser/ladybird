@@ -1609,10 +1609,12 @@ Utf16String Internals::frame_scheduler_state() const
 void Internals::hold_next_frame()
 {
     HTML::main_thread_event_loop().hold_next_frame_for_testing();
+    Layout::RustFFI::render_state_hold_next_recording_for_testing();
 }
 
 void Internals::release_held_frame()
 {
+    Layout::RustFFI::render_state_release_held_recording_for_testing();
     HTML::main_thread_event_loop().release_held_frames_for_testing();
 }
 
