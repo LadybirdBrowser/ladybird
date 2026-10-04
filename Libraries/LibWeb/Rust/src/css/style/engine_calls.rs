@@ -107,6 +107,12 @@ pub(crate) enum EngineWrite {
         string: ak::Utf16FlyString,
         text: Box<[u16]>,
     },
+    /// The `@keyframes` row of one style scope, named by the shadow root's pointer identity as well where it is one.
+    AnimationKeyframes {
+        tree_scope: TreeScopeID,
+        shadow_root_identity: usize,
+        row: super::animations::KeyframesRow,
+    },
     /// The effects one of an element's animation lists holds, in composite order, described for the engine to sample
     /// them from.
     AnimationEffectDescriptions {
@@ -173,6 +179,11 @@ impl EngineWrite {
             Self::PresentationalHints { node, kind, properties } => {
                 super::bridge::register_element_declared_properties(engine, node, kind, &properties, &[]);
             }
+            Self::AnimationKeyframes {
+                tree_scope,
+                shadow_root_identity,
+                row,
+            } => engine.animation_keyframes.set(tree_scope, shadow_root_identity, row),
             Self::AnimationEffectDescriptions { node, slot, effects } => {
                 engine.animation_effect_descriptions.set(node, slot, effects);
             }

@@ -125,7 +125,7 @@ public:
     [[nodiscard]] bool has_valid_rule_cache() const;
     void invalidate_style_cache();
     void publish_cascade_layer_order(StyleSheetState* pending_attachment = nullptr);
-    void publish_animation_keyframes(Layout::BegunRead const& read);
+    void publish_animation_keyframes();
     void invalidate_user_style_sheet();
 
     // The `@keyframes` row a shadow root's scope published to the style engine, taken from the scope as the root
@@ -144,7 +144,7 @@ public:
 
     void make_rule_cache_for_cascade_origin(CascadeOrigin, StyleRuleCache&);
 
-    void build_rule_cache(Layout::BegunRead const& read);
+    void build_rule_cache();
     void build_rule_cache_if_needed() const;
     void populate_rule_cache(StyleRuleCache&);
 

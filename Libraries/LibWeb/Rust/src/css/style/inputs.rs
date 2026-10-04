@@ -1422,25 +1422,6 @@ impl RetainedState {
         self.css_defined_animations.list(node, slot)
     }
 
-    /// Replaces the `@keyframes` row of one style scope, as its rule cache resolved them: each name
-    /// with the host's keyframe set for it. An empty row gives the scope's row up.
-    pub fn set_tree_scope_animation_keyframes(
-        &mut self,
-        tree_scope: TreeScopeID,
-        shadow_root_identity: usize,
-        name_lengths: &[u32],
-        name_units: &[u16],
-        keyframe_sets: &[usize],
-    ) {
-        self.animation_keyframes.set(
-            tree_scope,
-            shadow_root_identity,
-            name_lengths,
-            name_units,
-            keyframe_sets,
-        );
-    }
-
     /// The `@keyframes` the document's style scopes define.
     #[must_use]
     pub(crate) fn animation_keyframes(&self) -> &animations::AnimationKeyframes {

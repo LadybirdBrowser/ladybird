@@ -354,7 +354,7 @@ StyleCache& StyleScope::ensure_style_cache() const
     return const_cast<StyleScope&>(*this).ensure_style_cache();
 }
 
-void StyleScope::build_rule_cache(Layout::BegunRead const& read)
+void StyleScope::build_rule_cache()
 {
     auto& style_cache = ensure_style_cache();
 
@@ -372,7 +372,7 @@ void StyleScope::build_rule_cache(Layout::BegunRead const& read)
     // row, and publishes this cache generation into them once.
     if (m_published_layer_order_generation != style_cache.rule_cache_generation) {
         publish_cascade_layer_order();
-        publish_animation_keyframes(read);
+        publish_animation_keyframes();
         m_published_layer_order_generation = style_cache.rule_cache_generation;
     }
 }
@@ -446,9 +446,7 @@ void StyleScope::build_rule_cache_if_needed() const
 {
     if (has_valid_rule_cache() && m_published_layer_order_generation == style_cache()->rule_cache_generation)
         return;
-    // Building the cache is the host's own read of the render state.
-    Layout::ForcedReadScope read { document(), false };
-    const_cast<StyleScope&>(*this).build_rule_cache(read);
+    const_cast<StyleScope&>(*this).build_rule_cache();
 }
 
 StyleRuleCache const& StyleScope::rule_cache() const
@@ -695,7 +693,7 @@ void StyleScope::publish_cascade_layer_order(StyleSheetState* pending_attachment
 
 // The `@keyframes` this scope defines, as the rule cache just built resolved them. The style computation resolves an
 // animation's keyframes from these, so it never builds a rule cache itself.
-void StyleScope::publish_animation_keyframes(Layout::BegunRead const& read)
+void StyleScope::publish_animation_keyframes()
 {
     auto const& keyframes = style_cache()->rule_cache->rules_by_animation_keyframes;
     Vector<u32> name_lengths;
@@ -716,7 +714,7 @@ void StyleScope::publish_animation_keyframes(Layout::BegunRead const& read)
     if (published.is_empty() && m_published_keyframe_sets.is_empty())
         return;
     StyleEngineFFI::style_engine_set_tree_scope_animation_keyframes(
-        document().style_computer().style_engine().host(), &read, style_engine_tree_scope().value(),
+        document().style_computer().style_engine().host(), style_engine_tree_scope().value(),
         bit_cast<FlatPtr>(as_if<DOM::ShadowRoot>(*m_node)), name_lengths.data(), name_units.data(), name_units.size(),
         keyframe_sets.data(), name_lengths.size());
     m_published_keyframe_sets = move(published);

@@ -9266,7 +9266,7 @@ void Document::unregister_shadow_root(Badge<DOM::ShadowRoot>, DOM::ShadowRoot& s
 // scope does whenever its rule cache is built. So before a style transaction, the rows of the shadow roots that left
 // are given up and every scope's rule cache is built. A rule cache is invalidated only with a change of the style sheet
 // set, as is a shadow root's departure, so without one since the last transaction every row is current.
-void Document::publish_animation_keyframes_for_style_update(Layout::BegunRead const& read)
+void Document::publish_animation_keyframes_for_style_update()
 {
     if (m_animation_keyframes_published_generation == m_style_sheet_set_generation)
         return;
@@ -9274,7 +9274,7 @@ void Document::publish_animation_keyframes_for_style_update(Layout::BegunRead co
     m_animation_keyframes_published_generation = m_style_sheet_set_generation;
     auto* host = style_computer().style_engine().host();
     for (auto const& departed : m_departed_animation_keyframes)
-        CSS::StyleEngineFFI::style_engine_set_tree_scope_animation_keyframes(host, &read, departed.tree_scope.value(), departed.shadow_root_identity, nullptr, nullptr, 0, nullptr, 0);
+        CSS::StyleEngineFFI::style_engine_set_tree_scope_animation_keyframes(host, departed.tree_scope.value(), departed.shadow_root_identity, nullptr, nullptr, 0, nullptr, 0);
     m_departed_animation_keyframes.clear();
     style_scope().build_rule_cache_if_needed();
     for_each_shadow_root([](DOM::ShadowRoot& shadow_root) {
