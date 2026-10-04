@@ -77,7 +77,9 @@ impl Heap {
         unsafe { self.allocate_with(allocator, cell) }
     }
 
-    /// Moves `cell`, whose class is the one `allocator` was created for, into the storage of that allocator.
+    /// Moves `cell`, whose class is the one `allocator` was created for or a class derived from it, into the storage
+    /// of that allocator. A derived class shares its ancestor's allocator when its cells may share heap blocks with the
+    /// ancestor's, as a host class that shares its parent's allocator does.
     pub fn allocate_in<T: GcCell>(&self, allocator: RuntimeClassAllocator, cell: T) -> Gc<T> {
         assert!(
             allocator.class.type_info.cell_size as usize == size_of::<T>() && allocator.class.is_subclass_of(T::CLASS),
@@ -86,10 +88,9 @@ impl Heap {
             T::CLASS.name
         );
         // SAFETY: Every cell starts with its header.
-        debug_assert!(core::ptr::eq(
-            unsafe { (*core::ptr::from_ref(&cell).cast::<CellHeader>()).class },
-            allocator.class
-        ));
+        debug_assert!(
+            unsafe { (*core::ptr::from_ref(&cell).cast::<CellHeader>()).class }.is_subclass_of(allocator.class)
+        );
         // SAFETY: The allocator's cells have the size of a T, checked above, and T's alignment, as its class extends T's.
         unsafe { self.allocate_with(allocator.raw.as_ptr(), cell) }
     }
