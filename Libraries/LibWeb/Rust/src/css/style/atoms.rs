@@ -262,6 +262,11 @@ impl DocumentAtoms {
         StyleAtomID(self.next)
     }
 
+    /// Whether the atoms are the process's, which every other engine's also are.
+    pub(super) fn is_process_global(&self) -> bool {
+        matches!(self.scope, AtomScope::Process(_))
+    }
+
     pub(super) fn should_sweep(&self) -> bool {
         self.raw.len() + self.qualified.len() >= self.sweep_at
     }

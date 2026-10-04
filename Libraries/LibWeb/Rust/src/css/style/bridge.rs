@@ -1896,6 +1896,35 @@ pub(crate) fn publish_style_rule(
     result
 }
 
+/// Publishes a style rule of a user-agent sheet with the selector program the process compiled for
+/// it, or answers `None` when the rule is not one or the engine compiles its own.
+pub(crate) fn publish_user_agent_style_rule(
+    engine: &mut StyleEngine,
+    sheet: u32,
+    before_rule: u32,
+    rule_identity: u64,
+    compiled: &[&CompiledSelector],
+    rules: &crate::css::rule::NativeRuleList,
+    bound_scope: &BoundScopeChain,
+) -> Option<u32> {
+    if sheet == 0 || !bound_scope.levels.is_empty() {
+        return None;
+    }
+    let sheet = SheetID(sheet - 1);
+    if engine.program.sheet_origin(sheet) != crate::css::cascaded_properties::CascadeOrigin::UserAgent
+        || !engine.shares_user_agent_selector_programs()
+    {
+        return None;
+    }
+    let before = (before_rule != 0).then(|| RuleID(before_rule - 1));
+    Some(
+        engine
+            .add_user_agent_style_rule(sheet, before, rule_identity, compiled, rules)
+            .0
+            + 1,
+    )
+}
+
 /// Installs one already compiled semantic selector program.
 ///
 /// # Safety

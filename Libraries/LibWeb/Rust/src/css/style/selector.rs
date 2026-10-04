@@ -2569,7 +2569,27 @@ fn dispatch_selectivity(key: DispatchKey) -> u8 {
 
 struct SharedSelectorProgram {
     program: SelectorProgram,
+    hash: u64,
     _memory: MemoryLease,
+}
+
+/// A selector program interned for the whole process, which a document attaches without compiling it.
+#[derive(Clone)]
+pub(super) struct ProcessSelectorProgram(Arc<SharedSelectorProgram>);
+
+impl ProcessSelectorProgram {
+    pub(super) fn share(program: SelectorProgram) -> Self {
+        let hash = SelectorPrograms::program_hash(&program);
+        Self(share_selector_program(
+            program,
+            hash,
+            &mut selector_program_pools().programs,
+        ))
+    }
+
+    pub(super) fn program(&self) -> &SelectorProgram {
+        &self.0.program
+    }
 }
 
 /// A strong identity for an interned selector. Keeping the payload alive prevents an
@@ -2593,9 +2613,9 @@ impl Hash for SharedSelectorIdentity {
 
 fn share_selector_program(
     program: SelectorProgram,
+    hash: u64,
     pool: &mut WeakPool<SharedSelectorProgram>,
 ) -> Arc<SharedSelectorProgram> {
-    let hash = SelectorPrograms::program_hash(&program);
     if let Some(found) = pool.find(hash, |candidate| candidate.program == program) {
         return found;
     }
@@ -2603,6 +2623,7 @@ fn share_selector_program(
     program_memory.reconcile_committed(&mut pool.memory, program.capacity_bytes());
     let program = Arc::new(SharedSelectorProgram {
         program,
+        hash,
         _memory: program_memory,
     });
     pool.insert(hash, &program);
@@ -2642,6 +2663,13 @@ impl SelectorProgramStorage {
         match self {
             Self::Document(program) => program,
             Self::Process(program) => &program.program,
+        }
+    }
+
+    fn hash(&self) -> u64 {
+        match self {
+            Self::Document(program) => SelectorPrograms::program_hash(program),
+            Self::Process(program) => program.hash,
         }
     }
 
@@ -2817,33 +2845,55 @@ impl SelectorPrograms {
     }
 
     pub(super) fn add_with_status(&mut self, program: SelectorProgram) -> (SelectorProgramID, bool) {
+        let hash = Self::program_hash(&program);
+        let bucket = match self.find(hash, &program) {
+            Ok(id) => return (id, false),
+            Err(bucket) => bucket,
+        };
+        let program = match self.scope {
+            SelectorProgramScope::Document => SelectorProgramStorage::Document(Arc::new(program)),
+            SelectorProgramScope::Process => SelectorProgramStorage::Process(share_selector_program(
+                program,
+                hash,
+                &mut selector_program_pools().programs,
+            )),
+        };
+        (self.insert(bucket, program), true)
+    }
+
+    /// Attach a program the process already holds, neither compiling nor hashing it again.
+    pub(super) fn add_process_program(&mut self, program: &ProcessSelectorProgram) -> SelectorProgramID {
+        match self.find(program.0.hash, &program.0.program) {
+            Ok(id) => id,
+            Err(bucket) => self.insert(bucket, SelectorProgramStorage::Process(program.0.clone())),
+        }
+    }
+
+    /// The program equal to `program`, or the index bucket it would take.
+    fn find(&mut self, hash: u64, program: &SelectorProgram) -> Result<SelectorProgramID, usize> {
         let live_program_count = self.programs.len() - self.vacant_programs.len();
         if self.program_index.is_empty() || (live_program_count + 1) * 2 > self.program_index.len() {
             self.rebuild_program_index();
         }
-        let mut bucket = Self::program_hash(&program) as usize & (self.program_index.len() - 1);
+        let mut bucket = hash as usize & (self.program_index.len() - 1);
         loop {
             match self.program_index[bucket] {
-                Some(id) if self.get(SelectorProgramID(id.get() - 1)) == &program => {
-                    return (SelectorProgramID(id.get() - 1), false);
+                Some(id) if self.get(SelectorProgramID(id.get() - 1)) == program => {
+                    return Ok(SelectorProgramID(id.get() - 1));
                 }
                 Some(_) => bucket = (bucket + 1) & (self.program_index.len() - 1),
-                None => break,
+                None => return Err(bucket),
             }
         }
+    }
 
-        let entry_count = program.entries().len();
+    fn insert(&mut self, bucket: usize, program: SelectorProgramStorage) -> SelectorProgramID {
+        let entry_count = program.program().entries().len();
         let id = self.vacant_programs.last().copied().unwrap_or_else(|| {
             SelectorProgramID(u32::try_from(self.programs.len()).expect("selector program space exhausted"))
         });
         let stored_id = Self::stored_program_id(id);
         self.vacant_programs.pop();
-        let program = match self.scope {
-            SelectorProgramScope::Document => SelectorProgramStorage::Document(Arc::new(program)),
-            SelectorProgramScope::Process => {
-                SelectorProgramStorage::Process(share_selector_program(program, &mut selector_program_pools().programs))
-            }
-        };
         self.program_memory.grow_committed(program.document_capacity_bytes());
         if id.0 as usize == self.programs.len() {
             self.programs.make_mut().push(Some(program));
@@ -2895,7 +2945,7 @@ impl SelectorPrograms {
         }
         self.entry_ids_by_program.make_mut()[id.0 as usize] = Some(entries);
         self.program_index.make_mut()[bucket] = Some(Self::stored_program_id(id));
-        (id, true)
+        id
     }
 
     fn rebuild_program_index(&mut self) {
@@ -2906,10 +2956,10 @@ impl SelectorPrograms {
             .programs
             .iter()
             .enumerate()
-            .filter_map(|(index, program)| program.as_ref().map(|program| (index, program.program())))
+            .filter_map(|(index, program)| program.as_ref().map(|program| (index, program)))
         {
             let id = SelectorProgramID(u32::try_from(index).expect("selector program space exhausted"));
-            let mut bucket = Self::program_hash(program) as usize & (capacity - 1);
+            let mut bucket = program.hash() as usize & (capacity - 1);
             while self.program_index[bucket].is_some() {
                 bucket = (bucket + 1) & (capacity - 1);
             }

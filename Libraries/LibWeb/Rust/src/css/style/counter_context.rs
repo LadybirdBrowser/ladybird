@@ -124,6 +124,21 @@ impl StyleEngine {
             .add_style_rule_in_scope(sheet, before, selectors, namespaces, scope, &mut self.counters)
     }
 
+    /// Add a style rule of a user-agent sheet, compiling its selectors only if no document in the
+    /// process has compiled them with the same inputs before.
+    #[inline]
+    pub(super) fn add_user_agent_style_rule(
+        &mut self,
+        sheet: SheetID,
+        before: Option<RuleID>,
+        rule_identity: u64,
+        selectors: &[&CompiledSelector],
+        rules: &crate::css::rule::NativeRuleList,
+    ) -> RuleID {
+        self.state
+            .add_user_agent_style_rule(sheet, before, rule_identity, selectors, rules, &mut self.counters)
+    }
+
     #[cfg(feature = "style-recording")]
     #[inline]
     pub(crate) fn add_replayed_style_rule(
