@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<body><canvas width="40" height="30"></canvas><img width="20" height="10"><textarea></textarea><input></body>
+<script>
+    document.body.offsetWidth;
+    // The replaced elements leave, and a node inserted into the document makes the next build replace the viewport.
+    // The tree it replaces still holds their boxes while the layout after the build runs.
+    for (const element of document.querySelectorAll("canvas, img, textarea, input"))
+        element.remove();
+    document.appendChild(document.createComment(""));
+    document.body.offsetWidth;
+</script>
