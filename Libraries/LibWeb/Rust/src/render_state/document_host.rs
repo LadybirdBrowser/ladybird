@@ -11,7 +11,7 @@ use super::owner::{self, DocumentId, SharedWithHost, StateSeed};
 use super::questions::Question;
 use super::wait::{BegunRead, HostRead, NodeRead, ReadRight, force_read_flown_style};
 use super::{
-    ArenaChange, ChangeQueue, CommittedRows, ForcedRead, Landing, NoFrameInFlight, RenderState, RenderWait,
+    ArenaChange, ChangeQueue, CommittedRows, ForcedRead, Landing, NoFrameInFlight, Owed, RenderState, RenderWait,
     ScriptForcedRead, on_render_side, post_to_render_side,
 };
 use crate::css::style::bridge::FfiDeviceClass;
@@ -202,6 +202,9 @@ impl DocumentHost {
     /// applies it ahead of the host's next job. A write never reaches the render state as the host makes it.
     pub(crate) fn queue_change(&self, change: ArenaChange) {
         self.note_render_state_write();
+        if let ArenaChange::Style(change) = &change {
+            self.engine_memo.deferred.borrow_mut().follow(change);
+        }
         if change.may_write_rows() {
             self.forget_fresh_layout();
         }
@@ -265,14 +268,18 @@ impl DocumentHost {
     }
 
     /// Pays what the writes a job or a frame applied owe the host, now that the host has it back.
-    fn pay(&self, owed: Vec<crate::layout::tree_mutation::HostWorkDue>) {
-        if owed.is_empty() {
+    fn pay(&self, Owed { work, deferred_inputs }: Owed) {
+        self.engine_memo
+            .deferred
+            .borrow_mut()
+            .follow_job(deferred_inputs, !self.changes.is_empty());
+        if work.is_empty() {
             return;
         }
         // SAFETY: The host has its job or frame back, on its document's thread, or on the render owner in a host
         // callback of a job the host waits for, as every host callback runs.
         let main_thread = unsafe { crate::stage::from_ffi_entry(&OWED_WORK_PAYMENT, self) };
-        for work in owed {
+        for work in work {
             work.pay(&main_thread);
         }
     }
@@ -472,6 +479,12 @@ impl DocumentHost {
         if self.layout_up_to_date.get() == Some(true) {
             self.layout_up_to_date.set(None);
         }
+    }
+
+    /// Whether the host knows what its engine holds as of the writes it queued: no job of the engine runs, as a host
+    /// callback of one does, and no frame flies.
+    pub(crate) fn knows_engine_between_jobs(&self) -> bool {
+        !self.in_job.get() && !self.frame_flies()
     }
 
     fn frame_flies(&self) -> bool {

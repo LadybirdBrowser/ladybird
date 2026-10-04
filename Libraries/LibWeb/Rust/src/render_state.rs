@@ -115,9 +115,13 @@ impl RenderState {
         }
     }
 
-    /// Takes what the writes the state applied owe the host, for the host to pay once it has the job back.
-    fn take_owed(&mut self) -> Vec<crate::layout::tree_mutation::HostWorkDue> {
-        std::mem::take(&mut self.owed)
+    /// Takes what the writes the state applied owe the host, for the host to pay once it has the job back, and what
+    /// the host learns of the engine's deferred element style inputs, where they moved.
+    fn take_owed(&mut self) -> Owed {
+        Owed {
+            work: std::mem::take(&mut self.owed),
+            deferred_inputs: self.engine_mut().take_moved_deferred_element_style_inputs(),
+        }
     }
 
     /// Answers `question`, as of what the state holds now.
@@ -187,7 +191,14 @@ pub(crate) struct Landing {
     /// The layout tree update marks the host lent the frame.
     marks: Option<crate::layout::tree_update_marks::LayoutTreeUpdateMarks>,
     /// What the writes the frame applied owe the host.
-    owed: Vec<crate::layout::tree_mutation::HostWorkDue>,
+    owed: Owed,
+}
+
+/// What a job or a frame leaves its host to take back: what the writes it applied owe the host, and the element style
+/// inputs the engine defers as it ended, where they moved.
+pub(crate) struct Owed {
+    work: Vec<crate::layout::tree_mutation::HostWorkDue>,
+    deferred_inputs: Option<Vec<crate::css::style::engine_calls::DeferredInput>>,
 }
 
 // Every write the host makes is moved through its queue and into the render state, so a variant that carries a large
@@ -298,6 +309,10 @@ struct ChangeQueue {
 }
 
 impl ChangeQueue {
+    fn is_empty(&self) -> bool {
+        self.queued.borrow().is_empty()
+    }
+
     fn push(&self, change: ArenaChange) {
         self.row_write.set(self.row_write.get().max(change.row_write()));
         self.queued.borrow_mut().push(change);

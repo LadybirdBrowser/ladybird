@@ -638,10 +638,13 @@ fn generate_style_engine_boundary(manifest_dir: &Path, out_dir: &Path) -> Result
             .get("cpp_const")
             .and_then(serde_json::Value::as_bool)
             .unwrap_or(receiver == "const");
-        let (is_change, is_query) = match object.get("owner").and_then(serde_json::Value::as_str) {
+        // A query the host answers itself where it knows the answer has its entry written by hand, which asks the
+        // generated operation only where the host cannot answer.
+        let owner = object.get("owner").and_then(serde_json::Value::as_str);
+        let (is_change, is_query) = match owner {
             None => (false, false),
             Some("change") => (true, false),
-            Some("query") => (false, true),
+            Some("query" | "host") => (false, true),
             Some(other) => return Err(format!("unknown boundary owner {other}").into()),
         };
         if is_change && (return_kind != "void" || receiver != "mut" || ffi.is_none()) {
@@ -761,6 +764,7 @@ fn generate_style_engine_boundary(manifest_dir: &Path, out_dir: &Path) -> Result
             rust.push_str(" };\n        assert!(!document_host.is_null(), \"document host is null\");\n        unsafe { &*document_host }.queue_change(crate::render_state::ArenaChange::Style(change));\n    });\n}\n\n");
         } else if let Some(ffi) = ffi
             && is_query
+            && owner != Some("host")
         {
             writeln!(
                 rust,

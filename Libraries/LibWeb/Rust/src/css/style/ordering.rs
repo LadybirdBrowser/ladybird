@@ -2189,6 +2189,7 @@ impl StyleEngineState {
 
     /// Merge one element style input into the deferred inputs, which are kept sorted by key.
     pub(crate) fn defer_element_style_input(&mut self, node: StyleNodeID, reaction: u8, inherited_style_groups: u8) {
+        self.host.deferred_element_style_inputs_moved = true;
         let key = InputKey::ElementStyleInput(node);
         match self
             .host

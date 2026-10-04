@@ -35,6 +35,44 @@ struct InstalledRecordState {
     in_display_none_subtree: bool,
 }
 
+/// The reactions and the inherited style groups that a reaction C++ applied to an element, with `reaction`,
+/// `inherited_style_groups_changed` and `facts` as it reports them, may derive for any of the element's children, as
+/// [`StyleEngineState::note_style_reaction_applied`] derives them from what else the engine knows.
+pub(crate) fn derivable_child_reactions(reaction: u8, inherited_style_groups_changed: u8, facts: u32) -> (u8, u8) {
+    let has = |bit: u32| facts & bit != 0;
+    let custom_properties =
+        has(fact::DID_CHANGE_CUSTOM_PROPERTIES) || reaction & STYLE_REACTION_INHERITED_CUSTOM_PROPERTIES != 0;
+    let became_visible = reaction & STYLE_REACTION_ANCESTOR_BECAME_VISIBLE != 0 || has(fact::WAS_DISPLAY_NONE);
+    let mut derived = 0;
+    let mut groups = inherited_style_groups_changed;
+    if custom_properties {
+        derived |= STYLE_REACTION_INHERITED_CUSTOM_PROPERTIES;
+    }
+    // A slot's assigned elements, an unstyled display:none element's children, and a rebuilt box's children recompute.
+    if !has(fact::INVALIDATION_IS_NONE)
+        || custom_properties
+        || became_visible
+        || has(fact::WAS_UNSTYLED)
+        || has(fact::NEEDS_LAYOUT_TREE_REBUILD)
+    {
+        derived |= STYLE_REACTION_RECOMPUTE_STYLE;
+    }
+    if reaction & STYLE_REACTION_RECOMPUTE_DESCENDANT_STYLES != 0 || has(fact::RECOMPUTE_DESCENDANT_STYLES) {
+        derived |= STYLE_REACTION_RECOMPUTE_DESCENDANT_STYLES;
+    }
+    if became_visible {
+        derived |= STYLE_REACTION_ANCESTOR_BECAME_VISIBLE;
+    }
+    // A child that explicitly inherits a property that is not inherited takes every group.
+    if !has(fact::INVALIDATION_IS_NONE) {
+        groups = ALL_INHERITED_STYLE_GROUPS;
+    }
+    if groups != 0 {
+        derived |= STYLE_REACTION_INHERITED_STYLE;
+    }
+    (derived, groups)
+}
+
 /// One reaction a reaction applied to an element derives for a child of it, or for an element a
 /// slot assigns.
 #[derive(Clone, Copy)]

@@ -442,6 +442,7 @@ impl StyleEngineState {
                 && self.host.tree_staging.is_empty()
                 && !self.host.program_staging.is_dirty()
                 && self.host.sheet_rule_replacement.is_none();
+        self.host.deferred_element_style_inputs_moved |= !self.host.deferred_element_style_inputs.is_empty();
         for input in std::mem::take(&mut self.host.deferred_element_style_inputs) {
             self.record_input(input.key, input.old, input.new, counters);
         }
