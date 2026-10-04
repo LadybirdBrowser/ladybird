@@ -120,7 +120,8 @@ void ObservableArray::clear()
     // Each element leaves the array before its callback runs, and the callback may read the elements that remain.
     // Unlike [[Delete]], taking an element ignores any attributes that script has given it.
     while (length() != 0) {
-        auto deleted_value = m_array_object->indexed_take_first().value;
+        auto deleted_value = element_value(0).value_or(JS::js_undefined());
+        m_array_object->indexed_take_first();
         MUST(m_on_delete_an_indexed_value->function()(deleted_value));
     }
 }
