@@ -36,6 +36,7 @@
 #include <LibWeb/CSS/CustomPropertyRegistration.h>
 #include <LibWeb/CSS/ScrollStateContainerQuery.h>
 #include <LibWeb/CSS/StyleScope.h>
+#include <LibWeb/CSS/StyleUpdateInputs.h>
 #include <LibWeb/DOM/AnchorNameMap.h>
 #include <LibWeb/DOM/HoverEventData.h>
 #include <LibWeb/DOM/ParentNode.h>
@@ -493,11 +494,11 @@ public:
     // transaction's. Where none flew, that is one test.
     void drain_flown_style_transaction(Layout::BegunRead const& read)
     {
-        if (m_has_flown_style_transaction) [[unlikely]]
+        if (m_flown_style_update_inputs.has_value()) [[unlikely]]
             drain_style_transaction_that_flew(read);
     }
     // Whether a style transaction flew whose reactions no style update has drained yet.
-    bool has_flown_style_transaction() const { return m_has_flown_style_transaction; }
+    bool has_flown_style_transaction() const { return m_flown_style_update_inputs.has_value(); }
     // Records what a style update records before it takes the document's style transaction, and lets the transaction
     // fly beside the event loop where `blocker` is none. The next style update takes its reactions in. Answers whether
     // the transaction flies.
@@ -1835,10 +1836,11 @@ private:
     GC::WeakHashSet<Animations::KeyframeEffect> m_effects_needing_animated_style_update_after_current_update;
     bool m_is_updating_animated_style { false };
     bool m_has_throttled_animation_style_update { false };
-    bool m_has_flown_style_transaction { false };
     bool m_needs_throttled_animation_style_update_check { false };
     bool m_force_throttled_animation_style_update { false };
     Optional<u64> m_last_forced_throttled_animation_style_update_task_generation;
+    // The inputs the style transaction that flew was sealed with, which its drain takes its reactions in against.
+    Optional<CSS::StyleUpdateInputs> m_flown_style_update_inputs;
 
     HashTable<GC::Ptr<NodeIterator>> m_node_iterators;
 
