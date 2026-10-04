@@ -2475,14 +2475,14 @@ void CanonicalTraversable::run_direct_history_operation(HistoryOperation& operat
             // 1. Let afterAllUnloads be an algorithm step which destroys traversable.
             // 2. Unload a document and its descendants given traversable's active document, null, and
             //    afterAllUnloads.
-            // NB: The final unload-and-destroy task is dispatched to the requesting process once every descendant
-            //     subtree has unloaded. Completing the operation afterwards is ordered behind that task's message.
+            // NB: The final unload-and-destroy task is dispatched to the page hosting the traversable once every
+            //     descendant subtree has unloaded. That need not be the requesting page: a cross-site navigation
+            //     ahead of the close in the queue can have moved the traversable to another process.
             unload_a_document_and_its_descendants(id(), page_hosting(*this), Web::HTML::ChildNavigableDestruction::No, [this, operation_id = operation.operation_id](UnloadedInItsHost) {
-                auto* operation = find_history_operation(operation_id);
-                if (!operation)
+                if (!find_history_operation(operation_id))
                     return;
-                if (operation->initiating_page)
-                    operation->initiating_page->async_run_traversable_close_unload_task(operation_id);
+                if (auto host = page_hosting(*this))
+                    host->async_run_traversable_close_unload_task(operation_id);
                 finish_history_operation(operation_id, Web::HTML::HistoryStepResult::Applied, {});
             });
         },
