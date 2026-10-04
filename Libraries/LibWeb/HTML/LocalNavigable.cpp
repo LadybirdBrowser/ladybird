@@ -1540,7 +1540,6 @@ HostedNavigableState LocalNavigable::hosted_state() const
         .active_document_url = m_active_document->url(),
         .active_document_is_fully_active = m_active_document->is_fully_active(),
         .opener_policy = m_active_document->opener_policy(),
-        .active_document_is_completely_loaded = m_active_document->is_completely_loaded(),
         .is_closing = m_closing,
         .container = container_state(),
         .delays_the_load_event_of_its_container = delays_the_load_event_of_its_container(),

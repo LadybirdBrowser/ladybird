@@ -1034,7 +1034,7 @@ Optional<Web::HTML::ReplicatedNavigableState> CanonicalNavigable::replicated_sta
         .opener_policy = hosted_state.opener_policy,
         .active_browsing_context_is_auxiliary = browsing_context.is_auxiliary(),
         .opener_navigable_id = opener_navigable_id,
-        .active_document_is_completely_loaded = hosted_state.active_document_is_completely_loaded,
+        .active_document_is_completely_loaded = active_document().is_completely_loaded(),
         .is_closing = hosted_state.is_closing,
         .container = hosted_state.container,
         .delays_the_load_event_of_its_container = hosted_state.delays_the_load_event_of_its_container,
@@ -1114,12 +1114,17 @@ bool CanonicalNavigable::has_session_history_entry_and_ready_for_navigation() co
     return is_top_level_traversable() || top_level_traversable().session_history().get_session_history_entries(*this).has_value();
 }
 
-void CanonicalNavigable::active_document_completely_finished_loading()
+void CanonicalNavigable::document_completely_finished_loading(CanonicalDocument& document)
 {
-    active_document().set_completely_loaded();
+    document.set_completely_loaded();
+    if (&document != &active_document())
+        return;
+    send_replicated_state();
+    send_completely_finished_loading_to_container();
+}
 
-    // The navigable's container runs the load event steps in the page hosting its parent's document, which is among
-    // the pages representing the navigable.
+void CanonicalNavigable::send_completely_finished_loading_to_container() const
+{
     top_level_traversable().for_each_page_representing(*this, [&](WebContentPage& page) {
         page.async_content_navigable_completely_finished_loading(id());
     });
@@ -1203,6 +1208,8 @@ void CanonicalNavigable::did_commit_navigation(CanonicalSessionHistoryEntry& ent
             view->did_change_display_page({}, previous_display_page);
     }
     update_hosted_state(move(hosted_state));
+    if (document != previous_document && document->is_completely_loaded())
+        send_completely_finished_loading_to_container();
 
     // The displaced document is gone, and its child navigables with it. When another page hosts the activated
     // document, the page that hosted the displaced one holds the navigable remotely from now on.

@@ -102,6 +102,9 @@ CanonicalBrowsingContext::BrowsingContextAndDocument CanonicalBrowsingContext::c
     // 23. Make active document.
     document->make_active();
 
+    // 24. Completely finish loading document.
+    document->set_completely_loaded();
+
     // 25. Return browsingContext and document.
     return { browsing_context, document };
 }

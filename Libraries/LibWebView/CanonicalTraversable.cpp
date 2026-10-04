@@ -760,7 +760,6 @@ CanonicalTraversable& CanonicalTraversable::create_a_new_top_level_traversable(W
         .active_document_url = initial_history_entry.url,
         .active_document_is_fully_active = true,
         .opener_policy = {},
-        .active_document_is_completely_loaded = false,
         .is_closing = false,
         .container = {},
         .delays_the_load_event_of_its_container = false,
