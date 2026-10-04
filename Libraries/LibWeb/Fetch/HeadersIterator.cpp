@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibJS/HostClassBuilder.h>
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/Iterator.h>
 #include <LibTextCodec/Decoder.h>
@@ -11,34 +12,26 @@
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Fetch/HeadersIterator.h>
 
-namespace Web::Bindings {
-
-static void set_headers_iterator_prototype(JS::Realm& realm, Fetch::HeadersIterator& iterator)
-{
-    static auto const& name = "HeadersIterator"_utf16_fly_string;
-    Detail::set_prototype_for_interface_on<HeadersIteratorPrototype>(realm, iterator, name);
-}
-
-}
-
 namespace Web::Fetch {
 
 GC_DEFINE_ALLOCATOR(HeadersIterator);
 
-HeadersIterator::HeadersIterator(JS::Realm& realm, Headers const& headers, JS::Object::PropertyKind iteration_kind)
-    : JS::Object(realm, nullptr)
-    , m_headers(headers)
+static constexpr JSHostClass headers_iterator_host_class = JS::make_host_class(JS_HOST_CLASS_OBJECT, "HeadersIterator"sv, nullptr, nullptr, nullptr, 0);
+
+HeadersIterator::HeadersIterator(Headers const& headers, JS::Object::PropertyKind iteration_kind)
+    : m_headers(headers)
     , m_iteration_kind(iteration_kind)
 {
 }
 
 HeadersIterator::~HeadersIterator() = default;
 
-GC::Ref<HeadersIterator> HeadersIterator::create(JS::Realm& realm, Headers const& headers, JS::Object::PropertyKind iteration_kind)
+GC::Ref<JS::HostObject> HeadersIterator::create(JS::Realm& realm, Headers const& headers, JS::Object::PropertyKind iteration_kind)
 {
-    auto iterator = realm.create<HeadersIterator>(realm, headers, iteration_kind);
-    Bindings::set_headers_iterator_prototype(realm, iterator);
-    return iterator;
+    static auto const& prototype_name = "HeadersIterator"_utf16_fly_string;
+    auto iterator = realm.create<HeadersIterator>(headers, iteration_kind);
+    auto& prototype = Bindings::ensure_web_prototype<Bindings::HeadersIteratorPrototype>(realm, prototype_name);
+    return JS::HostObject::create(realm, headers_iterator_host_class, prototype, {}, iterator);
 }
 
 void HeadersIterator::visit_edges(GC::Cell::Visitor& visitor)

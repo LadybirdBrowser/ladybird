@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibJS/HostClassBuilder.h>
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/Iterator.h>
 #include <LibJS/Runtime/PrimitiveString.h>
@@ -14,23 +15,14 @@
 #include <LibWeb/FileAPI/File.h>
 #include <LibWeb/XHR/FormDataIterator.h>
 
-namespace Web::Bindings {
-
-static void set_form_data_iterator_prototype(JS::Realm& realm, XHR::FormDataIterator& iterator)
-{
-    static auto const& name = "FormDataIterator"_utf16_fly_string;
-    Detail::set_prototype_for_interface_on<FormDataIteratorPrototype>(realm, iterator, name);
-}
-
-}
-
 namespace Web::XHR {
 
 GC_DEFINE_ALLOCATOR(FormDataIterator);
 
-FormDataIterator::FormDataIterator(JS::Realm& realm, Web::XHR::FormData const& form_data, JS::Object::PropertyKind iterator_kind)
-    : JS::Object(realm, nullptr)
-    , m_form_data(form_data)
+static constexpr JSHostClass form_data_iterator_host_class = JS::make_host_class(JS_HOST_CLASS_OBJECT, "FormDataIterator"sv, nullptr, nullptr, nullptr, 0);
+
+FormDataIterator::FormDataIterator(Web::XHR::FormData const& form_data, JS::Object::PropertyKind iterator_kind)
+    : m_form_data(form_data)
     , m_iterator_kind(iterator_kind)
 {
 }
@@ -67,11 +59,12 @@ GC::Ref<JS::Object> FormDataIterator::next(JS::Realm& realm)
     return JS::create_iterator_result_object(realm, JS::Array::create_from(realm, { JS::PrimitiveString::create(vm, entry.name), entry_value }), false);
 }
 
-GC::Ref<FormDataIterator> FormDataIterator::create(JS::Realm& realm, FormData const& form_data, JS::Object::PropertyKind iterator_kind)
+GC::Ref<JS::HostObject> FormDataIterator::create(JS::Realm& realm, FormData const& form_data, JS::Object::PropertyKind iterator_kind)
 {
-    auto iterator = realm.create<FormDataIterator>(realm, form_data, iterator_kind);
-    Bindings::set_form_data_iterator_prototype(realm, iterator);
-    return iterator;
+    static auto const& prototype_name = "FormDataIterator"_utf16_fly_string;
+    auto iterator = realm.create<FormDataIterator>(form_data, iterator_kind);
+    auto& prototype = Bindings::ensure_web_prototype<Bindings::FormDataIteratorPrototype>(realm, prototype_name);
+    return JS::HostObject::create(realm, form_data_iterator_host_class, prototype, {}, iterator);
 }
 
 void FormDataIterator::visit_edges(GC::Cell::Visitor& visitor)

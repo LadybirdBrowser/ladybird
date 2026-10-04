@@ -6,24 +6,29 @@
 
 #pragma once
 
+#include <LibJS/Heap/Cell.h>
+#include <LibJS/Runtime/HostObject.h>
 #include <LibJS/Runtime/Object.h>
 #include <LibWeb/XHR/FormData.h>
 
 namespace Web::XHR {
 
-class FormDataIterator : public JS::Object {
-    JS_OBJECT(FormDataIterator, JS::Object);
+// The state of a FormData iterator. The iterator's JS object is a host object that carries this cell as its host data.
+class FormDataIterator final : public JS::Cell {
+    GC_CELL(FormDataIterator, JS::Cell);
     GC_DECLARE_ALLOCATOR(FormDataIterator);
 
 public:
-    [[nodiscard]] static GC::Ref<FormDataIterator> create(JS::Realm&, FormData const&, JS::Object::PropertyKind iterator_kind);
+    using JSValueConversionIsForbidden = void;
+
+    [[nodiscard]] static GC::Ref<JS::HostObject> create(JS::Realm&, FormData const&, JS::Object::PropertyKind iterator_kind);
 
     virtual ~FormDataIterator() override;
 
     GC::Ref<JS::Object> next(JS::Realm&);
 
 private:
-    FormDataIterator(JS::Realm&, FormData const&, JS::Object::PropertyKind iterator_kind);
+    FormDataIterator(FormData const&, JS::Object::PropertyKind iterator_kind);
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
 
