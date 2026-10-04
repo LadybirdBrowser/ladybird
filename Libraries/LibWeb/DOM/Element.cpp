@@ -3293,16 +3293,10 @@ void Element::set_style_node_id(CSS::StyleNodeID style_node_id)
     // node, and its next one takes them back.
     auto& style_engine = document().style_computer().style_engine();
     if (style_node_id == 0) {
-        // Taking the values back from the engine is the host's own read of the render state.
-        Layout::ForcedReadScope read { document(), false };
-        RareData::RandomBaseValues values;
-        style_engine.element_random_base_values(read, old_style_node_id, values.name_lengths, values.name_units, values.value_bits);
-        if (!values.value_bits.is_empty())
+        if (auto values = style_engine.park_element_random_base_values(old_style_node_id))
             ensure_element_rare_data().random_base_values_without_style_node = move(values);
-    } else if (auto* rare_data = element_rare_data(); rare_data && !rare_data->random_base_values_without_style_node.value_bits.is_empty()) {
-        auto values = move(rare_data->random_base_values_without_style_node);
-        rare_data->random_base_values_without_style_node = {};
-        style_engine.set_element_random_base_values(style_node_id, values.name_lengths, values.name_units, values.value_bits);
+    } else if (auto* rare_data = element_rare_data(); rare_data && rare_data->random_base_values_without_style_node) {
+        style_engine.unpark_element_random_base_values(style_node_id, move(rare_data->random_base_values_without_style_node));
     }
     // What the element and its pseudo-elements have scrolled to is held against its identity for the rows a build
     // stamps for them, so it arrives with the identity, as the element connects or its identity changes.

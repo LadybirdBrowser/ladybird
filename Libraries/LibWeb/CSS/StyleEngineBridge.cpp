@@ -198,19 +198,20 @@ double StyleEngine::ensure_random_base_value(Layout::BegunRead const& read, Styl
     return bit_cast<double>(ensure_random_base_value_bits(read, node, code_units, element_shared));
 }
 
-void StyleEngine::element_random_base_values(Layout::BegunRead const& read, StyleNodeID node, Vector<u32>& name_lengths, Vector<u16>& name_units, Vector<u64>& value_bits) const
+ParkedRandomBaseValues StyleEngine::park_element_random_base_values(StyleNodeID node)
 {
-    struct Values {
-        Vector<u32>& name_lengths;
-        Vector<u16>& name_units;
-        Vector<u64>& value_bits;
-    } values { name_lengths, name_units, value_bits };
-    StyleEngineFFI::style_engine_element_random_base_values(m_render_document->host(), &read, node.value(), &values, [](void* context, u16 const* name, size_t length, u64 bits) {
-        auto& values = *static_cast<Values*>(context);
-        values.name_lengths.append(static_cast<u32>(length));
-        values.name_units.append(name, length);
-        values.value_bits.append(bits);
-    });
+    return ParkedRandomBaseValues { StyleEngineFFI::style_engine_park_element_random_base_values(host(), node.value()) };
+}
+
+void StyleEngine::unpark_element_random_base_values(StyleNodeID node, ParkedRandomBaseValues values)
+{
+    StyleEngineFFI::style_engine_unpark_element_random_base_values(host(), node.value(), values.leak_slot());
+}
+
+ParkedRandomBaseValues::~ParkedRandomBaseValues()
+{
+    if (m_slot)
+        StyleEngineFFI::style_engine_release_random_base_values(m_slot);
 }
 
 void StyleEngine::decide_transitions(Layout::BegunRead const& read, StyleRecordID before_style_record, StyleRecordID after_style_record, StyleValueFFI::FfiTransitionInput const& input, StyleValueFFI::FfiTransitionAction* actions) const

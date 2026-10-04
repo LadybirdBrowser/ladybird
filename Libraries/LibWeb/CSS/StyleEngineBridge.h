@@ -19,6 +19,7 @@
 #include <AK/Vector.h>
 #include <LibGC/Cell.h>
 #include <LibGC/Ptr.h>
+#include <LibWeb/CSS/ParkedRandomBaseValues.h>
 #include <LibWeb/CSS/StyleEngineIdentifiers.h>
 #include <LibWeb/CSS/StyleRecordID.h>
 #include <LibWeb/ComputedValuesRustFFI.h>
@@ -85,9 +86,10 @@ public:
     // https://drafts.csswg.org/css-values-5/#random-caching
     // The random base value of a random caching key: the name, and the element unless the sharing is element-shared.
     [[nodiscard]] double ensure_random_base_value(Layout::BegunRead const& read, StyleNodeID, Utf16View name, bool element_shared);
-    // The random base values of the keys that name an element, as one buffer of name code units with a length and a
-    // value per name.
-    void element_random_base_values(Layout::BegunRead const& read, StyleNodeID, Vector<u32>& name_lengths, Vector<u16>& name_units, Vector<u64>& value_bits) const;
+    // The random base values of the keys that name an element whose style node this was, which the element keeps while
+    // it has none, and gives to the style node it gets next.
+    [[nodiscard]] ParkedRandomBaseValues park_element_random_base_values(StyleNodeID);
+    void unpark_element_random_base_values(StyleNodeID, ParkedRandomBaseValues);
 
     // The document's style node identities are minted here, without asking the engine, and the engine is told of each
     // mint ahead of anything recorded about its node. Identity 0 is never minted; it means "no node".
