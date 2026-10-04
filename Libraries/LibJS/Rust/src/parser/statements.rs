@@ -382,6 +382,7 @@ impl Parser<'_> {
                 self.syntax_error("for-await-of not allowed outside of async context");
             }
             self.consume();
+            self.scope_collector.set_contains_await_expression();
             true
         } else {
             false
