@@ -19,7 +19,7 @@ use crate::css::style::flight_style_rows::FlightStyleRow;
 use crate::css::style::rule_writes::{PublishedRules, RuleWrite};
 use crate::css::style::style_job::StyleJobAnswer;
 use crate::css::style::tree::StyleNodeID;
-use crate::layout::row_reads::{RowIdentities, RowSnapshot};
+use crate::layout::row_reads::{RowIdentities, RowSnapshot, RowStyles};
 use crate::layout::tree_update_marks::{LayoutTreeUpdateMarkWrite, LayoutTreeUpdateMarks};
 use crate::layout::{FlownRound, HostTables, RowsVersion, SealedRound};
 use crate::painting::paint_read::PaintSource;
@@ -715,6 +715,25 @@ impl DocumentHost {
     pub(crate) fn row_identities(&self, wait: impl RenderWait) -> RowIdentities {
         self.known_row_identities()
             .unwrap_or_else(|| RowIdentities::of(self.rows_as_of_writes(wait, false)))
+    }
+
+    /// The style record each row has, and what each row is, as of every change the host queued. The host reads them
+    /// from the rows it has where no write since changed them, as a write of what a row holds but its style does not,
+    /// and otherwise from rows the render state publishes again first, spending `wait`.
+    pub(crate) fn row_styles(&self, wait: impl RenderWait) -> RowStyles {
+        let rows = self.rows.borrow();
+        if let Some(rows) = rows.as_ref().filter(|rows| {
+            !self.in_job.get()
+                && !self.changes.may_write_row_styles()
+                && self
+                    .arena_version
+                    .get()
+                    .is_some_and(|version| rows.reads_styles_as(version))
+        }) {
+            return RowStyles::of(Rc::clone(rows));
+        }
+        drop(rows);
+        RowStyles::of(self.rows_as_of_writes(wait, false))
     }
 
     /// What each row is and the row each node is bound to, as of every change the host queued, where the host knows

@@ -57,6 +57,17 @@ unsafe fn rows(host: *mut DocumentHost, wait: impl RenderWait) -> Rc<RowSnapshot
     unsafe { &*host }.fresh_rows(wait)
 }
 
+/// The style record each row of `host`'s document has, as of every write the host made, spending `wait`.
+///
+/// # Safety
+///
+/// As for [`rows`].
+unsafe fn styles(host: *mut DocumentHost, wait: impl RenderWait) -> crate::layout::row_reads::RowStyles {
+    assert!(!host.is_null(), "document host is null");
+    // SAFETY: Guaranteed by the caller.
+    unsafe { &*host }.row_styles(wait)
+}
+
 /// What each row of `host`'s document is, and the row each node is bound to, as of every write the host made, spending
 /// `wait`.
 ///
@@ -161,7 +172,7 @@ pub unsafe extern "C" fn layout_row_style_node(host: *mut DocumentHost, id: Node
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_row_style_record(host: *mut DocumentHost, id: NodeSlotId) -> u64 {
     // SAFETY: Guaranteed by the caller.
-    unsafe { rows(host, node_read()) }.style_record(id)
+    unsafe { styles(host, node_read()) }.style_record(id)
 }
 
 /// # Safety
@@ -170,7 +181,7 @@ pub unsafe extern "C" fn layout_row_style_record(host: *mut DocumentHost, id: No
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_row_style_payloads(host: *mut DocumentHost, id: NodeSlotId) -> *const c_void {
     // SAFETY: Guaranteed by the caller.
-    unsafe { rows(host, node_read()) }.style_payloads(id).as_ptr().cast()
+    unsafe { styles(host, node_read()) }.style_payloads(id).as_ptr().cast()
 }
 
 /// # Safety

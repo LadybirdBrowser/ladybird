@@ -167,8 +167,8 @@ pub(crate) enum LayoutChange {
 }
 
 impl LayoutChange {
-    /// How far the change may write the rows. Most write what a row holds alone: installing a style changes none of the
-    /// flags that say what a row stands for.
+    /// How far the change may write the rows. Most write what a row holds alone, but for its style record: installing a
+    /// style changes none of the flags that say what a row stands for.
     pub(crate) fn row_write(&self) -> crate::render_state::RowWrite {
         use crate::render_state::RowWrite;
         match self {
@@ -177,6 +177,7 @@ impl LayoutChange {
             | Self::BindRow(_)
             | Self::UnbindRow(_) => RowWrite::Identities,
             Self::SetNodeFlag { flag, .. } if *flag as u32 & NodeFlag::IDENTITY != 0 => RowWrite::Identities,
+            Self::SetNodeStyle { .. } => RowWrite::Styles,
             Self::SetNeedsLayoutUpdate { .. }
             | Self::SetNeedsFullLayoutTreeUpdate
             | Self::ResetCachedIntrinsicSizesOfSelfAndAncestors { .. }
@@ -197,7 +198,6 @@ impl LayoutChange {
             | Self::InvalidateSearchableText
             | Self::RestampTableSpans { .. }
             | Self::SetNodeNeedsCompositorAnimationFrame { .. }
-            | Self::SetNodeStyle { .. }
             | Self::PinBoundBoxStyleRecordForDetachment { .. }
             | Self::PinNodeStyleRecordForHost { .. }
             | Self::ReleaseNodeStyleRecordPinForHost { .. }
