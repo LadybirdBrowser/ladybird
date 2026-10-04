@@ -206,6 +206,13 @@ void JsonValue::serialize(StringBuilder& builder) const
     m_value.visit(
         [&](Empty const&) { builder.append("null"sv); },
         [&](bool const& value) { builder.append(value ? "true"sv : "false"sv); },
+        [&](double const& value) {
+            // JSON cannot represent infinities or NaN, so they serialize as null, as in JSON.stringify().
+            if (__builtin_isfinite(value))
+                builder.appendff("{}", value);
+            else
+                builder.append("null"sv);
+        },
         [&](Arithmetic auto const& value) { builder.appendff("{}", value); },
         [&](String const& value) {
             builder.append('\"');

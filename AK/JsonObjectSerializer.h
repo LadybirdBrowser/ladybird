@@ -187,25 +187,8 @@ public:
         return {};
     }
 
-    ErrorOr<void> add(StringView key, float value)
-    {
-        TRY(begin_item(key));
-        if constexpr (IsLegacyBuilder<Builder>)
-            TRY(m_builder.try_appendff("{}", value));
-        else
-            TRY(m_builder.appendff("{}", value));
-        return {};
-    }
-
-    ErrorOr<void> add(StringView key, double value)
-    {
-        TRY(begin_item(key));
-        if constexpr (IsLegacyBuilder<Builder>)
-            TRY(m_builder.try_appendff("{}", value));
-        else
-            TRY(m_builder.appendff("{}", value));
-        return {};
-    }
+    ErrorOr<void> add(StringView key, float value) { return add_floating_point(key, value); }
+    ErrorOr<void> add(StringView key, double value) { return add_floating_point(key, value); }
 
     ErrorOr<JsonArraySerializer<Builder>> add_array(StringView key)
     {
@@ -246,6 +229,25 @@ private:
     explicit JsonObjectSerializer(Builder& builder)
         : m_builder(builder)
     {
+    }
+
+    template<FloatingPoint T>
+    ErrorOr<void> add_floating_point(StringView key, T value)
+    {
+        TRY(begin_item(key));
+        // JSON cannot represent infinities or NaN, so they serialize as null, as in JSON.stringify().
+        if constexpr (IsLegacyBuilder<Builder>) {
+            if (__builtin_isfinite(value))
+                TRY(m_builder.try_appendff("{}", value));
+            else
+                TRY(m_builder.try_append("null"sv));
+        } else {
+            if (__builtin_isfinite(value))
+                TRY(m_builder.appendff("{}", value));
+            else
+                TRY(m_builder.append("null"sv));
+        }
+        return {};
     }
 
     ErrorOr<void> begin_item(StringView key)
