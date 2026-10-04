@@ -1126,7 +1126,7 @@ void StyleEngine::set_element_custom_property_data(Layout::BegunRead const& read
     // element's own values under what its animations sampled, laid over what its style resolves to.
     auto note = [&](CustomPropertyData const& environment) {
         auto inheritable = environment.inheritable(read, element.document());
-        StyleEngineFFI::style_engine_note_custom_property_environment(host(), &read, environment.identity(), environment.rust_store(),
+        StyleEngineFFI::style_engine_note_custom_property_environment(host(), environment.identity(), environment.rust_store(),
             inheritable ? inheritable->identity() : 0, inheritable ? inheritable->rust_store() : nullptr);
     };
     if (base)
@@ -1137,9 +1137,9 @@ void StyleEngine::set_element_custom_property_data(Layout::BegunRead const& read
         base ? base->identity() : 0);
 }
 
-CustomPropertyData const* StyleEngine::element_custom_property_data(Layout::BegunRead const& read, StyleNodeID node) const
+CustomPropertyData const* StyleEngine::element_custom_property_data(StyleNodeID node) const
 {
-    return static_cast<CustomPropertyData const*>(StyleEngineFFI::style_engine_element_custom_property_data(m_render_document->host(), &read, node.value()));
+    return static_cast<CustomPropertyData const*>(StyleEngineFFI::style_engine_element_custom_property_data(m_render_document->host(), node.value()));
 }
 
 static_assert(to_underlying(PseudoElement::KnownPseudoElementCount) <= 64);
@@ -1149,14 +1149,14 @@ void StyleEngine::set_pseudo_element_custom_property_data(StyleNodeID node, Pseu
     StyleEngineFFI::style_engine_set_pseudo_element_custom_property_data(m_render_document->host(), node.value(), to_underlying(pseudo_element), data, data ? data->identity() : 0);
 }
 
-CustomPropertyData const* StyleEngine::pseudo_element_custom_property_data(Layout::BegunRead const& read, StyleNodeID node, PseudoElement pseudo_element) const
+CustomPropertyData const* StyleEngine::pseudo_element_custom_property_data(StyleNodeID node, PseudoElement pseudo_element) const
 {
-    return static_cast<CustomPropertyData const*>(StyleEngineFFI::style_engine_pseudo_element_custom_property_data(m_render_document->host(), &read, node.value(), to_underlying(pseudo_element)));
+    return static_cast<CustomPropertyData const*>(StyleEngineFFI::style_engine_pseudo_element_custom_property_data(m_render_document->host(), node.value(), to_underlying(pseudo_element)));
 }
 
-u64 StyleEngine::pseudo_elements_with_custom_property_data(Layout::BegunRead const& read, StyleNodeID node) const
+u64 StyleEngine::pseudo_elements_with_custom_property_data(StyleNodeID node) const
 {
-    return StyleEngineFFI::style_engine_pseudo_elements_with_custom_property_data(m_render_document->host(), &read, node.value());
+    return StyleEngineFFI::style_engine_pseudo_elements_with_custom_property_data(m_render_document->host(), node.value());
 }
 
 // The engine resolves fonts against the @font-face table and cascade memo it was given, at the generation of the

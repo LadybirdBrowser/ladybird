@@ -71,7 +71,7 @@ struct MemoizedSubstitution {
 }
 
 /// One strong reference to a custom-property store, released with the handle.
-pub(super) struct RetainedCustomPropertyStore(*const c_void);
+pub(crate) struct RetainedCustomPropertyStore(*const c_void);
 
 // SAFETY: The pointer is a raw `Arc<CustomPropertyStore>`, so the reference count this handle
 // owns is atomic, and `CustomPropertyStore` is itself `Send + Sync` (see the safety note on its
@@ -85,7 +85,7 @@ unsafe impl Sync for RetainedCustomPropertyStore where CustomPropertyStore: Send
 impl RetainedCustomPropertyStore {
     /// # Safety
     /// `store` must be a live raw `Arc` pointer to a `CustomPropertyStore`.
-    unsafe fn from_borrowed(store: *const c_void) -> Self {
+    pub(super) unsafe fn from_borrowed(store: *const c_void) -> Self {
         unsafe { Arc::increment_strong_count(store.cast::<CustomPropertyStore>()) };
         Self(store)
     }
@@ -96,7 +96,7 @@ impl RetainedCustomPropertyStore {
         Self(store)
     }
 
-    fn pointer(&self) -> *const c_void {
+    pub(super) fn pointer(&self) -> *const c_void {
         self.0
     }
 }

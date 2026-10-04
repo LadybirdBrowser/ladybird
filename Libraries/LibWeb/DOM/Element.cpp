@@ -1703,7 +1703,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styl
 CSS::RequiredInvalidationAfterStyleChange Element::refresh_pseudo_element_styles_over_composition(Layout::BegunRead const& read, CSS::ComputedValues const* old_computed_values, bool& did_change_custom_properties)
 {
     auto invalidation = recompute_pseudo_element_styles(read, did_change_custom_properties, old_computed_values && old_computed_values->display().is_list_item(), old_computed_values);
-    publish_custom_property_names(read);
+    publish_custom_property_names();
     apply_computed_pseudo_element_styles_to_layout_nodes_if_needed(read, invalidation);
     return invalidation;
 }
@@ -1716,7 +1716,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styl
     bool did_change_custom_properties = false;
     record_element_reference_pseudo_element_inputs(*this);
     auto invalidation = recompute_pseudo_element_styles(read, did_change_custom_properties, computed_values->display().is_list_item(), nullptr);
-    publish_custom_property_names(read);
+    publish_custom_property_names();
     if (!invalidation.is_none())
         document().style_invalidation_counters().committed_style_observer_consequences++;
     apply_computed_pseudo_element_styles_to_layout_nodes_if_needed(read, invalidation);
@@ -2075,7 +2075,7 @@ void Element::set_style_depends_on_viewport_metrics()
     document().add_element_with_viewport_dependent_style(*this);
 }
 
-void Element::publish_custom_property_names(Layout::BegunRead const& read)
+void Element::publish_custom_property_names()
 {
     PublishedCustomPropertyNames published_names {
         .data = custom_property_data({}),
@@ -2084,7 +2084,7 @@ void Element::publish_custom_property_names(Layout::BegunRead const& read)
     };
     Vector<RefPtr<CSS::CustomPropertyData const>> published_pseudo_element_data;
     // NB: The engine names the synthetic pseudo-elements that hold an environment in one answer.
-    auto const synthetic_pseudo_elements_with_data = style_node_id() == 0 ? 0 : document().style_computer().style_engine().pseudo_elements_with_custom_property_data(read, style_node_id());
+    auto const synthetic_pseudo_elements_with_data = style_node_id() == 0 ? 0 : document().style_computer().style_engine().pseudo_elements_with_custom_property_data(style_node_id());
     for (auto i = 0; i < to_underlying(CSS::PseudoElement::KnownPseudoElementCount); ++i) {
         auto pseudo_element = static_cast<CSS::PseudoElement>(i);
         if (is_synthetic_pseudo_element(pseudo_element) && !((synthetic_pseudo_elements_with_data >> i) & 1))
@@ -2351,7 +2351,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::apply_engine_computed_style_r
         counters.element_computed_style_changes++;
         auto invalidation = CSS::RequiredInvalidationAfterStyleChange::full();
         invalidation |= recompute_pseudo_element_styles(read, did_change_custom_properties, false, nullptr, &pseudo_element_records, engine_record_damages);
-        publish_custom_property_names(read);
+        publish_custom_property_names();
         apply_computed_style_to_layout_node_if_needed(read, invalidation);
         return invalidation;
     }
@@ -2414,7 +2414,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::apply_engine_computed_style_r
     }
     // The pseudo-element records the engine settled beside this one install with it.
     result.invalidation |= recompute_pseudo_element_styles(read, did_change_custom_properties, old_computed_values->display().is_list_item(), &*old_computed_values, &pseudo_element_records, engine_record_damages);
-    publish_custom_property_names(read);
+    publish_custom_property_names();
     if (new_style_record != old_style_record || did_change_custom_properties)
         invalidate_descendant_styles_depending_on_style_container_query();
     apply_computed_style_to_layout_node_if_needed(read, result.invalidation);
@@ -5427,12 +5427,9 @@ RefPtr<CSS::CustomPropertyData const> Element::custom_property_data(Optional<CSS
         if (style_node == 0)
             return nullptr;
         auto const& style_engine = document().style_computer().style_engine();
-        // The engine holds what an element's custom properties are, so asking is the caller's own read of the render
-        // state.
-        Layout::ForcedReadScope read { document(), false };
         if (!pseudo_element.has_value())
-            return style_engine.element_custom_property_data(read, style_node);
-        return style_engine.pseudo_element_custom_property_data(read, style_node, pseudo_element.value());
+            return style_engine.element_custom_property_data(style_node);
+        return style_engine.pseudo_element_custom_property_data(style_node, pseudo_element.value());
     }
 
     if (auto existing_pseudo_element = get_pseudo_element(pseudo_element.value()); existing_pseudo_element.has_value())
