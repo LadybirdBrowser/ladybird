@@ -396,7 +396,7 @@ void NodeWithStyle::apply_style(CSS::StyleRecordID style_record_identity)
     set_flag(RustFFI::NodeFlag::HasAnimatedOpacityOrTransform, false);
     // A style change can introduce the properties that make a node carry replaced-content facts,
     // such as size containment arriving on a kept layout node.
-    RustFFI::render_state_reinherit_anonymous_descendants(document_host(), slot_id(this));
+    RustFFI::render_state_reinherit_anonymous_descendants(document_host(), slot_id(this), display().is_table_inside());
     attach_style_resources();
     // A pseudo layout node can outlive replacement of the DOM pseudo's record until the layout
     // tree is rebuilt. Root its record across that gap, including metadata-only style changes that

@@ -252,6 +252,10 @@ pub(crate) enum ArenaChange {
     /// [`crate::layout::tree_builder::detach_remaining_rows_for_removal`]), which owes the host what it pays once the
     /// job that applies it is done.
     DetachForRemoval(Box<[u32]>),
+    /// The anonymous rows below the row inherit its style again (see
+    /// [`crate::layout::LayoutNodeArena::reinherit_anonymous_descendants`]), which owes their layout
+    /// nodes the records they take, paid once the job that applies it is done.
+    ReinheritAnonymousDescendants(crate::layout::node_data::NodeSlotId),
     /// A write to the document's style sheets.
     Rule(crate::css::style::rule_writes::RuleWrite),
 }
@@ -273,6 +277,16 @@ impl ArenaChange {
                     .apply(arena)
                     .host_work,
             ),
+            // A job or frame the host has not had back yet may have freed the row since.
+            Self::ReinheritAnonymousDescendants(node) => {
+                if arena.slot_is_live(node) {
+                    owed.push(
+                        crate::layout::layout_changes::LayoutWrite::ReinheritAnonymousDescendants { node }
+                            .apply(arena)
+                            .host_work,
+                    );
+                }
+            }
             Self::Paint(change) => change.apply(arena),
             // SAFETY: Guaranteed by the caller. A style change reaches the engine only through this borrow.
             Self::Style(change) => change.apply(unsafe { engine.get_mut() }),
@@ -290,7 +304,9 @@ impl ArenaChange {
             Self::Style(change) => !change.notes_attribute_name(),
             Self::Engine(write) => !matches!(write, crate::css::style::engine_calls::EngineWrite::MintStyleNodes(_)),
             Self::Rule(_) => true,
-            Self::Layout(_) | Self::Paint(_) | Self::DetachForRemoval(_) => false,
+            Self::Layout(_) | Self::Paint(_) | Self::DetachForRemoval(_) | Self::ReinheritAnonymousDescendants(_) => {
+                false
+            }
         }
     }
 
@@ -300,7 +316,11 @@ impl ArenaChange {
         match self {
             Self::Paint(_) => false,
             Self::Style(change) => !change.is_view_epoch(),
-            Self::Layout(_) | Self::Engine(_) | Self::DetachForRemoval(_) | Self::Rule(_) => true,
+            Self::Layout(_)
+            | Self::Engine(_)
+            | Self::DetachForRemoval(_)
+            | Self::ReinheritAnonymousDescendants(_)
+            | Self::Rule(_) => true,
         }
     }
 
@@ -315,6 +335,7 @@ impl ArenaChange {
             Self::Layout(change) => change.row_write(),
             Self::Paint(_) => RowWrite::Rows,
             Self::DetachForRemoval(_) => RowWrite::Identities,
+            Self::ReinheritAnonymousDescendants(_) => RowWrite::Styles,
             Self::Style(_) | Self::Engine(_) | Self::Rule(_) => RowWrite::None,
         }
     }
