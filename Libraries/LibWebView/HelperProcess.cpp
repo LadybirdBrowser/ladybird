@@ -432,8 +432,7 @@ ErrorOr<NonnullRefPtr<WebView::CompositorClient>> launch_compositor_process()
     }
 
     auto client = TRY(launch_server_process<WebView::CompositorClient>("Compositor"sv, move(arguments)));
-    auto font_catalog = TRY(WebView::Application::font_service().clone_catalog());
-    client->async_set_font_catalog(move(font_catalog.file), font_catalog.size, font_catalog.generation);
+    TRY(connect_to_font_service(*client));
     return client;
 }
 

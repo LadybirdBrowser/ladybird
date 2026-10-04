@@ -60,9 +60,6 @@ public:
     static ErrorOr<NonnullOwnPtr<SharedFontProvider>> create_empty(u64 generation, SharedFontProviderCallbacks&&);
     virtual ~SharedFontProvider() override;
 
-    ErrorOr<void> replace_catalog(NonnullOwnPtr<Core::MappedFile>, u64 generation);
-    ErrorOr<void> replace_catalog(IPC::File, u64 size, u64 generation);
-
     virtual RefPtr<Gfx::Font> get_font(FlyString const& family, float point_size, unsigned weight, unsigned width, unsigned slope, Optional<FontVariationSettings> const& = {}, Optional<Gfx::ShapeFeatures> const& = {}) override;
     virtual void for_each_typeface_with_family_name(FlyString const&, Function<void(Typeface const&)>) override;
     virtual RefPtr<Typeface> get_typeface_by_id(u64 generation, u64 face_id) override;
@@ -96,15 +93,15 @@ private:
     RefPtr<Typeface> load_brokered_font(BrokeredFont);
     RefPtr<Typeface> load_font_file(u64 face_id, u32 ttc_index, FontFileFormat, IPC::File);
     RefPtr<Typeface> load_font_reference(u64 face_id, SystemFontReference const&);
-    void clear_typeface_cache();
+
+    NonnullOwnPtr<Core::MappedFile> const m_catalog_mapping;
+    NonnullOwnPtr<FontCatalog> const m_catalog;
+    SharedFontProviderCallbacks const m_callbacks;
 
     // Guards everything below. A font cascade can be resolved off the document thread, and every resolution fills
     // these caches on its way past. The lock is held across a round trip to the font service, so that one face is
     // opened once however many threads want it.
     Mutex m_mutex;
-    NonnullOwnPtr<Core::MappedFile> m_catalog_mapping;
-    NonnullOwnPtr<FontCatalog> m_catalog;
-    SharedFontProviderCallbacks m_callbacks;
     PathFontProvider m_resource_fonts;
     HashMap<u64, NonnullRefPtr<Typeface>> m_typeface_cache;
     HashTable<u64> m_failed_face_ids;
