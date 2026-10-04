@@ -1,0 +1,3 @@
+initial width: 30px
+resized width: 50px
+reaction color: rgb(0, 128, 0)

@@ -552,6 +552,20 @@ fn prepare_route_liveness(engine: &mut StyleEngine) {
         .prepare_route_liveness(&retained.program, &retained.programs);
 }
 
+/// Take a style transaction and every later wave of its pass, as the host does when it installs
+/// each wave; nothing is installed here.
+fn take_every_wave(
+    engine: &mut StyleEngine,
+    root: StyleNodeID,
+    mut emit: impl FnMut(StyleTransactionVersion, ProgramVersion, &[PublishedStyleDeltaRecord]),
+) -> bool {
+    let scoped = engine.take_style_transaction(root, &mut emit);
+    while engine.host.suspended_style_pass.is_some() {
+        engine.take_style_transaction(root, &mut emit);
+    }
+    scoped
+}
+
 pub(super) fn discard_transaction(engine: &mut StyleEngine) {
     let transaction = engine.take_transaction();
     engine.release_transaction(transaction);
@@ -1021,11 +1035,11 @@ fn size_container_dependents_are_found_along_the_flat_tree() {
     engine.record_size_container_query_dependents(host);
 
     assert_eq!(engine.size_query_container_scan_visits(true), 4);
-    let recorded = &engine.state.retained.container_input_nodes;
-    assert!(recorded.contains(&slot));
-    assert!(recorded.contains(&assigned_child));
-    assert!(!recorded.contains(&unassigned));
-    assert!(!recorded.contains(&wrapper));
+    let recorded = &engine.state.retained.row_inputs_moved;
+    assert!(recorded.containers_moved(slot));
+    assert!(recorded.containers_moved(assigned_child));
+    assert!(!recorded.containers_moved(unassigned));
+    assert!(!recorded.containers_moved(wrapper));
 
     // A container nothing asked about has no dependents to find.
     engine.set_element_size_container_query_facts(host, false, false);
@@ -2095,7 +2109,7 @@ fn a_non_bulk_document_root_arrival_publishes_style_reactions() {
     }
     let mut published = Vec::new();
 
-    assert!(!engine.take_style_transaction(nodes[0], |_, _, reactions| {
+    assert!(!take_every_wave(&mut engine, nodes[0], |_, _, reactions| {
         published.extend(reactions.iter().map(|reaction| reaction.style_node));
     }));
     assert_eq!(published, nodes.iter().map(|node| node.raw()).collect::<Vec<_>>());
@@ -3939,34 +3953,110 @@ fn a_changed_exact_cascade_is_still_published_for_recomputation() {
     assert_eq!(planned, vec![nodes[1].raw()]);
 }
 
-#[test]
-fn published_ancestor_checks_follow_preorder_instead_of_node_identity() {
+/// A styled root, and arriving under it a parent with 38 children: the parent is the last node,
+/// allocated after its children so that preorder and node identity disagree.
+fn root_with_arriving_parent_of_children() -> (StyleEngine, [u32; 40]) {
     let mut engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
     let mut raw = [0_u32; 40];
     engine.allocate_style_nodes(&mut raw);
-    let nodes: Vec<_> = raw.iter().map(|&raw| StyleNodeID::from_raw(raw).unwrap()).collect();
-    engine.record_tree_delta(nodes[0], None, Some(relations(None, None, None)));
-    set_atom_feature(&mut engine, nodes[0], LocalFeatureKey::TagName, StyleAtomID(100));
+    let node = |index: usize| StyleNodeID::from_raw(raw[index]).unwrap();
+    engine.record_tree_delta(node(0), None, Some(relations(None, None, None)));
+    set_atom_feature(&mut engine, node(0), LocalFeatureKey::TagName, StyleAtomID(100));
     discard_transaction(&mut engine);
-    engine.match_element_for_cascade(nodes[0]).unwrap();
-    publish_current_cascade_as_computed(&mut engine, nodes[0]);
+    engine.match_element_for_cascade(node(0)).unwrap();
+    publish_current_cascade_as_computed(&mut engine, node(0));
 
-    let parent = nodes[39];
-    engine.record_tree_delta(parent, None, Some(relations(Some(raw[0]), None, None)));
-    set_atom_feature(&mut engine, parent, LocalFeatureKey::TagName, StyleAtomID(100));
+    engine.record_tree_delta(node(39), None, Some(relations(Some(raw[0]), None, None)));
+    set_atom_feature(&mut engine, node(39), LocalFeatureKey::TagName, StyleAtomID(100));
     for index in 1..39 {
-        let node = nodes[index];
         let previous = (index > 1).then_some(raw[index - 1]);
-        engine.record_tree_delta(node, None, Some(relations(Some(parent.raw()), previous, None)));
-        set_atom_feature(&mut engine, node, LocalFeatureKey::TagName, StyleAtomID(100));
+        engine.record_tree_delta(node(index), None, Some(relations(Some(raw[39]), previous, None)));
+        set_atom_feature(&mut engine, node(index), LocalFeatureKey::TagName, StyleAtomID(100));
     }
-    let mut published = Vec::new();
-    assert!(engine.take_style_transaction(nodes[0], |_, _, reactions| {
-        published.extend(reactions.iter().map(|reaction| reaction.style_node));
-    }));
-    let expected: Vec<_> = std::iter::once(raw[39]).chain(raw[1..39].iter().copied()).collect();
-    assert_eq!(published, expected);
-    assert_eq!(engine.counters().get(Counter::EngineComputedRecordGateAncestors), 38);
+    (engine, raw)
+}
+
+#[test]
+fn published_ancestor_checks_follow_preorder_instead_of_node_identity() {
+    let (mut engine, raw) = root_with_arriving_parent_of_children();
+    let mut waves = Vec::new();
+    assert!(take_every_wave(
+        &mut engine,
+        StyleNodeID::from_raw(raw[0]).unwrap(),
+        |_, _, reactions| {
+            waves.push(reactions.iter().map(|reaction| reaction.style_node).collect::<Vec<_>>());
+        }
+    ));
+    // The pass stops before the first child, which reads the parent only the host settles; the
+    // next wave drives every child over the installed parent.
+    assert_eq!(waves, vec![vec![raw[39]], raw[1..39].to_vec()]);
+}
+
+#[test]
+fn an_input_submitted_between_waves_gives_the_pass_up() {
+    let (mut engine, raw) = root_with_arriving_parent_of_children();
+    let root = StyleNodeID::from_raw(raw[0]).unwrap();
+    let mut first_wave = Vec::new();
+    engine.take_style_transaction(root, |_, _, reactions| {
+        first_wave.extend(reactions.iter().map(|reaction| reaction.style_node));
+    });
+    assert_eq!(first_wave, vec![raw[39]]);
+
+    // Installing the parent rewrote a declaration of a child the pass has not reached, which the
+    // host submits before it takes the next wave.
+    engine.record_input(
+        InputKey::ElementDeclaration(
+            StyleNodeID::from_raw(raw[1]).unwrap(),
+            ElementDeclarationKind::InlineStyle,
+        ),
+        InputValue::ElementDeclaration(None),
+        InputValue::ElementDeclaration(Some(DeclarationBlockID(1))),
+    );
+    let mut recomputed = Vec::new();
+    take_every_wave(&mut engine, root, |_, _, reactions| {
+        recomputed.extend(
+            reactions
+                .iter()
+                .filter(|reaction| reaction.reaction & transaction::STYLE_REACTION_RECOMPUTE_STYLE != 0)
+                .map(|reaction| reaction.style_node),
+        );
+    });
+    // The children are owed to the transaction that takes the declaration, not settled over the
+    // declarations the pass was planned from.
+    recomputed.sort_unstable();
+    let mut children = raw[1..39].to_vec();
+    children.sort_unstable();
+    assert_eq!(recomputed, children);
+}
+
+#[test]
+fn a_pass_given_up_gives_back_what_moved_under_the_rows_it_did_not_reach() {
+    let (mut engine, raw) = root_with_arriving_parent_of_children();
+    let node = |index: usize| StyleNodeID::from_raw(raw[index]).unwrap();
+    // What the host recorded beside the style inputs it owes the parent and two of its children.
+    engine.record_container_query_input(node(39));
+    engine.record_container_query_input(node(1));
+    engine
+        .state
+        .retained
+        .row_inputs_moved
+        .note_parent_display_moved(node(2));
+    let mut first_wave = Vec::new();
+    engine.take_style_transaction(node(0), |_, _, reactions| {
+        first_wave.extend(reactions.iter().map(|reaction| reaction.style_node));
+    });
+    assert_eq!(first_wave, vec![raw[39]]);
+
+    engine.discard_style_transaction_outputs();
+    // The next transaction drives the children over their moved containers and parent display, as
+    // this one would have, and in full: what else moved under them only this one saw. The parent's
+    // row was given to the host, with what moved under it.
+    let owed = &engine.state.retained.row_inputs_moved;
+    assert!(owed.containers_moved(node(1)));
+    assert!(owed.parent_display_moved(node(2)));
+    assert!(!owed.containers_moved(node(39)));
+    assert!((1..39).all(|index| owed.given_up(node(index))));
+    assert!(!owed.given_up(node(39)));
 }
 
 #[test]
@@ -11398,7 +11488,7 @@ fn atom_sweep_waits_for_an_active_matching_traversal() {
     add_feature(&mut engine, nodes[1], LocalFeatureKey::Class(target));
     // The broad initial publication prepares the traversal over the primary view itself, so the
     // active traversal shares the fact rows exactly as a first style pass in the browser does.
-    assert!(!engine.take_style_transaction(nodes[0], |_, _, _| {}));
+    assert!(!take_every_wave(&mut engine, nodes[0], |_, _, _| {}));
     assert!(engine.begin_cold_matching_batch(nodes[0]));
     assert!(engine.facts.primary_rows_are_shared());
     for raw in 0x1000..0x1100 {

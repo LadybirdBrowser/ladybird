@@ -78,7 +78,7 @@ fn every_retained_member_is_shareable(state: &RetainedState) {
         container_effects_for_host,
         published_container_verdicts,
         container_gates_unheld,
-        container_input_nodes,
+        row_inputs_moved,
         container_query_inputs,
         layout_style_snapshots,
         size_container_queries,
@@ -99,7 +99,6 @@ fn every_retained_member_is_shareable(state: &RetainedState) {
         engine_computed_records_pending,
         demand_records,
         flush_stamp,
-        parent_inputs_moved_nodes,
         engine_pseudo_record_cache,
         batch_answers_complete_but_for_custom_properties,
         batch_custom_property_matches,
@@ -192,7 +191,7 @@ fn every_retained_member_is_shareable(state: &RetainedState) {
     assert_member_is_sync(container_effects_for_host);
     assert_member_is_sync(published_container_verdicts);
     assert_member_is_sync(container_gates_unheld);
-    assert_member_is_sync(container_input_nodes);
+    assert_member_is_sync(row_inputs_moved);
     assert_member_is_sync(container_query_inputs);
     assert_member_is_sync(layout_style_snapshots);
     assert_member_is_sync(size_container_queries);
@@ -213,7 +212,6 @@ fn every_retained_member_is_shareable(state: &RetainedState) {
     assert_member_is_sync(engine_computed_records_pending);
     assert_member_is_sync(demand_records);
     assert_member_is_sync(flush_stamp);
-    assert_member_is_sync(parent_inputs_moved_nodes);
     assert_member_is_sync(engine_pseudo_record_cache);
     assert_member_is_sync(batch_answers_complete_but_for_custom_properties);
     assert_member_is_sync(batch_custom_property_matches);

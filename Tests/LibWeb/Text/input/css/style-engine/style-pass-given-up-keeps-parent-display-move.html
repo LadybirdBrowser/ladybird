@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .flat select { appearance: none; }
+    #container.hidden { display: none; }
+    #container.flex { display: flex; }
+    #reaction.before { color: red; }
+    #reaction.after { color: green; }
+</style>
+<div id="box"><select><option>One</option></select></div>
+<div id="container" class="hidden"></div>
+<span id="query"></span>
+<script>
+    test(() => {
+        const box = document.getElementById("box");
+        const container = document.getElementById("container");
+        const query = document.getElementById("query");
+        internals.updateStyle();
+
+        const item = document.createElement("span");
+        const reaction = document.createElement("span");
+        reaction.id = "reaction";
+        reaction.className = "before";
+        item.appendChild(reaction);
+        container.appendChild(item);
+        getComputedStyle(query).color;
+        internals.updateStyle();
+
+        // The container is revealed as a flex container while the select's appearance flip gives
+        // up the pass before the rows under it: what moved under them, the display of the
+        // parent the item is a flex item of, goes to the transaction they are owed to.
+        box.className = "flat";
+        reaction.className = "after";
+        container.className = "flex";
+        internals.updateStyle();
+
+        println("item display: " + getComputedStyle(item).display);
+        println("reaction display: " + getComputedStyle(reaction).display);
+        println("reaction color: " + getComputedStyle(reaction).color);
+    });
+</script>

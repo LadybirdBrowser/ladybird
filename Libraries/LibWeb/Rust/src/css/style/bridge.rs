@@ -4840,11 +4840,16 @@ mod tests {
         let root = StyleNodeID::from_raw(nodes[0]).unwrap();
         let mut published = Vec::new();
         let mut emission_count = 0;
-        assert!(!engine.take_style_transaction(root, |_, _, answers| {
-            emission_count += 1;
-            published.extend_from_slice(answers);
-        }));
-        assert_eq!(emission_count, 1);
+        // The engine of a test computes no records, so each row waits for the host to install the
+        // one above it, in a wave of its own.
+        for _ in 0..nodes.len() {
+            assert!(!engine.take_style_transaction(root, |_, _, answers| {
+                emission_count += 1;
+                published.extend_from_slice(answers);
+            }));
+        }
+        assert!(!engine.has_pending_transaction());
+        assert_eq!(emission_count, 3);
         assert_eq!(
             published.iter().map(|delta| delta.style_node).collect::<Vec<_>>(),
             nodes
@@ -4857,11 +4862,7 @@ mod tests {
         }));
         assert_eq!(
             published.iter().map(|delta| delta.gap).collect::<Vec<_>>(),
-            [
-                FfiStyleDeltaGap::Materialize,
-                FfiStyleDeltaGap::RetryAfterAncestor,
-                FfiStyleDeltaGap::RetryAfterAncestor,
-            ]
+            [FfiStyleDeltaGap::Materialize; 3]
         );
         assert_eq!(engine.counters().get(Counter::InitialBulkMatchLoads), 1);
         assert_eq!(engine.counters().get(Counter::InitialBulkMatchRows), 3);
