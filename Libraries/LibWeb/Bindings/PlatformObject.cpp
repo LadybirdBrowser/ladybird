@@ -234,8 +234,8 @@ JS::ThrowCompletionOr<bool> is_named_property_exposed_on_object(JS::HostObject c
     // 5. While prototype is not null:
     while (prototype) {
         // 1. If prototype is not a named properties object, and prototype has an own property named P, then return false.
-        //  FIXME: Are there other named properties objects?
-        if (!is<Bindings::WindowProperties>(prototype)) {
+        // NB: Window's is the only named properties object.
+        if (JS::host_class_of(*prototype) != &window_properties_host_class) {
             bool prototype_has_own_property_named_p = TRY(prototype->has_own_property(property_key));
             if (prototype_has_own_property_named_p)
                 return false;

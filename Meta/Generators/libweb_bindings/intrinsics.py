@@ -11,7 +11,9 @@ from typing import TextIO
 
 from Generators.libweb_bindings.cpp_types import fully_qualified_name_for_interface
 from Generators.libweb_bindings.cpp_types import implementation_header_for_interface
+from Generators.libweb_bindings.named_and_indexed_properties import create_named_properties_object_function_name
 from Generators.libweb_bindings.named_and_indexed_properties import interface_supports_named_properties
+from Generators.libweb_bindings.named_and_indexed_properties import named_properties_object_name
 from Generators.libweb_bindings.overload_resolution import parameter_list_length
 from Generators.libweb_bindings.wrappers import interface_needs_wrapper as wrapper_interface_needs_wrapper
 from Generators.libweb_bindings.wrappers import wrapper_class_name
@@ -481,8 +483,8 @@ WEB_API void Intrinsics::create_web_prototype_and_constructor<{interface.prototy
     # The interface prototype object's [[Prototype]] is its named properties object, so that has to exist first.
     if interface_supports_named_properties(interface):
         out.write(
-            f"""    auto named_properties_object = realm.create<{interface.name}Properties>(realm);
-    m_prototypes.set("{interface.name}Properties"_utf16_fly_string, named_properties_object);
+            f"""    auto named_properties_object = {create_named_properties_object_function_name(interface)}(realm);
+    m_prototypes.set("{named_properties_object_name(interface)}"_utf16_fly_string, named_properties_object);
 """
         )
 
