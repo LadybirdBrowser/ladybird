@@ -117,6 +117,10 @@ void EventLoop::spin_until(GC::Ref<GC::Function<bool()>> goal_condition)
     vm.save_execution_context_stack();
     vm.clear_execution_context_stack();
 
+    // AD-HOC: A rendering update whose style transaction flies finishes first, as a pause that updates the rendering
+    //         finishes it: the tasks the nested event loop runs come after the whole of it.
+    finish_rendering_update_in_flight();
+
     // 5. Perform a microtask checkpoint.
     perform_a_microtask_checkpoint();
 
@@ -945,9 +949,9 @@ bool EventLoop::holds_rendering_opportunity() const
 
 void EventLoop::take_finished_frames_in()
 {
-    // A rendering update whose style transaction has landed goes on; the tasks before that run beside it. It does not
-    // go on in a nested event loop or a pause, which run inside a task: its steps run script.
-    if (m_rendering_update_in_flight && !m_rendering_update_in_flight->held_for_testing && m_spin_depth == 0 && !execution_paused()
+    // A rendering update whose style transaction has landed goes on; the tasks before that run beside it. None is in
+    // flight in a nested event loop, which finishes it as it begins, and a paused event loop does not come here.
+    if (m_rendering_update_in_flight && !m_rendering_update_in_flight->held_for_testing
         && !m_rendering_update_in_flight->docs.first()->style_computer().style_engine().style_transaction_flies())
         resume_rendering_update_in_flight();
 
