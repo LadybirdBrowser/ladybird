@@ -32,8 +32,8 @@ use crate::gc::class::Extends;
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
 use crate::layout::host_class::{
-    JS_COMPLETION_NORMAL, JS_COMPLETION_THROW, JSCompletion, JSObject, JSPropertyKey, JSStringSink, JSVM, JSValue,
-    JSValueSink,
+    JS_COMPLETION_NORMAL, JS_COMPLETION_THROW, JSCompletion, JSObject, JSPromiseCapability, JSPropertyKey,
+    JSStringSink, JSVM, JSValue, JSValueSink,
 };
 use crate::layout::object::Object;
 use crate::layout::value::Value;
@@ -42,6 +42,7 @@ use crate::runtime::completion::{Throw, ThrowCompletionOr};
 use crate::runtime::error::ErrorKind;
 use crate::runtime::error_data::{ErrorData, ErrorDataCell};
 use crate::runtime::primitive_string::PrimitiveString;
+use crate::runtime::promise_capability::PromiseCapability;
 use crate::runtime::property_key::PropertyKey;
 use crate::runtime::realm::Realm;
 use crate::runtime::symbol::Symbol;
@@ -109,6 +110,10 @@ impl CellAbi for JSSymbol {
 
 impl CellAbi for JSErrorDataCell {
     type Cell = ErrorDataCell;
+}
+
+impl CellAbi for JSPromiseCapability {
+    type Cell = PromiseCapability;
 }
 
 pub fn error_data_into_abi(error_data: &ErrorData) -> *const JSErrorData {

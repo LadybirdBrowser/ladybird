@@ -39,6 +39,7 @@ pub mod iterator;
 pub mod json;
 pub mod module;
 pub mod object;
+pub mod primitive_wrapper;
 pub mod promise;
 pub mod realm;
 pub mod regexp;

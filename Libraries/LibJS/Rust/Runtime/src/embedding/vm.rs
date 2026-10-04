@@ -10,6 +10,7 @@ use core::ffi::c_void;
 use core::ptr::NonNull;
 
 use crate::embedding::abi_types::{JSRealm, cell_from_abi, completion_into_abi, optional_cell_from_abi, vm_from_abi};
+use crate::embedding::debugger::{JSDebuggerStackFrame, stack_frame_into_abi};
 use crate::embedding::hooks::{
     Embedder, EmbedderAgent, JSAgent, JSImportedModulePayload, JSImportedModuleReferrer, JSModuleRequest, JSPromiseJob,
     JSVmHostHooks, imported_module_payload_from_abi, imported_module_referrer_from_abi, install_embedder,
@@ -117,6 +118,47 @@ pub unsafe extern "C" fn js_vm_finish_execution_generation(vm: *mut JSVM) {
     // SAFETY: The caller passes a live VM.
     let generation = &unsafe { vm_from_abi(vm) }.head.execution_generation;
     generation.set(generation.get() + 1);
+}
+
+/// VM::did_reach_stack_space_limit(): whether so little of the thread's native stack is left that running more
+/// JavaScript could overflow it, which code that recurses on behalf of JavaScript, such as structured serialization,
+/// checks before it goes deeper. Only the VM's thread may call this.
+///
+/// # Safety
+///
+/// `vm` must be a live VM.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn js_vm_did_reach_stack_space_limit(vm: *mut JSVM) -> bool {
+    // SAFETY: The caller passes a live VM.
+    unsafe { vm_from_abi(vm) }.did_reach_stack_space_limit()
+}
+
+/// Receives each StackTraceElement of a stack trace, which lives for the call.
+#[repr(C)]
+pub struct JSStackTraceSink {
+    pub context: *mut c_void,
+    pub append: Option<unsafe extern "C" fn(context: *mut c_void, element: *const JSDebuggerStackFrame)>,
+}
+
+/// VM::stack_trace(): appends a StackTraceElement for every execution context on the stack, from the running one
+/// outwards, with where in its source code each one is, which is none for a context that runs no bytecode, such as
+/// that of a native function. The trace is taken before the first element is appended, and the sink may run
+/// JavaScript as long as it leaves the contexts of the trace on the stack. Only the VM's thread may call this.
+///
+/// # Safety
+///
+/// `vm` must be a live VM and `sink` a valid sink with an append function.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn js_vm_stack_trace(vm: *mut JSVM, sink: *const JSStackTraceSink) {
+    // SAFETY: The caller passes a live VM and a valid sink.
+    let (vm, sink) = unsafe { (vm_from_abi(vm), &*sink) };
+    let append = sink.append.expect("a stack trace sink has an append function");
+    for element in vm.stack_trace() {
+        let element = stack_frame_into_abi(&element);
+        // SAFETY: The embedder's sink takes elements with the context it came with, and only reads them during the
+        //         call, while the trace's contexts and their executables are alive.
+        unsafe { append(sink.context, &raw const element) };
+    }
 }
 
 /// Forgets the system time zone that Date and Temporal cached, so that they pick up a change of the host's time zone.

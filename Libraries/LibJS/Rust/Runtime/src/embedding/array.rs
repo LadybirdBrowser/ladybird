@@ -14,12 +14,14 @@
 )]
 
 use crate::embedding::abi_types::{
-    JSRealm, cell_from_abi, completion_into_abi, object_into_abi, optional_cell_from_abi, vm_from_abi,
+    JSRealm, cell_from_abi, completion_into_abi, completion_writing_result_to, object_into_abi, optional_cell_from_abi,
+    vm_from_abi,
 };
 use crate::embedding::object::values_from_abi;
 use crate::gc::root::MarkedVec;
 use crate::layout::host_class::{JSCompletion, JSObject, JSVM, JSValue};
 use crate::layout::value::Value;
+use crate::runtime::abstract_operations::length_of_array_like;
 use crate::runtime::array::Array;
 use crate::runtime::property_attributes::DEFAULT_ATTRIBUTES;
 
@@ -65,6 +67,20 @@ pub unsafe extern "C" fn js_array_create_from(
         rooted_elements.push(*element);
     }
     object_into_abi(Array::create_from_list(vm, realm, &rooted_elements))
+}
+
+/// LengthOfArrayLike ( obj ), which gets the object's "length" and converts it with ToLength, and writes it to
+/// `length`. Main thread only.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn js_array_length_of_array_like(
+    vm: *mut JSVM,
+    object: *mut JSObject,
+    length: *mut u64,
+) -> JSCompletion {
+    // SAFETY: See the module documentation.
+    let (vm, object) = unsafe { (vm_from_abi(vm), cell_from_abi::<JSObject>(object)) };
+    // SAFETY: As above, `length` is writable.
+    unsafe { completion_writing_result_to(length_of_array_like(vm, &object), length) }
 }
 
 /// The size of the object's indexed storage: the length of an array, or one past its highest index. Main thread only.

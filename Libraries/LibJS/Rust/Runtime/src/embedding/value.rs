@@ -12,6 +12,7 @@ use crate::embedding::abi_types::{
     owned_utf16_string_into_abi, value_from_abi, vm_from_abi,
 };
 use crate::layout::host_class::{JSCompletion, JSVM, JSValue};
+use crate::runtime::abstract_operations::can_be_held_weakly;
 use crate::runtime::value::{same_value, same_value_zero};
 
 /// ToBoolean(value). Call on the VM's thread.
@@ -52,6 +53,17 @@ pub unsafe extern "C" fn js_value_same_value(lhs: JSValue, rhs: JSValue) -> bool
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn js_value_same_value_zero(lhs: JSValue, rhs: JSValue) -> bool {
     same_value_zero(value_from_abi(lhs), value_from_abi(rhs))
+}
+
+/// CanBeHeldWeakly(v): whether `value` is an object or a symbol that is not in the global symbol registry, which
+/// WeakRefs, WeakMaps, WeakSets and FinalizationRegistries accept. Call on the VM's thread.
+///
+/// # Safety
+///
+/// `value` must be a value of the embedder's VM.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn js_value_can_be_held_weakly(value: JSValue) -> bool {
+    can_be_held_weakly(value_from_abi(value))
 }
 
 /// A description of `value` for diagnostics, which never runs JavaScript: strings as they are, numbers, symbols and

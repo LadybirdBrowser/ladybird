@@ -19,7 +19,7 @@ use crate::debugger::{Debugger, PauseInfo, PauseOnExceptions, PauseReason, Resum
 use crate::embedding::abi_types::{JSSourceCode, JSUtf16View, completion_into_abi, vm_from_abi, vm_into_abi};
 use crate::embedding::execution_context::JSExecutionContext;
 use crate::embedding::source_code::{shared_source_code_from_abi, source_code_into_abi};
-use crate::interpreter::vm::Vm;
+use crate::interpreter::vm::{StackTraceElement, Vm};
 use crate::layout::execution_context::ExecutionContext;
 use crate::layout::host_class::{JSCompletion, JSVM, JSValue};
 use crate::layout::value::Value;
@@ -138,6 +138,13 @@ fn resume_mode_from_abi(mode: u8) -> ResumeMode {
     }
 }
 
+pub(crate) fn stack_frame_into_abi(element: &StackTraceElement) -> JSDebuggerStackFrame {
+    JSDebuggerStackFrame {
+        execution_context: element.execution_context.as_ptr().cast(),
+        source_range: source_range_into_abi(element.source_range.as_ref()),
+    }
+}
+
 fn source_range_into_abi(source_range: Option<&SourceRange>) -> JSDebuggerSourceRange {
     source_range.map_or(
         JSDebuggerSourceRange {
@@ -176,14 +183,7 @@ fn call_pause_callback(
     vm: &Vm,
     pause_info: &PauseInfo,
 ) {
-    let stack_frames: Vec<JSDebuggerStackFrame> = pause_info
-        .stack_trace
-        .iter()
-        .map(|element| JSDebuggerStackFrame {
-            execution_context: element.execution_context.as_ptr().cast(),
-            source_range: source_range_into_abi(element.source_range.as_ref()),
-        })
-        .collect();
+    let stack_frames: Vec<JSDebuggerStackFrame> = pause_info.stack_trace.iter().map(stack_frame_into_abi).collect();
     let pause_info_for_c = JSDebuggerPauseInfo {
         reason: pause_reason_into_abi(pause_info.reason),
         bytecode_offset: pause_info.bytecode_offset,
