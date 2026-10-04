@@ -21,6 +21,10 @@
         const early = document.getElementById("early");
         const late = document.getElementById("late");
 
+        // Every node takes its identity as style first observes it, which a rendering update may or may
+        // not have done yet. Settle first, so the moves below retire identities the nodes already have.
+        internals.updateStyle();
+
         // Move the subject under the ancestor whose inherited style will change, then settle the
         // move before testing the reaction-batch handoff.
         parent.append(subject);

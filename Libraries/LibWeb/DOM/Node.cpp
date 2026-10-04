@@ -1995,6 +1995,11 @@ WebIDL::ExceptionOr<void> Node::move_node(Node& new_parent, Node* child)
         node_iterator.run_pre_removing_steps(*this);
     });
 
+    // A move keeps the identities in the style engine's tree, so every node on either side of it is named before the
+    // move is recorded against them.
+    if (is_connected())
+        CSS::take_in_pending_style_arrivals(document());
+
     // 11. Let oldPreviousSibling be node’s previous sibling.
     auto* old_previous_sibling = previous_sibling();
 
@@ -2599,7 +2604,7 @@ void Node::set_needs_layout_tree_update(bool value, SetNeedsLayoutTreeUpdateReas
     // A layout tree update mark names a node by its identity in the style mirror, so a node the mirror has not named
     // has nowhere to hold one. That is every node a build can produce nothing for, whose mutation has already dirtied
     // its parent, and of the rest only a node in a document whose tree the style engine does not track, or one whose
-    // subtree is still arriving, which the insertion that names it marks.
+    // subtree is still arriving, which the arrival that names it marks.
     auto identity = mirror_identity_of(*this);
     if (identity == 0)
         return;
@@ -2749,7 +2754,7 @@ void Node::inserted()
     derive_inside_blocking_wheel_event_handler_state_after_tree_change(*this);
 
     // Text an element clones into its shadow tree from its own insertion steps is not covered by a
-    // subtree arrival either, so it takes its identity here.
+    // subtree arrival either, so it waits to arrive from here.
     if (auto* text = as_if<Text>(*this); text && text->style_node_id() == 0)
         CSS::record_text_connected(*text);
 
@@ -2779,7 +2784,9 @@ void Node::inserted()
     }
 
     // Inertness, editability and the wheel handler state are all inherited, so a node that arrives somewhere new
-    // holds what its new place gives it. The identity it publishes them under was taken above.
+    // holds what its new place gives it.
+    // NB: An element or text node takes its identity only as it arrives in the style engine, which publishes this and
+    //     the focused text control state below again under that identity.
     publish_dom_paint_facts();
 
     // A node can also arrive in the shadow tree of a text control that is already focused, which is the one other

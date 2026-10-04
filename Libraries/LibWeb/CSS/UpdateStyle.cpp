@@ -784,6 +784,11 @@ static void update_style(DOM::Document& document, [[maybe_unused]] DocumentWitho
     }
 
     [[maybe_unused]] auto submission_started_at = MonotonicTime::now();
+    // What publishes by identity below (animations, the elements prepared for style) finds the nodes that connected
+    // since the last update under the identities they take here.
+    // NB: What connected beside the transaction that flew is the next transaction's.
+    if constexpr (!drains_flown_transaction)
+        take_in_pending_style_arrivals(document);
     document.style_computer().begin_style_update();
     ScopeGuard end_style_update = [&] {
         document.style_computer().end_style_update();
@@ -1188,6 +1193,7 @@ static bool update_style_for_element(DOM::Document& document, DOM::AbstractEleme
             return true;
     }
 
+    take_in_pending_style_arrivals(document);
     document.style_computer().begin_style_update();
     ScopeGuard end_style_update = [&] {
         document.style_computer().end_style_update();

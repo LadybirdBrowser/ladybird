@@ -261,6 +261,10 @@ public:
     [[nodiscard]] Vector<StyleNodeID> viewport_dependent_style_nodes();
     void record_benchmark_marker(Utf16View);
     [[nodiscard]] bool has_recorded_input() const;
+    // Nodes that connected without taking an identity yet count as recorded input: they arrive when the input is
+    // next submitted.
+    void note_pending_arrivals(size_t count);
+    void forget_pending_arrivals() { m_pending_arrival_count = 0; }
     [[nodiscard]] bool has_pending_transaction() const;
     [[nodiscard]] bool has_deferred_geometry_transaction() const;
     [[nodiscard]] bool has_deferred_element_style_inputs() const;
@@ -422,6 +426,7 @@ private:
     Vector<StyleEngineFFI::FfiLocalFeatureDelta> m_local_feature_deltas;
     Vector<StyleEngineFFI::FfiStateDelta> m_state_deltas;
     Vector<StyleEngineFFI::FfiElementDeclarationDelta> m_element_declaration_deltas;
+    size_t m_pending_arrival_count { 0 };
     bool m_css_transitions_may_observe_style_changes { false };
     mutable bool m_geometry_read_deferred_transaction { false };
     StyleAtomID m_html_element_namespace;

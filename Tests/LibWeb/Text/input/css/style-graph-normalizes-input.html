@@ -26,7 +26,8 @@
         settled.classList.add("transient");
         settled.classList.remove("transient");
 
-        // A node inserted and removed again likewise leaves no final relation delta.
+        // A node inserted and removed again before anything observes style never reaches the
+        // engine at all: it takes no identity, so it records neither an arrival nor a departure.
         const temporary = document.createElement("span");
         host.appendChild(temporary);
         host.removeChild(temporary);
@@ -40,7 +41,7 @@
         const cancellations = after.journalCancellations - before.journalCancellations;
 
         println(`recorded more raw mutations than normalized keys: ${raw > normalized}`);
-        println(`cancellations: ${cancellations >= 2}`);
+        println(`cancellations: ${cancellations >= 1}`);
         println(`tree deltas recorded: ${after.treeDeltas > before.treeDeltas}`);
         println(`feature deltas recorded: ${after.localFeatureDeltas > before.localFeatureDeltas}`);
         println(`style nodes allocated: ${after.styleNodesAllocated > before.styleNodesAllocated}`);
