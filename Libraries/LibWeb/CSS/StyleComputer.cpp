@@ -569,6 +569,44 @@ void StyleComputer::collect_animations_into(Layout::BegunRead const& read, DOM::
     }
 }
 
+// The timing the style engine computes the key an effect samples its keyframes at from: what its animation contributes,
+// the effect's own timing, and its timeline's current time. The engine decides it only where every time is a duration.
+static ComputedValuesFFI::FfiEffectTiming style_engine_effect_timing(Animations::KeyframeEffect const& effect, Animations::Animation const& animation)
+{
+    ComputedValuesFFI::FfiEffectTiming timing {};
+    bool all_durations = true;
+    auto duration = [&](Animations::TimeValue const& time) {
+        all_durations &= time.type == Animations::TimeValue::Type::Milliseconds;
+        return time.value;
+    };
+    auto optional_duration = [&](Optional<Animations::TimeValue> const& time, bool& has_time, double& value) {
+        has_time = time.has_value();
+        if (time.has_value())
+            value = duration(*time);
+    };
+    if (auto timeline = animation.timeline()) {
+        optional_duration(timeline->current_time(), timing.has_timeline_time, timing.timeline_time);
+        // A document timeline's time is a timestamp less its origin time, which is what lets a clock tick sample it.
+        if (timeline->can_convert_a_timeline_time_to_an_origin_relative_time()) {
+            auto origin_time = timeline->convert_a_timeline_time_to_an_origin_relative_time(Animations::TimeValue { Animations::TimeValue::Type::Milliseconds, 0 });
+            timing.has_timeline_origin_time = origin_time.has_value();
+            timing.timeline_origin_time = origin_time.value_or(0);
+        }
+    }
+    optional_duration(animation.start_time(), timing.has_start_time, timing.start_time);
+    optional_duration(animation.hold_time(), timing.has_hold_time, timing.hold_time);
+    timing.playback_rate = animation.playback_rate();
+    timing.start_delay = duration(effect.start_delay());
+    timing.end_delay = duration(effect.end_delay());
+    timing.iteration_duration = duration(effect.iteration_duration());
+    timing.iteration_count = effect.iteration_count();
+    timing.iteration_start = effect.iteration_start();
+    timing.fill_mode = static_cast<u8>(to_underlying(effect.fill_mode()));
+    timing.playback_direction = static_cast<u8>(to_underlying(effect.playback_direction()));
+    timing.decidable = all_durations && !effect.has_local_time_override_for_observation();
+    return timing;
+}
+
 void StyleComputer::collect_animation_effects_into(Layout::BegunRead const& read, DOM::AbstractElement abstract_element, ReadonlySpan<GC::Ref<Animations::KeyframeEffect>> effects, ComputedStyleWorkingSet& computed_properties, StyleRecordID sampled_style_record) const
 {
     // The style engine samples each effect from the description it holds of it, kept current here, right before
@@ -576,17 +614,30 @@ void StyleComputer::collect_animation_effects_into(Layout::BegunRead const& read
     auto const animation_slot = abstract_element.pseudo_element().map([](auto pseudo_element) { return static_cast<u8>(to_underlying(pseudo_element) + 1); }).value_or(0);
     record_element_animation_effect_descriptions(abstract_element.element(), animation_slot, effects);
 
-    // The effects and the key each samples at are the host's; what their keyframes compute to is the engine's.
+    // The effects and their timing are the host's; the key each samples at, and what their keyframes compute to, are
+    // the engine's. The host computes the key only for a timing the engine cannot decide.
     Vector<ComputedValuesFFI::FfiSampledAnimationEffect, 1> sampled_effects;
+    Vector<Vector<Compositing::RustFFI::FfiLinearEasingPoint>, 1> easing_points;
+    sampled_effects.ensure_capacity(effects.size());
+    easing_points.ensure_capacity(effects.size());
     for (auto effect : effects) {
-        auto output_progress = effect->transformed_progress();
-        if (!effect->associated_animation() || !output_progress.has_value())
+        auto animation = effect->associated_animation();
+        if (!animation)
             continue;
-        double current_key = *output_progress * 100.0 * Animations::KeyframeEffect::AnimationKeyFrameKeyScaleFactor;
-        current_key = clamp(current_key, static_cast<double>(NumericLimits<i64>::min()), static_cast<double>(NumericLimits<i64>::max()));
-        sampled_effects.append({
+        auto timing = style_engine_effect_timing(*effect, *animation);
+        double current_key = 0;
+        if (!timing.decidable) {
+            auto output_progress = effect->transformed_progress();
+            if (!output_progress.has_value())
+                continue;
+            current_key = clamp(*output_progress * 100.0 * Animations::KeyframeEffect::AnimationKeyFrameKeyScaleFactor, static_cast<double>(NumericLimits<i64>::min()), static_cast<double>(NumericLimits<i64>::max()));
+        }
+        easing_points.unchecked_append({});
+        sampled_effects.unchecked_append({
             .identity = effect->animation_preparation_identity(),
             .generation = effect->animation_preparation_generation(),
+            .timing = timing,
+            .easing = CSS::to_ffi_easing_descriptor<Compositing::RustFFI::FfiEasingDescriptor>(effect->timing_function(), easing_points.last()),
             .current_key = current_key,
         });
     }

@@ -61,6 +61,7 @@ public:
         return NullableCSSNumberish::from_optional_css_numberish_time(start_time());
     }
     Optional<TimeValue> start_time() const { return m_start_time; }
+    Optional<TimeValue> hold_time() const { return m_hold_time; }
     virtual WebIDL::ExceptionOr<void> set_start_time_for_bindings(NullableCSSNumberish const&);
 
     void calculate_auto_aligned_start_time();

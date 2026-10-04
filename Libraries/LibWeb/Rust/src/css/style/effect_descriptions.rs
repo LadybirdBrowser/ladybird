@@ -13,15 +13,16 @@
 //! depend on the element, a value or an easing still to be substituted against it, travels as
 //! written.
 
-use super::animations::AnimationSlot;
+use super::animations::{AnimationSlot, AnimationTimelineSamples, EffectTiming};
 use super::bridge::{
     FfiAnimationEffectVersion, FfiPublishedAnimationCustomDeclaration, FfiPublishedAnimationDeclaration,
     FfiPublishedAnimationEffect, FfiPublishedAnimationKeyframe, FfiPublishedEasingKind, FfiPublishedLinearEasingPoint,
 };
 use super::tree::StyleNodeID;
 use crate::css::animation::FfiCompositeOperation;
-use crate::css::easing::{Easing, FfiLinearEasingPoint};
+use crate::css::easing::{Easing, FfiEasingDescriptor, FfiEasingKind, FfiLinearEasingPoint};
 use crate::css::retained_fly_string::RetainedUtf16FlyString;
+use crate::css::style_compute::FfiEffectTiming;
 use crate::css::style_value::{RetainedStyleValueData, StyleValueData};
 use std::collections::HashMap;
 use std::ffi::c_void;
@@ -186,6 +187,8 @@ pub(crate) struct PublishedEffect {
     pub(crate) keyframes: Box<[PublishedKeyframe]>,
     declarations: Box<[PublishedDeclaration]>,
     custom_declarations: Box<[PublishedCustomDeclaration]>,
+    /// The timing the host last sampled the effect with, which moves without the description.
+    pub(crate) timing: Option<EffectTiming>,
 }
 
 impl PublishedEffect {
@@ -270,6 +273,7 @@ impl PublishedEffectBuffers<'_> {
                     keyframes,
                     declarations: declarations.into(),
                     custom_declarations: custom_declarations.into(),
+                    timing: None,
                 }
             })
             .collect()
@@ -357,6 +361,45 @@ impl AnimationEffectDescriptions {
                 .all(|(effect, version)| effect.identity == version.identity && effect.generation == version.generation)
     }
 
+    /// Keeps `timing` and `easing`, what the host samples one of an element's described effects with, and
+    /// answers the key the effect samples its keyframes at as the host samples it: the one its timing
+    /// gives at the time the host sampled its timeline, or `host_key` where the engine cannot decide the
+    /// timing, or none for an unresolved progress, which samples nothing. An effect the list does not
+    /// describe keeps nothing, and samples nothing either.
+    ///
+    /// # Safety
+    /// The linear points `easing` names must be live.
+    pub(crate) unsafe fn time_effect(
+        &mut self,
+        node: StyleNodeID,
+        slot: AnimationSlot,
+        identity: u64,
+        timing: &FfiEffectTiming,
+        easing: &FfiEasingDescriptor,
+        host_key: f64,
+    ) -> Option<f64> {
+        let effect = self
+            .rows
+            .get_mut(&node)
+            .and_then(|lists| lists.iter_mut().find(|(list_slot, _)| *list_slot == slot))
+            .and_then(|(_, effects)| effects.iter_mut().find(|effect| effect.identity == identity));
+        let effect = effect?;
+        // A timing that has not moved keeps the easing it holds, so a sample allocates nothing.
+        let unchanged = effect
+            .timing
+            .as_ref()
+            .is_some_and(|kept| kept.timing == *timing && unsafe { easing_is(&kept.easing, easing) });
+        if !unchanged {
+            effect.timing = Some(EffectTiming {
+                timing: *timing,
+                easing: unsafe { Easing::from_descriptor(easing) },
+            });
+        }
+        let kept = effect.timing.as_ref().expect("the timing was kept above");
+        kept.key_at(AnimationTimelineSamples::default())
+            .unwrap_or(Some(host_key))
+    }
+
     /// Give up the lists of an identity that retires. An identity can be minted again for another
     /// element, so a list left behind would be read as that element's.
     pub(crate) fn retire(&mut self, node: StyleNodeID) {
@@ -424,6 +467,32 @@ impl DescribedVersions {
         for node in released.iter().filter_map(|&node| StyleNodeID::from_raw(node)) {
             self.rows.remove(&node);
         }
+    }
+}
+
+/// Whether `easing` is the function `descriptor` describes.
+///
+/// # Safety
+/// The linear points `descriptor` names must be live.
+unsafe fn easing_is(easing: &Easing, descriptor: &FfiEasingDescriptor) -> bool {
+    match (easing, descriptor.kind) {
+        (Easing::Linear(points), FfiEasingKind::Linear) => {
+            points.len() == descriptor.linear_point_count
+                && (points.is_empty()
+                    || points.as_slice()
+                        == unsafe { std::slice::from_raw_parts(descriptor.linear_points, points.len()) })
+        }
+        (Easing::CubicBezier { x1, y1, x2, y2 }, FfiEasingKind::CubicBezier) => {
+            [*x1, *y1, *x2, *y2] == [descriptor.x1, descriptor.y1, descriptor.x2, descriptor.y2]
+        }
+        (
+            Easing::Steps {
+                interval_count,
+                position,
+            },
+            FfiEasingKind::Steps,
+        ) => *interval_count == descriptor.interval_count && *position == descriptor.step_position,
+        _ => false,
     }
 }
 

@@ -1460,6 +1460,27 @@ impl RetainedState {
         self.animation_effect_descriptions.effects(node, slot)
     }
 
+    /// Keeps the timing the host samples one of an element's described effects with, and answers the
+    /// key the effect samples its keyframes at (see
+    /// [`super::effect_descriptions::AnimationEffectDescriptions::time_effect`]).
+    ///
+    /// # Safety
+    /// The linear points `easing` names must be live.
+    pub(crate) unsafe fn time_element_animation_effect(
+        &mut self,
+        node: StyleNodeID,
+        slot: animations::AnimationSlot,
+        identity: u64,
+        timing: &crate::css::style_compute::FfiEffectTiming,
+        easing: &crate::css::easing::FfiEasingDescriptor,
+        host_key: f64,
+    ) -> Option<f64> {
+        unsafe {
+            self.animation_effect_descriptions
+                .time_effect(node, slot, identity, timing, easing, host_key)
+        }
+    }
+
     /// Record the custom properties an element declares or references. Also an index rather than an
     /// input, and for the same reason: it answers which elements an `@property` registration reaches.
     pub fn set_element_custom_property_names(
