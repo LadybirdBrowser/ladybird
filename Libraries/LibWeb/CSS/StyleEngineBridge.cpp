@@ -187,11 +187,6 @@ u32 StyleEngine::pseudo_element_record_damage(Layout::BegunRead const& read, Sty
     return StyleEngineFFI::style_engine_pseudo_element_record_damage(host(), &read, node.value(), to_underlying(pseudo_element), old_style_record.value(), new_style_record.value(), originating_style_record.value(), counter_styles_changed);
 }
 
-bool StyleEngine::animation_overlay_changed(Layout::BegunRead const& read, StyleRecordID old_style_record, void const* animated_overlay) const
-{
-    return StyleEngineFFI::style_engine_animation_overlay_changed(host(), &read, old_style_record.value(), animated_overlay);
-}
-
 StyleEngineFFI::FfiAnimationInvalidation StyleEngine::compare_animation_overlay(Layout::BegunRead const& read, StyleRecordID old_style_record, void const* animated_overlay, ReadonlySpan<void const*> payloads, bool is_document_element) const
 {
     return StyleEngineFFI::style_engine_compare_animation_overlay(host(), &read, old_style_record.value(), animated_overlay, payloads.data(), payloads.size(), is_document_element);

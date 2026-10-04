@@ -140,7 +140,6 @@ public:
     // The same for one of its pseudo-elements, whose box appears or goes away when either record is
     // none. The host compares the counter styles the box was built with.
     [[nodiscard]] u32 pseudo_element_record_damage(Layout::BegunRead const& read, StyleNodeID, PseudoElement, StyleRecordID old_style_record, StyleRecordID new_style_record, StyleRecordID originating_style_record, bool counter_styles_changed) const;
-    [[nodiscard]] bool animation_overlay_changed(Layout::BegunRead const& read, StyleRecordID old_style_record, void const* animated_overlay) const;
     [[nodiscard]] StyleEngineFFI::FfiAnimationInvalidation compare_animation_overlay(Layout::BegunRead const& read, StyleRecordID old_style_record, void const* animated_overlay, ReadonlySpan<void const*> payloads, bool is_document_element) const;
     // The borrowed views are stable while a base record exists or an animation-overlay generation remains assigned or
     // pinned.

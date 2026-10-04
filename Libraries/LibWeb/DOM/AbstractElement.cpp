@@ -152,6 +152,11 @@ CSS::StyleRecordID AbstractElement::style_record_identity() const
     return m_element->style_record_identity(m_pseudo_element);
 }
 
+CSS::InstalledStyle const& AbstractElement::installed_style() const
+{
+    return m_element->installed_style(m_pseudo_element);
+}
+
 void const* AbstractElement::style_record_payloads() const
 {
     return m_element->style_record_payloads(m_pseudo_element);

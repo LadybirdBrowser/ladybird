@@ -1021,12 +1021,12 @@ RequiredInvalidationAfterStyleChange StyleComputer::run_transition_step_for_inst
 
     // A step that starts, ends or replaces nothing leaves the installed record as it stands.
     if (installed_overlay) {
-        if (!m_style_engine.animation_overlay_changed(read, installed_style_record, new_style->animated_overlay()))
+        if (!abstract_element.installed_style().animation_overlay_changed(new_style->animated_overlay()))
             return {};
     } else if (auto animated_properties = new_style->animated_properties_snapshot(); !animated_properties || animated_properties->is_empty()) {
         return {};
     }
-    auto publication = publish_sampled_animation_overlay(read, abstract_element, *new_style, installed_style_record);
+    auto publication = publish_sampled_animation_overlay(read, abstract_element, *new_style);
     element.refresh_computed_style(pseudo_element, publication.publication.new_style_record);
     if (auto* svg_element = as_if<SVG::SVGElement>(element); svg_element && !pseudo_element.has_value())
         svg_element->note_svg_paint_resource_description_may_have_changed();
@@ -2215,11 +2215,13 @@ static bool computed_style_depends_on_counter_style_environment(ComputedValues c
             && (is_pseudo || !base.list_style_type_uses_non_overridable_counter_style()));
 }
 
-StyleComputer::SampledAnimationOverlayPublication StyleComputer::publish_sampled_animation_overlay(Layout::BegunRead const& read, DOM::AbstractElement abstract_element, ComputedStyleWorkingSet& style, StyleRecordID style_record, Function<void(StyleEngineFFI::FfiAnimationInvalidation const&)> const& before_publication) const
+StyleComputer::SampledAnimationOverlayPublication StyleComputer::publish_sampled_animation_overlay(Layout::BegunRead const& read, DOM::AbstractElement abstract_element, ComputedStyleWorkingSet& style, Function<void(StyleEngineFFI::FfiAnimationInvalidation const&)> const& before_publication) const
 {
-    // The engine composes the overlay over the record, rebuilding only the groups the overlay writes. The animated
-    // platform font is the one thing it asks for.
+    // The engine composes the overlay over the record the element installed, rebuilding only the groups the overlay
+    // writes. The animated platform font is the one thing it asks for.
     auto& element = abstract_element.element();
+    auto const& installed = abstract_element.installed_style();
+    auto style_record = installed.record();
     struct OverlayFont {
         ComputedStyleWorkingSet const& style;
         GC::Ref<DOM::Document const> document;
@@ -2266,8 +2268,7 @@ StyleComputer::SampledAnimationOverlayPublication StyleComputer::publish_sampled
     // A pseudo-element the engine holds no assignment for owns no overlay slot, so its record is published again
     // whole, with the overlay over the same base.
     if (!publication.has_value()) {
-        auto base = m_style_engine.style_record_view(read, style_record);
-        VERIFY(base.present);
+        auto const& base = installed.view();
         auto custom_property_data = abstract_element.custom_property_data();
         publication = style_engine.publish_computed_groups(
             read, element.style_node_id(),

@@ -33,6 +33,14 @@ public:
     // Whether the record's own display, beneath any animation, is none, read straight out of its box group payload.
     bool display_is_none() const;
 
+    // Whether `animated_overlay` changes any effective value of the record in place of its own overlay, read from the
+    // record itself.
+    bool animation_overlay_changed(void const* animated_overlay) const
+    {
+        VERIFY(m_view.present);
+        return StyleEngineFFI::style_engine_animation_overlay_changed(&m_view, animated_overlay);
+    }
+
 private:
     StyleRecordID m_record;
     StyleEngineFFI::FfiStyleRecordView m_view {};

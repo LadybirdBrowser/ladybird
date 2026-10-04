@@ -868,10 +868,10 @@ void AnimationUpdateContext::publish()
         if (!effects_to_collect.is_empty())
             target->document().style_computer().collect_animations_into(read, element, effects_to_collect.span(), *style, CSS::StyleComputer::AnimationRefresh::Yes);
         auto& style_computer = target->document().style_computer();
-        if (!style_computer.style_engine().animation_overlay_changed(read, it.value.style_record_before_update, style->animated_overlay()))
+        if (!element.installed_style().animation_overlay_changed(style->animated_overlay()))
             continue;
 
-        auto [animated_property_invalidation, publication] = style_computer.publish_sampled_animation_overlay(read, element, *style, it.value.style_record_before_update, [&](auto const& overlay_invalidation) {
+        auto [animated_property_invalidation, publication] = style_computer.publish_sampled_animation_overlay(read, element, *style, [&](auto const& overlay_invalidation) {
             if (style->animated_overlay() && !animated_overlay_entries(style->animated_overlay()).is_empty()
                 && target->document().is_in_style_stabilization_epoch()
                 && (target->document().style_stabilization_has_style_reactions() || overlay_invalidation.requires_base_style_recomputation)) {
