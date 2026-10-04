@@ -1353,7 +1353,7 @@ static void describe_easing(EasingFunction const& easing, StyleEngineFFI::FfiPub
 //
 // Everything a keyframe declares that does not depend on the element being sampled is settled here. What
 // does, a value or an easing still to be substituted against the element, travels as written.
-void record_element_animation_effect_descriptions(Layout::BegunRead const& read, DOM::Element& element, u8 slot, ReadonlySpan<GC::Ref<Animations::KeyframeEffect>> effects)
+void record_element_animation_effect_descriptions(DOM::Element& element, u8 slot, ReadonlySpan<GC::Ref<Animations::KeyframeEffect>> effects)
 {
     auto* style_engine = style_engine_for(element);
     if (!style_engine || element.style_node_id() == no_style_node)
@@ -1363,7 +1363,7 @@ void record_element_animation_effect_descriptions(Layout::BegunRead const& read,
     versions.ensure_capacity(effects.size());
     for (auto const& effect : effects)
         versions.unchecked_append({ .identity = effect->animation_preparation_identity(), .generation = effect->animation_preparation_generation() });
-    if (StyleEngineFFI::style_engine_describes_animation_effects(style_engine->host(), &read, element.style_node_id().value(), slot, versions.data(), versions.size()))
+    if (StyleEngineFFI::style_engine_describes_animation_effects(style_engine->host(), element.style_node_id().value(), slot, versions.data(), versions.size()))
         return;
 
     Vector<StyleEngineFFI::FfiPublishedAnimationEffect> ffi_effects;
@@ -1455,7 +1455,7 @@ void record_element_animation_effect_descriptions(Layout::BegunRead const& read,
     }
 
     StyleEngineFFI::style_engine_set_element_animation_effect_descriptions(style_engine->host(),
-        &read, element.style_node_id().value(), slot,
+        element.style_node_id().value(), slot,
         ffi_effects.data(), ffi_effects.size(),
         ffi_keyframes.data(), ffi_keyframes.size(),
         ffi_declarations.data(), ffi_declarations.size(),

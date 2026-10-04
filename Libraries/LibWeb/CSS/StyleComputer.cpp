@@ -575,7 +575,7 @@ void StyleComputer::collect_animation_effects_into(Layout::BegunRead const& read
     // The style engine samples each effect from the description it holds of it, kept current here, right before
     // the element is sampled.
     auto const animation_slot = abstract_element.pseudo_element().map([](auto pseudo_element) { return static_cast<u8>(to_underlying(pseudo_element) + 1); }).value_or(0);
-    record_element_animation_effect_descriptions(read, abstract_element.element(), animation_slot, effects);
+    record_element_animation_effect_descriptions(abstract_element.element(), animation_slot, effects);
 
     // The effects and the key each samples at are the host's; what their keyframes compute to is the engine's.
     Vector<ComputedValuesFFI::FfiSampledAnimationEffect, 1> sampled_effects;
