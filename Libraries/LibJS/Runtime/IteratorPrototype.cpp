@@ -6,6 +6,8 @@
  */
 
 #include <AK/Function.h>
+#include <AK/Utf16String.h>
+#include <AK/Utf16StringBuilder.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/FunctionObject.h>
@@ -39,6 +41,7 @@ void IteratorPrototype::initialize(Realm& realm)
     define_native_function(realm, vm.names.find, find, 1, attr);
     define_native_function(realm, vm.names.flatMap, flat_map, 1, attr);
     define_native_function(realm, vm.names.forEach, for_each, 1, attr);
+    define_native_function(realm, vm.names.join, join, 1, attr);
     define_native_function(realm, vm.names.map, map, 1, attr);
     define_native_function(realm, vm.names.reduce, reduce, 1, attr);
     define_native_function(realm, vm.names.some, some, 1, attr);
@@ -496,7 +499,75 @@ JS_DEFINE_NATIVE_FUNCTION(IteratorPrototype::for_each)
     }
 }
 
-// 27.1.4.8 Iterator.prototype.map ( mapper ), https://tc39.es/ecma262/#sec-iterator.prototype.map
+// 27.1.3.3.8 Iterator.prototype.join ( separator ), https://tc39.es/ecma262/#sec-iterator.prototype.join
+JS_DEFINE_NATIVE_FUNCTION(IteratorPrototype::join)
+{
+    auto& realm = *vm.current_realm();
+
+    auto separator = vm.argument(0);
+    Utf16String separator_string;
+
+    // 1. Let obj be the this value.
+    // 2. If obj is not an Object, throw a TypeError exception.
+    auto object = TRY(this_object(vm));
+
+    // 3. Let iterated be the Iterator Record { [[Iterator]]: obj, [[NextMethod]]: undefined, [[Done]]: false }.
+    auto iterated = realm.create<IteratorRecord>(object, js_undefined(), false);
+
+    // 4. If separator is undefined, then
+    if (separator.is_undefined()) {
+        // a. Let separatorString be ",".
+        separator_string = ","_utf16;
+    }
+    // 5. Else,
+    else {
+        // a. Let separatorString be Completion(ToString(separator)).
+        // b. IfAbruptCloseIterator(separatorString, iterated).
+        separator_string = TRY_OR_CLOSE_ITERATOR(vm, iterated, separator.to_utf16_string(vm));
+    }
+
+    // 6. Set iterated to ? GetIteratorDirect(obj).
+    iterated = TRY(get_iterator_direct(vm, object));
+
+    // 7. Let result be the empty String.
+    Utf16StringBuilder result;
+
+    // 8. Let first be true.
+    auto first = true;
+
+    // 9. Repeat,
+    while (true) {
+        // a. Let value be ? IteratorStepValue(iterated).
+        auto value = TRY(iterator_step_value(vm, iterated));
+
+        // b. If value is DONE, return result.
+        if (!value.has_value())
+            return PrimitiveString::create(vm, result.to_string());
+
+        // c. If first is true, then
+        if (first) {
+            // i. Set first to false.
+            first = false;
+        }
+        // d. Else,
+        else {
+            // i. Set result to the string-concatenation of result and separatorString.
+            result.append(separator_string);
+        }
+
+        // e. If value is neither undefined nor null, then
+        if (!value->is_nullish()) {
+            // i. Let valueString be Completion(ToString(value)).
+            // ii. IfAbruptCloseIterator(valueString, iterated).
+            auto value_string = TRY_OR_CLOSE_ITERATOR(vm, iterated, value->to_utf16_string(vm));
+
+            // iii. Set result to the string-concatenation of result and valueString.
+            result.append(value_string);
+        }
+    }
+}
+
+// 27.1.4.9 Iterator.prototype.map ( mapper ), https://tc39.es/ecma262/#sec-iterator.prototype.map
 JS_DEFINE_NATIVE_FUNCTION(IteratorPrototype::map)
 {
     auto& realm = *vm.current_realm();
@@ -556,7 +627,7 @@ JS_DEFINE_NATIVE_FUNCTION(IteratorPrototype::map)
     return result;
 }
 
-// 27.1.4.9 Iterator.prototype.reduce ( reducer [ , initialValue ] ), https://tc39.es/ecma262/#sec-iterator.prototype.reduce
+// 27.1.4.10 Iterator.prototype.reduce ( reducer [ , initialValue ] ), https://tc39.es/ecma262/#sec-iterator.prototype.reduce
 JS_DEFINE_NATIVE_FUNCTION(IteratorPrototype::reduce)
 {
     auto& realm = *vm.current_realm();
@@ -631,7 +702,7 @@ JS_DEFINE_NATIVE_FUNCTION(IteratorPrototype::reduce)
     }
 }
 
-// 27.1.4.10 Iterator.prototype.some ( predicate ), https://tc39.es/ecma262/#sec-iterator.prototype.some
+// 27.1.4.11 Iterator.prototype.some ( predicate ), https://tc39.es/ecma262/#sec-iterator.prototype.some
 JS_DEFINE_NATIVE_FUNCTION(IteratorPrototype::some)
 {
     auto& realm = *vm.current_realm();
@@ -682,7 +753,7 @@ JS_DEFINE_NATIVE_FUNCTION(IteratorPrototype::some)
     }
 }
 
-// 27.1.4.11 Iterator.prototype.take ( limit ), https://tc39.es/ecma262/#sec-iterator.prototype.take
+// 27.1.4.12 Iterator.prototype.take ( limit ), https://tc39.es/ecma262/#sec-iterator.prototype.take
 JS_DEFINE_NATIVE_FUNCTION(IteratorPrototype::take)
 {
     auto& realm = *vm.current_realm();
@@ -761,7 +832,7 @@ JS_DEFINE_NATIVE_FUNCTION(IteratorPrototype::take)
     return result;
 }
 
-// 27.1.4.12 Iterator.prototype.toArray ( ), https://tc39.es/ecma262/#sec-iterator.prototype.toarray
+// 27.1.4.13 Iterator.prototype.toArray ( ), https://tc39.es/ecma262/#sec-iterator.prototype.toarray
 JS_DEFINE_NATIVE_FUNCTION(IteratorPrototype::to_array)
 {
     auto& realm = *vm.current_realm();
@@ -790,21 +861,21 @@ JS_DEFINE_NATIVE_FUNCTION(IteratorPrototype::to_array)
     }
 }
 
-// 27.1.4.13 Iterator.prototype [ %Symbol.iterator% ] ( ), https://tc39.es/ecma262/#sec-iterator.prototype-%symbol.iterator%
+// 27.1.4.15 Iterator.prototype [ %Symbol.iterator% ] ( ), https://tc39.es/ecma262/#sec-iterator.prototype-%symbol.iterator%
 JS_DEFINE_NATIVE_FUNCTION(IteratorPrototype::symbol_iterator)
 {
     // 1. Return the this value.
     return vm.this_value();
 }
 
-// 27.1.4.14.1 get Iterator.prototype [ %Symbol.toStringTag% ], https://tc39.es/ecma262/#sec-get-iterator.prototype-%symbol.tostringtag%
+// 27.1.4.16.1 get Iterator.prototype [ %Symbol.toStringTag% ], https://tc39.es/ecma262/#sec-get-iterator.prototype-%symbol.tostringtag%
 JS_DEFINE_NATIVE_FUNCTION(IteratorPrototype::to_string_tag_getter)
 {
     // 1. Return "Iterator".
     return PrimitiveString::create(vm, vm.names.Iterator.as_string());
 }
 
-// 27.1.4.14.2 set Iterator.prototype [ %Symbol.toStringTag% ], https://tc39.es/ecma262/#sec-set-iterator.prototype-%symbol.tostringtag%
+// 27.1.4.16.2 set Iterator.prototype [ %Symbol.toStringTag% ], https://tc39.es/ecma262/#sec-set-iterator.prototype-%symbol.tostringtag%
 JS_DEFINE_NATIVE_FUNCTION(IteratorPrototype::to_string_tag_setter)
 {
     auto& realm = *vm.current_realm();
