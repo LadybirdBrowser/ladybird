@@ -451,6 +451,7 @@ pub unsafe extern "C" fn style_engine_end_style_transaction(
     let memo = unsafe { &*host }.engine_memo();
     memo.held.borrow_mut().forget(&released);
     memo.described.borrow_mut().forget(&released);
+    memo.baselines.borrow_mut().forget(&released);
     // SAFETY: As above.
     unsafe { &mut *allocator }.release(&released);
 }

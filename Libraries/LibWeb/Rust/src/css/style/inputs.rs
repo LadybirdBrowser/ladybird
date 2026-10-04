@@ -1880,7 +1880,7 @@ impl StyleEngineState {
                 random_base_values: Default::default(),
                 replaced_content_inputs: HashMap::default(),
                 style_groups: crate::css::computed_values::StyleGroupMasks::registered_or_none(),
-                transition_baselines: HashMap::default(),
+                transition_baselines: Default::default(),
                 custom_property_registrations_changed: false,
                 engine_computed_records_pending: HashMap::default(),
                 demand_records: HashMap::default(),
@@ -3539,7 +3539,7 @@ impl RetainedState {
         random_base_values.retire(node);
         replaced_content_inputs.remove(&node);
         // A retired identity can name another element before the epoch commits.
-        for (_, style_record) in transition_baselines.remove(&node).into_iter().flatten() {
+        for style_record in transition_baselines.remove(node) {
             computed_group_sets.unpin_style_record(style_record);
         }
     }
