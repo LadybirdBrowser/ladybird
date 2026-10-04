@@ -291,3 +291,58 @@ TEST_CASE(cache_partitions_do_not_share_entries)
 
     disk_cache.remove_entries_accessed_since(UnixDateTime::earliest());
 }
+
+static Optional<HTTP::CacheEntryReader&> open_stale_cache_entry(HTTP::DiskCache& disk_cache, TestCacheRequest& request, URL::URL const& url, StringView cache_control, StringView age_in_seconds, HTTP::CacheMode cache_mode)
+{
+    auto request_headers = create_cacheable_request_headers();
+    auto response_headers = HTTP::HeaderList::create({
+        { "Cache-Control"sv, cache_control },
+        { "ETag"sv, "\"v1\""sv },
+    });
+
+    auto& writer = create_cache_entry(disk_cache, request, url, *request_headers);
+    MUST(writer.write_status_and_reason(200, "OK"_string, *request_headers, *response_headers));
+    MUST(writer.write_data("data"sv.bytes()));
+    MUST(writer.flush(request_headers, response_headers));
+
+    auto stale_request_headers = HTTP::HeaderList::create({
+        { HTTP::TEST_CACHE_ENABLED_HEADER, "1"sv },
+        { HTTP::TEST_CACHE_REQUEST_TIME_OFFSET, age_in_seconds },
+    });
+
+    Optional<HTTP::CacheEntryReader&> reader;
+    disk_cache.open_entry(request, test_partition(), url, "GET"sv, *stale_request_headers, cache_mode, HTTP::DiskCache::OpenMode::Read)
+        .visit(
+            [&](Optional<HTTP::CacheEntryReader&> cache_entry_reader) {
+                reader = cache_entry_reader;
+            },
+            [](HTTP::DiskCache::CacheHasOpenEntry) {
+                FAIL("Cache entry was unexpectedly open");
+            });
+
+    return reader;
+}
+
+TEST_CASE(must_revalidate_overrides_stale_while_revalidate)
+{
+    auto disk_cache = MUST(HTTP::DiskCache::create(HTTP::DiskCache::Mode::Testing, test_cache_root())).release_value();
+    TestCacheRequest request;
+
+    auto reader = open_stale_cache_entry(disk_cache, request, parse_url("https://example.com/must-revalidate-and-swr"sv), "max-age=60, stale-while-revalidate=30, must-revalidate"sv, "70"sv, HTTP::CacheMode::Default);
+    VERIFY(reader.has_value());
+    EXPECT_EQ(reader->revalidation_type(), HTTP::CacheEntryReader::RevalidationType::MustRevalidate);
+}
+
+TEST_CASE(force_cache_reuses_stale_must_revalidate_entries)
+{
+    auto disk_cache = MUST(HTTP::DiskCache::create(HTTP::DiskCache::Mode::Testing, test_cache_root())).release_value();
+    TestCacheRequest request;
+
+    auto reader = open_stale_cache_entry(disk_cache, request, parse_url("https://example.com/force-cache"sv), "max-age=60, must-revalidate"sv, "120"sv, HTTP::CacheMode::ForceCache);
+    VERIFY(reader.has_value());
+    EXPECT_EQ(reader->revalidation_type(), HTTP::CacheEntryReader::RevalidationType::None);
+
+    reader = open_stale_cache_entry(disk_cache, request, parse_url("https://example.com/only-if-cached"sv), "max-age=60, must-revalidate"sv, "120"sv, HTTP::CacheMode::OnlyIfCached);
+    VERIFY(reader.has_value());
+    EXPECT_EQ(reader->revalidation_type(), HTTP::CacheEntryReader::RevalidationType::None);
+}
