@@ -1069,6 +1069,11 @@ impl StyleEngine {
     }
 
     #[inline]
+    pub(crate) fn free_style_records_kept_for_leases(&mut self) {
+        self.state.free_style_records_kept_for_leases(&mut self.counters);
+    }
+
+    #[inline]
     pub(crate) fn end_style_record_view_epoch(&mut self) {
         self.state.end_style_record_view_epoch(&mut self.counters);
     }

@@ -803,6 +803,18 @@ pub unsafe extern "C" fn render_state_record_display_list(
     }
 }
 
+/// Holds the next recording that flies before it reads its frame, until the test releases it or the host waits for it.
+#[unsafe(no_mangle)]
+pub extern "C" fn render_state_hold_next_recording_for_testing() {
+    crate::painting::recording_slot::hold_next_recording_for_testing();
+}
+
+/// Lets the recording held for the test go.
+#[unsafe(no_mangle)]
+pub extern "C" fn render_state_release_held_recording_for_testing() {
+    crate::painting::recording_slot::release_held_recording_for_testing();
+}
+
 /// Takes the recording in flight of `host`'s document in where it has finished, and answers how it landed. The event
 /// loop calls it between two tasks, so it never waits.
 ///
@@ -820,7 +832,7 @@ pub unsafe extern "C" fn render_state_take_finished_recording_in(
         .recording()
         .take_finished_recording_in(&boundary, |rows_version| {
             // SAFETY: As above.
-            unsafe { rows_are_still_at(host, rows_version) }
+            unsafe { landed_recording_stands(host, rows_version) }
         })
 }
 
@@ -837,22 +849,28 @@ pub unsafe extern "C" fn render_state_join_recording_in_flight(
     // SAFETY: Guaranteed by the caller.
     unsafe { &*host }.recording().join_recording_in_flight(|rows_version| {
         // SAFETY: As above.
-        unsafe { rows_are_still_at(host, rows_version) }
+        unsafe { landed_recording_stands(host, rows_version) }
     })
 }
 
-/// Whether the rows of `host`'s document are still at `version`, so that a recording of a frame frozen there still
-/// stands for it.
+/// Whether the rows of `host`'s document are still at `version`, so that a recording that landed with a frame frozen
+/// there still stands for it. The recording dropped its frame and the lease it held, so the style engine frees what it
+/// kept for that lease here too, however idle the document stays.
 ///
 /// # Safety
 ///
 /// `host` must be a live document host, on its document's thread.
-unsafe fn rows_are_still_at(
+unsafe fn landed_recording_stands(
     host: *const crate::render_state::DocumentHost,
     version: crate::layout::RowsVersion,
 ) -> bool {
     // SAFETY: Guaranteed by the caller.
-    unsafe { read(host, version, |arena, version| arena.rows_version() == version) }
+    unsafe {
+        read(host, version, |arena, version| {
+            arena.with_style_engine(|engine| engine.free_style_records_kept_for_leases());
+            arena.rows_version() == version
+        })
+    }
 }
 
 /// Drops the recording pending for `host`'s document to publish unpublished, as the host does with a recording that

@@ -1,0 +1,4 @@
+replaced overlays kept beside the recording: true
+replaced overlays kept once it landed: 0
+margin-left: 50px
+hit test finds the box: true

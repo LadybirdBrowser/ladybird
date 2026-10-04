@@ -11888,6 +11888,49 @@ fn held_style_records_outlive_engine_assignments_and_release_on_retirement() {
 }
 
 #[test]
+fn records_left_unreachable_under_a_lease_are_reclaimed_once_it_drops() {
+    let mut engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
+    let mut raw_node = [0];
+    engine.allocate_style_nodes(&mut raw_node);
+    let target = computed::ComputedStyleTarget::new(StyleNodeID::from_raw(raw_node[0]).unwrap(), u8::MAX);
+    let mut publish = |pseudo_element_styles| {
+        engine
+            .publish_computed_groups(
+                target,
+                &[],
+                0,
+                0,
+                computed::ComputedMetadataInput {
+                    pseudo_element_styles,
+                    dependency_flags: 0,
+                    counter_style_environment_identity: 0,
+                    animation_overlay_identity: 0,
+                    animated_overlay: HostShared::null(),
+                    animation_overlay_payloads: &[],
+                    longhand_table: HostShared::null(),
+                },
+            )
+            .style_record_identity
+            .raw()
+    };
+    let first = publish(0);
+    // Each record replaces the last, so enough of them make reclamation due.
+    for pseudo_element_styles in 1..=1024 {
+        publish(pseudo_element_styles);
+    }
+
+    let lease = engine.lease_style_records();
+    engine.begin_style_record_view_epoch();
+    engine.end_style_record_view_epoch();
+    assert!(engine.computed_group_sets.final_style_record_is_live(first));
+
+    // The recording lands with no style operation after it, and its landing still reclaims what the lease kept.
+    drop(lease);
+    engine.free_style_records_kept_for_leases();
+    assert!(!engine.computed_group_sets.final_style_record_is_live(first));
+}
+
+#[test]
 fn relational_routing_checks_an_absent_anchor_posting_once() {
     let mut engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
     let mut raw = [0_u32; 128];

@@ -25,6 +25,7 @@ use crate::painting::record::RecordingInputs;
 use crate::painting::record::recorder_state::RecorderState;
 use crate::render_state::{LockstepProof, TaskBoundary};
 use crate::stage_thread::InFlight;
+use std::sync::{Condvar, Mutex, MutexGuard, PoisonError};
 
 /// A display list recording: the frame it records, which it drops before it returns, and the
 /// recorder state it records with, which it returns in its answer.
@@ -69,13 +70,20 @@ impl RecordingJob {
         if cfg!(test) {
             return self.run(inputs);
         }
+        release_held_recording_for_testing();
         crate::stage_thread::paint_thread().run(|| self.run(inputs))
     }
 
     /// Records the frame with `inputs` on the Paint thread beside the host, which `_license` shows nothing needs
     /// before the event loop's next task.
     pub(crate) fn fly(self, inputs: RecordingInputs, _license: FlightLicense) -> InFlight<RecordingAnswer> {
-        crate::stage_thread::paint_thread().submit(move || self.run(&inputs))
+        let held = take_recording_hold_for_testing();
+        crate::stage_thread::paint_thread().submit(move || {
+            if held {
+                wait_while_recording_is_held_for_testing();
+            }
+            self.run(&inputs)
+        })
     }
 
     /// Records the frame with `inputs`. It takes no main thread token, so nothing it calls can reach
@@ -159,6 +167,50 @@ impl RecordingJob {
             trace,
         }
     }
+}
+
+/// The test hold on recordings: a test arms it for the next recording that flies, which then reads nothing of its frame
+/// until the test releases it, so that the test writes the document beside a recording that has read nothing yet.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum RecordingHold {
+    Idle,
+    Armed,
+    Holding,
+}
+
+static RECORDING_HOLD: Mutex<RecordingHold> = Mutex::new(RecordingHold::Idle);
+static RECORDING_HOLD_RELEASED: Condvar = Condvar::new();
+
+fn recording_hold() -> MutexGuard<'static, RecordingHold> {
+    RECORDING_HOLD.lock().unwrap_or_else(PoisonError::into_inner)
+}
+
+/// Whether the recording about to fly is the one the test hold is armed for.
+fn take_recording_hold_for_testing() -> bool {
+    let mut hold = recording_hold();
+    if *hold != RecordingHold::Armed {
+        return false;
+    }
+    *hold = RecordingHold::Holding;
+    true
+}
+
+fn wait_while_recording_is_held_for_testing() {
+    let _released = RECORDING_HOLD_RELEASED
+        .wait_while(recording_hold(), |hold| *hold == RecordingHold::Holding)
+        .unwrap_or_else(PoisonError::into_inner);
+}
+
+/// Holds the next recording that flies before it reads its frame, until
+/// [`release_held_recording_for_testing`] or a wait for it.
+pub(crate) fn hold_next_recording_for_testing() {
+    *recording_hold() = RecordingHold::Armed;
+}
+
+/// Lets the recording held for the test go, or disarms the hold no recording has taken yet.
+pub(crate) fn release_held_recording_for_testing() {
+    *recording_hold() = RecordingHold::Idle;
+    RECORDING_HOLD_RELEASED.notify_all();
 }
 
 /// The right of a rendering update's recording to fly beside the event loop: the document had no
@@ -330,6 +382,7 @@ impl RecordingSlot {
         let Recorder::InFlight(in_flight) = std::mem::take(&mut self.recorder) else {
             return FfiRecordingLanding::NoneInFlight;
         };
+        release_held_recording_for_testing();
         let answer = in_flight
             .flight
             .join(LockstepProof::for_reason(&RECORDING_NEEDS_ITS_RECORDER));
@@ -397,7 +450,9 @@ mod tests {
 
     #[test]
     fn the_slot_lends_its_recorder_state_to_a_job_and_takes_it_back_with_the_answer() {
+        let mut engine = crate::css::style::StyleEngine::new(crate::css::style::memory::DeviceClass::ForegroundDesktop);
         let mut arena = LayoutNodeArena::new();
+        arena.set_style_engine(crate::css::style::StyleEngineHandle::from_raw(&raw mut engine));
         let mut slot = RecordingSlot::default();
         let published = Arc::new(RecordingOutput::default());
         recorder_of(&mut slot).unwrap().published_recording = Some(published.clone());
