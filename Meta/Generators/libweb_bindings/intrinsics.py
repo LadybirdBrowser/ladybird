@@ -169,6 +169,15 @@ def interface_prototype_has_immutable_prototype(interface: Interface) -> bool:
     )
 
 
+# NB: The host class name is the internal class name that LibJS prints in errors, such as "[object Node] is not a
+#     constructor".
+def interface_prototype_host_class(interface: Interface) -> str:
+    flags = "0"
+    if interface_prototype_has_immutable_prototype(interface):
+        flags = "JS_HOST_CLASS_IMMUTABLE_PROTOTYPE"
+    return f'JS::make_host_class(JS_HOST_CLASS_OBJECT, "{interface.name}"sv, nullptr, nullptr, &metadata, {flags})'
+
+
 def lookup_legacy_constructor(interface: Interface) -> Optional[LegacyConstructor]:
     legacy_factory_function = interface.extended_attributes.get("LegacyFactoryFunction")
     if not legacy_factory_function:
@@ -217,6 +226,7 @@ bool is_exposed(InterfaceName, JS::Realm&);
 def write_intrinsic_definitions_implementation(out: TextIO, interface_sets: InterfaceSets) -> None:
     out.write(
         """#include <LibGC/DeferGC.h>
+#include <LibJS/HostClassBuilder.h>
 #include <LibJS/Runtime/Intrinsics.h>
 #include <LibJS/Runtime/Object.h>
 #include <LibWeb/Bindings/InterfaceObject.h>
@@ -437,6 +447,7 @@ WEB_API void Intrinsics::create_web_prototype_and_constructor<{interface.prototy
         .utf16_namespaced_name = "{interface.namespaced_name}"sv,
         .initialize_constructor = &{interface.constructor_class}::initialize,
         .initialize_prototype = &{interface.prototype_class}::initialize,
+        .prototype_host_class = {interface_prototype_host_class(interface)},
     }};
     create_web_prototype_and_constructor(realm, metadata);
 }}
@@ -451,15 +462,9 @@ WEB_API void Intrinsics::create_web_prototype_and_constructor<{interface.prototy
 """
     )
 
-    ensure_parent_prototype = "nullptr"
     ensure_parent_constructor = "nullptr"
     if interface.parent_name:
-        ensure_parent_prototype = f"""[](JS::Realm& realm) -> JS::Object& {{ return Web::Bindings::ensure_web_prototype<{interface.parent_name}Prototype>(realm, "{interface.parent_name}"_utf16_fly_string); }}"""
         ensure_parent_constructor = f"""[](JS::Realm& realm) -> JS::NativeFunction& {{ return Web::Bindings::ensure_web_constructor<{interface.parent_name}Prototype>(realm, "{interface.parent_name}"_utf16_fly_string); }}"""
-
-    define_unforgeable_attributes = f"&{interface.prototype_class}::define_unforgeable_attributes"
-    if "Global" in interface.extended_attributes:
-        define_unforgeable_attributes = "nullptr"
 
     out.write(
         f"""    static constexpr InterfaceObjectMetadata metadata {{
@@ -467,13 +472,11 @@ WEB_API void Intrinsics::create_web_prototype_and_constructor<{interface.prototy
         .namespaced_name = "{interface.namespaced_name}"sv,
         .utf16_name = "{interface.name}"sv,
         .utf16_namespaced_name = "{interface.namespaced_name}"sv,
-        .ensure_parent_prototype = {ensure_parent_prototype},
         .ensure_parent_constructor = {ensure_parent_constructor},
         .initialize_constructor = &{interface.constructor_class}::initialize,
         .initialize_prototype = &{interface.prototype_class}::initialize,
-        .define_unforgeable_attributes = {define_unforgeable_attributes},
         .construct = &{interface.constructor_class}::construct,
-        .has_immutable_prototype = {str(interface_prototype_has_immutable_prototype(interface)).lower()},
+        .prototype_host_class = {interface_prototype_host_class(interface)},
     }};
 """
     )

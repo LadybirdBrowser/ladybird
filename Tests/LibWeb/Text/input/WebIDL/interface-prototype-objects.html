@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    function errorMessage(callback) {
+        try {
+            callback();
+            return "no exception";
+        } catch (error) {
+            return `${error.name}: ${error.message}`;
+        }
+    }
+
+    test(() => {
+        const prototypes = [
+            ["EventTarget", EventTarget.prototype],
+            ["Node", Node.prototype],
+            ["HTMLElement", HTMLElement.prototype],
+            ["Window", Window.prototype],
+            ["NodeList", NodeList.prototype],
+            ["DOMException", DOMException.prototype],
+        ];
+
+        println("Internal class names:");
+        for (const [name, prototype] of prototypes)
+            println(`${name}.prototype: ${errorMessage(() => Reflect.construct(prototype, []))}`);
+
+        println("Prototype chains:");
+        println(`EventTarget.prototype: ${Object.getPrototypeOf(EventTarget.prototype) === Object.prototype}`);
+        println(`Node.prototype: ${Object.getPrototypeOf(Node.prototype) === EventTarget.prototype}`);
+        println(`HTMLElement.prototype: ${Object.getPrototypeOf(HTMLElement.prototype) === Element.prototype}`);
+        println(`DOMException.prototype: ${Object.getPrototypeOf(DOMException.prototype) === Error.prototype}`);
+        for (const [name, prototype] of prototypes)
+            println(`Object.prototype.toString.call(${name}.prototype): ${Object.prototype.toString.call(prototype)}`);
+
+        println("[[SetPrototypeOf]]:");
+        for (const [name, prototype] of prototypes) {
+            const originalPrototype = Object.getPrototypeOf(prototype);
+            const setToSamePrototype = Reflect.setPrototypeOf(prototype, originalPrototype);
+            const setToNull = Reflect.setPrototypeOf(prototype, null);
+            const changed = Object.getPrototypeOf(prototype) !== originalPrototype;
+            Reflect.setPrototypeOf(prototype, originalPrototype);
+            println(`${name}.prototype: same=${setToSamePrototype} null=${setToNull} changed=${changed}`);
+        }
+        println(`Object.setPrototypeOf(EventTarget.prototype, {}): ${errorMessage(() => Object.setPrototypeOf(EventTarget.prototype, {}))}`);
+        println(`Window.prototype.__proto__ = {}: ${errorMessage(() => { Window.prototype.__proto__ = {}; })}`);
+    });
+</script>
