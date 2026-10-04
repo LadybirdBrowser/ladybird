@@ -15,6 +15,15 @@ macro(add_cxx_compile_options)
     add_compile_options($<$<COMPILE_LANGUAGE:C,CXX,ASM>:${args}>)
 endmacro()
 
+# For options that only mean something to C++, some of which GCC rejects when it compiles C.
+macro(add_cxx_only_compile_options)
+    set(args "")
+    foreach(arg ${ARGN})
+        string(APPEND args ${arg}$<SEMICOLON>)
+    endforeach()
+    add_compile_options($<$<COMPILE_LANGUAGE:CXX>:${args}>)
+endmacro()
+
 macro(add_cxx_compile_definitions)
     set(args "")
     foreach(arg ${ARGN})
@@ -81,15 +90,15 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
     # Apple Clang does not include this diagnostic in -Wmissing-field-initializers as upstream Clang does.
     add_cxx_compile_options(-Wmissing-designated-field-initializers)
 endif()
-add_cxx_compile_options(-Wsuggest-override)
+add_cxx_only_compile_options(-Wsuggest-override)
 
 add_cxx_compile_options(-Wno-expansion-to-defined)
-add_cxx_compile_options(-Wno-invalid-offsetof)
+add_cxx_only_compile_options(-Wno-invalid-offsetof)
 add_cxx_compile_options(-Wno-maybe-uninitialized)
 add_cxx_compile_options(-Wno-shorten-64-to-32)
 add_cxx_compile_options(-Wno-unknown-warning-option)
 add_cxx_compile_options(-Wno-unused-command-line-argument)
-add_cxx_compile_options(-Wno-user-defined-literals)
+add_cxx_only_compile_options(-Wno-user-defined-literals)
 
 add_cxx_compile_options(-Werror)
 
@@ -109,19 +118,19 @@ if (NOT MSVC)
     add_cxx_link_options(-fstack-protector-strong)
     if (UNIX AND NOT APPLE AND NOT ENABLE_FUZZERS)
         add_cxx_compile_options(-fno-semantic-interposition)
-        add_cxx_compile_options(-fvisibility-inlines-hidden)
+        add_cxx_only_compile_options(-fvisibility-inlines-hidden)
     endif()
 endif()
 
 if (CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND NOT CMAKE_CXX_SIMULATE_ID  MATCHES "MSVC")
     # Clang's default constexpr-steps limit is 1048576(2^20), GCC doesn't have one
-    add_cxx_compile_options(-fconstexpr-steps=16777216)
+    add_cxx_only_compile_options(-fconstexpr-steps=16777216)
 
     add_cxx_compile_options(-Wmissing-prototypes)
 
     add_cxx_compile_options(-Wno-implicit-const-int-float-conversion)
-    add_cxx_compile_options(-Wno-user-defined-literals)
-    add_cxx_compile_options(-Wno-unqualified-std-cast-call)
+    add_cxx_only_compile_options(-Wno-user-defined-literals)
+    add_cxx_only_compile_options(-Wno-unqualified-std-cast-call)
 
     # Used for the #embed directive.
     # FIXME: Remove this once #embed is no longer an extension.
@@ -129,8 +138,8 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND NOT CMAKE_CXX_SIMULATE_ID  MATCHES
 elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     # Only ignore expansion-to-defined for g++, clang's implementation doesn't complain about function-like macros
     add_cxx_compile_options(-Wno-expansion-to-defined)
-    add_cxx_compile_options(-Wno-literal-suffix)
-    add_cxx_compile_options(-Wno-unqualified-std-cast-call)
+    add_cxx_only_compile_options(-Wno-literal-suffix)
+    add_cxx_only_compile_options(-Wno-unqualified-std-cast-call)
     add_cxx_compile_options(-Wvla)
 
     # FIXME: These warnings trigger on Function and ByteBuffer in GCC (only when LTO is disabled...)
@@ -139,7 +148,7 @@ elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     add_cxx_compile_options(-Wno-stringop-overflow)
 
     # FIXME: This warning seems useful but has too many false positives with GCC 13.
-    add_cxx_compile_options(-Wno-dangling-reference)
+    add_cxx_only_compile_options(-Wno-dangling-reference)
 elseif (MSVC)
     # Warning options and defines
     add_cxx_compile_options(/W4)
