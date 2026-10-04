@@ -28,6 +28,7 @@ struct TestWebContentClient final : public Compositor::CompositorStateWebContent
     virtual void dispatch_key_event_to_web_content(u64, Web::KeyEvent const&) override { }
     virtual void request_rendering_update() override { events.append("request_rendering_update"_string); }
     virtual void rendering_opportunity(Web::CompositorContextId, i64, double) override { }
+    virtual void clock_tick(Web::CompositorContextId, i64, double) override { }
     virtual void async_scroll_updates(Web::CompositorContextId, Compositing::PendingAsyncScrollUpdates const&) override { events.append("async_scroll_updates"_string); }
     virtual void create_video_edge(Media::VideoSinkHandle) override { }
     virtual void release_video_edge(Media::VideoSinkHandle) override { }
@@ -686,6 +687,7 @@ struct RecordingWebContentClient final : public Compositor::CompositorStateWebCo
     virtual void dispatch_key_event_to_web_content(u64, Web::KeyEvent const&) override { }
     virtual void request_rendering_update() override { events.append("request_rendering_update"_string); }
     virtual void rendering_opportunity(Web::CompositorContextId, i64, double) override { }
+    virtual void clock_tick(Web::CompositorContextId, i64, double) override { }
     virtual void async_scroll_updates(Web::CompositorContextId, Compositing::PendingAsyncScrollUpdates const& updates) override
     {
         events.append("async_scroll_updates"_string);

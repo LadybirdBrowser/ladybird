@@ -1435,6 +1435,19 @@ void ContextState::did_deliver_rendering_opportunity(MonotonicTime frame_time)
     m_rendering_opportunity_pacer.did_deliver(frame_time);
 }
 
+bool ContextState::request_clock_tick(double maximum_frames_per_second)
+{
+    m_clock_tick_pacer.set_maximum_frames_per_second(maximum_frames_per_second);
+    return !exchange(m_clock_tick_requested, true);
+}
+
+void ContextState::did_deliver_clock_tick(MonotonicTime frame_time)
+{
+    VERIFY(m_clock_tick_requested);
+    m_clock_tick_requested = false;
+    m_clock_tick_pacer.did_deliver(frame_time);
+}
+
 Optional<Gfx::IntRect> ContextState::pending_present_frame_viewport_rect() const
 {
     if (!m_pending_present_frame.has_value())

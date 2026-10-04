@@ -687,7 +687,7 @@ void CompositorState::set_display_metadata(Web::CompositorContextId context_id, 
             m_unpainted_video_update_timer->set_interval(unpainted_video_update_interval_ms());
     }
 
-    if (context->rendering_opportunity_requested() && context_is_effectively_visible(*context))
+    if (context->display_tick_requested() && context_is_effectively_visible(*context))
         vsync_scheduler_for_display(display_id_for_context(*context)).schedule(display_refresh_rate_for_context(*context));
 }
 
@@ -714,7 +714,7 @@ void CompositorState::resume_presentation_after_becoming_visible(Web::Compositor
         if (root_context_of(context) != &root_context)
             continue;
         schedule_animation_frames_if_needed(context);
-        if (context.rendering_opportunity_requested())
+        if (context.display_tick_requested())
             vsync_scheduler_for_display(display_id_for_context(context)).schedule(display_refresh_rate_for_context(context));
     }
 
@@ -746,6 +746,14 @@ void CompositorState::request_rendering_opportunity(Web::CompositorContextId con
     }
 
     scheduler.schedule(display_refresh_rate);
+}
+
+void CompositorState::request_clock_tick(Web::CompositorContextId context_id, double maximum_frames_per_second)
+{
+    auto* context = context_if_present(context_id);
+    if (!context || !context->request_clock_tick(maximum_frames_per_second) || !context_is_effectively_visible(*context))
+        return;
+    vsync_scheduler_for_display(display_id_for_context(*context)).schedule(display_refresh_rate_for_context(*context));
 }
 
 void CompositorState::hurry_rendering_opportunity(Web::CompositorContextId context_id)
@@ -906,6 +914,18 @@ void CompositorState::present_pending_frames_on_vsync(Optional<u64> display_id, 
                 auto frame_interval = context.rendering_opportunity_frame_interval(display_refresh_rate);
                 context.did_deliver_rendering_opportunity(frame_time);
                 context.web_content_client().rendering_opportunity(context_id, frame_time.nanoseconds(), frame_interval);
+            } else {
+                vsync_scheduler_for_display(display_id).schedule(display_refresh_rate);
+            }
+        }
+
+        // A render clock tick goes to the process's render clock thread, beside what its main thread is doing.
+        if (context.clock_tick_requested() && display_id_for_context(context) == display_id) {
+            auto display_refresh_rate = display_refresh_rate_for_context(context);
+            if (context.clock_tick_is_due(frame_time, display_refresh_rate)) {
+                auto frame_interval = context.clock_tick_interval(display_refresh_rate);
+                context.did_deliver_clock_tick(frame_time);
+                context.web_content_client().clock_tick(context_id, frame_time.nanoseconds(), frame_interval);
             } else {
                 vsync_scheduler_for_display(display_id).schedule(display_refresh_rate);
             }

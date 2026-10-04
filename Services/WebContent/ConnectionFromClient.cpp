@@ -451,6 +451,7 @@ void ConnectionFromClient::connect_to_compositor_process(IPC::TransportHandle ha
         m_compositor_connection->transport().set_peer_pid(response->compositor_pid());
     }
 #endif
+    m_compositor_connection->attach_render_clock();
 }
 
 void ConnectionFromClient::compositor_process_reconnected()

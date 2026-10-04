@@ -18,6 +18,7 @@
 #include <LibIPC/Limits.h>
 #include <LibIPC/Transport.h>
 #include <LibMediaClient/Client.h>
+#include <LibWeb/Compositor/RenderClock.h>
 #include <LibWeb/HTML/HTMLCanvasElement.h>
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/Page/Page.h>
@@ -102,6 +103,18 @@ void CompositorConnection::ensure_video_presentation_channel()
     async_offer_video_presentation_channel(handle_or_error.release_value());
     m_video_presentation_channel_media_client_generation = media_client->generation();
     dbgln_if(VIDEO_PRESENTATION_CHANNEL_DEBUG, "WebContent: offered the media server's video presentation channel to Compositor");
+}
+
+void CompositorConnection::attach_render_clock()
+{
+    if (!can_send_message_to_compositor())
+        return;
+    auto handle_or_error = RenderClock::the().attach();
+    if (handle_or_error.is_error()) {
+        dbgln("Failed to attach the render clock to the compositor: {}", handle_or_error.error());
+        return;
+    }
+    async_offer_render_clock_channel(handle_or_error.release_value());
 }
 
 void CompositorConnection::set_parent_context(Web::CompositorContextId context_id, Optional<Web::CompositorContextId> parent_context_id)

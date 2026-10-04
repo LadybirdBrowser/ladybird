@@ -1,0 +1,6 @@
+#include <LibWebCommon/Page/CompositorContextId.h>
+
+endpoint RenderClockClient
+{
+    clock_tick(Web::CompositorContextId context_id, i64 frame_time_nanoseconds, double frame_interval_milliseconds) =|
+}

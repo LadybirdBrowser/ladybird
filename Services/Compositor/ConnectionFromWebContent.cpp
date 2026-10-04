@@ -46,6 +46,35 @@ void ConnectionFromWebContent::offer_video_presentation_channel(IPC::TransportHa
     dbgln_if(VIDEO_PRESENTATION_CHANNEL_DEBUG, "Compositor: established video presentation channel for WebContent (client_id={})", client_id());
 }
 
+void ConnectionFromWebContent::offer_render_clock_channel(IPC::TransportHandle handle)
+{
+    auto transport_or_error = handle.create_transport();
+    if (transport_or_error.is_error()) {
+        did_misbehave("WebContent sent an unusable render clock transport handle");
+        return;
+    }
+    // A new channel replaces the one before it, whose requests were for the contexts the process armed then.
+    m_render_clock_connection = RenderClockConnection::construct(transport_or_error.release_value(), client_id());
+#ifdef AK_OS_WINDOWS
+    m_render_clock_connection->transport().set_peer_pid(transport().peer_pid());
+#endif
+    m_render_clock_connection->on_request_clock_tick = [this](Web::CompositorContextId context_id, double maximum_frames_per_second) {
+        if (!context_is_owned_by_this_connection(context_id))
+            return;
+        if (!isfinite(maximum_frames_per_second) || maximum_frames_per_second <= 0) {
+            did_misbehave("WebContent sent an invalid maximum clock tick rate");
+            return;
+        }
+        m_compositor_state->request_clock_tick(context_id, maximum_frames_per_second);
+    };
+}
+
+void ConnectionFromWebContent::clock_tick(Web::CompositorContextId context_id, i64 frame_time_nanoseconds, double frame_interval_milliseconds)
+{
+    if (m_render_clock_connection)
+        m_render_clock_connection->async_clock_tick(context_id, frame_time_nanoseconds, frame_interval_milliseconds);
+}
+
 void ConnectionFromWebContent::add_video_sink(Media::VideoSinkHandle video_sink_handle)
 {
     m_compositor_state->add_video_sink(*this, video_sink_handle);
