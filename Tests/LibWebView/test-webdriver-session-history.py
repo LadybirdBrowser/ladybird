@@ -881,6 +881,26 @@ def execute_async_script(webdriver_port, session_id, script):
     )["value"]
 
 
+def execute_script_after_load(webdriver_port, session_id, script, frame_id=None):
+    # Neither a form submission nor a history traversal waits for the document it loads to finish loading, and a
+    # document's own scripts run while it's still being parsed. So this runs script only once the load event of the
+    # page, or of the frame with the given id, has fired.
+    load_target = f"document.getElementById('{frame_id}')" if frame_id else "window"
+    loading_document = f"{load_target}.contentDocument" if frame_id else "document"
+    return execute_async_script(
+        webdriver_port,
+        session_id,
+        f"""
+const done = arguments[0];
+const run = () => done((() => {{ {script} }})());
+if ({loading_document}.readyState === "complete")
+    run();
+else
+    {load_target}.addEventListener("load", run, {{ once: true }});
+""",
+    )
+
+
 def navigate_from_renderer_using_link(
     webdriver_port,
     session_id,
@@ -1455,7 +1475,9 @@ def wait_for_url(webdriver_port, session_id, label, expected_url, log, timeout=E
 
 
 def expect_body_text(webdriver_port, session_id, label, expected_text, log):
-    actual = execute_script(webdriver_port, session_id, "return [document.body.innerText.trim(), document.readyState];")
+    actual = execute_script_after_load(
+        webdriver_port, session_id, "return [document.body.innerText.trim(), document.readyState];"
+    )
     if actual == [expected_text, "complete"]:
         log.append(f"{label}: {actual[0]}")
         return
@@ -1490,13 +1512,23 @@ def expect_current_ui_entry_resource(webdriver_port, session_id, label, expected
 
 
 def expect_frame_url(webdriver_port, session_id, label, expected_url, log, expected_title=None):
-    result = execute_script(
+    # A history traversal that only moves the frame completes before the frame's new document has replaced the old
+    # one, whose load event already fired. So this first waits for the frame to have the expected URL.
+    deadline = time.monotonic() + EVENT_TIMEOUT_SECONDS
+    frame_url_script = "return document.getElementById('frame').contentWindow.location.href;"
+    while execute_script(webdriver_port, session_id, frame_url_script) != expected_url:
+        if time.monotonic() >= deadline:
+            break
+        time.sleep(0.05)
+
+    result = execute_script_after_load(
         webdriver_port,
         session_id,
         """
 const frame = document.getElementById('frame');
 return [frame.contentWindow.location.href, frame.contentDocument.readyState, frame.contentDocument.title];
 """,
+        "frame",
     )
     actual_url, ready_state, actual_title = result
     if (
@@ -1559,7 +1591,7 @@ def expect_window_name(webdriver_port, session_id, label, expected_name, log):
 
 
 def expect_scroll_position(webdriver_port, session_id, label, expected_x, expected_y, log):
-    actual = execute_script(
+    actual = execute_script_after_load(
         webdriver_port,
         session_id,
         "return [Math.round(scrollX), Math.round(scrollY), document.readyState];",
