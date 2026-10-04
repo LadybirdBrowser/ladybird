@@ -891,10 +891,7 @@ static void update_style(Layout::BegunRead const& read, DOM::Document& document,
 
     if (!style_engine_transaction.reactions.is_empty())
         document.note_style_stabilization_has_style_reactions();
-    // NB: A transaction flies only while the document runs no animation, so one that runs now started beside it: the
-    //     next transaction samples it.
-    if constexpr (!drains_flown_transaction)
-        document.sample_animation_effects_needing_style_update();
+    document.sample_animation_effects_needing_style_update();
 
     auto style_engine_reactions = move(style_engine_transaction.reactions);
     auto prefers_broad_matching_batch = style_engine_transaction.prefers_broad_matching_batch;
@@ -1077,8 +1074,7 @@ static void update_style(Layout::BegunRead const& read, DOM::Document& document,
 
     document.set_has_completed_style_update();
     apply_document_style_invalidation_after_style_change(document, invalidation);
-    if constexpr (!drains_flown_transaction)
-        document.sample_animation_effects_needing_style_update();
+    document.sample_animation_effects_needing_style_update();
 }
 
 // Records what update_style() records before it takes the document's style transaction, and lets the transaction fly
@@ -1098,7 +1094,12 @@ static Optional<StyleUpdateInputs> let_style_update_fly(Layout::BegunRead const&
         style_computer.end_style_update();
     };
     auto inputs = begin_style_update_inputs(read, document, container_layout);
-    if (!inputs.has_value() || !style_computer.style_engine().has_pending_transaction(read))
+    if (!inputs.has_value())
+        return {};
+    // The animations the update ticked are sampled ahead of the seal, so that their values, and the inherited style
+    // they feed back, fly with the transaction.
+    document.sample_animation_effects_needing_style_update();
+    if (!style_computer.style_engine().has_pending_transaction(read))
         return {};
     document.build_registered_properties_cache_for_style_update();
     style_computer.prepare_for_style_engine_transaction();
@@ -1478,7 +1479,16 @@ void Document::update_highlight_style_observability()
 
 void Document::drain_style_transaction_that_flew(Layout::BegunRead const& read)
 {
+    // The animations dirtied beside the transaction are the next style update's, as are the writes made beside it: the
+    // drain samples those its own reactions create.
+    auto effects_beside = exchange(m_effects_needing_animated_style_update, {});
+    bool needed_beside = exchange(m_needs_animated_style_update, false);
+    bool forced_beside = exchange(m_force_throttled_animation_style_update, false);
     CSS::update_style(read, *this, CSS::FlownStyleTransaction { m_flown_style_update_inputs.release_value() });
+    for (auto& effect : effects_beside)
+        m_effects_needing_animated_style_update.set(effect);
+    m_needs_animated_style_update |= needed_beside;
+    m_force_throttled_animation_style_update |= forced_beside;
 }
 
 void Document::update_style()

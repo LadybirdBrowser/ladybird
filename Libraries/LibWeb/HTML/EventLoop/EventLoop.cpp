@@ -522,10 +522,17 @@ void EventLoop::finish_rendering_update(double update_start_time)
 
 // Whether a rendering update of `document` whose style transaction flies holds back the tasks of the document until the
 // whole of it has run, as the steps after its style and layout deliver to its script what comes before any of its tasks:
-// the resize observations its layout answers.
-static bool rendering_update_holds_tasks_of_document(DOM::Document const& document)
+// the resize observations its layout answers, and the animations it samples and transitions it starts, whose timing
+// script sees follow the update.
+static bool rendering_update_holds_tasks_of_document(DOM::Document& document)
 {
-    return document.has_resize_observers();
+    if (document.has_resize_observers())
+        return true;
+    for (auto const& timeline : document.associated_animation_timelines()) {
+        if (!timeline->associated_animations().is_empty())
+            return true;
+    }
+    return document.style_computer().style_engine().css_transitions_may_observe_style_changes();
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#update-the-rendering
@@ -902,11 +909,7 @@ Layout::RustFFI::FfiFlightBlocker EventLoop::style_flight_blocker(Vector<GC::Roo
     for (auto const& timeline : document.associated_animation_timelines()) {
         if (is<Animations::ScrollTimeline>(*timeline))
             return Blocker::ScrollTimeline;
-        if (!timeline->associated_animations().is_empty())
-            return Blocker::Animations;
     }
-    if (document.style_computer().style_engine().css_transitions_may_observe_style_changes())
-        return Blocker::Animations;
     return Blocker::None;
 }
 

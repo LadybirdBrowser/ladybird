@@ -1,5 +1,5 @@
 state in the next task: in-flight
-resize observed before the next task: 60
+resize observed before the next task: nothing
 transitions read beside the frame: 1
 width at the start of the transition: 50px
 transitionrun events: 1

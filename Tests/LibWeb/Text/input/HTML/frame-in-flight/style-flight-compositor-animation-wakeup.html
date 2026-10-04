@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    #target { width: 20px; height: 20px; transform: translateX(0); transition: transform 100s linear 100s; }
+    #target.changed { transform: translateX(100px); }
+    #probe { width: 50px; height: 10px; }
+</style>
+<div id="target"></div>
+<div id="probe"></div>
+<script>
+    // The compositor animation wake-up of a delayed transition comes from a timer, not a task, so it may come while a
+    // frame flies. Republishing the transition's visual animations at its active start reads the render state, which
+    // lands the frame in flight in a read of its own.
+    asyncTest(async done => {
+        await twoFrames();
+        target.classList.add("changed");
+        await twoFrames();
+        const transition = target.getAnimations()[0];
+        await transition.ready;
+        await twoFrames();
+        const activeStartTime = transition.startTime + 100001;
+
+        const result = await whileRecordingInFlight(() => {
+            internals.resetStyleInvalidationCounters();
+            probe.style.width = "60px";
+        }, state => {
+            internals.fireCompositorAnimationWakeupForTesting(activeStartTime);
+            const counters = internals.getStyleInvalidationCounters();
+            return { state, republished: counters.compositorVisualAnimationUpdates, requested: counters.animationFramePumpRequests };
+        });
+        println(`state in the next task: ${result.state}`);
+        println(`wake-up republishes beside the frame: ${result.republished}`);
+        println(`wake-up requests a frame: ${result.requested}`);
+        await twoFrames();
+        println(`probe box width: ${probe.offsetWidth}`);
+        transition.cancel();
+        done();
+    });
+</script>

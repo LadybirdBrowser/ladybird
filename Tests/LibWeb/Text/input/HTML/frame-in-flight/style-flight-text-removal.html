@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<div id="box" style="width: 100px; height: 10px"></div>
+<div id="line">kept <span>span</span> removed</div>
+<script>
+    // A text node removed beside the frame whose style pass is in flight: whether its box can be detached in place,
+    // and detaching it, is the removal's own read of the render state, which takes the frame in first.
+    asyncTest(async done => {
+        const state = await whileRecordingInFlight(() => {
+            box.style.height = "20px";
+        }, state => {
+            line.lastChild.remove();
+            return state;
+        });
+        println(`state in the next task: ${state}`);
+        await twoFrames();
+        println(`box height: ${box.offsetHeight}`);
+        println(`line text: ${line.innerText}`);
+        done();
+    });
+</script>

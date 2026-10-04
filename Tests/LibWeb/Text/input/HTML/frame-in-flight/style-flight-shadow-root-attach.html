@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<div id="box" style="width: 100px; height: 10px"></div>
+<div id="host">light</div>
+<script>
+    // A shadow root attached beside the frame whose style pass is in flight takes a fresh identity, which holds none
+    // of the layout tree update marks its previous holder left. The render state applies that as a write, so the
+    // attachment reads nothing of it beside the frame.
+    asyncTest(async done => {
+        const state = await whileRecordingInFlight(() => {
+            box.style.height = "20px";
+        }, state => {
+            host.attachShadow({ mode: "open" }).innerHTML = "<span>shadow</span>";
+            return state;
+        });
+        println(`state in the next task: ${state}`);
+        await twoFrames();
+        println(`box height: ${box.offsetHeight}`);
+        println(`shadow text: ${host.shadowRoot.firstChild.innerText}`);
+        done();
+    });
+</script>

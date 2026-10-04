@@ -332,9 +332,16 @@ struct BytecodeCachePreparation {
     Function<void(RefPtr<JS::RustIntegration::DecodedBytecodeCache>)> on_prepared;
 };
 
-static void prepare_bytecode_cache_off_thread(Core::ImmutableBytes bytecode, JS::RustIntegration::ProgramType type, size_t source_length, BytecodeCacheSourceHash source_hash, Function<void(RefPtr<JS::RustIntegration::DecodedBytecodeCache>)> on_prepared)
+static void prepare_bytecode_cache_off_thread(EnvironmentSettingsObject& settings_object, Core::ImmutableBytes bytecode, JS::RustIntegration::ProgramType type, size_t source_length, BytecodeCacheSourceHash source_hash, Function<void(RefPtr<JS::RustIntegration::DecodedBytecodeCache>)> on_prepared)
 {
-    auto* preparation = new BytecodeCachePreparation { move(bytecode), move(on_prepared) };
+    // The script runs in a task of the settings object's global, so never beside a rendering update in flight that holds
+    // back the tasks of its document.
+    auto* preparation = new BytecodeCachePreparation { move(bytecode),
+        [settings_object = GC::make_root(settings_object), on_prepared = move(on_prepared)](RefPtr<JS::RustIntegration::DecodedBytecodeCache> bytecode_cache) mutable {
+            queue_global_task(Task::Source::Networking, settings_object->global_object(), GC::create_function(GC::Heap::the(), [on_prepared = move(on_prepared), bytecode_cache = move(bytecode_cache)]() mutable {
+                on_prepared(move(bytecode_cache));
+            }));
+        } };
     auto& main_thread_event_loop = Core::EventLoop::current();
 
     Threading::ThreadPool::the().submit([preparation, type, source_length, source_hash, &main_thread_event_loop]() mutable {
@@ -350,27 +357,32 @@ static void prepare_bytecode_cache_off_thread(Core::ImmutableBytes bytecode, JS:
                 bytecode_cache = JS::RustIntegration::DecodedBytecodeCache::create(bytecode_cache_blob);
             preparation->on_prepared(move(bytecode_cache));
             delete preparation;
-            perform_a_microtask_checkpoint();
         });
     });
 }
 
 // Submit parsing and top-level bytecode generation to the thread pool, then bounce back to the main thread via
-// deferred_invoke once the worker is done. Syntax errors still come back as a ParsedProgram so the main thread can
-// report them through the same Script/ModuleScript construction paths; successful programs come back as CompiledProgram
-// artifacts whose GC-backed Executable materialization must still happen on the main thread.
+// deferred_invoke once the worker is done, and on to a task of the settings object's global there. Syntax errors still
+// come back as a ParsedProgram so the main thread can report them through the same Script/ModuleScript construction
+// paths; successful programs come back as CompiledProgram artifacts whose GC-backed Executable materialization must
+// still happen on the main thread.
 // NB: The SourceCode stays on the main thread inside the heap-allocated callback. The worker thread only receives raw
 //     UTF-16 data pointers.
-static void compile_off_thread(NonnullRefPtr<JS::SourceCode const> source_code, JS::RustIntegration::ProgramType type, size_t line_number_offset, bool retain_parse_for_cache, Function<void(OffThreadCompiledProgram, NonnullRefPtr<JS::SourceCode const>)> on_compiled)
+static void compile_off_thread(EnvironmentSettingsObject& settings_object, NonnullRefPtr<JS::SourceCode const> source_code, JS::RustIntegration::ProgramType type, size_t line_number_offset, bool retain_parse_for_cache, Function<void(OffThreadCompiledProgram, NonnullRefPtr<JS::SourceCode const>)> on_compiled)
 {
     // Extract the raw data the parser needs while still on the main thread.
     auto const* utf16_data = source_code->utf16_data();
     auto length = source_code->length_in_code_units();
 
     // Capture source_code in the callback so it stays alive on the main thread and is available for materialization.
+    // The script runs in a task of the settings object's global, so never beside a rendering update in flight that holds
+    // back the tasks of its document, and the microtasks it queues (e.g. promise reactions from react_to_promise during
+    // module linking) are drained after it.
     auto* callback = new Function<void(OffThreadCompiledProgram)>(
-        [on_compiled = move(on_compiled), source_code = move(source_code)](OffThreadCompiledProgram result) mutable {
-            on_compiled(move(result), move(source_code));
+        [settings_object = GC::make_root(settings_object), on_compiled = move(on_compiled), source_code = move(source_code)](OffThreadCompiledProgram result) mutable {
+            queue_global_task(Task::Source::Networking, settings_object->global_object(), GC::create_function(GC::Heap::the(), [on_compiled = move(on_compiled), source_code = move(source_code), result = move(result)]() mutable {
+                on_compiled(move(result), move(source_code));
+            }));
         });
 
     auto& main_thread_event_loop = Core::EventLoop::current();
@@ -390,10 +402,6 @@ static void compile_off_thread(NonnullRefPtr<JS::SourceCode const> source_code, 
         main_thread_event_loop.deferred_invoke([result = move(result), callback]() mutable {
             (*callback)(move(result));
             delete callback;
-            // AD-HOC: Perform a microtask checkpoint so that any microtasks queued by the callback (e.g. promise
-            //         reactions from react_to_promise during module linking) are drained. Without this, module worker
-            //         scripts would stall because their promise chains never resolve.
-            perform_a_microtask_checkpoint();
         });
     });
 }
@@ -763,7 +771,7 @@ void fetch_classic_script(GC::Ref<HTMLScriptElement> element, URL::URL const& ur
         if (bytecode.has_value()) {
             auto source_encoding = ByteString { extracted_character_encoding };
             auto source_length = TextCodec::convert_input_to_utf16_length_using_given_decoder_unless_there_is_a_byte_order_mark(*fallback_decoder, StringView { source_bytes }).release_value_but_fixme_should_propagate_errors();
-            prepare_bytecode_cache_off_thread(*bytecode, JS::RustIntegration::ProgramType::Script, source_length, *source_hash,
+            prepare_bytecode_cache_off_thread(settings_object, *bytecode, JS::RustIntegration::ProgramType::Script, source_length, *source_hash,
                 [response_url = move(response_url), response_url_string = move(response_url_string),
                     source_byte_storage = move(source_byte_storage),
                     bytecode_cache_context = move(bytecode_cache_context),
@@ -796,7 +804,8 @@ void fetch_classic_script(GC::Ref<HTMLScriptElement> element, URL::URL const& ur
                     }
 
                     auto retain_parse_for_cache = bytecode_cache_context.has_value();
-                    compile_off_thread(source_code.release_value(), JS::RustIntegration::ProgramType::Script, 1, retain_parse_for_cache,
+                    auto& settings = *settings_root;
+                    compile_off_thread(settings, source_code.release_value(), JS::RustIntegration::ProgramType::Script, 1, retain_parse_for_cache,
                         [response_url = move(response_url), response_url_string = move(response_url_string),
                             bytecode_cache_context = move(bytecode_cache_context),
                             source_hash = move(source_hash),
@@ -833,7 +842,7 @@ void fetch_classic_script(GC::Ref<HTMLScriptElement> element, URL::URL const& ur
         }
 
         auto retain_parse_for_cache = bytecode_cache_context.has_value();
-        compile_off_thread(source_code.release_value(), JS::RustIntegration::ProgramType::Script, 1, retain_parse_for_cache,
+        compile_off_thread(settings_object, source_code.release_value(), JS::RustIntegration::ProgramType::Script, 1, retain_parse_for_cache,
             [response_url = move(response_url), response_url_string = move(response_url_string),
                 bytecode_cache_context = move(bytecode_cache_context),
                 source_hash = move(source_hash),
@@ -1215,7 +1224,7 @@ void fetch_single_module_script(JS::Realm& realm,
                     source_hash = bytecode_cache_source_hash(source_bytes, "UTF-8"sv);
                 if (bytecode.has_value()) {
                     auto source_length = TextCodec::convert_input_to_utf16_length_using_given_decoder_unless_there_is_a_byte_order_mark(*decoder, StringView { source_bytes }).release_value_but_fixme_should_propagate_errors();
-                    prepare_bytecode_cache_off_thread(*bytecode, JS::RustIntegration::ProgramType::Module, source_length, *source_hash,
+                    prepare_bytecode_cache_off_thread(settings_object, *bytecode, JS::RustIntegration::ProgramType::Module, source_length, *source_hash,
                         [url = move(url), url_string = move(url_string), response_url = move(response_url),
                             module_type_string = move(module_type_string),
                             source_byte_storage = move(source_byte_storage),
@@ -1247,7 +1256,8 @@ void fetch_single_module_script(JS::Realm& realm,
                             }
 
                             auto retain_parse_for_cache = bytecode_cache_context.has_value();
-                            compile_off_thread(source_code.release_value(), JS::RustIntegration::ProgramType::Module, 0, retain_parse_for_cache,
+                            auto& settings = *settings_root;
+                            compile_off_thread(settings, source_code.release_value(), JS::RustIntegration::ProgramType::Module, 0, retain_parse_for_cache,
                                 [url = move(url), url_string = move(url_string), response_url = move(response_url),
                                     module_type_string = move(module_type_string),
                                     bytecode_cache_context = move(bytecode_cache_context),
@@ -1286,7 +1296,7 @@ void fetch_single_module_script(JS::Realm& realm,
                 }
 
                 auto retain_parse_for_cache = bytecode_cache_context.has_value();
-                compile_off_thread(source_code.release_value(), JS::RustIntegration::ProgramType::Module, 0, retain_parse_for_cache,
+                compile_off_thread(settings_object, source_code.release_value(), JS::RustIntegration::ProgramType::Module, 0, retain_parse_for_cache,
                     [url = move(url), url_string = move(url_string), response_url = move(response_url),
                         module_type_string = move(module_type_string),
                         bytecode_cache_context = move(bytecode_cache_context),
