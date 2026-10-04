@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<style>#target { color: blue }</style>
+<div id="target"></div>
+<script src="../include.js"></script>
+<script>
+    function exceptionFrom(callback) {
+        try {
+            callback();
+            return "no exception";
+        } catch (error) {
+            return `${error.name}: ${error.message}`;
+        }
+    }
+
+    function color() {
+        return getComputedStyle(target).color;
+    }
+
+    test(() => {
+        const adopted = document.adoptedStyleSheets;
+        println(`same array on every get: ${adopted === document.adoptedStyleSheets}`);
+        println(`Array.isArray: ${Array.isArray(adopted)}`);
+        println(`prototype is Array.prototype: ${Object.getPrototypeOf(adopted) === Array.prototype}`);
+        println(`toString: ${Object.prototype.toString.call(adopted)}`);
+
+        const shadowRoot = target.attachShadow({ mode: "open" });
+        println(`shadow root has its own array: ${shadowRoot.adoptedStyleSheets !== adopted && Array.isArray(shadowRoot.adoptedStyleSheets)}`);
+
+        println(`set a number: ${exceptionFrom(() => { adopted[0] = 1; })}`);
+        println(`Reflect.set a number: ${exceptionFrom(() => Reflect.set(adopted, 0, 1))}`);
+        println(`set a non-constructed sheet: ${exceptionFrom(() => { adopted[0] = document.styleSheets[0]; })}`);
+        println(`set a number on the shadow root: ${exceptionFrom(() => { shadowRoot.adoptedStyleSheets[0] = 1; })}`);
+        println(`length after rejected sets: ${adopted.length}, has index 0: ${0 in adopted}`);
+
+        const frame = document.createElement("iframe");
+        document.body.appendChild(frame);
+        const sheetOfThisDocument = new CSSStyleSheet();
+        let frameError;
+        try {
+            frame.contentDocument.adoptedStyleSheets[0] = sheetOfThisDocument;
+        } catch (error) {
+            frameError = error;
+        }
+        println(`set a sheet of another document: ${frameError.name}, from the frame's realm: ${frameError instanceof frame.contentWindow.DOMException}`);
+        println(`frame array length: ${frame.contentDocument.adoptedStyleSheets.length}`);
+
+        const red = new CSSStyleSheet();
+        red.replaceSync("#target { color: red }");
+        adopted[0] = red;
+        println(`after setting index 0: length ${adopted.length}, ${adopted[0] === red}, color ${color()}`);
+
+        println(`set a number at index 1: ${exceptionFrom(() => { adopted[1] = 2; })}`);
+        println(`length after rejected set: ${adopted.length}, color ${color()}`);
+
+        delete adopted[0];
+        println(`after deleting index 0: color ${color()}`);
+        adopted.length = 0;
+    });
+</script>

@@ -6,22 +6,29 @@
 
 #pragma once
 
-#include <LibJS/Runtime/Array.h>
+#include <AK/Function.h>
+#include <AK/Optional.h>
+#include <LibGC/CellAllocator.h>
+#include <LibGC/Function.h>
+#include <LibJS/Forward.h>
+#include <LibJS/Heap/Cell.h>
+#include <LibJS/Runtime/Value.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::WebIDL {
 
 // https://webidl.spec.whatwg.org/#idl-observable-array
-class WEB_API ObservableArray final : public JS::Array {
-    JS_OBJECT(ObservableArray, JS::Array);
+// Script sees an observable array as an Array exotic object of its own host class, whose [[Set]] and [[Delete]] run
+// the callbacks kept in this companion cell before doing what an Array does.
+class WEB_API ObservableArray final : public JS::Cell {
+    GC_CELL(ObservableArray, JS::Cell);
     GC_DECLARE_ALLOCATOR(ObservableArray);
 
 public:
-    static GC::Ref<ObservableArray> create(JS::Realm& realm);
+    using JSValueConversionIsForbidden = void;
 
-    virtual JS::ThrowCompletionOr<bool> internal_set(JS::PropertyKey const& property_key, JS::Value value, JS::Value receiver, JS::CacheableSetPropertyMetadata* metadata = nullptr, PropertyLookupPhase = PropertyLookupPhase::OwnProperty) override;
-    virtual JS::ThrowCompletionOr<bool> internal_delete(JS::PropertyKey const& property_key) override;
+    static GC::Ref<ObservableArray> create(JS::Realm&);
 
     using SetAnIndexedValueCallbackFunction = Function<ExceptionOr<void>(u32 index, JS::Value&)>;
     using DeleteAnIndexedValueCallbackFunction = Function<ExceptionOr<void>(JS::Value)>;
@@ -29,29 +36,41 @@ public:
     void set_on_set_an_indexed_value_callback(SetAnIndexedValueCallbackFunction&& callback);
     void set_on_delete_an_indexed_value_callback(DeleteAnIndexedValueCallbackFunction&& callback);
 
-    JS::ThrowCompletionOr<void> append(JS::Value value);
-    void clear();
+    GC::Ref<JS::Object> array_object() const { return m_array_object; }
 
-    template<typename T, typename Callback>
-    void for_each(Callback callback)
+    u32 length() const;
+
+    // The value of the element at index, which is nothing for a hole, an accessor or an index past the end. Reading it
+    // never runs script.
+    Optional<JS::Value> element_value(u32 index) const;
+
+    template<typename Callback>
+    void for_each_element_value(Callback callback) const
     {
-        for (u32 i = 0; i < indexed_array_like_size(); ++i) {
-            auto value_and_attributes = indexed_get(i);
-            if (value_and_attributes.has_value()) {
-                auto& style_sheet = as<T>(value_and_attributes->value.as_object());
-                callback(style_sheet);
-            }
+        for (u32 index = 0; index < length(); ++index) {
+            if (auto value = element_value(index); value.has_value())
+                callback(*value);
         }
     }
 
-    explicit ObservableArray(JS::Realm&, Object& prototype);
+    JS::ThrowCompletionOr<void> append(JS::Value value);
+    void clear();
+
+private:
+    friend struct ObservableArrayHostClassTraits;
+
+    ObservableArray(JS::Realm&, JS::Object& array_object);
 
     virtual void visit_edges(JS::Cell::Visitor&) override;
 
-private:
+    JS::ThrowCompletionOr<void> run_set_an_indexed_value_callback(u32 index, JS::Value& value);
+    JS::ThrowCompletionOr<void> run_delete_an_indexed_value_callback(u32 index);
+
     using SetAnIndexedValueCallbackHeapFunction = GC::Function<SetAnIndexedValueCallbackFunction::FunctionType>;
     using DeleteAnIndexedValueCallbackHeapFunction = GC::Function<DeleteAnIndexedValueCallbackFunction::FunctionType>;
 
+    GC::Ref<JS::Realm> m_realm;
+    GC::Ref<JS::Object> m_array_object;
     GC::Ptr<SetAnIndexedValueCallbackHeapFunction> m_on_set_an_indexed_value;
     GC::Ptr<DeleteAnIndexedValueCallbackHeapFunction> m_on_delete_an_indexed_value;
 };

@@ -1,0 +1,16 @@
+same array on every get: true
+Array.isArray: true
+prototype is Array.prototype: true
+toString: [object Array]
+shadow root has its own array: true
+set a number: TypeError: Not an object of type CSSStyleSheet
+Reflect.set a number: TypeError: Not an object of type CSSStyleSheet
+set a non-constructed sheet: NotAllowedError: StyleSheet's constructed flag is not set.
+set a number on the shadow root: TypeError: Not an object of type CSSStyleSheet
+length after rejected sets: 0, has index 0: false
+set a sheet of another document: NotAllowedError, from the frame's realm: true
+frame array length: 0
+after setting index 0: length 1, true, color rgb(255, 0, 0)
+set a number at index 1: TypeError: Not an object of type CSSStyleSheet
+length after rejected set: 1, color rgb(255, 0, 0)
+after deleting index 0: color rgb(0, 0, 255)
