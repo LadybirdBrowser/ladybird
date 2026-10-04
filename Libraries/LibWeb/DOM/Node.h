@@ -213,6 +213,8 @@ public:
     bool in_editable_subtree() const { return m_in_editable_subtree; }
     bool recompute_editable_subtree_flag();
     void recompute_editable_subtree_flags_and_repaint();
+    // Brings the editing-host and empty-text stamps of the boxes in the subtree to the nodes' editability.
+    void apply_editability_to_boxes(Badge<InvalidationJournal>, Layout::BegunRead const&);
 
     virtual bool is_dom_node() const final { return true; }
     virtual bool is_html_element() const { return false; }
