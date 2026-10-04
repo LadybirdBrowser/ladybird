@@ -31,6 +31,8 @@ use crate::render_state::DocumentHost;
 use std::ffi::c_void;
 
 use crate::abort_on_panic as abort_on_boundary_panic;
+use crate::css::animated_overlay::AnimatedOverlay;
+use crate::css::computed_longhand_table::ComputedLonghandTable;
 use crate::css::custom_properties::{CustomPropertyRegistry, ffi_slice};
 use crate::css::host_shared::{HostShared, SharedPayload};
 use crate::css::selector::CompiledSelector;
@@ -611,6 +613,26 @@ pub struct FfiStyleRecordView {
 }
 
 impl FfiStyleRecordView {
+    /// The record's table, the base record's where it carries an overlay.
+    ///
+    /// # Safety
+    ///
+    /// The view must name a record of an element, which carries a table, that stays live for as long as the borrow.
+    pub(crate) unsafe fn longhand_table(&self) -> &ComputedLonghandTable {
+        // SAFETY: Guaranteed by the caller.
+        unsafe { &*self.longhand_table.cast::<ComputedLonghandTable>() }
+    }
+
+    /// The record's animation overlay, if it carries one.
+    ///
+    /// # Safety
+    ///
+    /// As for [`Self::longhand_table`].
+    pub(crate) unsafe fn animated_overlay(&self) -> Option<&AnimatedOverlay> {
+        // SAFETY: Guaranteed by the caller.
+        unsafe { self.animated_overlay.cast::<AnimatedOverlay>().as_ref() }
+    }
+
     pub(crate) fn missing() -> Self {
         Self {
             payloads: std::ptr::null(),
@@ -2930,23 +2952,25 @@ pub unsafe extern "C" fn style_engine_pseudo_element_record_damage(
     })
 }
 
-/// Returns whether a candidate animation overlay changes any effective value in a style record.
+/// Whether a candidate animation overlay changes any effective value of the record `installed` views, in place of the
+/// record's own overlay. The host reads it from the record it installed, as the engine would.
 ///
 /// # Safety
-/// `host` must be a live document host, on its document's thread, `animated_overlay` must be live
-/// for this call, and the style record must remain pinned or assigned.
+/// `installed` must view a record the host holds live, and `animated_overlay` must be null or live, for this call.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_animation_overlay_changed(
-    host: *const DocumentHost,
-    read: &crate::render_state::BegunRead,
-    old_style_record: u64,
+    installed: &FfiStyleRecordView,
     animated_overlay: *const c_void,
 ) -> bool {
     // SAFETY: Guaranteed by the caller.
-    let host = unsafe { document_host(host) };
-    with_engine(read, host, |engine| {
-        engine.animation_overlay_changed(old_style_record, animated_overlay.cast())
-    })
+    let (table, old_overlay, new_overlay) = unsafe {
+        (
+            installed.longhand_table(),
+            installed.animated_overlay(),
+            animated_overlay.cast::<AnimatedOverlay>().as_ref(),
+        )
+    };
+    super::style_invalidation::animation_overlay_changed(table, old_overlay, new_overlay)
 }
 
 /// What the host hands over to have an element's sampled animation overlay composed into the
