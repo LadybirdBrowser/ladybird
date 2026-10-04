@@ -6207,6 +6207,55 @@ unsafe fn finish_animation_sample(
     result
 }
 
+/// Samples `composed` onto the overlay `input` names, as far as the engine goes without the host, and
+/// answers what it did to the overlay: for an element whose length contexts the engine builds over the
+/// record it holds, and whose keyframes read nothing else only the host knows, such as a container's
+/// size, a custom property, a document URL or a random base value.
+///
+/// # Safety
+/// As for [`rust_sample_animation_effects`], with `input` naming no callback but the overlay's.
+pub(crate) unsafe fn sample_without_host(
+    input: &FfiHostAnimationSample,
+    engine: &mut crate::css::style::StyleEngine,
+    composed: SampledEffects,
+    reference_box: Option<CssPixelRect>,
+) -> Result<FfiHostAnimationSampleOutcome, crate::css::style::engine_sample::NeedsHost> {
+    use crate::css::style::engine_sample::NeedsHost;
+
+    // SAFETY: Guaranteed by the caller.
+    let sample = match unsafe { begin_animation_sample(input, engine, composed, reference_box) } {
+        AnimationSampleStep::Sampled(result) => return Ok(result.outcome),
+        AnimationSampleStep::Resolved(sample) => sample,
+    };
+    if !sample.result.style_query_dependencies.is_null() {
+        // SAFETY: The sample transferred the dependencies it resolved to its result.
+        drop(unsafe {
+            Box::from_raw(
+                sample
+                    .result
+                    .style_query_dependencies
+                    .cast::<crate::css::custom_properties::StyleQueryDependencies>(),
+            )
+        });
+        return Err(NeedsHost);
+    }
+    let resolved = &sample.resolved;
+    let Some(length_contexts) = engine_length_contexts(input, engine, &sample) else {
+        return Err(NeedsHost);
+    };
+    if sample.result.substitution_marks != 0
+        || !sample.custom_properties.is_empty()
+        || resolved.needs_document_base_url
+        || !resolved.unfixed_random_sharings.is_empty()
+    {
+        return Err(NeedsHost);
+    }
+    // SAFETY: As above.
+    let result = unsafe { finish_animation_sample(input, engine, sample, &length_contexts, reference_box) };
+    debug_assert!(result.animated_custom_properties_storage.is_null());
+    Ok(result.outcome)
+}
+
 /// # Safety
 /// `storage` must be returned by `rust_compute_animation_keyframe_longhands`
 /// and must not have been consumed before.

@@ -69,7 +69,7 @@ mod custom_property_environments;
 mod differential_tests;
 pub(crate) mod effect_descriptions;
 pub mod engine_calls;
-mod engine_sample;
+pub(crate) mod engine_sample;
 mod environment_move;
 pub mod exact_matcher;
 pub(crate) mod flight_style_rows;

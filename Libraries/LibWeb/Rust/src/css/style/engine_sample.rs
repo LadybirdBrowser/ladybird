@@ -23,7 +23,8 @@ use crate::css::css_pixels::CssPixels;
 use crate::css::host_shared::SharedPayload;
 use crate::css::property_metadata::property_id as prop;
 use crate::css::style_compute::{
-    FfiAnimationLengthContexts, FfiFontMetrics, FfiLengthResolutionContext, keyword, px_length_unit,
+    FfiAnimationLengthContexts, FfiEffectiveColorSchemeInput, FfiFontMetrics, FfiHostAnimationSample,
+    FfiLengthResolutionContext, FfiStyleComputationEnvironment, keyword, px_length_unit,
 };
 use crate::css::style_value::StyleValueData;
 use crate::css::table_group_builder::{FfiFontGroupBuildInputs, FfiTableGroupBuildInputs, group_index};
@@ -308,6 +309,193 @@ impl RetainedState {
             groups: rebuilt_groups,
             every_group: rebuilds_every_group,
         }))
+    }
+}
+
+/// A sample of an element's animations that needs what only the host has: a container's size, the
+/// platform font of an animated font, a value substituted against the element, or an adjustment of
+/// what the element's own style says.
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) struct NeedsHost;
+
+/// The longhands an animated value of moves an adjustment the host makes after it samples.
+const POST_COMPUTE_ADJUSTED_LONGHANDS: [u16; 7] = [
+    prop::DISPLAY,
+    prop::POSITION,
+    prop::FLOAT,
+    prop::LINE_HEIGHT,
+    prop::OVERFLOW_X,
+    prop::OVERFLOW_Y,
+    prop::TEXT_ALIGN,
+];
+
+/// The overlay a sample writes, which the host's working set would hold.
+extern "C" fn overlay_for_mutation(overlay: *mut std::ffi::c_void) -> *mut std::ffi::c_void {
+    overlay
+}
+
+extern "C" fn no_host_length_contexts(_: *mut std::ffi::c_void, _: u8, _: *mut FfiAnimationLengthContexts) {
+    unreachable!("a sample without the host builds its length contexts itself");
+}
+
+impl super::StyleEngine {
+    /// Samples the animations of the element `node` names over `record`, the record the host installed
+    /// for it, with their timelines at `samples`, and composes them into a record no element holds,
+    /// pinned for a box: what the element's box shows at that time, which no script reads. Reads only
+    /// what the engine holds, so it runs wherever the engine is. `transform_reference_box` is the box a
+    /// transform interpolates against, where the element has one.
+    #[cfg_attr(not(test), expect(dead_code, reason = "a clock tick samples with it"))]
+    pub(crate) fn sample_at(
+        &mut self,
+        node: StyleNodeID,
+        record: u64,
+        samples: super::animations::AnimationTimelineSamples,
+        transform_reference_box: Option<crate::css::css_pixels::CssPixelRect>,
+    ) -> Result<super::layout_style::DerivedStyleRecord, NeedsHost> {
+        use crate::css::animation as anim;
+
+        // Each effect the host sampled last samples at the key its timing gives at these times. A
+        // keyframe whose value or easing waits to be substituted against the element needs the host.
+        let effects = self.element_animation_effects(node, 0);
+        let substitutes = |effect: &super::effect_descriptions::PublishedEffect| {
+            effect.keyframes.iter().any(|keyframe| {
+                keyframe.easing_value.is_some()
+                    || !effect.custom_declarations_of(keyframe).is_empty()
+                    || effect.declarations_of(keyframe).iter().any(|declaration| {
+                        matches!(&declaration.value, super::effect_descriptions::PublishedValue::Declared(value)
+                                if matches!(value.data(), StyleValueData::Unresolved { .. }))
+                    })
+            })
+        };
+        let mut composed = crate::css::style_compute::SampledEffects::new();
+        for effect in effects.iter().filter(|effect| effect.keyframes.len() >= 2) {
+            let Some(timing) = &effect.timing else {
+                continue;
+            };
+            if substitutes(effect) {
+                return Err(NeedsHost);
+            }
+            if let Some(current_key) = timing.key_at(samples).ok_or(NeedsHost)? {
+                composed.push(anim::FfiSampledAnimationEffect {
+                    effect: anim::FfiAnimationPreparationEffect {
+                        identity: effect.identity,
+                        generation: effect.generation,
+                    },
+                    current_key,
+                });
+            }
+        }
+
+        let view = self.computed_group_sets.style_record_view(record).ok_or(NeedsHost)?;
+        let table = view.longhand_table;
+        // SAFETY: The record holds its table and overlay, and the host's install pins the record.
+        let mut overlay = unsafe { view.animated_overlay.as_ref() }.cloned().unwrap_or_default();
+        let inheritance_parent_style_record = self
+            .tree
+            .inheritance_parent(node)
+            .and_then(|parent| self.held_style_records.get(&parent).copied())
+            .unwrap_or(0);
+        let inputs = &self.document_style_computation_inputs;
+        let environment = FfiStyleComputationEnvironment {
+            // SAFETY: As the host's value-initialized input, which an animation sample does not read.
+            box_type_input: unsafe { std::mem::zeroed() },
+            color_scheme_input: FfiEffectiveColorSchemeInput {
+                preferred_color_scheme: inputs.preferred_color_scheme,
+                has_document_supported_schemes: inputs.has_document_supported_schemes,
+                document_supported_scheme_codes: inputs.document_supported_scheme_codes.as_ptr(),
+                document_supported_scheme_count: usize::from(inputs.document_supported_scheme_count),
+            },
+            is_th_element: false,
+            has_new_font_size: false,
+            has_tree_counting_context: false,
+            sibling_count: 0,
+            sibling_index: 0,
+            random_base_values: std::ptr::null(),
+            random_base_value_count: 0,
+            document_base_url: std::ptr::null(),
+            document_base_url_length: 0,
+            style_sheet_resource_contexts: std::ptr::null(),
+            style_sheet_resource_context_count: 0,
+            device_pixels_per_css_pixel: inputs.device_pixels_per_css_pixel,
+            initial_font_size_raw: inputs.initial_font_size_raw,
+            default_font_size_raw: inputs.default_font_size_raw,
+        };
+        let overlay_pointer = std::ptr::from_mut(&mut overlay).cast::<std::ffi::c_void>();
+        let input = FfiHostAnimationSample {
+            host: std::ptr::null(),
+            style_node: node.raw(),
+            pseudo_kind: crate::css::cascaded_properties::NO_PSEUDO_ELEMENT,
+            effects: std::ptr::null(),
+            effect_count: 0,
+            longhand_table: table.cast_mut().cast_const().cast(),
+            animated_overlay: overlay_pointer.cast_const(),
+            style_record: record,
+            custom_property_store: std::ptr::null(),
+            base_custom_property_store: std::ptr::null(),
+            inheritance_custom_property_store: std::ptr::null(),
+            element_declares_own_custom_properties: false,
+            custom_property_environments: [0; 2],
+            inheritance_parent_style_record,
+            environment: &raw const environment,
+            element_box_slot: crate::layout::node_data::NodeSlotId::INVALID.index,
+            callback_context: overlay_pointer,
+            prepare_overlay_for_mutation: overlay_for_mutation,
+            length_contexts: no_host_length_contexts,
+        };
+        // SAFETY: Everything `input` names lives until the sample returns.
+        let outcome =
+            unsafe { crate::css::style_compute::sample_without_host(&input, self, composed, transform_reference_box) }?;
+        if outcome == crate::css::style_compute::FfiHostAnimationSampleOutcome::Cleared {
+            overlay = AnimatedOverlay::default();
+        }
+
+        // What the host adjusts after it samples, an animated color scheme, and an inherited value the
+        // element's children hold as of the host's sample, are the host's to compose.
+        let has_children = self.tree.first_element_child(node).is_some();
+        if overlay.entries().iter().any(|entry| {
+            entry.post_compute_adjustment
+                || POST_COMPUTE_ADJUSTED_LONGHANDS.contains(&entry.property)
+                || entry.property == prop::COLOR_SCHEME
+                || (has_children && crate::css::property_metadata::property_is_inherited(entry.property))
+        }) {
+            return Err(NeedsHost);
+        }
+        // SAFETY: As above.
+        let table = unsafe { table.as_ref() }.ok_or(NeedsHost)?;
+        let used_color_scheme = u8::try_from(table.effective_color_scheme()).map_err(|_| NeedsHost)?;
+        let mut payloads = [std::ptr::null(); group_index::COUNT];
+        let rebuilt = self
+            .build_animation_overlay_payloads(
+                node,
+                crate::css::cascaded_properties::NO_PSEUDO_ELEMENT,
+                record,
+                table,
+                Some(&overlay),
+                used_color_scheme,
+                table.display_before_box_type_transformation(),
+                None,
+                &mut payloads,
+            )
+            .ok_or(NeedsHost)?
+            .map_err(|NeedsHostFont| NeedsHost)?;
+        let sampled = super::bridge::publish_computed_groups_from_inputs(
+            self,
+            0,
+            u8::MAX,
+            SharedPayload::from_pointer_slice(&payloads),
+            super::computed::ENGINE_INHERITED_GROUP_COUNT,
+            0,
+            false,
+            0,
+            0,
+            std::ptr::null(),
+            &[],
+            Some(table),
+            std::ptr::null(),
+        )
+        .new_style_record;
+        release_rebuilt_overlay_payloads(&payloads, rebuilt.groups);
+        Ok(super::layout_style::DerivedStyleRecord::pin(self, sampled))
     }
 }
 
