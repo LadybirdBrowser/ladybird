@@ -57,6 +57,15 @@ static Utf16String generate_a_random_uuid()
 
 // A navigation made again from the same source — one the user stopped, or a crash cut short — as a GET: A retry
 // shouldn't resubmit a form behind the user's back, so the document resource isn't sent again.
+// The page conducting the navigation: the one evaluating a javascript: URL, otherwise the one hosting the document it
+// populated.
+bool CanonicalNavigation::is_conducted_by(WebContentPage const& page) const
+{
+    if (url.has_value() && url->scheme() == "javascript"sv)
+        return population_worker == &page;
+    return phase == Phase::Populating && host == &page;
+}
+
 Web::HTML::PreparedNavigationDescriptor prepare_navigation_to_retry(Web::HTML::PreparedNavigationDescriptor navigation)
 {
     navigation.document_resource = {};
@@ -784,12 +793,6 @@ Optional<PopulatedDocument> const& CanonicalNavigable::populated_document() cons
     return m_document_populated_by_history_job;
 }
 
-RefPtr<CanonicalDocumentState> CanonicalNavigable::populating_document_state() const
-{
-    auto const& populated_document = this->populated_document();
-    return populated_document.has_value() ? populated_document->document_state.ptr() : nullptr;
-}
-
 RefPtr<CanonicalDocument> CanonicalNavigable::pending_document() const
 {
     auto const& populated_document = this->populated_document();
@@ -804,6 +807,16 @@ RefPtr<CanonicalDocument> CanonicalNavigable::document_populated_for(CanonicalDo
             document = populated_document.document;
     });
     return document;
+}
+
+PopulatedDocument const* CanonicalNavigable::populated_document_with_state_id(Web::HTML::CrossProcessId document_state_id) const
+{
+    PopulatedDocument const* result = nullptr;
+    for_each_populated_document([&](PopulatedDocument const& populated_document) {
+        if (populated_document.document_state->id == document_state_id)
+            result = &populated_document;
+    });
+    return result;
 }
 
 RefPtr<CanonicalDocument> CanonicalNavigable::document_with_id(Web::HTML::CrossProcessId id) const
@@ -887,22 +900,21 @@ void CanonicalNavigable::did_create_populated_document_with_an_origin_of_its_own
     populated_document->document = move(document);
 }
 
-// The history operation finalizing the ongoing navigation takes it: the one it names, or for a javascript: URL, which
-// names none, the one admitted before it. The document populated for the navigation waits on the navigable as a
-// history job's until the operation activates it.
-Optional<CanonicalNavigation> CanonicalNavigable::take_navigation_to_finalize(Optional<Utf16String> const& navigation_id, u64 operation_sequence_number)
+// The history operation finalizing the navigation takes it from the navigable at its queue position. A newer navigation
+// can still start before the operation applies the history step, which sets the ongoing navigation to "traversal". The
+// document populated for the navigation waits on the navigable as a history job's until the operation activates it.
+Optional<CanonicalNavigation> CanonicalNavigable::take_navigation_to_finalize(Utf16String const& navigation_id, WebContentPage const& page)
 {
-    if (!ongoing_navigation())
+    auto* navigation = ongoing_navigation();
+    if (!navigation || navigation->navigation_id != navigation_id || !navigation->is_conducted_by(page))
         return {};
-    if (navigation_id.has_value() ? ongoing_navigation()->navigation_id != navigation_id : ongoing_navigation()->sequence_number > operation_sequence_number)
-        return {};
-    if (ongoing_navigation()->populated_document.has_value()) {
+    if (navigation->populated_document.has_value()) {
         abandon_populated_document(m_document_populated_by_history_job);
-        m_document_populated_by_history_job = ongoing_navigation()->populated_document.release_value();
+        m_document_populated_by_history_job = navigation->populated_document.release_value();
     }
-    auto navigation = move(*ongoing_navigation());
+    auto taken_navigation = move(*navigation);
     m_ongoing_navigation = Empty {};
-    return navigation;
+    return taken_navigation;
 }
 
 void CanonicalNavigable::abandon_populated_document(CanonicalDocument const& document)
@@ -1356,14 +1368,6 @@ bool CanonicalNavigable::navigation_owner_matches(WebContentPage const& page) co
     return navigation_population_worker_matches(page) || navigation_host_matches(page);
 }
 
-bool CanonicalNavigable::navigation_transaction_matches(Utf16String const& navigation_id, WebContentPage const& page) const
-{
-    return ongoing_navigation()
-        && ongoing_navigation()->navigation_id == navigation_id
-        && ongoing_navigation()->phase == CanonicalNavigation::Phase::Populating
-        && navigation_host_matches(page);
-}
-
 bool CanonicalNavigable::cancel_navigation_transaction_for_client(WebContentClient& client)
 {
     if (!ongoing_navigation())
@@ -1379,19 +1383,16 @@ bool CanonicalNavigable::cancel_navigation_transaction_for_client(WebContentClie
     return true;
 }
 
-void CanonicalNavigable::did_finish_navigation_transaction(Optional<Utf16String> const& navigation_id, Web::HTML::HistoryStepResult result)
+// The history operation finalizing a navigation is over. The document populated for it, if it was not activated, is not
+// going to be.
+void CanonicalNavigable::did_finish_finalizing_navigation(Utf16String const& navigation_id, Web::HTML::CrossProcessId document_state_id, Web::HTML::HistoryStepResult result)
 {
-    if (!navigation_id.has_value())
-        return;
-
-    // A transaction still live at its operation's completion never activated its document.
-    if (ongoing_navigation() && ongoing_navigation()->navigation_id == navigation_id)
-        clear_ongoing_navigation();
-
-    if (result != Web::HTML::HistoryStepResult::Applied
-        && m_active_document_load.navigation_id == navigation_id) {
-        clear_active_document_load();
+    if (auto const* populated_document = populated_document_with_state_id(document_state_id)) {
+        NonnullRefPtr document = populated_document->document;
+        abandon_populated_document(*document);
     }
+    if (result != Web::HTML::HistoryStepResult::Applied && m_active_document_load.navigation_id == navigation_id)
+        clear_active_document_load();
 }
 
 bool CanonicalNavigable::matches_ongoing_navigation(Optional<Utf16String> const& navigation_id) const

@@ -27,7 +27,7 @@ ErrorOr<Web::FinalizeCrossDocumentNavigationHistoryOperationParameters> IPC::dec
     return Web::FinalizeCrossDocumentNavigationHistoryOperationParameters {
         .navigable_id = TRY(decoder.decode<Web::HTML::CrossProcessId>()),
         .history_entry = TRY(decoder.decode<Web::HTML::PendingSessionHistoryEntryDescriptor>()),
-        .navigation_id = TRY(decoder.decode<Optional<Utf16String>>()),
+        .navigation_id = TRY(decoder.decode<Utf16String>()),
         .history_handling = TRY(decoder.decode<Web::HTML::HistoryHandlingBehavior>()),
         .user_involvement = TRY(decoder.decode<Web::HTML::UserNavigationInvolvement>()),
         .environment_id = TRY(decoder.decode<Optional<Web::HTML::EnvironmentId>>()),

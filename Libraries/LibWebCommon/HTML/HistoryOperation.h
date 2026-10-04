@@ -25,7 +25,7 @@ namespace Web {
 struct FinalizeCrossDocumentNavigationHistoryOperationParameters {
     HTML::CrossProcessId navigable_id;
     HTML::PendingSessionHistoryEntryDescriptor history_entry;
-    Optional<Utf16String> navigation_id;
+    Utf16String navigation_id;
     HTML::HistoryHandlingBehavior history_handling;
     HTML::UserNavigationInvolvement user_involvement;
     Optional<Web::HTML::EnvironmentId> environment_id;
