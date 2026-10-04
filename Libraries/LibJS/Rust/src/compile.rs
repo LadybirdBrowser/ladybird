@@ -10,14 +10,10 @@
 //! [`compile_script()`], which returns the script's bytecode as
 //! [`ExecutableData`] along with the [`ScriptDeclarations`] that
 //! GlobalDeclarationInstantiation needs.
-
-#![cfg_attr(
-    not(feature = "cpp-runtime"),
-    allow(
-        dead_code,
-        reason = "only the C++ runtime compiles functions, modules and off-thread programs until the native API does"
-    )
-)]
+//!
+//! Nothing here needs the VM, so a runtime can also parse and compile on
+//! another thread with [`compile_parsed_program_off_thread()`] and finish the
+//! script or module on its main thread.
 
 use crate::ast;
 use crate::ast::StatementKind;
@@ -31,13 +27,18 @@ use crate::parser::ProgramType;
 use crate::u32_from_usize;
 use std::collections::HashSet;
 
-// Compile-time assertion: `ParsedProgram` travels between the parse worker
-// thread and the main thread, so it must be `Send`. After the StringId and
+// Compile-time assertion: what parse and compile produce travels from a worker
+// thread to the main thread, so it must be `Send`. After the StringId and
 // ScopeId arena migrations the AST itself contains no `Rc`/`Cell`/`RefCell`
-// values, so this is naturally satisfied without `unsafe impl Send`.
+// values, and compiled regexes are CompiledRegexHandles, so this is naturally
+// satisfied without `unsafe impl Send`.
 const _: fn() = || {
     fn assert_send<T: Send>() {}
     assert_send::<ParsedProgram>();
+    assert_send::<CompiledProgram>();
+    assert_send::<CompiledScript>();
+    assert_send::<CompiledModule>();
+    assert_send::<bytecode::generator::PrecompiledFunction>();
 };
 
 // =============================================================================
@@ -144,17 +145,13 @@ pub struct CompiledProgram {
     pub(crate) bytecode: CompiledProgramBytecode,
     pub(crate) declaration_functions: Vec<PendingSharedFunctionData>,
     pub(crate) source_len: usize,
+    function_precompile_mode: FunctionPrecompileMode,
 }
 
 pub(crate) enum CompiledProgramBytecode {
     Program(ExecutableData),
     AsyncModule(ExecutableData),
 }
-
-// SAFETY: `CompiledProgram` owns raw handles of compiled regular expressions,
-// which Rust never dereferences; it is created on the parse-worker thread and
-// consumed (or freed) on the main thread, never accessed concurrently.
-unsafe impl Send for CompiledProgram {}
 
 /// Convert scope local variables to generator LocalVariable format.
 fn convert_local_variables(scope: &ast::ScopeData) -> Vec<bytecode::generator::LocalVariable> {
@@ -258,9 +255,13 @@ pub fn compile_script(mut parsed: ParsedProgram, source_len: usize) -> CompiledS
     }
 }
 
-#[derive(Clone, Copy, PartialEq)]
-pub(crate) enum FunctionPrecompileMode {
+/// Which of the functions nested in the code being compiled get their bytecode right away, rather than when they are
+/// first called.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum FunctionPrecompileMode {
+    /// Only those that codegen expects to run right away, such as immediately invoked function expressions.
     EagerOnly,
+    /// All of them, which the bytecode cache and the breakpoint positions of a source need.
     All,
 }
 
@@ -441,11 +442,24 @@ fn precompile_declaration_function(
     }
 }
 
-pub(crate) fn compile_parsed_program_off_thread_impl(
+/// Compiles a script or module that parsed without errors from `source_len` code units, which needs no VM and so can
+/// run on any thread.
+///
+/// A program compiled with [`FunctionPrecompileMode::EagerOnly`] is meant to run: the main thread finishes it with
+/// [`CompiledProgram::into_script()`] or [`CompiledProgram::into_module()`]. One compiled with
+/// [`FunctionPrecompileMode::All`] is meant for the bytecode cache and for breakpoint positions.
+///
+/// # Panics
+/// Panics if `parsed` has errors.
+pub fn compile_parsed_program_off_thread(
     mut parsed: ParsedProgram,
     source_len: usize,
     function_precompile_mode: FunctionPrecompileMode,
 ) -> CompiledProgram {
+    assert!(
+        !parsed.has_errors(),
+        "compile_parsed_program_off_thread() needs a program without parse errors"
+    );
     let arena_arc = parsed.arena.clone();
     let (bytecode, declaration_functions) = if parsed.has_top_level_await {
         let mut generator = new_module_async_generator(source_len, std::mem::take(&mut parsed.function_table));
@@ -489,6 +503,108 @@ pub(crate) fn compile_parsed_program_off_thread_impl(
         bytecode,
         declaration_functions,
         source_len,
+        function_precompile_mode,
+    }
+}
+
+impl CompiledProgram {
+    pub fn program_type(&self) -> ProgramType {
+        self.parsed.program_type
+    }
+
+    pub fn has_top_level_await(&self) -> bool {
+        self.parsed.has_top_level_await
+    }
+
+    pub fn function_precompile_mode(&self) -> FunctionPrecompileMode {
+        self.function_precompile_mode
+    }
+
+    /// Finishes a script compiled with [`FunctionPrecompileMode::EagerOnly`] into what [`compile_script()`] returns.
+    ///
+    /// # Panics
+    /// Panics if the program is a module or was compiled with [`FunctionPrecompileMode::All`].
+    pub fn into_script(self) -> CompiledScript {
+        assert!(
+            self.parsed.program_type == ProgramType::Script,
+            "into_script() needs a script, not a module"
+        );
+        assert!(
+            self.function_precompile_mode == FunctionPrecompileMode::EagerOnly,
+            "into_script() needs a script compiled to run, not one compiled for the bytecode cache"
+        );
+        let CompiledProgram {
+            mut parsed, bytecode, ..
+        } = self;
+        let CompiledProgramBytecode::Program(executable) = bytecode else {
+            unreachable!("only a module with top-level await compiles to an async function body");
+        };
+        let declarations = collect_script_declarations(
+            &parsed.arena.scopes[parsed.scope_ref],
+            &mut parsed.function_table,
+            &parsed.arena,
+        );
+        CompiledScript {
+            executable,
+            declarations,
+        }
+    }
+
+    /// Finishes a module compiled with [`FunctionPrecompileMode::EagerOnly`] into what [`compile_module()`] returns.
+    ///
+    /// # Panics
+    /// Panics if the program is a script or was compiled with [`FunctionPrecompileMode::All`].
+    pub fn into_module(self) -> CompiledModule {
+        assert!(
+            self.parsed.program_type == ProgramType::Module,
+            "into_module() needs a module, not a script"
+        );
+        assert!(
+            self.function_precompile_mode == FunctionPrecompileMode::EagerOnly,
+            "into_module() needs a module compiled to run, not one compiled for the bytecode cache"
+        );
+        let CompiledProgram {
+            mut parsed, bytecode, ..
+        } = self;
+        let declarations = collect_module_declarations(
+            &parsed.arena.scopes[parsed.scope_ref],
+            parsed.has_top_level_await,
+            &mut parsed.function_table,
+            &parsed.arena,
+        );
+        let (CompiledProgramBytecode::Program(executable) | CompiledProgramBytecode::AsyncModule(executable)) =
+            bytecode;
+        CompiledModule {
+            executable,
+            declarations,
+        }
+    }
+
+    /// Frees a program that will not run, together with the regular expressions the host compiled for it. Dropping it
+    /// instead would leak those, since only the runtime that adopts an executable frees them otherwise.
+    pub fn discard(mut self) {
+        fn free_executable_regexes(executable: &mut ExecutableData) {
+            for regex in executable.compiled_regexes.drain(..) {
+                // SAFETY: No runtime adopted the executables of a program that is discarded, so they still own these.
+                unsafe { crate::host::free_compiled_regex(regex.into_raw()) };
+            }
+            for shared_data in &mut executable.shared_function_data {
+                if let Some(precompiled) = &mut shared_data.precompiled_function {
+                    free_executable_regexes(&mut precompiled.executable);
+                }
+            }
+        }
+
+        match &mut self.bytecode {
+            CompiledProgramBytecode::Program(executable) | CompiledProgramBytecode::AsyncModule(executable) => {
+                free_executable_regexes(executable);
+            }
+        }
+        for declaration in &mut self.declaration_functions {
+            if let Some(precompiled) = &mut declaration.precompiled_function {
+                free_executable_regexes(&mut precompiled.executable);
+            }
+        }
     }
 }
 
@@ -1541,21 +1657,18 @@ impl PendingSharedFunctionData {
     }
 }
 
-/// Compiles the body of a described function, along with the functions nested in it that must be compiled eagerly.
+/// Compiles the body of a described function, along with the functions nested in it that `mode` asks for. Like
+/// [`compile_parsed_program_off_thread()`], it needs no VM and so can run on any thread.
 #[allow(clippy::boxed_local)] // Runtimes keep the payload boxed until the first call; unboxing would copy it.
 pub fn compile_function(
     payload: Box<ast::FunctionPayload>,
     source_len: usize,
     builtin_abstract_operations_enabled: bool,
+    mode: FunctionPrecompileMode,
 ) -> Box<bytecode::generator::PrecompiledFunction> {
     let arena = payload.arena.clone();
-    let (_function_data, precompiled) = compile_function_payload_to_bytecode(
-        *payload,
-        source_len,
-        builtin_abstract_operations_enabled,
-        arena,
-        FunctionPrecompileMode::EagerOnly,
-    );
+    let (_function_data, precompiled) =
+        compile_function_payload_to_bytecode(*payload, source_len, builtin_abstract_operations_enabled, arena, mode);
     precompiled
 }
 

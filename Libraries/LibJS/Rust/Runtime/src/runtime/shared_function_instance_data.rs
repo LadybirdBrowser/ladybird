@@ -24,6 +24,7 @@ use crate::source_code::SourceCode;
 pub use libjs_rust::ast::FunctionKind;
 use libjs_rust::ast::FunctionPayload;
 use libjs_rust::bytecode::generator::{FunctionSfdMetadata, PendingSharedFunctionData, PrecompiledFunction};
+use libjs_rust::compile::FunctionPrecompileMode;
 use libjs_rust::compile::SharedFunctionDescription;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -567,8 +568,12 @@ impl SharedFunctionInstanceData {
         let source_length = source_code
             .as_ref()
             .map_or(usize::MAX, |source_code| source_code.length_in_code_units());
-        let precompiled =
-            libjs_rust::compile::compile_function(payload, source_length, builtin_abstract_operations_enabled);
+        let precompiled = libjs_rust::compile::compile_function(
+            payload,
+            source_length,
+            builtin_abstract_operations_enabled,
+            FunctionPrecompileMode::EagerOnly,
+        );
 
         shared_data.set_metadata(&precompiled.metadata);
 
