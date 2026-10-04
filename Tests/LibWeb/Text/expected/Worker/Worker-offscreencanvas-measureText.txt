@@ -1,0 +1,4 @@
+20px sans-serif: measured: true, same as the window: true
+20px serif: measured: true, same as the window: true
+20px monospace: measured: true, same as the window: true
+20px SerenitySans: measured: true, same as the window: true
