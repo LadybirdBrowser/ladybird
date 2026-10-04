@@ -77,19 +77,33 @@ public:
     // NB: A memo of a pure function, so filling it does not change what it answers.
     [[nodiscard]] NonnullRefPtr<Gfx::FontCascadeList const> resolve(FontFaceSnapshot const&, ComputedFontCacheKey const&, FontFeatureValuesProvider const&) const;
     // NB: Only under a font environment generation newer than any resolved against: the style engine names the memo's
-    //     cascades without holding a reference to them for as long as a generation stands.
+    //     cascades without holding a reference to them for as long as a generation stands, so the forgotten ones are
+    //     retired, not released, as a style transaction that flew may still name them.
     void forget_matching(u64 environment_generation, Function<bool(ComputedFontCacheKey const&, NonnullRefPtr<Gfx::FontCascadeList const> const&)> const&);
+    // Releases the retired cascades, on the document thread, where the engine is about to resolve against the newest
+    // table: what it named from older ones is never read again.
+    void release_retired() const;
+
+    struct ResolutionAgainstOlderTable {
+        ComputedFontCacheKey key;
+        NonnullRefPtr<Gfx::FontCascadeList const> font_list;
+    };
+    // The cascades resolved against an older table since last taken, which may answer their requests differently now.
+    [[nodiscard]] Vector<ResolutionAgainstOlderTable> take_resolutions_against_older_tables() const;
 
 private:
     FontCascadeMemo() = default;
 
-    // Guards the two members below. A resolution runs under it, so a cascade is resolved once however many threads
+    // Guards the four members below. A resolution runs under it, so a cascade is resolved once however many threads
     // want it.
     mutable Mutex m_mutex;
     mutable HashMap<ComputedFontCacheKey, NonnullRefPtr<Gfx::FontCascadeList const>> m_cascades;
-    // The newest snapshot generation resolved against. An older one would write a stale cascade where every later
-    // request reads it.
+    // The newest snapshot generation resolved against or forgotten under. An older one would write a stale cascade
+    // where every later request reads it.
     mutable u64 m_generation { 0 };
+    // The cascades forgotten, or resolved against an older table, that the engine may still name.
+    mutable Vector<NonnullRefPtr<Gfx::FontCascadeList const>> m_retired;
+    mutable Vector<ResolutionAgainstOlderTable> m_resolutions_against_older_tables;
 };
 
 }

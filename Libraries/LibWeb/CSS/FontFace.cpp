@@ -5,7 +5,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Atomic.h>
 #include <AK/ByteBuffer.h>
+#include <AK/Mutex.h>
 #include <AK/NeverDestroyed.h>
 #include <AK/ScopeGuard.h>
 #include <LibCore/Promise.h>
@@ -281,7 +283,7 @@ GC::Ref<FontFace> FontFaceState::create_for_constructor(JS::Object& relevant_glo
                 //    fulfill font face’s [[FontStatusPromise]] with font face, and set its status attribute to "loaded".
 
                 // FIXME: Are we supposed to set the properties of the FontFace based on the loaded vector font?
-                font->m_parsed_font = vector_font;
+                font->set_parsed_font(vector_font);
                 font->m_status = FontFaceLoadStatus::Loaded;
                 auto& realm = font->m_environment->realm();
                 if (font->m_font_status_promise)
@@ -425,9 +427,39 @@ RefPtr<FontFaceState> FontFaceState::with_id(u64 id)
     return font_faces_by_id().get(id).value_or(nullptr);
 }
 
-static Vector<u64>& wanted_web_faces()
+// The faces the style computations selected, which the main thread loads. A computation notes them on whichever
+// thread it runs, a frame in flight's included, so the list is shared under a lock. Every style update ends by taking
+// them, and almost always finds none, so whether there are any is read without the lock.
+class WantedWebFaces {
+    AK_ALLOC_WITH_KMALLOC;
+
+public:
+    void note(u64 face_id)
+    {
+        MutexLocker locker(m_mutex);
+        if (!m_face_ids.contains_slow(face_id))
+            m_face_ids.append(face_id);
+        m_any.store(true, AK::memory_order_release);
+    }
+
+    Vector<u64> take()
+    {
+        if (!m_any.load(AK::memory_order_acquire))
+            return {};
+        MutexLocker locker(m_mutex);
+        m_any.store(false, AK::memory_order_relaxed);
+        return exchange(m_face_ids, {});
+    }
+
+private:
+    Mutex m_mutex;
+    Vector<u64> m_face_ids;
+    Atomic<bool> m_any { false };
+};
+
+static WantedWebFaces& wanted_web_faces()
 {
-    static NeverDestroyed<Vector<u64>> wanted;
+    static NeverDestroyed<WantedWebFaces> wanted;
     return *wanted;
 }
 
@@ -435,9 +467,7 @@ static u32 s_deferred_web_face_load_depth { 0 };
 
 void note_wanted_web_face(u64 face_id)
 {
-    auto& wanted = wanted_web_faces();
-    if (!wanted.contains_slow(face_id))
-        wanted.append(face_id);
+    wanted_web_faces().note(face_id);
 }
 
 void request_wanted_web_faces()
@@ -445,8 +475,8 @@ void request_wanted_web_faces()
     if (s_deferred_web_face_load_depth != 0)
         return;
     // NB: A face that loads at once invalidates the selections that wanted it, and selecting again can want more.
-    while (!wanted_web_faces().is_empty()) {
-        for (auto face_id : exchange(wanted_web_faces(), {})) {
+    for (auto face_ids = wanted_web_faces().take(); !face_ids.is_empty(); face_ids = wanted_web_faces().take()) {
+        for (auto face_id : face_ids) {
             if (auto face = FontFaceState::with_id(face_id))
                 face->load_for_style();
         }
@@ -567,38 +597,6 @@ CSSFontFaceRule& FontFaceState::cssom_rule() const
     auto* rule = m_source_style_sheet->rules().rule_for_identity(*m_css_font_face_rule_identity);
     VERIFY(rule);
     return as<CSSFontFaceRule>(*rule);
-}
-
-RefPtr<Gfx::FontCascadeList const> FontFaceState::font_with_point_size(float point_size, Gfx::FontVariationSettings const& variations, Gfx::ShapeFeatures const& shape_features) const
-{
-    if (m_font_display_failed || m_status == FontFaceLoadStatus::Error)
-        return {};
-    auto font_list = Gfx::FontCascadeList::create();
-    if (m_parsed_font) {
-        font_list->add(m_parsed_font->font(point_size, variations, shape_features), m_unicode_ranges);
-    } else if (has_urls()) {
-        // NB: Document-owned cascades must not root faces, which trace back to their owning document.
-        font_list->add_pending_face(m_unicode_ranges, [weak_face = make_weak_ptr()] {
-            if (weak_face)
-                return weak_face->resolve_for_rendering();
-            return Gfx::PendingFontState::Failed; }, [weak_face = make_weak_ptr(), point_size, variations, shape_features]() -> RefPtr<Gfx::Font const> {
-            if (weak_face && weak_face->m_parsed_font && !weak_face->m_font_display_failed)
-                return weak_face->m_parsed_font->font(point_size, variations, shape_features);
-            return {}; }, [weak_face = make_weak_ptr()] {
-            if (weak_face)
-                return weak_face->rendering_state_without_requesting();
-            return Gfx::PendingFontState::Failed; });
-    }
-    if (font_list->is_empty())
-        return {};
-    return font_list;
-}
-
-RefPtr<Gfx::Font const> FontFaceState::font_for_rendering(float point_size, Gfx::FontVariationSettings const& variations, Gfx::ShapeFeatures const& shape_features) const
-{
-    if (m_parsed_font && !m_font_display_failed)
-        return m_parsed_font->font(point_size, variations, shape_features);
-    return {};
 }
 
 // https://drafts.csswg.org/css-fonts-4/#font-display-timeline
@@ -726,6 +724,7 @@ void FontFaceState::update_font_display_period()
         // NB: This failure only affects rendering. The Font Loading API can still finish loading the font.
         m_font_display_period = FontDisplayPeriod::Failure;
         m_font_display_failed = true;
+        m_rendering_typeface->set(nullptr);
     } else if (elapsed < block_period) {
         m_font_display_period = FontDisplayPeriod::Block;
         next_deadline = block_period;
@@ -771,7 +770,16 @@ bool FontFaceState::is_pending_rendering_from_cache() const
 void FontFaceState::set_font_display_time_for_testing(u32 milliseconds)
 {
     m_font_display_time_for_testing = milliseconds;
+    // NB: Before its timer starts, the period the face's snapshot records is the one this time puts it in.
+    if (!m_font_download_timer_start.has_value())
+        invalidate_font_display();
     update_font_display_period();
+}
+
+void FontFaceState::set_parsed_font(RefPtr<Gfx::Typeface const> typeface)
+{
+    m_parsed_font = move(typeface);
+    m_rendering_typeface->set(m_font_display_failed ? nullptr : m_parsed_font);
 }
 
 // https://drafts.csswg.org/css-font-loading/#dom-fontface-family
@@ -1152,7 +1160,7 @@ void FontFaceState::load_for_style()
         font.m_font_download_completed = true;
         if (font.m_font_download_timer)
             font.m_font_download_timer->stop();
-        font.m_parsed_font = maybe_typeface;
+        font.set_parsed_font(maybe_typeface);
         // NB: The typeface is usable from here on, one task before the font-loading task below announces it, so the
         //     selections that met the face pending are stale now rather than then.
         if (maybe_typeface && font.should_be_registered_with_font_computer()) {
@@ -1206,7 +1214,7 @@ void FontFaceState::did_load(RefPtr<Gfx::Typeface const> maybe_typeface)
     //    and set font face’s status attribute to "loaded".
     else {
         auto& realm = m_environment->realm();
-        m_parsed_font = maybe_typeface;
+        set_parsed_font(maybe_typeface);
         m_status = FontFaceLoadStatus::Loaded;
         if (m_font_status_promise)
             resolve_font_face_promise(realm, *m_font_status_promise, *this);

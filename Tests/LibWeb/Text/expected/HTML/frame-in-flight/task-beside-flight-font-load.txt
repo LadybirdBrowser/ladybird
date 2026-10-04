@@ -1,0 +1,3 @@
+state next task: in-flight
+state after the face loaded: loaded
+the text is set in the face: true

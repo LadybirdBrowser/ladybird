@@ -8,13 +8,40 @@
 
 #include <AK/AtomicRefCounted.h>
 #include <AK/HashMap.h>
+#include <AK/Mutex.h>
 #include <AK/NeverDestroyed.h>
 #include <AK/Vector.h>
 #include <LibGfx/Font/Typeface.h>
 #include <LibGfx/Font/UnicodeRange.h>
+#include <LibGfx/FontCascadeList.h>
 #include <LibWeb/CSS/FontComputer.h>
 
 namespace Web::CSS {
+
+// The typeface a face renders with, which the face publishes on the document thread as it loads or its font-display
+// period fails, and which a cascade with the face pending reads on whichever thread it is laid out: the face itself is
+// the document thread's alone.
+class FontFaceRenderingTypeface final : public AtomicRefCounted<FontFaceRenderingTypeface> {
+public:
+    static NonnullRefPtr<FontFaceRenderingTypeface> create() { return adopt_ref(*new FontFaceRenderingTypeface); }
+
+    [[nodiscard]] RefPtr<Gfx::Typeface const> get() const
+    {
+        MutexLocker locker(m_mutex);
+        return m_typeface;
+    }
+    void set(RefPtr<Gfx::Typeface const> typeface)
+    {
+        MutexLocker locker(m_mutex);
+        m_typeface = move(typeface);
+    }
+
+private:
+    FontFaceRenderingTypeface() = default;
+
+    mutable Mutex m_mutex;
+    RefPtr<Gfx::Typeface const> m_typeface;
+};
 
 // The document's @font-face table at one font environment generation: what font matching reads of each face, and
 // nothing that could reach the face itself. Immutable once built, so resolving a font from it cannot start a load or
@@ -27,6 +54,10 @@ public:
         u64 id { 0 };
         // The loaded typeface, or null while the face is pending.
         RefPtr<Gfx::Typeface const> typeface;
+        // What a cascade with the face pending renders with once the face has loaded.
+        NonnullRefPtr<FontFaceRenderingTypeface const> rendering_typeface;
+        // Where a pending face is on its font-display timeline, which a frozen cascade records.
+        Gfx::PendingFontState rendering_state { Gfx::PendingFontState::Visible };
         Vector<Gfx::UnicodeRange> unicode_ranges;
         bool has_urls { false };
         // Its font-display period failed or its load errored, so it contributes nothing.

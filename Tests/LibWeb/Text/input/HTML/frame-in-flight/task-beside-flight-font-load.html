@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<span id="text" style="font: 20px monospace">beside the frame</span>
+<script>
+    // A web face that finishes loading beside a frame in flight whose style transaction selected it for an element:
+    // the element holds the transaction's style once its drain installs it, and the loaded face reaches it then.
+    asyncTest(async done => {
+        const widthWithoutFace = text.offsetWidth;
+        const face = new FontFace("BesideFlightFace", "url(../../../../Assets/HashSans.woff)");
+        document.fonts.add(face);
+        const states = await whileRecordingInFlight(() => {
+            text.style.fontFamily = "BesideFlightFace, monospace";
+        }, async state => {
+            const states = [`next task: ${state}`];
+            await face.load();
+            states.push(`after the face loaded: ${face.status}`);
+            return states;
+        });
+        for (const state of states)
+            println(`state ${state}`);
+        await twoFrames();
+        println(`the text is set in the face: ${text.offsetWidth !== widthWithoutFace}`);
+        done();
+    });
+</script>

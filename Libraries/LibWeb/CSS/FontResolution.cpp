@@ -77,9 +77,10 @@ static Optional<Gfx::SystemUIFontKind> macos_system_ui_font_kind_from_family_nam
 }
 #endif
 
-// What FontFaceState::font_with_point_size() answers for one face, read from the snapshot rather than from the face. A
-// face still waiting on its load becomes a pending entry that names the face by its number, so that selecting it for a
-// rendered code point later reaches the face through the document's registry.
+// What one face of the snapshot renders with. A face still waiting on its load becomes a pending entry: a cascade is
+// frozen and laid out on whichever thread resolves it, so the entry reads the snapshot and the typeface the face
+// publishes, and only selecting it for a rendered code point, on the document thread, reaches the face, by its number
+// through the document's registry.
 static RefPtr<Gfx::FontCascadeList const> font_for_face(FontFaceSnapshot::Face const& face, float point_size, Gfx::FontVariationSettings const& variations, Gfx::ShapeFeatures const& shape_features)
 {
     if (face.is_unusable)
@@ -91,13 +92,10 @@ static RefPtr<Gfx::FontCascadeList const> font_for_face(FontFaceSnapshot::Face c
         font_list->add_pending_face(face.unicode_ranges, [face_id = face.id] {
             if (auto face = FontFaceState::with_id(face_id))
                 return face->resolve_for_rendering();
-            return Gfx::PendingFontState::Failed; }, [face_id = face.id, point_size, variations, shape_features]() -> RefPtr<Gfx::Font const> {
-            if (auto face = FontFaceState::with_id(face_id))
-                return face->font_for_rendering(point_size, variations, shape_features);
-            return {}; }, [face_id = face.id] {
-            if (auto face = FontFaceState::with_id(face_id))
-                return face->rendering_state_without_requesting();
-            return Gfx::PendingFontState::Failed; });
+            return Gfx::PendingFontState::Failed; }, [rendering_typeface = face.rendering_typeface, point_size, variations, shape_features]() -> RefPtr<Gfx::Font const> {
+            if (auto typeface = rendering_typeface->get())
+                return typeface->font(point_size, variations, shape_features);
+            return {}; }, [state = face.rendering_state] { return state; });
     }
     if (font_list->is_empty())
         return {};
@@ -146,10 +144,7 @@ struct MatchingFontCandidate {
                     face.unicode_ranges, [face_id = face.id] {
                         if (auto face = FontFaceState::with_id(face_id))
                             return face->resolve_for_rendering();
-                        return Gfx::PendingFontState::Failed; }, {}, [face_id = face.id] {
-                        if (auto face = FontFaceState::with_id(face_id))
-                            return face->rendering_state_without_requesting();
-                        return Gfx::PendingFontState::Failed; });
+                        return Gfx::PendingFontState::Failed; }, {}, [state = face.rendering_state] { return state; });
             }
         }
         if (font_list->is_empty())
@@ -551,7 +546,15 @@ NonnullRefPtr<Gfx::FontCascadeList const> resolve_font_for_style_values(FontComp
 NonnullRefPtr<Gfx::FontCascadeList const> FontCascadeMemo::resolve(FontFaceSnapshot const& snapshot, ComputedFontCacheKey const& key, FontFeatureValuesProvider const& font_feature_values_for_family) const
 {
     MutexLocker locker(m_mutex);
-    VERIFY(snapshot.generation() >= m_generation);
+    // A style transaction that flew resolves against the snapshot it was sealed with, which a change to the
+    // @font-face table beside it leaves older than the memo: its answers are its own, and stay out of the memo, retired
+    // with the cascades the change forgot.
+    if (snapshot.generation() < m_generation) {
+        auto font_list = resolve_font_cascade(snapshot, key, font_feature_values_for_family);
+        m_retired.append(font_list);
+        m_resolutions_against_older_tables.append({ key, font_list });
+        return font_list;
+    }
     m_generation = snapshot.generation();
     return m_cascades.ensure(key, [&] {
         return resolve_font_cascade(snapshot, key, font_feature_values_for_family);
@@ -562,7 +565,31 @@ void FontCascadeMemo::forget_matching(u64 environment_generation, Function<bool(
 {
     MutexLocker locker(m_mutex);
     VERIFY(environment_generation > m_generation);
-    m_cascades.remove_all_matching([&](auto const& key, auto const& font_list) { return predicate(key, font_list); });
+    m_generation = environment_generation;
+    m_cascades.remove_all_matching([&](auto const& key, auto const& font_list) {
+        if (!predicate(key, font_list))
+            return false;
+        m_retired.append(font_list);
+        return true;
+    });
+}
+
+void FontCascadeMemo::release_retired() const
+{
+    // NB: A cascade's destructor releases fonts into the document thread's caches, so it runs outside the lock.
+    Vector<NonnullRefPtr<Gfx::FontCascadeList const>> retired;
+    Vector<ResolutionAgainstOlderTable> resolutions_against_older_tables;
+    {
+        MutexLocker locker(m_mutex);
+        retired = move(m_retired);
+        resolutions_against_older_tables = move(m_resolutions_against_older_tables);
+    }
+}
+
+Vector<FontCascadeMemo::ResolutionAgainstOlderTable> FontCascadeMemo::take_resolutions_against_older_tables() const
+{
+    MutexLocker locker(m_mutex);
+    return exchange(m_resolutions_against_older_tables, {});
 }
 
 }
