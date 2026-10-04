@@ -440,6 +440,7 @@ static void mark_lifecycle_event(Request const* request, Optional<MonotonicTime>
 NonnullOwnPtr<Request> Request::fetch(
     u64 request_id,
     Optional<HTTP::DiskCache&> disk_cache,
+    Optional<HTTP::NetworkIsolationKey> network_isolation_key,
     HTTP::CacheMode cache_mode,
     ConnectionFromClient& client,
     void* curl_multi,
@@ -454,7 +455,7 @@ NonnullOwnPtr<Request> Request::fetch(
     Optional<u32> address_selection_hint,
     bool notify_on_cache_miss)
 {
-    auto request = adopt_own(*new Request { request_id, RequestType::Fetch, disk_cache, cache_mode, client, curl_multi, resolver, move(url), move(method), move(request_headers), move(request_body), include_credentials, move(alt_svc_cache_path), move(transfer_lease) });
+    auto request = adopt_own(*new Request { request_id, RequestType::Fetch, disk_cache, move(network_isolation_key), cache_mode, client, curl_multi, resolver, move(url), move(method), move(request_headers), move(request_body), include_credentials, move(alt_svc_cache_path), move(transfer_lease) });
     request->m_address_selection_hint = address_selection_hint;
     request->m_notify_on_cache_miss = notify_on_cache_miss;
     request->process();
@@ -479,6 +480,7 @@ NonnullOwnPtr<Request> Request::connect(
 NonnullOwnPtr<Request> Request::revalidate(
     u64 request_id,
     Optional<HTTP::DiskCache&> disk_cache,
+    HTTP::NetworkIsolationKey network_isolation_key,
     ConnectionFromClient& client,
     void* curl_multi,
     Resolver& resolver,
@@ -489,7 +491,7 @@ NonnullOwnPtr<Request> Request::revalidate(
     HTTP::Cookie::IncludeCredentials include_credentials,
     Optional<ByteString> alt_svc_cache_path)
 {
-    auto request = adopt_own(*new Request { request_id, RequestType::BackgroundRevalidation, disk_cache, HTTP::CacheMode::Default, client, curl_multi, resolver, move(url), move(method), move(request_headers), move(request_body), include_credentials, move(alt_svc_cache_path) });
+    auto request = adopt_own(*new Request { request_id, RequestType::BackgroundRevalidation, disk_cache, move(network_isolation_key), HTTP::CacheMode::Default, client, curl_multi, resolver, move(url), move(method), move(request_headers), move(request_body), include_credentials, move(alt_svc_cache_path) });
     request->process();
 
     return request;
@@ -499,6 +501,7 @@ Request::Request(
     u64 request_id,
     RequestType type,
     Optional<HTTP::DiskCache&> disk_cache,
+    Optional<HTTP::NetworkIsolationKey> network_isolation_key,
     HTTP::CacheMode cache_mode,
     ConnectionFromClient& client,
     void* curl_multi,
@@ -512,7 +515,9 @@ Request::Request(
     Optional<Requests::RequestTransferLeaseKey> transfer_lease)
     : m_request_id(request_id)
     , m_type(type)
-    , m_disk_cache(disk_cache)
+    , m_network_isolation_key(move(network_isolation_key))
+    , m_disk_cache(m_network_isolation_key.has_value() && m_network_isolation_key->frame_site.has_value() ? disk_cache : OptionalNone {})
+    , m_disk_cache_partition(m_network_isolation_key.has_value() ? m_network_isolation_key->disk_cache_partition() : OptionalNone {})
     , m_cache_mode(cache_mode)
     , m_client(&client)
     , m_curl_multi_handle(curl_multi)
@@ -906,14 +911,14 @@ void Request::handle_initial_state()
             ? HTTP::DiskCache::OpenMode::Revalidate
             : HTTP::DiskCache::OpenMode::Read;
 
-        m_disk_cache->open_entry(*this, m_url, m_method, m_request_headers, m_cache_mode, open_mode)
+        m_disk_cache->open_entry(*this, *m_disk_cache_partition, m_url, m_method, m_request_headers, m_cache_mode, open_mode)
             .visit(
                 [&](Optional<HTTP::CacheEntryReader&> cache_entry_reader) {
                     m_cache_entry_reader = cache_entry_reader;
 
                     if (m_cache_entry_reader.has_value()) {
                         if (m_cache_entry_reader->revalidation_type() == HTTP::CacheEntryReader::RevalidationType::StaleWhileRevalidate)
-                            m_client->start_revalidation_request({}, m_method, m_url, m_request_headers, m_request_body, m_include_credentials);
+                            m_client->start_revalidation_request({}, *m_network_isolation_key, m_method, m_url, m_request_headers, m_request_body, m_include_credentials);
 
                         if (is_revalidation_request())
                             transition_to_state(State::DNSLookup);
@@ -938,7 +943,7 @@ void Request::handle_initial_state()
             return;
         }
 
-        m_disk_cache->create_entry(*this, m_url, m_method, m_request_headers, m_request_start_time)
+        m_disk_cache->create_entry(*this, *m_disk_cache_partition, m_url, m_method, m_request_headers, m_request_start_time)
             .visit(
                 [&](Optional<HTTP::CacheEntryWriter&> cache_entry_writer) {
                     m_cache_entry_writer = cache_entry_writer;
@@ -983,7 +988,7 @@ void Request::wait_for_cache_timed_out()
     // A request that's still filling or revalidating the entry — however slowly — releases it when it's done. So,
     // only a holder that's shown no sign of life for a whole wait limit counts as stalled. Otherwise, keep waiting —
     // and look again once the holder has had a full limit's worth of time to go quiet.
-    if (auto last_activity_time = m_disk_cache->last_activity_time_of_open_entries(m_url, m_method); last_activity_time.has_value()) {
+    if (auto last_activity_time = m_disk_cache->last_activity_time_of_open_entries(*m_disk_cache_partition, m_url, m_method); last_activity_time.has_value()) {
         auto idle_time = MonotonicTime::now() - *last_activity_time;
         if (idle_time < s_wait_for_cache_timeout) {
             auto time_until_stalled = s_wait_for_cache_timeout - idle_time;
@@ -1526,7 +1531,7 @@ size_t Request::on_data_received(void* buffer, size_t size, size_t nmemb, void* 
         if (request.revalidation_failed().is_error())
             return CURL_WRITEFUNC_ERROR;
 
-        request.m_disk_cache->create_entry(request, request.m_url, request.m_method, request.m_request_headers, request.m_request_start_time)
+        request.m_disk_cache->create_entry(request, *request.m_disk_cache_partition, request.m_url, request.m_method, request.m_request_headers, request.m_request_start_time)
             .visit(
                 [&](Optional<HTTP::CacheEntryWriter&> cache_entry_writer) {
                     request.m_cache_entry_writer = cache_entry_writer;
@@ -1739,7 +1744,7 @@ void Request::transfer_headers_to_client_if_needed()
     if (m_cache_status == CacheStatus::ReadFromCache && m_disk_cache.has_value()) {
         VERIFY(m_cache_entry_reader.has_value());
         javascript_bytecode_cache_vary_key = m_cache_entry_reader->vary_key();
-        auto data = m_disk_cache->retrieve_associated_data_file(m_url, m_method, *m_request_headers, javascript_bytecode_cache_vary_key, HTTP::CacheEntryAssociatedData::JavaScriptBytecode);
+        auto data = m_disk_cache->retrieve_associated_data_file(*m_disk_cache_partition, m_url, m_method, *m_request_headers, javascript_bytecode_cache_vary_key, HTTP::CacheEntryAssociatedData::JavaScriptBytecode);
         if (!data.is_error() && data.value().has_value()) {
             javascript_bytecode_size = data.value()->size;
             javascript_bytecode = IPC::File::adopt_fd(data.value()->fd);

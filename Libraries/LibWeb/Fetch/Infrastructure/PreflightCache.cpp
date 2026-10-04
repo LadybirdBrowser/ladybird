@@ -25,8 +25,10 @@ void PreflightCache::create_a_new_cache_entry(Request const& request, AK::Durati
     if (max_age.is_negative() || max_age.is_zero())
         return;
 
+    // NB: A request without a network partition key comes from a context of no site, whose state is never shared.
     auto partition_key = determine_the_network_partition_key(request);
-    VERIFY(partition_key.has_value());
+    if (!partition_key.has_value())
+        return;
 
     // 1. Let entry be a cache entry, initialized as follows:
     Entry entry {

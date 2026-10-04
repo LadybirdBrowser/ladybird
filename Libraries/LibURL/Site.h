@@ -6,6 +6,8 @@
 
 #pragma once
 
+#include <AK/Optional.h>
+#include <AK/Utf16String.h>
 #include <AK/Variant.h>
 #include <LibURL/Host.h>
 #include <LibURL/Origin.h>
@@ -29,6 +31,11 @@ public:
     bool is_same_site(Site const& other) const;
 
     String serialize() const;
+
+    // AD-HOC: The serialized site of origin that partitioned state is keyed by, or nothing if origin is opaque. An opaque
+    //         origin is a site of its own that nothing else can address, so state keyed by it is never shared. Like other
+    //         browsers, we treat file: URLs, whose origins are otherwise opaque, as one site.
+    static Optional<Utf16String> serialize_for_partitioning(Origin const&);
 
 private:
     Site(Variant<Origin, SchemeAndHost>);

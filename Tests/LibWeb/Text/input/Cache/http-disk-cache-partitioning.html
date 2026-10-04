@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    const TEST_CACHE_ENABLED_HEADER = "X-Ladybird-Enable-Disk-Cache";
+    const TEST_CACHE_STATUS_HEADER = "X-Ladybird-Disk-Cache-Status";
+
+    // Fetches the resource twice and returns the disk cache status of each response.
+    async function fetchTwice(resourceURL) {
+        const statuses = [];
+        for (let i = 0; i < 2; ++i) {
+            const response = await fetch(resourceURL, { headers: { [TEST_CACHE_ENABLED_HEADER]: "1" } });
+            await response.text();
+            statuses.push(response.headers.get(TEST_CACHE_STATUS_HEADER));
+        }
+        return statuses;
+    }
+
+    async function fetchTwiceInCrossSiteFrame(server, resourceURL, name) {
+        const frameScript = `${fetchTwice.toString()}
+            globalThis.internals?.setHttpMemoryCacheEnabled(false);
+            fetchTwice(${JSON.stringify(resourceURL)}).then(statuses => parent.postMessage(statuses, "*"));`;
+
+        const frameEchoURL = await server.createEcho("GET", `/cache-partitioning/${name}.html`, {
+            status: 200,
+            headers: { "Content-Type": "text/html", "Cache-Control": "no-store" },
+            body: `<!DOCTYPE html><script>const TEST_CACHE_ENABLED_HEADER = "${TEST_CACHE_ENABLED_HEADER}"; const TEST_CACHE_STATUS_HEADER = "${TEST_CACHE_STATUS_HEADER}"; ${frameScript}<\/script>`,
+        });
+
+        const frameURL = new URL(frameEchoURL);
+        frameURL.hostname = uniqueLocalhostHostname(name);
+
+        const iframe = document.createElement("iframe");
+        const statuses = new Promise(resolve => {
+            window.addEventListener("message", function listener(event) {
+                if (event.source !== iframe.contentWindow)
+                    return;
+                window.removeEventListener("message", listener);
+                resolve(event.data);
+            });
+        });
+        iframe.src = frameURL.href;
+        document.body.appendChild(iframe);
+        return statuses;
+    }
+
+    asyncTest(async done => {
+        // Responses must come from RequestServer's disk cache, not from this process's memory cache.
+        const httpMemoryCacheWasEnabled = internals.setHttpMemoryCacheEnabled(false);
+        const server = httpTestServer();
+
+        const corsHeaders = {
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Headers": TEST_CACHE_ENABLED_HEADER,
+            "Access-Control-Expose-Headers": TEST_CACHE_STATUS_HEADER,
+        };
+        await server.createEcho("OPTIONS", "/cache-partitioning/resource", { status: 200, headers: corsHeaders });
+        const resourceURL = await server.createEcho("GET", "/cache-partitioning/resource", {
+            status: 200,
+            headers: { ...corsHeaders, "Cache-Control": "max-age=60" },
+            body: "resource",
+        });
+
+        println(`Top-level document: ${(await fetchTwice(resourceURL)).join(", ")}`);
+        println(`Cross-site frame: ${(await fetchTwiceInCrossSiteFrame(server, resourceURL, "first-frame")).join(", ")}`);
+        println(`Another cross-site frame: ${(await fetchTwiceInCrossSiteFrame(server, resourceURL, "second-frame")).join(", ")}`);
+        println(`Top-level document again: ${(await fetchTwice(resourceURL)).join(", ")}`);
+
+        internals.setHttpMemoryCacheEnabled(httpMemoryCacheWasEnabled);
+        done();
+    });
+</script>

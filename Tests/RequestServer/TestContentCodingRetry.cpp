@@ -116,7 +116,7 @@ TEST_CASE(content_coding_retry_keeps_client_supplied_cookie_header)
     UnsupportedCodingServer server;
     auto message = make<Messages::RequestServer::StartRequest>(
         0, ByteString { "GET" }, server.url(), Vector<HTTP::Header> { { "Cookie", "supplied=by-the-client" } }, ByteBuffer {},
-        HTTP::CacheMode::NoStore, HTTP::Cookie::IncludeCredentials::No, false, Optional<u32> {}, false, 0, 0);
+        HTTP::CacheMode::NoStore, Optional<HTTP::NetworkIsolationKey> {}, HTTP::Cookie::IncludeCredentials::No, false, Optional<u32> {}, false, 0, 0);
     VERIFY(!MUST(static_cast<RequestServerEndpoint::Stub&>(*connection).handle(move(message))));
 
     event_loop.spin_until([&] { return server.request_heads().size() >= 2; });

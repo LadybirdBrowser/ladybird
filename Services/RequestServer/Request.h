@@ -23,6 +23,7 @@
 #include <LibHTTP/Cookie/ParsedCookie.h>
 #include <LibHTTP/HSTS/ParsedHSTSPolicy.h>
 #include <LibHTTP/HeaderList.h>
+#include <LibHTTP/NetworkIsolationKey.h>
 #include <LibIPC/File.h>
 #include <LibRequests/NetworkError.h>
 #include <LibRequests/RequestTimingInfo.h>
@@ -46,6 +47,7 @@ public:
     static NonnullOwnPtr<Request> fetch(
         u64 request_id,
         Optional<HTTP::DiskCache&> disk_cache,
+        Optional<HTTP::NetworkIsolationKey> network_isolation_key,
         HTTP::CacheMode cache_mode,
         ConnectionFromClient& client,
         void* curl_multi,
@@ -71,6 +73,7 @@ public:
     static NonnullOwnPtr<Request> revalidate(
         u64 request_id,
         Optional<HTTP::DiskCache&> disk_cache,
+        HTTP::NetworkIsolationKey network_isolation_key,
         ConnectionFromClient& client,
         void* curl_multi,
         Resolver& resolver,
@@ -174,6 +177,7 @@ private:
         u64 request_id,
         RequestType type,
         Optional<HTTP::DiskCache&> disk_cache,
+        Optional<HTTP::NetworkIsolationKey> network_isolation_key,
         HTTP::CacheMode cache_mode,
         ConnectionFromClient& client,
         void* curl_multi,
@@ -267,7 +271,11 @@ private:
     RequestType m_type { RequestType::Fetch };
     State m_state { State::Init };
 
+    Optional<HTTP::NetworkIsolationKey> m_network_isolation_key;
+
+    // A request without a disk cache partition never uses the disk cache.
     Optional<HTTP::DiskCache&> m_disk_cache;
+    Optional<Utf16String> m_disk_cache_partition;
     HTTP::CacheMode m_cache_mode { HTTP::CacheMode::Default };
     ConnectionFromClient* m_client { nullptr };
 

@@ -1,0 +1,4 @@
+Top-level document: written-to-cache, read-from-cache
+Cross-site frame: written-to-cache, read-from-cache
+Another cross-site frame: written-to-cache, read-from-cache
+Top-level document again: read-from-cache, read-from-cache

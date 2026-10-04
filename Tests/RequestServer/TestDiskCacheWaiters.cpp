@@ -14,6 +14,7 @@
 #include <LibCore/Timer.h>
 #include <LibHTTP/Cache/DiskCache.h>
 #include <LibHTTP/Cache/Utilities.h>
+#include <LibHTTP/NetworkIsolationKey.h>
 #include <LibIPC/Transport.h>
 #include <LibTest/TestCase.h>
 #include <LibURL/Parser.h>
@@ -29,6 +30,14 @@ OwnPtr<ResourceSubstitutionMap> g_resource_substitution_map;
 }
 
 namespace {
+
+HTTP::NetworkIsolationKey test_network_isolation_key()
+{
+    return HTTP::NetworkIsolationKey {
+        .top_level_site = "http://localhost"_utf16,
+        .frame_site = "http://localhost"_utf16,
+    };
+}
 
 // How the local HTTP server answers one connection: Pieces go out one at a time, one per interval. Then, the connection
 // is closed or else left open and silent forever (what a transfer whose network path died looks like to RequestServer).
@@ -250,7 +259,7 @@ public:
             { ByteString { HTTP::TEST_CACHE_ENABLED_HEADER }, "1"sv },
         };
 
-        auto message = make<Messages::RequestServer::StartRequest>(request_id, ByteString { "GET" }, move(url), move(request_headers), ByteBuffer {}, HTTP::CacheMode::Default, HTTP::Cookie::IncludeCredentials::No, false, Optional<u32> {}, false, 0, 0);
+        auto message = make<Messages::RequestServer::StartRequest>(request_id, ByteString { "GET" }, move(url), move(request_headers), ByteBuffer {}, HTTP::CacheMode::Default, test_network_isolation_key(), HTTP::Cookie::IncludeCredentials::No, false, Optional<u32> {}, false, 0, 0);
         auto response = MUST(static_cast<RequestServerEndpoint::Stub&>(*m_connection).handle(move(message)));
         VERIFY(!response);
     }

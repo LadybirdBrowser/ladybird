@@ -12,6 +12,7 @@
 #include <LibHTTP/Cache/CacheMode.h>
 #include <LibHTTP/Cookie/IncludeCredentials.h>
 #include <LibHTTP/HeaderList.h>
+#include <LibHTTP/NetworkIsolationKey.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
@@ -61,6 +62,9 @@ public:
     Fetch::Infrastructure::Request::Priority priority() const { return m_priority; }
     void set_priority(Fetch::Infrastructure::Request::Priority priority) { m_priority = priority; }
 
+    Optional<HTTP::NetworkIsolationKey> const& network_isolation_key() const { return m_network_isolation_key; }
+    void set_network_isolation_key(Optional<HTTP::NetworkIsolationKey> network_isolation_key) { m_network_isolation_key = move(network_isolation_key); }
+
     Optional<URL::URL> const& source_url() const { return m_source_url; }
     void set_source_url(URL::URL source_url) { m_source_url = move(source_url); }
 
@@ -88,6 +92,7 @@ private:
     bool m_is_navigation_request { false };
     Fetch::Infrastructure::Request::Priority m_priority { Fetch::Infrastructure::Request::Priority::Auto };
     Optional<URL::URL> m_source_url;
+    Optional<HTTP::NetworkIsolationKey> m_network_isolation_key;
 };
 
 }

@@ -81,6 +81,10 @@ namespace Web::Fetch::Fetching {
 
 static bool g_http_memory_cache_enabled = false;
 
+// In test mode, RequestServer's disk cache stores only the responses to requests that ask for it with a header, which a
+// page cannot add to a navigation request. Tests can have every navigation request ask for it.
+static bool g_disk_cache_enabled_for_navigations_for_testing = false;
+
 #define TRY_OR_IGNORE(expression)                                                                    \
     ({                                                                                               \
         auto&& _temporary_result = (expression);                                                     \
@@ -95,14 +99,14 @@ class HTTPCache {
 public:
     AK_ALLOC_WITH_KMALLOC;
 
-    HTTP::MemoryCache& get(Infrastructure::NetworkPartitionKey const& key)
+    HTTP::MemoryCache& get(Utf16String const& key)
     {
         return *m_cache.ensure(key, [] {
             return HTTP::MemoryCache::create();
         });
     }
 
-    HTTP::MemoryCache* get_if_exists(Infrastructure::NetworkPartitionKey const& key)
+    HTTP::MemoryCache* get_if_exists(Utf16String const& key)
     {
         auto it = m_cache.find(key);
         if (it == m_cache.end())
@@ -122,7 +126,7 @@ public:
     }
 
 private:
-    HashMap<Infrastructure::NetworkPartitionKey, NonnullRefPtr<HTTP::MemoryCache>> m_cache;
+    HashMap<Utf16String, NonnullRefPtr<HTTP::MemoryCache>> m_cache;
 };
 
 // https://fetch.spec.whatwg.org/#determine-the-http-cache-partition
@@ -131,12 +135,16 @@ static RefPtr<HTTP::MemoryCache> determine_the_http_cache_partition(Infrastructu
     // 1. Let key be the result of determining the network partition key given request.
     auto key = Infrastructure::determine_the_network_partition_key(request);
 
+    // NB: We partition this cache like RequestServer's disk cache, which a request from a document with an opaque
+    //     origin does not use.
+    auto partition = key.has_value() ? key->disk_cache_partition() : OptionalNone {};
+
     // 2. If key is null, then return null.
-    if (!key.has_value())
+    if (!partition.has_value())
         return nullptr;
 
     // 3. Return the unique HTTP cache associated with key. [HTTP-CACHING]
-    return HTTPCache::the().get(key.value());
+    return HTTPCache::the().get(*partition);
 }
 
 static GC::Ptr<Infrastructure::Response> select_response_from_cache(JS::Realm& realm, HTTP::MemoryCache& http_cache, Infrastructure::Request const& request)
@@ -2282,7 +2290,13 @@ GC::Ref<PendingResponse> nonstandard_resource_loader_file_or_http_network_fetch(
 
     auto& page = Bindings::principal_host_defined_page(realm);
 
-    LoadRequest load_request { request->header_list() };
+    auto load_request_headers = request->header_list();
+    if (g_disk_cache_enabled_for_navigations_for_testing && request->mode() == Infrastructure::Request::Mode::Navigate) {
+        load_request_headers = HTTP::HeaderList::create(request->header_list()->headers());
+        load_request_headers->set({ HTTP::TEST_CACHE_ENABLED_HEADER, "1"sv });
+    }
+
+    LoadRequest load_request { move(load_request_headers) };
     load_request.set_url(request->current_url());
     load_request.set_page(page);
     load_request.set_method(request->method());
@@ -2295,6 +2309,7 @@ GC::Ref<PendingResponse> nonstandard_resource_loader_file_or_http_network_fetch(
     load_request.set_is_navigation_request(request->is_navigation_request());
     load_request.set_priority(request->priority());
     load_request.set_source_url(content_blocker_source_url_for_request(*request));
+    load_request.set_network_isolation_key(Infrastructure::determine_the_network_partition_key(*request));
 
     if (auto const* body = request->body().get_pointer<GC::Ref<Infrastructure::Body>>()) {
         (*body)->source().visit(
@@ -2885,6 +2900,16 @@ void set_http_memory_cache_enabled(bool const enabled)
     g_http_memory_cache_enabled = enabled;
 }
 
+void set_disk_cache_enabled_for_navigations_for_testing(bool const enabled)
+{
+    g_disk_cache_enabled_for_navigations_for_testing = enabled;
+}
+
+bool disk_cache_enabled_for_navigations_for_testing()
+{
+    return g_disk_cache_enabled_for_navigations_for_testing;
+}
+
 bool http_memory_cache_enabled()
 {
     return g_http_memory_cache_enabled;
@@ -2895,13 +2920,13 @@ void clear_http_memory_cache()
     HTTPCache::the().clear_cache();
 }
 
-void update_javascript_bytecode_cache_in_http_memory_cache(Infrastructure::NetworkPartitionKey const& partition_key, URL::URL const& url, ByteString const& method, HTTP::HeaderList const& request_headers, u64 vary_key, Core::ImmutableBytes javascript_bytecode_cache)
+void update_javascript_bytecode_cache_in_http_memory_cache(Utf16String const& partition, URL::URL const& url, ByteString const& method, HTTP::HeaderList const& request_headers, u64 vary_key, Core::ImmutableBytes javascript_bytecode_cache)
 {
     if (!g_http_memory_cache_enabled)
         return;
 
     // Only back-fill into a partition that already has a cache; do not create an empty one just to drop bytecode into.
-    if (auto* http_cache = HTTPCache::the().get_if_exists(partition_key))
+    if (auto* http_cache = HTTPCache::the().get_if_exists(partition))
         http_cache->update_javascript_bytecode_cache(url, method, request_headers, vary_key, move(javascript_bytecode_cache));
 }
 

@@ -22,6 +22,7 @@ class HttpResponse;
 class MemoryCache;
 
 struct Header;
+struct NetworkIsolationKey;
 
 }
 

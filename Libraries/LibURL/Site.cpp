@@ -57,6 +57,17 @@ bool Site::is_same_site(Site const& other) const
     return true;
 }
 
+Optional<Utf16String> Site::serialize_for_partitioning(Origin const& origin)
+{
+    if (origin.is_opaque_file_origin() || (!origin.is_opaque() && origin.scheme() == "file"sv))
+        return "file://"_utf16;
+
+    if (origin.is_opaque())
+        return {};
+
+    return Utf16String::from_utf8(obtain(origin).serialize());
+}
+
 // https://html.spec.whatwg.org/multipage/browsers.html#serialization-of-a-site
 String Site::serialize() const
 {
