@@ -10,7 +10,7 @@ use super::questions::Question;
 use super::wait::{BegunRead, HostRead, NodeRead, ReadRight, force_read_flown_style};
 use super::{
     ArenaChange, ChangeQueue, CommittedRows, ForcedRead, Landing, NoFrameInFlight, RenderState, RenderWait,
-    ScriptForcedRead, on_render_side,
+    ScriptForcedRead,
 };
 use crate::css::style::bridge::FfiDeviceClass;
 use crate::css::style::flight_style_rows::FlightStyleRow;
@@ -616,15 +616,15 @@ impl DocumentHost {
 }
 
 /// Creates the host of a new document and its render state, with a style engine for a device of class
-/// `device_class`.
+/// `device_class`. The host makes the state where it is: the state goes to the render side with the host's first
+/// message or frame, which a document nothing renders may never send.
 #[unsafe(no_mangle)]
 pub extern "C" fn document_host_create(device_class: u8) -> *mut DocumentHost {
     let device_class = match device_class {
         0 => FfiDeviceClass::ForegroundDesktop,
         _ => panic!("unknown device class {device_class}"),
     };
-    let state = on_render_side(move || RenderState::new(device_class));
-    Box::into_raw(Box::new(DocumentHost::new(state)))
+    Box::into_raw(Box::new(DocumentHost::new(RenderState::new(device_class))))
 }
 
 /// A document host with a render state, for a unit test, which destroys both when it is dropped.
@@ -771,8 +771,7 @@ pub unsafe extern "C" fn document_host_destroy(host: *mut DocumentHost) {
     let Frame::Here(state) = frame.into_inner() else {
         unreachable!("the frame was taken in above");
     };
-    let state = state.into_inner();
-    on_render_side(move || state.retire());
+    state.into_inner().retire();
     assert_eq!(
         host_tables.shells.borrow().len(),
         0,
