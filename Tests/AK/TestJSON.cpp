@@ -7,8 +7,10 @@
 #include <LibTest/TestCase.h>
 
 #include <AK/JsonObject.h>
+#include <AK/JsonObjectSerializer.h>
 #include <AK/JsonValue.h>
 #include <AK/StringBuilder.h>
+#include <math.h>
 
 TEST_CASE(load_form)
 {
@@ -571,6 +573,30 @@ TEST_CASE(json_array_serialize)
     StringBuilder builder {};
     array.serialize(builder);
     EXPECT_EQ(builder.string_view(), raw_json);
+}
+
+TEST_CASE(json_serialize_non_finite_numbers_as_null)
+{
+    EXPECT_EQ(JsonValue { INFINITY }.serialized(), "null"sv);
+
+    JsonArray array;
+    array.must_append(-INFINITY);
+    array.must_append(NAN);
+    array.must_append(1.5);
+    EXPECT_EQ(array.serialized(), "[null,null,1.5]"sv);
+
+    JsonObject object;
+    object.set("a"sv, INFINITY);
+    EXPECT_EQ(object.serialized(), R"({"a":null})"sv);
+
+    StringBuilder builder;
+    auto serializer = MUST(JsonObjectSerializer<>::try_create(builder));
+    MUST(serializer.add("a"sv, NAN));
+    MUST(serializer.add("b"sv, -INFINITY));
+    MUST(serializer.add("c"sv, 1.5f));
+    MUST(serializer.add("d"sv, 2.5));
+    MUST(serializer.finish());
+    EXPECT_EQ(builder.string_view(), R"({"a":null,"b":null,"c":1.5,"d":2.5})"sv);
 }
 
 TEST_CASE(json_array_values)
