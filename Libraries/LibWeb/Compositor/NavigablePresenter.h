@@ -53,6 +53,8 @@ class WEB_API NavigablePresenter {
     AK_MAKE_NONMOVABLE(NavigablePresenter);
 
 public:
+    AK_ALLOC_WITH_KMALLOC;
+
     NavigablePresenter() = default;
 
     Compositing::DisplayListResourceStorage& display_list_resource_storage() { return m_resource_storage; }

@@ -799,6 +799,15 @@ void LocalNavigable::visit_edges(Cell::Visitor& visitor)
         visitor.visit(entry.target);
     if (m_recording_in_flight)
         visitor.visit(m_recording_in_flight->document);
+    if (auto* document = m_presenter_slot.get_pointer<GC::Ref<DOM::Document>>())
+        visitor.visit(*document);
+}
+
+Compositor::NavigablePresenter& LocalNavigable::presenter()
+{
+    if (m_presenter_slot.has<GC::Ref<DOM::Document>>())
+        take_recording_in_flight_in(TakeIn::Wait);
+    return *m_presenter_slot.get<NonnullOwnPtr<Compositor::NavigablePresenter>>();
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#script-closable
@@ -6740,7 +6749,7 @@ void LocalNavigable::repaint_after_compositor_process_reconnect()
 
         m_needs_repaint = true;
         m_needs_to_record_display_list = true;
-        m_presenter.forget_compositor_display_list();
+        presenter().forget_compositor_display_list();
     }
 
     for (auto const& child_navigable : child_navigables())
@@ -6880,13 +6889,13 @@ Optional<Compositor::CompositorFrame> LocalNavigable::record_compositor_frame(Pa
         paint_config.canvas_fill_rect = Gfx::IntRect { {}, viewport_size };
     }
 
-    auto const& compositor_display_list_paint_config = m_presenter.compositor_display_list_paint_config();
+    auto const& compositor_display_list_paint_config = presenter().compositor_display_list_paint_config();
     auto should_record_display_list = m_needs_to_record_display_list
         || !compositor_display_list_paint_config.has_value()
         || !(compositor_display_list_paint_config.value() == paint_config);
     auto sealed = seal_presentation(*document, paint_config, should_record_display_list);
     if (!should_record_display_list)
-        return m_presenter.build_frame(sealed, {});
+        return presenter().build_frame(sealed, {});
 
     main_thread_event_loop().ensure_frame_completion_registered();
     auto recording = document->start_display_list_recording(read, paint_config, Painting::PaintCommandCacheMode::ReadWrite, blocker);
@@ -6943,7 +6952,7 @@ void LocalNavigable::unseal_presentation(DOM::Document& document, Compositor::Se
 // Publishes `recording`, which has landed, and builds the frame that presents what it recorded.
 Optional<Compositor::CompositorFrame> LocalNavigable::finish_recording(Layout::BegunRead const& read, DOM::Document& document, Compositor::SealedPresentation const& sealed, Painting::DisplayListRecording const& recording)
 {
-    auto display_list = document.finish_display_list_recording(read, recording, m_presenter.display_list_resource_storage());
+    auto display_list = document.finish_display_list_recording(read, recording, presenter().display_list_resource_storage());
     if (!display_list) {
         unseal_presentation(document, sealed);
         return {};
@@ -6951,7 +6960,7 @@ Optional<Compositor::CompositorFrame> LocalNavigable::finish_recording(Layout::B
     m_needs_to_record_display_list = false;
     bool const replaces_paint_command_cache_source = recording.cache_mode == Painting::PaintCommandCacheMode::ReadWrite
         && display_list != sealed.paint_command_cache_source;
-    return m_presenter.build_frame(sealed, Compositor::PublishedDisplayList { display_list.release_nonnull(), replaces_paint_command_cache_source });
+    return presenter().build_frame(sealed, Compositor::PublishedDisplayList { display_list.release_nonnull(), replaces_paint_command_cache_source });
 }
 
 bool LocalNavigable::take_recording_in_flight_in(TakeIn take_in)
