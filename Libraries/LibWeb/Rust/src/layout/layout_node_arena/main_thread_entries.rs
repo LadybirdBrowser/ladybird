@@ -241,23 +241,6 @@ pub unsafe extern "C" fn render_state_prepare_subtree_for_detach(host: *const Do
     unsafe { write_and_pay(host, node_read(), LayoutWrite::PrepareSubtreeForDetach { root }) };
 }
 
-/// Clears the committed box of every row of the subtree `root` heads and prepares each for leaving the layout tree,
-/// as a removal does before it drops the subtree. The host lets go of its rows first: the drop that follows changes
-/// what they are, so the host reads none of them again, and these writes go in place rather than to copies of the
-/// chunks its rows share.
-///
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread, and `root` a live row.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn render_state_prepare_subtree_for_removal(host: *const DocumentHost, root: NodeSlotId) {
-    assert!(!host.is_null(), "document host is null");
-    // SAFETY: Guaranteed by the caller.
-    unsafe { &*host }.let_go_of_rows();
-    // SAFETY: As above.
-    unsafe { write_and_pay(host, node_read(), LayoutWrite::PrepareSubtreeForRemoval { root }) };
-}
-
 /// Detaches the layout subtree `root` heads from its parent, if it has one, and frees it, every C++-side detach
 /// preparation that walks the subtree having run. Answers whether the subtree was attached.
 ///

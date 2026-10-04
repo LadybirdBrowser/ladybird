@@ -698,11 +698,6 @@ bool NodeWithStyle::is_scroll_container() const
         || overflow_value_makes_box_a_scroll_container(overflow_y());
 }
 
-void Node::prepare_subtree_for_removal()
-{
-    RustFFI::render_state_prepare_subtree_for_removal(document_host(), slot_id(this));
-}
-
 DOM::Node const* Node::dom_node() const
 {
     return const_cast<Node*>(this)->dom_node();

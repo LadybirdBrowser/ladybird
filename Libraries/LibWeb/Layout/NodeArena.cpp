@@ -48,12 +48,6 @@ u64 NodeArena::intrinsic_inline_measurement_count() const
     return RustFFI::render_state_layout_counts(host()).intrinsic_inline_measurements;
 }
 
-bool destroy_layout_subtree(Node& node)
-{
-    auto const& read = node.held_read();
-    return RustFFI::render_state_drop_subtree(node.document_host(), &read, Node::slot_id(&node));
-}
-
 void NodeArena::start_reporting_box_presence(Badge<DOM::Document>)
 {
     RustFFI::render_state_set_box_presence_host(host(), this, [](void* context, u32 style_node, u8 bits) {
