@@ -973,9 +973,6 @@ struct CanonicalTraversable::HistoryOperation {
     Vector<NonnullRefPtr<WebContentPage>> completion_endpoints;
     u64 sequence_number;
     bool was_initiated_by_browser { false };
-    // The navigation a cross-document navigation's finalization finalizes, which it takes from the navigable at its
-    // queue position.
-    Optional<CanonicalNavigation> finalized_navigation;
     bool check_for_cancelation { false };
     Function<void()> on_browser_traversal_ready;
     Optional<Web::HTML::CrossProcessId> beforeunload_check_id;
@@ -1217,15 +1214,17 @@ CanonicalSessionHistoryEntry const* CanonicalTraversable::ongoing_browser_histor
     return nullptr;
 }
 
-// The traversable's navigation that a history operation is finalizing, which is no longer its ongoing navigation.
-CanonicalNavigation const* CanonicalTraversable::navigation_being_finalized() const
+// The navigation a cross-document navigation's finalization took from its navigable at its queue position.
+CanonicalNavigation const* CanonicalTraversable::finalized_navigation(HistoryOperation const& operation) const
 {
-    for (auto const& operation : m_history_operations) {
-        auto const* parameters = operation.value->parameters.get_pointer<Web::FinalizeCrossDocumentNavigationHistoryOperationParameters>();
-        if (parameters && parameters->navigable_id == id() && operation.value->finalized_navigation.has_value())
-            return &*operation.value->finalized_navigation;
-    }
-    return nullptr;
+    auto const* parameters = operation.parameters.get_pointer<Web::FinalizeCrossDocumentNavigationHistoryOperationParameters>();
+    if (!parameters)
+        return nullptr;
+    auto navigable = find(parameters->navigable_id);
+    if (!navigable.has_value())
+        return nullptr;
+    auto const* navigation = navigable->navigation_being_finalized();
+    return navigation && navigation->navigation_id == parameters->navigation_id ? navigation : nullptr;
 }
 
 void CanonicalTraversable::recover_from_web_content_process_crash(OnHistoryOperationComplete on_complete)
@@ -1340,7 +1339,8 @@ bool CanonicalTraversable::navigation_transaction_matches(HistoryOperation const
     auto const& parameters = operation.parameters.get<Web::FinalizeCrossDocumentNavigationHistoryOperationParameters>();
     if (reply_navigable_id.has_value() && *reply_navigable_id != parameters.navigable_id)
         return true;
-    return operation.finalized_navigation.has_value() && operation.finalized_navigation->host() == &page;
+    auto const* navigation = finalized_navigation(operation);
+    return navigation && navigation->host() == &page;
 }
 
 void CanonicalTraversable::add_history_operation_completion_endpoint(HistoryOperation& operation, NonnullRefPtr<WebContentPage> endpoint)
@@ -1662,8 +1662,8 @@ void CanonicalTraversable::did_activate_history_entry(HistoryOperation& operatio
         host = source_page;
 
     Optional<Utf16String const&> navigation_id;
-    if (operation.finalized_navigation.has_value())
-        navigation_id = operation.finalized_navigation->navigation_id;
+    if (auto const* navigation = finalized_navigation(operation))
+        navigation_id = navigation->navigation_id;
     navigable->did_commit_navigation(target_entry, move(activated_navigable_state), operation.sequence_number, navigation_id, did_populate_document, move(host));
 
     if (navigable_id == id()) {
@@ -2524,9 +2524,8 @@ void CanonicalTraversable::start_history_operation(HistoryOperation& operation, 
     }
 
     if (auto const* parameters = operation.parameters.get_pointer<Web::FinalizeCrossDocumentNavigationHistoryOperationParameters>()) {
-        if (auto navigable = find(parameters->navigable_id); navigable.has_value())
-            operation.finalized_navigation = navigable->take_navigation_to_finalize(parameters->navigation_id, *operation.initiating_page);
-        if (!operation.finalized_navigation.has_value()) {
+        auto navigable = find(parameters->navigable_id);
+        if (!navigable.has_value() || !navigable->take_navigation_to_finalize(parameters->navigation_id, *operation.initiating_page)) {
             finish_history_operation(operation.operation_id, Web::HTML::HistoryStepResult::Applied, {});
             return;
         }
@@ -2560,7 +2559,7 @@ void CanonicalTraversable::finalize_a_cross_document_navigation(HistoryOperation
     // NB: The process running a javascript: URL navigation evaluates it, creates newDocument in navigable's active
     //     browsing context, and reports historyEntry with these steps. The UI process runs the steps that decide
     //     newDocument's origin, and populates the document it holds for historyEntry's document state.
-    if (operation.finalized_navigation->state.has<CanonicalNavigation::EvaluatingJavaScriptURL>()) {
+    if (navigable->navigation_being_finalized()->state.has<CanonicalNavigation::EvaluatingJavaScriptURL>()) {
         auto const& initiator_origin = history_entry->document_state->initiator_origin;
 
         // 4. If initiatorOrigin is not same origin-domain with targetNavigable's active document's origin, then return.
@@ -2743,10 +2742,9 @@ void CanonicalTraversable::finish_history_operation(Web::HTML::CrossProcessId op
     // stays with the operation: its completion can be what finished it.
     for (auto const& [navigable_id, pending_job] : taken_operation.pending_changing_jobs)
         pending_job->abandon(find(navigable_id));
-    if (taken_operation.finalized_navigation.has_value()) {
-        auto const& parameters = taken_operation.parameters.get<Web::FinalizeCrossDocumentNavigationHistoryOperationParameters>();
-        if (auto navigable = find(parameters.navigable_id); navigable.has_value())
-            navigable->did_finish_finalizing_navigation(parameters.navigation_id, parameters.history_entry.document_state.id, result);
+    if (auto const* parameters = taken_operation.parameters.get_pointer<Web::FinalizeCrossDocumentNavigationHistoryOperationParameters>()) {
+        if (auto navigable = find(parameters->navigable_id); navigable.has_value())
+            navigable->did_finish_finalizing_navigation(parameters->navigation_id, parameters->history_entry.document_state.id, result);
     }
 
     if (committed_step.has_value()) {

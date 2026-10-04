@@ -2308,7 +2308,7 @@ void WebContentPage::did_finish_loading(Web::HTML::CrossProcessId navigable_id, 
     if (!navigable.has_value())
         return;
 
-    if (!navigable->matches_ongoing_navigation(navigation_id))
+    if (navigation_id != navigable->tracked_load_navigation_id())
         return;
 
     // A page standing in for a document the navigable lost, as the page displaying the tab after its process crashed

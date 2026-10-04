@@ -155,7 +155,6 @@ public:
 
     Optional<BrowserHistoryTraversalDiagnostic> browser_history_traversal_for_testing() const;
     CanonicalSessionHistoryEntry const* ongoing_browser_history_traversal_target_entry() const;
-    CanonicalNavigation const* navigation_being_finalized() const;
     // The entries of the synchronous navigations of a navigable whose finalization is queued.
     Vector<NonnullRefPtr<CanonicalSessionHistoryEntry>> queued_same_document_session_history_entries(CanonicalNavigable const&) const;
     ByteString queued_same_document_session_history_entries_for_debug() const;
@@ -188,6 +187,7 @@ private:
     void session_history_changed();
     HistoryOperation* find_history_operation(Web::HTML::CrossProcessId operation_id);
     bool navigation_transaction_matches(HistoryOperation const&, WebContentPage&, Optional<Web::HTML::CrossProcessId> reply_navigable_id = {}) const;
+    CanonicalNavigation const* finalized_navigation(HistoryOperation const&) const;
     bool update_session_history_entry_persisted_state(CanonicalNavigable&, Web::HTML::SessionHistoryEntryPersistedState const&);
     void add_history_operation_completion_endpoint(HistoryOperation&, NonnullRefPtr<WebContentPage>);
     bool select_changing_navigable_history_step_job_endpoint(HistoryOperation&, ApplyHistoryStepJobs::ChangingNavigableHistoryStepJob&);

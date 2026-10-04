@@ -570,7 +570,6 @@ protected:
     void did_cancel_loading(Optional<Utf16String> const& navigation_id);
     bool did_cancel_navigation(Optional<Utf16String> const& navigation_id);
     void did_finish_navigation();
-    bool matches_ongoing_navigation(Optional<Utf16String> const& navigation_id) const;
     void set_loading_state(bool);
     void complete_webdriver_navigation_completion(u64 request_id, Web::WebDriver::Response);
     void set_webdriver_current_browsing_context(CanonicalNavigable const&);
