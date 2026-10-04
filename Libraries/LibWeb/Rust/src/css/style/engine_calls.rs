@@ -1344,6 +1344,66 @@ pub(crate) fn known_style_record_view(
     Some(view)
 }
 
+/// Whether the engine has a style transaction pending, which the host knows without asking where it wrote nothing
+/// since its last job.
+///
+/// # Safety
+///
+/// `host` must be a live document host, on its document's thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn style_engine_has_pending_transaction(host: *const DocumentHost, read: &BegunRead) -> bool {
+    // SAFETY: Guaranteed by the caller.
+    let host = unsafe { document_host(host) };
+    match host.known_facts() {
+        Some(facts) => facts.has_pending_style_transaction,
+        None => with_engine(read, host, |engine| {
+            super::bridge::operations::has_pending_transaction(engine)
+        }),
+    }
+}
+
+/// Whether the engine defers any element style input, which the host knows without asking where it wrote nothing since
+/// its last job.
+///
+/// # Safety
+///
+/// `host` must be a live document host, on its document's thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn style_engine_has_deferred_element_style_inputs(
+    host: *const DocumentHost,
+    read: &BegunRead,
+) -> bool {
+    // SAFETY: Guaranteed by the caller.
+    let host = unsafe { document_host(host) };
+    match host.known_facts() {
+        Some(facts) => facts.has_deferred_element_style_inputs,
+        None => with_engine(read, host, |engine| {
+            super::bridge::operations::has_deferred_element_style_inputs(engine)
+        }),
+    }
+}
+
+/// Whether a size container waits for layout to be evaluated, which the host knows without asking where it wrote
+/// nothing since its last job.
+///
+/// # Safety
+///
+/// `host` must be a live document host, on its document's thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn style_engine_has_size_containers_needing_evaluation_after_layout(
+    host: *const DocumentHost,
+    read: &BegunRead,
+) -> bool {
+    // SAFETY: Guaranteed by the caller.
+    let host = unsafe { document_host(host) };
+    match host.known_facts() {
+        Some(facts) => facts.has_size_containers_needing_evaluation_after_layout,
+        None => with_engine(read, host, |engine| {
+            super::bridge::operations::has_size_containers_needing_evaluation_after_layout(engine)
+        }),
+    }
+}
+
 /// Folds the style input `node` owes into the reaction the host is about to apply to it, where the reaction covers it,
 /// and answers the merged reaction in the low byte and the merged inherited style groups in the next, or zero, as
 /// [`super::StyleEngineState::absorb_element_style_input`] does. The host answers where it knows the answer, and the
