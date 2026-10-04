@@ -1624,12 +1624,13 @@ public:
                 copied_list.ensure_capacity(map->map_size() * 2);
 
                 // 2. For each Record { [[Key]], [[Value]] } entry of value.[[MapData]]:
-                for (auto entry : *map) {
+                MUST(map->for_each_entry([&](JS::Value key, JS::Value value) -> JS::ThrowCompletionOr<void> {
                     // 1. Let copiedEntry be a new Record { [[Key]]: entry.[[Key]], [[Value]]: entry.[[Value]] }.
                     // 2. If copiedEntry.[[Key]] is not the special value empty, append copiedEntry to copiedList.
-                    copied_list.append(entry.key);
-                    copied_list.append(entry.value);
-                }
+                    copied_list.append(key);
+                    copied_list.append(value);
+                    return {};
+                }));
 
                 encode(static_cast<u64>(map->map_size()));
 
@@ -1650,10 +1651,11 @@ public:
                 copied_list.ensure_capacity(set->set_size());
 
                 // 2. For each entry of value.[[SetData]]:
-                for (auto entry : *set) {
+                MUST(set->for_each_value([&](JS::Value entry) -> JS::ThrowCompletionOr<void> {
                     // 1. If entry is not the special value empty, append entry to copiedList.
                     copied_list.append(entry);
-                }
+                    return {};
+                }));
 
                 encode(static_cast<u64>(set->set_size()));
 
