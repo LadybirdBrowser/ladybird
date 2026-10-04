@@ -19,7 +19,7 @@ static void const* owner_pointer(BlobURLEntryOwner const& owner)
 
 static Optional<URL::BlobURLEntry::Token> token_of(Web::FileAPI::SerializedBlobURLEntry const& entry)
 {
-    if (auto const* blob = entry.object.get_pointer<Web::FileAPI::SerializedBlobURLEntry::Blob>())
+    if (auto const* blob = entry.object->get_pointer<Web::FileAPI::SerializedBlobURLEntry::Blob>())
         return blob->token;
     return {};
 }
@@ -33,7 +33,7 @@ URL::BlobURLEntry::Token BlobURLStore::add_entry(Utf16String url, Web::FileAPI::
 
     // NB: The token is unguessable and assigned here so that a process cannot name an entry it was not given.
     URL::BlobURLEntry::Token token = 0;
-    if (auto* blob = entry.object.get_pointer<Web::FileAPI::SerializedBlobURLEntry::Blob>()) {
+    if (auto* blob = entry.object->get_pointer<Web::FileAPI::SerializedBlobURLEntry::Blob>()) {
         token = get_random<URL::BlobURLEntry::Token>();
         blob->token = token;
         m_entry_urls_by_token.set(token, url);
@@ -136,7 +136,7 @@ Optional<Web::FileAPI::SerializedBlobURLEntry> BlobURLStore::resolve(Utf16String
     // NB: A revoked entry still answers to its token, but no longer to its URL. See URL::BlobURLEntry::Token.
     if (token.has_value()) {
         auto entry_url = m_entry_urls_by_token.get(*token);
-        if (!entry_url.has_value())
+        if (!entry_url.has_value() || *entry_url != url)
             return {};
         if (auto entry = m_entries.get(*entry_url); entry.has_value())
             return entry->entry;

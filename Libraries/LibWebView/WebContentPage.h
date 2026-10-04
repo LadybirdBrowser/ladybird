@@ -322,6 +322,8 @@ private:
     Messages::WebContentClient::DidRequestCookieResponse did_request_cookie(URL::URL, HTTP::Cookie::Source);
     Messages::WebContentClient::DidRequestAllCookiesCookiestoreResponse did_request_all_cookies_cookiestore(URL::URL);
     Messages::WebContentClient::DidAddBlobUrlEntryResponse did_add_blob_url_entry(Web::HTML::EnvironmentId environment_id, Utf16String url, Web::FileAPI::SerializedBlobURLEntry);
+    Messages::WebContentClient::DidRequestBlobUrlEntryResponse did_request_blob_url_entry(Optional<Web::HTML::EnvironmentId> environment_id, Utf16String url, Optional<URL::BlobURLEntry::Token>);
+    bool may_obtain_blob_object(Web::FileAPI::SerializedBlobURLEntry const&, Utf16String const& url, Optional<Web::HTML::EnvironmentId> const& environment_id) const;
 
     // Test-only handlers, reached over the separate test transport (see WebContentTestClient).
     virtual void did_finish_test(String text) override;

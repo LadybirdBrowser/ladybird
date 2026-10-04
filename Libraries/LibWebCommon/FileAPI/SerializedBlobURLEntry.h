@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Optional.h>
 #include <AK/String.h>
 #include <AK/Variant.h>
 #include <LibCore/AnonymousBuffer.h>
@@ -28,7 +29,8 @@ struct SerializedBlobURLEntry {
 
     using Object = Variant<Blob, MediaSource>;
 
-    Object object;
+    // Absent where the user agent's blob URL store resolves the entry for a process that may not obtain its object.
+    Optional<Object> object;
     URL::Origin origin;
 };
 

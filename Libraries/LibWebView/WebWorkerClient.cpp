@@ -5,6 +5,7 @@
  */
 
 #include <LibCore/Process.h>
+#include <LibWebCommon/FileAPI/BlobURLStore.h>
 #include <LibWebCommon/WebView/ProcessHandle.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/BlobURLStore.h>
@@ -130,6 +131,11 @@ Messages::WebWorkerClient::DidRequestCookieResponse WebWorkerClient::did_request
 
 Messages::WebWorkerClient::DidAddBlobUrlEntryResponse WebWorkerClient::did_add_blob_url_entry(Web::HTML::EnvironmentId environment_id, Utf16String url, Web::FileAPI::SerializedBlobURLEntry entry)
 {
+    if (!entry.object.has_value()) {
+        did_misbehave("did_add_blob_url_entry"sv, "entry without an object"sv);
+        return 0;
+    }
+
     auto session = m_session.strong_ref();
     auto environment = hosted_environment(environment_id);
     if (!session || !environment.has_value())
@@ -147,12 +153,25 @@ void WebWorkerClient::did_remove_blob_url_entries(Web::HTML::EnvironmentId envir
         session->blob_url_store->remove_entries(urls, environment->origin(), WeakPtr<WebWorkerClient> { *this });
 }
 
-Messages::WebWorkerClient::DidRequestBlobUrlEntryResponse WebWorkerClient::did_request_blob_url_entry(Utf16String url, Optional<URL::BlobURLEntry::Token> token)
+// https://w3c.github.io/FileAPI/#blob-url-resolve
+Messages::WebWorkerClient::DidRequestBlobUrlEntryResponse WebWorkerClient::did_request_blob_url_entry(Optional<Web::HTML::EnvironmentId> environment_id, Utf16String url, Optional<URL::BlobURLEntry::Token> token)
 {
     auto session = m_session.strong_ref();
     if (!session)
         return Optional<Web::FileAPI::SerializedBlobURLEntry> {};
-    return session->blob_url_store->resolve(url, token);
+    auto entry = session->blob_url_store->resolve(url, token);
+    if (!entry.has_value())
+        return entry;
+
+    // https://w3c.github.io/FileAPI/#blob-url-obtain-object
+    // 2. If environment is an environment, then set isAuthorized to the result of checking for same-partition blob URL
+    //    usage with blobUrlEntry and environment.
+    Optional<CanonicalEnvironmentSettingsObject const&> environment;
+    if (environment_id.has_value())
+        environment = hosted_environment(*environment_id);
+    if (!environment.has_value() || !Web::FileAPI::check_for_same_partition_blob_url_usage(entry->origin, environment->origin()))
+        entry->object.clear();
+    return entry;
 }
 
 void WebWorkerClient::did_request_file(ByteString path, i32 request_id)

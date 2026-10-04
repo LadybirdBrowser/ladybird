@@ -123,9 +123,12 @@ void PageHost::page_did_remove_blob_url_entries(Web::HTML::EnvironmentSettingsOb
     m_client.did_remove_blob_url_entries(environment.id, urls);
 }
 
-Optional<Web::FileAPI::SerializedBlobURLEntry> PageHost::page_did_request_blob_url_entry(Utf16String const& url, Optional<URL::BlobURLEntry::Token> token)
+Optional<Web::FileAPI::SerializedBlobURLEntry> PageHost::page_did_request_blob_url_entry(GC::Ptr<Web::HTML::EnvironmentSettingsObject const> environment, Utf16String const& url, Optional<URL::BlobURLEntry::Token> token)
 {
-    return m_client.did_request_blob_url_entry(url, token);
+    Optional<Web::HTML::EnvironmentId> environment_id;
+    if (environment)
+        environment_id = environment->id;
+    return m_client.did_request_blob_url_entry(environment_id, url, token);
 }
 
 Web::HTML::WorkerAgentId PageHost::start_worker_agent(Web::HTML::WorkerAgentStartRequest&& request)

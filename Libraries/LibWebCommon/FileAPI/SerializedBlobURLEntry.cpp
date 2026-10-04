@@ -13,12 +13,15 @@ namespace IPC {
 template<>
 ErrorOr<void> encode(Encoder& encoder, Web::FileAPI::SerializedBlobURLEntry const& entry)
 {
-    auto const* blob = entry.object.get_pointer<Web::FileAPI::SerializedBlobURLEntry::Blob>();
-    TRY(encoder.encode(blob != nullptr));
-    if (blob) {
-        TRY(encoder.encode(blob->token));
-        TRY(encoder.encode(blob->type));
-        TRY(encoder.encode(blob->data));
+    TRY(encoder.encode(entry.object.has_value()));
+    if (entry.object.has_value()) {
+        auto const* blob = entry.object->get_pointer<Web::FileAPI::SerializedBlobURLEntry::Blob>();
+        TRY(encoder.encode(blob != nullptr));
+        if (blob) {
+            TRY(encoder.encode(blob->token));
+            TRY(encoder.encode(blob->type));
+            TRY(encoder.encode(blob->data));
+        }
     }
     TRY(encoder.encode(entry.origin));
     return {};
@@ -27,12 +30,15 @@ ErrorOr<void> encode(Encoder& encoder, Web::FileAPI::SerializedBlobURLEntry cons
 template<>
 ErrorOr<Web::FileAPI::SerializedBlobURLEntry> decode(Decoder& decoder)
 {
-    Web::FileAPI::SerializedBlobURLEntry::Object object = Web::FileAPI::SerializedBlobURLEntry::MediaSource {};
+    Optional<Web::FileAPI::SerializedBlobURLEntry::Object> object;
     if (TRY(decoder.decode<bool>())) {
-        auto token = TRY(decoder.decode<URL::BlobURLEntry::Token>());
-        auto type = TRY(decoder.decode<String>());
-        auto data = TRY(decoder.decode<Core::AnonymousBuffer>());
-        object = Web::FileAPI::SerializedBlobURLEntry::Blob { .token = token, .type = move(type), .data = move(data) };
+        object = Web::FileAPI::SerializedBlobURLEntry::MediaSource {};
+        if (TRY(decoder.decode<bool>())) {
+            auto token = TRY(decoder.decode<URL::BlobURLEntry::Token>());
+            auto type = TRY(decoder.decode<String>());
+            auto data = TRY(decoder.decode<Core::AnonymousBuffer>());
+            object = Web::FileAPI::SerializedBlobURLEntry::Blob { .token = token, .type = move(type), .data = move(data) };
+        }
     }
     auto origin = TRY(decoder.decode<URL::Origin>());
     return Web::FileAPI::SerializedBlobURLEntry { .object = move(object), .origin = move(origin) };
