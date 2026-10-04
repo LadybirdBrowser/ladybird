@@ -890,14 +890,13 @@ static void update_style(Layout::BegunRead const& read, DOM::Document& document,
     if (style_engine_reactions.is_empty())
         return;
 
-    bool has_cold_matching_traversal = false;
-    if (auto* root = document.document_element(); root && root->style_node_id() != 0) {
-        if (prefers_broad_matching_batch) {
-            has_cold_matching_traversal = document.style_computer().style_engine().begin_cold_matching_batch(read, root->style_node_id());
-        } else {
+    auto* root = document.document_element();
+    bool const has_cold_matching_traversal = root && root->style_node_id() != 0;
+    if (has_cold_matching_traversal) {
+        if (prefers_broad_matching_batch)
+            document.style_computer().style_engine().begin_cold_matching_batch(root->style_node_id());
+        else
             document.style_computer().style_engine().begin_adaptive_cold_matching_batch(root->style_node_id());
-            has_cold_matching_traversal = true;
-        }
     }
     ScopeGuard end_cold_matching_batch = [&] {
         if (has_cold_matching_traversal)
