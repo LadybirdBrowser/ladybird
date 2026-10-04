@@ -296,8 +296,18 @@ void publish_pending_element_features(StyleEngine& style_engine, StyleComputer& 
     // their indexes appends members instead of repeatedly searching and splitting posting chunks.
     quick_sort(nodes);
     for (auto node : nodes) {
-        if (auto element = style_computer.element_for_style_node(node))
-            record_element_initial_features(*element);
+        auto element = style_computer.element_for_style_node(node);
+        if (!element)
+            continue;
+        // An inserted subtree takes its identities before its insertion steps mark its nodes connected, in tree order.
+        // A step that submits the recorded input on the way, as a <style> writing its sheet to the engine in place
+        // while a style transaction flies, finds the elements after it unconnected: their arrivals are submitted, and
+        // their features wait for the next submit, which folds them onto those arrivals.
+        if (!element->is_connected()) {
+            style_engine.defer_element_initial_features(node);
+            continue;
+        }
+        record_element_initial_features(*element);
     }
 }
 
