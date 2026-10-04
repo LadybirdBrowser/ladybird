@@ -27,7 +27,7 @@ use crate::css::cascaded_properties::{
 use crate::css::computed_longhand_table::{
     ComputedLonghandTable, HIGHLIGHT_COLOR_IS_CURRENT_COLOR, HIGHLIGHT_COLORS_AUTHORED,
 };
-use crate::css::css_pixels::CssPixels;
+use crate::css::css_pixels::{CssPixelRect, CssPixels};
 use crate::css::display::FfiDisplay;
 use crate::css::property_metadata::longhands_for_shorthand;
 use crate::css::property_metadata::property_id;
@@ -5585,9 +5585,9 @@ pub struct FfiHostAnimationSample {
     /// The document's side of the environment keyframes compute in. The engine fills in the
     /// element's own: its place among its siblings and its random bases.
     pub environment: *const FfiStyleComputationEnvironment,
-    pub has_transform_reference_box: bool,
-    pub transform_reference_box_width: f64,
-    pub transform_reference_box_height: f64,
+    /// The slot of the row of the box of the sampled element, a `NodeSlotId`'s index, invalid where it has none: the
+    /// render owner reads the transform reference box transforms interpolate against from it.
+    pub element_box_slot: u32,
     pub callback_context: *mut c_void,
     /// Makes the working set's overlay writable and hands it over, the moment a value is written.
     pub prepare_overlay_for_mutation: unsafe extern "C" fn(*mut c_void) -> *mut c_void,
@@ -5704,17 +5704,18 @@ impl FfiHostAnimationSample {
     }
 
     /// The context the effects evaluate in, resolving lengths against `length_resolution_context`
-    /// where there is one.
+    /// where there is one, and transforms against `reference_box`.
     ///
     /// # Safety
     /// As for [`Self::working_set`].
     unsafe fn animation_context(
         &self,
         length_resolution_context: Option<&FfiLengthResolutionContext>,
+        reference_box: Option<CssPixelRect>,
     ) -> crate::css::animation::FfiAnimationContext {
         // SAFETY: Guaranteed by the caller.
         let (table, overlay) = unsafe { self.working_set() };
-        crate::css::animation::FfiAnimationContext {
+        let mut context = crate::css::animation::FfiAnimationContext {
             allow_discrete: length_resolution_context.is_some(),
             current_color: table
                 .effective_value(overlay, crate::css::property_metadata::property_id::COLOR, true)
@@ -5724,10 +5725,12 @@ impl FfiHostAnimationSample {
             length_resolution_context: length_resolution_context
                 .map(animation_length_resolution_context)
                 .unwrap_or_default(),
-            has_transform_reference_box: self.has_transform_reference_box,
-            transform_reference_box_width: self.transform_reference_box_width,
-            transform_reference_box_height: self.transform_reference_box_height,
-        }
+            has_transform_reference_box: false,
+            transform_reference_box_width: 0.0,
+            transform_reference_box_height: 0.0,
+        };
+        context.set_transform_reference_box(reference_box);
+        context
     }
 }
 
@@ -5746,14 +5749,23 @@ pub unsafe extern "C" fn rust_sample_animation_effects(
     input: *const FfiHostAnimationSample,
     read: &crate::render_state::BegunRead,
 ) -> FfiHostAnimationSampleResult {
-    use crate::css::style::engine_calls::{document_host, with_engine};
+    use crate::css::style::engine_calls::{document_host, with_engine_and_arena};
 
     // SAFETY: Guaranteed by the caller.
     let input = unsafe { &*input };
     // SAFETY: As above.
     let host = unsafe { document_host(input.host) };
+    // Transforms interpolate against the transform reference box of the element's box, which the render owner reads.
+    let element_box = crate::layout::node_data::NodeSlotId {
+        index: input.element_box_slot,
+    };
+    let reference_box = |arena: &crate::layout::LayoutNodeArena| {
+        crate::painting::ffi::committed_transform_reference_box(&arena.paintable_rows(), element_box)
+    };
     // SAFETY: As above.
-    let sample = match with_engine(read, host, |engine| unsafe { begin_animation_sample(input, engine) }) {
+    let sample = match with_engine_and_arena(read, host, |engine, arena| unsafe {
+        begin_animation_sample(input, engine, reference_box(arena))
+    }) {
         AnimationSampleStep::Sampled(result) => return result,
         AnimationSampleStep::NeedsHostLengthContexts(sample) => sample,
     };
@@ -5770,8 +5782,8 @@ pub unsafe extern "C" fn rust_sample_animation_effects(
         length_contexts.assume_init()
     };
     // SAFETY: As above.
-    with_engine(read, host, |engine| unsafe {
-        finish_animation_sample(input, engine, sample, &length_contexts)
+    with_engine_and_arena(read, host, |engine, arena| unsafe {
+        finish_animation_sample(input, engine, sample, &length_contexts, reference_box(arena))
     })
 }
 
@@ -5800,6 +5812,7 @@ struct ResolvedAnimationSample {
 unsafe fn begin_animation_sample(
     input: &FfiHostAnimationSample,
     engine: &mut crate::css::style::StyleEngine,
+    reference_box: Option<CssPixelRect>,
 ) -> AnimationSampleStep {
     use crate::css::animation as anim;
     use FfiHostAnimationSampleOutcome::{Cleared, Evaluated, Unchanged};
@@ -5841,7 +5854,7 @@ unsafe fn begin_animation_sample(
     // no keyframe values at all.
     if anim::animation_preparation_matches(overlay, &composed, input.custom_property_environments) {
         let batch = anim::FfiComputedAnimationBatch {
-            context: unsafe { input.animation_context(None) },
+            context: unsafe { input.animation_context(None, reference_box) },
             sampled_effects: composed.as_ptr(),
             sampled_effect_count: composed.len(),
             custom_property_environments: input.custom_property_environments,
@@ -5932,9 +5945,9 @@ unsafe fn begin_animation_sample(
     };
     match length_contexts {
         // SAFETY: As above.
-        Some(length_contexts) => {
-            AnimationSampleStep::Sampled(unsafe { finish_animation_sample(input, engine, sample, &length_contexts) })
-        }
+        Some(length_contexts) => AnimationSampleStep::Sampled(unsafe {
+            finish_animation_sample(input, engine, sample, &length_contexts, reference_box)
+        }),
         None => AnimationSampleStep::NeedsHostLengthContexts(sample),
     }
 }
@@ -5949,6 +5962,7 @@ unsafe fn finish_animation_sample(
     engine: &mut crate::css::style::StyleEngine,
     sample: ResolvedAnimationSample,
     length_contexts: &FfiAnimationLengthContexts,
+    reference_box: Option<CssPixelRect>,
 ) -> FfiHostAnimationSampleResult {
     use crate::css::animation as anim;
 
@@ -6059,7 +6073,7 @@ unsafe fn finish_animation_sample(
         && !resolved.needs_document_base_url
         && resolved.unfixed_random_sharings.is_empty();
     let batch = anim::FfiComputedAnimationBatch {
-        context: unsafe { input.animation_context(Some(&length_contexts.remaining)) },
+        context: unsafe { input.animation_context(Some(&length_contexts.remaining), reference_box) },
         sampled_effects: composed.as_ptr(),
         sampled_effect_count: composed.len(),
         custom_property_environments: input.custom_property_environments,

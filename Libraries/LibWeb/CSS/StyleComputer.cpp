@@ -104,7 +104,6 @@
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Namespace.h>
 #include <LibWeb/Page/Page.h>
-#include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/Platform/FontPlugin.h>
 #include <LibWeb/SVG/SVGElement.h>
 #include <LibWeb/StyleValueRustFFI.h>
@@ -662,9 +661,7 @@ void StyleComputer::collect_animation_effects_into(Layout::BegunRead const& read
         },
         .inheritance_parent_style_record = inheritance_parent.has_value() ? inheritance_parent->style_record_identity().value() : 0,
         .environment = &environment,
-        .has_transform_reference_box = false,
-        .transform_reference_box_width = 0,
-        .transform_reference_box_height = 0,
+        .element_box_slot = Layout::Node::slot_id(abstract_element.element().unsafe_layout_node(read)).index,
         .callback_context = &sample_context,
         .prepare_overlay_for_mutation = [](void* context) -> void* {
             auto& sample = *static_cast<SampleContext*>(context);
@@ -681,12 +678,6 @@ void StyleComputer::collect_animation_effects_into(Layout::BegunRead const& read
             contexts->line_height = length_context_for(PropertyID::LineHeight);
             contexts->remaining = length_context_for(PropertyID::Color); },
     };
-    if (auto const* layout_node = abstract_element.element().unsafe_layout_node(read); layout_node && Painting::has_committed_box(*layout_node)) {
-        auto reference_box = Painting::transform_reference_box(*layout_node);
-        input.has_transform_reference_box = true;
-        input.transform_reference_box_width = reference_box.width().to_double();
-        input.transform_reference_box_height = reference_box.height().to_double();
-    }
     VERIFY(computation_context_cache_is_empty());
     auto result = ComputedValuesFFI::rust_sample_animation_effects(&input, &read);
     clear_computation_context_caches();
@@ -1097,12 +1088,6 @@ void StyleComputer::start_needed_transitions(Layout::BegunRead const& read, Comp
         .transform_reference_box_width = 0,
         .transform_reference_box_height = 0,
     };
-    if (auto const* layout_node = abstract_element.element().unsafe_layout_node(read); layout_node && Painting::has_committed_box(*layout_node)) {
-        auto reference_box = Painting::transform_reference_box(*layout_node);
-        transition_animation_context.has_transform_reference_box = true;
-        transition_animation_context.transform_reference_box_width = reference_box.width().to_double();
-        transition_animation_context.transform_reference_box_height = reference_box.height().to_double();
-    }
 
     struct PreparedTransition {
         size_t stabilization_state_index;
@@ -1235,6 +1220,7 @@ void StyleComputer::start_needed_transitions(Layout::BegunRead const& read, Comp
         .property_count = ffi_properties.size(),
         .target_node = style_node_id.value(),
         .target_pseudo_kind = pseudo_element_to_ffi(pseudo_element),
+        .element_box_slot = Layout::Node::slot_id(element.unsafe_layout_node(read)).index,
     };
     Vector<StyleValueFFI::FfiTransitionAction> actions;
     actions.resize(prepared_transitions.size());

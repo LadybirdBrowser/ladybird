@@ -717,8 +717,6 @@ pub(crate) enum StyleQuery {
     Counter(usize),
     /// The end of the transaction the host took last, which answers the identities it released.
     EndTransaction,
-    /// What a transition step's change of records does to its target's transitions.
-    DecideTransitions(crate::css::transition::TransitionDecision),
 }
 
 /// The answer to a [`StyleQuery`].
@@ -727,14 +725,12 @@ pub(crate) enum StyleAnswer {
     Nodes(Vec<u32>),
     RecordDemand(FfiRecordDemandAnswer),
     Counter(Option<(&'static str, u64)>),
-    Transitions(Vec<crate::css::transition::DecidedTransition>),
 }
 
 impl StyleQuery {
     pub(crate) fn answer(self, engine: &mut StyleEngine) -> StyleAnswer {
         match self {
             Self::EndTransaction => StyleAnswer::Nodes(super::bridge::end_style_transaction(engine)),
-            Self::DecideTransitions(decision) => StyleAnswer::Transitions(decision.answer(engine)),
             Self::ViewportDependentNodes => {
                 StyleAnswer::Nodes(engine.computed_group_sets.viewport_dependent_nodes(|environment| {
                     engine.custom_property_environments.reads_viewport(environment)
@@ -780,6 +776,15 @@ pub(crate) unsafe fn document_host<'a>(host: *const DocumentHost) -> &'a Documen
 /// Runs `call` on the style engine of `host`'s document in `read`, and answers what it answers. The engine is borrowed
 /// for the call alone, so a host callback that reaches the engine again runs after it.
 pub(crate) fn with_engine<R>(read: &BegunRead, host: &DocumentHost, call: impl FnOnce(&mut StyleEngine) -> R) -> R {
+    with_engine_and_arena(read, host, |engine, _| call(engine))
+}
+
+/// Like [`with_engine`], with the document's layout arena beside the engine, as of the same writes.
+pub(crate) fn with_engine_and_arena<R>(
+    read: &BegunRead,
+    host: &DocumentHost,
+    call: impl FnOnce(&mut StyleEngine, &crate::layout::LayoutNodeArena) -> R,
+) -> R {
     crate::render_state::ask(read, host, crate::render_state::EngineCall(call)).0
 }
 
@@ -1601,7 +1606,8 @@ pub unsafe extern "C" fn style_engine_counter(
 
 /// Decides what each property `input` prepared does to the transitions of its target, as the target's style changes
 /// from the record `before` to the record `after` it installed. Writes the values each decision compared into its
-/// property, and the decision into `actions`.
+/// property, and the decision into `actions`. The render owner reads the transform reference box of the target's
+/// element's box as it decides.
 ///
 /// # Safety
 ///
@@ -1623,7 +1629,12 @@ pub unsafe extern "C" fn style_engine_decide_transitions(
         return;
     }
     // SAFETY: As above.
-    let properties = unsafe { std::slice::from_raw_parts_mut(input.properties, input.property_count) };
+    let (properties, actions) = unsafe {
+        (
+            std::slice::from_raw_parts_mut(input.properties, input.property_count),
+            std::slice::from_raw_parts_mut(actions, input.property_count),
+        )
+    };
     let decision = TransitionDecision {
         before,
         after,
@@ -1631,19 +1642,12 @@ pub unsafe extern "C" fn style_engine_decide_transitions(
         element: (input.target_pseudo_kind == u8::MAX)
             .then(|| StyleNodeID::from_raw(input.target_node))
             .flatten(),
-        properties: crate::render_state::Lent::new(properties),
+        element_box: crate::layout::node_data::NodeSlotId {
+            index: input.element_box_slot,
+        },
     };
     // SAFETY: As above.
-    let StyleAnswer::Transitions(decided) =
-        (unsafe { ask_engine(host, read, StyleQuery::DecideTransitions(decision)) })
-    else {
-        unreachable!("a transition step is answered with its decisions");
-    };
-    for (index, (property, decided)) in properties.iter_mut().zip(decided).enumerate() {
-        property.before_change_value = decided.before_change_value;
-        property.after_change_value = decided.after_change_value;
-        property.current_value = decided.current_value;
-        // SAFETY: As above.
-        unsafe { actions.add(index).write(decided.action) };
-    }
+    with_engine_and_arena(read, unsafe { document_host(host) }, |engine, arena| {
+        decision.decide(engine, arena, properties, actions);
+    });
 }
