@@ -347,10 +347,9 @@ JS::ThrowCompletionOr<void> WebAssemblyModule::execute_module(JS::VM& vm, GC::Pt
 
                 // 2. If v has a [[FunctionAddress]] internal slot, and therefore is an Exported Function,
                 Optional<Wasm::FunctionAddress> funcaddr;
-                if (is<Detail::ExportedWasmFunction>(function)) {
+                if (auto exported_address = Detail::exported_function_address(function); exported_address.has_value()) {
                     // 1. Let funcaddr be the value of v’s [[FunctionAddress]] internal slot.
-                    auto& exported_function = static_cast<Detail::ExportedWasmFunction&>(function);
-                    funcaddr = exported_function.exported_address();
+                    funcaddr = exported_address;
                 }
                 // 3. Otherwise,
                 else {

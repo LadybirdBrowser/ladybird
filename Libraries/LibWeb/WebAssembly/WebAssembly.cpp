@@ -15,6 +15,7 @@
 #include <LibCrypto/Hash/SHA2.h>
 #include <LibGC/Heap.h>
 #include <LibHTTP/Cache/Utilities.h>
+#include <LibJS/HostClassBuilder.h>
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibJS/Runtime/BigInt.h>
@@ -339,10 +340,9 @@ JS::ThrowCompletionOr<NonnullRefPtr<Wasm::ModuleInstance>> instantiate_module(JS
 
                     // 3.4.2. If v has a [[FunctionAddress]] internal slot, and therefore is an Exported Function,
                     Optional<Wasm::FunctionAddress> address;
-                    if (is<ExportedWasmFunction>(function)) {
+                    if (auto exported_address = exported_function_address(function); exported_address.has_value()) {
                         // 3.4.2.1. Let funcaddr be the value of v’s [[FunctionAddress]] internal slot.
-                        auto& exported_function = static_cast<ExportedWasmFunction&>(function);
-                        address = exported_function.exported_address();
+                        address = exported_address;
                     }
                     // 3.4.3. Otherwise,
                     else {
@@ -678,41 +678,70 @@ JS::ThrowCompletionOr<JS::HandledByHost> host_grow_shared_array_buffer(JS::VM& v
     return JS::HandledByHost::Unhandled;
 }
 
-GC_DEFINE_ALLOCATOR(ExportedWasmFunction);
+namespace {
 
-GC::Ref<ExportedWasmFunction> ExportedWasmFunction::create(JS::Realm& realm, Utf16FlyString name, size_t length, Function<JS::ThrowCompletionOr<JS::Value>(JS::VM&)> behavior, Wasm::FunctionAddress exported_address)
-{
-    auto& vm = realm.vm();
+// The internal slots of an Exported Function: its [[FunctionAddress]], and the steps that call into the store.
+class ExportedFunctionHostData final : public GC::Cell {
+    GC_CELL(ExportedFunctionHostData, GC::Cell);
+    GC_DECLARE_ALLOCATOR(ExportedFunctionHostData);
 
-    auto prototype = realm.intrinsics().function_prototype();
-    auto function = realm.create<ExportedWasmFunction>(
-        move(name),
-        move(behavior),
-        exported_address,
-        prototype);
-    function->define_direct_property(vm.names.length, JS::Value { static_cast<double>(length) }, JS::Attribute::Configurable);
-    function->define_direct_property(vm.names.name, JS::PrimitiveString::create(vm, function->name()), JS::Attribute::Configurable);
+public:
+    using JSValueConversionIsForbidden = void;
 
-    return function;
+    using Behavior = AK::Function<JS::ThrowCompletionOr<JS::Value>(JS::VM&)>;
+
+    Wasm::FunctionAddress function_address() const { return m_function_address; }
+
+    JS::ThrowCompletionOr<JS::Value> call(JS::VM& vm) const
+    {
+        VERIFY(m_behavior);
+        return m_behavior(vm);
+    }
+
+private:
+    ExportedFunctionHostData(Behavior behavior, Wasm::FunctionAddress function_address)
+        : m_behavior(move(behavior))
+        , m_function_address(function_address)
+    {
+    }
+
+    virtual void visit_edges(Visitor& visitor) override
+    {
+        Base::visit_edges(visitor);
+        visitor.visit_possible_values(m_behavior.raw_capture_range());
+    }
+
+    Behavior m_behavior;
+    Wasm::FunctionAddress m_function_address;
+};
+
+GC_DEFINE_ALLOCATOR(ExportedFunctionHostData);
+
+struct ExportedFunctionTraits {
+    static JS::ThrowCompletionOr<JS::Value> call(JS::HostFunction& function, JS::VM& vm)
+    {
+        auto* host_data = JS::host_data_if<ExportedFunctionHostData>(function);
+        VERIFY(host_data);
+        return host_data->call(vm);
+    }
+};
+
+constexpr JSHostFunctionHooks exported_function_hooks = JS::make_host_function_hooks<ExportedFunctionTraits>();
+constexpr JSHostClass exported_function_host_class = JS::make_host_class(JS_HOST_CLASS_FUNCTION, "ExportedWasmFunction"sv, nullptr, &exported_function_hooks, nullptr, 0);
+
 }
 
-ExportedWasmFunction::ExportedWasmFunction(Utf16FlyString name, AK::Function<JS::ThrowCompletionOr<JS::Value>(JS::VM&)> behavior, Wasm::FunctionAddress exported_address, JS::Object& prototype)
-    : NativeFunction(move(name), prototype)
-    , m_behavior(move(behavior))
-    , m_exported_address(exported_address)
+GC::Ref<JS::HostFunction> create_exported_function(JS::Realm& realm, Utf16FlyString name, size_t length, Function<JS::ThrowCompletionOr<JS::Value>(JS::VM&)> behavior, Wasm::FunctionAddress function_address)
 {
+    auto host_data = realm.heap().allocate<ExportedFunctionHostData>(move(behavior), function_address);
+    return JS::HostFunction::create(realm, exported_function_host_class, move(name), static_cast<i32>(length), {}, host_data);
 }
 
-void ExportedWasmFunction::visit_edges(Cell::Visitor& visitor)
+Optional<Wasm::FunctionAddress> exported_function_address(JS::FunctionObject const& function)
 {
-    NativeFunction::visit_edges(visitor);
-    visitor.visit_possible_values(m_behavior.raw_capture_range());
-}
-
-JS::ThrowCompletionOr<JS::Value> ExportedWasmFunction::call()
-{
-    VERIFY(m_behavior);
-    return m_behavior(vm());
+    if (auto const* host_data = JS::host_data_if<ExportedFunctionHostData>(function))
+        return host_data->function_address();
+    return {};
 }
 
 // https://www.w3.org/TR/wasm-js-api-2/#name-of-the-webassembly-function
@@ -760,7 +789,7 @@ GC::Ptr<JS::NativeFunction> create_native_function(JS::Realm& realm, Wasm::Funct
     auto type = store.get(address)->visit([&](auto const& value) { return value.type(); });
     auto length = type.parameters().size();
 
-    auto function = ExportedWasmFunction::create(
+    auto function = create_exported_function(
         realm,
         name_of_webassembly_function(store, address),
         length,

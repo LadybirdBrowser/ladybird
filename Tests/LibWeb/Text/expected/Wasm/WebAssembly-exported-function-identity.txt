@@ -1,0 +1,34 @@
+== Exported function
+typeof: function
+prototype is Function.prototype: true
+own properties: length,name
+toString: function 0() { [native code] }
+Object.prototype.toString: [object Function]
+extensible: true
+same object on every access: true
+call: 5
+call with coerced arguments: 7
+Function.prototype.call: 11
+bound: 15
+construct: TypeError
+expando: kept
+== Exported function as an import
+re-exported import is the same function: true
+table holds the same function: true
+call through import: 9
+second instance re-exports the same function: true
+== JavaScript function as an import
+wrapper is a new function: true
+wrapper name and length: 0 2
+wrapper call: 12
+table holds the wrapper: true
+re-importing the wrapper keeps it: true
+importing the JavaScript function again wraps it anew: true
+== Exported function from another realm
+distinct from this realm's function: true
+prototype is the other realm's Function.prototype: true
+own properties: length,name
+name and length: 0 2
+call: 42
+re-export resolves to this realm's function: true
+call through import: 2
