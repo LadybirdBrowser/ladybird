@@ -142,6 +142,20 @@ ReadonlySpan<Value> ExecutionContext::local_variables() const
     return { registers_and_constants_and_locals_and_arguments() + executable->local_index_base, executable->local_variable_names.size() };
 }
 
+SourceCode const* ExecutionContext::source_code() const
+{
+    if (!executable)
+        return nullptr;
+    return executable->source_code.ptr();
+}
+
+Utf16FlyString ExecutionContext::function_name() const
+{
+    if (!executable)
+        return {};
+    return executable->name;
+}
+
 void ExecutionContext::visit_edges(Cell::Visitor& visitor)
 {
     visitor.visit(function);

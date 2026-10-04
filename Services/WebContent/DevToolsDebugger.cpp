@@ -7,7 +7,6 @@
 #include <AK/Enumerate.h>
 #include <AK/NumericLimits.h>
 #include <LibCore/EventLoop.h>
-#include <LibJS/Bytecode/Executable.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/DeclarativeEnvironment.h>
 #include <LibJS/Runtime/FunctionEnvironment.h>
@@ -272,11 +271,11 @@ Vector<WebView::DebuggerEnvironment> DevToolsDebugger::environments_for_frame(Pa
         environments.append(move(debugger_environment));
     };
 
-    if (context->executable) {
+    if (context->source_code()) {
         WebView::DebuggerEnvironment local_environment;
         local_environment.id = m_next_environment_id++;
         local_environment.type = WebView::DebuggerEnvironmentType::Function;
-        local_environment.function_name = context->executable->name.to_utf16_string();
+        local_environment.function_name = context->function_name().to_utf16_string();
 
         for (auto const& binding : Web::Bindings::main_thread_vm().debugger()->bindings_for_frame(*context)) {
             local_environment.bindings.append({
@@ -436,11 +435,11 @@ PageClient* DevToolsDebugger::paused_page_client() const
 
 static Optional<WebView::StackFrame> console_stack_frame(PageClient& page, JS::StackTraceElement const& stack_frame)
 {
-    auto* executable = stack_frame.execution_context->executable.ptr();
-    if (!executable)
+    auto const* source_code = stack_frame.execution_context->source_code();
+    if (!source_code)
         return {};
 
-    auto source = page.devtools_source_description(*executable->source_code);
+    auto source = page.devtools_source_description(*source_code);
     if (!source.has_value())
         return {};
 
@@ -452,7 +451,7 @@ static Optional<WebView::StackFrame> console_stack_frame(PageClient& page, JS::S
     }
 
     return WebView::StackFrame {
-        .function = executable->name.to_utf16_string().to_utf8(),
+        .function = stack_frame.execution_context->function_name().to_utf16_string().to_utf8(),
         .file = source->display_url.to_utf8(),
         .line = line,
         .column = column,
@@ -540,11 +539,11 @@ bool DevToolsDebugger::pause_is_blackboxed(PageClient& page, JS::Debugger::Pause
         return false;
 
     auto const& stack_frame = pause.stack_trace.first();
-    auto* executable = stack_frame.execution_context->executable.ptr();
-    if (!executable)
+    auto const* source_code = stack_frame.execution_context->source_code();
+    if (!source_code)
         return false;
 
-    auto source = page.devtools_source_description(*executable->source_code);
+    auto source = page.devtools_source_description(*source_code);
     if (!source.has_value())
         return false;
 
@@ -685,11 +684,11 @@ void DevToolsDebugger::handle_pause(JS::Debugger::PauseInfo const& pause)
     };
 
     for (auto const& stack_frame : pause.stack_trace) {
-        auto* executable = stack_frame.execution_context->executable.ptr();
-        if (!executable)
+        auto const* source_code = stack_frame.execution_context->source_code();
+        if (!source_code)
             continue;
 
-        auto source = page->devtools_source_description(*executable->source_code);
+        auto source = page->devtools_source_description(*source_code);
         if (!source.has_value())
             continue;
 
@@ -707,7 +706,7 @@ void DevToolsDebugger::handle_pause(JS::Debugger::PauseInfo const& pause)
             arguments.append(serialize_value(argument));
         debugger_pause.frames.append(WebView::DebuggerFrame {
             .id = frame_id,
-            .display_name = executable->name.to_utf16_string(),
+            .display_name = stack_frame.execution_context->function_name().to_utf16_string(),
             .location = {
                 .source = source.release_value(),
                 .line = line,

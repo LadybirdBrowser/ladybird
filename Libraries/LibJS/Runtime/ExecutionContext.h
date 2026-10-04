@@ -110,6 +110,11 @@ public:
     Span<Value> local_variables();
     ReadonlySpan<Value> local_variables() const;
 
+    // Non-standard: The source code and function name of the bytecode this context runs, for debuggers. A context
+    // that runs no bytecode, such as a native function's, has no source code and an empty function name.
+    SourceCode const* source_code() const;
+    Utf16FlyString function_name() const;
+
     Value* arguments_data()
     {
         return registers_and_constants_and_locals_and_arguments() + (registers_and_constants_and_locals_and_arguments_count - argument_count);
