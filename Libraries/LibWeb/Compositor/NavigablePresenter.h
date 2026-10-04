@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Noncopyable.h>
+#include <AK/NonnullOwnPtr.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/Optional.h>
 #include <AK/RefPtr.h>
@@ -17,12 +18,28 @@
 #include <LibWeb/Compositor/CompositorFrame.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/HTML/PaintConfig.h>
+#include <LibWeb/Painting/DisplayListRecording.h>
+#include <LibWebCommon/Page/CompositorContextId.h>
+
+namespace Web::Layout::RustFFI {
+
+struct FfiPresentedRecording;
+
+}
 
 namespace Web::Compositor {
+
+// A display list a recording published, and whether the recording made it the next one's paint command cache source.
+struct PublishedDisplayList {
+    NonnullRefPtr<Compositing::DisplayList> display_list;
+    bool replaces_paint_command_cache_source { false };
+};
 
 // What a frame is built from that its navigable and document held where the frame began, sealed there: the frame reaches
 // neither of them again before it is presented.
 struct SealedPresentation {
+    AK_ALLOC_WITH_KMALLOC;
+
     // The recording's paint config.
     HTML::PaintConfig paint_config;
     // The visual context tree a new display list is cut from, or the one the compositor's display list takes where the
@@ -38,12 +55,20 @@ struct SealedPresentation {
     // it does.
     RefPtr<Compositing::DisplayList> paint_command_cache_source;
     Compositing::DisplayListResourceSet paint_command_cache_source_resources;
+
+    // For a frame presented beside the event loop: the recording it publishes, sealed where the recording began, where
+    // the frame goes and the rect it is presented in, and, once it is presented, the display list it published.
+    Optional<Painting::DisplayListRecording> recording;
+    RefPtr<CompositorFrameSink> sink;
+    Web::CompositorContextId context_id;
+    Optional<Gfx::IntRect> present_viewport_rect;
+    Optional<PublishedDisplayList> published;
 };
 
-// A display list a recording published, and whether the recording made it the next one's paint command cache source.
-struct PublishedDisplayList {
-    NonnullRefPtr<Compositing::DisplayList> display_list;
-    bool replaces_paint_command_cache_source { false };
+// What presented a navigable's last frame: the main thread, or what presents beside it.
+enum class PresentedBy : u8 {
+    Main,
+    Flight,
 };
 
 // What a navigable presents to its compositor context from: the resource storage its recordings add to, and the
@@ -78,10 +103,19 @@ public:
     // Forgets what the compositor context holds: a new compositor process holds nothing.
     void forget_compositor_display_list();
 
+    PresentedBy last_frame_presented_by() const { return m_last_frame_presented_by; }
+    // The generation of the keyboard scroll state the last frame handed the compositor, if it handed one.
+    Optional<u64> last_keyboard_scroll_state_generation() const { return m_last_keyboard_scroll_state_generation; }
+    void set_last_frame_presented_by(PresentedBy presented_by) { m_last_frame_presented_by = presented_by; }
+
     // Builds the frame that brings the compositor context up to date with `published`, the display list a recording just
     // published, or with what changed for the one the compositor has where none was published, from what `sealed`
     // sealed. Reads no navigable or document.
     CompositorFrame build_frame(SealedPresentation const&, Optional<PublishedDisplayList>);
+
+    // Presents the frame `sealed` sealed, with `display_list`, the display list its recording published, beside the event
+    // loop: through the seal's sink, keeping what it published in the seal.
+    void present_beside_event_loop(SealedPresentation&, NonnullRefPtr<Compositing::DisplayList>);
 
 private:
     Compositing::DisplayListResourceStorage m_resource_storage;
@@ -90,6 +124,25 @@ private:
     u64 m_compositor_display_list_visual_context_tree_structural_epoch { 0 };
     Compositing::DisplayListResourceSet m_compositor_display_list_resources;
     Compositing::DisplayListResourceSet m_compositor_display_list_command_resources;
+    PresentedBy m_last_frame_presented_by { PresentedBy::Main };
+    Optional<u64> m_last_keyboard_scroll_state_generation;
 };
 
+// A navigable's presenter and a frame sealed for it, which what presents the frame beside the event loop owns until it
+// lands.
+struct FlightPresentation {
+    NonnullOwnPtr<NavigablePresenter> presenter;
+    NonnullOwnPtr<SealedPresentation> sealed;
+};
+
+}
+
+// What a recording that presents beside the event loop reaches of its presenter and seal, which it owns meanwhile.
+extern "C" {
+WEB_API void web_navigable_presenter_destroy(void* presenter);
+WEB_API void web_sealed_presentation_destroy(void* sealed);
+WEB_API void web_navigable_presenter_add_font(void* presenter, void const* font);
+WEB_API void web_navigable_presenter_add_image_frame(void* presenter, void const* frame);
+WEB_API void web_navigable_presenter_add_video_sink(void* presenter, u64 resource_id, u64 sink_handle);
+WEB_API void web_navigable_presenter_present(void* presenter, void* sealed, Web::Layout::RustFFI::FfiPresentedRecording const* presented);
 }

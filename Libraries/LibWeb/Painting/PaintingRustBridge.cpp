@@ -509,20 +509,6 @@ static Layout::RustFFI::FfiRecordingPublishCallbacks recording_publish_callbacks
     };
 }
 
-static void take_recording_trace_if_pending(Layout::BegunRead const& read, DOM::Document& document)
-{
-    struct TraceContext {
-        GC::Ref<DOM::Document const> document;
-        StringBuilder trace;
-    } context { document, {} };
-    bool has_pending_trace = Layout::RustFFI::render_state_take_recording_trace(
-        document_host(document), &read, &context,
-        [](void* context_pointer, Compositing::RustFFI::NodeSlotId slot, void* description_sink) { push_debug_description(*static_cast<TraceContext*>(context_pointer)->document, slot, description_sink); },
-        [](void* context_pointer, u8 const* bytes, size_t byte_count) { static_cast<TraceContext*>(context_pointer)->trace.append(StringView { bytes, byte_count }); });
-    if (has_pending_trace)
-        document.paint_state().append_recording_trace(MUST(context.trace.to_string()));
-}
-
 // The platform default font at an overlay label's CSS size and at that size in device pixels, kept alive for the
 // recording call.
 struct OverlayLabelFonts {
@@ -544,7 +530,21 @@ static OverlayLabelFonts overlay_label_fonts(float css_size, double device_pixel
 
 }
 
-Optional<DisplayListRecording> start_rust_display_list_recording(Layout::BegunRead const& read, DOM::Document& document, Compositing::AccumulatedVisualContextTree visual_context_tree, NonnullRefPtr<Compositing::DisplayList> placeholder_display_list, PaintCommandCacheMode cache_mode, HTML::PaintConfig const& config, InspectorOverlayInputs const& overlay_inputs, Layout::RustFFI::FfiFlightBlocker blocker)
+void take_recording_trace_if_pending(Layout::BegunRead const& read, DOM::Document& document)
+{
+    struct TraceContext {
+        GC::Ref<DOM::Document const> document;
+        StringBuilder trace;
+    } context { document, {} };
+    bool has_pending_trace = Layout::RustFFI::render_state_take_recording_trace(
+        document_host(document), &read, &context,
+        [](void* context_pointer, Compositing::RustFFI::NodeSlotId slot, void* description_sink) { push_debug_description(*static_cast<TraceContext*>(context_pointer)->document, slot, description_sink); },
+        [](void* context_pointer, u8 const* bytes, size_t byte_count) { static_cast<TraceContext*>(context_pointer)->trace.append(StringView { bytes, byte_count }); });
+    if (has_pending_trace)
+        document.paint_state().append_recording_trace(MUST(context.trace.to_string()));
+}
+
+Optional<DisplayListRecording> start_rust_display_list_recording(Layout::BegunRead const& read, DOM::Document& document, Compositing::AccumulatedVisualContextTree visual_context_tree, NonnullRefPtr<Compositing::DisplayList> placeholder_display_list, PaintCommandCacheMode cache_mode, HTML::PaintConfig const& config, InspectorOverlayInputs const& overlay_inputs, Layout::RustFFI::FfiFlightBlocker blocker, Optional<Compositor::FlightPresentation>* flight)
 {
     auto* host = document_host(document);
     auto device_pixels_per_css_pixel = document.page().client().device_pixels_per_css_pixel();
@@ -662,10 +662,6 @@ Optional<DisplayListRecording> start_rust_display_list_recording(Layout::BegunRe
         inputs.background_color = document.background_color(read);
     }
     reconcile_navigable_container_paint_facts(read, document);
-    // The recording copies what it reads of the overlay arrays and buffers, which live until here.
-    auto start = Layout::RustFFI::render_state_record_display_list(host, &read, viewport_row_slot(read, document), inputs, blocker);
-    if (start == Layout::RustFFI::FfiRecordingStart::NothingToRecord)
-        return {};
     Optional<Compositing::DisplayList::AsyncScrollingMetadata> async_scrolling_metadata;
     if (auto navigable = document.navigable()) {
         async_scrolling_metadata = Compositing::DisplayList::AsyncScrollingMetadata {
@@ -676,24 +672,48 @@ Optional<DisplayListRecording> start_rust_display_list_recording(Layout::BegunRe
             .device_pixels_per_css_pixel = device_pixels_per_css_pixel,
         };
     }
-    return DisplayListRecording {
+    DisplayListRecording recording {
         .visual_context_tree = move(visual_context_tree),
         .placeholder_display_list = move(placeholder_display_list),
         .cache_mode = cache_mode,
-        .in_flight = start == Layout::RustFFI::FfiRecordingStart::InFlight,
+        .in_flight = false,
         .async_scrolling_metadata = async_scrolling_metadata,
         .paint_command_cache_source = document.paint_state().display_list_used_as_paint_command_cache_source(),
     };
+    // A recording that flies takes the presentation it presents its frame with, which the landing gives back.
+    Layout::RustFFI::FfiPresentation ffi_presentation {};
+    if (flight && flight->has_value()) {
+        (*flight)->sealed->recording = recording;
+        ffi_presentation = { .presenter = (*flight)->presenter.ptr(), .sealed = (*flight)->sealed.ptr() };
+    }
+    // The recording copies what it reads of the overlay arrays and buffers, which live until here.
+    auto start = Layout::RustFFI::render_state_record_display_list(host, &read, viewport_row_slot(read, document), inputs, blocker, &ffi_presentation);
+    if (flight && flight->has_value() && !ffi_presentation.presenter) {
+        auto taken = flight->release_value();
+        (void)taken.presenter.leak_ptr();
+        (void)taken.sealed.leak_ptr();
+    }
+    if (start == Layout::RustFFI::FfiRecordingStart::NothingToRecord)
+        return {};
+    recording.in_flight = start == Layout::RustFFI::FfiRecordingStart::InFlight;
+    return recording;
 }
 
 RefPtr<Compositing::DisplayList> finish_rust_display_list_recording(Layout::BegunRead const& read, DOM::Document& document, DisplayListRecording const& recording, Compositing::DisplayListResourceStorage& resource_storage)
 {
-    auto const& placeholder_display_list = *recording.placeholder_display_list;
     RecordingPublishContext publish_context { resource_storage, document_host(document), read, recording.visual_context_tree };
     auto rust_timer = Core::ElapsedTimer::start_new(Core::TimerType::Precise);
     Layout::RustFFI::FfiPresentedRecording presented {};
     Layout::RustFFI::render_state_publish_recording(publish_context.host, &read, recording_publish_callbacks(publish_context), &presented);
     take_recording_trace_if_pending(read, document);
+    auto display_list = display_list_of_published_recording(recording, presented);
+    if (rust_painting_timing_enabled())
+        dbgln("PAINT_RECORD rust={} µs commands={} bytes", rust_timer.elapsed_time().to_microseconds(), display_list->command_bytes().size());
+    return display_list;
+}
+
+NonnullRefPtr<Compositing::DisplayList> display_list_of_published_recording(DisplayListRecording const& recording, Layout::RustFFI::FfiPresentedRecording const& presented)
+{
     auto stamp_async_scrolling_metadata = [&](Compositing::DisplayList& display_list) {
         auto metadata = recording.async_scrolling_metadata;
         if (!metadata.has_value())
@@ -704,18 +724,13 @@ RefPtr<Compositing::DisplayList> finish_rust_display_list_recording(Layout::Begu
 
     if (presented.is_identical_to_published_recording) {
         if (auto source = recording.paint_command_cache_source) {
-            if (rust_painting_timing_enabled())
-                dbgln("PAINT_RECORD rust={} µs identical to the previous recording", rust_timer.elapsed_time().to_microseconds());
             stamp_async_scrolling_metadata(*source);
-            return source;
+            return source.release_nonnull();
         }
     }
 
     auto display_list = Compositing::DisplayList::share_rust_command_storage(recording.visual_context_tree, presented.display_list);
-    if (rust_painting_timing_enabled())
-        dbgln("PAINT_RECORD rust={} µs commands={} bytes", rust_timer.elapsed_time().to_microseconds(), display_list->command_bytes().size());
-
-    if (auto color = placeholder_display_list.surface_clear_color(); color.has_value())
+    if (auto color = recording.placeholder_display_list->surface_clear_color(); color.has_value())
         display_list->set_surface_clear_color(*color);
     stamp_async_scrolling_metadata(*display_list);
     return display_list;

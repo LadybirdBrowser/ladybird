@@ -1,0 +1,131 @@
+/*
+ * Copyright (c) 2026-present, the Ladybird developers.
+ *
+ * SPDX-License-Identifier: BSD-2-Clause
+ */
+
+//! A navigable's presenter, and the seal of the frame it presents next, which what presents a frame beside the event
+//! loop owns while they are away from their navigable.
+//!
+//! Each box owns one C++ object, which reaches nothing of the thread that made it, and destroys it when dropped. Only
+//! the owner of a navigable's presenter presents to its compositor context, so frames reach the compositor in the order
+//! their presenter's owners presented them.
+
+use crate::painting::ffi::{FfiPresentation, FfiPresentedRecording};
+use crate::painting::record::publish::RecordingResourceSink;
+use std::ffi::c_void;
+use std::ptr::NonNull;
+
+unsafe extern "C" {
+    fn web_navigable_presenter_destroy(presenter: *mut c_void);
+    fn web_sealed_presentation_destroy(sealed: *mut c_void);
+    fn web_navigable_presenter_add_font(presenter: *mut c_void, font: *const c_void);
+    fn web_navigable_presenter_add_image_frame(presenter: *mut c_void, frame: *const c_void);
+    fn web_navigable_presenter_add_video_sink(presenter: *mut c_void, resource_id: u64, sink_handle: u64);
+    fn web_navigable_presenter_present(
+        presenter: *mut c_void,
+        sealed: *mut c_void,
+        presented: *const FfiPresentedRecording,
+    );
+}
+
+/// A `Web::Compositor::NavigablePresenter`, owned.
+pub(crate) struct PresenterBox(NonNull<c_void>);
+
+/// A `Web::Compositor::SealedPresentation`, owned.
+pub(crate) struct SealedPresentationBox(NonNull<c_void>);
+
+// SAFETY: Each box owns its object, which reaches nothing of the thread that made it, and nothing else reaches the object
+// while the box lives.
+unsafe impl Send for PresenterBox {}
+unsafe impl Send for SealedPresentationBox {}
+
+impl Drop for PresenterBox {
+    fn drop(&mut self) {
+        // SAFETY: The box owns the presenter.
+        unsafe { web_navigable_presenter_destroy(self.0.as_ptr()) };
+    }
+}
+
+impl Drop for SealedPresentationBox {
+    fn drop(&mut self) {
+        // SAFETY: The box owns the seal.
+        unsafe { web_sealed_presentation_destroy(self.0.as_ptr()) };
+    }
+}
+
+impl RecordingResourceSink for PresenterBox {
+    fn add_font(&mut self, font: &libgfx_rust::font::FontHandle) {
+        // SAFETY: The box owns the presenter, whose storage takes a reference of its own to the live font.
+        unsafe { web_navigable_presenter_add_font(self.0.as_ptr(), font.as_raw()) };
+    }
+
+    fn add_image_frame(&mut self, frame: &libgfx_rust::image_frame::ImageFrameHandle) {
+        // SAFETY: As above, for the live frame.
+        unsafe { web_navigable_presenter_add_image_frame(self.0.as_ptr(), frame.as_raw()) };
+    }
+
+    fn add_video_sink(&mut self, resource_id: u64, sink_handle: u64) {
+        // SAFETY: As above.
+        unsafe { web_navigable_presenter_add_video_sink(self.0.as_ptr(), resource_id, sink_handle) };
+    }
+}
+
+/// What presents one frame of a navigable beside the event loop: the navigable's presenter, and what the frame is built
+/// from.
+pub(crate) struct Presentation {
+    pub(crate) presenter: PresenterBox,
+    sealed: SealedPresentationBox,
+}
+
+impl Presentation {
+    /// Takes over the presenter and the seal `ffi` names, which the host gives up, or none where it names none.
+    ///
+    /// # Safety
+    /// `ffi` must name a presenter and a seal the host made and gives up, or neither.
+    pub(crate) unsafe fn adopt(ffi: FfiPresentation) -> Option<Self> {
+        Some(Self {
+            presenter: PresenterBox(NonNull::new(ffi.presenter)?),
+            sealed: SealedPresentationBox(NonNull::new(ffi.sealed)?),
+        })
+    }
+
+    /// Gives the presenter and the seal back to the host, which takes them over.
+    pub(crate) fn into_ffi(self) -> FfiPresentation {
+        let this = std::mem::ManuallyDrop::new(self);
+        FfiPresentation {
+            presenter: this.presenter.0.as_ptr(),
+            sealed: this.sealed.0.as_ptr(),
+        }
+    }
+
+    /// Presents the sealed frame with the recording `presented` describes, whose resources the presenter took already.
+    pub(crate) fn present(&mut self, presented: &FfiPresentedRecording) {
+        // SAFETY: The presentation owns both objects, and the recording's display list is live for the call.
+        unsafe { web_navigable_presenter_present(self.presenter.0.as_ptr(), self.sealed.0.as_ptr(), presented) };
+    }
+}
+
+#[cfg(test)]
+mod ffi_test_stubs {
+    use super::FfiPresentedRecording;
+    use std::ffi::c_void;
+
+    #[unsafe(no_mangle)]
+    extern "C" fn web_navigable_presenter_destroy(_: *mut c_void) {}
+
+    #[unsafe(no_mangle)]
+    extern "C" fn web_sealed_presentation_destroy(_: *mut c_void) {}
+
+    #[unsafe(no_mangle)]
+    extern "C" fn web_navigable_presenter_add_font(_: *mut c_void, _: *const c_void) {}
+
+    #[unsafe(no_mangle)]
+    extern "C" fn web_navigable_presenter_add_image_frame(_: *mut c_void, _: *const c_void) {}
+
+    #[unsafe(no_mangle)]
+    extern "C" fn web_navigable_presenter_add_video_sink(_: *mut c_void, _: u64, _: u64) {}
+
+    #[unsafe(no_mangle)]
+    extern "C" fn web_navigable_presenter_present(_: *mut c_void, _: *mut c_void, _: *const FfiPresentedRecording) {}
+}

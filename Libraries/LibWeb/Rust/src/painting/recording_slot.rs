@@ -10,37 +10,57 @@
 //! A [`RecordingJob`] owns the frame it records, the inputs it records with and the recorder state
 //! it records with, and returns what it recorded with that state in a [`RecordingAnswer`]. None of
 //! them names the layout arena, and the job runs on the Paint thread: the host either waits for it,
-//! or lets it fly beside the event loop and takes its answer in once it has finished. The slot is
+//! or lets it fly beside the event loop and takes its answer in once it has finished. A recording
+//! that flies owns its navigable's presenter, and presents the frame it recorded itself. The slot is
 //! the document host's, on the host's thread: only the recording entries, the publication and the
 //! trace reach it, through [`crate::render_state::DocumentHost::recording`].
 
 use crate::layout::RowsVersion;
 use crate::layout::node_data::NodeSlotId;
-use crate::painting::ffi::{FfiFlightBlocker, FfiRecordingLanding};
+use crate::painting::ffi::{FfiFlightBlocker, FfiPresentedRecording};
 use crate::painting::hit_test::HitTestList;
 use crate::painting::paint_read::PaintSource;
 use crate::painting::paint_state::{PendingRecording, PendingRecordingTrace};
+use crate::painting::presentation::Presentation;
 use crate::painting::published_frame::PublishedFrame;
-use crate::painting::record::RecordingInputs;
 use crate::painting::record::recorder_state::RecorderState;
+use crate::painting::record::{RecordingInputs, RecordingOutput};
 use crate::render_state::{LockstepProof, TaskBoundary};
-use crate::stage_thread::InFlight;
-use std::sync::{Condvar, Mutex, MutexGuard, PoisonError};
+use crate::stage_thread::{InFlight, StopWord};
+use std::sync::{Arc, Condvar, Mutex, MutexGuard, PoisonError};
 
-/// A display list recording: the frame it records, which it drops before it returns, and the
-/// recorder state it records with, which it returns in its answer.
+/// A display list recording: the frame it records, which it drops before it returns, the
+/// recorder state it records with, which it returns in its answer, and for a recording that flies,
+/// what presents the frame it recorded.
 pub(crate) struct RecordingJob {
     frame: PublishedFrame,
     recorder: RecorderState,
     viewport: NodeSlotId,
     trace_recordings: bool,
+    presentation: Option<Presentation>,
 }
 
-/// What a recording answers: the recorder state it was handed, and what it recorded.
+/// What a recording answers: the recorder state it was handed, what it made of what it recorded,
+/// and the presentation it was handed, if any.
 pub(crate) struct RecordingAnswer {
     recorder: RecorderState,
-    pending: PendingRecording,
+    recorded: Recorded,
     trace: Option<PendingRecordingTrace>,
+    presentation: Option<Presentation>,
+}
+
+/// What a recording made of what it recorded: a recording for the host to publish and present, or one
+/// it published and presented itself.
+#[expect(
+    clippy::large_enum_variant,
+    reason = "a recording answers once a frame, and moves what it recorded to the host without an allocation"
+)]
+enum Recorded {
+    Pending(PendingRecording),
+    Presented {
+        output: RecordingOutput,
+        publishes_recording: bool,
+    },
 }
 
 // The host waits for a recording only where it needs the recorder back.
@@ -67,38 +87,47 @@ impl RecordingJob {
             recorder,
             viewport,
             trace_recordings,
+            presentation: None,
         }
     }
 
     /// Records the frame with `inputs` on the Paint thread, and waits for what it recorded.
     pub(crate) fn run_on_paint_thread(self, inputs: &RecordingInputs) -> RecordingAnswer {
         if cfg!(test) {
-            return self.run(inputs);
+            return self.run(inputs, None);
         }
         release_held_recording_for_testing();
-        crate::stage_thread::paint_thread().run(|| self.run(inputs))
+        crate::stage_thread::paint_thread().run(|| self.run(inputs, None))
     }
 
     /// Records the frame with `inputs` on the Paint thread beside the host, which `_license` shows nothing needs
-    /// before the event loop's next task.
-    pub(crate) fn fly(self, inputs: RecordingInputs, _license: FlightLicense) -> InFlight<RecordingAnswer> {
+    /// before the event loop's next task, and presents it with `presentation`, if any, unless the host waits for the
+    /// recording by then.
+    pub(crate) fn fly(
+        mut self,
+        inputs: RecordingInputs,
+        presentation: Option<Presentation>,
+        _license: FlightLicense,
+    ) -> InFlight<RecordingAnswer> {
+        self.presentation = presentation;
         let held = take_recording_hold_for_testing();
-        crate::stage_thread::paint_thread().submit(move |_| {
+        crate::stage_thread::paint_thread().submit(move |stop| {
             if held {
                 wait_while_recording_is_held_for_testing();
             }
-            self.run(&inputs)
+            self.run(&inputs, Some(stop))
         })
     }
 
-    /// Records the frame with `inputs`. It takes no main thread token, so nothing it calls can reach
-    /// the host.
-    fn run(self, inputs: &RecordingInputs) -> RecordingAnswer {
+    /// Records the frame with `inputs`, and presents it where the job has a presentation and `stop`
+    /// is not said. It takes no main thread token, so nothing it calls can reach the host.
+    fn run(self, inputs: &RecordingInputs, stop: Option<&StopWord>) -> RecordingAnswer {
         let Self {
             frame,
             mut recorder,
             viewport,
             trace_recordings,
+            mut presentation,
         } = self;
         let RecorderState {
             published_recording,
@@ -161,15 +190,37 @@ impl RecordingJob {
         );
         let svg_paint_resources = frame.svg_paint_resources().clone();
         drop(frame);
+        let pending = PendingRecording {
+            recording,
+            recording_from_scratch,
+            publishes_recording: inputs.publishes_recording,
+            svg_paint_resources,
+        };
+        // A recording that renders an SVG image, or that the host waits for by now, leaves its frame
+        // for the host to present.
+        let recorded = match presentation.as_mut() {
+            Some(presentation)
+                if stop.is_some_and(|stop| !stop.is_said())
+                    && !crate::painting::record::publish::renders_vector_images(&pending) =>
+            {
+                let output = crate::painting::record::publish::publish_to_presenter(
+                    pending,
+                    &recorder,
+                    &mut presentation.presenter,
+                );
+                presentation.present(&FfiPresentedRecording::of_output(&output));
+                Recorded::Presented {
+                    output,
+                    publishes_recording: inputs.publishes_recording,
+                }
+            }
+            _ => Recorded::Pending(pending),
+        };
         RecordingAnswer {
             recorder,
-            pending: PendingRecording {
-                recording,
-                recording_from_scratch,
-                publishes_recording: inputs.publishes_recording,
-                svg_paint_resources,
-            },
+            recorded,
             trace,
+            presentation,
         }
     }
 }
@@ -251,24 +302,50 @@ enum Recorder {
     InFlight(RecordingFlight),
 }
 
+/// A recording in flight, and the rows version of the frame it records, which tells whether its
+/// hit-test list still stands for the document once it lands.
+struct RecordingFlight {
+    flight: InFlight<RecordingAnswer>,
+    rows_version: RowsVersion,
+}
+
 impl Default for Recorder {
     fn default() -> Self {
         Self::Here(RecorderState::default())
     }
 }
 
-/// A recording in flight, and the rows version of the frame it records, which tells whether the
-/// recording still stands for the document once it lands.
-struct RecordingFlight {
-    flight: InFlight<RecordingAnswer>,
-    rows_version: RowsVersion,
+/// How the recording in flight of a document landed.
+pub(crate) enum RecordingLanding {
+    NoneInFlight,
+    StillInFlight,
+    /// The recording landed: what it recorded is pending for the host to publish and present, or the
+    /// recording presented it itself. It gives back the presentation it was handed, if any.
+    Landed(Option<Presentation>),
+    /// The recording landed after the host wrote the document's rows. What it recorded stands as
+    /// the compositor's frame, whether it presented it or the host does, but not its hit-test list,
+    /// which names boxes that may be gone: the document keeps none.
+    LandedBehindRows(Option<Presentation>),
 }
+
+/// What takes in a recording that presented itself: its output, whether the document's hit-test list
+/// changed, and whether the recording publishes.
+pub(crate) type TakeInPresented<'a> = &'a mut dyn FnMut(Arc<RecordingOutput>, bool, bool);
 
 /// A recording the host publishes, with what its publication writes of the document's recordings.
 pub(crate) struct Publication<'a> {
     pub(crate) pending: PendingRecording,
+    /// Whether the recording landed after the host wrote the document's rows, so that the hit-test
+    /// list it made names boxes that may be gone.
+    pub(crate) behind_rows: bool,
     pub(crate) recorder: &'a mut RecorderState,
     pub(crate) hit_test_list: &'a mut Option<HitTestList>,
+}
+
+/// A recording that landed for the host to publish, and whether it landed behind the rows.
+struct PendingPublication {
+    pending: PendingRecording,
+    behind_rows: bool,
 }
 
 /// What a document keeps of its recordings: the recording its host is to publish, the trace that
@@ -276,7 +353,7 @@ pub(crate) struct Publication<'a> {
 /// last recording published, which hit testing reads.
 #[derive(Default)]
 pub(crate) struct RecordingSlot {
-    pending_recording: Option<PendingRecording>,
+    pending_recording: Option<PendingPublication>,
     pending_recording_trace: Option<PendingRecordingTrace>,
     recorder: Recorder,
     hit_test_list: Option<HitTestList>,
@@ -293,8 +370,10 @@ impl RecordingSlot {
         let Recorder::Here(recorder) = &mut self.recorder else {
             return None;
         };
+        let PendingPublication { pending, behind_rows } = self.pending_recording.take()?;
         Some(Publication {
-            pending: self.pending_recording.take()?,
+            pending,
+            behind_rows,
             recorder,
             hit_test_list: &mut self.hit_test_list,
         })
@@ -321,21 +400,11 @@ impl RecordingSlot {
     }
 
     /// The recorder state, for a recording to take until it answers. The host takes a recording in
-    /// flight in before it records again: one it did not is waited for and dropped unpublished.
+    /// flight in, and the presenter it holds back, before it records again.
     pub(crate) fn take_recorder(&mut self) -> RecorderState {
         match std::mem::take(&mut self.recorder) {
             Recorder::Here(recorder) => recorder,
-            Recorder::InFlight(in_flight) => {
-                let RecordingAnswer {
-                    mut recorder, pending, ..
-                } = in_flight
-                    .flight
-                    .join(LockstepProof::for_reason(&RECORDING_NEEDS_ITS_RECORDER));
-                if pending.publishes_recording {
-                    recorder.forget_published_recording();
-                }
-                recorder
-            }
+            Recorder::InFlight(_) => panic!("the host takes its recording in flight in before it records again"),
         }
     }
 
@@ -344,11 +413,60 @@ impl RecordingSlot {
         self.recorder = Recorder::Here(recorder);
     }
 
-    /// Takes in what a recording answered, leaving the recording pending for the host to publish.
+    /// Takes in what a recording answered: a recording pending for the host to publish, or one the
+    /// recording presented itself, which `take_in` takes in. Answers the presentation the recording
+    /// gives back.
+    fn land(&mut self, answer: RecordingAnswer, take_in: TakeInPresented<'_>) -> Option<Presentation> {
+        self.land_behind_rows(answer, false, take_in)
+    }
+
+    /// Takes in what a recording answered (see [`Self::land`]), where `behind_rows` says the host
+    /// wrote the document's rows since the frame it recorded.
+    fn land_behind_rows(
+        &mut self,
+        answer: RecordingAnswer,
+        behind_rows: bool,
+        take_in: TakeInPresented<'_>,
+    ) -> Option<Presentation> {
+        let RecordingAnswer {
+            mut recorder,
+            recorded,
+            trace,
+            presentation,
+        } = answer;
+        self.pending_recording_trace = trace;
+        match recorded {
+            Recorded::Pending(pending) => self.pending_recording = Some(PendingPublication { pending, behind_rows }),
+            Recorded::Presented {
+                output,
+                publishes_recording,
+            } => crate::painting::record::publish::take_in_published_output(
+                &mut recorder,
+                &mut self.hit_test_list,
+                output,
+                publishes_recording,
+                |output, hit_test_list_changed| {
+                    take_in(output, hit_test_list_changed || behind_rows, publishes_recording);
+                },
+            ),
+        }
+        self.recorder = Recorder::Here(recorder);
+        if behind_rows {
+            self.hit_test_list = None;
+        }
+        presentation
+    }
+
+    /// Takes in what a recording the host waited for answered, leaving it pending for the host to
+    /// publish.
     pub(crate) fn accept_recording_answer(&mut self, answer: RecordingAnswer) {
-        self.recorder = Recorder::Here(answer.recorder);
-        self.pending_recording_trace = answer.trace;
-        self.pending_recording = Some(answer.pending);
+        let presentation = self.land(answer, &mut |_, _, _| {
+            unreachable!("a recording the host waits for presents nothing itself")
+        });
+        debug_assert!(
+            presentation.is_none(),
+            "a recording the host waits for presents nothing"
+        );
     }
 
     /// Lets the recording `flight` fly with the recorder state, recording a frame of the rows at
@@ -361,53 +479,55 @@ impl RecordingSlot {
         self.recorder = Recorder::InFlight(RecordingFlight { flight, rows_version });
     }
 
-    /// Takes the recording in flight in at `boundary`, where it has finished, and answers how it
-    /// landed: it stands where `rows_version` answers the version of the frame it recorded.
+    /// Takes the recording in flight in at `boundary`, where it has finished. `rows_stand` answers
+    /// whether the document's rows are still at the version of the frame it recorded.
     pub(crate) fn take_finished_recording_in(
         &mut self,
         boundary: &TaskBoundary,
-        stands: impl FnOnce(RowsVersion) -> bool,
-    ) -> FfiRecordingLanding {
-        let Recorder::InFlight(in_flight) = std::mem::take(&mut self.recorder) else {
-            return FfiRecordingLanding::NoneInFlight;
+        rows_stand: impl FnOnce(RowsVersion) -> bool,
+        take_in: TakeInPresented<'_>,
+    ) -> RecordingLanding {
+        let Recorder::InFlight(RecordingFlight { flight, rows_version }) = std::mem::take(&mut self.recorder) else {
+            return RecordingLanding::NoneInFlight;
         };
-        let RecordingFlight { flight, rows_version } = in_flight;
         match flight.try_take(boundary) {
-            Ok(answer) => self.land(answer, stands(rows_version)),
+            Ok(answer) => self.landing(answer, rows_stand(rows_version), take_in),
             Err(flight) => {
                 self.recorder = Recorder::InFlight(RecordingFlight { flight, rows_version });
-                FfiRecordingLanding::StillInFlight
+                RecordingLanding::StillInFlight
             }
         }
     }
 
-    /// Waits for the recording in flight and takes it in, and answers how it landed (see
-    /// [`Self::take_finished_recording_in`]).
-    pub(crate) fn join_recording_in_flight(&mut self, stands: impl FnOnce(RowsVersion) -> bool) -> FfiRecordingLanding {
-        let Recorder::InFlight(in_flight) = std::mem::take(&mut self.recorder) else {
-            return FfiRecordingLanding::NoneInFlight;
+    /// Waits for the recording in flight and takes it in (see [`Self::take_finished_recording_in`]).
+    /// It hears the stop word first, so it presents nothing it has not presented yet: the host
+    /// presents what it recorded.
+    pub(crate) fn join_recording_in_flight(
+        &mut self,
+        rows_stand: impl FnOnce(RowsVersion) -> bool,
+        take_in: TakeInPresented<'_>,
+    ) -> RecordingLanding {
+        let Recorder::InFlight(RecordingFlight { flight, rows_version }) = std::mem::take(&mut self.recorder) else {
+            return RecordingLanding::NoneInFlight;
         };
         release_held_recording_for_testing();
-        let answer = in_flight
-            .flight
-            .join(LockstepProof::for_reason(&RECORDING_NEEDS_ITS_RECORDER));
-        self.land(answer, stands(in_flight.rows_version))
+        let answer = flight.join(LockstepProof::for_reason(&RECORDING_NEEDS_ITS_RECORDER));
+        self.landing(answer, rows_stand(rows_version), take_in)
     }
 
-    fn land(&mut self, answer: RecordingAnswer, stands: bool) -> FfiRecordingLanding {
-        self.accept_recording_answer(answer);
-        if !stands {
-            self.discard_pending_recording();
-            return FfiRecordingLanding::DidNotStand;
+    fn landing(&mut self, answer: RecordingAnswer, rows_stand: bool, take_in: TakeInPresented<'_>) -> RecordingLanding {
+        let presentation = self.land_behind_rows(answer, !rows_stand, take_in);
+        match rows_stand {
+            true => RecordingLanding::Landed(presentation),
+            false => RecordingLanding::LandedBehindRows(presentation),
         }
-        FfiRecordingLanding::Stands
     }
 
     /// Drops the pending recording unpublished. A recording that publishes wrote the retained
     /// paint-order tree, so the next one copies nothing from the published recording.
     pub(crate) fn discard_pending_recording(&mut self) {
         self.pending_recording_trace = None;
-        if let Some(pending) = self.pending_recording.take()
+        if let Some(PendingPublication { pending, .. }) = self.pending_recording.take()
             && pending.publishes_recording
             && let Recorder::Here(recorder) = &mut self.recorder
         {
@@ -443,14 +563,19 @@ mod tests {
         }
     }
 
+    fn answer(recorder: RecorderState, recorded: Recorded) -> RecordingAnswer {
+        RecordingAnswer {
+            recorder,
+            recorded,
+            trace: None,
+            presentation: None,
+        }
+    }
+
     /// Leaves `pending` in the slot as a recording's answer would.
     fn accept_pending(slot: &mut RecordingSlot, pending: PendingRecording) {
         let recorder = slot.take_recorder();
-        slot.accept_recording_answer(RecordingAnswer {
-            recorder,
-            pending,
-            trace: None,
-        });
+        slot.accept_recording_answer(answer(recorder, Recorded::Pending(pending)));
     }
 
     #[test]
@@ -465,11 +590,7 @@ mod tests {
         let job = RecordingJob::new(arena.freeze_frame(0), slot.take_recorder(), NodeSlotId::INVALID, false);
         assert!(recorder_of(&mut slot).unwrap().published_recording.is_none());
         let RecordingJob { recorder, .. } = job;
-        slot.accept_recording_answer(RecordingAnswer {
-            recorder,
-            pending: pending(true),
-            trace: None,
-        });
+        slot.accept_recording_answer(answer(recorder, Recorded::Pending(pending(true))));
         assert!(Arc::ptr_eq(
             recorder_of(&mut slot).unwrap().published_recording.as_ref().unwrap(),
             &published
@@ -493,14 +614,14 @@ mod tests {
         assert!(recorder_of(&mut slot).unwrap().published_recording.is_none());
     }
 
-    /// A flight of the slot's recorder state that answers it back with a recording pending.
-    fn flight_of(slot: &mut RecordingSlot, publishes_recording: bool) -> InFlight<RecordingAnswer> {
+    /// A flight of the slot's recorder state that answers it back with `recorded`.
+    fn flight_of(slot: &mut RecordingSlot, recorded: Recorded) -> InFlight<RecordingAnswer> {
         let recorder = slot.take_recorder();
-        crate::stage_thread::paint_thread().submit(move |_| RecordingAnswer {
-            recorder,
-            pending: pending(publishes_recording),
-            trace: None,
-        })
+        crate::stage_thread::paint_thread().submit(move |_| answer(recorder, recorded))
+    }
+
+    fn take_in_nothing(_: Arc<RecordingOutput>, _: bool, _: bool) {
+        panic!("the recording presented nothing itself");
     }
 
     #[test]
@@ -508,7 +629,7 @@ mod tests {
         let mut slot = RecordingSlot::default();
         let published = Arc::new(RecordingOutput::default());
         recorder_of(&mut slot).unwrap().published_recording = Some(published.clone());
-        let flight = flight_of(&mut slot, true);
+        let flight = flight_of(&mut slot, Recorded::Pending(pending(true)));
         slot.fly(flight, RowsVersion::default());
         assert!(slot.has_recording_in_flight());
         assert!(recorder_of(&mut slot).is_none());
@@ -517,7 +638,10 @@ mod tests {
             "nothing is pending before the recording lands"
         );
 
-        assert_eq!(slot.join_recording_in_flight(|_| true), FfiRecordingLanding::Stands);
+        assert!(matches!(
+            slot.join_recording_in_flight(|_| true, &mut take_in_nothing),
+            RecordingLanding::Landed(None)
+        ));
         assert!(!slot.has_recording_in_flight());
         let publication = slot.take_publication().unwrap();
         assert!(Arc::ptr_eq(
@@ -527,32 +651,65 @@ mod tests {
     }
 
     #[test]
-    fn a_recording_that_lands_after_a_write_to_the_rows_is_dropped_unpublished() {
+    fn a_recording_that_presented_itself_lands_its_output_as_the_published_one() {
         let mut slot = RecordingSlot::default();
-        recorder_of(&mut slot).unwrap().published_recording = Some(Arc::new(RecordingOutput::default()));
-        let flight = flight_of(&mut slot, true);
+        let flight = flight_of(
+            &mut slot,
+            Recorded::Presented {
+                output: RecordingOutput::default(),
+                publishes_recording: true,
+            },
+        );
         slot.fly(flight, RowsVersion::default());
+        let mut taken_in = None;
         let landing = loop {
-            match slot.take_finished_recording_in(&TaskBoundary::for_test(), |_| false) {
-                FfiRecordingLanding::StillInFlight => std::thread::yield_now(),
+            match slot.take_finished_recording_in(
+                &TaskBoundary::for_test(),
+                |_| true,
+                &mut |output, _, publishes_recording| {
+                    taken_in = Some((output, publishes_recording));
+                },
+            ) {
+                RecordingLanding::StillInFlight => crate::stage_thread::paint_thread().run(|| ()),
                 landing => break landing,
             }
         };
-        assert_eq!(landing, FfiRecordingLanding::DidNotStand);
-        assert!(!slot.has_pending_recording());
-        assert!(
-            recorder_of(&mut slot).unwrap().published_recording.is_none(),
-            "the next recording copies nothing from what the dropped one wrote over"
-        );
+        assert!(matches!(landing, RecordingLanding::Landed(None)));
+        assert!(!slot.has_pending_recording(), "the host publishes nothing more");
+        let (output, publishes_recording) = taken_in.expect("the output is taken in");
+        assert!(publishes_recording);
+        assert!(Arc::ptr_eq(
+            recorder_of(&mut slot).unwrap().published_recording.as_ref().unwrap(),
+            &output
+        ));
+        assert!(slot.hit_test_list().is_some());
     }
 
     #[test]
-    fn a_recording_started_beside_one_in_flight_takes_the_recorder_state_back_first() {
+    fn a_recording_that_lands_behind_the_rows_keeps_no_hit_test_list() {
         let mut slot = RecordingSlot::default();
-        let flight = flight_of(&mut slot, false);
+        let flight = flight_of(
+            &mut slot,
+            Recorded::Presented {
+                output: RecordingOutput::default(),
+                publishes_recording: false,
+            },
+        );
         slot.fly(flight, RowsVersion::default());
-        let _recorder = slot.take_recorder();
-        assert!(!slot.has_recording_in_flight());
-        assert!(!slot.has_pending_recording());
+        let mut hit_test_list_changed = false;
+        let landing = slot.join_recording_in_flight(|_| false, &mut |_, changed, _| hit_test_list_changed = changed);
+        assert!(matches!(landing, RecordingLanding::LandedBehindRows(None)));
+        assert!(
+            hit_test_list_changed,
+            "the hit-test list the document read is no longer current"
+        );
+        assert!(slot.hit_test_list().is_none());
+
+        let flight = flight_of(&mut slot, Recorded::Pending(pending(false)));
+        slot.fly(flight, RowsVersion::default());
+        let landing = slot.join_recording_in_flight(|_| false, &mut take_in_nothing);
+        assert!(matches!(landing, RecordingLanding::LandedBehindRows(None)));
+        let publication = slot.take_publication().expect("the host presents what it did not");
+        assert!(publication.behind_rows);
     }
 }

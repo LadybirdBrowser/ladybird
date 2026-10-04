@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<div id="box">first</div>
+<div style="height: 300vh"></div>
+<script>
+    // A frame takes the keyboard scroll state where it begins. A keydown listener added beside the recording in flight
+    // invalidates that state: the flight still presents the state it took, and the next frame takes the new one, so what
+    // the compositor holds never goes back to an older state. The flight is taken in while rendering opportunities are
+    // still manual: a rendering task queued while it flies would run as it lands, before any task that reads it.
+    asyncTest(async done => {
+        const afterFlight = await whileRecordingInFlight(() => {
+            box.firstChild.data = "second";
+        }, async () => {
+            document.addEventListener("keydown", () => {});
+            internals.releaseHeldFrame();
+            while (internals.frameSchedulerState() !== "idle")
+                await nextTask();
+            return {
+                presentedBy: internals.lastFramePresentedBy(document),
+                current: internals.lastFrameKeyboardScrollStateIsCurrent(),
+            };
+        });
+        box.firstChild.data = "third";
+        await twoFrames();
+        println(`flight presented by: ${afterFlight.presentedBy}`);
+        println(`current after the flight: ${afterFlight.current}`);
+        println(`current after the next frame: ${internals.lastFrameKeyboardScrollStateIsCurrent()}`);
+        done();
+    });
+</script>

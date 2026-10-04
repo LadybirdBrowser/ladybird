@@ -1,0 +1,3 @@
+flight presented by: flight
+current after the flight: false
+current after the next frame: true

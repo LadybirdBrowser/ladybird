@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<div id="box">first</div>
+<script>
+    // A rendering update's recording that flies presents its frame itself, beside the event loop: taking it in between
+    // two tasks presents nothing more. A change of text alone has no style transaction to fly first.
+    asyncTest(async done => {
+        await whileRecordingInFlight(() => {
+            box.firstChild.data = "second";
+        }, () => {});
+        while (internals.frameSchedulerState() !== "idle")
+            await nextTask();
+        println(`presented by: ${internals.lastFramePresentedBy(document)}`);
+        println(`text: ${box.textContent}`);
+        done();
+    });
+</script>

@@ -553,9 +553,6 @@ pub enum FfiFlightBlocker {
     /// The frame is not a rendering update's: the host records for a screenshot or a hit test, or
     /// renders inside a nested event loop, and reads the frame right after.
     NotInRenderingUpdate,
-    /// The document's last recording in flight did not stand, so this one records in step with the
-    /// host, which presents it.
-    LastFlightDidNotStand,
     /// A view transition of the document captures its rendering in step with the update.
     ViewTransition,
     /// Scroll-state container queries read the scroll state the update snapshots after layout.
@@ -577,11 +574,21 @@ pub enum FfiRecordingLanding {
     NoneInFlight,
     /// The recording has not finished yet.
     StillInFlight,
-    /// The recording landed, and the document's rows are still those of the frame it recorded: it is
-    /// pending for the host to publish.
-    Stands,
-    /// The recording landed after the host wrote the document's rows. It was dropped unpublished.
-    DidNotStand,
+    /// The recording landed: what it recorded is pending for the host to publish and present, or the
+    /// recording presented it itself.
+    Landed,
+    /// The recording landed after the host wrote the document's rows: what it recorded stands as the
+    /// compositor's frame, whether it presented it or the host does, but not its hit-test list.
+    LandedBehindRows,
+}
+
+/// A navigable's presenter and the seal of the frame it presents next (`Web::Compositor::NavigablePresenter` and
+/// `Web::Compositor::SealedPresentation`), which pass between the host and what presents a frame beside it. Both or
+/// neither are null.
+#[repr(C)]
+pub struct FfiPresentation {
+    pub presenter: *mut c_void,
+    pub sealed: *mut c_void,
 }
 
 /// What the host reads of a published recording, to build its display list from.
@@ -595,6 +602,16 @@ pub struct FfiPresentedRecording {
 }
 
 impl FfiPresentedRecording {
+    /// What the host reads of a recording published with `output`, whose display list `output` holds for as long as
+    /// the host reads it.
+    pub(crate) fn of_output(output: &crate::painting::record::RecordingOutput) -> Self {
+        Self {
+            is_identical_to_published_recording: output.is_identical_to_published_recording,
+            has_blocking_wheel_event_listeners: output.has_blocking_wheel_event_listeners,
+            display_list: std::sync::Arc::as_ptr(&output.display_list).cast(),
+        }
+    }
+
     /// What the host reads of the last recording the document took in.
     pub(crate) fn of_last_recording(arena: &LayoutNodeArena) -> Self {
         let paint_state = arena.paint_state().borrow();

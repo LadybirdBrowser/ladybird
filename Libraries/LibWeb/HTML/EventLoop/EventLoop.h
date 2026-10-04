@@ -166,6 +166,9 @@ public:
     // deliver to the document's script what comes before any of its tasks. The tasks of other documents run beside it.
     bool holds_tasks_of(DOM::Document const*) const;
     void hold_next_frame_for_testing() { m_holds_next_frame_for_testing = true; }
+    // Has the next recording that flies leave its frame for the host to present once it lands.
+    void hold_next_frame_before_present_for_testing() { m_holds_next_frame_before_present_for_testing = true; }
+    bool takes_next_frame_presentation_for_testing() { return exchange(m_holds_next_frame_before_present_for_testing, false); }
     void release_held_frames_for_testing();
 
     RenderingSchedulerCounters const& rendering_scheduler_counters() const { return m_rendering_scheduler_counters; }
@@ -238,6 +241,7 @@ private:
     NonnullOwnPtr<PresentationQueue> m_presentation_queue;
     bool m_frame_completion_registered { false };
     bool m_holds_next_frame_for_testing { false };
+    bool m_holds_next_frame_before_present_for_testing { false };
 
     struct RenderingUpdateInFlight;
     OwnPtr<RenderingUpdateInFlight> m_rendering_update_in_flight;

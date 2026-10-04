@@ -232,6 +232,7 @@ public:
     void set_enable_primary_paste(bool b) { m_enable_primary_paste = b; }
 
     u64 wheel_event_listener_state_generation() const { return m_wheel_event_listener_state_generation; }
+    u64 keyboard_scroll_state_generation() const { return m_keyboard_scroll_state_generation; }
     void invalidate_compositor_wheel_event_listener_state();
     void invalidate_compositor_keyboard_scroll_state();
     void invalidate_compositor_keyboard_scroll_state_for_document(DOM::Document const&);

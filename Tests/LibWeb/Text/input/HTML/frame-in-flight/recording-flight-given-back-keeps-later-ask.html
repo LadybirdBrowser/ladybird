@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+</style>
+<div id="box" style="opacity: 0.5">short</div>
+<script>
+    // A recording that flies without presenting its frame leaves it to the host. What asks for another recording once
+    // the recording started asks for the next one, even where the host presents the recording in flight after it: here
+    // a box loses its visual context, and the tree is brought up to date before the next rendering update takes the
+    // recording in.
+    asyncTest(async done => {
+        await whileRecordingInFlight(() => {
+            internals.holdNextFrame("before-present");
+            box.firstChild.data = "a much longer text";
+        }, () => {
+            box.style.opacity = "";
+            internals.visualContextNodeIndices(box);
+            internals.injectRenderingOpportunity(performance.now());
+        });
+        await twoFrames();
+        println(`presented by: ${internals.lastFramePresentedBy(document)}`);
+        println(`opacity: ${getComputedStyle(box).opacity}`);
+        done();
+    });
+</script>
