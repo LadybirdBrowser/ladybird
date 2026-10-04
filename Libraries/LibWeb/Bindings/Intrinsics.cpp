@@ -6,6 +6,7 @@
  */
 
 #include <LibJS/Forward.h>
+#include <LibJS/Runtime/HostObject.h>
 #include <LibJS/Runtime/NativeFunction.h>
 #include <LibJS/Runtime/Object.h>
 #include <LibWeb/Bindings/InterfaceObject.h>
@@ -56,7 +57,8 @@ JS::Object& Intrinsics::existing_web_prototype(Utf16FlyString const& class_name)
 
 void Intrinsics::create_web_prototype_and_constructor(JS::Realm& realm, InterfaceObjectMetadata const& metadata)
 {
-    auto prototype = realm.create<InterfacePrototypeObject>(realm, metadata);
+    auto prototype = JS::HostObject::create(realm, metadata.prototype_host_class, nullptr);
+    metadata.initialize_prototype(realm, prototype);
     m_prototypes.set(Utf16FlyString::from_utf16(metadata.utf16_namespaced_name), prototype);
 
     create_web_constructor(realm, metadata, prototype);

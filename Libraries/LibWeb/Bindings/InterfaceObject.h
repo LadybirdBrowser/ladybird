@@ -8,6 +8,7 @@
 
 #include <AK/StringView.h>
 #include <AK/Utf16View.h>
+#include <LibJS/HostObjectABI.h>
 #include <LibJS/Runtime/NativeFunction.h>
 #include <LibJS/Runtime/Object.h>
 #include <LibWeb/Export.h>
@@ -21,43 +22,23 @@ struct InterfaceObjectMetadata {
     using EnsureConstructorFunction = JS::NativeFunction& (*)(JS::Realm&);
     using InitializeConstructorFunction = void (*)(JS::Realm&, JS::NativeFunction&);
     using InitializePrototypeFunction = void (*)(JS::Realm&, JS::Object&);
-    using DefineUnforgeableAttributesFunction = void (*)(JS::Realm&, JS::Object&);
     using ConstructFunction = JS::ThrowCompletionOr<GC::Ref<JS::Object>> (*)(InterfaceConstructor&, JS::FunctionObject&);
 
     StringView name;
     StringView namespaced_name;
     Utf16View utf16_name;
     Utf16View utf16_namespaced_name;
-    EnsurePrototypeFunction ensure_parent_prototype { nullptr };
     EnsureConstructorFunction ensure_parent_constructor { nullptr };
     // The value of the constructor's "prototype" property, when it is not the prototype registered under
     // namespaced_name. A legacy factory function's is the prototype of the interface it constructs.
     EnsurePrototypeFunction ensure_interface_prototype_object { nullptr };
     InitializeConstructorFunction initialize_constructor { nullptr };
     InitializePrototypeFunction initialize_prototype { nullptr };
-    DefineUnforgeableAttributesFunction define_unforgeable_attributes { nullptr };
     ConstructFunction construct { nullptr };
     i32 function_length { 0 };
-    bool has_immutable_prototype { false };
     bool is_legacy_factory_function { false };
-};
-
-class WEB_API InterfacePrototypeObject final : public JS::Object {
-    JS_OBJECT_WITH_CUSTOM_CLASS_NAME(InterfacePrototypeObject, JS::Object);
-
-public:
-    explicit InterfacePrototypeObject(JS::Realm&, InterfaceObjectMetadata const&);
-    virtual void initialize(JS::Realm&) override;
-    virtual ~InterfacePrototypeObject() override = default;
-    virtual StringView class_name() const override { return m_metadata.name; }
-    virtual JS::ThrowCompletionOr<bool> internal_set_prototype_of(JS::Object* prototype) override;
-
-    void define_unforgeable_attributes(JS::Realm&, JS::Object&);
-
-    GC_DECLARE_ALLOCATOR(InterfacePrototypeObject);
-
-private:
-    InterfaceObjectMetadata const& m_metadata;
+    // The class of the interface prototype object, whose user data is this metadata.
+    JSHostClass prototype_host_class {};
 };
 
 class WEB_API InterfaceConstructor final : public JS::NativeFunction {

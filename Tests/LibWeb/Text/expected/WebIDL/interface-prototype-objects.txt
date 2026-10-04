@@ -1,0 +1,27 @@
+Internal class names:
+EventTarget.prototype: TypeError: [object EventTarget] is not a constructor
+Node.prototype: TypeError: [object Node] is not a constructor
+HTMLElement.prototype: TypeError: [object HTMLElement] is not a constructor
+Window.prototype: TypeError: [object Window] is not a constructor
+NodeList.prototype: TypeError: [object NodeList] is not a constructor
+DOMException.prototype: TypeError: [object DOMException] is not a constructor
+Prototype chains:
+EventTarget.prototype: true
+Node.prototype: true
+HTMLElement.prototype: true
+DOMException.prototype: true
+Object.prototype.toString.call(EventTarget.prototype): [object EventTarget]
+Object.prototype.toString.call(Node.prototype): [object Node]
+Object.prototype.toString.call(HTMLElement.prototype): [object HTMLElement]
+Object.prototype.toString.call(Window.prototype): [object Window]
+Object.prototype.toString.call(NodeList.prototype): [object NodeList]
+Object.prototype.toString.call(DOMException.prototype): [object DOMException]
+[[SetPrototypeOf]]:
+EventTarget.prototype: same=true null=false changed=false
+Node.prototype: same=true null=true changed=true
+HTMLElement.prototype: same=true null=true changed=true
+Window.prototype: same=true null=false changed=false
+NodeList.prototype: same=true null=true changed=true
+DOMException.prototype: same=true null=true changed=true
+Object.setPrototypeOf(EventTarget.prototype, {}): TypeError: Object's [[SetPrototypeOf]] method returned false
+Window.prototype.__proto__ = {}: TypeError: Object's [[SetPrototypeOf]] method returned false
