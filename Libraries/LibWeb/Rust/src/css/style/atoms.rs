@@ -143,6 +143,70 @@ impl GlobalAtoms {
     }
 }
 
+/// What a reference to a process-global atom is the reference to: the raw atom of a name, or a qualified name.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum AtomKey {
+    Raw(usize),
+    Qualified(StyleAtomID, StyleAtomID),
+}
+
+/// A document host's reference to a process-global atom, which it takes as it interns a name beside its document's
+/// engine, and which keeps the atom's number from being handed out again until the engine has adopted the name. It is
+/// the reference itself, so it is neither `Clone` nor `Copy`, and dropping it releases it.
+pub(crate) struct AtomLease {
+    key: AtomKey,
+    atom: StyleAtomID,
+}
+
+impl AtomLease {
+    /// Takes a reference to the global atom of the name whose raw identity is `raw`.
+    ///
+    /// # Safety
+    /// `raw` must be the raw identity of a live `AK::Utf16FlyString`.
+    pub(crate) unsafe fn acquire_raw(raw: usize) -> Self {
+        let atom = global_atoms()
+            .lock()
+            .expect("process-global style atom lock is poisoned")
+            .acquire_raw(raw, RawAtomLifetime::RetainedFlyString);
+        Self {
+            key: AtomKey::Raw(raw),
+            atom,
+        }
+    }
+
+    /// Takes a reference to the global atom of `name` qualified by `namespace`.
+    pub(crate) fn acquire_qualified(namespace: StyleAtomID, name: StyleAtomID) -> Self {
+        let atom = global_atoms()
+            .lock()
+            .expect("process-global style atom lock is poisoned")
+            .acquire_qualified(namespace, name);
+        Self {
+            key: AtomKey::Qualified(namespace, name),
+            atom,
+        }
+    }
+
+    pub(crate) fn atom(&self) -> StyleAtomID {
+        self.atom
+    }
+
+    pub(super) fn key(&self) -> AtomKey {
+        self.key
+    }
+}
+
+impl Drop for AtomLease {
+    fn drop(&mut self) {
+        let mut global = global_atoms()
+            .lock()
+            .expect("process-global style atom lock is poisoned");
+        match self.key {
+            AtomKey::Raw(raw) => global.release_raw(raw, self.atom),
+            AtomKey::Qualified(namespace, name) => global.release_qualified((namespace.0, name.0), self.atom),
+        }
+    }
+}
+
 fn global_atoms() -> &'static Mutex<GlobalAtoms> {
     // The mutex supplies the `Sync` required by a process-global static. It does not make a
     // `DocumentAtoms` owner, or the StyleEngine containing it, safe to use from multiple threads.

@@ -11,6 +11,7 @@
 //! change.
 
 use super::StyleAtomID;
+use super::atoms::{AtomKey, AtomLease};
 use super::bridge::{
     FfiDemandedPseudoElement, FfiElementArrival, FfiElementDeclarationDelta, FfiElementStyleInput,
     FfiLocalFeatureDelta, FfiPseudoElementRecordDemand, FfiRecordDemand, FfiRecordDemandAnswer, FfiStateDelta,
@@ -74,6 +75,14 @@ pub(crate) enum EngineWrite {
     InlineStyle {
         node: StyleNodeID,
         data: Option<std::sync::Arc<crate::css::declaration_block::DeclarationBlockData>>,
+    },
+    /// A name the host interned, which the engine adopts as the atom the host's lease holds.
+    AdoptAtom(AtomLease),
+    /// What a custom property's name atom spells, and the fly string it is.
+    NoteCustomPropertyName {
+        name: StyleAtomID,
+        string: ak::Utf16FlyString,
+        text: Box<[u16]>,
     },
 }
 
@@ -148,6 +157,21 @@ impl EngineWrite {
                     data.as_ref().map_or(&[], |data| data.properties.as_slice()),
                     data.as_ref().map_or(&[], |data| data.custom_properties.as_slice()),
                 );
+            }
+            Self::AdoptAtom(lease) => {
+                let atom = match lease.key() {
+                    // SAFETY: The lease retains the fly string the raw identity names.
+                    AtomKey::Raw(raw) => unsafe { super::bridge::intern_atom(engine, raw) },
+                    AtomKey::Qualified(namespace, name) => {
+                        super::bridge::operations::intern_qualified_atom(engine, namespace.0, name.0)
+                    }
+                };
+                // The engine took a reference of its own, so the global atom stays the one the lease held.
+                assert_eq!(atom, lease.atom().0, "a document adopts the atom its host interned");
+            }
+            Self::NoteCustomPropertyName { name, string, text } => {
+                // SAFETY: The write owns a reference to the fly string.
+                unsafe { super::bridge::note_native_custom_property_name(engine, name, string.raw_identity(), &text) };
             }
         }
     }
@@ -364,6 +388,76 @@ pub unsafe extern "C" fn style_engine_set_pseudo_element_custom_property_data(
         pseudo,
         data,
         identity,
+    };
+    // SAFETY: Guaranteed by the caller.
+    unsafe { queue(host, write) };
+}
+
+/// Interns the name whose raw identity is `raw` for the document, without its engine: the host takes a reference to
+/// the name's process-global atom, which the engine adopts later.
+///
+/// # Safety
+/// `host` must be a live document host, and `raw` the raw identity of a live `AK::Utf16FlyString`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn document_host_intern_atom(host: *const DocumentHost, raw: usize) -> u32 {
+    // SAFETY: Guaranteed by the caller.
+    unsafe { adopt(host, AtomLease::acquire_raw(raw)) }
+}
+
+/// Interns `name` qualified by `namespace` for the document, as [`document_host_intern_atom`] does a name.
+///
+/// # Safety
+/// `host` must be a live document host.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn document_host_intern_qualified_atom(
+    host: *const DocumentHost,
+    namespace: u32,
+    name: u32,
+) -> u32 {
+    // SAFETY: Guaranteed by the caller.
+    unsafe {
+        adopt(
+            host,
+            AtomLease::acquire_qualified(StyleAtomID(namespace), StyleAtomID(name)),
+        )
+    }
+}
+
+/// Queues the engine's adoption of the atom `lease` holds, and answers the atom.
+///
+/// # Safety
+/// `host` must be a live document host.
+unsafe fn adopt(host: *const DocumentHost, lease: AtomLease) -> u32 {
+    let atom = lease.atom().0;
+    // SAFETY: Guaranteed by the caller.
+    unsafe { queue(host, EngineWrite::AdoptAtom(lease)) };
+    atom
+}
+
+/// Records what a custom property's name atom spells, and the fly string it is. The fly string is retained and never
+/// recorded: a replay has no strings, and names its entries by atom alone.
+///
+/// # Safety
+/// `host` must be a live document host, `raw` a live `AK::Utf16FlyString` raw representation, and `text` must name
+/// `length` code units.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn style_engine_note_custom_property_name(
+    host: *const DocumentHost,
+    name: u32,
+    raw: usize,
+    text: *const u16,
+    length: usize,
+) {
+    // SAFETY: Guaranteed by the caller, which hands the write a reference of its own.
+    let string = unsafe { ak::Utf16FlyString::from_raw_owned(raw) };
+    if name == 0 {
+        return;
+    }
+    let write = EngineWrite::NoteCustomPropertyName {
+        name: StyleAtomID(name),
+        string,
+        // SAFETY: Guaranteed by the caller.
+        text: unsafe { owned(text, length) },
     };
     // SAFETY: Guaranteed by the caller.
     unsafe { queue(host, write) };

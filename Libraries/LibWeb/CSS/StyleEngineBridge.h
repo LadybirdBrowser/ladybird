@@ -161,9 +161,11 @@ public:
     // lookup on that word plus one reference to keep the name alive. No string is copied, and
     // neither side pays an ASCII or UTF-16 conversion for a fact a u32 comparison answers.
     StyleAtomID intern_atom(Utf16FlyString const&);
+    // The process-global atom of `name` qualified by `namespace_atom`, retained by this document.
+    StyleAtomID intern_qualified_atom(StyleAtomID namespace_atom, StyleAtomID name);
     // The engine keeps what a custom property's name spells, once per name, for the environments
     // it computes.
-    void note_custom_property_name(Layout::BegunRead const& read, StyleAtomID, Utf16FlyString const&);
+    void note_custom_property_name(StyleAtomID, Utf16FlyString const&);
     // The store of an environment the engine resolved, with one strong reference transferred, and
     // the environment it was resolved over; null for one C++ published.
     [[nodiscard]] void const* borrow_engine_custom_property_environment(Layout::BegunRead const& read, u64 identity, u64& parent_identity) const;

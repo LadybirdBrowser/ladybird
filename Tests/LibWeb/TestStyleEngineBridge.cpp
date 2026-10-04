@@ -103,7 +103,7 @@ TEST_CASE(reclaimed_custom_property_atoms_republish_their_names)
     Web::Layout::ForcedReadScope read { engine.render_document(), false };
     auto old_name = Utf16FlyString::from_utf8_without_validation("--reclaimed-custom-property"sv);
     auto old_atom = engine.intern_atom(old_name);
-    engine.note_custom_property_name(read, old_atom, old_name);
+    engine.note_custom_property_name(old_atom, old_name);
     for (size_t index = 0; index < 255; ++index) {
         auto name = MUST(String::formatted("style-engine-custom-property-sweep-{}", index));
         engine.intern_atom(Utf16FlyString::from_utf8_without_validation(name));
@@ -115,7 +115,7 @@ TEST_CASE(reclaimed_custom_property_atoms_republish_their_names)
     auto new_name = Utf16FlyString::from_utf8_without_validation("--new-custom-property"sv);
     auto new_atom = engine.intern_atom(new_name);
     EXPECT_EQ(new_atom, old_atom);
-    engine.note_custom_property_name(read, new_atom, new_name);
+    engine.note_custom_property_name(new_atom, new_name);
 
     EXPECT_EQ(counter_value(engine, "customPropertyNamesPublished"sv), 2ull);
 }

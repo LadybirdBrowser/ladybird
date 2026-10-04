@@ -128,6 +128,8 @@ void StyleEngine::set_element_presentational_hint_properties(StyleNodeID node, S
             .name = {},
         });
     }
+    // Whether the hints define transitions is the host's own read of the render state.
+    Layout::ForcedReadScope read { render_document(), false };
     if (StyleEngineFFI::style_engine_set_element_presentational_hint_properties(host(), node.value(), kind, declarations.data(), declarations.size()))
         note_css_transitions_may_observe_style_changes();
 }
@@ -225,9 +227,10 @@ StyleEngine::StyleRecordDelta StyleEngine::remove_computed_pseudo(Layout::BegunR
 StyleAtomID StyleEngine::intern_atom(Utf16FlyString const& name)
 {
     // Utf16FlyString is already interned, so its one-word raw form is the name's identity. The atom
-    // itself is assigned by the engine, which is also where selector names intern: two tables keyed
-    // by the same word but each assigning its own sequence would compare unequal for the same name,
-    // which fails to match silently rather than loudly.
+    // is the process-global one, which is also what selector names intern as: two tables keyed by
+    // the same word but each assigning its own sequence would compare unequal for the same name,
+    // which fails to match silently rather than loudly. The host takes a reference to it without
+    // the engine, which adopts the name later.
     // First time seen, the leaked reference is kept so the identity cannot be reused while the
     // atom is live. Duplicates release their new reference and return without crossing the FFI.
     auto raw = name.to_raw_leaked();
@@ -235,14 +238,17 @@ StyleAtomID StyleEngine::intern_atom(Utf16FlyString const& name)
         Utf16FlyString::unref_raw(raw);
         return atom.release_value();
     }
-    // The engine owns the atom table, so a new atom is the host's own read of the render state.
-    Layout::ForcedReadScope read { render_document(), false };
-    auto atom = StyleAtomID { StyleEngineFFI::style_engine_intern_atom(host(), read, raw) };
+    auto atom = StyleAtomID { StyleEngineFFI::document_host_intern_atom(host(), raw) };
     m_atoms.set(raw, atom);
     return atom;
 }
 
-void StyleEngine::note_custom_property_name(Layout::BegunRead const& read, StyleAtomID atom, Utf16FlyString const& name)
+StyleAtomID StyleEngine::intern_qualified_atom(StyleAtomID namespace_atom, StyleAtomID name)
+{
+    return StyleAtomID { StyleEngineFFI::document_host_intern_qualified_atom(host(), namespace_atom.value(), name.value()) };
+}
+
+void StyleEngine::note_custom_property_name(StyleAtomID atom, Utf16FlyString const& name)
 {
     if (m_published_custom_property_names.contains(atom))
         return;
@@ -252,10 +258,8 @@ void StyleEngine::note_custom_property_name(Layout::BegunRead const& read, Style
     code_units.ensure_capacity(view.length_in_code_units());
     for (size_t i = 0; i < view.length_in_code_units(); ++i)
         code_units.unchecked_append(view.code_unit_at(i));
-    // The engine retains the fly string itself; this reference only carries it across.
-    auto raw = name.to_raw_leaked();
-    StyleEngineFFI::style_engine_note_custom_property_name(host(), &read, atom.value(), raw, code_units.data(), code_units.size());
-    Utf16FlyString::unref_raw(raw);
+    // The write carries this reference across to the engine, which retains the fly string itself.
+    StyleEngineFFI::style_engine_note_custom_property_name(host(), atom.value(), name.to_raw_leaked(), code_units.data(), code_units.size());
 }
 
 StyleRecordID StyleEngine::republish_record_environment(Layout::BegunRead const& read, StyleNodeID node, u64 environment, void const* store)
@@ -364,14 +368,12 @@ StyleAtomID StyleEngine::intern_attribute_name(Utf16FlyString const& local_name,
     if (auto name = names_by_namespace.get(namespace_atom); name.has_value())
         return name.release_value();
 
-    // The engine owns the atom table, so a new attribute name is the host's own read of the render state.
-    Layout::ForcedReadScope read { render_document(), false };
     auto in_namespace = [&](StyleAtomID name) {
         if (namespace_atom == 0)
             return name;
-        return intern_qualified_atom(read, namespace_atom, name);
+        return intern_qualified_atom(namespace_atom, name);
     };
-    auto any_namespace = intern_qualified_atom(read, StyleEngine::any_namespace, local);
+    auto any_namespace = intern_qualified_atom(StyleEngine::any_namespace, local);
     auto name = in_namespace(local);
 
     StyleAtomID folded_name;
@@ -379,7 +381,7 @@ StyleAtomID StyleEngine::intern_attribute_name(Utf16FlyString const& local_name,
     if (auto folded = local_name.to_ascii_lowercase(); folded != local_name) {
         auto folded_atom = intern_atom(folded);
         folded_name = in_namespace(folded_atom);
-        folded_local = intern_qualified_atom(read, StyleEngine::any_namespace, folded_atom);
+        folded_local = intern_qualified_atom(StyleEngine::any_namespace, folded_atom);
     }
 
     note_attribute_name_forms(name, any_namespace, folded_name, folded_local);
@@ -444,7 +446,8 @@ bool StyleEngine::refresh_attribute_value_text_requirements(Layout::BegunRead co
 bool StyleEngine::attribute_name_requires_value_text(StyleAtomID name)
 {
     return m_attribute_names_requiring_value_text.ensure(name, [&] {
-        // A name the host has not asked about yet is the host's own read of the render state.
+        // The engine works out which names its selectors read the value text of, so a name not seen
+        // since they changed is the host's own read of the render state.
         Layout::ForcedReadScope read { render_document(), false };
         return StyleEngineFFI::style_engine_attribute_name_requires_value_text(m_render_document->host(), read, name.value());
     });
