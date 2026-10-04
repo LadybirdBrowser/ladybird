@@ -112,7 +112,7 @@ impl Vm {
             // SAFETY: The interpreter runs the executable in the context, whose slots follow it.
             unsafe {
                 js_interpreter(
-                    executable_ref.bytecode().as_ptr(),
+                    executable_ref.head.bytecode_data.get(),
                     entry_point,
                     context_ref.slots().as_ptr().cast_mut().cast(),
                     core::ptr::from_ref(self).cast(),

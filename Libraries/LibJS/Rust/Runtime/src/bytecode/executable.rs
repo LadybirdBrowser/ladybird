@@ -363,7 +363,9 @@ impl PropertyLookupCache {
     }
 
     /// Records a new entry of `entry_type`, filled in by `callback`, moving the cache to the next tier when it has no
-    /// room for it.
+    /// room for it. Only accesses the cache missed get here, so this stays out of line instead of growing the frames
+    /// of the property access paths that every access runs through.
+    #[inline(never)]
     pub fn update(
         &self,
         entry_type: PropertyLookupCacheEntryType,
@@ -420,21 +422,7 @@ impl PropertyLookupCache {
         if insertion_index == entries.len()
             && entries[entries.len() - 1].entry_type.get() != PropertyLookupCacheEntryType::Empty
         {
-            let new_data = Box::new(MegamorphicData {
-                entry: PropertyLookupCacheEntry::new(),
-                primary_entries: core::array::from_fn(|_| PropertyLookupCacheEntry::new()),
-                secondary_entries: core::array::from_fn(|_| PropertyLookupCacheEntry::new()),
-            });
-            for entry in entries.iter().rev() {
-                let entry = entry.get();
-                if entry.lookup_shape().is_some() {
-                    insert_megamorphic_entry(&new_data, &entry);
-                }
-            }
-            insert_megamorphic_entry(&new_data, &new_entry);
-            new_data.entry.set(new_entry);
-            self.clear();
-            self.set_data(new_data, MEGAMORPHIC_DATA_TAG);
+            self.move_full_polymorphic_entries_to_megamorphic_tier(&new_entry);
             return;
         }
 
@@ -446,6 +434,32 @@ impl PropertyLookupCache {
             entries[index].set(entries[index - 1].get());
         }
         entries[0].set(new_entry);
+    }
+
+    /// Boxing a MegamorphicData builds it on the stack first, in a frame of about 12 KB that is probed page by page on
+    /// every entry to the function holding it, so this stays out of line from update(), which runs on every miss.
+    #[cold]
+    #[inline(never)]
+    fn move_full_polymorphic_entries_to_megamorphic_tier(&self, new_entry: &PropertyLookupCacheEntryData) {
+        let entries = &self
+            .polymorphic_data()
+            .expect("only a polymorphic cache becomes megamorphic")
+            .entries;
+        let new_data = Box::new(MegamorphicData {
+            entry: PropertyLookupCacheEntry::new(),
+            primary_entries: core::array::from_fn(|_| PropertyLookupCacheEntry::new()),
+            secondary_entries: core::array::from_fn(|_| PropertyLookupCacheEntry::new()),
+        });
+        for entry in entries.iter().rev() {
+            let entry = entry.get();
+            if entry.lookup_shape().is_some() {
+                insert_megamorphic_entry(&new_data, &entry);
+            }
+        }
+        insert_megamorphic_entry(&new_data, new_entry);
+        new_data.entry.set(*new_entry);
+        self.clear();
+        self.set_data(new_data, MEGAMORPHIC_DATA_TAG);
     }
 
     pub fn clear(&self) {
