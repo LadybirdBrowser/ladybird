@@ -22,11 +22,14 @@ use crate::embedding::abi_types::vm_from_abi;
 use crate::gc::capi::GCVisitor;
 use crate::gc::visitor::{Trace, Visitor};
 use crate::interpreter::execution_context::OwnedExecutionContext;
+use crate::layout::cell::Gc;
 use crate::layout::execution_context::{
     ExecutionContext, SCRIPT_OR_MODULE_TAG_EMPTY, SCRIPT_OR_MODULE_TAG_MODULE, SCRIPT_OR_MODULE_TAG_SCRIPT,
     ScriptOrModule,
 };
 use crate::layout::host_class::JSVM;
+use crate::runtime::module::Module;
+use crate::script::Script;
 
 /// An execution context, laid out as the JS_LAYOUT_EXECUTION_CONTEXT_* values of LibJS/Embedding/Layout.h describe.
 pub struct JSExecutionContext {
@@ -53,6 +56,22 @@ impl From<ScriptOrModule> for JSScriptOrModule {
             ScriptOrModule::Module(module) => (SCRIPT_OR_MODULE_TAG_MODULE, module.as_ptr().cast()),
         };
         Self { tag, cell }
+    }
+}
+
+/// # Safety
+///
+/// The cell of `script_or_module` must be a live Script or Module, as its tag says, unless the tag is the empty one.
+pub unsafe fn script_or_module_from_abi(script_or_module: JSScriptOrModule) -> ScriptOrModule {
+    let cell = || NonNull::new(script_or_module.cell).expect("a script or module has its cell");
+    // SAFETY: The caller guarantees that the cell is a live record of the kind the tag names.
+    unsafe {
+        match script_or_module.tag {
+            SCRIPT_OR_MODULE_TAG_EMPTY => ScriptOrModule::Empty,
+            SCRIPT_OR_MODULE_TAG_SCRIPT => ScriptOrModule::Script(Gc::from_non_null(cell().cast::<Script>())),
+            SCRIPT_OR_MODULE_TAG_MODULE => ScriptOrModule::Module(Gc::from_non_null(cell().cast::<Module>())),
+            tag => panic!("{tag} is not the tag of a script or module"),
+        }
     }
 }
 

@@ -18,6 +18,7 @@ use libjs_runtime_macros::Trace;
 
 use crate::breakpoint::{Breakpoint, BreakpointID};
 use crate::bytecode::executable::{Executable, LocalVariableMetadata};
+use crate::gc::foreign::ForeignCellSlot;
 use crate::gc::heap::cell_is_dead;
 use crate::gc::root::MarkedVec;
 use crate::gc::visitor::{Trace, Visitor};
@@ -106,6 +107,8 @@ struct StepState {
 
 pub struct Debugger {
     pause_callback: RefCell<Option<PauseCallback>>,
+    /// The embedder's cell that its pause callback passes back to it, which the debugger keeps alive.
+    pause_callback_context: ForeignCellSlot,
     /// GC::WeakHashSet<Executable>, by the address of each executable, which a new one may take over once the old
     /// one died. The VM forgets the ones that die after each collection.
     executables: RefCell<HashMap<usize, GcWeak<Executable>, foldhash::fast::RandomState>>,
@@ -134,6 +137,7 @@ impl Debugger {
     pub fn new() -> Self {
         Self {
             pause_callback: RefCell::new(None),
+            pause_callback_context: ForeignCellSlot::empty(),
             executables: RefCell::new(HashMap::default()),
             breakpoints: RefCell::new(Vec::new()),
             next_breakpoint_id: Cell::new(1),
@@ -150,6 +154,15 @@ impl Debugger {
 
     pub fn set_pause_callback(&self, callback: impl Fn(&Vm, &PauseInfo) + 'static) {
         *self.pause_callback.borrow_mut() = Some(Rc::new(callback));
+    }
+
+    /// Leaves pauses unreported, as the debugger does before a callback is set.
+    pub fn clear_pause_callback(&self) {
+        *self.pause_callback.borrow_mut() = None;
+    }
+
+    pub fn pause_callback_context(&self) -> &ForeignCellSlot {
+        &self.pause_callback_context
     }
 
     pub fn pause_execution(
@@ -708,10 +721,11 @@ impl Drop for Debugger {
     }
 }
 
-// SAFETY: The last exception the debugger paused at is the only cell it keeps alive.
+// SAFETY: The last exception the debugger paused at and the embedder's context are the only cells it keeps alive.
 unsafe impl Trace for Debugger {
     fn trace(&self, visitor: &mut Visitor) {
         self.last_paused_exception.trace(visitor);
+        self.pause_callback_context.trace(visitor);
     }
 }
 
