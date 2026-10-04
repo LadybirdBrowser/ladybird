@@ -33,7 +33,7 @@
 #include <LibWebView/CanonicalWindow.h>
 #include <LibWebView/CookieJar.h>
 #include <LibWebView/FontService.h>
-#include <LibWebView/FontServiceConnection.h>
+#include <LibWebView/FontServiceHost.h>
 #include <LibWebView/HSTSStore.h>
 #include <LibWebView/HelperProcess.h>
 #include <LibWebView/HistoryStore.h>
@@ -126,9 +126,7 @@ void WebContentClient::connect_test_endpoint(NonnullOwnPtr<IPC::Transport> trans
 // pumps, so the render side gets a connection of its own.
 ErrorOr<void> WebContentClient::connect_render_side_font_service()
 {
-    VERIFY(!m_render_side_font_service_connection);
-    m_render_side_font_service_connection = TRY(FontServiceConnection::create(Application::font_service()));
-    async_set_render_side_font_service_transport(m_render_side_font_service_connection->take_transport_handle());
+    async_set_render_side_font_service_transport(TRY(Application::font_service_host().connect()));
     return {};
 }
 

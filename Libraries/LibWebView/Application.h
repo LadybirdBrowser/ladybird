@@ -100,6 +100,7 @@ public:
     static RequestServerOptions const& request_server_options() { return the().m_request_server_options; }
     static WebContentOptions& web_content_options() { return the().m_web_content_options; }
     static FontService& font_service() { return *the().m_font_service; }
+    static FontServiceHost& font_service_host() { return *the().m_font_service_host; }
     JsonValue const& site_compatibility_data() const { return m_site_compatibility_data; }
     ErrorOr<void> reload_site_compatibility_data();
 
@@ -537,6 +538,7 @@ private:
     RequestServerOptions m_request_server_options;
     WebContentOptions m_web_content_options;
     RefPtr<FontService> m_font_service;
+    OwnPtr<FontServiceHost> m_font_service_host;
     JsonValue m_site_compatibility_data;
     Optional<Core::AnonymousBuffer> m_content_blocker_list_buffer;
     RefPtr<Core::Timer> m_content_blocker_list_update_timer;
@@ -570,7 +572,6 @@ private:
     RefPtr<WasmCompilerClient::Client> m_wasm_compiler_client;
 #endif
     RefPtr<CompositorClient> m_compositor_client;
-    RefPtr<FontServiceConnection> m_compositor_font_service_connection;
     bool m_reported_compositor_gpu_presentation_unavailable { false };
     size_t m_compositor_restart_count { 0 };
     enum class CompositorRecoveryState {

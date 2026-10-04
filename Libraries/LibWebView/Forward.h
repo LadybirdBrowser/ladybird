@@ -38,7 +38,7 @@ class DownloadStore;
 class ExternalURLHandler;
 class FaviconStore;
 class FontService;
-class FontServiceConnection;
+class FontServiceHost;
 class HistoryStore;
 class HSTSStore;
 class Menu;

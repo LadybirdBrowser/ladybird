@@ -184,10 +184,6 @@ private:
 
     RefPtr<WebContentTestClient> m_test_connection;
 
-    // The UI process's end of the font connection this renderer's render side uses. It lives as long as the
-    // renderer does.
-    RefPtr<FontServiceConnection> m_render_side_font_service_connection;
-
     IsPrivate m_is_private { IsPrivate::No };
     RefPtr<BrowsingSession> m_session;
     bool m_requested_close { false };

@@ -53,7 +53,7 @@
 #include <LibWebView/CrashReportStore.h>
 #include <LibWebView/FaviconStore.h>
 #include <LibWebView/FontService.h>
-#include <LibWebView/FontServiceConnection.h>
+#include <LibWebView/FontServiceHost.h>
 #include <LibWebView/HSTSStore.h>
 #include <LibWebView/HeadlessWebView.h>
 #include <LibWebView/HelperProcess.h>
@@ -695,6 +695,10 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
 
     if (!m_event_loop)
         m_event_loop = &create_platform_event_loop();
+
+    // NB: The host's thread makes an event loop, which would install the default event loop manager if the platform
+    //     one were not installed yet.
+    m_font_service_host = FontServiceHost::create(*m_font_service);
     TRY(launch_services());
 
     if (m_web_content_options.is_test_mode == IsTestMode::No && m_browser_options.enable_content_blocker == EnableContentBlocker::Yes) {
@@ -1658,10 +1662,8 @@ ErrorOr<void> Application::launch_services()
 ErrorOr<void> Application::launch_compositor_process()
 {
     VERIFY(!m_compositor_client);
-    VERIFY(!m_compositor_font_service_connection);
     m_compositor_client = TRY(WebView::launch_compositor_process());
-    m_compositor_font_service_connection = TRY(FontServiceConnection::create(*m_font_service));
-    m_compositor_client->async_set_font_service_transport(m_compositor_font_service_connection->take_transport_handle());
+    m_compositor_client->async_set_font_service_transport(TRY(m_font_service_host->connect()));
     m_compositor_client->on_death = [this]() {
         handle_compositor_process_death();
     };
@@ -1690,7 +1692,6 @@ void Application::notify_compositor_gpu_presentation_unavailable()
 void Application::handle_compositor_process_death()
 {
     m_compositor_client = nullptr;
-    m_compositor_font_service_connection = nullptr;
 
     // Nothing will forward or hand back the input events the dead compositor still held.
     WebContentClient::for_each_client([](WebContentClient& client) {

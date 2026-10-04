@@ -13,23 +13,24 @@
 #include <LibIPC/Transport.h>
 #include <LibThreading/Thread.h>
 #include <LibWebView/FontService.h>
-#include <LibWebView/FontServiceConnection.h>
+#include <LibWebView/FontServiceHost.h>
 
 namespace WebView {
 
 class FontServerConnection final
     : public IPC::ConnectionFromClient<FontClientEndpoint, FontServerEndpoint> {
 public:
-    FontServerConnection(NonnullOwnPtr<IPC::Transport> transport, FontService& font_service)
+    FontServerConnection(FontServiceHost& host, NonnullOwnPtr<IPC::Transport> transport)
         : IPC::ConnectionFromClient<FontClientEndpoint, FontServerEndpoint>(*this, move(transport), 1)
-        , m_font_service(font_service)
+        , m_host(host)
+        , m_font_service(host.m_font_service)
     {
     }
 
 private:
     virtual void die() override
     {
-        Core::EventLoop::current().quit(0);
+        m_host.m_connections.remove_first_matching([this](auto const& connection) { return connection.ptr() == this; });
     }
 
     virtual Messages::FontServer::InitTransportResponse init_transport([[maybe_unused]] int peer_pid) override
@@ -73,90 +74,76 @@ private:
         return Optional<String> { resolved->to_string() };
     }
 
+    FontServiceHost& m_host;
     FontService& m_font_service;
 };
 
-ErrorOr<NonnullRefPtr<FontServiceConnection>> FontServiceConnection::create(FontService& font_service)
+NonnullOwnPtr<FontServiceHost> FontServiceHost::create(FontService& font_service)
 {
-    auto connection = adopt_ref(*new FontServiceConnection(font_service));
+    auto host = adopt_own(*new FontServiceHost(font_service));
 
-    Optional<Error> initialization_error;
-    {
-        MutexLocker locker(connection->m_mutex);
-        connection->m_initialization_condition.wait_while([&] { return !connection->m_initialized; });
-        initialization_error = move(connection->m_initialization_error);
-    }
-
-    if (initialization_error.has_value())
-        return initialization_error.release_value();
-    return connection;
+    MutexLocker locker(host->m_mutex);
+    host->m_condition.wait_while([&] { return !host->m_event_loop; });
+    return host;
 }
 
-FontServiceConnection::FontServiceConnection(FontService& font_service)
+FontServiceHost::FontServiceHost(FontService& font_service)
     : m_font_service(font_service)
-    , m_thread(Threading::Thread::construct("Font service IPC"sv, [this] {
+    , m_thread(Threading::Thread::construct("Font service host"sv, [this] {
         return thread_main();
     }))
 {
     m_thread->start();
 }
 
-FontServiceConnection::~FontServiceConnection()
+FontServiceHost::~FontServiceHost()
 {
-    RefPtr<Core::WeakEventLoopReference> event_loop;
-    {
-        MutexLocker locker(m_mutex);
-        event_loop = m_event_loop;
+    if (auto event_loop = m_event_loop->take()) {
+        event_loop->quit(0);
+        event_loop->wake();
     }
-
-    if (event_loop) {
-        if (auto strong_event_loop = event_loop->take()) {
-            strong_event_loop->quit(0);
-            strong_event_loop->wake();
-        }
-    }
-
-    if (m_thread->needs_to_be_joined())
-        (void)m_thread->join();
+    (void)m_thread->join();
 }
 
-IPC::TransportHandle FontServiceConnection::take_transport_handle()
+ErrorOr<IPC::TransportHandle> FontServiceHost::connect()
 {
+    // NB: A connection belongs to the thread that constructs it, so the host thread opens it.
+    IGNORE_USE_IN_ESCAPING_LAMBDA Optional<ErrorOr<IPC::TransportHandle>> result;
     MutexLocker locker(m_mutex);
-    VERIFY(m_transport_handle.has_value());
-    return m_transport_handle.release_value();
+    {
+        auto event_loop = m_event_loop->take();
+        VERIFY(event_loop);
+        event_loop->deferred_invoke([&] {
+            auto handle = open_connection();
+            MutexLocker locker(m_mutex);
+            result = move(handle);
+            m_condition.broadcast();
+        });
+    }
+    m_condition.wait_while([&] { return !result.has_value(); });
+    return result.release_value();
 }
 
-intptr_t FontServiceConnection::thread_main()
+ErrorOr<IPC::TransportHandle> FontServiceHost::open_connection()
+{
+    auto paired = TRY(IPC::Transport::create_paired());
+    m_connections.append(adopt_ref(*new FontServerConnection(*this, move(paired.local))));
+    return move(paired.remote_handle);
+}
+
+intptr_t FontServiceHost::thread_main()
 {
     Core::EventLoop event_loop;
-    auto paired_or_error = IPC::Transport::create_paired();
-    if (paired_or_error.is_error()) {
-        MutexLocker locker(m_mutex);
-        m_initialization_error = paired_or_error.release_error();
-        m_initialized = true;
-        m_initialization_condition.broadcast();
-        return 1;
-    }
-
-    auto paired = paired_or_error.release_value();
-    auto connection = adopt_ref(*new FontServerConnection(move(paired.local), *m_font_service));
-
     {
         MutexLocker locker(m_mutex);
         m_event_loop = Core::EventLoop::current_weak();
-        m_transport_handle = move(paired.remote_handle);
-        m_initialized = true;
-        m_initialization_condition.broadcast();
+        m_condition.broadcast();
     }
 
     auto result = event_loop.exec();
-    if (connection->is_open())
-        connection->shutdown();
-
-    {
-        MutexLocker locker(m_mutex);
-        m_event_loop.clear();
+    for (auto& connection : exchange(m_connections, {})) {
+        if (connection->is_open())
+            connection->shutdown();
     }
     return result;
 }

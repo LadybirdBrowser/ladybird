@@ -14,22 +14,22 @@
 #include <LibTest/TestCase.h>
 #include <LibThreading/Thread.h>
 #include <LibWebView/FontService.h>
-#include <LibWebView/FontServiceConnection.h>
+#include <LibWebView/FontServiceHost.h>
 
 namespace {
 
 struct RenderSideFontService {
     NonnullRefPtr<WebView::FontService> font_service;
-    NonnullRefPtr<WebView::FontServiceConnection> connection;
+    NonnullOwnPtr<WebView::FontServiceHost> host;
     NonnullOwnPtr<Compositing::FontServiceClient> client;
 };
 
 RenderSideFontService connect_render_side_font_service()
 {
     auto font_service = WebView::FontService::create({});
-    auto connection = MUST(WebView::FontServiceConnection::create(*font_service));
-    auto client = MUST(Compositing::FontServiceClient::create(connection->take_transport_handle()));
-    return { move(font_service), move(connection), move(client) };
+    auto host = WebView::FontServiceHost::create(*font_service);
+    auto client = MUST(Compositing::FontServiceClient::create(MUST(host->connect())));
+    return { move(font_service), move(host), move(client) };
 }
 
 void run_on_another_thread(Function<void()> function)
@@ -97,13 +97,13 @@ TEST_CASE(questions_from_several_threads_at_once_are_answered_one_at_a_time)
     EXPECT_EQ(face_ids[0], face_ids[1]);
 }
 
-// A renderer's connection belongs to its WebContentClient, which can outlive the UI process's own
-// reference to the font service. The connection keeps the service alive until its thread is gone.
-TEST_CASE(a_connection_keeps_the_font_service_alive)
+// The host keeps the font service alive until its thread is gone, however long the UI process's own
+// reference to the service lasts.
+TEST_CASE(the_host_keeps_the_font_service_alive)
 {
     RefPtr<WebView::FontService> font_service = WebView::FontService::create({});
-    auto connection = MUST(WebView::FontServiceConnection::create(*font_service));
-    auto client = MUST(Compositing::FontServiceClient::create(connection->take_transport_handle()));
+    auto host = WebView::FontServiceHost::create(*font_service);
+    auto client = MUST(Compositing::FontServiceClient::create(MUST(host->connect())));
     auto expected = font_service->match_font_for_code_point('A', 400, Gfx::FontWidth::Normal, 0, false).face_id;
     font_service = nullptr;
 
@@ -113,6 +113,27 @@ TEST_CASE(a_connection_keeps_the_font_service_alive)
         face_id = client->match_font_for_code_point('A', 400, Gfx::FontWidth::Normal, 0, false).face_id;
     });
     EXPECT_EQ(face_id, expected);
+}
+
+// One host thread answers the connections of every process, and a process that goes away takes
+// only its own connection with it.
+TEST_CASE(one_host_answers_several_connections_and_outlives_a_closed_one)
+{
+    auto font_service = WebView::FontService::create({});
+    auto host = WebView::FontServiceHost::create(*font_service);
+    OwnPtr<Compositing::FontServiceClient> first = MUST(Compositing::FontServiceClient::create(MUST(host->connect())));
+    auto second = MUST(Compositing::FontServiceClient::create(MUST(host->connect())));
+    auto expected = font_service->match_font_for_code_point('A', 400, Gfx::FontWidth::Normal, 0, false).face_id;
+    EXPECT_NE(expected, 0u);
+
+    EXPECT_EQ(first->match_font_for_code_point('A', 400, Gfx::FontWidth::Normal, 0, false).face_id, expected);
+    EXPECT_EQ(second->match_font_for_code_point('A', 400, Gfx::FontWidth::Normal, 0, false).face_id, expected);
+
+    first = nullptr;
+    EXPECT_EQ(second->match_font_for_code_point('A', 400, Gfx::FontWidth::Normal, 0, false).face_id, expected);
+
+    auto third = MUST(Compositing::FontServiceClient::create(MUST(host->connect())));
+    EXPECT_EQ(third->match_font_for_code_point('A', 400, Gfx::FontWidth::Normal, 0, false).face_id, expected);
 }
 
 // The process's font provider sends a code point miss from any thread but its own over the render

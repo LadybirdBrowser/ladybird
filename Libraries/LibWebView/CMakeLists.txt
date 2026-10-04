@@ -31,7 +31,7 @@ set(SOURCES
     FaviconStore.cpp
     FileDownloader.cpp
     FontService.cpp
-    FontServiceConnection.cpp
+    FontServiceHost.cpp
     HeadlessWebView.cpp
     HelperProcess.cpp
     HistoryDebug.cpp
