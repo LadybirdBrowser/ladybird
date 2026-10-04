@@ -28,6 +28,10 @@ public:
     static GC::Ref<Error> create(Realm&, Utf16String message);
     static GC::Ref<Error> create(Realm&, Utf16View message);
 
+    // For an embedder's error type, whose instances are Error objects that inherit from a prototype of its own.
+    static GC::Ref<Error> create(Realm&, Object& prototype);
+    static GC::Ref<Error> create(Realm&, Object& prototype, Utf16String message);
+
     virtual ~Error() override = default;
 
     [[nodiscard]] Utf16String stack_string(CompactTraceback compact = CompactTraceback::No) const;

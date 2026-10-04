@@ -1,0 +1,331 @@
+== CompileError
+typeof: function
+stable identity: true
+constructor own keys: prototype,name,length
+  prototype: CompileError (writable=false, enumerable=false, configurable=false)
+  name: CompileError (writable=false, enumerable=false, configurable=true)
+  length: 1 (writable=false, enumerable=false, configurable=true)
+constructor [[Prototype]] is Error: true
+constructor toString: function CompileError() { [native code] }
+constructor Object.prototype.toString: [object Function]
+prototype own keys: name,message,constructor
+  name: CompileError (writable=true, enumerable=false, configurable=true)
+  message:  (writable=true, enumerable=false, configurable=true)
+  constructor: function CompileError (writable=true, enumerable=false, configurable=true)
+prototype [[Prototype]] is Error.prototype: true
+prototype Object.prototype.toString: [object Object]
+prototype Error.isError: false
+prototype Error.prototype.toString: CompileError
+new with message and cause: CompileError: problem
+  own keys: message,cause
+  prototype is CompileError.prototype: true
+  instanceof CompileError: true, instanceof Error: true
+  constructor: true
+  Object.prototype.toString: [object Error]
+  Error.isError: true
+  name: CompileError, message: "problem"
+  stack head: CompileError: problem
+  stack frames: CompileError > <script> > <script> > <script>
+  message: problem (writable=true, enumerable=false, configurable=true)
+  cause: 42 (writable=true, enumerable=false, configurable=true)
+called without new: CompileError: called
+  own keys: message
+  prototype is CompileError.prototype: true
+  instanceof CompileError: true, instanceof Error: true
+  constructor: true
+  Object.prototype.toString: [object Error]
+  Error.isError: true
+  name: CompileError, message: "called"
+  stack head: CompileError: called
+  stack frames: CompileError > <script> > <script> > <script>
+new without arguments: CompileError
+  own keys: 
+  prototype is CompileError.prototype: true
+  instanceof CompileError: true, instanceof Error: true
+  constructor: true
+  Object.prototype.toString: [object Error]
+  Error.isError: true
+  name: CompileError, message: ""
+  stack head: CompileError
+  stack frames: CompileError > <script> > <script> > <script>
+undefined message and no cause: CompileError
+  own keys: 
+  prototype is CompileError.prototype: true
+  instanceof CompileError: true, instanceof Error: true
+  constructor: true
+  Object.prototype.toString: [object Error]
+  Error.isError: true
+  name: CompileError, message: ""
+  stack head: CompileError
+  stack frames: CompileError > <script> > <script> > <script>
+coerced message: CompileError: coerced
+  own keys: message
+  prototype is CompileError.prototype: true
+  instanceof CompileError: true, instanceof Error: true
+  constructor: true
+  Object.prototype.toString: [object Error]
+  Error.isError: true
+  name: CompileError, message: "coerced"
+  stack head: CompileError: coerced
+  stack frames: CompileError > <script> > <script> > <script>
+argument evaluation order: message,cause
+throwing message: TypeError: from toString
+throwing cause: RangeError: from cause
+subclass: CompileError: derived
+  own keys: message,extra
+  prototype is Subclass.prototype: true
+  instanceof Subclass: true, instanceof Error: true
+  constructor: true
+  Object.prototype.toString: [object Error]
+  Error.isError: true
+  name: CompileError, message: "derived"
+  stack head: CompileError: derived
+  stack frames: CompileError > Subclass > <script> > <script> > <script>
+  instanceof CompileError: true, extra: true
+Reflect.construct with Object as new.target: prototype is Object.prototype: true
+  Object.prototype.toString: [object Error], Error.isError: true
+new.target from another realm without a prototype: uses that realm's CompileError.prototype: true
+new.target from this realm without a prototype: uses CompileError.prototype: true
+other realm's constructor is distinct: true
+other realm's error: prototype is that realm's prototype: true, instanceof this realm's CompileError: false, Object.prototype.toString: [object Error]
+== LinkError
+typeof: function
+stable identity: true
+constructor own keys: prototype,name,length
+  prototype: LinkError (writable=false, enumerable=false, configurable=false)
+  name: LinkError (writable=false, enumerable=false, configurable=true)
+  length: 1 (writable=false, enumerable=false, configurable=true)
+constructor [[Prototype]] is Error: true
+constructor toString: function LinkError() { [native code] }
+constructor Object.prototype.toString: [object Function]
+prototype own keys: name,message,constructor
+  name: LinkError (writable=true, enumerable=false, configurable=true)
+  message:  (writable=true, enumerable=false, configurable=true)
+  constructor: function LinkError (writable=true, enumerable=false, configurable=true)
+prototype [[Prototype]] is Error.prototype: true
+prototype Object.prototype.toString: [object Object]
+prototype Error.isError: false
+prototype Error.prototype.toString: LinkError
+new with message and cause: LinkError: problem
+  own keys: message,cause
+  prototype is LinkError.prototype: true
+  instanceof LinkError: true, instanceof Error: true
+  constructor: true
+  Object.prototype.toString: [object Error]
+  Error.isError: true
+  name: LinkError, message: "problem"
+  stack head: LinkError: problem
+  stack frames: LinkError > <script> > <script> > <script>
+  message: problem (writable=true, enumerable=false, configurable=true)
+  cause: 42 (writable=true, enumerable=false, configurable=true)
+called without new: LinkError: called
+  own keys: message
+  prototype is LinkError.prototype: true
+  instanceof LinkError: true, instanceof Error: true
+  constructor: true
+  Object.prototype.toString: [object Error]
+  Error.isError: true
+  name: LinkError, message: "called"
+  stack head: LinkError: called
+  stack frames: LinkError > <script> > <script> > <script>
+new without arguments: LinkError
+  own keys: 
+  prototype is LinkError.prototype: true
+  instanceof LinkError: true, instanceof Error: true
+  constructor: true
+  Object.prototype.toString: [object Error]
+  Error.isError: true
+  name: LinkError, message: ""
+  stack head: LinkError
+  stack frames: LinkError > <script> > <script> > <script>
+undefined message and no cause: LinkError
+  own keys: 
+  prototype is LinkError.prototype: true
+  instanceof LinkError: true, instanceof Error: true
+  constructor: true
+  Object.prototype.toString: [object Error]
+  Error.isError: true
+  name: LinkError, message: ""
+  stack head: LinkError
+  stack frames: LinkError > <script> > <script> > <script>
+coerced message: LinkError: coerced
+  own keys: message
+  prototype is LinkError.prototype: true
+  instanceof LinkError: true, instanceof Error: true
+  constructor: true
+  Object.prototype.toString: [object Error]
+  Error.isError: true
+  name: LinkError, message: "coerced"
+  stack head: LinkError: coerced
+  stack frames: LinkError > <script> > <script> > <script>
+argument evaluation order: message,cause
+throwing message: TypeError: from toString
+throwing cause: RangeError: from cause
+subclass: LinkError: derived
+  own keys: message,extra
+  prototype is Subclass.prototype: true
+  instanceof Subclass: true, instanceof Error: true
+  constructor: true
+  Object.prototype.toString: [object Error]
+  Error.isError: true
+  name: LinkError, message: "derived"
+  stack head: LinkError: derived
+  stack frames: LinkError > Subclass > <script> > <script> > <script>
+  instanceof LinkError: true, extra: true
+Reflect.construct with Object as new.target: prototype is Object.prototype: true
+  Object.prototype.toString: [object Error], Error.isError: true
+new.target from another realm without a prototype: uses that realm's LinkError.prototype: true
+new.target from this realm without a prototype: uses LinkError.prototype: true
+other realm's constructor is distinct: true
+other realm's error: prototype is that realm's prototype: true, instanceof this realm's LinkError: false, Object.prototype.toString: [object Error]
+== RuntimeError
+typeof: function
+stable identity: true
+constructor own keys: prototype,name,length
+  prototype: RuntimeError (writable=false, enumerable=false, configurable=false)
+  name: RuntimeError (writable=false, enumerable=false, configurable=true)
+  length: 1 (writable=false, enumerable=false, configurable=true)
+constructor [[Prototype]] is Error: true
+constructor toString: function RuntimeError() { [native code] }
+constructor Object.prototype.toString: [object Function]
+prototype own keys: name,message,constructor
+  name: RuntimeError (writable=true, enumerable=false, configurable=true)
+  message:  (writable=true, enumerable=false, configurable=true)
+  constructor: function RuntimeError (writable=true, enumerable=false, configurable=true)
+prototype [[Prototype]] is Error.prototype: true
+prototype Object.prototype.toString: [object Object]
+prototype Error.isError: false
+prototype Error.prototype.toString: RuntimeError
+new with message and cause: RuntimeError: problem
+  own keys: message,cause
+  prototype is RuntimeError.prototype: true
+  instanceof RuntimeError: true, instanceof Error: true
+  constructor: true
+  Object.prototype.toString: [object Error]
+  Error.isError: true
+  name: RuntimeError, message: "problem"
+  stack head: RuntimeError: problem
+  stack frames: RuntimeError > <script> > <script> > <script>
+  message: problem (writable=true, enumerable=false, configurable=true)
+  cause: 42 (writable=true, enumerable=false, configurable=true)
+called without new: RuntimeError: called
+  own keys: message
+  prototype is RuntimeError.prototype: true
+  instanceof RuntimeError: true, instanceof Error: true
+  constructor: true
+  Object.prototype.toString: [object Error]
+  Error.isError: true
+  name: RuntimeError, message: "called"
+  stack head: RuntimeError: called
+  stack frames: RuntimeError > <script> > <script> > <script>
+new without arguments: RuntimeError
+  own keys: 
+  prototype is RuntimeError.prototype: true
+  instanceof RuntimeError: true, instanceof Error: true
+  constructor: true
+  Object.prototype.toString: [object Error]
+  Error.isError: true
+  name: RuntimeError, message: ""
+  stack head: RuntimeError
+  stack frames: RuntimeError > <script> > <script> > <script>
+undefined message and no cause: RuntimeError
+  own keys: 
+  prototype is RuntimeError.prototype: true
+  instanceof RuntimeError: true, instanceof Error: true
+  constructor: true
+  Object.prototype.toString: [object Error]
+  Error.isError: true
+  name: RuntimeError, message: ""
+  stack head: RuntimeError
+  stack frames: RuntimeError > <script> > <script> > <script>
+coerced message: RuntimeError: coerced
+  own keys: message
+  prototype is RuntimeError.prototype: true
+  instanceof RuntimeError: true, instanceof Error: true
+  constructor: true
+  Object.prototype.toString: [object Error]
+  Error.isError: true
+  name: RuntimeError, message: "coerced"
+  stack head: RuntimeError: coerced
+  stack frames: RuntimeError > <script> > <script> > <script>
+argument evaluation order: message,cause
+throwing message: TypeError: from toString
+throwing cause: RangeError: from cause
+subclass: RuntimeError: derived
+  own keys: message,extra
+  prototype is Subclass.prototype: true
+  instanceof Subclass: true, instanceof Error: true
+  constructor: true
+  Object.prototype.toString: [object Error]
+  Error.isError: true
+  name: RuntimeError, message: "derived"
+  stack head: RuntimeError: derived
+  stack frames: RuntimeError > Subclass > <script> > <script> > <script>
+  instanceof RuntimeError: true, extra: true
+Reflect.construct with Object as new.target: prototype is Object.prototype: true
+  Object.prototype.toString: [object Error], Error.isError: true
+new.target from another realm without a prototype: uses that realm's RuntimeError.prototype: true
+new.target from this realm without a prototype: uses RuntimeError.prototype: true
+other realm's constructor is distinct: true
+other realm's error: prototype is that realm's prototype: true, instanceof this realm's RuntimeError: false, Object.prototype.toString: [object Error]
+== Errors thrown by the engine
+invalid module: CompileError: Unexpected end-of-file
+  own keys: message
+  prototype is CompileError.prototype: true
+  instanceof CompileError: true, instanceof Error: true
+  constructor: true
+  Object.prototype.toString: [object Error]
+  Error.isError: true
+  name: CompileError, message: "Unexpected end-of-file"
+  stack head: CompileError: Unexpected end-of-file
+  stack frames: Module > <script> > thrownBy > <script> > <script> > <script>
+rejected compile: CompileError: Unexpected end-of-file
+  own keys: message
+  prototype is CompileError.prototype: true
+  instanceof CompileError: true, instanceof Error: true
+  constructor: true
+  Object.prototype.toString: [object Error]
+  Error.isError: true
+  name: CompileError, message: "Unexpected end-of-file"
+  stack head: CompileError: Unexpected end-of-file
+  stack frames: 
+missing import: LinkError: 42 is not a function (evaluated from '[wasm import object]["f"]')
+  own keys: message
+  prototype is LinkError.prototype: true
+  instanceof LinkError: true, instanceof Error: true
+  constructor: true
+  Object.prototype.toString: [object Error]
+  Error.isError: true
+  name: LinkError, message: "42 is not a function (evaluated from '[wasm import object][\"f\"]')"
+  stack head: LinkError: 42 is not a function (evaluated from '[wasm import object]["f"]')
+  stack frames: Instance > <script> > thrownBy > <script> > <script> > <unknown> > <unknown>
+rejected instantiate: LinkError: undefined is not a function (evaluated from '[wasm import object]["f"]')
+  own keys: message
+  prototype is LinkError.prototype: true
+  instanceof LinkError: true, instanceof Error: true
+  constructor: true
+  Object.prototype.toString: [object Error]
+  Error.isError: true
+  name: LinkError, message: "undefined is not a function (evaluated from '[wasm import object][\"f\"]')"
+  stack head: LinkError: undefined is not a function (evaluated from '[wasm import object]["f"]')
+  stack frames: 
+trapping start function: RuntimeError: Start function trapped
+  own keys: message
+  prototype is RuntimeError.prototype: true
+  instanceof RuntimeError: true, instanceof Error: true
+  constructor: true
+  Object.prototype.toString: [object Error]
+  Error.isError: true
+  name: RuntimeError, message: "Start function trapped"
+  stack head: RuntimeError: Start function trapped
+  stack frames: Instance > <script> > thrownBy > <script> > <script> > <unknown> > <unknown>
+trap: RuntimeError
+  own keys: message
+  prototype is RuntimeError.prototype: true
+  instanceof RuntimeError: true, instanceof Error: true
+  constructor: true
+  Object.prototype.toString: [object Error]
+  Error.isError: true
+  name: RuntimeError, message is a string: true
+  stack frames: 0 > <script> > thrownBy > <script> > <script> > <unknown> > <unknown>
+invalid module in another realm: prototype is that realm's CompileError.prototype: true

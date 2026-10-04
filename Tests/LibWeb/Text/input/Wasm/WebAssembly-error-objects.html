@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<iframe id="frame"></iframe>
+<script>
+    function describeProperty(object, key) {
+        const descriptor = Object.getOwnPropertyDescriptor(object, key);
+        if (!descriptor)
+            return `${String(key)}: absent`;
+        const flags = `writable=${descriptor.writable}, enumerable=${descriptor.enumerable}, configurable=${descriptor.configurable}`;
+        const value = typeof descriptor.value === "function" ? `function ${descriptor.value.name}` : String(descriptor.value);
+        return `${String(key)}: ${value} (${flags})`;
+    }
+
+    function stackFrames(error) {
+        return error.stack
+            .split("\n")
+            .slice(1)
+            .map(line => line.trim())
+            .filter(line => line.startsWith("at "))
+            .map(line => line.slice(3).replace(/ \(.*\)$/, "").replace(/^file:.*$/, "<script>"))
+            .join(" > ");
+    }
+
+    function describeError(label, error, Constructor, { messageIsImplementationDefined = false } = {}) {
+        if (messageIsImplementationDefined) {
+            println(`${label}: ${error.name}`);
+        } else {
+            println(`${label}: ${String(error)}`);
+        }
+        println(`  own keys: ${Reflect.ownKeys(error).map(String).join()}`);
+        println(`  prototype is ${Constructor.name}.prototype: ${Object.getPrototypeOf(error) === Constructor.prototype}`);
+        println(`  instanceof ${Constructor.name}: ${error instanceof Constructor}, instanceof Error: ${error instanceof Error}`);
+        println(`  constructor: ${error.constructor === Constructor}`);
+        println(`  Object.prototype.toString: ${Object.prototype.toString.call(error)}`);
+        println(`  Error.isError: ${Error.isError(error)}`);
+        if (messageIsImplementationDefined) {
+            println(`  name: ${error.name}, message is a string: ${typeof error.message === "string"}`);
+        } else {
+            println(`  name: ${error.name}, message: ${JSON.stringify(error.message)}`);
+            println(`  stack head: ${error.stack.split("\n")[0]}`);
+        }
+        println(`  stack frames: ${stackFrames(error)}`);
+    }
+
+    function thrownBy(callback) {
+        try {
+            callback();
+        } catch (error) {
+            return error;
+        }
+        return null;
+    }
+
+    promiseTest(async () => {
+        const frameWindow = document.getElementById("frame").contentWindow;
+
+        for (const name of ["CompileError", "LinkError", "RuntimeError"]) {
+            const Constructor = WebAssembly[name];
+            const prototype = Constructor.prototype;
+
+            println(`== ${name}`);
+            println(`typeof: ${typeof Constructor}`);
+            println(`stable identity: ${WebAssembly[name] === Constructor}`);
+            println(`constructor own keys: ${Reflect.ownKeys(Constructor).join()}`);
+            for (const key of Reflect.ownKeys(Constructor))
+                println(`  ${describeProperty(Constructor, key)}`);
+            println(`constructor [[Prototype]] is Error: ${Object.getPrototypeOf(Constructor) === Error}`);
+            println(`constructor toString: ${Function.prototype.toString.call(Constructor)}`);
+            println(`constructor Object.prototype.toString: ${Object.prototype.toString.call(Constructor)}`);
+            println(`prototype own keys: ${Reflect.ownKeys(prototype).join()}`);
+            for (const key of Reflect.ownKeys(prototype))
+                println(`  ${describeProperty(prototype, key)}`);
+            println(`prototype [[Prototype]] is Error.prototype: ${Object.getPrototypeOf(prototype) === Error.prototype}`);
+            println(`prototype Object.prototype.toString: ${Object.prototype.toString.call(prototype)}`);
+            println(`prototype Error.isError: ${Error.isError(prototype)}`);
+            println(`prototype Error.prototype.toString: ${Error.prototype.toString.call(prototype)}`);
+
+            const error = new Constructor("problem", { cause: 42 });
+            describeError("new with message and cause", error, Constructor);
+            println(`  ${describeProperty(error, "message")}`);
+            println(`  ${describeProperty(error, "cause")}`);
+
+            describeError("called without new", Constructor("called"), Constructor);
+            describeError("new without arguments", new Constructor(), Constructor);
+            describeError("undefined message and no cause", new Constructor(undefined, { other: 1 }), Constructor);
+            describeError("coerced message", new Constructor({ toString() { return "coerced"; } }), Constructor);
+
+            const order = [];
+            new Constructor({ toString() { order.push("message"); return "m"; } }, { get cause() { order.push("cause"); return 1; } });
+            println(`argument evaluation order: ${order.join()}`);
+
+            const throwingMessage = thrownBy(() => new Constructor({ toString() { throw new TypeError("from toString"); } }));
+            println(`throwing message: ${String(throwingMessage)}`);
+            const throwingCause = thrownBy(() => new Constructor("m", { get cause() { throw new RangeError("from cause"); } }));
+            println(`throwing cause: ${String(throwingCause)}`);
+
+            class Subclass extends Constructor {
+                constructor(message) {
+                    super(message);
+                    this.extra = true;
+                }
+            }
+            const subclassed = new Subclass("derived");
+            describeError("subclass", subclassed, Subclass);
+            println(`  instanceof ${name}: ${subclassed instanceof Constructor}, extra: ${subclassed.extra}`);
+
+            const plainNewTarget = Reflect.construct(Constructor, ["plain"], Object);
+            println(`Reflect.construct with Object as new.target: prototype is Object.prototype: ${Object.getPrototypeOf(plainNewTarget) === Object.prototype}`);
+            println(`  Object.prototype.toString: ${Object.prototype.toString.call(plainNewTarget)}, Error.isError: ${Error.isError(plainNewTarget)}`);
+
+            const otherRealmNewTarget = new frameWindow.Function();
+            otherRealmNewTarget.prototype = null;
+            const crossRealm = Reflect.construct(Constructor, ["cross"], otherRealmNewTarget);
+            println(`new.target from another realm without a prototype: uses that realm's ${name}.prototype: ${Object.getPrototypeOf(crossRealm) === frameWindow.WebAssembly[name].prototype}`);
+
+            const sameRealmNewTarget = function () {};
+            sameRealmNewTarget.prototype = 1;
+            const sameRealm = Reflect.construct(Constructor, ["same"], sameRealmNewTarget);
+            println(`new.target from this realm without a prototype: uses ${name}.prototype: ${Object.getPrototypeOf(sameRealm) === prototype}`);
+
+            const frameConstructor = frameWindow.WebAssembly[name];
+            println(`other realm's constructor is distinct: ${frameConstructor !== Constructor}`);
+            const frameError = new frameConstructor("frame");
+            println(`other realm's error: prototype is that realm's prototype: ${Object.getPrototypeOf(frameError) === frameConstructor.prototype}, instanceof this realm's ${name}: ${frameError instanceof Constructor}, Object.prototype.toString: ${Object.prototype.toString.call(frameError)}`);
+        }
+
+        // (module (func (export "trap") unreachable))
+        const trapperBytes = new Uint8Array([
+            0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x04, 0x01, 0x60, 0x00, 0x00, 0x03, 0x02, 0x01, 0x00,
+            0x07, 0x08, 0x01, 0x04, 0x74, 0x72, 0x61, 0x70, 0x00, 0x00, 0x0a, 0x05, 0x01, 0x03, 0x00, 0x00, 0x0b,
+        ]);
+        // (module (import "m" "f" (func)))
+        const importerBytes = new Uint8Array([
+            0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x04, 0x01, 0x60, 0x00, 0x00, 0x02, 0x07, 0x01, 0x01,
+            0x6d, 0x01, 0x66, 0x00, 0x00,
+        ]);
+        // (module (func $start unreachable) (start $start))
+        const trappingStartBytes = new Uint8Array([
+            0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x04, 0x01, 0x60, 0x00, 0x00, 0x03, 0x02, 0x01, 0x00,
+            0x08, 0x01, 0x00, 0x0a, 0x05, 0x01, 0x03, 0x00, 0x00, 0x0b,
+        ]);
+        const invalidBytes = new Uint8Array([0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x05]);
+
+        println("== Errors thrown by the engine");
+        describeError("invalid module", thrownBy(() => new WebAssembly.Module(invalidBytes)), WebAssembly.CompileError);
+        try {
+            await WebAssembly.compile(invalidBytes);
+        } catch (error) {
+            describeError("rejected compile", error, WebAssembly.CompileError);
+        }
+        const importerModule = new WebAssembly.Module(importerBytes);
+        describeError("missing import", thrownBy(() => new WebAssembly.Instance(importerModule, { m: { f: 42 } })), WebAssembly.LinkError);
+        try {
+            await WebAssembly.instantiate(importerModule, { m: {} });
+        } catch (error) {
+            describeError("rejected instantiate", error, WebAssembly.LinkError);
+        }
+        describeError("trapping start function", thrownBy(() => new WebAssembly.Instance(new WebAssembly.Module(trappingStartBytes))), WebAssembly.RuntimeError);
+        const { instance: trapper } = await WebAssembly.instantiate(trapperBytes);
+        // The trap's description differs between the ways LibWasm can execute a function.
+        describeError("trap", thrownBy(() => trapper.exports.trap()), WebAssembly.RuntimeError, { messageIsImplementationDefined: true });
+
+        const frameCompileError = thrownBy(() => new frameWindow.WebAssembly.Module(invalidBytes));
+        println(`invalid module in another realm: prototype is that realm's CompileError.prototype: ${Object.getPrototypeOf(frameCompileError) === frameWindow.WebAssembly.CompileError.prototype}`);
+    });
+</script>

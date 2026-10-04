@@ -32,6 +32,18 @@ GC::Ref<Error> Error::create(Realm& realm, Utf16View message)
     return error;
 }
 
+GC::Ref<Error> Error::create(Realm& realm, Object& prototype)
+{
+    return realm.create<Error>(prototype);
+}
+
+GC::Ref<Error> Error::create(Realm& realm, Object& prototype, Utf16String message)
+{
+    auto error = Error::create(realm, prototype);
+    error->set_message(move(message));
+    return error;
+}
+
 Utf16String Error::stack_string(CompactTraceback compact) const
 {
     return ErrorData::stack_string(compact);
