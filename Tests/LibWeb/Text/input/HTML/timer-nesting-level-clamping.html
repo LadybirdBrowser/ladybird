@@ -2,22 +2,31 @@
 <script src="../include.js"></script>
 <script>
     asyncTest(done => {
-        // With 4ms clamping after nesting level 5, running for 100ms should yield
-        // roughly 5-6 unclamped calls plus approximately 25 clamped calls.
-        // Without clamping, we'd get thousands of calls.
-        // We test that the count is bounded, proving clamping is working.
-        const testDurationMilliseconds = 100;
-        let callCount = 0;
+        // Once its callback has run 5 times, a setInterval(..., 0) is past nesting level 5, so every later firing is
+        // clamped to at least 4ms after the previous one. A slow machine only makes the callbacks further apart.
+        const unclampedCallbacks = 6;
+        const clampedCallbacks = 20;
+        const times = [];
 
         const id = setInterval(() => {
-            callCount++;
-        }, 0);
-
-        setTimeout(() => {
+            times.push(performance.now());
+            if (times.length < unclampedCallbacks + clampedCallbacks)
+                return;
             clearInterval(id);
 
-            println(`Callback count bounded (< 100 in 100ms): ${callCount < 100}`);
+            // 1ms of slack covers the timer rounding its deadline to whole milliseconds and timestamp coarsening.
+            const start = times[unclampedCallbacks - 1];
+            let clamped = true;
+            for (let i = 1; i <= clampedCallbacks; ++i) {
+                const elapsed = times[unclampedCallbacks - 1 + i] - start;
+                if (elapsed < 4 * i - 1) {
+                    println(`Callback ${unclampedCallbacks + i} ran ${elapsed}ms after callback ${unclampedCallbacks}`);
+                    clamped = false;
+                    break;
+                }
+            }
+            println(`Callbacks past nesting level 5 are clamped to 4ms: ${clamped}`);
             done();
-        }, testDurationMilliseconds);
+        }, 0);
     });
 </script>
