@@ -445,7 +445,7 @@ RefPtr<WebContentPage> CanonicalTraversable::display_page() const
 
 void CanonicalTraversable::set_page_standing_in_for_lost_document(Badge<ViewImplementation>, NonnullRefPtr<WebContentPage> page)
 {
-    active_document().set_host(nullptr);
+    did_lose_active_document();
     m_page_standing_in_for_lost_document = move(page);
 }
 
@@ -935,19 +935,6 @@ ErrorOr<URL::URL> CanonicalTraversable::restore_session_history_from_ui_snapshot
     return current_entry->url;
 }
 
-void CanonicalTraversable::abandon_after_web_content_process_crash()
-{
-    abandon_history_operations();
-
-    // https://html.spec.whatwg.org/multipage/document-lifecycle.html#destroy-a-document
-    // 9. Set document's node navigable's active session history entry's document state's document to null.
-    // NB: The crashed process destroyed the document. The traversable displays it until another is activated, on an
-    //     entry of no session history, so that the next traversal populates the one it had.
-    NonnullRefPtr document = active_document();
-    active_session_history_entry()->document_state->document = nullptr;
-    set_active_session_history_entry(CanonicalSessionHistoryEntry::create(CanonicalDocumentState::create(Application::the().allocate_ui_process_cross_process_id(), move(document))));
-}
-
 void CanonicalTraversable::reset_session_history_for_testing(
     Web::HTML::SessionHistoryEntryDescriptor active_entry)
 {
@@ -1266,14 +1253,25 @@ void CanonicalTraversable::recover_from_web_content_process_crash(OnHistoryOpera
             on_complete(Web::HTML::HistoryStepResult::CanceledByMissingPage, {});
         return;
     }
-    set_current_session_history_entry({});
+
+    // The tab's document is reloaded, the crashed process having destroyed the one its entry holds.
+    NonnullRefPtr reloading_entry = *m_session_history.get_the_target_history_entry(*this, *target_step);
+    reloading_entry->document_state->reload_pending = true;
+    session_history_changed();
     enqueue_browser_history_traversal(
         Web::TraverseToStepHistoryOperationParameters {
             .target_step = *target_step,
             .user_involvement = Web::HTML::UserNavigationInvolvement::BrowserUI,
         },
         false,
-        move(on_complete));
+        [this, reloading_entry, on_complete = move(on_complete)](Web::HTML::HistoryStepResult result, Optional<i32> committed_step) {
+            if (result != Web::HTML::HistoryStepResult::Applied && reloading_entry->document_state->reload_pending) {
+                reloading_entry->document_state->reload_pending = false;
+                session_history_changed();
+            }
+            if (on_complete)
+                on_complete(result, committed_step);
+        });
 }
 
 RefPtr<WebContentPage> CanonicalTraversable::page_hosting(CanonicalNavigable const& navigable) const
@@ -1583,7 +1581,8 @@ void CanonicalTraversable::send_changing_navigable_continuation_task(HistoryOper
     VERIFY(pending_job.value()->continuation.has_value());
 
     auto const& document_state = *pending_job.value()->job.target_entry->document_state;
-    if (unload_displayed_document == Web::HTML::UnloadDisplayedDocument::Yes && pending_job.value()->job.target_entry_reload_pending) {
+    if (unload_displayed_document == Web::HTML::UnloadDisplayedDocument::Yes && pending_job.value()->job.target_entry_reload_pending
+        && operation.parameters.has<Web::ReloadHistoryOperationParameters>()) {
         // INTEROP: Reloading rebuilds the child history tree from the replacement document, as in WebKit.
         //          Keep the old entries until population succeeds so an abandoned reload preserves them.
         auto navigable = find(navigable_id);
@@ -2688,15 +2687,6 @@ void CanonicalTraversable::finalize_a_cross_document_navigation(HistoryOperation
         // AD-HOC: A navigation reconstructing the navigable's history replaces the entry whose document it populates.
         if (auto const& ongoing_navigation = navigable->ongoing_navigation(); ongoing_navigation.has_value() && ongoing_navigation->reconstructed_entry && ongoing_navigation->navigation_id == parameters.navigation_id)
             entry_to_replace = ongoing_navigation->reconstructed_entry;
-
-        // AD-HOC: An active entry that is not among the navigable's session history entries, as that of a document a
-        //         crashed process destroyed, is not one to replace. The current entry, whose document that was, is.
-        auto entries = m_session_history.get_session_history_entries(*navigable);
-        auto is_among_entries = [&](RefPtr<CanonicalSessionHistoryEntry> const& candidate) {
-            return candidate && entries.has_value() && any_of(*entries, [&](auto const& entry) { return entry == candidate; });
-        };
-        if (entry_to_replace && !is_among_entries(entry_to_replace))
-            entry_to_replace = is_among_entries(navigable->current_session_history_entry()) ? navigable->current_session_history_entry() : nullptr;
     }
     if (parameters.history_handling == Web::HTML::HistoryHandlingBehavior::Replace && !entry_to_replace) {
         finish_history_operation(operation.operation_id, Web::HTML::HistoryStepResult::NoMatchingEntry, {});

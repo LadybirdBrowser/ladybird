@@ -3395,13 +3395,13 @@ void ViewImplementation::handle_web_content_process_crash()
     if (recovery_mode == RecoveryMode::Restore && !crashed_repeatedly) {
         recover_current_session_history_entry_with_history_operation();
     } else if (recovery_mode == RecoveryMode::ShowOverlay) {
-        traversable().abandon_after_web_content_process_crash();
+        traversable().abandon_history_operations();
         set_crash_state(CrashState {
             .failed_url = move(failed_url),
             .navigation_to_retry = move(navigation_to_retry),
         });
     } else {
-        traversable().abandon_after_web_content_process_crash();
+        traversable().abandon_history_operations();
     }
 
     for (auto const& command : pending_crash_commands)

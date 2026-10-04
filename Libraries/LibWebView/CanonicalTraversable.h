@@ -176,7 +176,6 @@ public:
     void traverse_the_history_to_step(i32 step, CheckForCancelation, Function<void()> on_ready = nullptr);
     void reconstruct_the_history_to_step(i32 step);
     ErrorOr<URL::URL> restore_session_history_from_ui_snapshot(SessionHistorySnapshot);
-    void abandon_after_web_content_process_crash();
     void recover_from_web_content_process_crash(OnHistoryOperationComplete);
     void reset_session_history_for_testing(Web::HTML::SessionHistoryEntryDescriptor);
     bool initialize_session_history_for_testing(Vector<Web::HTML::SessionHistoryEntryDescriptor>, Vector<i32> used_steps, size_t current_used_step_index);
