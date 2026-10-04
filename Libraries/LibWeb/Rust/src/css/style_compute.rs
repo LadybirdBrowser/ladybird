@@ -4996,7 +4996,8 @@ fn settled_animation_plan(
 ///
 /// # Safety
 /// `host` must be a live document host, on its document's thread, `record` must be the record the
-/// element or pseudo-element holds, and `apply` must not retain the definitions it is handed.
+/// element or pseudo-element holds, `has_animations` whether it holds CSS-defined animations, and
+/// `apply` must not retain the definitions it is handed.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_settled_animation_plan(
     host: *const crate::render_state::DocumentHost,
@@ -5004,16 +5005,27 @@ pub unsafe extern "C" fn rust_settled_animation_plan(
     node: u32,
     pseudo_kind: u8,
     record: u64,
+    has_animations: bool,
     context: *mut c_void,
     apply: unsafe extern "C" fn(*mut c_void, *const FfiComputedAnimation, usize, bool),
 ) {
     let Some(node) = crate::css::style::tree::StyleNodeID::from_raw(node) else {
         return;
     };
-    // Applying the plan publishes the element's animations to the engine, so nothing of the
-    // engine is borrowed while the host applies it: the definitions only point into the record.
     // SAFETY: Guaranteed by the caller.
     let host = unsafe { crate::css::style::engine_calls::document_host(host) };
+    // A record that names no animation plans none for an element that holds none, which the host reads off a record it
+    // has the view of without asking.
+    if !has_animations
+        && let Some(view) = crate::css::style::engine_calls::known_style_record_view(host, record)
+        // SAFETY: A published record's table lives as long as the record.
+        && let Some(table) = unsafe { view.longhand_table.cast::<ComputedLonghandTable>().as_ref() }
+        && !table_declares_css_animations(table)
+    {
+        return;
+    }
+    // Applying the plan publishes the element's animations to the engine, so nothing of the
+    // engine is borrowed while the host applies it: the definitions only point into the record.
     let Some((definitions, in_display_none_subtree)) =
         crate::css::style::engine_calls::with_engine(read, host, |engine| {
             settled_animation_plan(engine, node, pseudo_kind, record)

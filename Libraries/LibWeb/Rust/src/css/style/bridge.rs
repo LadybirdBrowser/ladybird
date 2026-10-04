@@ -3107,18 +3107,13 @@ pub unsafe extern "C" fn style_engine_style_record_view(
 ) -> FfiStyleRecordView {
     // SAFETY: Guaranteed by the caller.
     let host = unsafe { document_host(host) };
-    let memo = &host.engine_memo().views;
-    if let Some(view) = memo.get(style_record) {
-        return view;
-    }
-    if let Some((view, _)) = host.transaction_record(style_record) {
-        memo.set(style_record, view);
+    if let Some(view) = super::engine_calls::known_style_record_view(host, style_record) {
         return view;
     }
     // SAFETY: Guaranteed by the caller.
     let view = with_engine(read, host, |engine| unsafe { style_record_view(engine, style_record) });
     if view.present {
-        memo.set(style_record, view);
+        host.engine_memo().views.set(style_record, view);
     }
     view
 }
