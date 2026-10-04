@@ -54,6 +54,7 @@
 #include <LibWebView/BlobURLStore.h>
 #include <LibWebView/BrowsingSession.h>
 #include <LibWebView/Forward.h>
+#include <LibWebView/RequestServerSiteBindings.h>
 #include <LibWebView/WebContentPage.h>
 #include <WebContent/WebContentClientEndpoint.h>
 #include <WebContent/WebContentServerEndpoint.h>
@@ -87,6 +88,8 @@ public:
 
     IsPrivate is_private() const { return m_is_private; }
     BrowsingSession& session() const { return *m_session; }
+
+    RequestServerSiteBindings& request_server_site_bindings() { return m_request_server_site_bindings; }
     void remove_blob_url_entries();
 
     void connect_test_endpoint(NonnullOwnPtr<IPC::Transport>);
@@ -180,6 +183,7 @@ private:
 
     IsPrivate m_is_private { IsPrivate::No };
     RefPtr<BrowsingSession> m_session;
+    RequestServerSiteBindings m_request_server_site_bindings;
     bool m_requested_close { false };
     bool m_rejected_ipc { false };
     Vector<u64> m_crashed_view_ids;

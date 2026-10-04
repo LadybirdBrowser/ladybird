@@ -20,6 +20,7 @@
 #include <LibWebView/BlobURLStore.h>
 #include <LibWebView/BrowsingSession.h>
 #include <LibWebView/Export.h>
+#include <LibWebView/RequestServerSiteBindings.h>
 #include <WebWorker/WebWorkerClientEndpoint.h>
 #include <WebWorker/WebWorkerServerEndpoint.h>
 
@@ -38,6 +39,7 @@ public:
 
     RefPtr<BrowsingSession> session() const { return m_session.strong_ref(); }
     IsPrivate is_private() const { return m_is_private; }
+    RequestServerSiteBindings& request_server_site_bindings() { return m_request_server_site_bindings; }
     void remove_blob_url_entries();
 
     pid_t pid() const { return m_pid; }
@@ -67,6 +69,7 @@ private:
 
     IsPrivate m_is_private { IsPrivate::No };
     WeakPtr<BrowsingSession> m_session;
+    RequestServerSiteBindings m_request_server_site_bindings;
 
     pid_t m_pid { -1 };
     Web::HTML::WorkerAgentId m_agent_id { 0 };

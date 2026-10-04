@@ -14,6 +14,9 @@ target_include_directories(TestDiskCacheWaiters PRIVATE ${LADYBIRD_SOURCE_DIR}/S
 ladybird_test(TestRequestTimingInfo.cpp RequestServer LIBS requestserverservice)
 target_include_directories(TestRequestTimingInfo PRIVATE ${LADYBIRD_SOURCE_DIR}/Services)
 
+ladybird_test(TestSiteBinding.cpp RequestServer LIBS requestserverservice)
+target_include_directories(TestSiteBinding PRIVATE ${LADYBIRD_SOURCE_DIR}/Services)
+
 if (NOT WIN32)
     ladybird_test(TestTransportPlatform.cpp RequestServer NAME TestRequestServerTransportPlatform LIBS requestserverservice)
     target_include_directories(TestRequestServerTransportPlatform PRIVATE ${LADYBIRD_SOURCE_DIR}/Services)
