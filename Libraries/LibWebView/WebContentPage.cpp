@@ -766,6 +766,8 @@ void WebContentPage::did_create_child_frame(Web::HTML::CrossProcessId parent_fra
         client().did_misbehave("did_create_child_frame"sv, "frame created with an existing navigable's id"sv);
         return;
     }
+
+    hosted_state.container.document_active_sandboxing_flag_set = container_document->active_sandboxing_flag_set();
     traversable.adopt_nested_history_for_created_child(*parent_navigable, *container_document, frame_id);
 
     // https://html.spec.whatwg.org/multipage/document-sequences.html#create-a-new-child-navigable
@@ -2014,6 +2016,7 @@ void WebContentPage::did_complete_navigation_unload_check(Web::HTML::CrossProces
     auto population_request = Web::HTML::create_navigation_population_request(
         ongoing_navigation->start_request.release_value(),
         Application::the().allocate_ui_process_cross_process_id());
+    population_request.target_snapshot_params.sandboxing_flags |= navigable->snapshot_target_snapshot_params().sandboxing_flags;
     ongoing_navigation->loader = NavigationLoader::create(client().is_private(), move(population_request));
     ongoing_navigation->phase = CanonicalNavigation::Phase::Populating;
     async_create_navigation_params(ongoing_navigation->loader->request());
@@ -2528,6 +2531,17 @@ Messages::WebContentClient::DidRequestNewWebViewResponse WebContentPage::did_req
         Application::the().allocate_ui_process_cross_process_id(), move(opener_base_url), move(target_name));
     auto document_id = Application::the().allocate_ui_process_cross_process_id();
     auto& traversable = CanonicalTraversable::create_a_new_top_level_traversable(root_navigable_id, opener, move(initial_history_entry), document_id);
+
+    // https://html.spec.whatwg.org/multipage/document-sequences.html#the-rules-for-choosing-a-navigable
+    // If sandboxingFlagSet's sandbox propagates to auxiliary browsing contexts flag is set, then all the flags that are
+    // set in sandboxingFlagSet must be set in chosen's active browsing context's popup sandboxing flag set.
+    // NB: sandboxingFlagSet is currentNavigable's active document's active sandboxing flag set, which the UI process
+    //     holds for an opener. The requesting process gives it for a popup without one.
+    if (opener.has_value()) {
+        auto sandboxing_flag_set = opener->active_document().active_sandboxing_flag_set();
+        if (has_flag(sandboxing_flag_set, Web::HTML::SandboxingFlagSet::SandboxPropagatesToAuxiliaryBrowsingContexts))
+            popup_sandboxing_flag_set |= sandboxing_flag_set;
+    }
     traversable.active_browsing_context().set_popup_sandboxing_flag_set(popup_sandboxing_flag_set);
 
     auto new_page_id = Application::the().allocate_page_id();

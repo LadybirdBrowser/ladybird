@@ -14,6 +14,7 @@
 #include <LibURL/URL.h>
 #include <LibWebCommon/HTML/CrossOrigin/OpenerPolicy.h>
 #include <LibWebCommon/HTML/CrossProcessId.h>
+#include <LibWebCommon/HTML/SandboxingFlagSet.h>
 #include <LibWebView/Export.h>
 #include <LibWebView/Forward.h>
 
@@ -29,7 +30,7 @@ public:
         Yes,
     };
 
-    static NonnullRefPtr<CanonicalDocument> create(Web::HTML::CrossProcessId id, URL::URL creation_url, URL::Origin, NonnullRefPtr<CanonicalBrowsingContext>, NonnullRefPtr<CanonicalWindow>, IsInitialAboutBlank);
+    static NonnullRefPtr<CanonicalDocument> create(Web::HTML::CrossProcessId id, URL::URL creation_url, URL::Origin, NonnullRefPtr<CanonicalBrowsingContext>, NonnullRefPtr<CanonicalWindow>, Web::HTML::SandboxingFlagSet active_sandboxing_flag_set, IsInitialAboutBlank);
 
     ~CanonicalDocument();
 
@@ -47,6 +48,9 @@ public:
 
     // https://html.spec.whatwg.org/multipage/webappapis.html#concept-relevant-global
     CanonicalWindow& relevant_global_object() const { return m_relevant_global_object; }
+
+    // https://html.spec.whatwg.org/multipage/browsers.html#active-sandboxing-flag-set
+    Web::HTML::SandboxingFlagSet active_sandboxing_flag_set() const { return m_active_sandboxing_flag_set; }
 
     // https://html.spec.whatwg.org/multipage/dom.html#is-initial-about:blank
     bool is_initial_about_blank() const { return m_is_initial_about_blank == IsInitialAboutBlank::Yes; }
@@ -78,13 +82,14 @@ public:
     void make_active();
 
 private:
-    CanonicalDocument(Web::HTML::CrossProcessId id, URL::URL creation_url, URL::Origin, NonnullRefPtr<CanonicalBrowsingContext>, NonnullRefPtr<CanonicalWindow>, IsInitialAboutBlank);
+    CanonicalDocument(Web::HTML::CrossProcessId id, URL::URL creation_url, URL::Origin, NonnullRefPtr<CanonicalBrowsingContext>, NonnullRefPtr<CanonicalWindow>, Web::HTML::SandboxingFlagSet active_sandboxing_flag_set, IsInitialAboutBlank);
 
     Web::HTML::CrossProcessId m_id;
     URL::URL m_creation_url;
     URL::Origin m_origin;
     NonnullRefPtr<CanonicalBrowsingContext> m_browsing_context;
     NonnullRefPtr<CanonicalWindow> m_relevant_global_object;
+    Web::HTML::SandboxingFlagSet m_active_sandboxing_flag_set {};
     IsInitialAboutBlank m_is_initial_about_blank { IsInitialAboutBlank::No };
     Web::HTML::OpenerPolicy m_opener_policy;
     bool m_completely_loaded { false };

@@ -1397,6 +1397,9 @@ void CanonicalTraversable::did_finish_history_navigation_params_creation(WebCont
         did_fail_history_navigation_population(operation_id, navigable_id, source_page);
         return;
     }
+    // The document's sandboxing flags are at least those the UI process snapshots for the navigable.
+    if (auto navigable = find(navigable_id); navigable.has_value())
+        population.request.target_snapshot_params.sandboxing_flags |= navigable->snapshot_target_snapshot_params().sandboxing_flags;
     auto& loader = job.value()->population_loader;
     loader = NavigationLoader::create(source_page.client().is_private(), move(population.request));
     loader->did_finish_navigation_params_creation(move(population.result));
@@ -2583,6 +2586,7 @@ void CanonicalTraversable::finalize_a_cross_document_navigation(HistoryOperation
             .request_current_url = {},
             .origin = *initiator_origin,
             .opener_policy = coop,
+            .final_sandboxing_flag_set = navigable->active_document().active_sandboxing_flag_set(),
             .environment_id = parameters.environment_id,
             .document_id = *parameters.document_id,
         };
