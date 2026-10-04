@@ -1964,6 +1964,7 @@ impl StyleEngineState {
                 deferred_geometry_journal: NormalizationJournal::new(),
                 flushing_deferred_geometry_journal: false,
                 deferred_element_style_inputs: Vec::new(),
+                deferred_element_style_inputs_moved: false,
                 deferred_element_style_inputs_are_pending: false,
                 environment_move_changed_names: Default::default(),
                 environment_move_actions: Vec::new(),
@@ -2262,8 +2263,34 @@ impl StyleEngineState {
             return 0;
         }
         self.host.deferred_element_style_inputs.remove(index);
+        self.host.deferred_element_style_inputs_moved = true;
         u32::from(reaction | pending_reaction)
             | (u32::from(inherited_style_groups | pending_inherited_style_groups) << 8)
+    }
+
+    /// The element style inputs the engine defers, by element, where they moved since the last time they were taken.
+    pub(crate) fn take_moved_deferred_element_style_inputs(
+        &mut self,
+    ) -> Option<Vec<crate::css::style::engine_calls::DeferredInput>> {
+        if !std::mem::take(&mut self.host.deferred_element_style_inputs_moved) {
+            return None;
+        }
+        Some(
+            self.host
+                .deferred_element_style_inputs
+                .iter()
+                .filter_map(|input| match (input.key, input.new) {
+                    (
+                        InputKey::ElementStyleInput(node),
+                        InputValue::ElementStyleInput {
+                            reaction,
+                            inherited_style_groups,
+                        },
+                    ) => Some((node, reaction, inherited_style_groups)),
+                    _ => None,
+                })
+                .collect(),
+        )
     }
 
     /// Drop the style input an element owes: C++ computed the element's style, which answers it.
@@ -2274,6 +2301,7 @@ impl StyleEngineState {
             .binary_search_by_key(&InputKey::ElementStyleInput(node), |pending| pending.key)
         {
             self.host.deferred_element_style_inputs.remove(index);
+            self.host.deferred_element_style_inputs_moved = true;
         }
     }
 
@@ -2287,6 +2315,7 @@ impl StyleEngineState {
         else {
             return;
         };
+        self.host.deferred_element_style_inputs_moved = true;
         let InputValue::ElementStyleInput {
             reaction,
             inherited_style_groups,

@@ -92,6 +92,15 @@ pub(crate) enum EngineWrite {
         inheritable: u64,
         inheritable_store: Option<super::custom_property_environments::RetainedCustomPropertyStore>,
     },
+    /// The host folded the style input `node` owes into the reaction it applies to it, as it knew it would fold
+    /// (see [`DeferredInputs::absorb`]), which `absorbed` answered: the engine folds it the same.
+    AbsorbElementStyleInput {
+        node: StyleNodeID,
+        reaction: u8,
+        inherited_style_groups: u8,
+        absorbs_any: bool,
+        absorbed: u32,
+    },
     /// What a custom property's name atom spells, and the fly string it is.
     NoteCustomPropertyName {
         name: StyleAtomID,
@@ -212,6 +221,28 @@ impl EngineWrite {
                         pointer(&inheritable_store),
                     );
                 }
+            }
+            Self::AbsorbElementStyleInput {
+                node,
+                reaction,
+                inherited_style_groups,
+                absorbs_any,
+                absorbed,
+            } => {
+                let engine_absorbed = super::bridge::operations::absorb_element_style_input(
+                    engine,
+                    node.raw(),
+                    reaction,
+                    inherited_style_groups,
+                    absorbs_any,
+                );
+                // A fold that merges nothing into the reaction answers the same as none.
+                debug_assert!(
+                    engine_absorbed == absorbed
+                        || (absorbed == 0
+                            && engine_absorbed == u32::from(reaction) | (u32::from(inherited_style_groups) << 8)),
+                    "the engine folds a style input as the host did"
+                );
             }
             Self::NoteCustomPropertyName { name, string, text } => {
                 // SAFETY: The write owns a reference to the fly string.
@@ -1031,6 +1062,8 @@ pub(crate) struct EngineMemo {
     pub(crate) dependency_flags: Memo<u8>,
     /// The custom-property environments the engine holds for elements.
     pub(crate) held: std::cell::RefCell<HeldEnvironments>,
+    /// The element style inputs the engine defers.
+    pub(crate) deferred: std::cell::RefCell<DeferredInputs>,
 }
 
 impl Default for EngineMemo {
@@ -1040,6 +1073,7 @@ impl Default for EngineMemo {
             record_environments: Memo::new(0),
             dependency_flags: Memo::new(0),
             held: Default::default(),
+            deferred: Default::default(),
         }
     }
 }
@@ -1119,6 +1153,221 @@ impl HeldEnvironments {
             self.pseudo_elements.remove(&node);
         }
     }
+}
+
+/// What one element owes of the style inputs the engine defers: its reactions and its inherited style groups.
+pub(crate) type DeferredInput = (StyleNodeID, u8, u8);
+
+/// The element style inputs the engine defers, by element, as the host knows them: the engine's own as of the last job
+/// that moved them, followed over each write the host queued since that names what it defers. A write that defers
+/// inputs for elements the host cannot name (the children of an element whose reaction it applied, a subtree, a
+/// container's dependents, a rootless flush) adds to [`Self::unnamed`] instead, which bounds what the engine may owe
+/// any element beyond what the host knows until the next job.
+#[derive(Default)]
+pub(crate) struct DeferredInputs {
+    /// Sorted by element.
+    inputs: Vec<DeferredInput>,
+    /// The reactions and the inherited style groups that the writes queued since the last job may defer for elements
+    /// the host cannot name.
+    unnamed: (u8, u8),
+}
+
+impl DeferredInputs {
+    const ALL: (u8, u8) = (u8::MAX, u8::MAX);
+
+    fn search(&self, node: StyleNodeID) -> Result<usize, usize> {
+        self.inputs.binary_search_by_key(&node, |&(node, ..)| node)
+    }
+
+    /// Folds the input `node` owes into the reaction the host is about to apply to it, as
+    /// [`super::StyleEngineState::absorb_element_style_input`] does, where the host knows the answer: `None` where an
+    /// input it cannot name may move it.
+    fn absorb(
+        &mut self,
+        node: StyleNodeID,
+        reaction: u8,
+        inherited_style_groups: u8,
+        absorbs_any: bool,
+    ) -> Option<u32> {
+        use super::transaction::STYLE_REACTION_RECOMPUTE_DESCENDANT_STYLES as RECOMPUTE_DESCENDANTS;
+        let known = self.search(node).ok();
+        let (unnamed_reaction, unnamed_groups) = self.unnamed;
+        if unnamed_reaction | unnamed_groups != 0 {
+            let certain = match known {
+                // The host knows nothing the element owes: a reaction that does not fold in every reaction an unnamed
+                // input may carry answers the same, but for a descendant recompute, which folding adds to it.
+                None if absorbs_any => {
+                    unnamed_reaction & !reaction == 0 && unnamed_groups & !inherited_style_groups == 0
+                }
+                None => unnamed_reaction & RECOMPUTE_DESCENDANTS == 0 || reaction & RECOMPUTE_DESCENDANTS != 0,
+                Some(_) => false,
+            };
+            if !certain {
+                return None;
+            }
+        }
+        let Some(index) = known else {
+            return Some(0);
+        };
+        let (_, owed_reaction, owed_groups) = self.inputs[index];
+        if !absorbs_any
+            && (owed_reaction & !reaction & !RECOMPUTE_DESCENDANTS != 0 || owed_groups & !inherited_style_groups != 0)
+        {
+            return Some(0);
+        }
+        self.inputs.remove(index);
+        Some(u32::from(reaction | owed_reaction) | (u32::from(inherited_style_groups | owed_groups) << 8))
+    }
+
+    /// Follows `change`, which the host queues for the engine.
+    pub(crate) fn follow(&mut self, change: &super::bridge::StyleChange) {
+        use super::bridge::StyleChange;
+        use super::transaction::{STYLE_REACTION_PUBLISHED_STYLE, STYLE_REACTION_RECOMPUTE_STYLE};
+        let (node, reaction, groups) = match *change {
+            StyleChange::RecordDerivedElementStyleInput {
+                node,
+                reaction,
+                inherited_style_groups,
+            } => (node, reaction, inherited_style_groups),
+            StyleChange::RecordContainerQueryInput { node } => {
+                (node, STYLE_REACTION_PUBLISHED_STYLE | STYLE_REACTION_RECOMPUTE_STYLE, 0)
+            }
+            StyleChange::ConsumeElementStyleInput { node } => {
+                if let Some(node) = StyleNodeID::from_raw(node)
+                    && let Ok(index) = self.search(node)
+                {
+                    self.inputs.remove(index);
+                }
+                return;
+            }
+            StyleChange::NoteStyleReactionApplied {
+                reaction,
+                inherited_style_groups_changed,
+                facts,
+                ..
+            } => {
+                self.add_unnamed(super::child_reactions::derivable_child_reactions(
+                    reaction,
+                    inherited_style_groups_changed,
+                    facts,
+                ));
+                return;
+            }
+            StyleChange::RecordFlatTreeDescendantStyleInputs {
+                reaction,
+                inherited_style_groups,
+                ..
+            } => {
+                self.add_unnamed((reaction, inherited_style_groups));
+                return;
+            }
+            StyleChange::RecordSizeContainerQueryDependents { .. }
+            | StyleChange::EvaluateSizeContainersNeedingEvaluationAfterLayout {} => {
+                self.add_unnamed((STYLE_REACTION_PUBLISHED_STYLE | STYLE_REACTION_RECOMPUTE_STYLE, 0));
+                return;
+            }
+            StyleChange::Flush {} => {
+                self.add_unnamed(Self::ALL);
+                return;
+            }
+            _ => return,
+        };
+        let Some(node) = StyleNodeID::from_raw(node) else {
+            return;
+        };
+        if reaction == 0 {
+            return;
+        }
+        match self.search(node) {
+            Ok(index) => {
+                let (_, owed_reaction, owed_groups) = &mut self.inputs[index];
+                *owed_reaction |= reaction;
+                *owed_groups |= groups;
+            }
+            Err(index) => self.inputs.insert(index, (node, reaction, groups)),
+        }
+    }
+
+    /// Whether the engine may defer an input for an element the host cannot name.
+    fn may_owe_unnamed(&self) -> bool {
+        self.unnamed != (0, 0)
+    }
+
+    fn add_unnamed(&mut self, (reaction, groups): (u8, u8)) {
+        self.unnamed.0 |= reaction;
+        self.unnamed.1 |= groups;
+    }
+
+    /// Learns what a job applied every write queued before it leaves the engine deferring, `inputs` where they moved.
+    /// A write queued since, by a host callback of the job or beside a frame, is not followed over what the job left.
+    pub(crate) fn follow_job(&mut self, inputs: Option<Vec<DeferredInput>>, writes_wait: bool) {
+        match (inputs, writes_wait) {
+            (Some(inputs), true) => {
+                self.inputs = inputs;
+                self.unnamed = Self::ALL;
+            }
+            (Some(inputs), false) => {
+                self.inputs = inputs;
+                self.unnamed = (0, 0);
+            }
+            (None, true) => {}
+            (None, false) => self.unnamed = (0, 0),
+        }
+    }
+}
+
+/// Folds the style input `node` owes into the reaction the host is about to apply to it, where the reaction covers it,
+/// and answers the merged reaction in the low byte and the merged inherited style groups in the next, or zero, as
+/// [`super::StyleEngineState::absorb_element_style_input`] does. The host answers where it knows the answer, and the
+/// engine folds the input the same as it applies the host's writes.
+///
+/// # Safety
+///
+/// `host` must be a live document host, on its document's thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn style_engine_absorb_element_style_input(
+    host: *const DocumentHost,
+    read: &BegunRead,
+    node: u32,
+    reaction: u8,
+    inherited_style_groups: u8,
+    absorbs_any: bool,
+) -> u32 {
+    // SAFETY: Guaranteed by the caller.
+    let host = unsafe { document_host(host) };
+    let Some(style_node) = StyleNodeID::from_raw(node) else {
+        return 0;
+    };
+    // A job of the engine, or a frame in flight, moves what it defers beside what the host knows.
+    let known = host.knows_engine_between_jobs().then(|| {
+        host.engine_memo()
+            .deferred
+            .borrow_mut()
+            .absorb(style_node, reaction, inherited_style_groups, absorbs_any)
+    });
+    let Some(Some(absorbed)) = known else {
+        return with_engine(read, host, |engine| {
+            super::bridge::operations::absorb_element_style_input(
+                engine,
+                node,
+                reaction,
+                inherited_style_groups,
+                absorbs_any,
+            )
+        });
+    };
+    // The engine folds what the host did, and an input the host knows nothing of that folding merges nothing into the
+    // reaction, which only an unnamed one is.
+    if absorbed != 0 || host.engine_memo().deferred.borrow().may_owe_unnamed() {
+        host.queue_change(ArenaChange::Engine(EngineWrite::AbsorbElementStyleInput {
+            node: style_node,
+            reaction,
+            inherited_style_groups,
+            absorbs_any,
+            absorbed,
+        }));
+    }
+    absorbed
 }
 
 /// A direct-mapped memo of one answer per key, which keeps the answers of the keys the host asked about last.
