@@ -823,6 +823,16 @@ impl DocumentHost {
         read(&PaintSource::over_rows(&rows.paintable, &self.absolute_rects))
     }
 
+    /// Like [`Self::read_rows`], without measuring overflow, where no job runs: the arena a job writes moves on from the
+    /// rows the host has, and a host callback of the job reads the arena.
+    pub(crate) fn read_rows_between_jobs<R>(
+        &self,
+        wait: impl RenderWait,
+        read: impl FnOnce(&PaintSource<'_>) -> R,
+    ) -> Option<R> {
+        (!self.in_job.get()).then(|| self.read_rows(wait, false, read))
+    }
+
     /// Answers `read` from the rows the host has, where it knows they read as the arena does as of every write it made,
     /// through the paint side's reads.
     pub(crate) fn read_known_rows<R>(&self, read: impl FnOnce(&RowSnapshot, &PaintSource<'_>) -> R) -> Option<R> {
