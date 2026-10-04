@@ -12,13 +12,12 @@
 typedef JS::Object NewType1;
 using NewType2 = JS::Object;
 
-class TestClass : public JS::Object {
-    JS_OBJECT(TestClass, JS::Object);
+class TestClass : public JS::Cell {
+    GC_CELL(TestClass, JS::Cell);
 
 public:
-    explicit TestClass(JS::Realm& realm, JS::Object& obj)
-        : JS::Object(realm, nullptr)
-        , m_object_ref(obj)
+    explicit TestClass(JS::Object& obj)
+        : m_object_ref(obj)
     {
     }
 

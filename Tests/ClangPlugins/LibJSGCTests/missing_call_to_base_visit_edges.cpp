@@ -8,8 +8,8 @@
 
 #include <LibJS/Runtime/Object.h>
 
-class TestClass : public JS::Object {
-    JS_OBJECT(TestClass, JS::Object);
+class TestClass : public JS::Cell {
+    GC_CELL(TestClass, JS::Cell);
 
     // expected-error@+1 {{Missing call to Base::visit_edges}}
     virtual void visit_edges(Visitor&) override

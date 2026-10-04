@@ -19,8 +19,8 @@ struct SubStructWithHashMap {
     HashMap<int, GC::Ptr<JS::Object>> m_map;
 };
 
-class TestClass : public JS::Object {
-    JS_OBJECT(TestClass, JS::Object);
+class TestClass : public JS::Cell {
+    GC_CELL(TestClass, JS::Cell);
 
     virtual void visit_edges(Visitor& visitor) override
     {

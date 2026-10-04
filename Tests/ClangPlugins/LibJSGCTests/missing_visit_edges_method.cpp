@@ -9,8 +9,8 @@
 #include <LibJS/Runtime/Object.h>
 
 // expected-error@+1 {{GC::Cell-inheriting class TestClass contains a GC-allocated member 'm_cell' but has no visit_edges method}}
-class TestClass : public JS::Object {
-    JS_OBJECT(TestClass, JS::Object);
+class TestClass : public JS::Cell {
+    GC_CELL(TestClass, JS::Cell);
 
     GC::Ptr<JS::Object> m_cell;
 };

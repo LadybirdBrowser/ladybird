@@ -16,11 +16,13 @@ class TestCellClass : JS::Cell {
     GC_CELL(bad, JS::Cell);
 };
 
+// expected-error@+1 {{TestObjectClass derives from the engine type JS::Object, which only LibJS may subclass; use a host class instead}}
 class TestObjectClass : JS::Object {
     // expected-error@+1 {{Expected first argument of JS_OBJECT macro invocation to be TestObjectClass}}
     JS_OBJECT(bad, JS::Object);
 };
 
+// expected-error@+1 {{TestEnvironmentClass derives from the engine type JS::Environment, which only LibJS may subclass; use a host class instead}}
 class TestEnvironmentClass : JS::Environment {
     // expected-error@+1 {{Expected first argument of JS_ENVIRONMENT macro invocation to be TestEnvironmentClass}}
     JS_ENVIRONMENT(bad, JS::Environment);
