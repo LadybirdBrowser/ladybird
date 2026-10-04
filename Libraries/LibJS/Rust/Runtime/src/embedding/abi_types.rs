@@ -12,11 +12,11 @@
 //!   is the cell's. A pointer the runtime returns stays valid while something keeps the cell alive, which for a pointer
 //!   on the embedder's stack is conservative stack scanning, as for any engine pointer.
 //! - Operations that can throw return a JSCompletion, as LibJS/HostObjectABI.h describes it, whichever side runs the
-//!   operation. The payload of a normal completion is the result when that is a JSValue, a bool as 0 or 1, or a
-//!   pointer, with null standing for none, and 0 for an operation without a result. Any other result, such as a
-//!   number, a property key or an owned string, goes to an out parameter, which a throw leaves untouched. The payload
-//!   of a throw completion is the thrown value. completion_into_abi() and completion_writing_result_to() build both
-//!   kinds.
+//!   operation. The payload of a normal completion is the result when that is a JSValue, a bool as 0 or 1, one of the
+//!   enumerators the ABI defines, such as JS_HANDLED_BY_HOST_HANDLED, or a pointer, with null standing for none, and 0
+//!   for an operation without a result. Any other result, such as a number, a property key or an owned string, goes to
+//!   an out parameter, which a throw leaves untouched. The payload of a throw completion is the thrown value.
+//!   completion_into_abi() and completion_writing_result_to() build both kinds.
 //! - Borrowed strings cross as a JSUtf16View. An owned AK::Utf16String crosses as its raw word, a
 //!   JSOwnedUtf16String: the sender gives up its reference with AK::Utf16String::into_raw(), and the receiver adopts it
 //!   with AK::Utf16String::adopt_raw(), so the string's storage is never copied.

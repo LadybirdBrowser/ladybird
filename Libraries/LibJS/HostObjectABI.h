@@ -54,8 +54,8 @@ enum {
     JS_COMPLETION_THROW = 1,
 };
 
-// A normal completion carries its result in the payload: a JSValue, a bool as 0 or 1, or a pointer. A throw completion
-// carries the thrown JSValue.
+// A normal completion carries its result in the payload: a JSValue, a bool as 0 or 1, an enumerator of the ABI, or a
+// pointer. A throw completion carries the thrown JSValue.
 typedef struct JSCompletion {
     uint64_t payload;
     uint8_t variant;

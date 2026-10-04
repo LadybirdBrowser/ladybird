@@ -211,9 +211,15 @@ pub fn r#await(vm: &Vm, value: Value) -> ThrowCompletionOr<Value> {
 
     // FIXME: Since we don't support context suspension, we attempt to "wait" for the promise to resolve
     //        by synchronously running all queued promise jobs.
-    // NB: C++ performs a microtask checkpoint through the agent of an embedder here; the hosts of the Rust runtime have
-    //     none, so this is the standalone LibJS case.
-    vm.run_queued_promise_jobs();
+    if let Some(agent) = vm.agent().embedder_agent {
+        // Embedder case (i.e. LibWeb). Runs all promise jobs by performing a microtask checkpoint.
+        // NB: The C++ goal condition captures a copy of the outcome taken before the promise settles, so it never
+        //     becomes true. This one reads the outcome itself.
+        agent.spin_event_loop_until(vm, &|| awaited_completion.success.get().is_some());
+    } else {
+        // No embedder, standalone LibJS implementation
+        vm.run_queued_promise_jobs();
+    }
 
     // 8. Remove asyncContext from the execution context stack and restore the execution context that is at the top of the execution context stack as the running execution context.
     // NOTE: Since we don't push any EC, this step is not performed.

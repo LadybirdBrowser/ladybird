@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use core::ffi::c_void;
+use core::ptr::NonNull;
 use std::collections::HashSet;
 use std::rc::Rc;
 
@@ -12,6 +14,7 @@ use libjs_runtime_macros::Trace;
 
 use crate::bytecode::executable::Executable;
 use crate::gc::class::{GcCell, define_cell};
+use crate::gc::foreign::ForeignCellSlot;
 use crate::gc::gc_ref_cell::GcRefCell;
 use crate::gc::root::MarkedVec;
 use crate::hash_table::Utf16FlyStringHashTable;
@@ -53,6 +56,7 @@ pub struct Script {
     header: CellHeader,
     realm: Gc<Realm>,                                    // [[Realm]]
     loaded_modules: GcRefCell<Vec<LoadedModuleRequest>>, // [[LoadedModules]]
+    host_defined: ForeignCellSlot,                       // [[HostDefined]]
     executable: Gc<Executable>,
     /// What the script's functions compile themselves from when they are first called.
     #[gc(untraced)]
@@ -156,15 +160,25 @@ impl Script {
     ) -> Gc<Script> {
         assert!(parsed.program_type() == ProgramType::Script && !parsed.has_errors());
         let source_length = source_code.length_in_code_units();
-        Self::create(vm, realm, compile_script(parsed, source_length), source_code, filename)
+        Self::create(
+            vm,
+            realm,
+            compile_script(parsed, source_length),
+            source_code,
+            filename,
+            ForeignCellSlot::empty(),
+        )
     }
 
-    fn create(
+    /// The Script Record of a script compiled, on any thread, from the code of `source_code`, whose filename the
+    /// script's code reports. Module loading resolves the specifiers of its dynamic imports against `filename`.
+    pub fn create(
         vm: &Vm,
         realm: Gc<Realm>,
         compiled: CompiledScript,
         source_code: Rc<SourceCode>,
         filename: &str,
+        host_defined: ForeignCellSlot,
     ) -> Gc<Script> {
         let CompiledScript {
             executable,
@@ -208,6 +222,7 @@ impl Script {
             header: CellHeader::for_class(Self::CLASS),
             realm,
             loaded_modules: GcRefCell::new(Vec::new()),
+            host_defined,
             executable,
             source_code,
             lexical_names: fly_strings_of(&declarations.lexical_names),
@@ -232,6 +247,10 @@ impl Script {
 
     pub fn loaded_modules(&self) -> &GcRefCell<Vec<LoadedModuleRequest>> {
         &self.loaded_modules
+    }
+
+    pub fn host_defined(&self) -> Option<NonNull<c_void>> {
+        self.host_defined.get()
     }
 
     pub fn filename(&self) -> &str {
