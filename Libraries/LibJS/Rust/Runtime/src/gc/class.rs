@@ -12,6 +12,11 @@ use super::visitor::{Trace, Visitor};
 use crate::layout::cell::{CellHeader, CellKind, CellState};
 use crate::runtime::object::ObjectMethods;
 
+#[cfg(feature = "address-sanitizer")]
+unsafe extern "C" {
+    fn __lsan_ignore_object(pointer: *const c_void);
+}
+
 /// Mirrors GCCellTypeInfo from Libraries/LibGC/CAPI.h, which LibGC dispatches every per-cell operation through.
 #[derive(Clone, Copy)]
 #[repr(C)]
@@ -163,13 +168,19 @@ impl Class {
             parent.object_methods.is_some(),
             "only object classes are derived at run time"
         );
-        Box::leak(Box::new(Class {
+        let class = Box::leak(Box::new(Class {
             type_info: parent.type_info,
             name,
             id: parent.id,
             parent: Some(parent),
             object_methods: Some(object_methods),
-        }))
+        }));
+        #[cfg(feature = "address-sanitizer")]
+        // SAFETY: The class is a live allocation, which the process keeps for as long as it runs.
+        unsafe {
+            __lsan_ignore_object(core::ptr::from_ref(class).cast());
+        }
+        class
     }
 
     /// Whether Class::derive_runtime() created the class. Every class define_cell! defines has an id of its own.
