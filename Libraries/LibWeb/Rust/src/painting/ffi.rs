@@ -16,7 +16,7 @@ use crate::painting::filter_bytes::{FfiFilterFunction, filter_functions_graph};
 use crate::painting::force_dark::ForceDarkRole;
 use crate::painting::host::visual_context::FfiSvgFilterPrimitive;
 use crate::painting::paint_changes::{PaintChange, queue};
-use crate::painting::paint_read::GeometryRead;
+use crate::painting::paint_read::{GeometryRead, PaintRead};
 use crate::painting::paintable_data::*;
 use crate::painting::paintable_rows::{PaintableRowsRead, with_inline_pieces};
 use crate::painting::rect_to_viewport_transform::RectToViewportTransform;
@@ -314,17 +314,23 @@ pub unsafe extern "C" fn render_state_paintable_transform_reference_box(
     host: *const DocumentHost,
     slot: NodeSlotId,
 ) -> FfiCssPixelRect {
+    fn reference_box(rows: &impl PaintRead, slot: NodeSlotId) -> FfiCssPixelRect {
+        if !rows.paintable_row_is_populated(slot) {
+            return FfiCssPixelRect::default();
+        }
+        let Some(style) = rows.node_style_if_live(slot) else {
+            return FfiCssPixelRect::default();
+        };
+        crate::painting::visual_context::node_values::transform_reference_box(style, rows, slot).into()
+    }
+    // SAFETY: Guaranteed by the caller.
+    if let Some(rect) = unsafe { &*host }.read_known_rows(|_, rows| reference_box(rows, slot)) {
+        return rect;
+    }
     // SAFETY: Guaranteed by the caller.
     unsafe {
         read_arena(host, node_read(), slot, |arena, slot| {
-            if !arena.paintable_row_is_populated(slot) {
-                return FfiCssPixelRect::default();
-            }
-            let Some(style) = arena.node_style_if_live(slot) else {
-                return FfiCssPixelRect::default();
-            };
-            let paintable_rows = arena.paintable_rows();
-            crate::painting::visual_context::node_values::transform_reference_box(style, &paintable_rows, slot).into()
+            reference_box(&arena.paintable_rows(), slot)
         })
     }
 }
@@ -1265,17 +1271,19 @@ pub unsafe extern "C" fn render_state_main_visual_context_tree_retain(
     host: *const DocumentHost,
     read: &crate::render_state::BegunRead,
 ) -> *const c_void {
+    fn retain(tree: Option<&std::sync::Arc<crate::painting::visual_context::VisualContextTree>>) -> *const c_void {
+        tree.map_or(std::ptr::null(), |tree| {
+            std::sync::Arc::into_raw(std::sync::Arc::clone(tree)).cast()
+        })
+    }
+    // SAFETY: Guaranteed by the caller.
+    if let Some(tree) = unsafe { &*host }.read_known_rows(|rows, _| retain(rows.visual_context_tree.as_ref())) {
+        return tree;
+    }
     // SAFETY: Guaranteed by the caller.
     unsafe {
         read_arena(host, read, (), |arena, ()| {
-            let paint_state = arena.paint_state().borrow();
-            paint_state
-                .visual_context
-                .tree
-                .as_ref()
-                .map_or(std::ptr::null(), |tree| {
-                    std::sync::Arc::into_raw(std::sync::Arc::clone(tree)).cast()
-                })
+            retain(arena.paint_state().borrow().visual_context.tree.as_ref())
         })
     }
 }
