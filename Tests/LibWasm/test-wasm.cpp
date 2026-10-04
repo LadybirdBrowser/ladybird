@@ -7,11 +7,16 @@
 #include <AK/ByteBuffer.h>
 #include <AK/MemoryStream.h>
 #include <LibCore/File.h>
+#include <LibGC/CellAllocator.h>
+#include <LibJS/Heap/Cell.h>
+#include <LibJS/HostClassBuilder.h>
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibJS/Runtime/BigInt.h>
+#include <LibJS/Runtime/HostObject.h>
 #include <LibJS/Runtime/Intrinsics.h>
 #include <LibJS/Runtime/Object.h>
+#include <LibJS/Runtime/PropertyKey.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibJS/Runtime/TypedArray.h>
 #include <LibJS/Runtime/VM.h>
@@ -53,15 +58,25 @@ TESTJS_GLOBAL_FUNCTION(read_binary_wasm_file, readBinaryWasmFile)
     return JS::Value(array);
 }
 
-class WebAssemblyModule final : public JS::Object {
-    JS_OBJECT(WebAssemblyModule, JS::Object);
+static constexpr JSHostClass web_assembly_module_host_class = JS::make_host_class(JS_HOST_CLASS_OBJECT, "WebAssemblyModule"sv, nullptr, nullptr, nullptr, 0);
+
+// The module that parseWebAssemblyModule() instantiates. Script sees it as a host object that carries this cell as its
+// host data and has the module's getExport() and invoke() as own properties.
+class WebAssemblyModule final : public JS::Cell {
+    GC_CELL(WebAssemblyModule, JS::Cell);
     GC_DECLARE_ALLOCATOR(WebAssemblyModule);
 
 public:
-    explicit WebAssemblyModule(JS::Object& prototype)
-        : JS::Object(ConstructWithPrototypeTag::Tag, prototype)
+    using JSValueConversionIsForbidden = void;
+
+    WebAssemblyModule()
     {
         machine().enable_instruction_count_limit();
+    }
+
+    static WebAssemblyModule* from_object(JS::Object const& object)
+    {
+        return JS::host_data_if<WebAssemblyModule>(object);
     }
 
     static Wasm::AbstractMachine& machine()
@@ -80,10 +95,10 @@ public:
     Wasm::Module& module() { return *m_module; }
     Wasm::ModuleInstance& module_instance() { return *m_module_instance; }
 
-    static JS::ThrowCompletionOr<WebAssemblyModule*> create(JS::Realm& realm, NonnullRefPtr<Wasm::Module> module, HashMap<Wasm::Linker::Name, Wasm::ExternValue> const& imports)
+    static JS::ThrowCompletionOr<GC::Ref<JS::HostObject>> create(JS::Realm& realm, NonnullRefPtr<Wasm::Module> module, HashMap<Wasm::Linker::Name, Wasm::ExternValue> const& imports)
     {
         auto& vm = realm.vm();
-        auto instance = realm.create<WebAssemblyModule>(realm.intrinsics().object_prototype());
+        auto instance = realm.create<WebAssemblyModule>();
         instance->m_module = move(module);
         Wasm::Linker linker(*instance->m_module);
         linker.link(imports);
@@ -95,9 +110,12 @@ public:
         if (result.is_error())
             return vm.throw_completion<JS::TypeError>(Utf16String::from_utf8(result.release_error().error));
         instance->m_module_instance = result.release_value();
-        return instance.ptr();
+
+        auto object = JS::HostObject::create(realm, web_assembly_module_host_class, realm.intrinsics().object_prototype(), {}, instance);
+        object->define_native_function(realm, "getExport"_utf16_fly_string, get_export, 1, JS::default_attributes);
+        object->define_native_function(realm, "invoke"_utf16_fly_string, wasm_invoke, 1, JS::default_attributes);
+        return object;
     }
-    void initialize(JS::Realm&) override;
 
     ~WebAssemblyModule() override = default;
 
@@ -214,15 +232,19 @@ TESTJS_GLOBAL_FUNCTION(parse_webassembly_module, parseWebAssemblyModule)
     HashMap<Wasm::Linker::Name, Wasm::ExternValue> imports;
     auto import_value = vm.argument(1);
     if (auto import_object = import_value.template as_if<JS::Object>()) {
-        import_object->shape().for_each_property_in_insertion_order([&](auto const& property_key, auto const&) {
-            auto module_object = import_object->get_without_side_effects(property_key).template as_if<WebAssemblyModule>();
+        for (auto property_key_value : TRY(import_object->ordinary_own_property_keys())) {
+            auto property_key = MUST(JS::PropertyKey::from_value(vm, property_key_value));
+            if (!property_key.is_string())
+                continue;
+            auto module_value = import_object->get_without_side_effects(property_key);
+            auto* module_object = module_value.is_object() ? WebAssemblyModule::from_object(module_value.as_object()) : nullptr;
             if (!module_object)
-                return;
+                continue;
             for (auto& entry : module_object->module_instance().exports()) {
                 // FIXME: Don't pretend that everything is a function
                 imports.set({ property_key.as_string().to_utf16_string().to_byte_string(), entry.name(), Wasm::TypeIndex(0) }, entry.value());
             }
-        });
+        }
     }
 
     return JS::Value(TRY(WebAssemblyModule::create(realm, result.release_value(), imports)));
@@ -336,10 +358,10 @@ TESTJS_GLOBAL_FUNCTION(is_valid_funcref_in, isValidFuncrefIn)
 {
     auto value = TRY(vm.argument(0).to_index(vm));
     auto module_object = TRY(vm.argument(1).to_object(vm));
-    if (!is<WebAssemblyModule>(*module_object))
+    auto* module = WebAssemblyModule::from_object(*module_object);
+    if (!module)
         return vm.throw_completion<JS::TypeError>("Expected a WebAssemblyModule"_utf16);
-    auto& module = static_cast<WebAssemblyModule&>(*module_object);
-    return JS::Value(module.machine().store().get(Wasm::FunctionAddress { value }) != nullptr);
+    return JS::Value(module->machine().store().get(Wasm::FunctionAddress { value }) != nullptr);
 }
 
 TESTJS_GLOBAL_FUNCTION(test_simd_vector, testSIMDVector)
@@ -385,22 +407,15 @@ TESTJS_GLOBAL_FUNCTION(test_simd_vector, testSIMDVector)
     return true;
 }
 
-void WebAssemblyModule::initialize(JS::Realm& realm)
-{
-    Base::initialize(realm);
-    define_native_function(realm, "getExport"_utf16_fly_string, get_export, 1, JS::default_attributes);
-    define_native_function(realm, "invoke"_utf16_fly_string, wasm_invoke, 1, JS::default_attributes);
-}
-
 JS_DEFINE_NATIVE_FUNCTION(WebAssemblyModule::get_export)
 {
     auto name = TRY(vm.argument(0).to_utf16_string(vm)).to_utf8_but_should_be_ported_to_utf16();
     auto this_value = vm.this_value();
     auto object = TRY(this_value.to_object(vm));
-    if (!is<WebAssemblyModule>(*object))
+    auto* instance = WebAssemblyModule::from_object(*object);
+    if (!instance)
         return vm.throw_completion<JS::TypeError>("Not a WebAssemblyModule"_utf16);
-    auto& instance = static_cast<WebAssemblyModule&>(*object);
-    for (auto& entry : instance.module_instance().exports()) {
+    for (auto& entry : instance->module_instance().exports()) {
         if (entry.name() == name.to_byte_string()) {
             auto& value = entry.value();
             if (auto ptr = value.get_pointer<Wasm::FunctionAddress>())
