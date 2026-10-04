@@ -18,11 +18,11 @@ use crate::breakpoint::BreakpointID;
 use crate::debugger::{Debugger, PauseInfo, PauseOnExceptions, PauseReason, ResumeMode};
 use crate::embedding::abi_types::{JSSourceCode, JSUtf16View, completion_into_abi, vm_from_abi, vm_into_abi};
 use crate::embedding::execution_context::JSExecutionContext;
+use crate::embedding::source_code::{shared_source_code_from_abi, source_code_into_abi};
 use crate::interpreter::vm::Vm;
 use crate::layout::execution_context::ExecutionContext;
 use crate::layout::host_class::{JSCompletion, JSVM, JSValue};
 use crate::layout::value::Value;
-use crate::source_code::SourceCode;
 use crate::source_range::SourceRange;
 use crate::utf16::Utf16View;
 
@@ -135,23 +135,6 @@ fn resume_mode_from_abi(mode: u8) -> ResumeMode {
         JS_RESUME_MODE_STEP_OUT => ResumeMode::StepOut,
         JS_RESUME_MODE_STEP_OVER => ResumeMode::StepOver,
         _ => panic!("{mode} is not a resume mode"),
-    }
-}
-
-pub fn source_code_into_abi(source_code: &Rc<SourceCode>) -> *const JSSourceCode {
-    Rc::as_ptr(source_code).cast()
-}
-
-/// # Safety
-///
-/// `source_code` must be the SourceCode of a live Rc, such as one the ABI handed out.
-unsafe fn source_code_from_abi(source_code: *const JSSourceCode) -> Rc<SourceCode> {
-    let source_code = source_code.cast::<SourceCode>();
-    assert!(!source_code.is_null(), "source code is not null");
-    // SAFETY: The caller guarantees that the pointer is that of a live Rc, which then has one more owner.
-    unsafe {
-        Rc::increment_strong_count(source_code);
-        Rc::from_raw(source_code)
     }
 }
 
@@ -408,7 +391,7 @@ pub unsafe extern "C" fn js_debugger_add_breakpoint_for_source_code(
     // SAFETY: The caller passes a live VM.
     let (_, debugger) = unsafe { debugger_of(vm) };
     // SAFETY: The caller passes a live source code.
-    let source_code = unsafe { source_code_from_abi(source_code) };
+    let source_code = unsafe { shared_source_code_from_abi(source_code) };
     add_breakpoint_result_into_abi(debugger.add_breakpoint_for_source_code(
         source_code,
         line,

@@ -103,20 +103,47 @@ impl Script {
         realm: Gc<Realm>,
         filename: &str,
     ) -> Result<Gc<Script>, Vec<ParserError>> {
-        let parsed = parse(source, ProgramType::Script, 1);
+        Self::parse_with_host_defined(
+            vm,
+            source,
+            realm,
+            filename,
+            ak::Utf16String::default(),
+            ForeignCellSlot::empty(),
+            1,
+        )
+    }
+
+    /// ParseScript as C++ Script::parse runs it for a host: the script's code reports `display_filename`, or
+    /// `filename` if that is empty, its lines count from `line_number_offset`, and it keeps `host_defined` as its
+    /// [[HostDefined]].
+    pub fn parse_with_host_defined(
+        vm: &Vm,
+        source: &[u16],
+        realm: Gc<Realm>,
+        filename: &str,
+        display_filename: ak::Utf16String,
+        host_defined: ForeignCellSlot,
+        line_number_offset: usize,
+    ) -> Result<Gc<Script>, Vec<ParserError>> {
+        let parsed = parse(source, ProgramType::Script, line_number_offset);
         if parsed.has_errors() {
             return Err(ParserError::all_from_parsed_program(&parsed));
         }
-        let source_code = SourceCode::create(
-            ak::Utf16String::from_utf8(filename),
-            ak::Utf16String::from_utf16(source),
-        );
-        Ok(Self::create_from_parsed_with_filename(
+        let display_filename = if display_filename.is_empty() {
+            ak::Utf16String::from_utf8(filename)
+        } else {
+            display_filename
+        };
+        let source_code = SourceCode::create(display_filename, ak::Utf16String::from_utf16(source));
+        let source_length = source_code.length_in_code_units();
+        Ok(Self::create(
             vm,
-            parsed,
-            source_code,
             realm,
+            compile_script(parsed, source_length),
+            source_code,
             filename,
+            host_defined,
         ))
     }
 
