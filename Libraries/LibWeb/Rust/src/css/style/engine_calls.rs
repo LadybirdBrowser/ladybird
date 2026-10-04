@@ -1434,6 +1434,28 @@ pub unsafe extern "C" fn style_engine_has_deferred_element_style_inputs(
     }
 }
 
+/// The synthetic pseudo-elements `node` has rules for, as a C++ record's pseudo-style mask, or no bits when the engine
+/// holds no answer for the node. The host knows it without asking for an element whose row it composes in the
+/// transaction it took last, which answered it beside the row.
+///
+/// # Safety
+///
+/// `host` must be a live document host, on its document's thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn style_engine_published_pseudo_style_mask(
+    host: *const DocumentHost,
+    read: &BegunRead,
+    node: u32,
+) -> u64 {
+    // SAFETY: Guaranteed by the caller.
+    let host = unsafe { document_host(host) };
+    host.transaction_pseudo_style_mask(node).unwrap_or_else(|| {
+        with_engine(read, host, |engine| {
+            super::bridge::operations::published_pseudo_style_mask(engine, node)
+        })
+    })
+}
+
 /// Whether a size container waits for layout to be evaluated, which the host knows without asking where it wrote
 /// nothing since its last job.
 ///

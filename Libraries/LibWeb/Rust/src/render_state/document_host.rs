@@ -928,6 +928,15 @@ impl DocumentHost {
         self.style_transaction.borrow().as_ref()?.record(record)
     }
 
+    /// The synthetic pseudo-elements `node` has rules for, where the style transaction the host took last composes its
+    /// row on the host.
+    pub(crate) fn transaction_pseudo_style_mask(&self, node: u32) -> Option<u64> {
+        self.style_transaction
+            .borrow()
+            .as_ref()?
+            .composed_pseudo_style_mask(node)
+    }
+
     /// Lets go of what the style transaction the host took last answered.
     pub(crate) fn end_style_transaction(&self) {
         self.style_transaction.borrow_mut().take();
