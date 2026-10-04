@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+    .animated { animation: fade 1000s linear; }
+    #probe { width: 50px; height: 10px; }
+</style>
+<div id="box">box</div>
+<div id="probe"></div>
+<script>
+    // An animation that the style update of a flying frame creates: a read beside the frame finds it, and it starts.
+    // The resize observation of #probe shows whether the update delivered it before the next task, which it does not
+    // where the update flew.
+    asyncTest(async done => {
+        let starts = 0;
+        box.addEventListener("animationstart", () => ++starts);
+        const observed = [];
+        const observer = new ResizeObserver(entries => {
+            for (const entry of entries)
+                observed.push(entry.contentRect.width);
+        });
+        observer.observe(probe);
+        const result = await whileRecordingInFlight(() => {
+            observed.length = 0;
+            box.className = "animated";
+            probe.style.width = "60px";
+        }, state => ({ state, observed: observed.join(", ") || "nothing", animations: box.getAnimations().length }));
+        println(`state in the next task: ${result.state}`);
+        println(`resize observed before the next task: ${result.observed}`);
+        println(`animations read beside the frame: ${result.animations}`);
+        await twoFrames();
+        println(`animationstart events: ${starts}`);
+        println(`animations: ${box.getAnimations().map(animation => animation.animationName).join(", ")}`);
+        for (const animation of box.getAnimations())
+            animation.cancel();
+        observer.disconnect();
+        done();
+    });
+</script>

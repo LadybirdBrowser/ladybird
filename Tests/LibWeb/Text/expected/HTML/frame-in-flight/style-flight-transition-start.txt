@@ -1,0 +1,7 @@
+state in the next task: in-flight
+resize observed before the next task: 60
+transitions read beside the frame: 1
+width at the start of the transition: 50px
+transitionrun events: 1
+transitions: width
+width once taken in: 50px

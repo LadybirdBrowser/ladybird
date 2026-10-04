@@ -1,0 +1,5 @@
+state in the next task: in-flight
+resize observed before the next task: nothing
+animations read beside the frame: 1
+animationstart events: 1
+animations: fade

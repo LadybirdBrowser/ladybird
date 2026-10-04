@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    @keyframes grow { from { width: 100px; } to { width: 200px; } }
+    #animated { height: 10px; animation: grow 10s linear paused; }
+    #probe { width: 50px; height: 10px; }
+</style>
+<div id="animated"></div>
+<div id="probe"></div>
+<script>
+    // A document that runs an animation: the style of the rendering update that seeks it and resizes another element
+    // flies with the animation sampled, and both are right once the frame has been taken in. The resize observation of
+    // #probe shows whether the update delivered it before the next task, which it does not where the update flew.
+    asyncTest(async done => {
+        const observed = [];
+        const observer = new ResizeObserver(entries => {
+            for (const entry of entries)
+                observed.push(entry.contentRect.width);
+        });
+        observer.observe(probe);
+        const animation = animated.getAnimations()[0];
+        animation.currentTime = 2500;
+        const result = await whileRecordingInFlight(() => {
+            observed.length = 0;
+            animation.currentTime = 5000;
+            probe.style.width = "60px";
+        }, state => ({ state, observed: observed.join(", ") || "nothing" }));
+        println(`state in the next task: ${result.state}`);
+        println(`resize observed before the next task: ${result.observed}`);
+        await twoFrames();
+        println(`resize observed: ${observed.join(", ")}`);
+        println(`animated width: ${getComputedStyle(animated).width}`);
+        println(`animated box width: ${animated.offsetWidth}`);
+        println(`probe box width: ${probe.offsetWidth}`);
+        observer.disconnect();
+        done();
+    });
+</script>
