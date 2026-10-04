@@ -2690,7 +2690,6 @@ def run_test(webdriver_binary):
 
     webdriver_port = unused_port()
     env = os.environ.copy()
-    env["LADYBIRD_WEBDRIVER_ENABLE_SITE_ISOLATION"] = "1"
     env["LADYBIRD_SESSION_HISTORY_DEBUG"] = "1"
 
     webdriver_stdout = tempfile.TemporaryFile(mode="w+", encoding="utf-8")
