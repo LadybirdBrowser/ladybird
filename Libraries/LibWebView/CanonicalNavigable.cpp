@@ -242,7 +242,6 @@ void CanonicalNavigable::begin_navigation(Web::HTML::PreparedNavigationDescripto
         .url = url,
         .navigation_id = navigation_id,
         .sequence_number = traversable.next_sequence_number(),
-        .has_started = true,
     });
 
     // 20. If url's scheme is "javascript", then:
@@ -1255,13 +1254,6 @@ void CanonicalNavigable::did_commit_navigation(CanonicalSessionHistoryEntry& ent
     clear_ongoing_navigation();
 }
 
-CanonicalNavigation& CanonicalNavigable::ensure_ongoing_navigation()
-{
-    if (!m_ongoing_navigation.has_value())
-        m_ongoing_navigation = CanonicalNavigation {};
-    return *m_ongoing_navigation;
-}
-
 void CanonicalNavigable::set_ongoing_navigation(CanonicalNavigation ongoing_navigation)
 {
     // NB: Taken before the handle covering this navigation's start is dropped below, so that a revoked entry is not
@@ -1316,7 +1308,8 @@ void CanonicalNavigable::retain_blob_url_token(URL::BlobURLEntry::Token token)
 
 void CanonicalNavigable::set_navigation_population_worker(WebContentPage& page)
 {
-    auto& ongoing_navigation = ensure_ongoing_navigation();
+    VERIFY(m_ongoing_navigation.has_value());
+    auto& ongoing_navigation = *m_ongoing_navigation;
     VERIFY(!ongoing_navigation.population_worker);
     ongoing_navigation.population_worker = page;
 }
@@ -1336,7 +1329,8 @@ bool CanonicalNavigable::navigation_population_worker_matches(WebContentPage con
 
 void CanonicalNavigable::set_navigation_host(WebContentPage& page)
 {
-    auto& ongoing_navigation = ensure_ongoing_navigation();
+    VERIFY(m_ongoing_navigation.has_value());
+    auto& ongoing_navigation = *m_ongoing_navigation;
     ongoing_navigation.host = page;
 
     // The population worker conducts the navigation until the hosting process takes over.
@@ -1395,7 +1389,7 @@ bool CanonicalNavigable::matches_ongoing_navigation(Optional<Utf16String> const&
 {
     // A live transaction owns the view's loading state, so completion signals must name it.
     if (m_ongoing_navigation.has_value())
-        return m_ongoing_navigation->has_started && navigation_id == m_ongoing_navigation->navigation_id;
+        return navigation_id == m_ongoing_navigation->navigation_id;
 
     // Otherwise completion signals concern the active document's tracked load.
     return navigation_id == m_active_document_load.navigation_id;

@@ -47,7 +47,6 @@ public:
     // request, which population uses up. A javascript: URL has none.
     Optional<Web::HTML::PreparedNavigationDescriptor> retry {};
     u64 sequence_number { 0 };
-    bool has_started { false };
     Phase phase { Phase::Started };
     OwnPtr<NavigationLoader> loader {};
     RefPtr<WebContentPage> population_worker {};

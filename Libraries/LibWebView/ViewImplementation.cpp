@@ -424,16 +424,10 @@ void ViewImplementation::reload()
         on_before_browser_initiated_navigation();
 
     set_loading_state(true);
-    auto const* current_entry = traversable().session_history().current_entry();
-    Optional<URL::URL> ongoing_url;
-    if (traversable().ongoing_navigation().has_value())
-        ongoing_url = move(traversable().ongoing_navigation()->url);
-    else if (current_entry)
-        ongoing_url = current_entry->url;
-    traversable().set_ongoing_navigation(CanonicalNavigation {
-        .url = move(ongoing_url),
-        .sequence_number = traversable().next_sequence_number(),
-    });
+    // A reload from the browser's UI is the newest navigation. The navigation under way is abandoned, and the active
+    // document's load is no longer the one the view tracks.
+    traversable().clear_ongoing_navigation();
+    traversable().clear_active_document_load();
     if (m_crash_state.has_value()) {
         prepare_for_navigation_after_crash();
         recover_current_session_history_entry_with_history_operation();
@@ -441,8 +435,11 @@ void ViewImplementation::reload()
     }
 
     traversable().reload([this](Web::HTML::HistoryStepResult result, Optional<i32> committed_step) {
-        if (result != Web::HTML::HistoryStepResult::Applied)
-            did_cancel_navigation({});
+        if (result != Web::HTML::HistoryStepResult::Applied && !traversable().has_uncommitted_navigation()) {
+            set_loading_state(false);
+            if (m_webdriver_navigation_observation.has_value())
+                complete_webdriver_navigation(m_webdriver_navigation_observation->navigation_id);
+        }
         if (committed_step.has_value())
             update_navigation_action_state();
         dump_session_history("reload-complete"sv);
@@ -2479,14 +2476,11 @@ void ViewImplementation::cancel_all_native_geolocation_requests()
         Application::the().stop_watching_geolocation_position(watch.value);
 }
 
-void ViewImplementation::did_start_navigation(Optional<Utf16String> navigation_id, URL::URL const& url)
+void ViewImplementation::did_start_navigation(Optional<Utf16String> const& navigation_id)
 {
-    auto& ongoing = traversable().ensure_ongoing_navigation();
-    if (ongoing.sequence_number == 0)
-        ongoing.sequence_number = traversable().next_sequence_number();
-    ongoing.navigation_id = move(navigation_id);
-    ongoing.url = url;
-    ongoing.has_started = true;
+    // A load a history operation starts, rather than a navigation, is tracked as the active document's.
+    if (!navigation_id.has_value())
+        traversable().clear_active_document_load();
 
     set_loading_state(true);
     dump_session_history("did-start-navigation"sv);
@@ -2494,10 +2488,9 @@ void ViewImplementation::did_start_navigation(Optional<Utf16String> navigation_i
 
 bool ViewImplementation::did_cancel_navigation(Optional<Utf16String> const& navigation_id)
 {
-    // A cancel may arrive before a UI-issued load reports its start. A started navigation's cancel must name it.
     auto const& ongoing = traversable().ongoing_navigation();
     auto stale = ongoing.has_value()
-        ? ongoing->has_started && navigation_id != ongoing->navigation_id
+        ? navigation_id != ongoing->navigation_id
         : navigation_id != traversable().active_document_load().navigation_id;
     if (stale)
         return false;
