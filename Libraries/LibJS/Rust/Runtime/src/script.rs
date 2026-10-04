@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use core::cell::Cell;
 use core::ffi::c_void;
 use core::ptr::NonNull;
 use std::collections::HashSet;
@@ -12,6 +13,10 @@ use std::rc::Rc;
 use ak::Utf16FlyString;
 use libjs_runtime_macros::Trace;
 
+use crate::bytecode::bytecode_cache::{
+    BytecodeCacheInstall, DecodedBytecodeCache, ExecutableBacking, create_executable_and_its_functions,
+    failed_to_materialize_bytecode_cache, functions_created_by, have_only_bytecode_cache_compile_inputs,
+};
 use crate::bytecode::executable::Executable;
 use crate::gc::class::{GcCell, define_cell};
 use crate::gc::foreign::ForeignCellSlot;
@@ -33,6 +38,7 @@ use crate::runtime::private_environment::PrivateEnvironment;
 use crate::runtime::shared_function_instance_data::SharedFunctionInstanceData;
 use crate::source_code::SourceCode;
 use libjs_rust::ast::{ProgramType, Utf16String};
+use libjs_rust::bytecode_cache::DecodedDeclarationMetadata;
 use libjs_rust::compile::{CompiledScript, ParsedProgram, compile_script, parse};
 
 /// Script::FunctionToInitialize.
@@ -57,7 +63,9 @@ pub struct Script {
     realm: Gc<Realm>,                                    // [[Realm]]
     loaded_modules: GcRefCell<Vec<LoadedModuleRequest>>, // [[LoadedModules]]
     host_defined: ForeignCellSlot,                       // [[HostDefined]]
-    executable: Gc<Executable>,
+    executable: Cell<Gc<Executable>>,
+    #[gc(untraced)]
+    executable_backing: Cell<ExecutableBacking>,
     /// What the script's functions compile themselves from when they are first called.
     #[gc(untraced)]
     source_code: Rc<SourceCode>,
@@ -87,6 +95,18 @@ fn fly_string_of(name: &Utf16String) -> Utf16FlyString {
 
 fn fly_strings_of(names: &[Utf16String]) -> Vec<Utf16FlyString> {
     names.iter().map(fly_string_of).collect()
+}
+
+/// What a Script Record is made of, however its code was compiled.
+struct ScriptParts {
+    executable: Gc<Executable>,
+    executable_backing: ExecutableBacking,
+    function_names: Vec<Utf16FlyString>,
+    lexical_names: Vec<Utf16FlyString>,
+    var_names: Vec<Utf16FlyString>,
+    var_scoped_names: Vec<Utf16FlyString>,
+    annex_b_candidate_names: Vec<Utf16FlyString>,
+    lexical_bindings: Vec<LexicalBinding>,
 }
 
 impl Script {
@@ -144,6 +164,7 @@ impl Script {
             source_code,
             filename,
             host_defined,
+            ExecutableBacking::Source,
         ))
     }
 
@@ -194,11 +215,13 @@ impl Script {
             source_code,
             filename,
             ForeignCellSlot::empty(),
+            ExecutableBacking::Source,
         )
     }
 
     /// The Script Record of a script compiled, on any thread, from the code of `source_code`, whose filename the
     /// script's code reports. Module loading resolves the specifiers of its dynamic imports against `filename`.
+    /// `executable_backing` says where it was compiled.
     pub fn create(
         vm: &Vm,
         realm: Gc<Realm>,
@@ -206,6 +229,7 @@ impl Script {
         source_code: Rc<SourceCode>,
         filename: &str,
         host_defined: ForeignCellSlot,
+        executable_backing: ExecutableBacking,
     ) -> Gc<Script> {
         let CompiledScript {
             executable,
@@ -226,16 +250,6 @@ impl Script {
             ));
             function_names.push(fly_string_of(&function.name));
         }
-        let functions_to_initialize: Vec<FunctionToInitialize> = rooted_shared_data
-            .to_vec()
-            .into_iter()
-            .zip(function_names)
-            .map(|(shared_data, name)| FunctionToInitialize { shared_data, name })
-            .collect();
-        let declared_function_names = functions_to_initialize
-            .iter()
-            .map(|function| function.name.clone())
-            .collect();
         let lexical_bindings = declarations
             .lexical_bindings
             .iter()
@@ -245,26 +259,135 @@ impl Script {
             })
             .collect();
 
+        Self::allocate(
+            vm,
+            realm,
+            ScriptParts {
+                executable,
+                executable_backing,
+                function_names,
+                lexical_names: fly_strings_of(&declarations.lexical_names),
+                var_names: fly_strings_of(&declarations.var_names),
+                var_scoped_names: fly_strings_of(&declarations.var_scoped_names),
+                annex_b_candidate_names: fly_strings_of(&declarations.annex_b_candidate_names),
+                lexical_bindings,
+            },
+            &rooted_shared_data,
+            source_code,
+            filename,
+            host_defined,
+        )
+    }
+
+    /// Script::create_from_bytecode_cache(): the Script Record of a classic script from a bytecode cache blob of its
+    /// code, which the blob must match. Its executables run in place in the blob, and its functions compile from the
+    /// blob when they are first called. Fails with a single error if the blob does not match the source code or turns
+    /// out to be malformed.
+    pub fn create_from_bytecode_cache(
+        vm: &Vm,
+        realm: Gc<Realm>,
+        bytecode_cache: &DecodedBytecodeCache,
+        source_code: Rc<SourceCode>,
+        filename: &str,
+        host_defined: ForeignCellSlot,
+    ) -> Result<Gc<Script>, Vec<ParserError>> {
+        let blob = bytecode_cache
+            .validated_blob(source_code.length_in_code_units())
+            .ok_or_else(failed_to_materialize_bytecode_cache)?;
+        let DecodedDeclarationMetadata::Script {
+            metadata,
+            declaration_functions,
+        } = blob.declaration_metadata()
+        else {
+            return Err(failed_to_materialize_bytecode_cache());
+        };
+        let program = blob.program();
+        if program.is_async_module() || declaration_functions.len() != metadata.function_names.len() {
+            return Err(failed_to_materialize_bytecode_cache());
+        }
+
+        // The functions stay rooted until the script that holds them is allocated.
+        let rooted_shared_data = MarkedVec::with_capacity(vm, declaration_functions.len());
+        for function in declaration_functions {
+            rooted_shared_data.push(SharedFunctionInstanceData::create_from_bytecode_cache(
+                vm,
+                function,
+                blob.is_strict_mode(),
+                &source_code,
+            ));
+        }
+        let executable = create_executable_and_its_functions(vm, program.executable(), &source_code)
+            .ok_or_else(failed_to_materialize_bytecode_cache)?;
+        let lexical_bindings = metadata
+            .lexical_bindings
+            .iter()
+            .map(|binding| LexicalBinding {
+                name: fly_string_of(&binding.name),
+                is_constant: binding.is_constant,
+            })
+            .collect();
+
+        Ok(Self::allocate(
+            vm,
+            realm,
+            ScriptParts {
+                executable,
+                executable_backing: ExecutableBacking::MappedBytecodeCache,
+                function_names: fly_strings_of(&metadata.function_names),
+                lexical_names: fly_strings_of(&metadata.lexical_names),
+                var_names: fly_strings_of(&metadata.var_names),
+                var_scoped_names: fly_strings_of(&metadata.var_scoped_names),
+                annex_b_candidate_names: fly_strings_of(&metadata.annex_b_candidate_names),
+                lexical_bindings,
+            },
+            &rooted_shared_data,
+            source_code,
+            filename,
+            host_defined,
+        ))
+    }
+
+    fn allocate(
+        vm: &Vm,
+        realm: Gc<Realm>,
+        parts: ScriptParts,
+        rooted_shared_data: &MarkedVec<'_, Gc<SharedFunctionInstanceData>>,
+        source_code: Rc<SourceCode>,
+        filename: &str,
+        host_defined: ForeignCellSlot,
+    ) -> Gc<Script> {
+        let functions_to_initialize: Vec<FunctionToInitialize> = rooted_shared_data
+            .to_vec()
+            .into_iter()
+            .zip(parts.function_names)
+            .map(|(shared_data, name)| FunctionToInitialize { shared_data, name })
+            .collect();
+        let declared_function_names = functions_to_initialize
+            .iter()
+            .map(|function| function.name.clone())
+            .collect();
+
         let script = vm.heap().allocate(Script {
             header: CellHeader::for_class(Self::CLASS),
             realm,
             loaded_modules: GcRefCell::new(Vec::new()),
             host_defined,
-            executable,
+            executable: Cell::new(parts.executable),
+            executable_backing: Cell::new(parts.executable_backing),
             source_code,
-            lexical_names: fly_strings_of(&declarations.lexical_names),
-            var_names: fly_strings_of(&declarations.var_names),
+            lexical_names: parts.lexical_names,
+            var_names: parts.var_names,
             functions_to_initialize,
             declared_function_names,
-            var_scoped_names: fly_strings_of(&declarations.var_scoped_names),
-            annex_b_candidate_names: fly_strings_of(&declarations.annex_b_candidate_names),
-            lexical_bindings,
+            var_scoped_names: parts.var_scoped_names,
+            annex_b_candidate_names: parts.annex_b_candidate_names,
+            lexical_bindings: parts.lexical_bindings,
             // NB: The C++ runtime never sets the strictness of a script it compiles, so Annex B function hoisting
             //     always runs; the frontend only collects candidates for sloppy scripts.
             is_strict_mode: false,
             filename: filename.to_string(),
         });
-        drop(rooted_shared_data);
+        script.verify_executable_backing_invariants(vm);
         script
     }
 
@@ -285,7 +408,130 @@ impl Script {
     }
 
     pub fn cached_executable(&self) -> Gc<Executable> {
-        self.executable
+        self.executable.get()
+    }
+
+    pub fn executable_backing(&self) -> ExecutableBacking {
+        self.executable_backing.get()
+    }
+
+    pub fn can_generate_bytecode_cache(&self) -> bool {
+        self.executable_backing.get().can_generate_bytecode_cache()
+    }
+
+    pub fn can_install_generated_bytecode_cache(&self) -> bool {
+        self.executable_backing.get().can_install_generated_bytecode_cache()
+    }
+
+    /// Marks the script as one whose bytecode cache is being generated, until the cache is installed or the generation
+    /// finishes without installing it.
+    ///
+    /// # Panics
+    /// Panics unless the script can generate a bytecode cache.
+    pub fn begin_bytecode_cache_generation(&self, vm: &Vm) {
+        self.executable_backing
+            .set(self.executable_backing.get().with_bytecode_cache_generation_begun());
+        self.verify_executable_backing_invariants(vm);
+    }
+
+    /// # Panics
+    /// Panics unless a bytecode cache is being generated for the script.
+    pub fn finish_bytecode_cache_generation_without_install(&self, vm: &Vm) {
+        self.executable_backing.set(
+            self.executable_backing
+                .get()
+                .with_bytecode_cache_generation_finished_without_install(),
+        );
+        self.verify_executable_backing_invariants(vm);
+    }
+
+    /// Script::try_install_bytecode_cache(): from now on, the script and its functions run from the bytecode cache
+    /// blob of its code, if the blob matches the source code and every function the script created so far. Functions
+    /// that already ran get executables from the blob, which take over their inline caches; the others compile from
+    /// the blob on their first call. Returns false and changes nothing otherwise, and for a script that already runs
+    /// from a blob.
+    pub fn try_install_bytecode_cache(
+        &self,
+        vm: &Vm,
+        bytecode_cache: &DecodedBytecodeCache,
+        source_code: &Rc<SourceCode>,
+    ) -> bool {
+        if self.executable_backing.get().is_mapped_bytecode_cache() {
+            return false;
+        }
+        let Some(blob) = bytecode_cache.validated_blob(source_code.length_in_code_units()) else {
+            return false;
+        };
+        let DecodedDeclarationMetadata::Script {
+            metadata,
+            declaration_functions,
+        } = blob.declaration_metadata()
+        else {
+            return false;
+        };
+        let program = blob.program();
+        if program.is_async_module() || declaration_functions.len() != metadata.function_names.len() {
+            return false;
+        }
+
+        let existing_functions = self.functions_created_so_far(vm);
+        let mut install = BytecodeCacheInstall::new(vm, source_code, &existing_functions);
+        for function in declaration_functions {
+            if install.prepare_function(function, blob.is_strict_mode()).is_none() {
+                return false;
+            }
+        }
+        let Some(executable) = install.prepare_executable(program.executable(), Some(self.executable.get())) else {
+            return false;
+        };
+        if !install.commit() {
+            return false;
+        }
+
+        self.executable.set(executable);
+        for function in existing_functions.to_vec() {
+            function.clear_non_bytecode_cache_compile_inputs();
+        }
+        self.executable_backing.set(ExecutableBacking::MappedBytecodeCache);
+        self.verify_executable_backing_invariants(vm);
+        true
+    }
+
+    /// Script::install_generated_bytecode_cache(): installs the bytecode cache that was generated for the script.
+    ///
+    /// # Panics
+    /// Panics unless a bytecode cache is being generated for the script, and if the blob does not match it.
+    pub fn install_generated_bytecode_cache(
+        &self,
+        vm: &Vm,
+        bytecode_cache: &DecodedBytecodeCache,
+        source_code: &Rc<SourceCode>,
+    ) {
+        assert!(
+            self.can_install_generated_bytecode_cache(),
+            "a bytecode cache is being generated for the script"
+        );
+        assert!(
+            self.try_install_bytecode_cache(vm, bytecode_cache, source_code),
+            "the bytecode cache generated for a script matches it"
+        );
+    }
+
+    fn functions_created_so_far<'vm>(&self, vm: &'vm Vm) -> MarkedVec<'vm, Gc<SharedFunctionInstanceData>> {
+        functions_created_by(
+            vm,
+            self.functions_to_initialize.iter().map(|function| function.shared_data),
+            Some(self.executable.get()),
+        )
+    }
+
+    fn verify_executable_backing_invariants(&self, vm: &Vm) {
+        if self.executable_backing.get().is_mapped_bytecode_cache() {
+            assert!(
+                have_only_bytecode_cache_compile_inputs(&self.functions_created_so_far(vm)),
+                "the functions of a script with a bytecode cache compile from the cache"
+            );
+        }
     }
 
     pub fn functions_to_initialize(&self) -> &[FunctionToInitialize] {

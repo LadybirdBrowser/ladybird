@@ -85,6 +85,26 @@ impl ParsedProgram {
         self.ast_dump
             .get_or_insert_with(|| ast_dump::dump_program_to_string(&self.program, &self.function_table, &self.arena))
     }
+
+    /// A copy of a program without errors that compiles independently of this one, such as for the bytecode cache
+    /// while this one runs. The immutable arena is shared, and each copy owns its functions.
+    ///
+    /// # Panics
+    /// Panics if the program has errors.
+    pub fn clone_for_separate_compilation(&self) -> ParsedProgram {
+        assert!(self.errors.is_empty(), "only a program without errors can be copied");
+        ParsedProgram {
+            program: self.program.clone(),
+            function_table: self.function_table.clone(),
+            arena: self.arena.clone(),
+            scope_ref: self.scope_ref,
+            program_type: self.program_type,
+            is_strict_mode: self.is_strict_mode,
+            has_top_level_await: self.has_top_level_await,
+            errors: Vec::new(),
+            ast_dump: None,
+        }
+    }
 }
 
 /// Lex and parse a script or module, then run scope analysis on it.

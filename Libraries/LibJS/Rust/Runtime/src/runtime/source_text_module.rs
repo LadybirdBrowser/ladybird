@@ -11,6 +11,10 @@ use std::rc::Rc;
 use ak::{ScopeGuard, Utf16FlyString};
 use libjs_runtime_macros::Trace;
 
+use crate::bytecode::bytecode_cache::{
+    BytecodeCacheInstall, DecodedBytecodeCache, ExecutableBacking, create_executable_and_its_functions,
+    failed_to_materialize_bytecode_cache, functions_created_by, have_only_bytecode_cache_compile_inputs,
+};
 use crate::bytecode::executable::Executable;
 use crate::gc::class::{GcCell, define_cell};
 use crate::gc::foreign::ForeignCellSlot;
@@ -43,6 +47,7 @@ use crate::runtime::promise_capability::PromiseCapability;
 use crate::runtime::shared_function_instance_data::{FunctionKind, SharedFunctionInstanceData};
 use crate::source_code::SourceCode;
 use libjs_rust::ast::ProgramType;
+use libjs_rust::bytecode_cache::{DecodedDeclarationMetadata, ModuleExportEntryRecord, ModuleRequestRecord};
 use libjs_rust::compile::{CompiledModule, ModuleDeclarations, ParsedProgram, compile_module, parse};
 
 /// SourceTextModule::FunctionToInitialize.
@@ -97,11 +102,30 @@ pub struct SourceTextModule {
     functions_to_initialize: Vec<FunctionToInitialize>,
     default_export_binding_name: Option<Utf16FlyString>,
 
-    executable: Option<Gc<Executable>>,
+    executable: Cell<Option<Gc<Executable>>>,
     tla_shared_data: Option<Gc<SharedFunctionInstanceData>>,
+    #[gc(untraced)]
+    executable_backing: Cell<ExecutableBacking>,
     /// What the module's functions compile themselves from when they are first called.
     #[gc(untraced)]
     source_code: Rc<SourceCode>,
+}
+
+/// What a Source Text Module Record is made of, however its code was compiled.
+struct SourceTextModuleParts {
+    has_top_level_await: bool,
+    requested_modules: Vec<ModuleRequest>,
+    import_entries: Vec<ImportEntry>,
+    local_export_entries: Vec<ExportEntry>,
+    indirect_export_entries: Vec<ExportEntry>,
+    star_export_entries: Vec<ExportEntry>,
+    var_declared_names: Vec<Utf16FlyString>,
+    lexical_bindings: Vec<LexicalBinding>,
+    function_names: Vec<Utf16FlyString>,
+    default_export_binding_name: Option<Utf16FlyString>,
+    /// The body, or the body of the async function that a module with top-level await runs.
+    executable: Gc<Executable>,
+    executable_backing: ExecutableBacking,
 }
 
 define_cell!(SourceTextModule, Other, extends: [CyclicModule, Module]);
@@ -184,6 +208,7 @@ impl SourceTextModule {
             compile_module(parsed, source_length),
             source_code,
             host_defined,
+            ExecutableBacking::Source,
         ))
     }
 
@@ -205,11 +230,13 @@ impl SourceTextModule {
             compile_module(parsed, source_length),
             source_code,
             ForeignCellSlot::empty(),
+            ExecutableBacking::Source,
         )
     }
 
     /// The Source Text Module Record of a module compiled, on any thread, from the code of `source_code`, whose
     /// filename the module's code reports. Module loading resolves the module's imports against `filename`.
+    /// `executable_backing` says where it was compiled.
     pub fn create(
         vm: &Vm,
         realm: Gc<Realm>,
@@ -217,6 +244,7 @@ impl SourceTextModule {
         compiled: CompiledModule,
         source_code: Rc<SourceCode>,
         host_defined: ForeignCellSlot,
+        executable_backing: ExecutableBacking,
     ) -> Gc<SourceTextModule> {
         let CompiledModule {
             executable,
@@ -268,37 +296,158 @@ impl SourceTextModule {
             .collect();
 
         let requested_modules = requested_modules.iter().map(ModuleRequest::from_frontend).collect();
+        let executable = Executable::create_with_source_code(vm, executable, Some(&source_code));
 
-        let (executable, tla_shared_data) = if has_top_level_await {
-            let top_level_await_executable = Executable::create_with_source_code(vm, executable, Some(&source_code));
-            let tla_shared_data = SharedFunctionInstanceData::create_without_function_ast(
+        Self::allocate(
+            vm,
+            realm,
+            filename,
+            SourceTextModuleParts {
+                has_top_level_await,
+                requested_modules,
+                import_entries,
+                local_export_entries: export_entries_of(local_export_entries),
+                indirect_export_entries: export_entries_of(indirect_export_entries),
+                star_export_entries: export_entries_of(star_export_entries),
+                var_declared_names: var_names.iter().map(fly_string_of).collect(),
+                lexical_bindings,
+                function_names,
+                default_export_binding_name: default_export_binding_name.as_ref().map(fly_string_of),
+                executable,
+                executable_backing,
+            },
+            &rooted_shared_data,
+            source_code,
+            host_defined,
+        )
+    }
+
+    /// SourceTextModule::parse_from_bytecode_cache(): the Source Text Module Record of a module from a bytecode cache
+    /// blob of its code, which the blob must match. Its executables run in place in the blob, and its functions
+    /// compile from the blob when they are first called. Fails with a single error if the blob does not match the
+    /// source code or turns out to be malformed.
+    pub fn create_from_bytecode_cache(
+        vm: &Vm,
+        realm: Gc<Realm>,
+        filename: &str,
+        bytecode_cache: &DecodedBytecodeCache,
+        source_code: Rc<SourceCode>,
+        host_defined: ForeignCellSlot,
+    ) -> Result<Gc<SourceTextModule>, Vec<ParserError>> {
+        let blob = bytecode_cache
+            .validated_blob(source_code.length_in_code_units())
+            .ok_or_else(failed_to_materialize_bytecode_cache)?;
+        let DecodedDeclarationMetadata::Module {
+            metadata,
+            declaration_functions,
+        } = blob.declaration_metadata()
+        else {
+            return Err(failed_to_materialize_bytecode_cache());
+        };
+        let program = blob.program();
+        if program.is_async_module() != blob.has_top_level_await()
+            || declaration_functions.len() != metadata.function_names.len()
+        {
+            return Err(failed_to_materialize_bytecode_cache());
+        }
+
+        let module_request_of = |request: Option<&ModuleRequestRecord>| {
+            ModuleRequest::of_entry_from_frontend(request.map(libjs_rust::ast::ModuleRequest::from).as_ref())
+        };
+        let import_entries = metadata
+            .import_entries
+            .iter()
+            .map(|entry| ImportEntry {
+                import_name: entry.import_name.as_ref().map(fly_string_of),
+                local_name: fly_string_of(&entry.local_name),
+                module_request: module_request_of(Some(&entry.module_request)),
+            })
+            .collect();
+        let export_entries_of_records = |entries: &[ModuleExportEntryRecord]| {
+            entries
+                .iter()
+                .map(|entry| ExportEntry {
+                    kind: entry.kind,
+                    export_name: entry.export_name.as_ref().map(fly_string_of),
+                    local_or_import_name: entry.local_or_import_name.as_ref().map(fly_string_of),
+                    module_request: module_request_of(entry.module_request.as_ref()),
+                })
+                .collect()
+        };
+        let requested_modules = metadata
+            .requested_modules
+            .iter()
+            .map(|request| ModuleRequest::from_frontend(&libjs_rust::ast::ModuleRequest::from(request)))
+            .collect();
+        let lexical_bindings = metadata
+            .lexical_bindings
+            .iter()
+            .map(|binding| LexicalBinding {
+                name: fly_string_of(&binding.name),
+                is_constant: binding.is_constant,
+                function_index: usize::try_from(binding.function_index).ok(),
+            })
+            .collect();
+
+        // The functions stay rooted until the module that holds them is allocated.
+        let rooted_shared_data = MarkedVec::with_capacity(vm, declaration_functions.len());
+        for function in declaration_functions {
+            rooted_shared_data.push(SharedFunctionInstanceData::create_from_bytecode_cache(
                 vm,
-                FunctionKind::Async,
-                Utf16FlyString::from_utf8("module code with top-level await"),
-                0,
-                0,
+                function,
                 true,
-                false,
-                true,
-                Vec::new(),
-            );
-            tla_shared_data.set_is_module_wrapper(true);
-            tla_shared_data.uses_this.set(true);
-            tla_shared_data.function_environment_needed.set(true);
-            tla_shared_data.update_asm_call_metadata();
-            tla_shared_data.set_executable(Some(top_level_await_executable));
-            (None, Some(tla_shared_data))
-        } else {
+                &source_code,
+            ));
+        }
+        let executable = create_executable_and_its_functions(vm, program.executable(), &source_code)
+            .ok_or_else(failed_to_materialize_bytecode_cache)?;
+
+        Ok(Self::allocate(
+            vm,
+            realm,
+            filename,
+            SourceTextModuleParts {
+                has_top_level_await: blob.has_top_level_await(),
+                requested_modules,
+                import_entries,
+                local_export_entries: export_entries_of_records(&metadata.local_exports),
+                indirect_export_entries: export_entries_of_records(&metadata.indirect_exports),
+                star_export_entries: export_entries_of_records(&metadata.star_exports),
+                var_declared_names: metadata.var_declared_names.iter().map(fly_string_of).collect(),
+                lexical_bindings,
+                function_names: metadata.function_names.iter().map(fly_string_of).collect(),
+                default_export_binding_name: metadata.default_export_binding_name.as_ref().map(fly_string_of),
+                executable,
+                executable_backing: ExecutableBacking::MappedBytecodeCache,
+            },
+            &rooted_shared_data,
+            source_code,
+            host_defined,
+        ))
+    }
+
+    fn allocate(
+        vm: &Vm,
+        realm: Gc<Realm>,
+        filename: &str,
+        parts: SourceTextModuleParts,
+        rooted_shared_data: &MarkedVec<'_, Gc<SharedFunctionInstanceData>>,
+        source_code: Rc<SourceCode>,
+        host_defined: ForeignCellSlot,
+    ) -> Gc<SourceTextModule> {
+        let (executable, tla_shared_data) = if parts.has_top_level_await {
             (
-                Some(Executable::create_with_source_code(vm, executable, Some(&source_code))),
                 None,
+                Some(Self::create_top_level_await_shared_data(vm, parts.executable)),
             )
+        } else {
+            (Some(parts.executable), None)
         };
 
         let functions_to_initialize = rooted_shared_data
             .to_vec()
             .into_iter()
-            .zip(function_names)
+            .zip(parts.function_names)
             .map(|(shared_data, name)| FunctionToInitialize { shared_data, name })
             .collect();
 
@@ -307,28 +456,211 @@ impl SourceTextModule {
                 Self::CLASS,
                 realm,
                 filename.to_string(),
-                has_top_level_await,
-                requested_modules,
+                parts.has_top_level_await,
+                parts.requested_modules,
                 host_defined,
             ),
             execution_context: OwnedExecutionContext::create(0, 0, 0),
             import_meta: Cell::new(None),
-            import_entries,
-            local_export_entries: export_entries_of(local_export_entries),
-            indirect_export_entries: export_entries_of(indirect_export_entries),
-            star_export_entries: export_entries_of(star_export_entries),
+            import_entries: parts.import_entries,
+            local_export_entries: parts.local_export_entries,
+            indirect_export_entries: parts.indirect_export_entries,
+            star_export_entries: parts.star_export_entries,
             imported_bindings: GcRefCell::new(Vec::new()),
-            var_declared_names: var_names.iter().map(fly_string_of).collect(),
-            lexical_bindings,
+            var_declared_names: parts.var_declared_names,
+            lexical_bindings: parts.lexical_bindings,
             functions_to_initialize,
-            default_export_binding_name: default_export_binding_name.as_ref().map(fly_string_of),
-            executable,
+            default_export_binding_name: parts.default_export_binding_name,
+            executable: Cell::new(executable),
             tla_shared_data,
+            executable_backing: Cell::new(parts.executable_backing),
             source_code,
         });
-        drop(rooted_shared_data);
-        assert!(module.executable.is_some() || module.tla_shared_data.is_some_and(|data| data.executable().is_some()));
+        assert!(
+            module.executable.get().is_some() || module.tla_shared_data.is_some_and(|data| data.executable().is_some())
+        );
+        module.verify_executable_backing_invariants(vm);
         module
+    }
+
+    /// The shared data of the async function whose body is that of a module with top-level await.
+    fn create_top_level_await_shared_data(
+        vm: &Vm,
+        top_level_await_executable: Gc<Executable>,
+    ) -> Gc<SharedFunctionInstanceData> {
+        let tla_shared_data = SharedFunctionInstanceData::create_without_function_ast(
+            vm,
+            FunctionKind::Async,
+            Utf16FlyString::from_utf8("module code with top-level await"),
+            0,
+            0,
+            true,
+            false,
+            true,
+            Vec::new(),
+        );
+        tla_shared_data.set_is_module_wrapper(true);
+        tla_shared_data.uses_this.set(true);
+        tla_shared_data.function_environment_needed.set(true);
+        tla_shared_data.update_asm_call_metadata();
+        tla_shared_data.set_executable(Some(top_level_await_executable));
+        tla_shared_data
+    }
+
+    pub fn executable_backing(&self) -> ExecutableBacking {
+        self.executable_backing.get()
+    }
+
+    fn has_executable(&self) -> bool {
+        self.executable.get().is_some() || self.tla_shared_data.is_some_and(|data| data.executable().is_some())
+    }
+
+    pub fn can_generate_bytecode_cache(&self) -> bool {
+        self.has_executable() && self.executable_backing.get().can_generate_bytecode_cache()
+    }
+
+    pub fn can_install_generated_bytecode_cache(&self) -> bool {
+        self.has_executable() && self.executable_backing.get().can_install_generated_bytecode_cache()
+    }
+
+    /// Marks the module as one whose bytecode cache is being generated, until the cache is installed or the
+    /// generation finishes without installing it.
+    ///
+    /// # Panics
+    /// Panics unless the module can generate a bytecode cache.
+    pub fn begin_bytecode_cache_generation(&self, vm: &Vm) {
+        assert!(
+            self.has_executable(),
+            "a module that generates a bytecode cache has an executable"
+        );
+        self.executable_backing
+            .set(self.executable_backing.get().with_bytecode_cache_generation_begun());
+        self.verify_executable_backing_invariants(vm);
+    }
+
+    /// # Panics
+    /// Panics unless a bytecode cache is being generated for the module.
+    pub fn finish_bytecode_cache_generation_without_install(&self, vm: &Vm) {
+        self.executable_backing.set(
+            self.executable_backing
+                .get()
+                .with_bytecode_cache_generation_finished_without_install(),
+        );
+        self.verify_executable_backing_invariants(vm);
+    }
+
+    /// SourceTextModule::try_install_bytecode_cache(): like Script::try_install_bytecode_cache(), for a module, whose
+    /// body is that of the async function of a module with top-level await.
+    pub fn try_install_bytecode_cache(
+        &self,
+        vm: &Vm,
+        bytecode_cache: &DecodedBytecodeCache,
+        source_code: &Rc<SourceCode>,
+    ) -> bool {
+        if self.executable_backing.get().is_mapped_bytecode_cache() {
+            return false;
+        }
+        let Some(blob) = bytecode_cache.validated_blob(source_code.length_in_code_units()) else {
+            return false;
+        };
+        let DecodedDeclarationMetadata::Module {
+            metadata,
+            declaration_functions,
+        } = blob.declaration_metadata()
+        else {
+            return false;
+        };
+        if declaration_functions.len() != metadata.function_names.len() {
+            return false;
+        }
+
+        let existing_functions = self.functions_created_so_far(vm);
+        let mut install = BytecodeCacheInstall::new(vm, source_code, &existing_functions);
+        for function in declaration_functions {
+            if install.prepare_function(function, true).is_none() {
+                return false;
+            }
+        }
+        let program = blob.program();
+        let replaced_executable = if program.is_async_module() {
+            if !blob.has_top_level_await() {
+                return false;
+            }
+            let Some(top_level_await_executable) = self.tla_shared_data.and_then(|data| data.executable()) else {
+                return false;
+            };
+            top_level_await_executable
+        } else {
+            if blob.has_top_level_await() {
+                return false;
+            }
+            let Some(executable) = self.executable.get() else {
+                return false;
+            };
+            executable
+        };
+        let Some(executable) = install.prepare_executable(program.executable(), Some(replaced_executable)) else {
+            return false;
+        };
+        if !install.commit() {
+            return false;
+        }
+
+        match self.tla_shared_data {
+            Some(tla_shared_data) if program.is_async_module() => {
+                tla_shared_data.set_executable(Some(executable));
+                tla_shared_data.clear_non_bytecode_cache_compile_inputs();
+            }
+            _ => self.executable.set(Some(executable)),
+        }
+        for function in existing_functions.to_vec() {
+            function.clear_non_bytecode_cache_compile_inputs();
+        }
+        self.executable_backing.set(ExecutableBacking::MappedBytecodeCache);
+        self.verify_executable_backing_invariants(vm);
+        true
+    }
+
+    /// SourceTextModule::install_generated_bytecode_cache(): installs the bytecode cache that was generated for the
+    /// module.
+    ///
+    /// # Panics
+    /// Panics unless a bytecode cache is being generated for the module, and if the blob does not match it.
+    pub fn install_generated_bytecode_cache(
+        &self,
+        vm: &Vm,
+        bytecode_cache: &DecodedBytecodeCache,
+        source_code: &Rc<SourceCode>,
+    ) {
+        assert!(
+            self.can_install_generated_bytecode_cache(),
+            "a bytecode cache is being generated for the module"
+        );
+        assert!(
+            self.try_install_bytecode_cache(vm, bytecode_cache, source_code),
+            "the bytecode cache generated for a module matches it"
+        );
+    }
+
+    fn functions_created_so_far<'vm>(&self, vm: &'vm Vm) -> MarkedVec<'vm, Gc<SharedFunctionInstanceData>> {
+        let body = self
+            .executable
+            .get()
+            .or_else(|| self.tla_shared_data.and_then(|data| data.executable()));
+        functions_created_by(
+            vm,
+            self.functions_to_initialize.iter().map(|function| function.shared_data),
+            body,
+        )
+    }
+
+    fn verify_executable_backing_invariants(&self, vm: &Vm) {
+        if self.executable_backing.get().is_mapped_bytecode_cache() {
+            assert!(
+                have_only_bytecode_cache_compile_inputs(&self.functions_created_so_far(vm)),
+                "the functions of a module with a bytecode cache compile from the cache"
+            );
+        }
     }
 
     pub fn import_meta(&self) -> Option<Gc<Object>> {
@@ -342,7 +674,7 @@ impl SourceTextModule {
     /// The executable of the module's body, which a module with top-level await does not have, as its body compiles to
     /// an async function instead.
     pub fn cached_executable(&self) -> Option<Gc<Executable>> {
-        self.executable
+        self.executable.get()
     }
 
     /// The shared data of the async function whose executable is the body of a module with top-level await.
@@ -882,9 +1214,9 @@ impl SourceTextModule {
     // 16.2.1.6.5 ExecuteModule ( [ capability ] ), https://tc39.es/ecma262/#sec-source-text-module-record-execute-module
     // 9.1.1.1.2 ExecuteModule ( [ capability ] ), https://tc39.es/proposal-explicit-resource-management/#sec-source-text-module-record-execute-module
     pub(crate) fn execute_module(&self, vm: &Vm, capability: Option<Gc<PromiseCapability>>) -> ThrowCompletionOr<()> {
-        assert!(self.has_top_level_await() || self.executable.is_some());
+        assert!(self.has_top_level_await() || self.executable.get().is_some());
 
-        let (registers_and_locals_count, constant_count) = match self.executable {
+        let (registers_and_locals_count, constant_count) = match self.executable.get() {
             Some(executable) => (
                 executable.registers_and_locals_count(),
                 u32::try_from(executable.constants().len()).expect("the constant count fits in u32"),
@@ -942,6 +1274,7 @@ impl SourceTextModule {
             // c. Let result be the result of evaluating module.[[ECMAScriptCode]].
             let executable = self
                 .executable
+                .get()
                 .expect("a module without top-level await has an executable");
             let mut result = match vm.run_executable(module_context, executable, 0) {
                 Err(exception) => Completion::new(CompletionType::Throw, exception),

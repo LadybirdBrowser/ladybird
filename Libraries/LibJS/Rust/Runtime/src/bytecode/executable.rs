@@ -46,8 +46,11 @@ use crate::utf16::Utf16View;
 use libjs_runtime_macros::Trace;
 use libjs_rust::bytecode::basic_block::SourceMapEntry;
 use libjs_rust::bytecode::constant::{AbstractOperationKind, WellKnownSymbolKind};
+use libjs_rust::bytecode::executable::ExecutableCacheCounts as FrontendExecutableCacheCounts;
 use libjs_rust::bytecode::executable::ExecutableData;
 use libjs_rust::bytecode::generator::{ConstantValue, ExceptionHandler};
+use libjs_rust::bytecode::generator::{LocalVariable, PendingClassBlueprint};
+use libjs_rust::bytecode_cache::{DecodedBytecodeBytes, DecodedExecutableRecord};
 
 /// The contents of a cache entry, copied out of the cache so that no reference into its storage outlives a call that
 /// may update the cache and free that storage.
@@ -966,11 +969,27 @@ impl ObjectPropertyIteratorCacheData {
     }
 }
 
+/// Where the bytecode of an executable lives: in memory of its own, or in place in the bytecode cache blob it was
+/// materialized from, which it keeps alive.
+pub enum ExecutableBytecode {
+    Owned(Box<[u8]>),
+    InBytecodeCacheBlob(DecodedBytecodeBytes),
+}
+
+impl ExecutableBytecode {
+    pub fn as_slice(&self) -> &[u8] {
+        match self {
+            Self::Owned(bytecode) => bytecode,
+            Self::InBytecodeCacheBlob(bytecode) => bytecode.as_slice(),
+        }
+    }
+}
+
 /// A unit of bytecode: a script, a module, a function body or an eval, with what the interpreter needs to run it.
 #[repr(C)]
 pub struct Executable {
     pub head: ExecutableHead,
-    bytecode: Box<[u8]>,
+    bytecode: ExecutableBytecode,
     constants: Box<[Value]>,
     property_lookup_caches: Box<[PropertyLookupCache]>,
     global_variable_caches: Box<[GlobalVariableCache]>,
@@ -1038,6 +1057,25 @@ pub struct ExecutableCacheCounts {
     pub global_variable_caches: u32,
     pub environment_coordinate_caches: u32,
     pub environment_shape_caches: u32,
+}
+
+/// What an executable is made of, as the frontend compiled it or a bytecode cache blob holds it.
+struct ExecutableParts {
+    bytecode: ExecutableBytecode,
+    number_of_registers: u32,
+    number_of_arguments: u32,
+    is_strict: bool,
+    cache_counts: FrontendExecutableCacheCounts,
+    identifier_table: Vec<Utf16FlyString>,
+    property_key_table: Vec<Utf16FlyString>,
+    string_table: Vec<Utf16FlyString>,
+    constants: Vec<ConstantValue>,
+    exception_handlers: Vec<ExceptionHandler>,
+    source_map: Vec<SourceMapEntry>,
+    local_variables: Vec<LocalVariable>,
+    argument_variable_names: Vec<Utf16FlyString>,
+    length_identifier: Option<u32>,
+    class_blueprints: Vec<PendingClassBlueprint>,
 }
 
 fn interpreter_buffer<T>(elements: &[T]) -> InterpreterBuffer<T> {
@@ -1118,6 +1156,26 @@ impl Executable {
         cache_counts: &ExecutableCacheCounts,
         is_strict_mode: bool,
     ) -> Self {
+        Self::new_with_bytecode(
+            ExecutableBytecode::Owned(bytecode),
+            number_of_registers,
+            number_of_locals,
+            number_of_arguments,
+            constants,
+            cache_counts,
+            is_strict_mode,
+        )
+    }
+
+    pub fn new_with_bytecode(
+        bytecode: ExecutableBytecode,
+        number_of_registers: u32,
+        number_of_locals: u32,
+        number_of_arguments: u32,
+        constants: Box<[Value]>,
+        cache_counts: &ExecutableCacheCounts,
+        is_strict_mode: bool,
+    ) -> Self {
         let property_lookup_caches: Box<[PropertyLookupCache]> = (0..cache_counts.property_lookup_caches)
             .map(|_| PropertyLookupCache::new())
             .collect();
@@ -1144,8 +1202,8 @@ impl Executable {
             registers_and_locals_and_constants_count: Cell::new(registers_and_locals_count + constant_count),
             asm_constants_size: Cell::new(constants.len() as u64),
             asm_constants_data: Cell::new(constants.as_ptr()),
-            bytecode_data: Cell::new(bytecode.as_ptr()),
-            bytecode_size: Cell::new(bytecode.len()),
+            bytecode_data: Cell::new(bytecode.as_slice().as_ptr()),
+            bytecode_size: Cell::new(bytecode.as_slice().len()),
             constants: interpreter_buffer(&constants),
             property_lookup_caches: interpreter_buffer(&property_lookup_caches),
             global_variable_caches: interpreter_buffer(&global_variable_caches),
@@ -1208,8 +1266,7 @@ impl Executable {
         mut data: ExecutableData,
         source_code: Option<&Rc<SourceCode>>,
     ) -> Gc<Executable> {
-        // The shared function data and the literal values of class elements stay rooted until the executable that
-        // holds them is allocated.
+        // The shared function data stays rooted until the executable that holds it is allocated.
         let rooted_shared_function_data = MarkedVec::with_capacity(vm, data.shared_function_data.len());
         let is_strict = data.is_strict;
         for pending in &mut data.shared_function_data {
@@ -1220,8 +1277,79 @@ impl Executable {
                 source_code,
             ));
         }
+
+        // The regexes were only compiled to report early errors; the runtime compiles them again when it runs.
+        for regex in data.compiled_regexes {
+            // SAFETY: Each handle came from rust_compile_regex and is freed once.
+            unsafe { rust_free_compiled_regex(regex.into_raw()) };
+        }
+        let parts = ExecutableParts {
+            bytecode: ExecutableBytecode::Owned(data.bytecode.into_boxed_slice()),
+            number_of_registers: data.number_of_registers,
+            number_of_arguments: data.number_of_arguments,
+            is_strict: data.is_strict,
+            cache_counts: data.cache_counts,
+            identifier_table: data.identifier_table,
+            property_key_table: data.property_key_table,
+            string_table: data.string_table,
+            constants: data.constants,
+            exception_handlers: data.exception_handlers,
+            source_map: data.source_map,
+            local_variables: data.local_variables,
+            argument_variable_names: data.argument_variable_names,
+            length_identifier: data.length_identifier.map(|index| index.0),
+            class_blueprints: data.class_blueprints,
+        };
+        Self::assemble(vm, parts, &rooted_shared_function_data, source_code, None)
+    }
+
+    /// Creates the executable of a record of a bytecode cache blob that passed validation, whose bytecode runs in
+    /// place in the blob. `rooted_shared_function_data` holds the functions the bytecode creates, made from the
+    /// record's function records in their order. An executable this one replaces in a running program hands its
+    /// inline caches over. Returns `None` if the record turns out to be malformed.
+    pub fn create_from_bytecode_cache(
+        vm: &Vm,
+        record: &DecodedExecutableRecord,
+        rooted_shared_function_data: &MarkedVec<'_, Gc<SharedFunctionInstanceData>>,
+        source_code: &Rc<SourceCode>,
+        replaced_executable: Option<Gc<Executable>>,
+    ) -> Option<Gc<Executable>> {
+        let parts = ExecutableParts {
+            bytecode: ExecutableBytecode::InBytecodeCacheBlob(record.bytecode().clone()),
+            number_of_registers: record.number_of_registers(),
+            number_of_arguments: record.number_of_arguments(),
+            is_strict: record.is_strict(),
+            cache_counts: record.cache_counts(),
+            identifier_table: record.identifiers()?,
+            property_key_table: record.property_keys()?,
+            string_table: record.strings()?,
+            constants: record.constant_values()?,
+            exception_handlers: record.exception_handler_entries()?,
+            source_map: record.source_map_entries()?,
+            local_variables: record.locals()?,
+            argument_variable_names: record.argument_names()?,
+            length_identifier: record.length_identifier(),
+            class_blueprints: record.classes()?,
+        };
+        Some(Self::assemble(
+            vm,
+            parts,
+            rooted_shared_function_data,
+            Some(source_code),
+            replaced_executable,
+        ))
+    }
+
+    fn assemble(
+        vm: &Vm,
+        parts: ExecutableParts,
+        rooted_shared_function_data: &MarkedVec<'_, Gc<SharedFunctionInstanceData>>,
+        source_code: Option<&Rc<SourceCode>>,
+        replaced_executable: Option<Gc<Executable>>,
+    ) -> Gc<Executable> {
+        // The literal values of class elements stay rooted until the executable that holds them is allocated.
         let rooted_literal_values = MarkedVec::new(vm);
-        let class_blueprints: Box<[ClassBlueprint]> = data
+        let class_blueprints: Box<[ClassBlueprint]> = parts
             .class_blueprints
             .iter()
             .map(|blueprint| ClassBlueprint::create(vm, blueprint, source_code, &rooted_literal_values))
@@ -1229,54 +1357,61 @@ impl Executable {
         let shared_function_data: Box<[Gc<SharedFunctionInstanceData>]> =
             rooted_shared_function_data.to_vec().into_boxed_slice();
 
-        // The regexes were only compiled to report early errors; the runtime compiles them again when it runs.
-        for regex in data.compiled_regexes {
-            // SAFETY: Each handle came from rust_compile_regex and is freed once.
-            unsafe { rust_free_compiled_regex(regex.into_raw()) };
-        }
         // The constants stay rooted until the executable that holds them is allocated.
-        let rooted_constants = MarkedVec::with_capacity(vm, data.constants.len());
-        for constant in &data.constants {
+        let rooted_constants = MarkedVec::with_capacity(vm, parts.constants.len());
+        for constant in &parts.constants {
             rooted_constants.push(constant_value(vm, constant));
         }
         let constants: Box<[Value]> = rooted_constants.to_vec().into_boxed_slice();
-        // The template object caches stay rooted until the executable that holds them is allocated.
-        let rooted_template_object_caches = MarkedVec::with_capacity(vm, data.cache_counts.template_object as usize);
-        for _ in 0..data.cache_counts.template_object {
-            rooted_template_object_caches.push(TemplateObjectCache::create(vm));
+        // The template object caches stay rooted until the executable that holds them is allocated. An executable this
+        // one replaces shares its own, so that both hand out the same template objects.
+        let rooted_template_object_caches = MarkedVec::with_capacity(vm, parts.cache_counts.template_object as usize);
+        match replaced_executable {
+            Some(replaced_executable)
+                if replaced_executable.template_object_caches.len() == parts.cache_counts.template_object as usize =>
+            {
+                for cache in &replaced_executable.template_object_caches {
+                    rooted_template_object_caches.push(*cache);
+                }
+            }
+            _ => {
+                for _ in 0..parts.cache_counts.template_object {
+                    rooted_template_object_caches.push(TemplateObjectCache::create(vm));
+                }
+            }
         }
         let template_object_caches: Box<[Gc<TemplateObjectCache>]> =
             rooted_template_object_caches.to_vec().into_boxed_slice();
         let counts = ExecutableCacheCounts {
-            property_lookup_caches: data.cache_counts.property_lookup,
-            global_variable_caches: data.cache_counts.global_variable,
-            environment_coordinate_caches: data.cache_counts.environment_coordinate,
-            environment_shape_caches: data.cache_counts.environment_shape,
+            property_lookup_caches: parts.cache_counts.property_lookup,
+            global_variable_caches: parts.cache_counts.global_variable,
+            environment_coordinate_caches: parts.cache_counts.environment_coordinate,
+            environment_shape_caches: parts.cache_counts.environment_shape,
         };
-        let number_of_locals = u32::try_from(data.local_variables.len()).expect("local count fits in u32");
-        let mut executable = Self::new(
-            data.bytecode.into_boxed_slice(),
-            data.number_of_registers,
+        let number_of_locals = u32::try_from(parts.local_variables.len()).expect("local count fits in u32");
+        let mut executable = Self::new_with_bytecode(
+            parts.bytecode,
+            parts.number_of_registers,
             number_of_locals,
-            data.number_of_arguments,
+            parts.number_of_arguments,
             constants,
             &counts,
-            data.is_strict,
+            parts.is_strict,
         );
-        executable.identifier_table = data.identifier_table;
-        executable.set_property_key_table(data.property_key_table);
-        executable.string_table = data.string_table;
-        executable.exception_handlers = data.exception_handlers.into_boxed_slice();
+        executable.identifier_table = parts.identifier_table;
+        executable.set_property_key_table(parts.property_key_table);
+        executable.string_table = parts.string_table;
+        executable.exception_handlers = parts.exception_handlers.into_boxed_slice();
         executable.shared_function_data = shared_function_data;
         executable.class_blueprints = class_blueprints;
         executable.template_object_caches = template_object_caches;
         executable.allocate_object_caches(
-            data.cache_counts.object_shape,
-            data.cache_counts.object_property_iterator,
+            parts.cache_counts.object_shape,
+            parts.cache_counts.object_property_iterator,
         );
-        executable.length_identifier = data.length_identifier.map(|index| PropertyKeyTableIndex(index.0));
-        executable.source_map = data.source_map.into_boxed_slice();
-        executable.local_variable_metadata = data
+        executable.length_identifier = parts.length_identifier.map(PropertyKeyTableIndex);
+        executable.source_map = parts.source_map.into_boxed_slice();
+        executable.local_variable_metadata = parts
             .local_variables
             .iter()
             .map(|local_variable| LocalVariableMetadata {
@@ -1293,18 +1428,20 @@ impl Executable {
                 }),
             })
             .collect();
-        executable.local_variable_names = data
+        executable.local_variable_names = parts
             .local_variables
             .into_iter()
             .map(|local_variable| local_variable.name)
             .collect();
-        executable.argument_variable_names = data.argument_variable_names.into_boxed_slice();
+        executable.argument_variable_names = parts.argument_variable_names.into_boxed_slice();
         executable.source_code = source_code.cloned();
         let executable = Self::create_from_parts(vm, executable);
+        if let Some(replaced_executable) = replaced_executable {
+            Self::copy_runtime_caches_from(executable, &replaced_executable);
+        }
         drop(rooted_template_object_caches);
         drop(rooted_constants);
         drop(rooted_literal_values);
-        drop(rooted_shared_function_data);
 
         if let Some(debugger) = vm.debugger() {
             debugger.register_executable(vm, executable);
@@ -1352,7 +1489,7 @@ impl Executable {
     }
 
     pub fn source_range_at(&self, offset: u32) -> Option<SourceRange> {
-        if offset as usize >= self.bytecode.len() {
+        if offset as usize >= self.bytecode().len() {
             return None;
         }
         if self.source_map.is_empty() {
@@ -1428,7 +1565,76 @@ impl Executable {
     }
 
     pub fn bytecode(&self) -> &[u8] {
-        &self.bytecode
+        self.bytecode.as_slice()
+    }
+
+    /// Whether the bytecode runs in place in the bytecode cache blob it was materialized from.
+    pub fn runs_in_place_in_bytecode_cache_blob(&self) -> bool {
+        matches!(self.bytecode, ExecutableBytecode::InBytecodeCacheBlob(_))
+    }
+
+    /// Executable::copy_runtime_caches_from(): makes `executable` take over what the inline caches of `other`, an
+    /// executable compiled from the same code, learned, as installing a bytecode cache into a running program does.
+    /// Each kind of cache is only taken over if the two executables have the same number of them. The template object
+    /// caches are not copied here: an executable shares those of the one it replaces from its creation.
+    /// NB: This takes an executable on the heap because the VM only forgets the dead cells in the caches of executables
+    ///     it registered. Entries copied into one not registered yet could outlive the cells they point to.
+    fn copy_runtime_caches_from(executable: Gc<Executable>, other: &Executable) {
+        let this = &*executable;
+        if this.property_lookup_caches.len() == other.property_lookup_caches.len() {
+            for (cache, other_cache) in this.property_lookup_caches.iter().zip(&other.property_lookup_caches) {
+                cache.copy_from(other_cache);
+            }
+        }
+        if this.global_variable_caches.len() == other.global_variable_caches.len() {
+            for (cache, other_cache) in this.global_variable_caches.iter().zip(&other.global_variable_caches) {
+                cache.entry.set(other_cache.entry.get());
+                cache
+                    .environment_serial_number
+                    .set(other_cache.environment_serial_number.get());
+                cache
+                    .environment_binding_index
+                    .set(other_cache.environment_binding_index.get());
+                cache
+                    .has_environment_binding_index
+                    .set(other_cache.has_environment_binding_index.get());
+            }
+        }
+        if this.environment_coordinate_caches.len() == other.environment_coordinate_caches.len() {
+            for (cache, other_cache) in this
+                .environment_coordinate_caches
+                .iter()
+                .zip(&other.environment_coordinate_caches)
+            {
+                cache.set(other_cache.get());
+            }
+        }
+        if this.object_shape_caches.len() == other.object_shape_caches.len() {
+            for (cache, other_cache) in this.object_shape_caches.iter().zip(&other.object_shape_caches) {
+                cache.shape.set(other_cache.shape.get());
+                cache
+                    .property_offsets
+                    .replace(other_cache.property_offsets.borrow().clone());
+            }
+        }
+        if this.object_property_iterator_caches.len() == other.object_property_iterator_caches.len() {
+            for (cache, other_cache) in this
+                .object_property_iterator_caches
+                .iter()
+                .zip(&other.object_property_iterator_caches)
+            {
+                cache.data.set(other_cache.data.get());
+            }
+        }
+        if this.environment_shape_caches.len() == other.environment_shape_caches.len() {
+            for (cache, other_cache) in this
+                .environment_shape_caches
+                .iter()
+                .zip(&other.environment_shape_caches)
+            {
+                cache.set(other_cache.get());
+            }
+        }
     }
 
     pub fn constants(&self) -> &[Value] {
@@ -1540,7 +1746,10 @@ fn dump_header(output: &mut Vec<u8>, executable: &Executable) {
         update_hash(&mut hash, first_source_map_entry.line);
         update_hash(&mut hash, first_source_map_entry.column);
     }
-    update_hash(&mut hash, u32::try_from(executable.bytecode.len()).unwrap_or(u32::MAX));
+    update_hash(
+        &mut hash,
+        u32::try_from(executable.bytecode().len()).unwrap_or(u32::MAX),
+    );
 
     output.extend_from_slice(WHITE_BOLD.as_bytes());
     name_view.append_as_wtf8_to(output);
