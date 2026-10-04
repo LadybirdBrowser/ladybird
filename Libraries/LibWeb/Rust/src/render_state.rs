@@ -10,7 +10,8 @@
 //! what lives beside it. The [`DocumentHost`] owns it in its frame: the state is either here, where the host lends it
 //! to a [`RenderMessage`] it [`send`]s to the StyleLayout thread and waits for, or flying, moved into the job of a frame
 //! that runs beside the host until the host takes it in again. Code that runs beside a flying frame has no state to
-//! reach.
+//! reach. The host makes the state where it is, and a state that never went to the StyleLayout thread, as that of a
+//! document nothing renders, retires where the host is too.
 
 use crate::css::style::StyleEngineHandle;
 use crate::css::style::bridge::{FfiDeviceClass, create_document_style_engine};
@@ -43,6 +44,8 @@ pub(crate) struct RenderState {
     /// engine comes from this one pointer, and a borrow of the state borrows it mutably only where it reaches the
     /// engine alone.
     engine: StyleEngineHandle,
+    /// Whether the state went to the render side, with a message or a frame, which it then retires on.
+    went_to_render_side: bool,
 }
 
 impl RenderState {
@@ -51,20 +54,42 @@ impl RenderState {
         let mut arena = Box::new(ArenaHandle::new());
         let engine = StyleEngineHandle::create(create_document_style_engine(device_class));
         arena.arena_mut().set_style_engine(engine);
-        Self { arena, engine }
+        Self {
+            arena,
+            engine,
+            went_to_render_side: false,
+        }
     }
 
-    /// Drops the state, which must hold no layout node any more.
+    /// Drops the state, which must hold no layout node any more, on the render side where it went there, and where it is
+    /// otherwise.
     fn retire(self) {
-        let Self { arena, engine } = self;
-        assert_eq!(
-            arena.arena().live_slot_count(),
-            0,
-            "layout node arena destroyed with live slots"
-        );
-        drop(arena);
-        // SAFETY: The state made the handle, and the arena that linked it is gone.
-        unsafe { engine.destroy() }.end_recording();
+        let Self {
+            arena,
+            engine,
+            went_to_render_side,
+        } = self;
+        let retire = move || {
+            assert_eq!(
+                arena.arena().live_slot_count(),
+                0,
+                "layout node arena destroyed with live slots"
+            );
+            drop(arena);
+            // SAFETY: The state made the handle, and the arena that linked it is gone.
+            unsafe { engine.destroy() }.end_recording();
+        };
+        if went_to_render_side {
+            on_render_side(retire);
+        } else {
+            retire();
+        }
+    }
+
+    /// Lends the state to `job` on the render side, and waits for it, so the job may borrow from the calling frame.
+    fn lend_to_render_side<R: Send>(&mut self, job: impl FnOnce(&mut Self) -> R + Send) -> R {
+        self.went_to_render_side = true;
+        on_render_side(move || job(self))
     }
 
     /// Applies `changes`, writes the host queued, in the order the host made them.
@@ -311,7 +336,7 @@ pub(crate) fn send(host: &DocumentHost, read: ReadRight, message: RenderMessage<
         host.note_render_state_write();
     }
     host.drain_queued_changes(read, |changes| {
-        host.with_state(|state| on_render_side(move || state.handle(changes, message)));
+        host.with_state(|state| state.lend_to_render_side(move |state| state.handle(changes, message)));
     });
 }
 
@@ -335,6 +360,7 @@ pub(crate) fn fly(
         host.let_go_of_rows();
     }
     host.let_frame_fly(drain, |mut state| {
+        state.went_to_render_side = true;
         // A host that waits for the frame says the stop word, and the frame comes back with its style alone.
         let run = move |stop: &crate::stage_thread::StopWord| {
             state.apply(changes.drain(..));
@@ -393,6 +419,22 @@ mod tests {
         assert!(matches!(host.take_forced_read(), Some(ForcedRead::Host(_))));
         host.end_forced_read();
         assert!(host.take_forced_read().is_none(), "a read ends with its scope");
+    }
+
+    #[test]
+    fn a_render_state_goes_to_the_render_side_only_with_a_message() {
+        let test_host = TestHost::new();
+        // SAFETY: The host lives until the test host is dropped.
+        let host = unsafe { &*test_host.host() };
+        let went = || host.with_state(|state| state.went_to_render_side);
+        host.fresh_rows(ScriptForcedRead::for_test());
+        assert!(!went(), "a question the host answers where it is keeps the state here");
+        crate::painting::paint_passes::run(
+            test_host.read(),
+            host,
+            crate::painting::paint_passes::PaintPass::SvgPaintResourceRequests,
+        );
+        assert!(went());
     }
 
     #[test]
