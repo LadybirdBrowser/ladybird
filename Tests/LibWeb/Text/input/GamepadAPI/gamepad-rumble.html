@@ -51,11 +51,12 @@
         println(`Trigger rumble promise resolved with '${triggerRumbleResult}'`);
 
         println("Testing preempting a rumble effect");
+        const receivedEffectCount = gamepad.getReceivedRumbleEffects().length;
         const effectToPreemptPromise = navGamepad.vibrationActuator.playEffect("dual-rumble", { duration: 1000, strongMagnitude: 0.1, weakMagnitude: 0.1 });
 
-        // Make sure the first effect is issued to the gamepad.
-        await requestAnimationFrame(() => { });
-        await handleSDLInputEvents();
+        // Wait until the first effect reaches the gamepad, so that the next effect preempts an effect that is playing.
+        while (gamepad.getReceivedRumbleEffects().length === receivedEffectCount)
+            await handleSDLInputEvents();
 
         const newDualRumbleResult = await navGamepad.vibrationActuator.playEffect("dual-rumble", { duration: 2, strongMagnitude: 1.0, weakMagnitude: 1.0 });
         await handleSDLInputEvents();
