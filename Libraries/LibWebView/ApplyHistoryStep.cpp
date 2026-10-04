@@ -498,12 +498,16 @@ void ApplyHistoryStep::set_ongoing_navigation_to_traversal(CanonicalNavigable& n
     auto is_same_document_traversal = m_navigation_type == Web::Bindings::NavigationType::Traverse
         && !traversal_crosses_documents;
 
-    // AD-HOC: A navigation admitted after a same-document traversal takes precedence. The specification's traversal
-    //         queue does not model Ladybird's independently admitted UI-process navigation transactions.
-    if (is_same_document_traversal
+    // AD-HOC: A navigation admitted after the operation goes on, as the newest, and the operation leaves the navigable
+    //         to it. A traversal that crosses documents aborts it, as specified. The specification's traversal queue
+    //         does not model Ladybird's independently admitted UI-process navigations.
+    //         See https://github.com/whatwg/html/issues/12581.
+    auto is_cross_document_traversal = m_navigation_type == Web::Bindings::NavigationType::Traverse && traversal_crosses_documents;
+    if (!is_cross_document_traversal
         && navigable.ongoing_navigation()
         && navigable.ongoing_navigation()->sequence_number > m_operation_sequence_number) {
-        m_traversal_yields_to.set(navigable.id(), Web::HTML::TraversalYieldsTo::AdmittedNavigation);
+        if (is_same_document_traversal)
+            m_traversal_yields_to.set(navigable.id(), Web::HTML::TraversalYieldsTo::AdmittedNavigation);
         return;
     }
 
@@ -533,10 +537,6 @@ void ApplyHistoryStep::set_ongoing_navigation_to_traversal(CanonicalNavigable& n
     //         started before this step ran in its own process. Its navigate() saw no traversal, and the admission
     //         recheck must not misattribute that ordering and drop the navigation the step has to yield to.
     if (traversal_crosses_documents) {
-        // AD-HOC: A navigation admitted after the operation goes on, as the newest. See
-        //         https://github.com/whatwg/html/issues/12581.
-        if (navigable.ongoing_navigation() && navigable.ongoing_navigation()->sequence_number > m_operation_sequence_number)
-            return;
         navigable.clear_ongoing_navigation();
         navigable.set_ongoing_navigation_to_traversal(m_operation_id);
         m_navigables_with_ongoing_history_traversal.set(navigable.id());
