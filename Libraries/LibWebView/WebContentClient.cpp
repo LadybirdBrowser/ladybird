@@ -196,8 +196,12 @@ void WebContentClient::did_misbehave(StringView message_name, StringView reason)
     shutdown();
 }
 
-Web::CompositorContextId WebContentClient::compositor_context_id_for_page(Web::PageId page_id)
+// Only an open page registers its context: the UI process forgets a closed page's context while the process still
+// holds it, and a request the process sent before the close can arrive after it.
+Web::CompositorContextId WebContentClient::compositor_context_id_for_page(WebContentPage const& page)
 {
+    VERIFY(page.is_open());
+    auto page_id = page.id();
     auto context_id = Web::compositor_context_id_for_page(page_id);
     if (auto registered_page_id = m_compositor_contexts.get(context_id); registered_page_id.has_value()) {
         if (!registered_page_id->has_value() || **registered_page_id != page_id) {
@@ -227,8 +231,11 @@ Messages::WebContentClient::AllocateCompositorContextIdResponse WebContentClient
 
 Web::CompositorContextId WebContentClient::allocate_compositor_context(Web::PageId page_id, Web::PagePresentationRegistration page_presentation_registration)
 {
-    if (page_presentation_registration == Web::PagePresentationRegistration::Yes)
-        return compositor_context_id_for_page(page_id);
+    if (page_presentation_registration == Web::PagePresentationRegistration::Yes) {
+        if (auto* page = this->page(page_id))
+            return compositor_context_id_for_page(*page);
+        return Web::compositor_context_id_for_page(page_id);
+    }
 
     auto context_id = Application::the().allocate_compositor_context_id();
     remember_compositor_context(context_id, {});
@@ -291,7 +298,6 @@ void WebContentClient::discard_page_of_undisplayed_top_level_traversable(Web::Pa
 
 void WebContentClient::close_page_of_closed_tab(Web::PageId page_id)
 {
-    forget_compositor_context(Web::compositor_context_id_for_page(page_id));
     if (auto* page = this->page(page_id))
         page->traversable().remove_page(*page);
 
@@ -303,6 +309,8 @@ void WebContentClient::close_page_of_closed_tab(Web::PageId page_id)
             page->set_detached_close_pending(false);
         page->close();
     }
+    // Forgotten once the page is closed, so nothing registers it again.
+    forget_compositor_context(Web::compositor_context_id_for_page(page_id));
     release_unneeded_representing_pages();
     close_server_if_unused();
 }
