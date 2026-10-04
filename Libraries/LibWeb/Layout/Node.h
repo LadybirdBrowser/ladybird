@@ -687,6 +687,8 @@ private:
     void rebuild_image_observers(Vector<RefPtr<CSS::CursorStyleValue const>>);
     ImageObserverSlots const* image_observers() const;
     void const* m_style_payloads { nullptr };
+    // Whether the row holds a pin of its style record for C++'s readers, which only this layout node takes and drops.
+    bool m_style_record_pinned_for_cxx_consumers { false };
     bool has_layout_derived_style() const;
     CSS::StyleRecordID m_style_record_identity;
     mutable Optional<Vector<CSS::BackgroundLayerData>> m_background_layers;

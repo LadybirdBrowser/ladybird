@@ -5389,22 +5389,6 @@ pub unsafe extern "C" fn render_state_release_node_style_record_pin_for_host(
     unsafe { queue(host, LayoutChange::ReleaseNodeStyleRecordPinForHost { node: slot }) };
 }
 
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread, and `slot` a live row.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn render_state_node_style_record_pinned_by_host(
-    host: *const DocumentHost,
-    slot: NodeSlotId,
-) -> u64 {
-    // SAFETY: Guaranteed by the caller.
-    unsafe {
-        read_arena(host, node_read(), slot, |arena, slot| {
-            arena.node_style_record_pinned_by_host(slot)
-        })
-    }
-}
-
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn render_state_node_has_derived_style(host: *const DocumentHost, node: NodeSlotId) -> bool {
     // SAFETY: Guaranteed by the caller.
