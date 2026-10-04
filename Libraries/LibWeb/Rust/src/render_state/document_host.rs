@@ -506,6 +506,17 @@ impl DocumentHost {
         self.facts.get()
     }
 
+    /// Where the engine's selectors' requirements of attribute value text are, where the host knows: none runs, and it
+    /// queued no rule since its last job or frame, which is all that compiles a selector.
+    pub(crate) fn known_selector_attribute_value_text_requirements_version(&self) -> Option<u64> {
+        if !self.knows_engine_between_jobs() || self.changes.may_compile_selectors() {
+            return None;
+        }
+        self.facts
+            .get()
+            .map(|facts| facts.selector_attribute_value_text_requirements_version)
+    }
+
     /// Whether the layout tree builds owe the host image resources, where the host knows: none runs. Only a build of a
     /// job or a frame comes to owe some, never a write, so the fact its last job or frame left holds whatever it queued.
     pub(crate) fn known_owed_image_resources(&self) -> Option<bool> {
