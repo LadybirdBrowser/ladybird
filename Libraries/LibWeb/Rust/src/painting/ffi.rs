@@ -158,6 +158,9 @@ pub unsafe extern "C" fn document_host_clear_chrome_state_callback(host: *const 
     unsafe { host_tables(host) }.chrome_state_callback.set(None);
 }
 
+/// Copies the row in `slot` to `row`, where it is populated. The host reads it from the rows it holds where they still
+/// read as the arena, and asks otherwise.
+///
 /// # Safety
 ///
 /// `host` must be a live document host, on its document's thread.
@@ -165,17 +168,28 @@ pub unsafe extern "C" fn document_host_clear_chrome_state_callback(host: *const 
 pub unsafe extern "C" fn render_state_paintable_row(
     host: *const DocumentHost,
     slot: NodeSlotId,
-) -> *const PaintableData {
+    row: &mut PaintableData,
+) -> bool {
     // SAFETY: Guaranteed by the caller.
-    unsafe {
+    let known = unsafe { &*host }.read_known_rows(|rows, _| {
+        rows.paintable
+            .paintable_row_is_populated(slot)
+            .then(|| *rows.paintable.paintable_data(slot))
+    });
+    // SAFETY: Guaranteed by the caller.
+    let answer = known.unwrap_or_else(|| unsafe {
         read_arena(host, node_read(), slot, |arena, slot| {
             let paintable_rows = arena.paintable_rows();
-            if !paintable_rows.paintable_row_is_populated(slot) {
-                return std::ptr::null();
-            }
-            paintable_rows.paintable_data_ptr(slot)
+            paintable_rows
+                .paintable_row_is_populated(slot)
+                .then(|| *paintable_rows.paintable_data(slot))
         })
-    }
+    });
+    let Some(answer) = answer else {
+        return false;
+    };
+    *row = answer;
+    true
 }
 
 /// Whether the row in `slot` is populated, which the host answers without asking where it knows.

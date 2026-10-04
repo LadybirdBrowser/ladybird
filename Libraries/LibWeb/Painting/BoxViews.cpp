@@ -72,9 +72,12 @@ Compositing::RustFFI::NodeSlotId viewport_row_slot(Layout::BegunRead const& read
     return Layout::Node::slot_id(document.unsafe_layout_node(read));
 }
 
-Layout::RustFFI::PaintableData const* committed_row(Layout::Node const& node)
+Optional<Layout::RustFFI::PaintableData> committed_row(Layout::Node const& node)
 {
-    return Layout::RustFFI::render_state_paintable_row(node.document_host(), committed_row_slot(node));
+    Layout::RustFFI::PaintableData row;
+    if (!Layout::RustFFI::render_state_paintable_row(node.document_host(), committed_row_slot(node), &row))
+        return {};
+    return row;
 }
 
 bool has_committed_box(Layout::Node const& node)
@@ -187,8 +190,8 @@ bool visible_for_hit_testing(Layout::Node const& node)
 
 bool has_stacking_context(Layout::Node const& node)
 {
-    auto const* row = committed_row(node);
-    return row && row->establishes_stacking_context;
+    auto row = committed_row(node);
+    return row.has_value() && row->establishes_stacking_context;
 }
 
 CSS::Display display(Layout::Node const& node)
@@ -254,32 +257,32 @@ bool is_svg_svg_paintable(Layout::Node const& node)
 
 bool has_accumulated_visual_context(Layout::Node const& node)
 {
-    auto const* row = committed_row(node);
-    return row && row->has_accumulated_visual_context;
+    auto row = committed_row(node);
+    return row.has_value() && row->has_accumulated_visual_context;
 }
 
 Compositing::ContextRef accumulated_visual_context(Layout::Node const& node)
 {
-    auto const* row = committed_row(node);
-    return row ? row->accumulated_visual_context : Compositing::ContextRef {};
+    auto row = committed_row(node);
+    return row.has_value() ? row->accumulated_visual_context : Compositing::ContextRef {};
 }
 
 Compositing::ContextRef accumulated_visual_context_for_descendants(Layout::Node const& node)
 {
-    auto const* row = committed_row(node);
-    return row ? row->accumulated_visual_context_for_descendants : Compositing::ContextRef {};
+    auto row = committed_row(node);
+    return row.has_value() ? row->accumulated_visual_context_for_descendants : Compositing::ContextRef {};
 }
 
 Compositing::SpatialNodeIndex enclosing_scroll_node_index(Layout::Node const& node)
 {
-    auto const* row = committed_row(node);
-    return row ? row->enclosing_scroll_node_index : Compositing::VISUAL_VIEWPORT_NODE_INDEX;
+    auto row = committed_row(node);
+    return row.has_value() ? row->enclosing_scroll_node_index : Compositing::VISUAL_VIEWPORT_NODE_INDEX;
 }
 
 Compositing::SpatialNodeIndex own_scroll_node_index(Layout::Node const& node)
 {
-    auto const* row = committed_row(node);
-    return row ? row->own_scroll_node_index : Compositing::VISUAL_VIEWPORT_NODE_INDEX;
+    auto row = committed_row(node);
+    return row.has_value() ? row->own_scroll_node_index : Compositing::VISUAL_VIEWPORT_NODE_INDEX;
 }
 
 Gfx::Path const* committed_svg_path(Layout::Node const& node)
@@ -312,8 +315,8 @@ CSS::RustStyleValueHandle used_value_for_grid_template(Layout::Node const& node,
 
 CSSPixelPoint box_type_agnostic_position(Layout::Node const& node)
 {
-    auto const* row = committed_row(node);
-    if (!row)
+    auto row = committed_row(node);
+    if (!row.has_value())
         return {};
     if (is_inline_paintable(node)) {
         auto result = Layout::RustFFI::render_state_inline_paintable_first_piece_position(node.document_host(), committed_row_slot(node));
@@ -642,8 +645,8 @@ CSSPixelRect transform_reference_box(Layout::Node const& node)
 
 CSSPixelRect transform_rect_to_viewport(Layout::Node const& node, CSSPixelRect const& rect, Compositing::AccumulatedVisualContextTree::IncludeVisualViewportTransform include_visual_viewport_transform)
 {
-    auto const* row = committed_row(node);
-    if (!row)
+    auto row = committed_row(node);
+    if (!row.has_value())
         return {};
     auto const& document = node.document();
     if (!document.has_committed_viewport_box())
@@ -657,8 +660,8 @@ CSSPixelRect transform_rect_to_viewport(Layout::Node const& node, CSSPixelRect c
 
 Optional<CSSPixelPoint> transform_point_to_local(Layout::Node const& node, CSSPixelPoint position)
 {
-    auto const* row = committed_row(node);
-    if (!row)
+    auto row = committed_row(node);
+    if (!row.has_value())
         return {};
     auto const& document = node.document();
     if (!document.has_committed_viewport_box())
@@ -674,8 +677,8 @@ Optional<CSSPixelPoint> transform_point_to_local(Layout::Node const& node, CSSPi
 
 CSSPixelPoint inverse_transform_point(Layout::Node const& node, CSSPixelPoint position)
 {
-    auto const* row = committed_row(node);
-    if (!row)
+    auto row = committed_row(node);
+    if (!row.has_value())
         return {};
     auto const& document = node.document();
     if (!document.has_committed_viewport_box())
