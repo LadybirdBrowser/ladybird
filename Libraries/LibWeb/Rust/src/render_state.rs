@@ -272,9 +272,11 @@ impl ArenaChange {
 pub(crate) enum RowWrite {
     #[default]
     None,
-    /// What a row holds, but neither what it is nor the row a node is bound to (see
+    /// What a row holds, but neither its style record, what it is, nor the row a node is bound to (see
     /// [`crate::layout::LayoutNodeArena::rows_identity_version`]).
     Rows,
+    /// A row's style record too.
+    Styles,
     /// What a row is, or the row a node is bound to, too.
     Identities,
 }
@@ -307,6 +309,10 @@ impl ChangeQueue {
 
     fn may_write_row_identities(&self) -> bool {
         self.row_write.get() == RowWrite::Identities
+    }
+
+    fn may_write_row_styles(&self) -> bool {
+        self.row_write.get() >= RowWrite::Styles
     }
 
     /// Lends the queued writes to `apply`, which applies them, and keeps their emptied buffer as the spare. A write the

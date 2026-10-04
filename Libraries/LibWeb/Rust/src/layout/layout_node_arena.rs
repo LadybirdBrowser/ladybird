@@ -663,6 +663,8 @@ pub(crate) struct RowsVersion {
     /// The part of `writes` that changed what a row is or the row a node is bound to. See
     /// [`LayoutNodeArena::rows_identity_version`].
     identity: u64,
+    /// The part of `writes` that gave a row a style record (see [`super::tree_shape::ShapeWrites::style`]).
+    style: u64,
     /// Where the paint fact tables, the image maps and the visual context tree are, which moves
     /// when a write copies one a publication shares or replaces the tree.
     tables: [usize; 5],
@@ -678,6 +680,12 @@ impl RowsVersion {
     /// See [`LayoutNodeArena::rows_identity_version`].
     pub(crate) fn identity(&self) -> u64 {
         self.identity
+    }
+
+    /// Whether rows published at this version answer what each row is and the style record it has as the arena does at
+    /// `version`.
+    pub(crate) fn has_styles_of(&self, version: RowsVersion) -> bool {
+        self.identity == version.identity && self.style == version.style
     }
 }
 
@@ -2230,6 +2238,7 @@ impl LayoutNodeArena {
         self.set_node_flag(id, NodeFlag::FollowsPrincipalStyle, false);
         self.invalidate_overflow_after_style_change(id);
         let previous = self.style_records[id.slot_index() as usize].replace(style_record);
+        self.shape_writes.note_style();
         self.write_shape(id).mark();
         if self.style_record_pins[id.slot_index() as usize].replace(ArenaStylePin::None) != ArenaStylePin::None {
             self.with_style_engine(|engine| engine.unpin_layout_style_record(previous));
@@ -3536,6 +3545,7 @@ impl LayoutNodeArena {
             self.style_record_pins[slot.slot_index() as usize].replace(ArenaStylePin::Derived) != ArenaStylePin::None;
         assert!(derived.record != 0 && !derived.payloads.is_null());
         let previous_style_record = self.style_records[slot.slot_index() as usize].replace(derived.record);
+        self.shape_writes.note_style();
         let shape = self.write_shape(slot);
         shape.set_style(derived.payloads);
         shape.mark();
@@ -3632,6 +3642,7 @@ impl LayoutNodeArena {
                 + self.bound_rows.borrow().version()
                 + self.paintable_rows_version(),
             identity: self.rows_identity_version(),
+            style: self.shape_writes.style(),
             tables: [
                 Arc::as_ptr(&self.replaced_paint_facts.borrow()).addr(),
                 Arc::as_ptr(&self.layer_image_paint_facts.borrow()).addr(),

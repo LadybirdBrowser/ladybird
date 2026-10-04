@@ -54,6 +54,7 @@ impl<T: Copy> ShapeCell<T> {
 pub(crate) struct ShapeWrites {
     all: Cell<u64>,
     identity: Cell<u64>,
+    style: Cell<u64>,
     /// One bit per chunk holding a node marked since the last publication, so that publishing visits those alone.
     written_chunks: Vec<Cell<u64>>,
 }
@@ -70,8 +71,19 @@ impl ShapeWrites {
         self.identity.get()
     }
 
+    /// The writes among them that gave a row a style record, but for a row they made, which changes what the row is.
+    pub(crate) fn style(&self) -> u64 {
+        self.style.get()
+    }
+
     fn note(&self) {
         self.all.set(self.all.get() + 1);
+    }
+
+    /// Notes a write that gave a row a style record.
+    pub(crate) fn note_style(&self) {
+        self.note();
+        self.style.set(self.style.get() + 1);
     }
 
     /// Notes a write that changed what a row is.
