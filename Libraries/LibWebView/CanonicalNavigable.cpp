@@ -413,10 +413,11 @@ NonnullRefPtr<CanonicalDocument> CanonicalNavigable::create_and_initialize_a_doc
     // 9. Let document be a new Document, with
     //    origin: navigationParams's origin
     //    browsing context: browsingContext
+    //    active sandboxing flag set: navigationParams's final sandboxing flag set
     //    opener policy: navigationParams's cross-origin opener policy
     //    URL: creationURL
     // NB: The process hosting window's agent creates the document, with its other fields, and runs the remaining steps.
-    auto document = CanonicalDocument::create(navigation_params.document_id, move(creation_url), navigation_params.origin, browsing_context, window.release_nonnull(), CanonicalDocument::IsInitialAboutBlank::No);
+    auto document = CanonicalDocument::create(navigation_params.document_id, move(creation_url), navigation_params.origin, browsing_context, window.release_nonnull(), navigation_params.final_sandboxing_flag_set, CanonicalDocument::IsInitialAboutBlank::No);
     document->set_opener_policy(navigation_params.opener_policy);
 
     // 22. Return document.
@@ -866,6 +867,7 @@ void CanonicalNavigable::did_create_populated_document_with_an_origin_of_its_own
         .request_current_url = {},
         .origin = origin,
         .opener_policy = {},
+        .final_sandboxing_flag_set = populated_document->document->active_sandboxing_flag_set(),
         .environment_id = environment_id,
         .document_id = document_id,
     };
@@ -991,6 +993,8 @@ void CanonicalNavigable::update_container_state(Web::HTML::ReplicatedContainerSt
 {
     if (!m_hosted_state.has_value())
         return;
+    if (m_container_document)
+        state.document_active_sandboxing_flag_set = m_container_document->active_sandboxing_flag_set();
     m_hosted_state->container = state;
     if (has_remote_host())
         remote_host().async_update_local_root_container_state(id(), move(state));
@@ -998,6 +1002,9 @@ void CanonicalNavigable::update_container_state(Web::HTML::ReplicatedContainerSt
 
 void CanonicalNavigable::update_hosted_state(Web::HTML::HostedNavigableState state)
 {
+    // A child's container is reported by the page holding it, not by the page hosting the child's document.
+    if (m_container_document && m_hosted_state.has_value())
+        state.container = m_hosted_state->container;
     set_hosted_state(move(state));
     send_replicated_state();
 }

@@ -17,9 +17,9 @@
 
 namespace WebView {
 
-NonnullRefPtr<CanonicalDocument> CanonicalDocument::create(Web::HTML::CrossProcessId id, URL::URL creation_url, URL::Origin origin, NonnullRefPtr<CanonicalBrowsingContext> browsing_context, NonnullRefPtr<CanonicalWindow> relevant_global_object, IsInitialAboutBlank is_initial_about_blank)
+NonnullRefPtr<CanonicalDocument> CanonicalDocument::create(Web::HTML::CrossProcessId id, URL::URL creation_url, URL::Origin origin, NonnullRefPtr<CanonicalBrowsingContext> browsing_context, NonnullRefPtr<CanonicalWindow> relevant_global_object, Web::HTML::SandboxingFlagSet active_sandboxing_flag_set, IsInitialAboutBlank is_initial_about_blank)
 {
-    auto document = adopt_ref(*new CanonicalDocument(id, move(creation_url), move(origin), move(browsing_context), move(relevant_global_object), is_initial_about_blank));
+    auto document = adopt_ref(*new CanonicalDocument(id, move(creation_url), move(origin), move(browsing_context), move(relevant_global_object), active_sandboxing_flag_set, is_initial_about_blank));
 
     // https://html.spec.whatwg.org/multipage/document-lifecycle.html#initialise-the-document-object
     // 10. Set window's associated Document to document.
@@ -35,12 +35,13 @@ NonnullRefPtr<CanonicalDocument> CanonicalDocument::create(Web::HTML::CrossProce
     return document;
 }
 
-CanonicalDocument::CanonicalDocument(Web::HTML::CrossProcessId id, URL::URL creation_url, URL::Origin origin, NonnullRefPtr<CanonicalBrowsingContext> browsing_context, NonnullRefPtr<CanonicalWindow> relevant_global_object, IsInitialAboutBlank is_initial_about_blank)
+CanonicalDocument::CanonicalDocument(Web::HTML::CrossProcessId id, URL::URL creation_url, URL::Origin origin, NonnullRefPtr<CanonicalBrowsingContext> browsing_context, NonnullRefPtr<CanonicalWindow> relevant_global_object, Web::HTML::SandboxingFlagSet active_sandboxing_flag_set, IsInitialAboutBlank is_initial_about_blank)
     : m_id(id)
     , m_creation_url(move(creation_url))
     , m_origin(move(origin))
     , m_browsing_context(move(browsing_context))
     , m_relevant_global_object(move(relevant_global_object))
+    , m_active_sandboxing_flag_set(active_sandboxing_flag_set)
     , m_is_initial_about_blank(is_initial_about_blank)
 {
     if (m_creation_url.scheme() == "about"sv && m_creation_url.path_segment_count() == 1) {

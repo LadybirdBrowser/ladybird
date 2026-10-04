@@ -84,8 +84,9 @@ CanonicalBrowsingContext::BrowsingContextAndDocument CanonicalBrowsingContext::c
     // 15. Let document be a new Document, with:
     //     origin: origin
     //     browsing context: browsingContext
+    //     active sandboxing flag set: sandboxFlags
     //     is initial about:blank: true
-    auto document = CanonicalDocument::create(document_id, URL::about_blank(), origin, browsing_context, window, CanonicalDocument::IsInitialAboutBlank::Yes);
+    auto document = CanonicalDocument::create(document_id, URL::about_blank(), origin, browsing_context, window, sandbox_flags, CanonicalDocument::IsInitialAboutBlank::Yes);
 
     // 19. If creator is non-null:
     //     3. If creator's origin is same origin with creator's relevant settings object's top-level origin, then set

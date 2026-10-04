@@ -52,6 +52,7 @@ Optional<NavigationLoader::ResponseDocument> NavigationLoader::response_document
             .request_current_url = {},
             .origin = origin,
             .opener_policy = {},
+            .final_sandboxing_flag_set = {},
             .environment_id = {},
             .document_id = {},
         };
@@ -79,6 +80,7 @@ Optional<NavigationLoader::ResponseDocument> NavigationLoader::response_document
             : Optional<URL::URL> {},
         .origin = fetched_navigation_params.origin,
         .opener_policy = fetched_navigation_params.opener_policy,
+        .final_sandboxing_flag_set = fetched_navigation_params.final_sandboxing_flag_set,
         .environment_id = {},
         .document_id = {},
     };

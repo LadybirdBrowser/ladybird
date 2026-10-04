@@ -77,6 +77,10 @@ void ApplyHistoryStep::apply_the_history_step()
         //    if initiatorToCheck is not allowed by sandboxing to navigate navigable given sourceSnapshotParams, then
         //    return "initiator-disallowed".
         auto const* initiator = find_navigable(*m_initiator_to_check);
+        // NB: sourceSnapshotParams's sandboxing flags are its source document's, which the UI process holds too.
+        auto source_snapshot_params = *m_initiator_source_snapshot;
+        if (initiator)
+            source_snapshot_params.sandboxing_flags |= initiator->active_document().active_sandboxing_flag_set();
         for (auto navigable_id : m_session_history.get_all_navigables_whose_current_session_history_entry_will_change_or_reload(m_traversable_navigable, m_target_step)) {
             auto const* navigable = find_navigable(navigable_id);
             if (!navigable)
@@ -85,8 +89,8 @@ void ApplyHistoryStep::apply_the_history_step()
             // NB: A removed initiator is no longer related to any navigable in the canonical tree. Apply the sandboxed
             //     navigation flag instead of treating the missing relationship as permission.
             auto allowed = initiator
-                ? initiator->allowed_by_sandboxing_to_navigate(*navigable, *m_initiator_source_snapshot)
-                : !has_flag(m_initiator_source_snapshot->sandboxing_flags, Web::HTML::SandboxingFlagSet::SandboxedNavigation);
+                ? initiator->allowed_by_sandboxing_to_navigate(*navigable, source_snapshot_params)
+                : !has_flag(source_snapshot_params.sandboxing_flags, Web::HTML::SandboxingFlagSet::SandboxedNavigation);
             if (!allowed) {
                 return_result(Web::HTML::HistoryStepResult::InitiatorDisallowed);
                 return;
