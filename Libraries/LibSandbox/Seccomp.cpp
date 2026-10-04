@@ -1517,8 +1517,14 @@ void SeccompPolicy::allow_ipc()
     append(SECCOMP_LOAD_SYSCALL_NR);
 #endif
 #ifdef __NR_socketpair
+    // The kernel creates both sockets in the requested domain before it asks the domain whether it can pair them,
+    // loading the protocol's module if need be. Every other domain refuses to pair, so the domain is all that a
+    // request outside AF_UNIX would reach, and it can be a rarely used one.
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_socketpair, 0, 9));
+    append(SECCOMP_LOAD_ARGUMENT(0));
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, AF_UNIX, 1, 0));
+    append(SECCOMP_ERRNO(EAFNOSUPPORT));
     // A datagram socketpair can send to arbitrary UNIX socket addresses without connect().
-    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_socketpair, 0, 6));
     append(SECCOMP_LOAD_ARGUMENT(1));
     append(BPF_STMT(BPF_ALU | BPF_AND | BPF_K, static_cast<u32>(~(SOCK_CLOEXEC | SOCK_NONBLOCK))));
     append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, SOCK_STREAM, 2, 0));

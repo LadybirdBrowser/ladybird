@@ -527,6 +527,26 @@ TEST_CASE(ipc_policy_refuses_datagram_socketpairs)
         EXPECT_EQ(WEXITSTATUS(status), 0);
 }
 
+TEST_CASE(ipc_policy_refuses_socketpairs_outside_the_unix_domain)
+{
+    // Unfiltered, each of these fails with another error, after the kernel has gone into the domain.
+    auto status = run_with_policy(
+        [](Sandbox::SeccompPolicy& policy) { policy.allow_ipc(); },
+        [] {
+            for (auto domain : Array<int, 4> { AF_INET, AF_INET6, AF_NETLINK, AF_PACKET }) {
+                for (auto type : Array<int, 2> { SOCK_STREAM, SOCK_SEQPACKET }) {
+                    int fds[2];
+                    VERIFY(socketpair(domain, type, 0, fds) == -1);
+                    VERIFY(errno == EAFNOSUPPORT);
+                }
+            }
+        });
+
+    EXPECT(WIFEXITED(status));
+    if (WIFEXITED(status))
+        EXPECT_EQ(WEXITSTATUS(status), 0);
+}
+
 TEST_CASE(ipc_policy_refuses_addressed_datagrams)
 {
     char directory_template[] = "/tmp/ladybird-datagram-XXXXXX";
