@@ -1,0 +1,84 @@
+Node:
+  toString: function Node() { [native code] }
+  name=Node length=0
+  own keys: length,name,prototype,ELEMENT_NODE
+  length: writable=false enumerable=false configurable=true
+  name: writable=false enumerable=false configurable=true
+  prototype: writable=false enumerable=false configurable=false
+  internal class name: TypeError: [object Node] is not iterable
+  call: TypeError: Node constructor must be called with 'new'
+  construct: TypeError: Node is not a constructor
+HTMLElement:
+  toString: function HTMLElement() { [native code] }
+  name=HTMLElement length=0
+  own keys: length,name,prototype
+  length: writable=false enumerable=false configurable=true
+  name: writable=false enumerable=false configurable=true
+  prototype: writable=false enumerable=false configurable=false
+  internal class name: TypeError: [object HTMLElement] is not iterable
+  call: TypeError: HTMLElement constructor must be called with 'new'
+  construct: TypeError: Cannot directly construct an HTML element, it must be inherited
+DOMException:
+  toString: function DOMException() { [native code] }
+  name=DOMException length=0
+  own keys: length,name,prototype,INDEX_SIZE_ERR
+  length: writable=false enumerable=false configurable=true
+  name: writable=false enumerable=false configurable=true
+  prototype: writable=false enumerable=false configurable=false
+  internal class name: TypeError: [object DOMException] is not iterable
+  call: TypeError: DOMException constructor must be called with 'new'
+  construct: no exception
+NodeFilter:
+  toString: function NodeFilter() { [native code] }
+  name=NodeFilter length=0
+  own keys: length,name,FILTER_ACCEPT,FILTER_REJECT
+  length: writable=false enumerable=false configurable=true
+  name: writable=false enumerable=false configurable=true
+  internal class name: TypeError: [object NodeFilter] is not iterable
+  call: TypeError: NodeFilter constructor must be called with 'new'
+  construct: TypeError: NodeFilter is not a constructor
+Image:
+  toString: function () { [native code] }
+  name=Image length=0
+  own keys: length,name,prototype
+  length: writable=false enumerable=false configurable=true
+  name: writable=false enumerable=false configurable=true
+  prototype: writable=false enumerable=false configurable=false
+  internal class name: TypeError: [object Image] is not iterable
+  call: TypeError: Image constructor must be called with 'new'
+  construct: no exception
+Audio:
+  toString: function () { [native code] }
+  name=Audio length=0
+  own keys: length,name,prototype
+  length: writable=false enumerable=false configurable=true
+  name: writable=false enumerable=false configurable=true
+  prototype: writable=false enumerable=false configurable=false
+  internal class name: TypeError: [object Audio] is not iterable
+  call: TypeError: Audio constructor must be called with 'new'
+  construct: no exception
+Option:
+  toString: function () { [native code] }
+  name=Option length=0
+  own keys: length,name,prototype
+  length: writable=false enumerable=false configurable=true
+  name: writable=false enumerable=false configurable=true
+  prototype: writable=false enumerable=false configurable=false
+  internal class name: TypeError: [object Option] is not iterable
+  call: TypeError: Option constructor must be called with 'new'
+  construct: no exception
+Prototype chains:
+Node: true
+HTMLElement: true
+EventTarget: true
+Image: true
+Legacy factory function prototypes:
+Image.prototype: true
+Audio.prototype: true
+Option.prototype: true
+HTMLImageElement.prototype.constructor: true
+new Image() instanceof HTMLImageElement: true
+Stack frames:
+new Event(): Error <- toString <- Event <- stackFrameNames
+new Option(): Error <- toString <- <unknown> <- stackFrameNames
+new Image(): Error <- valueOf <- <unknown> <- stackFrameNames

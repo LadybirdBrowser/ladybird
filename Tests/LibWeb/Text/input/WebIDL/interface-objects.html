@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    function errorMessage(callback) {
+        try {
+            callback();
+            return "no exception";
+        } catch (error) {
+            return `${error.name}: ${error.message}`;
+        }
+    }
+
+    function stackFrameNames(callback) {
+        try {
+            callback();
+            return "no exception";
+        } catch (error) {
+            return error.stack
+                .split("\n")
+                .map(line => line.trim())
+                .filter(line => line.startsWith("at "))
+                .map(line => line.slice(3).replace(/ \(.*\)$/, ""))
+                .filter(name => !name.startsWith("file:"))
+                .join(" <- ");
+        }
+    }
+
+    function attributes(object, key) {
+        const descriptor = Object.getOwnPropertyDescriptor(object, key);
+        return `writable=${descriptor.writable} enumerable=${descriptor.enumerable} configurable=${descriptor.configurable}`;
+    }
+
+    test(() => {
+        const interfaceObjects = [
+            ["Node", Node],
+            ["HTMLElement", HTMLElement],
+            ["DOMException", DOMException],
+            ["NodeFilter", NodeFilter],
+            ["Image", Image],
+            ["Audio", Audio],
+            ["Option", Option],
+        ];
+
+        for (const [name, interfaceObject] of interfaceObjects) {
+            println(`${name}:`);
+            println(`  toString: ${Function.prototype.toString.call(interfaceObject)}`);
+            println(`  name=${interfaceObject.name} length=${interfaceObject.length}`);
+            println(`  own keys: ${Object.getOwnPropertyNames(interfaceObject).slice(0, 4).join(",")}`);
+            println(`  length: ${attributes(interfaceObject, "length")}`);
+            println(`  name: ${attributes(interfaceObject, "name")}`);
+            if (Object.hasOwn(interfaceObject, "prototype"))
+                println(`  prototype: ${attributes(interfaceObject, "prototype")}`);
+            println(`  internal class name: ${errorMessage(() => { for (const _ of interfaceObject) {} })}`);
+            println(`  call: ${errorMessage(() => interfaceObject())}`);
+            println(`  construct: ${errorMessage(() => new interfaceObject())}`);
+        }
+
+        println("Prototype chains:");
+        println(`Node: ${Object.getPrototypeOf(Node) === EventTarget}`);
+        println(`HTMLElement: ${Object.getPrototypeOf(HTMLElement) === Element}`);
+        println(`EventTarget: ${Object.getPrototypeOf(EventTarget) === Function.prototype}`);
+        println(`Image: ${Object.getPrototypeOf(Image) === Function.prototype}`);
+
+        println("Legacy factory function prototypes:");
+        println(`Image.prototype: ${Image.prototype === HTMLImageElement.prototype}`);
+        println(`Audio.prototype: ${Audio.prototype === HTMLAudioElement.prototype}`);
+        println(`Option.prototype: ${Option.prototype === HTMLOptionElement.prototype}`);
+        println(`HTMLImageElement.prototype.constructor: ${HTMLImageElement.prototype.constructor === HTMLImageElement}`);
+        println(`new Image() instanceof HTMLImageElement: ${new Image() instanceof HTMLImageElement}`);
+
+        println("Stack frames:");
+        println(`new Event(): ${stackFrameNames(() => new Event({ toString() { throw new Error("from Event"); } }))}`);
+        println(`new Option(): ${stackFrameNames(() => new Option({ toString() { throw new Error("from Option"); } }))}`);
+        println(`new Image(): ${stackFrameNames(() => new Image({ valueOf() { throw new Error("from Image"); } }))}`);
+    });
+</script>

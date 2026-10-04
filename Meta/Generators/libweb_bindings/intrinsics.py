@@ -178,6 +178,10 @@ def interface_prototype_host_class(interface: Interface) -> str:
     return f'JS::make_host_class(JS_HOST_CLASS_OBJECT, "{interface.name}"sv, nullptr, nullptr, &metadata, {flags})'
 
 
+def interface_constructor_host_class(name: str, metadata_variable: str) -> str:
+    return f'JS::make_host_class(JS_HOST_CLASS_FUNCTION, "{name}"sv, nullptr, &interface_constructor_hooks, &{metadata_variable}, JS_HOST_CLASS_HAS_CONSTRUCTOR)'
+
+
 def lookup_legacy_constructor(interface: Interface) -> Optional[LegacyConstructor]:
     legacy_factory_function = interface.extended_attributes.get("LegacyFactoryFunction")
     if not legacy_factory_function:
@@ -441,13 +445,13 @@ def write_interface_creation(out: TextIO, interface: Interface) -> None:
 WEB_API void Intrinsics::create_web_prototype_and_constructor<{interface.prototype_class}>(JS::Realm& realm)
 {{
     static constexpr InterfaceObjectMetadata metadata {{
-        .name = "{interface.name}"sv,
         .namespaced_name = "{interface.namespaced_name}"sv,
         .utf16_name = "{interface.name}"sv,
         .utf16_namespaced_name = "{interface.namespaced_name}"sv,
         .initialize_constructor = &{interface.constructor_class}::initialize,
         .initialize_prototype = &{interface.prototype_class}::initialize,
         .prototype_host_class = {interface_prototype_host_class(interface)},
+        .constructor_host_class = {interface_constructor_host_class(interface.name, "metadata")},
     }};
     create_web_prototype_and_constructor(realm, metadata);
 }}
@@ -462,21 +466,16 @@ WEB_API void Intrinsics::create_web_prototype_and_constructor<{interface.prototy
 """
     )
 
-    ensure_parent_constructor = "nullptr"
-    if interface.parent_name:
-        ensure_parent_constructor = f"""[](JS::Realm& realm) -> JS::NativeFunction& {{ return Web::Bindings::ensure_web_constructor<{interface.parent_name}Prototype>(realm, "{interface.parent_name}"_utf16_fly_string); }}"""
-
     out.write(
         f"""    static constexpr InterfaceObjectMetadata metadata {{
-        .name = "{interface.name}"sv,
         .namespaced_name = "{interface.namespaced_name}"sv,
         .utf16_name = "{interface.name}"sv,
         .utf16_namespaced_name = "{interface.namespaced_name}"sv,
-        .ensure_parent_constructor = {ensure_parent_constructor},
         .initialize_constructor = &{interface.constructor_class}::initialize,
         .initialize_prototype = &{interface.prototype_class}::initialize,
         .construct = &{interface.constructor_class}::construct,
         .prototype_host_class = {interface_prototype_host_class(interface)},
+        .constructor_host_class = {interface_constructor_host_class(interface.name, "metadata")},
     }};
 """
     )
@@ -498,14 +497,13 @@ WEB_API void Intrinsics::create_web_prototype_and_constructor<{interface.prototy
             f"""
     // https://webidl.spec.whatwg.org/#legacy-factory-functions
     static constexpr InterfaceObjectMetadata legacy_factory_function_metadata {{
-        .name = "{legacy_constructor.name}"sv,
         .namespaced_name = "{legacy_constructor.name}"sv,
         .utf16_name = "{legacy_constructor.name}"sv,
         .utf16_namespaced_name = "{legacy_constructor.name}"sv,
         .ensure_interface_prototype_object = [](JS::Realm& realm) -> JS::Object& {{ return Web::Bindings::ensure_web_prototype<{interface.prototype_class}>(realm, "{interface.namespaced_name}"_utf16_fly_string); }},
         .construct = &{legacy_constructor.constructor_class}::construct,
         .function_length = {legacy_constructor.length},
-        .is_legacy_factory_function = true,
+        .constructor_host_class = {interface_constructor_host_class(legacy_constructor.name, "legacy_factory_function_metadata")},
     }};
     create_legacy_factory_function(realm, legacy_factory_function_metadata);
 """

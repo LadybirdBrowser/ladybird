@@ -20,7 +20,7 @@ namespace Web::Bindings {
 
 // https://html.spec.whatwg.org/multipage/embedded-content.html#dom-image
 // https://webidl.spec.whatwg.org/#legacy-factory-functions
-JS::ThrowCompletionOr<GC::Ref<JS::Object>> ImageConstructor::construct(InterfaceConstructor& constructor, JS::FunctionObject& new_target)
+JS::ThrowCompletionOr<GC::Ref<JS::Object>> ImageConstructor::construct(JS::HostFunction& constructor, JS::FunctionObject& new_target)
 {
     auto& vm = constructor.vm();
     auto& realm = *constructor.realm();
