@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    #box { width: 50px; height: 10px; transition: width 1s linear; }
+    #probe { width: 50px; height: 10px; }
+</style>
+<div id="box"></div>
+<div id="probe"></div>
+<script>
+    // A document that declares a transition: the style update of the rendering update that changes the width starts
+    // one transition, from the width the element had before the update. The resize observation of #probe shows whether
+    // the update delivered it before the next task, which it does not where the update flew.
+    asyncTest(async done => {
+        let runs = 0;
+        box.addEventListener("transitionrun", () => ++runs);
+        const observed = [];
+        const observer = new ResizeObserver(entries => {
+            for (const entry of entries)
+                observed.push(entry.contentRect.width);
+        });
+        observer.observe(probe);
+        const result = await whileRecordingInFlight(() => {
+            observed.length = 0;
+            box.style.width = "150px";
+            probe.style.width = "60px";
+        }, state => {
+            const observedBefore = observed.join(", ") || "nothing";
+            const transitions = box.getAnimations();
+            for (const transition of transitions) {
+                transition.pause();
+                transition.currentTime = 0;
+            }
+            return { state, observed: observedBefore, transitions: transitions.length, width: getComputedStyle(box).width };
+        });
+        println(`state in the next task: ${result.state}`);
+        println(`resize observed before the next task: ${result.observed}`);
+        println(`transitions read beside the frame: ${result.transitions}`);
+        println(`width at the start of the transition: ${result.width}`);
+        await twoFrames();
+        println(`transitionrun events: ${runs}`);
+        println(`transitions: ${box.getAnimations().map(transition => transition.transitionProperty).join(", ")}`);
+        println(`width once taken in: ${getComputedStyle(box).width}`);
+        observer.disconnect();
+        done();
+    });
+</script>

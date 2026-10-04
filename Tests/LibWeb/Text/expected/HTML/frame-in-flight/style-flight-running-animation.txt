@@ -1,0 +1,6 @@
+state in the next task: in-flight
+resize observed before the next task: 60
+resize observed: 60
+animated width: 150px
+animated box width: 150
+probe box width: 60
