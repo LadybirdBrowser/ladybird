@@ -1443,8 +1443,13 @@ impl LayoutNodeArena {
                 })
             } else if let Some(&natural_size) = self.owned_image_natural_sizes.get_mut().get(&node) {
                 crate::css::style::ReplacedContentInput::NaturalSize(natural_size)
+            } else if let Some(input) = self.replaced_content_input(node) {
+                input
             } else {
-                self.replaced_content_input(node)
+                // A row outlives the element it was built for until the host frees it: the rows of a removed
+                // subtree, and those of the tree a build replaced, which the layout that follows the build still
+                // syncs. Such a row keeps the facts it has.
+                continue;
             };
             let facts = super::node_facts::derived_replaced_content_facts(self.data(node), input);
             // Changed facts invalidate cached formatting-context runs regardless of which channel
@@ -2758,12 +2763,14 @@ impl LayoutNodeArena {
     }
 
     /// What the element a row is built for gives the natural size of its replaced content, as the
-    /// style mirror publishes it.
-    pub(crate) fn replaced_content_input(&self, id: NodeSlotId) -> crate::css::style::ReplacedContentInput {
-        self.dom_node_style_node(id)
-            .map_or_else(Default::default, |style_node| {
-                self.with_style_store(|engine| engine.element_replaced_content_input(style_node))
-            })
+    /// style mirror publishes it, and nothing for an anonymous row, which stands for no element. A
+    /// row that outlived its element has no answer.
+    pub(crate) fn replaced_content_input(&self, id: NodeSlotId) -> Option<crate::css::style::ReplacedContentInput> {
+        if super::node_facts::has_flag(self.data(id), NodeFlag::Anonymous) {
+            return Some(crate::css::style::ReplacedContentInput::None);
+        }
+        let style_node = self.node_style_node(id)?;
+        Some(self.with_style_store(|engine| engine.element_replaced_content_input(style_node)))
     }
 
     /// Which principal box the element asks for, as the style mirror publishes it.
