@@ -11,6 +11,7 @@ use ak::{Utf16FlyString, Utf16String};
 use libjs_runtime_macros::Trace;
 
 use crate::bytecode::executable::Executable;
+use crate::frontend_host::rust_free_compiled_regex;
 use crate::gc::class::{GcCell, define_cell};
 use crate::gc::gc_ref_cell::GcRefCell;
 use crate::gc::visitor::{Trace, Visitor};
@@ -23,6 +24,7 @@ use crate::runtime::property_key::PropertyKey;
 use crate::source_code::SourceCode;
 pub use libjs_rust::ast::FunctionKind;
 use libjs_rust::ast::FunctionPayload;
+use libjs_rust::bytecode::executable::ExecutableData;
 use libjs_rust::bytecode::generator::{FunctionSfdMetadata, PendingSharedFunctionData, PrecompiledFunction};
 use libjs_rust::compile::FunctionPrecompileMode;
 use libjs_rust::compile::SharedFunctionDescription;
@@ -98,6 +100,31 @@ pub struct SharedFunctionInstanceDataStorage {
     #[gc(untraced)]
     precompiled_bytecode_executable: RefCell<Option<Box<PrecompiledFunction>>>,
     use_rust_compilation: bool,
+}
+
+impl Drop for SharedFunctionInstanceDataStorage {
+    fn drop(&mut self) {
+        if let Some(precompiled) = self.precompiled_bytecode_executable.get_mut().take() {
+            discard_precompiled_function(precompiled);
+        }
+    }
+}
+
+/// Frees bytecode that the frontend compiled ahead of a call that never came, along with the regular expressions the
+/// host compiled for it and for the functions nested in it, which only an executable created from it frees otherwise.
+pub fn discard_precompiled_function(mut precompiled: Box<PrecompiledFunction>) {
+    fn free_compiled_regexes(executable: &mut ExecutableData) {
+        for regex in executable.compiled_regexes.drain(..) {
+            // SAFETY: No executable was created from this bytecode, so it still owns the regexes, which are freed once.
+            unsafe { rust_free_compiled_regex(regex.into_raw()) };
+        }
+        for nested in &mut executable.shared_function_data {
+            if let Some(nested_precompiled) = &mut nested.precompiled_function {
+                free_compiled_regexes(&mut nested_precompiled.executable);
+            }
+        }
+    }
+    free_compiled_regexes(&mut precompiled.executable);
 }
 
 define_cell!(SharedFunctionInstanceData, Other);
@@ -377,7 +404,32 @@ impl SharedFunctionInstanceData {
 
     pub fn clear_non_bytecode_cache_compile_inputs(&self) {
         drop(self.storage.rust_function_ast.take());
-        drop(self.storage.precompiled_bytecode_executable.take());
+        if let Some(precompiled) = self.storage.precompiled_bytecode_executable.take() {
+            discard_precompiled_function(precompiled);
+        }
+    }
+
+    /// Whether the function still has the AST it compiles from when it is first called.
+    pub fn has_function_ast(&self) -> bool {
+        self.storage.rust_function_ast.borrow().is_some()
+    }
+
+    /// The functions that `executable` creates and that have not been compiled yet, with a copy of the AST of each, so
+    /// that they can be compiled elsewhere, such as on another thread, while their own ASTs stay in place for a first
+    /// call that comes sooner, as C++ lazy_functions_to_compile() collects them.
+    pub fn uncompiled_functions_of(
+        executable: Gc<Executable>,
+    ) -> Vec<(Gc<SharedFunctionInstanceData>, Box<FunctionPayload>)> {
+        (0..executable.shared_function_data_count())
+            .filter_map(|index| {
+                let shared_data = executable.shared_function_data(u32::try_from(index).expect("the index fits in u32"));
+                if shared_data.executable().is_some() {
+                    return None;
+                }
+                let function_ast = shared_data.storage.rust_function_ast.borrow().clone()?;
+                Some((shared_data, function_ast))
+            })
+            .collect()
     }
 
     /// Records what scope analysis found out about the function's body, as rust_sfd_set_metadata does.

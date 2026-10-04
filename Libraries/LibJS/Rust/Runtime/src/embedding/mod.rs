@@ -43,6 +43,7 @@ pub mod promise;
 pub mod realm;
 pub mod regexp;
 pub mod script;
+pub mod source_code;
 pub mod string;
 pub mod symbol;
 pub mod typed_array;
