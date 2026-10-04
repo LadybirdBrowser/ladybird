@@ -569,7 +569,7 @@ void NodeWithStyle::set_style_record_identity(CSS::StyleRecordID style_record_id
         return;
     }
 
-    bool should_repin_style_record = RustFFI::render_state_node_style_record_pinned_by_host(document_host(), slot_id(this)) != 0;
+    bool should_repin_style_record = m_style_record_pinned_for_cxx_consumers;
     // Both answers come from the records themselves, so neither side needs a ComputedValues built
     // for it. An overlay record borrows different payloads than its base, so carrying one is already
     // reason enough to treat the style as layout-affecting.
@@ -602,12 +602,19 @@ void NodeWithStyle::set_style_record_identity(CSS::StyleRecordID style_record_id
 void NodeWithStyle::pin_style_record_for_cxx_consumers()
 {
     VERIFY(m_style_record_identity);
+    // A row holds one such pin, so pinning again keeps the record pinned first.
+    if (m_style_record_pinned_for_cxx_consumers)
+        return;
     RustFFI::render_state_pin_node_style_record_for_host(document_host(), slot_id(this), m_style_record_identity.value());
+    m_style_record_pinned_for_cxx_consumers = true;
 }
 
 void NodeWithStyle::release_pinned_style_record()
 {
+    if (!m_style_record_pinned_for_cxx_consumers)
+        return;
     RustFFI::render_state_release_node_style_record_pin_for_host(document_host(), slot_id(this));
+    m_style_record_pinned_for_cxx_consumers = false;
 }
 
 static Node const* scroll_snap_container_of(NodeWithStyle const& node)
