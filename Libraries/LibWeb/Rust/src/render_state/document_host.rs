@@ -19,6 +19,7 @@ use crate::css::style::flight_style_rows::FlightStyleRow;
 use crate::css::style::rule_writes::{PublishedRules, RuleWrite};
 use crate::css::style::style_job::StyleJobAnswer;
 use crate::css::style::tree::StyleNodeID;
+use crate::layout::node_data::NodeSlotId;
 use crate::layout::row_reads::{RowIdentities, RowSnapshot, RowStyles};
 use crate::layout::tree_update_marks::{LayoutTreeUpdateMarkWrite, LayoutTreeUpdateMarks};
 use crate::layout::{FlownRound, HostTables, RowsVersion, SealedRound};
@@ -844,6 +845,20 @@ impl DocumentHost {
             rows,
             &PaintSource::over_rows(&rows.paintable, &self.absolute_rects),
         ))
+    }
+
+    /// Answers `read` from the rows as of every write the host made, as [`Self::read_rows`] does, handing it the text
+    /// rows that do not carry the text they render as well, by slot index.
+    pub(crate) fn read_rows_with_rendered_text<R>(
+        &self,
+        wait: impl RenderWait,
+        read: impl FnOnce(&PaintSource<'_>, &[NodeSlotId]) -> R,
+    ) -> R {
+        let rows = self.rows_as_of_writes(wait, false);
+        read(
+            &PaintSource::over_rows(&rows.paintable, &self.absolute_rects),
+            rows.text_awaiting_render(),
+        )
     }
 
     /// The rows as of every write the host made: the ones the host has where it knows they still read as the arena,

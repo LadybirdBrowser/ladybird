@@ -4485,6 +4485,18 @@ impl LayoutNodeArena {
             .collect()
     }
 
+    /// The text rows that wait for their text to be rendered again, by slot index.
+    pub(super) fn text_rows_awaiting_sync(&self) -> Box<[NodeSlotId]> {
+        let mut rows: Box<[NodeSlotId]> = self
+            .text_nodes_enrolled_for_content_sync
+            .borrow()
+            .iter()
+            .copied()
+            .collect();
+        rows.sort_unstable_by_key(|row| row.index);
+        rows
+    }
+
     pub(super) fn text_content_needs_sync(&self, id: NodeSlotId) -> bool {
         self.text_nodes_enrolled_for_content_sync.borrow().contains(&id)
             || !self

@@ -39,6 +39,9 @@ pub(crate) struct RowSnapshot {
     version: RowsVersion,
     /// Whether every row's scrollable overflow was measured when the rows were published.
     overflow_is_measured: bool,
+    /// The text rows that waited for their text to be rendered again when the rows were published, by slot index:
+    /// every other text row carries the text it renders.
+    text_awaiting_render: Box<[NodeSlotId]>,
 }
 
 // The host reads a snapshot while the render state writes the arena it was published from: it holds no cell, no
@@ -73,6 +76,11 @@ impl RowSnapshot {
     /// Whether the rows answer what each row is, and the style record it has, as the arena's do at `version`.
     pub(crate) fn reads_styles_as(&self, version: RowsVersion) -> bool {
         self.version.has_styles_of(version)
+    }
+
+    /// The text rows that do not carry the text they render, by slot index, which a read of rendered text asks for.
+    pub(crate) fn text_awaiting_render(&self) -> &[NodeSlotId] {
+        &self.text_awaiting_render
     }
 
     /// Whether every row's scrollable overflow was measured when the rows were published, which a read of overflow
@@ -255,6 +263,7 @@ impl LayoutNodeArena {
             visual_context_tree: self.paint_state().borrow().visual_context.tree.clone(),
             version: self.rows_version(),
             overflow_is_measured: self.scrollable_overflow_is_measured(),
+            text_awaiting_render: self.text_rows_awaiting_sync(),
         }
     }
 }
