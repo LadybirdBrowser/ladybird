@@ -33,14 +33,14 @@ void CompositorContextHandle::stop_presenting_to_client()
     m_host.stop_presenting_to_client(m_context_id);
 }
 
-void CompositorContextHandle::submit_frame(CompositorFrame&& frame)
+void CompositorContextHandle::submit_frame(PresentationTurn turn, CompositorFrame&& frame)
 {
     frame.context_id = m_context_id;
     // Pending canvas commands (and present markers) must reach the Compositor
     // before a display list that samples the presented canvas surfaces.
     if (frame.display_list_update.has_value() || frame.present_viewport_rect.has_value())
         m_host.flush_canvas_2d_stream();
-    m_host.submit_frame(move(frame));
+    m_host.submit_frame(turn, move(frame));
 }
 
 void CompositorContextHandle::add_video_sink(Media::VideoSinkHandle video_sink_handle)

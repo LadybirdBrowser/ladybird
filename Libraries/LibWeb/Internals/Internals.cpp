@@ -65,6 +65,7 @@
 #include <LibWeb/HTML/AutoplaySettings.h>
 #include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
+#include <LibWeb/HTML/EventLoop/PresentationQueue.h>
 #include <LibWeb/HTML/EventLoop/TaskQueue.h>
 #include <LibWeb/HTML/FormAssociatedElement.h>
 #include <LibWeb/HTML/HTMLElement.h>
@@ -321,7 +322,7 @@ void Internals::send_mismatched_visual_context_tree_update_to_compositor()
         .visual_context_tree = document_paint_state.visual_context_tree(document),
         .resource_transaction = {},
     };
-    navigable->compositor_context().submit_frame(move(frame));
+    HTML::main_thread_event_loop().presentation_queue().submit(*navigable, move(frame));
 }
 
 // https://web-platform-tests.org/writing-tests/reftests.html#components-of-a-reftest
