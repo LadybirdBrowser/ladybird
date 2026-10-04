@@ -64,19 +64,16 @@ static ByteBuffer make_inline_u32_buffer(ReadonlySpan<u32> values)
 }
 
 template<typename ArrayType>
-static GC::Ref<ArrayType> create_out_of_bounds_array(JS::Realm& realm)
+static GC::Ref<ArrayType> create_out_of_bounds_array(JS::Realm& realm, JS::TypedArrayBase::Kind kind)
 {
     auto array_buffer = MUST(JS::ArrayBuffer::create(realm, 32));
     array_buffer->set_max_byte_length(32);
+
+    auto byte_length = 4 * JS::typed_array_element_size(kind);
+    auto typed_array = JS::TypedArrayBase::create_from_slots(realm, kind, array_buffer, JS::ByteLength { 4 }, JS::ByteLength { byte_length }, 16);
     MUST(array_buffer->try_resize(4));
 
-    auto typed_array = ArrayType::create(realm, 0, array_buffer);
-    typed_array->set_viewed_array_buffer(array_buffer.ptr());
-    typed_array->set_array_length(4);
-    typed_array->set_byte_length(4 * typed_array->element_size());
-    typed_array->set_byte_offset(16);
-
-    return typed_array;
+    return as<ArrayType>(*typed_array);
 }
 
 }
@@ -128,7 +125,7 @@ TEST_CASE(out_of_bounds_float32_list_without_offset_is_empty)
 {
     TestVM test_vm;
     auto& realm = *test_vm.vm->current_realm();
-    Web::WebGL::WebGLRenderingContextBase::Float32List list { create_out_of_bounds_array<JS::Float32Array>(realm) };
+    Web::WebGL::WebGLRenderingContextBase::Float32List list { create_out_of_bounds_array<JS::Float32Array>(realm, JS::TypedArrayBase::Kind::Float32Array) };
 
     auto span = MUST(WebGLRenderingContextBaseAccessor::span_from_float32_list(list, 0));
 
@@ -141,7 +138,7 @@ TEST_CASE(out_of_bounds_int32_list_without_offset_is_empty)
 {
     TestVM test_vm;
     auto& realm = *test_vm.vm->current_realm();
-    Web::WebGL::WebGLRenderingContextBase::Int32List list { create_out_of_bounds_array<JS::Int32Array>(realm) };
+    Web::WebGL::WebGLRenderingContextBase::Int32List list { create_out_of_bounds_array<JS::Int32Array>(realm, JS::TypedArrayBase::Kind::Int32Array) };
 
     auto span = MUST(WebGLRenderingContextBaseAccessor::span_from_int32_list(list, 0));
 
@@ -154,7 +151,7 @@ TEST_CASE(out_of_bounds_uint32_list_without_offset_is_empty)
 {
     TestVM test_vm;
     auto& realm = *test_vm.vm->current_realm();
-    Web::WebGL::WebGLRenderingContextBase::Uint32List list { create_out_of_bounds_array<JS::Uint32Array>(realm) };
+    Web::WebGL::WebGLRenderingContextBase::Uint32List list { create_out_of_bounds_array<JS::Uint32Array>(realm, JS::TypedArrayBase::Kind::Uint32Array) };
 
     auto span = MUST(WebGLRenderingContextBaseAccessor::span_from_uint32_list(list, 0));
 

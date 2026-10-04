@@ -46,34 +46,35 @@ ErrorOr<ByteBuffer> buffer_source_bytes(Web::WebIDL::BufferSource source, u64 sr
     return bytes;
 }
 
-GC::Ref<JS::ArrayBuffer> create_shrunken_resizable_array_buffer(JS::VM& vm)
+GC::Ref<JS::ArrayBuffer> create_resizable_array_buffer(JS::VM& vm)
 {
     auto& realm = *vm.current_realm();
     auto array_buffer = MUST(JS::ArrayBuffer::create(realm, 16));
     array_buffer->set_max_byte_length(16);
-    MUST(array_buffer->try_resize(4));
     return array_buffer;
+}
+
+void shrink_resizable_array_buffer(JS::ArrayBuffer& array_buffer)
+{
+    MUST(array_buffer.try_resize(4));
 }
 
 GC::Ref<JS::Uint8Array> create_out_of_bounds_uint8_array(JS::VM& vm)
 {
     auto& realm = *vm.current_realm();
-    auto array_buffer = create_shrunken_resizable_array_buffer(vm);
-    auto typed_array = JS::Uint8Array::create(realm, 0, array_buffer);
+    auto array_buffer = create_resizable_array_buffer(vm);
+    auto typed_array = JS::TypedArrayBase::create_from_slots(realm, JS::TypedArrayBase::Kind::Uint8Array, array_buffer, JS::ByteLength { 4 }, JS::ByteLength { 4 }, 8);
+    shrink_resizable_array_buffer(array_buffer);
 
-    typed_array->set_viewed_array_buffer(array_buffer.ptr());
-    typed_array->set_array_length(4);
-    typed_array->set_byte_length(4);
-    typed_array->set_byte_offset(8);
-
-    return typed_array;
+    return as<JS::Uint8Array>(*typed_array);
 }
 
 GC::Ref<JS::DataView> create_out_of_bounds_data_view(JS::VM& vm)
 {
     auto& realm = *vm.current_realm();
-    auto array_buffer = create_shrunken_resizable_array_buffer(vm);
+    auto array_buffer = create_resizable_array_buffer(vm);
     auto data_view = JS::DataView::create(realm, array_buffer.ptr(), JS::ByteLength { 4 }, 8);
+    shrink_resizable_array_buffer(array_buffer);
 
     return data_view;
 }
@@ -81,14 +82,9 @@ GC::Ref<JS::DataView> create_out_of_bounds_data_view(JS::VM& vm)
 GC::Ref<JS::Uint16Array> create_uint16_array_view(JS::VM& vm, GC::Ref<JS::ArrayBuffer> array_buffer, u32 byte_offset, u32 element_length)
 {
     auto& realm = *vm.current_realm();
-    auto typed_array = JS::Uint16Array::create(realm, 0, array_buffer);
+    auto typed_array = JS::TypedArrayBase::create_from_slots(realm, JS::TypedArrayBase::Kind::Uint16Array, array_buffer, JS::ByteLength { element_length }, JS::ByteLength { static_cast<u32>(element_length * sizeof(u16)) }, byte_offset);
 
-    typed_array->set_viewed_array_buffer(array_buffer.ptr());
-    typed_array->set_array_length(element_length);
-    typed_array->set_byte_length(element_length * sizeof(u16));
-    typed_array->set_byte_offset(byte_offset);
-
-    return typed_array;
+    return as<JS::Uint16Array>(*typed_array);
 }
 
 Web::WebIDL::ArrayBufferView typed_array_view(JS::VM& vm)
