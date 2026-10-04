@@ -94,16 +94,16 @@ public:
     // for a navigation goes with the navigation until a history job claims it to activate it; one a history job
     // populated or claimed goes when the job's operation finishes. A newer navigation can populate its own document
     // while a claimed one waits to be activated.
-    RefPtr<CanonicalDocumentState> populating_document_state() const;
     RefPtr<CanonicalDocument> pending_document() const;
     RefPtr<CanonicalDocument> document_populated_for(CanonicalDocumentState const&) const;
+    PopulatedDocument const* populated_document_with_state_id(Web::HTML::CrossProcessId) const;
     RefPtr<CanonicalDocument> document_with_id(Web::HTML::CrossProcessId) const;
     void populate_document(NonnullRefPtr<CanonicalDocumentState>, NonnullRefPtr<CanonicalDocument>, Optional<URL::Origin> inline_content_origin = {});
     void populate_document_for_ongoing_navigation(NonnullRefPtr<CanonicalDocumentState>, NonnullRefPtr<CanonicalDocument>, Optional<URL::Origin> inline_content_origin = {});
     // Returns false, populating nothing, for a document that would hold access the active document lacks.
     bool populate_document_for_javascript_url(NonnullRefPtr<CanonicalDocumentState>, NonnullRefPtr<CanonicalDocument>);
     void did_create_populated_document_with_an_origin_of_its_own(WebContentPage const& host, Web::HTML::CrossProcessId document_id, Web::HTML::PopulatedDocumentOrigin, Web::HTML::EnvironmentId const& environment_id);
-    Optional<CanonicalNavigation> take_navigation_to_finalize(Optional<Utf16String> const& navigation_id, u64 operation_sequence_number);
+    Optional<CanonicalNavigation> take_navigation_to_finalize(Utf16String const& navigation_id, WebContentPage const&);
     void abandon_populated_document(CanonicalDocument const&);
     void place_pending_document(WebContentPage&);
 
@@ -236,9 +236,8 @@ public:
     void set_navigation_host(WebContentPage&);
     bool navigation_host_matches(WebContentPage const&) const;
     bool navigation_owner_matches(WebContentPage const&) const;
-    bool navigation_transaction_matches(Utf16String const&, WebContentPage const&) const;
     bool cancel_navigation_transaction_for_client(WebContentClient&);
-    void did_finish_navigation_transaction(Optional<Utf16String> const&, Web::HTML::HistoryStepResult);
+    void did_finish_finalizing_navigation(Utf16String const& navigation_id, Web::HTML::CrossProcessId document_state_id, Web::HTML::HistoryStepResult);
     bool has_uncommitted_navigation() const { return ongoing_navigation(); }
     bool matches_ongoing_navigation(Optional<Utf16String> const& navigation_id) const;
 

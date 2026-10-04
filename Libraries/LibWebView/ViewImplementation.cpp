@@ -2489,6 +2489,8 @@ void ViewImplementation::did_start_navigation(Optional<Utf16String> const& navig
 bool ViewImplementation::did_cancel_navigation(Optional<Utf16String> const& navigation_id)
 {
     auto const* ongoing = traversable().ongoing_navigation();
+    if (!ongoing)
+        ongoing = traversable().navigation_being_finalized();
     auto stale = ongoing
         ? navigation_id != ongoing->navigation_id
         : navigation_id != traversable().active_document_load().navigation_id;

@@ -270,14 +270,11 @@ TEST_CASE(document_claimed_by_a_history_job_outlives_a_newer_navigation)
     auto make_document = [] { return WebView::CanonicalBrowsingContext::create_a_new_top_level_browsing_context_and_document({}).document; };
     traversable.set_active_session_history_entry(WebView::CanonicalSessionHistoryEntry::create(WebView::CanonicalDocumentState::create({}, make_document())));
 
-    // The history operation finalizing a navigation takes it, with the document populated for it.
+    // The history operation finalizing a navigation took it, and holds the document populated for it as a history job's.
     auto claimed_navigation_id = Utf16String::from_utf8("claimed"sv);
     auto claimed_document_state = WebView::CanonicalDocumentState::create({});
     auto claimed_document = make_document();
-    traversable.set_ongoing_navigation(WebView::CanonicalNavigation { .navigation_id = claimed_navigation_id });
-    traversable.populate_document_for_ongoing_navigation(claimed_document_state, claimed_document);
-    EXPECT(traversable.take_navigation_to_finalize(claimed_navigation_id, 1).has_value());
-    EXPECT(!traversable.ongoing_navigation());
+    traversable.populate_document(claimed_document_state, claimed_document);
 
     // A newer navigation starts before the claimed document is activated, and populates its own.
     traversable.set_ongoing_navigation(WebView::CanonicalNavigation { .navigation_id = Utf16String::from_utf8("newer"sv) });

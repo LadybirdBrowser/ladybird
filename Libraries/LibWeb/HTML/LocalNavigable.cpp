@@ -972,7 +972,7 @@ void LocalNavigable::continue_navigation_at_population(NavigationPopulationReque
             if (output)
                 output->apply_to(*history_entry);
             auto pending_document = output ? output->document : GC::Ptr<DOM::Document> {};
-            finalize_a_cross_document_navigation(navigable, to_history_handling_behavior(history_handling), user_involvement, history_entry, pending_document, navigation_id, GC::create_function(navigable->heap(), [](HistoryStepResult) { }));
+            finalize_a_cross_document_navigation(navigable, to_history_handling_behavior(history_handling), user_involvement, history_entry, pending_document, navigation_id, navigation_id, GC::create_function(navigable->heap(), [](HistoryStepResult) { }));
         }));
 }
 
@@ -3763,8 +3763,8 @@ void LocalNavigable::begin_navigation(PreparedNavigation navigation)
 
     // 20. If url's scheme is "javascript", then:
     if (url.scheme() == "javascript"sv) {
-        if (is_top_level_traversable())
-            active_browsing_context()->page().client().request_navigation_start(*this, NavigationTarget::TopLevel, url, navigation_id, {});
+        auto target = is_top_level_traversable() ? NavigationTarget::TopLevel : NavigationTarget::IFrame;
+        active_browsing_context()->page().client().request_navigation_start(*this, target, url, navigation_id, {});
 
         // 1. Let request be a new request, with
         //    URL: url
@@ -4192,8 +4192,7 @@ void LocalNavigable::navigate_to_a_javascript_url(GC::Ref<Fetch::Infrastructure:
     //         load-event delay and tell the UI that the admitted navigation produced no document.
     auto finish_loading_without_navigation = [&] {
         stop_delaying_load_events_for_navigation(navigation_id);
-        if (is_top_level_traversable())
-            active_browsing_context()->page().client().navigation_population_failed(id(), navigation_id);
+        active_browsing_context()->page().client().navigation_population_failed(id(), navigation_id);
     };
 
     // 1. Assert: historyHandling is "replace".
@@ -4295,7 +4294,9 @@ void LocalNavigable::navigate_to_a_javascript_url(GC::Ref<Fetch::Infrastructure:
     history_entry->set_document_state(document_state);
 
     // 13. Append session history traversal steps to targetNavigable's traversable to finalize a cross-document navigation with targetNavigable, historyHandling, userInvolvement, and historyEntry.
-    finalize_a_cross_document_navigation(*this, history_handling, user_involvement, history_entry, new_document, {}, GC::create_function(heap(), [](HistoryStepResult) { }));
+    // NB: The UI process finalizes the navigation it admitted by its ID, though targetNavigable's ongoing navigation is
+    //     null from step 3.
+    finalize_a_cross_document_navigation(*this, history_handling, user_involvement, history_entry, new_document, navigation_id, {}, GC::create_function(heap(), [](HistoryStepResult) { }));
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#reload
@@ -4659,13 +4660,13 @@ void check_if_unloading_is_canceled(Vector<GC::Root<LocalNavigable>> navigables_
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#finalize-a-cross-document-navigation
-void finalize_a_cross_document_navigation(GC::Ref<LocalNavigable> navigable, HistoryHandlingBehavior history_handling, UserNavigationInvolvement user_involvement, NonnullRefPtr<SessionHistoryEntry> history_entry, GC::Ptr<DOM::Document> pending_document, Optional<Utf16String> expected_ongoing_navigation_id, GC::Ref<OnApplyHistoryStepComplete> on_complete)
+void finalize_a_cross_document_navigation(GC::Ref<LocalNavigable> navigable, HistoryHandlingBehavior history_handling, UserNavigationInvolvement user_involvement, NonnullRefPtr<SessionHistoryEntry> history_entry, GC::Ptr<DOM::Document> pending_document, Utf16String navigation_id, Optional<Utf16String> expected_ongoing_navigation_id, GC::Ref<OnApplyHistoryStepComplete> on_complete)
 {
     navigable->page().history_executor().request_history_operation(
         FinalizeCrossDocumentNavigationHistoryOperationParameters {
             .navigable_id = navigable->id(),
             .history_entry = create_pending_session_history_entry_descriptor(*history_entry),
-            .navigation_id = expected_ongoing_navigation_id,
+            .navigation_id = move(navigation_id),
             .history_handling = history_handling,
             .user_involvement = user_involvement,
             .environment_id = pending_document ? Optional<Web::HTML::EnvironmentId> { pending_document->relevant_settings_object().id } : Optional<Web::HTML::EnvironmentId> {},

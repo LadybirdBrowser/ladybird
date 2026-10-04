@@ -52,6 +52,8 @@ public:
     RefPtr<WebContentPage> population_worker {};
     RefPtr<WebContentPage> host {};
     Optional<PopulatedDocument> populated_document {};
+
+    bool is_conducted_by(WebContentPage const&) const;
 };
 
 WEBVIEW_API Web::HTML::PreparedNavigationDescriptor prepare_navigation_to_retry(Web::HTML::PreparedNavigationDescriptor);
