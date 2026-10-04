@@ -59,20 +59,10 @@ void TaskQueue::add(GC::Ref<Task> task)
     m_event_loop->schedule();
 }
 
-GC::Ptr<Task> TaskQueue::dequeue()
+// A task that is runnable, and that no rendering update in flight holds back.
+bool TaskQueue::is_runnable_now(Task const& task) const
 {
-    auto take_task = [&](auto& tasks) -> GC::Ptr<Task> {
-        if (tasks.is_empty())
-            return {};
-        auto* task = tasks.take_first();
-        if (m_last_added_task.ptr() == task)
-            m_last_added_task = {};
-        return task;
-    };
-
-    if (auto task = take_task(m_tasks))
-        return task;
-    return take_task(m_idle_tasks);
+    return task.is_runnable() && !m_event_loop->holds_tasks_of(task.document());
 }
 
 GC::Ptr<Task> TaskQueue::take_first_runnable()
@@ -95,7 +85,7 @@ GC::Ptr<Task> TaskQueue::take_first_runnable()
         if (task.source() == Task::Source::Rendering && m_event_loop->holds_rendering_opportunity())
             return nullptr;
 
-        if (task.is_runnable()) {
+        if (is_runnable_now(task)) {
             if (m_last_added_task.ptr() == &task)
                 m_last_added_task = {};
             it.erase();
@@ -114,7 +104,7 @@ GC::Ptr<Task> TaskQueue::take_first_runnable()
     for (auto it = m_idle_tasks.begin(); it != m_idle_tasks.end();) {
         auto& task = *it;
 
-        if (task.is_runnable()) {
+        if (is_runnable_now(task)) {
             if (m_last_added_task.ptr() == &task)
                 m_last_added_task = {};
             it.erase();
@@ -142,12 +132,12 @@ bool TaskQueue::has_runnable_tasks() const
             continue;
         if (task.source() == Task::Source::Rendering && m_event_loop->holds_rendering_opportunity())
             return false;
-        if (task.is_runnable())
+        if (is_runnable_now(task))
             return true;
     }
 
     for (auto& task : m_idle_tasks) {
-        if (task.is_runnable())
+        if (is_runnable_now(task))
             return true;
     }
     return false;
@@ -166,51 +156,6 @@ void TaskQueue::remove_tasks_matching(Function<bool(HTML::Task const&)> filter)
     remove_matching_tasks(m_tasks);
     remove_matching_tasks(m_idle_tasks);
     run_discard_steps();
-}
-
-GC::Ptr<Task> TaskQueue::take_first_runnable_matching(Function<bool(HTML::Task const&)> filter)
-{
-    ScopeGuard run_discard_steps_guard { [&] { run_discard_steps(); } };
-
-    for (auto it = m_tasks.begin(); it != m_tasks.end();) {
-        auto& task = *it;
-
-        if (task.is_runnable() && filter(task)) {
-            if (m_last_added_task.ptr() == &task)
-                m_last_added_task = {};
-            it.erase();
-            return &task;
-        }
-
-        if (task.is_permanently_unrunnable()) {
-            ++it;
-            remove_without_running(m_tasks, task);
-            continue;
-        }
-
-        ++it;
-    }
-
-    for (auto it = m_idle_tasks.begin(); it != m_idle_tasks.end();) {
-        auto& task = *it;
-
-        if (task.is_runnable() && filter(task)) {
-            if (m_last_added_task.ptr() == &task)
-                m_last_added_task = {};
-            it.erase();
-            return &task;
-        }
-
-        if (task.is_permanently_unrunnable()) {
-            ++it;
-            remove_without_running(m_idle_tasks, task);
-            continue;
-        }
-
-        ++it;
-    }
-
-    return nullptr;
 }
 
 void TaskQueue::remove_without_running(Task::Queue& tasks, Task& task)
