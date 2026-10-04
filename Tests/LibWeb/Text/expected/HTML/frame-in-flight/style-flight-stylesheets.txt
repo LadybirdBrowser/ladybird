@@ -1,11 +1,11 @@
 insertion: state in the next task: in-flight
-insertion: state after inserting a sheet and a rule: landed
+insertion: state after inserting a sheet and a rule: in-flight
 insertion: read beside the frame: 120px rgb(0, 128, 0) rgba(0, 0, 0, 0) 15px
 replaceSync: state in the next task: in-flight
-replaceSync: state after adopting: landed
+replaceSync: state after adopting: in-flight
 replaceSync: after: 140px rgb(0, 128, 0) rgb(255, 255, 0) 15px
 removal: state in the next task: in-flight
-removal: state after disabling: landed
+removal: state after disabling: in-flight
 removal: state after removing a sheet: landed
 removal: after: 784px rgb(0, 0, 0) rgba(0, 0, 0, 0) 0px, 50
 restored: 140px rgb(0, 128, 0) rgb(255, 255, 0) 15px

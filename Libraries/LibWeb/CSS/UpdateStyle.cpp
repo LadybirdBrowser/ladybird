@@ -819,14 +819,14 @@ static void update_style(Layout::BegunRead const& read, DOM::Document& document,
         // transaction taken ahead of that would leave those inputs for the next flush, so the flush that made
         // a rule apply would not be the flush that recomputed the elements it applies to.
         if (document.needs_media_rule_evaluation())
-            document.evaluate_media_rules_for_style_update(read);
+            document.evaluate_media_rules_for_style_update();
 
         // The user-agent and user sheets have no author-sheet attachment event, so compare their
         // identities before deciding whether there is a transaction to take. Rendering opportunities
         // call update_style() even for quiescent documents, and animation ticks do not themselves
         // change selector or cascade inputs. Apply an animation-only update first, then take a
         // transaction only if the resulting inherited-style feedback requires one.
-        record_non_author_stylesheets(read, document);
+        record_non_author_stylesheets(document);
         timing_counters.style_update_submission_microseconds += (MonotonicTime::now() - submission_started_at).to_truncated_microseconds();
         if (document.has_completed_style_update()
             && !document.style_computer().style_engine().has_pending_transaction(read)) {
@@ -1073,8 +1073,8 @@ static bool let_style_update_fly(Layout::BegunRead const& read, DOM::Document& d
     document.update_style_computer_viewport_rect();
     style_computer.prepare_elements_for_style_computation();
     if (document.needs_media_rule_evaluation())
-        document.evaluate_media_rules_for_style_update(read);
-    record_non_author_stylesheets(read, document);
+        document.evaluate_media_rules_for_style_update();
+    record_non_author_stylesheets(document);
     if (!style_computer.style_engine().has_pending_transaction(read))
         return false;
     (void)document.style_scope().counter_style_environment_identity(read);
@@ -1251,7 +1251,7 @@ static bool update_style_for_element(Layout::BegunRead const& read, DOM::Documen
         // Media query evaluation can enqueue normal style invalidations, so do it before deciding what pending
         // invalidation work needs to run.
         if (document.needs_media_rule_evaluation())
-            document.evaluate_media_rules_for_style_update(read);
+            document.evaluate_media_rules_for_style_update();
 
         auto const can_run_regular_style_update = !document.is_running_update_layout()
             && (!document.has_completed_style_update()

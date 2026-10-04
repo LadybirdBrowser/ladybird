@@ -10,19 +10,18 @@ use crate::css::selector_operations::{
     absolutize_selector_list, adapt_scope_end_selector_list, scope_root_selector_list,
 };
 use crate::css::selector_parser::{RustParsedSelectorList, StyleNestingParent};
-use crate::css::style::bridge::{
-    BoundScopeChain, operations, publish_rule_declarations, publish_style_rule, publish_style_rule_selectors,
-    publish_user_agent_style_rule,
-};
-use crate::css::style::compiler::NamespaceScope;
-use crate::css::style::engine_calls::{sheet_writing_host, with_engine};
-use crate::render_state::{BegunRead, DocumentHost};
-use std::rc::Rc;
+use crate::css::style::bridge::{BoundScopeChain, declares_transitions};
+use crate::css::style::engine_calls::document_host;
+use crate::css::style::program::RuleKind;
+use crate::css::style::rule_writes::{BoundSelectors, CompiledRule, CompiledRuleKind, NamespaceTexts, RuleWrite};
+use crate::render_state::DocumentHost;
+use std::cell::RefCell;
+use std::sync::Arc;
 
 #[derive(Clone, Copy, Default)]
 #[repr(C)]
 pub struct NativeCompilationResult {
-    pub rule_id: u32,
+    pub published: bool,
     pub declares_transitions: bool,
 }
 
@@ -34,14 +33,8 @@ pub struct NativeStylePublication {
     /// The host of the document whose style engine the rules are published to.
     pub host: *const DocumentHost,
     pub sheet: u32,
-    pub before_rule: u32,
-}
-
-/// A publication the host makes in a read it began, which reaches the style engine in place.
-#[derive(Clone, Copy)]
-pub(super) struct Publication<'a> {
-    pub(super) to: NativeStylePublication,
-    pub(super) read: &'a BegunRead,
+    /// The native identity of the published rule the rules go before, or 0 for the end of the sheet.
+    pub before: u64,
 }
 
 // Binding belongs to this document-thread traversal, not to the shared rule graph.
@@ -49,8 +42,8 @@ pub(super) struct Publication<'a> {
 pub(super) struct SelectorInputs {
     parent_kind: StyleNestingParent,
     immediate_parent_kind: StyleNestingParent,
-    parents: Option<Rc<RustParsedSelectorList>>,
-    scope: BoundScopeChain,
+    parents: Option<Arc<RustParsedSelectorList>>,
+    scope: Arc<BoundScopeChain>,
 }
 
 impl Default for SelectorInputs {
@@ -59,7 +52,7 @@ impl Default for SelectorInputs {
             parent_kind: StyleNestingParent::None,
             immediate_parent_kind: StyleNestingParent::None,
             parents: None,
-            scope: BoundScopeChain::default(),
+            scope: Arc::default(),
         }
     }
 }
@@ -69,20 +62,20 @@ impl SelectorInputs {
         &self,
         source: &RustParsedSelectorList,
         parent_kind: StyleNestingParent,
-    ) -> Rc<RustParsedSelectorList> {
+    ) -> Arc<RustParsedSelectorList> {
         let empty: crate::css::selector::SelectorList = Box::new([]);
         let parents = if parent_kind == StyleNestingParent::Style {
             self.parents.as_ref().map_or(&empty, |parents| &parents.selectors)
         } else {
             &empty
         };
-        Rc::new(RustParsedSelectorList {
+        Arc::new(RustParsedSelectorList {
             selectors: absolutize_selector_list(&source.selectors, parent_kind, parents)
                 .unwrap_or_else(|| source.selectors.clone()),
         })
     }
 
-    pub(super) unsafe fn matching_selectors(&self, rule: RuleRef<'_>) -> Option<Rc<RustParsedSelectorList>> {
+    pub(super) unsafe fn matching_selectors(&self, rule: RuleRef<'_>) -> Option<Arc<RustParsedSelectorList>> {
         match rule.rule_type() {
             NativeRuleType::Style => Some(unsafe { self.bind(&rule.selectors().unwrap(), self.parent_kind) }),
             NativeRuleType::NestedDeclarations => {
@@ -90,7 +83,7 @@ impl SelectorInputs {
                     return Some(parents.clone());
                 }
                 assert_eq!(self.parent_kind, StyleNestingParent::Scope);
-                Some(Rc::new(RustParsedSelectorList {
+                Some(Arc::new(RustParsedSelectorList {
                     selectors: scope_root_selector_list(),
                 }))
             }
@@ -101,7 +94,7 @@ impl SelectorInputs {
     pub(super) unsafe fn within(
         &self,
         rule: RuleRef<'_>,
-        matching: Option<Rc<RustParsedSelectorList>>,
+        matching: Option<Arc<RustParsedSelectorList>>,
         implicit_root: u32,
     ) -> Self {
         let mut nested = self.clone();
@@ -124,7 +117,7 @@ impl SelectorInputs {
             let end = scope.end.as_ref().map(|end| RustParsedSelectorList {
                 selectors: adapt_scope_end_selector_list(&end.selectors),
             });
-            nested.scope.push(start.as_deref(), end.as_ref(), implicit_root);
+            Arc::make_mut(&mut nested.scope).push(start.as_deref(), end.as_ref(), implicit_root);
         }
         match rule.rule_type() {
             NativeRuleType::Scope => {
@@ -142,125 +135,167 @@ impl SelectorInputs {
     }
 }
 
-impl Publication<'_> {
-    /// The host of the document whose style engine the rules are published to, behind the drain of its style
-    /// transaction that flew.
-    ///
+/// The rules one compilation publishes to a sheet of a document's style engine, ahead of one rule, which it writes
+/// as one write as it ends. The host notes each rule it publishes as it compiles it.
+pub(super) struct Publisher<'a> {
+    host: &'a DocumentHost,
+    sheet: u32,
+    before: u64,
+    rules: RefCell<Vec<CompiledRule>>,
+    /// The native sheet the last rule came from, by identity, and the namespaces it declares.
+    namespaces: RefCell<Option<(u64, Option<Arc<NamespaceTexts>>)>>,
+}
+
+impl<'a> Publisher<'a> {
     /// # Safety
     ///
-    /// The publication's host must be a live document host, on its document's thread.
-    pub(super) unsafe fn host(&self) -> &DocumentHost {
-        // SAFETY: Guaranteed by the caller.
-        unsafe { sheet_writing_host(self.to.host, self.read) }
+    /// The publication's host must be a live document host, on its document's thread, which outlives the publisher.
+    pub(super) unsafe fn new(publication: &NativeStylePublication) -> Self {
+        Self {
+            // SAFETY: Guaranteed by the caller.
+            host: unsafe { document_host(publication.host) },
+            sheet: publication.sheet,
+            before: publication.before,
+            rules: RefCell::default(),
+            namespaces: RefCell::default(),
+        }
     }
 
-    pub(super) unsafe fn replace_selectors(
-        &self,
-        rule: RuleRef<'_>,
-        source: &NativeStyleSheet,
-        context: &CompilationContext,
-        selectors: &RustParsedSelectorList,
-    ) {
-        // SAFETY: Guaranteed by the caller.
-        with_engine(self.read, unsafe { self.host() }, |engine| {
-            let id = engine.native_rule_id(rule.identity()).map_or(0, |id| id.0 + 1);
-            let namespaces = NamespaceScope::from_rule_list(source.rules(), |text| {
-                crate::css::style::bridge::intern_native_text(engine, text)
-            });
-            let compiled: Vec<_> = selectors.selectors.iter().map(|selector| selector.as_ref()).collect();
-            publish_style_rule_selectors(engine, id, &compiled, namespaces, &context.selectors.scope);
+    pub(super) fn host(&self) -> &'a DocumentHost {
+        self.host
+    }
+
+    pub(super) fn sheet(&self) -> u32 {
+        self.sheet
+    }
+
+    /// A publisher of the same sheet, whose rules go before the rule `before` names.
+    pub(super) fn before(&self, before: u64) -> Self {
+        Self {
+            host: self.host,
+            sheet: self.sheet,
+            before,
+            rules: RefCell::default(),
+            namespaces: RefCell::default(),
+        }
+    }
+
+    /// Writes the rules the compilation published, as one write.
+    pub(super) fn finish(self) {
+        let rules = self.rules.into_inner();
+        if rules.is_empty() {
+            return;
+        }
+        self.host.write_rules(RuleWrite::PublishRules {
+            sheet: self.sheet,
+            before: self.before,
+            rules,
         });
     }
 
-    pub(super) unsafe fn compile(
+    /// The namespaces `source` declares, which the rules that come from it share.
+    fn namespaces_of(&self, source: &NativeStyleSheet) -> Option<Arc<NamespaceTexts>> {
+        let mut cached = self.namespaces.borrow_mut();
+        if let Some((identity, texts)) = &*cached
+            && *identity == source.identity()
+        {
+            return texts.clone();
+        }
+        let texts = NamespaceTexts::of(source);
+        *cached = Some((source.identity(), texts.clone()));
+        texts
+    }
+
+    /// Writes the selectors `selectors` for the published style rule `rule`, which keeps its place and declarations.
+    pub(super) fn replace_selectors(
         &self,
         rule: RuleRef<'_>,
         source: &NativeStyleSheet,
         context: &CompilationContext,
-        selectors: Option<&RustParsedSelectorList>,
+        selectors: Arc<RustParsedSelectorList>,
+    ) {
+        self.host.write_rules(RuleWrite::ReplaceSelectors {
+            identity: rule.identity(),
+            selectors: BoundSelectors {
+                selectors,
+                scope: context.selectors.scope.clone(),
+                namespaces: self.namespaces_of(source),
+            },
+        });
+    }
+
+    /// Compiles `rule`, of `source`, into the rules the compilation publishes, where it is a rule the engine has, and
+    /// answers whether it is one and whether it declares transitions.
+    pub(super) fn compile(
+        &self,
+        rule: RuleRef<'_>,
+        source: &NativeStyleSheet,
+        context: &CompilationContext,
+        selectors: Option<&Arc<RustParsedSelectorList>>,
     ) -> NativeCompilationResult {
-        // SAFETY: Guaranteed by the caller.
-        with_engine(self.read, unsafe { self.host() }, |engine| {
-            let mut result = NativeCompilationResult::default();
-            let sheet = self.to.sheet;
-            let before = self.to.before_rule;
-            // Reuse the engine's recorded publication operations so recording and replay see the
-            // same semantic inputs as incremental CSSOM edits.
-            result.rule_id = match rule.rule_type() {
-                NativeRuleType::Style | NativeRuleType::NestedDeclarations => {
-                    let selectors = selectors.unwrap();
-                    if selectors.selectors.is_empty() {
-                        return result;
-                    }
-                    let compiled: Vec<_> = selectors.selectors.iter().map(|selector| selector.as_ref()).collect();
-                    let scope = &context.selectors.scope;
-                    let id = publish_user_agent_style_rule(
-                        engine,
-                        sheet,
-                        before,
-                        rule.identity(),
-                        &compiled,
-                        source.rules(),
-                        scope,
-                    )
-                    .unwrap_or_else(|| {
-                        let namespaces = NamespaceScope::from_rule_list(source.rules(), |text| {
-                            crate::css::style::bridge::intern_native_text(engine, text)
-                        });
-                        publish_style_rule(engine, sheet, before, &compiled, namespaces, scope)
-                    });
-                    let declarations = rule.cascade_declarations().unwrap();
-                    result.declares_transitions = publish_rule_declarations(engine, id, &declarations);
-                    if context.gated_by_container_query {
-                        operations::set_rule_gated_by_container_query(engine, id);
-                    }
-                    id
+        let kind = match rule.rule_type() {
+            NativeRuleType::Style | NativeRuleType::NestedDeclarations => {
+                let selectors = selectors.unwrap();
+                if selectors.selectors.is_empty() {
+                    return NativeCompilationResult::default();
                 }
-                NativeRuleType::FontFeatureValues => operations::add_font_feature_values_rule(engine, sheet, before),
-                NativeRuleType::CounterStyle => operations::add_counter_style_rule(engine, sheet, before),
-                NativeRuleType::Function => operations::add_function_rule(engine, sheet, before),
-                NativeRuleType::Property => {
-                    let name =
-                        crate::css::style::bridge::intern_native_text(engine, rule.definition_name().unwrap().units())
-                            .0;
-                    operations::add_property_rule(engine, sheet, before, name)
-                }
-                NativeRuleType::Keyframes => {
-                    let name =
-                        crate::css::style::bridge::intern_native_text(engine, rule.definition_name().unwrap().units())
-                            .0;
-                    operations::add_keyframes_rule(engine, sheet, before, name)
-                }
-                _ => 0,
-            };
-            if result.rule_id != 0 {
-                if !context.conditions_hold {
-                    operations::set_rule_conditions_hold(engine, result.rule_id, false);
-                }
-                if context.in_a_layer
-                    && matches!(
-                        rule.rule_type(),
-                        NativeRuleType::Style | NativeRuleType::NestedDeclarations | NativeRuleType::CounterStyle
-                    )
-                {
-                    let layer = crate::css::style::bridge::intern_native_text(engine, &context.layer_name).0;
-                    operations::set_rule_in_a_layer(engine, result.rule_id);
-                    operations::set_rule_layer(engine, result.rule_id, layer);
+                CompiledRuleKind::Style {
+                    selectors: BoundSelectors {
+                        selectors: selectors.clone(),
+                        scope: context.selectors.scope.clone(),
+                        namespaces: self.namespaces_of(source),
+                    },
+                    gated_by_container_query: context.gated_by_container_query,
                 }
             }
-            if result.rule_id != 0 {
-                unsafe {
-                    engine.register_native_rule(
-                        crate::css::style::program::RuleID(result.rule_id - 1),
-                        rule.identity(),
-                        rule.cascade_declarations(),
-                        source.identity(),
-                        &context.layer_name,
-                        &context.containers,
-                    );
-                }
-            }
-            result
-        })
+            NativeRuleType::FontFeatureValues => CompiledRuleKind::NonMatching(RuleKind::FontFeatureValues),
+            NativeRuleType::CounterStyle => CompiledRuleKind::NonMatching(RuleKind::CounterStyle),
+            NativeRuleType::Function => CompiledRuleKind::NonMatching(RuleKind::Function),
+            NativeRuleType::Property => CompiledRuleKind::Named {
+                kind: RuleKind::Property,
+                name: rule.definition_name().unwrap().units().into(),
+            },
+            NativeRuleType::Keyframes => CompiledRuleKind::Named {
+                kind: RuleKind::Keyframes,
+                name: rule.definition_name().unwrap().units().into(),
+            },
+            _ => return NativeCompilationResult::default(),
+        };
+        let declarations = rule.cascade_declarations();
+        let declares_transitions = matches!(kind, CompiledRuleKind::Style { .. })
+            && declarations
+                .as_ref()
+                .is_some_and(|declarations| declares_transitions(&declarations.properties));
+        let in_a_layer = context.in_a_layer
+            && matches!(
+                rule.rule_type(),
+                NativeRuleType::Style | NativeRuleType::NestedDeclarations | NativeRuleType::CounterStyle
+            );
+        self.host.published_rules().insert(self.sheet, rule.identity());
+        self.rules.borrow_mut().push(CompiledRule {
+            identity: rule.identity(),
+            kind,
+            declarations,
+            source_identity: source.identity(),
+            conditions_hold: context.conditions_hold,
+            in_a_layer,
+            layer_name: context.layer_name.clone(),
+            containers: context
+                .containers
+                .iter()
+                .rev()
+                .map(|&container| {
+                    // SAFETY: The rule the traversal borrows holds the container conditions, as an Arc.
+                    unsafe {
+                        Arc::increment_strong_count(container);
+                        Arc::from_raw(container)
+                    }
+                })
+                .collect(),
+        });
+        NativeCompilationResult {
+            published: true,
+            declares_transitions,
+        }
     }
 }

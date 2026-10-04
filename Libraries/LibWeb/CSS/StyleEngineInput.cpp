@@ -1855,7 +1855,7 @@ static StyleNodeID implicit_scope_root_of(StyleSheetState const* owner_style_she
 
 using CompilationVisitor = Function<bool(RustRule::Type, StyleSheetState const&, Parser::ValueParserFFI::NativeCompilationContext const&, Parser::ValueParserFFI::NativeCompilationResult const&)>;
 
-static void visit_compilation(Layout::BegunRead const& read, StyleSheetState const& sheet, u64 rule_identity, DOM::Document const& document, Parser::ValueParserFFI::NativeCompilationPurpose purpose, CompilationVisitor const& visit, Parser::ValueParserFFI::NativeStylePublication const& publication)
+static void visit_compilation(StyleSheetState const& sheet, u64 rule_identity, DOM::Document const& document, Parser::ValueParserFFI::NativeCompilationPurpose purpose, CompilationVisitor const& visit, Parser::ValueParserFFI::NativeStylePublication const& publication)
 {
     // An implicit scope is named by its root's identity, which a root still waiting to arrive takes first.
     if (sheet.native_rules().has_implicit_scope())
@@ -1875,16 +1875,16 @@ static void visit_compilation(Layout::BegunRead const& read, StyleSheetState con
         .visit_rule = [](void const* context, void const* source, u64, RustRule::Type rule_type, Parser::ValueParserFFI::NativeCompilationContext const* compilation, Parser::ValueParserFFI::NativeCompilationResult result) { return (*static_cast<CompilationVisitor const*>(context))(rule_type, *static_cast<StyleSheetState const*>(source), *compilation, result); },
     };
     if (purpose == Parser::ValueParserFFI::NativeCompilationPurpose::Rules)
-        Parser::ValueParserFFI::rust_style_sheet_compile(sheet.native_sheet().handle(), rule_identity, &sheet, environment.ffi_environment(), &callbacks, &publication, &read);
+        Parser::ValueParserFFI::rust_style_sheet_compile(sheet.native_sheet().handle(), rule_identity, &sheet, environment.ffi_environment(), &callbacks, &publication);
     else
-        Parser::ValueParserFFI::rust_style_sheet_replace_selectors(sheet.native_sheet().handle(), rule_identity, &sheet, environment.ffi_environment(), &callbacks, &publication, &read);
+        Parser::ValueParserFFI::rust_style_sheet_replace_selectors(sheet.native_sheet().handle(), rule_identity, &sheet, environment.ffi_environment(), &callbacks, &publication);
 }
 
 struct RuleCompilationContext {
-    RuleCompilationContext(StyleEngine& style_engine, SheetID sheet_handle, StyleEngineRuleID before_rule, DOM::Document const& document, StyleComputer& style_computer)
+    RuleCompilationContext(StyleEngine& style_engine, SheetID sheet_handle, u64 before_rule_identity, DOM::Document const& document, StyleComputer& style_computer)
         : style_engine(style_engine)
         , sheet_handle(sheet_handle)
-        , before_rule(before_rule)
+        , before_rule_identity(before_rule_identity)
         , document(document)
         , style_computer(style_computer)
     {
@@ -1892,28 +1892,29 @@ struct RuleCompilationContext {
 
     StyleEngine& style_engine;
     SheetID sheet_handle;
-    StyleEngineRuleID before_rule;
+    // The native identity of the compiled rule the rules go before, or 0 for the end of the sheet.
+    u64 before_rule_identity;
     GC::Ref<DOM::Document const> document;
     GC::Ref<StyleComputer> style_computer;
 };
 
-static void publish_layer_order_for_sheet(Layout::BegunRead const& read, StyleSheetState const& sheet, DOM::Document const& document)
+static void publish_layer_order_for_sheet(StyleSheetState const& sheet, DOM::Document const& document)
 {
     sheet.for_each_owning_style_scope([&](StyleScope& scope) {
         if (&scope.document() == &document)
-            scope.publish_cascade_layer_order(read);
+            scope.publish_cascade_layer_order();
     });
 }
 
-static void compile_rules_into(Layout::BegunRead const& read, RuleCompilationContext const& context, StyleSheetState const& sheet, u64 rule_identity = 0, Parser::ValueParserFFI::NativeCompilationPurpose purpose = Parser::ValueParserFFI::NativeCompilationPurpose::Rules)
+static void compile_rules_into(RuleCompilationContext const& context, StyleSheetState const& sheet, u64 rule_identity = 0, Parser::ValueParserFFI::NativeCompilationPurpose purpose = Parser::ValueParserFFI::NativeCompilationPurpose::Rules)
 {
     Parser::ValueParserFFI::NativeStylePublication publication {
         .host = context.style_engine.host(),
         .sheet = context.sheet_handle.value(),
-        .before_rule = context.before_rule.value(),
+        .before = context.before_rule_identity,
     };
     CompilationVisitor visit = [&](RustRule::Type rule_type, StyleSheetState const& source, auto const&, auto const& result) {
-        if (purpose == Parser::ValueParserFFI::NativeCompilationPurpose::Selectors && result.rule_id != 0)
+        if (purpose == Parser::ValueParserFFI::NativeCompilationPurpose::Selectors && result.published)
             context.style_computer->document().bump_style_environment_version();
         if (result.declares_transitions)
             context.style_engine.note_css_transitions_may_observe_style_changes();
@@ -1922,13 +1923,13 @@ static void compile_rules_into(Layout::BegunRead const& read, RuleCompilationCon
                 scope.invalidate_counter_style_cache();
             });
         }
-        if (result.rule_id != 0)
+        if (result.published)
             context.style_computer->register_style_engine_sheet_source(source);
         return true;
     };
-    visit_compilation(read, sheet, rule_identity, *context.document, purpose, visit, publication);
+    visit_compilation(sheet, rule_identity, *context.document, purpose, visit, publication);
     if (purpose == Parser::ValueParserFFI::NativeCompilationPurpose::Rules)
-        publish_layer_order_for_sheet(read, sheet, *context.document);
+        publish_layer_order_for_sheet(sheet, *context.document);
 }
 
 // The sheet a rule's compiled rules belong to. An imported sheet's rules cascade in the importing
@@ -2005,7 +2006,7 @@ static bool sheet_can_share_compiled_style_sheet(StyleSheetState const& sheet)
     return !sheet.native_rules().has_implicit_scope();
 }
 
-static RefPtr<SharedCompiledStyleSheet> shared_compiled_style_sheet_for(Layout::BegunRead const& read, StyleSheetState& sheet, TreeScopeID tree_scope, DOM::Document& document)
+static RefPtr<SharedCompiledStyleSheet> shared_compiled_style_sheet_for(StyleSheetState& sheet, TreeScopeID tree_scope, DOM::Document& document)
 {
     if (!sheet_can_share_compiled_style_sheet(sheet))
         return nullptr;
@@ -2023,11 +2024,11 @@ static RefPtr<SharedCompiledStyleSheet> shared_compiled_style_sheet_for(Layout::
     auto contents = StyleSheetState::create(sheet.native_rules().clone_shared_contents(), &document, RustMediaList {}, {});
     contents->set_base_url(sheet.style_resource_base_url().value_or(document.base_url()));
     auto sheet_id = style_engine.add_sheet(
-        read, static_cast<u32>(reinterpret_cast<FlatPtr>(contents.ptr()) >> 3),
+        static_cast<u32>(reinterpret_cast<FlatPtr>(contents.ptr()) >> 3),
         StyleEngineFFI::FfiCascadeOrigin::Author);
     contents->set_style_engine_sheet_id(sheet_id);
     RuleCompilationContext context { style_engine, sheet_id, 0, document, style_computer };
-    compile_rules_into(read, context, *contents);
+    compile_rules_into(context, *contents);
     contents->evaluate_media_queries(document);
     contents->load_pending_image_resources(document);
     auto shared_compiled_style_sheet = make_ref_counted<SharedCompiledStyleSheet>(move(key), move(contents), sheet_id);
@@ -2078,8 +2079,6 @@ bool stop_sharing_compiled_style_sheet(StyleSheetState& sheet)
 // position it holds there.
 static void record_style_rule_inserted_in(u64 identity, bool changes_environment, StyleSheetState& sheet, DOM::Document& document)
 {
-    // The edit compiles into the document's style engine as its own read of the render state.
-    Layout::ForcedReadScope read { document, false };
     document.flush_deferred_style_change_event();
     auto& style_computer = document.style_computer();
     auto sheet_id = style_computer.style_engine_sheet_id_for(sheet);
@@ -2092,11 +2091,11 @@ static void record_style_rule_inserted_in(u64 identity, bool changes_environment
     RuleCompilationContext context {
         style_computer.style_engine(),
         sheet_id,
-        StyleEngineRuleID { StyleEngineFFI::style_engine_native_rule_successor(style_computer.style_engine().host(), read, sheet.native_sheet().handle(), identity) },
+        StyleEngineFFI::style_engine_native_rule_successor(style_computer.style_engine().host(), sheet_id.value(), sheet.native_sheet().handle(), identity),
         document,
         style_computer
     };
-    compile_rules_into(read, context, sheet, identity);
+    compile_rules_into(context, sheet, identity);
 }
 
 // A rule arrived. Compile it, and everything it brings with it, into the position it holds.
@@ -2142,22 +2141,21 @@ void record_style_rule_removed(StyleSheetState& sheet_it_left, RustRule const& r
 {
     if (stop_sharing_compiled_style_sheet(sheet_it_left))
         return;
+    // An imported sheet's rules were compiled into the sheet that imports it.
+    auto* compiled_sheet = owning_compiled_sheet(&sheet_it_left);
     for_each_document_with_engine_copy(sheet_it_left, [&](DOM::Document& document) {
-        // The edit compiles into the document's style engine as its own read of the render state.
-        Layout::ForcedReadScope read { document, false };
         document.flush_deferred_style_change_event();
         auto& style_computer = document.style_computer();
         struct RemovalContext {
             GC::Ref<DOM::Document> document;
             StyleSheetState& sheet;
-            Layout::BegunRead const& read;
-        } context { document, sheet_it_left, read };
+        } context { document, sheet_it_left };
         StyleEngineFFI::style_engine_remove_native_rule(
             style_computer.style_engine().host(),
-            read, sheet_it_left.native_sheet().handle(),
+            sheet_it_left.native_sheet().handle(),
             rule.handle(),
             detached_import ? detached_import->native_sheet().handle() : nullptr,
-            style_computer.style_engine_sheet_id_for(sheet_it_left).value(),
+            compiled_sheet ? style_computer.style_engine_sheet_id_for(*compiled_sheet).value() : 0,
             &context,
             [](void* opaque, bool changes_environment, bool has_counter_style) {
                 auto& context = *static_cast<RemovalContext*>(opaque);
@@ -2171,10 +2169,10 @@ void record_style_rule_removed(StyleSheetState& sheet_it_left, RustRule const& r
                     });
                 }
             },
-            [](void* opaque, u32, bool declares_layer) {
+            [](void* opaque, bool declares_layer) {
                 auto& context = *static_cast<RemovalContext*>(opaque);
                 if (declares_layer)
-                    publish_layer_order_for_sheet(context.read, context.sheet, context.document);
+                    publish_layer_order_for_sheet(context.sheet, context.document);
             });
     });
 }
@@ -2187,15 +2185,13 @@ void record_style_rule_selector_changed(CSSStyleRule& rule)
         return;
 
     for_each_document_with_engine_copy(*sheet, [&](DOM::Document& document) {
-        // The edit compiles into the document's style engine as its own read of the render state.
-        Layout::ForcedReadScope read { document, false };
         document.flush_deferred_style_change_event();
         auto& style_computer = document.style_computer();
         auto sheet_id = style_computer.style_engine_sheet_id_for(*sheet);
         if (sheet_id == 0)
             return;
         RuleCompilationContext context { style_computer.style_engine(), sheet_id, 0, document, style_computer };
-        compile_rules_into(read, context, *sheet, rule.native_rule().identity(), Parser::ValueParserFFI::NativeCompilationPurpose::Selectors);
+        compile_rules_into(context, *sheet, rule.native_rule().identity(), Parser::ValueParserFFI::NativeCompilationPurpose::Selectors);
     });
 }
 
@@ -2213,17 +2209,16 @@ void record_style_rule_declarations_changed(RustRule const& rule, StyleSheetStat
         return;
 
     for_each_document_with_engine_copy(*sheet, [&](DOM::Document& document) {
-        // The edit compiles into the document's style engine as its own read of the render state.
-        Layout::ForcedReadScope read { document, false };
         document.flush_deferred_style_change_event();
         struct ChangeContext {
             GC::Ref<DOM::Document> document;
             bool changes_environment;
         } context { document, rule.type() != RustRule::Type::Keyframe && rule_change_needs_style_environment_bump(rule) };
-        auto& style_engine = document.style_computer().style_engine();
+        auto& style_computer = document.style_computer();
+        auto& style_engine = style_computer.style_engine();
         if (StyleEngineFFI::style_engine_native_rule_declarations_changed(
-                style_engine.host(), read, rule.handle(), &context,
-                [](void* opaque, u32) {
+                style_engine.host(), style_computer.style_engine_sheet_id_for(*sheet).value(), rule.handle(), &context,
+                [](void* opaque) {
                     auto& context = *static_cast<ChangeContext*>(opaque);
                     if (context.changes_environment)
                         context.document->bump_style_environment_version();
@@ -2238,8 +2233,6 @@ void record_stylesheet_rules_replaced(StyleSheetState& sheet)
     if (stop_sharing_compiled_style_sheet(sheet))
         return;
     for_each_document_with_engine_copy(sheet, [&](DOM::Document& document) {
-        // The edit compiles into the document's style engine as its own read of the render state.
-        Layout::ForcedReadScope read { document, false };
         document.flush_deferred_style_change_event();
         auto& style_computer = document.style_computer();
         auto sheet_id = style_computer.style_engine_sheet_id_for(sheet);
@@ -2248,15 +2241,13 @@ void record_stylesheet_rules_replaced(StyleSheetState& sheet)
         auto& style_engine = style_computer.style_engine();
         style_engine.begin_sheet_rules_replacement(sheet_id);
         RuleCompilationContext context { style_engine, sheet_id, 0, document, style_computer };
-        compile_rules_into(read, context, sheet);
+        compile_rules_into(context, sheet);
         style_engine.finish_sheet_rules_replacement(sheet_id);
     });
 }
 
 void record_stylesheet_attached(StyleSheetState& sheet, DOM::Node& document_or_shadow_root, StyleSheetState* before)
 {
-    // The attachment compiles into the document's style engine as its own read of the render state.
-    Layout::ForcedReadScope read { document_or_shadow_root.document(), false };
     document_or_shadow_root.document().flush_deferred_style_change_event();
     // The attachment may compile the sheet's rules into a shared snapshot, whose native sheet they then name.
     document_or_shadow_root.document().note_style_sheet_set_change();
@@ -2267,14 +2258,14 @@ void record_stylesheet_attached(StyleSheetState& sheet, DOM::Node& document_or_s
     auto first_attachment = sheet_id == 0;
     auto tree_scope = tree_scope_of(document_or_shadow_root);
     if (first_attachment) {
-        if (auto shared_compiled_style_sheet = shared_compiled_style_sheet_for(read, sheet, tree_scope, document_or_shadow_root.document())) {
+        if (auto shared_compiled_style_sheet = shared_compiled_style_sheet_for(sheet, tree_scope, document_or_shadow_root.document())) {
             sheet_id = shared_compiled_style_sheet->sheet_id();
             sheet.set_shared_compiled_style_sheet(move(shared_compiled_style_sheet));
         } else {
             // The CSSOM object's identity is what the program keys its wrapper by; the semantic sheet
             // is a separate identity that survives edits to its contents.
             sheet_id = style_engine.add_sheet(
-                read, static_cast<u32>(reinterpret_cast<FlatPtr>(&sheet) >> 3),
+                static_cast<u32>(reinterpret_cast<FlatPtr>(&sheet) >> 3),
                 StyleEngineFFI::FfiCascadeOrigin::Author);
         }
         style_computer.set_style_engine_sheet_id_for(sheet, sheet_id);
@@ -2307,9 +2298,9 @@ void record_stylesheet_attached(StyleSheetState& sheet, DOM::Node& document_or_s
     // first transaction for a new shadow tree from matching with the document scope's order. The
     // rule-cache build is too late: it can happen while consuming that transaction's answers.
     if (auto* shadow_root = as_if<DOM::ShadowRoot>(document_or_shadow_root))
-        shadow_root->style_scope().publish_cascade_layer_order(read, &sheet);
+        shadow_root->style_scope().publish_cascade_layer_order(&sheet);
     else
-        document_or_shadow_root.document().style_scope().publish_cascade_layer_order(read, &sheet);
+        document_or_shadow_root.document().style_scope().publish_cascade_layer_order(&sheet);
 
     // A sheet arrives with a condition state, and that state is otherwise only published when it
     // moves. A constructed sheet is built disabled or given media before anything adopts it, with no
@@ -2322,7 +2313,7 @@ void record_stylesheet_attached(StyleSheetState& sheet, DOM::Node& document_or_s
     if (!first_attachment || sheet.shared_compiled_style_sheet())
         return;
     RuleCompilationContext context { style_engine, sheet_id, 0, document_or_shadow_root.document(), style_computer };
-    compile_rules_into(read, context, sheet);
+    compile_rules_into(context, sheet);
 }
 
 // The user-agent and user origins have no style sheet list to attach from, so nothing announces
@@ -2335,7 +2326,7 @@ void record_stylesheet_attached(StyleSheetState& sheet, DOM::Node& document_or_s
 // the sheet object the way an author sheet's does; they are held here, per document, alongside the
 // sheets they name. The user sheet is rebuilt rather than edited when content blockers change, so
 // the set is compared by identity and re-attached whole when it differs.
-void record_non_author_stylesheets(Layout::BegunRead const& read, DOM::Document& document)
+void record_non_author_stylesheets(DOM::Document& document)
 {
     auto& style_computer = document.style_computer();
     auto& style_scope = document.style_scope();
@@ -2386,11 +2377,11 @@ void record_non_author_stylesheets(Layout::BegunRead const& read, DOM::Document&
 
     for (size_t index = 0; index < sheets.size(); ++index) {
         auto sheet_id = style_engine.add_sheet(
-            read, static_cast<u32>(reinterpret_cast<FlatPtr>(sheets[index].ptr()) >> 3),
+            static_cast<u32>(reinterpret_cast<FlatPtr>(sheets[index].ptr()) >> 3),
             origins[index]);
         style_engine.attach_sheet(sheet_id, document_tree_scope, first_author_sheet);
         RuleCompilationContext context { style_engine, sheet_id, 0, document, style_computer };
-        compile_rules_into(read, context, *sheets[index]);
+        compile_rules_into(context, *sheets[index]);
         recorded.append({ sheets[index], sheet_id });
     }
 }
@@ -2433,10 +2424,8 @@ void record_stylesheet_rule_conditions(StyleSheetState& sheet, DOM::Document& do
     // Imported rules inherit the conditions of every enclosing import. Starting at an imported
     // sheet would lose those gates and could re-enable rules beneath a non-matching import.
     MediaEnvironmentSnapshot environment { document };
-    // The rules' conditions are published as the host's own read of the render state.
-    Layout::ForcedReadScope read { document, false };
     Parser::ValueParserFFI::rust_style_sheet_publish_conditions(
-        engine_sheet->native_sheet().handle(), style_computer.style_engine().host(), read, environment.ffi_environment());
+        engine_sheet->native_sheet().handle(), style_computer.style_engine().host(), environment.ffi_environment());
 }
 
 void record_stylesheet_conditions(StyleSheetState& sheet, DOM::Node& document_or_shadow_root, bool conditions_hold)

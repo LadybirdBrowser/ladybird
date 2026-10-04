@@ -110,6 +110,16 @@ void StyleEngine::set_element_parts(StyleNodeID node, ReadonlySpan<StyleAtomID> 
     StyleEngineFFI::style_engine_set_element_parts(m_render_document->host(), node.value(), reinterpret_cast<u32 const*>(names.data()), reinterpret_cast<u32 const*>(hosts.data()), names.size());
 }
 
+SheetID StyleEngine::add_sheet(u32 object, StyleEngineFFI::FfiCascadeOrigin origin)
+{
+    return SheetID { StyleEngineFFI::style_engine_add_sheet(m_render_document->host(), object, origin) };
+}
+
+void StyleEngine::begin_sheet_rules_replacement(SheetID sheet)
+{
+    StyleEngineFFI::style_engine_begin_sheet_rules_replacement(m_render_document->host(), sheet.value());
+}
+
 void StyleEngine::finish_sheet_rules_replacement(SheetID sheet)
 {
     StyleEngineFFI::style_engine_finish_sheet_rules_replacement(m_render_document->host(), sheet.value(), next_declaration_block_version());
@@ -996,15 +1006,9 @@ bool StyleEngine::let_style_transaction_fly(Layout::BegunRead const& read, Style
     // The reactions are read inside the style record view epoch the transaction is taken in, which stays open until
     // take_style_transaction() takes them.
     m_style_computer->begin_style_record_view_epoch();
-    // The host drains the transaction where it writes the document's style sheets to the engine in place before the
-    // next style update drains it, so that the write lands behind the sheet writes queued beside the transaction.
-    StyleEngineFFI::FfiFlownStyleDrain drain {
-        .drain = [](void* document, Layout::BegunRead const* read) { static_cast<DOM::Document*>(document)->drain_flown_style_transaction(*read); },
-        .document = &m_style_computer->document(),
-    };
     // The frame the transaction flies in runs the first round of the update's layout after it.
     m_style_computer->document().seal_first_layout_round(read);
-    if (StyleEngineFFI::style_engine_let_style_transaction_fly(m_render_document->host(), root.value(), lent.inputs, blocker, drain))
+    if (StyleEngineFFI::style_engine_let_style_transaction_fly(m_render_document->host(), root.value(), lent.inputs, blocker))
         return true;
     m_style_computer->end_style_record_view_epoch();
     return false;

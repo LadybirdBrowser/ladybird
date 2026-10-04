@@ -209,7 +209,7 @@ WEB_API void record_element_state_changed(DOM::Element&, PseudoClass, bool new_v
 
 // Called before each style flush. The user-agent and user origins have no sheet list to announce
 // themselves from, so the engine is told about them from here.
-WEB_API void record_non_author_stylesheets(Layout::BegunRead const&, DOM::Document&);
+WEB_API void record_non_author_stylesheets(DOM::Document&);
 
 // Called once a sheet has taken its place in the sheet list, so its successor is known.
 WEB_API void record_stylesheet_attached(StyleSheetState&, DOM::Node& document_or_shadow_root, StyleSheetState* before);

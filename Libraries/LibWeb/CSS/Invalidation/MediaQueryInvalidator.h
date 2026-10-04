@@ -10,6 +10,6 @@
 
 namespace Web::CSS::Invalidation {
 
-void evaluate_media_rules_and_publish_conditions(Layout::BegunRead const&, DOM::Document&);
+void evaluate_media_rules_and_publish_conditions(DOM::Document&);
 
 }

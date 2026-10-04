@@ -26,7 +26,6 @@ use crate::render_state::{
     BegunRead, DocumentHost, ReadRight, RenderJob, RenderMessage, RenderWait, ReplyTo, SpentWait, StyleJobPermit,
     TaskBoundary, fly, force_read, run_job,
 };
-use std::ffi::c_void;
 use std::sync::Arc;
 
 /// Takes the pending style transaction under `root`, with the document computation inputs the host sealed for it.
@@ -266,31 +265,20 @@ pub unsafe extern "C" fn style_engine_take_style_transaction(
     host.keep_style_transaction(answer).0.view()
 }
 
-/// How a document drains the reactions of its style transaction that flew: `drain` called with `document`, which does
-/// nothing where the drain has begun. The host calls it where it writes the document's style sheets in place.
-#[repr(C)]
-#[derive(Clone, Copy)]
-pub struct FfiFlownStyleDrain {
-    pub drain: unsafe extern "C" fn(document: *mut c_void, read: &BegunRead),
-    pub document: *mut c_void,
-}
-
 /// Lets the pending style transaction under `root` fly beside the host, with the document computation inputs the host
 /// gathered, where `blocker` is none and no transaction the host let fly before waits to be drained. The host's next
-/// style update drains its reactions first, as does `drain` where the host writes the document's style sheets in place
-/// before it. Answers whether the transaction flies.
+/// style update drains its reactions first. Answers whether the transaction flies.
 ///
 /// # Safety
 ///
 /// `host` must be a live document host, on its document's thread, and the buffers `computation_inputs` names must be
-/// live for this call. `drain` must stay callable on the document's thread for as long as the host lives.
+/// live for this call.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_let_style_transaction_fly(
     host: *mut DocumentHost,
     root: u32,
     computation_inputs: FfiDocumentStyleComputationInputs,
     blocker: FfiFlightBlocker,
-    drain: FfiFlownStyleDrain,
 ) -> bool {
     assert!(!host.is_null(), "document host is null");
     // SAFETY: Guaranteed by the caller.
@@ -309,7 +297,7 @@ pub unsafe extern "C" fn style_engine_let_style_transaction_fly(
         computation_inputs: unsafe { SealedStyleInputs::seal(computation_inputs) },
         flies: true,
     };
-    fly(host, job, round, drain, &license);
+    fly(host, job, round, &license);
     true
 }
 

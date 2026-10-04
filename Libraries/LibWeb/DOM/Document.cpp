@@ -4946,8 +4946,6 @@ void Document::add_media_query_list(GC::Ref<CSS::MediaQueryList> media_query_lis
 // https://drafts.csswg.org/cssom-view/#evaluate-media-queries-and-report-changes
 void Document::evaluate_media_queries_and_report_changes()
 {
-    // The rendering update's own read of the render state.
-    Layout::ForcedReadScope read { *this, false };
     if (!m_needs_media_query_list_evaluation && !m_needs_media_rule_evaluation)
         return;
 
@@ -4990,13 +4988,13 @@ void Document::evaluate_media_queries_and_report_changes()
 
     // Also not in the spec, but this is as good a place as any to evaluate @media rules!
     if (m_needs_media_rule_evaluation)
-        evaluate_media_rules(read);
+        evaluate_media_rules();
 }
 
-void Document::evaluate_media_rules(Layout::BegunRead const& read)
+void Document::evaluate_media_rules()
 {
     m_needs_media_rule_evaluation = false;
-    CSS::Invalidation::evaluate_media_rules_and_publish_conditions(read, *this);
+    CSS::Invalidation::evaluate_media_rules_and_publish_conditions(*this);
 }
 
 DOMImplementation* Document::implementation()

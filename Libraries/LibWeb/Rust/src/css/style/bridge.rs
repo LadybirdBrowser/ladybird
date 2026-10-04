@@ -24,7 +24,8 @@
 //! and asks for a run of `StyleNodeID` values, Rust owns the arena and the relation columns keyed by
 //! them.
 
-use super::engine_calls::{document_host, sheet_writing_host, with_engine};
+use super::engine_calls::{document_host, with_engine};
+use super::rule_writes::RuleWrite;
 use super::{ReplayAtomSweep, StyleEngineHandle};
 use crate::render_state::DocumentHost;
 use std::ffi::c_void;
@@ -1911,7 +1912,7 @@ pub(crate) fn publish_user_agent_style_rule(
     before_rule: u32,
     rule_identity: u64,
     compiled: &[&CompiledSelector],
-    rules: &crate::css::rule::NativeRuleList,
+    namespaces: Option<&super::rule_writes::NamespaceTexts>,
     bound_scope: &BoundScopeChain,
 ) -> Option<u32> {
     if sheet == 0 || !bound_scope.levels.is_empty() {
@@ -1926,7 +1927,7 @@ pub(crate) fn publish_user_agent_style_rule(
     let before = (before_rule != 0).then(|| RuleID(before_rule - 1));
     Some(
         engine
-            .add_user_agent_style_rule(sheet, before, rule_identity, compiled, rules)
+            .add_user_agent_style_rule(sheet, before, rule_identity, compiled, namespaces)
             .0
             + 1,
     )
@@ -2277,7 +2278,7 @@ pub(super) fn register_element_declared_properties(
 }
 
 /// Whether `declarations` can define transitions.
-fn declares_transitions(declarations: &[crate::css::declaration_block::DeclaredProperty]) -> bool {
+pub(crate) fn declares_transitions(declarations: &[crate::css::declaration_block::DeclaredProperty]) -> bool {
     use crate::css::property_metadata::property_defines_a_css_transition;
     declarations
         .iter()
@@ -3794,8 +3795,8 @@ pub unsafe extern "C" fn style_engine_next_declaration_block_version(host: *cons
     unsafe { document_host(host) }.next_declaration_block_version()
 }
 
-/// Publish a native declaration edit through its owning rule and return whether it declares
-/// transitions. The host is notified before publishing, without an engine or graph borrow.
+/// Queues a native declaration edit for the rule that owns the declarations, where the host published that rule to the
+/// sheet `sheet`, and answers whether they declare transitions. The host is told first, with no engine borrowed.
 ///
 /// # Safety
 /// `host` must be a live document host, on its document's thread, and `rule` live. The callback
@@ -3803,91 +3804,76 @@ pub unsafe extern "C" fn style_engine_next_declaration_block_version(host: *cons
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_native_rule_declarations_changed(
     host: *const DocumentHost,
-    read: &crate::render_state::BegunRead,
+    sheet: u32,
     rule: *const c_void,
     context: *mut c_void,
-    notify: unsafe extern "C" fn(*mut c_void, u32),
+    notify: unsafe extern "C" fn(*mut c_void),
 ) -> bool {
     // SAFETY: Guaranteed by the caller.
-    let host = unsafe { sheet_writing_host(host, read) };
+    let host = unsafe { document_host(host) };
     // SAFETY: Guaranteed by the caller.
     let rule = unsafe { &*rule.cast::<crate::css::rule::NativeRule>() };
-    let Some(id) = with_engine(read, host, |engine| native_rule_declaration_owner(engine, rule)) else {
+    let Some(identity) = rule
+        .declaration_owner_identity()
+        .filter(|&identity| host.published_rules().contains(sheet, identity))
+    else {
         return false;
     };
     // SAFETY: Guaranteed by the caller.
-    unsafe { notify(context, id.0 + 1) };
-    with_engine(read, host, |engine| publish_native_rule_declarations(engine, rule, id))
-}
-
-/// The engine's id of the rule that owns `rule`'s declarations, if it has one.
-pub(crate) fn native_rule_declaration_owner(
-    engine: &StyleEngine,
-    rule: &crate::css::rule::NativeRule,
-) -> Option<RuleID> {
-    engine.native_rule_id(rule.declaration_owner_identity()?)
-}
-
-/// Publishes the declarations of `rule`, whose owner is the engine's rule `id`, and answers
-/// whether they declare transitions.
-pub(crate) fn publish_native_rule_declarations(
-    engine: &mut StyleEngine,
-    rule: &crate::css::rule::NativeRule,
-    id: RuleID,
-) -> bool {
+    unsafe { notify(context) };
     let declarations = rule.cascade_declarations();
-    engine.native_rules.targets.get_mut(&id).unwrap().declarations = declarations.clone();
-    let version = engine.next_declaration_block_version();
-    operations::record_rule_declarations_changed(engine, id.0 + 1, version);
-    declarations.is_some_and(|declarations| publish_rule_declarations(engine, id.0 + 1, &declarations))
+    let transitions = declarations
+        .as_ref()
+        .is_some_and(|declarations| declares_transitions(&declarations.properties));
+    host.write_rules(RuleWrite::RuleDeclarations { identity, declarations });
+    transitions
 }
 
-/// Find the next compiled rule after an inserted native subtree, without creating CSSOM objects.
+/// The native identity of the first rule after an inserted native subtree that the host published to the sheet
+/// `sheet`, or 0 for none, without creating CSSOM objects.
 ///
 /// # Safety
-/// `host` must be a live document host, on its document's thread, and `sheet` a live native
-/// allocation.
+/// `host` must be a live document host, on its document's thread, and `native` a live native sheet.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_native_rule_successor(
     host: *const DocumentHost,
-    read: &crate::render_state::BegunRead,
-    sheet: *const c_void,
+    sheet: u32,
+    native: *const c_void,
     identity: u64,
-) -> u32 {
+) -> u64 {
     // SAFETY: Guaranteed by the caller.
-    let host = unsafe { sheet_writing_host(host, read) };
-    with_engine(read, host, |engine| {
-        let sheet = unsafe { &*sheet.cast::<crate::css::style_sheet::NativeStyleSheet>() };
-        crate::css::rule::mutation::successor(sheet, identity, |identity| {
-            engine.native_rules.identities.get(&identity).map_or(0, |id| id.0 + 1)
-        })
-    })
+    let host = unsafe { document_host(host) };
+    // SAFETY: Guaranteed by the caller.
+    let native = unsafe { &*native.cast::<crate::css::style_sheet::NativeStyleSheet>() };
+    host.published_rules().successor(sheet, native, identity)
 }
 
-/// Retire a native subtree, with host callbacks only for document and cascade-cache notifications.
+/// Retires a native subtree from the sheet `sheet`, with host callbacks only for document and cascade-cache
+/// notifications, and queues the removal of the rules the host published there.
 ///
 /// # Safety
-/// `host` must be a live document host, on its document's thread, and the sheet, rule, callbacks,
-/// and any non-null detached import must be live. Native rules must belong to Arc allocations. No
-/// graph or engine borrow spans a host callback.
+/// `host` must be a live document host, on its document's thread, and the native sheet, rule, callbacks, and any
+/// non-null detached import must be live. Native rules must belong to Rc allocations. No graph borrow spans a host
+/// callback.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_remove_native_rule(
     host: *const DocumentHost,
-    read: &crate::render_state::BegunRead,
-    sheet: *const c_void,
+    native: *const c_void,
     rule: *const c_void,
     detached_import: *const c_void,
-    _sheet_id: u32,
+    sheet: u32,
     context: *mut c_void,
     begin: unsafe extern "C" fn(*mut c_void, bool, bool),
-    notify: unsafe extern "C" fn(*mut c_void, u32, bool),
+    notify: unsafe extern "C" fn(*mut c_void, bool),
 ) {
     use crate::css::rule::{NativeRule, NativeRuleType, mutation, read::RuleRef};
     use crate::css::style_sheet::NativeStyleSheet;
+    // SAFETY: Guaranteed by the caller.
+    let host = unsafe { document_host(host) };
     let removed = unsafe {
         mutation::removed_rules(
             &*rule.cast::<NativeRule>(),
-            &*sheet.cast::<NativeStyleSheet>(),
+            &*native.cast::<NativeStyleSheet>(),
             detached_import.cast::<NativeStyleSheet>().as_ref(),
         )
     };
@@ -3897,16 +3883,16 @@ pub unsafe extern "C" fn style_engine_remove_native_rule(
         .iter()
         .any(|rule| RuleRef::Materialized(rule).rule_type() == NativeRuleType::CounterStyle);
     unsafe { begin(context, changes_environment, has_counter_style) };
-    // SAFETY: Guaranteed by the caller.
-    let host = unsafe { sheet_writing_host(host, read) };
+    let mut published = Vec::new();
     for rule in removed {
-        let declares_layer = mutation::declares_layer(&rule);
+        unsafe { notify(context, mutation::declares_layer(&rule)) };
         let identity = RuleRef::Materialized(&rule).identity();
-        let id = with_engine(read, host, |engine| engine.native_rule_id(identity));
-        unsafe { notify(context, id.map_or(0, |id| id.0 + 1), declares_layer) };
-        if let Some(id) = id {
-            with_engine(read, host, |engine| operations::remove_rule(engine, id.0 + 1));
+        if host.published_rules().remove(sheet, identity) {
+            published.push(identity);
         }
+    }
+    if !published.is_empty() {
+        host.write_rules(RuleWrite::RemoveRules(published.into()));
     }
 }
 
@@ -3925,7 +3911,7 @@ pub unsafe extern "C" fn style_engine_native_rule_target(
     result: &mut FfiNativeRuleTarget,
 ) -> bool {
     // SAFETY: Guaranteed by the caller.
-    let host = unsafe { sheet_writing_host(host, read) };
+    let host = unsafe { document_host(host) };
     // SAFETY: Guaranteed by the caller.
     with_engine(read, host, |engine| unsafe { native_rule_target(engine, rule, result) })
 }

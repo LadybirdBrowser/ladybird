@@ -822,7 +822,7 @@ public:
 
     void evaluate_media_queries_and_report_changes();
     bool needs_media_rule_evaluation() const { return m_needs_media_rule_evaluation; }
-    void evaluate_media_rules_for_style_update(Layout::BegunRead const& read) { evaluate_media_rules(read); }
+    void evaluate_media_rules_for_style_update() { evaluate_media_rules(); }
     void set_needs_media_query_evaluation()
     {
         m_needs_media_query_list_evaluation = true;
@@ -1612,7 +1612,7 @@ private:
 
     void run_unloading_cleanup_steps();
 
-    void evaluate_media_rules(Layout::BegunRead const& read);
+    void evaluate_media_rules();
 
     enum class AddLineFeed {
         Yes,
