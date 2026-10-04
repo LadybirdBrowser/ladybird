@@ -2035,8 +2035,6 @@ static RefPtr<SharedCompiledStyleSheet> shared_compiled_style_sheet_for(Layout::
 
 static void detach_shared_compiled_style_sheet(SharedCompiledStyleSheet& sheet, u64 occurrence, TreeScopeID tree_scope, StyleComputer& style_computer)
 {
-    // The caller's own read of the render state.
-    Layout::ForcedReadScope read { style_computer.document(), false };
     auto& style_engine = style_computer.style_engine();
     style_engine.detach_sheet_occurrence(tree_scope, occurrence);
     sheet.remove_attachment(tree_scope);
@@ -2044,7 +2042,7 @@ static void detach_shared_compiled_style_sheet(SharedCompiledStyleSheet& sheet, 
         return;
 
     style_engine.begin_sheet_rules_replacement(sheet.sheet_id());
-    style_engine.finish_sheet_rules_replacement(read, sheet.sheet_id());
+    style_engine.finish_sheet_rules_replacement(sheet.sheet_id());
     auto& shared_compiled_style_sheets = style_computer.shared_compiled_style_sheets();
     shared_compiled_style_sheets.remove(sheet.key());
     if (shared_compiled_style_sheets.is_empty())
@@ -2249,7 +2247,7 @@ void record_stylesheet_rules_replaced(StyleSheetState& sheet)
         style_engine.begin_sheet_rules_replacement(sheet_id);
         RuleCompilationContext context { style_engine, sheet_id, 0, document, style_computer };
         compile_rules_into(read, context, sheet);
-        style_engine.finish_sheet_rules_replacement(read, sheet_id);
+        style_engine.finish_sheet_rules_replacement(sheet_id);
     });
 }
 

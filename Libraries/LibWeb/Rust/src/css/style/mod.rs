@@ -84,6 +84,7 @@ pub mod impact;
 pub mod index;
 mod input_routing;
 mod inputs;
+pub(crate) use inputs::next_declaration_block_version;
 pub mod instrumentation;
 mod intern_table;
 pub(crate) mod layout_style;
@@ -821,7 +822,8 @@ pub struct RetainedState {
     tree: StyleNodeTree,
     program: StyleSheetProgram,
     native_rules: native_rules::NativeRuleRegistry,
-    declaration_block_version: u32,
+    /// The last declaration block version minted, by the engine or by its document's host, which mints without it.
+    declaration_block_version: Arc<std::sync::atomic::AtomicU32>,
     /// Whether the last transaction taken planned nothing but derived child reactions.
     last_transaction_only_derived_child_reactions: bool,
     /// Sheets whose rules currently have no entry points in the routing registry. A detached

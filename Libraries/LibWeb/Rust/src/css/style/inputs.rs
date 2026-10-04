@@ -301,12 +301,13 @@ impl RetainedState {
 
     // A stable declaration owner changes contents without changing its address. Reserve zero for
     // absence and one for the initial block, then issue fresh identities for subsequent edits.
-    pub(crate) fn next_declaration_block_version(&mut self) -> u32 {
-        self.declaration_block_version = self
-            .declaration_block_version
-            .checked_add(1)
-            .expect("declaration revision overflow");
-        self.declaration_block_version
+    pub(crate) fn next_declaration_block_version(&self) -> u32 {
+        next_declaration_block_version(&self.declaration_block_version)
+    }
+
+    /// The versions the engine mints declaration blocks from, which its document's host mints from as well.
+    pub(crate) fn declaration_block_versions(&self) -> Arc<std::sync::atomic::AtomicU32> {
+        Arc::clone(&self.declaration_block_version)
     }
 
     pub(super) fn compile_selectors(
@@ -1836,7 +1837,7 @@ impl StyleEngineState {
                 tree,
                 program: StyleSheetProgram::new(),
                 native_rules: Default::default(),
-                declaration_block_version: 1,
+                declaration_block_version: Arc::new(std::sync::atomic::AtomicU32::new(1)),
                 last_transaction_only_derived_child_reactions: false,
                 sheets_excluded_from_routing: BitColumn::default(),
                 routing_needs_detachment_sweep: false,
@@ -3538,4 +3539,12 @@ impl HostState {
             .binary_search_by_key(&InputKey::ElementStyleInput(node), |pending| pending.key)
             .is_ok()
     }
+}
+
+/// Mints the next declaration block version of `versions`.
+pub(crate) fn next_declaration_block_version(versions: &std::sync::atomic::AtomicU32) -> u32 {
+    versions
+        .fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+        .checked_add(1)
+        .expect("declaration revision overflow")
 }

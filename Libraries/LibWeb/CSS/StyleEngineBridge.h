@@ -148,13 +148,13 @@ public:
     void decide_transitions(Layout::BegunRead const& read, StyleRecordID before_style_record, StyleRecordID after_style_record, StyleValueFFI::FfiTransitionInput const&, StyleValueFFI::FfiTransitionAction*) const;
     // Remove the retained input identities for one pseudo-element kind and return its removal.
     [[nodiscard]] StyleRecordDelta remove_computed_pseudo(Layout::BegunRead const& read, StyleNodeID node, u8 pseudo_kind);
-    void finish_sheet_rules_replacement(Layout::BegunRead const& read, SheetID sheet);
+    void finish_sheet_rules_replacement(SheetID sheet);
     // A fresh identity for an element-sourced declaration block.
     //
     // A block's contents change while the CSSOM object stays the same, so its address is not what
     // makes one version of it different from the next. A version is: an edit that reported the same
     // identity on both sides would cancel in the journal and invalidate nothing.
-    [[nodiscard]] u32 next_declaration_block_version(Layout::BegunRead const& read) { return StyleEngineFFI::style_engine_next_declaration_block_version(host(), &read); }
+    [[nodiscard]] u32 next_declaration_block_version() { return StyleEngineFFI::style_engine_next_declaration_block_version(host()); }
 
     // Interns one selector-mentioned name and returns its process-global atom, retained by this
     // document.

@@ -3789,13 +3789,9 @@ pub struct FfiNativeRuleTarget {
 /// # Safety
 /// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_next_declaration_block_version(
-    host: *const DocumentHost,
-    read: &crate::render_state::BegunRead,
-) -> u32 {
+pub unsafe extern "C" fn style_engine_next_declaration_block_version(host: *const DocumentHost) -> u32 {
     // SAFETY: Guaranteed by the caller.
-    let host = unsafe { document_host(host) };
-    with_engine(read, host, |engine| engine.next_declaration_block_version())
+    unsafe { document_host(host) }.next_declaration_block_version()
 }
 
 /// Publish a native declaration edit through its owning rule and return whether it declares

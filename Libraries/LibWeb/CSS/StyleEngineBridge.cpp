@@ -105,9 +105,9 @@ void StyleEngine::set_element_parts(StyleNodeID node, ReadonlySpan<StyleAtomID> 
     StyleEngineFFI::style_engine_set_element_parts(m_render_document->host(), node.value(), reinterpret_cast<u32 const*>(names.data()), reinterpret_cast<u32 const*>(hosts.data()), names.size());
 }
 
-void StyleEngine::finish_sheet_rules_replacement(Layout::BegunRead const& read, SheetID sheet)
+void StyleEngine::finish_sheet_rules_replacement(SheetID sheet)
 {
-    StyleEngineFFI::style_engine_finish_sheet_rules_replacement(m_render_document->host(), sheet.value(), next_declaration_block_version(read));
+    StyleEngineFFI::style_engine_finish_sheet_rules_replacement(m_render_document->host(), sheet.value(), next_declaration_block_version());
 }
 
 void StyleEngine::set_element_inline_style_properties(StyleNodeID node, RustDeclarationBlock const* declarations)
