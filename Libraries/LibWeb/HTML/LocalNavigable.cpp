@@ -677,7 +677,7 @@ struct LocalNavigable::RecordingInFlight {
     AK_ALLOC_WITH_KMALLOC;
 
     GC::Ref<DOM::Document> document;
-    PaintConfig paint_config;
+    Compositor::SealedPresentation sealed;
     Painting::DisplayListRecording recording;
     bool held_for_testing { false };
 };
@@ -6801,23 +6801,6 @@ void LocalNavigable::set_should_show_caret_hit_test_debug_overlay(bool value)
         child_navigable->set_should_show_caret_hit_test_debug_overlay(value);
 }
 
-static Compositing::DisplayListResourceSet command_resources_of_display_list(Compositing::DisplayListResourceStorage const& resource_storage, Painting::DocumentPaintState const& document_paint_state, Compositing::DisplayList const& display_list)
-{
-    if (document_paint_state.display_list_used_as_paint_command_cache_source() == &display_list)
-        return document_paint_state.paint_command_cache_source_referenced_resources();
-    return resource_storage.collect_referenced_resources(display_list);
-}
-
-static Compositing::DisplayListResourceSet compositor_display_list_resources(Compositing::DisplayListResourceStorage const& resource_storage, Painting::DocumentPaintState const& document_paint_state, Compositing::DisplayListResourceSet const& display_list_command_resources, Compositing::AccumulatedVisualContextTree const& visual_context_tree)
-{
-    auto resources = display_list_command_resources;
-    // A recording downgraded to cache-read-only leaves the retained source and the cached ranges
-    // into it live, so the resources they reference must survive the pruning that follows.
-    document_paint_state.append_paint_command_cache_source_resources(resources);
-    resources.include(resource_storage.collect_referenced_resources(visual_context_tree));
-    return resources;
-}
-
 // A page listing 'dark' already offers a dark theme of its own; a page saying 'only' wants its colors kept as
 // written either way — CSS Color Adjust puts UA overrides like force-dark behind exactly that keyword.
 static bool lists_a_dark_scheme(ReadonlySpan<Utf16FlyString> schemes)
@@ -6901,103 +6884,74 @@ Optional<Compositor::CompositorFrame> LocalNavigable::record_compositor_frame(Pa
     auto should_record_display_list = m_needs_to_record_display_list
         || !compositor_display_list_paint_config.has_value()
         || !(compositor_display_list_paint_config.value() == paint_config);
+    auto sealed = seal_presentation(*document, paint_config, should_record_display_list);
     if (!should_record_display_list)
-        return finish_compositor_frame(*document, paint_config, nullptr);
+        return m_presenter.build_frame(sealed, {});
 
     main_thread_event_loop().ensure_frame_completion_registered();
     auto recording = document->start_display_list_recording(read, paint_config, Painting::PaintCommandCacheMode::ReadWrite, blocker);
-    if (!recording.has_value())
+    if (!recording.has_value()) {
+        unseal_presentation(*document, sealed);
         return {};
+    }
     if (recording->in_flight) {
         // What asks for another recording once this one has started asks for the next one.
         m_needs_to_record_display_list = false;
-        m_recording_in_flight = make<RecordingInFlight>(*document, paint_config, recording.release_value());
+        m_recording_in_flight = make<RecordingInFlight>(*document, move(sealed), recording.release_value());
         main_thread_event_loop().did_let_recording_fly(*this);
         return {};
     }
-    auto display_list = document->finish_display_list_recording(read, *recording, m_presenter.display_list_resource_storage());
-    if (!display_list)
-        return {};
-    return finish_compositor_frame(*document, paint_config, move(display_list));
+    return finish_recording(read, *document, sealed, *recording);
 }
 
-// Makes the frame that brings the compositor context up to date with `display_list`, the display list the document
-// just recorded, or with what changed for the one the compositor has where it recorded none.
-Optional<Compositor::CompositorFrame> LocalNavigable::finish_compositor_frame(DOM::Document& document, PaintConfig const& paint_config, RefPtr<Compositing::DisplayList> display_list)
+// Seals what a frame of `document` reads of the document and this navigable where the frame begins: the frame is built
+// from nothing else (see SealedPresentation).
+Compositor::SealedPresentation LocalNavigable::seal_presentation(DOM::Document& document, PaintConfig const& paint_config, bool records_display_list)
 {
-    auto& presenter = m_presenter;
-    auto& resource_storage = presenter.display_list_resource_storage();
-    Compositing::DisplayListResourceSet display_list_command_resources;
-    Compositing::DisplayListResourceSet display_list_resources;
-    Compositing::DisplayListResourceTransaction resource_transaction;
-    Optional<Compositing::AccumulatedVisualContextTree> visual_context_tree;
-    auto& document_paint_state = document.paint_state();
-    bool compositor_display_list_is_unchanged = false;
-    if (display_list) {
-        VERIFY(document.has_committed_viewport_box());
-        compositor_display_list_is_unchanged = presenter.compositor_display_list() == display_list;
-        if (!compositor_display_list_is_unchanged) {
-            visual_context_tree = document_paint_state.visual_context_tree(document);
-            display_list_command_resources = command_resources_of_display_list(resource_storage, document_paint_state, *display_list);
-            display_list_resources = compositor_display_list_resources(resource_storage, document_paint_state, display_list_command_resources, *visual_context_tree);
-            resource_transaction = resource_storage.create_transaction(
-                presenter.compositor_display_list_resources(),
-                display_list_resources);
-        }
-    }
-
     VERIFY(document.has_committed_viewport_box());
-    auto visual_context_tree_needs_compositor_update = document_paint_state.visual_context_tree_needs_compositor_update();
-
-    Compositing::ScrollStateSnapshot scroll_state_snapshot { document_paint_state.scroll_state_snapshot() };
+    auto& paint_state = document.paint_state();
+    bool const sends_visual_context_tree = paint_state.visual_context_tree_needs_compositor_update();
+    Optional<Compositing::AccumulatedVisualContextTree> visual_context_tree;
+    if (records_display_list || sends_visual_context_tree)
+        visual_context_tree = paint_state.visual_context_tree(document);
+    paint_state.did_update_visual_context_tree_in_compositor();
+    Compositing::ScrollStateSnapshot scroll_state_snapshot { paint_state.scroll_state_snapshot() };
     scroll_state_snapshot.set_adopted_async_scroll_sequence(m_adopted_async_scroll_sequence);
+    Optional<Compositing::KeyboardScrollState> keyboard_scroll_state;
+    if (is_top_level_traversable())
+        keyboard_scroll_state = page().take_keyboard_scroll_state_for_compositor(0);
+    return Compositor::SealedPresentation {
+        .paint_config = paint_config,
+        .visual_context_tree = move(visual_context_tree),
+        .sends_visual_context_tree = sends_visual_context_tree,
+        .scroll_state_snapshot = move(scroll_state_snapshot),
+        .keyboard_scroll_state = move(keyboard_scroll_state),
+        .paint_command_cache_source = paint_state.display_list_used_as_paint_command_cache_source(),
+        .paint_command_cache_source_resources = paint_state.paint_command_cache_source_referenced_resources(),
+    };
+}
 
-    // Keyboard eligibility belongs to this publication, not to the cached paint commands. Refresh it even if
-    // recording was skipped or returned the same display list, and send it with the corresponding scroll state.
-    auto& published_display_list = display_list ? *display_list : *presenter.compositor_display_list();
-    auto keyboard_scroll_state = is_top_level_traversable()
-        ? page().take_keyboard_scroll_state_for_compositor(published_display_list.compatible_visual_context_tree_structural_epoch())
-        : Compositing::KeyboardScrollState {};
-    auto async_scrolling_metadata = published_display_list.async_scrolling_metadata().value_or({});
-    async_scrolling_metadata.keyboard_scroll_state = keyboard_scroll_state;
-    published_display_list.set_async_scrolling_metadata(move(async_scrolling_metadata));
+// Hands `document` back what a sealed frame took of it, where no frame is built from the seal. A document whose layout
+// tree was torn down since (one destroyed beside the seal) has no paint state to take it back: the next tree comes with
+// a paint state of its own.
+void LocalNavigable::unseal_presentation(DOM::Document& document, Compositor::SealedPresentation const& sealed)
+{
+    if (sealed.sends_visual_context_tree && document.has_paint_state())
+        document.paint_state().did_update_visual_context_values();
+}
 
-    Compositor::CompositorFrame frame;
-    if (display_list && !compositor_display_list_is_unchanged) {
-        frame.display_list_update = Compositor::CompositorFrame::DisplayListUpdate {
-            .display_list = *display_list,
-            .visual_context_tree = visual_context_tree.release_value(),
-            .resource_transaction = move(resource_transaction),
-            .scroll_state_snapshot = move(scroll_state_snapshot),
-        };
-        document_paint_state.did_update_visual_context_tree_in_compositor();
-        presenter.did_hand_display_list_to_compositor(*display_list, paint_config, move(display_list_command_resources), move(display_list_resources));
-        m_needs_to_record_display_list = false;
-    } else {
-        if (compositor_display_list_is_unchanged) {
-            m_needs_to_record_display_list = false;
-            presenter.set_compositor_display_list_paint_config(paint_config);
-            if (resource_storage.has_resources_added_since_last_retain())
-                resource_storage.retain_only(presenter.compositor_display_list_resources());
-        }
-        if (visual_context_tree_needs_compositor_update) {
-            auto updated_visual_context_tree = document_paint_state.visual_context_tree(document);
-            VERIFY(updated_visual_context_tree.structural_epoch() == presenter.compositor_display_list_visual_context_tree_structural_epoch());
-            auto updated_display_list_resources = compositor_display_list_resources(resource_storage, document_paint_state, presenter.compositor_display_list_command_resources(), updated_visual_context_tree);
-            auto updated_resource_transaction = resource_storage.create_transaction(presenter.compositor_display_list_resources(), updated_display_list_resources);
-            frame.visual_context_tree_update = Compositor::CompositorFrame::VisualContextTreeUpdate {
-                .visual_context_tree = move(updated_visual_context_tree),
-                .resource_transaction = move(updated_resource_transaction),
-            };
-            document_paint_state.did_update_visual_context_tree_in_compositor();
-            presenter.did_hand_visual_context_tree_to_compositor(move(updated_display_list_resources));
-        }
-        frame.scroll_state_update = Compositor::CompositorFrame::ScrollStateUpdate {
-            .scroll_state_snapshot = move(scroll_state_snapshot),
-            .keyboard_scroll_state = move(keyboard_scroll_state),
-        };
+// Publishes `recording`, which has landed, and builds the frame that presents what it recorded.
+Optional<Compositor::CompositorFrame> LocalNavigable::finish_recording(Layout::BegunRead const& read, DOM::Document& document, Compositor::SealedPresentation const& sealed, Painting::DisplayListRecording const& recording)
+{
+    auto display_list = document.finish_display_list_recording(read, recording, m_presenter.display_list_resource_storage());
+    if (!display_list) {
+        unseal_presentation(document, sealed);
+        return {};
     }
-    return frame;
+    m_needs_to_record_display_list = false;
+    bool const replaces_paint_command_cache_source = recording.cache_mode == Painting::PaintCommandCacheMode::ReadWrite
+        && display_list != sealed.paint_command_cache_source;
+    return m_presenter.build_frame(sealed, Compositor::PublishedDisplayList { display_list.release_nonnull(), replaces_paint_command_cache_source });
 }
 
 bool LocalNavigable::take_recording_in_flight_in(TakeIn take_in)
@@ -7037,6 +6991,7 @@ Optional<Compositor::CompositorFrame> LocalNavigable::finish_recording_in_flight
     if (!stands) {
         if (landed_standing)
             Layout::RustFFI::render_state_discard_pending_recording(host);
+        unseal_presentation(*document, in_flight.sealed);
         m_last_recording_in_flight_stood = false;
         m_needs_repaint = true;
         m_needs_to_record_display_list = true;
@@ -7047,10 +7002,7 @@ Optional<Compositor::CompositorFrame> LocalNavigable::finish_recording_in_flight
 
     // Publishing the recording is the host's own read of the document's render state.
     Layout::ForcedReadScope read { *document, false };
-    auto display_list = document->finish_display_list_recording(read, in_flight.recording, m_presenter.display_list_resource_storage());
-    if (!display_list)
-        return {};
-    auto frame = finish_compositor_frame(*document, in_flight.paint_config, move(display_list));
+    auto frame = finish_recording(read, *document, in_flight.sealed, in_flight.recording);
     if (frame.has_value())
         frame->present_viewport_rect = present_viewport_rect();
     return frame;

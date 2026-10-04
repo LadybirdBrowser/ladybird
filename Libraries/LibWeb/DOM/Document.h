@@ -578,6 +578,7 @@ public:
     Layout::Viewport* unsafe_layout_node(Layout::BegunRead const& read);
     bool has_committed_viewport_box() const;
 
+    bool has_paint_state() const { return !!m_paint_state; }
     Painting::DocumentPaintState& paint_state();
     Painting::DocumentPaintState const& paint_state() const;
     // Whether the last layout committed a box whose `content-visibility` is `auto`.

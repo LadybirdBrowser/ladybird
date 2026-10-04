@@ -59,6 +59,12 @@
 #include <LibWebCommon/HTML/VisibilityState.h>
 #include <LibWebCommon/PixelUnits.h>
 
+namespace Web::Painting {
+
+struct DisplayListRecording;
+
+}
+
 namespace Web::HTML {
 
 struct PopulateSessionHistoryEntryDocumentOutput;
@@ -432,7 +438,9 @@ private:
     struct RecordingInFlight;
 
     Layout::RustFFI::FfiFlightBlocker recording_flight_blocker(DOM::UpdateLayoutReason);
-    Optional<Compositor::CompositorFrame> finish_compositor_frame(DOM::Document&, PaintConfig const&, RefPtr<Compositing::DisplayList>);
+    Compositor::SealedPresentation seal_presentation(DOM::Document&, PaintConfig const&, bool records_display_list);
+    void unseal_presentation(DOM::Document&, Compositor::SealedPresentation const&);
+    Optional<Compositor::CompositorFrame> finish_recording(Layout::BegunRead const&, DOM::Document&, Compositor::SealedPresentation const&, Painting::DisplayListRecording const&);
     Optional<Compositor::CompositorFrame> finish_recording_in_flight(RecordingInFlight&, bool landed_standing);
     void submit_painted_frame(Compositor::CompositorFrame);
     Gfx::IntRect present_viewport_rect() const;
