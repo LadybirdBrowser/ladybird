@@ -196,12 +196,31 @@ unsafe fn lent_bytes<'a>(bytes: FfiHostHandle, length: usize) -> &'a [u8] {
 
 /// What a style job answers: the reactions of the transaction, owned, which the host keeps until it ends the
 /// transaction.
-pub(crate) struct StyleJobAnswer(FfiStyleTransactionOutput);
+pub(crate) struct StyleJobAnswer {
+    output: FfiStyleTransactionOutput,
+    records: NamedRecords,
+}
+
+/// The view of each record a transaction's rows name and the custom-property environment it was computed in, by record,
+/// which the host's drain reads without asking.
+struct NamedRecords(Box<[(u64, super::bridge::FfiStyleRecordView, Option<u64>)]>);
+
+// SAFETY: A view points into a published record, which never changes while it is live, and the host reads one only for
+// a record it installs from the transaction, which keeps it live.
+unsafe impl Send for NamedRecords {}
 
 impl StyleJobAnswer {
     /// The rows the transaction answered.
     pub(crate) fn rows(&self) -> &[super::bridge::FfiStyleDelta] {
-        self.0.answers()
+        self.output.answers()
+    }
+
+    /// The view of `record`, one the rows name, and the custom-property environment it was computed in.
+    pub(crate) fn record(&self, record: u64) -> Option<(super::bridge::FfiStyleRecordView, Option<u64>)> {
+        let records = &self.records.0;
+        let index = records.binary_search_by_key(&record, |&(record, ..)| record).ok()?;
+        let (_, view, environment) = records[index];
+        Some((view, environment))
     }
 }
 
@@ -226,7 +245,31 @@ impl StyleJob {
         // SAFETY: The sealed inputs name only what they own, and live until the transaction has taken them in.
         let output = unsafe { take_style_transaction(engine, self.root, self.computation_inputs.inputs) };
         engine.defer_atom_sweep(false);
-        StyleJobAnswer(output)
+        let mut records: Vec<u64> = output
+            .answers()
+            .iter()
+            .map(|row| row.new_style_record)
+            .filter(|&record| record != 0)
+            .collect();
+        records.sort_unstable();
+        records.dedup();
+        let records = records
+            .into_iter()
+            .filter_map(|record| {
+                // SAFETY: The view points into the record, which stays live while the rows name it.
+                let view = unsafe { super::bridge::style_record_view(engine, record) };
+                view.present.then(|| {
+                    let environment = engine
+                        .computed_group_sets
+                        .style_record_custom_property_environment(record);
+                    (record, view, environment)
+                })
+            })
+            .collect();
+        StyleJobAnswer {
+            output,
+            records: NamedRecords(records),
+        }
     }
 }
 
@@ -262,7 +305,7 @@ pub unsafe extern "C" fn style_engine_take_style_transaction(
         Some(read) => force_read(read, host, job),
         None => run_job(StyleJobPermit::of_style_update(read), host, job),
     };
-    host.keep_style_transaction(answer).0.view()
+    host.keep_style_transaction(answer).output.view()
 }
 
 /// Lets the pending style transaction under `root` fly beside the host, with the document computation inputs the host
@@ -322,7 +365,7 @@ pub unsafe extern "C" fn style_engine_take_flown_style_transaction(
         .take_unstyled_read()
         .map_or_else(|| read.into_read_right(), ReadRight::Forced);
     let answer = host.begin_style_drain(read);
-    host.keep_style_transaction(answer).0.view()
+    host.keep_style_transaction(answer).output.view()
 }
 
 /// Ends the drain of the style transaction of `host`'s document that flew, behind which the writes the host made beside

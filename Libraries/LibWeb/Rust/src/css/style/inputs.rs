@@ -1876,7 +1876,7 @@ impl StyleEngineState {
                 element_custom_property_data: HashMap::default(),
                 pseudo_element_custom_property_data: HashMap::default(),
                 environment_move_recompute_nodes: HashSet::default(),
-                container_effects_for_host: HashMap::default(),
+                container_effects_for_host: Default::default(),
                 published_container_verdicts: HashMap::default(),
                 container_gates_unheld: HashSet::default(),
                 row_inputs_moved: flush::RowInputsMoved::default(),
@@ -3500,7 +3500,7 @@ impl RetainedState {
         element_custom_property_data.remove(&node);
         pseudo_element_custom_property_data.remove(&node);
         environment_move_recompute_nodes.remove(&node);
-        container_effects_for_host.remove(&node);
+        container_effects_for_host.set(node, None);
         published_container_verdicts.remove(&node);
         container_gates_unheld.remove(&node);
         row_inputs_moved.forget(node);

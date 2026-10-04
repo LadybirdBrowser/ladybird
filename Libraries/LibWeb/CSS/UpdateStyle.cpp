@@ -583,8 +583,9 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(Layout:
             bool const needs_inherited_style_recompute = reaction.reaction & StyleEngine::InheritedStyle;
             // An element declaring custom properties of its own layers them over the environment it
             // inherits, which its cascade decides.
-            bool const cascade_declares_custom_properties = document.style_computer().style_engine().node_declares_custom_properties(read, reaction.style_node);
-            bool const needs_full_custom_property_recompute = needs_custom_property_recompute && (element->style_uses_var_css_function() || element->style_uses_inherit_css_function() || cascade_declares_custom_properties);
+            bool const needs_full_custom_property_recompute = needs_custom_property_recompute
+                && (element->style_uses_var_css_function() || element->style_uses_inherit_css_function()
+                    || document.style_computer().style_engine().node_declares_custom_properties(read, reaction.style_node));
 
             bool answered_by_demand = false;
             // A row the engine did not settle in its transaction, and that computes the element's style, is answered

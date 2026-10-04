@@ -600,15 +600,19 @@ impl RetainedState {
     /// Keep what a row the engine answers read of its containers for the host, which records it
     /// when it installs the element's record, as it does for a row it computes itself.
     pub(super) fn note_container_effects_for_host(&mut self, node: StyleNodeID, verdict: ContainerVerdict) {
-        self.container_effects_for_host
-            .entry(node)
-            .or_default()
-            .add_reads(verdict);
+        self.container_effects_for_host.note(node, verdict);
     }
 
     /// What the rows the host installs read of their containers, taken as it installs each.
     pub(crate) fn take_container_effects_for_host(&mut self, node: StyleNodeID) -> Option<ContainerVerdict> {
-        self.container_effects_for_host.remove(&node)
+        self.container_effects_for_host.set(node, None)
+    }
+
+    /// Raises `flag`, which the document's host reads, while the engine keeps any row's container effects for the
+    /// host, rather than a flag of the engine's own. The engine keeps none yet.
+    pub(crate) fn share_container_effects_held(&mut self, flag: std::sync::Arc<std::sync::atomic::AtomicBool>) {
+        debug_assert!(self.container_effects_for_host.effects.is_empty());
+        self.container_effects_for_host.held = flag;
     }
 
     /// Whether the winners published for a node hold a rule's container conditions: they hold a
@@ -840,5 +844,41 @@ impl RetainedState {
             }
             _ => true,
         }
+    }
+}
+
+/// What the container conditions of the rows the engine answered read of their containers, per element, kept for the
+/// host until it takes each as it installs the element's record, and a flag the host reads, without asking, for whether
+/// any is kept.
+#[derive(Default)]
+pub(super) struct ContainerEffectsForHost {
+    effects: HashMap<StyleNodeID, ContainerVerdict>,
+    held: std::sync::Arc<std::sync::atomic::AtomicBool>,
+}
+
+impl ContainerEffectsForHost {
+    pub(super) fn get(&self, node: &StyleNodeID) -> Option<&ContainerVerdict> {
+        self.effects.get(node)
+    }
+
+    fn note(&mut self, node: StyleNodeID, verdict: ContainerVerdict) {
+        self.effects.entry(node).or_default().add_reads(verdict);
+        self.held.store(true, std::sync::atomic::Ordering::Relaxed);
+    }
+
+    /// Keeps `verdict` for `node`, or none, and answers what it kept before.
+    pub(super) fn set(&mut self, node: StyleNodeID, verdict: Option<ContainerVerdict>) -> Option<ContainerVerdict> {
+        let previous = match verdict {
+            Some(verdict) => self.effects.insert(node, verdict),
+            None => self.effects.remove(&node),
+        };
+        self.held
+            .store(!self.effects.is_empty(), std::sync::atomic::Ordering::Relaxed);
+        previous
+    }
+
+    pub(super) fn clear(&mut self) {
+        self.effects.clear();
+        self.held.store(false, std::sync::atomic::Ordering::Relaxed);
     }
 }

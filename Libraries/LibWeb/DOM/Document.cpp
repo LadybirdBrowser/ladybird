@@ -745,10 +745,10 @@ bool Document::needs_full_layout_tree_update(Layout::BegunRead const& read) cons
 }
 
 // A document without an arena has no layout nodes, so its next build creates every box anyway.
-void Document::set_needs_full_layout_tree_update(bool value)
+void Document::set_needs_full_layout_tree_update()
 {
     if (m_layout_node_arena)
-        Layout::RustFFI::render_state_set_needs_full_layout_tree_update(m_layout_node_arena->host(), value);
+        Layout::RustFFI::render_state_set_needs_full_layout_tree_update(m_layout_node_arena->host());
 }
 
 bool Document::is_running_update_layout() const
@@ -1631,7 +1631,7 @@ void Document::tear_down_layout_tree()
     if (layout_root)
         layout_node_arena().free_subtree(read, Layout::Node::slot_id(layout_root));
     m_paint_state = nullptr;
-    set_needs_full_layout_tree_update(true);
+    set_needs_full_layout_tree_update();
 }
 
 void Document::tear_down_layout_tree_for_svg_image_document(Badge<SVG::SVGDecodedImageData>)

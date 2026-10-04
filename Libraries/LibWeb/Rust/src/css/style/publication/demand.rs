@@ -128,7 +128,7 @@ impl RetainedState {
         self.put_back_engine_computed_records(node, scratch, counters);
         set_contains(&mut self.nodes_with_substituted_records, node, saves.uses_substitution);
         set_entry(&mut self.custom_declaration_reads, node, saves.custom_declaration_reads);
-        set_entry(&mut self.container_effects_for_host, node, saves.container_effects);
+        self.container_effects_for_host.set(node, saves.container_effects);
         set_entry(&mut self.published_container_verdicts, node, saves.container_verdicts);
         set_contains(&mut self.container_gates_unheld, node, saves.container_gate_unheld);
         set_entry(&mut self.nodes_with_tree_counting_records, node, saves.tree_counting);

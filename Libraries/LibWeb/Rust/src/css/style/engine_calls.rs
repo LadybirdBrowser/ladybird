@@ -974,6 +974,14 @@ pub unsafe extern "C" fn style_engine_style_record_dependency_flags(
     if let Some(flags) = memo.get(style_record) {
         return flags;
     }
+    if let Some(view) = host
+        .engine_memo()
+        .views
+        .get(style_record)
+        .or_else(|| host.transaction_record(style_record).map(|(view, _)| view))
+    {
+        return view.dependency_flags;
+    }
     let Some(flags) = with_engine(read, host, |engine| engine.style_record_dependency_flags(style_record)) else {
         return 0;
     };
@@ -996,6 +1004,10 @@ pub unsafe extern "C" fn style_engine_style_record_custom_property_environment(
     let host = unsafe { document_host(host) };
     let memo = &host.engine_memo().record_environments;
     if let Some(environment) = memo.get(style_record) {
+        return environment;
+    }
+    if let Some((_, Some(environment))) = host.transaction_record(style_record) {
+        memo.set(style_record, environment);
         return environment;
     }
     let Some(environment) = with_engine(read, host, |engine| {

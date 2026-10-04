@@ -3109,6 +3109,10 @@ pub unsafe extern "C" fn style_engine_style_record_view(
     if let Some(view) = memo.get(style_record) {
         return view;
     }
+    if let Some((view, _)) = host.transaction_record(style_record) {
+        memo.set(style_record, view);
+        return view;
+    }
     // SAFETY: Guaranteed by the caller.
     let view = with_engine(read, host, |engine| unsafe { style_record_view(engine, style_record) });
     if view.present {
@@ -4044,6 +4048,7 @@ pub unsafe extern "C" fn style_engine_take_container_effects(
     // SAFETY: Guaranteed by the caller.
     let host = unsafe { document_host(host) };
     let verdict = StyleNodeID::from_raw(node)
+        .filter(|_| host.container_effects_may_be_held())
         .and_then(|node| with_engine(read, host, |engine| engine.take_container_effects_for_host(node)))
         .unwrap_or_default();
     for (node, kind) in verdict.effects {

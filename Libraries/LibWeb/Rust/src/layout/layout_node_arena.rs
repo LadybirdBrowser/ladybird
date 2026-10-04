@@ -5507,7 +5507,10 @@ pub unsafe extern "C" fn render_state_layout_is_up_to_date(
     let Some(here) = host.layout_waits_for_no_frame() else {
         return false;
     };
-    crate::render_state::ask(
+    if let Some(up_to_date) = host.known_layout_up_to_date() {
+        return up_to_date;
+    }
+    let up_to_date = crate::render_state::ask(
         here,
         host,
         crate::render_state::ArenaRead::new(StyleNodeID::from_raw(document_style_node), |arena, document| {
@@ -5518,7 +5521,9 @@ pub unsafe extern "C" fn render_state_layout_is_up_to_date(
             arena.layout_is_up_to_date(document_needs_layout_tree_build)
         }),
     )
-    .0
+    .0;
+    host.note_layout_up_to_date(up_to_date);
+    up_to_date
 }
 
 /// # Safety

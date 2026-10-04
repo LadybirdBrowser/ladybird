@@ -32,6 +32,16 @@ pub unsafe extern "C" fn render_state_node_shell_if_live(
     id: NodeSlotId,
 ) -> *mut c_void {
     // SAFETY: Guaranteed by the caller.
+    let document_host = unsafe { &*host };
+    if let Some(shell) = document_host.held_shell(id) {
+        return shell;
+    }
+    if let Some(identities) = document_host.known_row_identities() {
+        return identities.shell_facts(id).map_or(std::ptr::null_mut(), |facts| {
+            document_host.host_tables().shell_of(facts)
+        });
+    }
+    // SAFETY: Guaranteed by the caller.
     let facts = unsafe {
         read_arena(host, read, id, |arena, id| {
             let kind = arena.node_kind_if_live(id)?;
