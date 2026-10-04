@@ -24,6 +24,10 @@
             box.style.marginTop = "1px";
         }, state => {
             const states = [`next task: ${state}`];
+            // The first write is a rule edit of a sheet whose compiled rules the document shared until now.
+            const sheet = base.sheet;
+            sheet.insertRule("#box { border: 2px solid; }", sheet.cssRules.length);
+            states.push(`after insertRule(): ${internals.frameSchedulerState()}`);
             const style = document.createElement("style");
             style.textContent = "#box { margin-left: 3px; }";
             document.head.appendChild(style);
@@ -35,9 +39,6 @@
             states.push(`after replaceSync(): ${internals.frameSchedulerState()}`);
             media.media = "all";
             states.push(`after a sheet's media change: ${internals.frameSchedulerState()}`);
-            const sheet = base.sheet;
-            sheet.insertRule("#box { border: 2px solid; }", sheet.cssRules.length);
-            states.push(`after insertRule(): ${internals.frameSchedulerState()}`);
             sheet.deleteRule(1);
             states.push(`after deleteRule(): ${internals.frameSchedulerState()}`);
             sheet.cssRules[1].selectorText = ".target";

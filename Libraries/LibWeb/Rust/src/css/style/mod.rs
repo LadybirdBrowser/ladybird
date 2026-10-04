@@ -104,6 +104,7 @@ mod random_bases;
 pub mod record_replay;
 mod resource_contexts;
 mod routing;
+pub(crate) mod rule_writes;
 mod sorted_merge;
 mod style_invalidation;
 mod transition_baselines;

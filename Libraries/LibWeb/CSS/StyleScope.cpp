@@ -371,7 +371,7 @@ void StyleScope::build_rule_cache(Layout::BegunRead const& read)
     // reference data are reusable, but each scope owns a distinct engine layer order and keyframes
     // row, and publishes this cache generation into them once.
     if (m_published_layer_order_generation != style_cache.rule_cache_generation) {
-        publish_cascade_layer_order(read);
+        publish_cascade_layer_order();
         publish_animation_keyframes(read);
         m_published_layer_order_generation = style_cache.rule_cache_generation;
     }
@@ -669,7 +669,7 @@ void StyleScope::make_rule_cache_for_cascade_origin(CascadeOrigin cascade_origin
     });
 }
 
-void StyleScope::publish_cascade_layer_order(Layout::BegunRead const& read, StyleSheetState* pending_attachment)
+void StyleScope::publish_cascade_layer_order(StyleSheetState* pending_attachment)
 {
     Vector<Parser::ValueParserFFI::NativeStyleSheet const*> sheets;
     // An adopted sheet is announced before ObservableArray stores it. Include that pending
@@ -689,7 +689,7 @@ void StyleScope::publish_cascade_layer_order(Layout::BegunRead const& read, Styl
 
     m_has_published_named_layer_order = Parser::ValueParserFFI::rust_style_sheet_publish_layer_order(
         sheets.data(), sheets.size(), document().style_computer().style_engine().host(),
-        &read, style_engine_tree_scope().value(), m_has_published_named_layer_order, &document(),
+        style_engine_tree_scope().value(), m_has_published_named_layer_order, &document(),
         [](void* document) { static_cast<DOM::Document*>(document)->flush_deferred_style_change_event(); });
 }
 

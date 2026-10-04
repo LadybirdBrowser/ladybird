@@ -133,10 +133,10 @@ impl StyleEngine {
         before: Option<RuleID>,
         rule_identity: u64,
         selectors: &[&CompiledSelector],
-        rules: &crate::css::rule::NativeRuleList,
+        namespaces: Option<&super::rule_writes::NamespaceTexts>,
     ) -> RuleID {
         self.state
-            .add_user_agent_style_rule(sheet, before, rule_identity, selectors, rules, &mut self.counters)
+            .add_user_agent_style_rule(sheet, before, rule_identity, selectors, namespaces, &mut self.counters)
     }
 
     #[cfg(feature = "style-recording")]

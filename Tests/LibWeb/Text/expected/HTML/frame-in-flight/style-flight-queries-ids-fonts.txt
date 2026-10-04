@@ -5,7 +5,7 @@ a first-seen id: state in the next task: in-flight
 a first-seen id: state after the write: in-flight
 a first-seen id: after: width 150, by id: true
 a constructed sheet with a media list: state in the next task: in-flight
-a constructed sheet with a media list: state after the write: landed
+a constructed sheet with a media list: state after the write: in-flight
 a constructed sheet with a media list: after: print
 adding a font face: state in the next task: in-flight
 adding a font face: state after the write: in-flight

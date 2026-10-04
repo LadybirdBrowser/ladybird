@@ -10,11 +10,12 @@ use super::questions::Question;
 use super::wait::{BegunRead, HostRead, NodeRead, ReadRight, force_read_flown_style};
 use super::{
     ArenaChange, ChangeQueue, CommittedRows, ForcedRead, Landing, NoFrameInFlight, RenderState, RenderWait,
-    ScriptForcedRead,
+    RulesWritten, ScriptForcedRead,
 };
 use crate::css::style::bridge::FfiDeviceClass;
 use crate::css::style::flight_style_rows::FlightStyleRow;
-use crate::css::style::style_job::{FfiFlownStyleDrain, StyleJobAnswer};
+use crate::css::style::rule_writes::{PublishedRules, RuleWrite};
+use crate::css::style::style_job::StyleJobAnswer;
 use crate::css::style::tree::StyleNodeID;
 use crate::layout::row_reads::{RowIdentities, RowSnapshot};
 use crate::layout::tree_update_marks::LayoutTreeUpdateMarks;
@@ -68,9 +69,6 @@ pub struct DocumentHost {
     changes: ChangeQueue,
     /// The style transaction that flew with the frame, from its landing until the host has drained its reactions.
     flown_style: RefCell<Option<FlownStyle>>,
-    /// How the host's document drains the style transaction that flew, until a drain begins. The document drains it
-    /// only where it has not begun to.
-    flown_style_drain: Cell<Option<FfiFlownStyleDrain>>,
     /// Whether the paint and hit testing properties the document prepared last were prepared from the render state as it
     /// is: nothing was written to it since, queued, in place or by a message. Preparing them again would find nothing
     /// to do.
@@ -82,6 +80,8 @@ pub struct DocumentHost {
     /// The layout tree update marks the host made beside the frame in flight, which answer the host's questions about
     /// marks while the frame holds the document's own. Each write to them is queued for the document's marks as well.
     marks_beside_flight: RefCell<LayoutTreeUpdateMarks>,
+    /// The rules the host published to each of its document's style sheets.
+    published_rules: PublishedRules,
 }
 
 /// Where a document's render state is: here, where the host lends it to the messages it waits for, or flying, moved
@@ -129,11 +129,11 @@ impl DocumentHost {
             begun_read: BegunRead::of_host(),
             changes: ChangeQueue::default(),
             flown_style: RefCell::default(),
-            flown_style_drain: Cell::new(None),
             paint_preparation_is_current: Cell::new(false),
             sealed_round: RefCell::default(),
             flown_round: RefCell::default(),
             marks_beside_flight: RefCell::default(),
+            published_rules: PublishedRules::default(),
         }
     }
 
@@ -153,9 +153,14 @@ impl DocumentHost {
         &self.host_tables
     }
 
+    /// The rules the host published to each of its document's style sheets, which it reads in place of the engine's.
+    pub(crate) fn published_rules(&self) -> &PublishedRules {
+        &self.published_rules
+    }
+
     /// Writes `change` to the document's render state, before anything that reads what it changes: the render side
     /// applies it ahead of the host's next message, and the host ahead of the next question it answers where it is. A
-    /// write never reaches the render state as the host makes it.
+    /// write never reaches the render state as the host makes it, but for a rule write (see [`Self::write_rules`]).
     pub(crate) fn queue_change(&self, change: ArenaChange) {
         self.note_render_state_write();
         self.changes.push(change);
@@ -165,6 +170,19 @@ impl DocumentHost {
     /// from it stale.
     pub(super) fn note_render_state_write(&self) {
         self.paint_preparation_is_current.set(false);
+    }
+
+    /// Writes `write` to the document's style sheets in its style engine. Where the frame is here, the engine applies
+    /// it, behind the writes queued before it, as the host makes it: a sheet's rules are added where the sheet is set
+    /// up or edited, not inside whatever reads the render state next. Beside a frame in flight it is queued like any
+    /// other write.
+    pub(crate) fn write_rules(&self, write: RuleWrite) {
+        self.queue_change(ArenaChange::Rule(RulesWritten(write)));
+        if let Some(here) = self.frame_here() {
+            self.changes.drain(here, self.has_flown_style(), |changes| {
+                self.with_state(|state| state.apply(changes));
+            });
+        }
     }
 
     /// Takes the frame in flight in with `read`, and lends the writes the host queued to `apply`, for the render state
@@ -203,13 +221,8 @@ impl DocumentHost {
     }
 
     /// Moves the document's render state into the job `flight` submits with it, and lets the frame fly beside the host
-    /// until the host drains the reactions of the style transaction it flies with, with `drain`.
-    pub(super) fn let_frame_fly(
-        &self,
-        drain: FfiFlownStyleDrain,
-        flight: impl FnOnce(RenderState) -> InFlight<Landing>,
-    ) {
-        self.flown_style_drain.set(Some(drain));
+    /// until the host drains the reactions of the style transaction it flies with.
+    pub(super) fn let_frame_fly(&self, flight: impl FnOnce(RenderState) -> InFlight<Landing>) {
         self.turn_frame(|frame| match frame {
             Frame::Here(state) => Frame::Flying(flight(state.into_inner())),
             Frame::Flying(_) => panic!("one frame of a document flies at a time"),
@@ -324,6 +337,11 @@ impl DocumentHost {
         (!self.waits_for_frame.get()).then_some(NoFrameInFlight(()))
     }
 
+    /// Proof that no frame flies, where the frame is here.
+    fn frame_here(&self) -> Option<NoFrameInFlight> {
+        (!self.frame_flies()).then_some(NoFrameInFlight(()))
+    }
+
     fn frame_flies(&self) -> bool {
         matches!(*self.frame.borrow(), Frame::Flying(_))
     }
@@ -358,20 +376,9 @@ impl DocumentHost {
         self.frame_flies() || matches!(*self.flown_style.borrow(), Some(FlownStyle::Landed(..)))
     }
 
-    /// Has the document drain the style transaction that flew in `read`, where it has not begun to, for a write to the
-    /// document's style sheets the host makes in place: the write lands behind the sheet writes the host queued beside
-    /// the transaction, which wait for its drain, in the order the host made them.
-    pub(crate) fn drain_flown_style(&self, read: &BegunRead) {
-        if let Some(drain) = self.flown_style_drain.get() {
-            // SAFETY: The document drains on the host's thread, which this is, and outlives its host.
-            unsafe { (drain.drain)(drain.document, read) };
-        }
-    }
-
     /// Takes what the style transaction that flew answered, for the host to drain its reactions, once `read` took the
     /// frame in. The writes the host queued beside the transaction wait for the drain to end.
     pub(crate) fn begin_style_drain(&self, read: ReadRight) -> StyleJobAnswer {
-        self.flown_style_drain.set(None);
         self.take_frame_in(read);
         let mut flown = self.flown_style.borrow_mut();
         let Some(FlownStyle::Landed(answer, applied)) = flown.take() else {
@@ -680,10 +687,13 @@ impl TestHost {
         unsafe { &*self.0 }.read_for_test()
     }
 
-    /// The style engine of the host's document, which the test reaches between the host's calls.
+    /// The style engine of the host's document, as of every write the host queued, which the test reaches between the
+    /// host's calls.
     pub(crate) fn engine(&self) -> crate::css::style::StyleEngineHandle {
         // SAFETY: The host lives until the test host is dropped.
-        unsafe { &*self.0 }.with_state(|state| state.engine)
+        let host = unsafe { &*self.0 };
+        host.apply_queued_changes(crate::render_state::ScriptForcedRead::for_test());
+        host.with_state(|state| state.engine)
     }
 }
 

@@ -148,6 +148,9 @@ public:
     void decide_transitions(Layout::BegunRead const& read, StyleRecordID before_style_record, StyleRecordID after_style_record, StyleValueFFI::FfiTransitionInput const&, StyleValueFFI::FfiTransitionAction*) const;
     // Remove the retained input identities for one pseudo-element kind and return its removal.
     [[nodiscard]] StyleRecordDelta remove_computed_pseudo(Layout::BegunRead const& read, StyleNodeID node, u8 pseudo_kind);
+    // A sheet the host numbers itself, which the engine adds as it applies the host's writes.
+    [[nodiscard]] SheetID add_sheet(u32 object, StyleEngineFFI::FfiCascadeOrigin origin);
+    void begin_sheet_rules_replacement(SheetID sheet);
     void finish_sheet_rules_replacement(SheetID sheet);
     // A fresh identity for an element-sourced declaration block.
     //

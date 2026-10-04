@@ -720,20 +720,6 @@ pub(crate) unsafe fn document_host<'a>(host: *const DocumentHost) -> &'a Documen
     unsafe { &*host }
 }
 
-/// The document host `host` names, for a step in `read` that writes the document's style sheets to its engine in
-/// place, behind the drain of the style transaction that flew: the step's writes do not commute with the sheet writes
-/// the host queued beside the transaction, which wait for its drain.
-///
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread, which outlives the borrow.
-pub(crate) unsafe fn sheet_writing_host<'a>(host: *const DocumentHost, read: &BegunRead) -> &'a DocumentHost {
-    // SAFETY: Guaranteed by the caller.
-    let host = unsafe { document_host(host) };
-    host.drain_flown_style(read);
-    host
-}
-
 /// Runs `call` on the style engine of `host`'s document in `read`, and answers what it answers. The engine is borrowed
 /// for the call alone, so a host callback that reaches the engine again runs after it.
 pub(crate) fn with_engine<R>(read: &BegunRead, host: &DocumentHost, call: impl FnOnce(&mut StyleEngine) -> R) -> R {

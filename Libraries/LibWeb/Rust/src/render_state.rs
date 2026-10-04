@@ -183,7 +183,13 @@ pub(crate) enum ArenaChange {
     Style(crate::css::style::bridge::StyleChange),
     /// A hand-written write to the document's style engine.
     Engine(crate::css::style::engine_calls::EngineWrite),
+    /// A write to the document's style sheets.
+    Rule(RulesWritten),
 }
+
+/// A write to the document's style sheets, which only DocumentHost::write_rules() makes, so that a rule write waits in
+/// the queue only beside a frame in flight.
+pub(crate) struct RulesWritten(crate::css::style::rule_writes::RuleWrite);
 
 impl ArenaChange {
     /// # Safety
@@ -197,6 +203,8 @@ impl ArenaChange {
             Self::Style(change) => change.apply(unsafe { engine.get_mut() }),
             // SAFETY: As above.
             Self::Engine(write) => write.apply(unsafe { engine.get_mut() }),
+            // SAFETY: As above.
+            Self::Rule(RulesWritten(write)) => write.apply(unsafe { engine.get_mut() }),
         }
     }
 
@@ -206,13 +214,14 @@ impl ArenaChange {
         match self {
             Self::Style(change) => !change.notes_attribute_name(),
             Self::Engine(write) => !matches!(write, crate::css::style::engine_calls::EngineWrite::MintStyleNodes(_)),
+            Self::Rule(_) => true,
             Self::Layout(_) | Self::Paint(_) => false,
         }
     }
 }
 
 /// Proof that the host's document has no frame in flight: the host has taken it in, or let none fly. Only
-/// DocumentHost::take_frame_in(), DocumentHost::layout_waits_for_no_frame() and
+/// DocumentHost::take_frame_in(), DocumentHost::frame_here(), DocumentHost::layout_waits_for_no_frame() and
 /// DocumentHost::marks_beside_flight() mint it.
 pub(crate) struct NoFrameInFlight(());
 
@@ -347,8 +356,8 @@ pub(crate) fn send(host: &DocumentHost, read: ReadRight, message: RenderMessage<
 
 /// Submits `job`, a style transaction of `host`'s document, to the render side, the StyleLayout thread, with the
 /// document's render state, the writes the host queued and `round`, the layout round the host sealed, and goes on: the
-/// frame flies with the state until the host takes it in, and the document drains the transaction's reactions with
-/// `drain`. Only a transaction that `_license` lets fly is submitted.
+/// frame flies with the state until the host takes it in and drains the transaction's reactions. Only a transaction
+/// that `_license` lets fly is submitted.
 ///
 /// The frame applies the transaction's rows to the boxes itself before the round, where it can: otherwise the round is
 /// left unrun, and the host lays out after it installs the rows.
@@ -356,7 +365,6 @@ pub(crate) fn fly(
     host: &DocumentHost,
     job: crate::css::style::style_job::StyleJob,
     round: Option<crate::layout::SealedRound>,
-    drain: crate::css::style::style_job::FfiFlownStyleDrain,
     _license: &crate::painting::recording_slot::FlightLicense,
 ) {
     let mut changes = host.take_queued_changes_for_flight();
@@ -364,7 +372,7 @@ pub(crate) fn fly(
     if round.is_some() {
         host.let_go_of_rows();
     }
-    host.let_frame_fly(drain, |mut state| {
+    host.let_frame_fly(|mut state| {
         state.went_to_render_side = true;
         // A host that waits for the frame says the stop word, and the frame comes back with its style alone.
         let run = move |stop: &crate::stage_thread::StopWord| {
