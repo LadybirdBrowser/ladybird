@@ -154,7 +154,6 @@ public:
     Web::DevicePixelPoint local_root_offset(CanonicalNavigable const&) const;
 
     Optional<BrowserHistoryTraversalDiagnostic> browser_history_traversal_for_testing() const;
-    CanonicalSessionHistoryEntry const* ongoing_browser_history_traversal_target_entry() const;
     // The entries of the synchronous navigations of a navigable whose finalization is queued.
     Vector<NonnullRefPtr<CanonicalSessionHistoryEntry>> queued_same_document_session_history_entries(CanonicalNavigable const&) const;
     ByteString queued_same_document_session_history_entries_for_debug() const;

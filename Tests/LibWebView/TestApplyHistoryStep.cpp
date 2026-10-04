@@ -826,7 +826,7 @@ TEST_CASE(a_paused_reload_continues_with_the_entry_that_a_jumping_replace_put_in
     Core::EventLoop event_loop;
     TestTraversable test;
     test.with_two_top_level_entries();
-    test.history.mark_current_entry_reload_pending();
+    test.history.current_entry()->document_state->reload_pending = true;
 
     // A same-document replace from the page being reloaded is queued behind the reload, and jumps the queue while the
     // reload waits on its changing job. It replaces the entry that the reload has claimed, keeping its navigation API
