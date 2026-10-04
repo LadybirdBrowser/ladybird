@@ -225,7 +225,7 @@ impl FfiLayoutUpdateHostCallbacks {
     /// in the order the builds came to owe them. Until now a box that owns its image's provider
     /// had no image; one handed a provider whose image is already there lays out again.
     fn attach_owed_image_resources(&self, _: &MainThread, host: &DocumentHost, read: &BegunRead) {
-        if host.known_facts().is_some_and(|facts| !facts.owes_image_resources) {
+        if host.known_owed_image_resources() == Some(false) {
             return;
         }
         let owed = read_arena(host, read, (), |arena, ()| {
