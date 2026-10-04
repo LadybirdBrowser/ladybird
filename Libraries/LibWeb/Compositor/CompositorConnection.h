@@ -86,6 +86,8 @@ public:
     bool read_webgl_buffer_sub_data(Compositing::CanvasId, Compositing::WebGL::GLenum target, Compositing::WebGL::GLintptr offset, Compositing::WebGL::GLintptr size, Core::AnonymousBuffer const& data);
 
     void ensure_video_presentation_channel();
+    // Offers the Compositor the process's render clock, which it delivers display ticks to from then on.
+    void attach_render_clock();
     Function<void(Web::PageId page_id, Web::MouseEvent)> on_mouse_event;
     Function<void(Web::PageId page_id, Web::KeyEvent)> on_key_event;
     Function<void()> on_compositor_lost;

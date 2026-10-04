@@ -9,6 +9,7 @@ set(SOURCES
     HostWebGLContext.cpp
     OpenGLContext.cpp
     PausedDebuggerOverlay.cpp
+    RenderClockConnection.cpp
     ScrollSnapController.cpp
     ScrollbarController.cpp
     VSyncScheduler.cpp
@@ -30,6 +31,8 @@ set(GENERATED_SOURCES
     CompositorControlServerEndpoint.h
     CompositorWebContentClientEndpoint.h
     CompositorWebContentServerEndpoint.h
+    RenderClockClientEndpoint.h
+    RenderClockServerEndpoint.h
     ${CMAKE_BINARY_DIR}/Libraries/LibCompositing/WebGL/GLFunctions.cpp
     WebGLCommandReplayer.cpp
 )
