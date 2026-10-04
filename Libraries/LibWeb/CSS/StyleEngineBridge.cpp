@@ -154,14 +154,6 @@ StyleEngine::StyleRecordDelta StyleEngine::publish_computed_groups(Layout::Begun
     return { StyleRecordID { delta.old_style_record }, StyleRecordID { delta.new_style_record } };
 }
 
-Optional<StyleEngine::StyleRecordDelta> StyleEngine::publish_animation_overlay(Layout::BegunRead const& read, StyleNodeID node, u8 pseudo_kind, u64 animation_overlay_identity, void const* animated_overlay, ReadonlySpan<void const*> payloads)
-{
-    auto delta = StyleEngineFFI::style_engine_publish_animation_overlay(host(), &read, node.value(), pseudo_kind, animation_overlay_identity, animated_overlay, payloads.data(), payloads.size());
-    if (delta.new_style_record == 0)
-        return {};
-    return StyleRecordDelta { StyleRecordID { delta.old_style_record }, StyleRecordID { delta.new_style_record } };
-}
-
 StyleRecordDependencyFlag StyleEngine::style_record_dependency_flags(Layout::BegunRead const& read, StyleRecordID style_record) const
 {
     return static_cast<StyleRecordDependencyFlag>(StyleEngineFFI::style_engine_style_record_dependency_flags(m_render_document->host(), &read, style_record.value()));
@@ -185,11 +177,6 @@ u32 StyleEngine::element_record_damage(Layout::BegunRead const& read, StyleNodeI
 u32 StyleEngine::pseudo_element_record_damage(Layout::BegunRead const& read, StyleNodeID node, PseudoElement pseudo_element, StyleRecordID old_style_record, StyleRecordID new_style_record, StyleRecordID originating_style_record, bool counter_styles_changed) const
 {
     return StyleEngineFFI::style_engine_pseudo_element_record_damage(host(), &read, node.value(), to_underlying(pseudo_element), old_style_record.value(), new_style_record.value(), originating_style_record.value(), counter_styles_changed);
-}
-
-StyleEngineFFI::FfiAnimationInvalidation StyleEngine::compare_animation_overlay(Layout::BegunRead const& read, StyleRecordID old_style_record, void const* animated_overlay, ReadonlySpan<void const*> payloads, bool is_document_element) const
-{
-    return StyleEngineFFI::style_engine_compare_animation_overlay(host(), &read, old_style_record.value(), animated_overlay, payloads.data(), payloads.size(), is_document_element);
 }
 
 StyleEngine::StyleRecordView StyleEngine::style_record_view(Layout::BegunRead const& read, StyleRecordID style_record) const

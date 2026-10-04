@@ -871,13 +871,21 @@ void AnimationUpdateContext::publish()
         if (!element.installed_style().animation_overlay_changed(style->animated_overlay()))
             continue;
 
+        // The record the element installed may become a transition baseline once the publication is compared with it,
+        // which the publication can release: an element holds its record until it installs the published one, but a
+        // pseudo-element holds it nowhere, so the update pins it across the publication.
+        bool const may_record_baseline = style->animated_overlay() && !animated_overlay_entries(style->animated_overlay()).is_empty()
+            && target->document().is_in_style_stabilization_epoch();
+        bool const pins_installed_record = may_record_baseline && element.pseudo_element().has_value();
+        auto& style_engine = style_computer.style_engine();
+        if (pins_installed_record)
+            style_engine.pin_style_record(it.value.style_record_before_update);
         auto [animated_property_invalidation, publication] = style_computer.publish_sampled_animation_overlay(read, element, *style, [&](auto const& overlay_invalidation) {
-            if (style->animated_overlay() && !animated_overlay_entries(style->animated_overlay()).is_empty()
-                && target->document().is_in_style_stabilization_epoch()
-                && (target->document().style_stabilization_has_style_reactions() || overlay_invalidation.requires_base_style_recomputation)) {
+            if (may_record_baseline && (target->document().style_stabilization_has_style_reactions() || overlay_invalidation.requires_base_style_recomputation))
                 style_computer.record_transition_stabilization_baseline(element, it.value.style_record_before_update);
-            }
         });
+        if (pins_installed_record)
+            style_engine.unpin_style_record(it.value.style_record_before_update);
         auto invalidation = CSS::decode_style_invalidation(animated_property_invalidation.invalidation);
         target->refresh_computed_style(element.pseudo_element(), publication.new_style_record);
         if (auto* svg_element = as_if<SVG::SVGElement>(*target); svg_element && !element.pseudo_element().has_value())
