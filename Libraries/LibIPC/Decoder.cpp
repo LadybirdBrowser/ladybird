@@ -192,7 +192,11 @@ ErrorOr<Core::AnonymousBuffer> decode(Decoder& decoder)
     auto size = static_cast<size_t>(encoded_size);
     auto anon_file = TRY(decoder.decode<IPC::File>());
 
-    return Core::AnonymousBuffer::create_from_anon_fd(anon_file.take_fd(), size);
+    // The size is the sender's claim. Touching a mapping past the end of the file it maps raises SIGBUS, so a sender that
+    // claims more than it sent could crash us whenever we got to that part of the buffer.
+    auto buffer = TRY(Core::AnonymousBuffer::create_from_anon_fd(anon_file.take_fd(), size));
+    TRY(buffer.validate_backing_size());
+    return buffer;
 }
 
 }
