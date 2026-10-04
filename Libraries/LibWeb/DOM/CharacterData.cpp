@@ -13,6 +13,7 @@
 #include <LibWeb/CSS/StyleEngineInput.h>
 #include <LibWeb/DOM/CharacterData.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/DOM/InvalidationJournal.h>
 #include <LibWeb/DOM/MutationType.h>
 #include <LibWeb/DOM/Range.h>
 #include <LibWeb/DOM/Text.h>
@@ -89,6 +90,27 @@ WebIDL::ExceptionOr<Utf16String> CharacterData::substring_data(size_t offset, si
 }
 
 // https://dom.spec.whatwg.org/#concept-cd-replace
+void CharacterData::apply_text_data_change(Badge<InvalidationJournal>, Layout::TextNode& text_layout_node, bool whitespace_only_changed)
+{
+    if (Layout::RustFFI::render_state_text_has_source_range(text_layout_node.document_host(), Layout::Node::slot_id(&text_layout_node))) {
+        // First-letter source ranges are determined while building the layout tree.
+        if (parent())
+            parent()->set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::CharacterDataReplaceData);
+        return;
+    }
+
+    // NB: Since the text node's data has changed, we need to invalidate the text for rendering.
+    //     This ensures that the new text is reflected in layout, even if we don't end up doing a full layout
+    //     tree rebuild.
+    text_layout_node.invalidate_text_for_rendering();
+
+    // We also need to relayout.
+    text_layout_node.set_needs_layout_update(SetNeedsLayoutReason::CharacterDataReplaceData);
+
+    if (whitespace_only_changed)
+        set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::CharacterDataReplaceData);
+}
+
 WebIDL::ExceptionOr<void> CharacterData::replace_data(size_t offset, size_t count, Utf16View const& data)
 {
     // NB: Mutations during a recorded editing command must go through the Editing proxy functions.
@@ -178,31 +200,19 @@ WebIDL::ExceptionOr<void> CharacterData::replace_data(size_t offset, size_t coun
 
     // NB: Called during DOM text mutation, layout is stale.
     if (is<Text>(*this)) {
-        // The change asks for the boxes the text has as its own read of the render state.
-        Layout::ForcedReadScope read { document(), false };
         if (auto* parent = this->parent()) {
+            // Finding the first-letter box the text is in is the change's own read of the render state.
+            Layout::ForcedReadScope read { document(), false };
             if (auto* first_letter_owner = parent->first_letter_owner_for_layout_subtree_from(read, *parent))
                 first_letter_owner->set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::CharacterDataReplaceData);
         }
         CSS::record_text_data_changed(as<Text>(*this));
         auto whitespace_only_changed = old_data.is_ascii_whitespace() != m_data.is_ascii_whitespace();
-        auto* text_layout_node = as_if<Layout::TextNode>(unsafe_layout_node(read));
-        if (text_layout_node && Layout::RustFFI::render_state_text_has_source_range(text_layout_node->document_host(), Layout::Node::slot_id(text_layout_node))) {
-            // First-letter source ranges are determined while building the layout tree.
-            if (parent())
-                parent()->set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::CharacterDataReplaceData);
-        } else if (text_layout_node) {
-            // NB: Since the text node's data has changed, we need to invalidate the text for rendering.
-            //     This ensures that the new text is reflected in layout, even if we don't end up doing a full layout
-            //     tree rebuild.
-            text_layout_node->invalidate_text_for_rendering();
-
-            // We also need to relayout.
-            text_layout_node->set_needs_layout_update(SetNeedsLayoutReason::CharacterDataReplaceData);
-
-            if (whitespace_only_changed)
-                set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::CharacterDataReplaceData);
-        } else if (whitespace_only_changed && is_connected()) {
+        // What the new data changes depends on the text's box, which the invalidation journal finds as it drains: the
+        // data may change in a task beside a frame in flight, which holds the boxes.
+        if (auto identity = NodeIdentity::of(*this))
+            document().invalidation_journal().note_text_data_changed(identity, whitespace_only_changed);
+        if (whitespace_only_changed && is_connected() && !has_layout_box()) {
             if (auto* parent = this->parent())
                 parent->set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::CharacterDataReplaceData);
         }

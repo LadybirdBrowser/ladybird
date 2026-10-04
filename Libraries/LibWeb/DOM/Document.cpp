@@ -10093,9 +10093,7 @@ void Document::note_svg_paint_resources_changed()
 {
     if (!m_layout_node_arena)
         return;
-    // Whether a row enrolled a resource is the note's own read of the render state.
-    Layout::ForcedReadScope read { m_layout_node_arena->render_document(), false };
-    if (Layout::RustFFI::render_state_note_svg_paint_resources_changed(m_layout_node_arena->host(), read))
+    if (Layout::RustFFI::render_state_note_svg_paint_resources_changed(m_layout_node_arena->host()))
         set_needs_accumulated_visual_contexts_update(true);
 }
 

@@ -8,8 +8,10 @@
 //! written where the DOM changes and read by the next build, which retires it. The layout arena
 //! holds them, keyed by the style node identity the build walks by.
 
+use super::layout_changes::LayoutChange;
+use crate::css::style::engine_calls::document_host;
 use crate::css::style::tree::StyleNodeID;
-use crate::render_state::{ArenaRead, BegunRead, DocumentHost, ask};
+use crate::render_state::{ArenaChange, ArenaRead, DocumentHost, ask};
 
 /// Which narrower rebuild the marks a node has collected so far still permit, as
 /// `Node::LayoutTreeUpdateReuseReason` spells them. Nothing set means only a full rebuild will do.
@@ -122,34 +124,81 @@ impl LayoutTreeUpdateMarks {
     }
 }
 
-/// Runs `access` on the layout tree update marks of `host`'s document, for the node `style_node` names, in `read`: the
-/// host writes the marks where they are, between the render state's jobs, as it marks the nodes a mutation leaves to be
-/// rebuilt and decides how far each mark reaches from the marks already there. An identity of 0 names no node, and
-/// `access` is not run for it.
+/// A write of one node's layout tree update marks.
+#[derive(Clone, Copy)]
+pub(crate) enum LayoutTreeUpdateMarkWrite {
+    /// See [`LayoutTreeUpdateMarks::merge`].
+    Merge(StyleNodeID, bool, u8),
+    /// See [`LayoutTreeUpdateMarks::set_child_needs`].
+    SetChildNeeds(StyleNodeID, bool),
+}
+
+impl LayoutTreeUpdateMarkWrite {
+    /// Makes the write to `marks`, answering what the write it makes answers.
+    pub(crate) fn apply(self, marks: &mut LayoutTreeUpdateMarks) -> bool {
+        match self {
+            Self::Merge(node, value, reuse_reason) => marks.merge(node, value, reuse_reason),
+            Self::SetChildNeeds(node, value) => marks.set_child_needs(node, value),
+        }
+    }
+}
+
+/// Answers `read` of the layout tree update marks of `host`'s document for the node `style_node` names. An identity of
+/// 0 names no node, and `read` is not run for it. Beside a frame in flight, which holds the document's marks, the host
+/// answers from the marks it made beside the frame: a mark it made before the frame flew reads as unset there, which
+/// at most makes a mark reach further than it had to. With no frame in flight, the host reads the document's marks
+/// where they are, between the render state's jobs.
 ///
 /// # Safety
 ///
 /// `host` must be a live document host, on its document's thread.
-unsafe fn with_marks<A, R: Default>(
+unsafe fn read_marks<R: Default>(
     host: *const DocumentHost,
-    read: &BegunRead,
     style_node: u32,
-    args: A,
-    access: fn(&mut LayoutTreeUpdateMarks, StyleNodeID, A) -> R,
+    read: fn(&LayoutTreeUpdateMarks, StyleNodeID) -> R,
 ) -> R {
     let Some(style_node) = StyleNodeID::from_raw(style_node) else {
         return R::default();
     };
-    assert!(!host.is_null(), "document host is null");
     // SAFETY: Guaranteed by the caller.
-    let host = unsafe { &*host };
-    ask(
-        read,
-        host,
-        ArenaRead::new((style_node, args, access), |arena, (style_node, args, access)| {
-            access(&mut arena.layout_tree_update_marks().borrow_mut(), style_node, args)
-        }),
-    )
+    let host = unsafe { document_host(host) };
+    match host.marks_beside_flight() {
+        Ok(marks) => read(&marks, style_node),
+        Err(here) => ask(
+            here,
+            host,
+            ArenaRead::new((style_node, read), |arena, (style_node, read)| {
+                read(&arena.layout_tree_update_marks().borrow(), style_node)
+            }),
+        ),
+    }
+}
+
+/// Makes `write` to the layout tree update marks of `host`'s document, answering what it answers. Beside a frame in
+/// flight, the host answers from the marks it made beside the frame, as [`read_marks`] does, and queues the write for
+/// the document's marks behind its other writes.
+///
+/// # Safety
+///
+/// `host` must be a live document host, on its document's thread.
+unsafe fn write_marks(host: *const DocumentHost, write: LayoutTreeUpdateMarkWrite) -> bool {
+    // SAFETY: Guaranteed by the caller.
+    let host = unsafe { document_host(host) };
+    match host.marks_beside_flight() {
+        Ok(mut marks) => {
+            let answer = write.apply(&mut marks);
+            drop(marks);
+            host.queue_change(ArenaChange::Layout(LayoutChange::LayoutTreeUpdateMark(write)));
+            answer
+        }
+        Err(here) => ask(
+            here,
+            host,
+            ArenaRead::new(write, |arena, write| {
+                write.apply(&mut arena.layout_tree_update_marks().borrow_mut())
+            }),
+        ),
+    }
 }
 
 /// Whether the node `style_node` names holds a layout tree update mark of its own.
@@ -158,17 +207,9 @@ unsafe fn with_marks<A, R: Default>(
 ///
 /// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn render_state_needs_layout_tree_update(
-    host: *const DocumentHost,
-    read: &crate::render_state::BegunRead,
-    style_node: u32,
-) -> bool {
+pub unsafe extern "C" fn render_state_needs_layout_tree_update(host: *const DocumentHost, style_node: u32) -> bool {
     // SAFETY: Guaranteed by the caller.
-    unsafe {
-        with_marks(host, read, style_node, (), |marks, style_node, ()| {
-            marks.needs(style_node)
-        })
-    }
+    unsafe { read_marks(host, style_node, LayoutTreeUpdateMarks::needs) }
 }
 
 /// Which narrower rebuilds the marks the node `style_node` names has collected still permit.
@@ -179,15 +220,10 @@ pub unsafe extern "C" fn render_state_needs_layout_tree_update(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn render_state_layout_tree_update_reuse_reasons(
     host: *const DocumentHost,
-    read: &crate::render_state::BegunRead,
     style_node: u32,
 ) -> u8 {
     // SAFETY: Guaranteed by the caller.
-    unsafe {
-        with_marks(host, read, style_node, (), |marks, style_node, ()| {
-            marks.reuse_reasons(style_node)
-        })
-    }
+    unsafe { read_marks(host, style_node, LayoutTreeUpdateMarks::reuse_reasons) }
 }
 
 /// Whether a flat-tree descendant of the node `style_node` names holds a layout tree update mark.
@@ -198,15 +234,10 @@ pub unsafe extern "C" fn render_state_layout_tree_update_reuse_reasons(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn render_state_child_needs_layout_tree_update(
     host: *const DocumentHost,
-    read: &crate::render_state::BegunRead,
     style_node: u32,
 ) -> bool {
     // SAFETY: Guaranteed by the caller.
-    unsafe {
-        with_marks(host, read, style_node, (), |marks, style_node, ()| {
-            marks.child_needs(style_node)
-        })
-    }
+    unsafe { read_marks(host, style_node, LayoutTreeUpdateMarks::child_needs) }
 }
 
 /// Folds a layout tree update mark into the one the node `style_node` names holds, answering
@@ -218,21 +249,15 @@ pub unsafe extern "C" fn render_state_child_needs_layout_tree_update(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn render_state_merge_layout_tree_update_mark(
     host: *const DocumentHost,
-    read: &crate::render_state::BegunRead,
     style_node: u32,
     value: bool,
     reuse_reason: u8,
 ) -> bool {
+    let Some(style_node) = StyleNodeID::from_raw(style_node) else {
+        return false;
+    };
     // SAFETY: Guaranteed by the caller.
-    unsafe {
-        with_marks(
-            host,
-            read,
-            style_node,
-            (value, reuse_reason),
-            |marks, style_node, (value, reuse_reason)| marks.merge(style_node, value, reuse_reason),
-        )
-    }
+    unsafe { write_marks(host, LayoutTreeUpdateMarkWrite::Merge(style_node, value, reuse_reason)) }
 }
 
 /// Records whether a flat-tree descendant of the node `style_node` names holds a layout tree update
@@ -244,20 +269,19 @@ pub unsafe extern "C" fn render_state_merge_layout_tree_update_mark(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn render_state_set_child_needs_layout_tree_update(
     host: *const DocumentHost,
-    read: &crate::render_state::BegunRead,
     style_node: u32,
     value: bool,
 ) -> bool {
+    let Some(style_node) = StyleNodeID::from_raw(style_node) else {
+        return false;
+    };
     // SAFETY: Guaranteed by the caller.
-    unsafe {
-        with_marks(host, read, style_node, value, |marks, style_node, value| {
-            marks.set_child_needs(style_node, value)
-        })
-    }
+    unsafe { write_marks(host, LayoutTreeUpdateMarkWrite::SetChildNeeds(style_node, value)) }
 }
 
 /// Retires the layout tree update marks the node `style_node` names holds. An identity handed to a node holds none,
-/// whatever the node that held it before left behind. The write is queued, as nothing the host asks waits on it.
+/// whatever the node that held it before left behind. The write is queued, as nothing the host asks waits on it, and
+/// made to the marks the host made beside a frame in flight as well.
 ///
 /// # Safety
 ///
@@ -268,12 +292,13 @@ pub unsafe extern "C" fn render_state_clear_layout_tree_update_marks(host: *cons
         return;
     };
     // SAFETY: Guaranteed by the caller.
-    unsafe {
-        crate::layout::layout_changes::queue(
-            host,
-            crate::layout::layout_changes::LayoutChange::ClearLayoutTreeUpdateMarks(style_node),
-        );
+    let host = unsafe { document_host(host) };
+    if let Ok(mut marks) = host.marks_beside_flight() {
+        marks.clear(style_node);
     }
+    host.queue_change(ArenaChange::Layout(LayoutChange::ClearLayoutTreeUpdateMarks(
+        style_node,
+    )));
 }
 
 #[cfg(test)]

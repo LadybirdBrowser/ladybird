@@ -7,6 +7,7 @@
 #include <AK/TemporaryChange.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/InvalidationJournal.h>
+#include <LibWeb/HTML/HTMLImageElement.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Layout/NodeArena.h>
 #include <LibWeb/Layout/TextNode.h>
@@ -116,6 +117,24 @@ void InvalidationJournal::note_box_image_changed(Layout::Node& box, Painting::Pa
     drain_if_layout_is_reading();
 }
 
+void InvalidationJournal::note_image_data_changed(NodeIdentity identity, SetNeedsLayoutReason reason)
+{
+    auto& entry = entry_for(identity);
+    entry.image_data_changed = true;
+    entry.image_data_change_reason = reason;
+    m_document->request_frame_for_pending_repaint({});
+    drain_if_layout_is_reading();
+}
+
+void InvalidationJournal::note_text_data_changed(NodeIdentity identity, bool whitespace_only_changed)
+{
+    auto& entry = entry_for(identity);
+    entry.text_data_changed = true;
+    entry.whitespace_only_text_changed |= whitespace_only_changed;
+    m_document->request_frame_for_pending_repaint({});
+    drain_if_layout_is_reading();
+}
+
 void InvalidationJournal::forget(CSS::StyleNodeID style_node)
 {
     // A drain holds the generation it writes through outside the index, where forgetting cannot reach it, so an
@@ -171,6 +190,14 @@ void InvalidationJournal::drain(Layout::BegunRead const& read)
                 // node's other marks.
                 if (entry.needs_layout_tree_update)
                     layout_node->dom_node()->apply_layout_tree_update_mark(*layout_node, entry.layout_tree_update_reason);
+                if (entry.text_data_changed) {
+                    if (auto* text_node = as_if<Layout::TextNode>(*layout_node))
+                        as<CharacterData>(*layout_node->dom_node()).apply_text_data_change({}, *text_node, entry.whitespace_only_text_changed);
+                }
+                if (entry.image_data_changed) {
+                    if (auto* image = as_if<HTML::HTMLImageElement>(layout_node->dom_node()))
+                        image->apply_image_data_change({}, *layout_node, entry.image_data_change_reason);
+                }
                 if (entry.needs_layout_update)
                     layout_node->set_needs_layout_update(entry.layout_reason, entry.layout_propagation);
                 auto needs_repaint = entry.needs_repaint;

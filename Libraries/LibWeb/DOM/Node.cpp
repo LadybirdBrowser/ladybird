@@ -1124,21 +1124,22 @@ void Node::insert_nodes_before(ReadonlySpan<GC::Ref<Node>> nodes, GC::Ptr<Node> 
 
     auto is_boxless_style_element = (is_html_style_element() || is_svg_style_element()) && !has_layout_box();
     if (is_connected() && !is_boxless_style_element) {
-        // NB: Called during DOM insertion, layout is not up to date. The reads of style and layout tree marks are the
-        //     insertion's own read of the render state of the document the nodes are now in.
-        Layout::ForcedReadScope read { document(), false };
-        if (auto* element = as_if<Element>(*this); element && element->has_style() && CSS::display_from_ffi_display(element->style_group<CSS::ComputedValues::BoxValues>()->display).is_contents() && parent_element()) {
+        // NB: Called during DOM insertion, layout is not up to date. The element's installed style is read.
+        auto is_display_contents = [&] {
+            auto* element = as_if<Element>(*this);
+            return element && element->has_style() && CSS::display_from_ffi_display(element->style_group<CSS::ComputedValues::BoxValues>()->display).is_contents();
+        };
+        if (parent_element() && is_display_contents())
             parent_element()->set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::NodeInsertBeforeWithDisplayContents);
-        }
         set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::NodeInsertBefore);
         for (auto& inserted_node : nodes) {
-            auto inserted_subtree_already_needs_layout_tree_update = inserted_node->needs_layout_tree_update(read) || inserted_node->child_needs_layout_tree_update(read);
+            auto inserted_subtree_already_needs_layout_tree_update = inserted_node->needs_layout_tree_update() || inserted_node->child_needs_layout_tree_update();
             inserted_node->set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::NodeInsertBefore);
 
             // An inserted subtree may already need a layout tree update, for example after being adopted from another
             // document. Setting the same value again is coalesced, so explicitly propagate it through its new parent.
             if (inserted_subtree_already_needs_layout_tree_update)
-                set_child_needs_layout_tree_update(read, true);
+                set_child_needs_layout_tree_update(true);
         }
     }
 
@@ -2122,11 +2123,11 @@ WebIDL::ExceptionOr<void> Node::move_node(Node& new_parent, Node* child)
         }
     }
     if (is_connected()) {
-        auto moved_subtree_already_needs_layout_tree_update = needs_layout_tree_update(read) || child_needs_layout_tree_update(read);
+        auto moved_subtree_already_needs_layout_tree_update = needs_layout_tree_update() || child_needs_layout_tree_update();
         set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::NodeInsertBefore);
         new_parent.set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::NodeInsertBefore);
         if (moved_subtree_already_needs_layout_tree_update)
-            new_parent.set_child_needs_layout_tree_update(read, true);
+            new_parent.set_child_needs_layout_tree_update(true);
     }
 
     // 21. If newParent is a shadow host whose shadow root’s slot assignment is "named" and node is a slottable, then assign a slot for node.
@@ -2574,33 +2575,33 @@ static Layout::RustFFI::DocumentHost* layout_tree_update_marks_of(Document const
     return arena ? arena->host() : nullptr;
 }
 
-bool Node::needs_layout_tree_update(Layout::BegunRead const& read) const
+bool Node::needs_layout_tree_update() const
 {
     auto identity = mirror_identity_of(*this);
     auto* marks = layout_tree_update_marks_of(document());
-    return identity != 0 && marks && Layout::RustFFI::render_state_needs_layout_tree_update(marks, &read, identity.value());
+    return identity != 0 && marks && Layout::RustFFI::render_state_needs_layout_tree_update(marks, identity.value());
 }
 
-u8 Node::layout_tree_update_reuse_reasons(Layout::BegunRead const& read) const
+u8 Node::layout_tree_update_reuse_reasons() const
 {
     auto identity = mirror_identity_of(*this);
     auto* marks = layout_tree_update_marks_of(document());
     if (identity == 0 || !marks)
         return 0;
-    return Layout::RustFFI::render_state_layout_tree_update_reuse_reasons(marks, &read, identity.value());
+    return Layout::RustFFI::render_state_layout_tree_update_reuse_reasons(marks, identity.value());
 }
 
-bool Node::child_needs_layout_tree_update(Layout::BegunRead const& read) const
+bool Node::child_needs_layout_tree_update() const
 {
     auto identity = mirror_identity_of(*this);
     auto* marks = layout_tree_update_marks_of(document());
-    return identity != 0 && marks && Layout::RustFFI::render_state_child_needs_layout_tree_update(marks, &read, identity.value());
+    return identity != 0 && marks && Layout::RustFFI::render_state_child_needs_layout_tree_update(marks, identity.value());
 }
 
-void Node::set_child_needs_layout_tree_update(Layout::BegunRead const& read, bool value)
+void Node::set_child_needs_layout_tree_update(bool value)
 {
     if (auto identity = mirror_identity_of(*this); identity != 0)
-        (void)Layout::RustFFI::render_state_set_child_needs_layout_tree_update(document().layout_node_arena().host(), &read, identity.value(), value);
+        (void)Layout::RustFFI::render_state_set_child_needs_layout_tree_update(document().layout_node_arena().host(), identity.value(), value);
 }
 
 // The identity the invalidation journal names a node's box by, or none for a node the style mirror has not named. The
@@ -2621,10 +2622,9 @@ void Node::set_needs_layout_tree_update(bool value, SetNeedsLayoutTreeUpdateReas
     if (identity == 0)
         return;
 
-    // The mark is folded into those already there, and an insertion finds the first-letter box it reaches, as the
-    // mark's own read of the render state.
-    Layout::ForcedReadScope read { document(), false };
     if (value && reason == SetNeedsLayoutTreeUpdateReason::NodeInsertBefore) {
+        // An insertion finds the first-letter box it reaches as the mark's own read of the render state.
+        Layout::ForcedReadScope read { document(), false };
         if (auto* first_letter_owner = first_letter_owner_for_layout_subtree_from(read, *this); first_letter_owner && first_letter_owner != this)
             first_letter_owner->set_needs_layout_tree_update(true, reason);
     }
@@ -2640,7 +2640,7 @@ void Node::set_needs_layout_tree_update(bool value, SetNeedsLayoutTreeUpdateReas
     auto* marks = value ? document().layout_node_arena().host() : layout_tree_update_marks_of(document());
     if (!marks)
         return;
-    if (!Layout::RustFFI::render_state_merge_layout_tree_update_mark(marks, read, identity.value(), value, reuse_reason))
+    if (!Layout::RustFFI::render_state_merge_layout_tree_update_mark(marks, identity.value(), value, reuse_reason))
         return;
 
     if constexpr (UPDATE_LAYOUT_DEBUG) {
@@ -2649,7 +2649,7 @@ void Node::set_needs_layout_tree_update(bool value, SetNeedsLayoutTreeUpdateReas
             auto navigable = this->navigable();
             bool any_ancestor_needs_layout_tree_update = false;
             for (auto* ancestor = flat_tree_parent(); ancestor; ancestor = ancestor->flat_tree_parent()) {
-                if (ancestor->needs_layout_tree_update(read)) {
+                if (ancestor->needs_layout_tree_update()) {
                     any_ancestor_needs_layout_tree_update = true;
                     break;
                 }
@@ -2685,11 +2685,11 @@ void Node::set_needs_layout_tree_update(bool value, SetNeedsLayoutTreeUpdateReas
             // An ancestor the style mirror has not named is on no path the build walks by identity.
             if (ancestor_identity == 0)
                 continue;
-            if (Layout::RustFFI::render_state_set_child_needs_layout_tree_update(marks, read, ancestor_identity.value(), true))
+            if (Layout::RustFFI::render_state_set_child_needs_layout_tree_update(marks, ancestor_identity.value(), true))
                 break;
         }
         if (update_is_inside_top_layer_member)
-            document().set_child_needs_layout_tree_update(read, true);
+            document().set_child_needs_layout_tree_update(true);
 
         // A <mask>, <clipPath>, or <pattern> is laid out as a resource box under each element that references it,
         // not at its own DOM position. So a layout tree change inside one must rebuild those referencing subtrees.

@@ -22,6 +22,8 @@ use smallvec::SmallVec;
 /// One write of the host to a document's layout marks or layout facts, which the render state applies to the arena
 /// before anything that reads it.
 pub(crate) enum LayoutChange {
+    /// A write of a node's layout tree update marks the host made beside a frame in flight.
+    LayoutTreeUpdateMark(super::tree_update_marks::LayoutTreeUpdateMarkWrite),
     SetNeedsLayoutUpdate {
         node: NodeSlotId,
         propagate_through_ancestors: bool,
@@ -173,6 +175,9 @@ impl LayoutChange {
     /// left to change.
     pub(crate) fn apply(self, arena: &mut LayoutNodeArena) {
         match self {
+            Self::LayoutTreeUpdateMark(write) => {
+                write.apply(&mut arena.layout_tree_update_marks().borrow_mut());
+            }
             Self::SetNeedsLayoutUpdate {
                 node,
                 propagate_through_ancestors,

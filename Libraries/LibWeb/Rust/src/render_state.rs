@@ -212,7 +212,8 @@ impl ArenaChange {
 }
 
 /// Proof that the host's document has no frame in flight: the host has taken it in, or let none fly. Only
-/// DocumentHost::take_frame_in() and DocumentHost::layout_waits_for_no_frame() mint it.
+/// DocumentHost::take_frame_in(), DocumentHost::layout_waits_for_no_frame() and
+/// DocumentHost::marks_beside_flight() mint it.
 pub(crate) struct NoFrameInFlight(());
 
 /// The writes a host queued for its document's render state, in the order the host made them, in two buffers the queue

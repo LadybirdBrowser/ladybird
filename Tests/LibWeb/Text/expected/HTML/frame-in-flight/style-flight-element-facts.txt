@@ -8,5 +8,5 @@ a direction: state in the next task: in-flight
 a direction: state after the write: landed
 a direction: after: rgb(0, 0, 255)
 a slotted child: state in the next task: in-flight
-a slotted child: state after the write: landed
+a slotted child: state after the write: in-flight
 a slotted child: after: rgb(128, 0, 128)

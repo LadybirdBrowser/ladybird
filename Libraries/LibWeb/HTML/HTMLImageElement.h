@@ -110,6 +110,9 @@ public:
 
     // ^Layout::ImageProvider
     virtual bool is_image_pending() const override;
+
+    // What new image data changes about the image's box, once the invalidation journal found it.
+    void apply_image_data_change(Badge<DOM::InvalidationJournal>, Layout::Node&, DOM::SetNeedsLayoutReason);
     virtual GC::Ptr<DecodedImageData> decoded_image_data() const override;
     virtual Optional<CSSPixels> intrinsic_width() const override;
     virtual Optional<CSSPixels> intrinsic_height() const override;

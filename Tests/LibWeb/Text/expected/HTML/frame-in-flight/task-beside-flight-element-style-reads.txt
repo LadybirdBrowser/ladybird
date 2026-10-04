@@ -1,5 +1,6 @@
 state next task: in-flight
-state after an insertion under display: contents: landed
+state after an insertion under display: contents: in-flight
+state after a text change: in-flight
 state after a list item's removal: landed
 state after element.animate(): landed
 outer height: 20

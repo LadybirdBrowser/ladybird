@@ -23,6 +23,8 @@
             item.textContent = "two";
             contents.appendChild(item);
             states.push(`after an insertion under display: contents: ${internals.frameSchedulerState()}`);
+            item.firstChild.data = "two, changed";
+            states.push(`after a text change: ${internals.frameSchedulerState()}`);
             list.firstElementChild.remove();
             states.push(`after a list item's removal: ${internals.frameSchedulerState()}`);
             const animation = box.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 100000 });
