@@ -2548,6 +2548,16 @@ void Document::update_paint_and_hit_testing_properties_if_needed()
     // Everything that reads paint state comes through here, so the marks that describe it go through first.
     drain_invalidation_journal();
 
+    // Nothing was written to the render state since the properties were prepared from it: every pass below would find
+    // nothing to do, so none is sent to the render owner.
+    auto* host = m_layout_node_arena ? m_layout_node_arena->host() : nullptr;
+    if (host && Layout::RustFFI::document_host_paint_preparation_is_current(host) && !m_needs_accumulated_visual_contexts_update && !m_image_map_areas_need_publication)
+        return;
+
+    // What the passes prepare stays current until something is written to the render state, from here on as well.
+    if (host)
+        Layout::RustFFI::document_host_note_paint_preparation_is_current(host);
+
     prepare_for_rendering();
     Painting::publish_image_map_area_facts_if_needed(*this);
     if (m_needs_accumulated_visual_contexts_update) {

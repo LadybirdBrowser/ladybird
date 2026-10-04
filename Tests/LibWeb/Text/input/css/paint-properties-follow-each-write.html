@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<style>
+    body {
+        margin: 0;
+        height: 3000px;
+    }
+    #scroller {
+        width: 200px;
+        height: 100px;
+        overflow: scroll;
+    }
+    #sticky {
+        position: sticky;
+        top: 0;
+        height: 20px;
+    }
+    #inner {
+        height: 20px;
+    }
+    #content {
+        height: 500px;
+    }
+    #box {
+        width: 50px;
+        height: 50px;
+        transform: translate(10px, 10px);
+    }
+</style>
+<div id="scroller"><div id="sticky"></div><div id="inner"></div><div id="content"></div></div>
+<div id="box"></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const rect = element => {
+            const r = element.getBoundingClientRect();
+            return `${r.x},${r.y} ${r.width}x${r.height}`;
+        };
+        const report = label => {
+            println(`${label}: sticky=${rect(sticky)} inner=${rect(inner)} box=${rect(box)}`);
+        };
+
+        report("initial");
+        report("read again");
+
+        scroller.scrollTop = 50;
+        report("after scrolling the scroller");
+        report("read again");
+
+        box.style.transform = "translate(30px, 40px) scale(2)";
+        report("after a transform change");
+        report("read again");
+
+        box.style.width = "80px";
+        report("after a layout change");
+
+        window.scrollTo(0, 25);
+        report("after scrolling the viewport");
+        report("read again");
+
+        scroller.scrollTop = 0;
+        report("after scrolling the scroller back");
+    });
+</script>

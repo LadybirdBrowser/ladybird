@@ -1,0 +1,10 @@
+initial: sticky=0,0 200x20 inner=0,20 200x20 box=10,110 50x50
+read again: sticky=0,0 200x20 inner=0,20 200x20 box=10,110 50x50
+after scrolling the scroller: sticky=0,0 200x20 inner=0,-30 200x20 box=10,110 50x50
+read again: sticky=0,0 200x20 inner=0,-30 200x20 box=10,110 50x50
+after a transform change: sticky=0,0 200x20 inner=0,-30 200x20 box=5,115 100x100
+read again: sticky=0,0 200x20 inner=0,-30 200x20 box=5,115 100x100
+after a layout change: sticky=0,0 200x20 inner=0,-30 200x20 box=-10,115 160x100
+after scrolling the viewport: sticky=0,-25 200x20 inner=0,-55 200x20 box=-10,90 160x100
+read again: sticky=0,-25 200x20 inner=0,-55 200x20 box=-10,90 160x100
+after scrolling the scroller back: sticky=0,-25 200x20 inner=0,-5 200x20 box=-10,90 160x100

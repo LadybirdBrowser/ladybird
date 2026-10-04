@@ -415,8 +415,12 @@ pub(crate) fn fly(
 /// Sends `message` about `host`'s document to the render side, the StyleLayout thread, behind the frame in flight and
 /// the changes the host queued, and waits until it is handled, so the message may borrow from the calling frame. A message sent while the
 /// thread handles another (a child document's) is handled right there, and a unit test's render states stay on the
-/// test's own thread.
+/// test's own thread. A message writes the render state, unless it is a paint pass that leaves the paint and hit testing
+/// properties current.
 pub(crate) fn send(host: &DocumentHost, message: RenderMessage<'_>) {
+    if !matches!(&message, RenderMessage::Paint { pass, .. } if pass.leaves_paint_preparation_current()) {
+        host.note_render_state_write();
+    }
     host.drain_queued_changes(|changes| {
         if cfg!(test) {
             return handle(changes, message);

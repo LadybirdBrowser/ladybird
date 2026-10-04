@@ -58,6 +58,10 @@ pub struct DocumentHost {
     /// How the host's document drains the style transaction that flew, until a drain begins. The document drains it
     /// only where it has not begun to.
     flown_style_drain: Cell<Option<FfiFlownStyleDrain>>,
+    /// Whether the paint and hit testing properties the document prepared last were prepared from the render state as it
+    /// is: nothing was written to it since, queued, in place or by a message. Preparing them again would find nothing
+    /// to do.
+    paint_preparation_is_current: Cell<bool>,
 }
 
 /// A style transaction of the host's document that runs beside the host, has landed, or whose reactions the host
@@ -94,6 +98,7 @@ impl DocumentHost {
             changes: ChangeQueue::default(),
             style_flight: RefCell::default(),
             flown_style_drain: Cell::new(None),
+            paint_preparation_is_current: Cell::new(false),
         }
     }
 
@@ -115,7 +120,14 @@ impl DocumentHost {
     /// applies it ahead of the host's next message, and the host ahead of the next question it answers where it is. A
     /// write never reaches the render state as the host makes it.
     pub(crate) fn queue_change(&self, change: ArenaChange) {
+        self.note_render_state_write();
         self.changes.push(change);
+    }
+
+    /// Notes that the document's render state is written, which leaves the paint and hit testing properties prepared
+    /// from it stale.
+    pub(super) fn note_render_state_write(&self) {
+        self.paint_preparation_is_current.set(false);
     }
 
     /// Lends the writes the host queued to `apply`, for the render side to apply ahead of the host's next message, once
@@ -317,11 +329,23 @@ impl DocumentHost {
     /// Answers `question` from the document's render state as of every write the host queued, where the host is,
     /// spending `wait`.
     pub(super) fn answer_in_place<Q: Question>(&self, wait: &impl RenderWait, question: Q) -> Q::Answer {
+        if !Q::LEAVES_PAINT_PREPARATION_CURRENT {
+            self.note_render_state_write();
+        }
         self.apply_queued_changes(wait);
         let state = self.created_state();
         // SAFETY: The state keeps its arena and engine where they are until it is destroyed, and nothing on the render
         // side reaches them while the host runs.
-        unsafe { question.answer((*state.arena.as_ptr()).arena_mut(), state.engine) }
+        let arena = unsafe { (*state.arena.as_ptr()).arena_mut() };
+        // A question that reads overflow first measures what it finds unmeasured, which can change what the preparation
+        // answers: such a measurement writes the render state, whatever the question.
+        let measurement_awaited_preparation = arena.scrollable_overflow.measurement_awaits_preparation();
+        // SAFETY: As above.
+        let answer = unsafe { question.answer(arena, state.engine) };
+        if !measurement_awaited_preparation && arena.scrollable_overflow.measurement_awaits_preparation() {
+            self.note_render_state_write();
+        }
+        answer
     }
 
     fn created_state(&self) -> &CreatedState {
@@ -556,6 +580,33 @@ pub unsafe extern "C" fn document_host_end_forced_read(host: *const DocumentHost
     assert!(!host.is_null(), "document host is null");
     // SAFETY: Guaranteed by the caller.
     unsafe { &*host }.end_forced_read();
+}
+
+/// Whether the paint and hit testing properties of `host`'s document were prepared from its render state as it is, so
+/// that preparing them again would find nothing to do: the host noted them current as it began to prepare them, and
+/// wrote nothing to the render state since, queued, in place or by a message.
+///
+/// # Safety
+///
+/// `host` must be a live document host, on its document's thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn document_host_paint_preparation_is_current(host: *const DocumentHost) -> bool {
+    assert!(!host.is_null(), "document host is null");
+    // SAFETY: Guaranteed by the caller.
+    unsafe { &*host }.paint_preparation_is_current.get()
+}
+
+/// Notes that the paint and hit testing properties of `host`'s document are current, as the host begins to prepare them:
+/// they stay current until the host writes to the render state.
+///
+/// # Safety
+///
+/// `host` must be a live document host, on its document's thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn document_host_note_paint_preparation_is_current(host: *const DocumentHost) {
+    assert!(!host.is_null(), "document host is null");
+    // SAFETY: Guaranteed by the caller.
+    unsafe { &*host }.paint_preparation_is_current.set(true);
 }
 
 /// Destroys `host` and the render state of its document.

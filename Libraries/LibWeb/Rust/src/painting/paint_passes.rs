@@ -94,6 +94,16 @@ impl PaintPass {
         )
     }
 
+    /// Whether the pass leaves the paint and hit testing properties the host prepared current: it is one of the passes
+    /// that prepare them, or changes nothing they are prepared from.
+    pub(crate) fn leaves_paint_preparation_current(&self) -> bool {
+        self.rewrites_rows()
+            || matches!(
+                self,
+                Self::SvgPaintResourceRequests | Self::PublishCompositorAnimations(_)
+            )
+    }
+
     /// Runs the pass over `arena`.
     pub(crate) fn run(self, arena: &mut LayoutNodeArena) -> PaintPassAnswer {
         match self {
@@ -166,8 +176,7 @@ pub(crate) fn rendering_preparation_pending(arena: &LayoutNodeArena) -> Option<P
     let overflow = &arena.scrollable_overflow;
     let pending = arena.paint_state().borrow().root_background_source != Some(root_background_source)
         || overflow.full_layout_commit.get()
-        || overflow.geometry_changed.get()
-        || overflow.scrollability_changed.get()
+        || overflow.measurement_awaits_preparation()
         || arena.scrollable_overflow_recalculation_is_scheduled()
         || !arena.scrollable_overflow_is_measured();
     pending.then_some(PendingPreparation { root_background_source })
