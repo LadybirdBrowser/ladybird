@@ -667,7 +667,7 @@ public:
 
     void set_computed_values(Layout::BegunRead const& read, NonnullRefPtr<CSS::ComputedValues const>);
     void set_style_record_identity(CSS::StyleRecordID);
-    void refresh_style_from_arena(CSS::StyleRecordID, void const* payloads, bool should_attach_resources);
+    void refresh_style_from_arena(CSS::StyleRecordID, void const* payloads, bool derived, bool should_attach_resources);
     // The pin lives on the node's arena row and is released with it, so
     // Document::tear_down_layout_tree() must free the layout root before the document's style
     // engine goes away. Every document destruction path goes through that teardown.
@@ -689,7 +689,9 @@ private:
     void const* m_style_payloads { nullptr };
     // Whether the row holds a pin of its style record for C++'s readers, which only this layout node takes and drops.
     bool m_style_record_pinned_for_cxx_consumers { false };
-    bool has_layout_derived_style() const;
+    // Whether the arena derived the row's style record. Only this layout node publishes a record of its node to the row
+    // or has the arena adopt one it derived, and a job that derives one tells the layout node.
+    bool m_has_layout_derived_style { false };
     CSS::StyleRecordID m_style_record_identity;
     mutable Optional<Vector<CSS::BackgroundLayerData>> m_background_layers;
     mutable Optional<Vector<CSS::BackgroundLayerData>> m_mask_layers;

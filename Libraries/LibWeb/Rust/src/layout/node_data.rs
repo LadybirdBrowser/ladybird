@@ -347,6 +347,8 @@ pub(crate) struct PaintNode {
     pub(crate) style_record: u64,
     /// The node whose style the row carries.
     pub(crate) style_node: Option<crate::css::style::tree::StyleNodeID>,
+    /// Whether the arena derived the row's style record: an anonymous box's, or a style layout adjusted.
+    pub(crate) style_is_derived: bool,
 }
 
 impl Default for PaintNode {
@@ -366,16 +368,19 @@ impl Default for PaintNode {
             style: StylePayloadsRef::null(),
             style_record: 0,
             style_node: None,
+            style_is_derived: false,
         }
     }
 }
 
 impl PaintNode {
-    /// The node's row as `data` holds it, with the style record and node the arena keeps beside it.
+    /// The node's row as `data` holds it, with the style record and node the arena keeps beside it, and whether it
+    /// derived the record.
     pub(crate) fn of(
         data: &NodeData,
         style_record: u64,
         style_node: Option<crate::css::style::tree::StyleNodeID>,
+        style_is_derived: bool,
     ) -> Self {
         Self {
             generation: data.slot_generation.get(),
@@ -392,6 +397,7 @@ impl PaintNode {
             style: data.style.get(),
             style_record,
             style_node,
+            style_is_derived,
         }
     }
 

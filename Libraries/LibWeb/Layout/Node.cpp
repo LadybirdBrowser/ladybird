@@ -262,11 +262,7 @@ NodeWithStyle::NodeWithStyle(DOM::Document& document, BindToPreparedArenaSlot bi
     // The layout node reads its style through the row's payloads, which the row's live record keeps.
     m_style_payloads = RustFFI::layout_row_style_payloads(document_host(), slot);
     VERIFY(m_style_payloads);
-}
-
-bool NodeWithStyle::has_layout_derived_style() const
-{
-    return RustFFI::render_state_node_has_derived_style(document_host(), slot_id(this));
+    m_has_layout_derived_style = RustFFI::layout_row_style_is_derived(document_host(), slot);
 }
 
 NonnullRefPtr<CSS::ComputedValues const> NodeWithStyle::copy_computed_values() const
@@ -464,11 +460,12 @@ CSS::StyleScope const& NodeWithStyle::style_scope() const
     return document().style_scope();
 }
 
-void NodeWithStyle::refresh_style_from_arena(CSS::StyleRecordID record, void const* payloads, bool should_attach_resources)
+void NodeWithStyle::refresh_style_from_arena(CSS::StyleRecordID record, void const* payloads, bool derived, bool should_attach_resources)
 {
     release_pinned_style_record();
     m_style_record_identity = record;
     m_style_payloads = payloads;
+    m_has_layout_derived_style = derived;
     m_background_layers.clear();
     m_mask_layers.clear();
     m_border_image.clear();
@@ -555,6 +552,7 @@ void NodeWithStyle::set_computed_values(Layout::BegunRead const& read, NonnullRe
     else
         record = document().style_computer().intern_anonymous_layout_style(read, *computed_values);
     RustFFI::render_state_adopt_derived_node_style(document_host(), slot_id(this), record.value());
+    m_has_layout_derived_style = true;
 }
 
 void NodeWithStyle::set_style_record_identity(CSS::StyleRecordID style_record_identity)
@@ -562,7 +560,7 @@ void NodeWithStyle::set_style_record_identity(CSS::StyleRecordID style_record_id
     auto const& read = held_read();
     // A detached or layout-derived record is independent of its DOM target's record. A
     // rendering consequence replaces and re-derives it explicitly through apply_style().
-    if (has_layout_derived_style())
+    if (m_has_layout_derived_style)
         return;
     if (m_style_record_identity == style_record_identity) {
         publish_style_record_to_node_data();
@@ -635,6 +633,7 @@ void NodeWithStyle::publish_style_record_to_node_data()
     auto const* payloads = view.payloads;
     m_style_payloads = payloads;
     RustFFI::render_state_set_node_style(document_host(), slot_id(this), m_style_record_identity.value(), payloads);
+    m_has_layout_derived_style = false;
     did_update_style_record();
 }
 
