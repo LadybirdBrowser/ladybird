@@ -330,3 +330,10 @@ describe("scoping in modules", () => {
         expect(result.counterAfterAwait).toBe(11);
     });
 });
+
+describe("top-level await", () => {
+    test("for await at the top level", () => {
+        const result = expectModulePassed("./top-level-for-await.mjs");
+        expect(result.result).toEqual([1, 2, "a", "b", "closed", "first", "iterator failed", "1x", "2x"]);
+    });
+});
