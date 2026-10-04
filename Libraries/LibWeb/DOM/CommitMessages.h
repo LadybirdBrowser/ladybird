@@ -35,10 +35,6 @@ public:
     // A message a finished layout pass or tree build left for this document.
     void append(Layout::BegunRead const& read, Layout::RustFFI::FfiCommitMessage const&);
 
-    // The node a rebuild escalates to, because the node that asked for it sits under an anonymous parent and only
-    // layout knows where the escalation stops.
-    void note_needs_layout_tree_update(NodeIdentity, SetNeedsLayoutTreeUpdateReason);
-
     // Applies every message in order and empties the list.
     void apply(Layout::BegunRead const&);
 

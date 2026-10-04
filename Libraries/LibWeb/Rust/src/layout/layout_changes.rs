@@ -38,6 +38,12 @@ pub(crate) enum LayoutChange {
     DeferChildListInsertionLayoutUpdate {
         parent: NodeSlotId,
     },
+    /// The DOM node `node` names, or the document for `None`, was marked for the next layout tree build to rebuild,
+    /// which its box takes as [`LayoutNodeArena::apply_layout_tree_update_mark`] says.
+    ApplyLayoutTreeUpdateMark {
+        node: Option<StyleNodeID>,
+        mark: super::tree_update_marks::FfiLayoutTreeUpdateMark,
+    },
     /// The text node's data changed.
     InvalidateTextContent {
         node: NodeSlotId,
@@ -182,6 +188,7 @@ impl LayoutChange {
             | Self::SetNeedsFullLayoutTreeUpdate
             | Self::ResetCachedIntrinsicSizesOfSelfAndAncestors { .. }
             | Self::DeferChildListInsertionLayoutUpdate { .. }
+            | Self::ApplyLayoutTreeUpdateMark { .. }
             | Self::InvalidateTextContent { .. }
             | Self::EnrollTextAfterLanguageChange { .. }
             | Self::RecordPartialRelayoutEscape
@@ -248,6 +255,7 @@ impl LayoutChange {
                     arena.defer_child_list_insertion_layout_update(parent);
                 }
             }
+            Self::ApplyLayoutTreeUpdateMark { node, mark } => arena.apply_layout_tree_update_mark(node, mark),
             Self::InvalidateTextContent { node } => {
                 if arena.slot_is_live(node) {
                     arena.invalidate_text_content(node);

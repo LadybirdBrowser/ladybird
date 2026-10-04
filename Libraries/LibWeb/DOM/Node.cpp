@@ -2539,28 +2539,6 @@ EventTarget* Node::get_parent(Event const&)
     return parent();
 }
 
-// Whether the reason describes a mutation that only affects the node's children and can never
-// change the node's own box kind, so a rebuild on a partial relayout boundary stays confined
-// to its subtree. Reasons not classified here forfeit partial relayout for their mutations.
-static bool is_structural_boundary_self_rebuild_reason(SetNeedsLayoutTreeUpdateReason reason)
-{
-    switch (reason) {
-    case SetNeedsLayoutTreeUpdateReason::NodeInsertBefore:
-    case SetNeedsLayoutTreeUpdateReason::NodeRemove:
-    case SetNeedsLayoutTreeUpdateReason::NodeSetTextContent:
-    case SetNeedsLayoutTreeUpdateReason::CharacterDataReplaceData:
-    case SetNeedsLayoutTreeUpdateReason::ElementSetInnerHTML:
-    case SetNeedsLayoutTreeUpdateReason::ShadowRootSetInnerHTML:
-    case SetNeedsLayoutTreeUpdateReason::SlotAssignmentChange:
-    // The box of an element that entered the top layer leaves the parent's subtree,
-    // which is a child-list change.
-    case SetNeedsLayoutTreeUpdateReason::TopLayerMembershipChange:
-        return true;
-    default:
-        return false;
-    }
-}
-
 // The identity the layout arena files this node's layout tree update marks under. Only an element, a text node, the
 // document and a shadow root ever reach the build as something that keeps or gets a box, and the style mirror names
 // each of them once it tracks the tree; a comment, a doctype or a processing instruction it never names.
@@ -2638,11 +2616,7 @@ void Node::set_needs_layout_tree_update(bool value, SetNeedsLayoutTreeUpdateReas
             first_letter_owner->set_needs_layout_tree_update(true, reason);
     }
 
-    u8 reuse_reason = 0;
-    if (value && reason == SetNeedsLayoutTreeUpdateReason::NodeInsertBefore)
-        reuse_reason = ChildListInsertion;
-    else if (value && reason == SetNeedsLayoutTreeUpdateReason::PseudoElementChange)
-        reuse_reason = PseudoElementChange;
+    u8 reuse_reason = value ? layout_tree_update_reuse_reason(reason) : 0;
     // NB: Every pending reason must permit reuse. Once a full rebuild is requested, later
     //     incremental changes cannot narrow it again. The arena folds both, and answers whether
     //     this mark was a transition, which is what the widenings below hang off.
@@ -2723,31 +2697,13 @@ void Node::set_needs_layout_tree_update(bool value, SetNeedsLayoutTreeUpdateReas
     }
 }
 
-void Node::apply_layout_tree_update_mark(Layout::Node& layout_node, SetNeedsLayoutTreeUpdateReason reason)
+u8 Node::layout_tree_update_reuse_reason(SetNeedsLayoutTreeUpdateReason reason)
 {
-    auto const& read = layout_node.held_read();
-    auto classification = Layout::RustFFI::render_state_classify_layout_tree_update(
-        layout_node.document_host(), &read, Layout::Node::slot_id(&layout_node),
-        is_structural_boundary_self_rebuild_reason(reason));
-
-    if (classification.marks_partial_relayout_boundary_self_only) {
-        layout_node.set_needs_layout_update(SetNeedsLayoutReason::LayoutTreeUpdate, Layout::LayoutUpdatePropagation::BoundarySelfOnly);
-    } else if (reason == SetNeedsLayoutTreeUpdateReason::NodeInsertBefore) {
-        // What an insertion invalidates depends on the boxes it attaches, which only the layout tree build knows.
-        Layout::RustFFI::render_state_defer_child_list_insertion_layout_update(layout_node.document_host(), Layout::Node::slot_id(&layout_node));
-    } else {
-        layout_node.set_needs_layout_update(SetNeedsLayoutReason::LayoutTreeUpdate, Layout::LayoutUpdatePropagation::ThroughAncestors);
-    }
-
-    // FIXME: Escalating a rebuild past anonymous parents is not optimal, and we should
-    //        figure out how to rebuild a smaller part of the tree.
-    if (classification.escalates_past_anonymous_parents) {
-        // The document has no style node of its own; it is named by 0.
-        auto ancestor = classification.escalation_target_style_node == 0
-            ? NodeIdentity::of_document()
-            : NodeIdentity::of_style_node(CSS::StyleNodeID { classification.escalation_target_style_node });
-        document().commit_messages().note_needs_layout_tree_update(ancestor, reason);
-    }
+    if (reason == SetNeedsLayoutTreeUpdateReason::NodeInsertBefore)
+        return ChildListInsertion;
+    if (reason == SetNeedsLayoutTreeUpdateReason::PseudoElementChange)
+        return PseudoElementChange;
+    return 0;
 }
 
 void Node::post_connection()

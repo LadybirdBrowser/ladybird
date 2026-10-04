@@ -36,15 +36,6 @@ Layout::Node* CommitMessages::bound_layout_node(Layout::BegunRead const& read, N
     return arena ? identity.bound_layout_node(read, *arena) : nullptr;
 }
 
-void CommitMessages::note_needs_layout_tree_update(NodeIdentity identity, SetNeedsLayoutTreeUpdateReason reason)
-{
-    m_messages.append({ .identity = identity, .kind = Kind::NeedsLayoutTreeUpdate, .layout_tree_update_reason = reason });
-    // The mark decides what the next tree build does, and the DOM side reads that back as soon as the mutation that
-    // made it returns, as the mutation's own read of the render state.
-    Layout::ForcedReadScope read { *m_document, false };
-    apply(read);
-}
-
 // A message from layout names its node by the style node the style tree gave it, with 0 for the document.
 void CommitMessages::append(Layout::BegunRead const& read, Layout::RustFFI::FfiCommitMessage const& message)
 {

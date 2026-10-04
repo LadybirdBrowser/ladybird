@@ -470,10 +470,8 @@ public:
     // the style mirror has not named holds none.
     [[nodiscard]] bool needs_layout_tree_update() const;
     void set_needs_layout_tree_update(bool, SetNeedsLayoutTreeUpdateReason);
-    // The half of a layout tree update mark that reads the layout tree: whether the node's box relays out alone, defers
-    // to the insertion, or dirties its ancestors, and whether the rebuild has to climb past anonymous parents. The
-    // invalidation journal holds it back until it drains, and hands in the box it found bound to the node.
-    void apply_layout_tree_update_mark(Layout::Node&, SetNeedsLayoutTreeUpdateReason);
+    // Which narrower rebuild a layout tree update mark made for `reason` permits.
+    static u8 layout_tree_update_reuse_reason(SetNeedsLayoutTreeUpdateReason);
 
     [[nodiscard]] bool needs_pseudo_element_layout_tree_update() const { return layout_tree_update_reuse_reasons() & PseudoElementChange; }
     [[nodiscard]] bool may_reuse_layout_node_for_child_list_insertion() const { return layout_tree_update_reuse_reasons() & ChildListInsertion; }
