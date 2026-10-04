@@ -1,0 +1,284 @@
+<!doctype html>
+<meta charset=utf-8>
+<title>Animating CSS logical properties using CSS Transitions</title>
+<link rel="help" href="https://drafts.csswg.org/css-logical/#box">
+<meta name="assert" content="The specified values of these properties are separate from the specified values of the parallel physical properties, but the flow-relative and physical properties share computed values.">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../css-animations/support/testcommon.js"></script>
+
+<div id="log"></div>
+<div id="test"></div>
+<script>
+'use strict';
+
+const testEl = document.getElementById("test");
+
+function makeDeclaration(object = {}) {
+  return Object.entries(object).map(([prop, val]) => prop + ": " + val).join("; ");
+}
+
+/**
+ * Starts a CSS transition in testEl. By default, the transition will affect the properies
+ * specified in finalStyles, be linear, last 10 seconds and start halfway, but this can be
+ * overridden in baseStyles.
+ *
+ * @param t  The testharness.js Test object.
+ * @param baseStyles  A dictionary object with property names and values to set on the
+ *                    element before starting the transition.
+ * @param finalStyles  A dictionary object with property names and values towards which
+ *                     the element will transition.
+ * @param [transitionStyles]  An optional dictionary object to costumize the transition.
+ */
+function transition(t, baseStyles, finalStyles, transitionStyles = {}) {
+  // Clear styles from previous test.
+  testEl.style.cssText = "";
+  testEl.className = "";
+  getComputedStyle(testEl).height;
+
+  // Set base and final styles
+  addStyle(t, {
+    "#test": makeDeclaration(baseStyles),
+    "#test.transition": makeDeclaration(finalStyles),
+  });
+  getComputedStyle(testEl).height;
+
+  // Set transition styles
+  const defaultTransition = {
+    "transition-property": Object.keys(finalStyles).join(", "),
+    "transition-timing-function": "linear",
+    "transition-duration": "10s",
+    "transition-delay": "-5s",
+  };
+  addStyle(t, {
+    "#test": makeDeclaration(Object.assign(defaultTransition, transitionStyles)),
+  });
+
+  // Start the transition
+  testEl.className = "transition";
+}
+
+test(t => {
+  transition(t, {
+    "block-size": "0px",
+  }, {
+    "block-size": "100px",
+  });
+  assert_equals(getComputedStyle(testEl).height, '50px');
+}, 'Logical properties can be transitioned');
+
+test(t => {
+  transition(t, {
+    "block-size": "0px",
+    "writing-mode": "vertical-rl",
+  }, {
+    "block-size": "100px",
+  });
+  assert_equals(getComputedStyle(testEl).width, '50px');
+  assert_equals(getComputedStyle(testEl).height, '0px');
+}, 'Logical properties in transitions respect the writing-mode');
+
+test(t => {
+  transition(t, {
+    "margin-inline-start": "0px",
+    "direction": "rtl",
+  }, {
+    "margin-inline-start": "100px",
+  });
+  assert_equals(getComputedStyle(testEl).marginLeft, '0px');
+  assert_equals(getComputedStyle(testEl).marginRight, '50px');
+}, 'Logical properties in transitions respect the direction');
+
+test(t => {
+  transition(t, {
+    "block-size": "0px",
+    "height": "200px",
+  }, {
+    "block-size": "100px",
+    "height": "300px",
+  });
+  assert_equals(getComputedStyle(testEl).height, '250px');
+}, 'Declaration order is respected within declaration blocks');
+
+test(t => {
+  transition(t, {}, {
+    "margin-top": "200px",
+    "margin-block-start": "100px"
+  }, {
+    "transition-timing-function": "step-start",
+  });
+  assert_equals(getComputedStyle(testEl).marginTop, '100px');
+}, 'Logical properties are able to override physical properties in declaration blocks');
+
+test(t => {
+  transition(t, {}, {
+    "margin-inline": "200px",
+    "margin-inline-start": "0px",
+    "margin-inline-start": "100px",
+  }, {
+    "transition-timing-function": "step-start",
+  });
+  assert_equals(getComputedStyle(testEl).marginLeft, '100px');
+}, 'Declaration order is respected amongst logical properties within declaration blocks');
+
+test(t => {
+  transition(t, {
+    "block-size": "200px",
+  }, {
+    "height": "300px",
+  });
+  assert_equals(getComputedStyle(testEl).height, '250px');
+}, 'Physical properties and logical properties can be mixed');
+
+test(t => {
+  transition(t, {
+    "height": "100px",
+    "block-size": "200px",
+  }, {
+    "block-size": "100px",
+    "height": "300px",
+  });
+  assert_equals(getComputedStyle(testEl).height, '250px');
+}, 'Declaration order is respected on each keyframe individually');
+
+test(t => {
+  transition(t, {
+    "width": "0px",
+    "height": "0px",
+    "block-size": "0px",
+  }, {
+    "block-size": "100px",
+  });
+  assert_equals(getComputedStyle(testEl).width, '0px');
+  assert_equals(getComputedStyle(testEl).height, '50px');
+
+  testEl.style.writingMode = 'vertical-rl';
+  assert_equals(getComputedStyle(testEl).width, '50px');
+  assert_equals(getComputedStyle(testEl).height, '0px');
+}, 'Transitions update when the writing-mode is changed');
+
+promise_test(async t => {
+  transition(t, {
+    "width": "0px",
+    "height": "0px",
+    "block-size": "0px",
+  }, {
+    "block-size": "100px",
+  }, {
+    "transition-delay": "-9.9s",
+  });
+  const watcher = new EventWatcher(t, testEl, [ 'transitionend' ]);
+  await watcher.wait_for('transitionend');
+
+  assert_equals(getComputedStyle(testEl).width, '0px');
+  assert_equals(getComputedStyle(testEl).height, '100px');
+
+  testEl.style.transition = 'none';
+  testEl.style.writingMode = 'vertical-rl';
+  assert_equals(getComputedStyle(testEl).width, '100px');
+  assert_equals(getComputedStyle(testEl).height, '0px');
+}, 'Filling transitions update when the writing-mode is changed');
+
+test(t => {
+  transition(t, {
+    "width": "0px",
+    "height": "0px",
+  }, {
+    "block-size": "100px",
+    "height": "200px",
+  });
+
+  // Initially we are interpolating the height from 0 to 200px
+  assert_equals(getComputedStyle(testEl).width, '0px');
+  assert_equals(getComputedStyle(testEl).height, '100px');
+
+  // But once we change the writing-mode, we will be interpolating *both*
+  // the height (from 0px to 200px) *and* the width (from 0px to 100px).
+  testEl.style.writingMode = 'vertical-rl';
+  assert_equals(getComputedStyle(testEl).width, '50px');
+  assert_equals(getComputedStyle(testEl).height, '100px');
+}, 'The number of interpolating properties can be increased when the'
+   + ' writing-mode is changed');
+
+test(t => {
+  transition(t, {
+    "width": "100px",
+    "height": "100px",
+  }, {
+    "width": "500px",
+    "block-size": "200px",
+  });
+
+  // Initially we are interpolating the width (100px -> 500px) and the height
+  // (100px -> 200px).
+  assert_equals(getComputedStyle(testEl).width, '300px');
+  assert_equals(getComputedStyle(testEl).height, '150px');
+
+  // Once we change the writing-mode, we will be interpolating *only* the
+  // width (300px -> 200px).
+  testEl.style.writingMode = 'vertical-rl';
+  assert_equals(getComputedStyle(testEl).width, '250px');
+  assert_equals(getComputedStyle(testEl).height, '100px');
+}, 'The number of interpolating properties can be decreased when the'
+   + ' writing-mode is changed');
+
+test(t => {
+  addStyle(t, { ':root': '--writingMode: horizontal-tb' });
+  transition(t, {
+    "width": "0px",
+    "height": "0px",
+    "writing-mode": "var(--writingMode)",
+    "block-size": "0px",
+  }, {
+    "block-size": "100px"
+  });
+  assert_equals(getComputedStyle(testEl).width, '0px');
+  assert_equals(getComputedStyle(testEl).height, '50px');
+
+  testEl.style.setProperty('--writingMode', 'vertical-rl');
+  assert_equals(getComputedStyle(testEl).width, '50px');
+  assert_equals(getComputedStyle(testEl).height, '0px');
+}, 'Transitions update when the writing-mode is changed through a CSS variable');
+
+test(t => {
+  transition(t, {
+    "margin-inline-start": "0px",
+  }, {
+    "margin-inline-start": "100px",
+  });
+  assert_equals(getComputedStyle(testEl).marginLeft, '50px');
+  assert_equals(getComputedStyle(testEl).marginRight, '0px');
+
+  testEl.style.direction = 'rtl';
+  assert_equals(getComputedStyle(testEl).marginLeft, '0px');
+  assert_equals(getComputedStyle(testEl).marginRight, '50px');
+}, 'Transitions update when the direction is changed');
+
+test(t => {
+  transition(t, {
+    "margin-inline-start": "100px",
+  }, {
+    "margin-left": "200px",
+  });
+  assert_equals(getComputedStyle(testEl).marginLeft, '150px');
+  assert_equals(getComputedStyle(testEl).marginRight, '0px');
+
+  testEl.style.direction = 'rtl';
+  assert_equals(getComputedStyle(testEl).marginLeft, '150px');
+  assert_equals(getComputedStyle(testEl).marginRight, '100px');
+}, 'Transitions from logical to physical update when the direction is changed');
+
+test(t => {
+  transition(t, {
+    "margin-left": "200px",
+  }, {
+    "margin-inline-start": "100px",
+  });
+  assert_equals(getComputedStyle(testEl).marginLeft, '150px');
+  assert_equals(getComputedStyle(testEl).marginRight, '0px');
+
+  testEl.style.direction = 'rtl';
+  assert_equals(getComputedStyle(testEl).marginLeft, '200px');
+  assert_equals(getComputedStyle(testEl).marginRight, '50px');
+}, 'Transitions from physical to logical update when the direction is changed');
+</script>

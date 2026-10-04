@@ -342,6 +342,12 @@ Vector<CSS::PropertyID> Animatable::property_ids_with_matching_transition_proper
     return property_ids;
 }
 
+bool Animatable::has_existing_transitions(Optional<CSS::PseudoElement> pseudo_element) const
+{
+    auto const* transition = transition_if_exists(pseudo_element);
+    return transition && !transition->associated_transitions.is_empty();
+}
+
 Vector<CSS::PropertyID> Animatable::property_ids_with_existing_transitions(Optional<CSS::PseudoElement> pseudo_element) const
 {
     auto const* maybe_transition = transition_if_exists(pseudo_element);

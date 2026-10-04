@@ -422,7 +422,8 @@ static RequiredInvalidationAfterStyleChange install_engine_computed_records(Layo
     // the old record has to outlive its replacement until the step has read it.
     // NB: Earlier rows can replace the element's composition after this row was planned. Pin the record it holds now,
     //     which is the before-change style for this installation, rather than the row's possibly reclaimed old record.
-    StyleRecordPin const before_change { document.style_computer(), reaction.owes_a_transition_step ? element.style_record_identity() : StyleRecordID {} };
+    bool const owes_a_transition_step = reaction.owes_a_transition_step || element.has_existing_transitions({});
+    StyleRecordPin const before_change { document.style_computer(), owes_a_transition_step ? element.style_record_identity() : StyleRecordID {} };
     // The record answers any style input the element owes, as the C++ computation it equals would: nothing is left for
     // a later transaction to plan.
     style_engine.consume_recorded_element_style_input_change(reaction.style_node);
