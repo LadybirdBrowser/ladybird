@@ -37,7 +37,7 @@ class FontFaceState final : public RefCounted<FontFaceState>
 public:
     using FontFaceSource = FlattenVariant<Variant<Utf16String>, WebIDL::BufferSourceVariant>;
 
-    [[nodiscard]] static NonnullRefPtr<FontFaceState> create_for_constructor(JS::Object&, Utf16String family, FontFaceSource source, Bindings::FontFaceDescriptors const& descriptors);
+    [[nodiscard]] static GC::Ref<FontFace> create_for_constructor(JS::Object&, Utf16String family, FontFaceSource source, Bindings::FontFaceDescriptors const& descriptors);
     [[nodiscard]] static NonnullRefPtr<FontFaceState> create_css_connected(JS::Realm&, u64 rule_identity, StyleSheetState&);
     ~FontFaceState();
     FontFace& cssom_font_face() const;
@@ -156,7 +156,7 @@ public:
     void remove_from_set(FontFaceSet&);
 
 private:
-    FontFaceState(GC::Ref<HTML::EnvironmentSettingsObject>, GC::Ptr<WebIDL::Promise> font_status_promise = nullptr);
+    explicit FontFaceState(GC::Ref<HTML::EnvironmentSettingsObject>);
 
     JS::Object& task_global_object() const;
     void reject_status_promise(WebIDL::Exception);
