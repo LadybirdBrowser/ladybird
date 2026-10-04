@@ -662,16 +662,51 @@ bool WebContentPage::take_owed_reply(OwedReply owed)
 
 static bool may_navigate_to_a_local_file(WebContentClient& requesting_client, Web::HTML::NavigationSourceSnapshot const& source_snapshot_params);
 
-void WebContentPage::did_request_navigation_of_navigable(Web::HTML::CrossProcessId navigable_id, Web::HTML::PreparedNavigationDescriptor navigation)
+void WebContentPage::did_request_navigation_of_navigable(Web::HTML::CrossProcessId navigable_id, Web::HTML::CrossProcessId source_navigable_id, Web::HTML::CrossProcessId source_document_id, Web::HTML::PreparedNavigationDescriptor navigation)
 {
     if (navigation.url.scheme() == "file"sv && !may_navigate_to_a_local_file(client(), navigation.source_snapshot_params))
         return;
 
+    auto target = traversable().find(navigable_id);
+    if (!target.has_value())
+        return;
+
+    // https://html.spec.whatwg.org/multipage/browsing-the-web.html#navigate
+    // NB: The page ran the steps up to 7 for a sourceDocument it hosts. The UI process runs those guarding navigable
+    //     again, with the sourceDocument and sandboxing flags it holds. sourceDocument can be in another tab, in this
+    //     process's page for it.
+    Optional<CanonicalNavigable&> source;
+    client().for_each_page([&](WebContentPage& page) {
+        auto navigable = page.traversable().find(source_navigable_id);
+        if (!navigable.has_value() || navigable->active_document().id() != source_document_id || navigable->active_document().host() != &page)
+            return IterationDecision::Continue;
+        source = *navigable;
+        return IterationDecision::Break;
+    });
+    if (!source.has_value())
+        return;
+    auto& source_document = source->active_document();
+
+    // 6. Otherwise:
+    //    2. If sourceDocument's node navigable is not allowed by sandboxing to navigate navigable given
+    //       sourceSnapshotParams:
+    //       2. Return.
+    Web::InitiatorSourceSnapshot source_snapshot_params {
+        .sandboxing_flags = navigation.source_snapshot_params.sandboxing_flags | source_document.active_sandboxing_flag_set(),
+        .has_transient_activation = navigation.source_snapshot_params.has_transient_activation,
+    };
+    if (!source->allowed_by_sandboxing_to_navigate(*target, source_snapshot_params))
+        return;
+
+    //    3. Set initiatorOriginSnapshot to sourceDocument's origin.
+    navigation.initiator_origin_snapshot = source_document.origin();
+
     // A document that was lost with the process that hosted it is navigated from step 8 on here: no process hosts it.
-    if (auto target = traversable().top_level_traversable().find(navigable_id); target.has_value() && !target->active_document().host()) {
+    if (!target->active_document().host()) {
         target->begin_navigation(move(navigation));
         return;
     }
+    target->set_routed_navigation(navigation.navigation_id, navigation.initiator_origin_snapshot);
 
     // The request continues navigate at step 8 in the process hosting the target's document.
     auto endpoint = endpoint_hosting_navigable_represented_by(navigable_id);
@@ -877,7 +912,7 @@ void WebContentPage::did_unhover_link()
         view().on_link_unhover();
 }
 
-static Optional<URL::Origin> initiator_origin_snapshot(URL::Origin const& given_origin, Web::HTML::NavigationSourceSnapshot const& source_snapshot_params, WebContentClient* hosting_client = nullptr);
+static Optional<URL::Origin> initiator_origin_snapshot(URL::Origin const& given_origin, Web::HTML::NavigationSourceSnapshot const& source_snapshot_params, WebContentClient& hosting_client);
 
 // A page reaches local file content only by navigating there from local file content, or from the browser's UI: a
 // process holding none could otherwise come to host a file: document, and with it read every file the user can.
@@ -905,7 +940,7 @@ static bool may_navigate_to_a_local_file(WebContentClient& requesting_client, We
 static Optional<Web::HTML::PreparedNavigationDescriptor> navigation_from_page(WebContentClient& requesting_client, Web::HTML::PreparedNavigationDescriptor navigation)
 {
     // A page's own click or context menu names a document the page's process hosts, so only that process vouches for it.
-    auto initiator_origin = initiator_origin_snapshot(navigation.initiator_origin_snapshot, navigation.source_snapshot_params, &requesting_client);
+    auto initiator_origin = initiator_origin_snapshot(navigation.initiator_origin_snapshot, navigation.source_snapshot_params, requesting_client);
     if (!initiator_origin.has_value())
         return {};
     if (navigation.url.scheme() == "file"sv && !may_navigate_to_a_local_file(requesting_client, navigation.source_snapshot_params))
@@ -1879,29 +1914,18 @@ void WebContentPage::did_request_set_system_visibility_state(Web::HTML::Visibili
 // NB: initiatorOriginSnapshot is sourceDocument's origin. The process names sourceDocument's relevant settings object as
 //     the fetch client, an environment that a process hosts, and the UI process takes the origin from it. Without a
 //     sourceDocument, the process gives a new opaque origin, which no document may hold yet.
-// The origin of the environment a navigation names as its fetch client, from the process hosting that environment. A
-// navigation a page starts in another process's navigable continues in that process (step 8 of navigate), so the
-// process asking isn't necessarily the one hosting the client; a caller that knows the host names it.
-static Optional<URL::Origin> initiator_origin_snapshot(URL::Origin const& given_origin, Web::HTML::NavigationSourceSnapshot const& source_snapshot_params, WebContentClient* hosting_client)
+// The origin of the environment a navigation names as its fetch client, from the process asking, which hosts it.
+static Optional<URL::Origin> initiator_origin_snapshot(URL::Origin const& given_origin, Web::HTML::NavigationSourceSnapshot const& source_snapshot_params, WebContentClient& hosting_client)
 {
     if (!source_snapshot_params.fetch_client.has_value()) {
         if (!given_origin.is_opaque() || CanonicalTraversable::is_origin_held_by_a_document(given_origin))
             return {};
         return given_origin;
     }
-    Optional<URL::Origin> origin;
-    auto take_origin_from = [&](WebContentClient& client) {
-        auto source_settings = client.hosted_environment(source_snapshot_params.fetch_client->id);
-        if (!source_settings.has_value())
-            return IterationDecision::Continue;
-        origin = source_settings->origin();
-        return IterationDecision::Break;
-    };
-    if (hosting_client)
-        take_origin_from(*hosting_client);
-    else
-        WebContentClient::for_each_client(take_origin_from);
-    return origin;
+    auto source_settings = hosting_client.hosted_environment(source_snapshot_params.fetch_client->id);
+    if (!source_settings.has_value())
+        return {};
+    return source_settings->origin();
 }
 
 void WebContentPage::did_request_navigation_start(Web::HTML::CrossProcessId navigable_id, Web::NavigationTarget target, URL::URL url, Utf16String navigation_id, Optional<Web::HTML::NavigationStartRequest> start_request)
@@ -1916,11 +1940,17 @@ void WebContentPage::did_request_navigation_start(Web::HTML::CrossProcessId navi
     //         Recheck it here so navigation admission and history traversal remain ordered by the UI process.
     auto navigation_is_blocked_by_history_traversal = target_navigable
         && target_navigable->ongoing_navigation_is_traversal();
+    // The page hosting the navigable's document continues navigate at step 8, for a sourceDocument it hosts or for
+    // one another page hosts, which asked the UI process to route the navigation here.
     Optional<URL::Origin> initiator_origin;
-    if (start_request.has_value())
-        initiator_origin = initiator_origin_snapshot(start_request->initiator_origin, start_request->source_snapshot_params);
+    if (start_request.has_value() && target_navigable) {
+        initiator_origin = initiator_origin_snapshot(start_request->initiator_origin, start_request->source_snapshot_params, client());
+        if (!initiator_origin.has_value())
+            initiator_origin = target_navigable->take_routed_navigation_initiator_origin(navigation_id);
+    }
     if (!target_navigable
         || target_navigable->id() != navigable_id
+        || !traversable().hosts(*target_navigable, *this)
         || (start_request.has_value() && start_request->navigable_id != navigable_id)
         || (start_request.has_value() && !initiator_origin.has_value())
         || navigation_is_blocked_by_history_traversal) {

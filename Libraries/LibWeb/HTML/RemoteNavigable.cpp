@@ -220,7 +220,14 @@ WebIDL::ExceptionOr<void> RemoteNavigable::continue_navigation_in_active_documen
     //    window to continue these steps.
     // NB: The active window lives in the process hosting the active document, so the task is a request to the UI
     //     process, which forwards it to that process.
-    page().client().request_navigation_of_navigable(*this, create_prepared_navigation_descriptor(navigation));
+    auto fetch_client = navigation.source_snapshot_params->fetch_client;
+    if (!fetch_client)
+        return {};
+    auto& source_document = window_from_global_object(fetch_client->global_object())->associated_document();
+    auto source_navigable = source_document.navigable();
+    if (!source_navigable)
+        return {};
+    page().client().request_navigation_of_navigable(*this, *source_navigable, source_document, create_prepared_navigation_descriptor(navigation));
     return {};
 }
 
