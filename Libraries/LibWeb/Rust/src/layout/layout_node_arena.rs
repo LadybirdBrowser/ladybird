@@ -2281,13 +2281,17 @@ impl LayoutNodeArena {
             }
             // Replaced content, form controls, list items, tables and SVG take facts from their element the host
             // publishes as it styles them, and a box that holds a style of the arena's or one the host pins is styled
-            // in a way of its own.
+            // in a way of its own. So is a table box, whose wrapper may take properties of it and so give it a style of
+            // the arena's, which its layout node hears of only as the host pays the frame, after the host installs the
+            // row.
+            let parent = self.data(slot).parent.get();
             if !matches!(
                 self.data(slot).kind.get(),
                 NodeKind::Box | NodeKind::BlockContainer | NodeKind::InlineNode
             ) || self.style_records[slot.slot_index() as usize].get() != row.old_style_record
                 || self.node_style_record_is_derived(slot)
                 || self.node_style_record_pinned_by_host(slot) != 0
+                || (!parent.is_invalid() && self.data(parent).kind.get() == NodeKind::TableWrapper)
             {
                 return Err(Decline::LayoutNode);
             }
