@@ -28,7 +28,7 @@ use crate::stage_thread::InFlight;
 use std::cell::{Cell, RefCell, RefMut, UnsafeCell};
 use std::rc::Rc;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 
 /// The host's side of one document's render state: the frame that owns the state, the host tables the host answers
 /// layout through, and what the document keeps of its display list recordings, which are made on the host's thread
@@ -55,6 +55,8 @@ pub struct DocumentHost {
     element_random_base_values_exist: Arc<AtomicBool>,
     /// The flag the render state raises while any row has enrolled an SVG paint resource.
     svg_paint_resources_enrolled: Arc<AtomicBool>,
+    /// The versions the document's style engine mints declaration blocks from, which the host mints from without it.
+    declaration_block_versions: Arc<AtomicU32>,
     /// The compositor animations the document's effects published in the current update pass, which the host hands
     /// the render state as the pass ends.
     compositor_animations: RefCell<Vec<VisualAnimation>>,
@@ -114,6 +116,7 @@ impl DocumentHost {
         Self {
             element_random_base_values_exist: state.engine_ref().element_random_base_values_exist(),
             svg_paint_resources_enrolled: state.arena.arena().svg_paint_resources().enrolled_flag(),
+            declaration_block_versions: state.engine_ref().declaration_block_versions(),
             frame: RefCell::new(Frame::Here(UnsafeCell::new(state))),
             waits_for_frame: Cell::new(false),
             host_tables: HostTables::default(),
@@ -481,6 +484,11 @@ impl DocumentHost {
         if begun.scopes > 0 {
             begun.read = Some(read);
         }
+    }
+
+    /// A fresh identity for an element-sourced declaration block's contents.
+    pub(crate) fn next_declaration_block_version(&self) -> u32 {
+        crate::css::style::next_declaration_block_version(&self.declaration_block_versions)
     }
 
     /// Whether some row may have enrolled an SVG paint resource, which only then has to be synced again.
