@@ -21,12 +21,6 @@
 #include <WebWorker/WebWorkerClientEndpoint.h>
 #include <WebWorker/WebWorkerServerEndpoint.h>
 
-namespace Gfx {
-
-class SharedFontProvider;
-
-}
-
 namespace WebWorker {
 
 class ConnectionFromClient final
@@ -39,7 +33,7 @@ public:
     virtual void die() override;
 
     virtual Messages::WebWorkerServer::InitTransportResponse init_transport(int peer_pid) override;
-    virtual void set_font_catalog(IPC::File, u64 size, u64 generation) override;
+    virtual void set_font_service(IPC::TransportHandle, IPC::File catalog, u64 catalog_size, u64 generation) override;
     virtual void close_worker() override;
 
     void request_file(Web::FileRequest);
@@ -92,7 +86,6 @@ private:
 
     RefPtr<WorkerHost> m_worker_host;
     Function<void()> m_request_server_died_callback_for_testing;
-    Gfx::SharedFontProvider* m_font_provider { nullptr };
     bool m_enable_test_mode { false };
 };
 

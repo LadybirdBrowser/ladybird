@@ -10,39 +10,12 @@
 #include <LibWebView/BlobURLStore.h>
 #include <LibWebView/CanonicalEnvironmentSettingsObject.h>
 #include <LibWebView/CookieJar.h>
-#include <LibWebView/FontService.h>
 #include <LibWebView/HSTSStore.h>
 #include <LibWebView/HelperProcess.h>
 #include <LibWebView/WebWorkerClient.h>
 #include <LibWebView/WorkerProcessManager.h>
 
 namespace WebView {
-
-Messages::WebWorkerClient::OpenSystemFontResponse WebWorkerClient::open_system_font(u64 generation, u64 face_id)
-{
-    auto font = Application::font_service().open_font(generation, face_id);
-    return { move(font) };
-}
-
-Messages::WebWorkerClient::MatchSystemFontResponse WebWorkerClient::match_system_font(String family, u16 weight, u16 width, u8 slope)
-{
-    auto font = Application::font_service().match_font(family, weight, width, slope);
-    return { move(font) };
-}
-
-Messages::WebWorkerClient::MatchSystemFontForCodePointResponse WebWorkerClient::match_system_font_for_code_point(u32 code_point, u16 weight, u16 width, u8 slope, bool prefer_color_emoji)
-{
-    auto font = Application::font_service().match_font_for_code_point(code_point, weight, width, slope, prefer_color_emoji);
-    return { move(font) };
-}
-
-Messages::WebWorkerClient::ResolveGenericFontResponse WebWorkerClient::resolve_generic_font(String family, u16 weight, u8 slope)
-{
-    auto resolved = Application::font_service().resolve_generic_family(family, weight, slope);
-    if (!resolved.has_value())
-        return Optional<String> {};
-    return Optional<String> { resolved->to_string() };
-}
 
 WebWorkerClient::WebWorkerClient(NonnullOwnPtr<IPC::Transport> transport, IsPrivate is_private, Web::HTML::WorkerAgentId agent_id)
     : IPC::ConnectionToServer<WebWorkerClientEndpoint, WebWorkerServerEndpoint>(*this, move(transport))

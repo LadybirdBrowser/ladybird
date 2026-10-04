@@ -476,8 +476,7 @@ ErrorOr<NonnullRefPtr<WebWorkerClient>> launch_web_worker_process(Web::HTML::Age
     }
 
     auto client = TRY(launch_server_process<WebWorkerClient>("WebWorker"sv, move(arguments), is_private, agent_id));
-    auto font_catalog = TRY(WebView::Application::font_service().clone_catalog());
-    client->async_set_font_catalog(move(font_catalog.file), font_catalog.size, font_catalog.generation);
+    TRY(connect_to_font_service(*client));
     if (auto system_font_family = WebView::Application::the().system_font_family(); system_font_family.has_value())
         client->async_set_system_font_family(system_font_family.release_value());
     return client;
