@@ -115,6 +115,19 @@ ThrowCompletionOr<Optional<PropertyDescriptor>> HostObject::internal_get_own_pro
         return Object::internal_get_own_property(property_key);
     JSPropertyDescriptor descriptor {};
     TRY(completion_from_abi<void>(hook(as_abi_object(), property_key_to_abi(property_key), &descriptor)));
+
+    // A data property with all of its attributes, such as an indexed or named property of a collection, skips the general
+    // conversion, which costs reads of such properties a measurable share of their time.
+    constexpr u16 complete_data_descriptor_flags = JS_PD_PRESENT | JS_PD_HAS_VALUE | JS_PD_HAS_WRITABLE | JS_PD_HAS_ENUMERABLE | JS_PD_HAS_CONFIGURABLE;
+    constexpr u16 attribute_flags = JS_PD_WRITABLE | JS_PD_ENUMERABLE | JS_PD_CONFIGURABLE;
+    if ((descriptor.flags & ~attribute_flags) == complete_data_descriptor_flags) {
+        return PropertyDescriptor {
+            .value = value_from_abi(descriptor.value),
+            .writable = (descriptor.flags & JS_PD_WRITABLE) != 0,
+            .enumerable = (descriptor.flags & JS_PD_ENUMERABLE) != 0,
+            .configurable = (descriptor.flags & JS_PD_CONFIGURABLE) != 0,
+        };
+    }
     return property_descriptor_from_abi(descriptor);
 }
 
