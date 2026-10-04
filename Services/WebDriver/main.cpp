@@ -9,7 +9,6 @@
 #include <AK/Random.h>
 #include <LibCore/ArgsParser.h>
 #include <LibCore/Directory.h>
-#include <LibCore/Environment.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/Process.h>
 #include <LibCore/StandardPaths.h>
@@ -39,7 +38,7 @@ static ErrorOr<Core::Process> launch_process(StringView application, ReadonlySpa
     return result;
 }
 
-static Vector<ByteString> create_arguments(ByteString const& webdriver_endpoint, Optional<StringView> profile_name, Optional<StringView> profile_path, bool headless, bool expose_experimental_interfaces, bool expose_internals_object, bool force_cpu_painting, bool disable_sandbox, Optional<StringView> debug_process, Optional<StringView> default_time_zone, Optional<StringView> resource_substitution_map_path, Optional<StringView> site_isolation_mode)
+static Vector<ByteString> create_arguments(ByteString const& webdriver_endpoint, Optional<StringView> profile_name, Optional<StringView> profile_path, bool headless, bool expose_experimental_interfaces, bool expose_internals_object, bool force_cpu_painting, bool disable_sandbox, Optional<StringView> debug_process, Optional<StringView> default_time_zone, Optional<StringView> resource_substitution_map_path, StringView site_isolation_mode)
 {
     Vector<ByteString> arguments;
 #if defined(AK_OS_MACOS)
@@ -83,11 +82,7 @@ static Vector<ByteString> create_arguments(ByteString const& webdriver_endpoint,
     if (resource_substitution_map_path.has_value())
         arguments.append(ByteString::formatted("--resource-map={}", resource_substitution_map_path.value()));
 
-    // FIXME: WebDriver does not yet handle the WebContent process switch brought by site isolation.
-    if (site_isolation_mode.has_value())
-        arguments.append(ByteString::formatted("--site-isolation={}", *site_isolation_mode));
-    else if (!Core::Environment::has("LADYBIRD_WEBDRIVER_ENABLE_SITE_ISOLATION"sv))
-        arguments.append("--site-isolation=disable"sv);
+    arguments.append(ByteString::formatted("--site-isolation={}", site_isolation_mode));
 
     arguments.append("about:blank"sv);
     return arguments;
@@ -116,7 +111,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     Optional<StringView> profile_path;
     Optional<StringView> profiles_directory;
     Optional<StringView> resource_substitution_map_path;
-    Optional<StringView> site_isolation_mode;
+    StringView site_isolation_mode = "iframe"sv;
 
     Core::ArgsParser args_parser;
     args_parser.add_option(listen_address, "IP address to listen on", "listen-address", 'l', "listen_address");
