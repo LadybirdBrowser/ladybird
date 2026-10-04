@@ -10,6 +10,7 @@
 pub mod capi;
 pub mod class;
 pub mod class_id;
+pub mod foreign;
 pub mod gc_ref_cell;
 pub mod heap;
 pub mod heap_function;

@@ -34,6 +34,7 @@ num-traits = "0.2"
 rustc-demangle = "0.1"
 
 [build-dependencies]
+cbindgen = { version = "0.29", default-features = false }
 cc = "1"
 flapc = { path = "../../Flap" }
 libjs_abi = { path = "../../ABI" }

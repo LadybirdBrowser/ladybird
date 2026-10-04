@@ -108,20 +108,14 @@ impl Deref for Error {
     }
 }
 
-impl Object {
-    /// Whether the object has an [[ErrorData]] internal slot.
-    pub fn has_error_data(&self) -> bool {
-        self.error_data().is_some()
+/// The error_data method of ordinary objects, which finds the slot of the Error objects among them.
+pub fn error_data_of_error(object: &Object) -> Option<&ErrorData> {
+    if !object.is::<Error>() {
+        return None;
     }
-
-    pub fn error_data(&self) -> Option<&ErrorData> {
-        if !self.is::<Error>() {
-            return None;
-        }
-        // SAFETY: The object is an Error, which starts with its Object.
-        let error = unsafe { &*core::ptr::from_ref(self).cast::<Error>() };
-        Some(&error.error_data)
-    }
+    // SAFETY: The object is an Error, which starts with its Object.
+    let error = unsafe { &*core::ptr::from_ref(object).cast::<Error>() };
+    Some(&error.error_data)
 }
 
 impl Error {

@@ -4,9 +4,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! The data of every structure that the interpreter reads or writes directly, and of every structure that embeds
-//! one. build.rs includes this module as well to compute the interpreter layout, so it must not name anything in the
-//! rest of the crate except through `crate::layout_forward`, which build.rs replaces with stand-ins of the same size.
+//! The data of every structure that the interpreter or an embedder reads or writes directly, and of every structure
+//! that embeds one. build.rs includes this module as well to compute the interpreter layout and the embedding headers,
+//! so it must not name anything in the rest of the crate except through `crate::layout_forward`, which build.rs
+//! replaces with stand-ins of the same size.
 
 pub mod accessor;
 pub mod buffer;
@@ -15,6 +16,8 @@ pub mod environment;
 pub mod executable;
 pub mod execution_context;
 pub mod function_object;
+pub mod host_class;
+pub mod host_object;
 pub mod object;
 pub mod primitive_string;
 pub mod property_lookup_cache;

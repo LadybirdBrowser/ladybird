@@ -6,7 +6,8 @@
 
 //! Builds everything the crate shares with the interpreter: the layout file flapc compiles interpreter.flap against,
 //! computed from the crate's own layout module, the interpreter itself, assembled into the crate's static library,
-//! and the static assertions that keep the crate's types in line with that layout.
+//! and the static assertions that keep the crate's types in line with that layout. It also generates the C headers
+//! of the embedding ABI, LibJS/Embedding/ABI.h from src/embedding and LibJS/Embedding/Layout.h from the layout module.
 
 use std::env;
 use std::fs;
@@ -20,11 +21,23 @@ mod layout;
 #[path = "generate/layout_forward.rs"]
 mod layout_forward;
 
+#[path = "src/gc/class_id.rs"]
+mod class_id;
+
+#[path = "generate/abi_header.rs"]
+mod abi_header;
+
+#[path = "generate/c_type_spelling.rs"]
+mod c_type_spelling;
+
 #[path = "generate/fixture.rs"]
 mod fixture;
 
 #[path = "generate/layout_table.rs"]
 mod layout_table;
+
+#[path = "generate/layout_header.rs"]
+mod layout_header;
 
 #[path = "generate/ops.rs"]
 mod ops;
@@ -99,6 +112,8 @@ fn main() {
     println!("cargo:rerun-if-changed=build.rs");
     println!("cargo:rerun-if-changed=generate");
     println!("cargo:rerun-if-changed=src/layout");
+    println!("cargo:rerun-if-changed=src/gc/class_id.rs");
+    println!("cargo:rerun-if-changed=src/embedding");
     println!("cargo:rerun-if-changed={}", interpreter_source.display());
     println!("cargo:rerun-if-changed={}", layout_fixture.display());
     println!("cargo:rerun-if-env-changed=MACOSX_DEPLOYMENT_TARGET");
@@ -136,6 +151,19 @@ fn main() {
     write_if_changed(
         &output_directory.join("layout_static_assertions.rs"),
         &layout.static_assertions,
+    );
+
+    let embedding_header_directory = output_directory.join("LibJS/Embedding");
+    fs::create_dir_all(&embedding_header_directory).expect("create the directory of the embedding headers");
+    abi_header::generate(
+        &manifest_directory.join("src/embedding/mod.rs"),
+        &embedding_header_directory.join("ABI.h"),
+    );
+    let layout_header = layout_header::generate();
+    write_if_changed(&embedding_header_directory.join("Layout.h"), &layout_header.text);
+    write_if_changed(
+        &output_directory.join("layout_header_static_assertions.rs"),
+        &layout_header.static_assertions,
     );
 
     let interpreter_source_text = fs::read_to_string(&interpreter_source).expect("read interpreter.flap");

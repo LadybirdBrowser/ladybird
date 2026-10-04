@@ -23,6 +23,9 @@ pub struct PrivateElements(usize);
 pub struct FlyStringSlot(usize);
 
 #[repr(transparent)]
+pub struct ForeignCellSlot(usize);
+
+#[repr(transparent)]
 pub struct Utf16StringSlot(usize);
 
 #[repr(transparent)]

@@ -13,6 +13,7 @@ use crate::layout::cell::{CellHeader, CellKind, CellState};
 use crate::runtime::object::ObjectMethods;
 
 /// Mirrors GCCellTypeInfo from Libraries/LibGC/CAPI.h, which LibGC dispatches every per-cell operation through.
+#[derive(Clone, Copy)]
 #[repr(C)]
 pub struct CellTypeInfo {
     pub cell_size: u32,
@@ -89,6 +90,9 @@ impl Class {
     /// What Cell::class_name() returns for the C++ class this one mirrors, which printing and messages show. It is
     /// the name of the class unless the Rust type is spelled differently.
     pub fn class_name(&self) -> &'static str {
+        if self.is_derived_at_run_time() {
+            return self.name;
+        }
         match self.id {
             ClassId::EcmascriptFunctionObject => "ECMAScriptFunctionObject",
             ClassId::Test262GlobalObject => "GlobalObject",
@@ -144,6 +148,33 @@ impl Class {
     ) -> Self {
         self.type_info.external_memory_size = external_memory_size;
         self
+    }
+
+    /// Creates a class that extends `parent` while the runtime runs, as an embedder needs one for each class of host
+    /// object it defines. Its cells have the parent's layout, so it shares the parent's type info and id, and code that
+    /// tells classes apart by id sees the parent. It has a name and internal methods of its own, and its cells come from
+    /// an allocator of their own once allocated with Heap::allocate_in(). The class lives as long as the process.
+    pub fn derive_runtime(
+        parent: &'static Class,
+        name: &'static str,
+        object_methods: &'static ObjectMethods,
+    ) -> &'static Class {
+        assert!(
+            parent.object_methods.is_some(),
+            "only object classes are derived at run time"
+        );
+        Box::leak(Box::new(Class {
+            type_info: parent.type_info,
+            name,
+            id: parent.id,
+            parent: Some(parent),
+            object_methods: Some(object_methods),
+        }))
+    }
+
+    /// Whether Class::derive_runtime() created the class. Every class define_cell! defines has an id of its own.
+    pub fn is_derived_at_run_time(&self) -> bool {
+        self.parent.is_some_and(|parent| parent.id == self.id)
     }
 
     pub fn is_subclass_of(&self, ancestor: &Class) -> bool {

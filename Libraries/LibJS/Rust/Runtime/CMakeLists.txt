@@ -6,7 +6,19 @@ if (ENABLE_THREAD_SANITIZER)
     list(APPEND LIBJS_RUNTIME_RUST_FEATURES thread-sanitizer)
 endif()
 
-import_rust_crate(MANIFEST_PATH Cargo.toml CRATE_NAME libjs_runtime_rust FEATURES ${LIBJS_RUNTIME_RUST_FEATURES})
+import_rust_crate(
+    MANIFEST_PATH Cargo.toml
+    CRATE_NAME libjs_runtime_rust
+    FEATURES ${LIBJS_RUNTIME_RUST_FEATURES}
+    FFI_OUTPUT_DIR ${CMAKE_BINARY_DIR}/Libraries
+    FFI_HEADERS
+        LibJS/Embedding/ABI.h
+        LibJS/Embedding/Layout.h
+)
+# The headers land in the build tree's Libraries directory, which every target already includes. CMake would otherwise
+# make the include directory of an imported target a system one for its consumers, hiding the warnings of every header
+# generated there.
+set_target_properties(libjs_runtime_rust PROPERTIES SYSTEM OFF)
 
 # The runtime allocates its cells from LibGC, and the regex engine it shares with the C++ runtime reads Unicode
 # properties from LibUnicode.

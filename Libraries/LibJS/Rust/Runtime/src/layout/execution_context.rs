@@ -14,13 +14,17 @@ use super::realm::Realm;
 use super::value::Value;
 use crate::layout_forward::{Module, Script};
 
+pub const SCRIPT_OR_MODULE_TAG_EMPTY: u8 = 0;
+pub const SCRIPT_OR_MODULE_TAG_SCRIPT: u8 = 1;
+pub const SCRIPT_OR_MODULE_TAG_MODULE: u8 = 2;
+
 /// Mirrors JS::ScriptOrModule. The interpreter clears the field by zeroing it, so all-zero bytes must mean Empty.
 #[derive(Clone, Copy)]
 #[repr(C, u8)]
 pub enum ScriptOrModule {
-    Empty = 0,
-    Script(Gc<Script>) = 1,
-    Module(Gc<Module>) = 2,
+    Empty = SCRIPT_OR_MODULE_TAG_EMPTY,
+    Script(Gc<Script>) = SCRIPT_OR_MODULE_TAG_SCRIPT,
+    Module(Gc<Module>) = SCRIPT_OR_MODULE_TAG_MODULE,
 }
 
 const _: () = assert!(size_of::<ScriptOrModule>() == 16);

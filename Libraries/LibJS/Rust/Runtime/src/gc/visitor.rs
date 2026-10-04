@@ -22,6 +22,11 @@ impl Visitor {
         Self(NonNull::new(visitor).expect("LibGC passes a visitor"))
     }
 
+    /// The LibGC visitor, for visiting what the visitor's methods cannot name, such as an embedder's C++ cells.
+    pub fn as_raw(&self) -> *mut GCVisitor {
+        self.0.as_ptr()
+    }
+
     pub fn visit<T>(&mut self, cell: Gc<T>) {
         // SAFETY: The visitor is live, and a Gc points to a live cell.
         unsafe { gc_visitor_visit_cell(self.0.as_ptr(), cell.as_ptr().cast()) };

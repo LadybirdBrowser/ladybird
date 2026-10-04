@@ -4,10 +4,11 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use core::cell::Cell;
+use core::cell::{Cell, RefCell};
 use core::ffi::c_void;
 use core::mem::offset_of;
 use core::ptr::NonNull;
+use std::collections::HashMap;
 
 use super::capi::{self, GCAllocator, GCGatherRootsCallback, GCHeap, GCLayout};
 use super::class::{CellTypeInfo, Class, GcCell};
@@ -20,21 +21,47 @@ use crate::layout::cell::{CellHeader, CellState, Gc};
 pub struct Heap {
     raw: NonNull<GCHeap>,
     allocators: [Cell<*mut GCAllocator>; CLASS_COUNT],
+    /// The allocators of the classes derived at run time, by the address of their class.
+    runtime_class_allocators: RefCell<HashMap<usize, NonNull<GCAllocator>, foldhash::fast::RandomState>>,
 }
 
+/// The allocator of a class derived at run time, which only the cells of that class come from, as each C++ class that
+/// declares GC_DECLARE_ALLOCATOR has one of its own. It belongs to the heap that created it and lives as long as it.
+#[derive(Clone, Copy)]
+pub struct RuntimeClassAllocator {
+    class: &'static Class,
+    raw: NonNull<GCAllocator>,
+}
+
+impl RuntimeClassAllocator {
+    pub fn class(&self) -> &'static Class {
+        self.class
+    }
+}
+
+impl PartialEq for RuntimeClassAllocator {
+    fn eq(&self, other: &Self) -> bool {
+        self.raw == other.raw
+    }
+}
+
+impl Eq for RuntimeClassAllocator {}
+
 impl Heap {
-    /// Creates a heap that calls `gather_roots` with `context` whenever it gathers its roots.
+    /// Creates a heap that calls `gather_roots` with `context` whenever it gathers its roots. A heap that becomes the
+    /// process default is the one GC::Heap::the() returns to C++ code.
     ///
     /// # Safety
     ///
     /// `context` must stay valid for as long as the heap exists, including while it is being destroyed.
-    pub unsafe fn new(gather_roots: GCGatherRootsCallback, context: *mut c_void) -> Self {
+    pub unsafe fn new(gather_roots: GCGatherRootsCallback, context: *mut c_void, become_process_default: bool) -> Self {
         check_layout();
         // SAFETY: The caller keeps the context alive for the heap's lifetime.
-        let raw = unsafe { capi::gc_heap_create(gather_roots, context, false) };
+        let raw = unsafe { capi::gc_heap_create(gather_roots, context, become_process_default) };
         Self {
             raw: NonNull::new(raw).expect("LibGC creates the heap"),
             allocators: [const { Cell::new(core::ptr::null_mut()) }; CLASS_COUNT],
+            runtime_class_allocators: RefCell::default(),
         }
     }
 
@@ -46,20 +73,71 @@ impl Heap {
     /// the collector never sees a partially written cell.
     pub fn allocate<T: GcCell>(&self, cell: T) -> Gc<T> {
         let allocator = self.allocator_for(T::CLASS);
+        // SAFETY: The allocator is the one of the cell's static class, whose cells have the size and alignment of a T.
+        unsafe { self.allocate_with(allocator, cell) }
+    }
+
+    /// Moves `cell`, whose class is the one `allocator` was created for, into the storage of that allocator.
+    pub fn allocate_in<T: GcCell>(&self, allocator: RuntimeClassAllocator, cell: T) -> Gc<T> {
+        assert!(
+            allocator.class.type_info.cell_size as usize == size_of::<T>() && allocator.class.is_subclass_of(T::CLASS),
+            "{} cells are not {}s",
+            allocator.class.name,
+            T::CLASS.name
+        );
+        // SAFETY: Every cell starts with its header.
+        debug_assert!(core::ptr::eq(
+            unsafe { (*core::ptr::from_ref(&cell).cast::<CellHeader>()).class },
+            allocator.class
+        ));
+        // SAFETY: The allocator's cells have the size of a T, checked above, and T's alignment, as its class extends T's.
+        unsafe { self.allocate_with(allocator.raw.as_ptr(), cell) }
+    }
+
+    /// # Safety
+    ///
+    /// The allocator must belong to this heap and hand out storage of the size and alignment of a T.
+    #[inline(always)]
+    unsafe fn allocate_with<T: GcCell>(&self, allocator: *mut GCAllocator, cell: T) -> Gc<T> {
         let mut must_mark = false;
         // SAFETY: The heap and the allocator are live.
         let storage =
             unsafe { capi::gc_heap_allocate_cell(self.raw.as_ptr(), allocator, &raw mut must_mark) }.cast::<T>();
         let storage = NonNull::new(storage).expect("LibGC allocates the cell");
-        // SAFETY: LibGC returned uninitialized storage of the class's size and alignment.
+        // SAFETY: LibGC returned uninitialized storage of the size and alignment of a T, as the caller guarantees.
         unsafe { storage.write(cell) };
         let header = storage.cast::<CellHeader>();
         // SAFETY: Every cell starts with its header.
         unsafe {
-            debug_assert!(core::ptr::eq((*header.as_ptr()).class, T::CLASS));
+            debug_assert!((*header.as_ptr()).class.is_subclass_of(T::CLASS));
             (*header.as_ptr()).mark.set(must_mark);
             Gc::from_non_null(storage)
         }
+    }
+
+    /// The allocator of `class`, a class derived at run time, which the first call for the class creates.
+    pub fn runtime_class_allocator(&self, class: &'static Class) -> RuntimeClassAllocator {
+        assert!(
+            class.is_derived_at_run_time(),
+            "the cells of {} come from the allocator of its id",
+            class.name
+        );
+        let raw = *self
+            .runtime_class_allocators
+            .borrow_mut()
+            .entry(core::ptr::from_ref(class) as usize)
+            .or_insert_with(|| {
+                // SAFETY: The class and its name live as long as the process, so they outlive the allocator.
+                let allocator = unsafe {
+                    capi::gc_allocator_create(
+                        core::ptr::from_ref(&class.type_info),
+                        class.name.as_ptr().cast(),
+                        class.name.len(),
+                    )
+                };
+                NonNull::new(allocator).expect("LibGC creates the allocator")
+            });
+        RuntimeClassAllocator { class, raw }
     }
 
     fn allocator_for(&self, class: &'static Class) -> *mut GCAllocator {
@@ -146,6 +224,9 @@ impl Drop for Heap {
                 if !allocator.get().is_null() {
                     capi::gc_allocator_destroy(allocator.get());
                 }
+            }
+            for allocator in self.runtime_class_allocators.get_mut().values() {
+                capi::gc_allocator_destroy(allocator.as_ptr());
             }
         }
     }
