@@ -167,23 +167,33 @@ private:
     Function<void(Web::HTML::HistoryStepResult)> m_on_complete;
 
     // The algorithm's variables.
-    u64 m_generation;
     i32 m_target_step { 0 };
     Vector<Web::HTML::CrossProcessId> m_changing_navigables;
     Vector<Web::HTML::CrossProcessId> m_nonchanging_navigables_that_still_need_updates;
-    // The target entry that each changing navigable's job claimed. Its document state and navigation API key name its
-    // slot in the session history — a same-document replacement of the entry keeps both.
-    HashMap<Web::HTML::CrossProcessId, NonnullRefPtr<CanonicalSessionHistoryEntry>> m_claimed_target_entries;
-    HashMap<Web::HTML::CrossProcessId, Web::HTML::TraversalYieldsTo> m_traversal_yields_to;
-    HashMap<Web::HTML::CrossProcessId, Utf16String> m_canceled_navigation_ids;
     HashTable<Web::HTML::CrossProcessId> m_navigables_with_ongoing_history_traversal;
     size_t m_completed_change_jobs { 0 };
     // NB: The continuation states live in the processes that ran the jobs; this queue holds the navigables whose
     //     continuations are ready to be applied.
     Vector<Web::HTML::CrossProcessId> m_changing_navigable_continuations;
     HashTable<Web::HTML::CrossProcessId> m_navigables_that_must_wait_before_handling_sync_navigation;
-    Optional<u64> m_synchronous_navigation_steps_to_jump_through;
     size_t m_completed_nonchanging_jobs { 0 };
+
+    // AD-HOC: Synchronous navigations jump the traversal queue while a run is paused, and navigations are admitted
+    //         independently of the queue. What keeps a paused run consistent with them:
+    //         - The generation that orders the runs' commits of the current step (whatwg/html#12576).
+    //         - The target entry each changing navigable's job claimed, which the run looks up again before
+    //           activating it (whatwg/html#12961). Its document state and navigation API key name its slot in the
+    //           session history: a same-document replacement of the entry keeps both.
+    //         - How far the run lets synchronous navigation steps jump.
+    //         - What a same-document traversal yields to, with the admitted navigation it canceled.
+    u64 m_generation;
+    HashMap<Web::HTML::CrossProcessId, NonnullRefPtr<CanonicalSessionHistoryEntry>> m_claimed_target_entries;
+    Optional<u64> m_synchronous_navigation_steps_to_jump_through;
+    struct SameDocumentTraversalYield {
+        Web::HTML::TraversalYieldsTo yields_to;
+        Optional<Utf16String> canceled_navigation_id;
+    };
+    HashMap<Web::HTML::CrossProcessId, SameDocumentTraversalYield> m_same_document_traversal_yields;
 
     // The synchronous navigation steps this run is paused on ("running nested apply history step" is true).
     RefPtr<Core::Promise<Empty>> m_running_synchronous_navigation_steps;

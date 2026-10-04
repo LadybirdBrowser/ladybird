@@ -181,9 +181,11 @@ void ApplyHistoryStep::run_changing_navigable_jobs()
             .target_entry_reload_pending = target_entry->document_state->reload_pending,
             .user_involvement = m_user_involvement,
             .navigation_type = m_navigation_type,
-            .traversal_yields_to = m_traversal_yields_to.get(navigable_id).value_or(Web::HTML::TraversalYieldsTo::Nothing),
-            .canceled_navigation_id = m_canceled_navigation_ids.get(navigable_id).copy(),
         };
+        if (auto yield = m_same_document_traversal_yields.get(navigable_id); yield.has_value()) {
+            job.traversal_yields_to = yield->yields_to;
+            job.canceled_navigation_id = yield->canceled_navigation_id;
+        }
         if (!m_jobs.select_changing_navigable_history_step_job_endpoint(job)) {
             changing_navigable_job_completed(navigable_id, Web::HTML::ChangingNavigableHistoryStepJobDisposition::Skipped);
             continue;
@@ -507,7 +509,7 @@ void ApplyHistoryStep::set_ongoing_navigation_to_traversal(CanonicalNavigable& n
         && navigable.ongoing_navigation()
         && navigable.ongoing_navigation()->sequence_number > m_operation_sequence_number) {
         if (is_same_document_traversal)
-            m_traversal_yields_to.set(navigable.id(), Web::HTML::TraversalYieldsTo::AdmittedNavigation);
+            m_same_document_traversal_yields.set(navigable.id(), { Web::HTML::TraversalYieldsTo::AdmittedNavigation, {} });
         return;
     }
 
@@ -524,10 +526,10 @@ void ApplyHistoryStep::set_ongoing_navigation_to_traversal(CanonicalNavigable& n
     if (!m_navigation_type.has_value() && navigable.ongoing_navigation())
         return;
 
+    Optional<Utf16String> canceled_navigation_id;
     if (m_navigation_type == Web::Bindings::NavigationType::Traverse) {
-        auto const* ongoing_navigation = navigable.ongoing_navigation();
-        if (is_same_document_traversal && ongoing_navigation && ongoing_navigation->navigation_id.has_value())
-            m_canceled_navigation_ids.set(navigable.id(), *ongoing_navigation->navigation_id);
+        if (auto const* ongoing_navigation = navigable.ongoing_navigation(); is_same_document_traversal && ongoing_navigation)
+            canceled_navigation_id = ongoing_navigation->navigation_id;
         navigable.clear_ongoing_navigation();
     }
 
@@ -543,7 +545,7 @@ void ApplyHistoryStep::set_ongoing_navigation_to_traversal(CanonicalNavigable& n
     }
 
     if (is_same_document_traversal)
-        m_traversal_yields_to.set(navigable.id(), Web::HTML::TraversalYieldsTo::UnadmittedNavigation);
+        m_same_document_traversal_yields.set(navigable.id(), { Web::HTML::TraversalYieldsTo::UnadmittedNavigation, move(canceled_navigation_id) });
 }
 
 void ApplyHistoryStep::clear_ongoing_navigation_traversal(Web::HTML::CrossProcessId navigable_id)
