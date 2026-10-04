@@ -5,24 +5,30 @@
  */
 
 use core::cell::Cell;
+use core::ffi::c_void;
 use core::ops::Deref;
+use core::ptr::NonNull;
 use core::sync::atomic::{AtomicU8, AtomicU16, AtomicU32, AtomicU64, Ordering};
 use core::time::Duration;
+use std::os::fd::{AsFd, BorrowedFd, OwnedFd};
 
 use libjs_runtime_macros::Trace;
 use num_bigint::BigInt as NumBigInt;
 
 use crate::futex::{self, AtomicWaitResult};
+use crate::gc::capi::{GC_PRIMITIVE_STORAGE_NULL_HANDLE, GCPrimitiveStorageHandle, gc_cell_type_info};
 use crate::gc::class::{ExternalMemorySize, Finalize, GcCell, define_cell};
+use crate::gc::foreign::ForeignCellSlot;
 use crate::gc::gc_ref_cell::GcRefCell;
 use crate::gc::heap::Heap;
-use crate::gc::primitive_storage::OwnedPrimitiveStorage;
+use crate::gc::primitive_storage::{ForeignPrimitiveStorage, OwnedPrimitiveStorage, create_shared_memory};
 use crate::gc::visitor::{Trace, Visitor};
 use crate::gc::weak::GcWeak;
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
 use crate::layout::object::Object;
 use crate::layout::value::Value;
+use crate::random::get_random_u64;
 use crate::runtime::abstract_operations::ordinary_create_from_constructor_of;
 use crate::runtime::big_int::BigInt;
 use crate::runtime::completion::{Must, ThrowCompletionOr};
@@ -147,6 +153,13 @@ impl OwnedBackingStore {
         })
     }
 
+    /// The handle of the storage, or the null handle while there are no bytes.
+    pub fn handle(&self) -> GCPrimitiveStorageHandle {
+        self.storage
+            .as_ref()
+            .map_or(GC_PRIMITIVE_STORAGE_NULL_HANDLE, OwnedPrimitiveStorage::handle)
+    }
+
     #[inline]
     pub fn size(&self) -> usize {
         self.storage.as_ref().map_or(0, OwnedPrimitiveStorage::size)
@@ -201,6 +214,128 @@ impl OwnedBackingStore {
     }
 }
 
+/// DataBlock::ExternalPrimitiveStorage: storage that a cell of the embedder owns, such as a wasm memory or the channel
+/// of an AudioBuffer, which the block keeps alive. The byte length is either fixed when the block is made, or the size
+/// of the storage, which follows the owner's resizing.
+pub struct ExternalPrimitiveStorage {
+    owner: ForeignCellSlot,
+    storage: ForeignPrimitiveStorage,
+    fixed_byte_length: Option<usize>,
+}
+
+impl ExternalPrimitiveStorage {
+    /// `owner` holds the cell that owns the storage.
+    pub fn new(owner: ForeignCellSlot, handle: GCPrimitiveStorageHandle, fixed_byte_length: Option<usize>) -> Self {
+        assert!(owner.get().is_some(), "external storage has an owner");
+        Self {
+            owner,
+            storage: ForeignPrimitiveStorage::new(handle),
+            fixed_byte_length,
+        }
+    }
+
+    pub fn owner(&self) -> NonNull<c_void> {
+        self.owner.get().expect("external storage has an owner")
+    }
+
+    pub fn handle(&self) -> GCPrimitiveStorageHandle {
+        self.storage.handle()
+    }
+
+    pub fn fixed_byte_length(&self) -> Option<usize> {
+        self.fixed_byte_length
+    }
+
+    fn byte_length(&self) -> usize {
+        self.fixed_byte_length.unwrap_or_else(|| self.storage.size())
+    }
+
+    /// The owner if it is an ArrayBuffer of the runtime that owns the storage, as when structured deserialization
+    /// makes a growable SharedArrayBuffer that shares the storage of another one. Resizing such storage has to go
+    /// through the owner, which keeps the layout of storage it owns at hand.
+    fn array_buffer_owning_the_storage(&self) -> Option<Gc<ArrayBuffer>> {
+        let owner = self.owner();
+        // NB: The owner may be a C++ cell, so its type is looked up through LibGC instead of read from the cell.
+        // SAFETY: The block keeps its owner, a cell of the VM's heap, alive.
+        let type_info = unsafe { gc_cell_type_info(owner.as_ptr()) };
+        if !core::ptr::eq(type_info, &raw const ArrayBuffer::CLASS.type_info) {
+            return None;
+        }
+        // SAFETY: LibGC allocated the owner as an ArrayBuffer.
+        let owner = unsafe { Gc::from_non_null(owner.cast::<ArrayBuffer>()) };
+        let owns_the_storage = owner.with_data_block(
+            |block| matches!(&block.byte_buffer, DataBlockStorage::Owned(buffer) if buffer.handle() == self.handle()),
+        );
+        owns_the_storage.then_some(owner)
+    }
+}
+
+/// C++ draws the id of a new shared memory object at random, as it has to stay unique across processes that never
+/// coordinate. Zero means that a block has no id.
+fn mint_shared_object_id() -> u64 {
+    loop {
+        let id = get_random_u64();
+        if id != 0 {
+            return id;
+        }
+    }
+}
+
+/// DataBlock::SharedBackingStore: the bytes of a fixed-length Shared Data Block in a shared memory object, which agents
+/// in other processes map too, mapped into the cage. The block keeps a descriptor of the object to hand it on, and the
+/// id that names the object in every agent, since one object that is mapped twice has two addresses.
+pub struct SharedBackingStore {
+    shared_memory: OwnedFd,
+    object_id: u64,
+    storage: OwnedPrimitiveStorage,
+}
+
+impl SharedBackingStore {
+    /// A new zero-filled shared memory object of `size` bytes, named by a new id.
+    pub fn create(size: usize) -> Result<Self, OutOfMemory> {
+        let shared_memory = create_shared_memory(size)?;
+        let storage = OwnedPrimitiveStorage::adopt_shared_memory(shared_memory.as_fd(), size)?;
+        Ok(Self {
+            shared_memory,
+            object_id: mint_shared_object_id(),
+            storage,
+        })
+    }
+
+    /// The first `size` bytes of a shared memory object that another agent made and `object_id` names. The store keeps
+    /// a duplicate of the descriptor. Fails if `size` is 0 or the object is smaller than that, as accessing a mapping
+    /// beyond the end of its object raises SIGBUS.
+    pub fn adopt(shared_memory: BorrowedFd<'_>, size: usize, object_id: u64) -> Result<Self, OutOfMemory> {
+        let shared_memory = std::fs::File::from(shared_memory.try_clone_to_owned().map_err(|_| OutOfMemory)?);
+        let object_size = shared_memory.metadata().map_err(|_| OutOfMemory)?.len();
+        if object_size < size as u64 {
+            return Err(OutOfMemory);
+        }
+        let storage = OwnedPrimitiveStorage::adopt_shared_memory(shared_memory.as_fd(), size)?;
+        Ok(Self {
+            shared_memory: shared_memory.into(),
+            object_id,
+            storage,
+        })
+    }
+
+    pub fn shared_memory(&self) -> BorrowedFd<'_> {
+        self.shared_memory.as_fd()
+    }
+
+    pub fn object_id(&self) -> u64 {
+        self.object_id
+    }
+
+    pub fn handle(&self) -> GCPrimitiveStorageHandle {
+        self.storage.handle()
+    }
+
+    pub fn size(&self) -> usize {
+        self.storage.size()
+    }
+}
+
 /// Copies `count` bytes; the ranges may overlap.
 ///
 /// # Safety
@@ -210,15 +345,17 @@ unsafe fn move_bytes(destination: *mut u8, source: *const u8, count: usize) {
     if count == 0 {
         return;
     }
+    assert!(!destination.is_null() && !source.is_null());
     // SAFETY: The caller guarantees that both ranges are accessible.
     unsafe { core::ptr::copy(source, destination, count) };
 }
 
-/// The storage of a data block. C++ also backs blocks with host-provided caged storage (ExternalPrimitiveStorage) and
-/// with cross-process shared memory (SharedBackingStore), which only embedders and multi-process agents create.
+/// The storage of a data block.
 pub enum DataBlockStorage {
     Empty,
     Owned(OwnedBackingStore),
+    External(ExternalPrimitiveStorage),
+    Shared(SharedBackingStore),
 }
 
 // 6.2.9 Data Blocks, https://tc39.es/ecma262/#sec-data-blocks
@@ -227,9 +364,13 @@ pub struct DataBlock {
     pub is_shared: Shared,
 }
 
-// SAFETY: A data block holds bytes, never cells.
+// SAFETY: The owner of external storage is the only cell a data block refers to.
 unsafe impl Trace for DataBlock {
-    fn trace(&self, _: &mut Visitor) {}
+    fn trace(&self, visitor: &mut Visitor) {
+        if let DataBlockStorage::External(storage) = &self.byte_buffer {
+            storage.owner.trace(visitor);
+        }
+    }
 }
 
 impl DataBlock {
@@ -240,6 +381,21 @@ impl DataBlock {
         }
     }
 
+    pub fn external(storage: ExternalPrimitiveStorage, is_shared: Shared) -> Self {
+        Self {
+            byte_buffer: DataBlockStorage::External(storage),
+            is_shared,
+        }
+    }
+
+    /// A Shared Data Block in shared memory.
+    pub fn shared_memory(store: SharedBackingStore) -> Self {
+        Self {
+            byte_buffer: DataBlockStorage::Shared(store),
+            is_shared: Shared::Yes,
+        }
+    }
+
     pub fn empty(is_shared: Shared) -> Self {
         Self {
             byte_buffer: DataBlockStorage::Empty,
@@ -247,37 +403,54 @@ impl DataBlock {
         }
     }
 
-    fn owned(&self) -> &OwnedBackingStore {
-        match &self.byte_buffer {
-            DataBlockStorage::Empty => unreachable!("the data block is detached"),
-            DataBlockStorage::Owned(buffer) => buffer,
-        }
-    }
-
+    /// Only owned storage can be resized: an embedder resizes the storage it owns, and shared memory keeps its size.
     fn owned_mut(&mut self) -> &mut OwnedBackingStore {
         match &mut self.byte_buffer {
             DataBlockStorage::Empty => unreachable!("the data block is detached"),
             DataBlockStorage::Owned(buffer) => buffer,
+            DataBlockStorage::External(_) | DataBlockStorage::Shared(_) => {
+                unreachable!("only the runtime's own storage is resized")
+            }
         }
     }
 
+    /// The first byte, which is null for an owned block of zero bytes and for external storage that the embedder freed.
+    /// Blocks the runtime owns take the inline path; the others are rare enough to take a call.
+    #[inline]
     fn data(&self) -> *mut u8 {
-        self.owned().data()
+        match &self.byte_buffer {
+            DataBlockStorage::Owned(buffer) => buffer.data(),
+            _ => self.data_of_storage_the_block_does_not_own(),
+        }
     }
 
+    #[cold]
+    #[inline(never)]
+    fn data_of_storage_the_block_does_not_own(&self) -> *mut u8 {
+        match &self.byte_buffer {
+            DataBlockStorage::Empty => unreachable!("the data block is detached"),
+            DataBlockStorage::Owned(buffer) => buffer.data(),
+            DataBlockStorage::External(storage) => storage.storage.data(),
+            DataBlockStorage::Shared(store) => store.storage.data(),
+        }
+    }
+
+    #[inline]
     pub fn data_at(&self, byte_offset: usize) -> *mut u8 {
-        let buffer = self.owned();
-        if buffer.storage.is_none() {
+        let data = self.data();
+        if data.is_null() {
             assert!(byte_offset == 0);
             return core::ptr::null_mut();
         }
         // SAFETY: Callers only address bytes within the block.
-        unsafe { buffer.data().add(byte_offset) }
+        unsafe { data.add(byte_offset) }
     }
 
+    #[inline]
     pub fn copy_to(&self, offset: usize, destination: &mut [u8]) {
-        assert!(offset <= self.size());
-        assert!(destination.len() <= self.size() - offset);
+        let size = self.size();
+        assert!(offset <= size);
+        assert!(destination.len() <= size - offset);
         // SAFETY: The block has the bytes, and the destination is a distinct Rust buffer.
         unsafe {
             move_bytes(
@@ -288,6 +461,7 @@ impl DataBlock {
         };
     }
 
+    #[inline]
     pub fn copy_to_block(
         &self,
         destination: &DataBlock,
@@ -295,10 +469,11 @@ impl DataBlock {
         destination_offset: usize,
         count: usize,
     ) {
-        assert!(source_offset <= self.size());
-        assert!(count <= self.size() - source_offset);
-        assert!(destination_offset <= destination.size());
-        assert!(count <= destination.size() - destination_offset);
+        let (source_size, destination_size) = (self.size(), destination.size());
+        assert!(source_offset <= source_size);
+        assert!(count <= source_size - source_offset);
+        assert!(destination_offset <= destination_size);
+        assert!(count <= destination_size - destination_offset);
         // SAFETY: Both blocks have the bytes.
         unsafe {
             move_bytes(
@@ -310,47 +485,60 @@ impl DataBlock {
     }
 
     pub fn copy_to_byte_buffer(&self, offset: usize, count: usize) -> Vec<u8> {
-        assert!(offset <= self.size());
-        assert!(count <= self.size() - offset);
+        let size = self.size();
+        assert!(offset <= size);
+        assert!(count <= size - offset);
         let mut destination = vec![0; count];
         self.copy_to(offset, &mut destination);
         destination
     }
 
+    #[inline]
     pub fn overwrite(&self, offset: usize, source: &[u8]) {
-        assert!(offset <= self.size());
-        assert!(source.len() <= self.size() - offset);
+        let size = self.size();
+        assert!(offset <= size);
+        assert!(source.len() <= size - offset);
         // SAFETY: The block has the bytes, and the source is a distinct Rust buffer.
         unsafe { move_bytes(self.data_at_or_null(offset), source.as_ptr(), source.len()) };
     }
 
+    #[inline]
     pub fn move_data(&self, destination_offset: usize, source_offset: usize, count: usize) {
-        assert!(destination_offset <= self.size());
-        assert!(count <= self.size() - destination_offset);
-        assert!(source_offset <= self.size());
-        assert!(count <= self.size() - source_offset);
+        let size = self.size();
+        assert!(destination_offset <= size);
+        assert!(count <= size - destination_offset);
+        assert!(source_offset <= size);
+        assert!(count <= size - source_offset);
 
         if count == 0 || destination_offset == source_offset {
             return;
         }
 
+        let data = self.data_or_null();
+        assert!(!data.is_null(), "a block with bytes to move has storage");
         // SAFETY: The block has both ranges, which may overlap.
-        unsafe {
-            move_bytes(
-                self.data_at_or_null(destination_offset),
-                self.data_at_or_null(source_offset),
-                count,
-            );
-        };
+        unsafe { core::ptr::copy(data.add(source_offset), data.add(destination_offset), count) };
     }
 
-    /// data_at() for the start of a range of bytes, which may be empty, even in a detached block, whose bytes C++ never
-    /// addresses when there are none to copy.
-    fn data_at_or_null(&self, byte_offset: usize) -> *mut u8 {
+    /// The first byte, or null for a detached block, whose bytes C++ never addresses when there are none to copy.
+    #[inline]
+    fn data_or_null(&self) -> *mut u8 {
         match &self.byte_buffer {
-            DataBlockStorage::Owned(buffer) if buffer.storage.is_some() => self.data_at(byte_offset),
-            _ => core::ptr::null_mut(),
+            DataBlockStorage::Owned(buffer) => buffer.data(),
+            DataBlockStorage::Empty => core::ptr::null_mut(),
+            _ => self.data_of_storage_the_block_does_not_own(),
         }
+    }
+
+    /// data_at() for the start of a range of bytes, which may be empty, even in a detached block.
+    #[inline]
+    fn data_at_or_null(&self, byte_offset: usize) -> *mut u8 {
+        let data = self.data_or_null();
+        if data.is_null() {
+            return data;
+        }
+        // SAFETY: Callers only address bytes within the block.
+        unsafe { data.add(byte_offset) }
     }
 
     pub fn set_size(&mut self, new_size: usize, zero_fill_new_bytes: ZeroFillNewBytes) {
@@ -365,10 +553,23 @@ impl DataBlock {
         self.owned_mut().try_ensure_capacity(new_capacity)
     }
 
+    #[inline]
     pub fn size(&self) -> usize {
+        match &self.byte_buffer {
+            DataBlockStorage::Owned(buffer) => buffer.size(),
+            DataBlockStorage::Empty => 0,
+            _ => self.size_of_storage_the_block_does_not_own(),
+        }
+    }
+
+    #[cold]
+    #[inline(never)]
+    fn size_of_storage_the_block_does_not_own(&self) -> usize {
         match &self.byte_buffer {
             DataBlockStorage::Empty => 0,
             DataBlockStorage::Owned(buffer) => buffer.size(),
+            DataBlockStorage::External(storage) => storage.byte_length(),
+            DataBlockStorage::Shared(store) => store.size(),
         }
     }
 
@@ -376,41 +577,69 @@ impl DataBlock {
         match &self.byte_buffer {
             DataBlockStorage::Empty => 0,
             DataBlockStorage::Owned(buffer) => buffer.capacity(),
+            DataBlockStorage::External(storage) => storage.storage.capacity(),
+            DataBlockStorage::Shared(store) => store.size(),
         }
     }
 
+    #[inline]
     pub fn offset(&self) -> usize {
         match &self.byte_buffer {
             DataBlockStorage::Empty => INVALID_DATA_OFFSET,
             DataBlockStorage::Owned(buffer) => buffer.offset(),
+            DataBlockStorage::External(storage) => storage.storage.offset(),
+            DataBlockStorage::Shared(store) => store.storage.offset(),
         }
     }
 
-    /// Every allocation of an owned block lives in the cage.
+    /// Whether the bytes are in the cage. Owned storage and shared memory always are, as the runtime fails to create a
+    /// block where C++ falls back to memory outside of it, and external storage is while its handle names storage.
     pub fn is_caged(&self) -> bool {
         match &self.byte_buffer {
             DataBlockStorage::Empty => false,
-            DataBlockStorage::Owned(_) => true,
+            DataBlockStorage::Owned(_) | DataBlockStorage::Shared(_) => true,
+            DataBlockStorage::External(storage) => storage.storage.is_valid(),
         }
     }
 
+    /// The memory that the block makes the heap responsible for. External storage is the owner's.
     pub fn external_memory_size(&self) -> usize {
         match &self.byte_buffer {
-            DataBlockStorage::Empty => 0,
+            DataBlockStorage::Empty | DataBlockStorage::External(_) => 0,
             DataBlockStorage::Owned(buffer) => buffer.capacity(),
+            DataBlockStorage::Shared(store) => store.size(),
         }
     }
 
     pub fn is_external(&self) -> bool {
-        false
+        matches!(self.byte_buffer, DataBlockStorage::External(_))
     }
 
+    /// Whether the bytes are in shared memory, which an agent in another process may write at any time, so that a
+    /// typed array must not cache their offset for the interpreter's plain loads and stores.
     pub fn is_cross_process_shared(&self) -> bool {
-        false
+        matches!(self.byte_buffer, DataBlockStorage::Shared(_))
+    }
+
+    /// The id of the shared memory object, or 0 for a block that is not in shared memory.
+    pub fn shared_object_id(&self) -> u64 {
+        match &self.byte_buffer {
+            DataBlockStorage::Shared(store) => store.object_id(),
+            _ => 0,
+        }
     }
 
     pub fn shares_storage_with(&self, other: &DataBlock) -> bool {
         if matches!(self.byte_buffer, DataBlockStorage::Empty) || matches!(other.byte_buffer, DataBlockStorage::Empty) {
+            return false;
+        }
+        // NB: One shared memory object can be mapped at several addresses, so blocks in shared memory are compared by
+        //     the id of the object, and one without an id matches nothing.
+        if let DataBlockStorage::Shared(store) = &self.byte_buffer {
+            return matches!(&other.byte_buffer, DataBlockStorage::Shared(other_store)
+                if store.object_id() != 0 && store.object_id() == other_store.object_id());
+        }
+        if matches!(other.byte_buffer, DataBlockStorage::Shared(_)) {
             return false;
         }
         // NB: Like C++, two blocks of zero bytes share the storage they do not have.
@@ -632,8 +861,27 @@ impl ArrayBuffer {
         array_buffer
     }
 
+    /// ArrayBuffer::create(Realm&, Core::AnonymousBuffer, u64 shared_object_id): a fixed-length SharedArrayBuffer over
+    /// `size` bytes of a shared memory object that another agent made, as structured deserialization creates it.
+    pub fn create_from_shared_memory(
+        vm: &Vm,
+        realm: Gc<Realm>,
+        shared_memory: BorrowedFd<'_>,
+        size: usize,
+        object_id: u64,
+    ) -> Result<Gc<ArrayBuffer>, OutOfMemory> {
+        let store = SharedBackingStore::adopt(shared_memory, size, object_id)?;
+        Ok(Self::create_from_data_block(vm, realm, DataBlock::shared_memory(store)))
+    }
+
     pub fn byte_length(&self) -> usize {
         self.data_block.borrow().size()
+    }
+
+    /// The storage of the data block, for code that has to look into its kind, like StructuredSerialize, which shares
+    /// it with other blocks.
+    pub fn with_data_block<R>(&self, callback: impl FnOnce(&DataBlock) -> R) -> R {
+        callback(&self.data_block.borrow())
     }
 
     pub fn copy_to(&self, offset: usize, destination: &mut [u8]) {
@@ -727,8 +975,11 @@ impl ArrayBuffer {
             .expect("the ArrayBuffer has an [[ArrayBufferMaxByteLength]]")
     }
 
+    /// Makes the buffer resizable, or growable if it is shared. Only views of fixed-length buffers cache the offset of
+    /// the data, so the views that did stop doing so.
     pub fn set_max_byte_length(&self, max_byte_length: usize) {
         self.max_byte_length.set(Some(max_byte_length));
+        self.invalidate_cached_typed_array_view_offsets();
     }
 
     fn account_external_memory_change(
@@ -768,6 +1019,16 @@ impl ArrayBuffer {
         new_size: usize,
         zero_fill_new_bytes: ZeroFillNewBytes,
     ) -> Result<(), OutOfMemory> {
+        // NB: C++ cannot resize a block over the storage of another buffer. The runtime resizes the other buffer, whose
+        //     new size such a block has as long as it has no fixed byte length.
+        let owner_of_aliased_storage = match &self.data_block.borrow().byte_buffer {
+            DataBlockStorage::External(storage) => storage.array_buffer_owning_the_storage(),
+            _ => None,
+        };
+        if let Some(owner) = owner_of_aliased_storage {
+            return owner.try_resize(vm, new_size, zero_fill_new_bytes);
+        }
+
         let old_external_memory_size = self.external_memory_size();
         let old_data_offset = self.data_offset();
         self.data_block.borrow_mut().try_resize(new_size, zero_fill_new_bytes)?;
@@ -842,13 +1103,16 @@ impl ArrayBuffer {
 
     pub fn can_cache_typed_array_view_data_offset(&self) -> bool {
         let data_block = self.data_block.borrow();
+        // NB: C++ backs every fixed-length Shared Data Block it creates with shared memory, whose views stay on the
+        //     atomic slow path. Unless the VM was asked for shared memory, the runtime owns such a block instead, and
+        //     its views take the same path.
+        let stands_in_for_shared_memory =
+            matches!(data_block.byte_buffer, DataBlockStorage::Owned(_)) && data_block.is_shared == Shared::Yes;
         !matches!(data_block.byte_buffer, DataBlockStorage::Empty)
             && self.is_fixed_length()
             && data_block.is_caged()
             && !data_block.is_cross_process_shared()
-            // NB: C++ backs every fixed-length shared block with cross-process shared memory, whose views stay on the
-            //     atomic slow path, and fixed-length shared blocks are owned here.
-            && data_block.is_shared == Shared::No
+            && !stands_in_for_shared_memory
     }
 
     // 25.2.2.2 IsSharedArrayBuffer ( obj ), https://tc39.es/ecma262/#sec-issharedarraybuffer
@@ -1120,7 +1384,8 @@ fn create_shared_byte_data_block(vm: &Vm, size: usize, capacity: Option<usize>) 
     //         that the SharedArrayBuffer is genuinely shared across agents in different processes, rather than copied.
     //         Fresh anonymous shared memory is zero-filled by the OS. A growable shared Data Block (capacity > size)
     //         uses process-local storage, so a growable SharedArrayBuffer crosses a process boundary as a copy.
-    // NB: Agents of other processes are not supported, so the fixed-length block is process-local as well.
+    // NB: Only a VM whose embedder has agents in other processes asks for shared memory. Otherwise, the fixed-length
+    //     block is owned by the runtime, like a growable one.
     if capacity == size && size > 0 {
         // AD-HOC: Cap the shared allocation — so one SharedArrayBuffer can't reserve an absurd amount of address space
         //         in every agent that maps it. Chromium caps its shared-memory regions at INT_MAX; match that (the fd
@@ -1133,10 +1398,18 @@ fn create_shared_byte_data_block(vm: &Vm, size: usize, capacity: Option<usize>) 
             );
         }
 
-        let Ok(buffer) = allocate_or_retry_after_gc(vm.heap(), || OwnedBackingStore::create_zeroed(size)) else {
+        let block = allocate_or_retry_after_gc(vm.heap(), || {
+            if vm.options().shared_memory_shared_array_buffers {
+                // Mint the id that will name this object for as long as it exists — in this agent and every agent it
+                // reaches.
+                return Ok(DataBlock::shared_memory(SharedBackingStore::create(size)?));
+            }
+            Ok(DataBlock::new(OwnedBackingStore::create_zeroed(size)?, Shared::Yes))
+        });
+        let Ok(block) = block else {
             return vm.throw_completion(ErrorKind::RangeError, ErrorType::NotEnoughMemoryToAllocate, &[&size]);
         };
-        return Ok(DataBlock::new(buffer, Shared::Yes));
+        return Ok(block);
     }
 
     // 1. Let db be a new Shared Data Block value consisting of size bytes. If it is impossible to create such a Shared Data Block, throw a RangeError exception.

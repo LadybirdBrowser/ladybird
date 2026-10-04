@@ -8,7 +8,9 @@
 //! interpreter addresses as offsets from the cage base. Like the heap, it belongs to the thread that runs the VM, so
 //! its storage never leaves that thread.
 
+use core::marker::PhantomData;
 use core::num::NonZeroU64;
+use std::os::fd::{AsRawFd, BorrowedFd, FromRawFd, OwnedFd};
 use std::sync::OnceLock;
 
 use super::capi::{
@@ -122,6 +124,25 @@ impl OwnedPrimitiveStorage {
         Self::from_creation(created, handle, layout)
     }
 
+    /// PrimitiveStorage::try_adopt_shared_fd(): maps the first `size` bytes of a shared memory object into the cage.
+    /// The mapping keeps the memory alive by itself. Such storage must never be resized, since that would replace the
+    /// shared mapping with private memory.
+    pub fn adopt_shared_memory(shared_memory: BorrowedFd<'_>, size: usize) -> Result<Self, OutOfMemory> {
+        let mut handle = GC_PRIMITIVE_STORAGE_NULL_HANDLE;
+        let mut layout = LAYOUT_OF_NO_STORAGE;
+        // SAFETY: The descriptor is open for the duration of the call, which maps it without taking ownership, and the
+        //         handle and the layout are valid places for the results.
+        let created = unsafe {
+            capi::gc_primitive_storage_adopt_shared_fd(
+                shared_memory.as_raw_fd(),
+                size,
+                &raw mut handle,
+                &raw mut layout,
+            )
+        };
+        Self::from_creation(created, handle, layout)
+    }
+
     pub fn handle(&self) -> GCPrimitiveStorageHandle {
         self.handle.get()
     }
@@ -186,4 +207,65 @@ impl Drop for OwnedPrimitiveStorage {
         // SAFETY: The handle names storage that self owns and that nothing refers to any more.
         unsafe { capi::gc_primitive_storage_free(self.handle.get()) };
     }
+}
+
+/// Storage that an embedder owns and may resize or free at any time, so every query goes to LibGC, which reports a
+/// handle that names no storage as having no bytes at the invalid offset.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ForeignPrimitiveStorage {
+    handle: GCPrimitiveStorageHandle,
+    _owned_by_the_thread_of_the_vm: PhantomData<*mut u8>,
+}
+
+impl ForeignPrimitiveStorage {
+    pub fn new(handle: GCPrimitiveStorageHandle) -> Self {
+        Self {
+            handle,
+            _owned_by_the_thread_of_the_vm: PhantomData,
+        }
+    }
+
+    pub fn handle(self) -> GCPrimitiveStorageHandle {
+        self.handle
+    }
+
+    pub fn is_valid(self) -> bool {
+        // SAFETY: Any handle may be queried.
+        unsafe { capi::gc_primitive_storage_is_valid(self.handle) }
+    }
+
+    pub fn offset(self) -> usize {
+        // SAFETY: Any handle may be queried.
+        unsafe { capi::gc_primitive_storage_offset(self.handle) }
+    }
+
+    pub fn size(self) -> usize {
+        // SAFETY: Any handle may be queried.
+        unsafe { capi::gc_primitive_storage_size(self.handle) }
+    }
+
+    pub fn capacity(self) -> usize {
+        // SAFETY: Any handle may be queried.
+        unsafe { capi::gc_primitive_storage_capacity(self.handle) }
+    }
+
+    /// The first byte, or null if the handle names no storage.
+    pub fn data(self) -> *mut u8 {
+        match self.offset() {
+            INVALID_OFFSET => core::ptr::null_mut(),
+            offset => address_in_cage(offset),
+        }
+    }
+}
+
+/// gc_shared_memory_create(): a zero-filled shared memory object of `size` bytes that other processes can map, sealed
+/// against resizing where the platform can seal it. The descriptor closes when the result is dropped.
+pub fn create_shared_memory(size: usize) -> Result<OwnedFd, OutOfMemory> {
+    let mut descriptor = -1;
+    // SAFETY: The descriptor is a valid place for the result.
+    if !unsafe { capi::gc_shared_memory_create(size, &raw mut descriptor) } {
+        return Err(OutOfMemory);
+    }
+    // SAFETY: On success, the caller owns the new descriptor.
+    Ok(unsafe { OwnedFd::from_raw_fd(descriptor) })
 }
