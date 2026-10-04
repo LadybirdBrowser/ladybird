@@ -1596,9 +1596,6 @@ private:
     void set_needs_repaint(InvalidateDisplayList = InvalidateDisplayList::PaintCommandsAndHitTestList);
     void request_frame_for_pending_repaint();
 
-    // ^JS::Object
-    virtual bool is_dom_document() const final { return true; }
-
     // ^HTML::GlobalEventHandlers
     virtual GC::Ptr<EventTarget> global_event_handlers_to_event_target(Utf16FlyString const&) final { return *this; }
 

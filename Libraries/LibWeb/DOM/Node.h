@@ -221,7 +221,6 @@ public:
     void recompute_editable_subtree_flags_and_repaint();
     // Brings the editing-host and empty-text stamps of the boxes in the subtree to the nodes' editability.
 
-    virtual bool is_dom_node() const final { return true; }
     virtual bool is_html_element() const { return false; }
     virtual bool is_html_html_element() const { return false; }
     virtual bool is_html_anchor_element() const { return false; }
