@@ -39,15 +39,11 @@ GC::Ref<JS::Uint8ClampedArray> create_out_of_bounds_uint8_clamped_array(JS::Real
 {
     auto array_buffer = MUST(JS::ArrayBuffer::create(realm, 16));
     array_buffer->set_max_byte_length(16);
+
+    auto typed_array = JS::TypedArrayBase::create_from_slots(realm, JS::TypedArrayBase::Kind::Uint8ClampedArray, array_buffer, JS::ByteLength { 4 }, JS::ByteLength { 4 }, 8);
     MUST(array_buffer->try_resize(4));
 
-    auto typed_array = JS::Uint8ClampedArray::create(realm, 0, array_buffer);
-    typed_array->set_viewed_array_buffer(array_buffer.ptr());
-    typed_array->set_array_length(4);
-    typed_array->set_byte_length(4);
-    typed_array->set_byte_offset(8);
-
-    return typed_array;
+    return as<JS::Uint8ClampedArray>(*typed_array);
 }
 
 }
