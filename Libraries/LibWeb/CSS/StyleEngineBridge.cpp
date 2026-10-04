@@ -128,8 +128,6 @@ void StyleEngine::set_element_presentational_hint_properties(StyleNodeID node, S
             .name = {},
         });
     }
-    // Whether the hints define transitions is the host's own read of the render state.
-    Layout::ForcedReadScope read { render_document(), false };
     if (StyleEngineFFI::style_engine_set_element_presentational_hint_properties(host(), node.value(), kind, declarations.data(), declarations.size()))
         note_css_transitions_may_observe_style_changes();
 }

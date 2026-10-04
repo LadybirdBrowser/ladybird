@@ -168,6 +168,10 @@ pub(crate) struct Landing {
     changes: Vec<ArenaChange>,
 }
 
+// Every write the host makes is moved through its queue and into the render state, so a variant that carries a large
+// payload inline instead of behind a pointer makes every write slower.
+const _: () = assert!(std::mem::size_of::<ArenaChange>() <= 72);
+
 /// A write the host makes to a document's render state, as owned data the state applies in the order the host made
 /// it, before anything that reads what it changes.
 pub(crate) enum ArenaChange {
