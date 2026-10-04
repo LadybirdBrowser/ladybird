@@ -12,6 +12,9 @@
 //! than the timeout is killed by SIGALRM, which the driver records as a timeout. A panic, including one from a runtime
 //! function that is not implemented yet, reports `assert_fail` for the running test and exits with status 12, like a
 //! failed assertion in the C++ runner.
+//!
+//! With --agent, the runner is instead one of the agents that a test starts with $262.agent.start(): it runs the
+//! agent's script, which the test sends it, in a VM of its own (see contrib/test262/agents.rs).
 
 use core::ffi::{c_char, c_int};
 use std::collections::HashMap;
@@ -25,8 +28,10 @@ use std::time::Instant;
 
 use ak::Utf16String;
 
+#[cfg(unix)]
+use crate::contrib::test262::agents::{self, AgentFailure};
 use crate::contrib::test262::global_object::Test262GlobalObject;
-use crate::interpreter::vm::Vm;
+use crate::interpreter::vm::{Vm, VmOptions};
 use crate::layout::cell::Gc;
 use crate::layout::realm::Realm;
 use crate::layout::value::Value;
@@ -448,24 +453,27 @@ fn write_result(saved_stdout: RawFd, result: &JsonObject) {
 /// The test that is running, which a panic reports as failed.
 type CurrentTest = Arc<Mutex<String>>;
 
+fn describe_panic(info: &std::panic::PanicHookInfo<'_>) -> String {
+    let message = info
+        .payload()
+        .downcast_ref::<&str>()
+        .copied()
+        .or_else(|| info.payload().downcast_ref::<String>().map(String::as_str))
+        .unwrap_or("non-string panic payload");
+    match info.location() {
+        Some(location) => format!("{location}: {message}"),
+        None => message.to_string(),
+    }
+}
+
 fn install_assertion_failure_hook(current_test: CurrentTest, saved_stdout: RawFd) {
     std::panic::set_hook(Box::new(move |info| {
-        let message = info
-            .payload()
-            .downcast_ref::<&str>()
-            .copied()
-            .or_else(|| info.payload().downcast_ref::<String>().map(String::as_str))
-            .unwrap_or("non-string panic payload");
-        let output = match info.location() {
-            Some(location) => format!("{location}: {message}"),
-            None => message.to_string(),
-        };
         let mut result = JsonObject::default();
         let test = current_test.lock().unwrap_or_else(PoisonError::into_inner).clone();
         result.set("test", test);
         result.set("assert_fail", true);
         result.set("result", "assert_fail");
-        result.set("output", output);
+        result.set("output", describe_panic(info));
         write_result(saved_stdout, &result);
         let _ = std::io::stderr().flush();
         // SAFETY: Exits without unwinding or running destructors, from a state that may be broken.
@@ -593,6 +601,14 @@ fn run_program(vm: &Vm, program: ScriptOrModuleProgram) -> Result<(), TestError>
         .map_err(|throw| describe_thrown_value(vm, throw.value()))
 }
 
+/// A VM whose SharedArrayBuffers agents can map, as broadcasting one hands its shared memory to them.
+fn create_vm() -> Box<Vm> {
+    Vm::create_with(VmOptions {
+        shared_memory_shared_array_buffers: true,
+        ..VmOptions::default()
+    })
+}
+
 fn run_test(
     source: Option<&[u16]>,
     filepath: &str,
@@ -604,7 +620,7 @@ fn run_test(
         return parse_only_check(decoded_source(source, "The test"), metadata.program_type);
     }
 
-    let vm = Vm::create();
+    let vm = create_vm();
     vm.set_dynamic_imports_allowed(true);
     let root_execution_context =
         initialize_realm_with_global_object(&vm, &|realm| Test262GlobalObject::allocate(&vm, realm).upcast());
@@ -653,6 +669,19 @@ fn error_to_json(error: &TestError) -> JsonObject {
     object
 }
 
+/// Whether an error is the InternalError of a feature that the runtime does not implement yet.
+fn is_unimplemented_feature_error(error_type: &str, details: &str) -> bool {
+    error_type == "InternalError" && details.starts_with("TODO(")
+}
+
+#[cfg(unix)]
+fn is_unimplemented_feature_failure(failure: &AgentFailure) -> bool {
+    match failure {
+        AgentFailure::UncaughtException { name, message } => is_unimplemented_feature_error(name, message),
+        AgentFailure::Panic(_) | AgentFailure::Exited(_) => false,
+    }
+}
+
 fn verify_test(
     result: &Result<(), TestError>,
     metadata: &TestMetadata<'_>,
@@ -668,7 +697,7 @@ fn verify_test(
             );
             output.set("result", "harness_error");
         } else if error.phase == NegativePhase::Runtime
-            && ((error.error_type == "InternalError" && error.details.starts_with("TODO("))
+            && (is_unimplemented_feature_error(&error.error_type, &error.details)
                 || (error.error_type == "Test262Error" && error.details.ends_with(" but got a InternalError")))
         {
             output.set("todo_error", true);
@@ -732,6 +761,7 @@ struct Options {
     parse_only: bool,
     timeout_in_seconds: i64,
     disable_core_dumping: bool,
+    run_as_agent: bool,
 }
 
 fn parse_options(arguments: &[String]) -> Result<Options, String> {
@@ -740,6 +770,7 @@ fn parse_options(arguments: &[String]) -> Result<Options, String> {
         parse_only: false,
         timeout_in_seconds: 10,
         disable_core_dumping: false,
+        run_as_agent: false,
     };
     let mut arguments = arguments.iter().skip(1);
     while let Some(argument) = arguments.next() {
@@ -764,6 +795,7 @@ fn parse_options(arguments: &[String]) -> Result<Options, String> {
             // does nothing.
             "-d" | "--debug" => {}
             "--disable-core-dump" => options.disable_core_dumping = true,
+            "--agent" => options.run_as_agent = true,
             _ => return Err(format!("Unknown option {argument}")),
         }
     }
@@ -814,7 +846,8 @@ impl CapturedStandardOutput {
     fn redirect() -> Result<Self, &'static str> {
         // SAFETY: These calls only create and rearrange this process's descriptors.
         unsafe {
-            let saved_stdout = libc::dup(libc::STDOUT_FILENO);
+            // NB: The descriptors close on exec, so that agents do not hold the pipes of the runner's driver open.
+            let saved_stdout = libc::fcntl(libc::STDOUT_FILENO, libc::F_DUPFD_CLOEXEC, 0);
             if saved_stdout < 0 {
                 return Err("dup");
             }
@@ -825,6 +858,7 @@ impl CapturedStandardOutput {
             for fd in pipe_fds {
                 let flags = libc::fcntl(fd, libc::F_GETFL);
                 libc::fcntl(fd, libc::F_SETFL, flags | libc::O_NONBLOCK);
+                libc::fcntl(fd, libc::F_SETFD, libc::FD_CLOEXEC);
             }
             if libc::dup2(pipe_fds[1], libc::STDOUT_FILENO) < 0 {
                 return Err("dup2");
@@ -913,6 +947,11 @@ fn run(options: &Options) -> c_int {
     let current_test = CurrentTest::default();
     install_assertion_failure_hook(current_test.clone(), saved_stdout);
 
+    #[cfg(unix)]
+    if let Ok(program) = std::env::current_exe() {
+        agents::enable_agents(program, vec!["--agent".into()]);
+    }
+
     let mut harness_files = HarnessFiles {
         directory: harness_directory,
         contents_by_name: HashMap::new(),
@@ -967,6 +1006,83 @@ fn run(options: &Options) -> c_int {
     write_to_fd(saved_stdout, &format!("DONE {count}\n"));
     captured_output.restore();
     0
+}
+
+/// --agent: the runner as one of the agents that a test starts.
+#[cfg(unix)]
+mod agent_mode {
+    use core::cell::RefCell;
+    use core::ffi::c_int;
+
+    use super::{
+        EXIT_ASSERTION_FAILED, EXIT_SETUP_INPUT_FAILURE, NegativePhase, ScriptOrModuleProgram, TestError, create_vm,
+        decoded_source, describe_panic, describe_thrown_value, first_parser_error, run_program,
+    };
+    use crate::contrib::test262::agents;
+    use crate::contrib::test262::global_object::Test262GlobalObject;
+    use crate::interpreter::vm::Vm;
+    use crate::layout::cell::Gc;
+    use crate::layout::realm::Realm;
+    use crate::runtime::promise::Promise;
+    use crate::script::Script;
+    use crate::utf16::utf16_from_wtf8;
+    use crate::utilities::initialize_realm_with_global_object;
+
+    thread_local! {
+        /// The promises that are rejected without a handler, by address, with what they were rejected with.
+        static UNHANDLED_REJECTIONS: RefCell<Vec<(usize, TestError)>> = const { RefCell::new(Vec::new()) };
+    }
+
+    fn remember_unhandled_rejection(vm: &Vm, promise: Gc<Promise>) {
+        let error = describe_thrown_value(vm, promise.result());
+        UNHANDLED_REJECTIONS.with_borrow_mut(|rejections| rejections.push((promise.as_ptr().addr(), error)));
+    }
+
+    fn forget_handled_rejection(_vm: &Vm, promise: Gc<Promise>) {
+        let address = promise.as_ptr().addr();
+        UNHANDLED_REJECTIONS.with_borrow_mut(|rejections| rejections.retain(|(rejected, _)| *rejected != address));
+    }
+
+    fn run_agent_script(vm: &Vm, realm: Gc<Realm>, source: &[u8]) -> Result<(), TestError> {
+        let source = utf16_from_wtf8(source);
+        let script = Script::parse_with_filename(vm, decoded_source(source.as_deref(), "The agent"), realm, "<agent>")
+            .map_err(|errors| TestError::syntax_error(NegativePhase::ParseOrEarly, first_parser_error(&errors), ""))?;
+        run_program(vm, ScriptOrModuleProgram::Script(script))?;
+        match UNHANDLED_REJECTIONS.take().into_iter().next() {
+            Some((_, error)) => Err(error),
+            None => Ok(()),
+        }
+    }
+
+    /// Runs the script of one agent of a test, and tells the test if it failed.
+    pub(super) fn run_agent() -> c_int {
+        let source = match agents::connect_to_test() {
+            Ok(source) => source,
+            Err(error) => {
+                eprintln!("test262-runner-rust: an agent could not connect to its test: {error}");
+                return EXIT_SETUP_INPUT_FAILURE;
+            }
+        };
+        std::panic::set_hook(Box::new(|info| {
+            agents::report_panic(&describe_panic(info));
+            // SAFETY: Exits without unwinding or running destructors, from a state that may be broken.
+            unsafe { libc::_exit(EXIT_ASSERTION_FAILED) }
+        }));
+
+        let vm = create_vm();
+        vm.set_on_promise_unhandled_rejection(Some(remember_unhandled_rejection));
+        vm.set_on_promise_rejection_handled(Some(forget_handled_rejection));
+        let root_execution_context =
+            initialize_realm_with_global_object(&vm, &|realm| Test262GlobalObject::allocate(&vm, realm).upcast());
+        agents::acknowledge_start();
+
+        if let Err(error) = run_agent_script(&vm, root_execution_context.realm(), &source) {
+            agents::report_uncaught_exception(&error.error_type, &error.details);
+        }
+        // SAFETY: Ends the agent without tearing down its VM, which nothing needs any more, while the thread that
+        //         listens to the test still waits.
+        unsafe { libc::_exit(0) }
+    }
 }
 
 /// A test file's text, decoded once for reading its metadata and once for parsing it as C++ does.
@@ -1033,6 +1149,9 @@ fn run_test_file(
             &source.code_units
         };
         let result = run_test(code_units.as_deref(), path, &metadata, parse_only, harness_files);
+        #[cfg(unix)]
+        let an_agent_reached_an_unimplemented_feature =
+            agents::terminate_agents().iter().any(is_unimplemented_feature_failure);
         set_alarm(0);
         let elapsed_milliseconds = i64::try_from(start.elapsed().as_millis()).unwrap_or(i64::MAX);
 
@@ -1059,6 +1178,12 @@ fn run_test_file(
                 }
                 passed = false;
             }
+        }
+        // A test can fail before it asks for the report that would have brought it the error of an agent.
+        #[cfg(unix)]
+        if !passed && an_agent_reached_an_unimplemented_feature {
+            result_object.set("todo_error", true);
+            result_object.set("result", "todo_error");
         }
         passed
     };
@@ -1095,6 +1220,8 @@ pub unsafe extern "C" fn libjs_runtime_rust_test262_runner_main(argc: c_int, arg
         })
         .collect();
     match parse_options(&arguments) {
+        #[cfg(unix)]
+        Ok(options) if options.run_as_agent => agent_mode::run_agent(),
         Ok(options) => run(&options),
         Err(error) => {
             eprintln!("test262-runner-rust: {error}");
