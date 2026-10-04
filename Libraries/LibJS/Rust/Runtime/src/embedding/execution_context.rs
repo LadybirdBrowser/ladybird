@@ -18,7 +18,8 @@
 use core::ffi::c_void;
 use core::ptr::NonNull;
 
-use crate::embedding::abi_types::vm_from_abi;
+use crate::bytecode::executable::Executable;
+use crate::embedding::abi_types::{JSOwnedUtf16String, owned_utf16_string_into_abi, vm_from_abi};
 use crate::gc::capi::GCVisitor;
 use crate::gc::visitor::{Trace, Visitor};
 use crate::interpreter::execution_context::OwnedExecutionContext;
@@ -306,4 +307,26 @@ pub unsafe extern "C" fn js_execution_context_get_active_script_or_module(vm: *m
     // SAFETY: The caller passes a live VM.
     let vm = unsafe { vm_from_abi(vm) };
     vm.get_active_script_or_module().into()
+}
+
+/// ExecutionContext::function_name(): the name of the function whose bytecode the context runs, as an owned
+/// AK::Utf16String the caller adopts with AK::Utf16String::adopt_raw(). It is empty for a context that runs no
+/// bytecode, such as that of a native function, and for code that is not the body of a function.
+///
+/// # Safety
+///
+/// `execution_context` must be a live execution context. Must be called on the thread that runs the VM.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn js_execution_context_function_name(
+    execution_context: *const JSExecutionContext,
+) -> JSOwnedUtf16String {
+    assert!(!execution_context.is_null(), "the embedder passes an execution context");
+    // SAFETY: The caller passes a live execution context.
+    let execution_context = unsafe { &*execution_context.cast::<ExecutionContext>() };
+    let name = execution_context
+        .executable
+        .get()
+        .map(|executable| Executable::from_head(executable).name())
+        .unwrap_or_default();
+    owned_utf16_string_into_abi(name.into())
 }

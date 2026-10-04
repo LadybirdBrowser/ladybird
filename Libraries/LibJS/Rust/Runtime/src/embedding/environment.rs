@@ -15,6 +15,7 @@
     reason = "object.rs states the contract every exported function shares"
 )]
 
+use crate::bytecode::property_access::Strict;
 use crate::embedding::abi_types::{
     CellAbi, JSUtf16View, append_to_string_sink, cell_from_abi, completion_into_abi, object_into_abi,
     optional_cell_from_abi, vm_from_abi,
@@ -200,6 +201,60 @@ pub unsafe extern "C" fn js_environment_get_binding_value(
         )
     };
     completion_into_abi(environment.get_binding_value(vm, &binding_name_from_abi(name), strict))
+}
+
+/// DeleteBinding(N), whose payload is whether the binding is gone, which one that cannot be deleted is not. Borrows the
+/// name. Main thread only.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn js_environment_delete_binding(
+    vm: *mut JSVM,
+    environment: *mut JSEnvironment,
+    name: JSUtf16View,
+) -> JSCompletion {
+    // SAFETY: See the module documentation.
+    let (vm, environment, name) = unsafe {
+        (
+            vm_from_abi(vm),
+            cell_from_abi::<JSEnvironment>(environment),
+            name.as_view(),
+        )
+    };
+    completion_into_abi(environment.delete_binding(vm, &binding_name_from_abi(name)))
+}
+
+/// ResolveBinding(name, env): the payload is the environment that has a binding of the name, found by walking outwards
+/// from `environment`, or from the running execution context's LexicalEnvironment if that is null, or null if the
+/// reference is unresolvable. HasBinding runs on the way, which for the object environment of a with statement can
+/// run JavaScript and throw.
+///
+/// The C++ Reference Record this resolves to has the environment as its base. GetValue, PutValue and delete of it are
+/// js_environment_get_binding_value(), js_environment_set_mutable_binding() and js_environment_delete_binding() with
+/// the same name and strictness, and for an unresolvable reference GetValue throws a ReferenceError, PutValue sets the
+/// property of the global object unless it is strict, and delete returns true. Borrows the name. Main thread only.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn js_environment_resolve_binding(
+    vm: *mut JSVM,
+    name: JSUtf16View,
+    strict: bool,
+    environment: *mut JSEnvironment,
+) -> JSCompletion {
+    // SAFETY: See the module documentation.
+    let (vm, name, environment) = unsafe {
+        (
+            vm_from_abi(vm),
+            name.as_view(),
+            optional_cell_from_abi::<JSEnvironment>(environment),
+        )
+    };
+    let strict = if strict { Strict::Yes } else { Strict::No };
+    let reference = vm.resolve_binding(&binding_name_from_abi(name), strict, environment);
+    completion_into_abi(reference.map(|reference| {
+        if reference.is_unresolvable() {
+            core::ptr::null_mut()
+        } else {
+            environment_to_abi(reference.base_environment())
+        }
+    }))
 }
 
 // Walking environments

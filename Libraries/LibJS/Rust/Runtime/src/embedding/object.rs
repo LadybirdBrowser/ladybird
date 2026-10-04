@@ -19,10 +19,13 @@
     reason = "the module documentation states the contract every exported function shares"
 )]
 
+use core::ffi::c_void;
+
 use crate::embedding::abi_types::{
     JSRealm, JSUtf16View, append_to_value_sink, cell_from_abi, cell_into_abi, completion_into_abi, object_into_abi,
     optional_cell_from_abi, optional_object_into_abi, property_key_from_abi, vm_from_abi,
 };
+use crate::embedding::collections::{JSPropertyKind, property_kind_from_abi};
 use crate::embedding::function::{JSNativeFunction, raw_native_function_from_abi};
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
@@ -411,6 +414,92 @@ pub unsafe extern "C" fn js_object_set_integrity_level(
     completion_into_abi(object.set_integrity_level(vm, integrity_level_from_abi(level)))
 }
 
+/// SetImmutablePrototype(O, V), whose payload is whether the prototype is now `prototype`, which may be null. An
+/// exotic object with an immutable prototype, such as Location, calls it from its set_prototype_of hook. Main thread
+/// only.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn js_object_set_immutable_prototype(
+    vm: *mut JSVM,
+    object: *mut JSObject,
+    prototype: *mut JSObject,
+) -> JSCompletion {
+    // SAFETY: See the module documentation.
+    let (vm, object, prototype) = unsafe {
+        (
+            vm_from_abi(vm),
+            cell_from_abi::<JSObject>(object),
+            optional_cell_from_abi::<JSObject>(prototype),
+        )
+    };
+    completion_into_abi(object.set_immutable_prototype(vm, prototype))
+}
+
+/// EnumerableOwnProperties(O, kind), with kind a JS_PROPERTY_KIND_* value: appends to the sink, in order, the key, the
+/// value or a [key, value] array of each enumerable own string-keyed property, with an unused payload. The getters of
+/// the properties run, and the sink may call back into the VM. Main thread only.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn js_object_enumerable_own_property_names(
+    vm: *mut JSVM,
+    object: *mut JSObject,
+    kind: JSPropertyKind,
+    sink: *mut JSValueSink,
+) -> JSCompletion {
+    // SAFETY: See the module documentation.
+    let (vm, object) = unsafe { (vm_from_abi(vm), cell_from_abi::<JSObject>(object)) };
+    // SAFETY: As above, the sink is valid.
+    unsafe {
+        append_keys_to_sink(
+            object.enumerable_own_property_names(vm, property_kind_from_abi(kind)),
+            sink,
+        )
+    }
+}
+
+/// Called with the context it came with and each key EnumerateObjectProperties produces, a String value. It may run
+/// JavaScript, and returns true to stop the enumeration.
+pub type JSPropertyEnumerationCallback = Option<unsafe extern "C" fn(context: *mut c_void, key: JSValue) -> bool>;
+
+/// EnumerateObjectProperties(O), the keys a for-in loop visits: calls `callback` with each string key of an enumerable
+/// property of the object and of its prototype chain, each at most once, until the callback returns true. The payload
+/// is whether the callback stopped the enumeration. A throw comes from an internal method of an object the
+/// enumeration visits. Main thread only.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn js_object_enumerate_object_properties(
+    vm: *mut JSVM,
+    object: *mut JSObject,
+    callback: JSPropertyEnumerationCallback,
+    context: *mut c_void,
+) -> JSCompletion {
+    // SAFETY: See the module documentation.
+    let (vm, object) = unsafe { (vm_from_abi(vm), cell_from_abi::<JSObject>(object)) };
+    let callback = callback.expect("the embedder passes a callback");
+    let stopped = object.enumerate_object_properties(vm, |key| {
+        // SAFETY: The embedder's callback takes keys with the context it came with.
+        unsafe { callback(context, key.0) }.then_some(())
+    });
+    completion_into_abi(stopped.map(|stopped| stopped.is_some()))
+}
+
+/// The value of the property of the key, looked up in the storage of the object and of its prototype chain without
+/// running any internal method or getter, or undefined if there is none. For an accessor property, it is the
+/// accessor itself, a cell of kind JS_LAYOUT_CELL_KIND_ACCESSOR. Borrows the key. Main thread only.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn js_object_get_without_side_effects(
+    vm: *mut JSVM,
+    object: *mut JSObject,
+    key: *const JSPropertyKey,
+) -> JSValue {
+    // SAFETY: See the module documentation.
+    let (vm, object, key) = unsafe {
+        (
+            vm_from_abi(vm),
+            cell_from_abi::<JSObject>(object),
+            property_key_from_abi(key),
+        )
+    };
+    object.get_without_side_effects(vm, key).0
+}
+
 // Defining properties directly in the object's storage, as built-in objects do
 
 /// Stores a data property in the object's own storage, replacing any property of the key, without running any
@@ -653,6 +742,24 @@ pub unsafe extern "C" fn js_object_convert_to_prototype_if_needed(vm: *mut JSVM,
     object.convert_to_prototype_if_needed(vm);
 }
 
+/// Gives the object a dictionary shape of its own, which no inline cache has seen, so that every cached lookup of its
+/// properties misses and looks again. An embedder calls it when a property that its hooks report appears without the
+/// object's shape changing, as a document's named properties do. Main thread only.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn js_object_invalidate_property_lookup_caches(vm: *mut JSVM, object: *mut JSObject) {
+    // SAFETY: See the module documentation.
+    let (vm, object) = unsafe { (vm_from_abi(vm), cell_from_abi::<JSObject>(object)) };
+    object.invalidate_property_lookup_caches(vm);
+}
+
+/// Lets new own properties of the object be added through the inline caches again, which its host class's
+/// JS_HOST_CLASS_REQUIRES_SLOW_ADD_OWN_PROPERTY flag kept from it. Main thread only.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn js_object_clear_requires_slow_add_own_property(object: *mut JSObject) {
+    // SAFETY: See the module documentation.
+    unsafe { cell_from_abi::<JSObject>(object) }.clear_requires_slow_add_own_property();
+}
+
 /// Whether the object is an arguments object with a parameter map, as a mapped arguments object is. Main thread only.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn js_object_has_parameter_map(object: *mut JSObject) -> bool {
@@ -666,6 +773,17 @@ pub unsafe extern "C" fn js_object_has_parameter_map(object: *mut JSObject) -> b
 pub unsafe extern "C" fn js_object_class_id(object: *mut JSObject) -> u16 {
     // SAFETY: See the module documentation.
     unsafe { cell_from_abi::<JSObject>(object) }.class().id as u16
+}
+
+/// The name of the object's class, which for an object of a host class is the name in its JSHostClass: static UTF-8,
+/// not null-terminated, whose length goes to `out_length`. Main thread only.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn js_object_class_name(object: *mut JSObject, out_length: *mut usize) -> *const u8 {
+    // SAFETY: See the module documentation.
+    let class_name = unsafe { cell_from_abi::<JSObject>(object) }.class().class_name();
+    // SAFETY: As above, the out parameter is writable.
+    unsafe { out_length.write(class_name.len()) };
+    class_name.as_ptr()
 }
 
 /// Whether the object's class is the class of the id (a JS_LAYOUT_CLASS_ID_* value) or extends it. Main thread only.
