@@ -226,7 +226,7 @@ public:
     void set_ongoing_navigation(CanonicalNavigation);
     void set_ongoing_navigation_to_traversal(Web::HTML::CrossProcessId operation_id);
     void clear_ongoing_navigation_traversal(Web::HTML::CrossProcessId operation_id);
-    virtual void clear_ongoing_navigation();
+    void clear_ongoing_navigation();
     void clear_ongoing_navigation_state();
     void set_navigation_host(WebContentPage&);
     bool cancel_navigation_for_client(WebContentClient&);

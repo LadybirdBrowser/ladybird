@@ -249,18 +249,6 @@ ErrorOr<void> TraversableSessionHistory::restore_from_ui_snapshot(Vector<Web::HT
     return {};
 }
 
-void TraversableSessionHistory::mark_current_entry_reload_pending()
-{
-    auto current_top_level_entry_index = this->current_top_level_entry_index();
-    if (!current_top_level_entry_index.has_value())
-        return;
-
-    // https://html.spec.whatwg.org/multipage/browsing-the-web.html#reload
-    // Set navigable's active session history entry's document state's reload
-    // pending to true.
-    m_entries[*current_top_level_entry_index]->document_state->reload_pending = true;
-}
-
 Optional<i32> TraversableSessionHistory::append_nested_history(CanonicalNavigable const& parent_navigable, CanonicalDocumentState& parent_document_state, Web::HTML::CrossProcessId child_navigable_id, NonnullRefPtr<CanonicalSessionHistoryEntry> history_entry)
 {
     if (!m_current_session_history_step.has_value())

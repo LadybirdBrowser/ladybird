@@ -1218,16 +1218,6 @@ Optional<CanonicalTraversable::BrowserHistoryTraversalDiagnostic> CanonicalTrave
     };
 }
 
-CanonicalSessionHistoryEntry const* CanonicalTraversable::ongoing_browser_history_traversal_target_entry() const
-{
-    if (!m_browser_history_traversal)
-        return nullptr;
-    auto const& parameters = m_browser_history_traversal->parameters.get<Web::TraverseToStepHistoryOperationParameters>();
-    if (auto target = m_session_history.traversal_target_for_step(parameters.target_step); target.has_value())
-        return target->target_top_level_entry;
-    return nullptr;
-}
-
 // The navigation a cross-document navigation's finalization took from its navigable at its queue position.
 CanonicalNavigation const* CanonicalTraversable::finalized_navigation(HistoryOperation const& operation) const
 {
