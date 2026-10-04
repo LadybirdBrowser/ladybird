@@ -1,0 +1,2 @@
+Worker of the frame under this page: thirdparty=secret
+Worker of the popup: firstparty=1

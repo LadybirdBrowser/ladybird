@@ -29,6 +29,7 @@ struct CookieStorageKey {
     String name;
     String domain;
     String path;
+    Utf16String partition_key;
 };
 
 class WEBVIEW_API CookieJar {
@@ -42,15 +43,17 @@ public:
 
     ~CookieJar();
 
-    String get_cookie(URL::URL const& url, HTTP::Cookie::Source source);
-    void set_cookie(URL::URL const& url, HTTP::Cookie::ParsedCookie const& parsed_cookie, HTTP::Cookie::Source source);
+    // A context of nothing stands for a first-party context, as for the UI process's own requests. A third-party context
+    // only uses the cookies set in a third-party context under the same top-level site. See HTTP::Cookie::PartitionContext.
+    String get_cookie(URL::URL const& url, HTTP::Cookie::Source source, Optional<HTTP::Cookie::PartitionContext> const&);
+    void set_cookie(URL::URL const& url, HTTP::Cookie::ParsedCookie const& parsed_cookie, HTTP::Cookie::Source source, Optional<HTTP::Cookie::PartitionContext> const&);
     void update_cookie(HTTP::Cookie::Cookie);
     ErrorOr<void> set_cookie_from_devtools(URL::URL const&, Optional<CookieStorageKey> old_key, HTTP::Cookie::Cookie);
     bool delete_cookie(CookieStorageKey const&);
     void dump_cookies();
     Vector<HTTP::Cookie::Cookie> get_all_cookies();
-    Vector<HTTP::Cookie::Cookie> get_all_cookies_webdriver(URL::URL const& url);
-    Vector<HTTP::Cookie::Cookie> get_all_cookies_cookiestore(URL::URL const& url);
+    Vector<HTTP::Cookie::Cookie> get_all_cookies_webdriver(URL::URL const& url, Optional<HTTP::Cookie::PartitionContext> const& = {});
+    Vector<HTTP::Cookie::Cookie> get_all_cookies_cookiestore(URL::URL const& url, Optional<HTTP::Cookie::PartitionContext> const&);
     Optional<HTTP::Cookie::Cookie> get_named_cookie(URL::URL const& url, StringView name);
     void expire_cookies_with_time_offset(AK::Duration);
     void delete_all_cookies(URL::URL const&);
@@ -127,7 +130,7 @@ private:
         WebDriver,
     };
 
-    Vector<HTTP::Cookie::Cookie> get_matching_cookies(URL::URL const& url, HTTP::Cookie::Source source, MatchingCookiesSpecMode mode = MatchingCookiesSpecMode::RFC6265);
+    Vector<HTTP::Cookie::Cookie> get_matching_cookies(URL::URL const& url, HTTP::Cookie::Source source, Utf16String const& partition_key, MatchingCookiesSpecMode mode = MatchingCookiesSpecMode::RFC6265);
 
     Optional<PersistedStorage> m_persisted_storage;
     TransientStorage m_transient_storage;
@@ -143,6 +146,7 @@ struct AK::Traits<WebView::CookieStorageKey> : public AK::DefaultTraits<WebView:
         hash = pair_int_hash(hash, key.name.hash());
         hash = pair_int_hash(hash, key.domain.hash());
         hash = pair_int_hash(hash, key.path.hash());
+        hash = pair_int_hash(hash, key.partition_key.hash());
         return hash;
     }
 };

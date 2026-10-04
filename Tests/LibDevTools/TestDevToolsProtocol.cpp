@@ -529,15 +529,16 @@ static HTTP::Cookie::Cookie make_cookie(String name, String value, String domain
     return cookie;
 }
 
-static String cookie_unique_key(StringView name, StringView domain, StringView path)
+static String cookie_unique_key(StringView name, StringView domain, StringView path, StringView partition_key = {})
 {
-    return MUST(String::formatted("{}{}{}{}{}{}",
+    return MUST(String::formatted("{}{}{}{}{}{}{}",
         name,
         "{9d414cc5-8319-0a04-0586-c0a6ae01670a}"sv,
         domain,
         "{9d414cc5-8319-0a04-0586-c0a6ae01670a}"sv,
         path,
-        "{9d414cc5-8319-0a04-0586-c0a6ae01670a}"sv));
+        "{9d414cc5-8319-0a04-0586-c0a6ae01670a}"sv,
+        partition_key));
 }
 
 static bool cookie_matches(HTTP::Cookie::Cookie const& cookie, StringView name, StringView domain, StringView path)
@@ -681,7 +682,8 @@ public:
         auto key_matches_cookie = [](HTTP::Cookie::Cookie const& left, HTTP::Cookie::Cookie const& right) {
             return left.name == right.name
                 && left.domain == right.domain
-                && left.path == right.path;
+                && left.path == right.path
+                && left.partition_key == right.partition_key;
         };
 
         if (old_cookie.has_value()) {
@@ -716,7 +718,8 @@ public:
         auto key_matches_cookie = [](HTTP::Cookie::Cookie const& left, HTTP::Cookie::Cookie const& right) {
             return left.name == right.name
                 && left.domain == right.domain
-                && left.path == right.path;
+                && left.path == right.path
+                && left.partition_key == right.partition_key;
         };
 
         for (auto const& cookie_to_delete : cookies) {
@@ -2251,7 +2254,8 @@ static JsonArray get_indexed_database_cleared_paths(JsonObject const& stores_cle
 static JsonObject make_cookie_edit_items(HTTP::Cookie::Cookie const& cookie)
 {
     JsonObject items;
-    items.set("uniqueKey"sv, cookie_unique_key(cookie.name, cookie.domain, cookie.path));
+    items.set("uniqueKey"sv, cookie_unique_key(cookie.name, cookie.domain, cookie.path, cookie.partition_key.to_utf8()));
+    items.set("partitionKey"sv, cookie.partition_key.to_utf8());
     items.set("name"sv, cookie.name);
     items.set("value"sv, cookie.value);
     items.set("host"sv, cookie.domain);
@@ -2288,13 +2292,13 @@ static JsonObject add_cookie(ProtocolClient& client, StringView cookies_actor, S
     return client.request(move(request));
 }
 
-static JsonObject remove_cookie(ProtocolClient& client, StringView cookies_actor, StringView name, StringView domain, StringView path)
+static JsonObject remove_cookie(ProtocolClient& client, StringView cookies_actor, StringView name, StringView domain, StringView path, StringView partition_key = {})
 {
     JsonObject request;
     request.set("to"sv, cookies_actor);
     request.set("type"sv, "removeItem"sv);
     request.set("host"sv, "https://example.test"sv);
-    request.set("name"sv, cookie_unique_key(name, domain, path));
+    request.set("name"sv, cookie_unique_key(name, domain, path, partition_key));
     return client.request(move(request));
 }
 
@@ -4386,6 +4390,38 @@ TEST_CASE(storage_cookie_edit_item)
     EXPECT_EQ(session->delegate.set_cookie_call_count, 6u);
     EXPECT_EQ(session->delegate.fixture_cookies.size(), 1u);
     EXPECT(cookie_matches(session->delegate.fixture_cookies[0], "gamma"sv, "example.test"sv, "/"sv));
+}
+
+TEST_CASE(storage_cookie_partitions_have_distinct_identities)
+{
+    auto session = create_session();
+    auto& client = *session->client;
+    (void)client.read_message();
+
+    auto first_party_cookie = make_cookie("alpha"_string, "first-party"_string, "example.test"_string, "/"_string);
+    auto partitioned_cookie = make_cookie("alpha"_string, "partitioned"_string, "example.test"_string, "/"_string);
+    partitioned_cookie.partition_key = "https://top.test"_utf16;
+    session->delegate.fixture_cookies.append(first_party_cookie);
+    session->delegate.fixture_cookies.append(partitioned_cookie);
+
+    auto cookies_actor = get_cookies_actor(client);
+    auto objects = get_cookie_store_objects(client, cookies_actor);
+    EXPECT_EQ(objects.get_integer<size_t>("total"sv).value(), 2u);
+
+    auto find_fixture = [&](StringView partition_key) -> HTTP::Cookie::Cookie const& {
+        return *session->delegate.fixture_cookies.find_if([&](auto const& cookie) { return cookie.partition_key.to_utf8() == partition_key; });
+    };
+
+    auto response = edit_cookie(client, cookies_actor, partitioned_cookie, "value"sv, "partitioned"_string, "edited"_string);
+    EXPECT(response.get("errorString"sv).value().is_null());
+    EXPECT_EQ(session->delegate.fixture_cookies.size(), 2u);
+    EXPECT_EQ(find_fixture(""sv).value, "first-party"sv);
+    EXPECT_EQ(find_fixture("https://top.test"sv).value, "edited"sv);
+
+    response = remove_cookie(client, cookies_actor, "alpha"sv, "example.test"sv, "/"sv, "https://top.test"sv);
+    EXPECT_EQ(session->delegate.fixture_cookies.size(), 1u);
+    EXPECT(session->delegate.fixture_cookies[0].partition_key.is_empty());
+    EXPECT_EQ(session->delegate.fixture_cookies[0].value, "first-party"sv);
 }
 
 TEST_CASE(storage_cookie_add_and_remove_items)

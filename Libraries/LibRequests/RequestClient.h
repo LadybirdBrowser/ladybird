@@ -59,7 +59,7 @@ public:
 
     bool set_certificate(Badge<Request>, Request&, ByteString, ByteString);
 
-    RefPtr<WebSocket> websocket_connect(URL::URL const&, ByteString const& origin, Vector<ByteString> const& protocols, Vector<ByteString> const& extensions, HTTP::HeaderList const& request_headers);
+    RefPtr<WebSocket> websocket_connect(URL::URL const&, Optional<HTTP::NetworkIsolationKey> const&, ByteString const& origin, Vector<ByteString> const& protocols, Vector<ByteString> const& extensions, HTTP::HeaderList const& request_headers);
 
     ErrorOr<bool> store_cache_associated_data(Optional<HTTP::NetworkIsolationKey> const&, URL::URL const&, ByteString const& method, Optional<HTTP::HeaderList const&> request_headers, Optional<u64> vary_key, HTTP::CacheEntryAssociatedData, ReadonlyBytes);
     ErrorOr<Optional<Core::AnonymousBuffer>> retrieve_cache_associated_data(Optional<HTTP::NetworkIsolationKey> const&, URL::URL const&, ByteString const& method, Optional<HTTP::HeaderList const&> request_headers, Optional<u64> vary_key, HTTP::CacheEntryAssociatedData);

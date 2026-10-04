@@ -37,21 +37,24 @@ static bool cookie_matches_storage_host(HTTP::Cookie::Cookie const& cookie, Stri
     return HTTP::Cookie::domain_matches(*host_name, cookie.domain);
 }
 
+// NB: Cookies of different partitions may share a name, domain and path, so the partition key is part of the identity.
 static String cookie_unique_key(HTTP::Cookie::Cookie const& cookie)
 {
-    return MUST(String::formatted("{}{}{}{}{}{}",
+    return MUST(String::formatted("{}{}{}{}{}{}{}",
         cookie.name,
         cookie_unique_key_separator,
         cookie.domain,
         cookie_unique_key_separator,
         cookie.path,
-        cookie_unique_key_separator));
+        cookie_unique_key_separator,
+        cookie.partition_key));
 }
 
 struct ParsedCookieUniqueKey {
     String name;
     String domain;
     String path;
+    Utf16String partition_key;
 };
 
 static Optional<ParsedCookieUniqueKey> parse_cookie_unique_key(StringView unique_key)
@@ -64,6 +67,7 @@ static Optional<ParsedCookieUniqueKey> parse_cookie_unique_key(StringView unique
         MUST(String::from_utf8(parts[0])),
         MUST(String::from_utf8(parts[1])),
         MUST(String::from_utf8(parts[2])),
+        parts.size() > 3 ? Utf16String::from_utf8(parts[3]) : Utf16String {},
     };
 }
 
@@ -71,7 +75,8 @@ static bool cookie_matches_unique_key(HTTP::Cookie::Cookie const& cookie, Parsed
 {
     return cookie.name == unique_key.name
         && cookie.domain == unique_key.domain
-        && cookie.path == unique_key.path;
+        && cookie.path == unique_key.path
+        && cookie.partition_key == unique_key.partition_key;
 }
 
 static bool cookie_matches_requested_domain(HTTP::Cookie::Cookie const& cookie, Optional<String> const& domain)
@@ -105,7 +110,7 @@ static JsonObject serialize_cookie(HTTP::Cookie::Cookie const& cookie)
     object.set("creationTime"sv, cookie.creation_time.milliseconds_since_epoch());
     object.set("updateTime"sv, cookie.creation_time.milliseconds_since_epoch());
     object.set("hostOnly"sv, cookie.host_only);
-    object.set("partitionKey"sv, ""sv);
+    object.set("partitionKey"sv, cookie.partition_key.to_utf8());
     return object;
 }
 
@@ -431,11 +436,14 @@ void CookiesActor::edit_item(Message const& message)
                 path = *item_path;
             }
 
+            auto partition_key = items->get_string("partitionKey"sv).map([](auto const& key) { return Utf16String::from_utf8(key); }).value_or({});
+
             if (name.has_value() && domain.has_value() && path.has_value()) {
                 old_cookie = find_cookie([&](auto const& cookie) {
                     return cookie.name == *name
                         && cookie.domain == *domain
-                        && cookie.path == *path;
+                        && cookie.path == *path
+                        && cookie.partition_key == partition_key;
                 });
             }
         }

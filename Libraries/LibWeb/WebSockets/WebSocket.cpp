@@ -20,6 +20,7 @@
 #include <LibWeb/DOM/EventDispatcher.h>
 #include <LibWeb/DOM/IDLEventListener.h>
 #include <LibWeb/DOMURL/DOMURL.h>
+#include <LibWeb/Fetch/Infrastructure/NetworkPartitionKey.h>
 #include <LibWeb/FileAPI/Blob.h>
 #include <LibWeb/HTML/CloseEvent.h>
 #include <LibWeb/HTML/EventHandler.h>
@@ -190,7 +191,7 @@ ErrorOr<void> WebSocket::establish_web_socket_connection(URL::URL const& url_rec
     if (!request_client)
         return Error::from_string_literal("RequestServer is currently unavailable");
 
-    m_websocket = request_client->websocket_connect(url_record, origin_string, protocol_byte_strings, {}, additional_headers);
+    m_websocket = request_client->websocket_connect(url_record, Fetch::Infrastructure::determine_the_network_partition_key(client), origin_string, protocol_byte_strings, {}, additional_headers);
 
     m_websocket->on_open = GC::weak_callback(*this, [](auto& self) {
         self.on_open();

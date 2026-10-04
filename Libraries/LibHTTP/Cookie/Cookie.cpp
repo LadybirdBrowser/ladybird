@@ -208,6 +208,7 @@ ErrorOr<void> IPC::encode(Encoder& encoder, HTTP::Cookie::Cookie const& cookie)
     TRY(encoder.encode(cookie.persistent));
     TRY(encoder.encode(cookie.secure));
     TRY(encoder.encode(cookie.same_site));
+    TRY(encoder.encode(cookie.partition_key));
 
     return {};
 }
@@ -227,8 +228,25 @@ ErrorOr<HTTP::Cookie::Cookie> IPC::decode(Decoder& decoder)
     auto persistent = TRY(decoder.decode<bool>());
     auto secure = TRY(decoder.decode<bool>());
     auto same_site = TRY(decoder.decode<HTTP::Cookie::SameSite>());
+    auto partition_key = TRY(decoder.decode<Utf16String>());
 
-    return HTTP::Cookie::Cookie { move(name), move(value), same_site, creation_time, last_access_time, expiry_time, move(domain), move(path), secure, http_only, host_only, persistent };
+    return HTTP::Cookie::Cookie { move(name), move(value), same_site, creation_time, last_access_time, expiry_time, move(domain), move(path), secure, http_only, host_only, persistent, move(partition_key) };
+}
+
+template<>
+ErrorOr<void> IPC::encode(Encoder& encoder, HTTP::Cookie::PartitionContext const& context)
+{
+    TRY(encoder.encode(context.top_level_site));
+    TRY(encoder.encode(context.has_cross_site_ancestor));
+    return {};
+}
+
+template<>
+ErrorOr<HTTP::Cookie::PartitionContext> IPC::decode(Decoder& decoder)
+{
+    auto top_level_site = TRY(decoder.decode<Utf16String>());
+    auto has_cross_site_ancestor = TRY(decoder.decode<bool>());
+    return HTTP::Cookie::PartitionContext { move(top_level_site), has_cross_site_ancestor };
 }
 
 template<>

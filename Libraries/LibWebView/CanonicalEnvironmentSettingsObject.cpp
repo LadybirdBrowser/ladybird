@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibURL/Site.h>
 #include <LibWebView/CanonicalDocument.h>
 #include <LibWebView/CanonicalEnvironmentSettingsObject.h>
 #include <LibWebView/CanonicalWindow.h>
@@ -28,10 +29,27 @@ URL::Origin const& CanonicalWindowEnvironmentSettingsObject::origin() const
     return m_window.associated_document().origin();
 }
 
-CanonicalWorkerEnvironmentSettingsObject::CanonicalWorkerEnvironmentSettingsObject(URL::Origin origin, Web::HTML::EnvironmentId id)
+Optional<URL::Origin> CanonicalWindowEnvironmentSettingsObject::top_level_origin() const
+{
+    // NB: The top-level origin of a window's settings object is that of the top-level document of its associated
+    //     Document's browsing context.
+    return m_window.associated_document().top_level_origin();
+}
+
+CanonicalWorkerEnvironmentSettingsObject::CanonicalWorkerEnvironmentSettingsObject(URL::Origin origin, Optional<URL::Origin> top_level_origin, bool has_cross_site_ancestor, Web::HTML::EnvironmentId id)
     : CanonicalEnvironmentSettingsObject(move(id))
     , m_origin(move(origin))
+    , m_top_level_origin(move(top_level_origin))
+    , m_has_cross_site_ancestor(has_cross_site_ancestor)
 {
+}
+
+Optional<Utf16String> network_isolation_top_level_site(CanonicalEnvironmentSettingsObject const& environment)
+{
+    auto top_level_origin = environment.top_level_origin();
+    if (!top_level_origin.has_value())
+        return {};
+    return URL::Site::serialize_for_partitioning(*top_level_origin);
 }
 
 // https://storage.spec.whatwg.org/#obtain-a-storage-key-for-non-storage-purposes

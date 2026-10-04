@@ -9,6 +9,7 @@
 #include <AK/HashTable.h>
 #include <AK/Optional.h>
 #include <AK/Utf16String.h>
+#include <LibURL/Forward.h>
 #include <LibWebView/Forward.h>
 
 namespace WebView {
@@ -19,7 +20,14 @@ namespace WebView {
 // NB: Bindings last for the life of the process and are never revoked. A process that has hosted a site's document may
 //     have kept anything that document could reach, so leaving the site grants it nothing it lacked.
 class RequestServerSiteBindings {
+    AK_MAKE_NONCOPYABLE(RequestServerSiteBindings);
+    AK_MAKE_NONMOVABLE(RequestServerSiteBindings);
+
 public:
+    RequestServerSiteBindings() = default;
+
+    Optional<int> client_id() const { return m_client_id; }
+
     // The process has a new RequestServer client. It is bound to every site the previous client was bound to.
     void did_connect(int client_id);
 
@@ -28,6 +36,9 @@ public:
 
     // Binds the client to every site that another process's client is bound to, as for a worker that process starts.
     void bind_sites_of(RequestServerSiteBindings const&);
+
+    // Whether the client may use the cookies of top_level_site's partition for a request for url.
+    bool may_use_cookies_under(Utf16String const& top_level_site, URL::URL const& url) const;
 
 private:
     struct Site {

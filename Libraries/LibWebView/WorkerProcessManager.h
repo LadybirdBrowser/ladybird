@@ -37,6 +37,11 @@ public:
         URL::URL url;
         Utf16String name;
 
+        // AD-HOC: A shared worker uses the network state partition of the top-level site it was created under, and of
+        //         whether its creator had a cross-site ancestor, so owners in different partitions never share one.
+        Optional<Utf16String> top_level_site;
+        bool has_cross_site_ancestor { false };
+
         bool operator==(SharedWorkerKey const&) const = default;
     };
 
@@ -52,6 +57,7 @@ public:
 
     void post_broadcast_channel_message(Web::HTML::PostedBroadcastChannelMessage, CanonicalEnvironmentSettingsObject const& source_settings, pid_t source_process_id, IsPrivate);
     ErrorOr<void> reconnect_to_request_server();
+    void for_each_request_server_site_bindings(Function<IterationDecision(RequestServerSiteBindings&)> const&);
     ErrorOr<void> simulate_request_server_connection_loss_for_testing(WebContentClient&, Web::PageId page_id);
 
     Optional<u64> exclusive_performance_owner(pid_t) const;
@@ -137,7 +143,10 @@ template<>
 struct Traits<WebView::WorkerProcessManager::SharedWorkerKey> : public DefaultTraits<WebView::WorkerProcessManager::SharedWorkerKey> {
     static unsigned hash(WebView::WorkerProcessManager::SharedWorkerKey const& key)
     {
-        return pair_int_hash(pair_int_hash(pair_int_hash(Traits<Web::StorageAPI::StorageKey>::hash(key.storage_key), Traits<URL::URL>::hash(key.url)), key.name.hash()), static_cast<unsigned>(key.is_private));
+        auto hash = pair_int_hash(pair_int_hash(pair_int_hash(Traits<Web::StorageAPI::StorageKey>::hash(key.storage_key), Traits<URL::URL>::hash(key.url)), key.name.hash()), static_cast<unsigned>(key.is_private));
+        if (key.top_level_site.has_value())
+            hash = pair_int_hash(hash, key.top_level_site->hash());
+        return pair_int_hash(hash, static_cast<unsigned>(key.has_cross_site_ancestor));
     }
 };
 

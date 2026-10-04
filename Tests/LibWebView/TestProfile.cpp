@@ -203,7 +203,7 @@ TEST_CASE(profile_databases_are_isolated)
             .value = "first"_string,
             .expiry_time_from_expires_attribute = UnixDateTime::now() + AK::Duration::from_seconds(3600),
         };
-        cookie_jar->set_cookie(url, cookie, HTTP::Cookie::Source::Http);
+        cookie_jar->set_cookie(url, cookie, HTTP::Cookie::Source::Http, {});
 
         auto hsts_store = TRY_OR_FAIL(WebView::HSTSStore::create(*database));
         hsts_store->store_policy("profile-isolation.example"_string, HTTP::HSTS::ParsedHSTSPolicy { AK::Duration::from_seconds(3600), false });

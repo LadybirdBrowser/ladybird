@@ -247,10 +247,10 @@ void RequestClient::certificate_requested(u64 request_id)
         (*request)->did_request_certificates({});
 }
 
-RefPtr<WebSocket> RequestClient::websocket_connect(URL::URL const& url, ByteString const& origin, Vector<ByteString> const& protocols, Vector<ByteString> const& extensions, HTTP::HeaderList const& request_headers)
+RefPtr<WebSocket> RequestClient::websocket_connect(URL::URL const& url, Optional<HTTP::NetworkIsolationKey> const& network_isolation_key, ByteString const& origin, Vector<ByteString> const& protocols, Vector<ByteString> const& extensions, HTTP::HeaderList const& request_headers)
 {
     auto websocket_id = m_next_websocket_id++;
-    IPCProxy::async_websocket_connect(websocket_id, url, origin, protocols, extensions, request_headers.headers());
+    IPCProxy::async_websocket_connect(websocket_id, url, network_isolation_key, origin, protocols, extensions, request_headers.headers());
     auto connection = WebSocket::create_from_id({}, *this, websocket_id);
     m_websockets.set(websocket_id, connection);
     return connection;

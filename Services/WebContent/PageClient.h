@@ -270,11 +270,11 @@ private:
     virtual void page_did_receive_document_cookie_version_buffer(Core::AnonymousBuffer document_cookie_version_buffer) override;
     virtual void page_did_request_document_cookie_version_index(Web::HTML::EnvironmentSettingsObject const&, Web::UniqueNodeID document_id, String const& domain) override;
     virtual void page_did_receive_document_cookie_version_index(Web::UniqueNodeID document_id, Core::SharedVersionIndex document_index) override;
-    virtual Vector<HTTP::Cookie::Cookie> page_did_request_all_cookies_webdriver(URL::URL const&) override;
-    virtual Vector<HTTP::Cookie::Cookie> page_did_request_all_cookies_cookiestore(URL::URL const&) override;
+    virtual Vector<HTTP::Cookie::Cookie> page_did_request_all_cookies_webdriver(URL::URL const&, Optional<HTTP::Cookie::PartitionContext> const& partition_context = {}) override;
+    virtual Vector<HTTP::Cookie::Cookie> page_did_request_all_cookies_cookiestore(Web::HTML::EnvironmentId const&, URL::URL const&) override;
     virtual Optional<HTTP::Cookie::Cookie> page_did_request_named_cookie(URL::URL const&, String const&) override;
-    virtual HTTP::Cookie::VersionedCookie page_did_request_cookie(URL::URL const&, HTTP::Cookie::Source) override;
-    virtual void page_did_set_cookie(URL::URL const&, HTTP::Cookie::ParsedCookie const&, HTTP::Cookie::Source) override;
+    virtual HTTP::Cookie::VersionedCookie page_did_request_cookie(Optional<Web::HTML::EnvironmentId> const&, URL::URL const&, HTTP::Cookie::Source) override;
+    virtual void page_did_set_cookie(Optional<Web::HTML::EnvironmentId> const&, URL::URL const&, HTTP::Cookie::ParsedCookie const&, HTTP::Cookie::Source) override;
     virtual void page_did_update_cookie(HTTP::Cookie::Cookie const&) override;
     virtual void page_did_expire_cookies_with_time_offset(AK::Duration) override;
     virtual void page_did_delete_all_cookies(URL::URL const&, GC::Ref<Web::WebIDL::Promise>) override;

@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    // A shared worker uses the cookie partition of the top-level site it was created under. A document of the same
+    // origin under another top-level site connecting to the same worker URL and name gets a worker of its own.
+    asyncTest(async done => {
+        const server = httpTestServer();
+        const runId = crypto.randomUUID();
+        const workerSite = uniqueLocalhostHostname("shared-worker-partition");
+
+        const onWorkerSite = url => {
+            const result = new URL(url);
+            result.hostname = workerSite;
+            return result.href;
+        };
+
+        const readCookiesURL = onWorkerSite(
+            await server.createEcho("GET", `/shared-worker-partition/${runId}/read-cookies`, {
+                status: 200,
+                headers: { "Cache-Control": "no-store" },
+                reflect_headers_in_body: true,
+            })
+        );
+        const workerURL = onWorkerSite(
+            await server.createEcho("GET", `/shared-worker-partition/${runId}/worker.js`, {
+                status: 200,
+                headers: { "Content-Type": "text/javascript", "Cache-Control": "no-store" },
+                body: `onconnect = event => {
+                    const port = event.ports[0];
+                    port.onmessage = async () => {
+                        const headers = await (await fetch(${JSON.stringify(readCookiesURL)})).json();
+                        port.postMessage((headers["Cookie"] ?? headers["cookie"] ?? ["(none)"]).join("; "));
+                    };
+                };`,
+            })
+        );
+
+        // Sets a cookie, then reports the cookies that the shared worker's requests carry.
+        const pageScript = cookie => `document.cookie = "${cookie}; path=/";
+            const worker = new SharedWorker(${JSON.stringify(workerURL)}, "partitioned-worker");
+            worker.port.onmessage = event => (window.opener ?? window.parent).postMessage({ cookies: event.data }, "*");
+            worker.port.postMessage("report");`;
+        const htmlEcho = async (name, body) =>
+            onWorkerSite(
+                await server.createEcho("GET", `/shared-worker-partition/${runId}/${name}.html`, {
+                    status: 200,
+                    headers: { "Content-Type": "text/html", "Cache-Control": "no-store" },
+                    body: `<!DOCTYPE html><script>${body}<\/script>`,
+                })
+            );
+        const frameURL = await htmlEcho("frame", pageScript("thirdparty=secret"));
+        const popupURL = await htmlEcho("popup", pageScript("firstparty=1"));
+
+        const nextReport = () =>
+            new Promise(resolve => {
+                window.addEventListener("message", function listener(event) {
+                    if (event.data?.cookies === undefined)
+                        return;
+                    window.removeEventListener("message", listener);
+                    resolve(event.data.cookies);
+                });
+            });
+
+        let report = nextReport();
+        const iframe = document.createElement("iframe");
+        iframe.src = frameURL;
+        document.body.appendChild(iframe);
+        println(`Worker of the frame under this page: ${await report}`);
+
+        report = nextReport();
+        const popup = window.open(popupURL);
+        println(`Worker of the popup: ${await report}`);
+        popup.close();
+        done();
+    });
+</script>

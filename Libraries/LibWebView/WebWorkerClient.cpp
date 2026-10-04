@@ -95,9 +95,14 @@ Messages::WebWorkerClient::DidRequestCookieResponse WebWorkerClient::did_request
     if (!inside_settings.has_value() || !inside_settings->may_use_cookies_of(url))
         return HTTP::Cookie::VersionedCookie {};
 
+    auto top_level_site = network_isolation_top_level_site(*inside_settings);
+    if (!top_level_site.has_value())
+        return HTTP::Cookie::VersionedCookie {};
+
+    HTTP::Cookie::PartitionContext partition_context { top_level_site.release_value(), inside_settings->has_cross_site_ancestor() };
     HTTP::Cookie::VersionedCookie cookie;
     if (auto session = m_session.strong_ref())
-        cookie.cookie = session->cookie_jar->get_cookie(url, source);
+        cookie.cookie = session->cookie_jar->get_cookie(url, source, partition_context);
     return cookie;
 }
 
