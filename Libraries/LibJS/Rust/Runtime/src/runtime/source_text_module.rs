@@ -121,6 +121,8 @@ pub const SOURCE_TEXT_MODULE_METHODS: ModuleMethods = ModuleMethods {
     resolve_export: |module, vm, export_name, resolve_set| {
         as_source_text_module(module).resolve_export(vm, export_name, resolve_set)
     },
+    initialize_environment: |module, vm| as_source_text_module(module).initialize_environment(vm),
+    execute_module: |module, vm, capability| as_source_text_module(module).execute_module(vm, capability),
     ..CYCLIC_MODULE_METHODS
 };
 
@@ -155,13 +157,34 @@ impl SourceTextModule {
         realm: Gc<Realm>,
         filename: &str,
     ) -> Result<Gc<SourceTextModule>, Vec<ParserError>> {
+        Self::parse_with_host_defined(vm, source_code, realm, filename, ForeignCellSlot::empty(), 0)
+    }
+
+    /// ParseModule ( sourceText, realm, hostDefined ) of a source text that starts `line_number_offset` lines into the
+    /// source it was taken from, as an inline module script of a document does.
+    pub fn parse_with_host_defined(
+        vm: &Vm,
+        source_code: Rc<SourceCode>,
+        realm: Gc<Realm>,
+        filename: &str,
+        host_defined: ForeignCellSlot,
+        line_number_offset: usize,
+    ) -> Result<Gc<SourceTextModule>, Vec<ParserError>> {
         let source = source_code.code().to_utf16();
-        let parsed = parse(&source, ProgramType::Module, 0);
+        let source_length = source.len();
+        let parsed = parse(&source, ProgramType::Module, line_number_offset);
         drop(source);
         if parsed.has_errors() {
             return Err(ParserError::all_from_parsed_program(&parsed));
         }
-        Ok(Self::create_from_parsed(vm, parsed, source_code, realm, filename))
+        Ok(Self::create(
+            vm,
+            realm,
+            filename,
+            compile_module(parsed, source_length),
+            source_code,
+            host_defined,
+        ))
     }
 
     /// Compiles a module the caller parsed without errors from the code of `source_code`, whose filename the

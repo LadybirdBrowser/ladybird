@@ -29,7 +29,6 @@ use crate::runtime::module_request::{LoadedModuleRequest, ModuleRequest, module_
 use crate::runtime::native_function::NativeFunction;
 use crate::runtime::promise::Promise;
 use crate::runtime::promise_capability::{PromiseCapability, new_promise_capability};
-use crate::runtime::source_text_module::SourceTextModule;
 use crate::runtime::value::same_value;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Trace)]
@@ -84,6 +83,10 @@ pub const CYCLIC_MODULE_METHODS: ModuleMethods = ModuleMethods {
     inner_module_evaluation: |module, vm, stack, index| {
         as_cyclic_module(module).inner_module_evaluation(vm, stack, index)
     },
+    initialize_environment: |_, _| {
+        unreachable!("only the classes that extend CyclicModule implement InitializeEnvironment")
+    },
+    execute_module: |_, _, _| unreachable!("only the classes that extend CyclicModule implement ExecuteModule"),
     ..MODULE_METHODS
 };
 
@@ -647,19 +650,12 @@ impl CyclicModule {
             .expect("the module has a count of pending async dependencies")
     }
 
-    /// The SourceTextModule a method that only Source Text Module Records override runs on. C++ verifies that the
-    /// methods of CyclicModule itself are never reached.
-    fn as_source_text_module(&self) -> &SourceTextModule {
-        self.downcast_ref::<SourceTextModule>()
-            .expect("In ecma262 this is never called on a cyclic module only on SourceTextModules.")
-    }
-
     fn initialize_environment(&self, vm: &Vm) -> ThrowCompletionOr<()> {
-        self.as_source_text_module().initialize_environment(vm)
+        (self.methods().initialize_environment)(self, vm)
     }
 
     fn execute_module(&self, vm: &Vm, capability: Option<Gc<PromiseCapability>>) -> ThrowCompletionOr<()> {
-        self.as_source_text_module().execute_module(vm, capability)
+        (self.methods().execute_module)(self, vm, capability)
     }
 
     // 16.2.1.5.2.2 ExecuteAsyncModule ( module ), https://tc39.es/ecma262/#sec-execute-async-module

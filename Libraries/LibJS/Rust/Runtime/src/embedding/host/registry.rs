@@ -14,17 +14,20 @@ use std::collections::HashMap;
 
 use crate::embedding::host::host_array::{HostArray, derive_host_array_class};
 use crate::embedding::host::host_function::{HostFunction, derive_host_function_class};
+use crate::embedding::host::host_module::{HostModule, derive_host_module_class};
 use crate::embedding::host::host_object::{HostObject, derive_host_object_class};
 use crate::gc::class::{Class, GcCell};
 use crate::gc::heap::RuntimeClassAllocator;
 use crate::interpreter::vm::Vm;
-use crate::layout::host_class::{JS_HOST_CLASS_ARRAY, JS_HOST_CLASS_FUNCTION, JS_HOST_CLASS_OBJECT, JSHostClass};
+use crate::layout::host_class::{
+    JS_HOST_CLASS_ARRAY, JS_HOST_CLASS_FUNCTION, JS_HOST_CLASS_MODULE, JS_HOST_CLASS_OBJECT, JSHostClass,
+};
 
 /// What the VM derived for a host class table.
 #[derive(Clone, Copy)]
 pub struct RegisteredHostClass {
     class: &'static Class,
-    /// The allocator of the table's objects, which the first of them creates. A table that only ever is the parent of
+    /// The allocator of the table's cells, which the first of them creates. A table that only ever is the parent of
     /// others has none.
     allocator: Option<RuntimeClassAllocator>,
 }
@@ -37,7 +40,8 @@ fn root_class_of_kind(kind: u8) -> &'static Class {
         JS_HOST_CLASS_OBJECT => HostObject::CLASS,
         JS_HOST_CLASS_FUNCTION => HostFunction::CLASS,
         JS_HOST_CLASS_ARRAY => HostArray::CLASS,
-        kind => panic!("host classes of kind {kind} are not object classes"),
+        JS_HOST_CLASS_MODULE => HostModule::CLASS,
+        kind => panic!("{kind} is not a kind of host class"),
     }
 }
 
@@ -46,12 +50,12 @@ fn derive_class_of_kind(table: &'static JSHostClass, parent: &'static Class) -> 
         JS_HOST_CLASS_OBJECT => derive_host_object_class(table, parent),
         JS_HOST_CLASS_FUNCTION => derive_host_function_class(table, parent),
         JS_HOST_CLASS_ARRAY => derive_host_array_class(table, parent),
-        kind => panic!("host classes of kind {kind} are not object classes"),
+        JS_HOST_CLASS_MODULE => derive_host_module_class(table, parent),
+        kind => panic!("{kind} is not a kind of host class"),
     }
 }
 
-/// The runtime class of `table`, a table of kind JS_HOST_CLASS_OBJECT, JS_HOST_CLASS_FUNCTION or
-/// JS_HOST_CLASS_ARRAY.
+/// The runtime class of `table`.
 pub fn runtime_class_of_host_class(vm: &Vm, table: &'static JSHostClass) -> &'static Class {
     let registered = vm.host_classes().borrow().get(&table.identity()).copied();
     if let Some(registered) = registered {

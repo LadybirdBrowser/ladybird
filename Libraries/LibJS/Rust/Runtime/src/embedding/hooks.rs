@@ -58,7 +58,8 @@ pub struct JSPromiseJob {
     _opaque: [u8; 0],
 }
 
-/// A ModuleRequest Record, which a hook only borrows for the duration of its call.
+/// A ModuleRequest Record. The runtime lends one to a hook for the duration of its call, and the embedder owns the
+/// ones that js_module_request_create() returns until it destroys them.
 pub struct JSModuleRequest {
     _opaque: [u8; 0],
 }
@@ -468,7 +469,8 @@ pub(crate) fn module_request_into_abi(module_request: &ModuleRequest) -> *const 
 
 /// # Safety
 ///
-/// `module_request` must be one that the runtime lent to load_imported_module, for the duration of that call.
+/// `module_request` must be one that the runtime lent to load_imported_module, for the duration of that call, or one
+/// that the embedder owns and keeps for `'a`.
 pub unsafe fn module_request_from_abi<'a>(module_request: *const JSModuleRequest) -> &'a ModuleRequest {
     // SAFETY: The caller passes a module request that the runtime lent it.
     unsafe { &*module_request.cast::<ModuleRequest>() }

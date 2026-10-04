@@ -168,12 +168,30 @@ impl Class {
             parent.object_methods.is_some(),
             "only object classes are derived at run time"
         );
+        Self::leak_class_derived_at_run_time(parent, name, Some(object_methods))
+    }
+
+    /// Creates a class of cells that are not objects, such as the module records of a host class, that extends
+    /// `parent` while the runtime runs, as derive_runtime() does for objects.
+    pub fn derive_runtime_without_object_methods(parent: &'static Class, name: &'static str) -> &'static Class {
+        assert!(
+            parent.object_methods.is_none(),
+            "the classes of objects have internal methods"
+        );
+        Self::leak_class_derived_at_run_time(parent, name, None)
+    }
+
+    fn leak_class_derived_at_run_time(
+        parent: &'static Class,
+        name: &'static str,
+        object_methods: Option<&'static ObjectMethods>,
+    ) -> &'static Class {
         let class = Box::leak(Box::new(Class {
             type_info: parent.type_info,
             name,
             id: parent.id,
             parent: Some(parent),
-            object_methods: Some(object_methods),
+            object_methods,
         }));
         #[cfg(feature = "address-sanitizer")]
         // SAFETY: The class is a live allocation, which the process keeps for as long as it runs.

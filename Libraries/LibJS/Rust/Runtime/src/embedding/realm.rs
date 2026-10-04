@@ -76,7 +76,7 @@ pub const JS_INTRINSIC_COUNT: JSIntrinsic = 25;
 /// # Safety
 ///
 /// `cell` must be null or the address of a live cell of the VM's heap.
-unsafe fn host_defined_slot_of(cell: *mut c_void) -> ForeignCellSlot {
+pub(crate) unsafe fn host_defined_slot_of(cell: *mut c_void) -> ForeignCellSlot {
     let slot = ForeignCellSlot::empty();
     // SAFETY: The caller passes null or a live cell, which the slot keeps alive from now on.
     unsafe { slot.set(NonNull::new(cell)) };
