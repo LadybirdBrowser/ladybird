@@ -211,7 +211,7 @@ private:
     void dispatch_descendant_unload_task(Web::HTML::CrossProcessId unload_id, Web::HTML::CrossProcessId navigable_id);
     void complete_descendant_unload_task(Web::HTML::CrossProcessId unload_id, Web::HTML::CrossProcessId navigable_id);
     [[nodiscard]] Function<void()> end_changing_navigable_history_step_job(HistoryOperation&, Web::HTML::CrossProcessId navigable_id, Web::HTML::ChangingNavigableHistoryStepJobDisposition);
-    ApplyHistoryStepJobs create_apply_history_step_jobs(Web::HTML::CrossProcessId operation_id);
+    ApplyHistoryStepJobs create_apply_history_step_jobs(HistoryOperation&);
     void run_direct_history_operation(HistoryOperation&);
     void traverse_the_history_by_a_delta_at_queue_position(HistoryOperation&, Web::TraverseByDeltaHistoryOperationParameters const&);
     void perform_a_navigation_api_traversal_at_queue_position(HistoryOperation&, Web::NavigationAPITraverseHistoryOperationParameters const&);
@@ -227,6 +227,9 @@ private:
     void resume_applying_the_traverse_history_step(HistoryOperation&, i32 step, Web::HTML::UserNavigationInvolvement);
     void update_for_navigable_creation_or_destruction(HistoryOperation&);
     void finish_history_operation(Web::HTML::CrossProcessId operation_id, Web::HTML::HistoryStepResult, Optional<i32> committed_step);
+    void release_history_operation(HistoryOperation&, Web::HTML::HistoryStepResult);
+    void report_history_operation_result(HistoryOperation&, Web::HTML::HistoryStepResult, Optional<i32> committed_step);
+    void run_steps_waiting_for_traversal();
     HistoryOperation* ongoing_browser_history_traversal();
 
     void run_browser_ui_traversal_at_queue_position(Function<Optional<i32>()> select_target_step, CheckForCancelation, Function<void()> on_ready, NonnullRefPtr<Core::Promise<Empty>>);
