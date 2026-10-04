@@ -250,9 +250,9 @@ void PageClient::request_navigation_start(Web::HTML::LocalNavigable& navigable, 
     client().async_did_request_navigation_start(m_id, navigable.id(), target, url, move(navigation_id), move(start_request));
 }
 
-void PageClient::request_navigation_of_navigable(Web::HTML::Navigable& navigable, Web::HTML::PreparedNavigationDescriptor navigation)
+void PageClient::request_navigation_of_navigable(Web::HTML::Navigable& navigable, Web::HTML::Navigable& source_navigable, Web::DOM::Document const& source_document, Web::HTML::PreparedNavigationDescriptor navigation)
 {
-    client().async_did_request_navigation_of_navigable(m_id, navigable.id(), move(navigation));
+    client().async_did_request_navigation_of_navigable(m_id, navigable.id(), source_navigable.id(), source_document.id(), move(navigation));
 }
 
 void PageClient::request_post_message_to_remote_navigable(Web::HTML::RemoteNavigable& navigable, Web::HTML::PostedMessageDescriptor message)

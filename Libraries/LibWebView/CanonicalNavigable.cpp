@@ -304,6 +304,18 @@ void CanonicalNavigable::begin_navigation(Web::HTML::PreparedNavigationDescripto
     worker->begin_navigation_unload_check(*this, navigation_id);
 }
 
+void CanonicalNavigable::set_routed_navigation(Utf16String navigation_id, URL::Origin initiator_origin)
+{
+    m_routed_navigation = RoutedNavigation { move(navigation_id), move(initiator_origin) };
+}
+
+Optional<URL::Origin> CanonicalNavigable::take_routed_navigation_initiator_origin(Utf16String const& navigation_id)
+{
+    if (!m_routed_navigation.has_value() || m_routed_navigation->navigation_id != navigation_id)
+        return {};
+    return m_routed_navigation.release_value().initiator_origin;
+}
+
 void CanonicalNavigable::begin_navigation_waiting_for_traversal()
 {
     if (!m_navigation_waiting_for_traversal.has_value() || ongoing_navigation_is_traversal())
