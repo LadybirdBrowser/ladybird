@@ -124,7 +124,11 @@ def run_test(webdriver_binary, process_name):
             assert re.search(r"^Git commit: ([0-9a-f]{40}|[0-9a-f]{64}|unknown)$", text, re.MULTILINE), text
             assert "C++ compiler:" in text and "C++ flags:" in text and "Build options:" in text, text
             assert "#0 " in text and "#1 " in text, text
-            assert " + 0x" in text or " at Services/" in text, text
+            # A frame names its binary by build ID and gives the object address, which is what resolving it afterwards
+            # takes. Whether the browser also attached a symbol depends on where the helper was when the signal landed:
+            # it symbolicates a frame only through an image it has loaded itself, so a frame in the helper's own
+            # executable never gets one, and a helper killed from outside may be anywhere in its own code.
+            assert re.search(r"^#\d+ [0-9a-f]{16,64} 0x[0-9a-f]+", text, re.MULTILINE), text
             assert "PRIVATE_CRASH" not in text, text
             assert temporary not in text and str(Path.home()) not in text, text
             assert reports[0].stat().st_mode & 0o777 == 0o400
