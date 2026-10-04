@@ -115,12 +115,27 @@ impl RenderState {
         }
     }
 
-    /// Takes what the writes the state applied owe the host, for the host to pay once it has the job back, and what
-    /// the host learns of the engine's deferred element style inputs, where they moved.
+    /// Takes what the writes the state applied owe the host, for the host to pay once it has the job back, what the
+    /// host learns of the engine's deferred element style inputs, where they moved, and the facts of the state as the
+    /// job leaves it.
     fn take_owed(&mut self) -> Owed {
+        let engine = self.engine_ref();
+        let facts = StateFacts {
+            has_pending_style_transaction: engine.has_pending_transaction(),
+            has_deferred_element_style_inputs: engine.has_deferred_element_style_inputs(),
+            has_size_containers_needing_evaluation_after_layout: engine
+                .has_size_containers_needing_evaluation_after_layout(),
+            layout_is_up_to_date_unless_built: self.arena.arena().layout_is_up_to_date(false),
+            rendering_preparation_pending: crate::painting::paint_passes::rendering_preparation_pending(
+                self.arena.arena(),
+            )
+            .is_some(),
+            owes_image_resources: self.arena.arena().owes_image_resources_to_host(),
+        };
         Owed {
             work: std::mem::take(&mut self.owed),
             deferred_inputs: self.engine_mut().take_moved_deferred_element_style_inputs(),
+            facts,
         }
     }
 
@@ -199,6 +214,22 @@ pub(crate) struct Landing {
 pub(crate) struct Owed {
     work: Vec<crate::layout::tree_mutation::HostWorkDue>,
     deferred_inputs: Option<Vec<crate::css::style::engine_calls::DeferredInput>>,
+    facts: StateFacts,
+}
+
+/// What a document's render state answers of itself as a job or a frame leaves it, which the host reads in place for as
+/// long as it writes nothing: only the host's jobs and frames write the state.
+#[derive(Clone, Copy)]
+pub(crate) struct StateFacts {
+    pub(crate) has_pending_style_transaction: bool,
+    pub(crate) has_deferred_element_style_inputs: bool,
+    pub(crate) has_size_containers_needing_evaluation_after_layout: bool,
+    /// Whether the layout is up to date, unless the document's layout tree update marks ask for a build of it.
+    pub(crate) layout_is_up_to_date_unless_built: bool,
+    /// Whether preparing the document for rendering has something to do.
+    pub(crate) rendering_preparation_pending: bool,
+    /// Whether the layout tree builds owe the host image resources.
+    pub(crate) owes_image_resources: bool,
 }
 
 // Every write the host makes is moved through its queue and into the render state, so a variant that carries a large
@@ -262,6 +293,16 @@ impl ArenaChange {
         }
     }
 
+    /// Whether the change may move a fact the host knows of the render state (see [`StateFacts`]): a write to the paint
+    /// state or an epoch of style record views never does.
+    fn may_move_facts(&self) -> bool {
+        match self {
+            Self::Paint(_) => false,
+            Self::Style(change) => !change.is_view_epoch(),
+            Self::Layout(_) | Self::Engine(_) | Self::DetachForRemoval(_) | Self::Rule(_) => true,
+        }
+    }
+
     /// Whether the change may write the arena, and so the rows: a write to the style engine never does.
     fn may_write_rows(&self) -> bool {
         self.row_write() != RowWrite::None
@@ -306,6 +347,8 @@ struct ChangeQueue {
     spare: Cell<Vec<ArenaChange>>,
     /// How far the writes queued may write the rows (see [`ArenaChange::row_write`]).
     row_write: Cell<RowWrite>,
+    /// Whether a write queued may move a fact the host knows of the render state (see [`ArenaChange::may_move_facts`]).
+    may_move_facts: Cell<bool>,
 }
 
 impl ChangeQueue {
@@ -314,8 +357,26 @@ impl ChangeQueue {
     }
 
     fn push(&self, change: ArenaChange) {
+        use crate::css::style::bridge::StyleChange;
         self.row_write.set(self.row_write.get().max(change.row_write()));
-        self.queued.borrow_mut().push(change);
+        self.may_move_facts
+            .set(self.may_move_facts.get() || change.may_move_facts());
+        let mut queued = self.queued.borrow_mut();
+        // An epoch of style record views that ends before anything else is queued or applied in it views nothing.
+        if matches!(change, ArenaChange::Style(StyleChange::EndStyleRecordViewEpoch {}))
+            && matches!(
+                queued.last(),
+                Some(ArenaChange::Style(StyleChange::BeginStyleRecordViewEpoch {}))
+            )
+        {
+            queued.pop();
+            return;
+        }
+        queued.push(change);
+    }
+
+    fn may_move_facts(&self) -> bool {
+        self.may_move_facts.get()
     }
 
     fn may_write_rows(&self) -> bool {
@@ -336,6 +397,7 @@ impl ChangeQueue {
     fn drain<R>(&self, hold_style: bool, apply: impl FnOnce(std::vec::Drain<'_, ArenaChange>) -> R) -> R {
         let mut queued = self.queued.replace(self.spare.take());
         self.row_write.set(RowWrite::None);
+        self.may_move_facts.set(false);
         if hold_style {
             self.queue_style_writes_of(&mut queued);
         }
@@ -348,15 +410,16 @@ impl ChangeQueue {
     /// give_back().
     fn take(&self) -> Vec<ArenaChange> {
         self.row_write.set(RowWrite::None);
+        self.may_move_facts.set(false);
         self.queued.replace(self.spare.take())
     }
 
     /// Moves the style writes of `changes` back into the queue, where they wait for the next application.
     #[cold]
     fn queue_style_writes_of(&self, changes: &mut Vec<ArenaChange>) {
-        self.queued
-            .borrow_mut()
-            .extend(changes.extract_if(.., |change| change.writes_style()));
+        let mut queued = self.queued.borrow_mut();
+        queued.extend(changes.extract_if(.., |change| change.writes_style()));
+        self.may_move_facts.set(queued.iter().any(ArenaChange::may_move_facts));
     }
 
     /// Keeps `buffer`, emptied by the render side, as the spare.
@@ -374,6 +437,8 @@ impl ChangeQueue {
 
     /// Queues the writes hold_style_writes() held behind the writes queued meanwhile.
     fn requeue(&self, mut held: Vec<ArenaChange>) {
+        self.may_move_facts
+            .set(self.may_move_facts.get() || held.iter().any(ArenaChange::may_move_facts));
         self.queued.borrow_mut().append(&mut held);
         self.spare.set(held);
     }

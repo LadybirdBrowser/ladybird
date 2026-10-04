@@ -225,6 +225,9 @@ impl FfiLayoutUpdateHostCallbacks {
     /// in the order the builds came to owe them. Until now a box that owns its image's provider
     /// had no image; one handed a provider whose image is already there lays out again.
     fn attach_owed_image_resources(&self, _: &MainThread, host: &DocumentHost, read: &BegunRead) {
+        if host.known_facts().is_some_and(|facts| !facts.owes_image_resources) {
+            return;
+        }
         let owed = read_arena(host, read, (), |arena, ()| {
             let mut owed = arena.take_image_resources_owed_to_host();
             // A later build of the update may have freed the row.
@@ -262,6 +265,12 @@ fn layout_is_up_to_date(arena: &LayoutNodeArena, facts: &FfiLayoutUpdateDocument
 
 /// Whether the layout of `host`'s document is up to date, as [`layout_is_up_to_date`] answers.
 fn host_layout_is_up_to_date(host: &DocumentHost, read: &BegunRead, facts: &FfiLayoutUpdateDocumentFacts) -> bool {
+    if !facts.document_is_active {
+        return true;
+    }
+    if let Some(state) = host.known_facts() {
+        return state.layout_is_up_to_date_unless_built && !facts.document_needs_layout_tree_build;
+    }
     read_arena(host, read, *facts, |arena, facts| layout_is_up_to_date(arena, &facts))
 }
 

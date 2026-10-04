@@ -173,8 +173,15 @@ pub(crate) fn rendering_preparation_pending(arena: &LayoutNodeArena) -> Option<P
     pending.then_some(PendingPreparation { root_background_source })
 }
 
-/// Asks the render state of `host`'s document in `read` whether preparing it for rendering has something to do.
+/// Asks the render state of `host`'s document in `read` whether preparing it for rendering has something to do, unless
+/// the host knows it has nothing.
 pub(crate) fn pending_preparation(read: &BegunRead, host: &DocumentHost) -> Option<PendingPreparation> {
+    if host
+        .known_facts()
+        .is_some_and(|facts| !facts.rendering_preparation_pending)
+    {
+        return None;
+    }
     ask(read, host, PreparationPending)
 }
 

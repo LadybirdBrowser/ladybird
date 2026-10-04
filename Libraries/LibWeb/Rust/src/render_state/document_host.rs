@@ -12,7 +12,7 @@ use super::questions::Question;
 use super::wait::{BegunRead, HostRead, NodeRead, ReadRight, force_read_flown_style};
 use super::{
     ArenaChange, ChangeQueue, CommittedRows, ForcedRead, Landing, NoFrameInFlight, Owed, RenderState, RenderWait,
-    ScriptForcedRead, on_render_side, post_to_render_side,
+    ScriptForcedRead, StateFacts, on_render_side, post_to_render_side,
 };
 use crate::css::style::bridge::FfiDeviceClass;
 use crate::css::style::flight_style_rows::FlightStyleRow;
@@ -95,6 +95,8 @@ pub struct DocumentHost {
     published_rules: PublishedRules,
     /// What the host learned of its document's style engine.
     engine_memo: crate::css::style::engine_calls::EngineMemo,
+    /// The facts of the render state as the host's last job or frame left it.
+    facts: Cell<Option<StateFacts>>,
 }
 
 /// Pays what the writes a job applied owe the host, which only [`DocumentHost::pay`] makes.
@@ -169,6 +171,7 @@ impl DocumentHost {
             }),
             published_rules: PublishedRules::default(),
             engine_memo: Default::default(),
+            facts: Cell::new(None),
         }
     }
 
@@ -201,9 +204,13 @@ impl DocumentHost {
     /// Writes `change` to the document's render state, before anything that reads what it changes: the render owner
     /// applies it ahead of the host's next job. A write never reaches the render state as the host makes it.
     pub(crate) fn queue_change(&self, change: ArenaChange) {
-        self.note_render_state_write();
-        if let ArenaChange::Style(change) = &change {
-            self.engine_memo.deferred.borrow_mut().follow(change);
+        match &change {
+            ArenaChange::Style(change) if change.is_view_epoch() => {}
+            ArenaChange::Style(change) => {
+                self.note_render_state_write();
+                self.engine_memo.deferred.borrow_mut().follow(change);
+            }
+            _ => self.note_render_state_write(),
         }
         if change.may_write_rows() {
             self.forget_fresh_layout();
@@ -268,7 +275,15 @@ impl DocumentHost {
     }
 
     /// Pays what the writes a job or a frame applied owe the host, now that the host has it back.
-    fn pay(&self, Owed { work, deferred_inputs }: Owed) {
+    fn pay(
+        &self,
+        Owed {
+            work,
+            deferred_inputs,
+            facts,
+        }: Owed,
+    ) {
+        self.facts.set(Some(facts));
         self.engine_memo
             .deferred
             .borrow_mut()
@@ -481,6 +496,15 @@ impl DocumentHost {
         }
     }
 
+    /// The facts of the render state, where the host knows them: it wrote nothing that may move them since its last job
+    /// or frame left them, and none runs.
+    pub(crate) fn known_facts(&self) -> Option<StateFacts> {
+        if !self.knows_engine_between_jobs() || self.changes.may_move_facts() {
+            return None;
+        }
+        self.facts.get()
+    }
+
     /// Whether the host knows what its engine holds as of the writes it queued: no job of the engine runs, as a host
     /// callback of one does, and no frame flies.
     pub(crate) fn knows_engine_between_jobs(&self) -> bool {
@@ -654,6 +678,7 @@ impl DocumentHost {
     #[cfg(test)]
     pub(crate) fn arena_for_test(&self) -> *mut crate::layout::LayoutNodeArena {
         self.arena_version.set(None);
+        self.facts.set(None);
         owner::with_state(self.document, self.seed.take(), |state| {
             std::ptr::from_mut(state.arena.arena_mut())
         })

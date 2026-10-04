@@ -5034,6 +5034,11 @@ impl LayoutNodeArena {
         self.image_resources_owed_to_host.take()
     }
 
+    /// Whether the finished builds owe the host any image resource.
+    pub(crate) fn owes_image_resources_to_host(&self) -> bool {
+        !self.image_resources_owed_to_host.borrow().is_empty()
+    }
+
     /// Whether `id` is an image box that owns its image's provider and has not been handed it yet.
     pub(crate) fn image_box_awaits_owned_provider(&self, id: NodeSlotId) -> bool {
         self.image_boxes_awaiting_owned_provider.borrow().contains(&id)
@@ -5512,10 +5517,18 @@ pub unsafe extern "C" fn render_state_layout_is_up_to_date(
     if let Some(up_to_date) = host.known_layout_up_to_date() {
         return up_to_date;
     }
+    let document = StyleNodeID::from_raw(document_style_node);
+    if let Some(facts) = host.known_facts() {
+        let document_needs_layout_tree_build = document
+            .is_some_and(|document| host.read_marks(|marks| marks.needs(document) || marks.child_needs(document)));
+        let up_to_date = facts.layout_is_up_to_date_unless_built && !document_needs_layout_tree_build;
+        host.note_layout_up_to_date(up_to_date);
+        return up_to_date;
+    }
     let up_to_date = crate::render_state::ask(
         here,
         host,
-        crate::render_state::ArenaRead::new(StyleNodeID::from_raw(document_style_node), |arena, document| {
+        crate::render_state::ArenaRead::new(document, |arena, document| {
             let document_needs_layout_tree_build = document.is_some_and(|document| {
                 let marks = arena.layout_tree_update_marks().borrow();
                 marks.needs(document) || marks.child_needs(document)

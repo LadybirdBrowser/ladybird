@@ -4388,6 +4388,16 @@ impl StyleChange {
             Self::NoteAttributeNameForms { .. } | Self::NoteAttributeSubstitutionName { .. }
         )
     }
+
+    /// Whether the change begins or ends an epoch of style record views, which only keeps the engine from reclaiming
+    /// a record a view may still read: nothing the paint properties are prepared from, nor any fact the host knows of
+    /// the render state (see [`crate::render_state::StateFacts`]).
+    pub(crate) fn is_view_epoch(&self) -> bool {
+        matches!(
+            self,
+            Self::BeginStyleRecordViewEpoch {} | Self::EndStyleRecordViewEpoch {}
+        )
+    }
 }
 
 #[cfg(test)]
