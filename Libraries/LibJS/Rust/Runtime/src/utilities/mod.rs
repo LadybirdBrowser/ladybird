@@ -8,6 +8,8 @@
 
 pub mod js;
 pub mod line_editor;
+// Like the C++ test262-runner, the Rust one is not built on Windows: it relies on pipes, alarm() and rlimits.
+#[cfg(unix)]
 pub mod test262_runner;
 pub mod test_js;
 

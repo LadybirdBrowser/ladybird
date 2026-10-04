@@ -10,7 +10,6 @@
 //! output reaches a pipe that also gets the standard error the same as with the C++ tools.
 
 use core::cell::RefCell;
-use core::ffi::c_int;
 use std::io::{self, IsTerminal, Write};
 
 /// What C stdio buffers for a pipe or a file before it writes it.
@@ -85,23 +84,63 @@ pub fn write_unbuffered(bytes: &[u8]) {
 /// straight to the file descriptor and fails like write(), also on a closed descriptor, which the standard streams of
 /// std report as written. The caller flushes the buffer before writing to the standard output with it.
 pub struct UnbufferedWriter {
-    file_descriptor: c_int,
+    stream: StandardStream,
+}
+
+#[derive(Clone, Copy)]
+enum StandardStream {
+    Output,
+    Error,
 }
 
 impl UnbufferedWriter {
     pub const STANDARD_OUTPUT: Self = Self {
-        file_descriptor: libc::STDOUT_FILENO,
+        stream: StandardStream::Output,
     };
     pub const STANDARD_ERROR: Self = Self {
-        file_descriptor: libc::STDERR_FILENO,
+        stream: StandardStream::Error,
     };
 }
 
 impl Write for UnbufferedWriter {
+    #[cfg(unix)]
     fn write(&mut self, bytes: &[u8]) -> io::Result<usize> {
+        let file_descriptor = match self.stream {
+            StandardStream::Output => libc::STDOUT_FILENO,
+            StandardStream::Error => libc::STDERR_FILENO,
+        };
         // SAFETY: The bytes are valid for their length.
-        let written = unsafe { libc::write(self.file_descriptor, bytes.as_ptr().cast(), bytes.len()) };
+        let written = unsafe { libc::write(file_descriptor, bytes.as_ptr().cast(), bytes.len()) };
         usize::try_from(written).map_err(|_| io::Error::last_os_error())
+    }
+
+    /// Core::File::write_some() on Windows: WriteFile() on the handle of the stream.
+    #[cfg(windows)]
+    fn write(&mut self, bytes: &[u8]) -> io::Result<usize> {
+        use std::os::windows::io::{AsRawHandle, RawHandle};
+
+        #[link(name = "kernel32")]
+        unsafe extern "system" {
+            fn WriteFile(
+                file: RawHandle,
+                buffer: *const u8,
+                length: u32,
+                written: *mut u32,
+                overlapped: *mut core::ffi::c_void,
+            ) -> i32;
+        }
+
+        let handle = match self.stream {
+            StandardStream::Output => io::stdout().as_raw_handle(),
+            StandardStream::Error => io::stderr().as_raw_handle(),
+        };
+        let length = u32::try_from(bytes.len()).unwrap_or(u32::MAX);
+        let mut written = 0;
+        // SAFETY: The bytes are valid for `length` bytes, and WriteFile() fails on a null or closed handle.
+        if unsafe { WriteFile(handle, bytes.as_ptr(), length, &raw mut written, core::ptr::null_mut()) } == 0 {
+            return Err(io::Error::last_os_error());
+        }
+        Ok(written as usize)
     }
 
     fn flush(&mut self) -> io::Result<()> {

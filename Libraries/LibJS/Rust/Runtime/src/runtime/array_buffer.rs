@@ -10,7 +10,6 @@ use core::ops::Deref;
 use core::ptr::NonNull;
 use core::sync::atomic::{AtomicU8, AtomicU16, AtomicU32, AtomicU64, Ordering};
 use core::time::Duration;
-use std::os::fd::{AsFd, BorrowedFd, OwnedFd};
 
 use libjs_runtime_macros::Trace;
 use num_bigint::BigInt as NumBigInt;
@@ -22,6 +21,7 @@ use crate::gc::foreign::ForeignCellSlot;
 use crate::gc::gc_ref_cell::GcRefCell;
 use crate::gc::heap::Heap;
 use crate::gc::primitive_storage::{ForeignPrimitiveStorage, OwnedPrimitiveStorage, create_shared_memory};
+use crate::gc::shared_memory::{AsSharedMemory, BorrowedSharedMemory, OwnedSharedMemory, SharedMemoryViewOutsideCage};
 use crate::gc::visitor::{Trace, Visitor};
 use crate::gc::weak::GcWeak;
 use crate::interpreter::vm::Vm;
@@ -282,57 +282,115 @@ fn mint_shared_object_id() -> u64 {
 }
 
 /// DataBlock::SharedBackingStore: the bytes of a fixed-length Shared Data Block in a shared memory object, which agents
-/// in other processes map too, mapped into the cage. The block keeps a descriptor of the object to hand it on, and the
-/// id that names the object in every agent, since one object that is mapped twice has two addresses.
+/// in other processes map too. The block keeps a descriptor of the object to hand it on, and the id that names the
+/// object in every agent, since one object that is mapped twice has two addresses.
 pub struct SharedBackingStore {
-    shared_memory: OwnedFd,
+    shared_memory: OwnedSharedMemory,
     object_id: u64,
-    storage: OwnedPrimitiveStorage,
+    mapping: SharedMemoryMapping,
+}
+
+/// Like every other backing store, shared memory is mapped into the cage, so that an out-of-bounds access through the
+/// buffer is masked back into it. When the cage cannot take the mapping, as on Windows, which cannot place one inside
+/// it, the object is mapped outside of it instead, where the views of the buffer reach the bytes through the slow path.
+enum SharedMemoryMapping {
+    InCage(OwnedPrimitiveStorage),
+    OutsideCage(SharedMemoryViewOutsideCage),
+}
+
+impl SharedMemoryMapping {
+    fn map(shared_memory: BorrowedSharedMemory<'_>, size: usize) -> Result<Self, OutOfMemory> {
+        if let Ok(storage) = OwnedPrimitiveStorage::adopt_shared_memory(shared_memory, size) {
+            return Ok(Self::InCage(storage));
+        }
+        let view = SharedMemoryViewOutsideCage::map(shared_memory, size)?;
+        Ok(Self::OutsideCage(view))
+    }
+}
+
+/// Whether the shared memory object has at least `size` bytes, as accessing a mapping beyond the end of its object
+/// raises SIGBUS. A Windows section is not a file, so it has no size to ask for, but MapViewOfFile() refuses a view
+/// that extends past its end.
+fn shared_memory_object_has_at_least(shared_memory: &std::fs::File, size: usize) -> bool {
+    #[cfg(unix)]
+    {
+        shared_memory
+            .metadata()
+            .is_ok_and(|metadata| metadata.len() >= size as u64)
+    }
+    #[cfg(windows)]
+    {
+        let _ = (shared_memory, size);
+        true
+    }
 }
 
 impl SharedBackingStore {
     /// A new zero-filled shared memory object of `size` bytes, named by a new id.
     pub fn create(size: usize) -> Result<Self, OutOfMemory> {
         let shared_memory = create_shared_memory(size)?;
-        let storage = OwnedPrimitiveStorage::adopt_shared_memory(shared_memory.as_fd(), size)?;
+        let mapping = SharedMemoryMapping::map(shared_memory.as_shared_memory(), size)?;
         Ok(Self {
             shared_memory,
             object_id: mint_shared_object_id(),
-            storage,
+            mapping,
         })
     }
 
     /// The first `size` bytes of a shared memory object that another agent made and `object_id` names. The store keeps
-    /// a duplicate of the descriptor. Fails if `size` is 0 or the object is smaller than that, as accessing a mapping
-    /// beyond the end of its object raises SIGBUS.
-    pub fn adopt(shared_memory: BorrowedFd<'_>, size: usize, object_id: u64) -> Result<Self, OutOfMemory> {
+    /// a duplicate of the descriptor. Fails if `size` is 0 or the object is smaller than that.
+    pub fn adopt(shared_memory: BorrowedSharedMemory<'_>, size: usize, object_id: u64) -> Result<Self, OutOfMemory> {
         let shared_memory = std::fs::File::from(shared_memory.try_clone_to_owned().map_err(|_| OutOfMemory)?);
-        let object_size = shared_memory.metadata().map_err(|_| OutOfMemory)?.len();
-        if object_size < size as u64 {
+        if !shared_memory_object_has_at_least(&shared_memory, size) {
             return Err(OutOfMemory);
         }
-        let storage = OwnedPrimitiveStorage::adopt_shared_memory(shared_memory.as_fd(), size)?;
+        let mapping = SharedMemoryMapping::map(shared_memory.as_shared_memory(), size)?;
         Ok(Self {
             shared_memory: shared_memory.into(),
             object_id,
-            storage,
+            mapping,
         })
     }
 
-    pub fn shared_memory(&self) -> BorrowedFd<'_> {
-        self.shared_memory.as_fd()
+    pub fn shared_memory(&self) -> BorrowedSharedMemory<'_> {
+        self.shared_memory.as_shared_memory()
     }
 
     pub fn object_id(&self) -> u64 {
         self.object_id
     }
 
+    /// The handle of the storage in the cage, or the null handle for a mapping outside of it.
     pub fn handle(&self) -> GCPrimitiveStorageHandle {
-        self.storage.handle()
+        match &self.mapping {
+            SharedMemoryMapping::InCage(storage) => storage.handle(),
+            SharedMemoryMapping::OutsideCage(_) => GC_PRIMITIVE_STORAGE_NULL_HANDLE,
+        }
     }
 
     pub fn size(&self) -> usize {
-        self.storage.size()
+        match &self.mapping {
+            SharedMemoryMapping::InCage(storage) => storage.size(),
+            SharedMemoryMapping::OutsideCage(view) => view.size(),
+        }
+    }
+
+    fn data(&self) -> *mut u8 {
+        match &self.mapping {
+            SharedMemoryMapping::InCage(storage) => storage.data(),
+            SharedMemoryMapping::OutsideCage(view) => view.data(),
+        }
+    }
+
+    fn offset(&self) -> usize {
+        match &self.mapping {
+            SharedMemoryMapping::InCage(storage) => storage.offset(),
+            SharedMemoryMapping::OutsideCage(_) => INVALID_DATA_OFFSET,
+        }
+    }
+
+    fn is_caged(&self) -> bool {
+        matches!(self.mapping, SharedMemoryMapping::InCage(_))
     }
 }
 
@@ -431,7 +489,7 @@ impl DataBlock {
             DataBlockStorage::Empty => unreachable!("the data block is detached"),
             DataBlockStorage::Owned(buffer) => buffer.data(),
             DataBlockStorage::External(storage) => storage.storage.data(),
-            DataBlockStorage::Shared(store) => store.storage.data(),
+            DataBlockStorage::Shared(store) => store.data(),
         }
     }
 
@@ -588,16 +646,18 @@ impl DataBlock {
             DataBlockStorage::Empty => INVALID_DATA_OFFSET,
             DataBlockStorage::Owned(buffer) => buffer.offset(),
             DataBlockStorage::External(storage) => storage.storage.offset(),
-            DataBlockStorage::Shared(store) => store.storage.offset(),
+            DataBlockStorage::Shared(store) => store.offset(),
         }
     }
 
-    /// Whether the bytes are in the cage. Owned storage and shared memory always are, as the runtime fails to create a
-    /// block where C++ falls back to memory outside of it, and external storage is while its handle names storage.
+    /// Whether the bytes are in the cage. Owned storage always is, as the runtime fails to create a block where C++
+    /// falls back to memory outside of it, shared memory is unless the platform cannot map it there, and external
+    /// storage is while its handle names storage.
     pub fn is_caged(&self) -> bool {
         match &self.byte_buffer {
             DataBlockStorage::Empty => false,
-            DataBlockStorage::Owned(_) | DataBlockStorage::Shared(_) => true,
+            DataBlockStorage::Owned(_) => true,
+            DataBlockStorage::Shared(store) => store.is_caged(),
             DataBlockStorage::External(storage) => storage.storage.is_valid(),
         }
     }
@@ -866,7 +926,7 @@ impl ArrayBuffer {
     pub fn create_from_shared_memory(
         vm: &Vm,
         realm: Gc<Realm>,
-        shared_memory: BorrowedFd<'_>,
+        shared_memory: BorrowedSharedMemory<'_>,
         size: usize,
         object_id: u64,
     ) -> Result<Gc<ArrayBuffer>, OutOfMemory> {

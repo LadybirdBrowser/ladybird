@@ -171,7 +171,12 @@ unsafe extern "C" {
     pub fn gc_shared_memory_view_outside_cage_create(fd: c_int, size: usize) -> *mut GCSharedMemoryViewOutsideCage;
     pub fn gc_shared_memory_view_outside_cage_data(view: *mut GCSharedMemoryViewOutsideCage) -> *mut u8;
     pub fn gc_shared_memory_view_outside_cage_destroy(view: *mut GCSharedMemoryViewOutsideCage);
+}
 
+// On Windows, a variable that a DLL exports is only reachable through the DLL's import table, which the reference has
+// to go through.
+#[cfg_attr(windows, link(name = "lagom-gc", kind = "dylib"))]
+unsafe extern "C" {
     /// The base NaN-boxed cell values are relative to; zero until gc_heap_region_base() first runs.
     pub static js_heap_region_base: usize;
 }

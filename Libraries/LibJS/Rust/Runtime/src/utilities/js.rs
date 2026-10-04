@@ -10,9 +10,11 @@ use core::cell::{Cell, RefCell};
 use core::ffi::{c_char, c_int};
 use core::ops::Deref;
 use core::sync::atomic::{AtomicBool, AtomicI32, Ordering};
-use std::ffi::{CStr, CString, OsStr};
+use std::ffi::{CStr, CString};
 use std::io::{self, Read, Write};
+#[cfg(unix)]
 use std::os::unix::ffi::{OsStrExt, OsStringExt};
+#[cfg(unix)]
 use std::os::unix::fs::OpenOptionsExt;
 
 use ak::{Utf16FlyString, Utf16String};
@@ -935,12 +937,15 @@ fn prompt_for_level(level: i32) -> CString {
 
 /// Writes the statements that the REPL ran before the current one to `path`, each followed by a newline.
 fn write_to_file(path: &[u8]) -> io::Result<()> {
-    let mut file = std::fs::OpenOptions::new()
-        .write(true)
-        .create(true)
-        .truncate(true)
-        .mode(0o666)
-        .open(OsStr::from_bytes(path))?;
+    let mut options = std::fs::OpenOptions::new();
+    options.write(true).create(true).truncate(true);
+    #[cfg(unix)]
+    options.mode(0o666);
+    #[cfg(unix)]
+    let path = std::ffi::OsStr::from_bytes(path);
+    #[cfg(windows)]
+    let path = std::str::from_utf8(path).map_err(|error| io::Error::new(io::ErrorKind::InvalidInput, error))?;
+    let mut file = options.open(path)?;
     REPL_STATEMENTS.with_borrow(|statements| {
         for (i, line) in statements.iter().enumerate() {
             if !line.is_empty() && i != statements.len() - 1 {
@@ -1719,6 +1724,7 @@ fn canonicalized_path_of_bytes(path: &[u8]) -> Vec<u8> {
 }
 
 /// Core::StandardPaths::home_directory() without HOME: the home directory of the user in the user database.
+#[cfg(unix)]
 fn home_directory_of_user() -> Vec<u8> {
     // SAFETY: getpwuid() returns NULL or an entry whose home directory is NUL-terminated, which is copied before
     // endpwent() releases the entry.
@@ -1737,10 +1743,16 @@ fn home_directory_of_user() -> Vec<u8> {
 /// s_history_path of the C++ js: .js-history in Core::StandardPaths::home_directory(), which String::formatted()
 /// fails to make if the home directory is not UTF-8.
 fn history_path() -> Result<CString, String> {
+    #[cfg(unix)]
     let home_directory = match std::env::var_os("HOME") {
         Some(home_directory) => home_directory.into_vec(),
         None => home_directory_of_user(),
     };
+    // Core::StandardPaths::home_directory() on Windows.
+    #[cfg(windows)]
+    let home_directory = std::env::var_os("USERPROFILE")
+        .map(std::ffi::OsString::into_encoded_bytes)
+        .unwrap_or_default();
     let mut history_path = canonicalized_path_of_bytes(&home_directory);
     history_path.extend_from_slice(b"/.js-history");
     if utf16_from_wtf8(&history_path).is_none() {

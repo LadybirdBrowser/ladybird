@@ -6,7 +6,7 @@
 
 #include <LibMain/Main.h>
 
-#if !defined(AK_OS_ANDROID)
+#if !defined(AK_OS_WINDOWS) && !defined(AK_OS_ANDROID)
 #    include <editline/readline.h>
 #endif
 
@@ -26,7 +26,7 @@ struct JSLineEditor {
 int libjs_runtime_rust_js_main(int argc, char** argv, JSLineEditor const* line_editor);
 }
 
-#if !defined(AK_OS_ANDROID)
+#if !defined(AK_OS_WINDOWS) && !defined(AK_OS_ANDROID)
 static LineCompletionFunction s_complete_line;
 
 static char** complete_line_being_edited(char const*, int, int)
@@ -51,7 +51,7 @@ static constexpr JSLineEditor s_libedit_line_editor {
 
 ErrorOr<int> ladybird_main(Main::Arguments arguments)
 {
-#if defined(AK_OS_ANDROID)
+#if defined(AK_OS_WINDOWS) || defined(AK_OS_ANDROID)
     JSLineEditor const* line_editor = nullptr;
 #else
     JSLineEditor const* line_editor = &s_libedit_line_editor;

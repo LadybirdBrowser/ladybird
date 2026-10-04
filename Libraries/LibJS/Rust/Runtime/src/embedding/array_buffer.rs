@@ -13,7 +13,6 @@
 
 use core::ffi::{c_int, c_void};
 use core::ptr::NonNull;
-use std::os::fd::{BorrowedFd, IntoRawFd};
 
 use crate::embedding::abi_types::{
     JSRealm, cell_from_abi, completion_into_abi, object_into_abi, optional_object_into_abi, vm_from_abi,
@@ -21,6 +20,7 @@ use crate::embedding::abi_types::{
 use crate::gc::capi::GC_PRIMITIVE_STORAGE_NULL_HANDLE;
 use crate::gc::class::{Extends, GcCell};
 use crate::gc::foreign::ForeignCellSlot;
+use crate::gc::shared_memory::{borrowed_from_raw_descriptor, into_raw_descriptor};
 use crate::layout::cell::Gc;
 use crate::layout::host_class::{JSCompletion, JSObject, JSVM, JSValue};
 use crate::layout::object::Object;
@@ -282,7 +282,7 @@ pub unsafe extern "C" fn js_array_buffer_create_from_shared_memory(
     let (vm, realm) = unsafe { (vm_from_abi(vm), cell_from_abi(realm)) };
     assert!(shared_memory_fd >= 0, "the embedder passes an open descriptor");
     // SAFETY: The caller guarantees that the descriptor stays open for the duration of the call.
-    let shared_memory = unsafe { BorrowedFd::borrow_raw(shared_memory_fd) };
+    let shared_memory = unsafe { borrowed_from_raw_descriptor(shared_memory_fd) };
     optional_object_into_abi(
         ArrayBuffer::create_from_shared_memory(vm, realm, shared_memory, byte_length, object_id).ok(),
     )
@@ -391,7 +391,7 @@ pub unsafe extern "C" fn js_array_buffer_duplicate_shared_memory(
     };
     // SAFETY: The caller passes a valid out parameter.
     unsafe { out_byte_length.write(byte_length) };
-    descriptor.into_raw_fd()
+    into_raw_descriptor(descriptor)
 }
 
 /// [[ArrayBufferByteLength]], which is 0 for a detached buffer. Main thread only.

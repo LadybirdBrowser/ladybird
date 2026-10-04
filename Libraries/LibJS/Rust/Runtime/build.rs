@@ -250,6 +250,21 @@ fn assemble_interpreter(target: &Target, assembly_path: &Path) {
     {
         build.flag(format!("-mmacosx-version-min={deployment_target}"));
     }
+    if env::var("CARGO_CFG_TARGET_ENV").is_ok_and(|environment| environment == "msvc") {
+        // flapc writes GNU assembly, which MSVC's cl.exe cannot assemble. Ladybird builds for Windows with clang-cl,
+        // which also assembles the C++ LibJS's interpreter.
+        if !build
+            .try_get_compiler()
+            .is_ok_and(|compiler| compiler.is_like_clang_cl())
+        {
+            build.compiler("clang-cl");
+        }
+        // Given -Fo, clang-cl writes the preprocessed assembly to the working directory, which cargo makes the source
+        // directory of the crate.
+        let output_directory = assembly_path.parent().expect("the assembly is in the output directory");
+        env::set_current_dir(output_directory)
+            .unwrap_or_else(|error| panic!("enter {}: {error}", output_directory.display()));
+    }
     if matches!(target.architecture, flapc::Architecture::X86_64) {
         build.flag_if_supported("-malign-branch-boundary=32");
         build.flag_if_supported("-malign-branch=fused,jcc");
