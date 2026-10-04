@@ -48,8 +48,8 @@ if (ENABLE_UNDEFINED_SANITIZER)
         if (APPLE AND CMAKE_CXX_COMPILER_ID MATCHES "Clang$" AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL "17")
             add_cxx_compile_options(-fno-sanitize=function)
         endif()
-        # The Rust LibJS runtime keeps its own class pointer where a C++ cell has its vtable pointer, which LibGC never
-        # reads but vptr checks in LibGC would.
+        # The Rust LibJS runtime keeps its own class pointer where a C++ cell has its vtable pointer, so vptr checks
+        # misfire wherever one of its cells is handled as a GC::Cell. LibGC turns the checks off for itself.
         if (ENABLE_LIBJS_RUST_RUNTIME)
             add_cxx_compile_options(-fno-sanitize=vptr)
         endif()

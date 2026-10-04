@@ -16,6 +16,7 @@ class CellAllocator;
 struct CellTypeInfo;
 struct CellTypeThunks;
 class DeferGC;
+class ForeignCell;
 class RootImpl;
 class Heap;
 class HeapGroup;

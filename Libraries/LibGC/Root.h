@@ -52,17 +52,17 @@ public:
 
     static Root create(T* cell, SourceLocation location = SourceLocation::current())
     {
-        return Root(adopt_ref(*new RootImpl(const_cast<RemoveConst<T>*>(cell), location)));
+        return Root(adopt_ref(*new RootImpl(as_cell(const_cast<RemoveConst<T>*>(cell)), location)));
     }
 
     Root(T* cell, SourceLocation location = SourceLocation::current())
     {
         if (cell)
-            m_impl = adopt_ref(*new RootImpl(cell, location));
+            m_impl = adopt_ref(*new RootImpl(as_cell(cell), location));
     }
 
     Root(T& cell, SourceLocation location = SourceLocation::current())
-        : m_impl(adopt_ref(*new RootImpl(&cell, location)))
+        : m_impl(adopt_ref(*new RootImpl(as_cell(&cell), location)))
     {
     }
 
@@ -80,7 +80,7 @@ public:
     {
         if (!m_impl)
             return nullptr;
-        return static_cast<T*>(m_impl->cell());
+        return static_cell_cast<T>(m_impl->cell());
     }
 
     T* ptr() const

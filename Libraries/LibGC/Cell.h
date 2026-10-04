@@ -24,8 +24,10 @@ struct IsVisitable;
 
 #if defined(AK_COMPILER_CLANG)
 #    define GC_ALLOW_CELL_DESTRUCTOR [[clang::annotate("ladybird::allow_cell_destructor")]]
+#    define GC_VISITS_THROUGH_FOREIGN_IMPLEMENTATION [[clang::annotate("ladybird::visits_through_foreign_implementation")]]
 #else
 #    define GC_ALLOW_CELL_DESTRUCTOR
+#    define GC_VISITS_THROUGH_FOREIGN_IMPLEMENTATION
 #endif
 
 #define GC_CELL(class_, base_class)                \
@@ -105,17 +107,22 @@ public:
             visit(const_cast<Cell&>(cell));
         }
 
+        void visit(ForeignCell* cell);
+        void visit(ForeignCell& cell);
+        void visit(ForeignCell const* cell);
+        void visit(ForeignCell const& cell);
+
         template<typename T>
         void visit(Ptr<T> cell)
         {
             if (cell)
-                visit_impl(const_cast<RemoveConst<T>&>(*cell.ptr()));
+                visit_impl(*as_cell(const_cast<RemoveConst<T>*>(cell.ptr())));
         }
 
         template<typename T>
         void visit(Ref<T> cell)
         {
-            visit_impl(const_cast<RemoveConst<T>&>(*cell.ptr()));
+            visit_impl(*as_cell(const_cast<RemoveConst<T>*>(cell.ptr())));
         }
 
         template<typename T>
@@ -203,7 +210,7 @@ public:
 
         template<typename T>
         void visit(T const& value)
-        requires(!IsBaseOf<Cell, T> && requires(T& visitable) { visitable.visit_edges(*this); })
+        requires(!IsCellLike<T> && requires(T& visitable) { visitable.visit_edges(*this); })
         {
             const_cast<T&>(value).visit_edges(*this);
         }
@@ -282,6 +289,60 @@ private:
     CellKind m_cell_kind { CellKind::Other };
 };
 
+// A cell whose type is implemented outside of C++ and allocated through LibGC/CAPI.h, such as a cell of the Rust
+// LibJS runtime. Its header is laid out like a Cell's, except that the first word belongs to the foreign
+// implementation instead of holding a vtable pointer. C++ code names these cells through types that derive from
+// ForeignCell and add neither fields nor virtual functions, so that a pointer to such a type is the foreign cell
+// itself. LibGC dispatches through the type info of a cell's block, never through a vtable, so Ptr, Ref, Root, Weak
+// and visitors treat these types like subclasses of Cell. Only the foreign implementation creates and destroys them.
+class ForeignCell {
+    AK_MAKE_NONCOPYABLE(ForeignCell);
+    AK_MAKE_NONMOVABLE(ForeignCell);
+
+public:
+    ForeignCell() = delete;
+    ~ForeignCell() = delete;
+
+    CellKind cell_kind() const { return m_cell_kind; }
+    bool is_marked() const { return m_mark; }
+    Cell::State state() const { return m_state; }
+
+    ALWAYS_INLINE Heap& heap() const { return HeapBlockBase::from_cell(as_cell(this))->heap(); }
+    ALWAYS_INLINE CellTypeInfo const& type_info() const { return HeapBlockBase::from_cell(as_cell(this))->type_info(); }
+
+private:
+    friend struct CAPI;
+
+    [[maybe_unused]] void const* m_word_owned_by_the_foreign_implementation;
+    bool m_mark;
+    Cell::State m_state;
+    CellKind m_cell_kind;
+    // The foreign implementation lays its fields out right after the header. Naming these bytes keeps GCC from
+    // placing a field of a derived type in the tail padding, where it would overlap them without changing the size.
+    [[maybe_unused]] u8 m_tail_owned_by_the_foreign_implementation[sizeof(void*) - sizeof(bool) - sizeof(Cell::State) - sizeof(CellKind)];
+};
+
+inline void Cell::Visitor::visit(ForeignCell* cell)
+{
+    if (cell)
+        visit_impl(*as_cell(cell));
+}
+
+inline void Cell::Visitor::visit(ForeignCell& cell)
+{
+    visit_impl(*as_cell(&cell));
+}
+
+inline void Cell::Visitor::visit(ForeignCell const* cell)
+{
+    visit(const_cast<ForeignCell*>(cell));
+}
+
+inline void Cell::Visitor::visit(ForeignCell const& cell)
+{
+    visit(const_cast<ForeignCell&>(cell));
+}
+
 template<typename T>
 struct IsVisitable {
     static constexpr bool value = requires(Cell::Visitor& visitor, T const& value) { visitor.visit(value); };
@@ -289,11 +350,24 @@ struct IsVisitable {
 
 GC_API StringView class_name_of(Cell const&);
 
+inline StringView class_name_of(ForeignCell const& cell)
+{
+    return class_name_of(*as_cell(&cell));
+}
+
 }
 
 template<>
 struct AK::Formatter<GC::Cell> : AK::Formatter<FormatString> {
     ErrorOr<void> format(FormatBuilder& builder, GC::Cell const& cell)
+    {
+        return Formatter<FormatString>::format(builder, "{}({})"sv, GC::class_name_of(cell), &cell);
+    }
+};
+
+template<>
+struct AK::Formatter<GC::ForeignCell> : AK::Formatter<FormatString> {
+    ErrorOr<void> format(FormatBuilder& builder, GC::ForeignCell const& cell)
     {
         return Formatter<FormatString>::format(builder, "{}({})"sv, GC::class_name_of(cell), &cell);
     }

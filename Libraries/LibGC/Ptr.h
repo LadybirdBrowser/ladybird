@@ -7,10 +7,74 @@
 #pragma once
 
 #include <AK/Format.h>
+#include <AK/StdLibExtras.h>
 #include <AK/Traits.h>
 #include <AK/Types.h>
+#include <LibGC/Forward.h>
 
 namespace GC {
+
+template<typename T>
+concept IsCellLike = IsBaseOf<Cell, T> || IsBaseOf<ForeignCell, T>;
+
+template<typename T>
+using ForeignCellBaseOf = CopyConst<T, ForeignCell>;
+
+// A pointer to a type that names foreign cells is a pointer to the foreign cell itself, whose first word and fields
+// after the header belong to the foreign implementation, so the type can add neither a vtable pointer nor fields.
+template<typename T>
+concept IsForeignCellHandle = IsBaseOf<ForeignCell, T> && !__is_polymorphic(T) && sizeof(T) == sizeof(ForeignCellBaseOf<T>) && alignof(T) == alignof(ForeignCellBaseOf<T>);
+
+template<typename T>
+requires(IsBaseOf<Cell, T>)
+ALWAYS_INLINE CopyConst<T, Cell>* as_cell(T* cell)
+{
+    return cell;
+}
+
+template<typename T>
+requires(IsBaseOf<ForeignCell, T>)
+ALWAYS_INLINE CopyConst<T, Cell>* as_cell(T* cell)
+{
+    static_assert(IsForeignCellHandle<T>, "A type naming foreign cells cannot add a vtable pointer or fields to ForeignCell");
+    return reinterpret_cast<CopyConst<T, Cell>*>(static_cast<ForeignCellBaseOf<T>*>(cell));
+}
+
+// The inverse of as_cell(), as unchecked as a static_cast.
+template<typename T>
+requires(IsBaseOf<Cell, T>)
+ALWAYS_INLINE T* static_cell_cast(CopyConst<T, Cell>* cell)
+{
+    return static_cast<T*>(cell);
+}
+
+template<typename T>
+requires(IsBaseOf<ForeignCell, T>)
+ALWAYS_INLINE T* static_cell_cast(CopyConst<T, Cell>* cell)
+{
+    static_assert(IsForeignCellHandle<T>, "A type naming foreign cells cannot add a vtable pointer or fields to ForeignCell");
+    return static_cast<T*>(reinterpret_cast<ForeignCellBaseOf<T>*>(cell));
+}
+
+// Cell is not a base of the types that name foreign cells, so Ptr<Cell> and Ref<Cell> convert from them through
+// as_cell() instead of a derived-to-base conversion.
+template<typename From, typename To>
+concept IsForeignCellConvertibleToCell = IsSame<RemoveConst<To>, Cell> && IsConvertible<From*, ForeignCell const*> && (IsConst<To> || !IsConst<From>);
+
+namespace Detail {
+
+template<typename T, typename U>
+ALWAYS_INLINE bool point_to_the_same_cell(T* a, U* b)
+{
+    if constexpr (IsForeignCellConvertibleToCell<T, U const>)
+        return as_cell(a) == b;
+    else if constexpr (IsForeignCellConvertibleToCell<U, T const>)
+        return a == as_cell(b);
+    else
+        return a == b;
+}
+
+}
 
 template<typename T>
 class Ptr;
@@ -40,6 +104,20 @@ public:
     }
 
     template<typename U>
+    Ref(U& foreign_cell)
+    requires(IsForeignCellConvertibleToCell<U, T>)
+        : m_ptr(as_cell(&foreign_cell))
+    {
+    }
+
+    template<typename U>
+    Ref(Ref<U> const& foreign_cell)
+    requires(IsForeignCellConvertibleToCell<U, T>)
+        : m_ptr(as_cell(foreign_cell.ptr()))
+    {
+    }
+
+    template<typename U>
     Ref& operator=(Ref<U> const& other)
     requires(IsConvertible<U*, T*>)
     {
@@ -58,6 +136,22 @@ public:
     requires(IsConvertible<U*, T*>)
     {
         m_ptr = &static_cast<T&>(other);
+        return *this;
+    }
+
+    template<typename U>
+    Ref& operator=(Ref<U> const& foreign_cell)
+    requires(IsForeignCellConvertibleToCell<U, T>)
+    {
+        m_ptr = as_cell(foreign_cell.ptr());
+        return *this;
+    }
+
+    template<typename U>
+    Ref& operator=(U& foreign_cell)
+    requires(IsForeignCellConvertibleToCell<U, T>)
+    {
+        m_ptr = as_cell(&foreign_cell);
         return *this;
     }
 
@@ -116,6 +210,34 @@ public:
     }
 
     template<typename U>
+    Ptr(U& foreign_cell)
+    requires(IsForeignCellConvertibleToCell<U, T>)
+        : m_ptr(as_cell(&foreign_cell))
+    {
+    }
+
+    template<typename U>
+    Ptr(U* foreign_cell)
+    requires(IsForeignCellConvertibleToCell<U, T>)
+        : m_ptr(as_cell(foreign_cell))
+    {
+    }
+
+    template<typename U>
+    Ptr(Ptr<U> const& foreign_cell)
+    requires(IsForeignCellConvertibleToCell<U, T>)
+        : m_ptr(as_cell(foreign_cell.ptr()))
+    {
+    }
+
+    template<typename U>
+    Ptr(Ref<U> const& foreign_cell)
+    requires(IsForeignCellConvertibleToCell<U, T>)
+        : m_ptr(as_cell(foreign_cell.ptr()))
+    {
+    }
+
+    template<typename U>
     Ptr& operator=(Ptr<U> const& other)
     requires(IsConvertible<U*, T*>)
     {
@@ -165,6 +287,38 @@ public:
         return *this;
     }
 
+    template<typename U>
+    Ptr& operator=(Ptr<U> const& foreign_cell)
+    requires(IsForeignCellConvertibleToCell<U, T>)
+    {
+        m_ptr = as_cell(foreign_cell.ptr());
+        return *this;
+    }
+
+    template<typename U>
+    Ptr& operator=(Ref<U> const& foreign_cell)
+    requires(IsForeignCellConvertibleToCell<U, T>)
+    {
+        m_ptr = as_cell(foreign_cell.ptr());
+        return *this;
+    }
+
+    template<typename U>
+    Ptr& operator=(U& foreign_cell)
+    requires(IsForeignCellConvertibleToCell<U, T>)
+    {
+        m_ptr = as_cell(&foreign_cell);
+        return *this;
+    }
+
+    template<typename U>
+    Ptr& operator=(U* foreign_cell)
+    requires(IsForeignCellConvertibleToCell<U, T>)
+    {
+        m_ptr = as_cell(foreign_cell);
+        return *this;
+    }
+
     T* operator->() const
     {
         ASSERT(m_ptr);
@@ -203,25 +357,25 @@ using RawRef = Ref<T>;
 template<typename T, typename U>
 inline bool operator==(Ptr<T> const& a, Ptr<U> const& b)
 {
-    return a.ptr() == b.ptr();
+    return Detail::point_to_the_same_cell(a.ptr(), b.ptr());
 }
 
 template<typename T, typename U>
 inline bool operator==(Ptr<T> const& a, Ref<U> const& b)
 {
-    return a.ptr() == b.ptr();
+    return Detail::point_to_the_same_cell(a.ptr(), b.ptr());
 }
 
 template<typename T, typename U>
 inline bool operator==(Ref<T> const& a, Ref<U> const& b)
 {
-    return a.ptr() == b.ptr();
+    return Detail::point_to_the_same_cell(a.ptr(), b.ptr());
 }
 
 template<typename T, typename U>
 inline bool operator==(Ref<T> const& a, Ptr<U> const& b)
 {
-    return a.ptr() == b.ptr();
+    return Detail::point_to_the_same_cell(a.ptr(), b.ptr());
 }
 
 template<typename T>

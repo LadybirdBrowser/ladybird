@@ -52,13 +52,13 @@ public:
     }
 
     explicit CrossHeapMember(T* cell)
-        : CrossHeapMemberBase(cell)
+        : CrossHeapMemberBase(as_cell(cell))
     {
     }
 
     CrossHeapMember& operator=(T* cell)
     {
-        reset(cell);
+        reset(as_cell(cell));
         return *this;
     }
 

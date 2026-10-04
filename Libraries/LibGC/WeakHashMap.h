@@ -18,8 +18,8 @@ namespace GC {
 // when their referent is collected; non-cell slots are stored directly.
 template<typename K, typename V>
 class WeakHashMap {
-    static constexpr bool key_is_cell = IsBaseOf<Cell, K>;
-    static constexpr bool value_is_cell = IsBaseOf<Cell, V>;
+    static constexpr bool key_is_cell = IsCellLike<K>;
+    static constexpr bool value_is_cell = IsCellLike<V>;
 
     using KeyStorage = Conditional<key_is_cell, Weak<K>, K>;
     using ValueStorage = Conditional<value_is_cell, Weak<V>, V>;
