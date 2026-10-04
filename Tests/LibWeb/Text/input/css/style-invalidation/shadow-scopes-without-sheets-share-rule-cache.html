@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<style>
+    @keyframes outer { from { opacity: 0.5; } to { opacity: 0.5; } }
+</style>
+<script src="../../include.js"></script>
+<script src="structural-matrix.js"></script>
+<script>
+    test(() => {
+        document.body.offsetWidth;
+
+        // Every form control's user-agent shadow tree and every author shadow root with no stylesheets of its own
+        // holds the same rule cache, so the scopes should not each build one.
+        resetStyleCounters();
+        const hosts = [];
+        for (let i = 0; i < 8; i++) {
+            const input = makeElement("input");
+            document.body.appendChild(input);
+            hosts.push(input);
+
+            const host = makeElement("div");
+            const shadowRoot = host.attachShadow({ mode: "open" });
+            shadowRoot.appendChild(makeElement("span", { text: "x" }));
+            document.body.appendChild(host);
+            hosts.push(host);
+        }
+        internals.updateStyle();
+        println(`eight inputs and eight sheetless shadow roots | scopeRuleCacheBuilds=${styleCounters().scopeRuleCacheBuilds}`);
+
+        // A sheetless shadow tree still finds a document's @keyframes by name.
+        const span = hosts[1].shadowRoot.firstChild;
+        span.style.animation = "outer 1s paused";
+        println(`animation from the document's keyframes: opacity=${getComputedStyle(span).opacity}`);
+
+        // A shadow root that gets a sheet builds a cache of its own, and its keyframes are its own.
+        resetStyleCounters();
+        const sheet = new CSSStyleSheet();
+        sheet.replaceSync("@keyframes outer { from { opacity: 0.25; } to { opacity: 0.25; } }");
+        hosts[1].shadowRoot.adoptedStyleSheets = [sheet];
+        println(`after adopting a sheet: opacity=${getComputedStyle(span).opacity} | scopeRuleCacheBuilds=${styleCounters().scopeRuleCacheBuilds}`);
+
+        // Taking the sheet away brings the scope back to the shared cache.
+        hosts[1].shadowRoot.adoptedStyleSheets = [];
+        println(`after dropping the sheet: opacity=${getComputedStyle(span).opacity}`);
+
+        for (const host of hosts) host.remove();
+    });
+</script>

@@ -1,0 +1,3 @@
+before a user style: opacity=0.5
+with a user style: opacity=0.25
+after the user style: opacity=0.5
