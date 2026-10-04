@@ -74,7 +74,8 @@ pub enum Kind {
 }
 
 impl Kind {
-    fn from_u8(kind: u8) -> Self {
+    /// The kind with the value of TypedArrayBase::Kind, which the embedding ABI passes as JS_LAYOUT_TYPED_ARRAY_KIND_*.
+    pub fn from_u8(kind: u8) -> Self {
         match kind {
             typed_array_kind::UINT8 => Self::Uint8Array,
             typed_array_kind::UINT8_CLAMPED => Self::Uint8ClampedArray,
@@ -370,6 +371,35 @@ impl TypedArrayBase {
         buffer: Gc<ArrayBuffer>,
     ) -> Gc<TypedArrayBase> {
         create_typed_array_on_buffer(vm, realm, self.kind(), 0, buffer)
+    }
+
+    /// TypedArrayBase::create_from_slots(): restores a view from its [[ArrayLength]], [[ByteLength]] and [[ByteOffset]],
+    /// as StructuredDeserialize does. The caller must already have checked that the view fits inside the buffer.
+    pub fn create_from_slots(
+        vm: &Vm,
+        realm: Gc<Realm>,
+        kind: Kind,
+        array_buffer: Gc<ArrayBuffer>,
+        array_length: ByteLength,
+        byte_length: ByteLength,
+        byte_offset: u32,
+    ) -> Gc<TypedArrayBase> {
+        let element_size = kind.element_type().size() as u32;
+        assert!(array_length.is_auto() == byte_length.is_auto());
+        assert!(byte_offset.is_multiple_of(element_size));
+        if !array_length.is_auto() {
+            let byte_length_of_array_length = array_length
+                .length()
+                .checked_mul(element_size)
+                .expect("the byte length of the array length fits in 32 bits");
+            assert!(byte_length_of_array_length == byte_length.length());
+        }
+
+        let typed_array = create_typed_array_on_buffer(vm, realm, kind, 0, array_buffer);
+        typed_array.set_array_length(array_length);
+        typed_array.set_byte_length(byte_length);
+        typed_array.set_byte_offset(vm, byte_offset);
+        typed_array
     }
 
     pub fn update_cached_data_offset(&self, vm: &Vm) {

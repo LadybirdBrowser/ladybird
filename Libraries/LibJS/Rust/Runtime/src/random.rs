@@ -48,7 +48,7 @@ fn csprng(buffer: &mut [u8]) {
 }
 
 /// AK::get_random<u64>().
-fn get_random_u64() -> u64 {
+pub(crate) fn get_random_u64() -> u64 {
     let mut bytes = [0u8; 8];
     csprng(&mut bytes);
     u64::from_ne_bytes(bytes)

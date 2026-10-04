@@ -258,13 +258,16 @@ pub unsafe extern "C" fn js_vm_default_host_system_utc_epoch_nanoseconds(vm: *mu
     i64::try_from(&nanoseconds).expect("the time of the system clock saturates to the range of i64")
 }
 
-/// The runtime's own HostResizeArrayBuffer ( buffer, newByteLength ), which a resize_array_buffer hook can fall back
-/// to: resizes the ArrayBuffer and completes normally with JS_HANDLED_BY_HOST_HANDLED, or throws a RangeError if there
-/// is not enough memory. Only the VM's thread may call this.
+/// The runtime's own HostResizeArrayBuffer ( buffer, newByteLength ), which a resize_array_buffer hook falls back to
+/// for the buffers it does not handle itself: sets the byte length of the storage the buffer owns, or of the buffer
+/// whose storage it aliases, to `new_byte_length`, zero-filling new bytes, and completes normally with
+/// JS_HANDLED_BY_HOST_HANDLED, or throws a RangeError, with the buffer unchanged, if there is not enough memory. Only
+/// the VM's thread may call this.
 ///
 /// # Safety
 ///
-/// `vm` must be a live VM and `buffer` one of its ArrayBuffers.
+/// `vm` must be a live VM and `buffer` one of its ArrayBuffers that is not fixed-length, as
+/// ArrayBuffer.prototype.resize checks before it calls the hook, over storage that it owns or that an ArrayBuffer owns.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn js_vm_default_host_resize_array_buffer(
     vm: *mut JSVM,
@@ -276,6 +279,11 @@ pub unsafe extern "C" fn js_vm_default_host_resize_array_buffer(
     let buffer = buffer
         .downcast::<ArrayBuffer>()
         .expect("the embedder passes an ArrayBuffer");
+    // NB: Typed arrays cache where the bytes of a fixed-length buffer are and how many there are.
+    assert!(
+        !buffer.is_fixed_length(),
+        "the embedder resizes a buffer that is not fixed-length"
+    );
     completion_into_abi(default_host_resize_array_buffer(vm, &buffer, new_byte_length))
 }
 
