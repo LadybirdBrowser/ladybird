@@ -3886,6 +3886,25 @@ void LocalNavigable::run_navigation_unload_check(Utf16String const& navigation_i
             //     recorded load itself.
             if (unload_prompt_canceled != CheckIfUnloadingIsCanceledResult::Continue) {
                 stop_delaying_load_events_for_navigation(navigation_id);
+                // AD-HOC: Step 2 ends with 'Abort these steps.', which leaves navigable's ongoing navigation as
+                //         navigationId: step 24 of navigate set it ('Set the ongoing navigation for navigable to
+                //         navigationId.'), and the canceled navigation runs nothing further that would reset it. 'Each
+                //         navigable has an ongoing navigation, which is a navigation ID, "traversal", or null,
+                //         initially null. It is used to track navigation aborting and to prevent any navigations from
+                //         taking place during traversal.' So, with the id left in place, WebDriver's 'wait for
+                //         navigation to complete' would wait on the canceled navigation until the page load timeout,
+                //         after an Element Click, or a Back, that the prompt canceled: 'If there is an ongoing attempt
+                //         to navigate session's current browsing context that has not yet matured, wait for navigation
+                //         to mature.'
+                //         https://html.spec.whatwg.org/multipage/browsing-the-web.html#ongoing-navigation
+                //         https://w3c.github.io/webdriver/#dfn-wait-for-navigation-to-complete
+                //         Chromium, WebKit and Gecko drop the navigation outright when their beforeunload check says no
+                //         (Navigator::BeforeUnloadCompleted() cancels the NavigationRequest, FrameLoader::
+                //         continueLoadAfterNavigationPolicy() stops on shouldClose(), and nsDocShell::InternalLoad()
+                //         returns on PermitUnload()), so no state of the canceled attempt outlives it there either, and
+                //         none does here once the ongoing navigation is reset.
+                if (ongoing_navigation() == navigation_id)
+                    set_ongoing_navigation({});
                 completion_steps->function()(false);
                 return;
             }
