@@ -172,7 +172,7 @@ TEST_CASE(response_browsing_context_is_activated_only_at_commit)
     traversable.did_commit_navigation(*committed_entry, move(committed_state), 1, navigation_id, WebView::CanonicalNavigable::DidPopulateDocument::Yes, {});
     EXPECT_EQ(&traversable.active_browsing_context(), destination_context);
     EXPECT(initial_group->browsing_context_set().is_empty());
-    EXPECT(!traversable.ongoing_navigation().has_value());
+    EXPECT(!traversable.ongoing_navigation());
 }
 
 TEST_CASE(child_navigation_under_a_document_that_switched_groups_uses_its_group)
@@ -270,16 +270,16 @@ TEST_CASE(document_claimed_by_a_history_job_outlives_a_newer_navigation)
     auto make_document = [] { return WebView::CanonicalBrowsingContext::create_a_new_top_level_browsing_context_and_document({}).document; };
     traversable.set_active_session_history_entry(WebView::CanonicalSessionHistoryEntry::create(WebView::CanonicalDocumentState::create({}, make_document())));
 
-    // The history job finalizing a navigation claims the document populated for it.
+    // The history operation finalizing a navigation takes it, with the document populated for it.
     auto claimed_navigation_id = Utf16String::from_utf8("claimed"sv);
     auto claimed_document_state = WebView::CanonicalDocumentState::create({});
     auto claimed_document = make_document();
     traversable.set_ongoing_navigation(WebView::CanonicalNavigation { .navigation_id = claimed_navigation_id });
     traversable.populate_document_for_ongoing_navigation(claimed_document_state, claimed_document);
-    traversable.claim_document_populated_for_ongoing_navigation(*claimed_document);
+    EXPECT(traversable.take_navigation_to_finalize(claimed_navigation_id, 1).has_value());
+    EXPECT(!traversable.ongoing_navigation());
 
-    // A newer navigation replaces the ongoing one before the claimed document is activated, and populates its own.
-    traversable.clear_ongoing_navigation();
+    // A newer navigation starts before the claimed document is activated, and populates its own.
     traversable.set_ongoing_navigation(WebView::CanonicalNavigation { .navigation_id = Utf16String::from_utf8("newer"sv) });
     auto newer_document = make_document();
     traversable.populate_document_for_ongoing_navigation(WebView::CanonicalDocumentState::create({}), newer_document);
@@ -297,7 +297,7 @@ TEST_CASE(document_claimed_by_a_history_job_outlives_a_newer_navigation)
     traversable.did_commit_navigation(*WebView::CanonicalSessionHistoryEntry::create(claimed_document_state), move(committed_state), 1, claimed_navigation_id, WebView::CanonicalNavigable::DidPopulateDocument::Yes, {});
     EXPECT_EQ(&traversable.active_document(), claimed_document.ptr());
     EXPECT_EQ(traversable.pending_document().ptr(), newer_document.ptr());
-    EXPECT(traversable.ongoing_navigation().has_value());
+    EXPECT(traversable.ongoing_navigation());
 }
 
 TEST_CASE(populated_document_replaces_tracked_load_when_document_state_is_reused)
@@ -344,11 +344,11 @@ TEST_CASE(same_document_traversal_commits_only_navigations_admitted_before_it)
     // A navigation admitted after the traversal was requested goes on past the traversal's activation.
     traversable.set_ongoing_navigation({ .navigation_id = Utf16String::from_utf8("newer"sv), .sequence_number = 2 });
     traversable.did_commit_navigation(*entry, committed_state(), 1, {}, WebView::CanonicalNavigable::DidPopulateDocument::No, {});
-    EXPECT(traversable.ongoing_navigation().has_value());
+    EXPECT(traversable.ongoing_navigation());
 
     // One admitted before it does not.
     traversable.did_commit_navigation(*entry, committed_state(), 3, {}, WebView::CanonicalNavigable::DidPopulateDocument::No, {});
-    EXPECT(!traversable.ongoing_navigation().has_value());
+    EXPECT(!traversable.ongoing_navigation());
 }
 
 TEST_CASE(site_keyed_agent_clusters)

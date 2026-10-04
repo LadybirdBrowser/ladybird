@@ -98,8 +98,8 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
             .navigation_api_id = {},
         };
         stub.did_request_navigation_start(page_id, traversable.id(), Web::NavigationTarget::TopLevel, URL::about_blank(), navigation_id, move(request));
-        auto const& ongoing_navigation = traversable.ongoing_navigation();
-        return ongoing_navigation.has_value() && ongoing_navigation->navigation_id == navigation_id;
+        auto const* ongoing_navigation = traversable.ongoing_navigation();
+        return ongoing_navigation && ongoing_navigation->navigation_id == navigation_id;
     };
 
     // An about:blank document takes its initiator origin, so a victim's would give the renderer a document of its origin.

@@ -329,7 +329,7 @@ TEST_CASE(same_document_traversal_names_the_older_navigation_it_cancels)
     test.traversable.set_ongoing_navigation({ .navigation_id = "older"_utf16, .sequence_number = 1 });
 
     test.traverse_to_step(0);
-    EXPECT(!test.traversable.ongoing_navigation().has_value());
+    EXPECT(!test.traversable.ongoing_navigation());
     EXPECT(!test.traversable.ongoing_navigation_is_traversal());
     EXPECT_EQ(test.runner.changing_jobs.size(), 1uz);
     auto const& job = test.runner.changing_jobs[0].job;
@@ -344,7 +344,7 @@ TEST_CASE(same_document_traversal_yields_to_a_newer_admitted_navigation)
     test.traversable.set_ongoing_navigation({ .navigation_id = "newer"_utf16, .sequence_number = 3 });
 
     test.traverse_to_step(0);
-    EXPECT(test.traversable.ongoing_navigation().has_value());
+    EXPECT(test.traversable.ongoing_navigation());
     EXPECT_EQ(test.runner.changing_jobs.size(), 1uz);
     auto const& job = test.runner.changing_jobs[0].job;
     EXPECT(job.traversal_yields_to == Web::HTML::TraversalYieldsTo::AdmittedNavigation);
@@ -358,7 +358,7 @@ TEST_CASE(cross_document_traversal_cancels_a_newer_navigation)
     test.traversable.set_ongoing_navigation({ .navigation_id = "newer"_utf16, .sequence_number = 3 });
 
     test.traverse_to_step(0);
-    EXPECT(!test.traversable.ongoing_navigation().has_value());
+    EXPECT(!test.traversable.ongoing_navigation());
     EXPECT(test.traversable.ongoing_navigation_is_traversal());
     EXPECT_EQ(test.runner.changing_jobs.size(), 1uz);
     auto const& job = test.runner.changing_jobs[0].job;
