@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script type="module">
+    import * as provider from "./resources/WebAssembly-module-records-provider.wasm";
+    import * as consumer from "./resources/WebAssembly-module-records-consumer.wasm";
+    import * as functions from "./resources/WebAssembly-module-records-functions.js";
+
+    function describeNamespace(label, namespace) {
+        println(`${label} keys: ${Reflect.ownKeys(namespace).map(String).join()}`);
+        println(`${label} toStringTag: ${namespace[Symbol.toStringTag]}, Object.prototype.toString: ${Object.prototype.toString.call(namespace)}`);
+        println(`${label} extensible: ${Object.isExtensible(namespace)}, frozen: ${Object.isFrozen(namespace)}`);
+    }
+
+    promiseTest(async () => {
+        println("== WebAssembly module providing exports");
+        describeNamespace("provider", provider);
+        println(`add: ${typeof provider.add} ${provider.add.name} ${provider.add(20, 22)}`);
+        println(`answer: ${typeof provider.answer} ${provider.answer}`);
+        println(`memory is a WebAssembly.Memory: ${provider.memory instanceof WebAssembly.Memory}, pages: ${provider.memory.buffer.byteLength / 65536}`);
+        const answerDescriptor = Object.getOwnPropertyDescriptor(provider, "answer");
+        println(`answer descriptor: writable=${answerDescriptor.writable}, enumerable=${answerDescriptor.enumerable}, configurable=${answerDescriptor.configurable}`);
+
+        println("== WebAssembly module importing from WebAssembly and JavaScript modules");
+        describeNamespace("consumer", consumer);
+        println(`add imported from WebAssembly is the provider's function: ${consumer.add === provider.add}`);
+        println(`exported function re-exported by JavaScript keeps its identity: ${consumer.localAdd === provider.add}`);
+        println(`JavaScript function import is wrapped: ${consumer.double !== functions.double}, name: ${consumer.double.name}, call: ${consumer.double(21)}`);
+        println(`call through import: ${consumer.callDouble(5)}`);
+        println(`global imported from WebAssembly: ${consumer.readAnswer()}`);
+        println(`globals imported from WebAssembly and JavaScript: ${consumer.sumOfImports()}`);
+        println(`memory imported from WebAssembly is the provider's memory: ${consumer.memory === provider.memory}`);
+
+        println("== Dynamic import");
+        const reimported = await import("./resources/WebAssembly-module-records-provider.wasm");
+        println(`same namespace object: ${reimported === provider}`);
+
+        try {
+            await import("./resources/WebAssembly-module-records-missing-export.js");
+            println("missing export: did not throw");
+        } catch (error) {
+            println(`missing export: ${error.constructor.name}`);
+        }
+
+        try {
+            await import("./resources/WebAssembly-module-records-cycle-a.wasm");
+            println("cycle: did not throw");
+        } catch (error) {
+            println(`cycle: ${error.constructor === WebAssembly.LinkError} ${String(error)}`);
+        }
+
+        try {
+            await import("./resources/WebAssembly-module-records-cycle-a.wasm");
+            println("cycle again: did not throw");
+        } catch (error) {
+            println(`cycle again: ${error.constructor === WebAssembly.LinkError} ${String(error)}`);
+        }
+    });
+</script>

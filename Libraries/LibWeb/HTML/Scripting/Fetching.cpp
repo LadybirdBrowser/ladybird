@@ -45,7 +45,6 @@
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Infra/SerializedURL.h>
 #include <LibWeb/Loader/ResourceLoader.h>
-#include <LibWeb/WebAssembly/WebAssemblyModule.h>
 #include <LibWebCommon/Infra/Strings.h>
 #include <LibWebCommon/MimeSniff/MimeType.h>
 
@@ -228,7 +227,7 @@ static void compile_remaining_module_functions_off_thread(ModuleScript& module_s
     module_script.record().visit(
         [](Empty) {},
         [](GC::Ref<JS::SyntheticModule>) {},
-        [](GC::Ref<WebAssembly::WebAssemblyModule>) {},
+        [](GC::Ref<JS::HostModule>) {},
         [source_code = move(source_code)](GC::Ref<JS::SourceTextModule> module) mutable {
             JS::compile_remaining_functions_off_thread(*module, move(source_code), thread_pool_compilation_callbacks());
         });
@@ -1169,7 +1168,7 @@ void fetch_single_module_script(JS::Realm& realm,
                                             [](Empty) {},
                                             [&](GC::Ref<JS::SourceTextModule> module) { install_target.module = module; },
                                             [](GC::Ref<JS::SyntheticModule>) {},
-                                            [](GC::Ref<WebAssembly::WebAssemblyModule>) {});
+                                            [](GC::Ref<JS::HostModule>) {});
                                         if (!should_generate_bytecode_cache)
                                             compile_remaining_module_functions_off_thread(*module_script, source_code_for_cache);
                                     }
@@ -1208,7 +1207,7 @@ void fetch_single_module_script(JS::Realm& realm,
                                 [](Empty) {},
                                 [&](GC::Ref<JS::SourceTextModule> module) { install_target.module = module; },
                                 [](GC::Ref<JS::SyntheticModule>) {},
-                                [](GC::Ref<WebAssembly::WebAssemblyModule>) {});
+                                [](GC::Ref<JS::HostModule>) {});
                             if (!should_generate_bytecode_cache)
                                 compile_remaining_module_functions_off_thread(*module_script, source_code_for_cache);
                         }
