@@ -632,8 +632,6 @@ pub(crate) enum StyleQuery {
     RecordDemand { node: StyleNodeID, demand: RecordDemand },
     /// What a style record's values depend on.
     StyleRecordDependencyFlags(u64),
-    /// The identity of the custom-property environment a style record was computed in.
-    StyleRecordCustomPropertyEnvironment(u64),
     /// The engine's id of the native rule the host names by `identity`.
     NativeRuleId(u64),
     /// The engine's counter at `index`.
@@ -680,12 +678,6 @@ impl StyleQuery {
             Self::StyleRecordDependencyFlags(record) => {
                 StyleAnswer::Number(engine.style_record_dependency_flags(record).unwrap_or(0).into())
             }
-            Self::StyleRecordCustomPropertyEnvironment(record) => StyleAnswer::Number(
-                engine
-                    .computed_group_sets
-                    .style_record_custom_property_environment(record)
-                    .unwrap_or(0),
-            ),
             Self::NativeRuleId(identity) => {
                 StyleAnswer::Number(engine.native_rule_id(identity).map_or(0, |id| u64::from(id.0) + 1))
             }
@@ -723,7 +715,7 @@ pub(crate) unsafe fn document_host<'a>(host: *const DocumentHost) -> &'a Documen
 /// Runs `call` on the style engine of `host`'s document in `read`, and answers what it answers. The engine is borrowed
 /// for the call alone, so a host callback that reaches the engine again runs after it.
 pub(crate) fn with_engine<R>(read: &BegunRead, host: &DocumentHost, call: impl FnOnce(&mut StyleEngine) -> R) -> R {
-    crate::render_state::ask(read, host, crate::render_state::EngineCall(call))
+    crate::render_state::ask(read, host, crate::render_state::EngineCall(call)).0
 }
 
 /// Asks the style engine of `host`'s document `query`, in `read`.
@@ -990,12 +982,68 @@ pub unsafe extern "C" fn style_engine_style_record_custom_property_environment(
     style_record: u64,
 ) -> u64 {
     // SAFETY: Guaranteed by the caller.
-    unsafe {
-        ask_engine_number(
-            host,
-            read,
-            StyleQuery::StyleRecordCustomPropertyEnvironment(style_record),
-        )
+    let host = unsafe { document_host(host) };
+    let memo = &host.engine_memo().environments;
+    if let Some(environment) = memo.get(style_record) {
+        return environment;
+    }
+    let Some(environment) = with_engine(read, host, |engine| {
+        engine
+            .computed_group_sets
+            .style_record_custom_property_environment(style_record)
+    }) else {
+        return 0;
+    };
+    memo.set(style_record, environment);
+    environment
+}
+
+/// What the host learned of its document's style engine, which answers the host's reads again without asking the
+/// render owner.
+pub(crate) struct EngineMemo {
+    /// The view of each style record the host asked about, and the custom-property environment it was computed in: a
+    /// published record never changes while it is live, and no other record ever takes its identity, as each identity
+    /// carries the generation of its slot.
+    pub(crate) views: Memo<super::bridge::FfiStyleRecordView>,
+    pub(crate) environments: Memo<u64>,
+}
+
+impl Default for EngineMemo {
+    fn default() -> Self {
+        Self {
+            views: Memo::new(super::bridge::FfiStyleRecordView::missing()),
+            environments: Memo::new(0),
+        }
+    }
+}
+
+/// A direct-mapped memo of one answer per key, which keeps the answers of the keys the host asked about last.
+pub(crate) struct Memo<T: Copy> {
+    slots: [std::cell::Cell<(u64, T)>; Memo::<()>::SLOTS],
+}
+
+impl<T: Copy> Memo<T> {
+    const SLOTS: usize = 256;
+    /// No record has this identity: a base record's leaves the top bit clear, and an overlay's generation is below it.
+    const NO_KEY: u64 = u64::MAX;
+
+    fn new(empty: T) -> Self {
+        Self {
+            slots: std::array::from_fn(|_| std::cell::Cell::new((Self::NO_KEY, empty))),
+        }
+    }
+
+    fn slot(&self, key: u64) -> &std::cell::Cell<(u64, T)> {
+        &self.slots[(key ^ (key >> 32)) as usize % Self::SLOTS]
+    }
+
+    pub(crate) fn get(&self, key: u64) -> Option<T> {
+        let (held, answer) = self.slot(key).get();
+        (held == key).then_some(answer)
+    }
+
+    pub(crate) fn set(&self, key: u64, answer: T) {
+        self.slot(key).set((key, answer));
     }
 }
 

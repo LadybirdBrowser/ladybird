@@ -42,9 +42,10 @@ pub(crate) trait Question {
 }
 
 /// The document's rows, which the render state publishes: with every row's scrollable overflow measured first where
-/// `measure_overflow`.
+/// `measure_overflow`. It answers none where `held`, the version of the rows the host holds, still reads as the arena.
 pub(crate) struct CommittedRows {
     pub(crate) measure_overflow: bool,
+    pub(crate) held: Option<crate::layout::RowsVersion>,
 }
 
 /// Whether preparing the document for rendering has something to do, answered with the proof that it has.
@@ -67,9 +68,12 @@ macro_rules! arena_question {
 
 arena_question!(ArenaQuery, ArenaAnswer, true, |self, arena| self.answer(arena));
 arena_question!(DevToolsQuery, DevToolsAnswer, true, |self, arena| self.answer(arena));
-arena_question!(LayoutWrite, LayoutWritten, false, |self, arena| self.apply(arena));
-arena_question!(CommittedRows, RowSnapshot, true, |self, arena| {
-    arena.publish_row_snapshot(self.measure_overflow)
+arena_question!(LayoutWrite<'_>, LayoutWritten, false, |self, arena| self.apply(arena));
+arena_question!(CommittedRows, Option<RowSnapshot>, true, |self, arena| {
+    if self.held.is_some_and(|held| held == arena.rows_version()) {
+        return None;
+    }
+    Some(arena.publish_row_snapshot(self.measure_overflow))
 });
 arena_question!(PreparationPending, Option<PendingPreparation>, true, |self, arena| {
     rendering_preparation_pending(arena)
@@ -87,8 +91,8 @@ impl Question for StyleQuery {
 }
 
 /// A read of a document's layout arena that `read` answers from the arena and `args`, which the host hands over by
-/// value: the read reaches nothing of the host's, so it is answered wherever the render state is. It may bring what it
-/// reads up to date first, as only the render state can.
+/// value: the read reaches nothing of the host's, so the render owner answers it. It may bring what it reads up to date
+/// first, as only the render state can.
 pub(crate) struct ArenaRead<A, R> {
     read: fn(&mut LayoutNodeArena, A) -> R,
     args: A,
@@ -100,31 +104,48 @@ impl<A, R> ArenaRead<A, R> {
     }
 }
 
+// SAFETY: The host waits for the answer to the read, so what its arguments lend of the host's stays live and unwritten
+// until the render owner has answered, as with [`Lent`].
+unsafe impl<A, R> Send for ArenaRead<A, R> {}
+
 impl<A, R> Question for ArenaRead<A, R> {
-    type Answer = R;
+    type Answer = Waited<R>;
     // NB: What a read brings up to date first, a preparation leaves up to date, or only a layout round reads, except
     //     for overflow it measures, which the host checks as it answers.
     const LEAVES_PAINT_PREPARATION_CURRENT: bool = true;
 
-    unsafe fn answer(self, arena: &mut LayoutNodeArena, _: StyleEngineHandle) -> R {
-        (self.read)(arena, self.args)
+    unsafe fn answer(self, arena: &mut LayoutNodeArena, _: StyleEngineHandle) -> Waited<R> {
+        Waited((self.read)(arena, self.args))
     }
 }
 
 /// A call of the host into a document's style engine that the host waits for: `call` reaches the engine and what the
-/// host lends it for the call, its arrays and its callbacks among them, so it is answered where the host is.
+/// host lends it for the call, its arrays and its callbacks among them, which the render owner reaches while the host
+/// waits.
 pub(crate) struct EngineCall<F>(pub(crate) F);
 
+// SAFETY: The host waits for the answer to the call, so what the call borrows of the host's stays live and unwritten
+// until the render owner has answered, as with [`Lent`]. The callbacks the call makes into the host's DOM run on the
+// owner while the host waits, as a style transaction's do.
+unsafe impl<F> Send for EngineCall<F> {}
+
 impl<R, F: FnOnce(&mut crate::css::style::StyleEngine) -> R> Question for EngineCall<F> {
-    type Answer = R;
+    type Answer = Waited<R>;
     // NB: The passes that prepare the paint properties read no style engine.
     const LEAVES_PAINT_PREPARATION_CURRENT: bool = true;
 
-    unsafe fn answer(self, _: &mut LayoutNodeArena, engine: StyleEngineHandle) -> R {
+    unsafe fn answer(self, _: &mut LayoutNodeArena, engine: StyleEngineHandle) -> Waited<R> {
         // SAFETY: Guaranteed by the caller. The call reaches the engine only through this borrow.
-        (self.0)(unsafe { engine.get_mut() })
+        Waited((self.0)(unsafe { engine.get_mut() }))
     }
 }
+
+/// What an [`ArenaRead`] or an [`EngineCall`] answers, which goes back to the host that waits for it.
+pub(crate) struct Waited<R>(pub(crate) R);
+
+// SAFETY: What the answer names of the host's, of the arena's or of the engine's, the host reads once it has it, and
+// before its next job of the render state, which is what may write it.
+unsafe impl<R> Send for Waited<R> {}
 
 /// A read of a document's layout arena.
 pub(crate) enum ArenaQuery {
@@ -226,13 +247,12 @@ impl ArenaQuery {
 }
 
 /// Asks the render state of `host`'s document `question`, spending `wait`, and answers what it answered as of every
-/// change the host queued before.
-///
-/// The host answers the question itself, where it is, once it has applied the changes it queued:
-/// the host asks while it installs what a job answered, a question per row, and asking across threads would make it
-/// wait for each one. Questions go to the render side once its jobs answer what the host would ask ahead.
-pub(crate) fn ask<Q: Question>(wait: impl RenderWait, host: &DocumentHost, question: Q) -> Q::Answer {
-    host.answer_in_place(wait, question)
+/// change the host queued before: the render owner answers it, and the host waits.
+pub(crate) fn ask<Q: Question + Send>(wait: impl RenderWait, host: &DocumentHost, question: Q) -> Q::Answer
+where
+    Q::Answer: Send,
+{
+    host.ask(wait, question)
 }
 
 #[cfg(test)]
@@ -264,8 +284,12 @@ mod tests {
         let rows = ask(
             ScriptForcedRead::for_test(),
             host,
-            CommittedRows { measure_overflow: true },
-        );
+            CommittedRows {
+                measure_overflow: true,
+                held: None,
+            },
+        )
+        .expect("the host holds no rows");
         assert!(rows.node(row).is_some());
         assert!(rows.overflow_is_measured());
         arena_of(host)

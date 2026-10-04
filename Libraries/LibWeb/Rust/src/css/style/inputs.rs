@@ -305,9 +305,15 @@ impl RetainedState {
         next_declaration_block_version(&self.declaration_block_version)
     }
 
-    /// The versions the engine mints declaration blocks from, which its document's host mints from as well.
-    pub(crate) fn declaration_block_versions(&self) -> Arc<std::sync::atomic::AtomicU32> {
-        Arc::clone(&self.declaration_block_version)
+    /// Mints declaration blocks from `versions`, which the document's host mints from as well, rather than from
+    /// versions of the engine's own. The engine has minted none yet.
+    pub(crate) fn share_declaration_block_versions(&mut self, versions: Arc<std::sync::atomic::AtomicU32>) {
+        debug_assert_eq!(
+            self.declaration_block_version
+                .load(std::sync::atomic::Ordering::Relaxed),
+            1
+        );
+        self.declaration_block_version = versions;
     }
 
     pub(super) fn compile_selectors(

@@ -611,7 +611,7 @@ pub struct FfiStyleRecordView {
 }
 
 impl FfiStyleRecordView {
-    fn missing() -> Self {
+    pub(crate) fn missing() -> Self {
         Self {
             payloads: std::ptr::null(),
             base_payloads: std::ptr::null(),
@@ -3100,8 +3100,16 @@ pub unsafe extern "C" fn style_engine_style_record_view(
 ) -> FfiStyleRecordView {
     // SAFETY: Guaranteed by the caller.
     let host = unsafe { document_host(host) };
+    let memo = &host.engine_memo().views;
+    if let Some(view) = memo.get(style_record) {
+        return view;
+    }
     // SAFETY: Guaranteed by the caller.
-    with_engine(read, host, |engine| unsafe { style_record_view(engine, style_record) })
+    let view = with_engine(read, host, |engine| unsafe { style_record_view(engine, style_record) });
+    if view.present {
+        memo.set(style_record, view);
+    }
+    view
 }
 
 /// [`style_engine_style_record_view`] on `engine`, which the style replay tool calls as well.

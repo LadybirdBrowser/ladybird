@@ -11,7 +11,8 @@
 //! document it hosts on its one main thread, so a thread per process is also a thread per event loop. The host waits
 //! for a job it hands a thread with [`StageThread::run`], which may borrow from the host's frame. A job it submits
 //! with [`StageThread::submit`] owns everything it reads instead, and runs beside the host: the host goes on, and
-//! takes the job's answer in from its [`InFlight`] once it has finished.
+//! takes the job's answer in from its [`InFlight`] once it has finished. A job it posts with [`StageThread::post`] owns
+//! what it reads too, and nobody takes it in.
 //!
 //! A thread waiting on the other side of a hand-off sleeps until that side wakes it: a stage thread for its next job,
 //! a host for the answer of a job it handed out. Nothing spins or polls, so a waiting thread takes no CPU from the
@@ -169,6 +170,12 @@ impl StageThread {
         }
     }
 
+    /// Posts `job` to this thread and goes on: the job owns what it reads, runs after the jobs handed to the thread
+    /// before it, and answers nothing. A job posted from this thread runs once the job it is posted from is done.
+    pub(crate) fn post(&self, job: impl FnOnce() + Send + 'static) {
+        self.hand(PostedJob::give_up(job));
+    }
+
     /// Hands the job `header` heads to this thread, which runs it after the jobs handed to it before.
     fn hand(&self, header: NonNull<JobHeader>) {
         tsan::release(&self.shared.busy);
@@ -303,6 +310,42 @@ impl<F: FnOnce(&StopWord) -> R + Send, R: Send> SubmittedJob<F, R> {
         if let Some(finished) = FLIGHT_FINISHED.get() {
             finished();
         }
+    }
+}
+
+/// A job a thread posts to a stage thread, on the heap, which the stage thread frees once it has run it.
+#[repr(C)]
+struct PostedJob<F> {
+    // First, so that a pointer to the header points to the job.
+    header: JobHeader,
+    job: F,
+}
+
+impl<F: FnOnce() + Send> PostedJob<F> {
+    /// The header of `job` on the heap, which the stage thread it is handed to frees.
+    fn give_up(job: F) -> NonNull<JobHeader> {
+        let job = Box::new(Self {
+            header: JobHeader {
+                run: Self::run_posted,
+                next: Cell::new(None),
+            },
+            job,
+        });
+        NonNull::from(Box::leak(job)).cast()
+    }
+
+    /// Runs the job `header` heads and frees it. A job that panics ends the process, as nobody takes its panic in.
+    ///
+    /// # Safety
+    ///
+    /// `header` must come from [`Self::give_up`], and be handed out to the calling thread only.
+    unsafe fn run_posted(header: NonNull<JobHeader>, busy: &AtomicBool) {
+        // SAFETY: Guaranteed by the caller: the posting thread gave the job up.
+        let job = unsafe { Box::from_raw(header.cast::<Self>().as_ptr()) };
+        if std::panic::catch_unwind(AssertUnwindSafe(job.job)).is_err() {
+            render_state_died();
+        }
+        ran(busy);
     }
 }
 
@@ -527,6 +570,16 @@ mod tests {
                 .collect()
         });
         assert_eq!(sums, [0, 19_900, 39_800, 59_700]);
+    }
+
+    #[test]
+    fn a_posted_job_runs_before_the_jobs_handed_after_it() {
+        let ran = Arc::new(AtomicUsize::new(0));
+        let posted = Arc::clone(&ran);
+        test_thread().post(move || {
+            posted.fetch_add(1, Ordering::Relaxed);
+        });
+        assert_eq!(test_thread().run(|| ran.load(Ordering::Relaxed)), 1);
     }
 
     #[test]

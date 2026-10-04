@@ -49,6 +49,11 @@ const _: () = {
 };
 
 impl RowSnapshot {
+    /// How far the arena's rows had been written when they were published.
+    pub(crate) fn version(&self) -> RowsVersion {
+        self.version
+    }
+
     /// Whether the rows read as the arena's do at `version`.
     pub(crate) fn reads_as(&self, version: RowsVersion) -> bool {
         self.version == version

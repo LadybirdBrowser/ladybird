@@ -862,6 +862,7 @@ unsafe fn landed_recording_stands(
             arena.rows_version() == version
         }),
     )
+    .0
 }
 
 /// Drops the recording pending for `host`'s document to publish unpublished, as the host does with a recording that

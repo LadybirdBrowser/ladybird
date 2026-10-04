@@ -22,8 +22,6 @@ use smallvec::SmallVec;
 /// One write of the host to a document's layout marks or layout facts, which the render state applies to the arena
 /// before anything that reads it.
 pub(crate) enum LayoutChange {
-    /// A write of a node's layout tree update marks the host made beside a frame in flight.
-    LayoutTreeUpdateMark(super::tree_update_marks::LayoutTreeUpdateMarkWrite),
     SetNeedsLayoutUpdate {
         node: NodeSlotId,
         propagate_through_ancestors: bool,
@@ -54,12 +52,9 @@ pub(crate) enum LayoutChange {
         parent: NodeSlotId,
         child: NodeSlotId,
     },
-    /// The identity `node` names was handed to a node, which holds no layout tree update mark, whatever the node that
-    /// held it before left behind.
-    ClearLayoutTreeUpdateMarks(StyleNodeID),
     /// The DOM node identified by `old` took `new`. Its rows, and those of the pseudo-elements `generated_for` lists,
-    /// take the new identity along with their bindings; the old one leaves every row carrying it, and the new one
-    /// leaves the layout tree update marks its previous holder left.
+    /// take the new identity along with their bindings, and the old one leaves every row carrying it. The host clears the
+    /// layout tree update marks the new one's previous holder left as it queues the change.
     StyleNodeChanged {
         old: Option<StyleNodeID>,
         new: Option<StyleNodeID>,
@@ -175,9 +170,6 @@ impl LayoutChange {
     /// left to change.
     pub(crate) fn apply(self, arena: &mut LayoutNodeArena) {
         match self {
-            Self::LayoutTreeUpdateMark(write) => {
-                write.apply(&mut arena.layout_tree_update_marks().borrow_mut());
-            }
             Self::SetNeedsLayoutUpdate {
                 node,
                 propagate_through_ancestors,
@@ -214,7 +206,6 @@ impl LayoutChange {
                     arena.note_contained_abspos_child_removal(parent, child);
                 }
             }
-            Self::ClearLayoutTreeUpdateMarks(node) => arena.layout_tree_update_marks().borrow_mut().clear(node),
             Self::StyleNodeChanged {
                 old,
                 new,
@@ -229,7 +220,6 @@ impl LayoutChange {
                 if let Some(old) = old {
                     arena.forget_style_node(old);
                 }
-                arena.clear_layout_tree_update_marks(new);
             }
             Self::SetAnchorNameElements {
                 scope_host,
@@ -307,16 +297,16 @@ impl LayoutChange {
 
 /// A write the host waits for the render state to make, as it pays what the write owes it before it goes on.
 #[derive(Clone, Copy, Debug)]
-pub(crate) enum LayoutWrite {
+pub(crate) enum LayoutWrite<'a> {
     /// Detaches the layout subtree `root` heads from its parent, if it has one, and frees it. The host prepared its rows
     /// for leaving the tree before.
     DropSubtree { root: NodeSlotId },
     /// Detaches the layout placement of the top layer element and clears every stale projected subtree of it.
     DetachTopLayerElement(StyleNodeID),
-    /// Detaches what is left of the boxes of the node as it leaves the document, while its identity still names them:
-    /// its synthetic pseudo-elements' boxes and its box's top layer placement go, and its box is cleared for the
-    /// parent's rebuild to free.
-    DetachRemainingRowsForRemoval(StyleNodeID),
+    /// Detaches what is left of the boxes of each node the style node identities name as the nodes leave the document,
+    /// while the identities still name them: their synthetic pseudo-elements' boxes and their boxes' top layer
+    /// placements go, and their boxes are cleared for the parent's rebuild to free. An identity of 0 names no node.
+    DetachRemainingRowsForRemoval(&'a [u32]),
     /// The row takes the derived style record `record` its layout node made.
     AdoptDerivedNodeStyle { node: NodeSlotId, record: u64 },
     /// The row's layout style takes the display `display`.
@@ -339,7 +329,7 @@ pub(crate) struct LayoutWritten {
     pub(crate) host_work: HostWorkDue,
 }
 
-impl LayoutWrite {
+impl LayoutWrite<'_> {
     /// Makes the write to the arena `arena` names, owing the host what it would have paid on its thread.
     pub(crate) fn apply(self, arena: *mut LayoutNodeArena) -> LayoutWritten {
         let host_work = OwedHostWork::default();
@@ -361,8 +351,10 @@ impl LayoutWrite {
                 super::tree_builder::detach_top_layer_element_layout_subtree(host_calls, arena, element);
                 false
             }
-            Self::DetachRemainingRowsForRemoval(node) => {
-                super::tree_builder::detach_remaining_rows_for_removal(host_calls, arena, node);
+            Self::DetachRemainingRowsForRemoval(nodes) => {
+                for node in nodes.iter().filter_map(|&node| StyleNodeID::from_raw(node)) {
+                    super::tree_builder::detach_remaining_rows_for_removal(host_calls, arena, node);
+                }
                 false
             }
             Self::AdoptDerivedNodeStyle { node, record } => {
@@ -412,7 +404,7 @@ impl LayoutWrite {
 
 /// Has the render state of `host`'s document make `write`, spending `wait`, and answers what the write owes the host,
 /// which the host pays before it goes on.
-pub(crate) fn write(wait: impl RenderWait, host: &DocumentHost, write: LayoutWrite) -> LayoutWritten {
+pub(crate) fn write(wait: impl RenderWait, host: &DocumentHost, write: LayoutWrite<'_>) -> LayoutWritten {
     ask(wait, host, write)
 }
 
@@ -539,13 +531,18 @@ pub unsafe extern "C" fn render_state_style_node_changed(
         // SAFETY: Guaranteed by the caller.
         SmallVec::from_slice(unsafe { std::slice::from_raw_parts(generated_for, count) })
     };
+    let new = StyleNodeID::from_raw(new);
     let change = LayoutChange::StyleNodeChanged {
         old: StyleNodeID::from_raw(old),
-        new: StyleNodeID::from_raw(new),
+        new,
         generated_for,
     };
     // SAFETY: Guaranteed by the caller.
     unsafe { queue(host, change) };
+    if let Some(new) = new {
+        // SAFETY: Guaranteed by the caller.
+        unsafe { &*host }.write_marks(super::tree_update_marks::LayoutTreeUpdateMarkWrite::Clear(new));
+    }
 }
 
 /// # Safety

@@ -1579,13 +1579,18 @@ void Node::detach_remaining_layout_nodes_for_removal()
     auto* arena = document().layout_node_arena_if_created();
     if (!arena)
         return;
-    // The removal pays what detaching the boxes owes the host as it goes, which is its own read of the render state.
-    Layout::ForcedReadScope read { arena->render_document(), false };
+    // The nodes' boxes, their pseudo-elements' and their top layer placements, are found by the nodes' StyleNodeIDs.
+    Vector<u32> style_nodes;
     for_each_shadow_including_inclusive_descendant([&](Node& node) {
-        // The node's boxes, its pseudo-elements' and its top layer placement, are found by the node's StyleNodeID.
-        Layout::RustFFI::render_state_detach_remaining_rows_for_removal(arena->host(), read, Layout::Node::style_node_of(&node).value());
+        if (auto style_node = Layout::Node::style_node_of(&node).value())
+            style_nodes.append(style_node);
         return TraversalDecision::Continue;
     });
+    if (style_nodes.is_empty())
+        return;
+    // The removal pays what detaching the boxes owes the host, which is its own read of the render state.
+    Layout::ForcedReadScope read { arena->render_document(), false };
+    Layout::RustFFI::render_state_detach_remaining_rows_for_removal(arena->host(), read, style_nodes.data(), style_nodes.size());
 }
 
 void Node::assign_slottables_after_removal(Node& parent, Node& parent_root)
