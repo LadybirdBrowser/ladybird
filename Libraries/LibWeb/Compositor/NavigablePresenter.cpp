@@ -109,8 +109,13 @@ void NavigablePresenter::present_beside_event_loop(SealedPresentation& sealed, N
     frame.context_id = sealed.context_id;
     frame.present_viewport_rect = sealed.present_viewport_rect;
     sealed.sink->submit(move(frame));
+    if (replaces_paint_command_cache_source) {
+        sealed.paint_command_cache_source = published.display_list;
+        sealed.paint_command_cache_source_resources = m_compositor_display_list_command_resources;
+        sealed.recording->paint_command_cache_source = published.display_list;
+    }
     sealed.published = move(published);
-    m_last_frame_presented_by = PresentedBy::Flight;
+    m_last_frame_presented_by = sealed.presented_by;
 }
 
 }

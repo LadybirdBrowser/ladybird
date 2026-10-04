@@ -1,0 +1,2 @@
+the presented height is the animation's at the last tick: true
+last frame presented by: clock

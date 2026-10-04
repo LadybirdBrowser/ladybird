@@ -100,8 +100,11 @@ bool seal_clock_plan(DOM::Document& document, bool may_plan)
                     // sample: the lease only stops at its events.
                     if (keyframe_effect.is_compositor_driven() || keyframe_effect.is_compositor_replaced() || keyframe_effect.can_skip_per_frame_style_update())
                         continue;
+                    // The root element and the body paint the background the canvas may take over, which only the host
+                    // resolves.
                     auto const* layout_node = target->unsafe_layout_node(read);
                     if (keyframe_effect.pseudo_element_type().has_value() || target->namespace_uri() != Namespace::HTML
+                        || target.ptr() == document.document_element() || target.ptr() == document.body()
                         || !layout_node || !Painting::has_committed_box(*layout_node) || animates_what_a_tick_cannot(keyframe_effect))
                         return false;
                     auto element = target->style_node_id().value();

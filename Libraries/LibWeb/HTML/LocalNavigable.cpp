@@ -821,10 +821,21 @@ Compositor::NavigablePresenter& LocalNavigable::presenter()
     Layout::RustFFI::document_host_take_back_presentation(holder->layout_node_arena().host(), &presentation);
     VERIFY(presentation.presenter);
     m_presenter_slot = adopt_own(*static_cast<Compositor::NavigablePresenter*>(presentation.presenter));
+    auto& presenter = *m_presenter_slot.get<NonnullOwnPtr<Compositor::NavigablePresenter>>();
     auto sealed = adopt_own(*static_cast<Compositor::SealedPresentation*>(presentation.sealed));
-    if (!sealed->published.has_value())
+    if (!sealed->published.has_value()) {
         unseal_presentation(holder, *sealed);
-    return *m_presenter_slot.get<NonnullOwnPtr<Compositor::NavigablePresenter>>();
+        return presenter;
+    }
+    if (has_been_destroyed() || active_document().ptr() != holder.ptr() || !holder->has_committed_viewport_box())
+        return presenter;
+    // The ticks presented frames of boxes that took back the styles the host installed for them: the next recording
+    // copies from what the last tick published, and the document's boxes are recorded again, with their hit-test list.
+    holder->adopt_published_recording({}, *sealed->recording, sealed->published->display_list, presenter.display_list_resource_storage());
+    m_needs_repaint = true;
+    m_needs_to_record_display_list = true;
+    page().client().request_frame();
+    return presenter;
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#script-closable
@@ -6983,24 +6994,37 @@ bool LocalNavigable::lease_clock_for_task()
     auto sink = compositor_context().frame_sink();
     if (!sink)
         return false;
+    // A tick records the document again as the recording it published last did, which the compositor shows.
+    auto& presenter = this->presenter();
+    auto compositor_display_list = presenter.compositor_display_list();
+    if (!compositor_display_list || compositor_display_list != document->paint_state().display_list_used_as_paint_command_cache_source())
+        return false;
 
-    PaintConfig paint_config { .paint_overlay = true, .should_show_caret_hit_test_debug_overlay = m_should_show_caret_hit_test_debug_overlay };
-    paint_config = stamp_paint_config(paint_config);
-    paint_config.canvas_fill_rect = Gfx::IntRect { {}, page().css_to_device_rect(viewport_rect()).size().to_type<int>() };
-    auto sealed = make<Compositor::SealedPresentation>(seal_presentation(*document, paint_config, true));
+    auto sealed = make<Compositor::SealedPresentation>(seal_presentation(*document, presenter.compositor_display_list_paint_config().value(), true));
+    sealed->recording = Painting::DisplayListRecording {
+        .visual_context_tree = sealed->visual_context_tree.value(),
+        .placeholder_display_list = Compositing::DisplayList::create(sealed->visual_context_tree.value()),
+        .cache_mode = Painting::PaintCommandCacheMode::ReadWrite,
+        .in_flight = true,
+        .async_scrolling_metadata = compositor_display_list->async_scrolling_metadata(),
+        .paint_command_cache_source = compositor_display_list,
+    };
+    if (auto color = compositor_display_list->surface_clear_color(); color.has_value())
+        sealed->recording->placeholder_display_list->set_surface_clear_color(*color);
     sealed->sink = move(sink);
     sealed->context_id = compositor_context().id();
     sealed->present_viewport_rect = page().css_to_device_rect(viewport_rect()).to_type<int>();
+    sealed->presented_by = Compositor::PresentedBy::Clock;
 
-    auto presenter = move(m_presenter_slot.get<NonnullOwnPtr<Compositor::NavigablePresenter>>());
-    Layout::RustFFI::FfiPresentation presentation { .presenter = presenter.ptr(), .sealed = sealed.ptr() };
+    auto leased_presenter = move(m_presenter_slot.get<NonnullOwnPtr<Compositor::NavigablePresenter>>());
+    Layout::RustFFI::FfiPresentation presentation { .presenter = leased_presenter.ptr(), .sealed = sealed.ptr() };
     auto const* ticks = Layout::RustFFI::document_host_lease_clock(host, &presentation);
     if (presentation.presenter) {
-        m_presenter_slot = move(presenter);
+        m_presenter_slot = move(leased_presenter);
         unseal_presentation(*document, *sealed);
         return false;
     }
-    (void)presenter.leak_ptr();
+    (void)leased_presenter.leak_ptr();
     (void)sealed.leak_ptr();
     m_presenter_slot = GC::Ref { *document };
 

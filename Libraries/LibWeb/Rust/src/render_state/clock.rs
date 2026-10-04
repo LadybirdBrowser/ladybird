@@ -9,23 +9,30 @@
 //! As a task begins, the host leases its document's render state, with the recorder state and its navigable's
 //! presentation, to the render clock, which ticks at the display's ticks on the StyleLayout thread: each tick reaches
 //! the state there by the document's name, as the render owner, samples the running animations of the plan the last
-//! rendering update sealed at the tick's time, shows the samples in their elements' boxes, and lays out what they
-//! moved. The host ends the lease with any job it hands the owner, which waits for at most the one tick that runs, and
-//! takes everything back at once. What a tick showed never becomes visible to script: the boxes take back the styles
-//! the host installed before any job of the host reads them, so the animations' timeline moves only in a rendering
-//! update.
+//! rendering update sealed at the tick's time, shows the samples in their elements' boxes, lays out what they moved,
+//! and records and presents the frame with the navigable's presenter, beside the event loop. The host ends the lease
+//! with any job it hands the owner, which waits for at most the one tick that runs, and takes everything back at once.
+//! What a tick showed never becomes visible to script: the boxes take back the styles the host installed before any
+//! job of the host reads them, so the animations' timeline moves only in a rendering update.
 
 use super::owner::{self, DocumentId};
 use super::wait::{LockstepProof, TaskStart};
 use super::{DocumentHost, RenderState};
+use crate::css::css_pixels::CssPixelRect;
 use crate::css::style::animations::AnimationTimelineSamples;
 use crate::css::style::engine_sample::NeedsHost;
 use crate::css::style::tree::StyleNodeID;
 use crate::layout::node_data::NodeSlotId;
+use crate::layout::used_values::FfiCssPixelRect;
 use crate::layout::{ClockRound, ClockRoundDeclined, HostStyle, LayoutRoundAnswer};
 use crate::painting::ffi::FfiPresentation;
+use crate::painting::paint_passes::{MovesVisualContexts, prepare_for_clock_tick};
+use crate::painting::paintable_geometry::absolute_border_box_rect;
 use crate::painting::presentation::Presentation;
+use crate::painting::record::damage::PaintDamage;
+use crate::painting::record::publish::{renders_vector_images, take_in_published_output, take_in_recording};
 use crate::painting::record::recorder_state::RecorderState;
+use crate::painting::recording_slot::{FrameInputs, freeze_recording_frame, present, record_frame};
 use crate::stage_thread::{InFlight, StopWord, Ticker};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicI64, Ordering};
@@ -62,6 +69,8 @@ pub(crate) struct LeaseLanding {
     plan: ClockPlan,
     pub(super) ticked: Vec<(NodeSlotId, HostStyle)>,
     pub(super) owed: Vec<LayoutRoundAnswer>,
+    /// The border boxes of the plan's elements in the last frame a tick presented.
+    pub(super) presented_border_boxes: Vec<(StyleNodeID, CssPixelRect)>,
     /// Whether a tick found the lease could sample no more: past the deadline, or something only the host computes.
     parked: bool,
 }
@@ -104,6 +113,7 @@ impl ClockLease {
             plan,
             ticked: Vec::new(),
             owed: Vec::new(),
+            presented_border_boxes: Vec::new(),
             parked: false,
         });
         let ticks = Arc::new(ClockTicks {
@@ -184,10 +194,16 @@ impl From<ClockRoundDeclined> for Park {
     }
 }
 
+impl From<MovesVisualContexts> for Park {
+    fn from(_: MovesVisualContexts) -> Self {
+        Self
+    }
+}
+
 impl LeaseLanding {
-    /// Samples the plan's animations at the timestamp of `frame_time_nanoseconds`, shows the samples and lays out what
-    /// they moved, unless the host said the stop word: the host waits for the lease. A tick at or past the deadline, or
-    /// one that needs the host, parks the lease.
+    /// Samples the plan's animations at the timestamp of `frame_time_nanoseconds`, shows the samples, lays out what
+    /// they moved and presents the frame, unless the host said the stop word: the host waits for the lease. A tick at or
+    /// past the deadline, or one that needs the host, parks the lease.
     fn tick(&mut self, frame_time_nanoseconds: i64, stop: &StopWord) {
         if self.parked || stop.is_said() {
             return;
@@ -222,10 +238,70 @@ impl LeaseLanding {
             if let Some(host_style) = state.arena.arena().install_animation_sample(row, sample)? {
                 ticked.push((row, host_style));
             }
+            state
+                .arena
+                .arena()
+                .push_paint_damage_for_repaint(row, PaintDamage::ALL_PRODUCERS);
         }
         if let Some(answer) = plan.round.run(&mut state.arena)? {
             owed.push(answer);
         }
+        self.present(state)
+    }
+
+    /// Records the document's frame again, with the inputs of the last recording that published, and presents it
+    /// beside the event loop. A frame whose visual contexts the compositor does not have, or that renders an SVG image,
+    /// or whose trace the host reads, is the host's to present.
+    fn present(&mut self, state: &mut RenderState) -> Result<(), Park> {
+        let Self {
+            recorder,
+            presentation,
+            plan,
+            presented_border_boxes,
+            ..
+        } = self;
+        let arena = state.arena.arena_mut();
+        let viewport = arena.layout_root();
+        if arena.paint_state().borrow().trace_recordings {
+            return Err(Park);
+        }
+        prepare_for_clock_tick(arena, viewport)?;
+        let inputs = recorder.published_inputs.take().ok_or(Park)?;
+        let frame_inputs = FrameInputs {
+            viewport,
+            css_viewport_rect: inputs.css_viewport_rect,
+            publishes_recording: true,
+            published_root_background_canvas_rect: recorder
+                .published_recording
+                .as_ref()
+                .map(|recording| recording.root_background_canvas_rect),
+            hit_test_item_capacity_hint: recorder
+                .published_hit_test_items
+                .as_ref()
+                .map_or(0, |published| published.items.len()),
+        };
+        let Some(frozen) = freeze_recording_frame(arena, frame_inputs) else {
+            recorder.published_inputs = Some(inputs);
+            return Err(Park);
+        };
+        let (pending, _) = record_frame(frozen.frame, recorder, viewport, false, inputs);
+        // Only the host renders an SVG image. The recording wrote the paint-order tree, which no longer describes the
+        // recording published last.
+        if renders_vector_images(&pending) {
+            recorder.forget_published_recording();
+            return Err(Park);
+        }
+        let output = present(presentation, pending, recorder);
+        take_in_published_output(recorder, &mut None, output, true, |output, hit_test_list_changed| {
+            take_in_recording(arena, output, hit_test_list_changed, true);
+        });
+        let rows = arena.paintable_rows();
+        presented_border_boxes.clear();
+        presented_border_boxes.extend(plan.elements.iter().filter_map(|&element| {
+            let row = arena.bound_row(element);
+            rows.paintable_row_is_populated(row)
+                .then(|| (element, absolute_border_box_rect(&rows, row)))
+        }));
         Ok(())
     }
 }
@@ -252,6 +328,13 @@ pub(crate) struct AnimationChanged {
 }
 
 pub(super) const ANIMATION_CHANGED: AnimationChanged = AnimationChanged { _private: () };
+
+/// The reason the host ends its document's clock lease as a test reads what a tick presented.
+pub(crate) struct TestReadsPresentedFrame {
+    _private: (),
+}
+
+const TEST_READS_PRESENTED_FRAME: TestReadsPresentedFrame = TestReadsPresentedFrame { _private: () };
 
 /// Hands the clock lease `ticks` belong to a display tick at `frame_time_nanoseconds`, and answers whether it wants the
 /// next one.
@@ -425,4 +508,29 @@ pub unsafe extern "C" fn document_host_inject_clock_tick(host: *const DocumentHo
         ticks.tick(frame_time_nanoseconds);
         crate::stage_thread::style_layout_thread().run(|| ());
     }
+}
+
+/// Writes the border box of `element` in the last frame a tick of a clock lease of `host`'s document presented to
+/// `rect`, ending the lease that runs, and answers whether a tick presented one. For a test.
+///
+/// # Safety
+///
+/// `host` must come from `document_host_create` and not be destroyed yet, on its document's thread, and `rect` must be
+/// valid for writes.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn document_host_presented_border_box(
+    host: *const DocumentHost,
+    element: u32,
+    rect: *mut FfiCssPixelRect,
+) -> bool {
+    assert!(!host.is_null(), "document host is null");
+    // SAFETY: Guaranteed by the caller.
+    let host = unsafe { &*host };
+    let _wait = LockstepProof::for_reason(&TEST_READS_PRESENTED_FRAME);
+    let Some(presented) = StyleNodeID::from_raw(element).and_then(|element| host.presented_border_box(element)) else {
+        return false;
+    };
+    // SAFETY: Guaranteed by the caller.
+    unsafe { rect.write(presented.into()) };
+    true
 }

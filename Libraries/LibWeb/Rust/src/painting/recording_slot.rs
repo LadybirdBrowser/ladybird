@@ -15,8 +15,8 @@
 //! the document host's, on the host's thread: only the recording entries, the publication and the
 //! trace reach it, through [`crate::render_state::DocumentHost::recording`].
 
-use crate::layout::RowsVersion;
 use crate::layout::node_data::NodeSlotId;
+use crate::layout::{LayoutNodeArena, RowsVersion};
 use crate::painting::ffi::{FfiFlightBlocker, FfiPresentedRecording};
 use crate::painting::hit_test::HitTestList;
 use crate::painting::paint_read::PaintSource;
@@ -92,7 +92,7 @@ impl RecordingJob {
     }
 
     /// Records the frame with `inputs` on the Paint thread, and waits for what it recorded.
-    pub(crate) fn run_on_paint_thread(self, inputs: &RecordingInputs) -> RecordingAnswer {
+    pub(crate) fn run_on_paint_thread(self, inputs: RecordingInputs) -> RecordingAnswer {
         if cfg!(test) {
             return self.run(inputs, None);
         }
@@ -115,13 +115,13 @@ impl RecordingJob {
             if held {
                 wait_while_recording_is_held_for_testing();
             }
-            self.run(&inputs, Some(stop))
+            self.run(inputs, Some(stop))
         })
     }
 
     /// Records the frame with `inputs`, and presents it where the job has a presentation and `stop`
     /// is not said. It takes no main thread token, so nothing it calls can reach the host.
-    fn run(self, inputs: &RecordingInputs, stop: Option<&StopWord>) -> RecordingAnswer {
+    fn run(self, inputs: RecordingInputs, stop: Option<&StopWord>) -> RecordingAnswer {
         let Self {
             frame,
             mut recorder,
@@ -129,73 +129,7 @@ impl RecordingJob {
             trace_recordings,
             mut presentation,
         } = self;
-        let RecorderState {
-            published_recording,
-            published_hit_test_items,
-            paint_order_tree,
-            scratch,
-            absolute_rects,
-        } = &mut recorder;
-        let source = PaintSource::new(&frame, absolute_rects);
-        // The retained tree describes the published tape and is written in place while a frame
-        // is assembled, so only a recording that publishes may copy from that frame or touch
-        // the tree; any other recording records from scratch into a tree of its own.
-        let mut throwaway_tree = crate::painting::record::order_tree::PaintOrderTree::default();
-        let (tree, source_recording, source_items) = if inputs.publishes_recording {
-            (
-                paint_order_tree,
-                published_recording.clone(),
-                published_hit_test_items.clone(),
-            )
-        } else {
-            (&mut throwaway_tree, None, None)
-        };
-        let copies_from_published_recording = source_recording.is_some();
-        let recording = crate::painting::record::traversal::record_display_list(
-            &source,
-            scratch,
-            tree,
-            viewport,
-            inputs,
-            source_recording,
-            source_items,
-            true,
-            trace_recordings || crate::painting::record::verify::enabled_by_environment(),
-        );
-        // The oracle records the same frame from scratch into a throwaway tree whenever the
-        // published recording could have been copied from.
-        let recording_from_scratch =
-            (crate::painting::record::verify::enabled_by_environment() && copies_from_published_recording).then(|| {
-                let mut inputs_for_recording_from_scratch = inputs.clone();
-                inputs_for_recording_from_scratch.publishes_recording = false;
-                let mut tree_for_recording_from_scratch =
-                    crate::painting::record::order_tree::PaintOrderTree::default();
-                crate::painting::record::traversal::record_display_list(
-                    &source,
-                    scratch,
-                    &mut tree_for_recording_from_scratch,
-                    viewport,
-                    &inputs_for_recording_from_scratch,
-                    None,
-                    None,
-                    false,
-                    false,
-                )
-            });
-        let trace = (trace_recordings && recording.output.capture_log_for_verification.is_some()).then_some(
-            PendingRecordingTrace {
-                viewport,
-                should_paint_overlay: inputs.should_paint_overlay,
-            },
-        );
-        let svg_paint_resources = frame.svg_paint_resources().clone();
-        drop(frame);
-        let pending = PendingRecording {
-            recording,
-            recording_from_scratch,
-            publishes_recording: inputs.publishes_recording,
-            svg_paint_resources,
-        };
+        let (pending, trace) = record_frame(frame, &mut recorder, viewport, trace_recordings, inputs);
         // A recording that renders an SVG image, or that the host waits for by now, leaves its frame
         // for the host to present.
         let recorded = match presentation.as_mut() {
@@ -203,15 +137,10 @@ impl RecordingJob {
                 if stop.is_some_and(|stop| !stop.is_said())
                     && !crate::painting::record::publish::renders_vector_images(&pending) =>
             {
-                let output = crate::painting::record::publish::publish_to_presenter(
-                    pending,
-                    &recorder,
-                    &mut presentation.presenter,
-                );
-                presentation.present(&FfiPresentedRecording::of_output(&output));
+                let publishes_recording = pending.publishes_recording;
                 Recorded::Presented {
-                    output,
-                    publishes_recording: inputs.publishes_recording,
+                    output: present(presentation, pending, &recorder),
+                    publishes_recording,
                 }
             }
             _ => Recorded::Pending(pending),
@@ -267,6 +196,171 @@ pub(crate) fn hold_next_recording_for_testing() {
 pub(crate) fn release_held_recording_for_testing() {
     *recording_hold() = RecordingHold::Idle;
     RECORDING_HOLD_RELEASED.notify_all();
+}
+
+/// Records `frame` of the document's `viewport` with `inputs` and `recorder`, which keeps the inputs of a recording that
+/// publishes, and answers what it recorded, with the trace it left where `trace_recordings` asks for one.
+pub(crate) fn record_frame(
+    frame: PublishedFrame,
+    recorder: &mut RecorderState,
+    viewport: NodeSlotId,
+    trace_recordings: bool,
+    inputs: RecordingInputs,
+) -> (PendingRecording, Option<PendingRecordingTrace>) {
+    let RecorderState {
+        published_recording,
+        published_hit_test_items,
+        paint_order_tree,
+        scratch,
+        absolute_rects,
+        published_inputs,
+    } = recorder;
+    let source = PaintSource::new(&frame, absolute_rects);
+    // The retained tree describes the published tape and is written in place while a frame
+    // is assembled, so only a recording that publishes may copy from that frame or touch
+    // the tree; any other recording records from scratch into a tree of its own.
+    let mut throwaway_tree = crate::painting::record::order_tree::PaintOrderTree::default();
+    let (tree, source_recording, source_items) = if inputs.publishes_recording {
+        (
+            paint_order_tree,
+            published_recording.clone(),
+            published_hit_test_items.clone(),
+        )
+    } else {
+        (&mut throwaway_tree, None, None)
+    };
+    let copies_from_published_recording = source_recording.is_some();
+    let recording = crate::painting::record::traversal::record_display_list(
+        &source,
+        scratch,
+        tree,
+        viewport,
+        &inputs,
+        source_recording,
+        source_items,
+        true,
+        trace_recordings || crate::painting::record::verify::enabled_by_environment(),
+    );
+    // The oracle records the same frame from scratch into a throwaway tree whenever the
+    // published recording could have been copied from.
+    let recording_from_scratch =
+        (crate::painting::record::verify::enabled_by_environment() && copies_from_published_recording).then(|| {
+            let mut inputs_for_recording_from_scratch = inputs.clone();
+            inputs_for_recording_from_scratch.publishes_recording = false;
+            let mut tree_for_recording_from_scratch = crate::painting::record::order_tree::PaintOrderTree::default();
+            crate::painting::record::traversal::record_display_list(
+                &source,
+                scratch,
+                &mut tree_for_recording_from_scratch,
+                viewport,
+                &inputs_for_recording_from_scratch,
+                None,
+                None,
+                false,
+                false,
+            )
+        });
+    let trace = (trace_recordings && recording.output.capture_log_for_verification.is_some()).then_some(
+        PendingRecordingTrace {
+            viewport,
+            should_paint_overlay: inputs.should_paint_overlay,
+        },
+    );
+    let svg_paint_resources = frame.svg_paint_resources().clone();
+    drop(frame);
+    let publishes_recording = inputs.publishes_recording;
+    if publishes_recording {
+        *published_inputs = Some(inputs);
+    }
+    (
+        PendingRecording {
+            recording,
+            recording_from_scratch,
+            publishes_recording,
+            svg_paint_resources,
+        },
+        trace,
+    )
+}
+
+/// Presents `pending`, which renders no SVG image and was recorded with `recorder`, with `presentation`, beside the event
+/// loop, and answers its output.
+pub(crate) fn present(
+    presentation: &mut Presentation,
+    pending: PendingRecording,
+    recorder: &RecorderState,
+) -> RecordingOutput {
+    let output = crate::painting::record::publish::publish_to_presenter(pending, recorder, &mut presentation.presenter);
+    presentation.present(&FfiPresentedRecording::of_output(&output));
+    output
+}
+
+/// What the host knows that freezing a document's frame for a recording reads.
+pub(crate) struct FrameInputs {
+    pub(crate) viewport: NodeSlotId,
+    pub(crate) css_viewport_rect: crate::css::css_pixels::CssPixelRect,
+    pub(crate) publishes_recording: bool,
+    /// The canvas rect the root background painted in the recording published last, if any.
+    pub(crate) published_root_background_canvas_rect: Option<crate::css::css_pixels::CssPixelRect>,
+    pub(crate) hit_test_item_capacity_hint: usize,
+}
+
+/// A document's frame, frozen for a recording, with what the recording reads beside it, and the rows version it was
+/// frozen at.
+pub(crate) struct FrozenFrame {
+    pub(crate) frame: crate::painting::published_frame::PublishedFrame,
+    pub(crate) tree_inputs: crate::painting::host::FfiVisualContextTreeInputs,
+    pub(crate) root_background_source: crate::painting::host::RootBackgroundSource,
+    pub(crate) trace_recordings: bool,
+    pub(crate) rows_version: crate::layout::RowsVersion,
+}
+
+/// Freezes the frame of the document whose arena `arena` is for a recording of its viewport, or none where the
+/// viewport has no box to paint.
+pub(crate) fn freeze_recording_frame(arena: &mut LayoutNodeArena, inputs: FrameInputs) -> Option<FrozenFrame> {
+    // Recording reads overflow, and reading overflow never measures it.
+    arena.measure_scrollable_overflow();
+    if !arena.paintable_row_is_populated(inputs.viewport) || arena.stacking_context_entries(inputs.viewport).is_none() {
+        return None;
+    }
+    // The root background paints the union of the viewport and the root's overflow, so it is the
+    // one output a viewport move can change. Drop its caches before the frame is published instead
+    // of treating the viewport position as a frame-wide input.
+    if let Some(published_canvas_rect) = inputs.published_root_background_canvas_rect {
+        let root = arena
+            .paint_state()
+            .borrow()
+            .root_background_source
+            .expect("a recording follows paint preparation")
+            .root_layout_node;
+        let canvas_rect = crate::painting::record::paint::background_resolution::root_background_canvas_rect(
+            &arena.paintable_rows(),
+            root,
+            inputs.css_viewport_rect,
+        );
+        if canvas_rect != published_canvas_rect {
+            arena.push_paint_damage(root, crate::painting::record::damage::PaintDamage::DRAW_BACKGROUND);
+        }
+    }
+    if inputs.publishes_recording {
+        arena.note_publishing_paint_recording_started();
+    }
+    // The recording reads the document as it is now: what the host writes after this goes to the next frame.
+    let frame = arena.freeze_frame(inputs.hit_test_item_capacity_hint);
+    let rows_version = arena.rows_version();
+    let paint_state = arena.paint_state().borrow();
+    Some(FrozenFrame {
+        frame,
+        rows_version,
+        tree_inputs: paint_state
+            .visual_context
+            .last_tree_inputs
+            .expect("a recording follows a visual context update"),
+        root_background_source: paint_state
+            .root_background_source
+            .expect("a recording follows paint preparation"),
+        trace_recordings: paint_state.trace_recordings,
+    })
 }
 
 /// The right of a rendering update's recording to fly beside the event loop: the document had no

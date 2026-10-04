@@ -250,6 +250,11 @@ impl SvgPaintResources {
         true
     }
 
+    /// Whether the host is to resolve the enrolled resources again.
+    pub(crate) fn needs_sync(&self) -> bool {
+        self.needs_sync.get()
+    }
+
     pub(crate) fn take_needs_sync(&self) -> bool {
         self.needs_sync.replace(false)
     }

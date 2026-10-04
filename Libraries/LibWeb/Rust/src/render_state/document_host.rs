@@ -15,6 +15,7 @@ use super::{
     ArenaChange, ChangeQueue, CommittedRows, ForcedRead, Landing, NoFrameInFlight, Owed, RenderState, RenderWait,
     ScriptForcedRead, StateFacts, on_render_side, post_to_render_side,
 };
+use crate::css::css_pixels::CssPixelRect;
 use crate::css::style::bridge::FfiDeviceClass;
 use crate::css::style::flight_style_rows::FlightStyleRow;
 use crate::css::style::rule_writes::{PublishedRules, RuleWrite};
@@ -108,6 +109,8 @@ pub struct DocumentHost {
     clock_rounds: RefCell<Vec<LayoutRoundAnswer>>,
     /// The presentation of the document's navigable a clock lease brought back, until the navigable takes it again.
     presentation: RefCell<Option<Presentation>>,
+    /// The border boxes of the elements a clock lease sampled in the last frame one of its ticks presented.
+    presented_border_boxes: RefCell<Vec<(StyleNodeID, CssPixelRect)>>,
 }
 
 /// What runs on the render owner beside the host, which the host takes back before it hands the owner a job: the frame
@@ -193,6 +196,7 @@ impl DocumentHost {
             clock_plan: RefCell::default(),
             clock_rounds: RefCell::default(),
             presentation: RefCell::default(),
+            presented_border_boxes: RefCell::default(),
         }
     }
 
@@ -371,9 +375,13 @@ impl DocumentHost {
             presentation,
             ticked,
             owed,
+            presented_border_boxes,
             ..
         }: LeaseLanding,
     ) {
+        if !presented_border_boxes.is_empty() {
+            *self.presented_border_boxes.borrow_mut() = presented_border_boxes;
+        }
         if !ticked.is_empty() {
             self.changes.push_front(ArenaChange::Layout(
                 crate::layout::layout_changes::LayoutChange::RestoreHostStyles(ticked),
@@ -673,6 +681,16 @@ impl DocumentHost {
     pub(super) fn end_clock_lease_and_plan(&self) {
         self.end_clock_lease();
         self.clock_plan.take();
+    }
+
+    /// Ends the clock lease, where one runs, and answers the border box of `element` in the last frame a tick of a clock
+    /// lease presented, if it presented one.
+    pub(super) fn presented_border_box(&self, element: StyleNodeID) -> Option<CssPixelRect> {
+        self.end_clock_lease();
+        self.presented_border_boxes
+            .borrow()
+            .iter()
+            .find_map(|&(presented, rect)| (presented == element).then_some(rect))
     }
 
     /// The ticks of the document's clock lease, where one runs.
