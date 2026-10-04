@@ -13,6 +13,7 @@ set(SOURCES
     HTTP.cpp
     HttpRequest.cpp
     Method.cpp
+    NetworkIsolationKey.cpp
 )
 
 include(hsts_preload)

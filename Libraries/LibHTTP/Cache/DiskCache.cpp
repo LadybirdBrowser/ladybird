@@ -7,6 +7,7 @@
 #include <AK/Checked.h>
 #include <AK/Debug.h>
 #include <AK/ScopeGuard.h>
+#include <AK/Utf16String.h>
 #include <LibCore/Directory.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/File.h>
@@ -93,7 +94,7 @@ DiskCache& DiskCache::operator=(DiskCache&&) = default;
 
 DiskCache::~DiskCache() = default;
 
-Variant<Optional<CacheEntryWriter&>, DiskCache::CacheHasOpenEntry> DiskCache::create_entry(CacheRequest& request, URL::URL const& url, StringView method, HeaderList const& request_headers, UnixDateTime request_start_time)
+Variant<Optional<CacheEntryWriter&>, DiskCache::CacheHasOpenEntry> DiskCache::create_entry(CacheRequest& request, Utf16String const& partition, URL::URL const& url, StringView method, HeaderList const& request_headers, UnixDateTime request_start_time)
 {
     if (!is_cacheable(method, request_headers))
         return Optional<CacheEntryWriter&> {};
@@ -104,7 +105,7 @@ Variant<Optional<CacheEntryWriter&>, DiskCache::CacheHasOpenEntry> DiskCache::cr
     }
 
     auto serialized_url = serialize_url_for_cache_storage(url);
-    auto cache_key = create_cache_key(serialized_url, method);
+    auto cache_key = create_cache_key(partition, serialized_url, method);
 
     if (check_if_cache_has_open_entry(request, cache_key, url, CheckReaderEntries::Yes))
         return CacheHasOpenEntry {};
@@ -126,7 +127,7 @@ Variant<Optional<CacheEntryWriter&>, DiskCache::CacheHasOpenEntry> DiskCache::cr
     return Optional<CacheEntryWriter&> { *cache_entry_pointer };
 }
 
-Variant<Optional<CacheEntryReader&>, DiskCache::CacheHasOpenEntry> DiskCache::open_entry(CacheRequest& request, URL::URL const& url, StringView method, HeaderList const& request_headers, CacheMode cache_mode, OpenMode open_mode)
+Variant<Optional<CacheEntryReader&>, DiskCache::CacheHasOpenEntry> DiskCache::open_entry(CacheRequest& request, Utf16String const& partition, URL::URL const& url, StringView method, HeaderList const& request_headers, CacheMode cache_mode, OpenMode open_mode)
 {
     if (cache_mode == CacheMode::Reload)
         return Optional<CacheEntryReader&> {};
@@ -134,7 +135,7 @@ Variant<Optional<CacheEntryReader&>, DiskCache::CacheHasOpenEntry> DiskCache::op
         return Optional<CacheEntryReader&> {};
 
     auto serialized_url = serialize_url_for_cache_storage(url);
-    auto cache_key = create_cache_key(serialized_url, method);
+    auto cache_key = create_cache_key(partition, serialized_url, method);
 
     if (check_if_cache_has_open_entry(request, cache_key, url, open_mode == OpenMode::Read ? CheckReaderEntries::No : CheckReaderEntries::Yes))
         return CacheHasOpenEntry {};
@@ -226,14 +227,14 @@ Variant<Optional<CacheEntryReader&>, DiskCache::CacheHasOpenEntry> DiskCache::op
     return Optional<CacheEntryReader&> { *cache_entry_pointer };
 }
 
-ErrorOr<bool> DiskCache::create_synthetic_entry(URL::URL const& url, StringView method)
+ErrorOr<bool> DiskCache::create_synthetic_entry(Utf16String const& partition, URL::URL const& url, StringView method)
 {
     auto request_headers = HeaderList::create();
     if (!is_cacheable(method, *request_headers))
         return false;
 
     auto serialized_url = serialize_url_for_cache_storage(url);
-    auto cache_key = create_cache_key(serialized_url, method);
+    auto cache_key = create_cache_key(partition, serialized_url, method);
     constexpr u64 synthetic_vary_key = 0;
 
     if (m_index.has_entry(cache_key, synthetic_vary_key))
@@ -245,13 +246,13 @@ ErrorOr<bool> DiskCache::create_synthetic_entry(URL::URL const& url, StringView 
     return true;
 }
 
-ErrorOr<bool> DiskCache::store_associated_data(URL::URL const& url, StringView method, HeaderList const& request_headers, Optional<u64> vary_key, CacheEntryAssociatedData associated_data, ReadonlyBytes data)
+ErrorOr<bool> DiskCache::store_associated_data(Utf16String const& partition, URL::URL const& url, StringView method, HeaderList const& request_headers, Optional<u64> vary_key, CacheEntryAssociatedData associated_data, ReadonlyBytes data)
 {
     if (!is_cacheable(method, request_headers))
         return false;
 
     auto serialized_url = serialize_url_for_cache_storage(url);
-    auto cache_key = create_cache_key(serialized_url, method);
+    auto cache_key = create_cache_key(partition, serialized_url, method);
     if (!vary_key.has_value()) {
         auto index_entry = m_index.find_entry(cache_key, request_headers);
         if (!index_entry.has_value())
@@ -280,13 +281,13 @@ ErrorOr<bool> DiskCache::store_associated_data(URL::URL const& url, StringView m
     return m_index.has_entry(cache_key, *vary_key);
 }
 
-ErrorOr<Optional<ByteBuffer>> DiskCache::retrieve_associated_data(URL::URL const& url, StringView method, HeaderList const& request_headers, Optional<u64> vary_key, CacheEntryAssociatedData associated_data)
+ErrorOr<Optional<ByteBuffer>> DiskCache::retrieve_associated_data(Utf16String const& partition, URL::URL const& url, StringView method, HeaderList const& request_headers, Optional<u64> vary_key, CacheEntryAssociatedData associated_data)
 {
     if (!is_cacheable(method, request_headers))
         return Optional<ByteBuffer> {};
 
     auto serialized_url = serialize_url_for_cache_storage(url);
-    auto cache_key = create_cache_key(serialized_url, method);
+    auto cache_key = create_cache_key(partition, serialized_url, method);
     if (!vary_key.has_value()) {
         auto index_entry = m_index.find_entry(cache_key, request_headers);
         if (!index_entry.has_value())
@@ -308,13 +309,13 @@ ErrorOr<Optional<ByteBuffer>> DiskCache::retrieve_associated_data(URL::URL const
     return TRY(file.value()->read_until_eof());
 }
 
-ErrorOr<Optional<CacheEntryBodyFile>> DiskCache::retrieve_associated_data_file(URL::URL const& url, StringView method, HeaderList const& request_headers, Optional<u64> vary_key, CacheEntryAssociatedData associated_data)
+ErrorOr<Optional<CacheEntryBodyFile>> DiskCache::retrieve_associated_data_file(Utf16String const& partition, URL::URL const& url, StringView method, HeaderList const& request_headers, Optional<u64> vary_key, CacheEntryAssociatedData associated_data)
 {
     if (!is_cacheable(method, request_headers))
         return Optional<CacheEntryBodyFile> {};
 
     auto serialized_url = serialize_url_for_cache_storage(url);
-    auto cache_key = create_cache_key(serialized_url, method);
+    auto cache_key = create_cache_key(partition, serialized_url, method);
     if (!vary_key.has_value()) {
         auto index_entry = m_index.find_entry(cache_key, request_headers);
         if (!index_entry.has_value())
@@ -373,9 +374,9 @@ bool DiskCache::check_if_cache_has_open_entry(CacheRequest& request, u64 cache_k
     return false;
 }
 
-Optional<MonotonicTime> DiskCache::last_activity_time_of_open_entries(URL::URL const& url, StringView method) const
+Optional<MonotonicTime> DiskCache::last_activity_time_of_open_entries(Utf16String const& partition, URL::URL const& url, StringView method) const
 {
-    auto cache_key = create_cache_key(serialize_url_for_cache_storage(url), method);
+    auto cache_key = create_cache_key(partition, serialize_url_for_cache_storage(url), method);
 
     auto open_entries = m_open_cache_entries.get(cache_key);
     if (!open_entries.has_value())

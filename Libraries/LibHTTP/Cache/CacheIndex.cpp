@@ -20,6 +20,7 @@
 namespace HTTP {
 
 static constexpr u32 INDEX_SCHEMA_BASELINE_VERSION = 1u;
+static constexpr u32 INDEX_SCHEMA_PARTITIONED_CACHE_KEYS_VERSION = 2u;
 
 // Persist full-range hashes as signed bit patterns; keys are only compared for equality.
 static i64 encode_cache_key_for_database(u64 key)
@@ -140,6 +141,18 @@ ErrorOr<Database::MigrationOutcome> CacheIndex::migrate_schema(Database::Databas
                     PRIMARY KEY(cache_key, vary_key)
                 );
             )#"sv,
+        },
+        {
+            // Cache keys now include the cache partition. No request can reach an entry stored under an older key, so
+            // drop those entries instead of leaving them to take up space until eviction.
+            .version = INDEX_SCHEMA_PARTITIONED_CACHE_KEYS_VERSION,
+            .sql = "DELETE FROM CacheIndex;"sv,
+            .backfill = [](Database::Database& database) -> ErrorOr<void> {
+                for_each_cache_entry_file(database, [](LexicalPath const& cache_entry) {
+                    (void)FileSystem::remove(cache_entry.string(), FileSystem::RecursionMode::Disallowed);
+                });
+                return {};
+            },
         },
     });
 

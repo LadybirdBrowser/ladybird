@@ -896,6 +896,13 @@ bool Internals::set_http_memory_cache_enabled(bool enabled)
     return was_enabled;
 }
 
+bool Internals::set_disk_cache_enabled_for_navigations(bool enabled)
+{
+    auto was_enabled = Web::Fetch::Fetching::disk_cache_enabled_for_navigations_for_testing();
+    Web::Fetch::Fetching::set_disk_cache_enabled_for_navigations_for_testing(enabled);
+    return was_enabled;
+}
+
 void Internals::simulate_request_server_connection_loss()
 {
     auto disconnected_client = move(ResourceLoader::the().request_client());

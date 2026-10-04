@@ -65,6 +65,8 @@ void append_user_agent_client_hints_for_request(Infrastructure::Request&);
 WEB_API void set_http_memory_cache_enabled(bool enabled);
 WEB_API bool http_memory_cache_enabled();
 WEB_API void clear_http_memory_cache();
-void update_javascript_bytecode_cache_in_http_memory_cache(Infrastructure::NetworkPartitionKey const&, URL::URL const&, ByteString const& method, HTTP::HeaderList const& request_headers, u64 vary_key, Core::ImmutableBytes);
+WEB_API void set_disk_cache_enabled_for_navigations_for_testing(bool enabled);
+WEB_API bool disk_cache_enabled_for_navigations_for_testing();
+void update_javascript_bytecode_cache_in_http_memory_cache(Utf16String const& partition, URL::URL const&, ByteString const& method, HTTP::HeaderList const& request_headers, u64 vary_key, Core::ImmutableBytes);
 
 }

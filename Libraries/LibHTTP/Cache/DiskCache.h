@@ -41,21 +41,23 @@ public:
 
     Mode mode() const { return m_mode; }
 
+    // Every entry belongs to a partition (see NetworkIsolationKey::disk_cache_partition()). A request finds only the
+    // entries of its own partition.
     struct CacheHasOpenEntry { };
-    Variant<Optional<CacheEntryWriter&>, CacheHasOpenEntry> create_entry(CacheRequest&, URL::URL const&, StringView method, HeaderList const& request_headers, UnixDateTime request_start_time);
+    Variant<Optional<CacheEntryWriter&>, CacheHasOpenEntry> create_entry(CacheRequest&, Utf16String const& partition, URL::URL const&, StringView method, HeaderList const& request_headers, UnixDateTime request_start_time);
 
     enum class OpenMode {
         Read,
         Revalidate,
     };
-    Variant<Optional<CacheEntryReader&>, CacheHasOpenEntry> open_entry(CacheRequest&, URL::URL const&, StringView method, HeaderList const& request_headers, CacheMode, OpenMode);
+    Variant<Optional<CacheEntryReader&>, CacheHasOpenEntry> open_entry(CacheRequest&, Utf16String const& partition, URL::URL const&, StringView method, HeaderList const& request_headers, CacheMode, OpenMode);
 
-    ErrorOr<bool> store_associated_data(URL::URL const&, StringView method, HeaderList const& request_headers, Optional<u64> vary_key, CacheEntryAssociatedData, ReadonlyBytes);
-    ErrorOr<Optional<ByteBuffer>> retrieve_associated_data(URL::URL const&, StringView method, HeaderList const& request_headers, Optional<u64> vary_key, CacheEntryAssociatedData);
-    ErrorOr<Optional<CacheEntryBodyFile>> retrieve_associated_data_file(URL::URL const&, StringView method, HeaderList const& request_headers, Optional<u64> vary_key, CacheEntryAssociatedData);
+    ErrorOr<bool> store_associated_data(Utf16String const& partition, URL::URL const&, StringView method, HeaderList const& request_headers, Optional<u64> vary_key, CacheEntryAssociatedData, ReadonlyBytes);
+    ErrorOr<Optional<ByteBuffer>> retrieve_associated_data(Utf16String const& partition, URL::URL const&, StringView method, HeaderList const& request_headers, Optional<u64> vary_key, CacheEntryAssociatedData);
+    ErrorOr<Optional<CacheEntryBodyFile>> retrieve_associated_data_file(Utf16String const& partition, URL::URL const&, StringView method, HeaderList const& request_headers, Optional<u64> vary_key, CacheEntryAssociatedData);
 
     // Ensure an index row exists for url+method so the shelf has something to attach to even if there are no real HTTP requests in flight.
-    ErrorOr<bool> create_synthetic_entry(URL::URL const&, StringView method);
+    ErrorOr<bool> create_synthetic_entry(Utf16String const& partition, URL::URL const&, StringView method);
 
     void remove_entries_exceeding_cache_limit();
     void set_maximum_disk_cache_size(u64 maximum_disk_cache_size);
@@ -69,7 +71,7 @@ public:
 
     // The time when any request holding open a cache entry for this URL and method last made progress — or nothing, if
     // no such request reports any. A request waiting on that entry reads it to judge whether the holder has stalled.
-    Optional<MonotonicTime> last_activity_time_of_open_entries(URL::URL const&, StringView method) const;
+    Optional<MonotonicTime> last_activity_time_of_open_entries(Utf16String const& partition, URL::URL const&, StringView method) const;
 
 private:
     DiskCache(Mode, NonnullRefPtr<Database::Database>, LexicalPath cache_directory, CacheIndex);

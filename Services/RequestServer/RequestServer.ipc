@@ -3,6 +3,7 @@
 #include <LibHTTP/Cache/Utilities.h>
 #include <LibHTTP/Cookie/IncludeCredentials.h>
 #include <LibHTTP/Header.h>
+#include <LibHTTP/NetworkIsolationKey.h>
 #include <LibURL/URL.h>
 #include <RequestServer/CacheLevel.h>
 #include <RequestServer/IsPrivate.h>
@@ -16,7 +17,7 @@ endpoint RequestServer
     is_supported_protocol(ByteString protocol) => (bool supported)
     get_client_id() => (int client_id)
 
-    start_request(u64 request_id, ByteString method, URL::URL url, Vector<HTTP::Header> request_headers, ByteBuffer request_body, HTTP::CacheMode cache_mode, HTTP::Cookie::IncludeCredentials include_credentials, bool create_transfer_lease, Optional<u32> address_selection_hint, bool notify_on_cache_miss, i32 originating_process_id, u64 originating_page_id) =|
+    start_request(u64 request_id, ByteString method, URL::URL url, Vector<HTTP::Header> request_headers, ByteBuffer request_body, HTTP::CacheMode cache_mode, Optional<HTTP::NetworkIsolationKey> network_isolation_key, HTTP::Cookie::IncludeCredentials include_credentials, bool create_transfer_lease, Optional<u32> address_selection_hint, bool notify_on_cache_miss, i32 originating_process_id, u64 originating_page_id) =|
     adopt_request(int source_client_id, u64 source_request_id, u64 target_request_id, bool preserve_transfer_lease) =|
     release_request_transfer_lease(int source_client_id, u64 source_request_id) =|
     stop_request(u64 request_id) => (bool success)
@@ -24,10 +25,10 @@ endpoint RequestServer
 
     ensure_connection(u64 request_id, URL::URL url, ::RequestServer::CacheLevel cache_level) =|
 
-    store_cache_associated_data(URL::URL url, ByteString method, Vector<HTTP::Header> request_headers, Optional<u64> vary_key, HTTP::CacheEntryAssociatedData associated_data, Core::AnonymousBuffer data) => (bool stored)
-    retrieve_cache_associated_data(URL::URL url, ByteString method, Vector<HTTP::Header> request_headers, Optional<u64> vary_key, HTTP::CacheEntryAssociatedData associated_data) => (Optional<Core::AnonymousBuffer> data)
+    store_cache_associated_data(Optional<HTTP::NetworkIsolationKey> network_isolation_key, URL::URL url, ByteString method, Vector<HTTP::Header> request_headers, Optional<u64> vary_key, HTTP::CacheEntryAssociatedData associated_data, Core::AnonymousBuffer data) => (bool stored)
+    retrieve_cache_associated_data(Optional<HTTP::NetworkIsolationKey> network_isolation_key, URL::URL url, ByteString method, Vector<HTTP::Header> request_headers, Optional<u64> vary_key, HTTP::CacheEntryAssociatedData associated_data) => (Optional<Core::AnonymousBuffer> data)
 
-    create_synthetic_cache_entry(URL::URL url, ByteString method) => (bool created)
+    create_synthetic_cache_entry(Optional<HTTP::NetworkIsolationKey> network_isolation_key, URL::URL url, ByteString method) => (bool created)
 
     // Websocket Connection API
     websocket_connect(u64 websocket_id, URL::URL url, ByteString origin, Vector<ByteString> protocols, Vector<ByteString> extensions, Vector<HTTP::Header> additional_request_headers) =|

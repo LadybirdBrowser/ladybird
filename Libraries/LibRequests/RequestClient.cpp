@@ -73,7 +73,7 @@ void RequestClient::die()
     }
 }
 
-RefPtr<Request> RequestClient::start_request(ByteString const& method, URL::URL const& url, Optional<HTTP::HeaderList const&> request_headers, ReadonlyBytes request_body, HTTP::CacheMode cache_mode, HTTP::Cookie::IncludeCredentials include_credentials, TransferLease transfer_lease, Optional<u32> address_selection_hint, CacheMissNotification cache_miss_notification, u64 originating_page_id)
+RefPtr<Request> RequestClient::start_request(ByteString const& method, URL::URL const& url, Optional<HTTP::HeaderList const&> request_headers, ReadonlyBytes request_body, HTTP::CacheMode cache_mode, HTTP::Cookie::IncludeCredentials include_credentials, TransferLease transfer_lease, Optional<u32> address_selection_hint, CacheMissNotification cache_miss_notification, u64 originating_page_id, Optional<HTTP::NetworkIsolationKey> network_isolation_key)
 {
     auto request_id = m_next_request_id++;
     auto headers = request_headers.map([](auto const& headers) { return headers.headers().span(); }).value_or({});
@@ -81,7 +81,7 @@ RefPtr<Request> RequestClient::start_request(ByteString const& method, URL::URL 
     auto transfer_lease_key = transfer_lease == TransferLease::Yes
         ? Optional<RequestTransferLeaseKey> { { m_request_server_client_id, request_id } }
         : Optional<RequestTransferLeaseKey> {};
-    IPCProxy::async_start_request(request_id, method, url, headers, request_body, cache_mode, include_credentials, transfer_lease_key.has_value(), address_selection_hint, cache_miss_notification == CacheMissNotification::Yes, Core::System::getpid(), originating_page_id);
+    IPCProxy::async_start_request(request_id, method, url, headers, request_body, cache_mode, move(network_isolation_key), include_credentials, transfer_lease_key.has_value(), address_selection_hint, cache_miss_notification == CacheMissNotification::Yes, Core::System::getpid(), originating_page_id);
     auto request = Request::create_from_id({}, *this, request_id, move(transfer_lease_key));
     m_requests.set(request_id, request);
     return request;
@@ -100,24 +100,24 @@ RefPtr<Request> RequestClient::adopt_request(int source_client_id, u64 source_re
     return request;
 }
 
-ErrorOr<bool> RequestClient::store_cache_associated_data(URL::URL const& url, ByteString const& method, Optional<HTTP::HeaderList const&> request_headers, Optional<u64> vary_key, HTTP::CacheEntryAssociatedData associated_data, ReadonlyBytes data)
+ErrorOr<bool> RequestClient::store_cache_associated_data(Optional<HTTP::NetworkIsolationKey> const& network_isolation_key, URL::URL const& url, ByteString const& method, Optional<HTTP::HeaderList const&> request_headers, Optional<u64> vary_key, HTTP::CacheEntryAssociatedData associated_data, ReadonlyBytes data)
 {
     auto buffer = TRY(Core::AnonymousBuffer::create_with_size(data.size()));
     memcpy(buffer.data<void>(), data.data(), data.size());
 
     auto headers = request_headers.map([](auto const& headers) { return headers.headers(); }).value_or({});
-    return IPCProxy::store_cache_associated_data(url, method, headers, vary_key, associated_data, move(buffer));
+    return IPCProxy::store_cache_associated_data(network_isolation_key, url, method, headers, vary_key, associated_data, move(buffer));
 }
 
-ErrorOr<Optional<Core::AnonymousBuffer>> RequestClient::retrieve_cache_associated_data(URL::URL const& url, ByteString const& method, Optional<HTTP::HeaderList const&> request_headers, Optional<u64> vary_key, HTTP::CacheEntryAssociatedData associated_data)
+ErrorOr<Optional<Core::AnonymousBuffer>> RequestClient::retrieve_cache_associated_data(Optional<HTTP::NetworkIsolationKey> const& network_isolation_key, URL::URL const& url, ByteString const& method, Optional<HTTP::HeaderList const&> request_headers, Optional<u64> vary_key, HTTP::CacheEntryAssociatedData associated_data)
 {
     auto headers = request_headers.map([](auto const& headers) { return headers.headers(); }).value_or({});
-    return IPCProxy::retrieve_cache_associated_data(url, method, headers, vary_key, associated_data);
+    return IPCProxy::retrieve_cache_associated_data(network_isolation_key, url, method, headers, vary_key, associated_data);
 }
 
-ErrorOr<bool> RequestClient::create_synthetic_cache_entry(URL::URL const& url, ByteString const& method)
+ErrorOr<bool> RequestClient::create_synthetic_cache_entry(Optional<HTTP::NetworkIsolationKey> const& network_isolation_key, URL::URL const& url, ByteString const& method)
 {
-    return IPCProxy::create_synthetic_cache_entry(url, method);
+    return IPCProxy::create_synthetic_cache_entry(network_isolation_key, url, method);
 }
 
 bool RequestClient::stop_request(Badge<Request>, Request& request)

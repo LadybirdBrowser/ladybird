@@ -470,7 +470,7 @@ RefPtr<Requests::Request> ResourceLoader::start_network_request(LoadRequest cons
     // NB: Workers have a Page shim without a navigable or a browser page ID. Their
     //     requests are attributed through the worker process's browser-level owners.
     auto originating_page_id = request.page() && request.page()->has_top_level_traversable() ? request.page()->client().id().value() : 0;
-    auto protocol_request = m_request_client->start_request(request.method(), request.url().value(), request.headers(), request.body(), request.cache_mode(), request.include_credentials(), transfer_lease, {}, cache_miss_notification, originating_page_id);
+    auto protocol_request = m_request_client->start_request(request.method(), request.url().value(), request.headers(), request.body(), request.cache_mode(), request.include_credentials(), transfer_lease, {}, cache_miss_notification, originating_page_id, request.network_isolation_key());
     if (!protocol_request) {
         log_failure(request, "Failed to initiate load"sv);
         return nullptr;

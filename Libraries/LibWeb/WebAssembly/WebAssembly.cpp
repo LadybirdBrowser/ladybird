@@ -36,8 +36,10 @@
 #include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/ContentSecurityPolicy/BlockingAlgorithms.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/MIME.h>
+#include <LibWeb/Fetch/Infrastructure/NetworkPartitionKey.h>
 #include <LibWeb/Fetch/Infrastructure/URL.h>
 #include <LibWeb/Fetch/Response.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/Loader/ResourceLoader.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
@@ -494,8 +496,10 @@ JS::ThrowCompletionOr<NonnullRefPtr<CompiledWebAssemblyModule>> compile_a_webass
         return vm.throw_completion<CompileError>(validation_result.error().error_string);
 
     // Content-keyed disk cache: hash the wasm bytes, slot into the HTTP side-data shelf under a synthetic wasm-cache://<hex> URL
+    // NB: The entry lives in the cache partition of this realm, so one site cannot hand compiled code to another.
     Optional<Wasm::CompileCacheConfig> wasm_cache_config;
-    if (ResourceLoader::is_initialized() && ResourceLoader::the().request_client()) {
+    auto network_isolation_key = Fetch::Infrastructure::determine_the_network_partition_key(HTML::principal_realm_settings_object(realm));
+    if (network_isolation_key.has_value() && network_isolation_key->disk_cache_partition().has_value() && ResourceLoader::is_initialized() && ResourceLoader::the().request_client()) {
         auto digest = ::Crypto::Hash::SHA256::hash(data);
         __builtin_memcpy(stats.wasm_hash.data(), digest.bytes().data(), 32);
 
@@ -509,10 +513,10 @@ JS::ThrowCompletionOr<NonnullRefPtr<CompiledWebAssemblyModule>> compile_a_webass
             Wasm::CompileCacheConfig config;
             __builtin_memcpy(config.wasm_hash.data(), digest.bytes().data(), 32);
 
-            auto cache_entry_result = ResourceLoader::the().request_client()->create_synthetic_cache_entry(*synthetic_url, method);
+            auto cache_entry_result = ResourceLoader::the().request_client()->create_synthetic_cache_entry(network_isolation_key, *synthetic_url, method);
             if (!cache_entry_result.is_error() && cache_entry_result.value()) {
                 auto retrieve_result = ResourceLoader::the().request_client()->retrieve_cache_associated_data(
-                    *synthetic_url, method, OptionalNone {}, 0u,
+                    network_isolation_key, *synthetic_url, method, OptionalNone {}, 0u,
                     HTTP::CacheEntryAssociatedData::WebAssemblyCompiledCode);
                 if (!retrieve_result.is_error()) {
                     if (auto buf = retrieve_result.release_value(); buf.has_value()) {
@@ -522,15 +526,15 @@ JS::ThrowCompletionOr<NonnullRefPtr<CompiledWebAssemblyModule>> compile_a_webass
                     }
                 }
 
-                config.on_compiled = [url = *synthetic_url, method = move(method), event_loop_weak = Core::EventLoop::current_weak()](ByteBuffer blob) mutable {
+                config.on_compiled = [network_isolation_key, url = *synthetic_url, method = move(method), event_loop_weak = Core::EventLoop::current_weak()](ByteBuffer blob) mutable {
                     auto origin = event_loop_weak->take();
                     if (!origin)
                         return;
-                    origin->deferred_invoke([url = move(url), method = move(method), blob = move(blob)]() mutable {
+                    origin->deferred_invoke([network_isolation_key = move(network_isolation_key), url = move(url), method = move(method), blob = move(blob)]() mutable {
                         if (!ResourceLoader::is_initialized() || !ResourceLoader::the().request_client())
                             return;
                         (void)ResourceLoader::the().request_client()->store_cache_associated_data(
-                            url, method, OptionalNone {}, 0u,
+                            network_isolation_key, url, method, OptionalNone {}, 0u,
                             HTTP::CacheEntryAssociatedData::WebAssemblyCompiledCode, blob.bytes());
                     });
                 };
