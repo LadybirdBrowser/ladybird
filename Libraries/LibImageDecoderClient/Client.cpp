@@ -59,7 +59,6 @@ void Client::did_decode_image(i64 request_id, bool is_animated, u32 loop_count, 
 {
     verify_event_loop();
     auto bitmaps = move(bitmap_sequence.bitmaps);
-    VERIFY(!bitmaps.is_empty());
 
     Optional<NonnullRefPtr<Core::Promise<DecodedImage>>> maybe_promise = m_token_promises.take(request_id);
 
@@ -68,6 +67,15 @@ void Client::did_decode_image(i64 request_id, bool is_animated, u32 loop_count, 
         return;
     }
     auto promise = maybe_promise.release_value();
+
+    // The decoder parses untrusted data, so its replies are checked rather than trusted. Every frame has a duration,
+    // even in a streaming decode, which sends the durations of all frames but only the first batch of bitmaps.
+    auto has_durations_for_bitmaps = session_id != 0 ? durations.size() >= bitmaps.size() : durations.size() == bitmaps.size();
+    if (bitmaps.is_empty() || !has_durations_for_bitmaps) {
+        dbgln("ImageDecoderClient: Malformed reply for request {}", request_id);
+        promise->reject(Error::from_string_literal("Malformed image decoder reply"));
+        return;
+    }
 
     DecodedImage image;
     image.is_animated = is_animated;
