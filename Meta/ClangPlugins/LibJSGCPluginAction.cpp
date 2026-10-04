@@ -6,6 +6,7 @@
  */
 
 #include "LibJSGCPluginAction.h"
+#include <array>
 #include <clang/ASTMatchers/ASTMatchFinder.h>
 #include <clang/ASTMatchers/ASTMatchers.h>
 #include <clang/Basic/SourceManager.h>
@@ -360,6 +361,8 @@ bool LibJSGCVisitor::VisitCXXRecordDecl(clang::CXXRecordDecl* record)
     if (qualified_name == "GC::Cell")
         return true;
 
+    validate_engine_subclass_is_in_libjs(*record);
+
     auto& diag_engine = m_context.getDiagnostics();
     std::vector<clang::FieldDecl const*> fields_that_need_visiting;
     std::vector<clang::FieldDecl const*> substruct_fields_that_need_visiting;
@@ -470,7 +473,9 @@ bool LibJSGCVisitor::VisitCXXRecordDecl(clang::CXXRecordDecl* record)
         return true;
     }
 
-    validate_record_macros(*record);
+    // The macros are written in the class template, not in an explicit instantiation of it.
+    if (!record->getTemplateInstantiationPattern())
+        validate_record_macros(*record);
 
     // Check that Cell subclasses (and all their base classes) don't have non-trivial destructors.
     // They should override Cell::finalize() instead.
@@ -886,6 +891,175 @@ void LibJSGCVisitor::validate_record_macros(clang::CXXRecordDecl const& record)
 
     if (!found_macro)
         report_missing_macro();
+}
+
+// A dependent base such as JS::TypedArray<T> has no record of its own, so it stands for the class template it names: if
+// that template is an engine object type, so is every instantiation. A base that is a template parameter stays unknown
+// until the template is instantiated.
+static clang::CXXRecordDecl const* record_named_by_base_type(clang::QualType base_type)
+{
+    if (auto const* record = base_type->getAsCXXRecordDecl())
+        return record->getDefinition();
+
+    auto const* specialization_type = base_type->getAs<clang::TemplateSpecializationType>();
+    if (!specialization_type)
+        return nullptr;
+    if (specialization_type->isTypeAlias())
+        return record_named_by_base_type(specialization_type->getAliasedType());
+    auto const* class_template = llvm::dyn_cast_or_null<clang::ClassTemplateDecl>(specialization_type->getTemplateName().getAsTemplateDecl());
+    if (!class_template)
+        return nullptr;
+    return class_template->getTemplatedDecl()->getDefinition();
+}
+
+// Every other engine object type, such as JS::NativeFunction, JS::Array, JS::Error, JS::CyclicModule or
+// JS::PrototypeObject, derives from one of these.
+static bool is_engine_object_type(clang::CXXRecordDecl const& record, std::unordered_set<clang::CXXRecordDecl const*>& records_seen)
+{
+    static std::unordered_set<std::string> const engine_object_root_types {
+        "JS::Environment",
+        "JS::Module",
+        "JS::Object",
+    };
+
+    if (engine_object_root_types.contains(record.getQualifiedNameAsString()))
+        return true;
+    if (!records_seen.insert(&record).second)
+        return false;
+
+    for (auto const& base : record.bases()) {
+        auto const* base_record = record_named_by_base_type(base.getType());
+        if (base_record && is_engine_object_type(*base_record, records_seen))
+            return true;
+    }
+    return false;
+}
+
+static bool is_engine_object_type(clang::CXXRecordDecl const& record)
+{
+    std::unordered_set<clang::CXXRecordDecl const*> records_seen;
+    return is_engine_object_type(record, records_seen);
+}
+
+static clang::CXXRecordDecl const& class_definition_written_in_source(clang::CXXRecordDecl const& record)
+{
+    if (auto const* template_pattern = record.getTemplateInstantiationPattern())
+        return *template_pattern;
+    return record;
+}
+
+static std::string file_path_of_declaration(clang::SourceManager const& source_manager, clang::Decl const& declaration)
+{
+    auto path = source_manager.getFilename(source_manager.getFileLoc(declaration.getLocation())).str();
+    if (!path.starts_with('/'))
+        path.insert(0, "/");
+    return path;
+}
+
+static bool is_libjs_path(std::string const& path)
+{
+    return path.find("/Libraries/LibJS/") != std::string::npos;
+}
+
+// These files still define their global objects and test objects as C++ subclasses of engine objects. They move to
+// host objects together with the rest of the code that embeds the engine, and each entry goes away with its port.
+static bool is_path_allowed_to_subclass_engine_objects(std::string const& path)
+{
+    static constexpr std::array legacy_engine_subclass_paths {
+        "/Libraries/LibTest/JavaScriptTestRunner.h",
+        "/Meta/Fuzzers/FuzzilliJs.cpp",
+        "/Tests/LibWasm/test-wasm.cpp",
+        "/Utilities/js.cpp",
+    };
+    for (auto const* legacy_path : legacy_engine_subclass_paths) {
+        if (path.ends_with(legacy_path))
+            return true;
+    }
+    return false;
+}
+
+static bool may_subclass_engine_objects(clang::SourceManager const& source_manager, clang::CXXRecordDecl const& record)
+{
+    auto path = file_path_of_declaration(source_manager, class_definition_written_in_source(record));
+    return is_libjs_path(path) || is_path_allowed_to_subclass_engine_objects(path);
+}
+
+// The visitor checks every class written in the source and every instantiation of a class template written in the
+// source, but not the classes and class templates that an instantiation declares as its members.
+static bool is_checked_for_engine_subclassing(clang::CXXRecordDecl const& record)
+{
+    if (auto const* specialization = llvm::dyn_cast<clang::ClassTemplateSpecializationDecl>(&record))
+        return !specialization->getSpecializedTemplate()->getInstantiatedFromMemberTemplate();
+    return !record.getInstantiatedFromMemberClass();
+}
+
+static clang::CXXRecordDecl const& engine_object_type_that_may_be_subclassed(clang::SourceManager const& source_manager, clang::CXXRecordDecl const& engine_object_type)
+{
+    if (may_subclass_engine_objects(source_manager, engine_object_type))
+        return engine_object_type;
+    for (auto const& base : engine_object_type.bases()) {
+        auto const* base_record = record_named_by_base_type(base.getType());
+        if (base_record && is_engine_object_type(*base_record))
+            return engine_object_type_that_may_be_subclassed(source_manager, *base_record);
+    }
+    return engine_object_type;
+}
+
+static std::string name_for_diagnostic(clang::ASTContext const& context, clang::NamedDecl const& declaration)
+{
+    std::string name;
+    llvm::raw_string_ostream stream(name);
+    declaration.getNameForDiagnostic(stream, context.getPrintingPolicy(), false);
+    return name;
+}
+
+void LibJSGCVisitor::validate_engine_subclass_is_in_libjs(clang::CXXRecordDecl const& record)
+{
+    auto& source_manager = m_context.getSourceManager();
+    if (may_subclass_engine_objects(source_manager, record))
+        return;
+
+    // A class template that is an engine object type whatever its arguments are gets the diagnostic in place of its
+    // instantiations.
+    auto const& class_definition = class_definition_written_in_source(record);
+    if (&class_definition != &record && is_engine_object_type(class_definition))
+        return;
+
+    for (auto const& base : record.bases()) {
+        auto const* base_record = record_named_by_base_type(base.getType());
+        if (!base_record || !is_engine_object_type(*base_record))
+            continue;
+
+        // A checked base outside LibJS gets the diagnostic in place of the classes derived from it.
+        if (!may_subclass_engine_objects(source_manager, *base_record) && is_checked_for_engine_subclassing(*base_record))
+            continue;
+
+        auto& diag_engine = m_context.getDiagnostics();
+        auto record_name = name_for_diagnostic(m_context, record);
+        auto diag_id = diag_engine.getCustomDiagID(clang::DiagnosticsEngine::Error, "%0 derives from the engine type %1, which only LibJS may subclass; use a host class instead");
+        auto const& engine_object_type = engine_object_type_that_may_be_subclassed(source_manager, *base_record);
+        diag_engine.Report(record.getLocation(), diag_id) << record_name << engine_object_type.getQualifiedNameAsString();
+
+        auto const* specialization = llvm::dyn_cast<clang::ClassTemplateSpecializationDecl>(&record);
+        if (specialization && specialization->getSpecializationKind() == clang::TSK_ImplicitInstantiation) {
+            auto note_id = diag_engine.getCustomDiagID(clang::DiagnosticsEngine::Note, "%0 is instantiated here");
+            diag_engine.Report(specialization->getPointOfInstantiation(), note_id) << record_name;
+        }
+    }
+}
+
+// The visitor sees only the classes written in the source. An instantiation of a class template can still be an engine
+// object type when the template derives from one of its arguments, so the implicit instantiations are checked here.
+bool LibJSGCVisitor::VisitClassTemplateDecl(clang::ClassTemplateDecl* class_template)
+{
+    if (!class_template->isThisDeclarationADefinition())
+        return true;
+
+    for (auto const* specialization : class_template->specializations()) {
+        if (specialization->getSpecializationKind() == clang::TSK_ImplicitInstantiation && specialization->isCompleteDefinition())
+            validate_engine_subclass_is_in_libjs(*specialization);
+    }
+    return true;
 }
 
 LibJSGCASTConsumer::LibJSGCASTConsumer(clang::CompilerInstance& compiler, bool detect_invalid_function_members)

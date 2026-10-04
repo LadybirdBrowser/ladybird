@@ -10,8 +10,8 @@
 #include <LibGC/Cell.h>
 #include <LibJS/Runtime/Object.h>
 
-class TestClass : public JS::Object {
-    JS_OBJECT(TestClass, JS::Object);
+class TestClass : public JS::Cell {
+    GC_CELL(TestClass, JS::Cell);
 
     GC::RawPtr<JS::Object> m_object;
 };

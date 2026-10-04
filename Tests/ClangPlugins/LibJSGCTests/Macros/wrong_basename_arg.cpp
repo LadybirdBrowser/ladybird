@@ -11,6 +11,7 @@
 // The only way to have an incorrect basename is if the class is deeply nested, and the base name
 // refers to a parent class
 
+// expected-error@+1 {{ParentObject derives from the engine type JS::Object, which only LibJS may subclass; use a host class instead}}
 class ParentObject : JS::Object {
     JS_OBJECT(ParentObject, JS::Object);
 };

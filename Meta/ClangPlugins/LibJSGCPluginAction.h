@@ -63,6 +63,7 @@ public:
     bool VisitCXXRecordDecl(clang::CXXRecordDecl*);
     bool VisitCXXMethodDecl(clang::CXXMethodDecl*);
     bool VisitCXXConstructExpr(clang::CXXConstructExpr*);
+    bool VisitClassTemplateDecl(clang::ClassTemplateDecl*);
 
 private:
     struct CellMacroExpectation {
@@ -71,6 +72,7 @@ private:
     };
 
     void validate_record_macros(clang::CXXRecordDecl const&);
+    void validate_engine_subclass_is_in_libjs(clang::CXXRecordDecl const&);
     CellMacroExpectation get_record_cell_macro_expectation(clang::CXXRecordDecl const&);
 
     clang::ASTContext& m_context;

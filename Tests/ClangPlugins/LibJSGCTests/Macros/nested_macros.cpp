@@ -8,6 +8,7 @@
 
 #include <LibJS/Runtime/Object.h>
 
+// expected-error@+1 {{TestClass derives from the engine type JS::Object, which only LibJS may subclass; use a host class instead}}
 class TestClass : JS::Object {
     JS_OBJECT(TestClass, JS::Object);
 
@@ -15,7 +16,8 @@ class TestClass : JS::Object {
         GC_CELL(NestedClassOk, JS::Cell);
     };
 
-    // expected-error@+1 {{Expected record to have a JS_OBJECT macro invocation}}
+    // expected-error@+2 {{Expected record to have a JS_OBJECT macro invocation}}
+    // expected-error@+1 {{NestedClassBad derives from the engine type JS::Object, which only LibJS may subclass; use a host class instead}}
     struct NestedClassBad : JS::Object {
     };
 
@@ -29,7 +31,8 @@ class TestClass2 {
         GC_CELL(NestedClassOk, JS::Cell);
     };
 
-    // expected-error@+1 {{Expected record to have a JS_OBJECT macro invocation}}
+    // expected-error@+2 {{Expected record to have a JS_OBJECT macro invocation}}
+    // expected-error@+1 {{NestedClassBad derives from the engine type JS::Object, which only LibJS may subclass; use a host class instead}}
     struct NestedClassBad : JS::Object {
     };
 
