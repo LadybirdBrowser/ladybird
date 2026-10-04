@@ -665,6 +665,8 @@ pub(crate) struct RowsVersion {
     identity: u64,
     /// The part of `writes` that gave a row a style record (see [`super::tree_shape::ShapeWrites::style`]).
     style: u64,
+    /// The part of `writes` that populated or reset a paintable row.
+    population: u64,
     /// Where the paint fact tables, the image maps and the visual context tree are, which moves
     /// when a write copies one a publication shares or replaces the tree.
     tables: [usize; 5],
@@ -686,6 +688,11 @@ impl RowsVersion {
     /// `version`.
     pub(crate) fn has_styles_of(&self, version: RowsVersion) -> bool {
         self.identity == version.identity && self.style == version.style
+    }
+
+    /// Whether rows published at this version answer which rows are populated as the arena does at `version`.
+    pub(crate) fn has_population_of(&self, version: RowsVersion) -> bool {
+        self.identity == version.identity && self.population == version.population
     }
 }
 
@@ -3643,6 +3650,7 @@ impl LayoutNodeArena {
                 + self.paintable_rows_version(),
             identity: self.rows_identity_version(),
             style: self.shape_writes.style(),
+            population: self.paintable_population_version(),
             tables: [
                 Arc::as_ptr(&self.replaced_paint_facts.borrow()).addr(),
                 Arc::as_ptr(&self.layer_image_paint_facts.borrow()).addr(),

@@ -178,6 +178,25 @@ pub unsafe extern "C" fn render_state_paintable_row(
     }
 }
 
+/// Whether the row in `slot` is populated, which the host answers without asking where it knows.
+///
+/// # Safety
+///
+/// `host` must be a live document host, on its document's thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn render_state_has_paintable_row(host: *const DocumentHost, slot: NodeSlotId) -> bool {
+    // SAFETY: Guaranteed by the caller.
+    if let Some(populated) = unsafe { &*host }.known_paintable_row_is_populated(slot) {
+        return populated;
+    }
+    // SAFETY: Guaranteed by the caller.
+    unsafe {
+        read_arena(host, node_read(), slot, |arena, slot| {
+            arena.paintable_rows().paintable_row_is_populated(slot)
+        })
+    }
+}
+
 #[repr(C)]
 pub struct FfiPhysicalOverflowDirections {
     pub horizontal_axis_is_positive: bool,

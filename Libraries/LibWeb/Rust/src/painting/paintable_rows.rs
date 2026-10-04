@@ -329,6 +329,8 @@ pub(crate) struct PaintableRowStore {
     committed_fragment_links: RefCell<CowColumn<CommittedFragmentLinkSlot, PAINTABLE_SLOTS_PER_CHUNK>>,
     image_map_areas: crate::painting::image_map_areas::ImageMapAreaColumn,
     unique_node_ids: UniqueNodeIdColumn,
+    /// How many times a row was populated or reset, which moves whether a row is populated.
+    population_writes: u64,
 }
 
 pub(crate) type VisualContextNodeHandleColumn =
@@ -761,6 +763,11 @@ impl LayoutNodeArena {
 
     /// How far the paintable rows and the columns published beside them have been written. See
     /// [`crate::cow_column::CowColumn::version`].
+    /// How far which rows are populated has been written since the arena was made.
+    pub(crate) fn paintable_population_version(&self) -> u64 {
+        self.paintable_rows.population_writes
+    }
+
     pub(crate) fn paintable_rows_version(&self) -> u64 {
         let store = &self.paintable_rows;
         store.rows.version()
@@ -849,6 +856,7 @@ impl LayoutNodeArena {
             visual_context_records.push(None);
         }
 
+        store.population_writes += 1;
         store.rows.set(
             index,
             PaintableData {
@@ -904,6 +912,7 @@ impl LayoutNodeArena {
         self.clear_absolute_rect_memo();
         let store = &mut self.paintable_rows;
         let index = id.slot_index() as usize;
+        store.population_writes += 1;
         store.rows.set(index, PaintableData::default());
         store.side_data.borrow_mut()[index] = PaintableSideData::default();
         store
