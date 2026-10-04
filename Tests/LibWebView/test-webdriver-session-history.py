@@ -54,6 +54,9 @@ class TestPageServer(http.server.ThreadingHTTPServer):
         self.blocked_post_result_load_requested = threading.Event()
         self.post_result_load_became_interactive = threading.Event()
         self.release_blocked_post_result_load = threading.Event()
+        self.held_load_image_requested = threading.Event()
+        self.held_load_document_became_interactive = threading.Event()
+        self.release_held_load_image = threading.Event()
         self.blocked_navigation_requested = threading.Event()
         self.release_blocked_navigation = threading.Event()
         self.blocked_navigation_response_finished = threading.Event()
@@ -516,6 +519,38 @@ document.addEventListener("DOMContentLoaded", () => {
                 self.send_header("Content-Type", "text/plain")
                 self.end_headers()
                 self.wfile.write(b"timed out waiting to finish POST result load")
+                return
+
+            self.send_response(204)
+            self.end_headers()
+            return
+
+        if self.path == "/held-load":
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html")
+            self.end_headers()
+            self.wfile.write(
+                """<!doctype html>
+<title>Held Load</title>
+<script>addEventListener('DOMContentLoaded', () => fetch('/document-ran?held-load'));</script>
+<img src="/held-load-image">
+<p>Held Load</p>""".encode()
+            )
+            return
+
+        if self.path == "/document-ran?held-load":
+            server.held_load_document_became_interactive.set()
+            self.send_response(204)
+            self.end_headers()
+            return
+
+        if self.path == "/held-load-image":
+            server.held_load_image_requested.set()
+            if not server.release_held_load_image.wait(timeout=BLOCKED_RESPONSE_TIMEOUT_SECONDS):
+                self.send_response(500)
+                self.send_header("Content-Type", "text/plain")
+                self.end_headers()
+                self.wfile.write(b"timed out waiting to finish held load")
                 return
 
             self.send_response(204)
@@ -2481,6 +2516,49 @@ def expect_post_crash_recovery_waits_for_load(webdriver_port, session_id, page_s
     expect_current_entry_resource(webdriver_port, session_id, "after POST crash recovery", "post", log)
 
 
+def expect_back_waits_for_restored_document_load(webdriver_port, session_id, page_server, url_held_load, url_away, log):
+    # Back traverses to a document whose load the server holds back: the command must not complete while the restored
+    # document is still loading, and must complete once it has loaded. Step 7 of the spec's Back has it wait for the
+    # restored document's pageshow event, which follows its load event: https://w3c.github.io/webdriver/#dfn-back
+    page_server.release_held_load_image.set()
+    request(webdriver_port, "POST", f"/session/{session_id}/url", {"url": url_held_load})
+    expect_url(webdriver_port, session_id, "after held load setup", url_held_load, log)
+    request(webdriver_port, "POST", f"/session/{session_id}/url", {"url": url_away})
+    expect_url(webdriver_port, session_id, "after leaving held load page", url_away, log)
+
+    page_server.held_load_image_requested.clear()
+    page_server.held_load_document_became_interactive.clear()
+    page_server.release_held_load_image.clear()
+    back_error = []
+
+    def request_back():
+        try:
+            request(webdriver_port, "POST", f"/session/{session_id}/back", {})
+        except Exception as error:
+            back_error.append(error)
+
+    back_thread = threading.Thread(target=request_back)
+    back_thread.start()
+    wait_for_event(page_server.held_load_image_requested, "held restored document load")
+    wait_for_event(page_server.held_load_document_became_interactive, "interactive restored document")
+    back_thread.join(timeout=0.25)
+    completed_before_load = not back_thread.is_alive()
+    page_server.release_held_load_image.set()
+    back_thread.join(timeout=EVENT_TIMEOUT_SECONDS)
+    if completed_before_load:
+        raise AssertionError(
+            "WebDriver back completed before the restored document finished loading\n" + "\n".join(log)
+        )
+    if back_thread.is_alive():
+        raise AssertionError(
+            "Timed out waiting for WebDriver back to finish loading the restored document\n" + "\n".join(log)
+        )
+    if back_error:
+        raise back_error[0]
+    expect_url(webdriver_port, session_id, "after back to held load page", url_held_load, log)
+    expect_body_text(webdriver_port, session_id, "after back to held load page", "Held Load", log)
+
+
 def run_navigation_response_process_selection_test(webdriver_port, url_a, url_b, url_d, url_redirect_to_b):
     for label, target_url, expected_url, should_swap in [
         ("same-site navigation", url_d, url_d, False),
@@ -2609,6 +2687,7 @@ def run_test(webdriver_binary):
         url_state_push = f"http://localhost:{page_port}/state?push"
         url_scroll = f"http://localhost:{page_port}/scroll"
         url_scroll_saved = f"http://localhost:{page_port}/scroll?saved"
+        url_held_load = f"http://localhost:{page_port}/held-load"
         url_reload_blocked = f"http://localhost:{page_port}/reload-blocked"
         url_process_swap_back_blocked = f"http://localhost:{page_port}/process-swap-back-blocked"
         url_forward_blocked = f"http://127.0.0.1:{page_port}/forward-blocked"
@@ -4328,6 +4407,11 @@ return [location.href, Math.round(scrollX), Math.round(scrollY)];
             1200,
             log,
         )
+
+        request(webdriver_port, "DELETE", f"/session/{session_id}")
+        session_id = create_session(webdriver_port)
+        log.append(f"back waits for restored document load initial: {current_url(webdriver_port, session_id)}")
+        expect_back_waits_for_restored_document_load(webdriver_port, session_id, page_server, url_held_load, url_b, log)
 
         request(webdriver_port, "DELETE", f"/session/{session_id}")
         session_id = create_session(webdriver_port)
