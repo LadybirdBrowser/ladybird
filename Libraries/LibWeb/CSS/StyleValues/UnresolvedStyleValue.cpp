@@ -7,6 +7,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/ConservativeVector.h>
 #include <LibWeb/CSS/CSSUnparsedValue.h>
 #include <LibWeb/CSS/CSSVariableReferenceValue.h>
 #include <LibWeb/CSS/StyleValues/UnresolvedStyleValue.h>
@@ -96,7 +97,7 @@ GC::Ref<CSSStyleValue> UnresolvedStyleValue::reify(Utf16FlyString const&) const
     struct Frame {
         Optional<Utf16FlyString> variable;
         bool has_fallback { false };
-        Vector<CSSUnparsedSegment> segments;
+        GC::ConservativeVector<CSSUnparsedSegment> segments;
     };
     Vector<Frame> frames;
     frames.empend();
