@@ -92,8 +92,8 @@ public:
     RefPtr<CanonicalDocument> document_with_id(Web::HTML::CrossProcessId) const;
     void populate_document(NonnullRefPtr<CanonicalDocumentState>, NonnullRefPtr<CanonicalDocument>, Optional<URL::Origin> inline_content_origin = {});
     void populate_document_for_ongoing_navigation(NonnullRefPtr<CanonicalDocument>, Optional<URL::Origin> inline_content_origin = {});
-    // Returns false, populating nothing, for a document that would hold access the active document lacks.
-    bool populate_document_for_javascript_url(NonnullRefPtr<CanonicalDocumentState>, NonnullRefPtr<CanonicalDocument>);
+    // Populates nothing for a document that would hold access the active document lacks.
+    void populate_document_for_javascript_url(NonnullRefPtr<CanonicalSessionHistoryEntry>, NonnullRefPtr<CanonicalDocument>);
     void did_create_populated_document_with_an_origin_of_its_own(WebContentPage const& host, Web::HTML::CrossProcessId document_id, Web::HTML::PopulatedDocumentOrigin, Web::HTML::EnvironmentId const& environment_id);
     bool take_navigation_to_finalize(Utf16String const& navigation_id, WebContentPage const&);
     void abandon_populated_document(CanonicalDocument const&);
@@ -226,7 +226,6 @@ public:
     void clear_ongoing_navigation_state();
     void set_navigation_host(WebContentPage&);
     bool cancel_navigation_for_client(WebContentClient&);
-    CanonicalNavigation* navigation_being_finalized() { return m_navigation_being_finalized.has_value() ? &*m_navigation_being_finalized : nullptr; }
     CanonicalNavigation const* navigation_being_finalized() const { return m_navigation_being_finalized.has_value() ? &*m_navigation_being_finalized : nullptr; }
     void did_finish_finalizing_navigation(Utf16String const& navigation_id, Web::HTML::HistoryStepResult);
     bool has_uncommitted_navigation() const { return ongoing_navigation(); }

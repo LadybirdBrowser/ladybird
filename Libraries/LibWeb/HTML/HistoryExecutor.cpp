@@ -70,7 +70,6 @@ void HistoryExecutor::visit_edges(Cell::Visitor& visitor)
     for (auto& operation : m_history_operations) {
         visitor.visit(operation.value.source_snapshot_params);
         visitor.visit(operation.value.pending_document);
-        visitor.visit(operation.value.expected_ongoing_navigation_navigable);
         visitor.visit(operation.value.pre_steps);
         visitor.visit(operation.value.on_apply_complete);
         visitor.visit(operation.value.on_complete);
@@ -79,18 +78,6 @@ void HistoryExecutor::visit_edges(Cell::Visitor& visitor)
         for (auto& continuation : operation.value.changing_navigable_continuations)
             visitor.visit(continuation.value);
     }
-}
-
-bool HistoryExecutor::HistoryOperationState::expected_ongoing_navigation_was_superseded() const
-{
-    if (!expected_ongoing_navigation_navigable || !expected_ongoing_navigation_id.has_value())
-        return false;
-    auto navigable = local_navigable_with_id(expected_ongoing_navigation_navigable->id());
-    if (!navigable)
-        return true;
-    if (navigable->has_been_destroyed())
-        return true;
-    return navigable->ongoing_navigation() != *expected_ongoing_navigation_id;
 }
 
 HistoryExecutor::HistoryOperationState* HistoryExecutor::find_history_operation(CrossProcessId operation_id)
@@ -122,15 +109,6 @@ void HistoryExecutor::handle_ui_history_operation_started(CrossProcessId operati
 {
     auto* operation = find_history_operation(operation_id);
     if (!operation) {
-        ready->function()(HistoryStepResult::Applied);
-        return;
-    }
-
-    // NB: A cross-document navigation can be superseded after its document has populated but before its queued
-    //     history-step application runs. The navigate algorithm's earlier navigation ID check caught the same
-    //     condition before requesting this operation; this re-check keeps a stale finalization from claiming
-    //     "traversal" and canceling the newer navigation.
-    if (operation->expected_ongoing_navigation_was_superseded()) {
         ready->function()(HistoryStepResult::Applied);
         return;
     }
@@ -882,12 +860,12 @@ void HistoryExecutor::run_ui_changing_navigable_history_job(CrossProcessId opera
         VERIFY(operation.local_target_entry);
         local_target_entry = operation.local_target_entry;
     }
-    if (operation.expected_ongoing_navigation_was_superseded()) {
+
+    auto navigable = local_navigable_with_id(navigable_id);
+    if (pending_document && local_target_entry && (!navigable || !prepare_to_finalize_a_cross_document_navigation(*navigable, *pending_document))) {
         on_complete->function()(ChangingNavigableHistoryStepJobDisposition::Stale, UnloadDisplayedDocument::No);
         return;
     }
-
-    auto navigable = local_navigable_with_id(navigable_id);
     if (!navigable) {
         on_complete->function()(ChangingNavigableHistoryStepJobDisposition::Skipped, UnloadDisplayedDocument::No);
         return;
