@@ -5535,12 +5535,48 @@ pub const SUBSTITUTION_MARK_IF: u8 = 1 << 2;
 pub const SUBSTITUTION_MARK_INHERIT: u8 = 1 << 3;
 pub const SUBSTITUTION_MARK_CUSTOM_FUNCTION: u8 = 1 << 4;
 
+/// One animation effect's timing as the host holds it when it samples the effect: what its
+/// animation contributes, the effect's own timing, and the time its timeline was sampled at. Every
+/// time is in milliseconds. The host describes an effect whose times are not, or whose local time is
+/// overridden for observation, as one the engine cannot decide.
+///
+/// Its easing travels beside it, as a descriptor the call borrows.
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct FfiEffectTiming {
+    pub decidable: bool,
+    pub has_timeline_time: bool,
+    /// The effect's animation runs on a document timeline, whose time is a timestamp less this origin
+    /// time.
+    pub has_timeline_origin_time: bool,
+    pub has_start_time: bool,
+    pub has_hold_time: bool,
+    /// `Bindings::FillMode`, in IDL order.
+    pub fill_mode: u8,
+    /// `Bindings::PlaybackDirection`, in IDL order.
+    pub playback_direction: u8,
+    pub timeline_time: f64,
+    pub timeline_origin_time: f64,
+    pub start_time: f64,
+    pub hold_time: f64,
+    pub playback_rate: f64,
+    pub start_delay: f64,
+    pub end_delay: f64,
+    pub iteration_duration: f64,
+    pub iteration_count: f64,
+    pub iteration_start: f64,
+}
+
 /// One effect the host samples: which of the element's described effects it is, which version of
-/// it, and how far along it is on the scale the host keys keyframes by.
+/// it, and its timing, from which the engine computes how far along it is on the scale the host keys
+/// keyframes by. Where the engine cannot decide the timing, the host computes that key itself.
 #[repr(C)]
 pub struct FfiSampledAnimationEffect {
     pub identity: u64,
     pub generation: u64,
+    pub timing: FfiEffectTiming,
+    pub easing: crate::css::easing::FfiEasingDescriptor,
+    /// The host's key, for a timing the engine cannot decide.
     pub current_key: f64,
 }
 
@@ -5763,11 +5799,26 @@ pub unsafe extern "C" fn rust_sample_animation_effects(
         crate::painting::ffi::committed_transform_reference_box(&arena.paintable_rows(), element_box)
     };
     // SAFETY: As above.
-    let sample = match with_engine_and_arena(read, host, |engine, arena| unsafe {
-        begin_animation_sample(input, engine, reference_box(arena))
-    }) {
+    let step = with_engine_and_arena(read, host, |engine, arena| unsafe {
+        let reference_box = reference_box(arena);
+        let composed = host_sampled_effects(input, engine);
+        match begin_animation_sample(input, engine, composed, reference_box) {
+            AnimationSampleStep::Resolved(sample) => match engine_length_contexts(input, engine, &sample) {
+                Some(length_contexts) => AnimationSampleStep::Sampled(finish_animation_sample(
+                    input,
+                    engine,
+                    sample,
+                    &length_contexts,
+                    reference_box,
+                )),
+                None => AnimationSampleStep::Resolved(sample),
+            },
+            sampled => sampled,
+        }
+    });
+    let sample = match step {
         AnimationSampleStep::Sampled(result) => return result,
-        AnimationSampleStep::NeedsHostLengthContexts(sample) => sample,
+        AnimationSampleStep::Resolved(sample) => sample,
     };
     // Building the length contexts may read the engine, so the host builds them between two calls
     // of it, over what the first one resolved.
@@ -5790,28 +5841,98 @@ pub unsafe extern "C" fn rust_sample_animation_effects(
 /// How far one call of the style engine took a sample.
 enum AnimationSampleStep {
     Sampled(FfiHostAnimationSampleResult),
-    /// The keyframes compute over length contexts only the host builds.
-    NeedsHostLengthContexts(ResolvedAnimationSample),
+    /// The declarations are resolved, and the keyframes compute over the element's length contexts.
+    Resolved(ResolvedAnimationSample),
+}
+
+/// The length contexts a resolved sample's keyframes compute over, where the engine builds them: over
+/// a record the host holds. The host builds them over a working set it is computing, and wherever they
+/// need a container base: resolving one marks the container asked about and, before layout, has it
+/// evaluated again after.
+fn engine_length_contexts(
+    input: &FfiHostAnimationSample,
+    engine: &crate::css::style::StyleEngine,
+    sample: &ResolvedAnimationSample,
+) -> Option<FfiAnimationLengthContexts> {
+    if input.style_record == 0 || sample.resolved.container_relative_length_unit_mask != 0 {
+        return None;
+    }
+    let pseudo = (input.pseudo_kind != crate::css::cascaded_properties::NO_PSEUDO_ELEMENT).then_some(input.pseudo_kind);
+    engine.animation_sample_length_contexts(sample.node, pseudo, input.style_record)
 }
 
 /// A sample whose declarations are resolved, which computes its keyframe values over the element's
 /// length contexts. It owns what it holds, so it holds nothing of the engine between two calls.
 struct ResolvedAnimationSample {
     node: crate::css::style::tree::StyleNodeID,
-    composed: smallvec::SmallVec<[crate::css::animation::FfiSampledAnimationEffect; 4]>,
+    composed: SampledEffects,
     resolved: Box<crate::css::animation::ResolvedAnimationDeclarations>,
     custom_properties: crate::css::animation::AnimatedCustomProperties,
     result: FfiHostAnimationSampleResult,
 }
 
-/// Take a sample as far as the style engine goes without the host: to its end where the engine
-/// builds the element's length contexts, and up to them where the host does.
+/// The effects the host samples that the sample composes, each at the key its timing gives at the time
+/// the host sampled its timeline, keeping each timing for a sample at another time.
+///
+/// # Safety
+/// As for [`rust_sample_animation_effects`].
+unsafe fn host_sampled_effects(
+    input: &FfiHostAnimationSample,
+    engine: &mut crate::css::style::StyleEngine,
+) -> SampledEffects {
+    use crate::css::animation as anim;
+
+    let Some(node) = crate::css::style::tree::StyleNodeID::from_raw(input.style_node) else {
+        return SampledEffects::new();
+    };
+    let slot = animation_slot(input.pseudo_kind);
+    let sampled = unsafe { crate::css::custom_properties::ffi_slice(input.effects, input.effect_count) };
+    sampled
+        .iter()
+        .filter_map(|effect| {
+            // SAFETY: The host's easings are live for the call.
+            let key = unsafe {
+                engine.time_element_animation_effect(
+                    node,
+                    slot,
+                    effect.identity,
+                    &effect.timing,
+                    &effect.easing,
+                    effect.current_key,
+                )
+            };
+            let description = engine
+                .element_animation_effects(node, slot)
+                .iter()
+                .find(|description| description.identity == effect.identity);
+            debug_assert!(description.is_some(), "the host describes every effect it samples");
+            description
+                .is_some_and(|description| {
+                    description.generation == effect.generation && description.keyframes.len() >= 2
+                })
+                .then_some(anim::FfiSampledAnimationEffect {
+                    effect: anim::FfiAnimationPreparationEffect {
+                        identity: effect.identity,
+                        generation: effect.generation,
+                    },
+                    current_key: key?,
+                })
+        })
+        .collect()
+}
+
+/// The effects a sample composes, in composite order, each at the key it samples its keyframes at.
+pub(crate) type SampledEffects = smallvec::SmallVec<[crate::css::animation::FfiSampledAnimationEffect; 4]>;
+
+/// Take a sample of `composed` as far as the style engine goes without the host: to its end, or to
+/// the length contexts its keyframes compute over.
 ///
 /// # Safety
 /// As for [`rust_sample_animation_effects`].
 unsafe fn begin_animation_sample(
     input: &FfiHostAnimationSample,
     engine: &mut crate::css::style::StyleEngine,
+    composed: SampledEffects,
     reference_box: Option<CssPixelRect>,
 ) -> AnimationSampleStep {
     use crate::css::animation as anim;
@@ -5822,30 +5943,9 @@ unsafe fn begin_animation_sample(
         return finished(Cleared);
     };
     let pseudo = (input.pseudo_kind != crate::css::cascaded_properties::NO_PSEUDO_ELEMENT).then_some(input.pseudo_kind);
-    let sampled = unsafe { crate::css::custom_properties::ffi_slice(input.effects, input.effect_count) };
     let (table, overlay) = unsafe { input.working_set() };
-
     let descriptions = engine.element_animation_effects(node, animation_slot(input.pseudo_kind));
-    let description = |identity| {
-        let description = descriptions.iter().find(|description| description.identity == identity);
-        debug_assert!(description.is_some(), "the host describes every effect it samples");
-        description
-    };
-    let composed: smallvec::SmallVec<[anim::FfiSampledAnimationEffect; 4]> = sampled
-        .iter()
-        .filter(|effect| {
-            description(effect.identity).is_some_and(|description| {
-                description.generation == effect.generation && description.keyframes.len() >= 2
-            })
-        })
-        .map(|effect| anim::FfiSampledAnimationEffect {
-            effect: anim::FfiAnimationPreparationEffect {
-                identity: effect.identity,
-                generation: effect.generation,
-            },
-            current_key: effect.current_key,
-        })
-        .collect();
+    let description = |identity| descriptions.iter().find(|description| description.identity == identity);
     if composed.is_empty() {
         return finished(Cleared);
     }
@@ -5930,26 +6030,13 @@ unsafe fn begin_animation_sample(
                 .map_or(u32::MAX, |index| 1 << index);
     }
 
-    // Over a record the host holds, the engine builds the length contexts itself. The host builds
-    // them over a working set it is computing, and wherever they need a container base: resolving
-    // one marks the container asked about and, before layout, has it evaluated again after.
-    let length_contexts = (input.style_record != 0 && resolved.container_relative_length_unit_mask == 0)
-        .then(|| engine.animation_sample_length_contexts(node, pseudo, input.style_record))
-        .flatten();
-    let sample = ResolvedAnimationSample {
+    AnimationSampleStep::Resolved(ResolvedAnimationSample {
         node,
         composed,
         resolved,
         custom_properties,
         result,
-    };
-    match length_contexts {
-        // SAFETY: As above.
-        Some(length_contexts) => AnimationSampleStep::Sampled(unsafe {
-            finish_animation_sample(input, engine, sample, &length_contexts, reference_box)
-        }),
-        None => AnimationSampleStep::NeedsHostLengthContexts(sample),
-    }
+    })
 }
 
 /// Compute a resolved sample's keyframe values over the element's length contexts, and evaluate its

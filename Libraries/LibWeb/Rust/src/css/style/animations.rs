@@ -22,6 +22,7 @@
 use super::bridge::{FfiAppliedAnimationDefinition, FfiAppliedAnimationValues};
 use super::tree::{StyleNodeID, TreeScopeID};
 use crate::css::css_string::CssString;
+use crate::css::style_compute::FfiEffectTiming;
 use std::collections::HashMap;
 
 /// Which of an element's animation lists a row belongs to, in the host's own numbering: zero for
@@ -316,6 +317,189 @@ impl AnimationKeyframes {
     }
 }
 
+/// `Bindings::FillMode`, in IDL order.
+mod fill_mode {
+    pub(super) const FORWARDS: u8 = 1;
+    pub(super) const BACKWARDS: u8 = 2;
+    pub(super) const BOTH: u8 = 3;
+}
+
+/// `Bindings::PlaybackDirection`, in IDL order.
+mod playback_direction {
+    pub(super) const NORMAL: u8 = 0;
+    pub(super) const REVERSE: u8 = 1;
+    pub(super) const ALTERNATE_REVERSE: u8 = 3;
+}
+
+/// The times the engine samples effects' timelines at: those the host sampled them at, or those a clock
+/// tick at a timestamp moves the document timelines to.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub(crate) struct AnimationTimelineSamples {
+    timestamp: Option<f64>,
+}
+
+impl AnimationTimelineSamples {
+    /// The time `timing`'s timeline is sampled at, which may be unresolved, or `None` where these samples
+    /// do not move it.
+    fn timeline_time(self, timing: &FfiEffectTiming) -> Option<Option<f64>> {
+        match self.timestamp {
+            None => Some(timing.has_timeline_time.then_some(timing.timeline_time)),
+            Some(timestamp) => timing
+                .has_timeline_origin_time
+                .then_some(Some(timestamp - timing.timeline_origin_time)),
+        }
+    }
+}
+
+/// `AnimationEffect::Phase`.
+#[derive(Clone, Copy, PartialEq)]
+enum Phase {
+    Before,
+    Active,
+    After,
+    Idle,
+}
+
+/// `AK::max` and `AK::min`, which keep the first value where neither is less.
+fn largest(a: f64, b: f64) -> f64 {
+    if a < b { b } else { a }
+}
+
+fn smallest(a: f64, b: f64) -> f64 {
+    if b < a { b } else { a }
+}
+
+/// One animation effect's timing and easing, as the host last sampled the effect.
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) struct EffectTiming {
+    pub(crate) timing: FfiEffectTiming,
+    pub(crate) easing: crate::css::easing::Easing,
+}
+
+impl EffectTiming {
+    /// The key the effect's keyframes are sampled at with its timeline at `samples`, which is
+    /// `AnimationEffect::transformed_progress()` scaled the way the host scales it. The outer `None` is
+    /// a timing the engine cannot decide; the inner one is an unresolved progress, which samples nothing.
+    ///
+    /// A mirror of `Animation::current_time_at()`, `AnimationEffect::resolve_timing()` and
+    /// `transformed_progress()` with everything under it.
+    #[must_use]
+    pub(crate) fn key_at(&self, samples: AnimationTimelineSamples) -> Option<Option<f64>> {
+        let timing = &self.timing;
+        if !timing.decidable {
+            return None;
+        }
+        let timeline_time = samples.timeline_time(timing)?;
+
+        // https://www.w3.org/TR/web-animations-1/#animation-current-time
+        let local_time = match (timing.has_hold_time, timeline_time) {
+            (true, _) => Some(timing.hold_time),
+            (false, Some(timeline_time)) if timing.has_start_time => {
+                Some((timeline_time - timing.start_time) * timing.playback_rate)
+            }
+            (false, _) => None,
+        };
+
+        // https://www.w3.org/TR/web-animations-1/#active-duration
+        let active_duration = match timing.iteration_duration == 0.0 || timing.iteration_count == 0.0 {
+            true => 0.0,
+            false => timing.iteration_duration * timing.iteration_count,
+        };
+        // https://www.w3.org/TR/web-animations-1/#end-time
+        let end_time = largest(timing.start_delay + active_duration + timing.end_delay, 0.0);
+
+        // https://www.w3.org/TR/web-animations-1/#animation-effect-phases-and-states
+        let backwards = timing.playback_rate < 0.0;
+        let phase = match local_time {
+            None => Phase::Idle,
+            Some(local_time) => {
+                let before_active_boundary_time = largest(smallest(timing.start_delay, end_time), 0.0);
+                let after_active_boundary_time = largest(smallest(timing.start_delay + active_duration, end_time), 0.0);
+                if local_time < before_active_boundary_time || (backwards && local_time == before_active_boundary_time)
+                {
+                    Phase::Before
+                } else if local_time > after_active_boundary_time
+                    || (!backwards && local_time == after_active_boundary_time)
+                {
+                    Phase::After
+                } else {
+                    Phase::Active
+                }
+            }
+        };
+
+        // https://www.w3.org/TR/web-animations-1/#calculating-the-active-time
+        let fills = |mode| timing.fill_mode == mode || timing.fill_mode == fill_mode::BOTH;
+        let active_time = match (phase, local_time) {
+            (Phase::Before, Some(local_time)) if fills(fill_mode::BACKWARDS) => {
+                Some(largest(local_time - timing.start_delay, 0.0))
+            }
+            (Phase::Active, Some(local_time)) => Some(local_time - timing.start_delay),
+            (Phase::After, Some(local_time)) if fills(fill_mode::FORWARDS) => {
+                Some(largest(smallest(local_time - timing.start_delay, active_duration), 0.0))
+            }
+            _ => None,
+        };
+        let Some(active_time) = active_time else {
+            return Some(None);
+        };
+
+        // https://www.w3.org/TR/web-animations-1/#overall-progress
+        let overall_progress = match timing.iteration_duration == 0.0 {
+            true if phase == Phase::Before => 0.0,
+            true => timing.iteration_count,
+            false => active_time / timing.iteration_duration,
+        } + timing.iteration_start;
+
+        // https://www.w3.org/TR/web-animations-1/#simple-iteration-progress
+        let mut simple_iteration_progress = match overall_progress.is_infinite() {
+            true => timing.iteration_start % 1.0,
+            false => overall_progress % 1.0,
+        };
+        if simple_iteration_progress == 0.0
+            && matches!(phase, Phase::Active | Phase::After)
+            && active_time == active_duration
+            && timing.iteration_count != 0.0
+        {
+            simple_iteration_progress = 1.0;
+        }
+
+        // https://www.w3.org/TR/web-animations-1/#current-iteration
+        let current_iteration = if phase == Phase::After && timing.iteration_count.is_infinite() {
+            timing.iteration_count
+        } else if simple_iteration_progress == 1.0 {
+            overall_progress.floor() - 1.0
+        } else {
+            overall_progress.floor()
+        };
+
+        // https://www.w3.org/TR/web-animations-1/#directed-progress
+        let going_forwards = match timing.playback_direction {
+            playback_direction::NORMAL => true,
+            playback_direction::REVERSE => false,
+            direction => {
+                let iteration = match direction == playback_direction::ALTERNATE_REVERSE {
+                    true => current_iteration + 1.0,
+                    false => current_iteration,
+                };
+                iteration.is_infinite() || iteration % 2.0 == 0.0
+            }
+        };
+        let directed_progress = match going_forwards {
+            true => simple_iteration_progress,
+            false => 1.0 - simple_iteration_progress,
+        };
+
+        // https://www.w3.org/TR/web-animations-1/#transformed-progress
+        let before_flag = (phase == Phase::Before && going_forwards) || (phase == Phase::After && !going_forwards);
+        let output_progress = self.easing.evaluate_at(directed_progress, before_flag);
+
+        // `KeyframeEffect::AnimationKeyFrameKeyScaleFactor`, and the host's clamp to what a key can hold.
+        let key = output_progress * 100.0 * 1000.0;
+        Some(Some(key.clamp(i64::MIN as f64, i64::MAX as f64)))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -358,6 +542,91 @@ mod tests {
             .iter()
             .map(|animation| animation.name.clone())
             .collect()
+    }
+
+    /// A one-second linear animation that started at zero, sampled with its timeline at `time`.
+    fn timing_at(time: f64) -> EffectTiming {
+        EffectTiming {
+            timing: FfiEffectTiming {
+                decidable: true,
+                has_timeline_origin_time: true,
+                has_timeline_time: true,
+                has_start_time: true,
+                timeline_time: time,
+                playback_rate: 1.0,
+                iteration_duration: 1000.0,
+                iteration_count: 1.0,
+                ..FfiEffectTiming::default()
+            },
+            easing: crate::css::easing::Easing::default(),
+        }
+    }
+
+    fn key(timing: &EffectTiming) -> Option<Option<f64>> {
+        timing.key_at(AnimationTimelineSamples::default())
+    }
+
+    #[test]
+    fn a_key_follows_the_timeline_through_the_active_phase() {
+        assert_eq!(key(&timing_at(250.0)), Some(Some(25_000.0)));
+        assert_eq!(key(&timing_at(0.0)), Some(Some(0.0)));
+        assert_eq!(key(&timing_at(1500.0)), Some(None), "no fill after the end");
+        assert_eq!(key(&timing_at(-1.0)), Some(None), "no fill before the start");
+    }
+
+    #[test]
+    fn a_key_fills_and_holds() {
+        let mut timing = timing_at(1500.0);
+        timing.timing.fill_mode = fill_mode::BOTH;
+        assert_eq!(key(&timing), Some(Some(100_000.0)));
+        timing.timing.timeline_time = -500.0;
+        assert_eq!(key(&timing), Some(Some(0.0)));
+        timing.timing.has_hold_time = true;
+        timing.timing.hold_time = 500.0;
+        assert_eq!(key(&timing), Some(Some(50_000.0)), "a hold time wins over the timeline");
+    }
+
+    #[test]
+    fn a_key_runs_each_iteration_in_its_direction() {
+        let mut timing = timing_at(1250.0);
+        timing.timing.iteration_count = f64::INFINITY;
+        assert_eq!(key(&timing), Some(Some(25_000.0)));
+        timing.timing.playback_direction = 2;
+        assert_eq!(
+            key(&timing),
+            Some(Some(75_000.0)),
+            "an alternate second iteration runs backwards"
+        );
+        timing.timing.playback_direction = playback_direction::REVERSE;
+        assert_eq!(key(&timing), Some(Some(75_000.0)));
+        timing.timing.playback_direction = playback_direction::NORMAL;
+        timing.timing.playback_rate = 2.0;
+        assert_eq!(key(&timing), Some(Some(50_000.0)));
+    }
+
+    #[test]
+    fn a_key_is_eased_by_the_effect() {
+        let mut timing = timing_at(500.0);
+        timing.easing = crate::css::easing::Easing::Steps {
+            interval_count: 2,
+            position: crate::css::easing::STEP_POSITION_JUMP_START,
+        };
+        assert_eq!(key(&timing), Some(Some(100_000.0)));
+    }
+
+    #[test]
+    fn an_undecidable_timing_leaves_the_key_to_the_host() {
+        let mut timing = timing_at(500.0);
+        timing.timing.decidable = false;
+        assert_eq!(key(&timing), None);
+        let unresolved = EffectTiming {
+            timing: FfiEffectTiming {
+                has_timeline_time: false,
+                ..timing_at(500.0).timing
+            },
+            ..timing_at(500.0)
+        };
+        assert_eq!(key(&unresolved), Some(None), "an inactive timeline samples nothing");
     }
 
     #[test]

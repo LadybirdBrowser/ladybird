@@ -114,6 +114,7 @@ public:
 
     bool is_current() const;
     bool is_in_effect() const;
+    bool has_local_time_override_for_observation() const { return m_has_local_time_override_for_observation; }
 
     TimeValue before_active_boundary_time() const;
     TimeValue after_active_boundary_time() const;
