@@ -315,16 +315,15 @@ impl ArenaChange {
     }
 
     /// Whether the change may move a fact the host knows of the render state (see [`StateFacts`]): a write to the paint
-    /// state or an epoch of style record views never does.
+    /// state never does, nor do some style and layout writes.
     fn may_move_facts(&self) -> bool {
         match self {
             Self::Paint(_) => false,
-            Self::Style(change) => !change.is_view_epoch(),
-            Self::Layout(_)
-            | Self::Engine(_)
-            | Self::DetachForRemoval(_)
-            | Self::ReinheritAnonymousDescendants(_)
-            | Self::Rule(_) => true,
+            Self::Style(change) => change.may_move_facts(),
+            Self::Layout(change) => change.may_move_facts(),
+            Self::Engine(_) | Self::DetachForRemoval(_) | Self::ReinheritAnonymousDescendants(_) | Self::Rule(_) => {
+                true
+            }
         }
     }
 

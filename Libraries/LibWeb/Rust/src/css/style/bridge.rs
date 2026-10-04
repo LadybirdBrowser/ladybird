@@ -4389,14 +4389,32 @@ impl StyleChange {
         )
     }
 
-    /// Whether the change begins or ends an epoch of style record views, which only keeps the engine from reclaiming
-    /// a record a view may still read: nothing the paint properties are prepared from, nor any fact the host knows of
-    /// the render state (see [`crate::render_state::StateFacts`]).
-    pub(crate) fn is_view_epoch(&self) -> bool {
+    /// Whether the change only keeps the engine from reclaiming records: it pins or unpins one, or begins or ends an
+    /// epoch of style record views. It changes nothing the paint properties are prepared from.
+    pub(crate) fn only_keeps_records_alive(&self) -> bool {
         matches!(
             self,
-            Self::BeginStyleRecordViewEpoch {} | Self::EndStyleRecordViewEpoch {}
+            Self::BeginStyleRecordViewEpoch {}
+                | Self::EndStyleRecordViewEpoch {}
+                | Self::PinStyleRecord { .. }
+                | Self::UnpinStyleRecord { .. }
         )
+    }
+
+    /// Whether the change may move a fact the host knows of the render state. One that keeps records alive, notes what
+    /// an attribute name is or what a value spells, picks the pseudo-element whose style is deferred, or begins or ends
+    /// a cold matching batch never does: none of them stages a style input or touches a layout box.
+    pub(crate) fn may_move_facts(&self) -> bool {
+        !self.only_keeps_records_alive()
+            && !self.notes_attribute_name()
+            && !matches!(
+                self,
+                Self::SetAttributeValueText { .. }
+                    | Self::SetPseudoElementStyleDeferred { .. }
+                    | Self::BeginColdMatchingBatch { .. }
+                    | Self::BeginAdaptiveColdMatchingBatch { .. }
+                    | Self::EndColdMatchingBatch {}
+            )
     }
 }
 

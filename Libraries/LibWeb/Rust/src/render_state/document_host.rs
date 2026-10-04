@@ -206,7 +206,7 @@ impl DocumentHost {
     /// applies it ahead of the host's next job. A write never reaches the render state as the host makes it.
     pub(crate) fn queue_change(&self, change: ArenaChange) {
         match &change {
-            ArenaChange::Style(change) if change.is_view_epoch() => {}
+            ArenaChange::Style(change) if change.only_keeps_records_alive() => {}
             ArenaChange::Style(change) => {
                 self.note_render_state_write();
                 self.engine_memo.deferred.borrow_mut().follow(change);

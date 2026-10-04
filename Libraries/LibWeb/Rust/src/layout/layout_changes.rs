@@ -209,6 +209,21 @@ impl LayoutChange {
         }
     }
 
+    /// Whether the change may move a fact the host knows of the render state (see
+    /// [`crate::render_state::StateFacts`]). Noting which nodes sit in a focused text control, pinning a row's style
+    /// record and tracing the layout never do.
+    pub(crate) fn may_move_facts(&self) -> bool {
+        !matches!(
+            self,
+            Self::SetIdentityInFocusedTextControl { .. }
+                | Self::PinBoundBoxStyleRecordForDetachment { .. }
+                | Self::PinNodeStyleRecordForHost { .. }
+                | Self::ReleaseNodeStyleRecordPinForHost { .. }
+                | Self::BeginLayoutTrace
+                | Self::NameLayoutTraceOwners(_)
+        )
+    }
+
     /// Applies the change to `arena`, the arena of the document it was queued for. A node freed since then has nothing
     /// left to change.
     pub(crate) fn apply(self, arena: &mut LayoutNodeArena) {
