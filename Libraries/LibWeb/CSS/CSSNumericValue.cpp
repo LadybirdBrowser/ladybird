@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/ConservativeVector.h>
 #include <LibWeb/Bindings/CSSNumericValue.h>
 #include <LibWeb/CSS/CSSMathInvert.h>
 #include <LibWeb/CSS/CSSMathMax.h>
@@ -149,7 +150,7 @@ WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> CSSNumericValue::add(ReadonlySpan<
 WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> CSSNumericValue::sub(ReadonlySpan<CSSNumberish> initial_values)
 {
     // 1. Replace each item of values with the result of rectifying a numberish value for the item, then negating the value.
-    Vector<CSSNumberish> values;
+    GC::ConservativeVector<CSSNumberish> values;
     for (auto const& value : initial_values)
         values.append(rectify_a_numberish_value(value)->negate());
 
@@ -237,7 +238,7 @@ WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> CSSNumericValue::mul(ReadonlySpan<
 WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> CSSNumericValue::div(ReadonlySpan<CSSNumberish> initial_values)
 {
     // 1. Replace each item of values with the result of rectifying a numberish value for the item, then inverting the value.
-    Vector<CSSNumberish> values;
+    GC::ConservativeVector<CSSNumberish> values;
     for (auto const& value : initial_values)
         values.append(TRY(rectify_a_numberish_value(value)->invert()));
 
