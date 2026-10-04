@@ -3308,9 +3308,11 @@ void ViewImplementation::dump_session_history(StringView reason, SessionHistoryD
     if (traversable().ongoing_navigation().has_value())
         loading_url = traversable().ongoing_navigation()->url;
 
+    // The page displaying the tab can have lost its process, as when a crash recovery ends.
+    auto const* connection = page().routed_connection();
     dbgln("[History] UI session history page={} pid={} reason={} url='{}' uncommitted_navigation={} loading_url={} pending_traversal_target={} pending_traversal_stage={} queued_same_document_entries={} back={} forward={} entries={}",
         page().id(),
-        page().client().pid(),
+        connection ? connection->pid() : -1,
         reason,
         m_url,
         traversable().has_uncommitted_navigation(),
