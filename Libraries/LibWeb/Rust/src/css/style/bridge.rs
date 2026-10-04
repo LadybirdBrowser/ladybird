@@ -1448,8 +1448,10 @@ unsafe impl Sync for FfiAppliedAnimationDefinition {}
 /// the scope's row up; a shadow root's scope is named by the root's pointer identity as well.
 ///
 /// The host publishes a scope whenever its rule cache is built, and keeps a reference to every set
-/// the row names until it replaces or gives the row up. This is not a recorded boundary event: a
-/// keyframe set is a host pointer, which a replayed engine could not be handed.
+/// the row names until it replaces or gives the row up. The row is written as the host's other
+/// writes are, ahead of the next job, which is the first that resolves keyframes from it. This is
+/// not a recorded boundary event: a keyframe set is a host pointer, which a replayed engine could
+/// not be handed.
 ///
 /// # Safety
 /// `host` must be a live document host, on its document's thread, and each buffer must hold the
@@ -1457,7 +1459,6 @@ unsafe impl Sync for FfiAppliedAnimationDefinition {}
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_set_tree_scope_animation_keyframes(
     host: *const DocumentHost,
-    read: &crate::render_state::BegunRead,
     tree_scope: u32,
     shadow_root_identity: usize,
     name_lengths: *const u32,
@@ -1467,19 +1468,20 @@ pub unsafe extern "C" fn style_engine_set_tree_scope_animation_keyframes(
     count: usize,
 ) {
     // SAFETY: Guaranteed by the caller.
-    let host = unsafe { document_host(host) };
-    with_engine(read, host, |engine| {
-        let name_lengths = unsafe { ffi_slice(name_lengths, count) };
-        let name_units = unsafe { ffi_slice(name_units, name_unit_count) };
-        let keyframe_sets = unsafe { ffi_slice(keyframe_sets, count) };
-        engine.set_tree_scope_animation_keyframes(
-            TreeScopeID(tree_scope),
-            shadow_root_identity,
-            name_lengths,
-            name_units,
-            keyframe_sets,
-        );
-    });
+    let row = unsafe {
+        super::animations::AnimationKeyframes::row(
+            ffi_slice(name_lengths, count),
+            ffi_slice(name_units, name_unit_count),
+            ffi_slice(keyframe_sets, count),
+        )
+    };
+    let write = super::engine_calls::EngineWrite::AnimationKeyframes {
+        tree_scope: TreeScopeID(tree_scope),
+        shadow_root_identity,
+        row,
+    };
+    // SAFETY: Guaranteed by the caller.
+    unsafe { super::engine_calls::queue(host, write) };
 }
 
 /// Creates a replay engine whose atom keys are opaque capture tokens rather than live fly strings.

@@ -1280,7 +1280,7 @@ public:
 
     void register_shadow_root(Badge<DOM::ShadowRoot>, DOM::ShadowRoot&);
     void unregister_shadow_root(Badge<DOM::ShadowRoot>, DOM::ShadowRoot&);
-    void publish_animation_keyframes_for_style_update(Layout::BegunRead const& read);
+    void publish_animation_keyframes_for_style_update();
     template<typename Callback>
     void for_each_shadow_root(Callback&& callback)
     {
