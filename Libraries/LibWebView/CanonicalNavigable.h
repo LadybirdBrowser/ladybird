@@ -230,13 +230,8 @@ public:
     void clear_ongoing_navigation_traversal(Web::HTML::CrossProcessId operation_id);
     virtual void clear_ongoing_navigation();
     void clear_ongoing_navigation_state();
-    void set_navigation_population_worker(WebContentPage&);
-    bool navigation_population_matches(WebContentPage const&, Utf16String const& navigation_id) const;
-    bool navigation_population_worker_matches(WebContentPage const&) const;
     void set_navigation_host(WebContentPage&);
-    bool navigation_host_matches(WebContentPage const&) const;
-    bool navigation_owner_matches(WebContentPage const&) const;
-    bool cancel_navigation_transaction_for_client(WebContentClient&);
+    bool cancel_navigation_for_client(WebContentClient&);
     void did_finish_finalizing_navigation(Utf16String const& navigation_id, Web::HTML::CrossProcessId document_state_id, Web::HTML::HistoryStepResult);
     bool has_uncommitted_navigation() const { return ongoing_navigation(); }
     bool matches_ongoing_navigation(Optional<Utf16String> const& navigation_id) const;

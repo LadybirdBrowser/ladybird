@@ -573,7 +573,7 @@ void WebContentClient::cancel_navigation_transactions()
 {
     ViewImplementation::for_each_view([this](ViewImplementation& view) {
         view.traversable().for_each_in_inclusive_subtree([this](CanonicalNavigable& navigable) {
-            navigable.cancel_navigation_transaction_for_client(*this);
+            navigable.cancel_navigation_for_client(*this);
             return IterationDecision::Continue;
         });
         return IterationDecision::Continue;
