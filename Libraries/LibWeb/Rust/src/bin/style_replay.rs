@@ -803,19 +803,6 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                         style_record,
                     );
                 }
-                EventKind::TransitionBaseline => {
-                    let engine = read_engine(&mut event.payload, &live_engines)?;
-                    let node = event.payload.read_u32()?;
-                    let pseudo_kind = pseudo_kind_from_recording(event.payload.read_u8()?, format_version);
-                    let actual = bridge::operations::transition_baseline(unsafe { engine.get() }, node, pseudo_kind);
-                    let expected = event.payload.read_u64()?;
-                    if actual != expected {
-                        return Err(format!(
-                            "transition baseline diverged for node {node}: expected {expected}, got {actual}"
-                        )
-                        .into());
-                    }
-                }
                 EventKind::SetElementAssociatedPseudoKind => {
                     let engine = read_engine(&mut event.payload, &live_engines)?;
                     let node = event.payload.read_u32()?;

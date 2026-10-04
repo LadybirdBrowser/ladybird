@@ -209,7 +209,7 @@ impl DocumentHost {
             ArenaChange::Style(change) if change.only_keeps_records_alive() => {}
             ArenaChange::Style(change) => {
                 self.note_render_state_write();
-                self.engine_memo.deferred.borrow_mut().follow(change);
+                self.engine_memo.follow(change);
             }
             _ => self.note_render_state_write(),
         }

@@ -1087,6 +1087,16 @@ pub(crate) struct EngineMemo {
     pub(crate) deferred: std::cell::RefCell<DeferredInputs>,
     /// The versions of the animation effects the host described to the engine.
     pub(crate) described: std::cell::RefCell<super::effect_descriptions::DescribedVersions>,
+    /// The transition baselines the host recorded in the engine.
+    pub(crate) baselines: std::cell::RefCell<super::TransitionBaselines>,
+}
+
+impl EngineMemo {
+    /// Follows `change`, a write the host queued for the engine.
+    pub(crate) fn follow(&self, change: &super::bridge::StyleChange) {
+        self.deferred.borrow_mut().follow(change);
+        self.baselines.borrow_mut().follow(change);
+    }
 }
 
 impl Default for EngineMemo {
@@ -1098,6 +1108,7 @@ impl Default for EngineMemo {
             held: Default::default(),
             deferred: Default::default(),
             described: Default::default(),
+            baselines: Default::default(),
         }
     }
 }
@@ -1353,6 +1364,30 @@ pub(crate) fn known_style_record_view(
     let (view, _) = host.transaction_record(style_record)?;
     memo.set(style_record, view);
     Some(view)
+}
+
+/// The before-change style the current style stabilization epoch decides the transitions of `node`'s element, or of
+/// one of its pseudo-elements, against, or 0 before a pass has recorded one. The host knows it without asking: it
+/// follows every baseline it records in the engine.
+///
+/// # Safety
+///
+/// `host` must be a live document host, on its document's thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn style_engine_transition_baseline(
+    host: *const DocumentHost,
+    node: u32,
+    pseudo_kind: u8,
+) -> u64 {
+    let Some(node) = StyleNodeID::from_raw(node) else {
+        return 0;
+    };
+    // SAFETY: Guaranteed by the caller.
+    unsafe { document_host(host) }
+        .engine_memo()
+        .baselines
+        .borrow()
+        .get(node, pseudo_kind)
 }
 
 /// Whether the engine has a style transaction pending, which the host knows without asking where it wrote nothing

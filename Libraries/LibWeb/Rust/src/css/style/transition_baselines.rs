@@ -6,11 +6,85 @@
 
 //! The before-change styles a style stabilization epoch decides CSS transitions against.
 
-use super::RetainedState;
+use super::bridge::StyleChange;
 use super::tree::StyleNodeID;
+use super::{HashMap, RetainedState};
 use crate::css::animated_overlay::FfiAnimatedOverlayEntry;
 use crate::css::computed_longhand_table::ComputedLonghandTable;
 use crate::css::style_value::StyleValueData;
+use smallvec::SmallVec;
+
+/// https://drafts.csswg.org/css-transitions-2/#defining-before-change-style
+/// Per transition target, by element and then pseudo-element kind, the before-change style its transitions are decided
+/// against for the rest of the style stabilization epoch: the first record named for the target. The engine keeps them
+/// pinned until the epoch commits, and the host follows every baseline it records for the engine, the commit that
+/// releases them, and every identity a transaction releases, as the engine drops a retired node's baselines, so it
+/// knows each without asking.
+#[derive(Default)]
+pub(crate) struct TransitionBaselines {
+    baselines: HashMap<StyleNodeID, SmallVec<[(u8, u64); 1]>>,
+}
+
+impl TransitionBaselines {
+    /// Keeps `style_record` as the target's baseline where it has none, answering whether it did.
+    fn insert(&mut self, node: StyleNodeID, pseudo_kind: u8, style_record: u64) -> bool {
+        let baselines = self.baselines.entry(node).or_default();
+        if baselines.iter().any(|&(kind, _)| kind == pseudo_kind) {
+            return false;
+        }
+        baselines.push((pseudo_kind, style_record));
+        true
+    }
+
+    /// The baseline of the target, or 0 before a pass has recorded one.
+    pub(crate) fn get(&self, node: StyleNodeID, pseudo_kind: u8) -> u64 {
+        self.baselines
+            .get(&node)
+            .and_then(|baselines| baselines.iter().find(|&&(kind, _)| kind == pseudo_kind))
+            .map_or(0, |&(_, style_record)| style_record)
+    }
+
+    /// Lets go of the baselines of `node`'s element and pseudo-elements, answering their records.
+    pub(crate) fn remove(&mut self, node: StyleNodeID) -> impl Iterator<Item = u64> {
+        self.baselines
+            .remove(&node)
+            .into_iter()
+            .flatten()
+            .map(|(_, style_record)| style_record)
+    }
+
+    /// Lets go of every baseline, answering their records.
+    fn take(&mut self) -> impl Iterator<Item = u64> {
+        std::mem::take(&mut self.baselines)
+            .into_values()
+            .flatten()
+            .map(|(_, style_record)| style_record)
+    }
+
+    /// Follows `change`, a write the host queued for the engine, as the engine applies it.
+    pub(crate) fn follow(&mut self, change: &StyleChange) {
+        match *change {
+            StyleChange::RecordTransitionBaseline {
+                node,
+                pseudo_kind,
+                style_record,
+            } if style_record != 0 => {
+                if let Some(node) = StyleNodeID::from_raw(node) {
+                    self.insert(node, pseudo_kind, style_record);
+                }
+            }
+            StyleChange::ReleaseTransitionBaselines {} => self.baselines.clear(),
+            _ => {}
+        }
+    }
+
+    /// Forgets the baselines of the nodes a transaction retired, whose identities it `released`.
+    pub(crate) fn forget(&mut self, released: &[u32]) {
+        for node in released.iter().filter_map(|&raw| StyleNodeID::from_raw(raw)) {
+            self.baselines.remove(&node);
+        }
+    }
+}
 
 /// What a transition decides an inherited, animated value against.
 #[derive(Clone, Copy)]
@@ -24,33 +98,17 @@ pub(crate) enum InheritedAnimatedValue<'a> {
 impl RetainedState {
     /// An epoch begins: the one before it committed and released every style it pinned.
     pub(crate) fn begin_transition_baselines(&self) {
-        debug_assert!(self.transition_baselines.is_empty());
+        debug_assert!(self.transition_baselines.baselines.is_empty());
     }
 
-    /// https://drafts.csswg.org/css-transitions-2/#defining-before-change-style
     /// Style, layout or animation feedback can give a target a transition in any later pass of
     /// the epoch, and that transition starts from the style the target held before the epoch's
     /// first pass. The first record named for a target is that style: it is kept, pinned, until
     /// the epoch commits.
     pub(crate) fn record_transition_baseline(&mut self, node: StyleNodeID, pseudo_kind: u8, style_record: u64) {
-        if style_record == 0 {
-            return;
+        if style_record != 0 && self.transition_baselines.insert(node, pseudo_kind, style_record) {
+            self.computed_group_sets.pin_style_record(style_record);
         }
-        let baselines = self.transition_baselines.entry(node).or_default();
-        if baselines.iter().any(|&(kind, _)| kind == pseudo_kind) {
-            return;
-        }
-        self.computed_group_sets.pin_style_record(style_record);
-        baselines.push((pseudo_kind, style_record));
-    }
-
-    /// The before-change style the epoch decides the target's transitions against, or 0 before a
-    /// pass has recorded one.
-    pub(crate) fn transition_baseline(&self, node: StyleNodeID, pseudo_kind: u8) -> u64 {
-        self.transition_baselines
-            .get(&node)
-            .and_then(|baselines| baselines.iter().find(|&&(kind, _)| kind == pseudo_kind))
-            .map_or(0, |&(_, style_record)| style_record)
     }
 
     /// Where an inherited value of `property` in `table`, a record of `node`'s, comes from when an
@@ -93,10 +151,8 @@ impl RetainedState {
 
     /// The epoch committed: no later pass decides against these styles.
     pub(crate) fn release_transition_baselines(&mut self) {
-        for (_, baselines) in std::mem::take(&mut self.transition_baselines) {
-            for (_, style_record) in baselines {
-                self.computed_group_sets.unpin_style_record(style_record);
-            }
+        for style_record in self.transition_baselines.take() {
+            self.computed_group_sets.unpin_style_record(style_record);
         }
     }
 }

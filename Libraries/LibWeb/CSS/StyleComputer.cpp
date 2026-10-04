@@ -998,7 +998,7 @@ RequiredInvalidationAfterStyleChange StyleComputer::run_transition_step_for_inst
     // display: none. The installed record may itself be display: none; checking it would skip the discrete transition
     // into that state.
     if (m_transition_baselines_recorded) {
-        if (auto baseline = m_style_engine.transition_baseline(read, element.style_node_id(), pseudo_element_to_ffi(pseudo_element)); baseline != 0)
+        if (auto baseline = StyleEngineFFI::style_engine_transition_baseline(m_style_engine.host(), element.style_node_id().value(), pseudo_element_to_ffi(pseudo_element)); baseline != 0)
             before_change_style_record = StyleRecordID { baseline };
     }
     if (has_flag(m_style_engine.style_record_dependency_flags(read, before_change_style_record), StyleRecordDependencyFlag::InDisplayNoneSubtree))

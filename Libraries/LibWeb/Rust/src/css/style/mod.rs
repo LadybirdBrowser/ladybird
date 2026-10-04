@@ -111,7 +111,7 @@ mod transition_baselines;
 mod user_agent_selectors;
 pub(crate) use computed::StyleRecordLease;
 pub(crate) use publication::RecordDemand;
-pub(crate) use transition_baselines::InheritedAnimatedValue;
+pub(crate) use transition_baselines::{InheritedAnimatedValue, TransitionBaselines};
 mod weak_pool;
 #[cfg(not(feature = "style-recording"))]
 pub mod record_replay {
@@ -971,11 +971,9 @@ pub struct RetainedState {
     /// The computed style groups each longhand reaches, which the host registers before it creates
     /// the engine.
     style_groups: &'static crate::css::computed_values::StyleGroupMasks,
-    /// https://drafts.csswg.org/css-transitions-2/#defining-before-change-style
-    /// Per transition target, by element and then pseudo-element kind, the before-change style its
-    /// transitions are decided against for the rest of the style stabilization epoch, pinned until
-    /// the epoch commits.
-    transition_baselines: HashMap<StyleNodeID, SmallVec<[(u8, u64); 1]>>,
+    /// The before-change style each transition target's transitions are decided against for the
+    /// rest of the style stabilization epoch, pinned until the epoch commits.
+    transition_baselines: transition_baselines::TransitionBaselines,
     /// Whether the registrations used by this transaction differ from the preceding one. A
     /// previously substituted record must then be recomputed by C++, which implements registered
     /// custom properties, even when its cascade winners did not move.
