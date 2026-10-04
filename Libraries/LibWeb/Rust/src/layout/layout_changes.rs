@@ -483,6 +483,28 @@ pub unsafe extern "C" fn render_state_set_needs_layout_update(
     }
 }
 
+/// Detaches what is left of the boxes of the `count` nodes `style_nodes` names as they leave the document (see
+/// [`super::tree_builder::detach_remaining_rows_for_removal`]), as a write queued for the render state: the host pays what it owes
+/// once the job that applies it is done. An identity of 0 names no node.
+///
+/// # Safety
+///
+/// `host` must be a live document host, on its document's thread, and `style_nodes` must point at `count` identities.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn render_state_detach_remaining_rows_for_removal(
+    host: *const DocumentHost,
+    style_nodes: *const u32,
+    count: usize,
+) {
+    if count == 0 {
+        return;
+    }
+    assert!(!host.is_null(), "document host is null");
+    // SAFETY: Guaranteed by the caller.
+    let (host, style_nodes) = unsafe { (&*host, std::slice::from_raw_parts(style_nodes, count)) };
+    host.queue_change(ArenaChange::DetachForRemoval(style_nodes.into()));
+}
+
 /// # Safety
 ///
 /// `host` must be a live document host, on the document's thread.

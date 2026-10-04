@@ -26,10 +26,6 @@ use crate::layout::tree_mutation::{HostCalls, OwedHostWork, UnplacedLayoutNode};
 use crate::layout::tree_update_marks::layout_tree_update_reuse_reason;
 use crate::layout::{ComputedValuesView, FfiDisplay};
 
-mod main_thread_entries;
-
-pub(crate) use main_thread_entries::MainThreadFfiEntry;
-
 type LayoutNode = NodeSlotId;
 
 pub(crate) struct TreeBuilderState {

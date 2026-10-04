@@ -25,6 +25,7 @@ mod questions;
 mod wait;
 
 pub use document_host::DocumentHost;
+pub(crate) use document_host::OwedWorkPayment;
 #[cfg(test)]
 pub(crate) use document_host::TestHost;
 pub(crate) use questions::{
@@ -45,6 +46,9 @@ pub(crate) struct RenderState {
     /// engine comes from this one pointer, and a borrow of the state borrows it mutably only where it reaches the
     /// engine alone.
     engine: StyleEngineHandle,
+    /// What the writes the state applied since the host's last job ended owe the host, which the host pays once it has
+    /// the job back.
+    owed: Vec<crate::layout::tree_mutation::HostWorkDue>,
 }
 
 impl RenderState {
@@ -61,7 +65,11 @@ impl RenderState {
             .arena_mut()
             .share_svg_paint_resources_enrolled(shared.svg_paint_resources_enrolled);
         arena.arena_mut().set_style_engine(engine);
-        Self { arena, engine }
+        Self {
+            arena,
+            engine,
+            owed: Vec::new(),
+        }
     }
 
     /// Runs `job` on the state with `marks`, the layout tree update marks the document's host lends it, if it lends
@@ -81,7 +89,8 @@ impl RenderState {
 
     /// Drops the state, which must hold no layout node any more.
     fn retire(self) {
-        let Self { arena, engine } = self;
+        let Self { arena, engine, owed } = self;
+        assert!(owed.is_empty(), "every job's host pays what its writes owe it");
         assert_eq!(
             arena.arena().live_slot_count(),
             0,
@@ -102,8 +111,13 @@ impl RenderState {
     fn apply(&mut self, changes: impl IntoIterator<Item = ArenaChange>) {
         for change in changes {
             // SAFETY: The state is borrowed mutably, and so is the engine its arena links.
-            unsafe { change.apply(self.arena.arena_mut(), self.engine) };
+            unsafe { change.apply(self.arena.arena_mut(), self.engine, &mut self.owed) };
         }
+    }
+
+    /// Takes what the writes the state applied owe the host, for the host to pay once it has the job back.
+    fn take_owed(&mut self) -> Vec<crate::layout::tree_mutation::HostWorkDue> {
+        std::mem::take(&mut self.owed)
     }
 
     /// Answers `question`, as of what the state holds now.
@@ -172,6 +186,8 @@ pub(crate) struct Landing {
     changes: Vec<ArenaChange>,
     /// The layout tree update marks the host lent the frame.
     marks: Option<crate::layout::tree_update_marks::LayoutTreeUpdateMarks>,
+    /// What the writes the frame applied owe the host.
+    owed: Vec<crate::layout::tree_mutation::HostWorkDue>,
 }
 
 // Every write the host makes is moved through its queue and into the render state, so a variant that carries a large
@@ -189,6 +205,10 @@ pub(crate) enum ArenaChange {
     Style(crate::css::style::bridge::StyleChange),
     /// A hand-written write to the document's style engine.
     Engine(crate::css::style::engine_calls::EngineWrite),
+    /// What is left of the boxes of the nodes the identities name is detached as the nodes leave the document (see
+    /// [`crate::layout::tree_builder::detach_remaining_rows_for_removal`]), which owes the host what it pays once the
+    /// job that applies it is done.
+    DetachForRemoval(Box<[u32]>),
     /// A write to the document's style sheets.
     Rule(crate::css::style::rule_writes::RuleWrite),
 }
@@ -197,9 +217,19 @@ impl ArenaChange {
     /// # Safety
     ///
     /// `engine` must name the live style engine `arena` links, which nothing else borrows meanwhile.
-    unsafe fn apply(self, arena: &mut crate::layout::LayoutNodeArena, engine: StyleEngineHandle) {
+    unsafe fn apply(
+        self,
+        arena: &mut crate::layout::LayoutNodeArena,
+        engine: StyleEngineHandle,
+        owed: &mut Vec<crate::layout::tree_mutation::HostWorkDue>,
+    ) {
         match self {
             Self::Layout(change) => change.apply(arena),
+            Self::DetachForRemoval(nodes) => owed.push(
+                crate::layout::layout_changes::LayoutWrite::DetachRemainingRowsForRemoval(&nodes)
+                    .apply(arena)
+                    .host_work,
+            ),
             Self::Paint(change) => change.apply(arena),
             // SAFETY: Guaranteed by the caller. A style change reaches the engine only through this borrow.
             Self::Style(change) => change.apply(unsafe { engine.get_mut() }),
@@ -217,7 +247,7 @@ impl ArenaChange {
             Self::Style(change) => !change.notes_attribute_name(),
             Self::Engine(write) => !matches!(write, crate::css::style::engine_calls::EngineWrite::MintStyleNodes(_)),
             Self::Rule(_) => true,
-            Self::Layout(_) | Self::Paint(_) => false,
+            Self::Layout(_) | Self::Paint(_) | Self::DetachForRemoval(_) => false,
         }
     }
 
@@ -231,6 +261,7 @@ impl ArenaChange {
         match self {
             Self::Layout(change) => change.row_write(),
             Self::Paint(_) => RowWrite::Rows,
+            Self::DetachForRemoval(_) => RowWrite::Identities,
             Self::Style(_) | Self::Engine(_) | Self::Rule(_) => RowWrite::None,
         }
     }
@@ -418,12 +449,14 @@ pub(crate) fn fly(
                     };
                     (style, applied, round)
                 });
+                let owed = state.take_owed();
                 Landing {
                     style,
                     applied,
                     round,
                     changes,
                     marks,
+                    owed,
                 }
             })
         };
