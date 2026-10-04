@@ -166,12 +166,56 @@ pub struct VmOptions {
 
 /// An execution context stack that VM::save_execution_context_stack() set aside, with the TypeErrorRealmScope that
 /// was active on it.
-pub struct SavedExecutionContextStack {
-    pub execution_context_stack: Vec<NonNull<ExecutionContext>>,
-    pub previous_running_execution_contexts: Vec<*mut ExecutionContext>,
-    pub running_execution_context: *mut ExecutionContext,
-    pub type_error_realm_override: Option<Gc<Realm>>,
-    pub type_error_realm_override_depth: usize,
+struct SavedExecutionContextStack {
+    execution_context_stack: Vec<NonNull<ExecutionContext>>,
+    previous_running_execution_contexts: Vec<*mut ExecutionContext>,
+    running_execution_context: *mut ExecutionContext,
+    type_error_realm_override: Option<Gc<Realm>>,
+    type_error_realm_override_depth: usize,
+}
+
+/// VM::for_each_execution_context_top_to_bottom() over any execution context stack, the live one or a saved one.
+/// `stack_entry` returns the context at an index of the stack and the context that was running when it was pushed, or
+/// None past the end of the stack. The walk asks for each entry when it gets there, so that a walk of the live stack
+/// borrows it only for that moment.
+fn for_each_execution_context_top_to_bottom_of(
+    stack_length: usize,
+    stack_entry: impl Fn(usize) -> Option<(NonNull<ExecutionContext>, *mut ExecutionContext)>,
+    running_execution_context: *mut ExecutionContext,
+    mut callback: impl FnMut(&ExecutionContext) -> ControlFlow<()>,
+) {
+    let mut stack_index = stack_length;
+    let Some(mut context) = NonNull::new(running_execution_context) else {
+        while stack_index > 0 {
+            stack_index -= 1;
+            let Some((context, _)) = stack_entry(stack_index) else {
+                return;
+            };
+            // SAFETY: Contexts on the stack are live.
+            if callback(unsafe { context.as_ref() }).is_break() {
+                return;
+            }
+        }
+        return;
+    };
+    loop {
+        // SAFETY: Every context reachable from the running one is live.
+        let context_ref = unsafe { context.as_ref() };
+        if callback(context_ref).is_break() {
+            return;
+        }
+        let next = match stack_index.checked_sub(1).and_then(&stack_entry) {
+            Some((base_context, previous_running_context)) if base_context == context => {
+                stack_index -= 1;
+                previous_running_context
+            }
+            _ => context_ref.caller_frame.get(),
+        };
+        let Some(next) = NonNull::new(next) else {
+            return;
+        };
+        context = next;
+    }
 }
 
 fn default_host_promise_rejection_tracker(vm: &Vm, promise: Gc<Promise>, operation: RejectionOperation) {
@@ -712,39 +756,91 @@ impl Vm {
         context
     }
 
-    /// Calls `callback` on every live execution context, from the running one down, following both the frames the
-    /// interpreter links through caller_frame and the contexts pushed onto the execution context stack.
-    /// Calls `callback` with each execution context from the running one down, until it breaks.
-    pub fn for_each_execution_context_top_to_bottom(
+    /// Calls `callback` with each live execution context from the running one down, until it breaks, following both
+    /// the frames the interpreter links through caller_frame and the contexts pushed onto the execution context stack.
+    /// No borrow of the stack is held while `callback` runs, so it may run JavaScript, as long as it leaves the stack
+    /// as it found it.
+    pub fn for_each_execution_context_top_to_bottom(&self, callback: impl FnMut(&ExecutionContext) -> ControlFlow<()>) {
+        let stack_length = self.execution_context_stack_size();
+        for_each_execution_context_top_to_bottom_of(
+            stack_length,
+            |index| {
+                let context = *self.execution_context_stack.borrow().get(index)?;
+                let previous_running_context = *self.previous_running_execution_contexts.borrow().get(index)?;
+                Some((context, previous_running_context))
+            },
+            self.head.running_execution_context.get(),
+            callback,
+        );
+    }
+
+    /// VM::last_execution_context_matching(): the topmost execution context that `predicate` accepts, in the order of
+    /// for_each_execution_context_top_to_bottom().
+    pub fn last_execution_context_matching(
         &self,
-        mut callback: impl FnMut(&ExecutionContext) -> ControlFlow<()>,
-    ) {
-        let stack = self.execution_context_stack.borrow();
-        let previous_running = self.previous_running_execution_contexts.borrow();
-        let mut stack_index = stack.len();
-        let mut context = self.head.running_execution_context.get();
-        if context.is_null() {
-            for context in stack.iter().rev() {
-                // SAFETY: Contexts on the stack are live.
-                if callback(unsafe { context.as_ref() }).is_break() {
-                    return;
-                }
+        mut predicate: impl FnMut(NonNull<ExecutionContext>) -> bool,
+    ) -> Option<NonNull<ExecutionContext>> {
+        let mut matching_execution_context = None;
+        self.for_each_execution_context_top_to_bottom(|execution_context| {
+            let execution_context = NonNull::from(execution_context);
+            if !predicate(execution_context) {
+                return ControlFlow::Continue(());
             }
-            return;
-        }
-        while !context.is_null() {
-            // SAFETY: Every context reachable from the running one is live.
-            let context_ref = unsafe { &*context };
-            if callback(context_ref).is_break() {
-                return;
-            }
-            if stack_index > 0 && core::ptr::eq(context, stack[stack_index - 1].as_ptr()) {
-                context = previous_running[stack_index - 1];
-                stack_index -= 1;
-                continue;
-            }
-            context = context_ref.caller_frame.get();
-        }
+            matching_execution_context = Some(execution_context);
+            ControlFlow::Break(())
+        });
+        matching_execution_context
+    }
+
+    /// The number of contexts pushed onto the execution context stack, VM::execution_context_stack().size(). Frames
+    /// the interpreter links through caller_frame are not on it.
+    pub fn execution_context_stack_size(&self) -> usize {
+        self.execution_context_stack.borrow().len()
+    }
+
+    /// VM::save_execution_context_stack(): sets the execution context stack aside, with the TypeErrorRealmScope that
+    /// is active on it, and leaves an empty stack with nothing running. The garbage collector keeps tracing the saved
+    /// stack until restore_execution_context_stack() brings it back.
+    pub fn save_execution_context_stack(&self) {
+        let saved_stack = SavedExecutionContextStack {
+            execution_context_stack: core::mem::take(&mut *self.execution_context_stack.borrow_mut()),
+            previous_running_execution_contexts: core::mem::take(
+                &mut *self.previous_running_execution_contexts.borrow_mut(),
+            ),
+            running_execution_context: self.head.running_execution_context.replace(core::ptr::null_mut()),
+            type_error_realm_override: self.type_error_realm_override.take(),
+            type_error_realm_override_depth: self.type_error_realm_override_depth.replace(0),
+        };
+        self.saved_execution_context_stacks.borrow_mut().push(saved_stack);
+    }
+
+    /// VM::clear_execution_context_stack(): forgets every context on the execution context stack, keeping the stack's
+    /// storage.
+    pub fn clear_execution_context_stack(&self) {
+        self.execution_context_stack.borrow_mut().clear();
+        self.previous_running_execution_contexts.borrow_mut().clear();
+        self.head.running_execution_context.set(core::ptr::null_mut());
+        self.type_error_realm_override.set(None);
+        self.type_error_realm_override_depth.set(0);
+    }
+
+    /// VM::restore_execution_context_stack(): replaces the execution context stack with the one the matching
+    /// save_execution_context_stack() set aside.
+    pub fn restore_execution_context_stack(&self) {
+        let saved_stack = self
+            .saved_execution_context_stacks
+            .borrow_mut()
+            .pop()
+            .expect("a saved execution context stack to restore");
+        *self.execution_context_stack.borrow_mut() = saved_stack.execution_context_stack;
+        *self.previous_running_execution_contexts.borrow_mut() = saved_stack.previous_running_execution_contexts;
+        self.head
+            .running_execution_context
+            .set(saved_stack.running_execution_context);
+        self.type_error_realm_override
+            .set(saved_stack.type_error_realm_override);
+        self.type_error_realm_override_depth
+            .set(saved_stack.type_error_realm_override_depth);
     }
 
     /// The context below the running one, the second to top element of the execution context stack.
@@ -771,6 +867,23 @@ impl Vm {
             context.trace(visitor);
             ControlFlow::Continue(())
         });
+        for saved_stack in self.saved_execution_context_stacks.borrow().iter() {
+            for_each_execution_context_top_to_bottom_of(
+                saved_stack.execution_context_stack.len(),
+                |index| {
+                    Some((
+                        *saved_stack.execution_context_stack.get(index)?,
+                        *saved_stack.previous_running_execution_contexts.get(index)?,
+                    ))
+                },
+                saved_stack.running_execution_context,
+                |context| {
+                    context.trace(visitor);
+                    ControlFlow::Continue(())
+                },
+            );
+            saved_stack.type_error_realm_override.trace(visitor);
+        }
         self.roots.trace(visitor);
         self.empty_string.trace(visitor);
         self.single_ascii_character_strings.trace(visitor);
@@ -921,10 +1034,6 @@ impl Vm {
         self.agent.set(agent);
     }
 
-    pub fn saved_execution_context_stacks(&self) -> &RefCell<Vec<SavedExecutionContextStack>> {
-        &self.saved_execution_context_stacks
-    }
-
     pub fn host_classes(&self) -> &RefCell<HostClassRegistry> {
         &self.host_classes
     }
@@ -943,15 +1052,29 @@ impl Vm {
     /// The override only applies at the depth the scope was created at, so callees pushed while it is alive are
     /// unaffected.
     pub fn type_error_realm_scope(&self, realm: Gc<Realm>) -> TypeErrorRealmScope<'_> {
-        let scope = TypeErrorRealmScope {
+        TypeErrorRealmScope {
             vm: self,
-            previous_realm: self.type_error_realm_override.get(),
-            previous_depth: self.type_error_realm_override_depth.get(),
+            previous: self.override_type_error_realm(realm),
+        }
+    }
+
+    /// What type_error_realm_scope() does, for an embedder that cannot hold the scope: overrides the realm of
+    /// TypeErrors at the current execution context stack depth, and returns the override this replaces, which the
+    /// caller must put back with restore_type_error_realm_override().
+    pub fn override_type_error_realm(&self, realm: Gc<Realm>) -> TypeErrorRealmOverride {
+        let previous = TypeErrorRealmOverride {
+            realm: self.type_error_realm_override.get(),
+            depth: self.type_error_realm_override_depth.get(),
         };
         self.type_error_realm_override.set(Some(realm));
         self.type_error_realm_override_depth
             .set(self.execution_context_stack.borrow().len());
-        scope
+        previous
+    }
+
+    pub fn restore_type_error_realm_override(&self, previous: TypeErrorRealmOverride) {
+        self.type_error_realm_override.set(previous.realm);
+        self.type_error_realm_override_depth.set(previous.depth);
     }
 
     /// The frames of every execution context, from the running one down, with where each is in its executable.
@@ -1588,15 +1711,20 @@ unsafe extern "C" fn enqueue_cleanup_jobs_of_finalization_registries_with_dead_c
 /// VM::TypeErrorRealmScope.
 pub struct TypeErrorRealmScope<'vm> {
     vm: &'vm Vm,
-    previous_realm: Option<Gc<Realm>>,
-    previous_depth: usize,
+    previous: TypeErrorRealmOverride,
 }
 
 impl Drop for TypeErrorRealmScope<'_> {
     fn drop(&mut self) {
-        self.vm.type_error_realm_override.set(self.previous_realm);
-        self.vm.type_error_realm_override_depth.set(self.previous_depth);
+        self.vm.restore_type_error_realm_override(self.previous);
     }
+}
+
+/// The realm that TypeErrors are created in at an execution context stack depth, if any.
+#[derive(Clone, Copy)]
+pub struct TypeErrorRealmOverride {
+    pub realm: Option<Gc<Realm>>,
+    pub depth: usize,
 }
 
 /// An element of VM::stack_trace(): an execution context and where it is in its executable, if it runs one.

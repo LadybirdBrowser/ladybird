@@ -16,15 +16,17 @@ use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
 use crate::layout::object::Object;
 use crate::layout::value::Value;
+use crate::runtime::aggregate_error::AggregateError;
 use crate::runtime::error_data::{CompactTraceback, ErrorData};
 use crate::runtime::object::MayInterfereWithIndexedPropertyAccess;
 use crate::runtime::primitive_string::PrimitiveString;
 use crate::runtime::property_attributes::{Attribute, PropertyAttributes};
 use crate::runtime::realm::Realm;
+use crate::runtime::suppressed_error::SuppressedError;
 use crate::utf16::Utf16Display;
 
-/// The constructors of the errors the runtime throws: %Error% and the NativeError constructors, as the C++ Error
-/// subclasses.
+/// The constructors of the errors the runtime and its embedder throw: %Error%, the NativeError constructors, as the
+/// C++ Error subclasses, and %AggregateError% and %SuppressedError%.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ErrorKind {
     Error,
@@ -35,22 +37,34 @@ pub enum ErrorKind {
     SyntaxError,
     TypeError,
     URIError,
+    AggregateError,
+    SuppressedError,
 }
 
 impl ErrorKind {
+    /// T::create(realm) for the error class T this kind names: a new error of this kind in `realm`, without a
+    /// "message".
+    pub fn create_without_message(self, vm: &Vm, realm: Gc<Realm>) -> Gc<Error> {
+        match self {
+            Self::Error => Error::create(vm, realm),
+            Self::EvalError => EvalError::create(vm, realm).upcast(),
+            Self::InternalError => InternalError::create(vm, realm).upcast(),
+            Self::RangeError => RangeError::create(vm, realm).upcast(),
+            Self::ReferenceError => ReferenceError::create(vm, realm).upcast(),
+            Self::SyntaxError => SyntaxError::create(vm, realm).upcast(),
+            Self::TypeError => TypeError::create(vm, realm).upcast(),
+            Self::URIError => URIError::create(vm, realm).upcast(),
+            Self::AggregateError => AggregateError::create(vm, realm).upcast(),
+            Self::SuppressedError => SuppressedError::create(vm, realm).upcast(),
+        }
+    }
+
     /// T::create(realm, message) for the error class T this kind names: a new error of this kind in `realm`, whose
     /// "message" is `message`.
     pub fn create(self, vm: &Vm, realm: Gc<Realm>, message: Utf16String) -> Gc<Error> {
-        match self {
-            Self::Error => Error::create_with_message(vm, realm, message),
-            Self::EvalError => EvalError::create_with_message(vm, realm, message).upcast(),
-            Self::InternalError => InternalError::create_with_message(vm, realm, message).upcast(),
-            Self::RangeError => RangeError::create_with_message(vm, realm, message).upcast(),
-            Self::ReferenceError => ReferenceError::create_with_message(vm, realm, message).upcast(),
-            Self::SyntaxError => SyntaxError::create_with_message(vm, realm, message).upcast(),
-            Self::TypeError => TypeError::create_with_message(vm, realm, message).upcast(),
-            Self::URIError => URIError::create_with_message(vm, realm, message).upcast(),
-        }
+        let error = self.create_without_message(vm, realm);
+        error.set_message(vm, message);
+        error
     }
 }
 

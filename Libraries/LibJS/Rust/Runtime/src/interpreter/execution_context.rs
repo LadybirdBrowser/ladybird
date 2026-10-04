@@ -169,11 +169,7 @@ impl OwnedExecutionContext {
             .checked_add(constant_count)
             .and_then(|count| count.checked_add(argument_count))
             .expect("the slot count of an execution context fits in u32");
-        let layout = Layout::from_size_align(
-            size_of::<ExecutionContext>() + slot_count as usize * size_of::<Value>(),
-            align_of::<ExecutionContext>(),
-        )
-        .expect("the layout of an execution context is valid");
+        let layout = Self::layout_for_slot_count(slot_count);
         // SAFETY: The layout has room for at least the context.
         let memory = unsafe { alloc(layout) }.cast::<ExecutionContext>();
         let Some(context) = NonNull::new(memory) else {
@@ -192,8 +188,40 @@ impl OwnedExecutionContext {
         Self { context, layout }
     }
 
+    fn layout_for_slot_count(slot_count: u32) -> Layout {
+        Layout::from_size_align(
+            size_of::<ExecutionContext>() + slot_count as usize * size_of::<Value>(),
+            align_of::<ExecutionContext>(),
+        )
+        .expect("the layout of an execution context is valid")
+    }
+
     pub fn as_non_null(&self) -> NonNull<ExecutionContext> {
         self.context
+    }
+
+    /// Gives up ownership of the context, which from_raw() takes back.
+    pub fn into_raw(self) -> NonNull<ExecutionContext> {
+        let context = self.context;
+        core::mem::forget(self);
+        context
+    }
+
+    /// Takes back ownership of a context that into_raw() gave up. Like C++ ExecutionContext::operator delete, this
+    /// finds the size of the allocation from the context's slot count, which never changes after it is created.
+    ///
+    /// # Safety
+    ///
+    /// `context` must come from into_raw(), and nothing may own it already.
+    pub unsafe fn from_raw(context: NonNull<ExecutionContext>) -> Self {
+        // SAFETY: The caller passes a live context.
+        let slot_count = unsafe { context.as_ref() }
+            .registers_and_constants_and_locals_and_arguments_count
+            .get();
+        Self {
+            context,
+            layout: Self::layout_for_slot_count(slot_count),
+        }
     }
 }
 
