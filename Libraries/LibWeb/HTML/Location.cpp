@@ -9,6 +9,7 @@
 #include <AK/String.h>
 #include <AK/Utf16String.h>
 #include <LibGC/RootVector.h>
+#include <LibJS/HostClassBuilder.h>
 #include <LibJS/Runtime/Completion.h>
 #include <LibJS/Runtime/NativeFunction.h>
 #include <LibJS/Runtime/Object.h>
@@ -258,6 +259,20 @@ JS::ThrowCompletionOr<GC::RootVector<JS::Value>> LocationWrapper::internal_own_p
     // 2. Return CrossOriginOwnPropertyKeys(this).
     return HTML::cross_origin_own_property_keys(impl());
 }
+
+namespace {
+
+// Location's internal methods are still the overrides of LocationWrapper above, so its hooks only finalize the wrapper.
+struct LocationWrapperTraits {
+    static void finalize(JS::HostObject& wrapper)
+    {
+        finalize_platform_object(wrapper);
+    }
+};
+
+}
+
+constexpr JSHostObjectHooks location_wrapper_hooks = JS::make_host_object_hooks<LocationWrapperTraits>();
 
 }
 

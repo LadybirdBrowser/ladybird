@@ -17,6 +17,9 @@ from Generators.libweb_bindings.includes import GeneratedIncludes
 from Generators.libweb_bindings.realms import member_realm_expr
 from Generators.libweb_bindings.to_idl_value import to_idl_value
 from Generators.libweb_bindings.to_js_value import to_javascript_value
+from Generators.libweb_bindings.wrappers import interface_and_inherited_interfaces
+from Generators.libweb_bindings.wrappers import wrapper_class_name
+from Utils.utils import title_case_to_snake_case
 from Utils.webidl_parser import IDLType
 from Utils.webidl_parser import Interface
 from Utils.webidl_parser import OperationParameter
@@ -49,23 +52,88 @@ def interface_supports_named_properties(interface: Interface) -> bool:
     return interface.named_property_getter is not None and "Global" in interface.extended_attributes
 
 
-def write_legacy_platform_object_hook_declarations(out: TextIO, interface: Interface) -> None:
+INDEXED_PROPERTY_SETTER_FUNCTIONS = (
+    "set_value_of_new_indexed_property",
+    "set_value_of_existing_indexed_property",
+    "set_value_of_indexed_property",
+)
+
+NAMED_PROPERTY_SETTER_FUNCTIONS = (
+    "set_value_of_new_named_property",
+    "set_value_of_existing_named_property",
+    "set_value_of_named_property",
+)
+
+# The functions of LegacyPlatformObjectInfo (LibWeb/Bindings/PlatformObject.h), in declaration order.
+LEGACY_PLATFORM_OBJECT_INFO_FUNCTIONS = (
+    ("item_value", "named_item_value")
+    + INDEXED_PROPERTY_SETTER_FUNCTIONS
+    + NAMED_PROPERTY_SETTER_FUNCTIONS
+    + ("delete_value",)
+)
+
+
+def legacy_platform_object_function_name(interface: Interface, function: str) -> str:
+    return f"{title_case_to_snake_case(wrapper_class_name(interface))}_{function}"
+
+
+def legacy_platform_object_function_signature(interface: Interface, function: str) -> str:
+    name = legacy_platform_object_function_name(interface, function)
+    if function == "item_value":
+        return f"Optional<JS::Value> {name}(JS::HostObject const& wrapper, [[maybe_unused]] WrapperWorld& wrapper_world, JS::Realm& realm, size_t index)"
+    if function == "named_item_value":
+        return f"JS::Value {name}(JS::HostObject const& wrapper, [[maybe_unused]] WrapperWorld& wrapper_world, JS::Realm& realm, Utf16FlyString const& name)"
+    if function in INDEXED_PROPERTY_SETTER_FUNCTIONS:
+        return (
+            f"WebIDL::ExceptionOr<void> {name}(JS::HostObject& wrapper, JS::Realm& realm, u32 index, JS::Value value)"
+        )
+    if function in NAMED_PROPERTY_SETTER_FUNCTIONS:
+        return f"WebIDL::ExceptionOr<void> {name}(JS::HostObject& wrapper, JS::Realm& realm, Utf16FlyString const& name, JS::Value value)"
+    if function == "delete_value":
+        return f"WebIDL::ExceptionOr<NamedPropertyDeletionResult> {name}(JS::HostObject& wrapper, Utf16FlyString const& name)"
+    raise RuntimeError(f"Unknown legacy platform object function '{function}'")
+
+
+def interface_declares_named_item_value(interface: Interface) -> bool:
+    return (
+        named_property_getter_call(interface) is not None
+        or interface.name in SPECIAL_NAMED_PROPERTY_VALUE_INTERFACES
+        or interface.name == "Document"
+    )
+
+
+def legacy_platform_object_functions_declared_by(interface: Interface) -> list[str]:
+    functions = []
     if indexed_property_getter_call(interface) is not None:
-        out.write("    virtual Optional<JS::Value> item_value(WrapperWorld&, JS::Realm&, size_t) const override;\n")
-    if named_property_getter_call(interface) is not None or interface.name in SPECIAL_NAMED_PROPERTY_VALUE_INTERFACES:
-        out.write(
-            "    virtual JS::Value named_item_value(WrapperWorld&, JS::Realm&, Utf16FlyString const&) const override;\n"
-        )
-    for hook_name in indexed_property_setter_hook_names(interface):
-        out.write(f"    virtual WebIDL::ExceptionOr<void> {hook_name}(JS::Realm&, u32, JS::Value) override;\n")
-    for hook_name in named_property_setter_hook_names(interface):
-        out.write(
-            f"    virtual WebIDL::ExceptionOr<void> {hook_name}(JS::Realm&, Utf16FlyString const&, JS::Value) override;\n"
-        )
+        functions.append("item_value")
+    if interface_declares_named_item_value(interface):
+        functions.append("named_item_value")
+    functions += indexed_property_setter_hook_names(interface)
+    functions += named_property_setter_hook_names(interface)
     if interface.named_property_deleter is not None:
-        out.write(
-            "    virtual WebIDL::ExceptionOr<NamedPropertyDeletionResult> delete_value(Utf16FlyString const&) override;\n"
-        )
+        functions.append("delete_value")
+    return functions
+
+
+# The functions of a wrapper's LegacyPlatformObjectInfo, mapped to the function of the nearest interface in its
+# inheritance chain that declares them.
+def legacy_platform_object_info_functions(context: GenerationContext, interface: Interface) -> dict[str, str]:
+    functions: dict[str, str] = {}
+    for interface_in_chain in interface_and_inherited_interfaces(context, interface):
+        for function in legacy_platform_object_functions_declared_by(interface_in_chain):
+            functions.setdefault(function, legacy_platform_object_function_name(interface_in_chain, function))
+    return {
+        function: functions[function] for function in LEGACY_PLATFORM_OBJECT_INFO_FUNCTIONS if function in functions
+    }
+
+
+def write_legacy_platform_object_function_declarations(out: TextIO, interface: Interface) -> None:
+    functions = legacy_platform_object_functions_declared_by(interface)
+    for function in functions:
+        declaration = legacy_platform_object_function_signature(interface, function).replace("[[maybe_unused]] ", "")
+        out.write(f"{declaration};\n")
+    if functions:
+        out.write("\n")
 
 
 def indexed_property_index_argument(operation: SpecialOperation) -> str:
@@ -92,7 +160,7 @@ def indexed_property_getter_call(interface: Interface) -> Optional[str]:
         "CSSKeyframesRule": "item",
     }
     method_name = idl_implementation_cpp_name(operation) or method_name_by_interface.get(interface.name, "item")
-    receiver = "const_cast<HTML::HTMLSelectElement&>(impl())" if interface.name == "HTMLSelectElement" else "impl()"
+    receiver = "const_cast<HTML::HTMLSelectElement&>(impl)" if interface.name == "HTMLSelectElement" else "impl"
     return f"{receiver}.{method_name}({index_argument})"
 
 
@@ -130,7 +198,7 @@ def named_property_getter_call(interface: Interface) -> Optional[str]:
     if not method_name:
         return None
 
-    return f"impl().{method_name}(name)"
+    return f"impl.{method_name}(name)"
 
 
 def named_property_getter_value_mode(interface: Interface) -> str:
@@ -191,9 +259,9 @@ def write_legacy_platform_object_hook_implementations(
 """,
             "value": """    auto& indexed_property_value = R;
 """,
-            "svg_list": """    if (index >= impl().items().size())
+            "svg_list": """    if (index >= impl.items().size())
         return {};
-    auto indexed_property_value = impl().items()[index];
+    auto indexed_property_value = impl.items()[index];
 """,
         }[value_mode]
         if value_mode == "svg_list":
@@ -202,9 +270,10 @@ def write_legacy_platform_object_hook_implementations(
         else:
             call = f"    auto R = {call};\n"
         out.write(
-            f"""Optional<JS::Value> {interface.name}Wrapper::item_value([[maybe_unused]] WrapperWorld& wrapper_world, JS::Realm& realm, size_t index) const
+            f"""{legacy_platform_object_function_signature(interface, "item_value")}
 {{
     [[maybe_unused]] auto& vm = realm.vm();
+    auto const& impl = wrapped_implementation_of<{fully_qualified_name_for_interface(interface)} const>(wrapper);
 {index_range_check}{call}{value_setup}    return {conversion};
 }}
 
@@ -219,14 +288,14 @@ def indexed_property_setter_call(interface: Interface, operation: SpecialOperati
     value_name = "idl_value"
 
     if operation.name:
-        return f"impl().{idl_implementation_cpp_name(operation)}(index, {value_name})"
+        return f"impl.{idl_implementation_cpp_name(operation)}(index, {value_name})"
     if hook_name == "set_value_of_indexed_property":
-        return f"impl().set_value_of_indexed_property(index, {value_name})"
+        return f"impl.set_value_of_indexed_property(index, {value_name})"
     if interface.name in ("HTMLOptionsCollection", "HTMLSelectElement"):
-        return f"impl().set_value_of_indexed_property(index, {value_name})"
+        return f"impl.set_value_of_indexed_property(index, {value_name})"
     if interface.name in ("SVGLengthList", "SVGNumberList", "SVGTransformList"):
-        return f"impl().replace_item({value_name}, index)"
-    return f"impl().{hook_name}(index, {value_name})"
+        return f"impl.replace_item({value_name}, index)"
+    return f"impl.{hook_name}(index, {value_name})"
 
 
 def svg_list_indexed_property_setter_conversion(
@@ -302,9 +371,10 @@ def write_indexed_property_setter_implementation(
         conversion = to_idl_value(value_parameter, "js_value", includes, context)
         conversion_steps = f"    auto js_value = value;\n    auto {value_name} = TRY(WebIDL::throw_dom_exception_if_needed(vm, realm, [&] {{ return {conversion}; }}));\n"
     out.write(
-        f"""WebIDL::ExceptionOr<void> {interface.name}Wrapper::{hook_name}(JS::Realm& realm, u32 index, JS::Value value)
+        f"""{legacy_platform_object_function_signature(interface, hook_name)}
 {{
     auto& vm = realm.vm();
+    auto& impl = wrapped_implementation_of<{fully_qualified_name_for_interface(interface)}>(wrapper);
 {conversion_steps}    TRY({call});
     return {{}};
 }}
@@ -317,8 +387,8 @@ def named_property_setter_call(interface: Interface, operation: SpecialOperation
     value_name = "idl_value"
 
     if operation.name:
-        return f"impl().{idl_implementation_cpp_name(operation)}(name, {value_name})"
-    return f"impl().set_value_of_named_property(name, {value_name})"
+        return f"impl.{idl_implementation_cpp_name(operation)}(name, {value_name})"
+    return f"impl.set_value_of_named_property(name, {value_name})"
 
 
 def write_named_property_setter_implementation(
@@ -342,9 +412,10 @@ def write_named_property_setter_implementation(
     call = named_property_setter_call(interface, operation, hook_name)
 
     out.write(
-        f"""WebIDL::ExceptionOr<void> {interface.name}Wrapper::{hook_name}(JS::Realm& realm, Utf16FlyString const& name, JS::Value value)
+        f"""{legacy_platform_object_function_signature(interface, hook_name)}
 {{
     auto& vm = realm.vm();
+    auto& impl = wrapped_implementation_of<{fully_qualified_name_for_interface(interface)}>(wrapper);
     auto js_value = value;
     auto {value_name} = TRY(WebIDL::throw_dom_exception_if_needed(vm, realm, [&] {{ return {conversion}; }}));
     TRY({call});
@@ -387,10 +458,11 @@ def write_legacy_platform_object_deleter_implementation(
         result = "NamedPropertyDeletionResult::DidNotFail"
 
     method_name = idl_implementation_cpp_name(operation) if operation.name else "delete_named_property"
-    call = f"impl().{method_name}(name)"
+    call = f"impl.{method_name}(name)"
     out.write(
-        f"""WebIDL::ExceptionOr<NamedPropertyDeletionResult> {interface.name}Wrapper::delete_value(Utf16FlyString const& name)
+        f"""{legacy_platform_object_function_signature(interface, "delete_value")}
 {{
+    auto& impl = wrapped_implementation_of<{fully_qualified_name_for_interface(interface)}>(wrapper);
 """
     )
     if operation.return_type.name == "boolean":
@@ -413,6 +485,18 @@ def write_named_item_value_implementation(
 ) -> None:
     operation = interface.named_property_getter
     call = named_property_getter_call(interface)
+    if interface.name == "Document":
+        includes.add("LibWeb/DOM/BindingsGlue.h")
+        out.write(
+            f"""{legacy_platform_object_function_signature(interface, "named_item_value")}
+{{
+    return document_named_item_value(wrapper_world, realm, wrapped_implementation_of<DOM::Document const>(wrapper), name);
+}}
+
+"""
+        )
+        return
+
     if interface.name in SPECIAL_NAMED_PROPERTY_VALUE_INTERFACES:
         includes.add("AK/Variant.h")
         includes.add("LibWeb/DOM/Element.h")
@@ -421,13 +505,14 @@ def write_named_item_value_implementation(
         includes.add("LibWeb/HTML/RadioNodeList.h")
         includes.add("LibWeb/Bindings/WrapperWorld.h")
         value_source_by_interface = {
-            "HTMLAllCollection": "impl().named_item(name)",
-            "HTMLFormControlsCollection": "impl().named_item_or_radio_node_list(name)",
-            "HTMLFormElement": "impl().named_item_or_radio_node_list(name)",
+            "HTMLAllCollection": "impl.named_item(name)",
+            "HTMLFormControlsCollection": "impl.named_item_or_radio_node_list(name)",
+            "HTMLFormElement": "impl.named_item_or_radio_node_list(name)",
         }
         out.write(
-            f"""JS::Value {interface.name}Wrapper::named_item_value(WrapperWorld& wrapper_world, JS::Realm& realm, Utf16FlyString const& name) const
+            f"""{legacy_platform_object_function_signature(interface, "named_item_value")}
 {{
+    auto const& impl = wrapped_implementation_of<{fully_qualified_name_for_interface(interface)} const>(wrapper);
     return {value_source_by_interface[interface.name]}.visit(
         [](Empty) -> JS::Value {{ return JS::js_undefined(); }},
         [&wrapper_world, &realm](auto const& value) -> JS::Value {{ return wrap(wrapper_world, realm, value); }});
@@ -467,9 +552,10 @@ def write_named_item_value_implementation(
     conversion = to_javascript_value(conversion_type, value_name, includes, context, "realm", "wrapper_world")
 
     out.write(
-        f"""JS::Value {interface.name}Wrapper::named_item_value([[maybe_unused]] WrapperWorld& wrapper_world, JS::Realm& realm, Utf16FlyString const& name) const
+        f"""{legacy_platform_object_function_signature(interface, "named_item_value")}
 {{
     [[maybe_unused]] auto& vm = realm.vm();
+    auto const& impl = wrapped_implementation_of<{fully_qualified_name_for_interface(interface)} const>(wrapper);
 {value_setup}    return {conversion};
 }}
 
@@ -584,7 +670,7 @@ JS::ThrowCompletionOr<Optional<JS::PropertyDescriptor>> {interface.name}Properti
     out.write(
         """
 
-    if (TRY(object->is_named_property_exposed_on_object(property_name))) {
+    if (TRY(is_named_property_exposed_on_object(*object, property_name))) {
         auto property_name_string = Utf16FlyString { property_name.to_utf16_string() };
 
 """

@@ -136,55 +136,61 @@ private:
     Optional<URL::Origin> m_origin;
 };
 
+Optional<JS::Value> test_wrapper_object_item_value(JS::HostObject const& wrapper, Web::Bindings::WrapperWorld& wrapper_world, JS::Realm& realm, size_t index)
+{
+    auto const& impl = Web::Bindings::wrapped_implementation_of<TestWrappable const>(wrapper);
+    if (index != 0 || !impl.indexed_value())
+        return {};
+    return Web::Bindings::wrap(wrapper_world, realm, GC::Ref { *impl.indexed_value() }).ptr();
+}
+
+JS::Value test_wrapper_object_named_item_value(JS::HostObject const& wrapper, Web::Bindings::WrapperWorld& wrapper_world, JS::Realm& realm, Utf16FlyString const& name)
+{
+    auto const& impl = Web::Bindings::wrapped_implementation_of<TestWrappable const>(wrapper);
+    if (name != "child"_utf16_fly_string || !impl.named_value())
+        return JS::js_undefined();
+    return Web::Bindings::wrap(wrapper_world, realm, GC::Ref { *impl.named_value() }).ptr();
+}
+
+Web::WebIDL::ExceptionOr<void> test_wrapper_object_set_value_of_new_indexed_property(JS::HostObject& wrapper, JS::Realm& realm, u32, JS::Value)
+{
+    Web::Bindings::wrapped_implementation_of<TestWrappable>(wrapper).record_setter_realm(realm);
+    return {};
+}
+
+Web::WebIDL::ExceptionOr<void> test_wrapper_object_set_value_of_named_property(JS::HostObject& wrapper, JS::Realm& realm, Utf16FlyString const&, JS::Value)
+{
+    Web::Bindings::wrapped_implementation_of<TestWrappable>(wrapper).record_setter_realm(realm);
+    return {};
+}
+
 constexpr Web::Bindings::LegacyPlatformObjectInfo test_wrapper_object_legacy_platform_object_info {
     .supports_indexed_properties = true,
     .supports_named_properties = true,
+    .item_value = test_wrapper_object_item_value,
+    .named_item_value = test_wrapper_object_named_item_value,
+    .set_value_of_new_indexed_property = test_wrapper_object_set_value_of_new_indexed_property,
+    .set_value_of_named_property = test_wrapper_object_set_value_of_named_property,
 };
 
-constexpr JSHostClass test_wrapper_object_host_class = JS::make_host_class(JS_HOST_CLASS_OBJECT, "TestWrapperObject"sv, nullptr, nullptr,
-    &test_wrapper_object_legacy_platform_object_info,
-    Web::Bindings::platform_object_host_class_flags | JS_HOST_CLASS_NOT_CACHEABLE_FOR_PROPERTY_ABSENCE);
+// On Windows, LibWeb's hook tables are imported from its DLL, and the address of an imported variable is not a
+// constant expression. The hooks are therefore filled in at static initialization.
+JSHostClass const test_wrapper_object_host_class = [] {
+    auto host_class = JS::make_host_class(JS_HOST_CLASS_OBJECT, "TestWrapperObject"sv, nullptr, nullptr,
+        &test_wrapper_object_legacy_platform_object_info,
+        Web::Bindings::platform_object_host_class_flags | JS_HOST_CLASS_NOT_CACHEABLE_FOR_PROPERTY_ABSENCE);
+    host_class.hooks = &Web::Bindings::legacy_platform_object_hooks;
+    return host_class;
+}();
 
 class TestWrapperObject final : public Web::Bindings::PlatformObject {
     WEB_NON_IDL_PLATFORM_OBJECT(TestWrapperObject, Web::Bindings::PlatformObject);
     GC_DECLARE_ALLOCATOR(TestWrapperObject);
 
 public:
-    using PlatformObject::set_value_of_named_property;
-    using PlatformObject::set_value_of_new_indexed_property;
-
     TestWrapperObject(JS::Realm& realm, GC::Ref<Web::Bindings::Wrappable> impl)
         : PlatformObject(realm, test_wrapper_object_host_class, impl)
     {
-    }
-
-    virtual Web::WebIDL::ExceptionOr<void> set_value_of_named_property(JS::Realm& realm, Utf16FlyString const&, JS::Value) override
-    {
-        static_cast<TestWrappable&>(*wrappable_impl()).record_setter_realm(realm);
-        return {};
-    }
-
-    virtual Web::WebIDL::ExceptionOr<void> set_value_of_new_indexed_property(JS::Realm& realm, u32, JS::Value) override
-    {
-        static_cast<TestWrappable&>(*wrappable_impl()).record_setter_realm(realm);
-        return {};
-    }
-
-protected:
-    virtual Optional<JS::Value> item_value(Web::Bindings::WrapperWorld& wrapper_world, JS::Realm& realm, size_t index) const override
-    {
-        auto const& impl = static_cast<TestWrappable const&>(*wrappable_impl());
-        if (index != 0 || !impl.indexed_value())
-            return {};
-        return Web::Bindings::wrap(wrapper_world, realm, GC::Ref { *impl.indexed_value() }).ptr();
-    }
-
-    virtual JS::Value named_item_value(Web::Bindings::WrapperWorld& wrapper_world, JS::Realm& realm, Utf16FlyString const& name) const override
-    {
-        auto const& impl = static_cast<TestWrappable const&>(*wrappable_impl());
-        if (name != "child"_utf16_fly_string || !impl.named_value())
-            return JS::js_undefined();
-        return Web::Bindings::wrap(wrapper_world, realm, GC::Ref { *impl.named_value() }).ptr();
     }
 };
 
@@ -976,12 +982,10 @@ TEST_CASE(legacy_property_getters_use_wrapper_realm)
     EXPECT(&named_child_extension_wrapper->realm() == &extension_realm.realm());
     EXPECT(named_child_extension_wrapper.ptr() == child_extension_wrapper.ptr());
 
-    auto* main_test_wrapper = as<TestWrapperObject>(main_wrapper.ptr());
-    MUST(main_test_wrapper->set_value_of_new_indexed_property(main_world.realm(), 0, JS::js_undefined()));
+    MUST(test_wrapper_object_legacy_platform_object_info.set_value_of_new_indexed_property(*main_wrapper, main_world.realm(), 0, JS::js_undefined()));
     EXPECT(parent->last_setter_realm() == &main_world.realm());
 
-    auto* extension_test_wrapper = as<TestWrapperObject>(extension_wrapper.ptr());
-    MUST(extension_test_wrapper->set_value_of_named_property(extension_realm.realm(), "child"_utf16_fly_string, JS::js_undefined()));
+    MUST(test_wrapper_object_legacy_platform_object_info.set_value_of_named_property(*extension_wrapper, extension_realm.realm(), "child"_utf16_fly_string, JS::js_undefined()));
     EXPECT(parent->last_setter_realm() == &extension_realm.realm());
 }
 

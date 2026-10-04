@@ -21,6 +21,7 @@ from Generators.libweb_bindings.cpp_types import fully_qualified_name_for_interf
 from Generators.libweb_bindings.cpp_types import implementation_header_for_interface
 from Generators.libweb_bindings.includes import GeneratedIncludes
 from Generators.libweb_bindings.named_and_indexed_properties import interface_supports_named_properties
+from Generators.libweb_bindings.named_and_indexed_properties import legacy_platform_object_info_functions
 from Generators.libweb_bindings.overload_resolution import parameter_list_length
 from Generators.libweb_bindings.wrappers import interface_needs_wrapper
 from Generators.libweb_bindings.wrappers import legacy_platform_object_info_fields
@@ -28,6 +29,7 @@ from Generators.libweb_bindings.wrappers import parent_interface
 from Generators.libweb_bindings.wrappers import wrapper_base_class_name
 from Generators.libweb_bindings.wrappers import wrapper_class_name
 from Generators.libweb_bindings.wrappers import wrapper_host_class_flags
+from Generators.libweb_bindings.wrappers import wrapper_host_class_hooks
 from Generators.libweb_bindings.wrappers import wrapper_host_class_name
 from Generators.libweb_bindings.wrappers import wrapper_legacy_platform_object_info_name
 from Utils.webidl_parser import IDLType
@@ -64,20 +66,26 @@ def write_wrapper_host_class(
 
     legacy_platform_object_info = "nullptr"
     legacy_platform_object_info_fields_of_wrapper = legacy_platform_object_info_fields(context, interface)
+    legacy_platform_object_info_functions_of_wrapper = legacy_platform_object_info_functions(context, interface)
     if legacy_platform_object_info_fields_of_wrapper is not None:
         legacy_platform_object_info_name = wrapper_legacy_platform_object_info_name(interface)
         legacy_platform_object_info = f"&{legacy_platform_object_info_name}"
         out.write(f"static constexpr LegacyPlatformObjectInfo {legacy_platform_object_info_name} {{\n")
         for field in legacy_platform_object_info_fields_of_wrapper:
             out.write(f"    .{field} = true,\n")
+        for function, function_name in legacy_platform_object_info_functions_of_wrapper.items():
+            out.write(f"    .{function} = {function_name},\n")
         out.write("};\n\n")
+    elif legacy_platform_object_info_functions_of_wrapper:
+        raise RuntimeError(f"Interface '{interface.name}' has special operations but is not a legacy platform object")
 
     parent = parent_interface(context, interface)
     parent_host_class = f"&{wrapper_host_class_name(parent)}" if parent is not None else "nullptr"
+    hooks = wrapper_host_class_hooks(context, interface)
     flags = " | ".join(wrapper_host_class_flags(context, interface))
     out.write(
         f"""constexpr JSHostClass {wrapper_host_class_name(interface)} = JS::make_host_class(JS_HOST_CLASS_OBJECT, "{interface.name}"sv,
-    {parent_host_class}, nullptr, {legacy_platform_object_info},
+    {parent_host_class}, &{hooks}, {legacy_platform_object_info},
     {flags});
 
 """
