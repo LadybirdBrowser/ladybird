@@ -89,31 +89,25 @@ public:
     // https://html.spec.whatwg.org/multipage/document-sequences.html#nav-target-name
     Utf16String const& target_name() const;
 
-    // The document state of the session history entry the navigable is navigating or traversing to, and the document
-    // populated for it, which becomes the document state's document when the entry is activated. A document populated
-    // for a navigation goes with the navigation until a history job claims it to activate it; one a history job
-    // populated or claimed goes when the job's operation finishes. A newer navigation can populate its own document
-    // while a claimed one waits to be activated.
-    RefPtr<CanonicalDocument> pending_document() const;
-    RefPtr<CanonicalDocument> document_populated_for(CanonicalDocumentState const&) const;
-    PopulatedDocument const* populated_document_with_state_id(Web::HTML::CrossProcessId) const;
     RefPtr<CanonicalDocument> document_with_id(Web::HTML::CrossProcessId) const;
     void populate_document(NonnullRefPtr<CanonicalDocumentState>, NonnullRefPtr<CanonicalDocument>, Optional<URL::Origin> inline_content_origin = {});
-    void populate_document_for_ongoing_navigation(NonnullRefPtr<CanonicalDocumentState>, NonnullRefPtr<CanonicalDocument>, Optional<URL::Origin> inline_content_origin = {});
+    void populate_document_for_ongoing_navigation(NonnullRefPtr<CanonicalDocument>, Optional<URL::Origin> inline_content_origin = {});
     // Returns false, populating nothing, for a document that would hold access the active document lacks.
     bool populate_document_for_javascript_url(NonnullRefPtr<CanonicalDocumentState>, NonnullRefPtr<CanonicalDocument>);
     void did_create_populated_document_with_an_origin_of_its_own(WebContentPage const& host, Web::HTML::CrossProcessId document_id, Web::HTML::PopulatedDocumentOrigin, Web::HTML::EnvironmentId const& environment_id);
     bool take_navigation_to_finalize(Utf16String const& navigation_id, WebContentPage const&);
     void abandon_populated_document(CanonicalDocument const&);
-    void place_pending_document(WebContentPage&);
+    void place_populated_document(CanonicalDocument&, WebContentPage&);
 
+    // The document states holding a populated document: the ongoing navigation's history entry's, and the one a history
+    // job is to activate.
     template<typename Callback>
-    void for_each_populated_document(Callback callback) const
+    void for_each_populated_document_state(Callback callback) const
     {
-        if (auto const* navigation = ongoing_navigation(); navigation && navigation->populated_document.has_value())
-            callback(*navigation->populated_document);
-        if (m_document_populated_by_history_job.has_value())
-            callback(*m_document_populated_by_history_job);
+        if (auto const* navigation = ongoing_navigation(); navigation && navigation->history_entry && navigation->history_entry->document_state->populated_document.has_value())
+            callback(*navigation->history_entry->document_state);
+        if (m_document_state_populated_by_history_job)
+            callback(*m_document_state_populated_by_history_job);
     }
 
     // https://html.spec.whatwg.org/multipage/document-sequences.html#nav-bc
@@ -165,8 +159,8 @@ public:
     template<typename Callback>
     void for_each_pending_host(Callback callback) const
     {
-        for_each_populated_document([&](PopulatedDocument const& populated_document) {
-            if (auto const& host = populated_document.document->host(); host && host != active_document().host())
+        for_each_populated_document_state([&](CanonicalDocumentState const& document_state) {
+            if (auto const& host = document_state.populated_document->document->host(); host && host != active_document().host())
                 callback(*host);
         });
     }
@@ -232,8 +226,9 @@ public:
     void clear_ongoing_navigation_state();
     void set_navigation_host(WebContentPage&);
     bool cancel_navigation_for_client(WebContentClient&);
+    CanonicalNavigation* navigation_being_finalized() { return m_navigation_being_finalized.has_value() ? &*m_navigation_being_finalized : nullptr; }
     CanonicalNavigation const* navigation_being_finalized() const { return m_navigation_being_finalized.has_value() ? &*m_navigation_being_finalized : nullptr; }
-    void did_finish_finalizing_navigation(Utf16String const& navigation_id, Web::HTML::CrossProcessId document_state_id, Web::HTML::HistoryStepResult);
+    void did_finish_finalizing_navigation(Utf16String const& navigation_id, Web::HTML::HistoryStepResult);
     bool has_uncommitted_navigation() const { return ongoing_navigation(); }
     Optional<Utf16String> tracked_load_navigation_id() const;
 
@@ -249,11 +244,8 @@ private:
     Vector<NonnullOwnPtr<CanonicalNavigable>> m_children;
 
     Optional<Web::HTML::HostedNavigableState> m_hosted_state;
-    Optional<PopulatedDocument> const& populated_document() const;
-    void abandon_populated_document(Optional<PopulatedDocument>&);
-    // AD-HOC: A reload populates the document state of the active session history entry, whose document stays the
-    //         navigable's active document until the populated one is activated.
-    Optional<PopulatedDocument> m_document_populated_by_history_job;
+    void abandon_populated_document(NonnullRefPtr<CanonicalDocumentState>);
+    RefPtr<CanonicalDocumentState> m_document_state_populated_by_history_job;
     RefPtr<CanonicalSessionHistoryEntry> m_current_session_history_entry;
     RefPtr<CanonicalSessionHistoryEntry> m_active_session_history_entry;
     struct Traversal {
