@@ -24,6 +24,7 @@ use crate::css::style::flight_style_rows::{Decline, FlightStyleRow};
 use crate::css::style::tree::{StyleNodeID, TableSpans};
 use crate::css::style::{
     PublishedBoxFacts, PublishedTextSource, StyleEngine, TextStyleParentFacts,
+    engine_sample::NeedsHost,
     layout_style::{AnonymousStyleKind, AnonymousStyleOverrides, DerivedStyleRecord, LayoutStyle},
 };
 use crate::layout::ComputedValuesView;
@@ -1107,6 +1108,26 @@ enum ArenaStylePin {
     /// The record the row's node published when the build stamped the row, held until the row
     /// takes another.
     Published,
+    /// A sample of the row's element's animations a clock tick installed, held until the style the
+    /// host installed is restored.
+    Sampled,
+}
+
+/// The style a clock tick took from a box to show a sample of its element's animations in its place:
+/// the record the host installed for the box, and the pin the arena held it by. Only
+/// [`LayoutNodeArena::restore_host_style`] gives it back, so the host never reads a sample.
+#[must_use = "the host's style is restored before the host reads the box"]
+pub(crate) struct HostStyle {
+    record: u64,
+    pin: ArenaStylePin,
+}
+
+impl HostStyle {
+    /// The record the host installed for the box.
+    #[cfg_attr(not(test), expect(dead_code, reason = "a clock tick samples with it"))]
+    pub(crate) fn record(&self) -> u64 {
+        self.record
+    }
 }
 
 pub(crate) struct LayoutNodeArena {
@@ -2323,6 +2344,115 @@ impl LayoutNodeArena {
         }
         applied.sort_unstable_by_key(|row| row.style_node);
         Ok(applied)
+    }
+
+    /// Shows `sample`, a sample of the animations of the element whose box `row` is, in the box in place of the record the
+    /// host installed, with the relayout the move asks for. Answers the host's style where the box held it, or nothing
+    /// where it held a sample already, which `sample` replaces. A box the host styles in a way of its own shows no sample,
+    /// and neither does one that styles anonymous boxes: their layout nodes would have to hear of a style no host reads.
+    #[cfg_attr(not(test), expect(dead_code, reason = "a clock tick samples with it"))]
+    pub(crate) fn install_animation_sample(
+        &self,
+        row: NodeSlotId,
+        sample: DerivedStyleRecord,
+    ) -> Result<Option<HostStyle>, NeedsHost> {
+        let index = row.slot_index() as usize;
+        let pin = self.style_record_pins[index].get();
+        let style_node = self.node_style_node(row);
+        if !matches!(
+            self.data(row).kind.get(),
+            NodeKind::Box | NodeKind::BlockContainer | NodeKind::InlineNode
+        ) || pin == ArenaStylePin::Derived
+            || self.node_style_record_pinned_by_host(row) != 0
+            || style_node.is_none()
+            || self.styles_anonymous_boxes(row)
+        {
+            self.with_style_engine(|engine| engine.unpin_layout_style_record(sample.record));
+            return Err(NeedsHost);
+        }
+        let host_style = match pin {
+            ArenaStylePin::Sampled => {
+                let previous = self.style_records[index].get();
+                self.with_style_engine(|engine| engine.unpin_layout_style_record(previous));
+                None
+            }
+            pin => Some(HostStyle {
+                record: self.style_records[index].get(),
+                pin,
+            }),
+        };
+        self.style_record_pins[index].set(ArenaStylePin::Sampled);
+        self.show_style(row, style_node, sample);
+        Ok(host_style)
+    }
+
+    /// Whether `row`'s style is what anonymous boxes inherit: its anonymous children's, or the table wrapper's it is
+    /// the table box of.
+    fn styles_anonymous_boxes(&self, row: NodeSlotId) -> bool {
+        let parent = self.data(row).parent.get();
+        if !parent.is_invalid() && self.data(parent).kind.get() == NodeKind::TableWrapper {
+            return true;
+        }
+        let anonymous_with_style = NodeFlag::Anonymous as u32 | NodeFlag::HasStyle as u32;
+        let mut child = self.data(row).first_child.get();
+        while !child.is_invalid() {
+            if self.data(child).flags.get() & anonymous_with_style == anonymous_with_style {
+                return true;
+            }
+            child = self.data(child).next_sibling.get();
+        }
+        false
+    }
+
+    /// Gives `row` back the style the host installed for it, which a clock tick took to show a sample in its place.
+    #[cfg_attr(not(test), expect(dead_code, reason = "a clock tick samples with it"))]
+    pub(crate) fn restore_host_style(&self, row: NodeSlotId, host_style: HostStyle) {
+        let index = row.slot_index() as usize;
+        assert!(
+            self.style_record_pins[index].get() == ArenaStylePin::Sampled,
+            "a box shows a sample until its host's style is restored"
+        );
+        let sample = self.style_records[index].get();
+        self.with_style_engine(|engine| engine.unpin_layout_style_record(sample));
+        let HostStyle { record, pin } = host_style;
+        let payloads = self.with_style_engine(|engine| {
+            engine
+                .style_record_payloads(record)
+                .expect("the host's style record is live while a box shows a sample")
+                .as_ptr()
+        });
+        self.style_record_pins[index].set(pin);
+        self.show_style(
+            row,
+            self.node_style_node(row),
+            DerivedStyleRecord {
+                record,
+                payloads: StylePayloadsRef::new(payloads.cast()),
+            },
+        );
+    }
+
+    /// Shows `style` in `row`, whose pin the caller set, as the host's install of a row of a box that styles no anonymous
+    /// box does.
+    fn show_style(&self, row: NodeSlotId, style_node: Option<StyleNodeID>, style: DerivedStyleRecord) {
+        let previous_payloads = self.data(row).style.get();
+        self.style_records[row.slot_index() as usize].set(style.record);
+        let shape = self.write_shape(row);
+        shape.set_style(style.payloads);
+        shape.mark();
+        self.note_row_style(row);
+        self.refresh_style_flags(row);
+        self.invalidate_overflow_after_style_change(row);
+        self.enroll_text_children_for_content_sync(row);
+        self.enroll_node_for_svg_paint_resources_sync(row);
+        if style_payloads_equal_in_layout_affecting_groups(previous_payloads, style.payloads) {
+            return;
+        }
+        self.bump_fragment_cache_epoch_of_self_and_ancestors(row);
+        self.reset_cached_intrinsic_sizes_of_self_and_ancestors(row);
+        if let Some(style_node) = style_node {
+            self.mark_row_for_relayout_after_style_change(style_node, row);
+        }
     }
 
     /// Marks `slot`, the box of the element `style_node` names, for the relayout a style change asks for, as the host
