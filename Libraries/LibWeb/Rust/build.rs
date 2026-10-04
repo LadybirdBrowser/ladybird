@@ -3345,6 +3345,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             manifest_dir.join("src/css/ffi_support.rs"),
             manifest_dir.join("src/layout/node_data.rs"),
             manifest_dir.join("src/layout/partial_relayout.rs"),
+            manifest_dir.join("src/layout/box_removal.rs"),
             manifest_dir.join("src/layout/tree_builder.rs"),
             manifest_dir.join("src/layout/tree_update_marks.rs"),
             manifest_dir.join("src/render_state.rs"),

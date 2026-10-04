@@ -286,6 +286,15 @@ pub struct FfiLayoutTreeUpdateMark {
     pub is_structural_boundary_self_rebuild: bool,
 }
 
+impl FfiLayoutTreeUpdateMark {
+    /// What a node removal marks its parent with.
+    pub(crate) const NODE_REMOVE: Self = Self {
+        reuse_reason: 0,
+        is_child_list_insertion: false,
+        is_structural_boundary_self_rebuild: true,
+    };
+}
+
 impl LayoutNodeArena {
     /// Marks the node `node` names, or the document for `None`, for the next layout tree build to rebuild, as the DOM
     /// side does where a node changes, for a node that has a box: the marks of its flat-tree ancestors lead the build

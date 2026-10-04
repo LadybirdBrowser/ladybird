@@ -58,6 +58,4 @@ private:
     GC::RawPtr<DOM::Document> m_document;
 };
 
-WEB_API bool destroy_layout_subtree(Node&);
-
 }

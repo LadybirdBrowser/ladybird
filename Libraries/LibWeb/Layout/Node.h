@@ -249,8 +249,6 @@ public:
 
     void prepare_for_detach_from_layout_tree();
     void prepare_subtree_for_detach_from_layout_tree();
-    // Clears the committed boxes of the subtree and prepares it for detaching, as a removal does before dropping it.
-    void prepare_subtree_for_removal();
     void pin_style_record_for_detachment();
 
     // Returns the direct viewport child above this node (the node itself or its outermost

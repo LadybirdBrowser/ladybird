@@ -13,6 +13,7 @@ pub(crate) use crate::css::display::*;
 pub(crate) mod abspos_engine;
 pub(crate) mod abspos_inputs;
 pub(crate) mod block_formatting_context;
+pub(crate) mod box_removal;
 pub mod commit;
 pub(crate) mod counters;
 pub(crate) mod fc_run_cache;

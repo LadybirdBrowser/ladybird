@@ -1,8 +1,8 @@
 state next task: in-flight
-state after removing an element with random values: landed
-state after inserting it again: landed
-state after removing a list item: landed
-state after removing a subtree with boxes: landed
+state after removing an element with random values: in-flight
+state after inserting it again: in-flight
+state after removing a list item: in-flight
+state after removing a subtree with boxes: in-flight
 random width kept: true
 target parent: second, height 5
 list items: 3, height: 30

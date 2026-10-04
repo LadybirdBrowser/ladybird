@@ -1313,104 +1313,31 @@ static bool node_contributes_to_layout_tree(Node const& node)
     return CSS::display_from_ffi_display(element->style_group<CSS::ComputedValues::BoxValues>()->display).is_contents();
 }
 
-// Which kind of box a detached child is. DOM removal reads it from the child's style; a style
-// change that stopped generating the box has already swapped the style, so it names the level.
-enum class DetachedBoxLevel {
-    FromStyle,
-    Block,
-    AtomicInline,
-};
-
-static bool can_detach_layout_subtree_for_removal(Layout::BegunRead const& read, Node const& node, Node const& parent, DetachedBoxLevel box_level = DetachedBoxLevel::FromStyle)
+// What only the DOM knows of `node` as its box leaves the box of its parent `parent`. A display: contents sibling has no
+// box, but its children's boxes sit where its own would.
+static Layout::RustFFI::FfiDetachedBoxFacts detached_box_facts(Node const& node, Node const& parent, Layout::RustFFI::FfiDetachedBoxLevel level)
 {
-    auto const* layout_node = as_if<Layout::NodeWithStyle>(node.unsafe_layout_node(read));
-    auto const* parent_layout_node = parent.unsafe_layout_node(read);
-    if (!layout_node || !parent_layout_node)
-        return false;
-    if (CSS::subtree_affects_generated_content_state(node))
-        return false;
-
-    // OPTIMIZATION: Absolutely positioned boxes do not participate in their DOM parent's inline or block formatting
-    //               structure, even when they are attached to an ancestor containing block. Removing them cannot
-    //               disturb anonymous wrappers or sibling box levels.
-    auto const* element = as_if<Element>(node);
-    if (element && element->rendered_in_top_layer())
-        return false;
-    if (layout_node->position() == CSS::Positioning::Absolute) {
-        if (parent.is_html_body_element())
-            return true;
-        auto const* containing_block = layout_node->containing_block();
-        if (containing_block && containing_block->dom_node() == &parent)
-            return true;
-    }
-
-    if (layout_node->parent() != parent_layout_node)
-        return false;
-
-    if (layout_node->is_out_of_flow())
-        return false;
-
-    auto const* parent_with_style = as_if<Layout::NodeWithStyle>(parent_layout_node);
-    if (!parent_with_style)
-        return false;
-
-    auto sibling_is_direct_layout_child = [&](Node const* sibling) {
+    auto sibling_facts = [](Node const* sibling) {
         if (!sibling)
-            return true;
-        if (auto const* sibling_layout_node = sibling->unsafe_layout_node(read))
-            return sibling_layout_node->parent() == parent_layout_node;
-        auto const* sibling_element = as_if<Element>(*sibling);
-        return !sibling_element || !sibling_element->has_style()
-            || !CSS::display_from_ffi_display(sibling_element->style_group<CSS::ComputedValues::BoxValues>()->display).is_contents();
+            return Layout::RustFFI::FfiDetachedBoxSibling { .style_node = 0, .is_direct_without_box = true };
+        auto const* element = as_if<Element>(*sibling);
+        return Layout::RustFFI::FfiDetachedBoxSibling {
+            .style_node = Layout::Node::style_node_of(sibling).value(),
+            .is_direct_without_box = !element || !element->has_style() || !CSS::display_from_ffi_display(element->style_group<CSS::ComputedValues::BoxValues>()->display).is_contents(),
+        };
     };
-    if (!sibling_is_direct_layout_child(node.previous_sibling())
-        && !sibling_is_direct_layout_child(node.next_sibling())) {
-        return false;
-    }
-
-    auto parent_display = parent_with_style->display();
-    if (parent_display.is_flex_inside() || parent_display.is_grid_inside())
-        return true;
-
-    // Direct block children and in-flow atomic inline children can be detached without changing
-    // anonymous wrapper structure. Other box kinds still rebuild the parent so tree fixup can
-    // reconstruct any affected wrappers.
-    if ((parent_display.is_flow_inside() || parent_display.is_flow_root_inside())
-        && !parent_layout_node->children_are_inline()) {
-        if (auto previous_layout_sibling = layout_node->previous_sibling(); previous_layout_sibling && previous_layout_sibling->is_anonymous()) {
-            if (auto next_layout_sibling = layout_node->next_sibling(); next_layout_sibling && next_layout_sibling->is_anonymous())
-                return false;
-        }
-        // Once only anonymous wrappers would remain, a full rebuild would place their inline
-        // content directly in the parent instead.
-        bool an_anonymous_inline_wrapper_remains = false;
-        bool an_in_flow_block_level_sibling_remains = false;
-        for (auto const* sibling = parent_layout_node->first_child(); sibling; sibling = sibling->next_sibling()) {
-            if (sibling == layout_node)
-                continue;
-            if (auto const* sibling_with_style = as_if<Layout::NodeWithStyle>(*sibling); sibling_with_style && sibling_with_style->is_out_of_flow())
-                continue;
-            if (sibling->is_anonymous() && sibling->children_are_inline())
-                an_anonymous_inline_wrapper_remains = true;
-            else
-                an_in_flow_block_level_sibling_remains = true;
-        }
-        if (an_anonymous_inline_wrapper_remains && !an_in_flow_block_level_sibling_remains)
-            return false;
-        if (box_level == DetachedBoxLevel::FromStyle)
-            return layout_node->display().is_block_outside();
-        return box_level == DetachedBoxLevel::Block;
-    }
-    if (!parent_layout_node->children_are_inline())
-        return false;
-    if (box_level == DetachedBoxLevel::FromStyle)
-        return layout_node->is_inline_block();
-    return box_level == DetachedBoxLevel::AtomicInline;
+    return {
+        .parent_is_body = parent.is_html_body_element(),
+        .previous_sibling = sibling_facts(node.previous_sibling()),
+        .next_sibling = sibling_facts(node.next_sibling()),
+        .level = level,
+    };
 }
 
-bool Node::can_detach_layout_subtree_in_place(Layout::BegunRead const& read, Node const& node, Node const& parent, bool box_is_block_level)
+bool Node::can_detach_layout_subtree_in_place(Layout::BegunRead const& read, Element const& element, Element const& parent, bool box_is_block_level)
 {
-    return can_detach_layout_subtree_for_removal(read, node, parent, box_is_block_level ? DetachedBoxLevel::Block : DetachedBoxLevel::AtomicInline);
+    auto level = box_is_block_level ? Layout::RustFFI::FfiDetachedBoxLevel::Block : Layout::RustFFI::FfiDetachedBoxLevel::AtomicInline;
+    return Layout::RustFFI::render_state_can_detach_box_in_place(element.document().layout_node_arena_if_created()->host(), &read, parent.style_node_id().value(), element.style_node_id().value(), detached_box_facts(element, parent, level));
 }
 
 bool Node::list_item_box_change_renumbers_list(Element const& list_item)
@@ -1546,26 +1473,26 @@ void Node::update_layout_tree_for_removal(Layout::BegunRead const& read, Node& p
         }
     }
 
-    if (removal == LayoutSubtreeRemoval::DetachInPlace && can_detach_layout_subtree_for_removal(read, *this, parent)) {
-        auto* layout_node = unsafe_layout_node(read);
-        auto const* removed_box = as_if<Layout::NodeWithStyle>(layout_node);
-        auto* parent_box = parent.unsafe_layout_node(read);
-        bool const parent_contains_removed_abspos_box = removed_box && removed_box->position() == CSS::Positioning::Absolute
-            && parent_box && removed_box->containing_block() == parent_box;
-        if (parent_contains_removed_abspos_box)
-            Layout::RustFFI::render_state_note_contained_abspos_child_removal(parent_box->document_host(), Layout::Node::slot_id(parent_box), Layout::Node::slot_id(layout_node));
-        layout_node->prepare_subtree_for_removal();
-        VERIFY(Layout::destroy_layout_subtree(*layout_node));
-        if (auto* parent_layout_node = parent.unsafe_layout_node(read); !parent_layout_node->has_children())
-            parent_layout_node->set_children_are_inline(false);
-        if (parent_contains_removed_abspos_box) {
-            // No layout commit follows, so do what one would have done for the box that left.
+    // The render state decides, as it applies the removal, whether the box leaves the parent's box in place or the
+    // parent is rebuilt, from the boxes as they are by then: nothing here waits for it. A parent element with a box
+    // has nothing but its own box to mark for a rebuild that the render state cannot mark, and the boxes laid out for
+    // the SVG resources it is part of are marked here. Generated content may depend on the box's presence, and a top
+    // layer member's box is not its parent's child.
+    auto* parent_element = as_if<Element>(parent);
+    auto const* element = as_if<Element>(*this);
+    if (removal == LayoutSubtreeRemoval::DetachInPlace && has_layout_box() && parent_element && parent_element->has_layout_box()
+        && !(element && element->rendered_in_top_layer()) && !CSS::subtree_affects_generated_content_state(*this)) {
+        Layout::RustFFI::render_state_remove_box(document().layout_node_arena().host(), parent_element->style_node_id().value(), Layout::Node::style_node_of(this).value(),
+            detached_box_facts(*this, parent, Layout::RustFFI::FfiDetachedBoxLevel::FromStyle));
+        document().set_needs_repaint(Badge<Node> {}, InvalidateDisplayList::No);
+        for (Element* node = parent_element; node && node->is_svg_element(); node = node->parent_element().ptr())
+            static_cast<SVG::SVGElement&>(*node).mark_resource_box_referencing_elements_for_content_change();
+        // A contained absolutely positioned box leaves without a layout following: do what one would have done for it.
+        if (element && element->computed_style() && element->computed_style()->position() == CSS::Positioning::Absolute) {
             document().set_needs_accumulated_visual_contexts_update(true);
             document().schedule_scroll_container_resnap();
             document().set_needs_repaint(Badge<Node> {}, InvalidateDisplayList::PaintCommandsAndHitTestList);
-            return;
         }
-        parent.set_needs_layout_update(SetNeedsLayoutReason::LayoutTreeUpdate);
         return;
     }
 
