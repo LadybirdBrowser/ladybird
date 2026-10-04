@@ -129,7 +129,6 @@ public:
     // return its previous and current StyleRecordID assignments. A zero node interns an unassigned
     // record for a style target which is not registered in the engine.
     [[nodiscard]] StyleRecordDelta publish_computed_groups(Layout::BegunRead const& read, StyleNodeID node, u8 pseudo_kind, ReadonlySpan<void const*> payloads, size_t inherited_group_count, u64 custom_property_environment, bool inherited_group_swap_candidate, u64 counter_style_environment_identity, u64 animation_overlay_identity, void const* animated_overlay, ReadonlySpan<void const*> animation_overlay_payloads, void const* computed_longhand_table, void const* custom_property_store);
-    [[nodiscard]] Optional<StyleRecordDelta> publish_animation_overlay(Layout::BegunRead const& read, StyleNodeID node, u8 pseudo_kind, u64 animation_overlay_identity, void const* animated_overlay, ReadonlySpan<void const*> payloads);
     [[nodiscard]] StyleRecordDependencyFlag style_record_dependency_flags(Layout::BegunRead const& read, StyleRecordID style_record) const;
     [[nodiscard]] u64 style_record_custom_property_environment(Layout::BegunRead const& read, StyleRecordID style_record) const;
     // What moving between two records changes, for no element in particular.
@@ -140,7 +139,6 @@ public:
     // The same for one of its pseudo-elements, whose box appears or goes away when either record is
     // none. The host compares the counter styles the box was built with.
     [[nodiscard]] u32 pseudo_element_record_damage(Layout::BegunRead const& read, StyleNodeID, PseudoElement, StyleRecordID old_style_record, StyleRecordID new_style_record, StyleRecordID originating_style_record, bool counter_styles_changed) const;
-    [[nodiscard]] StyleEngineFFI::FfiAnimationInvalidation compare_animation_overlay(Layout::BegunRead const& read, StyleRecordID old_style_record, void const* animated_overlay, ReadonlySpan<void const*> payloads, bool is_document_element) const;
     // The borrowed views are stable while a base record exists or an animation-overlay generation remains assigned or
     // pinned.
     [[nodiscard]] StyleRecordView style_record_view(Layout::BegunRead const& read, StyleRecordID style_record) const;

@@ -2754,55 +2754,6 @@ pub(crate) fn publish_computed_groups_from_inputs(
     result
 }
 
-/// Replaces only the animation overlay on an already-published target. Recording falls back to
-/// `style_engine_publish_computed_groups`, which captures the complete base-style input.
-///
-/// # Safety
-/// `host` must be a live document host, on its document's thread. `animated_overlay` must be null
-/// when `animation_overlay_identity` is zero and otherwise point at a live animation overlay.
-/// `payloads` must contain live group payloads for a non-empty overlay.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_publish_animation_overlay(
-    host: *const DocumentHost,
-    read: &crate::render_state::BegunRead,
-    node: u32,
-    pseudo_kind: u8,
-    animation_overlay_identity: u64,
-    animated_overlay: *const c_void,
-    payloads: *const *const c_void,
-    payload_count: usize,
-) -> FfiStyleRecordDelta {
-    // SAFETY: Guaranteed by the caller.
-    let host = unsafe { document_host(host) };
-    with_engine(read, host, |engine| {
-        let Some(node) = StyleNodeID::from_raw(node) else {
-            return FfiStyleRecordDelta::default();
-        };
-        if animation_overlay_identity != 0 && animated_overlay.is_null() {
-            return FfiStyleRecordDelta::default();
-        }
-        if payload_count != 0 && payloads.is_null() {
-            return FfiStyleRecordDelta::default();
-        }
-        let payloads = match payload_count {
-            0 => &[],
-            _ => SharedPayload::from_pointer_slice(unsafe { std::slice::from_raw_parts(payloads, payload_count) }),
-        };
-        let Some(publication) = engine.publish_animation_overlay_impl(
-            super::computed::ComputedStyleTarget::new(node, pseudo_kind),
-            animation_overlay_identity,
-            HostShared::new(animated_overlay).cast(),
-            payloads,
-        ) else {
-            return FfiStyleRecordDelta::default();
-        };
-        FfiStyleRecordDelta {
-            old_style_record: publication.previous_style_record.raw(),
-            new_style_record: publication.style_record.raw(),
-        }
-    })
-}
-
 /// The StyleEngine-owned group payload array for a base or live animation-overlay record, which the style replay tool
 /// reads where a recording asked for it.
 ///
@@ -2973,150 +2924,197 @@ pub unsafe extern "C" fn style_engine_animation_overlay_changed(
     super::style_invalidation::animation_overlay_changed(table, old_overlay, new_overlay)
 }
 
-/// What the host hands over to have an element's sampled animation overlay composed into the
-/// payloads of its overlay record.
+/// What the host hands over to have an element's sampled animation overlay composed over the record it installed and
+/// published.
 #[repr(C)]
-pub struct FfiAnimationOverlayPayloadInput {
+pub struct FfiAnimationOverlayPublicationInput {
     pub style_node: u32,
     pub pseudo_kind: u8,
-    /// The record the overlay was sampled on, which it composes over.
+    /// The record the element installed, which the overlay was sampled on and composes over.
     pub style_record: u64,
     /// The longhand table the overlay was sampled over.
     pub longhand_table: *const c_void,
     pub animated_overlay: *const c_void,
+    /// The identity of the overlay, or 0 where it animates nothing, which releases the target's overlay record.
+    pub animation_overlay_identity: u64,
     pub used_color_scheme: u8,
     pub display_before_box_type_transformation_raw: u32,
+    pub is_document_element: bool,
+    /// What a target the engine holds no overlay slot for is published again whole with, beside the installed record's
+    /// base: the number of inherited style groups, and the custom-property environment the target holds, with its
+    /// store.
+    pub inherited_group_count: usize,
+    pub custom_property_environment: u64,
+    pub custom_property_store: *const c_void,
     pub callback_context: *mut c_void,
     /// Writes the animated style's platform font, a `ComputedValuesFFI::FfiFontGroupBuildInputs`;
     /// asked only where the font group is rebuilt.
     pub font_group_inputs: unsafe extern "C" fn(*mut c_void, *mut c_void),
 }
 
-/// Which groups of a composed overlay record were rebuilt over its base record.
+/// What publishing an element's sampled animation overlay answers: what replacing the installed record with it damages,
+/// the record the target held and the one it holds now, with the view of the latter, which is missing where the engine
+/// holds no record the overlay was sampled on.
 #[repr(C)]
-pub struct FfiAnimationOverlayPayloads {
-    /// Whether the engine holds the record to compose over; nothing was written where it does not.
-    pub present: bool,
+pub struct FfiAnimationOverlayPublication {
+    pub invalidation: FfiAnimationInvalidation,
+    pub publication: FfiStyleRecordDelta,
+    pub view: FfiStyleRecordView,
     /// Whether the overlay named a value the groups could not be told from, or nothing at all.
     pub rebuilt_every_group: bool,
-    /// The groups whose payloads the caller owns a reference to, given back with
-    /// `style_engine_release_animation_overlay_payloads`.
-    pub rebuilt_groups: u32,
 }
 
-/// Compose an element's sampled animation overlay into the payloads of its overlay record, one per
-/// style group, written to `payloads`; see `RetainedState::build_animation_overlay_payloads`.
+impl FfiAnimationOverlayPublication {
+    fn missing() -> Self {
+        Self {
+            invalidation: FfiAnimationInvalidation::default(),
+            publication: FfiStyleRecordDelta::default(),
+            view: FfiStyleRecordView::missing(),
+            rebuilt_every_group: false,
+        }
+    }
+}
+
+/// Composes an element's sampled animation overlay over the record it installed, rebuilding only the groups the overlay
+/// writes (see `RetainedState::build_animation_overlay_payloads`), compares it with that record, and publishes it as
+/// the target's record, in one call of the engine. A second call is made only where the overlay rebuilds the font group: resolving the animated font may
+/// read the engine, so the host resolves it between the two. The host keeps the view of the record it answers, which it
+/// installs next.
 ///
 /// # Safety
-/// `host` must be a live document host, on its document's thread, `input` and everything it points
-/// to must be live for the call, `input`'s table must be non-null, and `payloads` must hold
-/// `payload_count` entries, one per style group.
+/// `host` must be a live document host, on its document's thread, and everything `input` points to must be live for
+/// the call, its table non-null.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_build_animation_overlay_payloads(
+pub unsafe extern "C" fn style_engine_publish_sampled_animation_overlay(
     host: *const DocumentHost,
     read: &crate::render_state::BegunRead,
-    input: *const FfiAnimationOverlayPayloadInput,
-    payloads: *mut *const c_void,
-    payload_count: usize,
-) -> FfiAnimationOverlayPayloads {
-    use crate::css::table_group_builder::{FfiFontGroupBuildInputs, group_index};
+    input: &FfiAnimationOverlayPublicationInput,
+) -> FfiAnimationOverlayPublication {
+    use crate::css::table_group_builder::FfiFontGroupBuildInputs;
 
     // SAFETY: Guaranteed by the caller.
     let host = unsafe { document_host(host) };
-    let input = unsafe { &*input };
-    assert_eq!(payload_count, group_index::COUNT, "one payload per style group");
-    let payloads = unsafe { &mut *payloads.cast::<[*const c_void; group_index::COUNT]>() };
-    let table = unsafe {
-        &*input
-            .longhand_table
-            .cast::<crate::css::computed_longhand_table::ComputedLonghandTable>()
-    };
-    let overlay = unsafe {
-        input
-            .animated_overlay
-            .cast::<crate::css::animated_overlay::AnimatedOverlay>()
-            .as_ref()
-    };
-    let mut build = |font: Option<&FfiFontGroupBuildInputs>| {
-        with_engine(read, host, |engine| {
-            engine.build_animation_overlay_payloads(
-                StyleNodeID::from_raw(input.style_node)?,
-                input.pseudo_kind,
-                input.style_record,
-                table,
-                overlay,
-                input.used_color_scheme,
-                input.display_before_box_type_transformation_raw,
-                font,
-                payloads,
-            )
+    let publish = |font: Option<&FfiFontGroupBuildInputs>| {
+        // SAFETY: Guaranteed by the caller.
+        with_engine(read, host, |engine| unsafe {
+            publish_sampled_animation_overlay(engine, input, font)
         })
     };
-    // Resolving the animated font may read the engine, so a build that rebuilds the font group has the
-    // host resolve it between two calls of the engine.
-    let rebuilt = match build(None) {
-        Some(Err(super::engine_sample::NeedsHostFont)) => {
+    let published = match publish(None) {
+        Err(super::engine_sample::NeedsHostFont) => {
             let mut font = std::mem::MaybeUninit::<FfiFontGroupBuildInputs>::uninit();
             // SAFETY: Guaranteed by the caller. The host writes the whole font.
             let font = unsafe {
                 (input.font_group_inputs)(input.callback_context, font.as_mut_ptr().cast());
                 font.assume_init()
             };
-            build(Some(&font))
+            publish(Some(&font))
         }
-        rebuilt => rebuilt,
+        published => published,
     };
-    match rebuilt {
-        Some(Ok(rebuilt)) => FfiAnimationOverlayPayloads {
-            present: true,
-            rebuilt_every_group: rebuilt.every_group,
-            rebuilt_groups: rebuilt.groups,
-        },
-        _ => FfiAnimationOverlayPayloads {
-            present: false,
-            rebuilt_every_group: false,
-            rebuilt_groups: 0,
-        },
+    let Ok(published) = published else {
+        return FfiAnimationOverlayPublication::missing();
+    };
+    if published.view.present {
+        host.engine_memo()
+            .views
+            .set(published.publication.new_style_record, published.view);
     }
+    published
 }
 
-/// Give back the references to the payloads `style_engine_build_animation_overlay_payloads`
-/// rebuilt.
+/// [`style_engine_publish_sampled_animation_overlay`]'s one call of `engine`, which answers `Err` where it needs the
+/// animated font, `font`, it was not given.
 ///
 /// # Safety
-/// `payloads` must hold `payload_count` entries as that build wrote them, and `rebuilt_groups` be
-/// the groups it rebuilt, not given back before.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_release_animation_overlay_payloads(
-    payloads: *const *const c_void,
-    payload_count: usize,
-    rebuilt_groups: u32,
-) {
-    let payloads = unsafe { std::slice::from_raw_parts(payloads, payload_count) };
-    super::engine_sample::release_rebuilt_overlay_payloads(payloads, rebuilt_groups);
-}
+/// As for [`style_engine_publish_sampled_animation_overlay`].
+unsafe fn publish_sampled_animation_overlay(
+    engine: &mut StyleEngine,
+    input: &FfiAnimationOverlayPublicationInput,
+    font: Option<&crate::css::table_group_builder::FfiFontGroupBuildInputs>,
+) -> Result<FfiAnimationOverlayPublication, super::engine_sample::NeedsHostFont> {
+    use crate::css::table_group_builder::group_index;
 
-/// Computes property-dependent damage for the sparse changed values in an animation overlay.
-///
-/// # Safety
-/// `host` must be a live document host, on its document's thread, `animated_overlay` and every
-/// group payload must be live for this call, and the style record must remain pinned or assigned.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_compare_animation_overlay(
-    host: *const DocumentHost,
-    read: &crate::render_state::BegunRead,
-    old_style_record: u64,
-    animated_overlay: *const c_void,
-    payloads: *const *const c_void,
-    payload_count: usize,
-    is_document_element: bool,
-) -> FfiAnimationInvalidation {
+    let Some(node) = StyleNodeID::from_raw(input.style_node) else {
+        return Ok(FfiAnimationOverlayPublication::missing());
+    };
     // SAFETY: Guaranteed by the caller.
-    let host = unsafe { document_host(host) };
-    with_engine(read, host, |engine| {
-        let payloads =
-            SharedPayload::from_pointer_slice(unsafe { std::slice::from_raw_parts(payloads, payload_count) });
-        engine.compare_animation_overlay(old_style_record, animated_overlay.cast(), payloads, is_document_element)
+    let (table, overlay) = unsafe {
+        (
+            &*input.longhand_table.cast::<ComputedLonghandTable>(),
+            input.animated_overlay.cast::<AnimatedOverlay>().as_ref(),
+        )
+    };
+    let mut payloads = [std::ptr::null(); group_index::COUNT];
+    let Some(rebuilt) = engine.build_animation_overlay_payloads(
+        node,
+        input.pseudo_kind,
+        input.style_record,
+        table,
+        overlay,
+        input.used_color_scheme,
+        input.display_before_box_type_transformation_raw,
+        font,
+        &mut payloads,
+    ) else {
+        return Ok(FfiAnimationOverlayPublication::missing());
+    };
+    let rebuilt = rebuilt?;
+    // Compared before the publication, which may release the installed record: nothing else keeps a pseudo-element's.
+    let invalidation = engine.compare_animation_overlay(
+        input.style_record,
+        input.animated_overlay.cast(),
+        SharedPayload::from_pointer_slice(&payloads),
+        input.is_document_element,
+    );
+    let (animated_overlay, overlay_payloads) = match input.animation_overlay_identity {
+        0 => (std::ptr::null(), &[][..]),
+        _ => (input.animated_overlay, &payloads[..]),
+    };
+    let publication = match engine.publish_animation_overlay_impl(
+        super::computed::ComputedStyleTarget::new(node, input.pseudo_kind),
+        input.animation_overlay_identity,
+        HostShared::new(animated_overlay).cast(),
+        SharedPayload::from_pointer_slice(overlay_payloads),
+    ) {
+        Some(publication) => FfiStyleRecordDelta {
+            old_style_record: publication.previous_style_record.raw(),
+            new_style_record: publication.style_record.raw(),
+        },
+        // A pseudo-element the engine holds no assignment for owns no overlay slot, and a recording captures the
+        // complete base-style input, so the record is published again whole, with the overlay over the same base.
+        None => {
+            // SAFETY: The base record stays live for the call.
+            let base = unsafe { style_record_view(engine, input.style_record) };
+            // SAFETY: Guaranteed by the caller, and the base's arrays are live.
+            unsafe {
+                publish_computed_groups(
+                    engine,
+                    input.style_node,
+                    input.pseudo_kind,
+                    base.base_payloads,
+                    base.payload_count,
+                    input.inherited_group_count,
+                    input.custom_property_environment,
+                    false,
+                    base.counter_style_environment_identity,
+                    input.animation_overlay_identity,
+                    animated_overlay,
+                    overlay_payloads.as_ptr(),
+                    overlay_payloads.len(),
+                    base.longhand_table,
+                    input.custom_property_store,
+                )
+            }
+        }
+    };
+    super::engine_sample::release_rebuilt_overlay_payloads(&payloads, rebuilt.groups);
+    Ok(FfiAnimationOverlayPublication {
+        invalidation,
+        publication,
+        // SAFETY: The published record is live.
+        view: unsafe { style_record_view(engine, publication.new_style_record) },
+        rebuilt_every_group: rebuilt.every_group,
     })
 }
 

@@ -107,8 +107,9 @@ public:
         bool any_computed_value_changed { false };
     };
 
-    // Has the engine compose a sampled overlay over the record the element installed, which it was sampled on, compares
-    // it with that record, and publishes it. `before_publication` sees the comparison first.
+    // Has the engine compose a sampled overlay over the record the element installed, which it was sampled on, compare
+    // it with that record and publish it. `before_publication` sees the comparison before the element installs the
+    // published record.
     struct SampledAnimationOverlayPublication {
         StyleEngineFFI::FfiAnimationInvalidation invalidation;
         StyleEngine::StyleRecordDelta publication;

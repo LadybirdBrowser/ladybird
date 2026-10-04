@@ -2218,73 +2218,46 @@ static bool computed_style_depends_on_counter_style_environment(ComputedValues c
 StyleComputer::SampledAnimationOverlayPublication StyleComputer::publish_sampled_animation_overlay(Layout::BegunRead const& read, DOM::AbstractElement abstract_element, ComputedStyleWorkingSet& style, Function<void(StyleEngineFFI::FfiAnimationInvalidation const&)> const& before_publication) const
 {
     // The engine composes the overlay over the record the element installed, rebuilding only the groups the overlay
-    // writes. The animated platform font is the one thing it asks for.
+    // writes, compares it with that record, and publishes it, answering the view of the record it published. The
+    // animated platform font is the one thing it asks for.
     auto& element = abstract_element.element();
-    auto const& installed = abstract_element.installed_style();
-    auto style_record = installed.record();
     struct OverlayFont {
         ComputedStyleWorkingSet const& style;
         GC::Ref<DOM::Document const> document;
         TreeScopeID tree_scope;
     } overlay_font { style, document(), abstract_element.style_scope().style_engine_tree_scope() };
-    StyleEngineFFI::FfiAnimationOverlayPayloadInput const payload_input {
+    auto animated_properties = style.animated_properties_snapshot();
+    bool const publishes_overlay = animated_properties && !animated_properties->is_empty();
+    auto custom_property_data = abstract_element.custom_property_data();
+    StyleEngineFFI::FfiAnimationOverlayPublicationInput const input {
         .style_node = element.style_node_id().value(),
         .pseudo_kind = pseudo_element_to_ffi(abstract_element.pseudo_element()),
-        .style_record = style_record.value(),
+        .style_record = abstract_element.style_record_identity().value(),
         .longhand_table = style.computed_longhand_table(),
         .animated_overlay = style.animated_overlay(),
+        .animation_overlay_identity = publishes_overlay ? animated_properties->identity() : 0,
         .used_color_scheme = static_cast<u8>(to_underlying(style.color_scheme(document().page().preferred_color_scheme(), document().supported_color_schemes()))),
         .display_before_box_type_transformation_raw = bit_cast<u32>(style.display_before_box_type_transformation()),
+        .is_document_element = !abstract_element.pseudo_element().has_value() && element.is_document_element(),
+        .inherited_group_count = ComputedValues::inherited_style_group_count,
+        .custom_property_environment = custom_property_data ? custom_property_data->identity() : 0,
+        .custom_property_store = custom_property_data ? custom_property_data->rust_store() : nullptr,
         .callback_context = &overlay_font,
         .font_group_inputs = [](void* context, void* inputs) {
             auto const& font = *static_cast<OverlayFont const*>(context);
             *static_cast<ComputedValuesFFI::FfiFontGroupBuildInputs*>(inputs) = font.style.font_group_build_inputs(*font.document, font.tree_scope);
         },
     };
-    Array<void const*, to_underlying(StyleGroupIndex::Count)> payloads;
-    auto const overlay_payloads = StyleEngineFFI::style_engine_build_animation_overlay_payloads(m_style_engine.host(), &read, &payload_input, payloads.data(), payloads.size());
-    VERIFY(overlay_payloads.present);
-    ScopeGuard release_rebuilt_payloads = [&] {
-        StyleEngineFFI::style_engine_release_animation_overlay_payloads(payloads.data(), payloads.size(), overlay_payloads.rebuilt_groups);
-    };
+    auto const published = StyleEngineFFI::style_engine_publish_sampled_animation_overlay(m_style_engine.host(), &read, &input);
+    VERIFY(published.view.present);
     auto& counters = document().style_invalidation_counters();
-    if (overlay_payloads.rebuilt_every_group)
+    if (published.rebuilt_every_group)
         counters.animated_style_full_builds++;
     else
         counters.animated_style_overlay_builds++;
-    auto invalidation = m_style_engine.compare_animation_overlay(read, style_record, style.animated_overlay(), payloads,
-        !abstract_element.pseudo_element().has_value() && element.is_document_element());
     if (before_publication)
-        before_publication(invalidation);
-    auto animated_properties = style.animated_properties_snapshot();
-    bool const publishes_overlay = animated_properties && !animated_properties->is_empty();
-    auto& style_engine = const_cast<StyleComputer&>(*this).style_engine();
-    auto publication = style_engine.publish_animation_overlay(
-        read, element.style_node_id(),
-        pseudo_element_to_ffi(abstract_element.pseudo_element()),
-        publishes_overlay ? animated_properties->identity() : 0,
-        publishes_overlay ? animated_properties->overlay() : nullptr,
-        publishes_overlay ? payloads.span() : ReadonlySpan<void const*> {});
-    // A pseudo-element the engine holds no assignment for owns no overlay slot, so its record is published again
-    // whole, with the overlay over the same base.
-    if (!publication.has_value()) {
-        auto const& base = installed.view();
-        auto custom_property_data = abstract_element.custom_property_data();
-        publication = style_engine.publish_computed_groups(
-            read, element.style_node_id(),
-            pseudo_element_to_ffi(abstract_element.pseudo_element()),
-            { base.base_payloads, base.payload_count },
-            ComputedValues::inherited_style_group_count,
-            custom_property_data ? custom_property_data->identity() : 0,
-            false,
-            base.counter_style_environment_identity,
-            publishes_overlay ? animated_properties->identity() : 0,
-            publishes_overlay ? animated_properties->overlay() : nullptr,
-            publishes_overlay ? payloads.span() : ReadonlySpan<void const*> {},
-            base.longhand_table,
-            custom_property_data ? custom_property_data->rust_store() : nullptr);
-    }
-    return { invalidation, *publication };
+        before_publication(published.invalidation);
+    return { published.invalidation, { StyleRecordID { published.publication.old_style_record }, StyleRecordID { published.publication.new_style_record } } };
 }
 
 StyleRecordID StyleComputer::intern_computed_style_inputs(Layout::BegunRead const& read, DOM::AbstractElement abstract_element, ComputedValues const& values) const
