@@ -856,7 +856,7 @@ ThrowCompletionOr<GC::RootVector<Value>> ConsoleClient::formatter(GC::RootVector
         return args;
 
     // 2. Let target be the first element of args.
-    auto target = (!args.is_empty()) ? TRY(args.first().to_utf16_string(vm)) : Utf16String {};
+    auto target = (!args.is_empty() && args.first().is_string()) ? args.first().as_string().utf16_string() : Utf16String {};
 
     // 3. Let current be the second element of args.
     auto current = (args.size() > 1) ? args[1] : js_undefined();
