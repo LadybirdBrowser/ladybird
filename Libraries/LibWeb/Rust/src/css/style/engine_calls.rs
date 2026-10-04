@@ -1498,6 +1498,44 @@ pub unsafe extern "C" fn style_engine_attribute_value_text_requirements_version(
     }
 }
 
+/// Whether the host records what the values of the attribute name `name` spell, which answers to the other forms the host
+/// published with it, and which an `attr()` reads by `local_name` if it has one. The host knows where it queued no rule
+/// since its last job: it holds the names the engine's selectors read the value text of, and what `attr()`s read is
+/// the process's.
+///
+/// # Safety
+///
+/// `host` must be a live document host, on its document's thread, and `local_name` null or `local_name_length` code
+/// units.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn style_engine_attribute_name_requires_value_text(
+    host: *const DocumentHost,
+    read: &BegunRead,
+    name: u32,
+    any_namespace: u32,
+    folded_name: u32,
+    folded_local: u32,
+    local_name: *const u16,
+    local_name_length: usize,
+) -> bool {
+    // SAFETY: Guaranteed by the caller.
+    let host = unsafe { document_host(host) };
+    let keys = [name, any_namespace, folded_name, folded_local].map(StyleAtomID);
+    match host.known_selectors_read_value_text_of(&keys) {
+        Some(selectors_read) => {
+            selectors_read
+                || (!local_name.is_null()
+                    // SAFETY: Guaranteed by the caller.
+                    && crate::css::parser::arbitrary_substitution::attr_may_read_name(unsafe {
+                        std::slice::from_raw_parts(local_name, local_name_length)
+                    }))
+        }
+        None => with_engine(read, host, |engine| {
+            super::bridge::operations::attribute_name_requires_value_text(engine, name)
+        }),
+    }
+}
+
 /// Folds the style input `node` owes into the reaction the host is about to apply to it, where the reaction covers it,
 /// and answers the merged reaction in the low byte and the merged inherited style groups in the next, or zero, as
 /// [`super::StyleEngineState::absorb_element_style_input`] does. The host answers where it knows the answer, and the

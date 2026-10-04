@@ -136,10 +136,12 @@ impl RenderState {
             selector_attribute_value_text_requirements_version: engine
                 .selector_attribute_value_text_requirements_version(),
         };
+        let selector_value_text_names = std::sync::Arc::clone(engine.selector_attribute_value_text_names());
         Owed {
             work: std::mem::take(&mut self.owed),
             deferred_inputs: self.engine_mut().take_moved_deferred_element_style_inputs(),
             facts,
+            selector_value_text_names,
         }
     }
 
@@ -219,6 +221,8 @@ pub(crate) struct Owed {
     work: Vec<crate::layout::tree_mutation::HostWorkDue>,
     deferred_inputs: Option<Vec<crate::css::style::engine_calls::DeferredInput>>,
     facts: StateFacts,
+    /// The attribute names whose value text the engine's selectors read, as of `facts`.
+    selector_value_text_names: crate::css::style::SelectorValueTextNames,
 }
 
 /// What a document's render state answers of itself as a job or a frame leaves it, which the host reads in place for as

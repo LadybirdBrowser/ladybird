@@ -103,6 +103,8 @@ pub struct DocumentHost {
     engine_memo: crate::css::style::engine_calls::EngineMemo,
     /// The facts of the render state as the host's last job or frame left it, which a clock lease forgets.
     facts: Cell<Option<StateFacts>>,
+    /// The attribute names whose value text the engine's selectors read, as the host's last job or frame left them.
+    selector_value_text_names: RefCell<crate::css::style::SelectorValueTextNames>,
     /// What the clock leases the tasks after the last rendering update tick, until one takes it.
     clock_plan: RefCell<Option<ClockPlan>>,
     /// What the rounds of the ticks of the clock lease that landed last owe, until the host's next layout update pays it.
@@ -193,6 +195,7 @@ impl DocumentHost {
             published_rules: PublishedRules::default(),
             engine_memo: Default::default(),
             facts: Cell::new(None),
+            selector_value_text_names: RefCell::default(),
             clock_plan: RefCell::default(),
             clock_rounds: RefCell::default(),
             presentation: RefCell::default(),
@@ -308,9 +311,11 @@ impl DocumentHost {
             work,
             deferred_inputs,
             facts,
+            selector_value_text_names,
         }: Owed,
     ) {
         self.facts.set(Some(facts));
+        *self.selector_value_text_names.borrow_mut() = selector_value_text_names;
         self.engine_memo
             .deferred
             .borrow_mut()
@@ -635,6 +640,17 @@ impl DocumentHost {
         self.facts
             .get()
             .map(|facts| facts.selector_attribute_value_text_requirements_version)
+    }
+
+    /// Whether the engine's selectors read the value text of an attribute that answers to any of `keys`, where the host
+    /// knows: as it knows where their requirements are.
+    pub(crate) fn known_selectors_read_value_text_of(
+        &self,
+        keys: &[crate::css::style::index::StyleAtomID],
+    ) -> Option<bool> {
+        self.known_selector_attribute_value_text_requirements_version()?;
+        let names = self.selector_value_text_names.borrow();
+        Some(keys.iter().any(|key| names.contains(key)))
     }
 
     /// Whether the layout tree builds owe the host image resources, where the host knows: none runs. Only a build of a
