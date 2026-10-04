@@ -5,25 +5,18 @@
  */
 
 #include <LibGC/Heap.h>
+#include <LibJS/HostClassBuilder.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/ReadableStream.h>
 #include <LibWeb/Streams/ReadableStreamAsyncIterator.h>
 #include <LibWeb/Streams/ReadableStreamDefaultReader.h>
 #include <LibWeb/Streams/ReadableStreamOperations.h>
 
-namespace Web::Bindings {
-
-static void set_readable_stream_async_iterator_prototype(JS::Realm& realm, Streams::ReadableStreamAsyncIterator& iterator)
-{
-    static auto const& name = "ReadableStreamAsyncIterator"_utf16_fly_string;
-    Detail::set_prototype_for_interface_on<ReadableStreamAsyncIteratorPrototype>(realm, iterator, name);
-}
-
-}
-
 namespace Web::Streams {
 
 GC_DEFINE_ALLOCATOR(ReadableStreamAsyncIterator);
+
+static constexpr JSHostClass readable_stream_async_iterator_host_class = JS::make_host_class(JS_HOST_CLASS_OBJECT, "ReadableStreamAsyncIterator"sv, nullptr, nullptr, nullptr, 0);
 
 ReadableStreamAsyncIterator::ReadableStreamAsyncIterator(JS::Realm& realm, JS::Object::PropertyKind kind, GC::Ref<ReadableStreamDefaultReader> reader, bool prevent_cancel)
     : AsyncIterator(realm, kind)
@@ -35,7 +28,7 @@ ReadableStreamAsyncIterator::ReadableStreamAsyncIterator(JS::Realm& realm, JS::O
 ReadableStreamAsyncIterator::~ReadableStreamAsyncIterator() = default;
 
 // https://streams.spec.whatwg.org/#ref-for-asynchronous-iterator-initialization-steps
-WebIDL::ExceptionOr<GC::Ref<ReadableStreamAsyncIterator>> ReadableStreamAsyncIterator::create(JS::Realm& realm, JS::Object::PropertyKind kind, ReadableStream& stream, Options options)
+WebIDL::ExceptionOr<GC::Ref<JS::HostObject>> ReadableStreamAsyncIterator::create(JS::Realm& realm, JS::Object::PropertyKind kind, ReadableStream& stream, Options options)
 {
     // 1. Let reader be ? AcquireReadableStreamDefaultReader(stream).
     // 2. Set iterator’s reader to reader.
@@ -44,8 +37,10 @@ WebIDL::ExceptionOr<GC::Ref<ReadableStreamAsyncIterator>> ReadableStreamAsyncIte
     // 3. Let preventCancel be args[0]["preventCancel"].
     // 4. Set iterator’s prevent cancel to preventCancel.
     auto iterator = realm.create<ReadableStreamAsyncIterator>(realm, kind, reader, options.prevent_cancel);
-    Bindings::set_readable_stream_async_iterator_prototype(realm, iterator);
-    return iterator;
+
+    static auto const& prototype_name = "ReadableStreamAsyncIterator"_utf16_fly_string;
+    auto& prototype = Bindings::ensure_web_prototype<Bindings::ReadableStreamAsyncIteratorPrototype>(realm, prototype_name);
+    return JS::HostObject::create(realm, readable_stream_async_iterator_host_class, prototype, {}, iterator);
 }
 
 void ReadableStreamAsyncIterator::visit_edges(GC::Cell::Visitor& visitor)

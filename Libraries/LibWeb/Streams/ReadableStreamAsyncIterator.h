@@ -13,13 +13,13 @@
 namespace Web::Streams {
 
 class ReadableStreamAsyncIterator final : public WebIDL::AsyncIterator {
-    JS_OBJECT(ReadableStreamAsyncIterator, WebIDL::AsyncIterator);
+    GC_CELL(ReadableStreamAsyncIterator, WebIDL::AsyncIterator);
     GC_DECLARE_ALLOCATOR(ReadableStreamAsyncIterator);
 
 public:
     using Options = Bindings::ReadableStreamIteratorOptions;
 
-    static WebIDL::ExceptionOr<GC::Ref<ReadableStreamAsyncIterator>> create(JS::Realm&, JS::Object::PropertyKind, ReadableStream&, Options);
+    static WebIDL::ExceptionOr<GC::Ref<JS::HostObject>> create(JS::Realm&, JS::Object::PropertyKind, ReadableStream&, Options);
 
     virtual ~ReadableStreamAsyncIterator() override;
 

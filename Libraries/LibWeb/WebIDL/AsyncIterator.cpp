@@ -13,7 +13,7 @@ namespace Web::WebIDL {
 GC_DEFINE_ALLOCATOR(AsyncIterator);
 
 AsyncIterator::AsyncIterator(JS::Realm& realm, JS::Object::PropertyKind iteration_kind)
-    : JS::Object(realm, nullptr)
+    : m_realm(realm)
     , m_kind(iteration_kind)
 {
 }
@@ -23,6 +23,7 @@ AsyncIterator::~AsyncIterator() = default;
 void AsyncIterator::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
+    visitor.visit(m_realm);
     visitor.visit(m_ongoing_promise);
 }
 
