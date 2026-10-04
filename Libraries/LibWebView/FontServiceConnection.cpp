@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <Compositor/CompositorFontClientEndpoint.h>
-#include <Compositor/CompositorFontServerEndpoint.h>
+#include <LibCompositing/FontClientEndpoint.h>
+#include <LibCompositing/FontServerEndpoint.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/System.h>
 #include <LibGfx/Font/Font.h>
@@ -18,10 +18,10 @@
 namespace WebView {
 
 class FontServerConnection final
-    : public IPC::ConnectionFromClient<CompositorFontClientEndpoint, CompositorFontServerEndpoint> {
+    : public IPC::ConnectionFromClient<FontClientEndpoint, FontServerEndpoint> {
 public:
     FontServerConnection(NonnullOwnPtr<IPC::Transport> transport, FontService& font_service)
-        : IPC::ConnectionFromClient<CompositorFontClientEndpoint, CompositorFontServerEndpoint>(*this, move(transport), 1)
+        : IPC::ConnectionFromClient<FontClientEndpoint, FontServerEndpoint>(*this, move(transport), 1)
         , m_font_service(font_service)
     {
     }
@@ -32,7 +32,7 @@ private:
         Core::EventLoop::current().quit(0);
     }
 
-    virtual Messages::CompositorFontServer::InitTransportResponse init_transport([[maybe_unused]] int peer_pid) override
+    virtual Messages::FontServer::InitTransportResponse init_transport([[maybe_unused]] int peer_pid) override
     {
 #ifdef AK_OS_WINDOWS
         m_transport->set_peer_pid(peer_pid);
@@ -41,25 +41,31 @@ private:
         VERIFY_NOT_REACHED();
     }
 
-    virtual Messages::CompositorFontServer::OpenSystemFontResponse open_system_font(u64 generation, u64 face_id) override
+    virtual Messages::FontServer::OpenFontResponse open_font(u64 generation, u64 face_id) override
     {
         auto font = m_font_service.open_font(generation, face_id);
         return { move(font) };
     }
 
-    virtual Messages::CompositorFontServer::MatchSystemFontResponse match_system_font(String family, u16 weight, u16 width, u8 slope) override
+    virtual Messages::FontServer::MatchFontResponse match_font(String family, u16 weight, u16 width, u8 slope) override
     {
         auto font = m_font_service.match_font(family, weight, width, slope);
         return { move(font) };
     }
 
-    virtual Messages::CompositorFontServer::MatchSystemFontForCodePointResponse match_system_font_for_code_point(u32 code_point, u16 weight, u16 width, u8 slope, bool prefer_color_emoji) override
+    virtual Messages::FontServer::MatchLocalFontResponse match_local_font(String name) override
+    {
+        auto font = m_font_service.match_local_font(name);
+        return { move(font) };
+    }
+
+    virtual Messages::FontServer::MatchFontForCodePointResponse match_font_for_code_point(u32 code_point, u16 weight, u16 width, u8 slope, bool prefer_color_emoji) override
     {
         auto font = m_font_service.match_font_for_code_point(code_point, weight, width, slope, prefer_color_emoji);
         return { move(font) };
     }
 
-    virtual Messages::CompositorFontServer::ResolveGenericFontResponse resolve_generic_font(String family, u16 weight, u8 slope) override
+    virtual Messages::FontServer::ResolveGenericFamilyResponse resolve_generic_family(String family, u16 weight, u8 slope) override
     {
         auto resolved = m_font_service.resolve_generic_family(family, weight, slope);
         if (!resolved.has_value())

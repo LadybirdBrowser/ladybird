@@ -29,8 +29,6 @@ invoke_py_generator(
 set(GENERATED_SOURCES
     CompositorControlClientEndpoint.h
     CompositorControlServerEndpoint.h
-    CompositorFontClientEndpoint.h
-    CompositorFontServerEndpoint.h
     CompositorWebContentClientEndpoint.h
     CompositorWebContentServerEndpoint.h
     ${CMAKE_BINARY_DIR}/Libraries/LibCompositing/WebGL/GLFunctions.cpp

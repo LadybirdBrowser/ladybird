@@ -28,19 +28,19 @@ generate_compositing_webgl_implementation()
 file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/Services/Compositor)
 compile_ipc(${LADYBIRD_SOURCE_DIR}/Services/Compositor/CompositorControlClient.ipc ${CMAKE_BINARY_DIR}/Services/Compositor/CompositorControlClientEndpoint.h)
 compile_ipc(${LADYBIRD_SOURCE_DIR}/Services/Compositor/CompositorControlServer.ipc ${CMAKE_BINARY_DIR}/Services/Compositor/CompositorControlServerEndpoint.h)
-compile_ipc(${LADYBIRD_SOURCE_DIR}/Services/Compositor/CompositorFontClient.ipc ${CMAKE_BINARY_DIR}/Services/Compositor/CompositorFontClientEndpoint.h)
-compile_ipc(${LADYBIRD_SOURCE_DIR}/Services/Compositor/CompositorFontServer.ipc ${CMAKE_BINARY_DIR}/Services/Compositor/CompositorFontServerEndpoint.h)
 compile_ipc(${LADYBIRD_SOURCE_DIR}/Services/Compositor/CompositorWebContentClient.ipc ${CMAKE_BINARY_DIR}/Services/Compositor/CompositorWebContentClientEndpoint.h)
 compile_ipc(${LADYBIRD_SOURCE_DIR}/Services/Compositor/CompositorWebContentServer.ipc ${CMAKE_BINARY_DIR}/Services/Compositor/CompositorWebContentServerEndpoint.h)
+compile_ipc(FontClient.ipc FontClientEndpoint.h)
+compile_ipc(FontServer.ipc FontServerEndpoint.h)
 
 set(GENERATED_SOURCES
     WebGL/WebGLCommands.cpp
     ../../Services/Compositor/CompositorControlClientEndpoint.h
     ../../Services/Compositor/CompositorControlServerEndpoint.h
-    ../../Services/Compositor/CompositorFontClientEndpoint.h
-    ../../Services/Compositor/CompositorFontServerEndpoint.h
     ../../Services/Compositor/CompositorWebContentClientEndpoint.h
     ../../Services/Compositor/CompositorWebContentServerEndpoint.h
+    FontClientEndpoint.h
+    FontServerEndpoint.h
 )
 
 import_rust_crate(
