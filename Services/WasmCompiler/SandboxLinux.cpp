@@ -39,6 +39,7 @@ ErrorOr<void> apply_sandbox(StringView)
     policy.allow_file_descriptor_operations();
     policy.allow_process_creation();
     policy.allow_ipc();
+    policy.allow_socket_pairs();
     policy.allow_common_runtime();
     policy.allow_executable_memory_mappings();
     TRY(policy.install());

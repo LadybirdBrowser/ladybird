@@ -1516,6 +1516,23 @@ void SeccompPolicy::allow_ipc()
     append(SECCOMP_ALLOW);
     append(SECCOMP_LOAD_SYSCALL_NR);
 #endif
+    SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, getsockname);
+    SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, getpeername);
+
+#if defined(__NR_getsockopt) && defined(__NR_setsockopt)
+    // LibIPC sizes the buffers of its sockets.
+    static constexpr Array<u32, 2> buffer_sizes { SO_SNDBUF, SO_RCVBUF };
+    append_allow_socket_options(__NR_setsockopt, SOL_SOCKET, buffer_sizes);
+
+    static constexpr Array<u32, 5> queries { SO_ERROR, SO_TYPE, SO_PEERCRED, SO_SNDBUF, SO_RCVBUF };
+    append_allow_socket_options(__NR_getsockopt, SOL_SOCKET, queries);
+#endif
+}
+
+// NB: A helper mints a socket pair to hand one end of a new IPC channel to another process. A helper that only ever
+//     uses the channels the Browser handed it does not need this.
+void SeccompPolicy::allow_socket_pairs()
+{
 #ifdef __NR_socketpair
     // The kernel creates both sockets in the requested domain before it asks the domain whether it can pair them,
     // loading the protocol's module if need be. Every other domain refuses to pair, so the domain is all that a
@@ -1533,17 +1550,6 @@ void SeccompPolicy::allow_ipc()
     append(SECCOMP_ALLOW);
     append(SECCOMP_LOAD_SYSCALL_NR);
 #endif
-    SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, getsockname);
-    SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, getpeername);
-
-#if defined(__NR_getsockopt) && defined(__NR_setsockopt)
-    // LibIPC sizes the buffers of its sockets.
-    static constexpr Array<u32, 2> buffer_sizes { SO_SNDBUF, SO_RCVBUF };
-    append_allow_socket_options(__NR_setsockopt, SOL_SOCKET, buffer_sizes);
-
-    static constexpr Array<u32, 5> queries { SO_ERROR, SO_TYPE, SO_PEERCRED, SO_SNDBUF, SO_RCVBUF };
-    append_allow_socket_options(__NR_getsockopt, SOL_SOCKET, queries);
-#endif
 }
 
 // socket(AF_UNIX) asks the Browser for a stream or seqpacket socket. connect() goes to the
@@ -1551,6 +1557,9 @@ void SeccompPolicy::allow_ipc()
 // refused outright, so this cannot become a way onto the network either.
 void SeccompPolicy::broker_unix_socket_connections()
 {
+    // Each request to the broker carries a socket pair of its own for the answer.
+    allow_socket_pairs();
+
 #ifdef __NR_socket
     // Any other domain falls through to the refusal that install() puts at the end.
     append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_socket, 0, 3));

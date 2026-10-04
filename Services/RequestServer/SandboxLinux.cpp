@@ -128,6 +128,7 @@ ErrorOr<void> apply_sandbox(StringView, Vector<ByteString> const& certificates, 
     policy.allow_filesystem_writes();
     policy.allow_file_descriptor_operations();
     policy.allow_ipc();
+    policy.allow_socket_pairs();
     policy.allow_network();
     policy.allow_common_runtime();
     TRY(policy.install());
