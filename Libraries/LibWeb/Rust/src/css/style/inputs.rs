@@ -359,8 +359,12 @@ impl RetainedState {
     /// Moves whenever an attribute name comes to require its value text: a selector's here, or an
     /// `attr()`'s anywhere in the process.
     pub fn attribute_value_text_requirements_version(&self) -> u64 {
+        with_attr_names_read(self.selector_attribute_value_text_requirements_version())
+    }
+
+    /// Moves whenever an attribute name comes to require its value text for a selector here.
+    pub fn selector_attribute_value_text_requirements_version(&self) -> u64 {
         self.attribute_value_text_requirements_version
-            .wrapping_add(crate::css::parser::arbitrary_substitution::attr_names_read_generation())
     }
 
     /// Whether the host records what the values of an attribute name spell: for a selector whose
@@ -3576,4 +3580,10 @@ pub(crate) fn next_declaration_block_version(versions: &std::sync::atomic::Atomi
         .fetch_add(1, std::sync::atomic::Ordering::Relaxed)
         .checked_add(1)
         .expect("declaration revision overflow")
+}
+
+/// The attribute value text requirements version of an engine whose selectors' requirements are at `selector_version`:
+/// it moves with every name an `attr()` anywhere in the process can newly read, too.
+pub(crate) fn with_attr_names_read(selector_version: u64) -> u64 {
+    selector_version.wrapping_add(crate::css::parser::arbitrary_substitution::attr_names_read_generation())
 }
