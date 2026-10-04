@@ -1693,6 +1693,14 @@ Utf16String Internals::clock_lease_state(DOM::Document& document)
     VERIFY_NOT_REACHED();
 }
 
+GC::Ptr<Geometry::DOMRect> Internals::presented_border_box(DOM::Element& element)
+{
+    CSSPixelRect rect;
+    if (!element.style_node_id() || !Layout::RustFFI::document_host_presented_border_box(element.document().layout_node_arena().host(), element.style_node_id().value(), &rect))
+        return nullptr;
+    return Geometry::DOMRect::create(rect.x().to_double(), rect.y().to_double(), rect.width().to_double(), rect.height().to_double());
+}
+
 void Internals::set_manual_rendering_opportunities(bool enabled)
 {
     // A test that injects its rendering opportunities injects its clock ticks too: the clock lease that runs now ends,
@@ -1747,6 +1755,8 @@ Utf16String Internals::last_frame_presented_by(DOM::Document& document)
         return "main"_utf16;
     case Compositor::PresentedBy::Flight:
         return "flight"_utf16;
+    case Compositor::PresentedBy::Clock:
+        return "clock"_utf16;
     }
     VERIFY_NOT_REACHED();
 }

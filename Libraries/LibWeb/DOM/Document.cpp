@@ -10233,8 +10233,12 @@ RefPtr<Compositing::DisplayList> Document::record_display_list(Layout::BegunRead
 {
     // The host reads this recording right after it, so a recording in flight is taken in first: it has the recorder
     // state.
-    if (auto navigable = this->navigable())
+    if (auto navigable = this->navigable()) {
         navigable->take_recording_in_flight_in(HTML::LocalNavigable::TakeIn::Wait);
+        // What a clock lease's ticks published, the recording copies from, which the document takes in with the
+        // presenter.
+        (void)navigable->presenter();
+    }
     auto recording = start_display_list_recording(read, config, cache_mode, Layout::RustFFI::FfiFlightBlocker::NotInRenderingUpdate);
     if (!recording.has_value())
         return nullptr;

@@ -144,6 +144,60 @@ impl PaintPass {
     }
 }
 
+/// What a clock tick's round moved that the visual context tree reads: the tree the compositor has comes from the
+/// host's frames, and a tick's frame brings it none of its own.
+pub(crate) struct MovesVisualContexts;
+
+/// Brings the paint state of `arena` up to date with what a clock tick's round laid out, for the tick's frame, where
+/// that leaves the visual context tree as the compositor has it: no box the round moved or restyled owns a node whose
+/// value reads its geometry, or moves descendants that may, and the round moved no root background, flipped no
+/// scrollability and asks the host to resolve no SVG paint resource. The rest of paint preparation, the scroll offsets
+/// new overflow clamps above all, is the host's, once the lease lands.
+pub(crate) fn prepare_for_clock_tick(
+    arena: &mut LayoutNodeArena,
+    viewport: NodeSlotId,
+) -> Result<(), MovesVisualContexts> {
+    // Recording reads overflow, and measuring it notes a flip in scrollability for the check below.
+    arena.measure_scrollable_overflow();
+    if arena.svg_paint_resources().needs_sync()
+        || arena.paint_state().borrow().root_background_source
+            != Some(crate::layout::viewport_propagation::root_background_source(arena))
+    {
+        return Err(MovesVisualContexts);
+    }
+    let inputs = {
+        let paint_state = arena.paint_state().borrow();
+        let dirty = &paint_state.visual_context.dirty_boxes;
+        let Some(inputs) = paint_state.visual_context.last_tree_inputs else {
+            return Err(MovesVisualContexts);
+        };
+        if dirty.global_reason != VisualContextGlobalRebuildReason::None || !dirty.removed.is_empty() {
+            return Err(MovesVisualContexts);
+        }
+        let keeps_visual_contexts = dirty.boxes.iter().all(|(&slot, bits)| {
+            arena.paintable_visual_context_record(slot).is_some_and(|record| {
+                bits.is_geometry_only()
+                    && !record.owns_geometry_dependent_nodes
+                    && !(bits.moves_descendants() && record.subtree_may_own_geometry_dependent_nodes)
+            })
+        });
+        if !keeps_visual_contexts {
+            return Err(MovesVisualContexts);
+        }
+        if dirty.boxes.is_empty() {
+            return Ok(());
+        }
+        inputs
+    };
+    // The update rebuilds no node, but the records, the stacking context order and the fragments' owners of the boxes
+    // the round laid out.
+    let outcome = update_accumulated_visual_contexts(arena, viewport, inputs);
+    match outcome.performed_full_build || outcome.structural_epoch_changed {
+        true => Err(MovesVisualContexts),
+        false => Ok(()),
+    }
+}
+
 /// Runs `pass` on the render state of `host`'s document in `read`, as the host prepares to paint, and answers what it
 /// answered.
 pub(crate) fn run(read: &BegunRead, host: &DocumentHost, pass: PaintPass) -> PaintPassAnswer {

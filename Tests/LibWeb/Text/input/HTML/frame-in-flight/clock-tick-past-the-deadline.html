@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<div id="box" style="width: 10px; height: 0px; background: green"></div>
+<script>
+    // A tick of the render clock at or past the next event of the animations, here the start of the next iteration,
+    // presents nothing: the event is the host's to send, in a rendering update.
+    asyncTest(async done => {
+        const result = await whileClockLeased(() => {
+            return box.animate([{ height: "0px" }, { height: "100px" }], { duration: 1000, iterations: 3 });
+        }, frameTime => {
+            internals.injectClockTick(frameTime + 5000);
+            return {
+                lease: internals.clockLeaseState(document),
+                presentedBorderBox: internals.presentedBorderBox(box),
+                presentedByTheClock: internals.lastFramePresentedBy(document) === "clock",
+            };
+        });
+        println(`lease after a tick past the deadline: ${result.lease}`);
+        println(`a tick presented the box: ${result.presentedBorderBox !== null}`);
+        println(`last frame presented by the clock: ${result.presentedByTheClock}`);
+        done();
+    });
+</script>

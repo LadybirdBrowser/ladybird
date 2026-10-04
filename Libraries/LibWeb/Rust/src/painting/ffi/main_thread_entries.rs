@@ -759,7 +759,7 @@ pub unsafe extern "C" fn render_state_record_display_list(
     );
     recording.discard_pending_recording();
     let recorder = recording.take_recorder();
-    let frame_inputs = FrameInputs {
+    let frame_inputs = crate::painting::recording_slot::FrameInputs {
         viewport,
         css_viewport_rect: inputs.css_viewport_rect.into(),
         publishes_recording: inputs.publishes_recording,
@@ -770,7 +770,14 @@ pub unsafe extern "C" fn render_state_record_display_list(
         hit_test_item_capacity_hint: recording.hit_test_item_capacity_hint(),
     };
     // SAFETY: As above.
-    let Some(frame) = (unsafe { read_arena(host, read, frame_inputs, freeze_recording_frame) }) else {
+    let Some(frame) = (unsafe {
+        read_arena(
+            host,
+            read,
+            frame_inputs,
+            crate::painting::recording_slot::freeze_recording_frame,
+        )
+    }) else {
         recording.give_back_recorder(recorder);
         return FfiRecordingStart::NothingToRecord;
     };
@@ -795,7 +802,7 @@ pub unsafe extern "C" fn render_state_record_display_list(
             FfiRecordingStart::InFlight
         }
         None => {
-            let answer = job.run_on_paint_thread(&inputs);
+            let answer = job.run_on_paint_thread(inputs);
             recording.accept_recording_answer(answer);
             FfiRecordingStart::Recorded
         }
@@ -947,74 +954,6 @@ fn landed_recording_stands(host: &crate::render_state::DocumentHost, version: cr
         }),
     )
     .0
-}
-
-/// What the host knows that freezing a document's frame for a recording reads.
-struct FrameInputs {
-    viewport: NodeSlotId,
-    css_viewport_rect: crate::css::css_pixels::CssPixelRect,
-    publishes_recording: bool,
-    /// The canvas rect the root background painted in the recording published last, if any.
-    published_root_background_canvas_rect: Option<crate::css::css_pixels::CssPixelRect>,
-    hit_test_item_capacity_hint: usize,
-}
-
-/// A document's frame, frozen for a recording, with what the recording reads beside it, and the rows version it was
-/// frozen at.
-struct FrozenFrame {
-    frame: crate::painting::published_frame::PublishedFrame,
-    tree_inputs: crate::painting::host::FfiVisualContextTreeInputs,
-    root_background_source: crate::painting::host::RootBackgroundSource,
-    trace_recordings: bool,
-    rows_version: crate::layout::RowsVersion,
-}
-
-/// Freezes the frame of the document whose arena `arena` is for a recording of its viewport, or none where the
-/// viewport has no box to paint.
-fn freeze_recording_frame(arena: &mut LayoutNodeArena, inputs: FrameInputs) -> Option<FrozenFrame> {
-    // Recording reads overflow, and reading overflow never measures it.
-    arena.measure_scrollable_overflow();
-    if !arena.paintable_row_is_populated(inputs.viewport) || arena.stacking_context_entries(inputs.viewport).is_none() {
-        return None;
-    }
-    // The root background paints the union of the viewport and the root's overflow, so it is the
-    // one output a viewport move can change. Drop its caches before the frame is published instead
-    // of treating the viewport position as a frame-wide input.
-    if let Some(published_canvas_rect) = inputs.published_root_background_canvas_rect {
-        let root = arena
-            .paint_state()
-            .borrow()
-            .root_background_source
-            .expect("a recording follows paint preparation")
-            .root_layout_node;
-        let canvas_rect = crate::painting::record::paint::background_resolution::root_background_canvas_rect(
-            &arena.paintable_rows(),
-            root,
-            inputs.css_viewport_rect,
-        );
-        if canvas_rect != published_canvas_rect {
-            arena.push_paint_damage(root, crate::painting::record::damage::PaintDamage::DRAW_BACKGROUND);
-        }
-    }
-    if inputs.publishes_recording {
-        arena.note_publishing_paint_recording_started();
-    }
-    // The recording reads the document as it is now: what the host writes after this goes to the next frame.
-    let frame = arena.freeze_frame(inputs.hit_test_item_capacity_hint);
-    let rows_version = arena.rows_version();
-    let paint_state = arena.paint_state().borrow();
-    Some(FrozenFrame {
-        frame,
-        rows_version,
-        tree_inputs: paint_state
-            .visual_context
-            .last_tree_inputs
-            .expect("a recording follows a visual context update"),
-        root_background_source: paint_state
-            .root_background_source
-            .expect("a recording follows paint preparation"),
-        trace_recordings: paint_state.trace_recordings,
-    })
 }
 
 /// Answers `query` from the hit-test list of the last recording `host`'s document published, built up by `build`, and

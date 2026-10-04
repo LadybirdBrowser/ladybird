@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<div id="box" style="width: 10px; height: 0px; background: green"></div>
+<script>
+    // A tick of the render clock presents the document as the last rendering update left it, with only the running
+    // animations moved: what the task writes waits for the next rendering update.
+    asyncTest(async done => {
+        const result = await whileClockLeased(() => {
+            return box.animate([{ height: "0px" }, { height: "100px" }], { duration: 10000, easing: "linear" });
+        }, frameTime => {
+            box.style.width = "50px";
+            internals.injectClockTick(frameTime + 1000);
+            const lease = internals.clockLeaseState(document);
+            const presented = internals.presentedBorderBox(box);
+            return { lease, presentedWidth: presented?.width, presentedBy: internals.lastFramePresentedBy(document) };
+        });
+        println(`lease after the writes and a tick: ${result.lease}`);
+        println(`presented width: ${result.presentedWidth}`);
+        println(`last frame presented by: ${result.presentedBy}`);
+        done();
+    });
+</script>

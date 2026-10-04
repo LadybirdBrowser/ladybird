@@ -1,0 +1,2 @@
+lease after a tick that moves a clip: parked
+last frame presented by the clock: false

@@ -313,8 +313,8 @@ impl RetainedState {
 }
 
 /// A sample of an element's animations that needs what only the host has: a container's size, the
-/// platform font of an animated font, a value substituted against the element, or an adjustment of
-/// what the element's own style says.
+/// platform font of an animated font, a value substituted against the element, an adjustment of
+/// what the element's own style says, or a change beyond the element's box.
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) struct NeedsHost;
 
@@ -477,6 +477,13 @@ impl super::StyleEngine {
             )
             .ok_or(NeedsHost)?
             .map_err(|NeedsHostFont| NeedsHost)?;
+        // What the sample changes beyond its box is the host's to show: the visual contexts above all, which the
+        // compositor has from the host's frames.
+        if !self.animation_sample_stays_in_its_box(node, record, &overlay, SharedPayload::from_pointer_slice(&payloads))
+        {
+            release_rebuilt_overlay_payloads(&payloads, rebuilt.groups);
+            return Err(NeedsHost);
+        }
         let sampled = super::bridge::publish_computed_groups_from_inputs(
             self,
             0,

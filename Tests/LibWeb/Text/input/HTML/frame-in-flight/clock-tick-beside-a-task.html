@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<div id="box" style="width: 10px; height: 0px; background: green"></div>
+<script>
+    // The render clock presents frames of a running animation beside a task, each at its tick's time.
+    asyncTest(async done => {
+        const result = await whileClockLeased(() => {
+            return box.animate([{ height: "0px" }, { height: "100px" }], { duration: 10000, easing: "linear" });
+        }, (frameTime, animation) => {
+            internals.injectClockTick(frameTime + 1000);
+            internals.injectClockTick(frameTime + 2000);
+            const expectedHeight = (frameTime + 2000 - animation.startTime) / 100;
+            const presented = internals.presentedBorderBox(box);
+            return {
+                presentedHeightIsTheTicks: presented !== null && Math.abs(presented.height - expectedHeight) < 0.02,
+                presentedBy: internals.lastFramePresentedBy(document),
+            };
+        });
+        println(`the presented height is the animation's at the last tick: ${result.presentedHeightIsTheTicks}`);
+        println(`last frame presented by: ${result.presentedBy}`);
+        done();
+    });
+</script>

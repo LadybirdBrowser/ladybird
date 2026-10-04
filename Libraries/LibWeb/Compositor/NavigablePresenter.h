@@ -35,6 +35,14 @@ struct PublishedDisplayList {
     bool replaces_paint_command_cache_source { false };
 };
 
+// What presented a navigable's last frame: the main thread, or what presents beside it: a recording that flew, or a tick
+// of a clock lease.
+enum class PresentedBy : u8 {
+    Main,
+    Flight,
+    Clock,
+};
+
 // What a frame is built from that its navigable and document held where the frame began, sealed there: the frame reaches
 // neither of them again before it is presented.
 struct SealedPresentation {
@@ -56,19 +64,15 @@ struct SealedPresentation {
     RefPtr<Compositing::DisplayList> paint_command_cache_source;
     Compositing::DisplayListResourceSet paint_command_cache_source_resources;
 
-    // For a frame presented beside the event loop: the recording it publishes, sealed where the recording began, where
-    // the frame goes and the rect it is presented in, and, once it is presented, the display list it published.
+    // For frames presented beside the event loop: the recording they publish, sealed where the recording began, where
+    // they go and the rect they are presented in, what presents them, and, once one is presented, the display list it
+    // published. A clock lease presents a frame from the seal at each tick that records one.
     Optional<Painting::DisplayListRecording> recording;
     RefPtr<CompositorFrameSink> sink;
     Web::CompositorContextId context_id;
     Optional<Gfx::IntRect> present_viewport_rect;
+    PresentedBy presented_by { PresentedBy::Flight };
     Optional<PublishedDisplayList> published;
-};
-
-// What presented a navigable's last frame: the main thread, or what presents beside it.
-enum class PresentedBy : u8 {
-    Main,
-    Flight,
 };
 
 // What a navigable presents to its compositor context from: the resource storage its recordings add to, and the
@@ -114,7 +118,8 @@ public:
     CompositorFrame build_frame(SealedPresentation const&, Optional<PublishedDisplayList>);
 
     // Presents the frame `sealed` sealed, with `display_list`, the display list its recording published, beside the event
-    // loop: through the seal's sink, keeping what it published in the seal.
+    // loop: through the seal's sink, keeping what it published in the seal, which the next frame from the seal copies
+    // paint commands from.
     void present_beside_event_loop(SealedPresentation&, NonnullRefPtr<Compositing::DisplayList>);
 
 private:

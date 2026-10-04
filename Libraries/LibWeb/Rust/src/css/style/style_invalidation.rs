@@ -785,6 +785,29 @@ impl RetainedState {
         ffi_result
     }
 
+    /// Whether a sample of `node`'s animations, `animated_overlay` with the groups `payloads`, shown over
+    /// `old_style_record`, the record the host installed for the element, changes only what the element's box paints
+    /// and lays out: no layout tree, stacking context, visual context, scroll snap or text decoration of descendants.
+    pub(crate) fn animation_sample_stays_in_its_box(
+        &self,
+        node: StyleNodeID,
+        old_style_record: u64,
+        animated_overlay: &AnimatedOverlay,
+        payloads: &[SharedPayload],
+    ) -> bool {
+        let is_document_element =
+            self.computed_group_sets.adjustment_facts(node) & element_adjustment_fact::IS_DOCUMENT_ELEMENT != 0;
+        let invalidation = StyleInvalidation::unpack(
+            self.compare_animation_overlay(old_style_record, animated_overlay, payloads, is_document_element)
+                .invalidation,
+        );
+        invalidation.level < INVALIDATION_REBUILD_LAYOUT_TREE
+            && invalidation.visual_context == 0
+            && !invalidation.rebuild_stacking_context
+            && !invalidation.resnap_scroll_container
+            && !invalidation.repaint_text_decorations
+    }
+
     pub(crate) fn compare_style_records(
         &mut self,
         old_style_record: u64,
