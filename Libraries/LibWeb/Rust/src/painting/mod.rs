@@ -33,6 +33,7 @@ pub mod paintable_build;
 pub mod paintable_data;
 pub mod paintable_geometry;
 pub(crate) mod paintable_rows;
+pub(crate) mod presentation;
 pub(crate) mod published_frame;
 pub mod record;
 pub(crate) mod recording_slot;

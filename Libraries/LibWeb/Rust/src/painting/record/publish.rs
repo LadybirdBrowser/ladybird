@@ -67,6 +67,7 @@ pub(crate) fn publish_recording(
 ) {
     let Publication {
         pending,
+        behind_rows,
         recorder,
         hit_test_list,
     } = publication;
@@ -81,12 +82,44 @@ pub(crate) fn publish_recording(
             host.queue_change(crate::render_state::ArenaChange::Paint(
                 crate::painting::paint_changes::PaintChange::TakeInRecording {
                     output,
-                    hit_test_list_changed,
+                    hit_test_list_changed: hit_test_list_changed || behind_rows,
                     publishes_recording,
                 },
             ));
         },
     );
+    // A recording that landed behind the rows keeps no hit-test list, as the boxes it names may be gone.
+    if behind_rows {
+        *hit_test_list = None;
+    }
+}
+
+/// Where a published recording's fonts, image frames and video sinks go: the resource storage of the presenter that
+/// presents it.
+pub(crate) trait RecordingResourceSink {
+    fn add_font(&mut self, font: &libgfx_rust::font::FontHandle);
+    fn add_image_frame(&mut self, frame: &libgfx_rust::image_frame::ImageFrameHandle);
+    fn add_video_sink(&mut self, resource_id: u64, sink_handle: u64);
+}
+
+/// The host's resource storage, which it reaches on the main thread through its callbacks.
+struct HostResourceSink<'a, 'host> {
+    main_thread: &'a MainThread<'host>,
+    publish: &'a FfiRecordingPublishCallbacks,
+}
+
+impl RecordingResourceSink for HostResourceSink<'_, '_> {
+    fn add_font(&mut self, font: &libgfx_rust::font::FontHandle) {
+        self.publish.add_font(self.main_thread, font);
+    }
+
+    fn add_image_frame(&mut self, frame: &libgfx_rust::image_frame::ImageFrameHandle) {
+        self.publish.add_image_frame(self.main_thread, frame);
+    }
+
+    fn add_video_sink(&mut self, resource_id: u64, sink_handle: u64) {
+        self.publish.add_video_sink(self.main_thread, resource_id, sink_handle);
+    }
 }
 
 /// Hands a recording's resources to the host and makes its output, reading nothing but the
@@ -97,6 +130,42 @@ pub(crate) fn publish_to_host(
     recorder: &RecorderState,
     main_thread: &MainThread,
     publish: &FfiRecordingPublishCallbacks,
+) -> RecordingOutput {
+    publish_resources(
+        pending,
+        recorder,
+        &mut HostResourceSink { main_thread, publish },
+        |output, requests| resolve_vector_image_placeholders(output, requests, main_thread, publish),
+    )
+}
+
+/// Whether a recording renders an SVG image, which only the host renders, so that only the host publishes it.
+pub(crate) fn renders_vector_images(pending: &PendingRecording) -> bool {
+    !pending.recording.resources.vector_image_render_requests.is_empty()
+        || pending
+            .recording_from_scratch
+            .as_ref()
+            .is_some_and(|recording| !recording.resources.vector_image_render_requests.is_empty())
+}
+
+/// Hands the resources of a recording that renders no SVG image to `presenter` and makes its output, beside the event
+/// loop.
+pub(crate) fn publish_to_presenter(
+    pending: PendingRecording,
+    recorder: &RecorderState,
+    presenter: &mut crate::painting::presentation::PresenterBox,
+) -> RecordingOutput {
+    debug_assert!(!renders_vector_images(&pending), "only the host renders an SVG image");
+    publish_resources(pending, recorder, presenter, |_, _| {})
+}
+
+/// Hands a recording's resources to `sink`, has `resolve_vector_images` patch in the SVG images it renders, and makes
+/// its output.
+fn publish_resources(
+    pending: PendingRecording,
+    recorder: &RecorderState,
+    sink: &mut impl RecordingResourceSink,
+    mut resolve_vector_images: impl FnMut(&mut RecordingOutput, &[VectorImageRenderRequest]),
 ) -> RecordingOutput {
     let PendingRecording {
         recording: RecordingResult { mut output, resources },
@@ -112,24 +181,22 @@ pub(crate) fn publish_to_host(
         ..
     } = resources;
     for font in fonts.values() {
-        publish.add_font(main_thread, font);
+        sink.add_font(font);
     }
     for frame in image_frames.values() {
-        publish.add_image_frame(main_thread, frame);
+        sink.add_image_frame(frame);
     }
     for frame in published_filter_image_frames_in(&svg_paint_resources) {
-        publish.add_image_frame(main_thread, &frame);
+        sink.add_image_frame(&frame);
     }
     for (resource_id, sink_handle) in video_sinks {
-        publish.add_video_sink(main_thread, resource_id, sink_handle);
+        sink.add_video_sink(resource_id, sink_handle);
     }
-    resolve_vector_image_placeholders(&mut output, &vector_image_render_requests, main_thread, publish);
+    resolve_vector_images(&mut output, &vector_image_render_requests);
     if let Some(mut recording_from_scratch) = recording_from_scratch {
-        resolve_vector_image_placeholders(
+        resolve_vector_images(
             &mut recording_from_scratch.output,
             &recording_from_scratch.resources.vector_image_render_requests,
-            main_thread,
-            publish,
         );
         crate::painting::record::verify::verify_assembled_recording_matches_fresh(
             &output,

@@ -729,13 +729,15 @@ pub unsafe extern "C" fn render_state_for_each_subtree_fragment_rect(
 }
 
 /// Records `host`'s document's viewport with `inputs` on the Paint thread: in step with the host, or beside the event
-/// loop where `blocker` is none, until the host takes it in. Answers how the recording started, which it does not
-/// where the viewport has no box to record.
+/// loop where `blocker` is none, until the host takes it in. A recording that flies takes the presentation `presentation`
+/// names, if any, to present its frame with, and nulls it there; any other leaves it with the host. Answers how the
+/// recording started, which it does not where the viewport has no box to record.
 ///
 /// # Safety
 ///
 /// `host` must be a live document host, on its document's thread. Input arrays and byte buffers must be valid and
-/// immutable for this call; fonts for enabled overlays must be live `Gfx::Font`s.
+/// immutable for this call; fonts for enabled overlays must be live `Gfx::Font`s. `presentation` must be valid for
+/// reads and writes, and name a presentation the host gives up where the recording takes it, or none.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn render_state_record_display_list(
     host: *const crate::render_state::DocumentHost,
@@ -743,6 +745,7 @@ pub unsafe extern "C" fn render_state_record_display_list(
     viewport: NodeSlotId,
     inputs: crate::painting::host::FfiRecordingInputs,
     blocker: FfiFlightBlocker,
+    presentation: *mut crate::painting::ffi::FfiPresentation,
 ) -> FfiRecordingStart {
     assert!(!host.is_null(), "document host is null");
     // SAFETY: Guaranteed by the caller.
@@ -775,7 +778,18 @@ pub unsafe extern "C" fn render_state_record_display_list(
         crate::painting::recording_slot::RecordingJob::new(frame.frame, recorder, viewport, frame.trace_recordings);
     match crate::painting::recording_slot::FlightLicense::for_blocker(blocker) {
         Some(license) => {
-            recording.fly(job.fly(inputs, license), frame.rows_version);
+            // SAFETY: Guaranteed by the caller.
+            let presentation = unsafe {
+                let presentation = &mut *presentation;
+                crate::painting::presentation::Presentation::adopt(std::mem::replace(
+                    presentation,
+                    crate::painting::ffi::FfiPresentation {
+                        presenter: std::ptr::null_mut(),
+                        sealed: std::ptr::null_mut(),
+                    },
+                ))
+            };
+            recording.fly(job.fly(inputs, presentation, license), frame.rows_version);
             FfiRecordingStart::InFlight
         }
         None => {
@@ -799,56 +813,124 @@ pub extern "C" fn render_state_release_held_recording_for_testing() {
 }
 
 /// Takes the recording in flight of `host`'s document in where it has finished, and answers how it landed. The event
-/// loop calls it between two tasks, so it never waits.
+/// loop calls it between two tasks, so it never waits. A recording that landed gives back the presentation it took, if
+/// any, through `presentation`.
 ///
 /// # Safety
 ///
 /// `host` must be a live document host, on its document's thread, and the event loop must call this between two tasks.
+/// `presentation` must be valid for writes; the host takes over what it names.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn render_state_take_finished_recording_in(
     host: *const crate::render_state::DocumentHost,
+    presentation: *mut crate::painting::ffi::FfiPresentation,
 ) -> FfiRecordingLanding {
     assert!(!host.is_null(), "document host is null");
     let boundary = crate::render_state::TaskBoundary::at_event_loop_entry(&TAKES_FINISHED_RECORDING_IN);
     // SAFETY: Guaranteed by the caller.
-    unsafe { &*host }
-        .recording()
-        .take_finished_recording_in(&boundary, |rows_version| {
-            // SAFETY: As above.
-            unsafe { landed_recording_stands(host, rows_version) }
-        })
+    let host = unsafe { &*host };
+    let landing = host.recording().take_finished_recording_in(
+        &boundary,
+        |rows_version| landed_recording_stands(host, rows_version),
+        &mut |output, hit_test_list_changed, publishes_recording| {
+            take_in_presented_recording(host, output, hit_test_list_changed, publishes_recording);
+        },
+    );
+    // SAFETY: As above.
+    unsafe { recording_landing(landing, presentation) }
 }
 
-/// Waits for the recording in flight of `host`'s document and takes it in, and answers how it landed.
+/// Waits for the recording in flight of `host`'s document and takes it in, and answers how it landed (see
+/// [`render_state_take_finished_recording_in`]).
 ///
 /// # Safety
 ///
-/// `host` must be a live document host, on its document's thread.
+/// `host` must be a live document host, on its document's thread. `presentation` must be valid for writes; the host
+/// takes over what it names.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn render_state_join_recording_in_flight(
     host: *const crate::render_state::DocumentHost,
+    presentation: *mut crate::painting::ffi::FfiPresentation,
 ) -> FfiRecordingLanding {
     assert!(!host.is_null(), "document host is null");
     // SAFETY: Guaranteed by the caller.
-    unsafe { &*host }.recording().join_recording_in_flight(|rows_version| {
-        // SAFETY: As above.
-        unsafe { landed_recording_stands(host, rows_version) }
-    })
+    let host = unsafe { &*host };
+    let landing = host.recording().join_recording_in_flight(
+        |rows_version| landed_recording_stands(host, rows_version),
+        &mut |output, hit_test_list_changed, publishes_recording| {
+            take_in_presented_recording(host, output, hit_test_list_changed, publishes_recording);
+        },
+    );
+    // SAFETY: As above.
+    unsafe { recording_landing(landing, presentation) }
 }
 
-/// Whether the rows of `host`'s document are still at `version`, so that a recording that landed with a frame frozen
-/// there still stands for it. The recording dropped its frame and the lease it held, so the style engine frees what it
-/// kept for that lease here too, however idle the document stays.
+/// Takes the output of a recording that presented itself in as the document's last.
+fn take_in_presented_recording(
+    host: &crate::render_state::DocumentHost,
+    output: std::sync::Arc<crate::painting::record::RecordingOutput>,
+    hit_test_list_changed: bool,
+    publishes_recording: bool,
+) {
+    host.queue_change(crate::render_state::ArenaChange::Paint(
+        crate::painting::paint_changes::PaintChange::TakeInRecording {
+            output,
+            hit_test_list_changed,
+            publishes_recording,
+        },
+    ));
+}
+
+/// Answers how a recording landed, and writes the presentation it gave back to `presentation`.
 ///
 /// # Safety
 ///
-/// `host` must be a live document host, on its document's thread.
-unsafe fn landed_recording_stands(
-    host: *const crate::render_state::DocumentHost,
-    version: crate::layout::RowsVersion,
-) -> bool {
+/// `presentation` must be valid for writes.
+unsafe fn recording_landing(
+    landing: crate::painting::recording_slot::RecordingLanding,
+    presentation: *mut crate::painting::ffi::FfiPresentation,
+) -> FfiRecordingLanding {
+    use crate::painting::recording_slot::RecordingLanding;
+    match landing {
+        RecordingLanding::NoneInFlight => FfiRecordingLanding::NoneInFlight,
+        RecordingLanding::StillInFlight => FfiRecordingLanding::StillInFlight,
+        RecordingLanding::Landed(given_back) => {
+            // SAFETY: Guaranteed by the caller.
+            unsafe { give_back(given_back, presentation) };
+            FfiRecordingLanding::Landed
+        }
+        RecordingLanding::LandedBehindRows(given_back) => {
+            // SAFETY: Guaranteed by the caller.
+            unsafe { give_back(given_back, presentation) };
+            FfiRecordingLanding::LandedBehindRows
+        }
+    }
+}
+
+/// Writes the presentation a recording gave back, if any, to `presentation`.
+///
+/// # Safety
+///
+/// `presentation` must be valid for writes.
+unsafe fn give_back(
+    given_back: Option<crate::painting::presentation::Presentation>,
+    presentation: *mut crate::painting::ffi::FfiPresentation,
+) {
+    let given_back = given_back.map_or(
+        crate::painting::ffi::FfiPresentation {
+            presenter: std::ptr::null_mut(),
+            sealed: std::ptr::null_mut(),
+        },
+        crate::painting::presentation::Presentation::into_ffi,
+    );
     // SAFETY: Guaranteed by the caller.
-    let host = unsafe { &*host };
+    unsafe { presentation.write(given_back) };
+}
+
+/// Whether the rows of `host`'s document are still at `version`, so that the hit-test list of a recording that landed
+/// with a frame frozen there still stands for it. The recording dropped its frame and the lease it held, so the style
+/// engine frees what it kept for that lease here too, however idle the document stays.
+fn landed_recording_stands(host: &crate::render_state::DocumentHost, version: crate::layout::RowsVersion) -> bool {
     // A frame in flight, or a round that flew and is not paid yet, writes the rows, which then stand for no recording
     // made before it.
     let Some(here) = host.layout_waits_for_no_frame() else {
@@ -863,19 +945,6 @@ unsafe fn landed_recording_stands(
         }),
     )
     .0
-}
-
-/// Drops the recording pending for `host`'s document to publish unpublished, as the host does with a recording that
-/// landed for a document it no longer presents.
-///
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn render_state_discard_pending_recording(host: *const crate::render_state::DocumentHost) {
-    assert!(!host.is_null(), "document host is null");
-    // SAFETY: Guaranteed by the caller.
-    unsafe { &*host }.recording().discard_pending_recording();
 }
 
 /// What the host knows that freezing a document's frame for a recording reads.

@@ -4,7 +4,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGfx/Font/Font.h>
 #include <LibWeb/Compositor/NavigablePresenter.h>
+#include <LibWeb/Painting/PaintingRustBridge.h>
 
 namespace Web::Compositor {
 
@@ -50,12 +52,14 @@ CompositorFrame NavigablePresenter::build_frame(SealedPresentation const& sealed
     Compositing::KeyboardScrollState keyboard_scroll_state;
     if (sealed.keyboard_scroll_state.has_value()) {
         keyboard_scroll_state = *sealed.keyboard_scroll_state;
+        m_last_keyboard_scroll_state_generation = keyboard_scroll_state.generation;
         keyboard_scroll_state.visual_context_tree_structural_epoch = display_list.compatible_visual_context_tree_structural_epoch();
     }
     auto async_scrolling_metadata = display_list.async_scrolling_metadata().value_or({});
     async_scrolling_metadata.keyboard_scroll_state = keyboard_scroll_state;
     display_list.set_async_scrolling_metadata(move(async_scrolling_metadata));
 
+    m_last_frame_presented_by = PresentedBy::Main;
     CompositorFrame frame;
     bool const display_list_is_unchanged = published.has_value() && m_compositor_display_list == published->display_list;
     if (published.has_value() && !display_list_is_unchanged) {
@@ -96,4 +100,49 @@ CompositorFrame NavigablePresenter::build_frame(SealedPresentation const& sealed
     return frame;
 }
 
+void NavigablePresenter::present_beside_event_loop(SealedPresentation& sealed, NonnullRefPtr<Compositing::DisplayList> display_list)
+{
+    bool const replaces_paint_command_cache_source = sealed.recording->cache_mode == Painting::PaintCommandCacheMode::ReadWrite
+        && display_list != sealed.paint_command_cache_source;
+    PublishedDisplayList published { move(display_list), replaces_paint_command_cache_source };
+    auto frame = build_frame(sealed, published);
+    frame.context_id = sealed.context_id;
+    frame.present_viewport_rect = sealed.present_viewport_rect;
+    sealed.sink->submit(move(frame));
+    sealed.published = move(published);
+    m_last_frame_presented_by = PresentedBy::Flight;
+}
+
+}
+
+extern "C" WEB_API void web_navigable_presenter_destroy(void* presenter)
+{
+    delete static_cast<Web::Compositor::NavigablePresenter*>(presenter);
+}
+
+extern "C" WEB_API void web_sealed_presentation_destroy(void* sealed)
+{
+    delete static_cast<Web::Compositor::SealedPresentation*>(sealed);
+}
+
+extern "C" WEB_API void web_navigable_presenter_add_font(void* presenter, void const* font)
+{
+    static_cast<Web::Compositor::NavigablePresenter*>(presenter)->display_list_resource_storage().add_font(*static_cast<Gfx::Font const*>(font));
+}
+
+extern "C" WEB_API void web_navigable_presenter_add_image_frame(void* presenter, void const* frame)
+{
+    static_cast<Web::Compositor::NavigablePresenter*>(presenter)->display_list_resource_storage().add_image_frame(*static_cast<Gfx::DecodedImageFrame const*>(frame));
+}
+
+extern "C" WEB_API void web_navigable_presenter_add_video_sink(void* presenter, u64 resource_id, u64 sink_handle)
+{
+    static_cast<Web::Compositor::NavigablePresenter*>(presenter)->display_list_resource_storage().add_video_sink(Compositing::VideoSinkResourceId { resource_id }, Media::VideoSinkHandle { sink_handle });
+}
+
+extern "C" WEB_API void web_navigable_presenter_present(void* presenter, void* sealed_pointer, Web::Layout::RustFFI::FfiPresentedRecording const* presented)
+{
+    auto& sealed = *static_cast<Web::Compositor::SealedPresentation*>(sealed_pointer);
+    auto display_list = Web::Painting::display_list_of_published_recording(sealed.recording.value(), *presented);
+    static_cast<Web::Compositor::NavigablePresenter*>(presenter)->present_beside_event_loop(sealed, move(display_list));
 }

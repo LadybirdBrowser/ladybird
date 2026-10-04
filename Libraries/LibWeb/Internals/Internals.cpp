@@ -1694,10 +1694,34 @@ Utf16String Internals::frame_scheduler_state() const
     return "idle"_utf16;
 }
 
-void Internals::hold_next_frame()
+void Internals::hold_next_frame(Utf16String const& hold)
 {
     HTML::main_thread_event_loop().hold_next_frame_for_testing();
     Layout::RustFFI::render_state_hold_next_recording_for_testing();
+    if (hold == "before-present"sv)
+        HTML::main_thread_event_loop().hold_next_frame_before_present_for_testing();
+}
+
+bool Internals::last_frame_keyboard_scroll_state_is_current()
+{
+    auto& page = this->page();
+    if (!page.has_local_traversable())
+        return false;
+    return page.local_traversable()->presenter().last_keyboard_scroll_state_generation() == page.keyboard_scroll_state_generation();
+}
+
+Utf16String Internals::last_frame_presented_by(DOM::Document& document)
+{
+    auto* navigable = as_if<HTML::LocalNavigable>(document.navigable().ptr());
+    if (!navigable)
+        return {};
+    switch (navigable->presenter().last_frame_presented_by()) {
+    case Compositor::PresentedBy::Main:
+        return "main"_utf16;
+    case Compositor::PresentedBy::Flight:
+        return "flight"_utf16;
+    }
+    VERIFY_NOT_REACHED();
 }
 
 void Internals::release_held_frame()

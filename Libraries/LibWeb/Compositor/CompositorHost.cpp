@@ -43,6 +43,12 @@ void CompositorContextHandle::submit_frame(PresentationTurn turn, CompositorFram
     m_host.submit_frame(turn, move(frame));
 }
 
+RefPtr<CompositorFrameSink> CompositorContextHandle::frame_sink()
+{
+    m_host.flush_canvas_2d_stream();
+    return m_host.frame_sink();
+}
+
 void CompositorContextHandle::add_video_sink(Media::VideoSinkHandle video_sink_handle)
 {
     m_host.add_video_sink(video_sink_handle);
