@@ -228,7 +228,8 @@ pub(crate) struct StateFacts {
     pub(crate) layout_is_up_to_date_unless_built: bool,
     /// Whether preparing the document for rendering has something to do.
     pub(crate) rendering_preparation_pending: bool,
-    /// Whether the layout tree builds owe the host image resources.
+    /// Whether the layout tree builds owe the host image resources, which no write moves (see
+    /// [`DocumentHost::known_owed_image_resources`]).
     pub(crate) owes_image_resources: bool,
 }
 

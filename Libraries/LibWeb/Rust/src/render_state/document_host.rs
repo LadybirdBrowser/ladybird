@@ -505,6 +505,15 @@ impl DocumentHost {
         self.facts.get()
     }
 
+    /// Whether the layout tree builds owe the host image resources, where the host knows: none runs. Only a build of a
+    /// job or a frame comes to owe some, never a write, so the fact its last job or frame left holds whatever it queued.
+    pub(crate) fn known_owed_image_resources(&self) -> Option<bool> {
+        if !self.knows_engine_between_jobs() {
+            return None;
+        }
+        self.facts.get().map(|facts| facts.owes_image_resources)
+    }
+
     /// Whether the host knows what its engine holds as of the writes it queued: no job of the engine runs, as a host
     /// callback of one does, and no frame flies.
     pub(crate) fn knows_engine_between_jobs(&self) -> bool {
