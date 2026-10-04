@@ -18,6 +18,7 @@ use super::basic_block::BasicBlock;
 use super::basic_block::SourceMapEntry;
 use super::constant::AbstractOperationKind;
 use super::constant::WellKnownSymbolKind;
+use super::executable::CompiledRegexHandle;
 use super::executable::ExecutableData;
 use super::instruction::{Instruction, specialize_instruction_sequence};
 use super::operand::*;
@@ -339,7 +340,7 @@ pub struct Generator {
     identifier_table_index: HashMap<ak::Utf16FlyString, IdentifierTableIndex>,
     pub property_key_table: Vec<ak::Utf16FlyString>,
     property_key_table_index: HashMap<ak::Utf16FlyString, PropertyKeyTableIndex>,
-    pub compiled_regexes: Vec<*mut std::ffi::c_void>,
+    pub compiled_regexes: Vec<CompiledRegexHandle>,
 
     // --- Scope/unwind state ---
     pub boundaries: Vec<BlockBoundaryType>,
@@ -858,7 +859,7 @@ impl Generator {
 
     pub fn intern_regex(&mut self, compiled: *mut std::ffi::c_void) -> RegexTableIndex {
         let index = u32_from_usize(self.compiled_regexes.len());
-        self.compiled_regexes.push(compiled);
+        self.compiled_regexes.push(CompiledRegexHandle::new(compiled));
         RegexTableIndex(index)
     }
 

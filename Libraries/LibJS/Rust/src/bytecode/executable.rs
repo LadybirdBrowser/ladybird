@@ -18,6 +18,24 @@ use super::generator::PendingClassBlueprint;
 use super::generator::PendingSharedFunctionData;
 use super::operand::PropertyKeyTableIndex;
 
+/// A regular expression that `host::compile_regex()` compiled for the bytecode, which only the host looks into.
+#[repr(transparent)]
+pub struct CompiledRegexHandle(*mut c_void);
+
+// SAFETY: The frontend never dereferences the handle. It only carries it from the thread that compiled the bytecode to
+// the one that runs it, where the runtime adopts or frees it, and hosts let any thread do that.
+unsafe impl Send for CompiledRegexHandle {}
+
+impl CompiledRegexHandle {
+    pub fn new(handle: *mut c_void) -> Self {
+        Self(handle)
+    }
+
+    pub fn into_raw(self) -> *mut c_void {
+        self.0
+    }
+}
+
 /// How many inline cache slots of each kind the bytecode indexes into.
 #[derive(Clone, Copy)]
 pub struct ExecutableCacheCounts {
@@ -56,7 +74,7 @@ pub struct ExecutableData {
     pub class_blueprints: Vec<PendingClassBlueprint>,
     /// Handles from `host::compile_regex()`, owned by this executable until the
     /// runtime adopts them.
-    pub compiled_regexes: Vec<*mut c_void>,
+    pub compiled_regexes: Vec<CompiledRegexHandle>,
 }
 
 impl ExecutableData {

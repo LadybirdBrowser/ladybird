@@ -45,6 +45,7 @@
 //! - `cpp_runtime/` — `extern "C"` entry points and FFI for the C++ runtime
 //! - `host.rs` — Functions every embedding runtime provides to the frontend
 //! - `token.rs` — Token types
+//! - `tokenize.rs` — Tokens of a source without parsing it, for syntax highlighting
 //! - `lexer.rs` — Tokenizer: UTF-16 input → Token stream
 //! - `parser.rs` — Parser state, helpers, token consumption
 //! - `parser/expressions.rs` — Expression parsing (precedence climbing)
@@ -52,6 +53,8 @@
 //! - `parser/declarations.rs` — Functions, classes, variables, modules
 //! - `ast.rs` — AST type definitions
 //! - `bytecode/` — Bytecode generator, instruction types, and dumper
+//! - `bytecode_cache.rs` — Serialization of compiled programs for the bytecode cache
+//! - `breakpoint_positions.rs` — Where in a source a debugger can stop
 //! - `scope_collector.rs` — Scope analysis
 
 #[cfg(feature = "allocator")]
@@ -89,7 +92,9 @@ mod cpp_runtime;
 
 pub mod ast;
 pub mod ast_dump;
+pub mod breakpoint_positions;
 pub mod bytecode;
+pub mod bytecode_cache;
 pub mod compile;
 pub mod fast_hash;
 pub mod host;
@@ -98,6 +103,7 @@ pub mod parser;
 pub mod runtime;
 pub mod scope_collector;
 pub mod token;
+pub mod tokenize;
 
 #[cfg(test)]
 mod test_host;

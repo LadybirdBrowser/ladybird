@@ -15,6 +15,12 @@ use crate::bytecode;
 use crate::bytecode::executable::ExecutableData;
 use crate::bytecode::generator::PendingSharedFunctionData;
 use crate::bytecode::generator::PrecompiledFunction;
+use crate::bytecode_cache::CloneBytecodeCacheBlobOwner;
+use crate::bytecode_cache::DecodedCacheBlob;
+use crate::bytecode_cache::ForeignBytecodeCacheBlobOwner;
+use crate::bytecode_cache::FreeBytecodeCacheBlobOwner;
+use crate::bytecode_cache::decode_blob;
+use crate::bytecode_cache::serialize_compiled_program;
 use crate::compile::CompiledProgram;
 use crate::compile::CompiledProgramBytecode;
 use crate::compile::CompiledScript;
@@ -24,17 +30,16 @@ use crate::compile::ParsedProgram;
 use crate::compile::ScriptDeclarations;
 use crate::compile::collect_eval_declarations;
 use crate::compile::collect_script_declarations;
-use crate::compile::compile_function_payload_to_bytecode;
+use crate::compile::compile_function;
 use crate::compile::compile_module_as_async_to_bytecode;
-use crate::compile::compile_parsed_program_off_thread_impl;
+use crate::compile::compile_parsed_program_off_thread;
 use crate::compile::compile_program_body_to_bytecode;
 use crate::compile::compile_script;
 use crate::compile::new_module_async_generator;
 use crate::compile::new_program_generator;
 use crate::compile::parse;
-use crate::lexer;
 use crate::parser::ProgramType;
-use crate::token;
+use crate::tokenize::tokenize;
 use std::cell::RefCell;
 use std::ffi::c_void;
 use std::rc::Rc;
@@ -50,17 +55,13 @@ pub struct BytecodeCacheBlob {
 }
 
 pub struct DecodedBytecodeCacheBlob {
-    _blob: Rc<RefCell<bytecode_cache::DecodedCacheBlob>>,
+    _blob: Rc<RefCell<DecodedCacheBlob>>,
 }
 
 fn validate_decoded_blob(blob: &DecodedBytecodeCacheBlob, source_len: usize) -> bool {
     let mut decoded_blob = blob._blob.borrow_mut();
     decoded_blob.validate_for_materialization(source_len).is_ok()
 }
-
-// SAFETY: `CompiledFunction` owns GC-free codegen state and is transferred
-// from a compile worker back to the main thread for materialization.
-unsafe impl Send for CompiledFunction {}
 
 // =============================================================================
 // Internal helpers
@@ -255,7 +256,7 @@ pub unsafe extern "C" fn rust_free_parsed_program(parsed: *mut ParsedProgram) {
     }
 }
 
-fn compile_parsed_program_off_thread_impl_into_raw(
+fn compile_parsed_program_off_thread_into_raw(
     parsed: *mut ParsedProgram,
     source_len: usize,
     function_precompile_mode: FunctionPrecompileMode,
@@ -267,7 +268,7 @@ fn compile_parsed_program_off_thread_impl_into_raw(
             }
 
             let parsed = Box::from_raw(parsed);
-            Box::into_raw(Box::new(compile_parsed_program_off_thread_impl(
+            Box::into_raw(Box::new(compile_parsed_program_off_thread(
                 *parsed,
                 source_len,
                 function_precompile_mode,
@@ -315,7 +316,7 @@ pub unsafe extern "C" fn rust_compile_parsed_program_off_thread(
     parsed: *mut ParsedProgram,
     source_len: usize,
 ) -> *mut CompiledProgram {
-    compile_parsed_program_off_thread_impl_into_raw(parsed, source_len, FunctionPrecompileMode::EagerOnly)
+    compile_parsed_program_off_thread_into_raw(parsed, source_len, FunctionPrecompileMode::EagerOnly)
 }
 
 /// Fully compile a parsed program to an off-thread bytecode artifact for persistence.
@@ -330,7 +331,7 @@ pub unsafe extern "C" fn rust_compile_parsed_program_fully_off_thread(
     parsed: *mut ParsedProgram,
     source_len: usize,
 ) -> *mut CompiledProgram {
-    compile_parsed_program_off_thread_impl_into_raw(parsed, source_len, FunctionPrecompileMode::All)
+    compile_parsed_program_off_thread_into_raw(parsed, source_len, FunctionPrecompileMode::All)
 }
 
 /// Free a CompiledProgram without materializing it.
@@ -340,28 +341,7 @@ pub unsafe extern "C" fn rust_compile_parsed_program_fully_off_thread(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_free_compiled_program(compiled: *mut CompiledProgram) {
     unsafe {
-        fn free_executable_regexes(executable: &mut ExecutableData) {
-            for regex in executable.compiled_regexes.drain(..) {
-                unsafe { crate::host::free_compiled_regex(regex) };
-            }
-            for shared_data in &mut executable.shared_function_data {
-                if let Some(precompiled) = &mut shared_data.precompiled_function {
-                    free_executable_regexes(&mut precompiled.executable);
-                }
-            }
-        }
-
-        let mut compiled = Box::from_raw(compiled);
-        match &mut compiled.bytecode {
-            CompiledProgramBytecode::Program(executable) | CompiledProgramBytecode::AsyncModule(executable) => {
-                free_executable_regexes(executable);
-            }
-        }
-        for declaration in &mut compiled.declaration_functions {
-            if let Some(precompiled) = &mut declaration.precompiled_function {
-                free_executable_regexes(&mut precompiled.executable);
-            }
-        }
+        Box::from_raw(compiled).discard();
     }
 }
 
@@ -377,47 +357,12 @@ pub unsafe extern "C" fn rust_collect_compiled_program_breakpoint_positions(
     context: *mut c_void,
     callback: unsafe extern "C" fn(context: *mut c_void, line: u32, column: u32),
 ) {
-    fn collect_precompiled_function(
-        precompiled: &PrecompiledFunction,
-        context: *mut c_void,
-        callback: unsafe extern "C" fn(context: *mut c_void, line: u32, column: u32),
-    ) {
-        collect_bytecode(&precompiled.executable, context, callback);
-    }
-
-    fn collect_bytecode(
-        executable: &ExecutableData,
-        context: *mut c_void,
-        callback: unsafe extern "C" fn(context: *mut c_void, line: u32, column: u32),
-    ) {
-        for entry in &executable.source_map {
-            if entry.line != 0 {
-                unsafe { callback(context, entry.line, entry.column) };
-            }
-        }
-        for shared_data in &executable.shared_function_data {
-            if let Some(precompiled) = &shared_data.precompiled_function {
-                collect_precompiled_function(precompiled, context, callback);
-            }
-        }
-    }
-
     unsafe {
         abort_on_panic(|| {
             if compiled.is_null() {
                 return;
             }
-            let compiled = &*compiled;
-            match &compiled.bytecode {
-                CompiledProgramBytecode::Program(executable) | CompiledProgramBytecode::AsyncModule(executable) => {
-                    collect_bytecode(executable, context, callback);
-                }
-            }
-            for declaration in &compiled.declaration_functions {
-                if let Some(precompiled) = &declaration.precompiled_function {
-                    collect_precompiled_function(precompiled, context, callback);
-                }
-            }
+            (*compiled).for_each_breakpoint_position(|position| callback(context, position.line, position.column));
         });
     }
 }
@@ -459,7 +404,7 @@ pub unsafe extern "C" fn rust_serialize_compiled_program_for_bytecode_cache(
             let source_hash = std::slice::from_raw_parts(source_hash, source_hash_len)
                 .try_into()
                 .expect("source hash length was checked");
-            let bytes = bytecode_cache::serialize_compiled_program(&*compiled, program_type, source_hash);
+            let bytes = serialize_compiled_program(&*compiled, program_type, source_hash);
             let length = bytes.len();
             let mut bytes = bytes.into_boxed_slice();
             let data = bytes.as_mut_ptr();
@@ -498,8 +443,8 @@ pub unsafe extern "C" fn rust_decode_bytecode_cache_blob_with_owner(
     expected_source_hash: *const u8,
     expected_source_hash_len: usize,
     owner: *mut c_void,
-    clone_owner: bytecode_cache::CloneBytecodeCacheBlobOwner,
-    free_owner: bytecode_cache::FreeBytecodeCacheBlobOwner,
+    clone_owner: CloneBytecodeCacheBlobOwner,
+    free_owner: FreeBytecodeCacheBlobOwner,
 ) -> *mut DecodedBytecodeCacheBlob {
     unsafe {
         abort_on_panic(|| {
@@ -521,11 +466,11 @@ pub unsafe extern "C" fn rust_decode_bytecode_cache_blob_with_owner(
             let expected_source_hash = std::slice::from_raw_parts(expected_source_hash, expected_source_hash_len)
                 .try_into()
                 .expect("source hash length was checked");
-            let Some(blob) = bytecode_cache::decode_blob_with_foreign_owner(
+            let Some(blob) = decode_blob(
                 std::slice::from_raw_parts(data, length),
                 expected_program_type,
                 expected_source_hash,
-                bytecode_cache::ForeignBytecodeCacheBlobOwner {
+                ForeignBytecodeCacheBlobOwner {
                     owner,
                     clone_owner,
                     free_owner,
@@ -1908,8 +1853,12 @@ pub unsafe extern "C" fn rust_compile_function(
                 return std::ptr::null_mut();
             }
             let payload = Box::from_raw(rust_function_ast as *mut ast::FunctionPayload);
-            let precompiled =
-                crate::compile::compile_function(payload, source_len, builtin_abstract_operations_enabled);
+            let precompiled = compile_function(
+                payload,
+                source_len,
+                builtin_abstract_operations_enabled,
+                FunctionPrecompileMode::EagerOnly,
+            );
 
             write_sfd_metadata(sfd_ptr, &precompiled.metadata);
 
@@ -1946,12 +1895,10 @@ pub unsafe extern "C" fn rust_compile_function_off_thread(
                 return std::ptr::null_mut();
             }
             let payload = Box::from_raw(rust_function_ast as *mut ast::FunctionPayload);
-            let arena = payload.arena.clone();
-            let (_function_data, precompiled) = compile_function_payload_to_bytecode(
-                *payload,
+            let precompiled = compile_function(
+                payload,
                 source_len,
                 builtin_abstract_operations_enabled,
-                arena,
                 FunctionPrecompileMode::All,
             );
             Box::into_raw(Box::new(CompiledFunction { precompiled }))
@@ -2079,22 +2026,16 @@ pub unsafe extern "C" fn rust_tokenize(
             let Some(source_slice) = source_from_raw(source, source_len) else {
                 return;
             };
-            let mut lex = lexer::Lexer::new(source_slice, 1, 0);
-            loop {
-                let tok = lex.next();
-                let is_eof = tok.token_type == token::TokenType::Eof;
-                let ffi_tok = FFIToken {
-                    token_type: tok.token_type as u8,
-                    category: tok.token_type.category() as u8,
-                    offset: tok.value_start,
-                    length: tok.value_len,
-                    trivia_offset: tok.trivia_start,
-                    trivia_length: tok.trivia_len,
+            for token in tokenize(source_slice) {
+                let ffi_token = FFIToken {
+                    token_type: token.token_type as u8,
+                    category: token.category as u8,
+                    offset: token.offset,
+                    length: token.length,
+                    trivia_offset: token.trivia_offset,
+                    trivia_length: token.trivia_length,
                 };
-                callback(ctx, &raw const ffi_tok);
-                if is_eof {
-                    break;
-                }
+                callback(ctx, &raw const ffi_token);
             }
         });
     }

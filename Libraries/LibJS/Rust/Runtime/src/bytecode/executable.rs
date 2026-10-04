@@ -1232,7 +1232,7 @@ impl Executable {
         // The regexes were only compiled to report early errors; the runtime compiles them again when it runs.
         for regex in data.compiled_regexes {
             // SAFETY: Each handle came from rust_compile_regex and is freed once.
-            unsafe { rust_free_compiled_regex(regex) };
+            unsafe { rust_free_compiled_regex(regex.into_raw()) };
         }
         // The constants stay rooted until the executable that holds them is allocated.
         let rooted_constants = MarkedVec::with_capacity(vm, data.constants.len());
