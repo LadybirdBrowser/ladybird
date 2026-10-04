@@ -458,7 +458,7 @@ Web::CompositorContextId WebContentPage::compositor_context_id()
 {
     if (!m_is_open)
         return Web::compositor_context_id_for_page(m_id);
-    return client().compositor_context_id_for_page(m_id);
+    return client().compositor_context_id_for_page(*this);
 }
 
 bool WebContentPage::handle_key_event_in_compositor(Web::KeyEvent const& event)

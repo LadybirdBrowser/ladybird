@@ -140,7 +140,7 @@ public:
     ErrorOr<void> recreate_compositor_contexts(Badge<Application>);
     void replay_compositor_view_state_after_reconnect(Badge<Application>);
     void notify_compositor_process_reconnected(Badge<Application>);
-    Web::CompositorContextId compositor_context_id_for_page(Web::PageId page_id);
+    Web::CompositorContextId compositor_context_id_for_page(WebContentPage const&);
     Web::CompositorContextId allocate_compositor_context(Web::PageId page_id, Web::PagePresentationRegistration);
     Optional<Web::PageId> page_id_for_compositor_context_id(Web::CompositorContextId) const;
     void close_if_unused(Badge<CanonicalNavigable>) { close_server_if_unused(); }
