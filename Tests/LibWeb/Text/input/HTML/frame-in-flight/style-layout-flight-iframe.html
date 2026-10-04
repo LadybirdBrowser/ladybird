@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<iframe id="frame" style="width: 200px; height: 100px; border: none" srcdoc="<style>#inner { height: 20px } @media (min-width: 250px) { #inner { height: 40px } }</style><body style='margin: 0'><div id=inner>child</div>"></iframe>
+<script>
+    // A container resizes its iframe in an animation frame callback. The child's viewport, media queries and box follow
+    // the new size in the same rendering update, which delivers the child's resize observation before any task after
+    // it. The observation shows whether the update delivered it before the task a held frame lets run beside it, which
+    // it does not where the update flew.
+    asyncTest(async done => {
+        const frameElement = document.getElementById("frame");
+        if (!frameElement.contentDocument?.getElementById("inner"))
+            await new Promise(resolve => frameElement.addEventListener("load", resolve, { once: true }));
+        const child = frameElement.contentDocument;
+        const inner = child.getElementById("inner");
+        const observed = [];
+        const observer = new child.defaultView.ResizeObserver(entries => {
+            for (const entry of entries)
+                observed.push(`${entry.contentRect.width}x${entry.contentRect.height}`);
+        });
+        observer.observe(inner);
+
+        const result = await whileRecordingInFlight(() => {
+            observed.length = 0;
+            frameElement.style.width = "300px";
+        }, state => ({ state, observed: observed.join(", ") || "nothing" }));
+        println(`state in the next task: ${result.state}`);
+        println(`child resize observed before the next task: ${result.observed}`);
+        await twoFrames();
+        println(`child resize observed: ${observed.join(", ")}`);
+        println(`child viewport width: ${child.defaultView.innerWidth}`);
+        println(`child media query matches: ${child.defaultView.matchMedia("(min-width: 250px)").matches}`);
+        println(`child box: ${inner.offsetWidth}x${inner.offsetHeight}`);
+
+        // Without a hold, the child's observation comes before a task queued by the callback that resized its iframe.
+        observed.length = 0;
+        requestAnimationFrame(() => {
+            frameElement.style.width = "220px";
+            setTimeout(() => observed.push("timeout"), 0);
+        });
+        await twoFrames();
+        println(`order: ${observed.join(", ")}`);
+        observer.disconnect();
+        done();
+    });
+</script>

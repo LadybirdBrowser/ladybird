@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../../expected/HTML/recording-flight-iframe-order-ref.html" />
+<style>
+    body { margin: 0; }
+    #box { width: 100px; height: 100px; background: red; }
+    iframe { display: block; width: 100px; height: 100px; border: none; }
+</style>
+<div id="box"></div>
+<div style="content-visibility: auto"></div>
+<iframe id="frame" srcdoc="<style>body { margin: 0; background: red; }</style><div style='content-visibility: auto'></div>"></iframe>
+<script>
+    // A container and the document of its iframe both change in one animation frame callback, whose frame a task then
+    // runs beside: the frames of both documents present, the child's ahead of the container's that composes it. An
+    // element of content-visibility: auto keeps each document's style in step with the rendering update, so what could
+    // fly here is the recordings alone.
+    const nextFrame = () => new Promise(resolve => requestAnimationFrame(resolve));
+    window.onload = async () => {
+        await nextFrame();
+        await nextFrame();
+        const child = document.getElementById("frame").contentDocument;
+        await new Promise(resolve => {
+            requestAnimationFrame(() => {
+                internals.holdNextFrame();
+                internals.setManualRenderingOpportunities(true);
+                document.getElementById("box").style.background = "green";
+                child.body.style.background = "green";
+                setTimeout(() => {
+                    internals.releaseHeldFrame();
+                    internals.setManualRenderingOpportunities(false);
+                    resolve();
+                }, 0);
+            });
+        });
+        await nextFrame();
+        await nextFrame();
+        internals.signalTestIsDone("PASS");
+    };
+</script>

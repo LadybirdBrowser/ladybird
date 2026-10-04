@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<div id="box" style="width: 50px; height: 20px"></div>
+<iframe id="frame" style="width: 200px; height: 100px; border: none" srcdoc="<body style='margin: 0'><div id=inner style='width: 50px; height: 20px'>child</div>"></iframe>
+<script>
+    // Only the document of an iframe changes in an animation frame callback. The container has no style to update, and
+    // the child's style and layout fly in its turn. The child's resize observation shows whether the update delivered it
+    // before the task a held frame lets run beside it, which it does not where the update flew.
+    asyncTest(async done => {
+        const frameElement = document.getElementById("frame");
+        if (!frameElement.contentDocument?.getElementById("inner"))
+            await new Promise(resolve => frameElement.addEventListener("load", resolve, { once: true }));
+        const child = frameElement.contentDocument;
+        const inner = child.getElementById("inner");
+        const observed = [];
+        const observer = new child.defaultView.ResizeObserver(entries => {
+            for (const entry of entries)
+                observed.push(`${entry.contentRect.width}x${entry.contentRect.height}`);
+        });
+        observer.observe(inner);
+
+        const result = await whileRecordingInFlight(() => {
+            observed.length = 0;
+            internals.resetStyleInvalidationCounters();
+            inner.style.width = "80px";
+        }, state => ({ state, observed: observed.join(", ") || "nothing" }));
+        println(`state in the next task: ${result.state}`);
+        println(`child resize observed before the next task: ${result.observed}`);
+        await twoFrames();
+        println(`child resize observed: ${observed.join(", ")}`);
+        println(`child box: ${inner.offsetWidth}x${inner.offsetHeight}`);
+        println(`container styles recomputed: ${internals.getStyleInvalidationCounters().elementStyleRecomputations}`);
+        println(`container box: ${box.offsetWidth}x${box.offsetHeight}, iframe: ${frameElement.offsetWidth}x${frameElement.offsetHeight}`);
+        observer.disconnect();
+        done();
+    });
+</script>

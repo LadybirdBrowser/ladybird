@@ -1,0 +1,7 @@
+state in the next task: idle
+child resize observed before the next task: 300x40
+child resize observed: 300x40
+child viewport width: 300
+child media query matches: true
+child box: 300x40
+order: 220x20, timeout
