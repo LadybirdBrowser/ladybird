@@ -2223,19 +2223,13 @@ void CanonicalTraversable::update_for_navigable_creation_or_destruction(HistoryO
     apply_history_step(operation, *step, false, {}, Web::HTML::UserNavigationInvolvement::None, {});
 }
 
-// Direct operations have their complete input in canonical state, so they enter apply-the-history-step at their
-// queue position without a WebContent preparation round trip.
-static bool history_operation_is_direct(Web::HistoryOperationParameters const& parameters)
+// Finalizing a cross-document navigation and resuming a traversal begin, at their queue position, with steps in the
+// requesting process, which can find a newer navigation there. The other operations have their complete input in
+// canonical state.
+static bool history_operation_needs_preparation(Web::HistoryOperationParameters const& parameters)
 {
-    return parameters.has<Web::ReloadHistoryOperationParameters>()
-        || parameters.has<Web::TraverseByDeltaHistoryOperationParameters>()
-        || parameters.has<Web::TraverseToStepHistoryOperationParameters>()
-        || parameters.has<Web::NavigationAPITraverseHistoryOperationParameters>()
-        || parameters.has<Web::FinalizeSameDocumentNavigationHistoryOperationParameters>()
-        || parameters.has<Web::NavigableCreationHistoryOperationParameters>()
-        || parameters.has<Web::NavigableDestructionHistoryOperationParameters>()
-        || parameters.has<Web::CloseTopLevelTraversableHistoryOperationParameters>()
-        || parameters.has<Web::FlushSessionHistoryTraversalQueueOperationParameters>();
+    return parameters.has<Web::FinalizeCrossDocumentNavigationHistoryOperationParameters>()
+        || parameters.has<Web::ResumeTraverseHistoryOperationParameters>();
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#traverse-the-history-by-a-delta
@@ -2515,7 +2509,7 @@ void CanonicalTraversable::start_history_operation(HistoryOperation& operation, 
     if (operation.initiating_page)
         add_history_operation_completion_endpoint(operation, *operation.initiating_page);
 
-    if (history_operation_is_direct(operation.parameters)) {
+    if (!history_operation_needs_preparation(operation.parameters)) {
         run_direct_history_operation(operation);
         return;
     }
@@ -2708,67 +2702,25 @@ void CanonicalTraversable::finalize_a_cross_document_navigation(HistoryOperation
 void CanonicalTraversable::did_receive_history_operation_ready(WebContentPage& source_page, Web::HTML::CrossProcessId operation_id, Web::HistoryOperationReadyResult result)
 {
     auto* operation = find_history_operation(operation_id);
-    if (!operation || operation->algorithm)
-        return;
-    if (history_operation_is_direct(operation->parameters))
-        return;
-    if (!operation->was_initiated_by(source_page))
+    if (!operation || operation->algorithm || !history_operation_needs_preparation(operation->parameters) || !operation->was_initiated_by(source_page))
         return;
     if (!navigation_transaction_matches(*operation, source_page)) {
         finish_history_operation(operation_id, Web::HTML::HistoryStepResult::Applied, {});
         return;
     }
-
-    if (result.has<Web::HTML::HistoryStepResult>()) {
-        finish_history_operation(operation_id, result.get<Web::HTML::HistoryStepResult>(), {});
+    if (auto const* step_result = result.get_pointer<Web::HTML::HistoryStepResult>()) {
+        finish_history_operation(operation_id, *step_result, {});
         return;
     }
 
-    VERIFY(!operation->is_browser_traversal());
-    auto const& request = operation->parameters;
-    auto result_matches_request = request.visit(
-        [&](Web::FinalizeSameDocumentNavigationHistoryOperationParameters const&) { return false; },
-        [&](Web::CloseTopLevelTraversableHistoryOperationParameters const&) { return false; },
-        [&](Web::FlushSessionHistoryTraversalQueueOperationParameters const&) { return false; },
-        [&](auto const&) { return result.has<Empty>(); });
-    if (!result_matches_request) {
-        finish_history_operation(operation_id, Web::HTML::HistoryStepResult::NoMatchingEntry, {});
-        return;
-    }
-
-    request.visit(
+    operation->parameters.visit(
         [&](Web::FinalizeCrossDocumentNavigationHistoryOperationParameters const&) {
             finalize_a_cross_document_navigation(*operation);
-        },
-        [&](Web::ReloadHistoryOperationParameters const&) {
-            VERIFY_NOT_REACHED();
-        },
-        [&](Web::TraverseByDeltaHistoryOperationParameters const&) {
-            VERIFY_NOT_REACHED();
-        },
-        [&](Web::TraverseToStepHistoryOperationParameters const&) {
-            VERIFY_NOT_REACHED();
-        },
-        [&](Web::NavigationAPITraverseHistoryOperationParameters const&) {
-            VERIFY_NOT_REACHED();
         },
         [&](Web::ResumeTraverseHistoryOperationParameters const& parameters) {
             resume_applying_the_traverse_history_step(*operation, parameters.target_step, parameters.user_involvement);
         },
-        [&](Web::NavigableCreationHistoryOperationParameters const&) {
-            VERIFY_NOT_REACHED();
-        },
-        [&](Web::NavigableDestructionHistoryOperationParameters const&) {
-            VERIFY_NOT_REACHED();
-        },
-        [&](Web::FinalizeSameDocumentNavigationHistoryOperationParameters const&) {
-            VERIFY_NOT_REACHED();
-        },
-        [&](Web::CloseTopLevelTraversableHistoryOperationParameters const&) {
-            // Close runs entirely in the requesting process at this queue position and must complete with proceed=false.
-            VERIFY_NOT_REACHED();
-        },
-        [&](Web::FlushSessionHistoryTraversalQueueOperationParameters const&) {
+        [](auto const&) {
             VERIFY_NOT_REACHED();
         });
 }
