@@ -804,6 +804,42 @@ ErrorOr<NonnullRefPtr<WebContentPage>> CanonicalNavigable::obtain_page_to_host_i
     return *host->page(page_id);
 }
 
+ErrorOr<CanonicalNavigable::PageToPopulateDocument> CanonicalNavigable::obtain_page_to_populate_document(CanonicalSessionHistoryEntry& entry, NavigationLoader& loader, WebContentPage& page_that_created_navigation_params)
+{
+    auto response_document = loader.response_document();
+    if (!response_document.has_value())
+        return PageToPopulateDocument { page_that_created_navigation_params, nullptr };
+
+    NonnullRefPtr document_state = entry.document_state;
+    response_document->document_id = Application::the().allocate_ui_process_cross_process_id();
+    auto document = create_and_initialize_a_document(*response_document);
+    loader.set_document(*document, *this);
+    if (ongoing_navigation() && ongoing_navigation()->history_entry == &entry)
+        populate_document_for_ongoing_navigation(document, loader.result().inline_content_origin);
+    else
+        populate_document(document_state, document, loader.result().inline_content_origin);
+
+    // A document created for inline content stands in for the resource the process that fetched it could not load; that
+    // process hosts it.
+    NonnullRefPtr<WebContentPage> host = page_that_created_navigation_params;
+    if (!response_document->is_inline_content || is_top_level_traversable()) {
+        auto host_or_error = obtain_page_to_host(*document, document_state->initiator_origin);
+        if (host_or_error.is_error()) {
+            abandon_populated_document(*document);
+            return host_or_error.release_error();
+        }
+        host = host_or_error.release_value();
+
+        // Obtaining the page can replace the tab's process, whose change callbacks can abandon the document.
+        if (!document_state->populated_document.has_value() || document_state->populated_document->document != document)
+            return Error::from_string_literal("The populated document was abandoned");
+    }
+
+    // The host takes the navigable over when the document is activated, after the displayed document is unloaded.
+    place_populated_document(*document, *host);
+    return PageToPopulateDocument { move(host), move(document) };
+}
+
 RefPtr<CanonicalDocument> CanonicalNavigable::document_with_id(Web::HTML::CrossProcessId id) const
 {
     if (active_document().id() == id)

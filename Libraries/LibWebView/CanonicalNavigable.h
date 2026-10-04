@@ -153,6 +153,14 @@ public:
     // for the traversable, see CanonicalTraversable::obtain_page_to_host_traversable.
     ErrorOr<NonnullRefPtr<WebContentPage>> obtain_page_to_host(CanonicalDocument const&, Optional<URL::Origin> const& initiator_origin);
 
+    // https://html.spec.whatwg.org/multipage/browsing-the-web.html#attempt-to-populate-the-history-entry's-document
+    // The page to run the task step 5 queues, with the document it populates if the response creates one.
+    struct PageToPopulateDocument {
+        NonnullRefPtr<WebContentPage> page;
+        RefPtr<CanonicalDocument> document;
+    };
+    ErrorOr<PageToPopulateDocument> obtain_page_to_populate_document(CanonicalSessionHistoryEntry&, NavigationLoader&, WebContentPage& page_that_created_navigation_params);
+
     // A page hosting a document populated for the navigable when it is not the page hosting the displayed one. The
     // displayed document stays with its host until the next is activated, so that it is unloaded there before the
     // container is handed over.

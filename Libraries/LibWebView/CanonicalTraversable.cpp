@@ -1433,38 +1433,28 @@ void CanonicalTraversable::continue_history_navigation_population(Web::HTML::Cro
         return;
     auto loader = move(pending_job.value()->population_loader);
 
-    // The task queued by step 5 of attempting to populate the history entry's document runs in the process hosting
-    // the browsing context that the document it creates belongs to. A response that creates no document is finished
-    // by the process that fetched it.
-    auto response_document = loader->response_document();
-    if (response_document.has_value()) {
-        response_document->document_id = Application::the().allocate_ui_process_cross_process_id();
-        pending_job.value()->did_populate_document = CanonicalNavigable::DidPopulateDocument::Yes;
-        auto document = navigable->create_and_initialize_a_document(*response_document);
-        pending_job.value()->document = document;
-        loader->set_document(*document, *navigable);
-        navigable->populate_document(pending_job.value()->job.target_entry->document_state, *document, loader->result().inline_content_origin);
-
-        // A document created for inline content stands in for the resource the process that fetched it could not
-        // load; that process hosts it.
-        if (!response_document->is_inline_content || navigable->is_top_level_traversable()) {
-            auto host = navigable->obtain_page_to_host(*document, pending_job.value()->job.target_entry->document_state->initiator_origin);
-            if (host.is_error()) {
-                did_fail_history_navigation_population(operation_id, navigable_id, *endpoint);
-                return;
-            }
-            // Obtaining the page can replace the tab's process, whose change callbacks can finish the operation.
-            endpoint = host.release_value();
-            operation = find_history_operation(operation_id);
-            if (!operation)
-                return;
-            pending_job = operation->pending_changing_jobs.get(navigable_id);
-            if (!pending_job.has_value())
-                return;
-        }
-        // The host takes the navigable over when the document is activated, after the displayed document is unloaded.
-        navigable->place_populated_document(*document, *endpoint);
+    NonnullRefPtr target_entry = pending_job.value()->job.target_entry;
+    auto host_or_error = navigable->obtain_page_to_populate_document(target_entry, *loader, *endpoint);
+    if (host_or_error.is_error()) {
+        did_fail_history_navigation_population(operation_id, navigable_id, *endpoint);
+        return;
     }
+    auto host = host_or_error.release_value();
+
+    // Obtaining the page can replace the tab's process, whose change callbacks can finish the operation.
+    operation = find_history_operation(operation_id);
+    if (operation)
+        pending_job = operation->pending_changing_jobs.get(navigable_id);
+    if (!operation || !pending_job.has_value()) {
+        if (host.document)
+            navigable->abandon_populated_document(*host.document);
+        return;
+    }
+    if (host.document) {
+        pending_job.value()->did_populate_document = CanonicalNavigable::DidPopulateDocument::Yes;
+        pending_job.value()->document = host.document;
+    }
+    endpoint = host.page;
     add_history_operation_completion_endpoint(*operation, *endpoint);
     auto& job = *pending_job.value();
     job.population_loader = move(loader);
