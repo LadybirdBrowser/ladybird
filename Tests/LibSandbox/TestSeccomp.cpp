@@ -458,8 +458,7 @@ TEST_CASE(process_creation_policy_lets_a_child_close_undeclared_descriptors)
 TEST_CASE(ipc_policy_serves_descriptors_the_browser_already_handed_over)
 {
     // Made out here and inherited through fork(), which is how a helper comes by the channel the
-    // Browser minted for it. Making one inside the sandbox would prove nothing about that, because
-    // the group lets a process pair sockets with itself as well.
+    // Browser minted for it.
     int handed_over[2];
     VERIFY(socketpair(AF_UNIX, SOCK_STREAM, 0, handed_over) == 0);
 
@@ -480,12 +479,30 @@ TEST_CASE(ipc_policy_serves_descriptors_the_browser_already_handed_over)
     VERIFY(close(handed_over[1]) == 0);
 }
 
-TEST_CASE(ipc_policy_lets_a_process_pair_sockets_with_itself)
+TEST_CASE(ipc_policy_alone_does_not_pair_sockets)
+{
+    // A helper that only uses the channels the Browser handed it has no reason to make sockets of any kind.
+    auto status = run_with_policy(
+        [](Sandbox::SeccompPolicy& policy) { policy.allow_ipc(); },
+        [] {
+            int fds[2];
+            (void)socketpair(AF_UNIX, SOCK_STREAM, 0, fds);
+        });
+
+    EXPECT(WIFEXITED(status));
+    if (WIFEXITED(status))
+        EXPECT_EQ(WEXITSTATUS(status), 128 + SIGSYS);
+}
+
+TEST_CASE(socket_pair_policy_lets_a_process_pair_sockets_with_itself)
 {
     // LibIPC makes a pair inside a helper whenever it hands one end to another process, so this has
     // to keep working even though creating any other kind of socket does not.
     auto status = run_with_policy(
-        [](Sandbox::SeccompPolicy& policy) { policy.allow_ipc(); },
+        [](Sandbox::SeccompPolicy& policy) {
+            policy.allow_ipc();
+            policy.allow_socket_pairs();
+        },
         [] {
             for (auto type : { SOCK_STREAM, SOCK_SEQPACKET }) {
                 for (auto flags : Array<int, 4> { 0, SOCK_CLOEXEC, SOCK_NONBLOCK, SOCK_CLOEXEC | SOCK_NONBLOCK }) {
@@ -508,10 +525,13 @@ TEST_CASE(ipc_policy_lets_a_process_pair_sockets_with_itself)
         EXPECT_EQ(WEXITSTATUS(status), 0);
 }
 
-TEST_CASE(ipc_policy_refuses_datagram_socketpairs)
+TEST_CASE(socket_pair_policy_refuses_datagram_socketpairs)
 {
     auto status = run_with_policy(
-        [](Sandbox::SeccompPolicy& policy) { policy.allow_ipc(); },
+        [](Sandbox::SeccompPolicy& policy) {
+            policy.allow_ipc();
+            policy.allow_socket_pairs();
+        },
         [] {
             for (auto type : Array<int, 3> { SOCK_DGRAM, SOCK_RAW, SOCK_STREAM | 0x100 }) {
                 for (auto flags : Array<int, 4> { 0, SOCK_CLOEXEC, SOCK_NONBLOCK, SOCK_CLOEXEC | SOCK_NONBLOCK }) {
@@ -527,11 +547,14 @@ TEST_CASE(ipc_policy_refuses_datagram_socketpairs)
         EXPECT_EQ(WEXITSTATUS(status), 0);
 }
 
-TEST_CASE(ipc_policy_refuses_socketpairs_outside_the_unix_domain)
+TEST_CASE(socket_pair_policy_refuses_socketpairs_outside_the_unix_domain)
 {
     // Unfiltered, each of these fails with another error, after the kernel has gone into the domain.
     auto status = run_with_policy(
-        [](Sandbox::SeccompPolicy& policy) { policy.allow_ipc(); },
+        [](Sandbox::SeccompPolicy& policy) {
+            policy.allow_ipc();
+            policy.allow_socket_pairs();
+        },
         [] {
             for (auto domain : Array<int, 4> { AF_INET, AF_INET6, AF_NETLINK, AF_PACKET }) {
                 for (auto type : Array<int, 2> { SOCK_STREAM, SOCK_SEQPACKET }) {

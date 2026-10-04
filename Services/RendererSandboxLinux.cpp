@@ -49,6 +49,7 @@ ErrorOr<void> apply_sandbox(StringView, AudioAccess audio_access)
     policy.allow_filesystem_writes();
     policy.allow_file_descriptor_operations();
     policy.allow_ipc();
+    policy.allow_socket_pairs();
     if (audio_access == AudioAccess::Yes) {
         policy.broker_unix_socket_connections();
         policy.allow_pulseaudio_client_file_operations();

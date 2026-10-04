@@ -233,6 +233,7 @@ ErrorOr<void> apply_sandbox(StringView, StringView, StringView)
     policy.allow_filesystem_writes();
     policy.allow_file_descriptor_operations();
     policy.allow_ipc();
+    policy.allow_socket_pairs();
     policy.allow_gpu_device_operations();
     policy.allow_common_runtime();
     policy.allow_executable_memory_mappings();

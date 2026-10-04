@@ -1,6 +1,11 @@
 if (LINUX)
     ladybird_test(TestLandlock.cpp LibSandbox LIBS LibSandbox)
     ladybird_test(TestSeccomp.cpp LibSandbox LIBS LibSandbox LibCore)
+
+    # Applies the real sandbox of the image decoder, so it builds its sandbox source.
+    ladybird_test(TestImageDecoderSandbox.cpp LibSandbox LIBS LibSandbox LibCore)
+    target_sources(TestImageDecoderSandbox PRIVATE ${LADYBIRD_SOURCE_DIR}/Services/ImageDecoder/SandboxLinux.cpp)
+    target_include_directories(TestImageDecoderSandbox PRIVATE ${LADYBIRD_SOURCE_DIR}/Services)
 endif()
 
 if (APPLE)

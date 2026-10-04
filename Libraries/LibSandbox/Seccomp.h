@@ -25,6 +25,7 @@ public:
     void allow_file_descriptor_operations();
     void allow_process_creation();
     void allow_ipc();
+    void allow_socket_pairs();
     void broker_unix_socket_connections();
     void allow_pulseaudio_client_file_operations();
     void allow_network();

@@ -43,6 +43,7 @@ ErrorOr<void> apply_sandbox(StringView)
     policy.allow_filesystem_metadata_queries();
     policy.allow_file_descriptor_operations();
     policy.allow_ipc();
+    policy.allow_socket_pairs();
     policy.broker_unix_socket_connections();
     policy.allow_pulseaudio_client_file_operations();
     policy.allow_common_runtime();
