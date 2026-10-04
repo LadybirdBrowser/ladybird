@@ -113,8 +113,8 @@ fn common_prefix_of(completions: &[Vec<u8>]) -> &[u8] {
 /// The array that a LineCompletionFunction returns: `common_prefix`, then each of `completions`, as C strings that
 /// end at their first NUL like strdup() makes them. Returns NULL if it runs out of memory.
 fn completion_matches(common_prefix: &[u8], completions: &[Vec<u8>]) -> *mut *mut c_char {
-    // SAFETY: The array has room for every string and the terminating NULL, which calloc() zeroes, and strndup()
-    // reads at most the length of each string. On failure, everything allocated so far is freed.
+    // SAFETY: The array has room for every string and the terminating NULL, which calloc() zeroes. On failure,
+    // everything allocated so far is freed.
     unsafe {
         let matches = libc::calloc(completions.len() + 2, size_of::<*mut c_char>()).cast::<*mut c_char>();
         if matches.is_null() {
@@ -122,7 +122,7 @@ fn completion_matches(common_prefix: &[u8], completions: &[Vec<u8>]) -> *mut *mu
         }
         let strings = core::iter::once(common_prefix).chain(completions.iter().map(Vec::as_slice));
         for (index, string) in strings.enumerate() {
-            let copy = libc::strndup(string.as_ptr().cast(), string.len());
+            let copy = strndup(string);
             if copy.is_null() {
                 for allocated_index in 0..index {
                     libc::free((*matches.add(allocated_index)).cast());
@@ -133,6 +133,28 @@ fn completion_matches(common_prefix: &[u8], completions: &[Vec<u8>]) -> *mut *mu
             *matches.add(index) = copy;
         }
         matches
+    }
+}
+
+/// strndup(): a copy of `string` in memory from malloc(), which ends at the first NUL of the string.
+#[cfg(unix)]
+fn strndup(string: &[u8]) -> *mut c_char {
+    // SAFETY: strndup() reads at most the length of the string.
+    unsafe { libc::strndup(string.as_ptr().cast(), string.len()) }
+}
+
+/// strndup(), which the C runtime of Windows lacks.
+#[cfg(windows)]
+fn strndup(string: &[u8]) -> *mut c_char {
+    let length = string.iter().position(|&byte| byte == 0).unwrap_or(string.len());
+    // SAFETY: The copy has room for the bytes before the first NUL and the NUL that follows them.
+    unsafe {
+        let copy = libc::malloc(length + 1).cast::<u8>();
+        if !copy.is_null() {
+            core::ptr::copy_nonoverlapping(string.as_ptr(), copy, length);
+            copy.add(length).write(0);
+        }
+        copy.cast()
     }
 }
 

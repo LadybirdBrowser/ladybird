@@ -8,8 +8,7 @@ option(ENABLE_ALL_THE_DEBUG_MACROS "Enable all debug macros to validate they sti
 
 option(INCLUDE_WASM_SPEC_TESTS "Download and include the WebAssembly spec testsuite" OFF)
 option(ENABLE_CRANELIFT_JIT "Enable Cranelift-based AOT compilation for WebAssembly" ON)
-include(CMakeDependentOption)
-cmake_dependent_option(ENABLE_LIBJS_RUST_RUNTIME "Build the Rust LibJS runtime and the tools that run on it" OFF "NOT WIN32" OFF)
+option(ENABLE_LIBJS_RUST_RUNTIME "Build the Rust LibJS runtime and the tools that run on it" OFF)
 
 set(LADYBIRD_CACHE_DIR "${PROJECT_BINARY_DIR}/../caches" CACHE PATH "Location of shared cache of downloaded files")
 option(ENABLE_NETWORK_DOWNLOADS "Allow downloads of required files. If OFF, required files must already be present in LADYBIRD_CACHE_DIR" ON)

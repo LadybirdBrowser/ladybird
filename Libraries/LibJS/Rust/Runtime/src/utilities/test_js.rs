@@ -362,12 +362,8 @@ static PROGRAM_NAME: std::sync::OnceLock<Vec<u8>> = std::sync::OnceLock::new();
 extern "C" fn handle_sigabrt(_: c_int) {
     if DEBUG_ENABLED.load(Ordering::Relaxed) {
         let program_name = PROGRAM_NAME.get().map_or(&b"test-js"[..], Vec::as_slice);
-        let message = b": SIGABRT received, cleaning up.\n";
-        // SAFETY: Both buffers are valid for their lengths.
-        unsafe {
-            libc::write(libc::STDERR_FILENO, program_name.as_ptr().cast(), program_name.len());
-            libc::write(libc::STDERR_FILENO, message.as_ptr().cast(), message.len());
-        }
+        write_to_standard_error_from_signal_handler(program_name);
+        write_to_standard_error_from_signal_handler(b": SIGABRT received, cleaning up.\n");
     }
     cleanup();
     if !set_abort_action(libc::SIG_DFL) {
@@ -377,6 +373,21 @@ extern "C" fn handle_sigabrt(_: c_int) {
     unsafe { libc::abort() };
 }
 
+#[cfg(unix)]
+fn write_to_standard_error_from_signal_handler(bytes: &[u8]) {
+    // SAFETY: The bytes are valid for their length.
+    unsafe { libc::write(libc::STDERR_FILENO, bytes.as_ptr().cast(), bytes.len()) };
+}
+
+#[cfg(windows)]
+fn write_to_standard_error_from_signal_handler(bytes: &[u8]) {
+    const STDERR_FILENO: c_int = 2;
+    let length = libc::c_uint::try_from(bytes.len()).unwrap_or(libc::c_uint::MAX);
+    // SAFETY: The bytes are valid for `length` bytes.
+    unsafe { libc::write(STDERR_FILENO, bytes.as_ptr().cast(), length) };
+}
+
+#[cfg(unix)]
 fn set_abort_action(handler: libc::sighandler_t) -> bool {
     // SAFETY: An all-zero sigaction is valid, and sigaction only reads the struct.
     unsafe {
@@ -386,6 +397,18 @@ fn set_abort_action(handler: libc::sighandler_t) -> bool {
             eprintln!("sigaction: {}", std::io::Error::last_os_error());
             return false;
         }
+    }
+    true
+}
+
+/// set_abort_action() on Windows, which has no sigaction().
+#[cfg(windows)]
+fn set_abort_action(handler: libc::sighandler_t) -> bool {
+    // SAFETY: signal() only installs the handler.
+    if unsafe { libc::signal(libc::SIGABRT, handler) } == libc::SIG_ERR as libc::sighandler_t {
+        // NB: signal() only fails with EINVAL, which perror() reports like this.
+        eprintln!("sigaction: Invalid argument");
+        return false;
     }
     true
 }

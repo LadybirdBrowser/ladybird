@@ -8,7 +8,7 @@
 //! the test262 parser tests instead of the runtime tests.
 
 use core::ops::ControlFlow;
-use std::ffi::CString;
+use std::ffi::{CStr, CString};
 
 use ak::{Utf16FlyString, Utf16String};
 
@@ -249,9 +249,18 @@ fn set_current_time_zone(time_zone: Utf16View<'_>) -> Result<(), String> {
         time_zone_utf8.truncate(nul_index);
     }
     let time_zone_utf8 = CString::new(time_zone_utf8).expect("the time zone has no NUL left");
+    set_time_zone_environment_variable(&time_zone_utf8)
+}
+
+#[cfg(unix)]
+fn set_time_zone_environment_variable(time_zone: &CStr) -> Result<(), String> {
+    unsafe extern "C" {
+        fn tzset();
+    }
+
     // SAFETY: Both strings are NUL-terminated, and the runner has no other threads that read the environment.
     unsafe {
-        if libc::setenv(c"TZ".as_ptr(), time_zone_utf8.as_ptr(), 1) != 0 {
+        if libc::setenv(c"TZ".as_ptr(), time_zone.as_ptr(), 1) != 0 {
             return Err(std::io::Error::last_os_error().to_string());
         }
         tzset();
@@ -259,8 +268,19 @@ fn set_current_time_zone(time_zone: Utf16View<'_>) -> Result<(), String> {
     Ok(())
 }
 
-unsafe extern "C" {
-    fn tzset();
+/// Core::Environment::set() on Windows, which sets the variable in the environment of the C runtime, where _tzset()
+/// reads it.
+#[cfg(windows)]
+fn set_time_zone_environment_variable(time_zone: &CStr) -> Result<(), String> {
+    // SAFETY: Both strings are NUL-terminated, and the runner has no other threads that read the environment.
+    unsafe {
+        let error = libc::putenv_s(c"TZ".as_ptr(), time_zone.as_ptr());
+        if error != 0 {
+            return Err(format!("_putenv_s failed with error {error}"));
+        }
+        libc::tzset();
+    }
+    Ok(())
 }
 
 fn set_time_zone(vm: &Vm) -> ThrowCompletionOr<Value> {

@@ -378,6 +378,10 @@ impl TestRunner {
     }
 
     fn begin_live_display(&mut self) -> bool {
+        // NB: Like LibTest's, the runner draws no live display on Windows.
+        if cfg!(windows) {
+            return false;
+        }
         let program = if self.program_name.is_empty() {
             "test-runner"
         } else {

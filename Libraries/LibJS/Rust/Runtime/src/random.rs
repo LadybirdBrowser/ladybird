@@ -36,15 +36,30 @@ fn csprng(buffer: &mut [u8]) {
         }
     }
 
+    #[cfg(windows)]
+    {
+        // SAFETY: The buffer is valid for writes of its whole length. ProcessPrng is documented to always succeed.
+        unsafe { ProcessPrng(buffer.as_mut_ptr(), buffer.len()) };
+    }
+
     #[cfg(not(any(
         target_vendor = "apple",
         target_os = "freebsd",
         target_os = "openbsd",
         target_os = "netbsd",
         target_os = "linux",
-        target_os = "android"
+        target_os = "android",
+        windows
     )))]
     compile_error!("This build target doesn't have a CSPRNG interface specified in random.rs.");
+}
+
+// Not every Windows SDK has an import library for bcryptprimitives.dll, so rustc generates one, as the standard library
+// does for its own use of ProcessPrng.
+#[cfg(windows)]
+#[link(name = "bcryptprimitives", kind = "raw-dylib")]
+unsafe extern "system" {
+    fn ProcessPrng(data: *mut u8, length: usize) -> i32;
 }
 
 /// AK::get_random<u64>().

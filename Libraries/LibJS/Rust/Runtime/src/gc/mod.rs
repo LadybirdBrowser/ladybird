@@ -17,6 +17,7 @@ pub mod heap_function;
 pub mod interpreter_buffer;
 pub mod primitive_storage;
 pub mod root;
+pub mod shared_memory;
 pub mod visitor;
 pub mod weak;
 pub mod weak_container;

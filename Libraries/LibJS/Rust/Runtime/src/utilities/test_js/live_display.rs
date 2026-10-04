@@ -7,9 +7,12 @@
 //! LibTest's LiveDisplay: a few lines at the bottom of the terminal that are redrawn in place while the tests run,
 //! with standard output and standard error redirected into a log file meanwhile.
 
+use core::ffi::c_int;
+#[cfg(unix)]
 use std::ffi::CString;
 use std::fs::File;
 use std::io::{IsTerminal, Write};
+#[cfg(unix)]
 use std::os::fd::{FromRawFd, RawFd};
 
 use crate::standard_output;
@@ -18,6 +21,7 @@ pub fn stdout_is_tty() -> bool {
     std::io::stdout().is_terminal()
 }
 
+#[cfg(unix)]
 fn query_terminal_width(fd: RawFd) -> usize {
     const FALLBACK: usize = 80;
     // SAFETY: An all-zero winsize is valid, and ioctl only writes into it.
@@ -157,8 +161,8 @@ pub struct LiveDisplay {
     reserved_lines: usize,
     terminal_width: usize,
     output: Option<Output>,
-    saved_stdout_fd: RawFd,
-    saved_stderr_fd: RawFd,
+    saved_stdout_fd: c_int,
+    saved_stderr_fd: c_int,
     log_file_path: String,
 }
 
@@ -210,6 +214,7 @@ impl LiveDisplay {
         true
     }
 
+    #[cfg(unix)]
     fn redirect_standard_streams_into_log_file(&mut self) -> Option<File> {
         let path = CString::new(self.log_file_path.as_bytes()).ok()?;
         // SAFETY: These calls only open and rearrange this process's descriptors, and the path is a valid C string.
@@ -239,6 +244,12 @@ impl LiveDisplay {
         }
     }
 
+    /// Not implemented on Windows, where the test runner draws no live display.
+    #[cfg(windows)]
+    fn redirect_standard_streams_into_log_file(&mut self) -> Option<File> {
+        None
+    }
+
     /// Erases the display and puts the standard streams back.
     pub fn end(&mut self) {
         if !self.active {
@@ -252,6 +263,7 @@ impl LiveDisplay {
         if redirected {
             standard_output::flush();
             // SAFETY: The saved descriptors belong to this display and are not used afterwards.
+            #[cfg(unix)]
             unsafe {
                 if self.saved_stdout_fd >= 0 {
                     libc::dup2(self.saved_stdout_fd, libc::STDOUT_FILENO);
@@ -272,6 +284,7 @@ impl LiveDisplay {
         &self.log_file_path
     }
 
+    #[cfg(unix)]
     fn refresh_terminal_width(&mut self) {
         let fd = match &self.output {
             Some(Output::Terminal(file)) => std::os::fd::AsRawFd::as_raw_fd(file),
@@ -279,6 +292,9 @@ impl LiveDisplay {
         };
         self.terminal_width = query_terminal_width(fd);
     }
+
+    #[cfg(windows)]
+    fn refresh_terminal_width(&mut self) {}
 
     /// Erases the reserved display area, leaving the cursor at the top of it.
     fn clear(&mut self) {

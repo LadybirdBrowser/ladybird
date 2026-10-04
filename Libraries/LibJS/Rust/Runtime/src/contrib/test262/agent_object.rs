@@ -100,9 +100,7 @@ impl AgentObject {
     fn sleep(vm: &Vm) -> ThrowCompletionOr<Value> {
         let milliseconds = vm.argument(0).to_i32(vm)?;
         // NB: Core::System::sleep_ms() takes a u32, so a negative count of milliseconds wraps around like in C++.
-        let milliseconds = milliseconds.cast_unsigned();
-        // SAFETY: usleep has no preconditions; like C++, a failure is ignored.
-        unsafe { libc::usleep(milliseconds.wrapping_mul(1000)) };
+        sleep_milliseconds(milliseconds.cast_unsigned());
         Ok(Value::UNDEFINED)
     }
 }
@@ -238,8 +236,22 @@ impl AgentObject {
     }
 }
 
+/// Core::System::sleep_ms().
+#[cfg(unix)]
+fn sleep_milliseconds(milliseconds: u32) {
+    // SAFETY: usleep has no preconditions; like C++, a failure is ignored.
+    unsafe { libc::usleep(milliseconds.wrapping_mul(1000)) };
+}
+
+/// Core::System::sleep_ms() on Windows: Sleep(), which takes the milliseconds as they are.
+#[cfg(windows)]
+fn sleep_milliseconds(milliseconds: u32) {
+    std::thread::sleep(core::time::Duration::from_millis(u64::from(milliseconds)));
+}
+
 /// MonotonicTime::now().milliseconds(): CLOCK_MONOTONIC, with the milliseconds rounded up as AK's
 /// Duration::to_milliseconds() rounds them.
+#[cfg(unix)]
 fn monotonic_time_now_in_milliseconds() -> i64 {
     let mut time = libc::timespec { tv_sec: 0, tv_nsec: 0 };
     // SAFETY: The timespec is valid for writing.
@@ -251,4 +263,13 @@ fn monotonic_time_now_in_milliseconds() -> i64 {
         milliseconds += 1;
     }
     milliseconds
+}
+
+/// MonotonicTime::now().milliseconds() on Windows, rounded up the same way, but counted from the first call rather than
+/// from boot, which makes no difference to scripts, as they can only compare the times they read.
+#[cfg(windows)]
+fn monotonic_time_now_in_milliseconds() -> i64 {
+    static FIRST_CALL: std::sync::OnceLock<std::time::Instant> = std::sync::OnceLock::new();
+    let elapsed = FIRST_CALL.get_or_init(std::time::Instant::now).elapsed();
+    i64::try_from(elapsed.as_nanos().div_ceil(1_000_000)).unwrap_or(i64::MAX)
 }
