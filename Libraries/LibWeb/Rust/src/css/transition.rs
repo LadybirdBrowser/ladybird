@@ -96,18 +96,21 @@ fn property_values_are_transitionable(
     false
 }
 
+fn values_equal(
+    first: *const crate::css::style_value::StyleValueData,
+    second: *const crate::css::style_value::StyleValueData,
+) -> bool {
+    assert!(!first.is_null());
+    assert!(!second.is_null());
+    let (first, second) = unsafe { (&*first, &*second) };
+    std::ptr::eq(first, second) || first == second
+}
+
 fn decide_transition(
     context: &crate::css::animation::FfiAnimationContext,
     input: &FfiTransitionPropertyInput,
     values_originate_from_current_color: bool,
 ) -> FfiTransitionAction {
-    let values_equal = |first: *const crate::css::style_value::StyleValueData,
-                        second: *const crate::css::style_value::StyleValueData| {
-        assert!(!first.is_null());
-        assert!(!second.is_null());
-        let (first, second) = unsafe { (&*first, &*second) };
-        std::ptr::eq(first, second) || first == second
-    };
     let before_change_value_differs = input.has_matching_transition
         && !values_originate_from_current_color
         && !values_equal(input.before_change_value, input.after_change_value);
@@ -349,8 +352,7 @@ fn prepare_transition_values(
 
 /// A transition step's question to the style engine: what each property the host prepared does to the transitions
 /// of the step's target as its style changes from the record `before` to the record `after`, the record the target
-/// installed. The transitions resolve their lengths against `after`, and their transforms against the transform
-/// reference box of the box of the target's element, where it was laid out.
+/// installed. The transitions resolve their lengths against `after`.
 pub(crate) struct TransitionDecision {
     pub(crate) before: u64,
     pub(crate) after: u64,
@@ -358,16 +360,16 @@ pub(crate) struct TransitionDecision {
     /// The target's style node, where the target is an element: only an element's own record inherits from its
     /// inheritance parent.
     pub(crate) element: Option<crate::css::style::tree::StyleNodeID>,
-    pub(crate) element_box: crate::layout::node_data::NodeSlotId,
 }
 
 impl TransitionDecision {
     /// Runs the CSS Transitions decision algorithm for every property, writing the values it compared into the
-    /// property, and its decision into the action beside it.
+    /// property, and its decision into the action beside it. The transitions resolve their transforms against
+    /// `reference_box`, the transform reference box of the box of the target's element, where it was laid out.
     pub(crate) fn decide(
         self,
         engine: &crate::css::style::StyleEngine,
-        arena: &crate::layout::LayoutNodeArena,
+        reference_box: Option<crate::css::css_pixels::CssPixelRect>,
         properties: &mut [FfiTransitionPropertyInput],
         actions: &mut [FfiTransitionAction],
     ) {
@@ -376,16 +378,12 @@ impl TransitionDecision {
             after,
             mut context,
             element,
-            element_box,
         } = self;
         if let Some(length) = engine.transition_length_resolution_context(after) {
             context.has_length_resolution_context = true;
             context.length_resolution_context = length;
         }
-        context.set_transform_reference_box(crate::painting::ffi::committed_transform_reference_box(
-            &arena.paintable_rows(),
-            element_box,
-        ));
+        context.set_transform_reference_box(reference_box);
         let (Some(before), Some(after)) = (engine.style_record_view(before), engine.style_record_view(after)) else {
             debug_assert!(false, "the records a transition step decides over remain live");
             return;
@@ -419,6 +417,156 @@ impl TransitionDecision {
             );
             *action = decide_transition(&context, property, values_originate_from_current_color);
         }
+    }
+}
+
+/// The transition step a style transaction decided beside the row of an element that owes one, which the host's step
+/// reads rather than asking where it decides over the same inputs.
+pub(crate) struct DecidedTransitionStep {
+    node: u32,
+    before: u64,
+    after: u64,
+    current_color: *const crate::css::style_value::StyleValueData,
+    properties: Box<[FfiTransitionPropertyInput]>,
+    actions: Box<[FfiTransitionAction]>,
+}
+
+// SAFETY: The values a decision points at live in the records it decided over, which the host keeps live across the drain
+// of the transaction that decided it, the only time it reads them.
+unsafe impl Send for DecidedTransitionStep {}
+
+impl DecidedTransitionStep {
+    /// Decides the step `row` owes where the host's step decides over nothing but what the engine holds: the element
+    /// runs no animation and owes no animation plan, so the record the row moves it to is its after-change style; its
+    /// before-change style is the one the epoch keeps for it, or else the record it held; and no property its
+    /// transitions name reads a value it inherits, which an ancestor's animation can move before the host decides, or
+    /// its box, which a frame can lay out first. Each transition is decided as one the element has none of yet, which
+    /// the host checks.
+    pub(crate) fn of_row(
+        engine: &crate::css::style::StyleEngine,
+        row: &crate::css::style::bridge::FfiStyleDelta,
+    ) -> Option<Self> {
+        use crate::css::property_metadata::property_id as prop;
+        use crate::css::style::bridge::element_adjustment_fact::HAS_ANIMATIONS;
+
+        if !row.owes_a_transition_step || row.owes_an_animation_plan || row.pseudo_kind != u8::MAX {
+            return None;
+        }
+        let node = crate::css::style::tree::StyleNodeID::from_raw(row.style_node)?;
+        if engine.element_adjustment_facts(node) & HAS_ANIMATIONS != 0 {
+            return None;
+        }
+        let before = match engine.transition_baseline(node, u8::MAX) {
+            0 => row.old_style_record,
+            baseline => baseline,
+        };
+        let after = row.new_style_record;
+        let before_view = engine.style_record_view(before)?;
+        let after_view = engine.style_record_view(after)?;
+        // SAFETY: A live record's table lives as long as the record.
+        let after_table = unsafe { after_view.longhand_table.as_ref() }?;
+        if before_view.dependency_flags & crate::css::computed_longhand_table::IN_DISPLAY_NONE_SUBTREE != 0
+            || !after_view.animated_overlay.is_null()
+            || crate::css::style_compute::transition_delay_and_duration_are_single_zero(after_table)
+        {
+            return None;
+        }
+        let entries = crate::css::style_compute::transition_entries(after_table);
+        if entries.is_empty()
+            || entries
+                .iter()
+                .any(|entry| entry.property_id == prop::TRANSFORM || after_table.is_inherited(entry.property_id))
+        {
+            return None;
+        }
+        let mut properties: Box<[_]> = entries
+            .iter()
+            .map(|entry| FfiTransitionPropertyInput {
+                property_id: entry.property_id,
+                before_change_value: std::ptr::null(),
+                after_change_value: std::ptr::null(),
+                current_value: std::ptr::null(),
+                existing_end_value: std::ptr::null(),
+                reversing_adjusted_start_value: std::ptr::null(),
+                has_matching_transition: true,
+                allow_discrete: entry.behavior == crate::css::css_enums::transition_behavior::ALLOW_DISCRETE,
+                has_running_transition: false,
+                has_completed_transition: false,
+                delay: entry.delay,
+                duration: entry.duration,
+                old_timing_function_output: 0.0,
+                old_reversing_shortening_factor: 1.0,
+            })
+            .collect();
+        let mut actions: Box<[_]> = entries
+            .iter()
+            .map(|entry| FfiTransitionAction {
+                property_id: entry.property_id,
+                kind: FfiTransitionActionKind::None,
+                delay: 0.0,
+                active_duration: 0.0,
+                reversing_shortening_factor: 1.0,
+            })
+            .collect();
+        // The current color is the after-change style's, which holds no animated value.
+        let current_color = after_table.effective_value(None, prop::COLOR, true).value.cast();
+        let context = crate::css::animation::FfiAnimationContext {
+            allow_discrete: false,
+            current_color,
+            has_length_resolution_context: false,
+            length_resolution_context: Default::default(),
+            has_transform_reference_box: false,
+            transform_reference_box_width: 0.0,
+            transform_reference_box_height: 0.0,
+        };
+        TransitionDecision {
+            before,
+            after,
+            context,
+            element: Some(node),
+        }
+        .decide(engine, None, &mut properties, &mut actions);
+        Some(Self {
+            node: row.style_node,
+            before,
+            after,
+            current_color,
+            properties,
+            actions,
+        })
+    }
+
+    pub(crate) fn node(&self) -> u32 {
+        self.node
+    }
+
+    /// Answers the step `decision` asks of `properties` from this one, where it asks the same: from the same records, in
+    /// the same current color, for the same transitions, none of which the element has yet. Writes the values each
+    /// transition compared into its property and the decision into the action beside it, and answers whether it did.
+    pub(crate) fn answer(
+        &self,
+        decision: &TransitionDecision,
+        properties: &mut [FfiTransitionPropertyInput],
+        actions: &mut [FfiTransitionAction],
+    ) -> bool {
+        let asks_the_same = decision.before == self.before
+            && decision.after == self.after
+            && values_equal(decision.context.current_color, self.current_color)
+            && properties.len() == self.properties.len()
+            && properties.iter().zip(&self.properties).all(|(asked, decided)| {
+                asked.property_id == decided.property_id
+                    && asked.has_matching_transition
+                    && !asked.has_running_transition
+                    && !asked.has_completed_transition
+                    && asked.allow_discrete == decided.allow_discrete
+                    && asked.delay.to_bits() == decided.delay.to_bits()
+                    && asked.duration.to_bits() == decided.duration.to_bits()
+            });
+        if asks_the_same {
+            properties.copy_from_slice(&self.properties);
+            actions.copy_from_slice(&self.actions);
+        }
+        asks_the_same
     }
 }
 

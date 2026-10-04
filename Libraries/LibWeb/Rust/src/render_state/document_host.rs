@@ -1116,6 +1116,23 @@ impl DocumentHost {
             .composed_pseudo_style_mask(node)
     }
 
+    /// Answers the transition step `decision` asks of `properties`, writing the values each transition compared and the
+    /// decisions into `actions`, where the style transaction the host took last decided it beside the row of the
+    /// step's element, `node`, over the same inputs. Answers whether it did.
+    pub(crate) fn answer_decided_transition_step(
+        &self,
+        node: u32,
+        decision: &crate::css::transition::TransitionDecision,
+        properties: &mut [crate::css::transition::FfiTransitionPropertyInput],
+        actions: &mut [crate::css::transition::FfiTransitionAction],
+    ) -> bool {
+        self.style_transaction
+            .borrow()
+            .as_ref()
+            .and_then(|answer| answer.decided_transition_step(node))
+            .is_some_and(|step| step.answer(decision, properties, actions))
+    }
+
     /// Lets go of what the style transaction the host took last answered.
     pub(crate) fn end_style_transaction(&self) {
         self.style_transaction.borrow_mut().take();
