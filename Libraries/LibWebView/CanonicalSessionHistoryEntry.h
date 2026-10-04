@@ -31,6 +31,12 @@ struct CanonicalNestedHistory {
     Vector<NonnullRefPtr<CanonicalSessionHistoryEntry>> entries;
 };
 
+struct PopulatedDocument {
+    NonnullRefPtr<CanonicalDocument> document;
+    // The origin of a document the hosting process creates for inline content in place of the response.
+    Optional<URL::Origin> inline_content_origin {};
+};
+
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#document-state-2
 class WEBVIEW_API CanonicalDocumentState final : public RefCounted<CanonicalDocumentState> {
 public:
@@ -46,6 +52,11 @@ public:
 
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#document-state-document
     RefPtr<CanonicalDocument> document;
+
+    // AD-HOC: The document populated for the document state becomes its document when its entry is activated. A reload
+    //         populates the document state of the active session history entry, whose document stays the navigable's
+    //         active document until then.
+    Optional<PopulatedDocument> populated_document;
 
     Variant<Web::HTML::SerializedPolicyContainer, Web::HTML::DocumentStateClient> history_policy_container { Web::HTML::DocumentStateClient::Tag };
     Web::Fetch::Infrastructure::RequestReferrerType request_referrer { Web::Fetch::Infrastructure::RequestReferrer::Client };
@@ -86,6 +97,8 @@ public:
     static ErrorOr<NonnullRefPtr<CanonicalSessionHistoryEntry>> create_from_descriptor(Web::HTML::SessionHistoryEntryDescriptor const&, DocumentStates&, UpdateDocumentState = UpdateDocumentState::No);
 
     ~CanonicalSessionHistoryEntry();
+
+    ErrorOr<void> update_from_descriptor(Web::HTML::SessionHistoryEntryDescriptor const&);
 
     Web::HTML::SessionHistoryEntryDescriptor descriptor() const;
     Web::HTML::SessionHistoryEntryIdentity identity() const { return { document_state->id, navigation_api_id }; }

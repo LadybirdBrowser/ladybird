@@ -23,13 +23,6 @@
 
 namespace WebView {
 
-struct PopulatedDocument {
-    NonnullRefPtr<CanonicalDocumentState> document_state;
-    NonnullRefPtr<CanonicalDocument> document;
-    // The origin of a document the hosting process creates for inline content in place of the response.
-    Optional<URL::Origin> inline_content_origin {};
-};
-
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#ongoing-navigation
 // A navigable's navigation, from its admission until its document is activated or it is canceled or superseded, with
 // what it acquires on the way.
@@ -75,7 +68,8 @@ public:
     Optional<Web::HTML::PreparedNavigationDescriptor> retry {};
     u64 sequence_number { 0 };
     State state { Admitted {} };
-    Optional<PopulatedDocument> populated_document {};
+    // Navigate's historyEntry, from step 23.6 on, whose document state holds the document populated for it.
+    RefPtr<CanonicalSessionHistoryEntry> history_entry {};
 
     WebContentPage* worker() const;
     WebContentPage* host() const;

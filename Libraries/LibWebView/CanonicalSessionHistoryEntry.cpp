@@ -90,17 +90,22 @@ static NonnullRefPtr<CanonicalDocumentState> document_state_from_descriptor(Web:
     return document_state;
 }
 
+static void set_entry_fields_from_descriptor(CanonicalSessionHistoryEntry& entry, Web::HTML::SessionHistoryEntryDescriptor const& descriptor)
+{
+    entry.step = descriptor.step;
+    entry.url = descriptor.url;
+    entry.classic_history_api_state = descriptor.classic_history_api_state;
+    entry.navigation_api_state = descriptor.navigation_api_state;
+    entry.navigation_api_key = descriptor.navigation_api_key;
+    entry.navigation_api_id = descriptor.navigation_api_id;
+    entry.scroll_restoration_mode = descriptor.scroll_restoration_mode;
+    entry.scroll_position_data = descriptor.scroll_position_data;
+}
+
 static NonnullRefPtr<CanonicalSessionHistoryEntry> create_entry_from_descriptor(Web::HTML::SessionHistoryEntryDescriptor const& descriptor, CanonicalSessionHistoryEntry::DocumentStates& document_states, CanonicalSessionHistoryEntry::UpdateDocumentState update_document_state)
 {
     auto entry = CanonicalSessionHistoryEntry::create(document_state_from_descriptor(descriptor.document_state, document_states, update_document_state));
-    entry->step = descriptor.step;
-    entry->url = descriptor.url;
-    entry->classic_history_api_state = descriptor.classic_history_api_state;
-    entry->navigation_api_state = descriptor.navigation_api_state;
-    entry->navigation_api_key = descriptor.navigation_api_key;
-    entry->navigation_api_id = descriptor.navigation_api_id;
-    entry->scroll_restoration_mode = descriptor.scroll_restoration_mode;
-    entry->scroll_position_data = descriptor.scroll_position_data;
+    set_entry_fields_from_descriptor(*entry, descriptor);
     return entry;
 }
 
@@ -121,6 +126,17 @@ static bool has_document_state_cycle(CanonicalDocumentState const& document_stat
     return false;
 }
 
+static ErrorOr<void> reject_document_state_cycle(CanonicalDocumentState const& document_state, CanonicalSessionHistoryEntry::DocumentStates& document_states)
+{
+    Vector<CanonicalDocumentState const*> ancestors;
+    if (!has_document_state_cycle(document_state, ancestors))
+        return {};
+    // NB: Breaks the cycle, so that the entries are freed.
+    for (auto& [id, state] : document_states)
+        state->nested_histories.clear();
+    return Error::from_string_literal("A session history entry's document state is among its nested histories' entries");
+}
+
 ErrorOr<NonnullRefPtr<CanonicalSessionHistoryEntry>> CanonicalSessionHistoryEntry::create_from_descriptor(Web::HTML::SessionHistoryEntryDescriptor const& descriptor)
 {
     DocumentStates document_states;
@@ -130,14 +146,20 @@ ErrorOr<NonnullRefPtr<CanonicalSessionHistoryEntry>> CanonicalSessionHistoryEntr
 ErrorOr<NonnullRefPtr<CanonicalSessionHistoryEntry>> CanonicalSessionHistoryEntry::create_from_descriptor(Web::HTML::SessionHistoryEntryDescriptor const& descriptor, DocumentStates& document_states, UpdateDocumentState update_document_state)
 {
     auto entry = create_entry_from_descriptor(descriptor, document_states, update_document_state);
-    Vector<CanonicalDocumentState const*> ancestors;
-    if (has_document_state_cycle(*entry->document_state, ancestors)) {
-        // NB: Breaks the cycle, so that the entries are freed.
-        for (auto& [id, document_state] : document_states)
-            document_state->nested_histories.clear();
-        return Error::from_string_literal("A session history entry's document state is among its nested histories' entries");
-    }
+    TRY(reject_document_state_cycle(*entry->document_state, document_states));
     return entry;
+}
+
+// The entry's document state is updated when the descriptor names it, and replaced otherwise.
+ErrorOr<void> CanonicalSessionHistoryEntry::update_from_descriptor(Web::HTML::SessionHistoryEntryDescriptor const& descriptor)
+{
+    DocumentStates document_states;
+    document_states.set(document_state->id, document_state);
+    auto updated_document_state = document_state_from_descriptor(descriptor.document_state, document_states, UpdateDocumentState::Yes);
+    TRY(reject_document_state_cycle(*updated_document_state, document_states));
+    document_state = move(updated_document_state);
+    set_entry_fields_from_descriptor(*this, descriptor);
+    return {};
 }
 
 NonnullRefPtr<CanonicalSessionHistoryEntry> CanonicalSessionHistoryEntry::create(NonnullRefPtr<CanonicalDocumentState> document_state)
