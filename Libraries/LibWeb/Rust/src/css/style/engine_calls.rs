@@ -22,12 +22,14 @@ use super::font_resolution::{FontResolverHost, PublishedFontFaces};
 use super::inputs::RetainedCustomPropertyData;
 use super::instrumentation::Counter;
 use super::publication::RecordDemand;
+use super::random_bases::{NamedBaseValue, ParkedBaseValues};
 use super::record_replay::EventKind;
 use super::tree::{StyleNodeID, TreeScopeID};
 use super::{StyleEngine, StyleEngineHandle};
 use crate::css::transition::{FfiTransitionAction, FfiTransitionInput, TransitionDecision};
 use crate::render_state::{ArenaChange, BegunRead, DocumentHost};
 use std::ffi::c_void;
+use std::sync::Arc;
 
 /// One hand-written write of the host to a document's style engine.
 pub(crate) enum EngineWrite {
@@ -74,10 +76,14 @@ pub(crate) enum EngineWrite {
     /// An element's inline declaration block, or none.
     InlineStyle {
         node: StyleNodeID,
-        data: Option<std::sync::Arc<crate::css::declaration_block::DeclarationBlockData>>,
+        data: Option<Arc<crate::css::declaration_block::DeclarationBlockData>>,
     },
     /// A name the host interned, which the engine adopts as the atom the host's lease holds.
     AdoptAtom(AtomLease),
+    /// An element loses its style node, and keeps the random base values of the keys that name it in `slot`.
+    ParkRandomBaseValues { node: StyleNodeID, slot: ParkedBaseValues },
+    /// An element's new style node takes back the random base values the element kept in `slot`.
+    UnparkRandomBaseValues { node: StyleNodeID, slot: ParkedBaseValues },
     /// What a custom property's name atom spells, and the fly string it is.
     NoteCustomPropertyName {
         name: StyleAtomID,
@@ -169,6 +175,16 @@ impl EngineWrite {
                 // The engine took a reference of its own, so the global atom stays the one the lease held.
                 assert_eq!(atom, lease.atom().0, "a document adopts the atom its host interned");
             }
+            Self::ParkRandomBaseValues { node, slot } => {
+                *slot.lock().expect("a parked row is never poisoned") =
+                    engine.random_base_values.take_element_values(node);
+            }
+            Self::UnparkRandomBaseValues { node, slot } => {
+                let row = std::mem::take(&mut *slot.lock().expect("a parked row is never poisoned"));
+                if !row.is_empty() {
+                    unpark_random_base_values(engine, node, &row);
+                }
+            }
             Self::NoteCustomPropertyName { name, string, text } => {
                 // SAFETY: The write owns a reference to the fly string.
                 unsafe { super::bridge::note_native_custom_property_name(engine, name, string.raw_identity(), &text) };
@@ -203,6 +219,27 @@ fn apply_input_transaction(engine: &mut StyleEngine, transaction: &InputTransact
         payload.write_raw_slice(&transaction.declarations);
         write_recording_element_style_inputs(&transaction.element_style_inputs, payload);
     });
+}
+
+/// Gives `node` the random base values of `row`, as one buffer of name code units with a length and a value per name,
+/// which a replay reads as it was recorded.
+fn unpark_random_base_values(engine: &mut StyleEngine, node: StyleNodeID, row: &[NamedBaseValue]) {
+    let name_lengths = row
+        .iter()
+        .map(|(name, _)| u32::try_from(name.len()).expect("a random caching key's name fits in u32"))
+        .collect::<Vec<_>>();
+    let name_units = row
+        .iter()
+        .flat_map(|(name, _)| name.iter().copied())
+        .collect::<Vec<_>>();
+    let value_bits = row.iter().map(|&(_, value)| value.to_bits()).collect::<Vec<_>>();
+    super::bridge::operations::set_element_random_base_values(
+        engine,
+        node.raw(),
+        &name_lengths,
+        &name_units,
+        &value_bits,
+    );
 }
 
 fn set_element_parts(engine: &mut StyleEngine, node: StyleNodeID, pairs: &[(StyleAtomID, StyleNodeID)]) {
@@ -591,8 +628,6 @@ pub(crate) enum StyleQuery {
     PseudoElementsWithCustomPropertyData(StyleNodeID),
     /// The nodes whose style depends on the viewport.
     ViewportDependentNodes,
-    /// The random caching keys that name an element, with their values.
-    ElementRandomBaseValues(StyleNodeID),
     /// The record of an element or one of its pseudo-elements the host reads before the next style update.
     RecordDemand { node: StyleNodeID, demand: RecordDemand },
     /// What a style record's values depend on.
@@ -615,7 +650,6 @@ pub(crate) enum StyleAnswer {
     HostObject(usize),
     Number(u64),
     Nodes(Vec<u32>),
-    RandomBaseValues(Vec<(Box<[u16]>, f64)>),
     RecordDemand(FfiRecordDemandAnswer),
     Counter(Option<(&'static str, u64)>),
     Transitions(Vec<crate::css::transition::DecidedTransition>),
@@ -639,9 +673,6 @@ impl StyleQuery {
                 StyleAnswer::Nodes(engine.computed_group_sets.viewport_dependent_nodes(|environment| {
                     engine.custom_property_environments.reads_viewport(environment)
                 }))
-            }
-            Self::ElementRandomBaseValues(node) => {
-                StyleAnswer::RandomBaseValues(engine.random_base_values.element_values(node).to_vec())
             }
             Self::RecordDemand { node, demand } => {
                 StyleAnswer::RecordDemand(super::bridge::answer_record_demand(engine, node, demand))
@@ -827,37 +858,68 @@ pub unsafe extern "C" fn style_engine_viewport_dependent_nodes(
     }
 }
 
-/// Visits the random caching keys that name an element, with their values, for the element to keep while it has no
-/// style node.
+/// Has the engine keep the random base values of the keys that name the element whose style node `node` was, as the
+/// element loses it, in a slot the element holds, or answers null where no element has any.
 ///
 /// # Safety
 ///
-/// `host` must be a live document host, on its document's thread, and `visit` must not retain the name it is given.
+/// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_element_random_base_values(
+pub unsafe extern "C" fn style_engine_park_element_random_base_values(
     host: *const DocumentHost,
-    read: &crate::render_state::BegunRead,
     node: u32,
-    context: *mut c_void,
-    visit: unsafe extern "C" fn(*mut c_void, *const u16, usize, u64),
+) -> *const c_void {
+    let Some(node) = StyleNodeID::from_raw(node) else {
+        return std::ptr::null();
+    };
+    // SAFETY: Guaranteed by the caller.
+    if !unsafe { document_host(host) }.element_random_base_values_may_exist() {
+        return std::ptr::null();
+    }
+    let slot = ParkedBaseValues::default();
+    // SAFETY: Guaranteed by the caller.
+    unsafe {
+        queue(
+            host,
+            EngineWrite::ParkRandomBaseValues {
+                node,
+                slot: Arc::clone(&slot),
+            },
+        );
+    }
+    Arc::into_raw(slot).cast()
+}
+
+/// Gives the element's new style node `node` the random base values it kept in `slot`, which the call takes.
+///
+/// # Safety
+///
+/// `host` must be a live document host, on its document's thread, and `slot` a slot
+/// [`style_engine_park_element_random_base_values`] answered.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn style_engine_unpark_element_random_base_values(
+    host: *const DocumentHost,
+    node: u32,
+    slot: *const c_void,
 ) {
+    // SAFETY: Guaranteed by the caller.
+    let slot = unsafe { ParkedBaseValues::from_raw(slot.cast()) };
     let Some(node) = StyleNodeID::from_raw(node) else {
         return;
     };
     // SAFETY: Guaranteed by the caller.
-    if !unsafe { &*host }.element_random_base_values_may_exist() {
-        return;
-    }
+    unsafe { queue(host, EngineWrite::UnparkRandomBaseValues { node, slot }) };
+}
+
+/// Lets go of a slot of random base values the element that held it no longer needs.
+///
+/// # Safety
+///
+/// `slot` must be a slot [`style_engine_park_element_random_base_values`] answered.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn style_engine_release_random_base_values(slot: *const c_void) {
     // SAFETY: Guaranteed by the caller.
-    let StyleAnswer::RandomBaseValues(values) =
-        (unsafe { ask_engine(host, read, StyleQuery::ElementRandomBaseValues(node)) })
-    else {
-        unreachable!("random base values are answered as such");
-    };
-    for (name, value) in values {
-        // SAFETY: Guaranteed by the caller.
-        unsafe { visit(context, name.as_ptr(), name.len(), value.to_bits()) };
-    }
+    drop(unsafe { ParkedBaseValues::from_raw(slot.cast()) });
 }
 
 /// Answer a read of one element's style the host makes before the next style update.
