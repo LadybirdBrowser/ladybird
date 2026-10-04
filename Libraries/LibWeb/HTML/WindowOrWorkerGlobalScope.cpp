@@ -827,13 +827,21 @@ WebIDL::ExceptionOr<i32> WindowOrWorkerGlobalScopeMixin::run_timer_initializatio
     // 13. Let completionStep be an algorithm step which queues a global task on the timer task source given global to run task.
     // NB: The task the event loop runs is the one completionStep queues — so that's what carries step 12's nesting
     //     level. queue_global_task() creates its task internally; so, this queues one by hand to get at it — and a
-    //     fresh one per firing, since a repeating timer's next firing can queue before the previous task has run.
-    Function<void()> completion_step = [this, task = move(task), nesting_level]() mutable {
+    //     fresh one per firing.
+    Function<void()> completion_step = [this, task = move(task), nesting_level, id]() mutable {
+        // NB: The spec arms a timer's next firing only once its task has run — so only a firing that timer claims
+        //     queues one. Queueing the rest would run a burst of callbacks back to back, at a stale nesting level
+        //     that keeps them from being clamped, and the burst grows the busier the event loop is.
+        auto timer = m_timers.get(id);
+        if (!timer.has_value() || !(*timer)->claim_firing())
+            return;
+
         auto& global = relevant_global_object(*this);
         GC::Ptr<DOM::Document const> document;
         if (auto* window = window_from_global_object(global))
             document = &window->associated_document();
-        auto queued_task = Task::create(Task::Source::TimerTask, document, GC::create_function(GC::Heap::the(), [this, task] {
+        auto queued_task = Task::create(Task::Source::TimerTask, document, GC::create_function(GC::Heap::the(), [this, task, timer = *timer] {
+            timer->release_firing();
             HTML::TemporaryExecutionContext execution_context { relevant_settings_object(*this), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
             task->function()();
         }));

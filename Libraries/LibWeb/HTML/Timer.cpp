@@ -21,6 +21,7 @@ Timer::Timer(i32 milliseconds, Function<void()> callback, i32 id, Repeating repe
     : m_id(id)
     , m_throttling_class(throttling_class)
     , m_deadline(deadline)
+    , m_earliest_firing(MonotonicTime::now() + AK::Duration::from_milliseconds(milliseconds))
 {
     if (repeating == Repeating::Yes)
         m_timer = Core::Timer::create_repeating(milliseconds, move(callback));
@@ -52,7 +53,20 @@ void Timer::stop()
 
 void Timer::restart(i32 milliseconds)
 {
+    m_earliest_firing = MonotonicTime::now() + AK::Duration::from_milliseconds(milliseconds);
     m_timer->restart(milliseconds);
+}
+
+bool Timer::claim_firing()
+{
+    if (m_has_queued_firing)
+        return false;
+    // NB: A firing that comes before the restarted schedule allows one was posted before the restart. Only a repeating
+    //     timer drops it: it fires again anyway, while a single-shot timer whose one firing came early must still run.
+    if (!m_timer->is_single_shot() && MonotonicTime::now() < m_earliest_firing)
+        return false;
+    m_has_queued_firing = true;
+    return true;
 }
 
 bool Timer::is_active() const
@@ -68,7 +82,7 @@ void Timer::set_callback(Function<void()> callback)
 void Timer::set_interval(i32 milliseconds)
 {
     if (m_timer->interval() != milliseconds)
-        m_timer->restart(milliseconds);
+        restart(milliseconds);
 }
 
 }

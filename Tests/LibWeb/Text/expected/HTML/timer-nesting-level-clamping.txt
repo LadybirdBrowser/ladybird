@@ -1,1 +1,1 @@
-Callback count bounded (< 100 in 100ms): true
+Callbacks past nesting level 5 are clamped to 4ms: true
