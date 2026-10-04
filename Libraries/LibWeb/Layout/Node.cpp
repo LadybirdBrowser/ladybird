@@ -412,11 +412,19 @@ static bool style_record_holds_image_values(Layout::BegunRead const& read, CSS::
 
 void NodeWithStyle::attach_style_resources()
 {
-    auto const& read = held_read();
     // The style engine notes at publication whether a record holds an <image> anywhere this node would load and
     // observe one. Nearly every style holds none, and that answer is one flag read; the walk below stays for the
     // styles that do.
-    if (!style_record_holds_image_values(read, document().style_computer().style_engine(), m_style_record_identity)) {
+    auto holds_image_values = style_record_holds_image_values(held_read(), document().style_computer().style_engine(), m_style_record_identity);
+    attach_style_resources(m_style_record_identity, holds_image_values ? Painting::StyleHoldsImageValues::Yes : Painting::StyleHoldsImageValues::No);
+}
+
+void NodeWithStyle::attach_style_resources(CSS::StyleRecordID style_record, Painting::StyleHoldsImageValues holds_image_values)
+{
+    // What another record holds says nothing of this node's.
+    if (style_record != m_style_record_identity)
+        return attach_style_resources();
+    if (holds_image_values == Painting::StyleHoldsImageValues::No) {
         clear_image_observers();
         Painting::push_paint_facts_after_style_attach(*this, Painting::StyleHoldsImageValues::No);
         return;

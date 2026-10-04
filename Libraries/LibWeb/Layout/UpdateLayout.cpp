@@ -92,13 +92,13 @@ Layout::RustFFI::FfiLayoutUpdateHostCallbacks Document::layout_update_host_callb
         .note_full_layout_performed = [](void* context) { static_cast<Document*>(context)->style_invalidation_counters().relayouts_performed++; },
         .evaluate_pending_container_queries = [](void* context, Layout::BegunRead const* read) { static_cast<Document*>(context)->style_computer().style_engine().evaluate_size_containers_needing_evaluation_after_layout(*read); },
         .record_stabilization_bound_failure = [](void* context) { ++static_cast<Document*>(context)->m_style_invalidation_counters.style_stabilization_bound_failures; },
-        .attach_style_resources = [](void* context, Layout::BegunRead const* read, Compositing::RustFFI::NodeSlotId slot, bool owns_content_replacement_image) {
+        .attach_style_resources = [](void* context, Layout::BegunRead const* read, Compositing::RustFFI::NodeSlotId slot, bool owns_content_replacement_image, Layout::RustFFI::FfiStyleImageFacts images) {
             auto& document = *static_cast<Document*>(context);
-            if (Layout::attach_owed_style_resources(*read, document, slot, owns_content_replacement_image))
+            if (Layout::attach_owed_style_resources(*read, document, slot, owns_content_replacement_image, images))
                 document.m_owed_image_provider_arrived_with_image = true; },
-        .attach_generated_image = [](void* context, Layout::BegunRead const* read, Compositing::RustFFI::NodeSlotId slot, u32 element_style_node, Layout::RustFFI::FfiPseudoElement pseudo_element, Layout::RustFFI::FfiGeneratedImage image) {
+        .attach_generated_image = [](void* context, Layout::BegunRead const* read, Compositing::RustFFI::NodeSlotId slot, u32 element_style_node, Layout::RustFFI::FfiPseudoElement pseudo_element, Layout::RustFFI::FfiGeneratedImage image, Layout::RustFFI::FfiStyleImageFacts images) {
             auto& document = *static_cast<Document*>(context);
-            if (Layout::attach_owed_generated_image(*read, document, slot, element_style_node, pseudo_element, image))
+            if (Layout::attach_owed_generated_image(*read, document, slot, element_style_node, pseudo_element, image, images))
                 document.m_owed_image_provider_arrived_with_image = true; },
     };
 }

@@ -26,6 +26,7 @@
 #include <LibWeb/Forward.h>
 #include <LibWeb/Layout/NodeArena.h>
 #include <LibWeb/Layout/TreeBuilderRustFFI.h>
+#include <LibWeb/Painting/PaintFacts.h>
 #include <LibWeb/TreeTraversal.h>
 
 namespace Web::Layout {
@@ -654,6 +655,8 @@ public:
     void clear_image_observers();
     void apply_style(CSS::StyleRecordID);
     void attach_style_resources();
+    // Like attach_style_resources(), where the style engine answered whether `style_record` holds image values.
+    void attach_style_resources(CSS::StyleRecordID style_record, Painting::StyleHoldsImageValues);
     // Gives the row the spans its element published again; where they moved, the row lays out again.
     void synchronize_table_span_data();
 

@@ -195,7 +195,12 @@ static CSS::PseudoElement css_pseudo_element(RustFFI::FfiPseudoElement pseudo_el
     VERIFY_NOT_REACHED();
 }
 
-bool attach_owed_style_resources(Layout::BegunRead const& read, DOM::Document& document, Compositing::RustFFI::NodeSlotId slot, bool owns_content_replacement_image)
+static void attach_owed_style_images(NodeWithStyle& node, RustFFI::FfiStyleImageFacts images)
+{
+    node.attach_style_resources(CSS::StyleRecordID { images.style_record }, images.holds_image_values ? Painting::StyleHoldsImageValues::Yes : Painting::StyleHoldsImageValues::No);
+}
+
+bool attach_owed_style_resources(Layout::BegunRead const& read, DOM::Document& document, Compositing::RustFFI::NodeSlotId slot, bool owns_content_replacement_image, RustFFI::FfiStyleImageFacts images)
 {
     auto* layout_node = static_cast<Node*>(RustFFI::render_state_node_shell_if_live(document.layout_node_arena().host(), &read, slot));
     VERIFY(layout_node);
@@ -210,11 +215,11 @@ bool attach_owed_style_resources(Layout::BegunRead const& read, DOM::Document& d
         if (image_was_available)
             image_box.set_needs_layout_update(DOM::SetNeedsLayoutReason::GeneratedContentImageFinishedLoading);
     }
-    as<NodeWithStyle>(*layout_node).attach_style_resources();
+    attach_owed_style_images(as<NodeWithStyle>(*layout_node), images);
     return image_was_available;
 }
 
-bool attach_owed_generated_image(Layout::BegunRead const& read, DOM::Document& document, Compositing::RustFFI::NodeSlotId slot, u32 element_style_node, RustFFI::FfiPseudoElement ffi_pseudo, RustFFI::FfiGeneratedImage generated_image)
+bool attach_owed_generated_image(Layout::BegunRead const& read, DOM::Document& document, Compositing::RustFFI::NodeSlotId slot, u32 element_style_node, RustFFI::FfiPseudoElement ffi_pseudo, RustFFI::FfiGeneratedImage generated_image, RustFFI::FfiStyleImageFacts images)
 {
     // A generator that went away since the build made its pseudo-element's boxes names no image any more, and the boxes
     // go away with it.
@@ -237,7 +242,7 @@ bool attach_owed_generated_image(Layout::BegunRead const& read, DOM::Document& d
     bool image_was_available = image_box.image_provider().is_image_available();
     if (image_was_available)
         image_box.set_needs_layout_update(DOM::SetNeedsLayoutReason::GeneratedContentImageFinishedLoading);
-    image_box.attach_style_resources();
+    attach_owed_style_images(image_box, images);
     return image_was_available;
 }
 
