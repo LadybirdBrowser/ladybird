@@ -154,28 +154,6 @@ CanonicalNavigable& CanonicalTraversable::insert(NonnullRefPtr<WebContentPage> r
     return navigable_ref;
 }
 
-void CanonicalTraversable::rehost(CanonicalNavigable& navigable, NonnullRefPtr<WebContentPage> reporting_page, CanonicalDocument& container_document, Web::HTML::HostedNavigableState hosted_state)
-{
-    // The displayed document's child navigables go with it.
-    while (!navigable.children().is_empty())
-        remove(*navigable.children().last());
-    navigable.clear_ongoing_navigation();
-    navigable.discard_pending_host();
-
-    // The page hosting the displayed document elsewhere retires the navigable's node: the page hosting its container
-    // displays a document standing in for it from now on.
-    RefPtr<WebContentPage> host = navigable.has_remote_host() ? &navigable.remote_host() : nullptr;
-    if (host && host->is_open()) {
-        VERIFY(navigable.replicated_state().has_value());
-        host->async_stop_hosting_navigable(navigable.id(), *navigable.replicated_state());
-    }
-    navigable.active_document().set_host(reporting_page);
-    navigable.set_container_document({}, container_document);
-    navigable.update_hosted_state(move(hosted_state));
-    if (host)
-        release_page_if_unused(host.release_nonnull());
-}
-
 // INTEROP: Reloading rebuilds child frames from the new document instead of restoring their previous entries.
 void CanonicalTraversable::adopt_nested_history_for_created_child(CanonicalNavigable const& parent, CanonicalDocument const& container_document, Web::HTML::CrossProcessId child_navigable_id)
 {
