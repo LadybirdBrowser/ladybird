@@ -418,6 +418,15 @@ private:
     HashTable<StyleAtomID> m_published_language_atoms;
     HashTable<StyleAtomID> m_published_custom_property_names;
     HashMap<StyleAtomID, HashMap<StyleAtomID, StyleAtomID>> m_attribute_name_atoms;
+    // The other names an attribute name answers to, and the local name an attr() reads it by, empty unless it is in no
+    // namespace.
+    struct AttributeNameForms {
+        StyleAtomID any_namespace;
+        StyleAtomID folded_name;
+        StyleAtomID folded_local;
+        Vector<u16> substitution_name {};
+    };
+    HashMap<StyleAtomID, AttributeNameForms> m_attribute_name_forms;
     HashMap<StyleAtomID, bool> m_attribute_names_requiring_value_text;
     u64 m_atom_generation { 1 };
     u64 m_attribute_value_text_requirements_version { 0 };

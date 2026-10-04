@@ -383,6 +383,7 @@ StyleAtomID StyleEngine::intern_attribute_name(Utf16FlyString const& local_name,
     }
 
     note_attribute_name_forms(name, any_namespace, folded_name, folded_local);
+    AttributeNameForms forms { .any_namespace = any_namespace, .folded_name = folded_name, .folded_local = folded_local };
     // An attr() reads an attribute in no namespace by its local name.
     if (namespace_atom == 0) {
         auto local_name_view = local_name.view();
@@ -391,7 +392,9 @@ StyleAtomID StyleEngine::intern_attribute_name(Utf16FlyString const& local_name,
         for (size_t i = 0; i < local_name_view.length_in_code_units(); ++i)
             local_name_code_units.unchecked_append(local_name_view.code_unit_at(i));
         note_attribute_substitution_name(name, local_name_code_units);
+        forms.substitution_name = move(local_name_code_units);
     }
+    m_attribute_name_forms.set(name, move(forms));
     names_by_namespace.set(namespace_atom, name);
     return name;
 }
@@ -439,10 +442,16 @@ bool StyleEngine::refresh_attribute_value_text_requirements(Layout::BegunRead co
 bool StyleEngine::attribute_name_requires_value_text(StyleAtomID name)
 {
     return m_attribute_names_requiring_value_text.ensure(name, [&] {
-        // The engine works out which names its selectors read the value text of, so a name not seen
-        // since they changed is the host's own read of the render state.
+        // The host holds which names the engine's selectors read the value text of as of its last job, so only a name
+        // not seen since it queued a rule is its own read of the render state.
         Layout::ForcedReadScope read { render_document(), false };
-        return StyleEngineFFI::style_engine_attribute_name_requires_value_text(m_render_document->host(), read, name.value());
+        // The host interned every name it asks about, with its forms.
+        auto it = m_attribute_name_forms.find(name);
+        VERIFY(it != m_attribute_name_forms.end());
+        auto const& forms = it->value;
+        return StyleEngineFFI::style_engine_attribute_name_requires_value_text(m_render_document->host(), read, name.value(),
+            forms.any_namespace.value(), forms.folded_name.value(), forms.folded_local.value(),
+            forms.substitution_name.is_empty() ? nullptr : forms.substitution_name.data(), forms.substitution_name.size());
     });
 }
 
@@ -962,6 +971,9 @@ StyleEngine::PublishedStyleTransaction StyleEngine::publish_style_transaction_vi
                 return reclaimed_atoms.contains(namespace_atom) || reclaimed_atoms.contains(name);
             });
             return names_by_namespace.is_empty();
+        });
+        m_attribute_name_forms.remove_all_matching([&](StyleAtomID name, auto const&) {
+            return reclaimed_atoms.contains(name);
         });
         ++m_atom_generation;
     }

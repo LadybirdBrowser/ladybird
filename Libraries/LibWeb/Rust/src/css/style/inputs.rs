@@ -355,13 +355,14 @@ impl RetainedState {
 
     /// Record the attribute names whose values `program` reads as text.
     pub(super) fn note_attribute_value_text_names(&mut self, program: &SelectorProgram) {
-        let mut requirements_changed = false;
-        for name in program.attribute_value_text_names() {
-            requirements_changed |= self.attribute_value_text_names.insert(name);
+        if program
+            .attribute_value_text_names()
+            .all(|name| self.attribute_value_text_names.contains(&name))
+        {
+            return;
         }
-        if requirements_changed {
-            self.attribute_value_text_requirements_version += 1;
-        }
+        Arc::make_mut(&mut self.attribute_value_text_names).extend(program.attribute_value_text_names());
+        self.attribute_value_text_requirements_version += 1;
     }
 
     /// Moves whenever an attribute name comes to require its value text: a selector's here, or an
@@ -373,6 +374,11 @@ impl RetainedState {
     /// Moves whenever an attribute name comes to require its value text for a selector here.
     pub fn selector_attribute_value_text_requirements_version(&self) -> u64 {
         self.attribute_value_text_requirements_version
+    }
+
+    /// The attribute names whose value text a selector here reads.
+    pub(crate) fn selector_attribute_value_text_names(&self) -> &SelectorValueTextNames {
+        &self.attribute_value_text_names
     }
 
     /// Whether the host records what the values of an attribute name spell: for a selector whose
@@ -1952,7 +1958,7 @@ impl StyleEngineState {
                 transaction_fact_view: None,
                 facts: ElementFactStore::new(),
                 programs,
-                attribute_value_text_names: HashSet::default(),
+                attribute_value_text_names: Arc::default(),
                 attribute_value_text_requirements_version: 0,
                 selector_programs_need_sweep: false,
                 routing: Arc::new(RoutingRegistry::new()),
