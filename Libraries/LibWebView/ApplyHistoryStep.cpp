@@ -501,7 +501,7 @@ void ApplyHistoryStep::set_ongoing_navigation_to_traversal(CanonicalNavigable& n
     // AD-HOC: A navigation admitted after a same-document traversal takes precedence. The specification's traversal
     //         queue does not model Ladybird's independently admitted UI-process navigation transactions.
     if (is_same_document_traversal
-        && navigable.ongoing_navigation().has_value()
+        && navigable.ongoing_navigation()
         && navigable.ongoing_navigation()->sequence_number > m_operation_sequence_number) {
         m_traversal_yields_to.set(navigable.id(), Web::HTML::TraversalYieldsTo::AdmittedNavigation);
         return;
@@ -511,18 +511,18 @@ void ApplyHistoryStep::set_ongoing_navigation_to_traversal(CanonicalNavigable& n
     if (m_navigation_type.has_value()
         && first_is_one_of(*m_navigation_type, Web::Bindings::NavigationType::Push, Web::Bindings::NavigationType::Replace)
         && target_document_is_active_document
-        && navigable.ongoing_navigation().has_value()) {
+        && navigable.ongoing_navigation()) {
         return;
     }
 
     // AD-HOC: A navigable creation/destruction update skips a navigable already claimed by its requested navigation.
     //         See https://github.com/whatwg/html/issues/12724.
-    if (!m_navigation_type.has_value() && navigable.ongoing_navigation().has_value())
+    if (!m_navigation_type.has_value() && navigable.ongoing_navigation())
         return;
 
     if (m_navigation_type == Web::Bindings::NavigationType::Traverse) {
-        auto const& ongoing_navigation = navigable.ongoing_navigation();
-        if (is_same_document_traversal && ongoing_navigation.has_value() && ongoing_navigation->navigation_id.has_value())
+        auto const* ongoing_navigation = navigable.ongoing_navigation();
+        if (is_same_document_traversal && ongoing_navigation && ongoing_navigation->navigation_id.has_value())
             m_canceled_navigation_ids.set(navigable.id(), *ongoing_navigation->navigation_id);
         navigable.clear_ongoing_navigation();
     }
@@ -533,6 +533,11 @@ void ApplyHistoryStep::set_ongoing_navigation_to_traversal(CanonicalNavigable& n
     //         started before this step ran in its own process. Its navigate() saw no traversal, and the admission
     //         recheck must not misattribute that ordering and drop the navigation the step has to yield to.
     if (traversal_crosses_documents) {
+        // AD-HOC: A navigation admitted after the operation goes on, as the newest. See
+        //         https://github.com/whatwg/html/issues/12581.
+        if (navigable.ongoing_navigation() && navigable.ongoing_navigation()->sequence_number > m_operation_sequence_number)
+            return;
+        navigable.clear_ongoing_navigation();
         navigable.set_ongoing_navigation_to_traversal(m_operation_id);
         m_navigables_with_ongoing_history_traversal.set(navigable.id());
     }

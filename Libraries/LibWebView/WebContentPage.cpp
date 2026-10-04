@@ -301,8 +301,8 @@ bool WebContentPage::continue_navigation_population_in_selected_process(Web::HTM
         return false;
 
     auto navigation_awaits_population = [&](CanonicalNavigation::Phase phase) {
-        auto const& ongoing_navigation = navigable->ongoing_navigation();
-        return ongoing_navigation.has_value()
+        auto const* ongoing_navigation = navigable->ongoing_navigation();
+        return ongoing_navigation
             && ongoing_navigation->navigation_id == navigation_id
             && ongoing_navigation->phase == phase
             && ongoing_navigation->loader;
@@ -1451,8 +1451,8 @@ bool WebContentPage::populates_a_navigation_to_local_file(ByteString const& path
 
     bool result = false;
     traversable().for_each_in_inclusive_subtree([&](CanonicalNavigable const& navigable) {
-        auto const& ongoing_navigation = navigable.ongoing_navigation();
-        result = ongoing_navigation.has_value()
+        auto const* ongoing_navigation = navigable.ongoing_navigation();
+        result = ongoing_navigation
             && ongoing_navigation->population_worker.ptr() == this
             && ongoing_navigation->url.has_value()
             && ongoing_navigation->url->scheme() == "file"sv
@@ -2034,8 +2034,8 @@ void WebContentPage::did_complete_navigation_unload_check(Web::HTML::CrossProces
     if (!navigable.has_value())
         return;
 
-    auto& ongoing_navigation = navigable->ongoing_navigation();
-    if (!ongoing_navigation.has_value()
+    auto* ongoing_navigation = navigable->ongoing_navigation();
+    if (!ongoing_navigation
         || ongoing_navigation->navigation_id != navigation_id
         || ongoing_navigation->phase != CanonicalNavigation::Phase::AwaitingUnloadCheck
         || ongoing_navigation->population_worker != *this
@@ -2087,8 +2087,8 @@ void WebContentPage::did_finish_navigation_params_creation(Web::HTML::CrossProce
         return;
     }
 
-    auto& ongoing_navigation = navigable->ongoing_navigation();
-    if (!ongoing_navigation.has_value() || !ongoing_navigation->loader) {
+    auto* ongoing_navigation = navigable->ongoing_navigation();
+    if (!ongoing_navigation || !ongoing_navigation->loader) {
         NavigationLoader::discard(client().is_private(), *result);
         end_recorded_load_for_canceled_navigation();
         navigable->clear_ongoing_navigation();
@@ -2119,8 +2119,8 @@ void WebContentPage::did_finish_navigation_params_creation(Web::HTML::CrossProce
         if (open_page->continue_navigation_population_in_selected_process(navigable_id, navigation_id))
             return;
         if (auto navigable = open_page->population_worker_navigable(navigable_id); navigable.has_value()) {
-            auto const& ongoing_navigation = navigable->ongoing_navigation();
-            if (ongoing_navigation.has_value() && ongoing_navigation->navigation_id == navigation_id)
+            auto const* ongoing_navigation = navigable->ongoing_navigation();
+            if (ongoing_navigation && ongoing_navigation->navigation_id == navigation_id)
                 cancel_navigation(*navigable);
         }
     });
@@ -2140,8 +2140,8 @@ void WebContentPage::did_fail_navigation_population(Web::HTML::CrossProcessId na
 
     // The failure must name the admitted transaction, and must come from a process that owns part of its
     // outcome: the population worker (unload check, javascript: evaluation) or the population host.
-    auto& ongoing_navigation = navigable->ongoing_navigation();
-    if (!ongoing_navigation.has_value()
+    auto* ongoing_navigation = navigable->ongoing_navigation();
+    if (!ongoing_navigation
         || ongoing_navigation->navigation_id != navigation_id
         || !navigable->navigation_owner_matches(*this)) {
         return;
@@ -2253,8 +2253,8 @@ Messages::WebContentClient::DidStartDownloadResponse WebContentPage::did_start_d
     // received that response may claim it, and only while its population is in flight.
     bool matches_in_flight_navigation = false;
     if (auto navigable = population_worker_navigable(navigable_id); navigable.has_value()) {
-        auto const& ongoing_navigation = navigable->ongoing_navigation();
-        if (ongoing_navigation.has_value()
+        auto const* ongoing_navigation = navigable->ongoing_navigation();
+        if (ongoing_navigation
             && ongoing_navigation->navigation_id == navigation_id
             && ongoing_navigation->phase == CanonicalNavigation::Phase::Populating
             && ongoing_navigation->loader

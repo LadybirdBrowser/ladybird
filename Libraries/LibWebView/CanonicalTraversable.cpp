@@ -974,6 +974,9 @@ struct CanonicalTraversable::HistoryOperation {
     u64 sequence_number;
     bool was_initiated_by_browser { false };
     bool owns_navigation_transaction { false };
+    // The navigation a cross-document navigation's finalization finalizes, which it takes from the navigable when it
+    // applies the history step: the navigable's ongoing navigation is "traversal" from then on.
+    Optional<CanonicalNavigation> finalized_navigation;
     bool check_for_cancelation { false };
     Function<void()> on_browser_traversal_ready;
     Optional<Web::HTML::CrossProcessId> beforeunload_check_id;
@@ -1215,6 +1218,17 @@ CanonicalSessionHistoryEntry const* CanonicalTraversable::ongoing_browser_histor
     return nullptr;
 }
 
+// The traversable's navigation that a history operation is finalizing, which is no longer its ongoing navigation.
+CanonicalNavigation const* CanonicalTraversable::navigation_being_finalized() const
+{
+    for (auto const& operation : m_history_operations) {
+        auto const* parameters = operation.value->parameters.get_pointer<Web::FinalizeCrossDocumentNavigationHistoryOperationParameters>();
+        if (parameters && parameters->navigable_id == id() && operation.value->finalized_navigation.has_value())
+            return &*operation.value->finalized_navigation;
+    }
+    return nullptr;
+}
+
 void CanonicalTraversable::recover_from_web_content_process_crash(OnHistoryOperationComplete on_complete)
 {
     // The step a traversal the crash interrupted was applying is applied again, otherwise the current step is.
@@ -1336,6 +1350,8 @@ bool CanonicalTraversable::navigation_transaction_matches(HistoryOperation const
     if (!parameters.navigation_id.has_value())
         return page_hosting(*navigable) == page;
 
+    if (operation.finalized_navigation.has_value())
+        return operation.finalized_navigation->host == &page;
     return navigable->navigation_transaction_matches(*parameters.navigation_id, page);
 }
 
@@ -1657,9 +1673,9 @@ void CanonicalTraversable::did_activate_history_entry(HistoryOperation& operatio
     if (auto document = navigable->document_populated_for(*target_entry.document_state); document && document->host() == source_page)
         host = source_page;
 
-    auto navigation_id = operation.parameters.visit(
-        [](Web::FinalizeCrossDocumentNavigationHistoryOperationParameters const& parameters) -> Optional<Utf16String const&> { return parameters.navigation_id; },
-        [](auto const&) -> Optional<Utf16String const&> { return {}; });
+    Optional<Utf16String const&> navigation_id;
+    if (operation.finalized_navigation.has_value())
+        navigation_id = operation.finalized_navigation->navigation_id;
     navigable->did_commit_navigation(target_entry, move(activated_navigable_state), operation.sequence_number, navigation_id, did_populate_document, move(host));
 
     if (navigable_id == id()) {
@@ -2695,6 +2711,10 @@ void CanonicalTraversable::finalize_a_cross_document_navigation(HistoryOperation
         target_step = *current_step;
     }
 
+    // NB: Applying the history step sets navigable's ongoing navigation to "traversal". This operation holds the
+    //     navigation it finalizes until it is over.
+    operation.finalized_navigation = navigable->take_navigation_to_finalize(parameters.navigation_id, operation.sequence_number);
+
     // 10. Apply the push/replace history step targetStep to traversable given historyHandling and userInvolvement.
     apply_the_push_or_replace_history_step(operation, *target_step, parameters.history_handling, parameters.user_involvement);
 }
@@ -2918,8 +2938,6 @@ void CanonicalTraversable::did_receive_changing_navigable_history_job_ready(WebC
 
         if (disposition == Web::HTML::ChangingNavigableHistoryStepJobDisposition::Ready) {
             pending_job.value()->unload_displayed_document = unload_displayed_document;
-            if (auto navigable = find(navigable_id); navigable.has_value() && pending_job.value()->document)
-                navigable->claim_document_populated_for_ongoing_navigation(*pending_job.value()->document);
             auto on_complete = move(pending_job.value()->on_complete);
             on_complete(disposition);
             return;

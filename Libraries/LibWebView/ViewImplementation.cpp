@@ -2488,8 +2488,8 @@ void ViewImplementation::did_start_navigation(Optional<Utf16String> const& navig
 
 bool ViewImplementation::did_cancel_navigation(Optional<Utf16String> const& navigation_id)
 {
-    auto const& ongoing = traversable().ongoing_navigation();
-    auto stale = ongoing.has_value()
+    auto const* ongoing = traversable().ongoing_navigation();
+    auto stale = ongoing
         ? navigation_id != ongoing->navigation_id
         : navigation_id != traversable().active_document_load().navigation_id;
     if (stale)
@@ -3298,7 +3298,7 @@ void ViewImplementation::dump_session_history(StringView reason, SessionHistoryD
     auto traversal = traversable().browser_history_traversal_for_testing();
 
     Optional<URL::URL> loading_url;
-    if (traversable().ongoing_navigation().has_value())
+    if (traversable().ongoing_navigation())
         loading_url = traversable().ongoing_navigation()->url;
 
     // The page displaying the tab can have lost its process, as when a crash recovery ends.
@@ -3425,10 +3425,12 @@ void ViewImplementation::respawn_web_content_process_after_crash()
 
 Optional<ViewImplementation::NavigationToRetry> ViewImplementation::navigation_to_retry_for_ongoing_navigation() const
 {
-    auto const& ongoing_navigation = traversable().ongoing_navigation();
-    if (!ongoing_navigation.has_value() || !ongoing_navigation->url.has_value())
+    auto const* navigation = traversable().ongoing_navigation();
+    if (!navigation)
+        navigation = traversable().navigation_being_finalized();
+    if (!navigation || !navigation->url.has_value())
         return {};
-    return NavigationToRetry { *ongoing_navigation->url, ongoing_navigation->retry };
+    return NavigationToRetry { *navigation->url, navigation->retry };
 }
 
 void ViewImplementation::retry_navigation(NavigationToRetry retry, Web::Bindings::NavigationHistoryBehavior history_handling)
