@@ -247,7 +247,7 @@ void CompositorHostBase::stop_presenting_to_client(Web::CompositorContextId cont
         connection->stop_presenting_to_client(context_id);
 }
 
-void CompositorHostBase::submit_frame(CompositorFrame&& frame)
+void CompositorHostBase::submit_frame(PresentationTurn, CompositorFrame&& frame)
 {
     if (auto* connection = compositor_connection())
         connection->submit_frame(move(frame));

@@ -511,6 +511,7 @@ set(SOURCES
     HTML/EventHandler.cpp
     HTML/EventLoop/EventLoop.cpp
     HTML/EventLoop/FrameCompletion.cpp
+    HTML/EventLoop/PresentationQueue.cpp
     HTML/EventLoop/Task.cpp
     HTML/EventLoop/TaskQueue.cpp
     HTML/EventNames.cpp

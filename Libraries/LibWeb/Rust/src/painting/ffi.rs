@@ -544,8 +544,7 @@ pub enum FfiRecordingStart {
 }
 
 /// Why a rendering update's frame (its style transaction, or its recording) may not fly beside the
-/// event loop: something reads what it computes before the next task, or the document is rendered
-/// in step with another.
+/// event loop: something reads what it computes before the next task.
 #[repr(u8)]
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum FfiFlightBlocker {
@@ -554,8 +553,6 @@ pub enum FfiFlightBlocker {
     /// The frame is not a rendering update's: the host records for a screenshot or a hit test, or
     /// renders inside a nested event loop, and reads the frame right after.
     NotInRenderingUpdate,
-    /// The document hosts navigables, or is hosted by one, and is rendered in step with them.
-    NestedNavigables,
     /// The document's last recording in flight did not stand, so this one records in step with the
     /// host, which presents it.
     LastFlightDidNotStand,

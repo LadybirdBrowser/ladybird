@@ -21,6 +21,7 @@
 #include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/EventLoop/FrameCompletion.h>
+#include <LibWeb/HTML/EventLoop/PresentationQueue.h>
 #include <LibWeb/HTML/HTMLMediaElement.h>
 #include <LibWeb/HTML/LocalTraversableNavigable.h>
 #include <LibWeb/HTML/NavigableContainer.h>
@@ -47,6 +48,7 @@ GC_DEFINE_ALLOCATOR(EventLoop);
 
 EventLoop::EventLoop(Type type)
     : m_type(type)
+    , m_presentation_queue(make<PresentationQueue>())
 {
     if (m_type == Type::Window) {
         // The threads a window's rendering runs on only read what the host lends them and never touch the heap
@@ -83,7 +85,7 @@ void EventLoop::visit_edges(Visitor& visitor)
     visitor.visit(m_rendering_task_function);
     visitor.visit(m_system_event_loop_timer);
     visitor.visit(m_idle_period_timer);
-    visitor.visit(m_navigables_with_recordings_in_flight);
+    m_presentation_queue->visit_edges(visitor);
 }
 
 void EventLoop::schedule()
@@ -949,8 +951,7 @@ void EventLoop::did_let_recording_fly(LocalNavigable& navigable)
 {
     if (exchange(m_holds_next_frame_for_testing, false))
         navigable.hold_recording_in_flight_for_testing();
-    if (!m_navigables_with_recordings_in_flight.contains_slow(GC::Ref { navigable }))
-        m_navigables_with_recordings_in_flight.append(navigable);
+    m_presentation_queue->enqueue_recording_in_flight(navigable);
 }
 
 void EventLoop::ensure_frame_completion_registered()
@@ -968,7 +969,7 @@ bool EventLoop::has_frame_in_flight() const
 {
     if (m_rendering_update_in_flight && m_rendering_update_in_flight->document().style_computer().style_engine().render_document().frame_flies())
         return true;
-    return any_of(m_navigables_with_recordings_in_flight, [](auto const& navigable) { return navigable->has_recording_in_flight(); });
+    return m_presentation_queue->has_recording_in_flight();
 }
 
 bool EventLoop::holds_rendering_opportunity() const
@@ -992,13 +993,7 @@ void EventLoop::take_finished_frames_in()
         && !m_rendering_update_in_flight->document().style_computer().style_engine().style_transaction_flies())
         resume_rendering_update_in_flight();
 
-    if (m_navigables_with_recordings_in_flight.is_empty())
-        return;
-    auto navigables = move(m_navigables_with_recordings_in_flight);
-    for (auto& navigable : navigables) {
-        if (!navigable->take_recording_in_flight_in(LocalNavigable::TakeIn::IfFinished))
-            m_navigables_with_recordings_in_flight.append(navigable);
-    }
+    m_presentation_queue->present_landed_frames();
 }
 
 void EventLoop::release_held_frames_for_testing()
@@ -1006,8 +1001,7 @@ void EventLoop::release_held_frames_for_testing()
     m_holds_next_frame_for_testing = false;
     if (m_rendering_update_in_flight)
         m_rendering_update_in_flight->held_for_testing = false;
-    for (auto& navigable : m_navigables_with_recordings_in_flight)
-        navigable->release_recording_in_flight_for_testing();
+    m_presentation_queue->release_held_recordings_for_testing();
     schedule();
 }
 

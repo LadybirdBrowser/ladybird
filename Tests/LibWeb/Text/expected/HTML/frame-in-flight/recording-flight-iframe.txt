@@ -1,2 +1,2 @@
-state in the next task: idle
+state in the next task: in-flight
 color: rgb(0, 0, 255)

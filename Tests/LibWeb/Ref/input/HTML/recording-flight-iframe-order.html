@@ -11,7 +11,7 @@
 <iframe id="frame" srcdoc="<style>body { margin: 0; background: red; }</style><div style='content-visibility: auto'></div>"></iframe>
 <script>
     // A container and the document of its iframe both change in one animation frame callback, whose frame a task then
-    // runs beside: the frames of both documents present, the child's ahead of the container's that composes it. An
+    // runs beside: the frames of both documents present, the child's along with the container's that composes it. An
     // element of content-visibility: auto keeps each document's style in step with the rendering update, so what could
     // fly here is the recordings alone.
     const nextFrame = () => new Promise(resolve => requestAnimationFrame(resolve));

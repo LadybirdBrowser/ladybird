@@ -641,11 +641,12 @@ Optional<DisplayListRecording> start_rust_display_list_recording(Layout::BegunRe
     {
         auto color_scheme = document.canvas_color_scheme(read);
         bool opaque_canvas = false;
+        // NB: The container's document is laid out ahead of the document of the navigable it hosts, and its box is read
+        //     as it last laid it out, as the embedding document's own read.
         if (auto container_element = document.navigable()->container()) {
-            // The container's box is the embedding document's own read.
             Layout::ForcedReadScope container_read { container_element->document(), false };
-            if (auto const* container_layout_node = container_element->layout_node(container_read)) {
-                auto container_scheme = container_layout_node->color_scheme();
+            if (auto const* container_node = container_element->unsafe_layout_node(container_read)) {
+                auto container_scheme = container_node->color_scheme();
                 if (container_scheme == CSS::PreferredColorScheme::Auto)
                     container_scheme = CSS::PreferredColorScheme::Light;
                 opaque_canvas = container_scheme != color_scheme;

@@ -23,10 +23,23 @@
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 
+namespace Web::HTML {
+
+class PresentationQueue;
+
+}
+
 namespace Web::Compositor {
 
 class CompositorHost;
 struct CompositorFrame;
+
+// A frame's turn to be presented. Only the event loop's presentation queue hands one out, to a frame no recording of
+// its navigable's containers flies ahead of, so that a frame presented before the one it goes with does not compile.
+class PresentationTurn {
+    friend class HTML::PresentationQueue;
+    PresentationTurn() = default;
+};
 
 struct PlaceholderCanvasLink {
     Compositing::CanvasId canvas_id;
@@ -52,7 +65,7 @@ public:
     void stop_presenting_to_client();
 
     // Brings the context up to date with one frame, whose messages reach the compositor in order.
-    void submit_frame(CompositorFrame&&);
+    void submit_frame(PresentationTurn, CompositorFrame&&);
     void add_video_sink(Media::VideoSinkHandle);
     void remove_video_sink(Media::VideoSinkHandle);
     void set_video_sink_ticking(Media::VideoSinkHandle, bool should_tick);
@@ -104,7 +117,7 @@ public:
     virtual void set_parent_context(Web::CompositorContextId, Optional<Web::CompositorContextId>) = 0;
     virtual void stop_presenting_to_client(Web::CompositorContextId) = 0;
 
-    virtual void submit_frame(CompositorFrame&&) = 0;
+    virtual void submit_frame(PresentationTurn, CompositorFrame&&) = 0;
     virtual void add_video_sink(Media::VideoSinkHandle) = 0;
     virtual void remove_video_sink(Media::VideoSinkHandle) = 0;
     virtual void set_video_sink_ticking(Media::VideoSinkHandle, bool should_tick) = 0;
