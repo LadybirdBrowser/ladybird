@@ -1245,8 +1245,10 @@ static bool update_style_for_element(Layout::BegunRead const& read, DOM::Documen
         && !embedding_document_chain_has_no_pending_style_or_layout_work(document)) {
         auto& container = *navigable->container();
         auto& embedding_document = container.document();
-        // The container's style is the embedding document's own read.
+        // The container's style is the embedding document's own read, in which the style transaction that flew for the
+        // embedding document lands first.
         Layout::ForcedReadScope embedding_read { embedding_document, false };
+        embedding_document.drain_flown_style_transaction(embedding_read);
         update_style_for_element(embedding_read, embedding_document, DOM::AbstractElement { container }, StyleUpdateMode::OnlyIfNeeded);
         embedding_document_layout_was_stale = !embedding_document.layout_is_up_to_date();
         embedding_document.update_layout(DOM::UpdateLayoutReason::ChildDocumentStyleUpdate);

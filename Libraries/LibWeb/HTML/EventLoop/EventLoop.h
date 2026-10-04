@@ -174,9 +174,9 @@ private:
 
     void process_input_events() const;
     void update_the_rendering();
-    void update_the_rendering_from_style_and_layout(Vector<GC::Root<DOM::Document>> const& docs, double frame_timestamp, Layout::RustFFI::FfiFlightBlocker recording_blocker);
+    void update_the_rendering_after_style_and_layout(Vector<GC::Root<DOM::Document>> const& docs, double frame_timestamp, double update_start_time, Layout::RustFFI::FfiFlightBlocker recording_blocker);
     void finish_rendering_update(double update_start_time);
-    Layout::RustFFI::FfiFlightBlocker style_flight_blocker(Vector<GC::Root<DOM::Document>> const& docs) const;
+    Layout::RustFFI::FfiFlightBlocker style_flight_blocker(DOM::Document&) const;
     void resume_rendering_update_in_flight();
     void take_finished_frames_in();
 
