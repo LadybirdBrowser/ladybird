@@ -18,6 +18,7 @@
 #include <LibCompositing/Scrolling/ScrollState.h>
 #include <LibCompositing/Scrolling/SmoothScrollAnimation.h>
 #include <LibCore/Forward.h>
+#include <LibGC/RootVector.h>
 #include <LibWeb/Bindings/CSS.h>
 #include <LibWeb/Bindings/Navigation.h>
 #include <LibWeb/Compositor/CompositorHost.h>
@@ -478,7 +479,7 @@ private:
     void queue_scrollend_event(Web::AsyncScrollNodeStableID, ScrollTrigger, Optional<CSSPixelPoint> scroll_offset_before_scroll = {});
     void queue_scrollend_event(DOM::Document&, GC::Ref<DOM::EventTarget>, Optional<Web::AsyncScrollNodeStableID>, ScrollTrigger, Optional<CSSPixelPoint> scroll_offset_before_scroll = {});
     void queue_scrollend_event_for_finished_scroll(Web::AsyncScrollNodeStableID, ScrollTrigger, Optional<CSSPixelPoint> scroll_offset_before_scroll);
-    void queue_scrollend_event_and_promise_resolution_for_finished_scroll(Optional<Web::AsyncScrollNodeStableID>, ScrollTrigger, Optional<CSSPixelPoint> scroll_offset_before_scroll, ScrollPromises const&);
+    void queue_scrollend_event_and_promise_resolution_for_finished_scroll(Optional<Web::AsyncScrollNodeStableID>, ScrollTrigger, Optional<CSSPixelPoint> scroll_offset_before_scroll, ReadonlySpan<GC::Ref<WebIDL::Promise>>);
     ScrollPromises* promises_of_smooth_scroll_in_flight_toward(Web::AsyncScrollNodeStableID, CSSPixelPoint position, ScrollTrigger);
     // The scroll a new input to a scrolling box would interact with; a scroll driven by user input is reported over
     // any programmatic scroll also in flight.
@@ -644,6 +645,17 @@ private:
         ScrollTrigger trigger { ScrollTrigger::Programmatic };
     };
     Vector<MainThreadSmoothScroll> m_main_thread_smooth_scrolls;
+
+    // A scroll taken out of the lists of scrolls in progress, which visit_edges() traces, to be reported. Reporting a
+    // scroll allocates, so its promises stay rooted until it is reported.
+    struct FinishedScroll {
+        Optional<Web::AsyncScrollNodeStableID> stable_node_id;
+        Optional<CSSPixelPoint> initial_scroll_offset;
+        GC::RootVector<GC::Ref<WebIDL::Promise>> promises;
+        ScrollTrigger trigger { ScrollTrigger::Programmatic };
+    };
+    static FinishedScroll finished_scroll(PendingAsyncScrollOperation const&);
+    static FinishedScroll finished_scroll(MainThreadSmoothScroll const&);
 };
 
 class WEB_API UserScrollGestureHold {
