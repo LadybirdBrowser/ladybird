@@ -101,12 +101,19 @@ pub struct FfiLayoutUpdateHostCallbacks {
     record_stabilization_bound_failure: unsafe extern "C" fn(*mut c_void),
     /// Attaches the image resources a box's style asks for. The flag says the box replaces its
     /// element's contents with a single image, whose provider it owns.
-    attach_style_resources: unsafe extern "C" fn(*mut c_void, &BegunRead, NodeSlotId, bool),
+    attach_style_resources: unsafe extern "C" fn(*mut c_void, &BegunRead, NodeSlotId, bool, FfiStyleImageFacts),
     /// Gives a generated image box the provider of the image it shows, which the box owns, and
     /// attaches the box's style resources. The image is the `<image>` at the given index of the
     /// pseudo-element's `content`, or the given marker's `list-style-image`.
-    attach_generated_image:
-        unsafe extern "C" fn(*mut c_void, &BegunRead, NodeSlotId, u32, FfiPseudoElement, FfiGeneratedImage),
+    attach_generated_image: unsafe extern "C" fn(
+        *mut c_void,
+        &BegunRead,
+        NodeSlotId,
+        u32,
+        FfiPseudoElement,
+        FfiGeneratedImage,
+        FfiStyleImageFacts,
+    ),
 }
 
 /// What the loop needs to know about the document at one point in time. Every host call can
@@ -228,28 +235,62 @@ impl FfiLayoutUpdateHostCallbacks {
         if host.known_owed_image_resources() == Some(false) {
             return;
         }
+        // Each box reads whether its style holds image values, which the engine answers with the rows rather than
+        // once per box.
         let owed = read_arena(host, read, (), |arena, ()| {
-            let mut owed = arena.take_image_resources_owed_to_host();
-            // A later build of the update may have freed the row.
-            owed.retain(|&(row, _)| arena.slot_is_live(row));
-            for &(row, _) in &owed {
-                arena.note_owned_provider_handed_over(row);
-            }
-            owed
+            let owed = arena.take_image_resources_owed_to_host();
+            arena.with_style_engine(|engine| {
+                owed.into_iter()
+                    // A later build of the update may have freed the row.
+                    .filter(|&(row, _)| arena.slot_is_live(row))
+                    .map(|(row, owed)| {
+                        arena.note_owned_provider_handed_over(row);
+                        (row, owed, FfiStyleImageFacts::of(engine, arena.node_style_record(row)))
+                    })
+                    .collect::<Vec<_>>()
+            })
         });
-        for (row, owed) in owed {
+        for (row, owed, images) in owed {
             match owed {
                 OwedImageResources::StyleResources {
                     owns_content_replacement_image,
-                } => unsafe { (self.attach_style_resources)(self.context, read, row, owns_content_replacement_image) },
+                } => unsafe {
+                    (self.attach_style_resources)(self.context, read, row, owns_content_replacement_image, images);
+                },
                 OwedImageResources::GeneratedImage {
                     generator,
                     pseudo_element,
                     image,
                 } => unsafe {
-                    (self.attach_generated_image)(self.context, read, row, generator.raw(), pseudo_element, image);
+                    (self.attach_generated_image)(
+                        self.context,
+                        read,
+                        row,
+                        generator.raw(),
+                        pseudo_element,
+                        image,
+                        images,
+                    );
                 },
             }
+        }
+    }
+}
+
+/// Whether `style_record`, the style record a box had when a tree build came to owe it its image resources, holds image
+/// values, which the box reads as it attaches them.
+#[derive(Clone, Copy)]
+#[repr(C)]
+pub struct FfiStyleImageFacts {
+    pub style_record: u64,
+    pub holds_image_values: bool,
+}
+
+impl FfiStyleImageFacts {
+    fn of(engine: &crate::css::style::StyleEngine, style_record: u64) -> Self {
+        Self {
+            style_record,
+            holds_image_values: engine.style_record_holds_image_values(style_record),
         }
     }
 }
