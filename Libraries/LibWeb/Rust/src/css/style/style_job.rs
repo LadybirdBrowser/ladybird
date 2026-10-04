@@ -440,7 +440,9 @@ pub unsafe extern "C" fn style_engine_end_style_transaction(
         unreachable!("the end of a transaction is answered with the identities it released");
     };
     // SAFETY: As above.
-    unsafe { &*host }.engine_memo().held.borrow_mut().forget(&released);
+    let memo = unsafe { &*host }.engine_memo();
+    memo.held.borrow_mut().forget(&released);
+    memo.described.borrow_mut().forget(&released);
     // SAFETY: As above.
     unsafe { &mut *allocator }.release(&released);
 }

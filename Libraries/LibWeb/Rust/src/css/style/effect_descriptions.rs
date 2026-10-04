@@ -220,7 +220,7 @@ impl PublishedEffectBuffers<'_> {
     ///
     /// # Safety
     /// Every value and custom-property name the buffers name must be live.
-    unsafe fn effects(self) -> Box<[PublishedEffect]> {
+    pub(crate) unsafe fn effects(self) -> Box<[PublishedEffect]> {
         self.effects
             .iter()
             .map(|effect| {
@@ -314,11 +314,7 @@ pub(crate) struct AnimationEffectDescriptions {
 
 impl AnimationEffectDescriptions {
     /// Replace one list. An empty list drops it.
-    ///
-    /// # Safety
-    /// Every value and custom-property name the buffers name must be live.
-    pub(crate) unsafe fn set(&mut self, node: StyleNodeID, slot: AnimationSlot, buffers: PublishedEffectBuffers<'_>) {
-        let effects = unsafe { buffers.effects() };
+    pub(crate) fn set(&mut self, node: StyleNodeID, slot: AnimationSlot, effects: Box<[PublishedEffect]>) {
         let lists = self.rows.entry(node).or_default();
         let existing = lists.iter().position(|(list_slot, _)| *list_slot == slot);
         match (existing, effects.is_empty()) {
@@ -345,6 +341,7 @@ impl AnimationEffectDescriptions {
 
     /// Whether one of an element's lists describes exactly these versions of the effects, in this
     /// order. Every change that moves what a description says moves its effect's generation.
+    #[cfg(test)]
     #[must_use]
     pub(crate) fn describe(
         &self,
@@ -367,6 +364,69 @@ impl AnimationEffectDescriptions {
     }
 }
 
+/// The versions of the effects each of an element's lists holds as the host described them to the engine, which the
+/// host follows over every description it writes and every identity a transaction releases, as the engine retires the
+/// node's lists then, so it knows without asking whether the engine describes a list already.
+#[derive(Default)]
+pub(crate) struct DescribedVersions {
+    rows: HashMap<StyleNodeID, Vec<DescribedList>>,
+}
+
+/// The identity and generation of each effect one of an element's lists holds, in composite order.
+type DescribedList = (AnimationSlot, Box<[(u64, u64)]>);
+
+impl DescribedVersions {
+    /// Follows the host describing `effects` as one of `node`'s lists.
+    pub(crate) fn follow(&mut self, node: StyleNodeID, slot: AnimationSlot, effects: &[PublishedEffect]) {
+        let lists = self.rows.entry(node).or_default();
+        lists.retain(|(list_slot, _)| *list_slot != slot);
+        if !effects.is_empty() {
+            lists.push((
+                slot,
+                effects
+                    .iter()
+                    .map(|effect| (effect.identity, effect.generation))
+                    .collect(),
+            ));
+        }
+        if lists.is_empty() {
+            self.rows.remove(&node);
+        }
+    }
+
+    /// Whether the engine describes one of `node`'s lists as exactly these versions: every change that moves what a
+    /// description says moves its effect's generation.
+    pub(crate) fn describe(
+        &self,
+        node: StyleNodeID,
+        slot: AnimationSlot,
+        versions: &[FfiAnimationEffectVersion],
+    ) -> bool {
+        let described = self
+            .rows
+            .get(&node)
+            .and_then(|lists| lists.iter().find(|(list_slot, _)| *list_slot == slot))
+            .map_or(&[][..], |(_, described)| described);
+        described.len() == versions.len()
+            && described
+                .iter()
+                .zip(versions)
+                .all(|(&(identity, generation), version)| {
+                    identity == version.identity && generation == version.generation
+                })
+    }
+
+    /// Forgets the lists of the nodes a transaction retired, whose identities it `released`.
+    pub(crate) fn forget(&mut self, released: &[u32]) {
+        if self.rows.is_empty() {
+            return;
+        }
+        for node in released.iter().filter_map(|&node| StyleNodeID::from_raw(node)) {
+            self.rows.remove(&node);
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -385,8 +445,32 @@ mod tests {
         }
     }
 
+    /// The engine's descriptions, and the host's record of what it described, which must answer alike.
+    #[derive(Default)]
+    struct Described {
+        rows: AnimationEffectDescriptions,
+        host: DescribedVersions,
+    }
+
+    impl Described {
+        fn describe(&self, node: StyleNodeID, slot: AnimationSlot, versions: &[FfiAnimationEffectVersion]) -> bool {
+            let described = self.rows.describe(node, slot, versions);
+            assert_eq!(described, self.host.describe(node, slot, versions));
+            described
+        }
+
+        fn effects(&self, node: StyleNodeID, slot: AnimationSlot) -> &[PublishedEffect] {
+            self.rows.effects(node, slot)
+        }
+
+        fn retire(&mut self, node: StyleNodeID) {
+            self.rows.retire(node);
+            self.host.forget(&[node.raw()]);
+        }
+    }
+
     fn set(
-        descriptions: &mut AnimationEffectDescriptions,
+        descriptions: &mut Described,
         node: StyleNodeID,
         slot: AnimationSlot,
         effects: &[FfiPublishedAnimationEffect],
@@ -399,7 +483,9 @@ mod tests {
             linear_points: &[],
             base_url_bytes: &[],
         };
-        unsafe { descriptions.set(node, slot, buffers) };
+        let effects = unsafe { buffers.effects() };
+        descriptions.host.follow(node, slot, &effects);
+        descriptions.rows.set(node, slot, effects);
     }
 
     fn version(identity: u64, generation: u64) -> FfiAnimationEffectVersion {
@@ -409,7 +495,7 @@ mod tests {
     #[test]
     fn a_list_describes_the_versions_it_was_published_for() {
         let node = StyleNodeID::from_raw(1).unwrap();
-        let mut descriptions = AnimationEffectDescriptions::default();
+        let mut descriptions = Described::default();
         set(&mut descriptions, node, 0, &[effect(7, 1), effect(9, 3)]);
         assert!(descriptions.describe(node, 0, &[version(7, 1), version(9, 3)]));
         assert!(!descriptions.describe(node, 0, &[version(7, 2), version(9, 3)]));
@@ -419,19 +505,21 @@ mod tests {
         assert!(descriptions.describe(node, 2, &[]));
 
         set(&mut descriptions, node, 0, &[]);
-        assert!(descriptions.rows.is_empty());
+        assert!(descriptions.rows.rows.is_empty());
+        assert!(descriptions.host.rows.is_empty());
     }
 
     #[test]
     fn a_retired_identity_holds_no_descriptions_when_reissued() {
         let node = StyleNodeID::from_raw(1).unwrap();
-        let mut descriptions = AnimationEffectDescriptions::default();
+        let mut descriptions = Described::default();
         set(&mut descriptions, node, 0, &[effect(7, 1)]);
         set(&mut descriptions, node, 3, &[effect(8, 1)]);
         descriptions.retire(node);
         assert!(descriptions.effects(node, 0).is_empty());
         assert!(descriptions.effects(node, 3).is_empty());
-        assert!(descriptions.rows.is_empty());
+        assert!(descriptions.rows.rows.is_empty());
+        assert!(descriptions.host.rows.is_empty());
         assert!(descriptions.describe(node, 0, &[]));
     }
 }

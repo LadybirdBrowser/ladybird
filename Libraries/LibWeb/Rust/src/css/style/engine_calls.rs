@@ -107,6 +107,13 @@ pub(crate) enum EngineWrite {
         string: ak::Utf16FlyString,
         text: Box<[u16]>,
     },
+    /// The effects one of an element's animation lists holds, in composite order, described for the engine to sample
+    /// them from.
+    AnimationEffectDescriptions {
+        node: StyleNodeID,
+        slot: super::animations::AnimationSlot,
+        effects: Box<[super::effect_descriptions::PublishedEffect]>,
+    },
 }
 
 /// An input transaction the host recorded, owned.
@@ -165,6 +172,9 @@ impl EngineWrite {
             Self::ElementLanguage { node, language, text } => set_element_language(engine, node, language, &text),
             Self::PresentationalHints { node, kind, properties } => {
                 super::bridge::register_element_declared_properties(engine, node, kind, &properties, &[]);
+            }
+            Self::AnimationEffectDescriptions { node, slot, effects } => {
+                engine.animation_effect_descriptions.set(node, slot, effects);
             }
             #[cfg(feature = "style-recording")]
             Self::BenchmarkMarker(name) => {
@@ -1064,6 +1074,8 @@ pub(crate) struct EngineMemo {
     pub(crate) held: std::cell::RefCell<HeldEnvironments>,
     /// The element style inputs the engine defers.
     pub(crate) deferred: std::cell::RefCell<DeferredInputs>,
+    /// The versions of the animation effects the host described to the engine.
+    pub(crate) described: std::cell::RefCell<super::effect_descriptions::DescribedVersions>,
 }
 
 impl Default for EngineMemo {
@@ -1074,6 +1086,7 @@ impl Default for EngineMemo {
             dependency_flags: Memo::new(0),
             held: Default::default(),
             deferred: Default::default(),
+            described: Default::default(),
         }
     }
 }

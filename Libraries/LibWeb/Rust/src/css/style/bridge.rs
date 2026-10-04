@@ -1651,7 +1651,8 @@ pub struct FfiAnimationEffectVersion {
 }
 
 /// Describe the effects one of an element's animation lists holds, in composite order, for the
-/// style engine to sample them from.
+/// style engine to sample them from. The host retains every value the effects name and streams
+/// the description to the engine.
 ///
 /// Hand-written rather than a recorded boundary event, because a keyframe declaration carries a
 /// style value the host holds, which a replayed engine could not be handed.
@@ -1664,7 +1665,6 @@ pub struct FfiAnimationEffectVersion {
 #[allow(clippy::too_many_arguments)]
 pub unsafe extern "C" fn style_engine_set_element_animation_effect_descriptions(
     host: *const DocumentHost,
-    read: &crate::render_state::BegunRead,
     node: u32,
     slot: u8,
     effects: *const FfiPublishedAnimationEffect,
@@ -1680,28 +1680,32 @@ pub unsafe extern "C" fn style_engine_set_element_animation_effect_descriptions(
     base_url_bytes: *const u8,
     base_url_byte_count: usize,
 ) {
+    let Some(node) = StyleNodeID::from_raw(node) else {
+        return;
+    };
+    // SAFETY: Guaranteed by the caller.
+    let effects = unsafe {
+        super::effect_descriptions::PublishedEffectBuffers {
+            effects: ffi_slice(effects, effect_count),
+            keyframes: ffi_slice(keyframes, keyframe_count),
+            declarations: ffi_slice(declarations, declaration_count),
+            custom_declarations: ffi_slice(custom_declarations, custom_declaration_count),
+            linear_points: ffi_slice(linear_points, linear_point_count),
+            base_url_bytes: ffi_slice(base_url_bytes, base_url_byte_count),
+        }
+        .effects()
+    };
     // SAFETY: Guaranteed by the caller.
     let host = unsafe { document_host(host) };
-    with_engine(read, host, |engine| {
-        let Some(node) = StyleNodeID::from_raw(node) else {
-            return;
-        };
-        let buffers = unsafe {
-            super::effect_descriptions::PublishedEffectBuffers {
-                effects: ffi_slice(effects, effect_count),
-                keyframes: ffi_slice(keyframes, keyframe_count),
-                declarations: ffi_slice(declarations, declaration_count),
-                custom_declarations: ffi_slice(custom_declarations, custom_declaration_count),
-                linear_points: ffi_slice(linear_points, linear_point_count),
-                base_url_bytes: ffi_slice(base_url_bytes, base_url_byte_count),
-            }
-        };
-        unsafe { engine.animation_effect_descriptions.set(node, slot, buffers) };
-    });
+    host.engine_memo().described.borrow_mut().follow(node, slot, &effects);
+    host.queue_change(crate::render_state::ArenaChange::Engine(
+        super::engine_calls::EngineWrite::AnimationEffectDescriptions { node, slot, effects },
+    ));
 }
 
 /// Whether the engine describes one of an element's animation lists as holding exactly these
-/// versions of its effects, in this order, so that the host need not describe them again.
+/// versions of its effects, in this order, so that the host need not describe them again. Only
+/// the host describes them, so it knows without asking.
 ///
 /// # Safety
 /// `host` must be a live document host, on its document's thread, and `versions` must hold `count`
@@ -1709,7 +1713,6 @@ pub unsafe extern "C" fn style_engine_set_element_animation_effect_descriptions(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_describes_animation_effects(
     host: *const DocumentHost,
-    read: &crate::render_state::BegunRead,
     node: u32,
     slot: u8,
     versions: *const FfiAnimationEffectVersion,
@@ -1717,12 +1720,11 @@ pub unsafe extern "C" fn style_engine_describes_animation_effects(
 ) -> bool {
     // SAFETY: Guaranteed by the caller.
     let host = unsafe { document_host(host) };
-    with_engine(read, host, |engine| {
-        StyleNodeID::from_raw(node).is_some_and(|node| {
-            engine
-                .animation_effect_descriptions
-                .describe(node, slot, unsafe { ffi_slice(versions, count) })
-        })
+    StyleNodeID::from_raw(node).is_some_and(|node| {
+        host.engine_memo()
+            .described
+            .borrow()
+            .describe(node, slot, unsafe { ffi_slice(versions, count) })
     })
 }
 
