@@ -729,8 +729,14 @@ Messages::RequestServer::CreateSyntheticCacheEntryResponse ConnectionFromClient:
     return result.value();
 }
 
-void ConnectionFromClient::websocket_connect(u64 websocket_id, URL::URL url, ByteString origin, Vector<ByteString> protocols, Vector<ByteString> extensions, Vector<HTTP::Header> additional_request_headers)
+void ConnectionFromClient::websocket_connect(u64 websocket_id, URL::URL url, Optional<HTTP::NetworkIsolationKey> network_isolation_key, ByteString origin, Vector<ByteString> protocols, Vector<ByteString> extensions, Vector<HTTP::Header> additional_request_headers)
 {
+    if (network_isolation_key.has_value() && !may_use_network_isolation_key(*network_isolation_key)) {
+        dbgln("RequestServer: Client {} is not bound to the network isolation key of its WebSocket for {}", client_id(), url);
+        fail_websocket(websocket_id, Requests::WebSocket::Error::CouldNotEstablishConnection);
+        return;
+    }
+
     // The handshake carries the user's cookies for the URL, which we retrieve from the UI process ourselves. The client
     // does not get to choose them.
     additional_request_headers.remove_all_matching([](auto const& header) {
@@ -759,7 +765,10 @@ void ConnectionFromClient::websocket_connect(u64 websocket_id, URL::URL url, Byt
                                                       },
                                                   });
 
-    control_connection->async_retrieve_http_cookie(client_id(), websocket_id, RequestType::WebSocket, cookie_request_id, url);
+    Optional<HTTP::Cookie::PartitionContext> partition_context;
+    if (network_isolation_key.has_value())
+        partition_context = HTTP::Cookie::PartitionContext { network_isolation_key->top_level_site, network_isolation_key->has_cross_site_ancestor };
+    control_connection->async_retrieve_http_cookie(client_id(), websocket_id, RequestType::WebSocket, cookie_request_id, url, move(partition_context));
 }
 
 bool ConnectionFromClient::websocket_retrieved_http_cookie(Badge<ControlConnectionFromClient>, u64 websocket_id, u64 cookie_request_id, String cookie)

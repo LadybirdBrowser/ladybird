@@ -19,6 +19,7 @@
 #include <LibDNS/Resolver.h>
 #include <LibHTTP/Cache/CacheMode.h>
 #include <LibHTTP/Cache/CacheRequest.h>
+#include <LibHTTP/Cookie/Cookie.h>
 #include <LibHTTP/Cookie/IncludeCredentials.h>
 #include <LibHTTP/Cookie/ParsedCookie.h>
 #include <LibHTTP/HSTS/ParsedHSTSPolicy.h>
@@ -270,6 +271,13 @@ private:
     Optional<PendingResponseStorage> m_pending_response_storage;
     RequestType m_type { RequestType::Fetch };
     State m_state { State::Init };
+
+    Optional<HTTP::Cookie::PartitionContext> cookie_partition_context() const
+    {
+        if (!m_network_isolation_key.has_value())
+            return {};
+        return HTTP::Cookie::PartitionContext { m_network_isolation_key->top_level_site, m_network_isolation_key->has_cross_site_ancestor };
+    }
 
     Optional<HTTP::NetworkIsolationKey> m_network_isolation_key;
 

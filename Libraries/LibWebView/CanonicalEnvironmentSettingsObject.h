@@ -28,6 +28,9 @@ public:
     // https://html.spec.whatwg.org/multipage/webappapis.html#concept-settings-object-origin
     virtual URL::Origin const& origin() const = 0;
 
+    // https://html.spec.whatwg.org/multipage/webappapis.html#concept-environment-top-level-origin
+    virtual Optional<URL::Origin> top_level_origin() const = 0;
+
     bool may_use_cookies_of(URL::URL const&) const;
 
 protected:
@@ -46,6 +49,7 @@ public:
     CanonicalWindowEnvironmentSettingsObject(CanonicalWindow&, Web::HTML::EnvironmentId id);
 
     virtual URL::Origin const& origin() const override;
+    virtual Optional<URL::Origin> top_level_origin() const override;
 
 private:
     CanonicalWindow& m_window;
@@ -54,13 +58,23 @@ private:
 // https://html.spec.whatwg.org/multipage/workers.html#script-settings-for-workers
 class WEBVIEW_API CanonicalWorkerEnvironmentSettingsObject final : public CanonicalEnvironmentSettingsObject {
 public:
-    CanonicalWorkerEnvironmentSettingsObject(URL::Origin, Web::HTML::EnvironmentId id);
+    CanonicalWorkerEnvironmentSettingsObject(URL::Origin, Optional<URL::Origin> top_level_origin, bool has_cross_site_ancestor, Web::HTML::EnvironmentId id);
 
     virtual URL::Origin const& origin() const override { return m_origin; }
+    virtual Optional<URL::Origin> top_level_origin() const override { return m_top_level_origin; }
+
+    // https://html.spec.whatwg.org/multipage/webappapis.html#concept-settings-object-has-cross-site-ancestor
+    bool has_cross_site_ancestor() const { return m_has_cross_site_ancestor; }
 
 private:
     URL::Origin m_origin;
+    Optional<URL::Origin> m_top_level_origin;
+    bool m_has_cross_site_ancestor { false };
 };
+
+// The serialized site of the environment's top-level origin, by which its network state is partitioned, or nothing if
+// that origin is opaque or unknown.
+WEBVIEW_API Optional<Utf16String> network_isolation_top_level_site(CanonicalEnvironmentSettingsObject const&);
 
 WEBVIEW_API Web::StorageAPI::StorageKey obtain_a_storage_key_for_non_storage_purposes(CanonicalEnvironmentSettingsObject const&);
 WEBVIEW_API Optional<Web::StorageAPI::StorageKey> obtain_a_storage_key(CanonicalEnvironmentSettingsObject const&);

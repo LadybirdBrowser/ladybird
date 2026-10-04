@@ -1126,9 +1126,33 @@ NonnullRefPtr<BrowsingSession> Application::session_for_new_view(IsPrivate is_pr
     return session;
 }
 
-void Application::did_connect_request_server_client(int client_id, BrowsingSession& session)
+void Application::did_connect_request_server_client(int client_id, BrowsingSession& session, RequestServer::SiteBinding site_binding)
 {
     m_request_server_client_sessions.set(client_id, session.make_weak_ptr());
+    if (site_binding == RequestServer::SiteBinding::Unrestricted)
+        m_unrestricted_request_server_clients.set(client_id);
+}
+
+bool Application::request_server_client_may_use_cookies_in(int client_id, URL::URL const& url, Optional<HTTP::Cookie::PartitionContext> const& context) const
+{
+    if (m_unrestricted_request_server_clients.contains(client_id))
+        return true;
+
+    // NB: A bound client makes a request without a context for a document under a top-level document with an opaque
+    //     origin. That is a third-party context of no site, which has no cookies.
+    if (!context.has_value())
+        return false;
+
+    bool may_use_cookies = false;
+    auto check_bindings = [&](RequestServerSiteBindings& bindings) {
+        if (bindings.client_id() != client_id)
+            return IterationDecision::Continue;
+        may_use_cookies = bindings.may_use_cookies_under(context->top_level_site, url);
+        return IterationDecision::Break;
+    };
+    WebContentClient::for_each_client([&](WebContentClient& client) { return check_bindings(client.request_server_site_bindings()); });
+    WorkerProcessManager::the().for_each_request_server_site_bindings([&](RequestServerSiteBindings& bindings) { return check_bindings(bindings); });
+    return may_use_cookies;
 }
 
 Vector<int> Application::request_server_client_ids_for_testing(BrowsingSession const& session) const
@@ -1780,6 +1804,7 @@ ErrorOr<void> Application::launch_request_server()
 {
     // A new RequestServer hands out client IDs from the start again.
     m_request_server_client_sessions.clear();
+    m_unrestricted_request_server_clients.clear();
     m_request_server_control_client = TRY(launch_request_server_process());
 
     // The UI process speaks the control endpoint over the initial socket, and gets its own data connection from it,
@@ -1797,29 +1822,34 @@ ErrorOr<void> Application::launch_request_server()
 
     m_request_server_control_client->on_client_disconnected = [](int client_id) {
         the().m_request_server_client_sessions.remove(client_id);
+        the().m_unrestricted_request_server_clients.remove(client_id);
     };
 
-    m_request_server_control_client->on_store_response_cookies_and_hsts_policy = [](int client_id, URL::URL const& url, Vector<HTTP::Cookie::ParsedCookie> const& cookies, Optional<HTTP::HSTS::ParsedHSTSPolicy> const& hsts_policy) {
+    m_request_server_control_client->on_store_response_cookies_and_hsts_policy = [](int client_id, URL::URL const& url, Optional<HTTP::Cookie::PartitionContext> const& partition_context, Vector<HTTP::Cookie::ParsedCookie> const& cookies, Optional<HTTP::HSTS::ParsedHSTSPolicy> const& hsts_policy) {
         auto session = the().session_for_request_server_client(client_id);
         if (!session)
             return;
 
-        for (auto const& cookie : cookies)
-            session->cookie_jar->set_cookie(url, cookie, HTTP::Cookie::Source::Http);
+        if (the().request_server_client_may_use_cookies_in(client_id, url, partition_context)) {
+            for (auto const& cookie : cookies)
+                session->cookie_jar->set_cookie(url, cookie, HTTP::Cookie::Source::Http, partition_context);
+        }
 
         if (hsts_policy.has_value() && url.host().has_value() && url.host()->is_domain())
             session->hsts_store->store_policy(url.host()->get<String>(), *hsts_policy);
     };
 
-    m_request_server_control_client->on_retrieve_http_cookie = [](int client_id, URL::URL const& url) -> String {
+    m_request_server_control_client->on_retrieve_http_cookie = [](int client_id, URL::URL const& url, Optional<HTTP::Cookie::PartitionContext> const& partition_context) -> String {
         auto session = the().session_for_request_server_client(client_id);
         if (!session)
             return {};
+        if (!the().request_server_client_may_use_cookies_in(client_id, url, partition_context))
+            return {};
         auto& cookie_jar = *session->cookie_jar;
         if constexpr (!REQUESTSERVER_WIRE_DEBUG)
-            return cookie_jar.get_cookie(url, HTTP::Cookie::Source::Http);
+            return cookie_jar.get_cookie(url, HTTP::Cookie::Source::Http, partition_context);
         auto started_at = MonotonicTime::now();
-        auto cookie = cookie_jar.get_cookie(url, HTTP::Cookie::Source::Http);
+        auto cookie = cookie_jar.get_cookie(url, HTTP::Cookie::Source::Http, partition_context);
         auto elapsed_ms = (MonotonicTime::now() - started_at).to_milliseconds();
         if (elapsed_ms > 5) {
             dbgln("UI wire-cookie: get_cookie({}) took {} ms ({} bytes returned)",
@@ -1873,7 +1903,7 @@ ErrorOr<void> Application::launch_request_server()
             // A replacement client belongs to the session of the process it is for, which may be a private session
             // that has since been replaced by a newer one.
             auto client_id = new_clients.client_ids.take_last();
-            did_connect_request_server_client(client_id, client.session());
+            did_connect_request_server_client(client_id, client.session(), RequestServer::SiteBinding::Bound);
             client.request_server_site_bindings().did_connect(client_id);
             client.async_connect_to_request_server(new_clients.handles.take_last());
             return IterationDecision::Continue;
@@ -3103,7 +3133,7 @@ ErrorOr<void> Application::set_cookie(DevTools::TabDescription const& descriptio
 
     Optional<CookieStorageKey> old_key;
     if (old_cookie.has_value())
-        old_key = CookieStorageKey { old_cookie->name, old_cookie->domain, old_cookie->path };
+        old_key = CookieStorageKey { old_cookie->name, old_cookie->domain, old_cookie->path, old_cookie->partition_key };
 
     TRY(view->session().cookie_jar->set_cookie_from_devtools(*url, move(old_key), move(cookie)));
     return {};
@@ -3116,7 +3146,7 @@ void Application::delete_cookies(DevTools::TabDescription const& description, Ve
         return;
 
     for (auto const& cookie : cookies)
-        view->session().cookie_jar->delete_cookie({ cookie.name, cookie.domain, cookie.path });
+        view->session().cookie_jar->delete_cookie({ cookie.name, cookie.domain, cookie.path, cookie.partition_key });
 }
 
 void Application::listen_for_host_cookie_changes(DevTools::TabDescription const& description, OnHostCookieChange on_host_cookie_change) const

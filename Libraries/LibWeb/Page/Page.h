@@ -699,11 +699,12 @@ public:
     virtual void page_did_receive_document_cookie_version_buffer([[maybe_unused]] Core::AnonymousBuffer document_cookie_version_buffer) { }
     virtual void page_did_request_document_cookie_version_index(HTML::EnvironmentSettingsObject const&, [[maybe_unused]] UniqueNodeID document_id, [[maybe_unused]] String const& domain) { }
     virtual void page_did_receive_document_cookie_version_index([[maybe_unused]] UniqueNodeID document_id, [[maybe_unused]] Core::SharedVersionIndex document_index) { }
-    virtual Vector<HTTP::Cookie::Cookie> page_did_request_all_cookies_webdriver(URL::URL const&) { return {}; }
-    virtual Vector<HTTP::Cookie::Cookie> page_did_request_all_cookies_cookiestore(URL::URL const&) { return {}; }
+    virtual Vector<HTTP::Cookie::Cookie> page_did_request_all_cookies_webdriver(URL::URL const&, Optional<HTTP::Cookie::PartitionContext> const& = {}) { return {}; }
+    // NB: The environment is that of the script asking. Only WebDriver, which uses HTTP cookie sources, asks without one.
+    virtual Vector<HTTP::Cookie::Cookie> page_did_request_all_cookies_cookiestore(HTML::EnvironmentId const&, URL::URL const&) { return {}; }
     virtual Optional<HTTP::Cookie::Cookie> page_did_request_named_cookie(URL::URL const&, String const&) { return {}; }
-    virtual HTTP::Cookie::VersionedCookie page_did_request_cookie(URL::URL const&, HTTP::Cookie::Source) { return {}; }
-    virtual void page_did_set_cookie(URL::URL const&, HTTP::Cookie::ParsedCookie const&, HTTP::Cookie::Source) { }
+    virtual HTTP::Cookie::VersionedCookie page_did_request_cookie(Optional<HTML::EnvironmentId> const&, URL::URL const&, HTTP::Cookie::Source) { return {}; }
+    virtual void page_did_set_cookie(Optional<HTML::EnvironmentId> const&, URL::URL const&, HTTP::Cookie::ParsedCookie const&, HTTP::Cookie::Source) { }
     virtual void page_did_update_cookie(HTTP::Cookie::Cookie const&) { }
     virtual void page_did_expire_cookies_with_time_offset(AK::Duration) { }
     virtual void page_did_delete_all_cookies(URL::URL const&, GC::Ref<WebIDL::Promise>) { }

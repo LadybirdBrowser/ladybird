@@ -173,11 +173,11 @@ endpoint WebContentClient routed by Web::PageId page_id
     did_change_favicon(Web::PageId page_id, Gfx::ShareableBitmap favicon) =|
 
     did_request_document_cookie_version_index(Web::PageId page_id, Web::HTML::EnvironmentId environment_id, i64 document_id, String domain) =|
-    did_request_all_cookies_webdriver(URL::URL url) => (Vector<HTTP::Cookie::Cookie> cookies)
-    [NotRouted] did_request_all_cookies_cookiestore(Web::PageId page_id, URL::URL url) => (Vector<HTTP::Cookie::Cookie> cookies)
+    did_request_all_cookies_webdriver(URL::URL url, Optional<HTTP::Cookie::PartitionContext> partition_context) => (Vector<HTTP::Cookie::Cookie> cookies)
+    [NotRouted] did_request_all_cookies_cookiestore(Web::PageId page_id, Web::HTML::EnvironmentId environment_id, URL::URL url) => (Vector<HTTP::Cookie::Cookie> cookies)
     did_request_named_cookie(URL::URL url, String name) => (Optional<HTTP::Cookie::Cookie> cookie)
-    [NotRouted] did_request_cookie(Web::PageId page_id, URL::URL url, HTTP::Cookie::Source source) => (HTTP::Cookie::VersionedCookie cookie)
-    did_set_cookie(Web::PageId page_id, URL::URL url, HTTP::Cookie::ParsedCookie cookie, HTTP::Cookie::Source source) => ()
+    [NotRouted] did_request_cookie(Web::PageId page_id, Optional<Web::HTML::EnvironmentId> environment_id, URL::URL url, HTTP::Cookie::Source source) => (HTTP::Cookie::VersionedCookie cookie)
+    did_set_cookie(Web::PageId page_id, Optional<Web::HTML::EnvironmentId> environment_id, URL::URL url, HTTP::Cookie::ParsedCookie cookie, HTTP::Cookie::Source source) => ()
     did_update_cookie(HTTP::Cookie::Cookie cookie) =|
     did_request_delete_all_cookies(Web::PageId page_id, u64 request_id, URL::URL url) =|
 

@@ -58,6 +58,7 @@
 #include <LibWeb/DOMURL/DOMURL.h>
 #include <LibWeb/Dump.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
+#include <LibWeb/Fetch/Infrastructure/NetworkPartitionKey.h>
 #include <LibWeb/Geolocation/Geolocation.h>
 #include <LibWeb/Geometry/DOMRect.h>
 #include <LibWeb/HTML/AnimatedBitmapDecodedImageData.h>
@@ -883,10 +884,19 @@ WebIDL::ExceptionOr<bool> Internals::has_cookie_for_url(Utf16String const& url, 
     if (!parsed_url.has_value())
         return WebIDL::SimpleException { .type = WebIDL::SimpleExceptionType::TypeError, .message = Utf16String::formatted("Invalid URL: '{}'", url) };
 
-    auto cookies = page().client().page_did_request_all_cookies_webdriver(parsed_url.value());
-    return any_of(cookies, [&](auto const& cookie) {
-        return cookie.name == name && cookie.value == value;
-    });
+    // NB: Look at both the first-party cookies of the URL, as its top-level documents see them, and the cookies of the
+    //     URL under this document's top-level site, as its cross-site frames see them.
+    auto has_cookie = [&](Optional<HTTP::Cookie::PartitionContext> const& partition_context) {
+        auto cookies = page().client().page_did_request_all_cookies_webdriver(parsed_url.value(), partition_context);
+        return any_of(cookies, [&](auto const& cookie) {
+            return cookie.name == name && cookie.value == value;
+        });
+    };
+    if (has_cookie({}))
+        return true;
+
+    auto partition_key = Fetch::Infrastructure::determine_the_network_partition_key(window().associated_document().relevant_settings_object());
+    return partition_key.has_value() && has_cookie(HTTP::Cookie::PartitionContext { partition_key->top_level_site, partition_key->has_cross_site_ancestor });
 }
 
 bool Internals::set_http_memory_cache_enabled(bool enabled)

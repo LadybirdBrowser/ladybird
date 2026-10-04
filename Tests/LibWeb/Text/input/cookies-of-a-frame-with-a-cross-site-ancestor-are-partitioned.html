@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    // A frame of a site, under a frame of another site, under a top-level document of the first site, is a third-party
+    // context. It neither sees the top-level document's first-party cookies nor shares its own with it.
+    asyncTest(async done => {
+        const server = httpTestServer();
+        const runId = crypto.randomUUID();
+        const site = uniqueLocalhostHostname("cross-site-ancestor-site");
+        const otherSite = uniqueLocalhostHostname("cross-site-ancestor-other-site");
+
+        const htmlEcho = async (hostname, name, body) => {
+            const url = new URL(
+                await server.createEcho("GET", `/cross-site-ancestor/${runId}/${name}.html`, {
+                    status: 200,
+                    headers: { "Content-Type": "text/html", "Cache-Control": "no-store" },
+                    body: `<!DOCTYPE html>${body}`,
+                })
+            );
+            url.hostname = hostname;
+            return url.href;
+        };
+
+        const innerURL = await htmlEcho(
+            site,
+            "inner",
+            `<script>
+                document.cookie = "nested=1; path=/";
+                top.opener.postMessage({ inner: document.cookie }, "*");
+            <\/script>`
+        );
+        const middleURL = await htmlEcho(otherSite, "middle", `<iframe src="${innerURL}"></iframe>`);
+        const topLevelURL = await htmlEcho(
+            site,
+            "top-level",
+            `<script>
+                document.cookie = "first=1; path=/";
+                window.addEventListener("message", event => {
+                    if (event.data === "report")
+                        opener.postMessage({ topLevel: document.cookie }, "*");
+                });
+            <\/script><iframe src="${middleURL}"></iframe>`
+        );
+
+        const nextMessage = key =>
+            new Promise(resolve => {
+                window.addEventListener("message", function listener(event) {
+                    if (event.data?.[key] === undefined)
+                        return;
+                    window.removeEventListener("message", listener);
+                    resolve(event.data[key]);
+                });
+            });
+
+        let message = nextMessage("inner");
+        const popup = window.open(topLevelURL);
+        println(`Frame under a frame of another site: ${await message}`);
+
+        message = nextMessage("topLevel");
+        popup.postMessage("report", "*");
+        println(`Top-level document: ${await message}`);
+
+        popup.close();
+        done();
+    });
+</script>

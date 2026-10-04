@@ -109,7 +109,6 @@ public:
     void set_web_ui(RefPtr<WebUI>);
     virtual void did_misbehave(StringView message_name, StringView reason) override;
     static bool renderers_may_access_cookies_like_http();
-    bool hosts_an_environment_that_may_use_cookies_of(URL::URL const&) const;
     void register_embedded_page(Web::PageId page_id, CanonicalTraversable&);
     void unregister_embedded_page(Web::PageId page_id);
     Optional<Web::PageId> page_id_for_traversable(CanonicalTraversable const&) const;
@@ -158,10 +157,10 @@ private:
 
     virtual Messages::WebContentClient::AllocateCompositorContextIdResponse allocate_compositor_context_id(Web::PageId page_id, Web::PagePresentationRegistration) override;
     virtual void did_destroy_compositor_context(Web::CompositorContextId) override;
-    virtual Messages::WebContentClient::DidRequestAllCookiesWebdriverResponse did_request_all_cookies_webdriver(URL::URL) override;
-    virtual Messages::WebContentClient::DidRequestAllCookiesCookiestoreResponse did_request_all_cookies_cookiestore(Web::PageId page_id, URL::URL) override;
+    virtual Messages::WebContentClient::DidRequestAllCookiesWebdriverResponse did_request_all_cookies_webdriver(URL::URL, Optional<HTTP::Cookie::PartitionContext>) override;
+    virtual Messages::WebContentClient::DidRequestAllCookiesCookiestoreResponse did_request_all_cookies_cookiestore(Web::PageId page_id, Web::HTML::EnvironmentId, URL::URL) override;
     virtual Messages::WebContentClient::DidRequestNamedCookieResponse did_request_named_cookie(URL::URL, String) override;
-    virtual Messages::WebContentClient::DidRequestCookieResponse did_request_cookie(Web::PageId page_id, URL::URL, HTTP::Cookie::Source) override;
+    virtual Messages::WebContentClient::DidRequestCookieResponse did_request_cookie(Web::PageId page_id, Optional<Web::HTML::EnvironmentId>, URL::URL, HTTP::Cookie::Source) override;
     virtual void did_close_browsing_context(Web::PageId page_id) override;
     virtual Messages::WebContentClient::DidSetStorageItemResponse did_set_storage_item(Web::PageId page_id, Web::StorageAPI::StorageEndpointType, Web::HTML::EnvironmentId environment_id, Utf16String bottle_key, Utf16String value) override;
     virtual Messages::WebContentClient::DidRequestStorageItemResponse did_request_storage_item(Web::PageId page_id, Web::StorageAPI::StorageEndpointType, Web::HTML::EnvironmentId environment_id, Utf16String bottle_key) override;

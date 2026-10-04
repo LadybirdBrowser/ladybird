@@ -56,6 +56,10 @@ public:
     bool is_completely_loaded() const { return m_completely_loaded; }
     void set_completely_loaded() { m_completely_loaded = true; }
 
+    // The origin of the top-level document of this document's browsing context, or nothing if that browsing context has
+    // been discarded.
+    Optional<URL::Origin> top_level_origin() const;
+
     RefPtr<WebContentPage> const& host() const { return m_host; }
     void set_host(RefPtr<WebContentPage>);
 

@@ -1,0 +1,4 @@
+Frame of the cookie site, after setting a cookie: frame=1
+Top-level document of the cookie site, after setting a cookie: top-level=1
+Frame of the cookie site under another top-level site: (none)
+Frame of the cookie site again: frame=1

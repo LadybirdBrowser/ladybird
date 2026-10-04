@@ -30,6 +30,7 @@ namespace HTTP::Cookie {
 
 struct Cookie;
 struct ParsedCookie;
+struct PartitionContext;
 struct VersionedCookie;
 
 enum class IncludeCredentials : u8;

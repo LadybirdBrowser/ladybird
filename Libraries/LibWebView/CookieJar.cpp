@@ -15,6 +15,7 @@
 #include <LibDatabase/Database.h>
 #include <LibHTTP/Cookie/ParsedCookie.h>
 #include <LibURL/PublicSuffixData.h>
+#include <LibURL/Site.h>
 #include <LibURL/URL.h>
 #include <LibWebView/CookieJar.h>
 #include <LibWebView/ViewImplementation.h>
@@ -27,10 +28,30 @@ namespace WebView {
 static constexpr auto DATABASE_SYNCHRONIZATION_TIMER = AK::Duration::from_seconds(30);
 
 static constexpr u32 COOKIES_SCHEMA_BASELINE_VERSION = 1u;
+static constexpr u32 COOKIES_SCHEMA_PARTITION_KEY_VERSION = 2u;
 
 static CookieStorageKey storage_key_for_cookie(HTTP::Cookie::Cookie const& cookie)
 {
-    return { cookie.name, cookie.domain, cookie.path };
+    return { cookie.name, cookie.domain, cookie.path, cookie.partition_key };
+}
+
+// AD-HOC: The partition of the cookies that a context uses for url. See HTTP::Cookie::Cookie::partition_key.
+static Utf16String partition_key_for(URL::URL const& url, Optional<HTTP::Cookie::PartitionContext> const& context)
+{
+    if (!context.has_value())
+        return {};
+
+    // NB: A WebSocket handshake is an HTTP request of the corresponding scheme.
+    auto http_url = url;
+    if (url.scheme() == "ws"sv)
+        http_url.set_scheme("http"_string);
+    else if (url.scheme() == "wss"sv)
+        http_url.set_scheme("https"_string);
+
+    // NB: Like Chrome, a context with an ancestor of another site is third-party even under its own site.
+    if (!context->has_cross_site_ancestor && URL::Site::serialize_for_partitioning(http_url.origin()) == context->top_level_site)
+        return {};
+    return context->top_level_site;
 }
 
 ErrorOr<Database::MigrationOutcome> CookieJar::migrate_schema(Database::Database& database, Database::MigrationMode mode)
@@ -60,6 +81,33 @@ ErrorOr<Database::MigrationOutcome> CookieJar::migrate_schema(Database::Database
                 );
             )#"sv,
         },
+        {
+            // Cookies set in a third-party context belong to the top-level site they were set under, so the partition
+            // key joins the primary key. Existing cookies were set before partitioning and stay first-party cookies.
+            .version = COOKIES_SCHEMA_PARTITION_KEY_VERSION,
+            .sql = R"#(
+                CREATE TABLE PartitionedCookies (
+                    name TEXT,
+                    value TEXT,
+                    same_site INTEGER CHECK (same_site >= 0 AND same_site <= 3),
+                    creation_time INTEGER,
+                    last_access_time INTEGER,
+                    expiry_time INTEGER,
+                    domain TEXT,
+                    path TEXT,
+                    secure BOOLEAN,
+                    http_only BOOLEAN,
+                    host_only BOOLEAN,
+                    persistent BOOLEAN,
+                    partition_key TEXT NOT NULL DEFAULT '',
+                    PRIMARY KEY(name, domain, path, partition_key)
+                );
+                INSERT INTO PartitionedCookies (name, value, same_site, creation_time, last_access_time, expiry_time, domain, path, secure, http_only, host_only, persistent)
+                    SELECT name, value, same_site, creation_time, last_access_time, expiry_time, domain, path, secure, http_only, host_only, persistent FROM Cookies;
+                DROP TABLE Cookies;
+                ALTER TABLE PartitionedCookies RENAME TO Cookies;
+            )#"sv,
+        },
     });
 
     return database.migrate("Cookies"sv, migrations, mode);
@@ -69,9 +117,9 @@ ErrorOr<NonnullOwnPtr<CookieJar>> CookieJar::create(Database::Database& database
 {
     Statements statements {};
 
-    statements.insert_cookie = TRY(database.prepare_statement("INSERT OR REPLACE INTO Cookies (name, value, same_site, creation_time, last_access_time, expiry_time, domain, path, secure, http_only, host_only, persistent) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);"sv));
+    statements.insert_cookie = TRY(database.prepare_statement("INSERT OR REPLACE INTO Cookies (name, value, same_site, creation_time, last_access_time, expiry_time, domain, path, secure, http_only, host_only, persistent, partition_key) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);"sv));
     statements.expire_cookie = TRY(database.prepare_statement("DELETE FROM Cookies WHERE (expiry_time < ?);"sv));
-    statements.select_all_cookies = TRY(database.prepare_statement("SELECT name, value, same_site, creation_time, last_access_time, expiry_time, domain, path, secure, http_only, host_only, persistent FROM Cookies;"sv));
+    statements.select_all_cookies = TRY(database.prepare_statement("SELECT name, value, same_site, creation_time, last_access_time, expiry_time, domain, path, secure, http_only, host_only, persistent, partition_key FROM Cookies;"sv));
 
     return adopt_own(*new CookieJar { PersistedStorage { database, statements }, IsPrivate::No });
 }
@@ -114,11 +162,11 @@ CookieJar::~CookieJar()
 }
 
 // https://datatracker.ietf.org/doc/html/draft-ietf-httpbis-rfc6265bis-22#section-5.8.3
-String CookieJar::get_cookie(URL::URL const& url, HTTP::Cookie::Source source)
+String CookieJar::get_cookie(URL::URL const& url, HTTP::Cookie::Source source, Optional<HTTP::Cookie::PartitionContext> const& context)
 {
     m_transient_storage.purge_expired_cookies();
 
-    auto cookie_list = get_matching_cookies(url, source);
+    auto cookie_list = get_matching_cookies(url, source, partition_key_for(url, context));
 
     // 6. Serialize the cookie-list into a cookie-string by processing each cookie in the cookie-list in order:
     StringBuilder builder;
@@ -142,7 +190,7 @@ String CookieJar::get_cookie(URL::URL const& url, HTTP::Cookie::Source source)
 }
 
 // https://datatracker.ietf.org/doc/html/draft-ietf-httpbis-rfc6265bis-22#section-5.7
-void CookieJar::set_cookie(URL::URL const& url, HTTP::Cookie::ParsedCookie const& parsed_cookie, HTTP::Cookie::Source source)
+void CookieJar::set_cookie(URL::URL const& url, HTTP::Cookie::ParsedCookie const& parsed_cookie, HTTP::Cookie::Source source, Optional<HTTP::Cookie::PartitionContext> const& context)
 {
     // 1. A user agent MAY ignore a received cookie in its entirety. See Section 5.3.
 
@@ -167,6 +215,7 @@ void CookieJar::set_cookie(URL::URL const& url, HTTP::Cookie::ParsedCookie const
     HTTP::Cookie::Cookie cookie { parsed_cookie.name, parsed_cookie.value };
     cookie.creation_time = UnixDateTime::now();
     cookie.last_access_time = cookie.creation_time;
+    cookie.partition_key = partition_key_for(url, context);
 
     // 6. If the cookie-attribute-list contains an attribute with an attribute-name of "Max-Age":
     if (parsed_cookie.expiry_time_from_max_age_attribute.has_value()) {
@@ -298,6 +347,10 @@ void CookieJar::set_cookie(URL::URL const& url, HTTP::Cookie::ParsedCookie const
         auto ignore_cookie = false;
 
         m_transient_storage.for_each_cookie([&](HTTP::Cookie::Cookie const& old_cookie) {
+            // NB: Cookies of other partitions are never sent along with this one, so it does not shadow them.
+            if (old_cookie.partition_key != cookie.partition_key)
+                return IterationDecision::Continue;
+
             // 1. Their name matches the name of the newly-created cookie.
             if (old_cookie.name != cookie.name)
                 return IterationDecision::Continue;
@@ -400,7 +453,7 @@ void CookieJar::set_cookie(URL::URL const& url, HTTP::Cookie::ParsedCookie const
             return;
     }
 
-    CookieStorageKey key { cookie.name, cookie.domain, cookie.path };
+    auto key = storage_key_for_cookie(cookie);
 
     // 23. If the cookie store contains a cookie with the same name, domain, host-only-flag, and path as the
     //     newly-created cookie:
@@ -452,7 +505,11 @@ ErrorOr<void> CookieJar::set_cookie_from_devtools(URL::URL const& url, Optional<
 {
     auto new_key = storage_key_for_cookie(cookie);
     auto parsed_cookie = TRY(HTTP::Cookie::parse_cookie(cookie));
-    set_cookie(url, parsed_cookie, HTTP::Cookie::Source::Http);
+    // NB: DevTools edits a cookie in its own partition.
+    if (cookie.partition_key.is_empty())
+        set_cookie(url, parsed_cookie, HTTP::Cookie::Source::Http, {});
+    else
+        set_cookie(url, parsed_cookie, HTTP::Cookie::Source::Http, HTTP::Cookie::PartitionContext { cookie.partition_key, true });
 
     if (old_key.has_value() && *old_key != new_key)
         delete_cookie(*old_key);
@@ -513,19 +570,21 @@ Vector<HTTP::Cookie::Cookie> CookieJar::get_all_cookies()
 }
 
 // https://w3c.github.io/webdriver/#dfn-associated-cookies
-Vector<HTTP::Cookie::Cookie> CookieJar::get_all_cookies_webdriver(URL::URL const& url)
+Vector<HTTP::Cookie::Cookie> CookieJar::get_all_cookies_webdriver(URL::URL const& url, Optional<HTTP::Cookie::PartitionContext> const& context)
 {
-    return get_matching_cookies(url, HTTP::Cookie::Source::Http, MatchingCookiesSpecMode::WebDriver);
+    // NB: WebDriver drives top-level documents, which use first-party cookies. Tests may look at cookies from the
+    //     context of another top-level site.
+    return get_matching_cookies(url, HTTP::Cookie::Source::Http, partition_key_for(url, context), MatchingCookiesSpecMode::WebDriver);
 }
 
-Vector<HTTP::Cookie::Cookie> CookieJar::get_all_cookies_cookiestore(URL::URL const& url)
+Vector<HTTP::Cookie::Cookie> CookieJar::get_all_cookies_cookiestore(URL::URL const& url, Optional<HTTP::Cookie::PartitionContext> const& context)
 {
-    return get_matching_cookies(url, HTTP::Cookie::Source::NonHttp, MatchingCookiesSpecMode::RFC6265);
+    return get_matching_cookies(url, HTTP::Cookie::Source::NonHttp, partition_key_for(url, context), MatchingCookiesSpecMode::RFC6265);
 }
 
 Optional<HTTP::Cookie::Cookie> CookieJar::get_named_cookie(URL::URL const& url, StringView name)
 {
-    auto cookie_list = get_matching_cookies(url, HTTP::Cookie::Source::Http, MatchingCookiesSpecMode::WebDriver);
+    auto cookie_list = get_matching_cookies(url, HTTP::Cookie::Source::Http, {}, MatchingCookiesSpecMode::WebDriver);
 
     for (auto const& cookie : cookie_list) {
         if (cookie.name == name)
@@ -559,7 +618,7 @@ Requests::CacheSizes CookieJar::estimate_storage_size_accessed_since(UnixDateTim
 }
 
 // https://datatracker.ietf.org/doc/html/draft-ietf-httpbis-rfc6265bis-22#section-5.8.3
-Vector<HTTP::Cookie::Cookie> CookieJar::get_matching_cookies(URL::URL const& url, HTTP::Cookie::Source source, MatchingCookiesSpecMode mode)
+Vector<HTTP::Cookie::Cookie> CookieJar::get_matching_cookies(URL::URL const& url, HTTP::Cookie::Source source, Utf16String const& partition_key, MatchingCookiesSpecMode mode)
 {
     auto now = UnixDateTime::now();
 
@@ -574,6 +633,8 @@ Vector<HTTP::Cookie::Cookie> CookieJar::get_matching_cookies(URL::URL const& url
     Vector<HTTP::Cookie::Cookie> cookie_list;
 
     m_transient_storage.for_each_cookie([&](HTTP::Cookie::Cookie& cookie) {
+        if (cookie.partition_key != partition_key)
+            return;
         if (!HTTP::Cookie::cookie_matches_url(cookie, url, *retrieval_host_canonical, source))
             return;
 
@@ -719,7 +780,9 @@ void CookieJar::TransientStorage::send_cookie_changed_notifications(ReadonlySpan
             if (inform_web_view_about_changed_domains)
                 changed_domains.set(cookie.value.domain);
 
-            if (HTTP::Cookie::cookie_matches_url(cookie.value, view.url(), *retrieval_host_canonical))
+            // NB: Changes go to the view's top-level document, a first-party context for its URL, which never sees the
+            //     cookies set in third-party contexts.
+            if (cookie.value.partition_key.is_empty() && HTTP::Cookie::cookie_matches_url(cookie.value, view.url(), *retrieval_host_canonical))
                 page_cookies.append(cookie.value);
 
             if (cookie.value.host_only) {
@@ -751,7 +814,8 @@ void CookieJar::PersistedStorage::insert_cookie(HTTP::Cookie::Cookie const& cook
         cookie.secure,
         cookie.http_only,
         cookie.host_only,
-        cookie.persistent);
+        cookie.persistent,
+        cookie.partition_key);
 }
 
 static HTTP::Cookie::Cookie parse_cookie(Database::Database& database, Database::StatementID statement_id)
@@ -779,6 +843,7 @@ static HTTP::Cookie::Cookie parse_cookie(Database::Database& database, Database:
     convert_bool(cookie.http_only);
     convert_bool(cookie.host_only);
     convert_bool(cookie.persistent);
+    cookie.partition_key = database.result_column<Utf16String>(statement_id, column++);
 
     return cookie;
 }
@@ -792,7 +857,7 @@ CookieJar::TransientStorage::Cookies CookieJar::PersistedStorage::select_all_coo
         [&](auto statement_id) -> ErrorOr<void> {
             auto cookie = parse_cookie(database, statement_id);
 
-            CookieStorageKey key { cookie.name, cookie.domain, cookie.path };
+            auto key = storage_key_for_cookie(cookie);
             cookies.set(move(key), move(cookie));
             return {};
         });

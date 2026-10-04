@@ -56,6 +56,7 @@
 #include <LibWebView/Settings.h>
 #include <LibWebView/StorageJar.h>
 #include <LibWebView/WebDriverSessionConfig.h>
+#include <RequestServer/SiteBinding.h>
 
 #if defined(AK_OS_MACOS)
 #    include <LibIPC/TransportBootstrapMach.h>
@@ -170,7 +171,7 @@ public:
     static RefPtr<BrowsingSession> existing_session(IsPrivate);
 
     // A RequestServer client uses the cookies of the browsing session it was created for, whatever RequestServer says.
-    void did_connect_request_server_client(int client_id, BrowsingSession&);
+    void did_connect_request_server_client(int client_id, BrowsingSession&, RequestServer::SiteBinding);
     RefPtr<BrowsingSession> session_for_request_server_client(int client_id) const;
     Vector<int> request_server_client_ids_for_testing(BrowsingSession const&) const;
 
@@ -594,6 +595,12 @@ private:
     RefPtr<BrowsingSession> m_default_session;
     WeakPtr<BrowsingSession> m_private_session;
     HashMap<int, WeakPtr<BrowsingSession>> m_request_server_client_sessions;
+
+    // The RequestServer clients of the UI process itself, which may use the cookies of any site.
+    HashTable<int> m_unrestricted_request_server_clients;
+
+    // Whether a RequestServer client may use cookies in the given context for a request for url.
+    bool request_server_client_may_use_cookies_in(int client_id, URL::URL const&, Optional<HTTP::Cookie::PartitionContext> const&) const;
 
     OwnPtr<Core::GeolocationProvider> m_geolocation_provider;
     OwnPtr<Core::TimeZoneWatcher> m_time_zone_watcher;

@@ -1246,14 +1246,14 @@ void PageClient::page_did_receive_document_cookie_version_index(Web::UniqueNodeI
         document->set_cookie_version_index(document_index);
 }
 
-Vector<HTTP::Cookie::Cookie> PageClient::page_did_request_all_cookies_webdriver(URL::URL const& url)
+Vector<HTTP::Cookie::Cookie> PageClient::page_did_request_all_cookies_webdriver(URL::URL const& url, Optional<HTTP::Cookie::PartitionContext> const& partition_context)
 {
-    return client().did_request_all_cookies_webdriver(url);
+    return client().did_request_all_cookies_webdriver(url, partition_context);
 }
 
-Vector<HTTP::Cookie::Cookie> PageClient::page_did_request_all_cookies_cookiestore(URL::URL const& url)
+Vector<HTTP::Cookie::Cookie> PageClient::page_did_request_all_cookies_cookiestore(Web::HTML::EnvironmentId const& environment_id, URL::URL const& url)
 {
-    return client().did_request_all_cookies_cookiestore(m_id, url);
+    return client().did_request_all_cookies_cookiestore(m_id, environment_id, url);
 }
 
 Optional<HTTP::Cookie::Cookie> PageClient::page_did_request_named_cookie(URL::URL const& url, String const& name)
@@ -1261,9 +1261,9 @@ Optional<HTTP::Cookie::Cookie> PageClient::page_did_request_named_cookie(URL::UR
     return client().did_request_named_cookie(url, name);
 }
 
-HTTP::Cookie::VersionedCookie PageClient::page_did_request_cookie(URL::URL const& url, HTTP::Cookie::Source source)
+HTTP::Cookie::VersionedCookie PageClient::page_did_request_cookie(Optional<Web::HTML::EnvironmentId> const& environment_id, URL::URL const& url, HTTP::Cookie::Source source)
 {
-    auto response = client().send_sync_but_allow_failure<Messages::WebContentClient::DidRequestCookie>(m_id, url, source);
+    auto response = client().send_sync_but_allow_failure<Messages::WebContentClient::DidRequestCookie>(m_id, environment_id, url, source);
     if (!response) {
         dbgln("WebContent client disconnected during DidRequestCookie. Exiting peacefully.");
         Core::Process::terminate_immediately(0);
@@ -1271,9 +1271,9 @@ HTTP::Cookie::VersionedCookie PageClient::page_did_request_cookie(URL::URL const
     return response->take_cookie();
 }
 
-void PageClient::page_did_set_cookie(URL::URL const& url, HTTP::Cookie::ParsedCookie const& cookie, HTTP::Cookie::Source source)
+void PageClient::page_did_set_cookie(Optional<Web::HTML::EnvironmentId> const& environment_id, URL::URL const& url, HTTP::Cookie::ParsedCookie const& cookie, HTTP::Cookie::Source source)
 {
-    auto response = client().send_sync_but_allow_failure<Messages::WebContentClient::DidSetCookie>(m_id, url, cookie, source);
+    auto response = client().send_sync_but_allow_failure<Messages::WebContentClient::DidSetCookie>(m_id, environment_id, url, cookie, source);
     if (!response) {
         dbgln("WebContent client disconnected during DidSetCookie. Exiting peacefully.");
         Core::Process::terminate_immediately(0);
@@ -1674,7 +1674,7 @@ void PageClient::traverse_history_by_delta_through_ui_process_for_testing(i32 de
 void PageClient::send_bad_ipc_message_for_testing(StringView kind, URL::URL const& active_document_url)
 {
     if (kind == "cookie-request-unknown-page-id"sv)
-        (void)client().send_sync_but_allow_failure<Messages::WebContentClient::DidRequestCookie>(0, active_document_url, HTTP::Cookie::Source::NonHttp);
+        (void)client().send_sync_but_allow_failure<Messages::WebContentClient::DidRequestCookie>(0, OptionalNone {}, active_document_url, HTTP::Cookie::Source::NonHttp);
 }
 
 bool PageClient::page_did_request_capture_session_history_snapshot_for_testing()

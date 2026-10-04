@@ -88,7 +88,8 @@ Web::CSS::PreferredMotion PageHost::preferred_motion() const
     return Web::CSS::PreferredMotion::Auto;
 }
 
-HTTP::Cookie::VersionedCookie PageHost::page_did_request_cookie(URL::URL const& url, HTTP::Cookie::Source source)
+// NB: A worker process hosts one environment, which the UI process knows to be the requesting one.
+HTTP::Cookie::VersionedCookie PageHost::page_did_request_cookie(Optional<Web::HTML::EnvironmentId> const&, URL::URL const& url, HTTP::Cookie::Source source)
 {
     return m_client.did_request_cookie(url, source);
 }

@@ -4525,7 +4525,7 @@ WebIDL::ExceptionOr<Utf16String> Document::cookie()
             return m_cookie;
     }
 
-    auto [cookie_version, cookie] = page().client().page_did_request_cookie(m_url, HTTP::Cookie::Source::NonHttp);
+    auto [cookie_version, cookie] = page().client().page_did_request_cookie(relevant_settings_object().id, m_url, HTTP::Cookie::Source::NonHttp);
 
     if (cookie_version.has_value()) {
         m_cookie_version = *cookie_version;
@@ -4551,7 +4551,7 @@ WebIDL::ExceptionOr<void> Document::set_cookie(Utf16View cookie_string)
     // "non-HTTP" API, consisting of the new value encoded as UTF-8.
     auto cookie_string_utf8 = TRY_OR_THROW_OOM(vm(), cookie_string.to_utf8());
     if (auto cookie = HTTP::Cookie::parse_cookie(url(), cookie_string_utf8); cookie.has_value()) {
-        page().client().page_did_set_cookie(m_url, cookie.value(), HTTP::Cookie::Source::NonHttp);
+        page().client().page_did_set_cookie(relevant_settings_object().id, m_url, cookie.value(), HTTP::Cookie::Source::NonHttp);
         reset_cookie_version();
     }
 

@@ -96,20 +96,22 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 
     auto view = create_view();
     auto& cookie_jar = *view->page().client().session().cookie_jar;
-    cookie_jar.set_cookie(victim_url, HTTP::Cookie::ParsedCookie { .name = "session"_string, .value = "secret"_string, .http_only_attribute_present = true }, HTTP::Cookie::Source::Http);
+    cookie_jar.set_cookie(victim_url, HTTP::Cookie::ParsedCookie { .name = "session"_string, .value = "secret"_string, .http_only_attribute_present = true }, HTTP::Cookie::Source::Http, {});
     VERIFY(victim_cookie_value(cookie_jar) == "secret"sv);
 
     // Script reaches cookies through a document the process hosts, and only those of such a document's origin. Any
     // other access sees and changes nothing, but is not misbehavior: a document can outlive the UI process's record
     // of it.
-    cookie_jar.set_cookie(victim_url, HTTP::Cookie::ParsedCookie { .name = "visible"_string, .value = "secret"_string }, HTTP::Cookie::Source::Http);
+    cookie_jar.set_cookie(victim_url, HTTP::Cookie::ParsedCookie { .name = "visible"_string, .value = "secret"_string }, HTTP::Cookie::Source::Http, {});
     auto& stub = static_cast<WebContentClientStub&>(view->page().client());
     auto page_id = view->page().id();
-    VERIFY(stub.did_request_cookie(page_id, victim_url, HTTP::Cookie::Source::NonHttp).cookie().cookie.is_empty());
-    VERIFY(stub.did_request_all_cookies_cookiestore(page_id, victim_url).cookies().is_empty());
-    stub.did_set_cookie(page_id, victim_url, HTTP::Cookie::ParsedCookie { .name = "visible"_string, .value = "attacker"_string }, HTTP::Cookie::Source::NonHttp);
-    VERIFY(victim_cookie_value(cookie_jar, "visible"sv) == "secret"sv);
     auto page_environment_id = view->traversable().active_document().relevant_global_object().relevant_settings_object().id();
+    for (auto const& environment_id : { Web::HTML::EnvironmentId::generate(), page_environment_id }) {
+        VERIFY(stub.did_request_cookie(page_id, environment_id, victim_url, HTTP::Cookie::Source::NonHttp).cookie().cookie.is_empty());
+        VERIFY(stub.did_request_all_cookies_cookiestore(page_id, environment_id, victim_url).cookies().is_empty());
+        stub.did_set_cookie(page_id, environment_id, victim_url, HTTP::Cookie::ParsedCookie { .name = "visible"_string, .value = "attacker"_string }, HTTP::Cookie::Source::NonHttp);
+        VERIFY(victim_cookie_value(cookie_jar, "visible"sv) == "secret"sv);
+    }
 
     // A blob URL entry has the origin of the environment that added it, and only that origin revokes it.
     auto& blob_url_store = *view->page().client().session().blob_url_store;
@@ -141,13 +143,13 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     };
 
     expect_rejected("reading cookies with the HTTP source"sv, [&](auto& stub, auto page_id) {
-        VERIFY(stub.did_request_cookie(page_id, victim_url, HTTP::Cookie::Source::Http).cookie().cookie.is_empty());
+        VERIFY(stub.did_request_cookie(page_id, {}, victim_url, HTTP::Cookie::Source::Http).cookie().cookie.is_empty());
     });
     expect_rejected("reading all cookies for WebDriver"sv, [&](auto& stub, auto) {
-        VERIFY(stub.did_request_all_cookies_webdriver(victim_url).cookies().is_empty());
+        VERIFY(stub.did_request_all_cookies_webdriver(victim_url, {}).cookies().is_empty());
     });
     expect_rejected("storing a cookie with the HTTP source"sv, [&](auto& stub, auto page_id) {
-        stub.did_set_cookie(page_id, victim_url, HTTP::Cookie::ParsedCookie { .name = "session"_string, .value = "attacker"_string, .http_only_attribute_present = true }, HTTP::Cookie::Source::Http);
+        stub.did_set_cookie(page_id, {}, victim_url, HTTP::Cookie::ParsedCookie { .name = "session"_string, .value = "attacker"_string, .http_only_attribute_present = true }, HTTP::Cookie::Source::Http);
     });
     expect_rejected("reading a named cookie for WebDriver"sv, [&](auto& stub, auto) {
         VERIFY(!stub.did_request_named_cookie(victim_url, "session"_string).cookie().has_value());

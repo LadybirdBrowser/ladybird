@@ -569,36 +569,19 @@ bool WebContentClient::renderers_may_access_cookies_like_http()
         || Application::web_content_options().is_test_mode == IsTestMode::Yes;
 }
 
-Messages::WebContentClient::DidRequestAllCookiesWebdriverResponse WebContentClient::did_request_all_cookies_webdriver(URL::URL url)
+Messages::WebContentClient::DidRequestAllCookiesWebdriverResponse WebContentClient::did_request_all_cookies_webdriver(URL::URL url, Optional<HTTP::Cookie::PartitionContext> partition_context)
 {
     if (!renderers_may_access_cookies_like_http()) {
         did_misbehave("did_request_all_cookies_webdriver"sv, "not driven by WebDriver"sv);
         return Vector<HTTP::Cookie::Cookie> {};
     }
-    return m_session->cookie_jar->get_all_cookies_webdriver(url);
+    return m_session->cookie_jar->get_all_cookies_webdriver(url, partition_context);
 }
 
-// Script reaches cookies through a document the process hosts, and only those of such a document's origin.
-bool WebContentClient::hosts_an_environment_that_may_use_cookies_of(URL::URL const& url) const
-{
-    for (auto const& [page_id, page] : m_pages) {
-        if (!page->is_open())
-            continue;
-        bool hosts_one = false;
-        page->for_each_hosted_document([&](CanonicalDocument& document) {
-            hosts_one = document.relevant_global_object().relevant_settings_object().may_use_cookies_of(url);
-            return hosts_one ? IterationDecision::Break : IterationDecision::Continue;
-        });
-        if (hosts_one)
-            return true;
-    }
-    return false;
-}
-
-Messages::WebContentClient::DidRequestAllCookiesCookiestoreResponse WebContentClient::did_request_all_cookies_cookiestore(Web::PageId page_id, URL::URL url)
+Messages::WebContentClient::DidRequestAllCookiesCookiestoreResponse WebContentClient::did_request_all_cookies_cookiestore(Web::PageId page_id, Web::HTML::EnvironmentId environment_id, URL::URL url)
 {
     if (auto* page = this->page(page_id))
-        return page->did_request_all_cookies_cookiestore(move(url));
+        return page->did_request_all_cookies_cookiestore(environment_id, move(url));
 
     return Vector<HTTP::Cookie::Cookie> {};
 }
@@ -613,7 +596,7 @@ Messages::WebContentClient::DidRequestNamedCookieResponse WebContentClient::did_
     return m_session->cookie_jar->get_named_cookie(url, name);
 }
 
-Messages::WebContentClient::DidRequestCookieResponse WebContentClient::did_request_cookie(Web::PageId page_id, URL::URL url, HTTP::Cookie::Source source)
+Messages::WebContentClient::DidRequestCookieResponse WebContentClient::did_request_cookie(Web::PageId page_id, Optional<Web::HTML::EnvironmentId> environment_id, URL::URL url, HTTP::Cookie::Source source)
 {
     if (source == HTTP::Cookie::Source::Http && !renderers_may_access_cookies_like_http()) {
         did_misbehave("did_request_cookie"sv, "HTTP cookie source"sv);
@@ -621,7 +604,7 @@ Messages::WebContentClient::DidRequestCookieResponse WebContentClient::did_reque
     }
 
     if (auto* page = this->page(page_id))
-        return page->did_request_cookie(move(url), source);
+        return page->did_request_cookie(environment_id, move(url), source);
 
     // A spare process can request cookies for its initial page before a view adopts it. No document of that page is
     // known here, so only a request with the HTTP source is answered.
@@ -629,7 +612,7 @@ Messages::WebContentClient::DidRequestCookieResponse WebContentClient::did_reque
         return HTTP::Cookie::VersionedCookie {};
 
     HTTP::Cookie::VersionedCookie cookie;
-    cookie.cookie = m_session->cookie_jar->get_cookie(url, source);
+    cookie.cookie = m_session->cookie_jar->get_cookie(url, source, {});
     return cookie;
 }
 

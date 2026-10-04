@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    // A top-level document of a site does not see the cookies its frames set under other top-level sites, so it gets no
+    // change events for them either.
+    asyncTest(async done => {
+        const server = httpTestServer();
+        const runId = crypto.randomUUID();
+        const cookieSite = uniqueLocalhostHostname("cookie-change-site");
+
+        const onCookieSite = url => {
+            const result = new URL(url);
+            result.hostname = cookieSite;
+            return result.href;
+        };
+        const htmlEcho = async (name, body) =>
+            onCookieSite(
+                await server.createEcho("GET", `/cookie-change-partitions/${runId}/${name}.html`, {
+                    status: 200,
+                    headers: { "Content-Type": "text/html", "Cache-Control": "no-store" },
+                    body: `<!DOCTYPE html><script>${body}<\/script>`,
+                })
+            );
+
+        const topLevelURL = await htmlEcho(
+            "top-level",
+            `cookieStore.addEventListener("change", event => {
+                for (const cookie of event.changed)
+                    opener.postMessage({ changed: cookie.name }, "*");
+            });
+            window.addEventListener("message", event => {
+                if (event.data === "set-control-cookie")
+                    document.cookie = "control=1; path=/";
+            });
+            opener.postMessage("ready", "*");`
+        );
+        const frameURL = await htmlEcho(
+            "frame",
+            `document.cookie = "partitioned=1; path=/";
+            parent.postMessage("frame-set-cookie", "*");`
+        );
+
+        const nextMessage = predicate =>
+            new Promise(resolve => {
+                window.addEventListener("message", function listener(event) {
+                    if (!predicate(event.data))
+                        return;
+                    window.removeEventListener("message", listener);
+                    resolve(event.data);
+                });
+            });
+
+        let message = nextMessage(data => data === "ready");
+        const popup = window.open(topLevelURL);
+        await message;
+
+        const changes = [];
+        window.addEventListener("message", event => {
+            if (event.data?.changed)
+                changes.push(event.data.changed);
+        });
+
+        message = nextMessage(data => data === "frame-set-cookie");
+        const iframe = document.createElement("iframe");
+        iframe.src = frameURL;
+        document.body.appendChild(iframe);
+        await message;
+
+        message = nextMessage(data => data?.changed === "control");
+        popup.postMessage("set-control-cookie", "*");
+        await message;
+
+        println(`Changes seen by the top-level document: ${changes.join(", ")}`);
+        popup.close();
+        done();
+    });
+</script>

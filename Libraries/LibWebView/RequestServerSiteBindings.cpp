@@ -7,7 +7,6 @@
 #include <LibRequests/RequestControlClient.h>
 #include <LibURL/Site.h>
 #include <LibWebView/Application.h>
-#include <LibWebView/CanonicalBrowsingContext.h>
 #include <LibWebView/CanonicalDocument.h>
 #include <LibWebView/RequestServerSiteBindings.h>
 
@@ -30,15 +29,7 @@ void RequestServerSiteBindings::did_connect(int client_id)
 
 void RequestServerSiteBindings::bind_sites_of(CanonicalDocument const& document)
 {
-    auto& browsing_context = document.browsing_context();
-    auto& top_level_browsing_context = browsing_context.top_level_browsing_context();
-
-    // A top-level document is not yet its browsing context's active document when it is placed in a process.
-    Optional<URL::Origin> top_level_origin;
-    if (&top_level_browsing_context == &browsing_context)
-        top_level_origin = document.origin();
-    else if (!top_level_browsing_context.has_been_discarded())
-        top_level_origin = top_level_browsing_context.active_document()->origin();
+    auto top_level_origin = document.top_level_origin();
     if (!top_level_origin.has_value())
         return;
 
@@ -54,6 +45,16 @@ void RequestServerSiteBindings::bind_sites_of(RequestServerSiteBindings const& o
 {
     for (auto const& site : other.m_sites)
         bind(site);
+}
+
+bool RequestServerSiteBindings::may_use_cookies_under(Utf16String const& top_level_site, URL::URL const& url) const
+{
+    // FIXME: The process of the document that starts a navigation makes the navigation's requests. Until the UI process
+    //        makes navigation requests itself, a client may use the cookies of a navigation to the request's URL.
+    if (URL::Site::serialize_for_partitioning(url.origin()) == top_level_site)
+        return true;
+
+    return any_of(m_sites, [&](Site const& site) { return site.top_level_site == top_level_site; });
 }
 
 void RequestServerSiteBindings::bind(Site site)

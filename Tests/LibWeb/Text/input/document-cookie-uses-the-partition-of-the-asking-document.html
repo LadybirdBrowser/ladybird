@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    // A cross-site frame and a popup of the same site share an agent, and so a process, but have different top-level
+    // sites. Each one's document.cookie uses the cookie partition of its own top-level site.
+    asyncTest(async done => {
+        const server = httpTestServer();
+        const runId = crypto.randomUUID();
+        const otherSite = uniqueLocalhostHostname("cookie-partition-asker");
+
+        const onOtherSite = url => {
+            const result = new URL(url);
+            result.hostname = otherSite;
+            return result.href;
+        };
+        const htmlEcho = async (name, body) =>
+            onOtherSite(
+                await server.createEcho("GET", `/asking-document-partition/${runId}/${name}.html`, {
+                    status: 200,
+                    headers: { "Content-Type": "text/html", "Cache-Control": "no-store" },
+                    body: `<!DOCTYPE html><script>${body}<\/script>`,
+                })
+            );
+
+        const frameURL = await htmlEcho(
+            "frame",
+            `document.cookie = "frame=1; path=/";
+            window.addEventListener("message", () => parent.postMessage({ frame: document.cookie }, "*"));
+            parent.postMessage("frame-ready", "*");`
+        );
+        const popupURL = await htmlEcho(
+            "popup",
+            `document.cookie = "popup=1; path=/";
+            opener.postMessage({ popup: document.cookie }, "*");`
+        );
+
+        const nextMessage = predicate =>
+            new Promise(resolve => {
+                window.addEventListener("message", function listener(event) {
+                    if (!predicate(event.data))
+                        return;
+                    window.removeEventListener("message", listener);
+                    resolve(event.data);
+                });
+            });
+
+        let message = nextMessage(data => data === "frame-ready");
+        const iframe = document.createElement("iframe");
+        iframe.src = frameURL;
+        document.body.appendChild(iframe);
+        await message;
+
+        message = nextMessage(data => data?.popup !== undefined);
+        const popup = window.open(popupURL);
+        const popupCookies = (await message).popup;
+
+        message = nextMessage(data => data?.frame !== undefined);
+        iframe.contentWindow.postMessage("report", "*");
+        const frameCookies = (await message).frame;
+
+        println(`Frame under this page: ${frameCookies}`);
+        println(`Popup of the frame's site: ${popupCookies}`);
+        popup.close();
+        done();
+    });
+</script>

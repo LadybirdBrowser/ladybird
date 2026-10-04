@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    // A cookie set in a third-party context belongs to the top-level site it was set under. The site's top-level
+    // documents and its frames under other top-level sites never see it, and it never sees their cookies.
+    asyncTest(async done => {
+        const server = httpTestServer();
+        const runId = crypto.randomUUID();
+        const cookieSite = uniqueLocalhostHostname("cookie-site");
+        const otherTopLevelSite = uniqueLocalhostHostname("other-top-level-site");
+
+        const onCookieSite = url => {
+            const result = new URL(url);
+            result.hostname = cookieSite;
+            return result.href;
+        };
+        const onOtherTopLevelSite = url => {
+            const result = new URL(url);
+            result.hostname = otherTopLevelSite;
+            return result.href;
+        };
+
+        const setFrameCookieURL = onCookieSite(
+            await server.createEcho("GET", `/partitioned-cookies/${runId}/set-frame-cookie`, {
+                status: 200,
+                headers: { "Set-Cookie": "frame=1; Path=/", "Cache-Control": "no-store" },
+            })
+        );
+        const setTopLevelCookieURL = onCookieSite(
+            await server.createEcho("GET", `/partitioned-cookies/${runId}/set-top-level-cookie`, {
+                status: 200,
+                headers: { "Set-Cookie": "top-level=1; Path=/", "Cache-Control": "no-store" },
+            })
+        );
+        const readCookiesURL = onCookieSite(
+            await server.createEcho("GET", `/partitioned-cookies/${runId}/read-cookies`, {
+                status: 200,
+                headers: { "Cache-Control": "no-store" },
+                reflect_headers_in_body: true,
+            })
+        );
+
+        // A page on the cookie site that optionally sets a cookie, then reports the cookies its requests carry.
+        const cookieSitePage = async (name, setCookieURL) => {
+            const script = `(async () => {
+                if (${JSON.stringify(setCookieURL)})
+                    await fetch(${JSON.stringify(setCookieURL)});
+                const headers = await (await fetch(${JSON.stringify(readCookiesURL)})).json();
+                const cookies = (headers["Cookie"] ?? headers["cookie"] ?? ["(none)"]).join("; ");
+                (window.opener ?? window.top.opener ?? window.parent).postMessage({ name: ${JSON.stringify(name)}, cookies }, "*");
+            })();`;
+            return onCookieSite(
+                await server.createEcho("GET", `/partitioned-cookies/${runId}/${name}.html`, {
+                    status: 200,
+                    headers: { "Content-Type": "text/html", "Cache-Control": "no-store" },
+                    body: `<!DOCTYPE html><script>${script}<\/script>`,
+                })
+            );
+        };
+
+        const waitForReport = name =>
+            new Promise(resolve => {
+                window.addEventListener("message", function listener(event) {
+                    if (event.data?.name !== name)
+                        return;
+                    window.removeEventListener("message", listener);
+                    resolve(event.data.cookies);
+                });
+            });
+
+        const inFrame = async url => {
+            const iframe = document.createElement("iframe");
+            iframe.src = url;
+            document.body.appendChild(iframe);
+        };
+
+        let report = waitForReport("frame");
+        inFrame(await cookieSitePage("frame", setFrameCookieURL));
+        println(`Frame of the cookie site, after setting a cookie: ${await report}`);
+
+        report = waitForReport("top-level");
+        let popup = window.open(await cookieSitePage("top-level", setTopLevelCookieURL));
+        println(`Top-level document of the cookie site, after setting a cookie: ${await report}`);
+        popup.close();
+
+        const frameUnderOtherTopLevelSiteURL = await cookieSitePage("frame-under-other-top-level-site", null);
+        const otherTopLevelPageURL = onOtherTopLevelSite(
+            await server.createEcho("GET", `/partitioned-cookies/${runId}/other-top-level-site.html`, {
+                status: 200,
+                headers: { "Content-Type": "text/html", "Cache-Control": "no-store" },
+                body: `<!DOCTYPE html><iframe src="${frameUnderOtherTopLevelSiteURL}"></iframe>`,
+            })
+        );
+        report = waitForReport("frame-under-other-top-level-site");
+        popup = window.open(otherTopLevelPageURL);
+        println(`Frame of the cookie site under another top-level site: ${await report}`);
+        popup.close();
+
+        report = waitForReport("frame-again");
+        inFrame(await cookieSitePage("frame-again", null));
+        println(`Frame of the cookie site again: ${await report}`);
+
+        done();
+    });
+</script>

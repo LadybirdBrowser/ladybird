@@ -2193,7 +2193,7 @@ Web::WebDriver::Response WebDriverConnection::add_cookie_impl(JsonObject const& 
             return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidArgument, "Invalid same-site attribute"sv);
     }
 
-    current_browsing_context().page().client().page_did_set_cookie(document->url(), cookie, HTTP::Cookie::Source::Http);
+    current_browsing_context().page().client().page_did_set_cookie({}, document->url(), cookie, HTTP::Cookie::Source::Http);
 
     // If there is an error during this step, return error with error code unable to set cookie.
     // NOTE: This probably should only apply to the actual setting of the cookie in the Browser, which cannot fail in our case.
