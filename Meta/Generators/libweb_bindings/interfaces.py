@@ -22,11 +22,14 @@ from Generators.libweb_bindings.cpp_types import implementation_header_for_inter
 from Generators.libweb_bindings.includes import GeneratedIncludes
 from Generators.libweb_bindings.named_and_indexed_properties import interface_supports_named_properties
 from Generators.libweb_bindings.overload_resolution import parameter_list_length
-from Generators.libweb_bindings.wrappers import has_legacy_override_built_ins_interface_extended_attribute
 from Generators.libweb_bindings.wrappers import interface_needs_wrapper
-from Generators.libweb_bindings.wrappers import needs_legacy_platform_object_flags_initialization
+from Generators.libweb_bindings.wrappers import legacy_platform_object_info_fields
+from Generators.libweb_bindings.wrappers import parent_interface
 from Generators.libweb_bindings.wrappers import wrapper_base_class_name
 from Generators.libweb_bindings.wrappers import wrapper_class_name
+from Generators.libweb_bindings.wrappers import wrapper_host_class_flags
+from Generators.libweb_bindings.wrappers import wrapper_host_class_name
+from Generators.libweb_bindings.wrappers import wrapper_legacy_platform_object_info_name
 from Utils.webidl_parser import IDLType
 from Utils.webidl_parser import Interface
 
@@ -53,46 +56,32 @@ def interface_needs_impl_from(interface: Interface) -> bool:
     )
 
 
-def legacy_platform_object_flags_initialization(interface: Interface) -> str:
-    lines = []
-    if interface.name == "HTMLAllCollection":
-        lines.append("    set_is_htmldda();")
-    if not needs_legacy_platform_object_flags_initialization(interface):
-        return "\n".join(lines)
+def write_wrapper_host_class(
+    out: TextIO, context: GenerationContext, includes: GeneratedIncludes, interface: Interface
+) -> None:
+    includes.add("LibJS/HostClassBuilder.h")
+    includes.add("LibJS/HostObjectABI.h")
 
-    lines += [
-        "    if (!m_legacy_platform_object_flags.has_value())",
-        "        m_legacy_platform_object_flags = LegacyPlatformObjectFlags {};",
-    ]
-    if interface.indexed_property_getter is not None:
-        lines.append("    m_legacy_platform_object_flags->supports_indexed_properties = true;")
-    if interface.named_property_getter is not None:
-        lines.append("    m_legacy_platform_object_flags->supports_named_properties = true;")
-    if interface.indexed_property_setter is not None:
-        lines.append("    m_legacy_platform_object_flags->has_indexed_property_setter = true;")
-        if interface.indexed_property_setter.name:
-            lines.append("    m_legacy_platform_object_flags->indexed_property_setter_has_identifier = true;")
-    if interface.named_property_setter is not None:
-        lines.append("    m_legacy_platform_object_flags->has_named_property_setter = true;")
-        if interface.named_property_setter.name:
-            lines.append("    m_legacy_platform_object_flags->named_property_setter_has_identifier = true;")
-    if interface.named_property_deleter is not None:
-        lines.append("    m_legacy_platform_object_flags->has_named_property_deleter = true;")
-        if interface.named_property_deleter.name:
-            lines.append("    m_legacy_platform_object_flags->named_property_deleter_has_identifier = true;")
-    if "LegacyUnenumerableNamedProperties" in interface.extended_attributes:
-        lines.append(
-            "    m_legacy_platform_object_flags->has_legacy_unenumerable_named_properties_interface_extended_attribute = true;"
-        )
-    if has_legacy_override_built_ins_interface_extended_attribute(interface):
-        lines.append(
-            "    m_legacy_platform_object_flags->has_legacy_override_built_ins_interface_extended_attribute = true;"
-        )
-    if "Global" in interface.extended_attributes:
-        lines.append("    set_global_object_flag();")
-        lines.append("    m_legacy_platform_object_flags->has_global_interface_extended_attribute = true;")
+    legacy_platform_object_info = "nullptr"
+    legacy_platform_object_info_fields_of_wrapper = legacy_platform_object_info_fields(context, interface)
+    if legacy_platform_object_info_fields_of_wrapper is not None:
+        legacy_platform_object_info_name = wrapper_legacy_platform_object_info_name(interface)
+        legacy_platform_object_info = f"&{legacy_platform_object_info_name}"
+        out.write(f"static constexpr LegacyPlatformObjectInfo {legacy_platform_object_info_name} {{\n")
+        for field in legacy_platform_object_info_fields_of_wrapper:
+            out.write(f"    .{field} = true,\n")
+        out.write("};\n\n")
 
-    return "\n".join(lines)
+    parent = parent_interface(context, interface)
+    parent_host_class = f"&{wrapper_host_class_name(parent)}" if parent is not None else "nullptr"
+    flags = " | ".join(wrapper_host_class_flags(context, interface))
+    out.write(
+        f"""constexpr JSHostClass {wrapper_host_class_name(interface)} = JS::make_host_class(JS_HOST_CLASS_OBJECT, "{interface.name}"sv,
+    {parent_host_class}, nullptr, {legacy_platform_object_info},
+    {flags});
+
+"""
+    )
 
 
 def write_wrapper_implementation(
@@ -104,33 +93,17 @@ def write_wrapper_implementation(
     wrapper_class = wrapper_class_name(interface)
     base_class = wrapper_base_class_name(context, interface)
     impl_type = fully_qualified_name_for_interface(interface)
-    location_object_constructor_argument = ""
-    if interface.name == "Location":
-        location_object_constructor_argument = ", MayInterfereWithIndexedPropertyAccess::Yes"
 
+    write_wrapper_host_class(out, context, includes, interface)
     out.write(
         f"""GC_DEFINE_ALLOCATOR({wrapper_class});
 
+{wrapper_class}::{wrapper_class}(JS::Realm& realm, JSHostClass const& host_class, GC::Ref<{impl_type}> impl)
+    : {base_class}(realm, host_class, impl)
+{{
+}}
 """
     )
-    if interface.parent_name:
-        out.write(
-            f"""{wrapper_class}::{wrapper_class}(JS::Realm& realm, GC::Ref<{impl_type}> impl)
-    : {base_class}(realm, impl)
-{{
-{legacy_platform_object_flags_initialization(interface)}
-}}
-"""
-        )
-    else:
-        out.write(
-            f"""{wrapper_class}::{wrapper_class}(JS::Realm& realm, GC::Ref<{impl_type}> impl)
-    : {base_class}(realm, impl{location_object_constructor_argument})
-{{
-{legacy_platform_object_flags_initialization(interface)}
-}}
-"""
-        )
 
     out.write(
         f"""
@@ -226,15 +199,6 @@ JS::ErrorData const* {wrapper_class}::error_data() const
 
 """
     )
-    if "Global" in interface.extended_attributes:
-        out.write(
-            f"""JS::ThrowCompletionOr<bool> {wrapper_class}::internal_set_prototype_of(JS::Object* prototype)
-{{
-    return set_immutable_prototype(prototype);
-}}
-
-"""
-        )
     if interface.name in ("Location", "Window"):
         out.write(
             f"""void {wrapper_class}::visit_edges(JS::Cell::Visitor& visitor)

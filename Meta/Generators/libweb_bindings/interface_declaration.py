@@ -26,6 +26,7 @@ from Generators.libweb_bindings.overload_resolution import operation_callback_na
 from Generators.libweb_bindings.wrappers import interface_needs_wrapper
 from Generators.libweb_bindings.wrappers import wrapper_base_class_name
 from Generators.libweb_bindings.wrappers import wrapper_class_name
+from Generators.libweb_bindings.wrappers import wrapper_host_class_name
 from Utils.webidl_parser import Interface
 
 
@@ -69,21 +70,21 @@ def write_declaration(
         # exported from the shared library, otherwise UBSan's vptr checks fail to
         # link against a hidden typeinfo symbol.
         export_macro = "WEB_API " if interface_has_cross_origin_property_descriptor_map(interface) else ""
+        includes.add("LibJS/HostObjectABI.h")
         out.write(
-            f"""class {export_macro}{wrapper_class_name(interface)} : public {base_class} {{
+            f"""extern JSHostClass const {wrapper_host_class_name(interface)};
+
+class {export_macro}{wrapper_class_name(interface)} : public {base_class} {{
     WEB_PLATFORM_OBJECT({wrapper_class_name(interface)}, {base_class});
     GC_DECLARE_ALLOCATOR({wrapper_class_name(interface)});
 
 public:
-    {wrapper_class_name(interface)}(JS::Realm&, GC::Ref<{impl_type}>);
+    {wrapper_class_name(interface)}(JS::Realm&, JSHostClass const&, GC::Ref<{impl_type}>);
     virtual ~{wrapper_class_name(interface)}() override;
 
-    virtual StringView class_name() const override {{ return "{interface.name}"sv; }}
     virtual void initialize(JS::Realm&) override;
 """
         )
-        if "Global" in interface.extended_attributes:
-            out.write("    virtual JS::ThrowCompletionOr<bool> internal_set_prototype_of(JS::Object*) override;\n")
         if interface_has_cross_origin_property_descriptor_map(interface):
             out.write(
                 """
@@ -121,7 +122,6 @@ public:
     virtual JS::ThrowCompletionOr<bool> internal_is_extensible() const override;
     virtual JS::ThrowCompletionOr<bool> internal_prevent_extensions() override;
     virtual JS::ThrowCompletionOr<Optional<JS::PropertyDescriptor>> internal_get_own_property(JS::PropertyKey const&) const override;
-    virtual bool is_cacheable_for_property_absence() const override { return false; }
     virtual JS::ThrowCompletionOr<bool> internal_define_own_property(JS::PropertyKey const&, JS::PropertyDescriptor&, Optional<JS::PropertyDescriptor>* precomputed_get_own_property = nullptr) override;
     virtual JS::ThrowCompletionOr<JS::Value> internal_get(JS::PropertyKey const&, JS::Value receiver, JS::CacheableGetPropertyMetadata*, PropertyLookupPhase) const override;
     virtual JS::ThrowCompletionOr<bool> internal_set(JS::PropertyKey const&, JS::Value, JS::Value receiver, JS::CacheableSetPropertyMetadata*, PropertyLookupPhase) override;

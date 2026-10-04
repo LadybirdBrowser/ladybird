@@ -15,6 +15,7 @@ from Generators.libweb_bindings.named_and_indexed_properties import interface_su
 from Generators.libweb_bindings.overload_resolution import parameter_list_length
 from Generators.libweb_bindings.wrappers import interface_needs_wrapper as wrapper_interface_needs_wrapper
 from Generators.libweb_bindings.wrappers import wrapper_class_name
+from Generators.libweb_bindings.wrappers import wrapper_host_class_name
 from Utils.utils import title_case_to_snake_case
 from Utils.webidl_parser import Interface
 from Utils.webidl_parser import Module
@@ -710,7 +711,7 @@ GC::Ref<PlatformObject> create_wrapper_for_wrappable(JS::Realm& realm, GC::Ref<W
     for interface in interfaces:
         out.write(
             f"""    case InterfaceName::{interface.name}:
-        return realm.create<{wrapper_class_name(interface)}>(realm, GC::Ref {{ static_cast<{fully_qualified_name_for_interface(interface)}&>(*wrappable) }});
+        return realm.create<{wrapper_class_name(interface)}>(realm, {wrapper_host_class_name(interface)}, GC::Ref {{ static_cast<{fully_qualified_name_for_interface(interface)}&>(*wrappable) }});
 """
         )
 
