@@ -6461,6 +6461,35 @@ WebIDL::ExceptionOr<void> Element::set_html_unsafe(StringView html)
     return {};
 }
 
+// https://html.spec.whatwg.org/multipage/dom.html#advisory-information
+Utf16String Element::advisory_information() const
+{
+    // The advisory information of an element is the value that the following algorithm returns, with the algorithm
+    // being aborted once a value is returned. When the algorithm returns the empty string, then there is no advisory
+    // information.
+    // NB: The loop below takes step 2's recursion as its iteration, so a deep tree can't exhaust the stack.
+    for (auto const* element = this; element; element = element->flat_tree_parent_element()) {
+        // 1. If the element has a title attribute, then return the result of running normalize newlines on its value.
+        // NB: The title attribute is a global attribute of HTML elements, so only an HTML element has one.
+        if (auto const* html_element = as_if<HTML::HTMLElement>(*element)) {
+            if (auto title = html_element->title(); title.has_value())
+                return Infra::normalize_newlines(*title);
+        }
+
+        // 2. If the element has a parent element, then return the parent element's advisory information.
+        // AD-HOC: The spec's parent element is the element's parent in the DOM tree, so the walk ends at the root of a
+        //         shadow tree, and never reaches the slot an element is assigned to. We take the parent element in the
+        //         flat tree instead, so a shadow host's title covers its shadow tree's content, and the titles of a
+        //         slot and its ancestors cover the content assigned to that slot — as Blink, WebKit, and Gecko all do:
+        //         Blink's HitTestResult::Title() walks FlatTreeTraversal::Parent(), WebKit's HitTestResult::title()
+        //         walks parentInComposedTree(), and Gecko's TooltipTextProvider walks flattenedTreeParentNode.
+        //         https://github.com/whatwg/html/issues/13035
+    }
+
+    // 3. Return the empty string.
+    return {};
+}
+
 // https://html.spec.whatwg.org/multipage/dom.html#the-lang-and-xml:lang-attributes
 Optional<Utf16String> Element::lang() const
 {

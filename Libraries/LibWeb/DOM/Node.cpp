@@ -384,7 +384,10 @@ Utf16String Node::base_uri() const
 
 HTML::HTMLHyperlinkElementUtils const* Node::enclosing_link_element() const
 {
-    for (auto* node = this; node; node = node->parent()) {
+    // The walk follows the flat tree, so a link covers the content of a shadow tree inside it, and a slot's enclosing
+    // link covers the content assigned to that slot — as Blink's and WebKit's Node::EnclosingLinkEventParentOrSelf()
+    // do, with FlatTreeTraversal::Parent() and parentInComposedTree().
+    for (auto* node = this; node; node = node->flat_tree_parent()) {
         auto const* element = as_if<Element>(*node);
         if (!element)
             continue;
@@ -397,15 +400,6 @@ HTML::HTMLHyperlinkElementUtils const* Node::enclosing_link_element() const
 HTML::HTMLElement const* Node::enclosing_html_element() const
 {
     return first_ancestor_of_type<HTML::HTMLElement>();
-}
-
-HTML::HTMLElement const* Node::enclosing_html_element_with_attribute(Utf16FlyString const& attribute) const
-{
-    for (auto* node = this; node; node = node->parent()) {
-        if (auto* html_element = as_if<HTML::HTMLElement>(*node); html_element && html_element->has_attribute(attribute))
-            return html_element;
-    }
-    return nullptr;
 }
 
 Optional<Utf16String> Node::alternative_text() const

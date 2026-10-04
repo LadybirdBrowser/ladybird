@@ -3742,11 +3742,25 @@ void EventHandler::report_hovered_node_to_client(GC::Ptr<DOM::Node> target)
 {
     auto& page = m_navigable->page();
 
-    HTML::HTMLElement const* hovered_title_element = nullptr;
-    if (target)
-        hovered_title_element = target->enclosing_html_element_with_attribute(HTML::AttributeNames::title);
-    if (hovered_title_element && hovered_title_element->title().has_value()) {
-        page.client().page_did_enter_tooltip_area(hovered_title_element->title()->to_byte_string());
+    // https://html.spec.whatwg.org/multipage/dom.html#the-title-attribute
+    // User agents should inform the user when elements have advisory information, otherwise the information would not
+    // be discoverable.
+    // https://html.spec.whatwg.org/multipage/rendering.html#the-title-attribute-2
+    // User agents are expected to expose the advisory information of elements upon user request, and to make the user
+    // aware of the presence of such information.
+    // On interactive graphical systems where the user can use a pointing device, this could take the form of a
+    // tooltip.
+    // NB: Text under the pointer has no advisory information of its own, so the element the text is in supplies it.
+    Utf16String advisory_information;
+    if (target) {
+        auto const* element = as_if<DOM::Element>(*target);
+        if (!element)
+            element = target->flat_tree_parent_element();
+        if (element)
+            advisory_information = element->advisory_information();
+    }
+    if (!advisory_information.is_empty()) {
+        page.client().page_did_enter_tooltip_area(advisory_information.to_byte_string());
         page.set_is_in_tooltip_area(true);
     } else if (page.is_in_tooltip_area()) {
         page.client().page_did_leave_tooltip_area();

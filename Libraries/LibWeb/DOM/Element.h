@@ -223,6 +223,8 @@ public:
     void download_the_hyperlink(Optional<Utf16String> hyperlink_suffix, HTML::UserNavigationInvolvement = HTML::UserNavigationInvolvement::None);
     void activate_the_hyperlink(Event const&);
 
+    Utf16String advisory_information() const;
+
     Optional<Utf16String> lang() const;
     Optional<Utf16View> lang_view() const;
     void invalidate_lang_value();
