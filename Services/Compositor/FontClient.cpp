@@ -10,7 +10,7 @@
 namespace Compositor {
 
 FontClient::FontClient(NonnullOwnPtr<IPC::Transport> transport)
-    : IPC::ConnectionToServer<CompositorFontClientEndpoint, CompositorFontServerEndpoint>(*this, move(transport))
+    : IPC::ConnectionToServer<FontClientEndpoint, FontServerEndpoint>(*this, move(transport))
 {
 }
 

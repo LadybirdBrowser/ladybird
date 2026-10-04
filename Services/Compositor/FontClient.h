@@ -6,17 +6,17 @@
 
 #pragma once
 
-#include <Compositor/CompositorFontClientEndpoint.h>
-#include <Compositor/CompositorFontServerEndpoint.h>
+#include <LibCompositing/FontClientEndpoint.h>
+#include <LibCompositing/FontServerEndpoint.h>
 #include <LibIPC/ConnectionToServer.h>
 
 namespace Compositor {
 
-class FontClient final : public IPC::ConnectionToServer<CompositorFontClientEndpoint, CompositorFontServerEndpoint> {
+class FontClient final : public IPC::ConnectionToServer<FontClientEndpoint, FontServerEndpoint> {
     C_OBJECT(FontClient);
 
 public:
-    using InitTransport = Messages::CompositorFontServer::InitTransport;
+    using InitTransport = Messages::FontServer::InitTransport;
     virtual ~FontClient() override = default;
 
 private:

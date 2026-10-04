@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <Compositor/CompositorFontClientEndpoint.h>
-#include <Compositor/CompositorFontServerEndpoint.h>
+#include <LibCompositing/FontClientEndpoint.h>
+#include <LibCompositing/FontServerEndpoint.h>
 #include <LibCompositing/FontServiceClient.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/System.h>
@@ -15,12 +15,12 @@
 
 namespace Compositing {
 
-class FontServiceConnectionToServer final : public IPC::ConnectionToServer<CompositorFontClientEndpoint, CompositorFontServerEndpoint> {
+class FontServiceConnectionToServer final : public IPC::ConnectionToServer<FontClientEndpoint, FontServerEndpoint> {
     C_OBJECT(FontServiceConnectionToServer);
 
 private:
     explicit FontServiceConnectionToServer(NonnullOwnPtr<IPC::Transport> transport)
-        : IPC::ConnectionToServer<CompositorFontClientEndpoint, CompositorFontServerEndpoint>(*this, move(transport))
+        : IPC::ConnectionToServer<FontClientEndpoint, FontServerEndpoint>(*this, move(transport))
     {
     }
 
@@ -72,7 +72,7 @@ Gfx::BrokeredFont FontServiceClient::open_font(u64 generation, u64 face_id)
 {
     Gfx::BrokeredFont font;
     ask([&](FontServiceConnectionToServer& connection) {
-        if (auto response = connection.send_sync_but_allow_failure<Messages::CompositorFontServer::OpenSystemFont>(generation, face_id))
+        if (auto response = connection.send_sync_but_allow_failure<Messages::FontServer::OpenFont>(generation, face_id))
             font = response->take_font();
     });
     return font;
@@ -82,7 +82,17 @@ Gfx::BrokeredFont FontServiceClient::match_font(String const& family, u16 weight
 {
     Gfx::BrokeredFont font;
     ask([&](FontServiceConnectionToServer& connection) {
-        if (auto response = connection.send_sync_but_allow_failure<Messages::CompositorFontServer::MatchSystemFont>(family, weight, width, slope))
+        if (auto response = connection.send_sync_but_allow_failure<Messages::FontServer::MatchFont>(family, weight, width, slope))
+            font = response->take_font();
+    });
+    return font;
+}
+
+Gfx::BrokeredFont FontServiceClient::match_local_font(String const& name)
+{
+    Gfx::BrokeredFont font;
+    ask([&](FontServiceConnectionToServer& connection) {
+        if (auto response = connection.send_sync_but_allow_failure<Messages::FontServer::MatchLocalFont>(name))
             font = response->take_font();
     });
     return font;
@@ -92,7 +102,7 @@ Gfx::BrokeredFont FontServiceClient::match_font_for_code_point(u32 code_point, u
 {
     Gfx::BrokeredFont font;
     ask([&](FontServiceConnectionToServer& connection) {
-        if (auto response = connection.send_sync_but_allow_failure<Messages::CompositorFontServer::MatchSystemFontForCodePoint>(code_point, weight, width, slope, prefer_color_emoji))
+        if (auto response = connection.send_sync_but_allow_failure<Messages::FontServer::MatchFontForCodePoint>(code_point, weight, width, slope, prefer_color_emoji))
             font = response->take_font();
     });
     return font;
@@ -102,7 +112,7 @@ Optional<FlyString> FontServiceClient::resolve_generic_family(String const& fami
 {
     Optional<FlyString> resolved_family;
     ask([&](FontServiceConnectionToServer& connection) {
-        if (auto response = connection.send_sync_but_allow_failure<Messages::CompositorFontServer::ResolveGenericFont>(family, weight, slope)) {
+        if (auto response = connection.send_sync_but_allow_failure<Messages::FontServer::ResolveGenericFamily>(family, weight, slope)) {
             if (auto name = response->take_resolved_family(); name.has_value())
                 resolved_family = FlyString { name.release_value() };
         }
@@ -130,7 +140,7 @@ intptr_t FontServiceClient::thread_main()
         return 1;
 
 #ifdef AK_OS_WINDOWS
-    if (auto response = connection->send_sync_but_allow_failure<Messages::CompositorFontServer::InitTransport>(Core::System::getpid()))
+    if (auto response = connection->send_sync_but_allow_failure<Messages::FontServer::InitTransport>(Core::System::getpid()))
         connection->transport().set_peer_pid(response->peer_pid());
 #endif
 

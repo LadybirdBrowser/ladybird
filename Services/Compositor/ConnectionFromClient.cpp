@@ -104,7 +104,7 @@ void ConnectionFromClient::set_font_catalog(IPC::File file, u64 size, u64 genera
     callbacks.open_font = [this](u64 requested_generation, u64 face_id) {
         if (!m_font_client)
             return Gfx::BrokeredFont {};
-        auto response = m_font_client->send_sync_but_allow_failure<Messages::CompositorFontServer::OpenSystemFont>(requested_generation, face_id);
+        auto response = m_font_client->send_sync_but_allow_failure<Messages::FontServer::OpenFont>(requested_generation, face_id);
         if (!response)
             return Gfx::BrokeredFont {};
         return response->take_font();
@@ -112,7 +112,7 @@ void ConnectionFromClient::set_font_catalog(IPC::File file, u64 size, u64 genera
     callbacks.match_font = [this](String const& family, u16 weight, u16 width, u8 slope) {
         if (!m_font_client)
             return Gfx::BrokeredFont {};
-        auto response = m_font_client->send_sync_but_allow_failure<Messages::CompositorFontServer::MatchSystemFont>(family, weight, width, slope);
+        auto response = m_font_client->send_sync_but_allow_failure<Messages::FontServer::MatchFont>(family, weight, width, slope);
         if (!response)
             return Gfx::BrokeredFont {};
         return response->take_font();
@@ -120,7 +120,7 @@ void ConnectionFromClient::set_font_catalog(IPC::File file, u64 size, u64 genera
     callbacks.match_font_for_code_point = [this](u32 code_point, u16 weight, u16 width, u8 slope, bool prefer_color_emoji) {
         if (!m_font_client)
             return Gfx::BrokeredFont {};
-        auto response = m_font_client->send_sync_but_allow_failure<Messages::CompositorFontServer::MatchSystemFontForCodePoint>(code_point, weight, width, slope, prefer_color_emoji);
+        auto response = m_font_client->send_sync_but_allow_failure<Messages::FontServer::MatchFontForCodePoint>(code_point, weight, width, slope, prefer_color_emoji);
         if (!response)
             return Gfx::BrokeredFont {};
         return response->take_font();
@@ -128,7 +128,7 @@ void ConnectionFromClient::set_font_catalog(IPC::File file, u64 size, u64 genera
     callbacks.resolve_generic_family = [this](String const& family, u16 weight, u8 slope) -> Optional<FlyString> {
         if (!m_font_client)
             return {};
-        auto response = m_font_client->send_sync_but_allow_failure<Messages::CompositorFontServer::ResolveGenericFont>(family, weight, slope);
+        auto response = m_font_client->send_sync_but_allow_failure<Messages::FontServer::ResolveGenericFamily>(family, weight, slope);
         if (!response)
             return {};
         auto resolved_family = response->take_resolved_family();
