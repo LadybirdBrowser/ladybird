@@ -180,12 +180,8 @@ void SVGFilterElement::push_primitives(void* sink)
             if (!image_frame.has_value())
                 return IterationDecision::Continue;
 
-            auto src_rect = image_primitive->content_rect();
-            if (!src_rect.has_value())
-                return IterationDecision::Continue;
-
             values.kind = PrimitiveKind::Image;
-            values.image_src_rect = *src_rect;
+            values.image_src_rect = { 0, 0, image_frame->width(), image_frame->height() };
             primitive.image_frame = &image_frame.value();
             set_result(*image_primitive);
         } else if (auto* merge_primitive = as_if<SVGFEMergeElement>(node)) {
