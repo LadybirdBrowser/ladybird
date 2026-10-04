@@ -27,7 +27,7 @@ GC_DEFINE_ALLOCATOR(DevToolsConsoleClient);
 GC::Ref<DevToolsConsoleClient> DevToolsConsoleClient::create(JS::Realm& realm, JS::Console& console, PageClient& client)
 {
     auto& window = Web::HTML::relevant_window(realm.global_object());
-    auto console_global_environment_extensions = realm.create<ConsoleGlobalEnvironmentExtensions>(realm, window);
+    auto console_global_environment_extensions = ConsoleGlobalEnvironmentExtensions::create(realm, window);
 
     return GC::Heap::the().allocate<DevToolsConsoleClient>(console, client, console_global_environment_extensions);
 }
@@ -99,7 +99,7 @@ JsonValue DevToolsConsoleClient::serialize_value(JS::Realm& realm, JS::Value val
 
 void DevToolsConsoleClient::handle_result(JS::Value result)
 {
-    auto& settings = Web::HTML::relevant_settings_object(*m_console_global_environment_extensions);
+    auto& settings = Web::HTML::relevant_settings_object(m_console_global_environment_extensions->binding_object());
     m_client->did_execute_js_console_input(serialize_value(settings.realm(), result));
 }
 
