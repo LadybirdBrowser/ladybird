@@ -105,3 +105,76 @@ test("Global setter that deletes itself", () => {
     expect(globalThis.globalSetterNeighbor).toBe("neighbor");
     expect(globalThis.selfDeletingGlobalSetter).toBe(2);
 });
+
+describe("Cached inherited setter", () => {
+    function store(object, value) {
+        object.x = value;
+    }
+
+    function setterChain() {
+        const calls = [];
+        const holder = {
+            set x(value) {
+                calls.push(value);
+            },
+        };
+        const middle = Object.create(holder);
+        const receiver = Object.create(middle);
+        return { calls, middle, receiver };
+    }
+
+    test("is not called after a prototype in between gains the property", () => {
+        const { calls, middle, receiver } = setterChain();
+        store(receiver, 1);
+        Object.defineProperty(middle, "x", { value: 0, writable: true, configurable: true });
+        store(receiver, 2);
+        expect(calls).toEqual([1]);
+        expect(Object.hasOwn(receiver, "x")).toBeTrue();
+        expect(receiver.x).toBe(2);
+    });
+
+    test("is not called after a prototype in between is unlinked", () => {
+        const { calls, middle, receiver } = setterChain();
+        store(receiver, 1);
+        Object.setPrototypeOf(middle, null);
+        store(receiver, 2);
+        expect(calls).toEqual([1]);
+        expect(receiver.x).toBe(2);
+    });
+
+    test("is not called after it unlinks a prototype in between", () => {
+        const calls = [];
+        const holder = {};
+        const middle = Object.create(holder);
+        Object.defineProperty(holder, "x", {
+            set(value) {
+                calls.push(value);
+                Object.setPrototypeOf(middle, null);
+            },
+            configurable: true,
+        });
+        const receiver = Object.create(middle);
+        store(receiver, 1);
+        store(receiver, 2);
+        expect(calls).toEqual([1]);
+        expect(receiver.x).toBe(2);
+    });
+
+    test("is not called after it removes itself from its holder", () => {
+        const calls = [];
+        const holder = { a: 1 };
+        Object.defineProperty(holder, "x", {
+            set(value) {
+                calls.push(value);
+                delete holder.x;
+                delete holder.a;
+            },
+            configurable: true,
+        });
+        const receiver = Object.create(Object.create(holder));
+        store(receiver, 1);
+        store(receiver, 2);
+        expect(calls).toEqual([1]);
+        expect(receiver.x).toBe(2);
+    });
+});

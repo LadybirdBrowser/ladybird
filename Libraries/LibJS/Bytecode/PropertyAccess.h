@@ -504,6 +504,10 @@ inline ThrowCompletionOr<void> put_by_property_key(VM& vm, Value base, Value thi
             }
         }
 
+        GC::Ptr<PrototypeChainValidity> prototype_chain_validity;
+        if (auto prototype = object->shape().prototype())
+            prototype_chain_validity = prototype->shape().prototype_chain_validity();
+
         CacheableSetPropertyMetadata cacheable_metadata;
         bool succeeded = TRY(object->internal_set(name, value, this_value, &cacheable_metadata));
 
@@ -547,7 +551,7 @@ inline ThrowCompletionOr<void> put_by_property_key(VM& vm, Value base, Value thi
                     cache.shape = &object->shape();
                     cache.property_offset = cacheable_metadata.property_offset.value();
                     cache.prototype = const_cast<Object*>(cacheable_metadata.prototype.ptr());
-                    cache.prototype_chain_validity = cacheable_metadata.prototype->shape().prototype_chain_validity();
+                    cache.prototype_chain_validity = prototype_chain_validity;
 
                     if (object->shape().is_dictionary()) {
                         cache.shape_dictionary_generation = object->shape().dictionary_generation();
