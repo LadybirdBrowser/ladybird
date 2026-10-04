@@ -5161,34 +5161,19 @@ fn counter_owner(style_node: u32, generated_for: u8) -> Option<super::counters::
     StyleNodeID::from_raw(style_node).map(|element| super::counters::CounterOwner { element, generated_for })
 }
 
-/// Whether the innermost `list-item` counter in the counters set of the element `style_node` names
-/// counts forward and was created by that element.
+/// Whether an element whose installed style has the `count` group payloads `payloads` has an innermost `list-item`
+/// counter of its own that counts forward, as the counters a layout tree build resolves for it from that style have:
+/// appending a last list item to such an element leaves the items before it as they are numbered.
 ///
 /// # Safety
 ///
-/// The arena must remain valid for the duration of the call.
+/// `payloads` must point at `count` live group payloads.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn render_state_innermost_list_item_counter_is_own_forward_counter(
-    host: *const DocumentHost,
-    style_node: u32,
-) -> bool {
-    let Some(element) = StyleNodeID::from_raw(style_node) else {
-        return false;
-    };
-    // The counters a frame in flight lays out are not known beside it, which answers no.
+pub unsafe extern "C" fn style_resets_forward_list_item_counter(payloads: *const *const c_void, count: usize) -> bool {
+    assert!(!payloads.is_null(), "style group payload array is null");
     // SAFETY: Guaranteed by the caller.
-    let Some(here) = unsafe { &*host }.layout_waits_for_no_frame() else {
-        return false;
-    };
-    // SAFETY: Guaranteed by the caller.
-    unsafe {
-        read_arena(host, here, element, |arena, element| {
-            arena
-                .counters_sets()
-                .borrow()
-                .innermost_list_item_counter_is_own_forward_counter(element)
-        })
-    }
+    let groups = unsafe { std::slice::from_raw_parts(payloads, count) };
+    super::counters::style_resets_forward_list_item_counter(ComputedValuesView::new(groups))
 }
 
 #[unsafe(no_mangle)]
