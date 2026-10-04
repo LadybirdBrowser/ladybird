@@ -16,7 +16,6 @@
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/ImageFormats/ImageDecoder.h>
 #include <LibGfx/ImageFormats/TIFFMetadata.h>
-#include <LibIPC/TransportHandle.h>
 #include <LibThreading/ThreadPool.h>
 
 namespace ImageDecoder {
@@ -59,32 +58,6 @@ Messages::ImageDecoderServer::InitTransportResponse ConnectionFromClient::init_t
     did_misbehave("Unexpected image decoder transport initialization");
     return 0;
 #endif
-}
-
-ErrorOr<IPC::TransportHandle> ConnectionFromClient::connect_new_client()
-{
-    auto paired = TRY(IPC::Transport::create_paired());
-    auto handle = move(paired.remote_handle);
-
-    // Note: A ref is stored in the static s_connections map
-    auto client = adopt_ref(*new ConnectionFromClient(move(paired.local)));
-
-    return handle;
-}
-
-Messages::ImageDecoderServer::ConnectNewClientsResponse ConnectionFromClient::connect_new_clients(size_t count)
-{
-    Vector<IPC::TransportHandle> handles;
-    handles.ensure_capacity(count);
-    for (size_t i = 0; i < count; ++i) {
-        auto handle_or_error = connect_new_client();
-        if (handle_or_error.is_error()) {
-            dbgln("Failed to connect new client: {}", handle_or_error.error());
-            return Vector<IPC::TransportHandle> {};
-        }
-        handles.unchecked_append(handle_or_error.release_value());
-    }
-    return handles;
 }
 
 static void decode_image_to_bitmaps_and_durations_with_decoder(Gfx::ImageDecoder const& decoder, Optional<Gfx::IntSize> ideal_size, Vector<RefPtr<Gfx::Bitmap>>& bitmaps, Vector<u32>& durations)

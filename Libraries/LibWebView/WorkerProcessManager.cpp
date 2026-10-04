@@ -166,7 +166,7 @@ Web::HTML::WorkerAgentId WorkerProcessManager::start_worker_agent(Owner owner, O
         });
 
     auto request_server_connection = MUST(connect_new_request_server_client(*session, RequestServer::SiteBinding::Bound));
-    auto image_decoder_handle = MUST(connect_new_image_decoder_client());
+    auto image_decoder = MUST(launch_image_decoder_process());
 #if defined(HAVE_WASM_COMPILER_SERVICE)
     auto wasm_compiler_handle = MUST(connect_new_wasm_compiler_client());
 #endif
@@ -174,7 +174,7 @@ Web::HTML::WorkerAgentId WorkerProcessManager::start_worker_agent(Owner owner, O
     client->request_server_site_bindings().did_connect(request_server_connection.client_id);
     client->async_connect_to_request_server(move(request_server_connection.handle));
     client->async_set_site_compatibility_data(Application::the().site_compatibility_data());
-    client->async_connect_to_image_decoder(image_decoder_handle);
+    connect_to_image_decoder(*client, move(image_decoder));
 #if defined(HAVE_WASM_COMPILER_SERVICE)
     client->async_connect_to_wasm_compiler(wasm_compiler_handle);
 #endif

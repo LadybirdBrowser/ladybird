@@ -25,7 +25,6 @@
 #include <LibGfx/Point.h>
 #include <LibGfx/Size.h>
 #include <LibIPC/Forward.h>
-#include <LibImageDecoderClient/Client.h>
 #include <LibMain/Main.h>
 #include <LibRequests/Forward.h>
 #include <LibURL/URL.h>
@@ -114,7 +113,6 @@ public:
     static Requests::RequestClient& request_server_client(IsPrivate = IsPrivate::No);
     static Requests::RequestControlClient& request_server_control_client() { return *the().m_request_server_control_client; }
     static bool has_request_server_control_client() { return the().m_request_server_control_client; }
-    static ImageDecoderClient::Client& image_decoder_client() { return *the().m_image_decoder_client; }
 #if defined(HAVE_WASM_COMPILER_SERVICE)
     static WasmCompilerClient::Client& wasm_compiler_client() { return *the().m_wasm_compiler_client; }
 #endif
@@ -179,6 +177,9 @@ public:
     static SessionStore* session_store(IsPrivate);
 
     static ProcessManager& process_manager() { return *the().m_process_manager; }
+
+    // Runs the handler when the ImageDecoder with the given pid exits.
+    void set_image_decoder_exit_handler(pid_t, Function<void()>);
 #if defined(AK_OS_MACOS)
     static IPC::TransportBootstrapMachServer& transport_bootstrap_server() { return the().m_transport_bootstrap_server; }
     void set_browser_process_transport_handler(Function<void(NonnullOwnPtr<IPC::Transport>)> handler);
@@ -397,7 +398,6 @@ private:
     void recover_compositor_process();
     void crash_compositor_process();
     ErrorOr<void> launch_request_server();
-    ErrorOr<void> launch_image_decoder_server();
 #if defined(HAVE_WASM_COMPILER_SERVICE)
     ErrorOr<void> launch_wasm_compiler_server();
 #endif
@@ -569,7 +569,7 @@ private:
     RefPtr<Requests::RequestControlClient> m_request_server_control_client;
     RefPtr<Requests::RequestClient> m_request_server_client;
     RefPtr<Requests::RequestClient> m_private_request_server_client;
-    RefPtr<ImageDecoderClient::Client> m_image_decoder_client;
+    HashMap<pid_t, Function<void()>> m_image_decoder_exit_handlers;
 #if defined(HAVE_WASM_COMPILER_SERVICE)
     RefPtr<WasmCompilerClient::Client> m_wasm_compiler_client;
 #endif

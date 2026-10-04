@@ -161,11 +161,9 @@ static ErrorOr<CPUProfiler> launch_cpu_profiler(StringView server_name, pid_t pi
 #endif
 }
 
-template<typename ClientType, typename... ClientArguments>
-static ErrorOr<NonnullRefPtr<ClientType>> launch_server_process(
-    StringView server_name,
-    Vector<ByteString> arguments,
-    ClientArguments&&... client_arguments)
+// Spawns the helper with the given function, which returns the Process to keep track of, and returns the helper's pid.
+template<typename SpawnFunction>
+static ErrorOr<pid_t> launch_helper_process(StringView server_name, Vector<ByteString> arguments, SpawnFunction&& spawn)
 {
     auto process_type = WebView::process_type_from_name(server_name);
     auto const& browser_options = WebView::Application::browser_options();
@@ -243,10 +241,11 @@ static ErrorOr<NonnullRefPtr<ClientType>> launch_server_process(
 #endif
 
         bool capture_output = WebView::Application::the().should_capture_web_content_output();
-        auto result = WebView::Process::spawn<ClientType>(process_type, move(options), capture_output, forward<ClientArguments>(client_arguments)...);
+        auto result = spawn(options, capture_output);
 
         if (!result.is_error()) {
-            auto&& [process, client] = result.release_value();
+            auto process = result.release_value();
+            auto pid = process.pid();
             if (crash_report)
                 process.set_crash_report(crash_report.release_nonnull());
 #if defined(AK_OS_LINUX)
@@ -259,14 +258,6 @@ static ErrorOr<NonnullRefPtr<ClientType>> launch_server_process(
                 WebView::Application::the().set_cpu_profiler_process(move(profiler.process), move(profiler.control_socket));
             }
 
-            if constexpr (requires { client->set_pid(pid_t {}); })
-                client->set_pid(process.pid());
-
-            if constexpr (requires { client->transport().set_peer_pid(0); }) {
-                auto response = client->template send_sync<typename ClientType::InitTransport>(Core::System::getpid());
-                client->transport().set_peer_pid(response->peer_pid());
-            }
-
             WebView::Application::the().add_child_process(move(process));
 
             if (browser_options.profile_helper_process == process_type && browser_options.profile_tool == ProfileTool::Callgrind) {
@@ -276,7 +267,7 @@ static ErrorOr<NonnullRefPtr<ClientType>> launch_server_process(
                 dbgln();
             }
 
-            return move(client);
+            return pid;
         }
 
         if (i == candidate_server_paths.size() - 1) {
@@ -286,6 +277,30 @@ static ErrorOr<NonnullRefPtr<ClientType>> launch_server_process(
     }
 
     VERIFY_NOT_REACHED();
+}
+
+template<typename ClientType, typename... ClientArguments>
+static ErrorOr<NonnullRefPtr<ClientType>> launch_server_process(
+    StringView server_name,
+    Vector<ByteString> arguments,
+    ClientArguments&&... client_arguments)
+{
+    RefPtr<ClientType> client;
+    TRY(launch_helper_process(server_name, move(arguments), [&](Core::ProcessSpawnOptions const& options, bool capture_output) -> ErrorOr<WebView::Process> {
+        auto [process, new_client] = TRY(WebView::Process::spawn<ClientType>(WebView::process_type_from_name(server_name), options, capture_output, forward<ClientArguments>(client_arguments)...));
+
+        if constexpr (requires { new_client->set_pid(pid_t {}); })
+            new_client->set_pid(process.pid());
+
+        if constexpr (requires { new_client->transport().set_peer_pid(0); }) {
+            auto response = new_client->template send_sync<typename ClientType::InitTransport>(Core::System::getpid());
+            new_client->transport().set_peer_pid(response->peer_pid());
+        }
+
+        client = move(new_client);
+        return move(process);
+    }));
+    return client.release_nonnull();
 }
 
 // Gives a new process its one connection to the font service. This is the first message it gets, so that every font
@@ -358,7 +373,7 @@ ErrorOr<NonnullRefPtr<WebView::WebContentClient>> launch_web_content_process(IsP
     return client;
 }
 
-ErrorOr<NonnullRefPtr<ImageDecoderClient::Client>> launch_image_decoder_process()
+ErrorOr<ImageDecoderConnection> launch_image_decoder_process()
 {
     auto const& browser_options = WebView::Application::browser_options();
 
@@ -370,7 +385,47 @@ ErrorOr<NonnullRefPtr<ImageDecoderClient::Client>> launch_image_decoder_process(
         arguments.append(server.value());
     }
 
-    return launch_server_process<ImageDecoderClient::Client>("ImageDecoder"sv, arguments);
+    // The decoder parses untrusted images for one client, so it must not see the images of any other. The Browser
+    // does not talk to it, and hands its end of the transport to the client.
+    OwnPtr<IPC::Transport> transport;
+    auto pid = TRY(launch_helper_process("ImageDecoder"sv, move(arguments), [&](Core::ProcessSpawnOptions const& options, bool capture_output) -> ErrorOr<WebView::Process> {
+        auto [process, new_transport] = TRY(WebView::Process::spawn_with_transport(ProcessType::ImageDecoder, options, capture_output));
+        transport = move(new_transport);
+        return move(process);
+    }));
+
+    return ImageDecoderConnection { TRY(transport->release_for_transfer()), pid };
+}
+
+template<typename ClientType>
+static void connect_client_to_image_decoder(ClientType& client, ImageDecoderConnection decoder)
+{
+    client.async_connect_to_image_decoder(decoder.handle);
+
+    // A decoder exits by itself once its client is gone. One that dies before then is replaced, so a crash costs the
+    // client the images it was decoding at the time rather than every image after it.
+    Application::the().set_image_decoder_exit_handler(decoder.pid, [weak_client = client.template make_weak_ptr<ClientType>()] {
+        auto client = weak_client.strong_ref();
+        if (!client || !client->is_open())
+            return;
+
+        auto new_decoder = launch_image_decoder_process();
+        if (new_decoder.is_error()) {
+            dbgln("Failed to replace a crashed image decoder: {}", new_decoder.error());
+            return;
+        }
+        connect_client_to_image_decoder(*client, new_decoder.release_value());
+    });
+}
+
+void connect_to_image_decoder(WebContentClient& client, ImageDecoderConnection decoder)
+{
+    connect_client_to_image_decoder(client, move(decoder));
+}
+
+void connect_to_image_decoder(WebWorkerClient& client, ImageDecoderConnection decoder)
+{
+    connect_client_to_image_decoder(client, move(decoder));
 }
 
 ErrorOr<NonnullRefPtr<MediaClient::Client>> launch_media_server_process()
@@ -544,18 +599,6 @@ ErrorOr<RequestServerClientConnection> connect_new_request_server_client(Browsin
         return Error::from_string_literal("Failed to connect to RequestServer");
     Application::the().did_connect_request_server_client(response->client_id(), session, site_binding);
     return RequestServerClientConnection { .handle = response->take_handle(), .client_id = response->client_id() };
-}
-
-ErrorOr<IPC::TransportHandle> connect_new_image_decoder_client()
-{
-    auto response = Application::image_decoder_client().send_sync_but_allow_failure<Messages::ImageDecoderServer::ConnectNewClients>(1);
-    if (!response)
-        return Error::from_string_literal("Failed to connect to ImageDecoder");
-
-    auto handles = response->take_handles();
-    if (handles.size() != 1)
-        return Error::from_string_literal("Failed to connect to ImageDecoder");
-    return handles.take_last();
 }
 
 ErrorOr<IPC::TransportHandle> connect_new_media_server_client(RefPtr<MediaClient::Client>& controller)

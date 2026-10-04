@@ -8,6 +8,7 @@
 #include <AK/Platform.h>
 #include <AK/Utf16String.h>
 #include <LibCore/GeolocationProvider.h>
+#include <LibCore/Promise.h>
 #include <LibURL/Parser.h>
 #include <LibWebCommon/HTML/AutoplayPolicy.h>
 #include <LibWebView/Application.h>
