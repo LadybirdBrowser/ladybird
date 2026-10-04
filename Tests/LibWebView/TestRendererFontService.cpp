@@ -21,7 +21,7 @@ namespace {
 struct RenderSideFontService {
     NonnullRefPtr<WebView::FontService> font_service;
     NonnullOwnPtr<WebView::FontServiceHost> host;
-    NonnullOwnPtr<Compositing::FontServiceClient> client;
+    NonnullRefPtr<Compositing::FontServiceClient> client;
 };
 
 RenderSideFontService connect_render_side_font_service()
@@ -121,7 +121,7 @@ TEST_CASE(one_host_answers_several_connections_and_outlives_a_closed_one)
 {
     auto font_service = WebView::FontService::create({});
     auto host = WebView::FontServiceHost::create(*font_service);
-    OwnPtr<Compositing::FontServiceClient> first = MUST(Compositing::FontServiceClient::create(MUST(host->connect())));
+    RefPtr<Compositing::FontServiceClient> first = MUST(Compositing::FontServiceClient::create(MUST(host->connect())));
     auto second = MUST(Compositing::FontServiceClient::create(MUST(host->connect())));
     auto expected = font_service->match_font_for_code_point('A', 400, Gfx::FontWidth::Normal, 0, false).face_id;
     EXPECT_NE(expected, 0u);
@@ -136,23 +136,13 @@ TEST_CASE(one_host_answers_several_connections_and_outlives_a_closed_one)
     EXPECT_EQ(third->match_font_for_code_point('A', 400, Gfx::FontWidth::Normal, 0, false).face_id, expected);
 }
 
-// The process's font provider sends a code point miss from any thread but its own over the render
-// side's connection, so the miss is answered while the document thread pumps nothing.
-TEST_CASE(a_code_point_miss_from_another_thread_goes_out_on_the_render_side_connection)
+// A process's font provider asks every question on its one connection, so a code point miss from
+// any thread is answered while the main thread pumps nothing.
+TEST_CASE(a_code_point_miss_from_another_thread_is_answered_on_the_connection)
 {
-    auto service = connect_render_side_font_service();
-
-    // The provider's own callbacks stand for the document thread's connection, which no other
-    // thread may use.
-    Gfx::SharedFontProviderCallbacks callbacks;
-    callbacks.match_font_for_code_point = [](u32, u16, u16, u8, bool) -> Gfx::BrokeredFont { VERIFY_NOT_REACHED(); };
-    auto provider = MUST(Gfx::SharedFontProvider::create_empty(1, move(callbacks)));
-
-    Gfx::SharedFontProviderCallbacks render_side_callbacks;
-    render_side_callbacks.match_font_for_code_point = [&](u32 code_point, u16 weight, u16 width, u8 slope, bool prefer_color_emoji) {
-        return service.client->match_font_for_code_point(code_point, weight, width, slope, prefer_color_emoji);
-    };
-    provider->set_callbacks_for_other_threads(move(render_side_callbacks));
+    auto font_service = WebView::FontService::create({});
+    auto host = WebView::FontServiceHost::create(*font_service);
+    auto provider = MUST(Compositing::create_font_provider(MUST(host->connect()), {}, 0, 1));
 
     Core::EventLoop event_loop;
     RefPtr<Gfx::Font> font;
@@ -162,30 +152,25 @@ TEST_CASE(a_code_point_miss_from_another_thread_goes_out_on_the_render_side_conn
     EXPECT(font);
 }
 
-// A catalog face carries a face id and no font data, so the first use of any system family has to
-// ask the font service to open the file. From any thread but the document's, that question too
-// goes out on the render side's connection.
-TEST_CASE(a_cold_family_lookup_from_another_thread_goes_out_on_the_render_side_connection)
+// Any installed family will do; take the first one the catalog lists.
+static FlyString first_catalog_family(WebView::FontService& font_service)
 {
-    auto service = connect_render_side_font_service();
-
-    // The provider's own callbacks stand for the document thread's connection, which no other
-    // thread may use. They are left empty, so only the render side's connection can open a face.
-    auto catalog = MUST(service.font_service->clone_catalog());
-    auto provider = MUST(Gfx::SharedFontProvider::create_from_catalog_file_or_empty(move(catalog.file), catalog.size, catalog.generation, {}));
-
-    Gfx::SharedFontProviderCallbacks render_side_callbacks;
-    render_side_callbacks.open_font = [&](u64 generation, u64 face_id) {
-        return service.client->open_font(generation, face_id);
-    };
-    provider->set_callbacks_for_other_threads(move(render_side_callbacks));
-
-    // Any installed family will do; take the first one the catalog lists.
-    auto catalog_copy = MUST(service.font_service->clone_catalog());
-    auto mapping = MUST(Core::MappedFile::map_from_fd_range_and_close(catalog_copy.file.take_fd(), "font catalog"sv, 0, catalog_copy.size));
-    auto parsed_catalog = MUST(Gfx::FontCatalog::parse(mapping->bytes(), catalog_copy.generation));
+    auto catalog = MUST(font_service.clone_catalog());
+    auto mapping = MUST(Core::MappedFile::map_from_fd_range_and_close(catalog.file.take_fd(), "font catalog"sv, 0, catalog.size));
+    auto parsed_catalog = MUST(Gfx::FontCatalog::parse(mapping->bytes(), catalog.generation));
     VERIFY(parsed_catalog->face_count() > 0);
-    auto family = MUST(FlyString::from_utf8(parsed_catalog->face_at(0)->family));
+    return MUST(FlyString::from_utf8(parsed_catalog->face_at(0)->family));
+}
+
+// A catalog face carries a face id and no font data, so the first use of any system family has to
+// ask the font service to open the file, from whichever thread uses it first.
+TEST_CASE(a_cold_family_lookup_from_another_thread_is_answered_on_the_connection)
+{
+    auto font_service = WebView::FontService::create({});
+    auto host = WebView::FontServiceHost::create(*font_service);
+    auto catalog = MUST(font_service->clone_catalog());
+    auto provider = MUST(Compositing::create_font_provider(MUST(host->connect()), move(catalog.file), catalog.size, catalog.generation));
+    auto family = first_catalog_family(*font_service);
 
     Core::EventLoop event_loop;
     size_t typefaces_seen = 0;
@@ -197,4 +182,29 @@ TEST_CASE(a_cold_family_lookup_from_another_thread_goes_out_on_the_render_side_c
 
     // Every file the lookup needed was opened without the main thread pumping anything.
     EXPECT(typefaces_seen > 0u);
+}
+
+// A @font-face src: local() is not only the main thread's work either: a worker's thread asks it
+// too, on the same connection.
+TEST_CASE(a_local_font_from_another_thread_is_answered_on_the_connection)
+{
+    auto font_service = WebView::FontService::create({});
+    auto host = WebView::FontServiceHost::create(*font_service);
+    auto catalog = MUST(font_service->clone_catalog());
+    auto provider = MUST(Compositing::create_font_provider(MUST(host->connect()), move(catalog.file), catalog.size, catalog.generation));
+    auto family = first_catalog_family(*font_service);
+
+    Vector<String> local_names;
+    provider->for_each_typeface_with_family_name(family, [&](Gfx::Typeface const& typeface) {
+        if (local_names.is_empty())
+            local_names = MUST(typeface.local_font_names());
+    });
+    VERIFY(!local_names.is_empty());
+
+    Core::EventLoop event_loop;
+    RefPtr<Gfx::Typeface> typeface;
+    run_on_another_thread([&] {
+        typeface = provider->get_typeface_by_local_name(local_names.first());
+    });
+    EXPECT(typeface);
 }

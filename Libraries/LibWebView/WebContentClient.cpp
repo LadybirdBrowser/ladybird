@@ -32,8 +32,6 @@
 #include <LibWebView/CanonicalTraversable.h>
 #include <LibWebView/CanonicalWindow.h>
 #include <LibWebView/CookieJar.h>
-#include <LibWebView/FontService.h>
-#include <LibWebView/FontServiceHost.h>
 #include <LibWebView/HSTSStore.h>
 #include <LibWebView/HelperProcess.h>
 #include <LibWebView/HistoryStore.h>
@@ -45,38 +43,6 @@
 #include <LibWebView/WorkerProcessManager.h>
 
 namespace WebView {
-
-Messages::WebContentClient::OpenSystemFontResponse WebContentClient::open_system_font(u64 generation, u64 face_id)
-{
-    auto font = Application::font_service().open_font(generation, face_id);
-    return { move(font) };
-}
-
-Messages::WebContentClient::MatchLocalFontResponse WebContentClient::match_local_font(String name)
-{
-    auto font = Application::font_service().match_local_font(name);
-    return { move(font) };
-}
-
-Messages::WebContentClient::MatchSystemFontResponse WebContentClient::match_system_font(String family, u16 weight, u16 width, u8 slope)
-{
-    auto font = Application::font_service().match_font(family, weight, width, slope);
-    return { move(font) };
-}
-
-Messages::WebContentClient::MatchSystemFontForCodePointResponse WebContentClient::match_system_font_for_code_point(u32 code_point, u16 weight, u16 width, u8 slope, bool prefer_color_emoji)
-{
-    auto font = Application::font_service().match_font_for_code_point(code_point, weight, width, slope, prefer_color_emoji);
-    return { move(font) };
-}
-
-Messages::WebContentClient::ResolveGenericFontResponse WebContentClient::resolve_generic_font(String family, u16 weight, u8 slope)
-{
-    auto resolved = Application::font_service().resolve_generic_family(family, weight, slope);
-    if (!resolved.has_value())
-        return Optional<String> {};
-    return Optional<String> { resolved->to_string() };
-}
 
 Messages::WebContentClient::DidAddBlobUrlEntryResponse WebContentClient::did_add_blob_url_entry(Web::PageId page_id, Web::HTML::EnvironmentId environment_id, Utf16String url, Web::FileAPI::SerializedBlobURLEntry entry)
 {
@@ -120,14 +86,6 @@ Messages::WebContentClient::DidRequestBlobUrlEntryResponse WebContentClient::did
 void WebContentClient::connect_test_endpoint(NonnullOwnPtr<IPC::Transport> transport)
 {
     m_test_connection = make_ref_counted<WebContentTestClient>(move(transport), *this);
-}
-
-// A font question asked from a render pass must not travel on this connection, which the renderer's document thread
-// pumps, so the render side gets a connection of its own.
-ErrorOr<void> WebContentClient::connect_render_side_font_service()
-{
-    async_set_render_side_font_service_transport(TRY(Application::font_service_host().connect()));
-    return {};
 }
 
 void WebContentClient::remove_blob_url_entries()

@@ -1,7 +1,6 @@
 #include <LibCore/AnonymousBuffer.h>
 #include <LibGfx/Color.h>
 #include <LibGfx/Cursor.h>
-#include <LibGfx/Font/SharedFontProvider.h>
 #include <LibGfx/ShareableBitmap.h>
 #include <LibHTTP/Cookie/Cookie.h>
 #include <LibHTTP/Cookie/ParsedCookie.h>
@@ -73,11 +72,6 @@
 
 endpoint WebContentClient routed by Web::PageId page_id
 {
-    open_system_font(u64 generation, u64 face_id) => (Gfx::BrokeredFont font)
-    match_system_font(String family, u16 weight, u16 width, u8 slope) => (Gfx::BrokeredFont font)
-    match_local_font(String name) => (Gfx::BrokeredFont font)
-    match_system_font_for_code_point(u32 code_point, u16 weight, u16 width, u8 slope, bool prefer_color_emoji) => (Gfx::BrokeredFont font)
-    resolve_generic_font(String family, u16 weight, u8 slope) => (Optional<String> resolved_family)
 
     [NotRouted] did_add_blob_url_entry(Web::PageId page_id, Web::HTML::EnvironmentId environment_id, Utf16String url, Web::FileAPI::SerializedBlobURLEntry entry) => (URL::BlobURLEntry::Token token)
     did_remove_blob_url_entries(Web::PageId page_id, Web::HTML::EnvironmentId environment_id, Vector<Utf16String> urls) => ()
