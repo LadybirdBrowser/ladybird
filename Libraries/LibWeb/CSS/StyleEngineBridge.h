@@ -42,6 +42,7 @@ enum class StyleRecordDependencyFlag : u8;
 class CustomPropertyData;
 class FontComputer;
 class StyleComputer;
+class StyleUpdateInputs;
 class RustDeclarationBlock;
 struct StyleProperty;
 
@@ -310,9 +311,9 @@ public:
     //     explicit discard. Consume them synchronously before asking the engine anything else.
     bool take_diagnostic_style_transaction(Layout::BegunRead const& read, StyleNodeID root, Function<void(ReadonlySpan<StyleNodeID>)>&&);
     PublishedStyleTransaction take_style_transaction(Layout::BegunRead const& read, StyleNodeID root);
-    // Lets the pending style transaction under root fly beside the event loop, where `blocker` is none, and answers
-    // whether it flies. The next style update drains it first, with take_flown_style_transaction().
-    [[nodiscard]] bool let_style_transaction_fly(Layout::BegunRead const& read, StyleNodeID root, Layout::RustFFI::FfiFlightBlocker blocker);
+    // Lets the pending style transaction under root, taken against `inputs`, fly beside the event loop where `blocker` is
+    // none, and answers whether it flies. The next style update drains it first, with take_flown_style_transaction().
+    [[nodiscard]] bool let_style_transaction_fly(Layout::BegunRead const& read, StyleUpdateInputs const& inputs, StyleNodeID root, Layout::RustFFI::FfiFlightBlocker blocker);
     // Whether the style transaction that flew still flies. One that has landed is taken in, which only the event loop
     // does, between two tasks.
     [[nodiscard]] bool style_transaction_flies();

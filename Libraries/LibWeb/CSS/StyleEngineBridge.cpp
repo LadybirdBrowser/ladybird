@@ -974,7 +974,7 @@ StyleEngine::PublishedStyleTransaction StyleEngine::publish_style_transaction_vi
     };
 }
 
-bool StyleEngine::let_style_transaction_fly(Layout::BegunRead const& read, StyleNodeID root, Layout::RustFFI::FfiFlightBlocker blocker)
+bool StyleEngine::let_style_transaction_fly(Layout::BegunRead const& read, StyleUpdateInputs const&, StyleNodeID root, Layout::RustFFI::FfiFlightBlocker blocker)
 {
     if (!m_style_computer)
         return false;
