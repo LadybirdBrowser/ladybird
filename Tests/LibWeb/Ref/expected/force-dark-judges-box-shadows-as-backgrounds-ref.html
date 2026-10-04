@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<style>
+    body { margin: 0; background: #808080; }
+    /* White inverts to the dark surface color, rgb(18, 18, 18); black is under the background threshold and stays. */
+    div { width: 100px; height: 100px; margin: 20px; background: rgb(18, 18, 18); }
+    #dark-shadow { box-shadow: 10px 10px 0 #000000; }
+    #light-shadow { box-shadow: 10px 10px 0 rgb(18, 18, 18); }
+    #dark-inset-shadow { box-shadow: inset 10px 10px 0 #000000; }
+    #light-inset-shadow { background: #000000; box-shadow: inset 10px 10px 0 rgb(18, 18, 18); }
+</style>
+<div id="dark-shadow"></div>
+<div id="light-shadow"></div>
+<div id="dark-inset-shadow"></div>
+<div id="light-inset-shadow"></div>
+<script>
+    if (window.internals)
+        internals.setForceDarkEnabled(false);
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            document.documentElement.classList.remove("reftest-wait");
+        });
+    });
+</script>
+</html>

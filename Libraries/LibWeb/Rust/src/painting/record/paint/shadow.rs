@@ -75,6 +75,8 @@ fn paint_box_shadow_layers<O: Observer>(
     let converter = recorder.converter;
     let corner_radii = border_radii.as_corners(&converter);
 
+    // Force-dark judges a box shadow as a background, so a dark drop shadow stays dark rather than turning into a
+    // light glow — as Blink's ResolveShadowColor does, passing DarkModeFilter::ElementRole::kBackground.
     // Box-shadow layers are ordered front-to-back, so we paint them in reverse.
     for layer in layers.iter().rev() {
         let offset_x = converter.rounded_device_pixels(CssPixels::from_raw(layer.offset_x));
@@ -131,7 +133,7 @@ fn paint_box_shadow_layers<O: Observer>(
                     inner_shadow_rect,
                     inner_shadow_corner_radii,
                 },
-                ForceDarkRole::Foreground,
+                ForceDarkRole::Background,
             );
         } else {
             let mut shadow_rect =
@@ -151,7 +153,7 @@ fn paint_box_shadow_layers<O: Observer>(
                     shadow_rect,
                     shadow_corner_radii,
                 },
-                ForceDarkRole::Foreground,
+                ForceDarkRole::Background,
             );
         }
     }

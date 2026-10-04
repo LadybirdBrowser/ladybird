@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/force-dark-leaves-text-shadows-alone-ref.html">
+<style>
+    body { margin: 0; background: #303030; color: #ffffff; font-size: 40px; }
+    #offset { text-shadow: 4px 4px 0 #000000; }
+    #outline { text-shadow: -2px 0 1px #000000, 2px 0 1px #000000, 0 -2px 1px #000000, 0 2px 1px #000000; }
+</style>
+<div id="offset">shadowed</div>
+<div id="outline">outlined</div>
+<script>
+    // Light text on a dark page keeps its colors under force-dark, so its dark text shadows must too: inverting them
+    // would ring the glyphs with a light halo.
+    if (window.internals)
+        internals.setForceDarkEnabled(true);
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            document.documentElement.classList.remove("reftest-wait");
+        });
+    });
+</script>
+</html>

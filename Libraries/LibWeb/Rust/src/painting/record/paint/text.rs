@@ -395,6 +395,10 @@ fn paint_text_shadow<O: Observer>(
         }
     }
 
+    // NB: Force-dark leaves text shadows alone. Light text keeps its color under force-dark, so inverting the dark
+    // outline set behind it would put a light halo around light glyphs — which reads as blurred text. Blink doesn't
+    // filter text shadows either: DarkModeFilter::ApplyToFlagsIfNeeded recolors only the paint flags, never the
+    // DrawLooper that TextPainter bakes the shadow colors into.
     // Shadow layers are ordered front-to-back, so we paint them in reverse.
     for layer in shadow_layers.iter().rev() {
         let blur_radius = converter.rounded_device_pixels(layer.blur_radius);
@@ -436,7 +440,7 @@ fn paint_text_shadow<O: Observer>(
             scale,
             Color(layer.color),
             orientation,
-            ForceDarkRole::Foreground,
+            ForceDarkRole::None,
         );
     }
 }

@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/force-dark-judges-box-shadows-as-backgrounds-ref.html">
+<style>
+    body { margin: 0; background: #808080; }
+    div { width: 100px; height: 100px; margin: 20px; background: #ffffff; }
+    #dark-shadow { box-shadow: 10px 10px 0 #000000; }
+    #light-shadow { box-shadow: 10px 10px 0 #ffffff; }
+    #dark-inset-shadow { box-shadow: inset 10px 10px 0 #000000; }
+    #light-inset-shadow { background: #000000; box-shadow: inset 10px 10px 0 #ffffff; }
+</style>
+<div id="dark-shadow"></div>
+<div id="light-shadow"></div>
+<div id="dark-inset-shadow"></div>
+<div id="light-inset-shadow"></div>
+<script>
+    // A box shadow is judged like a background, outer and inset alike: a dark one stays dark rather than turning into
+    // a light glow, and a light one darkens along with the box it belongs to.
+    if (window.internals)
+        internals.setForceDarkEnabled(true);
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            document.documentElement.classList.remove("reftest-wait");
+        });
+    });
+</script>
+</html>
