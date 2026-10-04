@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<style>
+    body {
+        margin: 0;
+    }
+
+    .grid {
+        display: grid;
+        grid-template-columns: auto auto;
+        width: 300px;
+    }
+
+    .subgrid {
+        display: grid;
+        grid-column: 1 / -1;
+        grid-template-columns: subgrid;
+        grid-template-rows: subgrid;
+    }
+
+    .wrapping {
+        display: flex;
+        flex-wrap: wrap;
+    }
+
+    .box {
+        width: 20px;
+        height: 20px;
+    }
+
+    .wide {
+        width: 250px;
+        height: 10px;
+    }
+</style>
+<div class="grid">
+    <div class="subgrid"><div class="box"></div><div class="wrapping"><div class="box"></div><div class="box"></div><div class="box"></div><div class="box"></div></div></div>
+    <div class="wide"></div>
+</div>

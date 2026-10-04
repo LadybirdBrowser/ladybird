@@ -973,12 +973,12 @@ pub(crate) struct GridFormattingContext<'pass> {
     explicit_row_start: usize,
     subgridded_columns: bool,
     subgridded_rows: bool,
-    // Set when this subgrid is measured after its parent grid has resolved its tracks, so the subgrid takes their
+    // Set when this subgrid is measured after its parent grid has resolved its columns, so the subgrid takes their
     // final sizes rather than contributing to them.
     //
     // https://drafts.csswg.org/css-grid-2/#subgrid-tracks
     // ... its track sizes are governed by the parent grid.
-    inherits_resolved_parent_tracks: bool,
+    inherits_resolved_parent_columns: bool,
     // Created on first use, so a grid with no subgrids in it never allocates one.
     subgrid_block_size_memo: std::cell::OnceCell<SubgridBlockSizeMemo>,
     automatic_content_block_size: CssPixels,
@@ -1071,7 +1071,7 @@ impl<'pass> GridFormattingContext<'pass> {
             explicit_row_start: 0,
             subgridded_columns: false,
             subgridded_rows: false,
-            inherits_resolved_parent_tracks: false,
+            inherits_resolved_parent_columns: false,
             subgrid_block_size_memo: parent_grid
                 .map(|parent| std::cell::OnceCell::from(parent.subgrid_block_size_memo().clone()))
                 .unwrap_or_default(),
@@ -1683,7 +1683,9 @@ impl<'pass> GridFormattingContext<'pass> {
             for offset in 0..parent_item.span(axis) {
                 let index = parent_item.position(axis) + offset as i32;
                 if let Some(parent_track) = usize::try_from(index).ok().and_then(|index| parent_tracks.get(index)) {
-                    if self.run.layout_mode == LayoutMode::IntrinsicSizing && !self.inherits_resolved_parent_tracks {
+                    if self.run.layout_mode == LayoutMode::IntrinsicSizing
+                        && !(axis.is_column() && self.inherits_resolved_parent_columns)
+                    {
                         // https://drafts.csswg.org/css-grid-2/#subgrid-size-contribution
                         // The subgrid itself lays out as an ordinary grid item in its parent grid,
                         // but acts as if it was completely empty for track sizing purposes in the
@@ -2582,7 +2584,7 @@ impl<'pass> GridFormattingContext<'pass> {
         );
         let size = self.measure_subgrid(subgrid, |context, scratch_run| {
             // This grid's columns are already sized, so the subgrid's content is laid out in those final widths.
-            context.inherits_resolved_parent_tracks = true;
+            context.inherits_resolved_parent_columns = true;
             context.run(scratch_run, input);
             context.automatic_content_block_size()
         });
@@ -2652,6 +2654,13 @@ impl<'pass> GridFormattingContext<'pass> {
         );
         self.measure_subgrid(subgrid, |context, _| {
             context.reset_for_run(input);
+            // https://drafts.csswg.org/css-grid-2/#algo-grid-sizing
+            // To find the inline-axis available space for any items whose block-axis size contributions require it,
+            // use the grid column sizes calculated in the previous step.
+            //
+            // NB: So while this grid sizes its rows, a subgrid that inherits its columns lays its items out in those
+            //     resolved widths, rather than sizing the columns again from its own items alone.
+            context.inherits_resolved_parent_columns = !axis.is_column();
             let grid_style = context.grid_style(context.run.box_);
             context.cache_subgrid_axes(grid_style);
             let (columns, rows) = context.initialize_lines(grid_style);
