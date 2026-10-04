@@ -153,6 +153,7 @@ public:
 private:
     void relay_finished_input_event(WebContentPage const& reporting_page, u64 event_id, Web::EventResult);
     Optional<CanonicalNavigable&> population_worker_navigable(Web::HTML::CrossProcessId navigable_id) const;
+    bool holds_container_of(CanonicalNavigable const& child_frame, StringView message_name);
     bool continue_navigation_population_in_selected_process(Web::HTML::CrossProcessId navigable_id, Utf16String navigation_id);
     void for_each_hosted_document(Function<IterationDecision(CanonicalDocument&)> const&) const;
     bool populates_a_navigation_to_local_file(ByteString const& path) const;
