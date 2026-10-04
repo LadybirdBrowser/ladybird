@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<iframe srcdoc="hello" style="width: 20px; height: 20px"></iframe>
+<div id="box" style="width: 10px; height: 0px; background: green"></div>
+<script>
+    // A document that hosts navigables renders in step with them, and its rendering updates leave no plan for a clock
+    // lease.
+    asyncTest(async done => {
+        const state = await whileClockLeased(() => {
+            return box.animate([{ height: "0px" }, { height: "100px" }], { duration: 10000, easing: "linear" });
+        }, () => internals.clockLeaseState(document));
+        println(`lease as the task begins: ${state}`);
+        done();
+    });
+</script>

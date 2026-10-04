@@ -13,6 +13,7 @@
 #include <LibIPC/Transport.h>
 #include <LibThreading/Thread.h>
 #include <LibWeb/Compositor/RenderClock.h>
+#include <LibWeb/Layout/LayoutRustFFI.h>
 
 namespace Web::Compositor {
 
@@ -45,6 +46,17 @@ private:
     RenderClock& m_clock;
     bool m_detached { false };
 };
+
+ClockTicksHandle::~ClockTicksHandle()
+{
+    if (m_ticks)
+        Layout::RustFFI::clock_ticks_release(m_ticks);
+}
+
+bool ClockTicksHandle::tick(i64 frame_time_nanoseconds) const
+{
+    return Layout::RustFFI::clock_ticks_tick(m_ticks, frame_time_nanoseconds);
+}
 
 RenderClock& RenderClock::the()
 {
@@ -170,10 +182,13 @@ void RenderClock::did_receive_clock_tick(Web::CompositorContextId context_id, i6
     if (it == m_armed_contexts.end())
         return;
 
-    // The next request goes out before this tick is handed on, so that the Compositor's pacing is the only limit on the
-    // rate: however long this tick takes, the next one is already on its way.
+    // Handing a tick on only queues it, so the next request goes out right after: however long this tick takes, the next
+    // one is already on its way, and the Compositor's pacing is the only limit on the rate.
+    if (!it->value.on_tick(frame_time_nanoseconds, frame_interval_milliseconds)) {
+        m_armed_contexts.remove(it);
+        return;
+    }
     request_clock_tick(context_id, it->value.maximum_frames_per_second);
-    it->value.on_tick(frame_time_nanoseconds, frame_interval_milliseconds);
 }
 
 void RenderClock::did_lose_channel()

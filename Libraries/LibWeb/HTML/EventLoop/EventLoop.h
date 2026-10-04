@@ -151,6 +151,9 @@ public:
     void did_let_recording_fly(LocalNavigable&);
     // The frames of the navigables this event loop renders, in the order the compositor presents them.
     PresentationQueue& presentation_queue() { return *m_presentation_queue; }
+    // A test that injects its rendering opportunities injects its render clock's ticks as well.
+    void set_render_clock_is_manual_for_testing(bool manual) { m_render_clock_is_manual_for_testing = manual; }
+    bool render_clock_is_manual_for_testing() const { return m_render_clock_is_manual_for_testing; }
     // Called before a rendering update submits a recording, on a thread with a Core event loop.
     void ensure_frame_completion_registered();
     // Whether a frame flies beside the event loop, which has not taken it in yet.
@@ -187,6 +190,7 @@ private:
     void resume_rendering_update_in_flight();
     // Goes on with the rendering update in flight where it has landed, and presents the recordings that have landed.
     void take_finished_frames_in();
+    void lease_clocks_for_task();
 
     Type m_type { Type::Window };
 
@@ -239,6 +243,9 @@ private:
     GC::Ptr<GC::Function<void()>> m_rendering_task_function;
 
     NonnullOwnPtr<PresentationQueue> m_presentation_queue;
+    // The navigables whose active document the last rendering update left a plan for a clock lease, which a task takes.
+    Vector<GC::Ref<LocalNavigable>> m_navigables_with_clock_plans;
+    bool m_render_clock_is_manual_for_testing { false };
     bool m_frame_completion_registered { false };
     bool m_holds_next_frame_for_testing { false };
     bool m_holds_next_frame_before_present_for_testing { false };

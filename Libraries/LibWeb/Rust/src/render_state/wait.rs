@@ -86,6 +86,12 @@ pub(crate) struct TaskBoundary {
     not_send_or_sync: PhantomData<*const ()>,
 }
 
+/// The start of a task of the host's event loop, where a clock lease begins: only there, so a lease never begins inside
+/// a task. It stays on the host's thread.
+pub(crate) struct TaskStart {
+    not_send_or_sync: PhantomData<*const ()>,
+}
+
 mod private {
     pub trait ScriptEntry {}
     pub trait LockstepReason {}
@@ -197,6 +203,15 @@ impl TaskBoundary {
     }
 
     /// The task boundary at which the event loop calls the entry `_` marks.
+    pub(crate) fn at_event_loop_entry(_: &impl EventLoopEntry) -> Self {
+        Self {
+            not_send_or_sync: PhantomData,
+        }
+    }
+}
+
+impl TaskStart {
+    /// The start of the task at which the event loop calls the entry `_` marks.
     pub(crate) fn at_event_loop_entry(_: &impl EventLoopEntry) -> Self {
         Self {
             not_send_or_sync: PhantomData,
@@ -382,12 +397,16 @@ held_node_entry!(crate::layout::rendered_text::HeldNode);
 held_node_entry!(crate::layout::text_queries::HeldNode);
 held_node_entry!(crate::painting::ffi::HeldNode);
 held_node_entry!(crate::painting::layout_tree_dump::HeldNode);
+lockstep_reason!(super::clock::PresenterNeedsItsFrame);
+lockstep_reason!(super::clock::AnimationChanged);
 
 // The host entries the event loop calls between two tasks.
 impl private::EventLoopEntry for crate::painting::ffi::TakesFinishedRecordingIn {}
 impl EventLoopEntry for crate::painting::ffi::TakesFinishedRecordingIn {}
 impl private::EventLoopEntry for crate::css::style::style_job::TakesFinishedStyleIn {}
 impl EventLoopEntry for crate::css::style::style_job::TakesFinishedStyleIn {}
+impl private::EventLoopEntry for super::clock::LeasesClockForTask {}
+impl EventLoopEntry for super::clock::LeasesClockForTask {}
 
 /// Where the render side answers a host that waits for it: the slot in the waiting host's frame that the answer moves
 /// into, which the message borrows for as long as the host waits. Only an answer goes through it: a slot left empty
@@ -457,6 +476,11 @@ mod tests {
     #[test]
     fn a_task_boundary_is_not_send() {
         <TaskBoundary as AmbiguousIfSend<_>>::marker();
+    }
+
+    #[test]
+    fn a_task_start_is_not_send() {
+        <TaskStart as AmbiguousIfSend<_>>::marker();
     }
 
     #[test]

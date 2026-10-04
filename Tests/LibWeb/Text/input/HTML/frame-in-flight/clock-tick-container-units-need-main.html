@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<div style="container-type: size; width: 100px; height: 100px">
+    <div id="box" style="width: 10px; height: 0px; background: green"></div>
+</div>
+<script>
+    // A keyframe in container units resolves against a container's size, which only the host knows: the first tick of
+    // a clock lease of such an animation parks the lease.
+    asyncTest(async done => {
+        const result = await whileClockLeased(() => {
+            return box.animate([{ height: "0cqh" }, { height: "100cqh" }], { duration: 10000, easing: "linear" });
+        }, frameTime => {
+            const before = internals.clockLeaseState(document);
+            internals.injectClockTick(frameTime + 500);
+            return { before, after: internals.clockLeaseState(document) };
+        });
+        println(`lease as the task begins: ${result.before}`);
+        println(`lease after a tick: ${result.after}`);
+        done();
+    });
+</script>

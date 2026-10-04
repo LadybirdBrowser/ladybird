@@ -18,9 +18,37 @@
 #include <LibWeb/Export.h>
 #include <LibWebCommon/Page/CompositorContextId.h>
 
+namespace Web::Layout::RustFFI {
+
+struct ClockTicks;
+
+}
+
 namespace Web::Compositor {
 
 class RenderClockChannel;
+
+// A reference to the ticks of a document's clock lease, which hands them on to the lease.
+class WEB_API ClockTicksHandle {
+    AK_MAKE_NONCOPYABLE(ClockTicksHandle);
+
+public:
+    explicit ClockTicksHandle(Layout::RustFFI::ClockTicks const* ticks)
+        : m_ticks(ticks)
+    {
+    }
+    ClockTicksHandle(ClockTicksHandle&& other)
+        : m_ticks(exchange(other.m_ticks, nullptr))
+    {
+    }
+    ~ClockTicksHandle();
+
+    // Hands the lease a tick, and answers whether it wants the next one.
+    bool tick(i64 frame_time_nanoseconds) const;
+
+private:
+    Layout::RustFFI::ClockTicks const* m_ticks { nullptr };
+};
 
 // A thread of its own that asks the Compositor for display ticks for the contexts that are armed, and hands each tick
 // it is delivered to what the context was armed with, without passing through the main thread. There is one per
@@ -35,8 +63,9 @@ class WEB_API RenderClock {
 public:
     AK_ALLOC_WITH_KMALLOC;
 
-    // Runs on the clock thread, for each tick delivered to the context it was armed for.
-    using OnTick = Function<void(i64 frame_time_nanoseconds, double frame_interval_milliseconds)>;
+    // Runs on the clock thread, for each tick delivered to the context it was armed for, and answers whether the context
+    // wants the next tick: one that does not is disarmed.
+    using OnTick = Function<bool(i64 frame_time_nanoseconds, double frame_interval_milliseconds)>;
 
     // The process's render clock, made the first time it is asked for.
     static RenderClock& the();

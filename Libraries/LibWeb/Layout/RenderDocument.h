@@ -31,8 +31,8 @@ public:
 
     RustFFI::DocumentHost* host() const { return m_host; }
 
-    // Whether the host waits for the document's frame: it flies beside the host, or the layout round it flew with is
-    // not paid yet. The host keeps it up to date, so asking costs a load.
+    // Whether the host waits for the document's frame: it flies beside the host, or a layout round it flew with or the
+    // ticks of a clock lease ran is not paid yet. The host keeps it up to date, so asking costs a load.
     bool waits_for_frame() const { return *m_read_scope_view.waits_for_frame; }
 
     // Whether the document's frame flies beside the host, which has not taken it in yet.

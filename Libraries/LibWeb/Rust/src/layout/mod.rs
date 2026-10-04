@@ -69,7 +69,7 @@ use crate::layout::layout_node_arena::IntrinsicInlineSizeMeasurement;
 use crate::layout::layout_node_arena::IntrinsicSizeCacheKey;
 use crate::layout::layout_node_arena::IntrinsicSizeCacheKind;
 pub(crate) use crate::layout::layout_node_arena::MainThreadFfiEntry as ArenaMainThreadFfiEntry;
-pub(crate) use crate::layout::layout_node_arena::{LayoutNodeArena, RowsVersion, SLOTS_PER_CHUNK};
+pub(crate) use crate::layout::layout_node_arena::{HostStyle, LayoutNodeArena, RowsVersion, SLOTS_PER_CHUNK};
 use crate::layout::layout_node_arena::{TableCellMeasurement, TableCellMeasurementKey};
 use crate::layout::node_data::AncestorFact;
 pub use crate::layout::node_data::FfiNodeConstructionFacts;
@@ -105,5 +105,7 @@ use std::cell::RefMut;
 use std::ffi::c_void;
 pub(crate) use style_values::StyleValues;
 pub(crate) use update_layout::MainThreadFfiEntry as UpdateMainThreadFfiEntry;
-pub(crate) use update_layout::{FlownRound, LayoutRoundAnswer, LayoutRoundJob, SealedRound};
+pub(crate) use update_layout::{
+    ClockRound, ClockRoundDeclined, FlownRound, LayoutRoundAnswer, LayoutRoundJob, SealedRound,
+};
 pub(crate) use used_values::{FfiCssPixelPoint, FfiCssPixelRect, FfiCssPixelSize, SizeConstraint, UsedValues};

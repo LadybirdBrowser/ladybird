@@ -750,6 +750,8 @@ pub unsafe extern "C" fn render_state_record_display_list(
     assert!(!host.is_null(), "document host is null");
     // SAFETY: Guaranteed by the caller.
     let host = unsafe { &*host };
+    // The recording takes the recorder state, which a clock lease brings back.
+    host.end_clock_lease_waiting(read);
     let mut recording = host.recording();
     debug_assert!(
         !recording.has_pending_recording() && !recording.has_recording_in_flight(),

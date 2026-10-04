@@ -344,7 +344,6 @@ impl super::StyleEngine {
     /// pinned for a box: what the element's box shows at that time, which no script reads. Reads only
     /// what the engine holds, so it runs wherever the engine is. `transform_reference_box` is the box a
     /// transform interpolates against, where the element has one.
-    #[cfg_attr(not(test), expect(dead_code, reason = "a clock tick samples with it"))]
     pub(crate) fn sample_at(
         &mut self,
         node: StyleNodeID,

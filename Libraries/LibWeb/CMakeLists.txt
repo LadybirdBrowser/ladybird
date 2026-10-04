@@ -510,6 +510,7 @@ set(SOURCES
     HTML/ErrorEvent.cpp
     HTML/ErrorInformation.cpp
     HTML/EventHandler.cpp
+    HTML/EventLoop/ClockPlan.cpp
     HTML/EventLoop/EventLoop.cpp
     HTML/EventLoop/FrameCompletion.cpp
     HTML/EventLoop/PresentationQueue.cpp

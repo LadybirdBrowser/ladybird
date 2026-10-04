@@ -18,12 +18,14 @@ use crate::css::style::bridge::create_document_style_engine;
 use crate::layout::ArenaHandle;
 use std::cell::{Cell, RefCell};
 
+mod clock;
 mod devtools;
 mod document_host;
 mod owner;
 mod questions;
 mod wait;
 
+pub(crate) use clock::ClockPlan;
 pub use document_host::DocumentHost;
 pub(crate) use document_host::OwedWorkPayment;
 #[cfg(test)]
@@ -439,6 +441,12 @@ impl ChangeQueue {
 
     fn may_compile_selectors(&self) -> bool {
         self.moves.get().selectors
+    }
+
+    /// Queues `change` ahead of every write queued before it.
+    fn push_front(&self, change: ArenaChange) {
+        self.row_write.set(self.row_write.get().max(change.row_write()));
+        self.queued.borrow_mut().insert(0, change);
     }
 
     fn may_write_rows(&self) -> bool {

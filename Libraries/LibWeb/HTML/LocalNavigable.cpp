@@ -24,6 +24,7 @@
 #include <LibWeb/CSS/VisualViewport.h>
 #include <LibWeb/Compositor/CompositorFrame.h>
 #include <LibWeb/Compositor/CompositorHost.h>
+#include <LibWeb/Compositor/RenderClock.h>
 #include <LibWeb/ContentSecurityPolicy/BlockingAlgorithms.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/DirectiveOperations.h>
 #include <LibWeb/ContentSecurityPolicy/PolicyList.h>
@@ -807,8 +808,22 @@ void LocalNavigable::visit_edges(Cell::Visitor& visitor)
 
 Compositor::NavigablePresenter& LocalNavigable::presenter()
 {
-    if (m_presenter_slot.has<GC::Ref<DOM::Document>>())
+    auto* document = m_presenter_slot.get_pointer<GC::Ref<DOM::Document>>();
+    if (!document)
+        return *m_presenter_slot.get<NonnullOwnPtr<Compositor::NavigablePresenter>>();
+    if (m_recording_in_flight) {
         take_recording_in_flight_in(TakeIn::Wait);
+        return *m_presenter_slot.get<NonnullOwnPtr<Compositor::NavigablePresenter>>();
+    }
+    // The document's clock lease holds the presenter, or brought it back already.
+    GC::Ref<DOM::Document> holder = *document;
+    Layout::RustFFI::FfiPresentation presentation {};
+    Layout::RustFFI::document_host_take_back_presentation(holder->layout_node_arena().host(), &presentation);
+    VERIFY(presentation.presenter);
+    m_presenter_slot = adopt_own(*static_cast<Compositor::NavigablePresenter*>(presentation.presenter));
+    auto sealed = adopt_own(*static_cast<Compositor::SealedPresentation*>(presentation.sealed));
+    if (!sealed->published.has_value())
+        unseal_presentation(holder, *sealed);
     return *m_presenter_slot.get<NonnullOwnPtr<Compositor::NavigablePresenter>>();
 }
 
@@ -6868,12 +6883,7 @@ Optional<Compositor::CompositorFrame> LocalNavigable::record_compositor_frame(Pa
     // The recording in flight has the document's recorder state, and its frame goes to the compositor before this one.
     take_recording_in_flight_in(TakeIn::Wait);
 
-    // Per-navigable state is stamped here rather than where PaintConfig is built, so no call site (the headless
-    // screenshot path above all) can leave it behind; kept in the config so a change compares unequal below.
-    paint_config.force_dark_enabled = force_dark_applies_to_active_document();
-    paint_config.force_dark_foreground_threshold = m_force_dark_foreground_threshold;
-    paint_config.force_dark_background_threshold = m_force_dark_background_threshold;
-    paint_config.should_show_line_box_borders = m_should_show_line_box_borders;
+    paint_config = stamp_paint_config(paint_config);
 
     if (!has_compositor_context())
         return {};
@@ -6890,10 +6900,8 @@ Optional<Compositor::CompositorFrame> LocalNavigable::record_compositor_frame(Pa
 
     // Hit testing can publish a display list before the next frame. Give both paths the same canvas fill so that
     // switching between them does not force another recording. Screenshots can supply their own fill rectangle.
-    if (is_local_root() && !paint_config.canvas_fill_rect.has_value()) {
-        auto viewport_size = page().css_to_device_rect(viewport_rect()).size().to_type<int>();
-        paint_config.canvas_fill_rect = Gfx::IntRect { {}, viewport_size };
-    }
+    if (is_local_root() && !paint_config.canvas_fill_rect.has_value())
+        paint_config.canvas_fill_rect = Gfx::IntRect { {}, page().css_to_device_rect(viewport_rect()).size().to_type<int>() };
 
     auto const& compositor_display_list_paint_config = presenter().compositor_display_list_paint_config();
     auto should_record_display_list = m_needs_to_record_display_list
@@ -6942,6 +6950,70 @@ Optional<Compositor::CompositorFrame> LocalNavigable::record_compositor_frame(Pa
         return {};
     }
     return finish_recording(read, *document, sealed, *recording);
+}
+
+// Stamps the per-navigable state onto `paint_config`, here rather than where it is built, so no call site (the headless
+// screenshot path above all) can leave it behind; kept in the config so a change compares unequal.
+PaintConfig LocalNavigable::stamp_paint_config(PaintConfig paint_config) const
+{
+    paint_config.force_dark_enabled = force_dark_applies_to_active_document();
+    paint_config.force_dark_foreground_threshold = m_force_dark_foreground_threshold;
+    paint_config.force_dark_background_threshold = m_force_dark_background_threshold;
+    paint_config.should_show_line_box_borders = m_should_show_line_box_borders;
+    return paint_config;
+}
+
+// Leases the active document's render state to the render clock as a task begins, with this navigable's presenter and a
+// seal of the frames the clock presents, where the last rendering update left the document a plan for a lease, and arms
+// the render clock to tick it. Answers whether the plan is left for a later task: one that begins after the recording in
+// flight has landed with the presenter.
+bool LocalNavigable::lease_clock_for_task()
+{
+    auto document = active_document();
+    if (has_been_destroyed() || !document || !has_compositor_context() || !document->has_committed_viewport_box())
+        return false;
+    auto* host = document->layout_node_arena().host();
+    if (!Layout::RustFFI::document_host_has_clock_plan(host))
+        return false;
+    if (m_recording_in_flight || !m_presenter_slot.has<NonnullOwnPtr<Compositor::NavigablePresenter>>())
+        return true;
+    // A task since the update that changed what the document lays out leaves the rest to the next update.
+    if (!document->layout_is_up_to_date())
+        return false;
+    auto sink = compositor_context().frame_sink();
+    if (!sink)
+        return false;
+
+    PaintConfig paint_config { .paint_overlay = true, .should_show_caret_hit_test_debug_overlay = m_should_show_caret_hit_test_debug_overlay };
+    paint_config = stamp_paint_config(paint_config);
+    paint_config.canvas_fill_rect = Gfx::IntRect { {}, page().css_to_device_rect(viewport_rect()).size().to_type<int>() };
+    auto sealed = make<Compositor::SealedPresentation>(seal_presentation(*document, paint_config, true));
+    sealed->sink = move(sink);
+    sealed->context_id = compositor_context().id();
+    sealed->present_viewport_rect = page().css_to_device_rect(viewport_rect()).to_type<int>();
+
+    auto presenter = move(m_presenter_slot.get<NonnullOwnPtr<Compositor::NavigablePresenter>>());
+    Layout::RustFFI::FfiPresentation presentation { .presenter = presenter.ptr(), .sealed = sealed.ptr() };
+    auto const* ticks = Layout::RustFFI::document_host_lease_clock(host, &presentation);
+    if (presentation.presenter) {
+        m_presenter_slot = move(presenter);
+        unseal_presentation(*document, *sealed);
+        return false;
+    }
+    (void)presenter.leak_ptr();
+    (void)sealed.leak_ptr();
+    m_presenter_slot = GC::Ref { *document };
+
+    // A test injects its ticks itself.
+    if (main_thread_event_loop().render_clock_is_manual_for_testing()) {
+        Layout::RustFFI::clock_ticks_release(ticks);
+        return false;
+    }
+    Compositor::RenderClock::the().arm(compositor_context().id(), page().client().maximum_frames_per_second(),
+        [ticks = Compositor::ClockTicksHandle { ticks }](i64 frame_time_nanoseconds, double) {
+            return ticks.tick(frame_time_nanoseconds);
+        });
+    return false;
 }
 
 // Seals what a frame of `document` reads of the document and this navigable where the frame begins: the frame is built
