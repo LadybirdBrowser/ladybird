@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<div id="box" style="width: 10px; height: 0px; background: green"></div>
+<script>
+    // Script that changes an animation beside a clock lease ends the lease: the lease ticked the animations as the last
+    // rendering update planned them.
+    asyncTest(async done => {
+        const result = await whileClockLeased(() => {
+            return box.animate([{ height: "0px" }, { height: "100px" }], { duration: 10000, easing: "linear" });
+        }, (frameTime, animation) => {
+            internals.injectClockTick(frameTime + 500);
+            const before = internals.clockLeaseState(document);
+            animation.pause();
+            return { before, after: internals.clockLeaseState(document) };
+        });
+        println(`lease before the pause: ${result.before}`);
+        println(`lease after the pause: ${result.after}`);
+        done();
+    });
+</script>

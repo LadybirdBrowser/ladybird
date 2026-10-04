@@ -328,6 +328,10 @@ public:
     void render_screenshot(Gfx::PaintingSurface&, PaintConfig, Function<void()>&& callback);
     Compositing::DisplayListResourceStorage& display_list_resource_storage() { return presenter().display_list_resource_storage(); }
 
+    // Leases the active document's render state to the render clock as a task begins, where the last rendering update
+    // left a plan for that. Answers whether the plan is left for a later task.
+    bool lease_clock_for_task();
+
     // What this navigable presents to its compositor context from. Only the holder of the presenter presents, so frames
     // reach the compositor in the order they were made: a frame of the active document that holds it is taken in first,
     // which gives it back.
@@ -442,6 +446,7 @@ private:
     struct RecordingInFlight;
 
     Layout::RustFFI::FfiFlightBlocker recording_flight_blocker(DOM::UpdateLayoutReason);
+    PaintConfig stamp_paint_config(PaintConfig) const;
     Compositor::SealedPresentation seal_presentation(DOM::Document&, PaintConfig const&, bool records_display_list);
     void unseal_presentation(DOM::Document&, Compositor::SealedPresentation const&);
     Optional<Compositor::CompositorFrame> finish_recording(Layout::BegunRead const&, DOM::Document&, Compositor::SealedPresentation const&, Painting::DisplayListRecording const&, Painting::HitTestListStands = Painting::HitTestListStands::Yes);

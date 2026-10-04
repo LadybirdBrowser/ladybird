@@ -473,6 +473,60 @@ impl FlownRound {
     }
 }
 
+/// The layout round each tick of a clock lease runs once it has shown the samples of the document's animations: the
+/// document's facts, and a container length query that answers nothing, sealed where the clock's plan was, at the end of
+/// a rendering update that left the layout up to date.
+pub(crate) struct ClockRound {
+    facts: FfiLayoutUpdateDocumentFacts,
+    container_length_bases: super::layout_pass::ContainerLengthBasesQuery,
+}
+
+impl ClockRound {
+    /// Lays out what the tick's samples moved, and answers what the round owes the host, or why it laid nothing out: a
+    /// tick builds no tree, and a length only the host resolves is the host's to lay out.
+    pub(crate) fn run(&self, state: &mut ArenaHandle) -> Result<Option<LayoutRoundAnswer>, ClockRoundDeclined> {
+        let arena = state.arena();
+        if arena.layout_root().is_invalid() || arena.needs_full_layout_tree_update() {
+            return Err(ClockRoundDeclined);
+        }
+        if arena.layout_is_up_to_date(false) {
+            return Ok(None);
+        }
+        let answer = LayoutRoundJob {
+            facts: self.facts,
+            build: None,
+            layout: RoundLayout::PartialIfPlanned,
+            container_query_evaluation_is_pending: false,
+            container_length_bases: self.container_length_bases,
+            trace: UpdateLayoutTrace { reason: None },
+        }
+        .run(state);
+        match state.arena().take_unresolved_container_lengths() {
+            true => Err(ClockRoundDeclined),
+            false => Ok(Some(answer)),
+        }
+    }
+}
+
+/// A clock round that would build the tree or lay out a length only the host resolves.
+pub(crate) struct ClockRoundDeclined;
+
+/// Seals the round the ticks of a clock lease of `document_host`'s document run, where its layout is up to date in
+/// `read`.
+fn seal_clock_round(main_thread: &MainThread, document_host: &DocumentHost, read: &BegunRead) -> Option<ClockRound> {
+    let host = document_host.host_tables().layout_update_host.get()?;
+    let facts = host.document_facts(main_thread, read);
+    if !facts.document_is_active || !host_layout_is_up_to_date(document_host, read, &facts) {
+        return None;
+    }
+    Some(ClockRound {
+        facts,
+        container_length_bases: FfiLayoutHostCallbacks::of(main_thread)
+            .container_length_bases_query(main_thread)
+            .sealed(),
+    })
+}
+
 impl LayoutRoundJob {
     /// Runs the round over `state`, and resolves what it owes the host as it ends.
     pub(crate) fn run(self, state: &mut ArenaHandle) -> LayoutRoundAnswer {
@@ -612,7 +666,12 @@ impl LayoutRoundAnswer {
     /// # Safety
     ///
     /// The host's callbacks must answer synchronously from its live document.
-    unsafe fn pay(&mut self, main_thread: &MainThread, host: &FfiLayoutUpdateHostCallbacks, read: &BegunRead) {
+    pub(crate) unsafe fn pay(
+        &mut self,
+        main_thread: &MainThread,
+        host: &FfiLayoutUpdateHostCallbacks,
+        read: &BegunRead,
+    ) {
         let layout_host = FfiLayoutHostCallbacks::of(main_thread);
         // SAFETY (for every call below): Guaranteed by the caller.
         std::mem::take(&mut self.work).pay(main_thread);
@@ -749,6 +808,8 @@ unsafe fn update_layout(
         layout_pass += 1;
 
         host.update_style(main_thread, read);
+        // What the ticks of a clock lease the update ended laid out, the host pays before anything else of the update.
+        document_host.pay_clock_rounds(|mut answer| unsafe { answer.pay(main_thread, &host, read) });
         // A round that flew in the frame the update took in is the update's first, which the host pays before
         // anything else of the update reads the layout.
         let (rebuilds_tree, mut next) = match document_host.take_flown_round() {

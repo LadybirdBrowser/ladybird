@@ -1124,7 +1124,6 @@ pub(crate) struct HostStyle {
 
 impl HostStyle {
     /// The record the host installed for the box.
-    #[cfg_attr(not(test), expect(dead_code, reason = "a clock tick samples with it"))]
     pub(crate) fn record(&self) -> u64 {
         self.record
     }
@@ -2350,7 +2349,6 @@ impl LayoutNodeArena {
     /// host installed, with the relayout the move asks for. Answers the host's style where the box held it, or nothing
     /// where it held a sample already, which `sample` replaces. A box the host styles in a way of its own shows no sample,
     /// and neither does one that styles anonymous boxes: their layout nodes would have to hear of a style no host reads.
-    #[cfg_attr(not(test), expect(dead_code, reason = "a clock tick samples with it"))]
     pub(crate) fn install_animation_sample(
         &self,
         row: NodeSlotId,
@@ -2405,7 +2403,6 @@ impl LayoutNodeArena {
     }
 
     /// Gives `row` back the style the host installed for it, which a clock tick took to show a sample in its place.
-    #[cfg_attr(not(test), expect(dead_code, reason = "a clock tick samples with it"))]
     pub(crate) fn restore_host_style(&self, row: NodeSlotId, host_style: HostStyle) {
         let index = row.slot_index() as usize;
         assert!(

@@ -1,0 +1,4 @@
+lease as the task begins: ticking
+lease after a tick: ticking
+the read answers as of the animation's timeline: true
+lease after the read: none

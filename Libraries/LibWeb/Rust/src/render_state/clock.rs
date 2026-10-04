@@ -1,0 +1,428 @@
+/*
+ * Copyright (c) 2026-present, the Ladybird developers.
+ *
+ * SPDX-License-Identifier: BSD-2-Clause
+ */
+
+//! The render clock's lease of a document's render state.
+//!
+//! As a task begins, the host leases its document's render state, with the recorder state and its navigable's
+//! presentation, to the render clock, which ticks at the display's ticks on the StyleLayout thread: each tick reaches
+//! the state there by the document's name, as the render owner, samples the running animations of the plan the last
+//! rendering update sealed at the tick's time, shows the samples in their elements' boxes, and lays out what they
+//! moved. The host ends the lease with any job it hands the owner, which waits for at most the one tick that runs, and
+//! takes everything back at once. What a tick showed never becomes visible to script: the boxes take back the styles
+//! the host installed before any job of the host reads them, so the animations' timeline moves only in a rendering
+//! update.
+
+use super::owner::{self, DocumentId};
+use super::wait::{LockstepProof, TaskStart};
+use super::{DocumentHost, RenderState};
+use crate::css::style::animations::AnimationTimelineSamples;
+use crate::css::style::engine_sample::NeedsHost;
+use crate::css::style::tree::StyleNodeID;
+use crate::layout::node_data::NodeSlotId;
+use crate::layout::{ClockRound, ClockRoundDeclined, HostStyle, LayoutRoundAnswer};
+use crate::painting::ffi::FfiPresentation;
+use crate::painting::presentation::Presentation;
+use crate::painting::record::recorder_state::RecorderState;
+use crate::stage_thread::{InFlight, StopWord, Ticker};
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, AtomicI64, Ordering};
+
+/// What the ticks of a clock lease sample, sealed at the end of a rendering update.
+pub(crate) struct ClockPlan {
+    /// The elements whose running animations a tick samples.
+    elements: Vec<StyleNodeID>,
+    /// The monotonic time, in milliseconds, at which the document's timestamps are zero.
+    time_origin: f64,
+    /// The timestamp of the next event of the animations, which the host sends: a tick at or past it samples nothing.
+    deadline: f64,
+    round: ClockRound,
+}
+
+impl ClockPlan {
+    pub(crate) fn new(elements: Vec<StyleNodeID>, time_origin: f64, deadline: f64, round: ClockRound) -> Self {
+        Self {
+            elements,
+            time_origin,
+            deadline,
+            round,
+        }
+    }
+}
+
+/// What a clock lease brings its host back: the recorder state and presentation it took, the boxes its ticks showed
+/// samples in with the styles the host installed for them, and what the ticks' rounds owe the host, in the order they
+/// ran. The render state stays with the render owner, which the lease names it to.
+pub(crate) struct LeaseLanding {
+    document: DocumentId,
+    pub(super) recorder: RecorderState,
+    pub(super) presentation: Presentation,
+    plan: ClockPlan,
+    pub(super) ticked: Vec<(NodeSlotId, HostStyle)>,
+    pub(super) owed: Vec<LayoutRoundAnswer>,
+    /// Whether a tick found the lease could sample no more: past the deadline, or something only the host computes.
+    parked: bool,
+}
+
+// A lease runs on the StyleLayout thread, and what it brings back crosses back to the host's.
+const _: () = {
+    const fn assert_send<T: Send>() {}
+    assert_send::<LeaseLanding>();
+};
+
+/// The right to wait for the one tick a clock lease runs, which only [`ClockLease::end`] mints.
+pub(crate) struct EndsLease(());
+
+impl crate::stage_thread::Flown for LeaseLanding {
+    type JoinRight = EndsLease;
+}
+
+/// A document's render state, leased to the render clock. A task boundary cannot take it in, as a lease has no
+/// `try_take`: only [`Self::end`] takes it back, which waits for at most one tick, and which any wait of the host for the
+/// render state ends it with.
+pub(crate) struct ClockLease {
+    flight: InFlight<LeaseLanding>,
+    ticks: Arc<ClockTicks>,
+}
+
+impl ClockLease {
+    /// Leases the render state of `document`, with `recorder` and `presentation`, to the render clock as a task begins,
+    /// to tick `plan`. Answers the lease, and the ticks the render clock hands it.
+    pub(super) fn begin(
+        _: &TaskStart,
+        document: DocumentId,
+        recorder: RecorderState,
+        presentation: Presentation,
+        plan: ClockPlan,
+    ) -> (Self, Arc<ClockTicks>) {
+        let (flight, ticker) = crate::stage_thread::style_layout_thread().lease(LeaseLanding {
+            document,
+            recorder,
+            presentation,
+            plan,
+            ticked: Vec::new(),
+            owed: Vec::new(),
+            parked: false,
+        });
+        let ticks = Arc::new(ClockTicks {
+            ticker,
+            newest: AtomicI64::new(NO_TICK),
+            parked: AtomicBool::new(false),
+        });
+        (
+            Self {
+                flight,
+                ticks: Arc::clone(&ticks),
+            },
+            ticks,
+        )
+    }
+
+    /// Ends the lease: says the stop word, and waits for the tick that runs, if one does. The host's document module
+    /// ends a lease only where the host waits for its render state.
+    pub(super) fn end(self) -> LeaseLanding {
+        self.flight.join(EndsLease(()))
+    }
+
+    /// The ticks the render clock hands the lease.
+    pub(super) fn ticks(&self) -> &Arc<ClockTicks> {
+        &self.ticks
+    }
+}
+
+/// The display ticks the render clock hands a lease, folded into one queued tick, which runs at the newest tick's time.
+pub struct ClockTicks {
+    ticker: Ticker<LeaseLanding>,
+    /// The frame time of the newest tick not run yet, in nanoseconds of the monotonic clock, or [`NO_TICK`].
+    newest: AtomicI64,
+    /// Whether a tick parked the lease, which then samples nothing more.
+    parked: AtomicBool,
+}
+
+const NO_TICK: i64 = i64::MIN;
+
+impl ClockTicks {
+    /// Hands the lease a tick at `frame_time_nanoseconds`: the tick already queued runs at the newest time, or a tick is
+    /// queued. Answers whether the lease wants the next tick, which it does until it ends or parks.
+    pub(super) fn tick(self: &Arc<Self>, frame_time_nanoseconds: i64) -> bool {
+        if self.parked.load(Ordering::Relaxed) || !self.ticker.is_live() {
+            return false;
+        }
+        if self.newest.swap(frame_time_nanoseconds, Ordering::AcqRel) != NO_TICK {
+            return true;
+        }
+        let ticks = Arc::clone(self);
+        self.ticker.run(move |landing, stop| {
+            landing.tick(ticks.newest.swap(NO_TICK, Ordering::AcqRel), stop);
+            if landing.parked {
+                ticks.parked.store(true, Ordering::Relaxed);
+            }
+        });
+        true
+    }
+
+    /// Whether a tick parked the lease.
+    pub(super) fn is_parked(&self) -> bool {
+        self.parked.load(Ordering::Relaxed)
+    }
+}
+
+/// What parks a lease: something of a tick only the host computes.
+struct Park;
+
+impl From<NeedsHost> for Park {
+    fn from(_: NeedsHost) -> Self {
+        Self
+    }
+}
+
+impl From<ClockRoundDeclined> for Park {
+    fn from(_: ClockRoundDeclined) -> Self {
+        Self
+    }
+}
+
+impl LeaseLanding {
+    /// Samples the plan's animations at the timestamp of `frame_time_nanoseconds`, shows the samples and lays out what
+    /// they moved, unless the host said the stop word: the host waits for the lease. A tick at or past the deadline, or
+    /// one that needs the host, parks the lease.
+    fn tick(&mut self, frame_time_nanoseconds: i64, stop: &StopWord) {
+        if self.parked || stop.is_said() {
+            return;
+        }
+        let timestamp = frame_time_nanoseconds as f64 / 1_000_000.0 - self.plan.time_origin;
+        // The tick runs on the render owner, the one thread that reaches the state.
+        if timestamp >= self.plan.deadline
+            || owner::with_state(self.document, None, |state| self.sample(state, timestamp)).is_err()
+        {
+            self.parked = true;
+        }
+    }
+
+    fn sample(&mut self, state: &mut RenderState, timestamp: f64) -> Result<(), Park> {
+        let Self { plan, ticked, owed, .. } = self;
+        let samples = AnimationTimelineSamples::default().with_time(timestamp);
+        for &element in &plan.elements {
+            let arena = state.arena.arena();
+            let row = arena.bound_row(element);
+            if row.is_invalid() {
+                return Err(Park);
+            }
+            // Every tick samples over the record the host installed.
+            let host_record = ticked
+                .iter()
+                .find(|(ticked_row, _)| *ticked_row == row)
+                .map_or_else(|| arena.node_style_record(row), |(_, host_style)| host_style.record());
+            let reference_box = crate::painting::ffi::committed_transform_reference_box(&arena.paintable_rows(), row);
+            let sample = state
+                .engine_mut()
+                .sample_at(element, host_record, samples, reference_box)?;
+            if let Some(host_style) = state.arena.arena().install_animation_sample(row, sample)? {
+                ticked.push((row, host_style));
+            }
+        }
+        if let Some(answer) = plan.round.run(&mut state.arena)? {
+            owed.push(answer);
+        }
+        Ok(())
+    }
+}
+
+/// The marker of the host entry the event loop calls as a task begins, which begins a clock lease.
+pub(crate) struct LeasesClockForTask {
+    _private: (),
+}
+
+pub(super) const LEASES_CLOCK_FOR_TASK: LeasesClockForTask = LeasesClockForTask { _private: () };
+
+/// The reason the host ends its document's clock lease for its navigable's presenter, which only the holder of the
+/// presenter presents with.
+pub(crate) struct PresenterNeedsItsFrame {
+    _private: (),
+}
+
+pub(super) const PRESENTER_NEEDS_ITS_FRAME: PresenterNeedsItsFrame = PresenterNeedsItsFrame { _private: () };
+
+/// The reason the host ends its document's clock lease as script changes an animation of the document, whose plan no
+/// longer stands.
+pub(crate) struct AnimationChanged {
+    _private: (),
+}
+
+pub(super) const ANIMATION_CHANGED: AnimationChanged = AnimationChanged { _private: () };
+
+/// Hands the clock lease `ticks` belong to a display tick at `frame_time_nanoseconds`, and answers whether it wants the
+/// next one.
+///
+/// # Safety
+///
+/// `ticks` must come from `document_host_lease_clock` and not be released yet.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn clock_ticks_tick(ticks: *const ClockTicks, frame_time_nanoseconds: i64) -> bool {
+    // SAFETY: Guaranteed by the caller, whose reference this borrows.
+    let ticks = std::mem::ManuallyDrop::new(unsafe { Arc::from_raw(ticks) });
+    ticks.tick(frame_time_nanoseconds)
+}
+
+/// Gives up the reference `ticks` holds.
+///
+/// # Safety
+///
+/// `ticks` must come from `document_host_lease_clock`, and be released once.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn clock_ticks_release(ticks: *const ClockTicks) {
+    // SAFETY: Guaranteed by the caller.
+    drop(unsafe { Arc::from_raw(ticks) });
+}
+
+/// Whether the last rendering update left `host`'s document a plan for a clock lease no task has taken yet.
+///
+/// # Safety
+///
+/// `host` must come from `document_host_create` and not be destroyed yet, on its document's thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn document_host_has_clock_plan(host: *const DocumentHost) -> bool {
+    assert!(!host.is_null(), "document host is null");
+    // SAFETY: Guaranteed by the caller.
+    unsafe { &*host }.has_clock_plan()
+}
+
+/// Drops the plan for a clock lease of `host`'s document, for a rendering update that leaves it none. The plan is the
+/// host's, so this reads nothing of the render state.
+///
+/// # Safety
+///
+/// `host` must come from `document_host_create` and not be destroyed yet, on its document's thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn document_host_drop_clock_plan(host: *const DocumentHost) {
+    assert!(!host.is_null(), "document host is null");
+    // SAFETY: Guaranteed by the caller.
+    unsafe { &*host }.seal_clock_plan(None);
+}
+
+/// Leases the render state of `host`'s document to the render clock as a task begins, with the recorder state and the
+/// presentation `presentation` names, where the last rendering update left a plan for it, no frame flies and the
+/// recorder state is here: the lease takes the presentation, and nulls it there. Answers the ticks the render clock
+/// hands the lease, which the caller releases with `clock_ticks_release`, or null where no lease began, leaving the
+/// presentation with the caller.
+///
+/// # Safety
+///
+/// `host` must come from `document_host_create` and not be destroyed yet, on its document's thread, as a task of its
+/// event loop begins. `presentation` must be valid for reads and writes, and name a presentation the caller gives up
+/// where the lease takes it.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn document_host_lease_clock(
+    host: *const DocumentHost,
+    presentation: *mut FfiPresentation,
+) -> *const ClockTicks {
+    assert!(!host.is_null(), "document host is null");
+    // SAFETY: Guaranteed by the caller.
+    let (host, presentation) = unsafe { (&*host, &mut *presentation) };
+    let start = TaskStart::at_event_loop_entry(&LEASES_CLOCK_FOR_TASK);
+    let taken = std::mem::replace(
+        presentation,
+        FfiPresentation {
+            presenter: std::ptr::null_mut(),
+            sealed: std::ptr::null_mut(),
+        },
+    );
+    // SAFETY: Guaranteed by the caller.
+    let Some(taken) = (unsafe { Presentation::adopt(taken) }) else {
+        return std::ptr::null();
+    };
+    match host.lease_clock(&start, taken) {
+        Ok(ticks) => Arc::into_raw(ticks),
+        Err(given_back) => {
+            *presentation = given_back.into_ffi();
+            std::ptr::null()
+        }
+    }
+}
+
+/// Ends the clock lease of `host`'s document, where one runs, for the presenter of its navigable, and writes the
+/// presentation a lease brought back to `presentation`, or nulls where none did.
+///
+/// # Safety
+///
+/// `host` must come from `document_host_create` and not be destroyed yet, on its document's thread, and
+/// `presentation` must be valid for writes; the caller takes over what it names.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn document_host_take_back_presentation(
+    host: *const DocumentHost,
+    presentation: *mut FfiPresentation,
+) {
+    assert!(!host.is_null(), "document host is null");
+    // SAFETY: Guaranteed by the caller.
+    let host = unsafe { &*host };
+    let _wait = LockstepProof::for_reason(&PRESENTER_NEEDS_ITS_FRAME);
+    let given_back = host.take_back_presentation().map_or(
+        FfiPresentation {
+            presenter: std::ptr::null_mut(),
+            sealed: std::ptr::null_mut(),
+        },
+        Presentation::into_ffi,
+    );
+    // SAFETY: Guaranteed by the caller.
+    unsafe { presentation.write(given_back) };
+}
+
+/// Ends the clock lease of `host`'s document, where one runs, as script changes an animation of the document, and drops
+/// the plan for the next one, which no longer stands.
+///
+/// # Safety
+///
+/// `host` must come from `document_host_create` and not be destroyed yet, on its document's thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn document_host_end_clock_lease_for_animation(host: *const DocumentHost) {
+    assert!(!host.is_null(), "document host is null");
+    // SAFETY: Guaranteed by the caller.
+    let host = unsafe { &*host };
+    let _wait = LockstepProof::for_reason(&ANIMATION_CHANGED);
+    host.end_clock_lease_and_plan();
+}
+
+/// What a document's clock lease is doing.
+#[repr(u8)]
+pub enum FfiClockLeaseState {
+    /// No lease runs.
+    None,
+    Ticking,
+    /// A tick parked the lease, which samples nothing more.
+    Parked,
+}
+
+/// What the clock lease of `host`'s document is doing.
+///
+/// # Safety
+///
+/// `host` must come from `document_host_create` and not be destroyed yet, on its document's thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn document_host_clock_lease_state(host: *const DocumentHost) -> FfiClockLeaseState {
+    assert!(!host.is_null(), "document host is null");
+    // SAFETY: Guaranteed by the caller.
+    match unsafe { &*host }.clock_ticks() {
+        None => FfiClockLeaseState::None,
+        Some(ticks) if ticks.is_parked() => FfiClockLeaseState::Parked,
+        Some(_) => FfiClockLeaseState::Ticking,
+    }
+}
+
+/// Hands the clock lease of `host`'s document, where one runs, a tick at `frame_time_nanoseconds`, and waits until the
+/// StyleLayout thread has run the jobs handed to it before, the tick among them, without ending the lease. For a test,
+/// whose clock ticks only where it injects them.
+///
+/// # Safety
+///
+/// `host` must come from `document_host_create` and not be destroyed yet, on its document's thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn document_host_inject_clock_tick(host: *const DocumentHost, frame_time_nanoseconds: i64) {
+    assert!(!host.is_null(), "document host is null");
+    // SAFETY: Guaranteed by the caller.
+    if let Some(ticks) = unsafe { &*host }.clock_ticks() {
+        ticks.tick(frame_time_nanoseconds);
+        crate::stage_thread::style_layout_thread().run(|| ());
+    }
+}

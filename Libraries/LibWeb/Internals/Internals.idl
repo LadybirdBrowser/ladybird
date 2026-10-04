@@ -218,6 +218,10 @@ interface Internals {
     undefined resetRenderingSchedulerCounters();
     undefined setManualRenderingOpportunities(boolean enabled);
     undefined injectRenderingOpportunity(double frameTimeMs);
+    // Hands the clock lease of the current document, if one runs, a tick at the given time, and waits until it has run.
+    undefined injectClockTick(double frameTimeMs);
+    // "none" where no clock lease of the document runs, "ticking" while one does, and "parked" once a tick parked it.
+    DOMString clockLeaseState(Document document);
     // "in-flight" while a rendering update's frame or recording flies beside the event loop, "landed" once the event
     // loop took the frame in and the update has not run its steps from its style and layout on yet, "idle" otherwise.
     DOMString frameSchedulerState();

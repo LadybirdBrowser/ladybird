@@ -1673,8 +1673,35 @@ void Internals::reset_rendering_scheduler_counters()
     HTML::main_thread_event_loop().reset_rendering_scheduler_counters();
 }
 
+void Internals::inject_clock_tick(double frame_time_ms)
+{
+    auto& document = window().associated_document();
+    auto frame_time = document.relevant_settings_object().time_origin() + frame_time_ms;
+    Layout::RustFFI::document_host_inject_clock_tick(document.layout_node_arena().host(), static_cast<i64>(frame_time * 1'000'000.0));
+}
+
+Utf16String Internals::clock_lease_state(DOM::Document& document)
+{
+    switch (Layout::RustFFI::document_host_clock_lease_state(document.layout_node_arena().host())) {
+    case Layout::RustFFI::FfiClockLeaseState::None:
+        return "none"_utf16;
+    case Layout::RustFFI::FfiClockLeaseState::Ticking:
+        return "ticking"_utf16;
+    case Layout::RustFFI::FfiClockLeaseState::Parked:
+        return "parked"_utf16;
+    }
+    VERIFY_NOT_REACHED();
+}
+
 void Internals::set_manual_rendering_opportunities(bool enabled)
 {
+    // A test that injects its rendering opportunities injects its clock ticks too: the clock lease that runs now ends,
+    // and no later one ticks with the display.
+    HTML::main_thread_event_loop().set_render_clock_is_manual_for_testing(enabled);
+    if (enabled) {
+        if (auto* navigable = as_if<HTML::LocalNavigable>(window().associated_document().navigable().ptr()))
+            (void)navigable->presenter();
+    }
     page().client().set_manual_rendering_opportunities(enabled);
 }
 

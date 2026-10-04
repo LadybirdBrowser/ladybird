@@ -54,6 +54,8 @@ pub(crate) enum LayoutChange {
         root: NodeSlotId,
     },
     RecordPartialRelayoutEscape,
+    /// The boxes a clock lease showed samples of their elements' animations in take back the styles the host installed.
+    RestoreHostStyles(Vec<(NodeSlotId, super::HostStyle)>),
     /// The absolutely positioned `child`, whose containing block is `parent`, is about to be removed.
     NoteContainedAbsposChildRemoval {
         parent: NodeSlotId,
@@ -183,7 +185,7 @@ impl LayoutChange {
             | Self::BindRow(_)
             | Self::UnbindRow(_) => RowWrite::Identities,
             Self::SetNodeFlag { flag, .. } if *flag as u32 & NodeFlag::IDENTITY != 0 => RowWrite::Identities,
-            Self::SetNodeStyle { .. } => RowWrite::Styles,
+            Self::SetNodeStyle { .. } | Self::RestoreHostStyles(_) => RowWrite::Styles,
             Self::SetNeedsLayoutUpdate { .. }
             | Self::SetNeedsFullLayoutTreeUpdate
             | Self::ResetCachedIntrinsicSizesOfSelfAndAncestors { .. }
@@ -244,6 +246,11 @@ impl LayoutChange {
                 }
             }
             Self::SetNeedsFullLayoutTreeUpdate => arena.set_needs_full_layout_tree_update(true),
+            Self::RestoreHostStyles(ticked) => {
+                for (row, host_style) in ticked {
+                    arena.restore_host_style(row, host_style);
+                }
+            }
             Self::ResetCachedIntrinsicSizesOfSelfAndAncestors { node } => {
                 if arena.slot_is_live(node) {
                     arena.bump_fragment_cache_epoch_of_self_and_ancestors(node);

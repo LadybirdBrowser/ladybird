@@ -174,7 +174,6 @@ impl StageThread {
         }
     }
 
-    #[cfg_attr(not(test), expect(dead_code, reason = "a clock lease ticks with it"))]
     /// Leases `value` to this thread: it lands at once in the flight the host takes it back from, and the ticker runs
     /// jobs on it there, on this thread, beside the host.
     pub(crate) fn lease<R: Send + 'static>(&'static self, value: R) -> (InFlight<R>, Ticker<R>) {
@@ -378,7 +377,6 @@ impl<F: FnOnce() + Send> PostedJob<F> {
     }
 }
 
-#[cfg_attr(not(test), expect(dead_code, reason = "a clock lease ticks with it"))]
 /// What runs jobs on a value a host leased to a stage thread, in place, while the value is parked in the flight the host
 /// takes it back from. It never moves the value out, and it does nothing once the flight is gone.
 pub(crate) struct Ticker<R> {
@@ -386,8 +384,12 @@ pub(crate) struct Ticker<R> {
     thread: &'static StageThread,
 }
 
-#[cfg_attr(not(test), expect(dead_code, reason = "a clock lease ticks with it"))]
 impl<R: Send + 'static> Ticker<R> {
+    /// Whether the flight it runs jobs in is still there.
+    pub(crate) fn is_live(&self) -> bool {
+        self.flight.strong_count() > 0
+    }
+
     /// Posts `job`, which runs on the leased value on the stage thread, unless the host has said the stop word by then:
     /// the job takes the value out of the flight, so that taking it back waits for the job, and parks it there again.
     pub(crate) fn run(&self, job: impl FnOnce(&mut R, &StopWord) + Send + 'static) {

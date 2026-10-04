@@ -288,7 +288,7 @@ pub(crate) struct RecordingNeedsItsRecorder {
     _private: (),
 }
 
-const RECORDING_NEEDS_ITS_RECORDER: RecordingNeedsItsRecorder = RecordingNeedsItsRecorder { _private: () };
+pub(crate) const RECORDING_NEEDS_ITS_RECORDER: RecordingNeedsItsRecorder = RecordingNeedsItsRecorder { _private: () };
 
 /// Where the recorder state a document's recordings record with is.
 #[expect(
@@ -300,6 +300,8 @@ enum Recorder {
     Here(RecorderState),
     /// With the recording in flight, whose answer brings it back.
     InFlight(RecordingFlight),
+    /// With the document's clock lease, whose landing brings it back.
+    WithClock,
 }
 
 /// A recording in flight, and the rows version of the frame it records, which tells whether its
@@ -400,11 +402,23 @@ impl RecordingSlot {
     }
 
     /// The recorder state, for a recording to take until it answers. The host takes a recording in
-    /// flight in, and the presenter it holds back, before it records again.
+    /// flight in, and the presenter it holds back, and ends its clock lease, before it records again.
     pub(crate) fn take_recorder(&mut self) -> RecorderState {
         match std::mem::take(&mut self.recorder) {
             Recorder::Here(recorder) => recorder,
             Recorder::InFlight(_) => panic!("the host takes its recording in flight in before it records again"),
+            Recorder::WithClock => panic!("the host ends its clock lease before it records again"),
+        }
+    }
+
+    /// The recorder state, for a clock lease to take until it lands, where it is here.
+    pub(crate) fn take_recorder_for_clock(&mut self) -> Option<RecorderState> {
+        match std::mem::replace(&mut self.recorder, Recorder::WithClock) {
+            Recorder::Here(recorder) => Some(recorder),
+            elsewhere => {
+                self.recorder = elsewhere;
+                None
+            }
         }
     }
 
@@ -547,7 +561,7 @@ mod tests {
     fn recorder_of(slot: &mut RecordingSlot) -> Option<&mut RecorderState> {
         match &mut slot.recorder {
             Recorder::Here(recorder) => Some(recorder),
-            Recorder::InFlight(_) => None,
+            Recorder::InFlight(_) | Recorder::WithClock => None,
         }
     }
 

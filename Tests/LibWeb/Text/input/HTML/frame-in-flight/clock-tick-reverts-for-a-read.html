@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<div id="box" style="width: 10px; height: 0px; background: green"></div>
+<script>
+    // A tick of the render clock beside a task samples the running animation at its own time, but a read in the task
+    // answers as of the animation's timeline, which only a rendering update moves.
+    asyncTest(async done => {
+        const heightBefore = { value: 0 };
+        const result = await whileClockLeased(() => {
+            return box.animate([{ height: "0px" }, { height: "100px" }], { duration: 10000, easing: "linear" });
+        }, (frameTime, animation) => {
+            const before = internals.clockLeaseState(document);
+            internals.injectClockTick(frameTime + 1000);
+            const afterTick = internals.clockLeaseState(document);
+            const currentTime = animation.currentTime;
+            const height = box.offsetHeight;
+            return { before, afterTick, readMatchesTimeline: Math.abs(height - currentTime / 100) <= 1, after: internals.clockLeaseState(document) };
+        });
+        println(`lease as the task begins: ${result.before}`);
+        println(`lease after a tick: ${result.afterTick}`);
+        println(`the read answers as of the animation's timeline: ${result.readMatchesTimeline}`);
+        println(`lease after the read: ${result.after}`);
+        done();
+    });
+</script>

@@ -1,0 +1,2 @@
+lease as the task begins: ticking
+lease after a tick: parked

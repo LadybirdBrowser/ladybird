@@ -339,6 +339,15 @@ pub(crate) struct AnimationTimelineSamples {
 }
 
 impl AnimationTimelineSamples {
+    /// The times a clock tick at `timestamp` samples at, which moves every document timeline: a timestamp less its
+    /// timeline's origin time. No other timeline is sampled with it.
+    #[must_use]
+    pub(crate) fn with_time(self, timestamp: f64) -> Self {
+        Self {
+            timestamp: Some(timestamp),
+        }
+    }
+
     /// The time `timing`'s timeline is sampled at, which may be unresolved, or `None` where these samples
     /// do not move it.
     fn timeline_time(self, timing: &FfiEffectTiming) -> Option<Option<f64>> {

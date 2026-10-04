@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<div id="box" style="width: 10px; height: 0px; background: green"></div>
+<script>
+    // Whatever reaches the document's render state beside a clock lease ends the lease first: a style write and the
+    // computed style read after it.
+    asyncTest(async done => {
+        const result = await whileClockLeased(() => {
+            return box.animate([{ height: "0px" }, { height: "100px" }], { duration: 10000, easing: "linear" });
+        }, frameTime => {
+            internals.injectClockTick(frameTime + 500);
+            const before = internals.clockLeaseState(document);
+            box.style.backgroundColor = "blue";
+            const color = getComputedStyle(box).backgroundColor;
+            return { before, color, after: internals.clockLeaseState(document) };
+        });
+        println(`lease before the write: ${result.before}`);
+        println(`color: ${result.color}`);
+        println(`lease after the read: ${result.after}`);
+        done();
+    });
+</script>

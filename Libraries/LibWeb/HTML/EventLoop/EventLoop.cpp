@@ -19,6 +19,7 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/HTML/BrowsingContext.h>
+#include <LibWeb/HTML/EventLoop/ClockPlan.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/EventLoop/FrameCompletion.h>
 #include <LibWeb/HTML/EventLoop/PresentationQueue.h>
@@ -86,6 +87,7 @@ void EventLoop::visit_edges(Visitor& visitor)
     visitor.visit(m_system_event_loop_timer);
     visitor.visit(m_idle_period_timer);
     m_presentation_queue->visit_edges(visitor);
+    visitor.visit(m_navigables_with_clock_plans);
 }
 
 void EventLoop::schedule()
@@ -186,6 +188,10 @@ void EventLoop::process()
         oldest_task = task_queue->take_first_runnable();
 
         // FIXME: 4. If oldestTask's document is not null, then record task start time given taskStartTime and oldestTask's document.
+
+        // AD-HOC: While a task runs, the render clock may tick the animations the last rendering update planned for.
+        if (oldest_task->source() != Task::Source::Rendering)
+            lease_clocks_for_task();
 
         // 5. Set the event loop's currently running task to oldestTask.
         m_currently_running_task = oldest_task.ptr();
@@ -907,6 +913,17 @@ void EventLoop::update_the_rendering_after_style_and_layout(Vector<GC::Root<DOM:
             || !document->layout_is_up_to_date());
     }
 
+    // AD-HOC: The tasks after the update may let the render clock tick the document's running animations, until the
+    //         next of their events, which the main thread sends. Only a rendering update leaves a plan for that, and
+    //         each one leaves every document it renders its own, or none, in place of the last.
+    bool const may_plan = !m_running_synchronous_rendering_update && m_spin_depth == 0 && docs.size() == 1;
+    for (auto& document : docs) {
+        auto* navigable = as_if<LocalNavigable>(document->navigable().ptr());
+        bool const plans = may_plan && navigable && navigable->is_local_root() && navigable->active_document().ptr() == document.ptr();
+        if (seal_clock_plan(*document, plans) && !m_navigables_with_clock_plans.contains_slow(GC::Ref { *navigable }))
+            m_navigables_with_clock_plans.append(*navigable);
+    }
+
     finish_rendering_update(update_start_time);
 }
 
@@ -994,6 +1011,15 @@ void EventLoop::take_finished_frames_in()
         resume_rendering_update_in_flight();
 
     m_presentation_queue->present_landed_frames();
+}
+
+void EventLoop::lease_clocks_for_task()
+{
+    if (m_navigables_with_clock_plans.is_empty())
+        return;
+    m_navigables_with_clock_plans.remove_all_matching([](auto const& navigable) {
+        return !navigable->lease_clock_for_task();
+    });
 }
 
 void EventLoop::release_held_frames_for_testing()
