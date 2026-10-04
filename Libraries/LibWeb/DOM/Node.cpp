@@ -2400,9 +2400,7 @@ bool Node::recompute_editable_subtree_flag()
 
 void Node::recompute_editable_subtree_flags_and_repaint()
 {
-    // The caller's own read of the render state.
-    Layout::ForcedReadScope read { document(), false };
-    for_each_in_inclusive_subtree([&read](Node& node) {
+    for_each_in_inclusive_subtree([](Node& node) {
         // Editability determines each node's empty-editable caret target in the hit-test
         // display list, so a flip must invalidate the recorded output.
         if (node.recompute_editable_subtree_flag())
@@ -2411,6 +2409,17 @@ void Node::recompute_editable_subtree_flags_and_repaint()
         // mirror holds for the tree build. Only contenteditable and designMode move it, and both reach here.
         if (auto* element = as_if<Element>(node))
             CSS::record_element_construction_facts(*element);
+        node.publish_dom_paint_facts();
+        return TraversalDecision::Continue;
+    });
+    // The boxes take the change as the journal is drained, which may be beside a frame in flight.
+    document().invalidation_journal().note_editability_changed(*this);
+    document().page().keyboard_scroll_editability_changed(document());
+}
+
+void Node::apply_editability_to_boxes(Badge<InvalidationJournal>, Layout::BegunRead const& read)
+{
+    for_each_in_inclusive_subtree([&read](Node& node) {
         // Editing-host status and the empty-text fragment behavior of text nodes are
         // stamped into layout NodeData at layout node construction; contenteditable and
         // designMode changes reach here without a layout tree rebuild, so the stamps must
@@ -2418,7 +2427,6 @@ void Node::recompute_editable_subtree_flags_and_repaint()
         // did not, hence unconditionally for every node. A flipped stamp changes geometry
         // (an editing host gains a minimum block size, an empty editable text node gains
         // a zero-width fragment), so the affected node also needs a relayout.
-        node.publish_dom_paint_facts();
         if (auto* layout_node = node.unsafe_layout_node(read)) {
             auto is_editing_host = node.is_editing_host();
             if (layout_node->is_editing_host() != is_editing_host) {
@@ -2432,7 +2440,6 @@ void Node::recompute_editable_subtree_flags_and_repaint()
         }
         return TraversalDecision::Continue;
     });
-    document().page().keyboard_scroll_editability_changed(document());
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#editable

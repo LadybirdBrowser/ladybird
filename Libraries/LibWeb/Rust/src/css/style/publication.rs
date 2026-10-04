@@ -4456,6 +4456,9 @@ impl RetainedState {
         counters: &mut Counters,
     ) -> Option<computed::FinalStyleRecordID> {
         let target = computed::ComputedStyleTarget::new(node, pseudo_kind);
+        // A record the engine derived for the pseudo-element goes with it, uninstalled: the host removed the
+        // pseudo-element instead, as where its element left the top layer beside the transaction that derived it.
+        self.forget_engine_computed_record(target);
         if let Some(state) = self.computed_group_sets.take_pending_cascade_state(target) {
             self.computed_group_sets
                 .observe_absent_pseudo_cascade_state(target, state);

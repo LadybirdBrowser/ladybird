@@ -11,6 +11,7 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Window.h>
+#include <LibWeb/Layout/RenderDocument.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Painting/BoxViews.h>
 
@@ -36,6 +37,8 @@ GC::Ref<ScrollTimeline> ScrollTimeline::create_for_constructor(JS::Object& relev
             return options.source.value();
         return document.scrolling_element();
     }();
+    // A script reads the new timeline's current time from the boxes, which waits for a frame in flight.
+    Layout::ForcedReadScope read { document, true };
     return create(document, source, options.axis);
 }
 

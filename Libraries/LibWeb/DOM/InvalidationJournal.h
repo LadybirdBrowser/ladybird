@@ -53,6 +53,10 @@ public:
     void note_image_data_changed(NodeIdentity, SetNeedsLayoutReason);
     // A text node's data changed, which changes its box as the box decides.
     void note_text_data_changed(NodeIdentity, bool whitespace_only_changed);
+    // The language of the element's subtree changed, so its text lays out again where it is cased by its language.
+    void note_language_changed(Element&);
+    // The editability of the node's subtree changed, which its boxes are stamped with.
+    void note_editability_changed(Node&);
     // A top layer element's boxes repaint: its own subtree's and its backdrop's.
     void note_top_layer_boxes_repaint(NodeIdentity);
     // The document's selection changed, or lost its range, so the selection states of the boxes it paints through are
@@ -105,13 +109,15 @@ private:
     void drain_if_layout_is_reading();
     bool has_marks() const
     {
-        return !m_entries.is_empty() || m_selection_changed || m_search_text_changed;
+        return !m_entries.is_empty() || m_selection_changed || m_search_text_changed || !m_language_changed_roots.is_empty() || !m_editability_changed_roots.is_empty();
     }
     void drain_marks(Layout::BegunRead const&);
 
     GC::Ref<Document> m_document;
     Vector<Entry> m_entries;
     HashMap<NodeIdentity, size_t> m_entry_index_by_identity;
+    Vector<GC::Ref<Element>> m_language_changed_roots;
+    Vector<GC::Ref<Node>> m_editability_changed_roots;
     bool m_draining { false };
     bool m_selection_changed { false };
     bool m_search_text_changed { false };

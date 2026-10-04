@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    #word { text-transform: uppercase; }
+    #word::before { content: "i"; }
+    dialog::backdrop { background-color: rgb(0, 0, 255); }
+</style>
+<div id="host" lang="en"><div id="word">ii</div></div>
+<div id="editable"></div>
+<dialog id="dialog">dialog</dialog>
+<script>
+    // A task beside a frame in flight that changes an element's language, makes an empty element an editing host, and
+    // takes an element whose ::backdrop the frame's style transaction styled out of the top layer: once the frame has
+    // landed, the text is cased by the new language, the editing host holds a line, and the backdrop is gone.
+    asyncTest(async done => {
+        const states = await whileRecordingInFlight(() => {
+            dialog.showModal();
+        }, state => {
+            const states = [`next task: ${state}`];
+            host.lang = "tr";
+            states.push(`after a lang change: ${internals.frameSchedulerState()}`);
+            editable.contentEditable = "true";
+            states.push(`after a contenteditable change: ${internals.frameSchedulerState()}`);
+            dialog.close();
+            states.push(`after closing the dialog: ${internals.frameSchedulerState()}`);
+            return states;
+        });
+        for (const state of states)
+            println(`state ${state}`);
+        await twoFrames();
+        println(`word: ${word.innerText}`);
+        println(`editing host holds a line: ${editable.offsetHeight > 0}`);
+        println(`dialog open: ${dialog.open}, ${dialog.offsetWidth}`);
+        done();
+    });
+</script>

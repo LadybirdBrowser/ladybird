@@ -1,0 +1,7 @@
+state next task: in-flight
+state after a lang change: in-flight
+state after a contenteditable change: in-flight
+state after closing the dialog: in-flight
+word: İİ
+editing host holds a line: true
+dialog open: false, 0

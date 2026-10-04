@@ -5,6 +5,7 @@
  */
 
 #include <AK/TemporaryChange.h>
+#include <LibWeb/CSS/Invalidation/LanguageInvalidator.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/InvalidationJournal.h>
 #include <LibWeb/HTML/HTMLImageElement.h>
@@ -22,6 +23,8 @@ namespace Web::DOM {
 void InvalidationJournal::visit_edges(GC::Cell::Visitor& visitor)
 {
     visitor.visit(m_document);
+    visitor.visit(m_language_changed_roots);
+    visitor.visit(m_editability_changed_roots);
 }
 
 InvalidationJournal::Entry& InvalidationJournal::entry_for(NodeIdentity identity)
@@ -138,6 +141,22 @@ void InvalidationJournal::note_text_data_changed(NodeIdentity identity, bool whi
     drain_if_layout_is_reading();
 }
 
+void InvalidationJournal::note_language_changed(Element& element)
+{
+    if (!m_language_changed_roots.contains_slow(GC::Ref { element }))
+        m_language_changed_roots.append(element);
+    m_document->request_frame_for_pending_repaint({});
+    drain_if_layout_is_reading();
+}
+
+void InvalidationJournal::note_editability_changed(Node& node)
+{
+    if (!m_editability_changed_roots.contains_slow(GC::Ref { node }))
+        m_editability_changed_roots.append(node);
+    m_document->request_frame_for_pending_repaint({});
+    drain_if_layout_is_reading();
+}
+
 void InvalidationJournal::note_top_layer_boxes_repaint(NodeIdentity identity)
 {
     entry_for(identity).needs_backdrop_repaint = true;
@@ -211,6 +230,11 @@ void InvalidationJournal::drain_marks(Layout::BegunRead const& read)
             m_document->paint_state().reset_search_text_states();
         static_cast<Node&>(*m_document).set_needs_repaint(InvalidateDisplayList::PaintCommands);
     }
+
+    for (auto& root : exchange(m_language_changed_roots, {}))
+        CSS::Invalidation::enroll_text_after_language_change(read, root);
+    for (auto& root : exchange(m_editability_changed_roots, {}))
+        root->apply_editability_to_boxes({}, read);
 
     while (!m_entries.is_empty()) {
         auto entries = move(m_entries);

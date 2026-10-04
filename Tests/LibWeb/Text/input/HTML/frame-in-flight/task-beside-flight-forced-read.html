@@ -7,7 +7,7 @@
 <div id="box"></div>
 <script>
     // A task beside a frame in flight that writes and then reads in the same task: the read waits for the frame, and
-    // sees the write.
+    // sees the write. So does a script that creates a scroll timeline.
     asyncTest(async done => {
         const result = await whileRecordingInFlight(() => {
             box.style.height = "12px";
@@ -21,6 +21,15 @@
         println(`state after the read: ${result.afterRead}`);
         await twoFrames();
         println(`box: ${box.offsetWidth}x${box.offsetHeight}`);
+
+        // A new scroll timeline reads its current time from the boxes, which waits for the frame too.
+        const timeline = await whileRecordingInFlight(() => {
+            box.style.height = "14px";
+        }, state => {
+            const timeline = new ScrollTimeline({ source: document.scrollingElement });
+            return { state, afterRead: internals.frameSchedulerState(), currentTime: timeline.currentTime };
+        });
+        println(`scroll timeline: state next task: ${timeline.state}, after: ${timeline.afterRead}, current time: ${timeline.currentTime}`);
         done();
     });
 </script>
