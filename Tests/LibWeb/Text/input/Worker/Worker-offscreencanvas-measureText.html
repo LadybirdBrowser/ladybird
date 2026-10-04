@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    const fonts = ["20px sans-serif", "20px serif", "20px monospace", "20px SerenitySans"];
+    const text = "Hello 中文 Ж א";
+
+    function measure(fonts, text) {
+        const context = new OffscreenCanvas(10, 10).getContext("2d");
+        return fonts.map(font => {
+            context.font = font;
+            return context.measureText(text).width;
+        });
+    }
+
+    asyncTest(done => {
+        const workerScript = `
+            ${measure.toString()}
+            self.onmessage = ({ data }) => self.postMessage(measure(data.fonts, data.text));
+        `;
+        const blob = new Blob([workerScript], { type: "application/javascript" });
+        const worker = new Worker(URL.createObjectURL(blob));
+        worker.onmessage = ({ data: workerWidths }) => {
+            const widths = measure(fonts, text);
+            for (let i = 0; i < fonts.length; ++i) {
+                println(`${fonts[i]}: measured: ${workerWidths[i] > 0}, same as the window: ${workerWidths[i] === widths[i]}`);
+            }
+            done();
+        };
+        worker.postMessage({ fonts, text });
+    });
+</script>
