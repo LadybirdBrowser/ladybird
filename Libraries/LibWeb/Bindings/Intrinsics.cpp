@@ -6,9 +6,11 @@
  */
 
 #include <LibJS/Forward.h>
+#include <LibJS/Runtime/HostFunction.h>
 #include <LibJS/Runtime/HostObject.h>
 #include <LibJS/Runtime/NativeFunction.h>
 #include <LibJS/Runtime/Object.h>
+#include <LibJS/Runtime/PrimitiveString.h>
 #include <LibWeb/Bindings/InterfaceObject.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/PrincipalHostDefined.h>
@@ -48,13 +50,6 @@ GC::Ref<JS::NativeFunction> Intrinsics::ensure_web_unforgeable_function(
     return *function;
 }
 
-JS::Object& Intrinsics::existing_web_prototype(Utf16FlyString const& class_name)
-{
-    auto it = m_prototypes.find(class_name);
-    VERIFY(it != m_prototypes.end());
-    return *it->value;
-}
-
 void Intrinsics::create_web_prototype_and_constructor(JS::Realm& realm, InterfaceObjectMetadata const& metadata)
 {
     auto prototype = JS::HostObject::create(realm, metadata.prototype_host_class, nullptr);
@@ -68,7 +63,8 @@ void Intrinsics::create_web_constructor(JS::Realm& realm, InterfaceObjectMetadat
 {
     auto& vm = realm.vm();
 
-    auto constructor = realm.create<InterfaceConstructor>(realm, metadata);
+    auto constructor = JS::HostFunction::create_without_own_properties(realm, metadata.constructor_host_class, Utf16FlyString::from_utf16(metadata.utf16_name));
+    metadata.initialize_constructor(realm, constructor);
     m_constructors.set(Utf16FlyString::from_utf16(metadata.utf16_namespaced_name), constructor);
 
     prototype.define_direct_property(vm.names.constructor, constructor.ptr(), JS::Attribute::Writable | JS::Attribute::Configurable);
@@ -77,7 +73,14 @@ void Intrinsics::create_web_constructor(JS::Realm& realm, InterfaceObjectMetadat
 // https://webidl.spec.whatwg.org/#legacy-factory-functions
 void Intrinsics::create_legacy_factory_function(JS::Realm& realm, InterfaceObjectMetadata const& metadata)
 {
-    auto legacy_factory_function = realm.create<InterfaceConstructor>(realm, metadata);
+    auto& vm = realm.vm();
+
+    // Legacy factory functions have never had a NativeFunction name, so Function.prototype.toString() renders them as
+    // "function () { [native code] }" and call stacks show them unnamed.
+    auto legacy_factory_function = JS::HostFunction::create_without_own_properties(realm, metadata.constructor_host_class, {});
+    legacy_factory_function->define_direct_property(vm.names.length, JS::Value(metadata.function_length), JS::Attribute::Configurable);
+    legacy_factory_function->define_direct_property(vm.names.name, JS::PrimitiveString::create(vm, metadata.utf16_name), JS::Attribute::Configurable);
+    legacy_factory_function->define_direct_property(vm.names.prototype, &metadata.ensure_interface_prototype_object(realm), 0);
     m_constructors.set(Utf16FlyString::from_utf16(metadata.utf16_name), legacy_factory_function);
 }
 

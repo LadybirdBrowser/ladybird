@@ -19,7 +19,7 @@ namespace Web::Bindings {
 
 // https://html.spec.whatwg.org/multipage/media.html#dom-audio
 // https://webidl.spec.whatwg.org/#legacy-factory-functions
-JS::ThrowCompletionOr<GC::Ref<JS::Object>> AudioConstructor::construct(InterfaceConstructor& constructor, JS::FunctionObject& new_target)
+JS::ThrowCompletionOr<GC::Ref<JS::Object>> AudioConstructor::construct(JS::HostFunction& constructor, JS::FunctionObject& new_target)
 {
     auto& vm = constructor.vm();
     auto& realm = *constructor.realm();

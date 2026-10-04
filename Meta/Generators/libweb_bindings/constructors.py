@@ -41,7 +41,7 @@ def write_constructor_function(
     overload_index: int,
 ) -> None:
     out.write(
-        f"""JS::ThrowCompletionOr<GC::Ref<JS::Object>> {interface.constructor_class}::construct{overload_index}([[maybe_unused]] InterfaceConstructor& constructor, [[maybe_unused]] JS::FunctionObject& new_target)
+        f"""JS::ThrowCompletionOr<GC::Ref<JS::Object>> {interface.constructor_class}::construct{overload_index}([[maybe_unused]] JS::HostFunction& constructor, [[maybe_unused]] JS::FunctionObject& new_target)
 {{
 """
     )

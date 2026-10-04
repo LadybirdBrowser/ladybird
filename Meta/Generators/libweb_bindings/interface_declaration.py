@@ -83,7 +83,7 @@ GC::Ref<JS::HostObject> {create_wrapper_function_name(interface)}(JS::Realm&, GC
         f"""struct {interface.constructor_class} {{
 public:
     static void initialize(JS::Realm&, JS::NativeFunction&);
-    static JS::ThrowCompletionOr<GC::Ref<JS::Object>> construct(InterfaceConstructor&, JS::FunctionObject&);
+    static JS::ThrowCompletionOr<GC::Ref<JS::Object>> construct(JS::HostFunction&, JS::FunctionObject&);
 
 private:
 """
@@ -91,7 +91,7 @@ private:
     if len(interface.constructors) > 1:
         for overload_index, _ in enumerate(interface.constructors):
             out.write(
-                f"    static JS::ThrowCompletionOr<GC::Ref<JS::Object>> construct{overload_index}(InterfaceConstructor&, JS::FunctionObject&);\n"
+                f"    static JS::ThrowCompletionOr<GC::Ref<JS::Object>> construct{overload_index}(JS::HostFunction&, JS::FunctionObject&);\n"
             )
     for operations in overload_resolution.operation_overload_sets(interface, static=True).values():
         operation = operations[0]

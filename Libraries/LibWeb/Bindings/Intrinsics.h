@@ -119,8 +119,6 @@ public:
         Function<JS::ThrowCompletionOr<JS::Value>(JS::VM&)> behaviour,
         UnforgeableKey::Type);
 
-    JS::Object& existing_web_prototype(Utf16FlyString const&);
-
 private:
     virtual void visit_edges(JS::Cell::Visitor&) override;
 

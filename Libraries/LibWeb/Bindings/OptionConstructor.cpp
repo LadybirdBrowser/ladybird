@@ -21,7 +21,7 @@ namespace Web::Bindings {
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#dom-option
 // https://webidl.spec.whatwg.org/#legacy-factory-functions
-JS::ThrowCompletionOr<GC::Ref<JS::Object>> OptionConstructor::construct(InterfaceConstructor& constructor, JS::FunctionObject& new_target)
+JS::ThrowCompletionOr<GC::Ref<JS::Object>> OptionConstructor::construct(JS::HostFunction& constructor, JS::FunctionObject& new_target)
 {
     auto& vm = constructor.vm();
     auto& realm = *constructor.realm();

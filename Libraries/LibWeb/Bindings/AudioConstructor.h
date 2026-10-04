@@ -11,7 +11,7 @@
 namespace Web::Bindings {
 
 struct AudioConstructor {
-    static JS::ThrowCompletionOr<GC::Ref<JS::Object>> construct(InterfaceConstructor&, JS::FunctionObject& new_target);
+    static JS::ThrowCompletionOr<GC::Ref<JS::Object>> construct(JS::HostFunction&, JS::FunctionObject& new_target);
 };
 
 }
