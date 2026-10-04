@@ -26,7 +26,8 @@ pub(crate) enum LayoutChange {
         node: NodeSlotId,
         propagate_through_ancestors: bool,
     },
-    SetNeedsFullLayoutTreeUpdate(bool),
+    /// The whole layout tree is built again.
+    SetNeedsFullLayoutTreeUpdate,
     /// What the node's content is sized from changed: its fragment caches and intrinsic sizes, and those of its
     /// ancestors, are stale.
     ResetCachedIntrinsicSizesOfSelfAndAncestors {
@@ -166,6 +167,48 @@ pub(crate) enum LayoutChange {
 }
 
 impl LayoutChange {
+    /// How far the change may write the rows. Most write what a row holds alone: installing a style changes none of the
+    /// flags that say what a row stands for.
+    pub(crate) fn row_write(&self) -> crate::render_state::RowWrite {
+        use crate::render_state::RowWrite;
+        match self {
+            Self::StyleNodeChanged { .. }
+            | Self::NoteRowsShareDomNode { .. }
+            | Self::BindRow(_)
+            | Self::UnbindRow(_) => RowWrite::Identities,
+            Self::SetNodeFlag { flag, .. } if *flag as u32 & NodeFlag::IDENTITY != 0 => RowWrite::Identities,
+            Self::SetNeedsLayoutUpdate { .. }
+            | Self::SetNeedsFullLayoutTreeUpdate
+            | Self::ResetCachedIntrinsicSizesOfSelfAndAncestors { .. }
+            | Self::DeferChildListInsertionLayoutUpdate { .. }
+            | Self::InvalidateTextContent { .. }
+            | Self::EnrollTextAfterLanguageChange { .. }
+            | Self::RecordPartialRelayoutEscape
+            | Self::NoteContainedAbsposChildRemoval { .. }
+            | Self::SetAnchorNameElements { .. }
+            | Self::SetElementScrollOffset { .. }
+            | Self::SetPseudoElementScrollOffset { .. }
+            | Self::SetIdentityInFocusedTextControl { .. }
+            | Self::SvgAttributeFacts { .. }
+            | Self::SvgStyleReferences { .. }
+            | Self::SetDocumentIsDecodedSvg(_)
+            | Self::SetNodeFlag { .. }
+            | Self::SetOwnedImageNaturalSize { .. }
+            | Self::InvalidateSearchableText
+            | Self::RestampTableSpans { .. }
+            | Self::SetNodeNeedsCompositorAnimationFrame { .. }
+            | Self::SetNodeStyle { .. }
+            | Self::PinBoundBoxStyleRecordForDetachment { .. }
+            | Self::PinNodeStyleRecordForHost { .. }
+            | Self::ReleaseNodeStyleRecordPinForHost { .. }
+            | Self::SetBoxPresenceHost(_)
+            | Self::SyncEnrolledContentForLayout
+            | Self::BeginLayoutTrace
+            | Self::NameLayoutTraceOwners(_)
+            | Self::CounterStyles { .. } => RowWrite::Rows,
+        }
+    }
+
     /// Applies the change to `arena`, the arena of the document it was queued for. A node freed since then has nothing
     /// left to change.
     pub(crate) fn apply(self, arena: &mut LayoutNodeArena) {
@@ -178,7 +221,7 @@ impl LayoutChange {
                     arena.set_needs_layout_update(node, propagate_through_ancestors);
                 }
             }
-            Self::SetNeedsFullLayoutTreeUpdate(value) => arena.set_needs_full_layout_tree_update(value),
+            Self::SetNeedsFullLayoutTreeUpdate => arena.set_needs_full_layout_tree_update(true),
             Self::ResetCachedIntrinsicSizesOfSelfAndAncestors { node } => {
                 if arena.slot_is_live(node) {
                     arena.bump_fragment_cache_epoch_of_self_and_ancestors(node);
@@ -444,9 +487,9 @@ pub unsafe extern "C" fn render_state_set_needs_layout_update(
 ///
 /// `host` must be a live document host, on the document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn render_state_set_needs_full_layout_tree_update(host: *const DocumentHost, value: bool) {
+pub unsafe extern "C" fn render_state_set_needs_full_layout_tree_update(host: *const DocumentHost) {
     // SAFETY: Guaranteed by the caller.
-    unsafe { queue(host, LayoutChange::SetNeedsFullLayoutTreeUpdate(value)) };
+    unsafe { queue(host, LayoutChange::SetNeedsFullLayoutTreeUpdate) };
 }
 
 /// # Safety

@@ -41,6 +41,8 @@ pub(crate) struct SharedWithHost {
     pub(super) element_random_base_values_exist: Arc<AtomicBool>,
     /// The flag the state's arena raises while any row has enrolled an SVG paint resource.
     pub(super) svg_paint_resources_enrolled: Arc<AtomicBool>,
+    /// The flag the state's style engine raises while it keeps any row's container effects for the host.
+    pub(super) container_effects_held: Arc<AtomicBool>,
     /// The versions the state's style engine mints declaration blocks from, which the host mints from as well.
     pub(super) declaration_block_versions: Arc<AtomicU32>,
 }

@@ -83,6 +83,12 @@ pub struct DocumentHost {
     sealed_round: RefCell<Option<SealedRound>>,
     /// The layout round that flew with the frame, from its landing until the host's next layout update pays it.
     flown_round: RefCell<Option<FlownRound>>,
+    /// Whether the document's layout is up to date, where the host knows: a write only ever leaves layout staler, and
+    /// only a layout round, or a frame's, lays it out, so stale layout stays stale until one runs, and fresh layout
+    /// stays fresh until a job runs or the host writes the rows or the marks.
+    layout_up_to_date: Cell<Option<bool>>,
+    /// Whether a job of the host runs, whose host callbacks see rows it freed and the host has not heard of yet.
+    in_job: Cell<bool>,
     /// The document's layout tree update marks, which the host lends the render owner's jobs.
     marks: RefCell<HostMarks>,
     /// The rules the host published to each of its document's style sheets.
@@ -147,6 +153,8 @@ impl DocumentHost {
             paint_preparation_is_current: Cell::new(false),
             sealed_round: RefCell::default(),
             flown_round: RefCell::default(),
+            layout_up_to_date: Cell::new(None),
+            in_job: Cell::new(false),
             marks: RefCell::new(HostMarks {
                 here: Some(LayoutTreeUpdateMarks::default()),
                 beside_flight: LayoutTreeUpdateMarks::default(),
@@ -187,6 +195,9 @@ impl DocumentHost {
     /// applies it ahead of the host's next job. A write never reaches the render state as the host makes it.
     pub(crate) fn queue_change(&self, change: ArenaChange) {
         self.note_render_state_write();
+        if change.may_write_rows() {
+            self.forget_fresh_layout();
+        }
         self.changes.push(change);
     }
 
@@ -224,7 +235,8 @@ impl DocumentHost {
     pub(super) fn reach<R: Send>(&self, read: ReadRight, job: impl FnOnce(&mut RenderState) -> R + Send) -> R {
         let ((answer, version), marks) = self.drain_queued_changes(read, |changes| {
             let (document, seed, marks) = (self.document, self.seed.take(), self.lend_marks());
-            on_render_side(move || {
+            let in_job = self.in_job.replace(true);
+            let answer = on_render_side(move || {
                 owner::with_state(document, seed, |state| {
                     state.with_marks(marks, |state| {
                         state.apply(changes);
@@ -232,12 +244,15 @@ impl DocumentHost {
                         (answer, state.rows_version())
                     })
                 })
-            })
+            });
+            self.in_job.set(in_job);
+            answer
         });
         self.take_marks_back(marks);
-        // A write a host callback of the job queued comes after the version the job answered.
-        self.arena_version
-            .set((!self.changes.may_write_rows()).then_some(version));
+        self.forget_fresh_layout();
+        // A write a host callback of the job queued comes after the version the job answered, which the host's reads of
+        // the rows learn from the queue.
+        self.arena_version.set(Some(version));
         answer
     }
 
@@ -309,6 +324,7 @@ impl DocumentHost {
     ) {
         self.changes.give_back(changes);
         self.take_marks_back(marks);
+        self.layout_up_to_date.set(None);
         let previous = self
             .flown_style
             .borrow_mut()
@@ -322,9 +338,7 @@ impl DocumentHost {
             self.note_render_state_write();
             *self.flown_round.borrow_mut() = Some(round);
             // The frame's job ended with the rows, so they read as the arena unless the host wrote it since.
-            if !self.changes.may_write_rows() {
-                self.arena_version.set(Some(rows.version()));
-            }
+            self.arena_version.set(Some(rows.version()));
             *self.rows.borrow_mut() = Some(Rc::new(rows));
         }
         self.note_frame_wait();
@@ -360,6 +374,7 @@ impl DocumentHost {
     /// Makes `write` to the document's layout tree update marks, answering what it answers, or to the marks the host
     /// made beside the frame in flight that has them, for the document's to take once the frame lands.
     pub(crate) fn write_marks(&self, write: LayoutTreeUpdateMarkWrite) -> bool {
+        self.forget_fresh_layout();
         let mut marks = self.marks.borrow_mut();
         let marks = &mut *marks;
         if let Some(here) = &mut marks.here {
@@ -402,6 +417,38 @@ impl DocumentHost {
     /// began.
     pub(crate) fn layout_waits_for_no_frame(&self) -> Option<NoFrameInFlight> {
         (!self.waits_for_frame.get()).then_some(NoFrameInFlight(()))
+    }
+
+    /// The layout node C++ made for the row `id`, which the host reads without asking where it knows the row live: a
+    /// row frees only in a job or a frame, whose freed rows the host destroys the layout nodes of once it has them back,
+    /// and C++ makes a layout node only for a row the arena stamped.
+    pub(crate) fn held_shell(&self, id: crate::layout::node_data::NodeSlotId) -> Option<*mut std::ffi::c_void> {
+        if self.in_job.get() || self.waits_for_frame.get() {
+            return None;
+        }
+        self.host_tables.shells.borrow().get(&id).map(|shell| shell.as_ptr())
+    }
+
+    /// Whether the document's layout is up to date as of every write the host made, where the host knows without
+    /// asking.
+    pub(crate) fn known_layout_up_to_date(&self) -> Option<bool> {
+        self.layout_up_to_date.get()
+    }
+
+    /// Notes what a job answered of whether the document's layout is up to date.
+    pub(crate) fn note_layout_up_to_date(&self, up_to_date: bool) {
+        self.layout_up_to_date.set(Some(up_to_date));
+    }
+
+    /// Forgets what the host knew of the document's layout, before a layout round may lay it out.
+    pub(crate) fn forget_layout_up_to_date(&self) {
+        self.layout_up_to_date.set(None);
+    }
+
+    fn forget_fresh_layout(&self) {
+        if self.layout_up_to_date.get() == Some(true) {
+            self.layout_up_to_date.set(None);
+        }
     }
 
     fn frame_flies(&self) -> bool {
@@ -541,6 +588,12 @@ impl DocumentHost {
         crate::css::style::next_declaration_block_version(&self.shared.declaration_block_versions)
     }
 
+    /// Whether the document's style engine may keep a row's container effects for the host to take, where the host
+    /// knows it without asking: no frame flies, whose style may note some.
+    pub(crate) fn container_effects_may_be_held(&self) -> bool {
+        self.waits_for_frame.get() || self.shared.container_effects_held.load(Ordering::Relaxed)
+    }
+
     /// Whether some row may have enrolled an SVG paint resource, which only then has to be synced again.
     pub(crate) fn svg_paint_resources_may_be_enrolled(&self) -> bool {
         self.shared.svg_paint_resources_enrolled.load(Ordering::Relaxed)
@@ -616,9 +669,11 @@ impl DocumentHost {
         !self.changes.may_write_rows() && self.arena_version.get().is_some_and(|version| rows.reads_as(version))
     }
 
-    /// Like [`Self::knows_rows_read_as_arena`], for what each row is and the row each node is bound to alone.
+    /// Like [`Self::knows_rows_read_as_arena`], for what each row is and the row each node is bound to alone, which
+    /// most writes leave as they are.
     fn knows_identities_read_as_arena(&self, rows: &RowSnapshot) -> bool {
-        !self.changes.may_write_rows()
+        !self.in_job.get()
+            && !self.changes.may_write_row_identities()
             && self
                 .arena_version
                 .get()
@@ -635,15 +690,16 @@ impl DocumentHost {
     /// the rows it has where no write since changed them, as installing a style does not, and otherwise from rows the
     /// render state publishes again first, spending `wait`.
     pub(crate) fn row_identities(&self, wait: impl RenderWait) -> RowIdentities {
-        if let Some(rows) = self
-            .rows
-            .borrow()
-            .as_ref()
-            .filter(|rows| self.knows_identities_read_as_arena(rows))
-        {
-            return RowIdentities::of(Rc::clone(rows));
-        }
-        RowIdentities::of(self.rows_as_of_writes(wait, false))
+        self.known_row_identities()
+            .unwrap_or_else(|| RowIdentities::of(self.rows_as_of_writes(wait, false)))
+    }
+
+    /// What each row is and the row each node is bound to, as of every change the host queued, where the host knows
+    /// them without asking.
+    pub(crate) fn known_row_identities(&self) -> Option<RowIdentities> {
+        let rows = self.rows.borrow();
+        let rows = rows.as_ref().filter(|rows| self.knows_identities_read_as_arena(rows))?;
+        Some(RowIdentities::of(Rc::clone(rows)))
     }
 
     /// Like [`Self::fresh_rows`], with every row's scrollable overflow measured, as a read of overflow needs.
@@ -703,6 +759,15 @@ impl DocumentHost {
         std::cell::Ref::map(self.style_transaction.borrow(), |answer| {
             answer.as_ref().expect("the answer was kept above")
         })
+    }
+
+    /// The view of `record`, one the rows of the style transaction the host took last name, and the custom-property
+    /// environment it was computed in.
+    pub(crate) fn transaction_record(
+        &self,
+        record: u64,
+    ) -> Option<(crate::css::style::bridge::FfiStyleRecordView, Option<u64>)> {
+        self.style_transaction.borrow().as_ref()?.record(record)
     }
 
     /// Lets go of what the style transaction the host took last answered.

@@ -913,7 +913,7 @@ pub struct RetainedState {
     environment_move_recompute_nodes: HashSet<StyleNodeID>,
     /// What the container conditions of the rows the engine answered read of their containers,
     /// per element, taken when the host installs the element's record.
-    container_effects_for_host: HashMap<StyleNodeID, container_queries::ContainerVerdict>,
+    container_effects_for_host: container_queries::ContainerEffectsForHost,
     /// Each node's gated rules and whether their conditions held for their targets when its
     /// winners were published, `None` where the engine could not decide them: the winners hold a
     /// gated rule's declarations exactly where it held, and an undecided one leaves the node to

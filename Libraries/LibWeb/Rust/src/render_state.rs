@@ -55,6 +55,7 @@ impl RenderState {
         let mut engine = create_document_style_engine(device_class);
         engine.share_element_random_base_values_exist(shared.element_random_base_values_exist);
         engine.share_declaration_block_versions(shared.declaration_block_versions);
+        engine.share_container_effects_held(shared.container_effects_held);
         let engine = StyleEngineHandle::create(engine);
         arena
             .arena_mut()
@@ -222,8 +223,29 @@ impl ArenaChange {
 
     /// Whether the change may write the arena, and so the rows: a write to the style engine never does.
     fn may_write_rows(&self) -> bool {
-        matches!(self, Self::Layout(_) | Self::Paint(_))
+        self.row_write() != RowWrite::None
     }
+
+    /// How far the change may write the rows.
+    fn row_write(&self) -> RowWrite {
+        match self {
+            Self::Layout(change) => change.row_write(),
+            Self::Paint(_) => RowWrite::Rows,
+            Self::Style(_) | Self::Engine(_) | Self::Rule(_) => RowWrite::None,
+        }
+    }
+}
+
+/// How far a change may write a document's rows.
+#[derive(Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Debug)]
+pub(crate) enum RowWrite {
+    #[default]
+    None,
+    /// What a row holds, but neither what it is nor the row a node is bound to (see
+    /// [`crate::layout::LayoutNodeArena::rows_identity_version`]).
+    Rows,
+    /// What a row is, or the row a node is bound to, too.
+    Identities,
 }
 
 /// Proof that the host's document has no frame in flight: the host has taken it in, or let none fly. Only
@@ -238,20 +260,22 @@ struct ChangeQueue {
     queued: RefCell<Vec<ArenaChange>>,
     /// The empty buffer the host queues into while the writes queued before are applied.
     spare: Cell<Vec<ArenaChange>>,
-    /// Whether a write queued may write the rows (see [`ArenaChange::may_write_rows`]).
-    may_write_rows: Cell<bool>,
+    /// How far the writes queued may write the rows (see [`ArenaChange::row_write`]).
+    row_write: Cell<RowWrite>,
 }
 
 impl ChangeQueue {
     fn push(&self, change: ArenaChange) {
-        if change.may_write_rows() {
-            self.may_write_rows.set(true);
-        }
+        self.row_write.set(self.row_write.get().max(change.row_write()));
         self.queued.borrow_mut().push(change);
     }
 
     fn may_write_rows(&self) -> bool {
-        self.may_write_rows.get()
+        self.row_write.get() != RowWrite::None
+    }
+
+    fn may_write_row_identities(&self) -> bool {
+        self.row_write.get() == RowWrite::Identities
     }
 
     /// Lends the queued writes to `apply`, which applies them, and keeps their emptied buffer as the spare. A write the
@@ -259,7 +283,7 @@ impl ChangeQueue {
     /// the style writes where `hold_style`.
     fn drain<R>(&self, hold_style: bool, apply: impl FnOnce(std::vec::Drain<'_, ArenaChange>) -> R) -> R {
         let mut queued = self.queued.replace(self.spare.take());
-        self.may_write_rows.set(false);
+        self.row_write.set(RowWrite::None);
         if hold_style {
             self.queue_style_writes_of(&mut queued);
         }
@@ -271,7 +295,7 @@ impl ChangeQueue {
     /// Takes the queued writes, for a style transaction that flies with them. Their buffer comes back with
     /// give_back().
     fn take(&self) -> Vec<ArenaChange> {
-        self.may_write_rows.set(false);
+        self.row_write.set(RowWrite::None);
         self.queued.replace(self.spare.take())
     }
 
@@ -357,6 +381,9 @@ fn post_to_render_side(job: impl FnOnce() + Send + 'static) {
 pub(crate) fn send(host: &DocumentHost, read: ReadRight, message: RenderMessage<'_>) {
     if !matches!(&message, RenderMessage::Paint { pass, .. } if pass.leaves_paint_preparation_current()) {
         host.note_render_state_write();
+    }
+    if matches!(message, RenderMessage::LayoutRound { .. }) {
+        host.forget_layout_up_to_date();
     }
     host.reach(read, move |state| state.handle(message));
 }
@@ -493,7 +520,7 @@ mod tests {
         let arena = unsafe { &mut *host.arena_for_test() };
         let row = arena.allocate_for_test().slot;
         host.fresh_rows(ScriptForcedRead::for_test());
-        host.queue_change(ArenaChange::Layout(LayoutChange::SetNeedsFullLayoutTreeUpdate(true)));
+        host.queue_change(ArenaChange::Layout(LayoutChange::SetNeedsFullLayoutTreeUpdate));
         assert!(host.rows().is_some(), "a layout mark leaves the rows as they are");
         host.queue_change(ArenaChange::Layout(LayoutChange::InvalidateTextContent {
             node: NodeSlotId::INVALID,

@@ -894,7 +894,7 @@ public:
     [[nodiscard]] bool has_size_containers_needing_evaluation_after_layout(Layout::BegunRead const& read) const;
 
     [[nodiscard]] bool needs_full_layout_tree_update(Layout::BegunRead const& read) const;
-    void set_needs_full_layout_tree_update(bool);
+    void set_needs_full_layout_tree_update();
 
     CSS::ScrollStateQueryContainers& scroll_state_query_containers() { return m_scroll_state_query_containers; }
 

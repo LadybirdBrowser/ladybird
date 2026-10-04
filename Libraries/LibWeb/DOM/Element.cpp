@@ -1506,9 +1506,6 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styl
 
     auto& style_computer = document().style_computer();
     auto originating_style = computed_style();
-    // A reused originating record keeps the pseudo-element inventory it was computed with; the
-    // style engine's answer says which pseudo-elements have rules now.
-    auto const engine_pseudo_element_styles = style_node_id() != 0 ? style_computer.style_engine().published_pseudo_style_mask(read, style_node_id()) : 0;
     // The engine settles the synthetic pseudo-elements of an element against the record the host
     // just installed or composed, as it settles them beside a record of its own, and the host
     // installs the engine's records.
@@ -1516,6 +1513,9 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styl
     bool const settled_after_host_record = [&] {
         if (engine_pseudo_element_records || style_node_id() == 0 || !originating_style)
             return false;
+        // A reused originating record keeps the pseudo-element inventory it was computed with; the
+        // style engine's answer says which pseudo-elements have rules now.
+        auto const engine_pseudo_element_styles = style_computer.style_engine().published_pseudo_style_mask(read, style_node_id());
         // Most elements have no style for any of the kinds the engine settles. A marker is
         // refreshed for a list item only.
         auto may_have_style = [&](CSS::PseudoElement pseudo_element) {
