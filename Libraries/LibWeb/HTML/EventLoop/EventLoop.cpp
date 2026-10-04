@@ -480,6 +480,8 @@ struct EventLoop::RenderingUpdateInFlight {
     double update_start_time { 0 };
     // The event loop does not take the transaction in while a test holds it.
     bool held_for_testing { false };
+    // Whether the tasks of the doc whose transaction flew wait for the whole of the update rather than run beside it.
+    bool holds_tasks_of_document { false };
 };
 
 // The end of a rendering update, once its last step has run.
@@ -516,6 +518,14 @@ void EventLoop::finish_rendering_update(double update_start_time)
         current.update_requests_while_rendering - previous.update_requests_while_rendering);
     m_rendering_scheduler_counters_at_last_update = current;
     m_last_rendering_update_end_time = update_end_time;
+}
+
+// Whether a rendering update of `document` whose style transaction flies holds back the tasks of the document until the
+// whole of it has run, as the steps after its style and layout deliver to its script what comes before any of its tasks:
+// the resize observations its layout answers.
+static bool rendering_update_holds_tasks_of_document(DOM::Document const& document)
+{
+    return document.has_resize_observers();
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#update-the-rendering
@@ -637,7 +647,8 @@ void EventLoop::update_the_rendering()
             // The rendering task ends here: a rendering opportunity meanwhile queues the next one, which keeps its
             // place in the queue until this update has finished.
             m_running_rendering_task = false;
-            m_rendering_update_in_flight = make<RenderingUpdateInFlight>(move(docs), frame_timestamp, update_start_time, exchange(m_holds_next_frame_for_testing, false));
+            bool holds_tasks_of_document = rendering_update_holds_tasks_of_document(*docs.first());
+            m_rendering_update_in_flight = make<RenderingUpdateInFlight>(move(docs), frame_timestamp, update_start_time, exchange(m_holds_next_frame_for_testing, false), holds_tasks_of_document);
             return;
         }
     }
@@ -882,8 +893,6 @@ Layout::RustFFI::FfiFlightBlocker EventLoop::style_flight_blocker(Vector<GC::Roo
         if (other->parent().ptr() == navigable.ptr())
             return Blocker::NestedNavigables;
     }
-    if (document.has_resize_observers())
-        return Blocker::ResizeObservation;
     if (document.has_active_view_transition())
         return Blocker::ViewTransition;
     if (document.scroll_state_query_containers().has_containers())
@@ -947,10 +956,18 @@ bool EventLoop::holds_rendering_opportunity() const
     return m_rendering_update_in_flight || has_frame_in_flight();
 }
 
+bool EventLoop::holds_tasks_of(DOM::Document const* document) const
+{
+    // A test that holds the update in flight runs the document's tasks beside it.
+    return document && m_rendering_update_in_flight && m_rendering_update_in_flight->holds_tasks_of_document
+        && !m_rendering_update_in_flight->held_for_testing && document == m_rendering_update_in_flight->docs.first().ptr();
+}
+
 void EventLoop::take_finished_frames_in()
 {
-    // A rendering update whose style transaction has landed goes on; the tasks before that run beside it. None is in
-    // flight in a nested event loop, which finishes it as it begins, and a paused event loop does not come here.
+    // A rendering update whose style transaction has landed goes on; the tasks before that run beside it, but for those
+    // it holds back, which wait. None is in flight in a nested event loop, which finishes it as it begins, and a paused
+    // event loop does not come here.
     if (m_rendering_update_in_flight && !m_rendering_update_in_flight->held_for_testing
         && !m_rendering_update_in_flight->docs.first()->style_computer().style_engine().style_transaction_flies())
         resume_rendering_update_in_flight();

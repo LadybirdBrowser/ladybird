@@ -559,9 +559,6 @@ pub enum FfiFlightBlocker {
     /// The document's last recording in flight did not stand, so this one records in step with the
     /// host, which presents it.
     LastFlightDidNotStand,
-    /// The document observes the size of its elements, which the steps after its layout deliver
-    /// before any other task.
-    ResizeObservation,
     /// A view transition of the document captures its rendering in step with the update.
     ViewTransition,
     /// Scroll-state container queries read the scroll state the update snapshots after layout.

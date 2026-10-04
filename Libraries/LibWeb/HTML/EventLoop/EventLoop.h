@@ -158,6 +158,9 @@ public:
     // A rendering task that would find a frame still in flight, or a rendering update not yet finished, keeps its place
     // in the queue until the frame has been taken in, rather than wait for it.
     bool holds_rendering_opportunity() const;
+    // Whether the tasks of `document` wait for the rendering update in flight: its steps after its style and layout
+    // deliver to the document's script what comes before any of its tasks. The tasks of other documents run beside it.
+    bool holds_tasks_of(DOM::Document const*) const;
     void hold_next_frame_for_testing() { m_holds_next_frame_for_testing = true; }
     void release_held_frames_for_testing();
 

@@ -29,16 +29,15 @@ public:
     GC::Ptr<HTML::Task> take_first_runnable();
 
     void enqueue(GC::Ref<HTML::Task> task) { add(task); }
-    GC::Ptr<HTML::Task> dequeue();
 
     void remove_tasks_matching(Function<bool(HTML::Task const&)>);
-    GC::Ptr<Task> take_first_runnable_matching(Function<bool(HTML::Task const&)>);
 
     Task const* last_added_task() const;
 
 private:
     virtual void visit_edges(Visitor&) override;
 
+    bool is_runnable_now(Task const&) const;
     void remove_without_running(Task::Queue&, Task&);
     void run_discard_steps();
 
