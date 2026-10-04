@@ -390,10 +390,12 @@ pub(crate) fn find_matching_text(
     for block in arena.searchable_text.as_ref().expect("search cache was prepared") {
         let mut offset = 0;
         while let Some(index) = find_text(&block.text, query, offset, case_sensitive) {
-            if let Some(range) = block.dom_range(arena, index..index + query.len()) {
+            if let Some(range) = block.dom_range(arena, index..index + query.len())
+                && matches.last() != Some(&range)
+            {
                 matches.push(range);
             }
-            offset = index + query.len() + 1;
+            offset = index + query.len();
             if offset >= block.text.len() {
                 break;
             }
@@ -550,6 +552,22 @@ mod tests {
             .free_subtree(text)
             .destroy_shells_and_invoke_callbacks(&crate::stage::MainThread::for_test());
         assert!(arena.searchable_text.is_none());
+    }
+
+    #[test]
+    fn search_finds_a_match_that_starts_where_the_previous_match_ends() {
+        let mut arena = LayoutNodeArena::new();
+        let text = node(&mut arena, "foofoo", 0, 6, Vec::new());
+        let mut builder = SearchTextBuilder::default();
+        builder.append(text, &arena.text_content(text).unwrap().text, false);
+        builder.flush();
+        arena.searchable_text = Some(builder.blocks);
+        let query: Vec<u16> = "foo".encode_utf16().collect();
+        let offsets: Vec<_> = find_matching_text(&mut arena, text, &query, true, &[])
+            .iter()
+            .map(|range| (range.start_offset, range.end_offset))
+            .collect();
+        assert_eq!(offsets, [(0, 3), (3, 6)]);
     }
 
     #[test]

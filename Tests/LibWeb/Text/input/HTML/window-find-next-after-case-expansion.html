@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<span style="text-transform: uppercase">ß s</span>
+<script>
+    test(() => {
+        const matches = [];
+        for (let i = 0; i < 3 && window.find("s"); ++i) {
+            const range = getSelection().getRangeAt(0);
+            matches.push(`${range.startOffset}-${range.endOffset}, ${JSON.stringify(range.toString())}`);
+        }
+        matches.forEach(match => println(match));
+    });
+</script>
