@@ -324,7 +324,7 @@ pub unsafe extern "C" fn render_state_paintable_transform_reference_box(
         crate::painting::visual_context::node_values::transform_reference_box(style, rows, slot).into()
     }
     // SAFETY: Guaranteed by the caller.
-    if let Some(rect) = unsafe { &*host }.read_known_rows(|_, rows| reference_box(rows, slot)) {
+    if let Some(rect) = unsafe { &*host }.read_rows_between_jobs(node_read(), |rows| reference_box(rows, slot)) {
         return rect;
     }
     // SAFETY: Guaranteed by the caller.
