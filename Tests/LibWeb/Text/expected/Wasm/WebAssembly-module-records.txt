@@ -1,0 +1,24 @@
+== WebAssembly module providing exports
+provider keys: add,answer,memory,Symbol(Symbol.toStringTag)
+provider toStringTag: Module, Object.prototype.toString: [object Module]
+provider extensible: false, frozen: false
+add: function 0 42
+answer: number 42
+memory is a WebAssembly.Memory: true, pages: 1
+answer descriptor: writable=true, enumerable=true, configurable=false
+== WebAssembly module importing from WebAssembly and JavaScript modules
+consumer keys: add,callDouble,double,localAdd,memory,readAnswer,sumOfImports,Symbol(Symbol.toStringTag)
+consumer toStringTag: Module, Object.prototype.toString: [object Module]
+consumer extensible: false, frozen: false
+add imported from WebAssembly is the provider's function: true
+exported function re-exported by JavaScript keeps its identity: true
+JavaScript function import is wrapped: true, name: 1, call: 42
+call through import: 10
+global imported from WebAssembly: 42
+globals imported from WebAssembly and JavaScript: 49
+memory imported from WebAssembly is the provider's memory: true
+== Dynamic import
+same namespace object: true
+missing export: SyntaxError
+cycle: true LinkError: Module has not been instantiated
+cycle again: true LinkError: Module has not been instantiated

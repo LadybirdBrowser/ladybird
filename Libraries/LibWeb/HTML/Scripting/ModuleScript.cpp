@@ -272,7 +272,7 @@ WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> ModuleScript::create_a_webassembly_mo
     // 7. Let result be the result of parsing a web assembly module given bodyBytes, realm, and script.
     // NOTE: Passing script as the last parameter here ensures result.[[HostDefined]] will be script.
     TemporaryExecutionContext execution_context { realm };
-    auto result = WebAssembly::WebAssemblyModule::parse(body_bytes, realm, filename, script.ptr());
+    auto result = WebAssembly::parse_a_webassembly_module(body_bytes, realm, filename, script.ptr());
 
     // 8. If the previous step threw an error error, then:
     if (result.is_error()) {

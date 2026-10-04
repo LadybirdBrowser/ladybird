@@ -5,6 +5,7 @@
  */
 
 #include <LibGC/Heap.h>
+#include <LibJS/HostClassBuilder.h>
 #include <LibJS/Runtime/ModuleEnvironment.h>
 #include <LibJS/Runtime/ModuleRequest.h>
 #include <LibWasm/AbstractMachine/AbstractMachine.h>
@@ -21,27 +22,74 @@
 
 namespace Web::WebAssembly {
 
-GC_DEFINE_ALLOCATOR(WebAssemblyModule);
+namespace {
 
-WebAssemblyModule::WebAssemblyModule(JS::Realm& realm, StringView filename, WebAssembly::Module& module_source,
-    GC::Ptr<GC::Cell> host_defined, Vector<JS::ModuleRequest> requested_modules)
-    : CyclicModule(realm, filename, false, move(requested_modules), host_defined)
-    , m_module_source(module_source)
+// The fields that a WebAssembly Module Record has besides those of a Cyclic Module Record.
+class WebAssemblyModuleHostData final : public GC::Cell {
+    GC_CELL(WebAssemblyModuleHostData, GC::Cell);
+    GC_DECLARE_ALLOCATOR(WebAssemblyModuleHostData);
+
+public:
+    using JSValueConversionIsForbidden = void;
+
+    GC::Ptr<Instance> instance() const { return m_instance; }
+    void set_instance(GC::Ref<Instance> instance) { m_instance = instance; }
+
+    GC::Ref<WebAssembly::Module> module_source() const { return m_module_source; }
+
+    void set_module_record(GC::Ref<JS::HostModule> module_record) { m_module_record = module_record; }
+
+    Vector<Utf16FlyString> export_name_list();
+
+private:
+    explicit WebAssemblyModuleHostData(WebAssembly::Module& module_source)
+        : m_module_source(module_source)
+    {
+    }
+
+    virtual void visit_edges(Visitor& visitor) override
+    {
+        Base::visit_edges(visitor);
+        visitor.visit(m_instance);
+        visitor.visit(m_module_source);
+        visitor.visit(m_module_record);
+    }
+
+    GC::Ptr<Instance> m_instance;                 // [[Instance]]
+    GC::Ref<WebAssembly::Module> m_module_source; // [[ModuleSource]]
+    GC::Ptr<JS::HostModule> m_module_record;      // [[ModuleRecord]]
+
+    Optional<Vector<Utf16FlyString>> m_cached_export_name_list;
+};
+
+GC_DEFINE_ALLOCATOR(WebAssemblyModuleHostData);
+
+struct WebAssemblyModuleTraits {
+    static Vector<Utf16FlyString> get_exported_names(JS::HostModule&);
+    static JS::ResolvedBinding resolve_export(JS::HostModule&, Utf16FlyString const& export_name);
+    static JS::ThrowCompletionOr<void> initialize_environment(JS::HostModule&);
+    static JS::ThrowCompletionOr<void> execute_module(JS::HostModule&, GC::Ptr<JS::PromiseCapability>);
+};
+
+constexpr JSHostModuleHooks webassembly_module_hooks = JS::make_host_module_hooks<WebAssemblyModuleTraits>();
+constexpr JSHostClass webassembly_module_host_class = JS::make_host_class(JS_HOST_CLASS_MODULE, "WebAssemblyModule"sv, nullptr, &webassembly_module_hooks, nullptr, 0);
+
+bool is_webassembly_module_record(JS::Module const& module)
 {
+    return JS::is_host_instance_of(module, webassembly_module_host_class);
 }
 
-WebAssemblyModule::~WebAssemblyModule() = default;
-
-void WebAssemblyModule::visit_edges(Cell::Visitor& visitor)
+WebAssemblyModuleHostData& host_data_of_webassembly_module_record(JS::Module const& module)
 {
-    Base::visit_edges(visitor);
-    visitor.visit(m_instance);
-    visitor.visit(m_module_source);
-    visitor.visit(m_module_record);
+    auto* host_data = JS::host_data_if<WebAssemblyModuleHostData>(module);
+    VERIFY(host_data);
+    return *host_data;
+}
+
 }
 
 // https://webassembly.github.io/esm-integration/js-api/index.html#parse-a-webassembly-module
-JS::ThrowCompletionOr<GC::Ref<WebAssemblyModule>> WebAssemblyModule::parse(ByteBuffer bytes, JS::Realm& realm, StringView filename, GC::Ptr<GC::Cell> host_defined)
+JS::ThrowCompletionOr<GC::Ref<JS::HostModule>> parse_a_webassembly_module(ByteBuffer bytes, JS::Realm& realm, StringView filename, GC::Ptr<GC::Cell> host_defined)
 {
     auto& vm = realm.vm();
 
@@ -104,17 +152,18 @@ JS::ThrowCompletionOr<GC::Ref<WebAssemblyModule>> WebAssemblyModule::parse(ByteB
     for (auto const& module_name : requested_modules) {
         module_requests.append(JS::ModuleRequest { Utf16FlyString::from_utf8(module_name), {} });
     }
-    auto module_record = realm.create<WebAssemblyModule>(realm, filename, module_object, host_defined, module_requests);
+    auto host_data = realm.heap().allocate<WebAssemblyModuleHostData>(module_object);
+    auto module_record = JS::HostModule::create(realm, webassembly_module_host_class, filename, move(module_requests), host_defined, host_data);
 
     // 9. Set module.[[ModuleRecord]] to moduleRecord.
-    module_record->m_module_record = module_record;
+    host_data->set_module_record(module_record);
 
     // 10. Return moduleRecord.
     return module_record;
 }
 
 // https://webassembly.github.io/esm-integration/js-api/index.html#export-name-list
-Vector<Utf16FlyString> WebAssemblyModule::export_name_list()
+Vector<Utf16FlyString> WebAssemblyModuleHostData::export_name_list()
 {
     // AD-HOC: Return cached export name list if available
     if (m_cached_export_name_list.has_value())
@@ -141,24 +190,20 @@ Vector<Utf16FlyString> WebAssemblyModule::export_name_list()
 }
 
 // https://webassembly.github.io/esm-integration/js-api/index.html#get-exported-names
-Vector<Utf16FlyString> WebAssemblyModule::get_exported_names(JS::VM&, GC::RootHashTable<GC::Ref<Module const>>&)
+Vector<Utf16FlyString> WebAssemblyModuleTraits::get_exported_names(JS::HostModule& record)
 {
     // 1. Let record be this WebAssembly Module Record.
-    auto* record = this;
-
     // 2. Return the export name list of record.
-    return record->export_name_list();
+    return host_data_of_webassembly_module_record(record).export_name_list();
 }
 
 // https://webassembly.github.io/esm-integration/js-api/index.html#resolve-export
-JS::ResolvedBinding WebAssemblyModule::resolve_export(JS::VM&, Utf16FlyString const& export_name, Vector<JS::ResolvedBinding>)
+JS::ResolvedBinding WebAssemblyModuleTraits::resolve_export(JS::HostModule& record, Utf16FlyString const& export_name)
 {
     // 1. Let record be this WebAssembly Module Record.
-    auto* record = this;
-
     // 2. If the export name list of record contains exportName, return { [[Module]]: record, [[BindingName]]: exportName }.
-    if (export_name_list().contains_slow(export_name)) {
-        return JS::ResolvedBinding { JS::ResolvedBinding::Type::BindingName, record, export_name };
+    if (host_data_of_webassembly_module_record(record).export_name_list().contains_slow(export_name)) {
+        return JS::ResolvedBinding { JS::ResolvedBinding::Type::BindingName, &record, export_name };
     }
 
     // 3. Otherwise, return null.
@@ -166,19 +211,19 @@ JS::ResolvedBinding WebAssemblyModule::resolve_export(JS::VM&, Utf16FlyString co
 }
 
 // https://webassembly.github.io/esm-integration/js-api/index.html#module-declaration-environment-setup
-JS::ThrowCompletionOr<void> WebAssemblyModule::initialize_environment(JS::VM& vm)
+JS::ThrowCompletionOr<void> WebAssemblyModuleTraits::initialize_environment(JS::HostModule& record)
 {
-    // 1. Let record be this WebAssembly Module Record.
-    auto* record = this;
+    auto& vm = record.vm();
 
+    // 1. Let record be this WebAssembly Module Record.
     // 2. Let env be NewModuleEnvironment(null).
     auto env = JS::new_module_environment(nullptr);
 
     // 3. Set record.[[Environment]] to env.
-    record->set_environment(env);
+    record.set_environment(env);
 
     // 4. For each name in the export name list of record,
-    for (auto const& name : export_name_list()) {
+    for (auto const& name : host_data_of_webassembly_module_record(record).export_name_list()) {
         // 1. Perform !env.CreateImmutableBinding(name, true).
         MUST(env->create_immutable_binding(vm, name, true));
     }
@@ -187,18 +232,20 @@ JS::ThrowCompletionOr<void> WebAssemblyModule::initialize_environment(JS::VM& vm
 }
 
 // https://webassembly.github.io/esm-integration/js-api/index.html#module-execution
-JS::ThrowCompletionOr<void> WebAssemblyModule::execute_module(JS::VM& vm, GC::Ptr<JS::PromiseCapability> capability)
+JS::ThrowCompletionOr<void> WebAssemblyModuleTraits::execute_module(JS::HostModule& record, GC::Ptr<JS::PromiseCapability> capability)
 {
+    auto& vm = record.vm();
+
     // 1. Assert: promiseCapability was not provided.
     VERIFY(!capability);
 
     // 2. Let record be this WebAssembly Module Record.
-    auto* record = this;
-    auto& realm = record->realm();
+    auto& record_host_data = host_data_of_webassembly_module_record(record);
+    auto& realm = record.realm();
     auto cache = Detail::get_cache(realm);
 
     // 3. Let module be record.[[ModuleSource]].[[Module]].
-    auto module = record->m_module_source->compiled_module();
+    auto module = record_host_data.module_source()->compiled_module();
 
     // 4. Let imports be « ».
     Vector<Wasm::ExternValue> imports;
@@ -210,7 +257,7 @@ JS::ThrowCompletionOr<void> WebAssemblyModule::execute_module(JS::VM& vm, GC::Pt
         // FIXME: 1. If Find a builtin with (importedModuleName, name) and builtins module.[[BuiltinSets]] is not null, then continue.
 
         // 2. Let importedModule be GetImportedModule(record, importedModuleName).
-        auto imported_module = record->get_imported_module(JS::ModuleRequest { Utf16FlyString::from_utf8(entry.module()) });
+        auto imported_module = record.get_imported_module(JS::ModuleRequest { Utf16FlyString::from_utf8(entry.module()) });
 
         // 3. Let resolution be importedModule.ResolveExport(name).
         auto resolution = imported_module->resolve_export(vm, Utf16FlyString::from_utf8(entry.name()));
@@ -225,22 +272,22 @@ JS::ThrowCompletionOr<void> WebAssemblyModule::execute_module(JS::VM& vm, GC::Pt
         auto resolved_name = resolution.export_name;
 
         // 7. If resolvedModule is a WebAssembly Module Record,
-        if (is<WebAssemblyModule>(*resolved_module)) {
-            auto& resolved_webassembly_module = as<WebAssemblyModule>(*resolved_module);
+        if (is_webassembly_module_record(*resolved_module)) {
+            auto& resolved_module_host_data = host_data_of_webassembly_module_record(*resolved_module);
 
             // 1. If resolvedModule.[[Instance]] is ~empty~, throw a {LinkError} exception.
-            if (!resolved_webassembly_module.m_instance) {
+            if (!resolved_module_host_data.instance()) {
                 return vm.throw_completion<LinkError>("Module has not been instantiated"sv);
             }
 
             // 2. Assert: resolvedModule.[[Instance]] is a WebAssembly Instance object.
             // 3. Assert: resolvedModule.[[ModuleSource]] is a WebAssembly Module object.
             // 4. Let module be resolvedModule.[[ModuleSource]].[[Module]].
-            auto module = resolved_webassembly_module.m_module_source->compiled_module();
+            auto module = resolved_module_host_data.module_source()->compiled_module();
 
             // 5. Let externval be instance_export(resolvedModule.[[Instance]], resolvedName).
             // https://webassembly.github.io/spec/core/appendix/embedding.html#embed-instance-export
-            auto externval = resolved_webassembly_module.m_instance->module_instance()->exports().first_matching([resolved_name](auto const& export_instance) { return export_instance.name() == resolved_name; });
+            auto externval = resolved_module_host_data.instance()->module_instance()->exports().first_matching([resolved_name](auto const& export_instance) { return export_instance.name() == resolved_name; });
 
             // 6. Assert: externval is not error.
             VERIFY(externval.has_value());
@@ -481,7 +528,8 @@ JS::ThrowCompletionOr<void> WebAssemblyModule::execute_module(JS::VM& vm, GC::Pt
     }
 
     // 7. Set record.[[Instance]] to instance.
-    record->m_instance = Instance::create(cache, instantiation_result.release_value());
+    auto instance = Instance::create(cache, instantiation_result.release_value());
+    record_host_data.set_instance(instance);
 
     // 8. For each (name, externtype) of module_exports(module),
     for (auto const& entry : module->module->export_section().entries()) {
@@ -503,7 +551,7 @@ JS::ThrowCompletionOr<void> WebAssemblyModule::execute_module(JS::VM& vm, GC::Pt
 
                 // 1. Perform !record.[[Environment]].InitializeBinding(name, ToJSValue(global_value)).
                 auto value = global_value->value();
-                MUST(record->environment()->initialize_binding(vm, Utf16FlyString::from_utf8(entry.name()), Detail::to_js_value(realm, value, type.type()), JS::Environment::InitializeBindingHint::Normal));
+                MUST(record.environment()->initialize_binding(vm, Utf16FlyString::from_utf8(entry.name()), Detail::to_js_value(realm, value, type.type()), JS::Environment::InitializeBindingHint::Normal));
 
                 // FIXME: 2. If mut is var, then associate all future mutations of globaladdr with the ECMA-262 binding record
                 //        for name in record.[[Environment]], such that record.[[Environment]].GetBindingValue(resolution.[[BindingName]], true)
@@ -515,7 +563,7 @@ JS::ThrowCompletionOr<void> WebAssemblyModule::execute_module(JS::VM& vm, GC::Pt
         else {
             // 1. Perform !record.[[Environment]].InitializeBinding(name, !Get(instance.[[Exports]], name)).
             auto name = Utf16FlyString::from_utf8(entry.name());
-            MUST(Bindings::initialize_webassembly_export_binding(realm, *record->environment(), name, GC::Ref { *record->m_instance }));
+            MUST(Bindings::initialize_webassembly_export_binding(realm, *record.environment(), name, instance));
         }
     }
 

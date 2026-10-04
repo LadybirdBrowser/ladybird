@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Utf16View.h>
+#include <LibJS/Runtime/HostModule.h>
 #include <LibJS/ScriptCompilation.h>
 #include <LibJS/SourceTextModule.h>
 #include <LibJS/SyntheticModule.h>
@@ -15,7 +16,8 @@
 
 namespace Web::HTML {
 
-using ModuleScriptRecord = Variant<Empty, GC::Ref<JS::SourceTextModule>, GC::Ref<JS::SyntheticModule>, GC::Ref<WebAssembly::WebAssemblyModule>>;
+// The only host modules are WebAssembly Module Records.
+using ModuleScriptRecord = Variant<Empty, GC::Ref<JS::SourceTextModule>, GC::Ref<JS::SyntheticModule>, GC::Ref<JS::HostModule>>;
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#module-script
 class WEB_API ModuleScript : public Script {
