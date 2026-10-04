@@ -1329,6 +1329,21 @@ impl DeferredInputs {
     }
 }
 
+/// The view of `style_record` the host has without asking: one it asked for before, or one the style transaction it
+/// drains carried. A published record never changes while it is live.
+pub(crate) fn known_style_record_view(
+    host: &DocumentHost,
+    style_record: u64,
+) -> Option<super::bridge::FfiStyleRecordView> {
+    let memo = &host.engine_memo().views;
+    if let Some(view) = memo.get(style_record) {
+        return Some(view);
+    }
+    let (view, _) = host.transaction_record(style_record)?;
+    memo.set(style_record, view);
+    Some(view)
+}
+
 /// Folds the style input `node` owes into the reaction the host is about to apply to it, where the reaction covers it,
 /// and answers the merged reaction in the low byte and the merged inherited style groups in the next, or zero, as
 /// [`super::StyleEngineState::absorb_element_style_input`] does. The host answers where it knows the answer, and the

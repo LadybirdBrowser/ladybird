@@ -922,7 +922,9 @@ void StyleComputer::apply_settled_animation_plan(Layout::BegunRead const& read, 
         GC::Ref<StyleComputer const> style_computer;
         DOM::AbstractElement& abstract_element;
     } context { *this, abstract_element };
-    ComputedValuesFFI::rust_settled_animation_plan(m_style_engine.host(), &read, abstract_element.element().style_node_id().value(), pseudo_element_to_ffi(abstract_element.pseudo_element()), abstract_element.style_record_identity().value(), &context, [](void* context_pointer, ComputedValuesFFI::FfiComputedAnimation const* definitions, size_t count, bool in_display_none_subtree) {
+    auto const* animations = abstract_element.css_defined_animations();
+    bool has_animations = animations && !animations->is_empty();
+    ComputedValuesFFI::rust_settled_animation_plan(m_style_engine.host(), &read, abstract_element.element().style_node_id().value(), pseudo_element_to_ffi(abstract_element.pseudo_element()), abstract_element.style_record_identity().value(), has_animations, &context, [](void* context_pointer, ComputedValuesFFI::FfiComputedAnimation const* definitions, size_t count, bool in_display_none_subtree) {
         auto& context = *static_cast<Context*>(context_pointer);
         context.style_computer->apply_animation_definitions(context.abstract_element, { definitions, count }, in_display_none_subtree);
     });
