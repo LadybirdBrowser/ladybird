@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<iframe srcdoc="<p>x</p>"></iframe>
+<script>
+    asyncTest(done => {
+        const iframe = document.querySelector("iframe");
+        iframe.onload = () => {
+            // This document was styled first, so the user-agent selectors were compiled for it. The frame's document
+            // attaches the same programs: its engine adds every user-agent style rule but compiles no selector.
+            const p = iframe.contentDocument.querySelector("p");
+            println(`margin-top from the user-agent sheet: ${iframe.contentWindow.getComputedStyle(p).marginTop}`);
+            const counters = iframe.contentWindow.internals.styleEngineCounters();
+            println(`style rules added: ${counters.styleRulesCompiled > 100}`);
+            println(`selector entries compiled: ${counters.exactSelectorEntries}`);
+            done();
+        };
+    });
+</script>

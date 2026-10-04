@@ -140,6 +140,7 @@ RENDER_STATE_ALLOWED = {
             "css/parser/arbitrary_substitution.rs:ATTR_NAMES_READ_GENERATION",
             "css/parser/stylesheet_cache.rs:CACHE",
             "css/style/atoms.rs:GLOBAL_ATOMS",
+            "css/style/user_agent_selectors.rs:PROGRAMS",
         ],
     ),
     **render_state_entries(

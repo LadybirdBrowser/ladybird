@@ -12,6 +12,7 @@ use crate::css::selector_operations::{
 use crate::css::selector_parser::{RustParsedSelectorList, StyleNestingParent};
 use crate::css::style::bridge::{
     BoundScopeChain, operations, publish_rule_declarations, publish_style_rule, publish_style_rule_selectors,
+    publish_user_agent_style_rule,
 };
 use crate::css::style::compiler::NamespaceScope;
 use crate::css::style::engine_calls::{sheet_writing_host, with_engine};
@@ -184,11 +185,23 @@ impl NativeStylePublication {
                     if selectors.selectors.is_empty() {
                         return result;
                     }
-                    let namespaces = NamespaceScope::from_rule_list(source.rules(), |text| {
-                        crate::css::style::bridge::intern_native_text(engine, text)
-                    });
                     let compiled: Vec<_> = selectors.selectors.iter().map(|selector| selector.as_ref()).collect();
-                    let id = publish_style_rule(engine, sheet, before, &compiled, namespaces, &context.selectors.scope);
+                    let scope = &context.selectors.scope;
+                    let id = publish_user_agent_style_rule(
+                        engine,
+                        sheet,
+                        before,
+                        rule.identity(),
+                        &compiled,
+                        source.rules(),
+                        scope,
+                    )
+                    .unwrap_or_else(|| {
+                        let namespaces = NamespaceScope::from_rule_list(source.rules(), |text| {
+                            crate::css::style::bridge::intern_native_text(engine, text)
+                        });
+                        publish_style_rule(engine, sheet, before, &compiled, namespaces, scope)
+                    });
                     let declarations = rule.cascade_declarations().unwrap();
                     result.declares_transitions = publish_rule_declarations(engine, id, &declarations);
                     if context.gated_by_container_query {
