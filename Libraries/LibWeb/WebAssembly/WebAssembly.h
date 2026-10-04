@@ -15,6 +15,7 @@
 #include <LibGC/Root.h>
 #include <LibJS/Forward.h>
 #include <LibJS/Runtime/Completion.h>
+#include <LibJS/Runtime/HostFunction.h>
 #include <LibJS/Runtime/NativeFunction.h>
 #include <LibJS/Runtime/PrototypeObject.h>
 #include <LibJS/Runtime/Value.h>
@@ -97,27 +98,11 @@ private:
     Wasm::AbstractMachine m_abstract_machine;
 };
 
-class ExportedWasmFunction final : public JS::NativeFunction {
-    JS_OBJECT(ExportedWasmFunction, JS::NativeFunction);
-    GC_DECLARE_ALLOCATOR(ExportedWasmFunction);
+// https://webassembly.github.io/spec/js-api/#exported-function
+GC::Ref<JS::HostFunction> create_exported_function(JS::Realm&, Utf16FlyString name, size_t length, ESCAPING Function<JS::ThrowCompletionOr<JS::Value>(JS::VM&)> behavior, Wasm::FunctionAddress);
 
-public:
-    static GC::Ref<ExportedWasmFunction> create(JS::Realm&, Utf16FlyString name, size_t length, ESCAPING Function<JS::ThrowCompletionOr<JS::Value>(JS::VM&)>, Wasm::FunctionAddress);
-    virtual ~ExportedWasmFunction() override = default;
-
-    Wasm::FunctionAddress exported_address() const { return m_exported_address; }
-
-    virtual JS::ThrowCompletionOr<JS::Value> call() override;
-
-protected:
-    ExportedWasmFunction(Utf16FlyString name, AK::Function<JS::ThrowCompletionOr<JS::Value>(JS::VM&)>, Wasm::FunctionAddress, Object& prototype);
-
-private:
-    virtual void visit_edges(Cell::Visitor&) override;
-
-    AK::Function<JS::ThrowCompletionOr<JS::Value>(JS::VM&)> m_behavior;
-    Wasm::FunctionAddress m_exported_address;
-};
+// The value of the function's [[FunctionAddress]] internal slot, if it has one and is therefore an Exported Function.
+Optional<Wasm::FunctionAddress> exported_function_address(JS::FunctionObject const&);
 
 NonnullRefPtr<WebAssemblyCache> get_cache(JS::Realm&);
 

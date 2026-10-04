@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<iframe id="frame"></iframe>
+<script>
+    promiseTest(async () => {
+        // (module (func (export "add") (param i32 i32) (result i32) local.get 0 local.get 1 i32.add))
+        const adderBytes = new Uint8Array([
+            0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x07, 0x01, 0x60, 0x02, 0x7f, 0x7f, 0x01, 0x7f, 0x03,
+            0x02, 0x01, 0x00, 0x07, 0x07, 0x01, 0x03, 0x61, 0x64, 0x64, 0x00, 0x00, 0x0a, 0x09, 0x01, 0x07, 0x00, 0x20,
+            0x00, 0x20, 0x01, 0x6a, 0x0b,
+        ]);
+
+        // (module
+        //   (import "m" "f" (func $f (param i32 i32) (result i32)))
+        //   (table 1 funcref)
+        //   (elem (i32.const 0) func $f)
+        //   (func (export "callImport") (param i32 i32) (result i32) local.get 0 local.get 1 call $f)
+        //   (export "f" (func $f))
+        //   (export "table" (table 0)))
+        const reexporterBytes = new Uint8Array([
+            0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x07, 0x01, 0x60, 0x02, 0x7f, 0x7f, 0x01, 0x7f, 0x02,
+            0x07, 0x01, 0x01, 0x6d, 0x01, 0x66, 0x00, 0x00, 0x03, 0x02, 0x01, 0x00, 0x04, 0x04, 0x01, 0x70, 0x00, 0x01,
+            0x07, 0x1a, 0x03, 0x01, 0x66, 0x00, 0x00, 0x05, 0x74, 0x61, 0x62, 0x6c, 0x65, 0x01, 0x00, 0x0a, 0x63, 0x61,
+            0x6c, 0x6c, 0x49, 0x6d, 0x70, 0x6f, 0x72, 0x74, 0x00, 0x01, 0x09, 0x07, 0x01, 0x00, 0x41, 0x00, 0x0b, 0x01,
+            0x00, 0x0a, 0x0a, 0x01, 0x08, 0x00, 0x20, 0x00, 0x20, 0x01, 0x10, 0x00, 0x0b,
+        ]);
+
+        const reexporterModule = new WebAssembly.Module(reexporterBytes);
+        const reexport = f => new WebAssembly.Instance(reexporterModule, { m: { f } }).exports;
+
+        const { instance: adderInstance } = await WebAssembly.instantiate(adderBytes);
+        // Holding the exports object keeps it as the instance's exports for this realm, so that the other realm below
+        // always gets an exports object of its own.
+        const adderExports = adderInstance.exports;
+        const add = adderExports.add;
+
+        println("== Exported function");
+        println(`typeof: ${typeof add}`);
+        println(`prototype is Function.prototype: ${Object.getPrototypeOf(add) === Function.prototype}`);
+        println(`own properties: ${Reflect.ownKeys(add).join()}`);
+        println(`toString: ${Function.prototype.toString.call(add)}`);
+        println(`Object.prototype.toString: ${Object.prototype.toString.call(add)}`);
+        println(`extensible: ${Object.isExtensible(add)}`);
+        println(`same object on every access: ${adderInstance.exports === adderExports && adderInstance.exports.add === add}`);
+        println(`call: ${add(2, 3)}`);
+        println(`call with coerced arguments: ${add("3", { valueOf() { return 4; } })}`);
+        println(`Function.prototype.call: ${add.call(null, 5, 6)}`);
+        println(`bound: ${add.bind(null, 7)(8)}`);
+        try {
+            new add(1, 2);
+            println("construct: did not throw");
+        } catch (error) {
+            println(`construct: ${error.constructor.name}`);
+        }
+        add.expando = "kept";
+        println(`expando: ${adderInstance.exports.add.expando}`);
+
+        println("== Exported function as an import");
+        const reexportedAdd = reexport(add);
+        println(`re-exported import is the same function: ${reexportedAdd.f === add}`);
+        println(`table holds the same function: ${reexportedAdd.table.get(0) === add}`);
+        println(`call through import: ${reexportedAdd.callImport(4, 5)}`);
+        println(`second instance re-exports the same function: ${reexport(add).f === add}`);
+
+        println("== JavaScript function as an import");
+        const jsAdd = (a, b) => a * 10 + b;
+        const wrapped = reexport(jsAdd);
+        println(`wrapper is a new function: ${wrapped.f !== jsAdd}`);
+        println(`wrapper name and length: ${wrapped.f.name} ${wrapped.f.length}`);
+        println(`wrapper call: ${wrapped.f(1, 2)}`);
+        println(`table holds the wrapper: ${wrapped.table.get(0) === wrapped.f}`);
+        println(`re-importing the wrapper keeps it: ${reexport(wrapped.f).f === wrapped.f}`);
+        println(`importing the JavaScript function again wraps it anew: ${reexport(jsAdd).f !== wrapped.f}`);
+
+        println("== Exported function from another realm");
+        const frameWindow = document.getElementById("frame").contentWindow;
+        const exportsGetter = Object.getOwnPropertyDescriptor(frameWindow.WebAssembly.Instance.prototype, "exports").get;
+        const frameAdd = exportsGetter.call(adderInstance).add;
+        println(`distinct from this realm's function: ${frameAdd !== add}`);
+        println(`prototype is the other realm's Function.prototype: ${Object.getPrototypeOf(frameAdd) === frameWindow.Function.prototype}`);
+        println(`own properties: ${Reflect.ownKeys(frameAdd).join()}`);
+        println(`name and length: ${frameAdd.name} ${frameAdd.length}`);
+        println(`call: ${frameAdd(20, 22)}`);
+        const reexportedFrameAdd = reexport(frameAdd);
+        println(`re-export resolves to this realm's function: ${reexportedFrameAdd.f === add}`);
+        println(`call through import: ${reexportedFrameAdd.callImport(1, 1)}`);
+    });
+</script>

@@ -137,7 +137,7 @@ static GC::Ref<JS::FunctionObject> create_native_function_for_instance_realm(JS:
     VERIFY(function);
     function->visit([&](auto const& value) { type = value.type(); });
 
-    return WebAssembly::Detail::ExportedWasmFunction::create(
+    return WebAssembly::Detail::create_exported_function(
         realm,
         WebAssembly::Detail::name_of_webassembly_function(instance->cache().abstract_machine().store(), address),
         type->parameters().size(),
