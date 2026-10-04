@@ -172,3 +172,18 @@ def wrapper_host_class_flags(context: GenerationContext, interface: Interface) -
     if is_legacy_platform_object or is_location:
         flags.append("JS_HOST_CLASS_NOT_CACHEABLE_FOR_PROPERTY_ABSENCE")
     return flags
+
+
+# Location's internal methods are overrides of LocationWrapper in LibWeb/HTML/Location.cpp, which also defines its hooks.
+LOCATION_WRAPPER_HOOKS = "location_wrapper_hooks"
+
+
+def wrapper_host_class_hooks(context: GenerationContext, interface: Interface) -> str:
+    if interface.name == "Location":
+        return LOCATION_WRAPPER_HOOKS
+    legacy_platform_object_info_fields_of_wrapper = legacy_platform_object_info_fields(context, interface)
+    if legacy_platform_object_info_fields_of_wrapper is None:
+        return "platform_object_hooks"
+    if "has_global_interface_extended_attribute" in legacy_platform_object_info_fields_of_wrapper:
+        return "global_platform_object_hooks"
+    return "legacy_platform_object_hooks"

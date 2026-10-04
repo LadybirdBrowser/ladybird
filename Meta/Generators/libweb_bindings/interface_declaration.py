@@ -19,10 +19,11 @@ from Generators.libweb_bindings.includes import GeneratedIncludes
 from Generators.libweb_bindings.iterables import write_async_iterator_prototype_declaration
 from Generators.libweb_bindings.iterables import write_iterator_prototype_declaration
 from Generators.libweb_bindings.named_and_indexed_properties import interface_supports_named_properties
-from Generators.libweb_bindings.named_and_indexed_properties import write_legacy_platform_object_hook_declarations
+from Generators.libweb_bindings.named_and_indexed_properties import write_legacy_platform_object_function_declarations
 from Generators.libweb_bindings.named_and_indexed_properties import write_named_properties_object_declaration
 from Generators.libweb_bindings.namespaces import write_namespace_declaration
 from Generators.libweb_bindings.overload_resolution import operation_callback_names
+from Generators.libweb_bindings.wrappers import LOCATION_WRAPPER_HOOKS
 from Generators.libweb_bindings.wrappers import interface_needs_wrapper
 from Generators.libweb_bindings.wrappers import wrapper_base_class_name
 from Generators.libweb_bindings.wrappers import wrapper_class_name
@@ -71,9 +72,11 @@ def write_declaration(
         # link against a hidden typeinfo symbol.
         export_macro = "WEB_API " if interface_has_cross_origin_property_descriptor_map(interface) else ""
         includes.add("LibJS/HostObjectABI.h")
+        out.write(f"extern JSHostClass const {wrapper_host_class_name(interface)};\n")
+        if interface_is_location_object(interface):
+            out.write(f"extern JSHostObjectHooks const {LOCATION_WRAPPER_HOOKS};\n")
         out.write(
-            f"""extern JSHostClass const {wrapper_host_class_name(interface)};
-
+            f"""
 class {export_macro}{wrapper_class_name(interface)} : public {base_class} {{
     WEB_PLATFORM_OBJECT({wrapper_class_name(interface)}, {base_class});
     GC_DECLARE_ALLOCATOR({wrapper_class_name(interface)});
@@ -130,8 +133,6 @@ public:
 """
             )
 
-        write_legacy_platform_object_hook_declarations(out, interface)
-
         out.write("\nprotected:\n")
         out.write(f"    {impl_type}& impl();\n")
         out.write(f"    {impl_type} const& impl() const;\n")
@@ -143,6 +144,8 @@ public:
             out.write("\nprivate:\n")
             out.write("    HTML::CrossOriginPropertyDescriptorMap m_cross_origin_property_descriptor_map;\n")
         out.write("};\n\n")
+
+        write_legacy_platform_object_function_declarations(out, interface)
 
     out.write(
         f"""struct {interface.constructor_class} {{
