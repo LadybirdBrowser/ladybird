@@ -563,9 +563,9 @@ void NodeWithStyle::set_computed_values(Layout::BegunRead const& read, NonnullRe
     m_has_layout_derived_style = true;
 }
 
-void NodeWithStyle::set_style_record_identity(CSS::StyleRecordID style_record_identity)
+void NodeWithStyle::set_style_record_identity(CSS::InstalledStyle const& installed, CSS::InstalledStyle const& held_before)
 {
-    auto const& read = held_read();
+    auto style_record_identity = installed.record();
     // A detached or layout-derived record is independent of its DOM target's record. A
     // rendering consequence replaces and re-derives it explicitly through apply_style().
     if (m_has_layout_derived_style)
@@ -578,13 +578,16 @@ void NodeWithStyle::set_style_record_identity(CSS::StyleRecordID style_record_id
     bool should_repin_style_record = m_style_record_pinned_for_cxx_consumers;
     // Both answers come from the records themselves, so neither side needs a ComputedValues built
     // for it. An overlay record borrows different payloads than its base, so carrying one is already
-    // reason enough to treat the style as layout-affecting.
-    auto const& style_engine = document().style_computer().style_engine();
-    auto const new_record_view = style_engine.style_record_view(read, style_record_identity);
+    // reason enough to treat the style as layout-affecting. The node's own record is the one its
+    // target held before where the node followed it, which the target still holds.
+    auto const& new_record_view = installed.view();
     VERIFY(new_record_view.present);
     CSS::StyleEngine::StyleRecordView old_record_view {};
-    if (!!m_style_record_identity)
-        old_record_view = style_engine.style_record_view(read, m_style_record_identity);
+    if (!!m_style_record_identity) {
+        old_record_view = held_before.record() == m_style_record_identity
+            ? held_before.view()
+            : document().style_computer().style_engine().style_record_view(held_read(), m_style_record_identity);
+    }
     bool changes_layout_affecting_style = !old_record_view.present
         || old_record_view.animation_overlay_identity != 0
         || new_record_view.animation_overlay_identity != 0

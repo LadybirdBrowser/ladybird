@@ -29,6 +29,12 @@
 #include <LibWeb/Painting/PaintFacts.h>
 #include <LibWeb/TreeTraversal.h>
 
+namespace Web::CSS {
+
+class InstalledStyle;
+
+}
+
 namespace Web::Layout {
 
 static_assert(sizeof(Compositing::RustFFI::NodeSlotId) == sizeof(u32));
@@ -667,7 +673,9 @@ public:
     bool is_scroll_container() const;
 
     void set_computed_values(Layout::BegunRead const& read, NonnullRefPtr<CSS::ComputedValues const>);
-    void set_style_record_identity(CSS::StyleRecordID);
+    // Takes the record its DOM target installed, `installed`, where it followed the target's record. `held_before` is
+    // the record the target held before and still holds, or none.
+    void set_style_record_identity(CSS::InstalledStyle const& installed, CSS::InstalledStyle const& held_before);
     void refresh_style_from_arena(CSS::StyleRecordID, void const* payloads, bool derived, bool should_attach_resources);
     // The pin lives on the node's arena row and is released with it, so
     // Document::tear_down_layout_tree() must free the layout root before the document's style
