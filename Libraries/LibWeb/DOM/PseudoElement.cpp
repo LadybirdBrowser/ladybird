@@ -88,8 +88,10 @@ void SyntheticPseudoElement::replace_style_record(CSS::StyleRecordID style_recor
     if (m_installed_style.record() == style_record_identity)
         return;
     m_installed_style = m_originating_element->document().style_computer().install_style(read, style_record_identity);
+    // Only an element holds the record it installed before in the engine, so a pseudo-element's layout node reads the
+    // one it moves from itself.
     if (auto* layout_node = unsafe_layout_node(read))
-        layout_node->set_style_record_identity(style_record_identity);
+        layout_node->set_style_record_identity(m_installed_style, {});
 }
 
 void SyntheticPseudoElement::set_computed_style(CSS::StyleRecordID style_record_identity)

@@ -5203,11 +5203,13 @@ void Element::replace_style_record(CSS::StyleRecordID style_record_identity)
     VERIFY(!style_record_identity || style_node_id() != 0);
     if (m_installed_style.record() == style_record_identity)
         return;
-    m_installed_style = document().style_computer().install_style(read, style_record_identity);
+    auto held_before = exchange(m_installed_style, document().style_computer().install_style(read, style_record_identity));
+    // The element holds the record it installed before until the engine takes the new one in, so the layout node reads
+    // what it moves from before the element lets go of it.
+    if (auto* layout_node = unsafe_layout_node(read))
+        layout_node->set_style_record_identity(m_installed_style, held_before);
     if (style_node_id() != 0)
         document().style_computer().style_engine().set_held_style_record(style_node_id(), style_record_identity);
-    if (auto* layout_node = unsafe_layout_node(read))
-        layout_node->set_style_record_identity(style_record_identity);
     // The resources an SVG graphics element's `mask`, `clip-path`, `fill` and `stroke` name are published beside its
     // attributes for the layout tree build to resolve, so they follow every record the element takes.
     if (is<SVG::SVGGraphicsElement>(*this) && !!style_record_identity)
