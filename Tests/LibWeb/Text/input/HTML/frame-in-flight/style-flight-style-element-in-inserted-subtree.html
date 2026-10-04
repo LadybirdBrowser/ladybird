@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<div id="box"></div>
+<script>
+    // A subtree inserted beside a frame in flight, with a <style> ahead of other elements: the <style>'s insertion steps
+    // write its sheet to the style engine in place, which drains the style transaction that flew while the elements
+    // after the <style> have yet to run their own insertion steps. They arrive in the style engine with their features
+    // all the same, and the next style update styles them.
+    asyncTest(async done => {
+        const state = await whileRecordingInFlight(() => {
+            box.style.height = "30px";
+        }, state => {
+            const subtree = document.createElement("div");
+            subtree.innerHTML = `<style>#after { width: 50px; } .late { color: rgb(0, 128, 0); }</style><div id="after"><span class="late">after</span></div>`;
+            document.body.appendChild(subtree);
+            return state;
+        });
+        println(`state in the next task: ${state}`);
+        await twoFrames();
+        const late = document.querySelector(".late");
+        println(`after: ${after.offsetWidth} ${getComputedStyle(late).color}`);
+        done();
+    });
+</script>

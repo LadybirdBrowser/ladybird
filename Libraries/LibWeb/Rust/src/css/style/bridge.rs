@@ -1308,7 +1308,10 @@ impl StyleEngineState {
                     continue;
                 };
                 let custom_states = custom_states.iter().copied().map(StyleAtomID).collect::<Vec<_>>();
-                self.record_element_arrival(node, arrival, &custom_states, node_is_arriving(node), counters);
+                // The host can submit an element's features a batch after its arrival, where it submitted its input
+                // as the element's subtree was being inserted: the arrival is pending still.
+                let arriving = node_is_arriving(node) || self.node_arrival_is_pending(node);
+                self.record_element_arrival(node, arrival, &custom_states, arriving, counters);
             }
             self.settle_batched_inputs(counters);
         }
