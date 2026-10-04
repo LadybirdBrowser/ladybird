@@ -84,8 +84,8 @@ void Cache::match(JS::Realm& realm, Fetch::RequestInfo request, CacheQueryOption
                 // 2. Else:
                 else {
                     // 1. Resolve promise with the first element of responses.
-                    auto first_element = responses.indexed_get(0).release_value();
-                    WebIDL::resolve_promise(promise, first_element.value);
+                    auto first_element = TRY(responses.get(0));
+                    WebIDL::resolve_promise(promise, first_element);
                 }
 
                 return JS::js_undefined();
@@ -368,7 +368,8 @@ void Cache::add_all(JS::Realm& realm, ReadonlySpan<Fetch::RequestInfo> requests,
             // 2. Let index be zero.
             // 3. For each response in responses:
             for (size_t index = 0; index < responses.indexed_array_like_size(); ++index) {
-                auto& response = as<Fetch::Infrastructure::Response>(responses.indexed_get(index)->value.as_cell());
+                auto response_value = TRY(responses.get(index));
+                auto& response = as<Fetch::Infrastructure::Response>(response_value.as_cell());
 
                 // 1. Let operation be a cache batch operation.
                 auto operation = GC::Heap::the().allocate<CacheBatchOperation>(
