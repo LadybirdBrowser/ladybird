@@ -1,0 +1,2 @@
+Map values intact: 100
+Set values intact: 100
