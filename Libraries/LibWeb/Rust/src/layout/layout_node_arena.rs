@@ -5127,15 +5127,19 @@ fn counter_owner(style_node: u32, generated_for: u8) -> Option<super::counters::
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn render_state_innermost_list_item_counter_is_own_forward_counter(
     host: *const DocumentHost,
-    read: &crate::render_state::BegunRead,
     style_node: u32,
 ) -> bool {
     let Some(element) = StyleNodeID::from_raw(style_node) else {
         return false;
     };
+    // The counters a frame in flight lays out are not known beside it, which answers no.
+    // SAFETY: Guaranteed by the caller.
+    let Some(here) = unsafe { &*host }.layout_waits_for_no_frame() else {
+        return false;
+    };
     // SAFETY: Guaranteed by the caller.
     unsafe {
-        read_arena(host, read, element, |arena, element| {
+        read_arena(host, here, element, |arena, element| {
             arena
                 .counters_sets()
                 .borrow()

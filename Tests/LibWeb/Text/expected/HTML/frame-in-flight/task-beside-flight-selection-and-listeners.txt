@@ -1,0 +1,9 @@
+state next task: in-flight
+state after a text control selection: in-flight
+state after a document selection: in-flight
+state after removing the selection's range: in-flight
+state after a blocking wheel listener: in-flight
+state after a list item: in-flight
+selection: 2-5, document ranges: 0
+list items: 3, height: 48
+box height: 12

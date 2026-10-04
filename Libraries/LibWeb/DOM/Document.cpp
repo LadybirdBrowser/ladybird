@@ -1047,16 +1047,9 @@ void Document::set_find_in_page_active_match(GC::Ptr<Range> active_match)
     m_find_in_page_active_match = active_match;
     m_find_in_page_active_match_text = active_match ? active_match->to_string() : Utf16String {};
     set_needs_highlight_style_update(CSS::PseudoElement::SearchText);
-    if (!has_committed_viewport_box())
-        return;
-    // Painting the match is the find's own read of the paint state.
-    Layout::ForcedReadScope read { *this, false };
-    if (active_match) {
-        paint_state().recompute_search_text_states(read, *this, *active_match);
-    } else {
-        paint_state().reset_search_text_states();
-    }
-    static_cast<Node&>(*this).set_needs_repaint(InvalidateDisplayList::PaintCommands);
+    // The boxes the match paints through are found by the invalidation journal as it drains: the match may change
+    // beside a frame in flight, which holds the boxes.
+    invalidation_journal().note_search_text_changed();
 }
 
 static bool realign_find_in_page_match_to_its_text(Range& match, Utf16String const& text)
@@ -9963,6 +9956,7 @@ void Document::reset_cursor_blink_cycle()
 
 void Document::set_cursor_position_needs_repaint()
 {
+    // The node's box is found by the invalidation journal as it drains.
     auto repaint_position = [](DOM::Position& position) {
         position.node()->set_needs_repaint(InvalidateDisplayList::PaintCommands);
     };
