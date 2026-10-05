@@ -31,7 +31,9 @@ use super::intern_table::InternTable;
 use super::memory::MemoryCategory;
 use super::memory::MemoryController;
 use super::memory::MemoryLease;
+#[cfg(test)]
 use super::tree::PseudoElementKind;
+#[cfg(test)]
 use super::tree::PseudoElementTarget;
 use super::tree::StyleNodeID;
 use crate::css::computed_longhand_table::{
@@ -786,6 +788,7 @@ impl ComputedStyleTarget {
     }
 
     #[must_use]
+    #[cfg(test)]
     pub(super) fn pseudo_element_target(self) -> Option<PseudoElementTarget> {
         self.is_pseudo()
             .then(|| PseudoElementTarget::new(PseudoElementKind(u16::from(self.pseudo_kind))))

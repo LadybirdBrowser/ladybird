@@ -148,7 +148,6 @@ pub(crate) enum QueryKind {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]
-#[allow(dead_code)] // True is part of the C++ MatchResult ABI, but no query grammar constructs it.
 pub(crate) enum MatchResult {
     False,
     True,
@@ -157,7 +156,7 @@ pub(crate) enum MatchResult {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]
-#[allow(dead_code)] // Constructed by C++ when it builds the media environment snapshot.
+#[expect(dead_code, reason = "C++ constructs the variants")]
 pub enum FfiMediaFeatureValueKind {
     Absent,
     Ident,
@@ -1436,7 +1435,6 @@ enum QueryTree {
 }
 
 pub struct FfiQueryHandle {
-    #[allow(dead_code)] // Read by query operations added in subsequent porting stages.
     tree: QueryTree,
 }
 

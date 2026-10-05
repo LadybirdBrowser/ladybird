@@ -1344,7 +1344,6 @@ retained_list!(RetainedLinearEasingStopList, RetainedLinearEasingStop, native);
 #[repr(u8)]
 #[derive(Clone, Copy, PartialEq, Eq)]
 // The C++ constructor supplies every variant through the FFI input.
-#[allow(dead_code)]
 pub enum GridTrackEntryKind {
     LineNames,
     Size,
@@ -1719,7 +1718,6 @@ pub(crate) const COUNTER_FUNCTION_COUNTERS: u8 = 1;
 /// The byte discriminant shares each variant's padding instead of preceding a separate union.
 #[repr(u8)]
 // NB: Variant payload fields are only read by C++ through the exposed layout.
-#[allow(dead_code)]
 #[derive(Clone, PartialEq)]
 pub enum StyleValueData {
     /// A CSS keyword. The value is the generated C++ `enum class Keyword : u16`, opaque to Rust.

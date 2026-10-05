@@ -26,9 +26,9 @@ use crate::render_state::{ArenaChange, DocumentHost};
 /// and has swapped its style already, the level the change names.
 #[repr(u8)]
 #[derive(Clone, Copy, PartialEq, Eq)]
+#[expect(dead_code, reason = "C++ constructs the variants")]
 pub enum FfiDetachedBoxLevel {
     // Only the host names a level, and only a removal names this one.
-    #[allow(dead_code)]
     FromStyle,
     Block,
     AtomicInline,

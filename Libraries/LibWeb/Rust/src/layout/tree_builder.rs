@@ -2805,13 +2805,11 @@ pub enum FfiReplacedElementDisplayAdjustment {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]
 // NB: `Other` is constructed by C++ through the FFI.
-#[allow(dead_code)]
 pub enum FfiPseudoElement {
     Before,
     After,
     Marker,
     Backdrop,
-    Other,
     // Marks counter resolution against the element itself rather than one of its pseudo-elements.
     None,
 }
@@ -2972,9 +2970,7 @@ fn generated_for_of(pseudo_element: FfiPseudoElement) -> u8 {
         FfiPseudoElement::After => GENERATED_FOR_AFTER,
         FfiPseudoElement::Marker => GENERATED_FOR_MARKER,
         FfiPseudoElement::Backdrop => GENERATED_FOR_BACKDROP,
-        FfiPseudoElement::Other | FfiPseudoElement::None => {
-            unreachable!("only a box-generating pseudo-element has a box")
-        }
+        FfiPseudoElement::None => unreachable!("only a box-generating pseudo-element has a box"),
     }
 }
 
@@ -5521,7 +5517,7 @@ mod tests {
         );
         assert_eq!(
             decide(
-                FfiPseudoElement::Other,
+                FfiPseudoElement::Backdrop,
                 ComputedContentType::List,
                 false,
                 false,
@@ -5534,7 +5530,7 @@ mod tests {
         );
         assert_eq!(
             decide(
-                FfiPseudoElement::Other,
+                FfiPseudoElement::Backdrop,
                 ComputedContentType::List,
                 false,
                 true,
@@ -5547,7 +5543,7 @@ mod tests {
         );
         assert_eq!(
             decide(
-                FfiPseudoElement::Other,
+                FfiPseudoElement::Backdrop,
                 ComputedContentType::List,
                 false,
                 false,

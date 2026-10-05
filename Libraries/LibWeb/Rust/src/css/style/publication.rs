@@ -261,6 +261,7 @@ impl RetainedState {
         Some(current)
     }
 
+    #[cfg(test)]
     pub(super) fn retained_store_supports_property(target: computed::ComputedStyleTarget, property: u16) -> bool {
         if property > crate::css::property_metadata::LAST_LONGHAND_PROPERTY_ID
             || (crate::css::property_metadata::property_id::ANIMATION_COMPOSITION
@@ -278,7 +279,7 @@ impl RetainedState {
                 && crate::css::property_metadata::pseudo_element_supports_property(target.pseudo_kind(), property))
     }
 
-    #[allow(dead_code)]
+    #[cfg(test)]
     pub(crate) fn engine_constructed_cascade_store(
         &self,
         target: computed::ComputedStyleTarget,

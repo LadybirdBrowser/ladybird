@@ -96,7 +96,6 @@ const PORTED_NUMERIC_VALUE_TYPES: [u8; 11] = [
 /// The C++ value-parsing contexts which affect grammar decisions.
 #[repr(u8)]
 #[derive(Clone, Copy, PartialEq, Eq)]
-#[allow(dead_code)]
 pub enum FfiValueParsingContextKind {
     Property,
     Function,

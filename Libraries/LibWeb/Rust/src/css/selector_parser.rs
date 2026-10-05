@@ -772,15 +772,9 @@ impl<'a> SelectorParser<'a> {
                 compound.combinator = Combinator::None;
                 selector.argument_selector_list = Box::new([CompiledSelector::new(Box::new([compound]))]);
             }
-            PseudoClassParameterType::ForgivingSelectorList
-            | PseudoClassParameterType::ForgivingRelativeSelectorList => {
-                let selector_type = if parameter_type == PseudoClassParameterType::ForgivingSelectorList {
-                    SelectorType::Standalone
-                } else {
-                    SelectorType::Relative
-                };
+            PseudoClassParameterType::ForgivingSelectorList => {
                 selector.argument_selector_list =
-                    self.parse_selector_list(values, selector_type, SelectorParsingMode::Forgiving)?;
+                    self.parse_selector_list(values, SelectorType::Standalone, SelectorParsingMode::Forgiving)?;
                 selector.is_forgiving = true;
             }
             PseudoClassParameterType::Ident => {

@@ -16,7 +16,6 @@ pub type SelectorList = Box<[Arc<CompiledSelector>]>;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]
 // NB: Some variants are only constructed by C++ through the FFI.
-#[allow(dead_code)]
 pub enum Combinator {
     None,
     ImmediateChild,
@@ -30,7 +29,6 @@ pub enum Combinator {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]
 // NB: The numeric values are part of the C++ FFI.
-#[allow(dead_code)]
 pub enum NamespaceType {
     Default,
     None,
@@ -84,7 +82,6 @@ impl NameSelector {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]
-#[allow(dead_code)]
 pub enum AttributeMatchType {
     HasAttribute,
     ExactValue,
@@ -97,7 +94,6 @@ pub enum AttributeMatchType {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]
-#[allow(dead_code)]
 pub enum AttributeCaseType {
     Default,
     Sensitive,
@@ -126,7 +122,6 @@ pub enum Direction {
     Other,
 }
 
-#[allow(dead_code)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum PseudoClassParameterType {
     None,
@@ -134,7 +129,6 @@ pub(crate) enum PseudoClassParameterType {
     AnPlusBOf,
     CompoundSelector,
     ForgivingSelectorList,
-    ForgivingRelativeSelectorList,
     Ident,
     LanguageRanges,
     LevelList,
@@ -142,7 +136,6 @@ pub(crate) enum PseudoClassParameterType {
     SelectorList,
 }
 
-#[allow(dead_code)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct PseudoClassMetadata {
     pub parameter_type: PseudoClassParameterType,
@@ -150,7 +143,6 @@ pub(crate) struct PseudoClassMetadata {
     pub is_valid_as_identifier: bool,
 }
 
-#[allow(dead_code)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum PseudoElementParameterType {
     None,
@@ -159,7 +151,6 @@ pub(crate) enum PseudoElementParameterType {
     PTNameSelector,
 }
 
-#[allow(dead_code)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct PseudoElementMetadata {
     pub parameter_type: PseudoElementParameterType,
@@ -167,7 +158,6 @@ pub(crate) struct PseudoElementMetadata {
     pub is_valid_as_identifier: bool,
 }
 
-#[allow(dead_code)]
 fn equals_ascii_case_insensitive(value: &[u16], expected: &[u8]) -> bool {
     value.len() == expected.len()
         && value
