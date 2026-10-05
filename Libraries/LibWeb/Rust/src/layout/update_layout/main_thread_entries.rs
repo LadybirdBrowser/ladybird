@@ -85,8 +85,8 @@ pub unsafe extern "C" fn render_state_pay_flown_round(host: *const DocumentHost,
 
 /// Seals the plan of the clock lease of `host`'s document for the tasks after a rendering update, in `read`: the
 /// elements whose running animations a tick samples, the monotonic time in milliseconds at which the document's
-/// timestamps are zero, and the timestamp of the next event of the animations, past which a tick samples nothing. A
-/// document whose layout is not up to date gets no plan.
+/// timestamps are zero, the timestamp of the next event of the animations, past which a tick samples nothing, and the
+/// timestamp at which the sampled animations have all ended. A document whose layout is not up to date gets no plan.
 ///
 /// # Safety
 ///
@@ -99,6 +99,7 @@ pub unsafe extern "C" fn render_state_seal_clock_plan(
     count: usize,
     time_origin: f64,
     deadline: f64,
+    last_end: f64,
 ) {
     assert!(!host.is_null(), "document host is null");
     // SAFETY: Guaranteed by the caller.
@@ -114,7 +115,7 @@ pub unsafe extern "C" fn render_state_seal_clock_plan(
             .collect();
         let round = seal_clock_round(&main_thread, host, read);
         host.seal_clock_plan(
-            round.map(|round| crate::render_state::ClockPlan::new(elements, time_origin, deadline, round)),
+            round.map(|round| crate::render_state::ClockPlan::new(elements, time_origin, deadline, last_end, round)),
         );
     });
 }

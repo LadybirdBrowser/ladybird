@@ -161,6 +161,12 @@ impl AnimatedOverlay {
         ));
     }
 
+    /// Drops the value an animation of `property` left, where the overlay holds one of its own.
+    pub(crate) fn remove_animated(&mut self, property: u16) {
+        self.entries
+            .retain(|entry| entry.property != property || entry.inherited || entry.post_compute_adjustment);
+    }
+
     fn set_entry(&mut self, entry: FfiAnimatedOverlayEntry) {
         let property = entry.property;
         match self.entries.iter_mut().find(|entry| entry.property == property) {

@@ -1237,10 +1237,7 @@ void Animation::update()
     }
 
     // Act on the pending play or pause task
-    if (m_pending_play_task == TaskState::Scheduled && is_ready()) {
-        m_pending_play_task = TaskState::None;
-        run_pending_play_task();
-    }
+    run_pending_play_task_if_ready();
 
     if (m_pending_pause_task == TaskState::Scheduled && is_ready_to_run_pending_pause_task()) {
         m_pending_pause_task = TaskState::None;
@@ -1263,6 +1260,14 @@ void Animation::update()
             }
         }
     }
+}
+
+void Animation::run_pending_play_task_if_ready()
+{
+    if (m_pending_play_task != TaskState::Scheduled || !is_ready())
+        return;
+    m_pending_play_task = TaskState::None;
+    run_pending_play_task();
 }
 
 void Animation::effect_timing_changed(Badge<AnimationEffect>)

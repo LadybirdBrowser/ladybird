@@ -1,0 +1,5 @@
+lease after the tick: ticking
+last frame presented by: clock
+the presented width is the transition's at the tick: true
+the presented height is the one the shorter transition ended at: true
+the transition started at the rendering update: true

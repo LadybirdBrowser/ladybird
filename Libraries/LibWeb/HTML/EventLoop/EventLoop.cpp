@@ -828,6 +828,26 @@ void EventLoop::update_the_rendering_after_style_and_layout(Vector<GC::Root<DOM:
         return max(0.0, HighResolutionTime::relative_high_resolution_time(frame_timestamp, relevant_global_object(document)));
     };
 
+    // AD-HOC: The CSS animations and transitions the style updates of step 16 began render their first frame in this
+    //         update, which makes them ready (https://drafts.csswg.org/web-animations-1/#ready): their pending play
+    //         tasks run at its time, and the layout of step 19 samples them from there. Left pending until the next
+    //         update, they would not run in the tasks before it, beside which the render clock ticks a document's
+    //         running animations. What the compositor may run keeps the start it is handed until then.
+    for (auto& document : docs) {
+        // NB: A play task resolves the animation's ready promise.
+        TemporaryExecutionContext execution_context { document->relevant_settings_object() };
+        for (auto const& timeline : document->associated_animation_timelines()) {
+            Vector<GC::Ref<Animations::Animation>> pending_css_animations;
+            for (auto& animation : timeline->associated_animations()) {
+                auto const* effect = as_if<Animations::KeyframeEffect>(animation.effect().ptr());
+                if (animation.pending() && (animation.is_css_animation() || animation.is_css_transition()) && effect && !effect->may_run_on_the_compositor())
+                    pending_css_animations.append(animation);
+            }
+            for (auto& animation : pending_css_animations)
+                animation->run_pending_play_task_if_ready();
+        }
+    }
+
     // FIXME: 17. For each doc of docs, if the focused area of doc is not a focusable area, then run the focusing steps for doc's viewport, and set doc's relevant global object's navigation API's focus changed during ongoing navigation to false.
 
     // 18. For each doc of docs, perform pending transition operations for doc. [CSSVIEWTRANSITIONS]

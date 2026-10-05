@@ -361,21 +361,33 @@ impl super::StyleEngine {
     ) -> Result<super::layout_style::DerivedStyleRecord, NeedsHost> {
         use crate::css::animation as anim;
 
-        // Each effect the host sampled last samples at the key its timing gives at these times.
+        // Each effect the host sampled last samples at the key its timing gives at these times. One that left its
+        // active interval since samples nothing, and leaves none of what it animated in the host's sample.
         let effects = self.element_animation_effects(node, 0);
         let mut composed = crate::css::style_compute::SampledEffects::new();
+        let mut composed_properties = smallvec::SmallVec::<[u16; 8]>::new();
+        let mut ended_properties = smallvec::SmallVec::<[u16; 8]>::new();
         for effect in effects.iter().filter(|effect| effect.keyframes.len() >= 2) {
             let Some(timing) = &effect.timing else {
                 continue;
             };
-            if let Some(current_key) = timing.key_at(samples).ok_or(NeedsHost)? {
-                composed.push(anim::FfiSampledAnimationEffect {
-                    effect: anim::FfiAnimationPreparationEffect {
-                        identity: effect.identity,
-                        generation: effect.generation,
-                    },
-                    current_key,
-                });
+            let properties = effect
+                .keyframes
+                .iter()
+                .flat_map(|keyframe| effect.declarations_of(keyframe))
+                .map(|declaration| declaration.property_id);
+            match timing.key_at(samples).ok_or(NeedsHost)? {
+                Some(current_key) => {
+                    composed.push(anim::FfiSampledAnimationEffect {
+                        effect: anim::FfiAnimationPreparationEffect {
+                            identity: effect.identity,
+                            generation: effect.generation,
+                        },
+                        current_key,
+                    });
+                    composed_properties.extend(properties);
+                }
+                None => ended_properties.extend(properties),
             }
         }
 
@@ -383,6 +395,12 @@ impl super::StyleEngine {
         let table = view.longhand_table;
         // SAFETY: The record holds its table and overlay, and the host's install pins the record.
         let mut overlay = unsafe { view.animated_overlay.as_ref() }.cloned().unwrap_or_default();
+        for &property in ended_properties
+            .iter()
+            .filter(|property| !composed_properties.contains(property))
+        {
+            overlay.remove_animated(property);
+        }
         let outcome = self
             .sample_over_record(node, record, &mut overlay, None, composed, transform_reference_box)?
             .outcome;

@@ -22,7 +22,8 @@
 namespace Web::HTML {
 
 // The next time, in the local time of `effect`, at which the main thread has events of it to send: where its phase
-// changes, or where its next iteration starts if a listener hears its iteration events.
+// changes if a listener hears its events there, or where its next iteration starts if one hears its iteration events.
+// Infinity where it has none.
 static Optional<double> next_event_in_local_time(Animations::KeyframeEffect const& effect, double local_time)
 {
     if (effect.start_delay().type != Animations::TimeValue::Type::Milliseconds
@@ -32,14 +33,16 @@ static Optional<double> next_event_in_local_time(Animations::KeyframeEffect cons
     auto start_delay = effect.start_delay().value;
     auto iteration_duration = effect.iteration_duration().value;
     auto active_end = start_delay + effect.active_duration().value;
-    if (local_time < start_delay)
-        return start_delay;
-    if (!(iteration_duration > 0) || local_time >= active_end)
+    if (local_time >= active_end)
         return {};
-    if (!effect.css_animation_iteration_events_are_heard())
-        return active_end;
-    auto next_iteration_start = start_delay + (floor((local_time - start_delay) / iteration_duration) + 1) * iteration_duration;
-    return min(next_iteration_start, active_end);
+    auto next_event = AK::Infinity<double>;
+    if (effect.phase_events_are_heard())
+        next_event = local_time < start_delay ? start_delay : active_end;
+    if (iteration_duration > 0 && effect.css_animation_iteration_events_are_heard()) {
+        auto next_iteration_start = start_delay + max(1.0, floor((local_time - start_delay) / iteration_duration) + 1) * iteration_duration;
+        next_event = min(next_event, min(next_iteration_start, active_end));
+    }
+    return next_event;
 }
 
 // Whether the keyframes of `effect` animate a property a clock tick cannot sample: a custom property, or one that changes
@@ -66,10 +69,12 @@ bool seal_clock_plan(DOM::Document& document, bool may_plan)
     if (may_plan) {
         // The plan reads the boxes of the elements it names and seals its round from the document's layout.
         Layout::ForcedReadScope read { document };
-        // The elements whose running animations a tick samples, and the timestamp of the next event of the document's
-        // animations, at which the main thread takes over again.
+        // The elements whose running animations a tick samples, the timestamp of the next event of the document's
+        // animations, at which the main thread takes over again, and the timestamp at which the sampled animations have
+        // all ended, after which a tick has nothing left to move.
         Vector<u32> elements;
         double deadline = AK::Infinity<double>;
+        double last_end = -AK::Infinity<double>;
         auto plan = [&] {
             if (!document.is_fully_active() || document.hidden() || !document.window())
                 return false;
@@ -109,6 +114,8 @@ bool seal_clock_plan(DOM::Document& document, bool may_plan)
                         || target.ptr() == document.document_element() || target.ptr() == document.body()
                         || !layout_node || !Painting::has_committed_box(*layout_node) || animates_what_a_tick_cannot(keyframe_effect))
                         return false;
+                    auto active_end = keyframe_effect.start_delay().value + keyframe_effect.active_duration().value;
+                    last_end = max(last_end, timeline_time->value + (active_end - local_time->value) / animation.playback_rate());
                     auto element = target->style_node_id().value();
                     if (!elements.contains_slow(element))
                         elements.append(element);
@@ -118,7 +125,7 @@ bool seal_clock_plan(DOM::Document& document, bool may_plan)
         };
         if (plan()) {
             auto time_origin = document.relevant_settings_object().time_origin();
-            Layout::RustFFI::render_state_seal_clock_plan(arena->host(), read, elements.data(), elements.size(), time_origin, deadline);
+            Layout::RustFFI::render_state_seal_clock_plan(arena->host(), read, elements.data(), elements.size(), time_origin, deadline, last_end);
             return true;
         }
     }
