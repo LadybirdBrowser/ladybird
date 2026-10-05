@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    #box { width: 100px; height: 10px; background: green; }
+    #box.wide { width: 200px; }
+</style>
+<div id="box"></div>
+<script>
+    // A rendering update whose style was computed beside the event loop records its frame beside it as well, and the
+    // recording presents the frame itself.
+    asyncTest(async done => {
+        await twoFrames();
+        requestAnimationFrame(() => box.classList.add("wide"));
+        await nextFrame();
+        await nextTask();
+        while (internals.frameSchedulerState() !== "idle")
+            await nextTask();
+        println(`presented by: ${internals.lastFramePresentedBy(document)}`);
+        println(`width: ${box.offsetWidth}`);
+        done();
+    });
+</script>
