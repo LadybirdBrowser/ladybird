@@ -767,14 +767,6 @@ pub unsafe extern "C" fn js_object_has_parameter_map(object: *mut JSObject) -> b
     unsafe { cell_from_abi::<JSObject>(object) }.has_parameter_map()
 }
 
-/// The id of the object's class, one of Layout.h's JS_LAYOUT_CLASS_ID_* values. A class derived at run time, as each
-/// host class is, has the id of the class it extends. Main thread only.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn js_object_class_id(object: *mut JSObject) -> u16 {
-    // SAFETY: See the module documentation.
-    unsafe { cell_from_abi::<JSObject>(object) }.class().id as u16
-}
-
 /// The name of the object's class, which for an object of a host class is the name in its JSHostClass: static UTF-8,
 /// not null-terminated, whose length goes to `out_length`. Main thread only.
 #[unsafe(no_mangle)]
@@ -784,20 +776,6 @@ pub unsafe extern "C" fn js_object_class_name(object: *mut JSObject, out_length:
     // SAFETY: As above, the out parameter is writable.
     unsafe { out_length.write(class_name.len()) };
     class_name.as_ptr()
-}
-
-/// Whether the object's class is the class of the id (a JS_LAYOUT_CLASS_ID_* value) or extends it. Main thread only.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn js_object_is_subclass_of(object: *mut JSObject, class_id: u16) -> bool {
-    // SAFETY: See the module documentation.
-    let mut class = Some(unsafe { cell_from_abi::<JSObject>(object) }.class());
-    while let Some(current) = class {
-        if current.id as u16 == class_id {
-            return true;
-        }
-        class = current.parent;
-    }
-    false
 }
 
 // The engine queries that inline caches and enumeration ask of an object's class

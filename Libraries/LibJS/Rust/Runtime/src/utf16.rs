@@ -689,6 +689,27 @@ pub fn utf16_string_external_memory_size(string: &Utf16String) -> usize {
     }
 }
 
+/// The concatenation of two strings with short ASCII storage if it is short as well, which AK keeps in one word: the
+/// byte count in the tag byte and the bytes after it. The new word is made from the two words directly.
+pub fn concatenate_short_ascii_strings(lhs: &Utf16String, rhs: &Utf16String) -> Option<Utf16String> {
+    assert!(has_short_ascii_storage(lhs) && has_short_ascii_storage(rhs));
+    let byte_count_of = |raw: usize| (raw & 0xff) >> ak::SHORT_STRING_BYTE_COUNT_SHIFT;
+    let (lhs_raw, rhs_raw) = (lhs.raw_identity(), rhs.raw_identity());
+    let (lhs_byte_count, rhs_byte_count) = (byte_count_of(lhs_raw), byte_count_of(rhs_raw));
+    let byte_count = lhs_byte_count + rhs_byte_count;
+    if byte_count > MAX_SHORT_STRING_BYTE_COUNT {
+        return None;
+    }
+
+    // The tag is the lowest byte of the word on the little-endian targets the runtime builds for.
+    const _: () = assert!(cfg!(target_endian = "little"));
+    let bytes_of = |raw: usize, byte_count: usize| (raw >> 8) & ((1usize << (8 * byte_count)) - 1);
+    let bytes = bytes_of(lhs_raw, lhs_byte_count) | (bytes_of(rhs_raw, rhs_byte_count) << (8 * lhs_byte_count));
+    let raw = (bytes << 8) | (byte_count << ak::SHORT_STRING_BYTE_COUNT_SHIFT) | ak::SHORT_STRING_FLAG;
+    // SAFETY: The word is AK's short string of the bytes of both strings, and a short string owns nothing.
+    Some(unsafe { Utf16String::from_raw_owned(raw) })
+}
+
 /// Mirrors AK::Utf16String::has_short_ascii_storage.
 pub fn has_short_ascii_storage(string: &Utf16String) -> bool {
     string.raw_identity() & ak::SHORT_STRING_FLAG != 0

@@ -18,6 +18,7 @@ use std::fmt::{Display, Write};
 use crate::c_type_spelling::{CTypeSpelling, c_type_spelling_of_field};
 use crate::class_id::{ALL_CLASS_IDS, CLASS_COUNT};
 use crate::layout::cell::*;
+use crate::layout::class::*;
 use crate::layout::execution_context::*;
 use crate::layout::host_class::*;
 use crate::layout::host_object::*;
@@ -29,6 +30,7 @@ use crate::layout::vm::*;
 /// The imports the static assertions need to name the same types as the header.
 const STATIC_ASSERTIONS_PREAMBLE: &str = "\
 use crate::layout::cell::*;
+use crate::layout::class::*;
 use crate::layout::execution_context::*;
 use crate::layout::host_object::*;
 use crate::layout::object::*;
@@ -291,6 +293,10 @@ pub fn generate() -> LayoutHeader {
     for kind in [CellKind::Other, CellKind::Object, CellKind::PrimitiveString, CellKind::Symbol, CellKind::BigInt, CellKind::Accessor] {
         w.define(&format!("CELL_KIND_{}", cell_kind_name(kind)), kind as u8);
     }
+
+    w.section("Class, which the first word of a cell points to: its id and the class it extends");
+    offset!(w, "CLASS_ID", ClassLayout, id);
+    offset!(w, "CLASS_PARENT", ClassLayout, parent);
 
     w.section("Object");
     offset!(w, "OBJECT_FLAGS", Object, flags);

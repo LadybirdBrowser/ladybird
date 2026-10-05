@@ -6,7 +6,7 @@
 
 use core::cell::{Cell, UnsafeCell};
 
-use ak::{Utf16FlyString, Utf16String, Utf16StringUnits};
+use ak::{Utf16FlyString, Utf16String};
 use libjs_runtime_macros::Trace;
 
 use crate::gc::class::{Class, ExternalMemorySize, GcCell, define_cell};
@@ -22,7 +22,7 @@ use crate::runtime::error_types::ErrorType;
 use crate::runtime::property_key::PropertyKey;
 use crate::runtime::value::DecimalDigits;
 use crate::utf16::{
-    MAX_SHORT_STRING_BYTE_COUNT, Utf16Display, Utf16StringBuilder, Utf16View, concatenate, has_fly_string_storage,
+    Utf16Display, Utf16StringBuilder, Utf16View, concatenate, concatenate_short_ascii_strings, has_fly_string_storage,
     has_short_ascii_storage, to_utf16_fly_string, utf16_string_external_memory_size,
 };
 
@@ -78,19 +78,13 @@ impl PrimitiveString {
         u64_hash(string.raw_identity() as u64) as usize
     }
 
-    fn short_flat_string_storage_view(&self) -> Option<&[u8]> {
+    fn short_flat_string(&self) -> Option<&Utf16String> {
         if self.deferred_kind.get() != DeferredKind::None {
             return None;
         }
 
         let string = self.resolved_utf16_string()?;
-        if !has_short_ascii_storage(string) {
-            return None;
-        }
-        match string.as_units() {
-            Utf16StringUnits::Ascii(bytes) => Some(bytes),
-            Utf16StringUnits::Utf16(_) => None,
-        }
+        has_short_ascii_storage(string).then_some(string)
     }
 
     fn try_create_short_flat_concatenated_string(
@@ -98,15 +92,7 @@ impl PrimitiveString {
         lhs: &PrimitiveString,
         rhs: &PrimitiveString,
     ) -> Option<Gc<PrimitiveString>> {
-        let lhs_view = lhs.short_flat_string_storage_view()?;
-        let rhs_view = rhs.short_flat_string_storage_view()?;
-
-        let byte_count = lhs_view.len() + rhs_view.len();
-        if byte_count > MAX_SHORT_STRING_BYTE_COUNT {
-            return None;
-        }
-
-        let string = Utf16String::from_ascii_concatenation(byte_count, [lhs_view, rhs_view]);
+        let string = concatenate_short_ascii_strings(lhs.short_flat_string()?, rhs.short_flat_string()?)?;
         Some(Self::create(vm, string))
     }
 
