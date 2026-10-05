@@ -15,6 +15,7 @@
 #include <LibJS/Heap/EngineCell.h>
 #include <LibJS/ModuleLoading.h>
 #include <LibJS/Runtime/Completion.h>
+#include <LibJS/Runtime/Environment.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibJS/Script.h>
 

@@ -6,6 +6,7 @@
 
 #include <LibJS/EmbeddingABIConversions.h>
 #include <LibJS/Runtime/AbstractOperations.h>
+#include <LibJS/Runtime/ObjectEnvironment.h>
 
 namespace JS {
 
@@ -23,8 +24,8 @@ static JSValue const* values_to_abi(ReadonlySpan<Value> values)
 // 9.1.2.3 NewObjectEnvironment ( O, W, E ), https://tc39.es/ecma262/#sec-newobjectenvironment
 GC::Ref<ObjectEnvironment> new_object_environment(Object& object, bool is_with_environment, GC::Ptr<Environment> environment)
 {
-    auto* outer_environment = environment ? static_cast<JSEnvironment*>(static_cast<void*>(environment.ptr())) : nullptr;
-    return declared_cell_from_abi<ObjectEnvironment>(js_environment_new_object_environment(vm_to_abi(object.vm()), object_to_abi(object), is_with_environment, outer_environment));
+    auto* outer_environment = environment ? cell_to_abi<JSEnvironment>(*environment) : nullptr;
+    return cell_ref_from_abi<ObjectEnvironment>(js_environment_new_object_environment(vm_to_abi(object.vm()), object_to_abi(object), is_with_environment, outer_environment));
 }
 
 // 9.13 CanBeHeldWeakly ( v ), https://tc39.es/ecma262/#sec-canbeheldweakly

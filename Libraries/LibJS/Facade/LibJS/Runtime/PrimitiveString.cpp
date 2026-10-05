@@ -14,7 +14,7 @@ using namespace EmbeddingABI;
 static GC::Ref<PrimitiveString> primitive_string_from_abi(JSPrimitiveString* string)
 {
     VERIFY(string);
-    return *cell_from_abi<PrimitiveString>(string);
+    return cell_ref_from_abi<PrimitiveString>(string);
 }
 
 GC::Ref<PrimitiveString> PrimitiveString::create(VM& vm, Utf16String const& string)

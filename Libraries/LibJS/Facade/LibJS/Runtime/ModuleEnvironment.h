@@ -6,8 +6,10 @@
 
 #pragma once
 
+#include <AK/HashMap.h>
 #include <LibGC/Ptr.h>
 #include <LibJS/Export.h>
+#include <LibJS/Module.h>
 #include <LibJS/Runtime/DeclarativeEnvironment.h>
 #include <LibJS/Runtime/Environment.h>
 

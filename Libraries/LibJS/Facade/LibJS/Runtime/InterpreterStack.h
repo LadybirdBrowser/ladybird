@@ -7,9 +7,12 @@
 #pragma once
 
 #include <AK/Noncopyable.h>
+#include <AK/Platform.h>
 #include <AK/Span.h>
+#include <AK/Types.h>
 #include <LibJS/Export.h>
 #include <LibJS/Forward.h>
+#include <LibJS/Runtime/ExecutionContext.h>
 
 namespace JS {
 

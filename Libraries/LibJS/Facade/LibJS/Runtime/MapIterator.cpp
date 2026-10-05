@@ -13,10 +13,9 @@ namespace JS {
 
 using namespace EmbeddingABI;
 
-GC::Ref<MapIterator> MapIterator::create_of_property_kind(Realm& realm, Map& map, u8 property_kind)
+GC::Ref<MapIterator> MapIterator::create(Realm& realm, Map& map, Object::PropertyKind iteration_kind)
 {
-    VERIFY(property_kind <= JS_PROPERTY_KIND_KEY_AND_VALUE);
-    auto* iterator = js_collections_map_iterator_create(vm_to_abi(realm.vm()), cell_to_abi<JSRealm>(realm), object_to_abi(map), property_kind);
+    auto* iterator = js_collections_map_iterator_create(vm_to_abi(realm.vm()), cell_to_abi<JSRealm>(realm), object_to_abi(map), to_underlying(iteration_kind));
     return static_cast<MapIterator&>(object_from_abi(iterator));
 }
 

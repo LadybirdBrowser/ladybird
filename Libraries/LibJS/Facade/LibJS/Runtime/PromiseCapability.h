@@ -11,6 +11,7 @@
 #include <LibJS/Export.h>
 #include <LibJS/Forward.h>
 #include <LibJS/Heap/EngineCell.h>
+#include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/Completion.h>
 #include <LibJS/Runtime/Value.h>
 

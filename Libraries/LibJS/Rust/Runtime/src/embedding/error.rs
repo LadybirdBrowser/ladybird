@@ -10,10 +10,12 @@
 use core::ffi::c_void;
 
 use crate::embedding::abi_types::{
-    JSErrorData, JSErrorDataCell, JSErrorKind, JSOwnedUtf16String, JSRealm, JSUtf16View, cell_from_abi, cell_into_abi,
-    completion_into_abi, error_data_from_abi, error_data_into_abi, error_kind_from_abi, optional_cell_from_abi,
-    optional_cell_into_abi, owned_utf16_string_from_abi, owned_utf16_string_into_abi, value_from_abi, vm_from_abi,
+    JSErrorData, JSErrorDataCell, JSErrorKind, JSOwnedUtf16String, JSRealm, JSSourceCode, JSUtf16View, cell_from_abi,
+    cell_into_abi, completion_into_abi, error_data_from_abi, error_data_into_abi, error_kind_from_abi,
+    optional_cell_from_abi, optional_cell_into_abi, owned_utf16_string_from_abi, owned_utf16_string_into_abi,
+    value_from_abi, vm_from_abi,
 };
+use crate::embedding::source_code::source_code_into_abi;
 use crate::gc::class::{Class, GcCell};
 use crate::interpreter::vm::TypeErrorRealmOverride;
 use crate::layout::cell::Gc;
@@ -238,8 +240,9 @@ pub unsafe extern "C" fn js_error_data_traceback_length(error_data: *const JSErr
 }
 
 /// A frame of the call stack of an error, as C++ TracebackFrame: the name of the frame's function, and where in its
-/// source the frame was, which is an empty filename at line and column 0 without a source range. The views stay valid
-/// for as long as the error data does.
+/// source the frame was, which is an empty filename at line and column 0 without a source range. With a source range,
+/// `source_code` is the frame's source code, which the embedder retains to keep it, and null otherwise. The views and
+/// the source code stay valid for as long as the error data does.
 #[repr(C)]
 pub struct JSTracebackFrame {
     pub function_name: JSUtf16View,
@@ -247,6 +250,7 @@ pub struct JSTracebackFrame {
     pub line: u32,
     pub column: u32,
     pub has_source_range: bool,
+    pub source_code: *const JSSourceCode,
 }
 
 /// Writes frame `index` of the call stack of `error_data`, counting from the innermost, to `out`. Call on the VM's
@@ -275,6 +279,12 @@ pub unsafe extern "C" fn js_error_data_traceback_frame(
             line,
             column,
             has_source_range: frame.cached_source_range.is_some(),
+            source_code: frame
+                .cached_source_range
+                .as_ref()
+                .map_or(core::ptr::null(), |source_range| {
+                    source_code_into_abi(&source_range.code)
+                }),
         });
     }
 }

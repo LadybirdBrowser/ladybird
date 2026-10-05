@@ -13,10 +13,9 @@ namespace JS {
 
 using namespace EmbeddingABI;
 
-GC::Ref<SetIterator> SetIterator::create_of_property_kind(Realm& realm, Set& set, u8 property_kind)
+GC::Ref<SetIterator> SetIterator::create(Realm& realm, Set& set, Object::PropertyKind iteration_kind)
 {
-    VERIFY(property_kind <= JS_PROPERTY_KIND_KEY_AND_VALUE);
-    auto* iterator = js_collections_set_iterator_create(vm_to_abi(realm.vm()), cell_to_abi<JSRealm>(realm), object_to_abi(set), property_kind);
+    auto* iterator = js_collections_set_iterator_create(vm_to_abi(realm.vm()), cell_to_abi<JSRealm>(realm), object_to_abi(set), to_underlying(iteration_kind));
     return static_cast<SetIterator&>(object_from_abi(iterator));
 }
 

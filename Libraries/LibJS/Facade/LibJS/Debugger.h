@@ -11,6 +11,7 @@
 #include <AK/Utf16View.h>
 #include <AK/Vector.h>
 #include <LibGC/Root.h>
+#include <LibGC/WeakHashSet.h>
 #include <LibJS/Breakpoint.h>
 #include <LibJS/Export.h>
 #include <LibJS/Forward.h>

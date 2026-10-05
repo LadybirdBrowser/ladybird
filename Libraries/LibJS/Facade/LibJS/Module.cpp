@@ -26,12 +26,12 @@ static void set_utf16_fly_string(void* context, u16 const* code_units, size_t le
 
 Realm& Module::realm()
 {
-    return *cell_from_abi<Realm>(js_module_realm(module_to_abi(*this)));
+    return cell_ref_from_abi<Realm>(js_module_realm(module_to_abi(*this)));
 }
 
 Realm const& Module::realm() const
 {
-    return *cell_from_abi<Realm>(js_module_realm(module_to_abi(*this)));
+    return cell_ref_from_abi<Realm>(js_module_realm(module_to_abi(*this)));
 }
 
 GC::Ptr<ModuleEnvironment> Module::environment()

@@ -9,6 +9,7 @@
 
 #include <AK/Utf16String.h>
 #include <AK/Utf16View.h>
+#include <LibCrypto/BigInt/SignedBigInteger.h>
 #include <LibJS/Export.h>
 #include <LibJS/Runtime/Object.h>
 #include <LibUnicode/TimeZone.h>

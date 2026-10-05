@@ -9,8 +9,10 @@
 #include <AK/ByteString.h>
 #include <AK/Noncopyable.h>
 #include <AK/NonnullRefPtr.h>
+#include <AK/Optional.h>
 #include <AK/RefPtr.h>
 #include <AK/Utf16String.h>
+#include <AK/Vector.h>
 #include <LibCore/ImmutableBytes.h>
 #include <LibJS/Export.h>
 #include <LibJS/Forward.h>

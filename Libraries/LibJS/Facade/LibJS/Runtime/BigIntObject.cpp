@@ -27,7 +27,7 @@ BigInt& BigIntObject::bigint()
 {
     auto* bigint = js_primitive_wrapper_bigint(object_to_abi(*this));
     VERIFY(bigint);
-    return *cell_from_abi<BigInt>(bigint);
+    return cell_ref_from_abi<BigInt>(bigint);
 }
 
 }

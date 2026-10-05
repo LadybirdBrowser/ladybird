@@ -13,12 +13,12 @@ using namespace EmbeddingABI;
 
 FunctionObject& FunctionEnvironment::function_object()
 {
-    return *cell_from_abi<FunctionObject>(js_environment_function_object(cell_to_abi<JSEnvironment>(*this)));
+    return cell_ref_from_abi<FunctionObject>(js_environment_function_object(cell_to_abi<JSEnvironment>(*this)));
 }
 
 FunctionObject const& FunctionEnvironment::function_object() const
 {
-    return *cell_from_abi<FunctionObject>(js_environment_function_object(cell_to_abi<JSEnvironment>(*this)));
+    return cell_ref_from_abi<FunctionObject>(js_environment_function_object(cell_to_abi<JSEnvironment>(*this)));
 }
 
 }

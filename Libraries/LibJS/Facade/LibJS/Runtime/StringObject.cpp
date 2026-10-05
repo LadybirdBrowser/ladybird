@@ -28,7 +28,7 @@ PrimitiveString& StringObject::primitive_string()
 {
     auto* string = js_primitive_wrapper_string(object_to_abi(*this));
     VERIFY(string);
-    return *cell_from_abi<PrimitiveString>(string);
+    return cell_ref_from_abi<PrimitiveString>(string);
 }
 
 }

@@ -9,6 +9,7 @@
 
 #include <LibGC/Heap.h>
 #include <LibJS/Export.h>
+#include <LibJS/Runtime/Environment.h>
 #include <LibJS/Runtime/Object.h>
 #include <LibJS/Runtime/VM.h>
 

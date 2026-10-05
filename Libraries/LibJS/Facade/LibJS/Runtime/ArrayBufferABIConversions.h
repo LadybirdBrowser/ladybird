@@ -24,7 +24,7 @@ inline JSObject* array_buffer_to_abi(ArrayBuffer const& buffer)
 inline ArrayBuffer& array_buffer_from_abi(JSObject* buffer)
 {
     VERIFY(buffer);
-    return *cell_from_abi<ArrayBuffer>(buffer);
+    return cell_ref_from_abi<ArrayBuffer>(buffer);
 }
 
 // LibGC's C interface packs the index and the generation of a handle into one word, with 0 for no storage.
