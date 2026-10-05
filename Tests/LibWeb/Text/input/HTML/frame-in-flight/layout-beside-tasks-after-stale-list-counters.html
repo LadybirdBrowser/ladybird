@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    ol { list-style: none; }
+    li { height: 10px; background-image: url(../../../../Assets/120.png); }
+    li.hidden { display: none; }
+</style>
+<ol id="list"><li></li><li></li></ol>
+<script>
+    // An inserted item leaves the counters of a list that shows no markers stale, so the layout that runs along with
+    // a rendering update's style stops after building the boxes the style asks for: the counters are brought up to
+    // date before the boxes are laid out. That layout is taken in, which destroys the boxes it replaced and lets go of
+    // their background images, before any layout runs beside the tasks after it.
+    asyncTest(async done => {
+        if (document.readyState !== "complete")
+            await new Promise(resolve => window.addEventListener("load", resolve, { once: true }));
+        await twoFrames();
+        list.prepend(document.createElement("li"));
+        println(`height: ${list.offsetHeight}`);
+        for (let i = 0; i < 4; ++i) {
+            requestAnimationFrame(() => list.lastElementChild.classList.toggle("hidden"));
+            await nextFrame();
+            while (internals.frameSchedulerState() !== "idle")
+                await nextTask();
+            println(`height: ${list.offsetHeight}`);
+        }
+        done();
+    });
+</script>

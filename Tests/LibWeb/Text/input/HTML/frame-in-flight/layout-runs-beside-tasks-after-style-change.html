@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    #box { width: 100px; height: 10px; color: rgb(0, 0, 255); }
+    #box.wide { width: 200px; color: rgb(0, 128, 0); }
+</style>
+<div id="box"></div>
+<script>
+    // A rendering update whose style was computed beside the event loop lays out beside it as well, once the event
+    // loop has taken the style in: the tasks after that run while the layout does. Nothing here reads the style or the
+    // layout until the layout is taken in, which a read would wait for, and no rendering update runs to take it in.
+    asyncTest(async done => {
+        await twoFrames();
+        requestAnimationFrame(() => {
+            internals.holdNextFrame("layout");
+            internals.setManualRenderingOpportunities(true);
+            box.classList.add("wide");
+        });
+        await nextFrame();
+        while (internals.frameSchedulerState() !== "laying-out")
+            await nextTask();
+        await nextTask();
+        println(`state in the next task: ${internals.frameSchedulerState()}`);
+        internals.releaseHeldFrame();
+        while (internals.frameSchedulerState() !== "idle")
+            await nextTask();
+        println(`color: ${getComputedStyle(box).color}`);
+        println(`width: ${box.offsetWidth}`);
+        internals.setManualRenderingOpportunities(false);
+        done();
+    });
+</script>

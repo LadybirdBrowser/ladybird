@@ -190,18 +190,27 @@ impl RenderState {
         let Ok(applied) = self.arena.arena().apply_flight_style_rows(HostCalls(&work), rows) else {
             return (Vec::new(), None);
         };
-        let round = round
+        (applied, self.run_round(round, work))
+    }
+
+    /// Runs `round` in a frame, owing the host `work` besides what the round owes it. Answers what the round owes with
+    /// the rows it published after it, where it laid anything out.
+    fn run_round(
+        &mut self,
+        round: crate::layout::SealedRound,
+        work: crate::layout::tree_mutation::OwedHostWork,
+    ) -> Option<(crate::layout::FlownRound, crate::layout::row_reads::RowSnapshot)> {
+        round
             .run(&mut self.arena, work)
-            .map(|round| (round, self.arena.arena_mut().publish_row_snapshot(false)));
-        (applied, round)
+            .map(|round| (round, self.arena.arena_mut().publish_row_snapshot(false)))
     }
 }
 
-/// What a frame that flew brings its host back: what its style transaction answered, the rows of the transaction it
-/// applied to the boxes itself, by element, what its first layout round owes with the rows it published after it, where
-/// it ran one, and the emptied buffer of the writes it took, which the host's queue keeps.
+/// What a frame that flew brings its host back: what its style transaction answered, where it flew with one, the rows of
+/// the transaction it applied to the boxes itself, by element, what its first layout round owes with the rows it
+/// published after it, where it ran one, and the emptied buffer of the writes it took, which the host's queue keeps.
 pub(crate) struct Landing {
-    style: crate::css::style::style_job::StyleJobAnswer,
+    style: Option<crate::css::style::style_job::StyleJobAnswer>,
     applied: Vec<crate::css::style::flight_style_rows::FlightStyleRow>,
     round: Option<(crate::layout::FlownRound, crate::layout::row_reads::RowSnapshot)>,
     changes: Vec<ArenaChange>,
@@ -571,11 +580,11 @@ impl ChangeQueue {
         answer
     }
 
-    /// Takes the queued writes, for a style transaction that flies with them, and holds the style writes queued after,
-    /// until stop_holding_style(). Their buffer comes back with give_back().
-    fn take_for_flight(&self) -> Vec<ArenaChange> {
+    /// Takes the queued writes, for a frame that flies with them, and holds the style writes queued after, until
+    /// stop_holding_style(), where the frame flies `with_style`. Their buffer comes back with give_back().
+    fn take_for_flight(&self, with_style: bool) -> Vec<ArenaChange> {
         self.forget_moves();
-        self.holds_style.set(true);
+        self.holds_style.set(with_style);
         self.queued.replace(self.spare.take())
     }
 
@@ -621,32 +630,37 @@ fn post_to_render_side(job: impl FnOnce() + Send + 'static) {
     crate::stage_thread::style_layout_thread().post(job);
 }
 
-/// Submits `job`, a style transaction of `host`'s document, to the render owner, with the writes the host queued and
-/// `round`, the layout round the host sealed, and goes on: the frame flies beside the host until the host takes it in
-/// and drains the transaction's reactions. Only a transaction that `_license` lets fly is submitted.
+/// Submits `job`, a style transaction of `host`'s document, if any, to the render owner, with the writes the host
+/// queued and `round`, the layout round the host sealed, and goes on: the frame flies beside the host until the host
+/// takes it in and drains the transaction's reactions, or pays the round. Only a frame that `_license` lets fly is
+/// submitted.
 ///
-/// The frame applies the transaction's rows to the boxes itself before the round, where it can: otherwise the round is
-/// left unrun, and the host lays out after it installs the rows.
+/// After a style transaction, the frame applies the transaction's rows to the boxes itself before the round, where it
+/// can: otherwise the round is left unrun, and the host lays out after it installs the rows.
 pub(crate) fn fly(
     host: &DocumentHost,
-    job: crate::css::style::style_job::StyleJob,
+    job: Option<crate::css::style::style_job::StyleJob>,
     round: Option<crate::layout::SealedRound>,
     _license: &crate::painting::recording_slot::FlightLicense,
 ) {
-    let mut changes = host.take_queued_changes_for_flight();
+    let mut changes = host.take_queued_changes_for_flight(job.is_some());
     // The round writes the rows the host has, which it copies rather than writes in place while the host holds them.
     if round.is_some() {
         host.let_go_of_rows();
     }
+    let lays_out_alone = job.is_none();
     host.let_frame_fly(|document, seed, marks| {
         // A host that waits for the frame says the stop word, and the frame comes back with its style alone.
         let run = move |stop: &crate::stage_thread::StopWord| {
             owner::with_state(document, seed, |state| {
                 let ((style, applied, round), marks) = state.with_marks(marks, |state| {
                     state.apply(changes.drain(..));
-                    let style = job.run(state.engine_mut());
-                    let (applied, round) = match round {
-                        Some(round) if !stop.is_said() => state.fly_round(&style, round),
+                    let style = job.map(|job| job.run(state.engine_mut()));
+                    let (applied, round) = match (round, &style) {
+                        (Some(round), Some(style)) if !stop.is_said() => state.fly_round(style, round),
+                        (Some(round), None) if !stop.is_said() => {
+                            (Vec::new(), state.run_round(round, Default::default()))
+                        }
                         _ => (Vec::new(), None),
                     };
                     (style, applied, round)
@@ -663,9 +677,17 @@ pub(crate) fn fly(
             })
         };
         #[cfg(test)]
-        return crate::stage_thread::InFlight::landed(run(&crate::stage_thread::StopWord::default()));
+        return (
+            crate::stage_thread::InFlight::landed(run(&crate::stage_thread::StopWord::default())),
+            false,
+        );
+        // A test may hold a frame that lays out alone before it reads anything, as it holds a recording.
         #[cfg(not(test))]
-        crate::stage_thread::style_layout_thread().submit(run)
+        if lays_out_alone {
+            crate::painting::recording_slot::submit_layout(run)
+        } else {
+            (crate::stage_thread::style_layout_thread().submit(run), false)
+        }
     });
 }
 

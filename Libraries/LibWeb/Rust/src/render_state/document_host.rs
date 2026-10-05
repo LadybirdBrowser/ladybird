@@ -111,6 +111,8 @@ pub struct DocumentHost {
     presented_border_boxes: RefCell<Vec<(StyleNodeID, CssPixelRect)>>,
     /// Whether the render state was leased to the render clock since the last rendering update.
     leased_since_rendering_update: Cell<bool>,
+    /// Whether the frame in flight waits for a test to release it.
+    frame_held_for_testing: Cell<bool>,
 }
 
 /// What runs on the render owner beside the host, which the host takes back before it hands the owner a job: the frame
@@ -186,6 +188,7 @@ impl DocumentHost {
             tick_recording: RefCell::default(),
             presented_border_boxes: RefCell::default(),
             leased_since_rendering_update: Cell::default(),
+            frame_held_for_testing: Cell::default(),
         }
     }
 
@@ -244,15 +247,13 @@ impl DocumentHost {
         self.queue_change(ArenaChange::Rule(write));
     }
 
-    /// Takes the writes the host queued, for a style transaction that flies with them to the render owner.
-    pub(super) fn take_queued_changes_for_flight(&self) -> Vec<ArenaChange> {
+    /// Takes the writes the host queued, for a frame that flies with them to the render owner. The style writes queued
+    /// beside a frame that flies with a style transaction wait for its drain.
+    pub(super) fn take_queued_changes_for_flight(&self, with_style: bool) -> Vec<ArenaChange> {
         // A clock lease ends before the frame flies, and the styles it gives back go first.
         self.end_clock_lease();
-        debug_assert!(
-            !self.has_flown_style(),
-            "one style transaction of a document flies at a time"
-        );
-        self.changes.take_for_flight()
+        debug_assert!(!self.has_flown_style(), "one frame of a document flies at a time");
+        self.changes.take_for_flight(with_style)
     }
 
     /// Pays what the writes a job or a frame applied owe the host, now that the host has it back.
@@ -283,13 +284,14 @@ impl DocumentHost {
     }
 
     /// Lets the frame fly beside the host, in the job `flight` submits to the owner with the document's name, until the
-    /// host drains the reactions of the style transaction it flies with.
+    /// host drains the reactions of the style transaction it flies with. `flight` also answers whether a test holds it.
     pub(super) fn let_frame_fly(
         &self,
-        flight: impl FnOnce(DocumentId, Option<StateSeed>, Option<LayoutTreeUpdateMarks>) -> InFlight<Landing>,
+        flight: impl FnOnce(DocumentId, Option<StateSeed>, Option<LayoutTreeUpdateMarks>) -> (InFlight<Landing>, bool),
     ) {
         self.facts.set(None);
-        let flight = flight(self.document, self.seed.take(), self.lend_marks());
+        let (flight, held_for_testing) = flight(self.document, self.seed.take(), self.lend_marks());
+        self.frame_held_for_testing.set(held_for_testing);
         let previous = self.away.borrow_mut().replace(Away::Flying(flight));
         assert!(previous.is_none(), "one frame of a document flies at a time");
         self.note_frame_wait();
@@ -453,7 +455,13 @@ impl DocumentHost {
     /// drained.
     fn land(&self, read: ForcedRead) {
         match self.away.take() {
-            Some(Away::Flying(flight)) => self.landed(flight.join(read)),
+            Some(Away::Flying(flight)) => {
+                // A frame a test holds goes on as soon as the host waits for it.
+                if self.frame_held_for_testing.take() {
+                    crate::painting::recording_slot::release_held_recording_for_testing();
+                }
+                self.landed(flight.join(read));
+            }
             other => *self.away.borrow_mut() = other,
         }
     }
@@ -472,18 +480,24 @@ impl DocumentHost {
         self.changes.give_back(changes);
         self.take_marks_back(marks);
         self.pay(owed);
-        let previous = self
-            .flown_style
-            .borrow_mut()
-            .replace(FlownStyle::Landed(style, applied));
-        debug_assert!(
-            previous.is_none(),
-            "one style transaction of a document flies at a time"
-        );
+        if let Some(style) = style {
+            let previous = self
+                .flown_style
+                .borrow_mut()
+                .replace(FlownStyle::Landed(style, applied));
+            debug_assert!(
+                previous.is_none(),
+                "one style transaction of a document flies at a time"
+            );
+        }
         if let Some((round, rows)) = round {
             // The layout round that flew with the frame wrote the render state the paint properties are prepared from.
             self.note_render_state_write();
-            *self.flown_round.borrow_mut() = Some(round);
+            let untaken = self.flown_round.borrow_mut().replace(round);
+            assert!(
+                untaken.is_none(),
+                "a layout round that flew is taken in before the next one flies"
+            );
             // The frame's job ended with the rows, so they read as the arena unless the host wrote it since.
             *self.rows.borrow_mut() = Some(Rc::new(rows));
         }
@@ -498,6 +512,11 @@ impl DocumentHost {
     /// Takes the round the host sealed, for the frame that flies with it.
     pub(crate) fn take_sealed_round(&self) -> Option<SealedRound> {
         self.sealed_round.borrow_mut().take()
+    }
+
+    /// Whether a layout round that flew waits for the host to take it in.
+    pub(crate) fn has_flown_round(&self) -> bool {
+        self.flown_round.borrow().is_some()
     }
 
     /// Takes what the layout round that flew owes the host, for the layout update that pays it.
@@ -1302,7 +1321,7 @@ mod tests {
 
     fn hold_style_writes(host: &DocumentHost) {
         assert!(host.changes.is_empty());
-        host.changes.give_back(host.changes.take_for_flight());
+        host.changes.give_back(host.changes.take_for_flight(true));
     }
 
     fn begin_drain(host: &DocumentHost) {

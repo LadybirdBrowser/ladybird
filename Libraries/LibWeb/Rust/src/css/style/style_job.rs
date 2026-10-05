@@ -377,7 +377,7 @@ pub unsafe extern "C" fn style_engine_let_style_transaction_fly(
         computation_inputs: unsafe { SealedStyleInputs::seal(computation_inputs) },
         flies: true,
     };
-    fly(host, job, round, &license);
+    fly(host, Some(job), round, &license);
     true
 }
 

@@ -135,17 +135,48 @@ void Document::update_layout(UpdateLayoutReason reason, ThrottledAnimationSampli
 // to do first, so nothing is sealed while either waits.
 void Document::seal_first_layout_round(Layout::BegunRead const& read)
 {
-    auto navigable = this->navigable();
-    if (!navigable || navigable->active_document().ptr() != this || !m_layout_node_arena)
-        return;
-    if (!m_list_owners_pending_item_renumber.is_empty() || !m_elements_with_pending_top_layer_membership_change.is_empty() || m_top_layer_needs_layout_zone_rebuild)
+    if (!may_seal_first_layout_round())
         return;
     update_highlight_states_if_needed(read);
-    Layout::RustFFI::FfiLayoutUpdateInputs inputs {
+    auto inputs = first_layout_round_inputs();
+    Layout::RustFFI::render_state_seal_first_layout_round(m_layout_node_arena->host(), &read, &inputs);
+}
+
+bool Document::may_seal_first_layout_round() const
+{
+    auto navigable = this->navigable();
+    if (!navigable || navigable->active_document().ptr() != this || !m_layout_node_arena)
+        return false;
+    return m_list_owners_pending_item_renumber.is_empty() && m_elements_with_pending_top_layer_membership_change.is_empty() && !m_top_layer_needs_layout_zone_rebuild;
+}
+
+Layout::RustFFI::FfiLayoutUpdateInputs Document::first_layout_round_inputs() const
+{
+    return {
         .reason_is_inspect_devtools_layout_data = false,
         .is_template_contents_document = m_created_for_appropriate_template_contents,
     };
-    Layout::RustFFI::render_state_seal_first_layout_round(m_layout_node_arena->host(), &read, &inputs);
+}
+
+// The style a rendering update's layout lays out is brought up to date first, as the layout update would: the round then
+// reads it as it is, and what is written beside the round is the next layout update's.
+bool Document::let_layout_fly(Layout::RustFFI::FfiFlightBlocker blocker)
+{
+    if (blocker != Layout::RustFFI::FfiFlightBlocker::None)
+        return false;
+    // The round views the style records the style update leaves it as a layout update does, inside an epoch that spans
+    // both and ends behind the round.
+    style_computer().begin_style_record_view_epoch();
+    ScopeGuard end_style_record_view_epoch = [&] {
+        style_computer().end_style_record_view_epoch();
+    };
+    update_style();
+    if (!may_seal_first_layout_round())
+        return false;
+    Layout::ForcedReadScope read { *this };
+    update_highlight_states_if_needed(read);
+    auto inputs = first_layout_round_inputs();
+    return Layout::RustFFI::render_state_let_first_layout_round_fly(m_layout_node_arena->host(), read, &inputs, blocker);
 }
 
 void Document::update_style_and_layout_once(Layout::BegunRead const& read, UpdateLayoutReason reason, ThrottledAnimationSamplingScope animation_sampling_scope)

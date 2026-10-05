@@ -158,13 +158,31 @@ impl StageThread {
     /// Submits `job` to this thread and goes on: the job owns what it reads, and runs after the jobs handed to the
     /// thread before it. The calling thread takes what the job answers in from the flight once it has finished, and a
     /// job that panics panics there.
-    pub(crate) fn submit<R: Send + 'static>(&self, job: impl FnOnce(&StopWord) -> R + Send + 'static) -> InFlight<R> {
+    pub(crate) fn submit<R: Send + 'static>(
+        &'static self,
+        job: impl FnOnce(&StopWord) -> R + Send + 'static,
+    ) -> InFlight<R> {
+        let (flight, parked) = self.park(job);
+        drop(parked);
+        flight
+    }
+
+    /// Submits `job` as [`Self::submit`] does, but hands it to this thread only once the parked job is dropped, so that
+    /// a test holds the flight without holding the thread up for the jobs handed to it meanwhile.
+    pub(crate) fn park<R: Send + 'static>(
+        &'static self,
+        job: impl FnOnce(&StopWord) -> R + Send + 'static,
+    ) -> (InFlight<R>, ParkedJob) {
         let flight = Flight::pending();
-        self.hand(SubmittedJob::give_up(job, Arc::clone(&flight)));
-        InFlight {
+        let parked = ParkedJob {
+            thread: self,
+            header: SubmittedJob::give_up(job, Arc::clone(&flight)),
+        };
+        let flight = InFlight {
             flight,
             not_send_or_sync: PhantomData,
-        }
+        };
+        (flight, parked)
     }
 
     /// Leases `value` to this thread: it lands at once in the flight the host takes it back from, and the ticker runs
@@ -277,6 +295,21 @@ impl<F: FnOnce() + Send> JobInFrame<F> {
         if let Some(waiting) = waiting {
             waiting.unpark();
         }
+    }
+}
+
+/// A submitted job not handed to its stage thread yet, which it is handed once this drops.
+pub(crate) struct ParkedJob {
+    thread: &'static StageThread,
+    header: NonNull<JobHeader>,
+}
+
+// SAFETY: The job is given up, and `Send`, as are what it answers and the flight it lands in.
+unsafe impl Send for ParkedJob {}
+
+impl Drop for ParkedJob {
+    fn drop(&mut self) {
+        self.thread.hand(self.header);
     }
 }
 

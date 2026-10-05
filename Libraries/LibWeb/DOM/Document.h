@@ -515,6 +515,10 @@ public:
     bool let_style_update_fly(Layout::RustFFI::FfiFlightBlocker blocker);
     // Seals the first round of a rendering update's layout for the frame its style flies in.
     void seal_first_layout_round(Layout::BegunRead const&);
+    // Brings the style up to date, and lets the first round of the rendering update's layout fly beside the event loop
+    // where `blocker` is none and the layout is not up to date. The next layout update takes it in. Answers whether the
+    // round flies.
+    bool let_layout_fly(Layout::RustFFI::FfiFlightBlocker blocker);
     void note_throttled_animation_style_update() { m_has_throttled_animation_style_update = true; }
     void note_animations_that_can_skip_per_frame_style_updates();
     void flush_throttled_animation_style_update();
@@ -1577,6 +1581,10 @@ protected:
     void initialize_document();
 
 private:
+    // Whether the first round of a rendering update's layout may be sealed: list items that wait to be renumbered and top
+    // layer work are the layout update's to do first.
+    bool may_seal_first_layout_round() const;
+    Layout::RustFFI::FfiLayoutUpdateInputs first_layout_round_inputs() const;
     // Whether nothing this document has pending could change layout geometry: style, layout and every input
     // that feeds them are settled.
     [[nodiscard]] bool is_clean_for_layout_geometry_read(Layout::BegunRead const& read) const;

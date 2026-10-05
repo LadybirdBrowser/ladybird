@@ -1701,6 +1701,8 @@ void Internals::inject_rendering_opportunity(double frame_time_ms)
 Utf16String Internals::frame_scheduler_state() const
 {
     auto const& event_loop = HTML::main_thread_event_loop();
+    if (event_loop.lays_out_rendering_update_in_flight())
+        return "laying-out"_utf16;
     if (event_loop.has_frame_in_flight())
         return "in-flight"_utf16;
     if (event_loop.has_rendering_update_in_flight())
@@ -1710,8 +1712,10 @@ Utf16String Internals::frame_scheduler_state() const
 
 void Internals::hold_next_frame(Utf16String const& hold)
 {
-    HTML::main_thread_event_loop().hold_next_frame_for_testing();
     Layout::RustFFI::render_state_hold_next_recording_for_testing();
+    if (hold == "layout"sv)
+        return;
+    HTML::main_thread_event_loop().hold_next_frame_for_testing();
     if (hold == "before-present"sv)
         HTML::main_thread_event_loop().hold_next_frame_before_present_for_testing();
 }

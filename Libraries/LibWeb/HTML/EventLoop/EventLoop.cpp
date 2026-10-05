@@ -499,6 +499,8 @@ struct EventLoop::RenderingUpdateInFlight {
     bool held_for_testing { false };
     // Whose tasks wait for the whole of the update rather than run beside it.
     HeldTasks held_tasks { HeldTasks::None };
+    // Whether the first round of the doc's layout flew after the transaction, once the event loop took it in.
+    bool layout_flew { false };
 };
 
 // The end of a rendering update, once its last step has run.
@@ -1035,6 +1037,11 @@ bool EventLoop::has_frame_in_flight() const
     return m_presentation_queue->has_recording_in_flight();
 }
 
+bool EventLoop::lays_out_rendering_update_in_flight() const
+{
+    return m_rendering_update_in_flight && m_rendering_update_in_flight->layout_flew;
+}
+
 bool EventLoop::holds_rendering_opportunity() const
 {
     return m_rendering_update_in_flight || has_frame_in_flight();
@@ -1057,13 +1064,25 @@ bool EventLoop::holds_tasks_of(DOM::Document const* document) const
     VERIFY_NOT_REACHED();
 }
 
+// The layout of the doc whose style transaction flew runs beside the event loop as well, once the event loop has taken
+// the transaction in. Answers whether it flies.
+bool EventLoop::let_layout_of_rendering_update_fly()
+{
+    auto& update = *m_rendering_update_in_flight;
+    if (exchange(update.layout_flew, true))
+        return false;
+    auto& document = update.document();
+    return document.let_layout_fly(style_flight_blocker(document));
+}
+
 void EventLoop::take_finished_frames_in()
 {
-    // A rendering update whose style transaction has landed goes on; the tasks before that run beside it, but for those
-    // it holds back, which wait. None is in flight in a nested event loop, which finishes it as it begins, and a paused
-    // event loop does not come here.
+    // A rendering update whose style transaction, then layout, has landed goes on; the tasks before that run beside it,
+    // but for those it holds back, which wait. None is in flight in a nested event loop, which finishes it as it begins,
+    // and a paused event loop does not come here.
     if (m_rendering_update_in_flight && !m_rendering_update_in_flight->held_for_testing
-        && !m_rendering_update_in_flight->document().style_computer().style_engine().style_transaction_flies())
+        && !m_rendering_update_in_flight->document().style_computer().style_engine().style_transaction_flies()
+        && !let_layout_of_rendering_update_fly())
         resume_rendering_update_in_flight();
 
     m_presentation_queue->present_landed_frames();

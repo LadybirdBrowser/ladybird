@@ -1,0 +1,3 @@
+state in the next task: laying-out
+color: rgb(0, 128, 0)
+width: 200

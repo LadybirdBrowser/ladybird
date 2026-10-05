@@ -1,0 +1,2 @@
+state after a collection: laying-out
+width: 200
