@@ -221,14 +221,15 @@ void SharedResourceRequest::handle_successful_fetch(URL::URL const& url_string, 
     // FIXME: Bring this closer to spec.
 
     if (is_svg_image == IsSVGImage::Yes) {
-        auto result = SVG::SVGDecodedImageData::create(m_page, url_string, data);
-        if (result.is_error()) {
-            handle_failed_fetch();
-        } else {
-            m_image_data = result.release_value();
-            m_image_data->set_is_cors_cross_origin(image_data_is_cors_cross_origin);
-            handle_successful_resource_load();
-        }
+        SVG::SVGDecodedImageData::decode(m_page, url_string, data)
+            ->when_resolved([self = GC::Root { *this }, image_data_is_cors_cross_origin](auto& image_data) {
+                self->m_image_data = image_data.ptr();
+                self->m_image_data->set_is_cors_cross_origin(image_data_is_cors_cross_origin);
+                self->handle_successful_resource_load();
+            })
+            .when_rejected([self = GC::Root { *this }](Error&) {
+                self->handle_failed_fetch();
+            });
         return;
     }
 
