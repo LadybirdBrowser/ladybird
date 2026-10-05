@@ -692,13 +692,11 @@ pub(super) fn table_cell_contents_never_observe_intrinsic_block_padding(
     if !facts.is_table_cell() || facts.is_scroll_container() {
         return false;
     }
-    let mut child = callbacks.first_child(box_);
-    while !child.is_invalid() {
+    for child in callbacks.children(box_) {
         let child_facts = NodeFacts::new(callbacks, child);
         if !child_facts.is_text_node() && !child_facts.is_break_node() {
             return false;
         }
-        child = callbacks.next_sibling(child);
     }
     true
 }

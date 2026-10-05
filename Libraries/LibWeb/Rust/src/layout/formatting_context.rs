@@ -1177,9 +1177,7 @@ fn create_formatting_context_implementation<'pass>(
 }
 
 fn register_table_abspos_descendants(run: &FormattingContextRun, parent: Node) {
-    let mut child = run.callbacks.first_child(parent);
-    while !child.is_invalid() {
-        let next = run.callbacks.next_sibling(child);
+    for child in run.callbacks.children(parent) {
         let facts = NodeFacts::new(&run.callbacks, child);
         if facts.is_box() {
             if facts.is_absolutely_positioned() {
@@ -1204,7 +1202,6 @@ fn register_table_abspos_descendants(run: &FormattingContextRun, parent: Node) {
         } else {
             register_table_abspos_descendants(run, child);
         }
-        child = next;
     }
 }
 
@@ -1440,8 +1437,7 @@ fn in_flow_children_margin_box_block_extent(
 ) -> Option<CssPixels> {
     let mut block_start = CssPixels::default();
     let mut block_end = CssPixels::default();
-    let mut child = callbacks.first_child(node);
-    while !child.is_invalid() {
+    for child in callbacks.children(node) {
         let facts = NodeFacts::new(callbacks, child);
         if facts.is_box() && !facts.is_absolutely_positioned() {
             let used = records.used_values_if_owned(child)?;
@@ -1454,7 +1450,6 @@ fn in_flow_children_margin_box_block_extent(
             block_end =
                 block_end.max(content_block_offset + used.content_block_size.get() + used.margin_box_bottom(collapsed));
         }
-        child = callbacks.next_sibling(child);
     }
     Some(block_end - block_start)
 }

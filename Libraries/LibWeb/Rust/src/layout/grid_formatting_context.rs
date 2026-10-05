@@ -1528,9 +1528,7 @@ impl<'pass> GridFormattingContext<'pass> {
         let mut inputs = Vec::new();
         let subgridded_columns = self.container_is_subgridded(Axis::Column);
         let subgridded_rows = self.container_is_subgridded(Axis::Row);
-        let mut child = self.callbacks.first_child(self.grid_container);
-        while !child.is_invalid() {
-            let next = self.callbacks.next_sibling(child);
+        for child in self.callbacks.children(self.grid_container) {
             let box_facts = self.facts(child);
             if box_facts.is_box() && !box_facts.is_absolutely_positioned() {
                 let skip = self.callbacks.can_skip_is_anonymous_text_run(child);
@@ -1569,7 +1567,6 @@ impl<'pass> GridFormattingContext<'pass> {
                     nodes.push(child);
                 }
             }
-            child = next;
         }
 
         let style = self.style(self.grid_container);
@@ -3529,9 +3526,7 @@ impl<'pass> GridFormattingContext<'pass> {
         if self.layout_mode != LayoutMode::Normal {
             return;
         }
-        let mut child = self.callbacks.first_child(self.grid_container);
-        while !child.is_invalid() {
-            let next = self.callbacks.next_sibling(child);
+        for child in self.callbacks.children(self.grid_container) {
             if self.facts(child).is_absolutely_positioned() {
                 let rect = abspos_inputs::StaticPositionRect {
                     rect: geometry::LogicalRect::default(),
@@ -3556,7 +3551,6 @@ impl<'pass> GridFormattingContext<'pass> {
                     containing_block_info,
                 );
             }
-            child = next;
         }
         if let Some(fragments) = self.fragments.as_deref() {
             for child in fragments.pending_abspos_children_awaiting_containing_block_info(self.grid_container) {

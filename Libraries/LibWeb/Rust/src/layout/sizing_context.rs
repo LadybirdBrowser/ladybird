@@ -137,10 +137,8 @@ impl<'pass> SizingContext<'pass> {
                             return true;
                         }
                     }
-                    let mut child = self.first_child(node);
-                    while !child.is_invalid() {
+                    for child in self.callbacks.children(node) {
                         pending.push(child);
-                        child = self.next_sibling(child);
                     }
                 }
                 false

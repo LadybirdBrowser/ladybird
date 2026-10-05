@@ -2560,13 +2560,11 @@ impl<'pass> TableFormattingContext<'pass> {
         if self.style(cell.box_).text_indent().contains_percentage() {
             return None;
         }
-        let mut child = self.callbacks.first_child(cell.box_);
-        while !child.is_invalid() {
+        for child in self.callbacks.children(cell.box_) {
             let facts = NodeFacts::new(&self.callbacks, child);
             if !facts.is_text_node() && !facts.is_break_node() {
                 return None;
             }
-            child = self.callbacks.next_sibling(child);
         }
         Some(threshold)
     }
