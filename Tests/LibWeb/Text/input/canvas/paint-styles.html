@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        function makeStyles(context) {
+            const linear = context.createLinearGradient(0, 0, 8, 0);
+            const radial = context.createRadialGradient(0, 0, 0, 0, 0, 8);
+            const conic = context.createConicGradient(0, 4, 4);
+            for (const gradient of [linear, radial, conic]) {
+                gradient.addColorStop(0, "red");
+                gradient.addColorStop(1, "red");
+            }
+            const source = document.createElement("canvas");
+            source.width = source.height = 4;
+            const sourceContext = source.getContext("2d");
+            sourceContext.fillStyle = "red";
+            sourceContext.fillRect(0, 0, 4, 4);
+            return [
+                ["solid", "red"],
+                ["linear", linear],
+                ["radial", radial],
+                ["conic", conic],
+                ["pattern", context.createPattern(source, "repeat")],
+            ];
+        }
+
+        const canvas = document.createElement("canvas");
+        canvas.width = canvas.height = 8;
+        for (const [name, target] of [["canvas", canvas], ["offscreen", new OffscreenCanvas(8, 8)]]) {
+            const context = target.getContext("2d");
+            for (const [styleName, style] of makeStyles(context)) {
+                context.clearRect(0, 0, 8, 8);
+                context.fillStyle = style;
+                context.beginPath();
+                context.rect(0, 0, 8, 8);
+                context.fill();
+                const fill = context.getImageData(4, 4, 1, 1).data;
+
+                context.clearRect(0, 0, 8, 8);
+                context.strokeStyle = style;
+                context.lineWidth = 4;
+                context.beginPath();
+                context.moveTo(0, 4);
+                context.lineTo(8, 4);
+                context.stroke();
+                const stroke = context.getImageData(4, 4, 1, 1).data;
+                println(`${name} ${styleName}: fill=${fill}; stroke=${stroke}`);
+            }
+        }
+    });
+</script>
