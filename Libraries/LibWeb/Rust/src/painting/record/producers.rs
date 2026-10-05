@@ -140,7 +140,7 @@ impl<O: Observer> PaintRecorder<'_, O> {
     }
 
     fn record_svg_box_foreground(&mut self, owner: NodeSlotId) {
-        self.paint_svg_box_impl(owner, PaintPhase::Foreground);
+        self.paint_svg_box_impl(owner);
         self.recorder.set_accumulated_visual_context(ContextRef::default());
     }
 
