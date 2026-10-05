@@ -778,9 +778,11 @@ impl RetainedState {
             DriveScope::Stands => {
                 counters.bump(Counter::EngineComputedRecordUnchangedWinners);
                 counters.bump(Counter::CascadeWinnerDeltaStops);
+                let replaced = self.computed_group_sets.replaced_columns(node);
                 self.note_engine_computed_record(
                     node,
                     (old_style_record, old_style_record),
+                    replaced,
                     (generation, state),
                     false,
                     0,
@@ -790,12 +792,13 @@ impl RetainedState {
                 return Ok(ElementAnswer::Delta((old_style_record, old_style_record)));
             }
             DriveScope::Environment(environment) => {
+                let replaced = self.computed_group_sets.replaced_columns(node);
                 let delta = self
                     .computed_group_sets
                     .republish_engine_record_with_environment(node, environment)
                     .expect("an assigned record without an overlay moves to any environment");
                 counters.bump(Counter::EngineComputedRecordUnchangedWinners);
-                self.note_engine_computed_record(node, delta, (generation, state), false, 0, 0, counters)
+                self.note_engine_computed_record(node, delta, replaced, (generation, state), false, 0, 0, counters)
                     .owes_a_transition_step = owes_a_transition_step_to(delta.1);
                 return Ok(ElementAnswer::Delta(delta));
             }
@@ -848,7 +851,7 @@ impl RetainedState {
             let detached_composition = composes_animations
                 .then(|| self.computed_group_sets.detach_composition(node))
                 .flatten();
-            let Some(delta) =
+            let Some(replaced) =
                 self.computed_group_sets
                     .assign_engine_computed_record(node, underlying_style_record, new_style_record)
             else {
@@ -857,13 +860,14 @@ impl RetainedState {
                 }
                 return Err(Unanswered::Refused);
             };
-            let delta = (old_style_record, delta.1);
+            let delta = (old_style_record, new_style_record);
             if delta.0 == delta.1 {
                 counters.bump(Counter::ComputedWinnerPropagationStops);
             }
             let pending = self.note_engine_computed_record(
                 node,
                 delta,
+                replaced,
                 (generation, state),
                 reads_sibling_position,
                 delta_property_count,
@@ -1149,6 +1153,7 @@ impl RetainedState {
         let pending = self.note_engine_computed_record(
             node,
             delta,
+            assembly.replaced,
             (generation, state),
             reads_sibling_position,
             delta_property_count,
@@ -1253,6 +1258,7 @@ impl RetainedState {
         &mut self,
         node: StyleNodeID,
         delta: (computed::FinalStyleRecordID, computed::FinalStyleRecordID),
+        replaced: computed::ReplacedColumns,
         cascade_state: (u64, CascadeStateID),
         reads_sibling_position: bool,
         delta_property_count: u64,
@@ -1274,6 +1280,7 @@ impl RetainedState {
             pseudo_kind: u8::MAX,
             old_style_record: delta.0,
             new_style_record: delta.1,
+            replaced: Some(replaced),
             cascade_state: Some(cascade_state),
             longhand_evaluations,
             owes_a_transition_step: false,
@@ -1358,12 +1365,10 @@ impl RetainedState {
     /// over it again, and its container query inputs back on the record the host holds: the
     /// derived record they were read from goes with the derivation, and may be reclaimed.
     fn revert_engine_computed_element_record(&mut self, pending: PendingEngineComputedRecord) {
-        let previous = pending
-            .detached_composition
-            .as_ref()
-            .map_or(pending.old_style_record, |detached| detached.base);
-        self.computed_group_sets
-            .revert_engine_computed_record(pending.node, pending.new_style_record, previous);
+        if let Some(replaced) = pending.replaced {
+            self.computed_group_sets
+                .revert_engine_computed_record(pending.node, pending.new_style_record, replaced);
+        }
         if let Some(detached) = pending.detached_composition {
             self.computed_group_sets.reattach_composition(pending.node, detached);
         }
@@ -1620,6 +1625,7 @@ impl RetainedState {
                 self.note_engine_computed_record(
                     node,
                     assembly.delta,
+                    assembly.replaced,
                     cascade_state,
                     reads_sibling_position,
                     delta_property_count,
@@ -1712,6 +1718,7 @@ impl RetainedState {
         };
         let font = font.expect("a full drive resolves the font");
         let counter_style_registry = self.table_counter_style_environment_identity(target, &table);
+        let replaced = self.computed_group_sets.replaced_columns(node);
         let (new_style_record, swap_eligible) = self.assemble_and_publish_engine_record(
             Some(target),
             parent_record,
@@ -1748,6 +1755,7 @@ impl RetainedState {
         self.note_engine_computed_record(
             node,
             delta,
+            replaced,
             cascade_state,
             reads_sibling_position,
             delta_property_count,
@@ -1807,6 +1815,7 @@ impl RetainedState {
         })?;
         self.computed_group_sets
             .set_pending_cascade_state(target, cascade_state);
+        let replaced = self.computed_group_sets.replaced_columns(node);
         let publication = self.assign_shared_style_record(
             target,
             record.raw(),
@@ -1819,6 +1828,7 @@ impl RetainedState {
         self.note_engine_computed_record(
             node,
             delta,
+            replaced,
             cascade_state,
             reads_sibling_position,
             delta_property_count,
@@ -4316,6 +4326,9 @@ pub(super) struct PendingEngineComputedRecord {
     pseudo_kind: u8,
     old_style_record: computed::FinalStyleRecordID,
     new_style_record: computed::FinalStyleRecordID,
+    /// What the element's record took the place of, which reverting it restores. None for a
+    /// pseudo-element's record.
+    replaced: Option<computed::ReplacedColumns>,
     /// The winner state the record was derived from; an implicit marker without rules has none.
     cascade_state: Option<(u64, CascadeStateID)>,
     /// Longhands the drive evaluated for the record; counted once C++ installs it.
@@ -5275,6 +5288,7 @@ mod tests {
         let [first, second, third] = raw_nodes.map(|node| StyleNodeID::from_raw(node).unwrap());
         let mut scratch = EngineComputedRecordScratch::default();
         let publish = |engine: &mut StyleEngine, node, pseudo_kind| {
+            let replaced = engine.computed_group_sets.replaced_columns(node);
             let record = engine
                 .publish_computed_groups(
                     computed::ComputedStyleTarget::new(node, pseudo_kind),
@@ -5301,6 +5315,7 @@ mod tests {
                     pseudo_kind,
                     old_style_record: computed::FinalStyleRecordID::NONE,
                     new_style_record: record,
+                    replaced: (pseudo_kind == u8::MAX).then_some(replaced),
                     cascade_state: None,
                     longhand_evaluations: 1,
                     owes_a_transition_step: false,
@@ -5393,6 +5408,7 @@ mod tests {
                 pseudo_kind: u8::MAX,
                 old_style_record: composition,
                 new_style_record: computed::FinalStyleRecordID::NONE,
+                replaced: None,
                 cascade_state: None,
                 longhand_evaluations: 0,
                 owes_a_transition_step: true,

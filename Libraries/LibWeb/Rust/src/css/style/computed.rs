@@ -78,6 +78,18 @@ pub(super) struct EngineComputedAssembly {
     pub(super) canonicalized_groups: u32,
     /// Whether the node's group tuple identity stayed put, so nothing propagates from it.
     pub(super) group_set_unchanged: bool,
+    /// What the record took the place of, for reverting it.
+    pub(super) replaced: ReplacedColumns,
+}
+
+/// What an element's columns held before an engine derivation put its record there, which
+/// reverting the derivation puts back. The swap eligibility is the element's, as the host
+/// published it, and not its record's. A composition detached for the derivation is not held
+/// here: `reattach_composition` puts it back.
+#[derive(Clone, Copy)]
+pub(super) struct ReplacedColumns {
+    inputs: Option<PublishedComputedInputs>,
+    inherited_group_swap_eligible: bool,
 }
 const COMPUTED_VALUE_DEPENDENCY_FLAGS: u8 = (INHERITED_GROUP_SWAP_ELIGIBLE - 1)
     | HOLDS_IMAGE_VALUES
@@ -1757,6 +1769,7 @@ impl ComputedGroupSets {
             longhand_table: Some(longhand_table),
         };
         let new_style_record = self.intern_style_record(new_record).0;
+        let replaced = self.replaced_columns(node);
         // Descendant swaps read the node's inherited groups from their own column.
         self.columns.publish(
             index,
@@ -1778,16 +1791,36 @@ impl ComputedGroupSets {
             delta: (previous_style_record, self.final_base_style_record(new_style_record)),
             canonicalized_groups,
             group_set_unchanged: group_set == old_record.groups,
+            replaced,
         })
     }
 
-    /// Put a node back on the record it held before an engine derivation C++ never installed,
-    /// unless a publication has moved it on since.
+    /// What `node`'s columns hold now, for an engine derivation about to replace its record.
+    pub(super) fn replaced_columns(&self, node: StyleNodeID) -> ReplacedColumns {
+        let index = node.element_index().map(|index| index as usize);
+        let inputs = index.and_then(|index| {
+            Some(PublishedComputedInputs {
+                groups: self.columns.groups(index)?,
+                inherited_groups: self.columns.inherited_groups(index)?,
+                custom_properties: self.columns.custom_properties(index)?,
+                fixed_metadata: self.columns.fixed_metadata(index)?,
+                style_record: (*self.style_record_column.get(index)?)?,
+                animation_overlay_slot: None,
+            })
+        });
+        ReplacedColumns {
+            inputs,
+            inherited_group_swap_eligible: index.is_some_and(|index| self.columns.inherited_group_swap_eligible(index)),
+        }
+    }
+
+    /// Put a node back on what its columns held before an engine derivation C++ never installed,
+    /// `replaced`, unless a publication has moved it on since.
     pub(super) fn revert_engine_computed_record(
         &mut self,
         node: StyleNodeID,
         derived_style_record: FinalStyleRecordID,
-        previous_style_record: FinalStyleRecordID,
+        replaced: ReplacedColumns,
     ) {
         let Some(index) = node.element_index().map(|index| index as usize) else {
             return;
@@ -1801,21 +1834,13 @@ impl ComputedGroupSets {
         // A first record never installed leaves the node the way it was: unassigned, with what
         // the host and its match answer published for it, which the layout tree and the next
         // derivation read.
-        if previous_style_record == FinalStyleRecordID::NONE {
+        let Some(inputs) = replaced.inputs else {
             self.unassign(node);
             return;
-        }
-        let Some(previous_base) = previous_style_record.base_record() else {
-            return;
         };
-        let Some(record) = self.style_records.get_index(previous_base.index()).copied() else {
-            return;
-        };
-        let inherited_identity = record.inherited_groups;
-        self.columns.groups[index] = record.groups.0;
-        self.columns.inherited_groups[index] = inherited_identity.0;
-        self.columns.custom_properties[index] = record.custom_properties.0;
-        self.style_record_column[index] = Some(previous_base);
+        self.columns
+            .publish(index, inputs, replaced.inherited_group_swap_eligible);
+        self.style_record_column[index] = Some(inputs.style_record);
     }
 
     fn intern_fixed_metadata(&mut self, metadata: ComputedFixedMetadata) -> (ComputedFixedMetadataID, bool) {
@@ -1838,13 +1863,13 @@ impl ComputedGroupSets {
 
     /// Assign a node the record another node of its cohort already derived this flush: the same
     /// old record moved to the same new winner state produces the same new record, so only the
-    /// node's columns move.
+    /// node's columns move. Answers what the record took the place of, for reverting it.
     pub(super) fn assign_engine_computed_record(
         &mut self,
         node: StyleNodeID,
         old_style_record: FinalStyleRecordID,
         new_style_record: FinalStyleRecordID,
-    ) -> Option<(FinalStyleRecordID, FinalStyleRecordID)> {
+    ) -> Option<ReplacedColumns> {
         let index = node.element_index()? as usize;
         if self.columns.animation_overlay_slot(index).is_some() {
             return None;
@@ -1859,13 +1884,14 @@ impl ComputedGroupSets {
             .longhand_table
             .and_then(|table| self.computed_longhand_tables.get_index(table.index()))
             .is_some_and(|retained| table_inherited_group_swap_eligible(retained.table()));
+        let replaced = self.replaced_columns(node);
         let inherited_identity = new_record.inherited_groups;
         self.columns.groups[index] = new_record.groups.0;
         self.columns.inherited_groups[index] = inherited_identity.0;
         self.columns.custom_properties[index] = new_record.custom_properties.0;
         self.columns.set_inherited_group_swap_eligible(index, swap_eligible);
         self.style_record_column[index] = Some(new_base_record);
-        Some((old_style_record, new_style_record))
+        Some(replaced)
     }
 
     /// The identity of a record's inherited groups, the way a node assigned it would hold them.
@@ -4170,6 +4196,25 @@ mod tests {
     }
 
     #[test]
+    fn a_dropped_record_restores_the_metadata_and_swap_eligibility_it_replaced() {
+        let mut sets = ComputedGroupSets::default();
+        let node = StyleNodeID::element(1);
+        let target = Some(ComputedStyleTarget::new(node, u8::MAX));
+        let host = sets.publish_unowned(target, &[], 0, 0, metadata(0, 0, 0));
+        let index = node.element_index().unwrap() as usize;
+        let host_metadata = sets.columns.fixed_metadata(index);
+        let replaced = sets.replaced_columns(node);
+        let derived = sets.publish_unowned(target, &[], 0, 0, metadata(0, 1 | INHERITED_GROUP_SWAP_ELIGIBLE, 0));
+        assert_ne!(sets.columns.fixed_metadata(index), host_metadata);
+        assert!(sets.node_inherited_group_swap_eligible(node));
+
+        sets.revert_engine_computed_record(node, derived.style_record_identity, replaced);
+        assert_eq!(sets.assigned_style_record(node), Some(host.style_record_identity));
+        assert_eq!(sets.columns.fixed_metadata(index), host_metadata);
+        assert!(!sets.node_inherited_group_swap_eligible(node));
+    }
+
+    #[test]
     fn a_dropped_first_record_keeps_what_the_host_and_the_answer_published() {
         let mut sets = ComputedGroupSets::default();
         let node = StyleNodeID::element(1);
@@ -4177,6 +4222,7 @@ mod tests {
         sets.set_associated_pseudo_kind(node, 3);
         sets.set_node_answer_incomplete(node, true);
         sets.set_node_pseudo_style_mask(node, Some(1 << 2));
+        let replaced = sets.replaced_columns(node);
         let derived = sets.publish_unowned(
             Some(ComputedStyleTarget::new(node, u8::MAX)),
             &[],
@@ -4185,7 +4231,7 @@ mod tests {
             metadata(0, 0, 0),
         );
 
-        sets.revert_engine_computed_record(node, derived.style_record_identity, FinalStyleRecordID::NONE);
+        sets.revert_engine_computed_record(node, derived.style_record_identity, replaced);
         assert!(sets.assigned_style_record(node).is_none());
         assert_eq!(sets.adjustment_facts(node), 1 << 29);
         assert_eq!(
