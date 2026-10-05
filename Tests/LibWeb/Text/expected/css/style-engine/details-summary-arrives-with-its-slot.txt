@@ -1,0 +1,3 @@
+parsed: summary display=list-item, color=rgb(0, 128, 0), details background=rgb(0, 0, 255)
+inserted: summary display=list-item, color=rgb(0, 128, 0), details background=rgb(0, 0, 255)
+slotted after its slot arrived: color=rgb(255, 0, 0)

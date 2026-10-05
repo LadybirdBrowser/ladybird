@@ -298,17 +298,6 @@ static void record_element_arrival_delta(DOM::Element& element, StyleEngine& sty
         .new_relations = relations_of(element, style_engine, tree_scope),
     });
     style_engine.defer_element_initial_features(element.style_node_id());
-
-    // A slot can take its identity after the nodes assigned to it took theirs - a shadow tree built
-    // from markup assigns before the slot connects - and a slottable's assignment is published as
-    // the slot's identity, so it was published as no slot at all. Publishing it again from the
-    // slot's own arrival is what lets `::slotted()` be answered.
-    if (auto* slot = as_if<HTML::HTMLSlotElement>(element)) {
-        for (auto const& slottable : slot->assigned_nodes_internal()) {
-            if (auto const* assigned = slottable.get_pointer<GC::Ref<DOM::Element>>())
-                record_element_assigned_slot_changed(**assigned, nullptr);
-        }
-    }
 }
 
 void publish_pending_element_features(StyleEngine& style_engine, StyleComputer& style_computer)
@@ -447,6 +436,12 @@ static void record_subtree_arrivals(DOM::Document& document, ReadonlySpan<GC::Re
     // Elements and text nodes in tree order, which is the order their places in the DOM child sequence can be taken
     // in: each node's previous sibling has taken its place first.
     Vector<GC::Ref<DOM::Node>, 64> dom_order_arrivals;
+    // A slot can take its identity after the elements assigned to it took theirs - a shadow tree built from markup
+    // assigns before the slot connects - and a slottable's assignment is published as the slot's identity, so it was
+    // published as no slot at all. Publishing it again once the slot has arrived is what lets `::slotted()` be
+    // answered. An element taken in with the slot names the slot in its own arrival instead, so only the elements
+    // that had an identity before this take-in are collected.
+    Vector<GC::Ref<DOM::Element>> slottables_identified_earlier;
     size_t element_count = 0;
     auto collect = [&](DOM::Node& node, TreeScopeID tree_scope) {
         node.set_style_arrival_pending(false);
@@ -455,6 +450,12 @@ static void record_subtree_arrivals(DOM::Document& document, ReadonlySpan<GC::Re
             arrivals.append({ *element, tree_scope });
             dom_order_arrivals.append(*element);
             ++element_count;
+            if (auto* slot = as_if<HTML::HTMLSlotElement>(*element)) {
+                for (auto const& slottable : slot->assigned_nodes_internal()) {
+                    if (auto const* assigned = slottable.get_pointer<GC::Ref<DOM::Element>>(); assigned && (*assigned)->style_node_id() != no_style_node)
+                        slottables_identified_earlier.append(*assigned);
+                }
+            }
         } else if (auto* shadow_root = as_if<DOM::ShadowRoot>(node); shadow_root && shadow_root->style_node_id() == no_style_node) {
             arrivals.append({ *shadow_root, tree_scope });
         } else if (auto* text = as_if<DOM::Text>(node); text && text->style_node_id() == no_style_node) {
@@ -513,6 +514,8 @@ static void record_subtree_arrivals(DOM::Document& document, ReadonlySpan<GC::Re
             if (auto* element = as_if<DOM::Element>(*arrival.node))
                 record_element_arrival_delta(*element, style_engine, arrival.tree_scope);
         }
+        for (auto const& slottable : slottables_identified_earlier)
+            record_element_assigned_slot_changed(slottable, nullptr);
     }
 
     if (dom_order_arrivals.is_empty())
