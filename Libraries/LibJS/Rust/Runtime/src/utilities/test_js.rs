@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! test-js-runtime-rust, the runner of the LibJS runtime tests in Tests/LibJS, as LibTest's JavaScriptTestRunner and
-//! Tests/LibJS/test-js.cpp are for the C++ runtime. This is its main, JavaScriptTestRunnerMain.cpp.
+//! test-js-runtime, the runner of the LibJS runtime tests in Tests/LibJS. Its options, output and JSON follow LibTest's
+//! JavaScriptTestRunner, and this is its main, as JavaScriptTestRunnerMain.cpp is there.
 
 mod javascript_test_runner;
 mod json;
@@ -600,7 +600,7 @@ fn ladybird_main(arguments: &[String]) -> c_int {
     i32::from(test_runner::COUNTS.tests_failed.get() > 0)
 }
 
-/// The entry point the C++ main of test-js-runtime-rust calls.
+/// The entry point the C++ main of test-js-runtime calls.
 ///
 /// # Safety
 ///

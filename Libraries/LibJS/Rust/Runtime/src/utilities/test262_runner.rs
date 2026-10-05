@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! test262-runner-rust: runs test262 tests on the Rust runtime, with the protocol of Utilities/test262-runner.cpp.
+//! test262-runner: runs test262 tests on the runtime, with the protocol that the libjs-test262 driver speaks.
 //!
 //! The runner reads test paths from standard input, one per line. For each test it writes `RESULT <json>`, a NUL and a
 //! newline to standard output, and after the last one `DONE <count>`. While a test runs, standard output is a
@@ -1059,7 +1059,7 @@ mod agent_mode {
         let source = match agents::connect_to_test() {
             Ok(source) => source,
             Err(error) => {
-                eprintln!("test262-runner-rust: an agent could not connect to its test: {error}");
+                eprintln!("test262-runner: an agent could not connect to its test: {error}");
                 return EXIT_SETUP_INPUT_FAILURE;
             }
         };
@@ -1204,7 +1204,7 @@ fn run_test_file(
     }
 }
 
-/// The entry point of test262-runner-rust, called from its C++ main.
+/// The entry point of test262-runner, called from its C++ main.
 ///
 /// # Safety
 ///
@@ -1224,7 +1224,7 @@ pub unsafe extern "C" fn libjs_runtime_rust_test262_runner_main(argc: c_int, arg
         Ok(options) if options.run_as_agent => agent_mode::run_agent(),
         Ok(options) => run(&options),
         Err(error) => {
-            eprintln!("test262-runner-rust: {error}");
+            eprintln!("test262-runner: {error}");
             1
         }
     }

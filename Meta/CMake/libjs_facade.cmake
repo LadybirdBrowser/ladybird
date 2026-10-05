@@ -1,4 +1,4 @@
-# With LIBJS_RUNTIME=Rust, LibJS's users compile against the LibJS facade over the Rust runtime. The facade's headers
+# LibJS's users compile against the LibJS facade over the Rust runtime. The facade's headers
 # live in Libraries/LibJS/Facade/LibJS at the paths the C++ runtime's headers have in Libraries/LibJS, and come first on
 # the include path, so <LibJS/X.h> names the facade's X.h. Every C++ LibJS header that the facade does not provide and
 # that both runtimes do not share gets an #error stub in a generated poison root, which also comes before Libraries, so

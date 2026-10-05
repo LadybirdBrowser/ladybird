@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! js-rust: runs scripts on the Rust runtime, with the command line of Utilities/js.cpp.
+//! js: runs scripts on the runtime.
 
 use core::cell::{Cell, RefCell};
 use core::ffi::{c_char, c_int};
@@ -1935,7 +1935,7 @@ fn ladybird_main(arguments: &[String], line_editor: Option<JSLineEditor>) -> c_i
     }
 }
 
-/// The entry point of js-rust, called from its C++ main on the main thread. The REPL and the debugger prompt read
+/// The entry point of js, called from its C++ main on the main thread. The REPL and the debugger prompt read
 /// their input with `line_editor`, which is copied. Without one, the REPL is not supported, and the debugger prompt
 /// reads the standard input as the C++ js does without libedit.
 ///

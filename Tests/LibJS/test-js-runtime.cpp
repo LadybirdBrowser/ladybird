@@ -9,5 +9,5 @@
 
 ErrorOr<int> ladybird_main(Main::Arguments arguments)
 {
-    return JS::test262_runner_main(arguments.argc, arguments.argv);
+    return JS::test_js_runtime_main(arguments.argc, arguments.argv);
 }

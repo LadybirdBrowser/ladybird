@@ -1,7 +1,6 @@
-# With LIBJS_RUNTIME=Rust, Libraries/LibJS/CMakeLists.txt includes this file in place of building the C++ runtime. The
-# LibJS target is then the facade: the C++ API that LibJS's users need, implemented over the Rust runtime's embedding
-# ABI. It links the runtime with the runtime's symbols hidden, so it exports only its own JS_API functions, and every
-# process that links LibJS has exactly one copy of the runtime.
+# Libraries/LibJS/CMakeLists.txt includes this file. The LibJS target is the facade: the C++ API that LibJS's users need,
+# implemented over the Rust runtime's embedding ABI. It links the runtime with the runtime's symbols hidden, so it
+# exports only its own JS_API functions, and every process that links LibJS has exactly one copy of the runtime.
 
 add_subdirectory(Rust/Runtime)
 

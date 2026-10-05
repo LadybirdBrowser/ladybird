@@ -22,13 +22,6 @@
       ]
     },
     {
-      "name": "RustRuntime",
-      "inherits": [
-        "unix_base",
-        "RustRuntime_base"
-      ]
-    },
-    {
       "name": "Debug",
       "inherits": [
         "unix_base",
@@ -73,13 +66,6 @@
   ],
   "buildPresets": [
     {
-      "name": "RustRuntime",
-      "inherits": "base",
-      "configurePreset": "RustRuntime",
-      "displayName": "Rust Runtime Build",
-      "description": "Build the project in release with LibJS's users on the Rust LibJS runtime"
-    },
-    {
       "name": "Distribution",
       "inherits": "base",
       "configurePreset": "Distribution",
@@ -88,11 +74,6 @@
     }
   ],
   "testPresets": [
-    {
-      "name": "RustRuntime",
-      "inherits": "base",
-      "configurePreset": "RustRuntime"
-    },
     {
       "name": "Distribution",
       "inherits": "base",

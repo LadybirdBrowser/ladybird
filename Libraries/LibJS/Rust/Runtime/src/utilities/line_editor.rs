@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! The line editor that the REPL and the debugger prompt of js-rust read their input with. js-rust's C++ main passes
-//! in the functions of libedit, so that the runtime, which programs that edit no lines link too, does not depend on it.
+//! The line editor that the REPL and the debugger prompt of js read their input with. js's C++ main passes in the
+//! functions of libedit, so that the runtime, which programs that edit no lines link too, does not depend on it.
 
 use core::cell::Cell;
 use core::ffi::{CStr, c_char, c_int};
@@ -15,8 +15,8 @@ use std::io::IsTerminal;
 /// array of malloc()ed strings, the first of which replaces the word before the cursor, as rl_completion_func_t does.
 pub type LineCompletionFunction = unsafe extern "C" fn(line: *const c_char) -> *mut *mut c_char;
 
-/// What js-rust's C++ main passes to libjs_runtime_rust_js_main(): functions of libedit's <editline/readline.h>, and
-/// one that installs a completion function. Utilities/js-rust.cpp declares it field for field. None of the functions
+/// What js's C++ main passes to libjs_runtime_rust_js_main(): functions of libedit's <editline/readline.h>, and one
+/// that installs a completion function. Utilities/js.cpp declares it field for field. None of the functions
 /// is NULL, and each one is called on the thread that called libjs_runtime_rust_js_main().
 #[repr(C)]
 #[derive(Clone, Copy)]

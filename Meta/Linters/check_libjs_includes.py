@@ -129,8 +129,6 @@ EXEMPT_PATHS = (
     "Meta/Fuzzers/FuzzJs.cpp",
     "Tests/ClangPlugins/",
     "Tests/LibJS/",
-    "Utilities/js.cpp",
-    "Utilities/test262-runner.cpp",
 )
 
 CPP_SUFFIXES = {".c", ".cpp", ".h", ".ipc", ".mm"}
