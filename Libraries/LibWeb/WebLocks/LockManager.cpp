@@ -65,7 +65,7 @@ GC::Ref<WebIDL::Promise> LockManager::request(Utf16String const& name, Bindings:
 
     // 3. If environment’s relevant global object’s associated Document is not fully active, then return a promise
     //    rejected with a "InvalidStateError" DOMException.
-    if (auto* window = as_if<HTML::Window>(environment.global_object())) {
+    if (auto* window = HTML::window_from_global_object(environment.global_object())) {
         if (!window->associated_document().is_fully_active())
             return WebIDL::create_rejected_promise_for(environment, WebIDL::InvalidStateError::create("Document is not fully active"_utf16));
     }
@@ -119,7 +119,7 @@ GC::Ref<WebIDL::Promise> LockManager::query()
 
     // 2. If environment’s relevant global object’s associated Document is not fully active, then return a promise
     //    rejected with a "InvalidStateError" DOMException.
-    if (auto* window = as_if<HTML::Window>(environment.global_object())) {
+    if (auto* window = HTML::window_from_global_object(environment.global_object())) {
         if (!window->associated_document().is_fully_active())
             return WebIDL::create_rejected_promise_for(environment, WebIDL::InvalidStateError::create("Document is not fully active"_utf16));
     }

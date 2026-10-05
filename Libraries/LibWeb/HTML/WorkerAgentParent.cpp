@@ -88,9 +88,9 @@ void WorkerAgentParent::start()
     // rendering rate to let the worker pace its rendering updates to match.
     auto maximum_frames_per_second = [&]() -> double {
         auto& global = m_outside_settings->global_object();
-        if (auto* window = as_if<Window>(global))
+        if (auto* window = window_from_global_object(global))
             return window->page().client().maximum_frames_per_second();
-        if (auto* worker_global_scope = as_if<WorkerGlobalScope>(global))
+        if (auto* worker_global_scope = Bindings::worker_global_scope_from_global_object(global))
             return worker_global_scope->page()->client().maximum_frames_per_second();
         return 60.0;
     }();

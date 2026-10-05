@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    function markOutcome(createMark) {
+        try {
+            return `created ${createMark().name}`;
+        } catch (exception) {
+            return exception.name;
+        }
+    }
+
+    asyncTest(async done => {
+        println(`window performance.mark("navigationStart"): ${markOutcome(() => performance.mark("navigationStart"))}`);
+        println(`window performance.mark("loadEventEnd"): ${markOutcome(() => performance.mark("loadEventEnd"))}`);
+        println(`window new PerformanceMark("fetchStart"): ${markOutcome(() => new PerformanceMark("fetchStart"))}`);
+        println(`window performance.mark("ordinary"): ${markOutcome(() => performance.mark("ordinary"))}`);
+
+        const workerSource = `
+            let outcome;
+            try {
+                outcome = "created " + performance.mark("navigationStart").name;
+            } catch (exception) {
+                outcome = exception.name;
+            }
+            postMessage(outcome);
+        `;
+        const worker = new Worker(URL.createObjectURL(new Blob([workerSource], { type: "text/javascript" })));
+        const workerOutcome = await new Promise(resolve => (worker.onmessage = event => resolve(event.data)));
+        println(`worker performance.mark("navigationStart"): ${workerOutcome}`);
+        done();
+    });
+</script>
