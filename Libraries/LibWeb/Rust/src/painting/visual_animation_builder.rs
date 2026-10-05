@@ -11,7 +11,7 @@
 
 use std::ffi::c_void;
 
-use crate::css::absolutize::{COLOR_SYNTAX_LEGACY, number_from_value};
+use crate::css::absolutize::number_from_value;
 use crate::css::css_enums::keyword;
 use crate::css::css_pixels::CssPixels;
 use crate::css::easing::Easing;
@@ -26,6 +26,7 @@ use crate::css::table_group_builder::{
     TRANSFORM_PARAMETER_LENGTH_PERCENTAGE, TRANSFORM_PARAMETER_NUMBER, TRANSFORM_PARAMETER_NUMBER_PERCENTAGE,
     angle_degrees, angle_radians, length_px_unrounded,
 };
+use crate::css::value_codes::COLOR_SYNTAX_LEGACY;
 use crate::painting::filter_bytes::{FfiFilterFunction, FfiFilterFunctionKind};
 use crate::painting::host::{
     FfiCompositorAnimationBuildOutcome, FfiCompositorAnimationHost, FfiCompositorAnimationKeyframe,

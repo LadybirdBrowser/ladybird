@@ -17,7 +17,7 @@ use std::sync::Arc;
 
 use crate::css::style_value::{RetainedStyleValueData, StyleValueData};
 
-include!(concat!(env!("OUT_DIR"), "/dimension_units_generated.rs"));
+pub(crate) use crate::css::dimension_units::*;
 
 pub(crate) fn time_to_milliseconds(value: f64, unit: u8) -> f64 {
     value * TIME_UNIT_CANONICAL_RATIOS[usize::from(unit)] * 1000.0

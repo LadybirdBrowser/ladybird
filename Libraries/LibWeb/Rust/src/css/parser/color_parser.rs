@@ -23,12 +23,7 @@ use crate::css::parser::token_stream::TokenStream;
 use crate::css::style_value::{ColorBase, RetainedNumericRangeList, RetainedStyleValueData, StyleValueData};
 
 use super::value_parser::{ParseContext, context_allows_random_functions, equals_ascii_case_insensitive};
-
-const COLOR_SYNTAX_LEGACY: u8 = 0;
-const COLOR_SYNTAX_MODERN: u8 = 1;
-const VALUE_TYPE_ANGLE: u8 = 2;
-const VALUE_TYPE_NUMBER: u8 = 27;
-const VALUE_TYPE_PERCENTAGE: u8 = 31;
+use crate::css::value_codes::*;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum NumericKind {

@@ -61,3 +61,12 @@ pub(crate) mod style_sheet;
 pub(crate) mod style_value;
 pub mod table_group_builder;
 pub mod transition;
+pub(crate) mod value_codes;
+
+pub(crate) mod dimension_units {
+    include!(concat!(env!("OUT_DIR"), "/dimension_units_generated.rs"));
+}
+
+pub(crate) mod transform_functions {
+    include!(concat!(env!("OUT_DIR"), "/transform_functions_generated.rs"));
+}

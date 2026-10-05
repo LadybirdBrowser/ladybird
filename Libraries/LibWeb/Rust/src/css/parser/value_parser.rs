@@ -53,10 +53,11 @@ use crate::css::style_value::{
     RetainedPropertyIdList, RetainedRequestUrlModifier, RetainedRequestUrlModifierList, RetainedString,
     RetainedStyleValueData, RetainedStyleValueDataList, StyleValueData, shared_style_value,
 };
+use crate::css::value_codes::*;
 use std::ffi::c_void;
 use std::sync::Arc;
 
-include!(concat!(env!("OUT_DIR"), "/dimension_units_generated.rs"));
+pub(crate) use crate::css::dimension_units::*;
 
 pub(crate) fn is_dimension_unit(unit: &[u16]) -> bool {
     LENGTH_UNIT_NAMES
@@ -70,24 +71,6 @@ pub(crate) fn is_dimension_unit(unit: &[u16]) -> bool {
 }
 
 // NB: Keep these in the order of the C++ ValueType enum.
-pub(crate) const VALUE_TYPE_ANGLE: u8 = 2;
-const VALUE_TYPE_COLOR: u8 = 6;
-const VALUE_TYPE_CUSTOM_IDENT: u8 = 10;
-const VALUE_TYPE_DASHED_IDENT: u8 = 11;
-pub(crate) const VALUE_TYPE_FLEX: u8 = 15;
-const VALUE_TYPE_FREQUENCY: u8 = 21;
-const VALUE_TYPE_IMAGE: u8 = 23;
-pub(crate) const VALUE_TYPE_INTEGER: u8 = 24;
-pub(crate) const VALUE_TYPE_LENGTH: u8 = 25;
-const VALUE_TYPE_LENGTH_PERCENTAGE: u8 = 26;
-pub(crate) const VALUE_TYPE_NUMBER: u8 = 27;
-const VALUE_TYPE_OPACITY_VALUE: u8 = 28;
-pub(crate) const VALUE_TYPE_PERCENTAGE: u8 = 31;
-const VALUE_TYPE_RATIO: u8 = 33;
-const VALUE_TYPE_RESOLUTION: u8 = 35;
-const VALUE_TYPE_STRING: u8 = 37;
-const VALUE_TYPE_TIME: u8 = 38;
-const VALUE_TYPE_URL: u8 = 42;
 
 const PORTED_TEXT_VALUE_TYPES: [u8; 4] = [
     VALUE_TYPE_CUSTOM_IDENT,

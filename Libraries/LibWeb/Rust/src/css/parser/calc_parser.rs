@@ -9,6 +9,10 @@
 // Calculation trees are main-thread-only because some leaves retain C++ style values.
 #![allow(clippy::arc_with_non_send_sync)]
 
+use super::value_parser::{
+    ANGLE_UNIT_NAMES, FLEX_UNIT_NAMES, FREQUENCY_UNIT_NAMES, NumericRange, ParseContext, RESOLUTION_UNIT_NAMES,
+    TIME_UNIT_NAMES, context_allows_tree_counting_functions, parse_calculated_numeric_value_with_ranges,
+};
 use crate::css::calc::{
     CalcNode, CalcNumericType, CalcNumericValue, resolve_as_for_value_type, simplify_parsed_calculation,
 };
@@ -18,14 +22,10 @@ use crate::css::css_tokenizer::ParserTokenKind;
 use crate::css::math_functions::{MathFunction, math_function_from_name};
 use crate::css::parser::component_value::{ComponentKind, ComponentValue};
 use crate::css::parser::positions_shapes_parser::parse_anchor_function;
-use crate::css::parser::value_parser::{
-    ANGLE_UNIT_NAMES, FLEX_UNIT_NAMES, FREQUENCY_UNIT_NAMES, NumericRange, ParseContext, RESOLUTION_UNIT_NAMES,
-    TIME_UNIT_NAMES, VALUE_TYPE_NUMBER, context_allows_tree_counting_functions,
-    parse_calculated_numeric_value_with_ranges,
-};
 use crate::css::property_metadata::property_name;
 use crate::css::style_compute::LENGTH_UNIT_NAMES;
 use crate::css::style_value::{RetainedStyleValueData, StyleValueData};
+use crate::css::value_codes::VALUE_TYPE_NUMBER;
 use std::sync::Arc;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

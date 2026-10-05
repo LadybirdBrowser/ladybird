@@ -267,6 +267,7 @@ use crate::css::style_value::{
     BasicShapeData, ColorBase, CssString, OwnedBasicShapeData, RetainedGridTrackEntryList, RetainedStyleValueData,
     RetainedStyleValueDataList, StyleValueData, value_depends_on_current_color,
 };
+use crate::css::value_codes::*;
 
 pub(crate) struct AbsolutizationContext<'a> {
     pub(crate) length: &'a FfiLengthResolutionContext,
@@ -349,8 +350,6 @@ fn currentcolor_keyword() -> StyleValueData {
 }
 
 // ColorStyleValue.h: ColorSyntax::Legacy = 0, Modern = 1.
-pub(crate) const COLOR_SYNTAX_LEGACY: u8 = 0;
-const COLOR_SYNTAX_MODERN: u8 = 1;
 
 fn retained_null() -> RetainedStyleValueData {
     // SAFETY: null encodes an absent optional value.

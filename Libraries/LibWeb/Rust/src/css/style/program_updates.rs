@@ -10,6 +10,7 @@ use crate::css::css_string::CssString;
 use crate::css::declaration_block;
 use crate::css::style_compute::keyword;
 use crate::css::style_value::{ColorBase, RetainedStyleValueData};
+use crate::css::value_codes::*;
 use std::sync::Arc;
 
 // The context-free computed form used to identify numeric RGB declarations. Other
@@ -42,7 +43,6 @@ fn canonical_specified_value(value: &StyleValueData) -> Option<Arc<StyleValueDat
     };
     let [channel_0, channel_1, channel_2] =
         channels.map(|value| RetainedStyleValueData::from_owned(StyleValueData::Number { value: value / 255.0 }));
-    const COLOR_SYNTAX_MODERN: u8 = 1;
     Some(Arc::new(StyleValueData::ColorFunction {
         color_base: ColorBase {
             has_color_type: true,
