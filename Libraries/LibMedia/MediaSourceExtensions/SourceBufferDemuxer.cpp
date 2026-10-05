@@ -276,6 +276,22 @@ void SourceBufferDemuxer::split_run(TrackData& data, size_t run_index, size_t sp
     }
 }
 
+bool SourceBufferDemuxer::removed_frames_overlap_group_of_pictures_being_read(FrameRun const& cursor_run, size_t cursor_frame_index, size_t first_removed_frame_index, size_t removed_frame_count)
+{
+    VERIFY(!cursor_run.frames.is_empty());
+    auto last_frame_index = cursor_run.frames.size() - 1;
+    auto frame_index_in_group = min(cursor_frame_index, last_frame_index);
+
+    auto group_start_index = frame_index_in_group;
+    while (group_start_index > 0 && !cursor_run.frames[group_start_index].is_keyframe())
+        group_start_index--;
+    auto group_end_index = frame_index_in_group + 1;
+    while (group_end_index < cursor_run.frames.size() && !cursor_run.frames[group_end_index].is_keyframe())
+        group_end_index++;
+
+    return first_removed_frame_index < group_end_index && first_removed_frame_index + removed_frame_count > group_start_index;
+}
+
 size_t SourceBufferDemuxer::erase_frames_and_dependants(TrackData& data, size_t run_index, size_t first_frame, size_t minimum_frame_count)
 {
     auto& run = data.runs[run_index];
@@ -302,6 +318,10 @@ size_t SourceBufferDemuxer::erase_frames_and_dependants(TrackData& data, size_t 
         if (configuration.has_value())
             codec_configuration_before_remaining_frames = MUST(FixedArray<u8>::create(*configuration));
     }
+
+    // The frames replacing the group being read may land in another run, so reads must find them by time.
+    if (data.current_run == run_index && removed_frames_overlap_group_of_pictures_being_read(run, data.current_frame, first_frame, frame_count))
+        data.cursor_continuity = CursorContinuity::NeedsReanchoring;
 
     data.total_bytes -= bytes;
     run.frames.remove(first_frame, frame_count);
