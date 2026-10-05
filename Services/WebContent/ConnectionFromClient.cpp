@@ -573,16 +573,16 @@ void ConnectionFromClient::run_beforeunload_check(Web::PageId page_id, Web::HTML
 {
     auto page = this->page(page_id);
     if (!page.has_value()) {
-        async_beforeunload_check_result(page_id, check_id, Web::HTML::HistoryStepResult::Applied, unload_prompt_shown);
+        async_beforeunload_check_result(page_id, check_id, Web::HTML::CheckIfUnloadingIsCanceledResult::Continue, unload_prompt_shown);
         return;
     }
 
-    page->page().history_executor().run_ui_beforeunload_check(move(navigable_ids), move(target_entry), user_involvement_for_navigate_event, unload_prompt_shown, GC::create_function(Web::HTML::main_thread_event_loop().heap(), [this, page_id, check_id](Web::HTML::HistoryStepResult result, Web::HTML::UnloadPromptShown unload_prompt_shown) {
+    page->page().history_executor().run_ui_beforeunload_check(move(navigable_ids), move(target_entry), user_involvement_for_navigate_event, unload_prompt_shown, GC::create_function(Web::HTML::main_thread_event_loop().heap(), [this, page_id, check_id](Web::HTML::CheckIfUnloadingIsCanceledResult result, Web::HTML::UnloadPromptShown unload_prompt_shown) {
         async_beforeunload_check_result(page_id, check_id, result, unload_prompt_shown);
     }));
 }
 
-void ConnectionFromClient::unload_check_result(Web::PageId page_id, Web::HTML::CrossProcessId check_id, Web::HTML::HistoryStepResult result)
+void ConnectionFromClient::unload_check_result(Web::PageId page_id, Web::HTML::CrossProcessId check_id, Web::HTML::CheckIfUnloadingIsCanceledResult result)
 {
     if (auto page = this->page(page_id); page.has_value())
         page->did_receive_unload_check_result(check_id, result);

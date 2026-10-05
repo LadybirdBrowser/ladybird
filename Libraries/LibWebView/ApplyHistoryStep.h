@@ -33,7 +33,7 @@ struct WEBVIEW_API ApplyHistoryStepJobs {
 
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#checking-if-unloading-is-canceled
     // NB: Given targetStep's target entry, which the traversable's host resolves no further.
-    Function<void(Vector<Web::HTML::CrossProcessId> navigables_that_need_before_unload, NonnullRefPtr<CanonicalSessionHistoryEntry> target_entry, Web::HTML::UserNavigationInvolvement user_involvement_for_navigate_event, Function<void(Web::HTML::HistoryStepResult)> on_complete)> check_if_unloading_is_canceled;
+    Function<void(Vector<Web::HTML::CrossProcessId> navigables_that_need_before_unload, NonnullRefPtr<CanonicalSessionHistoryEntry> target_entry, Web::HTML::UserNavigationInvolvement user_involvement_for_navigate_event, Function<void(Web::HTML::CheckIfUnloadingIsCanceledResult)> on_complete)> check_if_unloading_is_canceled;
 
     // NB: This queued work runs in the process hosting the active Window.
     Function<void(Web::HTML::CrossProcessId navigable_id)> queue_navigation_api_state_clear_task;

@@ -69,7 +69,7 @@ public:
     struct UnloadingCheck {
         NonnullRefPtr<WebView::CanonicalSessionHistoryEntry> target_entry;
         Vector<Web::HTML::CrossProcessId> navigables_that_need_before_unload;
-        Function<void(Web::HTML::HistoryStepResult)> on_complete;
+        Function<void(Web::HTML::CheckIfUnloadingIsCanceledResult)> on_complete;
     };
     struct ChangingJob {
         ChangingNavigableHistoryStepJob job;
@@ -88,7 +88,7 @@ public:
     WebView::ApplyHistoryStepJobs jobs()
     {
         return {
-            .check_if_unloading_is_canceled = [this](Vector<Web::HTML::CrossProcessId> navigables_that_need_before_unload, NonnullRefPtr<WebView::CanonicalSessionHistoryEntry> target_entry, Web::HTML::UserNavigationInvolvement, Function<void(Web::HTML::HistoryStepResult)> on_complete) { unloading_checks.append({ move(target_entry), move(navigables_that_need_before_unload), move(on_complete) }); },
+            .check_if_unloading_is_canceled = [this](Vector<Web::HTML::CrossProcessId> navigables_that_need_before_unload, NonnullRefPtr<WebView::CanonicalSessionHistoryEntry> target_entry, Web::HTML::UserNavigationInvolvement, Function<void(Web::HTML::CheckIfUnloadingIsCanceledResult)> on_complete) { unloading_checks.append({ move(target_entry), move(navigables_that_need_before_unload), move(on_complete) }); },
             .queue_navigation_api_state_clear_task = [this](Web::HTML::CrossProcessId navigable_id) { navigation_api_state_clear_tasks.append(navigable_id); },
             .select_changing_navigable_history_step_job_endpoint = [this](ChangingNavigableHistoryStepJob& job) {
                 selected_changing_job_endpoints.append(job.navigable_id);
@@ -381,7 +381,7 @@ TEST_CASE(canceled_unloading_returns_before_any_changing_jobs)
     EXPECT_EQ(job.target_entry->url, parse_url("https://a.example/"sv));
     EXPECT_EQ(job.navigables_that_need_before_unload.size(), 1uz);
     EXPECT_EQ(job.navigables_that_need_before_unload[0], root_id());
-    job.on_complete(Web::HTML::HistoryStepResult::CanceledByBeforeUnload);
+    job.on_complete(Web::HTML::CheckIfUnloadingIsCanceledResult::CanceledByBeforeUnload);
 
     EXPECT(test.runner.changing_jobs.is_empty());
     EXPECT(test.result == Web::HTML::HistoryStepResult::CanceledByBeforeUnload);

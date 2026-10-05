@@ -117,14 +117,20 @@ void ApplyHistoryStep::apply_the_history_step()
     }
 
     m_jobs.check_if_unloading_is_canceled(move(navigables_crossing_documents), *target_entry, m_user_involvement,
-        [this](Web::HTML::HistoryStepResult result) {
+        [this](Web::HTML::CheckIfUnloadingIsCanceledResult result) {
             if (m_completed)
                 return;
-            if (result != Web::HTML::HistoryStepResult::Applied) {
-                return_result(result);
+            switch (result) {
+            case Web::HTML::CheckIfUnloadingIsCanceledResult::CanceledByBeforeUnload:
+                return_result(Web::HTML::HistoryStepResult::CanceledByBeforeUnload);
+                return;
+            case Web::HTML::CheckIfUnloadingIsCanceledResult::CanceledByNavigate:
+                return_result(Web::HTML::HistoryStepResult::CanceledByNavigate);
+                return;
+            case Web::HTML::CheckIfUnloadingIsCanceledResult::Continue:
+                get_changing_and_nonchanging_navigables();
                 return;
             }
-            get_changing_and_nonchanging_navigables();
         });
 }
 

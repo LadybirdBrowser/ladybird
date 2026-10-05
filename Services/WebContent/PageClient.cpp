@@ -1696,12 +1696,12 @@ void PageClient::page_did_request_unload_check(Web::HTML::CrossProcessId navigab
     client().async_request_unload_check(m_id, navigable_id, check_id);
 }
 
-void PageClient::did_receive_unload_check_result(Web::HTML::CrossProcessId check_id, Web::HTML::HistoryStepResult result)
+void PageClient::did_receive_unload_check_result(Web::HTML::CrossProcessId check_id, Web::HTML::CheckIfUnloadingIsCanceledResult result)
 {
     auto on_complete = m_pending_unload_checks.take(check_id);
     if (!on_complete.has_value())
         return;
-    (*on_complete)->function()(result == Web::HTML::HistoryStepResult::Applied ? Web::HTML::CheckIfUnloadingIsCanceledResult::Continue : Web::HTML::CheckIfUnloadingIsCanceledResult::CanceledByBeforeUnload);
+    (*on_complete)->function()(result);
 }
 
 String PageClient::page_did_request_ui_process_session_history_for_testing()
