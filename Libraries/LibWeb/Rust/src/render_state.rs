@@ -377,6 +377,12 @@ struct ChangeQueue {
     spare: Cell<Vec<ArenaChange>>,
     /// What the writes queued may move of what the host knows of the render state.
     moves: Cell<Moves>,
+    /// The style writes queued beside a style transaction that flew, which wait to be queued behind the drain of its
+    /// reactions, whose next transaction's input they are.
+    held_style: RefCell<Vec<ArenaChange>>,
+    /// Whether a style write queued now is held: a style transaction flew, whose reactions the host has not begun to
+    /// drain.
+    holds_style: Cell<bool>,
 }
 
 /// What writes may move of what the host knows of the render state (see [`StateFacts`]).
@@ -391,8 +397,9 @@ struct Moves {
 }
 
 impl ChangeQueue {
+    /// Whether no write waits, queued or held.
     fn is_empty(&self) -> bool {
-        self.queued.borrow().is_empty()
+        self.queued.borrow().is_empty() && self.held_style.borrow().is_empty()
     }
 
     fn moves(&self) -> Moves {
@@ -411,8 +418,12 @@ impl ChangeQueue {
 
     fn push(&self, change: ArenaChange) {
         use crate::css::style::bridge::StyleChange;
-        self.note(&change);
-        let mut queued = self.queued.borrow_mut();
+        let mut queued = if self.holds_style.get() && change.writes_style() {
+            self.held_style.borrow_mut()
+        } else {
+            self.note(&change);
+            self.queued.borrow_mut()
+        };
         // An epoch of style record views that ends before anything else is queued or applied in it views nothing.
         if matches!(change, ArenaChange::Style(StyleChange::EndStyleRecordViewEpoch {}))
             && matches!(
@@ -433,53 +444,40 @@ impl ChangeQueue {
     }
 
     /// Lends the queued writes to `apply`, which applies them, and keeps their emptied buffer as the spare. A write the
-    /// host queues meanwhile, as the writes are applied or the render side works, waits for the next application, as do
-    /// the style writes where `hold_style`.
-    fn drain<R>(&self, hold_style: bool, apply: impl FnOnce(std::vec::Drain<'_, ArenaChange>) -> R) -> R {
+    /// host queues meanwhile, as the writes are applied or the render side works, waits for the next application.
+    fn drain<R>(&self, apply: impl FnOnce(std::vec::Drain<'_, ArenaChange>) -> R) -> R {
         let mut queued = self.queued.replace(self.spare.take());
         self.moves.take();
-        if hold_style {
-            self.queue_style_writes_of(&mut queued);
-        }
         let answer = apply(queued.drain(..));
         self.spare.set(queued);
         answer
     }
 
-    /// Takes the queued writes, for a style transaction that flies with them. Their buffer comes back with
-    /// give_back().
-    fn take(&self) -> Vec<ArenaChange> {
+    /// Takes the queued writes, for a style transaction that flies with them, and holds the style writes queued after,
+    /// until stop_holding_style(). Their buffer comes back with give_back().
+    fn take_for_flight(&self) -> Vec<ArenaChange> {
         self.moves.take();
+        self.holds_style.set(true);
         self.queued.replace(self.spare.take())
     }
 
-    /// Moves the style writes of `changes` back into the queue, where they wait for the next application.
-    #[cold]
-    fn queue_style_writes_of(&self, changes: &mut Vec<ArenaChange>) {
-        for change in changes.extract_if(.., |change| change.writes_style()) {
-            self.note(&change);
-            self.queued.borrow_mut().push(change);
-        }
+    /// Queues the style writes queued from here on, as the host begins to drain the reactions of the transaction that
+    /// flew.
+    fn stop_holding_style(&self) {
+        self.holds_style.set(false);
+    }
+
+    /// Queues the style writes held beside the transaction that flew behind the writes queued meanwhile.
+    fn queue_held_style(&self) {
+        let mut held = self.held_style.borrow_mut();
+        held.iter().for_each(|change| self.note(change));
+        self.queued.borrow_mut().append(&mut held);
     }
 
     /// Keeps `buffer`, emptied by the render side, as the spare.
     fn give_back(&self, buffer: Vec<ArenaChange>) {
         debug_assert!(buffer.is_empty(), "the render side gives back an emptied buffer");
         self.spare.set(buffer);
-    }
-
-    /// Takes the queued style writes out of the queue, in the spare, until requeue() puts them back.
-    fn hold_style_writes(&self) -> Vec<ArenaChange> {
-        let mut held = self.spare.take();
-        held.extend(self.queued.borrow_mut().extract_if(.., |change| change.writes_style()));
-        held
-    }
-
-    /// Queues the writes hold_style_writes() held behind the writes queued meanwhile.
-    fn requeue(&self, mut held: Vec<ArenaChange>) {
-        held.iter().for_each(|change| self.note(change));
-        self.queued.borrow_mut().append(&mut held);
-        self.spare.set(held);
     }
 }
 
@@ -593,12 +591,12 @@ mod tests {
                 queue.push(write());
             }
             *buffer = queue.queued.borrow().as_ptr();
-            queue.drain(false, |changes| assert_eq!(changes.count(), 8));
+            queue.drain(|changes| assert_eq!(changes.count(), 8));
         }
         assert_eq!(buffers[0], buffers[2]);
         assert_eq!(buffers[1], buffers[3]);
         queue.push(write());
-        queue.drain(false, |changes| {
+        queue.drain(|changes| {
             assert_eq!(changes.count(), 1);
             queue.push(write());
         });
