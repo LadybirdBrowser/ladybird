@@ -5,7 +5,7 @@
  */
 
 use super::fast_hash::FastMap as HashMap;
-use super::memory::{DeviceClass, MemoryController};
+use super::memory::MemoryController;
 use std::sync::{Arc, Weak};
 
 /// The smallest reference count a pool lets itself grow to before it first sweeps.
@@ -33,7 +33,7 @@ impl<T> Default for WeakPool<T> {
             by_hash: HashMap::default(),
             references: 0,
             sweep_threshold: MINIMUM_SWEEP_THRESHOLD,
-            memory: MemoryController::new(DeviceClass::ForegroundDesktop),
+            memory: MemoryController::new(),
         }
     }
 }

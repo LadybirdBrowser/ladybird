@@ -22,9 +22,9 @@ class WEB_API RenderDocument : public RefCounted<RenderDocument> {
     AK_MAKE_NONMOVABLE(RenderDocument);
 
 public:
-    static NonnullRefPtr<RenderDocument> create(u8 device_class)
+    static NonnullRefPtr<RenderDocument> create()
     {
-        return adopt_ref(*new RenderDocument(device_class));
+        return adopt_ref(*new RenderDocument());
     }
 
     ~RenderDocument();
@@ -41,7 +41,7 @@ public:
 private:
     friend class ForcedReadScope;
 
-    explicit RenderDocument(u8 device_class);
+    RenderDocument();
 
     RustFFI::DocumentHost* m_host { nullptr };
     RustFFI::FfiReadScopeView m_read_scope_view;

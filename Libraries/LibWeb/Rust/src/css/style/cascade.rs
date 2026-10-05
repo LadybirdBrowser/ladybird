@@ -2739,11 +2739,10 @@ impl WinnerGroups {
 
 #[cfg(test)]
 mod tests {
-    use super::super::memory::DeviceClass;
     use super::*;
 
     fn memory() -> MemoryController {
-        MemoryController::new(DeviceClass::ForegroundDesktop)
+        MemoryController::new()
     }
 
     fn inputs(origin: CascadeOrigin, important: bool) -> PriorityInputs {
@@ -3630,7 +3629,7 @@ mod tests {
 
     #[test]
     fn a_cascade_state_column_is_evictable_without_semantic_effect() {
-        let mut memory = MemoryController::new(DeviceClass::ForegroundDesktop);
+        let mut memory = MemoryController::new();
         let mut groups = WinnerGroups::new();
         let node = StyleNodeID::element(1);
         let current = WinnerGroupKey::current(node, ProgramVersion(1));

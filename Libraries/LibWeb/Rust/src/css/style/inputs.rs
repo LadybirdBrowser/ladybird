@@ -1811,16 +1811,8 @@ impl RetainedState {
 
 impl StyleEngineState {
     #[must_use]
-    pub fn new(device_class: DeviceClass) -> Self {
-        Self::new_with_owners(
-            device_class,
-            DocumentAtoms::for_live_engine(),
-            SelectorPrograms::for_live_engine(),
-        )
-    }
-
-    fn new_with_owners(device_class: DeviceClass, atoms: DocumentAtoms, programs: SelectorPrograms) -> Self {
-        let mut memory = MemoryController::new(device_class);
+    pub(crate) fn new() -> Self {
+        let mut memory = MemoryController::new();
         let tree = StyleNodeTree::new(&mut memory);
         Self {
             retained: RetainedState {
@@ -1922,7 +1914,7 @@ impl StyleEngineState {
                 published_match_answers: PublishedMatchAnswers::default(),
                 transaction_fact_view: None,
                 facts: ElementFactStore::new(),
-                programs,
+                programs: SelectorPrograms::for_live_engine(),
                 attribute_value_text_names: Arc::default(),
                 attribute_value_text_requirements_version: 0,
                 selector_programs_need_sweep: false,
@@ -1942,7 +1934,7 @@ impl StyleEngineState {
                 scope_cascade_templates: HashMap::default(),
                 ancestor_dispatch_templates: HashMap::default(),
                 scope_program_by_scope: Column::default(),
-                atoms,
+                atoms: DocumentAtoms::for_live_engine(),
                 fold_id_and_class_name_case: false,
                 #[cfg(test)]
                 diagnostic_plan_capture: None,

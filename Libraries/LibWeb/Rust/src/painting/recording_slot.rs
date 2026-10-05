@@ -688,7 +688,7 @@ mod tests {
 
     #[test]
     fn the_slot_lends_its_recorder_state_to_a_job_and_takes_it_back_with_the_answer() {
-        let mut engine = crate::css::style::StyleEngine::new(crate::css::style::memory::DeviceClass::ForegroundDesktop);
+        let mut engine = crate::css::style::StyleEngine::new();
         let mut arena = LayoutNodeArena::new();
         arena.set_style_engine(crate::css::style::StyleEngineHandle::from_raw(&raw mut engine));
         let mut slot = RecordingSlot::default();

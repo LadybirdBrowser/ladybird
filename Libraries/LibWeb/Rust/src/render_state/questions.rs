@@ -262,7 +262,7 @@ mod tests {
     use crate::render_state::ScriptForcedRead;
 
     fn host() -> (*mut DocumentHost, &'static DocumentHost) {
-        let pointer = crate::render_state::document_host::document_host_create(0);
+        let pointer = crate::render_state::document_host::document_host_create();
         // SAFETY: The host lives until the test destroys it.
         (pointer, unsafe { &*pointer })
     }

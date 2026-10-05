@@ -14,7 +14,6 @@
 //! it in. Nothing on the host's thread can name the state, so nothing there reaches it.
 
 use crate::css::style::StyleEngineHandle;
-use crate::css::style::bridge::create_document_style_engine;
 use crate::layout::ArenaHandle;
 use std::cell::{Cell, RefCell};
 
@@ -56,9 +55,9 @@ pub(crate) struct RenderState {
 impl RenderState {
     /// Makes the state `seed` describes.
     fn new(seed: owner::StateSeed) -> Self {
-        let owner::StateSeed { device_class, shared } = seed;
+        let owner::StateSeed { shared } = seed;
         let mut arena = Box::new(ArenaHandle::new());
-        let mut engine = create_document_style_engine(device_class);
+        let mut engine = Box::new(crate::css::style::StyleEngine::new());
         engine.share_element_random_base_values_exist(shared.element_random_base_values_exist);
         engine.share_declaration_block_versions(shared.declaration_block_versions);
         engine.share_container_effects_held(shared.container_effects_held);
@@ -705,7 +704,7 @@ mod tests {
     fn only_a_change_that_writes_the_rows_makes_the_host_read_them_again() {
         use crate::layout::layout_changes::LayoutChange;
         use crate::layout::node_data::{NodeFlag, NodeSlotId};
-        let pointer = document_host::document_host_create(0);
+        let pointer = document_host::document_host_create();
         // SAFETY: The host lives until it is destroyed below.
         let host = unsafe { &*pointer };
         // SAFETY: The arena lives as long as the host's render state, and nothing else reaches it meanwhile.
@@ -737,7 +736,7 @@ mod tests {
 
     #[test]
     fn a_host_that_lets_go_of_its_rows_reads_them_again() {
-        let pointer = document_host::document_host_create(0);
+        let pointer = document_host::document_host_create();
         // SAFETY: The host lives until it is destroyed below.
         let host = unsafe { &*pointer };
         let rows = host.fresh_rows(ScriptForcedRead::for_test());
@@ -750,7 +749,7 @@ mod tests {
 
     #[test]
     fn a_write_through_the_arena_makes_the_host_read_the_rows_again() {
-        let pointer = document_host::document_host_create(0);
+        let pointer = document_host::document_host_create();
         // SAFETY: The host lives until it is destroyed below.
         let host = unsafe { &*pointer };
         host.fresh_rows(ScriptForcedRead::for_test());
@@ -771,7 +770,7 @@ mod tests {
     #[test]
     fn a_style_write_leaves_what_the_rows_are_to_read_from_the_rows_the_host_has() {
         use crate::layout::node_data::{NodeFlag, NodeKind, StylePayloadsRef};
-        let pointer = document_host::document_host_create(0);
+        let pointer = document_host::document_host_create();
         // SAFETY: The host lives until it is destroyed below.
         let host = unsafe { &*pointer };
         // SAFETY: The arena lives as long as the host's render state, and nothing else reaches it meanwhile.

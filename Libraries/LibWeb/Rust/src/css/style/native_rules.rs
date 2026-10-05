@@ -181,7 +181,6 @@ mod tests {
     use crate::css::parser::value_parser::ParseContext;
     use crate::css::rule::{rust_rule_identity, rust_rule_list_at, rust_rule_list_clear, rust_rule_retain};
     use crate::css::style::StyleEngine;
-    use crate::css::style::memory::DeviceClass;
     use crate::css::style::program::{CascadeOrigin, RuleKind, StyleSheetObjectID};
     use crate::css::style_sheet::NativeStyleSheet;
     use std::rc::Rc;
@@ -205,10 +204,7 @@ mod tests {
         let source_weak = Rc::downgrade(&source);
         let source_identity = source.identity();
         let rule_weak = Rc::downgrade(&rule);
-        let mut engines = [
-            StyleEngine::new(DeviceClass::ForegroundDesktop),
-            StyleEngine::new(DeviceClass::ForegroundDesktop),
-        ];
+        let mut engines = [StyleEngine::new(), StyleEngine::new()];
         let mut ids = Vec::new();
         for (index, engine) in engines.iter_mut().enumerate() {
             let sheet = engine.add_sheet(StyleSheetObjectID(1), CascadeOrigin::Author);
@@ -261,7 +257,7 @@ mod tests {
         let rule = unsafe { &*rust_rule_list_at(source.rules(), 0) };
         let children = unsafe { &*rust_rule_children(rule) };
         let child = unsafe { Rc::from_raw(rust_rule_retain(rust_rule_list_at(children, 0))) };
-        let mut engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
+        let mut engine = StyleEngine::new();
         let sheet = engine.add_sheet(StyleSheetObjectID(1), CascadeOrigin::Author);
         let id = engine.add_non_matching_rule(sheet, None, RuleKind::Function);
         engine.register_native_rule(
@@ -305,7 +301,7 @@ mod tests {
         let new_source = source();
         let old_rule = unsafe { &*rust_rule_list_at(old_source.rules(), 0) };
         let new_rule = unsafe { &*rust_rule_list_at(new_source.rules(), 0) };
-        let mut engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
+        let mut engine = StyleEngine::new();
         let sheet = engine.add_sheet(StyleSheetObjectID(1), CascadeOrigin::Author);
         let id = engine.add_non_matching_rule(sheet, None, RuleKind::Function);
         engine.register_native_rule(

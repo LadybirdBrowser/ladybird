@@ -426,7 +426,6 @@ pub fn candidate_witnesses(
 #[cfg(test)]
 mod tests {
     use super::super::index::StyleAtomID;
-    use super::super::memory::DeviceClass;
     use super::super::memory::MemoryController;
     use super::*;
 
@@ -440,7 +439,7 @@ mod tests {
 
     impl Fixture {
         fn new() -> Self {
-            let mut memory = MemoryController::new(DeviceClass::ForegroundDesktop);
+            let mut memory = MemoryController::new();
             let mut tree = StyleNodeTree::new(&mut memory);
             let nodes: Vec<StyleNodeID> = (0..6).map(|_| tree.allocate_element(&mut memory)).collect();
             // 0 root, 1 card, 2 other; card's children 3, 4, 5

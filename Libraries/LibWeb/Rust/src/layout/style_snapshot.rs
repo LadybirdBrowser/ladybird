@@ -131,11 +131,10 @@ impl LayoutNodeArena {
 mod tests {
     use super::*;
     use crate::css::style::StyleEngine;
-    use crate::css::style::memory::DeviceClass;
 
     #[test]
     fn a_commit_keeps_the_scroll_state_and_the_scroll_state_keeps_the_geometry() {
-        let mut engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
+        let mut engine = StyleEngine::new();
         let node = StyleNodeID::element(1);
         engine.set_element_scroll_state(node, 1, 2, 4, 8);
         engine.apply_layout_style_snapshot_commit(&[CommittedGeometry {

@@ -146,7 +146,7 @@ mod tests {
 
     #[test]
     fn duplicate_occurrences_preserve_positions_while_inactive() {
-        let mut engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
+        let mut engine = StyleEngine::new();
         let shared = engine.add_sheet(StyleSheetObjectID(1), CascadeOrigin::Author);
         let other = engine.add_sheet(StyleSheetObjectID(2), CascadeOrigin::Author);
         let scope = TreeScopeID::DOCUMENT;
@@ -173,7 +173,7 @@ mod tests {
 
     #[test]
     fn occurrence_conditions_are_local_to_their_scope_and_storage_is_released() {
-        let mut engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
+        let mut engine = StyleEngine::new();
         let shared = engine.add_sheet(StyleSheetObjectID(1), CascadeOrigin::Author);
         let first = TreeScopeID(1);
         let second = TreeScopeID(2);

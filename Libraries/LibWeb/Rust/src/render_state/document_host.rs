@@ -16,7 +16,6 @@ use super::{
     ScriptForcedRead, StateFacts, on_render_side, post_to_render_side,
 };
 use crate::css::css_pixels::CssPixelRect;
-use crate::css::style::bridge::FfiDeviceClass;
 use crate::css::style::flight_style_rows::FlightStyleRow;
 use crate::css::style::rule_writes::{PublishedRules, RuleWrite};
 use crate::css::style::style_job::StyleJobAnswer;
@@ -163,14 +162,11 @@ struct ReadScopes {
 }
 
 impl DocumentHost {
-    fn new(device_class: FfiDeviceClass) -> Self {
+    fn new() -> Self {
         let shared = SharedWithHost::new();
         Self {
             document: DocumentId::mint(),
-            seed: Cell::new(Some(StateSeed {
-                device_class,
-                shared: shared.clone(),
-            })),
+            seed: Cell::new(Some(StateSeed { shared: shared.clone() })),
             shared,
             away: RefCell::default(),
             waits_for_frame: Cell::new(false),
@@ -210,7 +206,7 @@ impl DocumentHost {
     /// A host with a render state, for a unit test.
     #[cfg(test)]
     pub(crate) fn for_test() -> Self {
-        Self::new(FfiDeviceClass::ForegroundDesktop)
+        Self::new()
     }
 
     /// A read of the host's document the test begins, and never ends.
@@ -1192,16 +1188,12 @@ impl DocumentHost {
     }
 }
 
-/// Creates the host of a new document, whose render state has a style engine for a device of class `device_class`.
+/// Creates the host of a new document.
 /// The render owner makes the state with the host's first job, which waits for nothing more than the job does, and
 /// which a document nothing renders may never send.
 #[unsafe(no_mangle)]
-pub extern "C" fn document_host_create(device_class: u8) -> *mut DocumentHost {
-    let device_class = match device_class {
-        0 => FfiDeviceClass::ForegroundDesktop,
-        _ => panic!("unknown device class {device_class}"),
-    };
-    Box::into_raw(Box::new(DocumentHost::new(device_class)))
+pub extern "C" fn document_host_create() -> *mut DocumentHost {
+    Box::into_raw(Box::new(DocumentHost::new()))
 }
 
 /// A document host with a render state, for a unit test, which destroys both when it is dropped.
@@ -1211,7 +1203,7 @@ pub(crate) struct TestHost(*mut DocumentHost);
 #[cfg(test)]
 impl TestHost {
     pub(crate) fn new() -> Self {
-        Self(document_host_create(0))
+        Self(document_host_create())
     }
 
     pub(crate) fn host(&self) -> *const DocumentHost {

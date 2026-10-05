@@ -41,10 +41,10 @@ impl std::ops::DerefMut for StyleEngine {
 
 impl StyleEngine {
     #[must_use]
-    pub fn new(device_class: DeviceClass) -> Self {
+    pub(crate) fn new() -> Self {
         Self {
             counters: Counters::new(),
-            state: StyleEngineState::new(device_class),
+            state: StyleEngineState::new(),
         }
     }
 

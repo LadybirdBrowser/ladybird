@@ -71,7 +71,6 @@ mod tests {
     fn native_publication_and_image_discovery_keep_style_data_immutable() {
         use crate::css::style::StyleEngine;
         use crate::css::style::bridge::publish_rule_declarations;
-        use crate::css::style::memory::DeviceClass;
         use crate::css::style::program::{CascadeOrigin, RuleKind, StyleSheetObjectID};
         let rules = rules(".文字 { width: 13px; transition: width 1s; background-image: url(image.png); }");
         let rule = unsafe { &*rust_rule_list_at(&rules, 0) };
@@ -80,7 +79,7 @@ mod tests {
         assert!(Arc::ptr_eq(&style.selectors(), &style.selectors.borrow()));
         let declarations = rule.cascade_declarations().unwrap();
         assert!(Arc::ptr_eq(&declarations, &style.declarations.data()));
-        let mut engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
+        let mut engine = StyleEngine::new();
         let sheet = engine.add_sheet(StyleSheetObjectID(1), CascadeOrigin::Author);
         let id = engine.add_non_matching_rule(sheet, None, RuleKind::Style);
         assert!(publish_rule_declarations(&mut engine, id.0 + 1, &declarations));
@@ -104,7 +103,6 @@ mod tests {
         use crate::css::rule::{rust_rule_list_clear, rust_rule_retain};
         use crate::css::style::StyleEngine;
         use crate::css::style::bridge::{FfiNativeRuleTarget, native_rule_target};
-        use crate::css::style::memory::DeviceClass;
         use crate::css::style::program::{CascadeOrigin, RuleKind, StyleSheetObjectID};
         use crate::css::style::rule_writes::publish_native_rule_declarations;
         use crate::css::style_sheet::NativeStyleSheet;
@@ -119,7 +117,7 @@ mod tests {
         let rule_lifetime = Rc::downgrade(&retained_rule);
         drop(retained_rule);
         let style = rule.style_rule();
-        let mut engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
+        let mut engine = StyleEngine::new();
         let sheet = engine.add_sheet(StyleSheetObjectID(1), CascadeOrigin::Author);
         let id = engine.add_non_matching_rule(sheet, None, RuleKind::Style);
         engine.register_native_rule(

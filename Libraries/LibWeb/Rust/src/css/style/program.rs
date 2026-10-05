@@ -1974,9 +1974,7 @@ mod tests {
 
     #[test]
     fn program_bytes_are_charged_to_tier_two() {
-        use super::super::memory::DeviceClass;
-
-        let mut memory = MemoryController::new(DeviceClass::ForegroundDesktop);
+        let mut memory = MemoryController::new();
         let (mut program, sheet) = program_with_sheet();
         for _ in 0..100 {
             program.append_rule(sheet, None, RuleKind::Style);
