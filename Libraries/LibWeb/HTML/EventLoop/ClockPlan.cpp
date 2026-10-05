@@ -8,6 +8,7 @@
 #include <LibWeb/Animations/Animation.h>
 #include <LibWeb/Animations/DocumentTimeline.h>
 #include <LibWeb/Animations/KeyframeEffect.h>
+#include <LibWeb/Animations/ScrollTimeline.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/HTML/EventLoop/ClockPlan.h>
@@ -86,9 +87,16 @@ bool seal_clock_plan(DOM::Document& document, bool may_plan)
                 for (auto& animation : associated_timeline->associated_animations()) {
                     if (animation.play_state() != Bindings::AnimationPlayState::Running)
                         continue;
-                    // A tick moves the document's timeline alone, at the rate it runs.
-                    if (associated_timeline.ptr() != timeline.ptr() || animation.pending() || !(animation.playback_rate() > 0))
+                    // A tick moves the document's timeline alone, at the rate it runs. A scroll timeline holds still
+                    // while the scroll offsets the host laid out do, as it does while the host runs a task, and so do
+                    // its animations.
+                    if (animation.pending() || !(animation.playback_rate() > 0))
                         return false;
+                    if (associated_timeline.ptr() != timeline.ptr()) {
+                        if (is<Animations::ScrollTimeline>(*associated_timeline))
+                            continue;
+                        return false;
+                    }
                     auto effect = animation.effect();
                     if (!effect || !is<Animations::KeyframeEffect>(*effect))
                         return false;

@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    @keyframes shrink {
+        from { height: 50px; }
+        to { height: 10px; }
+    }
+    #header {
+        height: 50px;
+        animation: shrink linear both;
+        animation-timeline: scroll(root);
+    }
+    #spacer {
+        height: 2000px;
+    }
+</style>
+<div id="header"></div>
+<div id="box" style="width: 10px; height: 0px; background: green"></div>
+<div id="spacer"></div>
+<script>
+    // The render clock ticks the running animations of a document beside a task while a scroll-driven animation holds
+    // still at the scroll offset the host laid out.
+    asyncTest(async done => {
+        const result = await whileClockLeased(() => {
+            return box.animate([{ height: "0px" }, { height: "100px" }], { duration: 10000, easing: "linear" });
+        }, (frameTime, animation) => {
+            internals.injectClockTick(frameTime + 1000);
+            const lease = internals.clockLeaseState(document);
+            const expectedHeight = (frameTime + 1000 - animation.startTime) / 100;
+            const presented = internals.presentedBorderBox(box);
+            return {
+                lease,
+                presentedHeightIsTheTicks: presented !== null && Math.abs(presented.height - expectedHeight) < 0.02,
+                presentedBy: internals.lastFramePresentedBy(document),
+            };
+        });
+        println(`lease after the tick: ${result.lease}`);
+        println(`the presented height is the animation's at the tick: ${result.presentedHeightIsTheTicks}`);
+        println(`last frame presented by: ${result.presentedBy}`);
+        println(`the scroll-driven animation holds at the top: ${header.getBoundingClientRect().height === 50}`);
+        done();
+    });
+</script>
