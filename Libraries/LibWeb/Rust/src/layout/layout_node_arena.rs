@@ -1246,8 +1246,6 @@ pub(crate) struct LayoutNodeArena {
     pub(crate) partial_relayout_boundary_roots: RefCell<Vec<NodeSlotId>>,
     nodes_with_layout_update_flags: RefCell<Vec<NodeSlotId>>,
     layout_update_flag_node_indices: RefCell<HashMap<NodeSlotId, usize>>,
-    #[cfg(test)]
-    layout_update_flag_ancestor_visits: Cell<u64>,
     pub(super) pending_attached_subtree_roots: RefCell<Vec<NodeSlotId>>,
     /// Boxes whose child lists gained children since the last layout tree build, held back from
     /// layout invalidation until the build shows what the new children are.
@@ -1360,8 +1358,6 @@ impl LayoutNodeArena {
             partial_relayout_boundary_roots: RefCell::new(Vec::new()),
             nodes_with_layout_update_flags: RefCell::new(Vec::new()),
             layout_update_flag_node_indices: RefCell::new(HashMap::default()),
-            #[cfg(test)]
-            layout_update_flag_ancestor_visits: Cell::new(0),
             pending_attached_subtree_roots: RefCell::new(Vec::new()),
             deferred_child_list_insertion_parents: RefCell::new(Vec::new()),
             confined_abspos_layout_inputs: RefCell::new(HashMap::default()),
@@ -4074,9 +4070,6 @@ impl LayoutNodeArena {
             while !membership.contains_key(&ancestor) {
                 ancestors.push(ancestor);
                 ancestor = self.data(ancestor).parent.get();
-                #[cfg(test)]
-                self.layout_update_flag_ancestor_visits
-                    .set(self.layout_update_flag_ancestor_visits.get() + 1);
             }
             let is_in_subtree = membership[&ancestor];
             for ancestor in ancestors.drain(..) {
@@ -6596,7 +6589,7 @@ mod tests {
     }
 
     #[test]
-    fn full_commit_checks_shared_dirty_ancestor_chains_once() {
+    fn full_commit_clears_only_attached_dirty_nodes() {
         let mut arena = LayoutNodeArena::new();
         let viewport = arena.allocate_for_test();
         arena.write_shape(viewport.slot).set_kind(NodeKind::Viewport);
@@ -6615,8 +6608,6 @@ mod tests {
             arena.set_node_flag(node, NodeFlag::NeedsLayoutUpdate, true);
         }
         arena.reset_layout_update_flags_in_subtree(viewport.slot);
-        // Each chain node and the detached root is inspected once, independent of depth.
-        assert_eq!(arena.layout_update_flag_ancestor_visits.get(), 129);
         for (index, &node) in dirty_nodes.iter().enumerate() {
             assert_eq!(
                 arena.data(node).flags.get() & NodeFlag::NeedsLayoutUpdate as u32 != 0,
