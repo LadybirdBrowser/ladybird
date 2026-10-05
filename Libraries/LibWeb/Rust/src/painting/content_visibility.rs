@@ -6,7 +6,7 @@
 
 use crate::css::css_enums::content_visibility;
 use crate::layout::node_data::NodeSlotId;
-use crate::painting::node_painting;
+use crate::layout::node_facts;
 use crate::painting::paintable_rows::PaintableRowsRead;
 
 pub(crate) fn for_each_box_with_auto_content_visibility(
@@ -18,7 +18,7 @@ pub(crate) fn for_each_box_with_auto_content_visibility(
         return;
     }
     arena.for_each_node_in_layout_subtree_in_pre_order_with_pruning(root, |node| {
-        if node_painting::forms_unconnected_subtree(arena.data(node).kind.get()) {
+        if node_facts::kind_is_svg_resource_box(arena.data(node).kind.get()) {
             return false;
         }
         if !arena.node_is_element_backed(node) || !arena.paintable_row_is_populated(node) {

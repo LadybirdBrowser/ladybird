@@ -235,13 +235,6 @@ fn kind_is_svg_container_element(kind: NodeKind) -> bool {
     )
 }
 
-fn kind_is_svg_resource_box(kind: NodeKind) -> bool {
-    matches!(
-        kind,
-        NodeKind::SVGMaskBox | NodeKind::SVGClipBox | NodeKind::SVGPatternBox
-    )
-}
-
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 struct SvgCssPixelRect {
     x: CssPixels,
@@ -1806,7 +1799,7 @@ impl<'pass> SvgFormattingContext<'pass> {
         let kind = self.node_kind(resource);
         let facts = self.svg_facts(resource);
         let attributes = self.svg_attributes(resource);
-        assert!(kind_is_svg_resource_box(kind));
+        assert!(node_facts::kind_is_svg_resource_box(kind));
         // FIXME: Somehow limit <clipPath> contents to: shape elements, <text>, and <use>.
         let used_pointer = self.create_used_values(resource);
         self.commit_svg_element_facts(resource, facts, attributes);
@@ -1871,7 +1864,9 @@ impl<'pass> SvgFormattingContext<'pass> {
         let mut max_y = CssPixels::default();
         for child in self.callbacks.children(container) {
             // Masks/clips/patterns do not change the bounding box of their parents.
-            if NodeFacts::new(&self.callbacks, child).is_box() && !kind_is_svg_resource_box(self.node_kind(child)) {
+            if NodeFacts::new(&self.callbacks, child).is_box()
+                && !node_facts::kind_is_svg_resource_box(self.node_kind(child))
+            {
                 self.layout_svg_element(run, child, input);
                 let child_used_pointer = self.used_values(child);
                 let child_used = child_used_pointer;

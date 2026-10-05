@@ -12,7 +12,7 @@ pub(crate) fn paint_parent(layout_arena: &impl PaintRead, slot: NodeSlotId) -> O
     if !layout_arena.paintable_row_is_populated(slot)
         || layout_arena
             .node_kind_if_live(slot)
-            .is_some_and(node_painting::forms_unconnected_subtree)
+            .is_some_and(crate::layout::node_facts::kind_is_svg_resource_box)
     {
         return None;
     }
@@ -44,7 +44,7 @@ fn first_paintable_in_layout_siblings(
             // https://www.w3.org/TR/CSS22/tables.html#dynamic-effects
             if !layout_arena
                 .node_kind_if_live(node)
-                .is_some_and(node_painting::forms_unconnected_subtree)
+                .is_some_and(crate::layout::node_facts::kind_is_svg_resource_box)
                 && !crate::painting::paintable_geometry::committed_hidden_by_collapsed_columns(layout_arena, node)
             {
                 return Some(node);
@@ -74,7 +74,7 @@ pub(crate) fn next_paint_sibling(layout_arena: &impl PaintRead, slot: NodeSlotId
     if !layout_arena.paintable_row_is_populated(slot)
         || layout_arena
             .node_kind_if_live(slot)
-            .is_some_and(node_painting::forms_unconnected_subtree)
+            .is_some_and(crate::layout::node_facts::kind_is_svg_resource_box)
     {
         return None;
     }

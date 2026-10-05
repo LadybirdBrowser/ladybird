@@ -1552,7 +1552,7 @@ impl StaleSubtreeHost<'_> {
         if !row.is_invalid() {
             // A resource box hangs under the element that references it rather than at its own DOM
             // position.
-            if node_kind_is_svg_resource_box(self.arena().data(row).kind.get())
+            if node_facts::kind_is_svg_resource_box(self.arena().data(row).kind.get())
                 && svg_resource_box_survives(self.arena(), row, cleared_subtree_root)
             {
                 return true;
@@ -1606,15 +1606,6 @@ pub(crate) fn detach_top_layer_element_layout_subtree(
 
     clear_stale_subtree(host, element, StaleSubtreeClearScope::InclusiveBoundedToRoot);
     clear_stale_assigned_slottables(host, element);
-}
-
-/// Whether the kind names a box laid out on behalf of an element that references it, rather than
-/// at its own place in the tree.
-fn node_kind_is_svg_resource_box(kind: NodeKind) -> bool {
-    matches!(
-        kind,
-        NodeKind::SVGPatternBox | NodeKind::SVGMaskBox | NodeKind::SVGClipBox
-    )
 }
 
 /// Every pseudo-element of the element gives up the box it holds, subtree and all.
