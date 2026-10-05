@@ -603,8 +603,8 @@ impl<'a> Parser<'a> {
     }
 
     fn parse(mut self, allow_error_recovery: bool) -> Option<Vec<PathInstruction>> {
-        self.parse_whitespace();
-        while !self.done() {
+        self.lexer.parse_whitespace();
+        while !self.lexer.done() {
             if self.parse_draw_to().is_err() {
                 if !allow_error_recovery {
                     return None;
@@ -620,11 +620,11 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_draw_to(&mut self) -> Result<(), ()> {
-        match self.current_ascii() {
+        match self.lexer.current_ascii() {
             Some(b'M' | b'm') => self.parse_move_to(),
             Some(b'Z' | b'z') => {
-                self.consume();
-                self.parse_whitespace();
+                self.lexer.consume();
+                self.lexer.parse_whitespace();
                 self.instructions.push(PathInstruction::ClosePath);
                 Ok(())
             }
@@ -642,8 +642,8 @@ impl<'a> Parser<'a> {
 
     // https://www.w3.org/TR/SVG2/paths.html#PathDataMovetoCommands
     fn parse_move_to(&mut self) -> Result<(), ()> {
-        let absolute = self.consume() == u16::from(b'M');
-        self.parse_whitespace();
+        let absolute = self.lexer.consume() == u16::from(b'M');
+        self.lexer.parse_whitespace();
 
         let mut first = true;
         self.parse_coordinate_pair_sequence(|parser, point| {
@@ -658,16 +658,16 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_line_to(&mut self) -> Result<(), ()> {
-        let absolute = self.consume() == u16::from(b'L');
-        self.parse_whitespace();
+        let absolute = self.lexer.consume() == u16::from(b'L');
+        self.lexer.parse_whitespace();
         self.parse_coordinate_pair_sequence(|parser, point| {
             parser.instructions.push(PathInstruction::LineTo { absolute, point });
         })
     }
 
     fn parse_horizontal_line_to(&mut self) -> Result<(), ()> {
-        let absolute = self.consume() == u16::from(b'H');
-        self.parse_whitespace();
+        let absolute = self.lexer.consume() == u16::from(b'H');
+        self.lexer.parse_whitespace();
         self.parse_coordinate_sequence(|parser, x| {
             parser
                 .instructions
@@ -676,8 +676,8 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_vertical_line_to(&mut self) -> Result<(), ()> {
-        let absolute = self.consume() == u16::from(b'V');
-        self.parse_whitespace();
+        let absolute = self.lexer.consume() == u16::from(b'V');
+        self.lexer.parse_whitespace();
         self.parse_coordinate_sequence(|parser, y| {
             parser
                 .instructions
@@ -686,22 +686,22 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_curve_to(&mut self) -> Result<(), ()> {
-        let absolute = self.consume() == u16::from(b'C');
-        self.parse_whitespace();
+        let absolute = self.lexer.consume() == u16::from(b'C');
+        self.lexer.parse_whitespace();
         loop {
-            let control_point_1 = self.parse_coordinate_pair()?;
-            self.parse_optional_comma_whitespace();
-            let control_point_2 = self.parse_coordinate_pair()?;
-            self.parse_optional_comma_whitespace();
-            let point = self.parse_coordinate_pair()?;
+            let control_point_1 = self.lexer.parse_coordinate_pair()?;
+            self.lexer.parse_optional_comma_whitespace();
+            let control_point_2 = self.lexer.parse_coordinate_pair()?;
+            self.lexer.parse_optional_comma_whitespace();
+            let point = self.lexer.parse_coordinate_pair()?;
             self.instructions.push(PathInstruction::CurveTo {
                 absolute,
                 control_point_1,
                 control_point_2,
                 point,
             });
-            self.parse_optional_comma_whitespace();
-            if !self.matches_coordinate() {
+            self.lexer.parse_optional_comma_whitespace();
+            if !self.lexer.matches_coordinate() {
                 break;
             }
         }
@@ -709,19 +709,19 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_smooth_curve_to(&mut self) -> Result<(), ()> {
-        let absolute = self.consume() == u16::from(b'S');
-        self.parse_whitespace();
+        let absolute = self.lexer.consume() == u16::from(b'S');
+        self.lexer.parse_whitespace();
         loop {
-            let control_point_2 = self.parse_coordinate_pair()?;
-            self.parse_optional_comma_whitespace();
-            let point = self.parse_coordinate_pair()?;
+            let control_point_2 = self.lexer.parse_coordinate_pair()?;
+            self.lexer.parse_optional_comma_whitespace();
+            let point = self.lexer.parse_coordinate_pair()?;
             self.instructions.push(PathInstruction::SmoothCurveTo {
                 absolute,
                 control_point_2,
                 point,
             });
-            self.parse_optional_comma_whitespace();
-            if !self.matches_coordinate() {
+            self.lexer.parse_optional_comma_whitespace();
+            if !self.lexer.matches_coordinate() {
                 break;
             }
         }
@@ -729,19 +729,19 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_quadratic_bezier_curve_to(&mut self) -> Result<(), ()> {
-        let absolute = self.consume() == u16::from(b'Q');
-        self.parse_whitespace();
+        let absolute = self.lexer.consume() == u16::from(b'Q');
+        self.lexer.parse_whitespace();
         loop {
-            let control_point = self.parse_coordinate_pair()?;
-            self.parse_optional_comma_whitespace();
-            let point = self.parse_coordinate_pair()?;
+            let control_point = self.lexer.parse_coordinate_pair()?;
+            self.lexer.parse_optional_comma_whitespace();
+            let point = self.lexer.parse_coordinate_pair()?;
             self.instructions.push(PathInstruction::QuadraticBezierCurveTo {
                 absolute,
                 control_point,
                 point,
             });
-            self.parse_optional_comma_whitespace();
-            if !self.matches_coordinate() {
+            self.lexer.parse_optional_comma_whitespace();
+            if !self.lexer.matches_coordinate() {
                 break;
             }
         }
@@ -749,14 +749,14 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_smooth_quadratic_bezier_curve_to(&mut self) -> Result<(), ()> {
-        let absolute = self.consume() == u16::from(b'T');
-        self.parse_whitespace();
+        let absolute = self.lexer.consume() == u16::from(b'T');
+        self.lexer.parse_whitespace();
         loop {
-            let point = self.parse_coordinate_pair()?;
+            let point = self.lexer.parse_coordinate_pair()?;
             self.instructions
                 .push(PathInstruction::SmoothQuadraticBezierCurveTo { absolute, point });
-            self.parse_optional_comma_whitespace();
-            if !self.matches_coordinate() {
+            self.lexer.parse_optional_comma_whitespace();
+            if !self.lexer.matches_coordinate() {
                 break;
             }
         }
@@ -764,20 +764,20 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_elliptical_arc(&mut self) -> Result<(), ()> {
-        let absolute = self.consume() == u16::from(b'A');
-        self.parse_whitespace();
+        let absolute = self.lexer.consume() == u16::from(b'A');
+        self.lexer.parse_whitespace();
         loop {
-            let radius_x = self.parse_number()?;
-            self.parse_optional_comma_whitespace();
-            let radius_y = self.parse_number()?;
-            self.parse_optional_comma_whitespace();
-            let x_axis_rotation = self.parse_number()?;
-            self.parse_optional_comma_whitespace();
+            let radius_x = self.lexer.parse_number()?;
+            self.lexer.parse_optional_comma_whitespace();
+            let radius_y = self.lexer.parse_number()?;
+            self.lexer.parse_optional_comma_whitespace();
+            let x_axis_rotation = self.lexer.parse_number()?;
+            self.lexer.parse_optional_comma_whitespace();
             let large_arc = self.parse_flag()?;
-            self.parse_optional_comma_whitespace();
+            self.lexer.parse_optional_comma_whitespace();
             let sweep = self.parse_flag()?;
-            self.parse_optional_comma_whitespace();
-            let point = self.parse_coordinate_pair()?;
+            self.lexer.parse_optional_comma_whitespace();
+            let point = self.lexer.parse_coordinate_pair()?;
             self.instructions.push(PathInstruction::EllipticalArc {
                 absolute,
                 radius: [radius_x, radius_y],
@@ -786,33 +786,26 @@ impl<'a> Parser<'a> {
                 sweep,
                 point,
             });
-            self.parse_optional_comma_whitespace();
-            if !self.matches_coordinate() {
+            self.lexer.parse_optional_comma_whitespace();
+            if !self.lexer.matches_coordinate() {
                 break;
             }
         }
         Ok(())
     }
 
-    fn parse_coordinate_pair(&mut self) -> Result<[f32; 2], ()> {
-        let x = self.parse_number()?;
-        self.parse_optional_comma_whitespace();
-        let y = self.parse_number()?;
-        Ok([x, y])
-    }
-
     fn parse_coordinate_sequence(&mut self, mut visit: impl FnMut(&mut Self, f32)) -> Result<(), ()> {
         let mut first = true;
         loop {
-            let coordinate = match self.parse_number() {
+            let coordinate = match self.lexer.parse_number() {
                 Ok(coordinate) => coordinate,
                 Err(()) if first => return Err(()),
                 Err(()) => break,
             };
             first = false;
             visit(self, coordinate);
-            self.parse_optional_comma_whitespace();
-            if !self.matches_comma_whitespace() && !self.matches_coordinate() {
+            self.lexer.parse_optional_comma_whitespace();
+            if !self.lexer.matches_comma_whitespace() && !self.lexer.matches_coordinate() {
                 break;
             }
         }
@@ -822,65 +815,33 @@ impl<'a> Parser<'a> {
     fn parse_coordinate_pair_sequence(&mut self, mut visit: impl FnMut(&mut Self, [f32; 2])) -> Result<(), ()> {
         let mut first = true;
         loop {
-            let pair = match self.parse_coordinate_pair() {
+            let pair = match self.lexer.parse_coordinate_pair() {
                 Ok(pair) => pair,
                 Err(()) if first => return Err(()),
                 Err(()) => break,
             };
             first = false;
             visit(self, pair);
-            self.parse_optional_comma_whitespace();
-            if !self.matches_comma_whitespace() && !self.matches_coordinate() {
+            self.lexer.parse_optional_comma_whitespace();
+            if !self.lexer.matches_comma_whitespace() && !self.lexer.matches_coordinate() {
                 break;
             }
         }
         Ok(())
     }
 
-    fn parse_number(&mut self) -> Result<f32, ()> {
-        self.lexer.parse_number()
-    }
-
     fn parse_flag(&mut self) -> Result<bool, ()> {
-        match self.current_ascii() {
+        match self.lexer.current_ascii() {
             Some(b'0') => {
-                self.consume();
+                self.lexer.consume();
                 Ok(false)
             }
             Some(b'1') => {
-                self.consume();
+                self.lexer.consume();
                 Ok(true)
             }
             _ => Err(()),
         }
-    }
-
-    fn parse_optional_comma_whitespace(&mut self) {
-        self.lexer.parse_optional_comma_whitespace();
-    }
-
-    fn parse_whitespace(&mut self) {
-        self.lexer.parse_whitespace();
-    }
-
-    fn matches_coordinate(&self) -> bool {
-        self.lexer.matches_coordinate()
-    }
-
-    fn matches_comma_whitespace(&self) -> bool {
-        self.lexer.matches_comma_whitespace()
-    }
-
-    fn current_ascii(&self) -> Option<u8> {
-        self.lexer.current_ascii()
-    }
-
-    fn consume(&mut self) -> u16 {
-        self.lexer.consume()
-    }
-
-    fn done(&self) -> bool {
-        self.lexer.done()
     }
 }
 

@@ -47,19 +47,12 @@ fn parse_number_percentage(input: Input<'_>) -> Option<NumberPercentage> {
     parser.done().then_some(NumberPercentage { value, is_percentage })
 }
 
-fn parse_coordinate_pair(parser: &mut Parser<'_>) -> Result<[f32; 2], ()> {
-    let x = parser.parse_number()?;
-    parser.parse_optional_comma_whitespace();
-    let y = parser.parse_number()?;
-    Ok([x, y])
-}
-
 fn parse_points(input: Input<'_>) -> Vec<[f32; 2]> {
     let mut parser = Parser::new(input);
     parser.parse_whitespace();
     let mut points = Vec::new();
     loop {
-        let point = match parse_coordinate_pair(&mut parser) {
+        let point = match parser.parse_coordinate_pair() {
             Ok(point) => point,
             Err(()) if points.is_empty() => return Vec::new(),
             Err(()) => break,
