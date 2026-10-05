@@ -327,8 +327,8 @@ public:
     Compositing::DisplayListResourceStorage& display_list_resource_storage() { return presenter().display_list_resource_storage(); }
 
     // Leases the active document's render state to the render clock as a task begins, where the last rendering update
-    // left a plan for that. Answers whether the plan is left for a later task.
-    bool lease_clock_for_task();
+    // left a plan for that.
+    void lease_clock_for_task();
 
     // What this navigable presents to its compositor context from. Only the holder of the presenter presents, so frames
     // reach the compositor in the order they were made: a frame of the active document that holds it is taken in first,

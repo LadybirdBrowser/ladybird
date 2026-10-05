@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    @keyframes shrink {
+        from { height: 50px; }
+        to { height: 10px; }
+    }
+    #header {
+        height: 50px;
+        animation: shrink linear both;
+        animation-timeline: scroll(root);
+    }
+    #spacer {
+        height: 2000px;
+    }
+</style>
+<div id="header"></div>
+<div id="box" style="width: 10px; height: 0px; background: green"></div>
+<div id="spacer"></div>
+<script>
+    // A task that begins while the last rendering update's frame is still being painted runs the page's animations: the
+    // render clock waits for the painting to finish, rather than leave the animations still until a later task. The
+    // scroll-driven animation keeps the rendering update's style in step, so painting is what still runs.
+    asyncTest(async done => {
+        internals.setManualRenderingOpportunities(true);
+        await nextTask();
+        const animation = box.animate([{ height: "0px" }, { height: "100px" }], { duration: 10000, easing: "linear" });
+        let frameTime = performance.now();
+        internals.injectRenderingOpportunity(frameTime);
+        await nextTask();
+        while (animation.pending) {
+            frameTime += 16;
+            internals.injectRenderingOpportunity(frameTime);
+            await nextTask();
+        }
+        internals.holdNextFrame();
+        frameTime += 16;
+        internals.injectRenderingOpportunity(frameTime);
+        await nextTask();
+        println(`clock in the first task after the update: ${internals.clockLeaseState(document)}`);
+        internals.injectClockTick(frameTime + 1000);
+        println(`last frame presented by: ${internals.lastFramePresentedBy(document)}`);
+        internals.releaseHeldFrame();
+        internals.setManualRenderingOpportunities(false);
+        done();
+    });
+</script>
