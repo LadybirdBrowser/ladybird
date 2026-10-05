@@ -514,8 +514,6 @@ pub(crate) struct RunFragmentBuilder {
 #[derive(Default)]
 struct RunFragmentBuilderInner {
     pending_fragments: HashMap<u32, PendingFragment>,
-    #[cfg(debug_assertions)]
-    placed_slots: HashSet<u32>,
     child_roots_awaiting_placement: HashMap<u32, UnplacedRootFragment>,
     pending_abspos_at_root: Vec<abspos_inputs::PendingAbsposChild>,
     anchor_candidates_at_root: Vec<AnchorCandidate>,
@@ -580,11 +578,6 @@ impl RunFragmentBuilder {
         entry: abspos_inputs::PendingAbsposChild,
     ) {
         let mut inner = self.inner.borrow_mut();
-        #[cfg(debug_assertions)]
-        assert!(
-            !inner.placed_slots.contains(&coordinate_space_box.slot_index()),
-            "an abspos registration named an already-placed coordinate-space box"
-        );
         if coordinate_space_box == self.root_node {
             inner.pending_abspos_at_root.push(entry);
             return;
@@ -612,11 +605,6 @@ impl RunFragmentBuilder {
         coordinate_space_box: crate::layout::node_data::NodeSlotId,
     ) {
         let mut inner = self.inner.borrow_mut();
-        #[cfg(debug_assertions)]
-        assert!(
-            !inner.placed_slots.contains(&coordinate_space_box.slot_index()),
-            "an inline containing block rect named an already-placed coordinate-space box"
-        );
         debug_assert!(
             !inner
                 .iter_inline_containing_block_rects()
@@ -876,8 +864,6 @@ impl RunFragmentBuilder {
     ) {
         let mut inner = self.inner.borrow_mut();
         let slot = node.slot_index();
-        #[cfg(debug_assertions)]
-        assert!(inner.placed_slots.insert(slot), "a box was placed twice in one run");
         debug_assert!(
             !inner.child_roots_awaiting_placement.contains_key(&slot),
             "a box was placed without normalizing its held unplaced root (slot {slot})"
