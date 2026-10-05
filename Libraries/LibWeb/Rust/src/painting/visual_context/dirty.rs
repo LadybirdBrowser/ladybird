@@ -5,9 +5,9 @@
  */
 
 use super::BoxVisualContextNodeHandles;
+use crate::fast_hash::FastMap as HashMap;
 use crate::layout::node_data::NodeSlotId;
 pub use crate::painting::host::VisualContextUpdateScope;
-use std::collections::HashMap;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]
