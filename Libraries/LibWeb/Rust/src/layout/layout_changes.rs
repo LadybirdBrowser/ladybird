@@ -141,8 +141,6 @@ pub(crate) enum LayoutChange {
     },
     /// How the host learns what boxes a DOM node has, or none.
     SetBoxPresenceHost(Option<super::layout_node_arena::BoxPresenceHost>),
-    /// The text content and replaced-content facts of every node enrolled since the last sync are refreshed.
-    SyncEnrolledContentForLayout,
     /// The document's layout passes are traced from now on.
     BeginLayoutTrace,
     /// The boxes of the traced events at these lines are named so.
@@ -187,7 +185,6 @@ impl LayoutChange {
             | Self::ReleaseNodeStyleRecordPinForHost { .. }
             | Self::LetGoOfTickShownRecords(_)
             | Self::SetBoxPresenceHost(_)
-            | Self::SyncEnrolledContentForLayout
             | Self::BeginLayoutTrace
             | Self::NameLayoutTraceOwners(_)
             | Self::CounterStyles { .. } => RowWrite::Rows,
@@ -317,7 +314,6 @@ impl LayoutChange {
             Self::PinNodeStyleRecordForHost { node, record } => arena.pin_node_style_record_for_host(node, record),
             Self::ReleaseNodeStyleRecordPinForHost { node } => arena.release_node_style_record_pin_for_host(node),
             Self::SetBoxPresenceHost(host) => arena.set_box_presence_host(host),
-            Self::SyncEnrolledContentForLayout => super::layout_node_arena::sync_enrolled_content_for_layout(arena),
             Self::BeginLayoutTrace => arena.layout_trace.begin(),
             Self::NameLayoutTraceOwners(names) => arena.name_layout_trace_owners(names),
             Self::CounterStyles { tree_scope, scope } => arena.publish_counter_styles(tree_scope, scope),

@@ -36,8 +36,6 @@ public:
 
     virtual Utf16String const& text() const { return dom_node().data(); }
 
-    // Borrows the arena's rendered text until this node's content is republished or freed.
-    Utf16View text_for_rendering() const;
     Utf16String rendered_text_for_dom(bool collapse_whitespace) const;
     RustFFI::FfiTextSourceRange word_range_at(size_t dom_offset) const;
 

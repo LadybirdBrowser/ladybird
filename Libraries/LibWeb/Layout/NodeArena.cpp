@@ -73,9 +73,4 @@ void NodeArena::commit_box_presence(DOM::Node& node)
     node.set_box_presence({}, layout_node, layout_node && Painting::has_committed_box(*layout_node));
 }
 
-void NodeArena::sync_enrolled_content_for_layout()
-{
-    RustFFI::render_state_sync_enrolled_content_for_layout(host());
-}
-
 }

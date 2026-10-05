@@ -270,7 +270,6 @@ macro_rules! held_node_entry {
 held_node_entry!(crate::layout::shell_reads::HeldNode);
 held_node_entry!(crate::layout::ArenaHeldNode);
 held_node_entry!(crate::layout::PartialRelayoutHeldNode);
-held_node_entry!(crate::layout::rendered_text::HeldNode);
 held_node_entry!(crate::layout::text_queries::HeldNode);
 held_node_entry!(crate::painting::ffi::HeldNode);
 held_node_entry!(crate::painting::layout_tree_dump::HeldNode);

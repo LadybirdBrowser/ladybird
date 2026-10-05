@@ -42,8 +42,6 @@ public:
     u64 intrinsic_measurement_count() const;
     u64 intrinsic_inline_measurement_count() const;
 
-    void sync_enrolled_content_for_layout();
-
     DOM::Document* document() const { return m_document.ptr(); }
     void set_document(Badge<DOM::Document>, DOM::Document* document) { m_document = document; }
 

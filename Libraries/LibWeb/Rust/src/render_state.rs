@@ -128,7 +128,6 @@ impl RenderState {
                     .is_some(),
             },
             owes_image_resources: arena.owes_image_resources_to_host(),
-            may_have_text_source_ranges: arena.may_have_text_source_ranges(),
             selector_attribute_value_text_requirements_version: engine
                 .selector_attribute_value_text_requirements_version(),
         };
@@ -233,9 +232,6 @@ pub(crate) struct StateFacts {
     /// Whether the layout tree builds owe the host image resources, which no write moves (see
     /// [`DocumentHost::known_owed_image_resources`]).
     pub(crate) owes_image_resources: bool,
-    /// Whether a text box may have a source range, which only a build gives one, never a write (see
-    /// [`DocumentHost::known_no_text_source_ranges`]).
-    pub(crate) may_have_text_source_ranges: bool,
     /// Where the engine's selectors' requirements of attribute value text are.
     pub(crate) selector_attribute_value_text_requirements_version: u64,
 }
