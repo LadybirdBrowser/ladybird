@@ -24,6 +24,7 @@ use crate::css::css_pixels::{CssPixelPoint, FfiCssPixelPoint};
 use crate::css::style::tree::StyleNodeID;
 use crate::layout::LayoutNodeArena;
 use crate::layout::node_data::NodeSlotId;
+use crate::layout::tree_update_marks::MarkedBox;
 use crate::render_state::{ArenaChange, DocumentHost};
 use libcompositing_rust::ffi::ffi_slice;
 use std::sync::Arc;
@@ -69,9 +70,10 @@ pub(crate) enum PaintChange {
         node: NodeSlotId,
         entries: Vec<LayerImagePaintFactsEntry>,
     },
-    /// What the replaced content of the rows of the DOM node of `node` paints. A row whose facts changed paints again.
+    /// What the replaced content of the box `target` names, and of the rows sharing its DOM node, paints. A row whose
+    /// facts changed paints again.
     SetReplacedPaintFacts {
-        node: NodeSlotId,
+        target: MarkedBox,
         facts: ReplacedPaintFacts,
     },
     /// The `<area>` elements of the image map the image `node` is associated with, in tree order.
@@ -168,7 +170,7 @@ impl PaintChange {
             Self::SetLayerImagePaintFacts { node, entries } => {
                 arena.set_layer_image_paint_facts(node, entries);
             }
-            Self::SetReplacedPaintFacts { node, facts } => arena.set_replaced_paint_facts(node, facts),
+            Self::SetReplacedPaintFacts { target, facts } => arena.set_replaced_paint_facts(target, facts),
             Self::PublishImageMapAreas { node, areas } => arena.image_map_areas().publish(node, areas),
             Self::NoteVisualContextBoxDirty { node, kind } => {
                 if arena.paintable_row_is_populated(node) {
@@ -379,9 +381,22 @@ pub unsafe extern "C" fn render_state_set_layer_image_paint_facts(
 /// # Safety
 ///
 /// `host` must be a live document host, on the document's thread.
-unsafe fn queue_replaced_paint_facts(host: *const DocumentHost, node: NodeSlotId, facts: ReplacedPaintFacts) {
+unsafe fn queue_replaced_paint_facts(host: *const DocumentHost, target: MarkedBox, facts: ReplacedPaintFacts) {
     // SAFETY: Guaranteed by the caller.
-    unsafe { queue(host, PaintChange::SetReplacedPaintFacts { node, facts }) };
+    unsafe { queue(host, PaintChange::SetReplacedPaintFacts { target, facts }) };
+}
+
+/// Queues `facts`, read off the element with `element`, for the box bound to it, which the render state finds as it
+/// applies them: the element may change beside a frame in flight, which holds the boxes.
+///
+/// # Safety
+///
+/// `host` must be a live document host, on the document's thread.
+unsafe fn queue_element_paint_facts(host: *const DocumentHost, element: u32, facts: ReplacedPaintFacts) {
+    if let Some(element) = StyleNodeID::from_raw(element) {
+        // SAFETY: Guaranteed by the caller.
+        unsafe { queue_replaced_paint_facts(host, MarkedBox::Node(Some(element)), facts) };
+    }
 }
 
 /// # Safety
@@ -390,14 +405,14 @@ unsafe fn queue_replaced_paint_facts(host: *const DocumentHost, node: NodeSlotId
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn render_state_set_form_control_paint_facts(
     host: *const DocumentHost,
-    node: NodeSlotId,
+    element: u32,
     facts: FfiFormControlPaintFacts,
 ) {
     // SAFETY: Guaranteed by the caller.
-    unsafe { queue_replaced_paint_facts(host, node, ReplacedPaintFacts::FormControl(facts)) };
+    unsafe { queue_element_paint_facts(host, element, ReplacedPaintFacts::FormControl(facts)) };
 }
 
-/// The canvas paints its surface's content of this size and generation now: where that changed, so does what its row
+/// The canvas paints its surface's content of this size and generation now: where that changed, so does what its box
 /// paints.
 ///
 /// # Safety
@@ -406,11 +421,11 @@ pub unsafe extern "C" fn render_state_set_form_control_paint_facts(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn render_state_set_canvas_paint_facts(
     host: *const DocumentHost,
-    node: NodeSlotId,
+    element: u32,
     facts: FfiCanvasPaintFacts,
 ) {
     // SAFETY: Guaranteed by the caller.
-    unsafe { queue_replaced_paint_facts(host, node, ReplacedPaintFacts::Canvas(facts)) };
+    unsafe { queue_element_paint_facts(host, element, ReplacedPaintFacts::Canvas(facts)) };
 }
 
 /// The navigable container paints the compositor context of its content, if it has one: where that changed, so does
@@ -425,10 +440,13 @@ pub unsafe extern "C" fn render_state_set_navigable_container_paint_facts(
     node: NodeSlotId,
     facts: FfiNavigableContainerPaintFacts,
 ) {
+    let facts = ReplacedPaintFacts::NavigableContainer(facts);
     // SAFETY: Guaranteed by the caller.
-    unsafe { queue_replaced_paint_facts(host, node, ReplacedPaintFacts::NavigableContainer(facts)) };
+    unsafe { queue_replaced_paint_facts(host, MarkedBox::Row(node), facts) };
 }
 
+/// The image box `node` shows the image of the provider its box holds: its own, or its element's.
+///
 /// # Safety
 ///
 /// `host` must be a live document host, on the document's thread, and the image `facts` names must be live.
@@ -441,7 +459,25 @@ pub unsafe extern "C" fn render_state_set_replaced_image_paint_facts(
     // SAFETY: Guaranteed by the caller.
     let facts = unsafe { ImagePaintFacts::from_ffi(&facts) };
     // SAFETY: Guaranteed by the caller.
-    unsafe { queue_replaced_paint_facts(host, node, ReplacedPaintFacts::Image(facts)) };
+    unsafe { queue_replaced_paint_facts(host, MarkedBox::Row(node), ReplacedPaintFacts::Image(facts)) };
+}
+
+/// The image of the element with `element` is the one `facts` describes, which its box shows unless the box owns the
+/// provider of an image of its own.
+///
+/// # Safety
+///
+/// `host` must be a live document host, on the document's thread, and the image `facts` names must be live.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn render_state_set_element_image_paint_facts(
+    host: *const DocumentHost,
+    element: u32,
+    facts: FfiReplacedImagePaintFacts,
+) {
+    // SAFETY: Guaranteed by the caller.
+    let facts = unsafe { ImagePaintFacts::from_ffi(&facts) };
+    // SAFETY: Guaranteed by the caller.
+    unsafe { queue_element_paint_facts(host, element, ReplacedPaintFacts::Image(facts)) };
 }
 
 /// # Safety
@@ -451,13 +487,13 @@ pub unsafe extern "C" fn render_state_set_replaced_image_paint_facts(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn render_state_set_video_paint_facts(
     host: *const DocumentHost,
-    node: NodeSlotId,
+    element: u32,
     facts: FfiVideoPaintFacts,
 ) {
     // SAFETY: Guaranteed by the caller.
     let facts = unsafe { VideoPaintFacts::from_ffi(&facts) };
     // SAFETY: Guaranteed by the caller.
-    unsafe { queue_replaced_paint_facts(host, node, ReplacedPaintFacts::Video(facts)) };
+    unsafe { queue_element_paint_facts(host, element, ReplacedPaintFacts::Video(facts)) };
 }
 
 /// Publishes the `<area>` elements of the image map the image `node` is associated with, in tree order. Publishing no

@@ -101,7 +101,7 @@ void HTMLImageElement::set_needs_layout_update_or_repaint_after_image_data_chang
 {
     CSS::record_element_replaced_content_input(*this);
     update_alt_text_shadow_tree();
-    Painting::push_replaced_image_paint_facts(*this);
+    Painting::push_replaced_image_paint_facts(*this, *this);
     // What the new data changes of the image's box, the render state finds as it applies the mark: the data may arrive
     // in a task beside a frame in flight, which holds the boxes.
     Layout::RustFFI::FfiBoxMarks marks {};
@@ -1600,7 +1600,7 @@ void HTMLImageElement::decoded_image_data_did_update()
 {
     // An SVG image works out its natural size again after it redraws itself or changes color scheme.
     CSS::record_element_replaced_content_input(*this);
-    Painting::push_replaced_image_paint_facts(*this);
+    Painting::push_replaced_image_paint_facts(*this, *this);
 }
 
 bool HTMLImageElement::is_image_pending() const

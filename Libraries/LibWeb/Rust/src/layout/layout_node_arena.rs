@@ -821,6 +821,16 @@ pub(crate) enum OwedImageResources {
     },
 }
 
+/// Where an image box that owns the provider of the image it shows stands with it.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(crate) enum OwnedImageProvider {
+    /// The host hands the box its provider once the layout update the build ran in is over. Until then the box has no
+    /// image.
+    Awaited,
+    /// The box shows the provider's image, never its element's.
+    HandedOver,
+}
+
 #[must_use]
 pub(crate) struct FreedSubtree {
     /// Each freed row, as it was named before it was freed.
@@ -1263,9 +1273,8 @@ pub(crate) struct LayoutNodeArena {
     /// The image resources the tree builds owe the host for the rows they stamped, in the order
     /// the builds came to owe them, until the layout update the builds ran in is over.
     image_resources_owed_to_host: RefCell<Vec<(NodeSlotId, OwedImageResources)>>,
-    /// The image boxes among those rows that own the provider of the image they show. Until the
-    /// host hands a box its provider, the box has no image.
-    image_boxes_awaiting_owned_provider: RefCell<HashSet<NodeSlotId>>,
+    /// The image boxes among the rows that own the provider of the image they show.
+    owned_image_providers: RefCell<HashMap<NodeSlotId, OwnedImageProvider>>,
     /// Whether a row has ever been given a style with `content-visibility: auto`.
     may_have_auto_content_visibility: Cell<bool>,
     /// Whether a row has ever been given a style with a scroll snap type.
@@ -1368,7 +1377,7 @@ impl LayoutNodeArena {
             text_nodes_enrolled_for_content_sync: RefCell::new(HashSet::default()),
             built_scroll_containers: RefCell::default(),
             image_resources_owed_to_host: RefCell::default(),
-            image_boxes_awaiting_owned_provider: RefCell::default(),
+            owned_image_providers: RefCell::default(),
             may_have_auto_content_visibility: Cell::new(false),
             may_have_scroll_snap_areas: Cell::new(false),
             nodes_enrolled_for_replaced_content_facts_sync: RefCell::new(Vec::new()),
@@ -1488,7 +1497,7 @@ impl LayoutNodeArena {
         for &node in &enrolled_nodes {
             // A box waiting for the provider it owns shows no image yet, as the provider says while
             // its image is not available.
-            let input = if self.image_boxes_awaiting_owned_provider.get_mut().contains(&node) {
+            let input = if self.owned_image_providers.get_mut().get(&node) == Some(&OwnedImageProvider::Awaited) {
                 crate::css::style::ReplacedContentInput::NaturalSize(crate::css::style::NaturalSize {
                     width: Some(0),
                     height: Some(0),
@@ -1689,7 +1698,7 @@ impl LayoutNodeArena {
             *slot = ReplacedContentFactsSlot::default();
         }
         self.owned_image_natural_sizes.get_mut().remove(&id);
-        self.image_boxes_awaiting_owned_provider.get_mut().remove(&id);
+        self.owned_image_providers.get_mut().remove(&id);
         self.fc_run_cache_store.remove_entry(index);
         self.remove_layout_update_flag_node(id);
         self.raw_table_column_spans.get_mut().remove(&id);
@@ -3778,12 +3787,35 @@ impl LayoutNodeArena {
         changed
     }
 
+    /// Writes `facts` onto the box `target` names, and every row sharing its DOM node, where the box paints facts of
+    /// their kind. A box that owns the provider of its image shows that provider's image, which only facts naming the
+    /// box by its row carry, and none before the host hands it the provider.
     pub(crate) fn set_replaced_paint_facts(
         &self,
-        id: NodeSlotId,
+        target: super::tree_update_marks::MarkedBox,
         facts: crate::painting::replaced_paint_facts::ReplacedPaintFacts,
     ) {
-        if !self.slot_is_live(id) {
+        use super::tree_update_marks::MarkedBox;
+        use crate::painting::replaced_paint_facts::ReplacedPaintFacts;
+        let id = target.row(self);
+        let Some(kind) = self.node_kind_if_live(id) else {
+            return;
+        };
+        let shows = match facts {
+            ReplacedPaintFacts::FormControl(_) => matches!(kind, NodeKind::CheckBox | NodeKind::RadioButton),
+            ReplacedPaintFacts::Canvas(_) => kind == NodeKind::CanvasBox,
+            ReplacedPaintFacts::NavigableContainer(_) => kind == NodeKind::NavigableContainerViewport,
+            ReplacedPaintFacts::Image(_) => {
+                matches!(kind, NodeKind::ImageBox | NodeKind::SVGImageBox)
+                    && match self.owned_image_provider(id) {
+                        None => true,
+                        Some(OwnedImageProvider::HandedOver) => matches!(target, MarkedBox::Row(_)),
+                        Some(OwnedImageProvider::Awaited) => false,
+                    }
+            }
+            ReplacedPaintFacts::Video(_) => kind == NodeKind::VideoBox,
+        };
+        if !shows {
             return;
         }
         let damage = facts.damage_when_changed();
@@ -5185,7 +5217,9 @@ impl LayoutNodeArena {
             OwedImageResources::GeneratedImage { .. } => true,
         };
         if owns_provider {
-            self.image_boxes_awaiting_owned_provider.borrow_mut().insert(id);
+            self.owned_image_providers
+                .borrow_mut()
+                .insert(id, OwnedImageProvider::Awaited);
         }
         self.image_resources_owed_to_host.borrow_mut().push((id, owed));
     }
@@ -5201,14 +5235,16 @@ impl LayoutNodeArena {
         !self.image_resources_owed_to_host.borrow().is_empty()
     }
 
-    /// Whether `id` is an image box that owns its image's provider and has not been handed it yet.
-    pub(crate) fn image_box_awaits_owned_provider(&self, id: NodeSlotId) -> bool {
-        self.image_boxes_awaiting_owned_provider.borrow().contains(&id)
+    /// Where `id` stands with the provider of its image, if it is an image box that owns one.
+    pub(crate) fn owned_image_provider(&self, id: NodeSlotId) -> Option<OwnedImageProvider> {
+        self.owned_image_providers.borrow().get(&id).copied()
     }
 
     /// Notes that the host is about to hand `id` the provider it owns, if it was waiting for one.
     pub(crate) fn note_owned_provider_handed_over(&self, id: NodeSlotId) {
-        self.image_boxes_awaiting_owned_provider.borrow_mut().remove(&id);
+        if let Some(provider) = self.owned_image_providers.borrow_mut().get_mut(&id) {
+            *provider = OwnedImageProvider::HandedOver;
+        }
     }
 
     /// Notes that the running build gave the scroll container `id` a style, which decides whether
@@ -5455,26 +5491,6 @@ pub(crate) fn prepare_subtree_for_detach(host_calls: HostCalls<'_>, arena: &Layo
     arena.for_each_node_in_layout_subtree_in_pre_order(root, |row| rows.push(row));
     for row in rows {
         prepare_row_for_detach(host_calls, arena, row);
-    }
-}
-
-/// Whether the row is an image box that owns its image's provider and has not been handed it yet,
-/// which it is from the tree build that stamps it until the layout update the build runs in is
-/// over.
-///
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn render_state_image_box_awaits_owned_provider(
-    host: *const DocumentHost,
-    slot: NodeSlotId,
-) -> bool {
-    // SAFETY: Guaranteed by the caller.
-    unsafe {
-        read_arena(host, node_read(), slot, |arena, slot| {
-            arena.image_box_awaits_owned_provider(slot)
-        })
     }
 }
 

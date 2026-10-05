@@ -7,7 +7,6 @@
 #include <LibWeb/CSS/StyleValues/AbstractImageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ImageSetStyleValue.h>
 #include <LibWeb/DOM/Document.h>
-#include <LibWeb/DOM/InvalidationJournal.h>
 #include <LibWeb/HTML/DecodedImageData.h>
 #include <LibWeb/HTML/HTMLAreaElement.h>
 #include <LibWeb/HTML/HTMLCanvasElement.h>
@@ -30,12 +29,18 @@
 
 namespace Web::Painting {
 
-static bool paints_form_control_from_facts(Layout::Node const& layout_node)
+// The facts read off an element are queued for the box bound to it, which the render state finds as it applies them. A
+// node the style mirror has not named, or one of a document with no boxes, has no box.
+template<typename Queue>
+static void queue_element_paint_facts(DOM::Element const& element, Queue queue)
 {
-    return layout_node.kind() == Layout::RustFFI::NodeKind::CheckBox || layout_node.kind() == Layout::RustFFI::NodeKind::RadioButton;
+    auto identity = DOM::NodeIdentity::of(element);
+    auto* arena = element.document().layout_node_arena_if_created();
+    if (identity && arena)
+        queue(arena->host(), identity.style_node().value());
 }
 
-static void push_form_control_paint_facts_onto(HTML::HTMLInputElement const& input, Layout::Node const& layout_node)
+static void queue_form_control_paint_facts(HTML::HTMLInputElement const& input)
 {
     Layout::RustFFI::FfiFormControlPaintFacts facts {
         .enabled = input.enabled(),
@@ -43,31 +48,19 @@ static void push_form_control_paint_facts_onto(HTML::HTMLInputElement const& inp
         .indeterminate = input.indeterminate(),
         .being_activated = input.is_being_activated(),
     };
-    Layout::RustFFI::render_state_set_form_control_paint_facts(layout_node.document_host(), Layout::Node::slot_id(&layout_node), facts);
-}
-
-// The journal finds the box as it drains, so the box is not looked up here.
-static void note_paint_facts(DOM::Node const& node, PaintFactsFamily families)
-{
-    if (!node.has_layout_box())
-        return;
-    if (auto identity = DOM::NodeIdentity::of(node)) {
-        const_cast<DOM::Document&>(node.document()).invalidation_journal().note_paint_facts(identity, families);
-        return;
-    }
-    // A node the style mirror has not named has nowhere to hold a journal entry, so its box is asked for now.
-    Layout::ForcedReadScope read { node.document() };
-    apply_paint_facts(*node.unsafe_layout_node(read), families);
+    queue_element_paint_facts(input, [&](auto* host, u32 element) {
+        Layout::RustFFI::render_state_set_form_control_paint_facts(host, element, facts);
+    });
 }
 
 void push_form_control_paint_facts(HTML::HTMLInputElement& input)
 {
     using enum HTML::HTMLInputElement::TypeAttributeState;
-    if (first_is_one_of(input.type_state(), Checkbox, RadioButton))
-        note_paint_facts(input, PaintFactsFamily::FormControl);
+    if (input.has_layout_box() && first_is_one_of(input.type_state(), Checkbox, RadioButton))
+        queue_form_control_paint_facts(input);
 }
 
-static void push_canvas_paint_facts_onto(HTML::HTMLCanvasElement const& canvas, Layout::Node const& layout_node)
+static void queue_canvas_paint_facts(HTML::HTMLCanvasElement const& canvas)
 {
     Layout::RustFFI::FfiCanvasPaintFacts facts {};
     if (auto content_size = canvas.canvas_surface_content_size(); content_size.has_value()) {
@@ -78,12 +71,15 @@ static void push_canvas_paint_facts_onto(HTML::HTMLCanvasElement const& canvas, 
         facts.content_generation = canvas.content_generation();
     }
     // Where the facts changed, the canvas's paint cache goes with them.
-    Layout::RustFFI::render_state_set_canvas_paint_facts(layout_node.document_host(), Layout::Node::slot_id(&layout_node), facts);
+    queue_element_paint_facts(canvas, [&](auto* host, u32 element) {
+        Layout::RustFFI::render_state_set_canvas_paint_facts(host, element, facts);
+    });
 }
 
 void push_canvas_paint_facts(HTML::HTMLCanvasElement const& canvas)
 {
-    note_paint_facts(canvas, PaintFactsFamily::Canvas);
+    if (canvas.has_layout_box())
+        queue_canvas_paint_facts(canvas);
 }
 
 static Optional<u64> composited_context_id_for_navigable_container(HTML::NavigableContainer const& navigable_container)
@@ -208,17 +204,19 @@ static void push_layer_image_paint_facts_onto(Layout::NodeWithStyle const& layou
     Layout::RustFFI::render_state_set_layer_image_paint_facts(layout_node.document_host(), Layout::Node::slot_id(&layout_node), entries.data(), entries.size());
 }
 
-static void push_replaced_image_paint_facts_onto(Layout::ImageProvider const& image_provider, Layout::Node const& layout_node)
+// Hands `queue` the facts of the image `image_provider` provides, which live as long as the call.
+template<typename Queue>
+static void with_replaced_image_paint_facts(Layout::ImageProvider const& image_provider, Queue queue)
 {
     Optional<Gfx::DecodedImageFrame> current_frame;
     Layout::RustFFI::FfiReplacedImagePaintFacts facts {
         .natural = natural_size_facts(image_provider.intrinsic_width(), image_provider.intrinsic_height(), image_provider.intrinsic_aspect_ratio()),
         .content = image_content_facts(image_provider.decoded_image_data(), current_frame),
     };
-    Layout::RustFFI::render_state_set_replaced_image_paint_facts(layout_node.document_host(), Layout::Node::slot_id(&layout_node), facts);
+    queue(facts);
 }
 
-static void push_video_paint_facts_onto(HTML::HTMLVideoElement const& video_element, Layout::Node const& layout_node)
+static void queue_video_paint_facts(HTML::HTMLVideoElement const& video_element)
 {
     Layout::RustFFI::FfiVideoPaintFacts facts {};
     switch (video_element.current_representation()) {
@@ -245,7 +243,9 @@ static void push_video_paint_facts_onto(HTML::HTMLVideoElement const& video_elem
         facts.representation = Layout::RustFFI::FfiVideoRepresentation::TransparentBlack;
         break;
     }
-    Layout::RustFFI::render_state_set_video_paint_facts(layout_node.document_host(), Layout::Node::slot_id(&layout_node), facts);
+    queue_element_paint_facts(video_element, [&](auto* host, u32 element) {
+        Layout::RustFFI::render_state_set_video_paint_facts(host, element, facts);
+    });
 }
 
 static bool paints_replaced_image_from_facts(Layout::Node const& layout_node)
@@ -253,33 +253,50 @@ static bool paints_replaced_image_from_facts(Layout::Node const& layout_node)
     return layout_node.kind() == Layout::RustFFI::NodeKind::ImageBox || layout_node.kind() == Layout::RustFFI::NodeKind::SVGImageBox;
 }
 
-static void note_box_paint_facts(Layout::Node const& layout_node, PaintFactsFamily families)
+static void queue_box_image_paint_facts(Layout::Node const& layout_node)
 {
-    if (auto identity = DOM::NodeIdentity::of(bound_dom_node(layout_node)))
-        const_cast<DOM::Document&>(layout_node.document()).invalidation_journal().note_paint_facts(identity, families);
-    else
-        apply_paint_facts(layout_node, families);
+    auto const* image_provider = layout_node.kind() == Layout::RustFFI::NodeKind::ImageBox
+        ? static_cast<Layout::Box const&>(layout_node).image_provider_if_any()
+        : &as<SVG::SVGImageElement>(*layout_node.dom_node());
+    if (!image_provider)
+        return;
+    with_replaced_image_paint_facts(*image_provider, [&](auto const& facts) {
+        Layout::RustFFI::render_state_set_replaced_image_paint_facts(layout_node.document_host(), Layout::Node::slot_id(&layout_node), facts);
+    });
 }
 
 void push_layer_image_paint_facts(Layout::NodeWithStyle& layout_node)
 {
-    layout_node.document().invalidation_journal().note_box_image_changed(layout_node, PaintFactsFamily::LayerImages, InvalidateDisplayList::PaintCommands);
+    push_layer_image_paint_facts_onto(layout_node);
+    mark_box(layout_node, repaint_marks(InvalidateDisplayList::PaintCommands));
 }
 
 void push_replaced_image_paint_facts(Layout::Node& layout_node)
 {
-    if (paints_replaced_image_from_facts(layout_node))
-        layout_node.document().invalidation_journal().note_box_image_changed(layout_node, PaintFactsFamily::ReplacedImage, InvalidateDisplayList::No);
+    if (!paints_replaced_image_from_facts(layout_node))
+        return;
+    queue_box_image_paint_facts(layout_node);
+    request_document_repaint(layout_node.document(), InvalidateDisplayList::PaintCommands);
 }
 
-void push_replaced_image_paint_facts(DOM::Element const& element)
+void push_replaced_image_paint_facts(DOM::Element const& element, Layout::ImageProvider const& image_provider)
 {
-    note_paint_facts(element, PaintFactsFamily::ReplacedImage);
+    if (!element.has_layout_box())
+        return;
+    with_replaced_image_paint_facts(image_provider, [&](auto const& facts) {
+        queue_element_paint_facts(element, [&](auto* host, u32 style_node) {
+            Layout::RustFFI::render_state_set_element_image_paint_facts(host, style_node, facts);
+        });
+    });
+    request_document_repaint(element.document(), InvalidateDisplayList::PaintCommands);
 }
 
 void push_video_paint_facts(HTML::HTMLVideoElement const& video_element)
 {
-    note_paint_facts(video_element, PaintFactsFamily::Video);
+    if (!video_element.has_layout_box())
+        return;
+    queue_video_paint_facts(video_element);
+    request_document_repaint(video_element.document(), InvalidateDisplayList::PaintCommands);
 }
 
 // The `<area>` elements of the image map an image is associated with, in tree order, each named by its style-tree
@@ -335,48 +352,35 @@ void publish_image_map_area_facts_if_needed(Layout::BegunRead const& read, DOM::
 
 void push_paint_facts_after_style_attach(Layout::NodeWithStyle& layout_node, StyleHoldsImageValues style_holds_image_values)
 {
-    // NB: Nothing paints from the image map areas, so they are written at once rather than noted in the journal. An
-    //     image with no map has nothing to write: a row starts out with no areas, and when an image loses its map, the
-    //     document's publication pass clears what its row had.
+    // NB: An image with no map has no image map areas to write: a row starts out with no areas, and when an image loses
+    //     its map, the document's publication pass clears what its row had.
     if (auto* image_element = as_if<HTML::HTMLImageElement>(layout_node.dom_node())) {
         if (auto map_element = image_element->associated_map_element())
             push_image_map_area_facts_onto(map_element, layout_node);
     }
-    auto families = style_holds_image_values == StyleHoldsImageValues::Yes ? PaintFactsFamily::LayerImages : PaintFactsFamily::NoLayerImages;
-    if (paints_form_control_from_facts(layout_node))
-        families |= PaintFactsFamily::FormControl;
-    else if (layout_node.kind() == Layout::RustFFI::NodeKind::CanvasBox)
-        families |= PaintFactsFamily::Canvas;
-    else if (paints_replaced_image_from_facts(layout_node))
-        families |= PaintFactsFamily::ReplacedImage;
-    else if (layout_node.kind() == Layout::RustFFI::NodeKind::VideoBox)
-        families |= PaintFactsFamily::Video;
-    note_box_paint_facts(layout_node, families);
-}
-
-void apply_paint_facts(Layout::Node const& layout_node, PaintFactsFamily families)
-{
-    if (has_flag(families, PaintFactsFamily::NoLayerImages))
+    if (style_holds_image_values == StyleHoldsImageValues::Yes)
+        push_layer_image_paint_facts_onto(layout_node);
+    else
         Layout::RustFFI::render_state_set_layer_image_paint_facts(layout_node.document_host(), Layout::Node::slot_id(&layout_node), nullptr, 0);
-    if (auto const* node_with_style = as_if<Layout::NodeWithStyle>(layout_node); node_with_style && has_flag(families, PaintFactsFamily::LayerImages))
-        push_layer_image_paint_facts_onto(*node_with_style);
-    if (has_flag(families, PaintFactsFamily::FormControl) && paints_form_control_from_facts(layout_node))
-        push_form_control_paint_facts_onto(as<HTML::HTMLInputElement>(*layout_node.dom_node()), layout_node);
-    if (has_flag(families, PaintFactsFamily::Canvas) && layout_node.kind() == Layout::RustFFI::NodeKind::CanvasBox)
-        push_canvas_paint_facts_onto(as<HTML::HTMLCanvasElement>(*layout_node.dom_node()), layout_node);
-    // A box that owns its image's provider is handed it once the layout update that built the box is over, and handing
-    // it over pushes these facts. A restyle within that update has no provider to read.
-    if (has_flag(families, PaintFactsFamily::ReplacedImage) && paints_replaced_image_from_facts(layout_node)
-        && !Layout::RustFFI::render_state_image_box_awaits_owned_provider(layout_node.document_host(), Layout::Node::slot_id(&layout_node))) {
-        auto const& image_provider = layout_node.kind() == Layout::RustFFI::NodeKind::ImageBox
-            ? static_cast<Layout::Box const&>(layout_node).image_provider()
-            : static_cast<Layout::ImageProvider const&>(as<SVG::SVGImageElement>(*layout_node.dom_node()));
-        push_replaced_image_paint_facts_onto(image_provider, layout_node);
-        request_document_repaint(layout_node, InvalidateDisplayList::PaintCommands);
-    }
-    if (has_flag(families, PaintFactsFamily::Video) && layout_node.kind() == Layout::RustFFI::NodeKind::VideoBox) {
-        push_video_paint_facts_onto(as<HTML::HTMLVideoElement>(*layout_node.dom_node()), layout_node);
-        request_document_repaint(layout_node, InvalidateDisplayList::PaintCommands);
+    switch (layout_node.kind()) {
+    case Layout::RustFFI::NodeKind::CheckBox:
+    case Layout::RustFFI::NodeKind::RadioButton:
+        queue_form_control_paint_facts(as<HTML::HTMLInputElement>(*layout_node.dom_node()));
+        break;
+    case Layout::RustFFI::NodeKind::CanvasBox:
+        queue_canvas_paint_facts(as<HTML::HTMLCanvasElement>(*layout_node.dom_node()));
+        break;
+    case Layout::RustFFI::NodeKind::ImageBox:
+    case Layout::RustFFI::NodeKind::SVGImageBox:
+        queue_box_image_paint_facts(layout_node);
+        request_document_repaint(layout_node.document(), InvalidateDisplayList::PaintCommands);
+        break;
+    case Layout::RustFFI::NodeKind::VideoBox:
+        queue_video_paint_facts(as<HTML::HTMLVideoElement>(*layout_node.dom_node()));
+        request_document_repaint(layout_node.document(), InvalidateDisplayList::PaintCommands);
+        break;
+    default:
+        break;
     }
 }
 

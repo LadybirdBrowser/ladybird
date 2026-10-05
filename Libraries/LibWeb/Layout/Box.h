@@ -22,6 +22,9 @@ public:
     bool is_partial_relayout_boundary() const;
 
     ImageProvider const& image_provider() const;
+    // The provider of the image the box shows: the one it owns once it is handed it, else its element's, which a box
+    // that owns a provider it has yet to be handed may not have.
+    ImageProvider const* image_provider_if_any() const;
     ImageProvider& image_provider()
     {
         return const_cast<ImageProvider&>(const_cast<Box const&>(*this).image_provider());
