@@ -1,0 +1,3 @@
+DOMContentLoaded
+img error event
+window load event
