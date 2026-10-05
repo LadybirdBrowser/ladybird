@@ -5474,11 +5474,11 @@ mod tests {
     fn clearing_a_stale_node_frees_its_box_and_its_pseudo_element_boxes() {
         use crate::css::style::tree::StyleNodeID;
         use crate::layout::LayoutNodeArena;
-        use crate::layout::node_data::{FfiNodeConstructionFacts, NodeFlag, NodeKind};
+        use crate::layout::node_data::{NodeConstructionFacts, NodeFlag, NodeKind};
         use crate::layout::tree_mutation::UnplacedLayoutNode;
         use crate::stage::MainThread;
 
-        let facts = |style_node: Option<StyleNodeID>| FfiNodeConstructionFacts {
+        let facts = |style_node: Option<StyleNodeID>| NodeConstructionFacts {
             kind: NodeKind::BlockContainer,
             is_anonymous: style_node.is_none(),
             is_html_input_element: false,

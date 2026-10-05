@@ -71,7 +71,6 @@ pub(crate) use crate::layout::layout_node_arena::MainThreadFfiEntry as ArenaMain
 pub(crate) use crate::layout::layout_node_arena::{HostStyle, LayoutNodeArena, RowsVersion, SLOTS_PER_CHUNK};
 use crate::layout::layout_node_arena::{TableCellMeasurement, TableCellMeasurementKey};
 use crate::layout::node_data::AncestorFact;
-pub use crate::layout::node_data::FfiNodeConstructionFacts;
 pub use crate::layout::node_data::FfiReplacedContentFacts;
 pub use crate::layout::node_data::FfiStylePayloads;
 use crate::layout::node_data::NodeData;
