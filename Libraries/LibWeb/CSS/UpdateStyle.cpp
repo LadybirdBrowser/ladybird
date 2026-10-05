@@ -1045,8 +1045,10 @@ static void update_style(Layout::BegunRead const& read, DOM::Document& document,
         if (!applicable_style_engine_reactions.is_empty()) {
             // Apply each inheritance branch contiguously in preorder. Besides making every parent
             // ready before its descendants, this lets a parent's derived reaction merge into an
-            // unconsumed child reaction in the same batch.
-            document.style_computer().style_engine().sort_style_deltas_for_direct_application(read, applicable_style_engine_reactions);
+            // unconsumed child reaction in the same batch. The engine answers a transaction's
+            // reactions in that order, so only the gap deltas closed over here need the engine's sort.
+            if (!inheritance_closure.is_empty())
+                document.style_computer().style_engine().sort_style_deltas_for_direct_application(read, applicable_style_engine_reactions);
             auto& counters = document.style_invalidation_counters();
             if (published_reaction_count > 0) {
                 ++counters.style_engine_reaction_batch_runs;
