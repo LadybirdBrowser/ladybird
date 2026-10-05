@@ -38,7 +38,6 @@ pub(crate) fn record_display_list(
     inputs: &RecordingInputs,
     source_recording: Option<Arc<RecordingOutput>>,
     source_items: Option<Arc<PublishedHitTestItems>>,
-    plan_from_prepared_inputs: bool,
     trace: bool,
 ) -> RecordingResult {
     scratch.begin_recording(source.frame().paintable_row_capacity());
@@ -52,7 +51,6 @@ pub(crate) fn record_display_list(
                 inputs,
                 source_recording,
                 source_items,
-                plan_from_prepared_inputs,
             )
         };
     }
@@ -74,7 +72,6 @@ fn record_display_list_impl<O: Observer>(
     inputs: &RecordingInputs,
     source_recording: Option<Arc<RecordingOutput>>,
     source_items: Option<Arc<PublishedHitTestItems>>,
-    plan_from_prepared_inputs: bool,
 ) -> RecordingResult {
     debug_assert!(
         inputs.publishes_recording || source_recording.is_none(),
@@ -113,7 +110,6 @@ fn record_display_list_impl<O: Observer>(
         source_recording,
         source_items,
         live_producer: false,
-        plan_from_prepared_inputs,
         moved_expansion: FastSet::default(),
         blocking_wheel_event_region_count: 0,
         observer: O::default(),
@@ -180,7 +176,7 @@ fn record_display_list_impl<O: Observer>(
         has_blocking_wheel_event_listeners: recorder.blocking_wheel_event_region_count > 0,
         wheel_event_listener_state_generation: inputs.wheel_event_listener_state_generation,
         is_identical_to_published_recording: false,
-        capture_log_for_verification: recorder.observer.finish(),
+        capture_log: recorder.observer.finish(),
     };
     RecordingResult {
         output,

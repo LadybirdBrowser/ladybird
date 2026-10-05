@@ -671,7 +671,7 @@ pub unsafe extern "C" fn render_state_take_recording_trace(
     let Some(recording) = recording else {
         return false;
     };
-    let Some(log) = recording.capture_log_for_verification.as_ref() else {
+    let Some(log) = recording.capture_log.as_ref() else {
         return false;
     };
     let mut name = |slot| {

@@ -5,12 +5,19 @@
  */
 
 use super::order_tree::ProducerKind;
-use super::verify::CaptureLog;
 use crate::layout::node_data::NodeSlotId;
 use crate::painting::paint_order_plan::{PaintScope, PaintScopeKind, StackingContextPaintPhase};
 use std::cell::RefCell;
 use std::fmt::Write;
 use std::rc::Rc;
+
+/// What a traced recording did, in order.
+#[derive(Default, Debug)]
+pub struct CaptureLog {
+    pub(crate) events: Vec<Event>,
+    pub(crate) open_events: Vec<usize>,
+    pub(crate) damage: Option<DamageSummary>,
+}
 
 // The normal recorder carries no observation state. Keeping the policy static also removes
 // diagnostic argument construction and branches from its traversal and painter specializations.
@@ -177,7 +184,7 @@ impl CaptureLog {
     }
 }
 
-pub(crate) fn producer_name(kind: ProducerKind) -> &'static str {
+fn producer_name(kind: ProducerKind) -> &'static str {
     match kind {
         ProducerKind::DrawBackground => "background",
         ProducerKind::DrawBorder => "border",

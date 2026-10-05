@@ -229,7 +229,6 @@ pub(crate) fn record_frame(
     } else {
         (&mut throwaway_tree, None, None)
     };
-    let copies_from_published_recording = source_recording.is_some();
     let recording = crate::painting::record::traversal::record_display_list(
         &source,
         scratch,
@@ -238,34 +237,12 @@ pub(crate) fn record_frame(
         &inputs,
         source_recording,
         source_items,
-        true,
-        trace_recordings || crate::painting::record::verify::enabled_by_environment(),
+        trace_recordings,
     );
-    // The oracle records the same frame from scratch into a throwaway tree whenever the
-    // published recording could have been copied from.
-    let recording_from_scratch =
-        (crate::painting::record::verify::enabled_by_environment() && copies_from_published_recording).then(|| {
-            let mut inputs_for_recording_from_scratch = inputs.clone();
-            inputs_for_recording_from_scratch.publishes_recording = false;
-            let mut tree_for_recording_from_scratch = crate::painting::record::order_tree::PaintOrderTree::default();
-            crate::painting::record::traversal::record_display_list(
-                &source,
-                scratch,
-                &mut tree_for_recording_from_scratch,
-                viewport,
-                &inputs_for_recording_from_scratch,
-                None,
-                None,
-                false,
-                false,
-            )
-        });
-    let trace = (trace_recordings && recording.output.capture_log_for_verification.is_some()).then_some(
-        PendingRecordingTrace {
-            viewport,
-            should_paint_overlay: inputs.should_paint_overlay,
-        },
-    );
+    let trace = trace_recordings.then_some(PendingRecordingTrace {
+        viewport,
+        should_paint_overlay: inputs.should_paint_overlay,
+    });
     let svg_paint_resources = frame.svg_paint_resources().clone();
     drop(frame);
     let publishes_recording = inputs.publishes_recording;
@@ -275,7 +252,6 @@ pub(crate) fn record_frame(
     (
         PendingRecording {
             recording,
-            recording_from_scratch,
             publishes_recording,
             svg_paint_resources,
         },
@@ -665,7 +641,6 @@ mod tests {
                 output: RecordingOutput::default(),
                 resources: Default::default(),
             },
-            recording_from_scratch: None,
             publishes_recording,
             svg_paint_resources: Default::default(),
         }
