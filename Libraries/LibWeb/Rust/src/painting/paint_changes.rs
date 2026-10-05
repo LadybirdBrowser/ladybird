@@ -10,7 +10,7 @@
 use super::ffi::{FfiImageMapArea, ScrollDirection};
 use super::host::{
     FfiCanvasPaintFacts, FfiFormControlPaintFacts, FfiLayerImagePaintFactsEntry, FfiNavigableContainerPaintFacts,
-    FfiReplacedImagePaintFacts, FfiVideoPaintFacts, FfiVisualContextBoxDirtyKind,
+    FfiReplacedImagePaintFacts, FfiVideoPaintFacts,
 };
 use super::image_map_areas::{AreaCoverage, AreaShape, PublishedImageMapArea};
 use super::layer_image_paint_facts::{LayerImagePaintFacts, LayerImagePaintFactsEntry};
@@ -531,19 +531,21 @@ pub unsafe extern "C" fn render_state_publish_image_map_areas(
     unsafe { queue(host, PaintChange::PublishImageMapAreas { node, areas }) };
 }
 
+/// Notes a style change of `node` for its visual contexts: one that changes their structure, or only their values.
+///
 /// # Safety
 ///
 /// `host` must be a live document host, on the document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn render_state_note_visual_context_box_dirty(
+pub unsafe extern "C" fn render_state_note_visual_context_style_change(
     host: *const DocumentHost,
     node: NodeSlotId,
-    kind: FfiVisualContextBoxDirtyKind,
+    changes_structure: bool,
 ) {
-    let kind = match kind {
-        FfiVisualContextBoxDirtyKind::StyleValueChange => VisualContextBoxDirtyKind::StyleValueChange,
-        FfiVisualContextBoxDirtyKind::StyleStructuralChange => VisualContextBoxDirtyKind::StyleStructuralChange,
-        FfiVisualContextBoxDirtyKind::ScrollableOverflowFlipped => VisualContextBoxDirtyKind::ScrollableOverflowFlipped,
+    let kind = if changes_structure {
+        VisualContextBoxDirtyKind::StyleStructuralChange
+    } else {
+        VisualContextBoxDirtyKind::StyleValueChange
     };
     // SAFETY: Guaranteed by the caller.
     unsafe { queue(host, PaintChange::NoteVisualContextBoxDirty { node, kind }) };
