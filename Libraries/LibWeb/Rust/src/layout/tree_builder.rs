@@ -6,7 +6,6 @@
 
 use super::*;
 
-use crate::abort_on_panic;
 use crate::css::css_enums::{content_visibility, float, positioning, white_space_collapse};
 use crate::css::style::RecordDemand;
 use crate::css::style::StyleEngine;
@@ -343,15 +342,13 @@ pub(crate) fn principal_box_generation_decision(
     display_is_none: bool,
     display_is_contents: bool,
 ) -> PrincipalBoxGenerationDecision {
-    abort_on_panic(|| {
-        if is_element && display_is_none {
-            PrincipalBoxGenerationDecision::Suppress
-        } else if is_element && display_is_contents {
-            PrincipalBoxGenerationDecision::DisplayContents
-        } else {
-            PrincipalBoxGenerationDecision::PrincipalBox
-        }
-    })
+    if is_element && display_is_none {
+        PrincipalBoxGenerationDecision::Suppress
+    } else if is_element && display_is_contents {
+        PrincipalBoxGenerationDecision::DisplayContents
+    } else {
+        PrincipalBoxGenerationDecision::PrincipalBox
+    }
 }
 
 pub(crate) fn display_contents_text_needs_style_wrapper(
@@ -360,9 +357,7 @@ pub(crate) fn display_contents_text_needs_style_wrapper(
     text_is_ascii_whitespace: bool,
     parent_collapses_whitespace: bool,
 ) -> bool {
-    abort_on_panic(|| {
-        has_style_parent && parent_display_is_contents && (!text_is_ascii_whitespace || !parent_collapses_whitespace)
-    })
+    has_style_parent && parent_display_is_contents && (!text_is_ascii_whitespace || !parent_collapses_whitespace)
 }
 
 /// Whether an SVG resource box survives the clearing of a DOM subtree.
@@ -466,42 +461,40 @@ pub(crate) fn principal_box_placement_decision(
     layout_node_is_svg_box: bool,
     layout_top_layer: bool,
 ) -> PrincipalBoxPlacementDecision {
-    abort_on_panic(|| {
-        let may_replace_existing_layout_node = !facts.must_create_subtree
-            && facts.has_old_layout_node
-            && facts.old_layout_node_is_attached
-            && !facts.old_and_new_layout_nodes_are_same;
-        let start_rebuild_root = (may_replace_existing_layout_node
-            || (facts.should_create_layout_node && !facts.has_old_layout_node && facts.is_in_dom_order_insertion))
-            && !facts.has_current_rebuild_root;
-        let mark_update_escaped_rebuild_roots = facts.should_create_layout_node
-            && !facts.has_old_layout_node
-            && !facts.has_current_rebuild_root
-            && !facts.is_in_dom_order_insertion
-            && !facts.is_document;
+    let may_replace_existing_layout_node = !facts.must_create_subtree
+        && facts.has_old_layout_node
+        && facts.old_layout_node_is_attached
+        && !facts.old_and_new_layout_nodes_are_same;
+    let start_rebuild_root = (may_replace_existing_layout_node
+        || (facts.should_create_layout_node && !facts.has_old_layout_node && facts.is_in_dom_order_insertion))
+        && !facts.has_current_rebuild_root;
+    let mark_update_escaped_rebuild_roots = facts.should_create_layout_node
+        && !facts.has_old_layout_node
+        && !facts.has_current_rebuild_root
+        && !facts.is_in_dom_order_insertion
+        && !facts.is_document;
 
-        let placement = if facts.is_document {
-            FfiPrincipalBoxPlacement::DocumentRoot
-        } else if !facts.should_create_layout_node {
-            FfiPrincipalBoxPlacement::None
-        } else if may_replace_existing_layout_node {
-            FfiPrincipalBoxPlacement::ReplaceExisting
-        } else if layout_node_is_svg_box {
-            FfiPrincipalBoxPlacement::AppendSvg
-        } else {
-            FfiPrincipalBoxPlacement::NormalInsertion
-        };
+    let placement = if facts.is_document {
+        FfiPrincipalBoxPlacement::DocumentRoot
+    } else if !facts.should_create_layout_node {
+        FfiPrincipalBoxPlacement::None
+    } else if may_replace_existing_layout_node {
+        FfiPrincipalBoxPlacement::ReplaceExisting
+    } else if layout_node_is_svg_box {
+        FfiPrincipalBoxPlacement::AppendSvg
+    } else {
+        FfiPrincipalBoxPlacement::NormalInsertion
+    };
 
-        let is_active_top_layer_member = facts.is_element && facts.rendered_in_top_layer && layout_top_layer;
-        PrincipalBoxPlacementDecision {
-            placement,
-            may_replace_existing_layout_node,
-            start_rebuild_root,
-            mark_update_escaped_rebuild_roots,
-            create_backdrop: facts.should_create_layout_node && is_active_top_layer_member,
-            clear_layout_top_layer_for_descendants: is_active_top_layer_member,
-        }
-    })
+    let is_active_top_layer_member = facts.is_element && facts.rendered_in_top_layer && layout_top_layer;
+    PrincipalBoxPlacementDecision {
+        placement,
+        may_replace_existing_layout_node,
+        start_rebuild_root,
+        mark_update_escaped_rebuild_roots,
+        create_backdrop: facts.should_create_layout_node && is_active_top_layer_member,
+        clear_layout_top_layer_for_descendants: is_active_top_layer_member,
+    }
 }
 
 /// Which way a sibling walk runs.
@@ -1170,43 +1163,41 @@ pub(crate) fn principal_node_entry_decision(
     element_type_facts: u32,
     context: &TreeBuilderContext,
 ) -> PrincipalNodeEntryDecision {
-    abort_on_panic(|| {
-        let should_create_layout_node = facts.must_create_subtree
-            || (facts.needs_layout_tree_update && !reuse.insert_children && !reuse.update_pseudo_elements)
-            || context.document_needs_full_layout_tree_update
-            || (kind.is_document() && !facts.has_layout_node);
+    let should_create_layout_node = facts.must_create_subtree
+        || (facts.needs_layout_tree_update && !reuse.insert_children && !reuse.update_pseudo_elements)
+        || context.document_needs_full_layout_tree_update
+        || (kind.is_document() && !facts.has_layout_node);
 
-        let has = |fact: u32| element_type_facts & fact != 0;
-        let top_layer =
-            if kind.is_element() && has(element_adjustment_fact::RENDERED_IN_TOP_LAYER) && !context.layout_top_layer {
-                if !facts.layout_node_is_attached && !facts.needs_layout_tree_update {
-                    TopLayerEntryDecision::SkipAndRequestZoneRebuild
-                } else {
-                    TopLayerEntryDecision::Skip
-                }
+    let has = |fact: u32| element_type_facts & fact != 0;
+    let top_layer =
+        if kind.is_element() && has(element_adjustment_fact::RENDERED_IN_TOP_LAYER) && !context.layout_top_layer {
+            if !facts.layout_node_is_attached && !facts.needs_layout_tree_update {
+                TopLayerEntryDecision::SkipAndRequestZoneRebuild
             } else {
-                TopLayerEntryDecision::Continue
-            };
-
-        let requires_svg_container = has(element_adjustment_fact::REQUIRES_SVG_CONTAINER);
-        let svg = if has(element_adjustment_fact::IS_SVG_CONTAINER) {
-            SvgEntryDecision::EnterSvgRoot
-        } else if requires_svg_container && !context.has_svg_root {
-            SvgEntryDecision::Skip
-        } else if has(element_adjustment_fact::IS_SVG_FOREIGN_OBJECT_ELEMENT) {
-            SvgEntryDecision::EnterForeignContent
-        } else if kind.is_element() && !requires_svg_container && context.has_svg_root {
-            SvgEntryDecision::Skip
+                TopLayerEntryDecision::Skip
+            }
         } else {
-            SvgEntryDecision::Continue
+            TopLayerEntryDecision::Continue
         };
 
-        PrincipalNodeEntryDecision {
-            should_create_layout_node,
-            top_layer,
-            svg,
-        }
-    })
+    let requires_svg_container = has(element_adjustment_fact::REQUIRES_SVG_CONTAINER);
+    let svg = if has(element_adjustment_fact::IS_SVG_CONTAINER) {
+        SvgEntryDecision::EnterSvgRoot
+    } else if requires_svg_container && !context.has_svg_root {
+        SvgEntryDecision::Skip
+    } else if has(element_adjustment_fact::IS_SVG_FOREIGN_OBJECT_ELEMENT) {
+        SvgEntryDecision::EnterForeignContent
+    } else if kind.is_element() && !requires_svg_container && context.has_svg_root {
+        SvgEntryDecision::Skip
+    } else {
+        SvgEntryDecision::Continue
+    };
+
+    PrincipalNodeEntryDecision {
+        should_create_layout_node,
+        top_layer,
+        svg,
+    }
 }
 
 impl TreeBuilderHost<'_> {
@@ -1443,13 +1434,11 @@ fn update_layout_tree_for_dom_children(
     must_create_subtree: bool,
     insertion_mode: FfiInsertionMode,
 ) {
-    abort_on_panic(|| {
-        let mut node = host.first_dom_child(parent);
-        while let Some(current) = node {
-            update_layout_tree(host, state, current, context, must_create_subtree, insertion_mode);
-            node = host.next_dom_sibling(current);
-        }
-    });
+    let mut node = host.first_dom_child(parent);
+    while let Some(current) = node {
+        update_layout_tree(host, state, current, context, must_create_subtree, insertion_mode);
+        node = host.next_dom_sibling(current);
+    }
 }
 
 /// Updates every shadow-root child in tree order and clears the root's update flags.
@@ -1479,21 +1468,19 @@ fn update_layout_tree_for_assigned_slottables(
     context: &mut TreeBuilderContext,
     must_create_subtree: bool,
 ) {
-    abort_on_panic(|| {
-        // The style mirror holds the assigned nodes in flat-tree order, and the list does not change while the build
-        // walks it.
-        for index in 0..host.arena().assigned_node_count(Some(slot)) {
-            let node = host.arena().assigned_node_at(slot, index);
-            update_layout_tree(
-                host,
-                state,
-                node,
-                context,
-                must_create_subtree,
-                FfiInsertionMode::Append,
-            );
-        }
-    });
+    // The style mirror holds the assigned nodes in flat-tree order, and the list does not change while the build
+    // walks it.
+    for index in 0..host.arena().assigned_node_count(Some(slot)) {
+        let node = host.arena().assigned_node_at(slot, index);
+        update_layout_tree(
+            host,
+            state,
+            node,
+            context,
+            must_create_subtree,
+            FfiInsertionMode::Append,
+        );
+    }
 }
 
 /// The shadow-including walk that clears stale layout boxes navigates the arena's style mirror by
@@ -1702,43 +1689,41 @@ fn update_layout_tree_for_svg_switch_children(
     context: &mut TreeBuilderContext,
     must_create_subtree: bool,
 ) {
-    abort_on_panic(|| {
-        // https://svgwg.org/svg2-draft/struct.html#SwitchElement
-        // The ‘switch’ element evaluates the ‘requiredExtensions’ and ‘systemLanguage’ attributes on its direct child
-        // elements in order, and then processes and renders the first child for which these attributes evaluate to
-        // true. All others will be bypassed and therefore not rendered. If the child element is a container element
-        // such as a ‘g’, then the entire subtree is either processed/rendered or bypassed/not rendered.
-        let mut rendered_child = None;
-        let mut child = host.first_dom_child(switch_element);
-        while let Some(current) = child {
-            // FIXME: Evaluate the requiredExtensions and systemLanguage attributes.
-            if host.element_type_facts(Some(current)) & element_adjustment_fact::IS_SVG_ELEMENT != 0 {
-                rendered_child = Some(current);
-                break;
-            }
-            child = host.next_dom_sibling(current);
+    // https://svgwg.org/svg2-draft/struct.html#SwitchElement
+    // The ‘switch’ element evaluates the ‘requiredExtensions’ and ‘systemLanguage’ attributes on its direct child
+    // elements in order, and then processes and renders the first child for which these attributes evaluate to
+    // true. All others will be bypassed and therefore not rendered. If the child element is a container element
+    // such as a ‘g’, then the entire subtree is either processed/rendered or bypassed/not rendered.
+    let mut rendered_child = None;
+    let mut child = host.first_dom_child(switch_element);
+    while let Some(current) = child {
+        // FIXME: Evaluate the requiredExtensions and systemLanguage attributes.
+        if host.element_type_facts(Some(current)) & element_adjustment_fact::IS_SVG_ELEMENT != 0 {
+            rendered_child = Some(current);
+            break;
         }
+        child = host.next_dom_sibling(current);
+    }
 
-        // NB: Clean up any stale children that should no longer be rendered.
-        let mut child = host.first_dom_child(switch_element);
-        while let Some(current) = child {
-            if child != rendered_child {
-                host.clear_stale_layout_node(current, None);
-            }
-            child = host.next_dom_sibling(current);
+    // NB: Clean up any stale children that should no longer be rendered.
+    let mut child = host.first_dom_child(switch_element);
+    while let Some(current) = child {
+        if child != rendered_child {
+            host.clear_stale_layout_node(current, None);
         }
+        child = host.next_dom_sibling(current);
+    }
 
-        if let Some(rendered_child) = rendered_child {
-            update_layout_tree(
-                host,
-                state,
-                rendered_child,
-                context,
-                must_create_subtree,
-                FfiInsertionMode::Append,
-            );
-        }
-    });
+    if let Some(rendered_child) = rendered_child {
+        update_layout_tree(
+            host,
+            state,
+            rendered_child,
+            context,
+            must_create_subtree,
+            FfiInsertionMode::Append,
+        );
+    }
 }
 
 /// Updates an element that generates no principal box because it has `display: contents`.
@@ -1750,82 +1735,80 @@ fn update_layout_tree_for_display_contents(
     must_create_subtree: bool,
     should_create_layout_node: bool,
 ) {
-    abort_on_panic(|| {
-        let (has_assigned_nodes, lays_out_dom_children) = dom_child_layout_plan(host, style_node);
-        let content_visibility_hidden = host.content_visibility_is_hidden(Some(style_node));
+    let (has_assigned_nodes, lays_out_dom_children) = dom_child_layout_plan(host, style_node);
+    let content_visibility_hidden = host.content_visibility_is_hidden(Some(style_node));
 
-        // A display:contents member builds its children through this path, so the top layer flag
-        // is consumed here the same way update_layout_tree does for members with a box.
-        let clear_layout_top_layer_for_descendants =
-            host.rendered_in_top_layer(Some(style_node)) && context.layout_top_layer;
-        if clear_layout_top_layer_for_descendants {
-            context.layout_top_layer = false;
-        }
+    // A display:contents member builds its children through this path, so the top layer flag
+    // is consumed here the same way update_layout_tree does for members with a box.
+    let clear_layout_top_layer_for_descendants =
+        host.rendered_in_top_layer(Some(style_node)) && context.layout_top_layer;
+    if clear_layout_top_layer_for_descendants {
+        context.layout_top_layer = false;
+    }
 
-        if should_create_layout_node {
-            clear_stale_subtree(host, style_node, StaleSubtreeClearScope::Inclusive);
-            resolve_counters(host, style_node, FfiPseudoElement::None);
-        }
+    if should_create_layout_node {
+        clear_stale_subtree(host, style_node, StaleSubtreeClearScope::Inclusive);
+        resolve_counters(host, style_node, FfiPseudoElement::None);
+    }
 
-        if should_create_layout_node && !content_visibility_hidden && !context.has_svg_root {
-            let placed = create_pseudo_element(
+    if should_create_layout_node && !content_visibility_hidden && !context.has_svg_root {
+        let placed = create_pseudo_element(
+            host,
+            state,
+            style_node,
+            FfiPseudoElement::Before,
+            Some(FfiInsertionMode::Append),
+        );
+        assert!(placed.is_none());
+    }
+
+    let child_needs_layout_tree_update = host.arena().child_needs_layout_tree_update(Some(style_node));
+    if !content_visibility_hidden && (should_create_layout_node || child_needs_layout_tree_update) {
+        let must_create_children = should_create_layout_node;
+        if let Some(shadow_root) = host.arena().shadow_root_of(style_node) {
+            update_layout_tree_for_shadow_root_children(host, state, shadow_root, context, must_create_children);
+        } else if lays_out_dom_children {
+            update_layout_tree_for_dom_children(
                 host,
                 state,
                 style_node,
-                FfiPseudoElement::Before,
-                Some(FfiInsertionMode::Append),
+                context,
+                must_create_children,
+                FfiInsertionMode::Append,
             );
-            assert!(placed.is_none());
         }
+    }
 
-        let child_needs_layout_tree_update = host.arena().child_needs_layout_tree_update(Some(style_node));
-        if !content_visibility_hidden && (should_create_layout_node || child_needs_layout_tree_update) {
-            let must_create_children = should_create_layout_node;
-            if let Some(shadow_root) = host.arena().shadow_root_of(style_node) {
-                update_layout_tree_for_shadow_root_children(host, state, shadow_root, context, must_create_children);
-            } else if lays_out_dom_children {
-                update_layout_tree_for_dom_children(
-                    host,
-                    state,
-                    style_node,
-                    context,
-                    must_create_children,
-                    FfiInsertionMode::Append,
-                );
-            }
-        }
-
-        if has_assigned_nodes {
-            if !content_visibility_hidden {
-                update_layout_tree_for_assigned_slottables(
-                    host,
-                    state,
-                    style_node,
-                    context,
-                    must_create_subtree || should_create_layout_node,
-                );
-            } else {
-                clear_stale_assigned_slottables(host, style_node);
-            }
-        }
-
-        if should_create_layout_node && !content_visibility_hidden && !context.has_svg_root {
-            let placed = create_pseudo_element(
+    if has_assigned_nodes {
+        if !content_visibility_hidden {
+            update_layout_tree_for_assigned_slottables(
                 host,
                 state,
                 style_node,
-                FfiPseudoElement::After,
-                Some(FfiInsertionMode::Append),
+                context,
+                must_create_subtree || should_create_layout_node,
             );
-            assert!(placed.is_none());
+        } else {
+            clear_stale_assigned_slottables(host, style_node);
         }
+    }
 
-        host.arena().clear_layout_tree_update_marks(Some(style_node));
+    if should_create_layout_node && !content_visibility_hidden && !context.has_svg_root {
+        let placed = create_pseudo_element(
+            host,
+            state,
+            style_node,
+            FfiPseudoElement::After,
+            Some(FfiInsertionMode::Append),
+        );
+        assert!(placed.is_none());
+    }
 
-        if clear_layout_top_layer_for_descendants {
-            context.layout_top_layer = true;
-        }
-    });
+    host.arena().clear_layout_tree_update_marks(Some(style_node));
+
+    if clear_layout_top_layer_for_descendants {
+        context.layout_top_layer = true;
+    }
 }
 
 fn ancestor_stack_contains_element_box(arena: &LayoutNodeArena, state: &TreeBuilderState, style_node: u32) -> bool {
@@ -1964,258 +1947,225 @@ fn update_principal_node_descendants(
     context: &mut TreeBuilderContext,
     update: PrincipalDescendantUpdate,
 ) {
-    abort_on_panic(|| {
-        let should_create_layout_node = update.should_create_layout_node;
-        assert!(!layout_node.is_invalid());
-        let (has_assigned_nodes, lays_out_dom_children) = dom_child_layout_plan(host, update.mirror_identity);
-        let shadow_root = if update.kind.is_element() {
-            host.arena().shadow_root_of(update.mirror_identity)
-        } else {
-            None
-        };
-        let content_visibility_hidden = host.content_visibility_is_hidden(update.style_node);
-        let (layout_node_can_have_children, layout_node_is_replaced_box_with_children) = {
-            let layout_node_data = host.data(layout_node);
-            let can_have_children = node_facts::node_can_have_children(layout_node_data);
-            (
-                can_have_children,
-                node_facts::kind_is_replaced_box(layout_node_data.kind.get()) && can_have_children,
-            )
-        };
-        let prior_quote_nesting_level = state.quote_nesting_level;
+    let should_create_layout_node = update.should_create_layout_node;
+    assert!(!layout_node.is_invalid());
+    let (has_assigned_nodes, lays_out_dom_children) = dom_child_layout_plan(host, update.mirror_identity);
+    let shadow_root = if update.kind.is_element() {
+        host.arena().shadow_root_of(update.mirror_identity)
+    } else {
+        None
+    };
+    let content_visibility_hidden = host.content_visibility_is_hidden(update.style_node);
+    let (layout_node_can_have_children, layout_node_is_replaced_box_with_children) = {
+        let layout_node_data = host.data(layout_node);
+        let can_have_children = node_facts::node_can_have_children(layout_node_data);
+        (
+            can_have_children,
+            node_facts::kind_is_replaced_box(layout_node_data.kind.get()) && can_have_children,
+        )
+    };
+    let prior_quote_nesting_level = state.quote_nesting_level;
 
-        if should_create_layout_node || update.update_pseudo_elements_in_place {
-            // Resolve counters now that we exist in the layout tree.
-            if should_create_layout_node && update.kind.is_element() {
-                resolve_counters(host, update.mirror_identity, FfiPseudoElement::None);
+    if should_create_layout_node || update.update_pseudo_elements_in_place {
+        // Resolve counters now that we exist in the layout tree.
+        if should_create_layout_node && update.kind.is_element() {
+            resolve_counters(host, update.mirror_identity, FfiPseudoElement::None);
+        }
+
+        // Add the ::before pseudo-element before walking normal children.
+        if update.kind.is_element()
+            && layout_node_can_have_children
+            && !content_visibility_hidden
+            && !context.has_svg_root
+        {
+            state.ancestor_stack.push(layout_node);
+            let placed = create_pseudo_element(
+                host,
+                state,
+                update.mirror_identity,
+                FfiPseudoElement::Before,
+                Some(FfiInsertionMode::Prepend),
+            );
+            assert!(placed.is_none());
+            assert!(state.ancestor_stack.pop().is_some());
+        }
+    }
+
+    if content_visibility_hidden {
+        clear_stale_subtree(
+            host,
+            update.mirror_identity,
+            StaleSubtreeClearScope::DescendantsBoundedToRoot,
+        );
+    }
+
+    if (should_create_layout_node
+        || host
+            .arena()
+            .child_needs_layout_tree_update(Some(update.mirror_identity)))
+        && (shadow_root.is_some() || lays_out_dom_children)
+        && layout_node_can_have_children
+        && !content_visibility_hidden
+    {
+        state.ancestor_stack.push(layout_node);
+
+        if let Some(shadow_root) = shadow_root {
+            if layout_node_is_replaced_box_with_children {
+                // For replaced elements with shadow DOM children, wrap the children in an
+                // anonymous BlockContainer so that a BFC handles their layout.
+                let first_child = host.first_child(layout_node);
+                if first_child.is_invalid() || !node_facts::has_flag(host.data(first_child), NodeFlag::Anonymous) {
+                    let wrapper = host.create_anonymous_wrapper_box(layout_node);
+                    host.attach_child(state.current_parent(), wrapper, NodeSlotId::INVALID);
+                }
+                let wrapper = host.first_child(layout_node);
+                assert!(!wrapper.is_invalid());
+                state.ancestor_stack.push(wrapper);
             }
-
-            // Add the ::before pseudo-element before walking normal children.
-            if update.kind.is_element()
-                && layout_node_can_have_children
-                && !content_visibility_hidden
-                && !context.has_svg_root
-            {
-                state.ancestor_stack.push(layout_node);
-                let placed = create_pseudo_element(
+            update_layout_tree_for_shadow_root_children(host, state, shadow_root, context, should_create_layout_node);
+            if layout_node_is_replaced_box_with_children {
+                assert!(state.ancestor_stack.pop().is_some());
+            }
+        } else if lays_out_dom_children {
+            if update.element_type_facts & element_adjustment_fact::IS_SVG_SWITCH_ELEMENT != 0 {
+                update_layout_tree_for_svg_switch_children(
                     host,
                     state,
                     update.mirror_identity,
-                    FfiPseudoElement::Before,
-                    Some(FfiInsertionMode::Prepend),
-                );
-                assert!(placed.is_none());
-                assert!(state.ancestor_stack.pop().is_some());
-            }
-        }
-
-        if content_visibility_hidden {
-            clear_stale_subtree(
-                host,
-                update.mirror_identity,
-                StaleSubtreeClearScope::DescendantsBoundedToRoot,
-            );
-        }
-
-        if (should_create_layout_node
-            || host
-                .arena()
-                .child_needs_layout_tree_update(Some(update.mirror_identity)))
-            && (shadow_root.is_some() || lays_out_dom_children)
-            && layout_node_can_have_children
-            && !content_visibility_hidden
-        {
-            state.ancestor_stack.push(layout_node);
-
-            if let Some(shadow_root) = shadow_root {
-                if layout_node_is_replaced_box_with_children {
-                    // For replaced elements with shadow DOM children, wrap the children in an
-                    // anonymous BlockContainer so that a BFC handles their layout.
-                    let first_child = host.first_child(layout_node);
-                    if first_child.is_invalid() || !node_facts::has_flag(host.data(first_child), NodeFlag::Anonymous) {
-                        let wrapper = host.create_anonymous_wrapper_box(layout_node);
-                        host.attach_child(state.current_parent(), wrapper, NodeSlotId::INVALID);
-                    }
-                    let wrapper = host.first_child(layout_node);
-                    assert!(!wrapper.is_invalid());
-                    state.ancestor_stack.push(wrapper);
-                }
-                update_layout_tree_for_shadow_root_children(
-                    host,
-                    state,
-                    shadow_root,
                     context,
                     should_create_layout_node,
                 );
-                if layout_node_is_replaced_box_with_children {
-                    assert!(state.ancestor_stack.pop().is_some());
-                }
-            } else if lays_out_dom_children {
-                if update.element_type_facts & element_adjustment_fact::IS_SVG_SWITCH_ELEMENT != 0 {
-                    update_layout_tree_for_svg_switch_children(
-                        host,
-                        state,
-                        update.mirror_identity,
-                        context,
-                        should_create_layout_node,
-                    );
-                } else {
-                    update_layout_tree_for_dom_children(
-                        host,
-                        state,
-                        update.mirror_identity,
-                        context,
-                        should_create_layout_node,
-                        update.insertion_mode,
-                    );
-                }
-            }
-
-            if update.kind.is_document() {
-                // Elements in the top layer do not lay out normally based on their position in the document; instead
-                // they generate boxes as if they were siblings of the root element.
-                let prior_layout_top_layer = context.layout_top_layer;
-                context.layout_top_layer = true;
-                // The walk below reads the store again, so the list is read a member at a time rather
-                // than borrowed across it.
-                for index in 0.. {
-                    let Some(member) = host.arena().top_layer_element(index) else {
-                        break;
-                    };
-                    if !host.rendered_in_top_layer(Some(member)) {
-                        continue;
-                    }
-                    if has_unrendered_flat_tree_ancestor(host, Some(member)) {
-                        clear_stale_subtree(host, member, StaleSubtreeClearScope::InclusiveBoundedToRoot);
-                        continue;
-                    }
-                    update_layout_tree(
-                        host,
-                        state,
-                        member,
-                        context,
-                        should_create_layout_node,
-                        FfiInsertionMode::Append,
-                    );
-                }
-                context.layout_top_layer = prior_layout_top_layer;
-            }
-
-            assert!(state.ancestor_stack.pop().is_some());
-        }
-
-        if has_assigned_nodes {
-            if !content_visibility_hidden {
-                state.ancestor_stack.push(layout_node);
-                update_layout_tree_for_assigned_slottables(
+            } else {
+                update_layout_tree_for_dom_children(
                     host,
                     state,
                     update.mirror_identity,
                     context,
-                    update.must_create_subtree || should_create_layout_node,
+                    should_create_layout_node,
+                    update.insertion_mode,
                 );
-                assert!(state.ancestor_stack.pop().is_some());
-            } else {
-                clear_stale_assigned_slottables(host, update.mirror_identity);
             }
         }
 
-        if should_create_layout_node {
-            let svg_attributes = update
-                .style_node
-                .map(|referrer| (referrer, host.arena().style_node_svg_attribute_facts(referrer)))
-                .filter(|(_, facts)| facts.is_graphics_element);
-            if let Some((referrer, svg_attributes)) = svg_attributes {
-                // The references name elements of the style mirror, which updating a resource's box leaves alone.
-                let reference = |atom, required| svg_style_reference_element(host, referrer, atom, required);
-                let masks = [
-                    reference(
-                        svg_attributes.mask_reference_atom,
-                        element_adjustment_fact::IS_SVG_MASK_ELEMENT,
-                    ),
-                    reference(
-                        svg_attributes.clip_path_reference_atom,
-                        element_adjustment_fact::IS_SVG_CLIP_PATH_ELEMENT,
-                    ),
-                ];
-                let patterns = [
-                    reference(
-                        svg_attributes.fill_reference_atom,
-                        element_adjustment_fact::IS_SVG_PATTERN_ELEMENT,
-                    ),
-                    reference(
-                        svg_attributes.stroke_reference_atom,
-                        element_adjustment_fact::IS_SVG_PATTERN_ELEMENT,
-                    ),
-                ];
-                for resource in masks.into_iter().flatten() {
-                    update_svg_resource(
-                        host,
-                        state,
-                        resource,
-                        referrer,
-                        layout_node,
-                        context,
-                        context.layout_svg_mask_or_clip_path,
-                    );
+        if update.kind.is_document() {
+            // Elements in the top layer do not lay out normally based on their position in the document; instead
+            // they generate boxes as if they were siblings of the root element.
+            let prior_layout_top_layer = context.layout_top_layer;
+            context.layout_top_layer = true;
+            // The walk below reads the store again, so the list is read a member at a time rather
+            // than borrowed across it.
+            for index in 0.. {
+                let Some(member) = host.arena().top_layer_element(index) else {
+                    break;
+                };
+                if !host.rendered_in_top_layer(Some(member)) {
+                    continue;
                 }
+                if has_unrendered_flat_tree_ancestor(host, Some(member)) {
+                    clear_stale_subtree(host, member, StaleSubtreeClearScope::InclusiveBoundedToRoot);
+                    continue;
+                }
+                update_layout_tree(
+                    host,
+                    state,
+                    member,
+                    context,
+                    should_create_layout_node,
+                    FfiInsertionMode::Append,
+                );
+            }
+            context.layout_top_layer = prior_layout_top_layer;
+        }
 
-                let mut seen_content_elements = Vec::with_capacity(2);
-                for pattern in patterns.into_iter().flatten() {
-                    let Some(content_element) = svg_pattern_content_element(host, pattern) else {
-                        continue;
-                    };
-                    if seen_content_elements.contains(&content_element) {
-                        continue;
-                    }
-                    seen_content_elements.push(content_element);
-                    update_svg_pattern(host, state, pattern, content_element, referrer, layout_node, context);
-                }
+        assert!(state.ancestor_stack.pop().is_some());
+    }
+
+    if has_assigned_nodes {
+        if !content_visibility_hidden {
+            state.ancestor_stack.push(layout_node);
+            update_layout_tree_for_assigned_slottables(
+                host,
+                state,
+                update.mirror_identity,
+                context,
+                update.must_create_subtree || should_create_layout_node,
+            );
+            assert!(state.ancestor_stack.pop().is_some());
+        } else {
+            clear_stale_assigned_slottables(host, update.mirror_identity);
+        }
+    }
+
+    if should_create_layout_node {
+        let svg_attributes = update
+            .style_node
+            .map(|referrer| (referrer, host.arena().style_node_svg_attribute_facts(referrer)))
+            .filter(|(_, facts)| facts.is_graphics_element);
+        if let Some((referrer, svg_attributes)) = svg_attributes {
+            // The references name elements of the style mirror, which updating a resource's box leaves alone.
+            let reference = |atom, required| svg_style_reference_element(host, referrer, atom, required);
+            let masks = [
+                reference(
+                    svg_attributes.mask_reference_atom,
+                    element_adjustment_fact::IS_SVG_MASK_ELEMENT,
+                ),
+                reference(
+                    svg_attributes.clip_path_reference_atom,
+                    element_adjustment_fact::IS_SVG_CLIP_PATH_ELEMENT,
+                ),
+            ];
+            let patterns = [
+                reference(
+                    svg_attributes.fill_reference_atom,
+                    element_adjustment_fact::IS_SVG_PATTERN_ELEMENT,
+                ),
+                reference(
+                    svg_attributes.stroke_reference_atom,
+                    element_adjustment_fact::IS_SVG_PATTERN_ELEMENT,
+                ),
+            ];
+            for resource in masks.into_iter().flatten() {
+                update_svg_resource(
+                    host,
+                    state,
+                    resource,
+                    referrer,
+                    layout_node,
+                    context,
+                    context.layout_svg_mask_or_clip_path,
+                );
             }
 
-            // Add ::marker and ::after once normal and SVG resource children are complete.
-            if update.kind.is_element()
-                && layout_node_can_have_children
-                && !content_visibility_hidden
-                && !context.has_svg_root
-            {
-                state.ancestor_stack.push(layout_node);
-                if host.data(layout_node).kind.get() == NodeKind::ListItemBox {
-                    let placed = create_pseudo_element(
-                        host,
-                        state,
-                        update.mirror_identity,
-                        FfiPseudoElement::Marker,
-                        Some(FfiInsertionMode::Prepend),
-                    );
-                    assert!(placed.is_none());
+            let mut seen_content_elements = Vec::with_capacity(2);
+            for pattern in patterns.into_iter().flatten() {
+                let Some(content_element) = svg_pattern_content_element(host, pattern) else {
+                    continue;
+                };
+                if seen_content_elements.contains(&content_element) {
+                    continue;
                 }
+                seen_content_elements.push(content_element);
+                update_svg_pattern(host, state, pattern, content_element, referrer, layout_node, context);
+            }
+        }
+
+        // Add ::marker and ::after once normal and SVG resource children are complete.
+        if update.kind.is_element()
+            && layout_node_can_have_children
+            && !content_visibility_hidden
+            && !context.has_svg_root
+        {
+            state.ancestor_stack.push(layout_node);
+            if host.data(layout_node).kind.get() == NodeKind::ListItemBox {
                 let placed = create_pseudo_element(
                     host,
                     state,
                     update.mirror_identity,
-                    FfiPseudoElement::After,
-                    Some(FfiInsertionMode::Append),
+                    FfiPseudoElement::Marker,
+                    Some(FfiInsertionMode::Prepend),
                 );
                 assert!(placed.is_none());
-                assert!(state.ancestor_stack.pop().is_some());
-
-                if node_facts::kind_is_block_container(host.data(layout_node).kind.get())
-                    && host.has_first_letter_style(layout_node)
-                {
-                    let target = find_first_letter_in_block(host, layout_node);
-                    if target.found {
-                        create_first_letter_boxes(host, update.mirror_identity, target);
-                    }
-                }
             }
-
-            wrap_fieldset_contents_if_needed(host, layout_node);
-            wrap_button_contents_if_needed(host, layout_node);
-        }
-
-        if update.update_pseudo_elements_in_place && !should_create_layout_node {
-            state.ancestor_stack.push(layout_node);
             let placed = create_pseudo_element(
                 host,
                 state,
@@ -2225,21 +2175,46 @@ fn update_principal_node_descendants(
             );
             assert!(placed.is_none());
             assert!(state.ancestor_stack.pop().is_some());
+
+            if node_facts::kind_is_block_container(host.data(layout_node).kind.get())
+                && host.has_first_letter_style(layout_node)
+            {
+                let target = find_first_letter_in_block(host, layout_node);
+                if target.found {
+                    create_first_letter_boxes(host, update.mirror_identity, target);
+                }
+            }
         }
 
-        // https://www.w3.org/TR/css-contain-2/#containment-style
-        // Giving an element style containment has the following effects:
-        // 2. The effects of the 'content' property’s 'open-quote', 'close-quote', 'no-open-quote' and 'no-close-quote'
-        //    must be scoped to the element’s sub-tree.
-        if node_facts::node_style_view(host.data(layout_node))
-            .is_some_and(crate::painting::style_queries::has_style_containment)
-        {
-            state.quote_nesting_level = prior_quote_nesting_level;
-        }
+        wrap_fieldset_contents_if_needed(host, layout_node);
+        wrap_button_contents_if_needed(host, layout_node);
+    }
 
-        host.arena()
-            .clear_layout_tree_update_marks(Some(update.mirror_identity));
-    });
+    if update.update_pseudo_elements_in_place && !should_create_layout_node {
+        state.ancestor_stack.push(layout_node);
+        let placed = create_pseudo_element(
+            host,
+            state,
+            update.mirror_identity,
+            FfiPseudoElement::After,
+            Some(FfiInsertionMode::Append),
+        );
+        assert!(placed.is_none());
+        assert!(state.ancestor_stack.pop().is_some());
+    }
+
+    // https://www.w3.org/TR/css-contain-2/#containment-style
+    // Giving an element style containment has the following effects:
+    // 2. The effects of the 'content' property’s 'open-quote', 'close-quote', 'no-open-quote' and 'no-close-quote'
+    //    must be scoped to the element’s sub-tree.
+    if node_facts::node_style_view(host.data(layout_node))
+        .is_some_and(crate::painting::style_queries::has_style_containment)
+    {
+        state.quote_nesting_level = prior_quote_nesting_level;
+    }
+
+    host.arena()
+        .clear_layout_tree_update_marks(Some(update.mirror_identity));
 }
 
 struct PrincipalNodeUpdate<'host, 'callbacks, 'state, 'context> {
@@ -2757,56 +2732,54 @@ fn update_layout_tree_from(
     insertion_mode: FfiInsertionMode,
     is_document_root: bool,
 ) {
-    abort_on_panic(|| {
-        let kind = PrincipalNodeKind::of(identity, is_document_root);
-        // The document's identity only roots the style mirror's child sequence; it has no style.
-        let style_node = (!kind.is_document()).then_some(identity);
+    let kind = PrincipalNodeKind::of(identity, is_document_root);
+    // The document's identity only roots the style mirror's child sequence; it has no style.
+    let style_node = (!kind.is_document()).then_some(identity);
 
-        // The box the node already has is the row the arena binds to its identity; the document is
-        // bound through the viewport row instead.
-        let old_layout_node = if kind.is_document() {
-            host.arena().bound_viewport_row()
-        } else {
-            host.arena().bound_row(identity)
-        };
-        let entry_facts = PrincipalNodeEntryFacts {
-            must_create_subtree,
-            needs_layout_tree_update: host.arena().needs_layout_tree_update(identity),
-            has_layout_node: !old_layout_node.is_invalid(),
-            layout_node_is_attached: !old_layout_node.is_invalid() && !host.parent(old_layout_node).is_invalid(),
-        };
+    // The box the node already has is the row the arena binds to its identity; the document is
+    // bound through the viewport row instead.
+    let old_layout_node = if kind.is_document() {
+        host.arena().bound_viewport_row()
+    } else {
+        host.arena().bound_row(identity)
+    };
+    let entry_facts = PrincipalNodeEntryFacts {
+        must_create_subtree,
+        needs_layout_tree_update: host.arena().needs_layout_tree_update(identity),
+        has_layout_node: !old_layout_node.is_invalid(),
+        layout_node_is_attached: !old_layout_node.is_invalid() && !host.parent(old_layout_node).is_invalid(),
+    };
 
-        let reuse = resolve_layout_node_reuse(host, kind, style_node);
-        let element_type_facts = host.element_type_facts(style_node);
-        let entry_decision = principal_node_entry_decision(entry_facts, reuse, kind, element_type_facts, context);
-        if entry_decision.top_layer != TopLayerEntryDecision::Continue {
-            if entry_decision.top_layer == TopLayerEntryDecision::SkipAndRequestZoneRebuild {
-                // A member found here without an attached box was cleared together with a hidden ancestor subtree, and
-                // nothing is scheduled to rebuild it. Request another top-layer zone pass instead of stranding dirty
-                // flags below ancestors whose walks already finished.
-                state.reports.push(crate::layout::commit::FfiCommitMessage::new(
-                    0,
-                    crate::layout::commit::FfiCommitMessageKind::TopLayerZoneRebuildNeeded,
-                ));
-            }
-            return;
+    let reuse = resolve_layout_node_reuse(host, kind, style_node);
+    let element_type_facts = host.element_type_facts(style_node);
+    let entry_decision = principal_node_entry_decision(entry_facts, reuse, kind, element_type_facts, context);
+    if entry_decision.top_layer != TopLayerEntryDecision::Continue {
+        if entry_decision.top_layer == TopLayerEntryDecision::SkipAndRequestZoneRebuild {
+            // A member found here without an attached box was cleared together with a hidden ancestor subtree, and
+            // nothing is scheduled to rebuild it. Request another top-layer zone pass instead of stranding dirty
+            // flags below ancestors whose walks already finished.
+            state.reports.push(crate::layout::commit::FfiCommitMessage::new(
+                0,
+                crate::layout::commit::FfiCommitMessageKind::TopLayerZoneRebuildNeeded,
+            ));
         }
+        return;
+    }
 
-        let mut update = PrincipalNodeUpdate {
-            kind,
-            reuse,
-            host,
-            state,
-            old_layout_node,
-            identity,
-            style_node,
-            element_type_facts,
-            context,
-            must_create_subtree,
-            insertion_mode,
-        };
-        update_principal_node_after_entry(&mut update, entry_facts, entry_decision);
-    });
+    let mut update = PrincipalNodeUpdate {
+        kind,
+        reuse,
+        host,
+        state,
+        old_layout_node,
+        identity,
+        style_node,
+        element_type_facts,
+        context,
+        must_create_subtree,
+        insertion_mode,
+    };
+    update_principal_node_after_entry(&mut update, entry_facts, entry_decision);
 }
 
 /// What a layout tree build leaves for its caller: the viewport the tree hangs from and how
@@ -2900,73 +2873,71 @@ pub struct FfiGeneratedImage {
 }
 
 pub(crate) fn pseudo_element_decision(facts: PseudoElementFacts) -> FfiPseudoElementDecision {
-    abort_on_panic(|| {
-        if !facts.has_style {
-            return FfiPseudoElementDecision::None;
-        }
+    if !facts.has_style {
+        return FfiPseudoElementDecision::None;
+    }
 
-        // https://drafts.csswg.org/css-display-3/#box-generation
-        // The element and its descendants generate no boxes or text sequences.
-        if facts.display_is_none {
-            return FfiPseudoElementDecision::None;
-        }
+    // https://drafts.csswg.org/css-display-3/#box-generation
+    // The element and its descendants generate no boxes or text sequences.
+    if facts.display_is_none {
+        return FfiPseudoElementDecision::None;
+    }
 
-        // ::before and ::after only exist if they have content. `content: normal` computes to `none` for them.
-        if matches!(facts.pseudo_element, FfiPseudoElement::Before | FfiPseudoElement::After)
-            && matches!(
-                facts.content_type,
-                ComputedContentType::Normal | ComputedContentType::None
-            )
-        {
-            return FfiPseudoElementDecision::None;
-        }
+    // ::before and ::after only exist if they have content. `content: normal` computes to `none` for them.
+    if matches!(facts.pseudo_element, FfiPseudoElement::Before | FfiPseudoElement::After)
+        && matches!(
+            facts.content_type,
+            ComputedContentType::Normal | ComputedContentType::None
+        )
+    {
+        return FfiPseudoElementDecision::None;
+    }
 
-        // For ::marker with content 'none' -- do nothing.
-        if facts.pseudo_element == FfiPseudoElement::Marker && facts.content_type == ComputedContentType::None {
-            return FfiPseudoElementDecision::None;
-        }
+    // For ::marker with content 'none' -- do nothing.
+    if facts.pseudo_element == FfiPseudoElement::Marker && facts.content_type == ComputedContentType::None {
+        return FfiPseudoElementDecision::None;
+    }
 
-        if facts.pseudo_element == FfiPseudoElement::Marker
-            && facts.content_type == ComputedContentType::Normal
-            && !facts.originating_list_box.is_invalid()
-        {
-            // https://www.w3.org/TR/css-lists-3/#content-property
-            // "::marker does not generate a box" when list-style-type is 'none' and there's no marker image. Custom
-            // ::marker content is already excluded by the outer condition checking for Type::Normal.
-            return if facts.normal_marker_has_content {
-                FfiPseudoElementDecision::Box
-            } else {
-                FfiPseudoElementDecision::None
-            };
-        }
-
-        // https://drafts.csswg.org/css-content-3/#content-property
-        // Note: If the value of <content-list> is a single <image>, it must instead be interpreted as a
-        // <content-replacement>.
-        // Makes the element or pseudo-element a replaced element, filled with the specified <image>.
-        let mut is_content_replacement = facts.has_content_replacement;
-
-        // INTEROP: Blink, WebKit, and Gecko keep generated images as children of pseudo-element boxes. Preserve that
-        //          behavior for list items because our marker layout currently requires a ListItemBox.
-        if facts.display_is_list_item {
-            is_content_replacement = false;
-        }
-
-        // https://drafts.csswg.org/css-display-3/#box-generation
-        // This value computes to 'display: none' on replaced elements.
-        // INTEROP: Blink, WebKit, and Gecko preserve image content on 'display: contents' pseudo-elements instead.
-        if facts.display_is_contents {
-            is_content_replacement = false;
-        }
-
-        if is_content_replacement {
-            FfiPseudoElementDecision::ContentReplacement
-        } else if facts.display_is_contents {
-            FfiPseudoElementDecision::Contents
-        } else {
+    if facts.pseudo_element == FfiPseudoElement::Marker
+        && facts.content_type == ComputedContentType::Normal
+        && !facts.originating_list_box.is_invalid()
+    {
+        // https://www.w3.org/TR/css-lists-3/#content-property
+        // "::marker does not generate a box" when list-style-type is 'none' and there's no marker image. Custom
+        // ::marker content is already excluded by the outer condition checking for Type::Normal.
+        return if facts.normal_marker_has_content {
             FfiPseudoElementDecision::Box
-        }
-    })
+        } else {
+            FfiPseudoElementDecision::None
+        };
+    }
+
+    // https://drafts.csswg.org/css-content-3/#content-property
+    // Note: If the value of <content-list> is a single <image>, it must instead be interpreted as a
+    // <content-replacement>.
+    // Makes the element or pseudo-element a replaced element, filled with the specified <image>.
+    let mut is_content_replacement = facts.has_content_replacement;
+
+    // INTEROP: Blink, WebKit, and Gecko keep generated images as children of pseudo-element boxes. Preserve that
+    //          behavior for list items because our marker layout currently requires a ListItemBox.
+    if facts.display_is_list_item {
+        is_content_replacement = false;
+    }
+
+    // https://drafts.csswg.org/css-display-3/#box-generation
+    // This value computes to 'display: none' on replaced elements.
+    // INTEROP: Blink, WebKit, and Gecko preserve image content on 'display: contents' pseudo-elements instead.
+    if facts.display_is_contents {
+        is_content_replacement = false;
+    }
+
+    if is_content_replacement {
+        FfiPseudoElementDecision::ContentReplacement
+    } else if facts.display_is_contents {
+        FfiPseudoElementDecision::Contents
+    } else {
+        FfiPseudoElementDecision::Box
+    }
 }
 
 /// Resolves the CSS counters set of `element`, or of one of its pseudo-elements, now that its box
@@ -3400,24 +3371,22 @@ pub(crate) fn adjusted_table_display_for_replaced_element(
     is_internal_table: bool,
     is_table_caption: bool,
 ) -> FfiReplacedElementDisplayAdjustment {
-    abort_on_panic(|| {
-        // https://drafts.csswg.org/css-display-3/#outer-role
-        // Note: Outer display types do affect replaced elements.
-        if is_table_inside {
-            if is_block_outside {
-                return FfiReplacedElementDisplayAdjustment::Block;
-            }
-            return FfiReplacedElementDisplayAdjustment::Inline;
+    // https://drafts.csswg.org/css-display-3/#outer-role
+    // Note: Outer display types do affect replaced elements.
+    if is_table_inside {
+        if is_block_outside {
+            return FfiReplacedElementDisplayAdjustment::Block;
         }
+        return FfiReplacedElementDisplayAdjustment::Inline;
+    }
 
-        // https://drafts.csswg.org/css-display-3/#layout-specific-display
-        // When the 'display' property of a replaced element computes to one of the layout-internal values, it is
-        // handled as having a used value of 'display: inline'.
-        if is_internal_table || is_table_caption {
-            return FfiReplacedElementDisplayAdjustment::Inline;
-        }
-        FfiReplacedElementDisplayAdjustment::None
-    })
+    // https://drafts.csswg.org/css-display-3/#layout-specific-display
+    // When the 'display' property of a replaced element computes to one of the layout-internal values, it is
+    // handled as having a used value of 'display: inline'.
+    if is_internal_table || is_table_caption {
+        return FfiReplacedElementDisplayAdjustment::Inline;
+    }
+    FfiReplacedElementDisplayAdjustment::None
 }
 
 #[derive(Clone, Copy)]
