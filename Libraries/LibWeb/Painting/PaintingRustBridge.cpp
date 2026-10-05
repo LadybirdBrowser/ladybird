@@ -477,11 +477,14 @@ static Layout::RustFFI::FfiRecordingPublishCallbacks recording_publish_callbacks
             if (!layout_node)
                 return empty_display_list();
             GC::Ptr<HTML::DecodedImageData> decoded_image_data;
+            // A recording that lands after its boxes' elements were removed may draw a box whose element is gone.
             if (request->is_replaced_content) {
-                if (layout_node->kind() == Layout::RustFFI::NodeKind::ImageBox)
-                    decoded_image_data = static_cast<Layout::Box const&>(*layout_node).image_provider().decoded_image_data();
-                else if (layout_node->kind() == Layout::RustFFI::NodeKind::SVGImageBox)
-                    decoded_image_data = as<SVG::SVGImageElement>(*layout_node->dom_node()).decoded_image_data();
+                if (layout_node->kind() == Layout::RustFFI::NodeKind::ImageBox) {
+                    if (auto const* image_provider = static_cast<Layout::Box const&>(*layout_node).image_provider_if_any())
+                        decoded_image_data = image_provider->decoded_image_data();
+                } else if (auto const* image = as_if<SVG::SVGImageElement>(layout_node->dom_node())) {
+                    decoded_image_data = image->decoded_image_data();
+                }
             } else if (auto const* observer = layer_image_observer(*layout_node, request->list, request->computed_index)) {
                 decoded_image_data = observer->decoded_image_data();
             }
