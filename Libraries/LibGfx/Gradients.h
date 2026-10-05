@@ -21,8 +21,6 @@ struct ColorStop {
     bool operator==(ColorStop const&) const = default;
 };
 
-float color_stop_step(ColorStop const& previous_stop, ColorStop const& next_stop, float position);
-
 inline float normalized_gradient_angle_radians(float gradient_angle)
 {
     // Adjust angle so 0 degrees is bottom

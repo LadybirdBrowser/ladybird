@@ -27,9 +27,6 @@ public:
 private:
     Scrollbar(Layout::NodeArena&, Compositing::RustFFI::NodeSlotId, ScrollDirection);
 
-    MouseAction mouse_down(CSSPixelPoint, unsigned button);
-    MouseAction mouse_move(CSSPixelPoint);
-    MouseAction mouse_up(CSSPixelPoint, unsigned button);
     bool scroll_to_mouse_position(CSSPixelPoint);
     void release_thumb_grab();
     void push_enlarged_state();
