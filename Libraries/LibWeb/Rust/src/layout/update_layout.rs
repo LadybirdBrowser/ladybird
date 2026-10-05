@@ -289,7 +289,7 @@ fn host_layout_is_up_to_date(host: &DocumentHost, read: &BegunRead, facts: &FfiL
     if !facts.document_is_active {
         return true;
     }
-    if let Some(state) = host.known_facts() {
+    if let Some(state) = host.known_arena_facts() {
         return state.layout_is_up_to_date_unless_built && !facts.document_needs_layout_tree_build;
     }
     read_arena(host, read, *facts, |arena, facts| layout_is_up_to_date(arena, &facts))

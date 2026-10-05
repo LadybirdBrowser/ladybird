@@ -11,8 +11,8 @@ use super::clock::{ClockLease, ClockPlan, ClockTicks, LeaseLanding};
 use super::owner::{self, DocumentId, SharedWithHost, StateSeed};
 use super::wait::{BegunRead, NodeRead, TaskStart};
 use super::{
-    ArenaChange, ChangeQueue, ForcedRead, Landing, Moves, NoFrameInFlight, Owed, RenderState, RenderWait, RowWrite,
-    StateFacts, on_render_side, post_to_render_side,
+    ArenaChange, ArenaFacts, ChangeQueue, EngineFacts, ForcedRead, Landing, Moves, NoFrameInFlight, Owed, RenderState,
+    RenderWait, RowWrite, StateFacts, on_render_side, post_to_render_side,
 };
 use crate::css::css_pixels::CssPixelRect;
 use crate::css::style::flight_style_rows::FlightStyleRow;
@@ -531,10 +531,16 @@ impl DocumentHost {
         (!self.in_job.get() && holds(self.changes.moves())).then_some(facts)
     }
 
-    /// The facts of the render state, where the host knows them: it wrote nothing that may move them since its last job
-    /// or frame left them, and none runs.
-    pub(crate) fn known_facts(&self) -> Option<StateFacts> {
-        self.facts_where(|moves| !moves.facts)
+    /// The facts of the style engine, where the host knows them: it wrote nothing that may move them since its last job
+    /// or frame left them, and none runs. A write to the layout boxes alone leaves them known.
+    pub(crate) fn known_engine_facts(&self) -> Option<EngineFacts> {
+        self.facts_where(|moves| !moves.engine_facts).map(|facts| facts.engine)
+    }
+
+    /// The facts of the arena, where the host knows them: it wrote nothing that may move them since its last job or
+    /// frame left them, and none runs.
+    pub(crate) fn known_arena_facts(&self) -> Option<ArenaFacts> {
+        self.facts_where(|moves| !moves.arena_facts).map(|facts| facts.arena)
     }
 
     /// Whether the document's layout is up to date as of every write the host made, unless its layout tree update marks
@@ -543,7 +549,7 @@ impl DocumentHost {
     /// writes the rows.
     pub(crate) fn known_layout_up_to_date_unless_built(&self) -> Option<bool> {
         let facts = self.facts_where(|_| true)?;
-        let up_to_date = facts.layout_is_up_to_date_unless_built;
+        let up_to_date = facts.arena.layout_is_up_to_date_unless_built;
         (!up_to_date || self.changes.moves().rows == RowWrite::None).then_some(up_to_date)
     }
 
@@ -569,6 +575,12 @@ impl DocumentHost {
     /// job or a frame comes to owe some, never a write, so the fact its last job or frame left holds whatever it queued.
     pub(crate) fn known_owed_image_resources(&self) -> Option<bool> {
         self.facts_where(|_| true).map(|facts| facts.owes_image_resources)
+    }
+
+    /// Whether no text box has a source range, where the host knows: none runs. Only a build of a job or a frame splits
+    /// a first letter off a text, never a write, so the fact its last job or frame left holds whatever it queued.
+    pub(crate) fn known_no_text_source_ranges(&self) -> bool {
+        self.facts_where(|_| true).is_some_and(|facts| !facts.may_have_text_source_ranges)
     }
 
     /// Whether the host knows what its engine holds as of the writes it queued: no job of the engine runs, as a host

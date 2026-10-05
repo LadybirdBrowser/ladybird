@@ -134,6 +134,12 @@ pub(crate) struct InputTransaction {
 }
 
 impl EngineWrite {
+    /// Whether the write may move a fact the host knows of the render state. What a text spells never does: it stages
+    /// no style input and touches no layout box.
+    pub(crate) fn may_move_facts(&self) -> bool {
+        !matches!(self, Self::TextData { .. })
+    }
+
     pub(crate) fn apply(self, engine: &mut StyleEngine) {
         match self {
             Self::PublishFontFaces {
@@ -1149,7 +1155,7 @@ pub unsafe extern "C" fn style_engine_transition_baseline(host: &DocumentHost, n
 /// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_has_pending_transaction(host: &DocumentHost, read: &BegunRead) -> bool {
-    match host.known_facts() {
+    match host.known_engine_facts() {
         Some(facts) => facts.has_pending_style_transaction,
         None => with_engine(read, host, |engine| {
             super::bridge::operations::has_pending_transaction(engine)
@@ -1165,12 +1171,38 @@ pub unsafe extern "C" fn style_engine_has_pending_transaction(host: &DocumentHos
 /// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_has_deferred_element_style_inputs(host: &DocumentHost, read: &BegunRead) -> bool {
-    match host.known_facts() {
+    match host.known_engine_facts() {
         Some(facts) => facts.has_deferred_element_style_inputs,
         None => with_engine(read, host, |engine| {
             super::bridge::operations::has_deferred_element_style_inputs(engine)
         }),
     }
+}
+
+/// Whether the engine defers a style input for `node`, which the host knows without asking where no job runs and the
+/// writes it queued since its last job name every input they defer.
+///
+/// # Safety
+///
+/// `host` must be a live document host, on its document's thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn style_engine_has_deferred_element_style_input(
+    host: &DocumentHost,
+    read: &BegunRead,
+    node: u32,
+) -> bool {
+    let Some(style_node) = StyleNodeID::from_raw(node) else {
+        return false;
+    };
+    if host.knows_engine_between_jobs() {
+        let deferred = host.engine_memo().deferred.borrow();
+        if !deferred.may_owe_unnamed() {
+            return deferred.search(style_node).is_ok();
+        }
+    }
+    with_engine(read, host, |engine| {
+        super::bridge::operations::has_deferred_element_style_input(engine, node)
+    })
 }
 
 /// The synthetic pseudo-elements `node` has rules for, as a C++ record's pseudo-style mask, or no bits when the engine
@@ -1218,7 +1250,7 @@ pub unsafe extern "C" fn style_engine_has_size_containers_needing_evaluation_aft
     host: &DocumentHost,
     read: &BegunRead,
 ) -> bool {
-    match host.known_facts() {
+    match host.known_engine_facts() {
         Some(facts) => facts.has_size_containers_needing_evaluation_after_layout,
         None => with_engine(read, host, |engine| {
             super::bridge::operations::has_size_containers_needing_evaluation_after_layout(engine)

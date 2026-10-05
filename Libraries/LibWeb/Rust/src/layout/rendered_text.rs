@@ -360,6 +360,10 @@ pub unsafe extern "C" fn render_state_text_has_source_range(
     id: NodeSlotId,
 ) -> bool {
     // SAFETY: Guaranteed by the caller.
+    if unsafe { &*host }.known_no_text_source_ranges() {
+        return false;
+    }
+    // SAFETY: Guaranteed by the caller.
     unsafe { super::shell_reads::read_arena(host, node_read(), id, |arena, id| arena.text_has_source_range(id)) }
 }
 
