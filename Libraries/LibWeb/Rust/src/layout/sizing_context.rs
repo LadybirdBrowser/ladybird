@@ -88,10 +88,6 @@ impl<'pass> SizingContext<'pass> {
         self.callbacks.first_child(node)
     }
 
-    fn next_sibling(&self, node: Node) -> Node {
-        self.callbacks.next_sibling(node)
-    }
-
     fn has_children(&self, node: Node) -> bool {
         !self.callbacks.first_child(node).is_invalid()
     }
@@ -2641,18 +2637,13 @@ impl<'pass> SizingContext<'pass> {
 
     pub(crate) fn table_box_inside_wrapper(&self, wrapper: Node) -> Node {
         fn find(context: &SizingContext, parent: Node) -> Option<Node> {
-            let mut child = context.first_child(parent);
-            while !child.is_invalid() {
+            context.callbacks.children(parent).find_map(|child| {
                 let facts = context.facts(child);
                 if facts.is_box() && facts.display().is_table_inside() {
                     return Some(child);
                 }
-                if let Some(table) = find(context, child) {
-                    return Some(table);
-                }
-                child = context.next_sibling(child);
-            }
-            None
+                find(context, child)
+            })
         }
 
         find(self, wrapper).expect("table wrapper must contain a table box")
