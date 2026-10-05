@@ -5371,36 +5371,6 @@ pub unsafe extern "C" fn style_resets_forward_list_item_counter(payloads: *const
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn render_state_note_rows_share_dom_node(
-    host: *const DocumentHost,
-    bound_row: NodeSlotId,
-    added_row: NodeSlotId,
-) {
-    // SAFETY: Guaranteed by the caller.
-    unsafe {
-        queue(
-            host,
-            LayoutChange::NoteRowsShareDomNode {
-                bound: bound_row,
-                added: added_row,
-            },
-        );
-    }
-}
-
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn render_state_bind_row(host: *const DocumentHost, id: NodeSlotId) {
-    // SAFETY: Guaranteed by the caller.
-    unsafe { queue(host, LayoutChange::BindRow(id)) };
-}
-
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn render_state_unbind_row(host: *const DocumentHost, id: NodeSlotId) {
-    // SAFETY: Guaranteed by the caller.
-    unsafe { queue(host, LayoutChange::UnbindRow(id)) };
-}
-
-#[unsafe(no_mangle)]
 pub unsafe extern "C" fn render_state_set_node_needs_compositor_animation_frame(
     host: *const DocumentHost,
     id: NodeSlotId,
@@ -5487,29 +5457,6 @@ pub(crate) fn prepare_subtree_for_detach(host_calls: HostCalls<'_>, arena: &Layo
     arena.for_each_node_in_layout_subtree_in_pre_order(root, |row| rows.push(row));
     for row in rows {
         prepare_row_for_detach(host_calls, arena, row);
-    }
-}
-
-/// Whether the layout tree build about to run may build the viewport, and so needs the document's
-/// style handed to it.
-///
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn render_state_tree_build_may_create_viewport(
-    host: *const DocumentHost,
-    read: &crate::render_state::BegunRead,
-    document_style_node: u32,
-) -> bool {
-    // SAFETY: Guaranteed by the caller.
-    unsafe {
-        read_arena(
-            host,
-            read,
-            StyleNodeID::from_raw(document_style_node),
-            |arena, document_style_node| arena.tree_build_may_create_viewport(document_style_node),
-        )
     }
 }
 

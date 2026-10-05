@@ -33,11 +33,6 @@ pub(crate) enum LayoutChange {
     ResetCachedIntrinsicSizesOfSelfAndAncestors {
         node: NodeSlotId,
     },
-    /// What an insertion under `parent` invalidates depends on the boxes it attaches, which only the layout tree build
-    /// knows.
-    DeferChildListInsertionLayoutUpdate {
-        parent: NodeSlotId,
-    },
     /// The box takes `marks`.
     MarkBox {
         target: super::tree_update_marks::MarkedBox,
@@ -52,11 +47,6 @@ pub(crate) enum LayoutChange {
     RecordPartialRelayoutEscape,
     /// The boxes a clock lease showed samples of their elements' animations in take back the styles the host installed.
     RestoreHostStyles(Vec<(NodeSlotId, super::HostStyle)>),
-    /// The absolutely positioned `child`, whose containing block is `parent`, is about to be removed.
-    NoteContainedAbsposChildRemoval {
-        parent: NodeSlotId,
-        child: NodeSlotId,
-    },
     /// The DOM node identified by `old` took `new`. Its rows, and those of the pseudo-elements `generated_for` lists,
     /// take the new identity along with their bindings, and the old one leaves every row carrying it. The host clears the
     /// layout tree update marks the new one's previous holder left as it queues the change.
@@ -119,15 +109,6 @@ pub(crate) enum LayoutChange {
     RestampTableSpans {
         node: NodeSlotId,
     },
-    /// The row `added` was built for the DOM node the row `bound` is bound to.
-    NoteRowsShareDomNode {
-        bound: NodeSlotId,
-        added: NodeSlotId,
-    },
-    /// The row is bound to the node it was built for.
-    BindRow(NodeSlotId),
-    /// The row is no longer bound to the node it was built for.
-    UnbindRow(NodeSlotId),
     /// Whether the row needs a frame of the compositor's animation of `kind`.
     SetNodeNeedsCompositorAnimationFrame {
         node: NodeSlotId,
@@ -176,20 +157,15 @@ impl LayoutChange {
     pub(crate) fn row_write(&self) -> crate::render_state::RowWrite {
         use crate::render_state::RowWrite;
         match self {
-            Self::StyleNodeChanged { .. }
-            | Self::NoteRowsShareDomNode { .. }
-            | Self::BindRow(_)
-            | Self::UnbindRow(_) => RowWrite::Identities,
+            Self::StyleNodeChanged { .. } => RowWrite::Identities,
             Self::SetNodeFlag { flag, .. } if *flag as u32 & NodeFlag::IDENTITY != 0 => RowWrite::Identities,
             Self::SetNodeStyle { .. } | Self::RestoreHostStyles(_) => RowWrite::Styles,
             Self::SetNeedsLayoutUpdate { .. }
             | Self::SetNeedsFullLayoutTreeUpdate
             | Self::ResetCachedIntrinsicSizesOfSelfAndAncestors { .. }
-            | Self::DeferChildListInsertionLayoutUpdate { .. }
             | Self::MarkBox { .. }
             | Self::ApplyLayoutTreeUpdateMark { .. }
             | Self::RecordPartialRelayoutEscape
-            | Self::NoteContainedAbsposChildRemoval { .. }
             | Self::SetAnchorNameElements { .. }
             | Self::SetElementScrollOffset { .. }
             | Self::SetPseudoElementScrollOffset { .. }
@@ -253,19 +229,9 @@ impl LayoutChange {
                     arena.reset_cached_intrinsic_sizes_of_self_and_ancestors(node);
                 }
             }
-            Self::DeferChildListInsertionLayoutUpdate { parent } => {
-                if arena.slot_is_live(parent) {
-                    arena.defer_child_list_insertion_layout_update(parent);
-                }
-            }
             Self::MarkBox { target, marks } => marks.apply(arena, target),
             Self::ApplyLayoutTreeUpdateMark { node, mark } => arena.apply_layout_tree_update_mark(node, mark),
             Self::RecordPartialRelayoutEscape => arena.record_partial_relayout_escape(),
-            Self::NoteContainedAbsposChildRemoval { parent, child } => {
-                if arena.slot_is_live(parent) && arena.slot_is_live(child) {
-                    arena.note_contained_abspos_child_removal(parent, child);
-                }
-            }
             Self::StyleNodeChanged {
                 old,
                 new,
@@ -318,9 +284,6 @@ impl LayoutChange {
                     arena.set_needs_layout_update(node, true);
                 }
             }
-            Self::NoteRowsShareDomNode { bound, added } => arena.note_rows_share_dom_node(bound, added),
-            Self::BindRow(node) => arena.bind_row(node),
-            Self::UnbindRow(node) => arena.unbind_row(node),
             Self::SetNodeNeedsCompositorAnimationFrame { node, kind, value } => {
                 arena.set_node_needs_compositor_animation_frame(node, kind, value);
             }
@@ -547,34 +510,9 @@ pub unsafe extern "C" fn render_state_reset_cached_intrinsic_sizes_of_self_and_a
 ///
 /// `host` must be a live document host, on the document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn render_state_defer_child_list_insertion_layout_update(
-    host: *const DocumentHost,
-    parent: NodeSlotId,
-) {
-    // SAFETY: Guaranteed by the caller.
-    unsafe { queue(host, LayoutChange::DeferChildListInsertionLayoutUpdate { parent }) };
-}
-
-/// # Safety
-///
-/// `host` must be a live document host, on the document's thread.
-#[unsafe(no_mangle)]
 pub unsafe extern "C" fn render_state_record_partial_relayout_escape(host: *const DocumentHost) {
     // SAFETY: Guaranteed by the caller.
     unsafe { queue(host, LayoutChange::RecordPartialRelayoutEscape) };
-}
-
-/// # Safety
-///
-/// `host` must be a live document host, on the document's thread.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn render_state_note_contained_abspos_child_removal(
-    host: *const DocumentHost,
-    parent: NodeSlotId,
-    child: NodeSlotId,
-) {
-    // SAFETY: Guaranteed by the caller.
-    unsafe { queue(host, LayoutChange::NoteContainedAbsposChildRemoval { parent, child }) };
 }
 
 /// # Safety
