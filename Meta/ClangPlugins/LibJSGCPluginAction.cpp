@@ -966,7 +966,6 @@ static bool is_libjs_path(std::string const& path)
 static bool is_path_allowed_to_subclass_engine_objects(std::string const& path)
 {
     static constexpr std::array legacy_engine_subclass_paths {
-        "/Libraries/LibTest/JavaScriptTestRunner.h",
         "/Utilities/js.cpp",
     };
     for (auto const* legacy_path : legacy_engine_subclass_paths) {

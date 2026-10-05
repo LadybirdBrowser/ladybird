@@ -126,8 +126,6 @@ PUBLIC_HEADERS_IN_ENGINE_INTERNAL_DIRECTORIES = {
 # engine the old way and moves to the embedding API's headers when it is ported.
 EXEMPT_PATHS = (
     "Libraries/LibJS/",
-    "Libraries/LibTest/JavaScriptTestRunner.h",
-    "Libraries/LibTest/JavaScriptTestRunnerMain.cpp",
     "Meta/Fuzzers/FuzzJs.cpp",
     "Tests/ClangPlugins/",
     "Tests/LibJS/",
