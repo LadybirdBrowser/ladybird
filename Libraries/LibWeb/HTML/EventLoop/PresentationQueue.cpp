@@ -74,14 +74,6 @@ void PresentationQueue::present_ready_frames()
     }
 }
 
-void PresentationQueue::release_held_recordings_for_testing()
-{
-    for (auto& entry : m_entries) {
-        if (entry.in_flight())
-            entry.navigable->release_recording_in_flight_for_testing();
-    }
-}
-
 void PresentationQueue::visit_edges(GC::Cell::Visitor& visitor)
 {
     for (auto& entry : m_entries)

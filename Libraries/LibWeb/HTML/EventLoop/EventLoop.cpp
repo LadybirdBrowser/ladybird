@@ -966,8 +966,8 @@ void EventLoop::finish_rendering_update_in_flight()
 
 void EventLoop::did_let_recording_fly(LocalNavigable& navigable)
 {
-    if (exchange(m_holds_next_frame_for_testing, false))
-        navigable.hold_recording_in_flight_for_testing();
+    // A test holds the recording itself, on the Paint thread; it only spends the hold the next style flight would take.
+    m_holds_next_frame_for_testing = false;
     m_presentation_queue->enqueue_recording_in_flight(navigable);
 }
 
@@ -1028,7 +1028,6 @@ void EventLoop::release_held_frames_for_testing()
     m_holds_next_frame_before_present_for_testing = false;
     if (m_rendering_update_in_flight)
         m_rendering_update_in_flight->held_for_testing = false;
-    m_presentation_queue->release_held_recordings_for_testing();
     schedule();
 }
 

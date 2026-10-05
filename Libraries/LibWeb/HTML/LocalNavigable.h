@@ -322,8 +322,6 @@ public:
     // it. Answers whether no recording is in flight any more.
     bool take_recording_in_flight_in(TakeIn);
     bool has_recording_in_flight() const { return m_recording_in_flight; }
-    void hold_recording_in_flight_for_testing();
-    void release_recording_in_flight_for_testing();
 
     void render_screenshot(Gfx::PaintingSurface&, PaintConfig, Function<void()>&& callback);
     Compositing::DisplayListResourceStorage& display_list_resource_storage() { return presenter().display_list_resource_storage(); }
