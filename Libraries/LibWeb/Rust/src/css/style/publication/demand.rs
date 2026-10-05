@@ -24,8 +24,9 @@ impl RecordDemand {
         use bridge::{FfiPseudoElementRecordDemand as Pseudo, FfiRecordDemand as Element};
         matches!(
             self,
-            Self::Element(Element::ElementRead | Element::ElementReadWithoutInlineStyle)
-                | Self::PseudoElement(Pseudo::ReadOnly, _)
+            Self::Element(
+                Element::ElementRead | Element::ElementReadWithoutInlineStyle | Element::ElementReadAgainstParent
+            ) | Self::PseudoElement(Pseudo::ReadOnly, _)
         )
     }
 }
@@ -238,7 +239,9 @@ impl StyleEngineState {
         let read_only = demand.is_read_only();
         let targeted = matches!(
             demand,
-            RecordDemand::Element(Element::TargetedElement | Element::ElementReadWithoutInlineStyle)
+            RecordDemand::Element(
+                Element::TargetedElement | Element::ElementReadWithoutInlineStyle | Element::ElementReadAgainstParent
+            )
         );
         // Only a private read of an element leaves its inline style out: the record it answers is
         // no element's.

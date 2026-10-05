@@ -297,6 +297,20 @@ impl TickBuilt {
     }
 }
 
+/// What a clock frame builds again for an element whose boxes the new size of a container moved.
+#[derive(Clone, Copy)]
+enum TickRebuild {
+    /// The boxes of its `::before` and `::after`.
+    PseudoElements,
+    /// Its box, which goes, and which `parent`'s box places among its children wherever the host's record gives the
+    /// element one.
+    TakeAway { parent: StyleNodeID },
+    /// Its box and every box below it, which it gains among `parent`'s children.
+    Insert { parent: StyleNodeID },
+    /// The boxes a clock frame built for it and below it.
+    Again,
+}
+
 /// The mark a style change makes for the next layout tree build, which may reuse a box as `reuse_reason` says.
 fn style_change_mark(reuse_reason: u8) -> FfiLayoutTreeUpdateMark {
     FfiLayoutTreeUpdateMark {
@@ -312,8 +326,8 @@ const SIZE_QUERY_ROUND_LIMIT: usize = 8;
 
 /// Shows in their boxes the styles of the elements whose style a size query or container-relative unit decided below
 /// the containers in `resized`, against their new sizes, keeping each box's host style in `ticked`, and marks the boxes
-/// of the pseudo-elements those styles move for the round's tree build to build again. An element whose animations
-/// `animated` samples composes over its host's style, which only the host restyles.
+/// those styles move for the round's tree build to build again. An element whose animations `animated` samples
+/// composes over its host's style, which only the host restyles.
 fn restyle_size_query_dependents(
     state: &mut RenderState,
     resized: &[StyleNodeID],
@@ -321,9 +335,17 @@ fn restyle_size_query_dependents(
     ticked: &mut Vec<(NodeSlotId, HostStyle)>,
     built: &mut TickBuilt,
 ) -> Result<(), Park> {
-    let mut rebuilt: smallvec::SmallVec<[StyleNodeID; 2]> = smallvec::SmallVec::new();
+    let mut seen: smallvec::SmallVec<[StyleNodeID; 8]> = smallvec::SmallVec::new();
+    let mut rebuilt: smallvec::SmallVec<[(StyleNodeID, TickRebuild); 2]> = smallvec::SmallVec::new();
     for &container in resized {
         for dependent in state.engine_mut().size_container_query_dependents(container) {
+            let Some(dependent) = state.engine_mut().size_query_restyle_target(dependent) else {
+                continue;
+            };
+            if seen.contains(&dependent) {
+                continue;
+            }
+            seen.push(dependent);
             if animated.contains(&dependent) {
                 return Err(Park);
             }
@@ -335,8 +357,20 @@ fn restyle_size_query_dependents(
                 DependentRestyle::Unmoved => continue,
                 DependentRestyle::InBox(restyled) => restyled,
                 DependentRestyle::PseudoElementsMove(restyled) => {
-                    rebuilt.push(dependent);
+                    rebuilt.push((dependent, TickRebuild::PseudoElements));
                     restyled
+                }
+                DependentRestyle::LosesItsBox { parent } => {
+                    rebuilt.push((dependent, TickRebuild::TakeAway { parent }));
+                    continue;
+                }
+                DependentRestyle::GainsABox { parent } => {
+                    rebuilt.push((dependent, TickRebuild::Insert { parent }));
+                    continue;
+                }
+                DependentRestyle::BuiltBoxesMove => {
+                    rebuilt.push((dependent, TickRebuild::Again));
+                    continue;
                 }
             };
             let arena = state.arena.arena();
@@ -346,17 +380,126 @@ fn restyle_size_query_dependents(
             arena.push_paint_damage_for_repaint(row, PaintDamage::ALL_PRODUCERS);
         }
     }
-    // The build regenerates the pseudo-elements in their element's box, which keeps the sample the clock frame showed
-    // in it.
-    use layout_tree_update_reuse_reason::PSEUDO_ELEMENT_CHANGE;
-    for node in rebuilt {
-        if !build_keeps_box(state.arena.arena_mut(), node, PSEUDO_ELEMENT_CHANGE) {
-            return Err(Park);
-        }
-        let arena = state.arena.arena();
-        arena.mark_layout_tree_update(Some(node), style_change_mark(PSEUDO_ELEMENT_CHANGE));
-        built.build_again_on_landing(arena, (node, PSEUDO_ELEMENT_CHANGE));
+    for (node, rebuild) in rebuilt {
+        let landing = mark_for_tree_build(state, node, rebuild, animated, ticked)?;
+        built.build_again_on_landing(state.arena.arena(), landing);
     }
+    Ok(())
+}
+
+/// Marks what `rebuild` builds again for `node` for the round's tree build, as the host marks it for a style change,
+/// from what the clock shows, and answers the box the host marks to build it again from its own records once it has the
+/// state back. The build keeps every box a sample shows in: the box whose pseudo-elements it regenerates, and the
+/// parent box it inserts a box into or takes one out of, in place. Where it cannot, as where an anonymous box wraps a
+/// neighbor, the build builds the parent's box again with every box below it (see [`mark_region_for_tree_build`]).
+fn mark_for_tree_build(
+    state: &mut RenderState,
+    node: StyleNodeID,
+    rebuild: TickRebuild,
+    animated: &[StyleNodeID],
+    ticked: &mut Vec<(NodeSlotId, HostStyle)>,
+) -> Result<(StyleNodeID, u8), Park> {
+    use layout_tree_update_reuse_reason::{CHILD_LIST_INSERTION, PSEUDO_ELEMENT_CHANGE};
+    let arena = state.arena.arena_mut();
+    let in_place = match rebuild {
+        TickRebuild::PseudoElements => {
+            let in_place = build_keeps_box(arena, node, PSEUDO_ELEMENT_CHANGE);
+            if in_place {
+                arena.mark_layout_tree_update(Some(node), style_change_mark(PSEUDO_ELEMENT_CHANGE));
+            }
+            in_place.then_some((node, PSEUDO_ELEMENT_CHANGE))
+        }
+        TickRebuild::Insert { parent } => {
+            // The build reads which children of the parent it inserts boxes for from their marks.
+            arena.mark_layout_tree_update(Some(node), FfiLayoutTreeUpdateMark::NODE_INSERT);
+            let in_place =
+                !arena.bound_row(parent).is_invalid() && build_keeps_box(arena, parent, CHILD_LIST_INSERTION);
+            if in_place {
+                arena.mark_layout_tree_update(Some(parent), FfiLayoutTreeUpdateMark::NODE_INSERT);
+            }
+            in_place.then_some((parent, 0))
+        }
+        TickRebuild::TakeAway { parent } => {
+            let in_place = arena.can_take_box_away_in_place(parent, node);
+            if in_place {
+                for (box_, host_style) in sampled_boxes_in(arena, arena.bound_row(node), animated, ticked)? {
+                    arena.restore_host_style(box_, host_style);
+                }
+                arena.mark_layout_tree_update(Some(node), style_change_mark(0));
+            }
+            in_place.then_some((parent, 0))
+        }
+        TickRebuild::Again => None,
+    };
+    if let Some(landing) = in_place {
+        return Ok(landing);
+    }
+    let root = match rebuild {
+        TickRebuild::PseudoElements | TickRebuild::Again => node,
+        TickRebuild::Insert { parent } | TickRebuild::TakeAway { parent } => parent,
+    };
+    mark_region_for_tree_build(state, root, animated, ticked)?;
+    Ok((root, 0))
+}
+
+/// Takes out of `ticked` the boxes in the subtree of `root` the clock showed samples in, with the styles the host
+/// installed for them. A box an animated element's samples show in only the host builds again.
+fn sampled_boxes_in(
+    arena: &LayoutNodeArena,
+    root: NodeSlotId,
+    animated: &[StyleNodeID],
+    ticked: &mut Vec<(NodeSlotId, HostStyle)>,
+) -> Result<smallvec::SmallVec<[(NodeSlotId, HostStyle); 8]>, Park> {
+    let live = |box_: NodeSlotId| (!box_.is_invalid()).then_some(box_);
+    let holds = |inner: NodeSlotId| {
+        std::iter::successors(live(inner), |&box_| live(arena.data(box_).parent.get())).any(|box_| box_ == root)
+    };
+    if animated.iter().any(|&element| holds(arena.bound_row(element))) {
+        return Err(Park);
+    }
+    Ok(ticked.extract_if(.., |(box_, _)| holds(*box_)).collect())
+}
+
+/// Marks the box of `root` for the round's tree build to build again with every box below it, from what the clock
+/// shows, as the host marks a parent whose children's boxes it cannot build again in place: the samples the clock
+/// showed in those boxes are shown to the build as their elements' records. The root's box is its parent's child, which
+/// no anonymous box wraps with its neighbors, and neither the document's root nor its body, whose boxes the build
+/// places otherwise.
+fn mark_region_for_tree_build(
+    state: &mut RenderState,
+    root: StyleNodeID,
+    animated: &[StyleNodeID],
+    ticked: &mut Vec<(NodeSlotId, HostStyle)>,
+) -> Result<(), Park> {
+    use crate::css::style::bridge::element_adjustment_fact::{
+        IS_DOCUMENT_ELEMENT, IS_HTML_BODY_ELEMENT, RENDERED_IN_TOP_LAYER,
+    };
+    let arena = state.arena.arena();
+    let row = arena.bound_row(root);
+    let parent = match row.is_invalid() {
+        true => NodeSlotId::INVALID,
+        false => arena.data(row).parent.get(),
+    };
+    let placed_otherwise = IS_DOCUMENT_ELEMENT | IS_HTML_BODY_ELEMENT | RENDERED_IN_TOP_LAYER;
+    if parent.is_invalid()
+        || crate::layout::node_facts::has_flag(arena.data(parent), crate::layout::node_data::NodeFlag::Anonymous)
+        || arena.element_adjustment_facts(Some(root)) & placed_otherwise != 0
+    {
+        return Err(Park);
+    }
+    let sampled = sampled_boxes_in(arena, row, animated, ticked)?;
+    let samples: smallvec::SmallVec<[(StyleNodeID, u64); 8]> = sampled
+        .iter()
+        .filter_map(|&(box_, _)| Some((arena.dom_node_style_node(box_)?, arena.node_style_record(box_))))
+        .collect();
+    for (element, record) in samples {
+        state.engine_mut().show_sample_in_rebuilt_box(element, record);
+    }
+    let arena = state.arena.arena();
+    for (box_, host_style) in sampled {
+        arena.restore_host_style(box_, host_style);
+    }
+    arena.mark_layout_tree_update(Some(root), style_change_mark(0));
     Ok(())
 }
 

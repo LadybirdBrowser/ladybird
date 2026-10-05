@@ -297,6 +297,13 @@ impl FfiLayoutTreeUpdateMark {
         is_child_list_insertion: false,
         is_structural_boundary_self_rebuild: true,
     };
+
+    /// What a node insertion marks the node and its parent with.
+    pub(crate) const NODE_INSERT: Self = Self {
+        reuse_reason: layout_tree_update_reuse_reason::CHILD_LIST_INSERTION,
+        is_child_list_insertion: true,
+        is_structural_boundary_self_rebuild: true,
+    };
 }
 
 impl LayoutNodeArena {

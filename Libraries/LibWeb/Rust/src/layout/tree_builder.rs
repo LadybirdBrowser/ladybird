@@ -567,7 +567,7 @@ fn resolve_layout_node_reuse(
 }
 
 /// Whether a build that finds `element` marked for `reuse_reason` alone, the one narrower rebuild it names, keeps the
-/// element's box: it regenerates the box's `::before` and `::after`.
+/// element's box: it regenerates the box's `::before` and `::after`, or builds only the children inserted under it.
 pub(crate) fn build_keeps_box(arena: &mut LayoutNodeArena, element: StyleNodeID, reuse_reason: u8) -> bool {
     let work = OwedHostWork::default();
     // The tests read the arena alone.
@@ -576,6 +576,9 @@ pub(crate) fn build_keeps_box(arena: &mut LayoutNodeArena, element: StyleNodeID,
     layout.arena().with_style_store(|engine| match reuse_reason {
         layout_tree_update_reuse_reason::PSEUDO_ELEMENT_CHANGE => {
             may_update_pseudo_elements_in_place(&layout, engine, kind, element)
+        }
+        layout_tree_update_reuse_reason::CHILD_LIST_INSERTION => {
+            may_reuse_layout_node_for_child_list_insertion(&layout, engine, kind, element)
         }
         _ => false,
     })

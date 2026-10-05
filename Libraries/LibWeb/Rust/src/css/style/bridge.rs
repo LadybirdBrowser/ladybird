@@ -2584,6 +2584,9 @@ pub enum FfiRecordDemand {
     /// A read-only read of what the element computes to as though it had no inline declaration,
     /// driven in full against the parent as it is now.
     ElementReadWithoutInlineStyle,
+    /// A read-only read of the element's record, driven in full against the parent as it is now,
+    /// which the reader assigned a record of its own.
+    ElementReadAgainstParent,
 }
 
 /// What a read of one of an element's pseudo-elements the host makes before the next style update

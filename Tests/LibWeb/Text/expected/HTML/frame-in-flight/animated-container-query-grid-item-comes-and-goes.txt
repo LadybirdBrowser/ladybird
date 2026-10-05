@@ -1,0 +1,5 @@
+clock after the aside came: ticking
+clock after it went: ticking
+last frame presented by: clock
+the presented size is the main thread's: true
+the aside left the grid: true
