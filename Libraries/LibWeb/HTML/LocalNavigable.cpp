@@ -7210,10 +7210,10 @@ Layout::RustFFI::FfiFlightBlocker LocalNavigable::recording_flight_blocker(DOM::
 
 bool LocalNavigable::paint_next_frame_if_needed(DOM::UpdateLayoutReason layout_reason, Layout::RustFFI::FfiFlightBlocker blocker)
 {
-    // The marks the document's invalidation journal holds decide what this paint has to redo.
+    // The selection and find-in-page match states the document holds stale decide what this paint has to redo.
     if (auto document = active_document()) {
         Layout::ForcedReadScope read { *document };
-        document->drain_invalidation_journal(read);
+        document->update_highlight_states_if_needed(read);
     }
     if (!needs_repaint())
         return false;

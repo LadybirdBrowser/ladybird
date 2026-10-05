@@ -15,7 +15,6 @@
 #include <LibWeb/DOM/DocumentType.h>
 #include <LibWeb/DOM/ElementFactory.h>
 #include <LibWeb/DOM/Event.h>
-#include <LibWeb/DOM/InvalidationJournal.h>
 #include <LibWeb/DOM/Node.h>
 #include <LibWeb/DOM/ProcessingInstruction.h>
 #include <LibWeb/DOM/Range.h>
@@ -109,7 +108,7 @@ void Range::set_associated_selection(Badge<Selection::Selection>, GC::Ptr<Select
     } else if (had_selection) {
         // The range this selection painted through is no longer its range; take the highlight back.
         auto& document = m_start_container->document();
-        document.invalidation_journal().note_selection_changed();
+        document.note_selection_changed();
 
         // https://w3c.github.io/selection-api/#selectionchange-event
         // When the selection is dissociated with its range, the user agent must schedule a selectionchange event on
@@ -127,9 +126,7 @@ void Range::update_associated_selection()
 
     auto& document = m_start_container->document();
 
-    // The boxes the selection paints through are found by the invalidation journal as it drains: the range may change
-    // beside a frame in flight, which holds the boxes.
-    document.invalidation_journal().note_selection_changed();
+    document.note_selection_changed();
 
     document.reset_cursor_blink_cycle();
     document.set_cursor_position_needs_repaint();

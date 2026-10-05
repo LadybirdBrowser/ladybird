@@ -565,9 +565,12 @@ public:
     }
     [[nodiscard]] bool is_running_update_layout() const;
 
-    // The marks the DOM side has made on this document's layout and paint state but not written there yet.
-    [[nodiscard]] InvalidationJournal& invalidation_journal() { return *m_invalidation_journal; }
-    void drain_invalidation_journal(Layout::BegunRead const&) const;
+    // The selection changed, or lost its range, so the selection states of the boxes it paints through are stale. They
+    // are found again at the next read of the paint state: the selection may change beside a frame in flight, which
+    // holds the boxes.
+    void note_selection_changed();
+    // Writes the selection and find-in-page match states left stale to the paint state.
+    void update_highlight_states_if_needed(Layout::BegunRead const&);
     // What layout has told this document and the document has not acted on yet.
     [[nodiscard]] CommitMessages& commit_messages() { return *m_commit_messages; }
 
@@ -1374,10 +1377,6 @@ public:
         set_needs_repaint(should_invalidate_display_list);
     }
 
-    // A repaint mark the journal holds applies its damage when the journal drains, but the frame that drains it has to
-    // be asked for when the mark is made.
-    void request_frame_for_pending_repaint(Badge<InvalidationJournal>) { request_frame_for_pending_repaint(); }
-
     // Records the document's display list in step with the host, once a recording in flight has been taken in.
     RefPtr<Compositing::DisplayList> record_display_list(Layout::BegunRead const& read, HTML::PaintConfig, Compositing::DisplayListResourceStorage&, Painting::PaintCommandCacheMode);
     // Starts recording the document's display list as the document is now, beside the event loop where `blocker` is
@@ -1686,7 +1685,6 @@ private:
     GC::Ref<DOM::EventTarget> m_relevant_global_event_target;
 
     RefPtr<Layout::NodeArena> m_layout_node_arena;
-    NonnullOwnPtr<InvalidationJournal> m_invalidation_journal;
     NonnullOwnPtr<CommitMessages> m_commit_messages;
     OwnPtr<Painting::DocumentPaintState> m_paint_state;
     NonnullRefPtr<Painting::ChromeWidgetRegistry> m_chrome_widget_registry;
@@ -1936,6 +1934,8 @@ private:
 
     // https://html.spec.whatwg.org/multipage/interaction.html#fip-active-match
     GC::Ptr<Range> m_find_in_page_active_match;
+    bool m_selection_states_are_stale { false };
+    bool m_search_text_states_are_stale { false };
     Utf16String m_find_in_page_active_match_text;
     Vector<GC::Ref<Range>> m_find_in_page_highlighted_matches;
     Vector<Utf16String> m_find_in_page_highlighted_match_texts;

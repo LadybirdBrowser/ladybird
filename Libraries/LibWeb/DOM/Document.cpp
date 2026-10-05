@@ -115,7 +115,6 @@
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/DOM/HTMLCollection.h>
 #include <LibWeb/DOM/InputEventsTarget.h>
-#include <LibWeb/DOM/InvalidationJournal.h>
 #include <LibWeb/DOM/LiveNodeList.h>
 #include <LibWeb/DOM/MutationObserver.h>
 #include <LibWeb/DOM/MutationType.h>
@@ -643,7 +642,6 @@ Document::Document(Page& page, GC::Ref<EventTarget> relevant_global_event_target
     , m_font_computer(GC::Heap::the().allocate<CSS::FontComputer>(*this))
     , m_url(url)
     , m_relevant_global_event_target(relevant_global_event_target)
-    , m_invalidation_journal(make<InvalidationJournal>(*this))
     , m_commit_messages(make<CommitMessages>(*this))
     , m_chrome_widget_registry(make_ref_counted<Painting::ChromeWidgetRegistry>())
     , m_fonts(CSS::FontFaceSet::create(relevant_settings_object()))
@@ -830,7 +828,6 @@ void Document::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     m_style_scope.visit_edges(visitor);
-    m_invalidation_journal->visit_edges(visitor);
     m_commit_messages->visit_edges(visitor);
     for (auto const& import : m_pending_css_import_rules)
         import->visit_edges(visitor);
@@ -1048,9 +1045,34 @@ void Document::set_find_in_page_active_match(GC::Ptr<Range> active_match)
     m_find_in_page_active_match = active_match;
     m_find_in_page_active_match_text = active_match ? active_match->to_string() : Utf16String {};
     set_needs_highlight_style_update(CSS::PseudoElement::SearchText);
-    // The boxes the match paints through are found by the invalidation journal as it drains: the match may change
-    // beside a frame in flight, which holds the boxes.
-    invalidation_journal().note_search_text_changed();
+    // The boxes the match paints through are found at the next read of the paint state: the match may change beside a
+    // frame in flight, which holds the boxes.
+    m_search_text_states_are_stale = true;
+    request_frame_for_pending_repaint();
+}
+
+void Document::note_selection_changed()
+{
+    m_selection_states_are_stale = true;
+    request_frame_for_pending_repaint();
+}
+
+void Document::update_highlight_states_if_needed(Layout::BegunRead const& read)
+{
+    // A document without a browsing context has no selection.
+    if (exchange(m_selection_states_are_stale, false) && has_committed_viewport_box()) {
+        auto selection = get_selection();
+        if (auto range = selection ? selection->range() : nullptr)
+            paint_state().recompute_selection_states(read, *this, *range);
+        else
+            paint_state().reset_selection_states(read, *this);
+        // The viewport's box paints again too, not just the display list.
+        Node::set_needs_repaint(InvalidateDisplayList::PaintCommands);
+    }
+    if (exchange(m_search_text_states_are_stale, false) && has_committed_viewport_box()) {
+        recompute_search_text_paint_states(read);
+        Node::set_needs_repaint(InvalidateDisplayList::PaintCommands);
+    }
 }
 
 void Document::set_find_in_page_highlighted_matches(Vector<GC::Ref<Range>> matches)
@@ -1062,7 +1084,8 @@ void Document::set_find_in_page_highlighted_matches(Vector<GC::Ref<Range>> match
     for (auto const& match : m_find_in_page_highlighted_matches)
         m_find_in_page_highlighted_match_texts.append(match->to_string());
     set_needs_highlight_style_update(CSS::PseudoElement::SearchText);
-    invalidation_journal().note_search_text_changed();
+    m_search_text_states_are_stale = true;
+    request_frame_for_pending_repaint();
 }
 
 void Document::recompute_search_text_paint_states(Layout::BegunRead const& read)
@@ -2286,11 +2309,6 @@ void Document::clear_devtools_layout_inspection_data()
     clear_flexbox_highlighted_node(nullptr);
 }
 
-void Document::drain_invalidation_journal(Layout::BegunRead const& read) const
-{
-    m_invalidation_journal->drain(read);
-}
-
 bool Document::layout_is_up_to_date() const
 {
     if (!navigable() || navigable()->active_document().ptr() != this)
@@ -2300,10 +2318,6 @@ bool Document::layout_is_up_to_date() const
     // of the document drains it: a read of a document it embeds asks here, and lays the document out to drain it.
     if (has_flown_style_transaction() || (m_layout_node_arena && m_layout_node_arena->render_document().waits_for_frame()))
         return false;
-    // NB: Every question about pending layout work comes through here, so draining first keeps a journalled mark from
-    //     hiding behind an up-to-date answer. No frame flies, so the drain's read takes none in.
-    Layout::ForcedReadScope read { *this };
-    drain_invalidation_journal(read);
     // Without an arena there is no layout root either, so there is a tree to build.
     if (!m_layout_node_arena)
         return false;
@@ -2672,8 +2686,8 @@ void Document::update_paint_and_hit_testing_properties_if_needed()
 {
     Layout::ForcedReadScope read { *this };
     // NB: Called during paint property resolution.
-    // Everything that reads paint state comes through here, so the marks that describe it go through first.
-    drain_invalidation_journal(read);
+    // Everything that reads paint state comes through here, so the states it holds stale are written first.
+    update_highlight_states_if_needed(read);
 
     // Nothing was written to the render state since the properties were prepared from it: every pass below would find
     // nothing to do, so none is sent to the render owner.
@@ -9986,7 +10000,7 @@ void Document::reset_cursor_blink_cycle()
 
 void Document::set_cursor_position_needs_repaint()
 {
-    // The node's box is found by the invalidation journal as it drains.
+    // The render state finds the node's box as it applies the repaint.
     auto repaint_position = [](DOM::Position& position) {
         position.node()->set_needs_repaint(InvalidateDisplayList::PaintCommands);
     };
