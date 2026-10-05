@@ -586,6 +586,16 @@ pub struct FfiPresentation {
     pub sealed: *mut c_void,
 }
 
+impl Default for FfiPresentation {
+    /// Names no presentation.
+    fn default() -> Self {
+        Self {
+            presenter: std::ptr::null_mut(),
+            sealed: std::ptr::null_mut(),
+        }
+    }
+}
+
 /// What the host reads of a published recording, to build its display list from.
 #[repr(C)]
 pub struct FfiPresentedRecording {

@@ -439,15 +439,8 @@ pub unsafe extern "C" fn document_host_lease_clock(
     // SAFETY: Guaranteed by the caller.
     let presentation = unsafe { &mut *presentation };
     let start = TaskStart::at_event_loop_entry(&LEASES_CLOCK_FOR_TASK);
-    let taken = std::mem::replace(
-        presentation,
-        FfiPresentation {
-            presenter: std::ptr::null_mut(),
-            sealed: std::ptr::null_mut(),
-        },
-    );
     // SAFETY: Guaranteed by the caller.
-    let Some(taken) = (unsafe { Presentation::adopt(taken) }) else {
+    let Some(taken) = (unsafe { Presentation::take(presentation) }) else {
         return std::ptr::null();
     };
     match host.lease_clock(&start, taken) {
@@ -468,13 +461,9 @@ pub unsafe extern "C" fn document_host_lease_clock(
 /// `presentation` must be valid for writes; the caller takes over what it names.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn document_host_take_back_presentation(host: &DocumentHost, presentation: *mut FfiPresentation) {
-    let given_back = host.take_back_presentation().map_or(
-        FfiPresentation {
-            presenter: std::ptr::null_mut(),
-            sealed: std::ptr::null_mut(),
-        },
-        Presentation::into_ffi,
-    );
+    let given_back = host
+        .take_back_presentation()
+        .map_or_else(FfiPresentation::default, Presentation::into_ffi);
     // SAFETY: Guaranteed by the caller.
     unsafe { presentation.write(given_back) };
 }

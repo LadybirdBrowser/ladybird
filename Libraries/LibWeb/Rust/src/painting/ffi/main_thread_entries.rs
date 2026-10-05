@@ -758,16 +758,7 @@ pub unsafe extern "C" fn render_state_record_display_list(
     match crate::painting::recording_slot::FlightLicense::for_blocker(blocker) {
         Some(license) => {
             // SAFETY: Guaranteed by the caller.
-            let presentation = unsafe {
-                let presentation = &mut *presentation;
-                crate::painting::presentation::Presentation::adopt(std::mem::replace(
-                    presentation,
-                    crate::painting::ffi::FfiPresentation {
-                        presenter: std::ptr::null_mut(),
-                        sealed: std::ptr::null_mut(),
-                    },
-                ))
-            };
+            let presentation = unsafe { crate::painting::presentation::Presentation::take(&mut *presentation) };
             recording.fly(job.fly(inputs, presentation, license), frame.rows_version);
             FfiRecordingStart::InFlight
         }
@@ -895,13 +886,7 @@ unsafe fn give_back(
     given_back: Option<crate::painting::presentation::Presentation>,
     presentation: *mut crate::painting::ffi::FfiPresentation,
 ) {
-    let given_back = given_back.map_or(
-        crate::painting::ffi::FfiPresentation {
-            presenter: std::ptr::null_mut(),
-            sealed: std::ptr::null_mut(),
-        },
-        crate::painting::presentation::Presentation::into_ffi,
-    );
+    let given_back = given_back.map_or_else(Default::default, crate::painting::presentation::Presentation::into_ffi);
     // SAFETY: Guaranteed by the caller.
     unsafe { presentation.write(given_back) };
 }
