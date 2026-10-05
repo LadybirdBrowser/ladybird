@@ -79,6 +79,29 @@ pub(crate) unsafe fn from_ffi_entry<'host>(_: &impl FfiEntry, host: &'host Docum
     }
 }
 
+/// Defines `MainThreadFfiEntry`, the marker of a module whose FFI entry points mint main thread tokens, which only that
+/// module can make, and `main_thread()`, which mints the token with it. The module's marker is listed below.
+macro_rules! main_thread_ffi_entries {
+    () => {
+        /// Mints the main thread token for this module's FFI entry points; only this module can make one.
+        pub(crate) struct MainThreadFfiEntry {
+            _private: (),
+        }
+
+        /// The main thread token for one of this module's FFI entry points, called with the document host `host`.
+        ///
+        /// # Safety
+        ///
+        /// As for [`crate::stage::from_ffi_entry`].
+        unsafe fn main_thread(host: &$crate::render_state::DocumentHost) -> $crate::stage::MainThread<'_> {
+            // SAFETY: Guaranteed by the caller.
+            unsafe { $crate::stage::from_ffi_entry(&MainThreadFfiEntry { _private: () }, host) }
+        }
+    };
+}
+
+pub(crate) use main_thread_ffi_entries;
+
 macro_rules! ffi_entry {
     ($entry:path) => {
         impl private::FfiEntry for $entry {}
