@@ -43,8 +43,6 @@ public:
     // these families are stale, and it repaints. The box is named by its layout node, which asks the render state
     // nothing and names an anonymous box too. A box gone by the drain has nothing left to mark.
     void note_box_image_changed(Layout::Node&, Painting::PaintFactsFamily, InvalidateDisplayList);
-    // An image element's data changed, which changes its box as the box's kind and sizing decide.
-    void note_image_data_changed(NodeIdentity, SetNeedsLayoutReason);
     // The language of the element's subtree changed, so its text lays out again where it is cased by its language.
     void note_language_changed(Element&);
     // The editability of the node's subtree changed, which its boxes are stamped with.
@@ -74,8 +72,6 @@ private:
         // The box an entry names instead of a node, which identity then does not name.
         WeakPtr<Layout::Node> box {};
         InvalidateDisplayList invalidate_display_list { InvalidateDisplayList::No };
-        bool image_data_changed { false };
-        SetNeedsLayoutReason image_data_change_reason { SetNeedsLayoutReason::StyleChange };
         Painting::PaintFactsFamily stale_paint_facts {};
     };
 

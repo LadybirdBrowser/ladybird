@@ -10,7 +10,9 @@
 //! arena for each job of the render owner, and to the frame in flight.
 
 use super::LayoutNodeArena;
-use super::node_data::{GENERATED_FOR_BACKDROP, GENERATED_FOR_FIRST_LETTER, NodeFlag, NodeSlotId};
+use super::node_data::{GENERATED_FOR_BACKDROP, GENERATED_FOR_FIRST_LETTER, NodeFlag, NodeKind, NodeSlotId};
+use crate::css::computed_value_types::ComputedSize;
+use crate::css::computed_value_views::ComputedValuesView;
 use crate::css::style::bridge::element_adjustment_fact;
 use crate::css::style::engine_calls::document_host;
 use crate::css::style::tree::StyleNodeID;
@@ -454,6 +456,10 @@ pub struct FfiBoxMarks {
     /// The data of the text node changed: its text box renders it again, and lays out again with its ancestors. A box
     /// that renders a range of the text, as the first letter splits it, is built again instead, as the host marked.
     pub text_data_changed: bool,
+    /// The image data of the image element changed: its image box drops the intrinsic sizes of itself and its ancestors
+    /// where the image's natural size cannot change the box's own, and any other box lays out again with its
+    /// ancestors.
+    pub image_data_changed: bool,
 }
 
 /// The box a mark names.
@@ -478,6 +484,7 @@ impl FfiBoxMarks {
         self.repaint_backdrop |= later.repaint_backdrop;
         self.propagated_text_decorations |= later.propagated_text_decorations;
         self.text_data_changed |= later.text_data_changed;
+        self.image_data_changed |= later.image_data_changed;
         if later.has_dom_paint_facts {
             self.has_dom_paint_facts = true;
             self.dom_paint_facts = later.dom_paint_facts;
@@ -497,6 +504,14 @@ impl FfiBoxMarks {
         if self.text_data_changed && is_text && !arena.text_has_source_range(row) {
             arena.invalidate_text_content(row);
             arena.set_needs_layout_update(row, true);
+        }
+        if self.image_data_changed {
+            if kind == NodeKind::ImageBox && arena.node_style_if_live(row).is_some_and(size_is_independent_of_image) {
+                arena.bump_fragment_cache_epoch_of_self_and_ancestors(row);
+                arena.reset_cached_intrinsic_sizes_of_self_and_ancestors(row);
+            } else {
+                arena.set_needs_layout_update(row, true);
+            }
         }
         if self.layout_update {
             arena.set_needs_layout_update(row, self.layout_update_through_ancestors);
@@ -537,6 +552,18 @@ impl FfiBoxMarks {
             arena.push_paint_damage(inline_box, PaintDamage::ALL_DRAW | PaintDamage::ALL_HIT);
         }
     }
+}
+
+/// Whether the box's sizes are definite whatever the natural size of its image is.
+fn size_is_independent_of_image(style: ComputedValuesView<'_>) -> bool {
+    let definite = |size: &ComputedSize| size.is_length_percentage() && !size.contains_percentage();
+    let definite_or_none = |size: &ComputedSize| size.is_none() || definite(size);
+    definite(style.width())
+        && definite(style.height())
+        && definite(style.min_width())
+        && definite(style.min_height())
+        && definite_or_none(style.max_width())
+        && definite_or_none(style.max_height())
 }
 
 fn repaint_subtree(arena: &mut LayoutNodeArena, row: NodeSlotId) {

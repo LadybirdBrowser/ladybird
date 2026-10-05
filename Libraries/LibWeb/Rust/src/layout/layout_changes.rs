@@ -230,6 +230,7 @@ impl LayoutChange {
                     marks: super::tree_update_marks::FfiBoxMarks {
                         layout_update: false,
                         text_data_changed: false,
+                        image_data_changed: false,
                         ..
                     },
                     ..

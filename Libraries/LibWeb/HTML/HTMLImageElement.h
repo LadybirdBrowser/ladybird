@@ -13,6 +13,7 @@
 #include <AK/Utf16View.h>
 #include <LibGC/Function.h>
 #include <LibGfx/Forward.h>
+#include <LibWeb/CSS/ElementBoxKind.h>
 #include <LibWeb/DOM/DocumentLoadEventDelayer.h>
 #include <LibWeb/DOM/ViewportClient.h>
 #include <LibWeb/HTML/CORSSettingAttribute.h>
@@ -111,8 +112,6 @@ public:
     // ^Layout::ImageProvider
     virtual bool is_image_pending() const override;
 
-    // What new image data changes about the image's box, once the invalidation journal found it.
-    void apply_image_data_change(Badge<DOM::InvalidationJournal>, Layout::Node&, DOM::SetNeedsLayoutReason);
     virtual GC::Ptr<DecodedImageData> decoded_image_data() const override;
     virtual Optional<CSSPixels> intrinsic_width() const override;
     virtual Optional<CSSPixels> intrinsic_height() const override;
@@ -148,7 +147,8 @@ private:
     void create_alt_text_shadow_tree();
     void remove_alt_text_shadow_tree();
     void update_alt_text_shadow_tree();
-    void set_needs_layout_update_or_repaint_after_image_data_change(DOM::SetNeedsLayoutReason);
+    void set_needs_layout_update_or_repaint_after_image_data_change();
+    void record_box_kind();
 
     virtual void decoded_image_data_did_update() override;
 
@@ -169,6 +169,8 @@ private:
     GC::Ptr<ImageRequest> m_pending_request;
 
     GC::Ptr<DOM::Text> m_alt_text_node;
+    // The box kind last published for the image, which its box was built with unless it is marked to be built again.
+    CSS::ElementBoxKind m_recorded_box_kind { CSS::ElementBoxKind::Image };
 
     SourceSet m_source_set;
 
