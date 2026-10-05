@@ -1449,11 +1449,28 @@ pub unsafe extern "C" fn style_engine_published_pseudo_style_mask(
 ) -> u64 {
     // SAFETY: Guaranteed by the caller.
     let host = unsafe { document_host(host) };
-    host.transaction_pseudo_style_mask(node).unwrap_or_else(|| {
-        with_engine(read, host, |engine| {
-            super::bridge::operations::published_pseudo_style_mask(engine, node)
-        })
-    })
+    host.transaction_pseudo_styles(node).map_or_else(
+        || {
+            with_engine(read, host, |engine| {
+                super::bridge::operations::published_pseudo_style_mask(engine, node)
+            })
+        },
+        |styles| styles.mask,
+    )
+}
+
+/// The synthetic pseudo-elements `node` has rules for that settling its pseudo-elements over the composition of its
+/// record leaves alone, where the style transaction the host drains composes its row on the host, and none otherwise.
+///
+/// # Safety
+///
+/// `host` must be a live document host, on its document's thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn style_engine_inert_pseudo_kinds(host: *const DocumentHost, node: u32) -> u64 {
+    // SAFETY: Guaranteed by the caller.
+    unsafe { document_host(host) }
+        .transaction_pseudo_styles(node)
+        .map_or(0, |styles| styles.inert)
 }
 
 /// Whether a size container waits for layout to be evaluated, which the host knows without asking where it wrote

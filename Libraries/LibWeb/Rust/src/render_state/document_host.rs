@@ -1107,13 +1107,13 @@ impl DocumentHost {
         self.style_transaction.borrow().as_ref()?.record(record)
     }
 
-    /// The synthetic pseudo-elements `node` has rules for, where the style transaction the host took last composes its
-    /// row on the host.
-    pub(crate) fn transaction_pseudo_style_mask(&self, node: u32) -> Option<u64> {
-        self.style_transaction
-            .borrow()
-            .as_ref()?
-            .composed_pseudo_style_mask(node)
+    /// What the style transaction the host took last answered of the pseudo-elements of `node`, where the host composes
+    /// its row.
+    pub(crate) fn transaction_pseudo_styles(
+        &self,
+        node: u32,
+    ) -> Option<crate::css::style::style_job::ComposedPseudoStyles> {
+        self.style_transaction.borrow().as_ref()?.composed_pseudo_styles(node)
     }
 
     /// Answers the transition step `decision` asks of `properties`, writing the values each transition compared and the
