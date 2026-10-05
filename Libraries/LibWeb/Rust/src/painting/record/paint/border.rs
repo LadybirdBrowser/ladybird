@@ -152,12 +152,6 @@ impl BordersDataDevicePixels {
     pub fn all_are_equal(&self) -> bool {
         self.top == self.right && self.top == self.bottom && self.top == self.left
     }
-
-    pub fn has_patterned_edge(&self) -> bool {
-        [self.top, self.right, self.bottom, self.left]
-            .iter()
-            .any(|edge| edge.width > 0 && matches!(edge.line_style, line_style::DASHED | line_style::DOTTED))
-    }
 }
 
 const DARK_LIGHT_ABSOLUTE_VALUE_DIFFERENCE: f64 = 1.0 / 3.0;

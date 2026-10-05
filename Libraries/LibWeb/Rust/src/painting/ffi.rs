@@ -1180,39 +1180,6 @@ pub struct FfiOptionalCssPixelRect {
 ///
 /// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn render_state_paintable_first_fragment_rect_for_node(
-    host: *const DocumentHost,
-    block: NodeSlotId,
-    node: NodeSlotId,
-) -> FfiOptionalCssPixelRect {
-    // SAFETY: Guaranteed by the caller.
-    unsafe {
-        read_arena(host, node_read(), (block, node), |arena, (block, node)| {
-            let mut result = FfiOptionalCssPixelRect {
-                has_value: false,
-                rect: FfiCssPixelRect::default(),
-            };
-            let paintable_rows = arena.paintable_rows();
-            if !paintable_rows.paintable_row_is_populated(block) {
-                return result;
-            }
-            for fragment in arena.committed_side_data(block).fragments() {
-                if fragment.layout_node != node {
-                    continue;
-                }
-                result.has_value = true;
-                result.rect = crate::painting::text_fragment::absolute_rect(&paintable_rows, fragment).into();
-                break;
-            }
-            result
-        })
-    }
-}
-
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread.
-#[unsafe(no_mangle)]
 pub unsafe extern "C" fn render_state_paintable_grid_layout_json(
     host: *const DocumentHost,
     paintable: NodeSlotId,
