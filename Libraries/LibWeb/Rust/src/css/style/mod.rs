@@ -75,7 +75,7 @@ mod environment_move;
 pub mod exact_matcher;
 pub(crate) mod flight_style_rows;
 pub(crate) mod style_job;
-pub use crate::fast_hash;
+pub(crate) use crate::fast_hash;
 mod engine_handle;
 mod flush;
 mod fnv;

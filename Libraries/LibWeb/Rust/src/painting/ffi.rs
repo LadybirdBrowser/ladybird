@@ -508,6 +508,7 @@ pub enum FfiRecordingStart {
 /// event loop: something reads what it computes before the next task.
 #[repr(u8)]
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[expect(dead_code, reason = "C++ constructs the variants")]
 pub enum FfiFlightBlocker {
     /// Nothing blocks the frame, which may fly.
     None,
@@ -675,6 +676,7 @@ pub unsafe extern "C" fn layout_arena_svg_paint_resources_push_pattern(
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]
+#[expect(dead_code, reason = "C++ constructs the variants")]
 pub enum FfiImagePaintRecordKind {
     DecodedFrame,
     NestedDisplayList,

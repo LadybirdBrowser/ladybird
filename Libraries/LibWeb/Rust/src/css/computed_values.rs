@@ -30,20 +30,20 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 
 use crate::abort_on_panic;
 pub use crate::css::computed_value_types::{
-    AlignmentValues, AnchorValues, AnimationValues, BackgroundValues, BorderLayoutFacts, BorderValues, BoxValues,
-    ComputedAspectRatio, ComputedClipEdge, ComputedColorOrAuto, ComputedContainIntrinsicSize, ComputedCursor,
-    ComputedFilter, ComputedFilterOperation, ComputedFlexBasis, ComputedGap, ComputedGridArea, ComputedGridPlacement,
+    AlignmentValues, AnchorValues, AnimationValues, BackgroundValues, BorderValues, BoxValues, ComputedAspectRatio,
+    ComputedClipEdge, ComputedColorOrAuto, ComputedContainIntrinsicSize, ComputedCursor, ComputedFilter,
+    ComputedFilterOperation, ComputedFlexBasis, ComputedGap, ComputedGridArea, ComputedGridPlacement,
     ComputedGridPlacementKind, ComputedGridTrackBreadth, ComputedGridTrackEntry, ComputedGridTrackEntryKind,
     ComputedGridTrackList, ComputedLengthBox, ComputedLengthPercentageOrAuto, ComputedOverflowClipMargin,
     ComputedOverflowClipMarginSide, ComputedPositionTryFallback, ComputedResolvedTransform, ComputedSize,
     ComputedSizeKind, ComputedStyleValueHandle, ComputedSvgDash, ComputedSvgPaint, ComputedTextIndent,
     ComputedTextUnderlineOffset, ComputedTextUnderlinePosition, ComputedVerticalAlign, ContentValues, EffectsValues,
-    FontValues, GRID_NO_INDEX, GridValues, InheritedListValues, InheritedSVGValues, InheritedTextLayoutFacts,
-    InheritedTextValues, InheritedUIValues, MaskValues, MiscResetValues, RetainedComputedCursorList,
-    RetainedComputedFilterOperationList, RetainedComputedResolvedTransformList, RetainedComputedShadowList,
-    RetainedComputedSvgDashList, RetainedGridAreaList, RetainedGridNameIndexList, RetainedGridTrackEntryList,
-    RetainedPositionAreaList, RetainedPositionTryFallbackList, RetainedTextDecorationLineList, SVGResetValues,
-    SizingValues, SurroundValues, TextResetValues, TransformValues,
+    FontValues, GRID_NO_INDEX, GridValues, InheritedListValues, InheritedSVGValues, InheritedTextValues,
+    InheritedUIValues, MaskValues, MiscResetValues, RetainedComputedCursorList, RetainedComputedFilterOperationList,
+    RetainedComputedResolvedTransformList, RetainedComputedShadowList, RetainedComputedSvgDashList,
+    RetainedGridAreaList, RetainedGridNameIndexList, RetainedGridTrackEntryList, RetainedPositionAreaList,
+    RetainedPositionTryFallbackList, RetainedTextDecorationLineList, SVGResetValues, SizingValues, SurroundValues,
+    TextResetValues, TransformValues,
 };
 use crate::css::retained_fly_string::{RetainedUtf16FlyString, RetainedUtf16FlyStringList};
 use crate::css::style::fast_hash::{FastHasher, fast_hasher};
@@ -1167,6 +1167,7 @@ impl GridValues {
 /// Selects the Rust payload type for a computed-value style group.
 #[repr(u8)]
 #[derive(Clone, Copy)]
+#[expect(dead_code, reason = "C++ constructs the variants")]
 pub enum StyleGroupLifecycle {
     Font,
     InheritedTable,

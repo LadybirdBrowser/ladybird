@@ -16,6 +16,7 @@ const TOKENIZER_EOF: u32 = u32::MAX;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(C)]
+#[expect(clippy::upper_case_acronyms, reason = "C++ names the tokens CDO and CDC")]
 pub enum CssTokenType {
     EndOfFile,
     Ident,

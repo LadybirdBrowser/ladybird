@@ -61,7 +61,3 @@ pub(crate) mod style_sheet;
 pub(crate) mod style_value;
 pub mod table_group_builder;
 pub mod transition;
-
-pub use css_tokenizer::CssHashType;
-pub use css_tokenizer::CssNumberType;
-pub use css_tokenizer::CssTokenType;

@@ -6,12 +6,10 @@
 
 pub mod hit_test;
 pub mod paint;
-pub use libcompositing_rust::host::replay;
 pub mod visual_context;
 
 pub use hit_test::*;
 pub use paint::*;
-pub use replay::*;
 pub use visual_context::*;
 
 /// The boxes the canvas background is painted from, and whether it takes over the body's.

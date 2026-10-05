@@ -4695,6 +4695,7 @@ impl RoutingRegistry {
 
 /// Why a match evaluation could not produce an exact answer.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[expect(clippy::enum_variant_names, reason = "each variant names the facts that are missing")]
 pub enum Incomplete {
     /// The fact batch does not cover a style node the evaluation had to read. This is never a
     /// negative answer: the caller widens the batch or asks a different question.

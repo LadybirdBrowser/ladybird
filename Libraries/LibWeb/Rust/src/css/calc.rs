@@ -504,6 +504,7 @@ impl FfiNumericType {
 
 #[derive(Clone, Copy)]
 #[repr(u8)]
+#[expect(dead_code, reason = "C++ constructs the variants")]
 pub enum FfiNumericTypeOperation {
     Add,
     Multiply,
@@ -512,6 +513,7 @@ pub enum FfiNumericTypeOperation {
 
 #[derive(Clone, Copy)]
 #[repr(u8)]
+#[expect(dead_code, reason = "C++ constructs the variants")]
 pub enum FfiNumericTypeMatch {
     Dimension,
     Percentage,

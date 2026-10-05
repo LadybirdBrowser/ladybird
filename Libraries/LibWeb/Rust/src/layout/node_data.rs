@@ -9,7 +9,6 @@ use crate::layout::CssPixels;
 use std::cell::Cell;
 use std::ffi::c_void;
 
-pub use super::node_slot_id::INVALID_NODE_SLOT_INDEX;
 pub const GENERATED_FOR_AFTER: u8 = 1;
 pub const GENERATED_FOR_BACKDROP: u8 = 2;
 pub const GENERATED_FOR_BEFORE: u8 = 3;
@@ -243,6 +242,7 @@ pub enum CompositorAnimationFrameKind {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[repr(u8)]
+#[cfg_attr(not(test), expect(dead_code, reason = "C++ constructs the variants"))]
 pub enum FfiNodeLink {
     Parent,
     FirstChild,
