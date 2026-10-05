@@ -304,6 +304,12 @@ impl FfiLayoutTreeUpdateMark {
         is_child_list_insertion: true,
         is_structural_boundary_self_rebuild: true,
     };
+
+    pub(crate) const CHARACTER_DATA_REPLACE_DATA: Self = Self {
+        reuse_reason: 0,
+        is_child_list_insertion: false,
+        is_structural_boundary_self_rebuild: true,
+    };
 }
 
 impl LayoutNodeArena {
@@ -476,7 +482,8 @@ pub struct FfiBoxMarks {
     pub has_dom_paint_facts: bool,
     pub dom_paint_facts: u8,
     /// The data of the text node changed: its text box renders it again, and lays out again with its ancestors. A box
-    /// that renders a range of the text, as the first letter splits it, is built again instead, as the host marked.
+    /// that renders a range of the text, as the first letter splits it, is built again instead by its `::first-letter`
+    /// owner.
     pub text_data_changed: bool,
     /// The image data of the image element changed: its image box drops the intrinsic sizes of itself and its ancestors
     /// where the image's natural size cannot change the box's own, and any other box lays out again with its
@@ -561,9 +568,13 @@ impl FfiBoxMarks {
             return;
         };
         let is_text = super::node_facts::kind_is_text(kind);
-        if self.text_data_changed && is_text && !arena.text_has_source_range(row) {
-            arena.invalidate_text_content(row);
-            arena.set_needs_layout_update(row, true);
+        if self.text_data_changed && is_text {
+            if !arena.text_has_source_range(row) {
+                arena.invalidate_text_content(row);
+                arena.set_needs_layout_update(row, true);
+            } else if let Some(owner) = arena.first_letter_owner_of_split_text(row) {
+                arena.mark_layout_tree_update(Some(owner), FfiLayoutTreeUpdateMark::CHARACTER_DATA_REPLACE_DATA);
+            }
         }
         if self.image_data_changed {
             if kind == NodeKind::ImageBox && arena.node_style_if_live(row).is_some_and(size_is_independent_of_image) {

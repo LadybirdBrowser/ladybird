@@ -4763,6 +4763,14 @@ impl LayoutNodeArena {
             .is_some_and(|state| state.source_range.is_some())
     }
 
+    pub(crate) fn first_letter_owner_of_split_text(&self, id: NodeSlotId) -> Option<StyleNodeID> {
+        let first_letter = self.text_node_state(id)?.first_letter;
+        if !self.slot_is_live(first_letter) {
+            return None;
+        }
+        self.node_style_node(self.data(first_letter).parent.get())
+    }
+
     pub(crate) fn text_fragments(&self, primary: NodeSlotId) -> TextFragments {
         let mut fragments = TextFragments {
             nodes: [NodeSlotId::INVALID; 2],

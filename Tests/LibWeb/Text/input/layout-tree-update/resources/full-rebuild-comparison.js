@@ -1406,6 +1406,36 @@ function firstLetterPseudoElementCases() {
             },
         });
     }
+    cases.push({
+        name: "::first-letter text data change under display: contents",
+        setup(fixture) {
+            const style = document.createElement("style");
+            style.textContent = "#first-letter-target::first-letter { color: red; }";
+            const target = document.createElement("div");
+            target.id = "first-letter-target";
+            const wrapper = document.createElement("span");
+            wrapper.style.display = "contents";
+            wrapper.textContent = "Hello";
+            target.append(wrapper);
+            fixture.append(style, target);
+            return () => {
+                wrapper.firstChild.data = "Hi";
+            };
+        },
+    });
+    cases.push({
+        name: "::first-letter slotted text data change",
+        setup(fixture) {
+            const host = document.createElement("div");
+            host.textContent = "Hello";
+            host.attachShadow({ mode: "open" }).innerHTML =
+                "<style>p::first-letter { color: red; }</style><p><slot></slot></p>";
+            fixture.append(host);
+            return () => {
+                host.firstChild.data = "World";
+            };
+        },
+    });
     return cases;
 }
 
