@@ -775,6 +775,17 @@ pub(crate) type ShellStyleChangedHost = (
 );
 
 fn style_payloads_equal_in_layout_affecting_groups(a: StylePayloadsRef, b: StylePayloadsRef) -> bool {
+    style_payloads_equal_in_groups(a, b, crate::css::computed_values::style_group_affects_layout)
+}
+
+/// Whether `a` and `b` hold equal payloads in the inherited groups, which are all an anonymous box inherits.
+fn style_payloads_equal_in_inherited_groups(a: StylePayloadsRef, b: StylePayloadsRef) -> bool {
+    style_payloads_equal_in_groups(a, b, |group_index| {
+        group_index < crate::css::style::ENGINE_INHERITED_GROUP_COUNT
+    })
+}
+
+fn style_payloads_equal_in_groups(a: StylePayloadsRef, b: StylePayloadsRef, compares: impl Fn(usize) -> bool) -> bool {
     if a == b {
         return true;
     }
@@ -784,7 +795,7 @@ fn style_payloads_equal_in_layout_affecting_groups(a: StylePayloadsRef, b: Style
     // SAFETY: A row's non-null style addresses the payload array of the record pinned for it.
     let (a, b) = unsafe { (a.deref(), b.deref()) };
     (0..a.groups.len()).all(|group_index| {
-        !crate::css::computed_values::style_group_affects_layout(group_index)
+        !compares(group_index)
             || a.groups[group_index] == b.groups[group_index]
             || crate::css::computed_values::style_group_payloads_equal(
                 group_index,
@@ -2348,7 +2359,8 @@ impl LayoutNodeArena {
     /// Shows `sample`, a sample of the animations of the element whose box `row` is, in the box in place of the record the
     /// host installed, with the relayout the move asks for. Answers the host's style where the box held it, or nothing
     /// where it held a sample already, which `sample` replaces. A box the host styles in a way of its own shows no sample,
-    /// and neither does one that styles anonymous boxes: their layout nodes would have to hear of a style no host reads.
+    /// and neither does one whose sample moves the style of an anonymous box: its layout node would have to hear of a
+    /// style no host reads.
     pub(crate) fn install_animation_sample(
         &self,
         row: NodeSlotId,
@@ -2363,7 +2375,7 @@ impl LayoutNodeArena {
         ) || pin == ArenaStylePin::Derived
             || self.node_style_record_pinned_by_host(row) != 0
             || style_node.is_none()
-            || self.styles_anonymous_boxes(row)
+            || self.sample_moves_anonymous_box_style(row, sample.payloads)
         {
             self.with_style_engine(|engine| engine.unpin_layout_style_record(sample.record));
             return Err(NeedsHost);
@@ -2384,9 +2396,9 @@ impl LayoutNodeArena {
         Ok(host_style)
     }
 
-    /// Whether `row`'s style is what anonymous boxes inherit: its anonymous children's, or the table wrapper's it is
-    /// the table box of.
-    fn styles_anonymous_boxes(&self, row: NodeSlotId) -> bool {
+    /// Whether showing a style with `payloads` in `row` moves the style of an anonymous box: the table wrapper's, which
+    /// takes properties of its table box of its own, or an anonymous child's, which inherits the inherited groups.
+    fn sample_moves_anonymous_box_style(&self, row: NodeSlotId, payloads: StylePayloadsRef) -> bool {
         let parent = self.data(row).parent.get();
         if !parent.is_invalid() && self.data(parent).kind.get() == NodeKind::TableWrapper {
             return true;
@@ -2395,7 +2407,7 @@ impl LayoutNodeArena {
         let mut child = self.data(row).first_child.get();
         while !child.is_invalid() {
             if self.data(child).flags.get() & anonymous_with_style == anonymous_with_style {
-                return true;
+                return !style_payloads_equal_in_inherited_groups(self.data(row).style.get(), payloads);
             }
             child = self.data(child).next_sibling.get();
         }

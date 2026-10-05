@@ -3,8 +3,7 @@
 <script src="frame-in-flight.js"></script>
 <div id="box" style="width: 10px; height: 0px; overflow: hidden; background: green"><div style="height: 200px"></div></div>
 <script>
-    // A tick of the render clock that moves a box owning a clip parks the lease and presents nothing: the compositor has
-    // its clips from the host's frames.
+    // A tick of the render clock that moves a box owning a clip presents its frame with the clip it moved.
     asyncTest(async done => {
         const result = await whileClockLeased(() => {
             return box.animate([{ height: "0px" }, { height: "100px" }], { duration: 10000, easing: "linear" });

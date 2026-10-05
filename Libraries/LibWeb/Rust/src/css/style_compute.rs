@@ -6297,8 +6297,9 @@ unsafe fn finish_animation_sample(
 /// Samples `composed` onto the overlay `input` names, as far as the engine goes without the host, and
 /// answers what the sample found: for an element whose length contexts the engine builds over the
 /// record it holds, and whose keyframes read nothing else only the host knows, such as a container's
-/// size, a custom property, a document URL or a random base value. The effects are the element's, or
-/// `fresh` ones the engine does not describe yet.
+/// size, a style query, an animated custom property, a document URL or a random base value. The effects
+/// are the element's, or `fresh` ones the engine does not describe yet. What a keyframe substitutes the
+/// host notes as its own sample substitutes it again.
 ///
 /// # Safety
 /// As for [`rust_sample_animation_effects`], with `input` naming no callback but the overlay's.
@@ -6333,8 +6334,7 @@ pub(crate) unsafe fn sample_without_host(
     let Some(length_contexts) = engine_length_contexts(input, engine, &sample) else {
         return Err(NeedsHost);
     };
-    if sample.result.substitution_marks != 0
-        || !sample.custom_properties.is_empty()
+    if !sample.custom_properties.is_empty()
         || resolved.needs_document_base_url
         || !resolved.unfixed_random_sharings.is_empty()
     {

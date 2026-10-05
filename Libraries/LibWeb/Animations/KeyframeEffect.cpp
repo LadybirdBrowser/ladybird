@@ -1189,17 +1189,28 @@ bool KeyframeEffect::can_skip_per_frame_animation_tick() const
     if ((m_is_compositor_driven || m_is_compositor_replaced) && (!isinf(iteration_count()) || m_is_observation_relevant_compositor_animation))
         return true;
 
-    // Script animations do not dispatch CSS animation events, even when an ancestor listens for them.
-    if (auto animation = associated_animation(); animation && !animation->is_css_animation())
-        return true;
-
     // NB: Infinite effects cannot reach their natural end, and finite offscreen paint effects have an end timer.
     //     Neither needs a continuous tick for animationend listeners.
     // NB: Starting or cancelling an active animation requests an update independently of playback.
     //     Only iteration events require future updates while a visually throttled effect runs.
-    auto only_iteration_events_require_a_tick = phase == Phase::Active;
-    auto has_css_animation_event_listener_requiring_animation_tick = [only_iteration_events_require_a_tick](DOM::EventTarget const& event_target) {
-        if (only_iteration_events_require_a_tick)
+    return !css_animation_events_are_heard(phase == Phase::Active);
+}
+
+bool KeyframeEffect::css_animation_iteration_events_are_heard() const
+{
+    return css_animation_events_are_heard(true);
+}
+
+// Whether a listener on the target, the nodes its events bubble to or its window hears the CSS animation events of the
+// effect that need a tick: only its iteration events if `only_iteration_events`.
+bool KeyframeEffect::css_animation_events_are_heard(bool only_iteration_events) const
+{
+    // Script animations do not dispatch CSS animation events, even when an ancestor listens for them.
+    if (auto animation = associated_animation(); animation && !animation->is_css_animation())
+        return false;
+
+    auto hears_css_animation_events = [only_iteration_events](DOM::EventTarget const& event_target) {
+        if (only_iteration_events)
             return event_target.has_event_listener(HTML::EventNames::animationiteration)
                 || event_target.has_event_listener(HTML::EventNames::webkitAnimationIteration);
 
@@ -1213,17 +1224,15 @@ bool KeyframeEffect::can_skip_per_frame_animation_tick() const
     auto target = this->target();
     VERIFY(target);
     for (auto* node = static_cast<DOM::Node*>(target.ptr()); node;) {
-        if (has_css_animation_event_listener_requiring_animation_tick(*node))
-            return false;
+        if (hears_css_animation_events(*node))
+            return true;
         if (auto assigned_slot = DOM::assigned_slot_for_node(*node))
             node = assigned_slot.ptr();
         else
             node = node->parent_or_shadow_host();
     }
-    if (auto window = target->document().window(); window && has_css_animation_event_listener_requiring_animation_tick(*window))
-        return false;
-
-    return true;
+    auto window = target->document().window();
+    return window && hears_css_animation_events(*window);
 }
 
 static bool is_in_display_none_subtree_ignoring_animations(DOM::AbstractElement abstract_element)

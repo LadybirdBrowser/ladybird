@@ -823,15 +823,17 @@ Compositor::NavigablePresenter& LocalNavigable::presenter()
     m_presenter_slot = adopt_own(*static_cast<Compositor::NavigablePresenter*>(presentation.presenter));
     auto& presenter = *m_presenter_slot.get<NonnullOwnPtr<Compositor::NavigablePresenter>>();
     auto sealed = adopt_own(*static_cast<Compositor::SealedPresentation*>(presentation.sealed));
-    if (!sealed->published.has_value()) {
+    bool const published = sealed->published.has_value();
+    if (!published)
         unseal_presentation(holder, *sealed);
-        return presenter;
-    }
-    if (has_been_destroyed() || active_document().ptr() != holder.ptr() || !holder->has_committed_viewport_box())
+    // A tick that changed the visual context tree and published nothing leaves the tree to the next recording.
+    bool const records_again = published || sealed->visual_context_tree_changed;
+    if (!records_again || has_been_destroyed() || active_document().ptr() != holder.ptr() || !holder->has_committed_viewport_box())
         return presenter;
     // The ticks presented frames of boxes that took back the styles the host installed for them: the next recording
     // copies from what the last tick published, and the document's boxes are recorded again, with their hit-test list.
-    holder->adopt_published_recording({}, *sealed->recording, sealed->published->display_list, presenter.display_list_resource_storage());
+    if (published)
+        holder->adopt_published_recording({}, *sealed->recording, sealed->published->display_list, presenter.display_list_resource_storage());
     m_needs_repaint = true;
     m_needs_to_record_display_list = true;
     page().client().request_frame();
@@ -6986,7 +6988,9 @@ bool LocalNavigable::lease_clock_for_task()
     auto* host = document->layout_node_arena().host();
     if (!Layout::RustFFI::document_host_has_clock_plan(host))
         return false;
-    if (m_recording_in_flight || !m_presenter_slot.has<NonnullOwnPtr<Compositor::NavigablePresenter>>())
+    // Only a recording in flight keeps the presenter. A lease that landed left it with the document, which gives it back
+    // below, though no rendering update painted since.
+    if (m_recording_in_flight)
         return true;
     // A task since the update that changed what the document lays out leaves the rest to the next update.
     if (!document->layout_is_up_to_date())

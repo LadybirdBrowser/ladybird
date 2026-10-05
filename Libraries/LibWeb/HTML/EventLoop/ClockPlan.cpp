@@ -22,19 +22,22 @@
 namespace Web::HTML {
 
 // The next time, in the local time of `effect`, at which the main thread has events of it to send: where its phase
-// changes, or where its next iteration starts.
+// changes, or where its next iteration starts if a listener hears its iteration events.
 static Optional<double> next_event_in_local_time(Animations::KeyframeEffect const& effect, double local_time)
 {
     if (effect.start_delay().type != Animations::TimeValue::Type::Milliseconds
-        || effect.iteration_duration().type != Animations::TimeValue::Type::Milliseconds)
+        || effect.iteration_duration().type != Animations::TimeValue::Type::Milliseconds
+        || effect.active_duration().type != Animations::TimeValue::Type::Milliseconds)
         return {};
     auto start_delay = effect.start_delay().value;
     auto iteration_duration = effect.iteration_duration().value;
-    auto active_end = start_delay + iteration_duration * effect.iteration_count();
+    auto active_end = start_delay + effect.active_duration().value;
     if (local_time < start_delay)
         return start_delay;
     if (!(iteration_duration > 0) || local_time >= active_end)
         return {};
+    if (!effect.css_animation_iteration_events_are_heard())
+        return active_end;
     auto next_iteration_start = start_delay + (floor((local_time - start_delay) / iteration_duration) + 1) * iteration_duration;
     return min(next_iteration_start, active_end);
 }
