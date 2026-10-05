@@ -3,11 +3,14 @@
 # the headers reachable instead of poisoning them. The only LibJS headers that a shared file may include are other
 # shared headers and headers that the facade provides.
 ConsoleLogLevel.h
-Forward.h
 HostClassBuilder.h
 HostObjectABI.h
+ParserError.cpp
 Position.h
+Runtime/Agent.cpp
+Runtime/Agent.h
 Runtime/ByteLength.h
+Runtime/CommonPropertyNames.h
 Runtime/ErrorTypes.cpp
 Runtime/ErrorTypes.h
 Runtime/ExternalMemory.h
