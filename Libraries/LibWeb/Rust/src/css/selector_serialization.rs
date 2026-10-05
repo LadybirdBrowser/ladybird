@@ -170,7 +170,6 @@ fn serialize_simple_selector(sink: &mut TextSink, selector: &SimpleSelector, con
                 }
                 PseudoClassParameterType::CompoundSelector
                 | PseudoClassParameterType::ForgivingSelectorList
-                | PseudoClassParameterType::ForgivingRelativeSelectorList
                 | PseudoClassParameterType::RelativeSelectorList
                 | PseudoClassParameterType::SelectorList => {
                     serialize_selector_list(sink, &pseudo_class.argument_selector_list, context);

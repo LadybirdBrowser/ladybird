@@ -95,7 +95,7 @@ impl SpecifiedValues {
 
     /// Return an owned reference to one maintained declaration payload.
     #[must_use]
-    #[allow(dead_code)]
+    #[cfg(test)]
     pub(super) fn retained_value(&self, id: SpecifiedValueID) -> Lookup<RetainedStyleValueData, SpecifiedValueGap> {
         if let Some(index) = self.entries_by_id.get(&id) {
             return Lookup::Known(self.entries[*index as usize].value.clone_retained());

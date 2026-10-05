@@ -188,7 +188,6 @@ static CSS::PseudoElement css_pseudo_element(RustFFI::FfiPseudoElement pseudo_el
         return CSS::PseudoElement::Marker;
     case RustFFI::FfiPseudoElement::Backdrop:
         return CSS::PseudoElement::Backdrop;
-    case RustFFI::FfiPseudoElement::Other:
     case RustFFI::FfiPseudoElement::None:
         VERIFY_NOT_REACHED();
     }

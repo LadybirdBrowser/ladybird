@@ -159,6 +159,7 @@ use std::sync::Mutex;
 pub(crate) type SelectorValueTextNames = Arc<HashSet<StyleAtomID>>;
 
 use crate::css::cascaded_properties::CascadeOrigin;
+#[cfg(test)]
 use crate::css::cascaded_properties::CascadedPropertyStore;
 use crate::css::computed_values::computed_group_output_mask;
 use crate::css::host_shared::{HostShared, SharedPayload};

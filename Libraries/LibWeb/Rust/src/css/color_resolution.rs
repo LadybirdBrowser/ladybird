@@ -9,7 +9,6 @@
 //! resolution layer over color-bearing style values.
 
 // The FFI consumer of to_color() lands with the FFI flip.
-#![allow(dead_code)]
 // Color values use the same thread-confined shared graph as the rest of the style core.
 #![allow(clippy::arc_with_non_send_sync)]
 
@@ -142,6 +141,7 @@ impl Rgba {
     }
 
     /// Port of Gfx::srgb_to_color().
+    #[cfg(test)]
     pub(crate) fn from_srgb(r: f32, g: f32, b: f32, alpha: f32) -> Self {
         Self {
             r: quantize(r),

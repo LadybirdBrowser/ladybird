@@ -711,7 +711,6 @@ impl<'a> ComputedValuesView<'a> {
     }
 
     #[inline]
-    #[allow(dead_code)]
     pub(crate) fn empty_cells(self) -> u8 {
         self.inherited_table().empty_cells
     }
@@ -722,7 +721,6 @@ impl<'a> ComputedValuesView<'a> {
     }
 
     #[inline]
-    #[allow(dead_code)]
     pub(crate) fn inherited_list(self) -> &'a InheritedListValues {
         self.native_group(STYLE_GROUP_INDEX_INHERITED_LIST)
     }
@@ -795,19 +793,16 @@ impl<'a> ComputedValuesView<'a> {
     }
 
     #[inline]
-    #[allow(dead_code)]
     pub(crate) fn inherited_ui(self) -> &'a InheritedUIValues {
         self.native_group(STYLE_GROUP_INDEX_INHERITED_UI)
     }
 
     #[inline]
-    #[allow(dead_code)]
     pub(crate) fn inherited_svg(self) -> &'a InheritedSVGValues {
         self.native_group(STYLE_GROUP_INDEX_INHERITED_SVG)
     }
 
     #[inline]
-    #[allow(dead_code)]
     pub(crate) fn inherited_text(self) -> &'a InheritedTextValues {
         self.native_group(STYLE_GROUP_INDEX_INHERITED_TEXT)
     }
@@ -818,7 +813,6 @@ impl<'a> ComputedValuesView<'a> {
     }
 
     #[inline]
-    #[allow(dead_code)]
     pub(crate) fn effects(self) -> &'a EffectsValues {
         self.native_group(STYLE_GROUP_INDEX_EFFECTS)
     }
@@ -829,13 +823,11 @@ impl<'a> ComputedValuesView<'a> {
     }
 
     #[inline]
-    #[allow(dead_code)]
     pub(crate) fn text_reset(self) -> &'a TextResetValues {
         self.native_group(STYLE_GROUP_INDEX_TEXT_RESET)
     }
 
     #[inline]
-    #[allow(dead_code)]
     pub(crate) fn transform(self) -> &'a TransformValues {
         self.native_group(STYLE_GROUP_INDEX_TRANSFORM)
     }

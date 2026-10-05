@@ -4003,6 +4003,7 @@ impl RetainedState {
     ///
     /// A miss is not an incomplete selector answer. It means this transaction did not publish an
     /// answer for the node, so the caller may ask the ordinary exact matcher instead.
+    #[cfg(test)]
     pub(super) fn current_published_answer(&self, node: StyleNodeID) -> Option<&PublishedMatchAnswer> {
         Self::published_answer_lookup(
             &self.published_match_answers,

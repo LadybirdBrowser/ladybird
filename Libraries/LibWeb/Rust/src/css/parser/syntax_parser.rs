@@ -66,7 +66,6 @@ pub(crate) use shared_rules::{ParsedRuleList, SharedRule};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]
-#[allow(dead_code)] // Most contexts are constructed through the C++ FFI.
 pub(crate) enum RuleContext {
     Unknown,
     Style,
