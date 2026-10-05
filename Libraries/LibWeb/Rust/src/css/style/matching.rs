@@ -433,7 +433,6 @@ impl RetainedState {
             root,
             batch,
             topology: None,
-            reuse_retained_match_answers: false,
             retained_answer_dispatch: None,
             ancestor_requirements,
             prefix_caches: std::sync::Arc::clone(&self.prefix_caches),
@@ -524,7 +523,6 @@ impl RetainedState {
             root,
             batch: Some(batch),
             topology,
-            reuse_retained_match_answers,
             retained_answer_dispatch,
             ancestor_requirements,
             prefix_caches: std::sync::Arc::clone(&self.prefix_caches),
@@ -624,7 +622,6 @@ impl RetainedState {
             root,
             batch: None,
             topology,
-            reuse_retained_match_answers,
             retained_answer_dispatch,
             ancestor_requirements: AncestorRequirementsCache::default(),
             prefix_caches: std::sync::Arc::clone(&self.prefix_caches),
@@ -4335,18 +4332,12 @@ impl RetainedState {
         traversal: Option<&BatchMatchingTraversal>,
         counters: &mut Counters,
     ) -> Option<Vec<RuleMatch>> {
-        if !traversal.is_some_and(|traversal| traversal.reuse_retained_match_answers) {
-            return None;
-        }
+        let dispatch = traversal?.retained_answer_dispatch.as_deref()?;
         let exact_answer = self
             .retained_match_answer_with_effects(effects, node)
             .sparse()
             .ok()
             .and_then(|answer| {
-                let dispatch = traversal
-                    .expect("a retained answer is consumed only inside a traversal")
-                    .retained_answer_dispatch
-                    .as_deref()?;
                 answer
                     .iter()
                     .copied()
