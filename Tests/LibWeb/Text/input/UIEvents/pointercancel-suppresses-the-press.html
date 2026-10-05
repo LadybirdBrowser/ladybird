@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0 }
+    #target, iframe { display: block; width: 100px; height: 100px; border: none }
+    #link { display: inline-block; padding: 10px }
+</style>
+<div id="target"></div>
+<a id="link" href="#link">link</a>
+<script>
+    asyncTest(async done => {
+        const iframe = document.createElement("iframe");
+        iframe.srcdoc = "<style>body { margin: 0 } div { width: 100px; height: 100px }</style><div id=nested></div>";
+        document.body.appendChild(iframe);
+        await new Promise(resolve => iframe.addEventListener("load", resolve, { once: true }));
+
+        const events = [];
+        const log = event => {
+            const target = event.currentTarget.nodeType ? event.currentTarget.id : "window";
+            const cancelable = event.type === "pointercancel" ? ` cancelable=${event.cancelable}` : "";
+            events.push(`${event.type} at ${target}${cancelable}`);
+        };
+        const listen = (element, window) => {
+            for (const type of ["pointerdown", "pointerup", "pointercancel", "pointerout", "pointerleave", "pointerover", "pointerenter",
+                     "mousedown", "mouseup", "mouseout", "mouseleave", "mouseover", "mouseenter", "click", "dragend"])
+                element.addEventListener(type, log);
+            window.addEventListener("mouseup", log);
+        };
+        const flush = label => {
+            println(`${label}: ${events.join(", ") || "(none)"}`);
+            events.length = 0;
+        };
+
+        listen(target, window);
+        internals.mouseMove(50, 50);
+        flush("hover");
+
+        internals.mouseDown(50, 50);
+        flush("press");
+
+        internals.mouseCancel();
+        flush("cancel");
+        println(`active after cancel: ${target.matches(":active")}`);
+
+        internals.mouseMove(50, 50);
+        flush("move after cancel");
+
+        internals.mouseLeave();
+        flush("leave after cancel");
+
+        // A press that has started dragging the link ends its drag.
+        link.addEventListener("dragend", log);
+        const linkRect = link.getBoundingClientRect();
+        internals.mouseDown(linkRect.x + 5, linkRect.y + 5);
+        internals.mouseMove(linkRect.right + 20, linkRect.y + 5);
+        events.length = 0;
+        internals.mouseCancel();
+        flush("cancel while dragging");
+
+        // A press in a nested document is cancelled there.
+        const nested = iframe.contentDocument.getElementById("nested");
+        listen(nested, iframe.contentWindow);
+        const iframeRect = iframe.getBoundingClientRect();
+        internals.mouseMove(iframeRect.x + 50, iframeRect.y + 50);
+        internals.mouseDown(iframeRect.x + 50, iframeRect.y + 50);
+        events.length = 0;
+        internals.mouseCancel();
+        flush("cancel in nested document");
+
+        // A cancel repeats the coordinates of the last pointer event, even once the page has scrolled under the pointer.
+        const spacer = document.createElement("div");
+        spacer.style.height = "2000px";
+        document.body.appendChild(spacer);
+        const positions = [];
+        const logPosition = event => positions.push(`${event.type} at client (${event.clientX}, ${event.clientY}), page (${event.pageX}, ${event.pageY})`);
+        target.addEventListener("pointerdown", logPosition);
+        target.addEventListener("pointercancel", logPosition);
+        internals.mouseMove(50, 50);
+        internals.mouseDown(50, 50);
+        await internals.wheel(50, 50, 0, 40);
+        await new Promise(resolve => requestAnimationFrame(resolve));
+        println(`scrolled while pressed: ${scrollY > 0}`);
+        internals.mouseCancel();
+        println(`coordinates: ${positions.join(", ")}`);
+
+        done();
+    });
+</script>

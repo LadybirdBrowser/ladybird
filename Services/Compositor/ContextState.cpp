@@ -597,6 +597,22 @@ ContextState::ContextUpdateResult ContextState::handle_mouse_event(Web::MouseEve
             .scrollbar_dragged_by_compositor = m_scrollbar_controller.captured_scrollbar_painted_by_display_list(),
         };
     }
+    case Web::MouseEvent::Type::MouseCancel: {
+        // A cancel ends a drag where it last scrolled to, as a cancel has no position of its own, and the pointer then
+        // counts as having left. The page still sees the cancel, so it is not accepted.
+        auto was_dragging_scrollbar = m_scrollbar_controller.has_captured_scrollbar();
+        auto scrollbar_dragged_by_compositor = m_scrollbar_controller.captured_scrollbar_painted_by_display_list();
+        (void)m_scrollbar_controller.release_captured_drag(visual_context_tree_for_compositing(), m_scroll_state_snapshot, position);
+        note_user_scroll_gesture_end_if_drag_ended(was_dragging_scrollbar);
+        auto hovered_scrollbar_changed = m_scrollbar_controller.set_hovered_scrollbar({});
+
+        ContextUpdateResult result;
+        // As for a release, the main thread learns that the drag ended from the next update it takes.
+        result.should_request_rendering_update = was_dragging_scrollbar;
+        if ((was_dragging_scrollbar && !scrollbar_dragged_by_compositor.has_value()) || hovered_scrollbar_changed)
+            result.frame_to_present = frame_repainting_scrollbars_painted_by_compositor();
+        return result;
+    }
     case Web::MouseEvent::Type::MouseWheel:
         return {};
     }

@@ -720,6 +720,11 @@ void Internals::mouse_leave()
     this->page().handle_mouseleave();
 }
 
+void Internals::mouse_cancel()
+{
+    this->page().handle_mousecancel();
+}
+
 void Internals::click(double x, double y, WebIDL::UnsignedShort click_count, WebIDL::UnsignedShort button, WebIDL::UnsignedShort modifiers)
 {
     click_and_hold(x, y, click_count, button, modifiers);

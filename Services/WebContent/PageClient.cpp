@@ -512,6 +512,7 @@ void PageClient::did_handle_input_event(Web::PageId page_id, Web::InputEvent con
             switch (mouse_event.type) {
             case Web::MouseEvent::Type::MouseDown:
             case Web::MouseEvent::Type::MouseUp:
+            case Web::MouseEvent::Type::MouseCancel:
                 return true;
             case Web::MouseEvent::Type::MouseMove:
                 return mouse_event.buttons != Web::UIEvents::MouseButton::None;

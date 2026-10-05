@@ -1167,6 +1167,63 @@ EventResult EventHandler::handle_mouseleave()
     return EventResult::Handled;
 }
 
+// https://w3c.github.io/pointerevents/#dfn-suppress-a-pointer-event-stream
+EventResult EventHandler::handle_mousecancel()
+{
+    if (should_ignore_device_input_event()) {
+        if (m_mousedown_target_is_drag_candidate)
+            return cancel_drag_and_drop_event(m_last_known_mouse_visual_viewport_position.value_or({}), m_last_known_mouse_screen_position, UIEvents::MouseButton::Primary, UIEvents::MouseButton::Primary, 0);
+
+        return EventResult::Dropped;
+    }
+
+    ScopeGuard clear_mousedown_tracking_and_stop_selection([&] {
+        clear_mousedown_tracking();
+        stop_updating_selection();
+    });
+
+    auto document = m_navigable->active_document();
+    if (!document)
+        return EventResult::Dropped;
+    if (!document->is_fully_active())
+        return EventResult::Dropped;
+
+    Layout::ForcedReadScope read { *document };
+    document->update_layout(DOM::UpdateLayoutReason::EventHandlerHandleMouseCancel);
+
+    if (!has_committed_root_box())
+        return EventResult::Dropped;
+
+    // NB: The browser cancels the pointer that presses, so there is a stream to suppress only while a press lasts. The
+    //     last pointer event's target is the effective position of the legacy mouse pointer.
+    GC::Ptr<DOM::Node> target = m_effective_legacy_mouse_pointer_position.ptr();
+    if (!m_mousedown_target || !target || !m_last_dispatched_pointer_event_position.has_value())
+        return EventResult::Dropped;
+
+    // 1. Fire a pointercancel event.
+    // https://w3c.github.io/pointerevents/#dfn-pointercancel
+    // The values of the following properties of the pointercancel event MUST match the values of the last dispatched
+    // pointer event with the same pointerId: [...] and the coordinates inherited from Mouse Events.
+    auto const& last_position = *m_last_dispatched_pointer_event_position;
+    dispatch_a_pointer_event_for_a_device_that_supports_hover(PointerEventType::PointerCancel, target, nullptr, last_position.coordinates, last_position.screen_position, {}, UIEvents::MouseButton::Primary, m_last_known_mouse_buttons, m_last_known_mouse_modifiers);
+
+    // NB: Dispatching an event may have disturbed the world.
+    if (m_navigable->active_document() != document)
+        return EventResult::Handled;
+
+    // 2. Fire a pointerout event.
+    // 3. Fire a pointerleave event.
+    // NB: Moving the legacy mouse pointer out of the window fires both, along with the compatibility mouse events of
+    //     a pointerleave event at the window.
+    track_the_effective_position_of_the_legacy_mouse_pointer(nullptr);
+
+    // 4. Implicitly release the pointer capture if the pointer is currently captured.
+    // NB: The press is released as this returns.
+    // FIXME: Also end a drag that a chrome widget, such as a scrollbar, has captured.
+
+    return EventResult::Handled;
+}
+
 void EventHandler::update_hover_after_scroll()
 {
     if (!m_last_known_mouse_visual_viewport_position.has_value())
@@ -3668,6 +3725,11 @@ EventHandler::PointerEventDispatchResult EventHandler::dispatch_a_pointer_event_
     }();
     auto pointer_event = MUST(UIEvents::PointerEvent::create_from_platform_event(relevant_global_object, m_navigable->active_window_proxy(), pointer_event_name, screen_position, coordinates.page_offset, coordinates.viewport_position, coordinates.offset, movement, button, buttons, modifiers));
 
+    // https://w3c.github.io/pointerevents/#dfn-pointercancel
+    // The event's cancelable attribute MUST be false.
+    if (type == PointerEventType::PointerCancel)
+        pointer_event->set_cancelable(false);
+
     // FIXME: 1. If the isPrimary property for the pointer event to be dispatched is false then dispatch the
     //           pointer event and terminate these steps.
 
@@ -3707,6 +3769,7 @@ EventHandler::PointerEventDispatchResult EventHandler::dispatch_a_pointer_event_
     light_dismiss_activities(pointer_event, *node);
 
     // 3. Dispatch the pointer event.
+    m_last_dispatched_pointer_event_position = PointerEventPosition { coordinates, screen_position };
     bool pointer_event_cancelled = !node->dispatch_event(pointer_event);
 
     // 4. If the pointer event dispatched was pointerdown and event's canceled flag is set, then set the PREVENT MOUSE
