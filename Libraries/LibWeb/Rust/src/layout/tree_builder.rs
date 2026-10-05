@@ -418,7 +418,7 @@ fn topmost_layout_node_of_top_layer_placement(arena: *mut LayoutNodeArena, layou
         }
         // SAFETY: `parent` is a live layout node.
         let parent_data = unsafe { &*arena }.data(parent);
-        if !node_has_flag(parent_data, NodeFlag::Anonymous) {
+        if !node_facts::has_flag(parent_data, NodeFlag::Anonymous) {
             return if parent_data.kind.get() == NodeKind::Viewport {
                 direct_viewport_child_candidate
             } else {
@@ -602,13 +602,13 @@ fn may_update_pseudo_elements_in_place(
     }
 
     let has_children = !layout.first_child(layout_node).is_invalid();
-    if has_children && !node_has_flag(layout.data(layout_node), NodeFlag::ChildrenAreInline) {
+    if has_children && !node_facts::has_flag(layout.data(layout_node), NodeFlag::ChildrenAreInline) {
         return false;
     }
     let mut child = layout.first_child(layout_node);
     while !child.is_invalid() {
         let data = layout.data(child);
-        if node_has_flag(data, NodeFlag::Anonymous) && !node_is_generated_for_pseudo_element(data) {
+        if node_facts::has_flag(data, NodeFlag::Anonymous) && !node_is_generated_for_pseudo_element(data) {
             return false;
         }
         child = layout.next_sibling(child);
@@ -704,8 +704,8 @@ fn may_reuse_layout_node_for_child_list_insertion(
 
     let last_layout_child = layout.last_child(layout_node);
     let trailing_inline_wrapper = if !last_layout_child.is_invalid()
-        && node_has_flag(layout.data(last_layout_child), NodeFlag::Anonymous)
-        && node_has_flag(layout.data(last_layout_child), NodeFlag::ChildrenAreInline)
+        && node_facts::has_flag(layout.data(last_layout_child), NodeFlag::Anonymous)
+        && node_facts::has_flag(layout.data(last_layout_child), NodeFlag::ChildrenAreInline)
         && !node_is_generated_for_pseudo_element(layout.data(last_layout_child))
     {
         last_layout_child
@@ -800,7 +800,7 @@ impl ChildListInsertionReuse<'_, '_> {
         if self.layout.parent(sibling_layout_node) != self.layout_node {
             return false;
         }
-        let children_are_inline = node_has_flag(self.layout.data(self.layout_node), NodeFlag::ChildrenAreInline);
+        let children_are_inline = node_facts::has_flag(self.layout.data(self.layout_node), NodeFlag::ChildrenAreInline);
         if let Some(generated_for) = pseudo_element {
             // ::after cannot anchor a newly appended anonymous wrapper. In normal flow,
             // inline ::before content also has to remain in its existing inline run, while
@@ -820,7 +820,7 @@ impl ChildListInsertionReuse<'_, '_> {
                 && !parent_display.is_grid_inside();
             return children_are_inline || !pseudo_belongs_to_inline_run;
         }
-        if node_has_flag(self.layout.data(sibling_layout_node), NodeFlag::Anonymous) {
+        if node_facts::has_flag(self.layout.data(sibling_layout_node), NodeFlag::Anonymous) {
             if sibling_layout_node != self.trailing_inline_wrapper {
                 return false;
             }
@@ -956,7 +956,8 @@ impl ChildListInsertionReuse<'_, '_> {
 
         let parent_display = self.layout.display(self.layout_node);
         let parent_has_children = !self.layout.first_child(self.layout_node).is_invalid();
-        let parent_children_are_inline = node_has_flag(self.layout.data(self.layout_node), NodeFlag::ChildrenAreInline);
+        let parent_children_are_inline =
+            node_facts::has_flag(self.layout.data(self.layout_node), NodeFlag::ChildrenAreInline);
         let parent_lays_out_flex_or_grid_children = parent_display.is_flex_inside() || parent_display.is_grid_inside();
         // A table cell lays out its contents as a flow root does.
         let parent_lays_out_flow =
@@ -1020,8 +1021,8 @@ impl ChildListInsertionReuse<'_, '_> {
                     let wrapper = self.layout.parent(child_layout_node);
                     if wrapper.is_invalid()
                         || self.layout.parent(wrapper) != self.layout_node
-                        || !node_has_flag(self.layout.data(wrapper), NodeFlag::Anonymous)
-                        || !node_has_flag(self.layout.data(wrapper), NodeFlag::ChildrenAreInline)
+                        || !node_facts::has_flag(self.layout.data(wrapper), NodeFlag::Anonymous)
+                        || !node_facts::has_flag(self.layout.data(wrapper), NodeFlag::ChildrenAreInline)
                         || node_is_generated_for_pseudo_element(self.layout.data(wrapper))
                     {
                         all_indirect_existing_children_are_in_text_run_wrappers = false;
@@ -2102,7 +2103,9 @@ unsafe fn update_principal_node_descendants(
                     // For replaced elements with shadow DOM children, wrap the children in an
                     // anonymous BlockContainer so that a BFC handles their layout.
                     let first_child = layout_host.first_child(layout_node);
-                    if first_child.is_invalid() || !node_has_flag(layout_host.data(first_child), NodeFlag::Anonymous) {
+                    if first_child.is_invalid()
+                        || !node_facts::has_flag(layout_host.data(first_child), NodeFlag::Anonymous)
+                    {
                         let wrapper = layout_host.create_anonymous_wrapper_box(layout_node);
                         layout_host.attach_child(state.current_parent(), wrapper, NodeSlotId::INVALID);
                     }
@@ -2270,7 +2273,7 @@ unsafe fn update_principal_node_descendants(
                 assert!(placed.is_none());
                 assert!(state.ancestor_stack.pop().is_some());
 
-                if node_kind_is_block_container(layout_host.data(layout_node).kind.get())
+                if node_facts::kind_is_block_container(layout_host.data(layout_node).kind.get())
                     && layout_host.has_first_letter_style(layout_node)
                 {
                     let target = find_first_letter_in_block(host, layout_node);
@@ -2657,7 +2660,7 @@ fn update_principal_node_after_entry(
             is_element: update.kind.is_element(),
             rendered_in_top_layer: update.element_type_facts & element_adjustment_fact::RENDERED_IN_TOP_LAYER != 0,
         };
-        let layout_node_is_svg_box = node_kind_is_svg_box(host.layout().data(layout_node).kind.get());
+        let layout_node_is_svg_box = node_facts::kind_is_svg_box(host.layout().data(layout_node).kind.get());
         let prior_layout_top_layer = context.layout_top_layer;
         let placement =
             principal_box_placement_decision(placement_facts, layout_node_is_svg_box, prior_layout_top_layer);
@@ -2739,8 +2742,8 @@ fn update_principal_node_after_entry(
                 let arena = layout_host.arena();
                 let old_data = arena.data(old_layout_node);
                 let new_data = arena.data(layout_node);
-                if node_kind_is_box(old_data.kind.get())
-                    && node_kind_is_box(new_data.kind.get())
+                if node_facts::kind_is_box(old_data.kind.get())
+                    && node_facts::kind_is_box(new_data.kind.get())
                     && let Some(link) = arena.take_committed_fragment_link(old_data)
                 {
                     arena.set_committed_fragment_link(new_data, link, None);
@@ -3492,7 +3495,7 @@ fn replaced_element_display_adjustment(
     host: &TreeBuilderHost<'_>,
     node: LayoutNode,
 ) -> FfiReplacedElementDisplayAdjustment {
-    if !node_has_flag(host.data(node), NodeFlag::IsReplacedElement) {
+    if !node_facts::has_flag(host.data(node), NodeFlag::IsReplacedElement) {
         return FfiReplacedElementDisplayAdjustment::None;
     }
     let display = host.display(node);
@@ -3595,108 +3598,11 @@ struct TreeBuilderHost<'a> {
     work: &'a OwedHostWork,
 }
 
-fn node_has_flag(data: &NodeData, flag: NodeFlag) -> bool {
-    data.flags.get() & flag as u32 != 0
-}
-
-#[derive(Clone, Copy, PartialEq, Eq)]
-#[repr(C)]
-pub struct FfiNodeKindFacts {
-    pub is_box: bool,
-    pub is_block_container: bool,
-    pub is_text: bool,
-    pub is_svg_box: bool,
-    pub is_replaced_box: bool,
-}
-
-// Exhaustive on purpose: adding a NodeKind variant must not compile until its facts are declared.
-fn kind_facts(kind: NodeKind) -> FfiNodeKindFacts {
-    const NON_BOX: FfiNodeKindFacts = FfiNodeKindFacts {
-        is_box: false,
-        is_block_container: false,
-        is_text: false,
-        is_svg_box: false,
-        is_replaced_box: false,
-    };
-    const TEXT: FfiNodeKindFacts = FfiNodeKindFacts {
-        is_text: true,
-        ..NON_BOX
-    };
-    const BOX: FfiNodeKindFacts = FfiNodeKindFacts {
-        is_box: true,
-        ..NON_BOX
-    };
-    const REPLACED_BOX: FfiNodeKindFacts = FfiNodeKindFacts {
-        is_replaced_box: true,
-        ..BOX
-    };
-    const BLOCK_CONTAINER: FfiNodeKindFacts = FfiNodeKindFacts {
-        is_block_container: true,
-        ..BOX
-    };
-    const SVG_BOX: FfiNodeKindFacts = FfiNodeKindFacts {
-        is_svg_box: true,
-        ..BOX
-    };
-
-    match kind {
-        NodeKind::Unset | NodeKind::BreakNode | NodeKind::InlineNode | NodeKind::Node | NodeKind::NodeWithStyle => {
-            NON_BOX
-        }
-        NodeKind::GeneratedTextNode | NodeKind::TextNode => TEXT,
-        NodeKind::Box | NodeKind::ListItemMarkerBox => BOX,
-        NodeKind::AudioBox
-        | NodeKind::CanvasBox
-        | NodeKind::CheckBox
-        | NodeKind::ImageBox
-        | NodeKind::NavigableContainerViewport
-        | NodeKind::RadioButton
-        | NodeKind::ReplacedBox
-        | NodeKind::SVGSVGBox
-        | NodeKind::VideoBox => REPLACED_BOX,
-        NodeKind::BlockContainer
-        | NodeKind::FieldSetBox
-        | NodeKind::LegendBox
-        | NodeKind::ListItemBox
-        | NodeKind::RangeInputBox
-        | NodeKind::SVGForeignObjectBox
-        | NodeKind::TableWrapper
-        | NodeKind::TextAreaBox
-        | NodeKind::TextInputBox
-        | NodeKind::Viewport => BLOCK_CONTAINER,
-        NodeKind::SVGBox
-        | NodeKind::SVGClipBox
-        | NodeKind::SVGGeometryBox
-        | NodeKind::SVGGraphicsBox
-        | NodeKind::SVGImageBox
-        | NodeKind::SVGMaskBox
-        | NodeKind::SVGPatternBox
-        | NodeKind::SVGTextBox
-        | NodeKind::SVGTextPathBox => SVG_BOX,
-    }
-}
-
-fn node_kind_is_box(kind: NodeKind) -> bool {
-    kind_facts(kind).is_box
-}
-
-fn node_kind_is_block_container(kind: NodeKind) -> bool {
-    kind_facts(kind).is_block_container
-}
-
-fn node_kind_is_text(kind: NodeKind) -> bool {
-    kind_facts(kind).is_text
-}
-
 /// Whether a row of this kind is a `Layout::NodeWithStyle`. A text row is not: it follows its
 /// parent's style rather than holding a record of its own, so a reader that wants the row's own
 /// box values must skip it.
 pub(crate) fn node_kind_is_node_with_style(kind: NodeKind) -> bool {
-    !node_kind_is_text(kind) && !matches!(kind, NodeKind::Unset | NodeKind::Node)
-}
-
-fn node_kind_is_svg_box(kind: NodeKind) -> bool {
-    kind_facts(kind).is_svg_box
+    !node_facts::kind_is_text(kind) && !matches!(kind, NodeKind::Unset | NodeKind::Node)
 }
 
 #[unsafe(no_mangle)]
@@ -3719,7 +3625,7 @@ fn node_is_generated_for_pseudo_element(data: &NodeData) -> bool {
 }
 
 fn node_is_inline_outside(host: &TreeBuilderHost<'_>, node: LayoutNode) -> bool {
-    node_kind_is_text(host.data(node).kind.get())
+    node_facts::kind_is_text(host.data(node).kind.get())
         || host
             .style(node)
             .is_some_and(|style| style.display().is_inline_outside())
@@ -3730,7 +3636,7 @@ fn node_is_out_of_flow(host: &TreeBuilderHost<'_>, node: LayoutNode) -> bool {
 }
 
 fn node_has_replaced_element_table_display_adjustment(host: &TreeBuilderHost<'_>, node: LayoutNode) -> bool {
-    node_has_flag(host.data(node), NodeFlag::IsReplacedElement)
+    node_facts::has_flag(host.data(node), NodeFlag::IsReplacedElement)
         && host.style(node).is_some_and(|style| {
             let display = style.display_before_box_type_transformation();
             display.is_table_inside() || display.is_internal_table() || display.is_table_caption()
@@ -4130,7 +4036,9 @@ impl TreeBuilderHost<'_> {
         // the fixup treats as inline-level boxes of zero size) still lays its children out in a line, and inline
         // boxes keep their inline children: the table-row generated around their cells is wrapped in an inline-level
         // inline-table next.
-        if !matches!(kind, FfiAnonymousTableBoxKind::InlineTable) && node_kind_is_box(self.data(parent).kind.get()) {
+        if !matches!(kind, FfiAnonymousTableBoxKind::InlineTable)
+            && node_facts::kind_is_box(self.data(parent).kind.get())
+        {
             let mut has_inline_child = false;
             let mut child = self.first_child(parent);
             while !child.is_invalid() {
@@ -4199,7 +4107,7 @@ fn has_inline_or_in_flow_block_children(host: &TreeBuilderHost<'_>, node: Layout
 }
 
 fn has_in_flow_block_children(host: &TreeBuilderHost<'_>, node: LayoutNode) -> bool {
-    if node_has_flag(host.data(node), NodeFlag::ChildrenAreInline) {
+    if node_facts::has_flag(host.data(node), NodeFlag::ChildrenAreInline) {
         return false;
     }
     let mut child = host.first_child(node);
@@ -4219,8 +4127,8 @@ fn is_out_of_flow_table_internal_child_of_table_root(
 ) -> bool {
     let child_data = host.data(child);
     host.display(parent).is_table_inside()
-        && node_has_flag(child_data, NodeFlag::HasStyle)
-        && !node_has_flag(child_data, NodeFlag::Anonymous)
+        && node_facts::has_flag(child_data, NodeFlag::HasStyle)
+        && !node_facts::has_flag(child_data, NodeFlag::Anonymous)
         && node_is_out_of_flow(host, child)
         && !node_has_replaced_element_table_display_adjustment(host, child)
         && is_table_non_root_box_with_display(host.display_before_box_type_transformation(child))
@@ -4239,8 +4147,8 @@ fn last_child_creating_anonymous_wrapper_if_needed(host: &TreeBuilderHost<'_>, p
         return create_anonymous_wrapper(host, parent);
     }
     let data = host.data(last_child);
-    if !node_has_flag(data, NodeFlag::Anonymous)
-        || !node_has_flag(data, NodeFlag::ChildrenAreInline)
+    if !node_facts::has_flag(data, NodeFlag::Anonymous)
+        || !node_facts::has_flag(data, NodeFlag::ChildrenAreInline)
         || node_is_generated_for_pseudo_element(data)
     {
         return create_anonymous_wrapper(host, parent);
@@ -4258,7 +4166,7 @@ fn insertion_parent_for_inline_node(host: &TreeBuilderHost<'_>, parent: LayoutNo
 
     // SVG layout ignores the inline/block distinction, and an anonymous wrapper would only hide
     // the child from SVGFormattingContext (e.g. a shape with a foreignObject sibling).
-    if node_kind_is_svg_box(data.kind.get()) || data.kind.get() == NodeKind::SVGSVGBox {
+    if node_facts::kind_is_svg_box(data.kind.get()) || data.kind.get() == NodeKind::SVGSVGBox {
         return parent;
     }
 
@@ -4271,7 +4179,7 @@ fn insertion_parent_for_inline_node(host: &TreeBuilderHost<'_>, parent: LayoutNo
         return last_child_creating_anonymous_wrapper_if_needed(host, parent);
     }
 
-    if !has_in_flow_block_children(host, parent) || node_has_flag(data, NodeFlag::ChildrenAreInline) {
+    if !has_in_flow_block_children(host, parent) || node_facts::has_flag(data, NodeFlag::ChildrenAreInline) {
         return parent;
     }
 
@@ -4283,7 +4191,7 @@ fn nearest_rebuildable_container(host: &TreeBuilderHost<'_>, node: LayoutNode) -
     let mut container = node;
     loop {
         let data = host.data(container);
-        if !node_has_flag(data, NodeFlag::Anonymous) && data.kind.get() != NodeKind::InlineNode {
+        if !node_facts::has_flag(data, NodeFlag::Anonymous) && data.kind.get() != NodeKind::InlineNode {
             return container;
         }
         container = host.parent(container);
@@ -4309,9 +4217,9 @@ fn insertion_parent_for_block_node(
     // ::after joins the table of the table-cell siblings in the inline instead of starting a separate block-level
     // table outside of it.
     // https://drafts.csswg.org/css-tables-3/#fixup-algorithm
-    let is_table_internal_pseudo_element_box = node_has_flag(layout.data(node), NodeFlag::Anonymous)
+    let is_table_internal_pseudo_element_box = node_facts::has_flag(layout.data(node), NodeFlag::Anonymous)
         && is_table_non_root_box_with_display(display_for_table_fixup(&layout, node));
-    if (!node_has_flag(layout.data(node), NodeFlag::Anonymous) || is_table_internal_pseudo_element_box)
+    if (!node_facts::has_flag(layout.data(node), NodeFlag::Anonymous) || is_table_internal_pseudo_element_box)
         && node_is_inline_outside(&layout, parent)
         && layout
             .style(parent)
@@ -4322,7 +4230,7 @@ fn insertion_parent_for_block_node(
 
     // SVG layout ignores the inline/block distinction; wrapping existing inline-level siblings
     // (e.g. shapes next to a foreignObject) would only hide them from SVGFormattingContext.
-    if node_kind_is_svg_box(parent_data.kind.get()) || parent_data.kind.get() == NodeKind::SVGSVGBox {
+    if node_facts::kind_is_svg_box(parent_data.kind.get()) || parent_data.kind.get() == NodeKind::SVGSVGBox {
         return parent;
     }
 
@@ -4371,8 +4279,8 @@ fn insertion_parent_for_block_node(
         if mode == FfiInsertionMode::Append
             && !new_parent_display.is_some_and(|display| display.is_flex_inside() || display.is_grid_inside())
             && !node_is_generated_for_pseudo_element(last_child_data)
-            && node_has_flag(last_child_data, NodeFlag::Anonymous)
-            && node_has_flag(last_child_data, NodeFlag::ChildrenAreInline)
+            && node_facts::has_flag(last_child_data, NodeFlag::Anonymous)
+            && node_facts::has_flag(last_child_data, NodeFlag::ChildrenAreInline)
         {
             return last_child;
         }
@@ -4382,7 +4290,7 @@ fn insertion_parent_for_block_node(
     }
 
     // If the parent block has block-level children, insert this block into parent.
-    if !node_has_flag(new_parent_data, NodeFlag::ChildrenAreInline) {
+    if !node_facts::has_flag(new_parent_data, NodeFlag::ChildrenAreInline) {
         return new_parent;
     }
 
@@ -4422,7 +4330,7 @@ fn insert_child_in_dom_order(
     let (parent_is_empty_anonymous_wrapper, wrapper_parent) = {
         let data = layout.data(parent);
         (
-            node_has_flag(data, NodeFlag::Anonymous) && data.first_child.get().is_invalid(),
+            node_facts::has_flag(data, NodeFlag::Anonymous) && data.first_child.get().is_invalid(),
             data.parent.get(),
         )
     };
@@ -4760,7 +4668,7 @@ fn find_first_letter_in_block(host: &DomTreeBuilderHost<'_>, block: LayoutNode) 
     let layout_host = host.layout();
     // NB: This walks a block container's inline descendants looking for the first-letter text. If the block has block
     //     children instead of inline, recurses into each in-flow block child in turn.
-    if node_has_flag(layout_host.data(block), NodeFlag::ChildrenAreInline) {
+    if node_facts::has_flag(layout_host.data(block), NodeFlag::ChildrenAreInline) {
         let mut result = FirstLetterTarget::not_found();
         let mut is_root = true;
         layout_host.for_each_in_inclusive_subtree(block, |node| {
@@ -4772,7 +4680,7 @@ fn find_first_letter_in_block(host: &DomTreeBuilderHost<'_>, block: LayoutNode) 
             if is_marker_content(data) || node_is_out_of_flow(&layout_host, node) {
                 return TraversalDecision::SkipChildrenAndContinue;
             }
-            if node_kind_is_text(data.kind.get()) {
+            if node_facts::kind_is_text(data.kind.get()) {
                 result = find_first_letter_in_layout_text(&layout_host, node);
                 return if result.found {
                     TraversalDecision::Break
@@ -4793,12 +4701,12 @@ fn find_first_letter_in_block(host: &DomTreeBuilderHost<'_>, block: LayoutNode) 
     let mut child = layout_host.first_child(block);
     while !child.is_invalid() {
         let data = layout_host.data(child);
-        let is_anonymous = node_has_flag(data, NodeFlag::Anonymous);
+        let is_anonymous = node_facts::has_flag(data, NodeFlag::Anonymous);
         if is_marker_content(data) || node_is_out_of_flow(&layout_host, child) {
             child = layout_host.next_sibling(child);
             continue;
         }
-        if !node_kind_is_block_container(data.kind.get()) {
+        if !node_facts::kind_is_block_container(data.kind.get()) {
             break;
         }
         // Stop descending if this child block defines its own ::first-letter: the child will style the first letter
@@ -4820,7 +4728,7 @@ fn find_first_letter_in_block(host: &DomTreeBuilderHost<'_>, block: LayoutNode) 
 
 fn wrap_button_contents_if_needed(host: &TreeBuilderHost<'_>, layout_node: LayoutNode) {
     assert!(!layout_node.is_invalid());
-    if !node_has_flag(host.data(layout_node), NodeFlag::UsesButtonLayout) {
+    if !node_facts::has_flag(host.data(layout_node), NodeFlag::UsesButtonLayout) {
         return;
     }
 
@@ -4830,7 +4738,7 @@ fn wrap_button_contents_if_needed(host: &TreeBuilderHost<'_>, layout_node: Layou
     // box with the following behaviors:
     let display = host.style(layout_node).map(|style| style.display());
     if !display.is_some_and(|display| display.is_grid_inside() || display.is_flex_inside()) {
-        let children_are_inline = node_has_flag(host.data(layout_node), NodeFlag::ChildrenAreInline);
+        let children_are_inline = node_facts::has_flag(host.data(layout_node), NodeFlag::ChildrenAreInline);
         let mut children = Vec::new();
         let mut child = host.first_child(layout_node);
         while !child.is_invalid() {
@@ -4947,8 +4855,8 @@ fn display_for_table_fixup(host: &TreeBuilderHost<'_>, node: LayoutNode) -> FfiD
     // authored boxes so an out-of-flow table-header-group is still recognized as a proper table child during fixup.
     // Element-specific display adjustments for replaced elements and buttons take precedence over that display.
     if node_has_replaced_element_table_display_adjustment(host, node)
-        || node_has_flag(host.data(node), NodeFlag::Anonymous)
-        || node_has_flag(host.data(node), NodeFlag::UsesButtonLayout)
+        || node_facts::has_flag(host.data(node), NodeFlag::Anonymous)
+        || node_facts::has_flag(host.data(node), NodeFlag::UsesButtonLayout)
     {
         host.display(node)
     } else {
@@ -4971,7 +4879,9 @@ fn is_table_non_root_box(host: &TreeBuilderHost<'_>, node: LayoutNode) -> bool {
 
 fn is_table_non_root_box_sibling(host: &TreeBuilderHost<'_>, sibling: LayoutNode) -> bool {
     // Text nodes carry their parent's style, so only boxes can be table-non-root boxes.
-    !sibling.is_invalid() && node_kind_is_box(host.data(sibling).kind.get()) && is_table_non_root_box(host, sibling)
+    !sibling.is_invalid()
+        && node_facts::kind_is_box(host.data(sibling).kind.get())
+        && is_table_non_root_box(host, sibling)
 }
 
 fn is_tabular_container(host: &TreeBuilderHost<'_>, node: LayoutNode) -> bool {
@@ -4996,26 +4906,28 @@ fn text_is_ascii_whitespace(host: &TreeBuilderHost<'_>, node: LayoutNode) -> boo
 }
 
 fn is_ignorable_whitespace(host: &TreeBuilderHost<'_>, node: LayoutNode) -> bool {
-    if node_kind_is_text(host.data(node).kind.get()) && text_is_ascii_whitespace(host, node) {
+    if node_facts::kind_is_text(host.data(node).kind.get()) && text_is_ascii_whitespace(host, node) {
         return true;
     }
 
     // Text refresh can publish a new rendered snapshot. Borrow node data
     // again after it returns instead of retaining a reader across publication.
     let data = host.data(node);
-    if node_has_flag(data, NodeFlag::Anonymous)
-        && node_kind_is_block_container(data.kind.get())
-        && node_has_flag(data, NodeFlag::ChildrenAreInline)
+    if node_facts::has_flag(data, NodeFlag::Anonymous)
+        && node_facts::kind_is_block_container(data.kind.get())
+        && node_facts::has_flag(data, NodeFlag::ChildrenAreInline)
     {
         let mut contains_only_whitespace = true;
         host.for_each_in_inclusive_subtree(node, |descendant| {
             let descendant_data = host.data(descendant);
-            if node_kind_is_text(descendant_data.kind.get()) {
+            if node_facts::kind_is_text(descendant_data.kind.get()) {
                 if !text_is_ascii_whitespace(host, descendant) {
                     contains_only_whitespace = false;
                     return TraversalDecision::Break;
                 }
-            } else if node_is_out_of_flow(host, descendant) || !node_has_flag(descendant_data, NodeFlag::Anonymous) {
+            } else if node_is_out_of_flow(host, descendant)
+                || !node_facts::has_flag(descendant_data, NodeFlag::Anonymous)
+            {
                 contains_only_whitespace = false;
                 return TraversalDecision::Break;
             }
@@ -5083,7 +4995,7 @@ fn remove_irrelevant_boxes(host: &TreeBuilderHost<'_>, root: LayoutNode) {
     let mut to_remove = Vec::new();
     host.for_each_in_inclusive_subtree(root, |node| {
         // Whitespace checks below can refresh rendered text, so read the node data before them and not after.
-        let is_box = node_kind_is_box(host.data(node).kind.get());
+        let is_box = node_facts::kind_is_box(host.data(node).kind.get());
 
         // 1. Children of a table-column.
         if is_box && host.display(node).is_table_column() {
@@ -5110,7 +5022,7 @@ fn remove_irrelevant_boxes(host: &TreeBuilderHost<'_>, root: LayoutNode) {
         // Steps 1 and 2 already scheduled the children of table-column boxes and the non-column children of
         // table-column-group boxes when visiting their parent; their whole subtree goes away with them.
         let parent = host.parent(node);
-        if !parent.is_invalid() && node_kind_is_box(host.data(parent).kind.get()) {
+        if !parent.is_invalid() && node_facts::kind_is_box(host.data(parent).kind.get()) {
             let parent_display = host.display(parent);
             if parent_display.is_table_column()
                 || (parent_display.is_table_column_group() && !host.display(node).is_table_column())
@@ -5141,7 +5053,7 @@ fn remove_irrelevant_boxes(host: &TreeBuilderHost<'_>, root: LayoutNode) {
         if is_box
             && !parent.is_invalid()
             && is_tabular_container(host, parent)
-            && !node_has_flag(host.data(parent), NodeFlag::Anonymous)
+            && !node_facts::has_flag(host.data(parent), NodeFlag::Anonymous)
             && is_first_or_last_child_with_table_non_root_sibling_if_any(host, node)
             && is_ignorable_whitespace(host, node)
         {
@@ -5158,12 +5070,12 @@ fn generate_missing_child_wrappers(host: &TreeBuilderHost<'_>, root: LayoutNode)
     // 2. Generate missing child wrappers:
     host.for_each_in_inclusive_subtree(root, |parent| {
         let data = host.data(parent);
-        if !node_kind_is_box(data.kind.get()) {
+        if !node_facts::kind_is_box(data.kind.get()) {
             return TraversalDecision::Continue;
         }
         // AD-HOC: SVG layout derives box types from the element, so display values must not introduce anonymous boxes
         //         inside SVG content.
-        if node_kind_is_svg_box(data.kind.get()) || data.kind.get() == NodeKind::SVGSVGBox {
+        if node_facts::kind_is_svg_box(data.kind.get()) || data.kind.get() == NodeKind::SVGSVGBox {
             return TraversalDecision::Continue;
         }
 
@@ -5174,7 +5086,9 @@ fn generate_missing_child_wrappers(host: &TreeBuilderHost<'_>, root: LayoutNode)
             for_each_sequence_of_consecutive_children_matching(
                 host,
                 parent,
-                |child| !node_has_flag(host.data(child), NodeFlag::HasStyle) || !is_proper_table_child(host, child),
+                |child| {
+                    !node_facts::has_flag(host.data(child), NodeFlag::HasStyle) || !is_proper_table_child(host, child)
+                },
                 |sequence, nearest_sibling| {
                     host.wrap_in_anonymous(sequence, nearest_sibling, FfiAnonymousTableBoxKind::TableRow);
                 },
@@ -5185,7 +5099,9 @@ fn generate_missing_child_wrappers(host: &TreeBuilderHost<'_>, root: LayoutNode)
             for_each_sequence_of_consecutive_children_matching(
                 host,
                 parent,
-                |child| !node_has_flag(host.data(child), NodeFlag::HasStyle) || !host.display(child).is_table_row(),
+                |child| {
+                    !node_facts::has_flag(host.data(child), NodeFlag::HasStyle) || !host.display(child).is_table_row()
+                },
                 |sequence, nearest_sibling| {
                     host.wrap_in_anonymous(sequence, nearest_sibling, FfiAnonymousTableBoxKind::TableRow);
                 },
@@ -5196,7 +5112,9 @@ fn generate_missing_child_wrappers(host: &TreeBuilderHost<'_>, root: LayoutNode)
             for_each_sequence_of_consecutive_children_matching(
                 host,
                 parent,
-                |child| !node_has_flag(host.data(child), NodeFlag::HasStyle) || !host.display(child).is_table_cell(),
+                |child| {
+                    !node_facts::has_flag(host.data(child), NodeFlag::HasStyle) || !host.display(child).is_table_cell()
+                },
                 |sequence, nearest_sibling| {
                     host.wrap_in_anonymous(sequence, nearest_sibling, FfiAnonymousTableBoxKind::TableCell);
                 },
@@ -5214,8 +5132,8 @@ fn generate_missing_parents(host: &TreeBuilderHost<'_>, root: LayoutNode) -> Vec
         let (has_style, is_box, kind) = {
             let data = host.data(parent);
             (
-                node_has_flag(data, NodeFlag::HasStyle),
-                node_kind_is_box(data.kind.get()),
+                node_facts::has_flag(data, NodeFlag::HasStyle),
+                node_facts::kind_is_box(data.kind.get()),
                 data.kind.get(),
             )
         };
@@ -5224,7 +5142,7 @@ fn generate_missing_parents(host: &TreeBuilderHost<'_>, root: LayoutNode) -> Vec
         if !has_style {
             return TraversalDecision::Continue;
         }
-        let node_is_svg_content = node_kind_is_svg_box(kind) || kind == NodeKind::SVGSVGBox;
+        let node_is_svg_content = node_facts::kind_is_svg_box(kind) || kind == NodeKind::SVGSVGBox;
 
         // 1. An anonymous table-row box must be generated around each sequence of consecutive table-cell boxes whose
         //    parent is not a table-row.
@@ -5232,7 +5150,9 @@ fn generate_missing_parents(host: &TreeBuilderHost<'_>, root: LayoutNode) -> Vec
             for_each_sequence_of_consecutive_children_matching(
                 host,
                 parent,
-                |child| node_has_flag(host.data(child), NodeFlag::HasStyle) && host.display(child).is_table_cell(),
+                |child| {
+                    node_facts::has_flag(host.data(child), NodeFlag::HasStyle) && host.display(child).is_table_cell()
+                },
                 |sequence, nearest_sibling| {
                     host.wrap_in_anonymous(sequence, nearest_sibling, FfiAnonymousTableBoxKind::TableRow);
                 },
@@ -5263,7 +5183,7 @@ fn generate_missing_parents(host: &TreeBuilderHost<'_>, root: LayoutNode) -> Vec
                 host,
                 parent,
                 |child| {
-                    if !node_has_flag(host.data(child), NodeFlag::HasStyle) {
+                    if !node_facts::has_flag(host.data(child), NodeFlag::HasStyle) {
                         return false;
                     }
                     let display = host.display(child);
@@ -5287,7 +5207,7 @@ fn generate_missing_parents(host: &TreeBuilderHost<'_>, root: LayoutNode) -> Vec
             let wrap_parent = host.parent(parent);
             let wrap_parent_is_svg_content = !wrap_parent.is_invalid() && {
                 let wrap_parent_kind = host.data(wrap_parent).kind.get();
-                node_kind_is_svg_box(wrap_parent_kind) || wrap_parent_kind == NodeKind::SVGSVGBox
+                node_facts::kind_is_svg_box(wrap_parent_kind) || wrap_parent_kind == NodeKind::SVGSVGBox
             };
             if !wrap_parent_is_svg_content {
                 table_roots_to_wrap.push(parent);
@@ -5331,7 +5251,7 @@ fn fixup_row(
     let mut missing_cells_are_trailing = true;
     let mut child = host.first_child(row);
     while !child.is_invalid() {
-        if node_has_flag(host.data(child), NodeFlag::IsMissingTableCell) {
+        if node_facts::has_flag(host.data(child), NodeFlag::IsMissingTableCell) {
             existing_cells.push(child);
         } else if !existing_cells.is_empty() {
             missing_cells_are_trailing = false;
@@ -5407,7 +5327,7 @@ fn table_fixup_scope_for_rebuilt_subtree(host: &TreeBuilderHost<'_>, root: Layou
     let parent_display = display_for_table_fixup(host, parent);
     let parent_requires_table_children = is_tabular_container(host, parent) || parent_display.is_table_column_group();
     let root_data = host.data(root);
-    if node_kind_is_text(root_data.kind.get()) || !node_has_flag(root_data, NodeFlag::HasStyle) {
+    if node_facts::kind_is_text(root_data.kind.get()) || !node_facts::has_flag(root_data, NodeFlag::HasStyle) {
         let mut ancestor = parent;
         while !ancestor.is_invalid() {
             let ancestor_data = host.data(ancestor);
@@ -5415,7 +5335,7 @@ fn table_fixup_scope_for_rebuilt_subtree(host: &TreeBuilderHost<'_>, root: Layou
             if is_tabular_container(host, ancestor) || ancestor_display.is_table_column_group() {
                 return ancestor;
             }
-            if !node_has_flag(ancestor_data, NodeFlag::Anonymous) {
+            if !node_facts::has_flag(ancestor_data, NodeFlag::Anonymous) {
                 break;
             }
             ancestor = host.parent(ancestor);
@@ -5443,7 +5363,7 @@ fn nearest_table_root(host: &TreeBuilderHost<'_>, node: LayoutNode) -> Option<La
     let mut current = node;
     while !current.is_invalid() {
         let data = host.data(current);
-        if node_has_flag(data, NodeFlag::HasStyle) && display_for_table_fixup(host, current).is_table_inside() {
+        if node_facts::has_flag(data, NodeFlag::HasStyle) && display_for_table_fixup(host, current).is_table_inside() {
             return Some(current);
         }
         current = host.parent(current);
