@@ -331,16 +331,11 @@ impl<'pass> BlockFormattingContext<'pass> {
         self.callbacks.in_flow_containing_block(node)
     }
 
-    fn children(&self, node: Node) -> Vec<Node> {
-        let mut children = Vec::new();
-        let mut child = self.first_child(node);
-        while !child.is_invalid() {
-            if self.facts(child).is_box() {
-                children.push(child);
-            }
-            child = self.next_sibling(child);
-        }
-        children
+    /// The boxes among the children of `node`.
+    fn children(&self, node: Node) -> impl Iterator<Item = Node> + '_ {
+        self.callbacks
+            .children(node)
+            .filter(|&child| self.facts(child).is_box())
     }
 
     fn is_ancestor_of(&self, ancestor: Node, node: Node) -> bool {
@@ -2436,7 +2431,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             let flow_children_bottom_up = if root_facts.is_table_wrapper() {
                 table_wrapper_flow_children(self.callbacks, self.root)
             } else {
-                self.children(self.root)
+                self.children(self.root).collect()
             };
             for child in flow_children_bottom_up.into_iter().rev() {
                 let facts = self.facts(child);
@@ -2917,7 +2912,11 @@ impl<'pass> BlockFormattingContext<'pass> {
         // 2. the bottom edge of the bottom (possibly collapsed) margin of its last in-flow child, if the child's bottom margin does not collapse with the element's bottom margin
         // 3. the bottom border edge of the last in-flow child whose top margin doesn't collapse with the element's bottom margin
         if !facts.children_are_inline() {
-            for child in self.children(node).into_iter().rev() {
+            for child in self
+                .callbacks
+                .children_rev(node)
+                .filter(|&child| self.facts(child).is_box())
+            {
                 let child_facts = self.facts(child);
                 if child_facts.is_absolutely_positioned() || child_facts.is_floating() {
                     continue;
@@ -3211,7 +3210,6 @@ impl<'pass> BlockFormattingContext<'pass> {
             return false;
         }
         self.children(node)
-            .into_iter()
             .any(|child| self.line_clamp_subtree_contains_line(child))
     }
 
@@ -3239,14 +3237,12 @@ impl<'pass> BlockFormattingContext<'pass> {
 }
 
 fn table_box_of_wrapper(callbacks: LayoutPass<'_>, wrapper: Node) -> Node {
-    let mut child = callbacks.first_child(wrapper);
-    while !child.is_invalid() {
+    for child in callbacks.children(wrapper) {
         if NodeFacts::new(&callbacks, child).is_box()
             && StyleValues::for_node(&callbacks, child).display().is_table_inside()
         {
             return child;
         }
-        child = callbacks.next_sibling(child);
     }
     unreachable!("a table wrapper contains its table box")
 }
@@ -3259,8 +3255,7 @@ pub(crate) fn table_wrapper_flow_children(callbacks: LayoutPass<'_>, wrapper: No
     let table_box = table_box_of_wrapper(callbacks, wrapper);
     let mut flow_children = Vec::new();
     let mut bottom_captions = Vec::new();
-    let mut child = callbacks.first_child(table_box);
-    while !child.is_invalid() {
+    for child in callbacks.children(table_box) {
         let facts = NodeFacts::new(&callbacks, child);
         if facts.is_box() && facts.is_table_caption() && !facts.is_absolutely_positioned() {
             if StyleValues::for_node(&callbacks, child).caption_side() == caption_side::TOP {
@@ -3269,7 +3264,6 @@ pub(crate) fn table_wrapper_flow_children(callbacks: LayoutPass<'_>, wrapper: No
                 bottom_captions.push(child);
             }
         }
-        child = callbacks.next_sibling(child);
     }
     flow_children.push(table_box);
     flow_children.extend(bottom_captions);
@@ -3315,10 +3309,8 @@ pub(crate) fn automatic_block_size_for_bfc_root(
             table_wrapper_flow_children(callbacks, root)
         } else {
             let mut children = Vec::new();
-            let mut child = callbacks.first_child(root);
-            while !child.is_invalid() {
+            for child in callbacks.children(root) {
                 children.push(child);
-                child = callbacks.next_sibling(child);
             }
             children
         };

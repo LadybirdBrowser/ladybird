@@ -783,9 +783,7 @@ impl<'pass> FlexFormattingContext<'pass> {
         // This is particularly important since we take references to the items stored in flex_items
         // later, whose addresses won't be stable if we added or removed any items.
         let mut buckets: HashMap<i32, Vec<Node>> = HashMap::default();
-        let mut child = self.callbacks.first_child(self.flex_container);
-        while !child.is_invalid() {
-            let next = self.callbacks.next_sibling(child);
+        for child in self.callbacks.children(self.flex_container) {
             let facts = self.facts(child);
             if facts.is_box() {
                 let skip = self.callbacks.can_skip_is_anonymous_text_run(child);
@@ -797,7 +795,6 @@ impl<'pass> FlexFormattingContext<'pass> {
                     buckets.entry(self.style(child).order()).or_default().push(child);
                 }
             }
-            child = next;
         }
 
         self.flex_items.reserve_exact(buckets.values().map(Vec::len).sum());
@@ -3348,9 +3345,7 @@ impl<'pass> FlexFormattingContext<'pass> {
         if self.layout_mode != LayoutMode::Normal {
             return;
         }
-        let mut child = self.callbacks.first_child(self.flex_container);
-        while !child.is_invalid() {
-            let next = self.callbacks.next_sibling(child);
+        for child in self.callbacks.children(self.flex_container) {
             let facts = self.facts(child);
             if facts.is_box() && facts.is_absolutely_positioned() {
                 formatting_context::register_contained_abspos_child(
@@ -3362,7 +3357,6 @@ impl<'pass> FlexFormattingContext<'pass> {
                     None,
                 );
             }
-            child = next;
         }
     }
 

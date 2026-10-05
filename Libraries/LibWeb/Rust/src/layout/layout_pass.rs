@@ -196,6 +196,20 @@ impl<'arena> LayoutPass<'arena> {
         self.node_data(node).previous_sibling.get()
     }
 
+    /// The children of `node`, in tree order.
+    pub(crate) fn children(self, node: Node) -> impl Iterator<Item = Node> + 'arena {
+        std::iter::successors(link(self.first_child(node)), move |&child| {
+            link(self.next_sibling(child))
+        })
+    }
+
+    /// The children of `node`, last first.
+    pub(crate) fn children_rev(self, node: Node) -> impl Iterator<Item = Node> + 'arena {
+        std::iter::successors(link(self.last_child(node)), move |&child| {
+            link(self.previous_sibling(child))
+        })
+    }
+
     pub(crate) fn in_flow_containing_block(&self, node: Node) -> Node {
         let (innermost_root, innermost_root_containing_block) = self.arena.innermost_run.get();
         if node == innermost_root {
@@ -240,4 +254,9 @@ impl<'arena> LayoutPass<'arena> {
         }
         false
     }
+}
+
+/// A node's link to another, which is none for an invalid slot.
+fn link(node: Node) -> Option<Node> {
+    (!node.is_invalid()).then_some(node)
 }

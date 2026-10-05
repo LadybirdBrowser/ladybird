@@ -890,12 +890,10 @@ impl<'pass> SvgFormattingContext<'pass> {
     /// would lay out, so this reads the source text the row kept beside its rendering.
     fn svg_text_contents(&self, node: Node) -> Vec<u16> {
         let mut text: Vec<u16> = Vec::new();
-        let mut child = self.first_child(node);
-        while !child.is_invalid() {
+        for child in self.callbacks.children(node) {
             if node_facts::kind_is_text(self.node_kind(child)) {
                 self.append_svg_source_text(child, &mut text);
             }
-            child = self.next_sibling(child);
         }
         trim_ascii_whitespace(&mut text);
         text
@@ -1443,11 +1441,8 @@ impl<'pass> SvgFormattingContext<'pass> {
     }
 
     fn for_each_child(&self, node: Node, mut callback: impl FnMut(Node)) {
-        let mut child = self.first_child(node);
-        while !child.is_invalid() {
-            let next = self.next_sibling(child);
+        for child in self.callbacks.children(node) {
             callback(child);
-            child = next;
         }
     }
 
@@ -1591,13 +1586,10 @@ impl<'pass> SvgFormattingContext<'pass> {
             .containing_block_constraints
             .quirks_mode_percentage_basis_block_size;
 
-        let mut child = self.first_child(self.box_);
-        while !child.is_invalid() {
-            let next = self.next_sibling(child);
+        for child in self.callbacks.children(self.box_) {
             if NodeFacts::new(&self.callbacks, child).is_box() {
                 self.layout_svg_element(run, child, input);
             }
-            child = next;
         }
     }
 
@@ -1717,13 +1709,10 @@ impl<'pass> SvgFormattingContext<'pass> {
         if let Some(clip) = self.first_child_of_kind(graphics_box, NodeKind::SVGClipBox) {
             self.layout_mask_or_clip(run, clip);
         }
-        let mut child = self.first_child(graphics_box);
-        while !child.is_invalid() {
-            let next = self.next_sibling(child);
+        for child in self.callbacks.children(graphics_box) {
             if self.node_kind(child) == NodeKind::SVGPatternBox {
                 self.layout_mask_or_clip(run, child);
             }
-            child = next;
         }
     }
 
@@ -1745,13 +1734,10 @@ impl<'pass> SvgFormattingContext<'pass> {
 
         if self.node_kind(graphics_box) == NodeKind::SVGTextBox {
             // <text> and <tspan> elements can contain more text elements.
-            let mut child = self.first_child(graphics_box);
-            while !child.is_invalid() {
-                let next = self.next_sibling(child);
+            for child in self.callbacks.children(graphics_box) {
                 if matches!(self.node_kind(child), NodeKind::SVGTextBox | NodeKind::SVGTextPathBox) {
                     self.layout_graphics_element(run, child, input);
                 }
-                child = next;
             }
         }
         let [x, y, width, height] = path.bounding_box();
@@ -1893,9 +1879,7 @@ impl<'pass> SvgFormattingContext<'pass> {
         let mut min_y = CssPixels::default();
         let mut max_x = CssPixels::default();
         let mut max_y = CssPixels::default();
-        let mut child = self.first_child(container);
-        while !child.is_invalid() {
-            let next = self.next_sibling(child);
+        for child in self.callbacks.children(container) {
             // Masks/clips/patterns do not change the bounding box of their parents.
             if NodeFacts::new(&self.callbacks, child).is_box() && !kind_is_svg_resource_box(self.node_kind(child)) {
                 self.layout_svg_element(run, child, input);
@@ -1926,7 +1910,6 @@ impl<'pass> SvgFormattingContext<'pass> {
                     has_points = true;
                 }
             }
-            child = next;
         }
 
         let used_pointer = self.used_values(container);
