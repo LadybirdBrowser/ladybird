@@ -320,15 +320,6 @@ void rust_update_visual_viewport_transform(Layout::BegunRead const& read, DOM::D
     Layout::RustFFI::render_state_update_visual_viewport_transform(document.layout_node_arena().host(), &read, visual_context_tree_inputs(document));
 }
 
-void rust_refresh_scroll_state(Layout::BegunRead const& read, DOM::Document& document, Compositing::ScrollStateSnapshot& snapshot)
-{
-    Layout::RustFFI::render_state_refresh_scroll_state(
-        document.layout_node_arena().host(), &read, document.page().client().device_pixels_per_css_pixel(),
-        &snapshot, [](void* sink, Gfx::FloatPoint const* offsets, size_t count) {
-            static_cast<Compositing::ScrollStateSnapshot*>(sink)->assign_device_offsets({ offsets, count });
-        });
-}
-
 // Describes the row in the slot as its layout node describes itself, for a dump or a trace.
 static void push_debug_description(DOM::Document const& document, Compositing::RustFFI::NodeSlotId slot, void* description_sink)
 {

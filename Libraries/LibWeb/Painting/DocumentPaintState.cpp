@@ -12,6 +12,7 @@
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Layout/TextNode.h>
 #include <LibWeb/Layout/Viewport.h>
+#include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/Painting/DocumentPaintState.h>
 #include <LibWeb/Painting/PaintingRustBridge.h>
@@ -147,7 +148,12 @@ void DocumentPaintState::invalidate_all_cached_paint(DOM::Document& document)
 
 void DocumentPaintState::refresh_scroll_state(Layout::BegunRead const& read, DOM::Document& document)
 {
-    rust_refresh_scroll_state(read, document, m_scroll_state_snapshot);
+    // The render state hands over a new snapshot only where something invalidated the one kept.
+    Layout::RustFFI::render_state_refresh_scroll_state(
+        m_layout_node_arena->host(), &read, document.page().client().device_pixels_per_css_pixel(),
+        &m_scroll_state_snapshot, [](void* sink, Gfx::FloatPoint const* offsets, size_t count) {
+            static_cast<Compositing::ScrollStateSnapshot*>(sink)->assign_device_offsets({ offsets, count });
+        });
 }
 
 void DocumentPaintState::reset_selection_states(Layout::BegunRead const& read, DOM::Document& document)
