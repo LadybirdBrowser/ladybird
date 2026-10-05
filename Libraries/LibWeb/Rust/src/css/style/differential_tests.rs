@@ -713,7 +713,14 @@ fn incomplete_answer_batches_preserve_pending_lookups_and_release_ownership() {
                 normalized_rows(workload.engine.consume_published_match_answer(nodes[index]).unwrap()),
                 expected[index]
             );
-            assert!(workload.engine.published_match_answer_signature(nodes[index]).is_some());
+            assert!(
+                super::RetainedState::published_answer_lookup(
+                    &workload.engine.published_match_answers,
+                    workload.engine.batch_matching_traversal.as_deref(),
+                    nodes[index],
+                )
+                .is_some_and(|(_, answer)| answer.cascade_input.is_some())
+            );
             let key = WinnerGroupKey::current(nodes[index], workload.engine.program.version());
             assert!(matches!(workload.engine.winner_groups.lookup(key), Lookup::Missing(_)));
             assert!(matches!(
