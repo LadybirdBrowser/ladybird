@@ -22,15 +22,6 @@
 
 namespace Web::DOM {
 
-static Layout::RustFFI::FfiUtf16View ffi_utf16_view(Utf16View view)
-{
-    return {
-        .ascii = view.has_ascii_storage() ? reinterpret_cast<u8 const*>(view.ascii_span().data()) : nullptr,
-        .utf16 = view.has_ascii_storage() ? nullptr : reinterpret_cast<u16 const*>(view.utf16_span().data()),
-        .length = view.length_in_code_units(),
-    };
-}
-
 // The document-side steps of the layout update, which the Rust loop drives through this table.
 Layout::RustFFI::FfiLayoutUpdateHostCallbacks Document::layout_update_host_callbacks()
 {
@@ -153,7 +144,6 @@ void Document::seal_first_layout_round(Layout::BegunRead const& read)
     Layout::RustFFI::FfiLayoutUpdateInputs inputs {
         .reason_is_inspect_devtools_layout_data = false,
         .is_template_contents_document = m_created_for_appropriate_template_contents,
-        .reason_name = ffi_utf16_view(to_string(UpdateLayoutReason::HTMLEventLoopRenderingUpdate)),
     };
     Layout::RustFFI::render_state_seal_first_layout_round(m_layout_node_arena->host(), &read, &inputs);
 }
@@ -198,7 +188,6 @@ void Document::update_style_and_layout_once(Layout::BegunRead const& read, Updat
     Layout::RustFFI::FfiLayoutUpdateInputs inputs {
         .reason_is_inspect_devtools_layout_data = reason == UpdateLayoutReason::InspectDevToolsLayoutData,
         .is_template_contents_document = m_created_for_appropriate_template_contents,
-        .reason_name = ffi_utf16_view(to_string(reason)),
     };
     Layout::RustFFI::render_state_update_layout(arena.host(), &read, &inputs);
 
