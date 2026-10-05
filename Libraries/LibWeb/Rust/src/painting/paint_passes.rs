@@ -14,15 +14,17 @@ use crate::painting::host::{
     FfiCompositorAnimationPublishOutcome, FfiVisualContextTreeInputs, FfiVisualContextUpdateOutcome,
     RootBackgroundSource,
 };
+use crate::painting::presentation::Presentation;
 use crate::painting::svg_paint_resources::{PublishedSvgFilter, PublishedSvgPaintServer, SvgPaintResourceKind};
 use crate::painting::visual_animation::VisualAnimation;
-use crate::painting::visual_context::VisualContextState;
 use crate::painting::visual_context::dirty::{VisualContextGlobalRebuildReason, VisualContextUpdateScope};
 use crate::painting::visual_context::incremental::{
     IncrementalUpdateResult, debug_assert_every_live_node_is_owned, update_visual_context_tree,
 };
+use crate::painting::visual_context::{VisualContextState, VisualContextTree};
 use crate::render_state::{BegunRead, DocumentHost, PreparationPending, RenderMessage, ask, wait_for_render_state};
 use libgfx_rust::FloatPoint;
+use std::sync::Arc;
 
 /// One step of paint preparation over a document's render state. A pass that reads the viewport the render side draws
 /// into carries what the host knows of it, so the host hands it over only to a pass that runs.
@@ -144,58 +146,78 @@ impl PaintPass {
     }
 }
 
-/// What a clock tick's round moved that the visual context tree reads: the tree the compositor has comes from the
-/// host's frames, and a tick's frame brings it none of its own.
-pub(crate) struct MovesVisualContexts;
+/// What a clock tick's round changed that only the host settles: a root background, scrollability or SVG paint
+/// resource, a visual context tree built anew, or a compositor animation whose node went away.
+pub(crate) struct VisualContextsNeedHost;
 
-/// Brings the paint state of `arena` up to date with what a clock tick's round laid out, for the tick's frame, where
-/// that leaves the visual context tree as the compositor has it: no box the round moved or restyled owns a node whose
-/// value reads its geometry, or moves descendants that may, and the round moved no root background, flipped no
-/// scrollability and asks the host to resolve no SVG paint resource. The rest of paint preparation, the scroll offsets
-/// new overflow clamps above all, is the host's, once the lease lands.
+/// The visual context tree a clock tick's frame takes to the compositor, with the scroll offsets of its nodes where its
+/// structure is not the one the compositor has.
+pub(crate) struct ClockTickVisualContexts {
+    pub(crate) tree: Arc<VisualContextTree>,
+    pub(crate) restructured_scroll_offsets: Option<Vec<FloatPoint>>,
+}
+
+/// Brings the paint state of `arena` up to date with what a clock tick's round laid out, for the tick's frame, as the
+/// host's rendering update does before it records, where the round moved no root background, flipped no scrollability
+/// and asks the host to resolve no SVG paint resource, and the update changes the tree incrementally. Answers the tree
+/// where the update ran, which `presentation` notes at once: the host records the document again where the tick parks
+/// before presenting it. A tree of a new structure takes over the compositor animations the host published for the old
+/// one, whose nodes it holds still. The rest of paint preparation, the scroll offsets new overflow clamps above all, is
+/// the host's, once the lease lands.
 pub(crate) fn prepare_for_clock_tick(
     arena: &mut LayoutNodeArena,
     viewport: NodeSlotId,
-) -> Result<(), MovesVisualContexts> {
+    presentation: &mut Presentation,
+) -> Result<Option<ClockTickVisualContexts>, VisualContextsNeedHost> {
     // Recording reads overflow, and measuring it notes a flip in scrollability for the check below.
     arena.measure_scrollable_overflow();
     if arena.svg_paint_resources().needs_sync()
         || arena.paint_state().borrow().root_background_source
             != Some(crate::layout::viewport_propagation::root_background_source(arena))
     {
-        return Err(MovesVisualContexts);
+        return Err(VisualContextsNeedHost);
     }
-    let inputs = {
+    let (inputs, compositor_animations) = {
         let paint_state = arena.paint_state().borrow();
-        let dirty = &paint_state.visual_context.dirty_boxes;
-        let Some(inputs) = paint_state.visual_context.last_tree_inputs else {
-            return Err(MovesVisualContexts);
+        let state = &paint_state.visual_context;
+        let (Some(inputs), Some(tree)) = (state.last_tree_inputs, state.tree.as_deref()) else {
+            return Err(VisualContextsNeedHost);
         };
-        if dirty.global_reason != VisualContextGlobalRebuildReason::None || !dirty.removed.is_empty() {
-            return Err(MovesVisualContexts);
+        if state.dirty_boxes.global_reason != VisualContextGlobalRebuildReason::None {
+            return Err(VisualContextsNeedHost);
         }
-        let keeps_visual_contexts = dirty.boxes.iter().all(|(&slot, bits)| {
-            arena.paintable_visual_context_record(slot).is_some_and(|record| {
-                bits.is_geometry_only()
-                    && !record.owns_geometry_dependent_nodes
-                    && !(bits.moves_descendants() && record.subtree_may_own_geometry_dependent_nodes)
-            })
-        });
-        if !keeps_visual_contexts {
-            return Err(MovesVisualContexts);
+        if state.dirty_boxes.boxes.is_empty() && state.dirty_boxes.removed.is_empty() {
+            return Ok(None);
         }
-        if dirty.boxes.is_empty() {
-            return Ok(());
-        }
-        inputs
+        (inputs, tree.shared_visual_animations())
     };
-    // The update rebuilds no node, but the records, the stacking context order and the fragments' owners of the boxes
-    // the round laid out.
     let outcome = update_accumulated_visual_contexts(arena, viewport, inputs);
-    match outcome.performed_full_build || outcome.structural_epoch_changed {
-        true => Err(MovesVisualContexts),
-        false => Ok(()),
+    presentation.note_visual_context_tree_changed();
+    if outcome.performed_full_build {
+        return Err(VisualContextsNeedHost);
     }
+    let paintable_rows = arena.paintable_rows();
+    let mut paint_state = arena.paint_state().borrow_mut();
+    let state = &mut paint_state.visual_context;
+    let tree = state.tree.as_mut().expect("an incremental update keeps the tree");
+    if !outcome.structural_epoch_changed {
+        return Ok(Some(ClockTickVisualContexts {
+            tree: tree.clone(),
+            restructured_scroll_offsets: None,
+        }));
+    }
+    // The update dropped the animations, which name nodes of the old structure: the host publishes them again in its
+    // rendering update, and an animation whose node went away needs it to.
+    if !Arc::make_mut(tree).carry_visual_animations_over(compositor_animations) {
+        return Err(VisualContextsNeedHost);
+    }
+    let tree = tree.clone();
+    // The host refreshes its own copy of the scroll state still.
+    let scroll_offsets = scroll_state_snapshot(&paintable_rows, state, inputs.device_pixels_per_css_pixel);
+    Ok(Some(ClockTickVisualContexts {
+        tree,
+        restructured_scroll_offsets: Some(scroll_offsets),
+    }))
 }
 
 /// Runs `pass` on the render state of `host`'s document in `read`, as the host prepares to paint, and answers what it
@@ -289,17 +311,30 @@ fn refresh_scroll_state(
     let paintable_rows = arena.paintable_rows();
     let mut paint_state = arena.paint_state().borrow_mut();
     let state = &mut paint_state.visual_context;
-    if !force && !state.needs_to_refresh_scroll_state {
+    state.needs_to_refresh_scroll_state |= force;
+    if !state.needs_to_refresh_scroll_state {
         return None;
     }
+    let snapshot = scroll_state_snapshot(&paintable_rows, state, device_pixels_per_css_pixel);
     state.needs_to_refresh_scroll_state = false;
-    crate::painting::visual_context::refresh::refresh_scroll_state(&paintable_rows, &mut state.scroll_state);
+    Some(snapshot)
+}
+
+/// The device scroll offsets of the nodes of `state`'s tree, refreshed from the rows where they may have moved.
+fn scroll_state_snapshot(
+    paintable_rows: &impl crate::painting::paintable_rows::PaintableRowsRead,
+    state: &mut VisualContextState,
+    device_pixels_per_css_pixel: f64,
+) -> Vec<FloatPoint> {
+    if state.needs_to_refresh_scroll_state {
+        crate::painting::visual_context::refresh::refresh_scroll_state(paintable_rows, &mut state.scroll_state);
+    }
     let mut snapshot = state.scroll_state.snapshot(device_pixels_per_css_pixel);
     // https://drafts.csswg.org/css-position/#sticky-pos
     if let Some(tree) = state.tree.as_deref() {
         tree.resolve_sticky_offsets_in_place(&mut snapshot);
     }
-    Some(snapshot)
+    snapshot
 }
 
 fn update_visual_viewport_transform(arena: &LayoutNodeArena, inputs: &FfiVisualContextTreeInputs) {

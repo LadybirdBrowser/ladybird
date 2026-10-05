@@ -12,13 +12,23 @@
 //! their presenter's owners presented them.
 
 use crate::painting::ffi::{FfiPresentation, FfiPresentedRecording};
+use crate::painting::paint_passes::ClockTickVisualContexts;
 use crate::painting::record::publish::RecordingResourceSink;
+use libgfx_rust::FloatPoint;
 use std::ffi::c_void;
 use std::ptr::NonNull;
+use std::sync::Arc;
 
 unsafe extern "C" {
     fn web_navigable_presenter_destroy(presenter: *mut c_void);
     fn web_sealed_presentation_destroy(sealed: *mut c_void);
+    fn web_sealed_presentation_take_visual_context_tree(
+        sealed: *mut c_void,
+        tree: *const c_void,
+        scroll_offsets: *const FloatPoint,
+        scroll_offset_count: usize,
+    );
+    fn web_sealed_presentation_note_visual_context_tree_changed(sealed: *mut c_void);
     fn web_navigable_presenter_add_font(presenter: *mut c_void, font: *const c_void);
     fn web_navigable_presenter_add_image_frame(presenter: *mut c_void, frame: *const c_void);
     fn web_navigable_presenter_add_video_sink(presenter: *mut c_void, resource_id: u64, sink_handle: u64);
@@ -99,6 +109,32 @@ impl Presentation {
         }
     }
 
+    /// Has the frames presented from the seal take `visual_contexts` to the compositor, the tree with which a clock
+    /// tick's update left the one the seal held.
+    pub(crate) fn take_visual_context_tree(&mut self, visual_contexts: ClockTickVisualContexts) {
+        let ClockTickVisualContexts {
+            tree,
+            restructured_scroll_offsets,
+        } = visual_contexts;
+        let offsets = restructured_scroll_offsets.as_deref();
+        // SAFETY: The presentation owns the seal, which takes over the reference and copies the offsets.
+        unsafe {
+            web_sealed_presentation_take_visual_context_tree(
+                self.sealed.0.as_ptr(),
+                Arc::into_raw(tree).cast(),
+                offsets.map_or(std::ptr::null(), <[FloatPoint]>::as_ptr),
+                offsets.map_or(0, <[FloatPoint]>::len),
+            );
+        }
+    }
+
+    /// Has the host record the document again as it takes the presentation back, for a clock tick that changed the
+    /// document's visual context tree: a tick that parks before presenting takes the tree to no frame.
+    pub(crate) fn note_visual_context_tree_changed(&mut self) {
+        // SAFETY: The presentation owns the seal.
+        unsafe { web_sealed_presentation_note_visual_context_tree_changed(self.sealed.0.as_ptr()) };
+    }
+
     /// Presents the sealed frame with the recording `presented` describes, whose resources the presenter took already.
     pub(crate) fn present(&mut self, presented: &FfiPresentedRecording) {
         // SAFETY: The presentation owns both objects, and the recording's display list is live for the call.
@@ -116,6 +152,18 @@ mod ffi_test_stubs {
 
     #[unsafe(no_mangle)]
     extern "C" fn web_sealed_presentation_destroy(_: *mut c_void) {}
+
+    #[unsafe(no_mangle)]
+    extern "C" fn web_sealed_presentation_take_visual_context_tree(
+        _: *mut c_void,
+        _: *const c_void,
+        _: *const libgfx_rust::FloatPoint,
+        _: usize,
+    ) {
+    }
+
+    #[unsafe(no_mangle)]
+    extern "C" fn web_sealed_presentation_note_visual_context_tree_changed(_: *mut c_void) {}
 
     #[unsafe(no_mangle)]
     extern "C" fn web_navigable_presenter_add_font(_: *mut c_void, _: *const c_void) {}

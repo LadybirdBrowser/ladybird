@@ -1,0 +1,3 @@
+the presented height is the animation's at the last tick, in its second iteration: true
+lease after the ticks: ticking
+last frame presented by: clock

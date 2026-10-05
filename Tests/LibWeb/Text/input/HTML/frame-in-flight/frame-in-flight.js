@@ -49,7 +49,8 @@ async function twoFrames() {
 // whileClockLeased(animate, during) injects rendering opportunities until the animation `animate` starts is running and
 // a rendering update has left the document a plan for a clock lease, then runs `during` in the first task after the
 // update's frame has landed, which the lease begins with. `during` gets the frame time of the last rendering update,
-// from which it injects the clock's ticks. Rendering opportunities stay manual until `during` is done.
+// from which it injects the clock's ticks, and the animation's start time, read before the lease: a read of a CSS
+// animation's timing reads its style, which ends the lease. Rendering opportunities stay manual until `during` is done.
 async function whileClockLeased(animate, during) {
     if (document.readyState !== "complete")
         await new Promise(resolve => window.addEventListener("load", resolve, { once: true }));
@@ -65,11 +66,12 @@ async function whileClockLeased(animate, during) {
             internals.injectRenderingOpportunity(frameTime);
             await nextTask();
         }
+        const startTime = animation.startTime;
         frameTime += 16;
         internals.injectRenderingOpportunity(frameTime);
         do await nextTask();
         while (internals.frameSchedulerState() !== "idle");
-        return await during(frameTime, animation);
+        return await during(frameTime, animation, startTime);
     } finally {
         internals.setManualRenderingOpportunities(false);
     }

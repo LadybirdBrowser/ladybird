@@ -73,6 +73,9 @@ struct SealedPresentation {
     Optional<Gfx::IntRect> present_viewport_rect;
     PresentedBy presented_by { PresentedBy::Flight };
     Optional<PublishedDisplayList> published;
+    // Whether a tick of a clock lease changed the document's visual context tree, which the host records again where no
+    // tick published a frame.
+    bool visual_context_tree_changed { false };
 };
 
 // What a navigable presents to its compositor context from: the resource storage its recordings add to, and the
@@ -146,6 +149,8 @@ struct FlightPresentation {
 extern "C" {
 WEB_API void web_navigable_presenter_destroy(void* presenter);
 WEB_API void web_sealed_presentation_destroy(void* sealed);
+WEB_API void web_sealed_presentation_take_visual_context_tree(void* sealed, void const* tree, Gfx::FloatPoint const* restructured_scroll_offsets, size_t scroll_offset_count);
+WEB_API void web_sealed_presentation_note_visual_context_tree_changed(void* sealed);
 WEB_API void web_navigable_presenter_add_font(void* presenter, void const* font);
 WEB_API void web_navigable_presenter_add_image_frame(void* presenter, void const* frame);
 WEB_API void web_navigable_presenter_add_video_sink(void* presenter, u64 resource_id, u64 sink_handle);

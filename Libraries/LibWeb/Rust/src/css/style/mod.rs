@@ -107,7 +107,7 @@ mod sorted_merge;
 mod style_invalidation;
 mod transition_baselines;
 mod user_agent_selectors;
-pub(crate) use computed::StyleRecordLease;
+pub(crate) use computed::{ENGINE_INHERITED_GROUP_COUNT, StyleRecordLease};
 pub(crate) use publication::RecordDemand;
 pub(crate) use transition_baselines::{InheritedAnimatedValue, TransitionBaselines};
 pub mod relative_selector;

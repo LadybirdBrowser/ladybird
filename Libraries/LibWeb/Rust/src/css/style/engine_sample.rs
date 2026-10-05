@@ -353,27 +353,13 @@ impl super::StyleEngine {
     ) -> Result<super::layout_style::DerivedStyleRecord, NeedsHost> {
         use crate::css::animation as anim;
 
-        // Each effect the host sampled last samples at the key its timing gives at these times. A
-        // keyframe whose value or easing waits to be substituted against the element needs the host.
+        // Each effect the host sampled last samples at the key its timing gives at these times.
         let effects = self.element_animation_effects(node, 0);
-        let substitutes = |effect: &super::effect_descriptions::PublishedEffect| {
-            effect.keyframes.iter().any(|keyframe| {
-                keyframe.easing_value.is_some()
-                    || !effect.custom_declarations_of(keyframe).is_empty()
-                    || effect.declarations_of(keyframe).iter().any(|declaration| {
-                        matches!(&declaration.value, super::effect_descriptions::PublishedValue::Declared(value)
-                                if matches!(value.data(), StyleValueData::Unresolved { .. }))
-                    })
-            })
-        };
         let mut composed = crate::css::style_compute::SampledEffects::new();
         for effect in effects.iter().filter(|effect| effect.keyframes.len() >= 2) {
             let Some(timing) = &effect.timing else {
                 continue;
             };
-            if substitutes(effect) {
-                return Err(NeedsHost);
-            }
             if let Some(current_key) = timing.key_at(samples).ok_or(NeedsHost)? {
                 composed.push(anim::FfiSampledAnimationEffect {
                     effect: anim::FfiAnimationPreparationEffect {
@@ -469,9 +455,19 @@ impl super::StyleEngine {
             .style_record_view(record)
             .ok_or(NeedsHost)?
             .longhand_table;
-        let inheritance_parent_style_record = self
-            .tree
-            .inheritance_parent(node)
+        // A keyframe substitutes against the custom properties of the element and of its parent, as the host's
+        // sample does, from the stores the engine holds for their environments throughout the sample.
+        let inheritance_parent = self.tree.inheritance_parent(node);
+        let custom_property_environments = [Some(node), inheritance_parent].map(|node| {
+            node.and_then(|node| self.computed_group_sets.custom_property_environment_identity(node))
+                .unwrap_or(0)
+        });
+        let [store, inheritance_store] = custom_property_environments.map(|identity| {
+            self.custom_property_environments
+                .store(identity)
+                .unwrap_or(std::ptr::null())
+        });
+        let inheritance_parent_style_record = inheritance_parent
             .and_then(|parent| self.held_style_records.get(&parent).copied())
             .unwrap_or(0);
         let inputs = &self.document_style_computation_inputs;
@@ -509,11 +505,12 @@ impl super::StyleEngine {
             longhand_table: table.cast_mut().cast_const().cast(),
             animated_overlay: overlay_pointer.cast_const(),
             style_record: record,
-            custom_property_store: std::ptr::null(),
-            base_custom_property_store: std::ptr::null(),
-            inheritance_custom_property_store: std::ptr::null(),
+            custom_property_store: store,
+            // A sample that animates a custom property is the host's, so none composes over the element's own.
+            base_custom_property_store: store,
+            inheritance_custom_property_store: inheritance_store,
             element_declares_own_custom_properties: false,
-            custom_property_environments: [0; 2],
+            custom_property_environments,
             inheritance_parent_style_record,
             environment: &raw const environment,
             element_box_slot: crate::layout::node_data::NodeSlotId::INVALID.index,

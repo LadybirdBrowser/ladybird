@@ -26,7 +26,7 @@ use crate::layout::node_data::NodeSlotId;
 use crate::layout::used_values::FfiCssPixelRect;
 use crate::layout::{ClockRound, ClockRoundDeclined, HostStyle, LayoutRoundAnswer};
 use crate::painting::ffi::FfiPresentation;
-use crate::painting::paint_passes::{MovesVisualContexts, prepare_for_clock_tick};
+use crate::painting::paint_passes::{VisualContextsNeedHost, prepare_for_clock_tick};
 use crate::painting::paintable_geometry::absolute_border_box_rect;
 use crate::painting::presentation::Presentation;
 use crate::painting::record::damage::PaintDamage;
@@ -194,8 +194,8 @@ impl From<ClockRoundDeclined> for Park {
     }
 }
 
-impl From<MovesVisualContexts> for Park {
-    fn from(_: MovesVisualContexts) -> Self {
+impl From<VisualContextsNeedHost> for Park {
+    fn from(_: VisualContextsNeedHost) -> Self {
         Self
     }
 }
@@ -250,7 +250,7 @@ impl LeaseLanding {
     }
 
     /// Records the document's frame again, with the inputs of the last recording that published, and presents it
-    /// beside the event loop. A frame whose visual contexts the compositor does not have, or that renders an SVG image,
+    /// beside the event loop. A frame whose visual contexts only the host settles, or that renders an SVG image,
     /// or whose trace the host reads, is the host's to present.
     fn present(&mut self, state: &mut RenderState) -> Result<(), Park> {
         let Self {
@@ -265,7 +265,7 @@ impl LeaseLanding {
         if arena.paint_state().borrow().trace_recordings {
             return Err(Park);
         }
-        prepare_for_clock_tick(arena, viewport)?;
+        let visual_contexts = prepare_for_clock_tick(arena, viewport, presentation)?;
         let inputs = recorder.published_inputs.take().ok_or(Park)?;
         let frame_inputs = FrameInputs {
             viewport,
@@ -290,6 +290,9 @@ impl LeaseLanding {
         if renders_vector_images(&pending) {
             recorder.forget_published_recording();
             return Err(Park);
+        }
+        if let Some(visual_contexts) = visual_contexts {
+            presentation.take_visual_context_tree(visual_contexts);
         }
         let output = present(presentation, pending, recorder);
         take_in_published_output(recorder, &mut None, output, true, |output, hit_test_list_changed| {

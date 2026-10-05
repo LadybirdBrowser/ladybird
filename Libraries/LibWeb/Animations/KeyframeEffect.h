@@ -151,6 +151,8 @@ public:
     bool can_skip_per_frame_style_update() const;
     void clear_per_frame_style_update_cache() { m_can_skip_per_frame_style_update_cache.clear(); }
     bool can_skip_per_frame_animation_tick() const;
+    // Whether a listener hears the animationiteration events of the effect's CSS animation.
+    bool css_animation_iteration_events_are_heard() const;
     bool is_compositor_driven() const { return m_is_compositor_driven; }
     void set_is_compositor_driven(bool value)
     {
@@ -211,6 +213,8 @@ public:
     void update_computed_properties_for_style(AnimationUpdateContext&, DOM::AbstractElement);
 
 private:
+    bool css_animation_events_are_heard(bool only_iteration_events) const;
+
     friend class Animation;
 
     KeyframeEffect();

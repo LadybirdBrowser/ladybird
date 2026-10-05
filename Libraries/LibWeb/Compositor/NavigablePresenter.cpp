@@ -130,6 +130,26 @@ extern "C" WEB_API void web_sealed_presentation_destroy(void* sealed)
     delete static_cast<Web::Compositor::SealedPresentation*>(sealed);
 }
 
+extern "C" WEB_API void web_sealed_presentation_take_visual_context_tree(void* sealed_pointer, void const* tree, Gfx::FloatPoint const* restructured_scroll_offsets, size_t scroll_offset_count)
+{
+    auto& sealed = *static_cast<Web::Compositor::SealedPresentation*>(sealed_pointer);
+    auto visual_context_tree = Compositing::AccumulatedVisualContextTree::adopt_rust_handle(tree);
+    // A tree of another structure takes the scroll offsets of its own nodes, and a new display list recorded against it.
+    if (restructured_scroll_offsets)
+        sealed.scroll_state_snapshot.assign_device_offsets({ restructured_scroll_offsets, scroll_offset_count });
+    else
+        VERIFY(visual_context_tree.structural_epoch() == sealed.visual_context_tree->structural_epoch());
+    sealed.recording->visual_context_tree = visual_context_tree;
+    sealed.visual_context_tree = move(visual_context_tree);
+    // A frame whose display list is the one the compositor has takes the tree on its own.
+    sealed.sends_visual_context_tree = true;
+}
+
+extern "C" WEB_API void web_sealed_presentation_note_visual_context_tree_changed(void* sealed)
+{
+    static_cast<Web::Compositor::SealedPresentation*>(sealed)->visual_context_tree_changed = true;
+}
+
 extern "C" WEB_API void web_navigable_presenter_add_font(void* presenter, void const* font)
 {
     static_cast<Web::Compositor::NavigablePresenter*>(presenter)->display_list_resource_storage().add_font(*static_cast<Gfx::Font const*>(font));
