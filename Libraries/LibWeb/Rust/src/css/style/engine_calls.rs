@@ -21,7 +21,7 @@ use super::font_resolution::{FontResolverHost, PublishedFontFaces};
 use super::inputs::RetainedCustomPropertyData;
 use super::instrumentation::Counter;
 use super::publication::RecordDemand;
-use super::random_bases::{NamedBaseValue, ParkedBaseValues};
+use super::random_bases::ParkedBaseValues;
 use super::tree::{StyleNodeID, TreeScopeID};
 use super::{HashMap, StyleAtomID};
 use crate::css::transition::{FfiTransitionAction, FfiTransitionInput, TransitionDecision};
@@ -216,9 +216,7 @@ impl EngineWrite {
             }
             Self::UnparkRandomBaseValues { node, slot } => {
                 let row = std::mem::take(&mut *slot.lock().expect("a parked row is never poisoned"));
-                if !row.is_empty() {
-                    unpark_random_base_values(engine, node, &row);
-                }
+                engine.set_element_random_base_values(node, row);
             }
             Self::NoteCustomPropertyEnvironment {
                 identity,
@@ -285,27 +283,6 @@ fn apply_input_transaction(engine: &mut StyleEngine, transaction: &InputTransact
         &transaction.states,
         &transaction.declarations,
         &transaction.element_style_inputs,
-    );
-}
-
-/// Gives `node` the random base values of `row`, as one buffer of name code units with a length and a value per name,
-/// which a replay reads as it was recorded.
-fn unpark_random_base_values(engine: &mut StyleEngine, node: StyleNodeID, row: &[NamedBaseValue]) {
-    let name_lengths = row
-        .iter()
-        .map(|(name, _)| u32::try_from(name.len()).expect("a random caching key's name fits in u32"))
-        .collect::<Vec<_>>();
-    let name_units = row
-        .iter()
-        .flat_map(|(name, _)| name.iter().copied())
-        .collect::<Vec<_>>();
-    let value_bits = row.iter().map(|&(_, value)| value.to_bits()).collect::<Vec<_>>();
-    super::bridge::operations::set_element_random_base_values(
-        engine,
-        node.raw(),
-        &name_lengths,
-        &name_units,
-        &value_bits,
     );
 }
 
