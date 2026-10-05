@@ -206,8 +206,16 @@ public:
 
     // A JS_LAYOUT_CLASS_ID_* value. A class that the runtime derives at run time, as it does for each host class, has
     // the id of the class it extends.
-    u16 engine_class_id() const;
-    bool is_of_engine_class_or_subclass(u16 layout_class_id) const;
+    u16 engine_class_id() const { return engine_class_id_of(engine_class()); }
+
+    bool is_of_engine_class_or_subclass(u16 layout_class_id) const
+    {
+        for (auto const* engine_class = this->engine_class(); engine_class; engine_class = engine_parent_class_of(engine_class)) {
+            if (engine_class_id_of(engine_class) == layout_class_id)
+                return true;
+        }
+        return false;
+    }
 
 protected:
     // A field of the runtime's object, which a facade type reads at its Layout.h offset.
@@ -221,6 +229,26 @@ protected:
 
 private:
     static_assert(JS_LAYOUT_OBJECT_SHAPE_SIZE == sizeof(void*));
+    static_assert(JS_LAYOUT_CELL_CLASS_SIZE == sizeof(void*));
+    static_assert(JS_LAYOUT_CLASS_ID_SIZE == sizeof(u16));
+    static_assert(JS_LAYOUT_CLASS_PARENT_SIZE == sizeof(void*));
+
+    // The runtime's class of the object, which the first word of every cell points to.
+    u8 const* engine_class() const { return engine_field<u8 const*>(JS_LAYOUT_CELL_CLASS_OFFSET); }
+
+    static u16 engine_class_id_of(u8 const* engine_class)
+    {
+        u16 class_id;
+        __builtin_memcpy(&class_id, engine_class + JS_LAYOUT_CLASS_ID_OFFSET, sizeof(class_id));
+        return class_id;
+    }
+
+    static u8 const* engine_parent_class_of(u8 const* engine_class)
+    {
+        u8 const* parent_class;
+        __builtin_memcpy(&parent_class, engine_class + JS_LAYOUT_CLASS_PARENT_OFFSET, sizeof(parent_class));
+        return parent_class;
+    }
 };
 
 // The table that implements the object's internal methods (see LibJS/HostObjectABI.h), or null for an object that the

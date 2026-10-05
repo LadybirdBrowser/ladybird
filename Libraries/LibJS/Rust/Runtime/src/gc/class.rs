@@ -45,6 +45,19 @@ pub struct Class {
     pub object_methods: Option<&'static ObjectMethods>,
 }
 
+// The layout module's mirror of the class, through which Layout.h tells an embedder where a class keeps its id and
+// the class it extends.
+const _: () = {
+    use crate::layout::class::{CellTypeInfoLayout, ClassLayout};
+    assert!(size_of::<CellTypeInfo>() == size_of::<CellTypeInfoLayout>());
+    assert!(core::mem::offset_of!(Class, type_info) == core::mem::offset_of!(ClassLayout, type_info));
+    assert!(core::mem::offset_of!(Class, name) == core::mem::offset_of!(ClassLayout, name));
+    assert!(core::mem::offset_of!(Class, id) == core::mem::offset_of!(ClassLayout, id));
+    assert!(size_of::<ClassId>() == size_of::<u16>());
+    assert!(core::mem::offset_of!(Class, parent) == core::mem::offset_of!(ClassLayout, parent));
+    assert!(size_of::<Option<&'static Class>>() == size_of::<*const ClassLayout>());
+};
+
 /// LibGC hands out cells in the slots of fixed-size blocks, whose free list needs room for its own entry in each.
 const MIN_CELL_SIZE: usize = 24;
 const MAX_CELL_ALIGNMENT: usize = 16;

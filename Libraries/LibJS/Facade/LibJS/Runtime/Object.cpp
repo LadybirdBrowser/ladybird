@@ -419,16 +419,6 @@ StringView Object::class_name() const
     return { reinterpret_cast<char const*>(characters), length };
 }
 
-u16 Object::engine_class_id() const
-{
-    return js_object_class_id(object_to_abi(*this));
-}
-
-bool Object::is_of_engine_class_or_subclass(u16 layout_class_id) const
-{
-    return js_object_is_subclass_of(object_to_abi(*this), layout_class_id);
-}
-
 JSHostClass const* host_class_of(Object const& object)
 {
     return js_host_object_host_class_of(object_to_abi(object));

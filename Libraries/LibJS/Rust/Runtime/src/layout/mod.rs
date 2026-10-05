@@ -12,6 +12,7 @@
 pub mod accessor;
 pub mod buffer;
 pub mod cell;
+pub mod class;
 pub mod environment;
 pub mod executable;
 pub mod execution_context;

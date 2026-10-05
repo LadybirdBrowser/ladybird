@@ -9,7 +9,7 @@
 //!
 //! The functions here follow the contract object.rs states for the embedding module. Each object crosses as its
 //! JSObject, and the functions that read one abort for any other kind of object, as the C++ as<T>() does; the
-//! embedder tells the kinds apart with js_object_is_subclass_of() and the JS_LAYOUT_CLASS_ID_*_OBJECT ids.
+//! embedder tells the kinds apart with the JS_LAYOUT_CLASS_ID_*_OBJECT ids.
 
 #![allow(
     clippy::missing_safety_doc,
