@@ -121,15 +121,11 @@ impl HostTables {
     }
 }
 
-/// The arena of a document's render state, first, so that a pointer to the state is also one to the arena, and the
-/// layout stage's scratch beside it.
-#[repr(C)]
+/// The arena of a document's render state, and the layout stage's scratch beside it.
 pub(crate) struct ArenaHandle {
     arena: LayoutNodeArena,
     layout_scratch: super::run_records::LayoutScratch,
 }
-
-const _: () = assert!(std::mem::offset_of!(ArenaHandle, arena) == 0);
 
 impl ArenaHandle {
     pub(crate) fn new() -> Self {
