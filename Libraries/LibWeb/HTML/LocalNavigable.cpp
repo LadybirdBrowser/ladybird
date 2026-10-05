@@ -7030,6 +7030,9 @@ bool LocalNavigable::lease_clock_for_task()
         Layout::RustFFI::clock_ticks_release(ticks);
         return false;
     }
+    // The first tick runs at once, rather than at the next display tick: the frame the rendering update presented is the
+    // last one until a tick presents.
+    (void)Layout::RustFFI::clock_ticks_tick(ticks, static_cast<i64>(HighResolutionTime::unsafe_shared_current_time() * 1'000'000.0));
     Compositor::RenderClock::the().arm(compositor_context().id(), page().client().maximum_frames_per_second(),
         [ticks = Compositor::ClockTicksHandle { ticks }](i64 frame_time_nanoseconds) {
             return ticks.tick(frame_time_nanoseconds);

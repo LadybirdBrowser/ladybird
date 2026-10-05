@@ -177,7 +177,8 @@ impl ClockLease {
         });
         let ticks = Arc::new(ClockTicks {
             ticker,
-            newest: AtomicI64::new(NO_TICK),
+            latest: AtomicI64::new(i64::MIN),
+            queued: AtomicBool::new(false),
             parked: AtomicBool::new(false),
         });
         (
@@ -201,30 +202,35 @@ impl ClockLease {
     }
 }
 
-/// The display ticks the render clock hands a lease, folded into one queued tick, which runs at the newest tick's time.
+/// The display ticks the render clock hands a lease, folded into one queued tick, which runs at the latest of their times.
 pub struct ClockTicks {
     ticker: Ticker<LeaseLanding>,
-    /// The frame time of the newest tick not run yet, in nanoseconds of the monotonic clock, or [`NO_TICK`].
-    newest: AtomicI64,
+    /// The latest frame time of the ticks handed to the lease, in nanoseconds of the monotonic clock. It only grows, so
+    /// a tick handed an earlier time than one before it, as a display tick behind the immediate first one is, never
+    /// samples the animations back in time.
+    latest: AtomicI64,
+    /// Whether a tick is queued.
+    queued: AtomicBool,
     /// Whether a tick parked the lease, which then samples nothing more.
     parked: AtomicBool,
 }
 
-const NO_TICK: i64 = i64::MIN;
-
 impl ClockTicks {
-    /// Hands the lease a tick at `frame_time_nanoseconds`: the tick already queued runs at the newest time, or a tick is
+    /// Hands the lease a tick at `frame_time_nanoseconds`: the tick already queued runs at the latest time, or a tick is
     /// queued. Answers whether the lease wants the next tick, which it does until it ends or parks.
     pub(super) fn tick(self: &Arc<Self>, frame_time_nanoseconds: i64) -> bool {
         if self.parked.load(Ordering::Relaxed) || !self.ticker.is_live() {
             return false;
         }
-        if self.newest.swap(frame_time_nanoseconds, Ordering::AcqRel) != NO_TICK {
+        self.latest.fetch_max(frame_time_nanoseconds, Ordering::AcqRel);
+        if self.queued.swap(true, Ordering::AcqRel) {
             return true;
         }
         let ticks = Arc::clone(self);
         self.ticker.run(move |landing, stop| {
-            landing.tick(ticks.newest.swap(NO_TICK, Ordering::AcqRel), stop);
+            // A tick handed after the flag drops queues another run, and one handed before it is in `latest`.
+            ticks.queued.swap(false, Ordering::AcqRel);
+            landing.tick(ticks.latest.load(Ordering::Acquire), stop);
             if landing.parked {
                 ticks.parked.store(true, Ordering::Relaxed);
             }

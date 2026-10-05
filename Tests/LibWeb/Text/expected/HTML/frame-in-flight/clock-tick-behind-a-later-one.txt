@@ -1,0 +1,1 @@
+the presented height is the animation's at the latest tick: true
