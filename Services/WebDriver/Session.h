@@ -8,14 +8,15 @@
 
 #pragma once
 
+#include <AK/AtomicRefCounted.h>
 #include <AK/Error.h>
 #include <AK/JsonValue.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/Queue.h>
-#include <AK/RefCounted.h>
 #include <AK/RefPtr.h>
 #include <AK/ScopeGuard.h>
 #include <AK/String.h>
+#include <AK/ThreadSafeWeakable.h>
 #include <AK/Vector.h>
 #include <LibCore/EventLoop.h>
 #if !defined(AK_OS_MACOS)
@@ -36,7 +37,9 @@
 
 namespace WebDriver {
 
-class Session : public RefCounted<Session> {
+class Session
+    : public AtomicRefCounted<Session>
+    , public ThreadSafeWeakable<Session> {
 public:
     using WebDriverPromise = Core::Promise<JsonValue, Web::WebDriver::Error>;
 
