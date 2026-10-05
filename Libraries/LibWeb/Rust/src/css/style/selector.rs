@@ -483,9 +483,6 @@ impl ValueStateTestKind {
 pub enum ValueStateKind {
     /// `:dir()`
     Directionality,
-    /// `:lang()`. Every `:lang()` routes under this one key, because a range is not a name: this
-    /// kind names the input, not a value, and no selector operator carries it.
-    Language,
     /// `:state()`, a custom element's state.
     CustomState,
 }
@@ -3106,14 +3103,6 @@ pub enum InverseStep {
     FollowingSiblings,
     /// A change inside a positional argument moves indices within the whole child sequence.
     SiblingSequence,
-    /// From a possible `:has()` witness to its possible anchors: the element parent.
-    AnchorParent,
-    /// From a possible witness to its ancestors, up to the query's scope boundary.
-    AnchorAncestors,
-    /// From a possible witness to the immediately preceding element sibling.
-    AnchorPreviousSibling,
-    /// From a possible witness to the preceding element siblings in the same child sequence.
-    AnchorPrecedingSiblings,
     /// From a shadow host to the tree it hosts. Deliberately not a descendant step: a generic
     /// descendant walk does not pierce a shadow root.
     HostedTree,
@@ -3935,7 +3924,6 @@ impl<A: AtomSpace> SelectorProgram<A> {
                     match kind.routing_kind() {
                         ValueStateKind::Directionality => RoutingKey::Directionality(value),
                         ValueStateKind::CustomState => RoutingKey::CustomState(value),
-                        ValueStateKind::Language => unreachable!("language has its own selector operator"),
                     },
                     visit,
                 );

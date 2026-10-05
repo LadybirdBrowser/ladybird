@@ -45,7 +45,7 @@ fn has_descendant_dependent_paint(arena: &LayoutNodeArena, node: NodeSlotId) -> 
     if node_painting::is_svg(kind)
         || matches!(
             kind,
-            NodeKind::FieldSetBox | NodeKind::SVGBox | NodeKind::SVGSVGBox | NodeKind::SVGForeignObjectBox
+            NodeKind::FieldSetBox | NodeKind::SVGSVGBox | NodeKind::SVGForeignObjectBox
         )
     {
         return true;

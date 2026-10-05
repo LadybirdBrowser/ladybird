@@ -116,7 +116,6 @@ void SyntaxHighlighter::rehighlight(Palette const& palette)
             highlight(token.start_line, token.start_column, token.end_line, token.end_column, { palette.syntax_number(), {} }, token.token_type);
             break;
 
-        case Parser::FFI::CssTokenType::Invalid:
         case Parser::FFI::CssTokenType::BadUrl:
         case Parser::FFI::CssTokenType::BadString:
             // FIXME: Error highlighting color in palette?

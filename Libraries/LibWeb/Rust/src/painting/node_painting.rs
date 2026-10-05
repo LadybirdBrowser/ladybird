@@ -10,12 +10,7 @@ use crate::painting::paint_read::{GeometryRead, PaintRow};
 pub(crate) const fn has_paintable(kind: NodeKind) -> bool {
     !matches!(
         kind,
-        NodeKind::Unset
-            | NodeKind::BreakNode
-            | NodeKind::GeneratedTextNode
-            | NodeKind::Node
-            | NodeKind::NodeWithStyle
-            | NodeKind::TextNode
+        NodeKind::Unset | NodeKind::BreakNode | NodeKind::GeneratedTextNode | NodeKind::Node | NodeKind::TextNode
     )
 }
 
