@@ -219,10 +219,14 @@ impl DocumentHost {
     /// applies it ahead of the host's next job. A write never reaches the render state as the host makes it.
     pub(crate) fn queue_change(&self, change: ArenaChange) {
         match &change {
-            ArenaChange::Style(change) if change.only_keeps_records_alive() => {}
-            ArenaChange::Style(change) => {
+            ArenaChange::Style(style_change) if style_change.only_keeps_records_alive() => {}
+            ArenaChange::Style(style_change) => {
                 self.note_render_state_write();
-                self.engine_memo.follow(change);
+                if self.changes.holds(&change) {
+                    self.engine_memo.follow_held(style_change);
+                } else {
+                    self.engine_memo.follow(style_change);
+                }
             }
             _ => self.note_render_state_write(),
         }
@@ -745,7 +749,11 @@ impl DocumentHost {
         let Some(FlownStyle::Draining(_)) = self.flown_style.borrow_mut().take() else {
             panic!("the host ends the drain it began");
         };
-        self.changes.queue_held_style();
+        self.changes.queue_held_style(|change| {
+            if let ArenaChange::Style(change) = change {
+                self.engine_memo.follow_held_as_queued(change);
+            }
+        });
     }
 
     /// What the host's scopes of a read lend the entries they call.
@@ -1260,5 +1268,119 @@ pub unsafe extern "C" fn document_host_destroy(host: *mut DocumentHost) {
     // A state no job made has nothing to drop, and the writes still queued for it go with the host.
     if seed.into_inner().is_none() {
         post_to_render_side(move || owner::retire(document));
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::css::style::boundary::StyleChange;
+    use crate::css::style::engine_calls::{
+        EngineWrite, style_engine_absorb_element_style_input, style_engine_has_deferred_element_style_input,
+    };
+    use crate::css::style::transaction::STYLE_REACTION_INHERITED_STYLE;
+    use crate::render_state::ScriptForcedRead;
+
+    const INHERITED_STYLE_GROUPS: u8 = 0b0010;
+
+    fn style_nodes<const COUNT: usize>(host: &DocumentHost) -> [StyleNodeID; COUNT] {
+        let raw = host.ask(ScriptForcedRead::for_test(), |state| {
+            let mut raw = [0; COUNT];
+            state.engine_mut().allocate_style_nodes(&mut raw);
+            raw
+        });
+        raw.map(|raw| StyleNodeID::from_raw(raw).unwrap())
+    }
+
+    fn record_input(host: &DocumentHost, node: StyleNodeID) {
+        host.queue_change(ArenaChange::Style(StyleChange::RecordDerivedElementStyleInput {
+            node: Some(node),
+            reaction: STYLE_REACTION_INHERITED_STYLE,
+            inherited_style_groups: INHERITED_STYLE_GROUPS,
+        }));
+    }
+
+    fn hold_style_writes(host: &DocumentHost) {
+        assert!(host.changes.is_empty());
+        host.changes.give_back(host.changes.take_for_flight());
+    }
+
+    fn begin_drain(host: &DocumentHost) {
+        *host.flown_style.borrow_mut() = Some(FlownStyle::Draining(Vec::new()));
+        host.changes.stop_holding_style();
+    }
+
+    fn absorb_input(host: &DocumentHost, node: StyleNodeID) -> u32 {
+        // SAFETY: The host is live, on this thread.
+        unsafe {
+            style_engine_absorb_element_style_input(
+                host,
+                host.read_for_test(),
+                node.raw(),
+                STYLE_REACTION_INHERITED_STYLE,
+                INHERITED_STYLE_GROUPS,
+                false,
+            )
+        }
+    }
+
+    fn host_has_deferred_input(host: &DocumentHost, node: StyleNodeID) -> bool {
+        // SAFETY: The host is live, on this thread.
+        unsafe { style_engine_has_deferred_element_style_input(host, host.read_for_test(), node.raw()) }
+    }
+
+    fn engine_has_deferred_input(host: &DocumentHost, node: StyleNodeID) -> bool {
+        host.ask(ScriptForcedRead::for_test(), |state| {
+            state.engine_mut().has_deferred_element_style_input(node)
+        })
+    }
+
+    #[test]
+    fn a_drain_beside_held_style_writes_folds_style_inputs_without_a_job() {
+        let host = DocumentHost::for_test();
+        let [parent, child, held] = style_nodes(&host);
+        hold_style_writes(&host);
+        record_input(&host, held);
+        begin_drain(&host);
+        // The parent's applied reaction defers inputs the host cannot name, until the drain's next job.
+        record_input(&host, child);
+        host.queue_change(ArenaChange::Style(StyleChange::NoteStyleReactionApplied {
+            node: Some(parent),
+            reaction: STYLE_REACTION_INHERITED_STYLE,
+            inherited_style_groups_changed: INHERITED_STYLE_GROUPS,
+            facts: 0,
+        }));
+        host.ask(ScriptForcedRead::for_test(), |_| ());
+
+        assert_eq!(
+            absorb_input(&host, child),
+            u32::from(STYLE_REACTION_INHERITED_STYLE) | (u32::from(INHERITED_STYLE_GROUPS) << 8)
+        );
+        assert!(
+            matches!(
+                host.changes.queued.borrow().last(),
+                Some(ArenaChange::Engine(EngineWrite::AbsorbElementStyleInput { .. }))
+            ),
+            "the host folds the input without a job, and queues the fold for the engine"
+        );
+        assert!(!engine_has_deferred_input(&host, child));
+        host.end_style_drain();
+    }
+
+    #[test]
+    fn a_held_style_write_defers_an_input_once_the_drain_queues_it() {
+        let host = DocumentHost::for_test();
+        let [node] = style_nodes(&host);
+        hold_style_writes(&host);
+        record_input(&host, node);
+        begin_drain(&host);
+        // No job applies the held write until the drain ends.
+        assert!(!host_has_deferred_input(&host, node));
+        assert_eq!(absorb_input(&host, node), 0);
+        assert!(!engine_has_deferred_input(&host, node));
+
+        host.end_style_drain();
+        assert!(host_has_deferred_input(&host, node));
+        assert!(engine_has_deferred_input(&host, node));
     }
 }

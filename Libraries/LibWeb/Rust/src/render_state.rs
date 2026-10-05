@@ -437,9 +437,13 @@ struct Moves {
 }
 
 impl ChangeQueue {
-    /// Whether no write waits, queued or held.
+    /// Whether no write is queued, not counting the held style writes.
     fn is_empty(&self) -> bool {
-        self.queued.borrow().is_empty() && self.held_style.borrow().is_empty()
+        self.queued.borrow().is_empty()
+    }
+
+    fn holds(&self, change: &ArenaChange) -> bool {
+        self.holds_style.get() && change.writes_style()
     }
 
     fn moves(&self) -> Moves {
@@ -468,7 +472,7 @@ impl ChangeQueue {
         use crate::css::style::boundary::StyleChange;
         use crate::layout::layout_changes::LayoutChange;
         use crate::painting::paint_changes::PaintChange;
-        let mut queued = if self.holds_style.get() && change.writes_style() {
+        let mut queued = if self.holds(&change) {
             self.held_style.borrow_mut()
         } else {
             self.note(&change);
@@ -582,9 +586,12 @@ impl ChangeQueue {
     }
 
     /// Queues the style writes held beside the transaction that flew behind the writes queued meanwhile.
-    fn queue_held_style(&self) {
+    fn queue_held_style(&self, mut follow: impl FnMut(&ArenaChange)) {
         let mut held = self.held_style.borrow_mut();
-        held.iter().for_each(|change| self.note(change));
+        held.iter().for_each(|change| {
+            self.note(change);
+            follow(change);
+        });
         self.queued.borrow_mut().append(&mut held);
     }
 
