@@ -14,6 +14,9 @@ ladybird_lib(LibJS js EXPLICIT_SYMBOL_EXPORT)
 
 target_link_libraries(LibJS PRIVATE LibCore LibCrypto LibGC LibTextCodec)
 
+# JS::SyntaxHighlighter is a LibSyntax highlighter.
+target_link_libraries(LibJS PRIVATE LibSyntax)
+
 # Link LibUnicode publicly to ensure ICU data (which is in libicudata.a) is available in any process using LibJS.
 target_link_libraries(LibJS PUBLIC LibUnicode)
 
