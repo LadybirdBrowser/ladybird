@@ -400,6 +400,9 @@ ErrorOr<ImageDecoderConnection> launch_image_decoder_process()
 template<typename ClientType>
 static void connect_client_to_image_decoder(ClientType& client, ImageDecoderConnection decoder)
 {
+    auto process = Application::process_manager().find_process(decoder.pid);
+    VERIFY(process.has_value());
+    process->set_owner_pid(client.pid());
     client.async_connect_to_image_decoder(decoder.handle);
 
     // A decoder exits by itself once its client is gone. One that dies before then is replaced, so a crash costs the
