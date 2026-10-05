@@ -2144,7 +2144,28 @@ fn reject_optional_in_extern_c_signatures(header: &Path) {
     }
 }
 
+/// Whether a header's sources failing to parse fails the build here, or is left for rustc to report.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum SyntaxErrors {
+    LeaveToRustc,
+    Fail,
+}
+
 fn generate_ffi_header(config: cbindgen::Config, sources: &[PathBuf], out_dir: &Path, header: &Path) {
+    write_ffi_header(config, sources, out_dir, header, SyntaxErrors::LeaveToRustc);
+}
+
+fn generate_ffi_header_strict(config: cbindgen::Config, sources: &[PathBuf], out_dir: &Path, header: &Path) {
+    write_ffi_header(config, sources, out_dir, header, SyntaxErrors::Fail);
+}
+
+fn write_ffi_header(
+    config: cbindgen::Config,
+    sources: &[PathBuf],
+    out_dir: &Path,
+    header: &Path,
+    syntax_errors: SyntaxErrors,
+) {
     let builder = sources
         .iter()
         .fold(cbindgen::Builder::new().with_config(config), |builder, source| {
@@ -2152,7 +2173,7 @@ fn generate_ffi_header(config: cbindgen::Config, sources: &[PathBuf], out_dir: &
         });
     builder.generate().map_or_else(
         |error| match error {
-            cbindgen::Error::ParseSyntaxError { .. } => {
+            cbindgen::Error::ParseSyntaxError { .. } if syntax_errors == SyntaxErrors::LeaveToRustc => {
                 // Do nothing, the build will fail later with a nicer error message when compiling with rustc
             }
             other => panic!("{other:?}"),
@@ -2308,21 +2329,18 @@ fn expose_compositing_types_as_cpp_types(config: &mut cbindgen::Config) {
     config.includes.push("LibCompositing/RustFFI.h".to_string());
 }
 
-fn generate_ffi_header_strict(config: cbindgen::Config, sources: &[PathBuf], out_dir: &Path, header: &Path) {
-    let builder = sources
-        .iter()
-        .fold(cbindgen::Builder::new().with_config(config), |builder, source| {
-            builder.with_src(source)
-        });
-    builder.generate().map_or_else(
-        |error| panic!("{error}"),
-        |bindings| {
-            let output_header = out_dir.join(header);
-            std::fs::create_dir_all(output_header.parent().unwrap()).unwrap();
-            bindings.write_to_file(&output_header);
-            reject_optional_in_extern_c_signatures(&output_header);
-        },
-    );
+/// Names the document host and the begun read as the layout header declares them, for a header whose entries take them.
+fn declare_document_host_of_layout_header(config: &mut cbindgen::Config) {
+    for name in ["DocumentHost", "BegunRead"] {
+        config
+            .export
+            .rename
+            .insert(name.to_string(), format!("Web::Layout::RustFFI::{name}"));
+    }
+    config
+        .after_includes
+        .get_or_insert_with(String::new)
+        .push_str("\nnamespace Web::Layout::RustFFI { struct DocumentHost; struct BegunRead; }");
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -2451,18 +2469,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     .to_vec();
     expose_compositing_types_as_cpp_types(&mut style_value_config);
     // A compositor keyframe value is substituted by the document's style engine, which the document host reaches.
-    style_value_config.export.rename.insert(
-        "DocumentHost".to_string(),
-        "Web::Layout::RustFFI::DocumentHost".to_string(),
-    );
-    style_value_config
-        .export
-        .rename
-        .insert("BegunRead".to_string(), "Web::Layout::RustFFI::BegunRead".to_string());
-    style_value_config
-        .after_includes
-        .get_or_insert_with(String::new)
-        .push_str("\nnamespace Web::Layout::RustFFI { struct DocumentHost; struct BegunRead; }");
+    declare_document_host_of_layout_header(&mut style_value_config);
 
     generate_ffi_header(
         style_value_config,
@@ -2508,18 +2515,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         "ParseContext".to_string(),
     ];
     // A tree scope's counter styles are queued on the document host, which the layout header declares.
-    value_parser_config.export.rename.insert(
-        "DocumentHost".to_string(),
-        "Web::Layout::RustFFI::DocumentHost".to_string(),
-    );
-    value_parser_config
-        .export
-        .rename
-        .insert("BegunRead".to_string(), "Web::Layout::RustFFI::BegunRead".to_string());
-    value_parser_config
-        .after_includes
-        .get_or_insert_with(String::new)
-        .push_str("\nnamespace Web::Layout::RustFFI { struct DocumentHost; struct BegunRead; }");
+    declare_document_host_of_layout_header(&mut value_parser_config);
 
     generate_ffi_header(
         value_parser_config,
@@ -2592,18 +2588,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             .to_string(),
     );
     // The host queues the engine's changes on the document host, which the layout header declares.
-    style_engine_config.export.rename.insert(
-        "DocumentHost".to_string(),
-        "Web::Layout::RustFFI::DocumentHost".to_string(),
-    );
-    style_engine_config
-        .export
-        .rename
-        .insert("BegunRead".to_string(), "Web::Layout::RustFFI::BegunRead".to_string());
-    style_engine_config
-        .after_includes
-        .get_or_insert_with(String::new)
-        .push_str("\nnamespace Web::Layout::RustFFI { struct DocumentHost; struct BegunRead; }");
+    declare_document_host_of_layout_header(&mut style_engine_config);
     // A style transaction flies only where nothing blocks it, which the layout header names as it does for a recording.
     style_engine_config.export.rename.insert(
         "FfiFlightBlocker".to_string(),
@@ -2704,19 +2689,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         .unwrap()
         .push_str("\nnamespace Web::CSS::Parser::ValueParserFFI { struct DeclarationBlockData; }");
     // An animation sample and plan read the document's style engine, which the document host reaches.
-    computed_values_config.export.rename.insert(
-        "DocumentHost".to_string(),
-        "Web::Layout::RustFFI::DocumentHost".to_string(),
-    );
-    computed_values_config
-        .export
-        .rename
-        .insert("BegunRead".to_string(), "Web::Layout::RustFFI::BegunRead".to_string());
-    computed_values_config
-        .after_includes
-        .as_mut()
-        .unwrap()
-        .push_str("\nnamespace Web::Layout::RustFFI { struct DocumentHost; struct BegunRead; }");
+    declare_document_host_of_layout_header(&mut computed_values_config);
 
     let libgfx_font_source = manifest_dir.join("../../LibGfx/Rust/src/font.rs");
     println!("cargo:rerun-if-changed={}", libgfx_font_source.display());
