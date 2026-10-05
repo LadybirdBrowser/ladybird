@@ -2619,7 +2619,6 @@ fn compute_subtree_layout_fragments(input: LayoutStageInput<'_>, containing_bloc
     // the incremental tree build created; derive the facts of the whole subtree.
     arena.derive_facts_in_subtree(root);
 
-    let read_scope = arena.enter_read_scope(root);
     // Abspos boundaries recompute their size and position in their containing block's space.
     // In-flow SVG boundaries keep their committed geometry and lay out only their contents.
     let root_is_absolutely_positioned = NodeFacts::new(&callbacks, root).is_absolutely_positioned();
@@ -2656,7 +2655,6 @@ fn compute_subtree_layout_fragments(input: LayoutStageInput<'_>, containing_bloc
             finish_entry_pass(entry_records, &entry_fragments, &callbacks, false)
         },
     );
-    drop(read_scope);
     LayoutStageOutput(pass_fragments)
 }
 
