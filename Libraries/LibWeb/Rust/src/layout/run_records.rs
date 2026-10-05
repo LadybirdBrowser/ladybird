@@ -185,7 +185,6 @@ impl<'arena> RunRecords<'arena> {
         root_used: Option<&'arena UsedValues>,
         run: impl FnOnce(&Self) -> R,
     ) -> R {
-        let _read_scope = arena.enter_read_scope(root);
         // What the arena let go of since the last run is dropped before this run reads a cache.
         let drops = arena.take_intrinsic_size_cache_drops();
         if !drops.is_empty() {

@@ -1237,8 +1237,6 @@ pub(crate) struct LayoutNodeArena {
     next_rows_built_for_same_node: Vec<Cell<NodeSlotId>>,
     fc_run_cache_store: super::fc_run_cache::FcRunCacheArenaStore,
     pub(super) layout_trace: super::trace::LayoutTrace,
-    #[cfg(debug_assertions)]
-    pub(super) read_scope: Cell<super::read_scope::ReadScope>,
     pub(super) innermost_run: Cell<(NodeSlotId, NodeSlotId)>,
     pub(crate) paintable_rows: crate::painting::paintable_rows::PaintableRowStore,
     paint_state: RefCell<crate::painting::paint_state::PaintState>,
@@ -1355,8 +1353,6 @@ impl LayoutNodeArena {
             next_rows_built_for_same_node: Vec::new(),
             fc_run_cache_store: super::fc_run_cache::FcRunCacheArenaStore::default(),
             layout_trace: super::trace::LayoutTrace::default(),
-            #[cfg(debug_assertions)]
-            read_scope: Cell::new(super::read_scope::ReadScope::default()),
             innermost_run: Cell::new((NodeSlotId::INVALID, NodeSlotId::INVALID)),
             paintable_rows: crate::painting::paintable_rows::PaintableRowStore::default(),
             paint_state: RefCell::new(crate::painting::paint_state::PaintState::default()),
@@ -3267,7 +3263,6 @@ impl LayoutNodeArena {
         let has_lifted_boxes = !self.inline_boxes_lifted_out_of.borrow().is_empty();
         let mut node = search.frontier;
         while node != limit {
-            self.assert_layout_read_is_in_scope(node);
             let ancestor = self.data(node).parent.get();
             if ancestor.is_invalid() {
                 break;
@@ -3280,7 +3275,6 @@ impl LayoutNodeArena {
                 search.inline_containing_block = self.nearest_inline_containing_block_from(inline_box);
             }
             node = ancestor;
-            self.assert_layout_read_is_in_scope(node);
             let data = self.data(node);
             let kind = data.kind.get();
             if super::node_facts::kind_is_box(kind) {
@@ -3306,7 +3300,6 @@ impl LayoutNodeArena {
     fn nearest_inline_containing_block_from(&self, inline_box: NodeSlotId) -> NodeSlotId {
         let mut inline_ancestor = inline_box;
         while !inline_ancestor.is_invalid() {
-            self.assert_layout_read_is_in_scope(inline_ancestor);
             let data = self.data(inline_ancestor);
             if data.kind.get() != NodeKind::InlineNode {
                 break;
