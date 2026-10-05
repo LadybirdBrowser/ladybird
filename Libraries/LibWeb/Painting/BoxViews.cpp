@@ -47,14 +47,6 @@ bool should_paint_viewport_scrollbars()
     return g_paint_viewport_scrollbars;
 }
 
-static bool body_background_is_propagated_to_root(Layout::BegunRead const& read, Layout::NodeWithStyle const& layout_node)
-{
-    if (!layout_node.is_body())
-        return false;
-    auto const* html_element = layout_node.document().html_element();
-    return html_element && html_element->should_use_body_background_properties(read);
-}
-
 GC::Ptr<SVG::SVGFilterElement> resolve_svg_filter_reference(CSS::ComputedValuesFFI::ComputedStyleValueHandle const& url_value, Layout::NodeWithStyle const& layout_node)
 {
     auto fragment = CSS::ComputedFilterView::url_fragment(url_value);
@@ -747,44 +739,42 @@ public:
     }
 };
 
-DOM::NodeIdentity journal_identity_of(Layout::Node const& node)
+DOM::Node* bound_dom_node(Layout::Node const& node)
 {
-    auto identity = node.dom_node_identity();
-    if (!identity.binds(node))
-        return {};
-    return identity;
+    if (!node.dom_node_identity().binds(node))
+        return nullptr;
+    return const_cast<DOM::Node*>(node.dom_node());
+}
+
+void mark_box(Layout::Node const& node, Layout::RustFFI::FfiBoxMarks marks)
+{
+    if (auto* dom_node = bound_dom_node(node)) {
+        dom_node->mark_box(marks);
+        return;
+    }
+    Layout::RustFFI::render_state_mark_row_box(node.document_host(), Layout::Node::slot_id(&node), marks);
+    BoxViewRepaintAccess::set_document_needs_repaint(const_cast<DOM::Document&>(node.document()), display_list_invalidation_of(marks));
+}
+
+Layout::RustFFI::FfiBoxMarks repaint_marks(InvalidateDisplayList should_invalidate_display_list)
+{
+    Layout::RustFFI::FfiBoxMarks marks {};
+    marks.repaint = should_invalidate_display_list != InvalidateDisplayList::No;
+    marks.repaint_hit_testing = should_invalidate_display_list == InvalidateDisplayList::PaintCommandsAndHitTestList;
+    return marks;
+}
+
+InvalidateDisplayList display_list_invalidation_of(Layout::RustFFI::FfiBoxMarks marks)
+{
+    if (marks.repaint_hit_testing || marks.repaint_subtree || marks.has_dom_paint_facts)
+        return InvalidateDisplayList::PaintCommandsAndHitTestList;
+    return marks.repaint ? InvalidateDisplayList::PaintCommands : InvalidateDisplayList::No;
 }
 
 void set_needs_repaint(Layout::Node const& node, InvalidateDisplayList should_invalidate_display_list)
 {
-    if (!has_committed_box(node))
-        return;
-    if (auto identity = journal_identity_of(node))
-        const_cast<DOM::Document&>(node.document()).invalidation_journal().note_needs_repaint(identity, should_invalidate_display_list);
-    else
-        apply_repaint_damage(node, should_invalidate_display_list);
-}
-
-void apply_repaint_damage(Layout::Node const& node, InvalidateDisplayList should_invalidate_display_list)
-{
-    if (!has_committed_box(node))
-        return;
-    auto const& read = node.held_read();
-
-    auto& document = const_cast<DOM::Document&>(node.document());
-    if (should_invalidate_display_list != InvalidateDisplayList::No) {
-        Layout::RustFFI::render_state_repaint(node.document_host(), committed_row_slot(node), should_invalidate_display_list == InvalidateDisplayList::PaintCommandsAndHitTestList);
-
-        // The root element paints the body's propagated background, so a body repaint must also refresh the
-        // root's cached background. Changes to the propagation source are handled during paint preparation.
-        if (body_background_is_propagated_to_root(read, as<Layout::NodeWithStyle>(node))) {
-            if (auto const* document_element = document.document_element()) {
-                if (auto const* document_element_layout_node = document_element->unsafe_layout_node(read))
-                    apply_paint_cache_invalidation(*document_element_layout_node, PaintCacheInvalidation::PaintAndHitTest);
-            }
-        }
-    }
-    BoxViewRepaintAccess::set_document_needs_repaint(document, should_invalidate_display_list);
+    if (has_committed_box(node))
+        mark_box(node, repaint_marks(should_invalidate_display_list));
 }
 
 void request_document_repaint(Layout::Node const& node, InvalidateDisplayList should_invalidate_display_list)
@@ -793,45 +783,20 @@ void request_document_repaint(Layout::Node const& node, InvalidateDisplayList sh
         BoxViewRepaintAccess::set_document_needs_repaint(const_cast<DOM::Document&>(node.document()), should_invalidate_display_list);
 }
 
-void apply_text_repaint_damage(Layout::TextNode const& node, InvalidateDisplayList should_invalidate_display_list)
-{
-    if (auto* containing_block = node.containing_block())
-        apply_repaint_damage(*containing_block, should_invalidate_display_list);
-
-    if (should_invalidate_display_list != InvalidateDisplayList::No)
-        Layout::RustFFI::render_state_invalidate_nearest_self_painting_inline_paint_cache(node.document_host(), Layout::Node::slot_id(&node));
-}
-
 void set_needs_repaint_in_subtree(Layout::Node const& node)
 {
     if (!has_committed_box(node))
         return;
-    if (auto identity = journal_identity_of(node)) {
-        const_cast<DOM::Document&>(node.document()).invalidation_journal().note_needs_repaint_in_subtree(identity);
-        return;
-    }
-    apply_subtree_repaint_damage(node);
-    apply_repaint_damage(node, InvalidateDisplayList::PaintCommandsAndHitTestList);
-}
-
-void apply_subtree_repaint_damage(Layout::Node const& node)
-{
-    if (!has_committed_box(node))
-        return;
-    Layout::RustFFI::render_state_repaint_subtree(node.document_host(), committed_row_slot(node));
+    Layout::RustFFI::FfiBoxMarks marks {};
+    marks.repaint_subtree = true;
+    mark_box(node, marks);
 }
 
 void invalidate_propagated_text_decoration_caches(Layout::Node const& node)
 {
-    if (auto identity = journal_identity_of(node))
-        const_cast<DOM::Document&>(node.document()).invalidation_journal().note_propagated_text_decoration_caches_invalidation(identity);
-    else
-        apply_paint_cache_invalidation(node, PaintCacheInvalidation::PropagatedTextDecorations);
-}
-
-void apply_paint_cache_invalidation(Layout::Node const& node, PaintCacheInvalidation invalidation)
-{
-    Layout::RustFFI::render_state_invalidate_paint_cache(node.document_host(), committed_row_slot(node), invalidation == PaintCacheInvalidation::PropagatedTextDecorations);
+    Layout::RustFFI::FfiBoxMarks marks {};
+    marks.propagated_text_decorations = true;
+    mark_box(node, marks);
 }
 
 void repaint_after_style_change(Layout::Node const& node, CSS::RequiredInvalidationAfterStyleChange const& invalidation)

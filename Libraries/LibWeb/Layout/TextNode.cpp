@@ -74,11 +74,6 @@ RustFFI::FfiTextSourceRange TextNode::word_range_at(size_t dom_offset) const
     return RustFFI::layout_text_word_range(document_host(), slot_id(this), dom_offset);
 }
 
-void TextNode::invalidate_text_for_rendering()
-{
-    RustFFI::render_state_invalidate_text_content(document_host(), slot_id(this));
-}
-
 Utf16View TextNode::text_for_rendering() const
 {
     auto view = RustFFI::render_state_text_for_rendering(document_host(), slot_id(this));
@@ -158,10 +153,7 @@ Gfx::GlyphRun::TextType text_type_for_code_point(u32 code_point)
 
 void TextNode::set_needs_repaint(InvalidateDisplayList should_invalidate_display_list) const
 {
-    if (auto identity = Painting::journal_identity_of(*this))
-        const_cast<DOM::Document&>(document()).invalidation_journal().note_needs_repaint(identity, should_invalidate_display_list);
-    else
-        Painting::apply_text_repaint_damage(*this, should_invalidate_display_list);
+    Painting::mark_box(*this, Painting::repaint_marks(should_invalidate_display_list));
 }
 
 }

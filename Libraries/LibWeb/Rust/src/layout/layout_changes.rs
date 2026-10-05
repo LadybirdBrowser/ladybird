@@ -38,15 +38,16 @@ pub(crate) enum LayoutChange {
     DeferChildListInsertionLayoutUpdate {
         parent: NodeSlotId,
     },
+    /// The box takes `marks`.
+    MarkBox {
+        target: super::tree_update_marks::MarkedBox,
+        marks: super::tree_update_marks::FfiBoxMarks,
+    },
     /// The DOM node `node` names, or the document for `None`, was marked for the next layout tree build to rebuild,
     /// which its box takes as [`LayoutNodeArena::apply_layout_tree_update_mark`] says.
     ApplyLayoutTreeUpdateMark {
         node: Option<StyleNodeID>,
         mark: super::tree_update_marks::FfiLayoutTreeUpdateMark,
-    },
-    /// The text node's data changed.
-    InvalidateTextContent {
-        node: NodeSlotId,
     },
     /// The text under `root` renders with the language it now resolves: where any of it is cased by its language, the
     /// root lays out again.
@@ -190,8 +191,8 @@ impl LayoutChange {
             | Self::SetNeedsFullLayoutTreeUpdate
             | Self::ResetCachedIntrinsicSizesOfSelfAndAncestors { .. }
             | Self::DeferChildListInsertionLayoutUpdate { .. }
+            | Self::MarkBox { .. }
             | Self::ApplyLayoutTreeUpdateMark { .. }
-            | Self::InvalidateTextContent { .. }
             | Self::EnrollTextAfterLanguageChange { .. }
             | Self::RecordPartialRelayoutEscape
             | Self::NoteContainedAbsposChildRemoval { .. }
@@ -225,6 +226,14 @@ impl LayoutChange {
         !matches!(
             self,
             Self::SetIdentityInFocusedTextControl { .. }
+                | Self::MarkBox {
+                    marks: super::tree_update_marks::FfiBoxMarks {
+                        layout_update: false,
+                        text_data_changed: false,
+                        ..
+                    },
+                    ..
+                }
                 | Self::PinBoundBoxStyleRecordForDetachment { .. }
                 | Self::PinNodeStyleRecordForHost { .. }
                 | Self::ReleaseNodeStyleRecordPinForHost { .. }
@@ -262,12 +271,8 @@ impl LayoutChange {
                     arena.defer_child_list_insertion_layout_update(parent);
                 }
             }
+            Self::MarkBox { target, marks } => marks.apply(arena, target),
             Self::ApplyLayoutTreeUpdateMark { node, mark } => arena.apply_layout_tree_update_mark(node, mark),
-            Self::InvalidateTextContent { node } => {
-                if arena.slot_is_live(node) {
-                    arena.invalidate_text_content(node);
-                }
-            }
             Self::EnrollTextAfterLanguageChange { root } => {
                 if arena.slot_is_live(root) && super::rendered_text::enroll_text_after_language_change(arena, root) {
                     arena.set_needs_layout_update(root, true);
@@ -566,15 +571,6 @@ pub unsafe extern "C" fn render_state_defer_child_list_insertion_layout_update(
 ) {
     // SAFETY: Guaranteed by the caller.
     unsafe { queue(host, LayoutChange::DeferChildListInsertionLayoutUpdate { parent }) };
-}
-
-/// # Safety
-///
-/// `host` must be a live document host, on the document's thread.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn render_state_invalidate_text_content(host: *const DocumentHost, node: NodeSlotId) {
-    // SAFETY: Guaranteed by the caller.
-    unsafe { queue(host, LayoutChange::InvalidateTextContent { node }) };
 }
 
 /// # Safety

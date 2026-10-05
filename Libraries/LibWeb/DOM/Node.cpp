@@ -2510,12 +2510,26 @@ void Node::set_child_needs_layout_tree_update(bool value)
         (void)Layout::RustFFI::render_state_set_child_needs_layout_tree_update(document().layout_node_arena().host(), identity.value(), value);
 }
 
-// The identity the invalidation journal names a node's box by, or none for a node the style mirror has not named. The
-// node is named whether or not the host knows of a box for it: a frame may have built one the host hears of only once
-// it pays the frame's layout round. The journal's drain skips a node that has no box by then.
-static NodeIdentity identity_of_box_owner(Node const& node)
+// Whether the reason describes a mutation that only affects the node's children and can never
+// change the node's own box kind, so a rebuild on a partial relayout boundary stays confined
+// to its subtree. Reasons not classified here forfeit partial relayout for their mutations.
+static bool is_structural_boundary_self_rebuild_reason(SetNeedsLayoutTreeUpdateReason reason)
 {
-    return NodeIdentity::of(node);
+    switch (reason) {
+    case SetNeedsLayoutTreeUpdateReason::NodeInsertBefore:
+    case SetNeedsLayoutTreeUpdateReason::NodeRemove:
+    case SetNeedsLayoutTreeUpdateReason::NodeSetTextContent:
+    case SetNeedsLayoutTreeUpdateReason::CharacterDataReplaceData:
+    case SetNeedsLayoutTreeUpdateReason::ElementSetInnerHTML:
+    case SetNeedsLayoutTreeUpdateReason::ShadowRootSetInnerHTML:
+    case SetNeedsLayoutTreeUpdateReason::SlotAssignmentChange:
+    // The box of an element that entered the top layer leaves the parent's subtree,
+    // which is a child-list change.
+    case SetNeedsLayoutTreeUpdateReason::TopLayerMembershipChange:
+        return true;
+    default:
+        return false;
+    }
 }
 
 void Node::set_needs_layout_tree_update(bool value, SetNeedsLayoutTreeUpdateReason reason)
@@ -2606,8 +2620,17 @@ void Node::set_needs_layout_tree_update(bool value, SetNeedsLayoutTreeUpdateReas
             }
         }
 
-        if (auto identity = identity_of_box_owner(*this))
-            document().invalidation_journal().note_needs_layout_tree_update(identity, reason);
+        // The render state finds the node's box as it applies the mark: whether the box relays out alone, defers to
+        // the insertion, or dirties its ancestors, and whether the rebuild has to climb past anonymous parents, reads
+        // the layout tree. The document is named by 0.
+        if (auto box_owner = NodeIdentity::of(*this)) {
+            Layout::RustFFI::render_state_apply_layout_tree_update_mark(marks, box_owner.style_node().value(),
+                {
+                    .reuse_reason = reuse_reason,
+                    .is_child_list_insertion = reason == SetNeedsLayoutTreeUpdateReason::NodeInsertBefore,
+                    .is_structural_boundary_self_rebuild = is_structural_boundary_self_rebuild_reason(reason),
+                });
+        }
         // NB: A dirty node with no layout node needs no escape tracking: rebuilding it either
         //     still produces no layout node, or the change is covered by the escalations
         //     in apply_layout_tree_update_mark(), which mark a node whose layout node classifies
@@ -2768,23 +2791,25 @@ void Node::update_inside_blocking_wheel_event_handler_state_for_subtree()
         return;
     }
 
-    // The boxes to repaint are found by the invalidation journal as it drains: a listener may change beside a frame in
-    // flight, which holds the boxes. A top layer element's boxes are outside the subtree's box.
-    auto& journal = document().invalidation_journal();
-    auto subtree_identity = has_layout_box() ? NodeIdentity::of(*this) : NodeIdentity {};
+    // A top layer element's boxes are outside the subtree's box.
+    auto marks_subtree = has_layout_box();
+    Layout::RustFFI::FfiBoxMarks subtree_marks {};
+    subtree_marks.repaint_subtree = true;
+    auto top_layer_marks = subtree_marks;
+    top_layer_marks.repaint_backdrop = true;
     bool any_descendant_flipped_blocking_wheel_state = false;
     for_each_shadow_including_inclusive_descendant([&](Node& node) {
         if (!node.update_inside_blocking_wheel_event_handler_state())
             return TraversalDecision::Continue;
         any_descendant_flipped_blocking_wheel_state = true;
         if (auto* element = as_if<Element>(node); element && element->rendered_in_top_layer())
-            journal.note_top_layer_boxes_repaint(NodeIdentity::of(*element));
-        else if (!subtree_identity)
+            element->mark_box(top_layer_marks);
+        else if (!marks_subtree)
             node.set_needs_repaint();
         return TraversalDecision::Continue;
     });
-    if (any_descendant_flipped_blocking_wheel_state && subtree_identity)
-        journal.note_needs_repaint_in_subtree(subtree_identity);
+    if (any_descendant_flipped_blocking_wheel_state && marks_subtree)
+        mark_box(subtree_marks);
 }
 
 ParentNode* Node::parent_or_shadow_host()
@@ -3826,9 +3851,21 @@ Layout::Node const* Node::unsafe_layout_node(Layout::BegunRead const& read) cons
 
 void Node::set_needs_repaint(InvalidateDisplayList should_invalidate_display_list)
 {
-    // A node without a box has nothing to repaint.
-    if (auto identity = identity_of_box_owner(*this))
-        document().invalidation_journal().note_needs_repaint(identity, should_invalidate_display_list);
+    mark_box(Painting::repaint_marks(should_invalidate_display_list));
+}
+
+void Node::mark_box(Layout::RustFFI::FfiBoxMarks marks)
+{
+    auto& document = this->document();
+    // A node the style mirror has not named, or one of a document with no boxes, has no box to mark.
+    auto identity = NodeIdentity::of(*this);
+    auto* arena = document.layout_node_arena_if_created();
+    if (!identity || !arena)
+        return;
+    // The node is marked whether or not the host knows of a box for it: a frame in flight may have built one.
+    Layout::RustFFI::render_state_mark_node_box(arena->host(), identity.style_node().value(), marks);
+    // The frame asked for now applies the marks, and records again what a box the host knows of paints.
+    document.set_needs_repaint(Badge<Node> {}, has_layout_box() ? Painting::display_list_invalidation_of(marks) : InvalidateDisplayList::No);
 }
 
 // The facts are published under the node's identity in the style mirror, for the rows the build has yet to stamp,
@@ -3848,8 +3885,10 @@ void Node::publish_dom_paint_facts()
     auto style_node = is_document() ? document.style_node_id() : Layout::Node::style_node_of(this);
     if (style_node.value() != 0)
         document.style_computer().style_engine().set_node_dom_paint_facts(style_node, facts);
-    if (auto identity = identity_of_box_owner(*this))
-        document.invalidation_journal().note_dom_paint_facts(identity, facts);
+    Layout::RustFFI::FfiBoxMarks marks {};
+    marks.has_dom_paint_facts = true;
+    marks.dom_paint_facts = facts;
+    mark_box(marks);
 }
 
 void Node::set_needs_layout_update(SetNeedsLayoutReason reason)
@@ -3859,12 +3898,11 @@ void Node::set_needs_layout_update(SetNeedsLayoutReason reason)
 
 void Node::set_needs_layout_update(SetNeedsLayoutReason reason, Layout::LayoutUpdatePropagation propagation)
 {
-    // A node without a box has nothing to mark.
-    auto identity = identity_of_box_owner(*this);
-    if (!identity)
-        return;
-    document().invalidation_journal().note_needs_layout_update(identity, reason, propagation);
-    document().set_needs_repaint(Badge<Node> {}, InvalidateDisplayList::No);
+    dbgln_if(UPDATE_LAYOUT_DEBUG, "NEED LAYOUT {}", to_string(reason));
+    Layout::RustFFI::FfiBoxMarks marks {};
+    marks.layout_update = true;
+    marks.layout_update_through_ancestors = propagation == Layout::LayoutUpdatePropagation::ThroughAncestors;
+    mark_box(marks);
 }
 
 // https://dom.spec.whatwg.org/#queue-a-mutation-record

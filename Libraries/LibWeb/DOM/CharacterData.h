@@ -38,9 +38,6 @@ public:
     WebIDL::ExceptionOr<void> delete_data(size_t offset_in_utf16_code_units, size_t count_in_utf16_code_units);
     WebIDL::ExceptionOr<void> replace_data(size_t offset_in_utf16_code_units, size_t count_in_utf16_code_units, Utf16View const&);
 
-    // What new data changes about the text's box, once the invalidation journal found it.
-    void apply_text_data_change(Badge<InvalidationJournal>, Layout::TextNode&, bool whitespace_only_changed);
-
     Unicode::Segmenter& grapheme_segmenter() const;
     Unicode::Segmenter& line_segmenter() const;
     Unicode::Segmenter& word_segmenter() const;

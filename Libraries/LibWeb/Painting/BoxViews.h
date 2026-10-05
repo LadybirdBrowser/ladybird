@@ -88,32 +88,24 @@ WEB_API void push_highlight_pseudo_styles(DOM::Element const&);
 // The node a layout row stands for, as the arena names it.
 WEB_API DOM::NodeIdentity node_identity_of(Layout::RustFFI::FfiNodeIdentity);
 
-// The identity a mark on this box goes into the document's invalidation journal under: its node's, if the box is the one
-// the layout node arena binds to that node. Any other box (anonymous, generated for a pseudo-element, or one of several
-// built for one node) has nothing an entry could name, so a mark on it is applied at once.
-WEB_API DOM::NodeIdentity journal_identity_of(Layout::Node const&);
+// The node a mark on this box names, if the box is the one the layout node arena binds to that node. Any other box
+// (anonymous, generated for a pseudo-element, or one of several built for one node) has no node a mark could name.
+WEB_API DOM::Node* bound_dom_node(Layout::Node const&);
 
-// These note the mark in the invalidation journal, which applies it with the apply_* functions below when it drains.
+// Marks the box through its node where the box is the one bound to it (see DOM::Node::mark_box()), and by its row
+// otherwise.
+WEB_API void mark_box(Layout::Node const&, Layout::RustFFI::FfiBoxMarks);
+WEB_API Layout::RustFFI::FfiBoxMarks repaint_marks(InvalidateDisplayList);
+// The display lists `marks` leave stale.
+WEB_API InvalidateDisplayList display_list_invalidation_of(Layout::RustFFI::FfiBoxMarks);
+
 WEB_API void set_needs_repaint(Layout::Node const&, InvalidateDisplayList = InvalidateDisplayList::PaintCommandsAndHitTestList);
 WEB_API void set_needs_repaint_in_subtree(Layout::Node const&);
-WEB_API void apply_repaint_damage(Layout::Node const&, InvalidateDisplayList);
-WEB_API void apply_text_repaint_damage(Layout::TextNode const&, InvalidateDisplayList);
-WEB_API void apply_subtree_repaint_damage(Layout::Node const&);
 // Records the document's display list again without damaging any row, for a change that pushes the damage of the rows it
 // changes itself.
 WEB_API void request_document_repaint(Layout::Node const&, InvalidateDisplayList);
 
-enum class PaintCacheInvalidation : u8 {
-    PaintAndHitTest,
-    PropagatedTextDecorations,
-};
-
-// Notes the invalidation in the invalidation journal, which applies it when it drains.
 WEB_API void invalidate_propagated_text_decoration_caches(Layout::Node const&);
-// Invalidates the box's cached paint commands at once. This is for the journal's drain and for invalidations made where
-// nothing drains before the cache is read again: while a box is detached, and while paint facts are reconciled right
-// before recording.
-WEB_API void apply_paint_cache_invalidation(Layout::Node const&, PaintCacheInvalidation);
 WEB_API void repaint_after_style_change(Layout::Node const&, CSS::RequiredInvalidationAfterStyleChange const&);
 
 WEB_API Layout::RustFFI::FfiRectToViewportTransform identity_rect_to_viewport_transform();

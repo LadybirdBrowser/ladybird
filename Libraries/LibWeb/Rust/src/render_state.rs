@@ -418,6 +418,7 @@ impl ChangeQueue {
 
     fn push(&self, change: ArenaChange) {
         use crate::css::style::bridge::StyleChange;
+        use crate::layout::layout_changes::LayoutChange;
         let mut queued = if self.holds_style.get() && change.writes_style() {
             self.held_style.borrow_mut()
         } else {
@@ -432,6 +433,17 @@ impl ChangeQueue {
             )
         {
             queued.pop();
+            return;
+        }
+        // A mark on the box the last write marks folds into it.
+        if let ArenaChange::Layout(LayoutChange::MarkBox { target, marks }) = &change
+            && let Some(ArenaChange::Layout(LayoutChange::MarkBox {
+                target: last_target,
+                marks: last_marks,
+            })) = queued.last_mut()
+            && last_target == target
+        {
+            last_marks.merge(*marks);
             return;
         }
         queued.push(change);
@@ -620,8 +632,12 @@ mod tests {
         host.fresh_rows(ScriptForcedRead::for_test());
         host.queue_change(ArenaChange::Layout(LayoutChange::SetNeedsFullLayoutTreeUpdate));
         assert!(host.rows().is_some(), "a layout mark leaves the rows as they are");
-        host.queue_change(ArenaChange::Layout(LayoutChange::InvalidateTextContent {
-            node: NodeSlotId::INVALID,
+        host.queue_change(ArenaChange::Layout(LayoutChange::MarkBox {
+            target: crate::layout::tree_update_marks::MarkedBox::Row(NodeSlotId::INVALID),
+            marks: crate::layout::tree_update_marks::FfiBoxMarks {
+                repaint: true,
+                ..Default::default()
+            },
         }));
         assert!(host.rows().is_some(), "a change of a row that is gone writes nothing");
         host.queue_change(ArenaChange::Layout(LayoutChange::SetNodeFlag {
