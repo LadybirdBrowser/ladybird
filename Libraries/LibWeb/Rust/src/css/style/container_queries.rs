@@ -665,7 +665,6 @@ impl RetainedState {
         &mut self,
         rule_program_is_changing: bool,
         republication: super::publication::WinnerRepublication,
-        counters: &Counters,
     ) {
         if self.published_container_verdicts.is_empty() {
             return;
@@ -677,11 +676,7 @@ impl RetainedState {
             .filter(|&node| self.container_verdicts_moved(node))
             .collect();
         for node in moved {
-            if rule_program_is_changing
-                || self
-                    .republish_winners_from_answer(node, republication, counters)
-                    .is_none()
-            {
+            if rule_program_is_changing || self.republish_winners_from_answer(node, republication).is_none() {
                 self.published_container_verdicts.remove(&node);
                 self.winner_groups.remove(node);
             }

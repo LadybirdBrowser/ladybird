@@ -63,12 +63,12 @@ mod column;
 pub mod compiler;
 mod computed;
 mod container_queries;
-mod counter_context;
 mod custom_property_cascade;
 mod custom_property_environments;
 #[cfg(test)]
 mod differential_tests;
 pub(crate) mod effect_descriptions;
+mod engine;
 pub mod engine_calls;
 pub(crate) mod engine_sample;
 mod environment_move;
@@ -159,7 +159,6 @@ use instrumentation::Counters;
 use exact_matcher::ExactMatchContext;
 use exact_matcher::ExactMatcher;
 
-pub use counter_context::StyleEngine;
 pub use engine_handle::StyleEngineHandle;
 pub use inputs::{NaturalSize, PublishedBoxFacts, PublishedTextSource, ReplacedContentInput, TextStyleParentFacts};
 
@@ -316,7 +315,6 @@ const RETAINED_WITNESS_SIBLING_STEPS: usize = 64;
 const INITIAL_SIBLING_FACT_WINDOW: usize = 8;
 
 mod verification {
-    use super::Counters;
     use super::MatchAnswerID;
     use super::RetainedState;
     use super::RuleMatch;
@@ -343,14 +341,13 @@ mod verification {
 
     pub(super) struct StyleAnswerVerifier<'a> {
         engine: &'a mut RetainedState,
-        counters: &'a Counters,
     }
 
     impl StyleAnswerVerifier<'_> {
         pub(super) fn verify_match_answer(&mut self, answer: &[RuleMatch], node: StyleNodeID, description: &str) {
             let cold = self
                 .engine
-                .exact_match_answer_for_verification(node, self.counters)
+                .exact_match_answer_for_verification(node)
                 .expect("cold matching must answer wherever a retained answer did");
             assert_eq!(answer, cold, "{description} differs from cold matching for {node:?}");
         }
@@ -358,7 +355,7 @@ mod verification {
         pub(super) fn verify_cascade_answer(&mut self, answer: &[RuleMatch], node: StyleNodeID, description: &str) {
             let (cold, _) = self
                 .engine
-                .exact_cascade_answer_for_verification(node, self.counters)
+                .exact_cascade_answer_for_verification(node)
                 .expect("cold matching must answer wherever a retained answer did");
             assert_eq!(answer, cold, "{description} differs from cold matching for {node:?}");
         }
@@ -369,20 +366,15 @@ mod verification {
             node: StyleNodeID,
             cascade_input: MatchAnswerID,
         ) {
-            self.engine
-                .verify_retained_cascade_input(effects, node, cascade_input, self.counters);
+            self.engine.verify_retained_cascade_input(effects, node, cascade_input);
         }
     }
 
     /// Re-derive every patched or reused retained answer cold and compare it. The callback receives
     /// only the verifier capability, so it cannot publish through or otherwise mutate the engine.
-    pub(super) fn style_answer_patch(
-        engine: &mut RetainedState,
-        counters: &Counters,
-        check: impl FnOnce(&mut StyleAnswerVerifier<'_>),
-    ) {
+    pub(super) fn style_answer_patch(engine: &mut RetainedState, check: impl FnOnce(&mut StyleAnswerVerifier<'_>)) {
         if enabled(&STYLE_ANSWER_PATCH, "LIBWEB_VERIFY_STYLE_ANSWER_PATCH") {
-            check(&mut StyleAnswerVerifier { engine, counters });
+            check(&mut StyleAnswerVerifier { engine });
         }
     }
 
@@ -742,6 +734,8 @@ pub(super) struct BatchCustomPropertyMatch {
 /// caches. This is the whole read side of an evaluation step; it holds no
 /// host handle, no journal intake and no borrowed FFI result storage.
 pub struct RetainedState {
+    /// What the engine counts of its own decisions.
+    counters: Counters,
     memory: MemoryController,
     /// The controller's Tier-3 admission facts, copied at the loop and quota boundaries that can
     /// change them. A walk reads admission from here: a step may not reach the controller, whose
@@ -1093,12 +1087,12 @@ pub struct HostState {
 }
 
 /// Mutable engine state; operations borrow their instrumentation from the boundary.
-pub struct StyleEngineState {
+pub struct StyleEngine {
     pub(super) retained: RetainedState,
     pub(super) host: HostState,
 }
 
-impl std::ops::Deref for StyleEngineState {
+impl std::ops::Deref for StyleEngine {
     type Target = RetainedState;
 
     fn deref(&self) -> &Self::Target {
@@ -1106,7 +1100,7 @@ impl std::ops::Deref for StyleEngineState {
     }
 }
 
-impl std::ops::DerefMut for StyleEngineState {
+impl std::ops::DerefMut for StyleEngine {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.retained
     }

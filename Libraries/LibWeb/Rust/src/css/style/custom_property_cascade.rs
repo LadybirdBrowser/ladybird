@@ -1326,9 +1326,8 @@ impl RetainedState {
         parent_environment: u64,
         inputs: &bridge::FfiDocumentStyleComputationInputs,
         registered: Option<&RegisteredValueContext>,
-        counters: &Counters,
     ) -> Drive<u64> {
-        self.engine_custom_property_environment_of(node, None, parent_environment, inputs, registered, counters)
+        self.engine_custom_property_environment_of(node, None, parent_environment, inputs, registered)
     }
 
     /// What `engine_custom_property_environment` says of the element, for one of its
@@ -1340,7 +1339,6 @@ impl RetainedState {
         parent_environment: u64,
         inputs: &bridge::FfiDocumentStyleComputationInputs,
         registered: Option<&RegisteredValueContext>,
-        counters: &Counters,
     ) -> Drive<u64> {
         if !self.any_custom_property_is_declared() {
             if pseudo.is_none() {
@@ -1354,19 +1352,11 @@ impl RetainedState {
         let cascaded = self.cascaded_custom_declarations_of(node, pseudo);
         debug_assert!(cascaded.is_some(), "a driven node's custom declarations cascade");
         let Some(cascaded) = cascaded else {
-            counters.bump(Counter::EngineCustomPropertyEnvironmentBails);
+            self.counters.bump(Counter::EngineCustomPropertyEnvironmentBails);
             return Err(Unanswered::Refused);
         };
         self.note_custom_declaration_reads(node, pseudo, &cascaded);
-        self.engine_custom_property_environment_over(
-            node,
-            pseudo,
-            cascaded,
-            parent_environment,
-            inputs,
-            registered,
-            counters,
-        )
+        self.engine_custom_property_environment_over(node, pseudo, cascaded, parent_environment, inputs, registered)
     }
 
     /// Note what the custom declarations cascaded for an element or one of its pseudo-elements
@@ -1397,10 +1387,6 @@ impl RetainedState {
     /// What `engine_custom_property_environment_of` says of custom declarations the caller
     /// cascaded for the node or one of its pseudo-elements; `attr()` among them reads the node's
     /// attributes.
-    #[expect(
-        clippy::too_many_arguments,
-        reason = "the declarations resolve over independent inputs"
-    )]
     pub(super) fn engine_custom_property_environment_over(
         &mut self,
         node: StyleNodeID,
@@ -1409,7 +1395,6 @@ impl RetainedState {
         parent_environment: u64,
         inputs: &bridge::FfiDocumentStyleComputationInputs,
         registered: Option<&RegisteredValueContext>,
-        counters: &Counters,
     ) -> Drive<u64> {
         let inherited_environment = self.custom_property_environments.inheritable(parent_environment);
         if cascaded.is_empty() {
@@ -1436,7 +1421,7 @@ impl RetainedState {
             // A container condition the engine cannot decide asks about an ancestor the host styles
             // in this update: the row waits for it.
             let Some(mut functions) = self.prepare_custom_functions(node, pseudo) else {
-                counters.bump(Counter::EngineComputedRecordBailRecordParent);
+                self.counters.bump(Counter::EngineComputedRecordBailRecordParent);
                 return Err(Unanswered::AwaitsParent);
             };
             container_effects = functions.container_effects.take();
@@ -1469,14 +1454,14 @@ impl RetainedState {
                 && identity & custom_property_environments::ENGINE_ENVIRONMENT_IDENTITY_BIT == 0
         });
         if memoizes && let Some(identity) = memoized.filter(|_| !keeps_cpp_environment) {
-            counters.bump(Counter::EngineCustomPropertyEnvironmentMemoHits);
+            self.counters.bump(Counter::EngineCustomPropertyEnvironmentMemoHits);
             return Ok(identity);
         }
         let (Some(parent_store), Some(inheritance_store)) = (
             self.inherited_environment_store(inherited_environment),
             self.inherited_environment_store(parent_environment),
         ) else {
-            counters.bump(Counter::EngineCustomPropertyEnvironmentBails);
+            self.counters.bump(Counter::EngineCustomPropertyEnvironmentBails);
             return Err(Unanswered::Refused);
         };
         let parent = unsafe { parent_store.cast::<CustomPropertyStore>().as_ref() };
@@ -1581,7 +1566,7 @@ impl RetainedState {
         }
         unsafe { destroy_resolved_custom_properties(resolved.storage, resolved.count) };
         unsafe { Arc::decrement_strong_count(cascaded_store.cast::<CustomPropertyStore>()) };
-        counters.bump(Counter::EngineCustomPropertyEnvironmentsResolved);
+        self.counters.bump(Counter::EngineCustomPropertyEnvironmentsResolved);
         // What the registered values read beyond the element's fonts reaches the element's
         // records as what they read themselves does: a sibling change, a container's size.
         if reads.sibling_position {

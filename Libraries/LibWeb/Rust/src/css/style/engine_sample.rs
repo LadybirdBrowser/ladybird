@@ -565,7 +565,7 @@ impl super::StyleEngine {
     /// The elements whose style a size query or container-relative unit decided below `container`, whose content box a
     /// layout moved.
     pub(crate) fn size_container_query_dependents(&self, container: StyleNodeID) -> Vec<StyleNodeID> {
-        self.state.retained.size_container_query_dependents(container).0
+        self.retained.size_container_query_dependents(container).0
     }
 
     /// The element whose restyle shows what the new size of a container decides for `node`: `node` itself, or the
@@ -649,7 +649,7 @@ impl super::StyleEngine {
                     element: restyled,
                     ..shown
                 };
-                self.state.retained.show_for_tick(node, shown);
+                self.retained.show_for_tick(node, shown);
             }
             return Ok(DependentRestyle::InBox(in_box));
         };
@@ -659,7 +659,7 @@ impl super::StyleEngine {
             pseudo_present,
             pseudo,
         };
-        self.state.retained.show_for_tick(node, shown);
+        self.retained.show_for_tick(node, shown);
         Ok(DependentRestyle::PseudoElementsMove(in_box))
     }
 
@@ -682,7 +682,7 @@ impl super::StyleEngine {
         restyled: super::computed::FinalStyleRecordID,
     ) -> Result<DependentRestyle, NeedsHost> {
         let parent = self.box_rebuild_parent(node).ok_or(NeedsHost)?;
-        self.state.retained.show_for_tick(node, ShownRecords::hidden(restyled));
+        self.retained.show_for_tick(node, ShownRecords::hidden(restyled));
         Ok(DependentRestyle::LosesItsBox { parent })
     }
 
@@ -703,7 +703,7 @@ impl super::StyleEngine {
             pseudo_present: record.pseudo_records_present,
             pseudo: record.pseudo_records,
         };
-        let moved = self.state.retained.show_for_tick(node, shown);
+        let moved = self.retained.show_for_tick(node, shown);
         if self.tree.first_element_child(node).is_none() || self.record_is_in_display_none_subtree(element.raw()) {
             return Ok(moved);
         }
@@ -876,7 +876,7 @@ impl super::StyleEngine {
                 pseudo: [0; bridge::PSEUDO_RECORD_SLOTS],
             },
         };
-        self.state.retained.show_for_tick(node, shown);
+        self.retained.show_for_tick(node, shown);
     }
 
     /// Lends the engine's published reads the records `shown`, which a clock frame shows in the boxes it builds.
@@ -885,18 +885,18 @@ impl super::StyleEngine {
             self.tick_shown.0.is_empty(),
             "one clock frame at a time shows its records"
         );
-        self.state.retained.tick_shown = shown;
+        self.retained.tick_shown = shown;
     }
 
     /// Takes back the records [`Self::lend_tick_shown`] lent, with what the clock frame showed since.
     pub(crate) fn take_tick_shown(&mut self) -> TickShownRecords {
-        std::mem::take(&mut self.state.retained.tick_shown)
+        std::mem::take(&mut self.retained.tick_shown)
     }
 
     /// Lets go of the records clock frames showed, whose boxes the host builds again from its own.
     pub(crate) fn release_tick_shown(&mut self, shown: TickShownRecords) {
         for (_, shown) in shown.0 {
-            shown.unpin(&mut self.state.retained.computed_group_sets);
+            shown.unpin(&mut self.retained.computed_group_sets);
         }
     }
 
@@ -945,8 +945,7 @@ impl super::StyleEngine {
                 if self.host.font_resolver.is_none() || self.font_resolution.is_none() {
                     return None;
                 }
-                let Self { counters, state } = self;
-                state.refill_font_request(node, super::font_resolution::FontRequest::new(request), counters);
+                self.refill_font_request(node, super::font_resolution::FontRequest::new(request));
                 lookup(self)?
             }
         };

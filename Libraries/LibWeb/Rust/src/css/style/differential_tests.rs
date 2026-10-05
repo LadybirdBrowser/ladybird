@@ -685,7 +685,7 @@ fn incomplete_answer_batches_preserve_pending_lookups_and_release_ownership() {
             })
             .collect();
         for &node in &nodes {
-            let state = &mut workload.engine.state.retained;
+            let state = &mut workload.engine.retained;
             state.retained_match_answers.forget(&mut state.match_answers, node);
             state.winner_groups.remove(node);
         }
@@ -729,14 +729,11 @@ fn incomplete_answer_batches_preserve_pending_lookups_and_release_ownership() {
             ));
         }
         if discard {
-            workload
-                .engine
-                .state
-                .discard_published_match_answers(&workload.engine.counters);
+            workload.engine.discard_published_match_answers();
             assert_eq!(workload.engine.match_answers.pending_reference_count(), 0);
             assert_eq!(workload.engine.winner_groups.pending_reference_count(), 0);
             for &node in &nodes[..2] {
-                assert!(workload.engine.state.current_published_answer(node).is_none());
+                assert!(workload.engine.current_published_answer(node).is_none());
                 assert!(workload.engine.retained_match_answers.answer_identity(node).is_none());
             }
         } else {
@@ -744,7 +741,7 @@ fn incomplete_answer_batches_preserve_pending_lookups_and_release_ownership() {
             //     installing the pending prefix before this completion call resumes it.
             let node = nodes[2];
             let node_index = workload.nodes.iter().position(|&candidate| candidate == node).unwrap();
-            let state = &mut workload.engine.state.retained;
+            let state = &mut workload.engine.retained;
             state.facts.set_tag(node, tag_atom(node), &mut state.memory);
             for &class in &workload.classes[node_index] {
                 state.facts.set_class(node, class_atom(class), true, &mut state.memory);

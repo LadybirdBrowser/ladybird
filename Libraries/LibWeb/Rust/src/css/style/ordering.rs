@@ -593,29 +593,24 @@ impl RetainedState {
         &mut self,
         winners: &[PropertyWinner],
         previous: Option<CascadeStateID>,
-        counters: &Counters,
     ) -> CascadeStateID {
-        self.with_cascade_interning_counters(|groups| groups.intern_sorted(winners, previous), counters)
+        self.with_cascade_interning_counters(|groups| groups.intern_sorted(winners, previous))
     }
 
-    pub(super) fn with_cascade_interning_counters<T>(
-        &mut self,
-        intern: impl FnOnce(&mut WinnerGroups) -> T,
-        counters: &Counters,
-    ) -> T {
+    pub(super) fn with_cascade_interning_counters<T>(&mut self, intern: impl FnOnce(&mut WinnerGroups) -> T) -> T {
         let previous_state_count = self.winner_groups.state_count();
         let previous_group_count = self.winner_groups.payload_count();
         let previous_winner_entry_count = self.winner_groups.winner_entry_count();
         let result = intern(&mut self.winner_groups);
-        counters.add(
+        self.counters.add(
             Counter::CascadeStatesInterned,
             (self.winner_groups.state_count() - previous_state_count) as u64,
         );
-        counters.add(
+        self.counters.add(
             Counter::CascadeWinnerGroupsInterned,
             (self.winner_groups.payload_count() - previous_group_count) as u64,
         );
-        counters.add(
+        self.counters.add(
             Counter::CascadeWinnerEntriesInterned,
             (self.winner_groups.winner_entry_count() - previous_winner_entry_count) as u64,
         );
@@ -638,7 +633,6 @@ impl RetainedState {
         all: &mut Vec<RuleMatch>,
         can_have_scope_duplicates: bool,
         publish_winners_for: Option<StyleNodeID>,
-        counters: &Counters,
     ) {
         let mut workspace = std::mem::take(&mut self.cascade_compaction_scratch);
         self.compact_matches_for_cascade_with_scratch(
@@ -647,7 +641,6 @@ impl RetainedState {
             can_have_scope_duplicates,
             publish_winners_for,
             &mut workspace,
-            counters,
         );
         self.cascade_compaction_scratch_memory
             .resize_required_to(&mut self.memory, workspace.capacity_bytes());
@@ -661,7 +654,6 @@ impl RetainedState {
         can_have_scope_duplicates: bool,
         mut publish_winners_for: Option<StyleNodeID>,
         workspace: &mut CascadeCompactionWorkspace,
-        counters: &Counters,
     ) {
         if publish_winners_for.is_some_and(|node| {
             !self.winner_groups.admits_new_rows()
@@ -676,7 +668,8 @@ impl RetainedState {
             publish_winners_for = None;
         }
         self.order_matches_in_cascade(all, can_have_scope_duplicates);
-        counters.add(Counter::CascadeMatchesBeforeCompaction, all.len() as u64);
+        self.counters
+            .add(Counter::CascadeMatchesBeforeCompaction, all.len() as u64);
         if let Some(node) = publish_winners_for
             && all
                 .iter()
@@ -741,7 +734,7 @@ impl RetainedState {
             remembered.settle(self.program.version(), self.winner_groups.generation());
             let hash = RememberedCompactions::hash_of(key);
             if let Some(remembered) = remembered.get(hash, key) {
-                self.publish_winner_states(effects, node, &remembered.states, counters);
+                self.publish_winner_states(effects, node, &remembered.states);
                 if let Some(keep) = &remembered.keep {
                     // The key holds every match, so the remembered decisions line up with the list; were one missing,
                     // keeping its match only keeps a rule the cascade finds losing again.
@@ -932,11 +925,10 @@ impl RetainedState {
                     })
                     .and_then(|target| self.cascaded_pseudo_custom_declarations_in(node, all, target));
                 let state = match &pseudo_custom_declarations {
-                    Some(custom_declarations) => self.with_cascade_interning_counters(
-                        |groups| groups.intern_sorted_with_custom_declarations(winners, custom_declarations, previous),
-                        counters,
-                    ),
-                    None => self.intern_cascade_state(winners, previous, counters),
+                    Some(custom_declarations) => self.with_cascade_interning_counters(|groups| {
+                        groups.intern_sorted_with_custom_declarations(winners, custom_declarations, previous)
+                    }),
+                    None => self.intern_cascade_state(winners, previous),
                 };
                 published_states.push(PublishedWinnerState {
                     target: *target,
@@ -947,7 +939,7 @@ impl RetainedState {
                     }),
                 });
             }
-            self.publish_winner_states(effects, node, published_states, counters);
+            self.publish_winner_states(effects, node, published_states);
             self.memory.release(MemoryCategory::BatchScratch, winner_scratch_bytes);
         }
 
@@ -1121,7 +1113,6 @@ impl RetainedState {
         effects: &mut AnswerEffects,
         node: StyleNodeID,
         states: &[PublishedWinnerState],
-        counters: &Counters,
     ) {
         let mut published_row_count = 0;
         for &PublishedWinnerState {
@@ -1154,7 +1145,8 @@ impl RetainedState {
             }
         }
         self.winner_groups.settle_memory(&mut self.memory);
-        counters.add(Counter::CascadeNodeHandlesPublished, published_row_count as u64);
+        self.counters
+            .add(Counter::CascadeNodeHandlesPublished, published_row_count as u64);
     }
 
     /// Whether a winner of the state may substitute a revert keyword, which rolls its property back
@@ -1184,7 +1176,6 @@ impl RetainedState {
         effects: &mut AnswerEffects,
         node: StyleNodeID,
         all: &mut Vec<RuleMatch>,
-        counters: &Counters,
     ) -> bool {
         let mut has_author_pseudo_rules = false;
         if self.node_has_element_declaration_input(node)
@@ -1202,7 +1193,7 @@ impl RetainedState {
             return false;
         }
         if has_author_pseudo_rules {
-            return self.compact_pseudo_matches_from_updated_winners(effects, node, all, counters);
+            return self.compact_pseudo_matches_from_updated_winners(effects, node, all);
         }
         let Some((_, state)) = effects
             .winners
@@ -1219,9 +1210,10 @@ impl RetainedState {
         let Some(rules) = self.winner_groups.rules_for_compaction(state) else {
             return false;
         };
-        counters.add(Counter::CascadeMatchesBeforeCompaction, all.len() as u64);
+        self.counters
+            .add(Counter::CascadeMatchesBeforeCompaction, all.len() as u64);
         all.retain(|entry| self.compaction_keeps_verbatim(entry.rule) || rules.binary_search(&entry.rule).is_ok());
-        verify_style_answer_patch(self, counters, |verifier| {
+        verify_style_answer_patch(self, |verifier| {
             verifier.verify_cascade_answer(all, node, "compaction from updated winners");
         });
         true
@@ -1232,7 +1224,6 @@ impl RetainedState {
         effects: &mut AnswerEffects,
         node: StyleNodeID,
         all: &mut Vec<RuleMatch>,
-        counters: &Counters,
     ) -> bool {
         let Some((_, state)) = effects
             .winners
@@ -1295,7 +1286,8 @@ impl RetainedState {
         };
         self.memory
             .reserve_required(MemoryCategory::BatchScratch, scratch_bytes);
-        counters.add(Counter::CascadeMatchesBeforeCompaction, all.len() as u64);
+        self.counters
+            .add(Counter::CascadeMatchesBeforeCompaction, all.len() as u64);
         let mut index = 0;
         all.retain(|entry| {
             let retained = self.compaction_keeps_verbatim(entry.rule)
@@ -1314,7 +1306,7 @@ impl RetainedState {
         });
         self.memory.release(MemoryCategory::BatchScratch, scratch_bytes);
         drop(pseudo_rules);
-        verify_style_answer_patch(self, counters, |verifier| {
+        verify_style_answer_patch(self, |verifier| {
             verifier.verify_cascade_answer(all, node, "pseudo compaction from updated winners");
         });
         true
@@ -1325,16 +1317,9 @@ impl RetainedState {
         all: Vec<RuleMatch>,
         can_have_scope_duplicates: bool,
         publish_winners_for: Option<StyleNodeID>,
-        counters: &Counters,
     ) -> Vec<RuleMatch> {
         let mut effects = AnswerEffects::default();
-        let result = self.matches_for_cascade(
-            &mut effects,
-            all,
-            can_have_scope_duplicates,
-            publish_winners_for,
-            counters,
-        );
+        let result = self.matches_for_cascade(&mut effects, all, can_have_scope_duplicates, publish_winners_for);
         self.install_answer_effects(effects);
         result
     }
@@ -1345,15 +1330,8 @@ impl RetainedState {
         mut all: Vec<RuleMatch>,
         can_have_scope_duplicates: bool,
         publish_winners_for: Option<StyleNodeID>,
-        counters: &Counters,
     ) -> Vec<RuleMatch> {
-        self.compact_matches_for_cascade(
-            effects,
-            &mut all,
-            can_have_scope_duplicates,
-            publish_winners_for,
-            counters,
-        );
+        self.compact_matches_for_cascade(effects, &mut all, can_have_scope_duplicates, publish_winners_for);
         all
     }
 
@@ -1364,7 +1342,6 @@ impl RetainedState {
         can_have_scope_duplicates: bool,
         publish_winners_for: Option<StyleNodeID>,
         workspace: &mut CascadeCompactionWorkspace,
-        counters: &Counters,
     ) -> Vec<RuleMatch> {
         self.compact_matches_for_cascade_with_scratch(
             effects,
@@ -1372,7 +1349,6 @@ impl RetainedState {
             can_have_scope_duplicates,
             publish_winners_for,
             workspace,
-            counters,
         );
         all
     }
@@ -1446,7 +1422,6 @@ impl RetainedState {
         matches: &[RuleMatch],
         deltas: &[SelectorTruthDelta],
         candidates: &mut Vec<OrderedCascadeCandidate>,
-        counters: &Counters,
     ) -> bool {
         let mut targets: SmallVec<[Option<tree::PseudoElementTarget>; 3]> = SmallVec::new();
         for delta in deltas {
@@ -1456,9 +1431,7 @@ impl RetainedState {
             }
         }
         targets.into_iter().all(|target| {
-            self.apply_cascade_winner_match_deltas_for_target(
-                effects, node, matches, deltas, target, candidates, counters,
-            )
+            self.apply_cascade_winner_match_deltas_for_target(effects, node, matches, deltas, target, candidates)
         })
     }
 
@@ -1471,7 +1444,6 @@ impl RetainedState {
         deltas: &[SelectorTruthDelta],
         pseudo: Option<tree::PseudoElementTarget>,
         candidates: &mut Vec<OrderedCascadeCandidate>,
-        counters: &Counters,
     ) -> bool {
         if !self.cascade_winner_inventory_is_complete_for_target(matches, Some(node), pseudo) {
             return false;
@@ -1588,7 +1560,7 @@ impl RetainedState {
         updates.sort_unstable_by_key(|update| update.property);
 
         let (state, _) =
-            self.with_cascade_interning_counters(|groups| groups.apply_property_updates(previous, &updates), counters);
+            self.with_cascade_interning_counters(|groups| groups.apply_property_updates(previous, &updates));
         let published = if let Some(pseudo) = pseudo {
             effects.winners.set_pseudo(
                 &mut self.winner_groups,
@@ -1609,7 +1581,7 @@ impl RetainedState {
         };
         self.winner_groups.settle_memory(&mut self.memory);
         if published {
-            counters.bump(Counter::CascadeNodeHandlesPublished);
+            self.counters.bump(Counter::CascadeNodeHandlesPublished);
         }
         published
     }
@@ -1716,7 +1688,7 @@ impl RetainedState {
     /// has published and evaluates the match programs its dispatch and prefix state reach. It
     /// reports how many concrete rule matches it found, or the node whose facts were missing - never
     /// a partial answer.
-    pub fn match_document(&mut self, root: StyleNodeID, counters: &Counters) -> Result<usize, Incomplete> {
+    pub fn match_document(&mut self, root: StyleNodeID) -> Result<usize, Incomplete> {
         let nodes = self.elements_under(root);
 
         let mut batch = StyleNodeFacts::new();
@@ -1777,7 +1749,6 @@ impl RetainedState {
                         answer_is_exact: None,
                         cascade_only: false,
                     },
-                    counters,
                 );
                 self.append_witness_effects(effects);
                 if let Err(incomplete) = matched {
@@ -2108,12 +2079,12 @@ impl RetainedState {
     }
 }
 
-impl StyleEngineState {
+impl StyleEngine {
     /// Normalize the pending inputs without advancing the committed snapshot.
-    pub(super) fn drain_transaction(&mut self, counters: &Counters) -> StyleTransaction {
-        self.merge_deferred_geometry_transaction(counters);
+    pub(super) fn drain_transaction(&mut self) -> StyleTransaction {
+        self.merge_deferred_geometry_transaction();
         self.host.initial_tree_bulk_load_is_pending = false;
-        self.finalize_staged_sheet_rule_replacements(counters);
+        self.finalize_staged_sheet_rule_replacements();
         // A diagnostic or retained planning snapshot may still hold this exact immutable routing
         // program. It remains queryable in builder form; compact it at the next unshared boundary.
         if let Some(routing) = Arc::get_mut(&mut self.retained.routing)
@@ -2121,14 +2092,16 @@ impl StyleEngineState {
         {
             routing.settle_memory(&mut self.retained.memory);
         }
-        self.host.journal.take_transaction(&mut self.retained.memory, counters)
+        self.host
+            .journal
+            .take_transaction(&mut self.retained.memory, &self.retained.counters)
     }
 
     /// Advance staged program and tree state to the transaction's final snapshot.
-    pub(super) fn apply_staged_structural_state(&mut self, counters: &Counters) {
+    pub(super) fn apply_staged_structural_state(&mut self) {
         self.commit_staged_program();
         self.host.program_staging.rule_change_is_carried_by_sheet.clear();
-        self.apply_staged_tree_deltas(counters);
+        self.apply_staged_tree_deltas();
     }
 
     /// Finish the transaction metadata which depends on committed program state.
@@ -2164,8 +2137,8 @@ impl StyleEngineState {
 
     /// Settle inputs which cannot be planned while the document has no style root. Exact element
     /// style reactions are edge-triggered, so preserve them for the first transaction with a root.
-    pub(crate) fn flush_without_document_root(&mut self, counters: &Counters) {
-        let transaction = self.take_transaction(counters);
+    pub(crate) fn flush_without_document_root(&mut self) {
+        let transaction = self.take_transaction();
         // NB: Without routing, retained relations still describe the previous tree.
         if !self.host.tree_staging.is_empty() {
             self.discard_retained_prefix_caches();
@@ -2263,12 +2236,14 @@ impl StyleEngineState {
         (atoms, visited)
     }
 
-    pub(super) fn sweep_style_atoms(&mut self, counters: &Counters) {
+    pub(super) fn sweep_style_atoms(&mut self) {
         if !self.retained.atoms.should_sweep() || self.host.defers_atom_sweep {
             return;
         }
         if self.retained.batch_matching_traversal.is_some() {
-            counters.bump(Counter::AtomSweepsDeferredForActiveTraversal);
+            self.retained
+                .counters
+                .bump(Counter::AtomSweepsDeferredForActiveTraversal);
             return;
         }
         self.retained.facts.sweep_auxiliary_catalogs_without_sync();
@@ -2291,9 +2266,9 @@ impl StyleEngineState {
             self.retained.attribute_value_text_requirements_version += 1;
         }
         let reclaimed = self.retained.atoms.finish_sweep(&reclaimable);
-        counters.bump(Counter::AtomSweeps);
-        counters.add(Counter::AtomSweepRootSlotsVisited, visited);
-        counters.add(
+        self.retained.counters.bump(Counter::AtomSweeps);
+        self.retained.counters.add(Counter::AtomSweepRootSlotsVisited, visited);
+        self.retained.counters.add(
             Counter::StyleAtomsReclaimed,
             u64::try_from(reclaimed.len()).expect("reclaimed atom count exceeds u64"),
         );
@@ -2356,27 +2331,27 @@ impl StyleEngineState {
     }
 }
 
-impl StyleEngineState {
+impl StyleEngine {
     /// Advance every staged input family to the transaction's final snapshot.
-    pub(super) fn apply_staged_transaction(&mut self, transaction: &mut StyleTransaction, counters: &Counters) {
-        self.apply_staged_structural_state(counters);
+    pub(super) fn apply_staged_transaction(&mut self, transaction: &mut StyleTransaction) {
+        self.apply_staged_structural_state();
         self.apply_staged_facts(transaction);
         self.finish_staged_application(transaction);
     }
 
     /// Normalize and apply the staged inputs into one transaction. A required style observation
     /// drains here first, so normalization never combines changes across an observation boundary.
-    pub fn take_transaction(&mut self, counters: &Counters) -> StyleTransaction {
-        let mut transaction = self.drain_transaction(counters);
-        self.apply_staged_transaction(&mut transaction, counters);
+    pub fn take_transaction(&mut self) -> StyleTransaction {
+        let mut transaction = self.drain_transaction();
+        self.apply_staged_transaction(&mut transaction);
         transaction
     }
 
     /// Release a transaction taken through the bridge and reclaim atoms before the bridge installs
     /// a new primary view. The returned reclamation batch lets C++ purge its atom memos before any
     /// reclaimed identity can be reused.
-    pub(super) fn release_transaction_and_sweep_atoms(&mut self, transaction: StyleTransaction, counters: &Counters) {
+    pub(super) fn release_transaction_and_sweep_atoms(&mut self, transaction: StyleTransaction) {
         self.release_transaction(transaction);
-        self.sweep_style_atoms(counters);
+        self.sweep_style_atoms();
     }
 }

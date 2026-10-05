@@ -51,7 +51,7 @@ pub(crate) enum EnvironmentMoveAction {
     Recompute(StyleNodeID),
 }
 
-impl StyleEngineState {
+impl StyleEngine {
     /// Move the custom-property environments below `origin`, whose own moved as `moved` says, and
     /// answer what the host does for the elements the move reaches, in preorder. An element that
     /// holds the environment it inherits, and reads nothing that moved, takes the moved one here,
