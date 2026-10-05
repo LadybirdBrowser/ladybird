@@ -3173,12 +3173,13 @@ pub unsafe extern "C" fn style_engine_sort_style_deltas_for_direct_application(
     deltas: *mut FfiStyleDelta,
     count: usize,
 ) {
+    // A single delta is in order already, which the host knows without asking.
+    if count < 2 {
+        return;
+    }
     // SAFETY: Guaranteed by the caller.
     let host = unsafe { document_host(host) };
     with_engine(read, host, |engine| {
-        if count == 0 {
-            return;
-        }
         assert!(!deltas.is_null(), "a non-empty delta span must have storage");
         let deltas = unsafe { std::slice::from_raw_parts_mut(deltas, count) };
         // An element's own delta leads the pseudo-element deltas settled beside it.
