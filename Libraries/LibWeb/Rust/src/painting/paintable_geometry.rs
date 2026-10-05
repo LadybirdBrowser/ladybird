@@ -250,10 +250,16 @@ pub(crate) fn absolute_rect(arena: &impl GeometryRead, slot: NodeSlotId) -> CssP
         {
             break;
         }
-        rect = rect.translated_by(committed_offset(arena, block).into());
         if block_kind == Some(crate::layout::node_data::NodeKind::SVGForeignObjectBox) {
+            rect = rect.translated_by(committed_offset(arena, block).into());
             break;
         }
+        // A containing block whose rect this geometry already memoized carries its own containing blocks.
+        if let Some(block_rect) = arena.memoized_absolute_rect(block) {
+            rect = rect.translated_by(block_rect.location());
+            break;
+        }
+        rect = rect.translated_by(committed_offset(arena, block).into());
         block = block_data.containing_block;
     }
     arena.memoize_absolute_rect(slot, rect);
