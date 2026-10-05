@@ -332,14 +332,6 @@ String Length::to_string(SerializationMode serialization_mode) const
     return builder.to_string_without_validation();
 }
 
-Optional<Length> Length::absolutize(ResolutionContext const& context) const
-{
-    if (is_px())
-        return {};
-
-    return CSS::Length::make_px(to_px_without_rounding(context));
-}
-
 Length Length::from_style_value(NonnullRefPtr<StyleValue const> const& style_value, Optional<Length> percentage_basis)
 {
     if (style_value->is_length())

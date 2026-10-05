@@ -40,7 +40,6 @@ private:
 
     // NB: StyleValue dispatches operations by type tag, so it may call private impls.
     friend class StyleValue;
-    ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
 };
 
 }

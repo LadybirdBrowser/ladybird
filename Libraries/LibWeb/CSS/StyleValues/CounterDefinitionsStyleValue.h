@@ -31,7 +31,6 @@ public:
     virtual ~CounterDefinitionsStyleValue() override = default;
 
     Vector<CounterDefinition> counter_definitions() const;
-    ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
 
 private:
     friend class StyleValue;

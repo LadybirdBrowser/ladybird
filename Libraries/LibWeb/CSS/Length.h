@@ -208,7 +208,6 @@ public:
     double container_relative_length_to_px_without_rounding(ResolutionContext const&) const;
 
     // Returns empty optional if it's already absolute.
-    Optional<Length> absolutize(ResolutionContext const&) const;
 
     static Length from_style_value(NonnullRefPtr<StyleValue const> const&, Optional<Length> percentage_basis);
 

@@ -8,14 +8,4 @@
 
 namespace Web::CSS {
 
-ValueComparingNonnullRefPtr<StyleValue const> FunctionStyleValue::absolutized(ComputationContext const& context) const
-{
-    auto absolutized_value = value()->absolutized(context);
-
-    if (absolutized_value == value())
-        return *this;
-
-    return FunctionStyleValue::create(name(), absolutized_value);
-}
-
 }

@@ -20,8 +20,6 @@ public:
 
     virtual ~RandomValueSharingStyleValue() override = default;
 
-    ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
-
     double random_base_value() const;
 
 private:

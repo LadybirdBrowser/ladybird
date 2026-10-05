@@ -24,8 +24,6 @@ public:
 
     int to_font_slope() const;
 
-    ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const& computation_context) const;
-
 private:
     friend class StyleValue;
 

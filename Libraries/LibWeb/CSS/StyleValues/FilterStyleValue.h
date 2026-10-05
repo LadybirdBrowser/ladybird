@@ -27,7 +27,6 @@ public:
     virtual ~FilterStyleValue() override = default;
 
     Kind kind() const { return static_cast<Kind>(m_value->filter.kind); }
-    ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
 
 protected:
     explicit FilterStyleValue(StyleValueFFI::StyleValueData const* data)
@@ -53,8 +52,6 @@ public:
 
     ValueComparingNonnullRefPtr<StyleValue const> radius() const { return filter_value(); }
     float resolved_radius() const;
-
-    ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
 
 private:
     friend class StyleValue;
@@ -101,8 +98,6 @@ public:
     ValueComparingRefPtr<StyleValue const> radius() const { return shadow()->blur_radius_or_null(); }
     ValueComparingRefPtr<StyleValue const> color() const { return shadow()->color_or_null(); }
 
-    ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
-
 private:
     friend class StyleValue;
 
@@ -127,8 +122,6 @@ public:
 
     ValueComparingNonnullRefPtr<StyleValue const> angle() const { return filter_value(); }
     float angle_degrees() const;
-
-    ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
 
 private:
     friend class StyleValue;
@@ -156,8 +149,6 @@ public:
     Gfx::ColorFilterType operation() const { return static_cast<Gfx::ColorFilterType>(m_value->filter.color_operation); }
     ValueComparingNonnullRefPtr<StyleValue const> amount() const { return filter_value(); }
     float resolved_amount() const;
-
-    ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
 
 private:
     friend class StyleValue;

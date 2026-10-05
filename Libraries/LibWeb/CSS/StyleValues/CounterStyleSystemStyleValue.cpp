@@ -11,28 +11,6 @@
 
 namespace Web::CSS {
 
-ValueComparingNonnullRefPtr<StyleValue const> CounterStyleSystemStyleValue::absolutized(ComputationContext const& context) const
-{
-    return value().visit(
-        [&](CounterStyleSystem const&) -> ValueComparingNonnullRefPtr<StyleValue const> {
-            return *this;
-        },
-        [&](Fixed const& fixed) -> ValueComparingNonnullRefPtr<StyleValue const> {
-            if (!fixed.first_symbol)
-                return *this;
-
-            auto const& absolutized_value = fixed.first_symbol->absolutized(context);
-
-            if (absolutized_value == fixed.first_symbol)
-                return *this;
-
-            return CounterStyleSystemStyleValue::create_fixed(absolutized_value);
-        },
-        [&](Extends const&) -> ValueComparingNonnullRefPtr<StyleValue const> {
-            return *this;
-        });
-}
-
 bool CounterStyleSystemStyleValue::algorithm_differs_from(CounterStyleSystemStyleValue const& other) const
 {
     if (value().index() != other.value().index())

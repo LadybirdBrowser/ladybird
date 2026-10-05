@@ -10,14 +10,4 @@
 
 namespace Web::CSS {
 
-ValueComparingNonnullRefPtr<StyleValue const> BorderRadiusRectStyleValue::absolutized(ComputationContext const& computation_context) const
-{
-    auto top_left_absolutized = top_left()->absolutized(computation_context);
-    auto top_right_absolutized = top_right()->absolutized(computation_context);
-    auto bottom_right_absolutized = bottom_right()->absolutized(computation_context);
-    auto bottom_left_absolutized = bottom_left()->absolutized(computation_context);
-
-    return BorderRadiusRectStyleValue::create(top_left_absolutized, top_right_absolutized, bottom_right_absolutized, bottom_left_absolutized);
-}
-
 }

@@ -14,14 +14,4 @@ namespace Web::CSS {
 static_assert(to_underlying(OpenTypeTaggedStyleValue::Mode::FontFeatureSettings) == 0);
 static_assert(to_underlying(OpenTypeTaggedStyleValue::Mode::FontVariationSettings) == 1);
 
-ValueComparingNonnullRefPtr<StyleValue const> OpenTypeTaggedStyleValue::absolutized(ComputationContext const& computation_context) const
-{
-    auto const& absolutized_value = value()->absolutized(computation_context);
-
-    if (absolutized_value == value())
-        return *this;
-
-    return OpenTypeTaggedStyleValue::create(mode(), tag(), absolutized_value);
-}
-
 }

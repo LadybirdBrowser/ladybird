@@ -24,8 +24,6 @@ public:
         return number_from_style_value(parameter_style_value(), {});
     }
 
-    ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
-
 private:
     friend class StyleValue;
 

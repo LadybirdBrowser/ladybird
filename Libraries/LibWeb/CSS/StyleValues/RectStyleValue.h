@@ -26,8 +26,6 @@ public:
 
     EdgeRect rect() const { return { LengthOrAuto::from_style_value(top(), {}), LengthOrAuto::from_style_value(right(), {}), LengthOrAuto::from_style_value(bottom(), {}), LengthOrAuto::from_style_value(left(), {}) }; }
 
-    ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
-
 private:
     friend class StyleValue;
 

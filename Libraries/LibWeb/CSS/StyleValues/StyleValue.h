@@ -110,45 +110,6 @@ WEB_API Utf16FlyString css_string_from_rust(void const*);
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(URL, url, URLStyleValue)                                                      \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(ValueList, value_list, StyleValueList)
 
-// Style value types whose absolutization still has a C++ fallback. The Rust recursion in
-// Rust/src/css/absolutize.rs runs first and declines back to these: the element-bound values
-// (tree counting, random sharing, image base URLs) decline by design, lengths decline for
-// container-relative units, calculations decline when the tree carries external leaves
-// (anchor(), attr(), shared random values), and every composite declines transitively when a
-// child does. Types whose Rust arm can never decline lose their C++ absolutized() methods and
-// leave this list; types absent from the old per-type dispatch compute to themselves through
-// the default case.
-#define ENUMERATE_CSS_STYLE_VALUE_TYPES_WITH_CPP_ABSOLUTIZATION                                                    \
-    __ENUMERATE_CSS_STYLE_VALUE_TYPE(BackgroundSize, background_size, BackgroundSizeStyleValue)                    \
-    __ENUMERATE_CSS_STYLE_VALUE_TYPE(BorderRadius, border_radius, BorderRadiusStyleValue)                          \
-    __ENUMERATE_CSS_STYLE_VALUE_TYPE(BorderRadiusRect, border_radius_rect, BorderRadiusRectStyleValue)             \
-    __ENUMERATE_CSS_STYLE_VALUE_TYPE(Calculated, calculated, CalculatedStyleValue)                                 \
-    __ENUMERATE_CSS_STYLE_VALUE_TYPE(CounterDefinitions, counter_definitions, CounterDefinitionsStyleValue)        \
-    __ENUMERATE_CSS_STYLE_VALUE_TYPE(CounterStyleSystem, counter_style_system, CounterStyleSystemStyleValue)       \
-    __ENUMERATE_CSS_STYLE_VALUE_TYPE(Cursor, cursor, CursorStyleValue)                                             \
-    __ENUMERATE_CSS_STYLE_VALUE_TYPE(Edge, edge, EdgeStyleValue)                                                   \
-    __ENUMERATE_CSS_STYLE_VALUE_TYPE(Filter, filter, FilterStyleValue)                                             \
-    __ENUMERATE_CSS_STYLE_VALUE_TYPE(FontStyle, font_style, FontStyleStyleValue)                                   \
-    __ENUMERATE_CSS_STYLE_VALUE_TYPE(Function, function, FunctionStyleValue)                                       \
-    __ENUMERATE_CSS_STYLE_VALUE_TYPE(Image, image, ImageStyleValue)                                                \
-    __ENUMERATE_CSS_STYLE_VALUE_TYPE(ImageSet, image_set, ImageSetStyleValue)                                      \
-    __ENUMERATE_CSS_STYLE_VALUE_TYPE(Length, length, LengthStyleValue)                                             \
-    __ENUMERATE_CSS_STYLE_VALUE_TYPE(OpacityValue, opacity_value, OpacityValueStyleValue)                          \
-    __ENUMERATE_CSS_STYLE_VALUE_TYPE(OpenTypeTagged, open_type_tagged, OpenTypeTaggedStyleValue)                   \
-    __ENUMERATE_CSS_STYLE_VALUE_TYPE(OverflowClipMargin, overflow_clip_margin, OverflowClipMarginStyleValue)       \
-    __ENUMERATE_CSS_STYLE_VALUE_TYPE(Position, position, PositionStyleValue)                                       \
-    __ENUMERATE_CSS_STYLE_VALUE_TYPE(RadialSize, radial_size, RadialSizeStyleValue)                                \
-    __ENUMERATE_CSS_STYLE_VALUE_TYPE(RandomValueSharing, random_value_sharing, RandomValueSharingStyleValue)       \
-    __ENUMERATE_CSS_STYLE_VALUE_TYPE(Ratio, ratio, RatioStyleValue)                                                \
-    __ENUMERATE_CSS_STYLE_VALUE_TYPE(Rect, rect, RectStyleValue)                                                   \
-    __ENUMERATE_CSS_STYLE_VALUE_TYPE(ScrollbarColor, scrollbar_color, ScrollbarColorStyleValue)                    \
-    __ENUMERATE_CSS_STYLE_VALUE_TYPE(Shadow, shadow, ShadowStyleValue)                                             \
-    __ENUMERATE_CSS_STYLE_VALUE_TYPE(Superellipse, superellipse, SuperellipseStyleValue)                           \
-    __ENUMERATE_CSS_STYLE_VALUE_TYPE(TextIndent, text_indent, TextIndentStyleValue)                                \
-    __ENUMERATE_CSS_STYLE_VALUE_TYPE(Transformation, transformation, TransformationStyleValue)                     \
-    __ENUMERATE_CSS_STYLE_VALUE_TYPE(TreeCountingFunction, tree_counting_function, TreeCountingFunctionStyleValue) \
-    __ENUMERATE_CSS_STYLE_VALUE_TYPE(ValueList, value_list, StyleValueList)
-
 struct ColorResolutionContext {
     Optional<PreferredColorScheme> color_scheme;
     Optional<Color> current_color;

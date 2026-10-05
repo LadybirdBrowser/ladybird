@@ -145,21 +145,4 @@ void ImageSetStyleValue::set_style_sheet(StyleSheetState* style_sheet)
     }
 }
 
-ValueComparingNonnullRefPtr<StyleValue const> ImageSetStyleValue::absolutized(ComputationContext const& context) const
-{
-    auto existing_options = this->options();
-    Vector<Option> options;
-    options.ensure_capacity(existing_options.size());
-    for (auto const& option : existing_options) {
-        auto image = option.image->absolutized(context);
-        VERIFY(image->is_abstract_image());
-        options.unchecked_append({
-            .image = image->as_abstract_image(),
-            .resolution = option.resolution->absolutized(context),
-            .type = option.type,
-        });
-    }
-    return ImageSetStyleValue::create(move(options));
-}
-
 }

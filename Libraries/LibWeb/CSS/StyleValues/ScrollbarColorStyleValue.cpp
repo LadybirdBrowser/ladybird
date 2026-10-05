@@ -13,11 +13,4 @@ ValueComparingNonnullRefPtr<ScrollbarColorStyleValue const> ScrollbarColorStyleV
     return adopt_ref(*new ScrollbarColorStyleValue(move(thumb_color), move(track_color)));
 }
 
-ValueComparingNonnullRefPtr<StyleValue const> ScrollbarColorStyleValue::absolutized(ComputationContext const& computation_context) const
-{
-    auto absolutized_thumb_color = thumb_color()->absolutized(computation_context);
-    auto absolutized_track_color = track_color()->absolutized(computation_context);
-    return create(absolutized_thumb_color, absolutized_track_color);
-}
-
 }

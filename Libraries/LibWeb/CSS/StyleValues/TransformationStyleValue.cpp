@@ -380,28 +380,6 @@ GC::Ptr<CSSTransformComponent> TransformationStyleValue::reify_a_transform_funct
     VERIFY_NOT_REACHED();
 }
 
-ValueComparingNonnullRefPtr<StyleValue const> TransformationStyleValue::absolutized(ComputationContext const& computation_context) const
-{
-    auto values = this->values();
-    StyleValueVector absolutized_values;
-
-    bool absolutized_values_different = false;
-
-    for (auto const& value : values) {
-        auto const& absolutized_value = value->absolutized(computation_context);
-
-        if (absolutized_value != value)
-            absolutized_values_different = true;
-
-        absolutized_values.append(absolutized_value);
-    }
-
-    if (!absolutized_values_different)
-        return *this;
-
-    return TransformationStyleValue::create(property(), transform_function(), move(absolutized_values));
-}
-
 Vector<NonnullRefPtr<TransformationStyleValue const>> transformations_for_style_value(StyleValue const& value)
 {
     if (value.is_keyword() && value.to_keyword() == Keyword::None)

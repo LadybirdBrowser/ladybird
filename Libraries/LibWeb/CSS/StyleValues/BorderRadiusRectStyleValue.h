@@ -20,8 +20,6 @@ public:
 
     virtual ~BorderRadiusRectStyleValue() override = default;
 
-    ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
-
     ValueComparingNonnullRefPtr<StyleValue const> top_left() const { return wrap_rust_child(m_value->border_radius_rect.top_left); }
     ValueComparingNonnullRefPtr<StyleValue const> top_right() const { return wrap_rust_child(m_value->border_radius_rect.top_right); }
     ValueComparingNonnullRefPtr<StyleValue const> bottom_right() const { return wrap_rust_child(m_value->border_radius_rect.bottom_right); }

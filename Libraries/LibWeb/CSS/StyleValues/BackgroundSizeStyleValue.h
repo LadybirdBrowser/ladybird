@@ -25,8 +25,6 @@ public:
     ValueComparingNonnullRefPtr<StyleValue const> size_x() const { return wrap_rust_child(m_value->background_size.size_x); }
     ValueComparingNonnullRefPtr<StyleValue const> size_y() const { return wrap_rust_child(m_value->background_size.size_y); }
 
-    ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
-
 private:
     friend class StyleValue;
 

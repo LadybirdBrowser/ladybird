@@ -29,24 +29,4 @@ Vector<CounterDefinition> CounterDefinitionsStyleValue::counter_definitions() co
     return counter_definitions;
 }
 
-ValueComparingNonnullRefPtr<StyleValue const> CounterDefinitionsStyleValue::absolutized(ComputationContext const& computation_context) const
-{
-    Vector<CounterDefinition> computed_definitions;
-
-    for (auto specified_definition : counter_definitions()) {
-        CounterDefinition computed_definition {
-            .name = specified_definition.name,
-            .is_reversed = specified_definition.is_reversed,
-            .value = nullptr
-        };
-
-        if (specified_definition.value)
-            computed_definition.value = specified_definition.value->absolutized(computation_context);
-
-        computed_definitions.append(computed_definition);
-    }
-
-    return CounterDefinitionsStyleValue::create(computed_definitions);
-}
-
 }

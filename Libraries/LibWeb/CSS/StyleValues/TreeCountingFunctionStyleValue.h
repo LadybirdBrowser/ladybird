@@ -27,7 +27,6 @@ public:
     size_t resolve(DOM::AbstractElement const&) const;
 
     virtual Optional<CalcNodeRef> resolve_to_calculation_node(CalculationContext const&, CalculationResolutionContext const&) const override;
-    ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
 
 private:
     // NB: StyleValue dispatches operations by type tag, so it may call private constructors.

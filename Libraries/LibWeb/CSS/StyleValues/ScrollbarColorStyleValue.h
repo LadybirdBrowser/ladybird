@@ -23,7 +23,6 @@ public:
 private:
     // NB: StyleValue dispatches operations by type tag, so it may call private impls.
     friend class StyleValue;
-    ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
     explicit ScrollbarColorStyleValue(NonnullRefPtr<StyleValue const> thumb_color, NonnullRefPtr<StyleValue const> track_color)
         : StyleValueWithDefaultOperators(Type::ScrollbarColor, StyleValueFFI::rust_style_value_create_scrollbar_color(StyleValueFFI::rust_style_value_retain(thumb_color->rust_style_value_data()), StyleValueFFI::rust_style_value_retain(track_color->rust_style_value_data())))
     {

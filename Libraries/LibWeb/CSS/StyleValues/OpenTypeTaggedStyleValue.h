@@ -30,8 +30,6 @@ public:
     Utf16FlyString tag() const { return css_string_from_rust(&m_value->open_type_tagged.tag_name); }
     ValueComparingNonnullRefPtr<StyleValue const> value() const { return wrap_rust_child(m_value->open_type_tagged.value); }
 
-    ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
-
 private:
     friend class StyleValue;
 

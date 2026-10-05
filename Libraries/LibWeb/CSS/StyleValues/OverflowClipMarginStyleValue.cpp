@@ -21,12 +21,4 @@ OverflowClipMarginStyleValue::OverflowClipMarginStyleValue(Optional<BackgroundBo
 
 OverflowClipMarginStyleValue::~OverflowClipMarginStyleValue() = default;
 
-ValueComparingNonnullRefPtr<StyleValue const> OverflowClipMarginStyleValue::absolutized(ComputationContext const& context) const
-{
-    auto new_offset = offset()->absolutized(context);
-    if (new_offset->equals(offset()))
-        return *this;
-    return create(visual_box(), move(new_offset));
-}
-
 }
