@@ -693,6 +693,7 @@ impl RetainedState {
                 pseudo_kind,
                 old_style_record,
                 new_style_record,
+                replaced: None,
                 cascade_state,
                 longhand_evaluations,
                 owes_a_transition_step: false,
@@ -1098,6 +1099,7 @@ impl RetainedState {
         let detached_composition = animates
             .then(|| self.computed_group_sets.detach_composition(node))
             .flatten();
+        let replaced = self.computed_group_sets.replaced_columns(node);
         let record = match self.assemble_and_publish_engine_record(
             Some(computed::ComputedStyleTarget::new(node, u8::MAX)),
             parent_record,
@@ -1134,6 +1136,7 @@ impl RetainedState {
                     pseudo_kind: u8::MAX,
                     old_style_record: old_record,
                     new_style_record: record,
+                    replaced: Some(replaced),
                     cascade_state: None,
                     longhand_evaluations: 0,
                     owes_a_transition_step,
