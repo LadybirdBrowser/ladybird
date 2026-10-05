@@ -412,6 +412,15 @@ struct ChangeQueue {
     styled_rows: RefCell<crate::css::style::fast_hash::FastSet<crate::layout::node_data::NodeSlotId>>,
     /// Whether the writes queued give anonymous rows their parent's style again.
     restyles_anonymous_rows: Cell<bool>,
+    replaced_paint_facts_positions: RefCell<
+        crate::css::style::fast_hash::FastMap<
+            (
+                crate::layout::tree_update_marks::MarkedBox,
+                std::mem::Discriminant<crate::painting::replaced_paint_facts::ReplacedPaintFacts>,
+            ),
+            usize,
+        >,
+    >,
 }
 
 /// What writes may move of what the host knows of the render state (see [`StateFacts`]).
@@ -486,16 +495,30 @@ impl ChangeQueue {
             last_marks.merge(*marks);
             return;
         }
-        // Replaced content facts for the box the last write gave facts of the same kind replace those.
-        if let ArenaChange::Paint(PaintChange::SetReplacedPaintFacts { target, facts }) = &change
-            && let Some(ArenaChange::Paint(PaintChange::SetReplacedPaintFacts {
-                target: last_target,
-                facts: last_facts,
-            })) = queued.last()
-            && last_target == target
-            && std::mem::discriminant(last_facts) == std::mem::discriminant(facts)
-        {
-            queued.pop();
+        // Replaced content facts replace those of the same kind queued for the same box since the last write that may
+        // rebind it. The earlier entry becomes a no-op rather than taking the new facts, as facts queued between them
+        // may name the same box another way.
+        let mut positions = self.replaced_paint_facts_positions.borrow_mut();
+        if change.row_write() == RowWrite::Identities {
+            positions.clear();
+        } else if let ArenaChange::Paint(PaintChange::SetReplacedPaintFacts { target, facts }) = &change {
+            let key = (*target, std::mem::discriminant(facts));
+            if let Some(earlier) = positions.remove(&key) {
+                debug_assert!(
+                    matches!(
+                        &queued[earlier],
+                        ArenaChange::Paint(PaintChange::SetReplacedPaintFacts { target: earlier_target, .. })
+                            if earlier_target == target
+                    ),
+                    "the queue knows where the facts it queued for a box sit"
+                );
+                if earlier + 1 == queued.len() {
+                    queued.pop();
+                } else {
+                    queued[earlier] = ArenaChange::Paint(PaintChange::SupersededReplacedPaintFacts);
+                }
+            }
+            positions.insert(key, queued.len());
         }
         queued.push(change);
     }
@@ -503,6 +526,7 @@ impl ChangeQueue {
     /// Queues `change` ahead of every write queued before it.
     fn push_front(&self, change: ArenaChange) {
         self.note(&change);
+        self.replaced_paint_facts_positions.borrow_mut().clear();
         self.queued.borrow_mut().insert(0, change);
     }
 
@@ -530,6 +554,7 @@ impl ChangeQueue {
             self.styled_rows.borrow_mut().clear();
             self.restyles_anonymous_rows.set(false);
         }
+        self.replaced_paint_facts_positions.borrow_mut().clear();
     }
 
     /// Lends the queued writes to `apply`, which applies them, and keeps their emptied buffer as the spare. A write the
@@ -693,6 +718,66 @@ mod tests {
             queue.queued.borrow().len(),
             1,
             "a write queued meanwhile waits for the next application"
+        );
+    }
+
+    #[test]
+    fn replaced_paint_facts_replace_the_facts_queued_for_their_box() {
+        use crate::css::style::tree::StyleNodeID;
+        use crate::layout::layout_changes::LayoutChange;
+        use crate::layout::node_data::NodeSlotId;
+        use crate::layout::tree_update_marks::MarkedBox;
+        use crate::painting::host::FfiCanvasPaintFacts;
+        use crate::painting::paint_changes::PaintChange;
+        use crate::painting::replaced_paint_facts::ReplacedPaintFacts;
+        let element = MarkedBox::Node(StyleNodeID::from_raw(1));
+        let row = MarkedBox::Row(NodeSlotId::new(1, 1));
+        let canvas = |content_generation| {
+            ReplacedPaintFacts::Canvas(FfiCanvasPaintFacts {
+                content_generation,
+                ..Default::default()
+            })
+        };
+        let form_control = || ReplacedPaintFacts::FormControl(Default::default());
+        let queue = ChangeQueue::default();
+        let push = |target, facts| queue.push(ArenaChange::Paint(PaintChange::SetReplacedPaintFacts { target, facts }));
+        let queued_facts = || -> Vec<ReplacedPaintFacts> {
+            queue
+                .queued
+                .borrow()
+                .iter()
+                .filter_map(|change| match change {
+                    ArenaChange::Paint(PaintChange::SetReplacedPaintFacts { facts, .. }) => Some(facts.clone()),
+                    _ => None,
+                })
+                .collect()
+        };
+
+        push(element, canvas(1));
+        push(element, form_control());
+        push(row, canvas(2));
+        push(element, canvas(3));
+        assert_eq!(
+            queued_facts(),
+            [form_control(), canvas(2), canvas(3)],
+            "facts replace the earlier facts of their kind for their box"
+        );
+        queue.drain(|_| {});
+        push(element, canvas(4));
+        assert_eq!(queued_facts(), [canvas(4)], "facts applied before are not replaced");
+        queue.push(ArenaChange::DetachForRemoval(Box::new([1])));
+        push(element, canvas(5));
+        assert_eq!(
+            queued_facts(),
+            [canvas(4), canvas(5)],
+            "a write that may rebind the box keeps the facts before it"
+        );
+        queue.push_front(ArenaChange::Layout(LayoutChange::RecordPartialRelayoutEscape));
+        push(element, canvas(6));
+        assert_eq!(
+            queued_facts(),
+            [canvas(4), canvas(5), canvas(6)],
+            "a write queued ahead of the facts keeps them"
         );
     }
 

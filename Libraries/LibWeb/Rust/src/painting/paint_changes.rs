@@ -76,6 +76,8 @@ pub(crate) enum PaintChange {
         target: MarkedBox,
         facts: ReplacedPaintFacts,
     },
+    /// Replaced content facts that later facts replace.
+    SupersededReplacedPaintFacts,
     /// The `<area>` elements of the image map the image `node` is associated with, in tree order.
     PublishImageMapAreas {
         node: NodeSlotId,
@@ -171,6 +173,7 @@ impl PaintChange {
                 arena.set_layer_image_paint_facts(node, entries);
             }
             Self::SetReplacedPaintFacts { target, facts } => arena.set_replaced_paint_facts(target, facts),
+            Self::SupersededReplacedPaintFacts => {}
             Self::PublishImageMapAreas { node, areas } => arena.image_map_areas().publish(node, areas),
             Self::NoteVisualContextBoxDirty { node, kind } => {
                 if arena.paintable_row_is_populated(node) {
