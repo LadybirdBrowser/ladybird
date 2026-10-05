@@ -1488,22 +1488,6 @@ pub unsafe extern "C" fn rust_computed_longhand_table_raw_cascaded_font_size(
     unsafe { &*table }.raw_cascaded_font_size()
 }
 
-/// Replaces the retained raw cascaded font-size data.
-///
-/// # Safety
-/// `table` must be a valid, unfrozen, uniquely owned table. `data` must be
-/// null or point at live `StyleValueData`.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_computed_longhand_table_set_raw_cascaded_font_size(
-    table: *mut ComputedLonghandTable,
-    data: *const c_void,
-) {
-    let value = (!data.is_null()).then(|| unsafe {
-        RetainedStyleValueData::from_retained_pointer(crate::css::style_value::retain_style_value(data.cast()))
-    });
-    unsafe { &mut *table }.set_raw_cascaded_font_size(value);
-}
-
 /// Marks a longhand's stored value `!important` (or not).
 ///
 /// # Safety

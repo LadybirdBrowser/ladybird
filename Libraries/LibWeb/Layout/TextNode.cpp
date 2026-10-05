@@ -51,12 +51,6 @@ RustFFI::FfiTextSourceRange TextNode::word_range_at(size_t dom_offset) const
     return RustFFI::layout_text_word_range(document_host(), slot_id(this), dom_offset);
 }
 
-Utf16View TextNode::text_for_rendering() const
-{
-    auto view = RustFFI::render_state_text_for_rendering(document_host(), slot_id(this));
-    return Utf16View { reinterpret_cast<char16_t const*>(view.text), view.length_in_code_units };
-}
-
 Gfx::GlyphRun::TextType text_type_for_code_point(u32 code_point)
 {
     // Fast path for ASCII using a lookup table.

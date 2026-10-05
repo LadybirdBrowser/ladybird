@@ -15,7 +15,6 @@ use super::used_values::FfiCssPixelSize;
 use crate::css::css_pixels::CssPixelRect;
 use crate::css::ffi_support::FfiUtf16View;
 use crate::css::style::tree::StyleNodeID;
-use crate::layout::rendered_text::FfiRenderedTextView;
 use crate::layout::text_queries::FfiDomTextRange;
 use crate::painting::ffi::{
     FfiBoxModelMetrics, FfiCaretRectResult, FfiEmptyLineCaretRect, FfiOptionalCssPixelRect, FfiRectToViewportTransform,
@@ -455,6 +454,12 @@ fn read_arena<R>(host: *mut DocumentHost, read: impl FnOnce(&mut crate::layout::
     host.ask(ScriptForcedRead::at_script_entry(&SCRIPT_ENTRY), |state| {
         read(state.arena_mut())
     })
+}
+
+#[repr(C)]
+pub struct FfiRenderedTextView {
+    pub text: *const u16,
+    pub length_in_code_units: usize,
 }
 
 /// The text the rows of the text node whose primary row is `primary` render, with whitespace collapsed where their

@@ -602,12 +602,6 @@ impl RetainedState {
         self.facts.set_namespace(node, namespace);
     }
 
-    /// Record the element's heading level, or zero where it has none.
-    /// Record that an element is a `<slot>`, which decides whether `::slotted()` can name it.
-    pub fn set_element_is_slot(&mut self, node: StyleNodeID, is_slot: bool) {
-        self.facts.set_is_slot(node, is_slot);
-    }
-
     /// Replace the element facts the style computation's adjustments read.
     pub fn set_element_adjustment_facts(&mut self, node: StyleNodeID, facts: u32) {
         self.computed_group_sets.set_adjustment_facts(node, facts);

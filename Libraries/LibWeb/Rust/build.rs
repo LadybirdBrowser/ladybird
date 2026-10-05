@@ -2758,6 +2758,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         "FfiCodePointCategoryFacts".to_string(),
         "FfiGeneratedImage".to_string(),
         "FfiPseudoElement".to_string(),
+        "FfiRenderedTextView".to_string(),
         "FfiReplacedContentFacts".to_string(),
         "FfiStylePayloads".to_string(),
         "FfiUtf16View".to_string(),
