@@ -1020,6 +1020,7 @@ pub unsafe extern "C" fn document_host_clear_layout_host_callbacks(host: *const 
     unsafe { &*host }.host_tables().layout_host.set(None);
 }
 
+#[derive(Clone)]
 pub(crate) struct FormattingContextRun<'pass> {
     pub(crate) purpose: LayoutPurpose,
     pub(crate) records: &'pass RunRecords<'pass>,

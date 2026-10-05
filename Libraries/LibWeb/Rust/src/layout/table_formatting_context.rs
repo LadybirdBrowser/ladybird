@@ -893,14 +893,7 @@ enum TrackAxis {
 }
 
 pub(super) struct TableFormattingContext<'pass> {
-    purpose: formatting_context::LayoutPurpose,
-    records: &'pass RunRecords<'pass>,
-    table_box: Node,
-    layout_mode: LayoutMode,
-    callbacks: LayoutPass<'pass>,
-    fragments: Option<std::rc::Rc<fragment_tree::RunFragmentBuilder>>,
-    should_collect_devtools_layout_data: bool,
-    treat_block_axis_percentage_insets_as_auto_beyond_root: bool,
+    run: FormattingContextRun<'pass>,
     table_constraints: ContainingBlockConstraints,
     participant_constraints: ContainingBlockConstraints,
     available_space: AvailableSpace,
@@ -922,19 +915,20 @@ pub(super) struct TableFormattingContext<'pass> {
 
 impl TableTree for TableFormattingContext<'_> {
     fn first_child(&self, node: Node) -> Node {
-        self.callbacks.first_child(node)
+        self.run.callbacks.first_child(node)
     }
 
     fn next_sibling(&self, node: Node) -> Node {
-        self.callbacks.next_sibling(node)
+        self.run.callbacks.next_sibling(node)
     }
 
     fn node_data(&self, node: Node) -> &NodeData {
-        self.callbacks.node_data(node)
+        self.run.callbacks.node_data(node)
     }
 
     fn display(&self, node: Node) -> FfiDisplay {
-        self.callbacks
+        self.run
+            .callbacks
             .computed_values_view_if_styled(node)
             .map_or_else(FfiDisplay::block, |style| style.display())
     }
@@ -985,7 +979,7 @@ impl TableFormattingContext<'_> {
             }
         }
         if removed > CssPixels::default() {
-            let table_used = self.used_values(self.table_box);
+            let table_used = self.used_values(self.run.box_);
             table_used.set_content_inline_size(table_used.content_inline_size.get() - removed);
         }
     }
@@ -993,28 +987,23 @@ impl TableFormattingContext<'_> {
 
 impl<'pass> TableFormattingContext<'pass> {
     fn node_facts(&self, node: Node) -> NodeFacts<'_> {
-        NodeFacts::new(&self.callbacks, node)
+        NodeFacts::new(&self.run.callbacks, node)
     }
 
     fn style(&self, node: Node) -> StyleValues<'pass> {
-        StyleValues::for_node(&self.callbacks, node)
+        StyleValues::for_node(&self.run.callbacks, node)
     }
 
     fn raw_column_span(&self, column: Node) -> usize {
-        self.callbacks.arena().raw_table_column_span(column) as usize
+        self.run.callbacks.arena().raw_table_column_span(column) as usize
     }
 
     pub(super) fn new(run: &FormattingContextRun<'pass>) -> Self {
         Self {
-            purpose: run.purpose,
-            records: run.records,
-            table_box: run.box_,
-            layout_mode: run.layout_mode,
-            callbacks: run.callbacks,
-            fragments: run.fragments.clone(),
-            should_collect_devtools_layout_data: run.should_collect_devtools_layout_data,
-            treat_block_axis_percentage_insets_as_auto_beyond_root: run
-                .treat_block_axis_percentage_insets_as_auto_beyond_root,
+            run: FormattingContextRun {
+                previous_line_data: None,
+                ..run.clone()
+            },
             table_constraints: ContainingBlockConstraints::default(),
             participant_constraints: ContainingBlockConstraints::default(),
             available_space: AvailableSpace::default(),
@@ -1037,7 +1026,7 @@ impl<'pass> TableFormattingContext<'pass> {
 
     pub(super) fn take_inline_layout(&mut self) -> TableInlineLayout {
         TableInlineLayout {
-            table_box: self.table_box,
+            table_box: self.run.box_,
             table_constraints: self.table_constraints,
             cells: std::mem::take(&mut self.cells),
             columns: std::mem::take(&mut self.columns),
@@ -1046,7 +1035,7 @@ impl<'pass> TableFormattingContext<'pass> {
     }
 
     fn reuse_inline_layout(&mut self, input: LayoutInput, layout: TableInlineLayout) -> bool {
-        if layout.table_box != self.table_box || layout.table_constraints != input.containing_block_constraints {
+        if layout.table_box != self.run.box_ || layout.table_constraints != input.containing_block_constraints {
             return false;
         }
 
@@ -1054,7 +1043,7 @@ impl<'pass> TableFormattingContext<'pass> {
         self.table_constraints = input.containing_block_constraints;
         self.participant_constraints = ContainingBlockConstraints {
             percentage_basis_inline_size: self.table_constraints.percentage_basis_inline_size,
-            percentage_basis_block_size: if self.style(self.table_box).height().is_auto() {
+            percentage_basis_block_size: if self.style(self.run.box_).height().is_auto() {
                 None
             } else {
                 self.table_constraints.percentage_basis_block_size
@@ -1083,30 +1072,16 @@ impl<'pass> TableFormattingContext<'pass> {
     }
 
     fn sizing(&self) -> sizing_context::SizingContext<'pass> {
-        sizing_context::SizingContext::new(self.purpose, self.records, self.callbacks)
-    }
-
-    fn formatting_context_run(&self) -> FormattingContextRun<'pass> {
-        FormattingContextRun {
-            purpose: self.purpose,
-            records: self.records,
-            box_: self.table_box,
-            layout_mode: self.layout_mode,
-            callbacks: self.callbacks,
-            should_collect_devtools_layout_data: self.should_collect_devtools_layout_data,
-            treat_block_axis_percentage_insets_as_auto_beyond_root: self
-                .treat_block_axis_percentage_insets_as_auto_beyond_root,
-            fragments: self.fragments.clone(),
-            previous_line_data: None,
-        }
+        sizing_context::SizingContext::new(self.run.purpose, self.run.records, self.run.callbacks)
     }
 
     fn parent(&self, node: Node) -> Node {
-        self.callbacks.parent(node)
+        self.run.callbacks.parent(node)
     }
 
     fn matching_children(&mut self, parent: Node, predicate: impl Fn(NodeFacts<'_>) -> bool) -> Vec<Node> {
-        self.callbacks
+        self.run
+            .callbacks
             .children(parent)
             .filter(|&child| {
                 let facts = self.node_facts(child);
@@ -1121,7 +1096,7 @@ impl<'pass> TableFormattingContext<'pass> {
     /// https://www.w3.org/TR/css-tables-3/#fixup-algorithm
     fn table_columns(&mut self) -> Vec<Node> {
         let mut columns = Vec::new();
-        for child in self.matching_children(self.table_box, |facts| {
+        for child in self.matching_children(self.run.box_, |facts| {
             facts.is_table_column_group() || facts.is_table_column()
         }) {
             if self.node_facts(child).is_table_column() {
@@ -1136,7 +1111,7 @@ impl<'pass> TableFormattingContext<'pass> {
     /// The table-column-group boxes and table-column boxes of the table in tree order (see table_columns()).
     fn column_boxes(&mut self) -> Vec<Node> {
         let mut boxes = Vec::new();
-        for child in self.matching_children(self.table_box, |facts| {
+        for child in self.matching_children(self.run.box_, |facts| {
             facts.is_table_column_group() || facts.is_table_column()
         }) {
             boxes.push(child);
@@ -1150,7 +1125,7 @@ impl<'pass> TableFormattingContext<'pass> {
     /// The table-row-group boxes of the table, header and footer groups included, in the order their rows are laid
     /// out: see row_containers_in_layout_order().
     fn row_groups_in_layout_order(&self) -> Vec<Node> {
-        row_containers_in_layout_order(self, self.table_box)
+        row_containers_in_layout_order(self, self.run.box_)
             .into_iter()
             .filter(|&child| self.node_facts(child).is_table_row_group_kind())
             .collect()
@@ -1158,19 +1133,21 @@ impl<'pass> TableFormattingContext<'pass> {
 
     #[track_caller]
     fn used_values(&self, node: Node) -> &'pass UsedValues {
-        self.records.used_values(node)
+        self.run.records.used_values(node)
     }
 
     fn create_used_values(&self, node: Node, constraints: ContainingBlockConstraints) -> &'pass UsedValues {
-        self.records.create_used_values(&self.callbacks, node, constraints)
+        self.run
+            .records
+            .create_used_values(&self.run.callbacks, node, constraints)
     }
 
     fn place_child(&self, node: Node, x: CssPixels, y: CssPixels) {
-        formatting_context::place_child(&self.formatting_context_run(), node, FfiCssPixelPoint { x, y }, None);
+        formatting_context::place_child(&self.run, node, FfiCssPixelPoint { x, y }, None);
     }
 
     fn border_spacing_inline(&mut self) -> CssPixels {
-        let style = self.style(self.table_box);
+        let style = self.style(self.run.box_);
         // When a table is laid out in collapsed-borders mode, the border-spacing of the table-root is ignored (as if it was set to 0px):
         // https://www.w3.org/TR/css-tables-3/#collapsed-style-overrides
         if style.border_collapse() != BORDER_COLLAPSE_SEPARATE {
@@ -1181,7 +1158,7 @@ impl<'pass> TableFormattingContext<'pass> {
     }
 
     fn border_spacing_block(&mut self) -> CssPixels {
-        let style = self.style(self.table_box);
+        let style = self.style(self.run.box_);
         // When a table is laid out in collapsed-borders mode, the border-spacing of the table-root is ignored (as if it was set to 0px):
         // https://www.w3.org/TR/css-tables-3/#collapsed-style-overrides
         if style.border_collapse() != BORDER_COLLAPSE_SEPARATE {
@@ -1218,7 +1195,7 @@ impl<'pass> TableFormattingContext<'pass> {
     }
 
     fn border_conflict_resolution(&mut self) {
-        if self.style(self.table_box).border_collapse() == BORDER_COLLAPSE_SEPARATE {
+        if self.style(self.run.box_).border_collapse() == BORDER_COLLAPSE_SEPARATE {
             return;
         }
 
@@ -1286,7 +1263,7 @@ impl<'pass> TableFormattingContext<'pass> {
         // Column (<col>) elements, inside a column group or directly under the table root (see table_columns()).
         let mut column_index = 0usize;
         let mut column_group_ranges = Vec::new();
-        for child in self.matching_children(self.table_box, |facts| {
+        for child in self.matching_children(self.run.box_, |facts| {
             facts.is_table_column_group() || facts.is_table_column()
         }) {
             let is_column_group = self.node_facts(child).is_table_column_group();
@@ -1316,11 +1293,11 @@ impl<'pass> TableFormattingContext<'pass> {
                 grid.apply_borders(borders, 0, row_count, group_start, group_end, take_source_order());
             }
         }
-        let table_borders = self.element_borders(self.table_box);
+        let table_borders = self.element_borders(self.run.box_);
         grid.apply_borders(table_borders, 0, row_count, 0, column_count, take_source_order());
 
         let outer = grid.outer_edge_widths();
-        let table_used = self.used_values(self.table_box);
+        let table_used = self.used_values(self.run.box_);
         let old_border_box_top = table_used.border_box_top(false);
         let old_inline_borders = table_used.border_box_left(false) + table_used.border_box_right(false);
         table_used.border_top.set(outer.top);
@@ -1367,7 +1344,7 @@ impl<'pass> TableFormattingContext<'pass> {
         let Some(grid) = self.collapsed_border_grid.take() else {
             return;
         };
-        if self.purpose.is_measurement() {
+        if self.run.purpose.is_measurement() {
             return;
         }
         if !grid.has_paintable_edges() {
@@ -1382,7 +1359,7 @@ impl<'pass> TableFormattingContext<'pass> {
             }
         }));
         let (horizontal_edges, vertical_edges) = grid.take_edges();
-        self.used_values(self.table_box).rare_data_mut().collapsed_table_borders =
+        self.used_values(self.run.box_).rare_data_mut().collapsed_table_borders =
             Some(std::sync::Arc::new(OwnedCollapsedTableBorders {
                 row_offsets,
                 column_offsets,
@@ -1394,7 +1371,7 @@ impl<'pass> TableFormattingContext<'pass> {
     // Participants resolve percentages against the table's input basis inside this context, so
     // their dependency is charged here rather than through child runs.
     fn prepare_table_participants(&mut self, preparation: TableParticipantPreparation) {
-        let row_groups = self.matching_children(self.table_box, |display| display.is_table_row_group_kind());
+        let row_groups = self.matching_children(self.run.box_, |display| display.is_table_row_group_kind());
         // Column groups and columns have no content to lay out, but they are painted: their backgrounds cover the
         // cells of their columns (CSS 2.2 §17.5.1), so they get boxes, positioned by position_column_boxes().
         let column_boxes = self.column_boxes();
@@ -1406,7 +1383,7 @@ impl<'pass> TableFormattingContext<'pass> {
             .map(|participant| (participant, create_row_used_values))
             .chain(self.cells.iter().map(|cell| (cell.box_, true)));
         let sizing = self.sizing();
-        let table_record = self.used_values(self.table_box);
+        let table_record = self.used_values(self.run.box_);
         for (participant, create_used_values) in participants {
             if create_used_values {
                 self.create_used_values(participant, self.participant_constraints);
@@ -1453,7 +1430,7 @@ impl<'pass> TableFormattingContext<'pass> {
         // A table-root is said to be laid out in fixed mode whenever the computed value of the table-layout property is equal to fixed, and the
         // specified width of the table root is either a <length-percentage>, min-content or fit-content. When the specified width is not one of
         // those values, or if the computed value of the table-layout property is auto, then the table-root is said to be laid out in auto mode.
-        let style = self.style(self.table_box);
+        let style = self.style(self.run.box_);
         let width = style.width();
         style.table_layout() == TABLE_LAYOUT_FIXED
             && (width.is_length() || width.is_percentage() || width.is_min_content() || width.is_fit_content())
@@ -1521,7 +1498,7 @@ impl<'pass> TableFormattingContext<'pass> {
         let block_basis = self.table_constraints.block_basis();
         self.compute_constrainedness();
         let fixed = self.use_fixed_mode_layout();
-        let collapsed = self.style(self.table_box).border_collapse() != BORDER_COLLAPSE_SEPARATE;
+        let collapsed = self.style(self.run.box_).border_collapse() != BORDER_COLLAPSE_SEPARATE;
 
         for cell_index in 0..self.cells.len() {
             let cell = self.cells[cell_index];
@@ -2107,7 +2084,7 @@ impl<'pass> TableFormattingContext<'pass> {
         // https://drafts.csswg.org/css-tables-3/#computing-the-table-width
         let basis = self.table_constraints.inline_basis();
         let mut capmin = CssPixels::default();
-        for caption in self.matching_children(self.table_box, |facts| facts.is_table_caption()) {
+        for caption in self.matching_children(self.run.box_, |facts| facts.is_table_caption()) {
             let style = self.style(caption);
             let outer = |inner: CssPixels| {
                 inner
@@ -2164,8 +2141,8 @@ impl<'pass> TableFormattingContext<'pass> {
         // CSS Sizing says box-sizing:border-box applies length/percentage width/min-width/max-width constraints to
         // the border box. The table inline-size algorithm compares content inline sizes, so convert them before comparing.
         let mut resolved = constraint.to_px(basis);
-        if self.style(self.table_box).box_sizing() == box_sizing::BORDER_BOX {
-            let used = self.used_values(self.table_box);
+        if self.style(self.run.box_).box_sizing() == box_sizing::BORDER_BOX {
+            let used = self.used_values(self.run.box_);
             let collapsed = used.uses_collapsing_borders_model.get();
             resolved -= used.border_box_left(collapsed) + used.border_box_right(collapsed);
         }
@@ -2174,13 +2151,13 @@ impl<'pass> TableFormattingContext<'pass> {
 
     fn should_treat_max_inline_size_as_none(&self, available: AvailableSize) -> bool {
         self.sizing()
-            .should_treat_max_inline_size_as_none(self.table_box, available, self.table_constraints)
+            .should_treat_max_inline_size_as_none(self.run.box_, available, self.table_constraints)
     }
 
     fn compute_table_inline_size(&mut self) {
         // https://drafts.csswg.org/css-tables-3/#computing-the-table-width
 
-        let table_style = self.style(self.table_box);
+        let table_style = self.style(self.run.box_);
         let available_inline = self.available_space.inline_size;
         // Percentages on 'width' and 'height' on the table are relative to the table wrapper box's containing block,
         // not the table wrapper box itself.
@@ -2219,7 +2196,9 @@ impl<'pass> TableFormattingContext<'pass> {
             let mut value = match available_inline {
                 AvailableSize::MinContent => grid_min,
                 AvailableSize::MaxContent => grid_max,
-                AvailableSize::Definite(available) if self.layout_mode == LayoutMode::Normal => available.max(used_min),
+                AvailableSize::Definite(available) if self.run.layout_mode == LayoutMode::Normal => {
+                    available.max(used_min)
+                }
                 AvailableSize::Definite(available) => grid_max.min(available).max(used_min),
                 AvailableSize::Indefinite => grid_max.max(used_min),
             };
@@ -2264,7 +2243,7 @@ impl<'pass> TableFormattingContext<'pass> {
             used = used.min(self.resolve_inline_constraint(table_style.max_width(), grid_min, grid_max, basis));
         }
         used = used.max(used_min);
-        let table_used = self.used_values(self.table_box);
+        let table_used = self.used_values(self.run.box_);
         table_used.set_content_inline_size(used);
     }
 
@@ -2294,7 +2273,7 @@ impl<'pass> TableFormattingContext<'pass> {
     pub(super) fn run_until_inline_size_calculation(&mut self, input: LayoutInput, skip_row_measurement: bool) {
         self.available_space = input.available_space;
         // Determine the number of rows/columns the table requires.
-        let table_grid = calculate_table_grid(self, self.table_box, MissingTableCells::Include);
+        let table_grid = calculate_table_grid(self, self.run.box_, MissingTableCells::Include);
         self.cells = table_grid.cells;
         self.cell_inside_layout_inputs = vec![AvailableSpace::default(); self.cells.len()];
         self.cell_pre_layout_content_block_sizes = vec![CssPixels::default(); self.cells.len()];
@@ -2321,7 +2300,7 @@ impl<'pass> TableFormattingContext<'pass> {
         // resolve against those. Percentage block sizes of participants only resolve once the table
         // itself has a non-auto block size.
         self.table_constraints = input.containing_block_constraints;
-        let table_height_auto = self.style(self.table_box).height().is_auto();
+        let table_height_auto = self.style(self.run.box_).height().is_auto();
         self.participant_constraints = ContainingBlockConstraints {
             percentage_basis_inline_size: self.table_constraints.percentage_basis_inline_size,
             percentage_basis_block_size: if table_height_auto {
@@ -2332,7 +2311,7 @@ impl<'pass> TableFormattingContext<'pass> {
             quirks_mode_percentage_basis_block_size: self.table_constraints.quirks_mode_percentage_basis_block_size,
         };
         let participant_preparation =
-            if skip_row_measurement && self.style(self.table_box).border_collapse() == BORDER_COLLAPSE_SEPARATE {
+            if skip_row_measurement && self.style(self.run.box_).border_collapse() == BORDER_COLLAPSE_SEPARATE {
                 // OPTIMIZATION: Wrapper inline sizing measures cell contents in isolated measurement runs and does not
                 //               read row or row group UsedValues in the separated-borders model.
                 TableParticipantPreparation::CreateCellUsedValuesOnly
@@ -2396,8 +2375,15 @@ impl<'pass> TableFormattingContext<'pass> {
             },
             participation: ParticipationInParentFormattingContext::Item,
         };
-        match formatting_context::layout_inside_child(run, None, None, cell.box_, self.layout_mode, layout_input, false)
-        {
+        match formatting_context::layout_inside_child(
+            run,
+            None,
+            None,
+            cell.box_,
+            self.run.layout_mode,
+            layout_input,
+            false,
+        ) {
             ChildLayoutOutcome::Created(result) => result.baselines,
             ChildLayoutOutcome::ReenterCurrent => {
                 self.run(run, layout_input, None);
@@ -2467,8 +2453,8 @@ impl<'pass> TableFormattingContext<'pass> {
         inner: AvailableSpace,
         adopt_automatic_content_block_size: bool,
     ) -> Option<TableCellMeasurement> {
-        let facts = NodeFacts::new(&self.callbacks, cell.box_);
-        if self.layout_mode == LayoutMode::IntrinsicSizing
+        let facts = NodeFacts::new(&self.run.callbacks, cell.box_);
+        if self.run.layout_mode == LayoutMode::IntrinsicSizing
             && !facts.is_inline()
             && used.inline_size_constraint.get() == SizeConstraint::None
             && used.block_size_constraint.get() == SizeConstraint::None
@@ -2495,7 +2481,7 @@ impl<'pass> TableFormattingContext<'pass> {
             available_space.inline_size = AvailableSize::Definite(threshold);
         }
         let key = TableCellMeasurementKey {
-            layout_mode: self.layout_mode,
+            layout_mode: self.run.layout_mode,
             available_space,
             content_inline_size,
             content_block_size: used.content_block_size.get(),
@@ -2506,8 +2492,8 @@ impl<'pass> TableFormattingContext<'pass> {
             uses_collapsing_borders_model: used.uses_collapsing_borders_model.get(),
             adopt_automatic_content_block_size,
         };
-        let caches = self.callbacks.intrinsic_size_caches();
-        let stamp = self.callbacks.intrinsic_size_cache_stamp(cell.box_);
+        let caches = self.run.callbacks.intrinsic_size_caches();
+        let stamp = self.run.callbacks.intrinsic_size_cache_stamp(cell.box_);
         if let Some(cached) = caches.table_cell_measurement_cache_get(stamp, key) {
             return Some(cached);
         }
@@ -2540,8 +2526,12 @@ impl<'pass> TableFormattingContext<'pass> {
                 depends_on_percentage_block_size: result.depends_on_percentage_block_size,
             })
             .unwrap_or_else(|| self.measure_cell_content(cell, used, inner, adopt_automatic_content_block_size));
-        self.callbacks.arena().note_table_cell_measurement_cache_miss();
-        caches.table_cell_measurement_cache_put(self.callbacks.intrinsic_size_cache_stamp(cell.box_), key, measured);
+        self.run.callbacks.arena().note_table_cell_measurement_cache_miss();
+        caches.table_cell_measurement_cache_put(
+            self.run.callbacks.intrinsic_size_cache_stamp(cell.box_),
+            key,
+            measured,
+        );
         Some(measured)
     }
 
@@ -2553,8 +2543,8 @@ impl<'pass> TableFormattingContext<'pass> {
         if self.style(cell.box_).text_indent().contains_percentage() {
             return None;
         }
-        for child in self.callbacks.children(cell.box_) {
-            let facts = NodeFacts::new(&self.callbacks, child);
+        for child in self.run.callbacks.children(cell.box_) {
+            let facts = NodeFacts::new(&self.run.callbacks, child);
             if !facts.is_text_node() && !facts.is_break_node() {
                 return None;
             }
@@ -2571,7 +2561,7 @@ impl<'pass> TableFormattingContext<'pass> {
     ) -> TableCellMeasurement {
         // The table formatting context owns the cell's outer geometry. Seed the inputs
         // needed to lay out its contents without copying placement or layout outputs.
-        let measurement = formatting_context::MeasurementState::create(self.callbacks);
+        let measurement = formatting_context::MeasurementState::create(self.run.callbacks);
         let measured_root = measurement.create_used_values(cell.box_, ContainingBlockConstraints::default());
         used.mirror_box_metrics_and_size_constraints_into(&measured_root);
         measured_root
@@ -2587,7 +2577,7 @@ impl<'pass> TableFormattingContext<'pass> {
         let result = measurement.run_with_layout_mode(
             cell.box_,
             &measured_root,
-            self.layout_mode,
+            self.run.layout_mode,
             LayoutInput {
                 available_space: inner,
                 containing_block_constraints: ContainingBlockConstraints::default(),
@@ -2623,7 +2613,7 @@ impl<'pass> TableFormattingContext<'pass> {
         }
         let inline_basis = self.participant_constraints.inline_basis();
         let participant_block_basis = self.participant_constraints.block_basis();
-        let collapsed = self.style(self.table_box).border_collapse() != BORDER_COLLAPSE_SEPARATE;
+        let collapsed = self.style(self.run.box_).border_collapse() != BORDER_COLLAPSE_SEPARATE;
         let inline_spacing = self.border_spacing_inline();
         // First pass of cells layout:
         for cell_index in 0..self.cells.len() {
@@ -2742,18 +2732,18 @@ impl<'pass> TableFormattingContext<'pass> {
             .iter()
             .fold(CssPixels::default(), |sum, row| sum + row.base_block_size);
         if let Some(minimum) = self.min_border_box_block_size_from_flex_item {
-            let used = self.used_values(self.table_box);
+            let used = self.used_values(self.run.box_);
             let collapsed = used.uses_collapsing_borders_model.get();
             let content_min = minimum - used.border_box_top(collapsed) - used.border_box_bottom(collapsed);
             self.table_block_size = self.table_block_size.max(content_min);
         }
-        let table_style = self.style(self.table_box);
+        let table_style = self.style(self.run.box_);
         if !table_style.height().is_auto() {
             // If the table has a `height` property other than auto, it is treated as a minimum block size for the
             // table grid, and will eventually be distributed to the rows if their collective minimum block size is smaller.
             let mut specified = table_style.height().to_px(self.table_constraints.block_basis());
             if table_style.box_sizing() == box_sizing::BORDER_BOX {
-                let used = self.used_values(self.table_box);
+                let used = self.used_values(self.run.box_);
                 let collapsed = used.uses_collapsing_borders_model.get();
                 specified -= used.border_box_top(collapsed) + used.border_box_bottom(collapsed);
             }
@@ -2944,7 +2934,7 @@ impl<'pass> TableFormattingContext<'pass> {
     }
 
     fn position_row_boxes(&mut self) {
-        let table_used = self.used_values(self.table_box);
+        let table_used = self.used_values(self.run.box_);
         let block_spacing = self.border_spacing_block();
         let inline_spacing = self.border_spacing_inline();
         let inline_offset = table_used.border_box_left(table_used.uses_collapsing_borders_model.get()) + inline_spacing;
@@ -3001,7 +2991,7 @@ impl<'pass> TableFormattingContext<'pass> {
     fn layout_deferred_cells_inside(&mut self, run: &FormattingContextRun<'pass>) {
         // Deferred cells get their one and only committing inside layout here, once row
         // block sizes are final.
-        let collapsed = self.style(self.table_box).border_collapse() != BORDER_COLLAPSE_SEPARATE;
+        let collapsed = self.style(self.run.box_).border_collapse() != BORDER_COLLAPSE_SEPARATE;
         for cell_index in 0..self.cells.len() {
             if !self.deferred_cell_inside_layouts[cell_index] {
                 continue;
@@ -3147,7 +3137,7 @@ impl<'pass> TableFormattingContext<'pass> {
                 offset += column.used_inline_size + spacing;
             }
         }
-        let collapsed = self.style(self.table_box).border_collapse() != BORDER_COLLAPSE_SEPARATE;
+        let collapsed = self.style(self.run.box_).border_collapse() != BORDER_COLLAPSE_SEPARATE;
         for cell_index in 0..self.cells.len() {
             let cell = self.cells[cell_index];
             let used = self.used_values(cell.box_);
@@ -3172,7 +3162,7 @@ impl<'pass> TableFormattingContext<'pass> {
     /// column is as tall as the column groups and as wide as a normal (single-column-spanning) cell in the column."
     /// https://www.w3.org/TR/CSS22/tables.html#table-layers
     fn position_column_boxes(&mut self) {
-        let table_used = self.used_values(self.table_box);
+        let table_used = self.used_values(self.run.box_);
         let inline_spacing = self.border_spacing_inline();
         let block_spacing = self.border_spacing_block();
         let inline_offset = table_used.border_box_left(table_used.uses_collapsing_borders_model.get()) + inline_spacing;
@@ -3213,7 +3203,7 @@ impl<'pass> TableFormattingContext<'pass> {
         // columns, so they are positioned relative to it.
         let mut column_index = 0usize;
         let mut placements = Vec::new();
-        for child in self.matching_children(self.table_box, |facts| {
+        for child in self.matching_children(self.run.box_, |facts| {
             facts.is_table_column_group() || facts.is_table_column()
         }) {
             let group_start = column_index;
@@ -3247,7 +3237,7 @@ impl<'pass> TableFormattingContext<'pass> {
             let mut x = inline_offset + column_offsets[start];
             let mut y = block_start;
             if let Some(group) = group
-                && self.callbacks.in_flow_containing_block(node) == group
+                && self.run.callbacks.in_flow_containing_block(node) == group
             {
                 let group_offset = self.used_values(group).content_offset.get();
                 x -= group_offset.x;
@@ -3348,7 +3338,7 @@ impl<'pass> TableFormattingContext<'pass> {
             return;
         }
 
-        let table_used = self.used_values(self.table_box);
+        let table_used = self.used_values(self.run.box_);
         // The total inline-axis border spacing is defined for each table:
         // - For tables laid out in separated-borders mode containing at least one column, the inline-axis component of the computed value of the border-spacing property times one plus the number of columns in the table
         // - Otherwise, 0
@@ -3380,7 +3370,7 @@ impl<'pass> TableFormattingContext<'pass> {
     }
 
     pub(super) fn automatic_content_inline_size(&self) -> CssPixels {
-        let used = self.used_values(self.table_box);
+        let used = self.used_values(self.run.box_);
         used.content_inline_size.get()
     }
 }
