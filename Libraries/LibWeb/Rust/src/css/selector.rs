@@ -5,13 +5,10 @@
  */
 
 use std::sync::Arc;
-use std::sync::atomic::{AtomicU64, Ordering};
 
 pub use crate::css::ffi_support::FfiStringView;
 use crate::css::ffi_support::ascii_lowercase;
 use crate::css::retained_fly_string::RetainedUtf16FlyString;
-
-static NEXT_SELECTOR_ID: AtomicU64 = AtomicU64::new(1);
 
 pub type SelectorString = crate::css::css_string::CssString;
 pub type SelectorList = Box<[Arc<CompiledSelector>]>;
@@ -120,17 +117,6 @@ pub struct AttributeSelector {
 pub struct AnPlusBPattern {
     pub step_size: i32,
     pub offset: i32,
-}
-
-impl AnPlusBPattern {
-    pub fn matches(self, index: i32) -> bool {
-        if self.step_size == 0 {
-            return index == self.offset;
-        }
-        let delta = i64::from(index) - i64::from(self.offset);
-        let step_size = i64::from(self.step_size);
-        delta % step_size == 0 && delta / step_size >= 0
-    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -260,16 +246,11 @@ pub struct CompoundSelector {
 ///
 /// Compounds retain their parsed left-to-right order. Matching starts at the final compound and
 /// follows each compound's combinator toward the beginning of this slice.
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct CompiledSelector {
-    /// Process-local identity used for `:has()` cache keys. Equality deliberately ignores it.
-    id: u64,
     pub compound_selectors: Box<[CompoundSelector]>,
     /// The pseudo-element required on the initial match target, if this selector ends in one.
     pub target_pseudo_element: Option<PseudoElementType>,
-    /// Whether matching needs only light-tree parent traversal and the simple selectors accepted
-    /// by `fast_matches()`.
-    pub can_use_fast_matches: bool,
 }
 
 /// Selector specificity, compared component by component.
@@ -331,20 +312,9 @@ pub fn search_text_match_filter(simple: &SimpleSelector) -> Option<SearchTextMat
     }
 }
 
-impl PartialEq for CompiledSelector {
-    fn eq(&self, other: &Self) -> bool {
-        self.compound_selectors == other.compound_selectors
-    }
-}
-
-impl Eq for CompiledSelector {}
-
 impl CompiledSelector {
     #[allow(clippy::arc_with_non_send_sync)] // Bound selectors retain document-thread atoms.
     pub(crate) fn new(compound_selectors: Box<[CompoundSelector]>) -> Arc<Self> {
-        let id = NEXT_SELECTOR_ID.fetch_add(1, Ordering::Relaxed);
-        assert_ne!(id, 0, "selector IDs must not wrap");
-
         let target_pseudo_element = compound_selectors
             .last()
             .and_then(|compound| compound.simple_selectors.first())
@@ -374,26 +344,10 @@ impl CompiledSelector {
                 }
             });
 
-        let can_use_fast_matches = compound_selectors.iter().all(|compound| {
-            matches!(
-                compound.combinator,
-                Combinator::None | Combinator::Descendant | Combinator::ImmediateChild
-            ) && compound
-                .simple_selectors
-                .iter()
-                .all(can_simple_selector_use_fast_matches)
-        });
-
         Arc::new(Self {
-            id,
             compound_selectors,
             target_pseudo_element,
-            can_use_fast_matches,
         })
-    }
-
-    pub fn id(&self) -> u64 {
-        self.id
     }
 
     pub fn styles_every_search_text_match(&self) -> bool {
@@ -719,38 +673,4 @@ pub unsafe extern "C" fn rust_selector_specificity(selector: *const RustSelector
     assert!(!selector.is_null());
     // SAFETY: The caller guarantees that the selector handle remains valid for this call.
     unsafe { &(*selector).selector }.specificity().packed()
-}
-
-fn can_simple_selector_use_fast_matches(simple_selector: &SimpleSelector) -> bool {
-    match simple_selector {
-        SimpleSelector::Universal(_)
-        | SimpleSelector::TagName(_)
-        | SimpleSelector::Id(_)
-        | SimpleSelector::Class(_)
-        | SimpleSelector::Attribute(_) => true,
-        SimpleSelector::PseudoClass(selector) => matches!(
-            selector.pseudo_class,
-            PseudoClassType::Active
-                | PseudoClassType::AnyLink
-                | PseudoClassType::Autofill
-                | PseudoClassType::Checked
-                | PseudoClassType::Disabled
-                | PseudoClassType::Empty
-                | PseudoClassType::Enabled
-                | PseudoClassType::FirstChild
-                | PseudoClassType::Focus
-                | PseudoClassType::FocusVisible
-                | PseudoClassType::FocusWithin
-                | PseudoClassType::Hover
-                | PseudoClassType::LastChild
-                | PseudoClassType::Link
-                | PseudoClassType::LocalLink
-                | PseudoClassType::OnlyChild
-                | PseudoClassType::Root
-                | PseudoClassType::State
-                | PseudoClassType::Unchecked
-                | PseudoClassType::Visited
-        ),
-        SimpleSelector::PseudoElement(_) | SimpleSelector::Nesting | SimpleSelector::Invalid(_) => false,
-    }
 }

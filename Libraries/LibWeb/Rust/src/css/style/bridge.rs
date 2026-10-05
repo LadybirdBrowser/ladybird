@@ -2994,9 +2994,6 @@ pub unsafe fn native_rule_target(engine: &mut StyleEngine, rule: u32, result: &m
             CascadeOrigin::AuthorPresentationalHint => FfiCascadeOrigin::AuthorPresentationalHint,
             CascadeOrigin::User => FfiCascadeOrigin::User,
             CascadeOrigin::UserAgent => FfiCascadeOrigin::UserAgent,
-            CascadeOrigin::Animation | CascadeOrigin::Transition => {
-                unreachable!("stylesheets cannot have an animation origin")
-            }
         },
     };
     true

@@ -30,8 +30,7 @@ use crate::css::retained_fly_string::RetainedUtf16FlyString;
 use crate::css::style_value::RetainedStyleValueData;
 use crate::css::style_value::StyleValueData;
 
-/// Mirrors the C++ `enum class CascadeOrigin : u8`; the C++ side static_asserts
-/// that every discriminant matches.
+/// Mirrors the C++ `enum class CascadeOrigin : u8`.
 /// https://drafts.csswg.org/css-cascade/#origin
 #[repr(u8)]
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -41,8 +40,6 @@ pub enum CascadeOrigin {
     AuthorPresentationalHint,
     User,
     UserAgent,
-    Animation,
-    Transition,
 }
 
 /// A layer name is an interned fly string, so identity of the raw
@@ -355,43 +352,6 @@ thread_local! {
     static STORE_POOL: RefCell<Vec<CascadedPropertyStore>> = const { RefCell::new(Vec::new()) };
 }
 
-pub const CASCADED_ENVIRONMENT_NEEDS_DOCUMENT_BASE_URL: u8 = 1 << 0;
-pub const CASCADED_ENVIRONMENT_NEEDS_STYLE_SHEET_CONTEXT: u8 = 1 << 1;
-#[repr(C)]
-pub struct FfiUnfixedRandomSharing {
-    pub source: *const c_void,
-    pub name: *const c_void,
-    pub element_shared: bool,
-}
-
-#[repr(C)]
-pub struct FfiStyleComputationRequirements {
-    pub uses_tree_counting_function: bool,
-    pub container_relative_length_unit_mask: u8,
-    pub environment_requirements: u8,
-    pub has_monospace_font_family: bool,
-    pub computation_reads_unkeyed_context: bool,
-    pub computation_reads_resource_context: bool,
-    pub computed_group_mask: u32,
-    pub has_computed_property_selection: bool,
-    pub computed_property_words: *const u64,
-    pub computed_property_word_count: usize,
-    pub unfixed_random_sharings: *const FfiUnfixedRandomSharing,
-    pub unfixed_random_sharing_count: usize,
-    pub storage: *mut c_void,
-}
-
-/// A declared property in an `FfiCascadeBlock` crossing into `rust_cascade_matched_blocks`:
-/// the property identifier, its importance, and borrowed shared Rust value data.
-#[repr(C)]
-#[derive(Clone, Copy)]
-pub struct FfiCascadeDeclaration {
-    pub property_id: u16,
-    pub important: bool,
-    pub has_style_sheet_context: bool,
-    pub data: *const c_void,
-}
-
 struct CallbackFreeParseInput {
     in_quirks_mode: bool,
     is_svg_presentation_attribute: bool,
@@ -503,45 +463,6 @@ pub(crate) fn parse_substituted_source(
     context.value_context_count = 1;
     context.random_function_index = &raw mut random_function_index;
     parse_css_value_from_source(&context, property_id, source)
-}
-
-/// One matched declaration block for the bulk cascade: its origin, position in
-/// the author context and layer structure, and its declaration list. Blocks
-/// arrive grouped by context and layer in collection order; the core derives
-/// the css-cascade-5 application sequence from the indices.
-#[repr(C)]
-pub struct FfiCascadeBlock {
-    pub origin: CascadeOrigin,
-    /// The author shadow context this block belongs to; author blocks only.
-    pub author_context_index: u32,
-    /// The layer within the context; author rule blocks only.
-    pub layer_index: u32,
-    pub is_inline_style: bool,
-    /// Inline style may carry properties the pseudo-element whitelist would
-    /// reject, since engines use it to style element-backed pseudo-elements.
-    pub bypass_pseudo_element_property_whitelist: bool,
-    pub has_layer_name: bool,
-    /// Borrowed; live for the call.
-    pub layer_name_raw: usize,
-    pub source_shadow_root_identity: usize,
-    /// Index into the C++ side's per-block source table.
-    pub source_id: u32,
-    /// StyleEngine rule identity, or zero for an element-attached block.
-    pub style_engine_rule_id: u32,
-    /// Borrowed immutable declarations, pinned by the caller for the cascade.
-    pub native_declarations: *const crate::css::declaration_block::DeclarationBlockData,
-    pub declarations: *const FfiCascadeDeclaration,
-    pub declaration_count: usize,
-}
-
-impl FfiCascadeBlock {}
-
-/// One winning store slot and the block source that supplied it, reported in
-/// bulk after the cascade.
-#[repr(C)]
-pub struct FfiSourceSlotAssignment {
-    pub slot: u32,
-    pub source_id: u32,
 }
 
 /// One winning custom-property declaration, reported in first-declaration order.
@@ -864,14 +785,6 @@ pub(crate) unsafe fn destroy_resolved_custom_properties(storage: *mut c_void, co
             count,
         ))
     });
-}
-
-/// Source assignments produced by a completed cascade.
-#[repr(C)]
-pub struct FfiCascadeResult {
-    pub source_slot_assignments: *const FfiSourceSlotAssignment,
-    pub source_slot_assignment_count: usize,
-    pub storage: *mut c_void,
 }
 
 /// Sentinel passed when cascading for an element rather than a pseudo-element.

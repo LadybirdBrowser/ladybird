@@ -82,12 +82,10 @@ pub fn origin_importance_rank(origin: CascadeOrigin, important: bool) -> u8 {
         (CascadeOrigin::User, false) => 1,
         (CascadeOrigin::AuthorPresentationalHint, false) => 2,
         (CascadeOrigin::Author, false) => 3,
-        (CascadeOrigin::Animation, _) => 4,
         (CascadeOrigin::Author, true) => 5,
         (CascadeOrigin::AuthorPresentationalHint, true) => 6,
         (CascadeOrigin::User, true) => 7,
         (CascadeOrigin::UserAgent, true) => 8,
-        (CascadeOrigin::Transition, _) => 9,
     }
 }
 
@@ -318,8 +316,6 @@ impl CascadeStratum {
             CascadeOrigin::UserAgent => 0,
             CascadeOrigin::User => 1,
             CascadeOrigin::Author | CascadeOrigin::AuthorPresentationalHint => 2,
-            CascadeOrigin::Animation => 3,
-            CascadeOrigin::Transition => 4,
         };
         Self {
             origin: origin as u8,
@@ -2846,22 +2842,18 @@ mod tests {
         let normal_user = CascadePriority::new(inputs(CascadeOrigin::User, false));
         let hint = CascadePriority::new(inputs(CascadeOrigin::AuthorPresentationalHint, false));
         let normal_author = CascadePriority::new(inputs(CascadeOrigin::Author, false));
-        let animation = CascadePriority::new(inputs(CascadeOrigin::Animation, false));
         let important_author = CascadePriority::new(inputs(CascadeOrigin::Author, true));
         let important_user = CascadePriority::new(inputs(CascadeOrigin::User, true));
         let important_ua = CascadePriority::new(inputs(CascadeOrigin::UserAgent, true));
-        let transition = CascadePriority::new(inputs(CascadeOrigin::Transition, false));
 
         let ladder = [
             normal_ua,
             normal_user,
             hint,
             normal_author,
-            animation,
             important_author,
             important_user,
             important_ua,
-            transition,
         ];
         assert!(ladder.windows(2).all(|pair| pair[0] < pair[1]));
 

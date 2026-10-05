@@ -4007,19 +4007,6 @@ pub unsafe extern "C" fn rust_custom_property_store_destroy(store: *const c_void
     drop(unsafe { Arc::from_raw(store.cast::<CustomPropertyStore>()) });
 }
 
-/// Which names a store declares that the registry registers with a syntax, whose values its
-/// element's lengths compute.
-#[repr(u8)]
-pub enum FfiRegisteredValueDeclarations {
-    None,
-    /// Every registered value parses as declared, so the lengths it reads are known before it is
-    /// computed.
-    Parsed,
-    /// A registered value substitutes, so the container-relative lengths it reads are known only
-    /// once it is substituted.
-    Substituted,
-}
-
 /// Hands every custom property a store declares itself to `callback`, in declaration order, with
 /// the fly string it is named by and a borrowed value.
 ///

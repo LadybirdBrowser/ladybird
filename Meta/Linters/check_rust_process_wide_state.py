@@ -103,7 +103,6 @@ RENDER_STATE_ALLOWED = {
         [
             "css/declaration_block.rs:NEXT_DECLARATION_BLOCK_IDENTITY",
             "css/rule.rs:NEXT_RULE_IDENTITY",
-            "css/selector.rs:NEXT_SELECTOR_ID",
             "css/style/index.rs:NEXT",
             "css/style/prefix.rs:NEXT",
             "css/style_sheet.rs:NEXT_SHEET_IDENTITY",
