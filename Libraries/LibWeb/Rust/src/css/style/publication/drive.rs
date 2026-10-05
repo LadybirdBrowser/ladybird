@@ -505,18 +505,16 @@ impl RetainedState {
         let mut effective_color_scheme = old_table.effective_color_scheme();
         unsafe {
             drive_property_computation(
-                &raw mut table,
-                std::ptr::null_mut(),
+                &mut table,
                 &store,
                 snapshot.as_ref(),
                 None,
-                &raw const environment,
-                u32::MAX,
-                selected.as_ptr(),
+                &environment,
+                Some(selected),
                 LONGHAND_DRIVE_PHASE_REMAINING,
-                &raw const length,
-                std::ptr::null(),
-                &raw mut results,
+                Some(&length),
+                None,
+                &mut results,
                 &mut effective_color_scheme,
                 true,
             );
@@ -935,22 +933,20 @@ impl RetainedState {
                      results: &mut crate::css::style_compute::FfiLonghandDriverResults,
                      effective_color_scheme: &mut i16,
                      phase: u8,
-                     length: *const FfiLengthResolutionContext,
-                     input_line_height_metrics: *const FfiInputLineHeightMetrics| unsafe {
+                     length: Option<&FfiLengthResolutionContext>,
+                     input_line_height_metrics: Option<&FfiInputLineHeightMetrics>| unsafe {
             let evaluations_before = results.longhand_evaluations;
             drive_property_computation(
-                std::ptr::from_mut(table),
-                std::ptr::null_mut(),
+                table,
                 &store,
                 snapshot.as_ref(),
                 highlight.as_ref(),
-                &raw const environment,
-                u32::MAX,
-                std::ptr::null(),
+                &environment,
+                None,
                 phase,
                 length,
                 input_line_height_metrics,
-                std::ptr::from_mut(results),
+                results,
                 effective_color_scheme,
                 true,
             );
@@ -990,8 +986,8 @@ impl RetainedState {
                 &mut results,
                 &mut effective_color_scheme,
                 LONGHAND_DRIVE_PHASE_FONT,
-                &raw const font_length,
-                std::ptr::null(),
+                Some(&font_length),
+                None,
             );
             // A recascaded size that read the viewport makes the element's style and font metrics
             // read it, as C++ marks them beside the size it writes.
@@ -1052,8 +1048,8 @@ impl RetainedState {
                 &mut results,
                 &mut effective_color_scheme,
                 LONGHAND_DRIVE_PHASE_LINE_HEIGHT,
-                &raw const line_height_length,
-                std::ptr::null(),
+                Some(&line_height_length),
+                None,
             );
         }
 
@@ -1090,8 +1086,8 @@ impl RetainedState {
                 &mut results,
                 &mut effective_color_scheme,
                 LONGHAND_DRIVE_PHASE_COLOR_SCHEME,
-                std::ptr::null(),
-                std::ptr::null(),
+                None,
+                None,
             );
         }
         effective_color_scheme = table.effective_color_scheme();
@@ -1152,8 +1148,8 @@ impl RetainedState {
             &mut results,
             &mut effective_color_scheme,
             LONGHAND_DRIVE_PHASE_REMAINING,
-            &raw const remaining_length,
-            &raw const input_line_height_metrics,
+            Some(&remaining_length),
+            Some(&input_line_height_metrics),
         );
         // A tree-counting value is admitted only where the retained tree places the element.
         if results.uses_tree_counting_function && sibling_position.is_none() {

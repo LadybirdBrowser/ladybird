@@ -150,17 +150,6 @@ impl AnimatedOverlay {
         self.set_entry(FfiAnimatedOverlayEntry::from_owned(property, value, false, false, true));
     }
 
-    /// Stores an inherited copy of another overlay's entry, as that entry was made.
-    pub(crate) fn set_inherited(&mut self, property: u16, source: &FfiAnimatedOverlayEntry) {
-        self.set_entry(FfiAnimatedOverlayEntry::from_owned(
-            property,
-            source.clone_value(),
-            true,
-            source.result_of_transition,
-            source.post_compute_adjustment,
-        ));
-    }
-
     /// Drops the value an animation of `property` left, where the overlay holds one of its own.
     pub(crate) fn remove_animated(&mut self, property: u16) {
         self.entries

@@ -19,7 +19,6 @@ use std::borrow::Cow;
 use std::ffi::c_void;
 use std::sync::{Arc, OnceLock};
 
-use crate::abort_on_panic;
 use crate::css::animated_overlay::{AnimatedOverlay, overlay_wins};
 use crate::css::cascaded_properties::{CascadeOrigin, CascadedPropertyStore};
 use crate::css::computed_longhand_table::{
@@ -3026,12 +3025,6 @@ impl<'a> ParentSnapshot<'a> {
         }
         self.table.get(property_id).map(RetainedStyleValueData::data)
     }
-
-    fn animated_property(&self, property_id: u16) -> Option<&crate::css::animated_overlay::FfiAnimatedOverlayEntry> {
-        self.inherited_value_overlay
-            .or(self.stored_animated_overlay)
-            .and_then(|overlay| overlay.get(property_id))
-    }
 }
 
 pub(crate) fn parent_snapshot_for_style_record<'a>(
@@ -3284,1249 +3277,1141 @@ fn store_computed_value(longhand_table: &mut ComputedLonghandTable, entry: &Comp
 /// Other per-element side effects accumulate in `results` for bulk application
 /// after the loop.
 ///
+/// `length_resolution_context` is the context for this stage, or none for the
+/// color-scheme stage. `input_line_height_metrics` are the metrics for the
+/// remaining stage, or none when post-compute adjustments are not wanted.
+///
 /// # Safety
-/// `longhand_table` must point at the drive's live mutable computed longhand
-/// table, `store` at a valid cascaded property store,
-/// `environment` at valid element and document facts,
-/// `length_resolution_context` at the context for this stage or null for the
-/// color-scheme stage, `input_line_height_metrics` at the metrics for the
-/// remaining stage or null when post-compute adjustments are not wanted, and
-/// `results` at a valid results block.
+/// The slices `environment` points at must be live.
 #[allow(clippy::too_many_arguments)]
 pub(crate) unsafe fn drive_property_computation(
-    longhand_table: *mut ComputedLonghandTable,
-    animated_overlay: *mut AnimatedOverlay,
+    longhand_table: &mut ComputedLonghandTable,
     store: &impl crate::css::cascaded_properties::CascadedValues,
     snapshot: Option<&ParentSnapshot<'_>>,
     highlight: Option<&HighlightInheritance<'_>>,
-    environment: *const FfiStyleComputationEnvironment,
-    computed_group_mask: u32,
-    computed_property_words: *const u64,
+    environment: &FfiStyleComputationEnvironment,
+    computed_property_words: Option<&[u64]>,
     phase: u8,
-    length_resolution_context: *const FfiLengthResolutionContext,
-    input_line_height_metrics: *const FfiInputLineHeightMetrics,
-    results: *mut FfiLonghandDriverResults,
+    length_resolution_context: Option<&FfiLengthResolutionContext>,
+    input_line_height_metrics: Option<&FfiInputLineHeightMetrics>,
+    results: &mut FfiLonghandDriverResults,
     effective_color_scheme: &mut i16,
     coordinate_overflow_keywords: bool,
 ) {
-    abort_on_panic(|| {
-        use crate::css::property_metadata::{
-            NUMBER_OF_LONGHAND_PROPERTIES, REQUIRES_COMPUTATION_ALWAYS, REQUIRES_COMPUTATION_CASCADED,
-            REQUIRES_COMPUTATION_NON_INHERITED, property_id as prop, property_requires_computation_level,
-        };
+    use crate::css::property_metadata::{
+        NUMBER_OF_LONGHAND_PROPERTIES, REQUIRES_COMPUTATION_ALWAYS, REQUIRES_COMPUTATION_CASCADED,
+        REQUIRES_COMPUTATION_NON_INHERITED, property_id as prop, property_requires_computation_level,
+    };
 
-        let has_inheritance_parent = snapshot.is_some();
-        let environment = unsafe { &*environment };
-        let box_type_input = &environment.box_type_input;
-        let color_scheme_input = &environment.color_scheme_input;
-        let is_th_element = environment.is_th_element;
-        let has_new_font_size = environment.has_new_font_size;
-        let device_pixels_per_css_pixel = environment.device_pixels_per_css_pixel;
-        let initial_font_size_raw = environment.initial_font_size_raw;
-        let default_font_size_raw = environment.default_font_size_raw;
-        let tree_counting_context = environment
-            .has_tree_counting_context
-            .then_some((environment.sibling_count, environment.sibling_index));
-        let random_base_values = if environment.random_base_value_count == 0 {
-            &[][..]
-        } else {
-            unsafe { std::slice::from_raw_parts(environment.random_base_values, environment.random_base_value_count) }
-        };
-        let document_base_url = if environment.document_base_url_length == 0 {
-            &[][..]
-        } else {
-            unsafe { std::slice::from_raw_parts(environment.document_base_url, environment.document_base_url_length) }
-        };
-        let style_sheet_resource_contexts = if environment.style_sheet_resource_context_count == 0 {
-            &[][..]
-        } else {
-            unsafe {
-                std::slice::from_raw_parts(
-                    environment.style_sheet_resource_contexts,
-                    environment.style_sheet_resource_context_count,
+    let has_inheritance_parent = snapshot.is_some();
+    let box_type_input = &environment.box_type_input;
+    let color_scheme_input = &environment.color_scheme_input;
+    let is_th_element = environment.is_th_element;
+    let has_new_font_size = environment.has_new_font_size;
+    let device_pixels_per_css_pixel = environment.device_pixels_per_css_pixel;
+    let initial_font_size_raw = environment.initial_font_size_raw;
+    let default_font_size_raw = environment.default_font_size_raw;
+    let tree_counting_context = environment
+        .has_tree_counting_context
+        .then_some((environment.sibling_count, environment.sibling_index));
+    let random_base_values = if environment.random_base_value_count == 0 {
+        &[][..]
+    } else {
+        unsafe { std::slice::from_raw_parts(environment.random_base_values, environment.random_base_value_count) }
+    };
+    let document_base_url = if environment.document_base_url_length == 0 {
+        &[][..]
+    } else {
+        unsafe { std::slice::from_raw_parts(environment.document_base_url, environment.document_base_url_length) }
+    };
+    let style_sheet_resource_contexts = if environment.style_sheet_resource_context_count == 0 {
+        &[][..]
+    } else {
+        unsafe {
+            std::slice::from_raw_parts(
+                environment.style_sheet_resource_contexts,
+                environment.style_sheet_resource_context_count,
+            )
+        }
+    };
+    const LONGHAND_WORD_COUNT: usize = NUMBER_OF_LONGHAND_PROPERTIES.div_ceil(64);
+    let mut important_words = [0; LONGHAND_WORD_COUNT];
+    let mut inherited_words = [0; LONGHAND_WORD_COUNT];
+    let mut evaluated_words = [0; LONGHAND_WORD_COUNT];
+    let mut cached_writing_mode_and_direction: Option<(u8, u8)> = None;
+
+    let computation_order = property_computation_order_for_phase(phase);
+    let mut pending_overflow_x_store: Option<ComputedStoreEntry> = None;
+    let mut pending_effective_color_scheme: i16 = -1;
+    // The element's used color scheme, produced by the preceding color-scheme
+    // stage for generic absolutizations.
+    let current_effective_color_scheme = u8::try_from(*effective_color_scheme).ok();
+    // The computed math-depth, remembered for the font-size rule. A partial font restyle
+    // may reuse the value already stored in the working table instead.
+    let mut computed_math_depth: Option<i32> = None;
+    // The background-image list length, for the coordinated background properties.
+    let mut background_image_list_length: Option<usize> = None;
+    // The computed writing-mode and direction, tracked for logical alias pairing;
+    // both properties only take keywords, whose computed value is the specified one.
+    let mut computed_writing_mode: Option<u8> = None;
+    let mut computed_direction: Option<u8> = None;
+    let mut computed_overflow_x: Option<u16> = None;
+    let mut computed_overflow_y: Option<u16> = None;
+    let mut computed_text_align: Option<u16> = None;
+    let mut computed_display: Option<FfiDisplay> = None;
+    let mut computed_float: Option<u16> = None;
+    let mut computed_position: Option<u16> = None;
+    debug_assert!(computed_property_words.is_none_or(|words| words.len() == LONGHAND_WORD_COUNT));
+
+    for &property_id in computation_order {
+        let required_driver_input = is_required_driver_input(property_id);
+        let property_index = usize::from(property_id - crate::css::property_metadata::FIRST_LONGHAND_PROPERTY_ID);
+        let property_is_selected =
+            computed_property_words.is_some_and(|words| words[property_index / 64] & (1 << (property_index % 64)) != 0);
+        if !required_driver_input && !property_is_selected && computed_property_words.is_some() {
+            continue;
+        }
+        set_longhand_bit(&mut evaluated_words, property_id);
+        results.longhand_evaluations = results
+            .longhand_evaluations
+            .checked_add(1)
+            .expect("longhand evaluation count overflow");
+        let mut cascaded_property_id = property_id;
+        let mut inherited_property_id = property_id;
+
+        // https://drafts.csswg.org/css-logical/#box
+        // Within each logical property group, corresponding flow-relative and physical
+        // properties are paired using the element's own computed writing mode; the computed
+        // value of both properties in the pair is derived from the specified value of the
+        // property declared with higher priority in the CSS cascade. A longhand is in a
+        // logical property group exactly when either mapping table maps it.
+        let table_bits = table_row_bits(property_id);
+        let is_logical_alias = table_bits & LOGICAL_ALIAS_BIT != 0;
+        if table_bits != 0 {
+            let (writing_mode, direction) = *cached_writing_mode_and_direction.get_or_insert_with(|| {
+                // Direction and writing-mode precede every logical property in the
+                // generated computation order and only accept keywords, so their
+                // selected values are their computed mapping inputs.
+                (
+                    computed_writing_mode.expect("writing-mode must precede logical properties"),
+                    computed_direction.expect("direction must precede logical properties"),
                 )
-            }
-        };
-        let length_resolution_context = unsafe { length_resolution_context.as_ref() };
-        let results = unsafe { &mut *results };
-        const LONGHAND_WORD_COUNT: usize = NUMBER_OF_LONGHAND_PROPERTIES.div_ceil(64);
-        let mut important_words = [0; LONGHAND_WORD_COUNT];
-        let mut inherited_words = [0; LONGHAND_WORD_COUNT];
-        let mut evaluated_words = [0; LONGHAND_WORD_COUNT];
-        let mut cached_writing_mode_and_direction: Option<(u8, u8)> = None;
+            });
+            let counterpart_property_id = if is_logical_alias {
+                let physical = map_logical_alias_to_physical(property_id, writing_mode, direction);
+                // AD-HOC: While the spec says that inheritance of logical aliases should be
+                // direct, other browsers instead inherit from the physical counterpart - the
+                // CSSWG has resolved to update the spec to reflect this -
+                // see https://github.com/w3c/csswg-drafts/issues/3029
+                inherited_property_id = physical;
+                physical
+            } else {
+                map_physical_to_logical_alias(property_id, writing_mode, direction)
+            };
+            cascaded_property_id = store.property_with_higher_priority(property_id, counterpart_property_id);
+        }
 
-        let computation_order = property_computation_order_for_phase(phase);
-        let mut pending_overflow_x_store: Option<ComputedStoreEntry> = None;
-        let mut pending_effective_color_scheme: i16 = -1;
-        // The element's used color scheme, produced by the preceding color-scheme
-        // stage for generic absolutizations.
-        let current_effective_color_scheme = u8::try_from(*effective_color_scheme).ok();
-        // The computed math-depth, remembered for the font-size rule. A partial font restyle
-        // may reuse the value already stored in the working table instead.
-        let mut computed_math_depth: Option<i32> = None;
-        // The background-image list length, for the coordinated background properties.
-        let mut background_image_list_length: Option<usize> = None;
-        // The computed writing-mode and direction, tracked for logical alias pairing;
-        // both properties only take keywords, whose computed value is the specified one.
-        let mut computed_writing_mode: Option<u8> = None;
-        let mut computed_direction: Option<u8> = None;
-        let mut computed_overflow_x: Option<u16> = None;
-        let mut computed_overflow_y: Option<u16> = None;
-        let mut computed_text_align: Option<u16> = None;
-        let mut computed_display: Option<FfiDisplay> = None;
-        let mut computed_float: Option<u16> = None;
-        let mut computed_position: Option<u16> = None;
-        let computed_property_words = if computed_property_words.is_null() {
+        let mut value = std::ptr::null();
+        let mut source_slot = -1;
+        let mut has_style_sheet_context = false;
+        let mut external_dependencies = None;
+        if let Some((
+            value_data,
+            important,
+            cascaded_source_slot,
+            cascaded_has_style_sheet_context,
+            cascaded_external_dependencies,
+        )) = store.winning_declaration(cascaded_property_id)
+        {
+            value = value_data;
+            source_slot = i64::from(cascaded_source_slot);
+            has_style_sheet_context = cascaded_has_style_sheet_context;
+            external_dependencies = Some(cascaded_external_dependencies);
+            if important {
+                set_longhand_bit(&mut important_words, property_id);
+            }
+            if property_id == crate::css::property_metadata::property_id::FONT_SIZE {
+                longhand_table.set_raw_cascaded_font_size(Some(unsafe {
+                    RetainedStyleValueData::from_retained_pointer(crate::css::style_value::retain_style_value(
+                        value_data.cast(),
+                    ))
+                }));
+            }
+        } else if property_id == crate::css::property_metadata::property_id::FONT_SIZE && has_new_font_size {
+            // NOTE: The recascaded font-size has already been stored before the loop.
+            continue;
+        } else if property_id == crate::css::property_metadata::property_id::FONT_SIZE {
+            longhand_table.set_raw_cascaded_font_size(None);
+        }
+
+        let cascaded_value = if value.is_null() {
             None
         } else {
-            Some(unsafe { std::slice::from_raw_parts(computed_property_words, LONGHAND_WORD_COUNT) })
+            Some(unsafe { &*(value as *const StyleValueData) })
         };
+        let decision = longhand_decision(cascaded_value, property_id);
 
-        for &property_id in computation_order {
-            use crate::css::computed_values::computed_group_output_mask;
-            let required_driver_input = is_required_driver_input(property_id);
-            let output_is_selected = computed_group_output_mask(property_id)
-                .is_none_or(|output_mask| output_mask & computed_group_mask != 0);
-            let property_index = usize::from(property_id - crate::css::property_metadata::FIRST_LONGHAND_PROPERTY_ID);
-            let property_is_selected = computed_property_words
-                .is_some_and(|words| words[property_index / 64] & (1 << (property_index % 64)) != 0);
-            if !required_driver_input
-                && !property_is_selected
-                && (computed_property_words.is_some() || computed_group_mask != u32::MAX && !output_is_selected)
+        // The computation-need level to compare against depends on which source wins;
+        // cascaded is the baseline and is overridden by the inherit and initial paths.
+        let mut required_level = REQUIRES_COMPUTATION_CASCADED;
+
+        let highlight_inherits = highlight
+            .is_some_and(|highlight| highlight_longhand_inherits(cascaded_value, highlight.pseudo_kind, property_id));
+        let highlight_parent_snapshot = if highlight_inherits {
+            highlight.and_then(|highlight| highlight.snapshot.as_ref())
+        } else {
+            None
+        };
+        // https://drafts.csswg.org/css-pseudo-4/#paired-defaults
+        // Paired default highlight colors must only be used when neither 'color' nor
+        // 'background-color' yield a cascaded value from the author origin (or inherit their
+        // value from the author origin).
+        if highlight.is_some() && (property_id == prop::COLOR || property_id == prop::BACKGROUND_COLOR) {
+            results.highlight_colors_authored |= store.winning_origin(property_id) == Some(CascadeOrigin::Author)
+                || highlight_parent_snapshot.is_some_and(|snapshot| snapshot.highlight_colors_authored);
+        }
+        // https://drafts.csswg.org/css-pseudo-4/#highlight-text
+        // currentColor on a highlight pseudo-element's 'color' property represents the color of
+        // the next active highlight pseudo-element layer below, falling back finally to the
+        // colors that would otherwise have been used.
+        // NB: The computed value is still the originating element's color; the flag tells the
+        //     painter to draw the layer below instead.
+        if highlight.is_some() && property_id == prop::COLOR {
+            results.highlight_color_is_current_color = if highlight_inherits {
+                highlight_parent_snapshot.is_none_or(|snapshot| snapshot.highlight_color_is_current_color)
+            } else {
+                matches!(cascaded_value, Some(StyleValueData::Keyword { keyword }) if *keyword == keyword::CURRENTCOLOR)
+            };
+        }
+        let inherit_fetch_attempted = if highlight_parent_snapshot.is_some() {
+            true
+        } else if highlight_inherits {
+            // Additionally, for highlight pseudo-elements originating from the root element the
+            // inherited value of 'color' is currentColor, not the initial value.
+            // NB: currentColor on a highlight pseudo-element is the color of the layer below,
+            //     which without another highlight is the originating element's own.
+            property_id == prop::COLOR && has_inheritance_parent
+        } else {
+            decision.should_inherit && has_inheritance_parent
+        };
+        if inherit_fetch_attempted {
+            source_slot = -1;
+            has_style_sheet_context = false;
+            external_dependencies = None;
+            let snapshot = highlight_parent_snapshot.or(snapshot).unwrap();
+            set_longhand_bit(&mut inherited_words, property_id);
+            if decision.explicitly_inherits_non_inherited_property {
+                results.explicitly_inherited_non_inherited_style_groups |=
+                    crate::css::computed_values::computed_group_output_mask(property_id).unwrap_or(u32::MAX);
+            }
+            // Both the inherited-by-default read and an explicit `inherit` of a
+            // non-inherited property take the parent's stored computed value for
+            // `inherited_property_id` straight from the snapshot's table span.
+            value = snapshot
+                .value(inherited_property_id)
+                .map_or(std::ptr::null(), |data| (data as *const StyleValueData).cast());
+            if property_affects_font_metrics(inherited_property_id) && snapshot.font_metrics_depend_on_viewport_metrics
             {
-                continue;
+                results.font_metrics_depend_on_viewport_metrics = true;
             }
-            set_longhand_bit(&mut evaluated_words, property_id);
-            results.longhand_evaluations = results
-                .longhand_evaluations
-                .checked_add(1)
-                .expect("longhand evaluation count overflow");
-            let mut cascaded_property_id = property_id;
-            let mut inherited_property_id = property_id;
+            required_level = REQUIRES_COMPUTATION_ALWAYS;
+        }
 
-            // https://drafts.csswg.org/css-logical/#box
-            // Within each logical property group, corresponding flow-relative and physical
-            // properties are paired using the element's own computed writing mode; the computed
-            // value of both properties in the pair is derived from the specified value of the
-            // property declared with higher priority in the CSS cascade. A longhand is in a
-            // logical property group exactly when either mapping table maps it.
-            let table_bits = table_row_bits(property_id);
-            let is_logical_alias = table_bits & LOGICAL_ALIAS_BIT != 0;
-            if table_bits != 0 {
-                let (writing_mode, direction) = *cached_writing_mode_and_direction.get_or_insert_with(|| {
-                    // Direction and writing-mode precede every logical property in the
-                    // generated computation order and only accept keywords, so their
-                    // selected values are their computed mapping inputs.
-                    (
-                        computed_writing_mode.expect("writing-mode must precede logical properties"),
-                        computed_direction.expect("direction must precede logical properties"),
-                    )
-                });
-                let counterpart_property_id = if is_logical_alias {
-                    let physical = map_logical_alias_to_physical(property_id, writing_mode, direction);
-                    // AD-HOC: While the spec says that inheritance of logical aliases should be
-                    // direct, other browsers instead inherit from the physical counterpart - the
-                    // CSSWG has resolved to update the spec to reflect this -
-                    // see https://github.com/w3c/csswg-drafts/issues/3029
-                    inherited_property_id = physical;
-                    physical
-                } else {
-                    map_physical_to_logical_alias(property_id, writing_mode, direction)
-                };
-                cascaded_property_id = store.property_with_higher_priority(property_id, counterpart_property_id);
+        let use_initial = if inherit_fetch_attempted {
+            value.is_null() || value_is_initial_or_unset(value)
+        } else {
+            decision.use_initial_without_inherit
+        };
+        if use_initial {
+            source_slot = -1;
+            has_style_sheet_context = false;
+            external_dependencies = Some(initial_value_dependencies(property_id));
+            value = initial_value_data(property_id).cast();
+            required_level = REQUIRES_COMPUTATION_NON_INHERITED;
+        }
+
+        let requires_computation = property_requires_computation_level(property_id) >= required_level;
+
+        // Whether the computed value depends on inherited information, so the specified
+        // value must be kept for re-resolution when an ancestor changes.
+        let value_data = unsafe { &*(value as *const StyleValueData) };
+        let external_dependencies = external_dependencies.unwrap_or_else(|| external_value_dependencies(value_data));
+
+        if tree_counting_context.is_some() && external_dependencies.uses_tree_counting_function {
+            results.uses_tree_counting_function = true;
+        }
+
+        if inherited_property_id == crate::css::property_metadata::property_id::MATH_DEPTH
+            && let StyleValueData::Integer { value } = value_data
+        {
+            // An inherited or initial math-depth is already computed and skips the
+            // cascaded-value computation rule, but font-size still consumes it.
+            computed_math_depth = Some(*value);
+        }
+        if inherited_property_id == crate::css::property_metadata::property_id::BACKGROUND_IMAGE
+            && let StyleValueData::ValueList { values, .. } = value_data
+        {
+            background_image_list_length = Some(values.as_slice().len());
+        }
+        if let StyleValueData::Keyword { keyword } = value_data {
+            if property_id == crate::css::property_metadata::property_id::WRITING_MODE {
+                computed_writing_mode = keyword_to_writing_mode(*keyword);
+            } else if property_id == crate::css::property_metadata::property_id::DIRECTION {
+                computed_direction = keyword_to_direction(*keyword);
             }
+        }
+        let inheritance_dependent = external_dependencies.inheritance_dependent
+            || value_depends_on_inherited_info_for_property(value_data, property_id);
 
-            let mut value = std::ptr::null();
-            let mut source_slot = -1;
-            let mut has_style_sheet_context = false;
-            let mut external_dependencies = None;
-            if let Some((
-                value_data,
-                important,
-                cascaded_source_slot,
-                cascaded_has_style_sheet_context,
-                cascaded_external_dependencies,
-            )) = store.winning_declaration(cascaded_property_id)
-            {
-                value = value_data;
-                source_slot = i64::from(cascaded_source_slot);
-                has_style_sheet_context = cascaded_has_style_sheet_context;
-                external_dependencies = Some(cascaded_external_dependencies);
-                if important {
-                    set_longhand_bit(&mut important_words, property_id);
-                }
-                if property_id == crate::css::property_metadata::property_id::FONT_SIZE {
-                    unsafe { &mut *longhand_table }.set_raw_cascaded_font_size(Some(unsafe {
-                        RetainedStyleValueData::from_retained_pointer(crate::css::style_value::retain_style_value(
-                            value_data.cast(),
-                        ))
-                    }));
-                }
-            } else if property_id == crate::css::property_metadata::property_id::FONT_SIZE && has_new_font_size {
-                // NOTE: The recascaded font-size has already been stored before the loop.
-                continue;
-            } else if property_id == crate::css::property_metadata::property_id::FONT_SIZE {
-                unsafe { &mut *longhand_table }.set_raw_cascaded_font_size(None);
-            }
-
-            let cascaded_value = if value.is_null() {
-                None
-            } else {
-                Some(unsafe { &*(value as *const StyleValueData) })
+        let style_sheet_resource_context = if has_style_sheet_context && source_slot >= 0 {
+            style_sheet_resource_contexts
+                .get(source_slot as usize)
+                .filter(|context| context.has_value)
+                .map(|context| {
+                    let base_url = if context.base_url_length == 0 {
+                        &[][..]
+                    } else {
+                        unsafe { std::slice::from_raw_parts(context.base_url, context.base_url_length) }
+                    };
+                    crate::css::absolutize::StyleSheetResourceContext {
+                        base_url,
+                        origin_clean: context.origin_clean,
+                    }
+                })
+        } else {
+            None
+        };
+        // Absolutizes a value against this element's facts, noting in `results` when it resolved a viewport-relative
+        // length.
+        let absolutize_value = |value: &StyleValueData,
+                                length: &FfiLengthResolutionContext,
+                                scheme: Option<u8>,
+                                results: &mut FfiLonghandDriverResults| {
+            let context = crate::css::absolutize::AbsolutizationContext {
+                length,
+                scheme,
+                resolved_viewport_relative_length: std::cell::Cell::new(false),
+                tree_counting: tree_counting_context,
+                random_base_values,
+                document_base_url,
+                style_sheet_resource_context,
             };
-            let decision = longhand_decision(cascaded_value, property_id);
-
-            // The computation-need level to compare against depends on which source wins;
-            // cascaded is the baseline and is overridden by the inherit and initial paths.
-            let mut required_level = REQUIRES_COMPUTATION_CASCADED;
-
-            let highlight_inherits = highlight.is_some_and(|highlight| {
-                highlight_longhand_inherits(cascaded_value, highlight.pseudo_kind, property_id)
-            });
-            let highlight_parent_snapshot = if highlight_inherits {
-                highlight.and_then(|highlight| highlight.snapshot.as_ref())
-            } else {
-                None
-            };
-            // https://drafts.csswg.org/css-pseudo-4/#paired-defaults
-            // Paired default highlight colors must only be used when neither 'color' nor
-            // 'background-color' yield a cascaded value from the author origin (or inherit their
-            // value from the author origin).
-            if highlight.is_some() && (property_id == prop::COLOR || property_id == prop::BACKGROUND_COLOR) {
-                results.highlight_colors_authored |= store.winning_origin(property_id) == Some(CascadeOrigin::Author)
-                    || highlight_parent_snapshot.is_some_and(|snapshot| snapshot.highlight_colors_authored);
-            }
-            // https://drafts.csswg.org/css-pseudo-4/#highlight-text
-            // currentColor on a highlight pseudo-element's 'color' property represents the color of
-            // the next active highlight pseudo-element layer below, falling back finally to the
-            // colors that would otherwise have been used.
-            // NB: The computed value is still the originating element's color; the flag tells the
-            //     painter to draw the layer below instead.
-            if highlight.is_some() && property_id == prop::COLOR {
-                results.highlight_color_is_current_color = if highlight_inherits {
-                    highlight_parent_snapshot.is_none_or(|snapshot| snapshot.highlight_color_is_current_color)
-                } else {
-                    matches!(cascaded_value, Some(StyleValueData::Keyword { keyword }) if *keyword == keyword::CURRENTCOLOR)
-                };
-            }
-            let inherit_fetch_attempted = if highlight_parent_snapshot.is_some() {
-                true
-            } else if highlight_inherits {
-                // Additionally, for highlight pseudo-elements originating from the root element the
-                // inherited value of 'color' is currentColor, not the initial value.
-                // NB: currentColor on a highlight pseudo-element is the color of the layer below,
-                //     which without another highlight is the originating element's own.
-                property_id == prop::COLOR && has_inheritance_parent
-            } else {
-                decision.should_inherit && has_inheritance_parent
-            };
-            if inherit_fetch_attempted {
-                source_slot = -1;
-                has_style_sheet_context = false;
-                external_dependencies = None;
-                let snapshot = highlight_parent_snapshot.or(snapshot).unwrap();
-                set_longhand_bit(&mut inherited_words, property_id);
-                if decision.explicitly_inherits_non_inherited_property {
-                    results.explicitly_inherited_non_inherited_style_groups |=
-                        crate::css::computed_values::computed_group_output_mask(property_id).unwrap_or(u32::MAX);
-                }
-                // Both the inherited-by-default read and an explicit `inherit` of a
-                // non-inherited property take the parent's stored computed value for
-                // `inherited_property_id` straight from the snapshot's table span.
-                value = snapshot
-                    .value(inherited_property_id)
-                    .map_or(std::ptr::null(), |data| (data as *const StyleValueData).cast());
-                if property_affects_font_metrics(inherited_property_id)
-                    && snapshot.font_metrics_depend_on_viewport_metrics
-                {
+            let outcome = crate::css::absolutize::absolutize(value, &context);
+            if context.resolved_viewport_relative_length.get() {
+                results.depends_on_viewport_metrics = true;
+                if property_affects_font_metrics(inherited_property_id) {
                     results.font_metrics_depend_on_viewport_metrics = true;
                 }
-                required_level = REQUIRES_COMPUTATION_ALWAYS;
             }
+            outcome
+        };
 
-            let use_initial = if inherit_fetch_attempted {
-                value.is_null() || value_is_initial_or_unset(value)
-            } else {
-                decision.use_initial_without_inherit
-            };
-            if use_initial {
-                source_slot = -1;
-                has_style_sheet_context = false;
-                external_dependencies = Some(initial_value_dependencies(property_id));
-                value = initial_value_data(property_id).cast();
-                required_level = REQUIRES_COMPUTATION_NON_INHERITED;
-            }
-
-            let requires_computation = property_requires_computation_level(property_id) >= required_level;
-
-            // Whether the computed value depends on inherited information, so the specified
-            // value must be kept for re-resolution when an ancestor changes.
-            let value_data = unsafe { &*(value as *const StyleValueData) };
-            let external_dependencies =
-                external_dependencies.unwrap_or_else(|| external_value_dependencies(value_data));
-
-            if tree_counting_context.is_some() && external_dependencies.uses_tree_counting_function {
-                results.uses_tree_counting_function = true;
-            }
-
-            if inherited_property_id == crate::css::property_metadata::property_id::MATH_DEPTH
-                && let StyleValueData::Integer { value } = value_data
+        let mut entry = if requires_computation {
+            // First classify values handled by simple absolutization. Recursive and
+            // dedicated property rules below handle the remaining shapes.
+            // The specified value absolutized natively when the core can:
+            // Some(None) leaves the value unchanged, Some(Some(px)) resolves it to
+            // a pixel length, and None means no simple result is available.
+            let mut absolutized: Option<Option<f64>> = if value_absolutization_is_identity(value_data) {
+                Some(None)
+            } else if let StyleValueData::Length {
+                value: length_value,
+                unit,
+            } = value_data
             {
-                // An inherited or initial math-depth is already computed and skips the
-                // cascaded-value computation rule, but font-size still consumes it.
-                computed_math_depth = Some(*value);
-            }
-            if inherited_property_id == crate::css::property_metadata::property_id::BACKGROUND_IMAGE
-                && let StyleValueData::ValueList { values, .. } = value_data
-            {
-                background_image_list_length = Some(values.as_slice().len());
-            }
-            if let StyleValueData::Keyword { keyword } = value_data {
-                if property_id == crate::css::property_metadata::property_id::WRITING_MODE {
-                    computed_writing_mode = keyword_to_writing_mode(*keyword);
-                } else if property_id == crate::css::property_metadata::property_id::DIRECTION {
-                    computed_direction = keyword_to_direction(*keyword);
-                }
-            }
-            let inheritance_dependent = external_dependencies.inheritance_dependent
-                || value_depends_on_inherited_info_for_property(value_data, property_id);
-
-            let style_sheet_resource_context = if has_style_sheet_context && source_slot >= 0 {
-                style_sheet_resource_contexts
-                    .get(source_slot as usize)
-                    .filter(|context| context.has_value)
-                    .map(|context| {
-                        let base_url = if context.base_url_length == 0 {
-                            &[][..]
-                        } else {
-                            unsafe { std::slice::from_raw_parts(context.base_url, context.base_url_length) }
-                        };
-                        crate::css::absolutize::StyleSheetResourceContext {
-                            base_url,
-                            origin_clean: context.origin_clean,
-                        }
-                    })
-            } else {
-                None
-            };
-
-            let mut entry = if requires_computation {
-                // First classify values handled by simple absolutization. Recursive and
-                // dedicated property rules below handle the remaining shapes.
-                // The specified value absolutized natively when the core can:
-                // Some(None) leaves the value unchanged, Some(Some(px)) resolves it to
-                // a pixel length, and None means no simple result is available.
-                let mut absolutized: Option<Option<f64>> = if value_absolutization_is_identity(value_data) {
-                    Some(None)
-                } else if let StyleValueData::Length {
-                    value: length_value,
-                    unit,
-                } = value_data
-                {
-                    let resolution_context =
-                        length_resolution_context.expect("a length-valued property must run with a resolution context");
-                    let result = absolutize_length(*length_value, *unit as usize, resolution_context);
-                    if result.handled {
-                        if result.resolved_viewport_relative_length {
-                            results.depends_on_viewport_metrics = true;
-                            if property_affects_font_metrics(inherited_property_id) {
-                                results.font_metrics_depend_on_viewport_metrics = true;
-                            }
-                        }
-                        Some(result.changed.then_some(result.px))
-                    } else {
-                        None
-                    }
-                } else {
-                    None
-                };
-
-                // Resolve recursively absolutized inputs once against the immutable facts
-                // captured before entering the drive. Dedicated property rules then consume
-                // the resolved structure just like any other specified value.
-                let externally_absolutized = if external_dependencies.uses_tree_counting_function
-                    || external_dependencies.container_relative_length_unit_mask != 0
-                    || external_dependencies.has_unfixed_random_sharing
-                    || matches!(value_data, StyleValueData::Calculated { .. })
-                    || inherited_property_id == crate::css::property_metadata::property_id::MATH_DEPTH
-                        && matches!(
-                            value_data,
-                            StyleValueData::Calculated { .. } | StyleValueData::Function { .. }
-                        ) {
-                    let resolution_context =
-                        length_resolution_context.expect("recursive inputs require a length resolution context");
-                    let scheme = if phase == LONGHAND_DRIVE_PHASE_REMAINING {
-                        current_effective_color_scheme
-                    } else {
-                        None
-                    };
-                    let absolutization_context = crate::css::absolutize::AbsolutizationContext {
-                        length: resolution_context,
-                        scheme,
-                        resolved_viewport_relative_length: std::cell::Cell::new(false),
-                        tree_counting: tree_counting_context,
-                        random_base_values,
-                        document_base_url,
-                        style_sheet_resource_context,
-                    };
-                    let outcome = crate::css::absolutize::absolutize(value_data, &absolutization_context);
-                    if absolutization_context.resolved_viewport_relative_length.get() {
+                let resolution_context =
+                    length_resolution_context.expect("a length-valued property must run with a resolution context");
+                let result = absolutize_length(*length_value, *unit as usize, resolution_context);
+                if result.handled {
+                    if result.resolved_viewport_relative_length {
                         results.depends_on_viewport_metrics = true;
                         if property_affects_font_metrics(inherited_property_id) {
                             results.font_metrics_depend_on_viewport_metrics = true;
                         }
                     }
-                    match outcome {
-                        Some(crate::css::absolutize::Absolutized::Changed(value)) => Some(value.into_arc()),
-                        Some(crate::css::absolutize::Absolutized::Unchanged) | None => None,
-                    }
+                    Some(result.changed.then_some(result.px))
+                } else {
+                    None
+                }
+            } else {
+                None
+            };
+
+            // Resolve recursively absolutized inputs once against the immutable facts
+            // captured before entering the drive. Dedicated property rules then consume
+            // the resolved structure just like any other specified value.
+            let externally_absolutized = if external_dependencies.uses_tree_counting_function
+                || external_dependencies.container_relative_length_unit_mask != 0
+                || external_dependencies.has_unfixed_random_sharing
+                || matches!(value_data, StyleValueData::Calculated { .. })
+                || inherited_property_id == crate::css::property_metadata::property_id::MATH_DEPTH
+                    && matches!(
+                        value_data,
+                        StyleValueData::Calculated { .. } | StyleValueData::Function { .. }
+                    ) {
+                let resolution_context =
+                    length_resolution_context.expect("recursive inputs require a length resolution context");
+                let scheme = if phase == LONGHAND_DRIVE_PHASE_REMAINING {
+                    current_effective_color_scheme
                 } else {
                     None
                 };
-                let value_data = externally_absolutized.as_deref().unwrap_or(value_data);
-                if absolutized.is_none()
-                    && externally_absolutized.is_some()
-                    && let StyleValueData::Length {
-                        value: length_value,
-                        unit,
-                    } = value_data
-                {
-                    let resolution_context =
-                        length_resolution_context.expect("a length-valued property must run with a resolution context");
-                    let result = absolutize_length(*length_value, *unit as usize, resolution_context);
-                    if result.handled {
-                        absolutized = Some(result.changed.then_some(result.px));
-                    }
+                let outcome = absolutize_value(value_data, resolution_context, scheme, results);
+                match outcome {
+                    Some(crate::css::absolutize::Absolutized::Changed(value)) => Some(value.into_arc()),
+                    Some(crate::css::absolutize::Absolutized::Unchanged) | None => None,
                 }
+            } else {
+                None
+            };
+            let value_data = externally_absolutized.as_deref().unwrap_or(value_data);
+            if absolutized.is_none()
+                && externally_absolutized.is_some()
+                && let StyleValueData::Length {
+                    value: length_value,
+                    unit,
+                } = value_data
+            {
+                let resolution_context =
+                    length_resolution_context.expect("a length-valued property must run with a resolution context");
+                let result = absolutize_length(*length_value, *unit as usize, resolution_context);
+                if result.handled {
+                    absolutized = Some(result.changed.then_some(result.px));
+                }
+            }
 
-                // The computed value: for properties without a dedicated rule the
-                // absolutized value is the computed value; the dedicated rules that
-                // have moved into the core run over the absolutized value here.
-                enum NativeValue {
-                    Unsupported,
-                    Unchanged,
-                    Px(f64),
-                    Integer(i32),
-                    Superellipse(f64),
-                    Number(f64),
-                    Percentage(f64),
-                    FontStyle(u8),
-                    StyleValue(Arc<StyleValueData>),
+            // The computed value: for properties without a dedicated rule the
+            // absolutized value is the computed value; the dedicated rules that
+            // have moved into the core run over the absolutized value here.
+            enum NativeValue {
+                Unsupported,
+                Unchanged,
+                Px(f64),
+                Integer(i32),
+                Superellipse(f64),
+                Number(f64),
+                Percentage(f64),
+                FontStyle(u8),
+                StyleValue(Arc<StyleValueData>),
+            }
+            use crate::css::property_metadata::property_id as prop;
+            let synthesized_px_length = |absolutized: Option<f64>| {
+                absolutized.map(|px| StyleValueData::Length {
+                    value: px,
+                    unit: px_length_unit(),
+                })
+            };
+            let native = match (absolutized, inherited_property_id) {
+                (
+                    Some(absolutized),
+                    prop::BORDER_BOTTOM_WIDTH
+                    | prop::BORDER_LEFT_WIDTH
+                    | prop::BORDER_RIGHT_WIDTH
+                    | prop::BORDER_TOP_WIDTH
+                    | prop::OUTLINE_WIDTH
+                    | prop::COLUMN_RULE_WIDTH,
+                ) => {
+                    let synthesized = synthesized_px_length(absolutized);
+                    let result = compute_border_or_outline_width(
+                        synthesized.as_ref().unwrap_or(value_data),
+                        device_pixels_per_css_pixel,
+                        None,
+                    );
+                    if result.handled {
+                        NativeValue::Px(result.value)
+                    } else {
+                        NativeValue::Unsupported
+                    }
                 }
-                use crate::css::property_metadata::property_id as prop;
-                let synthesized_px_length = |absolutized: Option<f64>| {
-                    absolutized.map(|px| StyleValueData::Length {
-                        value: px,
-                        unit: px_length_unit(),
-                    })
-                };
-                let native = match (absolutized, inherited_property_id) {
-                    (
-                        Some(absolutized),
-                        prop::BORDER_BOTTOM_WIDTH
-                        | prop::BORDER_LEFT_WIDTH
-                        | prop::BORDER_RIGHT_WIDTH
-                        | prop::BORDER_TOP_WIDTH
-                        | prop::OUTLINE_WIDTH
-                        | prop::COLUMN_RULE_WIDTH,
-                    ) => {
-                        let synthesized = synthesized_px_length(absolutized);
-                        let result = compute_border_or_outline_width(
-                            synthesized.as_ref().unwrap_or(value_data),
-                            device_pixels_per_css_pixel,
-                            None,
-                        );
-                        if result.handled {
-                            NativeValue::Px(result.value)
-                        } else {
-                            NativeValue::Unsupported
-                        }
+                (
+                    None,
+                    prop::BORDER_BOTTOM_WIDTH
+                    | prop::BORDER_LEFT_WIDTH
+                    | prop::BORDER_RIGHT_WIDTH
+                    | prop::BORDER_TOP_WIDTH
+                    | prop::OUTLINE_WIDTH
+                    | prop::COLUMN_RULE_WIDTH,
+                ) if matches!(value_data, StyleValueData::Calculated { .. }) => {
+                    let resolution_context = length_resolution_context
+                        .expect("calculated border widths require a length resolution context");
+                    let mut resolved_viewport_relative_length = false;
+                    let mut calc_resolution_context = *resolution_context;
+                    calc_resolution_context.resolved_viewport_relative_length =
+                        &raw mut resolved_viewport_relative_length;
+                    let result = compute_border_or_outline_width(
+                        value_data,
+                        device_pixels_per_css_pixel,
+                        Some(&calc_resolution_context),
+                    );
+                    if resolved_viewport_relative_length {
+                        results.depends_on_viewport_metrics = true;
                     }
-                    (
-                        None,
-                        prop::BORDER_BOTTOM_WIDTH
-                        | prop::BORDER_LEFT_WIDTH
-                        | prop::BORDER_RIGHT_WIDTH
-                        | prop::BORDER_TOP_WIDTH
-                        | prop::OUTLINE_WIDTH
-                        | prop::COLUMN_RULE_WIDTH,
-                    ) if matches!(value_data, StyleValueData::Calculated { .. }) => {
-                        let resolution_context = length_resolution_context
-                            .expect("calculated border widths require a length resolution context");
-                        let mut resolved_viewport_relative_length = false;
-                        let mut calc_resolution_context = *resolution_context;
-                        calc_resolution_context.resolved_viewport_relative_length =
-                            &raw mut resolved_viewport_relative_length;
-                        let result = compute_border_or_outline_width(
-                            value_data,
-                            device_pixels_per_css_pixel,
-                            Some(&calc_resolution_context),
-                        );
-                        if resolved_viewport_relative_length {
-                            results.depends_on_viewport_metrics = true;
-                        }
-                        if result.handled {
-                            NativeValue::Px(result.value)
-                        } else {
-                            NativeValue::Unsupported
-                        }
+                    if result.handled {
+                        NativeValue::Px(result.value)
+                    } else {
+                        NativeValue::Unsupported
                     }
-                    (
-                        Some(_),
-                        prop::CORNER_BOTTOM_LEFT_SHAPE
-                        | prop::CORNER_BOTTOM_RIGHT_SHAPE
-                        | prop::CORNER_TOP_LEFT_SHAPE
-                        | prop::CORNER_TOP_RIGHT_SHAPE,
-                    ) => {
-                        // Corner shape keywords reach here because their absolutization is the identity.
-                        let result = compute_corner_shape_parameter(value_data);
-                        if result.handled && !result.unchanged {
-                            NativeValue::Superellipse(result.value)
-                        } else if result.handled {
-                            NativeValue::Unchanged
-                        } else {
-                            NativeValue::Unsupported
-                        }
+                }
+                (
+                    Some(_),
+                    prop::CORNER_BOTTOM_LEFT_SHAPE
+                    | prop::CORNER_BOTTOM_RIGHT_SHAPE
+                    | prop::CORNER_TOP_LEFT_SHAPE
+                    | prop::CORNER_TOP_RIGHT_SHAPE,
+                ) => {
+                    // Corner shape keywords reach here because their absolutization is the identity.
+                    let result = compute_corner_shape_parameter(value_data);
+                    if result.handled && !result.unchanged {
+                        NativeValue::Superellipse(result.value)
+                    } else if result.handled {
+                        NativeValue::Unchanged
+                    } else {
+                        NativeValue::Unsupported
                     }
-                    (
-                        None,
-                        prop::CORNER_BOTTOM_LEFT_SHAPE
-                        | prop::CORNER_BOTTOM_RIGHT_SHAPE
-                        | prop::CORNER_TOP_LEFT_SHAPE
-                        | prop::CORNER_TOP_RIGHT_SHAPE,
-                    ) => {
-                        let resolution_context =
-                            length_resolution_context.expect("corner shapes require a length resolution context");
-                        let absolutization_context = crate::css::absolutize::AbsolutizationContext {
-                            length: resolution_context,
-                            scheme: current_effective_color_scheme,
-                            resolved_viewport_relative_length: std::cell::Cell::new(false),
-                            tree_counting: tree_counting_context,
-                            random_base_values,
-                            document_base_url,
-                            style_sheet_resource_context,
-                        };
-                        let absolutized = crate::css::absolutize::absolutize(value_data, &absolutization_context);
-                        if absolutization_context.resolved_viewport_relative_length.get() {
-                            results.depends_on_viewport_metrics = true;
-                        }
-                        match absolutized {
-                            Some(crate::css::absolutize::Absolutized::Unchanged) => {
-                                let result = compute_corner_shape_parameter(value_data);
-                                if result.handled && !result.unchanged {
-                                    NativeValue::Superellipse(result.value)
-                                } else if result.handled {
-                                    NativeValue::Unchanged
-                                } else {
-                                    NativeValue::Unsupported
-                                }
-                            }
-                            Some(crate::css::absolutize::Absolutized::Changed(value)) => {
-                                let result = compute_corner_shape_parameter(value.data());
-                                if result.handled && !result.unchanged {
-                                    NativeValue::Superellipse(result.value)
-                                } else if result.handled {
-                                    NativeValue::StyleValue(value.into_arc())
-                                } else {
-                                    NativeValue::Unsupported
-                                }
-                            }
-                            None => NativeValue::Unsupported,
-                        }
-                    }
-                    (native_absolutized, prop::MATH_DEPTH)
-                        if native_absolutized.is_some()
-                            || externally_absolutized.is_some()
-                            || matches!(
-                                value_data,
-                                StyleValueData::Calculated { .. } | StyleValueData::Function { .. }
-                            ) =>
-                    {
-                        // The inherited math-depth and math-style come from the parent
-                        // snapshot; without an inheritance parent the initial values apply
-                        // (math-depth 0, math-style normal).
-                        let (inherited_math_depth, inherited_math_style_is_compact) = match snapshot {
-                            Some(snapshot) => {
-                                let math_depth = match snapshot.value(prop::MATH_DEPTH) {
-                                    Some(StyleValueData::Integer { value }) => *value,
-                                    _ => 0,
-                                };
-                                let compact = matches!(
-                                    snapshot.value(prop::MATH_STYLE),
-                                    Some(StyleValueData::Keyword { keyword }) if *keyword == keyword::COMPACT
-                                );
-                                (math_depth, compact)
-                            }
-                            None => (0, false),
-                        };
-                        let result =
-                            compute_math_depth(value_data, inherited_math_depth, inherited_math_style_is_compact);
-                        if result.handled {
-                            computed_math_depth = Some(result.value as i32);
-                            NativeValue::Integer(result.value as i32)
-                        } else {
-                            NativeValue::Unsupported
-                        }
-                    }
-                    (native_absolutized, prop::FONT_SIZE)
-                        if native_absolutized.is_some()
-                            || externally_absolutized.is_some()
-                            || matches!(value_data, StyleValueData::Calculated { .. }) =>
-                    {
-                        let absolutized = native_absolutized.flatten();
-                        let computed_math_depth = computed_math_depth.or_else(|| {
-                            unsafe { &*longhand_table }
-                                .get(prop::MATH_DEPTH)
-                                .and_then(|value| match value.data() {
-                                    StyleValueData::Integer { value } => Some(*value),
-                                    _ => None,
-                                })
-                        });
-                        if let Some(computed_math_depth) = computed_math_depth {
-                            // A font-size relative to the inherited size also inherits the
-                            // parent's viewport dependence of its font metrics.
-                            if value_depends_on_inherited_info_for_property(value_data, prop::FONT_SIZE)
-                                && snapshot.is_some_and(|snapshot| snapshot.font_metrics_depend_on_viewport_metrics)
-                            {
-                                results.depends_on_viewport_metrics = true;
-                                results.font_metrics_depend_on_viewport_metrics = true;
-                            }
-                            let inherited = match snapshot {
-                                Some(snapshot) => match snapshot.value(prop::FONT_SIZE) {
-                                    Some(StyleValueData::Length { value, unit }) if *unit == px_length_unit() => {
-                                        let math_depth = match snapshot.value(prop::MATH_DEPTH) {
-                                            Some(StyleValueData::Integer { value }) => *value,
-                                            _ => 0,
-                                        };
-                                        Some((CssPixels::nearest_value_for(*value), math_depth))
-                                    }
-                                    _ => None,
-                                },
-                                None => Some((CssPixels::from_raw(initial_font_size_raw), 0)),
-                            };
-                            match inherited {
-                                Some((inherited_font_size, inherited_math_depth)) => {
-                                    let synthesized = synthesized_px_length(absolutized);
-                                    let result = compute_font_size(
-                                        synthesized.as_ref().unwrap_or(value_data),
-                                        computed_math_depth,
-                                        inherited_font_size,
-                                        inherited_math_depth,
-                                        CssPixels::from_raw(default_font_size_raw),
-                                    );
-                                    if result.handled {
-                                        if result.unchanged {
-                                            match absolutized {
-                                                Some(px) => NativeValue::Px(px),
-                                                None => NativeValue::Unchanged,
-                                            }
-                                        } else {
-                                            NativeValue::Px(result.value)
-                                        }
-                                    } else {
-                                        NativeValue::Unsupported
-                                    }
-                                }
-                                None => NativeValue::Unsupported,
-                            }
-                        } else {
-                            NativeValue::Unsupported
-                        }
-                    }
-                    (native_absolutized, prop::FONT_WEIGHT)
-                        if native_absolutized.is_some()
-                            || externally_absolutized.is_some()
-                            || matches!(value_data, StyleValueData::Calculated { .. }) =>
-                    {
-                        let inherited_font_weight = match snapshot {
-                            Some(snapshot) => match snapshot.value(prop::FONT_WEIGHT) {
-                                Some(StyleValueData::Number { value }) => Some(*value),
-                                _ => None,
-                            },
-                            None => Some(400.0),
-                        };
-                        match inherited_font_weight {
-                            Some(inherited_font_weight) => {
-                                let result = compute_font_weight(value_data, inherited_font_weight);
-                                if result.handled {
-                                    if result.unchanged {
-                                        NativeValue::Unchanged
-                                    } else {
-                                        NativeValue::Number(result.value)
-                                    }
-                                } else {
-                                    NativeValue::Unsupported
-                                }
-                            }
-                            None => NativeValue::Unsupported,
-                        }
-                    }
-                    (Some(_), prop::FONT_STYLE) => match value_data {
-                        StyleValueData::Keyword { keyword } => match keyword_to_font_style_keyword(*keyword) {
-                            Some(font_style_keyword) => NativeValue::FontStyle(font_style_keyword),
-                            None => NativeValue::Unchanged,
-                        },
-                        _ => NativeValue::Unchanged,
-                    },
-                    (None, prop::FONT_STYLE) if matches!(value_data, StyleValueData::FontStyle { .. }) => {
-                        let resolution_context =
-                            length_resolution_context.expect("font-style requires a length resolution context");
-                        let absolutization_context = crate::css::absolutize::AbsolutizationContext {
-                            length: resolution_context,
-                            scheme: None,
-                            resolved_viewport_relative_length: std::cell::Cell::new(false),
-                            tree_counting: tree_counting_context,
-                            random_base_values,
-                            document_base_url,
-                            style_sheet_resource_context,
-                        };
-                        match crate::css::absolutize::absolutize(value_data, &absolutization_context) {
-                            Some(crate::css::absolutize::Absolutized::Unchanged) => NativeValue::Unchanged,
-                            Some(crate::css::absolutize::Absolutized::Changed(value)) => {
-                                NativeValue::StyleValue(value.into_arc())
-                            }
-                            None => NativeValue::Unsupported,
-                        }
-                    }
-                    (native_absolutized, prop::FONT_WIDTH)
-                        if native_absolutized.is_some()
-                            || externally_absolutized.is_some()
-                            || matches!(value_data, StyleValueData::Calculated { .. }) =>
-                    {
-                        let result = compute_font_width(value_data);
-                        if result.handled {
-                            if result.unchanged {
+                }
+                (
+                    None,
+                    prop::CORNER_BOTTOM_LEFT_SHAPE
+                    | prop::CORNER_BOTTOM_RIGHT_SHAPE
+                    | prop::CORNER_TOP_LEFT_SHAPE
+                    | prop::CORNER_TOP_RIGHT_SHAPE,
+                ) => {
+                    let resolution_context =
+                        length_resolution_context.expect("corner shapes require a length resolution context");
+                    let absolutized =
+                        absolutize_value(value_data, resolution_context, current_effective_color_scheme, results);
+                    match absolutized {
+                        Some(crate::css::absolutize::Absolutized::Unchanged) => {
+                            let result = compute_corner_shape_parameter(value_data);
+                            if result.handled && !result.unchanged {
+                                NativeValue::Superellipse(result.value)
+                            } else if result.handled {
                                 NativeValue::Unchanged
                             } else {
-                                NativeValue::Percentage(result.value)
+                                NativeValue::Unsupported
                             }
-                        } else {
-                            NativeValue::Unsupported
                         }
+                        Some(crate::css::absolutize::Absolutized::Changed(value)) => {
+                            let result = compute_corner_shape_parameter(value.data());
+                            if result.handled && !result.unchanged {
+                                NativeValue::Superellipse(result.value)
+                            } else if result.handled {
+                                NativeValue::StyleValue(value.into_arc())
+                            } else {
+                                NativeValue::Unsupported
+                            }
+                        }
+                        None => NativeValue::Unsupported,
                     }
-                    (Some(_), prop::FONT_FEATURE_SETTINGS | prop::FONT_VARIATION_SETTINGS)
-                        if matches!(value_data, StyleValueData::Keyword { .. }) =>
-                    {
-                        NativeValue::Unchanged
+                }
+                (native_absolutized, prop::MATH_DEPTH)
+                    if native_absolutized.is_some()
+                        || externally_absolutized.is_some()
+                        || matches!(
+                            value_data,
+                            StyleValueData::Calculated { .. } | StyleValueData::Function { .. }
+                        ) =>
+                {
+                    // The inherited math-depth and math-style come from the parent
+                    // snapshot; without an inheritance parent the initial values apply
+                    // (math-depth 0, math-style normal).
+                    let (inherited_math_depth, inherited_math_style_is_compact) = match snapshot {
+                        Some(snapshot) => {
+                            let math_depth = match snapshot.value(prop::MATH_DEPTH) {
+                                Some(StyleValueData::Integer { value }) => *value,
+                                _ => 0,
+                            };
+                            let compact = matches!(
+                                snapshot.value(prop::MATH_STYLE),
+                                Some(StyleValueData::Keyword { keyword }) if *keyword == keyword::COMPACT
+                            );
+                            (math_depth, compact)
+                        }
+                        None => (0, false),
+                    };
+                    let result = compute_math_depth(value_data, inherited_math_depth, inherited_math_style_is_compact);
+                    if result.handled {
+                        computed_math_depth = Some(result.value as i32);
+                        NativeValue::Integer(result.value as i32)
+                    } else {
+                        NativeValue::Unsupported
                     }
-                    (None, prop::FONT_FEATURE_SETTINGS | prop::FONT_VARIATION_SETTINGS) => {
-                        let resolution_context = length_resolution_context
-                            .expect("font feature settings require a length resolution context");
-                        let absolutization_context = crate::css::absolutize::AbsolutizationContext {
-                            length: resolution_context,
-                            scheme: None,
-                            resolved_viewport_relative_length: std::cell::Cell::new(false),
-                            tree_counting: tree_counting_context,
-                            random_base_values,
-                            document_base_url,
-                            style_sheet_resource_context,
-                        };
-                        let absolutized = crate::css::absolutize::absolutize(value_data, &absolutization_context);
-                        if absolutization_context.resolved_viewport_relative_length.get() {
+                }
+                (native_absolutized, prop::FONT_SIZE)
+                    if native_absolutized.is_some()
+                        || externally_absolutized.is_some()
+                        || matches!(value_data, StyleValueData::Calculated { .. }) =>
+                {
+                    let absolutized = native_absolutized.flatten();
+                    let computed_math_depth = computed_math_depth.or_else(|| {
+                        longhand_table
+                            .get(prop::MATH_DEPTH)
+                            .and_then(|value| match value.data() {
+                                StyleValueData::Integer { value } => Some(*value),
+                                _ => None,
+                            })
+                    });
+                    if let Some(computed_math_depth) = computed_math_depth {
+                        // A font-size relative to the inherited size also inherits the
+                        // parent's viewport dependence of its font metrics.
+                        if value_depends_on_inherited_info_for_property(value_data, prop::FONT_SIZE)
+                            && snapshot.is_some_and(|snapshot| snapshot.font_metrics_depend_on_viewport_metrics)
+                        {
                             results.depends_on_viewport_metrics = true;
+                            results.font_metrics_depend_on_viewport_metrics = true;
                         }
-                        match absolutized {
-                            Some(crate::css::absolutize::Absolutized::Unchanged) => {
-                                NativeValue::StyleValue(compute_font_feature_tag_value_list(value_data))
-                            }
-                            Some(crate::css::absolutize::Absolutized::Changed(value)) => {
-                                NativeValue::StyleValue(compute_font_feature_tag_value_list(value.data()))
+                        let inherited = match snapshot {
+                            Some(snapshot) => match snapshot.value(prop::FONT_SIZE) {
+                                Some(StyleValueData::Length { value, unit }) if *unit == px_length_unit() => {
+                                    let math_depth = match snapshot.value(prop::MATH_DEPTH) {
+                                        Some(StyleValueData::Integer { value }) => *value,
+                                        _ => 0,
+                                    };
+                                    Some((CssPixels::nearest_value_for(*value), math_depth))
+                                }
+                                _ => None,
+                            },
+                            None => Some((CssPixels::from_raw(initial_font_size_raw), 0)),
+                        };
+                        match inherited {
+                            Some((inherited_font_size, inherited_math_depth)) => {
+                                let synthesized = synthesized_px_length(absolutized);
+                                let result = compute_font_size(
+                                    synthesized.as_ref().unwrap_or(value_data),
+                                    computed_math_depth,
+                                    inherited_font_size,
+                                    inherited_math_depth,
+                                    CssPixels::from_raw(default_font_size_raw),
+                                );
+                                if result.handled {
+                                    if result.unchanged {
+                                        match absolutized {
+                                            Some(px) => NativeValue::Px(px),
+                                            None => NativeValue::Unchanged,
+                                        }
+                                    } else {
+                                        NativeValue::Px(result.value)
+                                    }
+                                } else {
+                                    NativeValue::Unsupported
+                                }
                             }
                             None => NativeValue::Unsupported,
                         }
+                    } else {
+                        NativeValue::Unsupported
                     }
-                    (_, prop::LINE_HEIGHT) if matches!(value_data, StyleValueData::Calculated { .. }) => {
-                        let resolution_context = length_resolution_context
-                            .expect("calculated line-height requires a length resolution context");
-                        let result = compute_line_height(
-                            value_data,
-                            CssPixels::nearest_value_for(resolution_context.font_metrics.font_size),
-                        );
-                        if result.handled && result.is_number {
-                            NativeValue::Number(result.value)
-                        } else if result.handled && !result.unchanged {
-                            NativeValue::Px(result.value)
-                        } else if result.handled {
+                }
+                (native_absolutized, prop::FONT_WEIGHT)
+                    if native_absolutized.is_some()
+                        || externally_absolutized.is_some()
+                        || matches!(value_data, StyleValueData::Calculated { .. }) =>
+                {
+                    let inherited_font_weight = match snapshot {
+                        Some(snapshot) => match snapshot.value(prop::FONT_WEIGHT) {
+                            Some(StyleValueData::Number { value }) => Some(*value),
+                            _ => None,
+                        },
+                        None => Some(400.0),
+                    };
+                    match inherited_font_weight {
+                        Some(inherited_font_weight) => {
+                            let result = compute_font_weight(value_data, inherited_font_weight);
+                            if result.handled {
+                                if result.unchanged {
+                                    NativeValue::Unchanged
+                                } else {
+                                    NativeValue::Number(result.value)
+                                }
+                            } else {
+                                NativeValue::Unsupported
+                            }
+                        }
+                        None => NativeValue::Unsupported,
+                    }
+                }
+                (Some(_), prop::FONT_STYLE) => match value_data {
+                    StyleValueData::Keyword { keyword } => match keyword_to_font_style_keyword(*keyword) {
+                        Some(font_style_keyword) => NativeValue::FontStyle(font_style_keyword),
+                        None => NativeValue::Unchanged,
+                    },
+                    _ => NativeValue::Unchanged,
+                },
+                (None, prop::FONT_STYLE) if matches!(value_data, StyleValueData::FontStyle { .. }) => {
+                    let resolution_context =
+                        length_resolution_context.expect("font-style requires a length resolution context");
+                    match absolutize_value(value_data, resolution_context, None, results) {
+                        Some(crate::css::absolutize::Absolutized::Unchanged) => NativeValue::Unchanged,
+                        Some(crate::css::absolutize::Absolutized::Changed(value)) => {
+                            NativeValue::StyleValue(value.into_arc())
+                        }
+                        None => NativeValue::Unsupported,
+                    }
+                }
+                (native_absolutized, prop::FONT_WIDTH)
+                    if native_absolutized.is_some()
+                        || externally_absolutized.is_some()
+                        || matches!(value_data, StyleValueData::Calculated { .. }) =>
+                {
+                    let result = compute_font_width(value_data);
+                    if result.handled {
+                        if result.unchanged {
                             NativeValue::Unchanged
                         } else {
-                            NativeValue::Unsupported
+                            NativeValue::Percentage(result.value)
                         }
+                    } else {
+                        NativeValue::Unsupported
                     }
-                    (_, prop::LINE_HEIGHT) => {
-                        let absolutized = absolutized.flatten();
-                        let result = if matches!(value_data, StyleValueData::Percentage { .. }) {
-                            let resolution_context =
-                                length_resolution_context.expect("line-height must run with a resolution context");
-                            compute_line_height(
-                                value_data,
-                                CssPixels::nearest_value_for(resolution_context.font_metrics.font_size),
-                            )
-                        } else {
-                            let synthesized = synthesized_px_length(absolutized);
-                            compute_line_height(synthesized.as_ref().unwrap_or(value_data), CssPixels::from_raw(0))
-                        };
-                        if result.handled {
-                            if result.unchanged {
-                                match absolutized {
-                                    Some(px) => NativeValue::Px(px),
-                                    None => NativeValue::Unchanged,
-                                }
-                            } else if result.is_number {
-                                NativeValue::Number(result.value)
-                            } else {
-                                NativeValue::Px(result.value)
-                            }
-                        } else {
-                            NativeValue::Unsupported
+                }
+                (Some(_), prop::FONT_FEATURE_SETTINGS | prop::FONT_VARIATION_SETTINGS)
+                    if matches!(value_data, StyleValueData::Keyword { .. }) =>
+                {
+                    NativeValue::Unchanged
+                }
+                (None, prop::FONT_FEATURE_SETTINGS | prop::FONT_VARIATION_SETTINGS) => {
+                    let resolution_context =
+                        length_resolution_context.expect("font feature settings require a length resolution context");
+                    let absolutized = absolutize_value(value_data, resolution_context, None, results);
+                    match absolutized {
+                        Some(crate::css::absolutize::Absolutized::Unchanged) => {
+                            NativeValue::StyleValue(compute_font_feature_tag_value_list(value_data))
                         }
-                    }
-                    (None, prop::FONT_FAMILY) if matches!(value_data, StyleValueData::ValueList { .. }) => {
-                        // A font-family list only ever holds keywords, strings and custom
-                        // identifiers, whose absolutization is the identity.
-                        NativeValue::Unchanged
-                    }
-                    (
-                        None,
-                        prop::BACKGROUND_ATTACHMENT
-                        | prop::BACKGROUND_CLIP
-                        | prop::BACKGROUND_ORIGIN
-                        | prop::BACKGROUND_POSITION_X
-                        | prop::BACKGROUND_POSITION_Y
-                        | prop::BACKGROUND_REPEAT
-                        | prop::BACKGROUND_SIZE,
-                    ) => {
-                        // NB: The background properties are coordinated at compute time rather
-                        //     than use time, unlike other coordinating list property groups.
-                        let layer_count = background_image_list_length
-                            .or_else(|| {
-                                unsafe { &*longhand_table }
-                                    .get(prop::BACKGROUND_IMAGE)
-                                    .and_then(|value| match value.data() {
-                                        StyleValueData::ValueList { values, .. } => Some(values.as_slice().len()),
-                                        _ => None,
-                                    })
-                            })
-                            .expect("background-image must be a computed value list");
-                        let resolution_context =
-                            length_resolution_context.expect("background lists require a length resolution context");
-                        let absolutization_context = crate::css::absolutize::AbsolutizationContext {
-                            length: resolution_context,
-                            scheme: current_effective_color_scheme,
-                            resolved_viewport_relative_length: std::cell::Cell::new(false),
-                            tree_counting: tree_counting_context,
-                            random_base_values,
-                            document_base_url,
-                            style_sheet_resource_context,
-                        };
-                        let absolutized = crate::css::absolutize::absolutize(value_data, &absolutization_context);
-                        if absolutization_context.resolved_viewport_relative_length.get() {
-                            results.depends_on_viewport_metrics = true;
+                        Some(crate::css::absolutize::Absolutized::Changed(value)) => {
+                            NativeValue::StyleValue(compute_font_feature_tag_value_list(value.data()))
                         }
-                        match absolutized {
-                            Some(crate::css::absolutize::Absolutized::Unchanged) => {
-                                match repeat_style_value_list_to_n_elements(value_data, layer_count) {
-                                    Some(None) => NativeValue::Unchanged,
-                                    Some(Some(value)) => NativeValue::StyleValue(value),
-                                    None => NativeValue::Unsupported,
-                                }
-                            }
-                            Some(crate::css::absolutize::Absolutized::Changed(value)) => {
-                                match repeat_style_value_list_to_n_elements(value.data(), layer_count) {
-                                    Some(None) => NativeValue::StyleValue(value.into_arc()),
-                                    Some(Some(value)) => NativeValue::StyleValue(value),
-                                    None => NativeValue::Unsupported,
-                                }
-                            }
-                            None => NativeValue::Unsupported,
-                        }
-                    }
-                    (Some(_), prop::ANIMATION_NAME)
-                        if matches!(
-                            value_data,
-                            StyleValueData::Keyword { .. } | StyleValueData::CustomIdent { .. }
-                        ) =>
-                    {
-                        NativeValue::Unchanged
-                    }
-                    (None, prop::ANIMATION_NAME) => match compute_animation_name(value_data) {
-                        Some(value) => NativeValue::StyleValue(value),
                         None => NativeValue::Unsupported,
-                    },
-                    (_, prop::LETTER_SPACING | prop::WORD_SPACING)
-                        if matches!(value_data, StyleValueData::Calculated { .. }) =>
-                    {
+                    }
+                }
+                (_, prop::LINE_HEIGHT) if matches!(value_data, StyleValueData::Calculated { .. }) => {
+                    let resolution_context =
+                        length_resolution_context.expect("calculated line-height requires a length resolution context");
+                    let result = compute_line_height(
+                        value_data,
+                        CssPixels::nearest_value_for(resolution_context.font_metrics.font_size),
+                    );
+                    if result.handled && result.is_number {
+                        NativeValue::Number(result.value)
+                    } else if result.handled && !result.unchanged {
+                        NativeValue::Px(result.value)
+                    } else if result.handled {
                         NativeValue::Unchanged
+                    } else {
+                        NativeValue::Unsupported
                     }
-                    (_, prop::LETTER_SPACING | prop::WORD_SPACING) => {
-                        let absolutized = absolutized.flatten();
+                }
+                (_, prop::LINE_HEIGHT) => {
+                    let absolutized = absolutized.flatten();
+                    let result = if matches!(value_data, StyleValueData::Percentage { .. }) {
+                        let resolution_context =
+                            length_resolution_context.expect("line-height must run with a resolution context");
+                        compute_line_height(
+                            value_data,
+                            CssPixels::nearest_value_for(resolution_context.font_metrics.font_size),
+                        )
+                    } else {
                         let synthesized = synthesized_px_length(absolutized);
-                        let result = compute_letter_or_word_spacing_value(synthesized.as_ref().unwrap_or(value_data));
-                        if result.handled {
-                            if result.unchanged {
-                                match absolutized {
-                                    Some(px) => NativeValue::Px(px),
-                                    None => NativeValue::Unchanged,
-                                }
-                            } else {
-                                NativeValue::Px(result.value)
+                        compute_line_height(synthesized.as_ref().unwrap_or(value_data), CssPixels::from_raw(0))
+                    };
+                    if result.handled {
+                        if result.unchanged {
+                            match absolutized {
+                                Some(px) => NativeValue::Px(px),
+                                None => NativeValue::Unchanged,
+                            }
+                        } else if result.is_number {
+                            NativeValue::Number(result.value)
+                        } else {
+                            NativeValue::Px(result.value)
+                        }
+                    } else {
+                        NativeValue::Unsupported
+                    }
+                }
+                (None, prop::FONT_FAMILY) if matches!(value_data, StyleValueData::ValueList { .. }) => {
+                    // A font-family list only ever holds keywords, strings and custom
+                    // identifiers, whose absolutization is the identity.
+                    NativeValue::Unchanged
+                }
+                (
+                    None,
+                    prop::BACKGROUND_ATTACHMENT
+                    | prop::BACKGROUND_CLIP
+                    | prop::BACKGROUND_ORIGIN
+                    | prop::BACKGROUND_POSITION_X
+                    | prop::BACKGROUND_POSITION_Y
+                    | prop::BACKGROUND_REPEAT
+                    | prop::BACKGROUND_SIZE,
+                ) => {
+                    // NB: The background properties are coordinated at compute time rather
+                    //     than use time, unlike other coordinating list property groups.
+                    let layer_count = background_image_list_length
+                        .or_else(|| {
+                            longhand_table
+                                .get(prop::BACKGROUND_IMAGE)
+                                .and_then(|value| match value.data() {
+                                    StyleValueData::ValueList { values, .. } => Some(values.as_slice().len()),
+                                    _ => None,
+                                })
+                        })
+                        .expect("background-image must be a computed value list");
+                    let resolution_context =
+                        length_resolution_context.expect("background lists require a length resolution context");
+                    let absolutized =
+                        absolutize_value(value_data, resolution_context, current_effective_color_scheme, results);
+                    match absolutized {
+                        Some(crate::css::absolutize::Absolutized::Unchanged) => {
+                            match repeat_style_value_list_to_n_elements(value_data, layer_count) {
+                                Some(None) => NativeValue::Unchanged,
+                                Some(Some(value)) => NativeValue::StyleValue(value),
+                                None => NativeValue::Unsupported,
+                            }
+                        }
+                        Some(crate::css::absolutize::Absolutized::Changed(value)) => {
+                            match repeat_style_value_list_to_n_elements(value.data(), layer_count) {
+                                Some(None) => NativeValue::StyleValue(value.into_arc()),
+                                Some(Some(value)) => NativeValue::StyleValue(value),
+                                None => NativeValue::Unsupported,
+                            }
+                        }
+                        None => NativeValue::Unsupported,
+                    }
+                }
+                (Some(_), prop::ANIMATION_NAME)
+                    if matches!(
+                        value_data,
+                        StyleValueData::Keyword { .. } | StyleValueData::CustomIdent { .. }
+                    ) =>
+                {
+                    NativeValue::Unchanged
+                }
+                (None, prop::ANIMATION_NAME) => match compute_animation_name(value_data) {
+                    Some(value) => NativeValue::StyleValue(value),
+                    None => NativeValue::Unsupported,
+                },
+                (_, prop::LETTER_SPACING | prop::WORD_SPACING)
+                    if matches!(value_data, StyleValueData::Calculated { .. }) =>
+                {
+                    NativeValue::Unchanged
+                }
+                (_, prop::LETTER_SPACING | prop::WORD_SPACING) => {
+                    let absolutized = absolutized.flatten();
+                    let synthesized = synthesized_px_length(absolutized);
+                    let result = compute_letter_or_word_spacing_value(synthesized.as_ref().unwrap_or(value_data));
+                    if result.handled {
+                        if result.unchanged {
+                            match absolutized {
+                                Some(px) => NativeValue::Px(px),
+                                None => NativeValue::Unchanged,
                             }
                         } else {
-                            NativeValue::Unsupported
+                            NativeValue::Px(result.value)
                         }
+                    } else {
+                        NativeValue::Unsupported
                     }
-                    (_, prop::POSITION_AREA) => match compute_position_area(value_data) {
-                        Some(value) => NativeValue::StyleValue(value),
-                        None => NativeValue::Unchanged,
-                    },
-                    (_, prop::STROKE_DASHOFFSET | prop::STROKE_WIDTH)
-                        if matches!(value_data, StyleValueData::Number { .. }) =>
-                    {
-                        let StyleValueData::Number { value } = value_data else {
-                            unreachable!("the guard accepted only numbers");
-                        };
-                        NativeValue::Px(*value)
-                    }
-                    (None, prop::STROKE_DASHARRAY) if matches!(value_data, StyleValueData::ValueList { .. }) => {
-                        let resolution_context =
-                            length_resolution_context.expect("a dash list must run with a resolution context");
-                        let absolutization_context = crate::css::absolutize::AbsolutizationContext {
-                            length: resolution_context,
-                            scheme: current_effective_color_scheme,
-                            resolved_viewport_relative_length: std::cell::Cell::new(false),
-                            tree_counting: tree_counting_context,
-                            random_base_values,
-                            document_base_url,
-                            style_sheet_resource_context,
-                        };
-                        let outcome = crate::css::absolutize::absolutize(value_data, &absolutization_context);
-                        if absolutization_context.resolved_viewport_relative_length.get() {
-                            results.depends_on_viewport_metrics = true;
-                        }
-                        match outcome {
-                            Some(crate::css::absolutize::Absolutized::Unchanged) => {
-                                match stroke_dasharray_numbers_as_lengths(value_data) {
-                                    Some(value) => NativeValue::StyleValue(value),
-                                    None => NativeValue::Unchanged,
-                                }
-                            }
-                            Some(crate::css::absolutize::Absolutized::Changed(value)) => {
-                                match stroke_dasharray_numbers_as_lengths(value.data()) {
-                                    Some(computed) => NativeValue::StyleValue(computed),
-                                    None => NativeValue::StyleValue(value.into_arc()),
-                                }
-                            }
-                            None => NativeValue::Unsupported,
-                        }
-                    }
-                    (None, prop::TRANSFORM_ORIGIN) => {
-                        let resolution_context =
-                            length_resolution_context.expect("transform-origin requires a length resolution context");
-                        let absolutization_context = crate::css::absolutize::AbsolutizationContext {
-                            length: resolution_context,
-                            scheme: current_effective_color_scheme,
-                            resolved_viewport_relative_length: std::cell::Cell::new(false),
-                            tree_counting: tree_counting_context,
-                            random_base_values,
-                            document_base_url,
-                            style_sheet_resource_context,
-                        };
-                        let absolutized = crate::css::absolutize::absolutize(value_data, &absolutization_context);
-                        if absolutization_context.resolved_viewport_relative_length.get() {
-                            results.depends_on_viewport_metrics = true;
-                        }
-                        match absolutized {
-                            Some(crate::css::absolutize::Absolutized::Unchanged) => {
-                                match compute_transform_origin(value_data) {
-                                    Some(value) => NativeValue::StyleValue(value),
-                                    None => NativeValue::Unchanged,
-                                }
-                            }
-                            Some(crate::css::absolutize::Absolutized::Changed(value)) => {
-                                let computed = compute_transform_origin(value.data());
-                                NativeValue::StyleValue(computed.unwrap_or_else(|| value.into_arc()))
-                            }
-                            None => NativeValue::Unsupported,
-                        }
-                    }
-                    // https://drafts.csswg.org/css-tables-3/#border-spacing-property
-                    // two absolute lengths
-                    // A single specified length computes to the pair with both members equal, so
-                    // every computed border-spacing has the same two-value list shape; a specified
-                    // pair takes the generic arms below.
-                    (_, prop::BORDER_SPACING) if !matches!(value_data, StyleValueData::ValueList { .. }) => {
-                        let single = match absolutized {
-                            Some(Some(px)) => StyleValueData::Length {
-                                value: px,
-                                unit: px_length_unit(),
-                            },
-                            _ => value_data.clone(),
-                        };
-                        NativeValue::StyleValue(border_spacing_pair(single))
-                    }
-                    (_, prop::CONTAIN) => match collapse_containment_list(value_data) {
-                        Some(value) => NativeValue::StyleValue(value),
-                        None => NativeValue::Unchanged,
-                    },
-                    (Some(absolutized), _) if !property_has_dedicated_compute_rule(inherited_property_id) => {
-                        match absolutized {
-                            Some(px) => NativeValue::Px(px),
-                            None => NativeValue::Unchanged,
-                        }
-                    }
-                    (None, _) if !property_has_dedicated_compute_rule(inherited_property_id) => {
-                        // The recursive native absolutization: structural values and their
-                        // length leaves resolve here; anything it declines computes in C++.
-                        let resolution_context = length_resolution_context
-                            .expect("recursive absolutization must run with a resolution context");
-                        // Only the generic computation context carries a color scheme in C++;
-                        // the font and line-height contexts absolutize without one.
-                        let scheme = if phase == LONGHAND_DRIVE_PHASE_REMAINING {
-                            current_effective_color_scheme
-                        } else {
-                            None
-                        };
-                        let absolutization_context = crate::css::absolutize::AbsolutizationContext {
-                            length: resolution_context,
-                            scheme,
-                            resolved_viewport_relative_length: std::cell::Cell::new(false),
-                            tree_counting: tree_counting_context,
-                            random_base_values,
-                            document_base_url,
-                            style_sheet_resource_context,
-                        };
-                        let outcome = crate::css::absolutize::absolutize(value_data, &absolutization_context);
-                        if absolutization_context.resolved_viewport_relative_length.get() {
-                            results.depends_on_viewport_metrics = true;
-                            if property_affects_font_metrics(inherited_property_id) {
-                                results.font_metrics_depend_on_viewport_metrics = true;
-                            }
-                        }
-                        match outcome {
-                            Some(crate::css::absolutize::Absolutized::Unchanged) => NativeValue::Unchanged,
-                            Some(crate::css::absolutize::Absolutized::Changed(new_value)) => {
-                                NativeValue::StyleValue(new_value.into_arc())
-                            }
-                            None => NativeValue::Unsupported,
-                        }
-                    }
-                    _ => NativeValue::Unsupported,
-                };
-
-                // An unchanged dedicated-rule result refers to the value presented to that
-                // rule. Preserve an externally resolved replacement instead of the original declaration.
-                let native = match (native, externally_absolutized) {
-                    (NativeValue::Unchanged, Some(value)) => NativeValue::StyleValue(value),
-                    (native, _) => native,
-                };
-                let (computed_kind, computed_value, computed_data) = match native {
-                    NativeValue::Px(px) => (COMPUTED_KIND_PX_LENGTH, px, std::ptr::null()),
-                    NativeValue::Integer(integer) => (COMPUTED_KIND_INTEGER, integer as f64, std::ptr::null()),
-                    NativeValue::Superellipse(parameter) => (COMPUTED_KIND_SUPERELLIPSE, parameter, std::ptr::null()),
-                    NativeValue::Number(number) => (COMPUTED_KIND_NUMBER, number, std::ptr::null()),
-                    NativeValue::Percentage(percentage) => (COMPUTED_KIND_PERCENTAGE, percentage, std::ptr::null()),
-                    NativeValue::FontStyle(font_style_keyword) => {
-                        (COMPUTED_KIND_FONT_STYLE, font_style_keyword as f64, std::ptr::null())
-                    }
-                    NativeValue::StyleValue(value) => (COMPUTED_KIND_STYLE_VALUE, 0.0, Arc::into_raw(value).cast()),
-                    NativeValue::Unchanged => (COMPUTED_KIND_UNCHANGED, 0.0, std::ptr::null()),
-                    NativeValue::Unsupported => {
-                        unreachable!("unsupported native computation for longhand property {inherited_property_id}")
-                    }
-                };
-                ComputedStoreEntry {
-                    property_id,
-                    data: value,
-                    source_slot,
-                    has_style_sheet_context,
-                    inheritance_dependent,
-                    computed_data,
-                    computed_kind,
-                    value: computed_value,
                 }
-            } else {
-                ComputedStoreEntry {
-                    property_id,
-                    data: value,
-                    source_slot,
-                    has_style_sheet_context,
-                    inheritance_dependent,
-                    computed_data: std::ptr::null(),
-                    computed_kind: COMPUTED_KIND_UNCHANGED,
-                    value: 0.0,
+                (_, prop::POSITION_AREA) => match compute_position_area(value_data) {
+                    Some(value) => NativeValue::StyleValue(value),
+                    None => NativeValue::Unchanged,
+                },
+                (_, prop::STROKE_DASHOFFSET | prop::STROKE_WIDTH)
+                    if matches!(value_data, StyleValueData::Number { .. }) =>
+                {
+                    let StyleValueData::Number { value } = value_data else {
+                        unreachable!("the guard accepted only numbers");
+                    };
+                    NativeValue::Px(*value)
                 }
+                (None, prop::STROKE_DASHARRAY) if matches!(value_data, StyleValueData::ValueList { .. }) => {
+                    let resolution_context =
+                        length_resolution_context.expect("a dash list must run with a resolution context");
+                    let outcome =
+                        absolutize_value(value_data, resolution_context, current_effective_color_scheme, results);
+                    match outcome {
+                        Some(crate::css::absolutize::Absolutized::Unchanged) => {
+                            match stroke_dasharray_numbers_as_lengths(value_data) {
+                                Some(value) => NativeValue::StyleValue(value),
+                                None => NativeValue::Unchanged,
+                            }
+                        }
+                        Some(crate::css::absolutize::Absolutized::Changed(value)) => {
+                            match stroke_dasharray_numbers_as_lengths(value.data()) {
+                                Some(computed) => NativeValue::StyleValue(computed),
+                                None => NativeValue::StyleValue(value.into_arc()),
+                            }
+                        }
+                        None => NativeValue::Unsupported,
+                    }
+                }
+                (None, prop::TRANSFORM_ORIGIN) => {
+                    let resolution_context =
+                        length_resolution_context.expect("transform-origin requires a length resolution context");
+                    let absolutized =
+                        absolutize_value(value_data, resolution_context, current_effective_color_scheme, results);
+                    match absolutized {
+                        Some(crate::css::absolutize::Absolutized::Unchanged) => {
+                            match compute_transform_origin(value_data) {
+                                Some(value) => NativeValue::StyleValue(value),
+                                None => NativeValue::Unchanged,
+                            }
+                        }
+                        Some(crate::css::absolutize::Absolutized::Changed(value)) => {
+                            let computed = compute_transform_origin(value.data());
+                            NativeValue::StyleValue(computed.unwrap_or_else(|| value.into_arc()))
+                        }
+                        None => NativeValue::Unsupported,
+                    }
+                }
+                // https://drafts.csswg.org/css-tables-3/#border-spacing-property
+                // two absolute lengths
+                // A single specified length computes to the pair with both members equal, so
+                // every computed border-spacing has the same two-value list shape; a specified
+                // pair takes the generic arms below.
+                (_, prop::BORDER_SPACING) if !matches!(value_data, StyleValueData::ValueList { .. }) => {
+                    let single = match absolutized {
+                        Some(Some(px)) => StyleValueData::Length {
+                            value: px,
+                            unit: px_length_unit(),
+                        },
+                        _ => value_data.clone(),
+                    };
+                    NativeValue::StyleValue(border_spacing_pair(single))
+                }
+                (_, prop::CONTAIN) => match collapse_containment_list(value_data) {
+                    Some(value) => NativeValue::StyleValue(value),
+                    None => NativeValue::Unchanged,
+                },
+                (Some(absolutized), _) if !property_has_dedicated_compute_rule(inherited_property_id) => {
+                    match absolutized {
+                        Some(px) => NativeValue::Px(px),
+                        None => NativeValue::Unchanged,
+                    }
+                }
+                (None, _) if !property_has_dedicated_compute_rule(inherited_property_id) => {
+                    // The recursive native absolutization: structural values and their
+                    // length leaves resolve here; anything it declines computes in C++.
+                    let resolution_context =
+                        length_resolution_context.expect("recursive absolutization must run with a resolution context");
+                    // Only the generic computation context carries a color scheme in C++;
+                    // the font and line-height contexts absolutize without one.
+                    let scheme = if phase == LONGHAND_DRIVE_PHASE_REMAINING {
+                        current_effective_color_scheme
+                    } else {
+                        None
+                    };
+                    let outcome = absolutize_value(value_data, resolution_context, scheme, results);
+                    match outcome {
+                        Some(crate::css::absolutize::Absolutized::Unchanged) => NativeValue::Unchanged,
+                        Some(crate::css::absolutize::Absolutized::Changed(new_value)) => {
+                            NativeValue::StyleValue(new_value.into_arc())
+                        }
+                        None => NativeValue::Unsupported,
+                    }
+                }
+                _ => NativeValue::Unsupported,
             };
 
-            if inherit_fetch_attempted
-                && let Some(animated_property) =
-                    snapshot.and_then(|snapshot| snapshot.animated_property(inherited_property_id))
-                && let Some(animated_overlay) = unsafe { animated_overlay.as_mut() }
-            {
-                animated_overlay.set_inherited(property_id, animated_property);
+            // An unchanged dedicated-rule result refers to the value presented to that
+            // rule. Preserve an externally resolved replacement instead of the original declaration.
+            let native = match (native, externally_absolutized) {
+                (NativeValue::Unchanged, Some(value)) => NativeValue::StyleValue(value),
+                (native, _) => native,
+            };
+            let (computed_kind, computed_value, computed_data) = match native {
+                NativeValue::Px(px) => (COMPUTED_KIND_PX_LENGTH, px, std::ptr::null()),
+                NativeValue::Integer(integer) => (COMPUTED_KIND_INTEGER, integer as f64, std::ptr::null()),
+                NativeValue::Superellipse(parameter) => (COMPUTED_KIND_SUPERELLIPSE, parameter, std::ptr::null()),
+                NativeValue::Number(number) => (COMPUTED_KIND_NUMBER, number, std::ptr::null()),
+                NativeValue::Percentage(percentage) => (COMPUTED_KIND_PERCENTAGE, percentage, std::ptr::null()),
+                NativeValue::FontStyle(font_style_keyword) => {
+                    (COMPUTED_KIND_FONT_STYLE, font_style_keyword as f64, std::ptr::null())
+                }
+                NativeValue::StyleValue(value) => (COMPUTED_KIND_STYLE_VALUE, 0.0, Arc::into_raw(value).cast()),
+                NativeValue::Unchanged => (COMPUTED_KIND_UNCHANGED, 0.0, std::ptr::null()),
+                NativeValue::Unsupported => {
+                    unreachable!("unsupported native computation for longhand property {inherited_property_id}")
+                }
+            };
+            ComputedStoreEntry {
+                property_id,
+                data: value,
+                source_slot,
+                has_style_sheet_context,
+                inheritance_dependent,
+                computed_data,
+                computed_kind,
+                value: computed_value,
             }
+        } else {
+            ComputedStoreEntry {
+                property_id,
+                data: value,
+                source_slot,
+                has_style_sheet_context,
+                inheritance_dependent,
+                computed_data: std::ptr::null(),
+                computed_kind: COMPUTED_KIND_UNCHANGED,
+                value: 0.0,
+            }
+        };
 
-            if property_id == prop::OVERFLOW_X {
-                if let StyleValueData::Keyword { keyword } = value_data {
-                    computed_overflow_x = Some(*keyword);
+        if property_id == prop::OVERFLOW_X {
+            if let StyleValueData::Keyword { keyword } = value_data {
+                computed_overflow_x = Some(*keyword);
+            }
+        } else if property_id == prop::OVERFLOW_Y
+            && let StyleValueData::Keyword { keyword: overflow_y } = value_data
+        {
+            computed_overflow_y = Some(*overflow_y);
+            if coordinate_overflow_keywords {
+                let overflow_x = computed_overflow_x.expect("overflow-x must precede overflow-y in computation order");
+                let effective_overflow = resolve_effective_overflow_keywords(overflow_x, *overflow_y);
+                let overflow_x_entry = pending_overflow_x_store
+                    .as_mut()
+                    .expect("overflow-x must precede overflow-y in computation order");
+                if effective_overflow.changed_x {
+                    debug_assert_eq!(overflow_x_entry.computed_kind, COMPUTED_KIND_UNCHANGED);
+                    overflow_x_entry.computed_kind = COMPUTED_KIND_KEYWORD;
+                    overflow_x_entry.value = effective_overflow.x_keyword as f64;
+                    clear_longhand_bit(&mut important_words, prop::OVERFLOW_X);
+                    clear_longhand_bit(&mut inherited_words, prop::OVERFLOW_X);
                 }
-            } else if property_id == prop::OVERFLOW_Y
-                && let StyleValueData::Keyword { keyword: overflow_y } = value_data
-            {
-                computed_overflow_y = Some(*overflow_y);
-                if coordinate_overflow_keywords {
-                    let overflow_x =
-                        computed_overflow_x.expect("overflow-x must precede overflow-y in computation order");
-                    let effective_overflow = resolve_effective_overflow_keywords(overflow_x, *overflow_y);
-                    let overflow_x_entry = pending_overflow_x_store
-                        .as_mut()
-                        .expect("overflow-x must precede overflow-y in computation order");
-                    if effective_overflow.changed_x {
-                        debug_assert_eq!(overflow_x_entry.computed_kind, COMPUTED_KIND_UNCHANGED);
-                        overflow_x_entry.computed_kind = COMPUTED_KIND_KEYWORD;
-                        overflow_x_entry.value = effective_overflow.x_keyword as f64;
-                        clear_longhand_bit(&mut important_words, prop::OVERFLOW_X);
-                        clear_longhand_bit(&mut inherited_words, prop::OVERFLOW_X);
-                    }
-                    if effective_overflow.changed_y {
-                        debug_assert_eq!(entry.computed_kind, COMPUTED_KIND_UNCHANGED);
-                        entry.computed_kind = COMPUTED_KIND_KEYWORD;
-                        entry.value = effective_overflow.y_keyword as f64;
-                        clear_longhand_bit(&mut important_words, prop::OVERFLOW_Y);
-                        clear_longhand_bit(&mut inherited_words, prop::OVERFLOW_Y);
-                    }
-                }
-            } else if property_id == prop::TEXT_ALIGN
-                && let StyleValueData::Keyword { keyword: text_align } = value_data
-            {
-                let (has_parent_with_computed_values, parent_text_align, parent_direction_is_ltr) =
-                    if let Some(snapshot) = snapshot {
-                        let parent_text_align = match snapshot.value(prop::TEXT_ALIGN) {
-                            Some(StyleValueData::Keyword { keyword }) => *keyword,
-                            _ => unreachable!("parent text-align must be a keyword"),
-                        };
-                        let parent_direction_is_ltr = match snapshot.value(prop::DIRECTION) {
-                            Some(StyleValueData::Keyword {
-                                keyword: parent_direction,
-                            }) => *parent_direction == keyword::LTR,
-                            _ => unreachable!("parent direction must be a keyword"),
-                        };
-                        (true, parent_text_align, parent_direction_is_ltr)
-                    } else {
-                        (false, 0, true)
-                    };
-                let adjustment = compute_text_align_adjustment(
-                    *text_align,
-                    is_th_element,
-                    has_parent_with_computed_values,
-                    parent_text_align,
-                    parent_direction_is_ltr,
-                );
-                if adjustment.changed {
+                if effective_overflow.changed_y {
                     debug_assert_eq!(entry.computed_kind, COMPUTED_KIND_UNCHANGED);
                     entry.computed_kind = COMPUTED_KIND_KEYWORD;
-                    entry.value = adjustment.keyword as f64;
-                    clear_longhand_bit(&mut important_words, property_id);
-                    clear_longhand_bit(&mut inherited_words, property_id);
-                    if adjustment.inherited {
-                        set_longhand_bit(&mut inherited_words, property_id);
-                    }
+                    entry.value = effective_overflow.y_keyword as f64;
+                    clear_longhand_bit(&mut important_words, prop::OVERFLOW_Y);
+                    clear_longhand_bit(&mut inherited_words, prop::OVERFLOW_Y);
                 }
-                computed_text_align = Some(if adjustment.changed {
-                    adjustment.keyword
+            }
+        } else if property_id == prop::TEXT_ALIGN
+            && let StyleValueData::Keyword { keyword: text_align } = value_data
+        {
+            let (has_parent_with_computed_values, parent_text_align, parent_direction_is_ltr) =
+                if let Some(snapshot) = snapshot {
+                    let parent_text_align = match snapshot.value(prop::TEXT_ALIGN) {
+                        Some(StyleValueData::Keyword { keyword }) => *keyword,
+                        _ => unreachable!("parent text-align must be a keyword"),
+                    };
+                    let parent_direction_is_ltr = match snapshot.value(prop::DIRECTION) {
+                        Some(StyleValueData::Keyword {
+                            keyword: parent_direction,
+                        }) => *parent_direction == keyword::LTR,
+                        _ => unreachable!("parent direction must be a keyword"),
+                    };
+                    (true, parent_text_align, parent_direction_is_ltr)
                 } else {
-                    *text_align
-                });
-            } else if property_id == prop::COLOR_SCHEME
-                && let StyleValueData::ColorScheme { scheme_codes, .. } = value_data
-            {
-                let color_scheme = resolve_effective_color_scheme(
-                    scheme_codes.as_slice(),
-                    color_scheme_input.preferred_color_scheme,
-                    unsafe { color_scheme_input.document_supported_schemes() },
-                );
-                pending_effective_color_scheme = i16::from(color_scheme);
-                *effective_color_scheme = i16::from(color_scheme);
+                    (false, 0, true)
+                };
+            let adjustment = compute_text_align_adjustment(
+                *text_align,
+                is_th_element,
+                has_parent_with_computed_values,
+                parent_text_align,
+                parent_direction_is_ltr,
+            );
+            if adjustment.changed {
+                debug_assert_eq!(entry.computed_kind, COMPUTED_KIND_UNCHANGED);
+                entry.computed_kind = COMPUTED_KIND_KEYWORD;
+                entry.value = adjustment.keyword as f64;
+                clear_longhand_bit(&mut important_words, property_id);
+                clear_longhand_bit(&mut inherited_words, property_id);
+                if adjustment.inherited {
+                    set_longhand_bit(&mut inherited_words, property_id);
+                }
             }
-
-            match (property_id, value_data) {
-                (prop::DISPLAY, StyleValueData::Display { raw }) => {
-                    computed_display = Some(FfiDisplay::from_raw(*raw));
-                }
-                (prop::FLOAT, StyleValueData::Keyword { keyword }) => {
-                    computed_float = Some(*keyword);
-                }
-                (prop::POSITION, StyleValueData::Keyword { keyword }) => {
-                    computed_position = Some(*keyword);
-                }
-                _ => {}
-            }
-
-            let longhand_table = unsafe { &mut *longhand_table };
-            let mut store = |entry: ComputedStoreEntry| {
-                store_driven_value(longhand_table, &entry);
-            };
-            if property_id == prop::OVERFLOW_X {
-                pending_overflow_x_store = Some(entry);
+            computed_text_align = Some(if adjustment.changed {
+                adjustment.keyword
             } else {
-                if property_id == prop::OVERFLOW_Y {
-                    store(
-                        pending_overflow_x_store
-                            .take()
-                            .expect("overflow-x must precede overflow-y in computation order"),
-                    );
-                }
-                store(entry);
-            }
+                *text_align
+            });
+        } else if property_id == prop::COLOR_SCHEME
+            && let StyleValueData::ColorScheme { scheme_codes, .. } = value_data
+        {
+            let color_scheme = resolve_effective_color_scheme(
+                scheme_codes.as_slice(),
+                color_scheme_input.preferred_color_scheme,
+                unsafe { color_scheme_input.document_supported_schemes() },
+            );
+            pending_effective_color_scheme = i16::from(color_scheme);
+            *effective_color_scheme = i16::from(color_scheme);
         }
 
-        assert!(
-            pending_overflow_x_store.is_none(),
-            "overflow-y must follow overflow-x in computation order"
-        );
-        let longhand_table = unsafe { &mut *longhand_table };
-        longhand_table.finish_drive_inheritance_dependent_values();
-        longhand_table.merge_driver_flags(&important_words, &inherited_words, &evaluated_words);
-        longhand_table.merge_dependency_flags(
-            results.depends_on_viewport_metrics,
-            results.font_metrics_depend_on_viewport_metrics,
-            results.highlight_colors_authored,
-            results.highlight_color_is_current_color,
-        );
-        if pending_effective_color_scheme >= 0 {
-            longhand_table.set_effective_color_scheme(pending_effective_color_scheme);
+        match (property_id, value_data) {
+            (prop::DISPLAY, StyleValueData::Display { raw }) => {
+                computed_display = Some(FfiDisplay::from_raw(*raw));
+            }
+            (prop::FLOAT, StyleValueData::Keyword { keyword }) => {
+                computed_float = Some(*keyword);
+            }
+            (prop::POSITION, StyleValueData::Keyword { keyword }) => {
+                computed_position = Some(*keyword);
+            }
+            _ => {}
         }
-        if phase != LONGHAND_DRIVE_PHASE_REMAINING {
-            return;
-        }
-        let display_before = computed_display.expect("display must be computed by the longhand driver");
-        longhand_table.set_display_before_box_type_transformation(display_before.encoded());
-        let overflow_before = [
-            computed_overflow_x.expect("overflow-x must be computed by the longhand driver"),
-            computed_overflow_y.expect("overflow-y must be computed by the longhand driver"),
-        ];
-        longhand_table.set_overflow_before_adjustment(overflow_before);
-        let mut box_type_input = *box_type_input;
-        box_type_input.display = display_before;
-        box_type_input.float_value = computed_float.expect("float must be computed by the longhand driver");
-        box_type_input.position = computed_position.expect("position must be computed by the longhand driver");
-        let overlay = unsafe { animated_overlay.as_ref() };
-        box_type_input.webkit_box_layout_transformation_applies =
-            webkit_box_layout_transformation_applies(longhand_table, overlay);
-        let text_align = computed_text_align.expect("text-align must be computed by the longhand driver");
-        let adjustments = compute_element_style_adjustments(&box_type_input, text_align);
-        let transformation = adjustments.box_type;
-        let element_adjustment = adjustments.element_style;
-        let post_compute_adjustment = PostComputeAdjustment {
-            display_before,
-            box_type_transformation: transformation,
-            element_style_adjustment: element_adjustment,
+
+        let mut store = |entry: ComputedStoreEntry| {
+            store_driven_value(longhand_table, &entry);
         };
-        if !input_line_height_metrics.is_null() {
-            results.post_adjusted_longhands =
-                apply_post_compute_adjustments(longhand_table, &post_compute_adjustment, unsafe {
-                    &*input_line_height_metrics
-                });
+        if property_id == prop::OVERFLOW_X {
+            pending_overflow_x_store = Some(entry);
+        } else {
+            if property_id == prop::OVERFLOW_Y {
+                store(
+                    pending_overflow_x_store
+                        .take()
+                        .expect("overflow-x must precede overflow-y in computation order"),
+                );
+            }
+            store(entry);
         }
-    });
+    }
+
+    assert!(
+        pending_overflow_x_store.is_none(),
+        "overflow-y must follow overflow-x in computation order"
+    );
+    longhand_table.finish_drive_inheritance_dependent_values();
+    longhand_table.merge_driver_flags(&important_words, &inherited_words, &evaluated_words);
+    longhand_table.merge_dependency_flags(
+        results.depends_on_viewport_metrics,
+        results.font_metrics_depend_on_viewport_metrics,
+        results.highlight_colors_authored,
+        results.highlight_color_is_current_color,
+    );
+    if pending_effective_color_scheme >= 0 {
+        longhand_table.set_effective_color_scheme(pending_effective_color_scheme);
+    }
+    if phase != LONGHAND_DRIVE_PHASE_REMAINING {
+        return;
+    }
+    let display_before = computed_display.expect("display must be computed by the longhand driver");
+    longhand_table.set_display_before_box_type_transformation(display_before.encoded());
+    let overflow_before = [
+        computed_overflow_x.expect("overflow-x must be computed by the longhand driver"),
+        computed_overflow_y.expect("overflow-y must be computed by the longhand driver"),
+    ];
+    longhand_table.set_overflow_before_adjustment(overflow_before);
+    let mut box_type_input = *box_type_input;
+    box_type_input.display = display_before;
+    box_type_input.float_value = computed_float.expect("float must be computed by the longhand driver");
+    box_type_input.position = computed_position.expect("position must be computed by the longhand driver");
+    box_type_input.webkit_box_layout_transformation_applies =
+        webkit_box_layout_transformation_applies(longhand_table, None);
+    let text_align = computed_text_align.expect("text-align must be computed by the longhand driver");
+    let adjustments = compute_element_style_adjustments(&box_type_input, text_align);
+    let transformation = adjustments.box_type;
+    let element_adjustment = adjustments.element_style;
+    let post_compute_adjustment = PostComputeAdjustment {
+        display_before,
+        box_type_transformation: transformation,
+        element_style_adjustment: element_adjustment,
+    };
+    if let Some(input_line_height_metrics) = input_line_height_metrics {
+        results.post_adjusted_longhands =
+            apply_post_compute_adjustments(longhand_table, &post_compute_adjustment, input_line_height_metrics);
+    }
 }
 
 pub(crate) fn is_required_driver_input(property_id: u16) -> bool {
@@ -5124,25 +5009,20 @@ pub unsafe extern "C" fn rust_create_document_longhand_table(
         LONGHAND_DRIVE_PHASE_COLOR_SCHEME,
         LONGHAND_DRIVE_PHASE_REMAINING,
     ] {
-        let length_resolution_context = if phase == LONGHAND_DRIVE_PHASE_COLOR_SCHEME {
-            std::ptr::null()
-        } else {
-            &raw const input.length_resolution_context
-        };
+        let length_resolution_context =
+            (phase != LONGHAND_DRIVE_PHASE_COLOR_SCHEME).then_some(&input.length_resolution_context);
         unsafe {
             drive_property_computation(
-                &raw mut longhand_table,
-                std::ptr::null_mut(),
+                &mut longhand_table,
                 &store,
                 None,
                 None,
-                &raw const environment,
-                u32::MAX,
-                std::ptr::null(),
+                &environment,
+                None,
                 phase,
                 length_resolution_context,
-                std::ptr::null(),
-                &raw mut results,
+                None,
+                &mut results,
                 &mut effective_color_scheme,
                 true,
             );
@@ -5376,18 +5256,16 @@ pub unsafe extern "C" fn rust_compute_animation_keyframe_longhands(
             };
             unsafe {
                 drive_property_computation(
-                    &raw mut table,
-                    std::ptr::null_mut(),
+                    &mut table,
                     &store,
                     parent_snapshot.as_ref(),
                     None,
-                    &raw const environment,
-                    u32::MAX,
-                    selected_longhands.as_ptr(),
+                    &environment,
+                    Some(&selected_longhands),
                     phase,
-                    length_resolution_context,
-                    std::ptr::null(),
-                    &raw mut results,
+                    length_resolution_context.as_ref(),
+                    None,
+                    &mut results,
                     &mut effective_color_scheme,
                     false,
                 );
