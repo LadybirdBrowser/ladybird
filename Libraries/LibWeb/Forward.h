@@ -48,7 +48,6 @@ namespace Web::Compositor {
 class CompositorConnection;
 class CompositorContextHandle;
 class CompositorHost;
-class CompositorHostBase;
 class NavigablePresenter;
 struct CompositorFrame;
 

@@ -5,13 +5,13 @@
  */
 
 #include <AK/NonnullOwnPtr.h>
-#include <LibWeb/Compositor/CompositorHostBase.h>
+#include <LibWeb/Compositor/CompositorHost.h>
 #include <WebContent/ConnectionFromClient.h>
 #include <WebContent/WebContentCompositorHost.h>
 
 namespace WebContent {
 
-class WebContentCompositorHost final : public Web::Compositor::CompositorHostBase {
+class WebContentCompositorHost final : public Web::Compositor::CompositorHost {
 public:
     explicit WebContentCompositorHost(ConnectionFromClient& client)
         : m_client(client)
