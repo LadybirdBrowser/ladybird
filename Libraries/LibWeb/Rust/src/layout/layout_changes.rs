@@ -181,7 +181,8 @@ impl LayoutChange {
             | Self::BindRow(_)
             | Self::UnbindRow(_) => RowWrite::Identities,
             Self::SetNodeFlag { flag, .. } if *flag as u32 & NodeFlag::IDENTITY != 0 => RowWrite::Identities,
-            Self::SetNodeStyle { .. } | Self::RestoreHostStyles(_) => RowWrite::Styles,
+            Self::SetNodeStyle { .. } => RowWrite::NamedStyles,
+            Self::RestoreHostStyles(_) => RowWrite::Styles,
             Self::SetNeedsLayoutUpdate { .. }
             | Self::SetNeedsFullLayoutTreeUpdate
             | Self::ResetCachedIntrinsicSizesOfSelfAndAncestors { .. }

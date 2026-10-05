@@ -185,7 +185,7 @@ impl RowSnapshot {
 
 /// The style record each row of a document's layout has, and the payloads it keeps, read from published rows, which
 /// the host reads from rows published before the writes it made since that give no row a style record (see
-/// [`crate::render_state::DocumentHost::row_styles`]), and nothing else of those rows.
+/// [`crate::render_state::DocumentHost::row_styles_of`]), and nothing else of those rows.
 pub(crate) struct RowStyles(Rc<RowSnapshot>);
 
 impl RowStyles {
