@@ -498,15 +498,9 @@ impl RecordingSlot {
     }
 
     /// Takes in what a recording answered: a recording pending for the host to publish, or one the
-    /// recording presented itself, which `take_in` takes in. Answers the presentation the recording
-    /// gives back.
-    fn land(&mut self, answer: RecordingAnswer, take_in: TakeInPresented<'_>) -> Option<Presentation> {
-        self.land_behind_rows(answer, false, take_in)
-    }
-
-    /// Takes in what a recording answered (see [`Self::land`]), where `behind_rows` says the host
-    /// wrote the document's rows since the frame it recorded.
-    fn land_behind_rows(
+    /// recording presented itself, which `take_in` takes in. `behind_rows` says the host wrote the
+    /// document's rows since the frame it recorded. Answers the presentation the recording gives back.
+    fn land(
         &mut self,
         answer: RecordingAnswer,
         behind_rows: bool,
@@ -544,7 +538,7 @@ impl RecordingSlot {
     /// Takes in what a recording the host waited for answered, leaving it pending for the host to
     /// publish.
     pub(crate) fn accept_recording_answer(&mut self, answer: RecordingAnswer) {
-        let presentation = self.land(answer, &mut |_, _, _| {
+        let presentation = self.land(answer, false, &mut |_, _, _| {
             unreachable!("a recording the host waits for presents nothing itself")
         });
         debug_assert!(
@@ -600,10 +594,11 @@ impl RecordingSlot {
     }
 
     fn landing(&mut self, answer: RecordingAnswer, rows_stand: bool, take_in: TakeInPresented<'_>) -> RecordingLanding {
-        let presentation = self.land_behind_rows(answer, !rows_stand, take_in);
-        match rows_stand {
-            true => RecordingLanding::Landed(presentation),
-            false => RecordingLanding::LandedBehindRows(presentation),
+        let presentation = self.land(answer, !rows_stand, take_in);
+        if rows_stand {
+            RecordingLanding::Landed(presentation)
+        } else {
+            RecordingLanding::LandedBehindRows(presentation)
         }
     }
 
