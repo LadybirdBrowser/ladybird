@@ -5796,16 +5796,71 @@ pub unsafe extern "C" fn rust_sample_animation_effects(
     if let Some(result) = unsafe { host.answer_fresh_transition_sample(input) } {
         return result;
     }
+    // SAFETY: As above.
+    let step = with_engine_and_arena(read, host, |engine, arena| unsafe {
+        sample_in_engine(input, engine, arena)
+    });
+    // SAFETY: As above.
+    unsafe { finish_sample_with_host(input, read, step) }
+}
+
+/// Sample each of `count` elements' animation effects onto its working set's overlay, as
+/// [`rust_sample_animation_effects`] samples one, in one call of the style engine, and write what
+/// each sample found to `results`. Every element is one of the same document's.
+///
+/// # Safety
+/// As for [`rust_sample_animation_effects`], for each of the `count` inputs, and `results` must
+/// have room for `count` results.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_sample_animation_effects_each(
+    inputs: *const FfiHostAnimationSample,
+    count: usize,
+    read: &crate::render_state::BegunRead,
+    results: *mut FfiHostAnimationSampleResult,
+) {
+    use crate::css::style::engine_calls::{document_host, with_engine_and_arena};
+
+    // SAFETY: Guaranteed by the caller.
+    let inputs = unsafe { crate::css::custom_properties::ffi_slice(inputs, count) };
+    let Some(first) = inputs.first() else {
+        return;
+    };
+    debug_assert!(
+        inputs.iter().all(|input| input.host == first.host),
+        "a batch samples one document"
+    );
+    // SAFETY: As above.
+    let host = unsafe { document_host(first.host) };
+    // SAFETY: As above.
+    let steps: Vec<_> = with_engine_and_arena(read, host, |engine, arena| {
+        inputs
+            .iter()
+            .map(|input| unsafe { sample_in_engine(input, engine, arena) })
+            .collect()
+    });
+    for (index, (input, step)) in inputs.iter().zip(steps).enumerate() {
+        // SAFETY: As above.
+        unsafe { results.add(index).write(finish_sample_with_host(input, read, step)) };
+    }
+}
+
+/// Take the sample `input` asks for as far as one call of the engine goes: to its end, or to the
+/// length contexts the host builds.
+///
+/// # Safety
+/// As for [`rust_sample_animation_effects`].
+unsafe fn sample_in_engine(
+    input: &FfiHostAnimationSample,
+    engine: &mut crate::css::style::StyleEngine,
+    arena: &crate::layout::LayoutNodeArena,
+) -> AnimationSampleStep {
     // Transforms interpolate against the transform reference box of the element's box, which the render owner reads.
     let element_box = crate::layout::node_data::NodeSlotId {
         index: input.element_box_slot,
     };
-    let reference_box = |arena: &crate::layout::LayoutNodeArena| {
-        crate::painting::ffi::committed_transform_reference_box(&arena.paintable_rows(), element_box)
-    };
-    // SAFETY: As above.
-    let step = with_engine_and_arena(read, host, |engine, arena| unsafe {
-        let reference_box = reference_box(arena);
+    let reference_box = crate::painting::ffi::committed_transform_reference_box(&arena.paintable_rows(), element_box);
+    // SAFETY: Guaranteed by the caller.
+    unsafe {
         let composed = host_sampled_effects(input, engine);
         match begin_animation_sample(input, engine, described_effects(input, engine), composed, reference_box) {
             AnimationSampleStep::Resolved(sample) => match engine_length_contexts(input, engine, &sample) {
@@ -5820,15 +5875,27 @@ pub unsafe extern "C" fn rust_sample_animation_effects(
             },
             sampled => sampled,
         }
-    });
+    }
+}
+
+/// Finish a sample one call of the engine took to `step`: building the length contexts may read
+/// the engine, so the host builds them between two calls of it, over what the first one resolved.
+///
+/// # Safety
+/// As for [`rust_sample_animation_effects`].
+unsafe fn finish_sample_with_host(
+    input: &FfiHostAnimationSample,
+    read: &crate::render_state::BegunRead,
+    step: AnimationSampleStep,
+) -> FfiHostAnimationSampleResult {
+    use crate::css::style::engine_calls::{document_host, with_engine_and_arena};
+
     let sample = match step {
         AnimationSampleStep::Sampled(result) => return result,
         AnimationSampleStep::Resolved(sample) => sample,
     };
-    // Building the length contexts may read the engine, so the host builds them between two calls
-    // of it, over what the first one resolved.
     let mut length_contexts = std::mem::MaybeUninit::<FfiAnimationLengthContexts>::uninit();
-    // SAFETY: As above. The host writes every context.
+    // SAFETY: Guaranteed by the caller. The host writes every context.
     let length_contexts = unsafe {
         (input.length_contexts)(
             input.callback_context,
@@ -5837,9 +5904,14 @@ pub unsafe extern "C" fn rust_sample_animation_effects(
         );
         length_contexts.assume_init()
     };
+    let element_box = crate::layout::node_data::NodeSlotId {
+        index: input.element_box_slot,
+    };
     // SAFETY: As above.
-    with_engine_and_arena(read, host, |engine, arena| unsafe {
-        finish_animation_sample(input, engine, sample, &length_contexts, reference_box(arena))
+    with_engine_and_arena(read, unsafe { document_host(input.host) }, |engine, arena| unsafe {
+        let reference_box =
+            crate::painting::ffi::committed_transform_reference_box(&arena.paintable_rows(), element_box);
+        finish_animation_sample(input, engine, sample, &length_contexts, reference_box)
     })
 }
 

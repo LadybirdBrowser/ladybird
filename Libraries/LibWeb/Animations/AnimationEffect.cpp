@@ -828,20 +828,21 @@ AnimationUpdateContext::~AnimationUpdateContext()
 
 void AnimationUpdateContext::publish()
 {
+    // Each element's effects, sampled over the style it holds.
+    struct Sample {
+        DOM::AbstractElement element;
+        ElementData const& data;
+        GC::ConservativeVector<GC::Ref<KeyframeEffect>> effects;
+    };
+    Vector<Sample> samples;
     for (auto& it : elements) {
-        auto style = it.value.target_style;
-        if (!style)
+        if (!it.value.target_style)
             continue;
         auto& element = it.key;
         GC::Ref<DOM::Element> target = element.element();
         // Disconnected elements no longer have a style-engine row to publish refreshed
         // animation style into.
         if (target->style_node_id() == 0)
-            continue;
-        // Republishing the element's style is the update's own read of its document's render state.
-        Layout::ForcedReadScope read { target->document(), false };
-        // An earlier entry already republished this style with the current animation values.
-        if (element.style_record_identity() != it.value.style_record_before_update)
             continue;
         // Provisionally started transitions are not associated with the element yet, so they are
         // never among the collected effects, but their values are already part of the published
@@ -865,8 +866,35 @@ void AnimationUpdateContext::publish()
             if (!effects_to_collect.contains_slow(dirty_effect))
                 effects_to_collect.append(dirty_effect);
         }
-        if (!effects_to_collect.is_empty())
-            target->document().style_computer().collect_animations_into(read, element, effects_to_collect.span(), *style, CSS::StyleComputer::AnimationRefresh::Yes);
+        samples.append({ element, it.value, move(effects_to_collect) });
+    }
+
+    // The render owner samples every element of a document in one call, before any of their styles is republished.
+    for (size_t first = 0; first < samples.size();) {
+        auto& document = samples[first].element.document();
+        // Sampling the elements is the update's own read of their document's render state.
+        Layout::ForcedReadScope read { document, false };
+        Vector<CSS::StyleComputer::AnimationRefreshRequest> requests;
+        size_t end = first;
+        for (; end < samples.size() && &samples[end].element.document() == &document; ++end) {
+            auto& sample = samples[end];
+            if (!sample.effects.is_empty() && sample.element.style_record_identity() == sample.data.style_record_before_update)
+                requests.append({ sample.element, sample.effects.span(), *sample.data.target_style });
+        }
+        document.style_computer().refresh_animations_into_each(read, requests);
+        first = end;
+    }
+
+    for (auto& sample : samples) {
+        auto& element = sample.element;
+        auto const& data = sample.data;
+        auto style = data.target_style;
+        GC::Ref<DOM::Element> target = element.element();
+        // Republishing the element's style is the update's own read of its document's render state.
+        Layout::ForcedReadScope read { target->document(), false };
+        // An earlier entry already republished this style with the current animation values.
+        if (element.style_record_identity() != data.style_record_before_update)
+            continue;
         auto& style_computer = target->document().style_computer();
         if (!element.installed_style().animation_overlay_changed(style->animated_overlay()))
             continue;
@@ -879,13 +907,13 @@ void AnimationUpdateContext::publish()
         bool const pins_installed_record = may_record_baseline && element.pseudo_element().has_value();
         auto& style_engine = style_computer.style_engine();
         if (pins_installed_record)
-            style_engine.pin_style_record(it.value.style_record_before_update);
+            style_engine.pin_style_record(data.style_record_before_update);
         auto [animated_property_invalidation, publication] = style_computer.publish_sampled_animation_overlay(read, element, *style, [&](auto const& overlay_invalidation) {
             if (may_record_baseline && (target->document().style_stabilization_has_style_reactions() || overlay_invalidation.requires_base_style_recomputation))
-                style_computer.record_transition_stabilization_baseline(element, it.value.style_record_before_update);
+                style_computer.record_transition_stabilization_baseline(element, data.style_record_before_update);
         });
         if (pins_installed_record)
-            style_engine.unpin_style_record(it.value.style_record_before_update);
+            style_engine.unpin_style_record(data.style_record_before_update);
         auto invalidation = CSS::decode_style_invalidation(animated_property_invalidation.invalidation);
         target->refresh_computed_style(element.pseudo_element(), publication.new_style_record);
         if (auto* svg_element = as_if<SVG::SVGElement>(*target); svg_element && !element.pseudo_element().has_value())
@@ -895,7 +923,7 @@ void AnimationUpdateContext::publish()
         // which an animation-only overlay update deliberately does not reconstruct. Publish an
         // exact feedback action so the ordinary reaction path re-cascades that base before the
         // frame becomes observable.
-        if (animated_property_invalidation.requires_base_style_recomputation && !it.value.base_is_current)
+        if (animated_property_invalidation.requires_base_style_recomputation && !data.base_is_current)
             target->document().style_computer().style_engine().record_derived_element_style_input_change(target->style_node_id(), CSS::StyleEngine::PublishedStyle | CSS::StyleEngine::RecomputeStyle);
 
         if (!element.pseudo_element().has_value() && invalidation.inherited_style_changed()) {
