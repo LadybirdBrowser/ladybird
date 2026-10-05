@@ -282,7 +282,24 @@ impl RetainedState {
         };
         std::mem::take(&mut traversal.answer_effects)
             .release_pending_all(&mut self.match_answers, &mut self.winner_groups);
-        traversal.pending_published.release();
+        std::mem::take(&mut traversal.pending_published).release();
+        self.release_traversal_scratch(*traversal);
+        let mut caches = self.prefix_caches.borrow_mut();
+        caches.states.release();
+        caches.answers.release(&mut self.match_answers);
+    }
+
+    /// Retire the traversal the host keeps open across a pass of style reactions, once a
+    /// transaction taken during that pass changed the facts its batch was read from. What it
+    /// published is installed, as at any transaction boundary, and only its scratch is dropped.
+    pub(super) fn retire_batch_matching_traversal(&mut self) {
+        self.install_pending_matching_context();
+        if let Some(traversal) = self.batch_matching_traversal.take() {
+            self.release_traversal_scratch(*traversal);
+        }
+    }
+
+    fn release_traversal_scratch(&mut self, mut traversal: BatchMatchingTraversal) {
         if let Some(batch) = traversal.batch {
             self.memory
                 .release(MemoryCategory::BatchScratch, batch.capacity_bytes());
@@ -297,9 +314,6 @@ impl RetainedState {
         self.memory
             .release(MemoryCategory::BatchScratch, traversal.dispatch_workspace_bytes);
         traversal.cascade_compaction_workspace_memory.release();
-        let mut caches = self.prefix_caches.borrow_mut();
-        caches.states.release();
-        caches.answers.release(&mut self.match_answers);
     }
 
     pub(super) fn discard_retained_prefix_caches(&mut self) {
