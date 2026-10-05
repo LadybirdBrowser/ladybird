@@ -719,13 +719,13 @@ pub fn to_utf16_fly_string(string: &Utf16String) -> Utf16FlyString {
 pub fn concatenate(views: &[Utf16View<'_>]) -> Utf16String {
     let length = views.iter().map(|view| view.length_in_code_units()).sum();
     if views.iter().all(|view| view.has_ascii_storage()) {
-        let mut bytes = Vec::with_capacity(length);
-        for view in views {
-            if let Utf16View::Ascii(units) = view {
-                bytes.extend_from_slice(units);
-            }
-        }
-        return Utf16String::from_utf8(ascii_as_str(&bytes));
+        return Utf16String::from_ascii_concatenation(
+            length,
+            views.iter().map(|view| match view {
+                Utf16View::Ascii(units) => *units,
+                Utf16View::Utf16(_) => unreachable!("every view has ASCII storage"),
+            }),
+        );
     }
     let mut code_units = Vec::with_capacity(length);
     for view in views {

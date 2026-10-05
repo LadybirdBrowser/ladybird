@@ -367,6 +367,18 @@ pub fn generate() -> LayoutHeader {
     offset!(w, "VM_INTERPRETER_STACK_LIMIT", VmHead, interpreter_stack.limit);
     offset!(w, "VM_EXECUTION_GENERATION", VmHead, execution_generation);
     offset!(w, "VM_PRIMITIVE_STORAGE_CAGE_BASE", VmHead, primitive_storage_cage_base);
+    offset!(w, "VM_EXECUTION_CONTEXT_STACK_ENTRIES", VmHead, execution_context_stack_entries);
+    offset!(w, "VM_EXECUTION_CONTEXT_STACK_LENGTH", VmHead, execution_context_stack_length);
+    offset!(w, "VM_EXECUTION_CONTEXT_STACK_CAPACITY", VmHead, execution_context_stack_capacity);
+    offset!(w, "VM_TYPE_ERROR_REALM_OVERRIDE", VmHead, type_error_realm_override);
+    offset!(w, "VM_TYPE_ERROR_REALM_OVERRIDE_DEPTH", VmHead, type_error_realm_override_depth);
+
+    w.section("ExecutionContextStackEntry, the entries of the VM's execution context stack");
+    every_field_offset!(w, "EXECUTION_CONTEXT_STACK_ENTRY", ExecutionContextStackEntry {
+        execution_context,
+        previous_running_execution_context,
+    });
+    size!(w, "EXECUTION_CONTEXT_STACK_ENTRY", ExecutionContextStackEntry);
 
     w.section("Storage to reserve for constructing the VM in place, at least its size and alignment");
     w.define("VM_SIZE", VM_SIZE);

@@ -12,12 +12,10 @@ use core::ffi::c_void;
 use crate::embedding::abi_types::{
     JSErrorData, JSErrorDataCell, JSErrorKind, JSOwnedUtf16String, JSRealm, JSSourceCode, JSUtf16View, cell_from_abi,
     cell_into_abi, completion_into_abi, error_data_from_abi, error_data_into_abi, error_kind_from_abi,
-    optional_cell_from_abi, optional_cell_into_abi, owned_utf16_string_from_abi, owned_utf16_string_into_abi,
-    value_from_abi, vm_from_abi,
+    owned_utf16_string_from_abi, owned_utf16_string_into_abi, value_from_abi, vm_from_abi,
 };
 use crate::embedding::source_code::source_code_into_abi;
 use crate::gc::class::{Class, GcCell};
-use crate::interpreter::vm::TypeErrorRealmOverride;
 use crate::layout::cell::Gc;
 use crate::layout::host_class::{JSCompletion, JSObject, JSVM, JSValue};
 use crate::layout::object::Object;
@@ -57,9 +55,8 @@ pub unsafe fn error_data_from_host_hook(_object: &Object, error_data: *mut c_voi
 }
 
 /// Throws a new error of `kind` whose message is a copy of the code units `message` views, created the way the
-/// runtime creates the errors it throws: in the current realm, or for a TypeError in the realm a
-/// js_error_type_error_realm_scope_enter overrides it with, and with the current call stack as its error data. Call on
-/// the VM's thread.
+/// runtime creates the errors it throws: in the current realm, or for a TypeError in the realm the VM's TypeError
+/// realm override names, and with the current call stack as its error data. Call on the VM's thread.
 ///
 /// # Safety
 ///
@@ -300,52 +297,4 @@ pub unsafe extern "C" fn js_error_data_cell_capture(vm: *mut JSVM) -> *mut JSErr
     // SAFETY: The caller passes its VM.
     let vm = unsafe { vm_from_abi(vm) };
     cell_into_abi(ErrorDataCell::capture(vm))
-}
-
-/// The TypeError realm override that js_error_type_error_realm_scope_enter replaced, which
-/// js_error_type_error_realm_scope_exit puts back. `previous_realm` is null for no override.
-#[repr(C)]
-pub struct JSTypeErrorRealmScope {
-    pub previous_realm: *mut JSRealm,
-    pub previous_depth: usize,
-}
-
-/// VM::TypeErrorRealmScope: has TypeErrors thrown at the current execution context stack depth created in `realm`,
-/// until js_error_type_error_realm_scope_exit with the result. Callees that push execution contexts are unaffected.
-/// Scopes nest, and must exit in the reverse order they entered. Call on the VM's thread.
-///
-/// # Safety
-///
-/// `vm` must be the embedder's VM, and `realm` a realm of it.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn js_error_type_error_realm_scope_enter(
-    vm: *mut JSVM,
-    realm: *mut JSRealm,
-) -> JSTypeErrorRealmScope {
-    // SAFETY: The caller passes its VM.
-    let vm = unsafe { vm_from_abi(vm) };
-    // SAFETY: The caller passes a realm of the VM.
-    let previous = vm.override_type_error_realm(unsafe { cell_from_abi(realm) });
-    JSTypeErrorRealmScope {
-        previous_realm: optional_cell_into_abi(previous.realm),
-        previous_depth: previous.depth,
-    }
-}
-
-/// Ends the TypeError realm scope that js_error_type_error_realm_scope_enter returned `scope` for. Call on the VM's
-/// thread.
-///
-/// # Safety
-///
-/// `vm` must be the embedder's VM, and `scope` the result of its innermost js_error_type_error_realm_scope_enter that
-/// has not exited.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn js_error_type_error_realm_scope_exit(vm: *mut JSVM, scope: JSTypeErrorRealmScope) {
-    // SAFETY: The caller passes its VM.
-    let vm = unsafe { vm_from_abi(vm) };
-    vm.restore_type_error_realm_override(TypeErrorRealmOverride {
-        // SAFETY: The scope holds the realm that was overriding before, which its embedder kept alive.
-        realm: unsafe { optional_cell_from_abi(scope.previous_realm) },
-        depth: scope.previous_depth,
-    });
 }

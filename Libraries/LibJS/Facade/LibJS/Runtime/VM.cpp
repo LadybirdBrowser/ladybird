@@ -95,19 +95,6 @@ static StackTraceElement stack_trace_element_from_abi(JSDebuggerStackFrame const
     return { execution_context_from_abi(stack_frame.execution_context), source_range_from_abi(stack_frame.source_range) };
 }
 
-static ScriptOrModule script_or_module_from_abi(JSScriptOrModule script_or_module)
-{
-    switch (script_or_module.tag) {
-    case JS_LAYOUT_SCRIPT_OR_MODULE_TAG_SCRIPT:
-        return script_from_abi(static_cast<JSScript*>(script_or_module.cell));
-    case JS_LAYOUT_SCRIPT_OR_MODULE_TAG_MODULE:
-        return module_from_abi(static_cast<JSModule*>(script_or_module.cell));
-    default:
-        VERIFY(script_or_module.tag == JS_LAYOUT_SCRIPT_OR_MODULE_TAG_EMPTY);
-        return {};
-    }
-}
-
 static ImportedModuleReferrer imported_module_referrer_from_abi(JSImportedModuleReferrer referrer)
 {
     switch (referrer.kind) {
@@ -505,38 +492,9 @@ bool VM::did_reach_stack_space_limit() const
     return js_vm_did_reach_stack_space_limit(vm_abi(*this));
 }
 
-void VM::push_execution_context(ExecutionContext& execution_context)
+void VM::push_execution_context_growing_the_stack(ExecutionContext& execution_context)
 {
     js_execution_context_push(vm_abi(*this), execution_context_to_abi(execution_context));
-}
-
-ExecutionContext* VM::pop_execution_context()
-{
-    VERIFY(!execution_context_stack().is_empty());
-    return execution_context_from_abi(js_execution_context_pop(vm_abi(*this)));
-}
-
-size_t VM::ExecutionContextStack::size() const
-{
-    return js_execution_context_stack_size(vm_abi(m_vm));
-}
-
-ExecutionContext* VM::find_execution_context_from_the_top(ExecutionContextPredicate predicate, void* predicate_context) const
-{
-    struct PredicateWithContext {
-        ExecutionContextPredicate predicate;
-        void* context;
-    };
-    PredicateWithContext predicate_with_context { predicate, predicate_context };
-
-    auto* matching_execution_context = js_execution_context_last_matching(
-        vm_abi(*this),
-        [](void* context, JSExecutionContext* execution_context) {
-            auto const& predicate_with_context = *static_cast<PredicateWithContext const*>(context);
-            return predicate_with_context.predicate(predicate_with_context.context, *execution_context_from_abi(execution_context));
-        },
-        &predicate_with_context);
-    return execution_context_from_abi(matching_execution_context);
 }
 
 void VM::finish_execution_generation()
@@ -572,22 +530,6 @@ ThrowCompletionOr<Reference> VM::resolve_binding(Utf16FlyString const& name, Str
     if (!base_environment)
         return Reference { Reference::BaseType::Unresolvable, name, strict };
     return Reference { *base_environment, name, strict };
-}
-
-VM::TypeErrorRealmScope::TypeErrorRealmScope(VM& vm, Realm& realm)
-    : m_vm(vm)
-{
-    auto replaced_scope = js_error_type_error_realm_scope_enter(vm_abi(vm), realm_to_abi(realm));
-    m_previous_realm = replaced_scope.previous_realm ? realm_from_abi(replaced_scope.previous_realm) : nullptr;
-    m_previous_depth = replaced_scope.previous_depth;
-}
-
-void VM::TypeErrorRealmScope::restore()
-{
-    if (!m_active)
-        return;
-    js_error_type_error_realm_scope_exit(vm_abi(m_vm), { m_previous_realm ? realm_to_abi(*m_previous_realm) : nullptr, m_previous_depth });
-    m_active = false;
 }
 
 Completion VM::throw_engine_error(EngineErrorKind kind, Utf16View message)
@@ -631,9 +573,24 @@ void VM::restore_execution_context_stack()
     js_execution_context_restore_stack(vm_abi(*this));
 }
 
+// 9.4.1 GetActiveScriptOrModule ( ), https://tc39.es/ecma262/#sec-getactivescriptormodule
 ScriptOrModule VM::get_active_script_or_module() const
 {
-    return script_or_module_from_abi(js_execution_context_get_active_script_or_module(vm_abi(*this)));
+    // 1. If the execution context stack is empty, return null.
+    if (!running_execution_context_or_null())
+        return Empty {};
+
+    // 2. Let ec be the topmost execution context on the execution context stack whose ScriptOrModule component is not null.
+    ScriptOrModule script_or_module = Empty {};
+    for_each_execution_context_top_to_bottom([&](ExecutionContext const& execution_context) {
+        if (execution_context.script_or_module.has<Empty>())
+            return true;
+        script_or_module = execution_context.script_or_module;
+        return false;
+    });
+
+    // 3. If no such execution context exists, return null. Otherwise, return ec's ScriptOrModule.
+    return script_or_module;
 }
 
 void* InterpreterStack::top() const

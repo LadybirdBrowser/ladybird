@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use core::cell::Cell;
+use core::cell::{Cell, RefCell};
 use core::ptr::NonNull;
 use std::alloc::{Layout, alloc, dealloc, handle_alloc_error};
 
@@ -155,11 +155,46 @@ fn trace_slots(slots: &[Cell<Value>], visitor: &mut Visitor) {
     visitor.visit_values(values);
 }
 
+/// The slot counts that C++ ExecutionContextAllocator rounds the slots of a context outside the interpreter stack up
+/// to. Contexts of these sizes are not freed, but kept for the next context of their size, as the host creates and
+/// drops one for many callbacks and promise jobs.
+const REUSED_SLOT_COUNTS: [u32; 6] = [4, 16, 64, 128, 256, 512];
+
+/// The contexts of each of REUSED_SLOT_COUNTS that were dropped on this thread, which is the thread of its VM.
+struct ReusableExecutionContexts([Vec<NonNull<ExecutionContext>>; REUSED_SLOT_COUNTS.len()]);
+
+impl Drop for ReusableExecutionContexts {
+    fn drop(&mut self) {
+        for (contexts, &slot_count) in self.0.iter().zip(REUSED_SLOT_COUNTS.iter()) {
+            for context in contexts {
+                // SAFETY: The context was allocated with the layout of its reused slot count, and nothing uses it.
+                unsafe {
+                    dealloc(
+                        context.as_ptr().cast(),
+                        OwnedExecutionContext::layout_for_slot_count(slot_count),
+                    );
+                }
+            }
+        }
+    }
+}
+
+thread_local! {
+    static REUSABLE_EXECUTION_CONTEXTS: RefCell<ReusableExecutionContexts> =
+        const { RefCell::new(ReusableExecutionContexts([const { Vec::new() }; REUSED_SLOT_COUNTS.len()])) };
+}
+
+/// The index in REUSED_SLOT_COUNTS of the size a context of `slot_count` slots is allocated with, if it is reused.
+fn reused_slot_count_index(slot_count: u32) -> Option<usize> {
+    REUSED_SLOT_COUNTS
+        .iter()
+        .position(|&reused_slot_count| slot_count <= reused_slot_count)
+}
+
 /// An execution context that lives outside the interpreter stack, like the ones C++ ExecutionContext::create()
 /// allocates for realms. It must be popped off the execution context stack before it is dropped.
 pub struct OwnedExecutionContext {
     context: NonNull<ExecutionContext>,
-    layout: Layout,
 }
 
 impl OwnedExecutionContext {
@@ -169,13 +204,23 @@ impl OwnedExecutionContext {
             .checked_add(constant_count)
             .and_then(|count| count.checked_add(argument_count))
             .expect("the slot count of an execution context fits in u32");
-        let layout = Self::layout_for_slot_count(slot_count);
-        // SAFETY: The layout has room for at least the context.
-        let memory = unsafe { alloc(layout) }.cast::<ExecutionContext>();
-        let Some(context) = NonNull::new(memory) else {
-            handle_alloc_error(layout);
-        };
-        // SAFETY: The memory was just allocated with room for the context and its slots.
+        let reused_slot_count_index = reused_slot_count_index(slot_count);
+        // The free lists are gone once the thread's thread-locals are destroyed, which on macOS happens before C++
+        // static destructors run, so a context made or dropped after that is allocated or freed directly.
+        let reused_context = reused_slot_count_index.and_then(|index| {
+            REUSABLE_EXECUTION_CONTEXTS
+                .try_with(|reusable_contexts| reusable_contexts.borrow_mut().0[index].pop())
+                .ok()
+                .flatten()
+        });
+        let context = reused_context.unwrap_or_else(|| {
+            let allocated_slot_count = reused_slot_count_index.map_or(slot_count, |index| REUSED_SLOT_COUNTS[index]);
+            let layout = Self::layout_for_slot_count(allocated_slot_count);
+            // SAFETY: The layout has room for at least the context.
+            let memory = unsafe { alloc(layout) }.cast::<ExecutionContext>();
+            NonNull::new(memory).unwrap_or_else(|| handle_alloc_error(layout))
+        });
+        // SAFETY: The memory has room for the context and its slots, and nothing else uses it.
         unsafe {
             ExecutionContext::initialize_at(
                 context.as_ptr(),
@@ -185,7 +230,7 @@ impl OwnedExecutionContext {
                 0,
             );
         }
-        Self { context, layout }
+        Self { context }
     }
 
     fn layout_for_slot_count(slot_count: u32) -> Layout {
@@ -207,21 +252,13 @@ impl OwnedExecutionContext {
         context
     }
 
-    /// Takes back ownership of a context that into_raw() gave up. Like C++ ExecutionContext::operator delete, this
-    /// finds the size of the allocation from the context's slot count, which never changes after it is created.
+    /// Takes back ownership of a context that into_raw() gave up.
     ///
     /// # Safety
     ///
     /// `context` must come from into_raw(), and nothing may own it already.
     pub unsafe fn from_raw(context: NonNull<ExecutionContext>) -> Self {
-        // SAFETY: The caller passes a live context.
-        let slot_count = unsafe { context.as_ref() }
-            .registers_and_constants_and_locals_and_arguments_count
-            .get();
-        Self {
-            context,
-            layout: Self::layout_for_slot_count(slot_count),
-        }
+        Self { context }
     }
 }
 
@@ -243,7 +280,28 @@ impl core::ops::Deref for OwnedExecutionContext {
 
 impl Drop for OwnedExecutionContext {
     fn drop(&mut self) {
+        // Like C++ ExecutionContext::operator delete, this finds the size of the allocation from the context's slot
+        // count, which never changes after it is created.
+        let slot_count = self.registers_and_constants_and_locals_and_arguments_count.get();
+        let allocated_slot_count = match reused_slot_count_index(slot_count) {
+            Some(index) => {
+                let context = self.context;
+                let returned_to_free_list = REUSABLE_EXECUTION_CONTEXTS
+                    .try_with(|reusable_contexts| reusable_contexts.borrow_mut().0[index].push(context))
+                    .is_ok();
+                if returned_to_free_list {
+                    return;
+                }
+                REUSED_SLOT_COUNTS[index]
+            }
+            None => slot_count,
+        };
         // SAFETY: The context was allocated with this layout, and contexts hold nothing that needs dropping.
-        unsafe { dealloc(self.context.as_ptr().cast(), self.layout) };
+        unsafe {
+            dealloc(
+                self.context.as_ptr().cast(),
+                Self::layout_for_slot_count(allocated_slot_count),
+            );
+        }
     }
 }
