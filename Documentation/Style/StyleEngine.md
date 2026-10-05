@@ -1237,7 +1237,7 @@ The engine likewise mints process-global `StyleAtomID` values for selector-menti
 
 **Relation columns** are stored on the Rust side, keyed by `StyleNodeID`, and maintained from the journalled tree deltas within the same transaction that reports the mutation, so transpose traversal, impact-region membership, and sibling-sequence scans run entirely inside the evaluator. Two deliberate exceptions bypass per-node journalling: initial bulk load links the whole arriving tree directly (safe because the root arrival forces whole-document evaluation), and shadow host/root registration is applied directly at registration time.
 
-**Forward transfer.** C++ mutation helpers append element facts to retained input buffers rather than crossing FFI immediately. One flat immutable transaction per flush submits six pointer-free fixed-width row arrays (tree relations, element arrivals, local features, state, element declarations, and element style inputs) plus the arrival custom-state atom arena in a single call. Namespace, language, directionality, heading level, custom states, and slot-ness ride the element-arrival rows. Program, sheet, rule, layer, and topology changes still cross as individual generated boundary calls as they happen and are journalled engine-side into the same normalization journal.
+**Forward transfer.** C++ mutation helpers append element facts to retained input buffers rather than crossing FFI immediately. One flat immutable transaction per flush submits six pointer-free fixed-width row arrays (tree relations, element arrivals, local features, state, element declarations, and element style inputs) plus the arrival custom-state atom arena in a single call. Namespace, language, directionality, heading level, custom states, and slot-ness ride the element-arrival rows. Program, sheet, rule, layer, and topology changes still cross as individual boundary calls as they happen and are journalled engine-side into the same normalization journal.
 
 **There is no reverse fact-fetch protocol.** The engine never asks C++ for a fact it lacks: C++ pushes every fact it owns eagerly as deltas, the engine stages them, and evaluation reads old/new values through a transaction-local fact view over retained pre-images plus the resident fact store. A broad plan holds an immutable shared view of the resident primary columns and allocates only the transaction-specific overlays and indexes it needs; it does not clone the complete fact store or cross the boundary. The one reverse direction that exists is an enumeration callback for flat-tree descendants not represented by an engine-owned child list.
 
@@ -1245,7 +1245,7 @@ The engine likewise mints process-global `StyleAtomID` values for selector-menti
 
 ### 13.1 Module layout
 
-The C++ side of the boundary is `Libraries/LibWeb/CSS/StyleEngineBridge.*` (the FFI surface; regular boundary calls are generated from a single boundary specification at build time) and `Libraries/LibWeb/CSS/StyleEngineInput.*` (input collection and transaction assembly). The engine lives in `Libraries/LibWeb/Rust/src/css/style/`:
+The C++ side of the boundary is `Libraries/LibWeb/CSS/StyleEngineBridge.*` (the FFI surface; the regular boundary calls are one row each in the table of `boundary.rs`) and `Libraries/LibWeb/CSS/StyleEngineInput.*` (input collection and transaction assembly). The engine lives in `Libraries/LibWeb/Rust/src/css/style/`:
 
 ```text
 mod.rs                engine root: modes, top-level state, public entry points
@@ -1282,7 +1282,8 @@ order.rs              hierarchical order-maintenance tokens
 tree.rs               style-node tree relations and identities
 fast_hash.rs          deterministic hashing aliases (fixed-seed foldhash)
 instrumentation.rs    counters and the wild ledger
-bridge.rs             Rust side of the generated FFI boundary
+bridge.rs             Rust side of the FFI boundary
+boundary.rs           the host's plain writes and reads, one table row each
 tests.rs, differential_tests.rs  in-crate unit and differential suites
 ```
 

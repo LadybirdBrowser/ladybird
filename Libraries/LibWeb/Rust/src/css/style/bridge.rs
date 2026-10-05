@@ -29,7 +29,7 @@ use super::rule_writes::RuleWrite;
 use crate::render_state::DocumentHost;
 use std::ffi::c_void;
 
-use crate::abort_on_panic as abort_on_boundary_panic;
+use crate::abort_on_panic;
 use crate::css::animated_overlay::AnimatedOverlay;
 use crate::css::computed_longhand_table::ComputedLonghandTable;
 use crate::css::custom_properties::{CustomPropertyRegistry, ffi_slice};
@@ -45,7 +45,6 @@ use super::compiler::ScopeChain;
 use super::index::FeatureValue;
 use super::index::LocalFeatureKey;
 use super::index::StyleAtomID;
-use super::program::CascadeLayerID;
 use super::program::CascadeOrigin;
 use super::program::CustomDeclaration;
 use super::program::DeclarationBlockID;
@@ -60,10 +59,6 @@ use super::transaction::TreeRelations;
 use super::tree::StyleNodeID;
 use super::tree::TreeScopeID;
 use super::{Counters, StyleEngine, StyleEngineState};
-
-fn abort_on_panic<F: FnOnce() -> R, R>(operation: F) -> R {
-    abort_on_boundary_panic(operation)
-}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u32)]
@@ -3221,48 +3216,6 @@ pub(super) unsafe fn borrow<'a, T>(pointer: *const T, count: usize) -> &'a [T] {
     }
     assert!(!pointer.is_null(), "a non-empty delta array must not be null");
     unsafe { std::slice::from_raw_parts(pointer, count) }
-}
-
-include!(concat!(env!("OUT_DIR"), "/style_engine_boundary_generated.rs"));
-
-impl StyleChange {
-    /// Whether the change notes what an attribute name's forms are, or what an `attr()` reads it as: what the name is,
-    /// which no style transaction can answer differently, so it need not wait for the drain of one that flew.
-    pub(crate) fn notes_attribute_name(&self) -> bool {
-        matches!(
-            self,
-            Self::NoteAttributeNameForms { .. } | Self::NoteAttributeSubstitutionName { .. }
-        )
-    }
-
-    /// Whether the change only keeps the engine from reclaiming records: it pins or unpins one, or begins or ends an
-    /// epoch of style record views. It changes nothing the paint properties are prepared from.
-    pub(crate) fn only_keeps_records_alive(&self) -> bool {
-        matches!(
-            self,
-            Self::BeginStyleRecordViewEpoch {}
-                | Self::EndStyleRecordViewEpoch {}
-                | Self::PinStyleRecord { .. }
-                | Self::UnpinStyleRecord { .. }
-        )
-    }
-
-    /// Whether the change may move a fact the host knows of the render state. One that keeps records alive, notes what
-    /// an attribute name is or what a value or a text spells, picks the pseudo-element whose style is deferred, or
-    /// begins or ends a cold matching batch never does: none of them stages a style input or touches a layout box.
-    pub(crate) fn may_move_facts(&self) -> bool {
-        !self.only_keeps_records_alive()
-            && !self.notes_attribute_name()
-            && !matches!(
-                self,
-                Self::SetAttributeValueText { .. }
-                    | Self::SetTextIsAsciiWhitespace { .. }
-                    | Self::SetPseudoElementStyleDeferred { .. }
-                    | Self::BeginColdMatchingBatch { .. }
-                    | Self::BeginAdaptiveColdMatchingBatch { .. }
-                    | Self::EndColdMatchingBatch {}
-            )
-    }
 }
 
 #[cfg(test)]

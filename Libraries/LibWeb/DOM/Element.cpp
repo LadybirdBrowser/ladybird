@@ -1519,7 +1519,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styl
             return false;
         // A reused originating record keeps the pseudo-element inventory it was computed with; the
         // style engine's answer says which pseudo-elements have rules now.
-        auto const engine_pseudo_element_styles = style_computer.style_engine().published_pseudo_style_mask(read, style_node_id());
+        auto const engine_pseudo_element_styles = CSS::StyleEngineFFI::style_engine_published_pseudo_style_mask(style_computer.style_engine().host(), &read, style_node_id().value());
         // The transaction whose row composes the element answers which kinds with rules no settle generates or
         // changes, as `*::before` rules styling nothing but `box-sizing` are.
         auto const inert_pseudo_elements = CSS::StyleEngineFFI::style_engine_inert_pseudo_kinds(style_computer.style_engine().host(), style_node_id().value());
@@ -1706,7 +1706,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styl
         recompute_pseudo_element_style(CSS::PseudoElement::Backdrop);
     recompute_pseudo_element_style(CSS::PseudoElement::Marker);
     if (settled_after_host_record)
-        style_computer.style_engine().acknowledge_engine_computed_record(style_node_id());
+        CSS::StyleEngineFFI::style_engine_acknowledge_engine_computed_record(style_computer.style_engine().host(), style_node_id());
 
     return invalidation;
 }
@@ -2067,7 +2067,7 @@ void Element::publish_style_recomputes_on_environment_move()
     auto style_node = style_node_id();
     if (style_node == 0)
         return;
-    document().style_computer().style_engine().set_element_recomputes_on_environment_move(style_node, style_recomputes_on_environment_move());
+    CSS::StyleEngineFFI::style_engine_set_element_recomputes_on_environment_move(document().style_computer().style_engine().host(), style_node, style_recomputes_on_environment_move());
 }
 
 void Element::publish_size_container_query_facts()
@@ -2075,7 +2075,7 @@ void Element::publish_size_container_query_facts()
     auto style_node = style_node_id();
     if (style_node == 0)
         return;
-    document().style_computer().style_engine().set_element_size_container_query_facts(style_node, m_is_size_query_container, m_style_depends_on_size_container_query);
+    CSS::StyleEngineFFI::style_engine_set_element_size_container_query_facts(document().style_computer().style_engine().host(), style_node, m_is_size_query_container, m_style_depends_on_size_container_query);
 }
 
 void Element::set_style_depends_on_viewport_metrics()
@@ -2484,7 +2484,7 @@ void Element::clear_computed_styles_from_display_none_descendants(Layout::BegunR
         if (auto* layout_node = element->unsafe_layout_node(read))
             layout_node->pin_style_record_for_detachment();
         element->m_installed_style = {};
-        element->document().style_computer().style_engine().set_held_style_record(element->style_node_id(), {});
+        CSS::StyleEngineFFI::style_engine_set_held_style_record(element->document().style_computer().style_engine().host(), element->style_node_id(), {});
 
         // NB: SVG resources can still affect rendering when a DOM ancestor has display:none.
         //     Restore their styles in this style update, so painting never needs to materialize
@@ -3321,7 +3321,7 @@ void Element::set_style_node_id(CSS::StyleNodeID style_node_id)
     }
     // A newly minted identity holds none of what the element held under its previous one.
     if (style_node_id != 0 && !!m_installed_style.record())
-        style_engine.set_held_style_record(style_node_id, m_installed_style.record());
+        CSS::StyleEngineFFI::style_engine_set_held_style_record(style_engine.host(), style_node_id, m_installed_style.record().value());
     if (style_node_id != 0)
         publish_children_explicitly_inherit_mark();
 }
@@ -5219,7 +5219,7 @@ void Element::replace_style_record(CSS::StyleRecordID style_record_identity)
     if (auto* layout_node = unsafe_layout_node(read))
         layout_node->set_style_record_identity(m_installed_style, held_before);
     if (style_node_id() != 0)
-        document().style_computer().style_engine().set_held_style_record(style_node_id(), style_record_identity);
+        CSS::StyleEngineFFI::style_engine_set_held_style_record(document().style_computer().style_engine().host(), style_node_id(), style_record_identity.value());
     // The resources an SVG graphics element's `mask`, `clip-path`, `fill` and `stroke` name are published beside its
     // attributes for the layout tree build to resolve, so they follow every record the element takes.
     if (is<SVG::SVGGraphicsElement>(*this) && !!style_record_identity)

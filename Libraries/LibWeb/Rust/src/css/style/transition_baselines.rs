@@ -6,7 +6,7 @@
 
 //! The before-change styles a style stabilization epoch decides CSS transitions against.
 
-use super::bridge::StyleChange;
+use super::boundary::StyleChange;
 use super::tree::StyleNodeID;
 use super::{HashMap, RetainedState};
 use crate::css::animated_overlay::FfiAnimatedOverlayEntry;
@@ -65,15 +65,13 @@ impl TransitionBaselines {
     pub(crate) fn follow(&mut self, change: &StyleChange) {
         match *change {
             StyleChange::RecordTransitionBaseline {
-                node,
+                node: Some(node),
                 pseudo_kind,
                 style_record,
             } if style_record != 0 => {
-                if let Some(node) = StyleNodeID::from_raw(node) {
-                    self.insert(node, pseudo_kind, style_record);
-                }
+                self.insert(node, pseudo_kind, style_record);
             }
-            StyleChange::ReleaseTransitionBaselines {} => self.baselines.clear(),
+            StyleChange::ReleaseTransitionBaselines => self.baselines.clear(),
             _ => {}
         }
     }

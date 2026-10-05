@@ -228,26 +228,26 @@ InstalledStyle StyleComputer::install_style(Layout::BegunRead const& read, Style
 void StyleComputer::pin_style_record(StyleRecordID style_record_identity) const
 {
     VERIFY(style_record_identity);
-    const_cast<StyleComputer&>(*this).m_style_engine.pin_style_record(style_record_identity);
+    StyleEngineFFI::style_engine_pin_style_record(m_style_engine.host(), style_record_identity.value());
 }
 
 void StyleComputer::unpin_style_record(StyleRecordID style_record_identity) const
 {
     VERIFY(style_record_identity);
-    const_cast<StyleComputer&>(*this).m_style_engine.unpin_style_record(style_record_identity);
+    StyleEngineFFI::style_engine_unpin_style_record(m_style_engine.host(), style_record_identity.value());
 }
 
 void StyleComputer::begin_style_record_view_epoch() const
 {
     if (m_style_record_view_epoch_depth++ == 0)
-        const_cast<StyleComputer&>(*this).m_style_engine.begin_style_record_view_epoch();
+        StyleEngineFFI::style_engine_begin_style_record_view_epoch(m_style_engine.host());
 }
 
 void StyleComputer::end_style_record_view_epoch() const
 {
     VERIFY(m_style_record_view_epoch_depth > 0);
     if (--m_style_record_view_epoch_depth == 0)
-        const_cast<StyleComputer&>(*this).m_style_engine.end_style_record_view_epoch();
+        StyleEngineFFI::style_engine_end_style_record_view_epoch(m_style_engine.host());
 }
 
 void StyleComputer::register_style_node(StyleNodeID style_node_id, DOM::Node& node)
@@ -296,7 +296,7 @@ void StyleComputer::unregister_style_node(StyleNodeID style_node_id)
     }
     if (index < m_element_style_nodes.size()) {
         m_element_style_nodes[index] = nullptr;
-        m_style_engine.consume_recorded_element_style_input_change(style_node_id);
+        StyleEngineFFI::style_engine_consume_element_style_input(m_style_engine.host(), style_node_id);
         m_style_engine.note_style_node_arrived_or_retired(style_node_id);
     }
 }
@@ -398,8 +398,8 @@ void StyleComputer::record_transition_stabilization_baseline(DOM::AbstractElemen
     // Few epochs record a baseline, so the engine keeps them only for one that does.
     auto& style_engine = const_cast<StyleEngine&>(m_style_engine);
     if (!exchange(m_transition_baselines_recorded, true))
-        style_engine.begin_transition_baselines();
-    style_engine.record_transition_baseline(style_node_id, pseudo_element_to_ffi(abstract_element.pseudo_element()), before_change_style_record);
+        StyleEngineFFI::style_engine_begin_transition_baselines(style_engine.host());
+    StyleEngineFFI::style_engine_record_transition_baseline(style_engine.host(), style_node_id, pseudo_element_to_ffi(abstract_element.pseudo_element()), before_change_style_record.value());
 }
 
 // https://drafts.csswg.org/css-transitions-2/#defining-before-change-style
@@ -476,7 +476,7 @@ void StyleComputer::commit_transition_stabilization_epoch()
     m_provisional_transition_state_indices.clear();
     m_provisional_transition_state_indices_by_target.clear();
     if (exchange(m_transition_baselines_recorded, false))
-        m_style_engine.release_transition_baselines();
+        StyleEngineFFI::style_engine_release_transition_baselines(m_style_engine.host());
 }
 
 template<size_t length>

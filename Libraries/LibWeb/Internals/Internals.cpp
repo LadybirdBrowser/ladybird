@@ -1956,7 +1956,7 @@ double Internals::style_engine_match_document()
     auto* root = document.document_element();
     if (!root || root->style_node_id() == 0)
         return -1;
-    auto matches = document.style_computer().style_engine().match_document(read, root->style_node_id());
+    auto matches = CSS::StyleEngineFFI::style_engine_match_document(document.style_computer().style_engine().host(), read, root->style_node_id());
     if (matches == NumericLimits<size_t>::max())
         return -1;
     return static_cast<double>(matches);
@@ -2470,7 +2470,7 @@ GC::Ref<JS::Object> Internals::style_invalidation_counters_object() const
     object->define_direct_property("registeredPropertiesCacheRebuilds"_utf16_fly_string, JS::Value(counters.registered_properties_cache_rebuilds), JS::default_attributes);
     object->define_direct_property("scopeRuleCacheBuilds"_utf16_fly_string, JS::Value(counters.scope_rule_cache_builds), JS::default_attributes);
     object->define_direct_property("styleQueryContainerScans"_utf16_fly_string, JS::Value(counters.style_query_container_scans), JS::default_attributes);
-    object->define_direct_property("sizeQueryContainerScanVisits"_utf16_fly_string, JS::Value(document.style_computer().style_engine().size_query_container_scan_visits(read, false)), JS::default_attributes);
+    object->define_direct_property("sizeQueryContainerScanVisits"_utf16_fly_string, JS::Value(CSS::StyleEngineFFI::style_engine_size_query_container_scan_visits(document.style_computer().style_engine().host(), read, false)), JS::default_attributes);
     object->define_direct_property("styleEngineTransactionSetups"_utf16_fly_string, JS::Value(counters.style_engine_transaction_setups), JS::default_attributes);
     object->define_direct_property("styleEngineTransactionSetupMicroseconds"_utf16_fly_string, JS::Value(counters.style_engine_transaction_setup_microseconds), JS::default_attributes);
     object->define_direct_property("styleEnginePlanningMicroseconds"_utf16_fly_string, JS::Value(counters.style_update_bridge_microseconds), JS::default_attributes);

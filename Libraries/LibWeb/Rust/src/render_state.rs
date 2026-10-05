@@ -271,7 +271,7 @@ pub(crate) enum ArenaChange {
     /// A write to the document's paint state.
     Paint(crate::painting::paint_changes::PaintChange),
     /// A write to the document's style engine.
-    Style(crate::css::style::bridge::StyleChange),
+    Style(crate::css::style::boundary::StyleChange),
     /// A hand-written write to the document's style engine.
     Engine(crate::css::style::engine_calls::EngineWrite),
     /// What is left of the boxes of the nodes the identities name is detached as the nodes leave the document (see
@@ -460,7 +460,7 @@ impl ChangeQueue {
     }
 
     fn push(&self, change: ArenaChange) {
-        use crate::css::style::bridge::StyleChange;
+        use crate::css::style::boundary::StyleChange;
         use crate::layout::layout_changes::LayoutChange;
         use crate::painting::paint_changes::PaintChange;
         let mut queued = if self.holds_style.get() && change.writes_style() {
@@ -470,10 +470,10 @@ impl ChangeQueue {
             self.queued.borrow_mut()
         };
         // An epoch of style record views that ends before anything else is queued or applied in it views nothing.
-        if matches!(change, ArenaChange::Style(StyleChange::EndStyleRecordViewEpoch {}))
+        if matches!(change, ArenaChange::Style(StyleChange::EndStyleRecordViewEpoch))
             && matches!(
                 queued.last(),
-                Some(ArenaChange::Style(StyleChange::BeginStyleRecordViewEpoch {}))
+                Some(ArenaChange::Style(StyleChange::BeginStyleRecordViewEpoch))
             )
         {
             queued.pop();

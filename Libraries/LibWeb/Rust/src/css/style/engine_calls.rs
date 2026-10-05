@@ -4,11 +4,11 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! The writes and reads the host makes of a document's style engine that the boundary generator does not write for
-//! it. A write is a change the document's render state applies to the engine in the order the host made them; a read
-//! is a closure the host runs on the render state and waits for. Each entry takes the document host, never the
-//! engine, and owns what it hands over: borrowed arrays are copied, and the host's objects are referenced, as the
-//! entry queues the change.
+//! The writes and reads the host makes of a document's style engine that the [`super::boundary`] table does not list.
+//! A write is a change the document's render state applies to the engine in the order the host made them; a read is a
+//! closure the host runs on the render state and waits for. Each entry takes the document host, never the engine, and
+//! owns what it hands over: borrowed arrays are copied, and the host's objects are referenced, as the entry queues the
+//! change.
 
 use super::StyleEngine;
 use super::atoms::{AtomKey, AtomLease};
@@ -264,13 +264,8 @@ impl EngineWrite {
                 absorbs_any,
                 absorbed,
             } => {
-                let engine_absorbed = super::bridge::operations::absorb_element_style_input(
-                    engine,
-                    node.raw(),
-                    reaction,
-                    inherited_style_groups,
-                    absorbs_any,
-                );
+                let engine_absorbed =
+                    engine.absorb_element_style_input(node, reaction, inherited_style_groups, absorbs_any);
                 // A fold that merges nothing into the reaction answers the same as none.
                 debug_assert!(
                     engine_absorbed == absorbed
@@ -859,7 +854,7 @@ pub(crate) struct EngineMemo {
 
 impl EngineMemo {
     /// Follows `change`, a write the host queued for the engine.
-    pub(crate) fn follow(&self, change: &super::bridge::StyleChange) {
+    pub(crate) fn follow(&self, change: &super::boundary::StyleChange) {
         self.deferred.borrow_mut().follow(change);
         self.baselines.borrow_mut().follow(change);
     }
@@ -1021,8 +1016,8 @@ impl DeferredInputs {
     }
 
     /// Follows `change`, which the host queues for the engine.
-    pub(crate) fn follow(&mut self, change: &super::bridge::StyleChange) {
-        use super::bridge::StyleChange;
+    pub(crate) fn follow(&mut self, change: &super::boundary::StyleChange) {
+        use super::boundary::StyleChange;
         use super::transaction::{STYLE_REACTION_PUBLISHED_STYLE, STYLE_REACTION_RECOMPUTE_STYLE};
         let (node, reaction, groups) = match *change {
             StyleChange::RecordDerivedElementStyleInput {
@@ -1033,10 +1028,8 @@ impl DeferredInputs {
             StyleChange::RecordContainerQueryInput { node } => {
                 (node, STYLE_REACTION_PUBLISHED_STYLE | STYLE_REACTION_RECOMPUTE_STYLE, 0)
             }
-            StyleChange::ConsumeElementStyleInput { node } => {
-                if let Some(node) = StyleNodeID::from_raw(node)
-                    && let Ok(index) = self.search(node)
-                {
+            StyleChange::ConsumeElementStyleInput { node: Some(node) } => {
+                if let Ok(index) = self.search(node) {
                     self.inputs.remove(index);
                 }
                 return;
@@ -1063,17 +1056,17 @@ impl DeferredInputs {
                 return;
             }
             StyleChange::RecordSizeContainerQueryDependents { .. }
-            | StyleChange::EvaluateSizeContainersNeedingEvaluationAfterLayout {} => {
+            | StyleChange::EvaluateSizeContainersNeedingEvaluationAfterLayout => {
                 self.add_unnamed((STYLE_REACTION_PUBLISHED_STYLE | STYLE_REACTION_RECOMPUTE_STYLE, 0));
                 return;
             }
-            StyleChange::Flush {} => {
+            StyleChange::Flush => {
                 self.add_unnamed(Self::ALL);
                 return;
             }
             _ => return,
         };
-        let Some(node) = StyleNodeID::from_raw(node) else {
+        let Some(node) = node else {
             return;
         };
         if reaction == 0 {
@@ -1157,9 +1150,7 @@ pub unsafe extern "C" fn style_engine_transition_baseline(host: &DocumentHost, n
 pub unsafe extern "C" fn style_engine_has_pending_transaction(host: &DocumentHost, read: &BegunRead) -> bool {
     match host.known_engine_facts() {
         Some(facts) => facts.has_pending_style_transaction,
-        None => with_engine(read, host, |engine| {
-            super::bridge::operations::has_pending_transaction(engine)
-        }),
+        None => with_engine(read, host, |engine| engine.has_pending_transaction()),
     }
 }
 
@@ -1173,9 +1164,7 @@ pub unsafe extern "C" fn style_engine_has_pending_transaction(host: &DocumentHos
 pub unsafe extern "C" fn style_engine_has_deferred_element_style_inputs(host: &DocumentHost, read: &BegunRead) -> bool {
     match host.known_engine_facts() {
         Some(facts) => facts.has_deferred_element_style_inputs,
-        None => with_engine(read, host, |engine| {
-            super::bridge::operations::has_deferred_element_style_inputs(engine)
-        }),
+        None => with_engine(read, host, |engine| engine.has_deferred_element_style_inputs()),
     }
 }
 
@@ -1200,9 +1189,7 @@ pub unsafe extern "C" fn style_engine_has_deferred_element_style_input(
             return deferred.search(style_node).is_ok();
         }
     }
-    with_engine(read, host, |engine| {
-        super::bridge::operations::has_deferred_element_style_input(engine, node)
-    })
+    with_engine(read, host, |engine| engine.has_deferred_element_style_input(style_node))
 }
 
 /// The synthetic pseudo-elements `node` has rules for, as a C++ record's pseudo-style mask, or no bits when the engine
@@ -1221,7 +1208,7 @@ pub unsafe extern "C" fn style_engine_published_pseudo_style_mask(
     host.transaction_pseudo_styles(node).map_or_else(
         || {
             with_engine(read, host, |engine| {
-                super::bridge::operations::published_pseudo_style_mask(engine, node)
+                StyleNodeID::from_raw(node).map_or(0, |node| engine.published_pseudo_style_mask(node))
             })
         },
         |styles| styles.mask,
@@ -1253,7 +1240,7 @@ pub unsafe extern "C" fn style_engine_has_size_containers_needing_evaluation_aft
     match host.known_engine_facts() {
         Some(facts) => facts.has_size_containers_needing_evaluation_after_layout,
         None => with_engine(read, host, |engine| {
-            super::bridge::operations::has_size_containers_needing_evaluation_after_layout(engine)
+            engine.has_size_containers_needing_evaluation_after_layout()
         }),
     }
 }
@@ -1271,9 +1258,7 @@ pub unsafe extern "C" fn style_engine_attribute_value_text_requirements_version(
 ) -> u64 {
     match host.known_selector_attribute_value_text_requirements_version() {
         Some(version) => super::inputs::with_attr_names_read(version),
-        None => with_engine(read, host, |engine| {
-            super::bridge::operations::attribute_value_text_requirements_version(engine)
-        }),
+        None => with_engine(read, host, |engine| engine.attribute_value_text_requirements_version()),
     }
 }
 
@@ -1308,7 +1293,7 @@ pub unsafe extern "C" fn style_engine_attribute_name_requires_value_text(
                     }))
         }
         None => with_engine(read, host, |engine| {
-            super::bridge::operations::attribute_name_requires_value_text(engine, name)
+            engine.attribute_name_requires_value_text(StyleAtomID(name))
         }),
     }
 }
@@ -1342,13 +1327,7 @@ pub unsafe extern "C" fn style_engine_absorb_element_style_input(
     });
     let Some(Some(absorbed)) = known else {
         return with_engine(read, host, |engine| {
-            super::bridge::operations::absorb_element_style_input(
-                engine,
-                node,
-                reaction,
-                inherited_style_groups,
-                absorbs_any,
-            )
+            engine.absorb_element_style_input(style_node, reaction, inherited_style_groups, absorbs_any)
         });
     };
     // The engine folds what the host did, and an input the host knows nothing of that folding merges nothing into the

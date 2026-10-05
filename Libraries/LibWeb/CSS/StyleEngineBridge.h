@@ -34,6 +34,101 @@ struct FfiTransitionInput;
 
 }
 
+namespace Web::CSS::StyleEngineFFI {
+
+using Layout::RustFFI::BegunRead;
+using Layout::RustFFI::DocumentHost;
+
+// The entries of the table in Rust/src/css/style/boundary.rs, which cbindgen cannot see: a macro expands to them. A
+// test there checks each declaration against its row. An AK Span crosses by value as the table's FfiSpan.
+extern "C" {
+void style_engine_set_pseudo_element_style_deferred(DocumentHost const*, u8 kind, bool deferred);
+void style_engine_set_fold_id_and_class_name_case(DocumentHost const*, bool fold);
+void style_engine_set_html_element_namespace(DocumentHost const*, StyleAtomID namespace_atom);
+void style_engine_mark_relation_only_style_node(DocumentHost const*, StyleNodeID node);
+void style_engine_link_style_nodes_in_dom_order(DocumentHost const*, ReadonlySpan<u32> links);
+void style_engine_unlink_style_node_from_dom_order(DocumentHost const*, StyleNodeID node, StyleNodeID parent);
+void style_engine_retire_text_style_nodes(DocumentHost const*, ReadonlySpan<StyleNodeID> nodes);
+void style_engine_set_slot_assigned_nodes(DocumentHost const*, StyleNodeID slot, ReadonlySpan<StyleNodeID> assigned);
+void style_engine_set_top_layer_elements(DocumentHost const*, ReadonlySpan<StyleNodeID> members);
+void style_engine_set_text_is_ascii_whitespace(DocumentHost const*, StyleNodeID node, bool value);
+void style_engine_set_text_is_in_user_agent_shadow_tree(DocumentHost const*, StyleNodeID node, bool value);
+void style_engine_set_text_is_password_input(DocumentHost const*, StyleNodeID node, bool value);
+void style_engine_set_node_dom_paint_facts(DocumentHost const*, StyleNodeID node, u8 facts);
+void style_engine_set_element_unique_node_id(DocumentHost const*, StyleNodeID node, u64 unique_node_id);
+void style_engine_set_element_table_spans(DocumentHost const*, StyleNodeID node, u32 column_span, u32 row_span, u32 raw_column_span);
+void style_engine_set_element_id_name(DocumentHost const*, StyleNodeID node, StyleAtomID name);
+void style_engine_set_shadow_root(DocumentHost const*, StyleNodeID shadow_host, StyleNodeID shadow_root);
+void style_engine_note_attribute_substitution_name(DocumentHost const*, StyleAtomID name, ReadonlySpan<u16> local_name);
+void style_engine_note_attribute_name_forms(DocumentHost const*, StyleAtomID name, StyleAtomID local, StyleAtomID folded_name, StyleAtomID folded_local);
+void style_engine_record_environment_change(DocumentHost const*);
+void style_engine_record_custom_property_registration_change(DocumentHost const*, StyleAtomID name);
+void style_engine_flush(DocumentHost const*);
+void style_engine_finish_sheet_rules_replacement(DocumentHost const*, SheetID sheet, u32 declaration_block);
+void style_engine_attach_sheet(DocumentHost const*, SheetID sheet, TreeScopeID tree_scope, SheetID before_sheet);
+void style_engine_detach_sheet(DocumentHost const*, SheetID sheet, TreeScopeID tree_scope);
+void style_engine_attach_sheet_occurrence(DocumentHost const*, SheetID sheet, TreeScopeID tree_scope, u64 identity, u64 before, bool conditions_hold);
+void style_engine_detach_sheet_occurrence(DocumentHost const*, TreeScopeID tree_scope, u64 identity);
+void style_engine_set_sheet_occurrence_conditions(DocumentHost const*, TreeScopeID tree_scope, u64 identity, bool conditions_hold);
+void style_engine_set_element_part_exposure(DocumentHost const*, StyleNodeID node, StyleAtomID exposure);
+void style_engine_set_element_directionality(DocumentHost const*, StyleNodeID node, StyleAtomID directionality);
+void style_engine_set_element_custom_states(DocumentHost const*, StyleNodeID node, ReadonlySpan<StyleAtomID> states);
+void style_engine_end_deferred_geometry_transaction_flush(DocumentHost const*);
+void style_engine_begin_cold_matching_batch(DocumentHost const*, StyleNodeID root);
+void style_engine_begin_adaptive_cold_matching_batch(DocumentHost const*, StyleNodeID root);
+void style_engine_end_cold_matching_batch(DocumentHost const*);
+void style_engine_record_container_query_input(DocumentHost const*, StyleNodeID node);
+void style_engine_note_children_explicitly_inherit(DocumentHost const*, StyleNodeID node);
+void style_engine_record_derived_element_style_input(DocumentHost const*, StyleNodeID node, u8 reaction, u8 inherited_style_groups);
+void style_engine_record_flat_tree_descendant_style_inputs(DocumentHost const*, StyleNodeID root, u8 reaction, u8 inherited_style_groups);
+void style_engine_consume_element_style_input(DocumentHost const*, StyleNodeID node);
+void style_engine_note_style_reaction_applied(DocumentHost const*, StyleNodeID node, u8 reaction, u8 inherited_style_groups_changed, u32 facts);
+void style_engine_set_element_adjustment_facts(DocumentHost const*, StyleNodeID node, u32 facts);
+void style_engine_set_element_construction_facts(DocumentHost const*, StyleNodeID node, u32 facts);
+void style_engine_set_element_box_kind(DocumentHost const*, StyleNodeID node, u8 box_kind);
+void style_engine_set_element_replaced_content_input(DocumentHost const*, StyleNodeID node, u8 kind, u8 present, u32 const* values);
+void style_engine_set_element_heading_level(DocumentHost const*, StyleNodeID node, u8 level);
+void style_engine_acknowledge_engine_computed_record(DocumentHost const*, StyleNodeID node);
+void style_engine_abandon_demanded_records(DocumentHost const*, StyleNodeID node);
+void style_engine_record_transition_baseline(DocumentHost const*, StyleNodeID node, u8 pseudo_kind, u64 style_record);
+void style_engine_begin_transition_baselines(DocumentHost const*);
+void style_engine_release_transition_baselines(DocumentHost const*);
+void style_engine_pin_style_record(DocumentHost const*, u64 style_record);
+void style_engine_unpin_style_record(DocumentHost const*, u64 style_record);
+void style_engine_begin_style_record_view_epoch(DocumentHost const*);
+void style_engine_end_style_record_view_epoch(DocumentHost const*);
+void style_engine_set_tree_scope_uses_document_sheets(DocumentHost const*, TreeScopeID tree_scope);
+void style_engine_set_attribute_value_text(DocumentHost const*, StyleAtomID value, ReadonlySpan<u16> text);
+void style_engine_set_element_custom_property_names(DocumentHost const*, StyleNodeID node, ReadonlySpan<StyleAtomID> name_atoms, bool uses_unnamed, bool uses_custom_functions);
+void style_engine_set_element_animation_names(DocumentHost const*, StyleNodeID node, ReadonlySpan<StyleAtomID> name_atoms);
+void style_engine_set_element_recomputes_on_environment_move(DocumentHost const*, StyleNodeID node, bool recomputes);
+void style_engine_set_element_scroll_state(DocumentHost const*, StyleNodeID node, u8 stuck, u8 snapped, u8 scrollable, u8 scrolled);
+void style_engine_set_element_size_container_query_facts(DocumentHost const*, StyleNodeID node, bool is_queried_container, bool depends_on_size_container_query);
+void style_engine_note_size_container_needs_evaluation_after_layout(DocumentHost const*, StyleNodeID node);
+void style_engine_record_size_container_query_dependents(DocumentHost const*, StyleNodeID container);
+void style_engine_evaluate_size_containers_needing_evaluation_after_layout(DocumentHost const*);
+void style_engine_set_element_associated_pseudo_kind(DocumentHost const*, StyleNodeID node, u8 pseudo_kind_plus_one);
+void style_engine_set_counter_style_environment_identity(DocumentHost const*, TreeScopeID tree_scope, u64 identity);
+void style_engine_set_held_style_record(DocumentHost const*, StyleNodeID node, u64 style_record);
+void style_engine_set_element_css_defined_animations(DocumentHost const*, StyleNodeID node, u8 slot, ReadonlySpan<u32> name_lengths, ReadonlySpan<u16> name_units, ReadonlySpan<FfiAppliedAnimationDefinition> definitions);
+void style_engine_set_tree_scope_root(DocumentHost const*, TreeScopeID tree_scope, StyleNodeID root);
+void style_engine_set_sheet_conditions_hold(DocumentHost const*, SheetID sheet, bool conditions_hold);
+u32 style_engine_connected_element_count(DocumentHost const*, BegunRead const*);
+bool style_engine_has_suspended_style_pass(DocumentHost const*, BegunRead const*);
+bool style_engine_pending_transaction_may_affect_layout_geometry(DocumentHost const*, BegunRead const*);
+bool style_engine_defer_pending_transaction_for_geometry_read(DocumentHost const*, BegunRead const*);
+bool style_engine_begin_deferred_geometry_transaction_flush(DocumentHost const*, BegunRead const*);
+bool style_engine_has_deferred_geometry_transaction(DocumentHost const*, BegunRead const*);
+size_t style_engine_match_document(DocumentHost const*, BegunRead const*, StyleNodeID root);
+u32 style_engine_layer_index(DocumentHost const*, BegunRead const*, TreeScopeID tree_scope, u32 layer);
+bool style_engine_node_declares_custom_properties(DocumentHost const*, BegunRead const*, StyleNodeID node);
+u64 style_engine_size_query_container_scan_visits(DocumentHost const*, BegunRead const*, bool reset);
+bool style_engine_complete_published_match_answers_for_closure(DocumentHost const*, BegunRead const*, ReadonlySpan<StyleNodeID> nodes);
+u64 style_engine_ensure_random_base_value(DocumentHost const*, BegunRead const*, StyleNodeID node, ReadonlySpan<u16> name, bool element_shared);
+}
+
+}
+
 namespace Web::CSS {
 
 enum class PseudoElement : u8;
@@ -80,8 +175,6 @@ public:
     ~StyleEngine();
 
     void visit_edges(GC::Cell::Visitor&);
-
-#include <LibWeb/StyleEngineBridgeGenerated.h>
 
     // https://drafts.csswg.org/css-values-5/#random-caching
     // The random base value of a random caching key: the name, and the element unless the sharing is element-shared.
@@ -270,11 +363,9 @@ public:
     // host knows without reading the render state.
     [[nodiscard]] bool may_have_deferred_geometry_transaction() const { return m_geometry_read_deferred_transaction; }
     [[nodiscard]] bool has_deferred_element_style_inputs(Layout::BegunRead const& read) const;
-    [[nodiscard]] bool has_deferred_element_style_input(Layout::BegunRead const& read, StyleNodeID style_node) const;
     [[nodiscard]] bool pending_transaction_may_affect_layout_geometry(Layout::BegunRead const& read);
     [[nodiscard]] bool defer_pending_transaction_for_geometry_read(Layout::BegunRead const& read);
     [[nodiscard]] bool begin_deferred_geometry_transaction_flush(Layout::BegunRead const& read);
-    void end_deferred_geometry_transaction_flush();
     // Geometry reads establish the before-change style used by CSS transitions. Keep this
     // monotonic because an inactive rule or a later inline edit can expose the transition only
     // after that boundary.

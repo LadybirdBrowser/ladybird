@@ -370,7 +370,7 @@ void publish_table_spans(DOM::Element const& element)
     } else {
         return;
     }
-    const_cast<DOM::Document&>(element.document()).style_computer().style_engine().set_element_table_spans(element.style_node_id(), column_span, row_span, raw_column_span);
+    CSS::StyleEngineFFI::style_engine_set_element_table_spans(const_cast<DOM::Document&>(element.document()).style_computer().style_engine().host(), element.style_node_id(), column_span, row_span, raw_column_span);
 }
 
 // The publication is keyed by the element's style node rather than by a row, because an element that draws nothing

@@ -123,7 +123,7 @@ static StyleNodeID publish_scroll_state(DOM::Element& element, ScrollStateSnapsh
 {
     if (element.style_node_id() == 0)
         return {};
-    element.document().style_computer().style_engine().set_element_scroll_state(element.style_node_id(), snapshot.stuck, snapshot.snapped, snapshot.scrollable, snapshot.scrolled);
+    StyleEngineFFI::style_engine_set_element_scroll_state(element.document().style_computer().style_engine().host(), element.style_node_id(), snapshot.stuck, snapshot.snapped, snapshot.scrollable, snapshot.scrolled);
     return element.style_node_id();
 }
 
