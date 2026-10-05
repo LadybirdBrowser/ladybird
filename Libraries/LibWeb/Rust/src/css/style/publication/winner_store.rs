@@ -362,7 +362,7 @@ mod tests {
             owned.seed_retained_property(property, value.clone_retained(), true, false);
         }
         let observer = written[0].clone_retained().into_arc();
-        engine.state.facts.set_element_declared_properties(
+        engine.facts.set_element_declared_properties(
             node,
             kind,
             properties
@@ -395,7 +395,7 @@ mod tests {
                 })
                 .collect(),
         );
-        let view = store.view(&engine.state);
+        let view = store.view(&engine);
         for property in properties {
             let actual = view.winning_declaration(property).unwrap();
             let expected = owned.winning_declaration(property).unwrap();

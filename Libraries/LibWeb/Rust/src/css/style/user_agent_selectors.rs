@@ -46,7 +46,7 @@ fn user_agent_selector_programs() -> MutexGuard<'static, UserAgentSelectorProgra
         .unwrap()
 }
 
-impl StyleEngineState {
+impl StyleEngine {
     /// Whether this engine attaches the selector programs the process compiled for the user-agent
     /// sheets. One whose atoms are its own cannot read programs that name the process's.
     pub(super) fn shares_user_agent_selector_programs(&self) -> bool {
@@ -62,7 +62,6 @@ impl StyleEngineState {
         rule_identity: u64,
         selectors: &[&CompiledSelector],
         namespaces: Option<&NamespaceTexts>,
-        counters: &Counters,
     ) -> RuleID {
         debug_assert!(self.program.sheet_origin(sheet) == CascadeOrigin::UserAgent);
         let key = CompilationKey {
@@ -86,13 +85,13 @@ impl StyleEngineState {
                         selectors,
                         namespaces,
                         &ScopeChain::default(),
-                        counters,
+                        &self.retained.counters,
                     );
                     entry.insert(ProcessSelectorProgram::share(compiled)).clone()
                 }
             }
         };
-        self.add_style_rule_with(sheet, before, counters, |engine, previous_program, _| {
+        self.add_style_rule_with(sheet, before, |engine, previous_program| {
             engine.note_attribute_value_text_names(program.program());
             let id = engine.retained.programs.add_process_program(&program);
             engine.retained.selector_programs_need_sweep |= previous_program.is_some();

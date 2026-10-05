@@ -371,12 +371,11 @@ impl RetainedState {
         store: &WinnerStore,
         selected: &[u64],
         inputs: &bridge::FfiDocumentStyleComputationInputs,
-        counters: &Counters,
     ) -> Drive<PartialDrive> {
         let random_base_values = store
             .drive_random_base_values(self, node)
             .or_refused()
-            .inspect_err(|_| counters.bump(Counter::EngineComputedRecordBailValue))?;
+            .inspect_err(|_| self.counters.bump(Counter::EngineComputedRecordBailValue))?;
         let resource_contexts = store.drive_resource_contexts(self);
         let reads_container_units = store.reads_container_units(self);
         let document_base_url = &self.document_resource_contexts.document_base_url;
@@ -395,7 +394,7 @@ impl RetainedState {
             return Ok(PartialDrive::DriverInputMoved);
         };
         if !view.animated_overlay.is_null() {
-            counters.bump(Counter::EngineComputedRecordBailRecordOverlay);
+            self.counters.bump(Counter::EngineComputedRecordBailRecordOverlay);
             return Err(Unanswered::Refused);
         }
         // A record holding no table has no slots to copy the unselected properties from, and one
@@ -408,13 +407,13 @@ impl RetainedState {
         };
         let parent = self
             .record_inheritance_parent(node)
-            .inspect_err(|_| counters.bump(Counter::EngineComputedRecordBailRecordParent))?;
+            .inspect_err(|_| self.counters.bump(Counter::EngineComputedRecordBailRecordParent))?;
         let snapshot = match parent.and_then(|parent| self.computed_group_sets.assigned_style_record(parent)) {
             None => None,
             Some(record) => {
                 let Some(view) = self.computed_group_sets.style_record_view(record.raw()) else {
                     debug_assert!(false, "an assigned parent record has a view");
-                    counters.bump(Counter::EngineComputedRecordBailRecordParent);
+                    self.counters.bump(Counter::EngineComputedRecordBailRecordParent);
                     return Err(Unanswered::Refused);
                 };
                 // A child inherits what the parent's animations sampled over its record.
@@ -519,19 +518,19 @@ impl RetainedState {
                 true,
             );
         }
-        counters.bump(Counter::EnginePartialDrivesStarted);
+        self.counters.bump(Counter::EnginePartialDrivesStarted);
 
-        counters.add(
+        self.counters.add(
             Counter::EnginePhysicalLonghandEvaluations,
             u64::from(results.longhand_evaluations),
         );
-        counters.add(
+        self.counters.add(
             Counter::EnginePartialLonghandEvaluations,
             u64::from(results.longhand_evaluations),
         );
         // A tree-counting value is admitted only where the retained tree places the element.
         if results.uses_tree_counting_function && sibling_position.is_none() {
-            counters.bump(Counter::EngineComputedRecordBailDrive);
+            self.counters.bump(Counter::EngineComputedRecordBailDrive);
             return Err(Unanswered::Refused);
         }
         // An input the drive reads for properties it did not select moved with the selection: the
@@ -655,12 +654,11 @@ impl RetainedState {
         font_scratch: &mut FontDriveScratch,
         goal: FontDriveGoal,
         awaits_registered_context: bool,
-        counters: &Counters,
     ) -> Drive<FullDrive> {
         let random_base_values = store
             .drive_random_base_values(self, subject.target.node())
             .or_refused()
-            .inspect_err(|_| counters.bump(Counter::EngineComputedRecordBailValue))?;
+            .inspect_err(|_| self.counters.bump(Counter::EngineComputedRecordBailValue))?;
         let resource_contexts = store.drive_resource_contexts(self);
         // A pseudo-element's container-relative lengths resolve against its originating
         // element's query containers.
@@ -684,7 +682,7 @@ impl RetainedState {
         let has = |bit: u32| facts & bit != 0;
         let is_document_element = has(fact::IS_DOCUMENT_ELEMENT);
         if !self.computes_records() {
-            counters.bump(Counter::EngineComputedRecordBailUnhosted);
+            self.counters.bump(Counter::EngineComputedRecordBailUnhosted);
             return Err(Unanswered::Refused);
         }
         // HACK: A cascade that ends in `font-family: monospace` re-runs the font-size cascade over
@@ -712,7 +710,7 @@ impl RetainedState {
                     return Err(font_scratch.suspend(target, request, None));
                 }
                 None => {
-                    counters.bump(Counter::EngineComputedRecordBailMonospaceQuirk);
+                    self.counters.bump(Counter::EngineComputedRecordBailMonospaceQuirk);
                     return Err(Unanswered::Refused);
                 }
             }
@@ -729,7 +727,7 @@ impl RetainedState {
         let old_table = match &old_view {
             Some(view) => {
                 if !view.animated_overlay.is_null() {
-                    counters.bump(Counter::EngineComputedRecordBailRecordOverlay);
+                    self.counters.bump(Counter::EngineComputedRecordBailRecordOverlay);
                     return Err(Unanswered::Refused);
                 }
                 // A record holding no table is driven from a fresh one, like a first record.
@@ -740,12 +738,12 @@ impl RetainedState {
         let parent_view = match parent {
             Some(parent) => {
                 let Some(parent_record) = self.computed_group_sets.assigned_style_record(parent) else {
-                    counters.bump(Counter::EngineComputedRecordBailRecordParent);
+                    self.counters.bump(Counter::EngineComputedRecordBailRecordParent);
                     return Err(Unanswered::AwaitsParent);
                 };
                 let Some(parent_view) = self.computed_group_sets.style_record_view(parent_record.raw()) else {
                     debug_assert!(false, "an assigned parent record has a view");
-                    counters.bump(Counter::EngineComputedRecordBailRecordParent);
+                    self.counters.bump(Counter::EngineComputedRecordBailRecordParent);
                     return Err(Unanswered::Refused);
                 };
                 Some(parent_view)
@@ -787,7 +785,7 @@ impl RetainedState {
             Some(parent_view) => {
                 let Some(parent_table) = (unsafe { parent_view.longhand_table.as_ref() }) else {
                     debug_assert!(false, "an assigned parent record has a longhand table");
-                    counters.bump(Counter::EngineComputedRecordBailRecordParent);
+                    self.counters.bump(Counter::EngineComputedRecordBailRecordParent);
                     return Err(Unanswered::Refused);
                 };
                 Some(crate::css::style_compute::ParentSnapshot::new(
@@ -908,14 +906,14 @@ impl RetainedState {
         let root_font_complete = resumed.as_ref().is_some_and(|pending| pending.root_font_complete);
         let color_scheme_complete = resumed.as_ref().is_some_and(|pending| pending.color_scheme_complete);
         if !resuming {
-            counters.bump(Counter::EngineFullDrivesStarted);
+            self.counters.bump(Counter::EngineFullDrivesStarted);
         }
         let (mut table, mut results, mut effective_color_scheme) = match resumed {
             Some(pending) => {
                 resolved_viewport_relative_length = pending.resolved_viewport_relative_length;
                 if !pending.root_font_complete {
-                    counters.bump(Counter::FontRefillResumedDrives);
-                    counters.add(
+                    self.counters.bump(Counter::FontRefillResumedDrives);
+                    self.counters.add(
                         Counter::FontRefillPreservedLonghands,
                         u64::from(pending.results.longhand_evaluations),
                     );
@@ -981,7 +979,7 @@ impl RetainedState {
                 );
             }
             drive(
-                counters,
+                &self.counters,
                 &mut table,
                 &mut results,
                 &mut effective_color_scheme,
@@ -1043,7 +1041,7 @@ impl RetainedState {
         };
         if !root_font_complete {
             drive(
-                counters,
+                &self.counters,
                 &mut table,
                 &mut results,
                 &mut effective_color_scheme,
@@ -1081,7 +1079,7 @@ impl RetainedState {
         }
         if !color_scheme_complete {
             drive(
-                counters,
+                &self.counters,
                 &mut table,
                 &mut results,
                 &mut effective_color_scheme,
@@ -1143,7 +1141,7 @@ impl RetainedState {
             }
         };
         drive(
-            counters,
+            &self.counters,
             &mut table,
             &mut results,
             &mut effective_color_scheme,
@@ -1153,7 +1151,7 @@ impl RetainedState {
         );
         // A tree-counting value is admitted only where the retained tree places the element.
         if results.uses_tree_counting_function && sibling_position.is_none() {
-            counters.bump(Counter::EngineComputedRecordBailDrive);
+            self.counters.bump(Counter::EngineComputedRecordBailDrive);
             return Err(Unanswered::Refused);
         }
         let line_height_used_after = engine_sample::used_line_height(&table, None, &request, &resolved);

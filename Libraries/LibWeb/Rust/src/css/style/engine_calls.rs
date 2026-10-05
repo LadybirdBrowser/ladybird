@@ -974,7 +974,7 @@ impl DeferredInputs {
     }
 
     /// Folds the input `node` owes into the reaction the host is about to apply to it, as
-    /// [`super::StyleEngineState::absorb_element_style_input`] does, where the host knows the answer: `None` where an
+    /// [`super::StyleEngine::absorb_element_style_input`] does, where the host knows the answer: `None` where an
     /// input it cannot name may move it.
     fn absorb(
         &mut self,
@@ -1298,7 +1298,7 @@ pub unsafe extern "C" fn style_engine_attribute_name_requires_value_text(
 
 /// Folds the style input `node` owes into the reaction the host is about to apply to it, where the reaction covers it,
 /// and answers the merged reaction in the low byte and the merged inherited style groups in the next, or zero, as
-/// [`super::StyleEngineState::absorb_element_style_input`] does. The host answers where it knows the answer, and the
+/// [`super::StyleEngine::absorb_element_style_input`] does. The host answers where it knows the answer, and the
 /// engine folds the input the same as it applies the host's writes.
 ///
 /// # Safety

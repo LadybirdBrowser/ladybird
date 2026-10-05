@@ -121,9 +121,8 @@ impl RetainedState {
         node: StyleNodeID,
         saves: PrivateDemandSaves,
         scratch: &mut EngineComputedRecordScratch,
-        counters: &Counters,
     ) {
-        self.put_back_engine_computed_records(node, scratch, counters);
+        self.put_back_engine_computed_records(node, scratch);
         set_contains(&mut self.nodes_with_substituted_records, node, saves.uses_substitution);
         set_entry(&mut self.custom_declaration_reads, node, saves.custom_declaration_reads);
         self.container_effects_for_host.set(node, saves.container_effects);
@@ -216,7 +215,7 @@ impl RetainedState {
     }
 }
 
-impl StyleEngineState {
+impl StyleEngine {
     /// Answer a read of `node`'s style, or of one of its pseudo-elements', that the host makes
     /// before the next style update, from the document as it is now and without taking the
     /// document's pending transaction. The node is matched again, so no winner row an earlier
@@ -233,7 +232,6 @@ impl StyleEngineState {
         &mut self,
         node: StyleNodeID,
         demand: RecordDemand,
-        counters: &Counters,
     ) -> Drive<RecordDemandAnswer> {
         use bridge::FfiRecordDemand as Element;
         let read_only = demand.is_read_only();
@@ -255,7 +253,7 @@ impl StyleEngineState {
             .record_demand_reads_current_inputs(node, &self.host, read_only, pseudo.is_some())
         {
             if pseudo.is_some() {
-                counters.bump(Counter::PseudoRecordDemandsLeftToHost);
+                self.retained.counters.bump(Counter::PseudoRecordDemandsLeftToHost);
             }
             return Err(Unanswered::Refused);
         }
@@ -281,7 +279,7 @@ impl StyleEngineState {
         // scan past the node's subtree (`:has()`, a sibling or an ancestor) widens the facts to the
         // range it reads and matches again.
         let batch_answers = std::mem::take(&mut self.retained.published_match_answers);
-        self.retained.begin_adaptive_cold_matching_batch(node, counters);
+        self.retained.begin_adaptive_cold_matching_batch(node);
         let retained_dispatch = if read_only {
             self.retained.retained_answer_dispatch_for_traversal(true)
         } else {
@@ -289,7 +287,7 @@ impl StyleEngineState {
         };
         let answer = self
             .retained
-            .complete_published_match_answer(node, retained_dispatch.as_deref(), counters);
+            .complete_published_match_answer(node, retained_dispatch.as_deref());
         let private = match private_saves {
             Some(saves) => {
                 // The answer is published to the private traversal only, where the drive reads it.
@@ -305,7 +303,7 @@ impl StyleEngineState {
                             observed: false,
                         },
                         &mut self.retained.memory,
-                        counters,
+                        &self.retained.counters,
                     );
                     let index = traversal.pending_published.entries.len() - 1;
                     traversal
@@ -315,7 +313,7 @@ impl StyleEngineState {
                 Some((saves, batch_answers))
             }
             None => {
-                self.retained.end_cold_matching_batch(counters);
+                self.retained.end_cold_matching_batch();
                 self.retained.published_match_answers = batch_answers;
                 None
             }
@@ -329,8 +327,8 @@ impl StyleEngineState {
             ..EngineComputedRecordScratch::default()
         };
         let result = answer.map_err(|_| Unanswered::Refused).and_then(|answer| match pseudo {
-            None => self.drive_demanded_record(node, answer, targeted, read_only, &mut scratch, counters),
-            Some(kind) => self.drive_demanded_pseudo_record(node, kind, answer, read_only, &mut scratch, counters),
+            None => self.drive_demanded_record(node, answer, targeted, read_only, &mut scratch),
+            Some(kind) => self.drive_demanded_pseudo_record(node, kind, answer, read_only, &mut scratch),
         });
 
         if let Some(hidden) = hidden_inline_declarations {
@@ -345,12 +343,11 @@ impl StyleEngineState {
                 let target = computed::ComputedStyleTarget::new(node, pseudo.unwrap_or(u8::MAX));
                 self.retained.hold_demand_record(target, record);
             }
-            self.retained
-                .restore_after_private_demand(node, saves, &mut scratch, counters);
+            self.retained.restore_after_private_demand(node, saves, &mut scratch);
             self.retained.published_match_answers = batch_answers;
         }
         if pseudo.is_some() && result.is_err() {
-            counters.bump(Counter::PseudoRecordDemandsLeftToHost);
+            self.retained.counters.bump(Counter::PseudoRecordDemandsLeftToHost);
         }
         result
     }
@@ -358,13 +355,7 @@ impl StyleEngineState {
     /// Publish the answer a demand matched for `node`, as a batch publishes its rows' answers, and
     /// keep the pseudo-elements it has rules for, which a private demand puts back. Whether the
     /// node's winners are complete.
-    fn publish_demanded_answer(
-        &mut self,
-        node: StyleNodeID,
-        answer: PublishedMatchAnswer,
-        read_only: bool,
-        counters: &Counters,
-    ) -> bool {
+    fn publish_demanded_answer(&mut self, node: StyleNodeID, answer: PublishedMatchAnswer, read_only: bool) -> bool {
         let complete =
             answer.cascade_winners_are_complete || self.cascade_winners_are_complete_but_for_custom_properties(node);
         let pseudo_style_mask = self.retained.answer_pseudo_style_mask(&answer);
@@ -377,7 +368,7 @@ impl StyleEngineState {
                 .set_node_answer_incomplete(node, !complete);
             self.retained
                 .published_match_answers
-                .push(answer, &mut self.retained.memory, counters);
+                .push(answer, &mut self.retained.memory, &self.retained.counters);
             self.retained.published_match_answers.sort();
         }
         complete
@@ -390,21 +381,19 @@ impl StyleEngineState {
         targeted: bool,
         read_only: bool,
         scratch: &mut EngineComputedRecordScratch,
-        counters: &Counters,
     ) -> Drive<RecordDemandAnswer> {
-        let complete = self.publish_demanded_answer(node, answer, read_only, counters);
+        let complete = self.publish_demanded_answer(node, answer, read_only);
         let parent_inputs_moved = ParentInputsMoved {
             inherited_style: targeted,
             display: targeted,
         };
         let mut suspended_memory = MemoryLease::new(MemoryCategory::BatchScratch);
         let (_, record) = loop {
-            match self.engine_computed_record_delta(node, complete, None, parent_inputs_moved, None, scratch, counters)
-            {
+            match self.engine_computed_record_delta(node, complete, None, parent_inputs_moved, None, scratch) {
                 Err(Unanswered::Suspended(Suspension::Font)) => {
                     let request = scratch.font_drive.take_suspended_request();
                     suspended_memory.resize_required_to(&mut self.retained.memory, scratch.font_drive.capacity_bytes());
-                    self.refill_font_request(node, request, counters);
+                    self.refill_font_request(node, request);
                 }
                 delta => break delta?,
             }
@@ -445,20 +434,19 @@ impl StyleEngineState {
         answer: PublishedMatchAnswer,
         read_only: bool,
         scratch: &mut EngineComputedRecordScratch,
-        counters: &Counters,
     ) -> Drive<RecordDemandAnswer> {
         // A kind past the synthetic ones is only ever computed for a read-only read: no style
         // update settles it beside its element.
         if !read_only && u16::from(kind) > bridge::LAST_SYNTHETIC_PSEUDO_ELEMENT_KIND {
             return Err(Unanswered::Refused);
         }
-        self.publish_demanded_answer(node, answer, read_only, counters);
+        self.publish_demanded_answer(node, answer, read_only);
         let element = self
             .retained
             .computed_group_sets
             .assigned_style_record(node)
             .or_refused()?;
-        let kinds_with_rules = self.retained.pseudo_style_mask_or_rematch(node, counters);
+        let kinds_with_rules = self.retained.pseudo_style_mask_or_rematch(node);
         let element_is_list_item = self
             .retained
             .computed_group_sets
@@ -484,7 +472,7 @@ impl StyleEngineState {
         if !self.retained.pseudo_winners_are_complete(node) {
             let republication = scratch.winner_republication().or_refused()?;
             self.retained
-                .republish_winners_from_answer(node, republication, counters)
+                .republish_winners_from_answer(node, republication)
                 .or_refused()?;
         }
         let settlement = if read_only {
@@ -504,17 +492,16 @@ impl StyleEngineState {
                 settlement,
                 None,
                 scratch,
-                counters,
             ) {
                 Ok(()) => break,
                 Err(Unanswered::Suspended(Suspension::Font)) => {
                     let request = scratch.font_drive.take_suspended_request();
                     suspended_memory.resize_required_to(&mut self.retained.memory, scratch.font_drive.capacity_bytes());
-                    self.refill_font_request(node, request, counters);
+                    self.refill_font_request(node, request);
                 }
                 Err(unanswered) => {
                     // Whatever was settled before the refusal goes back.
-                    self.retained.put_back_engine_computed_records(node, scratch, counters);
+                    self.retained.put_back_engine_computed_records(node, scratch);
                     return Err(unanswered);
                 }
             }
@@ -549,7 +536,6 @@ impl StyleEngineState {
         facts: u32,
         declarations: &[(ElementDeclarationKind, &crate::css::declaration_block::DeclaredProperty)],
         custom_declarations: &[(CustomDeclaration, RetainedStyleValueData)],
-        counters: &Counters,
     ) -> Drive<computed::FinalStyleRecordID> {
         if !self.computes_records() {
             return Err(Unanswered::Refused);
@@ -564,18 +550,12 @@ impl StyleEngineState {
         let registered_declarations = self
             .retained
             .declarations_name_a_registered_custom_property(custom_declarations, &inputs);
-        let mut environment = self.retained.engine_custom_property_environment_over(
-            subject,
-            None,
-            cascaded(),
-            0,
-            &inputs,
-            None,
-            counters,
-        )?;
+        let mut environment =
+            self.retained
+                .engine_custom_property_environment_over(subject, None, cascaded(), 0, &inputs, None)?;
         let mut store = self
             .retained
-            .declared_only_winners(subject, declarations, environment, counters)?;
+            .declared_only_winners(subject, declarations, environment)?;
         let drive_subject = DriveSubject {
             target: computed::ComputedStyleTarget::new(subject, u8::MAX),
             parent: None,
@@ -593,12 +573,11 @@ impl StyleEngineState {
                 &mut scratch.font_drive,
                 FontDriveGoal::Complete,
                 awaits_registered_context,
-                counters,
             ) {
                 Err(Unanswered::Suspended(Suspension::Font)) => {
                     let request = scratch.font_drive.take_suspended_request();
                     suspended_memory.resize_required_to(&mut self.retained.memory, scratch.font_drive.capacity_bytes());
-                    self.refill_font_request(subject, request, counters);
+                    self.refill_font_request(subject, request);
                 }
                 // The registered custom properties compute against the font the drive settled,
                 // and the declarations substitute what they computed to.
@@ -610,11 +589,10 @@ impl StyleEngineState {
                         0,
                         &inputs,
                         Some(&registered),
-                        counters,
                     )?;
                     store = self
                         .retained
-                        .declared_only_winners(subject, declarations, environment, counters)?;
+                        .declared_only_winners(subject, declarations, environment)?;
                     awaits_registered_context = false;
                 }
                 driven => break driven?,
@@ -638,7 +616,6 @@ impl StyleEngineState {
             0,
             None,
             &mut scratch.computability,
-            counters,
         )?;
         self.retained.computed_group_sets.pin_style_record(record.raw());
         Ok(record)
@@ -657,7 +634,6 @@ impl RetainedState {
         subject: StyleNodeID,
         declarations: &[(ElementDeclarationKind, &crate::css::declaration_block::DeclaredProperty)],
         environment: u64,
-        counters: &Counters,
     ) -> Drive<WinnerStore> {
         use crate::css::style_value::retain_style_value;
         let retained = |value: &StyleValueData| unsafe {
@@ -730,7 +706,7 @@ impl RetainedState {
                             &inputs,
                             substituted_property,
                             written,
-                            counters,
+                            &self.counters,
                         )?;
                         let substituted = match substituted_property == property {
                             true => invalid_as_unset(substituted),

@@ -49,6 +49,7 @@ use super::program::CascadeOrigin;
 use super::program::CustomDeclaration;
 use super::program::DeclarationBlockID;
 
+use super::StyleEngine;
 use super::program::RuleID;
 use super::program::SheetID;
 use super::transaction::ElementDeclarationKind;
@@ -58,7 +59,6 @@ use super::transaction::StateFact;
 use super::transaction::TreeRelations;
 use super::tree::StyleNodeID;
 use super::tree::TreeScopeID;
-use super::{Counters, StyleEngine, StyleEngineState};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u32)]
@@ -984,7 +984,7 @@ fn decode_element_declaration_kind(kind: FfiElementDeclarationKind) -> ElementDe
     }
 }
 
-impl StyleEngineState {
+impl StyleEngine {
     /// Apply one flat transaction. Tree deltas are staged in arrival order so derived neighbour
     /// rows follow the live tree step by step, while the journal normalizes for discovery.
     #[allow(clippy::too_many_arguments)]
@@ -996,7 +996,6 @@ impl StyleEngineState {
         state_deltas: &[FfiStateDelta],
         element_declaration_deltas: &[FfiElementDeclarationDelta],
         element_style_inputs: &[FfiElementStyleInput],
-        counters: &Counters,
     ) {
         let (element_arrivals, arrival_custom_state_atoms) = arrival_columns;
         let largest_element_index = tree_deltas
@@ -1031,7 +1030,7 @@ impl StyleEngineState {
                 }
             }
             if can_bulk_load_initial_tree && let Some(document_root) = initial_document_root {
-                self.bulk_load_initial_tree(document_root, &initial_arrivals, counters);
+                self.bulk_load_initial_tree(document_root, &initial_arrivals);
                 initial_tree_was_bulk_loaded = true;
             }
         }
@@ -1043,7 +1042,7 @@ impl StyleEngineState {
                 };
                 let old = delta.old_connected.then(|| delta.old_relations.decode());
                 let new = delta.new_connected.then(|| delta.new_relations.decode());
-                self.record_tree_delta(node, old, new, counters);
+                self.record_tree_delta(node, old, new);
             }
             for delta in tree_deltas {
                 let Some(node) = StyleNodeID::from_raw(delta.node) else {
@@ -1089,9 +1088,9 @@ impl StyleEngineState {
                 // The host can submit an element's features a batch after its arrival, where it submitted its input
                 // as the element's subtree was being inserted: the arrival is pending still.
                 let arriving = node_is_arriving(node) || self.node_arrival_is_pending(node);
-                self.record_element_arrival(node, arrival, &custom_states, arriving, counters);
+                self.record_element_arrival(node, arrival, &custom_states, arriving);
             }
-            self.settle_batched_inputs(counters);
+            self.settle_batched_inputs();
         }
 
         for delta in local_feature_deltas {
@@ -1103,10 +1102,9 @@ impl StyleEngineState {
                 InputValue::Feature(decode_feature_value(delta.old_kind, delta.old_atom)),
                 InputValue::Feature(decode_feature_value(delta.new_kind, delta.new_atom)),
                 node_is_arriving(node),
-                counters,
             );
         }
-        self.settle_batched_inputs(counters);
+        self.settle_batched_inputs();
 
         for delta in state_deltas {
             let Some(node) = StyleNodeID::from_raw(delta.node) else {
@@ -1117,10 +1115,9 @@ impl StyleEngineState {
                 decode_state_fact(delta.fact),
                 delta.new_value,
                 node_is_arriving(node),
-                counters,
             );
         }
-        self.settle_batched_inputs(counters);
+        self.settle_batched_inputs();
 
         for delta in element_declaration_deltas {
             let Some(node) = StyleNodeID::from_raw(delta.node) else {
@@ -1137,7 +1134,6 @@ impl StyleEngineState {
                 InputKey::ElementDeclaration(node, decode_element_declaration_kind(delta.kind)),
                 InputValue::ElementDeclaration(block(delta.old_block)),
                 InputValue::ElementDeclaration(new_block),
-                counters,
             );
         }
         for input in element_style_inputs {
@@ -1154,7 +1150,6 @@ impl StyleEngineState {
                     reaction: input.reaction,
                     inherited_style_groups: input.inherited_style_groups,
                 },
-                counters,
             );
         }
     }
@@ -2558,7 +2553,7 @@ pub unsafe extern "C" fn style_engine_move_custom_property_environment(
 }
 
 /// What a read of one element's style the host makes before the next style update asks of the
-/// engine; see `StyleEngineState::answer_record_demand`. A read-only demand leaves the engine as it
+/// engine; see `StyleEngine::answer_record_demand`. A read-only demand leaves the engine as it
 /// was: its record is only for the host to read. Any other is installed and acknowledged as a
 /// style update's would be.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

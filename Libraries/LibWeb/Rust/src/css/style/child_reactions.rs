@@ -20,7 +20,7 @@ use super::transaction::{
     STYLE_REACTION_ANCESTOR_BECAME_VISIBLE, STYLE_REACTION_INHERITED_CUSTOM_PROPERTIES, STYLE_REACTION_INHERITED_STYLE,
     STYLE_REACTION_RECOMPUTE_DESCENDANT_STYLES, STYLE_REACTION_RECOMPUTE_STYLE,
 };
-use super::{StyleEngineState, StyleNodeID};
+use super::{StyleEngine, StyleNodeID};
 use crate::css::computed_value_views::ComputedValuesView;
 use crate::css::display::FfiDisplay;
 use crate::css::host_shared::SharedPayload;
@@ -37,7 +37,7 @@ struct InstalledRecordState {
 
 /// The reactions and the inherited style groups that a reaction C++ applied to an element, with `reaction`,
 /// `inherited_style_groups_changed` and `facts` as it reports them, may derive for any of the element's children, as
-/// [`StyleEngineState::note_style_reaction_applied`] derives them from what else the engine knows.
+/// [`StyleEngine::note_style_reaction_applied`] derives them from what else the engine knows.
 pub(crate) fn derivable_child_reactions(reaction: u8, inherited_style_groups_changed: u8, facts: u32) -> (u8, u8) {
     let has = |bit: u32| facts & bit != 0;
     let custom_properties =
@@ -86,7 +86,7 @@ pub(super) struct DerivedChildReaction {
     pub(super) parent_display_moved: bool,
 }
 
-impl StyleEngineState {
+impl StyleEngine {
     /// What the element's installed record generates, or `None` for an element without style.
     fn installed_record_state(&self, node: StyleNodeID) -> Option<InstalledRecordState> {
         let record = self.retained.computed_group_sets.assigned_style_record(node)?;

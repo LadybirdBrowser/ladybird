@@ -20,7 +20,7 @@ pub(super) struct ScopeSheetOccurrences {
     accounted_bytes: u64,
 }
 
-impl StyleEngineState {
+impl StyleEngine {
     pub(super) fn attach_sheet_occurrence(
         &mut self,
         sheet: SheetID,
@@ -28,7 +28,6 @@ impl StyleEngineState {
         identity: u64,
         before: u64,
         conditions_hold: bool,
-        counters: &Counters,
     ) {
         let entries = &mut self.host.sheet_occurrences.entry(scope).or_default().occurrences;
         entries.retain(|entry| entry.identity != identity);
@@ -44,24 +43,18 @@ impl StyleEngineState {
                 conditions_hold,
             },
         );
-        self.publish_sheet_occurrences(scope, counters);
+        self.publish_sheet_occurrences(scope);
     }
 
-    pub(super) fn detach_sheet_occurrence(&mut self, scope: TreeScopeID, identity: u64, counters: &Counters) {
+    pub(super) fn detach_sheet_occurrence(&mut self, scope: TreeScopeID, identity: u64) {
         let Some(state) = self.host.sheet_occurrences.get_mut(&scope) else {
             return;
         };
         state.occurrences.retain(|entry| entry.identity != identity);
-        self.publish_sheet_occurrences(scope, counters);
+        self.publish_sheet_occurrences(scope);
     }
 
-    pub(super) fn set_sheet_occurrence_conditions(
-        &mut self,
-        scope: TreeScopeID,
-        identity: u64,
-        conditions_hold: bool,
-        counters: &Counters,
-    ) {
+    pub(super) fn set_sheet_occurrence_conditions(&mut self, scope: TreeScopeID, identity: u64, conditions_hold: bool) {
         let Some(entry) = self
             .host
             .sheet_occurrences
@@ -74,10 +67,10 @@ impl StyleEngineState {
             return;
         }
         entry.conditions_hold = conditions_hold;
-        self.publish_sheet_occurrences(scope, counters);
+        self.publish_sheet_occurrences(scope);
     }
 
-    fn publish_sheet_occurrences(&mut self, scope: TreeScopeID, counters: &Counters) {
+    fn publish_sheet_occurrences(&mut self, scope: TreeScopeID) {
         let state = self.host.sheet_occurrences.get_mut(&scope).unwrap();
         let mut seen = HashSet::default();
         let mut active: Vec<_> = state
@@ -128,14 +121,14 @@ impl StyleEngineState {
         }
         self.stage_sheets_in_scope(scope, sheets);
         for &sheet in old.iter().filter(|sheet| !active_set.contains(sheet)) {
-            self.record_attachment(sheet, scope, true, false, counters);
+            self.record_attachment(sheet, scope, true, false);
             self.retained.routing_needs_detachment_sweep = true;
         }
         for &sheet in active.iter().filter(|sheet| !old_set.contains(sheet)) {
-            self.record_attachment(sheet, scope, false, true, counters);
+            self.record_attachment(sheet, scope, false, true);
         }
         if order_changed {
-            self.record_sheet_order_change(scope, counters);
+            self.record_sheet_order_change(scope);
         }
     }
 }

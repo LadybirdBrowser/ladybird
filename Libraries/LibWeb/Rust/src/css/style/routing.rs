@@ -25,7 +25,6 @@ impl RetainedState {
         program: SelectorProgramID,
         origin: selector::SelectorNodeID,
         node: StyleNodeID,
-        counters: &Counters,
     ) -> Option<bool> {
         let view = self.transaction_fact_view.as_ref()?;
         let compiled = self.programs.get(program);
@@ -35,11 +34,11 @@ impl RetainedState {
         let resident_facts = self.facts.primary();
         let old = MatchEvaluator::new(&self.tree, resident_facts)
             .with_transaction_fact_view(view, TransactionFactSide::Before)
-            .matches_selector_node(compiled, origin, node, counters)
+            .matches_selector_node(compiled, origin, node, &self.counters)
             .ok()?;
         let new = MatchEvaluator::new(&self.tree, resident_facts)
             .with_transaction_fact_view(view, TransactionFactSide::After)
-            .matches_selector_node(compiled, origin, node, counters)
+            .matches_selector_node(compiled, origin, node, &self.counters)
             .ok()?;
         Some(old != new)
     }
@@ -52,7 +51,6 @@ impl RetainedState {
         program: SelectorProgramID,
         origin: selector::SelectorNodeID,
         node: StyleNodeID,
-        counters: &Counters,
     ) -> Option<bool> {
         let InputKey::LocalFeature(_, LocalFeatureKey::Attribute(_)) = input.key else {
             return None;
@@ -80,7 +78,7 @@ impl RetainedState {
                 return Some(matches(old)? != matches(new)?);
             }
         }
-        self.route_origin_truth_flipped(program, origin, node, counters)
+        self.route_origin_truth_flipped(program, origin, node)
     }
 
     /// Route one non-program input to the region its transpose routes reach.
@@ -109,7 +107,6 @@ impl RetainedState {
         prefix_producer_seen: &mut Vec<u32>,
         sequences: &mut SequenceChanges,
         regions: &mut ImpactRegions,
-        counters: &Counters,
     ) {
         // A declaration sourced from the element changes what wins on that element and nothing
         // else. There is no selector to transpose: the region is the element itself.
@@ -208,7 +205,7 @@ impl RetainedState {
                 true => routing.arrival_routes_for(key),
                 false => routing.routes_for(key),
             };
-            counters.add(Counter::RoutedEntryPoints, routes.len() as u64);
+            self.counters.add(Counter::RoutedEntryPoints, routes.len() as u64);
 
             let Some(node) = input.key.style_node() else {
                 continue;
@@ -248,13 +245,12 @@ impl RetainedState {
                         selector_program,
                         point.selector_node.expect("attribute route has no selector node"),
                         node,
-                        counters,
                     );
                     if truth_flipped == Some(false) {
-                        counters.bump(Counter::OriginTruthRoutesSkipped);
+                        self.counters.bump(Counter::OriginTruthRoutesSkipped);
                         continue;
                     }
-                    counters.bump(Counter::OriginTruthRoutesFired);
+                    self.counters.bump(Counter::OriginTruthRoutesFired);
                 }
                 // The element the input happened to must satisfy the rest of the compound the input
                 // occurs in, or this route cannot be reached from it at all.
@@ -303,7 +299,7 @@ impl RetainedState {
                     // A relational input resolves its anchors first. Folding the anchor step into
                     // the path would compose "the ancestors of the changed node" with whatever the
                     // outer selector adds, and ancestors-then-descendants is the document.
-                    Some(anchor) => self.route_from_anchors(node, selector_program, anchor, &site, regions, counters),
+                    Some(anchor) => self.route_from_anchors(node, selector_program, anchor, &site, regions),
                     None => {
                         let region = ImpactRegion::follow(node, path, &self.tree);
                         let is_sibling_route = exact_tree_evaluation.is_some()
@@ -563,7 +559,6 @@ impl RetainedState {
         sequences: &SequenceChanges,
         departed: Option<&[StyleNodeID]>,
         regions: &mut ImpactRegions,
-        counters: &Counters,
     ) {
         let routing = Arc::clone(&self.routing);
         if routing.relational_routes().is_empty() {
@@ -582,7 +577,7 @@ impl RetainedState {
             // nothing about the seam itself, once per transaction answers every seam.
             if anchor.argument_spans_siblings {
                 let site = route_site(&routing, route);
-                self.route_from_possible_witnesses(program, anchor, &site, regions, counters);
+                self.route_from_possible_witnesses(program, anchor, &site, regions);
             }
         }
 
@@ -594,15 +589,7 @@ impl RetainedState {
             if change.relational_records.is_empty() {
                 continue;
             }
-            self.route_relational_sequence_change(
-                parent,
-                change,
-                live,
-                &routing,
-                &mut departed_witnesses,
-                regions,
-                counters,
-            );
+            self.route_relational_sequence_change(parent, change, live, &routing, &mut departed_witnesses, regions);
         }
     }
 
@@ -653,7 +640,6 @@ impl RetainedState {
         routing: &RoutingRegistry,
         departed_witnesses: &mut DepartedWitnessKeys<'_>,
         regions: &mut ImpactRegions,
-        counters: &Counters,
     ) {
         let children = &change.children;
         // Where the seams are, with a record nobody could place widened to the whole sequence.
@@ -723,7 +709,7 @@ impl RetainedState {
                     _ => None,
                 };
                 if let Some(host) = host {
-                    self.route_relational_anchor(host, program, anchor.query, anchor_posting, &site, regions, counters);
+                    self.route_relational_anchor(host, program, anchor.query, anchor_posting, &site, regions);
                 }
                 continue;
             }
@@ -748,15 +734,7 @@ impl RetainedState {
                         _ => anchors_above,
                     };
                     for &candidate in candidates {
-                        self.route_relational_anchor(
-                            candidate,
-                            program,
-                            anchor.query,
-                            anchor_posting,
-                            &site,
-                            regions,
-                            counters,
-                        );
+                        self.route_relational_anchor(candidate, program, anchor.query, anchor_posting, &site, regions);
                     }
                 }
                 // The seam moves which elements are siblings of which, whoever made it, and the
@@ -773,22 +751,13 @@ impl RetainedState {
                                 anchor_posting,
                                 &site,
                                 regions,
-                                counters,
                             );
                         }
                     }
                 }
                 RelativeAxis::FollowingSibling => {
                     for &candidate in &children[..max_any] {
-                        self.route_relational_anchor(
-                            candidate,
-                            program,
-                            anchor.query,
-                            anchor_posting,
-                            &site,
-                            regions,
-                            counters,
-                        );
+                        self.route_relational_anchor(candidate, program, anchor.query, anchor_posting, &site, regions);
                     }
                 }
                 // A witness under a sibling is not a sibling, so a witness that left, or arrived
@@ -809,7 +778,6 @@ impl RetainedState {
                                 anchor_posting,
                                 &site,
                                 regions,
-                                counters,
                             );
                         }
                         self.route_relational_ancestor_predecessors(
@@ -821,7 +789,6 @@ impl RetainedState {
                             anchor_posting,
                             &site,
                             regions,
-                            counters,
                         );
                     }
                     for &(at, side) in &change.relational_records {
@@ -843,22 +810,13 @@ impl RetainedState {
                                 anchor_posting,
                                 &site,
                                 regions,
-                                counters,
                             );
                         }
                     }
                 }
                 RelativeAxis::FollowingSiblingSubtree => {
                     for &candidate in &children[..max_any] {
-                        self.route_relational_anchor(
-                            candidate,
-                            program,
-                            anchor.query,
-                            anchor_posting,
-                            &site,
-                            regions,
-                            counters,
-                        );
+                        self.route_relational_anchor(candidate, program, anchor.query, anchor_posting, &site, regions);
                     }
                     if any_departed || witnessing_arrival {
                         self.route_relational_ancestor_predecessors(
@@ -870,7 +828,6 @@ impl RetainedState {
                             anchor_posting,
                             &site,
                             regions,
-                            counters,
                         );
                     }
                 }
@@ -891,7 +848,6 @@ impl RetainedState {
         anchor_posting: Option<PostingKey>,
         site: &RoutingSite<'_>,
         regions: &mut ImpactRegions,
-        counters: &Counters,
     ) {
         if ancestor_predecessors.is_none() {
             let anchors_above =
@@ -907,7 +863,7 @@ impl RetainedState {
             *ancestor_predecessors = Some(found);
         }
         for &candidate in ancestor_predecessors.as_ref().unwrap() {
-            self.route_relational_anchor(candidate, program, query, anchor_posting, site, regions, counters);
+            self.route_relational_anchor(candidate, program, query, anchor_posting, site, regions);
         }
     }
 
@@ -922,7 +878,6 @@ impl RetainedState {
         anchor_posting: Option<PostingKey>,
         site: &RoutingSite<'_>,
         regions: &mut ImpactRegions,
-        counters: &Counters,
     ) {
         if let Some(key) = anchor_posting {
             match self.facts.postings().lookup(key) {
@@ -935,14 +890,14 @@ impl RetainedState {
         // zero/nonzero witness transitions can affect selector truth, so nothing reached through
         // this anchor has moved and it drops out of the plan.
         if matches!(
-            self.retained_witness_for_anchor(program, query, candidate, counters),
+            self.retained_witness_for_anchor(program, query, candidate),
             Lookup::Known(_)
         ) {
-            counters.bump(Counter::RelationalAnchorsSkippedByWitness);
+            self.counters.bump(Counter::RelationalAnchorsSkippedByWitness);
             return;
         }
         let region = ImpactRegion::follow(candidate, site.path, &self.tree);
-        self.add_narrowed_region(region, site, regions, counters);
+        self.add_narrowed_region(region, site, regions);
     }
 
     /// Route a node whose neighbour moved to what a sibling combinator reaches through it.
@@ -1311,7 +1266,6 @@ impl RetainedState {
         tree_routing: TreeRoutingMode<'_>,
         regions: &mut ImpactRegions,
         workspace: &mut ImpactPlanningWorkspace,
-        counters: &Counters,
     ) -> DeferredSequenceRoutes {
         if sequences.entries.is_empty() {
             return DeferredSequenceRoutes::default();
@@ -1405,7 +1359,6 @@ impl RetainedState {
                 },
                 regions,
                 workspace,
-                counters,
             );
             self.memory.release(MemoryCategory::BatchScratch, entry_index_bytes);
         }
@@ -1435,7 +1388,6 @@ impl RetainedState {
         selection: SequenceEntrySelection<'_>,
         regions: &mut ImpactRegions,
         workspace: &mut ImpactPlanningWorkspace,
-        counters: &Counters,
     ) {
         let routing = Arc::clone(&self.routing);
         let parent_emptiness = entry_index
@@ -1469,7 +1421,6 @@ impl RetainedState {
                 selection,
                 &mut pending_regions,
                 regions,
-                counters,
             );
         }
         let mut pending_inner_bytes = 0_u64;
@@ -1482,7 +1433,7 @@ impl RetainedState {
             pending_inner_bytes += (routed_regions.capacity() * size_of::<ImpactRegion>()) as u64;
             let site = entry.site(&routing);
             self.discard_regions_covered_by_subtree(routed_regions, &site, regions);
-            self.add_narrowed_regions_with_workspace(routed_regions, &site, regions, workspace, counters);
+            self.add_narrowed_regions_with_workspace(routed_regions, &site, regions, workspace);
         }
         self.memory
             .release(MemoryCategory::BatchScratch, pending_outer_bytes + pending_inner_bytes);
@@ -1498,7 +1449,6 @@ impl RetainedState {
         sequences: &SequenceChanges,
         regions: &mut ImpactRegions,
         workspace: &mut ImpactPlanningWorkspace,
-        counters: &Counters,
     ) {
         let entries = std::mem::take(&mut deferred.entries);
         let deferred_mask = std::mem::take(&mut deferred.deferred);
@@ -1521,7 +1471,6 @@ impl RetainedState {
             },
             regions,
             workspace,
-            counters,
         );
         self.memory.release(MemoryCategory::BatchScratch, entry_index_bytes);
     }
@@ -1576,7 +1525,6 @@ impl RetainedState {
         selection: SequenceEntrySelection<'_>,
         pending_regions: &mut [Vec<ImpactRegion>],
         regions: &mut ImpactRegions,
-        counters: &Counters,
     ) {
         let routing = Arc::clone(&self.routing);
         let children = &change.children;
@@ -1623,7 +1571,7 @@ impl RetainedState {
             match point.anchor {
                 Some(anchor) => {
                     let (program, _) = self.programs.entry_location(point.entry);
-                    self.route_from_anchors(parent, program, anchor, &site, regions, counters);
+                    self.route_from_anchors(parent, program, anchor, &site, regions);
                 }
                 None => {
                     let region = ImpactRegion::follow(parent, path, &self.tree);
@@ -1656,7 +1604,7 @@ impl RetainedState {
             // The positional test is not always on the subject: `#list > :first-child .leaf` moves
             // for the descendants of the child whose count crossed. So the entry's own path is
             // followed from each such child to the subjects it reaches.
-            let mut name = |engine: &mut Self, at: usize, counters: &Counters| {
+            let mut name = |engine: &mut Self, at: usize| {
                 if !moved.contains(&at) {
                     return;
                 }
@@ -1745,7 +1693,7 @@ impl RetainedState {
                     match point.anchor {
                         Some(anchor) => {
                             let (program, _) = engine.programs.entry_location(point.entry);
-                            engine.route_from_anchors(child, program, anchor, &site, regions, counters);
+                            engine.route_from_anchors(child, program, anchor, &site, regions);
                         }
                         None => {
                             let region = ImpactRegion::follow(child, path, &engine.tree);
@@ -1776,7 +1724,7 @@ impl RetainedState {
                             },
                             false => count - 1,
                         };
-                        name(self, at, counters);
+                        name(self, at);
                     }
                 }
                 false => {
@@ -1797,7 +1745,7 @@ impl RetainedState {
                                 }
                             }
                         }
-                        name(self, at, counters);
+                        name(self, at);
                     }
                 }
             }
@@ -1826,12 +1774,11 @@ impl RetainedState {
         anchor: RelativeAnchor,
         site: &RoutingSite<'_>,
         regions: &mut ImpactRegions,
-        counters: &Counters,
     ) {
         if anchor.input_is_on_the_anchor {
-            counters.bump(Counter::RelationalAnchorsConsidered);
+            self.counters.bump(Counter::RelationalAnchorsConsidered);
             let region = ImpactRegion::follow(witness, site.path, &self.tree);
-            self.add_narrowed_region(region, site, regions, counters);
+            self.add_narrowed_region(region, site, regions);
             return;
         }
 
@@ -1840,7 +1787,7 @@ impl RetainedState {
         // rather than below it. What the query still says is what a witness of it must carry, and
         // the elements carrying that are enumerable. Route from each of them instead.
         if !anchor.input_is_on_the_witness {
-            self.route_from_possible_witnesses(program, anchor, site, regions, counters);
+            self.route_from_possible_witnesses(program, anchor, site, regions);
             return;
         }
 
@@ -1867,10 +1814,10 @@ impl RetainedState {
             true => possible_hosting_anchors(anchor.axis, witness, &self.tree, &mut visit),
             false => possible_anchors(anchor.axis, witness, &self.tree, None, &mut visit),
         }
-        counters.add(Counter::RelationalAnchorsConsidered, considered);
+        self.counters.add(Counter::RelationalAnchorsConsidered, considered);
 
         for candidate in anchors {
-            self.route_possible_anchor(candidate, program, anchor, site, regions, counters);
+            self.route_possible_anchor(candidate, program, anchor, site, regions);
         }
     }
 
@@ -1882,7 +1829,6 @@ impl RetainedState {
         anchor: RelativeAnchor,
         site: &RoutingSite<'_>,
         regions: &mut ImpactRegions,
-        counters: &Counters,
     ) {
         // An anchor whose retained witness still witnesses it was true and stays true: only
         // zero/nonzero witness transitions can affect selector truth, so nothing reached
@@ -1894,15 +1840,15 @@ impl RetainedState {
             .get(program)
             .subtree_tests_position(self.programs.get(program).relative_query(anchor.query).compound)
             && matches!(
-                self.retained_witness_for_anchor(program, anchor.query, candidate, counters),
+                self.retained_witness_for_anchor(program, anchor.query, candidate),
                 Lookup::Known(_)
             )
         {
-            counters.bump(Counter::RelationalAnchorsSkippedByWitness);
+            self.counters.bump(Counter::RelationalAnchorsSkippedByWitness);
             return;
         }
         let region = ImpactRegion::follow(candidate, site.path, &self.tree);
-        self.add_narrowed_region(region, site, regions, counters);
+        self.add_narrowed_region(region, site, regions);
     }
 
     /// Route a relational query from every element that could witness it.
@@ -1917,7 +1863,6 @@ impl RetainedState {
         anchor: RelativeAnchor,
         site: &RoutingSite<'_>,
         regions: &mut ImpactRegions,
-        counters: &Counters,
     ) {
         // Every anchor a witness walk can find carries the anchor compound's own feature, so when
         // fewer elements carry that than could be witnesses, the anchors are the cheaper side to
@@ -1941,10 +1886,11 @@ impl RetainedState {
                                 <= self.tree.connected_element_count().max(1) as usize) =>
                 {
                     let anchors: Vec<StyleNodeID> = posting.candidates().collect();
-                    counters.add(Counter::RelationalAnchorsConsidered, anchors.len() as u64);
+                    self.counters
+                        .add(Counter::RelationalAnchorsConsidered, anchors.len() as u64);
                     for candidate in anchors {
                         if self.tree.is_live(candidate) {
-                            self.route_possible_anchor(candidate, program, anchor, site, regions, counters);
+                            self.route_possible_anchor(candidate, program, anchor, site, regions);
                         }
                     }
                     return;
@@ -1953,21 +1899,21 @@ impl RetainedState {
             }
         }
         if !anchor.witness_dispatch.has_selector_posting() {
-            self.add_narrowed_region(ImpactRegion::Document, site, regions, counters);
+            self.add_narrowed_region(ImpactRegion::Document, site, regions);
             return;
         }
         let candidates: Vec<StyleNodeID> = match self.facts.postings().lookup(anchor.witness_dispatch) {
             Lookup::Known(posting) => posting.candidates().collect(),
             Lookup::KnownAbsent => Vec::new(),
             Lookup::Missing(_) => {
-                self.add_narrowed_region(ImpactRegion::Document, site, regions, counters);
+                self.add_narrowed_region(ImpactRegion::Document, site, regions);
                 return;
             }
         };
         if candidates.len() > SMALL_CANDIDATE_SOURCE
             && candidates.len() * SELECTIVE_SHARE_DIVISOR > self.tree.connected_element_count().max(1) as usize
         {
-            self.add_narrowed_region(ImpactRegion::Document, site, regions, counters);
+            self.add_narrowed_region(ImpactRegion::Document, site, regions);
             return;
         }
         for candidate in candidates {
@@ -1981,7 +1927,6 @@ impl RetainedState {
                 },
                 site,
                 regions,
-                counters,
             );
         }
     }
@@ -2225,7 +2170,6 @@ impl RetainedState {
         program: SelectorProgramID,
         entry: u32,
         evaluation: ExactTreeEvaluation,
-        counters: &Counters,
     ) -> ExactEntryResult {
         let mut covered = std::mem::take(&mut self.exact_covered_scratch);
         covered.clear();
@@ -2253,7 +2197,7 @@ impl RetainedState {
                     old_matches,
                     self.transaction_fact_view.as_ref(),
                     &mut self.match_workspace,
-                    counters,
+                    &self.counters,
                 )
             };
             match result {
@@ -2282,7 +2226,6 @@ impl RetainedState {
         &mut self,
         node: StyleNodeID,
         site: &RoutingSite<'_>,
-        counters: &Counters,
     ) -> ExactEntryResult {
         let Some((rule, entry_id)) = site.exact_entry else {
             return Lookup::Missing(ExactEntryGap);
@@ -2310,7 +2253,7 @@ impl RetainedState {
         }
 
         if let Some(exact_tree_evaluation) = site.exact_tree_evaluation {
-            return self.candidate_changes_exact_tree(node, program, entry, exact_tree_evaluation, counters);
+            return self.candidate_changes_exact_tree(node, program, entry, exact_tree_evaluation);
         }
 
         if !self
@@ -2341,12 +2284,12 @@ impl RetainedState {
                 let exact_entry = &compiled.entries()[entry as usize];
                 let new_matches = MatchEvaluator::new(&self.tree, resident_facts)
                     .with_transaction_fact_view(view, TransactionFactSide::After)
-                    .matches_entry_for_program(program, compiled, exact_entry, node, counters);
+                    .matches_entry_for_program(program, compiled, exact_entry, node, &self.counters);
                 let old_matches = match retained_old_matches {
                     Some(old_matches) => Ok(old_matches),
                     None => MatchEvaluator::new(&self.tree, resident_facts)
                         .with_transaction_fact_view(view, TransactionFactSide::Before)
-                        .matches_entry_for_program(program, compiled, exact_entry, node, counters),
+                        .matches_entry_for_program(program, compiled, exact_entry, node, &self.counters),
                 };
                 (old_matches, new_matches)
             };
@@ -2391,7 +2334,6 @@ impl RetainedState {
         routed_regions: &[ImpactRegion],
         plan: &ImpactRegions,
         workspace: Option<&mut ImpactPlanningWorkspace>,
-        counters: &Counters,
     ) -> Arc<ImpactRegionBatch> {
         if let Some(workspace) = workspace {
             if let Some(batch) = workspace.batches.get(routed_regions) {
@@ -2399,22 +2341,23 @@ impl RetainedState {
             }
 
             let batch = Arc::new(plan.compile_union(routed_regions, &self.tree, None));
-            self.record_compiled_region_batch(&batch, counters);
+            self.record_compiled_region_batch(&batch);
             workspace.insert_batch(routed_regions, Arc::clone(&batch));
             workspace.settle_memory(&mut self.memory);
             return batch;
         }
 
         let batch = Arc::new(plan.compile_union(routed_regions, &self.tree, None));
-        self.record_compiled_region_batch(&batch, counters);
+        self.record_compiled_region_batch(&batch);
         batch
     }
 
-    pub(super) fn record_compiled_region_batch(&mut self, batch: &ImpactRegionBatch, counters: &Counters) {
+    pub(super) fn record_compiled_region_batch(&mut self, batch: &ImpactRegionBatch) {
         if let Some(intervals) = batch.interval_count() {
-            counters.add(Counter::ExactRegionBatchIntervals, intervals as u64);
+            self.counters.add(Counter::ExactRegionBatchIntervals, intervals as u64);
         }
-        counters.add(Counter::ExactRegionBatchNodes, batch.node_count() as u64);
+        self.counters
+            .add(Counter::ExactRegionBatchNodes, batch.node_count() as u64);
     }
 
     /// Run one exact candidate pass over the union of several transpose regions.
@@ -2425,15 +2368,13 @@ impl RetainedState {
         regions: &mut ImpactRegions,
         workspace: Option<&mut ImpactPlanningWorkspace>,
         compiled_batch: Option<Arc<ImpactRegionBatch>>,
-        counters: &Counters,
     ) -> bool {
         if !self.exact_batch_is_available(routed_regions, site) {
             return false;
         }
 
         let batch_is_cached = workspace.is_some();
-        let batch =
-            compiled_batch.unwrap_or_else(|| self.compile_region_batch(routed_regions, regions, workspace, counters));
+        let batch = compiled_batch.unwrap_or_else(|| self.compile_region_batch(routed_regions, regions, workspace));
         let mut candidates = Vec::new();
         let attributed_rule = site.attribution();
         regions.for_each_batch(&batch, |candidate| {
@@ -2498,8 +2439,7 @@ impl RetainedState {
         let workspace_before = self.match_workspace.capacity_bytes();
         for candidate in candidates {
             if let Some(exact_tree_evaluation) = site.exact_tree_evaluation {
-                let change =
-                    self.candidate_changes_exact_tree(candidate, program, entry, exact_tree_evaluation, counters);
+                let change = self.candidate_changes_exact_tree(candidate, program, entry, exact_tree_evaluation);
                 if exact_entry_changed(change) {
                     self.record_exact_selector_truth_change(candidate, site, change);
                     regions.add(ImpactRegion::Node(candidate));
@@ -2507,7 +2447,7 @@ impl RetainedState {
                 continue;
             }
 
-            let change = self.candidate_changes_exact_entry(candidate, site, counters);
+            let change = self.candidate_changes_exact_entry(candidate, site);
             if exact_entry_changed(change) {
                 self.record_exact_selector_truth_change(candidate, site, change);
                 regions.add(ImpactRegion::Node(candidate));
@@ -2531,7 +2471,6 @@ impl RetainedState {
         site: &RoutingSite<'_>,
         regions: &mut ImpactRegions,
         workspace: &mut ImpactPlanningWorkspace,
-        counters: &Counters,
     ) {
         if routed_regions.is_empty() {
             return;
@@ -2542,7 +2481,7 @@ impl RetainedState {
             for &region in routed_regions {
                 match region {
                     ImpactRegion::Children(_) => {
-                        self.add_position_bounded_region(region, site, regions, counters);
+                        self.add_position_bounded_region(region, site, regions);
                         expanded_children = true;
                     }
                     _ => has_other_regions = true,
@@ -2556,13 +2495,7 @@ impl RetainedState {
                     .iter()
                     .filter(|region| !matches!(region, ImpactRegion::Children(_)))
                 {
-                    self.add_narrowed_regions_with_workspace(
-                        std::slice::from_ref(region),
-                        site,
-                        regions,
-                        workspace,
-                        counters,
-                    );
+                    self.add_narrowed_regions_with_workspace(std::slice::from_ref(region), site, regions, workspace);
                 }
                 return;
             }
@@ -2579,7 +2512,7 @@ impl RetainedState {
                 .iter()
                 .all(|region| matches!(region, ImpactRegion::Node(_)))
         {
-            self.add_narrowed_node_regions(routed_regions, site, regions, counters);
+            self.add_narrowed_node_regions(routed_regions, site, regions);
             return;
         }
         let cardinality = if has_usable_subject {
@@ -2601,7 +2534,7 @@ impl RetainedState {
         let compiled_regions = if use_direct_region_membership {
             None
         } else {
-            let compiled_regions = self.compile_region_batch(routed_regions, regions, Some(workspace), counters);
+            let compiled_regions = self.compile_region_batch(routed_regions, regions, Some(workspace));
             let region_nodes = compiled_regions.node_count();
             match choose_plan(
                 region_nodes,
@@ -2615,7 +2548,6 @@ impl RetainedState {
                         regions,
                         Some(workspace),
                         Some(compiled_regions),
-                        counters,
                     );
                     if executed {
                         return;
@@ -2649,12 +2581,13 @@ impl RetainedState {
                 unreachable!("the cardinality lookup proved every selective posting present")
             };
             workspace.settle_memory(&mut self.memory);
-            counters.bump(match reused {
+            self.counters.bump(match reused {
                 true => Counter::RemainingPostingReuses,
                 false => Counter::RemainingPostingBuilds,
             });
-            counters.add(Counter::RemainingPostingRowsCopied, copied as u64);
-            counters.add(Counter::RemainingPostingRowsInspected, inspected as u64);
+            self.counters.add(Counter::RemainingPostingRowsCopied, copied as u64);
+            self.counters
+                .add(Counter::RemainingPostingRowsInspected, inspected as u64);
         }
         let mut already_planned_moved_nodes = Vec::new();
         let moved_features = &self
@@ -2710,7 +2643,7 @@ impl RetainedState {
                 && self.node_carries_all(site.subject_required, candidate, site.in_flux)
                 && self.path_meets_waypoints(site.path, site.waypoints, candidate, site.in_flux)
             {
-                let change = self.candidate_changes_exact_entry(candidate, site, counters);
+                let change = self.candidate_changes_exact_entry(candidate, site);
                 if exact_entry_changed(change) {
                     self.record_exact_selector_truth_change(candidate, site, change);
                     regions.add(ImpactRegion::Node(candidate));
@@ -2732,7 +2665,6 @@ impl RetainedState {
         routed_regions: &[ImpactRegion],
         site: &RoutingSite<'_>,
         regions: &mut ImpactRegions,
-        counters: &Counters,
     ) {
         let mut candidates: Vec<_> = routed_regions
             .iter()
@@ -2757,7 +2689,7 @@ impl RetainedState {
             if self.node_carries_all(site.subject_required, candidate, site.in_flux)
                 && self.path_meets_waypoints(site.path, site.waypoints, candidate, site.in_flux)
             {
-                let change = self.candidate_changes_exact_entry(candidate, site, counters);
+                let change = self.candidate_changes_exact_entry(candidate, site);
                 if exact_entry_changed(change) {
                     self.record_exact_selector_truth_change(candidate, site, change);
                     regions.add(ImpactRegion::Node(candidate));
@@ -2827,7 +2759,6 @@ impl RetainedState {
         transaction: &StyleTransaction,
         sequences: &SequenceChanges,
         pending_prefix_producers: &[PendingPrefixProducer],
-        counters: &Counters,
     ) -> PrefixConvergenceOutcome {
         let Some((root, tree_relations_changed)) = self.transaction_fact_view.as_ref().and_then(|transition| {
             transition
@@ -2901,7 +2832,7 @@ impl RetainedState {
                         dispatch.prefixes(),
                         &mut evaluation,
                         &geometry_nodes,
-                        counters,
+                        &self.counters,
                     ));
                 }
                 changed.sort_unstable();
@@ -2911,7 +2842,7 @@ impl RetainedState {
                     &mut evaluation,
                     &mut old_evaluation,
                     changed,
-                    counters,
+                    &self.counters,
                 );
             }
             let mut eligible: Vec<_> = pending
@@ -3007,7 +2938,7 @@ impl RetainedState {
                     });
                 }
             }
-            counters.add(Counter::PrefixRelationCascadeStops, cascade_stops);
+            self.counters.add(Counter::PrefixRelationCascadeStops, cascade_stops);
             self.memory.release(MemoryCategory::BatchScratch, scratch_bytes);
             let mut caches = self.prefix_caches.borrow_mut();
             let states = caches.states.prepare_program(scope_program);
@@ -3016,7 +2947,7 @@ impl RetainedState {
                 states.forget_transition(node);
             }
             states.relation = Some(relation);
-            counters.bump(Counter::PrefixConvergencePasses);
+            self.counters.bump(Counter::PrefixConvergencePasses);
             caches.states.mark_full();
             caches.states.mark_current();
             caches.states.settle_memory(&mut self.memory);
@@ -3246,7 +3177,7 @@ impl RetainedState {
             }
             self.memory
                 .release(MemoryCategory::BatchScratch, inexact_answer_region_bytes);
-            counters.add(
+            self.counters.add(
                 Counter::SelectorRoutesRejectedByCascade,
                 before.saturating_sub(pending.len()) as u64,
             );
@@ -3263,8 +3194,9 @@ impl RetainedState {
             .filter(|key| self.route_is_prefix_convergence_eligible(&routing, &dispatch, key.route))
             .collect();
         eligible_keys.sort_unstable();
-        counters.add(Counter::PendingSelectorRoutes, pending.len() as u64);
-        counters.add(Counter::PrefixEligibleRoutes, eligible_keys.len() as u64);
+        self.counters.add(Counter::PendingSelectorRoutes, pending.len() as u64);
+        self.counters
+            .add(Counter::PrefixEligibleRoutes, eligible_keys.len() as u64);
         // Consumption still asks for the whole pending set: at current transition unit cost a
         // maintenance walk on a mixed flush loses to the generic narrowing it would subsidize.
         // Partial consumption was measured again after positional admission and lost about a
@@ -3326,7 +3258,7 @@ impl RetainedState {
                 .saturating_mul(PREFIX_CONVERGENCE_SELECTIVE_RATIO)
                 < self.tree.connected_element_count() as usize
         {
-            counters.bump(Counter::PrefixConvergenceBypasses);
+            self.counters.bump(Counter::PrefixConvergenceBypasses);
             return PrefixConvergenceOutcome::default();
         }
 
@@ -3387,7 +3319,7 @@ impl RetainedState {
                     resident_facts,
                     &local_fact_changes,
                 );
-                counters.bump(Counter::PrefixTransitionCacheHits);
+                self.counters.bump(Counter::PrefixTransitionCacheHits);
                 let nodes_in_preorder = regions.sort_nodes_for_top_down_walk(&mut pending_nodes, &self.tree);
                 if automaton_has_sibling_steps && !nodes_in_preorder {
                     retained.release();
@@ -3535,7 +3467,7 @@ impl RetainedState {
                             pending_node.entering_deltas,
                             positional_truth_stable,
                             &mut prefix_delta_arena,
-                            counters,
+                            &self.counters,
                         ) {
                             PrefixTransitionLookup::Known(difference) => difference,
                             PrefixTransitionLookup::Missing(_) => {
@@ -3544,9 +3476,9 @@ impl RetainedState {
                                 break;
                             }
                         };
-                        counters.bump(Counter::PrefixConvergenceNodes);
+                        self.counters.bump(Counter::PrefixConvergenceNodes);
                         if difference.arrived {
-                            counters.bump(Counter::PrefixConvergenceUpqueries);
+                            self.counters.bump(Counter::PrefixConvergenceUpqueries);
                             // NB: An arrival has no old state to diff against, so the retained
                             //     answer must be re-derived cold. An exact node region alone does
                             //     not force that once attributed regions cover the node, so poison
@@ -3623,7 +3555,7 @@ impl RetainedState {
                             // read its predecessor's rightward state before it is recomputed.
                             pending_prefix_nodes[first_new_child..].reverse();
                         } else {
-                            counters.bump(Counter::PrefixConvergenceStops);
+                            self.counters.bump(Counter::PrefixConvergenceStops);
                         }
 
                         let current_bytes = workspace_bytes(
@@ -3697,7 +3629,7 @@ impl RetainedState {
                         });
                         self.memory.release(MemoryCategory::BatchScratch, released_route_bytes);
                     }
-                    counters.bump(Counter::PrefixConvergencePasses);
+                    self.counters.bump(Counter::PrefixConvergencePasses);
                     self.memory.release(MemoryCategory::BatchScratch, charged_bytes);
                     // The walk refreshed only the nodes it visited, so a batch-sparse cache
                     // stays sparse until a completing full-batch retention says otherwise.
@@ -3925,7 +3857,6 @@ impl RetainedState {
         transaction: &StyleTransaction,
         sequences: &SequenceChanges,
         pending_prefix_producers: &[PendingPrefixProducer],
-        counters: &Counters,
     ) -> PrefixConvergenceOutcome {
         let prefix_convergence = self.add_prefix_convergence_regions(
             pending,
@@ -3934,7 +3865,6 @@ impl RetainedState {
             transaction,
             sequences,
             pending_prefix_producers,
-            counters,
         );
         let routing = Arc::clone(&self.routing);
         // Several changed facts can reach different transpose points of the same selector entry.
@@ -3987,7 +3917,7 @@ impl RetainedState {
                     refresh_rule: Some((rule, point.entry)),
                 };
                 self.discard_regions_covered_by_subtree(routed_regions, &site, regions);
-                self.add_narrowed_regions_with_workspace(routed_regions, &site, regions, workspace, counters);
+                self.add_narrowed_regions_with_workspace(routed_regions, &site, regions, workspace);
             }
             return prefix_convergence;
         }
@@ -4027,7 +3957,7 @@ impl RetainedState {
                 );
                 end += 1;
             }
-            counters.add(
+            self.counters.add(
                 Counter::GroupedExactSelectorRoutes,
                 end.saturating_sub(first + 1) as u64,
             );
@@ -4067,7 +3997,7 @@ impl RetainedState {
                 refresh_rule: Some((rule, point.entry)),
             };
             self.discard_regions_covered_by_subtree(routed_regions, &site, regions);
-            self.add_narrowed_regions_with_workspace(routed_regions, &site, regions, workspace, counters);
+            self.add_narrowed_regions_with_workspace(routed_regions, &site, regions, workspace);
             self.memory
                 .release(MemoryCategory::BatchScratch, additional_region_bytes);
             first = end;
@@ -4082,7 +4012,6 @@ impl RetainedState {
         regions: &mut ImpactRegions,
         workspace: &mut ImpactPlanningWorkspace,
         prefix_convergence_covers_sibling_routes: bool,
-        counters: &Counters,
     ) {
         if prefix_convergence_covers_sibling_routes {
             let (_, dispatch) = self.prepare_scope_program(TreeScopeID::DOCUMENT);
@@ -4132,7 +4061,7 @@ impl RetainedState {
                 }
             };
             self.discard_regions_covered_by_subtree(routed_regions, &site, regions);
-            self.add_narrowed_regions_with_workspace(routed_regions, &site, regions, workspace, counters);
+            self.add_narrowed_regions_with_workspace(routed_regions, &site, regions, workspace);
         }
     }
 
@@ -4203,16 +4132,9 @@ impl RetainedState {
         region: ImpactRegion,
         site: &RoutingSite<'_>,
         regions: &mut ImpactRegions,
-        counters: &Counters,
     ) {
         let mut workspace = ImpactPlanningWorkspace::default();
-        self.add_narrowed_regions_with_workspace(
-            std::slice::from_ref(&region),
-            site,
-            regions,
-            &mut workspace,
-            counters,
-        );
+        self.add_narrowed_regions_with_workspace(std::slice::from_ref(&region), site, regions, &mut workspace);
     }
 
     pub(super) fn add_position_bounded_region(
@@ -4220,7 +4142,6 @@ impl RetainedState {
         region: ImpactRegion,
         site: &RoutingSite<'_>,
         regions: &mut ImpactRegions,
-        counters: &Counters,
     ) {
         if regions.is_covered_by_subtree(region, &self.tree) {
             self.attribute_region_covered_by_subtree(region, site, regions);
@@ -4262,7 +4183,7 @@ impl RetainedState {
                 let named_bytes = (named.capacity() * size_of::<StyleNodeID>()) as u64;
                 self.memory.reserve_required(MemoryCategory::BatchScratch, named_bytes);
                 for child in named {
-                    self.add_narrowed_region(ImpactRegion::Node(child), &unbounded, regions, counters);
+                    self.add_narrowed_region(ImpactRegion::Node(child), &unbounded, regions);
                 }
                 self.memory.release(MemoryCategory::BatchScratch, named_bytes);
             } else {
@@ -4272,7 +4193,7 @@ impl RetainedState {
                         break;
                     };
                     next = self.tree.next_element_sibling(child);
-                    self.add_narrowed_region(ImpactRegion::Node(child), &unbounded, regions, counters);
+                    self.add_narrowed_region(ImpactRegion::Node(child), &unbounded, regions);
                 }
             }
             return;
@@ -4300,7 +4221,6 @@ impl RetainedState {
         name: StyleAtomID,
         scopes: Option<&[TreeScopeID]>,
         regions: &mut ImpactRegions,
-        counters: &Counters,
     ) {
         let Ok(mut consumers) = self.custom_property_registration_consumers(name) else {
             if let Some(scopes) = scopes
@@ -4311,7 +4231,7 @@ impl RetainedState {
                 }
                 return;
             }
-            regions.widen_to_document(counters);
+            regions.widen_to_document(&self.counters);
             return;
         };
         consumers.sort_unstable();
@@ -4351,7 +4271,7 @@ impl RetainedState {
     }
 }
 
-impl StyleEngineState {
+impl StyleEngine {
     /// Lower one normalized program input into rows of the active-rule-match join.
     pub(super) fn append_program_join_deltas(&self, input: &NormalizedInput, output: &mut Vec<ProgramJoinDelta>) {
         let (rules, kind) = match input.key {
@@ -4664,7 +4584,7 @@ impl StyleEngineState {
     }
 }
 
-impl StyleEngineState {
+impl StyleEngine {
     /// Route a program change to the elements the affected rules could match.
     ///
     /// Inserting a sheet invalidates no existing selector truth, so the region is not the document:
@@ -4681,7 +4601,6 @@ impl StyleEngineState {
         departed_sheet_scopes: &[(SheetID, TreeScopeID)],
         context: ProgramRoutingContext<'_>,
         regions: &mut ImpactRegions,
-        counters: &Counters,
     ) {
         let ProgramRoutingContext {
             resident_nodes,
@@ -4692,7 +4611,7 @@ impl StyleEngineState {
         } = context;
         let key = input.key;
         if let InputKey::CustomPropertyRegistration(name) = key {
-            self.route_custom_property_registration(name, None, regions, counters);
+            self.route_custom_property_registration(name, None, regions);
             return;
         }
         if program_joins.is_empty() {
@@ -4768,7 +4687,7 @@ impl StyleEngineState {
             // elements declaring or referencing a custom property for `@property`.
             if let Some(name) = version.declared_name {
                 if version.kind == RuleKind::Property {
-                    self.route_custom_property_registration(name, Some(&scopes), regions, counters);
+                    self.route_custom_property_registration(name, Some(&scopes), regions);
                     continue;
                 }
                 let consumers = match version.kind {
@@ -4795,7 +4714,7 @@ impl StyleEngineState {
                             continue;
                         }
                         None => {
-                            regions.widen_to_document(counters);
+                            regions.widen_to_document(&self.retained.counters);
                             return;
                         }
                     }
@@ -4843,7 +4762,7 @@ impl StyleEngineState {
                             continue;
                         }
                         None => {
-                            regions.widen_to_document(counters);
+                            regions.widen_to_document(&self.retained.counters);
                             return;
                         }
                     },
@@ -4858,13 +4777,13 @@ impl StyleEngineState {
             // value computation, not by selector matching. So it reaches everything the sheet decides
             // for, the same shape as a registration that carries an initial value.
             if version.kind == RuleKind::FontFeatureValues {
-                regions.widen_to_document(counters);
+                regions.widen_to_document(&self.retained.counters);
                 return;
             }
             // A counter style can be referenced through list markers and generated content. Those
             // consumers are resolved while computing values and are not indexed by rule name.
             if version.kind == RuleKind::CounterStyle {
-                regions.widen_to_document(counters);
+                regions.widen_to_document(&self.retained.counters);
                 return;
             }
             // A rule that does not contribute declarations through selector matching reaches no
@@ -4901,7 +4820,7 @@ impl StyleEngineState {
                         if self.retained.selector_truth_changes_active {
                             removed_rules_requiring_refresh.push(rule);
                         }
-                        counters.bump(Counter::ProgramCandidatesRejectedByCascade);
+                        self.retained.counters.bump(Counter::ProgramCandidatesRejectedByCascade);
                         continue;
                     }
                     let winning_nodes = (!compiled.subject_can_leave_its_scope()
@@ -4987,7 +4906,7 @@ impl StyleEngineState {
                             .then(|| self.retained_selector_incidence(selector_program, document_root))
                             .flatten()
                     })
-                    .or_else(|| self.materialize_current_selector_incidence(selector_program, counters))
+                    .or_else(|| self.materialize_current_selector_incidence(selector_program))
             } else {
                 None
             };
@@ -5020,7 +4939,9 @@ impl StyleEngineState {
                         )
                     }) {
                         self.record_selector_truth_refresh(node, None);
-                        counters.add(Counter::ProgramCandidatesRejectedByCascade, program_rules.len() as u64);
+                        self.retained
+                            .counters
+                            .add(Counter::ProgramCandidatesRejectedByCascade, program_rules.len() as u64);
                         continue;
                     }
                     if self.retained.selector_truth_changes_active && changes_selector_truth {
@@ -5083,7 +5004,7 @@ impl StyleEngineState {
                             1
                         }
                     };
-                    counters.add(
+                    self.retained.counters.add(
                         Counter::ProgramCandidatesRejectedByCascade,
                         rejected as u64 * program_rules.len() as u64,
                     );
@@ -5137,7 +5058,7 @@ impl StyleEngineState {
                                         .expect("exact activation filtering has a transaction fact view");
                                     match MatchEvaluator::new(&self.retained.tree, self.retained.facts.primary())
                                         .with_transaction_fact_view(view, side)
-                                        .matches_entry(compiled, entry, node, counters)
+                                        .matches_entry(compiled, entry, node, &self.retained.counters)
                                     {
                                         Ok(false) => {}
                                         Ok(true) | Err(_) => {
@@ -5148,7 +5069,7 @@ impl StyleEngineState {
                                 }
                                 if !may_match {
                                     if !matches!(key, InputKey::RuleField(..)) {
-                                        counters.bump(Counter::SheetChangeCandidatesRejected);
+                                        self.retained.counters.bump(Counter::SheetChangeCandidatesRejected);
                                     }
                                     continue;
                                 }
@@ -5168,7 +5089,9 @@ impl StyleEngineState {
                                         .refreshes
                                         .push(SelectorTruthRefresh { node, rule: None });
                                 }
-                                counters.add(Counter::ProgramCandidatesRejectedByCascade, program_rules.len() as u64);
+                                self.retained
+                                    .counters
+                                    .add(Counter::ProgramCandidatesRejectedByCascade, program_rules.len() as u64);
                                 continue;
                             }
                             // Program routing and DOM routing share one union of impact regions. If
@@ -5224,7 +5147,7 @@ impl StyleEngineState {
                                 }
                             }
                             None => {
-                                regions.widen_to_document(counters);
+                                regions.widen_to_document(&self.retained.counters);
                                 return;
                             }
                         }

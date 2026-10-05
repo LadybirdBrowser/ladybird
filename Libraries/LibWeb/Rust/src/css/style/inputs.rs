@@ -286,15 +286,9 @@ impl RetainedState {
     ///
     /// # Safety
     /// `raw` must be zero or a live `AK::Utf16FlyString` raw representation.
-    pub unsafe fn note_custom_property_name(
-        &mut self,
-        name: StyleAtomID,
-        raw: usize,
-        text: &[u16],
-        counters: &Counters,
-    ) {
+    pub unsafe fn note_custom_property_name(&mut self, name: StyleAtomID, raw: usize, text: &[u16]) {
         if unsafe { self.custom_property_environments.note_name(name, raw, text) } {
-            counters.bump(Counter::CustomPropertyNamesPublished);
+            self.counters.bump(Counter::CustomPropertyNamesPublished);
         }
     }
 
@@ -321,7 +315,6 @@ impl RetainedState {
         namespaces: NamespaceScope,
         scope: &ScopeChain<'_>,
         reusable: Option<SelectorProgramID>,
-        counters: &Counters,
     ) -> SelectorProgramID {
         let compiled = compile_selector_program(
             &mut self.atoms,
@@ -330,7 +323,7 @@ impl RetainedState {
             selectors,
             namespaces,
             scope,
-            counters,
+            &self.counters,
         );
         self.note_attribute_value_text_names(&compiled);
         if let Some(reusable) = reusable
@@ -983,8 +976,8 @@ impl RetainedState {
     }
 
     /// Record what a language atom spells, so `:lang()` can compare its ranges against the tag.
-    pub fn set_element_language_text(&mut self, language: StyleAtomID, text: &[u16], counters: &Counters) {
-        counters.bump(Counter::LanguageTextsPublished);
+    pub fn set_element_language_text(&mut self, language: StyleAtomID, text: &[u16]) {
+        self.counters.bump(Counter::LanguageTextsPublished);
         self.facts.set_language_text(language, text);
     }
 
@@ -1674,7 +1667,6 @@ impl RetainedState {
         kind: ElementDeclarationKind,
         declarations: Vec<(DeclaredProperty, RetainedStyleValueData)>,
         custom_declarations: Vec<(CustomDeclaration, RetainedStyleValueData)>,
-        counters: &Counters,
     ) {
         debug_assert!(custom_declarations.is_empty() || kind == ElementDeclarationKind::InlineStyle);
         if matches!(
@@ -1740,7 +1732,7 @@ impl RetainedState {
                 != declared.iter().find(|declared| declared.property == property)
         });
         if !changed_properties.is_empty() {
-            self.apply_element_declaration_winner_updates(node, previous, retained, &changed_properties, counters);
+            self.apply_element_declaration_winner_updates(node, previous, retained, &changed_properties);
         }
     }
 
@@ -1755,7 +1747,6 @@ impl RetainedState {
         previous: CascadeStateID,
         retained: MatchAnswerID,
         properties: &[u16],
-        counters: &Counters,
     ) {
         let Some(retained) = self.match_answers.answer(retained) else {
             return;
@@ -1776,12 +1767,13 @@ impl RetainedState {
         let Some(matches) = matches else {
             return;
         };
-        counters.add(Counter::ElementDeclarationRepairMatches, matches.len() as u64);
+        self.counters
+            .add(Counter::ElementDeclarationRepairMatches, matches.len() as u64);
         let Some(updates) = self.exact_cascade_winner_updates_for_properties(node, &matches, None, properties) else {
             return;
         };
         let (state, _) =
-            self.with_cascade_interning_counters(|groups| groups.apply_property_updates(previous, &updates), counters);
+            self.with_cascade_interning_counters(|groups| groups.apply_property_updates(previous, &updates));
         let published = if let Some(traversal) = self.batch_matching_traversal.as_mut() {
             traversal.answer_effects.winners.set(
                 &mut self.winner_groups,
@@ -1804,18 +1796,19 @@ impl RetainedState {
         };
         self.winner_groups.settle_memory(&mut self.memory);
         if published {
-            counters.bump(Counter::CascadeNodeHandlesPublished);
+            self.counters.bump(Counter::CascadeNodeHandlesPublished);
         }
     }
 }
 
-impl StyleEngineState {
+impl StyleEngine {
     #[must_use]
     pub(crate) fn new() -> Self {
         let mut memory = MemoryController::new();
         let tree = StyleNodeTree::new(&mut memory);
         Self {
             retained: RetainedState {
+                counters: Counters::new(),
                 memory,
                 admission: AdmissionFacts::default(),
                 deferred_pseudo_elements: 0,
@@ -1968,11 +1961,13 @@ impl StyleEngineState {
 
     /// Record a change to style inputs which are properties of the document environment rather
     /// than of an element or stylesheet rule.
-    pub fn record_environment_change(&mut self, counters: &Counters) {
+    pub fn record_environment_change(&mut self) {
         self.discard_prepared_batch_matching_traversal();
-        self.host
-            .journal
-            .record_complete_scope_action(InputKind::Environment, &mut self.retained.memory, counters);
+        self.host.journal.record_complete_scope_action(
+            InputKind::Environment,
+            &mut self.retained.memory,
+            &self.retained.counters,
+        );
     }
 
     /// Whether the first tree batch can be installed directly.
@@ -1987,7 +1982,6 @@ impl StyleEngineState {
         &mut self,
         document_root: StyleNodeID,
         arrivals: &[(StyleNodeID, TreeRelations)],
-        counters: &Counters,
     ) {
         debug_assert!(!self.host.initial_tree_batch_applied);
         debug_assert!(!arrivals.is_empty());
@@ -2006,15 +2000,18 @@ impl StyleEngineState {
             InputKey::TreeRelations(document_root),
             InputValue::TreeRelations(None),
             InputValue::TreeRelations(Some(root_relations)),
-            counters,
         );
         debug_assert!(recorded);
 
         let folded_rows = arrivals.len() - 1;
-        counters.add(Counter::RawMutationRecords, folded_rows as u64);
-        counters.add(Counter::TreeDeltas, folded_rows as u64);
-        counters.bump(Counter::InitialBulkLoads);
-        counters.add(Counter::InitialBulkTreeRows, arrivals.len() as u64);
+        self.retained
+            .counters
+            .add(Counter::RawMutationRecords, folded_rows as u64);
+        self.retained.counters.add(Counter::TreeDeltas, folded_rows as u64);
+        self.retained.counters.bump(Counter::InitialBulkLoads);
+        self.retained
+            .counters
+            .add(Counter::InitialBulkTreeRows, arrivals.len() as u64);
         self.host.initial_tree_batch_applied = true;
         self.host.initial_tree_bulk_load_is_pending = true;
     }
@@ -2240,7 +2237,7 @@ impl StyleEngineState {
     /// geometry read. Repeated reads advance the same boundary to the latest observed facts.
     /// Returning false means exact journalling coarsened while combining the facts, so the caller
     /// must settle style instead of reusing layout.
-    pub fn defer_pending_transaction_for_geometry_read(&mut self, counters: &Counters) -> bool {
+    pub fn defer_pending_transaction_for_geometry_read(&mut self) -> bool {
         debug_assert!(!self.host.flushing_deferred_geometry_journal);
         debug_assert!(self.host.tree_staging.is_empty());
         debug_assert!(!self.host.program_staging.is_dirty());
@@ -2264,7 +2261,7 @@ impl StyleEngineState {
             self.host.deferred_geometry_journal.absorb_newer(
                 &mut self.host.journal,
                 &mut self.retained.memory,
-                counters,
+                &self.retained.counters,
             );
         }
         self.host.deferred_geometry_journal.markers().is_empty()
@@ -2317,7 +2314,7 @@ impl StyleEngineState {
         self.host.flushing_deferred_geometry_journal = false;
     }
 
-    pub(super) fn merge_deferred_geometry_transaction(&mut self, counters: &Counters) {
+    pub(super) fn merge_deferred_geometry_transaction(&mut self) {
         if self.host.flushing_deferred_geometry_journal || self.host.deferred_geometry_journal.is_empty() {
             return;
         }
@@ -2325,18 +2322,20 @@ impl StyleEngineState {
             std::mem::swap(&mut self.host.journal, &mut self.host.deferred_geometry_journal);
             return;
         }
-        self.host
-            .deferred_geometry_journal
-            .absorb_newer(&mut self.host.journal, &mut self.retained.memory, counters);
+        self.host.deferred_geometry_journal.absorb_newer(
+            &mut self.host.journal,
+            &mut self.retained.memory,
+            &self.retained.counters,
+        );
         std::mem::swap(&mut self.host.journal, &mut self.host.deferred_geometry_journal);
     }
 
-    pub(crate) fn settle_batched_inputs(&mut self, counters: &Counters) {
+    pub(crate) fn settle_batched_inputs(&mut self) {
         self.install_pending_matching_context();
         if !self.host.journal.contains_only_element_style_inputs() {
             self.discard_prepared_batch_matching_traversal();
         }
-        self.discard_published_match_answers(counters);
+        self.discard_published_match_answers();
     }
 
     #[must_use]
@@ -2345,24 +2344,24 @@ impl StyleEngineState {
     }
 
     /// Returns whether the change joined the current transaction.
-    pub(super) fn record(&mut self, key: InputKey, old: InputValue, new: InputValue, counters: &Counters) -> bool {
+    pub(super) fn record(&mut self, key: InputKey, old: InputValue, new: InputValue) -> bool {
         self.discard_prepared_batch_matching_traversal();
         if let Some(node) = self.node_whose_arrival_carries(key) {
             // Every fact of an arriving element folds onto one key, so the journal holds one entry
             // per element rather than one per fact. Routing reads the facts back off the element.
-            counters.bump(Counter::ArrivingNodeFactsFolded);
+            self.retained.counters.bump(Counter::ArrivingNodeFactsFolded);
             self.host.journal.record(
                 InputKey::LocalFeature(node, LocalFeatureKey::ArrivingFacts),
                 InputValue::Feature(FeatureValue::Absent),
                 InputValue::Feature(FeatureValue::Present),
                 &mut self.retained.memory,
-                counters,
+                &self.retained.counters,
             );
             return true;
         }
         self.host
             .journal
-            .record(key, old, new, &mut self.retained.memory, counters);
+            .record(key, old, new, &mut self.retained.memory, &self.retained.counters);
         true
     }
 
@@ -2397,7 +2396,6 @@ impl StyleEngineState {
         node: StyleNodeID,
         old_if_unstaged: Option<TreeRelations>,
         new: Option<TreeRelations>,
-        counters: &Counters,
     ) {
         let old = self.host.tree_staging.current_row(node, old_if_unstaged);
         if old == new {
@@ -2407,20 +2405,14 @@ impl StyleEngineState {
             InputKey::TreeRelations(node),
             InputValue::TreeRelations(old),
             InputValue::TreeRelations(new),
-            counters,
         );
         if old.is_some() && new.is_none() {
-            counters.bump(Counter::TreeDepartureDeltas);
+            self.retained.counters.bump(Counter::TreeDepartureDeltas);
         }
         self.host.tree_staging.stage_row(node, old_if_unstaged, new);
     }
 
-    pub(super) fn stage_connected_tree_row(
-        &mut self,
-        node: StyleNodeID,
-        update: impl FnOnce(&mut TreeRelations),
-        counters: &Counters,
-    ) {
+    pub(super) fn stage_connected_tree_row(&mut self, node: StyleNodeID, update: impl FnOnce(&mut TreeRelations)) {
         let old = self
             .host
             .tree_staging
@@ -2433,7 +2425,7 @@ impl StyleEngineState {
             return;
         }
         update(&mut new);
-        self.stage_tree_row(node, old, Some(new), counters);
+        self.stage_tree_row(node, old, Some(new));
     }
 
     pub(super) fn stage_first_child(&mut self, parent: StyleNodeID, child: Option<StyleNodeID>) {
@@ -2450,7 +2442,7 @@ impl StyleEngineState {
     }
 
     /// Install final staged relation rows at the transaction barrier.
-    pub(super) fn apply_staged_tree_deltas(&mut self, counters: &Counters) {
+    pub(super) fn apply_staged_tree_deltas(&mut self) {
         if self.host.tree_staging.is_empty() || self.host.tree_staging.is_applied() {
             return;
         }
@@ -2520,15 +2512,17 @@ impl StyleEngineState {
                 .retire_elements(&retired_nodes, &mut self.retained.memory);
             let live_animation_overlays_after = self.retained.computed_group_sets.live_animation_overlay_records();
             self.settle_computed_memory();
-            counters.add(
+            self.retained.counters.add(
                 Counter::AnimationOverlaySlotsReleased,
                 (live_animation_overlays_before - live_animation_overlays_after) as u64,
             );
-            counters.set(
+            self.retained.counters.set(
                 Counter::LiveAnimationOverlayRecords,
                 live_animation_overlays_after as u64,
             );
-            counters.add(Counter::StyleNodesRetired, retired_nodes.len() as u64);
+            self.retained
+                .counters
+                .add(Counter::StyleNodesRetired, retired_nodes.len() as u64);
         }
         self.host.tree_staging.mark_applied();
         self.publish_budget_inputs();
@@ -2561,7 +2555,7 @@ impl StyleEngineState {
     }
 }
 
-impl StyleEngineState {
+impl StyleEngine {
     /// Add a style rule that only applies inside a scope, naming the scope's root selectors.
     ///
     /// `before` places the rule immediately ahead of an existing one instead of at the end. A rule
@@ -2574,10 +2568,9 @@ impl StyleEngineState {
         selectors: &[&CompiledSelector],
         namespaces: NamespaceScope,
         scope: &ScopeChain<'_>,
-        counters: &Counters,
     ) -> RuleID {
-        self.add_style_rule_with(sheet, before, counters, |engine, previous_program, counters| {
-            engine.compile_selectors(selectors, namespaces, scope, previous_program, counters)
+        self.add_style_rule_with(sheet, before, |engine, previous_program| {
+            engine.compile_selectors(selectors, namespaces, scope, previous_program)
         })
     }
 
@@ -2586,27 +2579,26 @@ impl StyleEngineState {
         &mut self,
         sheet: SheetID,
         before: Option<RuleID>,
-        counters: &Counters,
-        attach: impl FnOnce(&mut Self, Option<SelectorProgramID>, &Counters) -> SelectorProgramID,
+        attach: impl FnOnce(&mut Self, Option<SelectorProgramID>) -> SelectorProgramID,
     ) -> RuleID {
         let rule = match before {
-            Some(before) => self.insert_rule_before(before, RuleKind::Style, counters),
+            Some(before) => self.insert_rule_before(before, RuleKind::Style),
             None => self
-                .reuse_replaced_style_rule(sheet, counters)
-                .unwrap_or_else(|| self.append_rule(sheet, None, RuleKind::Style, counters)),
+                .reuse_replaced_style_rule(sheet)
+                .unwrap_or_else(|| self.append_rule(sheet, None, RuleKind::Style)),
         };
         let previous_program = self
             .replacement_rule(rule)
             .and_then(|replacement| replacement.version.selector_program);
-        let program = attach(self, previous_program, counters);
+        let program = attach(self, previous_program);
         if previous_program != Some(program) {
             self.add_routing_rule(rule, program);
         }
 
         let mut version = self.current_rule_version(rule);
         version.selector_program = Some(program);
-        self.replace_rule_version(rule, version, counters);
-        counters.bump(Counter::StyleRulesCompiled);
+        self.replace_rule_version(rule, version);
+        self.retained.counters.bump(Counter::StyleRulesCompiled);
         rule
     }
 
@@ -2617,9 +2609,9 @@ impl StyleEngineState {
     /// sheet is attached to, so what moves is that scope's layer order - one input per scope the sheet
     /// decides in.
     #[cfg(test)]
-    pub fn record_layer_statement(&mut self, sheet: SheetID, counters: &Counters) {
+    pub fn record_layer_statement(&mut self, sheet: SheetID) {
         for scope in self.retained.program.sheet_scopes(sheet) {
-            self.record_layer_topology_change(scope, counters);
+            self.record_layer_topology_change(scope);
         }
     }
 
@@ -2629,15 +2621,14 @@ impl StyleEngineState {
         before: Option<RuleID>,
         kind: RuleKind,
         name: StyleAtomID,
-        counters: &Counters,
     ) -> RuleID {
         let rule = match before {
-            Some(before) => self.insert_rule_before(before, kind, counters),
-            None => self.append_rule(sheet, None, kind, counters),
+            Some(before) => self.insert_rule_before(before, kind),
+            None => self.append_rule(sheet, None, kind),
         };
         let mut version = self.current_rule_version(rule);
         version.declared_name = Some(name);
-        self.replace_rule_version(rule, version, counters);
+        self.replace_rule_version(rule, version);
         rule
     }
 
@@ -2652,16 +2643,15 @@ impl StyleEngineState {
         selectors: &[&CompiledSelector],
         namespaces: NamespaceScope,
         scope: &ScopeChain<'_>,
-        counters: &Counters,
     ) {
-        let program = self.compile_selectors(selectors, namespaces, scope, None, counters);
+        let program = self.compile_selectors(selectors, namespaces, scope, None);
         self.add_routing_rule(rule, program);
 
         let mut version = self.current_rule_version(rule);
         version.selector_program = Some(program);
-        self.replace_rule_version(rule, version, counters);
+        self.replace_rule_version(rule, version);
         self.settle_program();
-        counters.bump(Counter::StyleRulesCompiled);
+        self.retained.counters.bump(Counter::StyleRulesCompiled);
     }
 
     /// Report that a rule's declarations moved, without touching anything else about it.
@@ -2670,24 +2660,24 @@ impl StyleEngineState {
     /// change is a version rather than the object's address. The rule keeps its identity, its
     /// position, and its selector program, so the journal sees one field move and routing reaches
     /// exactly the elements that rule matches.
-    pub fn record_rule_declarations_changed(&mut self, rule: RuleID, block_version: u32, counters: &Counters) {
+    pub fn record_rule_declarations_changed(&mut self, rule: RuleID, block_version: u32) {
         let mut version = self.current_rule_version(rule);
         version.declaration_block = Some(DeclarationBlockID(block_version));
-        self.replace_rule_version(rule, version, counters);
+        self.replace_rule_version(rule, version);
         self.settle_program();
     }
 
     /// Make the identities the host minted live, ahead of anything the host records about their
     /// nodes. Mints are batched because a call per node is exactly the boundary shape this design
     /// rules out.
-    pub fn mint_style_nodes(&mut self, nodes: &[u32], counters: &Counters) {
+    pub fn mint_style_nodes(&mut self, nodes: &[u32]) {
         let mut minted_an_element = false;
         for node in nodes.iter().filter_map(|&raw| StyleNodeID::from_raw(raw)) {
             if node.text_index().is_some() {
                 self.retained.tree.mint_text(node, &mut self.retained.memory);
             } else {
                 self.retained.tree.mint_element(node, &mut self.retained.memory);
-                counters.bump(Counter::StyleNodesAllocated);
+                self.retained.counters.bump(Counter::StyleNodesAllocated);
                 minted_an_element = true;
             }
         }
@@ -2696,8 +2686,8 @@ impl StyleEngineState {
         }
     }
 
-    pub fn record_input(&mut self, key: InputKey, old: InputValue, new: InputValue, counters: &Counters) {
-        if self.record(key, old, new, counters) {
+    pub fn record_input(&mut self, key: InputKey, old: InputValue, new: InputValue) {
+        if self.record(key, old, new) {
             self.apply_to_facts_without_settling(key, new);
         }
     }
@@ -2734,15 +2724,14 @@ impl StyleEngineState {
         old: InputValue,
         new: InputValue,
         arriving_node: bool,
-        counters: &Counters,
     ) {
         if arriving_node {
             debug_assert!(matches!(key, InputKey::LocalFeature(..) | InputKey::State(..)));
-            counters.bump(Counter::ArrivingNodeFactsFolded);
-            counters.bump(Counter::RawMutationRecords);
-            counters.bump(Counter::LocalFeatureDeltas);
+            self.retained.counters.bump(Counter::ArrivingNodeFactsFolded);
+            self.retained.counters.bump(Counter::RawMutationRecords);
+            self.retained.counters.bump(Counter::LocalFeatureDeltas);
             self.apply_to_facts_without_settling(key, new);
-        } else if self.record(key, old, new, counters) {
+        } else if self.record(key, old, new) {
             self.apply_to_facts_without_settling(key, new);
         }
     }
@@ -2753,58 +2742,41 @@ impl StyleEngineState {
         node: StyleNodeID,
         old: Option<TreeRelations>,
         new: Option<TreeRelations>,
-        counters: &Counters,
     ) {
         if let Some(old) = old {
             if let Some(previous) = old.previous_element_sibling {
-                self.stage_connected_tree_row(
-                    previous,
-                    |relations| {
-                        relations.next_element_sibling = old.next_element_sibling;
-                    },
-                    counters,
-                );
+                self.stage_connected_tree_row(previous, |relations| {
+                    relations.next_element_sibling = old.next_element_sibling;
+                });
             } else if let Some(parent) = old.parent {
                 self.stage_first_child(parent, old.next_element_sibling);
             }
             if let Some(next) = old.next_element_sibling {
-                self.stage_connected_tree_row(
-                    next,
-                    |relations| {
-                        relations.previous_element_sibling = old.previous_element_sibling;
-                    },
-                    counters,
-                );
+                self.stage_connected_tree_row(next, |relations| {
+                    relations.previous_element_sibling = old.previous_element_sibling;
+                });
             }
         }
         if let Some(new) = new {
             if let Some(previous) = new.previous_element_sibling {
-                self.stage_connected_tree_row(
-                    previous,
-                    |relations| {
-                        relations.next_element_sibling = Some(node);
-                    },
-                    counters,
-                );
+                self.stage_connected_tree_row(previous, |relations| {
+                    relations.next_element_sibling = Some(node);
+                });
             } else if let Some(parent) = new.parent {
                 self.stage_first_child(parent, Some(node));
             }
             if let Some(next) = new.next_element_sibling {
-                self.stage_connected_tree_row(
-                    next,
-                    |relations| {
-                        relations.previous_element_sibling = Some(node);
-                    },
-                    counters,
-                );
+                self.stage_connected_tree_row(next, |relations| {
+                    relations.previous_element_sibling = Some(node);
+                });
             }
         }
-        self.stage_tree_row(node, old, new, counters);
+        self.stage_tree_row(node, old, new);
         self.settle_tree_staging_memory();
     }
 
     /// Attach a compiled program at the end of a scope's sheet order.
-    pub(super) fn attach_sheet(&mut self, sheet: SheetID, tree_scope: TreeScopeID, counters: &Counters) {
+    pub(super) fn attach_sheet(&mut self, sheet: SheetID, tree_scope: TreeScopeID) {
         self.restore_routing_for_reattached_sheet(sheet);
         let mut sheets = self.current_sheets_in_scope(tree_scope).to_vec();
         let previous_position = sheets.iter().position(|&candidate| candidate == sheet);
@@ -2813,21 +2785,15 @@ impl StyleEngineState {
         sheets.push(sheet);
         let order_changed = previous_position.is_some_and(|previous| previous != sheets.len() - 1);
         self.stage_sheets_in_scope(tree_scope, sheets);
-        self.record_attachment(sheet, tree_scope, was_attached, true, counters);
+        self.record_attachment(sheet, tree_scope, was_attached, true);
         if order_changed {
-            self.record_sheet_order_change(tree_scope, counters);
+            self.record_sheet_order_change(tree_scope);
         }
     }
 
     /// Attach at a position established before the sheet finished loading. Network completion order
     /// does not determine cascade order.
-    pub(super) fn attach_sheet_before(
-        &mut self,
-        sheet: SheetID,
-        before: SheetID,
-        tree_scope: TreeScopeID,
-        counters: &Counters,
-    ) {
+    pub(super) fn attach_sheet_before(&mut self, sheet: SheetID, before: SheetID, tree_scope: TreeScopeID) {
         self.restore_routing_for_reattached_sheet(sheet);
         let mut sheets = self.current_sheets_in_scope(tree_scope).to_vec();
         let previous_position = sheets.iter().position(|&candidate| candidate == sheet);
@@ -2847,30 +2813,24 @@ impl StyleEngineState {
         // ones its own rules match, which the attachment recorded above already names. A sheet that
         // was attached a moment ago and is arriving again can be a move, whose order delta is
         // recorded below.
-        self.record_attachment(sheet, tree_scope, was_attached, true, counters);
+        self.record_attachment(sheet, tree_scope, was_attached, true);
         if order_changed {
-            self.record_sheet_order_change(tree_scope, counters);
+            self.record_sheet_order_change(tree_scope);
         }
     }
 
     /// Attach a sheet immediately before another sheet in the same scope, or at the end when that
     /// sheet is not attached there. Order tokens stay inside the engine: callers name neighbours,
     /// never positions.
-    pub fn attach_sheet_before_sheet(
-        &mut self,
-        sheet: SheetID,
-        before: Option<SheetID>,
-        tree_scope: TreeScopeID,
-        counters: &Counters,
-    ) {
+    pub fn attach_sheet_before_sheet(&mut self, sheet: SheetID, before: Option<SheetID>, tree_scope: TreeScopeID) {
         let before = before.filter(|&before| self.current_sheets_in_scope(tree_scope).contains(&before));
         match before {
-            Some(before) => self.attach_sheet_before(sheet, before, tree_scope, counters),
-            None => self.attach_sheet(sheet, tree_scope, counters),
+            Some(before) => self.attach_sheet_before(sheet, before, tree_scope),
+            None => self.attach_sheet(sheet, tree_scope),
         }
     }
 
-    pub fn detach_sheet(&mut self, sheet: SheetID, tree_scope: TreeScopeID, counters: &Counters) {
+    pub fn detach_sheet(&mut self, sheet: SheetID, tree_scope: TreeScopeID) {
         let sheets = self.current_sheets_in_scope(tree_scope);
         let Some(position) = sheets.iter().position(|&candidate| candidate == sheet) else {
             return;
@@ -2878,76 +2838,51 @@ impl StyleEngineState {
         let mut sheets = sheets.to_vec();
         sheets.remove(position);
         self.stage_sheets_in_scope(tree_scope, sheets);
-        self.record_attachment(sheet, tree_scope, true, false, counters);
+        self.record_attachment(sheet, tree_scope, true, false);
         self.retained.routing_needs_detachment_sweep = true;
     }
 }
 
-impl StyleEngineState {
+impl StyleEngine {
     /// Add a `@keyframes` rule, which matches no element and is found by the name it declares.
     ///
     /// It has to be in the program at all for a change to it to be an input, and it has to carry its
     /// name for that input to reach the animations referencing it.
-    pub fn add_keyframes_rule(
-        &mut self,
-        sheet: SheetID,
-        before: Option<RuleID>,
-        name: StyleAtomID,
-        counters: &Counters,
-    ) -> RuleID {
-        self.add_named_rule(sheet, before, RuleKind::Keyframes, name, counters)
+    pub fn add_keyframes_rule(&mut self, sheet: SheetID, before: Option<RuleID>, name: StyleAtomID) -> RuleID {
+        self.add_named_rule(sheet, before, RuleKind::Keyframes, name)
     }
 
     /// Add an `@property` rule, which registers the custom property it names. Registering one changes
     /// how every element that declares or references it computes, which the custom-property index
     /// knows and selector matching cannot say.
-    pub fn add_property_rule(
-        &mut self,
-        sheet: SheetID,
-        before: Option<RuleID>,
-        name: StyleAtomID,
-        counters: &Counters,
-    ) -> RuleID {
-        self.add_named_rule(sheet, before, RuleKind::Property, name, counters)
+    pub fn add_property_rule(&mut self, sheet: SheetID, before: Option<RuleID>, name: StyleAtomID) -> RuleID {
+        self.add_named_rule(sheet, before, RuleKind::Property, name)
     }
 
     /// Add a rule that matches no element and is not found by name either, so that a change to it is
     /// an input at all. What it reaches is decided by its kind.
-    pub fn add_non_matching_rule(
-        &mut self,
-        sheet: SheetID,
-        before: Option<RuleID>,
-        kind: RuleKind,
-        counters: &Counters,
-    ) -> RuleID {
+    pub fn add_non_matching_rule(&mut self, sheet: SheetID, before: Option<RuleID>, kind: RuleKind) -> RuleID {
         match before {
-            Some(before) => self.insert_rule_before(before, kind, counters),
-            None => self.append_rule(sheet, None, kind, counters),
+            Some(before) => self.insert_rule_before(before, kind),
+            None => self.append_rule(sheet, None, kind),
         }
     }
 
     /// Stage a structural change. The normalized transaction installs the final relation rows at
     /// the next observation boundary.
-    pub fn record_tree_delta(
-        &mut self,
-        node: StyleNodeID,
-        old: Option<TreeRelations>,
-        new: Option<TreeRelations>,
-        counters: &Counters,
-    ) {
+    pub fn record_tree_delta(&mut self, node: StyleNodeID, old: Option<TreeRelations>, new: Option<TreeRelations>) {
         if old != new {
-            self.stage_tree_delta(node, old, new, counters);
+            self.stage_tree_delta(node, old, new);
         }
     }
 
     /// Record a registration made through `CSS.registerProperty()`. Stylesheet registrations are
     /// already represented by their `@property` rule's program input.
-    pub fn record_custom_property_registration_change(&mut self, name: StyleAtomID, counters: &Counters) {
+    pub fn record_custom_property_registration_change(&mut self, name: StyleAtomID) {
         self.record_input(
             InputKey::CustomPropertyRegistration(name),
             InputValue::Flag(false),
             InputValue::Flag(true),
-            counters,
         );
     }
 
@@ -2962,7 +2897,6 @@ impl StyleEngineState {
         fact: StateFact,
         new_value: bool,
         arriving_node: bool,
-        counters: &Counters,
     ) {
         let old_value = self.retained.facts.states_of_node(node).contains(fact);
         self.record_batched_input(
@@ -2970,7 +2904,6 @@ impl StyleEngineState {
             InputValue::State(old_value),
             InputValue::State(new_value),
             arriving_node,
-            counters,
         );
     }
 
@@ -2983,7 +2916,6 @@ impl StyleEngineState {
         arrival: &super::bridge::FfiElementArrival,
         custom_states: &[StyleAtomID],
         arriving_node: bool,
-        counters: &Counters,
     ) {
         debug_assert!(arriving_node);
         self.retained
@@ -2996,7 +2928,6 @@ impl StyleEngineState {
                 InputValue::Feature(FeatureValue::Absent),
                 InputValue::Feature(value),
                 arriving_node,
-                counters,
             );
         };
         if arrival.language_atom != 0 {
@@ -3034,7 +2965,6 @@ impl StyleEngineState {
                 InputValue::Feature(FeatureValue::Absent),
                 InputValue::Feature(FeatureValue::Present),
                 arriving_node,
-                counters,
             );
         }
         self.retained
@@ -3048,7 +2978,7 @@ impl StyleEngineState {
     /// enumerated from it, and journalled so a change to the `part` attribute routes. The plain
     /// name set is derived here from the name-to-host pairs exact matching needs, so the two views
     /// cannot disagree.
-    pub fn set_element_parts(&mut self, node: StyleNodeID, pairs: &[(StyleAtomID, StyleNodeID)], counters: &Counters) {
+    pub fn set_element_parts(&mut self, node: StyleNodeID, pairs: &[(StyleAtomID, StyleNodeID)]) {
         let mut parts = Vec::new();
         for &(part, _) in pairs {
             if !parts.contains(&part) {
@@ -3062,7 +2992,6 @@ impl StyleEngineState {
                     InputKey::LocalFeature(node, LocalFeatureKey::Part(*part)),
                     InputValue::Feature(FeatureValue::Present),
                     InputValue::Feature(FeatureValue::Absent),
-                    counters,
                 );
             }
             for part in parts.iter().filter(|part| !previous.contains(part)) {
@@ -3070,7 +2999,6 @@ impl StyleEngineState {
                     InputKey::LocalFeature(node, LocalFeatureKey::Part(*part)),
                     InputValue::Feature(FeatureValue::Absent),
                     InputValue::Feature(FeatureValue::Present),
-                    counters,
                 );
             }
             self.retained.facts.set_parts(node, &parts, &mut self.retained.memory);
@@ -3085,7 +3013,7 @@ impl StyleEngineState {
     /// What an `exportparts` change moves is which scopes can name an element, not which names it
     /// carries - the forwarded name is usually the one it already had. So the exposure is the fact,
     /// and an element whose reach did not move says nothing.
-    pub fn set_element_part_exposure(&mut self, node: StyleNodeID, exposure: StyleAtomID, counters: &Counters) {
+    pub fn set_element_part_exposure(&mut self, node: StyleNodeID, exposure: StyleAtomID) {
         let previous = self.retained.facts.part_exposure_of(node);
         if previous == exposure {
             return;
@@ -3094,11 +3022,10 @@ impl StyleEngineState {
             InputKey::LocalFeature(node, LocalFeatureKey::PartExposure),
             InputValue::Feature(RetainedState::atom_or_absent(previous)),
             InputValue::Feature(RetainedState::atom_or_absent(exposure)),
-            counters,
         );
     }
 
-    pub fn set_element_heading_level(&mut self, node: StyleNodeID, level: u8, counters: &Counters) {
+    pub fn set_element_heading_level(&mut self, node: StyleNodeID, level: u8) {
         let previous = self.retained.facts.heading_level_of(node);
         if previous == level {
             return;
@@ -3107,11 +3034,10 @@ impl StyleEngineState {
             InputKey::LocalFeature(node, LocalFeatureKey::HeadingLevel),
             InputValue::Feature(FeatureValue::Number(u32::from(previous))),
             InputValue::Feature(FeatureValue::Number(u32::from(level))),
-            counters,
         );
     }
 
-    pub fn set_element_language(&mut self, node: StyleNodeID, language: StyleAtomID, counters: &Counters) {
+    pub fn set_element_language(&mut self, node: StyleNodeID, language: StyleAtomID) {
         let previous = self.retained.facts.language_of(node);
         if previous == language {
             return;
@@ -3120,12 +3046,11 @@ impl StyleEngineState {
             InputKey::LocalFeature(node, LocalFeatureKey::Language),
             InputValue::Feature(RetainedState::atom_or_absent(previous)),
             InputValue::Feature(RetainedState::atom_or_absent(language)),
-            counters,
         );
     }
 
     /// Report the element's resolved directionality, which `:dir()` tests.
-    pub fn set_element_directionality(&mut self, node: StyleNodeID, directionality: StyleAtomID, counters: &Counters) {
+    pub fn set_element_directionality(&mut self, node: StyleNodeID, directionality: StyleAtomID) {
         let previous = self.retained.facts.directionality_of(node);
         if previous == directionality {
             return;
@@ -3134,7 +3059,6 @@ impl StyleEngineState {
             InputKey::LocalFeature(node, LocalFeatureKey::Directionality),
             InputValue::Feature(RetainedState::atom_or_absent(previous)),
             InputValue::Feature(RetainedState::atom_or_absent(directionality)),
-            counters,
         );
     }
 
@@ -3143,7 +3067,7 @@ impl StyleEngineState {
     /// A custom state is a named fact about one element, exactly like a class, so it is published as
     /// one: the names that arrived and the names that left are each a local feature moving, and
     /// `:state()` reaches its subjects through the same postings every other name does.
-    pub fn set_element_custom_states(&mut self, node: StyleNodeID, states: &[StyleAtomID], counters: &Counters) {
+    pub fn set_element_custom_states(&mut self, node: StyleNodeID, states: &[StyleAtomID]) {
         if self.retained.facts.custom_states_of(node) == states {
             return;
         }
@@ -3153,7 +3077,6 @@ impl StyleEngineState {
                 InputKey::LocalFeature(node, LocalFeatureKey::CustomState(*state)),
                 InputValue::Feature(FeatureValue::Present),
                 InputValue::Feature(FeatureValue::Absent),
-                counters,
             );
         }
         for state in states.iter().filter(|state| !previous.contains(state)) {
@@ -3161,7 +3084,6 @@ impl StyleEngineState {
                 InputKey::LocalFeature(node, LocalFeatureKey::CustomState(*state)),
                 InputValue::Feature(FeatureValue::Absent),
                 InputValue::Feature(FeatureValue::Present),
-                counters,
             );
         }
         self.retained
@@ -3170,7 +3092,7 @@ impl StyleEngineState {
     }
 }
 
-impl StyleEngineState {}
+impl StyleEngine {}
 
 impl RetainedState {
     /// Drop what the engine retains for an element whose identity retires. Identities are handed
@@ -3180,6 +3102,7 @@ impl RetainedState {
     /// `_` is either not keyed by style node or says where its rows go instead.
     pub(super) fn retire_node_state(&mut self, node: StyleNodeID) {
         let Self {
+            counters: _,
             memory: _,
             admission: _,
             deferred_pseudo_elements: _,

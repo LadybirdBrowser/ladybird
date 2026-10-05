@@ -304,7 +304,6 @@ impl RetainedState {
         &mut self,
         regions: &ImpactRegions,
         coarse_cover: Option<&ImpactRegionBatch>,
-        counters: &Counters,
     ) {
         let candidates = std::mem::take(&mut self.already_planned_selector_truth);
         let candidate_bytes = candidates.capacity_bytes();
@@ -326,7 +325,7 @@ impl RetainedState {
                 exact_tree_evaluation: candidate.exact_tree_evaluation,
                 refresh_rule: None,
             };
-            let result = self.candidate_changes_exact_entry(candidate.node, &site, counters);
+            let result = self.candidate_changes_exact_entry(candidate.node, &site);
             self.record_exact_selector_truth_change(candidate.node, &site, result);
         }
         let workspace_after = self.match_workspace.capacity_bytes();
