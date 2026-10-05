@@ -100,6 +100,13 @@ impl<'a> Parser<'a> {
     }
 
     // https://www.w3.org/TR/SVG11/types.html#DataTypeNumber
+    pub(super) fn parse_coordinate_pair(&mut self) -> Result<[f32; 2], ()> {
+        let x = self.parse_number()?;
+        self.parse_optional_comma_whitespace();
+        let y = self.parse_number()?;
+        Ok([x, y])
+    }
+
     pub(super) fn parse_number(&mut self) -> Result<f32, ()> {
         let sign = match self.current_ascii() {
             Some(b'-') => {
