@@ -3722,9 +3722,6 @@ pub unsafe extern "C" fn rust_style_value_create_image(
     url_modifier_count: usize,
     resource_base_url: crate::css::ffi_support::FfiUtf16View,
     has_resource_base_url: bool,
-    has_parent_style_sheet_origin_clean: bool,
-    parent_style_sheet_origin_clean: bool,
-    should_absolutize_url_for_computed_value: bool,
 ) -> *const StyleValueData {
     Arc::into_raw(Arc::new(StyleValueData::Image {
         url: unsafe { RetainedString::from_units(url.units().expect("invalid URL text")) },
@@ -3733,9 +3730,9 @@ pub unsafe extern "C" fn rust_style_value_create_image(
         resource_context: ImageResourceContext {
             base_url: unsafe { RetainedString::from_units(resource_base_url.units().expect("invalid base URL text")) },
             has_base_url: has_resource_base_url,
-            has_parent_style_sheet_origin_clean,
-            parent_style_sheet_origin_clean,
-            should_absolutize_url_for_computed_value,
+            has_parent_style_sheet_origin_clean: false,
+            parent_style_sheet_origin_clean: false,
+            should_absolutize_url_for_computed_value: false,
         },
     }))
 }

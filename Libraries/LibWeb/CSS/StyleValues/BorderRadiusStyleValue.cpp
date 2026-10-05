@@ -11,17 +11,4 @@
 
 namespace Web::CSS {
 
-ValueComparingNonnullRefPtr<StyleValue const> BorderRadiusStyleValue::absolutized(ComputationContext const& computation_context) const
-{
-    auto horizontal_radius = this->horizontal_radius();
-    auto vertical_radius = this->vertical_radius();
-    auto absolutized_horizontal_radius = horizontal_radius->absolutized(computation_context);
-    auto absolutized_vertical_radius = vertical_radius->absolutized(computation_context);
-
-    if (absolutized_vertical_radius == vertical_radius && absolutized_horizontal_radius == horizontal_radius)
-        return *this;
-
-    return BorderRadiusStyleValue::create(absolutized_horizontal_radius, absolutized_vertical_radius);
-}
-
 }

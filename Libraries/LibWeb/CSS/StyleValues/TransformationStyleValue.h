@@ -41,8 +41,6 @@ public:
 
     GC::Ptr<CSSTransformComponent> reify_a_transform_function() const;
 
-    ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
-
 private:
     friend class StyleValue;
 

@@ -21,7 +21,7 @@
 
 namespace Web::CSS {
 
-StyleValueFFI::StyleValueData const* ImageStyleValue::make_image_url_data(URL const& url, Optional<::URL::URL> const& style_resource_base_url, Optional<bool> parent_style_sheet_origin_clean, bool should_absolutize_url_for_computed_value)
+StyleValueFFI::StyleValueData const* ImageStyleValue::make_image_url_data(URL const& url, Optional<::URL::URL> const& style_resource_base_url)
 {
     // Rust copies the borrowed URL text and takes ownership of each modifier string.
     auto modifiers = retain_url_modifiers_for_rust(url);
@@ -32,8 +32,7 @@ StyleValueFFI::StyleValueData const* ImageStyleValue::make_image_url_data(URL co
         { url_string.has_ascii_storage() ? reinterpret_cast<u8 const*>(url_string.ascii_span().data()) : nullptr,
             url_string.has_ascii_storage() ? nullptr : reinterpret_cast<u16 const*>(url_string.utf16_span().data()), url_string.length_in_code_units() },
         to_underlying(url.type()), modifiers.data(), modifiers.size(),
-        { resource_base_url_bytes.data(), nullptr, resource_base_url_bytes.size() }, style_resource_base_url.has_value(),
-        parent_style_sheet_origin_clean.has_value(), parent_style_sheet_origin_clean.value_or(false), should_absolutize_url_for_computed_value);
+        { resource_base_url_bytes.data(), nullptr, resource_base_url_bytes.size() }, style_resource_base_url.has_value());
 }
 
 URL ImageStyleValue::url_value() const
@@ -137,11 +136,9 @@ ValueComparingNonnullRefPtr<ImageStyleValue const> ImageStyleValue::create(::URL
     return adopt_ref(*new (nothrow) ImageStyleValue(URL { url.to_string() }));
 }
 
-ImageStyleValue::ImageStyleValue(URL const& url, Optional<::URL::URL> style_resource_base_url, Optional<bool> parent_style_sheet_origin_clean, bool should_absolutize_url_for_computed_value)
-    : AbstractImageStyleValue(Type::Image, make_image_url_data(url, style_resource_base_url, parent_style_sheet_origin_clean, should_absolutize_url_for_computed_value))
+ImageStyleValue::ImageStyleValue(URL const& url, Optional<::URL::URL> style_resource_base_url)
+    : AbstractImageStyleValue(Type::Image, make_image_url_data(url, style_resource_base_url))
     , m_style_resource_base_url(move(style_resource_base_url))
-    , m_parent_style_sheet_origin_clean(parent_style_sheet_origin_clean)
-    , m_should_absolutize_url_for_computed_value(should_absolutize_url_for_computed_value)
 {
     facades_by_rust_style_value_data().set(m_value.data(), this);
 }
@@ -214,43 +211,6 @@ void ImageStyleValue::update_style_sheet_resource_context(StyleSheetState const&
     m_resolved_url.clear();
     m_parent_style_sheet_origin_clean = style_sheet.is_origin_clean();
     m_should_absolutize_url_for_computed_value = true;
-}
-
-ValueComparingNonnullRefPtr<StyleValue const> ImageStyleValue::absolutized(ComputationContext const& context) const
-{
-    // NB: Materialize the URL once; rebuilding it per use re-marshals the string and modifier list each time.
-    auto url_value = this->url_value();
-
-    if (url_value.url().is_empty())
-        return *this;
-
-    // FIXME: The spec has been updated to handle this better. The computation of the base URL here is roughly based on:
-    //        https://drafts.csswg.org/css-values-4/#style-resource-base-url
-    //        https://github.com/w3c/csswg-drafts/pull/12261
-    auto base_url = m_style_resource_base_url;
-    if (!base_url.has_value() && context.abstract_element.has_value())
-        base_url = context.abstract_element->document().base_url();
-
-    if (base_url.has_value()) {
-        if (m_should_absolutize_url_for_computed_value) {
-            if (DOMURL::parse(url_value.url()).has_value()) {
-                auto absolutized_image = adopt_ref(*new (nothrow) ImageStyleValue(url_value, *base_url, m_parent_style_sheet_origin_clean, true));
-                return absolutized_image;
-            }
-
-            if (auto resolved_url = DOMURL::parse(url_value.url(), *base_url); resolved_url.has_value()) {
-                auto absolutized_image = adopt_ref(*new (nothrow) ImageStyleValue(URL { resolved_url->to_string(), url_value.type(), url_value.request_url_modifiers() }, *base_url, m_parent_style_sheet_origin_clean, true));
-                return absolutized_image;
-            }
-
-            return *this;
-        }
-
-        auto absolutized_image = adopt_ref(*new (nothrow) ImageStyleValue(url_value, *base_url, m_parent_style_sheet_origin_clean));
-        return absolutized_image;
-    }
-
-    return *this;
 }
 
 void ImageStyleValue::register_client(Client& client) const

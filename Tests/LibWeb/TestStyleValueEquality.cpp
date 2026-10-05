@@ -115,7 +115,7 @@ static StyleValueFFI::StyleValueData const* create_test_image(StringView url)
     auto url_bytes = url_string.bytes();
     return StyleValueFFI::rust_style_value_create_image(
         { url_bytes.data(), nullptr, url_bytes.size() }, 0, nullptr, 0,
-        {}, false, false, false, false);
+        {}, false);
 }
 
 TEST_CASE(rust_serialization_transfers_a_native_utf16_string)

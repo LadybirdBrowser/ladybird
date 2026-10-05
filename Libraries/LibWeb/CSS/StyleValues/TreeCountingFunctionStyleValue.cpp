@@ -42,21 +42,4 @@ Optional<CalcNodeRef> TreeCountingFunctionStyleValue::resolve_to_calculation_nod
     return CalcNodeRef::numeric(Number { Number::Type::Number, static_cast<double>(resolve(calculation_resolution_context.abstract_element.value())) });
 }
 
-ValueComparingNonnullRefPtr<StyleValue const> TreeCountingFunctionStyleValue::absolutized(ComputationContext const& computation_context) const
-{
-    // FIXME: We should clamp this value in case it falls outside the valid range for the context it is in
-    VERIFY(computation_context.abstract_element.has_value());
-
-    size_t value = resolve(computation_context.abstract_element.value());
-
-    switch (computed_type()) {
-    case ComputedType::Integer:
-        return IntegerStyleValue::create(value);
-    case ComputedType::Number:
-        return NumberStyleValue::create(static_cast<double>(value));
-    }
-
-    VERIFY_NOT_REACHED();
-}
-
 }

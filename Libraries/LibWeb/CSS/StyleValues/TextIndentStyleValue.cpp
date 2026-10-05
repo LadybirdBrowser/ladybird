@@ -20,14 +20,4 @@ TextIndentStyleValue::TextIndentStyleValue(NonnullRefPtr<StyleValue const> lengt
 
 TextIndentStyleValue::~TextIndentStyleValue() = default;
 
-ValueComparingNonnullRefPtr<StyleValue const> TextIndentStyleValue::absolutized(ComputationContext const& context) const
-{
-    auto new_length_percentage = length_percentage()->absolutized(context);
-    if (new_length_percentage->equals(length_percentage()))
-        return *this;
-    return create(move(new_length_percentage),
-        hanging() ? Hanging::Yes : Hanging::No,
-        each_line() ? EachLine::Yes : EachLine::No);
-}
-
 }

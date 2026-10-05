@@ -15,6 +15,7 @@
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/StyleComputeFFI.h>
+#include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleValues/AbstractImageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/AnchorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/AngleStyleValue.h>
@@ -453,58 +454,43 @@ ENUMERATE_CSS_STYLE_VALUE_TYPES
 
 ValueComparingNonnullRefPtr<StyleValue const> StyleValue::absolutized(ComputationContext const& context) const
 {
-    // The native Rust recursion covers everything except the element-bound values; those
-    // decline and take the per-type C++ path below.
-    {
-        auto ffi_length_context = to_ffi_length_resolution_context(context.length_resolution_context);
-        auto absolutized = StyleValueFFI::rust_style_value_absolutize(
-            m_value.operator->(),
-            &ffi_length_context,
-            context.color_scheme.has_value(),
-            context.color_scheme.has_value() ? to_underlying(*context.color_scheme) : 0);
-        if (absolutized.kind == StyleValueFFI::ABSOLUTIZED_UNCHANGED)
-            return *this;
-        if (absolutized.kind == StyleValueFFI::ABSOLUTIZED_CHANGED)
-            return adopt_rust_style_value_data(static_cast<StyleValueFFI::StyleValueData const*>(absolutized.data));
-    }
-
-    switch (type()) {
-    case Type::BasicShape:
-    case Type::Easing:
-    case Type::GridTrackPlacement:
-    case Type::GridTrackSizeList:
-        return adopt_rust_style_value_data(StyleValueFFI::rust_composite_style_value_absolutize(
-            m_value.operator->(), &context, [](void const* opaque_context, StyleValueFFI::StyleValueData const* child) {
-                auto value = adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(child));
-                auto resolved = value->absolutized(*static_cast<ComputationContext const*>(opaque_context));
-                return StyleValueFFI::rust_style_value_retain(resolved->rust_style_value_data());
-            }));
-    case Type::Color:
-        if (m_value->tag == StyleValueFFI::StyleValueData::Tag::ColorMix || m_value->tag == StyleValueFFI::StyleValueData::Tag::ContrastColor) {
-            return adopt_rust_style_value_data(StyleValueFFI::rust_composite_style_value_absolutize(
-                m_value.operator->(), &context, [](void const* opaque_context, StyleValueFFI::StyleValueData const* child) {
-                    auto value = adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(child));
-                    auto resolved = value->absolutized(*static_cast<ComputationContext const*>(opaque_context));
-                    return StyleValueFFI::rust_style_value_retain(resolved->rust_style_value_data());
-                }));
-        }
-        if (m_value->tag == StyleValueFFI::StyleValueData::Tag::LightDark) {
-            if (!context.color_scheme.has_value())
-                return *this;
-            auto child = context.color_scheme == PreferredColorScheme::Dark ? m_value->light_dark.dark : m_value->light_dark.light;
-            return wrap_rust_child(child)->absolutized(context);
-        }
-        return static_cast<ColorStyleValue const&>(*this).absolutized(context);
-#define __ENUMERATE_CSS_STYLE_VALUE_TYPE(title_case, snake_case, style_value_class_name) \
-    case Type::title_case:                                                               \
-        return static_cast<style_value_class_name const&>(*this).absolutized(context);
-        ENUMERATE_CSS_STYLE_VALUE_TYPES_WITH_CPP_ABSOLUTIZATION
-#undef __ENUMERATE_CSS_STYLE_VALUE_TYPE
-    default:
-        // Types with no C++ absolutized() compute to themselves, matching the old
-        // per-type dispatcher's default case.
-        return *this;
-    }
+    auto length_context = to_ffi_length_resolution_context(context.length_resolution_context);
+    auto document_base_url = context.abstract_element.has_value() ? context.abstract_element->document().serialized_base_url() : String {};
+    StyleValueFFI::FfiAbsolutizationContext ffi_context {
+        .length = &length_context,
+        .has_scheme = context.color_scheme.has_value(),
+        .scheme = static_cast<u8>(context.color_scheme.has_value() ? to_underlying(*context.color_scheme) : 0),
+        .document_base_url = document_base_url.bytes().data(),
+        .document_base_url_length = document_base_url.bytes().size(),
+        .callback_context = &context,
+        .fill_container_bases = [](void const* opaque_context, u8 unit_mask, void* length) {
+            auto const& context = *static_cast<ComputationContext const*>(opaque_context);
+            *static_cast<ComputedValuesFFI::FfiLengthResolutionContext*>(length) = to_ffi_length_resolution_context_with_container_bases(context.length_resolution_context, unit_mask); },
+        .tree_counting = [](void const* opaque_context, u64* sibling_count, u64* sibling_index) {
+            auto const& context = *static_cast<ComputationContext const*>(opaque_context);
+            if (!context.abstract_element.has_value())
+                return false;
+            const_cast<DOM::Element&>(context.abstract_element->element()).set_style_uses_tree_counting_function();
+            auto facts = context.abstract_element->tree_counting_function_resolution_context();
+            *sibling_count = facts.sibling_count;
+            *sibling_index = facts.sibling_index;
+            return true; },
+        .random_base_value = [](void const* opaque_context, u16 const* name, size_t name_length, bool element_shared, double* value) {
+            auto const& context = *static_cast<ComputationContext const*>(opaque_context);
+            if (!context.abstract_element.has_value())
+                return false;
+            // https://drafts.csswg.org/css-values-5/#random-caching
+            // NB: The style engine keeps the base values, one engine per document. A key names the element by its style
+            //     node, and a pseudo-element's by its element's.
+            auto const& element = context.abstract_element->element();
+            auto& style_engine = const_cast<StyleEngine&>(element.document().style_computer().style_engine());
+            Layout::ForcedReadScope read { element.document() };
+            *value = style_engine.ensure_random_base_value(read, element.style_node_id(), Utf16View { reinterpret_cast<char16_t const*>(name), name_length }, element_shared);
+            return true; },
+    };
+    if (auto const* absolutized = StyleValueFFI::rust_style_value_absolutize(m_value.operator->(), &ffi_context))
+        return adopt_rust_style_value_data(absolutized);
+    return *this;
 }
 
 bool StyleValue::has_auto() const

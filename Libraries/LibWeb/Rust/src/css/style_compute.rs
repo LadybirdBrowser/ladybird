@@ -1740,6 +1740,14 @@ pub(crate) fn collect_unfixed_random_sharings_in_value(
         StyleValueData::Calculated { rust_calculation, .. } => {
             crate::css::calc::collect_unfixed_random_sharings(rust_calculation.node(), sharings);
         }
+        StyleValueData::RandomValueSharing { fixed_value, .. } => match fixed_value.optional_data() {
+            Some(fixed_value) => collect_unfixed_random_sharings_in_value(fixed_value, sharings),
+            None => {
+                if !sharings.contains(&std::ptr::from_ref(value)) {
+                    sharings.push(value);
+                }
+            }
+        },
         StyleValueData::Ratio { numerator, denominator } => collect_values(&[numerator, denominator], sharings),
         StyleValueData::Edge { offset, .. } => collect_values(&[offset], sharings),
         StyleValueData::Function { value, .. }

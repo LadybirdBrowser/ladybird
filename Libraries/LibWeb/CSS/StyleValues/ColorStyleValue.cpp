@@ -78,20 +78,6 @@ Optional<Color> ColorStyleValue::to_color(ColorResolutionContext color_resolutio
     return {};
 }
 
-ValueComparingNonnullRefPtr<StyleValue const> ColorStyleValue::absolutized(ComputationContext const& context) const
-{
-    switch (m_value->tag) {
-    case StyleValueFFI::StyleValueData::Tag::ColorFunction:
-        return static_cast<ColorFunctionStyleValue const&>(*this).absolutized(context);
-    case StyleValueFFI::StyleValueData::Tag::ColorMix:
-    case StyleValueFFI::StyleValueData::Tag::ContrastColor:
-    case StyleValueFFI::StyleValueData::Tag::LightDark:
-        VERIFY_NOT_REACHED();
-    default:
-        VERIFY_NOT_REACHED();
-    }
-}
-
 ValueComparingNonnullRefPtr<ColorStyleValue const> ColorStyleValue::create_from_color(Color color, ColorSyntax color_syntax, Optional<Utf16FlyString> name)
 {
     return ColorFunctionStyleValue::create(

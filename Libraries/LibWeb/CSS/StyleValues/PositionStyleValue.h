@@ -27,8 +27,6 @@ public:
     bool is_center(SerializationMode) const;
     CSSPixelPoint resolved(CSSPixelRect const&) const;
 
-    ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const& computation_context) const;
-
 private:
     friend class StyleValue;
 

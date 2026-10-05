@@ -105,20 +105,7 @@ pub(crate) fn easing_from_computed_timing_function(value: &StyleValueData) -> Op
         0 => {
             // The stops are canonicalized first, which resolves each one's calculated values and
             // interpolates the inputs it was not given.
-            unsafe extern "C" fn retain_child(_: *const c_void, child: &StyleValueData) -> *const StyleValueData {
-                unsafe { crate::css::style_value::retain_style_value(child) }
-            }
-            // SAFETY: the canonicalization hands back one reference, which the retained value
-            //         owns.
-            let canonical = unsafe {
-                RetainedStyleValueData::from_retained_pointer(
-                    crate::css::absolutize::rust_composite_style_value_absolutize(
-                        value,
-                        std::ptr::null(),
-                        retain_child,
-                    ),
-                )
-            };
+            let canonical = crate::css::absolutize::canonicalize_linear_easing(value);
             let StyleValueData::Easing { linear_stops, .. } = canonical.data() else {
                 return None;
             };

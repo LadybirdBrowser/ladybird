@@ -37,17 +37,4 @@ int FontStyleStyleValue::to_font_slope() const
     }
 }
 
-ValueComparingNonnullRefPtr<StyleValue const> FontStyleStyleValue::absolutized(ComputationContext const& computation_context) const
-{
-    ValueComparingRefPtr<StyleValue const> absolutized_angle;
-
-    if (angle())
-        absolutized_angle = angle()->absolutized(computation_context);
-
-    if (absolutized_angle == angle())
-        return *this;
-
-    return FontStyleStyleValue::create(font_style(), absolutized_angle);
-}
-
 }

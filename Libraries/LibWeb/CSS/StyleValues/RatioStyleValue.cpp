@@ -16,15 +16,4 @@ Ratio RatioStyleValue::resolved() const
     return { number_from_style_value(numerator(), {}), number_from_style_value(denominator(), {}) };
 }
 
-ValueComparingNonnullRefPtr<StyleValue const> RatioStyleValue::absolutized(ComputationContext const& computation_context) const
-{
-    auto absolutized_numerator = numerator()->absolutized(computation_context);
-    auto absolutized_denominator = denominator()->absolutized(computation_context);
-
-    if (absolutized_numerator == numerator() && absolutized_denominator == denominator())
-        return *this;
-
-    return RatioStyleValue::create(move(absolutized_numerator), move(absolutized_denominator));
-}
-
 }

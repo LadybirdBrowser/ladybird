@@ -92,7 +92,7 @@ private:
     friend class ImageStyleValueResource;
     friend class Client;
     friend class StyleSheetState;
-    ImageStyleValue(URL const&, Optional<::URL::URL> style_resource_base_url = {}, Optional<bool> parent_style_sheet_origin_clean = {}, bool should_absolutize_url_for_computed_value = false);
+    ImageStyleValue(URL const&, Optional<::URL::URL> style_resource_base_url = {});
     explicit ImageStyleValue(StyleValueFFI::StyleValueData const*);
 
     void register_client(Client&) const;
@@ -108,11 +108,9 @@ private:
     friend class StyleValue;
     void set_style_sheet(StyleSheetState*);
 
-    ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
-
     URL url_value() const;
 
-    static StyleValueFFI::StyleValueData const* make_image_url_data(URL const&, Optional<::URL::URL> const&, Optional<bool>, bool should_absolutize_url_for_computed_value);
+    static StyleValueFFI::StyleValueData const* make_image_url_data(URL const&, Optional<::URL::URL> const&);
 
     // NB: Style sheet attachment and loading state, not value data.
     Optional<::URL::URL> m_style_resource_base_url;

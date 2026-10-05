@@ -128,10 +128,7 @@ EasingFunction EasingFunction::from_style_value(StyleValue const& style_value)
         };
         switch (easing.kind) {
         case 0: {
-            auto canonicalized = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_composite_style_value_absolutize(
-                style_value.rust_style_value_data(), nullptr, [](void const*, StyleValueFFI::StyleValueData const* child) {
-                    return StyleValueFFI::rust_style_value_retain(child);
-                }));
+            auto canonicalized = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_linear_easing_canonicalize(style_value.rust_style_value_data()));
             auto const& canonical_easing = canonicalized->rust_style_value_data()->easing;
             Vector<LinearEasingFunction::ControlPoint> points;
             points.ensure_capacity(canonical_easing.linear_stops.length);

@@ -18,15 +18,4 @@ BackgroundSizeStyleValue::BackgroundSizeStyleValue(ValueComparingNonnullRefPtr<S
 
 BackgroundSizeStyleValue::~BackgroundSizeStyleValue() = default;
 
-ValueComparingNonnullRefPtr<StyleValue const> BackgroundSizeStyleValue::absolutized(ComputationContext const& computation_context) const
-{
-    auto absolutized_size_x = size_x()->absolutized(computation_context);
-    auto absolutized_size_y = size_y()->absolutized(computation_context);
-
-    if (absolutized_size_x == size_x() && absolutized_size_y == size_y())
-        return *this;
-
-    return BackgroundSizeStyleValue::create(absolutized_size_x, absolutized_size_y);
-}
-
 }

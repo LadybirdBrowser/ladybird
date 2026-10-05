@@ -56,12 +56,4 @@ ValueComparingNonnullRefPtr<EdgeStyleValue const> EdgeStyleValue::with_resolved_
     return EdgeStyleValue::create({}, offset_style_value());
 }
 
-ValueComparingNonnullRefPtr<StyleValue const> EdgeStyleValue::absolutized(ComputationContext const& computation_context) const
-{
-    auto absolutized_offset = with_resolved_keywords()->offset()->absolutized(computation_context);
-    if (!edge().has_value() && offset_style_value() == absolutized_offset)
-        return *this;
-    return EdgeStyleValue::create({}, absolutized_offset);
-}
-
 }

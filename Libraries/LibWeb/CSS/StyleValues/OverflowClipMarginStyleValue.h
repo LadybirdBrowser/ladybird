@@ -25,8 +25,6 @@ public:
     }
     ValueComparingNonnullRefPtr<StyleValue const> offset() const { return wrap_rust_child(m_value->overflow_clip_margin.offset); }
 
-    ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
-
 private:
     friend class StyleValue;
 

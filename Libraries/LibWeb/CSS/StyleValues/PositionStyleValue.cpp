@@ -38,11 +38,4 @@ CSSPixelPoint PositionStyleValue::resolved(CSSPixelRect const& rect) const
     return CSSPixelPoint { rect.x() + x, rect.y() + y };
 }
 
-ValueComparingNonnullRefPtr<StyleValue const> PositionStyleValue::absolutized(ComputationContext const& computation_context) const
-{
-    return PositionStyleValue::create(
-        edge_x()->absolutized(computation_context)->as_edge(),
-        edge_y()->absolutized(computation_context)->as_edge());
-}
-
 }

@@ -21,8 +21,6 @@ public:
     Utf16FlyString name() const { return css_string_from_rust(&m_value->function.name); }
     ValueComparingNonnullRefPtr<StyleValue const> value() const { return wrap_rust_child(m_value->function.value); }
 
-    ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
-
 private:
     friend class StyleValue;
 

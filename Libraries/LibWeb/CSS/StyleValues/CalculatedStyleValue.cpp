@@ -205,7 +205,7 @@ struct CalcResolutionSnapshot {
                 // When we are in the absolutization process we should absolutize the sharing options.
                 if (resolution_context.length_resolution_context.has_value()) {
                     ComputationContext context { resolution_context.length_resolution_context.value(), resolution_context.abstract_element };
-                    auto absolutized = sharing->as_random_value_sharing().absolutized(context);
+                    auto absolutized = sharing->absolutized(context);
                     resolution.resolved_style_value = StyleValueFFI::rust_style_value_retain(absolutized->rust_style_value_data());
                     resolution.has_number = true;
                     resolution.number = absolutized->as_random_value_sharing().random_base_value();
@@ -234,26 +234,6 @@ struct CalcResolutionSnapshot {
     StyleValueFFI::FfiCalcExternalResolutions external_resolutions {};
     StyleValueFFI::FfiCalcResolutionContext ffi_context {};
 };
-
-ValueComparingNonnullRefPtr<StyleValue const> CalculatedStyleValue::absolutized(ComputationContext const& computation_context) const
-{
-    // NB: Materialize the context once; rebuilding it per use is a HashMap construction each time.
-    auto calculation_context = this->calculation_context();
-    auto resolution_context = CalculationResolutionContext::from_computation_context(computation_context);
-
-    CalcResolutionSnapshot resolution_snapshot { m_value->calculated.rust_calculation.node, calculation_context, resolution_context };
-
-    auto result = StyleValueFFI::rust_calc_absolutize(m_value.operator->(), &resolution_snapshot.ffi_context);
-    if (result.is_percentage)
-        return PercentageStyleValue::create(Percentage { result.percentage_value });
-
-    if (result.collapsed)
-        return adopt_rust_style_value_data(static_cast<StyleValueFFI::StyleValueData const*>(result.collapsed));
-
-    // The simplified root transfers straight into the new value's data; no
-    // C++ tree is materialized.
-    return adopt_ref(*new (nothrow) CalculatedStyleValue(result.simplified, resolved_type(), calculation_context));
-}
 
 bool CalculatedStyleValue::equals(StyleValue const& other) const
 {

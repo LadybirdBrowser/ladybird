@@ -24,7 +24,6 @@ public:
     bool is_center(SerializationMode) const;
 
     ValueComparingNonnullRefPtr<EdgeStyleValue const> with_resolved_keywords() const;
-    ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const& computation_context) const;
 
 private:
     friend class StyleValue;

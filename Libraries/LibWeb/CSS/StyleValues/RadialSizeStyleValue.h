@@ -22,8 +22,6 @@ public:
 
     virtual ~RadialSizeStyleValue() override = default;
 
-    ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
-
     Vector<Component> components() const
     {
         auto const& data = m_value->radial_size;

@@ -23,7 +23,6 @@ public:
     Length length() const { return Length(m_value->length.value, static_cast<LengthUnit>(m_value->length.unit)); }
     virtual double raw_value() const override { return m_value->length.value; }
     virtual Utf16FlyString unit_name() const override { return length().unit_name(); }
-    ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
 
 private:
     friend class StyleValue;

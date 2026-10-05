@@ -50,8 +50,6 @@ public:
     GC::Ref<CSSStyleValue> reify(Utf16FlyString const& associated_property) const;
     StyleValueVector subdivide_into_iterations(PropertyNameAndID const&) const;
 
-    ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
-
     Separator separator() const { return static_cast<Separator>(m_value->value_list.separator); }
 
     void set_style_sheet(StyleSheetState*);

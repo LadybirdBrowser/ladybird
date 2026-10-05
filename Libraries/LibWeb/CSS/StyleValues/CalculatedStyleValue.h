@@ -42,8 +42,6 @@ public:
     using NumericValue = Variant<Number, Angle, Flex, Frequency, Length, Percentage, Resolution, Time>;
 
     static ValueComparingNonnullRefPtr<CalculatedStyleValue const> create(CalcNodeRef root, NumericType resolved_type, CalculationContext context);
-
-    ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
     bool equals(StyleValue const& other) const;
     StyleValueFFI::CalcNode const* rust_calculation_root() const { return m_value->calculated.rust_calculation.node; }
     CalculationContext calculation_context() const;

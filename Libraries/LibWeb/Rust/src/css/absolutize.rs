@@ -28,6 +28,29 @@ mod grid_tests {
     use crate::css::parser::value_parser::{ParseContext, ParseOutcome, parse_css_value};
     use crate::css::property_metadata::property_id;
 
+    /// Absolutizes against a zeroed length context, handing back the value itself when it is
+    /// unchanged.
+    fn absolutize_for_test(value: &StyleValueData) -> Arc<StyleValueData> {
+        // All fields are scalars or nullable pointers.
+        let length: FfiLengthResolutionContext = unsafe { std::mem::zeroed() };
+        let context = AbsolutizationContext {
+            length: &length,
+            scheme: None,
+            resolved_viewport_relative_length: Cell::new(false),
+            tree_counting: None,
+            random_base_values: &[],
+            document_base_url: &[],
+            style_sheet_resource_context: None,
+        };
+        match absolutize(value, &context).unwrap() {
+            Absolutized::Unchanged => unsafe {
+                Arc::increment_strong_count(value);
+                Arc::from_raw(value)
+            },
+            Absolutized::Changed(value) => value.into_arc(),
+        }
+    }
+
     fn parse(property: u16, source: &str) -> Arc<StyleValueData> {
         let units: Vec<_> = source.encode_utf16().collect();
         let values = consume_a_list_of_component_values(tokenize_for_parser(TokenizerInput::Utf16(&units))).unwrap();
@@ -41,10 +64,6 @@ mod grid_tests {
 
     #[test]
     fn composite_resolution_preserves_shared_shapes_and_easing() {
-        unsafe extern "C" fn unchanged(_: *const core::ffi::c_void, value: &StyleValueData) -> *const StyleValueData {
-            unsafe { Arc::increment_strong_count(value) };
-            value
-        }
         for (property, source) in [
             (property_id::CLIP_PATH, "inset(1px round 2px)"),
             (property_id::CLIP_PATH, "circle(2px at 25% 75%)"),
@@ -60,13 +79,7 @@ mod grid_tests {
                 StyleValueData::ValueList { values, .. } => values.as_slice()[0].data(),
                 value => value,
             };
-            let same = unsafe {
-                Arc::from_raw(rust_composite_style_value_absolutize(
-                    value,
-                    std::ptr::null(),
-                    unchanged,
-                ))
-            };
+            let same = absolutize_for_test(value);
             assert!(std::ptr::eq(value, &*same));
             let mut children = Vec::new();
             let mut retain_child = |child: &RetainedStyleValueData, _: &mut bool| {
@@ -99,45 +112,9 @@ mod grid_tests {
     }
 
     #[test]
-    fn composite_resolution_preserves_color_mix_with_currentcolor() {
-        unsafe extern "C" fn unchanged(_: *const core::ffi::c_void, value: &StyleValueData) -> *const StyleValueData {
-            unsafe { Arc::increment_strong_count(value) };
-            value
-        }
-        let parsed = parse(property_id::COLOR, "color-mix(in srgb, currentcolor 20%, red 20%)");
-        let resolved = unsafe {
-            Arc::from_raw(rust_composite_style_value_absolutize(
-                &parsed,
-                std::ptr::null(),
-                unchanged,
-            ))
-        };
-        let StyleValueData::ColorMix {
-            first_percentage,
-            second_percentage,
-            ..
-        } = &*resolved
-        else {
-            unreachable!();
-        };
-        assert_eq!(percentage_from_style_value(first_percentage.data()), Some(20.0));
-        assert_eq!(percentage_from_style_value(second_percentage.data()), Some(20.0));
-    }
-
-    #[test]
     fn composite_resolution_resolves_contrast_color() {
-        unsafe extern "C" fn unchanged(_: *const core::ffi::c_void, value: &StyleValueData) -> *const StyleValueData {
-            unsafe { Arc::increment_strong_count(value) };
-            value
-        }
         let parsed = parse(property_id::COLOR, "contrast-color(red)");
-        let resolved = unsafe {
-            Arc::from_raw(rust_composite_style_value_absolutize(
-                &parsed,
-                std::ptr::null(),
-                unchanged,
-            ))
-        };
+        let resolved = absolutize_for_test(&parsed);
         assert!(matches!(&*resolved, StyleValueData::ColorFunction { .. }));
         assert_eq!(
             to_color(&resolved, &EMPTY_INPUT),
@@ -147,21 +124,11 @@ mod grid_tests {
 
     #[test]
     fn composite_resolution_canonicalizes_linear_easing_control_points() {
-        unsafe extern "C" fn unchanged(_: *const core::ffi::c_void, value: &StyleValueData) -> *const StyleValueData {
-            unsafe { Arc::increment_strong_count(value) };
-            value
-        }
         let parsed = parse(property_id::ANIMATION_TIMING_FUNCTION, "linear(0, 0.25, 0.5 60%, 1)");
         let StyleValueData::ValueList { values, .. } = &*parsed else {
             unreachable!();
         };
-        let resolved = unsafe {
-            Arc::from_raw(rust_composite_style_value_absolutize(
-                values.as_slice()[0].data(),
-                std::ptr::null(),
-                unchanged,
-            ))
-        };
+        let resolved = absolutize_for_test(values.as_slice()[0].data());
         let StyleValueData::Easing { linear_stops, .. } = &*resolved else {
             unreachable!();
         };
@@ -180,10 +147,6 @@ mod grid_tests {
 
     #[test]
     fn grid_leaf_resolution_preserves_identity_and_retained_children() {
-        unsafe extern "C" fn unchanged(_: *const core::ffi::c_void, value: &StyleValueData) -> *const StyleValueData {
-            unsafe { Arc::increment_strong_count(value) };
-            value
-        }
         for (property, source) in [
             (property_id::GRID_ROW_START, "3"),
             (
@@ -193,13 +156,7 @@ mod grid_tests {
         ] {
             let value = parse(property, source);
             let original = crate::css::serialize::serialize_style_value_to_utf16(&value).unwrap();
-            let same = unsafe {
-                Arc::from_raw(rust_composite_style_value_absolutize(
-                    &value,
-                    std::ptr::null(),
-                    unchanged,
-                ))
-            };
+            let same = absolutize_for_test(&value);
             assert!(Arc::ptr_eq(&value, &same));
             let mut retained = Vec::new();
             let mapped = map_grid_values(&value, &mut |child| {
@@ -225,24 +182,22 @@ mod grid_tests {
 
     #[test]
     fn grid_leaf_resolution_rebuilds_nested_tracks_without_changing_the_source() {
-        unsafe extern "C" fn resolve(_: *const core::ffi::c_void, value: &StyleValueData) -> *const StyleValueData {
-            match value {
-                StyleValueData::Length { value, unit } => Arc::into_raw(Arc::new(StyleValueData::Length {
-                    value: value * 2.0,
-                    unit: *unit,
-                })),
-                _ => {
-                    unsafe { Arc::increment_strong_count(value) };
-                    value
-                }
-            }
-        }
         let value = parse(
             property_id::GRID_TEMPLATE_COLUMNS,
             "[雪] repeat(2, minmax(10px, 1fr)) [雨]",
         );
-        let resolved =
-            unsafe { Arc::from_raw(rust_composite_style_value_absolutize(&value, std::ptr::null(), resolve)) };
+        let resolved = Arc::new(
+            map_grid_values(&value, &mut |child| {
+                Some(match child.optional_data() {
+                    Some(StyleValueData::Length { value, unit }) => retain_new(StyleValueData::Length {
+                        value: value * 2.0,
+                        unit: *unit,
+                    }),
+                    _ => child.clone(),
+                })
+            })
+            .unwrap(),
+        );
         assert!(!Arc::ptr_eq(&value, &resolved));
         for (value, expected) in [
             (&value, "[雪] repeat(2, minmax(10px, 1fr)) [雨]"),
@@ -265,7 +220,7 @@ use crate::css::css_enums::keyword;
 use crate::css::style_compute::{FfiLengthResolutionContext, absolutize_length, keyword_is_color};
 use crate::css::style_value::{
     BasicShapeData, ColorBase, CssString, OwnedBasicShapeData, RetainedGridTrackEntryList, RetainedStyleValueData,
-    RetainedStyleValueDataList, StyleValueData, value_depends_on_current_color,
+    RetainedStyleValueDataList, StyleValueData,
 };
 use crate::css::value_codes::*;
 
@@ -774,56 +729,6 @@ fn absolutize_color_mix(value: &StyleValueData, context: &AbsolutizationContext)
             value: normalized.second_percentage,
         }),
     })))
-}
-
-// FIXME: Follow the spec algorithm. https://drafts.csswg.org/css-color-5/#calculate-a-color-mix
-fn absolutize_color_mix_with_resolved_children(
-    value: &StyleValueData,
-    map: &mut impl FnMut(&RetainedStyleValueData) -> Option<RetainedStyleValueData>,
-) -> Option<Absolutized> {
-    let StyleValueData::ColorMix {
-        color_interpolation_method,
-        first_color,
-        first_percentage,
-        second_color,
-        second_percentage,
-        ..
-    } = value
-    else {
-        return None;
-    };
-
-    let color_interpolation_method = map(color_interpolation_method)?;
-    let first_color = map(first_color)?;
-    let first_percentage = map(first_percentage)?;
-    let second_color = map(second_color)?;
-    let second_percentage = map(second_percentage)?;
-
-    let rebuilt = StyleValueData::ColorMix {
-        color_base: ColorBase {
-            has_color_type: false,
-            color_type: 0,
-            color_syntax: COLOR_SYNTAX_MODERN,
-        },
-        color_interpolation_method,
-        first_color,
-        first_percentage,
-        second_color,
-        second_percentage,
-    };
-
-    if !value_depends_on_current_color(&rebuilt)
-        && let Some(color) =
-            crate::css::color_resolution::resolve_color_mix(&rebuilt, &crate::css::color_resolution::EMPTY_INPUT)
-    {
-        return Some(Absolutized::Changed(retain_new(color)));
-    }
-
-    if rebuilt == *value {
-        Some(Absolutized::Unchanged)
-    } else {
-        Some(Absolutized::Changed(retain_new(rebuilt)))
-    }
 }
 
 /// The gradient absolutizers recurse their Rust-owned children and rebuild the retained stop
@@ -1378,84 +1283,26 @@ fn map_grid_values(
     })
 }
 
-/// Resolve context-dependent leaves without materializing a C++ composite value graph.
-///
-/// # Safety
-/// The value must be a live supported composite value. The callback must return one retained reference
-/// for each borrowed leaf and must not mutate the input graph.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_composite_style_value_absolutize(
-    value: &StyleValueData,
-    context: *const core::ffi::c_void,
-    resolve: unsafe extern "C" fn(*const core::ffi::c_void, &StyleValueData) -> *const StyleValueData,
-) -> *const StyleValueData {
-    let mut map = |child: &RetainedStyleValueData| {
-        Some(match child.optional_data() {
-            None => child.clone(),
-            Some(data) => unsafe { RetainedStyleValueData::from_retained_pointer(resolve(context, data)) },
-        })
-    };
-    let color_result = match value {
-        StyleValueData::ColorMix { .. } => absolutize_color_mix_with_resolved_children(value, &mut map),
-        StyleValueData::ContrastColor { color, .. } => map(color).map(|mapped| {
-            let rebuilt = StyleValueData::ContrastColor {
-                color_base: ColorBase {
-                    has_color_type: false,
-                    color_type: 0,
-                    color_syntax: COLOR_SYNTAX_MODERN,
-                },
-                color: mapped,
-            };
-            if !value_depends_on_current_color(&rebuilt)
-                && let Some(resolved) = to_color(&rebuilt, &EMPTY_INPUT)
-            {
-                return Absolutized::Changed(retain_new(rgb_color_function(
-                    f64::from(resolved.r),
-                    f64::from(resolved.g),
-                    f64::from(resolved.b),
-                    f64::from(resolved.a) / 255.0,
-                    COLOR_SYNTAX_MODERN,
-                )));
-            }
-            if rebuilt == *value {
-                Absolutized::Unchanged
-            } else {
-                Absolutized::Changed(retain_new(rebuilt))
-            }
-        }),
-        _ => None,
-    };
-    let mut resolve_child = |child: &RetainedStyleValueData, changed: &mut bool| {
-        let mapped = map(child)?;
-        *changed |= mapped != *child;
-        Some(mapped)
-    };
-    let result = if let Some(result) = color_result {
-        result
-    } else {
-        match value {
-            StyleValueData::BasicShape { .. } => absolutize_basic_shape(value, &mut resolve_child),
-            StyleValueData::Easing { .. } => absolutize_easing(value, &mut resolve_child),
-            StyleValueData::ColorMix { .. } | StyleValueData::ContrastColor { .. } => unreachable!(),
-            _ => {
-                let mapped = map_grid_values(value, &mut map).unwrap();
-                Some(if mapped == *value {
-                    Absolutized::Unchanged
-                } else {
-                    Absolutized::Changed(retain_new(mapped))
-                })
-            }
-        }
-        .unwrap()
-    };
-    if let Absolutized::Changed(mapped) = result {
-        let pointer = mapped.pointer();
-        core::mem::forget(mapped);
-        pointer
-    } else {
-        unsafe { Arc::increment_strong_count(value) };
-        value
+/// Canonicalizes the control points of a `linear()` easing function: resolves each one's
+/// calculated values and interpolates the inputs it was not given.
+pub(crate) fn canonicalize_linear_easing(value: &StyleValueData) -> RetainedStyleValueData {
+    match absolutize_easing(value, &mut |child, _| Some(child.clone())) {
+        Some(Absolutized::Changed(canonical)) => canonical,
+        // SAFETY: The caller's reference keeps the value alive while it gains one.
+        _ => unsafe {
+            RetainedStyleValueData::from_retained_pointer(crate::css::style_value::retain_style_value(value))
+        },
     }
+}
+
+/// Canonicalizes a `linear()` easing function's control points for C++. Returns one strong
+/// reference.
+#[unsafe(no_mangle)]
+pub extern "C" fn rust_linear_easing_canonicalize(value: &StyleValueData) -> *const StyleValueData {
+    let canonical = canonicalize_linear_easing(value);
+    let pointer = canonical.pointer();
+    core::mem::forget(canonical);
+    pointer
 }
 
 fn canonicalized_dimension(value: f64, unit: u8, ratios: &[f64]) -> Option<(f64, u8)> {
@@ -2018,7 +1865,43 @@ pub(crate) fn absolutize(value: &StyleValueData, context: &AbsolutizationContext
             })))
         }
         StyleValueData::Image { .. } => absolutize_image(value, context),
-        StyleValueData::RandomValueSharing { .. } => None,
+        // https://drafts.csswg.org/css-values-5/#random-caching
+        // If the random function's <random-value-sharing> is fixed <number>, the random base value is that number.
+        // Otherwise, it is the base value drawn for the function's random caching key.
+        StyleValueData::RandomValueSharing {
+            fixed_value,
+            is_auto,
+            has_name,
+            name,
+            element_shared,
+        } => {
+            if fixed_value.optional_data().is_some() {
+                let mut changed = false;
+                let fixed_value = absolutize_child(fixed_value, context, &mut changed)?;
+                return rebuild!(
+                    changed,
+                    StyleValueData::RandomValueSharing {
+                        fixed_value,
+                        is_auto: *is_auto,
+                        has_name: *has_name,
+                        name: name.clone(),
+                        element_shared: *element_shared,
+                    }
+                );
+            }
+            let base_value = context
+                .random_base_values
+                .iter()
+                .find(|base_value| std::ptr::eq(base_value.source.cast(), value))?
+                .value;
+            Some(Absolutized::Changed(retain_new(StyleValueData::RandomValueSharing {
+                fixed_value: retain_new(StyleValueData::Number { value: base_value }),
+                is_auto: false,
+                has_name: false,
+                name: CssString::none(),
+                element_shared: false,
+            })))
+        }
 
         StyleValueData::ColorFunction { .. } => absolutize_color_function(value, context),
         StyleValueData::ColorMix { .. } => absolutize_color_mix(value, context),
@@ -2093,74 +1976,102 @@ pub(crate) fn absolutize(value: &StyleValueData, context: &AbsolutizationContext
     }
 }
 
-/// The absolutization outcome kinds for the FFI entry.
-pub const ABSOLUTIZED_DECLINED: u8 = 0;
-pub const ABSOLUTIZED_UNCHANGED: u8 = 1;
-pub const ABSOLUTIZED_CHANGED: u8 = 2;
-
-/// The FFI result: `data` carries one strong reference when kind is changed.
+/// What a C++ caller outside the style drive gives an absolutization: its length resolution
+/// context and color scheme, and callbacks for the facts of the element it computes for, which
+/// are asked for only when the value needs them.
 #[repr(C)]
-pub struct FfiAbsolutizedValue {
-    pub kind: u8,
-    pub data: *const core::ffi::c_void,
+pub struct FfiAbsolutizationContext {
+    /// The length resolution context, as an opaque pointer since its type lives in the computed
+    /// values header.
+    pub length: *const core::ffi::c_void,
+    pub has_scheme: bool,
+    pub scheme: u8,
+    pub document_base_url: *const u8,
+    pub document_base_url_length: usize,
+    pub callback_context: *const core::ffi::c_void,
+    /// Fills in the container bases that the given container-relative units read, into the
+    /// given copy of the length resolution context.
+    pub fill_container_bases: unsafe extern "C" fn(*const core::ffi::c_void, u8, *mut core::ffi::c_void),
+    /// Writes the element's sibling count and index. False when there is no element.
+    pub tree_counting: unsafe extern "C" fn(*const core::ffi::c_void, &mut u64, &mut u64) -> bool,
+    /// Draws the random base value of a random caching key. False when there is no element.
+    pub random_base_value: unsafe extern "C" fn(*const core::ffi::c_void, *const u16, usize, bool, &mut f64) -> bool,
 }
 
-/// Absolutizes a style value for the C++ dispatch outside the style drive: container and
-/// feature queries, custom property registration and counter-style definitions. Declines
-/// exactly where the in-drive recursion declines.
+/// Absolutizes a style value for a C++ caller outside the style drive. Returns one strong
+/// reference to the new value, or null when the value computes to itself.
 ///
 /// # Safety
-/// `value` must point at live style value data; `length` may be null or point at a valid
-/// length resolution context outliving the call.
+/// `context`'s pointers must be valid for the call, and its callbacks must accept its callback
+/// context.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_style_value_absolutize(
-    value: *const core::ffi::c_void,
-    length: *const core::ffi::c_void,
-    has_scheme: bool,
-    scheme: u8,
-) -> FfiAbsolutizedValue {
-    let value = unsafe { &*value.cast::<StyleValueData>() };
-    let length = unsafe { length.cast::<FfiLengthResolutionContext>().as_ref() };
-    // Without a length context the recursion still handles everything that does not
-    // resolve lengths; a zeroed context would silently mis-resolve, so decline instead.
-    let Some(length) = length else {
-        return match value {
-            value if crate::css::style_compute::value_absolutization_is_identity(value) => FfiAbsolutizedValue {
-                kind: ABSOLUTIZED_UNCHANGED,
-                data: core::ptr::null(),
-            },
-            _ => FfiAbsolutizedValue {
-                kind: ABSOLUTIZED_DECLINED,
-                data: core::ptr::null(),
-            },
-        };
+    value: &StyleValueData,
+    context: &FfiAbsolutizationContext,
+) -> *const StyleValueData {
+    let dependencies = crate::css::style_compute::collect_external_value_dependencies(value);
+    let mut length = unsafe { *context.length.cast::<FfiLengthResolutionContext>() };
+    if dependencies.container_relative_length_unit_mask != 0 {
+        unsafe {
+            (context.fill_container_bases)(
+                context.callback_context,
+                dependencies.container_relative_length_unit_mask,
+                (&raw mut length).cast(),
+            );
+        }
+    }
+    let tree_counting = dependencies.uses_tree_counting_function.then(|| {
+        let (mut count, mut index) = (0, 0);
+        unsafe { (context.tree_counting)(context.callback_context, &mut count, &mut index) }.then_some((count, index))
+    });
+    let mut random_base_values = Vec::new();
+    if dependencies.has_unfixed_random_sharing {
+        let mut sharings = Vec::new();
+        crate::css::style_compute::collect_unfixed_random_sharings_in_value(value, &mut sharings);
+        for sharing in sharings {
+            // SAFETY: The value retains every sharing in it.
+            let (name, element_shared) = crate::css::style_compute::random_caching_key(unsafe { &*sharing });
+            let mut base_value = 0.0;
+            if unsafe {
+                (context.random_base_value)(
+                    context.callback_context,
+                    name.as_ptr(),
+                    name.len(),
+                    element_shared,
+                    &mut base_value,
+                )
+            } {
+                random_base_values.push(crate::css::style_compute::FfiRandomBaseValue {
+                    source: sharing.cast(),
+                    value: base_value,
+                });
+            }
+        }
+    }
+    let document_base_url = if context.document_base_url_length == 0 {
+        &[][..]
+    } else {
+        unsafe { std::slice::from_raw_parts(context.document_base_url, context.document_base_url_length) }
     };
-    let context = AbsolutizationContext {
-        length,
-        scheme: has_scheme.then_some(scheme),
+    let absolutization_context = AbsolutizationContext {
+        length: &length,
+        scheme: context.has_scheme.then_some(context.scheme),
         resolved_viewport_relative_length: Cell::new(false),
-        tree_counting: None,
-        random_base_values: &[],
-        document_base_url: &[],
+        tree_counting: tree_counting.flatten(),
+        random_base_values: &random_base_values,
+        document_base_url,
         style_sheet_resource_context: None,
     };
-    match absolutize(value, &context) {
-        Some(Absolutized::Unchanged) => FfiAbsolutizedValue {
-            kind: ABSOLUTIZED_UNCHANGED,
-            data: core::ptr::null(),
-        },
+    // The length context records a viewport-relative resolution through its own flag.
+    match absolutize(value, &absolutization_context) {
         Some(Absolutized::Changed(new_value)) => {
             let pointer = new_value.pointer();
             core::mem::forget(new_value);
-            FfiAbsolutizedValue {
-                kind: ABSOLUTIZED_CHANGED,
-                data: pointer.cast(),
-            }
+            pointer
         }
-        None => FfiAbsolutizedValue {
-            kind: ABSOLUTIZED_DECLINED,
-            data: core::ptr::null(),
-        },
+        // A value whose facts are missing, like a tree-counting function without an element,
+        // computes to itself.
+        Some(Absolutized::Unchanged) | None => core::ptr::null(),
     }
 }
 

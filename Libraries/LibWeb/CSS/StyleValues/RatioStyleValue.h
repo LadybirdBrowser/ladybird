@@ -20,8 +20,6 @@ public:
 
     Ratio resolved() const;
 
-    ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
-
 private:
     friend class StyleValue;
 
