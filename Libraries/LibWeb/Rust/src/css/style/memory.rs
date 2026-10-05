@@ -8,9 +8,9 @@
 //!
 //! Every byte StyleEngine retains belongs to exactly one [`MemoryCategory`], and every category
 //! belongs to one [`Tier`]. The tier decides both the reclamation rule and the budget the bytes are
-//! charged against:
+//! charged against. Authoritative input (DOM, CSSOM, browser state) is owned by other subsystems and
+//! never charged.
 //!
-//! * Tier 0 is authoritative input owned by another subsystem. It is referenced, never charged.
 //! * Tier 1 is the minimal live state required to answer current observers. It is tracked by
 //!   category but not capped or aggregated, because refusing it would mean refusing a style read.
 //! * Tier 2 is the shared semantic IR: selector programs, transpose bytecode, and the routing
@@ -30,12 +30,10 @@ use std::sync::Mutex;
 const KIB: u64 = 1024;
 const MIB: u64 = 1024 * KIB;
 
-/// Retained-state tier. The discriminants follow the tier numbers in the memory model.
+/// Retained-state tier.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 #[repr(usize)]
 pub enum Tier {
-    /// Tier 0: DOM, CSSOM, stylesheet programs, browser state.
-    Authoritative,
     /// Tier 1: compact handles and shared payloads required to answer current observers.
     Live,
     /// Tier 2: canonical selector, declaration, condition, and cascade nodes; routing registry.
@@ -46,7 +44,7 @@ pub enum Tier {
     Scratch,
 }
 
-pub const TIER_COUNT: usize = 5;
+pub const TIER_COUNT: usize = 4;
 
 impl Tier {
     #[must_use]
@@ -56,7 +54,7 @@ impl Tier {
 }
 
 macro_rules! define_memory_categories {
-    ($($variant:ident => ($tier:ident, $name:literal),)+) => {
+    ($($variant:ident => $tier:ident,)+) => {
         /// One kind of retained StyleEngine state. Categories exist so that a byte total can be
         /// attributed to the logical operator that retained it, not just to a tier.
         #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -70,17 +68,11 @@ macro_rules! define_memory_categories {
         #[cfg(test)]
         pub const MEMORY_CATEGORIES: [MemoryCategory; MEMORY_CATEGORY_COUNT] = [$(MemoryCategory::$variant,)+];
         static MEMORY_CATEGORY_TIERS: [Tier; MEMORY_CATEGORY_COUNT] = [$(Tier::$tier,)+];
-        static MEMORY_CATEGORY_NAMES: [&str; MEMORY_CATEGORY_COUNT] = [$($name,)+];
 
         impl MemoryCategory {
             #[must_use]
             pub fn tier(self) -> Tier {
                 MEMORY_CATEGORY_TIERS[self as usize]
-            }
-
-            #[must_use]
-            pub fn name(self) -> &'static str {
-                MEMORY_CATEGORY_NAMES[self as usize]
             }
         }
     };
@@ -88,36 +80,36 @@ macro_rules! define_memory_categories {
 
 define_memory_categories! {
     // Tier 1: reclaimed only once no observer and no live read epoch can reach the state.
-    StyleNodeMapping => (Live, "styleNodeMapping"),
-    RelationColumns => (Live, "relationColumns"),
-    MatchAnswerIdentity => (Live, "matchAnswerIdentity"),
-    ComputedGroupSet => (Live, "computedGroupSet"),
-    CustomPropertyEnvironment => (Live, "customPropertyEnvironment"),
-    ComputedFixedMetadata => (Live, "computedFixedMetadata"),
-    ComputedLonghandTable => (Live, "computedLonghandTable"),
-    StyleRecord => (Live, "styleRecord"),
-    AnimationOverlayRecord => (Live, "animationOverlayRecord"),
-    ComputedPseudoAssignment => (Live, "computedPseudoAssignment"),
+    StyleNodeMapping => Live,
+    RelationColumns => Live,
+    MatchAnswerIdentity => Live,
+    ComputedGroupSet => Live,
+    CustomPropertyEnvironment => Live,
+    ComputedFixedMetadata => Live,
+    ComputedLonghandTable => Live,
+    StyleRecord => Live,
+    AnimationOverlayRecord => Live,
+    ComputedPseudoAssignment => Live,
     // Tier 2: reclaimed on semantic detachment plus epoch retirement.
-    RuleProgram => (Program, "ruleProgram"),
-    RoutingRegistry => (Program, "routingRegistry"),
+    RuleProgram => Program,
+    RoutingRegistry => Program,
 
     // Tier 3: evictable without semantic effect, in roughly this preference order.
-    RetainedWitness => (Acceleration, "retainedWitness"),
-    FeaturePosting => (Acceleration, "featurePosting"),
-    SpecifiedValueTable => (Acceleration, "specifiedValueTable"),
-    CascadeWinnerGroup => (Acceleration, "cascadeWinnerGroup"),
-    RetainedSelectorIncidence => (Acceleration, "retainedSelectorIncidence"),
-    RetainedMatchAnswer => (Acceleration, "retainedMatchAnswer"),
-    PrefixTransitionCache => (Acceleration, "prefixTransitionCache"),
-    PrefixAnswerCache => (Acceleration, "prefixAnswerCache"),
+    RetainedWitness => Acceleration,
+    FeaturePosting => Acceleration,
+    SpecifiedValueTable => Acceleration,
+    CascadeWinnerGroup => Acceleration,
+    RetainedSelectorIncidence => Acceleration,
+    RetainedMatchAnswer => Acceleration,
+    PrefixTransitionCache => Acceleration,
+    PrefixAnswerCache => Acceleration,
     // Tier 4: released at transaction end or scratch shrink.
-    NormalizationJournal => (Scratch, "normalizationJournal"),
-    BatchScratch => (Scratch, "batchScratch"),
-    BridgeBuffer => (Scratch, "bridgeBuffer"),
-    ParsedSubstitutionCache => (Acceleration, "parsedSubstitutionCache"),
-    SelectorQuery => (Scratch, "selectorQuery"),
-    PrefixRelation => (Acceleration, "prefixRelation"),
+    NormalizationJournal => Scratch,
+    BatchScratch => Scratch,
+    BridgeBuffer => Scratch,
+    ParsedSubstitutionCache => Acceleration,
+    SelectorQuery => Scratch,
+    PrefixRelation => Acceleration,
 }
 
 impl MemoryCategory {
@@ -692,16 +684,9 @@ impl MemoryController {
     /// Charge capacity that is already committed: required live state and scratch whose exact
     /// capacity is known at a container boundary.
     pub fn reserve_required(&mut self, category: MemoryCategory, bytes: u64) {
-        let tier = category.tier();
         assert!(
-            tier != Tier::Authoritative,
-            "authoritative input is referenced, never charged: {}",
-            category.name()
-        );
-        assert!(
-            tier != Tier::Acceleration,
-            "acceleration state reconciles at its category boundary: {}",
-            category.name()
+            category.tier() != Tier::Acceleration,
+            "acceleration state reconciles at its category boundary: {category:?}"
         );
 
         self.charges
@@ -774,19 +759,6 @@ mod tests {
         assert!(!memory.is_tier3_admitting(MemoryCategory::RetainedMatchAnswer));
         assert_eq!(retained.bytes(), 20);
         assert!(memory.finish_tier3_quota_period()[MemoryCategory::RetainedMatchAnswer as usize]);
-    }
-
-    #[test]
-    fn every_category_has_a_chargeable_tier() {
-        for index in 0..MEMORY_CATEGORY_COUNT {
-            let tier = MEMORY_CATEGORY_TIERS[index];
-            assert_ne!(
-                tier,
-                Tier::Authoritative,
-                "{} must not be Tier 0",
-                MEMORY_CATEGORY_NAMES[index]
-            );
-        }
     }
 
     #[test]
