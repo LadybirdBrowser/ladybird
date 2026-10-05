@@ -763,7 +763,6 @@ CanonicalTraversable& CanonicalTraversable::create_a_new_top_level_traversable(W
     traversable->set_hosted_state({
         .active_document_url = initial_history_entry.url,
         .active_document_is_fully_active = true,
-        .opener_policy = {},
         .is_closing = false,
         .container = {},
         .delays_the_load_event_of_its_container = false,

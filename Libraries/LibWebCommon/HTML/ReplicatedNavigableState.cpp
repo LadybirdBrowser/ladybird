@@ -39,7 +39,6 @@ ErrorOr<void> encode(Encoder& encoder, Web::HTML::HostedNavigableState const& st
 {
     TRY(encoder.encode(state.active_document_url));
     TRY(encoder.encode(state.active_document_is_fully_active));
-    TRY(encoder.encode(state.opener_policy));
     TRY(encoder.encode(state.is_closing));
     TRY(encoder.encode(state.container));
     TRY(encoder.encode(state.delays_the_load_event_of_its_container));
@@ -53,7 +52,6 @@ ErrorOr<Web::HTML::HostedNavigableState> decode(Decoder& decoder)
     return Web::HTML::HostedNavigableState {
         .active_document_url = TRY(decoder.decode<URL::URL>()),
         .active_document_is_fully_active = TRY(decoder.decode<bool>()),
-        .opener_policy = TRY(decoder.decode<Web::HTML::OpenerPolicy>()),
         .is_closing = TRY(decoder.decode<bool>()),
         .container = TRY(decoder.decode<Web::HTML::ReplicatedContainerState>()),
         .delays_the_load_event_of_its_container = TRY(decoder.decode<bool>()),
