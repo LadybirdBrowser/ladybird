@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    asyncTest(async done => {
+        const events = [];
+        const stack = new AsyncDisposableStack();
+        stack.use({
+            async [Symbol.asyncDispose]() {
+                events.push("first disposer started");
+                await null;
+                events.push("first disposer finished");
+            },
+        });
+        stack.use({
+            async [Symbol.asyncDispose]() {
+                events.push("second disposer started");
+                await Promise.resolve();
+                events.push("second disposer finished");
+            },
+        });
+        await stack.disposeAsync();
+        events.push(`disposed: ${stack.disposed}`);
+        for (const event of events)
+            println(event);
+        done();
+    });
+</script>
