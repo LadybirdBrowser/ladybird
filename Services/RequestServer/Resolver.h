@@ -25,6 +25,7 @@ struct DNSInfo {
     u16 port { 0 };
     bool use_dns_over_tls { true };
     bool validate_dnssec_locally { false };
+    Vector<ByteString> loopback_domains;
 
     // Only configured DNS gives us the full address pool to distribute requests over.
     bool uses_configured_dns_server() const { return server_address.has_value() || server_hostname.has_value(); }

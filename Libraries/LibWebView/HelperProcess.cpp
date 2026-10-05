@@ -640,6 +640,9 @@ ErrorOr<NonnullRefPtr<Requests::RequestControlClient>> launch_request_server_pro
     if (request_server_options.resource_substitution_map_path.has_value())
         arguments.append(ByteString::formatted("--resource-map={}", *request_server_options.resource_substitution_map_path));
 
+    if (Application::web_content_options().is_test_mode == IsTestMode::Yes)
+        arguments.append("--test-mode"sv);
+
     RefPtr<Requests::RequestControlClient> client;
     TRY(launch_helper_process("RequestServer"sv, move(arguments), [&](Core::ProcessSpawnOptions const& options, bool capture_output) -> ErrorOr<Process> {
         auto [process, new_client] = TRY(Process::spawn<Requests::RequestControlClient>(ProcessType::RequestServer, options, capture_output));
