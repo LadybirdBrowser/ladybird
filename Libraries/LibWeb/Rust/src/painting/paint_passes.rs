@@ -10,13 +10,9 @@
 use crate::css::css_pixels::CssPixelPoint;
 use crate::layout::LayoutNodeArena;
 use crate::layout::node_data::NodeSlotId;
-use crate::painting::host::{
-    FfiCompositorAnimationPublishOutcome, FfiVisualContextTreeInputs, FfiVisualContextUpdateOutcome,
-    RootBackgroundSource,
-};
+use crate::painting::host::{FfiVisualContextTreeInputs, FfiVisualContextUpdateOutcome, RootBackgroundSource};
 use crate::painting::presentation::Presentation;
 use crate::painting::svg_paint_resources::{PublishedSvgFilter, PublishedSvgPaintServer, SvgPaintResourceKind};
-use crate::painting::visual_animation::VisualAnimation;
 use crate::painting::visual_context::dirty::VisualContextUpdateScope;
 use crate::painting::visual_context::incremental::{
     IncrementalUpdateResult, debug_assert_every_live_node_is_owned, update_visual_context_tree,
@@ -26,44 +22,23 @@ use crate::render_state::{BegunRead, DocumentHost};
 use libgfx_rust::FloatPoint;
 use std::sync::Arc;
 
-/// One step of paint preparation over a document's render state. A pass that reads the viewport the render side draws
-/// into carries what the host knows of it, so the host hands it over only to a pass that runs.
-pub(crate) enum PaintPass {
-    /// Settles the scrollable overflow left unmeasured, and with it the root background and the sticky constraints.
-    PrepareForRendering {
-        pending: PendingPreparation,
-        visual_context_update_pending: bool,
-        inputs: FfiVisualContextTreeInputs,
-    },
-    /// Brings the visual context tree up to date with the rows, rebuilding what the dirty boxes name.
-    UpdateAccumulatedVisualContexts {
-        viewport: NodeSlotId,
-        inputs: FfiVisualContextTreeInputs,
-    },
-    /// Gives the visual context tree the transform of the visual viewport.
-    UpdateVisualViewportTransform(FfiVisualContextTreeInputs),
-    /// Re-reads the scroll containers' offsets, when something invalidated them.
-    RefreshScrollState { device_pixels_per_css_pixel: f64 },
-    /// Answers the SVG paint resources of the enrolled rows the host resolves from the DOM, if they changed since they
-    /// were resolved last.
-    SvgPaintResourceRequests,
-    /// Publishes the SVG paint resources the host resolved.
-    PublishSvgPaintResources(Vec<ResolvedSvgPaintResource>),
-    /// Gives the visual context tree the compositor animations of an update pass, or none where it was discarded.
-    PublishCompositorAnimations(Vec<VisualAnimation>),
+/// What a paint pass writes, which decides what the host lets go of before it sends the pass, and whether the paint and
+/// hit testing properties the host prepared stay current.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(crate) enum PassEffect {
+    /// Writes the rows throughout: measures every unmeasured overflow, or brings the visual context of every dirty box
+    /// up to date. Such a pass is one of those that prepare the paint and hit testing properties.
+    RewritesRows,
+    /// Changes nothing the paint and hit testing properties are prepared from.
+    KeepsPaintPreparation,
+    /// Changes what the paint and hit testing properties are prepared from.
+    StalesPaintPreparation,
 }
 
-/// What a paint pass answers.
-pub(crate) enum PaintPassAnswer {
-    Prepared(RenderingPreparation),
-    VisualContexts(FfiVisualContextUpdateOutcome),
-    VisualViewportTransform,
-    /// The dense device-pixel offsets of every scroll container, or none where nothing was refreshed.
-    ScrollState(Option<Vec<FloatPoint>>),
-    SvgPaintResourceRequests(Option<Vec<SvgPaintResourceRequest>>),
-    /// Whether a published SVG paint resource changed.
-    SvgPaintResourcesPublished(bool),
-    CompositorAnimationsPublished(FfiCompositorAnimationPublishOutcome),
+impl PassEffect {
+    pub(crate) fn leaves_paint_preparation_current(self) -> bool {
+        self != Self::StalesPaintPreparation
+    }
 }
 
 #[derive(Default)]
@@ -79,67 +54,6 @@ pub struct FfiRenderingPreparationOutcome {
 pub(crate) struct RenderingPreparation {
     pub(crate) outcome: FfiRenderingPreparationOutcome,
     pub(crate) clamped_scroll_offsets: Vec<(NodeSlotId, CssPixelPoint)>,
-}
-
-impl PaintPass {
-    /// Whether the pass writes the rows throughout: it measures every unmeasured overflow, or brings the visual
-    /// context of every dirty box up to date.
-    fn rewrites_rows(&self) -> bool {
-        matches!(
-            self,
-            Self::PrepareForRendering { .. }
-                | Self::UpdateAccumulatedVisualContexts { .. }
-                | Self::RefreshScrollState { .. }
-        )
-    }
-
-    /// Whether the pass leaves the paint and hit testing properties the host prepared current: it is one of the passes
-    /// that prepare them, or changes nothing they are prepared from.
-    pub(crate) fn leaves_paint_preparation_current(&self) -> bool {
-        self.rewrites_rows()
-            || matches!(
-                self,
-                Self::SvgPaintResourceRequests | Self::PublishCompositorAnimations(_)
-            )
-    }
-
-    /// Runs the pass over `arena`.
-    pub(crate) fn run(self, arena: &mut LayoutNodeArena) -> PaintPassAnswer {
-        match self {
-            Self::PrepareForRendering {
-                pending,
-                visual_context_update_pending,
-                inputs,
-            } => PaintPassAnswer::Prepared(prepare_for_rendering(
-                arena,
-                pending.root_background_source,
-                visual_context_update_pending,
-                &inputs,
-            )),
-            Self::UpdateAccumulatedVisualContexts { viewport, inputs } => {
-                PaintPassAnswer::VisualContexts(update_accumulated_visual_contexts(arena, viewport, inputs))
-            }
-            Self::UpdateVisualViewportTransform(inputs) => {
-                update_visual_viewport_transform(arena, &inputs);
-                PaintPassAnswer::VisualViewportTransform
-            }
-            Self::RefreshScrollState {
-                device_pixels_per_css_pixel,
-            } => PaintPassAnswer::ScrollState(refresh_scroll_state(arena, device_pixels_per_css_pixel)),
-            Self::SvgPaintResourceRequests => {
-                PaintPassAnswer::SvgPaintResourceRequests(svg_paint_resource_requests(arena))
-            }
-            Self::PublishSvgPaintResources(resolved) => {
-                PaintPassAnswer::SvgPaintResourcesPublished(publish_resolved_svg_paint_resources(arena, resolved))
-            }
-            Self::PublishCompositorAnimations(animations) => PaintPassAnswer::CompositorAnimationsPublished(
-                crate::painting::visual_context::publish_compositor_animations(
-                    &mut arena.paint_state().borrow_mut().visual_context,
-                    animations,
-                ),
-            ),
-        }
-    }
 }
 
 /// What a clock tick's round changed that only the host settles: a root background, scrollability or SVG paint
@@ -216,14 +130,20 @@ pub(crate) fn prepare_for_clock_tick(
     }))
 }
 
-/// Runs `pass` on the render state of `host`'s document in `read`, as the host prepares to paint, and answers what it
+/// Runs `pass` over the render state of `host`'s document in `read`, as the host prepares to paint, and answers what it
 /// answered.
-pub(crate) fn run(read: &BegunRead, host: &DocumentHost, pass: PaintPass) -> PaintPassAnswer {
-    if pass.rewrites_rows() {
+pub(crate) fn run<R>(
+    read: &BegunRead,
+    host: &DocumentHost,
+    effect: PassEffect,
+    pass: impl FnOnce(&mut LayoutNodeArena) -> R,
+) -> R {
+    if effect == PassEffect::RewritesRows {
         host.let_go_of_rows();
     }
-    let writes = !pass.leaves_paint_preparation_current();
-    host.run(read, writes, move |state| pass.run(state.arena_mut()))
+    host.run(read, !effect.leaves_paint_preparation_current(), move |state| {
+        pass(state.arena_mut())
+    })
 }
 
 /// Proof that preparing a document for rendering has something to do, which only [`rendering_preparation_pending`]
@@ -231,6 +151,23 @@ pub(crate) fn run(read: &BegunRead, host: &DocumentHost, pass: PaintPass) -> Pai
 /// source it was found with, for the preparation to take over.
 pub(crate) struct PendingPreparation {
     root_background_source: RootBackgroundSource,
+}
+
+impl PendingPreparation {
+    /// Settles the scrollable overflow left unmeasured, and with it the root background and the sticky constraints.
+    pub(crate) fn prepare(
+        self,
+        arena: &LayoutNodeArena,
+        visual_context_update_pending: bool,
+        inputs: &FfiVisualContextTreeInputs,
+    ) -> RenderingPreparation {
+        prepare_for_rendering(
+            arena,
+            self.root_background_source,
+            visual_context_update_pending,
+            inputs,
+        )
+    }
 }
 
 /// Whether preparing `arena` for rendering would change anything: its root background source moved, or scrollable
@@ -299,7 +236,10 @@ pub(crate) fn prepare_for_rendering(
     }
 }
 
-fn refresh_scroll_state(arena: &LayoutNodeArena, device_pixels_per_css_pixel: f64) -> Option<Vec<FloatPoint>> {
+pub(crate) fn refresh_scroll_state(
+    arena: &LayoutNodeArena,
+    device_pixels_per_css_pixel: f64,
+) -> Option<Vec<FloatPoint>> {
     arena.measure_scrollable_overflow();
     let paintable_rows = arena.paintable_rows();
     let mut paint_state = arena.paint_state().borrow_mut();
@@ -329,7 +269,7 @@ fn scroll_state_snapshot(
     snapshot
 }
 
-fn update_visual_viewport_transform(arena: &LayoutNodeArena, inputs: &FfiVisualContextTreeInputs) {
+pub(crate) fn update_visual_viewport_transform(arena: &LayoutNodeArena, inputs: &FfiVisualContextTreeInputs) {
     let mut paint_state = arena.paint_state().borrow_mut();
     if let Some(tree) = &mut paint_state.visual_context.tree {
         std::sync::Arc::make_mut(tree).set_visual_viewport_transform(
@@ -338,7 +278,7 @@ fn update_visual_viewport_transform(arena: &LayoutNodeArena, inputs: &FfiVisualC
     }
 }
 
-fn update_accumulated_visual_contexts(
+pub(crate) fn update_accumulated_visual_contexts(
     arena: &mut LayoutNodeArena,
     viewport: NodeSlotId,
     inputs: FfiVisualContextTreeInputs,

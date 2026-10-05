@@ -10,7 +10,7 @@
 
 use super::*;
 use crate::painting::host::FfiVisualContextTreeInputs;
-use crate::painting::paint_passes::{PaintPass, PaintPassAnswer, pending_preparation, run as run_paint_pass};
+use crate::painting::paint_passes::{PassEffect, pending_preparation, run as run_paint_pass};
 
 /// Mints the main thread token for this module's FFI entry points; only this module can make one.
 pub(crate) struct MainThreadFfiEntry {
@@ -351,18 +351,11 @@ pub unsafe extern "C" fn render_state_prepare_for_rendering(
     let Some(pending) = pending_preparation(read, host) else {
         return Default::default();
     };
-    let PaintPassAnswer::Prepared(prepared) = run_paint_pass(
-        read,
-        host,
-        PaintPass::PrepareForRendering {
-            pending,
-            visual_context_update_pending,
-            // SAFETY: Guaranteed by the caller.
-            inputs: unsafe { inputs_of(document) },
-        },
-    ) else {
-        unreachable!("preparing for rendering answers what it prepared");
-    };
+    // SAFETY: Guaranteed by the caller.
+    let inputs = unsafe { inputs_of(document) };
+    let prepared = run_paint_pass(read, host, PassEffect::RewritesRows, move |arena| {
+        pending.prepare(arena, visual_context_update_pending, &inputs)
+    });
     if !prepared.clamped_scroll_offsets.is_empty() {
         // SAFETY: Guaranteed by the caller.
         let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY, host) };
@@ -387,14 +380,9 @@ pub unsafe extern "C" fn render_state_update_accumulated_visual_contexts(
     inputs: FfiVisualContextTreeInputs,
 ) -> crate::painting::host::FfiVisualContextUpdateOutcome {
     // SAFETY: Guaranteed by the caller.
-    let PaintPassAnswer::VisualContexts(outcome) = run_paint_pass(
-        read,
-        unsafe { &*host },
-        PaintPass::UpdateAccumulatedVisualContexts { viewport, inputs },
-    ) else {
-        unreachable!("a visual context update answers its outcome");
-    };
-    outcome
+    run_paint_pass(read, unsafe { &*host }, PassEffect::RewritesRows, |arena| {
+        crate::painting::paint_passes::update_accumulated_visual_contexts(arena, viewport, inputs)
+    })
 }
 
 /// # Safety
@@ -407,11 +395,9 @@ pub unsafe extern "C" fn render_state_update_visual_viewport_transform(
     inputs: FfiVisualContextTreeInputs,
 ) {
     // SAFETY: Guaranteed by the caller.
-    run_paint_pass(
-        read,
-        unsafe { &*host },
-        PaintPass::UpdateVisualViewportTransform(inputs),
-    );
+    run_paint_pass(read, unsafe { &*host }, PassEffect::StalesPaintPreparation, |arena| {
+        crate::painting::paint_passes::update_visual_viewport_transform(arena, &inputs);
+    });
 }
 
 /// Starts an update pass of the compositor animations of `host`'s document, with none published.
@@ -464,12 +450,12 @@ pub unsafe extern "C" fn render_state_publish_compositor_animations(
     if !publish_pending {
         animations.clear();
     }
-    let PaintPassAnswer::CompositorAnimationsPublished(outcome) =
-        run_paint_pass(read, host, PaintPass::PublishCompositorAnimations(animations))
-    else {
-        unreachable!("publishing compositor animations answers what changed");
-    };
-    outcome
+    run_paint_pass(read, host, PassEffect::KeepsPaintPreparation, |arena| {
+        crate::painting::visual_context::publish_compositor_animations(
+            &mut arena.paint_state().borrow_mut().visual_context,
+            animations,
+        )
+    })
 }
 
 /// Resolves the SVG paint resources the enrolled rows of `host`'s document name: the render state answers what to
@@ -491,11 +477,9 @@ pub unsafe extern "C" fn render_state_sync_svg_paint_resources(
     use crate::painting::paint_passes::{ResolvedSvgPaintResource, SvgPaintResourceRequest};
     use crate::painting::svg_paint_resources::{PublishedSvgFilter, PublishedSvgPaintServer, SvgPaintResourceKind};
     // SAFETY: Guaranteed by the caller.
-    let PaintPassAnswer::SvgPaintResourceRequests(requests) =
-        run_paint_pass(read, unsafe { &*host }, PaintPass::SvgPaintResourceRequests)
-    else {
-        unreachable!("the SVG paint resources answer what to resolve");
-    };
+    let requests = run_paint_pass(read, unsafe { &*host }, PassEffect::KeepsPaintPreparation, |arena| {
+        crate::painting::paint_passes::svg_paint_resource_requests(arena)
+    });
     let Some(requests) = requests else {
         return false;
     };
@@ -536,12 +520,9 @@ pub unsafe extern "C" fn render_state_sync_svg_paint_resources(
         })
         .collect();
     // SAFETY: Guaranteed by the caller.
-    let PaintPassAnswer::SvgPaintResourcesPublished(changed) =
-        run_paint_pass(read, unsafe { &*host }, PaintPass::PublishSvgPaintResources(resolved))
-    else {
-        unreachable!("publishing the SVG paint resources answers whether they changed");
-    };
-    changed
+    run_paint_pass(read, unsafe { &*host }, PassEffect::StalesPaintPreparation, |arena| {
+        crate::painting::paint_passes::publish_resolved_svg_paint_resources(arena, resolved)
+    })
 }
 
 /// Re-reads the scroll containers' offsets when something invalidated them since the last refresh, resolves the
@@ -561,15 +542,9 @@ pub unsafe extern "C" fn render_state_refresh_scroll_state(
     publish: unsafe extern "C" fn(*mut c_void, *const libgfx_rust::FloatPoint, usize),
 ) {
     // SAFETY: Guaranteed by the caller.
-    let PaintPassAnswer::ScrollState(snapshot) = run_paint_pass(
-        read,
-        unsafe { &*host },
-        PaintPass::RefreshScrollState {
-            device_pixels_per_css_pixel,
-        },
-    ) else {
-        unreachable!("a scroll state refresh answers its snapshot");
-    };
+    let snapshot = run_paint_pass(read, unsafe { &*host }, PassEffect::RewritesRows, |arena| {
+        crate::painting::paint_passes::refresh_scroll_state(arena, device_pixels_per_css_pixel)
+    });
     if let Some(snapshot) = snapshot {
         // SAFETY: The C++ sink copies the offsets synchronously.
         unsafe { publish(sink, snapshot.as_ptr(), snapshot.len()) };
