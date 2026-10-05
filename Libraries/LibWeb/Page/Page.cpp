@@ -483,6 +483,25 @@ EventResult Page::handle_mouseleave()
     return handle_mouseleave(local_traversable());
 }
 
+EventResult Page::handle_mousecancel(HTML::LocalNavigable& root)
+{
+    // The press that is cancelled is tracked by the navigable it began in, which may be nested in the root.
+    GC::Ptr<HTML::LocalNavigable> navigable = m_mouse_event_tracking_navigable.ptr();
+    m_mouse_event_tracking_navigable = nullptr;
+    if (!navigable)
+        navigable = root;
+    auto result = navigable->event_handler().handle_mousecancel();
+
+    // The cancelled pointer has left the page, so no document in it hovers anything until the pointer moves again.
+    (void)root.event_handler().handle_mouseleave();
+    return result;
+}
+
+EventResult Page::handle_mousecancel()
+{
+    return handle_mousecancel(local_traversable());
+}
+
 #if defined(AK_OS_MACOS)
 bool Page::select_word_for_dictionary_lookup(DevicePixelPoint position)
 {
