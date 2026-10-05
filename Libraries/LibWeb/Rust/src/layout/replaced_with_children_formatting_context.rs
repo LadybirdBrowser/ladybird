@@ -30,16 +30,13 @@ pub(super) fn layout_replaced_with_children(
 
     // The TreeBuilder wraps shadow DOM children in an anonymous BlockContainer.
     // Delegate layout to a BFC for that wrapper.
-    let mut wrapper = run.callbacks.first_child(run.box_);
-    while !wrapper.is_invalid() {
-        if node_facts::NodeFacts::new(&run.callbacks, wrapper).is_block_container() {
-            break;
-        }
-        wrapper = run.callbacks.next_sibling(wrapper);
-    }
-    if wrapper.is_invalid() {
+    let Some(wrapper) = run
+        .callbacks
+        .children(run.box_)
+        .find(|&child| node_facts::NodeFacts::new(&run.callbacks, child).is_block_container())
+    else {
         return formatting_context::ChildLayoutResult::default();
-    }
+    };
 
     let wrapper_constraints = run
         .sizing()
