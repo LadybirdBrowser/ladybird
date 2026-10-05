@@ -218,7 +218,7 @@ void HistoryExecutor::finalize_same_document_navigation(GC::Ref<LocalNavigable> 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#checking-if-unloading-is-canceled
 // NB: The UI process has each page hosting documents to check run this for them. The traversable's host is also given
 //     the target entry, and runs step 4 for the traversable.
-void HistoryExecutor::run_ui_beforeunload_check(Vector<CrossProcessId> navigable_ids, Optional<SessionHistoryEntryDescriptor> target_entry_descriptor, Optional<UserNavigationInvolvement> user_involvement_for_navigate_event, UnloadPromptShown unload_prompt_shown, GC::Ref<GC::Function<void(HistoryStepResult, UnloadPromptShown)>> on_complete)
+void HistoryExecutor::run_ui_beforeunload_check(Vector<CrossProcessId> navigable_ids, Optional<SessionHistoryEntryDescriptor> target_entry_descriptor, Optional<UserNavigationInvolvement> user_involvement_for_navigate_event, UnloadPromptShown unload_prompt_shown, GC::Ref<GC::Function<void(CheckIfUnloadingIsCanceledResult, UnloadPromptShown)>> on_complete)
 {
     GC::Ptr<LocalTraversableNavigable> traversable;
     RefPtr<SessionHistoryEntry> target_entry;
@@ -233,21 +233,7 @@ void HistoryExecutor::run_ui_beforeunload_check(Vector<CrossProcessId> navigable
         if (auto navigable = local_navigable_with_id(navigable_id); navigable && !navigable->has_been_destroyed() && navigable->active_document())
             navigables.append(*navigable);
     }
-    check_if_unloading_is_canceled(move(navigables), traversable, move(target_entry), user_involvement_for_navigate_event, unload_prompt_shown,
-        GC::create_function(heap(), [on_complete](CheckIfUnloadingIsCanceledResult result, UnloadPromptShown unload_prompt_shown) {
-            switch (result) {
-            case CheckIfUnloadingIsCanceledResult::CanceledByBeforeUnload:
-                on_complete->function()(HistoryStepResult::CanceledByBeforeUnload, unload_prompt_shown);
-                return;
-            case CheckIfUnloadingIsCanceledResult::CanceledByNavigate:
-                on_complete->function()(HistoryStepResult::CanceledByNavigate, unload_prompt_shown);
-                return;
-            case CheckIfUnloadingIsCanceledResult::Continue:
-                on_complete->function()(HistoryStepResult::Applied, unload_prompt_shown);
-                return;
-            }
-            VERIFY_NOT_REACHED();
-        }));
+    check_if_unloading_is_canceled(move(navigables), traversable, move(target_entry), user_involvement_for_navigate_event, unload_prompt_shown, on_complete);
 }
 
 static bool is_same_document_push_or_replace(Optional<Bindings::NavigationType> navigation_type, SessionHistoryEntry const& target_entry, Optional<UniqueNodeID> displayed_document_id)

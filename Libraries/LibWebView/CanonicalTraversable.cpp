@@ -1979,11 +1979,11 @@ void CanonicalTraversable::end_history_jobs(CanonicalNavigable const& navigable,
 ApplyHistoryStepJobs CanonicalTraversable::create_apply_history_step_jobs(HistoryOperation& operation)
 {
     return {
-        .check_if_unloading_is_canceled = [this, &operation](Vector<Web::HTML::CrossProcessId> navigables_that_need_before_unload, NonnullRefPtr<CanonicalSessionHistoryEntry> target_entry, Web::HTML::UserNavigationInvolvement user_involvement_for_navigate_event, Function<void(Web::HTML::HistoryStepResult)> on_complete) {
+        .check_if_unloading_is_canceled = [this, &operation](Vector<Web::HTML::CrossProcessId> navigables_that_need_before_unload, NonnullRefPtr<CanonicalSessionHistoryEntry> target_entry, Web::HTML::UserNavigationInvolvement user_involvement_for_navigate_event, Function<void(Web::HTML::CheckIfUnloadingIsCanceledResult)> on_complete) {
             if (operation.finished)
                 return;
             auto check_id = check_if_unloading_is_canceled(move(navigables_that_need_before_unload), move(target_entry), user_involvement_for_navigate_event, {}, Web::HTML::UnloadPromptShown::No,
-                [this, operation_id = operation.operation_id, on_complete = move(on_complete)](Web::HTML::HistoryStepResult result, Web::HTML::UnloadPromptShown) {
+                [this, operation_id = operation.operation_id, on_complete = move(on_complete)](Web::HTML::CheckIfUnloadingIsCanceledResult result, Web::HTML::UnloadPromptShown) {
                     auto* operation = find_history_operation(operation_id);
                     if (!operation)
                         return;
@@ -2841,7 +2841,7 @@ void CanonicalTraversable::abandon_history_operations()
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#checking-if-unloading-is-canceled
 // NB: The steps run in the pages hosting the documents, one page at a time. A skipped endpoint has run its part already.
-Optional<Web::HTML::CrossProcessId> CanonicalTraversable::check_if_unloading_is_canceled(Vector<Web::HTML::CrossProcessId> navigables_that_need_before_unload, RefPtr<CanonicalSessionHistoryEntry> target_entry, Optional<Web::HTML::UserNavigationInvolvement> user_involvement_for_navigate_event, RefPtr<WebContentPage> skipped_endpoint, Web::HTML::UnloadPromptShown unload_prompt_shown, Function<void(Web::HTML::HistoryStepResult, Web::HTML::UnloadPromptShown)> on_complete)
+Optional<Web::HTML::CrossProcessId> CanonicalTraversable::check_if_unloading_is_canceled(Vector<Web::HTML::CrossProcessId> navigables_that_need_before_unload, RefPtr<CanonicalSessionHistoryEntry> target_entry, Optional<Web::HTML::UserNavigationInvolvement> user_involvement_for_navigate_event, RefPtr<WebContentPage> skipped_endpoint, Web::HTML::UnloadPromptShown unload_prompt_shown, Function<void(Web::HTML::CheckIfUnloadingIsCanceledResult, Web::HTML::UnloadPromptShown)> on_complete)
 {
     PendingBeforeunloadCheck check;
     check.target_entry = target_entry;
@@ -2884,7 +2884,7 @@ Optional<Web::HTML::CrossProcessId> CanonicalTraversable::check_if_unloading_is_
     }
 
     if (check.groups.is_empty()) {
-        on_complete(Web::HTML::HistoryStepResult::Applied, unload_prompt_shown);
+        on_complete(Web::HTML::CheckIfUnloadingIsCanceledResult::Continue, unload_prompt_shown);
         return {};
     }
 
@@ -2922,17 +2922,17 @@ void CanonicalTraversable::dispatch_next_beforeunload_group(Web::HTML::CrossProc
     // 8. Wait for completedTasks to be totalTasks.
     // 9. Return finalStatus.
     auto completed_check = m_pending_beforeunload_checks.take(check_id);
-    completed_check->on_complete(Web::HTML::HistoryStepResult::Applied, completed_check->unload_prompt_shown);
+    completed_check->on_complete(Web::HTML::CheckIfUnloadingIsCanceledResult::Continue, completed_check->unload_prompt_shown);
 }
 
-void CanonicalTraversable::did_receive_beforeunload_check_result(WebContentPage& source_page, Web::HTML::CrossProcessId check_id, Web::HTML::HistoryStepResult result, Web::HTML::UnloadPromptShown unload_prompt_shown)
+void CanonicalTraversable::did_receive_beforeunload_check_result(WebContentPage& source_page, Web::HTML::CrossProcessId check_id, Web::HTML::CheckIfUnloadingIsCanceledResult result, Web::HTML::UnloadPromptShown unload_prompt_shown)
 {
     if (!source_page.take_owed_reply({ OwedReply::Kind::BeforeunloadCheck, check_id, {} }))
         return;
     auto check = m_pending_beforeunload_checks.find(check_id);
     if (check == m_pending_beforeunload_checks.end())
         return;
-    if (result != Web::HTML::HistoryStepResult::Applied) {
+    if (result != Web::HTML::CheckIfUnloadingIsCanceledResult::Continue) {
         auto completed_check = m_pending_beforeunload_checks.take(check_id);
         completed_check->on_complete(result, unload_prompt_shown);
         return;

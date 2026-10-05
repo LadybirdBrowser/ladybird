@@ -1641,7 +1641,7 @@ void WebContentPage::history_operation_ready(Web::HTML::CrossProcessId operation
     traversable().did_receive_history_operation_ready(*this, operation_id, move(result));
 }
 
-void WebContentPage::beforeunload_check_result(Web::HTML::CrossProcessId operation_id, Web::HTML::HistoryStepResult result, Web::HTML::UnloadPromptShown unload_prompt_shown)
+void WebContentPage::beforeunload_check_result(Web::HTML::CrossProcessId operation_id, Web::HTML::CheckIfUnloadingIsCanceledResult result, Web::HTML::UnloadPromptShown unload_prompt_shown)
 {
     traversable().did_receive_beforeunload_check_result(*this, operation_id, result, unload_prompt_shown);
 }
@@ -1989,8 +1989,8 @@ void WebContentPage::begin_navigation_unload_check(CanonicalNavigable& target_na
         return IterationDecision::Continue;
     });
     (void)target_navigable.top_level_traversable().check_if_unloading_is_canceled(move(inclusive_descendants), {}, {}, *this, Web::HTML::UnloadPromptShown::No,
-        [page = NonnullRefPtr<WebContentPage>(*this), navigable_id = target_navigable.id(), navigation_id](Web::HTML::HistoryStepResult result, Web::HTML::UnloadPromptShown unload_prompt_shown) {
-            if (result != Web::HTML::HistoryStepResult::Applied) {
+        [page = NonnullRefPtr<WebContentPage>(*this), navigable_id = target_navigable.id(), navigation_id](Web::HTML::CheckIfUnloadingIsCanceledResult result, Web::HTML::UnloadPromptShown unload_prompt_shown) {
+            if (result != Web::HTML::CheckIfUnloadingIsCanceledResult::Continue) {
                 // The navigation parked for its population is not coming; the recorded load ends as a failed one.
                 page->async_cancel_navigation_params_creation(navigable_id, navigation_id);
                 if (page->is_open())
@@ -2608,7 +2608,7 @@ void WebContentPage::request_unload_check(Web::HTML::CrossProcessId navigable_id
 {
     auto navigable = hosted_navigable(navigable_id);
     if (!navigable.has_value()) {
-        async_unload_check_result(check_id, Web::HTML::HistoryStepResult::Applied);
+        async_unload_check_result(check_id, Web::HTML::CheckIfUnloadingIsCanceledResult::Continue);
         return;
     }
     Vector<Web::HTML::CrossProcessId> inclusive_descendants;
@@ -2617,7 +2617,7 @@ void WebContentPage::request_unload_check(Web::HTML::CrossProcessId navigable_id
         return IterationDecision::Continue;
     });
     (void)navigable->top_level_traversable().check_if_unloading_is_canceled(move(inclusive_descendants), {}, {}, {}, Web::HTML::UnloadPromptShown::No,
-        [page = NonnullRefPtr<WebContentPage>(*this), check_id](Web::HTML::HistoryStepResult result, Web::HTML::UnloadPromptShown) {
+        [page = NonnullRefPtr<WebContentPage>(*this), check_id](Web::HTML::CheckIfUnloadingIsCanceledResult result, Web::HTML::UnloadPromptShown) {
             page->async_unload_check_result(check_id, result);
         });
 }

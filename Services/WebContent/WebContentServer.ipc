@@ -300,7 +300,7 @@ endpoint WebContentServer routed by Web::PageId page_id
     did_worker_agent_die(Web::HTML::WorkerAgentOwnerToken owner_token) =|
 
     request_close(Web::PageId page_id) =|
-    unload_check_result(Web::PageId page_id, Web::HTML::CrossProcessId check_id, Web::HTML::HistoryStepResult result) =|
+    unload_check_result(Web::PageId page_id, Web::HTML::CrossProcessId check_id, Web::HTML::CheckIfUnloadingIsCanceledResult result) =|
     force_close(Web::PageId page_id) =|
 
     exit_fullscreen(Web::PageId page_id) =|

@@ -10,6 +10,13 @@
 
 namespace Web::HTML {
 
+// https://html.spec.whatwg.org/multipage/browsing-the-web.html#checking-if-unloading-is-canceled
+enum class CheckIfUnloadingIsCanceledResult {
+    CanceledByBeforeUnload,
+    CanceledByNavigate,
+    Continue,
+};
+
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#apply-the-history-step
 // They return "initiator-disallowed", "canceled-by-beforeunload", "canceled-by-navigate", or
 // "applied".
