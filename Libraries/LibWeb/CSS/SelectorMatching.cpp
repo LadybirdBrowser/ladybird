@@ -148,6 +148,7 @@ static bool element_popover_is_open(DOM::Element const& element)
     X(Indeterminate, matches_indeterminate_pseudo_class(element))            \
     X(Modal, element_is_modal(element))                                      \
     X(Open, matches_open_state_pseudo_class(element))                        \
+    X(PictureInPicture, element.is_picture_in_picture_element())             \
     X(PlaceholderShown, element.matches_placeholder_shown_pseudo_class())    \
     X(PopoverOpen, element_popover_is_open(element))                         \
     X(Target, element.is_target())                                           \

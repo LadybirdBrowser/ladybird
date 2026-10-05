@@ -73,6 +73,7 @@ impl StateFact {
                 | Self::Fullscreen
                 | Self::Hover
                 | Self::Modal
+                | Self::PictureInPicture
                 | Self::PopoverOpen
                 | Self::Target
         )
