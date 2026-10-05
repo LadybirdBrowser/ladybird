@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<div id="box" style="width: 10px; height: 0px; background: green"></div>
+<script>
+    // A rendering update after a task beside which the render clock ticked renders no earlier than the last tick, though
+    // the rendering opportunity it renders for was queued before the ticks.
+    asyncTest(async done => {
+        const result = await whileClockLeased(() => {
+            return box.animate([{ height: "0px" }, { height: "100px" }], { duration: 10000, easing: "linear" });
+        }, async (frameTime, animation, startTime) => {
+            internals.injectRenderingOpportunity(frameTime + 16);
+            while (performance.now() < frameTime + 200) { }
+            internals.injectClockTick(frameTime + 100);
+            internals.injectClockTick(frameTime + 200);
+            const timestamp = await new Promise(resolve => requestAnimationFrame(resolve));
+            return {
+                timestampIsNotBeforeTheLastTick: timestamp >= frameTime + 200,
+                animationIsNotBehindTheLastTick: animation.currentTime >= frameTime + 200 - startTime,
+            };
+        });
+        println(`the update's timestamp is not before the last tick: ${result.timestampIsNotBeforeTheLastTick}`);
+        println(`the animation is not behind the last tick: ${result.animationIsNotBehindTheLastTick}`);
+        done();
+    });
+</script>
