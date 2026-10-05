@@ -1,0 +1,50 @@
+/*
+ * Copyright (c) 2020, Matthew Olsson <mattco@serenityos.org>
+ *
+ * SPDX-License-Identifier: BSD-2-Clause
+ */
+
+#pragma once
+
+#include <AK/Optional.h>
+#include <AK/Utf16String.h>
+#include <AK/Utf16View.h>
+#include <AK/Vector.h>
+#include <LibJS/Embedding/Layout.h>
+#include <LibJS/Export.h>
+#include <LibJS/Runtime/Completion.h>
+#include <LibJS/Runtime/Object.h>
+#include <LibJS/Runtime/Value.h>
+
+namespace JS {
+
+// A JSON Parse Record is a Record value used to describe the initial state of a
+// value parsed from JSON text. https://tc39.es/ecma262/#sec-json-parse-record
+struct JSONParseRecord {
+    // [[Value]]: the value produced by evaluation of [[ParseNode]].
+    Value value;
+    // [[Key]]: the property name with which [[Value]] is associated.
+    Utf16String key;
+    // NB: In place of the spec's [[ParseNode]] field, we capture the source text
+    //     matched by the parse node up front. It is present only when [[Value]] is
+    //     a primitive, since the reviver context only exposes "source" for those.
+    Optional<Utf16String> source;
+    // [[Elements]]: if [[Value]] is an Array, the records for its elements; else empty.
+    Vector<JSONParseRecord> elements;
+    // [[Entries]]: if [[Value]] is a non-Array Object, the records for its entries; else empty.
+    Vector<JSONParseRecord> entries;
+};
+
+class JS_API JSONObject final : public Object {
+public:
+    static bool is_engine_class_of(Object const& object) { return object.engine_class_id() == JS_LAYOUT_CLASS_ID_JSON_OBJECT; }
+
+    // The base implementation of stringify is exposed because it is used by
+    // test-js to communicate between the JS tests and the C++ test runner.
+    static ThrowCompletionOr<Optional<Utf16String>> stringify_impl(VM&, Value value, Value replacer, Value space);
+
+    // The runtime keeps no parse records for the embedder, so `root_record` must be null.
+    static ThrowCompletionOr<Value> parse_json(VM&, Utf16View text, JSONParseRecord* root_record = nullptr);
+};
+
+}
