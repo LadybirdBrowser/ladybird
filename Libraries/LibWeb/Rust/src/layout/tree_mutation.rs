@@ -183,10 +183,8 @@ fn tell_shell_of_style_change(
 impl HostCalls<'_> {
     /// Frees the subtree `root` heads, and owes the host the destruction of what its rows held that the host owns the
     /// memory of.
-    pub(crate) fn free_subtree(self, arena: *mut LayoutNodeArena, root: NodeSlotId) {
-        // SAFETY: Callers hold no reference derived from the arena across this call.
-        let freed = unsafe { &mut *arena }.free_subtree(root);
-        self.0.owe(OwedHostCall::Freed(freed));
+    pub(crate) fn free_subtree(self, arena: &mut LayoutNodeArena, root: NodeSlotId) {
+        self.0.owe(OwedHostCall::Freed(arena.free_subtree(root)));
     }
 
     /// Owes the document's chrome state the news that a row's paint state was reset.

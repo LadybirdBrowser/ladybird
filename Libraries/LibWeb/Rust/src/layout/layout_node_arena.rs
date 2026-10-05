@@ -6616,11 +6616,7 @@ mod tests {
 
     #[test]
     fn clearing_a_committed_box_evicts_its_fragment_link_and_abspos_inputs() {
-        let mut handle = crate::layout::ArenaHandle::new();
-        let handle = std::ptr::from_mut(&mut handle).cast::<LayoutNodeArena>();
-        // SAFETY: The handle lives until the end of the test, and the clear below borrows the
-        // arena only for its call.
-        let arena = unsafe { &mut *handle };
+        let mut arena = LayoutNodeArena::new();
         let allocation = arena.allocate_for_test();
         let inputs = test_abspos_layout_inputs();
         let mut link = fragment_tree::FragmentLink::for_test(allocation.slot);
@@ -6632,16 +6628,12 @@ mod tests {
             Some(inputs)
         );
 
-        // SAFETY: arena is a live handle on this thread, and allocation names
-        // a live slot in it.
         let work = crate::layout::tree_mutation::OwedHostWork::default();
-        unsafe {
-            crate::painting::ffi::paintable_cleared_from_node(
-                crate::layout::tree_mutation::HostCalls(&work),
-                handle,
-                allocation.slot,
-            );
-        }
+        crate::painting::ffi::paintable_cleared_from_node(
+            crate::layout::tree_mutation::HostCalls(&work),
+            &mut arena,
+            allocation.slot,
+        );
 
         assert!(arena.committed_fragment_link(arena.data(allocation.slot)).is_none());
         assert_eq!(arena.saved_abspos_layout_inputs(arena.data(allocation.slot)), None);

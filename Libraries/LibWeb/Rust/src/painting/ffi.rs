@@ -64,25 +64,15 @@ unsafe fn host_tables<'a>(host: *const DocumentHost) -> &'a crate::layout::HostT
 
 /// Clears the committed box of `layout_node` and tells the document's chrome state, at once or
 /// once the change that clears it is over.
-///
-/// # Safety
-///
-/// `arena` must be the live arena of the render state the caller holds, with no outstanding borrow.
-pub(crate) unsafe fn paintable_cleared_from_node(
+pub(crate) fn paintable_cleared_from_node(
     host_calls: crate::layout::tree_mutation::HostCalls<'_>,
-    arena: *mut LayoutNodeArena,
+    arena: &mut LayoutNodeArena,
     layout_node: NodeSlotId,
 ) {
-    let reset = {
-        // SAFETY: Guaranteed by the caller.
-        let arena = unsafe { &*arena };
-        arena.clear_committed_fragment_link(layout_node);
-        arena.prepare_paintable_row_cleared_reset(layout_node)
-    };
-    if let Some(reset) = reset {
+    arena.clear_committed_fragment_link(layout_node);
+    if let Some(reset) = arena.prepare_paintable_row_cleared_reset(layout_node) {
         host_calls.paintable_row_reset(reset);
-        // SAFETY: Guaranteed by the caller; the shared borrow above has ended.
-        unsafe { &mut *arena }.paintable_row_cleared(reset);
+        arena.paintable_row_cleared(reset);
     }
 }
 

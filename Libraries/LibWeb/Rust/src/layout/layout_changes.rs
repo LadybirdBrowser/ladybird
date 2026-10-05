@@ -355,16 +355,14 @@ pub(crate) struct LayoutWritten {
 
 impl LayoutWrite<'_> {
     /// Makes the write to the arena `arena` names, owing the host what it would have paid on its thread.
-    pub(crate) fn apply(self, arena: *mut LayoutNodeArena) -> LayoutWritten {
+    pub(crate) fn apply(self, arena: &mut LayoutNodeArena) -> LayoutWritten {
         let host_work = OwedHostWork::default();
         let host_calls = HostCalls(&host_work);
-        // SAFETY: The render state holds the arena, and nothing else reaches it while the write runs.
-        let arena_ref = unsafe { &*arena };
-        arena_ref.queue_box_presence();
+        arena.queue_box_presence();
         let was_attached = match self {
             Self::DropSubtree { root } => {
-                if arena_ref.slot_is_live(root) {
-                    let was_attached = arena_ref.detach_from_parent(root);
+                if arena.slot_is_live(root) {
+                    let was_attached = arena.detach_from_parent(root);
                     host_calls.free_subtree(arena, root);
                     was_attached
                 } else {
@@ -382,46 +380,45 @@ impl LayoutWrite<'_> {
                 false
             }
             Self::AdoptDerivedNodeStyle { node, record } => {
-                let derived = arena_ref.with_style_engine(|engine| {
+                let derived = arena.with_style_engine(|engine| {
                     crate::css::style::layout_style::DerivedStyleRecord::pin(engine, record)
                 });
-                arena_ref.apply_reinherited_style_record(host_calls, node, derived);
+                arena.apply_reinherited_style_record(host_calls, node, derived);
                 false
             }
             Self::SetLayoutDisplay { node, display } => {
-                arena_ref.update_layout_style(host_calls, node, |style| {
+                arena.update_layout_style(host_calls, node, |style| {
                     style.set_display(crate::css::display::FfiDisplay::from_raw(display));
                 });
                 false
             }
             Self::ReinheritAnonymousDescendants { node } => {
-                arena_ref.reinherit_anonymous_descendants(host_calls, node);
+                arena.reinherit_anonymous_descendants(host_calls, node);
                 false
             }
             Self::PrepareRowForDetach { row } => {
-                super::layout_node_arena::prepare_row_for_detach(host_calls, arena_ref, row);
+                super::layout_node_arena::prepare_row_for_detach(host_calls, arena, row);
                 false
             }
             Self::PrepareSubtreeForDetach { root } => {
-                super::layout_node_arena::prepare_subtree_for_detach(host_calls, arena_ref, root);
+                super::layout_node_arena::prepare_subtree_for_detach(host_calls, arena, root);
                 false
             }
             Self::PrepareSubtreeForRemoval { root } => {
                 let mut rows = Vec::new();
-                arena_ref.for_each_node_in_layout_subtree_in_pre_order(root, |row| rows.push(row));
+                arena.for_each_node_in_layout_subtree_in_pre_order(root, |row| rows.push(row));
                 for &row in &rows {
-                    // SAFETY: The render state holds the arena, and the clear borrows it for itself.
-                    unsafe { crate::painting::ffi::paintable_cleared_from_node(host_calls, arena, row) };
+                    crate::painting::ffi::paintable_cleared_from_node(host_calls, arena, row);
                 }
                 for row in rows {
-                    super::layout_node_arena::prepare_row_for_detach(host_calls, arena_ref, row);
+                    super::layout_node_arena::prepare_row_for_detach(host_calls, arena, row);
                 }
                 false
             }
         };
         LayoutWritten {
             was_attached,
-            host_work: host_work.resolve(arena_ref),
+            host_work: host_work.resolve(arena),
         }
     }
 }
@@ -793,11 +790,11 @@ mod tests {
         let parent = arena.allocate_for_test().slot;
         let child = arena.allocate_for_test().slot;
         arena.insert_child(parent, child, NodeSlotId::INVALID);
-        let written = LayoutWrite::DropSubtree { root: child }.apply(&raw mut arena);
+        let written = LayoutWrite::DropSubtree { root: child }.apply(&mut arena);
         assert!(written.was_attached);
         assert!(!arena.slot_is_live(child));
         written.host_work.pay(&crate::stage::MainThread::for_test());
-        let written = LayoutWrite::DropSubtree { root: parent }.apply(&raw mut arena);
+        let written = LayoutWrite::DropSubtree { root: parent }.apply(&mut arena);
         assert!(!written.was_attached);
         written.host_work.pay(&crate::stage::MainThread::for_test());
         assert_eq!(arena.live_slot_count(), 0);
