@@ -393,7 +393,7 @@ void set_up_cross_realm_transform_writable(JS::Realm& realm, WritableStream& str
                     WebIDL::resolve_promise(*reaction_promise->promise);
                 }
 
-                return reaction_promise->promise;
+                return JS::js_undefined();
             }));
 
         return *reaction_promise->promise;
