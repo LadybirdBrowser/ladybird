@@ -411,18 +411,26 @@ void ProcessManagerWindow::refresh()
     manager.for_each_process_statistics([&](auto& process, auto const& statistics) {
         auto* item = static_cast<ProcessItem*>(items.take(statistics.pid).value_or_lazy_evaluated([] { return new ProcessItem; }));
         auto name = qstring_from_ak_string(WebView::process_name_from_type(process.type()));
-        if (process.type() == WebView::ProcessType::WebContent) {
-            auto page = process_pages.get(statistics.pid);
+        if (process.type() == WebView::ProcessType::WebContent || process.type() == WebView::ProcessType::ImageDecoder) {
+            auto* label_process = &process;
+            if (process.type() == WebView::ProcessType::ImageDecoder && process.owner_pid().has_value()) {
+                if (auto owner = manager.find_process(*process.owner_pid()); owner.has_value())
+                    label_process = &*owner;
+            }
+            auto page = process_pages.get(label_process->pid());
             auto* view = page.has_value() ? page->view : nullptr;
-            bool is_spare = process.title().has_value() && *process.title() == "(spare)"_utf16;
+            bool is_spare = label_process->title().has_value() && *label_process->title() == "(spare)"_utf16;
             if (view) {
                 auto site = task_manager_site_label(page->url);
                 if (!site.isEmpty())
                     name += QStringLiteral(" — ") + site;
-            } else if (process.title().has_value()) {
-                name += QStringLiteral(" — ") + qstring_from_utf16_string(*process.title());
+            } else if (label_process->title().has_value()) {
+                name += QStringLiteral(" — ") + qstring_from_utf16_string(*label_process->title());
             }
-            item->update_page_icon(page.has_value() && page->url != URL::about_blank() ? view : nullptr, is_spare ? spare_icon : web_content_icon);
+            if (process.type() == WebView::ProcessType::WebContent)
+                item->update_page_icon(page.has_value() && page->url != URL::about_blank() ? view : nullptr, is_spare ? spare_icon : web_content_icon);
+            else
+                item->setIcon(Name, service_icon);
         } else {
             if (process.title().has_value())
                 name += QStringLiteral(" — ") + qstring_from_utf16_string(*process.title());

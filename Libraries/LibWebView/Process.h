@@ -49,6 +49,9 @@ public:
     Optional<Utf16String> const& title() const { return m_title; }
     void set_title(Optional<Utf16String> title) { m_title = move(title); }
 
+    Optional<pid_t> owner_pid() const { return m_owner_pid; }
+    void set_owner_pid(pid_t pid) { m_owner_pid = pid; }
+
     template<typename ConnectionFromClient>
     RefPtr<ConnectionFromClient> client()
     {
@@ -102,6 +105,7 @@ private:
     Core::Process m_process;
     ProcessType m_type;
     Optional<Utf16String> m_title;
+    Optional<pid_t> m_owner_pid;
     WeakPtr<IPC::ConnectionBase> m_connection;
     ProcessOutputCapture m_output_capture;
 };
