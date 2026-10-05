@@ -8,6 +8,7 @@
 
 #include <LibJS/Export.h>
 #include <LibJS/Runtime/Object.h>
+#include <LibJS/Runtime/Value.h>
 
 namespace JS {
 
@@ -23,7 +24,22 @@ public:
         Handle,
     };
 
-    static bool is_engine_class_of(Object const& object) { return object.engine_class_id() == JS_LAYOUT_CLASS_ID_PROMISE; }
+    State state() const;
+    Value result() const;
+
+    struct ResolvingFunctions {
+        GC::Ref<FunctionObject> resolve;
+        GC::Ref<FunctionObject> reject;
+    };
+
+    ResolvingFunctions create_resolving_functions();
+
+    Value perform_then(Value on_fulfilled, Value on_rejected, GC::Ptr<PromiseCapability> result_capability);
+
+    bool is_handled() const;
+    void set_is_handled();
+
+    static bool is_engine_class_of(Object const& object) { return object.is_of_engine_class_or_subclass(JS_LAYOUT_CLASS_ID_PROMISE); }
 };
 
 }
