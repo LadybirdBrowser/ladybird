@@ -214,9 +214,12 @@ DemuxerScanState const& MatroskaDemuxer::scan_state() const
     return m_buffered_scan_thread->main_thread_state();
 }
 
-void MatroskaDemuxer::set_scan_state_change_handler(Function<void()> handler)
+void MatroskaDemuxer::set_scan_state_change_handler(ScanStateChangeHandler handler)
 {
-    m_buffered_scan_thread->set_change_handler(move(handler));
+    m_buffered_scan_thread->set_change_handler([handler = move(handler)] {
+        if (handler)
+            handler(TimeRanges {});
+    });
 }
 
 DecoderErrorOr<AK::Duration> MatroskaDemuxer::duration_of_track(Track const&)

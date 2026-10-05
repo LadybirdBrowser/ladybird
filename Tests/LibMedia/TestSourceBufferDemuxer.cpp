@@ -8,6 +8,7 @@
 #include <AK/ByteBuffer.h>
 #include <LibMedia/MediaSourceExtensions/SourceBufferDemuxer.h>
 #include <LibTest/TestCase.h>
+#include <Tests/LibMedia/TestMediaCommon.h>
 
 static Media::CodedFrame coded_frame_at(u64 seconds, Optional<ReadonlyBytes> new_codec_configuration = {}, Media::CodecID codec_id = Media::CodecID::H264)
 {
@@ -365,4 +366,115 @@ TEST_CASE(replacing_a_later_group_of_pictures_does_not_move_the_cursor)
     expect_next_sample(*demuxer, track, 'B', 4);
     expect_next_sample(*demuxer, track, 'B', 5);
     expect_next_sample(*demuxer, track, 'A', 6);
+}
+
+static Media::TimeRanges ranges_reported_as_invalidated_after(Media::MediaSourceExtensions::SourceBufferDemuxer& demuxer, Function<void()> change)
+{
+    auto& loop = never_destroyed_event_loop();
+    Media::TimeRanges reported;
+    demuxer.set_scan_state_change_handler([&](Media::TimeRanges const& ranges) {
+        for (auto const& range : ranges)
+            reported.add_range(range.start, range.end);
+    });
+    loop.pump(Core::EventLoop::WaitMode::PollForEvents);
+    reported = {};
+
+    change();
+    loop.pump(Core::EventLoop::WaitMode::PollForEvents);
+    demuxer.set_scan_state_change_handler(nullptr);
+    return reported;
+}
+
+static Media::TimeRanges::Range seconds_range(u64 start, u64 end)
+{
+    return { AK::Duration::from_seconds(start), AK::Duration::from_seconds(end) };
+}
+
+TEST_CASE(replacing_delivered_frames_reports_their_ranges_as_invalidated)
+{
+    Media::Track track { Media::TrackType::Video, 1, Media::Track::Kind::Main, {}, {} };
+    auto demuxer = make_ref_counted<Media::MediaSourceExtensions::SourceBufferDemuxer>(Vector { track });
+
+    for (u64 second = 0; second < 10; second++)
+        demuxer->add_coded_frame(track, frame_from_source_at('A', second));
+    for (u64 second = 0; second < 5; second++)
+        expect_next_sample(*demuxer, track, 'A', second);
+
+    // The consumer may still hold these, though the cursor has moved past them.
+    auto reported_behind_the_cursor = ranges_reported_as_invalidated_after(*demuxer, [&] {
+        replace_with_frame(*demuxer, track, frame_from_source_at('B', 2));
+    });
+    EXPECT_EQ(reported_behind_the_cursor, Media::TimeRanges({ seconds_range(2, 3) }));
+
+    auto reported_ahead_of_the_cursor = ranges_reported_as_invalidated_after(*demuxer, [&] {
+        replace_with_frame(*demuxer, track, frame_from_source_at('B', 7));
+    });
+    EXPECT(reported_ahead_of_the_cursor.is_empty());
+}
+
+TEST_CASE(reordered_frames_delivered_earlier_are_reported_as_invalidated)
+{
+    Media::Track track { Media::TrackType::Video, 1, Media::Track::Kind::Main, {}, {} };
+    auto demuxer = make_ref_counted<Media::MediaSourceExtensions::SourceBufferDemuxer>(Vector { track });
+
+    // Decode order I0 P3 B1 B2, which presents in the order 0 1 2 3.
+    auto frame = [](u64 presentation, u64 decode, Media::FrameFlags flags) {
+        auto data = MUST(FixedArray<u8>::create(1));
+        data[0] = static_cast<u8>(presentation);
+        return Media::CodedFrame { Media::CodecID::H264, AK::Duration::from_seconds(presentation), AK::Duration::from_seconds(decode), AK::Duration::from_seconds(1), flags, move(data), {} };
+    };
+    demuxer->add_coded_frame(track, frame(0, 0, Media::FrameFlags::Keyframe));
+    demuxer->add_coded_frame(track, frame(3, 1, Media::FrameFlags::None));
+    demuxer->add_coded_frame(track, frame(1, 2, Media::FrameFlags::None));
+    demuxer->add_coded_frame(track, frame(2, 3, Media::FrameFlags::None));
+    for (u64 presentation : { 0u, 3u, 1u })
+        EXPECT_EQ(MUST(demuxer->get_next_sample_for_track(track)).presentation_timestamp(), AK::Duration::from_seconds(presentation));
+
+    // The last delivered frame presents at 1, but the one presenting at 3 was delivered before it.
+    auto reported = ranges_reported_as_invalidated_after(*demuxer, [&] {
+        demuxer->remove_coded_frames_and_dependants_in_range(track, AK::Duration::from_seconds(3), AK::Duration::from_seconds(4));
+    });
+    EXPECT_EQ(reported, Media::TimeRanges({ seconds_range(1, 4) }));
+}
+
+TEST_CASE(a_seek_forgets_what_was_delivered)
+{
+    Media::Track track { Media::TrackType::Video, 1, Media::Track::Kind::Main, {}, {} };
+    auto demuxer = make_ref_counted<Media::MediaSourceExtensions::SourceBufferDemuxer>(Vector { track });
+
+    for (u64 second = 0; second < 10; second++)
+        demuxer->add_coded_frame(track, frame_from_source_at('A', second));
+    for (u64 second = 0; second < 5; second++)
+        expect_next_sample(*demuxer, track, 'A', second);
+
+    MUST(demuxer->seek_to_most_recent_keyframe(track, AK::Duration::from_seconds(8), Media::DemuxerSeekOptions::None));
+    auto reported_after_seeking = ranges_reported_as_invalidated_after(*demuxer, [&] {
+        replace_with_frame(*demuxer, track, frame_from_source_at('B', 2));
+    });
+    EXPECT(reported_after_seeking.is_empty());
+}
+
+TEST_CASE(retracting_a_delivered_end_of_stream_reports_what_follows_as_invalidated)
+{
+    Media::Track track { Media::TrackType::Video, 1, Media::Track::Kind::Main, {}, {} };
+    auto demuxer = make_ref_counted<Media::MediaSourceExtensions::SourceBufferDemuxer>(Vector { track });
+
+    demuxer->add_coded_frame(track, frame_from_source_at('A', 0));
+    demuxer->set_reached_end_of_stream();
+    expect_next_sample(*demuxer, track, 'A', 0);
+
+    // Until a read reports the end, nothing that was delivered depends on it.
+    auto reported_before_delivering_the_end = ranges_reported_as_invalidated_after(*demuxer, [&] {
+        demuxer->clear_reached_end_of_stream();
+    });
+    EXPECT(reported_before_delivering_the_end.is_empty());
+
+    demuxer->set_reached_end_of_stream();
+    auto end_of_stream = demuxer->get_next_sample_for_track(track);
+    EXPECT(end_of_stream.is_error() && end_of_stream.error().category() == Media::DecoderErrorCategory::EndOfStream);
+
+    auto reported_after_delivering_the_end = ranges_reported_as_invalidated_after(*demuxer, [&] {
+        demuxer->clear_reached_end_of_stream();
+    });
+    EXPECT_EQ(reported_after_delivering_the_end, Media::TimeRanges({ { AK::Duration::from_seconds(1), AK::Duration::max() } }));
 }

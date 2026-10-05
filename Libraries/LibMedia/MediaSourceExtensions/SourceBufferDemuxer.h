@@ -81,7 +81,7 @@ public:
     virtual Media::DecoderErrorOr<AK::Duration> total_duration() override;
 
     virtual Media::DemuxerScanState const& scan_state() const LIFETIME_BOUND override;
-    virtual void set_scan_state_change_handler(Function<void()>) override;
+    virtual void set_scan_state_change_handler(ScanStateChangeHandler) override;
 
     virtual void set_blocking_reads_aborted_for_track(Media::Track const&) override;
     virtual void reset_blocking_reads_aborted_for_track(Media::Track const&) override;
@@ -106,6 +106,9 @@ private:
         // The presentation time that reads have reached in the buffered ranges, which a read may only move past
         // within the range that contains it. Seeking sets it to the seek's target.
         Optional<AK::Duration> read_anchor;
+        // What the consumer was given and may still hold since the last seek.
+        Optional<AK::Duration> highest_delivered_presentation_end;
+        bool delivered_end_of_stream { false };
 
         Optional<AK::Duration> last_appended_decode_timestamp;
         Optional<FixedArray<u8>> last_delivered_codec_configuration;
@@ -131,11 +134,12 @@ private:
     static Optional<ReadonlyBytes> codec_configuration_at_position(TrackData const&, size_t run_index, size_t frame_index);
     static bool is_frame_evictable(TrackData const&, Media::CodedFrame const&, AK::Duration current_time);
     static bool run_ends_at_last_appended_frame(TrackData const&, FrameRun const&);
+    static void note_delivered_frame(TrackData&, Media::CodedFrame const&);
     static void note_cursor_jumped(TrackData&);
     static void verify_runs_are_ordered_around_index(TrackData const&, size_t run_index);
     static void split_run(TrackData&, size_t run_index, size_t split_at, FixedArray<u8> codec_configuration_before_tail);
     static bool removed_frames_overlap_group_of_pictures_being_read(FrameRun const& cursor_run, size_t cursor_frame_index, size_t first_removed_frame_index, size_t removed_frame_count);
-    static size_t erase_frames_and_dependants(TrackData&, size_t run_index, size_t first_frame, size_t minimum_frame_count);
+    size_t erase_frames_and_dependants(TrackData&, size_t run_index, size_t first_frame, size_t minimum_frame_count);
     Optional<size_t> find_run_to_play_from_while_locked(TrackData const&, AK::Duration) const;
     bool move_cursor_to_presentation_time_while_locked(TrackData&, AK::Duration);
 
@@ -161,10 +165,12 @@ private:
 
     // Owned by the thread that installed the change handler; mutated only via its event loop.
     Media::DemuxerScanState m_scan_state;
-    Function<void()> m_scan_state_change_handler;
+    ScanStateChangeHandler m_scan_state_change_handler;
     // Guarded by m_mutex, so that track buffer mutations may move off the main thread.
     Core::EventLoop* m_scan_state_change_handler_event_loop { nullptr };
     bool m_scan_state_change_dispatch_pending { false };
+    // Reported, then reset, by the next scan state change dispatch.
+    Media::TimeRanges m_invalidated_ranges;
 };
 
 }

@@ -61,7 +61,10 @@ public:
     virtual Optional<AK::UnixDateTime> start_time_realtime() const { return {}; }
 
     virtual DemuxerScanState const& scan_state() const LIFETIME_BOUND = 0;
-    virtual void set_scan_state_change_handler(Function<void()>) = 0;
+    // Also passes the time ranges of delivered data that has since been replaced or ended early, which the consumer
+    // must read again.
+    using ScanStateChangeHandler = Function<void(TimeRanges const& invalidated_ranges)>;
+    virtual void set_scan_state_change_handler(ScanStateChangeHandler) = 0;
 
     virtual void set_blocking_reads_aborted_for_track(Track const&) = 0;
     virtual void reset_blocking_reads_aborted_for_track(Track const&) = 0;

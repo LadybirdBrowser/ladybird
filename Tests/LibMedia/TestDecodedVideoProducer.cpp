@@ -79,7 +79,7 @@ public:
     virtual Media::DecoderErrorOr<AK::Duration> total_duration() override { return AK::Duration::zero(); }
 
     virtual Media::DemuxerScanState const& scan_state() const LIFETIME_BOUND override { return m_scan_state; }
-    virtual void set_scan_state_change_handler(Function<void()>) override { }
+    virtual void set_scan_state_change_handler(ScanStateChangeHandler) override { }
 
     virtual void set_blocking_reads_aborted_for_track(Media::Track const&) override { }
     virtual void reset_blocking_reads_aborted_for_track(Media::Track const&) override { }
@@ -141,7 +141,7 @@ public:
     virtual Media::DecoderErrorOr<AK::Duration> duration_of_track(Media::Track const& track) override { return m_inner->duration_of_track(track); }
     virtual Media::DecoderErrorOr<AK::Duration> total_duration() override { return m_inner->total_duration(); }
     virtual Media::DemuxerScanState const& scan_state() const LIFETIME_BOUND override { return m_inner->scan_state(); }
-    virtual void set_scan_state_change_handler(Function<void()> handler) override { m_inner->set_scan_state_change_handler(move(handler)); }
+    virtual void set_scan_state_change_handler(ScanStateChangeHandler handler) override { m_inner->set_scan_state_change_handler(move(handler)); }
     virtual void set_blocking_reads_aborted_for_track(Media::Track const& track) override { m_inner->set_blocking_reads_aborted_for_track(track); }
     virtual void reset_blocking_reads_aborted_for_track(Media::Track const& track) override { m_inner->reset_blocking_reads_aborted_for_track(track); }
     virtual void set_read_blocked_change_handler_for_track(Media::Track const& track, Media::ReadBlockedChangeHandler handler) override { m_inner->set_read_blocked_change_handler_for_track(track, move(handler)); }
