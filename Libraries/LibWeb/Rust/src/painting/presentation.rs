@@ -100,6 +100,15 @@ impl Presentation {
         })
     }
 
+    /// Takes over what `ffi` names, which the host gives up, leaving it naming nothing.
+    ///
+    /// # Safety
+    /// See [`Self::adopt`].
+    pub(crate) unsafe fn take(ffi: &mut FfiPresentation) -> Option<Self> {
+        // SAFETY: Guaranteed by the caller.
+        unsafe { Self::adopt(std::mem::take(ffi)) }
+    }
+
     /// Gives the presenter and the seal back to the host, which takes them over.
     pub(crate) fn into_ffi(self) -> FfiPresentation {
         let this = std::mem::ManuallyDrop::new(self);
