@@ -389,61 +389,9 @@ impl super::StyleEngine {
         let table = view.longhand_table;
         // SAFETY: The record holds its table and overlay, and the host's install pins the record.
         let mut overlay = unsafe { view.animated_overlay.as_ref() }.cloned().unwrap_or_default();
-        let inheritance_parent_style_record = self
-            .tree
-            .inheritance_parent(node)
-            .and_then(|parent| self.held_style_records.get(&parent).copied())
-            .unwrap_or(0);
-        let inputs = &self.document_style_computation_inputs;
-        let environment = FfiStyleComputationEnvironment {
-            // SAFETY: As the host's value-initialized input, which an animation sample does not read.
-            box_type_input: unsafe { std::mem::zeroed() },
-            color_scheme_input: FfiEffectiveColorSchemeInput {
-                preferred_color_scheme: inputs.preferred_color_scheme,
-                has_document_supported_schemes: inputs.has_document_supported_schemes,
-                document_supported_scheme_codes: inputs.document_supported_scheme_codes.as_ptr(),
-                document_supported_scheme_count: usize::from(inputs.document_supported_scheme_count),
-            },
-            is_th_element: false,
-            has_new_font_size: false,
-            has_tree_counting_context: false,
-            sibling_count: 0,
-            sibling_index: 0,
-            random_base_values: std::ptr::null(),
-            random_base_value_count: 0,
-            document_base_url: std::ptr::null(),
-            document_base_url_length: 0,
-            style_sheet_resource_contexts: std::ptr::null(),
-            style_sheet_resource_context_count: 0,
-            device_pixels_per_css_pixel: inputs.device_pixels_per_css_pixel,
-            initial_font_size_raw: inputs.initial_font_size_raw,
-            default_font_size_raw: inputs.default_font_size_raw,
-        };
-        let overlay_pointer = std::ptr::from_mut(&mut overlay).cast::<std::ffi::c_void>();
-        let input = FfiHostAnimationSample {
-            host: std::ptr::null(),
-            style_node: node.raw(),
-            pseudo_kind: crate::css::cascaded_properties::NO_PSEUDO_ELEMENT,
-            effects: std::ptr::null(),
-            effect_count: 0,
-            longhand_table: table.cast_mut().cast_const().cast(),
-            animated_overlay: overlay_pointer.cast_const(),
-            style_record: record,
-            custom_property_store: std::ptr::null(),
-            base_custom_property_store: std::ptr::null(),
-            inheritance_custom_property_store: std::ptr::null(),
-            element_declares_own_custom_properties: false,
-            custom_property_environments: [0; 2],
-            inheritance_parent_style_record,
-            environment: &raw const environment,
-            element_box_slot: crate::layout::node_data::NodeSlotId::INVALID.index,
-            callback_context: overlay_pointer,
-            prepare_overlay_for_mutation: overlay_for_mutation,
-            length_contexts: no_host_length_contexts,
-        };
-        // SAFETY: Everything `input` names lives until the sample returns.
-        let outcome =
-            unsafe { crate::css::style_compute::sample_without_host(&input, self, composed, transform_reference_box) }?;
+        let outcome = self
+            .sample_over_record(node, record, &mut overlay, None, composed, transform_reference_box)?
+            .outcome;
         if outcome == crate::css::style_compute::FfiHostAnimationSampleOutcome::Cleared {
             overlay = AnimatedOverlay::default();
         }
@@ -502,6 +450,81 @@ impl super::StyleEngine {
         .new_style_record;
         release_rebuilt_overlay_payloads(&payloads, rebuilt.groups);
         Ok(super::layout_style::DerivedStyleRecord::pin(self, sampled))
+    }
+
+    /// Samples `composed` onto `overlay` over `record`, a record the engine holds for the element `node`
+    /// names, as far as the engine goes without the host, reading the effects `fresh` describes, or the
+    /// element's where it is `None`.
+    pub(crate) fn sample_over_record(
+        &mut self,
+        node: StyleNodeID,
+        record: u64,
+        overlay: &mut AnimatedOverlay,
+        fresh: Option<&[super::effect_descriptions::PublishedEffect]>,
+        composed: crate::css::style_compute::SampledEffects,
+        transform_reference_box: Option<crate::css::css_pixels::CssPixelRect>,
+    ) -> Result<crate::css::style_compute::FfiHostAnimationSampleResult, NeedsHost> {
+        let table = self
+            .computed_group_sets
+            .style_record_view(record)
+            .ok_or(NeedsHost)?
+            .longhand_table;
+        let inheritance_parent_style_record = self
+            .tree
+            .inheritance_parent(node)
+            .and_then(|parent| self.held_style_records.get(&parent).copied())
+            .unwrap_or(0);
+        let inputs = &self.document_style_computation_inputs;
+        let environment = FfiStyleComputationEnvironment {
+            // SAFETY: As the host's value-initialized input, which an animation sample does not read.
+            box_type_input: unsafe { std::mem::zeroed() },
+            color_scheme_input: FfiEffectiveColorSchemeInput {
+                preferred_color_scheme: inputs.preferred_color_scheme,
+                has_document_supported_schemes: inputs.has_document_supported_schemes,
+                document_supported_scheme_codes: inputs.document_supported_scheme_codes.as_ptr(),
+                document_supported_scheme_count: usize::from(inputs.document_supported_scheme_count),
+            },
+            is_th_element: false,
+            has_new_font_size: false,
+            has_tree_counting_context: false,
+            sibling_count: 0,
+            sibling_index: 0,
+            random_base_values: std::ptr::null(),
+            random_base_value_count: 0,
+            document_base_url: std::ptr::null(),
+            document_base_url_length: 0,
+            style_sheet_resource_contexts: std::ptr::null(),
+            style_sheet_resource_context_count: 0,
+            device_pixels_per_css_pixel: inputs.device_pixels_per_css_pixel,
+            initial_font_size_raw: inputs.initial_font_size_raw,
+            default_font_size_raw: inputs.default_font_size_raw,
+        };
+        let overlay_pointer = std::ptr::from_mut(overlay).cast::<std::ffi::c_void>();
+        let input = FfiHostAnimationSample {
+            host: std::ptr::null(),
+            style_node: node.raw(),
+            pseudo_kind: crate::css::cascaded_properties::NO_PSEUDO_ELEMENT,
+            effects: std::ptr::null(),
+            effect_count: 0,
+            longhand_table: table.cast_mut().cast_const().cast(),
+            animated_overlay: overlay_pointer.cast_const(),
+            style_record: record,
+            custom_property_store: std::ptr::null(),
+            base_custom_property_store: std::ptr::null(),
+            inheritance_custom_property_store: std::ptr::null(),
+            element_declares_own_custom_properties: false,
+            custom_property_environments: [0; 2],
+            inheritance_parent_style_record,
+            environment: &raw const environment,
+            element_box_slot: crate::layout::node_data::NodeSlotId::INVALID.index,
+            callback_context: overlay_pointer,
+            prepare_overlay_for_mutation: overlay_for_mutation,
+            length_contexts: no_host_length_contexts,
+        };
+        // SAFETY: Everything `input` names lives until the sample returns.
+        unsafe {
+            crate::css::style_compute::sample_without_host(&input, self, fresh, composed, transform_reference_box)
+        }
     }
 }
 

@@ -13,7 +13,7 @@
 //! depend on the element, a value or an easing still to be substituted against it, travels as
 //! written.
 
-use super::animations::{AnimationSlot, AnimationTimelineSamples, EffectTiming};
+use super::animations::{AnimationSlot, EffectTiming};
 use super::bridge::{
     FfiAnimationEffectVersion, FfiPublishedAnimationCustomDeclaration, FfiPublishedAnimationDeclaration,
     FfiPublishedAnimationEffect, FfiPublishedAnimationKeyframe, FfiPublishedEasingKind, FfiPublishedLinearEasingPoint,
@@ -192,6 +192,38 @@ pub(crate) struct PublishedEffect {
 }
 
 impl PublishedEffect {
+    /// The effect of a CSS transition of `property_id` from `start` to `end`, as the host describes one:
+    /// two keyframes, each running the linear easing, that replace the value beneath them.
+    pub(crate) fn transition(
+        identity: u64,
+        property_id: u16,
+        start: RetainedStyleValueData,
+        end: RetainedStyleValueData,
+    ) -> Self {
+        let keyframe = |key, index| PublishedKeyframe {
+            key,
+            easing: Easing::default(),
+            easing_value: None,
+            composite: FfiCompositeOperation::Replace,
+            declarations: index..index + 1,
+            custom_declarations: 0..0,
+        };
+        Self {
+            identity,
+            generation: 0,
+            is_transition: true,
+            resource_context: None,
+            // `KeyframeEffect::AnimationKeyFrameKeyScaleFactor` keys the end at 100%.
+            keyframes: Box::new([keyframe(0, 0), keyframe(100 * 1000, 1)]),
+            declarations: Box::new([start, end].map(|value| PublishedDeclaration {
+                property_id,
+                value: PublishedValue::Declared(value),
+            })),
+            custom_declarations: Box::new([]),
+            timing: None,
+        }
+    }
+
     #[must_use]
     pub(crate) fn declarations_of(&self, keyframe: &PublishedKeyframe) -> &[PublishedDeclaration] {
         &self.declarations[keyframe.declarations.clone()]
@@ -395,9 +427,20 @@ impl AnimationEffectDescriptions {
                 easing: unsafe { Easing::from_descriptor(easing) },
             });
         }
-        let kept = effect.timing.as_ref().expect("the timing was kept above");
-        kept.key_at(AnimationTimelineSamples::default())
-            .unwrap_or(Some(host_key))
+        effect.timing.as_ref().expect("the timing was kept above").key(host_key)
+    }
+
+    /// Keeps `timing`, what the host sampled one of an element's described effects with where it sampled
+    /// without asking the engine. An effect the list does not describe keeps nothing.
+    pub(crate) fn keep_timing(&mut self, node: StyleNodeID, slot: AnimationSlot, identity: u64, timing: EffectTiming) {
+        if let Some(effect) = self
+            .rows
+            .get_mut(&node)
+            .and_then(|lists| lists.iter_mut().find(|(list_slot, _)| *list_slot == slot))
+            .and_then(|(_, effects)| effects.iter_mut().find(|effect| effect.identity == identity))
+        {
+            effect.timing = Some(timing);
+        }
     }
 
     /// Give up the lists of an identity that retires. An identity can be minted again for another

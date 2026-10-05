@@ -326,7 +326,7 @@ impl StyleJob {
         let mut decided_transition_steps: Vec<_> = output
             .answers()
             .iter()
-            .filter_map(|row| crate::css::transition::DecidedTransitionStep::of_row(engine, row))
+            .filter_map(|row| crate::css::transition::DecidedTransitionStep::of_row(&mut *engine, row))
             .collect();
         decided_transition_steps.sort_unstable_by_key(crate::css::transition::DecidedTransitionStep::node);
         StyleJobAnswer {

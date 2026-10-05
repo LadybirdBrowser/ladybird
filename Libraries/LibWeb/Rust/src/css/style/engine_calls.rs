@@ -120,6 +120,11 @@ pub(crate) enum EngineWrite {
         slot: super::animations::AnimationSlot,
         effects: Box<[super::effect_descriptions::PublishedEffect]>,
     },
+    /// The timing the host sampled each of an element's own effects with, by identity, where it sampled without asking.
+    AnimationEffectTimings {
+        node: StyleNodeID,
+        timings: super::animations::SampledEffectTimings,
+    },
 }
 
 /// An input transaction the host recorded, owned.
@@ -186,6 +191,13 @@ impl EngineWrite {
             } => engine.animation_keyframes.set(tree_scope, shadow_root_identity, row),
             Self::AnimationEffectDescriptions { node, slot, effects } => {
                 engine.animation_effect_descriptions.set(node, slot, effects);
+            }
+            Self::AnimationEffectTimings { node, timings } => {
+                for (identity, timing) in timings {
+                    engine
+                        .animation_effect_descriptions
+                        .keep_timing(node, 0, identity, timing);
+                }
             }
             #[cfg(feature = "style-recording")]
             Self::BenchmarkMarker(name) => {

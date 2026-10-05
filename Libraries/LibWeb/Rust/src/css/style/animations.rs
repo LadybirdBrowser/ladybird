@@ -378,6 +378,9 @@ fn smallest(a: f64, b: f64) -> f64 {
     if b < a { b } else { a }
 }
 
+/// The timing the host sampled each of an element's effects with, by the effect's identity.
+pub(crate) type SampledEffectTimings = Box<[(u64, EffectTiming)]>;
+
 /// One animation effect's timing and easing, as the host last sampled the effect.
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct EffectTiming {
@@ -386,6 +389,15 @@ pub(crate) struct EffectTiming {
 }
 
 impl EffectTiming {
+    /// The key the effect samples its keyframes at as the host samples it: the one its timing gives at
+    /// the time the host sampled its timeline, or `host_key` where the engine cannot decide the timing,
+    /// or none for an unresolved progress, which samples nothing.
+    #[must_use]
+    pub(crate) fn key(&self, host_key: f64) -> Option<f64> {
+        self.key_at(AnimationTimelineSamples::default())
+            .unwrap_or(Some(host_key))
+    }
+
     /// The key the effect's keyframes are sampled at with its timeline at `samples`, which is
     /// `AnimationEffect::transformed_progress()` scaled the way the host scales it. The outer `None` is
     /// a timing the engine cannot decide; the inner one is an unresolved progress, which samples nothing.
