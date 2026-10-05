@@ -545,9 +545,8 @@ pub unsafe extern "C" fn render_state_sync_svg_paint_resources(
 }
 
 /// Re-reads the scroll containers' offsets when something invalidated them since the last refresh, resolves the
-/// sticky nodes' offsets on top of them, and hands the dense device-pixel snapshot to `publish`. Returns whether that
-/// happened, so the caller keeps its copy otherwise; `force` re-derives the snapshot even when nothing invalidated it,
-/// for verification.
+/// sticky nodes' offsets on top of them, and hands the dense device-pixel snapshot to `publish`; otherwise the caller
+/// keeps its copy.
 ///
 /// # Safety
 ///
@@ -557,28 +556,24 @@ pub unsafe extern "C" fn render_state_sync_svg_paint_resources(
 pub unsafe extern "C" fn render_state_refresh_scroll_state(
     host: *mut crate::render_state::DocumentHost,
     read: &crate::render_state::BegunRead,
-    force: bool,
     device_pixels_per_css_pixel: f64,
     sink: *mut c_void,
     publish: unsafe extern "C" fn(*mut c_void, *const libgfx_rust::FloatPoint, usize),
-) -> bool {
+) {
     // SAFETY: Guaranteed by the caller.
     let PaintPassAnswer::ScrollState(snapshot) = run_paint_pass(
         read,
         unsafe { &*host },
         PaintPass::RefreshScrollState {
-            force,
             device_pixels_per_css_pixel,
         },
     ) else {
         unreachable!("a scroll state refresh answers its snapshot");
     };
-    let Some(snapshot) = snapshot else {
-        return false;
-    };
-    // SAFETY: The C++ sink copies the offsets synchronously.
-    unsafe { publish(sink, snapshot.as_ptr(), snapshot.len()) };
-    true
+    if let Some(snapshot) = snapshot {
+        // SAFETY: The C++ sink copies the offsets synchronously.
+        unsafe { publish(sink, snapshot.as_ptr(), snapshot.len()) };
+    }
 }
 
 /// # Safety

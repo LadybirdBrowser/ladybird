@@ -43,13 +43,8 @@ WEB_API Layout::RustFFI::FfiPhysicalOverflowDirections rust_physical_overflow_di
 WEB_API void register_geometry_host(Layout::NodeArena&);
 WEB_API Layout::RustFFI::FfiRenderingPreparationOutcome rust_prepare_for_rendering(Layout::BegunRead const&, DOM::Document&, bool visual_context_update_pending);
 WEB_API void rust_update_visual_viewport_transform(Layout::BegunRead const&, DOM::Document&);
-enum class ForceScrollStateRefresh {
-    No,
-    Yes,
-};
-// Refreshes the snapshot from the Rust scroll state; false when nothing had invalidated it and
-// the refresh was not forced.
-WEB_API bool rust_refresh_scroll_state(Layout::BegunRead const&, DOM::Document&, Compositing::ScrollStateSnapshot&, ForceScrollStateRefresh = ForceScrollStateRefresh::No);
+// Refreshes the snapshot from the Rust scroll state, unless nothing had invalidated it.
+WEB_API void rust_refresh_scroll_state(Layout::BegunRead const&, DOM::Document&, Compositing::ScrollStateSnapshot&);
 struct InspectorOverlayInputs {
     Layout::Node const* highlighted_layout_node { nullptr };
     Color tooltip_color;

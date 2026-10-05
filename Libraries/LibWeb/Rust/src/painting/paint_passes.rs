@@ -42,11 +42,8 @@ pub(crate) enum PaintPass {
     },
     /// Gives the visual context tree the transform of the visual viewport.
     UpdateVisualViewportTransform(FfiVisualContextTreeInputs),
-    /// Re-reads the scroll containers' offsets, when something invalidated them or `force` asks.
-    RefreshScrollState {
-        force: bool,
-        device_pixels_per_css_pixel: f64,
-    },
+    /// Re-reads the scroll containers' offsets, when something invalidated them.
+    RefreshScrollState { device_pixels_per_css_pixel: f64 },
     /// Answers the SVG paint resources of the enrolled rows the host resolves from the DOM, if they changed since they
     /// were resolved last.
     SvgPaintResourceRequests,
@@ -127,9 +124,8 @@ impl PaintPass {
                 PaintPassAnswer::VisualViewportTransform
             }
             Self::RefreshScrollState {
-                force,
                 device_pixels_per_css_pixel,
-            } => PaintPassAnswer::ScrollState(refresh_scroll_state(arena, force, device_pixels_per_css_pixel)),
+            } => PaintPassAnswer::ScrollState(refresh_scroll_state(arena, device_pixels_per_css_pixel)),
             Self::SvgPaintResourceRequests => {
                 PaintPassAnswer::SvgPaintResourceRequests(svg_paint_resource_requests(arena))
             }
@@ -303,16 +299,11 @@ pub(crate) fn prepare_for_rendering(
     }
 }
 
-fn refresh_scroll_state(
-    arena: &LayoutNodeArena,
-    force: bool,
-    device_pixels_per_css_pixel: f64,
-) -> Option<Vec<FloatPoint>> {
+fn refresh_scroll_state(arena: &LayoutNodeArena, device_pixels_per_css_pixel: f64) -> Option<Vec<FloatPoint>> {
     arena.measure_scrollable_overflow();
     let paintable_rows = arena.paintable_rows();
     let mut paint_state = arena.paint_state().borrow_mut();
     let state = &mut paint_state.visual_context;
-    state.needs_to_refresh_scroll_state |= force;
     if !state.needs_to_refresh_scroll_state {
         return None;
     }
