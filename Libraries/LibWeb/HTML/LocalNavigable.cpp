@@ -7032,7 +7032,7 @@ bool LocalNavigable::lease_clock_for_task()
         return false;
     }
     Compositor::RenderClock::the().arm(compositor_context().id(), page().client().maximum_frames_per_second(),
-        [ticks = Compositor::ClockTicksHandle { ticks }](i64 frame_time_nanoseconds, double) {
+        [ticks = Compositor::ClockTicksHandle { ticks }](i64 frame_time_nanoseconds) {
             return ticks.tick(frame_time_nanoseconds);
         });
     return false;

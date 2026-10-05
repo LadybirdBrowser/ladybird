@@ -37,10 +37,10 @@ private:
             m_clock.did_lose_channel();
     }
 
-    virtual void clock_tick(Web::CompositorContextId context_id, i64 frame_time_nanoseconds, double frame_interval_milliseconds) override
+    virtual void clock_tick(Web::CompositorContextId context_id, i64 frame_time_nanoseconds, double) override
     {
         if (!m_detached)
-            m_clock.did_receive_clock_tick(context_id, frame_time_nanoseconds, frame_interval_milliseconds);
+            m_clock.did_receive_clock_tick(context_id, frame_time_nanoseconds);
     }
 
     RenderClock& m_clock;
@@ -90,11 +90,7 @@ intptr_t RenderClock::thread_main()
     // What is still queued on this thread runs before it returns: a connection's deferred invocations hold references
     // to it, and the last one to go would destroy the channel as the thread exits.
     do {
-        m_armed_contexts.clear();
-        if (auto channel = move(m_channel)) {
-            channel->detach();
-            channel->shutdown();
-        }
+        drop_channel();
     } while (Core::ThreadEventQueue::current().process() > 0);
 
     MutexLocker locker(m_mutex);
@@ -143,14 +139,19 @@ ErrorOr<IPC::TransportHandle> RenderClock::replace_channel()
 {
     // A new channel starts with nothing armed: the contexts armed on the previous one were armed for a Compositor that
     // is gone.
+    drop_channel();
+    auto paired = TRY(IPC::Transport::create_paired());
+    m_channel = adopt_ref(*new RenderClockChannel(move(paired.local), *this));
+    return move(paired.remote_handle);
+}
+
+void RenderClock::drop_channel()
+{
     m_armed_contexts.clear();
     if (auto channel = move(m_channel)) {
         channel->detach();
         channel->shutdown();
     }
-    auto paired = TRY(IPC::Transport::create_paired());
-    m_channel = adopt_ref(*new RenderClockChannel(move(paired.local), *this));
-    return move(paired.remote_handle);
 }
 
 void RenderClock::arm(Web::CompositorContextId context_id, double maximum_frames_per_second, OnTick on_tick)
@@ -162,20 +163,13 @@ void RenderClock::arm(Web::CompositorContextId context_id, double maximum_frames
     });
 }
 
-void RenderClock::disarm(Web::CompositorContextId context_id)
-{
-    (void)invoke_on_clock_thread([this, context_id] {
-        m_armed_contexts.remove(context_id);
-    });
-}
-
 void RenderClock::request_clock_tick(Web::CompositorContextId context_id, double maximum_frames_per_second)
 {
     if (m_channel)
         m_channel->async_request_clock_tick(context_id, maximum_frames_per_second);
 }
 
-void RenderClock::did_receive_clock_tick(Web::CompositorContextId context_id, i64 frame_time_nanoseconds, double frame_interval_milliseconds)
+void RenderClock::did_receive_clock_tick(Web::CompositorContextId context_id, i64 frame_time_nanoseconds)
 {
     // A tick for a context disarmed after its request went out, or armed on an earlier channel.
     auto it = m_armed_contexts.find(context_id);
@@ -184,7 +178,7 @@ void RenderClock::did_receive_clock_tick(Web::CompositorContextId context_id, i6
 
     // Handing a tick on only queues it, so the next request goes out right after: however long this tick takes, the next
     // one is already on its way, and the Compositor's pacing is the only limit on the rate.
-    if (!it->value.on_tick(frame_time_nanoseconds, frame_interval_milliseconds)) {
+    if (!it->value.on_tick(frame_time_nanoseconds)) {
         m_armed_contexts.remove(it);
         return;
     }
