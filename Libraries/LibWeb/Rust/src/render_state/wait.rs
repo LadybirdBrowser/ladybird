@@ -48,19 +48,6 @@ impl BegunRead {
     }
 }
 
-/// What takes a frame in flight in for a reach of a document's render state: a forced read of the reach's own, or the
-/// read the host began, which the reach spends only where the frame flies, or the proof that none flies. Only this
-/// module makes one.
-pub(crate) enum ReadRight {
-    Forced(ForcedRead),
-    Begun(SpendsBegunRead),
-    /// No frame flies to take in.
-    Here(super::NoFrameInFlight),
-}
-
-/// What a [`ReadRight`] holds that spends the read the host began.
-pub(crate) struct SpendsBegunRead(());
-
 /// What the reads of a layout node the host holds spend: the read that reached the node. A layout node is reached only
 /// through an entry that takes a [`BegunRead`], as the ones that find the node an element or a row is bound to do, and
 /// that entry took the frame in, which flies again only from a rendering update, after the task that reached the node.
@@ -115,8 +102,8 @@ pub(crate) trait EventLoopEntry: private::EventLoopEntry {}
 
 /// What a wait for a document's render state spends: a script's forced read, or the read the host began.
 pub(crate) trait RenderWait: private::RenderWait {
-    /// What takes a frame in flight in for the wait.
-    fn into_read_right(self) -> ReadRight;
+    /// What takes a frame in flight in for the wait, which the wait spends only where the frame flies.
+    fn into_forced_read(self) -> ForcedRead;
 
     /// Whether the wait may reach the render state of `host`'s document: a begun read reaches only the render state of
     /// the document whose host began it.
@@ -127,15 +114,15 @@ pub(crate) trait RenderWait: private::RenderWait {
 
 impl private::RenderWait for ScriptForcedRead {}
 impl RenderWait for ScriptForcedRead {
-    fn into_read_right(self) -> ReadRight {
-        ReadRight::Forced(ForcedRead::Script(self))
+    fn into_forced_read(self) -> ForcedRead {
+        ForcedRead::minted()
     }
 }
 
 impl private::RenderWait for &BegunRead {}
 impl RenderWait for &BegunRead {
-    fn into_read_right(self) -> ReadRight {
-        ReadRight::Begun(SpendsBegunRead(()))
+    fn into_forced_read(self) -> ForcedRead {
+        ForcedRead::minted()
     }
 
     fn reaches(&self, host: &DocumentHost) -> bool {
@@ -145,21 +132,22 @@ impl RenderWait for &BegunRead {
 
 impl private::RenderWait for ForcedRead {}
 impl RenderWait for ForcedRead {
-    fn into_read_right(self) -> ReadRight {
-        ReadRight::Forced(self)
+    fn into_forced_read(self) -> ForcedRead {
+        self
     }
 }
 
 impl private::RenderWait for super::NoFrameInFlight {}
 impl RenderWait for super::NoFrameInFlight {
-    fn into_read_right(self) -> ReadRight {
-        ReadRight::Here(self)
+    fn into_forced_read(self) -> ForcedRead {
+        unreachable!("a frame flies only from a rendering update, which no reach without one runs")
     }
 }
+
 impl private::RenderWait for NodeRead {}
 impl RenderWait for NodeRead {
-    fn into_read_right(self) -> ReadRight {
-        ReadRight::Begun(SpendsBegunRead(()))
+    fn into_forced_read(self) -> ForcedRead {
+        ForcedRead::minted()
     }
 }
 
@@ -215,24 +203,22 @@ impl TaskStart {
     }
 }
 
-/// What a wait for a frame in flight spends: the read of the script API call it is made for, or the host's own (an
-/// event's dispatch, a child document's style update, an inspection, a rendering update, the document's teardown).
-pub(crate) enum ForcedRead {
-    Script(ScriptForcedRead),
-    Host(HostRead),
-}
-
-/// The host's own read of a document's render state, which only the host mints, for a read it began or its teardown of
-/// its document.
-pub(crate) struct HostRead {
+/// What a wait for a frame in flight spends: the forced read of a script API call, a read the host began, or the host's
+/// teardown of its document. Only a [`RenderWait`] makes one, but for the teardown.
+pub(crate) struct ForcedRead {
     not_send_or_sync: PhantomData<*const ()>,
 }
 
-impl HostRead {
-    pub(super) fn begun() -> Self {
+impl ForcedRead {
+    fn minted() -> Self {
         Self {
             not_send_or_sync: PhantomData,
         }
+    }
+
+    /// The read of the host's teardown of its document.
+    pub(super) fn of_teardown() -> Self {
+        Self::minted()
     }
 }
 
