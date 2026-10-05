@@ -118,14 +118,6 @@ pub unsafe extern "C" fn document_host_set_chrome_state_callback(
     host.host_tables().chrome_state_callback.set(Some((context, callback)));
 }
 
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn document_host_clear_chrome_state_callback(host: &DocumentHost) {
-    host.host_tables().chrome_state_callback.set(None);
-}
-
 /// Copies the row in `slot` to `row`, where it is populated. The host reads it from the rows it holds where they still
 /// read as the arena, and asks otherwise.
 ///
