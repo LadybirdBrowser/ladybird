@@ -47,6 +47,12 @@ enum class LayoutUpdatePropagation : u8;
 
 }
 
+namespace Web::Layout::RustFFI {
+
+struct FfiBoxMarks;
+
+}
+
 namespace Web::Bindings {
 
 struct GetRootNodeOptions;
@@ -448,6 +454,9 @@ public:
     }
 
     void set_needs_repaint(InvalidateDisplayList = InvalidateDisplayList::PaintCommandsAndHitTestList);
+    // Queues `marks` for the node's box, which the render state finds as it applies them: the marks may be made beside a
+    // frame in flight, which holds the boxes.
+    void mark_box(Layout::RustFFI::FfiBoxMarks);
     // The facts about this node that a box built for it paints (inertness, editability, and so on) may have changed.
     void publish_dom_paint_facts();
     void set_needs_layout_update(SetNeedsLayoutReason);

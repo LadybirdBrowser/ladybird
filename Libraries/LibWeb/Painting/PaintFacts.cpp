@@ -255,7 +255,7 @@ static bool paints_replaced_image_from_facts(Layout::Node const& layout_node)
 
 static void note_box_paint_facts(Layout::Node const& layout_node, PaintFactsFamily families)
 {
-    if (auto identity = journal_identity_of(layout_node))
+    if (auto identity = DOM::NodeIdentity::of(bound_dom_node(layout_node)))
         const_cast<DOM::Document&>(layout_node.document()).invalidation_journal().note_paint_facts(identity, families);
     else
         apply_paint_facts(layout_node, families);

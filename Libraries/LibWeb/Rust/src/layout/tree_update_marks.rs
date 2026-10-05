@@ -10,10 +10,11 @@
 //! arena for each job of the render owner, and to the frame in flight.
 
 use super::LayoutNodeArena;
-use super::node_data::GENERATED_FOR_FIRST_LETTER;
+use super::node_data::{GENERATED_FOR_BACKDROP, GENERATED_FOR_FIRST_LETTER, NodeFlag, NodeSlotId};
 use crate::css::style::bridge::element_adjustment_fact;
 use crate::css::style::engine_calls::document_host;
 use crate::css::style::tree::StyleNodeID;
+use crate::painting::record::damage::PaintDamage;
 use crate::render_state::DocumentHost;
 
 /// Which narrower rebuild the marks a node has collected so far still permit, as
@@ -427,6 +428,164 @@ pub unsafe extern "C" fn render_state_apply_layout_tree_update_mark(
     let node = StyleNodeID::from_raw(style_node);
     // SAFETY: Guaranteed by the caller.
     unsafe { queue(host, LayoutChange::ApplyLayoutTreeUpdateMark { node, mark }) };
+}
+
+/// What the host marks on a box. A second mark on the box the last queued change marks merges into it, so a burst of
+/// marks on one box costs one change.
+#[repr(C)]
+#[derive(Clone, Copy, Default)]
+pub struct FfiBoxMarks {
+    /// The box lays out again, and its ancestors with it where `layout_update_through_ancestors`.
+    pub layout_update: bool,
+    pub layout_update_through_ancestors: bool,
+    /// The box paints again, and is hit-tested again where `repaint_hit_testing`. A text box repaints its containing
+    /// block.
+    pub repaint: bool,
+    pub repaint_hit_testing: bool,
+    /// The box's paint subtree paints and is hit-tested again.
+    pub repaint_subtree: bool,
+    /// The paint subtree of the element's `::backdrop` paints and is hit-tested again.
+    pub repaint_backdrop: bool,
+    /// What the box propagates as text decorations to the text below it is stale.
+    pub propagated_text_decorations: bool,
+    /// The box takes `dom_paint_facts`, and paints and is hit-tested again.
+    pub has_dom_paint_facts: bool,
+    pub dom_paint_facts: u8,
+    /// The data of the text node changed: its text box renders it again, and lays out again with its ancestors. A box
+    /// that renders a range of the text, as the first letter splits it, is built again instead, as the host marked.
+    pub text_data_changed: bool,
+}
+
+/// The box a mark names.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(crate) enum MarkedBox {
+    /// The box bound to the DOM node the identity names, or the document's for `None`, found as the mark is applied: a
+    /// mark made beside a frame in flight, which holds the boxes, names the node alone.
+    Node(Option<StyleNodeID>),
+    /// A box no node is bound to: an anonymous one, or one generated for a pseudo-element.
+    Row(NodeSlotId),
+}
+
+impl FfiBoxMarks {
+    /// Folds `later`, marked on the same box, into these marks: each mark covers the narrower one before it, and the
+    /// later DOM paint facts replace the earlier ones.
+    pub(crate) fn merge(&mut self, later: Self) {
+        self.layout_update |= later.layout_update;
+        self.layout_update_through_ancestors |= later.layout_update_through_ancestors;
+        self.repaint |= later.repaint;
+        self.repaint_hit_testing |= later.repaint_hit_testing;
+        self.repaint_subtree |= later.repaint_subtree;
+        self.repaint_backdrop |= later.repaint_backdrop;
+        self.propagated_text_decorations |= later.propagated_text_decorations;
+        self.text_data_changed |= later.text_data_changed;
+        if later.has_dom_paint_facts {
+            self.has_dom_paint_facts = true;
+            self.dom_paint_facts = later.dom_paint_facts;
+        }
+    }
+
+    pub(crate) fn apply(self, arena: &mut LayoutNodeArena, target: MarkedBox) {
+        let row = match target {
+            MarkedBox::Node(None) => arena.bound_viewport_row(),
+            MarkedBox::Node(Some(node)) => arena.bound_row(node),
+            MarkedBox::Row(row) => row,
+        };
+        let Some(kind) = arena.node_kind_if_live(row) else {
+            return;
+        };
+        let is_text = super::node_facts::kind_is_text(kind);
+        if self.text_data_changed && is_text && !arena.text_has_source_range(row) {
+            arena.invalidate_text_content(row);
+            arena.set_needs_layout_update(row, true);
+        }
+        if self.layout_update {
+            arena.set_needs_layout_update(row, self.layout_update_through_ancestors);
+        }
+        if self.has_dom_paint_facts {
+            arena.set_node_dom_paint_facts(row, self.dom_paint_facts);
+        }
+        if self.propagated_text_decorations && arena.paintable_row_is_populated(row) {
+            arena.push_propagated_text_decoration_damage(row);
+        }
+        if self.repaint_subtree {
+            repaint_subtree(arena, row);
+        }
+        if self.repaint_backdrop
+            && let MarkedBox::Node(Some(node)) = target
+        {
+            let backdrop = arena.bound_pseudo_element_row(node, GENERATED_FOR_BACKDROP);
+            repaint_subtree(arena, backdrop);
+            repaint(arena, backdrop, true);
+        }
+        let hit_testing = self.repaint_hit_testing || self.repaint_subtree || self.has_dom_paint_facts;
+        if !(self.repaint || hit_testing) {
+            return;
+        }
+        if !is_text {
+            repaint(arena, row, hit_testing);
+            return;
+        }
+        if let Some(containing_block) =
+            crate::painting::paint_read::PaintRead::node_containing_block_if_live(arena, row)
+        {
+            repaint(arena, containing_block, hit_testing);
+        }
+        // The nearest inline box above the text that paints itself caches what it paints of the text.
+        if let Some(inline_box) =
+            crate::painting::fragment_ownership::nearest_self_painting_inline_box(&arena.paintable_rows(), row)
+        {
+            arena.push_paint_damage(inline_box, PaintDamage::ALL_DRAW | PaintDamage::ALL_HIT);
+        }
+    }
+}
+
+fn repaint_subtree(arena: &mut LayoutNodeArena, row: NodeSlotId) {
+    if arena.paintable_row_is_populated(row) {
+        arena.push_paint_damage_to_paint_subtree(row, PaintDamage::ALL_PRODUCERS);
+    }
+}
+
+/// The row paints again, and the root's with it where the root paints the body's propagated background.
+fn repaint(arena: &mut LayoutNodeArena, row: NodeSlotId, includes_hit_testing: bool) {
+    if !arena.paintable_row_is_populated(row) {
+        return;
+    }
+    let damage = if includes_hit_testing {
+        PaintDamage::ALL_PRODUCERS
+    } else {
+        PaintDamage::ALL_DRAW
+    };
+    arena.push_paint_damage_for_repaint(row, damage);
+    if arena.node_flags(row) & NodeFlag::IsBody as u32 != 0 {
+        let source = super::viewport_propagation::root_background_source(arena);
+        if source.use_body_background_properties && arena.paintable_row_is_populated(source.root_layout_node) {
+            arena.push_paint_damage(source.root_layout_node, PaintDamage::ALL_DRAW | PaintDamage::ALL_HIT);
+        }
+    }
+}
+
+/// Marks the box bound to the node with `style_node`, or the document's for 0.
+///
+/// # Safety
+///
+/// `host` must be a live document host, on the document's thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn render_state_mark_node_box(host: *const DocumentHost, style_node: u32, marks: FfiBoxMarks) {
+    let target = MarkedBox::Node(StyleNodeID::from_raw(style_node));
+    // SAFETY: Guaranteed by the caller.
+    unsafe { super::layout_changes::queue(host, super::layout_changes::LayoutChange::MarkBox { target, marks }) };
+}
+
+/// Marks the box of the row `row`, which no node is bound to.
+///
+/// # Safety
+///
+/// `host` must be a live document host, on the document's thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn render_state_mark_row_box(host: *const DocumentHost, row: NodeSlotId, marks: FfiBoxMarks) {
+    let target = MarkedBox::Row(row);
+    // SAFETY: Guaranteed by the caller.
+    unsafe { super::layout_changes::queue(host, super::layout_changes::LayoutChange::MarkBox { target, marks }) };
 }
 
 #[cfg(test)]

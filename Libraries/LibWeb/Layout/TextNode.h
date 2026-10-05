@@ -40,7 +40,6 @@ public:
     Utf16View text_for_rendering() const;
     Utf16String rendered_text_for_dom(bool collapse_whitespace) const;
     RustFFI::FfiTextSourceRange word_range_at(size_t dom_offset) const;
-    void invalidate_text_for_rendering();
 
     void set_needs_repaint(InvalidateDisplayList = InvalidateDisplayList::PaintCommandsAndHitTestList) const;
 

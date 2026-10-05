@@ -64,8 +64,6 @@ pub(crate) enum PaintChange {
         direction: ScrollDirection,
         enlarged: bool,
     },
-    /// What the rows built for the DOM node of `node` are painted and hit-tested with.
-    SetDomPaintFacts { node: NodeSlotId, facts: u8 },
     /// The images the row's background, mask and border image layers paint.
     SetLayerImagePaintFacts {
         node: NodeSlotId,
@@ -86,20 +84,6 @@ pub(crate) enum PaintChange {
         node: NodeSlotId,
         kind: VisualContextBoxDirtyKind,
     },
-    /// The row paints again, and is hit-tested again where `includes_hit_testing`.
-    Repaint {
-        node: NodeSlotId,
-        includes_hit_testing: bool,
-    },
-    /// The paint subtree of the row paints and is hit-tested again.
-    RepaintSubtree { node: NodeSlotId },
-    /// The row's paint cache goes: what it propagates as text decorations to the text below it, or all of it.
-    InvalidatePaintCache {
-        node: NodeSlotId,
-        propagated_text_decorations: bool,
-    },
-    /// The paint cache of the nearest inline box that paints itself, above the text `node`, goes.
-    InvalidateNearestSelfPaintingInlinePaintCache { node: NodeSlotId },
     /// Every row paints again.
     InvalidateAllPaintCaches,
     /// The visual context tree is built again whole before it is published next.
@@ -181,11 +165,6 @@ impl PaintChange {
                 rows.paintable_data_mut(node).set_flag(flag, enlarged);
                 rows.push_paint_damage(node, PaintDamage::DRAW_OVERLAY | PaintDamage::HIT_OVERLAY);
             }
-            Self::SetDomPaintFacts { node, facts } => {
-                if arena.slot_is_live(node) {
-                    arena.set_node_dom_paint_facts(node, facts);
-                }
-            }
             Self::SetLayerImagePaintFacts { node, entries } => {
                 arena.set_layer_image_paint_facts(node, entries);
             }
@@ -194,47 +173,6 @@ impl PaintChange {
             Self::NoteVisualContextBoxDirty { node, kind } => {
                 if arena.paintable_row_is_populated(node) {
                     arena.note_visual_context_box_dirty(node, kind);
-                }
-            }
-            Self::Repaint {
-                node,
-                includes_hit_testing,
-            } => {
-                if arena.paintable_row_is_populated(node) {
-                    let damage = if includes_hit_testing {
-                        PaintDamage::ALL_PRODUCERS
-                    } else {
-                        PaintDamage::ALL_DRAW
-                    };
-                    arena.push_paint_damage_for_repaint(node, damage);
-                }
-            }
-            Self::RepaintSubtree { node } => {
-                if arena.paintable_row_is_populated(node) {
-                    arena.push_paint_damage_to_paint_subtree(node, PaintDamage::ALL_PRODUCERS);
-                }
-            }
-            Self::InvalidatePaintCache {
-                node,
-                propagated_text_decorations,
-            } => {
-                if !arena.paintable_row_is_populated(node) {
-                    return;
-                }
-                if propagated_text_decorations {
-                    arena.push_propagated_text_decoration_damage(node);
-                } else {
-                    arena.push_paint_damage(node, PaintDamage::ALL_DRAW | PaintDamage::ALL_HIT);
-                }
-            }
-            Self::InvalidateNearestSelfPaintingInlinePaintCache { node } => {
-                if !arena.slot_is_live(node) {
-                    return;
-                }
-                if let Some(ancestor) =
-                    super::fragment_ownership::nearest_self_painting_inline_box(&arena.paintable_rows(), node)
-                {
-                    arena.push_paint_damage(ancestor, PaintDamage::ALL_DRAW | PaintDamage::ALL_HIT);
                 }
             }
             Self::InvalidateAllPaintCaches => arena.push_all_paint_damage(),
@@ -411,15 +349,6 @@ pub unsafe extern "C" fn render_state_set_scrollbar_enlarged(
 
 /// # Safety
 ///
-/// `host` must be a live document host, on the document's thread.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn render_state_set_dom_paint_facts(host: *const DocumentHost, node: NodeSlotId, facts: u8) {
-    // SAFETY: Guaranteed by the caller.
-    unsafe { queue(host, PaintChange::SetDomPaintFacts { node, facts }) };
-}
-
-/// # Safety
-///
 /// `host` must be a live document host, on the document's thread, and `entries` must point at `count` readable
 /// entries whose images are live.
 #[unsafe(no_mangle)]
@@ -582,66 +511,6 @@ pub unsafe extern "C" fn render_state_note_visual_context_box_dirty(
     };
     // SAFETY: Guaranteed by the caller.
     unsafe { queue(host, PaintChange::NoteVisualContextBoxDirty { node, kind }) };
-}
-
-/// # Safety
-///
-/// `host` must be a live document host, on the document's thread.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn render_state_repaint(host: *const DocumentHost, node: NodeSlotId, includes_hit_testing: bool) {
-    // SAFETY: Guaranteed by the caller.
-    unsafe {
-        queue(
-            host,
-            PaintChange::Repaint {
-                node,
-                includes_hit_testing,
-            },
-        );
-    }
-}
-
-/// # Safety
-///
-/// `host` must be a live document host, on the document's thread.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn render_state_repaint_subtree(host: *const DocumentHost, node: NodeSlotId) {
-    // SAFETY: Guaranteed by the caller.
-    unsafe { queue(host, PaintChange::RepaintSubtree { node }) };
-}
-
-/// # Safety
-///
-/// `host` must be a live document host, on the document's thread.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn render_state_invalidate_paint_cache(
-    host: *const DocumentHost,
-    node: NodeSlotId,
-    propagated_text_decorations: bool,
-) {
-    let change = PaintChange::InvalidatePaintCache {
-        node,
-        propagated_text_decorations,
-    };
-    // SAFETY: Guaranteed by the caller.
-    unsafe { queue(host, change) };
-}
-
-/// # Safety
-///
-/// `host` must be a live document host, on the document's thread.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn render_state_invalidate_nearest_self_painting_inline_paint_cache(
-    host: *const DocumentHost,
-    node: NodeSlotId,
-) {
-    // SAFETY: Guaranteed by the caller.
-    unsafe {
-        queue(
-            host,
-            PaintChange::InvalidateNearestSelfPaintingInlinePaintCache { node },
-        );
-    }
 }
 
 /// # Safety

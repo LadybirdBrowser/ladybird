@@ -37,12 +37,6 @@ public:
 
     void visit_edges(GC::Cell::Visitor&);
 
-    void note_needs_layout_update(NodeIdentity, SetNeedsLayoutReason, Layout::LayoutUpdatePropagation);
-    void note_needs_layout_tree_update(NodeIdentity, SetNeedsLayoutTreeUpdateReason);
-    void note_needs_repaint(NodeIdentity, InvalidateDisplayList);
-    void note_needs_repaint_in_subtree(NodeIdentity);
-    void note_dom_paint_facts(NodeIdentity, u8 facts);
-    void note_propagated_text_decoration_caches_invalidation(NodeIdentity);
     // The node's facts of these families are stale. The drain reads them from the node.
     void note_paint_facts(NodeIdentity, Painting::PaintFactsFamily);
     // The image a box shows changed, in a task of its own that may run beside a frame in flight: the box's facts of
@@ -51,14 +45,10 @@ public:
     void note_box_image_changed(Layout::Node&, Painting::PaintFactsFamily, InvalidateDisplayList);
     // An image element's data changed, which changes its box as the box's kind and sizing decide.
     void note_image_data_changed(NodeIdentity, SetNeedsLayoutReason);
-    // A text node's data changed, which changes its box as the box decides.
-    void note_text_data_changed(NodeIdentity, bool whitespace_only_changed);
     // The language of the element's subtree changed, so its text lays out again where it is cased by its language.
     void note_language_changed(Element&);
     // The editability of the node's subtree changed, which its boxes are stamped with.
     void note_editability_changed(Node&);
-    // A top layer element's boxes repaint: its own subtree's and its backdrop's.
-    void note_top_layer_boxes_repaint(NodeIdentity);
     // The document's selection changed, or lost its range, so the selection states of the boxes it paints through are
     // stale.
     void note_selection_changed();
@@ -83,33 +73,10 @@ private:
         NodeIdentity identity {};
         // The box an entry names instead of a node, which identity then does not name.
         WeakPtr<Layout::Node> box {};
-        // The reason of the first layout mark. Only the layout update trace reads it.
-        SetNeedsLayoutReason layout_reason { SetNeedsLayoutReason::StyleChange };
-        Layout::LayoutUpdatePropagation layout_propagation {};
-        // The reason of the tree update mark that made the node dirty. A later mark on a node that is already dirty
-        // changes nothing about the build, so only the first one's reason is kept.
-        SetNeedsLayoutTreeUpdateReason layout_tree_update_reason { SetNeedsLayoutTreeUpdateReason::None };
         InvalidateDisplayList invalidate_display_list { InvalidateDisplayList::No };
-        bool needs_layout_update { false };
-        bool needs_layout_tree_update { false };
-        bool needs_repaint { false };
-        bool needs_subtree_repaint { false };
-        bool needs_backdrop_repaint { false };
-        bool invalidate_propagated_text_decoration_caches { false };
-        bool has_dom_paint_facts { false };
         bool image_data_changed { false };
-        bool text_data_changed { false };
-        bool whitespace_only_text_changed { false };
         SetNeedsLayoutReason image_data_change_reason { SetNeedsLayoutReason::StyleChange };
-        u8 dom_paint_facts { 0 };
         Painting::PaintFactsFamily stale_paint_facts {};
-
-        // Whether the entry marks anything but the layout tree, which the drain finds the node's box for.
-        bool has_marks_for_box() const
-        {
-            return needs_layout_update || needs_repaint || needs_subtree_repaint || needs_backdrop_repaint || invalidate_propagated_text_decoration_caches
-                || has_dom_paint_facts || image_data_changed || text_data_changed || stale_paint_facts != Painting::PaintFactsFamily::None;
-        }
     };
 
     Entry& entry_for(NodeIdentity);

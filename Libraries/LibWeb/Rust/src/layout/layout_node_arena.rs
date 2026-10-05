@@ -4613,7 +4613,7 @@ impl LayoutNodeArena {
         self.bump_fragment_cache_epoch_of_self_and_ancestors(id);
     }
 
-    pub(super) fn invalidate_text_content(&mut self, id: NodeSlotId) {
+    pub(crate) fn invalidate_text_content(&mut self, id: NodeSlotId) {
         self.data(id);
         if self.text_slots.state(id).is_some_and(|state| state.content.is_some())
             && let Some(content) = self.text_node_state_mut(id).content.as_mut()
@@ -4755,7 +4755,7 @@ impl LayoutNodeArena {
             })
     }
 
-    pub(super) fn text_has_source_range(&self, id: NodeSlotId) -> bool {
+    pub(crate) fn text_has_source_range(&self, id: NodeSlotId) -> bool {
         self.text_node_state(id)
             .is_some_and(|state| state.source_range.is_some())
     }
