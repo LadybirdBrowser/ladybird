@@ -18,12 +18,10 @@ use super::tree_builder::{FfiGeneratedImage, FfiPseudoElement, TreeBuildAnswer, 
 use super::tree_mutation::{HostWorkDue, OwedHostWork};
 use super::{ArenaHandle, LayoutNodeArena};
 use crate::abort_on_panic;
-use crate::css::ffi_support::FfiUtf16View;
 use crate::css::style::tree::StyleNodeID;
 use crate::render_state::{BegunRead, DocumentHost};
 use crate::stage::MainThread;
 use std::ffi::c_void;
-use std::time::Instant;
 
 mod main_thread_entries;
 
@@ -120,8 +118,6 @@ pub struct FfiLayoutUpdateInputs {
     pub reason_is_inspect_devtools_layout_data: bool,
     /// A document hosting template contents never needs layout.
     pub is_template_contents_document: bool,
-    /// The update reason's name, read only when tracing is enabled.
-    pub reason_name: FfiUtf16View,
 }
 
 /// Confinement report of the most recent layout tree build, for tests observing whether a
@@ -295,49 +291,6 @@ fn host_layout_is_up_to_date(host: &DocumentHost, read: &BegunRead, facts: &FfiL
     read_arena(host, read, *facts, |arena, facts| layout_is_up_to_date(arena, &facts))
 }
 
-/// The `TREEBUILD` and `LAYOUT` timing lines, off unless `LIBWEB_UPDATE_LAYOUT_TRACE` is set.
-#[derive(Clone)]
-struct UpdateLayoutTrace {
-    reason: Option<String>,
-}
-
-fn update_layout_trace_is_enabled() -> bool {
-    static ENABLED: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
-    *ENABLED.get_or_init(|| std::env::var_os("LIBWEB_UPDATE_LAYOUT_TRACE").is_some())
-}
-
-impl UpdateLayoutTrace {
-    /// # Safety
-    ///
-    /// `reason_name` must satisfy [`FfiUtf16View::to_utf16`]'s requirements.
-    unsafe fn new(reason_name: FfiUtf16View) -> Self {
-        if !update_layout_trace_is_enabled() {
-            return Self { reason: None };
-        }
-        // SAFETY: Guaranteed by the caller.
-        let reason = unsafe { reason_name.to_utf16() }
-            .map(|units| String::from_utf16_lossy(&units))
-            .unwrap_or_default();
-        Self { reason: Some(reason) }
-    }
-
-    fn now(&self) -> Option<Instant> {
-        self.reason.as_ref().map(|_| Instant::now())
-    }
-
-    fn tree_build(&self, started: Option<Instant>) {
-        if let Some(started) = started {
-            eprintln!("TREEBUILD {} µs", started.elapsed().as_micros());
-        }
-    }
-
-    fn layout(&self, started: Option<Instant>) {
-        if let (Some(reason), Some(started)) = (&self.reason, started) {
-            eprintln!("LAYOUT {reason} {} µs", started.elapsed().as_micros());
-        }
-    }
-}
-
 const ORDINARY_STABILIZATION_ROUND_LIMIT: u64 = 8;
 
 /// One round of a layout update past its style, which the host sends its document's render state: the layout tree
@@ -355,7 +308,6 @@ pub(crate) struct LayoutRoundJob {
     /// that may lay out partially reads.
     container_query_evaluation_is_pending: bool,
     container_length_bases: super::layout_pass::ContainerLengthBasesQuery,
-    trace: UpdateLayoutTrace,
 }
 
 /// Which layout a round lays its tree out with.
@@ -473,7 +425,6 @@ impl ClockRound {
             layout: RoundLayout::PartialIfPlanned,
             container_query_evaluation_is_pending: false,
             container_length_bases: self.container_length_bases,
-            trace: UpdateLayoutTrace { reason: None },
         }
         .run(state);
         match state.arena().take_unresolved_container_lengths() {
@@ -547,7 +498,6 @@ impl LayoutRoundJob {
             )
         {
             if let Some(build) = self.build.take() {
-                let tree_build_started = self.trace.now();
                 let needs_another_build_pass = Self::build(state, build, work, &mut answer);
                 if needs_another_build_pass || facts.has_stale_list_item_counters {
                     answer.end = LayoutRoundEnd::Built {
@@ -556,7 +506,6 @@ impl LayoutRoundJob {
                     };
                     return answer;
                 }
-                self.trace.tree_build(tree_build_started);
             }
 
             let arena = state.arena();
@@ -579,7 +528,6 @@ impl LayoutRoundJob {
             }
         }
 
-        let layout_started = self.trace.now();
         if let Some(build) = self.build.take() {
             if Self::build(state, build, work, &mut answer) {
                 answer.end = LayoutRoundEnd::Built {
@@ -589,7 +537,6 @@ impl LayoutRoundJob {
                 return answer;
             }
             state.arena().set_needs_full_layout_tree_update(false);
-            self.trace.tree_build(layout_started);
             if facts.has_stale_list_item_counters {
                 answer.end = LayoutRoundEnd::Built {
                     needs_another_build_pass: false,
@@ -612,7 +559,6 @@ impl LayoutRoundJob {
         );
         answer.commits.push(commit);
         state.arena().note_full_layout();
-        self.trace.layout(layout_started);
         answer
     }
 
@@ -688,7 +634,6 @@ fn next_round(
     read: &BegunRead,
     host: &FfiLayoutUpdateHostCallbacks,
     facts: FfiLayoutUpdateDocumentFacts,
-    trace: &UpdateLayoutTrace,
 ) -> SealedRound {
     let layout_host = FfiLayoutHostCallbacks::of(main_thread);
     let rebuilds_tree = facts.document_needs_layout_tree_build
@@ -716,7 +661,6 @@ fn next_round(
             layout: RoundLayout::PartialIfPlanned,
             container_query_evaluation_is_pending: host.container_query_evaluation_is_pending(main_thread, read),
             container_length_bases: layout_host.container_length_bases_query(main_thread),
-            trace: trace.clone(),
         },
         rebuilds_tree,
     }
@@ -745,9 +689,7 @@ unsafe fn seal_first_round(
     if !facts.document_is_active || inputs.is_template_contents_document {
         return;
     }
-    // SAFETY: Guaranteed by the caller.
-    let trace = unsafe { UpdateLayoutTrace::new(inputs.reason_name) };
-    let mut round = next_round(main_thread, document_host, read, &host, facts, &trace);
+    let mut round = next_round(main_thread, document_host, read, &host, facts);
     // The round runs beside the host, which it cannot ask.
     round.job.container_length_bases = round.job.container_length_bases.sealed();
     document_host.seal_round(round);
@@ -755,8 +697,7 @@ unsafe fn seal_first_round(
 
 /// # Safety
 ///
-/// The layout update host's callbacks must answer synchronously from the live document, and `inputs` must satisfy
-/// [`UpdateLayoutTrace::new`]'s requirements.
+/// The layout update host's callbacks must answer synchronously from the live document.
 unsafe fn update_layout(
     main_thread: &MainThread,
     document_host: &DocumentHost,
@@ -773,7 +714,6 @@ unsafe fn update_layout(
         document_host.host_tables().update_layout_running.get(),
         "the layout update runs between document_host_begin_update_layout and its end"
     );
-    let trace = unsafe { UpdateLayoutTrace::new(inputs.reason_name) };
 
     // Size-query dependencies point from a descendant to an ancestor query container. They are
     // therefore acyclic, and a coherent style/layout pass can settle at least one more level of
@@ -812,7 +752,7 @@ unsafe fn update_layout(
                     return;
                 }
 
-                let round = next_round(main_thread, document_host, read, &host, facts, &trace);
+                let round = next_round(main_thread, document_host, read, &host, facts);
                 (round.rebuilds_tree, NextRound::Job(round.job))
             }
         };
@@ -847,7 +787,6 @@ unsafe fn update_layout(
                 container_query_evaluation_is_pending: layout == RoundLayout::PartialIfPlanned
                     && host.container_query_evaluation_is_pending(main_thread, read),
                 container_length_bases: layout_host.container_length_bases_query(main_thread),
-                trace: trace.clone(),
             });
         };
 
