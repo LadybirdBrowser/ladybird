@@ -19,22 +19,13 @@ use crate::css::style_value::{
     RetainedGridTrackEntryList, RetainedNumericRangeList, RetainedShapePoint, RetainedShapePointList,
     RetainedStyleValueData, RetainedStyleValueDataList, StyleValueData,
 };
+use crate::css::value_codes::*;
 
 pub(crate) const ANIMATION_TYPE_DISCRETE: u8 = 0;
 pub(crate) const ANIMATION_TYPE_BY_COMPUTED_VALUE: u8 = 1;
 const ANIMATION_TYPE_REPEATABLE_LIST: u8 = 2;
 const ANIMATION_TYPE_CUSTOM: u8 = 3;
 pub(crate) const ANIMATION_TYPE_NONE: u8 = 4;
-const VALUE_TYPE_ANGLE: u8 = 2;
-const VALUE_TYPE_FLEX: u8 = 15;
-const VALUE_TYPE_FREQUENCY: u8 = 21;
-const VALUE_TYPE_INTEGER: u8 = 24;
-const VALUE_TYPE_LENGTH: u8 = 25;
-const VALUE_TYPE_NUMBER: u8 = 27;
-const VALUE_TYPE_PERCENTAGE: u8 = 31;
-const VALUE_TYPE_RATIO: u8 = 33;
-const VALUE_TYPE_RESOLUTION: u8 = 35;
-const VALUE_TYPE_TIME: u8 = 38;
 const TRANSFORM_FUNCTION_MATRIX: u8 = 0;
 const TRANSFORM_FUNCTION_MATRIX_3D: u8 = 1;
 const TRANSFORM_FUNCTION_PERSPECTIVE: u8 = 2;
@@ -64,24 +55,6 @@ const BASIC_SHAPE_INSET: u8 = 0;
 const BASIC_SHAPE_CIRCLE: u8 = 3;
 const BASIC_SHAPE_ELLIPSE: u8 = 4;
 const BASIC_SHAPE_POLYGON: u8 = 5;
-const COLOR_TYPE_RGB: u8 = 0;
-const COLOR_TYPE_A98_RGB: u8 = 1;
-const COLOR_TYPE_DISPLAY_P3: u8 = 2;
-const COLOR_TYPE_DISPLAY_P3_LINEAR: u8 = 3;
-const COLOR_TYPE_HSL: u8 = 4;
-const COLOR_TYPE_HWB: u8 = 5;
-const COLOR_TYPE_LAB: u8 = 6;
-const COLOR_TYPE_LCH: u8 = 7;
-const COLOR_TYPE_OKLAB: u8 = 8;
-const COLOR_TYPE_OKLCH: u8 = 9;
-const COLOR_TYPE_SRGB: u8 = 10;
-const COLOR_TYPE_SRGB_LINEAR: u8 = 11;
-const COLOR_TYPE_PROPHOTO_RGB: u8 = 12;
-const COLOR_TYPE_REC2020: u8 = 13;
-const COLOR_TYPE_XYZ_D50: u8 = 14;
-const COLOR_TYPE_XYZ_D65: u8 = 15;
-const COLOR_SYNTAX_LEGACY: u8 = 0;
-const COLOR_SYNTAX_MODERN: u8 = 1;
 
 #[derive(Clone, Copy)]
 struct NumericRangeOverride {

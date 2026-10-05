@@ -13,8 +13,7 @@ use std::sync::Arc;
 
 use crate::css::color_conversion;
 use crate::css::style_value::{ColorBase, RetainedStyleValueData, StyleValueData};
-
-const COLOR_SYNTAX_MODERN: u8 = 1;
+use crate::css::value_codes::*;
 
 pub(crate) struct ResolvedColor {
     pub color_type: u8,

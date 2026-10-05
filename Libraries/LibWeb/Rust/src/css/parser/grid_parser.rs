@@ -10,21 +10,22 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use super::value_parser::{
+    NumericRange, ParseContext, ParseOutcome, equals_ascii_case_insensitive, is_arbitrary_substitution_function,
+    is_valid_custom_ident, parse_calculated_numeric_value_with_ranges, parse_flex_value, parse_integer_from_stream,
+    parse_length_percentage_from_stream, parse_tree_counting_value,
+};
 use crate::css::css_enums::{keyword, keyword_from_ascii_case_insensitive};
 use crate::css::css_string::CssString;
 use crate::css::math_functions::math_function_from_name;
 use crate::css::parser::component_value::ComponentValue;
 use crate::css::parser::token_stream::TokenStream;
-use crate::css::parser::value_parser::{
-    NumericRange, ParseContext, ParseOutcome, VALUE_TYPE_FLEX, equals_ascii_case_insensitive,
-    is_arbitrary_substitution_function, is_valid_custom_ident, parse_calculated_numeric_value_with_ranges,
-    parse_flex_value, parse_integer_from_stream, parse_length_percentage_from_stream, parse_tree_counting_value,
-};
 use crate::css::property_metadata::property_id;
 use crate::css::style_value::{
     RetainedGridArea, RetainedGridAreaList, RetainedGridTrackEntry, RetainedGridTrackEntryList, RetainedPropertyIdList,
     RetainedStyleValueData, RetainedStyleValueDataList, StyleValueData,
 };
+use crate::css::value_codes::VALUE_TYPE_FLEX;
 
 const GRID_REPEAT_AUTO_FIT: u8 = 0;
 const GRID_REPEAT_AUTO_FILL: u8 = 1;

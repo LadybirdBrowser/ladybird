@@ -1302,13 +1302,8 @@ fn color_base_of(data: &StyleValueData) -> Option<&crate::css::style_value::Colo
 /// the named color-function types split into the legacy rgb/hsl/hwb family
 /// and the modern rest, and untyped colors carry their own syntax flag.
 fn shadow_color_syntax(color: Option<&StyleValueData>) -> u8 {
-    const COLOR_SYNTAX_LEGACY: u8 = 0;
-    const COLOR_SYNTAX_MODERN: u8 = 1;
     // The C++ ColorStyleValue::ColorType codes, pinned by static asserts in
     // ComputedValues.cpp.
-    const COLOR_TYPE_RGB: u8 = 0;
-    const COLOR_TYPE_HSL: u8 = 4;
-    const COLOR_TYPE_HWB: u8 = 5;
 
     let Some(base) = color.and_then(color_base_of) else {
         return COLOR_SYNTAX_LEGACY;
@@ -1838,6 +1833,7 @@ unsafe fn build_border_group(
 // --- SVG, list and content lowering -----------------------------------------
 
 use crate::css::computed_value_types::{SVG_PAINT_COLOR, SVG_PAINT_NONE, SVG_PAINT_URL};
+use crate::css::value_codes::*;
 
 fn lower_svg_paint(values: &EffectiveValues, property: u16, input: &ColorResolutionInput) -> ComputedSvgPaint {
     let mut paint = ComputedSvgPaint {

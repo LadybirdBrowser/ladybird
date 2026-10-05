@@ -23,15 +23,8 @@ use crate::css::style_value::{
     BasicShapeData, CssString, OwnedBasicShapeData, RetainedPropertyIdList, RetainedShapePoint, RetainedShapePointList,
     RetainedStyleValueData, RetainedStyleValueDataList, StyleValueData,
 };
+use crate::css::value_codes::*;
 use std::sync::Arc;
-
-const VALUE_TYPE_BACKGROUND_POSITION: u8 = 4;
-const VALUE_TYPE_ANCHOR: u8 = 0;
-const VALUE_TYPE_BASIC_SHAPE: u8 = 5;
-const VALUE_TYPE_CORNER_SHAPE: u8 = 7;
-const VALUE_TYPE_FIT_CONTENT: u8 = 14;
-const VALUE_TYPE_POSITION: u8 = 32;
-const VALUE_TYPE_RECT: u8 = 34;
 
 // NB: These are the generated C++ PositionEdge enum values.
 const EDGE_CENTER: u8 = 0;

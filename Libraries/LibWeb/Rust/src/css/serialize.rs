@@ -21,7 +21,7 @@ use crate::css::style_value::{
     BasicShapeData, COUNTER_FUNCTION_COUNTERS, RetainedColorStopList, RetainedString, StyleValueData,
 };
 
-include!(concat!(env!("OUT_DIR"), "/transform_functions_generated.rs"));
+pub(crate) use crate::css::transform_functions::*;
 
 /// Mirrors `Web::CSS::SerializationMode`.
 #[derive(Clone, Copy, PartialEq)]
