@@ -1,0 +1,2 @@
+Top-level object embeds a document: true
+Nested object embeds a document: false

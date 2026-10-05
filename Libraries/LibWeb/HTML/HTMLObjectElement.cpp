@@ -432,6 +432,21 @@ void HTMLObjectElement::run_object_representation_handler_steps(Fetch::Infrastru
 
     // -> If the resource type is an XML MIME type, or if the resource type does not start with "image/"
     if (can_load_document_with_type(resource_type) && (resource_type.is_xml() || !resource_type.is_image())) {
+        // AD-HOC: The spec does not stop an object from embedding the document that contains it, so the nesting never
+        //         ends and the load event never fires. Matching other engines, allow one level of self-reference and
+        //         show the fallback content at the second.
+        if (response.url().has_value() && !url_matches_about_blank(*response.url())) {
+            size_t navigables_with_same_url = 0;
+            for (auto const& navigable : document().inclusive_ancestor_navigables()) {
+                if (auto url = navigable->active_document_url(); url.has_value() && url->equals(*response.url(), URL::ExcludeFragment::Yes))
+                    ++navigables_with_same_url;
+            }
+            if (navigables_with_same_url >= 2) {
+                run_object_representation_fallback_steps();
+                return;
+            }
+        }
+
         // If the object element's content navigable is null, then create a new child navigable for the element.
         if (!m_content_navigable && in_a_document_tree()) {
             create_new_child_navigable();
