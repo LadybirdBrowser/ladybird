@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibJS/Runtime/PrimitiveString.h>
+#include <LibJS/Runtime/VM.h>
 #include <LibJS/Runtime/Value.h>
 #include <LibJS/Runtime/ValueInlines.h>
 #include <LibTest/TestCase.h>
@@ -77,4 +79,13 @@ TEST_CASE(non_canon_nans)
     EXPECT_TO_BE_NAN(GC::CANON_NAN_BITS | sign_bit | (STRING_TAG << GC::TAG_SHIFT) | 0x1230);
 
 #undef EXPECT_TO_BE_NAN
+}
+
+TEST_CASE(cell_pointer_round_trip)
+{
+    auto vm = VM::create();
+    auto string = PrimitiveString::create(*vm, "hello"_utf16);
+    Value value { string };
+    EXPECT(value.is_string());
+    EXPECT(&value.as_string() == string.ptr());
 }
