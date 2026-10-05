@@ -8,8 +8,6 @@ use super::bridge::{
     FfiElementArrival, FfiElementDeclarationDelta, FfiElementStyleInput, FfiLocalFeatureDelta, FfiStateDelta,
     FfiTreeDelta,
 };
-#[cfg(feature = "style-recording")]
-use super::publication::ExactCascadeDonor;
 use super::*;
 use crate::css::declaration_block;
 
@@ -47,13 +45,6 @@ impl StyleEngine {
         Self {
             counters: Counters::new(),
             state: StyleEngineState::new(device_class),
-        }
-    }
-
-    pub(crate) fn new_for_replay(device_class: DeviceClass) -> Self {
-        Self {
-            counters: Counters::new(),
-            state: StyleEngineState::new_for_replay(device_class),
         }
     }
 
@@ -137,25 +128,6 @@ impl StyleEngine {
     ) -> RuleID {
         self.state
             .add_user_agent_style_rule(sheet, before, rule_identity, selectors, namespaces, &mut self.counters)
-    }
-
-    #[cfg(feature = "style-recording")]
-    #[inline]
-    pub(crate) fn add_replayed_style_rule(
-        &mut self,
-        sheet: SheetID,
-        before: Option<RuleID>,
-        selector_program: SelectorProgram,
-    ) -> RuleID {
-        self.state
-            .add_replayed_style_rule(sheet, before, selector_program, &mut self.counters)
-    }
-
-    #[cfg(feature = "style-recording")]
-    #[inline]
-    pub(crate) fn replace_replayed_style_rule_selectors(&mut self, rule: RuleID, selector_program: SelectorProgram) {
-        self.state
-            .replace_replayed_style_rule_selectors(rule, selector_program, &mut self.counters);
     }
 
     /// Record that a sheet declared or gave up a cascade layer.
@@ -1098,24 +1070,6 @@ impl StyleEngine {
             source_identity,
             animated_overlay,
             payloads,
-            &mut self.counters,
-        )
-    }
-
-    #[cfg(feature = "style-recording")]
-    #[inline]
-    pub(crate) fn publish_exact_cascade_winners(
-        &mut self,
-        target: computed::ComputedStyleTarget,
-        exact_winners: &[(u16, SpecifiedWinnerKey)],
-        inherited_style_groups: u8,
-        donor: Option<ExactCascadeDonor>,
-    ) -> (bridge::FfiExactCascadePublication, bool) {
-        self.state.publish_exact_cascade_winners(
-            target,
-            exact_winners,
-            inherited_style_groups,
-            donor,
             &mut self.counters,
         )
     }

@@ -6,14 +6,7 @@ edition = "2024"
 [lib]
 crate-type = ["rlib", "staticlib"]
 
-[[bin]]
-name = "style-replay"
-path = "src/bin/style_replay.rs"
-required-features = ["style-replay"]
-
 [features]
-style-recording = []
-style-replay = ["style-recording"]
 thread-sanitizer = []
 
 # After changing dependencies, regenerate the Flatpak sources:

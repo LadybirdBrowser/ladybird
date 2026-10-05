@@ -29,8 +29,8 @@ native stylesheet and inline declaration data.
 Media evaluation and condition/layer traversal follow imports directly in Rust.
 The C++ entry points borrow the media environment once; layer traversal reuses
 one UTF-16 prefix buffer across the graph. Rust also merges cascade layer order
-and publishes condition gates directly. Compilation, layer publication and
-replay use native recorded operations; C adapters exist only for host callers.
+and publishes condition gates directly. Compilation and layer publication use
+native operations; C adapters exist only for host callers.
 
 `StyleSheetState` and `StyleSheetImport` own document/loading state independently
 of the GC-allocated `CSSStyleSheet` and `CSSImportRule` facades. Imports retain

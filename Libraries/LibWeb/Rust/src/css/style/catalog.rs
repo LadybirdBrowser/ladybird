@@ -2058,8 +2058,3 @@ pub(super) struct DiagnosticPlanCapture {
     pub(super) nodes: Vec<u32>,
     pub(super) scoped: bool,
 }
-
-pub(crate) struct RecordedAtomMappings {
-    pub atoms: Vec<(u64, u32)>,
-    pub qualified_atoms: Vec<(u32, u32, u32)>,
-}

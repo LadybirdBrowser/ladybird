@@ -600,14 +600,6 @@ Vector<StyleNodeID> StyleEngine::viewport_dependent_style_nodes(Layout::BegunRea
     return nodes;
 }
 
-void StyleEngine::record_benchmark_marker(Utf16View name)
-{
-    auto const* data = name.has_ascii_storage()
-        ? static_cast<void const*>(name.bytes().data())
-        : static_cast<void const*>(name.utf16_span().data());
-    StyleEngineFFI::style_engine_record_benchmark_marker(host(), data, name.length_in_code_units(), name.has_ascii_storage());
-}
-
 bool StyleEngine::has_recorded_input() const
 {
     return m_pending_arrival_count > 0

@@ -1212,7 +1212,7 @@ foreach(angle_target IN LISTS ANGLE_TARGETS)
     target_compile_options(LibWeb PRIVATE $<TARGET_PROPERTY:${angle_target},INTERFACE_COMPILE_OPTIONS>)
 endforeach()
 
-set(libweb_rust_features style-recording)
+set(libweb_rust_features)
 if (ENABLE_THREAD_SANITIZER)
     list(APPEND libweb_rust_features thread-sanitizer)
 endif()
@@ -1236,17 +1236,6 @@ import_rust_crate(
         Layout/TreeBuilderRustFFI.h
         Layout/LayoutRustFFI.h
 )
-build_rust_binary(
-    MANIFEST_PATH Rust/Cargo.toml
-    CRATE_NAME libweb_rust
-    BINARY_NAME style-replay
-    FEATURES style-replay
-)
-# The replay tool currently requires POSIX memory mapping.
-if (UNIX)
-    add_custom_target(style-replay ALL)
-    add_dependencies(style-replay style-replay-build)
-endif()
 target_link_libraries(libweb_rust INTERFACE LibGfx)
 test_rust_crate(MANIFEST_PATH Rust/Cargo.toml CRATE_NAME libweb_rust)
 

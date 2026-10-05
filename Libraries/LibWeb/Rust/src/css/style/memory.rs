@@ -484,7 +484,6 @@ pub struct MemoryController {
     tier3_period_start_bytes: [u64; TIER3_CATEGORY_COUNT],
     tier3_admitting: [bool; MEMORY_CATEGORY_COUNT],
     tier3_quota_period_active: bool,
-    recording_policy_enabled: bool,
     #[cfg(test)]
     tier3_limit_override: Option<u64>,
 }
@@ -504,7 +503,6 @@ impl MemoryController {
             tier3_period_start_bytes: [0; TIER3_CATEGORY_COUNT],
             tier3_admitting: [true; MEMORY_CATEGORY_COUNT],
             tier3_quota_period_active: false,
-            recording_policy_enabled: false,
             #[cfg(test)]
             tier3_limit_override: None,
         }
@@ -523,7 +521,6 @@ impl MemoryController {
             tier3_period_start_bytes: [0; TIER3_CATEGORY_COUNT],
             tier3_admitting: [true; MEMORY_CATEGORY_COUNT],
             tier3_quota_period_active: false,
-            recording_policy_enabled: self.recording_policy_enabled,
             #[cfg(test)]
             tier3_limit_override: self.tier3_limit_override,
         }
@@ -536,14 +533,6 @@ impl MemoryController {
 
     pub fn set_budget_inputs(&mut self, inputs: BudgetInputs) {
         self.inputs = inputs;
-    }
-
-    pub fn enable_recording_policy(&mut self) {
-        self.recording_policy_enabled = true;
-    }
-
-    pub fn disable_recording_policy(&mut self) {
-        self.recording_policy_enabled = false;
     }
 
     /// Start one flush interval with every Tier-3 category admitting. Loop boundaries close
@@ -703,13 +692,9 @@ impl MemoryController {
         if let Some(limit) = self.tier3_limit_override {
             return limit;
         }
-        let limit = BASE_ALLOWANCE
+        BASE_ALLOWANCE
             .saturating_add(PER_CONNECTED_NODE.saturating_mul(u64::from(self.inputs.connected_element_count)))
-            .min(DEVICE_CAP);
-        if self.recording_policy_enabled {
-            return DEVICE_CAP;
-        }
-        limit
+            .min(DEVICE_CAP)
     }
 
     /// `min(DeviceScratchCap, max(4 MiB, Tier3Limit,
@@ -928,22 +913,6 @@ mod tests {
         let mut controller = controller(DeviceClass::ForegroundDesktop, 0, 0);
         controller.reserve_required(MemoryCategory::BatchScratch, controller.tier4_limit() + 1);
         assert_eq!(controller.bytes_in_tier(Tier::Scratch), controller.tier4_limit() + 1);
-    }
-
-    #[test]
-    fn recording_policy_uses_the_device_cap() {
-        let mut controller = controller(DeviceClass::ForegroundDesktop, 0, 0);
-        controller.enable_recording_policy();
-        assert_eq!(controller.tier3_limit(), DEVICE_CAP);
-    }
-
-    #[test]
-    fn ending_recording_restores_the_document_budget() {
-        let mut controller = controller(DeviceClass::ForegroundDesktop, 0, 0);
-        let document_limit = controller.tier3_limit();
-        controller.enable_recording_policy();
-        controller.disable_recording_policy();
-        assert_eq!(controller.tier3_limit(), document_limit);
     }
 
     #[test]

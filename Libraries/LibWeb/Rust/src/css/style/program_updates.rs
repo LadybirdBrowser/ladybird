@@ -1302,7 +1302,6 @@ impl StyleEngineState {
         if let Some(pass) = self.host.suspended_style_pass.take() {
             self.abandon_style_pass(pass);
         }
-        self.clear_ffi_style_transaction_output();
         self.discard_engine_computed_records(counters);
         self.retain_prefix_states();
         self.discard_prepared_batch_matching_traversal();

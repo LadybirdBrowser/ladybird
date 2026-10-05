@@ -327,12 +327,6 @@ impl StyleEngineState {
             None => _ = self.retained.element_custom_property_data.remove(&element),
         }
         let republished = self.retained.republish_record_environment(element, new_inheritable);
-        // A replay republishes the record as the host would have asked it to.
-        self.record_boundary_call(super::record_replay::EventKind::RepublishRecordEnvironment, |payload| {
-            payload.write_u32(element.raw());
-            payload.write_u64(new_inheritable);
-            payload.write_u64(republished.unwrap_or(0));
-        });
         let style_record = republished.unwrap_or(held_style_record);
         act(EnvironmentMoveAction::Republish {
             node: element,

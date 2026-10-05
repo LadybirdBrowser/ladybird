@@ -422,15 +422,9 @@ impl LayoutStyle {
 impl StyleEngine {
     pub(crate) fn pin_layout_style_record(&mut self, record: u64) {
         self.pin_style_record(record);
-        self.record_boundary_call(super::record_replay::EventKind::PinStyleRecord, |payload| {
-            payload.write_u64(record);
-        });
     }
 
     pub(crate) fn unpin_layout_style_record(&mut self, record: u64) {
         self.unpin_style_record(record);
-        self.record_boundary_call(super::record_replay::EventKind::UnpinStyleRecord, |payload| {
-            payload.write_u64(record);
-        });
     }
 }

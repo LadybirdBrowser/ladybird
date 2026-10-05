@@ -164,7 +164,7 @@ impl CascadePriority {
         }
     }
 
-    #[cfg(any(test, feature = "style-recording"))]
+    #[cfg(test)]
     pub(super) fn exact_output_placeholder() -> Self {
         Self::new(PriorityInputs {
             origin: CascadeOrigin::Author,

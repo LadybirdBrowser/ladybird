@@ -10125,7 +10125,7 @@ fn identical_sheet_sets_share_a_scope_program() {
 fn equivalent_documents_share_only_semantically_identical_dispatch_topology() {
     let make_engine = |atom| {
         let mut engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
-        engine.programs = selector::SelectorPrograms::for_replay();
+        engine.programs = selector::SelectorPrograms::shared_across_documents();
         let program = engine
             .programs
             .add(test_selector_program(".target", &[("target", atom)]));
@@ -11515,66 +11515,6 @@ fn atom_sweep_waits_for_an_active_matching_traversal() {
     assert!(engine.take_style_transaction(nodes[0], |_, _, _| {}));
     assert_eq!(engine.counters().get(Counter::AtomSweeps), 1);
     assert!(!engine.host.reclaimed_style_atoms.is_empty());
-}
-
-#[test]
-fn replay_forces_a_recorded_atom_sweep_without_reclaims() {
-    let mut engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
-    engine.host.replay_atom_sweep = Some(ReplayAtomSweep::Reclaim(Vec::new()));
-
-    engine.sweep_style_atoms();
-
-    assert_eq!(engine.counters().get(Counter::AtomSweeps), 1);
-    assert!(engine.host.style_atoms_swept);
-}
-
-#[test]
-fn replay_skips_an_atom_sweep_the_recording_skipped() {
-    let mut engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
-    for raw in 0x1000..0x1100 {
-        engine.intern_atom(raw);
-    }
-    assert!(engine.retained.atoms.should_sweep());
-    engine.host.replay_atom_sweep = Some(ReplayAtomSweep::Skip);
-
-    engine.sweep_style_atoms();
-
-    assert_eq!(engine.counters().get(Counter::AtomSweeps), 0);
-    assert!(!engine.host.style_atoms_swept);
-    assert!(engine.host.replay_atom_sweep.is_none());
-}
-
-#[test]
-fn replay_ffi_reclaims_the_non_empty_recorded_atom_set() {
-    let (mut engine, nodes) = linear_document();
-    for &node in &nodes {
-        set_atom_feature(&mut engine, node, LocalFeatureKey::TagName, StyleAtomID(100));
-    }
-    let reclaimable = engine.intern_atom(0x1000);
-    let recorded = [reclaimable.0];
-    let engine_pointer = crate::css::style::StyleEngineHandle::from_raw(&raw mut engine);
-    unsafe {
-        bridge::style_engine_set_replay_atom_sweep(engine_pointer, true, recorded.as_ptr(), recorded.len());
-    }
-
-    let computation_inputs = bridge::FfiDocumentStyleComputationInputs {
-        viewport_width: 800.0,
-        viewport_height: 600.0,
-        root_font_size: 16.0,
-        device_pixels_per_css_pixel: 2.0,
-        ..Default::default()
-    };
-    let output = unsafe {
-        bridge::style_engine_take_style_transaction_for_replay(engine_pointer, nodes[0].raw(), computation_inputs)
-    };
-
-    assert_eq!(engine.document_style_computation_inputs, computation_inputs);
-
-    assert!(output.style_atoms_swept);
-    assert_eq!(output.reclaimed_style_atom_count, 1);
-    let reclaimed = unsafe { *output.reclaimed_style_atoms };
-    assert_eq!(reclaimed.atom, reclaimable.0);
-    assert_eq!(reclaimed.raw, 0x1000);
 }
 
 #[test]

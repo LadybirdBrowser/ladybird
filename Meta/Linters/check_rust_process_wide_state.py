@@ -47,7 +47,6 @@ ENVIRONMENT_SWITCH = "read-once environment switch; every thread sees the same a
 IDENTITY = "process-wide atomic counter handing out unique identities"
 BUILT_ONCE = "built once and read-only after; every thread shares the same table"
 LOCKED = "process-wide and behind a mutex or a lock"
-REPLAY = "style replay capture; replay builds only, or off unless an environment variable turns it on"
 TEST_ONLY = "test only"
 
 
@@ -145,15 +144,6 @@ RENDER_STATE_ALLOWED = {
             "css/parser/stylesheet_cache.rs:CACHE",
             "css/style/atoms.rs:GLOBAL_ATOMS",
             "css/style/user_agent_selectors.rs:PROGRAMS",
-        ],
-    ),
-    **render_state_entries(
-        REPLAY,
-        [
-            "css/computed_values.rs:REPLAY_STYLE_GROUPS",
-            "css/computed_values.rs:REPLAY_STYLE_GROUP_SIZES",
-            "css/style/record_replay.rs:CAPTURE",
-            "css/style_value.rs:REPLAY_STYLE_VALUES",
         ],
     ),
     **render_state_entries(

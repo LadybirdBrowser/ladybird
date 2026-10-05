@@ -2271,17 +2271,13 @@ impl StyleEngineState {
     }
 
     pub(super) fn sweep_style_atoms(&mut self, counters: &mut Counters) {
-        let replay_reclaimed = match self.host.replay_atom_sweep.take() {
-            Some(ReplayAtomSweep::Skip) => return,
-            Some(ReplayAtomSweep::Reclaim(atoms)) => Some(atoms),
-            None if self.retained.atoms.should_sweep() && !self.host.defers_atom_sweep => None,
-            None => return,
-        };
+        if !self.retained.atoms.should_sweep() || self.host.defers_atom_sweep {
+            return;
+        }
         if self.retained.batch_matching_traversal.is_some() {
             counters.bump(Counter::AtomSweepsDeferredForActiveTraversal);
             return;
         }
-        self.host.style_atoms_swept = true;
         self.retained.facts.sweep_auxiliary_catalogs_without_sync();
         let (mut live, visited) = self.collect_live_style_atoms();
         self.retained.atoms.mark_sweep_dependencies(&mut live);
@@ -2293,15 +2289,7 @@ impl StyleEngineState {
                 break;
             }
         }
-        let mut reclaimable = self.retained.atoms.reclaimable_for_sweep(&live);
-        if let Some(recorded) = replay_reclaimed {
-            assert!(
-                recorded.iter().all(|atom| reclaimable.binary_search(atom).is_ok()),
-                "a recorded atom release still has a semantic replay owner"
-            );
-            reclaimable = recorded;
-            reclaimable.sort_unstable();
-        }
+        let reclaimable = self.retained.atoms.reclaimable_for_sweep(&live);
         self.retained.facts.forget_atoms(&reclaimable);
         self.retained.custom_property_environments.forget_names(&reclaimable);
         let is_reclaimed = |atom: &StyleAtomID| reclaimable.binary_search(atom).is_ok();

@@ -19,9 +19,6 @@ pub(crate) enum RecordDemand {
 }
 
 impl RecordDemand {
-    /// Where a replay recording numbers the pseudo-element demands, after the element ones.
-    pub(crate) const FIRST_PSEUDO_ELEMENT_SHAPE: u8 = 3;
-
     /// Whether the demand leaves the engine as it was, its record only for the host to read.
     pub(crate) fn is_read_only(self) -> bool {
         use bridge::{FfiPseudoElementRecordDemand as Pseudo, FfiRecordDemand as Element};

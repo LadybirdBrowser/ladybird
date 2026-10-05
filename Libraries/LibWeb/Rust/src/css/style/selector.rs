@@ -85,16 +85,6 @@ use super::tree::TreeScopeID;
 use crate::css::css_tokenizer::TokenizerInput;
 pub use crate::css::selector::Specificity;
 
-#[cfg(feature = "style-recording")]
-pub mod replay;
-#[cfg(not(feature = "style-recording"))]
-pub mod replay {
-    use super::SelectorProgram;
-    use crate::css::style::record_replay::PayloadWriter;
-
-    pub fn write(_program: &SelectorProgram, _payload: &mut PayloadWriter) {}
-}
-
 define_id! {
     /// Index into one program's node arena.
     pub struct SelectorNodeID(pub);
@@ -2833,7 +2823,9 @@ impl SelectorPrograms {
         }
     }
 
-    pub(super) fn for_replay() -> Self {
+    /// Programs shared with every other document's, as a live engine's are outside tests.
+    #[cfg(test)]
+    pub(super) fn shared_across_documents() -> Self {
         Self {
             scope: SelectorProgramScope::Process,
             ..Self::default()
@@ -7987,7 +7979,7 @@ mod tests {
                     .sum::<usize>()
             );
         };
-        for mut programs in [SelectorPrograms::new(), SelectorPrograms::for_replay()] {
+        for mut programs in [SelectorPrograms::new(), SelectorPrograms::shared_across_documents()] {
             check(&programs);
             let first = programs.add(make_program(1, 5));
             let retained = programs.add(make_program(10, 2));
@@ -8015,8 +8007,8 @@ mod tests {
         let make_program = || single_entry(|builder| builder.push_feature(FeatureTest::Class(StyleAtomID(91))));
         let expected_bytes = make_program().capacity_bytes();
         let program_hash = SelectorPrograms::program_hash(&make_program());
-        let mut first = SelectorPrograms::for_replay();
-        let mut second = SelectorPrograms::for_replay();
+        let mut first = SelectorPrograms::shared_across_documents();
+        let mut second = SelectorPrograms::shared_across_documents();
         let first_id = first.add(make_program());
         let second_id = second.add(make_program());
 
@@ -8024,7 +8016,7 @@ mod tests {
             first.programs[first_id.0 as usize].as_ref().unwrap(),
             second.programs[second_id.0 as usize].as_ref().unwrap(),
         ) else {
-            panic!("replay selector programs must have process storage");
+            panic!("shared selector programs must have process storage");
         };
         assert!(Arc::ptr_eq(first_program, second_program));
         // The pool is shared with every other test running in the process, so this test only

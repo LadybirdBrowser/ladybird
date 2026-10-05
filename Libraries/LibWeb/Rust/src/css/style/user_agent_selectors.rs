@@ -48,13 +48,8 @@ fn user_agent_selector_programs() -> MutexGuard<'static, UserAgentSelectorProgra
 
 impl StyleEngineState {
     /// Whether this engine attaches the selector programs the process compiled for the user-agent
-    /// sheets. One that records compiles its own, so the recording sees each program arrive; one
-    /// whose atoms are its own cannot read programs that name the process's.
+    /// sheets. One whose atoms are its own cannot read programs that name the process's.
     pub(super) fn shares_user_agent_selector_programs(&self) -> bool {
-        #[cfg(feature = "style-recording")]
-        if self.host.recording_id.is_some() {
-            return false;
-        }
         self.atoms.is_process_global()
     }
 

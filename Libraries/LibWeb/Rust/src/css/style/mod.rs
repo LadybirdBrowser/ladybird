@@ -100,8 +100,6 @@ pub mod program;
 mod program_updates;
 mod publication;
 mod random_bases;
-#[cfg(feature = "style-recording")]
-pub mod record_replay;
 mod resource_contexts;
 mod routing;
 pub(crate) mod rule_writes;
@@ -112,61 +110,6 @@ mod user_agent_selectors;
 pub(crate) use computed::StyleRecordLease;
 pub(crate) use publication::RecordDemand;
 pub(crate) use transition_baselines::{InheritedAnimatedValue, TransitionBaselines};
-mod weak_pool;
-#[cfg(not(feature = "style-recording"))]
-pub mod record_replay {
-    include!(concat!(env!("OUT_DIR"), "/style_engine_event_kind_stub_generated.rs"));
-
-    pub(crate) fn invalidate_pointer(_pointer: usize) {}
-
-    #[derive(Default)]
-    pub struct PayloadWriter {
-        _private: (),
-    }
-
-    /// Mirror of the recording build's marker trait.
-    ///
-    /// # Safety
-    /// See the recording build's `RawRecord` for the contract; this stub records nothing.
-    pub unsafe trait RawRecord: Copy {}
-
-    impl PayloadWriter {
-        pub fn write_bool(&mut self, _value: bool) {}
-        pub fn write_bytes(&mut self, _value: &[u8]) {}
-        pub fn write_length(&mut self, _value: usize) {}
-        pub fn write_i32(&mut self, _value: i32) {}
-        pub fn write_u8(&mut self, _value: u8) {}
-        pub fn write_u16(&mut self, _value: u16) {}
-        pub fn write_u16_slice(&mut self, _value: &[u16]) {}
-        pub fn write_u32(&mut self, _value: u32) {}
-        pub fn write_u32_slice(&mut self, _value: &[u32]) {}
-        pub fn write_u64(&mut self, _value: u64) {}
-        pub fn write_u64_slice(&mut self, _value: &[u64]) {}
-        pub fn write_native_u16(&mut self, _value: u16) {}
-        pub fn write_native_u32(&mut self, _value: u32) {}
-        pub fn write_raw_slice<T: RawRecord>(&mut self, _values: &[T]) {}
-        pub fn write_applied_animation_definitions(
-            &mut self,
-            _definitions: &[super::bridge::FfiAppliedAnimationDefinition],
-        ) {
-        }
-        pub fn write_raw_rows(
-            &mut self,
-            _count: usize,
-            _row_size: usize,
-            _row_alignment: usize,
-            write_rows: impl FnOnce(&mut Self),
-        ) {
-            write_rows(self);
-        }
-        pub fn as_bytes(&self) -> &[u8] {
-            &[]
-        }
-        pub fn stable_digest(&self) -> u64 {
-            0
-        }
-    }
-}
 pub mod relative_selector;
 pub mod selector;
 pub mod selector_evaluation;
@@ -178,6 +121,7 @@ mod specified_value;
 pub mod transaction;
 mod transaction_view;
 pub mod tree;
+mod weak_pool;
 
 use atoms::DocumentAtoms;
 use atoms::ReclaimedStyleAtom;
@@ -200,8 +144,6 @@ pub(crate) type SelectorValueTextNames = Arc<HashSet<StyleAtomID>>;
 
 use crate::css::cascaded_properties::CascadeOrigin;
 use crate::css::cascaded_properties::CascadedPropertyStore;
-#[cfg(feature = "style-recording")]
-use crate::css::computed_values::computed_group_dependency_mask;
 use crate::css::computed_values::computed_group_output_mask;
 use crate::css::host_shared::{HostShared, SharedPayload};
 use crate::css::selector::CompiledSelector;
@@ -506,18 +448,6 @@ mod verification {
     pub(super) fn prefix_relation_is_enabled() -> bool {
         enabled(&PREFIX_RELATION, "LIBWEB_VERIFY_PREFIX_RELATION")
     }
-
-    pub(super) fn gate_bits() -> u8 {
-        u8::from(enabled(&STYLE_ANSWER_PATCH, "LIBWEB_VERIFY_STYLE_ANSWER_PATCH"))
-            | (u8::from(enabled(&CASCADE_WINNERS, "LIBWEB_VERIFY_CASCADE_WINNERS")) << 1)
-            | (u8::from(enabled(&STYLE_PLAN_PROVENANCE, "LIBWEB_VERIFY_STYLE_PLAN_PROVENANCE")) << 2)
-            | (u8::from(enabled(
-                &PUBLISHED_STYLE_TRANSACTION,
-                "LIBWEB_VERIFY_PUBLISHED_STYLE_TRANSACTION",
-            )) << 3)
-            | (u8::from(selector_truth_derivation_is_enabled()) << 4)
-            | (u8::from(prefix_relation_is_enabled()) << 5)
-    }
 }
 
 use verification::{
@@ -525,10 +455,6 @@ use verification::{
     selector_truth_derivation_is_enabled as verify_selector_truth_derivation_is_enabled,
     style_answer_patch as verify_style_answer_patch, style_plan_provenance as verify_style_plan_provenance,
 };
-
-fn verification_gate_bits() -> u8 {
-    verification::gate_bits()
-}
 
 fn exact_tree_routing_is_selective(changed_nodes: usize, document_nodes: usize) -> bool {
     changed_nodes <= SMALL_CANDIDATE_SOURCE
@@ -1119,7 +1045,7 @@ pub struct RetainedState {
     diagnostic_plan_capture: Option<DiagnosticPlanCapture>,
 }
 
-/// Host-facing engine state: C++ ownership, journal intake and the record/replay adapters.
+/// Host-facing engine state: C++ ownership and journal intake.
 /// Never reachable from an evaluation step.
 pub struct HostState {
     /// The style pass the host is installing wave by wave, between two of its waves.
@@ -1127,9 +1053,6 @@ pub struct HostState {
     /// The host's synchronous font resolver. A step that misses the cache returns `NeedsInput`;
     /// the round outside the step calls this and the node is retried.
     font_resolver: Option<font_resolution::FontResolverHost>,
-    /// The capture-local document identity, absent when record-replay is disabled.
-    #[cfg(feature = "style-recording")]
-    recording_id: Option<u64>,
     journal: NormalizationJournal,
     /// Local selector facts through the latest geometry read which reused committed layout. A
     /// normal style observation merges this into `journal`; a newly introduced transition can
@@ -1165,32 +1088,12 @@ pub struct HostState {
     sheet_occurrence_memory: MemoryLease,
     /// The old dense rule sequence while one sheet is synchronously reparsed.
     sheet_rule_replacement: Option<SheetRuleReplacement>,
-    /// Borrowed FFI result storage for the most recently published style transaction.
-    ffi_style_transaction_output: bridge::FfiStyleTransactionOutput,
-    ffi_style_transaction_output_memory: MemoryLease,
-    /// Borrowed FFI result storage for the most recent style-node query.
-    ffi_style_node_query: Vec<u32>,
-    ffi_style_node_query_memory: MemoryLease,
     /// Identities released at transaction settlement. The FFI keeps this batch borrowed until C++
     /// has removed its matching fly-string references and atom-keyed memo entries.
     reclaimed_style_atoms: Vec<ReclaimedStyleAtom>,
-    /// Whether transaction settlement performed an atom sweep, including a sweep that reclaimed
-    /// no identities. Recording consumes this alongside the release batch.
-    style_atoms_swept: bool,
-    /// Replay reconstructs semantic engine state but not the C++ references to atoms, nor the host's
-    /// reasons to defer a sweep, so the recording decides whether the next transaction sweeps.
-    replay_atom_sweep: Option<ReplayAtomSweep>,
     /// Whether the transaction under way leaves its atom sweep to a later one: it runs beside the host, which may name
     /// an atom meanwhile that the sweep would reclaim before the host hears of it.
     defers_atom_sweep: bool,
-}
-
-/// The atom sweep a replayed transaction performs, as recorded.
-pub(super) enum ReplayAtomSweep {
-    Skip,
-    /// The recorded release batch supplies the atoms' lifetime boundary while still requiring every
-    /// released atom to be reclaimable from replay's complete semantic root set.
-    Reclaim(Vec<StyleAtomID>),
 }
 
 /// Mutable engine state; operations borrow their instrumentation from the boundary.

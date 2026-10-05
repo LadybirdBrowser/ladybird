@@ -3244,10 +3244,6 @@ fn needs_computed_style_sheet_context(value: *const StyleValueData) -> bool {
     if value.is_null() {
         return false;
     }
-    #[cfg(any(test, feature = "style-replay"))]
-    if crate::css::style_value::replay_style_value_token(value).is_some() {
-        return true;
-    }
     // NB: Keep this traversal aligned with StyleValue::set_style_sheet(). Only image
     //     wrappers consume the context; container wrappers forward it to their children.
     match unsafe { &*value } {
@@ -5915,7 +5911,9 @@ unsafe fn finish_sample_with_host(
     })
 }
 
-/// How far one call of the style engine took a sample.
+/// How far one call of the style engine took a sample. It lives for one call, so the resolved
+/// sample stays inline rather than taking an allocation.
+#[allow(clippy::large_enum_variant)]
 enum AnimationSampleStep {
     Sampled(FfiHostAnimationSampleResult),
     /// The declarations are resolved, and the keyframes compute over the element's length contexts.

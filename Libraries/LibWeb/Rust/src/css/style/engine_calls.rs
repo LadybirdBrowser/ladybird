@@ -10,22 +10,20 @@
 //! what it hands over: borrowed arrays are copied, and the host's objects are referenced, as the entry queues the
 //! change.
 
+use super::StyleEngine;
 use super::atoms::{AtomKey, AtomLease};
 use super::bridge::{
     FfiDemandedPseudoElement, FfiElementArrival, FfiElementDeclarationDelta, FfiElementStyleInput,
     FfiLocalFeatureDelta, FfiPseudoElementRecordDemand, FfiRecordDemand, FfiRecordDemandAnswer, FfiStateDelta,
-    FfiStyleInputTransaction, FfiTreeDelta, borrow, write_recording_element_style_inputs, write_recording_state_deltas,
-    write_recording_tree_deltas,
+    FfiStyleInputTransaction, FfiTreeDelta, borrow,
 };
 use super::font_resolution::{FontResolverHost, PublishedFontFaces};
 use super::inputs::RetainedCustomPropertyData;
 use super::instrumentation::Counter;
 use super::publication::RecordDemand;
 use super::random_bases::{NamedBaseValue, ParkedBaseValues};
-use super::record_replay::EventKind;
 use super::tree::{StyleNodeID, TreeScopeID};
 use super::{HashMap, StyleAtomID};
-use super::{StyleEngine, StyleEngineHandle};
 use crate::css::transition::{FfiTransitionAction, FfiTransitionInput, TransitionDecision};
 use crate::render_state::{ArenaChange, BegunRead, DocumentHost};
 use std::ffi::c_void;
@@ -70,9 +68,6 @@ pub(crate) enum EngineWrite {
         kind: super::bridge::FfiElementDeclarationKind,
         properties: Box<[crate::css::declaration_block::DeclaredProperty]>,
     },
-    /// A benchmark marker the page set, which a recording of the engine's calls keeps in their order.
-    #[cfg(feature = "style-recording")]
-    BenchmarkMarker(Box<[u16]>),
     /// An element's inline declaration block, or none.
     InlineStyle {
         node: StyleNodeID,
@@ -172,10 +167,6 @@ impl EngineWrite {
             Self::ApplyTransaction(transaction) => apply_input_transaction(engine, &transaction),
             Self::ElementParts { node, pairs } => set_element_parts(engine, node, &pairs),
             Self::TextData { node, data } => {
-                engine.record_boundary_call(EventKind::SetTextData, |payload| {
-                    payload.write_u32(node);
-                    payload.write_u16_slice(&data.to_utf16());
-                });
                 if let Some(node) = StyleNodeID::from_raw(node) {
                     engine.set_text_data(node, data);
                 }
@@ -197,12 +188,6 @@ impl EngineWrite {
                     engine
                         .animation_effect_descriptions
                         .keep_timing(node, 0, identity, timing);
-                }
-            }
-            #[cfg(feature = "style-recording")]
-            Self::BenchmarkMarker(name) => {
-                if engine.recording_id().is_some() {
-                    engine.record_boundary_call(EventKind::BenchmarkMarker, |payload| payload.write_u16_slice(&name));
                 }
             }
             Self::InlineStyle { node, data } => {
@@ -290,7 +275,6 @@ impl EngineWrite {
 
 fn mint_style_nodes(engine: &mut StyleEngine, nodes: &[u32]) {
     engine.mint_style_nodes(nodes);
-    engine.record_boundary_call(EventKind::MintStyleNodes, |payload| payload.write_u32_slice(nodes));
 }
 
 fn apply_input_transaction(engine: &mut StyleEngine, transaction: &InputTransaction) {
@@ -302,15 +286,6 @@ fn apply_input_transaction(engine: &mut StyleEngine, transaction: &InputTransact
         &transaction.declarations,
         &transaction.element_style_inputs,
     );
-    engine.record_boundary_call(EventKind::ApplyTransaction, |payload| {
-        write_recording_tree_deltas(&transaction.tree, payload);
-        payload.write_raw_slice(&transaction.arrivals);
-        payload.write_u32_slice(&transaction.arrival_custom_state_atoms);
-        payload.write_raw_slice(&transaction.features);
-        write_recording_state_deltas(&transaction.states, payload);
-        payload.write_raw_slice(&transaction.declarations);
-        write_recording_element_style_inputs(&transaction.element_style_inputs, payload);
-    });
 }
 
 /// Gives `node` the random base values of `row`, as one buffer of name code units with a length and a value per name,
@@ -336,14 +311,6 @@ fn unpark_random_base_values(engine: &mut StyleEngine, node: StyleNodeID, row: &
 
 fn set_element_parts(engine: &mut StyleEngine, node: StyleNodeID, pairs: &[(StyleAtomID, StyleNodeID)]) {
     engine.set_element_parts(node, pairs);
-    engine.record_boundary_call(EventKind::SetElementParts, |payload| {
-        payload.write_u32(node.raw());
-        payload.write_length(pairs.len());
-        for (name, host) in pairs {
-            payload.write_u32(name.0);
-            payload.write_u32(host.raw());
-        }
-    });
 }
 
 fn set_element_language(engine: &mut StyleEngine, node: u32, language: u32, text: &[u16]) {
@@ -355,11 +322,6 @@ fn set_element_language(engine: &mut StyleEngine, node: u32, language: u32, text
     if let Some(node) = StyleNodeID::from_raw(node) {
         engine.set_element_language(node, StyleAtomID(language));
     }
-    engine.record_boundary_call(EventKind::SetElementLanguage, |payload| {
-        payload.write_u32(node);
-        payload.write_u32(language);
-        payload.write_u16_slice(text);
-    });
 }
 
 /// A copy of the input transaction `transaction` describes.
@@ -674,49 +636,6 @@ pub unsafe extern "C" fn style_engine_set_element_language(
     unsafe { queue(host, EngineWrite::element_language(node, language, text)) };
 }
 
-/// Replays the recorded identities a host minted onto the replay engine `engine`.
-///
-/// # Safety
-/// `engine` must be a live replay engine.
-pub unsafe fn replay_mint_style_nodes(engine: StyleEngineHandle, nodes: &[u32]) {
-    // SAFETY: Guaranteed by the caller.
-    mint_style_nodes(unsafe { engine.get_mut() }, nodes);
-}
-
-/// Replays a recorded input transaction onto the replay engine `engine`.
-///
-/// # Safety
-/// `engine` must be a live replay engine, and each pointer of `transaction` must cover its stated count.
-pub unsafe fn replay_apply_transaction(engine: StyleEngineHandle, transaction: &FfiStyleInputTransaction) {
-    // SAFETY: Guaranteed by the caller.
-    unsafe { apply_input_transaction(engine.get_mut(), &input_transaction(transaction)) };
-}
-
-/// Replays the recorded parts of an element onto the replay engine `engine`.
-///
-/// # Safety
-/// `engine` must be a live replay engine.
-pub unsafe fn replay_set_element_parts(engine: StyleEngineHandle, node: u32, names: &[u32], hosts: &[u32]) {
-    if let Some((node, pairs)) = element_parts(node, names, hosts) {
-        // SAFETY: Guaranteed by the caller.
-        set_element_parts(unsafe { engine.get_mut() }, node, &pairs);
-    }
-}
-
-/// Replays the recorded language of an element onto the replay engine `engine`.
-///
-/// # Safety
-/// `engine` must be a live replay engine.
-pub unsafe fn replay_set_element_language(engine: StyleEngineHandle, node: u32, language: u32, text: &[u16]) {
-    // SAFETY: Guaranteed by the caller.
-    set_element_language(
-        unsafe { engine.get_mut() },
-        node,
-        language,
-        if language == 0 { &[] } else { text },
-    );
-}
-
 /// A read of a document's style engine the host's style code makes.
 pub(crate) enum StyleQuery {
     /// The nodes whose style depends on the viewport.
@@ -760,14 +679,6 @@ impl StyleQuery {
                     .counters
                     .set(Counter::RetiredAnimationOverlayRecords, retired as u64);
                 let counter = engine.counters().iter().nth(index);
-                engine.record_boundary_call(EventKind::Counter, |payload| {
-                    payload.write_u64(u64::try_from(index).expect("counter index exceeds u64"));
-                    payload.write_bool(counter.is_some());
-                    if let Some((name, value)) = counter {
-                        payload.write_bytes(name.as_bytes());
-                        payload.write_u64(value);
-                    }
-                });
                 StyleAnswer::Counter(counter)
             }
         }
