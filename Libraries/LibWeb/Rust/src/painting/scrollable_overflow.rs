@@ -7,6 +7,7 @@
 use crate::css::css_enums::{flex_direction, flex_wrap, overflow, positioning, writing_mode};
 use crate::css::css_pixels::{CssPixelPoint, CssPixelRect, CssPixels};
 use crate::css::display::FfiDisplay;
+use crate::fast_hash::FastMap as HashMap;
 use crate::layout::LayoutNodeArena;
 use crate::layout::node_data::{NodeFlag, NodeKind, NodeSlotId};
 use crate::layout::node_facts;
@@ -18,7 +19,6 @@ use crate::painting::visual_context::node_values;
 use crate::painting::{paintable_geometry, style_queries, text_fragment};
 use libgfx_rust::matrix::{AffineTransform, FloatMatrix4x4};
 use std::cell::{Cell, RefCell};
-use std::collections::HashMap;
 
 /// Index boxes whose containing block differs from their layout parent. Direct children are
 /// enumerated from the layout tree when measuring overflow.
