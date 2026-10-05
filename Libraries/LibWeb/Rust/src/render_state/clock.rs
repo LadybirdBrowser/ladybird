@@ -346,10 +346,8 @@ pub unsafe extern "C" fn clock_ticks_release(ticks: *const ClockTicks) {
 ///
 /// `host` must come from `document_host_create` and not be destroyed yet, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn document_host_has_clock_plan(host: *const DocumentHost) -> bool {
-    assert!(!host.is_null(), "document host is null");
-    // SAFETY: Guaranteed by the caller.
-    unsafe { &*host }.has_clock_plan()
+pub unsafe extern "C" fn document_host_has_clock_plan(host: &DocumentHost) -> bool {
+    host.has_clock_plan()
 }
 
 /// Drops the plan for a clock lease of `host`'s document, for a rendering update that leaves it none. The plan is the
@@ -359,10 +357,8 @@ pub unsafe extern "C" fn document_host_has_clock_plan(host: *const DocumentHost)
 ///
 /// `host` must come from `document_host_create` and not be destroyed yet, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn document_host_drop_clock_plan(host: *const DocumentHost) {
-    assert!(!host.is_null(), "document host is null");
-    // SAFETY: Guaranteed by the caller.
-    unsafe { &*host }.seal_clock_plan(None);
+pub unsafe extern "C" fn document_host_drop_clock_plan(host: &DocumentHost) {
+    host.seal_clock_plan(None);
 }
 
 /// Leases the render state of `host`'s document to the render clock as a task begins, with the recorder state and the
@@ -378,12 +374,11 @@ pub unsafe extern "C" fn document_host_drop_clock_plan(host: *const DocumentHost
 /// where the lease takes it.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn document_host_lease_clock(
-    host: *const DocumentHost,
+    host: &DocumentHost,
     presentation: *mut FfiPresentation,
 ) -> *const ClockTicks {
-    assert!(!host.is_null(), "document host is null");
     // SAFETY: Guaranteed by the caller.
-    let (host, presentation) = unsafe { (&*host, &mut *presentation) };
+    let presentation = unsafe { &mut *presentation };
     let start = TaskStart::at_event_loop_entry(&LEASES_CLOCK_FOR_TASK);
     let taken = std::mem::replace(
         presentation,
@@ -413,13 +408,7 @@ pub unsafe extern "C" fn document_host_lease_clock(
 /// `host` must come from `document_host_create` and not be destroyed yet, on its document's thread, and
 /// `presentation` must be valid for writes; the caller takes over what it names.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn document_host_take_back_presentation(
-    host: *const DocumentHost,
-    presentation: *mut FfiPresentation,
-) {
-    assert!(!host.is_null(), "document host is null");
-    // SAFETY: Guaranteed by the caller.
-    let host = unsafe { &*host };
+pub unsafe extern "C" fn document_host_take_back_presentation(host: &DocumentHost, presentation: *mut FfiPresentation) {
     let given_back = host.take_back_presentation().map_or(
         FfiPresentation {
             presenter: std::ptr::null_mut(),
@@ -438,10 +427,7 @@ pub unsafe extern "C" fn document_host_take_back_presentation(
 ///
 /// `host` must come from `document_host_create` and not be destroyed yet, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn document_host_end_clock_lease_for_animation(host: *const DocumentHost) {
-    assert!(!host.is_null(), "document host is null");
-    // SAFETY: Guaranteed by the caller.
-    let host = unsafe { &*host };
+pub unsafe extern "C" fn document_host_end_clock_lease_for_animation(host: &DocumentHost) {
     host.end_clock_lease_and_plan();
 }
 
@@ -461,10 +447,8 @@ pub enum FfiClockLeaseState {
 ///
 /// `host` must come from `document_host_create` and not be destroyed yet, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn document_host_clock_lease_state(host: *const DocumentHost) -> FfiClockLeaseState {
-    assert!(!host.is_null(), "document host is null");
-    // SAFETY: Guaranteed by the caller.
-    match unsafe { &*host }.clock_ticks() {
+pub unsafe extern "C" fn document_host_clock_lease_state(host: &DocumentHost) -> FfiClockLeaseState {
+    match host.clock_ticks() {
         None => FfiClockLeaseState::None,
         Some(ticks) if ticks.is_parked() => FfiClockLeaseState::Parked,
         Some(_) => FfiClockLeaseState::Ticking,
@@ -479,10 +463,8 @@ pub unsafe extern "C" fn document_host_clock_lease_state(host: *const DocumentHo
 ///
 /// `host` must come from `document_host_create` and not be destroyed yet, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn document_host_inject_clock_tick(host: *const DocumentHost, frame_time_nanoseconds: i64) {
-    assert!(!host.is_null(), "document host is null");
-    // SAFETY: Guaranteed by the caller.
-    if let Some(ticks) = unsafe { &*host }.clock_ticks() {
+pub unsafe extern "C" fn document_host_inject_clock_tick(host: &DocumentHost, frame_time_nanoseconds: i64) {
+    if let Some(ticks) = host.clock_ticks() {
         ticks.tick(frame_time_nanoseconds);
         crate::stage_thread::style_layout_thread().run(|| ());
     }
@@ -497,13 +479,10 @@ pub unsafe extern "C" fn document_host_inject_clock_tick(host: *const DocumentHo
 /// valid for writes.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn document_host_presented_border_box(
-    host: *const DocumentHost,
+    host: &DocumentHost,
     element: u32,
     rect: *mut FfiCssPixelRect,
 ) -> bool {
-    assert!(!host.is_null(), "document host is null");
-    // SAFETY: Guaranteed by the caller.
-    let host = unsafe { &*host };
     let Some(presented) = StyleNodeID::from_raw(element).and_then(|element| host.presented_border_box(element)) else {
         return false;
     };

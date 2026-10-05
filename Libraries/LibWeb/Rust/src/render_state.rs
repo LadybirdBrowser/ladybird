@@ -703,9 +703,8 @@ mod tests {
             document_host_note_paint_preparation_is_current, document_host_paint_preparation_is_current,
         };
         let test_host = TestHost::new();
-        let pointer = test_host.host();
         // SAFETY: The host lives as long as the test host.
-        let host = unsafe { &*pointer };
+        let host = unsafe { &*test_host.host() };
         // SAFETY: The arena lives as long as the host's render state, and the test reaches it only between jobs.
         let arena = unsafe { &mut *host.arena_for_test() };
         let viewport = arena.allocate_for_test().slot;
@@ -725,18 +724,18 @@ mod tests {
         };
 
         // SAFETY: The host is live, on this thread.
-        unsafe { document_host_note_paint_preparation_is_current(pointer) };
+        unsafe { document_host_note_paint_preparation_is_current(host) };
         measure();
         // SAFETY: As above.
-        assert!(!unsafe { document_host_paint_preparation_is_current(pointer) });
+        assert!(!unsafe { document_host_paint_preparation_is_current(host) });
         assert!(arena.scrollable_overflow.scrollability_changed.get());
 
         // A read that measures nothing leaves the preparation as it is.
         // SAFETY: As above.
-        unsafe { document_host_note_paint_preparation_is_current(pointer) };
+        unsafe { document_host_note_paint_preparation_is_current(host) };
         measure();
         // SAFETY: As above.
-        assert!(unsafe { document_host_paint_preparation_is_current(pointer) });
+        assert!(unsafe { document_host_paint_preparation_is_current(host) });
 
         arena
             .free_subtree(viewport)
