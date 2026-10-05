@@ -5,9 +5,9 @@
  */
 
 #include <LibWeb/Bindings/WrapperWorld.h>
+#include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/Scripting/Agent.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
-#include <LibWeb/Platform/EventLoopPlugin.h>
 
 namespace Web::HTML {
 
@@ -25,7 +25,7 @@ Bindings::WrapperWorld const& Agent::main_world() const
 
 void Agent::spin_event_loop_until(GC::Root<GC::Function<bool()>> goal_condition)
 {
-    Platform::EventLoopPlugin::the().spin_until(move(goal_condition));
+    event_loop->spin_until(*goal_condition);
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#relevant-agent
