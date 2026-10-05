@@ -65,6 +65,9 @@ pub struct DocumentHost {
     arena_version: Cell<Option<RowsVersion>>,
     /// The reactions of the style transaction the host took last, which it reads until it ends the transaction.
     style_transaction: RefCell<Option<StyleJobAnswer>>,
+    /// The first sample of the transitions a step the host read from the style transaction starts, by element, which
+    /// the sample the host takes next reads.
+    fresh_transition_sample: Cell<Option<(u32, crate::css::transition::FreshTransitionSample)>>,
     /// The absolute rects the host's reads of the rows computed, kept for as long as the geometry they were computed
     /// from stays.
     absolute_rects: RefCell<AbsoluteRectMemo>,
@@ -176,6 +179,7 @@ impl DocumentHost {
             rows: RefCell::default(),
             arena_version: Cell::new(None),
             style_transaction: RefCell::default(),
+            fresh_transition_sample: Cell::default(),
             absolute_rects: RefCell::default(),
             compositor_animations: RefCell::default(),
             forced_read: RefCell::default(),
@@ -1118,7 +1122,8 @@ impl DocumentHost {
 
     /// Answers the transition step `decision` asks of `properties`, writing the values each transition compared and the
     /// decisions into `actions`, where the style transaction the host took last decided it beside the row of the
-    /// step's element, `node`, over the same inputs. Answers whether it did.
+    /// step's element, `node`, over the same inputs. Answers whether it did. The transitions such a step starts are what
+    /// the host samples next, which reads the transaction's first sample of them.
     pub(crate) fn answer_decided_transition_step(
         &self,
         node: u32,
@@ -1126,15 +1131,43 @@ impl DocumentHost {
         properties: &mut [crate::css::transition::FfiTransitionPropertyInput],
         actions: &mut [crate::css::transition::FfiTransitionAction],
     ) -> bool {
-        self.style_transaction
-            .borrow()
+        let transaction = self.style_transaction.borrow();
+        let step = transaction
             .as_ref()
             .and_then(|answer| answer.decided_transition_step(node))
-            .is_some_and(|step| step.answer(decision, properties, actions))
+            .filter(|step| step.answer(decision, properties, actions));
+        self.fresh_transition_sample
+            .set(step.and_then(|step| Some((node, step.take_fresh_sample()?))));
+        step.is_some()
+    }
+
+    /// Answers the sample `input` from the transaction's first sample of the transitions the step the host read last
+    /// started, where it is the host's sample of them, and has the engine keep the timing each was sampled with.
+    ///
+    /// # Safety
+    /// As for `rust_sample_animation_effects`.
+    pub(crate) unsafe fn answer_fresh_transition_sample(
+        &self,
+        input: &crate::css::style_compute::FfiHostAnimationSample,
+    ) -> Option<crate::css::style_compute::FfiHostAnimationSampleResult> {
+        let (node, sample) = self.fresh_transition_sample.take()?;
+        if node != input.style_node || input.pseudo_kind != crate::css::cascaded_properties::NO_PSEUDO_ELEMENT {
+            return None;
+        }
+        // SAFETY: Guaranteed by the caller.
+        let (result, timings) = unsafe { sample.answer(input) }?;
+        self.queue_change(ArenaChange::Engine(
+            crate::css::style::engine_calls::EngineWrite::AnimationEffectTimings {
+                node: crate::css::style::tree::StyleNodeID::from_raw(node)?,
+                timings,
+            },
+        ));
+        Some(result)
     }
 
     /// Lets go of what the style transaction the host took last answered.
     pub(crate) fn end_style_transaction(&self) {
+        self.fresh_transition_sample.take();
         self.style_transaction.borrow_mut().take();
     }
 

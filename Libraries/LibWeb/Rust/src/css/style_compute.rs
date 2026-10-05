@@ -5791,6 +5791,11 @@ pub unsafe extern "C" fn rust_sample_animation_effects(
     let input = unsafe { &*input };
     // SAFETY: As above.
     let host = unsafe { document_host(input.host) };
+    // The first sample of the transitions a step just started rides the style job that decided the step.
+    // SAFETY: As above.
+    if let Some(result) = unsafe { host.answer_fresh_transition_sample(input) } {
+        return result;
+    }
     // Transforms interpolate against the transform reference box of the element's box, which the render owner reads.
     let element_box = crate::layout::node_data::NodeSlotId {
         index: input.element_box_slot,
@@ -5802,7 +5807,7 @@ pub unsafe extern "C" fn rust_sample_animation_effects(
     let step = with_engine_and_arena(read, host, |engine, arena| unsafe {
         let reference_box = reference_box(arena);
         let composed = host_sampled_effects(input, engine);
-        match begin_animation_sample(input, engine, composed, reference_box) {
+        match begin_animation_sample(input, engine, described_effects(input, engine), composed, reference_box) {
             AnimationSampleStep::Resolved(sample) => match engine_length_contexts(input, engine, &sample) {
                 Some(length_contexts) => AnimationSampleStep::Sampled(finish_animation_sample(
                     input,
@@ -5921,17 +5926,28 @@ unsafe fn host_sampled_effects(
         .collect()
 }
 
+/// The effects the engine describes for the element or pseudo-element `input` samples.
+fn described_effects<'a>(
+    input: &FfiHostAnimationSample,
+    engine: &'a crate::css::style::StyleEngine,
+) -> &'a [crate::css::style::effect_descriptions::PublishedEffect] {
+    crate::css::style::tree::StyleNodeID::from_raw(input.style_node).map_or(&[], |node| {
+        engine.element_animation_effects(node, animation_slot(input.pseudo_kind))
+    })
+}
+
 /// The effects a sample composes, in composite order, each at the key it samples its keyframes at.
 pub(crate) type SampledEffects = smallvec::SmallVec<[crate::css::animation::FfiSampledAnimationEffect; 4]>;
 
-/// Take a sample of `composed` as far as the style engine goes without the host: to its end, or to
-/// the length contexts its keyframes compute over.
+/// Take a sample of `composed`, effects `descriptions` describes, as far as the style engine goes
+/// without the host: to its end, or to the length contexts its keyframes compute over.
 ///
 /// # Safety
 /// As for [`rust_sample_animation_effects`].
 unsafe fn begin_animation_sample(
     input: &FfiHostAnimationSample,
-    engine: &mut crate::css::style::StyleEngine,
+    engine: &crate::css::style::StyleEngine,
+    descriptions: &[crate::css::style::effect_descriptions::PublishedEffect],
     composed: SampledEffects,
     reference_box: Option<CssPixelRect>,
 ) -> AnimationSampleStep {
@@ -5944,7 +5960,6 @@ unsafe fn begin_animation_sample(
     };
     let pseudo = (input.pseudo_kind != crate::css::cascaded_properties::NO_PSEUDO_ELEMENT).then_some(input.pseudo_kind);
     let (table, overlay) = unsafe { input.working_set() };
-    let descriptions = engine.element_animation_effects(node, animation_slot(input.pseudo_kind));
     let description = |identity| descriptions.iter().find(|description| description.identity == identity);
     if composed.is_empty() {
         return finished(Cleared);
@@ -6208,23 +6223,26 @@ unsafe fn finish_animation_sample(
 }
 
 /// Samples `composed` onto the overlay `input` names, as far as the engine goes without the host, and
-/// answers what it did to the overlay: for an element whose length contexts the engine builds over the
+/// answers what the sample found: for an element whose length contexts the engine builds over the
 /// record it holds, and whose keyframes read nothing else only the host knows, such as a container's
-/// size, a custom property, a document URL or a random base value.
+/// size, a custom property, a document URL or a random base value. The effects are the element's, or
+/// `fresh` ones the engine does not describe yet.
 ///
 /// # Safety
 /// As for [`rust_sample_animation_effects`], with `input` naming no callback but the overlay's.
 pub(crate) unsafe fn sample_without_host(
     input: &FfiHostAnimationSample,
     engine: &mut crate::css::style::StyleEngine,
+    fresh: Option<&[crate::css::style::effect_descriptions::PublishedEffect]>,
     composed: SampledEffects,
     reference_box: Option<CssPixelRect>,
-) -> Result<FfiHostAnimationSampleOutcome, crate::css::style::engine_sample::NeedsHost> {
+) -> Result<FfiHostAnimationSampleResult, crate::css::style::engine_sample::NeedsHost> {
     use crate::css::style::engine_sample::NeedsHost;
 
+    let descriptions = fresh.unwrap_or_else(|| described_effects(input, engine));
     // SAFETY: Guaranteed by the caller.
-    let sample = match unsafe { begin_animation_sample(input, engine, composed, reference_box) } {
-        AnimationSampleStep::Sampled(result) => return Ok(result.outcome),
+    let sample = match unsafe { begin_animation_sample(input, engine, descriptions, composed, reference_box) } {
+        AnimationSampleStep::Sampled(result) => return Ok(result),
         AnimationSampleStep::Resolved(sample) => sample,
     };
     if !sample.result.style_query_dependencies.is_null() {
@@ -6253,7 +6271,7 @@ pub(crate) unsafe fn sample_without_host(
     // SAFETY: As above.
     let result = unsafe { finish_animation_sample(input, engine, sample, &length_contexts, reference_box) };
     debug_assert!(result.animated_custom_properties_storage.is_null());
-    Ok(result.outcome)
+    Ok(result)
 }
 
 /// # Safety

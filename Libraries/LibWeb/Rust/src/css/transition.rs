@@ -429,6 +429,8 @@ pub(crate) struct DecidedTransitionStep {
     current_color: *const crate::css::style_value::StyleValueData,
     properties: Box<[FfiTransitionPropertyInput]>,
     actions: Box<[FfiTransitionAction]>,
+    /// The first sample of the transitions the step starts, until a host step that reads the decision takes it.
+    fresh_sample: std::cell::Cell<Option<FreshTransitionSample>>,
 }
 
 // SAFETY: The values a decision points at live in the records it decided over, which the host keeps live across the drain
@@ -443,7 +445,7 @@ impl DecidedTransitionStep {
     /// its box, which a frame can lay out first. Each transition is decided as one the element has none of yet, which
     /// the host checks.
     pub(crate) fn of_row(
-        engine: &crate::css::style::StyleEngine,
+        engine: &mut crate::css::style::StyleEngine,
         row: &crate::css::style::bridge::FfiStyleDelta,
     ) -> Option<Self> {
         use crate::css::property_metadata::property_id as prop;
@@ -526,6 +528,7 @@ impl DecidedTransitionStep {
             element: Some(node),
         }
         .decide(engine, None, &mut properties, &mut actions);
+        let fresh_sample = FreshTransitionSample::of_step(engine, node, after, &entries, &properties, &actions);
         Some(Self {
             node: row.style_node,
             before,
@@ -533,6 +536,7 @@ impl DecidedTransitionStep {
             current_color,
             properties,
             actions,
+            fresh_sample: std::cell::Cell::new(fresh_sample),
         })
     }
 
@@ -567,6 +571,159 @@ impl DecidedTransitionStep {
             actions.copy_from_slice(&self.actions);
         }
         asks_the_same
+    }
+
+    /// The first sample of the transitions the step starts, which only the host step that read its decision samples.
+    pub(crate) fn take_fresh_sample(&self) -> Option<FreshTransitionSample> {
+        self.fresh_sample.take()
+    }
+}
+
+/// The first sample of the transitions a decided step starts, taken beside the step over the record it moves its
+/// element to, which the host's sample of them reads rather than asks. Each transition has only just started, so it
+/// samples at the key its delay and easing give at its start, whatever the time.
+pub(crate) struct FreshTransitionSample {
+    after: u64,
+    /// The key each transition the step starts samples at, in the order the step starts them.
+    keys: Box<[f64]>,
+    overlay: crate::css::animated_overlay::AnimatedOverlay,
+    result: crate::css::style_compute::FfiHostAnimationSampleResult,
+}
+
+impl FreshTransitionSample {
+    /// Samples the transitions `actions` start over `after`, each from the values the decision compared to the easing
+    /// its entry names, as the host starts them: delayed, filling backwards, and held at their start.
+    fn of_step(
+        engine: &mut crate::css::style::StyleEngine,
+        node: crate::css::style::tree::StyleNodeID,
+        after: u64,
+        entries: &[FfiTransitionEntry],
+        properties: &[FfiTransitionPropertyInput],
+        actions: &[FfiTransitionAction],
+    ) -> Option<Self> {
+        use crate::css::animation::{FfiAnimationPreparationEffect, FfiSampledAnimationEffect};
+        use crate::css::style::effect_descriptions::PublishedEffect;
+        use crate::css::style_value::{RetainedStyleValueData, retain_style_value};
+
+        let mut fresh = Vec::new();
+        let mut composed = crate::css::style_compute::SampledEffects::new();
+        for ((entry, property), action) in entries.iter().zip(properties).zip(actions) {
+            match action.kind {
+                FfiTransitionActionKind::None => continue,
+                FfiTransitionActionKind::Start => {}
+                _ => return None,
+            }
+            // SAFETY: The entry's timing function lives in the record the step moves to.
+            let easing = crate::css::style::effect_descriptions::easing_from_computed_timing_function(unsafe {
+                &*entry.timing_function
+            })?;
+            let timing = crate::css::style::animations::EffectTiming {
+                timing: crate::css::style_compute::FfiEffectTiming {
+                    decidable: true,
+                    has_timeline_time: false,
+                    has_timeline_origin_time: false,
+                    has_start_time: false,
+                    has_hold_time: true,
+                    // `Bindings::FillMode::Backwards` and `Bindings::PlaybackDirection::Normal`.
+                    fill_mode: 2,
+                    playback_direction: 0,
+                    timeline_time: 0.0,
+                    timeline_origin_time: 0.0,
+                    start_time: 0.0,
+                    hold_time: 0.0,
+                    playback_rate: 1.0,
+                    start_delay: action.delay,
+                    end_delay: 0.0,
+                    iteration_duration: action.active_duration,
+                    iteration_count: 1.0,
+                    iteration_start: 0.0,
+                },
+                easing,
+            };
+            let identity = fresh.len() as u64 + 1;
+            composed.push(FfiSampledAnimationEffect {
+                effect: FfiAnimationPreparationEffect {
+                    identity,
+                    generation: 0,
+                },
+                current_key: timing.key(0.0)?,
+            });
+            // SAFETY: The decision compared live values, which the records it decided over hold.
+            let [start, end] = [property.before_change_value, property.after_change_value]
+                .map(|value| unsafe { RetainedStyleValueData::from_retained_pointer(retain_style_value(value)) });
+            fresh.push(PublishedEffect::transition(identity, property.property_id, start, end));
+        }
+        if composed.is_empty() {
+            return None;
+        }
+        let keys = composed.iter().map(|effect| effect.current_key).collect();
+        let mut overlay = crate::css::animated_overlay::AnimatedOverlay::default();
+        let result = engine
+            .sample_over_record(node, after, &mut overlay, Some(&fresh), composed, None)
+            .ok()?;
+        // The preparation is keyed by the step's own effects, which the host's are not.
+        overlay.animation_preparation = None;
+        Some(Self {
+            after,
+            keys,
+            overlay,
+            result,
+        })
+    }
+
+    /// Answers the host's sample `input`, where it samples what this one did: the transitions the step started, over
+    /// the record it moved its element to, each at the key this one sampled it at. Writes the overlay into the working
+    /// set and answers what the sample found, with the timing each effect was sampled with, which the engine keeps.
+    ///
+    /// # Safety
+    /// As for `rust_sample_animation_effects`.
+    pub(crate) unsafe fn answer(
+        self,
+        input: &crate::css::style_compute::FfiHostAnimationSample,
+    ) -> Option<(
+        crate::css::style_compute::FfiHostAnimationSampleResult,
+        crate::css::style::animations::SampledEffectTimings,
+    )> {
+        if input.style_record != self.after || !input.animated_overlay.is_null() {
+            return None;
+        }
+        // SAFETY: Guaranteed by the caller.
+        let effects = unsafe { crate::css::custom_properties::ffi_slice(input.effects, input.effect_count) };
+        if effects.len() != self.keys.len() {
+            return None;
+        }
+        let timings: Box<[_]> = effects
+            .iter()
+            .map(|effect| {
+                (
+                    effect.identity,
+                    crate::css::style::animations::EffectTiming {
+                        timing: effect.timing,
+                        // SAFETY: As above.
+                        easing: unsafe { crate::css::easing::Easing::from_descriptor(&effect.easing) },
+                    },
+                )
+            })
+            .collect();
+        let samples_alike = timings
+            .iter()
+            .zip(effects)
+            .zip(&self.keys)
+            .all(|(((_, timing), effect), key)| {
+                timing
+                    .key(effect.current_key)
+                    .is_some_and(|host_key| host_key.to_bits() == key.to_bits())
+            });
+        if !samples_alike {
+            return None;
+        }
+        if self.result.outcome == crate::css::style_compute::FfiHostAnimationSampleOutcome::Evaluated {
+            // SAFETY: As above.
+            let overlay = unsafe { (input.prepare_overlay_for_mutation)(input.callback_context) };
+            // SAFETY: The working set hands over its overlay, uniquely owned for the sample.
+            unsafe { *overlay.cast::<crate::css::animated_overlay::AnimatedOverlay>() = self.overlay };
+        }
+        Some((self.result, timings))
     }
 }
 
