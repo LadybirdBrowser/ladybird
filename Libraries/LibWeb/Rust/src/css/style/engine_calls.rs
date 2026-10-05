@@ -163,15 +163,31 @@ impl EngineWrite {
                 data,
                 identity,
             } => engine.set_pseudo_element_custom_property_data(node, pseudo, data, identity),
-            Self::MintStyleNodes(nodes) => mint_style_nodes(engine, &nodes),
-            Self::ApplyTransaction(transaction) => apply_input_transaction(engine, &transaction),
-            Self::ElementParts { node, pairs } => set_element_parts(engine, node, &pairs),
+            Self::MintStyleNodes(nodes) => engine.mint_style_nodes(&nodes),
+            Self::ApplyTransaction(transaction) => engine.apply_transaction_batch(
+                &transaction.tree,
+                (&transaction.arrivals, &transaction.arrival_custom_state_atoms),
+                &transaction.features,
+                &transaction.states,
+                &transaction.declarations,
+                &transaction.element_style_inputs,
+            ),
+            Self::ElementParts { node, pairs } => engine.set_element_parts(node, &pairs),
             Self::TextData { node, data } => {
                 if let Some(node) = StyleNodeID::from_raw(node) {
                     engine.set_text_data(node, data);
                 }
             }
-            Self::ElementLanguage { node, language, text } => set_element_language(engine, node, language, &text),
+            Self::ElementLanguage { node, language, text } => {
+                if language != 0 && !text.is_empty() {
+                    // A range is not a name, so `:lang()` compares against the tag itself. It is recorded once per
+                    // language rather than once per element.
+                    engine.set_element_language_text(StyleAtomID(language), &text);
+                }
+                if let Some(node) = StyleNodeID::from_raw(node) {
+                    engine.set_element_language(node, StyleAtomID(language));
+                }
+            }
             Self::PresentationalHints { node, kind, properties } => {
                 super::bridge::register_element_declared_properties(engine, node, kind, &properties, &[]);
             }
@@ -265,39 +281,6 @@ impl EngineWrite {
                 unsafe { super::bridge::note_native_custom_property_name(engine, name, string.raw_identity(), &text) };
             }
         }
-    }
-}
-
-// The writes a style replay makes as well, each kept apart so that a replay reaches no more of the engine's writes than
-// it replays.
-
-fn mint_style_nodes(engine: &mut StyleEngine, nodes: &[u32]) {
-    engine.mint_style_nodes(nodes);
-}
-
-fn apply_input_transaction(engine: &mut StyleEngine, transaction: &InputTransaction) {
-    engine.apply_transaction_batch(
-        &transaction.tree,
-        (&transaction.arrivals, &transaction.arrival_custom_state_atoms),
-        &transaction.features,
-        &transaction.states,
-        &transaction.declarations,
-        &transaction.element_style_inputs,
-    );
-}
-
-fn set_element_parts(engine: &mut StyleEngine, node: StyleNodeID, pairs: &[(StyleAtomID, StyleNodeID)]) {
-    engine.set_element_parts(node, pairs);
-}
-
-fn set_element_language(engine: &mut StyleEngine, node: u32, language: u32, text: &[u16]) {
-    if language != 0 && !text.is_empty() {
-        // A range is not a name, so `:lang()` compares against the tag itself. It is recorded once per
-        // language rather than once per element.
-        engine.set_element_language_text(StyleAtomID(language), text);
-    }
-    if let Some(node) = StyleNodeID::from_raw(node) {
-        engine.set_element_language(node, StyleAtomID(language));
     }
 }
 
@@ -509,8 +492,7 @@ unsafe fn adopt(host: *const DocumentHost, lease: AtomLease) -> u32 {
     atom
 }
 
-/// Records what a custom property's name atom spells, and the fly string it is. The fly string is retained and never
-/// recorded: a replay has no strings, and names its entries by atom alone.
+/// Records what a custom property's name atom spells, and the fly string it is, which the engine retains.
 ///
 /// # Safety
 /// `host` must be a live document host, `raw` a live `AK::Utf16FlyString` raw representation, and `text` must name
