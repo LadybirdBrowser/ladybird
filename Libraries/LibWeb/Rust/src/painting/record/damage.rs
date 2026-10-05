@@ -298,7 +298,7 @@ impl LayoutNodeArena {
         }
         if !self
             .node_kind_if_live(row)
-            .is_some_and(node_painting::forms_unconnected_subtree)
+            .is_some_and(crate::layout::node_facts::kind_is_svg_resource_box)
         {
             return None;
         }

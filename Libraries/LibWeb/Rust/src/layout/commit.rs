@@ -124,10 +124,7 @@ fn commit_subtree(
         let fragment = &link.fragment;
         debug_assert!(
             fragment.computed_svg_path.is_some()
-                || !matches!(
-                    paintables.arena().data(node).kind.get(),
-                    NodeKind::SVGGeometryBox | NodeKind::SVGTextBox | NodeKind::SVGTextPathBox
-                ),
+                || !crate::painting::node_painting::is_svg_path(paintables.arena().data(node).kind.get()),
             "committed path-like fragment carries no computed SVG path"
         );
         let replaced = paintables.replace_committed_fragment_link(

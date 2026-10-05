@@ -186,13 +186,10 @@ fn svg_clip_path_geometry_bounds(
         let Some(child_kind) = arena.node_kind_if_live(child_node) else {
             continue;
         };
-        if matches!(
-            child_kind,
-            NodeKind::SVGMaskBox | NodeKind::SVGClipBox | NodeKind::SVGPatternBox
-        ) {
+        if crate::layout::node_facts::kind_is_svg_resource_box(child_kind) {
             continue;
         }
-        if !arena.paintable_row_is_populated(child_node) || !node_painting::is_svg_paintable(child_kind) {
+        if !arena.paintable_row_is_populated(child_node) || !node_painting::is_svg(child_kind) {
             continue;
         }
         let child_transform = multiply_affine(

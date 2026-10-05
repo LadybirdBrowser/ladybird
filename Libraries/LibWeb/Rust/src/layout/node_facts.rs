@@ -652,6 +652,15 @@ pub(crate) fn kind_is_replaced_box(kind: NodeKind) -> bool {
     )
 }
 
+/// Whether the kind names an SVG resource box (a mask, clip path or pattern), which is laid out on behalf of an element
+/// that references it rather than at its own place in the tree.
+pub(crate) fn kind_is_svg_resource_box(kind: NodeKind) -> bool {
+    matches!(
+        kind,
+        NodeKind::SVGMaskBox | NodeKind::SVGClipBox | NodeKind::SVGPatternBox
+    )
+}
+
 pub(crate) fn kind_is_svg_box(kind: NodeKind) -> bool {
     matches!(
         kind,
