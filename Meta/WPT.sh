@@ -117,6 +117,9 @@ WPT_ARGS=(
     "--webdriver-arg=--default-time-zone=UTC"
     "--webdriver-arg=--expose-experimental-interfaces"
     "--no-pause-after-test"
+    "--no-restart-on-new-group"
+    # Every failure is "unexpected" since there's no expectation metadata, no need to restart for that.
+    "--no-restart-on-unexpected"
     "${EXTRA_WPT_ARGS[@]}"
 )
 IMPORT_ARGS=()
