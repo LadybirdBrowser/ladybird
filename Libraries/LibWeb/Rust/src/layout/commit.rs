@@ -15,8 +15,6 @@ pub enum FfiCommitMessageKind {
     ContentSizeChangedForContainerQueries,
     /// The node is a navigable container whose viewport committed.
     NavigableContainerViewportCommitted,
-    /// The node is an inline box that reached atomic inline layout without line box fragments.
-    UnexpectedFragmentedInline,
     /// The node is the element a box escaped its rebuild root under, so its layout tree has to be
     /// built again.
     LayoutTreeRebuildRequested,
@@ -216,8 +214,7 @@ pub(crate) fn commit_replacing(
     let links_by_slot = pass_fragments.links_by_slot();
     let mut paintables = crate::painting::paintable_build::PaintableCommit::new(arena, root);
     paintables.begin_commit();
-    // What the pass itself found out comes before what committing it finds out.
-    let mut messages = paintables.arena().take_messages_reported_during_pass();
+    let mut messages = Vec::new();
     commit_subtree(
         root,
         &mut messages,

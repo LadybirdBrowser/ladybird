@@ -1289,7 +1289,6 @@ pub(crate) struct LayoutNodeArena {
     /// document, if it has been.
     handed_over_document_svg_root_natural_size: Cell<Option<crate::css::style::NaturalSize>>,
     /// What the running pass has to tell the document, waiting for the commit that delivers it.
-    messages_reported_during_pass: RefCell<Vec<super::commit::FfiCommitMessage>>,
     /// The rows the layout commit in progress gathers for the style engine's container queries.
     pub(crate) layout_style_snapshot_commit: RefCell<Vec<super::style_snapshot::CommittedGeometry>>,
     /// What the DOM has asked the next layout tree build to rebuild, by style node identity.
@@ -1379,7 +1378,6 @@ impl LayoutNodeArena {
             owned_image_natural_sizes: RefCell::new(HashMap::default()),
             document_svg_root_natural_size: Cell::new(None),
             handed_over_document_svg_root_natural_size: Cell::new(None),
-            messages_reported_during_pass: RefCell::new(Vec::new()),
             layout_style_snapshot_commit: RefCell::new(Vec::new()),
             layout_tree_update_marks: RefCell::default(),
             counter_styles: RefCell::default(),
@@ -1865,20 +1863,6 @@ impl LayoutNodeArena {
     /// Whether a flat-tree descendant of `style_node` holds a layout tree update mark.
     pub(crate) fn child_needs_layout_tree_update(&self, style_node: Option<StyleNodeID>) -> bool {
         style_node.is_some_and(|style_node| self.layout_tree_update_marks.borrow().child_needs(style_node))
-    }
-
-    /// Leaves a message about `id` for the document, to be delivered with the pass's commit. A row
-    /// that names no DOM node has nothing to tell, and its message is dropped.
-    pub(crate) fn report_to_document(&self, id: NodeSlotId, kind: super::commit::FfiCommitMessageKind) {
-        if let Some(style_node) = self.commit_message_style_node(id) {
-            self.messages_reported_during_pass
-                .borrow_mut()
-                .push(super::commit::FfiCommitMessage::new(style_node, kind));
-        }
-    }
-
-    pub(crate) fn take_messages_reported_during_pass(&self) -> Vec<super::commit::FfiCommitMessage> {
-        self.messages_reported_during_pass.take()
     }
 
     fn set_node_style_node(&self, id: NodeSlotId, style_node: Option<StyleNodeID>) {
