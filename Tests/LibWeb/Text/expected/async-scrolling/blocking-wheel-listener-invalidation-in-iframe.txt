@@ -1,0 +1,3 @@
+wheel event cancelable: true
+iframe scroll delta: 0
+window scrollY: 0
