@@ -5,6 +5,7 @@
  */
 
 use crate::layout::node_data::NodeSlotId;
+use crate::painting::paint_read::GeometryRead;
 use crate::painting::record::paint::text::SelectionStyleAnswer;
 use crate::painting::selection::{HighlightPseudoElement, SearchTextHighlights, SelectionRange};
 use std::collections::HashMap;

@@ -16,6 +16,7 @@ use crate::css::computed_value_views::ComputedValuesView;
 use crate::css::style::bridge::element_adjustment_fact;
 use crate::css::style::engine_calls::document_host;
 use crate::css::style::tree::StyleNodeID;
+use crate::painting::paint_read::{GeometryRead, PaintRead};
 use crate::painting::record::damage::PaintDamage;
 use crate::render_state::DocumentHost;
 

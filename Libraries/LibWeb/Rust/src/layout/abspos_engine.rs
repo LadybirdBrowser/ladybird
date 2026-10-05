@@ -5,7 +5,7 @@
  */
 
 use super::*;
-use crate::painting::paint_read::PaintRead;
+use crate::painting::paint_read::{GeometryRead, PaintRead};
 
 pub(super) fn axis_modes(style: StyleValues) -> (abspos_inputs::AbsposAxisMode, abspos_inputs::AbsposAxisMode) {
     (

@@ -19,6 +19,7 @@ use super::tree_update_marks::FfiLayoutTreeUpdateMark;
 use crate::css::css_enums::positioning;
 use crate::css::style::tree::StyleNodeID;
 use crate::layout::FfiDisplay;
+use crate::painting::paint_read::PaintRead;
 use crate::render_state::{ArenaChange, DocumentHost};
 
 /// Which level the box that leaves is at: what its style says, or, for a style change that stopped generating the box

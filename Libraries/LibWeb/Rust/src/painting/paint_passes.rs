@@ -11,6 +11,7 @@ use crate::css::css_pixels::CssPixelPoint;
 use crate::layout::LayoutNodeArena;
 use crate::layout::node_data::NodeSlotId;
 use crate::painting::host::{FfiVisualContextTreeInputs, FfiVisualContextUpdateOutcome, RootBackgroundSource};
+use crate::painting::paint_read::PaintRead;
 use crate::painting::presentation::Presentation;
 use crate::painting::svg_paint_resources::{PublishedSvgFilter, PublishedSvgPaintServer, SvgPaintResourceKind};
 use crate::painting::visual_context::dirty::VisualContextUpdateScope;

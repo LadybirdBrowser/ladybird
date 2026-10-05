@@ -14,6 +14,7 @@ use crate::painting::dump::{
     format_float_like_ak, push_affine_transform, push_float_like_ak, push_float_point, push_float_rect,
     push_float_size, push_int_point, push_int_rect, push_int_size,
 };
+use crate::painting::paint_read::PaintRead;
 #[cfg(test)]
 use crate::painting::visual_context::VisualContextTree;
 use crate::painting::visual_context::VisualContextTreeDump;

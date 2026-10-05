@@ -18,7 +18,7 @@ use crate::css::style::tree::StyleNodeID;
 use crate::layout::LayoutNodeArena;
 use crate::layout::fragment_tree::FragmentLink;
 use crate::layout::node_data::{CompositorAnimationFrameKind, DomPaintFact, NodeFlag, NodeKind, NodeSlotId, PaintNode};
-use crate::layout::node_facts;
+use crate::layout::node_facts::{self, NodeShape};
 use crate::layout::text_chunker::GraphemeSegmenter;
 use crate::layout::{RenderedText, RenderedTextBoundary, TextFragments};
 use crate::painting::host::FfiLayerImageList;
@@ -38,6 +38,59 @@ use std::cell::RefCell;
 use std::ops::Deref;
 use std::sync::Arc;
 
+/// What a reader knows of a node of the layout tree that is live. Holding the row says so, so none
+/// of its reads checks again.
+pub(crate) trait PaintRow<'a>: NodeShape + Copy {
+    fn generated_for(self) -> u8;
+    fn dom_paint_facts(self) -> u8;
+    fn compositor_animation_frame_kinds(self) -> u8;
+    fn parent(self) -> NodeSlotId;
+    fn first_child(self) -> NodeSlotId;
+    fn next_sibling(self) -> NodeSlotId;
+    fn style(self) -> Option<ComputedValuesView<'a>>;
+    /// The node whose style the row carries.
+    fn style_node(self) -> Option<StyleNodeID>;
+}
+
+impl<'a> PaintRow<'a> for &'a PaintNode {
+    fn generated_for(self) -> u8 {
+        self.generated_for
+    }
+
+    fn dom_paint_facts(self) -> u8 {
+        self.dom_paint_facts
+    }
+
+    fn compositor_animation_frame_kinds(self) -> u8 {
+        self.compositor_animation_frame_kinds
+    }
+
+    fn parent(self) -> NodeSlotId {
+        self.parent
+    }
+
+    fn first_child(self) -> NodeSlotId {
+        self.first_child
+    }
+
+    fn next_sibling(self) -> NodeSlotId {
+        self.next_sibling
+    }
+
+    fn style(self) -> Option<ComputedValuesView<'a>> {
+        PaintNode::style(self)
+    }
+
+    fn style_node(self) -> Option<StyleNodeID> {
+        self.style_node
+    }
+}
+
+/// A node's link to another, which is none for an invalid slot.
+fn link(link: NodeSlotId) -> Option<NodeSlotId> {
+    (!link.is_invalid()).then_some(link)
+}
+
 pub(crate) trait GeometryRead: Sized {
     fn paintable_data(&self, id: NodeSlotId) -> &PaintableData;
     fn paintable_row_is_populated(&self, id: NodeSlotId) -> bool;
@@ -46,10 +99,28 @@ pub(crate) trait GeometryRead: Sized {
     /// The side data a populated row committed.
     fn committed_side_data(&self, id: NodeSlotId) -> impl Deref<Target = CommittedSideData> + '_;
 
-    fn node_kind_if_live(&self, id: NodeSlotId) -> Option<NodeKind>;
-    fn node_flags_if_live(&self, id: NodeSlotId) -> u32;
-    fn node_parent_if_live(&self, id: NodeSlotId) -> Option<NodeSlotId>;
-    fn node_is_fragmented_inline(&self, id: NodeSlotId) -> bool;
+    type Row<'a>: PaintRow<'a>
+    where
+        Self: 'a;
+    /// The row of the node `id` names, or `None` once the node is gone.
+    fn node(&self, id: NodeSlotId) -> Option<Self::Row<'_>>;
+
+    fn node_kind_if_live(&self, id: NodeSlotId) -> Option<NodeKind> {
+        Some(self.node(id)?.kind())
+    }
+
+    fn node_flags_if_live(&self, id: NodeSlotId) -> u32 {
+        self.node(id).map_or(0, |node| node.flags())
+    }
+
+    fn node_parent_if_live(&self, id: NodeSlotId) -> Option<NodeSlotId> {
+        link(self.node(id)?.parent())
+    }
+
+    fn node_is_fragmented_inline(&self, id: NodeSlotId) -> bool {
+        self.node(id)
+            .is_some_and(|node| node_facts::node_is_fragmented_inline(&node, node.style()))
+    }
 
     /// The absolute rect memoized for a box, if any.
     fn memoized_absolute_rect(&self, id: NodeSlotId) -> Option<CssPixelRect>;
@@ -68,19 +139,59 @@ pub(crate) trait GeometryRead: Sized {
 /// The reads the display list recording makes of a document beyond a box's geometry: the shape of
 /// the layout tree and the style of its nodes.
 pub(crate) trait PaintRead: GeometryRead {
-    fn slot_is_live(&self, id: NodeSlotId) -> bool;
-    fn node_first_child_if_live(&self, id: NodeSlotId) -> Option<NodeSlotId>;
-    fn node_next_sibling_if_live(&self, id: NodeSlotId) -> Option<NodeSlotId>;
-    fn node_generated_for(&self, id: NodeSlotId) -> u8;
-    fn node_is_generated_for_pseudo_element(&self, id: NodeSlotId) -> bool;
-    fn node_is_out_of_flow_if_live(&self, id: NodeSlotId) -> bool;
-    fn node_is_atomic_inline(&self, id: NodeSlotId) -> bool;
-    fn node_is_positioned(&self, id: NodeSlotId) -> bool;
-    fn node_is_floating(&self, id: NodeSlotId) -> bool;
-    fn node_has_compositor_animation_frame(&self, id: NodeSlotId, kind: CompositorAnimationFrameKind) -> bool;
-    fn node_style_if_live(&self, id: NodeSlotId) -> Option<ComputedValuesView<'_>>;
+    fn slot_is_live(&self, id: NodeSlotId) -> bool {
+        self.node(id).is_some()
+    }
+
+    fn node_first_child_if_live(&self, id: NodeSlotId) -> Option<NodeSlotId> {
+        link(self.node(id)?.first_child())
+    }
+
+    fn node_next_sibling_if_live(&self, id: NodeSlotId) -> Option<NodeSlotId> {
+        link(self.node(id)?.next_sibling())
+    }
+
+    fn node_generated_for(&self, id: NodeSlotId) -> u8 {
+        self.node(id).map_or(0, |node| node.generated_for())
+    }
+
+    fn node_is_generated_for_pseudo_element(&self, id: NodeSlotId) -> bool {
+        self.node_generated_for(id) != 0
+    }
+
+    fn node_is_out_of_flow_if_live(&self, id: NodeSlotId) -> bool {
+        self.node(id)
+            .is_some_and(|node| node_facts::node_is_out_of_flow(&node, node.style()))
+    }
+
+    fn node_is_atomic_inline(&self, id: NodeSlotId) -> bool {
+        self.node(id)
+            .is_some_and(|node| node_facts::node_is_atomic_inline(&node, node.style()))
+    }
+
+    fn node_is_positioned(&self, id: NodeSlotId) -> bool {
+        self.node(id)
+            .is_some_and(|node| node_facts::node_is_positioned(&node, node.style()))
+    }
+
+    fn node_is_floating(&self, id: NodeSlotId) -> bool {
+        self.node(id)
+            .is_some_and(|node| node_facts::node_is_floating(&node, node.style()))
+    }
+
+    fn node_has_compositor_animation_frame(&self, id: NodeSlotId, kind: CompositorAnimationFrameKind) -> bool {
+        self.node(id)
+            .is_some_and(|node| node.compositor_animation_frame_kinds() & kind as u8 != 0)
+    }
+
+    fn node_style_if_live(&self, id: NodeSlotId) -> Option<ComputedValuesView<'_>> {
+        self.node(id)?.style()
+    }
+
     /// The node whose style the row carries.
-    fn node_style_node(&self, id: NodeSlotId) -> Option<StyleNodeID>;
+    fn node_style_node(&self, id: NodeSlotId) -> Option<StyleNodeID> {
+        self.node(id)?.style_node()
+    }
     /// The rendered text of a text row.
     fn rendered_text(&self, id: NodeSlotId) -> Option<&RenderedText>;
     /// Reads a text row's grapheme boundaries, for a text row with rendered text.
@@ -92,7 +203,10 @@ pub(crate) trait PaintRead: GeometryRead {
         kind: SvgPaintResourceKind,
     ) -> Option<Arc<PublishedSvgPaintServer>>;
 
-    fn node_has_dom_paint_fact(&self, id: NodeSlotId, fact: DomPaintFact) -> bool;
+    fn node_has_dom_paint_fact(&self, id: NodeSlotId, fact: DomPaintFact) -> bool {
+        self.node(id)
+            .is_some_and(|node| node.dom_paint_facts() & fact as u8 != 0)
+    }
     /// The rows a text node is painted in: its first-letter row, if any, then its own.
     fn text_fragments(&self, primary: NodeSlotId) -> TextFragments;
     fn replaced_paint_facts(&self, id: NodeSlotId) -> Option<ReplacedPaintFacts>;
@@ -249,6 +363,15 @@ impl AsRef<LayoutNodeArena> for LayoutNodeArena {
 // The live arena, and every view that borrows it, answers each read with the arena's own method of
 // the same name.
 impl<Live: AsRef<LayoutNodeArena>> GeometryRead for Live {
+    type Row<'a>
+        = crate::layout::LiveRow<'a>
+    where
+        Self: 'a;
+
+    fn node(&self, id: NodeSlotId) -> Option<Self::Row<'_>> {
+        self.as_ref().live_row(id)
+    }
+
     fn paintable_data(&self, id: NodeSlotId) -> &PaintableData {
         self.as_ref().live_paintable_data(id)
     }
@@ -265,22 +388,6 @@ impl<Live: AsRef<LayoutNodeArena>> GeometryRead for Live {
         self.as_ref().committed_side_data(id)
     }
 
-    fn node_kind_if_live(&self, id: NodeSlotId) -> Option<NodeKind> {
-        self.as_ref().node_kind_if_live(id)
-    }
-
-    fn node_flags_if_live(&self, id: NodeSlotId) -> u32 {
-        self.as_ref().node_flags_if_live(id)
-    }
-
-    fn node_parent_if_live(&self, id: NodeSlotId) -> Option<NodeSlotId> {
-        self.as_ref().node_parent_if_live(id)
-    }
-
-    fn node_is_fragmented_inline(&self, id: NodeSlotId) -> bool {
-        self.as_ref().node_is_fragmented_inline(id)
-    }
-
     fn memoized_absolute_rect(&self, id: NodeSlotId) -> Option<CssPixelRect> {
         self.as_ref().memoized_absolute_rect(id)
     }
@@ -291,58 +398,6 @@ impl<Live: AsRef<LayoutNodeArena>> GeometryRead for Live {
 }
 
 impl<Live: AsRef<LayoutNodeArena>> PaintRead for Live {
-    fn slot_is_live(&self, id: NodeSlotId) -> bool {
-        self.as_ref().slot_is_live(id)
-    }
-
-    fn node_first_child_if_live(&self, id: NodeSlotId) -> Option<NodeSlotId> {
-        self.as_ref().node_first_child_if_live(id)
-    }
-
-    fn node_next_sibling_if_live(&self, id: NodeSlotId) -> Option<NodeSlotId> {
-        self.as_ref().node_next_sibling_if_live(id)
-    }
-
-    fn node_generated_for(&self, id: NodeSlotId) -> u8 {
-        self.as_ref().node_generated_for(id)
-    }
-
-    fn node_is_generated_for_pseudo_element(&self, id: NodeSlotId) -> bool {
-        self.as_ref().node_is_generated_for_pseudo_element(id)
-    }
-
-    fn node_is_out_of_flow_if_live(&self, id: NodeSlotId) -> bool {
-        self.as_ref().node_is_out_of_flow_if_live(id)
-    }
-
-    fn node_is_atomic_inline(&self, id: NodeSlotId) -> bool {
-        self.as_ref().node_is_atomic_inline(id)
-    }
-
-    fn node_is_positioned(&self, id: NodeSlotId) -> bool {
-        self.as_ref().node_is_positioned(id)
-    }
-
-    fn node_is_floating(&self, id: NodeSlotId) -> bool {
-        self.as_ref().node_is_floating(id)
-    }
-
-    fn node_has_compositor_animation_frame(&self, id: NodeSlotId, kind: CompositorAnimationFrameKind) -> bool {
-        self.as_ref().node_has_compositor_animation_frame(id, kind)
-    }
-
-    fn node_style_if_live(&self, id: NodeSlotId) -> Option<ComputedValuesView<'_>> {
-        self.as_ref().node_style_if_live(id)
-    }
-
-    fn node_style_node(&self, id: NodeSlotId) -> Option<StyleNodeID> {
-        self.as_ref().node_style_node(id)
-    }
-
-    fn node_has_dom_paint_fact(&self, id: NodeSlotId, fact: DomPaintFact) -> bool {
-        self.as_ref().node_has_dom_paint_fact(id, fact)
-    }
-
     fn rendered_text(&self, id: NodeSlotId) -> Option<&RenderedText> {
         self.as_ref().text_content(id).map(|content| &**content)
     }
@@ -444,18 +499,16 @@ impl<'a> PaintSource<'a> {
     }
 }
 
-impl PaintSource<'_> {
+impl GeometryRead for PaintSource<'_> {
+    type Row<'a>
+        = &'a PaintNode
+    where
+        Self: 'a;
+
     fn node(&self, id: NodeSlotId) -> Option<&PaintNode> {
         self.rows().node(id)
     }
 
-    /// A node's link to another, which is none for an invalid slot.
-    fn link(link: NodeSlotId) -> Option<NodeSlotId> {
-        (!link.is_invalid()).then_some(link)
-    }
-}
-
-impl GeometryRead for PaintSource<'_> {
     fn paintable_data(&self, id: NodeSlotId) -> &PaintableData {
         self.rows().paintable_data(id)
     }
@@ -472,23 +525,6 @@ impl GeometryRead for PaintSource<'_> {
         self.rows().committed_side_data(id)
     }
 
-    fn node_kind_if_live(&self, id: NodeSlotId) -> Option<NodeKind> {
-        Some(self.node(id)?.kind)
-    }
-
-    fn node_flags_if_live(&self, id: NodeSlotId) -> u32 {
-        self.node(id).map_or(0, |node| node.flags)
-    }
-
-    fn node_parent_if_live(&self, id: NodeSlotId) -> Option<NodeSlotId> {
-        Self::link(self.node(id)?.parent)
-    }
-
-    fn node_is_fragmented_inline(&self, id: NodeSlotId) -> bool {
-        self.node(id)
-            .is_some_and(|node| node_facts::node_is_fragmented_inline(node, node.style()))
-    }
-
     fn memoized_absolute_rect(&self, id: NodeSlotId) -> Option<CssPixelRect> {
         self.absolute_rects.borrow().get(id, self.rows().geometry_epoch)
     }
@@ -501,63 +537,6 @@ impl GeometryRead for PaintSource<'_> {
 }
 
 impl PaintRead for PaintSource<'_> {
-    fn slot_is_live(&self, id: NodeSlotId) -> bool {
-        self.node(id).is_some()
-    }
-
-    fn node_first_child_if_live(&self, id: NodeSlotId) -> Option<NodeSlotId> {
-        Self::link(self.node(id)?.first_child)
-    }
-
-    fn node_next_sibling_if_live(&self, id: NodeSlotId) -> Option<NodeSlotId> {
-        Self::link(self.node(id)?.next_sibling)
-    }
-
-    fn node_generated_for(&self, id: NodeSlotId) -> u8 {
-        self.node(id).map_or(0, |node| node.generated_for)
-    }
-
-    fn node_is_generated_for_pseudo_element(&self, id: NodeSlotId) -> bool {
-        self.node_generated_for(id) != 0
-    }
-
-    fn node_is_out_of_flow_if_live(&self, id: NodeSlotId) -> bool {
-        self.node(id)
-            .is_some_and(|node| node_facts::node_is_out_of_flow(node, node.style()))
-    }
-
-    fn node_is_atomic_inline(&self, id: NodeSlotId) -> bool {
-        self.node(id)
-            .is_some_and(|node| node_facts::node_is_atomic_inline(node, node.style()))
-    }
-
-    fn node_is_positioned(&self, id: NodeSlotId) -> bool {
-        self.node(id)
-            .is_some_and(|node| node_facts::node_is_positioned(node, node.style()))
-    }
-
-    fn node_is_floating(&self, id: NodeSlotId) -> bool {
-        self.node(id)
-            .is_some_and(|node| node_facts::node_is_floating(node, node.style()))
-    }
-
-    fn node_has_compositor_animation_frame(&self, id: NodeSlotId, kind: CompositorAnimationFrameKind) -> bool {
-        self.node(id)
-            .is_some_and(|node| node.compositor_animation_frame_kinds & kind as u8 != 0)
-    }
-
-    fn node_style_if_live(&self, id: NodeSlotId) -> Option<ComputedValuesView<'_>> {
-        self.node(id)?.style()
-    }
-
-    fn node_style_node(&self, id: NodeSlotId) -> Option<StyleNodeID> {
-        self.node(id)?.style_node
-    }
-
-    fn node_has_dom_paint_fact(&self, id: NodeSlotId, fact: DomPaintFact) -> bool {
-        self.node(id).is_some_and(|node| node.dom_paint_facts & fact as u8 != 0)
-    }
-
     fn with_paintable_visual_context_node_handles<R>(
         &self,
         id: NodeSlotId,
