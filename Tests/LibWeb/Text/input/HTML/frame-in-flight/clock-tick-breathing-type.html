@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    @keyframes breathe {
+        from { font-size: 10px; line-height: 1; letter-spacing: 0; word-spacing: 0; }
+        to { font-size: 30px; line-height: 2; letter-spacing: 0.2em; word-spacing: 10px; }
+    }
+    #text {
+        display: inline-block;
+        white-space: nowrap;
+    }
+    #text.breathe {
+        animation: breathe 10s linear infinite alternate;
+    }
+</style>
+<span id="text">The text keeps breathing</span>
+<script>
+    // The render clock lays out text whose font size, line height and spacing animate beside a task, in a font the
+    // main thread has not resolved, as the main thread lays it out at the same time.
+    asyncTest(async done => {
+        const result = await whileClockLeased(() => {
+            text.classList.add("breathe");
+            return text.getAnimations()[0];
+        }, (frameTime, animation) => {
+            internals.injectClockTick(frameTime + 3000);
+            const lease = internals.clockLeaseState(document);
+            return {
+                lease,
+                presented: internals.presentedBorderBox(text),
+                presentedBy: internals.lastFramePresentedBy(document),
+                localTime: frameTime + 3000 - animation.startTime,
+                animation,
+            };
+        });
+        result.animation.pause();
+        result.animation.currentTime = result.localTime;
+        const laidOut = text.getBoundingClientRect();
+        const presented = result.presented;
+        println(`lease after the tick: ${result.lease}`);
+        println(`last frame presented by: ${result.presentedBy}`);
+        println(`the presented size is the main thread's: ${presented !== null && Math.abs(presented.width - laidOut.width) < 0.02 && Math.abs(presented.height - laidOut.height) < 0.02}`);
+        println(`the text grew: ${laidOut.height > 20}`);
+        done();
+    });
+</script>
