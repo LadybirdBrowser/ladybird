@@ -20,6 +20,7 @@ num-integer = "0.1"
 indexmap = "2"
 foldhash = "0.1"
 ladybird_allocator = { path = "../../RustAllocator", optional = true }
+rustc-demangle = "0.1"
 
 [target.'cfg(target_arch = "x86_64")'.dependencies]
 iced-x86 = { version = "1.21", default-features = false, features = ["decoder", "intel", "std"] }

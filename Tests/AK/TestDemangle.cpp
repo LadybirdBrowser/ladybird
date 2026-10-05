@@ -20,3 +20,15 @@ TEST_CASE(class_method)
 
     EXPECT_EQ(expected_result, demangle(test_string));
 }
+
+#ifndef AK_OS_WINDOWS
+TEST_CASE(backtrace_symbols_lines)
+{
+    EXPECT_EQ(demangle_backtrace_symbols_line("./TestDemangle(_ZNK2AK9Utf16View22unicode_substring_viewEmm+0x1a) [0x55d0c1a2]"sv),
+        "./TestDemangle(AK::Utf16View::unicode_substring_view(unsigned long, unsigned long) const+0x1a) [0x55d0c1a2]"sv);
+    EXPECT_EQ(demangle_backtrace_symbols_line("3   liblagom-ak.dylib   0x00000001045e8c3c _ZNK2AK9Utf16View22unicode_substring_viewEmm + 60"sv),
+        "3   liblagom-ak.dylib   0x00000001045e8c3c AK::Utf16View::unicode_substring_view(unsigned long, unsigned long) const + 60"sv);
+    EXPECT_EQ(demangle_backtrace_symbols_line("./TestDemangle(main+0x10) [0x55d0c1a2]"sv), "./TestDemangle(main+0x10) [0x55d0c1a2]"sv);
+    EXPECT_EQ(demangle_backtrace_symbols_line("/build/lib_Zstd/TestDemangle(+0x1a) [0x55d0c1a2]"sv), "/build/lib_Zstd/TestDemangle(+0x1a) [0x55d0c1a2]"sv);
+}
+#endif

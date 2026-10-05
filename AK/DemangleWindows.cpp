@@ -18,6 +18,9 @@ namespace AK {
 
 ByteString demangle(StringView name)
 {
+    if (auto demangled = demangle_rust_symbol(name); demangled.has_value())
+        return demangled.release_value();
+
     // The buffer size is arbitrary but should be large enough for most cases.
     // Unfortunately, there is no way to know the exact size needed beforehand.
     // Also calling UnDecorateSymbolName with a too small buffer will not return an error, it will just truncate the result.

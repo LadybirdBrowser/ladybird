@@ -785,6 +785,13 @@
     {
         "type": "archive",
         "archive-type": "tar-gzip",
+        "url": "https://static.crates.io/crates/rustc-demangle/rustc-demangle-0.1.28.crate",
+        "sha256": "b74b56ffa8bb2830709a538c2cbcae9aa062db0d2a42563bfb09bdaae44020eb",
+        "dest": "cargo/vendor/rustc-demangle-0.1.28"
+    },
+    {
+        "type": "archive",
+        "archive-type": "tar-gzip",
         "url": "https://static.crates.io/crates/rustc-hash/rustc-hash-1.1.0.crate",
         "sha256": "08d43f7aa6b08d49f382cde6a7982047c3426db949b1424bc4b7ec9ae12c6ce2",
         "dest": "cargo/vendor/rustc-hash-1.1.0"
@@ -1330,6 +1337,7 @@
             "echo '{\"files\": {}, \"package\": \"e10754a14b9137dd7b1e3e5b0493cc9171fdd105e0ab477f51b72e7f3ac0e276\"}' > cargo/vendor/regex-1.12.3/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"6e1dd4122fc1595e8162618945476892eefca7b88c52820e74af6262213cae8f\"}' > cargo/vendor/regex-automata-0.4.14/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"dc897dd8d9e8bd1ed8cdad82b5966c3e0ecae09fb1907d58efaa013543185d0a\"}' > cargo/vendor/regex-syntax-0.8.10/.cargo-checksum.json",
+            "echo '{\"files\": {}, \"package\": \"b74b56ffa8bb2830709a538c2cbcae9aa062db0d2a42563bfb09bdaae44020eb\"}' > cargo/vendor/rustc-demangle-0.1.28/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"08d43f7aa6b08d49f382cde6a7982047c3426db949b1424bc4b7ec9ae12c6ce2\"}' > cargo/vendor/rustc-hash-1.1.0/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"94300abf3f1ae2e2b8ffb7b58043de3d399c73fa6f4b73826402a5c457614dbe\"}' > cargo/vendor/rustc-hash-2.1.2/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"cfcb3a22ef46e85b45de6ee7e79d063319ebb6594faafcf1c225ea92ab6e9b92\"}' > cargo/vendor/rustc_version-0.4.1/.cargo-checksum.json",

@@ -72,8 +72,6 @@ if (APPLE OR LINUX)
     foreach(panic_strategy abort unwind)
         set(rust_test_library "${CMAKE_CURRENT_BINARY_DIR}/librust_crash_report_${panic_strategy}.a")
         set(ARG_CRATE_NAME "rust_crash_report_${panic_strategy}")
-        configure_file("${LADYBIRD_SOURCE_DIR}/Meta/CMake/RustPanicInit.cpp.in"
-            "${CMAKE_CURRENT_BINARY_DIR}/${ARG_CRATE_NAME}_init.cpp" @ONLY)
         add_custom_command(OUTPUT "${rust_test_library}"
             COMMAND ${CMAKE_COMMAND} -E env "CARGO_PKG_NAME=${ARG_CRATE_NAME}"
                 ${RUST_RUSTC} --edition=2024 --crate-type=staticlib --crate-name=${ARG_CRATE_NAME}
@@ -86,9 +84,11 @@ if (APPLE OR LINUX)
             LIBS LibWebView "${rust_test_library}")
         set_tests_properties(TestRustCrashReport_${panic_strategy} PROPERTIES TIMEOUT 60)
         add_dependencies(TestRustCrashReport_${panic_strategy} ${ARG_CRATE_NAME}_build)
-        target_sources(TestRustCrashReport_${panic_strategy} PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/${ARG_CRATE_NAME}_init.cpp")
         if (panic_strategy STREQUAL "unwind")
             target_compile_definitions(TestRustCrashReport_${panic_strategy} PRIVATE TEST_RUST_UNWIND=1)
+        endif()
+        if (cpptrace_FOUND AND LADYBIRD_ENABLE_CPPTRACE)
+            target_compile_definitions(TestRustCrashReport_${panic_strategy} PRIVATE TEST_HAS_CPPTRACE=1)
         endif()
     endforeach()
 endif()
