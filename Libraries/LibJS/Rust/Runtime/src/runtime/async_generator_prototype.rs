@@ -284,6 +284,7 @@ impl AsyncGeneratorPrototype {
         }
 
         // 8. Let completion be ThrowCompletion(exception).
+        crate::embedding::completion::log_exception_if_enabled(vm, exception);
         let completion = Completion::new(CompletionType::Throw, exception);
 
         // 9. Perform AsyncGeneratorEnqueue(generator, completion, promiseCapability).

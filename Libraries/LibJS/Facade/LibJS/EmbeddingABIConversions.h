@@ -202,11 +202,12 @@ JSCompletion completion_to_abi(ThrowCompletionOr<T> const& completion)
         static_assert(DependentFalse<T>, "A hook returns a value, an ABI enumerator or nothing");
 }
 
-// The value that a completion of the runtime threw, which must be a throw completion.
+// The value that a completion of the runtime threw, which must be a throw completion. The runtime threw it, and logged
+// it then if it logs exceptions, so this does not pass it through throw_completion() either.
 inline Completion throw_completion_from_abi(JSCompletion completion)
 {
     VERIFY(completion.variant == JS_COMPLETION_THROW);
-    return throw_completion(value_from_abi(completion.payload));
+    return Completion { Completion::Type::Throw, value_from_abi(completion.payload) };
 }
 
 }

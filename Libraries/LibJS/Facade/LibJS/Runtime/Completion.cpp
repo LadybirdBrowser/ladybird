@@ -5,10 +5,16 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibJS/HostObjectABI.h>
+#include <AK/Format.h>
+#include <LibJS/EmbeddingABIConversions.h>
 #include <LibJS/Runtime/Completion.h>
+#include <LibJS/Runtime/VM.h>
 
 namespace JS {
+
+using namespace EmbeddingABI;
+
+static bool s_log_all_js_exceptions = false;
 
 // Raw native functions, which JS_DEFINE_NATIVE_FUNCTION defines, return a ThrowCompletionOr<Value> straight to the
 // Rust interpreter, which reads it as the embedding ABI's JSCompletion: the value or the thrown value in the first
@@ -42,8 +48,25 @@ Completion::Completion(ThrowCompletionOr<Value> const& throw_completion_or_value
 // 6.2.4.2 ThrowCompletion ( value ), https://tc39.es/ecma262/#sec-throwcompletion
 Completion throw_completion(Value value)
 {
+    if (s_log_all_js_exceptions)
+        js_completion_log_exception(vm_to_abi(VM::the()), value_to_abi(value));
+
     // 1. Return Completion Record { [[Type]]: throw, [[Value]]: value, [[Target]]: empty }.
     return { Completion::Type::Throw, value };
+}
+
+static bool write_exception_log_line_with_dbgln(void*, u8 const* bytes, size_t length)
+{
+    dbgln("{}", StringView { bytes, length });
+    return true;
+}
+
+// The runtime logs the exceptions it throws, and throw_completion() those that C++ code throws, both with dbgln().
+void set_log_all_js_exceptions(bool enabled)
+{
+    s_log_all_js_exceptions = enabled;
+    JSByteSink const exception_log_line_writer { nullptr, write_exception_log_line_with_dbgln };
+    js_completion_set_log_all_exceptions(enabled, &exception_log_line_writer);
 }
 
 }

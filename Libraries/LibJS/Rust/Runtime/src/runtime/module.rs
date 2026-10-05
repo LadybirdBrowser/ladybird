@@ -363,6 +363,7 @@ impl Module {
             promise.set_is_handled();
 
             // c. Return ThrowCompletion(promise.[[PromiseResult]]).
+            crate::embedding::completion::log_exception_if_enabled(vm, promise.result());
             return Err(Throw::new(promise.result()));
         }
 

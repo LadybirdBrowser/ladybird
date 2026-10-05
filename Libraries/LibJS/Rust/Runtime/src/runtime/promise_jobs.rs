@@ -46,6 +46,7 @@ fn run_reaction_job(vm: &Vm, reaction: Gc<PromiseReaction>, argument: Value) -> 
                 assert!(reaction_type == PromiseReactionType::Reject);
 
                 // 2. Let handlerResult be ThrowCompletion(argument).
+                crate::embedding::completion::log_exception_if_enabled(vm, argument);
                 Completion::new(CompletionType::Throw, argument)
             }
         }

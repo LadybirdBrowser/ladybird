@@ -99,8 +99,9 @@ impl Vm {
             self.current_realm()
         };
         let realm = realm.expect("an error is thrown in an execution context with a realm");
-        let completion = kind.create(self, realm, message);
-        Err(Throw::new(Value::from_object(completion)))
+        let completion = Value::from_object(kind.create(self, realm, message));
+        crate::embedding::completion::log_exception_if_enabled(self, completion);
+        Err(Throw::new(completion))
     }
 }
 

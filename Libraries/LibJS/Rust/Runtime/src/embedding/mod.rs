@@ -26,6 +26,7 @@ pub mod bigint;
 pub mod bytecode_cache;
 pub mod collections;
 pub mod compile;
+pub mod completion;
 pub mod console;
 pub mod date;
 pub mod debugger;

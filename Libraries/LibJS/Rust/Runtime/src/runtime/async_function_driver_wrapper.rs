@@ -228,6 +228,7 @@ impl AsyncFunctionDriverWrapper {
         let mut generator_result = if is_successful {
             generator_object.resume(vm, value, None)
         } else {
+            crate::embedding::completion::log_exception_if_enabled(vm, value);
             generator_object.resume_abrupt(vm, Completion::new(CompletionType::Throw, value), None)
         };
 
@@ -267,6 +268,7 @@ impl AsyncFunctionDriverWrapper {
                     generator_result = if is_fulfilled {
                         generator_object.resume(vm, promise.result(), None)
                     } else {
+                        crate::embedding::completion::log_exception_if_enabled(vm, promise.result());
                         generator_object.resume_abrupt(
                             vm,
                             Completion::new(CompletionType::Throw, promise.result()),
