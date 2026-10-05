@@ -4862,7 +4862,7 @@ impl LayoutNodeArena {
         }
     }
 
-    fn bump_fragment_cache_epoch(&self, node: NodeSlotId) {
+    pub(super) fn bump_fragment_cache_epoch(&self, node: NodeSlotId) {
         let data = self.data(node);
         let epoch = data.fragment_cache_epoch.get().wrapping_add(1);
         data.fragment_cache_epoch.set(epoch);
@@ -4873,10 +4873,6 @@ impl LayoutNodeArena {
             self.fragment_cache_epoch_changed_during_layout_pass.set(true);
         }
         self.fc_run_cache_store.note_invalidated_entry(node);
-    }
-
-    pub(super) fn bump_fragment_cache_epoch_below_bumped_parent(&self, child: NodeSlotId) {
-        self.bump_fragment_cache_epoch(child);
     }
 
     pub(crate) fn note_structural_change_at_and_above(&self, node: NodeSlotId) {
