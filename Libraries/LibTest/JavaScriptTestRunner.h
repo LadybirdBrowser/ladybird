@@ -120,7 +120,7 @@ extern ByteString g_test_root_fragment;
 extern ByteString g_test_root;
 extern int g_test_argc;
 extern char** g_test_argv;
-extern Function<void()> g_main_hook;
+extern void (*g_main_hook)();
 extern HashMap<bool*, Tuple<ByteString, ByteString, char>> g_extra_args;
 
 struct ParserError {
