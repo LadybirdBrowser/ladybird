@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const iframe = document.createElement("iframe");
+        document.body.appendChild(iframe);
+        const iframeWindow = iframe.contentWindow;
+        iframe.remove();
+        while (!iframeWindow.closed)
+            await new Promise(resolve => setTimeout(resolve, 0));
+
+        // Starting a worker serializes the detached window's settings, including its cross-site ancestor status.
+        const worker = new iframeWindow.Worker("data:text/javascript,");
+        worker.terminate();
+        println("Created a worker from a removed iframe");
+        done();
+    });
+</script>

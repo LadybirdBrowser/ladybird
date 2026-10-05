@@ -113,8 +113,14 @@ URL::Origin WindowEnvironmentSettingsObject::origin() const
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#script-settings-for-window-objects:concept-settings-object-has-cross-site-ancestor
 bool WindowEnvironmentSettingsObject::has_cross_site_ancestor() const
 {
+    // NB: A fetch can outlive its document's navigable, for example when following a redirect after an iframe is
+    //     removed. Without its ancestors, conservatively treat the environment as a third-party context.
+    auto navigable = m_window->navigable();
+    if (!navigable)
+        return true;
+
     // 1. If window's navigable's parent is null, then return false.
-    auto parent = m_window->navigable()->parent();
+    auto parent = navigable->parent();
     if (!parent)
         return false;
 
