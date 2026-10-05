@@ -981,7 +981,7 @@ fn append_text_clip_paths<O: Observer>(recorder: &mut PaintRecorder<'_, O>, pain
     };
 
     let data = recorder.data(paintable);
-    if node_painting::is_inline(recorder.source, paintable) {
+    if node_painting::is_fragmented_inline(recorder.source, paintable) {
         let root = data.containing_block;
         if !root.is_invalid()
             && recorder.source.paintable_row_is_populated(root)

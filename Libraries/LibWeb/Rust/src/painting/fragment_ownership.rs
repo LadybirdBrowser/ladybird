@@ -70,7 +70,7 @@ pub(crate) fn is_self_painting_inline(layout_arena: &impl PaintRead, paintable: 
     // Whether this box paints its own foreground (fragments and caret) instead of the
     // containing block: it forms a group that content must be recorded inside.
     let data = layout_arena.paintable_data(paintable);
-    node_painting::is_inline(layout_arena, paintable)
+    node_painting::is_fragmented_inline(layout_arena, paintable)
         && (data.establishes_stacking_context || crate::painting::style_queries::is_positioned(layout_arena, paintable))
 }
 
@@ -144,7 +144,8 @@ fn piece_paintable_of(layout_arena: &impl PaintRead, node: NodeSlotId) -> Option
     if node.is_invalid() || !layout_arena.slot_is_live(node) {
         return None;
     }
-    (layout_arena.paintable_row_is_populated(node) && node_painting::is_inline(layout_arena, node)).then_some(node)
+    (layout_arena.paintable_row_is_populated(node) && node_painting::is_fragmented_inline(layout_arena, node))
+        .then_some(node)
 }
 
 pub(crate) fn compute_fragment_ownership_for_block(

@@ -50,6 +50,26 @@ pub(crate) trait PaintRow<'a>: NodeShape + Copy {
     fn style(self) -> Option<ComputedValuesView<'a>>;
     /// The node whose style the row carries.
     fn style_node(self) -> Option<StyleNodeID>;
+
+    fn is_out_of_flow(self) -> bool {
+        node_facts::node_is_out_of_flow(&self, self.style())
+    }
+
+    fn is_atomic_inline(self) -> bool {
+        node_facts::node_is_atomic_inline(&self, self.style())
+    }
+
+    fn is_positioned(self) -> bool {
+        node_facts::node_is_positioned(&self, self.style())
+    }
+
+    fn is_floating(self) -> bool {
+        node_facts::node_is_floating(&self, self.style())
+    }
+
+    fn is_fragmented_inline(self) -> bool {
+        node_facts::node_is_fragmented_inline(&self, self.style())
+    }
 }
 
 impl<'a> PaintRow<'a> for &'a PaintNode {
@@ -117,11 +137,6 @@ pub(crate) trait GeometryRead: Sized {
         link(self.node(id)?.parent())
     }
 
-    fn node_is_fragmented_inline(&self, id: NodeSlotId) -> bool {
-        self.node(id)
-            .is_some_and(|node| node_facts::node_is_fragmented_inline(&node, node.style()))
-    }
-
     /// The absolute rect memoized for a box, if any.
     fn memoized_absolute_rect(&self, id: NodeSlotId) -> Option<CssPixelRect>;
     fn memoize_absolute_rect(&self, id: NodeSlotId, rect: CssPixelRect);
@@ -157,26 +172,6 @@ pub(crate) trait PaintRead: GeometryRead {
 
     fn node_is_generated_for_pseudo_element(&self, id: NodeSlotId) -> bool {
         self.node_generated_for(id) != 0
-    }
-
-    fn node_is_out_of_flow_if_live(&self, id: NodeSlotId) -> bool {
-        self.node(id)
-            .is_some_and(|node| node_facts::node_is_out_of_flow(&node, node.style()))
-    }
-
-    fn node_is_atomic_inline(&self, id: NodeSlotId) -> bool {
-        self.node(id)
-            .is_some_and(|node| node_facts::node_is_atomic_inline(&node, node.style()))
-    }
-
-    fn node_is_positioned(&self, id: NodeSlotId) -> bool {
-        self.node(id)
-            .is_some_and(|node| node_facts::node_is_positioned(&node, node.style()))
-    }
-
-    fn node_is_floating(&self, id: NodeSlotId) -> bool {
-        self.node(id)
-            .is_some_and(|node| node_facts::node_is_floating(&node, node.style()))
     }
 
     fn node_has_compositor_animation_frame(&self, id: NodeSlotId, kind: CompositorAnimationFrameKind) -> bool {

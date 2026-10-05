@@ -5,7 +5,7 @@
  */
 
 use crate::layout::node_data::{NodeKind, NodeSlotId};
-use crate::painting::paint_read::GeometryRead;
+use crate::painting::paint_read::{GeometryRead, PaintRow};
 
 pub(crate) const fn has_paintable(kind: NodeKind) -> bool {
     !matches!(
@@ -20,11 +20,7 @@ pub(crate) const fn has_paintable(kind: NodeKind) -> bool {
 }
 
 pub(crate) fn is_fragmented_inline(arena: &impl GeometryRead, node: NodeSlotId) -> bool {
-    arena.node_is_fragmented_inline(node)
-}
-
-pub(crate) fn is_inline(arena: &impl GeometryRead, node: NodeSlotId) -> bool {
-    is_fragmented_inline(arena, node)
+    arena.node(node).is_some_and(PaintRow::is_fragmented_inline)
 }
 
 pub(crate) fn has_lines(arena: &impl GeometryRead, node: NodeSlotId) -> bool {

@@ -458,7 +458,7 @@ impl<'a> PaintableCommit<'a> {
         }
         for (piece_node, piece_indices) in piece_indices_by_node {
             if !paintable_rows.paintable_row_is_populated(piece_node)
-                || !node_painting::is_inline(&paintable_rows, piece_node)
+                || !node_painting::is_fragmented_inline(&paintable_rows, piece_node)
             {
                 continue;
             }

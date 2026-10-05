@@ -16,7 +16,7 @@ use crate::css::serialize::{StringUnits, with_fly_string_units};
 use crate::css::style_value::StyleValueData;
 use crate::layout::node_data::{NodeFlag, NodeKind, NodeSlotId};
 use crate::layout::node_facts;
-use crate::painting::paint_read::PaintRead;
+use crate::painting::paint_read::{PaintRead, PaintRow};
 
 const SEPARATOR_COMMA: u8 = 1;
 
@@ -345,7 +345,7 @@ pub(crate) fn has_css_transform(arena: &impl PaintRead, node: NodeSlotId, style:
 }
 
 pub(crate) fn is_atomic_inline(arena: &impl PaintRead, node: NodeSlotId) -> bool {
-    arena.node_is_atomic_inline(node)
+    arena.node(node).is_some_and(PaintRow::is_atomic_inline)
 }
 
 pub(crate) fn is_transformable(arena: &impl PaintRead, node: NodeSlotId) -> bool {
@@ -540,7 +540,7 @@ pub(crate) fn is_text_decoration_propagation_boundary(arena: &impl PaintRead, no
     // https://drafts.csswg.org/css-text-decor-4/#decorating-box
     // NOTE: Note that text decorations are not propagated to any out-of-flow descendants, nor to the contents
     //       of atomic inline-level descendants such as inline blocks and inline tables.
-    if arena.node_is_out_of_flow_if_live(node) {
+    if arena.node(node).is_some_and(PaintRow::is_out_of_flow) {
         return true;
     }
     is_atomic_inline(arena, node)
@@ -563,7 +563,7 @@ pub(crate) fn effective_z_index(arena: &impl PaintRead, paintable: NodeSlotId) -
 // style changes that do not relayout (z-index, for one) are never stale here.
 
 pub(crate) fn is_positioned(arena: &impl PaintRead, node: NodeSlotId) -> bool {
-    arena.node_is_positioned(node)
+    arena.node(node).is_some_and(PaintRow::is_positioned)
 }
 
 pub(crate) fn position(arena: &impl PaintRead, node: NodeSlotId) -> u8 {
@@ -579,7 +579,7 @@ pub(crate) fn is_sticky_position(style: ComputedValuesView<'_>) -> bool {
 }
 
 pub(crate) fn is_floating(arena: &impl PaintRead, node: NodeSlotId) -> bool {
-    arena.node_is_floating(node)
+    arena.node(node).is_some_and(PaintRow::is_floating)
 }
 
 pub(crate) fn is_invisible_for_line_clamp(arena: &impl PaintRead, node: NodeSlotId) -> bool {
