@@ -38,4 +38,6 @@ PASS: ::first-letter create style
 PASS: ::first-letter remove style
 PASS: ::first-letter insert text
 PASS: ::first-letter remove text
-40 cases; 40 matched; 0 mismatched
+PASS: ::first-letter text data change under display: contents
+PASS: ::first-letter slotted text data change
+42 cases; 42 matched; 0 mismatched
