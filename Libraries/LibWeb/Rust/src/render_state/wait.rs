@@ -11,10 +11,8 @@
 //! takes from its caller: code that has not begun a read has nothing to reach the state with. What runs beside the host
 //! is taken in without a wait only at a [`TaskBoundary`], which the entries the event loop calls between two tasks
 //! mint.
-//!
-//! A style or layout job runs only through [`run_job`], in a read the host began.
 
-use super::{DocumentHost, RenderState};
+use super::DocumentHost;
 use std::marker::PhantomData;
 
 /// The one wait of a script API call that needs a current answer: getComputedStyle, an element's geometry, hit
@@ -220,20 +218,6 @@ impl ForcedRead {
     pub(super) fn of_teardown() -> Self {
         Self::minted()
     }
-}
-
-/// A style or layout job of a document's render state, which only [`run_job`] runs.
-pub(crate) trait RenderJob: Send {
-    /// What the render state answers the job with.
-    type Answer: Send;
-
-    /// Runs the job on `state`, the render state of the document it was made for.
-    fn run_on(self, state: &mut RenderState) -> Self::Answer;
-}
-
-/// Runs `job`, a style or layout job of `host`'s document, in `read`, and waits for its answer.
-pub(crate) fn run_job<J: RenderJob>(read: &BegunRead, host: &DocumentHost, job: J) -> J::Answer {
-    host.run(read, true, move |state| job.run_on(state))
 }
 
 macro_rules! script_entry {

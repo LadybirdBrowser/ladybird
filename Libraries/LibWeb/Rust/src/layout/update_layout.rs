@@ -33,22 +33,14 @@ pub(crate) use main_thread_entries::MainThreadFfiEntry;
 /// host, in `read`.
 fn run_layout_round_job(host: &DocumentHost, read: &BegunRead, job: LayoutRoundJob) -> LayoutRoundAnswer {
     host.let_go_of_rows();
-    crate::render_state::run_job(read, host, job)
+    // The host keeps what the job's inputs name until it has the answer.
+    host.run(read, true, move |state| job.run(state.arena_handle_mut()))
 }
 
 /// Answers `answer` from the render state of `host`'s document and `args`, in `read`: the host's layout update reads it
 /// between rounds, for whether the layout is up to date and what the next round's build needs.
 fn read_arena<A, R>(host: &DocumentHost, read: &BegunRead, args: A, answer: fn(&mut LayoutNodeArena, A) -> R) -> R {
     host.ask(read, |state| answer(state.arena_mut(), args))
-}
-
-impl crate::render_state::RenderJob for LayoutRoundJob {
-    type Answer = LayoutRoundAnswer;
-
-    // The host keeps what the job's inputs name until it has the answer.
-    fn run_on(self, state: &mut crate::render_state::RenderState) -> LayoutRoundAnswer {
-        self.run(state.arena_handle_mut())
-    }
 }
 
 /// The document-side steps of a layout update. Each callback receives the registered
