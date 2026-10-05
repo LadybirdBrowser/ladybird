@@ -17,6 +17,12 @@
 namespace Core::Platform {
 
 static auto user_hz = sysconf(_SC_CLK_TCK);
+static auto s_ncpu_online = sysconf(_SC_NPROCESSORS_ONLN);
+
+static u64 time_value_to_microseconds(time_value_t time)
+{
+    return static_cast<u64>(time.seconds) * 1'000'000 + time.microseconds;
+}
 
 static constexpr bool task_is_unavailable(kern_return_t result)
 {
@@ -42,7 +48,8 @@ ErrorOr<void> update_process_statistics(ProcessStatistics& statistics)
     total_cpu_ticks += cpu_info.cpu_ticks[CPU_STATE_IDLE];
 
     auto const total_cpu_ticks_diff = total_cpu_ticks - statistics.total_time_scheduled;
-    auto const total_cpu_seconds_diff = total_cpu_ticks_diff / (static_cast<float>(user_hz));
+    // NB: Host ticks include every core. Normalize to one core so a busy thread reports 100%.
+    auto const total_cpu_seconds_diff = total_cpu_ticks_diff / (static_cast<float>(user_hz) * s_ncpu_online);
     auto const total_cpu_micro_diff = total_cpu_seconds_diff * 1'000'000;
     statistics.total_time_scheduled = total_cpu_ticks;
 
@@ -67,7 +74,20 @@ ErrorOr<void> update_process_statistics(ProcessStatistics& statistics)
             return Core::mach_error_to_error(res);
         }
 
-        process->memory_usage_bytes = basic_info.resident_size;
+        task_vm_info_data_t memory_info {};
+        count = TASK_VM_INFO_COUNT;
+        res = task_info(process->child_task_port.port(), TASK_VM_INFO, reinterpret_cast<task_info_t>(&memory_info), &count);
+        if (res != KERN_SUCCESS) {
+            if (task_is_unavailable(res)) {
+                process->reset_cpu_time();
+                continue;
+            }
+
+            dbgln("Failed to get task VM info for pid {}: {}", process->pid, mach_error_string(res));
+            return Core::mach_error_to_error(res);
+        }
+
+        process->memory_usage_bytes = memory_info.phys_footprint;
 
         task_thread_times_info_data_t time_info {};
         count = TASK_THREAD_TIMES_INFO_COUNT;
@@ -82,10 +102,10 @@ ErrorOr<void> update_process_statistics(ProcessStatistics& statistics)
             return Core::mach_error_to_error(res);
         }
 
-        timeval scratch_timeval = { static_cast<time_t>(time_info.user_time.seconds), static_cast<suseconds_t>(time_info.user_time.microseconds) };
-        auto time_in_process = AK::Duration::from_timeval(scratch_timeval);
-        scratch_timeval = { static_cast<time_t>(time_info.system_time.seconds), static_cast<suseconds_t>(time_info.system_time.microseconds) };
-        time_in_process += AK::Duration::from_timeval(scratch_timeval);
+        // NB: Basic task times contain terminated threads; thread times contain live threads.
+        auto time_in_process = AK::Duration::from_microseconds(
+            time_value_to_microseconds(basic_info.user_time) + time_value_to_microseconds(basic_info.system_time)
+            + time_value_to_microseconds(time_info.user_time) + time_value_to_microseconds(time_info.system_time));
 
         auto time_diff_process = time_in_process - AK::Duration::from_microseconds(process->time_spent_in_process);
         process->time_spent_in_process = time_in_process.to_microseconds();
@@ -115,14 +135,11 @@ Optional<ProcessResourceUsage> process_resource_usage(ProcessInfo const& process
     count = TASK_VM_INFO_COUNT;
     if (task_info(process.child_task_port.port(), TASK_VM_INFO, reinterpret_cast<task_info_t>(&memory), &count) != KERN_SUCCESS)
         return {};
-    auto microseconds = [](time_value_t time) -> u64 {
-        return static_cast<u64>(time.seconds) * 1'000'000 + time.microseconds;
-    };
     // NB: Basic task times contain terminated threads; thread times contain live threads.
     //     The footprint ledger charges owned memory rather than all resident mappings.
     //     It includes compressed memory and excludes uncharged shared mappings.
     return ProcessResourceUsage {
-        microseconds(basic.user_time) + microseconds(basic.system_time) + microseconds(threads.user_time) + microseconds(threads.system_time),
+        time_value_to_microseconds(basic.user_time) + time_value_to_microseconds(basic.system_time) + time_value_to_microseconds(threads.user_time) + time_value_to_microseconds(threads.system_time),
         memory.phys_footprint,
     };
 }
