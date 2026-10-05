@@ -2308,6 +2308,8 @@ bool Document::layout_is_up_to_date() const
 {
     if (!navigable() || navigable()->active_document().ptr() != this)
         return true;
+    if (m_reads_layout_as_it_flew)
+        return true;
     // A frame in flight, or a round that flew or a clock lease ran and is not paid yet, brings layout the host waits
     // for, which the host knows without reading the render state. So does style that flew, which is pending until a read
     // of the document drains it: a read of a document it embeds asks here, and lays the document out to drain it.

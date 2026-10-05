@@ -519,6 +519,22 @@ public:
     // where `blocker` is none and the layout is not up to date. The next layout update takes it in. Answers whether the
     // round flies.
     bool let_layout_fly(Layout::RustFFI::FfiFlightBlocker blocker);
+    // Takes in the layout round that flew, as the frame it flew in left the document, and answers whether that laid the
+    // document out: no other round runs, so what was written since the round flew is the next layout update's.
+    bool take_flown_layout_in();
+    // While one lives, the document reads as the layout that flew left it: the writes made since wait behind those made
+    // meanwhile, and its layout is up to date as of the frame.
+    class [[nodiscard]] LayoutAsItFlew {
+        AK_MAKE_NONCOPYABLE(LayoutAsItFlew);
+        AK_MAKE_NONMOVABLE(LayoutAsItFlew);
+
+    public:
+        explicit LayoutAsItFlew(Document&);
+        ~LayoutAsItFlew();
+
+    private:
+        GC::Ref<Document> m_document;
+    };
     void note_throttled_animation_style_update() { m_has_throttled_animation_style_update = true; }
     void note_animations_that_can_skip_per_frame_style_updates();
     void flush_throttled_animation_style_update();
@@ -1851,6 +1867,7 @@ private:
     bool m_is_decoded_svg { false };
 
     bool m_needs_animated_style_update { false };
+    bool m_reads_layout_as_it_flew { false };
     GC::WeakHashSet<Animations::KeyframeEffect> m_effects_needing_animated_style_update;
     GC::WeakHashSet<Animations::KeyframeEffect> m_effects_needing_animated_style_update_after_current_update;
     bool m_is_updating_animated_style { false };

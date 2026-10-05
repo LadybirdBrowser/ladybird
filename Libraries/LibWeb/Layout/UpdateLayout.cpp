@@ -179,6 +179,41 @@ bool Document::let_layout_fly(Layout::RustFFI::FfiFlightBlocker blocker)
     return Layout::RustFFI::render_state_let_first_layout_round_fly(m_layout_node_arena->host(), read, &inputs, blocker);
 }
 
+bool Document::take_flown_layout_in()
+{
+    auto navigable = this->navigable();
+    if (!navigable || navigable->active_document().ptr() != this || !m_layout_node_arena)
+        return false;
+    Layout::ForcedReadScope read { *this };
+    auto* host = m_layout_node_arena->host();
+    Layout::RustFFI::document_host_begin_update_layout(host);
+    style_computer().begin_style_record_view_epoch();
+    bool laid_out = Layout::RustFFI::render_state_take_flown_layout_in(host, read);
+    style_computer().end_style_record_view_epoch();
+    Layout::RustFFI::document_host_end_update_layout(host);
+    page().client().flush_pending_dom_mutations();
+    // As after a layout update's pass, a face the round reached is requested now. A box the round built that was handed
+    // an image already there, or a face that was requested, lays out again, as the layout update does: the round did not
+    // lay the document out.
+    if (Gfx::request_wanted_pending_faces())
+        m_requested_wanted_font_faces = true;
+    return laid_out && !m_owed_image_provider_arrived_with_image && !m_requested_wanted_font_faces;
+}
+
+Document::LayoutAsItFlew::LayoutAsItFlew(Document& document)
+    : m_document(document)
+{
+    VERIFY(!m_document->m_reads_layout_as_it_flew);
+    Layout::RustFFI::document_host_set_writes_aside(m_document->layout_node_arena().host());
+    m_document->m_reads_layout_as_it_flew = true;
+}
+
+Document::LayoutAsItFlew::~LayoutAsItFlew()
+{
+    m_document->m_reads_layout_as_it_flew = false;
+    Layout::RustFFI::document_host_queue_writes_set_aside(m_document->layout_node_arena().host());
+}
+
 void Document::update_style_and_layout_once(Layout::BegunRead const& read, UpdateLayoutReason reason, ThrottledAnimationSamplingScope animation_sampling_scope)
 {
     auto navigable = this->navigable();

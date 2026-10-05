@@ -760,6 +760,47 @@ unsafe fn fly_first_round(
     true
 }
 
+/// Takes in the layout round that flew in the frame of `document_host`'s document, waiting for it to land, and pays it as
+/// a layout update pays its last round, where the round left the document laid out as of the frame. Answers whether it
+/// did: no other round runs, so what the host wrote since the frame flew stays the next layout update's.
+///
+/// # Safety
+///
+/// As for [`update_layout`].
+unsafe fn take_flown_layout_in(main_thread: &MainThread, document_host: &DocumentHost, read: &BegunRead) -> bool {
+    let host = document_host
+        .host_tables()
+        .layout_update_host
+        .get()
+        .expect("the document has no layout update host");
+    document_host.take_frame_in_with(read);
+    // SAFETY (for every pay below): Guaranteed by the caller.
+    document_host.pay_clock_rounds(|mut answer| unsafe { answer.pay(main_thread, &host, read) });
+    let Some(FlownRound {
+        mut answer,
+        rebuilds_tree,
+    }) = document_host.take_flown_round()
+    else {
+        return false;
+    };
+    unsafe { answer.pay(main_thread, &host, read) };
+    if rebuilds_tree && host.reconcile_stale_list_item_counters_after_tree_build(main_thread, read) {
+        return false;
+    }
+    match answer.end {
+        LayoutRoundEnd::Built { .. } => return false,
+        LayoutRoundEnd::PartialLayout => host.after_layout_commit(main_thread, read, rebuilds_tree),
+        LayoutRoundEnd::FullLayout => {
+            host.note_full_layout_performed(main_thread);
+            host.after_layout_commit(main_thread, read, true);
+            host.evaluate_pending_container_queries(main_thread, read);
+        }
+    }
+    // The style written since the round flew is the next layout update's; only container queries the layout decides
+    // restyle what the round laid out.
+    !host.container_query_evaluation_is_pending(main_thread, read)
+}
+
 /// # Safety
 ///
 /// The layout update host's callbacks must answer synchronously from the live document.

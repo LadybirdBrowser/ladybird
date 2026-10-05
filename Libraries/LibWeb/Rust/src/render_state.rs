@@ -430,6 +430,8 @@ struct ChangeQueue {
             usize,
         >,
     >,
+    /// The writes set aside while the host reads the render state as it was before them.
+    set_aside: RefCell<Vec<ArenaChange>>,
 }
 
 /// What writes may move of what the host knows of the render state (see [`StateFacts`]).
@@ -446,9 +448,9 @@ struct Moves {
 }
 
 impl ChangeQueue {
-    /// Whether no write is queued, not counting the held style writes.
+    /// Whether no write waits, queued or set aside, not counting the held style writes.
     fn is_empty(&self) -> bool {
-        self.queued.borrow().is_empty()
+        self.queued.borrow().is_empty() && self.set_aside.borrow().is_empty()
     }
 
     fn holds(&self, change: &ArenaChange) -> bool {
@@ -602,6 +604,23 @@ impl ChangeQueue {
             follow(change);
         });
         self.queued.borrow_mut().append(&mut held);
+    }
+
+    /// Sets the queued writes aside, until queue_set_aside(): the render state reads as it was before them meanwhile.
+    fn set_aside(&self) {
+        debug_assert!(
+            self.set_aside.borrow().is_empty(),
+            "one set of writes is set aside at a time"
+        );
+        self.forget_moves();
+        *self.set_aside.borrow_mut() = self.queued.take();
+    }
+
+    /// Queues the writes set aside behind the writes queued meanwhile.
+    fn queue_set_aside(&self) {
+        let mut set_aside = self.set_aside.take();
+        set_aside.iter().for_each(|change| self.note(change));
+        self.queued.borrow_mut().append(&mut set_aside);
     }
 
     /// Keeps `buffer`, emptied by the render side, as the spare.

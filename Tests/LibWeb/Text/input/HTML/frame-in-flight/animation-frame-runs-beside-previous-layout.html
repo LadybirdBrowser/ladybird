@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    #box { width: 100px; height: 10px; color: rgb(0, 0, 255); }
+    #box.wide { width: 200px; color: rgb(0, 128, 0); }
+</style>
+<div id="box">text</div>
+<script>
+    // The animation frame callbacks of a rendering update run while the last update's layout is still being computed
+    // beside the event loop, where nothing script sees waits for that layout: the update takes it in, and paints it,
+    // once its callbacks have run.
+    asyncTest(async done => {
+        await twoFrames();
+        internals.setManualRenderingOpportunities(true);
+        const order = [];
+        requestAnimationFrame(() => {
+            internals.holdNextFrame("layout");
+            box.classList.add("wide");
+            requestAnimationFrame(() => order.push(`animation frame: ${internals.frameSchedulerState()}`));
+        });
+        internals.injectRenderingOpportunity(performance.now());
+        while (internals.frameSchedulerState() !== "laying-out")
+            await nextTask();
+        const { promise, resolve } = Promise.withResolvers();
+        internals.injectRenderingOpportunity(performance.now());
+        window.addEventListener("message", () => {
+            order.push("task after");
+            internals.releaseHeldFrame();
+            resolve();
+        }, { once: true });
+        window.postMessage("after", "*");
+        await promise;
+        while (internals.frameSchedulerState() !== "idle")
+            await nextTask();
+        internals.setManualRenderingOpportunities(false);
+        println(`order: ${order.join(", ")}`);
+        println(`width: ${box.offsetWidth}`);
+        done();
+    });
+</script>

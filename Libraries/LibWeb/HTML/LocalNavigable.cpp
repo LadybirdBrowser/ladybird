@@ -7196,7 +7196,7 @@ Layout::RustFFI::FfiFlightBlocker LocalNavigable::recording_flight_blocker(DOM::
     return Layout::RustFFI::FfiFlightBlocker::None;
 }
 
-bool LocalNavigable::paint_next_frame_if_needed(DOM::UpdateLayoutReason layout_reason)
+bool LocalNavigable::paint_next_frame_if_needed(DOM::UpdateLayoutReason layout_reason, LayOutFirst lay_out_first)
 {
     // The selection and find-in-page match states the document holds stale decide what this paint has to redo.
     if (auto document = active_document()) {
@@ -7212,7 +7212,8 @@ bool LocalNavigable::paint_next_frame_if_needed(DOM::UpdateLayoutReason layout_r
     if (is_svg_page())
         return false;
     if (auto document = active_document()) {
-        document->update_layout(layout_reason);
+        if (lay_out_first == LayOutFirst::Yes)
+            document->update_layout(layout_reason);
         if (document->font_computer().should_defer_initial_paint())
             return false;
     }

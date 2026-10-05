@@ -80,8 +80,8 @@ GC::Ptr<Task> TaskQueue::take_first_runnable()
             continue;
         }
 
-        // While the frame of the last rendering task is in flight, the next keeps its place in the queue, and the
-        // tasks after it wait behind it until the frame has been taken in.
+        // While the last rendering update has not finished, the next rendering task keeps its place in the queue, and
+        // the tasks after it wait behind it until the update has finished.
         if (task.source() == Task::Source::Rendering && m_event_loop->holds_rendering_opportunity())
             return nullptr;
 
