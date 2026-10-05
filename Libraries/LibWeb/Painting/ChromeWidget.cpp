@@ -91,7 +91,6 @@ ChromeWidget::ChromeWidget(Layout::NodeArena& arena, Compositing::RustFFI::NodeS
 
 Layout::Node* ChromeWidget::layout_node() const
 {
-    // The caller's own read of the render state.
     Layout::ForcedReadScope read { m_arena->render_document() };
     return layout_node_for_committed_slot(read, *m_arena, m_slot);
 }

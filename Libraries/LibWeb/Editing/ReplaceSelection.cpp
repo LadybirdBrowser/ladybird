@@ -447,7 +447,6 @@ static void replace_selection_with_inline_fragment(Layout::BegunRead const& read
 
 void replace_selection_with_fragment(DOM::Document& document, TrustedTypes::TrustedHTMLOrString const& value)
 {
-    // The editing command's own read of the render state.
     Layout::ForcedReadScope read { document };
     auto range = active_range(document);
     VERIFY(range && range->collapsed());

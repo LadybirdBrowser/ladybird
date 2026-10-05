@@ -140,7 +140,6 @@ static size_t offset_in_visual_line_closest_to_inline_coordinate(Layout::BegunRe
 
 Optional<CursorLinePosition> compute_cursor_position_on_next_line(DOM::Text const& dom_node, size_t current_offset, TextAffinity affinity)
 {
-    // The caller's own read of the render state.
     Layout::ForcedReadScope read { dom_node.document() };
     // NB: The layout update is best-effort; a detached document may still have no layout node.
     auto lines = visual_lines_with_up_to_date_layout(dom_node);
@@ -160,7 +159,6 @@ Optional<CursorLinePosition> compute_cursor_position_on_next_line(DOM::Text cons
 
 Optional<CursorLinePosition> compute_cursor_position_on_previous_line(DOM::Text const& dom_node, size_t current_offset, TextAffinity affinity)
 {
-    // The caller's own read of the render state.
     Layout::ForcedReadScope read { dom_node.document() };
     // NB: The layout update is best-effort; a detached document may still have no layout node.
     auto lines = visual_lines_with_up_to_date_layout(dom_node);

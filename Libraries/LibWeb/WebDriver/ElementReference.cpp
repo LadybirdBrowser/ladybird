@@ -388,7 +388,6 @@ bool is_element_non_typeable_form_control(Web::DOM::Element const& element)
 // https://w3c.github.io/webdriver/#dfn-in-view
 bool is_element_in_view(ReadonlySpan<GC::Ref<Web::DOM::Element>> paint_tree, Web::DOM::Element& element)
 {
-    // The WebDriver command's read of the render state.
     Layout::ForcedReadScope read { element.document() };
     // An element is in view if it is a member of its own pointer-interactable paint tree, given the pretense that its
     // pointer events are not disabled.

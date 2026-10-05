@@ -225,7 +225,6 @@ bool VisiblePosition::is_before_or_after_containing_block() const
     if (!block || m_deep_equivalent.node.ptr() != block.ptr())
         return false;
 
-    // The caller's own read of the render state.
     Layout::ForcedReadScope read { block->document() };
 
     // INTEROP: Blink and WebKit Positions retain whether a block-owned offset is anchored before or after an atomic

@@ -1344,7 +1344,6 @@ void Element::run_attribute_change_steps(Utf16FlyString const& local_name, Optio
             svg_element->publish_svg_attribute_facts();
         if (local_name.is_one_of(HTML::AttributeNames::colspan, HTML::AttributeNames::rowspan, HTML::AttributeNames::span)) {
             Layout::publish_table_spans(*this);
-            // The box's span data is the change's own read of the render state.
             Layout::ForcedReadScope read { document() };
             if (auto* layout_node = unsafe_layout_node(read))
                 layout_node->synchronize_table_span_data();
@@ -5210,7 +5209,6 @@ void Element::update_animated_properties_for_abstract_element(Badge<Web::Animati
 
 void Element::replace_style_record(CSS::StyleRecordID style_record_identity)
 {
-    // The caller's own read of the render state.
     Layout::ForcedReadScope read { document() };
     VERIFY(!style_record_identity || style_node_id() != 0);
     if (m_installed_style.record() == style_record_identity)
@@ -5373,7 +5371,6 @@ SyntheticPseudoElement& Element::ensure_synthetic_pseudo_element(CSS::PseudoElem
 
 void Element::set_custom_property_data(Optional<CSS::PseudoElement> pseudo_element, RefPtr<CSS::CustomPropertyData const> data)
 {
-    // The caller's own read of the render state.
     Layout::ForcedReadScope read { document() };
     AbstractElement const abstract_element { *this, pseudo_element };
     if (!data || !data->is_animation_overlay_for(abstract_element)) {
@@ -5391,7 +5388,6 @@ void Element::set_custom_property_data(Optional<CSS::PseudoElement> pseudo_eleme
 
 void Element::replace_custom_property_data(Optional<CSS::PseudoElement> pseudo_element, RefPtr<CSS::CustomPropertyData const> data)
 {
-    // The caller's own read of the render state.
     Layout::ForcedReadScope read { document() };
     install_custom_property_data(read, pseudo_element, move(data));
 }

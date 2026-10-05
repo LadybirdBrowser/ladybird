@@ -55,8 +55,7 @@ static void note_paint_facts(DOM::Node const& node, PaintFactsFamily families)
         const_cast<DOM::Document&>(node.document()).invalidation_journal().note_paint_facts(identity, families);
         return;
     }
-    // A node the style mirror has not named has nowhere to hold a journal entry, so its box is asked for as the note's
-    // own read of the render state.
+    // A node the style mirror has not named has nowhere to hold a journal entry, so its box is asked for now.
     Layout::ForcedReadScope read { node.document() };
     apply_paint_facts(*node.unsafe_layout_node(read), families);
 }

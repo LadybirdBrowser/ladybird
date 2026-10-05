@@ -30,7 +30,6 @@ ElementResizeAction::ElementResizeAction(GC::Ref<DOM::Element> element, CSSPixel
     : m_element(element)
     , m_pointer_down_origin(pointer_down_origin)
 {
-    // The caller's own read of the render state.
     Layout::ForcedReadScope read { element->document() };
     auto const* layout_node = element->layout_node(read);
     if (layout_node && Painting::has_committed_box(*layout_node))
@@ -42,7 +41,6 @@ void ElementResizeAction::handle_pointer_move(CSSPixelPoint pointer_position)
     auto element = m_element.ptr();
     if (!element || !element->is_connected())
         return;
-    // The resize reads the element's box as the input's own read of the render state.
     Layout::ForcedReadScope read { element->document() };
 
     auto const* layout_node_pointer = element->layout_node(read);

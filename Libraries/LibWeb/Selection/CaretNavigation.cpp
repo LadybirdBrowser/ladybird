@@ -44,7 +44,6 @@ static WordSegmentKind word_segment_kind(Utf16View const& segment)
 
 static bool text_node_has_rendered_text(DOM::Text const& text)
 {
-    // The caller's own read of the render state.
     Layout::ForcedReadScope read { text.document() };
     for (auto const& line : collect_visual_lines(read, text)) {
         if (line.has_fragments)
@@ -57,7 +56,6 @@ static bool text_node_has_rendered_text(DOM::Text const& text)
 // <br> in a paragraph with text after it, and the lines between consecutive <br>s.
 static bool is_empty_line_break(DOM::Node& node)
 {
-    // The caller's own read of the render state.
     Layout::ForcedReadScope read { node.document() };
     auto* br = as_if<HTML::HTMLBRElement>(node);
     return br && br->is_editable() && br->represents_empty_line(read);
@@ -66,7 +64,6 @@ static bool is_empty_line_break(DOM::Node& node)
 // A block-level element that renders no text but hosts an empty line where the caret can sit, such as `<p><br></p>`.
 static bool is_empty_line_host(DOM::Node& node)
 {
-    // The caller's own read of the render state.
     Layout::ForcedReadScope read { node.document() };
     auto* element = as_if<DOM::Element>(node);
     if (!element || !element->is_editable())
@@ -95,7 +92,6 @@ static bool is_empty_line_host(DOM::Node& node)
 // as DOM boundaries in the parent, immediately before and after the atomic node.
 static bool is_atomic_inline_caret_host(DOM::Node& node)
 {
-    // The caller's own read of the render state.
     Layout::ForcedReadScope read { node.document() };
     if (is<HTML::HTMLBRElement>(node))
         return false;
@@ -105,7 +101,6 @@ static bool is_atomic_inline_caret_host(DOM::Node& node)
 
 static bool boundary_visual_lines_share_line(DOM::Text const& before, DOM::Text const& after)
 {
-    // The caller's own read of the render state.
     Layout::ForcedReadScope read { before.document() };
     auto before_lines = collect_visual_lines(read, before);
     auto after_lines = collect_visual_lines(read, after);
@@ -118,7 +113,6 @@ static bool boundary_visual_lines_share_line(DOM::Text const& before, DOM::Text 
 
 static bool boundary_visual_lines_share_inline_context(DOM::Text const& before, DOM::Text const& after)
 {
-    // The caller's own read of the render state.
     Layout::ForcedReadScope read { before.document() };
     auto before_lines = collect_visual_lines(read, before);
     auto after_lines = collect_visual_lines(read, after);
@@ -721,7 +715,6 @@ Optional<CaretLocation> CaretNavigator::move(CaretLocation const& location, Sele
     auto editing_host = line_origin.node->editing_host();
     if (!editing_host || !preferred_inline_coordinate.has_value())
         return {};
-    // The caret moves through the lines as they render, as the navigation's own read of the render state.
     Layout::ForcedReadScope read { *m_document };
     m_document->update_layout_if_needed_for_node(line_origin.node, DOM::UpdateLayoutReason::CursorLineNavigation);
     auto line_direction = direction == SelectionDirection::Forward ? Painting::CaretLineDirection::Next : Painting::CaretLineDirection::Previous;

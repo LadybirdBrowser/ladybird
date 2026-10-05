@@ -18,7 +18,6 @@ GC_DEFINE_ALLOCATOR(ResizeObserverSize);
 // https://drafts.csswg.org/resize-observer-1/#calculate-box-size
 ResizeObserverSize::RawSize ResizeObserverSize::compute_box_size(DOM::Element& target, ObservedBox observed_box)
 {
-    // The caller's own read of the render state.
     Layout::ForcedReadScope read { target.document() };
     RawSize size;
 
