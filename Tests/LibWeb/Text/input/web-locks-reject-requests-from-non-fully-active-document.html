@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    async function settlement(promise) {
+        try {
+            await promise;
+            return "resolved";
+        } catch (exception) {
+            return `rejected with ${exception.name}`;
+        }
+    }
+
+    asyncTest(async done => {
+        const iframe = document.createElement("iframe");
+        document.body.appendChild(iframe);
+        const locksOfRemovedDocument = iframe.contentWindow.navigator.locks;
+        iframe.remove();
+
+        println(`request: ${await settlement(locksOfRemovedDocument.request("resource", () => {}))}`);
+        println(`query: ${await settlement(locksOfRemovedDocument.query())}`);
+        println(`request from this document: ${await settlement(navigator.locks.request("resource", () => {}))}`);
+        done();
+    });
+</script>

@@ -34,7 +34,7 @@ WebIDL::ExceptionOr<GC::Ref<PerformanceMark>> PerformanceMark::create_for_constr
     auto& vm = relevant_global_object.vm();
 
     // 1. If the current global object is a Window object and markName uses the same name as a read only attribute in the PerformanceTiming interface, throw a SyntaxError.
-    if (is<HTML::Window>(current_global_object)) {
+    if (HTML::window_from_global_object(current_global_object)) {
         bool matched = false;
 
 #define __ENUMERATE_NAVIGATION_TIMING_ENTRY_NAME(name, _)                    \

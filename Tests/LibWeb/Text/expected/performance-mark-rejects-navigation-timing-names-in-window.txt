@@ -1,0 +1,5 @@
+window performance.mark("navigationStart"): SyntaxError
+window performance.mark("loadEventEnd"): SyntaxError
+window new PerformanceMark("fetchStart"): SyntaxError
+window performance.mark("ordinary"): created ordinary
+worker performance.mark("navigationStart"): created navigationStart

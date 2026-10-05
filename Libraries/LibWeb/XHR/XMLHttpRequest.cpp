@@ -1423,7 +1423,7 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::request_error_steps(Utf16FlyString con
 bool XMLHttpRequest::should_be_kept_alive() const
 {
     auto& global = relevant_global_object();
-    if (auto* window = as_if<HTML::Window>(global); window && window->associated_document().has_been_destroyed())
+    if (auto* window = HTML::window_from_global_object(global); window && window->associated_document().has_been_destroyed())
         return false;
 
     if (!((m_state == State::Opened && m_send) || m_state == State::HeadersReceived || m_state == State::Loading))
