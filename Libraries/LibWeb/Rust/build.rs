@@ -826,21 +826,11 @@ fn generate_selector_pseudo_types(manifest_dir: &Path, out_dir: &Path) -> Result
         .filter(|(_, value)| !value.as_object().unwrap().contains_key("legacy-alias-for"))
         .map(|(name, _)| title_casify(name))
         .collect::<Vec<_>>();
-    let mut state_fact_names = pseudo_classes
+    let state_fact_names = pseudo_classes
         .iter()
         .filter(|(_, value)| value["style-engine-state"].as_bool() == Some(true))
         .map(|(name, _)| title_casify(name))
         .collect::<Vec<_>>();
-    // NB: FfiStateFact discriminants persist in replay streams. PopoverOpen historically follows
-    //     Playing, so preserve that ordering at the compatibility boundary.
-    if let Some(popover_open) = state_fact_names.iter().position(|name| name == "PopoverOpen") {
-        let popover_open = state_fact_names.remove(popover_open);
-        let playing = state_fact_names
-            .iter()
-            .position(|name| name == "Playing")
-            .expect("PopoverOpen requires Playing in the state fact catalog");
-        state_fact_names.insert(playing + 1, popover_open);
-    }
 
     let pseudo_elements = parse_object(&pseudo_elements_path)?;
     let mut pseudo_element_names = ordered_pseudo_element_names(&pseudo_elements)?

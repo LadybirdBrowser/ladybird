@@ -114,7 +114,6 @@ define_memory_categories! {
     NormalizationJournal => (Scratch, "normalizationJournal"),
     BatchScratch => (Scratch, "batchScratch"),
     BridgeBuffer => (Scratch, "bridgeBuffer"),
-    // Appended to preserve record-replay category ordinals.
     ParsedSubstitutionCache => (Acceleration, "parsedSubstitutionCache"),
     SelectorQuery => (Scratch, "selectorQuery"),
     PrefixRelation => (Acceleration, "prefixRelation"),
