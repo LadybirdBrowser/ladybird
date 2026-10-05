@@ -74,7 +74,7 @@ impl RetainedState {
     /// values in over `style_record`, the record the host holds for it: the font context, which
     /// reads the record its inheritance parent holds; the line-height context, the element's own
     /// font with the line height it inherits; and the one everything else resolves against, the
-    /// element's own font. A mirror of the host's `get_computation_context_for_property(FontFamily /
+    /// element's own font. A mirror of the host's `make_computation_context_for_property(FontFamily /
     /// LineHeight / Color)` over the working set it reconstructs from that record, without the
     /// container bases only the host resolves.
     ///

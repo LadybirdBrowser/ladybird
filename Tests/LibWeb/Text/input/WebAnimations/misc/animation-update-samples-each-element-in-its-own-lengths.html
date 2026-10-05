@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .container {
+        container-type: inline-size;
+    }
+    .box {
+        height: 10px;
+    }
+</style>
+<div class="container" style="width: 100px; font-size: 10px">
+    <div id="a" class="box"></div>
+</div>
+<div class="container" style="width: 400px; font-size: 30px">
+    <div id="b" class="box"></div>
+</div>
+<script>
+    // An animation update samples the elements of a document in one call of the engine. A keyframe in container units
+    // resolves its lengths against the element's own font and container even then.
+    asyncTest(async done => {
+        for (const box of [a, b])
+            box.animate([{ width: "calc(1em + 10cqw)" }, { width: "calc(1em + 10cqw)" }], { duration: 100000 });
+        for (let i = 0; i < 3; ++i)
+            await animationFrame();
+        println(`a: ${getComputedStyle(a).width}`);
+        println(`b: ${getComputedStyle(b).width}`);
+        done();
+    });
+</script>
