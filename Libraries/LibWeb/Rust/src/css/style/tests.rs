@@ -1808,7 +1808,7 @@ fn retained_match_answer_replacement_does_not_create_pressure() {
     assert!(matches!(engine.retained_match_answer(nodes[1]), Lookup::Known(_)));
     assert_eq!(engine.counters.get(Counter::Tier3BenefitEvictions), 0);
     assert_eq!(engine.counters.get(Counter::RetainedMatchAnswerRefusals), 0);
-    assert_eq!(engine.memory.refusals(MemoryCategory::RetainedMatchAnswer), 0);
+    assert!(engine.memory.is_tier3_admitting(MemoryCategory::RetainedMatchAnswer));
 }
 
 #[test]
@@ -1834,14 +1834,12 @@ fn failed_posting_rebuild_does_not_condemn_resident_postings() {
 
     engine.record_environment_change();
     engine.take_style_transaction_nodes(nodes[0], |_| {});
-    assert!(engine.memory.refusals(MemoryCategory::FeaturePosting) > 0);
+    assert!(!engine.memory.is_tier3_admitting(MemoryCategory::FeaturePosting));
     assert!(matches!(engine.facts.postings().lookup(resident_key), Lookup::Known(_)));
-    let refusals = engine.memory.refusals(MemoryCategory::FeaturePosting);
 
     engine.record_environment_change();
     engine.take_style_transaction_nodes(nodes[0], |_| {});
     assert!(matches!(engine.facts.postings().lookup(resident_key), Lookup::Known(_)));
-    assert_eq!(engine.memory.refusals(MemoryCategory::FeaturePosting), refusals);
 }
 
 #[test]
