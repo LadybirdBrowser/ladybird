@@ -64,8 +64,7 @@ bool seal_clock_plan(DOM::Document& document, bool may_plan)
     if (!arena)
         return false;
     if (may_plan) {
-        // The plan reads the boxes of the elements it names and seals its round from the document's layout, which is
-        // the rendering update's own read.
+        // The plan reads the boxes of the elements it names and seals its round from the document's layout.
         Layout::ForcedReadScope read { document };
         // The elements whose running animations a tick samples, and the timestamp of the next event of the document's
         // animations, at which the main thread takes over again.

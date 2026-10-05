@@ -1080,7 +1080,6 @@ bool KeyframeEffect::can_skip_per_frame_style_update() const
     auto target = this->target();
     if (!target)
         return false;
-    // Asking whether the target's boxes are throttled is the update's own read of the render state.
     Layout::ForcedReadScope read { target->document() };
     auto cache_result = [&](bool result) {
         if (target->document().layout_is_up_to_date()) {
@@ -1262,7 +1261,6 @@ void KeyframeEffect::update_computed_properties(AnimationUpdateContext& context)
 
 void KeyframeEffect::update_computed_properties_for_style(AnimationUpdateContext& context, DOM::AbstractElement abstract_element)
 {
-    // The caller's own read of the render state.
     Layout::ForcedReadScope read { abstract_element.document() };
     auto& style_computer = abstract_element.element().document().style_computer();
     auto& element_data = context.elements.ensure(abstract_element, [&abstract_element, &style_computer, &read] {

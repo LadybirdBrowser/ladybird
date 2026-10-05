@@ -1643,7 +1643,6 @@ void Node::remove(bool suppress_observers)
     RemovalStyleRecordPins removal_style_record_pins { document().style_computer() };
     removal_style_record_pins.pin_style_records_before_removal(*this, was_tracked_by_style_engine);
     if (was_tracked_by_style_engine) {
-        // The removal's reads of style and layout are its own read of the render state.
         Layout::ForcedReadScope read { document() };
         // A suppressed-observer removal may be the first half of a compound mutation that immediately reinserts
         // this node. Keep the old parent on the conservative rebuild path so the later insertion can relocate it.
@@ -1872,7 +1871,6 @@ WebIDL::ExceptionOr<GC::Ref<Node>> Node::clone_node(GC::Ptr<Document> document, 
 // https://dom.spec.whatwg.org/#move
 WebIDL::ExceptionOr<void> Node::move_node(Node& new_parent, Node* child)
 {
-    // The move's reads of style and layout are its own read of the render state.
     Layout::ForcedReadScope read { document() };
     // 1. If newParent’s shadow-including root is not the same as node’s shadow-including root, then throw a "HierarchyRequestError" DOMException.
     if (&new_parent.shadow_including_root() != &shadow_including_root())
@@ -2537,7 +2535,6 @@ void Node::set_needs_layout_tree_update(bool value, SetNeedsLayoutTreeUpdateReas
         return;
 
     if (value && reason == SetNeedsLayoutTreeUpdateReason::NodeInsertBefore) {
-        // An insertion finds the first-letter box it reaches as the mark's own read of the render state.
         Layout::ForcedReadScope read { document() };
         if (auto* first_letter_owner = first_letter_owner_for_layout_subtree_from(read, *this); first_letter_owner && first_letter_owner != this)
             first_letter_owner->set_needs_layout_tree_update(true, reason);
@@ -2944,7 +2941,6 @@ void Node::remove_all_children(bool suppress_observers)
         RemovalStyleRecordPins removal_style_record_pins { document().style_computer() };
         removal_style_record_pins.pin_style_records_before_removal(*child, was_tracked_by_style_engine);
         if (was_tracked_by_style_engine) {
-            // The removal's reads of style and layout are its own read of the render state.
             Layout::ForcedReadScope read { document() };
             child->update_layout_tree_for_removal(read, *this, LayoutSubtreeRemoval::RebuildParent, ancestors_may_have_first_letter);
             child->detach_remaining_layout_nodes_for_removal();
@@ -3122,7 +3118,6 @@ GC::Ptr<Document> Node::owner_document() const
 // - Rendered whitespace between block-level elements
 bool Node::is_uninteresting_whitespace_node() const
 {
-    // The caller's own read of the render state.
     Layout::ForcedReadScope read { document() };
     if (!is<Text>(*this))
         return false;
@@ -3147,7 +3142,6 @@ IterationDecision Node::serialize_child_as_json(JsonArraySerializer<Utf16StringB
 
 void Node::serialize_tree_as_json(JsonObjectSerializer<Utf16StringBuilder>& object) const
 {
-    // The serialization reads what renders, as the caller's own read of the render state.
     Layout::ForcedReadScope read { document() };
     MUST(object.add("name"sv, node_name().view()));
     MUST(object.add("id"sv, unique_id().value()));
@@ -4559,7 +4553,6 @@ ErrorOr<Utf16String> Node::name_or_description(Layout::BegunRead const& read, Na
 // https://www.w3.org/TR/accname-1.2/#mapping_additional_nd_name
 ErrorOr<Utf16String> Node::accessible_name(Document const& document, ShouldComputeRole should_compute_role) const
 {
-    // The name reads what renders, as the caller's own read of the render state.
     Layout::ForcedReadScope read { document };
     HashTable<UniqueNodeID> visited_nodes;
     // User agents MUST compute an accessible name using the rules outlined below in the section titled Accessible Name and Description Computation.
@@ -4569,7 +4562,6 @@ ErrorOr<Utf16String> Node::accessible_name(Document const& document, ShouldCompu
 // https://www.w3.org/TR/accname-1.2/#mapping_additional_nd_description
 ErrorOr<Utf16String> Node::accessible_description(Document const& document) const
 {
-    // The caller's own read of the render state.
     Layout::ForcedReadScope read { document };
     // If aria-describedby is present, user agents MUST compute the accessible description by concatenating the text alternatives for elements referenced by an aria-describedby attribute on the current element.
     // The text alternatives for the referenced elements are computed using a number of methods, outlined below in the section titled Accessible Name and Description Computation.

@@ -437,8 +437,7 @@ bool StyleEngine::refresh_attribute_value_text_requirements(Layout::BegunRead co
 bool StyleEngine::attribute_name_requires_value_text(StyleAtomID name)
 {
     return m_attribute_names_requiring_value_text.ensure(name, [&] {
-        // The host holds which names the engine's selectors read the value text of as of its last job, so only a name
-        // not seen since it queued a rule is its own read of the render state.
+        // The host holds which names the engine's selectors read the value text of as of its last job.
         Layout::ForcedReadScope read { render_document() };
         // The host interned every name it asks about, with its forms.
         auto it = m_attribute_name_forms.find(name);
@@ -482,8 +481,8 @@ static void request_frame_for_first_recorded_input(StyleEngine const& style_engi
 
 static void flush_deferred_geometry_transaction_before_non_replayable_input(StyleEngine const& style_engine, GC::Ptr<StyleComputer> style_computer)
 {
-    // The flush asks the engine whether the transaction a geometry read deferred is still deferred, as its own read of
-    // the render state, only where one may be.
+    // The flush asks the engine whether the transaction a geometry read deferred is still deferred, only where one may
+    // be.
     if (style_computer && style_engine.may_have_deferred_geometry_transaction())
         style_computer->document().flush_deferred_style_change_event();
 }
@@ -607,7 +606,6 @@ bool StyleEngine::has_recorded_input() const
 
 void StyleEngine::submit_recorded_input()
 {
-    // Submitting what was recorded is the host's own read of the render state.
     Layout::ForcedReadScope read { render_document() };
     if (m_style_computer) {
         take_in_pending_style_arrivals(m_style_computer->document());

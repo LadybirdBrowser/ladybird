@@ -826,7 +826,6 @@ void ViewTransition::handle_transition_frame()
 // https://drafts.csswg.org/css-view-transitions-1/#update-pseudo-element-styles
 ErrorOr<void> ViewTransition::update_pseudo_element_styles()
 {
-    // The pseudo-elements' styles are the transition's own read of the render state.
     Layout::ForcedReadScope read { *m_document };
     // To update pseudo-element styles for a ViewTransition transition:
 

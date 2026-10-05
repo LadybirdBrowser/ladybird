@@ -332,7 +332,6 @@ bool rust_refresh_scroll_state(Layout::BegunRead const& read, DOM::Document& doc
 // Describes the row in the slot as its layout node describes itself, for a dump or a trace.
 static void push_debug_description(DOM::Document const& document, Compositing::RustFFI::NodeSlotId slot, void* description_sink)
 {
-    // The box a dump describes is the dump's own read of the render state.
     Layout::ForcedReadScope read { document };
     auto const* layout_node = const_cast<DOM::Document&>(document).layout_node_arena().node_if_live(read, slot);
     VERIFY(layout_node);

@@ -122,7 +122,6 @@ static Optional<ScrollOffsetData> compute_scroll_offset_data(Variant<GC::Ptr<DOM
     if (propagated_source.visit([](auto const& source) { return source == nullptr; }))
         return {};
 
-    // The scroll container's box is the timeline's own read of the render state.
     Layout::ForcedReadScope read { propagated_source.visit([](auto const& source) -> DOM::Document const& { return source->document(); }) };
 
     auto const& layout_node = propagated_source.visit([&read](auto const& source) -> Layout::NodeWithStyle const* { return source->unsafe_layout_node(read); });

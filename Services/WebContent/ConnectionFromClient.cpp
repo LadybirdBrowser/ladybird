@@ -981,7 +981,6 @@ void ConnectionFromClient::debug_request(Web::PageId page_id, ByteString request
     if (request == "dump-layout-tree") {
         if (auto doc = page->page().local_traversable()->active_document()) {
             page->page().local_traversable()->update_layout_of_hosted_inclusive_descendant_documents(Web::DOM::UpdateLayoutReason::Debugging);
-            // The dump's own read of the document's render state.
             Web::Layout::ForcedReadScope read { *doc };
             if (auto* viewport = doc->layout_node(read))
                 Web::dump_tree(*viewport);
@@ -991,7 +990,6 @@ void ConnectionFromClient::debug_request(Web::PageId page_id, ByteString request
 
     if (request == "dump-stacking-context-tree") {
         if (auto doc = page->page().local_traversable()->active_document()) {
-            // The dump's own read of the document's render state.
             Web::Layout::ForcedReadScope read { *doc };
             if (doc->layout_node(read)) {
                 VERIFY(doc->has_committed_viewport_box());
@@ -1444,7 +1442,6 @@ void ConnectionFromClient::inspect_dom_node(Web::PageId page_id, WebView::DOMNod
 
 static Optional<JsonObject> flex_layout_for_node(Web::DOM::Node const& node)
 {
-    // The inspector's own read of the node's render state.
     Web::Layout::ForcedReadScope read { node.document() };
     auto const* layout_node = node.layout_node(read);
     if (!layout_node || !Web::Painting::has_committed_box(*layout_node))
@@ -1461,7 +1458,6 @@ static Optional<JsonObject> flex_layout_for_node(Web::DOM::Node const& node)
 
 static Optional<JsonObject> grid_layout_for_node(Web::DOM::Node const& node)
 {
-    // The inspector's own read of the node's render state.
     Web::Layout::ForcedReadScope read { node.document() };
     auto const* layout_node = node.layout_node(read);
     if (!layout_node || !Web::Painting::has_committed_box(*layout_node))
@@ -2378,7 +2374,6 @@ static void append_layout_tree(Web::Page& page, StringBuilder& builder)
 
     page.local_traversable()->update_layout_of_hosted_inclusive_descendant_documents(Web::DOM::UpdateLayoutReason::Debugging);
 
-    // The dump's own read of the document's render state.
     Web::Layout::ForcedReadScope read { *document };
     auto* layout_root = document->layout_node(read);
     if (!layout_root) {
@@ -2481,7 +2476,6 @@ static WebView::DictionaryLookupTextStyle dictionary_lookup_text_style_from_layo
 
 static Web::Layout::Node const* layout_node_for_dictionary_lookup(Web::DOM::Node const& node)
 {
-    // The lookup's own read of the node's render state.
     Web::Layout::ForcedReadScope read { node.document() };
     for (auto const* current = &node; current; current = current->parent_or_shadow_host_node()) {
         auto const* layout_node = current->layout_node(read);

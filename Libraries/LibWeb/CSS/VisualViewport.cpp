@@ -230,7 +230,6 @@ void VisualViewport::reset()
 
 void VisualViewport::update_accumulated_visual_context()
 {
-    // Whether the viewport's box is committed is the host's own read of the render state.
     Layout::ForcedReadScope read { *m_document };
     if (m_document->has_committed_viewport_box() && m_document->paint_state().has_visual_context_tree(read)) {
         m_document->paint_state().update_visual_viewport_accumulated_visual_context(read, *m_document);

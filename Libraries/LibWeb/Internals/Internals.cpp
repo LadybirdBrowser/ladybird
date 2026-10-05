@@ -588,7 +588,6 @@ void Internals::grant_transient_activation()
 // A click the UI process routes, as it would a user's, to the page hosting the document under it.
 void Internals::click_through_ui_process(double x, double y)
 {
-    // The test API's read of the render state.
     Layout::ForcedReadScope read { window().associated_document() };
     auto& page = this->page();
     auto position = page.css_to_device_point(window().navigable()->to_page_position({ x, y }));
@@ -607,7 +606,6 @@ void Internals::click_through_ui_process(double x, double y)
 
 void Internals::wheel_through_ui_process(double x, double y, double delta_x, double delta_y)
 {
-    // The test API's read of the render state.
     Layout::ForcedReadScope read { window().associated_document() };
     auto& page = this->page();
     auto position = page.css_to_device_point(window().navigable()->to_page_position({ x, y }));
@@ -1238,7 +1236,6 @@ bool Internals::headless()
 
 bool Internals::needs_repaint()
 {
-    // The test API's read of the render state.
     Layout::ForcedReadScope read { window().associated_document() };
     window().associated_document().drain_invalidation_journal(read);
     auto local_root = local_root_of(window());
@@ -1247,7 +1244,6 @@ bool Internals::needs_repaint()
 
 bool Internals::needs_display_list_record()
 {
-    // The test API's read of the render state.
     Layout::ForcedReadScope read { window().associated_document() };
     window().associated_document().drain_invalidation_journal(read);
     auto local_root = local_root_of(window());
@@ -1266,7 +1262,6 @@ static Utf16String dump_string_to_utf16(String const& string)
 
 Utf16String Internals::dump_display_list()
 {
-    // The test API's read of the render state.
     Layout::ForcedReadScope read { window().associated_document() };
     return window().associated_document().dump_display_list();
 }
@@ -1769,7 +1764,6 @@ void Internals::release_held_frame()
 
 void Internals::update_compositor_animations()
 {
-    // The test API's read of the render state.
     Layout::ForcedReadScope read { window().associated_document() };
     window().associated_document().update_compositor_animations(read);
 }

@@ -1503,7 +1503,6 @@ void Document::drain_style_transaction_that_flew(Layout::BegunRead const& read)
 
 void Document::update_style()
 {
-    // The host's own read: the style transaction that flew lands for it.
     Layout::ForcedReadScope read { style_computer().style_engine().render_document() };
     drain_flown_style_transaction(read);
     update_highlight_style_observability();
@@ -1514,8 +1513,6 @@ bool Document::let_style_update_fly(Layout::RustFFI::FfiFlightBlocker blocker)
 {
     if (blocker != Layout::RustFFI::FfiFlightBlocker::None || m_flown_style_update_inputs.has_value())
         return false;
-    // Gathering what the transaction flies with, and sealing the layout round that flies after it, is the host's own
-    // read of the render state, which no frame flies beside yet.
     Layout::ForcedReadScope read { *this };
     update_highlight_style_observability();
     m_flown_style_update_inputs = CSS::let_style_update_fly(read, *this, blocker);
@@ -1524,13 +1521,11 @@ bool Document::let_style_update_fly(Layout::RustFFI::FfiFlightBlocker blocker)
 
 bool Document::update_style_for_element(AbstractElement const& abstract_element)
 {
-    Layout::ForcedReadScope read { *this };
     return update_style_for_element(abstract_element, StyleUpdateMode::Normal);
 }
 
 bool Document::update_style_for_element(AbstractElement const& abstract_element, StyleUpdateMode mode)
 {
-    // A script API reads the element's style: its waits for the render state are one forced read.
     Layout::ForcedReadScope read { style_computer().style_engine().render_document() };
     drain_flown_style_transaction(read);
     update_highlight_style_observability();

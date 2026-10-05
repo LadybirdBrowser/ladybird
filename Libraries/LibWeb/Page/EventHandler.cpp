@@ -1343,7 +1343,6 @@ EventHandler::KeyboardScrollSnapshot EventHandler::keyboard_scroll_snapshot() co
     auto document = m_navigable->active_document();
     if (!document || !document->is_fully_active() || !m_navigable->is_top_level_traversable())
         return {};
-    // The caller's own read of the render state.
     Layout::ForcedReadScope read { *document };
 
     KeyboardScrollSnapshot snapshot;
@@ -1660,7 +1659,6 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
             && Painting::wheel_scroll_along_containing_block_chain(*scroll_target_layout_node, delta_x, delta_y, scroll_kind) != nullptr;
     };
     auto perform_scroll_step_for_key_input = [&](CSSPixelPoint delta, Compositing::SnapSelectionStrategy::Type strategy_type) {
-        // The scroll step reads the target's box as the key's own read of the render state.
         Layout::ForcedReadScope read { *document };
         document->update_layout(DOM::UpdateLayoutReason::EventHandlerHandleKeyDown);
         Layout::Node* target = nullptr;
@@ -2521,7 +2519,6 @@ Optional<EventHandler::Target> EventHandler::target_for_mouse_position(CSSPixelP
     auto document = m_navigable->active_document();
     if (!document)
         return {};
-    // Hit testing is the input's own read of the document's render state.
     Layout::ForcedReadScope read { *document };
 
     if (auto result = document->hit_test(read, position); result.has_value()) {

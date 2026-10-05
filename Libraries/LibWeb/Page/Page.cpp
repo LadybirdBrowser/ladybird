@@ -245,7 +245,6 @@ void Page::process_screenshot_requests()
                 client.page_did_take_screenshot(bitmap->to_shareable_bitmap());
             });
         } else {
-            // The screenshot reads the viewport's box as the page's own read of the document's render state.
             Layout::ForcedReadScope read { *navigable->active_document() };
             navigable->active_document()->update_layout(DOM::UpdateLayoutReason::ProcessScreenshot);
             auto const* layout_node = navigable->active_document()->layout_node(read);

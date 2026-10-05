@@ -4975,7 +4975,6 @@ void LocalNavigable::clamp_viewport_scroll_offset()
     auto document = active_document();
     if (!document || !document->layout_is_up_to_date())
         return;
-    // The caller's own read of the render state.
     Layout::ForcedReadScope read { *document };
     auto* layout_node = document->layout_node(read);
     if (!layout_node)
@@ -5262,7 +5261,6 @@ Layout::Node* LocalNavigable::layout_node_for_async_scroll_node_stable_id(Web::A
     auto document = active_document();
     if (!document)
         return nullptr;
-    // The scrolling box is the caller's own read of the document's render state.
     Layout::ForcedReadScope read { *document };
     return layout_node_for_async_scroll_node(read, *document, stable_node_id);
 }
@@ -5306,7 +5304,6 @@ RefPtr<Painting::Scrollbar> LocalNavigable::scrollbar_dragged_by_compositor(Layo
 // NB: A scroll the compositor reports can arrive while layout is out of date, so this reads the committed layout.
 static Layout::Node* committed_scrolling_box_for_async_scroll_node(DOM::Document& document, Web::AsyncScrollNodeStableID stable_node_id)
 {
-    // The caller's own read of the render state.
     Layout::ForcedReadScope read { document };
     Layout::Node* scrolling_box = nullptr;
     if (stable_node_id.kind == Web::AsyncScrollNodeKind::Viewport) {
@@ -5712,7 +5709,6 @@ void LocalNavigable::user_scroll_did_settle(UserScrollSettlement settlement)
     auto document = active_document();
     if (!document)
         return;
-    // Snapping is the navigable's own read of the document's render state.
     Layout::ForcedReadScope read { *document };
 
     // Settlement can occur inside a layout update when tearing down a scrollbar whose thumb is grabbed, so snapping
@@ -6863,7 +6859,6 @@ bool LocalNavigable::active_document_opts_out_of_force_dark() const
     auto document = active_document();
     if (!document)
         return false;
-    // The caller's own read of the render state.
     Layout::ForcedReadScope read { *document };
 
     if (auto* html_element = document->html_element(); html_element && html_element->layout_node(read)) {
@@ -6905,7 +6900,6 @@ Optional<Compositor::CompositorFrame> LocalNavigable::record_compositor_frame(Pa
     if (!document)
         return {};
 
-    // The frame's recording is the host's own read of the document's render state.
     Layout::ForcedReadScope read { *document };
     adopt_pending_async_scroll_offsets();
     document->update_paint_and_hit_testing_properties_if_needed();
@@ -7128,7 +7122,6 @@ Optional<Compositor::CompositorFrame> LocalNavigable::finish_recording_in_flight
         sealed = move(*adopt_own(*static_cast<Compositor::SealedPresentation*>(given_back.sealed)));
     }
 
-    // Taking in the recording is the host's own read of the document's render state.
     Layout::ForcedReadScope read { *document };
     // What the recording made goes to a document this navigable still presents, which still has the boxes it recorded.
     // Otherwise it stays pending, for the document's next recording to drop.
@@ -7219,7 +7212,6 @@ bool LocalNavigable::paint_next_frame_if_needed(DOM::UpdateLayoutReason layout_r
 {
     // The marks the document's invalidation journal holds decide what this paint has to redo.
     if (auto document = active_document()) {
-        // Draining the journal is the paint's own read of the document's render state.
         Layout::ForcedReadScope read { *document };
         document->drain_invalidation_journal(read);
     }
