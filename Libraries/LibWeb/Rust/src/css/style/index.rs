@@ -192,8 +192,6 @@ impl StateSet {
 pub struct AttributeFact {
     pub name: StyleAtomID,
     pub value: StyleAtomID,
-    pub text_offset: u32,
-    pub text_length: u32,
 }
 
 /// The other names one attribute-name atom answers to.
@@ -608,17 +606,7 @@ impl StyleNodeFacts {
             source.classes_of(source_row),
         ));
         let attribute_start = u32::try_from(self.attributes.len()).expect("attribute payload offset overflow");
-        for &attribute in source.attributes_of(source_row) {
-            let (text_offset, text_length) = match source.local_text_of(attribute) {
-                Some(text) => self.push_text(text),
-                None => (u32::MAX, 0),
-            };
-            self.attributes.push(AttributeFact {
-                text_offset,
-                text_length,
-                ..attribute
-            });
-        }
+        self.attributes.extend_from_slice(source.attributes_of(source_row));
         self.attribute_handles.push(PayloadHandle {
             offset: attribute_start,
             length: u32::try_from(self.attributes.len()).expect("attribute payload overflow") - attribute_start,
@@ -671,13 +659,6 @@ impl StyleNodeFacts {
             rare_facts.custom_states.slice(&source.custom_states),
             rare_facts.parts.slice(&source.parts),
         );
-    }
-
-    /// Append UTF-16 text whose value has no atom and return its batch-local range.
-    pub fn push_text(&mut self, text: &[u16]) -> (u32, u32) {
-        let offset = u32::try_from(self.text.len()).expect("text payload overflow");
-        self.text.extend_from_slice(text);
-        (offset, u32::try_from(text.len()).expect("text payload overflow"))
     }
 
     fn map_row(&mut self, node: StyleNodeID, row: u32) {
@@ -886,13 +867,12 @@ impl StyleNodeFacts {
             stale_payload_bytes +=
                 old_attribute_handle.map_or(0, |old| size_of_val(old.slice(&self.attributes)) as u64);
             let offset = u32::try_from(self.attributes.len()).expect("fact payload offset overflow");
-            self.attributes
-                .extend(facts.attributes.iter().map(|&(name, value)| AttributeFact {
-                    name,
-                    value,
-                    text_offset: u32::MAX,
-                    text_length: 0,
-                }));
+            self.attributes.extend(
+                facts
+                    .attributes
+                    .iter()
+                    .map(|&(name, value)| AttributeFact { name, value }),
+            );
             self.attribute_handles[row] = PayloadHandle {
                 offset,
                 length: u32::try_from(facts.attributes.len()).expect("fact payload length overflow"),
@@ -1182,24 +1162,19 @@ impl StyleNodeFacts {
         }
     }
 
+    #[cfg(test)]
+    pub fn set_attribute_value_text_for_test(&mut self, value: StyleAtomID, text: &[u16]) {
+        Arc::make_mut(&mut self.attribute_catalogs)
+            .value_texts
+            .insert(value.0 as usize, Some(text.into()));
+    }
+
     #[must_use]
     pub fn text_of(&self, attribute: AttributeFact) -> Option<&[u16]> {
-        if let Some(text) = self.local_text_of(attribute) {
-            return Some(text);
-        }
         self.attribute_catalogs
             .value_texts
             .get(attribute.value.0 as usize)
             .and_then(Option::as_deref)
-    }
-
-    fn local_text_of(&self, attribute: AttributeFact) -> Option<&[u16]> {
-        if attribute.text_length == 0 && attribute.text_offset == u32::MAX {
-            return None;
-        }
-        let start = attribute.text_offset as usize;
-        let end = start + attribute.text_length as usize;
-        self.text.get(start..end)
     }
 
     #[must_use]
@@ -1240,12 +1215,7 @@ impl StyleNodeFacts {
             + size_of_val(self.custom_states_of(row))
             + size_of_val(self.parts_of(row))
             + size_of_val(self.classes_of(row))
-            + size_of_val(self.attributes_of(row))
-            + self
-                .attributes_of(row)
-                .iter()
-                .map(|attribute| attribute.text_length as usize * size_of::<u16>())
-                .sum::<usize>()) as u64
+            + size_of_val(self.attributes_of(row))) as u64
     }
 
     fn payload_bytes_of_row(&self, row: u32) -> u64 {
@@ -6468,8 +6438,6 @@ mod tests {
             &[AttributeFact {
                 name: StyleAtomID(30),
                 value: StyleAtomID::NONE,
-                text_offset: u32::MAX,
-                text_length: 0,
             }],
         );
 
@@ -6541,14 +6509,10 @@ mod tests {
                 AttributeFact {
                     name: StyleAtomID(31),
                     value: StyleAtomID(41),
-                    text_offset: u32::MAX,
-                    text_length: 0,
                 },
                 AttributeFact {
                     name: StyleAtomID(32),
                     value: matching_value,
-                    text_offset: u32::MAX,
-                    text_length: 0,
                 },
             ],
         );
@@ -6757,45 +6721,6 @@ mod tests {
         // A node the batch does not cover is a miss, never a negative answer.
         assert_eq!(facts.row_of(StyleNodeID::element(2)), None);
         assert_eq!(facts.row_of(StyleNodeID::element(99)), None);
-    }
-
-    #[test]
-    fn attribute_text_is_carried_only_where_a_string_operator_needs_it() {
-        let mut facts = StyleNodeFacts::new();
-        let href: Vec<u16> = "https://example.com".encode_utf16().collect();
-        let (offset, length) = facts.push_text(&href);
-        facts.push_row(
-            StyleNodeID::element(1),
-            StyleAtomID(10),
-            StyleAtomID::NONE,
-            StateSet::default(),
-            &[],
-            &[
-                AttributeFact {
-                    name: StyleAtomID(40),
-                    value: StyleAtomID::NONE,
-                    text_offset: offset,
-                    text_length: length,
-                },
-                AttributeFact {
-                    name: StyleAtomID(41),
-                    value: StyleAtomID(50),
-                    text_offset: u32::MAX,
-                    text_length: 0,
-                },
-            ],
-        );
-
-        let row = facts.row_of(StyleNodeID::element(1)).unwrap();
-        let with_text = facts.attribute_of(row, StyleAtomID(40)).unwrap();
-        assert_eq!(facts.text_of(with_text), Some(href.as_slice()));
-
-        // An attribute answered by an atom carries no text at all.
-        let interned = facts.attribute_of(row, StyleAtomID(41)).unwrap();
-        assert_eq!(facts.text_of(interned), None);
-        assert_eq!(interned.value, StyleAtomID(50));
-
-        assert_eq!(facts.attribute_of(row, StyleAtomID(42)), None);
     }
 
     #[test]
@@ -7121,8 +7046,8 @@ mod tests {
     }
 
     #[test]
-    fn attribute_facts_keep_only_identity_and_an_optional_text_handle() {
-        assert_eq!(size_of::<AttributeFact>(), 16);
+    fn attribute_facts_keep_only_their_name_and_value_atoms() {
+        assert_eq!(size_of::<AttributeFact>(), 8);
     }
 
     #[test]

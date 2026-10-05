@@ -2484,8 +2484,6 @@ mod tests {
             &[AttributeFact {
                 name: StyleAtomID(30),
                 value: StyleAtomID(31),
-                text_offset: u32::MAX,
-                text_length: 0,
             }],
         );
         facts.push_row(
