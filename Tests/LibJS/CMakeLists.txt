@@ -1,4 +1,4 @@
-ladybird_test(test-value-js.cpp LibJS LIBS LibJS LibUnicode)
+ladybird_test(test-value-js.cpp LibJS LIBS LibGC LibJS LibUnicode)
 ladybird_test(test-primitive-string.cpp LibJS LIBS LibJS LibGC)
 ladybird_test(test-bytecode-cache.cpp LibJS LIBS LibCrypto LibFileSystem LibGC LibJS)
 ladybird_test(test-slow-path-result.cpp LibJS LIBS LibJS)
