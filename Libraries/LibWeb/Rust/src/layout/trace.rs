@@ -146,7 +146,6 @@ impl LayoutTrace {
         self.scope("", Some(root), || {
             let context = match fc_type {
                 FormattingContextType::Block => "block",
-                FormattingContextType::Inline => "inline",
                 FormattingContextType::Flex => "flex",
                 FormattingContextType::Grid => "grid",
                 FormattingContextType::Table => "table",

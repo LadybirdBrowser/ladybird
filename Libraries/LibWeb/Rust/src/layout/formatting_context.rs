@@ -776,7 +776,6 @@ pub(crate) fn baseline_of_child(
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum FormattingContextType {
     Block,
-    Inline,
     Flex,
     Grid,
     Table,
@@ -1174,7 +1173,6 @@ fn create_formatting_context_implementation<'pass>(
         FormattingContextType::ReplacedWithChildren => FormattingContextImplementation::ReplacedWithChildren,
         FormattingContextType::InternalReplaced => FormattingContextImplementation::InternalReplaced,
         FormattingContextType::InternalDummy => FormattingContextImplementation::InternalDummy,
-        FormattingContextType::Inline => panic!("no Rust implementation for inline formatting contexts"),
     }
 }
 
