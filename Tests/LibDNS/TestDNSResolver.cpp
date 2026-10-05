@@ -395,6 +395,47 @@ TEST_CASE(test_localhost_resolves_to_loopback_without_a_socket)
     expect_loopback("Test-Host.LocalHost"sv);
 }
 
+TEST_CASE(test_loopback_domains_resolve_to_loopback_without_a_socket)
+{
+    Core::EventLoop loop;
+
+    auto resolves_to_loopback = [](DNS::Resolver& resolver, StringView name) {
+        auto result = resolver.lookup(name, DNS::Messages::Class::IN, { DNS::Messages::ResourceType::A, DNS::Messages::ResourceType::AAAA })->await();
+        if (result.is_error())
+            return false;
+        bool saw_loopback_v4 = false;
+        bool saw_loopback_v6 = false;
+        for (auto const& record : result.value()->records()) {
+            if (auto const* a = record.record.get_pointer<DNS::Messages::Records::A>())
+                saw_loopback_v4 = a->address == IPv4Address { 127, 0, 0, 1 };
+            else if (auto const* aaaa = record.record.get_pointer<DNS::Messages::Records::AAAA>())
+                saw_loopback_v6 = aaaa->address == IPv6Address::loopback();
+        }
+        return saw_loopback_v4 && saw_loopback_v6;
+    };
+
+    DNS::Resolver resolver {
+        [&] -> ErrorOr<Optional<DNS::Resolver::SocketResult>> {
+            return Error::from_string_literal("DNS socket should not be created for a loopback lookup");
+        }
+    };
+    resolver.set_loopback_domains({ "test"sv });
+    EXPECT(resolves_to_loopback(resolver, "test"sv));
+    EXPECT(resolves_to_loopback(resolver, "web-platform.test"sv));
+    EXPECT(resolves_to_loopback(resolver, "a.b.test"sv));
+    EXPECT(resolves_to_loopback(resolver, "Web-Platform.Test."sv));
+    EXPECT(!resolves_to_loopback(resolver, "nottest"sv));
+    EXPECT(!resolves_to_loopback(resolver, "xtest"sv));
+    EXPECT(!resolves_to_loopback(resolver, "test.example"sv));
+
+    DNS::Resolver resolver_without_loopback_domains {
+        [&] -> ErrorOr<Optional<DNS::Resolver::SocketResult>> {
+            return Error::from_string_literal("DNS socket should not be created for this lookup");
+        }
+    };
+    EXPECT(!resolves_to_loopback(resolver_without_loopback_domains, "web-platform.test"sv));
+}
+
 TEST_CASE(test_lookup_rejects_names_that_must_not_go_upstream)
 {
     Core::EventLoop loop;

@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/AnyOf.h>
 #include <AK/AtomicRefCounted.h>
 #include <AK/HashTable.h>
 #include <AK/MaybeOwned.h>
@@ -210,6 +211,9 @@ public:
 
     DNSSEC::Validator& validator() { return m_validator; }
 
+    // Names within these domains resolve to loopback, as names within "localhost" do.
+    void set_loopback_domains(Vector<ByteString> domains) { m_loopback_domains = move(domains); }
+
     NonnullRefPtr<Core::Promise<Empty>> when_socket_ready()
     {
         auto promise = Core::Promise<Empty>::construct();
@@ -372,7 +376,9 @@ public:
         // https://www.rfc-editor.org/rfc/rfc6761#section-6.3
         // "localhost" and names within ".localhost" resolve to loopback for address queries and are never sent
         // upstream; we answer in-process since the host resolver and upstream server are not guaranteed to.
-        if (is_within_domain(name, "localhost"sv)) {
+        auto is_loopback_name = is_within_domain(name, "localhost"sv)
+            || any_of(m_loopback_domains, [&](auto const& domain) { return is_within_domain(name, domain); });
+        if (is_loopback_name) {
             dbgln_if(DNS_DEBUG, "DNS: Resolving {} as loopback", name);
             auto result = make_ref_counted<LookupResult>(domain_name);
             if (desired_types.contains_slow(Messages::ResourceType::A))
@@ -381,7 +387,7 @@ public:
                 result->add_record({ .name = {}, .type = Messages::ResourceType::AAAA, .class_ = Messages::Class::IN, .ttl = 0, .record = Messages::Records::AAAA { IPv6Address::loopback() }, .raw = {} });
             result->finished_request();
             promise->resolve(move(result));
-            lookup_path = "localhost-loopback"sv;
+            lookup_path = "loopback"sv;
             return promise;
         }
 
@@ -1173,6 +1179,7 @@ private:
     Function<ErrorOr<Optional<SocketResult>>()> m_create_socket;
     bool m_attempting_restart { false };
     bool m_use_system_resolver { false };
+    Vector<ByteString> m_loopback_domains;
     ConnectionMode m_mode { ConnectionMode::UDP };
     Vector<NonnullRefPtr<Core::Promise<Empty>>> m_socket_ready_promises;
     DNSSEC::Validator m_validator;
