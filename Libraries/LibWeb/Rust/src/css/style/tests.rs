@@ -11466,11 +11466,11 @@ fn answer_transitions_refuse_equality_removals_and_winning_additions() {
 #[test]
 fn native_atom_reclamation_does_not_claim_a_cpp_memo_reference() {
     let mut engine = StyleEngine::new();
-    let native = bridge::intern_native_atom(&mut engine, 0x1000);
-    let shared = bridge::intern_native_atom(&mut engine, 0x1001);
+    let native = engine.atoms.intern_raw(0x1000);
+    let shared = engine.atoms.intern_raw(0x1001);
     assert_eq!(engine.intern_atom(0x1001), shared);
     for raw in 0x2000..0x2100 {
-        bridge::intern_native_atom(&mut engine, raw);
+        engine.atoms.intern_raw(raw);
     }
     engine.sweep_style_atoms();
     assert!(

@@ -217,8 +217,7 @@ impl EngineWrite {
             }
             Self::AdoptAtom(lease) => {
                 let atom = match lease.key() {
-                    // SAFETY: The lease retains the fly string the raw identity names.
-                    AtomKey::Raw(raw) => unsafe { super::bridge::intern_atom(engine, raw) },
+                    AtomKey::Raw(raw) => engine.intern_atom(raw).0,
                     AtomKey::Qualified(namespace, name) => engine.intern_qualified_atom(namespace, name).0,
                 };
                 // The engine took a reference of its own, so the global atom stays the one the lease held.
@@ -618,7 +617,7 @@ pub(crate) enum StyleAnswer {
 impl StyleQuery {
     pub(crate) fn answer(self, engine: &mut StyleEngine) -> StyleAnswer {
         match self {
-            Self::EndTransaction => StyleAnswer::Nodes(super::bridge::end_style_transaction(engine)),
+            Self::EndTransaction => StyleAnswer::Nodes(engine.discard_style_transaction_outputs()),
             Self::ViewportDependentNodes => {
                 StyleAnswer::Nodes(engine.computed_group_sets.viewport_dependent_nodes(|environment| {
                     engine.custom_property_environments.reads_viewport(environment)
