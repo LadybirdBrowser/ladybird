@@ -9,7 +9,7 @@ use core::cell::{Cell, UnsafeCell};
 use ak::{Utf16FlyString, Utf16String, Utf16StringUnits};
 use libjs_runtime_macros::Trace;
 
-use crate::gc::class::{Class, GcCell, define_cell};
+use crate::gc::class::{Class, ExternalMemorySize, GcCell, define_cell};
 use crate::gc::visitor::{Trace, Visitor};
 use crate::interpreter::vm::{StringToAtomCacheEntry, Vm};
 use crate::layout::cell::{CellHeader, Gc};
@@ -23,12 +23,20 @@ use crate::runtime::property_key::PropertyKey;
 use crate::runtime::value::DecimalDigits;
 use crate::utf16::{
     MAX_SHORT_STRING_BYTE_COUNT, Utf16Display, Utf16StringBuilder, Utf16View, concatenate, has_fly_string_storage,
-    has_short_ascii_storage, to_utf16_fly_string,
+    has_short_ascii_storage, to_utf16_fly_string, utf16_string_external_memory_size,
 };
 
-define_cell!(PrimitiveString, PrimitiveString);
+define_cell!(PrimitiveString, PrimitiveString, external_memory_size: external_memory_size);
 define_cell!(RopeString, PrimitiveString, extends: [PrimitiveString]);
 define_cell!(Substring, PrimitiveString, extends: [PrimitiveString]);
+
+// PrimitiveString::external_memory_size(): the storage of the string once it has one.
+impl ExternalMemorySize for PrimitiveString {
+    fn external_memory_size(&self) -> usize {
+        self.resolved_utf16_string()
+            .map_or(0, utf16_string_external_memory_size)
+    }
+}
 
 // SAFETY: A string's own data holds no cells. The deferred kinds trace the strings they are made of.
 unsafe impl Trace for PrimitiveString {

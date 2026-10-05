@@ -9,12 +9,12 @@ use std::collections::HashMap;
 use ak::Utf16String;
 use libjs_runtime_macros::Trace;
 
-use crate::gc::class::{GcCell, define_cell};
+use crate::gc::class::{ExternalMemorySize, GcCell, define_cell};
 use crate::gc::gc_ref_cell::GcRefCell;
 use crate::gc::visitor::{Trace, Visitor};
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::{CellHeader, Gc};
-use crate::utf16::Utf16View;
+use crate::utf16::{Utf16View, utf16_string_external_memory_size};
 
 /// Mirrors JS::Symbol::Kind.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -34,7 +34,14 @@ pub struct Symbol {
     description: Option<Utf16String>,
 }
 
-define_cell!(Symbol, Symbol);
+define_cell!(Symbol, Symbol, external_memory_size: external_memory_size);
+
+// Symbol::external_memory_size(): the storage of the description.
+impl ExternalMemorySize for Symbol {
+    fn external_memory_size(&self) -> usize {
+        self.description.as_ref().map_or(0, utf16_string_external_memory_size)
+    }
+}
 
 /// Calls `$callback` with the name and the snake_case name of every well-known symbol, like
 /// JS_ENUMERATE_WELL_KNOWN_SYMBOLS.

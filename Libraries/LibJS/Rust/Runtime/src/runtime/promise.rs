@@ -10,7 +10,7 @@ use core::ops::Deref;
 use ak::Utf16String;
 use libjs_runtime_macros::Trace;
 
-use crate::gc::class::{Class, Finalize, GcCell, define_cell};
+use crate::gc::class::{Class, ExternalMemorySize, GcCell, define_cell};
 use crate::gc::gc_ref_cell::GcRefCell;
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
@@ -95,20 +95,26 @@ pub struct Promise {
     reject_reactions: GcRefCell<Vec<Gc<PromiseReaction>>>,  // [[PromiseRejectReactions]]
 }
 
-define_cell!(Promise, Object, extends: [Object], finalize: finalize);
+define_cell!(
+    Promise,
+    Object,
+    extends: [Object],
+    external_memory_size: external_memory_size
+);
+
+// Promise::external_memory_size(), which counts the reactions in place of the storage Object counts.
+impl ExternalMemorySize for Promise {
+    fn external_memory_size(&self) -> usize {
+        self.fulfill_reactions.borrow().capacity() * size_of::<Gc<PromiseReaction>>()
+            + self.reject_reactions.borrow().capacity() * size_of::<Gc<PromiseReaction>>()
+    }
+}
 
 impl Deref for Promise {
     type Target = Object;
 
     fn deref(&self) -> &Object {
         &self.base
-    }
-}
-
-impl Finalize for Promise {
-    fn finalize(&self) {
-        drop(self.fulfill_reactions.replace(Vec::new()));
-        drop(self.reject_reactions.replace(Vec::new()));
     }
 }
 
@@ -312,8 +318,8 @@ impl Promise {
 
         // 7. Perform TriggerPromiseReactions(reactions, value).
         self.trigger_reactions(vm);
-        self.fulfill_reactions.borrow_mut().clear();
-        self.reject_reactions.borrow_mut().clear();
+        drop(self.fulfill_reactions.replace(Vec::new()));
+        drop(self.reject_reactions.replace(Vec::new()));
 
         // 8. Return unused.
     }
@@ -342,8 +348,8 @@ impl Promise {
 
         // 8. Perform TriggerPromiseReactions(reactions, reason).
         self.trigger_reactions(vm);
-        self.fulfill_reactions.borrow_mut().clear();
-        self.reject_reactions.borrow_mut().clear();
+        drop(self.fulfill_reactions.replace(Vec::new()));
+        drop(self.reject_reactions.replace(Vec::new()));
 
         // 9. Return unused.
     }

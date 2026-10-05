@@ -17,7 +17,7 @@ use libjs_runtime_macros::Trace;
 use crate::bytecode::executable::{PropertyLookupCache, StaticPropertyLookupCacheSite};
 use crate::bytecode::property_access::{Strict, put_by_property_key};
 use crate::embedding::abi_types::JSRealm;
-use crate::gc::class::{Class, Extends, GcCell, define_cell};
+use crate::gc::class::{Class, Extends, ExternalMemorySize, GcCell, define_cell};
 use crate::gc::gc_ref_cell::GcRefCell;
 use crate::gc::heap::RuntimeClassAllocator;
 use crate::gc::root::MarkedVec;
@@ -298,7 +298,24 @@ pub static ORDINARY_OBJECT_METHODS: ObjectMethods = ObjectMethods {
     error_data: error_data_of_error,
 };
 
-define_cell!(Object, Object, methods: ORDINARY_OBJECT_METHODS);
+define_cell!(
+    Object,
+    Object,
+    methods: ORDINARY_OBJECT_METHODS,
+    external_memory_size: external_memory_size
+);
+
+// Object::external_memory_size(): the heap-allocated named and indexed property storage and the private elements.
+impl ExternalMemorySize for Object {
+    fn external_memory_size(&self) -> usize {
+        let mut size = self.named_storage_external_memory_size();
+        size += self.indexed_storage_external_memory_size();
+        if let Some(private_elements) = self.private_elements.get() {
+            size += private_elements.borrow().capacity() * size_of::<PrivateElement>();
+        }
+        size
+    }
+}
 
 // SAFETY: Visits the shape, the named properties the shape describes, the indexed properties and the private
 // elements, which are all the cells an object reaches.
@@ -3192,6 +3209,25 @@ impl Object {
 
     fn named_storage_is_inline(&self) -> bool {
         core::ptr::eq(self.named_properties.get(), self.inline_named_storage_pointer())
+    }
+
+    fn named_storage_external_memory_size(&self) -> usize {
+        if self.named_properties.get().is_null() || self.named_storage_is_inline() {
+            return 0;
+        }
+        heap_value_storage::allocation_size(heap_value_storage::capacity(self.named_properties.get()))
+    }
+
+    fn indexed_storage_external_memory_size(&self) -> usize {
+        match self.indexed_storage_kind() {
+            IndexedStorageKind::None => 0,
+            IndexedStorageKind::Packed | IndexedStorageKind::Holey => {
+                heap_value_storage::allocation_size(self.indexed_elements_capacity())
+            }
+            IndexedStorageKind::Dictionary => {
+                size_of::<GenericIndexedPropertyStorage>() + self.indexed_dictionary().borrow().external_memory_size()
+            }
+        }
     }
 
     // Capacity of the current named-property storage in Values. Heap storage keeps its capacity in a
