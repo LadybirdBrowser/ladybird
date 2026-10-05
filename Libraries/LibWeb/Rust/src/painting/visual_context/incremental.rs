@@ -8,10 +8,7 @@ use super::box_build::{
     AnchorScrollShiftResolver, BoxBuildEnvironment, PaintableVisualContextAssignment, build_box_visual_context_nodes,
 };
 use super::delta::VisualContextTreeDelta;
-use super::dirty::{
-    BoxDirtyBits, VisualContextBoxDirtyKind, VisualContextDirtySet, VisualContextGlobalRebuildReason,
-    VisualContextUpdateScope,
-};
+use super::dirty::{BoxDirtyBits, VisualContextBoxDirtyKind, VisualContextDirtySet, VisualContextUpdateScope};
 use super::reconcile::BoxNodeWriter;
 use super::refresh::compute_sticky_data;
 use super::scroll_state::ScrollState;
@@ -42,7 +39,7 @@ pub(crate) struct IncrementalUpdateOutcome {
 
 pub(crate) enum IncrementalUpdateResult {
     Applied(Box<IncrementalUpdateOutcome>),
-    NeedsFullBuild(VisualContextGlobalRebuildReason),
+    NeedsFullBuild(VisualContextUpdateScope),
 }
 
 fn incremental_tree_requires_fresh_build(tree: &VisualContextTree, delta: &VisualContextTreeDelta) -> bool {
@@ -73,14 +70,14 @@ struct WorkPlan {
 fn expand_dirty_entries(
     layout_arena: &impl PaintableRowsRead,
     dirty: &VisualContextDirtySet,
-) -> Result<WorkPlan, VisualContextGlobalRebuildReason> {
+) -> Result<WorkPlan, VisualContextUpdateScope> {
     let mut work: HashMap<NodeSlotId, BoxDirtyBits> = HashMap::default();
     for (slot, bits) in &dirty.boxes {
         if !layout_arena.paintable_row_is_populated(*slot) {
             continue;
         }
         if box_is_inside_svg_resource_subtree(layout_arena, *slot) {
-            return Err(VisualContextGlobalRebuildReason::SvgResourceSubtreeChanged);
+            return Err(VisualContextUpdateScope::EveryBox);
         }
         let mut bits = *bits;
         if layout_arena.node_kind_if_live(*slot) == Some(NodeKind::SVGSVGBox) && !bits.is_value_only() {
@@ -392,7 +389,7 @@ pub(crate) fn update_visual_context_tree<Arena: PaintableRowsRead>(
         }
     };
     let Some(tree) = state.tree.as_mut() else {
-        return IncrementalUpdateResult::NeedsFullBuild(VisualContextGlobalRebuildReason::FirstBuild);
+        return IncrementalUpdateResult::NeedsFullBuild(VisualContextUpdateScope::FreshTree);
     };
     let mut delta = VisualContextTreeDelta::default();
     debug_assert!(
@@ -409,7 +406,7 @@ pub(crate) fn update_visual_context_tree<Arena: PaintableRowsRead>(
         .paintable_visual_context_record(viewport)
         .map(|record| record.output_for_descendants);
     let Some(viewport_output) = viewport_output else {
-        return IncrementalUpdateResult::NeedsFullBuild(VisualContextGlobalRebuildReason::FirstBuild);
+        return IncrementalUpdateResult::NeedsFullBuild(VisualContextUpdateScope::FreshTree);
     };
     if scope.rebuilds_every_box() {
         std::sync::Arc::make_mut(tree)
@@ -611,7 +608,7 @@ pub(crate) fn update_visual_context_tree<Arena: PaintableRowsRead>(
 
     let tree = std::sync::Arc::make_mut(state.tree.as_mut().expect("the tree exists throughout the pass"));
     if incremental_tree_requires_fresh_build(tree, &delta) {
-        return IncrementalUpdateResult::NeedsFullBuild(VisualContextGlobalRebuildReason::InvalidIncrementalReferences);
+        return IncrementalUpdateResult::NeedsFullBuild(VisualContextUpdateScope::FreshTree);
     }
     debug_assert!(tree.node_references_are_consistent());
     let scroll_state = rebuild_scroll_state_from_tree(layout_arena, tree, &tree_inputs);

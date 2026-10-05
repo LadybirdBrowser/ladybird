@@ -14,9 +14,7 @@ use crate::painting::paintable_data::*;
 use crate::painting::published_frame::PublishedRows;
 use crate::painting::record::damage::{DamageSet, PaintDamage, RowPaintState};
 use crate::painting::stacking_context::entries::{StackingContextEntryColumn, drop_table};
-use crate::painting::visual_context::dirty::{
-    RemovedBoxBlocks, VisualContextBoxDirtyKind, VisualContextGlobalRebuildReason,
-};
+use crate::painting::visual_context::dirty::{RemovedBoxBlocks, VisualContextBoxDirtyKind, VisualContextUpdateScope};
 use crate::painting::visual_context::{
     BoxVisualContextNodeHandles, EMPTY_BOX_VISUAL_CONTEXT_NODE_HANDLES, PaintableVisualContextRecord,
 };
@@ -1103,12 +1101,12 @@ impl LayoutNodeArena {
             .note_box(id, kind, pending_box_limit);
     }
 
-    pub(crate) fn request_full_visual_context_rebuild(&self, reason: VisualContextGlobalRebuildReason) {
+    pub(crate) fn request_full_visual_context_rebuild(&self, scope: VisualContextUpdateScope) {
         self.paint_state()
             .borrow_mut()
             .visual_context
             .dirty_boxes
-            .request_full_rebuild(reason);
+            .request_full_rebuild(scope);
     }
 
     pub(crate) fn prepare_paintable_row_freed_reset(&self, layout_slot_index: u32) -> Option<PaintableRowReset> {

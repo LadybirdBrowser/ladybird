@@ -21,14 +21,21 @@ pub enum FfiVisualContextBoxDirtyKind {
     ScrollableOverflowFlipped,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+/// How much of the visual context tree an update walks, in increasing order: the dirty boxes, every
+/// box into the kept tree, or every box into a fresh tree.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord)]
 #[repr(u8)]
-pub enum FfiVisualContextGlobalRebuildReason {
-    FirstBuild,
-    DocumentWideStructuralChange,
-    FilterResourcesChanged,
-    ForcedForTesting,
-    CanonicalDumpRequested,
+pub enum VisualContextUpdateScope {
+    #[default]
+    DirtyPath,
+    EveryBox,
+    FreshTree,
+}
+
+impl VisualContextUpdateScope {
+    pub fn rebuilds_every_box(self) -> bool {
+        self != Self::DirtyPath
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

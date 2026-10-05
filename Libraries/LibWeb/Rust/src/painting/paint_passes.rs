@@ -17,7 +17,7 @@ use crate::painting::host::{
 use crate::painting::presentation::Presentation;
 use crate::painting::svg_paint_resources::{PublishedSvgFilter, PublishedSvgPaintServer, SvgPaintResourceKind};
 use crate::painting::visual_animation::VisualAnimation;
-use crate::painting::visual_context::dirty::{VisualContextGlobalRebuildReason, VisualContextUpdateScope};
+use crate::painting::visual_context::dirty::VisualContextUpdateScope;
 use crate::painting::visual_context::incremental::{
     IncrementalUpdateResult, debug_assert_every_live_node_is_owned, update_visual_context_tree,
 };
@@ -179,7 +179,7 @@ pub(crate) fn prepare_for_clock_tick(
         let (Some(inputs), Some(tree)) = (state.last_tree_inputs, state.tree.as_deref()) else {
             return Err(VisualContextsNeedHost);
         };
-        if state.dirty_boxes.global_reason != VisualContextGlobalRebuildReason::None {
+        if state.dirty_boxes.scope.rebuilds_every_box() {
             return Err(VisualContextsNeedHost);
         }
         if state.dirty_boxes.boxes.is_empty() && state.dirty_boxes.removed.is_empty() {
@@ -350,26 +350,22 @@ fn update_accumulated_visual_contexts(
     let mut state = std::mem::take(&mut arena.paint_state().borrow_mut().visual_context);
     state.release_quarantined_slots_while_no_handle_is_retained();
 
-    let mut reason = state.dirty_boxes.global_reason;
+    let mut scope = state.dirty_boxes.scope;
     if state.tree.is_none() {
-        reason = reason.max(VisualContextGlobalRebuildReason::FirstBuild);
+        scope = VisualContextUpdateScope::FreshTree;
     }
     if state.last_tree_inputs.is_some_and(|last| {
         last.device_pixels_per_css_pixel != inputs.device_pixels_per_css_pixel
             || last.viewport_wheel_overflow_x != inputs.viewport_wheel_overflow_x
             || last.viewport_wheel_overflow_y != inputs.viewport_wheel_overflow_y
     }) {
-        reason = reason.max(VisualContextGlobalRebuildReason::TreeInputsChanged);
+        scope = scope.max(VisualContextUpdateScope::EveryBox);
     }
     if state.tree.as_deref().is_some_and(|tree| tree.should_compact()) {
-        reason = reason.max(VisualContextGlobalRebuildReason::Compaction);
+        scope = VisualContextUpdateScope::FreshTree;
     }
 
-    loop {
-        let scope = VisualContextUpdateScope::for_reason(reason);
-        if scope == VisualContextUpdateScope::FreshTree {
-            break;
-        }
+    while scope != VisualContextUpdateScope::FreshTree {
         let result = update_visual_context_tree(&arena.paintable_rows(), viewport, inputs, scope, &mut state);
         match result {
             IncrementalUpdateResult::Applied(mut outcome) => {
@@ -378,15 +374,11 @@ fn update_accumulated_visual_contexts(
                 crate::painting::fragment_ownership::assign_fragment_ownership_for_pending_line_roots(arena);
                 let performed_full_build = scope == VisualContextUpdateScope::EveryBox;
                 if performed_full_build {
-                    state.build_count += 1;
-                    state.last_full_build_reason = reason;
                     debug_assert_every_live_node_is_owned(
                         &arena.paintable_rows(),
                         state.tree.as_deref().expect("an applied walk keeps the tree"),
                         viewport,
                     );
-                } else {
-                    state.incremental_update_count += 1;
                 }
                 state.dirty_boxes.clear();
                 state.last_tree_inputs = Some(inputs);
@@ -399,17 +391,13 @@ fn update_accumulated_visual_contexts(
                 arena.paint_state().borrow_mut().visual_context = state;
                 return outcome;
             }
-            IncrementalUpdateResult::NeedsFullBuild(fallback_reason) => {
-                assert!(
-                    VisualContextUpdateScope::for_reason(fallback_reason) > scope,
-                    "a fallback widens the update scope"
-                );
-                reason = fallback_reason;
+            IncrementalUpdateResult::NeedsFullBuild(fallback_scope) => {
+                assert!(fallback_scope > scope, "a fallback widens the update scope");
+                scope = fallback_scope;
             }
         }
     }
 
-    state.last_full_build_reason = reason;
     let outcome = fresh_visual_context_tree_build(arena, viewport, inputs, &mut state);
     state.last_tree_inputs = Some(inputs);
     arena.paint_state().borrow_mut().visual_context = state;
@@ -435,7 +423,6 @@ fn fresh_visual_context_tree_build(
     }
     state.tree = Some(std::sync::Arc::new(fresh_tree.tree));
     state.dirty_boxes.clear();
-    state.build_count += 1;
     let mut outcome = match update_visual_context_tree(
         &arena.paintable_rows(),
         viewport,

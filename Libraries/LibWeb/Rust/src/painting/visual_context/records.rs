@@ -18,11 +18,8 @@ pub struct VisualContextState {
     pub paintables_with_mask_nodes: Vec<crate::layout::node_data::NodeSlotId>,
     pub scroll_state: scroll_state::ScrollState,
     pub needs_to_refresh_scroll_state: bool,
-    pub build_count: u64,
     pub dirty_boxes: dirty::VisualContextDirtySet,
-    pub incremental_update_count: u64,
     pub last_tree_inputs: Option<crate::painting::host::FfiVisualContextTreeInputs>,
-    pub last_full_build_reason: dirty::VisualContextGlobalRebuildReason,
     pub quarantined_slots_are_releasable: bool,
     // The list the tree was last given, which the next pass compares its own against.
     pub published_compositor_animations: Vec<VisualAnimation>,

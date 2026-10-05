@@ -1247,7 +1247,7 @@ public:
     void register_svg_pattern_element(Badge<SVG::SVGPatternElement>, SVG::SVGPatternElement&);
     void unregister_svg_pattern_element(Badge<SVG::SVGPatternElement>, SVG::SVGPatternElement&);
     void republish_svg_patterns_inheriting_from(Utf16FlyString const& id);
-    void schedule_full_accumulated_visual_context_rebuild(Layout::RustFFI::FfiVisualContextGlobalRebuildReason);
+    void schedule_full_accumulated_visual_context_rebuild(Layout::RustFFI::VisualContextUpdateScope);
     bool can_compute_client_rects_without_accumulated_visual_contexts_update(Layout::Node const&) const;
     void schedule_accumulated_visual_context_update(Layout::BegunRead const& read, Element&, AccumulatedVisualContextUpdateScope);
     void schedule_accumulated_visual_context_update(Layout::Node const&, AccumulatedVisualContextUpdateScope);

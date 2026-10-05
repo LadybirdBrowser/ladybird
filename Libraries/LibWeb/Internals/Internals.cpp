@@ -171,7 +171,7 @@ void Internals::force_incompatible_visual_context_tree_rebuild()
     auto& document = window().associated_document();
     if (!document.has_committed_viewport_box())
         return;
-    document.schedule_full_accumulated_visual_context_rebuild(Layout::RustFFI::FfiVisualContextGlobalRebuildReason::ForcedForTesting);
+    document.schedule_full_accumulated_visual_context_rebuild(Layout::RustFFI::VisualContextUpdateScope::FreshTree);
 }
 
 u64 Internals::accumulated_visual_context_incremental_update_count()
@@ -306,7 +306,7 @@ void Internals::send_mismatched_visual_context_tree_update_to_compositor()
 
     // Force a fresh, incompatible rebuild — so the tree is minted with a new structural epoch that the Compositor's installed
     // display list was never recorded against.
-    document.schedule_full_accumulated_visual_context_rebuild(Layout::RustFFI::FfiVisualContextGlobalRebuildReason::ForcedForTesting);
+    document.schedule_full_accumulated_visual_context_rebuild(Layout::RustFFI::VisualContextUpdateScope::FreshTree);
     document.update_paint_and_hit_testing_properties_if_needed();
 
     // Send a bare visual-context-tree update carrying that new structural epoch *without* re-recording the display list —
