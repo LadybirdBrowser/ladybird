@@ -1074,9 +1074,9 @@ void EventLoop::lease_clocks_for_task()
 {
     if (m_navigables_with_clock_plans.is_empty())
         return;
-    m_navigables_with_clock_plans.remove_all_matching([](auto const& navigable) {
-        return !navigable->lease_clock_for_task();
-    });
+    for (auto const& navigable : m_navigables_with_clock_plans)
+        navigable->lease_clock_for_task();
+    m_navigables_with_clock_plans.clear();
 }
 
 void EventLoop::release_held_frames_for_testing()

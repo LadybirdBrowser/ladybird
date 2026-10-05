@@ -6971,31 +6971,32 @@ PaintConfig LocalNavigable::stamp_paint_config(PaintConfig paint_config) const
 
 // Leases the active document's render state to the render clock as a task begins, with this navigable's presenter and a
 // seal of the frames the clock presents, where the last rendering update left the document a plan for a lease, and arms
-// the render clock to tick it. Answers whether the plan is left for a later task: one that begins after the recording in
-// flight has landed with the presenter.
-bool LocalNavigable::lease_clock_for_task()
+// the render clock to tick it.
+void LocalNavigable::lease_clock_for_task()
 {
     auto document = active_document();
     if (has_been_destroyed() || !document || !has_compositor_context() || !document->has_committed_viewport_box())
-        return false;
+        return;
     auto* host = document->layout_node_arena().host();
     if (!Layout::RustFFI::document_host_has_clock_plan(host))
-        return false;
-    // Only a recording in flight keeps the presenter. A lease that landed left it with the document, which gives it back
-    // below, though no rendering update painted since.
+        return;
+    // Only a recording that still runs keeps the presenter. The clock waits for it to finish rather than leave the plan
+    // to a later task, which may begin only after a long task the animations would have stood still through. A lease
+    // that ended left the presenter with the document, which gives it back below, though no rendering update painted
+    // since.
     if (m_recording_in_flight)
-        return true;
+        take_recording_in_flight_in(TakeIn::Wait);
     // A task since the update that changed what the document lays out leaves the rest to the next update.
     if (!document->layout_is_up_to_date())
-        return false;
+        return;
     auto sink = compositor_context().frame_sink();
     if (!sink)
-        return false;
+        return;
     // A tick records the document again as the recording it published last did, which the compositor shows.
     auto& presenter = this->presenter();
     auto compositor_display_list = presenter.compositor_display_list();
     if (!compositor_display_list || compositor_display_list != document->paint_state().display_list_used_as_paint_command_cache_source())
-        return false;
+        return;
 
     auto sealed = make<Compositor::SealedPresentation>(seal_presentation(*document, presenter.compositor_display_list_paint_config().value(), true));
     sealed->recording = Painting::DisplayListRecording {
@@ -7019,7 +7020,7 @@ bool LocalNavigable::lease_clock_for_task()
     if (presentation.presenter) {
         m_presenter_slot = move(leased_presenter);
         unseal_presentation(*document, *sealed);
-        return false;
+        return;
     }
     (void)leased_presenter.leak_ptr();
     (void)sealed.leak_ptr();
@@ -7028,7 +7029,7 @@ bool LocalNavigable::lease_clock_for_task()
     // A test injects its ticks itself.
     if (main_thread_event_loop().render_clock_is_manual_for_testing()) {
         Layout::RustFFI::clock_ticks_release(ticks);
-        return false;
+        return;
     }
     // The first tick runs at once, rather than at the next display tick: the frame the rendering update presented is the
     // last one until a tick presents.
@@ -7037,7 +7038,6 @@ bool LocalNavigable::lease_clock_for_task()
         [ticks = Compositor::ClockTicksHandle { ticks }](i64 frame_time_nanoseconds) {
             return ticks.tick(frame_time_nanoseconds);
         });
-    return false;
 }
 
 // Seals what a frame of `document` reads of the document and this navigable where the frame begins: the frame is built
