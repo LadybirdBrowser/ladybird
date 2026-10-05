@@ -1223,6 +1223,7 @@ impl<'a, A: AtomSpace> SelectorCompiler<'a, A> {
             | Pc::OptimalValue
             | Pc::Optional
             | Pc::Paused
+            | Pc::PictureInPicture
             | Pc::PlaceholderShown
             | Pc::Playing
             | Pc::PopoverOpen
