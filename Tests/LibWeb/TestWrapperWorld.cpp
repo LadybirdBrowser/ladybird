@@ -14,7 +14,6 @@
 #include <LibJS/Runtime/NativeFunction.h>
 #include <LibJS/Runtime/Object.h>
 #include <LibJS/Runtime/Realm.h>
-#include <LibJS/Runtime/Symbol.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibTest/TestCase.h>
 #include <LibWeb/Bindings/HostDefined.h>
@@ -352,21 +351,27 @@ TEST_CASE(main_world_uses_inline_wrapper_cache)
     EXPECT(!cached_wrapper_for(realm.realm(), *wrappable));
 }
 
+static JS::ThrowCompletionOr<JS::Value> return_undefined(JS::VM&)
+{
+    return JS::js_undefined();
+}
+
 TEST_CASE(legacy_platform_object_hides_engine_private_properties)
 {
     auto vm = JS::VM::create();
     TestRealm realm { *vm };
     auto wrappable = realm.realm().create<TestWrappable>(realm.realm());
     auto wrapper = create_test_wrapper_object(realm.realm(), wrappable);
-    auto public_symbol = JS::Symbol::create(*vm, "public"_utf16);
+    auto getter = JS::NativeFunction::create(realm.realm(), return_undefined, 0);
+    auto cached_property_name = "cached"_utf16_fly_string;
 
-    wrapper->define_direct_property(public_symbol, JS::js_undefined(), {});
-    wrapper->set_engine_private_property(JS::Symbol::create_private(*vm), JS::js_undefined());
+    wrapper->define_direct_cached_accessor(cached_property_name, getter, nullptr, {});
+    MUST(wrapper->get(cached_property_name));
 
     auto keys = MUST(wrapper->internal_own_property_keys());
     EXPECT_EQ(keys.size(), 1u);
-    EXPECT(keys[0].is_symbol());
-    EXPECT(&keys[0].as_symbol() == public_symbol.ptr());
+    EXPECT(keys[0].is_string());
+    EXPECT_EQ(keys[0].as_string().utf16_string_view(), cached_property_name.view());
 }
 
 TEST_CASE(wrap_uses_main_world_inline_cache)

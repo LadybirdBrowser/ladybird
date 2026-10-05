@@ -11,6 +11,7 @@
 #include <LibIPC/Decoder.h>
 #include <LibIPC/Encoder.h>
 #include <LibIPC/Message.h>
+#include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibJS/Runtime/SharedArrayBufferConstructor.h>
@@ -52,8 +53,8 @@ static GC::Ref<JS::ArrayBuffer> make_shared_array_buffer(JS::Realm& realm, Reado
 static GC::Ref<JS::ArrayBuffer> make_shared_memory_backed_array_buffer(JS::Realm& realm, ReadonlyBytes contents)
 {
     Web::HTML::TemporaryExecutionContext execution_context { realm };
-    auto buffer = MUST(JS::allocate_shared_array_buffer(realm.vm(), *realm.intrinsics().shared_array_buffer_constructor(), contents.size()));
-    buffer->overwrite(0, contents.data(), contents.size());
+    auto& buffer = as<JS::ArrayBuffer>(*MUST(JS::construct(realm.vm(), *realm.intrinsics().shared_array_buffer_constructor(), JS::Value(contents.size()))));
+    buffer.overwrite(0, contents.data(), contents.size());
     return buffer;
 }
 
@@ -107,10 +108,10 @@ TEST_CASE(same_process_clone_aliases_the_backing_store)
 
     EXPECT(&clone != source.ptr());
     EXPECT_EQ(clone.data_at(0), source->data_at(0));
-    EXPECT(clone.shares_storage_with(*source));
 
-    auto const& external = clone.data_block().byte_buffer.get<JS::DataBlock::ExternalPrimitiveStorage>();
-    EXPECT(external.owner.ptr() == static_cast<GC::Cell*>(source.ptr()));
+    auto const& clone_data_block = clone.data_block();
+    auto const& external = clone_data_block.byte_buffer.get<JS::DataBlock::ExternalPrimitiveStorage>();
+    EXPECT(external.owner == source);
 
     source->overwrite(0, "S", 1);
     auto clone_contents = contents_of(clone);
@@ -129,12 +130,13 @@ TEST_CASE(shared_memory_backed_clone_references_the_same_shared_object)
     EXPECT(clone.is_shared_array_buffer());
     EXPECT_EQ(clone.byte_length(), source->byte_length());
     EXPECT(&clone != source.ptr());
-    EXPECT(clone.shares_storage_with(*source));
 
     // The clone references the source's shared object, rather than a process-local alias of it — so it can itself
     // be shared with an agent in another process.
-    EXPECT(clone.shared_buffer().has_value());
-    EXPECT_EQ(clone.shared_buffer()->fd(), source->shared_buffer()->fd());
+    auto clone_shared_memory = clone.shared_buffer();
+    EXPECT(clone_shared_memory.has_value());
+    clone_shared_memory->data<u8>()[2] = static_cast<u8>('M');
+    EXPECT_EQ(contents_of(*source)[2], static_cast<u8>('M'));
 
     source->overwrite(0, "S", 1);
     auto clone_contents = contents_of(clone);
@@ -156,9 +158,10 @@ TEST_CASE(alias_chains_are_flattened)
     auto second_record = serialize_same_agent(JS::Value { &first_clone });
     auto& second_clone = as_array_buffer(deserialize(second_record, source_realm()));
 
-    EXPECT(second_clone.shares_storage_with(*source));
-    auto const& external = second_clone.data_block().byte_buffer.get<JS::DataBlock::ExternalPrimitiveStorage>();
-    EXPECT(external.owner.ptr() == static_cast<GC::Cell*>(source.ptr()));
+    EXPECT_EQ(second_clone.data_at(0), source->data_at(0));
+    auto const& second_clone_data_block = second_clone.data_block();
+    auto const& external = second_clone_data_block.byte_buffer.get<JS::DataBlock::ExternalPrimitiveStorage>();
+    EXPECT(external.owner == source);
 }
 
 TEST_CASE(shared_array_buffer_reached_through_a_view_is_aliased)
@@ -175,7 +178,7 @@ TEST_CASE(shared_array_buffer_reached_through_a_view_is_aliased)
     auto& cloned_buffer = *cloned_view.viewed_array_buffer();
 
     EXPECT(cloned_buffer.is_shared_array_buffer());
-    EXPECT(cloned_buffer.shares_storage_with(*source));
+    EXPECT_EQ(cloned_buffer.data_at(0), source->data_at(0));
 }
 
 TEST_CASE(ipc_round_trip_degrades_to_a_copy)
@@ -190,7 +193,7 @@ TEST_CASE(ipc_round_trip_degrades_to_a_copy)
     EXPECT_EQ(clone.byte_length(), source->byte_length());
 
     EXPECT_EQ(contents_of(clone), contents_of(*source));
-    EXPECT(!clone.shares_storage_with(*source));
+    EXPECT_NE(clone.data_at(0), source->data_at(0));
 
     source->overwrite(0, "X", 1);
     auto clone_contents = contents_of(clone);
@@ -211,7 +214,7 @@ TEST_CASE(growable_shared_array_buffer_aliases_the_backing_store)
     EXPECT(!clone.is_fixed_length());
     EXPECT_EQ(clone.max_byte_length(), 128uz);
     EXPECT_EQ(contents_of(clone), contents_of(*source));
-    EXPECT(clone.shares_storage_with(*source));
+    EXPECT_EQ(clone.data_at(0), source->data_at(0));
 }
 
 TEST_CASE(zero_length_shared_array_buffer_round_trips)

@@ -356,7 +356,7 @@ TESTJS_GLOBAL_FUNCTION(is_arithmetic_nan64, isArithmeticNaN64)
 
 TESTJS_GLOBAL_FUNCTION(is_valid_funcref_in, isValidFuncrefIn)
 {
-    auto value = TRY(vm.argument(0).to_index(vm));
+    auto value = TRY(vm.argument(0).to_length(vm));
     auto module_object = TRY(vm.argument(1).to_object(vm));
     auto* module = WebAssemblyModule::from_object(*module_object);
     if (!module)
@@ -377,10 +377,10 @@ TESTJS_GLOBAL_FUNCTION(test_simd_vector, testSIMDVector)
     auto element_size = 128 / TRY(TRY(expected_array.get("length"_utf16_fly_string)).to_u32(vm));
     size_t i = 0;
     for (u32 it_index = 0; it_index < expected_array.indexed_array_like_size(); ++it_index) {
-        if (!expected_array.indexed_has(it_index))
+        if (!TRY(expected_array.has_own_property(it_index)))
             continue;
         auto got_value = TRY(got_array.get(i++));
-        u64 got = got_value.is_bigint() ? TRY(got_value.to_bigint_uint64(vm)) : (u64)TRY(got_value.to_index(vm));
+        u64 got = got_value.is_bigint() ? TRY(got_value.to_bigint_uint64(vm)) : (u64)TRY(got_value.to_length(vm));
         auto expect = TRY(expected_array.get(it_index));
         if (expect.is_string()) {
             if (element_size != 32 && element_size != 64)
@@ -400,7 +400,7 @@ TESTJS_GLOBAL_FUNCTION(test_simd_vector, testSIMDVector)
             }
             return vm.throw_completion<JS::TypeError>(Utf16String::formatted("Bad SIMD float expectation: {}", string));
         }
-        u64 expect_value = expect.is_bigint() ? TRY(expect.to_bigint_uint64(vm)) : (u64)TRY(expect.to_index(vm));
+        u64 expect_value = expect.is_bigint() ? TRY(expect.to_bigint_uint64(vm)) : (u64)TRY(expect.to_length(vm));
         if (got != expect_value)
             return false;
     }
@@ -495,7 +495,7 @@ JS_DEFINE_NATIVE_FUNCTION(WebAssemblyModule::wasm_invoke)
             break;
         case Wasm::ValueType::Kind::I64:
             if (argument.is_bigint()) {
-                auto value = TRY(argument.to_bigint_int64(vm));
+                auto value = bit_cast<i64>(TRY(argument.to_bigint_uint64(vm)));
                 arguments.append(Wasm::Value(value));
             } else {
                 arguments.append(Wasm::Value(static_cast<i64>(double_value)));
