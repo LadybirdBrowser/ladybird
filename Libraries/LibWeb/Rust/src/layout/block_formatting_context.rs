@@ -319,10 +319,6 @@ impl<'pass> BlockFormattingContext<'pass> {
         self.records.create_used_values(&self.callbacks, node, constraints)
     }
 
-    fn first_child(&self, node: Node) -> Node {
-        self.callbacks.first_child(node)
-    }
-
     fn next_sibling(&self, node: Node) -> Node {
         self.callbacks.next_sibling(node)
     }
@@ -3098,28 +3094,14 @@ impl<'pass> BlockFormattingContext<'pass> {
             return self.used(self.root).content_inline_size.get();
         }
         if root_facts.is_table_wrapper() {
-            let mut stack = Vec::new();
-            let mut child = self.first_child(self.root);
-            while !child.is_invalid() {
-                stack.push(child);
-                child = self.next_sibling(child);
-            }
-            stack.reverse();
+            let mut stack: Vec<Node> = self.callbacks.children_rev(self.root).collect();
             while let Some(node) = stack.pop() {
                 let facts = self.facts(node);
                 if facts.is_box() && self.style(node).display().is_table_inside() {
                     let used = self.used(node);
                     return used.border_box_inline_size(used.uses_collapsing_borders_model.get());
                 }
-                let mut children = Vec::new();
-                let mut child = self.first_child(node);
-                while !child.is_invalid() {
-                    children.push(child);
-                    child = self.next_sibling(child);
-                }
-                for child in children.into_iter().rev() {
-                    stack.push(child);
-                }
+                stack.extend(self.callbacks.children_rev(node));
             }
             unreachable!("a table wrapper contains its table box");
         }
