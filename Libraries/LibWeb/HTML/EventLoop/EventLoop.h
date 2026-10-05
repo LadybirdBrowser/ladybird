@@ -160,6 +160,8 @@ public:
     bool has_frame_in_flight() const;
     // Whether a rendering update has let its frame fly and has not run its steps from its style and layout on yet.
     bool has_rendering_update_in_flight() const { return m_rendering_update_in_flight; }
+    // Whether the layout of the rendering update in flight runs, or ran, beside the event loop.
+    bool lays_out_rendering_update_in_flight() const;
     // Runs the steps of the rendering update whose style transaction flies, which take the transaction in.
     void finish_rendering_update_in_flight();
     // A rendering task that would find a frame still in flight, or a rendering update not yet finished, keeps its place
@@ -191,6 +193,7 @@ private:
     void resume_rendering_update_in_flight();
     // Goes on with the rendering update in flight where it has landed, and presents the recordings that have landed.
     void take_finished_frames_in();
+    bool let_layout_of_rendering_update_fly();
     void lease_clocks_for_task();
 
     Type m_type { Type::Window };

@@ -26,7 +26,7 @@ use crate::painting::published_frame::PublishedFrame;
 use crate::painting::record::recorder_state::RecorderState;
 use crate::painting::record::{RecordingInputs, RecordingOutput};
 use crate::render_state::{LockstepProof, TaskBoundary};
-use crate::stage_thread::{InFlight, StopWord};
+use crate::stage_thread::{InFlight, ParkedJob, StopWord};
 use std::sync::{Arc, Condvar, Mutex, MutexGuard, PoisonError};
 
 /// A display list recording: the frame it records, which it drops before it returns, the
@@ -156,11 +156,13 @@ impl RecordingJob {
 
 /// The test hold on recordings: a test arms it for the next recording that flies, which then reads nothing of its frame
 /// until the test releases it, so that the test writes the document beside a recording that has read nothing yet.
-#[derive(Clone, Copy, PartialEq, Eq)]
 enum RecordingHold {
     Idle,
     Armed,
     Holding,
+    // A layout held is never handed to the StyleLayout thread until it goes, so that the thread runs the jobs of other
+    // documents meanwhile, as one the collector finalizes asks of it.
+    HoldingLayout { _parked: ParkedJob },
 }
 
 static RECORDING_HOLD: Mutex<RecordingHold> = Mutex::new(RecordingHold::Idle);
@@ -171,18 +173,33 @@ fn recording_hold() -> MutexGuard<'static, RecordingHold> {
 }
 
 /// Whether the recording about to fly is the one the test hold is armed for.
-fn take_recording_hold_for_testing() -> bool {
+pub(crate) fn take_recording_hold_for_testing() -> bool {
     let mut hold = recording_hold();
-    if *hold != RecordingHold::Armed {
+    if !matches!(*hold, RecordingHold::Armed) {
         return false;
     }
     *hold = RecordingHold::Holding;
     true
 }
 
-fn wait_while_recording_is_held_for_testing() {
+/// Submits `job`, the layout of a frame, to the StyleLayout thread, or parks it where the test hold is armed for it.
+/// Answers the flight and whether the hold took it.
+pub(crate) fn submit_layout<R: Send + 'static>(
+    job: impl FnOnce(&StopWord) -> R + Send + 'static,
+) -> (InFlight<R>, bool) {
+    let thread = crate::stage_thread::style_layout_thread();
+    let mut hold = recording_hold();
+    if !matches!(*hold, RecordingHold::Armed) {
+        return (thread.submit(job), false);
+    }
+    let (flight, parked) = thread.park(job);
+    *hold = RecordingHold::HoldingLayout { _parked: parked };
+    (flight, true)
+}
+
+pub(crate) fn wait_while_recording_is_held_for_testing() {
     let _released = RECORDING_HOLD_RELEASED
-        .wait_while(recording_hold(), |hold| *hold == RecordingHold::Holding)
+        .wait_while(recording_hold(), |hold| matches!(hold, RecordingHold::Holding))
         .unwrap_or_else(PoisonError::into_inner);
 }
 

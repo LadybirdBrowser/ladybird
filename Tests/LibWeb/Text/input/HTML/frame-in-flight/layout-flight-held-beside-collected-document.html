@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    #box { width: 100px; height: 10px; color: rgb(0, 0, 255); }
+    #box.wide { width: 200px; color: rgb(0, 128, 0); }
+</style>
+<div id="box"></div>
+<script>
+    // A layout a test holds does not hold up the jobs of other documents: the collector tears down the layout of a
+    // document it finalizes while the layout is held, which reads that document's render state.
+    asyncTest(async done => {
+        await new Promise(resolve => {
+            const frame = document.createElement("iframe");
+            frame.srcdoc = "<div>text</div>";
+            frame.onload = () => {
+                frame.contentDocument.body.offsetWidth;
+                frame.remove();
+                resolve();
+            };
+            document.body.appendChild(frame);
+        });
+        await twoFrames();
+        requestAnimationFrame(() => {
+            internals.holdNextFrame("layout");
+            internals.setManualRenderingOpportunities(true);
+            box.classList.add("wide");
+        });
+        await nextFrame();
+        while (internals.frameSchedulerState() !== "laying-out")
+            await nextTask();
+        internals.gc();
+        println(`state after a collection: ${internals.frameSchedulerState()}`);
+        internals.releaseHeldFrame();
+        while (internals.frameSchedulerState() !== "idle")
+            await nextTask();
+        println(`width: ${box.offsetWidth}`);
+        internals.setManualRenderingOpportunities(false);
+        done();
+    });
+</script>

@@ -19,6 +19,7 @@ use super::tree_mutation::{HostWorkDue, OwedHostWork};
 use super::{ArenaHandle, LayoutNodeArena};
 use crate::abort_on_panic;
 use crate::css::style::tree::StyleNodeID;
+use crate::painting::recording_slot::FlightLicense;
 use crate::render_state::{BegunRead, DocumentHost};
 use crate::stage::MainThread;
 use std::ffi::c_void;
@@ -680,6 +681,34 @@ fn next_round(
     }
 }
 
+/// The first round of a rendering update's layout of `document_host`'s document, sealed for a frame to run beside the
+/// host, where the document is active and `needs_round` says the round has something to do as of its facts.
+///
+/// # Safety
+///
+/// As for [`update_layout`].
+unsafe fn sealed_first_round(
+    main_thread: &MainThread,
+    document_host: &DocumentHost,
+    read: &BegunRead,
+    inputs: &FfiLayoutUpdateInputs,
+    needs_round: impl FnOnce(&FfiLayoutUpdateDocumentFacts) -> bool,
+) -> Option<SealedRound> {
+    let host = document_host
+        .host_tables()
+        .layout_update_host
+        .get()
+        .expect("the document has no layout update host");
+    let facts = host.document_facts(main_thread, read);
+    if !facts.document_is_active || inputs.is_template_contents_document || !needs_round(&facts) {
+        return None;
+    }
+    let mut round = next_round(main_thread, document_host, read, &host, facts);
+    // The round runs beside the host, which it cannot ask.
+    round.job.container_length_bases = round.job.container_length_bases.sealed();
+    Some(round)
+}
+
 /// Seals the first round of a rendering update's layout of `document_host`'s document, which the frame the update lets
 /// fly next runs after its style.
 ///
@@ -692,21 +721,43 @@ unsafe fn seal_first_round(
     read: &BegunRead,
     inputs: &FfiLayoutUpdateInputs,
 ) {
-    let host = document_host
-        .host_tables()
-        .layout_update_host
-        .get()
-        .expect("the document has no layout update host");
     // A round is sealed for a document whose layout is up to date as well: the frame's style may leave it layout to
     // do, which the round finds once the frame has applied the style.
-    let facts = host.document_facts(main_thread, read);
-    if !facts.document_is_active || inputs.is_template_contents_document {
-        return;
+    // SAFETY: Guaranteed by the caller.
+    if let Some(round) = unsafe { sealed_first_round(main_thread, document_host, read, inputs, |_| true) } {
+        document_host.seal_round(round);
     }
-    let mut round = next_round(main_thread, document_host, read, &host, facts);
-    // The round runs beside the host, which it cannot ask.
-    round.job.container_length_bases = round.job.container_length_bases.sealed();
-    document_host.seal_round(round);
+}
+
+/// Lets the first round of a rendering update's layout of `document_host`'s document fly beside the host, once the
+/// host's style is up to date, where the layout is not and no round that flew with the style waits to be taken in. The
+/// host's next layout update pays it first. Answers whether it flies.
+///
+/// # Safety
+///
+/// As for [`update_layout`].
+unsafe fn fly_first_round(
+    main_thread: &MainThread,
+    document_host: &DocumentHost,
+    read: &BegunRead,
+    inputs: &FfiLayoutUpdateInputs,
+    license: &FlightLicense,
+) -> bool {
+    // A round that flew with the style is the layout update's first: the update takes it in and goes on from it here.
+    if document_host.has_flown_round() {
+        return false;
+    }
+    // SAFETY: Guaranteed by the caller.
+    let round = unsafe {
+        sealed_first_round(main_thread, document_host, read, inputs, |facts| {
+            !host_layout_is_up_to_date(document_host, read, facts)
+        })
+    };
+    let Some(round) = round else {
+        return false;
+    };
+    crate::render_state::fly(document_host, None, Some(round), license);
+    true
 }
 
 /// # Safety
@@ -747,6 +798,7 @@ unsafe fn update_layout(
         document_host.pay_clock_rounds(|mut answer| unsafe { answer.pay(main_thread, &host, read) });
         // A round that flew in the frame the update took in is the update's first, which the host pays before
         // anything else of the update reads the layout.
+        document_host.take_frame_in_with(read);
         let (rebuilds_tree, mut next) = match document_host.take_flown_round() {
             Some(FlownRound { answer, rebuilds_tree }) => (rebuilds_tree, NextRound::Flown(answer)),
             None => {

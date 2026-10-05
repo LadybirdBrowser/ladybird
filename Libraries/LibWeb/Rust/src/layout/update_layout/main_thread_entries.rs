@@ -124,3 +124,30 @@ pub unsafe extern "C" fn render_state_seal_first_layout_round(
     // SAFETY: Guaranteed by the entry point's contract.
     abort_on_panic(|| unsafe { seal_first_round(&main_thread, host, read, &*inputs) });
 }
+
+/// Lets the first round of the layout of a rendering update whose style is up to date fly beside the host, in `read`,
+/// where the document's layout is not up to date and `blocker` is none: the host's next layout update pays it first.
+/// Answers whether the round flies.
+///
+/// # Safety
+///
+/// As for [`render_state_update_layout`], with no layout update running and no frame of the document in flight.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn render_state_let_first_layout_round_fly(
+    host: *const DocumentHost,
+    read: &BegunRead,
+    inputs: *const FfiLayoutUpdateInputs,
+    blocker: crate::painting::ffi::FfiFlightBlocker,
+) -> bool {
+    assert!(!host.is_null(), "document host is null");
+    assert!(!inputs.is_null());
+    // SAFETY: Guaranteed by the caller.
+    let host = unsafe { &*host };
+    // SAFETY: Guaranteed by the entry point's contract.
+    let main_thread = unsafe { main_thread(host) };
+    let Some(license) = FlightLicense::for_blocker(blocker) else {
+        return false;
+    };
+    // SAFETY: Guaranteed by the entry point's contract.
+    abort_on_panic(|| unsafe { fly_first_round(&main_thread, host, read, &*inputs, &license) })
+}
