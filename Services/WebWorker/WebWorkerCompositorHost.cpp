@@ -4,13 +4,13 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Compositor/CompositorHostBase.h>
+#include <LibWeb/Compositor/CompositorHost.h>
 #include <WebWorker/ConnectionFromClient.h>
 #include <WebWorker/WebWorkerCompositorHost.h>
 
 namespace WebWorker {
 
-class WebWorkerCompositorHost final : public Web::Compositor::CompositorHostBase {
+class WebWorkerCompositorHost final : public Web::Compositor::CompositorHost {
 public:
     explicit WebWorkerCompositorHost(ConnectionFromClient& client)
         : m_client(client)

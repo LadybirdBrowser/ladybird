@@ -33,7 +33,6 @@ set(SOURCES
     Clipboard/ClipboardItem.cpp
     Compositor/CompositorConnection.cpp
     Compositor/CompositorHost.cpp
-    Compositor/CompositorHostBase.cpp
     Compositor/NavigablePresenter.cpp
     Compositor/RenderClock.cpp
     Compression/CompressionStream.cpp
