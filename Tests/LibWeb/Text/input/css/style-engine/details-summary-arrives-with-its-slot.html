@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    summary:first-child { color: rgb(0, 128, 0); }
+    details:has(> summary) { background-color: rgb(0, 0, 255); }
+</style>
+<details id="parsed"><summary>parsed</summary></details>
+<div id="container"></div>
+<script>
+    function report(label, details) {
+        const summary = details.querySelector("summary");
+        println(`${label}: summary display=${getComputedStyle(summary).display}, color=${getComputedStyle(summary).color}, details background=${getComputedStyle(details).backgroundColor}`);
+    }
+
+    test(() => {
+        // A <summary> is assigned to a slot in its <details>' shadow tree, and both take their style node identities
+        // in the same batch. The summary's own arrival names the slot, so its arrival must be recorded as an arrival
+        // and not as a change to a node already in the tree.
+        report("parsed", document.getElementById("parsed"));
+
+        const container = document.getElementById("container");
+        container.innerHTML = "<details id='inserted'><summary>inserted</summary></details>";
+        report("inserted", document.getElementById("inserted"));
+
+        // A slot that arrives after the element assigned to it already has an identity republishes the assignment.
+        const host = document.createElement("div");
+        const slotted = document.createElement("span");
+        slotted.id = "slotted";
+        host.appendChild(slotted);
+        container.appendChild(host);
+        internals.updateStyle();
+        const shadowRoot = host.attachShadow({ mode: "open" });
+        shadowRoot.innerHTML = "<style>::slotted(#slotted) { color: rgb(255, 0, 0); }</style><slot></slot>";
+        println(`slotted after its slot arrived: color=${getComputedStyle(slotted).color}`);
+    });
+</script>
