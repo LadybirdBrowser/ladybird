@@ -1,0 +1,2 @@
+animation frame callbacks while the control bar is hidden: false
+animation frame callbacks once the control bar shows: true

@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<video muted loop src="../../../Assets/test-webm.webm"></video>
+<script>
+    asyncTest(async done => {
+        const video = document.querySelector("video");
+        await video.play();
+
+        // The video has no controls of its own, so the controls that show its placeholder never show a control bar.
+        internals.grantTransientActivation();
+        await video.requestPictureInPicture();
+        await new Promise(resolve => requestAnimationFrame(resolve));
+        println(`animation frame callbacks while playing in Picture-in-Picture: ${internals.hasAnimationFrameCallbacks}`);
+
+        video.pause();
+        await document.exitPictureInPicture();
+        done();
+    });
+</script>

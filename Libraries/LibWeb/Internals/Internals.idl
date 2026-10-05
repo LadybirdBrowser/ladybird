@@ -196,6 +196,7 @@ interface Internals {
 
     readonly attribute boolean needsRepaint;
     readonly attribute boolean needsDisplayListRecord;
+    readonly attribute boolean hasAnimationFrameCallbacks;
 
     DOMString dumpDisplayList();
     DOMString dumpAccessibilityTree();

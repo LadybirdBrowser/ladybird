@@ -75,6 +75,7 @@ private:
     void update_timestamp();
     void set_timestamp(double time, double duration);
     void request_timeline_update();
+    bool timeline_is_shown() const;
     void update_volume_and_mute_indicator();
     void update_fullscreen_icon();
     void update_placeholder_visibility();
