@@ -61,6 +61,7 @@ static RefPtr<Core::Promise<Empty>> s_all_tests_complete;
 static Vector<ByteString> s_skipped_tests;
 static Vector<ByteString> s_loaded_from_http_server;
 static Vector<ByteString> s_frame_rate_capped;
+static Vector<ByteString> s_loaded_from_insecure_origin;
 static HashMap<WebView::ViewImplementation const*, size_t> s_current_test_index_by_view;
 
 struct TestRunContext {
@@ -119,9 +120,9 @@ static ErrorOr<void> add_config_paths(StringView test_root_path, Vector<ByteStri
     return {};
 }
 
-static ByteString unique_localhost_hostname(StringView prefix)
+static ByteString unique_hostname_within(StringView domain, StringView prefix)
 {
-    return ByteString::formatted("{}-{}.localhost", prefix, generate_random_uuid().to_byte_string());
+    return ByteString::formatted("{}-{}.{}", prefix, generate_random_uuid().to_byte_string(), domain);
 }
 
 static ErrorOr<void> load_test_config(StringView test_root_path)
@@ -144,6 +145,8 @@ static ErrorOr<void> load_test_config(StringView test_root_path)
             TRY(add_config_paths(test_root_path, config->keys(group), s_loaded_from_http_server));
         } else if (group == "CapFrameRate"sv) {
             TRY(add_config_paths(test_root_path, config->keys(group), s_frame_rate_capped));
+        } else if (group == "LoadFromInsecureOrigin"sv) {
+            TRY(add_config_paths(test_root_path, config->keys(group), s_loaded_from_insecure_origin));
         } else {
             warnln("Unknown group '{}' in config {}", group, config_path);
         }
@@ -961,15 +964,17 @@ static void run_test(TestWebView& view, TestRunContext& context, size_t test_ind
             auto headers_path = ByteString::formatted("{}.headers", real_path);
 
             Optional<URL::URL> url;
-            if (FileSystem::exists(headers_path) || s_loaded_from_http_server.contains_slow(test.input_path)) {
+            auto is_loaded_from_insecure_origin = s_loaded_from_insecure_origin.contains_slow(test.input_path);
+            if (FileSystem::exists(headers_path) || is_loaded_from_insecure_origin || s_loaded_from_http_server.contains_slow(test.input_path)) {
                 // Some tests need to be served via the echo server so, for example, HTTP headers from .headers
                 // files are sent, or so that the resulting HTML document has a HTTP based origin (e.g for testing
-                // cookies).
+                // cookies), or one that is not potentially trustworthy.
                 auto echo_server_port = Application::web_content_options().echo_server_port;
                 VERIFY(echo_server_port.has_value());
                 auto relative_path = LexicalPath::relative_path(real_path, app.test_root_path);
                 VERIFY(relative_path.has_value());
-                url = URL::Parser::basic_parse(ByteString::formatted("http://{}:{}/static/{}", unique_localhost_hostname("test-web"sv), echo_server_port.value(), relative_path.value())).release_value();
+                auto hostname = unique_hostname_within(is_loaded_from_insecure_origin ? "test"sv : "localhost"sv, "test-web"sv);
+                url = URL::Parser::basic_parse(ByteString::formatted("http://{}:{}/static/{}", hostname, echo_server_port.value(), relative_path.value())).release_value();
             } else {
                 url = URL::create_with_file_scheme(real_path).release_value();
             }

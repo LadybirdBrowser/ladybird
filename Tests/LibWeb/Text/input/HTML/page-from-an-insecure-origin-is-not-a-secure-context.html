@@ -1,0 +1,8 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        println(`served from a .test name: ${location.protocol === "http:" && location.hostname.endsWith(".test")}`);
+        println(`secure context: ${isSecureContext}`);
+    });
+</script>
