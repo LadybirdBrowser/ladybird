@@ -1464,12 +1464,6 @@ pub unsafe extern "C" fn style_engine_describes_animation_effects(
     })
 }
 
-/// Ends the transaction the engine published last, and answers the identities its end released, for the host to mint
-/// again.
-pub(crate) fn end_style_transaction(engine: &mut StyleEngine) -> Vec<u32> {
-    engine.discard_style_transaction_outputs()
-}
-
 /// Publish already bound immutable selector inputs, after all host interning has finished.
 pub(crate) fn publish_style_rule(
     engine: &mut StyleEngine,
@@ -1695,7 +1689,7 @@ fn collect_native_custom_declarations(
         .iter()
         .map(|property| {
             let name = property.name.to_fly_string();
-            let atom = intern_native_atom(engine, name.raw());
+            let atom = engine.atoms.intern_raw(name.raw());
             unsafe { note_native_custom_property_name(engine, atom, name.raw(), property.name.units()) };
             let declaration = &property.declaration;
             // Custom properties retain their authored values, without normal-property
@@ -3101,21 +3095,10 @@ pub unsafe extern "C" fn style_engine_take_container_effects(
     }
 }
 
-/// Interns the name whose raw identity is `raw` in `engine`, as it adopts the atom its host interned.
-///
-/// # Safety
-/// `raw` must be the raw identity of a live `AK::Utf16FlyString`.
-pub unsafe fn intern_atom(engine: &mut StyleEngine, raw: usize) -> u32 {
-    engine.intern_atom(raw).0
-}
-
+/// Interns the UTF-16 name `units` in `engine` as a native style atom.
 pub(crate) fn intern_native_text(engine: &mut StyleEngine, units: &[u16]) -> StyleAtomID {
     let name = ak::Utf16FlyString::from_utf16(units);
-    intern_native_atom(engine, name.raw_identity())
-}
-
-pub(crate) fn intern_native_atom(engine: &mut StyleEngine, raw: usize) -> StyleAtomID {
-    engine.atoms.intern_raw(raw)
+    engine.atoms.intern_raw(name.raw_identity())
 }
 
 /// Takes the pending style transaction under `root` and answers its versioned semantic match answers.
