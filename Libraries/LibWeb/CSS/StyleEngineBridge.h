@@ -131,8 +131,6 @@ public:
     [[nodiscard]] StyleRecordDelta publish_computed_groups(Layout::BegunRead const& read, StyleNodeID node, u8 pseudo_kind, ReadonlySpan<void const*> payloads, size_t inherited_group_count, u64 custom_property_environment, bool inherited_group_swap_candidate, u64 counter_style_environment_identity, u64 animation_overlay_identity, void const* animated_overlay, ReadonlySpan<void const*> animation_overlay_payloads, void const* computed_longhand_table, void const* custom_property_store);
     [[nodiscard]] StyleRecordDependencyFlag style_record_dependency_flags(Layout::BegunRead const& read, StyleRecordID style_record) const;
     [[nodiscard]] u64 style_record_custom_property_environment(Layout::BegunRead const& read, StyleRecordID style_record) const;
-    // What moving between two records changes, for no element in particular.
-    [[nodiscard]] u32 compare_style_records(Layout::BegunRead const& read, StyleRecordID old_style_record, StyleRecordID new_style_record) const;
     // What moving the element from one record to another damages, which the engine reads from the
     // records and its own facts of the element.
     [[nodiscard]] u32 element_record_damage(Layout::BegunRead const& read, StyleNodeID, StyleRecordID old_style_record, StyleRecordID new_style_record) const;
