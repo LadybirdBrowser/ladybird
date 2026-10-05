@@ -706,7 +706,7 @@ void EventLoop::update_the_rendering()
         update_style_and_layout_for_rendering(document);
     }
 
-    update_the_rendering_after_style_and_layout(docs, frame_timestamp, update_start_time, Layout::RustFFI::FfiFlightBlocker::None);
+    update_the_rendering_after_style_and_layout(docs, frame_timestamp, update_start_time);
 }
 
 // Step 16 of updating the rendering, for one doc of docs: its style and layout, and the resize observations they
@@ -847,9 +847,8 @@ static void update_style_and_layout_for_rendering(DOM::Document& document)
         document.update_layout(DOM::UpdateLayoutReason::HTMLEventLoopRenderingUpdate);
 }
 
-// Steps 17 to 23 of updating the rendering, once step 16 has laid out every doc of docs, with the recordings kept in step
-// where `recording_blocker` is not none.
-void EventLoop::update_the_rendering_after_style_and_layout(Vector<GC::Root<DOM::Document>> const& docs, double frame_timestamp, double update_start_time, Layout::RustFFI::FfiFlightBlocker recording_blocker)
+// Steps 17 to 23 of updating the rendering, once step 16 has laid out every doc of docs.
+void EventLoop::update_the_rendering_after_style_and_layout(Vector<GC::Root<DOM::Document>> const& docs, double frame_timestamp, double update_start_time)
 {
     auto relative_frame_timestamp_for = [&](DOM::Document const& document) {
         return max(0.0, HighResolutionTime::relative_high_resolution_time(frame_timestamp, relevant_global_object(document)));
@@ -925,7 +924,7 @@ void EventLoop::update_the_rendering_after_style_and_layout(Vector<GC::Root<DOM:
         auto navigable = doc->navigable();
         // AD-HOC: Script that ran earlier in this rendering update may have spun the event loop and run tasks that
         //         detached doc from its navigable (e.g. after its iframe was removed).
-        if (!navigable || !navigable->paint_next_frame_if_needed(DOM::UpdateLayoutReason::HTMLEventLoopRenderingUpdate, recording_blocker))
+        if (!navigable || !navigable->paint_next_frame_if_needed(DOM::UpdateLayoutReason::HTMLEventLoopRenderingUpdate))
             continue;
         ++m_rendering_scheduler_counters.paints;
         if (navigable->is_local_root())
@@ -1001,7 +1000,7 @@ void EventLoop::resume_rendering_update_in_flight()
     m_running_rendering_task = true;
     // The style and layout of the doc whose transaction flew take it in, waiting for it to land.
     update_style_and_layout_for_rendering(update->document());
-    update_the_rendering_after_style_and_layout(update->docs, update->frame_timestamp, update->update_start_time, Layout::RustFFI::FfiFlightBlocker::StyleFlew);
+    update_the_rendering_after_style_and_layout(update->docs, update->frame_timestamp, update->update_start_time);
 }
 
 void EventLoop::finish_rendering_update_in_flight()

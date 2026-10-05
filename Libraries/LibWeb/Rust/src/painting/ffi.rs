@@ -490,9 +490,6 @@ pub enum FfiFlightBlocker {
     ContentVisibilityAuto,
     /// A scroll-driven timeline takes its time from the layout of the update it is stale in.
     ScrollTimeline,
-    /// The rendering update's style transaction flew, and the update ends between two tasks: its recording is made in
-    /// step, so that the frame flies once.
-    StyleFlew,
 }
 
 /// How a recording in flight landed.
