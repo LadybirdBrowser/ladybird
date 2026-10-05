@@ -856,6 +856,16 @@ impl EngineMemo {
         self.deferred.borrow_mut().follow(change);
         self.baselines.borrow_mut().follow(change);
     }
+
+    /// Follows `change`, a held style write, except for what the engine defers. No job applies the write until the
+    /// drain ends.
+    pub(crate) fn follow_held(&self, change: &super::boundary::StyleChange) {
+        self.baselines.borrow_mut().follow(change);
+    }
+
+    pub(crate) fn follow_held_as_queued(&self, change: &super::boundary::StyleChange) {
+        self.deferred.borrow_mut().follow(change);
+    }
 }
 
 impl Default for EngineMemo {
