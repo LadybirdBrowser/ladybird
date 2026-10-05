@@ -13,9 +13,12 @@
 #include <LibJS/Runtime/Date.h>
 #include <LibJS/Runtime/FinalizationRegistry.h>
 #include <LibJS/Runtime/Object.h>
+#include <LibJS/Runtime/Reference.h>
 #include <LibJS/Runtime/Symbol.h>
 #include <LibJS/Runtime/TypedArray.h>
 #include <LibJS/Runtime/ValueInlines.h>
+#include <LibJS/Runtime/WeakMap.h>
+#include <LibJS/Runtime/WeakSet.h>
 #include <LibTest/JavaScriptTestRunner.h>
 
 TEST_ROOT("Tests/LibJS/Runtime");

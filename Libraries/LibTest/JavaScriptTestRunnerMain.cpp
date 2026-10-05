@@ -11,7 +11,6 @@
 #include <LibCore/Environment.h>
 #include <LibCore/System.h>
 #include <LibFileSystem/FileSystem.h>
-#include <LibJS/Bytecode/Debug.h>
 #include <LibTest/JavaScriptTestRunner.h>
 #include <signal.h>
 #include <stdio.h>
@@ -21,8 +20,6 @@ namespace Test {
 TestRunner* ::Test::TestRunner::s_the = nullptr;
 
 namespace JS {
-
-GC_DEFINE_ALLOCATOR(TestRunnerGlobalObject);
 
 RefPtr<::JS::VM> g_vm;
 bool g_collect_on_every_allocation = false;
@@ -129,7 +126,6 @@ int main(int argc, char** argv)
     args_parser.add_option(per_file, "Show detailed per-file results as JSON (implies -j)", "per-file");
     args_parser.add_option(print_each_test, "Print each test file before running it", "verbose", 'v');
     args_parser.add_option(g_collect_on_every_allocation, "Collect garbage after every allocation", "collect-often", 'g');
-    args_parser.add_option(JS::Bytecode::g_dump_bytecode, "Dump the bytecode", "dump-bytecode", 'd');
     args_parser.add_option(test_globs, "Only run tests matching the given glob", "filter", 'f', "glob");
     for (auto& entry : g_extra_args)
         args_parser.add_option(*entry.key, entry.value.get<0>().characters(), entry.value.get<1>().characters(), entry.value.get<2>());
