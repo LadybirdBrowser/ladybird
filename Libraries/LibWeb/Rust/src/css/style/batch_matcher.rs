@@ -127,13 +127,6 @@ impl RuleMatches {
         &self.matches[start..end]
     }
 
-    pub fn clear(&mut self) {
-        self.matches.clear();
-        if let Some(truth) = self.selector_truth.as_mut() {
-            truth.clear();
-        }
-    }
-
     pub(super) fn enable_selector_truth(&mut self) {
         self.selector_truth.get_or_insert_default();
     }

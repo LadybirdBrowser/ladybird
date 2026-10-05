@@ -612,17 +612,6 @@ impl NormalizationJournal {
         self.settle(memory);
     }
 
-    /// Discard a transaction whose invalidation result is already known to cover its complete scope.
-    pub fn discard(&mut self, memory: &mut MemoryController) {
-        self.entries.clear();
-        self.entries.shrink_to_fit();
-        self.markers.clear();
-        self.markers.shrink_to_fit();
-        self.covered = [false; INPUT_KIND_COUNT];
-        memory.release(MemoryCategory::NormalizationJournal, u64::from(self.charged_bytes));
-        self.charged_bytes = 0;
-    }
-
     /// Record one input change. `old` is the value before this mutation and is kept only if this is
     /// the first record for `key`; `new` replaces any previously pending value.
     #[inline]

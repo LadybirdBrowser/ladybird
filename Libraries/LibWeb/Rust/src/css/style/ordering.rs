@@ -2343,12 +2343,11 @@ impl StyleEngineState {
         }
     }
 
-    /// The document budget is written in connected elements and compact program bytes, so it has to
-    /// follow the live element count rather than a high-water mark.
+    /// The document budget is written in connected elements, so it has to follow the live element
+    /// count rather than a high-water mark.
     pub(super) fn publish_budget_inputs(&mut self) {
         let inputs = BudgetInputs {
             connected_element_count: self.retained.tree.connected_element_count(),
-            ..BudgetInputs::default()
         };
         self.retained.memory.set_budget_inputs(inputs);
         self.host

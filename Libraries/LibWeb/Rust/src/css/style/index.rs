@@ -1015,14 +1015,6 @@ impl StyleNodeFacts {
             .unwrap_or_default()
     }
 
-    /// Set the language tag of the row just pushed, appending it to the batch's text.
-    pub fn set_row_language_tag(&mut self, tag: &[u16]) {
-        let offset = u32::try_from(self.text.len()).expect("fact text space exhausted");
-        self.text.extend_from_slice(tag);
-        let row = self.language_text.len() - 1;
-        self.language_text[row] = (offset, u32::try_from(tag.len()).expect("fact text space exhausted"));
-    }
-
     #[must_use]
     pub fn heading_level_of(&self, row: u32) -> u8 {
         if self.primary {
@@ -3299,11 +3291,6 @@ impl ElementDeclarations {
             written: written.into_boxed_slice(),
             checks,
         }
-    }
-
-    #[must_use]
-    pub fn declared(&self) -> &[DeclaredProperty] {
-        &self.declared
     }
 
     /// The value the declaration at `index` of `declared` was written with.
