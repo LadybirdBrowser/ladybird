@@ -55,6 +55,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     bool sites_have_their_own = false;
     bool wait_for_debugger = false;
     bool disable_sandbox = false;
+    bool enable_test_mode = false;
 
     int crash_report_fd = -1;
     StringView stats_log_directory;
@@ -70,6 +71,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     args_parser.add_option(sites_have_their_own, "Sites have RequestServers of their own; keep none of their responses", "sites-have-their-own");
     args_parser.add_option(wait_for_debugger, "Wait for debugger", "wait-for-debugger");
     args_parser.add_option(disable_sandbox, "Disable process sandboxing", "disable-sandbox");
+    args_parser.add_option(enable_test_mode, "Enable test mode", "test-mode");
     args_parser.parse(arguments);
 
     auto stats_log = TRY(Core::StatsLog::create(stats_log_directory, "RequestServer"sv));
@@ -86,6 +88,9 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         warnln("Could not adopt the foreground application task role: {}", result.error());
     if (auto result = Core::Platform::set_current_thread_qos(Core::Platform::ThreadQoS::UserInitiated); result.is_error())
         warnln("Could not set main thread QoS: {}", result.error());
+
+    if (enable_test_mode)
+        RequestServer::DNSInfo::the().loopback_domains.append("test"sv);
 
     // FIXME: Update RequestServer to support multiple custom root certificates.
     if (!certificates.is_empty())

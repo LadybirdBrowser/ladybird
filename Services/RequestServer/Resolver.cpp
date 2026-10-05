@@ -107,7 +107,7 @@ void Resolver::reset_connections()
 
 NonnullRefPtr<Resolver> Resolver::create()
 {
-    return adopt_ref(*new Resolver([] -> ErrorOr<Optional<DNS::Resolver::SocketResult>> {
+    auto resolver = adopt_ref(*new Resolver([] -> ErrorOr<Optional<DNS::Resolver::SocketResult>> {
         auto& dns_info = DNSInfo::the();
 
         if (!dns_info.server_address.has_value()) {
@@ -142,6 +142,8 @@ NonnullRefPtr<Resolver> Resolver::create()
             },
         };
     }));
+    resolver->dns.set_loopback_domains(DNSInfo::the().loopback_domains);
+    return resolver;
 }
 
 Resolver::Resolver(Function<ErrorOr<Optional<DNS::Resolver::SocketResult>>()> create_socket)
