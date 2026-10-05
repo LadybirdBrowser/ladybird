@@ -903,18 +903,6 @@ impl<A: AtomSpace> SelectorProgram<A> {
         self.nodes.len()
     }
 
-    /// The compact byte length of the program, which is what the document memory budget is written
-    /// in. Allocator padding and optional acceleration are excluded on purpose.
-    #[must_use]
-    pub fn compact_bytes(&self) -> u64 {
-        (self.nodes.len() * size_of::<SelectorOp>()
-            + self.operands.len() * size_of::<SelectorNodeID>()
-            + self.text.len() * size_of::<u16>()
-            + self.entries.len() * size_of::<SelectorEntry>()
-            + self.relative_queries.len() * size_of::<RelativeQuery>()
-            + size_of::<bool>()) as u64
-    }
-
     #[must_use]
     pub fn capacity_bytes(&self) -> u64 {
         capacity_bytes! {
@@ -3069,18 +3057,6 @@ impl SelectorPrograms {
     #[must_use]
     pub fn is_empty(&self) -> bool {
         self.programs.len() == self.vacant_programs.len()
-    }
-
-    /// Compact program bytes, which is the stylesheet term of the document memory budget. It
-    /// deliberately measures the minimal encoding rather than the allocated capacity, so
-    /// acceleration overhead can never inflate its own allowance.
-    #[must_use]
-    pub fn compact_bytes(&self) -> u64 {
-        self.programs
-            .iter()
-            .flatten()
-            .map(|program| program.program().compact_bytes())
-            .sum()
     }
 
     #[must_use]

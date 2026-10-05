@@ -22,12 +22,7 @@ define_id! {
     pub struct OrderToken();
 }
 
-impl OrderToken {
-    #[must_use]
-    pub fn raw(self) -> u32 {
-        self.0
-    }
-}
+impl OrderToken {}
 
 /// One totally ordered axis: stylesheet order within a tree context, nested rule order within a
 /// sheet, or layer order within an origin.

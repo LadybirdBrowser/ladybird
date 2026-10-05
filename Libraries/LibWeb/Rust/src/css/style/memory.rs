@@ -182,12 +182,6 @@ pub struct BudgetInputs {
     /// Connected styleable DOM elements in the live DOM at the read epoch. Not pseudo style nodes,
     /// not arena capacity, not retired generations.
     pub connected_element_count: u32,
-    /// The byte length of a minimal non-commoned encoding of the attached selectors, match and
-    /// transpose bytecode, routing registry, declarations, and conditions, counted once for an
-    /// explicitly shared constructed program. Excludes allocator padding, optional indexes,
-    /// results, and StyleEngine's own capacity, so acceleration overhead cannot inflate its own
-    /// allowance.
-    pub compact_style_program_bytes: u64,
 }
 
 /// Accounting belongs to one document (or the shared-program context), independently of
@@ -850,18 +844,17 @@ impl MemoryController {
 mod tests {
     use super::*;
 
-    fn controller(elements: u32, program_bytes: u64) -> MemoryController {
+    fn controller(elements: u32) -> MemoryController {
         let mut controller = MemoryController::new();
         controller.set_budget_inputs(BudgetInputs {
             connected_element_count: elements,
-            compact_style_program_bytes: program_bytes,
         });
         controller
     }
 
     #[test]
     fn loop_growth_cannot_close_admission_or_erase_peak_capacity() {
-        let mut memory = controller(0, 0);
+        let mut memory = controller(0);
         memory.set_tier3_limit_for_test(10);
         memory.begin_tier3_quota_period();
         let mut retained = MemoryLease::new(MemoryCategory::RetainedMatchAnswer);
@@ -895,7 +888,7 @@ mod tests {
 
     #[test]
     fn an_empty_desktop_document_gets_the_base_allowance() {
-        let controller = controller(0, 0);
+        let controller = controller(0);
         assert_eq!(controller.tier3_limit(), MIB);
         // The 4 MiB floor beats a 1 MiB Tier-3 limit.
         assert_eq!(controller.tier4_limit(), 4 * MIB);
@@ -903,14 +896,14 @@ mod tests {
 
     #[test]
     fn tier_four_reports_its_ceiling_without_refusing_scratch() {
-        let mut controller = controller(0, 0);
+        let mut controller = controller(0);
         controller.reserve_required(MemoryCategory::BatchScratch, controller.tier4_limit() + 1);
         assert_eq!(controller.bytes_in_tier(Tier::Scratch), controller.tier4_limit() + 1);
     }
 
     #[test]
     fn tier_three_pressure_closes_admission_until_the_next_period() {
-        let mut controller = controller(0, 0);
+        let mut controller = controller(0);
         controller.begin_tier3_quota_period();
         let category = MemoryCategory::FeaturePosting;
         let mut lease = MemoryLease::new(category);
@@ -927,7 +920,7 @@ mod tests {
 
     #[test]
     fn tier_three_quota_boundary_selects_a_complete_cold_overage() {
-        let mut controller = controller(0, 0);
+        let mut controller = controller(0);
         controller.set_tier3_limit_for_test(100);
         controller.begin_tier3_quota_period();
         let mut lease = MemoryLease::new(MemoryCategory::FeaturePosting);
@@ -942,7 +935,7 @@ mod tests {
 
     #[test]
     fn tier_three_boundary_keeps_working_sets_that_cannot_cover_the_overage() {
-        let mut controller = controller(0, 0);
+        let mut controller = controller(0);
         controller.set_tier3_limit_for_test(100);
         let mut answers = MemoryLease::new(MemoryCategory::RetainedMatchAnswer);
         answers.reconcile_committed(&mut controller, 50);
@@ -957,15 +950,15 @@ mod tests {
 
     #[test]
     fn the_node_coefficient_reaches_the_device_cap_where_the_model_says_it_does() {
-        let below = controller(32_255, 0);
+        let below = controller(32_255);
         assert!(below.tier3_limit() < 64 * MIB);
-        let at = controller(32_256, 0);
+        let at = controller(32_256);
         assert_eq!(at.tier3_limit(), 64 * MIB);
     }
 
     #[test]
     fn a_shrinking_tier_three_budget_preserves_existing_charges() {
-        let mut controller = controller(10_000, 4096);
+        let mut controller = controller(10_000);
         assert!(controller.reserve(MemoryCategory::FeaturePosting, 64 * KIB));
 
         controller.set_tier3_limit_for_test(0);
@@ -978,7 +971,7 @@ mod tests {
 
     #[test]
     fn a_memory_lease_releases_optional_capacity_on_shrink_and_drop() {
-        let mut controller = controller(0, 0);
+        let mut controller = controller(0);
         {
             let mut lease = MemoryLease::new(MemoryCategory::SpecifiedValueTable);
             lease.reconcile_committed(&mut controller, 64 * KIB);
@@ -1000,7 +993,7 @@ mod tests {
 
     #[test]
     fn a_memory_lease_releases_required_capacity_on_resize_and_drop() {
-        let mut controller = controller(0, 0);
+        let mut controller = controller(0);
         {
             let mut lease = MemoryLease::new(MemoryCategory::BatchScratch);
             lease.resize_required_to(&mut controller, 64 * KIB);
@@ -1014,7 +1007,7 @@ mod tests {
 
     #[test]
     fn a_scratch_charge_releases_on_drop() {
-        let mut controller = controller(0, 0);
+        let mut controller = controller(0);
         {
             let _charge = controller.charge_scratch(MemoryCategory::BatchScratch, 64 * KIB);
             assert_eq!(controller.bytes_in_category(MemoryCategory::BatchScratch), 64 * KIB);
@@ -1025,7 +1018,7 @@ mod tests {
 
     #[test]
     fn a_mutation_fed_lease_updates_the_ledger_without_owner_accounting() {
-        let mut controller = controller(0, 0);
+        let mut controller = controller(0);
         {
             let mut lease = MemoryLease::new(MemoryCategory::BatchScratch);
             lease.grow_committed(64 * KIB);
@@ -1044,7 +1037,7 @@ mod tests {
 
     #[test]
     fn committed_acceleration_is_dropped_at_the_next_quota_boundary() {
-        let mut controller = controller(0, 0);
+        let mut controller = controller(0);
         controller.begin_tier3_quota_period();
         let mut lease = MemoryLease::new(MemoryCategory::CascadeWinnerGroup);
         lease.grow_committed(MIB + 1);
@@ -1059,7 +1052,7 @@ mod tests {
 
     #[test]
     fn an_over_limit_steady_state_does_not_repeat_boundary_evictions() {
-        let mut controller = controller(0, 0);
+        let mut controller = controller(0);
         controller.set_tier3_limit_for_test(0);
         let mut program_values = MemoryLease::new(MemoryCategory::SpecifiedValueTable);
         program_values.reconcile_committed(&mut controller, 1);
@@ -1077,7 +1070,7 @@ mod tests {
 
     #[test]
     fn discarded_committed_growth_does_not_condemn_resident_state() {
-        let mut controller = controller(0, 0);
+        let mut controller = controller(0);
         controller.set_tier3_limit_for_test(10);
         let mut resident = MemoryLease::new(MemoryCategory::FeaturePosting);
         resident.reconcile_committed(&mut controller, 10);
@@ -1094,14 +1087,14 @@ mod tests {
 
     #[test]
     fn live_state_is_never_refused() {
-        let mut controller = controller(0, 0);
+        let mut controller = controller(0);
         controller.reserve_required(MemoryCategory::RelationColumns, 64 * MIB);
         assert_eq!(controller.bytes_in_category(MemoryCategory::RelationColumns), 64 * MIB);
     }
 
     #[test]
     fn released_scratch_does_not_accumulate() {
-        let mut controller = controller(0, 0);
+        let mut controller = controller(0);
         controller.reserve_required(MemoryCategory::BatchScratch, 3 * MIB);
         controller.release(MemoryCategory::BatchScratch, 3 * MIB);
         controller.reserve_required(MemoryCategory::BridgeBuffer, 2 * MIB);

@@ -31,12 +31,6 @@ impl StyleEngineHandle {
         self.0.is_null()
     }
 
-    /// The address that tells the engine apart from the others alive at the same time.
-    #[must_use]
-    pub fn address(self) -> usize {
-        self.0 as usize
-    }
-
     /// Hands `engine` over to the handle, which names it until [`Self::destroy`].
     pub(crate) fn create(engine: Box<StyleEngine>) -> Self {
         Self(Box::into_raw(engine))
