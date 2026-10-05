@@ -1671,6 +1671,9 @@ impl StyleEngine {
                     transaction_reaches_no_selector && self.retained.batch_matching_traversal.is_some();
                 clock.enter(Counter::PrepareMicroseconds, &self.retained.counters);
                 if !reuse_active_batch_matching_traversal {
+                    // A batch the host still holds open from the reaction pass that took this
+                    // transaction was read from the facts the transaction changed.
+                    self.retained.retire_batch_matching_traversal();
                     let completion_begin_timer = PassTimer::start();
                     self.begin_published_match_answer_completion_batch(root, prefer_complete_batch);
                     completion_begin_timer.stop(Counter::CompletionBatchBeginMicroseconds, &self.retained.counters);

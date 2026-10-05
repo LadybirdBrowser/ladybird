@@ -2100,6 +2100,37 @@ fn routing_phases_share_remaining_postings_for_one_transaction() {
 }
 
 #[test]
+fn a_transaction_taken_inside_a_cold_matching_batch_retires_it() {
+    // The host holds a cold matching batch open while it applies a transaction's reactions, and
+    // takes the transaction they fed back inside it. One that reaches a selector changed the facts
+    // the batch was read from, so the batch is retired before the transaction begins its own.
+    let (mut engine, nodes) = linear_document();
+    let guard = StyleAtomID(200);
+    let target = StyleAtomID(201);
+    add_guard_target_rule(&mut engine, guard, target);
+    add_feature(&mut engine, nodes[1], LocalFeatureKey::Class(target));
+    for &node in &nodes {
+        set_atom_feature(&mut engine, node, LocalFeatureKey::TagName, StyleAtomID(100));
+    }
+    discard_transaction(&mut engine);
+    let scratch_before = engine.memory().bytes_in_category(MemoryCategory::BatchScratch);
+
+    assert!(engine.begin_cold_matching_batch(nodes[0]));
+    assert!(engine.match_element(nodes[1]).unwrap().is_empty());
+    add_feature(&mut engine, nodes[0], LocalFeatureKey::Class(guard));
+    engine.take_style_transaction(nodes[0], |_, _, _| {});
+    engine.end_cold_matching_batch();
+    assert_eq!(
+        engine.memory().bytes_in_category(MemoryCategory::BatchScratch),
+        scratch_before
+    );
+
+    assert!(engine.begin_cold_matching_batch(nodes[0]));
+    assert_eq!(engine.match_element(nodes[1]).unwrap().len(), 1);
+    engine.end_cold_matching_batch();
+}
+
+#[test]
 fn a_document_root_arrival_is_already_a_whole_document_plan() {
     let (mut engine, nodes) = linear_document();
     let routed_before = engine.counters().get(Counter::RoutedEntryPoints);
