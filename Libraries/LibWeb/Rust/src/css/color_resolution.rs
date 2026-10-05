@@ -2182,7 +2182,6 @@ pub unsafe extern "C" fn rust_style_value_to_color(
     value: *const core::ffi::c_void,
     input: *const FfiColorResolutionInput,
 ) -> FfiResolvedColorValue {
-    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::StyleValueQueryEntry);
     let value = unsafe { &*value.cast::<crate::css::style_value::StyleValueData>() };
     let input = unsafe { &*input };
     let channels = relative_color_context_from_ffi(input);

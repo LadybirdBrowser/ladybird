@@ -3908,7 +3908,6 @@ pub unsafe extern "C" fn rust_custom_property_store_create(
     parent: *const c_void,
     inheritance_parent: *const c_void,
 ) -> *const c_void {
-    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CustomPropertyStoreLifecycleEntry);
     let entries = if entry_count == 0 {
         &[]
     } else {
@@ -3972,7 +3971,6 @@ pub unsafe extern "C" fn rust_custom_property_store_create_animation_overlay(
     entry_count: usize,
     base: *const c_void,
 ) -> *const c_void {
-    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CustomPropertyStoreLifecycleEntry);
     let entries = if entry_count == 0 {
         &[]
     } else {
@@ -4003,7 +4001,6 @@ pub unsafe extern "C" fn rust_custom_property_store_create_animation_overlay(
 /// not already been released.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_custom_property_store_destroy(store: *const c_void) {
-    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CustomPropertyStoreLifecycleEntry);
     drop(unsafe { Arc::from_raw(store.cast::<CustomPropertyStore>()) });
 }
 

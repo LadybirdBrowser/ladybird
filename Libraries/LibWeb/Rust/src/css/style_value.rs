@@ -3751,7 +3751,6 @@ pub(crate) unsafe fn release_style_value(value: *const StyleValueData) {
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_style_value_release(value: *const StyleValueData) {
-    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::StyleValueDestroyEntry);
     unsafe { release_style_value(value) };
 }
 
@@ -4051,6 +4050,5 @@ pub(crate) fn retained_value_may_depend_on_font_metrics(value: &RetainedStyleVal
 /// `data` must point at a valid StyleValueData.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_style_value_depends_on_current_color(data: *const c_void) -> bool {
-    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::StyleValueQueryEntry);
     value_depends_on_current_color(unsafe { &*(data as *const StyleValueData) })
 }

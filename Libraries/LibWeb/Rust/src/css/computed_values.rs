@@ -1835,7 +1835,6 @@ pub unsafe extern "C" fn rust_style_group_registry_register(
 /// `source` must be a valid payload of the same group type.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_style_group_clone(group_index: usize, source: *const c_void) -> *mut c_void {
-    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::StyleGroupCloneEntry);
     unsafe { clone_group_payload(group_index, source) }
 }
 
@@ -1888,7 +1887,6 @@ pub unsafe extern "C" fn rust_style_groups_release(payloads: *const *const c_voi
 /// references, and must not be a static default payload.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_style_group_free(group_index: usize, payload: *mut c_void) {
-    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::StyleGroupFreeEntry);
     unsafe {
         let table = vtable(group_index);
         debug_assert!(refcount_of(payload, payload_align(table)).load(Ordering::Relaxed) == 0);

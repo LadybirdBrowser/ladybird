@@ -3735,7 +3735,6 @@ pub(crate) fn sink_into_raw(sink: TextSink) -> usize {
 /// `value` must point at live style value data.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_style_value_serialize(value: *const c_void, mode: u8) -> usize {
-    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::StyleValueSerializeEntry);
     let value = unsafe { &*value.cast::<StyleValueData>() };
     let mut sink = TextSink::new();
     if !serialize_style_value(&mut sink, value, SerializationMode::from_ffi(mode)) {

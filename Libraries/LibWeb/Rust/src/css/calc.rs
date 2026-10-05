@@ -531,7 +531,6 @@ pub unsafe extern "C" fn rust_numeric_type_operate(
     first: *const FfiNumericType,
     second: *const FfiNumericType,
 ) -> FfiNumericType {
-    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CalcOperationEntry);
     let first = unsafe { &*first }.to_calc();
     let result = match operation {
         FfiNumericTypeOperation::Add => first.added_to(&unsafe { &*second }.to_calc()),
@@ -553,7 +552,6 @@ pub unsafe extern "C" fn rust_numeric_type_matches(
     has_percentages_resolve_as: bool,
     percentages_resolve_as: u8,
 ) -> bool {
-    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CalcOperationEntry);
     let numeric_type = unsafe { &*numeric_type }.to_calc();
     let resolve_as = resolve_as_for_value_type(has_percentages_resolve_as.then_some(percentages_resolve_as));
     match match_kind {
@@ -1085,7 +1083,6 @@ unsafe fn children_from_raw(children: *const *const CalcNode, count: usize) -> V
 /// order number, angle, flex, frequency, length, percentage, resolution, time.
 #[unsafe(no_mangle)]
 pub extern "C" fn rust_calc_node_create_numeric_dimension(kind: u8, value: f64, unit: u8) -> *const CalcNode {
-    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CalcNodeBuildEntry);
     let numeric = match kind {
         0 => CalcNumericValue::Number {
             value,
@@ -1114,7 +1111,6 @@ pub unsafe extern "C" fn rust_calc_node_create_variadic(
     children: *const *const CalcNode,
     count: usize,
 ) -> *const CalcNode {
-    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CalcNodeBuildEntry);
     let children = unsafe { children_from_raw(children, count) };
     let node = match kind {
         0 => CalcNode::Sum(children),
@@ -1132,7 +1128,6 @@ pub unsafe extern "C" fn rust_calc_node_create_variadic(
 /// `child` must be a valid transferred handle.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_calc_node_create_unary(kind: u8, child: *const CalcNode) -> *const CalcNode {
-    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CalcNodeBuildEntry);
     let child = unsafe { Arc::from_raw(child) };
     let node = match kind {
         0 => CalcNode::Negate(child),
@@ -1150,7 +1145,6 @@ pub unsafe extern "C" fn rust_calc_node_create_clamp(
     center: *const CalcNode,
     max: *const CalcNode,
 ) -> *const CalcNode {
-    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CalcNodeBuildEntry);
     handle(CalcNode::Clamp {
         min: unsafe { Arc::from_raw(min) },
         center: unsafe { Arc::from_raw(center) },
@@ -1165,7 +1159,6 @@ pub unsafe extern "C" fn rust_calc_node_create_non_math_function(
     value: *const std::ffi::c_void,
     numeric_type: *const FfiNumericType,
 ) -> *const CalcNode {
-    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CalcNodeBuildEntry);
     handle(CalcNode::NonMathFunction {
         value: unsafe { RetainedStyleValueData::from_retained_pointer(value.cast()) },
         numeric_type: unsafe { &*numeric_type }.to_calc(),
@@ -1176,7 +1169,6 @@ pub unsafe extern "C" fn rust_calc_node_create_non_math_function(
 /// `node` must be a valid transferred handle; this releases it.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_calc_node_release(node: *const CalcNode) {
-    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CalcNodeRetainReleaseEntry);
     drop(unsafe { Arc::from_raw(node) });
 }
 
@@ -1187,7 +1179,6 @@ pub unsafe extern "C" fn rust_calc_node_release(node: *const CalcNode) {
 /// `node` must be a valid calculation node pointer.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_calc_node_retain(node: *const CalcNode) {
-    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CalcNodeRetainReleaseEntry);
     unsafe { Arc::increment_strong_count(node) };
 }
 
@@ -1205,7 +1196,6 @@ pub unsafe extern "C" fn rust_calc_node_determine_type(
     resolve_as_is_number: bool,
     resolve_as_base: u8,
 ) -> FfiNumericType {
-    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CalcNodeQueryEntry);
     let resolve_as = resolve_as_from_fields(has_percentages_resolve_as, resolve_as_is_number, resolve_as_base);
     let percentage_leaf_type = percentage_leaf_type_for(resolve_as);
     FfiNumericType::from_calc(unsafe { &*node }.numeric_type(&percentage_leaf_type))
@@ -1217,7 +1207,6 @@ pub unsafe extern "C" fn rust_calc_node_determine_type(
 /// `node` must be a valid calculation node pointer.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_calc_node_contains_percentage(node: *const CalcNode) -> bool {
-    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CalcNodeQueryEntry);
     unsafe { &*node }.contains_percentage()
 }
 
@@ -2628,7 +2617,6 @@ pub unsafe extern "C" fn rust_calc_external_resolutions(
     basis_value: f64,
     basis_unit: u8,
 ) -> FfiCalcExternalResolutions {
-    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CalcOperationEntry);
     let mut resolutions = Vec::new();
     let root = unsafe { &*root };
     collect_external_resolutions(root, &mut resolutions);
@@ -3397,7 +3385,6 @@ pub unsafe extern "C" fn rust_calc_resolve(
     context: *const FfiCalcResolutionContext,
     apply_censoring_and_clamping: bool,
 ) -> FfiResolvedCalc {
-    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CalcOperationEntry);
     use crate::css::style_value::StyleValueData;
     let StyleValueData::Calculated {
         rust_calculation,
@@ -4461,7 +4448,6 @@ impl CalcNode {
 /// Both pointers must reference Calculated style value data.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_calc_equals(first: *const std::ffi::c_void, second: *const std::ffi::c_void) -> bool {
-    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CalcOperationEntry);
     use crate::css::style_value::StyleValueData;
     let tree_of = |data: *const std::ffi::c_void| {
         let StyleValueData::Calculated { rust_calculation, .. } = (unsafe { &*(data as *const StyleValueData) }) else {
@@ -4480,7 +4466,6 @@ pub unsafe extern "C" fn rust_calc_equals(first: *const std::ffi::c_void, second
 /// `calculated` must point at Calculated style value data.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_calc_contains_anchor(calculated: *const std::ffi::c_void) -> bool {
-    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CalcOperationEntry);
     let crate::css::style_value::StyleValueData::Calculated { rust_calculation, .. } =
         (unsafe { &*(calculated as *const crate::css::style_value::StyleValueData) })
     else {
@@ -4609,7 +4594,6 @@ fn append_reification_node(
 /// `calculated` must point at Calculated style value data.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_calc_describe_for_typed_om(calculated: *const std::ffi::c_void) -> FfiCalcReification {
-    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CalcOperationEntry);
     let crate::css::style_value::StyleValueData::Calculated {
         rust_calculation,
         has_percentages_resolve_as,
@@ -4689,7 +4673,6 @@ pub unsafe extern "C" fn rust_calc_simplify_tree(
     resolve_as_is_number: bool,
     resolve_as_base: u8,
 ) -> *const CalcNode {
-    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CalcOperationEntry);
     let context = unsafe { &*context };
     unsafe { Arc::increment_strong_count(root) };
     let root = unsafe { Arc::from_raw(root) };
@@ -4724,7 +4707,6 @@ pub unsafe extern "C" fn rust_calc_absolutize(
     calculated: *const std::ffi::c_void,
     context: *const FfiCalcResolutionContext,
 ) -> FfiAbsolutizedCalc {
-    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CalcOperationEntry);
     use crate::css::style_value::StyleValueData;
     let StyleValueData::Calculated {
         rust_calculation,

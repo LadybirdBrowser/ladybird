@@ -2120,7 +2120,6 @@ pub unsafe extern "C" fn rust_style_value_absolutize(
     has_scheme: bool,
     scheme: u8,
 ) -> FfiAbsolutizedValue {
-    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::StyleValueQueryEntry);
     let value = unsafe { &*value.cast::<StyleValueData>() };
     let length = unsafe { length.cast::<FfiLengthResolutionContext>().as_ref() };
     // Without a length context the recursion still handles everything that does not

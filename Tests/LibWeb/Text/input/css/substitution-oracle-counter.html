@@ -49,11 +49,9 @@
         println(`compound conditional: ${style.paddingBottom}`);
         println(`inherit function: ${style.zIndex}`);
         println(`attribute: ${style.paddingLeft}`);
-        println(`oracle callbacks: ${internals.styleFfiCounters().substitutionOracleCallbacks}`);
         element.style.setProperty("--if-value", "no");
         println(`conditional after mutation: ${getComputedStyle(element).marginLeft}`);
         println(`compound conditional after mutation: ${getComputedStyle(element).paddingBottom}`);
-        println(`oracle callbacks after mutation: ${internals.styleFfiCounters().substitutionOracleCallbacks}`);
         parent.remove();
 
         CSS.registerProperty({
@@ -74,6 +72,5 @@
         registeredParent.style.setProperty("--non-inherited-order", "9");
         println(`registered inherit mutation: ${getComputedStyle(registeredChild).zIndex}`);
 
-        println(`registered oracle callbacks: ${internals.styleFfiCounters().substitutionOracleCallbacks}`);
     });
 </script>

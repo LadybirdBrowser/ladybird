@@ -29,7 +29,7 @@ use std::sync::{Arc, OnceLock};
 
 use crate::css::animated_overlay::AnimatedOverlay;
 use crate::css::animated_overlay::overlay_wins;
-use crate::css::ffi_stats::{self, FfiOp};
+use crate::css::ffi_stats;
 use crate::css::host_shared::{HostShared, SharedPayload};
 use crate::css::property_metadata::{
     FIRST_LONGHAND_PROPERTY_ID, LAST_LONGHAND_PROPERTY_ID, property_id, property_is_inherited,
@@ -57,7 +57,6 @@ pub(crate) fn longhand_slot_hash(slot: usize, value: *const c_void) -> u64 {
     if value.is_null() {
         return mix_slot_hash(slot, 0);
     }
-    ffi_stats::bump(FfiOp::LonghandTableSlotHash);
     let content = unsafe { crate::css::style_value::style_value_content_hash(value.cast()) };
     mix_slot_hash(slot, content)
 }
@@ -158,7 +157,6 @@ struct DenseSlotStorage {
 impl Clone for DenseSlotStorage {
     fn clone(&self) -> Self {
         // NB: Only copying an unfrozen host working table can share mutable dense storage.
-        ffi_stats::bump(FfiOp::LonghandTableStorageAllocations);
         ffi_stats::count_table_copy(|| {
             (
                 LONGHAND_COUNT as u64,
@@ -199,7 +197,6 @@ impl DenseSlotStorage {
     }
 
     fn new_shared() -> Arc<Self> {
-        ffi_stats::bump(FfiOp::LonghandTableStorageAllocations);
         let mut storage = Arc::<Self>::new_uninit();
         let pointer = Arc::get_mut(&mut storage).unwrap().as_mut_ptr();
         // SAFETY: Every field is initialized in place below, so the allocation holds a complete value
@@ -717,7 +714,6 @@ impl ComputedLonghandTable {
         if let Some(sum) = self.slot_hash_sum.get() {
             return sum;
         }
-        ffi_stats::bump(FfiOp::LonghandTableFullHash);
         let sum = self.recomputed_slot_hash_sum();
         self.slot_hash_sum.set(Some(sum));
         sum
@@ -878,7 +874,6 @@ impl ComputedLonghandTable {
             !self.frozen,
             "the computed longhand table is immutable once its style is created"
         );
-        ffi_stats::bump(FfiOp::LonghandTableClone);
         self.slot_hash_sum.set(source.slot_hash_sum.get());
         self.important_bits = source.important_bits;
         self.inherited_bits = source.inherited_bits;
