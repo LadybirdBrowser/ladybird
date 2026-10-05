@@ -2,9 +2,8 @@ Harness status: OK
 
 Found 5 tests
 
-4 Pass
-1 Fail
-Fail	Test for Picture-In-Picture and Shadow DOM
+5 Pass
+Pass	Test for Picture-In-Picture and Shadow DOM
 Pass	Picture-in-Picture on a video inside an open shadow root attached to a disconnected host
 Pass	Picture-in-Picture on a video inside a closed shadow root attached to a disconnected host
 Pass	Connecting a previously-disconnected shadow host after Picture-in-Picture starts exposes the video through shadowRoot.pictureInPictureElement

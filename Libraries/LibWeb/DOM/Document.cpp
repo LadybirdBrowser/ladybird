@@ -9969,7 +9969,14 @@ GC::Ref<GC::HeapVector<GC::Ref<Document>>> Document::collect_documents_to_unfull
 
 void Document::set_picture_in_picture_element(GC::Ptr<Element> element)
 {
-    m_picture_in_picture_element = element;
+    if (m_picture_in_picture_element == element)
+        return;
+
+    auto old_element = exchange(m_picture_in_picture_element, element);
+    if (old_element)
+        CSS::record_element_state_changed(*old_element, CSS::PseudoClass::PictureInPicture, false);
+    if (element)
+        CSS::record_element_state_changed(*element, CSS::PseudoClass::PictureInPicture, true);
 }
 
 // https://w3c.github.io/picture-in-picture/#dom-documentorshadowroot-pictureinpictureelement
