@@ -260,6 +260,9 @@ public:
     // Ends the synchronous run of code during which the targets of the WeakRefs it dereferenced stay alive.
     void finish_execution_generation();
 
+    // 9.4.2 ResolveBinding ( name [ , env ] ), https://tc39.es/ecma262/#sec-resolvebinding
+    ThrowCompletionOr<Reference> resolve_binding(Utf16FlyString const&, Strict, GC::Ptr<Environment> = nullptr);
+
     // Has the TypeErrors that are thrown at the execution context stack depth the scope was created at created in
     // `realm`, until the scope is restored. Callees that push execution contexts are unaffected.
     class JS_API TypeErrorRealmScope {

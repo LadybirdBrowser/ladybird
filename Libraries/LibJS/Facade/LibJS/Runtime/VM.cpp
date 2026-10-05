@@ -9,9 +9,11 @@
 #include <AK/ScopeGuard.h>
 #include <LibGC/RootVector.h>
 #include <LibJS/EmbeddingABIConversions.h>
+#include <LibJS/Runtime/Environment.h>
 #include <LibJS/Runtime/ExecutionContext.h>
 #include <LibJS/Runtime/JobCallback.h>
 #include <LibJS/Runtime/PrimitiveString.h>
+#include <LibJS/Runtime/Reference.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibJS/Script.h>
 
@@ -462,7 +464,7 @@ void VM::clear_host_hooks()
 
 ThrowCompletionOr<Value> VM::run(Script& script, GC::Ptr<Environment> lexical_environment_override)
 {
-    auto* abi_lexical_environment_override = lexical_environment_override ? declared_cell_to_abi<JSEnvironment>(*lexical_environment_override) : nullptr;
+    auto* abi_lexical_environment_override = lexical_environment_override ? cell_to_abi<JSEnvironment>(*lexical_environment_override) : nullptr;
     return completion_from_abi<Value>(js_script_run(vm_abi(*this), cell_to_abi<JSScript>(script), abi_lexical_environment_override));
 }
 
@@ -550,6 +552,23 @@ ExecutionContext* VM::find_execution_context_from_the_top(ExecutionContextPredic
 void VM::finish_execution_generation()
 {
     js_vm_finish_execution_generation(vm_abi(*this));
+}
+
+ThrowCompletionOr<Reference> VM::resolve_binding(Utf16FlyString const& name, Strict strict, GC::Ptr<Environment> environment)
+{
+    // 1. If env is not present or if env is undefined, then
+    //    a. Set env to the running execution context's LexicalEnvironment.
+    if (!environment)
+        environment = running_execution_context().lexical_environment;
+
+    // 2. Assert: env is an Environment Record.
+    VERIFY(environment);
+
+    // 4. Return ? GetIdentifierReference(env, name, strict).
+    auto base_environment = TRY(completion_from_abi<GC::Ptr<Environment>>(js_environment_resolve_binding(vm_abi(*this), utf16_view_to_abi(name.view()), strict == Strict::Yes, cell_to_abi<JSEnvironment>(*environment))));
+    if (!base_environment)
+        return Reference { Reference::BaseType::Unresolvable, name, strict };
+    return Reference { *base_environment, name, strict };
 }
 
 VM::TypeErrorRealmScope::TypeErrorRealmScope(VM& vm, Realm& realm)
