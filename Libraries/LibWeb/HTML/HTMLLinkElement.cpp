@@ -994,21 +994,19 @@ static NonnullRefPtr<Core::Promise<NonnullRefPtr<Gfx::Bitmap const>>> decode_fav
     auto is_svg_icon = (mime_type.has_value() && mime_type.value().essence() == "image/svg+xml"sv) || favicon_url.basename().ends_with(".svg"sv);
 
     if (is_svg_icon) {
-        auto result = SVG::SVGDecodedImageData::create(document->page(), favicon_url, favicon_data);
-        if (result.is_error()) {
-            promise->reject(Error::from_string_view("Failed to decode SVG favicon"sv));
-            return promise;
-        }
-
-        // FIXME: Calculate size based on device pixel ratio
-        Gfx::IntSize size { 32, 32 };
-        auto decoded_frame = result.release_value()->default_frame(size);
-        if (!decoded_frame.has_value()) {
-            promise->reject(Error::from_string_view("Failed to get bitmap from SVG favicon"sv));
-            return promise;
-        }
-
-        promise->resolve(decoded_frame->bitmap_ref());
+        SVG::SVGDecodedImageData::decode(document->page(), favicon_url, favicon_data)
+            ->when_resolved([promise](auto& image_data) {
+                // FIXME: Calculate size based on device pixel ratio
+                auto decoded_frame = image_data->default_frame({ 32, 32 });
+                if (!decoded_frame.has_value()) {
+                    promise->reject(Error::from_string_view("Failed to get bitmap from SVG favicon"sv));
+                    return;
+                }
+                promise->resolve(decoded_frame->bitmap_ref());
+            })
+            .when_rejected([promise](Error& error) {
+                promise->reject(move(error));
+            });
         return promise;
     }
 

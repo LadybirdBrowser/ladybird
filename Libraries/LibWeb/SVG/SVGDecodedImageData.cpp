@@ -101,7 +101,7 @@ ScopedSVGImageDocument::~ScopedSVGImageDocument()
         m_page_client->unsuppress_frame_requests();
 }
 
-ErrorOr<GC::Ref<SVGDecodedImageData>> SVGDecodedImageData::create(GC::Ref<Page> host_page, URL::URL const& url, ReadonlyBytes data)
+NonnullRefPtr<SVGDecodedImageData::DecodePromise> SVGDecodedImageData::decode(GC::Ref<Page> host_page, URL::URL const& url, ReadonlyBytes data)
 {
     auto page_client = shared_svg_page_client_for_page(host_page);
     auto& page = page_client->page();
@@ -136,16 +136,23 @@ ErrorOr<GC::Ref<SVGDecodedImageData>> SVGDecodedImageData::create(GC::Ref<Page> 
     // when no SVG root came out of the parse) — whatever the builder had made of the document before the error isn't
     // shown as if it were the image.
     if (parse_failed)
-        return Error::from_string_literal("SVGDecodedImageData: Failed to parse SVG");
+        return DecodePromise::rejected(Error::from_string_literal("SVGDecodedImageData: Failed to parse SVG"));
 
     auto* svg_root = document->first_child_of_type<SVG::SVGSVGElement>();
     if (!svg_root) {
         dbgln("SVGDecodedImageData: Invalid SVG input (no SVGSVGElement found)");
-        return Error::from_string_literal("SVGDecodedImageData: Invalid SVG input");
+        return DecodePromise::rejected(Error::from_string_literal("SVGDecodedImageData: Invalid SVG input"));
     }
-    auto svg_image_data = GC::Heap::the().allocate<SVGDecodedImageData>(page, page_client, document, *svg_root);
+    auto promise = DecodePromise::construct();
+    auto svg_image_data = create(page, page_client, document, *svg_root);
     page_client->register_svg_image_data(svg_image_data);
-    return svg_image_data;
+    promise->resolve(svg_image_data);
+    return promise;
+}
+
+GC::Ref<SVGDecodedImageData> SVGDecodedImageData::create(GC::Ref<Page> page, GC::Ref<SVGPageClient> page_client, GC::Ref<DOM::Document> document, GC::Ref<SVG::SVGSVGElement> root)
+{
+    return GC::Heap::the().allocate<SVGDecodedImageData>(page, page_client, document, root);
 }
 
 SVGDecodedImageData::SVGDecodedImageData(GC::Ref<Page> page, GC::Ref<SVGPageClient> page_client, GC::Ref<DOM::Document> document, GC::Ref<SVG::SVGSVGElement> root_element)

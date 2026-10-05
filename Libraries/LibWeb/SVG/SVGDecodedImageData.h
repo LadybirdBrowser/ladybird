@@ -9,6 +9,7 @@
 #include <AK/Optional.h>
 #include <LibCompositing/DisplayList/DisplayList.h>
 #include <LibCompositing/DisplayList/DisplayListResourceStorage.h>
+#include <LibCore/Promise.h>
 #include <LibGC/Heap.h>
 #include <LibGC/WeakHashSet.h>
 #include <LibGfx/DecodedImageFrame.h>
@@ -26,7 +27,8 @@ class SVGDecodedImageData final : public HTML::DecodedImageData {
 
 public:
     class SVGPageClient;
-    static ErrorOr<GC::Ref<SVGDecodedImageData>> create(GC::Ref<Page>, URL::URL const&, ReadonlyBytes encoded_svg);
+    using DecodePromise = Core::Promise<GC::Root<SVGDecodedImageData>>;
+    static NonnullRefPtr<DecodePromise> decode(GC::Ref<Page>, URL::URL const&, ReadonlyBytes encoded_svg);
     virtual ~SVGDecodedImageData() override;
 
     virtual Optional<Gfx::DecodedImageFrame> default_frame(Gfx::IntSize = {}) const override;
@@ -56,6 +58,7 @@ public:
     CSS::PreferredColorScheme color_scheme() const { return m_color_scheme; }
 
 private:
+    static GC::Ref<SVGDecodedImageData> create(GC::Ref<Page>, GC::Ref<SVGPageClient>, GC::Ref<DOM::Document>, GC::Ref<SVG::SVGSVGElement>);
     SVGDecodedImageData(GC::Ref<Page>, GC::Ref<SVGPageClient>, GC::Ref<DOM::Document>, GC::Ref<SVG::SVGSVGElement>);
 
     CSS::SizeWithAspectRatio const& natural_size() const;
