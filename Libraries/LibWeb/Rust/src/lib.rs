@@ -5,8 +5,6 @@
  */
 
 // The browser transfers HTML buffers to C++, so both sides must use the same allocator.
-// The standalone replay program has no C++ runtime or cross-language buffer transfers.
-#[cfg(not(feature = "style-replay"))]
 /// cbindgen:ignore
 #[path = "../../../RustAllocator.rs"]
 mod rust_allocator;

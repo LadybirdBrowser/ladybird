@@ -23,13 +23,9 @@
 //! reference counted or freed.
 
 use std::alloc::{Layout, alloc, dealloc};
-#[cfg(feature = "style-replay")]
-use std::cell::RefCell;
 use std::ffi::c_void;
 use std::hash::Hasher;
 use std::sync::OnceLock;
-#[cfg(feature = "style-replay")]
-use std::sync::atomic::AtomicBool;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use crate::abort_on_panic;
@@ -56,62 +52,6 @@ use crate::css::style_value::{retained_list_drop, retained_list_partial_eq};
 
 /// Reference count value marking an intentionally leaked payload.
 pub const STYLE_GROUP_STATIC_REFCOUNT: usize = usize::MAX;
-
-#[cfg(feature = "style-replay")]
-static REPLAY_STYLE_GROUPS: AtomicBool = AtomicBool::new(false);
-#[cfg(feature = "style-replay")]
-thread_local! {
-    static REPLAY_STYLE_GROUP_SIZES: RefCell<Vec<Option<usize>>> = const { RefCell::new(Vec::new()) };
-}
-
-#[cfg(feature = "style-replay")]
-pub fn enable_style_group_replay() {
-    REPLAY_STYLE_GROUPS.store(true, Ordering::Relaxed);
-}
-
-#[cfg(feature = "style-replay")]
-pub fn register_replay_style_group(identity: u32, retained_bytes: usize) -> *const c_void {
-    let pointer = identity as usize + 1;
-    REPLAY_STYLE_GROUP_SIZES.with(|sizes| {
-        let mut sizes = sizes.borrow_mut();
-        let index = identity as usize;
-        if sizes.len() <= index {
-            sizes.resize(index + 1, None);
-        }
-        // Every replay publication registers its complete payload set before the graph consumes it.
-        // Group identities from another graph may therefore safely overwrite this dense scratch table.
-        sizes[index] = Some(retained_bytes);
-    });
-    pointer as *const c_void
-}
-
-fn replay_style_group_size(pointer: *const c_void) -> Option<usize> {
-    #[cfg(feature = "style-replay")]
-    return (pointer as usize)
-        .checked_sub(1)
-        .and_then(|identity| REPLAY_STYLE_GROUP_SIZES.with(|sizes| sizes.borrow().get(identity).copied().flatten()));
-    #[cfg(not(feature = "style-replay"))]
-    {
-        let _ = pointer;
-        None
-    }
-}
-
-pub(crate) fn replay_style_group_identity(pointer: *const c_void) -> Option<u32> {
-    #[cfg(feature = "style-replay")]
-    return u32::try_from((pointer as usize).checked_sub(1)?).ok();
-    #[cfg(not(feature = "style-replay"))]
-    let _ = pointer;
-    #[cfg(not(feature = "style-replay"))]
-    None
-}
-
-pub(crate) fn replaying_style_groups() -> bool {
-    #[cfg(feature = "style-replay")]
-    return REPLAY_STYLE_GROUPS.load(Ordering::Relaxed);
-    #[cfg(not(feature = "style-replay"))]
-    false
-}
 
 /// Layout of the inherited box style value group.
 ///
@@ -1642,9 +1582,6 @@ pub(crate) fn style_group_affects_layout(group_index: usize) -> bool {
 pub(crate) fn style_group_payloads_equal(group_index: usize, a: *const c_void, b: *const c_void) -> bool {
     assert!(!a.is_null());
     assert!(!b.is_null());
-    if replaying_style_groups() {
-        return a == b;
-    }
     // SAFETY: Published style-group payloads remain live for the call and both use the registered
     // group type at `group_index`.
     unsafe { payloads_equal(vtable(group_index), a, b) }
@@ -1658,11 +1595,6 @@ pub(crate) fn style_group_payloads_hash(group_index: usize, payload: *const c_vo
     assert!(!payload.is_null());
     let mut hasher = fast_hasher();
     hasher.write_usize(group_index);
-    if replaying_style_groups() {
-        // Replay compares payloads by address, so under replay the address is the content.
-        hasher.write_usize(payload as usize);
-        return hasher.finish();
-    }
     // SAFETY: Published style-group payloads remain live for the call and use the registered
     // group type at `group_index`.
     unsafe { payload_content_hash(vtable(group_index), payload, &mut hasher) };
@@ -1717,9 +1649,6 @@ unsafe fn payload_holds_image_values(table: &StyleGroupVTable, payload: *const c
 /// the list-style image. Nearly every style holds none, and a record answers that with one flag
 /// instead of materializing its layers to find out.
 pub(crate) fn style_group_payloads_hold_image_values(payloads: &[*const c_void]) -> bool {
-    if replaying_style_groups() {
-        return false;
-    }
     payloads.iter().enumerate().any(|(group_index, &payload)| {
         // SAFETY: Published style-group payloads remain live for the call and use the registered
         // group type at `group_index`.
@@ -1734,9 +1663,6 @@ pub(crate) fn default_group_payload(group_index: usize) -> *const c_void {
 /// Retains one reference to a payload, mirroring StyleStructRef::ref():
 /// intentionally leaked payloads are never counted.
 pub(crate) fn retain_group_payload(group_index: usize, payload: *const c_void) {
-    if replaying_style_groups() {
-        return;
-    }
     let refcount = refcount_of(payload, payload_align(vtable(group_index)));
     if refcount.load(Ordering::Relaxed) == STYLE_GROUP_STATIC_REFCOUNT {
         return;
@@ -1745,9 +1671,6 @@ pub(crate) fn retain_group_payload(group_index: usize, payload: *const c_void) {
 }
 
 pub(crate) fn retained_group_payload_bytes(group_index: usize, payload: *const c_void) -> usize {
-    if replaying_style_groups() {
-        return replay_style_group_size(payload).expect("replay style-group size was not registered");
-    }
     let table = vtable(group_index);
     let refcount = refcount_of(payload, payload_align(table));
     if refcount.load(Ordering::Relaxed) == STYLE_GROUP_STATIC_REFCOUNT {
@@ -1975,16 +1898,12 @@ pub unsafe extern "C" fn rust_style_group_free(group_index: usize, payload: *mut
 }
 
 pub(crate) fn release_group_payload(group_index: usize, payload: *const c_void) {
-    if replaying_style_groups() {
-        return;
-    }
     let table = vtable(group_index);
     let refcount = refcount_of(payload, payload_align(table));
     if refcount.load(Ordering::Relaxed) == STYLE_GROUP_STATIC_REFCOUNT {
         return;
     }
     if refcount.fetch_sub(1, Ordering::AcqRel) == 1 {
-        crate::css::style::record_replay::invalidate_pointer(payload as usize);
         // SAFETY: The count reached zero, so this reference was the last one.
         unsafe {
             destruct(table, payload.cast_mut());
@@ -2124,8 +2043,7 @@ impl StyleGroupMasks {
         PROPERTY_DEPENDENCY_MASKS.get()
     }
 
-    /// The registered groups, or none for a process that registered none: an engine of a test or a
-    /// replay, which takes the registered ones once the recording names them.
+    /// The registered groups, or none for a process that registered none: an engine of a test.
     pub(crate) fn registered_or_none() -> &'static Self {
         Self::registered().unwrap_or(&UNREGISTERED_STYLE_GROUPS)
     }
@@ -2139,33 +2057,6 @@ impl StyleGroupMasks {
             .copied()
             .unwrap_or(0)
     }
-}
-
-#[cfg(feature = "style-replay")]
-pub fn register_replay_property_dependency_masks(first_property: u16, masks: &[u32], output_masks: &[u32]) {
-    assert_eq!(masks.len(), output_masks.len());
-    if let Some(existing) = PROPERTY_DEPENDENCY_MASKS.get() {
-        assert_eq!(existing.first_property, first_property);
-        assert_eq!(existing.masks, masks);
-        assert_eq!(existing.output_masks, output_masks);
-        return;
-    }
-    PROPERTY_DEPENDENCY_MASKS
-        .set(StyleGroupMasks {
-            first_property,
-            masks: masks.to_vec().leak(),
-            output_masks: output_masks.to_vec().leak(),
-        })
-        .unwrap_or_else(|_| unreachable!("property dependency masks were checked above"));
-}
-
-#[cfg(feature = "style-recording")]
-/// The computed style groups which may change when one longhand's specified winner changes.
-///
-/// The mapping comes from the C++ group builders which own the remaining cross-property
-/// computation rules. Missing coverage stays typed so callers can widen to every group.
-pub(crate) fn computed_group_dependency_mask(property: u16) -> Option<u32> {
-    Some(StyleGroupMasks::registered()?.dependencies(property)).filter(|mask| *mask != 0)
 }
 
 /// The computed style group which directly owns one longhand's output.

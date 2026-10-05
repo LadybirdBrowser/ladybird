@@ -40,8 +40,6 @@ use crate::css::computed_longhand_table::{
 };
 use crate::css::computed_values::computed_group_output_mask;
 use crate::css::computed_values::release_group_payload;
-use crate::css::computed_values::replay_style_group_identity;
-use crate::css::computed_values::replaying_style_groups;
 use crate::css::computed_values::retain_group_payload;
 use crate::css::computed_values::retained_group_payload_bytes;
 use crate::css::computed_values::style_group_payloads_equal;
@@ -2192,41 +2190,8 @@ impl ComputedGroupSets {
         let mut canonical_output_groups_reused = 0;
         let mut transferred = PendingRecordOwnership::default();
         let mut groups = Vec::with_capacity(payloads.len());
-        let replaying_style_groups = replaying_style_groups();
         for (index, &payload) in payloads.iter().enumerate() {
             assert!(!payload.is_null(), "computed group payload is null");
-            if replaying_style_groups {
-                let raw_identity =
-                    replay_style_group_identity(payload.as_ptr()).expect("replay group identity exceeds u32");
-                let identity = ComputedGroupID(raw_identity);
-                match self.groups.get_index(raw_identity as usize) {
-                    Some(group) => {
-                        assert_eq!(group.index, index);
-                        assert_eq!(group.payload, payload);
-                    }
-                    None => {
-                        assert_eq!(raw_identity as usize, self.groups.len());
-                        let identity = ComputedGroupID(raw_identity);
-                        let payload_content_hash = style_group_payloads_hash(index, payload.as_ptr());
-                        self.groups.insert(
-                            content_hash((index, payload.addr())),
-                            identity,
-                            ComputedGroup {
-                                index,
-                                payload,
-                                content_hash: payload_content_hash,
-                            },
-                        );
-                        self.groups_by_content.insert_identity(payload_content_hash, identity);
-                        self.identity_mints.groups += 1;
-                        self.group_set_nested_memory
-                            .grow_committed(retained_group_payload_bytes(index, payload.as_ptr()) as u64);
-                        new_groups += 1;
-                    }
-                }
-                groups.push(identity);
-                continue;
-            }
             let previous_identity = previous_group_set.and_then(|set| self.sets[set].groups.get(index).copied());
             let previous_equal_identity = previous_identity.filter(|identity| {
                 style_group_payloads_equal(index, payload.as_ptr(), self.groups[*identity].payload.as_ptr())
@@ -2864,16 +2829,6 @@ impl ComputedGroupSets {
         ))
     }
 
-    #[cfg(feature = "style-recording")]
-    /// The longhands whose previous specified values read the effective color scheme.
-    #[must_use]
-    pub fn color_scheme_dependency_properties(&self, target: ComputedStyleTarget) -> Option<[u64; 6]> {
-        Self::specified_value_dependency_properties(
-            self.longhand_table_for_target(target)?,
-            retained_value_depends_on_color_scheme,
-        )
-    }
-
     /// The groups whose previous specified values may read font metrics.
     #[must_use]
     pub fn font_dependency_mask(&self, target: ComputedStyleTarget) -> Option<u32> {
@@ -2881,16 +2836,6 @@ impl ComputedGroupSets {
             self.longhand_table_for_target(target)?,
             retained_value_may_depend_on_font_metrics,
         ))
-    }
-
-    #[cfg(feature = "style-recording")]
-    /// The longhands whose previous specified values may read font metrics.
-    #[must_use]
-    pub fn font_dependency_properties(&self, target: ComputedStyleTarget) -> Option<[u64; 6]> {
-        Self::specified_value_dependency_properties(
-            self.longhand_table_for_target(target)?,
-            retained_value_may_depend_on_font_metrics,
-        )
     }
 
     /// Whether a raw final record identity still names a live base record.
@@ -3404,10 +3349,6 @@ impl ComputedGroupSets {
             retained: self.groups.live_identities().len(),
             reachable: reachable.groups.iter().filter(|&&reachable| reachable).count(),
         };
-        if replaying_style_groups() {
-            return retention;
-        }
-
         let mut unreachable_style_records = self
             .style_records
             .live_identities()
@@ -3565,80 +3506,6 @@ impl ComputedGroupSets {
         );
         let record = self.style_records.get_index(style_record.index())?;
         Some(self.computed_fixed_metadata.get(record.fixed_metadata).dependency_flags)
-    }
-
-    #[cfg(feature = "style-recording")]
-    pub(crate) fn recording_group_identities(&self, raw_style_record: u64) -> Option<Vec<u32>> {
-        let final_style_record = FinalStyleRecordID(raw_style_record);
-        let base_style_record = match final_style_record.base_record() {
-            Some(style_record) => {
-                assert!(
-                    self.style_record_generation_is_live(style_record, final_style_record.base_generation()),
-                    "base style-record is not live"
-                );
-                style_record
-            }
-            None => {
-                let slot = *self.animation_overlay_slots_by_record.get(&final_style_record)?;
-                self.animation_overlay_slots.get(slot)?.base_style_record
-            }
-        };
-        assert!(
-            self.style_record_is_live(base_style_record),
-            "base style-record is not live"
-        );
-        let record = self.style_records.get_index(base_style_record.index())?;
-        Some(
-            self.group_identities(record.groups)
-                .map(|identity| identity.0)
-                .collect(),
-        )
-    }
-
-    #[cfg(feature = "style-recording")]
-    pub(crate) fn recording_group_retained_bytes(&self, raw_style_record: u64) -> Option<Vec<u64>> {
-        let identities = self.recording_group_identities(raw_style_record)?;
-        Some(
-            identities
-                .into_iter()
-                .map(|identity| {
-                    let group = &self.groups[identity as usize];
-                    retained_group_payload_bytes(group.index, group.payload.as_ptr()) as u64
-                })
-                .collect(),
-        )
-    }
-
-    #[cfg(feature = "style-recording")]
-    pub(crate) fn recording_longhand_table(&self, raw_style_record: u64) -> Option<(u32, &[SharedPayload])> {
-        let final_style_record = FinalStyleRecordID(raw_style_record);
-        let base_style_record = match final_style_record.base_record() {
-            Some(style_record) => {
-                assert!(
-                    self.style_record_generation_is_live(style_record, final_style_record.base_generation()),
-                    "base style-record is not live"
-                );
-                style_record
-            }
-            None => {
-                let slot = *self.animation_overlay_slots_by_record.get(&final_style_record)?;
-                self.animation_overlay_slots.get(slot)?.base_style_record
-            }
-        };
-        assert!(
-            self.style_record_is_live(base_style_record),
-            "base style-record is not live"
-        );
-        let identity = self
-            .style_records
-            .get_index(base_style_record.index())?
-            .longhand_table?;
-        Some((
-            identity.0,
-            self.computed_longhand_tables
-                .get_index(identity.0 as usize)?
-                .value_view(),
-        ))
     }
 
     pub(crate) fn style_record_view(&self, raw_style_record: u64) -> Option<StyleRecordView<'_>> {

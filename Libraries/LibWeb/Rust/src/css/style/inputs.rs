@@ -1845,14 +1845,6 @@ impl StyleEngineState {
         )
     }
 
-    pub(crate) fn new_for_replay(device_class: DeviceClass) -> Self {
-        Self::new_with_owners(
-            device_class,
-            DocumentAtoms::for_replay(),
-            SelectorPrograms::for_replay(),
-        )
-    }
-
     fn new_with_owners(device_class: DeviceClass, atoms: DocumentAtoms, programs: SelectorPrograms) -> Self {
         let mut memory = MemoryController::new(device_class);
         let tree = StyleNodeTree::new(&mut memory);
@@ -1985,8 +1977,6 @@ impl StyleEngineState {
             host: HostState {
                 suspended_style_pass: None,
                 font_resolver: None,
-                #[cfg(feature = "style-recording")]
-                recording_id: None,
                 journal: NormalizationJournal::new(),
                 deferred_geometry_journal: NormalizationJournal::new(),
                 flushing_deferred_geometry_journal: false,
@@ -2005,146 +1995,9 @@ impl StyleEngineState {
                 sheet_occurrence_storage_bytes: 0,
                 sheet_occurrence_memory: MemoryLease::new(MemoryCategory::RuleProgram),
                 sheet_rule_replacement: None,
-                ffi_style_transaction_output: bridge::FfiStyleTransactionOutput::default(),
-                ffi_style_transaction_output_memory: MemoryLease::new(MemoryCategory::BridgeBuffer),
-                ffi_style_node_query: Vec::new(),
-                ffi_style_node_query_memory: MemoryLease::new(MemoryCategory::BridgeBuffer),
                 reclaimed_style_atoms: Vec::new(),
-                style_atoms_swept: false,
-                replay_atom_sweep: None,
                 defers_atom_sweep: false,
             },
-        }
-    }
-
-    pub(crate) fn begin_recording(&mut self, device_class: DeviceClass) {
-        #[cfg(feature = "style-recording")]
-        {
-            self.host.recording_id = record_replay::begin_recording_stream(device_class as u8);
-            if self.host.recording_id.is_some() {
-                self.retained.memory.enable_recording_policy();
-            }
-        }
-        #[cfg(not(feature = "style-recording"))]
-        let _ = device_class;
-    }
-
-    pub(crate) fn end_recording(&mut self) {
-        #[cfg(feature = "style-recording")]
-        {
-            record_replay::end_recording_stream(self.host.recording_id.take());
-            self.retained.memory.disable_recording_policy();
-        }
-    }
-
-    pub(crate) fn record_boundary_call(
-        &self,
-        kind: record_replay::EventKind,
-        write_payload: impl FnOnce(&mut record_replay::PayloadWriter),
-    ) {
-        #[cfg(not(feature = "style-recording"))]
-        {
-            let _ = kind;
-            let _ = write_payload;
-        }
-        #[cfg(feature = "style-recording")]
-        let Some(engine_id) = self.host.recording_id else {
-            return;
-        };
-        #[cfg(feature = "style-recording")]
-        record_replay::record_engine_event(engine_id, kind, write_payload);
-    }
-
-    pub(crate) fn recording_pointer_token(&self, pointer: usize) -> Option<u64> {
-        #[cfg(feature = "style-recording")]
-        return self
-            .host
-            .recording_id
-            .map(|engine_id| record_replay::pointer_token(engine_id, pointer));
-        #[cfg(not(feature = "style-recording"))]
-        {
-            let _ = pointer;
-            None
-        }
-    }
-
-    pub(crate) fn recording_atom_pointer_token(&self, pointer: usize) -> Option<u64> {
-        #[cfg(feature = "style-recording")]
-        return self
-            .host
-            .recording_id
-            .map(|_| record_replay::atom_pointer_token(pointer));
-        #[cfg(not(feature = "style-recording"))]
-        {
-            let _ = pointer;
-            None
-        }
-    }
-
-    pub(crate) fn recording_first_response(&self, category: u8, identity: u64) -> bool {
-        #[cfg(feature = "style-recording")]
-        return self
-            .host
-            .recording_id
-            .is_some_and(|engine_id| record_replay::first_response(engine_id, category, identity));
-        #[cfg(not(feature = "style-recording"))]
-        {
-            let _ = (category, identity);
-            false
-        }
-    }
-
-    pub(crate) fn recording_id(&self) -> Option<u64> {
-        #[cfg(feature = "style-recording")]
-        return self.host.recording_id;
-        #[cfg(not(feature = "style-recording"))]
-        None
-    }
-
-    pub(crate) fn forget_recording_atom_mappings(&self, atoms: impl IntoIterator<Item = u32>) {
-        #[cfg(feature = "style-recording")]
-        if let Some(engine_id) = self.host.recording_id {
-            record_replay::forget_atom_mappings(engine_id, atoms);
-        }
-        #[cfg(not(feature = "style-recording"))]
-        let _ = atoms;
-    }
-
-    pub(crate) fn recording_atom_mappings(&self) -> RecordedAtomMappings {
-        #[cfg(not(feature = "style-recording"))]
-        return RecordedAtomMappings {
-            atoms: Vec::new(),
-            qualified_atoms: Vec::new(),
-        };
-        #[cfg(feature = "style-recording")]
-        {
-            let engine_id = self
-                .host
-                .recording_id
-                .expect("only a recording engine serializes atom mappings");
-            let mut atoms = self
-                .atoms
-                .raw()
-                .iter()
-                .filter(|(_, atom)| record_replay::first_atom_mapping(engine_id, atom.0))
-                .map(|(pointer, atom)| {
-                    (
-                        self.recording_atom_pointer_token(*pointer)
-                            .expect("only a recording engine serializes atom mappings"),
-                        atom.0,
-                    )
-                })
-                .collect::<Vec<_>>();
-            atoms.sort_unstable_by_key(|(_, atom)| *atom);
-            let mut qualified_atoms = self
-                .atoms
-                .qualified()
-                .iter()
-                .filter(|(_, atom)| record_replay::first_atom_mapping(engine_id, atom.0))
-                .map(|((namespace, name), atom)| (*namespace, *name, atom.0))
-                .collect::<Vec<_>>();
-            qualified_atoms.sort_unstable_by_key(|(_, _, atom)| *atom);
-            RecordedAtomMappings { atoms, qualified_atoms }
         }
     }
 
@@ -2792,14 +2645,6 @@ impl StyleEngineState {
         rule
     }
 
-    pub(crate) fn selector_program_for_rule(&self, rule: RuleID) -> &SelectorProgram {
-        let program = self
-            .current_rule_version(rule)
-            .selector_program
-            .expect("a style rule must have a selector program");
-        self.retained.programs.get(program)
-    }
-
     /// Record that a sheet declared or gave up a cascade layer.
     ///
     /// The declaration contributes no declarations and matches nothing: what it does is fix the order
@@ -3369,41 +3214,7 @@ impl StyleEngineState {
     }
 }
 
-impl StyleEngineState {
-    #[cfg(feature = "style-recording")]
-    pub(crate) fn add_replayed_style_rule(
-        &mut self,
-        sheet: SheetID,
-        before: Option<RuleID>,
-        selector_program: SelectorProgram,
-        counters: &mut Counters,
-    ) -> RuleID {
-        self.add_style_rule_with(sheet, before, counters, |engine, previous_program, _| {
-            let program = engine.retained.programs.add(selector_program);
-            engine.retained.selector_programs_need_sweep |= previous_program.is_some();
-            engine.retained.programs.settle_memory(&mut engine.retained.memory);
-            program
-        })
-    }
-
-    #[cfg(feature = "style-recording")]
-    pub(crate) fn replace_replayed_style_rule_selectors(
-        &mut self,
-        rule: RuleID,
-        selector_program: SelectorProgram,
-        counters: &mut Counters,
-    ) {
-        let program = self.retained.programs.add(selector_program);
-        self.retained.selector_programs_need_sweep = true;
-        self.retained.programs.settle_memory(&mut self.retained.memory);
-        self.add_routing_rule(rule, program);
-        let mut version = self.current_rule_version(rule);
-        version.selector_program = Some(program);
-        self.replace_rule_version(rule, version, counters);
-        self.settle_program();
-        counters.bump(Counter::StyleRulesCompiled);
-    }
-}
+impl StyleEngineState {}
 
 impl RetainedState {
     /// Drop what the engine retains for an element whose identity retires. Identities are handed

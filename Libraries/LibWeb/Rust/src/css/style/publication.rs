@@ -25,23 +25,6 @@ pub(crate) use demand::{RecordDemand, RecordDemandAnswer};
 pub(super) use drive::{Drive, OrRefused, Suspension, Unanswered};
 use drive::{DrivenTable, FontDriveGoal, FullDrive, PartialDrive};
 
-#[cfg(feature = "style-recording")]
-/// Another element's published style that a first-time computation may build over: the element
-/// whose cascade state stands in for the previous one, and the record it must still hold.
-#[derive(Clone, Copy, Debug)]
-pub(crate) struct ExactCascadeDonor {
-    pub node: StyleNodeID,
-    pub style_record: u64,
-}
-
-#[cfg(feature = "style-recording")]
-pub(super) struct ExactCascadeContext {
-    previous: Option<CascadeStateID>,
-    lower_bound_state: Option<CascadeStateID>,
-    dependency_target: computed::ComputedStyleTarget,
-    donor_used: bool,
-}
-
 /// Root-relative computation reads these inputs independently of its inheritance parent.
 /// Bitwise keys keep equality exact without using an invalidation generation as a substitute
 /// for the values. The viewport-dependence bit matters even when today's metrics agree.
@@ -392,13 +375,13 @@ impl RetainedState {
     /// publishes the document's inputs and every table a record is computed against before it asks for any row. An
     /// engine no document hosts, such as a unit test's or a replay's, computes no records. Only those builds can
     /// create such an engine, so the browser build has no unhosted path at all.
-    #[cfg(any(test, feature = "style-replay"))]
+    #[cfg(test)]
     pub(super) fn computes_records(&self) -> bool {
         self.font_resolution.is_some()
     }
 
     /// A browser build's engine always has a document to host it.
-    #[cfg(not(any(test, feature = "style-replay")))]
+    #[cfg(not(test))]
     pub(super) const fn computes_records(&self) -> bool {
         true
     }
@@ -2988,32 +2971,6 @@ impl RetainedState {
         }
     }
 
-    #[cfg(feature = "style-recording")]
-    /// Whether a winner's declaration was written with a substitution the engine resolves itself,
-    /// or is a longhand pending a shorthand written with one. A value reading an attribute is
-    /// C++'s, and what it computes to can move without any winner moving.
-    fn winner_is_written_with_substitution(&self, node: StyleNodeID, winner: &PropertyWinner) -> bool {
-        let written = match winner.source {
-            WinnerSource::Rule(rule) => self
-                .program
-                .written_winner_declaration(rule, winner.property, winner.important, winner.key.value)
-                .map(|(_, value)| value),
-            WinnerSource::Element(kind) => self.facts.element_declarations(node, kind).and_then(|declarations| {
-                declarations.winner_value(winner.property, winner.important, winner.key.value)
-            }),
-            WinnerSource::ExactCascade => None,
-        };
-        written.is_some_and(|value| match value.data() {
-            unresolved @ crate::css::style_value::StyleValueData::Unresolved { .. } => {
-                custom_property_cascade::value_is_engine_resolvable_substitution(unresolved)
-            }
-            crate::css::style_value::StyleValueData::PendingSubstitution {
-                original_shorthand_value,
-            } => custom_property_cascade::value_is_engine_resolvable_substitution(original_shorthand_value.data()),
-            _ => false,
-        })
-    }
-
     /// The outermost shorthand declared in a winner's block for the written value a pending
     /// longhand names, and that shorthand's written value. A shorthand nested in another, such as
     /// `border-width` in `border`, is itself declared pending the outer one.
@@ -3875,36 +3832,6 @@ impl RetainedState {
             .is_some_and(|flags| flags & computed::HOLDS_IMAGE_VALUES != 0)
     }
 
-    pub(crate) fn recording_computed_group_identities(&self, style_record: u64) -> Option<Vec<u32>> {
-        #[cfg(feature = "style-recording")]
-        return self.computed_group_sets.recording_group_identities(style_record);
-        #[cfg(not(feature = "style-recording"))]
-        {
-            let _ = style_record;
-            None
-        }
-    }
-
-    pub(crate) fn recording_computed_group_retained_bytes(&self, style_record: u64) -> Option<Vec<u64>> {
-        #[cfg(feature = "style-recording")]
-        return self.computed_group_sets.recording_group_retained_bytes(style_record);
-        #[cfg(not(feature = "style-recording"))]
-        {
-            let _ = style_record;
-            None
-        }
-    }
-
-    pub(crate) fn recording_computed_longhand_table(&self, style_record: u64) -> Option<(u32, &[SharedPayload])> {
-        #[cfg(feature = "style-recording")]
-        return self.computed_group_sets.recording_longhand_table(style_record);
-        #[cfg(not(feature = "style-recording"))]
-        {
-            let _ = style_record;
-            None
-        }
-    }
-
     pub(crate) fn style_record_view(&self, style_record: u64) -> Option<computed::StyleRecordView<'_>> {
         self.computed_group_sets.style_record_view(style_record)
     }
@@ -4110,343 +4037,6 @@ impl RetainedState {
         publication
     }
 
-    #[cfg(feature = "style-recording")]
-    pub(crate) fn exact_cascade_generation_snapshot(
-        &self,
-        target: computed::ComputedStyleTarget,
-    ) -> (u64, Option<u64>) {
-        (
-            self.winner_groups.generation(),
-            self.computed_group_sets
-                .cascade_state(target)
-                .map(|(generation, _)| generation),
-        )
-    }
-
-    #[cfg(feature = "style-recording")]
-    pub(crate) fn publish_exact_cascade_winners(
-        &mut self,
-        target: computed::ComputedStyleTarget,
-        exact_winners: &[(u16, SpecifiedWinnerKey)],
-        inherited_style_groups: u8,
-        donor: Option<ExactCascadeDonor>,
-        counters: &mut Counters,
-    ) -> (bridge::FfiExactCascadePublication, bool) {
-        let context = self.prepare_exact_cascade_publication(target, donor);
-        let had_previous = context.previous.is_some();
-        (
-            self.publish_exact_cascade_winners_with_context(
-                target,
-                exact_winners,
-                inherited_style_groups,
-                context,
-                counters,
-            ),
-            had_previous,
-        )
-    }
-
-    #[cfg(feature = "style-recording")]
-    pub(super) fn prepare_exact_cascade_publication(
-        &mut self,
-        target: computed::ComputedStyleTarget,
-        donor: Option<ExactCascadeDonor>,
-    ) -> ExactCascadeContext {
-        let generation = self.winner_groups.generation();
-        let mut previous =
-            self.computed_group_sets
-                .cascade_state(target)
-                .and_then(|(previous_generation, previous_state)| {
-                    (previous_generation == generation).then_some(previous_state)
-                });
-        let mut dependency_target = target;
-        let mut donor_used = false;
-        if !target.is_pseudo()
-            && let Some(donor) = donor
-            && self
-                .computed_group_sets
-                .assigned_style_record(donor.node)
-                .is_some_and(|record| record.raw() == donor.style_record)
-        {
-            let donor_target = computed::ComputedStyleTarget::new(donor.node, u8::MAX);
-            if let Some(state) = self
-                .computed_group_sets
-                .cascade_state(donor_target)
-                .and_then(|(donor_generation, donor_state)| (donor_generation == generation).then_some(donor_state))
-            {
-                previous = Some(state);
-                dependency_target = donor_target;
-                donor_used = true;
-            }
-        }
-        let winner_key = target.pseudo_element_target().map_or_else(
-            || WinnerGroupKey::current(target.node(), self.program.version()),
-            |pseudo| WinnerGroupKey::current_pseudo(target.node(), pseudo, self.program.version()),
-        );
-        let lower_bound_state = self
-            .current_winner_groups()
-            .token_for(winner_key)
-            .sparse()
-            .ok()
-            .map(|(_, state)| state);
-        if target.is_pseudo() {
-            self.computed_group_sets
-                .observe_pseudo_retained_cascade_state(target, lower_bound_state.map(|state| (generation, state)));
-            self.settle_computed_memory();
-        }
-        ExactCascadeContext {
-            previous,
-            lower_bound_state,
-            dependency_target,
-            donor_used,
-        }
-    }
-
-    #[cfg(feature = "style-recording")]
-    pub(super) fn publish_exact_cascade_winners_with_context(
-        &mut self,
-        target: computed::ComputedStyleTarget,
-        exact_winners: &[(u16, SpecifiedWinnerKey)],
-        inherited_style_groups: u8,
-        context: ExactCascadeContext,
-        counters: &mut Counters,
-    ) -> bridge::FfiExactCascadePublication {
-        let ExactCascadeContext {
-            previous,
-            lower_bound_state,
-            dependency_target,
-            donor_used,
-        } = context;
-        let mut winners = Vec::with_capacity(exact_winners.len());
-        for &(property, key) in exact_winners {
-            // The engine's own winner stands for the exact one when it is the same declaration,
-            // or a declaration written with a substitution: the exact value is what that
-            // substitutes to, which the engine computes for itself.
-            let lower_bound_winner = lower_bound_state
-                .and_then(|state| self.winner_groups.winner_in_state(state, property))
-                .filter(|winner| {
-                    self.winner_groups.resolved_winner(*winner).is_some_and(|resolved| {
-                        (resolved.key == key || self.winner_is_written_with_substitution(target.node(), &resolved))
-                            && matches!(self.specified_values.value(resolved.key.value), Lookup::Known(_))
-                    })
-                });
-            winners.push(lower_bound_winner.unwrap_or(PropertyWinner {
-                property,
-                important: key.important,
-                key,
-                priority: CascadePriority::exact_output_placeholder(),
-                source: WinnerSource::ExactCascade,
-            }));
-        }
-        verify_cascade_winners(self, |verifier| {
-            let Some(lower_bound_state) = lower_bound_state else {
-                return;
-            };
-            if !verifier
-                .current_published_answer(target.node())
-                .is_some_and(|answer| answer.cascade_winners_are_complete)
-            {
-                return;
-            }
-            let retained = Arc::clone(
-                verifier
-                    .retained_match_answer(target.node())
-                    .sparse()
-                    .expect("a complete published answer retains its exact input"),
-            );
-            for &(property, exact_key) in exact_winners {
-                let Some(maintained_winner) = self.winner_groups.winner_in_state(lower_bound_state, property) else {
-                    continue;
-                };
-                let resolved_winner = self.winner_groups.resolved_winner(maintained_winner);
-                if exact_key.animation_relevance != 0
-                    || resolved_winner.is_some_and(|winner| {
-                        winner.key == exact_key || verifier.winner_is_written_with_substitution(target.node(), &winner)
-                    })
-                {
-                    continue;
-                }
-                if matches!(
-                    maintained_winner.key.operator,
-                    CascadeOperator::Revert | CascadeOperator::RevertLayer
-                ) && maintained_winner.key.continuation != cascade::CascadeContinuationID::default()
-                    && resolved_winner.is_none()
-                    && matches!(exact_key.operator, CascadeOperator::Initial | CascadeOperator::Inherit)
-                {
-                    continue;
-                }
-                let mut saw_declaration = false;
-                let mut declarations_are_unanimous = true;
-                let mut inspect = |declared: &DeclaredProperty| {
-                    if declared.property == property {
-                        saw_declaration = true;
-                        declarations_are_unanimous &=
-                            declared.value == exact_key.value && declared.operator == exact_key.operator;
-                    }
-                };
-                for matched in retained.iter().filter(|matched| {
-                    verifier
-                        .programs
-                        .get(matched.program)
-                        .entries()
-                        .get(matched.entry as usize)
-                        .is_some_and(|entry| entry.pseudo_element == target.pseudo_element_target())
-                }) {
-                    verifier
-                        .program
-                        .declared_properties_of(matched.rule)
-                        .iter()
-                        .for_each(&mut inspect);
-                }
-                if !target.is_pseudo() {
-                    for kind in ElementDeclarationKind::ALL {
-                        verifier
-                            .facts
-                            .element_declared_properties(target.node(), kind)
-                            .iter()
-                            .for_each(&mut inspect);
-                    }
-                }
-                let unresolved_continuation = matches!(
-                    maintained_winner.key.operator,
-                    CascadeOperator::Revert | CascadeOperator::RevertLayer
-                ) && maintained_winner.key.continuation
-                    == cascade::CascadeContinuationID::default();
-                let unanimous_declared_mismatch = saw_declaration
-                    && declarations_are_unanimous
-                    && resolved_winner.is_some_and(|winner| winner.key.operator == CascadeOperator::Declared);
-                if !unresolved_continuation && !unanimous_declared_mismatch {
-                    continue;
-                }
-                panic!(
-                    "maintained cascade winner {maintained_winner:?}, resolved as {resolved_winner:?}, differs from exact legacy input {exact_key:?} for {target:?}, property {property}; retained input has {} rules",
-                    retained.len()
-                );
-            }
-        });
-        let state = self.intern_cascade_state(&winners, previous, counters);
-        self.winner_groups.settle_memory(&mut self.memory);
-        let generation = self.winner_groups.generation();
-        let delta = self.winner_groups.semantic_delta(previous, state);
-        let unchanged = previous.is_some() && delta.is_empty() && !donor_used;
-        let current_color_dependency_mask = delta
-            .properties()
-            .contains(&crate::css::property_metadata::property_id::COLOR)
-            .then(|| {
-                self.computed_group_sets
-                    .current_color_dependency_mask(dependency_target)
-            });
-        let color_scheme_dependency_mask = delta
-            .properties()
-            .contains(&crate::css::property_metadata::property_id::COLOR_SCHEME)
-            .then(|| self.computed_group_sets.color_scheme_dependency_mask(dependency_target));
-        const INHERITED_FONT_GROUP: u8 = 1 << 6;
-        let font_group_mask = computed_group_output_mask(crate::css::property_metadata::property_id::FONT_SIZE);
-        let font_dependency_mask = font_group_mask.and_then(|font_group_mask| {
-            (inherited_style_groups & INHERITED_FONT_GROUP != 0
-                || delta
-                    .properties()
-                    .iter()
-                    .copied()
-                    .any(|property| computed_group_output_mask(property) == Some(font_group_mask)))
-            .then(|| self.computed_group_sets.font_dependency_mask(dependency_target))
-        });
-        let font_dependency_properties = font_group_mask.and_then(|font_group_mask| {
-            (inherited_style_groups & INHERITED_FONT_GROUP != 0
-                || delta
-                    .properties()
-                    .iter()
-                    .copied()
-                    .any(|property| computed_group_output_mask(property) == Some(font_group_mask)))
-            .then(|| self.computed_group_sets.font_dependency_properties(dependency_target))
-        });
-        const INHERITED_STATIC_GROUPS: u8 = (1 << 0) | (1 << 1) | (1 << 3);
-        const INHERITED_UI_GROUP: u8 = 1 << 2;
-        const INHERITED_TEXT_GROUP: u8 = 1 << 4;
-        const INHERITED_GROUPS_WITH_COMPUTED_CLOSURE: u8 =
-            INHERITED_STATIC_GROUPS | INHERITED_UI_GROUP | INHERITED_TEXT_GROUP | INHERITED_FONT_GROUP;
-        let inherited_property_closure_requested = delta.is_empty()
-            && inherited_style_groups != 0
-            && inherited_style_groups & !INHERITED_GROUPS_WITH_COMPUTED_CLOSURE == 0;
-        let inherited_current_color_dependency_mask =
-            (inherited_property_closure_requested && inherited_style_groups & INHERITED_TEXT_GROUP != 0).then(|| {
-                self.computed_group_sets
-                    .current_color_dependency_mask(dependency_target)
-            });
-        let inherited_current_color_dependency_properties =
-            (inherited_property_closure_requested && inherited_style_groups & INHERITED_TEXT_GROUP != 0).then(|| {
-                self.computed_group_sets
-                    .current_color_dependency_properties(dependency_target)
-            });
-        let inherited_color_scheme_dependency_mask = (inherited_property_closure_requested
-            && inherited_style_groups & INHERITED_UI_GROUP != 0)
-            .then(|| self.computed_group_sets.color_scheme_dependency_mask(dependency_target));
-        let inherited_color_scheme_dependency_properties =
-            (inherited_property_closure_requested && inherited_style_groups & INHERITED_UI_GROUP != 0).then(|| {
-                self.computed_group_sets
-                    .color_scheme_dependency_properties(dependency_target)
-            });
-        let inherited_property_closure_is_exact = inherited_property_closure_requested
-            && (inherited_style_groups & INHERITED_TEXT_GROUP == 0
-                || inherited_current_color_dependency_properties.is_some_and(|properties| properties.is_some()))
-            && (inherited_style_groups & INHERITED_UI_GROUP == 0
-                || inherited_color_scheme_dependency_properties.is_some_and(|properties| properties.is_some()))
-            && (inherited_style_groups & INHERITED_FONT_GROUP == 0
-                || font_dependency_properties.is_some_and(|properties| properties.is_some()));
-        let inherited_computed_group_mask = if inherited_property_closure_is_exact {
-            [
-                inherited_current_color_dependency_mask,
-                inherited_color_scheme_dependency_mask,
-                font_dependency_mask,
-            ]
-            .into_iter()
-            .flatten()
-            .flatten()
-            .fold(u32::from(inherited_style_groups), |mask, dependencies| {
-                mask | dependencies
-            })
-        } else {
-            0
-        };
-        let computed_group_mask = previous.map_or(u32::MAX, |_| {
-            // NB: Inherited groups the closure cannot answer exactly forbid narrowing: the caller
-            //     passes every changed inherited group whenever its group swap may decline, and a
-            //     mask that silently dropped an unanswered group would let the masked recompute
-            //     keep stale values for it.
-            if inherited_style_groups != 0 && !inherited_property_closure_is_exact {
-                return u32::MAX;
-            }
-            delta
-                .properties()
-                .iter()
-                .copied()
-                .try_fold(0, |mask, property| {
-                    let groups = computed_group_dependency_mask(property)?;
-                    let dynamic_groups = if property == crate::css::property_metadata::property_id::COLOR {
-                        current_color_dependency_mask.flatten()?
-                            | computed_group_output_mask(crate::css::property_metadata::property_id::CARET_COLOR)
-                                .unwrap_or(u32::MAX)
-                    } else if property == crate::css::property_metadata::property_id::COLOR_SCHEME {
-                        color_scheme_dependency_mask.flatten()?
-                    } else if Some(groups) == font_group_mask {
-                        font_dependency_mask.flatten()?
-                    } else {
-                        0
-                    };
-                    Some(mask | groups | dynamic_groups)
-                })
-                .unwrap_or(u32::MAX)
-                | inherited_computed_group_mask
-        });
-        self.computed_group_sets
-            .set_pending_cascade_state(target, (generation, state));
-        bridge::FfiExactCascadePublication {
-            unchanged,
-            computed_group_mask,
-            donor_used,
-        }
-    }
-
     pub(crate) fn current_color_dependent_group_mask(&self, node: StyleNodeID, pseudo_kind: u8) -> Option<u32> {
         let target = computed::ComputedStyleTarget::new(node, pseudo_kind);
         let dependencies = self.computed_group_sets.current_color_dependency_mask(target)?;
@@ -4505,11 +4095,6 @@ impl StyleEngineState {
 
     /// Reclaims the unreachable computed records, if they are due and nothing views them, and answers whether it did.
     fn reclaim_unreachable_computed_records(&mut self, counters: &mut Counters) -> bool {
-        // Recording dictionaries are keyed by computed identities. Reusing an identity for new
-        // semantics would make later events refer to the first definition replay saw for it.
-        if self.recording_id().is_some() {
-            return false;
-        }
         let Some(retention) = self.retained.computed_group_sets.reclaim_unreachable_if_needed() else {
             return false;
         };
@@ -4541,9 +4126,6 @@ impl StyleEngineState {
         payloads: &[SharedPayload],
         counters: &mut Counters,
     ) -> Option<computed::AnimationOverlayUpdate> {
-        if self.recording_id().is_some() {
-            return None;
-        }
         // A pseudo-element inherits from its element.
         let parent = if target.is_pseudo() {
             Some(target.node())

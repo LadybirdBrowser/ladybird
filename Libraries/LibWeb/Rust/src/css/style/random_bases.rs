@@ -89,23 +89,6 @@ impl RandomBaseValues {
             .map(|(_, value)| *value)
     }
 
-    /// Take a key's value as given, for a replay that reproduces what a recorded draw gave.
-    #[cfg(feature = "style-recording")]
-    pub(crate) fn set(&mut self, node: Option<StyleNodeID>, name: &[u16], element_shared: bool, value: f64) {
-        if element_shared {
-            self.document.insert(name.into(), value);
-            return;
-        }
-        let Some(node) = node else {
-            return;
-        };
-        let row = self.row_mut(node);
-        match row.iter_mut().find(|(row_name, _)| **row_name == *name) {
-            Some((_, row_value)) => *row_value = value,
-            None => row.push((name.into(), value)),
-        }
-    }
-
     /// An element's row, which may be new.
     fn row_mut(&mut self, node: StyleNodeID) -> &mut Vec<NamedBaseValue> {
         self.element_rows_exist.store(true, Ordering::Relaxed);

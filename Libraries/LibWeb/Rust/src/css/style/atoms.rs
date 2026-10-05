@@ -26,7 +26,9 @@ pub(super) fn synthetic_text_atom_key(hash: u64) -> usize {
 enum RawAtomLifetime {
     RetainedFlyString,
     SyntheticTextKey,
-    OpaqueReplayToken,
+    /// A test's stand-in for a fly string, which nothing retains.
+    #[cfg(test)]
+    OpaqueTestToken,
 }
 
 impl RawAtomLifetime {
@@ -71,7 +73,7 @@ impl GlobalAtoms {
             assert_eq!(
                 entry.raw_lifetime,
                 Some(lifetime),
-                "one raw atom cannot mix live and replay identity"
+                "one raw atom cannot mix live and test identity"
             );
             entry.document_references += 1;
             return entry.atom;
@@ -255,8 +257,9 @@ impl DocumentAtoms {
         Self::new(scope)
     }
 
-    pub(super) fn for_replay() -> Self {
-        Self::new(AtomScope::Process(RawAtomLifetime::OpaqueReplayToken))
+    #[cfg(test)]
+    pub(super) fn for_test() -> Self {
+        Self::new(AtomScope::Process(RawAtomLifetime::OpaqueTestToken))
     }
 
     fn new(scope: AtomScope) -> Self {
@@ -456,16 +459,6 @@ impl DocumentAtoms {
         reclaimed.sort_unstable_by_key(|entry| entry.atom.0);
         reclaimed
     }
-
-    #[cfg(feature = "style-recording")]
-    pub(super) fn raw(&self) -> &HashMap<usize, StyleAtomID> {
-        &self.raw
-    }
-
-    #[cfg(feature = "style-recording")]
-    pub(super) fn qualified(&self) -> &HashMap<(u32, u32), StyleAtomID> {
-        &self.qualified
-    }
 }
 
 impl Drop for DocumentAtoms {
@@ -513,21 +506,21 @@ mod tests {
         let _test_lock = GLOBAL_ATOM_TEST_LOCK.lock().unwrap();
         let first_atom;
         {
-            let mut first = DocumentAtoms::for_replay();
-            let mut second = DocumentAtoms::for_replay();
+            let mut first = DocumentAtoms::for_test();
+            let mut second = DocumentAtoms::for_test();
             first_atom = first.intern_raw(0x1234);
             assert_eq!(second.intern_raw(0x1234), first_atom);
             assert_ne!(second.intern_raw(0x5678), first_atom);
         }
-        let mut later = DocumentAtoms::for_replay();
+        let mut later = DocumentAtoms::for_test();
         assert_eq!(later.intern_raw(0x9abc), first_atom);
     }
 
     #[test]
     fn process_atoms_wait_for_every_raw_and_qualified_owner() {
         let _test_lock = GLOBAL_ATOM_TEST_LOCK.lock().unwrap();
-        let mut first = DocumentAtoms::for_replay();
-        let mut second = DocumentAtoms::for_replay();
+        let mut first = DocumentAtoms::for_test();
+        let mut second = DocumentAtoms::for_test();
         let namespace = first.intern_raw(0x1000);
         let name = first.intern_raw(0x2000);
         let qualified = first.intern_qualified(namespace, name);
@@ -542,7 +535,7 @@ mod tests {
 
         let second_reclaimable = prepare_sweep(&second, &mut HashSet::new());
         second.finish_sweep(&second_reclaimable);
-        let mut later = DocumentAtoms::for_replay();
+        let mut later = DocumentAtoms::for_test();
         assert_eq!(later.intern_raw(0x3000), namespace);
         assert_eq!(later.intern_raw(0x4000), name);
         assert_eq!(later.intern_qualified(namespace, name), qualified);
@@ -551,8 +544,8 @@ mod tests {
     #[test]
     fn qualified_atoms_share_the_global_identity_space() {
         let _test_lock = GLOBAL_ATOM_TEST_LOCK.lock().unwrap();
-        let mut first = DocumentAtoms::for_replay();
-        let mut second = DocumentAtoms::for_replay();
+        let mut first = DocumentAtoms::for_test();
+        let mut second = DocumentAtoms::for_test();
         let namespace = first.intern_raw(0x1000);
         let name = first.intern_raw(0x2000);
         assert_eq!(second.intern_raw(0x1000), namespace);

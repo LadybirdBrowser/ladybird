@@ -37,12 +37,6 @@ impl Clone for AnimatedOverlay {
     }
 }
 
-impl Drop for AnimatedOverlay {
-    fn drop(&mut self) {
-        crate::css::style::record_replay::invalidate_pointer(std::ptr::from_ref(self) as usize);
-    }
-}
-
 /// The authoritative Rust-owned entry. C++ only borrows spans of this representation; while an
 /// entry is stored in the overlay, `value` owns one strong reference.
 #[repr(C)]

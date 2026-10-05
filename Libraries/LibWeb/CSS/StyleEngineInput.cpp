@@ -254,7 +254,6 @@ static StyleEngineFFI::FfiTreeRelations relations_of(DOM::Element& element, Styl
         .next_element_sibling = identity_of_arrived_next_sibling(element.next_element_sibling()).value(),
         .tree_scope = tree_scope.value(),
         .assigned_slot = assigned_slot.value(),
-        .reserved = 0,
     };
 }
 
@@ -280,7 +279,6 @@ static StyleEngineFFI::FfiTreeRelations detached_relations()
         .next_element_sibling = no_style_node.value(),
         .tree_scope = 0,
         .assigned_slot = no_style_node.value(),
-        .reserved = 0,
     };
 }
 

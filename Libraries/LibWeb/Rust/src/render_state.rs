@@ -100,7 +100,7 @@ impl RenderState {
         );
         drop(arena);
         // SAFETY: The state made the handle, and the arena that linked it is gone.
-        unsafe { engine.destroy() }.end_recording();
+        drop(unsafe { engine.destroy() });
     }
 
     /// How far the arena's rows have been written, which the host keeps to know whether the rows it holds still read

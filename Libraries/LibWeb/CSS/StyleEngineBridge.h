@@ -262,7 +262,6 @@ public:
     // Records the dependents of every container a style computation asked about before it had a box.
     void evaluate_size_containers_needing_evaluation_after_layout(Layout::BegunRead const& read);
     [[nodiscard]] Vector<StyleNodeID> viewport_dependent_style_nodes(Layout::BegunRead const& read);
-    void record_benchmark_marker(Utf16View);
     [[nodiscard]] bool has_recorded_input() const;
     // Nodes that connected without taking an identity yet count as recorded input: they arrive when the input is
     // next submitted.

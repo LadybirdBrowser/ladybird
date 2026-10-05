@@ -14,11 +14,6 @@
 use std::ffi::c_void;
 use std::sync::Arc;
 
-#[cfg(any(test, feature = "style-replay"))]
-use std::cell::RefCell;
-#[cfg(any(test, feature = "style-replay"))]
-use std::collections::HashMap;
-
 use crate::css::css_tokenizer::{ParserSource, ParserTokenKind, SourcePosition, TokenizerInput};
 use crate::css::parser::component_value::{ComponentKind, ComponentSerializationMode, ComponentValue};
 
@@ -371,83 +366,11 @@ impl Drop for RetainedComponentValueList {
     }
 }
 
-#[cfg(any(test, feature = "style-replay"))]
-thread_local! {
-    static REPLAY_STYLE_VALUES: RefCell<HashMap<u64, usize>> = RefCell::new(HashMap::new());
-}
-
-#[cfg(any(test, feature = "style-replay"))]
-#[derive(Clone, Copy)]
-struct ReplayStyleValue {
-    token: u64,
-    dependency_flags: u8,
-}
-
-#[cfg(any(test, feature = "style-replay"))]
-fn replay_style_values() -> &'static std::sync::Mutex<HashMap<usize, Box<ReplayStyleValue>>> {
-    static VALUES: std::sync::OnceLock<std::sync::Mutex<HashMap<usize, Box<ReplayStyleValue>>>> =
-        std::sync::OnceLock::new();
-    VALUES.get_or_init(Default::default)
-}
-
-#[cfg(any(test, feature = "style-replay"))]
-pub(crate) fn register_replay_style_value(token: u64, dependency_flags: u8) -> *const StyleValueData {
-    assert!(token != 0, "style-value tokens are nonzero");
-    // Replay sessions may reuse token numbers. Allocate distinct opaque identities per session
-    // thread, but keep their metadata accessible when a retained handle moves to another thread.
-    let pointer = REPLAY_STYLE_VALUES.with(|values| {
-        *values.borrow_mut().entry(token).or_insert_with(|| {
-            let value = Box::new(ReplayStyleValue {
-                token,
-                dependency_flags,
-            });
-            let pointer = (&*value as *const ReplayStyleValue) as usize;
-            replay_style_values().lock().unwrap().insert(pointer, value);
-            pointer
-        })
-    });
-    assert_eq!(
-        replay_style_value_metadata(pointer as *const StyleValueData)
-            .unwrap()
-            .dependency_flags,
-        dependency_flags
-    );
-    pointer as *const StyleValueData
-}
-
-#[cfg(any(test, feature = "style-replay"))]
-fn replay_style_value_metadata(value: *const StyleValueData) -> Option<ReplayStyleValue> {
-    replay_style_values()
-        .lock()
-        .unwrap()
-        .get(&(value as usize))
-        .map(|value| **value)
-}
-
-#[cfg(any(test, feature = "style-replay"))]
-pub(crate) fn replay_style_value_token(value: *const StyleValueData) -> Option<u64> {
-    replay_style_value_metadata(value).map(|value| value.token)
-}
-
-fn replay_style_value_dependency_flags(value: *const StyleValueData) -> Option<u8> {
-    #[cfg(any(test, feature = "style-replay"))]
-    return replay_style_value_metadata(value).map(|value| value.dependency_flags);
-    #[cfg(not(any(test, feature = "style-replay")))]
-    {
-        let _ = value;
-        None
-    }
-}
-
 /// # Safety
-/// `value` must be null, a registered replay token, or point to a live `StyleValueData`.
+/// `value` must be null or point to a live `StyleValueData`.
 pub(crate) unsafe fn style_value_content_hash(value: *const StyleValueData) -> u64 {
     if value.is_null() {
         return 0;
-    }
-    #[cfg(any(test, feature = "style-replay"))]
-    if let Some(value) = replay_style_value_metadata(value) {
-        return value.token;
     }
     unsafe { &*value }.content_hash()
 }
@@ -3823,13 +3746,6 @@ pub(crate) unsafe fn release_style_value(value: *const StyleValueData) {
     if value.is_null() {
         return;
     }
-    if replay_style_value_dependency_flags(value).is_some() {
-        return;
-    }
-    let value_reference = std::mem::ManuallyDrop::new(unsafe { Arc::from_raw(value) });
-    if Arc::strong_count(&value_reference) == 1 {
-        crate::css::style::record_replay::invalidate_pointer(value as usize);
-    }
     unsafe { Arc::decrement_strong_count(value) };
 }
 
@@ -3853,10 +3769,6 @@ pub unsafe extern "C" fn rust_style_value_equals(first: *const StyleValueData, s
         return true;
     }
     if first.is_null() || second.is_null() {
-        return false;
-    }
-    // Replay pointers are opaque identity tokens rather than readable StyleValueData.
-    if replay_style_value_dependency_flags(first).is_some() || replay_style_value_dependency_flags(second).is_some() {
         return false;
     }
     style_values_equal(unsafe { &*first }, unsafe { &*second })
@@ -3909,9 +3821,6 @@ fn style_values_equal(first: &StyleValueData, second: &StyleValueData) -> bool {
 /// `value` must be null or point at a live `StyleValueData` allocated by this module.
 pub(crate) unsafe fn retain_style_value(value: *const StyleValueData) -> *const StyleValueData {
     if !value.is_null() {
-        if replay_style_value_dependency_flags(value).is_some() {
-            return value;
-        }
         unsafe { Arc::increment_strong_count(value) };
     }
     value
@@ -4062,36 +3971,6 @@ mod equality_tests {
     }
 }
 
-#[cfg(test)]
-mod replay_tests {
-    use super::*;
-
-    #[test]
-    fn retained_replay_tokens_can_move_between_threads() {
-        let pointer = register_replay_style_value(0x1234, 0);
-        let value = unsafe { RetainedStyleValueData::from_retained_pointer(pointer) };
-        std::thread::spawn(move || {
-            let copy = value.clone();
-            assert_eq!(unsafe { style_value_content_hash(copy.pointer()) }, 0x1234);
-            assert_eq!(replay_style_value_token(copy.pointer()), Some(0x1234));
-        })
-        .join()
-        .unwrap();
-    }
-
-    #[test]
-    fn distinct_replay_tokens_compare_unequal_without_being_dereferenced() {
-        let first = register_replay_style_value(0x1234, 0);
-        let second = register_replay_style_value(0x5678, 0);
-
-        assert_eq!(replay_style_value_token(first), Some(0x1234));
-        assert_eq!(replay_style_value_token(second), Some(0x5678));
-        assert_eq!(replay_style_value_token(std::ptr::null()), None);
-        assert!(unsafe { rust_style_value_equals(first, first) });
-        assert!(!unsafe { rust_style_value_equals(first, second) });
-    }
-}
-
 /// Whether a value's computed color depends on the element's used currentcolor: the
 /// currentcolor keyword itself, a color function whose nested colors do, an Effects list
 /// whose shadow or filter colors do, or a scrollbar color whose thumb or track color does.
@@ -4150,9 +4029,6 @@ pub(crate) fn value_may_depend_on_font_metrics(value: &StyleValueData) -> bool {
 }
 
 pub(crate) fn style_value_dependency_flags(value: *const StyleValueData) -> u8 {
-    if let Some(flags) = replay_style_value_dependency_flags(value) {
-        return flags;
-    }
     let value = unsafe { &*value };
     u8::from(value_depends_on_current_color(value))
         | (u8::from(value_depends_on_color_scheme(value)) << 1)
