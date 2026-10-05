@@ -34,15 +34,14 @@
 //!                        │ assembled bytecode
 //!                        ▼
 //! ┌─────────────────────────────────────────────────────┐
-//! │  FFI (cpp_runtime/ffi.rs → BytecodeFactory.cpp)     │
-//! │  Creates Executable from assembled data             │
+//! │  Runtime (host.rs)                                  │
+//! │  Creates an executable from the compiled program    │
 //! └─────────────────────────────────────────────────────┘
 //! ```
 //!
 //! ## Module overview
 //!
 //! - `compile.rs` — Parse and compile pipeline shared by every runtime
-//! - `cpp_runtime/` — `extern "C"` entry points and FFI for the C++ runtime
 //! - `host.rs` — Functions every embedding runtime provides to the frontend
 //! - `token.rs` — Token types
 //! - `tokenize.rs` — Tokens of a source without parsing it, for syntax highlighting
@@ -84,11 +83,6 @@ macro_rules! utf16 {
         VALUE.as_slice()
     }};
 }
-
-// cbindgen writes RustFFI.h in the order it parses modules, so the C++ glue is
-// declared first to keep the entry points at the top of the header.
-#[cfg(feature = "cpp-runtime")]
-mod cpp_runtime;
 
 pub mod ast;
 pub mod ast_dump;

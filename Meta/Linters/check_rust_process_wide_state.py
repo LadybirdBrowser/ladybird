@@ -34,7 +34,6 @@ ALLOWED = {
     "Libraries/LibCompositing/Rust/src/display_list/replay.rs:WARM_REPLAY_SCRATCH_STORAGE": "per-thread replay scratch; a second copy costs memory, never an answer",
     "Libraries/LibJS/Flap/src/low_ir/lowering.rs:LABELS": "per-thread scratch buffer; a second copy costs memory, never an answer",
     "Libraries/LibJS/Rust/src/bytecode/generator.rs:SHOULD_VERIFY": "memo of one environment variable, which every copy reads the same way",
-    "Libraries/LibJS/Rust/src/cpp_runtime/entry_points.rs:FREED_FOREIGN_OWNERS": "counter of a test in the cargo test binary that has no C++ side",
     "Libraries/LibJS/Rust/src/test_host.rs:FLY_STRINGS": "test stub for AK's fly string table, in the cargo test binary that has no C++ side",
     "Libraries/LibWeb/HTML/Parser/Rust/src/token.rs:SPARE_ATTRIBUTE_LISTS": "per-thread allocation pool; a second copy costs memory, never an answer",
     "Libraries/LibWeb/HTML/Parser/Rust/src/token.rs:SPARE_ATTRIBUTE_VALUES": "per-thread allocation pool; a second copy costs memory, never an answer",
