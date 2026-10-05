@@ -254,7 +254,6 @@ impl StyleJobAnswer {
 
 impl RenderJob for StyleJob {
     type Answer = StyleJobAnswer;
-    const IS_STYLE: bool = true;
 
     fn run_on(self, state: &mut RenderState) -> StyleJobAnswer {
         self.run(state.engine_mut())

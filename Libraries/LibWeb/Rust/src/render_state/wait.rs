@@ -241,18 +241,12 @@ pub(crate) trait RenderJob: Send {
     /// What the render state answers the job with.
     type Answer: Send;
 
-    /// Whether the job is a style transaction, which leaves a forced read's layout to a job of its own.
-    const IS_STYLE: bool;
-
     /// Runs the job on `state`, the render state of the document it was made for.
     fn run_on(self, state: &mut RenderState) -> Self::Answer;
 }
 
 /// Runs `job`, a style or layout job of `host`'s document, in `read`, and waits for its answer.
 pub(crate) fn run_job<J: RenderJob>(read: &BegunRead, host: &DocumentHost, job: J) -> J::Answer {
-    if !J::IS_STYLE {
-        host.forget_layout_up_to_date();
-    }
     host.run(read, true, move |state| job.run_on(state))
 }
 
