@@ -934,16 +934,9 @@ impl GridItem {
 }
 
 pub(crate) struct GridFormattingContext<'pass> {
-    purpose: formatting_context::LayoutPurpose,
-    records: &'pass RunRecords<'pass>,
-    grid_container: Node,
+    run: FormattingContextRun<'pass>,
     derived_baselines_of_root_box: DerivedBaselines,
     parent_grid: Option<ParentGridData<'pass>>,
-    layout_mode: LayoutMode,
-    callbacks: LayoutPass<'pass>,
-    should_collect_devtools_layout_data: bool,
-    treat_block_axis_percentage_insets_as_auto_beyond_root: bool,
-    fragments: Option<std::rc::Rc<fragment_tree::RunFragmentBuilder>>,
     available_space: Option<AvailableSpace>,
     layout_input: Option<LayoutInput>,
     column_lines: Vec<Vec<LineName>>,
@@ -1027,19 +1020,14 @@ impl<'pass> GridFormattingContext<'pass> {
     pub(crate) fn new(run: &FormattingContextRun<'pass>, parent_grid: Option<&GridFormattingContext<'pass>>) -> Self {
         let grid_container = run.box_;
         Self {
-            purpose: run.purpose,
-            records: run.records,
-            grid_container,
+            run: FormattingContextRun {
+                previous_line_data: None,
+                ..run.clone()
+            },
             derived_baselines_of_root_box: DerivedBaselines::default(),
             parent_grid: parent_grid
                 .filter(|_| grid_template_declares_a_subgrid_axis(&run.callbacks, grid_container))
                 .map(|parent| ParentGridData::for_child_container(parent, grid_container)),
-            layout_mode: run.layout_mode,
-            callbacks: run.callbacks,
-            should_collect_devtools_layout_data: run.should_collect_devtools_layout_data,
-            treat_block_axis_percentage_insets_as_auto_beyond_root: run
-                .treat_block_axis_percentage_insets_as_auto_beyond_root,
-            fragments: run.fragments.clone(),
             available_space: None,
             layout_input: None,
             column_lines: Vec::new(),
@@ -1058,21 +1046,6 @@ impl<'pass> GridFormattingContext<'pass> {
             automatic_content_block_size: CssPixels::default(),
             row_alignment_container_size: CssPixels::default(),
             use_row_alignment_container_size: false,
-        }
-    }
-
-    fn formatting_context_run(&self) -> FormattingContextRun<'pass> {
-        FormattingContextRun {
-            purpose: self.purpose,
-            records: self.records,
-            box_: self.grid_container,
-            layout_mode: self.layout_mode,
-            callbacks: self.callbacks,
-            should_collect_devtools_layout_data: self.should_collect_devtools_layout_data,
-            treat_block_axis_percentage_insets_as_auto_beyond_root: self
-                .treat_block_axis_percentage_insets_as_auto_beyond_root,
-            fragments: self.fragments.clone(),
-            previous_line_data: None,
         }
     }
 
@@ -1098,29 +1071,29 @@ impl<'pass> GridFormattingContext<'pass> {
     }
 
     fn container_used(&self) -> &'pass UsedValues {
-        self.records.used_values(self.grid_container)
+        self.run.records.used_values(self.run.box_)
     }
 
     fn used(&self, item: GridItem) -> &'pass UsedValues {
-        self.records.used_values(item.box_)
+        self.run.records.used_values(item.box_)
     }
     fn style(&self, node: Node) -> StyleValues<'pass> {
-        StyleValues::for_node(&self.callbacks, node)
+        StyleValues::for_node(&self.run.callbacks, node)
     }
 
     fn facts(&self, node: Node) -> NodeFacts<'_> {
-        NodeFacts::new(&self.callbacks, node)
+        NodeFacts::new(&self.run.callbacks, node)
     }
 
     /// The node's computed grid style group, read in place. The payload
     /// outlives the pass because the node's ComputedValues keep it alive and
     /// style containers are only replaced between passes.
     fn grid_style(&self, node: Node) -> &'pass GridValues {
-        ComputedValuesView::new(&self.callbacks.style_payloads(node).groups).grid_values()
+        ComputedValuesView::new(&self.run.callbacks.style_payloads(node).groups).grid_values()
     }
 
     fn sizing(&self) -> sizing_context::SizingContext<'pass> {
-        sizing_context::SizingContext::new(self.purpose, self.records, self.callbacks)
+        sizing_context::SizingContext::new(self.run.purpose, self.run.records, self.run.callbacks)
     }
 
     fn parent_grid(&self) -> Option<&ParentGridData<'pass>> {
@@ -1158,7 +1131,7 @@ impl<'pass> GridFormattingContext<'pass> {
     }
 
     fn axis_gap_value(&self, axis: Axis) -> &'pass ComputedGap {
-        let style = self.style(self.grid_container);
+        let style = self.style(self.run.box_);
         axis.select(style.column_gap(), style.row_gap())
     }
 
@@ -1528,12 +1501,15 @@ impl<'pass> GridFormattingContext<'pass> {
         let mut inputs = Vec::new();
         let subgridded_columns = self.container_is_subgridded(Axis::Column);
         let subgridded_rows = self.container_is_subgridded(Axis::Row);
-        for child in self.callbacks.children(self.grid_container) {
+        for child in self.run.callbacks.children(self.run.box_) {
             let box_facts = self.facts(child);
             if box_facts.is_box() && !box_facts.is_absolutely_positioned() {
-                let skip = self.callbacks.can_skip_is_anonymous_text_run(child);
+                let skip = self.run.callbacks.can_skip_is_anonymous_text_run(child);
                 if !skip {
-                    self.callbacks.arena().set_node_flag(child, NodeFlag::IsGridItem, true);
+                    self.run
+                        .callbacks
+                        .arena()
+                        .set_node_flag(child, NodeFlag::IsGridItem, true);
                     let child_grid_style = self.grid_style(child);
                     let source = TrackListSource::from_grid_style(child_grid_style);
                     let column_subgrid_span = child_grid_style
@@ -1562,14 +1538,17 @@ impl<'pass> GridFormattingContext<'pass> {
                             child_grid_style.names.raws(),
                         ),
                     });
-                    self.records
-                        .create_used_values(&self.callbacks, child, ContainingBlockConstraints::default());
+                    self.run.records.create_used_values(
+                        &self.run.callbacks,
+                        child,
+                        ContainingBlockConstraints::default(),
+                    );
                     nodes.push(child);
                 }
             }
         }
 
-        let style = self.style(self.grid_container);
+        let style = self.style(self.run.box_);
         let mut result = place_items_with_grid(
             &inputs,
             self.column_lines.len().saturating_sub(1),
@@ -1659,7 +1638,7 @@ impl<'pass> GridFormattingContext<'pass> {
             for offset in 0..parent_item.span(axis) {
                 let index = parent_item.position(axis) + offset as i32;
                 if let Some(parent_track) = usize::try_from(index).ok().and_then(|index| parent_tracks.get(index)) {
-                    if self.layout_mode == LayoutMode::IntrinsicSizing {
+                    if self.run.layout_mode == LayoutMode::IntrinsicSizing {
                         // https://drafts.csswg.org/css-grid-2/#subgrid-size-contribution
                         // The subgrid itself lays out as an ordinary grid item in its parent grid,
                         // but acts as if it was completely empty for track sizing purposes in the
@@ -1806,7 +1785,7 @@ impl<'pass> GridFormattingContext<'pass> {
     }
 
     fn content_alignment(&self, axis: Axis) -> Alignment {
-        let style = self.style(self.grid_container);
+        let style = self.style(self.run.box_);
         axis.select(
             inline_content_alignment(style.justify_content()),
             block_content_alignment(style.align_content()),
@@ -1911,10 +1890,9 @@ impl<'pass> GridFormattingContext<'pass> {
         //
         // Intrinsic contributions during track sizing measure items against the grid container's own content box, since the
         // grid area does not exist yet.
-        let inherited = self.sizing().constraints_for_child_context(
-            self.grid_container,
-            self.layout_input.unwrap().containing_block_constraints,
-        );
+        let inherited = self
+            .sizing()
+            .constraints_for_child_context(self.run.box_, self.layout_input.unwrap().containing_block_constraints);
         ContainingBlockConstraints {
             percentage_basis_inline_size: None,
             percentage_basis_block_size: None,
@@ -1923,10 +1901,8 @@ impl<'pass> GridFormattingContext<'pass> {
     }
 
     fn container_constraints(&self) -> ContainingBlockConstraints {
-        self.sizing().constraints_for_child_context(
-            self.grid_container,
-            self.layout_input.unwrap().containing_block_constraints,
-        )
+        self.sizing()
+            .constraints_for_child_context(self.run.box_, self.layout_input.unwrap().containing_block_constraints)
     }
 
     fn intrinsic_contribution_constraints(&self, item: GridItem, axis: Axis) -> ContainingBlockConstraints {
@@ -2268,7 +2244,7 @@ impl<'pass> GridFormattingContext<'pass> {
         let available = self.available_space.unwrap();
         let constraints = self.layout_input.unwrap().containing_block_constraints;
         self.sizing().calculate_inner_size_for_property(
-            self.grid_container,
+            self.run.box_,
             axis.sizing_axis(),
             axis.select(SizingProperty::MaxWidth, SizingProperty::MaxHeight),
             available,
@@ -2281,10 +2257,10 @@ impl<'pass> GridFormattingContext<'pass> {
         let constraints = self.layout_input.unwrap().containing_block_constraints;
         let is_none = if axis.is_column() {
             self.sizing()
-                .should_treat_max_inline_size_as_none(self.grid_container, available, constraints)
+                .should_treat_max_inline_size_as_none(self.run.box_, available, constraints)
         } else {
             self.sizing()
-                .should_treat_max_block_size_as_none(self.grid_container, available, constraints)
+                .should_treat_max_block_size_as_none(self.run.box_, available, constraints)
         };
         if is_none {
             return None;
@@ -2294,10 +2270,10 @@ impl<'pass> GridFormattingContext<'pass> {
 
     fn grid_container_maximum_size_for_maximize_tracks(&self, axis: Axis) -> Option<CssPixels> {
         let available_size = self.axis_available(axis);
-        let computed_values = self.style(self.grid_container);
+        let computed_values = self.style(self.run.box_);
         let should_treat_grid_container_maximum_size_as_none = if axis.is_column() {
             self.sizing().should_treat_max_inline_size_as_none(
-                self.grid_container,
+                self.run.box_,
                 available_size,
                 self.layout_input.unwrap().containing_block_constraints,
             )
@@ -2441,7 +2417,7 @@ impl<'pass> GridFormattingContext<'pass> {
     }
 
     fn subgrid_item_contributions_to_track_sizing(&self, subgrid: GridItem, axis: Axis) -> Vec<ItemContribution> {
-        let scratch = formatting_context::MeasurementState::create(self.callbacks);
+        let scratch = formatting_context::MeasurementState::create(self.run.callbacks);
         let live = self.used(subgrid);
         let mut available = self.available_space.unwrap();
         if !axis.is_column() && live.has_definite_inline_size() {
@@ -2460,10 +2436,10 @@ impl<'pass> GridFormattingContext<'pass> {
         scratch_root
             .has_definite_block_size
             .set(live.has_definite_block_size.get());
-        let arena = self.callbacks.arena();
-        let containing_block = self.callbacks.in_flow_containing_block(subgrid.box_);
+        let arena = self.run.callbacks.arena();
+        let containing_block = self.run.callbacks.in_flow_containing_block(subgrid.box_);
         RunRecords::with_root(
-            self.callbacks.scratch(),
+            self.run.callbacks.scratch(),
             arena,
             subgrid.box_,
             containing_block,
@@ -2474,7 +2450,7 @@ impl<'pass> GridFormattingContext<'pass> {
                     records,
                     box_: subgrid.box_,
                     layout_mode: LayoutMode::IntrinsicSizing,
-                    callbacks: self.callbacks,
+                    callbacks: self.run.callbacks,
                     should_collect_devtools_layout_data: false,
                     treat_block_axis_percentage_insets_as_auto_beyond_root: false,
                     fragments: None,
@@ -2482,7 +2458,7 @@ impl<'pass> GridFormattingContext<'pass> {
                 };
                 let mut context = GridFormattingContext::new(&scratch_run, Some(self));
                 context.reset_for_run(input);
-                let grid_style = context.grid_style(context.grid_container);
+                let grid_style = context.grid_style(context.run.box_);
                 context.cache_subgrid_axes(grid_style);
                 let (columns, rows) = context.initialize_lines(grid_style);
                 context.place_items();
@@ -2548,7 +2524,7 @@ impl<'pass> GridFormattingContext<'pass> {
     fn run_track_sizing(&mut self, axis: Axis) {
         let mut tracks = self.interleaved_tracks(axis);
         let mut contributions = self.item_contributions_to_track_sizing(axis);
-        let style = self.style(self.grid_container);
+        let style = self.style(self.run.box_);
         let distribution_stretches = axis.select(
             matches!(
                 style.justify_content(),
@@ -2610,7 +2586,7 @@ impl<'pass> GridFormattingContext<'pass> {
 
     fn item_alignment_for_node(&self, node: Node, axis: Axis) -> Alignment {
         let item_style = self.style(node);
-        let container_style = self.style(self.grid_container);
+        let container_style = self.style(self.run.box_);
         axis.select(
             inline_item_alignment(item_style.justify_self(), container_style.justify_items()),
             block_item_alignment(item_style.align_self(), container_style.align_items()),
@@ -2976,7 +2952,7 @@ impl<'pass> GridFormattingContext<'pass> {
             return self.container_used().content_inline_size.get();
         }
         if self.use_row_alignment_container_size {
-            let style = self.style(self.grid_container);
+            let style = self.style(self.run.box_);
             if !style.min_height().is_auto() {
                 return self
                     .row_alignment_container_size
@@ -3010,13 +2986,13 @@ impl<'pass> GridFormattingContext<'pass> {
         let mut block_size = self.automatic_content_block_size;
         let available = self.available_space.unwrap();
         let constraints = self.layout_input.unwrap().containing_block_constraints;
-        let style = self.style(self.grid_container);
+        let style = self.style(self.run.box_);
         let sizing = self.sizing();
         if !style.max_height().is_auto()
-            && !sizing.should_treat_max_block_size_as_none(self.grid_container, available.block_size, constraints)
+            && !sizing.should_treat_max_block_size_as_none(self.run.box_, available.block_size, constraints)
         {
             block_size = block_size.min(sizing.calculate_inner_size_for_property(
-                self.grid_container,
+                self.run.box_,
                 SizingAxis::Block,
                 SizingProperty::MaxHeight,
                 available,
@@ -3025,7 +3001,7 @@ impl<'pass> GridFormattingContext<'pass> {
         }
         if !style.min_height().is_auto() {
             block_size = block_size.max(sizing.calculate_inner_size_for_property(
-                self.grid_container,
+                self.run.box_,
                 SizingAxis::Block,
                 SizingProperty::MinHeight,
                 available,
@@ -3239,7 +3215,7 @@ impl<'pass> GridFormattingContext<'pass> {
             // Resolve relative-position insets before placement seals the
             // item's committed metrics.
             abspos_engine::compute_inset_native(run, item.box_, area.size.inline_size, area.size.block_size);
-            formatting_context::place_child(&self.formatting_context_run(), item.box_, offset, None);
+            formatting_context::place_child(&self.run, item.box_, offset, None);
         }
         self.derived_baselines_of_root_box = DerivedBaselines {
             first: self.baseline_of_items(formatting_context::BaselineSet::First),
@@ -3270,12 +3246,12 @@ impl<'pass> GridFormattingContext<'pass> {
             formatting_context::BaselineSet::Last => self.items.iter().max_by_key(row_major_order),
         })?;
         // NB: An item in another writing mode has no baseline in the grid's inline axis.
-        let source = if self.style(item.box_).writing_mode() != self.style(self.grid_container).writing_mode() {
+        let source = if self.style(item.box_).writing_mode() != self.style(self.run.box_).writing_mode() {
             formatting_context::ChildBaselineSource::Synthesized
         } else {
             formatting_context::ChildBaselineSource::OwnOrSynthesized
         };
-        formatting_context::baseline_of_child(self.records, &self.callbacks, item.box_, baseline_set, source)
+        formatting_context::baseline_of_child(self.run.records, &self.run.callbacks, item.box_, baseline_set, source)
     }
 
     fn used_track_list_data(&self, axis: Axis, subgrid: bool) -> OwnedUsedGridTrackList {
@@ -3317,7 +3293,7 @@ impl<'pass> GridFormattingContext<'pass> {
     }
 
     fn save_devtools_data(&self, grid_style: &GridValues) {
-        if !self.should_collect_devtools_layout_data {
+        if !self.run.should_collect_devtools_layout_data {
             return;
         }
         let serialize = |axis: Axis| {
@@ -3411,7 +3387,7 @@ impl<'pass> GridFormattingContext<'pass> {
             })
             .collect::<Vec<_>>();
         let fragment = GridLayoutFragment { areas, columns, rows };
-        let style = self.style(self.grid_container);
+        let style = self.style(self.run.box_);
         let data = GridLayoutData {
             direction: style.direction(),
             writing_mode: style.writing_mode(),
@@ -3430,16 +3406,16 @@ impl<'pass> GridFormattingContext<'pass> {
         //               parent inline formatting context derives the fragment's baseline from them.
         //               An automatic block size must also be computed here, since a parent block
         //               formatting context takes it from our run.
-        if self.layout_mode == LayoutMode::IntrinsicSizing
+        if self.run.layout_mode == LayoutMode::IntrinsicSizing
             && !available.inline_size.is_intrinsic_sizing_constraint()
             && !available.block_size.is_intrinsic_sizing_constraint()
-            && !self.facts(self.grid_container).display().is_inline_outside()
+            && !self.facts(self.run.box_).display().is_inline_outside()
             && self.container_used().has_definite_block_size()
         {
             return;
         }
         self.reset_for_run(input);
-        let grid_style = self.grid_style(self.grid_container);
+        let grid_style = self.grid_style(self.run.box_);
         self.cache_subgrid_axes(grid_style);
         // NOTE: We store explicit grid sizes to later use in determining the position of items with negative index.
         let (columns, rows) = self.initialize_lines(grid_style);
@@ -3468,16 +3444,16 @@ impl<'pass> GridFormattingContext<'pass> {
         self.row_alignment_container_size = self.automatic_content_block_size;
         self.use_row_alignment_container_size = false;
         let intrinsic_block_size = self.automatic_content_block_size;
-        if self.layout_mode == LayoutMode::Normal && available.block_size == AvailableSize::Indefinite {
+        if self.run.layout_mode == LayoutMode::Normal && available.block_size == AvailableSize::Indefinite {
             let resolved_block_size = self.used_container_block_size_for_second_row_layout();
             self.rerun_rows_with_container_block_size(resolved_block_size);
             self.row_alignment_container_size = resolved_block_size;
             self.use_row_alignment_container_size = true;
             self.automatic_content_block_size = intrinsic_block_size;
-        } else if self.layout_mode == LayoutMode::Normal
+        } else if self.run.layout_mode == LayoutMode::Normal
             && let AvailableSize::Definite(block_size) = available.block_size
             && self.sizing().should_treat_block_size_as_auto(
-                self.grid_container,
+                self.run.box_,
                 available,
                 self.layout_input.unwrap().containing_block_constraints,
             )
@@ -3523,10 +3499,10 @@ impl<'pass> GridFormattingContext<'pass> {
     }
 
     pub(crate) fn parent_did_dimension(&self) {
-        if self.layout_mode != LayoutMode::Normal {
+        if self.run.layout_mode != LayoutMode::Normal {
             return;
         }
-        for child in self.callbacks.children(self.grid_container) {
+        for child in self.run.callbacks.children(self.run.box_) {
             if self.facts(child).is_absolutely_positioned() {
                 let rect = abspos_inputs::StaticPositionRect {
                     rect: geometry::LogicalRect::default(),
@@ -3538,22 +3514,22 @@ impl<'pass> GridFormattingContext<'pass> {
                 // The grid area supplies both the containing block and the
                 // static position for the grid's own abspos children.
                 let containing_block_info = node_facts::has_flag(
-                    self.callbacks.node_data(self.grid_container),
+                    self.run.callbacks.node_data(self.run.box_),
                     node_facts::containing_block_establishment_flag(self.facts(child).is_fixed_position()),
                 )
                 .then(|| self.abspos_containing_block_info(child));
                 formatting_context::register_contained_abspos_child(
-                    &self.callbacks,
-                    self.fragments.as_deref(),
-                    self.grid_container,
+                    &self.run.callbacks,
+                    self.run.fragments.as_deref(),
+                    self.run.box_,
                     child,
                     rect,
                     containing_block_info,
                 );
             }
         }
-        if let Some(fragments) = self.fragments.as_deref() {
-            for child in fragments.pending_abspos_children_awaiting_containing_block_info(self.grid_container) {
+        if let Some(fragments) = self.run.fragments.as_deref() {
+            for child in fragments.pending_abspos_children_awaiting_containing_block_info(self.run.box_) {
                 // Deeper descendants inside grid items still get the grid area
                 // as their containing block, but their static position comes
                 // from their in-flow ancestor, so axis modes fall back to

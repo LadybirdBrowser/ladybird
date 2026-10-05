@@ -173,14 +173,7 @@ struct AxisAgnosticAvailableSpace {
 }
 
 pub(super) struct FlexFormattingContext<'pass> {
-    purpose: formatting_context::LayoutPurpose,
-    records: &'pass RunRecords<'pass>,
-    flex_container: Node,
-    layout_mode: LayoutMode,
-    callbacks: LayoutPass<'pass>,
-    fragments: Option<std::rc::Rc<fragment_tree::RunFragmentBuilder>>,
-    should_collect_devtools_layout_data: bool,
-    treat_block_axis_percentage_insets_as_auto_beyond_root: bool,
+    run: FormattingContextRun<'pass>,
     flex_lines: Vec<FlexLine>,
     flex_items: Vec<FlexItem<'pass>>,
     derived_baselines_of_root_box: DerivedBaselines,
@@ -195,15 +188,10 @@ impl<'pass> FlexFormattingContext<'pass> {
     pub(super) fn new(run: &FormattingContextRun<'pass>) -> Self {
         let flex_direction = StyleValues::for_node(&run.callbacks, run.box_).effective_flex_direction();
         Self {
-            purpose: run.purpose,
-            records: run.records,
-            flex_container: run.box_,
-            layout_mode: run.layout_mode,
-            callbacks: run.callbacks,
-            fragments: run.fragments.clone(),
-            should_collect_devtools_layout_data: run.should_collect_devtools_layout_data,
-            treat_block_axis_percentage_insets_as_auto_beyond_root: run
-                .treat_block_axis_percentage_insets_as_auto_beyond_root,
+            run: FormattingContextRun {
+                previous_line_data: None,
+                ..run.clone()
+            },
             flex_lines: Vec::new(),
             flex_items: Vec::new(),
             derived_baselines_of_root_box: DerivedBaselines::default(),
@@ -215,43 +203,30 @@ impl<'pass> FlexFormattingContext<'pass> {
         }
     }
 
-    fn formatting_context_run(&self) -> FormattingContextRun<'pass> {
-        FormattingContextRun {
-            purpose: self.purpose,
-            records: self.records,
-            box_: self.flex_container,
-            layout_mode: self.layout_mode,
-            callbacks: self.callbacks,
-            should_collect_devtools_layout_data: self.should_collect_devtools_layout_data,
-            treat_block_axis_percentage_insets_as_auto_beyond_root: self
-                .treat_block_axis_percentage_insets_as_auto_beyond_root,
-            fragments: self.fragments.clone(),
-            previous_line_data: None,
-        }
-    }
-
     fn item_used(&self, index: usize) -> &'pass UsedValues {
-        self.records.used_values(self.flex_items[index].box_)
+        self.run.records.used_values(self.flex_items[index].box_)
     }
 
     fn container_used(&self) -> &'pass UsedValues {
-        self.records.used_values(self.flex_container)
+        self.run.records.used_values(self.run.box_)
     }
     fn style(&self, node: Node) -> StyleValues<'pass> {
-        StyleValues::for_node(&self.callbacks, node)
+        StyleValues::for_node(&self.run.callbacks, node)
     }
 
     fn facts(&self, node: Node) -> NodeFacts<'_> {
-        NodeFacts::new(&self.callbacks, node)
+        NodeFacts::new(&self.run.callbacks, node)
     }
 
     fn sizing(&self) -> sizing_context::SizingContext<'pass> {
-        sizing_context::SizingContext::new(self.purpose, self.records, self.callbacks)
+        sizing_context::SizingContext::new(self.run.purpose, self.run.records, self.run.callbacks)
     }
 
     fn create_used_values(&self, node: Node) -> &'pass UsedValues {
         let constraints = self.item_percentage_bases;
-        self.records.create_used_values(&self.callbacks, node, constraints)
+        self.run
+            .records
+            .create_used_values(&self.run.callbacks, node, constraints)
     }
 
     fn constraints_for_child_context(
@@ -263,10 +238,8 @@ impl<'pass> FlexFormattingContext<'pass> {
     }
 
     fn item_containing_block_constraints(&self) -> ContainingBlockConstraints {
-        let mut constraints = self.constraints_for_child_context(
-            self.flex_container,
-            self.layout_input.unwrap().containing_block_constraints,
-        );
+        let mut constraints =
+            self.constraints_for_child_context(self.run.box_, self.layout_input.unwrap().containing_block_constraints);
         constraints.percentage_basis_inline_size = self.item_percentage_bases.percentage_basis_inline_size;
         constraints.percentage_basis_block_size = self.item_percentage_bases.percentage_basis_block_size;
         constraints
@@ -282,7 +255,7 @@ impl<'pass> FlexFormattingContext<'pass> {
     }
 
     fn is_legacy_webkit_box(&self) -> bool {
-        self.style(self.flex_container).display().inside == display_inside::_WEBKIT_BOX
+        self.style(self.run.box_).display().inside == display_inside::_WEBKIT_BOX
     }
 
     fn used_flex_wrap(&self) -> u8 {
@@ -290,7 +263,7 @@ impl<'pass> FlexFormattingContext<'pass> {
         if self.is_legacy_webkit_box() {
             return flex_wrap::NOWRAP;
         }
-        self.style(self.flex_container).flex_wrap()
+        self.style(self.run.box_).flex_wrap()
     }
 
     fn flex_shrink_factor(&self, node: Node) -> f64 {
@@ -308,7 +281,7 @@ impl<'pass> FlexFormattingContext<'pass> {
     }
 
     fn main_axis_is_horizontal(&self) -> bool {
-        self.inline_axis_is_horizontal(self.flex_container) == self.is_row_layout()
+        self.inline_axis_is_horizontal(self.run.box_) == self.is_row_layout()
     }
 
     fn cross_axis_is_horizontal(&self) -> bool {
@@ -349,10 +322,10 @@ impl<'pass> FlexFormattingContext<'pass> {
     }
 
     fn cross_axis_is_reverse(&self) -> bool {
-        let mut reverse = if self.main_axis_is_parallel_to_inline_axis(self.flex_container) {
-            self.block_axis_is_reverse(self.flex_container)
+        let mut reverse = if self.main_axis_is_parallel_to_inline_axis(self.run.box_) {
+            self.block_axis_is_reverse(self.run.box_)
         } else {
-            self.inline_axis_is_reverse(self.flex_container)
+            self.inline_axis_is_reverse(self.run.box_)
         };
         if self.used_flex_wrap() == flex_wrap::WRAP_REVERSE {
             reverse = !reverse;
@@ -362,9 +335,9 @@ impl<'pass> FlexFormattingContext<'pass> {
 
     fn is_direction_reverse(&self) -> bool {
         let mut reverse = if self.is_row_layout() {
-            self.inline_axis_is_reverse(self.flex_container)
+            self.inline_axis_is_reverse(self.run.box_)
         } else {
-            self.block_axis_is_reverse(self.flex_container)
+            self.block_axis_is_reverse(self.run.box_)
         };
         if matches!(
             self.flex_direction,
@@ -783,14 +756,17 @@ impl<'pass> FlexFormattingContext<'pass> {
         // This is particularly important since we take references to the items stored in flex_items
         // later, whose addresses won't be stable if we added or removed any items.
         let mut buckets: HashMap<i32, Vec<Node>> = HashMap::default();
-        for child in self.callbacks.children(self.flex_container) {
+        for child in self.run.callbacks.children(self.run.box_) {
             let facts = self.facts(child);
             if facts.is_box() {
-                let skip = self.callbacks.can_skip_is_anonymous_text_run(child);
+                let skip = self.run.callbacks.can_skip_is_anonymous_text_run(child);
                 // Skip any "out-of-flow" children
                 if !skip && !facts.is_absolutely_positioned() {
                     // Flex inhibits floating, so only absolute positioning is out of flow here.
-                    self.callbacks.arena().set_node_flag(child, NodeFlag::IsFlexItem, true);
+                    self.run
+                        .callbacks
+                        .arena()
+                        .set_node_flag(child, NodeFlag::IsFlexItem, true);
                     self.create_used_values(child);
                     buckets.entry(self.style(child).order()).or_default().push(child);
                 }
@@ -1250,7 +1226,7 @@ impl<'pass> FlexFormattingContext<'pass> {
     }
 
     fn main_gap(&self) -> CssPixels {
-        let style = self.style(self.flex_container);
+        let style = self.style(self.run.box_);
         let gap = if self.is_row_layout() {
             style.column_gap()
         } else {
@@ -1260,7 +1236,7 @@ impl<'pass> FlexFormattingContext<'pass> {
     }
 
     fn cross_gap(&self) -> CssPixels {
-        let style = self.style(self.flex_container);
+        let style = self.style(self.run.box_);
         let gap = if self.is_row_layout() {
             style.row_gap()
         } else {
@@ -1599,9 +1575,9 @@ impl<'pass> FlexFormattingContext<'pass> {
             // 2. If a flex item’s flex basis is definite, then its post-flexing main size is also definite.
             // AD-HOC: 3. If a flex item’s main size was resolved from its intrinsic aspect ratio, then its post-flexing main size is also definite.
             let item_is_orthogonal = self.inline_axis_is_horizontal(self.flex_items[index].box_)
-                != self.inline_axis_is_horizontal(self.flex_container);
+                != self.inline_axis_is_horizontal(self.run.box_);
             let container_has_vertical_inline_main_axis =
-                self.is_row_layout() && !self.inline_axis_is_horizontal(self.flex_container);
+                self.is_row_layout() && !self.inline_axis_is_horizontal(self.run.box_);
             if self.has_definite_main_size_used(self.container_used())
                 || self.flex_items[index].used_flex_basis_is_definite
                 || self.flex_items[index].main_size_was_resolved_from_aspect_ratio
@@ -1643,7 +1619,7 @@ impl<'pass> FlexFormattingContext<'pass> {
 
     fn alignment_for_item(&self, node: Node) -> u8 {
         match self.style(node).align_self() {
-            align_self::AUTO => self.style(self.flex_container).align_items(),
+            align_self::AUTO => self.style(self.run.box_).align_items(),
             align_self::END => align_items::END,
             align_self::NORMAL => align_items::NORMAL,
             align_self::SELF_START => align_items::SELF_START,
@@ -1760,7 +1736,7 @@ impl<'pass> FlexFormattingContext<'pass> {
     fn calculate_inner_container_cross_size(&self, property: SizingProperty) -> CssPixels {
         let axis = self.cross_sizing_axis();
         self.calculate_inner_size_with_constraints(
-            self.flex_container,
+            self.run.box_,
             axis,
             property,
             self.available_space.unwrap(),
@@ -1807,16 +1783,16 @@ impl<'pass> FlexFormattingContext<'pass> {
                 .cross
                 .is_intrinsic_sizing_constraint()
         {
-            let min = self.computed_cross_min_size(self.flex_container).0;
+            let min = self.computed_cross_min_size(self.run.box_).0;
             let cross_min = if min.is_auto() {
                 CssPixels::default()
             } else {
-                self.calculate_inner_container_cross_size(self.computed_cross_min_size(self.flex_container).1)
+                self.calculate_inner_container_cross_size(self.computed_cross_min_size(self.run.box_).1)
             };
-            let cross_max = if self.should_treat_max_size_as_none(self.flex_container, true) {
+            let cross_max = if self.should_treat_max_size_as_none(self.run.box_, true) {
                 CssPixels::from_raw(i32::MAX)
             } else {
-                self.calculate_inner_container_cross_size(self.computed_cross_max_size(self.flex_container).1)
+                self.calculate_inner_container_cross_size(self.computed_cross_max_size(self.run.box_).1)
             };
             self.flex_lines[0].cross_size = css_clamp(self.flex_lines[0].cross_size, cross_min, cross_max);
         }
@@ -1827,10 +1803,10 @@ impl<'pass> FlexFormattingContext<'pass> {
         // If the flex container has a definite cross size, or its automatic
         // cross size is increased by a minimum cross size,
         if (!self.container_cross_size_is_known_for_layout()
-            && self.computed_cross_min_size(self.flex_container).0.is_auto())
+            && self.computed_cross_min_size(self.run.box_).0.is_auto())
             // align-content is stretch,
             || !matches!(
-                self.style(self.flex_container).align_content(),
+                self.style(self.run.box_).align_content(),
                 align_content::STRETCH | align_content::NORMAL
             )
         {
@@ -1977,7 +1953,7 @@ impl<'pass> FlexFormattingContext<'pass> {
             let mut space_between_items = CssPixels::default();
             let mut initial_offset = CssPixels::default();
             let number_of_items = item_count;
-            let justify = self.style(self.flex_container).justify_content();
+            let justify = self.style(self.run.box_).justify_content();
             if auto_margins == 0 && number_of_items > 0 {
                 match justify {
                     justify_content::START | justify_content::LEFT => {}
@@ -2241,7 +2217,7 @@ impl<'pass> FlexFormattingContext<'pass> {
         let mut gap_size = CssPixels::default();
         let mut place_backwards = false;
         let mut iterate_backwards = false;
-        match self.style(self.flex_container).align_content() {
+        match self.style(self.run.box_).align_content() {
             align_content::START => {
                 iterate_backwards = reverse_cross_axis;
             }
@@ -2347,7 +2323,7 @@ impl<'pass> FlexFormattingContext<'pass> {
         //        in a horizontal-tb container unless they are horizontal-tb themselves.
         self.alignment_for_item(self.flex_items[index].box_) == align_items::BASELINE
             && (!self.item_baseline_is_synthesized(index)
-                || self.style(self.flex_container).writing_mode() == writing_mode::HORIZONTAL_TB)
+                || self.style(self.run.box_).writing_mode() == writing_mode::HORIZONTAL_TB)
     }
 
     fn item_box_baseline(&self, index: usize) -> CssPixels {
@@ -2358,7 +2334,7 @@ impl<'pass> FlexFormattingContext<'pass> {
             return used.margin_box_top(collapsed) + used.content_block_size.get() + used.border_box_bottom(collapsed);
         }
         formatting_context::box_baseline_with_content_baselines(
-            &self.callbacks,
+            &self.run.callbacks,
             item.box_,
             self.item_used(index),
             formatting_context::BaselineSet::First,
@@ -2507,7 +2483,7 @@ impl<'pass> FlexFormattingContext<'pass> {
         // assuming both the child and the flex container were fixed-size boxes of their used size.
         // (For this purpose, auto margins are treated as zero.
 
-        let main_alignment = match self.style(self.flex_container).justify_content() {
+        let main_alignment = match self.style(self.run.box_).justify_content() {
             justify_content::START | justify_content::LEFT => StaticPositionAlignment::Start,
             justify_content::STRETCH
             | justify_content::NORMAL
@@ -2540,7 +2516,7 @@ impl<'pass> FlexFormattingContext<'pass> {
             (cross_size, main_size)
         };
         let (inline_size, block_size) = geometry::to_physical(
-            self.style(self.flex_container).writing_mode(),
+            self.style(self.run.box_).writing_mode(),
             logical_inline_size,
             logical_block_size,
         );
@@ -2550,7 +2526,7 @@ impl<'pass> FlexFormattingContext<'pass> {
             (cross_alignment, main_alignment)
         };
         let (inline_alignment, block_alignment) = geometry::to_physical(
-            self.style(self.flex_container).writing_mode(),
+            self.style(self.run.box_).writing_mode(),
             logical_inline_alignment,
             logical_block_alignment,
         );
@@ -2593,7 +2569,7 @@ impl<'pass> FlexFormattingContext<'pass> {
                     } else {
                         (item.cross_offset, item.main_offset, cross_size, main_size)
                     };
-                let writing_mode = self.style(self.flex_container).writing_mode();
+                let writing_mode = self.style(self.run.box_).writing_mode();
                 let (x, y) = geometry::to_physical(writing_mode, logical_inline_offset, logical_block_offset);
                 let (width, height) = geometry::to_physical(writing_mode, logical_inline_size, logical_block_size);
                 let rect = CssPixelRect { x, y, width, height };
@@ -2603,7 +2579,7 @@ impl<'pass> FlexFormattingContext<'pass> {
                 let main_min_size_property = self.select_main(style.min_width(), style.min_height());
                 let main_max_size_property = self.select_main(style.max_width(), style.max_height());
                 items.push(formatting_context::FlexLayoutItem {
-                    style_node: self.callbacks.arena().dom_node_style_node(node),
+                    style_node: self.run.callbacks.arena().dom_node_style_node(node),
                     rect,
                     main_base_size: item.flex_base_size,
                     main_delta_size: item.target_main_size - item.flex_base_size,
@@ -2660,7 +2636,7 @@ impl<'pass> FlexFormattingContext<'pass> {
                 items,
             });
         }
-        let style = self.style(self.flex_container);
+        let style = self.style(self.run.box_);
         let data = formatting_context::FlexLayoutData {
             align_content: style.align_content(),
             align_items: style.align_items(),
@@ -2838,7 +2814,7 @@ impl<'pass> FlexFormattingContext<'pass> {
         let available_space = self.available_space_for_items.unwrap().space;
         if !available_space.inline_size.is_intrinsic_sizing_constraint()
             || available_space.block_size != AvailableSize::Indefinite
-            || !self.facts(self.flex_container).display().is_inline_outside()
+            || !self.facts(self.run.box_).display().is_inline_outside()
         {
             return;
         }
@@ -2850,7 +2826,7 @@ impl<'pass> FlexFormattingContext<'pass> {
         let constraints = self.layout_input.unwrap().containing_block_constraints;
         if !self
             .sizing()
-            .should_treat_block_size_as_auto(self.flex_container, resolution_space, constraints)
+            .should_treat_block_size_as_auto(self.run.box_, resolution_space, constraints)
         {
             return;
         }
@@ -2903,7 +2879,7 @@ impl<'pass> FlexFormattingContext<'pass> {
     fn automatic_block_size_from_line_cross_sizes(&self) -> CssPixels {
         // https://drafts.csswg.org/css-align-3/#gap-percent
         // In Flex Layout: Cyclic percentage sizes resolve against zero in all cases.
-        let style = self.style(self.flex_container);
+        let style = self.style(self.run.box_);
         let gap = if self.is_row_layout() {
             style.row_gap()
         } else {
@@ -2920,7 +2896,7 @@ impl<'pass> FlexFormattingContext<'pass> {
 
     fn resolve_own_auto_block_size(&self, automatic_block_size: CssPixels, resolution_space: AvailableSpace) {
         self.sizing().resolve_used_block_size_if_treated_as_auto(
-            self.flex_container,
+            self.run.box_,
             resolution_space,
             self.layout_input.unwrap().containing_block_constraints,
             Some(automatic_block_size),
@@ -3092,7 +3068,7 @@ impl<'pass> FlexFormattingContext<'pass> {
         self.available_space = Some(available_space);
         self.layout_input = Some(layout_input);
         self.item_percentage_bases =
-            self.constraints_for_child_context(self.flex_container, layout_input.containing_block_constraints);
+            self.constraints_for_child_context(self.run.box_, layout_input.containing_block_constraints);
         // 1. Generate anonymous flex items
         self.generate_anonymous_flex_items();
         // 2. Determine the available main and cross space for the flex items
@@ -3148,7 +3124,7 @@ impl<'pass> FlexFormattingContext<'pass> {
         //               If this is a single-line flex container and the sum of flex bases sizes
         //               won't exceed the available space in the main axis, we know the layout
         //               algorithm won't have to shrink anything, thus not needing the minimum size.
-        let should_skip_automatic_minimum_size_clamp = self.layout_mode != LayoutMode::IntrinsicSizing
+        let should_skip_automatic_minimum_size_clamp = self.run.layout_mode != LayoutMode::IntrinsicSizing
             && self.is_single_line()
             && self.has_definite_main_size_used(self.container_used())
             && self
@@ -3242,7 +3218,7 @@ impl<'pass> FlexFormattingContext<'pass> {
         // https://drafts.csswg.org/css-flexbox-1/#definite-sizes
         // 4. Once the cross size of a flex line has been determined,
         //    the cross sizes of items in auto-sized flex containers are also considered definite for the purpose of layout.
-        if self.should_treat_cross_size_as_auto(self.flex_container) {
+        if self.should_treat_cross_size_as_auto(self.run.box_) {
             for index in 0..self.flex_items.len() {
                 let size = self.flex_items[index].cross_size.unwrap();
                 self.set_cross_size(index, size);
@@ -3259,11 +3235,11 @@ impl<'pass> FlexFormattingContext<'pass> {
         // NB: Block-level flex containers can therefore contribute baselines through an inline-block ancestor,
         //     including during intrinsic sizing.
         // OPTIMIZATION: Avoid laying out items solely for baselines when no inline ancestor needs them.
-        if !is_intrinsic_sizing || self.facts(self.flex_container).has_inline_level_inclusive_ancestor() {
+        if !is_intrinsic_sizing || self.facts(self.run.box_).has_inline_level_inclusive_ancestor() {
             self.layout_items_and_derive_baselines(run);
         }
 
-        if self.should_collect_devtools_layout_data {
+        if self.run.should_collect_devtools_layout_data {
             self.save_flex_layout_data();
         }
     }
@@ -3288,7 +3264,7 @@ impl<'pass> FlexFormattingContext<'pass> {
                     y: item.main_offset,
                 }
             };
-            formatting_context::place_child(&self.formatting_context_run(), item.box_, offset, None);
+            formatting_context::place_child(&self.run, item.box_, offset, None);
         }
         self.derived_baselines_of_root_box = DerivedBaselines {
             first: self.baseline_of_line(0, formatting_context::BaselineSet::First),
@@ -3333,8 +3309,8 @@ impl<'pass> FlexFormattingContext<'pass> {
             formatting_context::ChildBaselineSource::OwnOrSynthesized
         };
         formatting_context::baseline_of_child(
-            self.records,
-            &self.callbacks,
+            self.run.records,
+            &self.run.callbacks,
             self.flex_items[item].box_,
             baseline_set,
             source,
@@ -3342,16 +3318,16 @@ impl<'pass> FlexFormattingContext<'pass> {
     }
 
     pub(super) fn parent_did_dimension(&self) {
-        if self.layout_mode != LayoutMode::Normal {
+        if self.run.layout_mode != LayoutMode::Normal {
             return;
         }
-        for child in self.callbacks.children(self.flex_container) {
+        for child in self.run.callbacks.children(self.run.box_) {
             let facts = self.facts(child);
             if facts.is_box() && facts.is_absolutely_positioned() {
                 formatting_context::register_contained_abspos_child(
-                    &self.callbacks,
-                    self.fragments.as_deref(),
-                    self.flex_container,
+                    &self.run.callbacks,
+                    self.run.fragments.as_deref(),
+                    self.run.box_,
                     child,
                     self.calculate_static_position_rect(child),
                     None,
