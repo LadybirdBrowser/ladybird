@@ -45,12 +45,14 @@ void SVGUseElement::initialize_element()
     set_shadow_root(shadow_root);
 
     m_document_observer = DOM::DocumentObserver::create(document());
-    m_document_observer->set_document_completely_loaded([this]() {
-        // The href processing path already populated the shadow tree for resolved references,
-        // unless the referenced subtree changed while the document was still loading.
-        if (instance_root() && !m_needs_document_complete_reclone)
+    m_document_observer->set_document_readiness_observer([this](HTML::DocumentReadyState readiness) {
+        if (readiness != HTML::DocumentReadyState::Interactive)
             return;
-        m_needs_document_complete_reclone = false;
+        // The href processing path already populated the shadow tree for resolved references,
+        // unless the referenced subtree changed while the document was still being parsed.
+        if (instance_root() && !m_needs_parsing_complete_reclone)
+            return;
+        m_needs_parsing_complete_reclone = false;
         clone_element_tree_as_our_shadow_tree(referenced_element());
     });
 }
@@ -219,7 +221,7 @@ void SVGUseElement::svg_element_changed(SVGElement& svg_element)
     }
 }
 
-void SVGUseElement::svg_element_changed_before_document_complete(SVGElement& svg_element)
+void SVGUseElement::svg_element_changed_before_parsing_complete(SVGElement& svg_element)
 {
     auto to_clone = referenced_element();
     if (!to_clone)
@@ -227,7 +229,7 @@ void SVGUseElement::svg_element_changed_before_document_complete(SVGElement& svg
 
     // NOTE: We need to check the ancestor because attribute_changed of a child doesn't call children_changed on the parent(s)
     if (to_clone == GC::Ref { svg_element } || to_clone->is_ancestor_of(svg_element))
-        m_needs_document_complete_reclone = true;
+        m_needs_parsing_complete_reclone = true;
 }
 
 void SVGUseElement::svg_element_removed(SVGElement& svg_element)

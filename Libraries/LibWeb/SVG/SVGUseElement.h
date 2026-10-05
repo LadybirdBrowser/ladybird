@@ -27,7 +27,7 @@ public:
     virtual void attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_) override;
 
     void svg_element_changed(SVGElement&);
-    void svg_element_changed_before_document_complete(SVGElement&);
+    void svg_element_changed_before_parsing_complete(SVGElement&);
     void svg_element_removed(SVGElement&);
 
     // AD-HOC: The spec states that the x, y, width and height IDL attributes reflect the respective computed values and their
@@ -78,7 +78,7 @@ private:
     void register_for_referenced_element_changes();
     void unregister_for_referenced_element_changes();
 
-    bool m_needs_document_complete_reclone { false };
+    bool m_needs_parsing_complete_reclone { false };
 
     Optional<URL::URL> m_href;
 

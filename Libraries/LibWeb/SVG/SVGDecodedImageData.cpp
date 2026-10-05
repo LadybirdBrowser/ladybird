@@ -138,11 +138,6 @@ ErrorOr<GC::Ref<SVGDecodedImageData>> SVGDecodedImageData::create(GC::Ref<Page> 
     if (parse_failed)
         return Error::from_string_literal("SVGDecodedImageData: Failed to parse SVG");
 
-    // Mark the document as completely loaded so that <use> elements
-    // (which defer cloning until the document is complete) resolve
-    // forward references to elements parsed after them.
-    document->completely_finish_loading();
-
     auto* svg_root = document->first_child_of_type<SVG::SVGSVGElement>();
     if (!svg_root) {
         dbgln("SVGDecodedImageData: Invalid SVG input (no SVGSVGElement found)");

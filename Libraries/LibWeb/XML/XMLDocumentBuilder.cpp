@@ -53,6 +53,7 @@ XMLDocumentBuilder::XMLDocumentBuilder(DOM::Document& document, XMLScriptingSupp
 
 ErrorOr<void> XMLDocumentBuilder::set_source(ByteString source)
 {
+    m_document->update_readiness(HTML::DocumentReadyState::Loading);
     m_document->set_source(Utf16String::from_utf8_with_replacement_character(source.view()));
     return {};
 }
