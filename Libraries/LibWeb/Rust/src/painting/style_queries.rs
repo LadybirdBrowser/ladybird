@@ -203,35 +203,8 @@ pub(crate) fn has_paint_containment(arena: &impl PaintRead, node: NodeSlotId, st
     contained && containment_applies_to_display(arena, node, style)
 }
 
-fn kind_is_svg_box(kind: NodeKind) -> bool {
-    matches!(
-        kind,
-        NodeKind::SVGBox
-            | NodeKind::SVGClipBox
-            | NodeKind::SVGGeometryBox
-            | NodeKind::SVGGraphicsBox
-            | NodeKind::SVGImageBox
-            | NodeKind::SVGMaskBox
-            | NodeKind::SVGPatternBox
-            | NodeKind::SVGTextBox
-            | NodeKind::SVGTextPathBox
-    )
-}
-
-fn kind_is_svg_graphics_box(kind: NodeKind) -> bool {
-    matches!(
-        kind,
-        NodeKind::SVGGeometryBox
-            | NodeKind::SVGGraphicsBox
-            | NodeKind::SVGImageBox
-            | NodeKind::SVGMaskBox
-            | NodeKind::SVGTextBox
-            | NodeKind::SVGTextPathBox
-    )
-}
-
 pub(crate) fn kind_is_svg_element_box(kind: NodeKind) -> bool {
-    kind_is_svg_box(kind) || matches!(kind, NodeKind::SVGSVGBox | NodeKind::SVGForeignObjectBox)
+    node_facts::kind_is_svg_box(kind) || matches!(kind, NodeKind::SVGSVGBox | NodeKind::SVGForeignObjectBox)
 }
 
 pub(crate) fn node_is_root_element(arena: &impl PaintRead, node: NodeSlotId) -> bool {
@@ -383,7 +356,8 @@ pub(crate) fn is_transformable(arena: &impl PaintRead, node: NodeSlotId) -> bool
         if matches!(kind, NodeKind::SVGClipBox | NodeKind::SVGPatternBox) {
             return true;
         }
-        let is_renderable = (kind_is_svg_graphics_box(kind) && kind != NodeKind::SVGMaskBox)
+        let is_renderable = (crate::layout::svg_formatting_context::kind_is_svg_graphics_box(kind)
+            && kind != NodeKind::SVGMaskBox)
             || matches!(kind, NodeKind::SVGSVGBox | NodeKind::SVGForeignObjectBox);
         if !is_renderable {
             return false;
@@ -667,7 +641,7 @@ pub(crate) fn establishes_stacking_context(arena: &impl PaintRead, node: NodeSlo
         return false;
     };
 
-    if kind_is_svg_box(kind) {
+    if node_facts::kind_is_svg_box(kind) {
         return false;
     }
 
