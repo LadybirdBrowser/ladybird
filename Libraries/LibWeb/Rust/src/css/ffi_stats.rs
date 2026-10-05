@@ -41,46 +41,19 @@ macro_rules! define_ffi_ops {
 
 define_ffi_ops! {
     // Entries: C++ -> Rust.
-    CascadeBulkEntry => "cascadeBulkEntries",
-    CascadedStoreQueryEntry => "cascadedStoreQueryEntries",
-    CustomPropertyStoreLifecycleEntry => "customPropertyStoreLifecycleEntries",
-    LonghandDriverEntry => "longhandDriverEntries",
-    LonghandDriverPhaseCallback => "longhandDriverPhaseCallbacks",
-    ShorthandExpansionEntry => "shorthandExpansionEntries",
-    NestedPropertyComputeEntry => "nestedPropertyComputeEntries",
-    CalcOperationEntry => "calcOperationEntries",
-    CalcNodeBuildEntry => "calcNodeBuildEntries",
-    CalcNodeQueryEntry => "calcNodeQueryEntries",
-    CalcNodeRetainReleaseEntry => "calcNodeRetainReleaseEntries",
     StyleValueCreateEntry => "styleValueCreateEntries",
-    StyleValueDestroyEntry => "styleValueDestroyEntries",
-    StyleValueQueryEntry => "styleValueQueryEntries",
-    StyleValueSerializeEntry => "styleValueSerializeEntries",
-    StyleGroupCloneEntry => "styleGroupCloneEntries",
-    StyleGroupFreeEntry => "styleGroupFreeEntries",
     AnimationKeyframeLonghandEntry => "animationKeyframeLonghandEntries",
     AnimationEvaluationEntry => "animationEvaluationEntries",
     TransitionDecisionEntry => "transitionDecisionEntries",
-    // Computed longhand table passes whose cost follows the table's width rather than a change.
-
-    WinnerStoreBuilds => "winnerStoreBuilds",
-    WinnerStoreValueRetains => "winnerStoreValueRetains",
-    FlippedRuleVectorBuilds => "flippedRuleVectorBuilds",
-    ComputedGroupIdentityLookups => "computedGroupIdentityLookups",
+    // Computed longhand table copies, whose cost follows the table's width rather than a change.
     LonghandTableCopiedSlots => "longhandTableCopiedSlots",
     LonghandTableCopyRetains => "longhandTableCopyRetains",
-    LonghandTableStorageAllocations => "longhandTableStorageAllocations",
-    LonghandTableClone => "longhandTableClones",
-    LonghandTableFullHash => "longhandTableFullHashes",
-    LonghandTableSlotHash => "longhandTableSlotHashes",
     SubstitutionCallbackFreeParse => "substitutionCallbackFreeParses",
     SubstitutionCallbackParseRequest => "substitutionCallbackParseRequests",
     SizesAttributeParseEntry => "sizesAttributeParseEntries",
     // Ownership callbacks: Rust -> C++.
     StringRetainReleaseCallback => "stringRetainReleaseCallbacks",
-    SubstitutionOracleCallback => "substitutionOracleCallbacks",
     // CSS parser callbacks: Rust -> C++.
-    EvaluateConditionCallback => "evaluateConditionCallbacks",
     MediaEnvironmentCallback => "mediaEnvironmentCallbacks",
 }
 
@@ -377,51 +350,66 @@ mod counter_context_tests {
     fn observation_includes_live_and_completed_bridge_contexts() {
         let registry = Arc::new(Mutex::new(CounterRegistry::new()));
         let context = BridgeCounterContext::new(registry.clone());
-        context.counters.bump(FfiOp::LonghandTableSlotHash);
+        context.counters.bump(FfiOp::LonghandTableCopiedSlots);
         let (ready, ready_rx) = std::sync::mpsc::channel();
         let (finish, finish_rx) = std::sync::mpsc::channel();
         let other_registry = registry.clone();
         let other = std::thread::spawn(move || {
             let context = BridgeCounterContext::new(other_registry);
-            context.counters.bump(FfiOp::LonghandTableSlotHash);
-            context.counters.bump(FfiOp::StyleValueDestroyEntry);
+            context.counters.bump(FfiOp::LonghandTableCopiedSlots);
+            context.counters.bump(FfiOp::StyleValueCreateEntry);
             ready.send(()).unwrap();
             finish_rx.recv().unwrap();
         });
         ready_rx.recv().unwrap();
-        assert_eq!(registry.lock().unwrap().value(FfiOp::LonghandTableSlotHash as usize), 2);
         assert_eq!(
-            registry.lock().unwrap().value(FfiOp::StyleValueDestroyEntry as usize),
-            1
+            registry.lock().unwrap().value(FfiOp::LonghandTableCopiedSlots as usize),
+            2
         );
+        assert_eq!(registry.lock().unwrap().value(FfiOp::StyleValueCreateEntry as usize), 1);
         finish.send(()).unwrap();
         other.join().unwrap();
-        assert_eq!(registry.lock().unwrap().value(FfiOp::LonghandTableSlotHash as usize), 2);
         assert_eq!(
-            registry.lock().unwrap().value(FfiOp::StyleValueDestroyEntry as usize),
-            1
+            registry.lock().unwrap().value(FfiOp::LonghandTableCopiedSlots as usize),
+            2
         );
+        assert_eq!(registry.lock().unwrap().value(FfiOp::StyleValueCreateEntry as usize), 1);
         drop(context);
-        assert_eq!(registry.lock().unwrap().value(FfiOp::LonghandTableSlotHash as usize), 2);
+        assert_eq!(
+            registry.lock().unwrap().value(FfiOp::LonghandTableCopiedSlots as usize),
+            2
+        );
     }
 
     #[test]
     fn reset_clears_completed_counts_and_contexts_continue_counting() {
         let registry = Arc::new(Mutex::new(CounterRegistry::new()));
         let context = BridgeCounterContext::new(registry.clone());
-        context.counters.bump(FfiOp::LonghandTableSlotHash);
+        context.counters.bump(FfiOp::LonghandTableCopiedSlots);
         let completed = BridgeCounterContext::new(registry.clone());
-        completed.counters.bump(FfiOp::LonghandTableSlotHash);
+        completed.counters.bump(FfiOp::LonghandTableCopiedSlots);
         drop(completed);
-        assert_eq!(registry.lock().unwrap().value(FfiOp::LonghandTableSlotHash as usize), 2);
+        assert_eq!(
+            registry.lock().unwrap().value(FfiOp::LonghandTableCopiedSlots as usize),
+            2
+        );
         registry.lock().unwrap().reset();
-        assert_eq!(registry.lock().unwrap().value(FfiOp::LonghandTableSlotHash as usize), 0);
-        context.counters.bump(FfiOp::LonghandTableSlotHash);
+        assert_eq!(
+            registry.lock().unwrap().value(FfiOp::LonghandTableCopiedSlots as usize),
+            0
+        );
+        context.counters.bump(FfiOp::LonghandTableCopiedSlots);
         let later = BridgeCounterContext::new(registry.clone());
-        later.counters.bump(FfiOp::LonghandTableSlotHash);
+        later.counters.bump(FfiOp::LonghandTableCopiedSlots);
         drop(later);
-        assert_eq!(registry.lock().unwrap().value(FfiOp::LonghandTableSlotHash as usize), 2);
+        assert_eq!(
+            registry.lock().unwrap().value(FfiOp::LonghandTableCopiedSlots as usize),
+            2
+        );
         drop(context);
-        assert_eq!(registry.lock().unwrap().value(FfiOp::LonghandTableSlotHash as usize), 2);
+        assert_eq!(
+            registry.lock().unwrap().value(FfiOp::LonghandTableCopiedSlots as usize),
+            2
+        );
     }
 }

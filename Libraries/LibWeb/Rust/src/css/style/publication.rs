@@ -3322,7 +3322,6 @@ impl RetainedState {
             debug_assert!(false, "{invariant}");
             Ok(())
         };
-        crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::WinnerStoreBuilds);
         // An element's own values read what its animations sampled into its custom properties.
         let environment = match pseudo_kind {
             None => custom_property_cascade::SubstitutionEnvironment {
@@ -3598,9 +3597,6 @@ impl RetainedState {
             if !computable {
                 counters.bump(Counter::EngineComputedRecordBailValue);
                 return Err(Unanswered::Refused);
-            }
-            if matches!(value, WinnerValue::Substituted { .. }) {
-                crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::WinnerStoreValueRetains);
             }
             declarations.push((
                 winner.priority,

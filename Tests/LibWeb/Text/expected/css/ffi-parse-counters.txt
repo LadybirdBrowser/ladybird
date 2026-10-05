@@ -1,3 +1,2 @@
 computed width: 1px
-evaluateConditionCallbacks: 0
 mediaEnvironmentCallbacks: 0

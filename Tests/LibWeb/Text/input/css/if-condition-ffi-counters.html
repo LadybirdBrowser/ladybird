@@ -12,7 +12,6 @@
 
         internals.resetStyleFfiCounters();
         println(`${name} result: ${getComputedStyle(target).width}`);
-        println(`${name} callbacks: ${internals.styleFfiCounters().evaluateConditionCallbacks}`);
         println(`${name} media environment callbacks: ${internals.styleFfiCounters().mediaEnvironmentCallbacks}`);
         target.remove();
     }

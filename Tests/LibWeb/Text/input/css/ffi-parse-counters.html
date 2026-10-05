@@ -58,7 +58,7 @@
         document.body.appendChild(target);
         println(`computed width: ${getComputedStyle(target).width}`);
 
-        const names = ["evaluateConditionCallbacks", "mediaEnvironmentCallbacks"];
+        const names = ["mediaEnvironmentCallbacks"];
         for (const name of names)
             println(`${name}: ${counters[name]}`);
     });

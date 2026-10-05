@@ -401,7 +401,6 @@ pub unsafe extern "C" fn rust_absolutize_length(
     unit: u8,
     context: *const FfiLengthResolutionContext,
 ) -> FfiAbsolutizedLength {
-    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::NestedPropertyComputeEntry);
     absolutize_length(value, unit as usize, unsafe { &*context })
 }
 
@@ -567,7 +566,6 @@ fn compute_font_width(value: &StyleValueData) -> FfiComputedNumber {
 /// `absolutized_value` must point at a valid StyleValueData.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_compute_font_width(absolutized_value: *const c_void) -> FfiComputedNumber {
-    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::NestedPropertyComputeEntry);
     let value = unsafe { &*(absolutized_value as *const StyleValueData) };
     compute_font_width(value)
 }
@@ -717,7 +715,6 @@ pub unsafe extern "C" fn rust_compute_font_size(
     inherited_math_depth: i32,
     default_font_size_raw: i32,
 ) -> FfiComputedNumber {
-    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::NestedPropertyComputeEntry);
     let value = unsafe { &*(absolutized_value as *const StyleValueData) };
     compute_font_size(
         value,
@@ -1909,7 +1906,6 @@ pub(crate) fn collect_unfixed_random_sharings_in_value(
 /// `data` must point at a valid StyleValueData.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_style_value_is_computationally_independent(data: *const c_void) -> bool {
-    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::StyleValueQueryEntry);
     value_is_computationally_independent(unsafe { &*(data as *const StyleValueData) })
         .expect("computational independence requested for an unsupported value")
 }
@@ -2233,7 +2229,6 @@ pub struct FfiFontStyleComputation {
 /// `absolutized_value` must point at a valid StyleValueData.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_compute_font_style(absolutized_value: *const c_void) -> FfiFontStyleComputation {
-    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::NestedPropertyComputeEntry);
     if let StyleValueData::Keyword { keyword } = (unsafe { &*(absolutized_value as *const StyleValueData) })
         && let Some(font_style_keyword) = keyword_to_font_style_keyword(*keyword)
     {
@@ -4955,7 +4950,6 @@ pub(crate) fn effective_display(table: &ComputedLonghandTable, overlay: Option<&
 pub unsafe extern "C" fn rust_create_document_longhand_table(
     input: *const FfiDocumentLonghandInput,
 ) -> *mut ComputedLonghandTable {
-    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::LonghandDriverEntry);
     let input = unsafe { &*input };
     let mut longhand_table = ComputedLonghandTable::new();
     let store = CascadedPropertyStore::new();
@@ -5073,7 +5067,6 @@ pub unsafe extern "C" fn rust_create_document_longhand_table(
 pub unsafe extern "C" fn rust_compute_animation_keyframe_longhands(
     input: *const FfiAnimationKeyframeLonghandInput,
 ) -> FfiAnimationKeyframeLonghandResult {
-    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::LonghandDriverEntry);
     crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::AnimationKeyframeLonghandEntry);
     use crate::css::property_metadata::{
         FIRST_LONGHAND_PROPERTY_ID, LAST_LONGHAND_PROPERTY_ID, NUMBER_OF_LONGHAND_PROPERTIES,
@@ -6344,7 +6337,6 @@ pub unsafe extern "C" fn rust_expand_property_shorthands(
     property_id: u16,
     data: *const c_void,
 ) -> FfiShorthandExpansion {
-    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::ShorthandExpansionEntry);
     let expansion = Box::new(expand_shorthands(property_id, data));
     let properties = expansion.properties.as_ptr();
     let count = expansion.properties.len();
@@ -6986,7 +6978,6 @@ pub unsafe extern "C" fn rust_finalize_animated_box_type(
     animated_overlay: *mut AnimatedOverlay,
     input_line_height_metrics: *const FfiInputLineHeightMetrics,
 ) {
-    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::NestedPropertyComputeEntry);
     finalize_animated_box_type(
         box_type,
         unsafe { &*longhand_table },
@@ -7004,7 +6995,6 @@ pub unsafe extern "C" fn rust_compute_font_weight(
     absolutized_value: *const c_void,
     inherited_font_weight: f64,
 ) -> FfiComputedNumber {
-    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::NestedPropertyComputeEntry);
     let value = unsafe { &*(absolutized_value as *const StyleValueData) };
     compute_font_weight(value, inherited_font_weight)
 }
