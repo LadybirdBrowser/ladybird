@@ -5,6 +5,7 @@
  */
 
 use super::*;
+use crate::css::style::tree::StyleNodeID;
 
 /// What a commit message tells the document.
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -64,6 +65,14 @@ pub(crate) struct CommitNotifications {
 }
 
 impl CommitNotifications {
+    /// The size query containers whose content size the commit changed.
+    pub(crate) fn resized_size_containers(&self) -> impl Iterator<Item = StyleNodeID> + '_ {
+        self.messages
+            .iter()
+            .filter(|message| message.kind == FfiCommitMessageKind::ContentSizeChangedForContainerQueries)
+            .filter_map(|message| StyleNodeID::from_raw(message.style_node))
+    }
+
     /// # Safety
     ///
     /// The host must keep the document and node shells alive until these synchronous

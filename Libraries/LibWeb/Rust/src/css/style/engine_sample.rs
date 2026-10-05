@@ -562,6 +562,65 @@ impl super::StyleEngine {
         }
     }
 
+    /// The elements whose style a size query or container-relative unit decided below `container`, whose content box a
+    /// layout moved.
+    pub(crate) fn size_container_query_dependents(&self, container: StyleNodeID) -> Vec<StyleNodeID> {
+        self.state.retained.size_container_query_dependents(container).0
+    }
+
+    /// The record `node` computes to against the boxes as the last layout committed them, which the engine derives for
+    /// this read alone, as it does for a read of the element's style: the published rows and the record the host
+    /// installed stay as they were. None for an element without a box, `boxed` says, that stays without one. Where the
+    /// move from the host's record reaches beyond the element's box, a pseudo-element, a transition or an animation,
+    /// the host computes it.
+    pub(crate) fn restyle_size_query_dependent(
+        &mut self,
+        node: StyleNodeID,
+        boxed: bool,
+    ) -> Result<Option<super::layout_style::DerivedStyleRecord>, NeedsHost> {
+        let host_record = self.computed_group_sets.assigned_style_record(node).ok_or(NeedsHost)?;
+        if self.record_holds_an_animation_overlay(host_record) {
+            return Err(NeedsHost);
+        }
+        let demand = super::publication::RecordDemand::Element(bridge::FfiRecordDemand::ElementRead);
+        let Ok(super::publication::RecordDemandAnswer::Record { record, .. }) = self.answer_record_demand(node, demand)
+        else {
+            return Err(NeedsHost);
+        };
+        let restyled = super::computed::FinalStyleRecordID::from_raw(record.style_record).ok_or(NeedsHost)?;
+        if record.pseudo_records_present != 0 {
+            return Err(NeedsHost);
+        }
+        // The host computes no style for an element hidden without a box, so only whether it gains one says anything.
+        if !boxed {
+            return match self.record_generates_a_box(restyled) {
+                true => Err(NeedsHost),
+                false => Ok(None),
+            };
+        }
+        if restyled != host_record
+            && (!self.restyle_stays_in_its_box(node, host_record.raw(), restyled.raw())
+                || self.record_declares_transitions(restyled))
+        {
+            return Err(NeedsHost);
+        }
+        Ok(Some(super::layout_style::DerivedStyleRecord::pin(self, restyled.raw())))
+    }
+
+    /// Whether an element with `record` generates a box: it is neither under a `display: none` ancestor nor itself
+    /// `display: none` or `display: contents`.
+    fn record_generates_a_box(&self, record: super::computed::FinalStyleRecordID) -> bool {
+        let Some(view) = self.computed_group_sets.style_record_view(record.raw()) else {
+            return true;
+        };
+        let display =
+            crate::css::computed_value_views::ComputedValuesView::new(SharedPayload::as_pointer_slice(view.payloads))
+                .display();
+        view.dependency_flags & super::computed::IN_DISPLAY_NONE_SUBTREE == 0
+            && !display.is_none()
+            && !display.is_contents()
+    }
+
     /// What the font group of `node`'s record is built from over `overlay`, with the font the document's font resolver
     /// resolves for it, which the engine asks the resolver for where it has not yet. None where the document published
     /// no resolver.
