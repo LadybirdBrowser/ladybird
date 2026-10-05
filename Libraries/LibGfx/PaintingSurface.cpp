@@ -42,6 +42,7 @@ struct PaintingSurface::Impl {
     IntSize size;
     sk_sp<SkSurface> surface;
     RefPtr<Bitmap> bitmap;
+    bool wraps_shared_image { false };
 };
 
 #if defined(AK_OS_MACOS) || defined(USE_VULKAN_DMABUF_IMAGES) || defined(USE_DIRECTX)
@@ -99,7 +100,7 @@ NonnullRefPtr<PaintingSurface> PaintingSurface::create_from_vkimage(NonnullRefPt
     vulkan_image->ref();
     sk_sp<SkSurface> surface = SkSurfaces::WrapBackendRenderTarget(context->sk_context(), rt, origin_to_sk_origin(origin), vk_format_to_sk_color_type(vulkan_image->info.format),
         SkColorSpace::MakeSRGB(), nullptr, release_vulkan_image, vulkan_image.ptr());
-    return adopt_ref(*new PaintingSurface(make<Impl>(context, size, surface, nullptr)));
+    return adopt_ref(*new PaintingSurface(make<Impl>(context, size, surface, nullptr, true)));
 }
 #endif
 
@@ -125,7 +126,7 @@ ErrorOr<NonnullRefPtr<PaintingSurface>> PaintingSurface::create_from_d3d_texture
         kRGBA_8888_SkColorType, SkColorSpace::MakeSRGB(), nullptr, release_d3d_texture, texture.ptr());
     if (!surface)
         return Error::from_string_literal("Failed to wrap shared Direct3D texture in a Skia surface");
-    return adopt_ref(*new PaintingSurface(make<Impl>(context, size, surface, nullptr)));
+    return adopt_ref(*new PaintingSurface(make<Impl>(context, size, surface, nullptr, true)));
 }
 #endif
 
@@ -173,7 +174,7 @@ NonnullRefPtr<PaintingSurface> PaintingSurface::create_from_shared_image_buffer(
     mtl_info.fTexture = sk_ret_cfp(metal_texture->texture());
     auto backend_render_target = GrBackendRenderTargets::MakeMtl(metal_texture->width(), metal_texture->height(), mtl_info);
     auto surface = SkSurfaces::WrapBackendRenderTarget(context->sk_context(), backend_render_target, origin_to_sk_origin(origin), kBGRA_8888_SkColorType, SkColorSpace::MakeSRGB(), nullptr);
-    return adopt_ref(*new PaintingSurface(make<Impl>(context, size, surface, nullptr)));
+    return adopt_ref(*new PaintingSurface(make<Impl>(context, size, surface, nullptr, true)));
 }
 #endif
 
@@ -272,6 +273,11 @@ sk_sp<SkImage> PaintingSurface::sk_image_snapshot() const
 RefPtr<SkiaBackendContext> PaintingSurface::skia_backend_context() const
 {
     return m_impl->context;
+}
+
+bool PaintingSurface::wraps_shared_image() const
+{
+    return m_impl->wraps_shared_image;
 }
 
 void PaintingSurface::flush()

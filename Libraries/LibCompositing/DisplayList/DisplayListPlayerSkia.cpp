@@ -168,14 +168,14 @@ static Gfx::FloatMatrix4x4 to_gfx_matrix4x4(SkM44 const& matrix)
 void DisplayListPlayerSkia::flush(Gfx::PaintingSurface& surface)
 {
     if (auto context = surface.skia_backend_context())
-        context->flush_and_submit(&surface.sk_surface());
+        context->flush_and_submit(surface);
     surface.flush();
 }
 
 void DisplayListPlayerSkia::flush_async(Gfx::PaintingSurface& surface, Function<void()>&& callback)
 {
     if (auto context = surface.skia_backend_context())
-        context->flush_and_submit_async(&surface.sk_surface(), move(callback));
+        context->flush_and_submit_async(surface, move(callback));
     else
         callback();
     surface.flush();

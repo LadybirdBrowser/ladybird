@@ -70,3 +70,33 @@ TEST_CASE(stroke_then_blend_layer_on_gpu_surface)
     EXPECT_EQ(count_red_pixels(*bitmap, box_rect), box_rect.width() * box_rect.height());
     EXPECT(count_red_pixels(*bitmap, { 26, 26, 48, 48 }) > 0);
 }
+
+TEST_CASE(flush_surface_skia_allocated)
+{
+    // Only a surface wrapping an image shared with another process is presented when flushed. One Skia allocated
+    // itself has no memory to present if allocating it failed during the flush, so it is flushed and read back.
+
+    auto cpu_surface = Gfx::PaintingSurface::create_with_size({ 1, 1 }, Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied);
+    EXPECT(!cpu_surface->wraps_shared_image());
+
+    auto context = Gfx::SkiaBackendContext::create_independent_gpu_backend();
+    if (!context) {
+        warnln("No GPU backend available, skipping");
+        return;
+    }
+
+    Gfx::IntSize size { 20, 10 };
+    auto surface = Gfx::PaintingSurface::create_with_size(size, Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, context);
+    EXPECT(!surface->wraps_shared_image());
+
+    bool flushed = false;
+    surface->canvas().clear(SK_ColorRED);
+    context->flush_and_submit_async(*surface, [&] { flushed = true; });
+    surface->canvas().clear(SK_ColorRED);
+    context->flush_and_submit(*surface);
+    EXPECT(flushed);
+
+    auto bitmap = MUST(Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, size));
+    surface->read_into_bitmap(*bitmap);
+    EXPECT_EQ(count_red_pixels(*bitmap, { {}, size }), size.width() * size.height());
+}

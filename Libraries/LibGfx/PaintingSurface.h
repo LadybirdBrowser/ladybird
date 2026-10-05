@@ -87,6 +87,9 @@ public:
 
     RefPtr<SkiaBackendContext> skia_backend_context() const;
 
+    // Whether the surface draws into an image shared with another process, rather than one Skia allocated.
+    bool wraps_shared_image() const;
+
     void flush();
 
     ~PaintingSurface();
