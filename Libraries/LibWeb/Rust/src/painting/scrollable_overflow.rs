@@ -17,7 +17,6 @@ use crate::painting::paintable_rows::PaintableRowsRead;
 use crate::painting::visual_context::dirty::VisualContextBoxDirtyKind;
 use crate::painting::visual_context::node_values;
 use crate::painting::{paintable_geometry, style_queries, text_fragment};
-use libgfx_rust::matrix::{AffineTransform, FloatMatrix4x4};
 use std::cell::{Cell, RefCell};
 
 /// Index boxes whose containing block differs from their layout parent. Direct children are
@@ -123,63 +122,6 @@ pub(crate) fn physical_overflow_directions(
     }
 }
 
-fn extract_two_dimensional_affine_transform(matrix: &FloatMatrix4x4) -> AffineTransform {
-    let elements = &matrix.elements;
-    AffineTransform {
-        values: [
-            elements[0][0],
-            elements[1][0],
-            elements[0][1],
-            elements[1][1],
-            elements[0][3],
-            elements[1][3],
-        ],
-    }
-}
-
-fn affine_is_identity_or_translation(affine: &AffineTransform) -> bool {
-    let [a, b, c, d, _, _] = affine.values;
-    a == 1.0 && b == 0.0 && c == 0.0 && d == 1.0
-}
-
-fn affine_map_point(affine: &AffineTransform, x: f32, y: f32) -> (f32, f32) {
-    let [a, b, c, d, e, f] = affine.values;
-    (a * x + c * y + e, b * x + d * y + f)
-}
-
-struct FloatRectEdges {
-    x: f32,
-    y: f32,
-    width: f32,
-    height: f32,
-}
-
-fn affine_map_float_rect(affine: &AffineTransform, rect: FloatRectEdges) -> FloatRectEdges {
-    if affine_is_identity_or_translation(affine) {
-        let [_, _, _, _, e, f] = affine.values;
-        return FloatRectEdges {
-            x: rect.x + e,
-            y: rect.y + f,
-            width: rect.width,
-            height: rect.height,
-        };
-    }
-    let (x1, y1) = affine_map_point(affine, rect.x, rect.y);
-    let (x2, y2) = affine_map_point(affine, rect.x + rect.width, rect.y);
-    let (x3, y3) = affine_map_point(affine, rect.x + rect.width, rect.y + rect.height);
-    let (x4, y4) = affine_map_point(affine, rect.x, rect.y + rect.height);
-    let left = x1.min(x2).min(x3).min(x4);
-    let top = y1.min(y2).min(y3).min(y4);
-    let right = x1.max(x2).max(x3).max(x4);
-    let bottom = y1.max(y2).max(y3).max(y4);
-    FloatRectEdges {
-        x: left,
-        y: top,
-        width: right - left,
-        height: bottom - top,
-    }
-}
-
 fn apply_css_transform_to_scrollable_overflow_rect(
     layout_arena: &impl PaintableRowsRead,
     box_paintable: NodeSlotId,
@@ -192,23 +134,7 @@ fn apply_css_transform_to_scrollable_overflow_rect(
     let Some((transform, _is_invertible)) = node_values::compute_transform(layout_arena, box_paintable, 1.0) else {
         return rect;
     };
-
-    let affine = extract_two_dimensional_affine_transform(&transform.matrix);
-    let transformed = affine_map_float_rect(
-        &affine,
-        FloatRectEdges {
-            x: rect.x.to_float() - transform.origin.x,
-            y: rect.y.to_float() - transform.origin.y,
-            width: rect.width.to_float(),
-            height: rect.height.to_float(),
-        },
-    );
-    CssPixelRect::new(
-        CssPixels::nearest_value_for_f32(transformed.x + transform.origin.x),
-        CssPixels::nearest_value_for_f32(transformed.y + transform.origin.y),
-        CssPixels::nearest_value_for_f32(transformed.width),
-        CssPixels::nearest_value_for_f32(transformed.height),
-    )
+    super::scroll_snap::map_rect_through_css_transform(transform.matrix, transform.origin, rect)
 }
 
 fn padding_inflated_scrollable_overflow(
