@@ -234,18 +234,6 @@ impl DocumentHost {
         self.queue_change(ArenaChange::Rule(write));
     }
 
-    /// Takes the frame in flight in with `read`, and lends the writes the host queued to `apply`, for the render state
-    /// to apply ahead of the host's next job. A style write queued beside a style transaction that flew stays queued,
-    /// behind the drain of the transaction's reactions, which it is the next transaction's input to.
-    fn drain_queued_changes<R>(
-        &self,
-        read: impl RenderWait,
-        apply: impl FnOnce(std::vec::Drain<'_, ArenaChange>) -> R,
-    ) -> R {
-        self.take_frame_in(read);
-        self.changes.drain(self.has_flown_style(), apply)
-    }
-
     /// Takes the writes the host queued, for a style transaction that flies with them to the render owner.
     pub(super) fn take_queued_changes_for_flight(&self) -> Vec<ArenaChange> {
         // A clock lease ends before the frame flies, and the styles it gives back go first.
@@ -255,32 +243,6 @@ impl DocumentHost {
             "one style transaction of a document flies at a time"
         );
         self.changes.take()
-    }
-
-    /// Runs `job` on the document's render state on the render owner, after the writes the host queued, and waits for
-    /// it, taking the frame in flight in first with `read`. A host callback the job makes may reach the state again, as
-    /// a layout round's read of an element's style does, which runs right there on the owner.
-    pub(super) fn reach<R: Send>(&self, read: impl RenderWait, job: impl FnOnce(&mut RenderState) -> R + Send) -> R {
-        let ((answer, owed), marks) = self.drain_queued_changes(read, |changes| {
-            let (document, seed, marks) = (self.document, self.seed.take(), self.lend_marks());
-            let in_job = self.in_job.replace(true);
-            let answer = on_render_side(move || {
-                owner::with_state(document, seed, |state| {
-                    state.with_marks(marks, |state| {
-                        state.apply(changes);
-                        let answer = job(state);
-                        (answer, state.take_owed())
-                    })
-                })
-            });
-            self.in_job.set(in_job);
-            answer
-        });
-        self.take_marks_back(marks);
-        // A write a host callback of the job queued comes after the facts the job left, which the host's reads of them
-        // learn from the queue.
-        self.pay(owed);
-        answer
     }
 
     /// Pays what the writes a job or a frame applied owe the host, now that the host has it back.
@@ -777,8 +739,10 @@ impl DocumentHost {
         })
     }
 
-    /// Runs `job` on the document's render state, spending `wait`, and waits for it, as [`Self::reach`] does. A job that
-    /// `writes` leaves the paint and hit testing properties prepared from the state stale.
+    /// Runs `job` on the document's render state on the render owner, after the writes the host queued, and waits for
+    /// it, taking the frame in flight in first with `wait`. A job that `writes` leaves the paint and hit testing
+    /// properties prepared from the state stale. A host callback the job makes may reach the state again, as a layout
+    /// round's read of an element's style does, which runs right there on the owner.
     pub(crate) fn run<R>(&self, wait: impl RenderWait, writes: bool, job: impl FnOnce(&mut RenderState) -> R) -> R {
         assert!(
             wait.reaches(self),
@@ -787,9 +751,30 @@ impl DocumentHost {
         if writes {
             self.note_render_state_write();
         }
+        self.take_frame_in(wait);
         let job = Waited(job);
-        self.reach(wait, move |state| Waited(job.into_inner()(state)))
-            .into_inner()
+        // A style write queued beside a style transaction that flew stays queued, behind the drain of the transaction's
+        // reactions, which it is the next transaction's input to.
+        let (answer, marks) = self.changes.drain(self.has_flown_style(), |changes| {
+            let (document, seed, marks) = (self.document, self.seed.take(), self.lend_marks());
+            let in_job = self.in_job.replace(true);
+            let answer = on_render_side(move || {
+                owner::with_state(document, seed, |state| {
+                    state.with_marks(marks, |state| {
+                        state.apply(changes);
+                        Waited((job.into_inner()(state), state.take_owed()))
+                    })
+                })
+            });
+            self.in_job.set(in_job);
+            answer
+        });
+        let (answer, owed) = answer.into_inner();
+        self.take_marks_back(marks);
+        // A write a host callback of the job queued comes after the facts the job left, which the host's reads of them
+        // learn from the queue.
+        self.pay(owed);
+        answer
     }
 
     /// Answers `read` of the document's render state, spending `wait`, as of every write the host queued. A read leaves
