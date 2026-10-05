@@ -6466,6 +6466,15 @@ void Document::unregister_intersection_observer(Badge<IntersectionObserver::Inte
     VERIFY(was_removed);
 }
 
+bool Document::has_intersection_observation_targets() const
+{
+    for (auto const& observer : m_intersection_observers) {
+        if (!observer.observation_targets().is_empty())
+            return true;
+    }
+    return false;
+}
+
 void Document::register_resize_observer(Badge<ResizeObserver::ResizeObserver>, ResizeObserver::ResizeObserver& observer)
 {
     if (!m_resize_observers.contains_slow(GC::Weak<ResizeObserver::ResizeObserver> { observer }))
