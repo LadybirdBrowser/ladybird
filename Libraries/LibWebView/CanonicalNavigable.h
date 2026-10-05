@@ -209,13 +209,9 @@ public:
     bool current_session_history_entry_is(CanonicalSessionHistoryEntry const&) const;
     bool active_document_is(CanonicalSessionHistoryEntry const&) const;
 
-    enum class DidPopulateDocument {
-        No,
-        Yes,
-    };
     // A history operation activated the entry. It commits the navigation it names, or with none named, the ongoing
     // navigation admitted before the operation's sequence number.
-    void did_commit_navigation(CanonicalSessionHistoryEntry&, Web::HTML::HostedNavigableState, u64 operation_sequence_number, Optional<Utf16String const&> navigation_id, DidPopulateDocument, RefPtr<WebContentPage> host);
+    void did_commit_navigation(CanonicalSessionHistoryEntry&, Web::HTML::HostedNavigableState, u64 operation_sequence_number, Optional<Utf16String const&> navigation_id, RefPtr<WebContentPage> host);
 
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#ongoing-navigation
     // The navigation, if the navigable's ongoing navigation is a navigation ID rather than "traversal" or null.

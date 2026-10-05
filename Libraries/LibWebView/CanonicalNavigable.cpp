@@ -1207,7 +1207,7 @@ bool CanonicalNavigable::active_document_is(CanonicalSessionHistoryEntry const& 
     return m_active_session_history_entry && entry.document_state->document == &active_document();
 }
 
-void CanonicalNavigable::did_commit_navigation(CanonicalSessionHistoryEntry& entry, Web::HTML::HostedNavigableState hosted_state, u64 operation_sequence_number, Optional<Utf16String const&> navigation_id, DidPopulateDocument did_populate_document, RefPtr<WebContentPage> host)
+void CanonicalNavigable::did_commit_navigation(CanonicalSessionHistoryEntry& entry, Web::HTML::HostedNavigableState hosted_state, u64 operation_sequence_number, Optional<Utf16String const&> navigation_id, RefPtr<WebContentPage> host)
 {
     // A navigation admitted after the operation, such as one a same-document traversal yields to, is newer than it.
     auto commits_ongoing_navigation = !ongoing_navigation()
@@ -1219,13 +1219,11 @@ void CanonicalNavigable::did_commit_navigation(CanonicalSessionHistoryEntry& ent
     NonnullRefPtr previous_document = active_document();
 
     // The document populated for the entry becomes its document state's document below.
+    // NB: The process hosting the document ran the steps populating it for the entry it holds.
+    entry.document_state->save_the_origin_of_the_populated_document();
     RefPtr<CanonicalDocument> document;
-    auto save_extra_document_state = true;
-    if (auto populated_document = exchange(entry.document_state->populated_document, {}); populated_document.has_value()) {
+    if (auto populated_document = exchange(entry.document_state->populated_document, {}); populated_document.has_value())
         document = populated_document->document;
-        if (populated_document->inline_content_origin.has_value() && document->origin().is_same_origin(*populated_document->inline_content_origin))
-            save_extra_document_state = false;
-    }
     if (m_document_state_populated_by_history_job == entry.document_state)
         m_document_state_populated_by_history_job = nullptr;
     VERIFY(document || !active_document_changed);
@@ -1247,13 +1245,6 @@ void CanonicalNavigable::did_commit_navigation(CanonicalSessionHistoryEntry& ent
     entry.document_state->document = document;
     m_active_session_history_entry = entry;
 
-    // https://html.spec.whatwg.org/multipage/browsing-the-web.html#attempt-to-populate-the-history-entry's-document
-    // 7. If entry's document state's document is not null, then:
-    //    2. If saveExtraDocumentState is true:
-    //       1. Set entry's document state's origin to document's origin.
-    // NB: The process hosting the document ran these steps for the entry it holds.
-    if (did_populate_document == DidPopulateDocument::Yes && document != previous_document && save_extra_document_state)
-        entry.document_state->origin = document->origin();
     if (document != previous_document) {
         document->make_active();
         if (!document->host())
@@ -1291,9 +1282,9 @@ void CanonicalNavigable::did_commit_navigation(CanonicalSessionHistoryEntry& ent
     if (!commits_ongoing_navigation)
         return;
 
-    // The activated document's load becomes the navigable's tracked load. Reloads can reuse the document state,
-    // while a same-document activation leaves the active document's load in place.
-    if (active_document_changed || did_populate_document == DidPopulateDocument::Yes) {
+    // The activated document's load becomes the navigable's tracked load. A same-document activation leaves the active
+    // document's load in place.
+    if (document != previous_document) {
         Optional<Utf16String> load_navigation_id;
         if (navigation_id.has_value())
             load_navigation_id = *navigation_id;

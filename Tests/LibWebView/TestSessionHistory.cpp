@@ -469,6 +469,27 @@ TEST_CASE(queued_same_document_entries_are_addressed_by_identity)
     EXPECT_EQ(updated_current_entry->document_state->navigable_target_name, Utf16String::from_utf8("updated-name"sv));
 }
 
+TEST_CASE(update_leaves_the_origins_of_a_document_state_alone)
+{
+    auto descriptor = entry(0, "https://a.example/"sv);
+    auto origin = URL::Parser::basic_parse("https://a.example/"sv).release_value().origin();
+    descriptor.document_state.origin = origin;
+    descriptor.document_state.initiator_origin = origin;
+    WebView::CanonicalSessionHistoryEntry::DocumentStates document_states;
+    auto held_entry = MUST(WebView::CanonicalSessionHistoryEntry::create_from_descriptor(descriptor, document_states));
+
+    auto other_origin = URL::Parser::basic_parse("https://b.example/"sv).release_value().origin();
+    descriptor.document_state.origin = other_origin;
+    descriptor.document_state.initiator_origin = other_origin;
+    descriptor.document_state.ever_populated = true;
+    auto updated_entry = MUST(WebView::CanonicalSessionHistoryEntry::create_from_descriptor(descriptor, document_states, WebView::CanonicalSessionHistoryEntry::UpdateDocumentState::Yes));
+
+    EXPECT_EQ(updated_entry->document_state.ptr(), held_entry->document_state.ptr());
+    EXPECT(held_entry->document_state->ever_populated);
+    EXPECT(held_entry->document_state->origin->is_same_origin(origin));
+    EXPECT(held_entry->document_state->initiator_origin->is_same_origin(origin));
+}
+
 TEST_CASE(entry_among_its_own_nested_histories_is_rejected)
 {
     auto parent_entry = entry(0, "https://parent.example/"sv, 10, "main"sv, { nested_history("frame"sv, { entry(0, "https://child.example/"sv, 10, ""sv) }) });
