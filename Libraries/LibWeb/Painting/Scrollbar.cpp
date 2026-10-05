@@ -72,27 +72,6 @@ MouseAction Scrollbar::handle_pointer_event(Utf16FlyString const& type, unsigned
     return MouseAction::CaptureInput;
 }
 
-MouseAction Scrollbar::mouse_move(CSSPixelPoint position)
-{
-    if (m_thumb_grab_position.has_value()) {
-        auto* node = layout_node();
-        if (!node)
-            return MouseAction::None;
-        position = Painting::transform_to_local_coordinates(*node, position);
-        scroll_to_mouse_position(position);
-        return MouseAction::SwallowEvent;
-    }
-    return MouseAction::None;
-}
-
-MouseAction Scrollbar::mouse_up(CSSPixelPoint, unsigned)
-{
-    release_thumb_grab();
-    if (auto* node = layout_node())
-        Painting::set_needs_repaint(*node, InvalidateDisplayList::PaintCommands);
-    return MouseAction::None;
-}
-
 void Scrollbar::release_thumb_grab()
 {
     m_drag_is_driven_by_compositor = false;
