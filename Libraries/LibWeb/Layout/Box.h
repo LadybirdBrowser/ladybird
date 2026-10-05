@@ -33,8 +33,6 @@ public:
     // box's row.
     void set_owned_image_provider(NonnullOwnPtr<ImageProvider>);
 
-    void set_replaced_box_can_have_children(bool value) { set_flag(RustFFI::NodeFlag::ReplacedBoxCanHaveChildren, value); }
-
     virtual ~Box() override;
 
     Box(DOM::Document&, BindToPreparedArenaSlot, Compositing::RustFFI::NodeSlotId, RustFFI::NodeKind);
