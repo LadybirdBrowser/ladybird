@@ -746,7 +746,7 @@ impl LayoutNodeArena {
 /// `host` must be a live document host, on its document's thread, and `node` must name a live row of its document.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn render_state_node_is_partial_relayout_boundary(
-    host: *const crate::render_state::DocumentHost,
+    host: &crate::render_state::DocumentHost,
     node: NodeSlotId,
 ) -> bool {
     // SAFETY: Guaranteed by the caller.

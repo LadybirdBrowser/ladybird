@@ -54,14 +54,13 @@ impl FfiStackingContextDumpCallbacks {
 /// `layout_arena_paint_push_bytes`, and `append_text` copies the completed dump synchronously.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn render_state_dump_stacking_context_tree(
-    host: *const crate::render_state::DocumentHost,
+    host: &crate::render_state::DocumentHost,
     read: &crate::render_state::BegunRead,
     viewport: NodeSlotId,
     callbacks: FfiStackingContextDumpCallbacks,
 ) {
-    assert!(!host.is_null(), "document host is null");
     // SAFETY: Guaranteed by the caller.
-    let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY, &*host) };
+    let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY, host) };
     // SAFETY: As above.
     let lines = unsafe {
         crate::painting::ffi::read_arena(host, read, viewport, |arena, viewport| {

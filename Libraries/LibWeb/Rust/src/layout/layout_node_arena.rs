@@ -5273,7 +5273,7 @@ pub(crate) struct NodeAllocation {
 /// The arena must remain valid for the duration of the call.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn render_state_content_counter_styles_changed(
-    host: *const DocumentHost,
+    host: &DocumentHost,
     read: &crate::render_state::BegunRead,
     style_node: u32,
     generated_for: u8,
@@ -5287,17 +5287,6 @@ pub unsafe extern "C" fn render_state_content_counter_styles_changed(
             super::generated_content::content_counter_styles_changed(arena, owner)
         })
     }
-}
-
-/// The host tables of `host`'s document.
-///
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread, which outlives the borrow.
-unsafe fn host_tables<'a>(host: *const DocumentHost) -> &'a super::HostTables {
-    assert!(!host.is_null(), "document host is null");
-    // SAFETY: Guaranteed by the caller.
-    unsafe { &*host }.host_tables()
 }
 
 fn counter_owner(style_node: u32, generated_for: u8) -> Option<super::counters::CounterOwner> {
@@ -5321,7 +5310,7 @@ pub unsafe extern "C" fn style_resets_forward_list_item_counter(payloads: *const
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn render_state_set_node_needs_compositor_animation_frame(
-    host: *const DocumentHost,
+    host: &DocumentHost,
     id: NodeSlotId,
     kind: super::node_data::CompositorAnimationFrameKind,
     value: bool,
@@ -5341,10 +5330,7 @@ pub unsafe extern "C" fn render_state_set_node_needs_compositor_animation_frame(
 ///
 /// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn render_state_row_scroll_offset(
-    host: *const DocumentHost,
-    slot: NodeSlotId,
-) -> FfiCssPixelPoint {
+pub unsafe extern "C" fn render_state_row_scroll_offset(host: &DocumentHost, slot: NodeSlotId) -> FfiCssPixelPoint {
     // SAFETY: Guaranteed by the caller.
     unsafe {
         read_arena(host, node_read(), slot, |arena, slot| {
@@ -5355,7 +5341,7 @@ pub unsafe extern "C" fn render_state_row_scroll_offset(
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn render_state_set_node_style(
-    host: *const DocumentHost,
+    host: &DocumentHost,
     id: NodeSlotId,
     style_record: u64,
     payloads: *const c_void,
@@ -5419,7 +5405,7 @@ pub(crate) fn prepare_subtree_for_detach(host_calls: HostCalls<'_>, arena: &Layo
 /// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn render_state_pin_bound_box_style_record_for_detachment(
-    host: *const DocumentHost,
+    host: &DocumentHost,
     style_node: u32,
     generated_for: u8,
 ) {
@@ -5446,7 +5432,7 @@ pub unsafe extern "C" fn render_state_pin_bound_box_style_record_for_detachment(
 /// `host` must be a live document host, on its document's thread, and `slot` a live row.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn render_state_pin_node_style_record_for_host(
-    host: *const DocumentHost,
+    host: &DocumentHost,
     slot: NodeSlotId,
     record: u64,
 ) {
@@ -5458,22 +5444,18 @@ pub unsafe extern "C" fn render_state_pin_node_style_record_for_host(
 ///
 /// `host` must be a live document host, on its document's thread, and `slot` a live row.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn render_state_release_node_style_record_pin_for_host(
-    host: *const DocumentHost,
-    slot: NodeSlotId,
-) {
+pub unsafe extern "C" fn render_state_release_node_style_record_pin_for_host(host: &DocumentHost, slot: NodeSlotId) {
     // SAFETY: Guaranteed by the caller.
     unsafe { queue(host, LayoutChange::ReleaseNodeStyleRecordPinForHost { node: slot }) };
 }
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn document_host_set_shell_factory(
-    host: *const DocumentHost,
+    host: &DocumentHost,
     context: *mut c_void,
     factory: unsafe extern "C" fn(*mut c_void, NodeSlotId, NodeKind),
 ) {
-    // SAFETY: Guaranteed by the caller.
-    unsafe { host_tables(host) }.shell_factory.set(Some((context, factory)));
+    host.host_tables().shell_factory.set(Some((context, factory)));
 }
 
 /// # Safety
@@ -5482,7 +5464,7 @@ pub unsafe extern "C" fn document_host_set_shell_factory(
 /// its context is live, and must not reenter the arena from the callback.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn render_state_set_box_presence_host(
-    host: *const DocumentHost,
+    host: &DocumentHost,
     context: *mut c_void,
     callback: unsafe extern "C" fn(*mut c_void, u32, u8),
 ) {
@@ -5499,49 +5481,45 @@ pub unsafe extern "C" fn render_state_set_box_presence_host(
 ///
 /// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn render_state_clear_box_presence_host(host: *const DocumentHost) {
+pub unsafe extern "C" fn render_state_clear_box_presence_host(host: &DocumentHost) {
     // SAFETY: Guaranteed by the caller.
     unsafe { queue(host, LayoutChange::SetBoxPresenceHost(None)) };
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn document_host_clear_shell_factory(host: *const DocumentHost) {
-    // SAFETY: Guaranteed by the caller.
-    unsafe { host_tables(host) }.shell_factory.set(None);
+pub unsafe extern "C" fn document_host_clear_shell_factory(host: &DocumentHost) {
+    host.host_tables().shell_factory.set(None);
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn document_host_attach_shell(host: *const DocumentHost, id: NodeSlotId, shell: *mut c_void) {
-    // SAFETY: Guaranteed by the caller.
-    unsafe { host_tables(host) }.attach_shell(id, shell);
+pub unsafe extern "C" fn document_host_attach_shell(host: &DocumentHost, id: NodeSlotId, shell: *mut c_void) {
+    host.host_tables().attach_shell(id, shell);
 }
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn document_host_set_style_record_host_callbacks(
-    host: *const DocumentHost,
+    host: &DocumentHost,
     callbacks: FfiStyleRecordHostCallbacks,
 ) {
-    // SAFETY: Guaranteed by the caller.
-    unsafe { host_tables(host) }
+    host.host_tables()
         .shell_style_changed_host
         .set(Some((callbacks.context, callbacks.shell_style_changed)));
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn document_host_clear_style_record_host_callbacks(host: *const DocumentHost) {
-    // SAFETY: Guaranteed by the caller.
-    unsafe { host_tables(host) }.shell_style_changed_host.set(None);
+pub unsafe extern "C" fn document_host_clear_style_record_host_callbacks(host: &DocumentHost) {
+    host.host_tables().shell_style_changed_host.set(None);
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn render_state_layout_pass_is_running(host: *const DocumentHost) -> bool {
+pub unsafe extern "C" fn render_state_layout_pass_is_running(host: &DocumentHost) -> bool {
     // SAFETY: Guaranteed by the caller.
     unsafe { read_arena(host, node_read(), (), |arena, ()| arena.layout_pass_is_running()) }
 }
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn render_state_needs_full_layout_tree_update(
-    host: *const DocumentHost,
+    host: &DocumentHost,
     read: &crate::render_state::BegunRead,
 ) -> bool {
     // SAFETY: Guaranteed by the caller.
@@ -5550,7 +5528,7 @@ pub unsafe extern "C" fn render_state_needs_full_layout_tree_update(
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn render_state_layout_root(
-    host: *const DocumentHost,
+    host: &DocumentHost,
     read: &crate::render_state::BegunRead,
 ) -> NodeSlotId {
     // SAFETY: Guaranteed by the caller.
@@ -5558,12 +5536,7 @@ pub unsafe extern "C" fn render_state_layout_root(
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn render_state_layout_is_up_to_date(
-    host: *const DocumentHost,
-    document_style_node: u32,
-) -> bool {
-    // SAFETY: Guaranteed by the caller.
-    let host = unsafe { &*host };
+pub unsafe extern "C" fn render_state_layout_is_up_to_date(host: &DocumentHost, document_style_node: u32) -> bool {
     // A frame in flight, or a round that flew and is not paid yet, brings layout the host waits for. The document's
     // layout tree update marks are the frame's, so they are read only once no frame holds them.
     let Some(here) = host.layout_waits_for_no_frame() else {

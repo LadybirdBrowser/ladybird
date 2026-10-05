@@ -335,10 +335,8 @@ impl EngineWrite {
 /// # Safety
 ///
 /// `host` must be a live document host, on the document's thread.
-pub(super) unsafe fn queue(host: *const DocumentHost, write: EngineWrite) {
-    assert!(!host.is_null(), "document host is null");
-    // SAFETY: Guaranteed by the caller.
-    unsafe { &*host }.queue_change(ArenaChange::Engine(write));
+pub(super) unsafe fn queue(host: &DocumentHost, write: EngineWrite) {
+    host.queue_change(ArenaChange::Engine(write));
 }
 
 /// A copy of the `count` values at `values`.

@@ -520,7 +520,7 @@ pub unsafe extern "C" fn rust_style_sheet_evaluate_media_queries(
     sheet: &NativeStyleSheet,
     environment: FfiMediaEnvironment,
     state: &mut NativeMediaEvaluationState,
-    host: *const crate::render_state::DocumentHost,
+    host: &crate::render_state::DocumentHost,
 ) -> NativeStyleSheetMediaEvaluation {
     let mut conditions = Vec::new();
     let result = sheet.evaluate_media_queries(unsafe { environment.borrow() }, state, &mut |identity, holds| {
@@ -539,7 +539,7 @@ pub unsafe extern "C" fn rust_style_sheet_evaluate_media_queries(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_style_sheet_publish_conditions(
     sheet: &NativeStyleSheet,
-    host: *const crate::render_state::DocumentHost,
+    host: &crate::render_state::DocumentHost,
     environment: FfiMediaEnvironment,
 ) {
     let mut conditions = Vec::new();
@@ -554,14 +554,13 @@ pub unsafe extern "C" fn rust_style_sheet_publish_conditions(
 ///
 /// # Safety
 /// `host` must be a live document host, on its document's thread.
-unsafe fn write_rule_conditions(host: *const crate::render_state::DocumentHost, conditions: Vec<(u64, bool)>) {
+unsafe fn write_rule_conditions(host: &crate::render_state::DocumentHost, conditions: Vec<(u64, bool)>) {
     if conditions.is_empty() {
         return;
     }
-    // SAFETY: Guaranteed by the caller.
-    unsafe { crate::css::style::engine_calls::document_host(host) }.write_rules(
-        crate::css::style::rule_writes::RuleWrite::RuleConditions(conditions.into()),
-    );
+    host.write_rules(crate::css::style::rule_writes::RuleWrite::RuleConditions(
+        conditions.into(),
+    ));
 }
 
 // Keep first-seen sibling order and emit descendants before their parent, including the
@@ -619,7 +618,7 @@ fn cascade_layer_order<'a>(sheets: impl IntoIterator<Item = &'a NativeStyleSheet
 pub unsafe extern "C" fn rust_style_sheet_publish_layer_order(
     sheets: *const *const NativeStyleSheet,
     count: usize,
-    host: *const crate::render_state::DocumentHost,
+    host: &crate::render_state::DocumentHost,
     tree_scope: u32,
     previously_had_layers: bool,
     context: *mut c_void,
@@ -636,9 +635,7 @@ pub unsafe extern "C" fn rust_style_sheet_publish_layer_order(
     // must clear the engine's old ranks.
     if has_layers || previously_had_layers {
         unsafe { prepare(context) };
-        // SAFETY: Guaranteed by the caller.
-        unsafe { crate::css::style::engine_calls::document_host(host) }
-            .write_rules(crate::css::style::rule_writes::RuleWrite::LayerOrder { tree_scope, names });
+        host.write_rules(crate::css::style::rule_writes::RuleWrite::LayerOrder { tree_scope, names });
     }
     has_layers
 }

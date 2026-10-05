@@ -1002,22 +1002,18 @@ impl FfiLayoutHostCallbacks {
 /// cleared or the host is destroyed.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn document_host_set_layout_host_callbacks(
-    host: *const crate::render_state::DocumentHost,
+    host: &crate::render_state::DocumentHost,
     callbacks: FfiLayoutHostCallbacks,
 ) {
-    assert!(!host.is_null(), "document host is null");
-    // SAFETY: Guaranteed by the caller.
-    unsafe { &*host }.host_tables().layout_host.set(Some(callbacks));
+    host.host_tables().layout_host.set(Some(callbacks));
 }
 
 /// # Safety
 ///
 /// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn document_host_clear_layout_host_callbacks(host: *const crate::render_state::DocumentHost) {
-    assert!(!host.is_null(), "document host is null");
-    // SAFETY: Guaranteed by the caller.
-    unsafe { &*host }.host_tables().layout_host.set(None);
+pub unsafe extern "C" fn document_host_clear_layout_host_callbacks(host: &crate::render_state::DocumentHost) {
+    host.host_tables().layout_host.set(None);
 }
 
 #[derive(Clone)]

@@ -772,7 +772,7 @@ mod tests {
         use crate::layout::layout_changes::{LayoutWrite, write};
         let test_host = TestHost::new();
         // SAFETY: The host lives as long as the test host.
-        let host = unsafe { &*test_host.host() };
+        let host = test_host.host();
         // SAFETY: The arena lives as long as the host's render state, and the test reaches it only between jobs.
         let arena = unsafe { &mut *host.arena_for_test() };
         let parent = arena.allocate_for_test().slot;
@@ -797,7 +797,7 @@ mod tests {
         };
         let test_host = TestHost::new();
         // SAFETY: The host lives as long as the test host.
-        let host = unsafe { &*test_host.host() };
+        let host = test_host.host();
         // SAFETY: The arena lives as long as the host's render state, and the test reaches it only between jobs.
         let arena = unsafe { &mut *host.arena_for_test() };
         let viewport = arena.allocate_for_test().slot;

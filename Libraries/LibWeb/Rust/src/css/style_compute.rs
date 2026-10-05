@@ -4780,7 +4780,7 @@ fn settled_animation_plan(
 /// `apply` must not retain the definitions it is handed.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_settled_animation_plan(
-    host: *const crate::render_state::DocumentHost,
+    host: &crate::render_state::DocumentHost,
     read: &crate::render_state::BegunRead,
     node: u32,
     pseudo_kind: u8,
@@ -4793,7 +4793,6 @@ pub unsafe extern "C" fn rust_settled_animation_plan(
         return;
     };
     // SAFETY: Guaranteed by the caller.
-    let host = unsafe { crate::css::style::engine_calls::document_host(host) };
     // A record that names no animation plans none for an element that holds none, which the host reads off a record it
     // has the view of without asking.
     if !has_animations
@@ -6453,19 +6452,15 @@ pub extern "C" fn rust_box_type_transformation_input(
 /// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_animated_box_type_transformation_input(
-    host: *const crate::render_state::DocumentHost,
+    host: &crate::render_state::DocumentHost,
     read: &crate::render_state::BegunRead,
     node: u32,
     pseudo_kind: u8,
 ) -> FfiBoxTypeTransformationInput {
     match crate::css::style::tree::StyleNodeID::from_raw(node) {
-        Some(node) => {
-            // SAFETY: Guaranteed by the caller.
-            let host = unsafe { crate::css::style::engine_calls::document_host(host) };
-            crate::css::style::engine_calls::with_engine(read, host, |engine| {
-                engine.composition_box_type_transformation_input(node, pseudo_kind)
-            })
-        }
+        Some(node) => crate::css::style::engine_calls::with_engine(read, host, |engine| {
+            engine.composition_box_type_transformation_input(node, pseudo_kind)
+        }),
         None => rust_box_type_transformation_input(0, FfiStyleAdjustmentTarget::Element, false, FfiDisplay::block()),
     }
 }

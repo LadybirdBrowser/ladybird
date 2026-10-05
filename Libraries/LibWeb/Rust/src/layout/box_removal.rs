@@ -274,17 +274,14 @@ impl BoxRemoval {
 /// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn render_state_remove_box(
-    host: *const DocumentHost,
+    host: &DocumentHost,
     parent: u32,
     child: u32,
     facts: FfiDetachedBoxFacts,
 ) {
-    assert!(!host.is_null(), "document host is null");
     let (Some(parent), Some(child)) = (StyleNodeID::from_raw(parent), StyleNodeID::from_raw(child)) else {
         panic!("a removed box and its parent are named by their identities");
     };
-    // SAFETY: Guaranteed by the caller.
-    let host = unsafe { &*host };
     // The rows stop reading as the arena once the box leaves, so the host reads none of them again, and the drop writes
     // the chunks in place rather than copies of those the host would still share.
     host.let_go_of_rows();
@@ -299,7 +296,7 @@ pub unsafe extern "C" fn render_state_remove_box(
 /// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn render_state_can_detach_box_in_place(
-    host: *const DocumentHost,
+    host: &DocumentHost,
     read: &crate::render_state::BegunRead,
     parent: u32,
     child: u32,

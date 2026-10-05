@@ -249,10 +249,7 @@ impl LayoutNodeArena {
 /// `host` must be a live document host, on its document's thread. The callback must remain valid until tracing stops
 /// and must synchronously describe the live row it is handed without mutating layout.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn render_state_begin_layout_trace(host: *const DocumentHost, describe_node: DescribeNode) {
-    assert!(!host.is_null(), "document host is null");
-    // SAFETY: Guaranteed by the caller.
-    let host = unsafe { &*host };
+pub unsafe extern "C" fn render_state_begin_layout_trace(host: &DocumentHost, describe_node: DescribeNode) {
     host.host_tables().layout_trace_describe_node.set(Some(describe_node));
     // SAFETY: As above.
     unsafe { super::layout_changes::queue(host, super::layout_changes::LayoutChange::BeginLayoutTrace) };
@@ -264,7 +261,7 @@ pub unsafe extern "C" fn render_state_begin_layout_trace(host: *const DocumentHo
 /// supplied bytes.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn render_state_take_layout_trace(
-    host: *const DocumentHost,
+    host: &DocumentHost,
     read: &crate::render_state::BegunRead,
     context: *mut c_void,
     append_text: AppendText,
