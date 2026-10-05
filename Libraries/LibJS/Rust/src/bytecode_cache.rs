@@ -111,14 +111,10 @@ pub fn serialize_compiled_program(
 }
 
 pub type FreeBytecodeCacheBlobOwner = unsafe extern "C" fn(*mut c_void);
-pub type CloneBytecodeCacheBlobOwner = unsafe extern "C" fn(*const c_void) -> *mut c_void;
 
 /// An embedder's handle on the bytes of a bytecode cache blob.
 pub struct ForeignBytecodeCacheBlobOwner {
     pub owner: *mut c_void,
-    /// Returns a new handle on the same bytes, which keeps them alive independently of `owner`. Only a runtime whose
-    /// executables hold handles of their own needs it.
-    pub clone_owner: Option<CloneBytecodeCacheBlobOwner>,
     /// Releases a handle once nothing decoded from the bytes needs them anymore.
     pub free_owner: FreeBytecodeCacheBlobOwner,
 }
@@ -193,11 +189,6 @@ struct ForeignBytecodeCacheBlob {
     data: *const u8,
     length: usize,
     owner: *mut c_void,
-    #[cfg_attr(
-        not(feature = "cpp-runtime"),
-        allow(dead_code, reason = "only C++ executables use it")
-    )]
-    clone_owner: Option<CloneBytecodeCacheBlobOwner>,
     free_owner: FreeBytecodeCacheBlobOwner,
 }
 
@@ -222,7 +213,6 @@ impl<'a> Decoder<'a> {
                 data: bytes.as_ptr(),
                 length: bytes.len(),
                 owner: owner.owner,
-                clone_owner: owner.clone_owner,
                 free_owner: owner.free_owner,
             })
         });
@@ -534,21 +524,6 @@ impl DecodedBytecodeBytes {
         debug_assert!(self.range.end <= self.blob.length);
         // SAFETY: The decoder checked that the range lies within the blob, which the Rc keeps alive.
         unsafe { std::slice::from_raw_parts(self.blob.data.add(self.range.start), self.range.len()) }
-    }
-
-    /// Asks the embedder for a new handle on the blob these bytes are in, which keeps them alive independently of the
-    /// decoded blob.
-    #[cfg_attr(
-        not(feature = "cpp-runtime"),
-        allow(dead_code, reason = "only C++ executables use it")
-    )]
-    pub(crate) fn clone_blob_owner(&self) -> *mut c_void {
-        let clone_owner = self
-            .blob
-            .clone_owner
-            .expect("an embedder whose executables adopt the owner of a blob can clone it");
-        // SAFETY: The embedder's callback takes the owner it handed over, which is still alive.
-        unsafe { clone_owner(self.blob.owner.cast_const()) }
     }
 
     fn decoder(&self) -> Decoder<'_> {
@@ -2179,16 +2154,6 @@ impl DecodedConstantTable {
         (0..self.count).all(|_| validate_constant_value(&mut decoder).is_some()) && decoder.is_empty()
     }
 
-    /// The number of constants and their encoding, which is the one executables are created from, once every
-    /// constant in it turned out to be well-formed.
-    #[cfg_attr(
-        not(feature = "cpp-runtime"),
-        allow(dead_code, reason = "only C++ executables use it")
-    )]
-    pub(crate) fn encoded_constants(&self) -> Option<(usize, &DecodedBytecodeBytes)> {
-        self.is_well_formed().then_some((self.count, &self.bytes))
-    }
-
     fn values(&self) -> Option<Vec<ConstantValue>> {
         let mut decoder = Decoder::new(self.bytes.as_slice(), None);
         let mut values = Vec::with_capacity(self.count);
@@ -3129,7 +3094,6 @@ mod tests {
         let view = unsafe { std::slice::from_raw_parts(storage.words.as_ptr().cast::<u8>(), bytes.len()) };
         let owner = ForeignBytecodeCacheBlobOwner {
             owner: Box::into_raw(storage).cast(),
-            clone_owner: None,
             free_owner: release_test_blob,
         };
         (view, owner)

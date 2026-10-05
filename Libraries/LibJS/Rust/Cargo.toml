@@ -7,10 +7,7 @@ edition = "2024"
 crate-type = ["staticlib", "rlib"]
 
 [features]
-default = ["cpp-runtime"]
 allocator = ["dep:ladybird_allocator"]
-# The extern "C" entry points, FFI and bytecode cache through which the C++ LibJS runtime embeds the frontend.
-cpp-runtime = ["dep:cbindgen"]
 
 # After changing dependencies, regenerate the Flatpak sources:
 #   python3 Meta/CMake/flatpak/generate-cargo-sources.py
@@ -33,7 +30,6 @@ iced-x86 = { version = "1.21", default-features = false, features = ["decoder", 
 farm64 = { package = "fARM64", version = "0.0.2", features = ["alloc"] }
 
 [build-dependencies]
-cbindgen = { version = "0.29", optional = true }
 flapc = { path = "../Flap" }
 
 [lints]

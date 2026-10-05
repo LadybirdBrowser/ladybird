@@ -1422,22 +1422,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("cargo:rerun-if-changed={}", flap_path.display());
     println!("cargo:rerun-if-changed=build.rs");
-    println!("cargo:rerun-if-changed=cbindgen.toml");
     println!("cargo:rerun-if-changed=src");
 
     let out_dir = PathBuf::from(env::var("OUT_DIR")?);
-
-    #[cfg(feature = "cpp-runtime")]
-    cbindgen::generate(manifest_dir).map_or_else(
-        |error| match error {
-            cbindgen::Error::ParseSyntaxError { .. } => {}
-            e => panic!("{e:?}"),
-        },
-        |bindings| {
-            let header_path = out_dir.join("RustFFI.h");
-            bindings.write_to_file(&header_path);
-        },
-    );
 
     let file = fs::OpenOptions::new()
         .write(true)

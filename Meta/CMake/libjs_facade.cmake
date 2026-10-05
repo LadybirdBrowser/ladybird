@@ -19,7 +19,7 @@ file(GLOB_RECURSE libjs_cpp_runtime_headers CONFIGURE_DEPENDS RELATIVE "${LIBJS_
 list(FILTER libjs_cpp_runtime_headers EXCLUDE REGEX
     "^(Facade|Rust|Flap|ABI|Runtime/JavaScriptImplementations)/")
 # The C++ runtime's build generates these, and a Rust-mode build never does.
-list(APPEND libjs_cpp_runtime_headers Bytecode/Op.h Bytecode/OpCodes.h RustFFI.h)
+list(APPEND libjs_cpp_runtime_headers Bytecode/Op.h Bytecode/OpCodes.h)
 
 file(GLOB_RECURSE libjs_facade_headers CONFIGURE_DEPENDS RELATIVE "${LIBJS_FACADE_DIRECTORY}/LibJS"
     "${LIBJS_FACADE_DIRECTORY}/LibJS/*.h")

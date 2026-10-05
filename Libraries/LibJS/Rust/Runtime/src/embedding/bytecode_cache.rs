@@ -173,7 +173,6 @@ unsafe fn decode(
         let bytes = unsafe { core::slice::from_raw_parts(bytes, length) };
         let owner = ForeignBytecodeCacheBlobOwner {
             owner: owner.owner,
-            clone_owner: None,
             free_owner: release,
         };
         (bytes, owner)
@@ -188,7 +187,6 @@ unsafe fn decode(
         let bytes = unsafe { core::slice::from_raw_parts(copy.words.as_ptr().cast::<u8>(), length) };
         let owner = ForeignBytecodeCacheBlobOwner {
             owner: Box::into_raw(copy).cast(),
-            clone_owner: None,
             free_owner: release_aligned_blob_bytes,
         };
         (bytes, owner)
