@@ -3135,6 +3135,8 @@ pub(crate) unsafe fn take_style_transaction(
         })
         .collect();
     output.only_derived_child_reactions = engine.take_only_derived_child_reactions();
+    // The host applies the rows in this order, so the transaction answers them in it.
+    sort_style_deltas_for_direct_application(engine, &mut output.answers);
     output.connected_element_count = engine.connected_element_count();
     output
 }
@@ -3181,37 +3183,35 @@ pub unsafe extern "C" fn style_engine_sort_style_deltas_for_direct_application(
     let host = unsafe { document_host(host) };
     with_engine(read, host, |engine| {
         assert!(!deltas.is_null(), "a non-empty delta span must have storage");
-        let deltas = unsafe { std::slice::from_raw_parts_mut(deltas, count) };
-        // An element's own delta leads the pseudo-element deltas settled beside it.
-        let pseudo_rank = |delta: &FfiStyleDelta| {
-            if delta.pseudo_kind == u8::MAX {
-                0
-            } else {
-                1 + u16::from(delta.pseudo_kind)
-            }
-        };
-        // Small batches cost less to compare directly. A large batch names its dependency
-        // order once instead of walking both ancestor chains in every sort comparison.
-        if deltas.len() > 32 {
-            let ranks = engine.tree.style_reaction_order_ranks(
-                deltas
-                    .iter()
-                    .map(|delta| StyleNodeID::from_raw(delta.style_node).expect("a style delta must name an element")),
-            );
-            deltas.sort_unstable_by_key(|delta| {
-                let node = StyleNodeID::from_raw(delta.style_node).unwrap();
-                (ranks[&node], pseudo_rank(delta))
-            });
-            return;
+        // SAFETY: Guaranteed by the caller.
+        sort_style_deltas_for_direct_application(engine, unsafe { std::slice::from_raw_parts_mut(deltas, count) });
+    });
+}
+
+/// Orders `deltas` for direct application in C++: each inheritance branch contiguously in preorder, an element's own
+/// delta ahead of the pseudo-element deltas settled beside it.
+fn sort_style_deltas_for_direct_application(engine: &StyleEngine, deltas: &mut [FfiStyleDelta]) {
+    let pseudo_rank = |delta: &FfiStyleDelta| {
+        if delta.pseudo_kind == u8::MAX {
+            0
+        } else {
+            1 + u16::from(delta.pseudo_kind)
         }
-        deltas.sort_unstable_by(|first, second| {
-            let first_node = StyleNodeID::from_raw(first.style_node).expect("a style delta must name an element");
-            let second_node = StyleNodeID::from_raw(second.style_node).expect("a style delta must name an element");
-            engine
-                .tree
-                .compare_style_reaction_order(first_node, second_node)
-                .then_with(|| pseudo_rank(first).cmp(&pseudo_rank(second)))
-        });
+    };
+    let node =
+        |delta: &FfiStyleDelta| StyleNodeID::from_raw(delta.style_node).expect("a style delta must name an element");
+    // Small batches cost less to compare directly. A large batch names its dependency order once instead of walking
+    // both ancestor chains in every sort comparison.
+    if deltas.len() > 32 {
+        let ranks = engine.tree.style_reaction_order_ranks(deltas.iter().map(node));
+        deltas.sort_unstable_by_key(|delta| (ranks[&node(delta)], pseudo_rank(delta)));
+        return;
+    }
+    deltas.sort_unstable_by(|first, second| {
+        engine
+            .tree
+            .compare_style_reaction_order(node(first), node(second))
+            .then_with(|| pseudo_rank(first).cmp(&pseudo_rank(second)))
     });
 }
 
