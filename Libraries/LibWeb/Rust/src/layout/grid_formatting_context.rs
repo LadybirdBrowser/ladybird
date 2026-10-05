@@ -2555,12 +2555,7 @@ impl<'pass> GridFormattingContext<'pass> {
             let track_count = self.axis_tracks(axis).len() as i32;
             let used = self.used(item);
             if axis.is_column() {
-                used.padding_left.set(style.padding_left().to_px(inline_basis));
-                used.padding_right.set(style.padding_right().to_px(inline_basis));
-                used.margin_left.set(style.margin_left().to_px(inline_basis));
-                used.margin_right.set(style.margin_right().to_px(inline_basis));
-                used.border_left.set(style.border_left_width());
-                used.border_right.set(style.border_right_width());
+                used.resolve_horizontal_box_model(&style, inline_basis);
                 if item_start > 0 {
                     used.margin_left.set(used.margin_left.get() + extra_margin);
                 }
@@ -2568,12 +2563,7 @@ impl<'pass> GridFormattingContext<'pass> {
                     used.margin_right.set(used.margin_right.get() + extra_margin);
                 }
             } else {
-                used.padding_top.set(style.padding_top().to_px(inline_basis));
-                used.padding_bottom.set(style.padding_bottom().to_px(inline_basis));
-                used.margin_top.set(style.margin_top().to_px(inline_basis));
-                used.margin_bottom.set(style.margin_bottom().to_px(inline_basis));
-                used.border_top.set(style.border_top_width());
-                used.border_bottom.set(style.border_bottom_width());
+                used.resolve_vertical_box_model(&style, inline_basis);
                 if item_start > 0 {
                     used.margin_top.set(used.margin_top.get() + extra_margin);
                 }
