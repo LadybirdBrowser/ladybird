@@ -1440,20 +1440,10 @@ impl<'pass> SvgFormattingContext<'pass> {
         formatting_context::place_child(&self.formatting_context_run(), node, FfiCssPixelPoint { x, y }, None);
     }
 
-    fn for_each_child(&self, node: Node, mut callback: impl FnMut(Node)) {
-        for child in self.callbacks.children(node) {
-            callback(child);
-        }
-    }
-
     fn first_child_of_kind(&self, node: Node, kind: NodeKind) -> Option<Node> {
-        let mut result = None;
-        self.for_each_child(node, |child| {
-            if result.is_none() && self.node_kind(child) == kind {
-                result = Some(child);
-            }
-        });
-        result
+        self.callbacks
+            .children(node)
+            .find(|&child| self.node_kind(child) == kind)
     }
 
     pub(super) fn run(&mut self, run: &FormattingContextRun<'pass>, input: LayoutInput) {
