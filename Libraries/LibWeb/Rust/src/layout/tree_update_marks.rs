@@ -460,6 +460,15 @@ pub struct FfiBoxMarks {
     /// where the image's natural size cannot change the box's own, and any other box lays out again with its
     /// ancestors.
     pub image_data_changed: bool,
+    /// The text of the box renders with the language it now resolves: where any of it is cased by its language, the box
+    /// lays out again with its ancestors.
+    pub language_changed: bool,
+    /// The box takes `is_editing_host` and, a text box, `produces_line_box_fragment_when_empty`, which the build stamps
+    /// it with, and lays out again with its ancestors where either flips: an editing host gains a minimum block size, and
+    /// an empty editable text a zero-width fragment.
+    pub has_editing_facts: bool,
+    pub is_editing_host: bool,
+    pub produces_line_box_fragment_when_empty: bool,
 }
 
 /// The box a mark names.
@@ -468,7 +477,9 @@ pub(crate) enum MarkedBox {
     /// The box bound to the DOM node the identity names, or the document's for `None`, found as the mark is applied: a
     /// mark made beside a frame in flight, which holds the boxes, names the node alone.
     Node(Option<StyleNodeID>),
-    /// A box no node is bound to: an anonymous one, or one generated for a pseudo-element.
+    /// The box bound to the pseudo-element of kind `generated_for` on the element `generator`.
+    PseudoElement { generator: StyleNodeID, generated_for: u8 },
+    /// A box no node is bound to: an anonymous one, or one of several built for one node.
     Row(NodeSlotId),
 }
 
@@ -485,16 +496,35 @@ impl FfiBoxMarks {
         self.propagated_text_decorations |= later.propagated_text_decorations;
         self.text_data_changed |= later.text_data_changed;
         self.image_data_changed |= later.image_data_changed;
+        self.language_changed |= later.language_changed;
+        if later.has_editing_facts {
+            self.has_editing_facts = true;
+            self.is_editing_host = later.is_editing_host;
+            self.produces_line_box_fragment_when_empty = later.produces_line_box_fragment_when_empty;
+        }
         if later.has_dom_paint_facts {
             self.has_dom_paint_facts = true;
             self.dom_paint_facts = later.dom_paint_facts;
         }
     }
 
+    /// Whether the marks may lay the box out again.
+    pub(crate) fn may_lay_out(&self) -> bool {
+        self.layout_update
+            || self.text_data_changed
+            || self.image_data_changed
+            || self.language_changed
+            || self.has_editing_facts
+    }
+
     pub(crate) fn apply(self, arena: &mut LayoutNodeArena, target: MarkedBox) {
         let row = match target {
             MarkedBox::Node(None) => arena.bound_viewport_row(),
             MarkedBox::Node(Some(node)) => arena.bound_row(node),
+            MarkedBox::PseudoElement {
+                generator,
+                generated_for,
+            } => arena.bound_pseudo_element_row(generator, generated_for),
             MarkedBox::Row(row) => row,
         };
         let Some(kind) = arena.node_kind_if_live(row) else {
@@ -510,6 +540,28 @@ impl FfiBoxMarks {
                 arena.bump_fragment_cache_epoch_of_self_and_ancestors(row);
                 arena.reset_cached_intrinsic_sizes_of_self_and_ancestors(row);
             } else {
+                arena.set_needs_layout_update(row, true);
+            }
+        }
+        if self.language_changed && super::rendered_text::enroll_text_after_language_change(arena, row) {
+            arena.set_needs_layout_update(row, true);
+        }
+        if self.has_editing_facts {
+            let stamp = |flag: NodeFlag, value: bool| {
+                let flips = (arena.node_flags(row) & flag as u32 != 0) != value;
+                if flips {
+                    arena.set_node_flag(row, flag, value);
+                }
+                flips
+            };
+            let mut flipped = stamp(NodeFlag::IsEditingHost, self.is_editing_host);
+            if is_text {
+                flipped |= stamp(
+                    NodeFlag::ProducesLineBoxFragmentWhenEmpty,
+                    self.produces_line_box_fragment_when_empty,
+                );
+            }
+            if flipped {
                 arena.set_needs_layout_update(row, true);
             }
         }
@@ -599,6 +651,29 @@ fn repaint(arena: &mut LayoutNodeArena, row: NodeSlotId, includes_hit_testing: b
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn render_state_mark_node_box(host: *const DocumentHost, style_node: u32, marks: FfiBoxMarks) {
     let target = MarkedBox::Node(StyleNodeID::from_raw(style_node));
+    // SAFETY: Guaranteed by the caller.
+    unsafe { super::layout_changes::queue(host, super::layout_changes::LayoutChange::MarkBox { target, marks }) };
+}
+
+/// Marks the box bound to the pseudo-element of kind `generated_for` on the element with `generator`.
+///
+/// # Safety
+///
+/// `host` must be a live document host, on the document's thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn render_state_mark_pseudo_element_box(
+    host: *const DocumentHost,
+    generator: u32,
+    generated_for: u8,
+    marks: FfiBoxMarks,
+) {
+    let Some(generator) = StyleNodeID::from_raw(generator) else {
+        return;
+    };
+    let target = MarkedBox::PseudoElement {
+        generator,
+        generated_for,
+    };
     // SAFETY: Guaranteed by the caller.
     unsafe { super::layout_changes::queue(host, super::layout_changes::LayoutChange::MarkBox { target, marks }) };
 }
