@@ -19,7 +19,7 @@ Object& GlobalEnvironment::global_this_value()
 
 DeclarativeEnvironment& GlobalEnvironment::declarative_record()
 {
-    return *cell_from_abi<DeclarativeEnvironment>(js_environment_global_declarative_record(cell_to_abi<JSEnvironment>(*this)));
+    return cell_ref_from_abi<DeclarativeEnvironment>(js_environment_global_declarative_record(cell_to_abi<JSEnvironment>(*this)));
 }
 
 }

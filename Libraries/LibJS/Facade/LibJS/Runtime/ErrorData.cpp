@@ -8,6 +8,7 @@
 #include <LibJS/EmbeddingABIConversions.h>
 #include <LibJS/Runtime/ErrorData.h>
 #include <LibJS/Runtime/VM.h>
+#include <LibJS/ScriptAndModuleABIConversions.h>
 
 namespace JS {
 
@@ -18,11 +19,16 @@ static JSErrorData const* error_data_to_abi(ErrorData const& error_data)
     return reinterpret_cast<JSErrorData const*>(&error_data);
 }
 
-TracebackFrameSourceRange const& TracebackFrame::source_range() const
+static SourceRange const& source_range_of_a_frame_without_one()
 {
-    static NeverDestroyed<TracebackFrameSourceRange> source_range_of_a_frame_without_one;
+    static NeverDestroyed<SourceRange> source_range { SourceRange { SourceCode::create({}, Utf16String {}), {} } };
+    return *source_range;
+}
+
+SourceRange const& TracebackFrame::source_range() const
+{
     if (!cached_source_range.has_value())
-        return *source_range_of_a_frame_without_one;
+        return source_range_of_a_frame_without_one();
     return *cached_source_range;
 }
 
@@ -42,9 +48,9 @@ Vector<TracebackFrame, 32> ErrorData::traceback() const
         JSTracebackFrame frame;
         js_error_data_traceback_frame(error_data, index, &frame);
 
-        Optional<TracebackFrameSourceRange> source_range;
+        Optional<SourceRange> source_range;
         if (frame.has_source_range)
-            source_range = TracebackFrameSourceRange { Utf16String::from_utf16(utf16_view_from_abi(frame.filename)), { frame.line, frame.column } };
+            source_range = SourceRange { source_code_from_abi(frame.source_code).release_nonnull(), { frame.line, frame.column } };
         traceback.unchecked_append({ Utf16String::from_utf16(utf16_view_from_abi(frame.function_name)), move(source_range) });
     }
     return traceback;
@@ -54,7 +60,7 @@ GC::Ref<ErrorDataCell> ErrorDataCell::capture(VM& vm)
 {
     auto* cell = js_error_data_cell_capture(vm_to_abi(vm));
     VERIFY(cell);
-    return *cell_from_abi<ErrorDataCell>(cell);
+    return cell_ref_from_abi<ErrorDataCell>(cell);
 }
 
 }

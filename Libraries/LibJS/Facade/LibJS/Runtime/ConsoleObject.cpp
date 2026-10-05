@@ -16,7 +16,7 @@ Console& ConsoleObject::console()
 {
     auto* console = js_console_object_console(object_to_abi(*this));
     VERIFY(console);
-    return *cell_from_abi<Console>(console);
+    return cell_ref_from_abi<Console>(console);
 }
 
 }

@@ -157,7 +157,7 @@ void Console::set_client(ConsoleClient& client)
 
 Realm& Console::realm() const
 {
-    return *cell_from_abi<Realm>(js_console_realm(console_to_abi(*this)));
+    return cell_ref_from_abi<Realm>(js_console_realm(console_to_abi(*this)));
 }
 
 void Console::output_debug_message(LogLevel log_level, StringView output) const
@@ -216,7 +216,7 @@ void Console::report_exception(Utf16View name, Utf16View message, ErrorData cons
 static GC::Ref<EngineConsoleClient> create_engine_console_client(Console& console, ConsoleClient& client)
 {
     auto* engine_console_client = js_console_client_create(vm_to_abi(console.vm()), console_to_abi(console), &ConsoleClientMethodThunks::methods, static_cast<GC::Cell*>(&client));
-    return *cell_from_abi<EngineConsoleClient>(engine_console_client);
+    return cell_ref_from_abi<EngineConsoleClient>(engine_console_client);
 }
 
 // LibGC defers garbage collection while a cell is being constructed, so the runtime's client can take this client as

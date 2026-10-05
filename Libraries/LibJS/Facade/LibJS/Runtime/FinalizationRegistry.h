@@ -6,7 +6,9 @@
 
 #pragma once
 
+#include <AK/SinglyLinkedList.h>
 #include <LibGC/Ptr.h>
+#include <LibGC/WeakContainer.h>
 #include <LibJS/Export.h>
 #include <LibJS/Runtime/Completion.h>
 #include <LibJS/Runtime/FunctionObject.h>

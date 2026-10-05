@@ -16,6 +16,7 @@
 #include <AK/Utf16View.h>
 #include <AK/Variant.h>
 #include <AK/Vector.h>
+#include <LibCore/ElapsedTimer.h>
 #include <LibGC/CellAllocator.h>
 #include <LibGC/RootVector.h>
 #include <LibJS/ConsoleLogLevel.h>

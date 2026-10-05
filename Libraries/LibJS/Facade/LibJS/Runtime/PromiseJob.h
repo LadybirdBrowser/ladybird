@@ -7,6 +7,7 @@
 #pragma once
 
 #include <LibGC/Cell.h>
+#include <LibGC/Function.h>
 #include <LibGC/Ptr.h>
 #include <LibJS/Export.h>
 #include <LibJS/Forward.h>

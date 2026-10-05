@@ -6,9 +6,13 @@
 
 #pragma once
 
+#include <AK/Bitmap.h>
+#include <AK/HashMap.h>
+#include <AK/OwnPtr.h>
 #include <AK/Utf16FlyString.h>
 #include <AK/Vector.h>
 #include <LibJS/Export.h>
+#include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/Completion.h>
 #include <LibJS/Runtime/Environment.h>
 #include <LibJS/Runtime/Value.h>

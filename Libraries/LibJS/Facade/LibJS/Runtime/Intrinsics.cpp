@@ -5,9 +5,15 @@
  */
 
 #include <LibJS/EmbeddingABIConversions.h>
+#include <LibJS/Runtime/ConsoleObject.h>
+#include <LibJS/Runtime/DataViewConstructor.h>
+#include <LibJS/Runtime/ErrorConstructor.h>
 #include <LibJS/Runtime/FunctionObject.h>
 #include <LibJS/Runtime/Intrinsics.h>
+#include <LibJS/Runtime/PromiseConstructor.h>
 #include <LibJS/Runtime/Realm.h>
+#include <LibJS/Runtime/SharedArrayBufferConstructor.h>
+#include <LibJS/Runtime/TypedArray.h>
 #include <LibJS/Runtime/VM.h>
 
 namespace JS {
@@ -33,7 +39,7 @@ static GC::Ref<T> intrinsic_of_realm(Realm& realm, JSIntrinsic intrinsic)
 {
     auto* object = js_realm_intrinsic(vm_to_abi(realm.vm()), cell_to_abi<JSRealm>(realm), intrinsic);
     VERIFY(object);
-    return declared_cell_from_abi<T>(object);
+    return cell_ref_from_abi<T>(object);
 }
 
 Realm& Intrinsics::realm() const

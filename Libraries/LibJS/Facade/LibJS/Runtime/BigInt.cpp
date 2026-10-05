@@ -20,7 +20,7 @@ GC::Ref<BigInt> BigInt::create(VM& vm, Crypto::SignedBigInteger big_integer)
     auto magnitude_words = big_integer.unsigned_value().words();
     auto* bigint = js_bigint_create_from_magnitude(vm_to_abi(vm), big_integer.is_negative(), magnitude_words.data(), magnitude_words.size());
     VERIFY(bigint);
-    return *cell_from_abi<BigInt>(bigint);
+    return cell_ref_from_abi<BigInt>(bigint);
 }
 
 Crypto::SignedBigInteger BigInt::big_integer() const

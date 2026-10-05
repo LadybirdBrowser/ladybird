@@ -6,16 +6,21 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/ScopeGuard.h>
 #include <LibGC/RootVector.h>
+#include <LibJS/CyclicModule.h>
 #include <LibJS/EmbeddingABIConversions.h>
+#include <LibJS/Runtime/ArrayBufferABIConversions.h>
 #include <LibJS/Runtime/Environment.h>
 #include <LibJS/Runtime/ExecutionContext.h>
+#include <LibJS/Runtime/FinalizationRegistry.h>
 #include <LibJS/Runtime/JobCallback.h>
 #include <LibJS/Runtime/PrimitiveString.h>
+#include <LibJS/Runtime/PromiseCapability.h>
 #include <LibJS/Runtime/Reference.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibJS/Script.h>
+#include <LibJS/ScriptAndModuleABIConversions.h>
+#include <LibJS/SourceTextModule.h>
 
 namespace JS {
 
@@ -64,11 +69,6 @@ static ExecutionContext* execution_context_from_abi(JSExecutionContext* executio
     return reinterpret_cast<ExecutionContext*>(execution_context);
 }
 
-static JSRealm* realm_to_abi(Realm& realm)
-{
-    return cell_to_abi<JSRealm>(realm);
-}
-
 static Realm* realm_from_abi(JSRealm* realm)
 {
     return cell_from_abi<Realm>(realm);
@@ -99,9 +99,9 @@ static ScriptOrModule script_or_module_from_abi(JSScriptOrModule script_or_modul
 {
     switch (script_or_module.tag) {
     case JS_LAYOUT_SCRIPT_OR_MODULE_TAG_SCRIPT:
-        return GC::Ref { declared_cell_from_abi<Script>(script_or_module.cell) };
+        return script_from_abi(static_cast<JSScript*>(script_or_module.cell));
     case JS_LAYOUT_SCRIPT_OR_MODULE_TAG_MODULE:
-        return GC::Ref { declared_cell_from_abi<Module>(script_or_module.cell) };
+        return module_from_abi(static_cast<JSModule*>(script_or_module.cell));
     default:
         VERIFY(script_or_module.tag == JS_LAYOUT_SCRIPT_OR_MODULE_TAG_EMPTY);
         return {};
@@ -112,63 +112,26 @@ static ImportedModuleReferrer imported_module_referrer_from_abi(JSImportedModule
 {
     switch (referrer.kind) {
     case JS_IMPORTED_MODULE_REFERRER_SCRIPT:
-        return GC::Ref { declared_cell_from_abi<Script>(referrer.record) };
+        return script_from_abi(static_cast<JSScript*>(referrer.record));
     case JS_IMPORTED_MODULE_REFERRER_CYCLIC_MODULE:
-        return GC::Ref { declared_cell_from_abi<CyclicModule>(referrer.record) };
+        return module_from_abi<CyclicModule>(static_cast<JSModule*>(referrer.record));
     case JS_IMPORTED_MODULE_REFERRER_REALM:
-        return GC::Ref { declared_cell_from_abi<Realm>(referrer.record) };
+        return GC::Ref { cell_ref_from_abi<Realm>(static_cast<JSRealm*>(referrer.record)) };
     default:
         VERIFY_NOT_REACHED();
     }
-}
-
-static JSImportedModuleReferrer imported_module_referrer_to_abi(ImportedModuleReferrer const& referrer)
-{
-    return referrer.visit(
-        [](GC::Ref<Script> script) { return JSImportedModuleReferrer { JS_IMPORTED_MODULE_REFERRER_SCRIPT, script.ptr() }; },
-        [](GC::Ref<CyclicModule> module) { return JSImportedModuleReferrer { JS_IMPORTED_MODULE_REFERRER_CYCLIC_MODULE, module.ptr() }; },
-        [](GC::Ref<Realm> realm) { return JSImportedModuleReferrer { JS_IMPORTED_MODULE_REFERRER_REALM, realm.ptr() }; });
 }
 
 static ImportedModulePayload imported_module_payload_from_abi(JSImportedModulePayload payload)
 {
     switch (payload.kind) {
     case JS_IMPORTED_MODULE_PAYLOAD_GRAPH_LOADING_STATE:
-        return GC::Ref { declared_cell_from_abi<GraphLoadingState>(payload.record) };
+        return GC::Ref { cell_ref_from_abi<GraphLoadingState>(payload.record) };
     case JS_IMPORTED_MODULE_PAYLOAD_PROMISE_CAPABILITY:
-        return GC::Ref { declared_cell_from_abi<PromiseCapability>(payload.record) };
+        return GC::Ref { cell_ref_from_abi<PromiseCapability>(payload.record) };
     default:
         VERIFY_NOT_REACHED();
     }
-}
-
-static JSImportedModulePayload imported_module_payload_to_abi(ImportedModulePayload const& payload)
-{
-    return payload.visit(
-        [](GC::Ref<GraphLoadingState> state) { return JSImportedModulePayload { JS_IMPORTED_MODULE_PAYLOAD_GRAPH_LOADING_STATE, state.ptr() }; },
-        [](GC::Ref<PromiseCapability> capability) { return JSImportedModulePayload { JS_IMPORTED_MODULE_PAYLOAD_PROMISE_CAPABILITY, capability.ptr() }; });
-}
-
-static ModuleRequest module_request_from_abi(JSModuleRequest const& module_request)
-{
-    auto attribute_count = js_module_request_attribute_count(&module_request);
-    Vector<ImportAttribute> attributes;
-    attributes.ensure_capacity(attribute_count);
-    for (size_t index = 0; index < attribute_count; ++index) {
-        auto attribute = js_module_request_attribute(&module_request, index);
-        attributes.unchecked_append({ Utf16String::from_utf16(utf16_view_from_abi(attribute.key)), Utf16String::from_utf16(utf16_view_from_abi(attribute.value)) });
-    }
-    return ModuleRequest { Utf16FlyString::from_utf16(utf16_view_from_abi(js_module_request_specifier(&module_request))), move(attributes) };
-}
-
-// The caller destroys the request with js_module_request_destroy().
-static JSModuleRequest* module_request_to_abi(ModuleRequest const& module_request)
-{
-    Vector<JSImportAttribute> attributes;
-    attributes.ensure_capacity(module_request.attributes.size());
-    for (auto const& attribute : module_request.attributes)
-        attributes.unchecked_append({ utf16_view_to_abi(attribute.key.utf16_view()), utf16_view_to_abi(attribute.value.utf16_view()) });
-    return js_module_request_create(utf16_view_to_abi(module_request.module_specifier.view()), attributes.data(), attributes.size());
 }
 
 static void append_utf16_string_to_sink(JSStringSink const& sink, Utf16View string)
@@ -204,7 +167,7 @@ struct HostHookThunks {
             parameter_strings.unchecked_append(Utf16String::from_utf16(utf16_view_from_abi(arguments->parameter_strings[index])));
 
         return completion_to_abi(vm_of(data).host_ensure_can_compile_strings(
-            *realm_from_abi(arguments->callee_realm),
+            cell_ref_from_abi<Realm>(arguments->callee_realm),
             parameter_strings,
             utf16_view_from_abi(arguments->body_string),
             utf16_view_from_abi(arguments->code_string),
@@ -224,17 +187,17 @@ struct HostHookThunks {
 
     static void promise_rejection_tracker(void* data, JSVM*, JSObject* promise, u8 operation)
     {
-        vm_of(data).host_promise_rejection_tracker(*cell_from_abi<Promise>(promise), static_cast<Promise::RejectionOperation>(operation));
+        vm_of(data).host_promise_rejection_tracker(cell_ref_from_abi<Promise>(promise), static_cast<Promise::RejectionOperation>(operation));
     }
 
     static JSCompletion call_job_callback(void* data, JSVM*, JSJobCallback* job_callback, JSValue this_value, JSValue const* arguments, size_t argument_count)
     {
-        return completion_to_abi(vm_of(data).host_call_job_callback(*cell_from_abi<JobCallback>(job_callback), value_from_abi(this_value), values_from_abi(arguments, argument_count)));
+        return completion_to_abi(vm_of(data).host_call_job_callback(cell_ref_from_abi<JobCallback>(job_callback), value_from_abi(this_value), values_from_abi(arguments, argument_count)));
     }
 
     static void enqueue_finalization_registry_cleanup_job(void* data, JSVM*, JSObject* finalization_registry)
     {
-        vm_of(data).host_enqueue_finalization_registry_cleanup_job(declared_cell_from_abi<FinalizationRegistry>(finalization_registry));
+        vm_of(data).host_enqueue_finalization_registry_cleanup_job(cell_ref_from_abi<FinalizationRegistry>(finalization_registry));
     }
 
     static void enqueue_promise_job(void* data, JSVM*, JSPromiseJob* job, JSRealm* realm)
@@ -250,13 +213,13 @@ struct HostHookThunks {
 
     static JSJobCallback* make_job_callback(void* data, JSVM*, JSObject* callable)
     {
-        return cell_to_abi<JSJobCallback>(*vm_of(data).host_make_job_callback(*cell_from_abi<FunctionObject>(callable)));
+        return cell_to_abi<JSJobCallback>(*vm_of(data).host_make_job_callback(cell_ref_from_abi<FunctionObject>(callable)));
     }
 
     static void get_import_meta_properties(void* data, JSVM*, JSModule* module, JSImportMetaPropertySink* properties)
     {
         auto& vm = vm_of(data);
-        auto import_meta_properties = vm.host_get_import_meta_properties(declared_cell_from_abi<SourceTextModule>(module));
+        auto import_meta_properties = vm.host_get_import_meta_properties(module_from_abi<SourceTextModule>(module));
 
         // The values have to stay alive until they are appended, and appending one can collect garbage.
         GC::RootVector<Value> values_being_appended;
@@ -289,12 +252,12 @@ struct HostHookThunks {
 
     static JSCompletion resize_array_buffer(void* data, JSVM*, JSObject* buffer, size_t new_byte_length)
     {
-        return completion_to_abi(vm_of(data).host_resize_array_buffer(declared_cell_from_abi<ArrayBuffer>(buffer), new_byte_length));
+        return completion_to_abi(vm_of(data).host_resize_array_buffer(array_buffer_from_abi(buffer), new_byte_length));
     }
 
     static JSCompletion grow_shared_array_buffer(void* data, JSVM*, JSObject* buffer, size_t new_byte_length)
     {
-        return completion_to_abi(vm_of(data).host_grow_shared_array_buffer(declared_cell_from_abi<ArrayBuffer>(buffer), new_byte_length));
+        return completion_to_abi(vm_of(data).host_grow_shared_array_buffer(array_buffer_from_abi(buffer), new_byte_length));
     }
 
     static void on_unimplemented_property_access(void* data, JSVM*, JSObject* object, JSPropertyKey key)
@@ -396,9 +359,8 @@ void VM::unref() const
 void VM::install_default_host_hooks()
 {
     host_load_imported_module = [this](ImportedModuleReferrer referrer, ModuleRequest const& module_request, GC::Ptr<GC::Cell> load_state, ImportedModulePayload payload) {
-        auto* abi_module_request = module_request_to_abi(module_request);
-        ScopeGuard destroy_abi_module_request = [&] { js_module_request_destroy(abi_module_request); };
-        js_vm_default_host_load_imported_module(vm_abi(*this), imported_module_referrer_to_abi(referrer), abi_module_request, load_state.ptr(), imported_module_payload_to_abi(payload));
+        ModuleRequestForABI abi_module_request { module_request };
+        js_vm_default_host_load_imported_module(vm_abi(*this), imported_module_referrer_to_abi(referrer), abi_module_request.ptr(), load_state.ptr(), imported_module_payload_to_abi(payload));
     };
 
     host_get_import_meta_properties = [](SourceTextModule&) -> HashMap<PropertyKey, Value> {
@@ -418,7 +380,7 @@ void VM::install_default_host_hooks()
     };
 
     host_enqueue_finalization_registry_cleanup_job = [this](FinalizationRegistry& finalization_registry) {
-        js_vm_default_host_enqueue_finalization_registry_cleanup_job(vm_abi(*this), declared_cell_to_abi<JSObject>(finalization_registry));
+        js_vm_default_host_enqueue_finalization_registry_cleanup_job(vm_abi(*this), object_to_abi(finalization_registry));
     };
 
     host_enqueue_promise_job = [this](PromiseJob job, GC::Ptr<Realm> realm) {
@@ -446,11 +408,11 @@ void VM::install_default_host_hooks()
     };
 
     host_resize_array_buffer = [this](ArrayBuffer& buffer, size_t new_byte_length) -> ThrowCompletionOr<HandledByHost> {
-        return completion_from_abi<HandledByHost>(js_vm_default_host_resize_array_buffer(vm_abi(*this), declared_cell_to_abi<JSObject>(buffer), new_byte_length));
+        return completion_from_abi<HandledByHost>(js_vm_default_host_resize_array_buffer(vm_abi(*this), array_buffer_to_abi(buffer), new_byte_length));
     };
 
     host_grow_shared_array_buffer = [this](ArrayBuffer& buffer, size_t new_byte_length) -> ThrowCompletionOr<HandledByHost> {
-        return completion_from_abi<HandledByHost>(js_vm_default_host_grow_shared_array_buffer(vm_abi(*this), declared_cell_to_abi<JSObject>(buffer), new_byte_length));
+        return completion_from_abi<HandledByHost>(js_vm_default_host_grow_shared_array_buffer(vm_abi(*this), array_buffer_to_abi(buffer), new_byte_length));
     };
 
     host_unrecognized_date_string = [](Utf16View) {
@@ -519,13 +481,13 @@ GC::Ref<Symbol> VM::well_known_symbol(WellKnownSymbol symbol) const
     static_assert(to_underlying(WellKnownSymbol::unscopables) == JS_WELL_KNOWN_SYMBOL_UNSCOPABLES);
     auto* well_known_symbol = js_symbol_well_known(vm_abi(*this), to_underlying(symbol));
     VERIFY(well_known_symbol);
-    return *cell_from_abi<Symbol>(well_known_symbol);
+    return cell_ref_from_abi<Symbol>(well_known_symbol);
 }
 
 PrimitiveString& VM::empty_string()
 {
     // The runtime hands out the one empty string it keeps.
-    return *cell_from_abi<PrimitiveString>(js_string_create_from_utf16_view(vm_abi(*this), utf16_view_to_abi(Utf16View {})));
+    return cell_ref_from_abi<PrimitiveString>(js_string_create_from_utf16_view(vm_abi(*this), utf16_view_to_abi(Utf16View {})));
 }
 
 Utf16String const& VM::error_message(ErrorMessage type) const

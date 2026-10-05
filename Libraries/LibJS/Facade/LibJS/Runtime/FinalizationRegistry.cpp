@@ -23,7 +23,7 @@ Realm& FinalizationRegistry::realm()
 {
     auto* realm = js_weak_finalization_registry_realm(object_to_abi(*this));
     VERIFY(realm);
-    return *cell_from_abi<Realm>(realm);
+    return cell_ref_from_abi<Realm>(realm);
 }
 
 Realm const& FinalizationRegistry::realm() const
@@ -35,7 +35,7 @@ JobCallback& FinalizationRegistry::cleanup_callback()
 {
     auto* cleanup_callback = js_weak_finalization_registry_cleanup_callback(object_to_abi(*this));
     VERIFY(cleanup_callback);
-    return *cell_from_abi<JobCallback>(cleanup_callback);
+    return cell_ref_from_abi<JobCallback>(cleanup_callback);
 }
 
 JobCallback const& FinalizationRegistry::cleanup_callback() const

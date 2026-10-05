@@ -9,29 +9,24 @@
 
 #include <AK/Noncopyable.h>
 #include <AK/Optional.h>
+#include <AK/String.h>
 #include <AK/Utf16String.h>
 #include <AK/Vector.h>
 #include <LibGC/Ptr.h>
 #include <LibJS/Export.h>
 #include <LibJS/Forward.h>
+#include <LibJS/Heap/Cell.h>
 #include <LibJS/Heap/EngineCell.h>
 #include <LibJS/Position.h>
+#include <LibJS/SourceRange.h>
 
 namespace JS {
 
-// Where in its source a frame of a traceback was, with the members of a SourceRange that LibJS's users read.
-struct JS_API TracebackFrameSourceRange {
-    Utf16String const& filename() const { return source_filename; }
-
-    Utf16String source_filename;
-    Position start;
-};
-
 struct JS_API TracebackFrame {
     Utf16String function_name;
-    [[nodiscard]] TracebackFrameSourceRange const& source_range() const;
+    [[nodiscard]] SourceRange const& source_range() const;
 
-    Optional<TracebackFrameSourceRange> cached_source_range;
+    Optional<SourceRange> cached_source_range;
 };
 
 enum CompactTraceback {

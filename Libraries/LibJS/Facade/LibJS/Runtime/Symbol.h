@@ -9,9 +9,11 @@
 
 #include <AK/Optional.h>
 #include <AK/Utf16String.h>
+#include <LibGC/CellAllocator.h>
 #include <LibGC/Ptr.h>
 #include <LibJS/Export.h>
 #include <LibJS/Forward.h>
+#include <LibJS/Heap/Cell.h>
 #include <LibJS/Heap/EngineCell.h>
 
 namespace JS {

@@ -18,7 +18,7 @@ using CreateRealmObject = Function<GC::Ref<Object>(Realm&)>;
 static JSObject* create_realm_object(void* context, JSRealm* realm)
 {
     auto& create_object = *static_cast<CreateRealmObject*>(context);
-    return object_to_abi(*create_object(*cell_from_abi<Realm>(realm)));
+    return object_to_abi(*create_object(cell_ref_from_abi<Realm>(realm)));
 }
 
 // 9.3.3 InitializeHostDefinedRealm ( ), https://tc39.es/ecma262/#sec-initializehostdefinedrealm

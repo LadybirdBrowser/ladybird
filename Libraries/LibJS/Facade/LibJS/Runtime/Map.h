@@ -7,8 +7,11 @@
 #pragma once
 
 #include <AK/Function.h>
+#include <AK/HashMap.h>
 #include <AK/Optional.h>
+#include <AK/Vector.h>
 #include <LibJS/Export.h>
+#include <LibJS/Runtime/BigInt.h>
 #include <LibJS/Runtime/Completion.h>
 #include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/Object.h>

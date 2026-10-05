@@ -27,7 +27,7 @@ GC::Ref<TypedArrayBase> TypedArrayBase::create_from_slots(Realm& realm, Kind kin
 
     auto* typed_array = js_typed_array_create_from_slots(vm_to_abi(realm.vm()), cell_to_abi<JSRealm>(realm), to_underlying(kind), array_buffer_to_abi(array_buffer), byte_length_to_abi(array_length), byte_length_to_abi(byte_length), byte_offset);
     VERIFY(typed_array);
-    return *cell_from_abi<TypedArrayBase>(typed_array);
+    return cell_ref_from_abi<TypedArrayBase>(typed_array);
 }
 
 ByteLength TypedArrayBase::byte_length() const
@@ -52,7 +52,7 @@ TypedArrayWithBufferWitness make_typed_array_with_buffer_witness_record(TypedArr
 {
     auto record = js_typed_array_make_witness_record(object_to_abi(typed_array), order_to_abi(order));
     return {
-        .object = *cell_from_abi<TypedArrayBase>(record.typed_array),
+        .object = cell_ref_from_abi<TypedArrayBase>(record.typed_array),
         .cached_buffer_byte_length = byte_length_from_abi(record.cached_buffer_byte_length),
     };
 }
@@ -96,7 +96,7 @@ ThrowCompletionOr<TypedArrayBase*> typed_array_from(VM& vm, Value typed_array_va
     {                                                                                                                                                                                       \
         auto* typed_array = js_typed_array_create_on_buffer(vm_to_abi(realm.vm()), cell_to_abi<JSRealm>(realm), to_underlying(Kind::ClassName), length, array_buffer_to_abi(array_buffer)); \
         VERIFY(typed_array);                                                                                                                                                                \
-        return *cell_from_abi<ClassName>(typed_array);                                                                                                                                      \
+        return cell_ref_from_abi<ClassName>(typed_array);                                                                                                                                   \
     }
 JS_ENUMERATE_TYPED_ARRAYS
 #undef __JS_ENUMERATE

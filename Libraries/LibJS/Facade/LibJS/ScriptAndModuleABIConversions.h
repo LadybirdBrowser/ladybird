@@ -75,7 +75,7 @@ inline JSScript* script_to_abi(Script const& script)
 inline GC::Ref<Script> script_from_abi(JSScript* script)
 {
     VERIFY(script);
-    return *cell_from_abi<Script>(script);
+    return cell_ref_from_abi<Script>(script);
 }
 
 inline JSModule* module_to_abi(Module const& module)
@@ -87,7 +87,7 @@ template<typename ModuleType = Module>
 GC::Ref<ModuleType> module_from_abi(JSModule* module)
 {
     VERIFY(module);
-    return *cell_from_abi<ModuleType>(module);
+    return cell_ref_from_abi<ModuleType>(module);
 }
 
 // The runtime borrows filenames as UTF-16 and reads them back as UTF-8, which C++ hands over as a StringView.
@@ -127,7 +127,7 @@ Result<GC::Ref<Record>, Vector<ParserError>> record_or_parser_errors_from_abi(Ab
         VERIFY(!parser_errors.is_empty());
         return parser_errors;
     }
-    return GC::Ref { *cell_from_abi<Record>(record) };
+    return GC::Ref { cell_ref_from_abi<Record>(record) };
 }
 
 // A module request that the facade owns for the duration of a call into the runtime.

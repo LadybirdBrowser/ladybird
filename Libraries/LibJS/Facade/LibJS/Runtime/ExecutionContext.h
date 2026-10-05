@@ -9,6 +9,7 @@
 
 #pragma once
 
+#include <AK/Checked.h>
 #include <AK/NonnullOwnPtr.h>
 #include <AK/Optional.h>
 #include <AK/Span.h>
@@ -20,6 +21,7 @@
 #include <LibJS/Embedding/Layout.h>
 #include <LibJS/Export.h>
 #include <LibJS/Forward.h>
+#include <LibJS/Module.h>
 #include <LibJS/Runtime/Value.h>
 #include <LibJS/SourceRange.h>
 

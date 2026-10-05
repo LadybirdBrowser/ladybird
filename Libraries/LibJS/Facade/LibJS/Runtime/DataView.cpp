@@ -18,7 +18,7 @@ GC::Ref<DataView> DataView::create(Realm& realm, ArrayBuffer* viewed_buffer, Byt
     VERIFY(viewed_buffer);
     auto* data_view = js_array_buffer_create_data_view(vm_to_abi(realm.vm()), cell_to_abi<JSRealm>(realm), array_buffer_to_abi(*viewed_buffer), byte_length_to_abi(byte_length), byte_offset);
     VERIFY(data_view);
-    return *cell_from_abi<DataView>(data_view);
+    return cell_ref_from_abi<DataView>(data_view);
 }
 
 ArrayBuffer* DataView::viewed_array_buffer() const
@@ -48,7 +48,7 @@ DataViewWithBufferWitness make_data_view_with_buffer_witness_record(DataView con
 {
     auto record = js_array_buffer_make_data_view_witness_record(object_to_abi(data_view), order_to_abi(order));
     return {
-        .object = *cell_from_abi<DataView>(record.data_view),
+        .object = cell_ref_from_abi<DataView>(record.data_view),
         .cached_buffer_byte_length = byte_length_from_abi(record.cached_buffer_byte_length),
     };
 }

@@ -6,18 +6,25 @@
 
 #pragma once
 
+#include <AK/HashTable.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/Result.h>
 #include <AK/StringView.h>
+#include <AK/Utf16FlyString.h>
 #include <AK/Utf16View.h>
 #include <AK/Vector.h>
 #include <LibGC/Ptr.h>
+#include <LibGC/Root.h>
 #include <LibJS/DecodedBytecodeCache.h>
 #include <LibJS/Export.h>
 #include <LibJS/Forward.h>
 #include <LibJS/Heap/EngineCell.h>
 #include <LibJS/ParserError.h>
+#include <LibJS/Runtime/FunctionKind.h>
+#include <LibJS/Runtime/PrimitiveString.h>
+#include <LibJS/Runtime/PropertyKey.h>
 #include <LibJS/Runtime/Realm.h>
+#include <LibJS/Runtime/Symbol.h>
 #include <LibJS/SourceCode.h>
 
 namespace JS {

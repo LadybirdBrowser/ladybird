@@ -8,6 +8,7 @@
 
 #include <AK/ByteString.h>
 #include <AK/Utf16View.h>
+#include <LibGC/Function.h>
 #include <LibGC/Ptr.h>
 #include <LibJS/Embedding/Layout.h>
 #include <LibJS/Export.h>
