@@ -81,6 +81,20 @@ static ReadonlySpan<Value> values_from_abi(JSValue const* values, size_t count)
     return { reinterpret_cast<Value const*>(values), count };
 }
 
+// The runtime lends the source code of a frame for the call, and the SourceRange takes its own reference to it.
+static Optional<SourceRange> source_range_from_abi(JSDebuggerSourceRange const& source_range)
+{
+    if (!source_range.source_code)
+        return {};
+    auto const& source_code = *reinterpret_cast<SourceCode const*>(source_range.source_code);
+    return SourceRange { source_code, Position { source_range.line, source_range.column } };
+}
+
+static StackTraceElement stack_trace_element_from_abi(JSDebuggerStackFrame const& stack_frame)
+{
+    return { execution_context_from_abi(stack_frame.execution_context), source_range_from_abi(stack_frame.source_range) };
+}
+
 static ScriptOrModule script_or_module_from_abi(JSScriptOrModule script_or_module)
 {
     switch (script_or_module.tag) {
@@ -483,6 +497,20 @@ bool VM::debugging_enabled() const
     return js_debugger_is_enabled(vm_abi(*this));
 }
 
+Debugger* VM::debugger()
+{
+    if (!debugging_enabled())
+        return nullptr;
+    return reinterpret_cast<Debugger*>(this);
+}
+
+Debugger const* VM::debugger() const
+{
+    if (!debugging_enabled())
+        return nullptr;
+    return reinterpret_cast<Debugger const*>(this);
+}
+
 GC::Ref<Symbol> VM::well_known_symbol(WellKnownSymbol symbol) const
 {
     static_assert(to_underlying(WellKnownSymbol::async_dispose) == JS_WELL_KNOWN_SYMBOL_ASYNC_DISPOSE);
@@ -552,6 +580,19 @@ ExecutionContext* VM::find_execution_context_from_the_top(ExecutionContextPredic
 void VM::finish_execution_generation()
 {
     js_vm_finish_execution_generation(vm_abi(*this));
+}
+
+Vector<StackTraceElement> VM::stack_trace() const
+{
+    Vector<StackTraceElement> stack_trace;
+    JSStackTraceSink stack_trace_sink {
+        .context = &stack_trace,
+        .append = [](void* context, JSDebuggerStackFrame const* stack_frame) {
+            static_cast<Vector<StackTraceElement>*>(context)->append(stack_trace_element_from_abi(*stack_frame));
+        },
+    };
+    js_vm_stack_trace(vm_abi(*this), &stack_trace_sink);
+    return stack_trace;
 }
 
 ThrowCompletionOr<Reference> VM::resolve_binding(Utf16FlyString const& name, Strict strict, GC::Ptr<Environment> environment)
