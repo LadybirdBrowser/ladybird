@@ -199,17 +199,15 @@ impl PaintChange {
 /// # Safety
 ///
 /// `host` must come from `document_host_create` and not be destroyed yet, on the document's thread.
-pub(crate) unsafe fn queue(host: *const DocumentHost, change: PaintChange) {
-    assert!(!host.is_null(), "document host is null");
-    // SAFETY: Guaranteed by the caller.
-    unsafe { &*host }.queue_change(ArenaChange::Paint(change));
+pub(crate) unsafe fn queue(host: &DocumentHost, change: PaintChange) {
+    host.queue_change(ArenaChange::Paint(change));
 }
 
 /// # Safety
 ///
 /// `host` must be a live document host, on the document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn render_state_set_viewport_scroll_offset(host: *const DocumentHost, offset: FfiCssPixelPoint) {
+pub unsafe extern "C" fn render_state_set_viewport_scroll_offset(host: &DocumentHost, offset: FfiCssPixelPoint) {
     // SAFETY: Guaranteed by the caller.
     unsafe { queue(host, PaintChange::SetViewportScrollOffset(offset.into())) };
 }
@@ -218,7 +216,7 @@ pub unsafe extern "C" fn render_state_set_viewport_scroll_offset(host: *const Do
 ///
 /// `host` must be a live document host, on the document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn render_state_invalidate_scroll_state(host: *const DocumentHost) {
+pub unsafe extern "C" fn render_state_invalidate_scroll_state(host: &DocumentHost) {
     // SAFETY: Guaranteed by the caller.
     unsafe { queue(host, PaintChange::InvalidateScrollState) };
 }
@@ -229,7 +227,7 @@ pub unsafe extern "C" fn render_state_invalidate_scroll_state(host: *const Docum
 /// entries.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn render_state_apply_selection(
-    host: *const DocumentHost,
+    host: &DocumentHost,
     viewport: NodeSlotId,
     entries: *const FfiSelectionEntry,
     entry_count: usize,
@@ -256,7 +254,7 @@ pub unsafe extern "C" fn render_state_apply_selection(
 ///
 /// `host` must be a live document host, on the document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn render_state_clear_selection(host: *const DocumentHost, viewport: NodeSlotId) {
+pub unsafe extern "C" fn render_state_clear_selection(host: &DocumentHost, viewport: NodeSlotId) {
     // SAFETY: Guaranteed by the caller.
     unsafe { queue(host, PaintChange::ClearSelection { viewport }) };
 }
@@ -267,7 +265,7 @@ pub unsafe extern "C" fn render_state_clear_selection(host: *const DocumentHost,
 /// ranges and `entries` at `entry_count` readable entries.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn render_state_apply_search_text(
-    host: *const DocumentHost,
+    host: &DocumentHost,
     viewport: NodeSlotId,
     ranges: *const FfiSearchTextRange,
     range_count: usize,
@@ -299,7 +297,7 @@ pub unsafe extern "C" fn render_state_apply_search_text(
 ///
 /// `host` must be a live document host, on the document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn render_state_clear_search_text(host: *const DocumentHost) {
+pub unsafe extern "C" fn render_state_clear_search_text(host: &DocumentHost) {
     // SAFETY: Guaranteed by the caller.
     unsafe { queue(host, PaintChange::ClearSearchText) };
 }
@@ -309,7 +307,7 @@ pub unsafe extern "C" fn render_state_clear_search_text(host: *const DocumentHos
 /// `host` must be a live document host, on the document's thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn render_state_sync_highlight_pseudo_styles(
-    host: *const DocumentHost,
+    host: &DocumentHost,
     element: u32,
     selection_style_record: u64,
     search_text_style_record: u64,
@@ -335,7 +333,7 @@ pub unsafe extern "C" fn render_state_sync_highlight_pseudo_styles(
 /// `host` must be a live document host, on the document's thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn render_state_set_scrollbar_enlarged(
-    host: *const DocumentHost,
+    host: &DocumentHost,
     node: NodeSlotId,
     direction: ScrollDirection,
     enlarged: bool,
@@ -355,7 +353,7 @@ pub unsafe extern "C" fn render_state_set_scrollbar_enlarged(
 /// entries whose images are live.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn render_state_set_layer_image_paint_facts(
-    host: *const DocumentHost,
+    host: &DocumentHost,
     node: NodeSlotId,
     entries: *const FfiLayerImagePaintFactsEntry,
     count: usize,
@@ -381,7 +379,7 @@ pub unsafe extern "C" fn render_state_set_layer_image_paint_facts(
 /// # Safety
 ///
 /// `host` must be a live document host, on the document's thread.
-unsafe fn queue_replaced_paint_facts(host: *const DocumentHost, target: MarkedBox, facts: ReplacedPaintFacts) {
+unsafe fn queue_replaced_paint_facts(host: &DocumentHost, target: MarkedBox, facts: ReplacedPaintFacts) {
     // SAFETY: Guaranteed by the caller.
     unsafe { queue(host, PaintChange::SetReplacedPaintFacts { target, facts }) };
 }
@@ -392,7 +390,7 @@ unsafe fn queue_replaced_paint_facts(host: *const DocumentHost, target: MarkedBo
 /// # Safety
 ///
 /// `host` must be a live document host, on the document's thread.
-unsafe fn queue_element_paint_facts(host: *const DocumentHost, element: u32, facts: ReplacedPaintFacts) {
+unsafe fn queue_element_paint_facts(host: &DocumentHost, element: u32, facts: ReplacedPaintFacts) {
     if let Some(element) = StyleNodeID::from_raw(element) {
         // SAFETY: Guaranteed by the caller.
         unsafe { queue_replaced_paint_facts(host, MarkedBox::Node(Some(element)), facts) };
@@ -404,7 +402,7 @@ unsafe fn queue_element_paint_facts(host: *const DocumentHost, element: u32, fac
 /// `host` must be a live document host, on the document's thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn render_state_set_form_control_paint_facts(
-    host: *const DocumentHost,
+    host: &DocumentHost,
     element: u32,
     facts: FfiFormControlPaintFacts,
 ) {
@@ -420,7 +418,7 @@ pub unsafe extern "C" fn render_state_set_form_control_paint_facts(
 /// `host` must be a live document host, on the document's thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn render_state_set_canvas_paint_facts(
-    host: *const DocumentHost,
+    host: &DocumentHost,
     element: u32,
     facts: FfiCanvasPaintFacts,
 ) {
@@ -436,7 +434,7 @@ pub unsafe extern "C" fn render_state_set_canvas_paint_facts(
 /// `host` must be a live document host, on the document's thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn render_state_set_navigable_container_paint_facts(
-    host: *const DocumentHost,
+    host: &DocumentHost,
     node: NodeSlotId,
     facts: FfiNavigableContainerPaintFacts,
 ) {
@@ -452,7 +450,7 @@ pub unsafe extern "C" fn render_state_set_navigable_container_paint_facts(
 /// `host` must be a live document host, on the document's thread, and the image `facts` names must be live.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn render_state_set_replaced_image_paint_facts(
-    host: *const DocumentHost,
+    host: &DocumentHost,
     node: NodeSlotId,
     facts: FfiReplacedImagePaintFacts,
 ) {
@@ -470,7 +468,7 @@ pub unsafe extern "C" fn render_state_set_replaced_image_paint_facts(
 /// `host` must be a live document host, on the document's thread, and the image `facts` names must be live.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn render_state_set_element_image_paint_facts(
-    host: *const DocumentHost,
+    host: &DocumentHost,
     element: u32,
     facts: FfiReplacedImagePaintFacts,
 ) {
@@ -486,7 +484,7 @@ pub unsafe extern "C" fn render_state_set_element_image_paint_facts(
 /// live.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn render_state_set_video_paint_facts(
-    host: *const DocumentHost,
+    host: &DocumentHost,
     element: u32,
     facts: FfiVideoPaintFacts,
 ) {
@@ -505,7 +503,7 @@ pub unsafe extern "C" fn render_state_set_video_paint_facts(
 /// and `coords` at `coords_count` readable coordinates, which the areas index.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn render_state_publish_image_map_areas(
-    host: *const DocumentHost,
+    host: &DocumentHost,
     node: NodeSlotId,
     areas: *const FfiImageMapArea,
     area_count: usize,
@@ -538,7 +536,7 @@ pub unsafe extern "C" fn render_state_publish_image_map_areas(
 /// `host` must be a live document host, on the document's thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn render_state_note_visual_context_style_change(
-    host: *const DocumentHost,
+    host: &DocumentHost,
     node: NodeSlotId,
     changes_structure: bool,
 ) {
@@ -555,7 +553,7 @@ pub unsafe extern "C" fn render_state_note_visual_context_style_change(
 ///
 /// `host` must be a live document host, on the document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn render_state_invalidate_all_paint_caches(host: *const DocumentHost) {
+pub unsafe extern "C" fn render_state_invalidate_all_paint_caches(host: &DocumentHost) {
     // SAFETY: Guaranteed by the caller.
     unsafe { queue(host, PaintChange::InvalidateAllPaintCaches) };
 }
@@ -565,7 +563,7 @@ pub unsafe extern "C" fn render_state_invalidate_all_paint_caches(host: *const D
 /// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn render_state_visual_context_request_full_rebuild(
-    host: *const DocumentHost,
+    host: &DocumentHost,
     scope: crate::painting::visual_context::dirty::VisualContextUpdateScope,
 ) {
     // SAFETY: Guaranteed by the caller.
@@ -576,7 +574,7 @@ pub unsafe extern "C" fn render_state_visual_context_request_full_rebuild(
 ///
 /// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn render_state_set_recording_trace_enabled(host: *const DocumentHost, enabled: bool) {
+pub unsafe extern "C" fn render_state_set_recording_trace_enabled(host: &DocumentHost, enabled: bool) {
     // SAFETY: Guaranteed by the caller.
     unsafe { queue(host, PaintChange::SetRecordingTraceEnabled(enabled)) };
 }

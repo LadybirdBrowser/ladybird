@@ -140,15 +140,12 @@ impl FfiLayoutTreeDumpCallbacks {
 /// document.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn render_state_dump_layout_tree(
-    host: *const crate::render_state::DocumentHost,
+    host: &crate::render_state::DocumentHost,
     root: NodeSlotId,
     initial_indent: usize,
     interactive: bool,
     callbacks: FfiLayoutTreeDumpCallbacks,
 ) {
-    assert!(!host.is_null(), "document host is null");
-    // SAFETY: Guaranteed by the caller.
-    let host = unsafe { &*host };
     // SAFETY: Guaranteed by the entry point's contract.
     let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY, host) };
     // SAFETY: As above.

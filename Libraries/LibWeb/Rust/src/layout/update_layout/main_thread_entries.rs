@@ -28,14 +28,11 @@ const MAIN_THREAD_FFI_ENTRY: MainThreadFfiEntry = MainThreadFfiEntry { _private:
 /// between `document_host_begin_update_layout` and its end, and `inputs` must remain valid for the call.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn render_state_update_layout(
-    host: *const DocumentHost,
+    host: &DocumentHost,
     read: &BegunRead,
     inputs: *const FfiLayoutUpdateInputs,
 ) {
-    assert!(!host.is_null(), "document host is null");
     assert!(!inputs.is_null());
-    // SAFETY: Guaranteed by the caller.
-    let host = unsafe { &*host };
     // SAFETY: Guaranteed by the entry point's contract.
     let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY, host) };
     abort_on_panic(|| {
@@ -57,10 +54,7 @@ pub unsafe extern "C" fn render_state_update_layout(
 ///
 /// `host` must be a live document host with registered layout and layout update hosts, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn render_state_pay_flown_round(host: *const DocumentHost, read: &BegunRead) {
-    assert!(!host.is_null(), "document host is null");
-    // SAFETY: Guaranteed by the caller.
-    let host = unsafe { &*host };
+pub unsafe extern "C" fn render_state_pay_flown_round(host: &DocumentHost, read: &BegunRead) {
     // SAFETY: Guaranteed by the entry point's contract.
     let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY, host) };
     abort_on_panic(|| {
@@ -93,7 +87,7 @@ pub unsafe extern "C" fn render_state_pay_flown_round(host: *const DocumentHost,
 /// As for [`render_state_update_layout`], with no layout update running, and `elements` must hold `count` style nodes.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn render_state_seal_clock_plan(
-    host: *const DocumentHost,
+    host: &DocumentHost,
     read: &BegunRead,
     elements: *const u32,
     count: usize,
@@ -101,9 +95,6 @@ pub unsafe extern "C" fn render_state_seal_clock_plan(
     deadline: f64,
     last_end: f64,
 ) {
-    assert!(!host.is_null(), "document host is null");
-    // SAFETY: Guaranteed by the caller.
-    let host = unsafe { &*host };
     // SAFETY: Guaranteed by the entry point's contract.
     let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY, host) };
     // SAFETY: Guaranteed by the caller.
@@ -128,14 +119,11 @@ pub unsafe extern "C" fn render_state_seal_clock_plan(
 /// As for [`render_state_update_layout`], with no layout update running.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn render_state_seal_first_layout_round(
-    host: *const DocumentHost,
+    host: &DocumentHost,
     read: &BegunRead,
     inputs: *const FfiLayoutUpdateInputs,
 ) {
-    assert!(!host.is_null(), "document host is null");
     assert!(!inputs.is_null());
-    // SAFETY: Guaranteed by the caller.
-    let host = unsafe { &*host };
     // SAFETY: Guaranteed by the entry point's contract.
     let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY, host) };
     // SAFETY: Guaranteed by the entry point's contract.

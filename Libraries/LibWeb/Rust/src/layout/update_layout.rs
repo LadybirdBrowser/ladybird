@@ -854,22 +854,18 @@ unsafe fn update_layout(
 /// cleared or the host is destroyed.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn document_host_set_layout_update_host_callbacks(
-    host: *const DocumentHost,
+    host: &DocumentHost,
     callbacks: FfiLayoutUpdateHostCallbacks,
 ) {
-    assert!(!host.is_null(), "document host is null");
-    // SAFETY: Guaranteed by the caller.
-    unsafe { &*host }.host_tables().layout_update_host.set(Some(callbacks));
+    host.host_tables().layout_update_host.set(Some(callbacks));
 }
 
 /// # Safety
 ///
 /// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn document_host_clear_layout_update_host_callbacks(host: *const DocumentHost) {
-    assert!(!host.is_null(), "document host is null");
-    // SAFETY: Guaranteed by the caller.
-    unsafe { &*host }.host_tables().layout_update_host.set(None);
+pub unsafe extern "C" fn document_host_clear_layout_update_host_callbacks(host: &DocumentHost) {
+    host.host_tables().layout_update_host.set(None);
 }
 
 /// # Safety
@@ -877,10 +873,8 @@ pub unsafe extern "C" fn document_host_clear_layout_update_host_callbacks(host: 
 /// `host` must be a live document host, on its document's thread, with no layout update running. A document runs
 /// one layout update at a time; a nested request is a caller bug.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn document_host_begin_update_layout(host: *const DocumentHost) {
-    assert!(!host.is_null(), "document host is null");
-    // SAFETY: Guaranteed by the caller.
-    let running = &unsafe { &*host }.host_tables().update_layout_running;
+pub unsafe extern "C" fn document_host_begin_update_layout(host: &DocumentHost) {
+    let running = &host.host_tables().update_layout_running;
     assert!(!running.replace(true), "a layout update is already running");
 }
 
@@ -888,10 +882,8 @@ pub unsafe extern "C" fn document_host_begin_update_layout(host: *const Document
 ///
 /// `host` must be a live document host, on its document's thread, with a layout update running.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn document_host_end_update_layout(host: *const DocumentHost) {
-    assert!(!host.is_null(), "document host is null");
-    // SAFETY: Guaranteed by the caller.
-    let running = &unsafe { &*host }.host_tables().update_layout_running;
+pub unsafe extern "C" fn document_host_end_update_layout(host: &DocumentHost) {
+    let running = &host.host_tables().update_layout_running;
     assert!(running.replace(false), "no layout update is running");
 }
 
@@ -899,10 +891,8 @@ pub unsafe extern "C" fn document_host_end_update_layout(host: *const DocumentHo
 ///
 /// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn document_host_update_layout_is_running(host: *const DocumentHost) -> bool {
-    assert!(!host.is_null(), "document host is null");
-    // SAFETY: Guaranteed by the caller.
-    unsafe { &*host }.host_tables().update_layout_running.get()
+pub unsafe extern "C" fn document_host_update_layout_is_running(host: &DocumentHost) -> bool {
+    host.host_tables().update_layout_running.get()
 }
 
 #[cfg(test)]

@@ -812,10 +812,7 @@ pub unsafe extern "C" fn document_host_end_clock_lease_for_animation(host: &Docu
 ///
 /// `host` must come from `document_host_create` and not be destroyed yet, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn document_host_end_clock_lease_for_rendering_update(host: *const DocumentHost) -> bool {
-    assert!(!host.is_null(), "document host is null");
-    // SAFETY: Guaranteed by the caller.
-    let host = unsafe { &*host };
+pub unsafe extern "C" fn document_host_end_clock_lease_for_rendering_update(host: &DocumentHost) -> bool {
     host.end_clock_lease_for_rendering_update()
 }
 

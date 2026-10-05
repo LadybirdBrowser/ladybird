@@ -1153,8 +1153,9 @@ impl TestHost {
         Self(document_host_create())
     }
 
-    pub(crate) fn host(&self) -> *const DocumentHost {
-        self.0
+    pub(crate) fn host(&self) -> &DocumentHost {
+        // SAFETY: The host lives until the test host is dropped.
+        unsafe { &*self.0 }
     }
 
     /// The style engine of the host's document, as of every write the host queued, which the test reaches between the
@@ -1239,7 +1240,6 @@ pub unsafe extern "C" fn document_host_frame_flies(host: &DocumentHost) -> bool 
 /// state any more.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn document_host_destroy(host: *mut DocumentHost) {
-    assert!(!host.is_null(), "document host is null");
     // SAFETY: Guaranteed by the caller.
     let host = unsafe { Box::from_raw(host) };
     // The document's teardown is the host's own read: a frame in flight lands first, and what it brought back for the

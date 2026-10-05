@@ -1446,7 +1446,7 @@ mod node_facts_tests {
 /// `host` must be a live document host, on its document's thread, and `natural_size` writable.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn render_state_take_changed_document_svg_root_natural_size(
-    host: *const crate::render_state::DocumentHost,
+    host: &crate::render_state::DocumentHost,
     read: &crate::render_state::BegunRead,
     natural_size: *mut crate::painting::host::FfiNaturalSize,
 ) -> bool {

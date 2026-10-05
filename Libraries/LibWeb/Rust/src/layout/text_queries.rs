@@ -448,13 +448,10 @@ pub(crate) fn find_matching_text(
 /// with styled parents.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_text_word_range(
-    host: *mut crate::render_state::DocumentHost,
+    host: &crate::render_state::DocumentHost,
     primary: NodeSlotId,
     dom_offset: usize,
 ) -> FfiTextSourceRange {
-    assert!(!host.is_null(), "document host is null");
-    // SAFETY: Guaranteed by the caller.
-    let host = unsafe { &*host };
     host.ask(node_read(), |state| {
         text_word_range(state.arena_mut(), primary, dom_offset)
     })

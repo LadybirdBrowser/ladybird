@@ -28,19 +28,17 @@ const MAIN_THREAD_FFI_ENTRY: MainThreadFfiEntry = MainThreadFfiEntry { _private:
 /// `host` must be a live document host, on its document's thread. `id` may be invalid or stale.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn render_state_node_shell_if_live(
-    host: *const DocumentHost,
+    host: &DocumentHost,
     read: &crate::render_state::BegunRead,
     id: NodeSlotId,
 ) -> *mut c_void {
-    // SAFETY: Guaranteed by the caller.
-    let document_host = unsafe { &*host };
-    if let Some(shell) = document_host.held_shell(id) {
+    if let Some(shell) = host.held_shell(id) {
         return shell;
     }
-    if let Some(identities) = document_host.known_row_identities() {
-        return identities.shell_facts(id).map_or(std::ptr::null_mut(), |facts| {
-            document_host.host_tables().shell_of(facts)
-        });
+    if let Some(identities) = host.known_row_identities() {
+        return identities
+            .shell_facts(id)
+            .map_or(std::ptr::null_mut(), |facts| host.host_tables().shell_of(facts));
     }
     // SAFETY: Guaranteed by the caller.
     let facts = unsafe {
@@ -49,10 +47,7 @@ pub unsafe extern "C" fn render_state_node_shell_if_live(
             (kind != NodeKind::Unset).then_some(super::super::host_tables::ShellFacts { id, kind })
         })
     };
-    // SAFETY: As above.
-    facts.map_or(std::ptr::null_mut(), |facts| {
-        unsafe { host_tables(host) }.shell_of(facts)
-    })
+    facts.map_or(std::ptr::null_mut(), |facts| host.host_tables().shell_of(facts))
 }
 
 /// The row takes the derived style record `record` its layout node made.
@@ -61,11 +56,7 @@ pub unsafe extern "C" fn render_state_node_shell_if_live(
 ///
 /// `host` must be a live document host, on its document's thread, and `record` a live record.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn render_state_adopt_derived_node_style(
-    host: *const DocumentHost,
-    node: NodeSlotId,
-    record: u64,
-) {
+pub unsafe extern "C" fn render_state_adopt_derived_node_style(host: &DocumentHost, node: NodeSlotId, record: u64) {
     // SAFETY: Guaranteed by the caller.
     unsafe { write_and_pay(host, node_read(), LayoutWrite::AdoptDerivedNodeStyle { node, record }) };
 }
@@ -76,7 +67,7 @@ pub unsafe extern "C" fn render_state_adopt_derived_node_style(
 ///
 /// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn render_state_set_layout_display(host: *const DocumentHost, node: NodeSlotId, display: u32) {
+pub unsafe extern "C" fn render_state_set_layout_display(host: &DocumentHost, node: NodeSlotId, display: u32) {
     // SAFETY: Guaranteed by the caller.
     unsafe { write_and_pay(host, node_read(), LayoutWrite::SetLayoutDisplay { node, display }) };
 }
@@ -90,7 +81,7 @@ pub unsafe extern "C" fn render_state_set_layout_display(host: *const DocumentHo
 /// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn render_state_reinherit_anonymous_descendants(
-    host: *const DocumentHost,
+    host: &DocumentHost,
     node: NodeSlotId,
     is_table_box: bool,
 ) {
@@ -99,9 +90,7 @@ pub unsafe extern "C" fn render_state_reinherit_anonymous_descendants(
         unsafe { write_and_pay(host, node_read(), LayoutWrite::ReinheritAnonymousDescendants { node }) };
         return;
     }
-    assert!(!host.is_null(), "document host is null");
-    // SAFETY: Guaranteed by the caller.
-    unsafe { &*host }.queue_change(crate::render_state::ArenaChange::ReinheritAnonymousDescendants(node));
+    host.queue_change(crate::render_state::ArenaChange::ReinheritAnonymousDescendants(node));
 }
 
 /// Visits every subtree root the last layout tree build rebuilt and left live, as the row's layout
@@ -112,7 +101,7 @@ pub unsafe extern "C" fn render_state_reinherit_anonymous_descendants(
 /// `host` must be a live document host, on its document's thread, and `visit` must return synchronously.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn render_state_for_each_pending_rebuilt_subtree_root(
-    host: *const DocumentHost,
+    host: &DocumentHost,
     read: &crate::render_state::BegunRead,
     context: *mut c_void,
     visit: unsafe extern "C" fn(*mut c_void, crate::painting::host::FfiNodeIdentity),
@@ -142,24 +131,19 @@ pub unsafe extern "C" fn render_state_for_each_pending_rebuilt_subtree_root(
 /// over.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn document_host_set_owned_image_provider(
-    host: *const DocumentHost,
+    host: &DocumentHost,
     slot: NodeSlotId,
     provider: *mut c_void,
 ) {
-    // SAFETY: Guaranteed by the caller.
-    unsafe { host_tables(host).set_owned_image_provider(slot, provider) }
+    host.host_tables().set_owned_image_provider(slot, provider);
 }
 
 /// # Safety
 ///
 /// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn document_host_owned_image_provider(
-    host: *const DocumentHost,
-    slot: NodeSlotId,
-) -> *mut c_void {
-    // SAFETY: Guaranteed by the caller.
-    unsafe { host_tables(host).owned_image_provider(slot) }
+pub unsafe extern "C" fn document_host_owned_image_provider(host: &DocumentHost, slot: NodeSlotId) -> *mut c_void {
+    host.host_tables().owned_image_provider(slot)
 }
 
 /// Gives `slot` the image observer set `observers`, or none for null, and hands the caller the set
@@ -171,32 +155,20 @@ pub unsafe extern "C" fn document_host_owned_image_provider(
 /// hands over.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn document_host_replace_image_observers(
-    host: *const DocumentHost,
+    host: &DocumentHost,
     slot: NodeSlotId,
     observers: *mut c_void,
 ) -> *mut c_void {
-    // SAFETY: Guaranteed by the caller.
-    unsafe { host_tables(host).replace_image_observers(slot, observers) }
+    host.host_tables().replace_image_observers(slot, observers)
 }
 
 /// # Safety
 ///
 /// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn document_host_image_observers(host: *const DocumentHost, slot: NodeSlotId) -> *mut c_void {
-    // SAFETY: Guaranteed by the caller.
-    unsafe { host_tables(host).image_observers(slot) }
-}
-
-/// The host tables of `host`'s document.
-///
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread, which outlives the borrow.
-unsafe fn host_tables<'a>(host: *const DocumentHost) -> &'a crate::layout::HostTables {
-    assert!(!host.is_null(), "document host is null");
-    // SAFETY: Guaranteed by the caller.
-    unsafe { &*host }.host_tables()
+// SAFETY: Guaranteed by the caller.
+pub unsafe extern "C" fn document_host_image_observers(host: &DocumentHost, slot: NodeSlotId) -> *mut c_void {
+    host.host_tables().image_observers(slot)
 }
 
 /// Has the render state of `host`'s document make `write`, pays what the write owes the host, and answers whether the
@@ -205,14 +177,7 @@ unsafe fn host_tables<'a>(host: *const DocumentHost) -> &'a crate::layout::HostT
 /// # Safety
 ///
 /// `host` must be a live document host, on its document's thread.
-unsafe fn write_and_pay(
-    host: *const DocumentHost,
-    wait: impl crate::render_state::RenderWait,
-    write: LayoutWrite,
-) -> bool {
-    assert!(!host.is_null(), "document host is null");
-    // SAFETY: Guaranteed by the caller.
-    let host = unsafe { &*host };
+unsafe fn write_and_pay(host: &DocumentHost, wait: impl crate::render_state::RenderWait, write: LayoutWrite) -> bool {
     let written = crate::layout::layout_changes::write(wait, host, write);
     // SAFETY: Guaranteed by the entry point's contract.
     let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY, host) };
@@ -226,7 +191,7 @@ unsafe fn write_and_pay(
 ///
 /// `host` must be a live document host, on its document's thread, and `slot` a live row.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn render_state_prepare_node_for_detach(host: *const DocumentHost, slot: NodeSlotId) {
+pub unsafe extern "C" fn render_state_prepare_node_for_detach(host: &DocumentHost, slot: NodeSlotId) {
     // SAFETY: Guaranteed by the caller.
     unsafe { write_and_pay(host, node_read(), LayoutWrite::PrepareRowForDetach { row: slot }) };
 }
@@ -237,7 +202,7 @@ pub unsafe extern "C" fn render_state_prepare_node_for_detach(host: *const Docum
 ///
 /// `host` must be a live document host, on its document's thread, and `root` a live row.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn render_state_prepare_subtree_for_detach(host: *const DocumentHost, root: NodeSlotId) {
+pub unsafe extern "C" fn render_state_prepare_subtree_for_detach(host: &DocumentHost, root: NodeSlotId) {
     // SAFETY: Guaranteed by the caller.
     unsafe { write_and_pay(host, node_read(), LayoutWrite::PrepareSubtreeForDetach { root }) };
 }
@@ -250,7 +215,7 @@ pub unsafe extern "C" fn render_state_prepare_subtree_for_detach(host: *const Do
 /// `host` must be a live document host, on the document's thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn render_state_drop_subtree(
-    host: *mut DocumentHost,
+    host: &DocumentHost,
     read: &crate::render_state::BegunRead,
     root: NodeSlotId,
 ) -> bool {
@@ -265,7 +230,7 @@ pub unsafe extern "C" fn render_state_drop_subtree(
 /// `host` must be a live document host, on the document's thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn render_state_detach_top_layer_element(
-    host: *mut DocumentHost,
+    host: &DocumentHost,
     read: &crate::render_state::BegunRead,
     element: u32,
 ) {

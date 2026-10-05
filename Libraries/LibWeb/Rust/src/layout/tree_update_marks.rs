@@ -14,7 +14,6 @@ use super::node_data::{GENERATED_FOR_BACKDROP, GENERATED_FOR_FIRST_LETTER, NodeF
 use crate::css::computed_value_types::ComputedSize;
 use crate::css::computed_value_views::ComputedValuesView;
 use crate::css::style::bridge::element_adjustment_fact;
-use crate::css::style::engine_calls::document_host;
 use crate::css::style::tree::StyleNodeID;
 use crate::painting::paint_read::{GeometryRead, PaintRead};
 use crate::painting::record::damage::PaintDamage;
@@ -163,15 +162,14 @@ impl LayoutTreeUpdateMarkWrite {
 ///
 /// `host` must be a live document host, on its document's thread.
 unsafe fn read_marks<R: Default>(
-    host: *const DocumentHost,
+    host: &DocumentHost,
     style_node: u32,
     read: fn(&LayoutTreeUpdateMarks, StyleNodeID) -> R,
 ) -> R {
     let Some(style_node) = StyleNodeID::from_raw(style_node) else {
         return R::default();
     };
-    // SAFETY: Guaranteed by the caller.
-    unsafe { document_host(host) }.read_marks(|marks| read(marks, style_node))
+    host.read_marks(|marks| read(marks, style_node))
 }
 
 /// Makes `write` to the layout tree update marks of `host`'s document, which the host holds, answering what it answers.
@@ -179,9 +177,8 @@ unsafe fn read_marks<R: Default>(
 /// # Safety
 ///
 /// `host` must be a live document host, on its document's thread.
-unsafe fn write_marks(host: *const DocumentHost, write: LayoutTreeUpdateMarkWrite) -> bool {
-    // SAFETY: Guaranteed by the caller.
-    unsafe { document_host(host) }.write_marks(write)
+unsafe fn write_marks(host: &DocumentHost, write: LayoutTreeUpdateMarkWrite) -> bool {
+    host.write_marks(write)
 }
 
 /// Whether the node `style_node` names holds a layout tree update mark of its own.
@@ -190,7 +187,7 @@ unsafe fn write_marks(host: *const DocumentHost, write: LayoutTreeUpdateMarkWrit
 ///
 /// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn render_state_needs_layout_tree_update(host: *const DocumentHost, style_node: u32) -> bool {
+pub unsafe extern "C" fn render_state_needs_layout_tree_update(host: &DocumentHost, style_node: u32) -> bool {
     // SAFETY: Guaranteed by the caller.
     unsafe { read_marks(host, style_node, LayoutTreeUpdateMarks::needs) }
 }
@@ -201,10 +198,7 @@ pub unsafe extern "C" fn render_state_needs_layout_tree_update(host: *const Docu
 ///
 /// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn render_state_layout_tree_update_reuse_reasons(
-    host: *const DocumentHost,
-    style_node: u32,
-) -> u8 {
+pub unsafe extern "C" fn render_state_layout_tree_update_reuse_reasons(host: &DocumentHost, style_node: u32) -> u8 {
     // SAFETY: Guaranteed by the caller.
     unsafe { read_marks(host, style_node, LayoutTreeUpdateMarks::reuse_reasons) }
 }
@@ -215,10 +209,7 @@ pub unsafe extern "C" fn render_state_layout_tree_update_reuse_reasons(
 ///
 /// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn render_state_child_needs_layout_tree_update(
-    host: *const DocumentHost,
-    style_node: u32,
-) -> bool {
+pub unsafe extern "C" fn render_state_child_needs_layout_tree_update(host: &DocumentHost, style_node: u32) -> bool {
     // SAFETY: Guaranteed by the caller.
     unsafe { read_marks(host, style_node, LayoutTreeUpdateMarks::child_needs) }
 }
@@ -231,7 +222,7 @@ pub unsafe extern "C" fn render_state_child_needs_layout_tree_update(
 /// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn render_state_merge_layout_tree_update_mark(
-    host: *const DocumentHost,
+    host: &DocumentHost,
     style_node: u32,
     value: bool,
     reuse_reason: u8,
@@ -251,7 +242,7 @@ pub unsafe extern "C" fn render_state_merge_layout_tree_update_mark(
 /// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn render_state_set_child_needs_layout_tree_update(
-    host: *const DocumentHost,
+    host: &DocumentHost,
     style_node: u32,
     value: bool,
 ) -> bool {
@@ -269,7 +260,7 @@ pub unsafe extern "C" fn render_state_set_child_needs_layout_tree_update(
 ///
 /// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn render_state_clear_layout_tree_update_marks(host: *const DocumentHost, style_node: u32) {
+pub unsafe extern "C" fn render_state_clear_layout_tree_update_marks(host: &DocumentHost, style_node: u32) {
     let Some(style_node) = StyleNodeID::from_raw(style_node) else {
         return;
     };
@@ -444,7 +435,7 @@ impl LayoutNodeArena {
 /// `host` must be a live document host, on the document's thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn render_state_apply_layout_tree_update_mark(
-    host: *const DocumentHost,
+    host: &DocumentHost,
     style_node: u32,
     mark: FfiLayoutTreeUpdateMark,
 ) {
@@ -679,7 +670,7 @@ fn repaint(arena: &mut LayoutNodeArena, row: NodeSlotId, includes_hit_testing: b
 ///
 /// `host` must be a live document host, on the document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn render_state_mark_node_box(host: *const DocumentHost, style_node: u32, marks: FfiBoxMarks) {
+pub unsafe extern "C" fn render_state_mark_node_box(host: &DocumentHost, style_node: u32, marks: FfiBoxMarks) {
     let target = MarkedBox::Node(StyleNodeID::from_raw(style_node));
     // SAFETY: Guaranteed by the caller.
     unsafe { super::layout_changes::queue(host, super::layout_changes::LayoutChange::MarkBox { target, marks }) };
@@ -692,7 +683,7 @@ pub unsafe extern "C" fn render_state_mark_node_box(host: *const DocumentHost, s
 /// `host` must be a live document host, on the document's thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn render_state_mark_pseudo_element_box(
-    host: *const DocumentHost,
+    host: &DocumentHost,
     generator: u32,
     generated_for: u8,
     marks: FfiBoxMarks,
@@ -714,7 +705,7 @@ pub unsafe extern "C" fn render_state_mark_pseudo_element_box(
 ///
 /// `host` must be a live document host, on the document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn render_state_mark_row_box(host: *const DocumentHost, row: NodeSlotId, marks: FfiBoxMarks) {
+pub unsafe extern "C" fn render_state_mark_row_box(host: &DocumentHost, row: NodeSlotId, marks: FfiBoxMarks) {
     let target = MarkedBox::Row(row);
     // SAFETY: Guaranteed by the caller.
     unsafe { super::layout_changes::queue(host, super::layout_changes::LayoutChange::MarkBox { target, marks }) };

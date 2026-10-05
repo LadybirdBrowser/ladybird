@@ -7078,7 +7078,7 @@ pub(crate) struct PublishedAnimationDeclarations {
 /// and `value` must be a live style value.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_substitute_compositor_keyframe_value(
-    host: *const crate::render_state::DocumentHost,
+    host: &crate::render_state::DocumentHost,
     read: &crate::render_state::BegunRead,
     style_node: u32,
     pseudo_kind: u8,
@@ -7088,7 +7088,6 @@ pub unsafe extern "C" fn rust_substitute_compositor_keyframe_value(
     value: *const StyleValueData,
 ) -> *const StyleValueData {
     // SAFETY: Guaranteed by the caller.
-    let host = unsafe { crate::css::style::engine_calls::document_host(host) };
     crate::css::style::engine_calls::with_engine(read, host, |engine| {
         let Some(node) = crate::css::style::tree::StyleNodeID::from_raw(style_node) else {
             return std::ptr::null();

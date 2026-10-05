@@ -1132,7 +1132,7 @@ pub unsafe extern "C" fn rust_counter_style_representation_depends_on_value(
 /// elements, every name word must carry one leaked string reference, and every style handle must be live.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn render_state_publish_counter_styles(
-    host: *const crate::render_state::DocumentHost,
+    host: &crate::render_state::DocumentHost,
     tree_scope: u32,
     parent_tree_scope: u32,
     has_parent_tree_scope: bool,
@@ -1162,10 +1162,7 @@ pub unsafe extern "C" fn render_state_publish_counter_styles(
         let style = unsafe { &**style };
         scope.styles.insert(name, style.0.clone());
     }
-
-    assert!(!host.is_null(), "document host is null");
-    // SAFETY: Guaranteed by the caller.
-    unsafe { &*host }.queue_change(crate::render_state::ArenaChange::Layout(
+    host.queue_change(crate::render_state::ArenaChange::Layout(
         crate::layout::layout_changes::LayoutChange::CounterStyles { tree_scope, scope },
     ));
 }

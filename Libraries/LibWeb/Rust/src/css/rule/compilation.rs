@@ -1351,7 +1351,8 @@ mod tests {
             )
         });
         // SAFETY: The test host lives until the end of the test.
-        let next = unsafe { &*host.host() }
+        let next = host
+            .host()
             .published_rules()
             .successor(compiled_sheet, &source, import_identity);
         // SAFETY: The test reaches the engine only between the host's calls.

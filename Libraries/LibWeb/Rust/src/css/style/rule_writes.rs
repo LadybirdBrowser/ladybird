@@ -393,12 +393,10 @@ pub(crate) fn publish_native_rule_declarations(
 /// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_add_sheet(
-    host: *const crate::render_state::DocumentHost,
+    host: &crate::render_state::DocumentHost,
     object: u32,
     origin: FfiCascadeOrigin,
 ) -> u32 {
-    // SAFETY: Guaranteed by the caller.
-    let host = unsafe { super::engine_calls::document_host(host) };
     let sheet = host.published_rules().mint_sheet();
     host.write_rules(RuleWrite::AddSheet { sheet, object, origin });
     sheet
@@ -410,11 +408,9 @@ pub unsafe extern "C" fn style_engine_add_sheet(
 /// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_begin_sheet_rules_replacement(
-    host: *const crate::render_state::DocumentHost,
+    host: &crate::render_state::DocumentHost,
     sheet: u32,
 ) {
-    // SAFETY: Guaranteed by the caller.
-    let host = unsafe { super::engine_calls::document_host(host) };
     host.published_rules().forget(sheet);
     host.write_rules(RuleWrite::BeginSheetRulesReplacement(sheet));
 }
