@@ -120,12 +120,6 @@ CalculationContext CalculationContext::for_property(PropertyNameAndID const& pro
     };
 }
 
-// The RoundingStrategy discriminants cross the boundary as round()'s strategy code; pin them.
-static_assert(to_underlying(RoundingStrategy::Down) == 0);
-static_assert(to_underlying(RoundingStrategy::Nearest) == 1);
-static_assert(to_underlying(RoundingStrategy::ToZero) == 2);
-static_assert(to_underlying(RoundingStrategy::Up) == 3);
-
 // The Number::Type discriminants cross the boundary in the numeric leaf's unit slot; pin them.
 static_assert(to_underlying(Number::Type::Number) == 0);
 static_assert(to_underlying(Number::Type::IntegerWithExplicitSign) == 1);
@@ -551,34 +545,6 @@ CalcNodeRef CalcNodeRef::numeric(NumericValue const& value)
         [](Time const& time) { return StyleValueFFI::rust_calc_node_create_numeric_dimension(7, time.raw_value(), to_underlying(time.unit())); }));
 }
 
-Optional<CalcNodeRef> CalcNodeRef::from_keyword(Keyword keyword)
-{
-    switch (keyword) {
-    case Keyword::E:
-        // https://drafts.csswg.org/css-values-4/#valdef-calc-e
-        return numeric(Number { Number::Type::Number, AK::E<double> });
-    case Keyword::Pi:
-        // https://drafts.csswg.org/css-values-4/#valdef-calc-pi
-        return numeric(Number { Number::Type::Number, AK::Pi<double> });
-    case Keyword::Infinity:
-        // https://drafts.csswg.org/css-values-4/#valdef-calc-infinity
-        return numeric(Number { Number::Type::Number, AK::Infinity<double> });
-    case Keyword::NegativeInfinity:
-        // https://drafts.csswg.org/css-values-4/#valdef-calc--infinity
-        return numeric(Number { Number::Type::Number, -AK::Infinity<double> });
-    case Keyword::Nan:
-        // https://drafts.csswg.org/css-values-4/#valdef-calc-nan
-        return numeric(Number { Number::Type::Number, AK::NaN<double> });
-    default:
-        return {};
-    }
-}
-
-CalcNodeRef CalcNodeRef::channel_keyword(ChannelKeyword channel)
-{
-    return adopt(StyleValueFFI::rust_calc_node_create_channel_keyword(to_underlying(channel)));
-}
-
 static CalcNodeRef make_variadic_node(u8 kind, Vector<CalcNodeRef> children)
 {
     Vector<StyleValueFFI::CalcNode const*> handles;
@@ -592,7 +558,6 @@ CalcNodeRef CalcNodeRef::sum(Vector<CalcNodeRef> children) { return make_variadi
 CalcNodeRef CalcNodeRef::product(Vector<CalcNodeRef> children) { return make_variadic_node(1, move(children)); }
 CalcNodeRef CalcNodeRef::min(Vector<CalcNodeRef> children) { return make_variadic_node(2, move(children)); }
 CalcNodeRef CalcNodeRef::max(Vector<CalcNodeRef> children) { return make_variadic_node(3, move(children)); }
-CalcNodeRef CalcNodeRef::hypot(Vector<CalcNodeRef> children) { return make_variadic_node(4, move(children)); }
 
 static CalcNodeRef make_unary_node(u8 kind, CalcNodeRef child)
 {
@@ -601,57 +566,12 @@ static CalcNodeRef make_unary_node(u8 kind, CalcNodeRef child)
 
 CalcNodeRef CalcNodeRef::negate(CalcNodeRef child) { return make_unary_node(0, move(child)); }
 CalcNodeRef CalcNodeRef::invert(CalcNodeRef child) { return make_unary_node(1, move(child)); }
-CalcNodeRef CalcNodeRef::abs(CalcNodeRef child) { return make_unary_node(2, move(child)); }
-CalcNodeRef CalcNodeRef::sign(CalcNodeRef child) { return make_unary_node(3, move(child)); }
-CalcNodeRef CalcNodeRef::sin(CalcNodeRef child) { return make_unary_node(4, move(child)); }
-CalcNodeRef CalcNodeRef::cos(CalcNodeRef child) { return make_unary_node(5, move(child)); }
-CalcNodeRef CalcNodeRef::tan(CalcNodeRef child) { return make_unary_node(6, move(child)); }
-CalcNodeRef CalcNodeRef::asin(CalcNodeRef child) { return make_unary_node(7, move(child)); }
-CalcNodeRef CalcNodeRef::acos(CalcNodeRef child) { return make_unary_node(8, move(child)); }
-CalcNodeRef CalcNodeRef::atan(CalcNodeRef child) { return make_unary_node(9, move(child)); }
-CalcNodeRef CalcNodeRef::sqrt(CalcNodeRef child) { return make_unary_node(10, move(child)); }
-CalcNodeRef CalcNodeRef::exp(CalcNodeRef child) { return make_unary_node(11, move(child)); }
-
-static CalcNodeRef make_binary_node(u8 kind, CalcNodeRef first, CalcNodeRef second)
-{
-    auto const* first_handle = first.release();
-    return CalcNodeRef::adopt(StyleValueFFI::rust_calc_node_create_binary(kind, first_handle, second.release()));
-}
-
-CalcNodeRef CalcNodeRef::atan2(CalcNodeRef y, CalcNodeRef x) { return make_binary_node(0, move(y), move(x)); }
-CalcNodeRef CalcNodeRef::pow(CalcNodeRef base, CalcNodeRef exponent) { return make_binary_node(1, move(base), move(exponent)); }
-CalcNodeRef CalcNodeRef::log(CalcNodeRef value, CalcNodeRef base) { return make_binary_node(2, move(value), move(base)); }
-CalcNodeRef CalcNodeRef::mod(CalcNodeRef value, CalcNodeRef modulus) { return make_binary_node(3, move(value), move(modulus)); }
-CalcNodeRef CalcNodeRef::rem(CalcNodeRef value, CalcNodeRef divisor) { return make_binary_node(4, move(value), move(divisor)); }
 
 CalcNodeRef CalcNodeRef::clamp(CalcNodeRef minimum, CalcNodeRef center, CalcNodeRef maximum)
 {
     auto const* minimum_handle = minimum.release();
     auto const* center_handle = center.release();
     return adopt(StyleValueFFI::rust_calc_node_create_clamp(minimum_handle, center_handle, maximum.release()));
-}
-
-CalcNodeRef CalcNodeRef::progress(bool no_clamp, CalcNodeRef value, CalcNodeRef start, CalcNodeRef end)
-{
-    auto const* value_handle = value.release();
-    auto const* start_handle = start.release();
-    return adopt(StyleValueFFI::rust_calc_node_create_progress(no_clamp, value_handle, start_handle, end.release()));
-}
-
-CalcNodeRef CalcNodeRef::round(RoundingStrategy strategy, CalcNodeRef value, CalcNodeRef interval)
-{
-    auto const* value_handle = value.release();
-    return adopt(StyleValueFFI::rust_calc_node_create_round(to_underlying(strategy), value_handle, interval.release()));
-}
-
-CalcNodeRef CalcNodeRef::random(StyleValue const& random_value_sharing, CalcNodeRef minimum, CalcNodeRef maximum, Optional<CalcNodeRef> step)
-{
-    auto const* minimum_handle = minimum.release();
-    auto const* maximum_handle = maximum.release();
-    return adopt(StyleValueFFI::rust_calc_node_create_random(
-        minimum_handle, maximum_handle,
-        step.has_value() ? step->release() : nullptr,
-        StyleValueFFI::rust_style_value_retain(random_value_sharing.rust_style_value_data())));
 }
 
 CalcNodeRef CalcNodeRef::non_math_function(StyleValue const& function, Optional<NumericType> const& numeric_type)
