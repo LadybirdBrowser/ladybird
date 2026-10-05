@@ -41,10 +41,10 @@ use crate::css::computed_value_types::{
 };
 use crate::css::computed_values::{
     FfiGroupValueEntry, GROUP_FIELD_COLOR, GROUP_FIELD_COLOR_OR_KEYWORD, GROUP_FIELD_RESOLVED_F32,
-    GROUP_FIELD_RESOLVED_F64, GROUP_FIELD_RESOLVED_U8, MAX_GROUP_FIELD_COUNT, build_svg_reset_group_payload,
-    registered_group_field_descriptors, rust_build_alignment_group, rust_build_grid_group,
-    rust_build_inherited_box_group, rust_build_inherited_table_group, rust_build_sizing_group, rust_build_style_group,
-    rust_build_surround_group, rust_build_text_reset_group,
+    GROUP_FIELD_RESOLVED_F64, GROUP_FIELD_RESOLVED_U8, MAX_GROUP_FIELD_COUNT, build_inherited_box_group,
+    build_inherited_table_group, build_sizing_group, build_style_group, build_svg_reset_group_payload,
+    registered_group_field_descriptors, rust_build_alignment_group, rust_build_grid_group, rust_build_surround_group,
+    rust_build_text_reset_group,
 };
 use crate::css::css_enums::keyword;
 use crate::css::css_pixels::CssPixels;
@@ -265,7 +265,7 @@ unsafe fn gather_group_entries(
     Some(entries)
 }
 
-/// Builds one descriptor-driven group through `rust_build_style_group`,
+/// Builds one descriptor-driven group through `build_style_group`,
 /// gathering the entries from the table instead of a marshalled span.
 unsafe fn build_generic_group(
     group_index: usize,
@@ -279,7 +279,7 @@ unsafe fn build_generic_group(
     };
     // SAFETY: The entries hold live value data gathered above and the caller
     // warrants the parent payload.
-    unsafe { rust_build_style_group(group_index, entries.as_ptr(), entries.len(), parent_payload) }
+    unsafe { build_style_group(group_index, entries.as_ptr(), entries.len(), parent_payload) }
 }
 
 unsafe fn build_surround_group(values: &EffectiveValues, parent_payload: *const c_void) -> *const c_void {
@@ -855,7 +855,7 @@ fn value_contains_percentage(data: &StyleValueData) -> bool {
         StyleValueData::Calculated { .. } => {
             // SAFETY: The calculated style value outlives the query.
             unsafe {
-                let root = crate::css::calc::rust_calc_root_from_calculated(std::ptr::from_ref(data).cast());
+                let root = crate::css::calc::calc_root_from_calculated(std::ptr::from_ref(data).cast());
                 assert!(!root.is_null());
                 crate::css::calc::rust_calc_node_contains_percentage(root)
             }
@@ -3421,7 +3421,7 @@ pub(crate) unsafe fn rebuild_group_from_table(
             group_index::BOX => {
                 build_box_group(&values, table.display_before_box_type_transformation(), parent_payload)
             }
-            group_index::INHERITED_TABLE => rust_build_inherited_table_group(
+            group_index::INHERITED_TABLE => build_inherited_table_group(
                 group,
                 values.pointer(property_id::BORDER_COLLAPSE),
                 values.pointer(property_id::CAPTION_SIDE),
@@ -3429,7 +3429,7 @@ pub(crate) unsafe fn rebuild_group_from_table(
                 values.pointer(property_id::BORDER_SPACING),
                 parent_payload,
             ),
-            group_index::INHERITED_BOX => rust_build_inherited_box_group(
+            group_index::INHERITED_BOX => build_inherited_box_group(
                 group,
                 values.pointer(property_id::VISIBILITY),
                 values.pointer(property_id::DIRECTION),
@@ -3438,7 +3438,7 @@ pub(crate) unsafe fn rebuild_group_from_table(
                 values.pointer(property_id::IMAGE_RENDERING),
                 parent_payload,
             ),
-            group_index::SIZING => rust_build_sizing_group(
+            group_index::SIZING => build_sizing_group(
                 group,
                 values.pointer(property_id::WIDTH),
                 values.pointer(property_id::MIN_WIDTH),
@@ -3534,7 +3534,7 @@ pub unsafe extern "C" fn rust_build_group_payloads_from_table(
                 group_index::BOX => {
                     build_box_group(&values, inputs.box_display_before_transformation_raw, parent_payload)
                 }
-                group_index::INHERITED_TABLE => rust_build_inherited_table_group(
+                group_index::INHERITED_TABLE => build_inherited_table_group(
                     group,
                     values.pointer(property_id::BORDER_COLLAPSE),
                     values.pointer(property_id::CAPTION_SIDE),
@@ -3542,7 +3542,7 @@ pub unsafe extern "C" fn rust_build_group_payloads_from_table(
                     values.pointer(property_id::BORDER_SPACING),
                     parent_payload,
                 ),
-                group_index::INHERITED_BOX => rust_build_inherited_box_group(
+                group_index::INHERITED_BOX => build_inherited_box_group(
                     group,
                     values.pointer(property_id::VISIBILITY),
                     values.pointer(property_id::DIRECTION),
@@ -3551,7 +3551,7 @@ pub unsafe extern "C" fn rust_build_group_payloads_from_table(
                     values.pointer(property_id::IMAGE_RENDERING),
                     parent_payload,
                 ),
-                group_index::SIZING => rust_build_sizing_group(
+                group_index::SIZING => build_sizing_group(
                     group,
                     values.pointer(property_id::WIDTH),
                     values.pointer(property_id::MIN_WIDTH),

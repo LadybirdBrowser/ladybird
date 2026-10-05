@@ -14,6 +14,8 @@ use super::ffi_support::ascii_lowercase;
 use super::parser::component_value::{ComponentKind, ComponentValue, consume_a_list_of_component_values};
 use super::parser::token_stream::TokenStream as Stream;
 use super::retained_fly_string::RetainedUtf16FlyString;
+#[cfg(test)]
+use super::selector::FfiStringView;
 use super::selector::{
     AnPlusBPattern, AttributeCaseType, AttributeMatchType, Combinator, Direction, LanguageRange, NamespaceType,
     PseudoClassParameterType, PseudoClassType, PseudoElementParameterType, PseudoElementType, SelectorString,
@@ -22,7 +24,7 @@ use super::selector::{
     AttributeSelector, CompiledSelector, CompoundSelector, NameSelector, PseudoClassSelector, PseudoElementSelector,
     PseudoElementValue, QualifiedName, SelectorList, SimpleSelector,
 };
-use super::selector::{FfiStringView, RustSelector, search_text_match_filter};
+use super::selector::{RustSelector, search_text_match_filter};
 
 const MAXIMUM_SELECTOR_NESTING_DEPTH: usize = 128;
 
@@ -1227,8 +1229,8 @@ impl RustParsedSelectorList {
 
 /// # Safety
 /// `input` and each namespace view must point to readable storage for the duration of this call.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_selector_parse(
+#[cfg(test)]
+pub(crate) unsafe fn selector_parse(
     input: FfiUtf16View,
     namespaces: *const FfiStringView,
     namespace_count: usize,
@@ -1286,6 +1288,7 @@ pub unsafe extern "C" fn rust_selector_parse_with_namespace_context(
     })
 }
 
+#[cfg(test)]
 pub(crate) unsafe fn parse_selector_list_from_ffi(
     input: FfiUtf16View,
     namespaces: *const FfiStringView,
@@ -1409,7 +1412,7 @@ mod tests {
             length: prefix.len(),
         };
         unsafe {
-            let parsed = rust_selector_parse(
+            let parsed = selector_parse(
                 FfiUtf16View {
                     utf16: units.as_ptr(),
                     length: units.len(),

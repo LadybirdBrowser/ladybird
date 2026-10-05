@@ -276,8 +276,8 @@ fn find_rule_path(
 /// The environment, source, and callbacks must remain valid for this call. Callbacks must not
 /// mutate the graph and must retain any native data they keep beyond a callback. import_source
 /// must return the host loading state corresponding to the supplied native imported sheet.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_style_sheet_visit_compilation(
+#[cfg(test)]
+pub(crate) unsafe fn style_sheet_visit_compilation(
     sheet: &NativeStyleSheet,
     rule_identity: u64,
     purpose: NativeCompilationPurpose,
@@ -302,7 +302,7 @@ pub unsafe extern "C" fn rust_style_sheet_visit_compilation(
 /// Host callbacks receive completed rule identities, not instructions to compile individual rules.
 ///
 /// # Safety
-/// The graph and callback requirements of rust_style_sheet_visit_compilation apply. Publication
+/// The graph and callback requirements of style_sheet_visit_compilation apply. Publication
 /// must name a live document host, on its document's thread, and a sheet of its style engine. No
 /// engine borrow may span a host callback.
 #[unsafe(no_mangle)]
@@ -1725,7 +1725,7 @@ mod tests {
             length_resolution_context: std::ptr::null(),
         };
         unsafe {
-            rust_style_sheet_visit_compilation(
+            style_sheet_visit_compilation(
                 sheet,
                 identity,
                 purpose,

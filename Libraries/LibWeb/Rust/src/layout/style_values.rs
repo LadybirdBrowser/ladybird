@@ -202,12 +202,12 @@ pub(crate) unsafe fn resolve_calc_with_external_resolutions(
     resolve_non_math_function: Option<unsafe extern "C" fn(*mut c_void, *const c_void) -> *const c_void>,
 ) -> crate::css::calc::FfiResolvedCalc {
     use crate::css::calc::{
-        FfiCalcExternalResolutionKind, rust_calc_external_resolutions, rust_calc_external_resolutions_release,
-        rust_calc_resolve, rust_calc_root_from_calculated,
+        FfiCalcExternalResolutionKind, calc_root_from_calculated, rust_calc_external_resolutions,
+        rust_calc_external_resolutions_release, rust_calc_resolve,
     };
 
     let mut context = px_calc_resolution_context(percentage_basis);
-    let root = unsafe { rust_calc_root_from_calculated(calculated) };
+    let root = unsafe { calc_root_from_calculated(calculated) };
     let external =
         unsafe { rust_calc_external_resolutions(root, context.basis_kind, context.basis_value, context.basis_unit) };
     context.external_resolutions = external.resolutions;

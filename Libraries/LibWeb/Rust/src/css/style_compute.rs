@@ -5063,8 +5063,7 @@ pub unsafe extern "C" fn rust_create_document_longhand_table(
 /// `input` and every range and pointer it contains must remain valid for the
 /// duration of the call. Every returned value transfers one strong reference
 /// to the caller.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_compute_animation_keyframe_longhands(
+pub(crate) unsafe fn compute_animation_keyframe_longhands(
     input: *const FfiAnimationKeyframeLonghandInput,
 ) -> FfiAnimationKeyframeLonghandResult {
     crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::AnimationKeyframeLonghandEntry);
@@ -5822,7 +5821,7 @@ unsafe fn begin_animation_sample(
             custom_results: std::ptr::null_mut(),
             custom_result_count: std::ptr::null_mut(),
         };
-        unsafe { anim::rust_evaluate_animations(&raw const batch) };
+        unsafe { anim::evaluate_animations(&raw const batch) };
         return finished(Evaluated);
     }
 
@@ -5983,7 +5982,7 @@ unsafe fn finish_animation_sample(
         remaining_length_resolution_context: &raw const length_contexts.remaining,
         custom_property_values: custom_value_pointers.as_ptr(),
     };
-    let computed_keyframes = unsafe { rust_compute_animation_keyframe_longhands(&raw const keyframe_input) };
+    let computed_keyframes = unsafe { compute_animation_keyframe_longhands(&raw const keyframe_input) };
     result.depends_on_viewport_metrics = computed_keyframes.depends_on_viewport_metrics;
     result.font_metrics_depend_on_viewport_metrics = computed_keyframes.font_metrics_depend_on_viewport_metrics;
     // A custom property's keyframe that asks where the element sits among its siblings makes the
@@ -6028,7 +6027,7 @@ unsafe fn finish_animation_sample(
         custom_results: custom_results.as_mut_ptr(),
         custom_result_count: &raw mut custom_result_count,
     };
-    unsafe { anim::rust_evaluate_animations(&raw const batch) };
+    unsafe { anim::evaluate_animations(&raw const batch) };
     result.outcome = FfiHostAnimationSampleOutcome::Evaluated;
     if custom_result_count != 0 {
         let retained = custom_results[..custom_result_count]
@@ -6112,7 +6111,7 @@ pub(crate) unsafe fn sample_without_host(
 }
 
 /// # Safety
-/// `storage` must be returned by `rust_compute_animation_keyframe_longhands`
+/// `storage` must be returned by `compute_animation_keyframe_longhands`
 /// and must not have been consumed before.
 pub(crate) unsafe fn take_animation_keyframe_longhand_values(storage: *mut c_void) -> Vec<RetainedStyleValueData> {
     assert!(!storage.is_null());
@@ -6398,8 +6397,7 @@ pub enum FfiStyleAdjustmentTarget {
 
 /// Build the shared adjustment inputs from element facts. The caller supplies the first
 /// non-`display: contents` ancestor's display, using live styles on the C++ path.
-#[unsafe(no_mangle)]
-pub extern "C" fn rust_box_type_transformation_input(
+pub(crate) fn rust_box_type_transformation_input(
     facts: u32,
     target: FfiStyleAdjustmentTarget,
     has_parent_display: bool,

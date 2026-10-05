@@ -1438,7 +1438,7 @@ pub unsafe extern "C" fn style_engine_decide_transitions(
     input: *const FfiTransitionInput,
     actions: *mut FfiTransitionAction,
 ) {
-    crate::css::ffi_stats::rust_style_ffi_note_transition_decision();
+    crate::css::ffi_stats::note_transition_decision();
     // SAFETY: Guaranteed by the caller.
     let input = unsafe { &*input };
     if input.property_count == 0 {

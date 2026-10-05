@@ -103,7 +103,7 @@ impl LengthPercentageRef<'_> {
             StyleValueData::Calculated { .. } => {
                 // SAFETY: The calculated style value outlives this borrowed
                 // view, and the root query takes no other state.
-                let root = unsafe { calc::rust_calc_root_from_calculated(self.calculated_pointer()) };
+                let root = unsafe { calc::calc_root_from_calculated(self.calculated_pointer()) };
                 assert!(!root.is_null());
                 // SAFETY: The root borrows the same retained calculation.
                 unsafe { calc::rust_calc_node_contains_percentage(root) }
