@@ -10,22 +10,6 @@
 
 namespace Web::Compositor {
 
-void NavigablePresenter::did_hand_display_list_to_compositor(NonnullRefPtr<Compositing::DisplayList> display_list, HTML::PaintConfig paint_config, Compositing::DisplayListResourceSet command_resources, Compositing::DisplayListResourceSet resources)
-{
-    m_compositor_display_list_visual_context_tree_structural_epoch = display_list->compatible_visual_context_tree_structural_epoch();
-    m_resource_storage.retain_only(resources);
-    m_compositor_display_list = move(display_list);
-    m_compositor_display_list_command_resources = move(command_resources);
-    m_compositor_display_list_resources = move(resources);
-    m_compositor_display_list_paint_config = paint_config;
-}
-
-void NavigablePresenter::did_hand_visual_context_tree_to_compositor(Compositing::DisplayListResourceSet resources)
-{
-    m_resource_storage.retain_only(resources);
-    m_compositor_display_list_resources = move(resources);
-}
-
 void NavigablePresenter::forget_compositor_display_list()
 {
     m_compositor_display_list_paint_config.clear();
@@ -74,7 +58,12 @@ CompositorFrame NavigablePresenter::build_frame(SealedPresentation const& sealed
             .resource_transaction = m_resource_storage.create_transaction(m_compositor_display_list_resources, resources),
             .scroll_state_snapshot = sealed.scroll_state_snapshot,
         };
-        did_hand_display_list_to_compositor(published->display_list, sealed.paint_config, move(command_resources), move(resources));
+        m_compositor_display_list_visual_context_tree_structural_epoch = published->display_list->compatible_visual_context_tree_structural_epoch();
+        m_resource_storage.retain_only(resources);
+        m_compositor_display_list = published->display_list;
+        m_compositor_display_list_command_resources = move(command_resources);
+        m_compositor_display_list_resources = move(resources);
+        m_compositor_display_list_paint_config = sealed.paint_config;
         return frame;
     }
 
@@ -91,7 +80,8 @@ CompositorFrame NavigablePresenter::build_frame(SealedPresentation const& sealed
             .visual_context_tree = visual_context_tree,
             .resource_transaction = m_resource_storage.create_transaction(m_compositor_display_list_resources, resources),
         };
-        did_hand_visual_context_tree_to_compositor(move(resources));
+        m_resource_storage.retain_only(resources);
+        m_compositor_display_list_resources = move(resources);
     }
     frame.scroll_state_update = CompositorFrame::ScrollStateUpdate {
         .scroll_state_snapshot = sealed.scroll_state_snapshot,

@@ -95,25 +95,13 @@ public:
     // The display list the compositor context holds, and the paint config it was recorded with.
     RefPtr<Compositing::DisplayList> const& compositor_display_list() const { return m_compositor_display_list; }
     Optional<HTML::PaintConfig> const& compositor_display_list_paint_config() const { return m_compositor_display_list_paint_config; }
-    void set_compositor_display_list_paint_config(HTML::PaintConfig paint_config) { m_compositor_display_list_paint_config = paint_config; }
-    u64 compositor_display_list_visual_context_tree_structural_epoch() const { return m_compositor_display_list_visual_context_tree_structural_epoch; }
 
-    // The resources the compositor context holds for its display list and visual context tree, and those the display
-    // list's commands reference.
-    Compositing::DisplayListResourceSet const& compositor_display_list_resources() const { return m_compositor_display_list_resources; }
-    Compositing::DisplayListResourceSet const& compositor_display_list_command_resources() const { return m_compositor_display_list_command_resources; }
-
-    // The compositor context now holds `display_list`, recorded with `paint_config`.
-    void did_hand_display_list_to_compositor(NonnullRefPtr<Compositing::DisplayList>, HTML::PaintConfig, Compositing::DisplayListResourceSet command_resources, Compositing::DisplayListResourceSet resources);
-    // The compositor context now holds a new visual context tree for its display list.
-    void did_hand_visual_context_tree_to_compositor(Compositing::DisplayListResourceSet resources);
     // Forgets what the compositor context holds: a new compositor process holds nothing.
     void forget_compositor_display_list();
 
     PresentedBy last_frame_presented_by() const { return m_last_frame_presented_by; }
     // The generation of the keyboard scroll state the last frame handed the compositor, if it handed one.
     Optional<u64> last_keyboard_scroll_state_generation() const { return m_last_keyboard_scroll_state_generation; }
-    void set_last_frame_presented_by(PresentedBy presented_by) { m_last_frame_presented_by = presented_by; }
 
     // Builds the frame that brings the compositor context up to date with `published`, the display list a recording just
     // published, or with what changed for the one the compositor has where none was published, from what `sealed`
