@@ -2,6 +2,7 @@
 # With LIBJS_RUNTIME=Rust the facade's LibJS builds the sources listed here, and Meta/CMake/libjs_facade.cmake leaves
 # the headers reachable instead of poisoning them. The only LibJS headers that a shared file may include are other
 # shared headers and headers that the facade provides.
+Breakpoint.h
 ConsoleLogLevel.h
 HostClassBuilder.h
 HostObjectABI.h
