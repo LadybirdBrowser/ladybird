@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<object id="object" data="#nested">fallback</object>
+<script src="../include.js"></script>
+<script>
+    const object = document.getElementById("object");
+    if (window === top) {
+        const nestedObjectEmbedsDocument = new Promise(resolve => window.addEventListener("message", event => resolve(event.data)));
+        promiseTest(async () => {
+            await new Promise(resolve => window.addEventListener("load", resolve));
+            println(`Top-level object embeds a document: ${object.contentWindow !== null}`);
+            println(`Nested object embeds a document: ${await nestedObjectEmbedsDocument}`);
+        });
+    } else {
+        window.addEventListener("load", () => top.postMessage(object.contentWindow !== null, "*"));
+    }
+</script>
