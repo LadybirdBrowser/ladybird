@@ -139,9 +139,8 @@ struct HostMarks {
 enum FlownStyle {
     /// What the transaction answered, and the rows of it the frame applied to the boxes itself, by element.
     Landed(StyleJobAnswer, Vec<FlightStyleRow>),
-    /// The host drains the transaction's reactions, holding the writes it queued beside the transaction until the drain
-    /// ends, and the rows the frame applied.
-    Draining(Vec<ArenaChange>, Vec<FlightStyleRow>),
+    /// The host drains the transaction's reactions, with the rows the frame applied.
+    Draining(Vec<FlightStyleRow>),
 }
 
 impl DocumentHost {
@@ -242,7 +241,7 @@ impl DocumentHost {
             !self.has_flown_style(),
             "one style transaction of a document flies at a time"
         );
-        self.changes.take()
+        self.changes.take_for_flight()
     }
 
     /// Pays what the writes a job or a frame applied owe the host, now that the host has it back.
@@ -659,7 +658,8 @@ impl DocumentHost {
         let Some(FlownStyle::Landed(answer, applied)) = flown.take() else {
             panic!("the host drains a style transaction that flew and has landed");
         };
-        *flown = Some(FlownStyle::Draining(self.changes.hold_style_writes(), applied));
+        *flown = Some(FlownStyle::Draining(applied));
+        self.changes.stop_holding_style();
         answer
     }
 
@@ -667,7 +667,7 @@ impl DocumentHost {
     /// `style_record` ahead of the host, and marked the relayout the move asks for.
     pub(crate) fn frame_marked_relayout(&self, style_node: StyleNodeID, style_record: u64) -> bool {
         let flown = self.flown_style.borrow();
-        let Some(FlownStyle::Draining(_, applied)) = &*flown else {
+        let Some(FlownStyle::Draining(applied)) = &*flown else {
             return false;
         };
         applied
@@ -678,10 +678,10 @@ impl DocumentHost {
     /// Ends the drain of the style transaction that flew: the writes the host queued beside it are queued again, behind
     /// what the drain wrote.
     pub(crate) fn end_style_drain(&self) {
-        let Some(FlownStyle::Draining(beside, _)) = self.flown_style.borrow_mut().take() else {
+        let Some(FlownStyle::Draining(_)) = self.flown_style.borrow_mut().take() else {
             panic!("the host ends the drain it began");
         };
-        self.changes.requeue(beside);
+        self.changes.queue_held_style();
     }
 
     /// What the host's scopes of a read lend the entries they call.
@@ -753,9 +753,7 @@ impl DocumentHost {
         }
         self.take_frame_in(wait);
         let job = Waited(job);
-        // A style write queued beside a style transaction that flew stays queued, behind the drain of the transaction's
-        // reactions, which it is the next transaction's input to.
-        let (answer, marks) = self.changes.drain(self.has_flown_style(), |changes| {
+        let (answer, marks) = self.changes.drain(|changes| {
             let (document, seed, marks) = (self.document, self.seed.take(), self.lend_marks());
             let in_job = self.in_job.replace(true);
             let answer = on_render_side(move || {
