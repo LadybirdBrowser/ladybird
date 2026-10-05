@@ -638,9 +638,9 @@ void Page::invalidate_compositor_wheel_event_listener_state()
 {
     ++m_wheel_event_listener_state_generation;
 
-    for (auto const& root : local_roots()) {
-        if (root->has_compositor_context())
-            root->compositor_context().invalidate_wheel_event_listener_state(m_wheel_event_listener_state_generation);
+    for (auto const& navigable : hosted_navigables()) {
+        if (navigable->has_compositor_context())
+            navigable->compositor_context().invalidate_wheel_event_listener_state(m_wheel_event_listener_state_generation);
     }
 }
 

@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+        height: 2000px;
+    }
+    iframe {
+        display: block;
+        width: 200px;
+        height: 150px;
+        border: 0;
+    }
+</style>
+<script>
+    promiseTest(async () => {
+        // Keep the parent on the main thread while the iframe scrolls asynchronously.
+        window.addEventListener("wheel", () => {}, { passive: false });
+        const iframe = document.createElement("iframe");
+        const iframeLoaded = new Promise(resolve => iframe.addEventListener("load", resolve, { once: true }));
+        iframe.srcdoc = `<style>body { margin: 0; height: 100000px; } html { scrollbar-width: none; }</style>`;
+        document.body.prepend(iframe);
+        await iframeLoaded;
+
+        // Wait for the iframe's compositor context to accept a wheel event.
+        let sawNonCancelableWheel = false;
+        iframe.contentWindow.addEventListener("wheel", event => {
+            if (event.deltaY !== 0 && !event.cancelable)
+                sawNonCancelableWheel = true;
+        }, { passive: true });
+        while (!sawNonCancelableWheel) {
+            await animationFrame();
+            await internals.wheel(50, 50, 0, 1, true, "ongoing");
+            if (!sawNonCancelableWheel)
+                await internals.wheel(50, 50, 0, 0, true, "ended");
+        }
+
+        // The listener must invalidate the existing compositor state before another frame is published.
+        internals.setManualRenderingOpportunities(true);
+        let cancelable;
+        iframe.contentWindow.addEventListener("wheel", event => {
+            cancelable = event.cancelable;
+            event.preventDefault();
+        }, { passive: false });
+        const before = iframe.contentWindow.scrollY;
+        const wheel = internals.wheel(50, 50, 0, 100, true, "ongoing");
+        println(`wheel event cancelable: ${cancelable}`);
+        internals.setManualRenderingOpportunities(false);
+        await wheel;
+        println(`iframe scroll delta: ${iframe.contentWindow.scrollY - before}`);
+        println(`window scrollY: ${window.scrollY}`);
+        await internals.wheel(50, 50, 0, 0, true, "ended");
+    });
+</script>
