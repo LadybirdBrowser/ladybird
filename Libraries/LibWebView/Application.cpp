@@ -209,6 +209,11 @@ Application::Application(Optional<ByteString> ladybird_binary_path)
 
 Application::~Application()
 {
+#if defined(AK_OS_MACOS)
+    // NB: Stop bootstrap callbacks before destroying the state they use.
+    m_mach_port_server.clear();
+#endif
+
     m_autocomplete_service.clear();
 
     // Explicitly delete the observers first, as the observer destructors will refer to Application::the().
@@ -526,8 +531,12 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     set_mach_server_name(m_mach_port_server->server_port_name());
 
     m_mach_port_server->on_bootstrap_request = [this](IPC::MachBootstrapListener::BootstrapRequest request) {
-        auto result = MUST(m_transport_bootstrap_server.handle_bootstrap_request(request.pid, move(request.reply_port)));
-        result.visit(
+        auto result = m_transport_bootstrap_server.handle_bootstrap_request(request.pid, move(request.reply_port));
+        if (result.is_error()) {
+            dbgln("Unable to bootstrap helper process {}: {}", request.pid, result.error());
+            return;
+        }
+        result.release_value().visit(
             [this, pid = request.pid, task_port = move(request.task_port)](IPC::TransportBootstrapMachServer::ChildTransportHandled) mutable {
                 // The child sends its task port before Process::spawn() returns, so it cannot be added to the process
                 // manager yet. Install the port once control returns to the browser event loop.

@@ -33,9 +33,20 @@ void MachBootstrapListener::start()
 
 void MachBootstrapListener::stop()
 {
-    // FIXME: We should join instead (after storing should_stop = false) when we have a way to interrupt the thread's mach_msg call
-    m_thread->detach();
+    if (!m_thread->needs_to_be_joined())
+        return;
+
     m_should_stop.store(true, MemoryOrder::memory_order_release);
+
+    // NB: Wake the receive call without waiting for space in the queue. A full queue already wakes the listener.
+    mach_msg_header_t message {};
+    message.msgh_bits = MACH_MSGH_BITS(MACH_MSG_TYPE_COPY_SEND, 0);
+    message.msgh_size = sizeof(message);
+    message.msgh_remote_port = m_server_port_send_right.port();
+    auto const ret = mach_msg(&message, MACH_SEND_MSG | MACH_SEND_TIMEOUT, sizeof(message), 0, MACH_PORT_NULL, 0, MACH_PORT_NULL);
+    VERIFY(ret == KERN_SUCCESS || ret == MACH_SEND_TIMED_OUT);
+
+    VERIFY(!m_thread->join().is_error());
 }
 
 bool MachBootstrapListener::is_initialized()
@@ -61,10 +72,14 @@ void MachBootstrapListener::thread_loop()
         // Get the pid of the child from the audit trailer so we can associate the port w/it
         mach_msg_options_t const options = MACH_RCV_MSG | MACH_RCV_TRAILER_TYPE(MACH_RCV_TRAILER_AUDIT) | MACH_RCV_TRAILER_ELEMENTS(MACH_RCV_TRAILER_AUDIT);
 
-        // FIXME: How can we interrupt this call during application shutdown?
         auto const ret = mach_msg(&message.header, options, 0, sizeof(message), m_server_port_recv_right.port(), MACH_MSG_TIMEOUT_NONE, MACH_PORT_NULL);
         if (ret != KERN_SUCCESS) {
             dbgln("mach_msg failed: {}", mach_error_string(ret));
+            break;
+        }
+
+        if (m_should_stop.load(MemoryOrder::memory_order_acquire)) {
+            mach_msg_destroy(&message.header);
             break;
         }
 

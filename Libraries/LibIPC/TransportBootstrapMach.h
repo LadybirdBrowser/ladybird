@@ -50,7 +50,7 @@ public:
     ErrorOr<BootstrapRequestResult> handle_bootstrap_request(pid_t, Core::MachPort reply_port);
 
 private:
-    static void send_transport_ports_to_child(Core::MachPort reply_port, TransportBootstrapMachPorts ports);
+    static ErrorOr<void> send_transport_ports_to_child(Core::MachPort reply_port, TransportBootstrapMachPorts ports);
     static ErrorOr<TransportBootstrapMachPorts> create_on_demand_local_transport(Core::MachPort reply_port);
 
     Mutex m_child_registration_mutex;

@@ -192,7 +192,14 @@ Session::Session(NonnullRefPtr<Client> client, JsonObject const& capabilities, S
 {
 }
 
-Session::~Session() = default;
+Session::~Session()
+{
+    revoke_weak_refs();
+#if defined(AK_OS_MACOS)
+    // NB: Stop bootstrap callbacks before destroying the state they use.
+    m_browser_mach_port_server.clear();
+#endif
+}
 
 ErrorOr<NonnullRefPtr<Session>, Web::WebDriver::Error> Session::find_session(StringView session_id, Web::WebDriver::SessionFlags session_flags, AllowInvalidWindowHandle allow_invalid_window_handle)
 {
@@ -314,6 +321,7 @@ void Session::close()
     if (m_closing)
         return;
     m_closing = true;
+    revoke_weak_refs();
 
     // NB: Step 2 removes this session from the active-sessions map — usually dropping the last reference to it. So hold
     //     a strong reference across close() — so removal can't destroy the session while the steps below still use it.
@@ -600,11 +608,12 @@ ErrorOr<void> Session::create_server()
     if (!m_browser_mach_port_server->is_initialized())
         return Error::from_string_literal("Failed to initialize Mach port server for WebDriver");
 
-    m_browser_mach_port_server->on_bootstrap_request = [this](auto request) {
+    m_browser_mach_port_server->on_bootstrap_request = [this, weak_session = make_weak_ref()](auto request) {
         auto result = m_transport_bootstrap_server.handle_bootstrap_request(request.pid, move(request.reply_port));
         if (result.is_error()) {
-            m_event_loop.deferred_invoke([this, error = result.release_error()]() mutable {
-                reject_start_promise(move(error));
+            m_event_loop.deferred_invoke([weak_session, error = result.release_error()]() mutable {
+                if (auto session = weak_session.strong_ref())
+                    session->reject_start_promise(move(error));
             });
             return;
         }
@@ -613,10 +622,13 @@ ErrorOr<void> Session::create_server()
             [](IPC::TransportBootstrapMachServer::ChildTransportHandled) {
                 VERIFY_NOT_REACHED();
             },
-            [this](IPC::TransportBootstrapMachServer::OnDemandTransport& transport) {
-                m_event_loop.deferred_invoke([this, transport = move(transport.ports)]() mutable {
-                    if (auto result = accept_browser_transport(make<IPC::Transport>(move(transport.receive_right), move(transport.send_right))); result.is_error())
-                        reject_start_promise(result.release_error());
+            [this, weak_session](IPC::TransportBootstrapMachServer::OnDemandTransport& transport) {
+                m_event_loop.deferred_invoke([weak_session, transport = move(transport.ports)]() mutable {
+                    auto session = weak_session.strong_ref();
+                    if (!session)
+                        return;
+                    if (auto result = session->accept_browser_transport(make<IPC::Transport>(move(transport.receive_right), move(transport.send_right))); result.is_error())
+                        session->reject_start_promise(result.release_error());
                 });
             });
     };

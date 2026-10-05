@@ -35,6 +35,17 @@ if (APPLE)
     list(APPEND TEST_SOURCES TestProcessReaper.cpp)
 endif()
 
+if (APPLE AND NOT IOS)
+    ladybird_test(TestWebDriverMachBootstrap.cpp LibWebView LIBS LibGfx LibIPC LibURL LibWebCommon OpenSSL::Crypto OpenSSL::SSL)
+    target_sources(TestWebDriverMachBootstrap PRIVATE
+        "${LADYBIRD_SOURCE_DIR}/Services/WebDriver/BrowserConnection.cpp"
+        "${LADYBIRD_SOURCE_DIR}/Services/WebDriver/Client.cpp"
+        "${LADYBIRD_SOURCE_DIR}/Services/WebDriver/Session.cpp"
+    )
+    target_include_directories(TestWebDriverMachBootstrap PRIVATE "${LADYBIRD_SOURCE_DIR}/Services" "${CMAKE_BINARY_DIR}/Services")
+    set_tests_properties(TestWebDriverMachBootstrap PROPERTIES TIMEOUT 30)
+endif()
+
 foreach(source IN LISTS TEST_SOURCES)
     set(test_libraries LibDatabase LibWebView LibURL)
     if (source STREQUAL "TestProfile.cpp" OR source STREQUAL "TestDownloadSegmentation.cpp")
