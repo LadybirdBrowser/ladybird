@@ -632,10 +632,8 @@ void PlaybackManager::enable_an_audio_track(Track const& track, ResumeEndedPlayb
     VERIFY(!track_data.enabled);
     m_audio_sink_status = PipelineStatus::HaveData;
     if (m_audio_mixer) {
-        // The clock holds the position even while Ended reports the duration, and a resumed track continues from it.
-        m_audio_mixer->seek(m_time_reader.current_time());
         MUST(m_audio_mixer->connect_input(track_data.producer));
-        m_audio_sink->invalidate_status_changes_in_flight();
+        m_audio_sink->reseek_input_keeping_clock();
     }
     track_data.enabled = true;
     apply_track_change_to_ended_state(resume_ended_playback);
@@ -649,9 +647,8 @@ void PlaybackManager::disable_an_audio_track(Track const& track)
     VERIFY(track_data.enabled);
     m_audio_sink_status = PipelineStatus::HaveData;
     if (m_audio_mixer) {
-        m_audio_mixer->seek(m_time_reader.current_time());
         m_audio_mixer->disconnect_input(track_data.producer);
-        m_audio_sink->invalidate_status_changes_in_flight();
+        m_audio_sink->reseek_input_keeping_clock();
     }
     track_data.enabled = false;
     update_pipeline_state();

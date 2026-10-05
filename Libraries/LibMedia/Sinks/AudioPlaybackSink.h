@@ -47,8 +47,6 @@ public:
     // Replaces the queued output with data read again from the input, without moving the clock.
     void reseek_input_keeping_clock();
 
-    void invalidate_status_changes_in_flight();
-
     virtual void set_playback_rate(float) override;
 
     void set_volume(double);
