@@ -132,6 +132,9 @@ impl Vm {
             .set(self.head.execution_generation.get() + 1);
 
         let exception = context_ref.register(register::EXCEPTION).get();
+        if exception != Value::EMPTY {
+            crate::embedding::completion::log_exception_if_enabled(self, exception);
+        }
         let return_value = context_ref.register(register::RETURN_VALUE).get();
         self.head
             .running_execution_context

@@ -121,6 +121,7 @@ impl GeneratorPrototype {
         let generator_object = typed_this_object::<GeneratorObject>(vm, DISPLAY_NAME)?;
 
         // 2. Let C be ThrowCompletion(exception).
+        crate::embedding::completion::log_exception_if_enabled(vm, vm.argument(0));
         let completion = Completion::from(Throw::new(vm.argument(0)));
 
         // 3. Return ? GeneratorResumeAbrupt(g, C, empty).

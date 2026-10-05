@@ -908,6 +908,7 @@ impl CyclicModule {
         assert!(self.evaluation_error.get().is_none());
 
         // 5. Set module.[[EvaluationError]] to ThrowCompletion(error).
+        crate::embedding::completion::log_exception_if_enabled(vm, error);
         self.evaluation_error.set(Some(error));
 
         // 6. Set module.[[Status]] to evaluated.

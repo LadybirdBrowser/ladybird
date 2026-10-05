@@ -2323,6 +2323,7 @@ pub fn dispose_resources(
                     error.create_non_enumerable_data_property_or_throw(vm, &vm.names.suppressed, suppressed);
 
                     // f. Set completion to ThrowCompletion(error).
+                    crate::embedding::completion::log_exception_if_enabled(vm, Value::from_object(error));
                     completion = Throw::new(Value::from_object(error)).into();
                 }
                 // 2. Else,

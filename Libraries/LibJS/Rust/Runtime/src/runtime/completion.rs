@@ -236,6 +236,7 @@ pub fn r#await(vm: &Vm, value: Value) -> ThrowCompletionOr<Value> {
     if success {
         return Ok(result);
     }
+    crate::embedding::completion::log_exception_if_enabled(vm, result);
     Err(Throw::new(result))
 }
 

@@ -476,6 +476,7 @@ fn perform_promise_any(
                 .must();
 
             // 3. Return ThrowCompletion(error).
+            crate::embedding::completion::log_exception_if_enabled(vm, Value::from_object(error));
             Err(Throw::new(Value::from_object(error)))
         },
         |errors, remaining_elements_count, next_promise, index| {

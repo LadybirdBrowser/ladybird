@@ -1938,6 +1938,7 @@ impl Vm {
 
         let promise = promise_of(promise_capability);
         if promise.state() == PromiseState::Rejected {
+            crate::embedding::completion::log_exception_if_enabled(self, promise.result());
             return Err(Throw::new(promise.result()));
         }
 
@@ -1952,6 +1953,7 @@ impl Vm {
         assert!(evaluated_value.state() != PromiseState::Pending);
 
         if evaluated_value.state() == PromiseState::Rejected {
+            crate::embedding::completion::log_exception_if_enabled(self, evaluated_value.result());
             return Err(Throw::new(evaluated_value.result()));
         }
 

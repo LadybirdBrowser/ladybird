@@ -132,6 +132,7 @@ fn async_from_sync_iterator_continuation(
                 let error = vm.argument(0);
 
                 // i. Return ? IteratorClose(syncIteratorRecord, ThrowCompletion(error)).
+                crate::embedding::completion::log_exception_if_enabled(vm, error);
                 iterator_close(vm, &sync_iterator_record, Completion::new(CompletionType::Throw, error))
                     .into_throw_completion_or()
             },

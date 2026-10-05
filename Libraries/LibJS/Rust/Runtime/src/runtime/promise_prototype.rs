@@ -219,8 +219,9 @@ impl PromisePrototype {
                     let thrower = NativeFunction::create_anonymous(
                         vm,
                         reason,
-                        |_, &reason: &Value| {
+                        |vm, &reason: &Value| {
                             // 1. Return ThrowCompletion(reason).
+                            crate::embedding::completion::log_exception_if_enabled(vm, reason);
                             Err(Throw::new(reason))
                         },
                         0,
