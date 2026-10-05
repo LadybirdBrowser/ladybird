@@ -70,8 +70,6 @@ public:
     // What takes this context's frames from any thread, while the compositor can be reached, once the canvas commands
     // a frame may sample have reached the compositor.
     RefPtr<CompositorFrameSink> frame_sink();
-    void add_video_sink(Media::VideoSinkHandle);
-    void remove_video_sink(Media::VideoSinkHandle);
     void set_video_sink_ticking(Media::VideoSinkHandle, bool should_tick);
     void invalidate_wheel_event_listener_state(u64 generation);
     void invalidate_keyboard_scroll_state(u64 generation);

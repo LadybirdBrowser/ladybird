@@ -56,16 +56,6 @@ RefPtr<CompositorFrameSink> CompositorContextHandle::frame_sink()
     return m_host.frame_sink();
 }
 
-void CompositorContextHandle::add_video_sink(Media::VideoSinkHandle video_sink_handle)
-{
-    m_host.add_video_sink(video_sink_handle);
-}
-
-void CompositorContextHandle::remove_video_sink(Media::VideoSinkHandle video_sink_handle)
-{
-    m_host.remove_video_sink(video_sink_handle);
-}
-
 void CompositorContextHandle::set_video_sink_ticking(Media::VideoSinkHandle video_sink_handle, bool should_tick)
 {
     m_host.set_video_sink_ticking(video_sink_handle, should_tick);
