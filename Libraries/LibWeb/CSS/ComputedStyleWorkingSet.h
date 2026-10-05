@@ -57,11 +57,6 @@ public:
         Yes
     };
 
-    enum class CreateAnimatedOverlay {
-        No,
-        Yes,
-    };
-
     static NonnullRefPtr<ComputedStyleWorkingSet> create();
     static NonnullRefPtr<ComputedStyleWorkingSet> create_with_longhand_table(ComputedValuesFFI::ComputedLonghandTable*);
     static NonnullRefPtr<ComputedStyleWorkingSet> create_with_base_values_from(ComputedStyleWorkingSet const&);
@@ -108,12 +103,11 @@ public:
     bool has_pseudo_element_style(PseudoElement) const;
     void set_animated_property(Badge<StyleComputer>, PropertyID, NonnullRefPtr<StyleValue const> value, AnimatedPropertyResultOfTransition, Inherited = Inherited::No);
     ComputedValuesFFI::AnimatedOverlay* prepare_animated_overlay_for_rust_mutation(Badge<StyleComputer>);
-    ComputedValuesFFI::AnimatedOverlay* prepare_animated_overlay_for_rust_finalization(Badge<StyleComputer>, CreateAnimatedOverlay);
+    ComputedValuesFFI::AnimatedOverlay* prepare_animated_overlay_for_rust_finalization(Badge<StyleComputer>);
     ComputedValuesFFI::AnimatedOverlay const* animated_overlay(Badge<StyleComputer>) const;
     void finish_animated_overlay_rust_mutation(Badge<StyleComputer>);
     // Hold every value of `overlay` as the working set's animated values, as the computation that sampled them did.
     void install_animated_overlay(Badge<StyleComputer>, ComputedValuesFFI::AnimatedOverlay const*);
-    void did_apply_style_finalization_from_rust(u16 invalidated_longhands);
     bool requires_animated_post_compute_adjustments() const;
     void prepare_for_animated_post_compute_adjustments(Badge<StyleComputer>);
     void set_animated_custom_property(Badge<StyleComputer>, Utf16FlyString name, NonnullRefPtr<StyleValue const> value);

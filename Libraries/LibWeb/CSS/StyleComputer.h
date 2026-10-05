@@ -205,7 +205,7 @@ private:
     void invalidate_animated_custom_property_readers(DOM::AbstractElement, OrderedHashMap<Utf16FlyString, NonnullRefPtr<StyleValue const>> const& animated_values) const;
     void start_needed_transitions(Layout::BegunRead const& read, ComputedStyleWorkingSet&, DOM::AbstractElement, StyleRecordID before_change_style_record) const;
     [[nodiscard]] bool has_provisional_transition_states(DOM::AbstractElement) const;
-    void finalize_style(Layout::BegunRead const& read, ComputedStyleWorkingSet&, DOM::AbstractElement, ComputedValuesFFI::FfiStyleFinalizationMode) const;
+    void finalize_animated_box_type(Layout::BegunRead const& read, ComputedStyleWorkingSet&, DOM::AbstractElement) const;
 
     [[nodiscard]] CSSPixelRect viewport_rect() const { return m_viewport_rect; }
 

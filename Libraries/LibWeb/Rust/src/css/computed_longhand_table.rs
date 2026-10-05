@@ -124,15 +124,6 @@ pub const EFFECTIVE_LONGHAND_SOURCE_TABLE: u8 = 0;
 pub const EFFECTIVE_LONGHAND_SOURCE_OVERLAY: u8 = 1;
 pub const EFFECTIVE_LONGHAND_SOURCE_SPECIFIED: u8 = 2;
 
-struct PostComputeRestoreValues {
-    values: [Option<(u16, RetainedStyleValueData)>; 7],
-}
-
-pub(crate) struct RestoredPostComputeValues {
-    pub properties: [u16; 7],
-    pub count: usize,
-}
-
 fn bitmap_bit(bits: &[u8; LONGHAND_BITMAP_BYTES], index: usize) -> bool {
     bits[index / 8] & (1 << (index % 8)) != 0
 }
@@ -551,7 +542,6 @@ pub struct ComputedLonghandTable {
     metadata: FfiComputedStyleMetadata,
     /// Values before automatic post-compute adjustments, retained only while
     /// animation processing may need to restore them.
-    post_compute_restore_values: Option<Box<PostComputeRestoreValues>>,
     /// The computed `overflow-x` and `overflow-y` keywords before the axes were adjusted against
     /// each other, which an animation of one axis is adjusted against again, once known.
     overflow_before_adjustment: Option<[u16; 2]>,
@@ -603,10 +593,6 @@ impl ComputedLonghandTable {
             + self.inheritance_dependent.capacity() * size_of::<(u16, RetainedStyleValueData)>()
             + self.inheritance_dependent_view.capacity() * size_of::<FfiTableInheritanceDependentValue>()
             + self
-                .post_compute_restore_values
-                .as_ref()
-                .map_or(0, |_| size_of::<PostComputeRestoreValues>())
-            + self
                 .frozen_transition_longhands
                 .get()
                 .map_or(0, |values| size_of_val(values.as_ref()))) as u64
@@ -644,7 +630,6 @@ impl ComputedLonghandTable {
                 dependency_flags: 0,
                 in_display_none_subtree: false,
             },
-            post_compute_restore_values: None,
             overflow_before_adjustment: None,
             slot_hash_sum: MemoizedHashSum::default(),
             frozen_transition_longhands: OnceLock::new(),
@@ -901,7 +886,6 @@ impl ComputedLonghandTable {
         self.metadata = source.metadata;
         self.overflow_before_adjustment = source.overflow_before_adjustment;
         self.raw_cascaded_font_size.clone_from(&source.raw_cascaded_font_size);
-        self.post_compute_restore_values = None;
     }
 
     fn copy_from(&mut self, source: &ComputedLonghandTable) {
@@ -1052,7 +1036,6 @@ impl ComputedLonghandTable {
         self.inheritance_dependent_bits = [0; LONGHAND_BITMAP_BYTES];
         self.inheritance_dependent_view.clear();
         self.raw_cascaded_font_size = None;
-        self.post_compute_restore_values = None;
     }
 
     fn rebuild_inheritance_dependent_view(&mut self) {
@@ -1081,7 +1064,6 @@ impl ComputedLonghandTable {
         self.inheritance_dependent_is_seeded = false;
         self.inheritance_dependent_bits = [0; LONGHAND_BITMAP_BYTES];
         self.inheritance_dependent_view.clear();
-        self.post_compute_restore_values = None;
     }
 
     pub(crate) fn add_inheritance_dependent_value(&mut self, property_id: u16, value: RetainedStyleValueData) {
@@ -1325,53 +1307,12 @@ impl ComputedLonghandTable {
         }
     }
 
-    pub(crate) fn set_post_compute_restore_values(&mut self, values: [(u16, RetainedStyleValueData); 7]) {
-        assert!(
-            !self.frozen,
-            "the computed longhand table is immutable once its style is created"
-        );
-        self.post_compute_restore_values = Some(Box::new(PostComputeRestoreValues {
-            values: values.map(Some),
-        }));
-    }
-
-    pub(crate) fn restore_post_compute_values(&mut self, only_property: Option<u16>) -> RestoredPostComputeValues {
-        let mut restored = RestoredPostComputeValues {
-            properties: [0; 7],
-            count: 0,
-        };
-        assert!(
-            !self.frozen,
-            "the computed longhand table is immutable once its style is created"
-        );
-        let Some(mut restore_values) = self.post_compute_restore_values.take() else {
-            return restored;
-        };
-        for entry in &mut restore_values.values {
-            let Some((property_id, _)) = entry.as_ref() else {
-                continue;
-            };
-            if only_property.is_some_and(|only_property| *property_id != only_property) {
-                continue;
-            }
-            let (property_id, value) = entry.take().unwrap();
-            self.set(property_id, value, -1);
-            restored.properties[restored.count] = property_id;
-            restored.count += 1;
-        }
-        if restore_values.values.iter().any(Option::is_some) {
-            self.post_compute_restore_values = Some(restore_values);
-        }
-        restored
-    }
-
     pub(crate) fn freeze(&mut self) {
         self.storage.materialize();
         self.finish_delta();
     }
 
     pub(crate) fn finish_delta(&mut self) {
-        self.post_compute_restore_values = None;
         if !self.frozen {
             self.storage.release_empty_sources();
         }

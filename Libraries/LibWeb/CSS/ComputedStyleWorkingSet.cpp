@@ -406,10 +406,8 @@ ComputedValuesFFI::AnimatedOverlay* ComputedStyleWorkingSet::prepare_animated_ov
     return const_cast<ComputedValuesFFI::AnimatedOverlay*>(animated_properties.overlay());
 }
 
-ComputedValuesFFI::AnimatedOverlay* ComputedStyleWorkingSet::prepare_animated_overlay_for_rust_finalization(Badge<StyleComputer>, CreateAnimatedOverlay create)
+ComputedValuesFFI::AnimatedOverlay* ComputedStyleWorkingSet::prepare_animated_overlay_for_rust_finalization(Badge<StyleComputer>)
 {
-    if (!m_animated_properties && create == CreateAnimatedOverlay::No)
-        return nullptr;
     auto& animated_properties = mutable_animated_properties();
     animated_properties.clear_wrapper_cache();
     return const_cast<ComputedValuesFFI::AnimatedOverlay*>(animated_properties.overlay());
@@ -441,21 +439,6 @@ bool ComputedStyleWorkingSet::requires_animated_post_compute_adjustments() const
 void ComputedStyleWorkingSet::prepare_for_animated_post_compute_adjustments(Badge<StyleComputer>)
 {
     ensure_mutable_computed_longhand_table();
-}
-
-void ComputedStyleWorkingSet::did_apply_style_finalization_from_rust(u16 invalidated_longhands)
-{
-    auto invalidate = [&](u16 flag, PropertyID property_id) {
-        if (invalidated_longhands & flag)
-            did_store_property_data_from_drive(property_id);
-    };
-    invalidate(ComputedValuesFFI::FINALIZED_FLOAT, PropertyID::Float);
-    invalidate(ComputedValuesFFI::FINALIZED_DISPLAY, PropertyID::Display);
-    invalidate(ComputedValuesFFI::FINALIZED_LINE_HEIGHT, PropertyID::LineHeight);
-    invalidate(ComputedValuesFFI::FINALIZED_POSITION, PropertyID::Position);
-    invalidate(ComputedValuesFFI::FINALIZED_TEXT_ALIGN, PropertyID::TextAlign);
-    invalidate(ComputedValuesFFI::FINALIZED_OVERFLOW_X, PropertyID::OverflowX);
-    invalidate(ComputedValuesFFI::FINALIZED_OVERFLOW_Y, PropertyID::OverflowY);
 }
 
 void ComputedStyleWorkingSet::set_animated_custom_property(Badge<StyleComputer>, Utf16FlyString name, NonnullRefPtr<StyleValue const> value)
