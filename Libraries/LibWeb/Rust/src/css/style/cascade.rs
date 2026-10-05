@@ -515,7 +515,7 @@ where
 
 define_id! {
     /// Identity of an interned winner group.
-    pub struct WinnerGroupID(pub);
+    interned pub struct WinnerGroupID(pub);
 }
 
 define_id! {
@@ -525,43 +525,19 @@ define_id! {
     default pub struct CustomDeclarationListID(pub);
 }
 
-impl InternIdentity for WinnerGroupID {
-    fn index(self) -> usize {
-        self.0 as usize
-    }
-}
-
 define_id! {
     /// Identity of provenance parallel to one interned winner group.
-    struct WinnerProvenanceGroupID(pub);
-}
-
-impl InternIdentity for WinnerProvenanceGroupID {
-    fn index(self) -> usize {
-        self.0 as usize
-    }
+    interned struct WinnerProvenanceGroupID(pub);
 }
 
 define_id! {
     /// Identity of one exact priority retained by winner provenance.
-    struct CascadePriorityID(pub);
-}
-
-impl InternIdentity for CascadePriorityID {
-    fn index(self) -> usize {
-        self.0 as usize
-    }
+    interned struct CascadePriorityID(pub);
 }
 
 define_id! {
     /// Identity of one factorized sparse cascade state.
-    pub struct CascadeStateID(pub);
-}
-
-impl InternIdentity for CascadeStateID {
-    fn index(self) -> usize {
-        self.0 as usize
-    }
+    interned pub struct CascadeStateID(pub);
 }
 
 /// Whether a winner-group lookup requires topology-dependent priorities to still be current.

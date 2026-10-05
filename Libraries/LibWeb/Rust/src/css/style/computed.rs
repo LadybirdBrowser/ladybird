@@ -96,53 +96,17 @@ const COMPUTED_VALUE_DEPENDENCY_FLAGS: u8 = (INHERITED_GROUP_SWAP_ELIGIBLE - 1)
     | HIGHLIGHT_COLORS_AUTHORED
     | HIGHLIGHT_COLOR_IS_CURRENT_COLOR;
 
-define_id! { pub struct ComputedGroupID(); }
+define_id! { interned pub struct ComputedGroupID(); }
 
-impl InternIdentity for ComputedGroupID {
-    fn index(self) -> usize {
-        self.0 as usize
-    }
-}
+define_id! { interned pub struct ComputedGroupSetID(); }
 
-define_id! { pub struct ComputedGroupSetID(); }
+define_id! { interned pub struct InheritedGroupSetID(); }
 
-impl InternIdentity for ComputedGroupSetID {
-    fn index(self) -> usize {
-        self.0 as usize
-    }
-}
+define_id! { interned pub struct CustomPropertyEnvironmentID(); }
 
-define_id! { pub struct InheritedGroupSetID(); }
+define_id! { interned pub struct ComputedFixedMetadataID(); }
 
-impl InternIdentity for InheritedGroupSetID {
-    fn index(self) -> usize {
-        self.0 as usize
-    }
-}
-
-define_id! { pub struct CustomPropertyEnvironmentID(); }
-
-impl InternIdentity for CustomPropertyEnvironmentID {
-    fn index(self) -> usize {
-        self.0 as usize
-    }
-}
-
-define_id! { pub struct ComputedFixedMetadataID(); }
-
-impl InternIdentity for ComputedFixedMetadataID {
-    fn index(self) -> usize {
-        self.0 as usize
-    }
-}
-
-define_id! { pub struct ComputedLonghandTableID(); }
-
-impl InternIdentity for ComputedLonghandTableID {
-    fn index(self) -> usize {
-        self.0 as usize
-    }
-}
+define_id! { interned pub struct ComputedLonghandTableID(); }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct StyleRecordID(NonZeroU32);
