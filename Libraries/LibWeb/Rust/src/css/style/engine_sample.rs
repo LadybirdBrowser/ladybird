@@ -568,12 +568,34 @@ impl super::StyleEngine {
         self.state.retained.size_container_query_dependents(container).0
     }
 
+    /// The element whose restyle shows what the new size of a container decides for `node`: `node` itself, or the
+    /// element whose boxes a clock frame built with `node`'s among them, which shows them all at once. None for an
+    /// element below a box a clock frame took away, which shows nothing.
+    pub(crate) fn size_query_restyle_target(&self, node: StyleNodeID) -> Option<StyleNodeID> {
+        if self.tick_shown.is_empty() {
+            return Some(node);
+        }
+        let mut target = node;
+        for ancestor in std::iter::successors(self.tree.flat_tree_parent(node), |&ancestor| {
+            self.tree.flat_tree_parent(ancestor)
+        }) {
+            match self.tick_shown.get(ancestor).map(|shown| shown.boxes) {
+                Some(ShownBoxes::TakenAway) => return None,
+                Some(ShownBoxes::Built) => target = ancestor,
+                _ => {}
+            }
+        }
+        Some(target)
+    }
+
     /// What `node` computes to against the boxes as the last layout committed them, which the engine derives for this
     /// read alone, as it does for a read of the element's style: what the element published and the record the host
-    /// installed stay as they were. None for an element without a box, `boxed` says, that stays without one. Records
-    /// that move the boxes of the element's pseudo-elements are shown to the clock frame's tree build in place of the
-    /// host's (see [`TickShownRecords`]). Where the move from the host's record reaches beyond the element's box, or a
-    /// pseudo-element's a build cannot build again by itself, a transition or an animation, the host computes it.
+    /// installed stay as they were. `boxed` says whether the element has a box now, which an element hidden without
+    /// one keeps, as the host computes no style for it. Records that move the boxes the element generates, its
+    /// pseudo-elements', its own, which it loses, or the ones it gains, are shown to the clock frame's tree build in
+    /// place of the host's (see [`TickShownRecords`]), as are the ones a box a clock frame built for it moves to.
+    /// Where the move from the host's record starts a transition or an animation, or reaches a box a build cannot
+    /// build again by itself, the host computes it.
     pub(crate) fn restyle_size_query_dependent(
         &mut self,
         node: StyleNodeID,
@@ -583,26 +605,40 @@ impl super::StyleEngine {
         if self.record_holds_an_animation_overlay(host_record) {
             return Err(NeedsHost);
         }
-        let demand = super::publication::RecordDemand::Element(bridge::FfiRecordDemand::ElementRead);
-        let Ok(super::publication::RecordDemandAnswer::Record { record, .. }) = self.answer_record_demand(node, demand)
-        else {
-            return Err(NeedsHost);
-        };
+        let record = self.derive_record(node, bridge::FfiRecordDemand::ElementRead)?;
         let restyled = super::computed::FinalStyleRecordID::from_raw(record.style_record).ok_or(NeedsHost)?;
-        // The host computes no style for an element hidden without a box, so only whether it gains one says anything.
-        if !boxed {
-            return match self.record_generates_a_box(restyled) {
-                true => Err(NeedsHost),
-                false => Ok(DependentRestyle::Unmoved),
-            };
+        // The box a clock frame built shows the records it was built from, whatever the host's say.
+        let built = self.tick_shown.get(node).map(|shown| shown.boxes) == Some(ShownBoxes::Built);
+        if built {
+            if !self.record_generates_a_box(restyled) {
+                return self.take_box_away(node, restyled);
+            }
+            let moved = self.show_built_boxes(node, ShownBoxes::Built, restyled, &record)?;
+            return Ok(if moved {
+                DependentRestyle::BuiltBoxesMove
+            } else {
+                DependentRestyle::Unmoved
+            });
         }
-        if restyled != host_record
-            && (!self.restyle_stays_in_its_box(node, host_record.raw(), restyled.raw())
-                || self.record_declares_transitions(restyled))
-        {
+        if !boxed {
+            if !self.record_generates_a_box(restyled) {
+                return Ok(DependentRestyle::Unmoved);
+            }
+            let parent = self.box_rebuild_parent(node).ok_or(NeedsHost)?;
+            self.show_built_boxes(node, ShownBoxes::Built, restyled, &record)?;
+            return Ok(DependentRestyle::GainsABox { parent });
+        }
+        let element_moves = restyled != host_record;
+        if element_moves && self.record_declares_transitions(restyled) {
             return Err(NeedsHost);
+        }
+        if !self.record_generates_a_box(restyled) {
+            return self.take_box_away(node, restyled);
         }
         let pseudo_elements = self.pseudo_records_to_show(node, &record)?;
+        if element_moves && !self.restyle_stays_in_its_box(node, host_record.raw(), restyled.raw()) {
+            return Err(NeedsHost);
+        }
         let in_box = super::layout_style::DerivedStyleRecord::pin(self, restyled.raw());
         let Some((pseudo_present, pseudo)) = pseudo_elements else {
             // What an earlier clock frame showed for the pseudo-elements stands beside the element's record.
@@ -618,12 +654,147 @@ impl super::StyleEngine {
             return Ok(DependentRestyle::InBox(in_box));
         };
         let shown = ShownRecords {
+            boxes: ShownBoxes::Restyled,
             element: restyled,
             pseudo_present,
             pseudo,
         };
         self.state.retained.show_for_tick(node, shown);
         Ok(DependentRestyle::PseudoElementsMove(in_box))
+    }
+
+    /// The record a read-only `demand` derives for `node`.
+    fn derive_record(
+        &mut self,
+        node: StyleNodeID,
+        demand: bridge::FfiRecordDemand,
+    ) -> Result<super::publication::DemandedEngineRecord, NeedsHost> {
+        match self.answer_record_demand(node, super::publication::RecordDemand::Element(demand)) {
+            Ok(super::publication::RecordDemandAnswer::Record { record, .. }) => Ok(record),
+            _ => Err(NeedsHost),
+        }
+    }
+
+    /// Shows `restyled`, which generates no box, for `node`, whose box the clock frame takes away.
+    fn take_box_away(
+        &mut self,
+        node: StyleNodeID,
+        restyled: super::computed::FinalStyleRecordID,
+    ) -> Result<DependentRestyle, NeedsHost> {
+        let parent = self.box_rebuild_parent(node).ok_or(NeedsHost)?;
+        self.state.retained.show_for_tick(node, ShownRecords::hidden(restyled));
+        Ok(DependentRestyle::LosesItsBox { parent })
+    }
+
+    /// Shows `element`, the record a read derived for `node`, `record`, in the box a clock frame builds for it, and the
+    /// record each element below it computes to against it in theirs, as `boxes` built. Answers whether any moved from
+    /// what the clock showed.
+    fn show_built_boxes(
+        &mut self,
+        node: StyleNodeID,
+        boxes: ShownBoxes,
+        element: super::computed::FinalStyleRecordID,
+        record: &super::publication::DemandedEngineRecord,
+    ) -> Result<bool, NeedsHost> {
+        self.check_builds_plainly(node, element, record)?;
+        let shown = ShownRecords {
+            boxes,
+            element,
+            pseudo_present: record.pseudo_records_present,
+            pseudo: record.pseudo_records,
+        };
+        let moved = self.state.retained.show_for_tick(node, shown);
+        if self.tree.first_element_child(node).is_none() || self.record_is_in_display_none_subtree(element.raw()) {
+            return Ok(moved);
+        }
+        // The elements below read their parent's record as the one assigned to it, which it is while they are read: in
+        // place of the host's, which an element below one without a box may not have yet, or not at all when the flush
+        // left it unstyled in a display:none subtree.
+        let host = self
+            .computed_group_sets
+            .assigned_style_record(node)
+            .unwrap_or(super::computed::FinalStyleRecordID::NONE);
+        let replaced = if host == element {
+            None
+        } else {
+            let replaced = self
+                .computed_group_sets
+                .assign_engine_computed_record(node, host, element);
+            Some(replaced.ok_or(NeedsHost)?)
+        };
+        let below = self.show_built_children(node);
+        if let Some(replaced) = replaced {
+            self.computed_group_sets
+                .revert_engine_computed_record(node, element, replaced);
+        }
+        Ok(below? || moved)
+    }
+
+    /// Shows the records the element children of `parent` compute to against the one assigned to it, in the boxes a
+    /// clock frame builds for them. Answers whether any moved from what the clock showed.
+    fn show_built_children(&mut self, parent: StyleNodeID) -> Result<bool, NeedsHost> {
+        let mut moved = false;
+        let mut child = self.tree.first_element_child(parent);
+        while let Some(node) = child {
+            child = self.tree.next_element_sibling(node);
+            let record = self.derive_record(node, bridge::FfiRecordDemand::ElementReadAgainstParent)?;
+            let element = super::computed::FinalStyleRecordID::from_raw(record.style_record).ok_or(NeedsHost)?;
+            moved |= self.show_built_boxes(node, ShownBoxes::BuiltBelow, element, &record)?;
+        }
+        Ok(moved)
+    }
+
+    /// Refuses an element whose boxes only the host builds: one whose type asks for more than its display does, one in
+    /// a shadow tree or holding one, a container, a list item, and one that starts a transition or an animation, or
+    /// whose counters, quotes or generated boxes reach beyond its own box. `element` is the record the clock shows for
+    /// it, and `record` what the read that derived it settled.
+    fn check_builds_plainly(
+        &self,
+        node: StyleNodeID,
+        element: super::computed::FinalStyleRecordID,
+        record: &super::publication::DemandedEngineRecord,
+    ) -> Result<(), NeedsHost> {
+        use super::publication::pseudo_kind::{AFTER, BACKDROP, BEFORE, FIRST_LETTER, FIRST_LINE, MARKER};
+        use element_adjustment_fact::{
+            HAS_ANIMATIONS, IS_BUTTON, IS_MATHML, IS_SHADOW_HOST_PSEUDO_ELEMENT, IS_SVG_ELEMENT, IS_TABLE,
+            RENDERED_IN_TOP_LAYER,
+        };
+        let typed = IS_SVG_ELEMENT
+            | IS_MATHML
+            | IS_TABLE
+            | IS_BUTTON
+            | RENDERED_IN_TOP_LAYER
+            | IS_SHADOW_HOST_PSEUDO_ELEMENT
+            | HAS_ANIMATIONS;
+        let is_container =
+            |record: super::computed::FinalStyleRecordID| self.container_query_input_row(record.raw(), false).is_some();
+        let generates_pseudo_boxes = [AFTER, BACKDROP, BEFORE, FIRST_LETTER, FIRST_LINE, MARKER]
+            .iter()
+            .any(|&kind| {
+                record.pseudo_records_present & (1 << kind) != 0
+                    || self.computed_group_sets.pseudo_style_record(node, kind).is_some()
+            });
+        let Some(view) = self.computed_group_sets.style_record_view(element.raw()) else {
+            return Err(NeedsHost);
+        };
+        let values =
+            crate::css::computed_value_views::ComputedValuesView::new(SharedPayload::as_pointer_slice(view.payloads));
+        let plain = self.element_box_kind(node) == bridge::ElementBoxKind::FromDisplay
+            && self.computed_group_sets.adjustment_facts(node) & typed == 0
+            && self.tree.shadow_root_of(node).is_none()
+            && self.tree.assigned_slot_of(node).is_none()
+            && !is_container(element)
+            && !self
+                .computed_group_sets
+                .assigned_style_record(node)
+                .is_some_and(is_container)
+            && !values.display().is_list_item()
+            && !values.display().is_contents()
+            && !values.affects_generated_content_state()
+            && !generates_pseudo_boxes
+            && !self.record_declares_transitions(element)
+            && !self.record_declares_animations(element.raw());
+        plain.then_some(()).ok_or(NeedsHost)
     }
 
     /// The pseudo-element records `node` shows with `record`, the record a read derived for it, where they move what
@@ -669,6 +840,43 @@ impl super::StyleEngine {
             moved = true;
         }
         Ok(moved.then_some((present, pseudo)))
+    }
+
+    /// The element whose box the host builds again for `node`, which a clock frame took the box of: its parent, which
+    /// places `node`'s box among its children wherever the host's record gives it one. None where the host places the
+    /// box otherwise: the root, the body, an SVG element and a top layer member, and a box that is not its parent's
+    /// child alone, that of a slotted element or of a child of a shadow root or a shadow host.
+    fn box_rebuild_parent(&self, node: StyleNodeID) -> Option<StyleNodeID> {
+        use element_adjustment_fact::{
+            IS_DOCUMENT_ELEMENT, IS_HTML_BODY_ELEMENT, IS_SVG_ELEMENT, RENDERED_IN_TOP_LAYER,
+        };
+        let parent = self.tree.parent(node)?;
+        let placed_otherwise = IS_DOCUMENT_ELEMENT | IS_HTML_BODY_ELEMENT | IS_SVG_ELEMENT | RENDERED_IN_TOP_LAYER;
+        (self.computed_group_sets.adjustment_facts(node) & placed_otherwise == 0
+            && self.tree.assigned_slot_of(node).is_none()
+            && self.tree.shadow_root_of(parent).is_none()
+            && self.computed_group_sets.assigned_style_record(parent).is_some())
+        .then_some(parent)
+    }
+
+    /// Shows `record`, the sample a clock frame showed in the box of `node`, in the box a build makes for it again.
+    pub(crate) fn show_sample_in_rebuilt_box(&mut self, node: StyleNodeID, record: u64) {
+        let Some(record) = super::computed::FinalStyleRecordID::from_raw(record) else {
+            return;
+        };
+        let shown = match self.tick_shown.get(node) {
+            Some(&shown) => ShownRecords {
+                element: record,
+                ..shown
+            },
+            None => ShownRecords {
+                boxes: ShownBoxes::Restyled,
+                element: record,
+                pseudo_present: 0,
+                pseudo: [0; bridge::PSEUDO_RECORD_SLOTS],
+            },
+        };
+        self.state.retained.show_for_tick(node, shown);
     }
 
     /// Lends the engine's published reads the records `shown`, which a clock frame shows in the boxes it builds.
@@ -762,6 +970,15 @@ pub(crate) enum DependentRestyle {
     /// Records that move the boxes of the element's `::before` or `::after`, which the frame builds again from them,
     /// beside a record that moves nothing beyond the element's box, which it shows in it.
     PseudoElementsMove(super::layout_style::DerivedStyleRecord),
+    /// A record that generates no box, which the frame takes the element's box away for, and which `parent`'s box
+    /// places among its children wherever the host's record gives the element one.
+    LosesItsBox { parent: StyleNodeID },
+    /// Records for the element and every element below it that give it a box, which the frame builds from them and
+    /// inserts among `parent`'s children.
+    GainsABox { parent: StyleNodeID },
+    /// Records that move the boxes a clock frame built for the element and below it, which the frame builds again
+    /// from them.
+    BuiltBoxesMove,
 }
 
 /// The records the render clock's frames show in place of the ones the host installed, for the elements whose boxes
@@ -798,9 +1015,23 @@ impl TickShownRecords {
     }
 }
 
+/// What a clock frame shows of the boxes an element generates in place of the host's.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum ShownBoxes {
+    /// The element keeps a box, which shows the record, and whose `::before` and `::after` show the ones shown.
+    Restyled,
+    /// A clock frame took the element's box away.
+    TakenAway,
+    /// A clock frame built the element's box, and every box below it.
+    Built,
+    /// A clock frame built the element's box with those of a [`ShownBoxes::Built`] ancestor.
+    BuiltBelow,
+}
+
 /// What a clock frame shows for one element.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 struct ShownRecords {
+    boxes: ShownBoxes,
     element: super::computed::FinalStyleRecordID,
     /// The pseudo-element kinds whose records the frame shows, a bit per kind; a shown kind holding zero has none.
     pseudo_present: u16,
@@ -808,6 +1039,16 @@ struct ShownRecords {
 }
 
 impl ShownRecords {
+    /// What a clock frame shows for an element whose box it takes away.
+    fn hidden(element: super::computed::FinalStyleRecordID) -> Self {
+        Self {
+            boxes: ShownBoxes::TakenAway,
+            element,
+            pseudo_present: 0,
+            pseudo: [0; bridge::PSEUDO_RECORD_SLOTS],
+        }
+    }
+
     fn records(&self) -> impl Iterator<Item = u64> + '_ {
         let pseudo = (0..bridge::PSEUDO_RECORD_SLOTS)
             .filter(|&kind| self.pseudo_present & (1 << kind) != 0)
@@ -824,16 +1065,21 @@ impl ShownRecords {
 }
 
 impl RetainedState {
-    /// Shows `shown` for `node` in place of what a clock frame showed for it before.
-    fn show_for_tick(&mut self, node: StyleNodeID, shown: ShownRecords) {
+    /// Shows `shown` for `node` in place of what a clock frame showed for it before, answering whether that moved.
+    fn show_for_tick(&mut self, node: StyleNodeID, shown: ShownRecords) -> bool {
+        let entries = &mut self.tick_shown.0;
+        let previous = entries.iter_mut().find(|(shown_node, _)| *shown_node == node);
+        if previous.as_ref().is_some_and(|(_, previous)| *previous == shown) {
+            return false;
+        }
         shown
             .records()
             .for_each(|record| self.computed_group_sets.pin_style_record(record));
-        let entries = &mut self.tick_shown.0;
-        match entries.iter_mut().find(|(shown_node, _)| *shown_node == node) {
+        match previous {
             Some((_, previous)) => std::mem::replace(previous, shown).unpin(&mut self.computed_group_sets),
             None => entries.push((node, shown)),
         }
+        true
     }
 
     /// The element record the boxes built from `node` take: the one a clock frame shows, or the one the engine

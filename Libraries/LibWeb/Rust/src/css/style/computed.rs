@@ -615,16 +615,6 @@ impl PublishedComputedColumns {
         }
     }
 
-    fn set_inherited_group_swap_eligible(&mut self, index: usize, eligible: bool) {
-        if let Some(flags) = self.flags.get_mut(index) {
-            if eligible {
-                *flags |= Self::INHERITED_GROUP_SWAP_ELIGIBLE;
-            } else {
-                *flags &= !Self::INHERITED_GROUP_SWAP_ELIGIBLE;
-            }
-        }
-    }
-
     fn cascade_state(&self, index: usize) -> Option<(u64, CascadeStateID)> {
         self.flags
             .get(index)
@@ -1863,7 +1853,8 @@ impl ComputedGroupSets {
 
     /// Assign a node the record another node of its cohort already derived this flush: the same
     /// old record moved to the same new winner state produces the same new record, so only the
-    /// node's columns move. Answers what the record took the place of, for reverting it.
+    /// node's columns move. An `old_style_record` of `NONE` assigns a node that holds no record.
+    /// Answers what the record took the place of, for reverting it.
     pub(super) fn assign_engine_computed_record(
         &mut self,
         node: StyleNodeID,
@@ -1874,8 +1865,11 @@ impl ComputedGroupSets {
         if self.columns.animation_overlay_slot(index).is_some() {
             return None;
         }
-        let current = *self.style_record_column.get(index)?.as_ref()?;
-        if self.final_base_style_record(current) != old_style_record {
+        let current = self.style_record_column.get(index).copied().flatten();
+        if current.map_or(FinalStyleRecordID::NONE, |current| {
+            self.final_base_style_record(current)
+        }) != old_style_record
+        {
             return None;
         }
         let new_base_record = new_style_record.base_record()?;
@@ -1885,11 +1879,21 @@ impl ComputedGroupSets {
             .and_then(|table| self.computed_longhand_tables.get_index(table.index()))
             .is_some_and(|retained| table_inherited_group_swap_eligible(retained.table()));
         let replaced = self.replaced_columns(node);
-        let inherited_identity = new_record.inherited_groups;
-        self.columns.groups[index] = new_record.groups.0;
-        self.columns.inherited_groups[index] = inherited_identity.0;
-        self.columns.custom_properties[index] = new_record.custom_properties.0;
-        self.columns.set_inherited_group_swap_eligible(index, swap_eligible);
+        self.columns.publish(
+            index,
+            PublishedComputedInputs {
+                groups: new_record.groups,
+                inherited_groups: new_record.inherited_groups,
+                custom_properties: new_record.custom_properties,
+                fixed_metadata: new_record.fixed_metadata,
+                style_record: new_base_record,
+                animation_overlay_slot: None,
+            },
+            swap_eligible,
+        );
+        if self.style_record_column.len() <= index {
+            self.style_record_column.resize(index + 1, None);
+        }
         self.style_record_column[index] = Some(new_base_record);
         Some(replaced)
     }

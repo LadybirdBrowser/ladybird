@@ -2088,7 +2088,7 @@ impl RetainedState {
     }
 
     /// Whether a record's `animation-name` names any animation.
-    fn record_declares_animations(&self, record: u64) -> bool {
+    pub(super) fn record_declares_animations(&self, record: u64) -> bool {
         self.computed_group_sets
             .style_record_view(record)
             .and_then(|view| unsafe { view.longhand_table.as_ref() })

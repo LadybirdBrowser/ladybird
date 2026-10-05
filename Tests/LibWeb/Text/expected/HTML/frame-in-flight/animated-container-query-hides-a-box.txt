@@ -1,0 +1,4 @@
+clock after its frames: ticking
+last frame presented by: clock
+the presented size is the main thread's: true
+the aside left the pane: true
