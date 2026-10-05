@@ -1133,6 +1133,23 @@ impl RetainedState {
             })
     }
 
+    pub(super) fn declares_custom_property_registered_with_syntax(
+        &self,
+        node: StyleNodeID,
+        inputs: &bridge::FfiDocumentStyleComputationInputs,
+    ) -> bool {
+        let registry = inputs.custom_property_registry();
+        registry.has_registrations()
+            && self
+                .cascaded_custom_declarations_of(node, None)
+                .is_some_and(|cascaded| {
+                    cascaded.iter().any(|(declared, _)| {
+                        self.declared_custom_property_name(declared.name)
+                            .is_some_and(|name| registry.name_has_syntax(&name.text))
+                    })
+                })
+    }
+
     /// What a registered custom property computes against in a record's element: the record's
     /// lengths, and the color scheme its table settled. `None` for a record without a font.
     pub(super) fn record_registered_value_context(

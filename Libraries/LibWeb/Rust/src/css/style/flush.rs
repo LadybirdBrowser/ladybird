@@ -2383,7 +2383,11 @@ impl StyleEngineState {
                     && !resuming_font
                     && !hidden
                     && !answer_was_taken
-                    && !self.retained.published_container_verdicts.contains_key(&node))
+                    && !self.retained.published_container_verdicts.contains_key(&node)
+                    && !self.retained.declares_custom_property_registered_with_syntax(
+                        node,
+                        &self.retained.document_style_computation_inputs,
+                    ))
                 .then(|| self.retained.tree.inheritance_parent(node))
                 .flatten()
                 .filter(|&parent| {

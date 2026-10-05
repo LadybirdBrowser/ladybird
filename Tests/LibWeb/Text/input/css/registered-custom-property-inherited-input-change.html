@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @property --length { syntax: "<length>"; inherits: false; initial-value: 0px; }
+    @property --inherited-length { syntax: "<length>"; inherits: true; initial-value: 0px; }
+    @property --color { syntax: "<color>"; inherits: false; initial-value: black; }
+    #ancestor { font-size: 20px; line-height: 20px; color-scheme: light; }
+    #em { --length: 1em; margin-left: var(--length); }
+    #lh { --length: 1lh; margin-left: var(--length); }
+    #light-dark { --color: light-dark(rgb(0, 128, 0), rgb(0, 0, 255)); background-color: var(--color); }
+    #declaring { --inherited-length: 1em; }
+    #grandchild { margin-left: var(--inherited-length); }
+    #condition { --length: 1em; margin-left: if(style(--length = 20px): 1px; else: 2px); }
+</style>
+<div id="ancestor">
+    <div id="em"></div>
+    <div id="lh"></div>
+    <div id="light-dark"></div>
+    <div id="declaring"><div><div id="grandchild"></div></div></div>
+    <div id="condition"></div>
+</div>
+<script>
+    test(() => {
+        const ancestor = document.getElementById("ancestor");
+        const style = id => getComputedStyle(document.getElementById(id));
+        document.body.offsetWidth;
+
+        ancestor.style.fontSize = "10px";
+        println(`em: --length ${style("em").getPropertyValue("--length")}, margin-left ${style("em").marginLeft}`);
+        println(`declaring element: --inherited-length ${style("declaring").getPropertyValue("--inherited-length")}`);
+        println(`grandchild: margin-left ${style("grandchild").marginLeft}`);
+        println(`condition: margin-left ${style("condition").marginLeft}`);
+
+        ancestor.style.lineHeight = "30px";
+        println(`lh: --length ${style("lh").getPropertyValue("--length")}, margin-left ${style("lh").marginLeft}`);
+
+        ancestor.style.colorScheme = "dark";
+        println(`light-dark: --color ${style("light-dark").getPropertyValue("--color")}, background-color ${style("light-dark").backgroundColor}`);
+    });
+</script>
