@@ -134,6 +134,7 @@ private:
     static void note_cursor_jumped(TrackData&);
     static void verify_runs_are_ordered_around_index(TrackData const&, size_t run_index);
     static void split_run(TrackData&, size_t run_index, size_t split_at, FixedArray<u8> codec_configuration_before_tail);
+    static bool removed_frames_overlap_group_of_pictures_being_read(FrameRun const& cursor_run, size_t cursor_frame_index, size_t first_removed_frame_index, size_t removed_frame_count);
     static size_t erase_frames_and_dependants(TrackData&, size_t run_index, size_t first_frame, size_t minimum_frame_count);
     Optional<size_t> find_run_to_play_from_while_locked(TrackData const&, AK::Duration) const;
     bool move_cursor_to_presentation_time_while_locked(TrackData&, AK::Duration);

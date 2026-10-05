@@ -284,3 +284,85 @@ TEST_CASE(the_end_of_the_stream_lets_the_longer_track_play_out)
     EXPECT(end_of_stream.is_error());
     EXPECT_EQ(end_of_stream.error().category(), Media::DecoderErrorCategory::EndOfStream);
 }
+
+// Frames whose first byte identifies the append they came from, so that replacements can be told apart.
+static Media::CodedFrame frame_from_source_at(u8 source, u64 seconds, Media::FrameFlags flags = Media::FrameFlags::Keyframe)
+{
+    auto data = MUST(FixedArray<u8>::create(2));
+    data[0] = source;
+    data[1] = static_cast<u8>(seconds);
+
+    auto timestamp = AK::Duration::from_seconds(seconds);
+    return { Media::CodecID::H264, timestamp, timestamp, AK::Duration::from_seconds(1), flags, move(data), {} };
+}
+
+// Like coded frame processing, each appended frame first removes the frames it overlaps.
+static void replace_with_frame(Media::MediaSourceExtensions::SourceBufferDemuxer& demuxer, Media::Track const& track, Media::CodedFrame frame)
+{
+    auto start = frame.presentation_timestamp();
+    demuxer.remove_coded_frames_and_dependants_in_range(track, start, start + frame.duration());
+    demuxer.add_coded_frame(track, move(frame));
+}
+
+static void expect_next_sample(Media::MediaSourceExtensions::SourceBufferDemuxer& demuxer, Media::Track const& track, u8 source, u64 seconds)
+{
+    auto sample = MUST(demuxer.get_next_sample_for_track(track));
+    EXPECT_EQ(sample.data()[0], source);
+    EXPECT_EQ(sample.presentation_timestamp(), AK::Duration::from_seconds(seconds));
+}
+
+TEST_CASE(replacing_frames_at_the_cursor_continues_reading_from_the_replacement)
+{
+    Media::Track track { Media::TrackType::Video, 1, Media::Track::Kind::Main, {}, {} };
+    auto demuxer = make_ref_counted<Media::MediaSourceExtensions::SourceBufferDemuxer>(Vector { track });
+
+    for (u64 second = 0; second < 10; second++)
+        demuxer->add_coded_frame(track, frame_from_source_at('A', second));
+    for (u64 second = 0; second < 3; second++)
+        expect_next_sample(*demuxer, track, 'A', second);
+
+    // The replacement continues the run before the cursor, so reads have to find it by time.
+    for (u64 second = 2; second < 6; second++)
+        replace_with_frame(*demuxer, track, frame_from_source_at('B', second));
+
+    expect_next_sample(*demuxer, track, 'B', 2);
+    expect_next_sample(*demuxer, track, 'B', 3);
+}
+
+TEST_CASE(replacing_a_frame_in_the_cursors_group_of_pictures_reads_the_group_again)
+{
+    Media::Track track { Media::TrackType::Video, 1, Media::Track::Kind::Main, {}, {} };
+    auto demuxer = make_ref_counted<Media::MediaSourceExtensions::SourceBufferDemuxer>(Vector { track });
+
+    for (u64 second = 0; second < 9; second++)
+        demuxer->add_coded_frame(track, frame_from_source_at('A', second, second % 3 == 0 ? Media::FrameFlags::Keyframe : Media::FrameFlags::None));
+    expect_next_sample(*demuxer, track, 'A', 0);
+    expect_next_sample(*demuxer, track, 'A', 1);
+
+    replace_with_frame(*demuxer, track, frame_from_source_at('B', 2));
+
+    expect_next_sample(*demuxer, track, 'A', 0);
+    expect_next_sample(*demuxer, track, 'A', 1);
+    expect_next_sample(*demuxer, track, 'B', 2);
+    expect_next_sample(*demuxer, track, 'A', 3);
+}
+
+TEST_CASE(replacing_a_later_group_of_pictures_does_not_move_the_cursor)
+{
+    Media::Track track { Media::TrackType::Video, 1, Media::Track::Kind::Main, {}, {} };
+    auto demuxer = make_ref_counted<Media::MediaSourceExtensions::SourceBufferDemuxer>(Vector { track });
+
+    for (u64 second = 0; second < 9; second++)
+        demuxer->add_coded_frame(track, frame_from_source_at('A', second, second % 3 == 0 ? Media::FrameFlags::Keyframe : Media::FrameFlags::None));
+    expect_next_sample(*demuxer, track, 'A', 0);
+    expect_next_sample(*demuxer, track, 'A', 1);
+
+    for (u64 second = 3; second < 6; second++)
+        replace_with_frame(*demuxer, track, frame_from_source_at('B', second));
+
+    expect_next_sample(*demuxer, track, 'A', 2);
+    expect_next_sample(*demuxer, track, 'B', 3);
+    expect_next_sample(*demuxer, track, 'B', 4);
+    expect_next_sample(*demuxer, track, 'B', 5);
+    expect_next_sample(*demuxer, track, 'A', 6);
+}
