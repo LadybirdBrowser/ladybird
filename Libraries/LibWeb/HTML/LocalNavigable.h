@@ -298,7 +298,7 @@ public:
 
     void inform_the_navigation_api_about_child_navigable_destruction();
 
-    bool has_pending_navigations() const { return !m_pending_navigations.is_empty(); }
+    bool has_pending_navigations() const { return !m_pending_navigations.is_empty() || !m_navigations_parked_for_population.is_empty(); }
     bool has_navigation_parked_for_population(Utf16String const& navigation_id) const;
     void clear_pending_navigations();
     void drop_container_navigation_for_restored_entry();
@@ -466,10 +466,11 @@ private:
         Replace
     };
 
-    struct PendingNavigation {
+    // A navigation the UI process is to continue: it checks unloading, then asks for the navigation params.
+    struct NavigationParkedForPopulation {
+        Utf16String navigation_id;
         Optional<PreparedNavigation> navigation;
-        Optional<Utf16String> population_navigation_id;
-        GC::Ptr<GC::Function<void(Optional<PreparedNavigation>, Optional<NavigationPopulationRequest>)>> continue_steps;
+        GC::Ref<GC::Function<void(Optional<PreparedNavigation>, Optional<NavigationPopulationRequest>)>> continue_steps;
     };
 
     void begin_navigation(PreparedNavigation);
@@ -477,7 +478,7 @@ private:
     void continue_navigation_after_population_dispatch(PreparedNavigation, NavigationPopulationRequest);
     void queue_pending_navigation(PreparedNavigation, PendingNavigationBehavior);
     void park_navigation_for_population(Utf16String navigation_id, Optional<PreparedNavigation>, GC::Ref<GC::Function<void(Optional<PreparedNavigation>, Optional<NavigationPopulationRequest>)>> continue_steps);
-    Optional<PendingNavigation> take_navigation_parked_for_population(Utf16String const& navigation_id);
+    Optional<NavigationParkedForPopulation> take_navigation_parked_for_population(Utf16String const& navigation_id);
     void process_pending_navigations();
     void navigate_to_a_javascript_url(GC::Ref<Fetch::Infrastructure::Request>, HistoryHandlingBehavior, URL::Origin const& initiator_origin, UserNavigationInvolvement, ContentSecurityPolicy::Directives::Directive::NavigationType csp_navigation_type, InitialInsertion, Utf16String navigation_id);
 
@@ -609,7 +610,9 @@ private:
 
     bool m_has_session_history_entry_and_ready_for_navigation { false };
 
-    Vector<PendingNavigation> m_pending_navigations;
+    // Navigations waiting for a traversal to be over, or for the navigable's session history entry.
+    Vector<PreparedNavigation> m_pending_navigations;
+    Vector<NavigationParkedForPopulation> m_navigations_parked_for_population;
 
     // The navigation IDs of javascript: URL navigations whose navigate to a javascript: URL task is queued.
     Vector<Utf16String> m_queued_javascript_url_navigations;

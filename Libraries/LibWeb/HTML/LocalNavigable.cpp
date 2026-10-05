@@ -783,10 +783,12 @@ void LocalNavigable::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_input_method_composition_node);
     m_event_handler.visit_edges(visitor);
 
-    for (auto& pending_navigation : m_pending_navigations) {
-        if (pending_navigation.navigation.has_value())
-            pending_navigation.navigation->visit_edges(visitor);
-        visitor.visit(pending_navigation.continue_steps);
+    for (auto& navigation : m_pending_navigations)
+        navigation.visit_edges(visitor);
+    for (auto& parked : m_navigations_parked_for_population) {
+        if (parked.navigation.has_value())
+            parked.navigation->visit_edges(visitor);
+        visitor.visit(parked.continue_steps);
     }
 
     for (auto& async_scroll_operation : m_pending_async_scroll_operations)
@@ -1678,22 +1680,17 @@ void LocalNavigable::clear_ongoing_history_traversal()
 void LocalNavigable::queue_pending_navigation(PreparedNavigation navigation, PendingNavigationBehavior behavior)
 {
     if (behavior == PendingNavigationBehavior::Replace)
-        m_pending_navigations.remove_all_matching([](auto const& pending) { return !pending.population_navigation_id.has_value(); });
-    m_pending_navigations.append({
-        .navigation = move(navigation),
-        .population_navigation_id = {},
-        .continue_steps = nullptr,
-    });
+        m_pending_navigations.clear();
+    m_pending_navigations.append(move(navigation));
 }
 
 void LocalNavigable::clear_pending_navigations()
 {
-    auto had_navigation_parked_for_population = any_of(m_pending_navigations, [](auto const& pending) {
-        return pending.population_navigation_id.has_value();
-    });
     m_pending_navigations.clear();
-    if (had_navigation_parked_for_population)
-        set_delaying_load_events(false);
+    if (m_navigations_parked_for_population.is_empty())
+        return;
+    m_navigations_parked_for_population.clear();
+    set_delaying_load_events(false);
 }
 
 void LocalNavigable::park_navigation_for_population(Utf16String navigation_id, Optional<PreparedNavigation> navigation, GC::Ref<GC::Function<void(Optional<PreparedNavigation>, Optional<NavigationPopulationRequest>)>> continue_steps)
@@ -1701,27 +1698,27 @@ void LocalNavigable::park_navigation_for_population(Utf16String navigation_id, O
     // An overlapping navigation supersedes the previous one, but the previous navigation's
     // population dispatch can still be in flight. Keep it parked until its response or
     // cancellation arrives so that it can release any load-event delay it owns.
-    m_pending_navigations.remove_all_matching([&](auto const& pending) { return pending.population_navigation_id == navigation_id; });
-    m_pending_navigations.append({
+    m_navigations_parked_for_population.remove_all_matching([&](auto const& parked) { return parked.navigation_id == navigation_id; });
+    m_navigations_parked_for_population.append({
+        .navigation_id = move(navigation_id),
         .navigation = move(navigation),
-        .population_navigation_id = move(navigation_id),
         .continue_steps = continue_steps,
     });
 }
 
 bool LocalNavigable::has_navigation_parked_for_population(Utf16String const& navigation_id) const
 {
-    return any_of(m_pending_navigations, [&](auto const& pending) { return pending.population_navigation_id == navigation_id; });
+    return any_of(m_navigations_parked_for_population, [&](auto const& parked) { return parked.navigation_id == navigation_id; });
 }
 
-Optional<LocalNavigable::PendingNavigation> LocalNavigable::take_navigation_parked_for_population(Utf16String const& navigation_id)
+Optional<LocalNavigable::NavigationParkedForPopulation> LocalNavigable::take_navigation_parked_for_population(Utf16String const& navigation_id)
 {
-    auto index = m_pending_navigations.find_first_index_if([&](auto const& pending) {
-        return pending.population_navigation_id == navigation_id;
+    auto index = m_navigations_parked_for_population.find_first_index_if([&](auto const& parked) {
+        return parked.navigation_id == navigation_id;
     });
     if (!index.has_value())
         return {};
-    return m_pending_navigations.take(*index);
+    return m_navigations_parked_for_population.take(*index);
 }
 
 void LocalNavigable::process_pending_navigations()
@@ -1729,26 +1726,15 @@ void LocalNavigable::process_pending_navigations()
     if (!m_has_session_history_entry_and_ready_for_navigation || ongoing_navigation().has<Traversal>())
         return;
 
-    while (true) {
-        auto index = m_pending_navigations.find_first_index_if([](auto const& pending) {
-            return !pending.population_navigation_id.has_value();
-        });
-        if (!index.has_value())
-            return;
-        auto pending = m_pending_navigations.take(*index);
-        VERIFY(pending.navigation.has_value());
-        begin_navigation(pending.navigation.release_value());
-    }
+    while (!m_pending_navigations.is_empty())
+        begin_navigation(m_pending_navigations.take_first());
 }
 
 // The entry a child navigable's nested history kept is restored in place of the navigation its container started.
 void LocalNavigable::drop_container_navigation_for_restored_entry()
 {
-    auto index = m_pending_navigations.find_first_index_if([](auto const& pending) {
-        return !pending.population_navigation_id.has_value();
-    });
-    if (index.has_value())
-        m_pending_navigations.remove(*index);
+    if (!m_pending_navigations.is_empty())
+        m_pending_navigations.remove(0);
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#the-rules-for-choosing-a-navigable
@@ -3890,10 +3876,7 @@ void LocalNavigable::run_navigation_unload_check(Utf16String const& navigation_i
         return;
     }
 
-    auto pending_index = m_pending_navigations.find_first_index_if([&](auto const& pending) {
-        return pending.population_navigation_id == navigation_id;
-    });
-    if (!pending_index.has_value()) {
+    if (!has_navigation_parked_for_population(navigation_id)) {
         completion_steps->function()(false);
         return;
     }
@@ -3957,7 +3940,6 @@ bool LocalNavigable::resume_navigation_params_creation(Utf16String const& naviga
         return true;
     }
 
-    VERIFY(pending->continue_steps);
     pending->continue_steps->function()(move(pending->navigation), move(request));
     return true;
 }
