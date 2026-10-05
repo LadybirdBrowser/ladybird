@@ -1228,6 +1228,33 @@ impl RetainedState {
         Ok(())
     }
 
+    /// The kinds among `::before` and `::after` with rules for `node` that a settle beside any record of it leaves
+    /// alone: it holds no record of the kind, and the kind's current winners declare no `content`, so they generate no
+    /// box, and substitute nothing.
+    pub(crate) fn inert_pseudo_kinds(&self, node: StyleNodeID) -> u64 {
+        use crate::css::property_metadata::property_id as prop;
+        use pseudo_kind::{AFTER, BEFORE};
+
+        let program_version = self.program.version();
+        let mut inert = 0;
+        for (pseudo, version, state, priority_current) in self.current_winner_groups().pseudo_states(node) {
+            let Ok(kind) = u8::try_from(pseudo.kind.0) else {
+                continue;
+            };
+            if (kind == BEFORE || kind == AFTER)
+                && version == program_version
+                && priority_current
+                && self.computed_group_sets.pseudo_style_record(node, kind).is_none()
+                && self.winner_groups.winner_in_state(state, prop::CONTENT).is_none()
+                && self.winner_groups.custom_declarations_of(state) == Default::default()
+                && !self.state_has_substitutions(node, state)
+            {
+                inert |= 1 << kind;
+            }
+        }
+        inert
+    }
+
     /// Bring the winners the pseudo-elements of an element are settled from up to date beside the
     /// record C++ just installed for it, as a style update leaves them beside one of its own.
     /// Whether the engine decides every container condition their rules ask.

@@ -1516,9 +1516,14 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styl
         // A reused originating record keeps the pseudo-element inventory it was computed with; the
         // style engine's answer says which pseudo-elements have rules now.
         auto const engine_pseudo_element_styles = style_computer.style_engine().published_pseudo_style_mask(read, style_node_id());
+        // The transaction whose row composes the element answers which kinds with rules no settle generates or
+        // changes, as `*::before` rules styling nothing but `box-sizing` are.
+        auto const inert_pseudo_elements = CSS::StyleEngineFFI::style_engine_inert_pseudo_kinds(style_computer.style_engine().host(), style_node_id().value());
         // Most elements have no style for any of the kinds the engine settles. A marker is
         // refreshed for a list item only.
         auto may_have_style = [&](CSS::PseudoElement pseudo_element) {
+            if ((inert_pseudo_elements >> to_underlying(pseudo_element)) & 1)
+                return false;
             return ((engine_pseudo_element_styles >> to_underlying(pseudo_element)) & 1)
                 || !!style_record_identity(pseudo_element)
                 || (old_originating_style && old_originating_style->has_pseudo_element_style(pseudo_element))

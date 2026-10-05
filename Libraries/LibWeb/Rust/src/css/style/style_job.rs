@@ -200,12 +200,21 @@ pub(crate) struct StyleJobAnswer {
     output: FfiStyleTransactionOutput,
     records: NamedRecords,
     /// The synthetic pseudo-elements each element whose row the host composes has rules for, as a C++ record's
-    /// pseudo-style mask, by element, which the host reads as it settles the element's pseudo-elements over the
-    /// composition.
-    composed_pseudo_styles: Box<[(u32, u64)]>,
+    /// pseudo-style mask, and those among them that no settle generates or changes, by element, which the host reads as
+    /// it settles the element's pseudo-elements over the composition.
+    composed_pseudo_styles: Box<[(u32, ComposedPseudoStyles)]>,
     /// The transition steps the transaction decided beside the rows that owe them, by element, which the host's steps
     /// read rather than ask.
     decided_transition_steps: Box<[crate::css::transition::DecidedTransitionStep]>,
+}
+
+/// What a style transaction answers of the pseudo-elements of an element whose row the host composes.
+#[derive(Clone, Copy)]
+pub(crate) struct ComposedPseudoStyles {
+    /// The synthetic pseudo-elements with rules, as a C++ record's pseudo-style mask.
+    pub(crate) mask: u64,
+    /// The pseudo-elements in `mask` that a settle over any composition of the element leaves alone.
+    pub(crate) inert: u64,
 }
 
 /// The view of each record a transaction's rows name and the custom-property environment it was computed in, by record,
@@ -231,11 +240,11 @@ impl StyleJobAnswer {
         Some((view, environment))
     }
 
-    /// The synthetic pseudo-elements `node` has rules for, where the host composes its row.
-    pub(crate) fn composed_pseudo_style_mask(&self, node: u32) -> Option<u64> {
-        let masks = &self.composed_pseudo_styles;
-        let index = masks.binary_search_by_key(&node, |&(node, _)| node).ok()?;
-        Some(masks[index].1)
+    /// What the transaction answered of the pseudo-elements of `node`, where the host composes its row.
+    pub(crate) fn composed_pseudo_styles(&self, node: u32) -> Option<ComposedPseudoStyles> {
+        let styles = &self.composed_pseudo_styles;
+        let index = styles.binary_search_by_key(&node, |&(node, _)| node).ok()?;
+        Some(styles[index].1)
     }
 
     /// The transition step the transaction decided beside the row of `node`, if it decided one.
@@ -296,14 +305,19 @@ impl StyleJob {
             })
             .collect();
         // The host settles the pseudo-elements of a row it composes only once it has composed the row, which asks
-        // which of them have rules: the transaction that matched the element answers it beside the row.
-        let mut composed_pseudo_styles: Vec<(u32, u64)> = output
+        // which of them have rules, and which of those the settle leaves alone: the transaction that matched the
+        // element answers it beside the row.
+        let mut composed_pseudo_styles: Vec<_> = output
             .answers()
             .iter()
             .filter(|row| row.composed_by_the_host)
             .filter_map(|row| {
                 let node = StyleNodeID::from_raw(row.style_node)?;
-                Some((row.style_node, engine.published_pseudo_style_mask(node)))
+                let styles = ComposedPseudoStyles {
+                    mask: engine.published_pseudo_style_mask(node),
+                    inert: engine.inert_pseudo_kinds(node),
+                };
+                Some((row.style_node, styles))
             })
             .collect();
         composed_pseudo_styles.sort_unstable_by_key(|&(node, _)| node);
