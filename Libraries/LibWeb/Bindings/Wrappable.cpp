@@ -7,6 +7,7 @@
 #include <AK/Debug.h>
 #include <AK/HashMap.h>
 #include <AK/NeverDestroyed.h>
+#include <LibGC/Root.h>
 #include <LibGC/WeakInlines.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/Bindings/PlatformObject.h>
@@ -138,6 +139,15 @@ void Wrappable::clear_cached_main_world_wrapper(PlatformObject const& wrapper)
         m_main_world_wrapper = nullptr;
 }
 
+// Until cache_global_object_wrapper() runs for its realm, a new realm is reachable only through the realm execution
+// context that creating it returned, which the GC does not see once it is off the execution context stack. Its global
+// object wrapper keeps it alive through the wrapper's shape, so the wrapper stays rooted until then.
+static Vector<GC::Root<PlatformObject>>& global_object_wrappers_of_realms_being_set_up()
+{
+    static NeverDestroyed<Vector<GC::Root<PlatformObject>>> wrappers;
+    return *wrappers;
+}
+
 GC::Ref<PlatformObject> create_global_object_wrapper(JS::Realm& wrapper_realm, GC::Ref<Wrappable> wrappable)
 {
     // This helper is for JS::Realm::initialize_host_defined_realm() global
@@ -145,7 +155,9 @@ GC::Ref<PlatformObject> create_global_object_wrapper(JS::Realm& wrapper_realm, G
     // wrapper is created first and cache_global_object_wrapper() must be called
     // after the caller installs HostDefined/intrinsics for the new realm.
     VERIFY(!wrapper_realm.host_defined());
-    return wrappable->create_wrapper(wrapper_realm);
+    auto wrapper = wrappable->create_wrapper(wrapper_realm);
+    global_object_wrappers_of_realms_being_set_up().append(GC::make_root(wrapper));
+    return wrapper;
 }
 
 JS::Realm& wrapper_realm_for_node(WrapperWorld const& wrapper_world, JS::Realm& preferred_realm, DOM::Node& node)
@@ -340,6 +352,10 @@ void cache_global_object_wrapper(JS::Realm& realm)
     VERIFY(wrappable);
 
     host_defined_wrapper_world(realm).set_wrapper(*wrappable, *platform_object);
+
+    global_object_wrappers_of_realms_being_set_up().remove_all_matching([&](auto const& wrapper) {
+        return wrapper.ptr() == platform_object;
+    });
 }
 
 Wrappable* wrappable_impl_from(JS::Object* object)
