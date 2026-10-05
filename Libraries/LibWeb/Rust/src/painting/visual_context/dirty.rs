@@ -6,6 +6,7 @@
 
 use super::BoxVisualContextNodeHandles;
 use crate::layout::node_data::NodeSlotId;
+pub use crate::painting::host::VisualContextUpdateScope;
 use std::collections::HashMap;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -77,67 +78,22 @@ pub struct RemovedBoxBlocks {
     pub former_paint_parent: NodeSlotId,
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord)]
-#[repr(u8)]
-pub enum VisualContextGlobalRebuildReason {
-    #[default]
-    None = 0,
-    TreeInputsChanged = 1,
-    DocumentWideStructuralChange = 2,
-    SvgResourceSubtreeChanged = 3,
-    FilterResourcesChanged = 4,
-    FirstBuild = 5,
-    Compaction = 6,
-    ForcedForTesting = 7,
-    CanonicalDumpRequested = 8,
-    InvalidIncrementalReferences = 9,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub enum VisualContextUpdateScope {
-    DirtyPath,
-    EveryBox,
-    FreshTree,
-}
-
-impl VisualContextUpdateScope {
-    pub fn for_reason(reason: VisualContextGlobalRebuildReason) -> Self {
-        use VisualContextGlobalRebuildReason as Reason;
-        match reason {
-            Reason::None => Self::DirtyPath,
-            Reason::TreeInputsChanged
-            | Reason::DocumentWideStructuralChange
-            | Reason::SvgResourceSubtreeChanged
-            | Reason::FilterResourcesChanged => Self::EveryBox,
-            Reason::FirstBuild
-            | Reason::Compaction
-            | Reason::ForcedForTesting
-            | Reason::CanonicalDumpRequested
-            | Reason::InvalidIncrementalReferences => Self::FreshTree,
-        }
-    }
-
-    pub fn rebuilds_every_box(self) -> bool {
-        self != Self::DirtyPath
-    }
-}
-
 #[derive(Default)]
 pub struct VisualContextDirtySet {
     pub boxes: HashMap<NodeSlotId, BoxDirtyBits>,
     pub removed: Vec<RemovedBoxBlocks>,
-    pub global_reason: VisualContextGlobalRebuildReason,
+    pub scope: VisualContextUpdateScope,
 }
 
 pub const MINIMUM_PENDING_DIRTY_BOX_LIMIT: usize = 1024;
 
 impl VisualContextDirtySet {
     pub fn note_box(&mut self, slot: NodeSlotId, kind: VisualContextBoxDirtyKind, pending_box_limit: usize) {
-        if slot.is_invalid() || self.global_reason != VisualContextGlobalRebuildReason::None {
+        if slot.is_invalid() || self.scope.rebuilds_every_box() {
             return;
         }
         if self.boxes.len() >= pending_box_limit && !self.boxes.contains_key(&slot) {
-            self.request_full_rebuild(VisualContextGlobalRebuildReason::DocumentWideStructuralChange);
+            self.request_full_rebuild(VisualContextUpdateScope::EveryBox);
             return;
         }
         self.boxes.entry(slot).or_default().insert(kind);
@@ -152,17 +108,17 @@ impl VisualContextDirtySet {
         self.removed.push(removed);
     }
 
-    pub fn request_full_rebuild(&mut self, reason: VisualContextGlobalRebuildReason) {
-        self.global_reason = self.global_reason.max(reason);
+    pub fn request_full_rebuild(&mut self, scope: VisualContextUpdateScope) {
+        self.scope = self.scope.max(scope);
         self.boxes.clear();
     }
 
     pub fn is_empty(&self) -> bool {
-        self.boxes.is_empty() && self.removed.is_empty() && self.global_reason == VisualContextGlobalRebuildReason::None
+        self.boxes.is_empty() && self.removed.is_empty() && self.scope == VisualContextUpdateScope::DirtyPath
     }
 
     pub fn is_value_only(&self) -> bool {
-        self.global_reason == VisualContextGlobalRebuildReason::None
+        self.scope == VisualContextUpdateScope::DirtyPath
             && self.removed.is_empty()
             && self.boxes.values().all(BoxDirtyBits::is_value_only)
     }
@@ -170,7 +126,7 @@ impl VisualContextDirtySet {
     pub fn clear(&mut self) {
         self.boxes.clear();
         self.removed.clear();
-        self.global_reason = VisualContextGlobalRebuildReason::None;
+        self.scope = VisualContextUpdateScope::DirtyPath;
     }
 }
 
@@ -213,14 +169,11 @@ mod tests {
     }
 
     #[test]
-    fn global_reasons_merge_to_the_strongest() {
+    fn requested_scopes_merge_to_the_widest() {
         let mut dirty = VisualContextDirtySet::default();
-        dirty.request_full_rebuild(VisualContextGlobalRebuildReason::FirstBuild);
-        dirty.request_full_rebuild(VisualContextGlobalRebuildReason::None);
-        assert_eq!(dirty.global_reason, VisualContextGlobalRebuildReason::FirstBuild);
-        dirty.request_full_rebuild(VisualContextGlobalRebuildReason::ForcedForTesting);
-        dirty.request_full_rebuild(VisualContextGlobalRebuildReason::Compaction);
-        assert_eq!(dirty.global_reason, VisualContextGlobalRebuildReason::ForcedForTesting);
+        dirty.request_full_rebuild(VisualContextUpdateScope::FreshTree);
+        dirty.request_full_rebuild(VisualContextUpdateScope::EveryBox);
+        assert_eq!(dirty.scope, VisualContextUpdateScope::FreshTree);
         dirty.clear();
         assert!(dirty.is_empty());
     }
@@ -239,7 +192,7 @@ mod tests {
         dirty.note_box(slot(1, 1), VisualContextBoxDirtyKind::StyleValueChange, 2);
         dirty.note_box(slot(0, 1), VisualContextBoxDirtyKind::NewRow, 2);
         assert_eq!(dirty.boxes.len(), 2);
-        assert_eq!(dirty.global_reason, VisualContextGlobalRebuildReason::None);
+        assert_eq!(dirty.scope, VisualContextUpdateScope::DirtyPath);
         dirty.note_removed(RemovedBoxBlocks {
             slot: slot(9, 1),
             node_handles: BoxVisualContextNodeHandles::default(),
@@ -248,17 +201,14 @@ mod tests {
         dirty.note_box(slot(2, 1), VisualContextBoxDirtyKind::StyleValueChange, 2);
         assert!(dirty.boxes.is_empty());
         assert_eq!(dirty.removed.len(), 1);
-        assert_eq!(
-            dirty.global_reason,
-            VisualContextGlobalRebuildReason::DocumentWideStructuralChange
-        );
+        assert_eq!(dirty.scope, VisualContextUpdateScope::EveryBox);
     }
 
     #[test]
     fn a_pending_full_rebuild_absorbs_per_box_notes_and_keeps_removed_blocks() {
         let mut dirty = VisualContextDirtySet::default();
         dirty.note_box(slot(0, 1), VisualContextBoxDirtyKind::StyleValueChange, usize::MAX);
-        dirty.request_full_rebuild(VisualContextGlobalRebuildReason::FirstBuild);
+        dirty.request_full_rebuild(VisualContextUpdateScope::FreshTree);
         dirty.note_box(slot(1, 1), VisualContextBoxDirtyKind::NewRow, usize::MAX);
         dirty.note_removed(RemovedBoxBlocks {
             slot: slot(2, 1),
@@ -267,7 +217,7 @@ mod tests {
         });
         assert!(dirty.boxes.is_empty());
         assert_eq!(dirty.removed.len(), 1);
-        assert_eq!(dirty.global_reason, VisualContextGlobalRebuildReason::FirstBuild);
+        assert_eq!(dirty.scope, VisualContextUpdateScope::FreshTree);
     }
 
     #[test]
@@ -278,7 +228,7 @@ mod tests {
             node_handles: BoxVisualContextNodeHandles::default(),
             former_paint_parent: NodeSlotId::INVALID,
         });
-        dirty.request_full_rebuild(VisualContextGlobalRebuildReason::DocumentWideStructuralChange);
+        dirty.request_full_rebuild(VisualContextUpdateScope::EveryBox);
         dirty.note_removed(RemovedBoxBlocks {
             slot: slot(2, 1),
             node_handles: BoxVisualContextNodeHandles::default(),
@@ -288,36 +238,6 @@ mod tests {
         assert!(!dirty.is_empty());
         dirty.clear();
         assert!(dirty.is_empty());
-    }
-
-    #[test]
-    fn scopes_are_monotone_over_the_reason_order() {
-        use VisualContextGlobalRebuildReason as Reason;
-        let reasons_in_ascending_order = [
-            Reason::None,
-            Reason::TreeInputsChanged,
-            Reason::DocumentWideStructuralChange,
-            Reason::SvgResourceSubtreeChanged,
-            Reason::FilterResourcesChanged,
-            Reason::FirstBuild,
-            Reason::Compaction,
-            Reason::ForcedForTesting,
-            Reason::CanonicalDumpRequested,
-            Reason::InvalidIncrementalReferences,
-        ];
-        let mut previous_reason = Reason::None;
-        let mut previous_scope = VisualContextUpdateScope::DirtyPath;
-        for reason in reasons_in_ascending_order {
-            assert!(reason >= previous_reason);
-            let scope = VisualContextUpdateScope::for_reason(reason);
-            assert!(scope >= previous_scope);
-            previous_reason = reason;
-            previous_scope = scope;
-        }
-        assert_eq!(
-            VisualContextUpdateScope::for_reason(Reason::FirstBuild.max(Reason::TreeInputsChanged)),
-            VisualContextUpdateScope::FreshTree
-        );
     }
 
     #[test]

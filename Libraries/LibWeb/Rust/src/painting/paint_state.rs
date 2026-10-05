@@ -91,6 +91,6 @@ impl PaintState {
         };
         self.visual_context
             .dirty_boxes
-            .request_full_rebuild(crate::painting::visual_context::dirty::VisualContextGlobalRebuildReason::FirstBuild);
+            .request_full_rebuild(crate::painting::visual_context::dirty::VisualContextUpdateScope::FreshTree);
     }
 }

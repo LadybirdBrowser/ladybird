@@ -8265,7 +8265,7 @@ void Document::update_compositor_animations(Layout::BegunRead const& read)
 
     if (m_force_visual_context_tree_rebuild_on_next_compositor_animation_update_for_testing) {
         m_force_visual_context_tree_rebuild_on_next_compositor_animation_update_for_testing = false;
-        schedule_full_accumulated_visual_context_rebuild(Layout::RustFFI::FfiVisualContextGlobalRebuildReason::ForcedForTesting);
+        schedule_full_accumulated_visual_context_rebuild(Layout::RustFFI::VisualContextUpdateScope::FreshTree);
     }
 
     // Publishing gives the animations to the tree in place unless something else still holds it.
@@ -10135,10 +10135,10 @@ void Document::note_svg_paint_resources_changed()
         set_needs_accumulated_visual_contexts_update(true);
 }
 
-void Document::schedule_full_accumulated_visual_context_rebuild(Layout::RustFFI::FfiVisualContextGlobalRebuildReason reason)
+void Document::schedule_full_accumulated_visual_context_rebuild(Layout::RustFFI::VisualContextUpdateScope scope)
 {
     if (m_layout_node_arena)
-        Layout::RustFFI::render_state_visual_context_request_full_rebuild(m_layout_node_arena->host(), reason);
+        Layout::RustFFI::render_state_visual_context_request_full_rebuild(m_layout_node_arena->host(), scope);
     set_needs_accumulated_visual_contexts_update(true);
 }
 
@@ -10812,7 +10812,7 @@ Utf16String Document::dump_display_list()
         return "No paintable"_utf16;
 
     if (paint_state().has_visual_context_tree(read))
-        schedule_full_accumulated_visual_context_rebuild(Layout::RustFFI::FfiVisualContextGlobalRebuildReason::CanonicalDumpRequested);
+        schedule_full_accumulated_visual_context_rebuild(Layout::RustFFI::VisualContextUpdateScope::FreshTree);
 
     auto& resource_storage = navigable()->display_list_resource_storage();
     auto display_list = record_display_list(read, HTML::PaintConfig {}, resource_storage, Painting::PaintCommandCacheMode::ReadOnly);

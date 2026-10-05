@@ -89,7 +89,7 @@ pub(crate) enum PaintChange {
     /// Every row paints again.
     InvalidateAllPaintCaches,
     /// The visual context tree is built again whole before it is published next.
-    RequestFullVisualContextRebuild(super::visual_context::dirty::VisualContextGlobalRebuildReason),
+    RequestFullVisualContextRebuild(super::visual_context::dirty::VisualContextUpdateScope),
     /// The SVG paint resources the rows enrolled may have changed: they are synced again before they are painted next.
     SvgPaintResourcesChanged,
     /// Whether the document's recordings are traced.
@@ -178,7 +178,7 @@ impl PaintChange {
                 }
             }
             Self::InvalidateAllPaintCaches => arena.push_all_paint_damage(),
-            Self::RequestFullVisualContextRebuild(reason) => arena.request_full_visual_context_rebuild(reason),
+            Self::RequestFullVisualContextRebuild(scope) => arena.request_full_visual_context_rebuild(scope),
             Self::SvgPaintResourcesChanged => {
                 arena.svg_paint_resources().note_changed();
             }
@@ -564,25 +564,10 @@ pub unsafe extern "C" fn render_state_invalidate_all_paint_caches(host: *const D
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn render_state_visual_context_request_full_rebuild(
     host: *const DocumentHost,
-    reason: crate::painting::host::FfiVisualContextGlobalRebuildReason,
+    scope: crate::painting::visual_context::dirty::VisualContextUpdateScope,
 ) {
-    use crate::painting::host::FfiVisualContextGlobalRebuildReason;
-    use crate::painting::visual_context::dirty::VisualContextGlobalRebuildReason;
-    let reason = match reason {
-        FfiVisualContextGlobalRebuildReason::FirstBuild => VisualContextGlobalRebuildReason::FirstBuild,
-        FfiVisualContextGlobalRebuildReason::DocumentWideStructuralChange => {
-            VisualContextGlobalRebuildReason::DocumentWideStructuralChange
-        }
-        FfiVisualContextGlobalRebuildReason::FilterResourcesChanged => {
-            VisualContextGlobalRebuildReason::FilterResourcesChanged
-        }
-        FfiVisualContextGlobalRebuildReason::ForcedForTesting => VisualContextGlobalRebuildReason::ForcedForTesting,
-        FfiVisualContextGlobalRebuildReason::CanonicalDumpRequested => {
-            VisualContextGlobalRebuildReason::CanonicalDumpRequested
-        }
-    };
     // SAFETY: Guaranteed by the caller.
-    unsafe { queue(host, PaintChange::RequestFullVisualContextRebuild(reason)) };
+    unsafe { queue(host, PaintChange::RequestFullVisualContextRebuild(scope)) };
 }
 
 /// # Safety
