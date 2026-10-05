@@ -451,6 +451,26 @@ impl<R> Flight<R> {
         self.landing.lock().unwrap_or_else(PoisonError::into_inner)
     }
 
+    /// Waits for the job to finish, and takes what it answered.
+    fn wait_for_answer(&self) -> R {
+        {
+            let mut landing = self.landing();
+            if landing.answer.is_none() {
+                landing.joining = Some(std::thread::current());
+            }
+        }
+        wait_for(|| self.finished.load(Ordering::Acquire).then_some(()));
+        self.take_answer()
+    }
+
+    fn take_answer(&self) -> R {
+        tsan::acquire(&self.finished);
+        match self.landing().answer.take().expect("a finished flight has its answer") {
+            Ok(answer) => answer,
+            Err(panic) => std::panic::resume_unwind(panic),
+        }
+    }
+
     /// Lands `answer`, and wakes the thread that waits for it, if one does. It marks the flight finished before it lets
     /// go of the landing, so a joiner that sees the answer there, and so does not wait to be woken, sees it finished.
     fn land(&self, answer: std::thread::Result<R>) {
@@ -508,7 +528,7 @@ impl<R> InFlight<R> {
         if !self.has_finished() {
             return Err(self);
         }
-        Ok(self.take_answer())
+        Ok(self.flight.take_answer())
     }
 
     /// Waits for the job to finish, spending `_right`, and answers what it answered. The job hears the stop word first.
@@ -517,33 +537,55 @@ impl<R> InFlight<R> {
         R: Flown,
     {
         self.say_stop();
-        {
-            let mut landing = self.flight.landing();
-            if landing.answer.is_none() {
-                landing.joining = Some(std::thread::current());
-            }
-        }
-        wait_for(|| self.has_finished().then_some(()));
-        self.take_answer()
+        self.flight.wait_for_answer()
     }
 
     /// Tells the job that the thread that submitted it waits for it.
     fn say_stop(&self) {
         self.flight.stop.0.store(true, Ordering::Relaxed);
     }
+}
 
-    fn take_answer(self) -> R {
-        tsan::acquire(&self.flight.finished);
-        match self
-            .flight
-            .landing()
-            .answer
-            .take()
-            .expect("a finished flight has its answer")
-        {
-            Ok(answer) => answer,
-            Err(panic) => std::panic::resume_unwind(panic),
+/// A job a stage thread runs beside a value another thread leased out, which owns it: its answer rides with the value,
+/// and whichever thread holds the value then waits for it, as the recording of the frame a clock tick presents rides
+/// with the lease beside the next tick. The job hears no stop word, and nothing wakes the host's event loop for it.
+pub(crate) struct Riding<R> {
+    flight: Arc<Flight<R>>,
+}
+
+impl StageThread {
+    /// Hands `job` to this thread, which runs it after the jobs handed to it before, beside whoever holds the ride.
+    pub(crate) fn ride<R: Send + 'static>(&self, job: impl FnOnce() -> R + Send + 'static) -> Riding<R> {
+        let flight = Arc::new(Flight {
+            finished: AtomicBool::new(false),
+            stop: StopWord::default(),
+            landing: Mutex::default(),
+        });
+        let landing = Arc::clone(&flight);
+        self.post(move || landing.land(std::panic::catch_unwind(AssertUnwindSafe(job))));
+        Riding { flight }
+    }
+}
+
+impl<R: Flown> Riding<R> {
+    /// A ride whose job has already answered `answer`.
+    pub(crate) fn landed(answer: R) -> Self {
+        Self {
+            flight: Arc::new(Flight {
+                finished: AtomicBool::new(true),
+                stop: StopWord::default(),
+                landing: Mutex::new(Landing {
+                    answer: Some(Ok(answer)),
+                    joining: None,
+                }),
+            }),
         }
+    }
+
+    /// Waits for the job to finish, spending `_right`, and answers what it answered. A ride answers once: the holder
+    /// puts a new ride in its place.
+    pub(crate) fn take(&mut self, _right: R::JoinRight) -> R {
+        self.flight.wait_for_answer()
     }
 }
 
