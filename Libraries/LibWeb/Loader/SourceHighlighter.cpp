@@ -117,7 +117,6 @@ StringView SourceHighlighterClient::class_for_token(u64 token_type) const
 {
     auto class_for_css_token = [](u64 token_type) {
         switch (static_cast<Web::CSS::Parser::FFI::CssTokenType>(token_type)) {
-        case Web::CSS::Parser::FFI::CssTokenType::Invalid:
         case Web::CSS::Parser::FFI::CssTokenType::BadString:
         case Web::CSS::Parser::FFI::CssTokenType::BadUrl:
             return "invalid"sv;

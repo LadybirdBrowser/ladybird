@@ -19,8 +19,6 @@ use super::index::LocalFeatureKey;
 use super::partial_view::Lookup;
 use super::program::SelectorProgramID;
 use super::selector::Incomplete;
-#[cfg(test)]
-use super::selector::InverseStep;
 use super::selector::SelectorNodeID;
 use super::tree::StyleNodeID;
 use super::tree::StyleNodeTree;
@@ -45,20 +43,6 @@ pub enum RelativeAxis {
     NextSiblingSubtree,
     /// `:has(~ .row .cell)`: the witness is somewhere under one of the following siblings.
     FollowingSiblingSubtree,
-}
-
-impl RelativeAxis {
-    /// The inverse step from a possible witness back to its possible anchors.
-    #[cfg(test)]
-    #[must_use]
-    pub fn inverse_step(self) -> InverseStep {
-        match self {
-            Self::Descendant => InverseStep::AnchorAncestors,
-            Self::Child => InverseStep::AnchorParent,
-            Self::NextSibling | Self::NextSiblingSubtree => InverseStep::AnchorPreviousSibling,
-            Self::FollowingSibling | Self::FollowingSiblingSubtree => InverseStep::AnchorPrecedingSiblings,
-        }
-    }
 }
 
 /// A compiled relative query.
@@ -508,20 +492,6 @@ mod tests {
     fn a_following_sibling_query_anchors_on_preceding_siblings() {
         let fixture = Fixture::new();
         assert_eq!(fixture.anchors(RelativeAxis::FollowingSibling, 5), vec![3, 4]);
-    }
-
-    #[test]
-    fn the_axis_inverses_are_the_ones_the_transpose_table_names() {
-        assert_eq!(RelativeAxis::Child.inverse_step(), InverseStep::AnchorParent);
-        assert_eq!(RelativeAxis::Descendant.inverse_step(), InverseStep::AnchorAncestors);
-        assert_eq!(
-            RelativeAxis::NextSibling.inverse_step(),
-            InverseStep::AnchorPreviousSibling
-        );
-        assert_eq!(
-            RelativeAxis::FollowingSibling.inverse_step(),
-            InverseStep::AnchorPrecedingSiblings
-        );
     }
 
     #[test]

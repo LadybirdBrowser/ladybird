@@ -709,7 +709,6 @@ Layout::NodeArena& Document::layout_node_arena()
                 return;
             case Layout::RustFFI::NodeKind::Unset:
             case Layout::RustFFI::NodeKind::Node:
-            case Layout::RustFFI::NodeKind::NodeWithStyle:
                 VERIFY_NOT_REACHED();
             default:
                 Layout::allocate_layout_node<Layout::Box>(document, Layout::BindToPreparedArenaSlot::Yes, slot, kind);

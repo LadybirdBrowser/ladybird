@@ -17,7 +17,6 @@ const TOKENIZER_EOF: u32 = u32::MAX;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(C)]
 pub enum CssTokenType {
-    Invalid,
     EndOfFile,
     Ident,
     Function,
