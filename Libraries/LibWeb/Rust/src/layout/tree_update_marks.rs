@@ -494,7 +494,7 @@ pub struct FfiBoxMarks {
 }
 
 /// The box a mark names.
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) enum MarkedBox {
     /// The box bound to the DOM node the identity names, or the document's for `None`, found as the mark is applied: a
     /// mark made beside a frame in flight, which holds the boxes, names the node alone.
