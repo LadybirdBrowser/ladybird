@@ -8,7 +8,7 @@ use crate::css::css_pixels::CssPixelRect;
 use crate::layout::LayoutNodeArena;
 use crate::layout::node_data::NodeSlotId;
 use crate::painting::dump::push_css_pixel_rect;
-use crate::painting::paint_read::GeometryRead;
+use crate::painting::paint_read::{GeometryRead, PaintRead};
 use crate::painting::paintable_geometry;
 use crate::painting::style_queries;
 use crate::stage::MainThread;

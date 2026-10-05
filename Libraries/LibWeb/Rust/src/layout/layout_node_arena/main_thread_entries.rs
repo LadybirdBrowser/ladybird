@@ -10,6 +10,7 @@
 
 use super::*;
 use crate::layout::layout_changes::LayoutWrite;
+use crate::painting::paint_read::GeometryRead;
 use crate::render_state::DocumentHost;
 
 /// Mints the main thread token for this module's FFI entry points; only this module can make one.

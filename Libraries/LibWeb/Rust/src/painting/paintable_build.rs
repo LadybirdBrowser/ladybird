@@ -9,6 +9,7 @@ use crate::layout::LayoutNodeArena;
 use crate::layout::node_data::{DomPaintFact, NodeKind, NodeSlotId};
 use crate::layout::{formatting_context, fragment_tree, node_facts, used_values};
 use crate::painting::node_painting;
+use crate::painting::paint_read::PaintRead;
 use crate::painting::record::damage::PaintDamage;
 use crate::painting::visual_context::dirty::VisualContextBoxDirtyKind;
 

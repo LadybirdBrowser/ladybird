@@ -538,6 +538,18 @@ pub(crate) trait NodeShape {
     fn flags(&self) -> u32;
 }
 
+impl<T: NodeShape> NodeShape for &T {
+    #[inline]
+    fn kind(&self) -> NodeKind {
+        (**self).kind()
+    }
+
+    #[inline]
+    fn flags(&self) -> u32 {
+        (**self).flags()
+    }
+}
+
 impl NodeShape for NodeData {
     #[inline]
     fn kind(&self) -> NodeKind {

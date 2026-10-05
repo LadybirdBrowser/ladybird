@@ -35,7 +35,7 @@ use crate::layout::node_data::{
     MAX_NODE_SLOT_COUNT, NodeData, NodeFlag, NodeKind, NodeSlotId, StylePayloadsRef, pseudo_kind_of,
 };
 use crate::layout::tree_mutation::HostCalls;
-use crate::painting::paint_read::PaintRead;
+use crate::painting::paint_read::{GeometryRead, PaintRead};
 use crate::render_state::DocumentHost;
 use crate::stage::MainThread;
 use std::cell::Cell;
@@ -3998,14 +3998,6 @@ impl LayoutNodeArena {
         }
     }
 
-    pub(crate) fn node_has_compositor_animation_frame(
-        &self,
-        id: NodeSlotId,
-        kind: super::node_data::CompositorAnimationFrameKind,
-    ) -> bool {
-        self.data(id).compositor_animation_frame_kinds.get() & kind as u8 != 0
-    }
-
     pub(crate) fn set_node_needs_compositor_animation_frame(
         &self,
         id: NodeSlotId,
@@ -4836,8 +4828,20 @@ impl LayoutNodeArena {
     }
 
     pub(crate) fn style_payloads(&self, id: NodeSlotId) -> Option<&FfiStylePayloads> {
+        Self::row_style_payloads(self.data(id))
+    }
+
+    fn row_style_payloads(data: &NodeData) -> Option<&FfiStylePayloads> {
         // SAFETY: The arena pins the style record of each of its rows while the row holds it.
-        unsafe { super::node_data::style_payloads(self.data(id).style.get()) }
+        unsafe { super::node_data::style_payloads(data.style.get()) }
+    }
+
+    /// The row of the node `id` names, or `None` once the node is gone.
+    pub(crate) fn live_row(&self, id: NodeSlotId) -> Option<LiveRow<'_>> {
+        self.slot_is_live(id).then(|| LiveRow {
+            data: self.data(id),
+            style_node: self.style_nodes[id.slot_index() as usize].get(),
+        })
     }
 
     // OPTIMIZATION: The edit invalidates line data at its direct parent and every formatting
@@ -5010,81 +5014,11 @@ impl LayoutNodeArena {
         &self.paint_state
     }
 
-    pub(crate) fn node_flags_if_live(&self, id: NodeSlotId) -> u32 {
-        if !self.slot_is_live(id) {
-            return 0;
-        }
-        self.data(id).flags.get()
-    }
-
-    pub(crate) fn node_is_generated_for_pseudo_element(&self, id: NodeSlotId) -> bool {
-        if !self.slot_is_live(id) {
-            return false;
-        }
-        self.data(id).generated_for.get() != 0
-    }
-
-    pub(crate) fn node_kind_if_live(&self, id: NodeSlotId) -> Option<NodeKind> {
-        if !self.slot_is_live(id) {
-            return None;
-        }
-        Some(self.data(id).kind.get())
-    }
-
-    pub(crate) fn node_parent_if_live(&self, id: NodeSlotId) -> Option<NodeSlotId> {
-        if !self.slot_is_live(id) {
-            return None;
-        }
-        let parent = self.data(id).parent.get();
-        (!parent.is_invalid()).then_some(parent)
-    }
-
-    pub(crate) fn node_first_child_if_live(&self, id: NodeSlotId) -> Option<NodeSlotId> {
-        if !self.slot_is_live(id) {
-            return None;
-        }
-        let child = self.data(id).first_child.get();
-        (!child.is_invalid()).then_some(child)
-    }
-
-    pub(crate) fn node_next_sibling_if_live(&self, id: NodeSlotId) -> Option<NodeSlotId> {
-        if !self.slot_is_live(id) {
-            return None;
-        }
-        let sibling = self.data(id).next_sibling.get();
-        (!sibling.is_invalid()).then_some(sibling)
-    }
-
     pub(crate) fn node_data_if_live(&self, id: NodeSlotId) -> Option<&NodeData> {
         if !self.slot_is_live(id) {
             return None;
         }
         Some(self.data(id))
-    }
-
-    pub(crate) fn node_is_out_of_flow_if_live(&self, id: NodeSlotId) -> bool {
-        self.node_data_if_live(id)
-            .is_some_and(|data| super::node_facts::node_is_out_of_flow(data, self.node_style_if_live(id)))
-    }
-
-    pub(crate) fn node_is_fragmented_inline(&self, id: NodeSlotId) -> bool {
-        self.node_data_if_live(id)
-            .is_some_and(|data| super::node_facts::node_is_fragmented_inline(data, self.node_style_if_live(id)))
-    }
-
-    pub(crate) fn node_is_atomic_inline(&self, id: NodeSlotId) -> bool {
-        self.node_data_if_live(id)
-            .is_some_and(|data| super::node_facts::node_is_atomic_inline(data, self.node_style_if_live(id)))
-    }
-
-    pub(crate) fn node_is_positioned(&self, id: NodeSlotId) -> bool {
-        self.node_data_if_live(id)
-            .is_some_and(|data| super::node_facts::node_is_positioned(data, self.node_style_if_live(id)))
-    }
-
-    pub(crate) fn node_is_floating(&self, id: NodeSlotId) -> bool {
-        self.node_data_if_live(id)
-            .is_some_and(|data| super::node_facts::node_is_floating(data, self.node_style_if_live(id)))
     }
 
     pub(crate) fn note_inline_box_lifted_out_of(&self, node: NodeSlotId, inline_box: Option<NodeSlotId>) {
@@ -5105,19 +5039,6 @@ impl LayoutNodeArena {
             .get(&node)
             .copied()
             .filter(|&inline_box| self.slot_is_live(inline_box))
-    }
-
-    pub(crate) fn node_style_if_live(
-        &self,
-        id: NodeSlotId,
-    ) -> Option<crate::css::computed_value_views::ComputedValuesView<'_>> {
-        if !self.slot_is_live(id) {
-            return None;
-        }
-        let payloads = self.style_payloads(id)?;
-        Some(crate::css::computed_value_views::ComputedValuesView::new(
-            &payloads.groups,
-        ))
     }
 
     pub(crate) fn slot_is_live(&self, id: NodeSlotId) -> bool {
@@ -5188,10 +5109,6 @@ impl LayoutNodeArena {
 
     pub(crate) fn node_flags(&self, id: NodeSlotId) -> u32 {
         self.data(id).flags.get()
-    }
-
-    pub(crate) fn node_generated_for(&self, id: NodeSlotId) -> u8 {
-        self.data(id).generated_for.get()
     }
 
     /// Owes the host `id`'s image resources once the layout update the running build is part of
@@ -5298,6 +5215,57 @@ impl LayoutNodeArena {
         self.slot_metadata
             .get_mut(index as usize)
             .expect("invalid layout node arena slot ID")
+    }
+}
+
+/// A live row of the arena, as painting reads it.
+#[derive(Clone, Copy)]
+pub(crate) struct LiveRow<'a> {
+    data: &'a NodeData,
+    style_node: Option<StyleNodeID>,
+}
+
+impl super::node_facts::NodeShape for LiveRow<'_> {
+    fn kind(&self) -> NodeKind {
+        self.data.kind.get()
+    }
+
+    fn flags(&self) -> u32 {
+        self.data.flags.get()
+    }
+}
+
+impl<'a> crate::painting::paint_read::PaintRow<'a> for LiveRow<'a> {
+    fn generated_for(self) -> u8 {
+        self.data.generated_for.get()
+    }
+
+    fn dom_paint_facts(self) -> u8 {
+        self.data.dom_paint_facts.get()
+    }
+
+    fn compositor_animation_frame_kinds(self) -> u8 {
+        self.data.compositor_animation_frame_kinds.get()
+    }
+
+    fn parent(self) -> NodeSlotId {
+        self.data.parent.get()
+    }
+
+    fn first_child(self) -> NodeSlotId {
+        self.data.first_child.get()
+    }
+
+    fn next_sibling(self) -> NodeSlotId {
+        self.data.next_sibling.get()
+    }
+
+    fn style(self) -> Option<ComputedValuesView<'a>> {
+        LayoutNodeArena::row_style_payloads(self.data).map(|payloads| ComputedValuesView::new(&payloads.groups))
+    }
+
+    fn style_node(self) -> Option<StyleNodeID> {
+        self.style_node
     }
 }
 
@@ -5667,6 +5635,7 @@ mod tests {
     };
     use crate::layout::node_data::{NodeConstructionFacts, NodeFlag, NodeKind, NodeSlotId};
     use crate::layout::{CssPixels, fragment_tree, used_values};
+    use crate::painting::paint_read::GeometryRead;
     use std::ffi::c_void;
 
     fn test_construction_facts() -> NodeConstructionFacts {

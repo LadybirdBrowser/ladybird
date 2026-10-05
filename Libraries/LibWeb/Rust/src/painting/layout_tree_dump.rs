@@ -16,6 +16,7 @@ use crate::painting::dump::{
 };
 use crate::painting::host::FfiNodeIdentity;
 use crate::painting::node_painting;
+use crate::painting::paint_read::{GeometryRead, PaintRead};
 use crate::painting::paintable_data::FfiPixelBox;
 use crate::painting::paintable_geometry;
 use crate::stage::MainThread;

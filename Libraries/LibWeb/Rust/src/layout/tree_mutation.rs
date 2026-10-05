@@ -7,6 +7,7 @@
 use crate::layout::LayoutNodeArena;
 use crate::layout::layout_node_arena::FreedSubtree;
 use crate::layout::node_data::{NodeKind, NodeSlotId};
+use crate::painting::paint_read::GeometryRead;
 use crate::painting::paintable_rows::PaintableRowReset;
 use crate::stage::MainThread;
 use std::cell::RefCell;
