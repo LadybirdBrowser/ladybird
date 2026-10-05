@@ -88,18 +88,6 @@ fn verify_match_answer_against_cold(
     });
 }
 
-fn verify_cascade_answer_against_cold(
-    engine: &mut RetainedState,
-    answer: &[RuleMatch],
-    node: StyleNodeID,
-    description: &str,
-    counters: &mut Counters,
-) {
-    verify_style_answer_patch(engine, counters, |verifier| {
-        verifier.verify_cascade_answer(answer, node, description);
-    });
-}
-
 impl RetainedState {
     fn retained_answer_delta_memo_key(
         old_answer: MatchAnswerID,
@@ -4253,31 +4241,7 @@ impl RetainedState {
         }
     }
 
-    pub fn consume_published_match_answer(
-        &mut self,
-        node: StyleNodeID,
-        counters: &mut Counters,
-    ) -> Option<Vec<RuleMatch>> {
-        let mut traversal = self.batch_matching_traversal.take();
-        let mut effects = traversal
-            .as_mut()
-            .map(|traversal| std::mem::take(&mut traversal.answer_effects))
-            .unwrap_or_else(|| std::mem::take(&mut self.published_match_answers.answer_effects));
-        let result = self
-            .consume_published_match_answer_in_traversal(&mut effects, node, traversal.as_deref(), counters)
-            .or_else(|| {
-                self.consume_retained_match_answer_in_traversal(&mut effects, node, traversal.as_deref(), counters)
-            });
-        if let Some(traversal) = traversal.as_mut() {
-            traversal.answer_effects = effects;
-        } else {
-            self.published_match_answers.answer_effects = effects;
-        }
-        self.batch_matching_traversal = traversal;
-        result
-    }
-
-    fn consume_published_match_answer_in_traversal(
+    pub(super) fn consume_published_match_answer_in_traversal(
         &mut self,
         effects: &mut AnswerEffects,
         node: StyleNodeID,
@@ -4323,57 +4287,6 @@ impl RetainedState {
             return Some(matches);
         }
         None
-    }
-
-    fn consume_retained_match_answer_in_traversal(
-        &mut self,
-        effects: &mut AnswerEffects,
-        node: StyleNodeID,
-        traversal: Option<&BatchMatchingTraversal>,
-        counters: &mut Counters,
-    ) -> Option<Vec<RuleMatch>> {
-        let dispatch = traversal?.retained_answer_dispatch.as_deref()?;
-        let exact_answer = self
-            .retained_match_answer_with_effects(effects, node)
-            .sparse()
-            .ok()
-            .and_then(|answer| {
-                answer
-                    .iter()
-                    .copied()
-                    .map(|entry| {
-                        let cascade_order = dispatch.cascade_order_for_entry(entry.rule, entry.program, entry.entry)?;
-                        entry.materialize(node, &self.programs, cascade_order)
-                    })
-                    .collect::<Option<Vec<_>>>()
-            });
-        let Some(exact_answer) = exact_answer else {
-            effects.forget_answer(node, &mut self.match_answers, &mut self.memory);
-            return None;
-        };
-        let answer = self.matches_for_cascade(effects, exact_answer, false, Some(node), counters);
-        verify_cascade_answer_against_cold(self, &answer, node, "a retained match answer", counters);
-        self.remember_cascade_input_with_effects(effects, node, &answer, counters);
-        counters.bump(Counter::RetainedMatchAnswerReuses);
-        counters.bump(Counter::PublishedMatchAnswerConsumptions);
-        Some(answer)
-    }
-
-    /// Read the shareable identity of one answer from the immediately preceding style transaction.
-    ///
-    /// A contextual answer has no identity and must still consume its complete payload. A shared
-    /// identity lets a downstream cache answer before copying that payload across the bridge.
-    pub fn published_match_answer_signature(&mut self, node: StyleNodeID, counters: &mut Counters) -> Option<u32> {
-        let cascade_input = Self::published_answer_lookup(
-            &self.published_match_answers,
-            self.batch_matching_traversal.as_deref(),
-            node,
-        )?
-        .1
-        .cascade_input?;
-        self.mark_published_answer_observed(node);
-        counters.bump(Counter::PublishedMatchAnswerIdentityReads);
-        Some(cascade_input.0)
     }
 
     pub(super) fn current_winner_groups(&self) -> super::cascade::WinnerView<'_> {

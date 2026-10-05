@@ -32,6 +32,31 @@ fn native_rules(source: &str) -> std::rc::Rc<crate::css::rule::NativeRuleList> {
     }
 }
 
+impl StyleEngine {
+    /// Read one answer the preceding style transaction published, as a cascade over it would.
+    pub(super) fn consume_published_match_answer(&mut self, node: StyleNodeID) -> Option<Vec<RuleMatch>> {
+        let retained = &mut self.state.retained;
+        let mut traversal = retained.batch_matching_traversal.take();
+        let effects = match traversal.as_mut() {
+            Some(traversal) => &mut traversal.answer_effects,
+            None => &mut retained.published_match_answers.answer_effects,
+        };
+        let mut effects = std::mem::take(effects);
+        let result = retained.consume_published_match_answer_in_traversal(
+            &mut effects,
+            node,
+            traversal.as_deref(),
+            &mut self.counters,
+        );
+        match traversal.as_mut() {
+            Some(traversal) => traversal.answer_effects = effects,
+            None => retained.published_match_answers.answer_effects = effects,
+        }
+        retained.batch_matching_traversal = traversal;
+        result
+    }
+}
+
 #[test]
 fn native_selector_publication_and_replacement_outlive_the_source() {
     use super::bridge::{BoundScopeChain, publish_style_rule, publish_style_rule_selectors};

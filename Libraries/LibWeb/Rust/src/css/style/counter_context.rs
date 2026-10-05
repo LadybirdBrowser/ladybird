@@ -891,24 +891,6 @@ impl StyleEngine {
             .complete_published_match_answers_for_closure(nodes, &mut self.counters)
     }
 
-    /// Consume the complete current answer which the immediately preceding style plan retained.
-    ///
-    /// A miss is not an incomplete selector answer. It means this transaction did not publish an
-    /// answer for the node, so the caller may ask the ordinary exact matcher instead.
-    #[inline]
-    pub fn consume_published_match_answer(&mut self, node: StyleNodeID) -> Option<Vec<RuleMatch>> {
-        self.state.consume_published_match_answer(node, &mut self.counters)
-    }
-
-    /// Read the shareable identity of one answer from the immediately preceding style transaction.
-    ///
-    /// A contextual answer has no identity and must still consume its complete payload. A shared
-    /// identity lets a downstream cache answer before copying that payload across the bridge.
-    #[inline]
-    pub fn published_match_answer_signature(&mut self, node: StyleNodeID) -> Option<u32> {
-        self.state.published_match_answer_signature(node, &mut self.counters)
-    }
-
     /// Match one element from committed facts without consulting derived matching state.
     #[cfg(test)]
     #[inline]
