@@ -237,7 +237,7 @@ DisplayingVideoSinkUpdateResult DisplayingVideoSink::update(MonotonicTime now)
 
     return {
         .new_frame_available = new_frame_available,
-        .may_require_updates = !is_terminal(last_status) && (time_state.is_advancing || m_seek_status != SeekStatus::None),
+        .may_require_updates = !is_terminal(status_to_dispatch) && (time_state.is_advancing || m_seek_status != SeekStatus::None),
     };
 }
 

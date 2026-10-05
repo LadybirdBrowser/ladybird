@@ -224,3 +224,29 @@ TEST_CASE(held_late_frame_waiting_on_input_reports_pending)
     EXPECT_EQ(sink->current_frame()->timestamp(), AK::Duration::from_milliseconds(1000));
     EXPECT_EQ(dispatched_statuses, (Vector { Media::PipelineStatus::Pending }));
 }
+
+// The input reaching its end leaves the last frame on screen until its interval ends, and only an update after that
+// can report the end of the stream.
+TEST_CASE(updates_are_required_until_the_last_frame_finishes_presenting)
+{
+    never_destroyed_event_loop();
+
+    auto pool = MUST(Media::VideoFramePool::create());
+    auto clock = MUST(Media::MonotonicMediaClock::try_create());
+    clock->seek(AK::Duration::from_milliseconds(1000));
+
+    auto sink = MUST(Media::DisplayingVideoSink::try_create(clock->time_reader()));
+    auto producer = ScriptedVideoProducer::create();
+    MUST(sink->connect_input(producer));
+
+    sink->seek(AK::Duration::from_milliseconds(1000));
+    producer->append_frame(create_test_frame(*pool, AK::Duration::from_milliseconds(1000), AK::Duration::from_milliseconds(100)));
+    producer->append_output(nullptr, Media::PipelineStatus::EndOfStream);
+    EXPECT(sink->update(MonotonicTime::now()).new_frame_available);
+
+    clock->resume();
+    EXPECT(sink->update(MonotonicTime::now()).may_require_updates);
+
+    clock->seek(AK::Duration::from_milliseconds(1200));
+    EXPECT(!sink->update(MonotonicTime::now()).may_require_updates);
+}
