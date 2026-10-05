@@ -5,7 +5,7 @@
  */
 
 use super::builder::{
-    CommandRange, ContextRewrite, DisplayListBuilder, HEADER_SIZE, OpenGroup, PendingInlineClip, RecordedDisplayList,
+    CommandRange, DisplayListBuilder, HEADER_SIZE, OpenGroup, PendingInlineClip, RecordedDisplayList,
 };
 use super::commands::*;
 use crate::painting::display_list::ffi_bytes::FfiBytes;
@@ -442,38 +442,16 @@ impl DisplayListRecorder {
         );
     }
 
-    pub fn append_cached_command_range(
-        &mut self,
-        source: &RecordedDisplayList,
-        range: CommandRange,
-        recorded_context: ContextRef,
-    ) -> CommandRange {
-        let offset = self.builder.append_command_range(
+    /// Copies the commands in `bytes` of `source` as they were recorded. The caller must establish
+    /// that their visual-context indices are still valid for the current visual context tree.
+    pub fn append_cached_commands(&mut self, source: &RecordedDisplayList, bytes: std::ops::Range<u32>) {
+        self.builder.append_command_range(
             source,
-            range,
-            Some(ContextRewrite {
-                recorded_context,
-                current_context: self.context,
-            }),
+            CommandRange {
+                offset: bytes.start,
+                size: bytes.end - bytes.start,
+            },
         );
-        CommandRange {
-            offset,
-            size: range.size,
-        }
-    }
-
-    /// Copies a cached command range without rewriting visual-context indices. The caller must
-    /// establish that the recorded indices are still valid for the current visual context tree.
-    pub fn append_cached_command_range_verbatim(
-        &mut self,
-        source: &RecordedDisplayList,
-        range: CommandRange,
-    ) -> CommandRange {
-        let offset = self.builder.append_command_range(source, range, None);
-        CommandRange {
-            offset,
-            size: range.size,
-        }
     }
 
     pub fn fill_rect(&mut self, rect: IntRect, color: Color, force_dark_role: ForceDarkRole) {

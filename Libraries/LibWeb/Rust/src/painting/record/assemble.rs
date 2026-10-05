@@ -443,7 +443,7 @@ mod tests {
     use super::*;
     use crate::css::css_pixels::CssPixelRect;
     use crate::painting::border_radii::BorderRadii;
-    use crate::painting::display_list::builder::{CommandRange, RecordedDisplayList};
+    use crate::painting::display_list::builder::RecordedDisplayList;
     use crate::painting::display_list::commands::ContextRef;
     use crate::painting::display_list::recorder::DisplayListRecorder;
     use crate::painting::force_dark::ForceDarkRole;
@@ -643,15 +643,7 @@ mod tests {
 
         fn copy_published(&mut self, bytes: Range<u32>, hits: Range<u32>, blocking_wheel_event_regions: u32) {
             let source = self.source.as_ref().expect("a published recording to copy from");
-            if !bytes.is_empty() {
-                self.output.recorder.append_cached_command_range_verbatim(
-                    &source.display_list,
-                    CommandRange {
-                        offset: bytes.start,
-                        size: bytes.end - bytes.start,
-                    },
-                );
-            }
+            self.output.recorder.append_cached_commands(&source.display_list, bytes);
             if !hits.is_empty() {
                 self.output
                     .hit_test_list
