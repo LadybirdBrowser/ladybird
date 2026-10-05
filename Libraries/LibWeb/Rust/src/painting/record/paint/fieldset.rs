@@ -22,17 +22,12 @@ use crate::painting::record::paint::border::{BorderDataDevicePixels, BordersData
 use libgfx_rust::{Color, IntRect};
 
 pub(crate) fn legend_paintable(arena: &impl PaintRead, fieldset: NodeSlotId) -> Option<NodeSlotId> {
-    let mut child = arena.node_first_child_if_live(fieldset);
-    while let Some(node) = child {
-        if arena
+    let legend = arena.children(fieldset).find(|&node| {
+        arena
             .node(node)
             .is_some_and(|row| row.kind() == NodeKind::LegendBox && !row.is_out_of_flow())
-        {
-            return arena.paintable_row_is_populated(node).then_some(node);
-        }
-        child = arena.node_next_sibling_if_live(node);
-    }
-    None
+    })?;
+    arena.paintable_row_is_populated(legend).then_some(legend)
 }
 
 fn css_border_top_width(arena: &impl PaintRead, fieldset: NodeSlotId) -> CssPixels {

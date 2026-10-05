@@ -66,20 +66,16 @@ fn snap_axes_of_style(style: ComputedValuesView<'_>) -> FfiSnapAxes {
 }
 
 fn document_element_box_under(arena: &impl PaintRead, parent: NodeSlotId) -> Option<NodeSlotId> {
-    let mut next = arena.node_first_child_if_live(parent);
-    while let Some(child) = next {
+    arena.children(parent).find_map(|child| {
         let flags = arena.node_flags_if_live(child);
         if flags & NodeFlag::IsDocumentElement as u32 != 0 {
             return Some(child);
         }
-        if flags & NodeFlag::Anonymous as u32 != 0
-            && let Some(found) = document_element_box_under(arena, child)
-        {
-            return Some(found);
+        if flags & NodeFlag::Anonymous as u32 != 0 {
+            return document_element_box_under(arena, child);
         }
-        next = arena.node_next_sibling_if_live(child);
-    }
-    None
+        None
+    })
 }
 
 // https://drafts.csswg.org/css-scroll-snap-1/#scroll-padding
@@ -176,13 +172,11 @@ fn for_each_descendant_with_snap_alignment<'a>(
     parent: NodeSlotId,
     callback: &mut impl FnMut(NodeSlotId, ComputedValuesView<'a>),
 ) {
-    let mut child = arena.node_first_child_if_live(parent);
-    while let Some(slot) = child {
+    for slot in arena.children(parent) {
         if let Some(style) = snap_alignment_style(arena, slot) {
             callback(slot, style);
         }
         for_each_descendant_with_snap_alignment(arena, slot, callback);
-        child = arena.node_next_sibling_if_live(slot);
     }
 }
 

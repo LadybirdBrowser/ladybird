@@ -580,9 +580,7 @@ fn plan_layout_node(
     if has_committed_box && node_painting::is_fragmented_inline(arena, slot) {
         dump_inline_piece_fragments(&mut plan.text, &rows, slot, indent, interactive);
     }
-    let mut child = arena.node_first_child_if_live(slot);
-    while let Some(current) = child {
-        plan_layout_node(plan, arena, current, indent + 1, palette, interactive);
-        child = arena.node_next_sibling_if_live(current);
+    for child in arena.children(slot) {
+        plan_layout_node(plan, arena, child, indent + 1, palette, interactive);
     }
 }

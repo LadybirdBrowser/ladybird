@@ -128,11 +128,7 @@ impl VisualContextNodeOwners {
                     owners.effect.insert(effect.0, slot);
                 }
             });
-            let mut child = arena.node_first_child_if_live(slot);
-            while let Some(current) = child {
-                pending.push(current);
-                child = arena.node_next_sibling_if_live(current);
-            }
+            pending.extend(arena.children(slot));
         }
         owners
     }

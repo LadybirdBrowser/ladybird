@@ -166,6 +166,13 @@ pub(crate) trait PaintRead: GeometryRead {
         link(self.node(id)?.next_sibling())
     }
 
+    /// The children of the node `id` names, in tree order.
+    fn children(&self, id: NodeSlotId) -> impl Iterator<Item = NodeSlotId> + '_ {
+        std::iter::successors(self.node_first_child_if_live(id), |&child| {
+            self.node_next_sibling_if_live(child)
+        })
+    }
+
     fn node_generated_for(&self, id: NodeSlotId) -> u8 {
         self.node(id).map_or(0, |node| node.generated_for())
     }
