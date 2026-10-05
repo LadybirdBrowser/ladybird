@@ -21,9 +21,7 @@ use std::sync::{Arc, OnceLock};
 
 use crate::abort_on_panic;
 use crate::css::animated_overlay::{AnimatedOverlay, overlay_wins};
-use crate::css::cascaded_properties::{
-    CascadeOrigin, CascadedPropertyStore, FfiCustomPropertyDriveInput, FfiResolvedCustomProperties,
-};
+use crate::css::cascaded_properties::{CascadeOrigin, CascadedPropertyStore};
 use crate::css::computed_longhand_table::{
     ComputedLonghandTable, HIGHLIGHT_COLOR_IS_CURRENT_COLOR, HIGHLIGHT_COLORS_AUTHORED,
 };
@@ -2674,33 +2672,6 @@ const COMPUTED_KIND_DISPLAY: u8 = 9;
 /// A complete Rust-owned style value transferred through `computed_data`.
 const COMPUTED_KIND_STYLE_VALUE: u8 = 10;
 
-#[repr(C)]
-pub struct FfiLonghandDriveInput {
-    pub longhand_table: *mut ComputedLonghandTable,
-    pub animated_overlay: *mut AnimatedOverlay,
-    pub store: *const CascadedPropertyStore,
-    pub environment: *const FfiStyleComputationEnvironment,
-    pub computed_group_mask: u32,
-    pub computed_property_words: *const u64,
-    pub font_length_resolution_context: FfiLengthResolutionContext,
-    pub callback_context: *mut c_void,
-    pub prepare_phase_context: unsafe extern "C" fn(*mut c_void, u8, *mut FfiLonghandPhaseContext),
-}
-
-#[repr(C)]
-pub struct FfiLonghandPhaseContext {
-    pub length_resolution_context: FfiLengthResolutionContext,
-    pub input_line_height_metrics: FfiInputLineHeightMetrics,
-    pub line_height_before_adjustments: *const c_void,
-    pub custom_property_input: FfiCustomPropertyDriveInput,
-}
-
-#[repr(C)]
-pub struct FfiLonghandDriveResult {
-    pub driver_results: FfiLonghandDriverResults,
-    pub custom_properties: FfiResolvedCustomProperties,
-}
-
 #[derive(Clone, Copy)]
 #[repr(u8)]
 pub enum FfiAnimationTimelineKind {
@@ -3165,8 +3136,6 @@ pub const LONGHAND_DRIVE_PHASE_FONT: u8 = 0;
 pub const LONGHAND_DRIVE_PHASE_LINE_HEIGHT: u8 = 1;
 pub const LONGHAND_DRIVE_PHASE_COLOR_SCHEME: u8 = 2;
 pub const LONGHAND_DRIVE_PHASE_REMAINING: u8 = 3;
-pub const LONGHAND_PHASE_CONTEXT_AFTER_FONT: u8 = 0;
-pub const LONGHAND_PHASE_CONTEXT_AFTER_LINE_HEIGHT: u8 = 1;
 
 pub(crate) fn property_computation_order_for_phase(phase: u8) -> &'static [u16] {
     use crate::css::property_metadata::{property_computation_order, property_id as prop};
