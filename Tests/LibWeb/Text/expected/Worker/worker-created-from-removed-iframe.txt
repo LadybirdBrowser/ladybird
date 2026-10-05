@@ -1,0 +1,1 @@
+Created a worker from a removed iframe
