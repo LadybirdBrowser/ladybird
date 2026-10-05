@@ -65,7 +65,7 @@ public:
 
     // Runs on the clock thread, for each tick delivered to the context it was armed for, and answers whether the context
     // wants the next tick: one that does not is disarmed.
-    using OnTick = Function<bool(i64 frame_time_nanoseconds, double frame_interval_milliseconds)>;
+    using OnTick = Function<bool(i64 frame_time_nanoseconds)>;
 
     // The process's render clock, made the first time it is asked for.
     static RenderClock& the();
@@ -74,10 +74,9 @@ public:
     // end to offer the Compositor. Blocks until the channel exists.
     ErrorOr<IPC::TransportHandle> attach();
 
-    // Asynchronous. A context is armed until it is disarmed or the channel is lost; a tick that arrives for a context
-    // that is not armed is dropped. Arming an armed context replaces what it hands ticks to.
+    // Asynchronous. A context is armed until it declines a tick or the channel is lost; a tick that arrives for a
+    // context that is not armed is dropped. Arming an armed context replaces what it hands ticks to.
     void arm(Web::CompositorContextId, double maximum_frames_per_second, OnTick);
-    void disarm(Web::CompositorContextId);
 
 private:
     struct ArmedContext {
@@ -93,8 +92,9 @@ private:
 
     // On the clock thread.
     ErrorOr<IPC::TransportHandle> replace_channel();
+    void drop_channel();
     void request_clock_tick(Web::CompositorContextId, double maximum_frames_per_second);
-    void did_receive_clock_tick(Web::CompositorContextId, i64 frame_time_nanoseconds, double frame_interval_milliseconds);
+    void did_receive_clock_tick(Web::CompositorContextId, i64 frame_time_nanoseconds);
     void did_lose_channel();
 
     NonnullRefPtr<Threading::Thread> m_thread;
