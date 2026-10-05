@@ -70,6 +70,14 @@ pub(crate) trait PaintRow<'a>: NodeShape + Copy {
     fn is_fragmented_inline(self) -> bool {
         node_facts::node_is_fragmented_inline(&self, self.style())
     }
+
+    /// Whether the row was built for a DOM node: an element, a text node or the document.
+    /// Anonymous boxes and generated content were not.
+    fn is_dom_backed(self) -> bool {
+        // A slot that has not been given a kind yet stands for nothing at all, and its flags do
+        // not say so.
+        self.kind() != NodeKind::Unset && !node_facts::has_flag(&self, NodeFlag::Anonymous)
+    }
 }
 
 impl<'a> PaintRow<'a> for &'a PaintNode {
@@ -190,10 +198,6 @@ pub(crate) trait PaintRead: GeometryRead {
         self.node(id)?.style()
     }
 
-    /// The node whose style the row carries.
-    fn node_style_node(&self, id: NodeSlotId) -> Option<StyleNodeID> {
-        self.node(id)?.style_node()
-    }
     /// The rendered text of a text row.
     fn rendered_text(&self, id: NodeSlotId) -> Option<&RenderedText>;
     /// Reads a text row's grapheme boundaries, for a text row with rendered text.
@@ -209,6 +213,7 @@ pub(crate) trait PaintRead: GeometryRead {
         self.node(id)
             .is_some_and(|node| node.dom_paint_facts() & fact as u8 != 0)
     }
+
     /// The rows a text node is painted in: its first-letter row, if any, then its own.
     fn text_fragments(&self, primary: NodeSlotId) -> TextFragments;
     fn replaced_paint_facts(&self, id: NodeSlotId) -> Option<ReplacedPaintFacts>;
@@ -235,53 +240,50 @@ pub(crate) trait PaintRead: GeometryRead {
     /// without one. Layout and painting both walk to it with this.
     fn node_containing_block_if_live(&self, id: NodeSlotId) -> Option<NodeSlotId> {
         use crate::css::css_enums::positioning;
-        let kind = self.node_kind_if_live(id)?;
-        let position = if node_facts::kind_is_text(kind) {
+        let mut row = self.node(id)?;
+        let position = if node_facts::kind_is_text(row.kind()) {
             positioning::STATIC
         } else {
-            crate::painting::style_queries::position(self, id)
+            node_facts::node_position(row.style())
         };
         if position != positioning::ABSOLUTE && position != positioning::FIXED {
-            let mut ancestor = self.node_parent_if_live(id);
+            let mut ancestor = link(row.parent());
             while let Some(candidate) = ancestor {
-                let shape = (self.node_kind_if_live(candidate)?, self.node_flags_if_live(candidate));
-                if node_facts::node_forms_containing_block_for_children(&shape, self.node_style_if_live(candidate)) {
+                let candidate_row = self.node(candidate)?;
+                if node_facts::node_forms_containing_block_for_children(&candidate_row, candidate_row.style()) {
                     return Some(candidate);
                 }
-                ancestor = self.node_parent_if_live(candidate);
+                ancestor = link(candidate_row.parent());
             }
             return None;
         }
         let is_fixed_position = position == positioning::FIXED;
         let establishes_containing_block = node_facts::containing_block_establishment_flag(is_fixed_position) as u32;
         let mut current = id;
-        while let Some(ancestor) = self.node_parent_if_live(current) {
+        while let Some(ancestor) = link(row.parent()) {
             current = ancestor;
-            if self.node_kind_if_live(current).is_some_and(node_facts::kind_is_box)
-                && self.node_flags_if_live(current) & establishes_containing_block != 0
+            let Some(ancestor_row) = self.node(ancestor) else {
+                break;
+            };
+            if node_facts::kind_is_box(ancestor_row.kind()) && ancestor_row.flags() & establishes_containing_block != 0
             {
                 return Some(current);
             }
+            row = ancestor_row;
         }
         is_fixed_position.then_some(current)
     }
 
-    /// Whether the row was built for a DOM node: an element, a text node or the document.
-    /// Anonymous boxes and generated content were not.
     fn node_is_dom_backed(&self, id: NodeSlotId) -> bool {
-        // A slot that has not been given a kind yet stands for nothing at all, and its flags do
-        // not say so.
-        self.node_kind_if_live(id).is_some_and(|kind| kind != NodeKind::Unset)
-            && self.node_flags_if_live(id) & NodeFlag::Anonymous as u32 == 0
+        self.node(id).is_some_and(PaintRow::is_dom_backed)
     }
 
     /// Whether the row was built for an element, as opposed to the document, a text node or
     /// nothing.
     fn node_is_element_backed(&self, id: NodeSlotId) -> bool {
-        self.node_is_dom_backed(id)
-            && self
-                .node_kind_if_live(id)
-                .is_some_and(|kind| kind != NodeKind::Viewport && !node_facts::kind_is_text(kind))
+        self.node(id).is_some_and(|row| {
+            row.is_dom_backed() && row.kind() != NodeKind::Viewport && !node_facts::kind_is_text(row.kind())
+        })
     }
 
     fn dom_offset_for_rendered_text_offset(
@@ -320,38 +322,28 @@ pub(crate) trait PaintRead: GeometryRead {
         mut visit_node_and_report_whether_to_descend: impl FnMut(NodeSlotId) -> bool,
     ) {
         let mut current = root;
-        loop {
+        'visit: loop {
             let descend_into_children = visit_node_and_report_whether_to_descend(current);
-            if descend_into_children && let Some(first_child) = self.node_first_child_if_live(current) {
+            let Some(mut row) = self.node(current) else {
+                return;
+            };
+            if descend_into_children && let Some(first_child) = link(row.first_child()) {
                 current = first_child;
                 continue;
             }
-            if current == root {
-                break;
-            }
-            if let Some(next_sibling) = self.node_next_sibling_if_live(current) {
-                current = next_sibling;
-                continue;
-            }
-            let Some(parent) = self.node_parent_if_live(current) else {
-                debug_assert!(false, "a node under the walked root has no parent");
-                return;
-            };
-            current = parent;
+            // Climb to the node after the subtree of `current`, staying under the root.
             while current != root {
-                if let Some(next_sibling) = self.node_next_sibling_if_live(current) {
+                if let Some(next_sibling) = link(row.next_sibling()) {
                     current = next_sibling;
-                    break;
+                    continue 'visit;
                 }
-                let Some(parent) = self.node_parent_if_live(current) else {
+                let Some(parent) = link(row.parent()).and_then(|parent| Some((parent, self.node(parent)?))) else {
                     debug_assert!(false, "a node under the walked root has no parent");
                     return;
                 };
-                current = parent;
+                (current, row) = parent;
             }
-            if current == root {
-                break;
-            }
+            return;
         }
     }
 }

@@ -9,8 +9,8 @@ use crate::css::css_pixels::{CssPixelPoint, CssPixelRect, CssPixels};
 use crate::css::display::FfiDisplay;
 use crate::layout::LayoutNodeArena;
 use crate::layout::node_data::{NodeFlag, NodeKind, NodeSlotId};
-use crate::layout::node_facts;
-use crate::painting::paint_read::{GeometryRead, PaintRead};
+use crate::layout::node_facts::{self, NodeShape};
+use crate::painting::paint_read::{GeometryRead, PaintRead, PaintRow};
 use crate::painting::paintable_data::FfiOverflowData;
 use crate::painting::paintable_rows::PaintableRowsRead;
 use crate::painting::visual_context::dirty::VisualContextBoxDirtyKind;
@@ -30,35 +30,20 @@ pub(crate) fn refill_contained_boxes_index(
     for contained_boxes in non_child_boxes_by_containing_block.values_mut() {
         contained_boxes.clear();
     }
-    if layout_arena.slot_is_live(root) {
-        let mut stack = vec![root];
-        while let Some(node) = stack.pop() {
-            if node != root
-                && let Some(sibling) = layout_arena.node_next_sibling_if_live(node)
-            {
-                stack.push(sibling);
-            }
-            if let Some(first_child) = layout_arena.node_first_child_if_live(node) {
-                stack.push(first_child);
-            }
-            let node_is_box_kind = layout_arena
-                .node_kind_if_live(node)
-                .is_some_and(node_facts::kind_is_box);
-            if !node_is_box_kind || !layout_arena.paintable_row_is_populated(node) {
-                continue;
-            }
-            let Some(containing_block) = layout_arena.node_containing_block_if_live(node) else {
-                continue;
-            };
-            if layout_arena.node_parent_if_live(node) == Some(containing_block) {
-                continue;
-            }
+    layout_arena.for_each_node_in_layout_subtree_in_pre_order_with_pruning(root, |node| {
+        if let Some(row) = layout_arena.node(node)
+            && node_facts::kind_is_box(row.kind())
+            && layout_arena.paintable_row_is_populated(node)
+            && let Some(containing_block) = layout_arena.node_containing_block_if_live(node)
+            && row.parent() != containing_block
+        {
             non_child_boxes_by_containing_block
                 .entry(containing_block)
                 .or_default()
                 .push(node);
         }
-    }
+        true
+    });
     non_child_boxes_by_containing_block.retain(|_, contained_boxes| !contained_boxes.is_empty());
 }
 
@@ -470,16 +455,17 @@ fn measure_scrollable_overflow_impl(
         .flatten()
         .copied();
     for child_node in direct_children.chain(other_contained_boxes) {
-        if !layout_arena
-            .node_kind_if_live(child_node)
-            .is_some_and(node_facts::kind_is_box)
+        let Some(child_row) = layout_arena.node(child_node) else {
+            continue;
+        };
+        if !node_facts::kind_is_box(child_row.kind())
             || !layout_arena.paintable_row_is_populated(child_node)
             || layout_arena.node_containing_block_if_live(child_node) != Some(box_node)
         {
             continue;
         }
 
-        let child_style = layout_arena.node_style_if_live(child_node);
+        let child_style = child_row.style();
         let child_position = child_style.map_or(positioning::STATIC, |style| style.position());
         let child_is_absolutely_positioned = matches!(child_position, positioning::ABSOLUTE | positioning::FIXED);
 
@@ -493,7 +479,7 @@ fn measure_scrollable_overflow_impl(
 
         let child_has_css_transform =
             child_style.is_some_and(|style| style_queries::has_css_transform(layout_arena, child_node, style));
-        let child_flags = layout_arena.node_flags_if_live(child_node);
+        let child_flags = child_row.flags();
         let child_is_flex_or_grid_item = child_flags & (NodeFlag::IsFlexItem as u32 | NodeFlag::IsGridItem as u32) != 0;
         let child_is_floating = !child_is_flex_or_grid_item && child_style.is_some_and(|style| style.is_floating());
         if style_queries::is_invisible_for_line_clamp(layout_arena, child_node) {

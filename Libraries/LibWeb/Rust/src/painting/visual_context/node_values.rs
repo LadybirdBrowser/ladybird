@@ -12,12 +12,12 @@ use crate::css::css_pixels::CssPixelRect;
 use crate::css::css_pixels::CssPixels;
 use crate::css::style_value::StyleValueData;
 use crate::layout::node_data::NodeSlotId;
-use crate::layout::node_facts;
+use crate::layout::node_facts::{self, NodeShape};
 use crate::painting::border_radii::BorderRadii;
 use crate::painting::display_list::device_pixels::DevicePixelConverter;
 use crate::painting::host::FfiVisualContextTreeInputs;
 use crate::painting::node_painting;
-use crate::painting::paint_read::PaintRead;
+use crate::painting::paint_read::{PaintRead, PaintRow};
 use crate::painting::paintable_geometry;
 use crate::painting::paintable_rows::PaintableRowsRead;
 use crate::painting::style_queries;
@@ -139,8 +139,8 @@ pub(crate) fn compute_transform(
     node: NodeSlotId,
     pixel_ratio: f64,
 ) -> Option<(TransformData, bool)> {
-    let style = layout_arena.node_style_if_live(node)?;
-    let node_kind = layout_arena.node_kind_if_live(node)?;
+    let row = layout_arena.node(node)?;
+    let (style, node_kind) = (row.style()?, row.kind());
 
     let additional_element_transform = if style_queries::kind_is_svg_element_box(node_kind) {
         crate::painting::paintable_geometry::committed_svg_additional_element_transform(layout_arena, node)

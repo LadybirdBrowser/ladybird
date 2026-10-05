@@ -8,8 +8,8 @@ use crate::css::computed_value_views::ComputedValuesView;
 use crate::css::css_enums::{overflow, positioning};
 use crate::css::css_pixels::CssPixelRect;
 use crate::layout::node_data::{NodeFlag, NodeKind, NodeSlotId};
-use crate::layout::node_facts;
-use crate::painting::paint_read::PaintRead;
+use crate::layout::node_facts::{self, NodeShape};
+use crate::painting::paint_read::{PaintRead, PaintRow};
 use crate::painting::paintable_geometry;
 use crate::painting::rect_to_viewport_transform::{RectToViewportTransform, transform_rect_to_viewport_or_identity};
 use crate::painting::style_queries;
@@ -117,13 +117,13 @@ pub(crate) fn transform_subtree_is_clipped_outside(
 
     let mut has_disjoint_clip = false;
     let mut ancestor = arena.node_parent_if_live(target).unwrap_or(NodeSlotId::INVALID);
-    while let Some(ancestor_kind) = arena.node_kind_if_live(ancestor) {
-        let parent = arena.node_parent_if_live(ancestor).unwrap_or(NodeSlotId::INVALID);
-        if node_facts::kind_is_box(ancestor_kind) {
+    while let Some(ancestor_row) = arena.node(ancestor) {
+        let parent = ancestor_row.parent();
+        if node_facts::kind_is_box(ancestor_row.kind()) {
             if !arena.paintable_row_is_populated(ancestor) {
                 return false;
             }
-            let Some(style) = arena.node_style_if_live(ancestor) else {
+            let Some(style) = ancestor_row.style() else {
                 ancestor = parent;
                 continue;
             };
