@@ -62,15 +62,6 @@ void InvalidationJournal::note_box_image_changed(Layout::Node& box, Painting::Pa
     drain_if_layout_is_reading();
 }
 
-void InvalidationJournal::note_image_data_changed(NodeIdentity identity, SetNeedsLayoutReason reason)
-{
-    auto& entry = entry_for(identity);
-    entry.image_data_changed = true;
-    entry.image_data_change_reason = reason;
-    m_document->request_frame_for_pending_repaint({});
-    drain_if_layout_is_reading();
-}
-
 void InvalidationJournal::note_language_changed(Element& element)
 {
     if (!m_language_changed_roots.contains_slow(GC::Ref { element }))
@@ -171,10 +162,6 @@ void InvalidationJournal::drain_marks(Layout::BegunRead const& read)
                 auto* layout_node = entry.box ? entry.box.ptr() : entry.identity.bound_layout_node(read, *arena);
                 if (!layout_node)
                     continue;
-                if (entry.image_data_changed) {
-                    if (auto* image = as_if<HTML::HTMLImageElement>(layout_node->dom_node()))
-                        image->apply_image_data_change({}, *layout_node, entry.image_data_change_reason);
-                }
                 if (entry.stale_paint_facts != Painting::PaintFactsFamily::None)
                     Painting::apply_paint_facts(*layout_node, entry.stale_paint_facts);
                 if (entry.invalidate_display_list != InvalidateDisplayList::No)
