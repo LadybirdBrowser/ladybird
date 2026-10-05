@@ -457,15 +457,12 @@ pub unsafe extern "C" fn layout_text_word_range(
     primary: NodeSlotId,
     dom_offset: usize,
 ) -> FfiTextSourceRange {
-    use crate::render_state::{ArenaAnswer, ArenaQuery, ask};
     assert!(!host.is_null(), "document host is null");
-    let query = ArenaQuery::WordRange { primary, dom_offset };
     // SAFETY: Guaranteed by the caller.
     let host = unsafe { &*host };
-    let ArenaAnswer::Range(range) = ask(node_read(), host, query) else {
-        unreachable!("a word range is answered with a range");
-    };
-    range
+    host.ask(node_read(), |state| {
+        text_word_range(state.arena_mut(), primary, dom_offset)
+    })
 }
 
 #[cfg(test)]

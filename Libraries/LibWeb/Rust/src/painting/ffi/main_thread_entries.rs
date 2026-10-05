@@ -945,15 +945,11 @@ fn landed_recording_stands(host: &crate::render_state::DocumentHost, version: cr
     let Some(here) = host.layout_waits_for_no_frame() else {
         return false;
     };
-    crate::render_state::ask(
-        here,
-        host,
-        crate::render_state::ArenaRead::new(version, |arena, version| {
-            arena.with_style_engine(|engine| engine.free_style_records_kept_for_leases());
-            arena.rows_version() == version
-        }),
-    )
-    .0
+    host.ask(here, |state| {
+        let arena = state.arena_mut();
+        arena.with_style_engine(|engine| engine.free_style_records_kept_for_leases());
+        arena.rows_version() == version
+    })
 }
 
 /// Answers `query` from the hit-test list of the last recording `host`'s document published, built up by `build`, and

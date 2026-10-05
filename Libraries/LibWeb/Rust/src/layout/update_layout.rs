@@ -47,7 +47,7 @@ fn run_layout_round_job(
 /// Answers `answer` from the render state of `host`'s document and `args`, in `read`: the host's layout update reads it
 /// between rounds, for whether the layout is up to date and what the next round's build needs.
 fn read_arena<A, R>(host: &DocumentHost, read: &BegunRead, args: A, answer: fn(&mut LayoutNodeArena, A) -> R) -> R {
-    crate::render_state::ask(read, host, crate::render_state::ArenaRead::new(args, answer)).0
+    host.ask(read, |state| answer(state.arena_mut(), args))
 }
 
 impl crate::render_state::RenderJob for LayoutRoundJob {

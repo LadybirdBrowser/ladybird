@@ -6,9 +6,9 @@
 
 //! The writes and reads the host makes of a document's style engine that the boundary generator does not write for
 //! it. A write is a change the document's render state applies to the engine in the order the host made them; a read
-//! is a question the host waits for the answer to. Each entry takes the document host, never the engine, and owns
-//! what it hands over: borrowed arrays are copied, and the host's objects are referenced, as the entry queues the
-//! change.
+//! is a closure the host runs on the render state and waits for. Each entry takes the document host, never the
+//! engine, and owns what it hands over: borrowed arrays are copied, and the host's objects are referenced, as the
+//! entry queues the change.
 
 use super::StyleEngine;
 use super::atoms::{AtomKey, AtomLease};
@@ -592,55 +592,6 @@ pub unsafe extern "C" fn style_engine_set_element_language(
     unsafe { queue(host, EngineWrite::element_language(node, language, text)) };
 }
 
-/// A read of a document's style engine the host's style code makes.
-pub(crate) enum StyleQuery {
-    /// The nodes whose style depends on the viewport.
-    ViewportDependentNodes,
-    /// The record of an element or one of its pseudo-elements the host reads before the next style update.
-    RecordDemand { node: StyleNodeID, demand: RecordDemand },
-    /// The engine's id of the native rule the host names by `identity`.
-    NativeRuleId(u64),
-    /// The engine's counter at `index`.
-    Counter(usize),
-    /// The end of the transaction the host took last, which answers the identities it released.
-    EndTransaction,
-}
-
-/// The answer to a [`StyleQuery`].
-pub(crate) enum StyleAnswer {
-    Number(u64),
-    Nodes(Vec<u32>),
-    RecordDemand(FfiRecordDemandAnswer),
-    Counter(Option<(&'static str, u64)>),
-}
-
-impl StyleQuery {
-    pub(crate) fn answer(self, engine: &mut StyleEngine) -> StyleAnswer {
-        match self {
-            Self::EndTransaction => StyleAnswer::Nodes(engine.discard_style_transaction_outputs()),
-            Self::ViewportDependentNodes => {
-                StyleAnswer::Nodes(engine.computed_group_sets.viewport_dependent_nodes(|environment| {
-                    engine.custom_property_environments.reads_viewport(environment)
-                }))
-            }
-            Self::RecordDemand { node, demand } => {
-                StyleAnswer::RecordDemand(super::bridge::answer_record_demand(engine, node, demand))
-            }
-            Self::NativeRuleId(identity) => {
-                StyleAnswer::Number(engine.native_rule_id(identity).map_or(0, |id| u64::from(id.0) + 1))
-            }
-            Self::Counter(index) => {
-                let retired = engine.computed_group_sets.retired_animation_overlay_records();
-                engine
-                    .counters
-                    .set(Counter::RetiredAnimationOverlayRecords, retired as u64);
-                let counter = engine.counters().iter().nth(index);
-                StyleAnswer::Counter(counter)
-            }
-        }
-    }
-}
-
 /// The document host `host` names.
 ///
 /// # Safety
@@ -664,33 +615,10 @@ pub(crate) fn with_engine_and_arena<R>(
     host: &DocumentHost,
     call: impl FnOnce(&mut StyleEngine, &crate::layout::LayoutNodeArena) -> R,
 ) -> R {
-    crate::render_state::ask(read, host, crate::render_state::EngineCall(call)).0
-}
-
-/// Asks the style engine of `host`'s document `query`, in `read`.
-///
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread.
-pub(crate) unsafe fn ask_engine(host: *const DocumentHost, read: &BegunRead, query: StyleQuery) -> StyleAnswer {
-    assert!(!host.is_null(), "document host is null");
-    // SAFETY: Guaranteed by the caller.
-    crate::render_state::ask(read, unsafe { &*host }, query)
-}
-
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread.
-unsafe fn ask_engine_number(
-    host: *const DocumentHost,
-    read: &crate::render_state::BegunRead,
-    query: StyleQuery,
-) -> u64 {
-    // SAFETY: Guaranteed by the caller.
-    let StyleAnswer::Number(number) = (unsafe { ask_engine(host, read, query) }) else {
-        unreachable!("the question is answered with a number");
-    };
-    number
+    host.ask(read, |state| {
+        let (engine, arena) = state.engine_and_arena();
+        call(engine, arena)
+    })
 }
 
 /// The custom-property environment an element holds, or null.
@@ -766,9 +694,11 @@ pub unsafe extern "C" fn style_engine_viewport_dependent_nodes(
     append: unsafe extern "C" fn(*mut c_void, u32),
 ) {
     // SAFETY: Guaranteed by the caller.
-    let StyleAnswer::Nodes(nodes) = (unsafe { ask_engine(host, read, StyleQuery::ViewportDependentNodes) }) else {
-        unreachable!("viewport dependent nodes are answered with nodes");
-    };
+    let nodes = with_engine(read, unsafe { document_host(host) }, |engine| {
+        engine
+            .computed_group_sets
+            .viewport_dependent_nodes(|environment| engine.custom_property_environments.reads_viewport(environment))
+    });
     for node in nodes {
         // SAFETY: Guaranteed by the caller.
         unsafe { append(context, node) };
@@ -885,12 +815,9 @@ unsafe fn ask_record_demand(
         return FfiRecordDemandAnswer::default();
     };
     // SAFETY: Guaranteed by the caller.
-    let StyleAnswer::RecordDemand(answer) =
-        (unsafe { ask_engine(host, read, StyleQuery::RecordDemand { node, demand }) })
-    else {
-        unreachable!("a record demand is answered with a record");
-    };
-    answer
+    with_engine(read, unsafe { document_host(host) }, |engine| {
+        super::bridge::answer_record_demand(engine, node, demand)
+    })
 }
 
 /// What a style record's values depend on.
@@ -1528,8 +1455,9 @@ pub unsafe extern "C" fn style_engine_native_rule_id(
     identity: u64,
 ) -> u32 {
     // SAFETY: Guaranteed by the caller.
-    let id = unsafe { ask_engine_number(host, read, StyleQuery::NativeRuleId(identity)) };
-    u32::try_from(id).expect("a native rule id fits 32 bits")
+    with_engine(read, unsafe { document_host(host) }, |engine| {
+        engine.native_rule_id(identity).map_or(0, |id| id.0 + 1)
+    })
 }
 
 /// The name of the engine's counter at `index`, with its length and value written out, or null past the last one.
@@ -1546,9 +1474,13 @@ pub unsafe extern "C" fn style_engine_counter(
     out_name_length: *mut usize,
 ) -> *const u8 {
     // SAFETY: Guaranteed by the caller.
-    let StyleAnswer::Counter(counter) = (unsafe { ask_engine(host, read, StyleQuery::Counter(index)) }) else {
-        unreachable!("a counter is answered with a counter");
-    };
+    let counter = with_engine(read, unsafe { document_host(host) }, |engine| {
+        let retired = engine.computed_group_sets.retired_animation_overlay_records();
+        engine
+            .counters
+            .set(Counter::RetiredAnimationOverlayRecords, retired as u64);
+        engine.counters().iter().nth(index)
+    });
     let Some((name, value)) = counter else {
         return std::ptr::null();
     };

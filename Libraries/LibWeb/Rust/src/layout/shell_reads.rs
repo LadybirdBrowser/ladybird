@@ -38,12 +38,7 @@ pub(crate) unsafe fn read_arena<A, R>(
 ) -> R {
     assert!(!host.is_null(), "document host is null");
     // SAFETY: Guaranteed by the caller.
-    crate::render_state::ask(
-        wait,
-        unsafe { &*host },
-        crate::render_state::ArenaRead::new(args, answer),
-    )
-    .0
+    unsafe { &*host }.ask(wait, |state| answer(state.arena_mut(), args))
 }
 
 /// The rows of `host`'s document as of every write the host made, spending `wait`.
@@ -486,13 +481,16 @@ pub unsafe extern "C" fn layout_row_has_css_transform(host: *mut DocumentHost, i
 /// `host` must be a live document host, on its document's thread, and `id` a live generated text row.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_row_generated_text(host: *mut DocumentHost, id: NodeSlotId) -> usize {
-    use crate::render_state::{ArenaAnswer, ArenaQuery, ask};
     assert!(!host.is_null(), "document host is null");
     // SAFETY: Guaranteed by the caller.
     let host = unsafe { &*host };
-    let query = ArenaQuery::GeneratedText(id);
-    let ArenaAnswer::Text(text) = ask(node_read(), host, query) else {
-        unreachable!("generated text is answered with text");
-    };
+    let text = host.ask(node_read(), |state| {
+        state
+            .arena_mut()
+            .published_text_source(id, false)
+            .data
+            .to_utf16()
+            .into_owned()
+    });
     ak::Utf16String::from_utf16(&text).into_raw()
 }

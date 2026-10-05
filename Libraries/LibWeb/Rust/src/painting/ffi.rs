@@ -48,12 +48,7 @@ pub(crate) unsafe fn read_arena<A, R>(
 ) -> R {
     assert!(!host.is_null(), "document host is null");
     // SAFETY: Guaranteed by the caller.
-    crate::render_state::ask(
-        wait,
-        unsafe { &*host },
-        crate::render_state::ArenaRead::new(args, answer),
-    )
-    .0
+    unsafe { &*host }.ask(wait, |state| answer(state.arena_mut(), args))
 }
 
 /// The host tables of `host`'s document.

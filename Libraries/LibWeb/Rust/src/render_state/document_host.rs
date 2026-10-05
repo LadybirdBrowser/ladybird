@@ -9,11 +9,10 @@
 
 use super::clock::{ClockLease, ClockPlan, ClockTicks, LeaseLanding};
 use super::owner::{self, DocumentId, SharedWithHost, StateSeed};
-use super::questions::Question;
 use super::wait::{BegunRead, HostRead, NodeRead, ReadRight, TaskStart, force_read_flown_style};
 use super::{
-    ArenaChange, ChangeQueue, CommittedRows, ForcedRead, Landing, NoFrameInFlight, Owed, RenderState, RenderWait,
-    ScriptForcedRead, StateFacts, on_render_side, post_to_render_side,
+    ArenaChange, ChangeQueue, ForcedRead, Landing, NoFrameInFlight, Owed, RenderState, RenderWait, ScriptForcedRead,
+    StateFacts, on_render_side, post_to_render_side,
 };
 use crate::css::css_pixels::CssPixelRect;
 use crate::css::style::flight_style_rows::FlightStyleRow;
@@ -886,12 +885,7 @@ impl DocumentHost {
 
     /// Runs `job` on the document's render state, spending `wait`, and waits for it, as [`Self::reach`] does. A job that
     /// `writes` leaves the paint and hit testing properties prepared from the state stale.
-    pub(crate) fn run<R: Send>(
-        &self,
-        wait: impl RenderWait,
-        writes: bool,
-        job: impl FnOnce(&mut RenderState) -> R + Send,
-    ) -> R {
+    pub(crate) fn run<R>(&self, wait: impl RenderWait, writes: bool, job: impl FnOnce(&mut RenderState) -> R) -> R {
         assert!(
             wait.reaches(self),
             "a begun read reaches only the render state of its own document"
@@ -899,28 +893,20 @@ impl DocumentHost {
         if writes {
             self.note_render_state_write();
         }
-        self.reach(wait.into_read_right(), job)
+        let job = Waited(job);
+        self.reach(wait.into_read_right(), move |state| Waited(job.into_inner()(state)))
+            .into_inner()
     }
 
-    /// Asks the document's render state `question`, spending `wait`, and answers what it answered as of every write the
-    /// host queued.
-    pub(super) fn ask<Q: Question + Send>(&self, wait: impl RenderWait, question: Q) -> Q::Answer
-    where
-        Q::Answer: Send,
-    {
-        assert!(
-            wait.reaches(self),
-            "a begun read reaches only the render state of its own document"
-        );
-        if !Q::LEAVES_PAINT_PREPARATION_CURRENT {
-            self.note_render_state_write();
-        }
-        // A question that reads overflow first measures what it finds unmeasured, which can change what the preparation
-        // answers: such a measurement writes the render state, whatever the question.
-        let (answer, measured_for_preparation) = self.reach(wait.into_read_right(), move |state| {
-            let awaited = state.arena.arena().scrollable_overflow.measurement_awaits_preparation();
-            let answer = state.answer(question);
-            let awaits = state.arena.arena().scrollable_overflow.measurement_awaits_preparation();
+    /// Answers `read` of the document's render state, spending `wait`, as of every write the host queued. A read leaves
+    /// the paint and hit testing properties prepared from the state current: what it brings up to date first, a
+    /// preparation leaves up to date, or only a layout round reads, but for overflow it measures first, which can
+    /// change what the preparation answers, and so writes the render state.
+    pub(crate) fn ask<R>(&self, wait: impl RenderWait, read: impl FnOnce(&mut RenderState) -> R) -> R {
+        let (answer, measured_for_preparation) = self.run(wait, false, |state| {
+            let awaited = state.arena_mut().scrollable_overflow.measurement_awaits_preparation();
+            let answer = read(state);
+            let awaits = state.arena_mut().scrollable_overflow.measurement_awaits_preparation();
             (answer, !awaited && awaits)
         });
         if measured_for_preparation {
@@ -933,12 +919,7 @@ impl DocumentHost {
     #[cfg(test)]
     pub(crate) fn rows(&self) -> Option<Rc<RowSnapshot>> {
         let rows = self.rows.borrow().clone()?;
-        let version = self
-            .ask(
-                ScriptForcedRead::for_test(),
-                super::questions::ArenaRead::new((), |arena, ()| arena.rows_version()),
-            )
-            .0;
+        let version = self.ask(ScriptForcedRead::for_test(), |state| state.rows_version());
         rows.reads_as(version).then_some(rows)
     }
 
@@ -1081,11 +1062,12 @@ impl DocumentHost {
         if let Some(rows) = held.as_ref().filter(|rows| self.knows_rows_read_as_arena(rows)) {
             return Rc::clone(rows);
         }
-        let question = CommittedRows {
-            measure_overflow,
-            held: held.as_ref().map(|rows| rows.version()),
-        };
-        match self.ask(wait, question) {
+        let held_version = held.as_ref().map(|rows| rows.version());
+        let published = self.ask(wait, |state| {
+            let arena = state.arena_mut();
+            (held_version != Some(arena.rows_version())).then(|| arena.publish_row_snapshot(measure_overflow))
+        });
+        match published {
             Some(rows) => {
                 let rows = Rc::new(rows);
                 *self.rows.borrow_mut() = Some(Rc::clone(&rows));
@@ -1214,6 +1196,20 @@ pub extern "C" fn document_host_create() -> *mut DocumentHost {
     Box::into_raw(Box::new(DocumentHost::new()))
 }
 
+/// What a job the host waits for carries to the render owner and back.
+struct Waited<T>(T);
+
+// SAFETY: The host waits for the job, so what the job borrows of the host's stays live and unwritten until the render
+// owner has answered, and the host reads what the answer names of the render state's before its next job, which is
+// what may write it. The host callbacks a job makes run on the owner while the host waits, as a style transaction's do.
+unsafe impl<T> Send for Waited<T> {}
+
+impl<T> Waited<T> {
+    fn into_inner(self) -> T {
+        self.0
+    }
+}
+
 /// A document host with a render state, for a unit test, which destroys both when it is dropped.
 #[cfg(test)]
 pub(crate) struct TestHost(*mut DocumentHost);
@@ -1233,7 +1229,7 @@ impl TestHost {
     pub(crate) fn engine(&self) -> crate::css::style::StyleEngineHandle {
         // SAFETY: The host lives until the test host is dropped.
         let host = unsafe { &*self.0 };
-        host.reach(ScriptForcedRead::for_test().into_read_right(), |state| state.engine)
+        host.ask(ScriptForcedRead::for_test(), |state| state.engine)
     }
 }
 
