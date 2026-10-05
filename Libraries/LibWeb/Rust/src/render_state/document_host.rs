@@ -762,6 +762,17 @@ impl DocumentHost {
             .is_ok_and(|index| applied[index].new_style_record == style_record && applied[index].relayout)
     }
 
+    /// Sets the writes the host queued aside, for it to read its render state as a frame that flew left it, until
+    /// queue_writes_set_aside().
+    pub(crate) fn set_writes_aside(&self) {
+        self.changes.set_aside();
+    }
+
+    /// Queues the writes the host set aside behind those it queued meanwhile.
+    pub(crate) fn queue_writes_set_aside(&self) {
+        self.changes.queue_set_aside();
+    }
+
     /// Ends the drain of the style transaction that flew: the writes the host queued beside it are queued again, behind
     /// what the drain wrote.
     pub(crate) fn end_style_drain(&self) {
@@ -1256,6 +1267,27 @@ pub unsafe extern "C" fn document_host_read_scope_view(host: &DocumentHost) -> F
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn document_host_frame_flies(host: &DocumentHost) -> bool {
     host.frame_flies()
+}
+
+/// Sets the writes `host` queued aside, for the host to read its document's render state as the frame that flew last
+/// left it, until document_host_queue_writes_set_aside() queues them behind the writes it queued meanwhile.
+///
+/// # Safety
+///
+/// `host` must be a live document host, on its document's thread, with no writes set aside.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn document_host_set_writes_aside(host: &DocumentHost) {
+    host.set_writes_aside();
+}
+
+/// Queues the writes `host` set aside behind the writes it queued meanwhile.
+///
+/// # Safety
+///
+/// `host` must be a live document host, on its document's thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn document_host_queue_writes_set_aside(host: &DocumentHost) {
+    host.queue_writes_set_aside();
 }
 
 /// Destroys `host`, and has the render owner drop the render state of its document, where a job made one, without

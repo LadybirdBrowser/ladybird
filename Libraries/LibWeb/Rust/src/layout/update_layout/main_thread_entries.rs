@@ -33,13 +33,17 @@ pub unsafe extern "C" fn render_state_update_layout(
     abort_on_panic(|| {
         // SAFETY: Guaranteed by the entry point's contract.
         unsafe { update_layout(&main_thread, host, read, &*inputs) };
-        // The image resources the update's tree builds owe are attached once its layout is done.
-        host.host_tables()
-            .layout_update_host
-            .get()
-            .expect("the document has no layout update host")
-            .attach_owed_image_resources(&main_thread, host, read);
+        attach_owed_image_resources(&main_thread, host, read);
     });
+}
+
+/// Attaches the image resources the tree builds of a layout update owe, once its layout is done.
+fn attach_owed_image_resources(main_thread: &MainThread, host: &DocumentHost, read: &BegunRead) {
+    host.host_tables()
+        .layout_update_host
+        .get()
+        .expect("the document has no layout update host")
+        .attach_owed_image_resources(main_thread, host, read);
 }
 
 /// Pays what the layout round a frame ran owes the host, where the frame flew with one, landing it first with `read`:
@@ -150,4 +154,26 @@ pub unsafe extern "C" fn render_state_let_first_layout_round_fly(
     };
     // SAFETY: Guaranteed by the entry point's contract.
     abort_on_panic(|| unsafe { fly_first_round(&main_thread, host, read, &*inputs, &license) })
+}
+
+/// Takes in the layout round that flew in the frame of `host`'s document, in `read`, and pays it, where it left the
+/// document laid out as of the frame. Answers whether it did; what the host wrote since the frame flew stays the next
+/// layout update's either way.
+///
+/// # Safety
+///
+/// As for [`render_state_update_layout`].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn render_state_take_flown_layout_in(host: *const DocumentHost, read: &BegunRead) -> bool {
+    assert!(!host.is_null(), "document host is null");
+    // SAFETY: Guaranteed by the caller.
+    let host = unsafe { &*host };
+    // SAFETY: Guaranteed by the entry point's contract.
+    let main_thread = unsafe { main_thread(host) };
+    abort_on_panic(|| {
+        // SAFETY: Guaranteed by the entry point's contract.
+        let laid_out = unsafe { take_flown_layout_in(&main_thread, host, read) };
+        attach_owed_image_resources(&main_thread, host, read);
+        laid_out
+    })
 }

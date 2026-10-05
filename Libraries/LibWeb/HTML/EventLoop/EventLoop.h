@@ -164,8 +164,8 @@ public:
     bool lays_out_rendering_update_in_flight() const;
     // Runs the steps of the rendering update whose style transaction flies, which take the transaction in.
     void finish_rendering_update_in_flight();
-    // A rendering task that would find a frame still in flight, or a rendering update not yet finished, keeps its place
-    // in the queue until the frame has been taken in, rather than wait for it.
+    // A rendering task that would find a rendering update not yet finished keeps its place in the queue until the update
+    // has finished, rather than wait for it. One that finds a frame still in flight runs beside it.
     bool holds_rendering_opportunity() const;
     // Whether the tasks of `document` wait for the rendering update in flight: its steps after its style and layout
     // deliver to the document's script what comes before any of its tasks. A task of no document waits whenever the
@@ -187,10 +187,18 @@ private:
 
     void process_input_events() const;
     void update_the_rendering();
-    void update_the_rendering_after_style_and_layout(Vector<GC::Root<DOM::Document>> const& docs, double frame_timestamp, double update_start_time);
+    // How the steps after style and layout take the layout of the docs: up to date, or as the update's layout that flew
+    // left it, whatever was written since.
+    enum class TakenLayout : u8 {
+        UpToDate,
+        AsItFlew,
+    };
+    void update_the_rendering_after_style_and_layout(Vector<GC::Root<DOM::Document>> const& docs, double frame_timestamp, TakenLayout = TakenLayout::UpToDate);
     void finish_rendering_update(double update_start_time);
     Layout::RustFFI::FfiFlightBlocker style_flight_blocker(DOM::Document&) const;
     void resume_rendering_update_in_flight();
+    void finish_ended_rendering_update_in_flight();
+    bool finish_ended_rendering_update_as_its_layout_flew();
     // Goes on with the rendering update in flight where it has landed, and presents the recordings that have landed.
     void take_finished_frames_in();
     bool let_layout_of_rendering_update_fly();

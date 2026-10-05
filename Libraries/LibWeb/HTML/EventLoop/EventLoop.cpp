@@ -491,10 +491,13 @@ struct EventLoop::RenderingUpdateInFlight {
     AK_ALLOC_WITH_KMALLOC;
 
     DOM::Document& document() const { return *docs.last(); }
+    // Whether the rest of the update's steps deliver nothing to script: an update of one doc that holds no task back
+    // ends before them, and they run as its frame is taken in, beside the tasks after it or in the next rendering update,
+    // which may begin beside the frame.
+    bool ended() const { return held_tasks == HeldTasks::None && docs.size() == 1; }
 
     Vector<GC::Root<DOM::Document>> docs;
     double frame_timestamp { 0 };
-    double update_start_time { 0 };
     // The event loop does not take the transaction in while a test holds it.
     bool held_for_testing { false };
     // Whose tasks wait for the whole of the update rather than run beside it.
@@ -539,12 +542,25 @@ void EventLoop::finish_rendering_update(double update_start_time)
     m_last_rendering_update_end_time = update_end_time;
 }
 
+// Whether `animation` is a CSS animation or transition that the style of a rendering update began, which the update
+// makes ready once its style and layout are done.
+static bool rendering_update_makes_ready(Animations::Animation const& animation)
+{
+    auto const* effect = as_if<Animations::KeyframeEffect>(animation.effect().ptr());
+    return animation.pending() && (animation.is_css_animation() || animation.is_css_transition()) && effect && !effect->may_run_on_the_compositor();
+}
+
+enum class StyleTakenIn : u8 {
+    No,
+    Yes,
+};
+
 // Which tasks a rendering update whose style transaction flies for its last doc holds back until the whole of it has
 // run, as the steps after its style and layout deliver to script what comes before any task: the intersection
 // observations of every doc, whose roots and targets the script of any document may reach, rendered or not, the resize
 // observations the last doc's layout answers, and the animations it samples and transitions it starts, whose timing
-// script sees follow the update.
-static HeldTasks tasks_rendering_update_holds(Vector<GC::Root<DOM::Document>> const& docs)
+// script sees follow the update. Once the transaction is taken in, those are the ones its style began.
+static HeldTasks tasks_rendering_update_holds(Vector<GC::Root<DOM::Document>> const& docs, StyleTakenIn style_taken_in)
 {
     if (any_of(docs, [](auto const& document) { return document->has_intersection_observation_targets(); }))
         return HeldTasks::All;
@@ -552,10 +568,12 @@ static HeldTasks tasks_rendering_update_holds(Vector<GC::Root<DOM::Document>> co
     if (document.has_resize_observers())
         return HeldTasks::OfLastDocument;
     for (auto const& timeline : document.associated_animation_timelines()) {
-        if (!timeline->associated_animations().is_empty())
-            return HeldTasks::OfLastDocument;
+        for (auto const& animation : timeline->associated_animations()) {
+            if (style_taken_in == StyleTakenIn::No || rendering_update_makes_ready(animation))
+                return HeldTasks::OfLastDocument;
+        }
     }
-    if (document.style_computer().style_engine().css_transitions_may_observe_style_changes())
+    if (style_taken_in == StyleTakenIn::No && document.style_computer().style_engine().css_transitions_may_observe_style_changes())
         return HeldTasks::OfLastDocument;
     return HeldTasks::None;
 }
@@ -571,6 +589,12 @@ void EventLoop::update_the_rendering()
         page->client().will_begin_rendering_update();
     auto update_start_time = HighResolutionTime::unsafe_shared_current_time();
     ++m_rendering_scheduler_counters.updates_run;
+
+    // AD-HOC: The last rendering update may have ended as its style transaction flew. Its layout runs beside this
+    //         update's steps up to step 16, which takes the rest of it in, or the rest of it runs now.
+    if (m_rendering_update_in_flight && !m_rendering_update_in_flight->held_for_testing && !m_rendering_update_in_flight->layout_flew
+        && !let_layout_of_rendering_update_fly())
+        finish_rendering_update_in_flight();
 
     process_input_events();
 
@@ -685,6 +709,9 @@ void EventLoop::update_the_rendering()
 
     // FIXME: 15. Let unsafeStyleAndLayoutStartTime be the unsafe shared current time.
 
+    // AD-HOC: The rest of the last rendering update runs before anything of this one's style and layout.
+    finish_ended_rendering_update_in_flight();
+
     // 16. For each doc of docs:
     for (size_t document_index = 0; document_index < docs.size(); ++document_index) {
         // AD-HOC: The style transaction of the last doc of docs flies beside the event loop where nothing keeps it in
@@ -699,8 +726,11 @@ void EventLoop::update_the_rendering()
                     // The rendering task ends here: a rendering opportunity meanwhile queues the next one, which keeps
                     // its place in the queue until this update has finished.
                     m_running_rendering_task = false;
-                    auto held_tasks = tasks_rendering_update_holds(docs);
-                    m_rendering_update_in_flight = make<RenderingUpdateInFlight>(move(docs), frame_timestamp, update_start_time, exchange(m_holds_next_frame_for_testing, false), held_tasks);
+                    auto held_tasks = tasks_rendering_update_holds(docs, StyleTakenIn::No);
+                    m_rendering_update_in_flight = make<RenderingUpdateInFlight>(move(docs), frame_timestamp, exchange(m_holds_next_frame_for_testing, false), held_tasks);
+                    // The next rendering opportunity is asked for now, so that the next update can begin as soon as
+                    // this one has run, or has ended.
+                    finish_rendering_update(update_start_time);
                     return;
                 }
             }
@@ -708,7 +738,8 @@ void EventLoop::update_the_rendering()
         update_style_and_layout_for_rendering(document);
     }
 
-    update_the_rendering_after_style_and_layout(docs, frame_timestamp, update_start_time);
+    update_the_rendering_after_style_and_layout(docs, frame_timestamp);
+    finish_rendering_update(update_start_time);
 }
 
 // Step 16 of updating the rendering, for one doc of docs: its style and layout, and the resize observations they
@@ -850,7 +881,7 @@ static void update_style_and_layout_for_rendering(DOM::Document& document)
 }
 
 // Steps 17 to 23 of updating the rendering, once step 16 has laid out every doc of docs.
-void EventLoop::update_the_rendering_after_style_and_layout(Vector<GC::Root<DOM::Document>> const& docs, double frame_timestamp, double update_start_time)
+void EventLoop::update_the_rendering_after_style_and_layout(Vector<GC::Root<DOM::Document>> const& docs, double frame_timestamp, TakenLayout taken_layout)
 {
     auto relative_frame_timestamp_for = [&](DOM::Document const& document) {
         return max(0.0, HighResolutionTime::relative_high_resolution_time(frame_timestamp, relevant_global_object(document)));
@@ -867,8 +898,7 @@ void EventLoop::update_the_rendering_after_style_and_layout(Vector<GC::Root<DOM:
         for (auto const& timeline : document->associated_animation_timelines()) {
             Vector<GC::Ref<Animations::Animation>> pending_css_animations;
             for (auto& animation : timeline->associated_animations()) {
-                auto const* effect = as_if<Animations::KeyframeEffect>(animation.effect().ptr());
-                if (animation.pending() && (animation.is_css_animation() || animation.is_css_transition()) && effect && !effect->may_run_on_the_compositor())
+                if (rendering_update_makes_ready(animation))
                     pending_css_animations.append(animation);
             }
             for (auto& animation : pending_css_animations)
@@ -885,6 +915,10 @@ void EventLoop::update_the_rendering_after_style_and_layout(Vector<GC::Root<DOM:
 
     // 19. For each doc of docs, run the update intersection observations steps for doc, passing in the relative high resolution time given now and doc's relevant global object as the timestamp. [INTERSECTIONOBSERVER]
     for (auto& document : docs) {
+        // NB: An update whose layout flew had nothing to observe as it ended: what was observed since is the next update's.
+        if (taken_layout == TakenLayout::AsItFlew)
+            break;
+
         // AD-HOC: Script that ran earlier in this rendering update may have detached document from its navigable, as
         //         in step 16. Its layout and paint state stay behind, but nothing is rendered for it anymore.
         if (!document->navigable() || document->navigable()->active_document().ptr() != document.ptr())
@@ -926,7 +960,8 @@ void EventLoop::update_the_rendering_after_style_and_layout(Vector<GC::Root<DOM:
         auto navigable = doc->navigable();
         // AD-HOC: Script that ran earlier in this rendering update may have spun the event loop and run tasks that
         //         detached doc from its navigable (e.g. after its iframe was removed).
-        if (!navigable || !navigable->paint_next_frame_if_needed(DOM::UpdateLayoutReason::HTMLEventLoopRenderingUpdate))
+        auto lay_out_first = taken_layout == TakenLayout::UpToDate ? LocalNavigable::LayOutFirst::Yes : LocalNavigable::LayOutFirst::No;
+        if (!navigable || !navigable->paint_next_frame_if_needed(DOM::UpdateLayoutReason::HTMLEventLoopRenderingUpdate, lay_out_first))
             continue;
         ++m_rendering_scheduler_counters.paints;
         if (navigable->is_local_root())
@@ -958,21 +993,19 @@ void EventLoop::update_the_rendering_after_style_and_layout(Vector<GC::Root<DOM:
         TemporaryExecutionContext context(document->relevant_settings_object(), TemporaryExecutionContext::CallbacksEnabled::Yes);
         document->fonts()->set_is_pending_on_the_environment(document->readiness() == DocumentReadyState::Loading
             || document->has_pending_style_sheet_requests()
-            || !document->layout_is_up_to_date());
+            || (taken_layout == TakenLayout::UpToDate && !document->layout_is_up_to_date()));
     }
 
     // AD-HOC: The tasks after the update may let the render clock tick the document's running animations, until the
     //         next of their events, which the main thread sends. Only a rendering update leaves a plan for that, and
     //         each one leaves every document it renders its own, or none, in place of the last.
-    bool const may_plan = !m_running_synchronous_rendering_update && m_spin_depth == 0 && docs.size() == 1;
+    bool const may_plan = !m_running_synchronous_rendering_update && m_spin_depth == 0 && docs.size() == 1 && taken_layout == TakenLayout::UpToDate;
     for (auto& document : docs) {
         auto* navigable = as_if<LocalNavigable>(document->navigable().ptr());
         bool const plans = may_plan && navigable && navigable->is_local_root() && navigable->active_document().ptr() == document.ptr();
         if (seal_clock_plan(*document, plans) && !m_navigables_with_clock_plans.contains_slow(GC::Ref { *navigable }))
             m_navigables_with_clock_plans.append(*navigable);
     }
-
-    finish_rendering_update(update_start_time);
 }
 
 // Whether the style transaction of `document` in a rendering update may fly beside the event loop, or what keeps it in
@@ -999,10 +1032,43 @@ Layout::RustFFI::FfiFlightBlocker EventLoop::style_flight_blocker(DOM::Document&
 void EventLoop::resume_rendering_update_in_flight()
 {
     auto update = m_rendering_update_in_flight.release_nonnull();
-    m_running_rendering_task = true;
-    // The style and layout of the doc whose transaction flew take it in, waiting for it to land.
-    update_style_and_layout_for_rendering(update->document());
-    update_the_rendering_after_style_and_layout(update->docs, update->frame_timestamp, update->update_start_time);
+    {
+        TemporaryChange running { m_running_rendering_task, true };
+        // The style and layout of the doc whose transaction flew take it in, waiting for it to land.
+        update_style_and_layout_for_rendering(update->document());
+        update_the_rendering_after_style_and_layout(update->docs, update->frame_timestamp);
+    }
+    // What the steps asked for, an animation frame of a promise they resolved for one, asks for the next rendering
+    // opportunity now, unless a rendering update runs, whose end asks for it.
+    if (!m_running_rendering_task) {
+        for (auto const& page : pages_of_local_roots())
+            page->client().did_finish_rendering_update();
+    }
+}
+
+// The rest of the last rendering update, which ended as its style transaction flew, runs before anything of the next
+// one's style and layout. Where its layout flew as well, its steps go on from that layout, as it left the document: what
+// the next update wrote since is that update's, which the render state takes in behind them.
+void EventLoop::finish_ended_rendering_update_in_flight()
+{
+    if (m_rendering_update_in_flight && m_rendering_update_in_flight->ended() && m_rendering_update_in_flight->layout_flew
+        && finish_ended_rendering_update_as_its_layout_flew())
+        return;
+    finish_rendering_update_in_flight();
+}
+
+// Answers whether the layout that flew laid the doc out, as the update's steps then went on from it.
+bool EventLoop::finish_ended_rendering_update_as_its_layout_flew()
+{
+    auto& document = m_rendering_update_in_flight->document();
+    DOM::Document::LayoutAsItFlew layout_as_it_flew { document };
+    if (!document.take_flown_layout_in())
+        return false;
+    auto update = m_rendering_update_in_flight.release_nonnull();
+    if (auto navigable = document.navigable())
+        navigable->clamp_viewport_scroll_offset();
+    update_the_rendering_after_style_and_layout(update->docs, update->frame_timestamp, TakenLayout::AsItFlew);
+    return true;
 }
 
 void EventLoop::finish_rendering_update_in_flight()
@@ -1044,7 +1110,7 @@ bool EventLoop::lays_out_rendering_update_in_flight() const
 
 bool EventLoop::holds_rendering_opportunity() const
 {
-    return m_rendering_update_in_flight || has_frame_in_flight();
+    return m_rendering_update_in_flight && !m_rendering_update_in_flight->ended();
 }
 
 bool EventLoop::holds_tasks_of(DOM::Document const* document) const
@@ -1069,10 +1135,13 @@ bool EventLoop::holds_tasks_of(DOM::Document const* document) const
 bool EventLoop::let_layout_of_rendering_update_fly()
 {
     auto& update = *m_rendering_update_in_flight;
-    if (exchange(update.layout_flew, true))
-        return false;
+    VERIFY(!update.layout_flew);
     auto& document = update.document();
-    return document.let_layout_fly(style_flight_blocker(document));
+    if (!document.let_layout_fly(style_flight_blocker(document)))
+        return false;
+    update.layout_flew = true;
+    update.held_tasks = tasks_rendering_update_holds(update.docs, StyleTakenIn::Yes);
+    return true;
 }
 
 void EventLoop::take_finished_frames_in()
@@ -1082,7 +1151,7 @@ void EventLoop::take_finished_frames_in()
     // and a paused event loop does not come here.
     if (m_rendering_update_in_flight && !m_rendering_update_in_flight->held_for_testing
         && !m_rendering_update_in_flight->document().style_computer().style_engine().style_transaction_flies()
-        && !let_layout_of_rendering_update_fly())
+        && (m_rendering_update_in_flight->layout_flew || !let_layout_of_rendering_update_fly()))
         resume_rendering_update_in_flight();
 
     m_presentation_queue->present_landed_frames();
