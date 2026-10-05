@@ -2468,6 +2468,22 @@ fn generate_css_enums(manifest_dir: &Path, out_dir: &Path) -> Result<(), Box<dyn
     Ok(())
 }
 
+// AK::Optional is not trivial for calls under every C++ ABI: Apple clang returns it through memory, where Rust
+// returns the matching #[repr(C)] struct in registers. Keep it out of extern "C" signatures; pass a plain
+// #[repr(C)] struct and convert it to an Optional on the C++ side.
+fn reject_optional_in_extern_c_signatures(header: &Path) {
+    let text = std::fs::read_to_string(header).unwrap_or_default();
+    for block in text.split("extern \"C\" {").skip(1) {
+        let (signatures, _) = block.split_once("}  // extern \"C\"").unwrap_or((block, ""));
+        if let Some(line) = signatures.lines().find(|line| line.contains("Optional<")) {
+            panic!(
+                "{}: AK::Optional in an extern \"C\" signature: {line}",
+                header.display()
+            );
+        }
+    }
+}
+
 fn generate_ffi_header(config: cbindgen::Config, sources: &[PathBuf], out_dir: &Path, header: &Path) {
     let builder = sources
         .iter()
@@ -2484,7 +2500,8 @@ fn generate_ffi_header(config: cbindgen::Config, sources: &[PathBuf], out_dir: &
         |bindings| {
             let output_header = out_dir.join(header);
             std::fs::create_dir_all(output_header.parent().unwrap()).unwrap();
-            bindings.write_to_file(output_header);
+            bindings.write_to_file(&output_header);
+            reject_optional_in_extern_c_signatures(&output_header);
         },
     );
 }
@@ -2642,7 +2659,8 @@ fn generate_ffi_header_strict(config: cbindgen::Config, sources: &[PathBuf], out
         |bindings| {
             let output_header = out_dir.join(header);
             std::fs::create_dir_all(output_header.parent().unwrap()).unwrap();
-            bindings.write_to_file(output_header);
+            bindings.write_to_file(&output_header);
+            reject_optional_in_extern_c_signatures(&output_header);
         },
     );
 }
