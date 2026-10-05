@@ -2239,7 +2239,6 @@ impl StyleEngineState {
             .resize_required_to(&mut self.retained.memory, 0);
         self.retained.facts.release_staging(&mut self.retained.memory);
         self.host.program_staging.clear();
-        self.host.environment_move_changed_names.clear();
         self.sweep_selector_programs();
         self.shed_routing_for_detached_sheets();
     }
@@ -2258,12 +2257,6 @@ impl StyleEngineState {
         visited += self.retained.facts.collect_atoms(&mut atoms);
         visited += self.retained.program.collect_atoms(&mut atoms);
         visited += self.retained.programs.collect_atoms(&mut atoms);
-        for reads in self.retained.host_var_reads.values() {
-            if let inputs::HostVarReads::Names(names) = reads {
-                atoms.extend(names.iter().copied());
-                visited += names.len() as u64;
-            }
-        }
         if !self.retained.html_element_namespace.is_none() {
             atoms.insert(self.retained.html_element_namespace);
         }

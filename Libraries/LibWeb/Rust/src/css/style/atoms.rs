@@ -293,11 +293,6 @@ impl DocumentAtoms {
         atom
     }
 
-    /// The atom a raw atom was interned as, if it was.
-    pub(super) fn interned_raw(&self, raw: usize) -> Option<StyleAtomID> {
-        self.raw.get(&raw).copied()
-    }
-
     pub(super) fn intern_cpp_raw(&mut self, raw: usize) -> StyleAtomID {
         self.cpp_memoized_raws.insert(raw);
         self.intern_raw(raw)

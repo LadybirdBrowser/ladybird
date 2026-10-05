@@ -158,15 +158,6 @@ pub(crate) struct HeldCustomPropertyEnvironment {
     pub(crate) data: RetainedCustomPropertyData,
 }
 
-/// What the style C++ computed for an element reads of its custom-property environment through
-/// `var()`, kept while the element holds that computation's input record.
-pub(crate) enum HostVarReads {
-    /// The names it reads, sorted.
-    Names(Box<[StyleAtomID]>),
-    /// Reads no list of names can say, such as a `var()` whose name is itself substituted.
-    Unknown,
-}
-
 impl Drop for RetainedCustomPropertyData {
     fn drop(&mut self) {
         // SAFETY: The row owns exactly one reference, taken in `retain`.
@@ -1400,23 +1391,6 @@ impl RetainedState {
         })
     }
 
-    /// Record what the style C++ computed for an element reads through `var()`: nothing held when
-    /// the element holds no input record of that computation, else the names it reads, sorted, or
-    /// that it reads more than they say.
-    pub fn set_element_var_reads(&mut self, node: StyleNodeID, held: bool, complete: bool, name_atoms: &[StyleAtomID]) {
-        if !held {
-            self.host_var_reads.remove(&node);
-            return;
-        }
-        debug_assert!(name_atoms.is_sorted(), "an input record's reads are sorted");
-        let reads = if complete {
-            HostVarReads::Names(name_atoms.into())
-        } else {
-            HostVarReads::Unknown
-        };
-        self.host_var_reads.insert(node, reads);
-    }
-
     /// Record the CSS animations the host holds for one of an element's animation lists, in the
     /// order it holds them: each one's name, and the definition the last plan applied to it. The
     /// names arrive packed into one buffer because a list is almost always a single name, and a
@@ -1906,7 +1880,6 @@ impl StyleEngineState {
                 held_style_records: HashMap::default(),
                 backing_elements: HashMap::default(),
                 children_explicitly_inherit_marks: HashSet::default(),
-                host_var_reads: HashMap::default(),
                 css_defined_animations: Default::default(),
                 animation_keyframes: Default::default(),
                 animation_effect_descriptions: Default::default(),
@@ -1983,7 +1956,6 @@ impl StyleEngineState {
                 deferred_element_style_inputs: Vec::new(),
                 deferred_element_style_inputs_moved: false,
                 deferred_element_style_inputs_are_pending: false,
-                environment_move_changed_names: Default::default(),
                 environment_move_actions: Vec::new(),
                 deferred_element_style_input_memory: MemoryLease::new(MemoryCategory::NormalizationJournal),
                 initial_tree_batch_applied: false,
@@ -3274,7 +3246,6 @@ impl RetainedState {
             held_style_records,
             backing_elements,
             children_explicitly_inherit_marks,
-            host_var_reads,
             css_defined_animations,
             animation_keyframes: _,
             animation_effect_descriptions,
@@ -3386,7 +3357,6 @@ impl RetainedState {
             computed_group_sets.unpin_style_record(style_record);
         }
         children_explicitly_inherit_marks.remove(&node);
-        host_var_reads.remove(&node);
         css_defined_animations.retire(node);
         animation_effect_descriptions.retire(node);
         random_base_values.retire(node);

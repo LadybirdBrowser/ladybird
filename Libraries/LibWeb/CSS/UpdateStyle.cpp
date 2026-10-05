@@ -289,12 +289,12 @@ static void move_pseudo_element_environments(Layout::BegunRead const& read, DOM:
     }
 }
 
-static void move_custom_property_environment_below(Layout::BegunRead const&, DOM::Document&, DOM::Element&, RefPtr<CustomPropertyData const> const& old_base, RefPtr<CustomPropertyData const> const& new_base, CustomPropertyData const* changed_old_base, CustomPropertyData const* changed_new_base);
+static void move_custom_property_environment_below(Layout::BegunRead const&, DOM::Document&, DOM::Element&, RefPtr<CustomPropertyData const> const& old_base, RefPtr<CustomPropertyData const> const& new_base);
 
 // An element declaring custom properties of its own over the environment it inherits, whose
 // declared values stand because it reads nothing that changed: they are built again over the moved
 // environment, and the move goes on below the element.
-static void rebuild_custom_property_environment(Layout::BegunRead const& read, DOM::Document& document, DOM::Element& element, RefPtr<CustomPropertyData const> const& new_parent_inheritable, CustomPropertyData const* changed_old_base, CustomPropertyData const* changed_new_base)
+static void rebuild_custom_property_environment(Layout::BegunRead const& read, DOM::Document& document, DOM::Element& element, RefPtr<CustomPropertyData const> const& new_parent_inheritable)
 {
     auto existing_base = custom_property_environment_base(element, element.custom_property_data({}));
     VERIFY(existing_base && existing_base->declared_count() > 0);
@@ -312,7 +312,7 @@ static void rebuild_custom_property_environment(Layout::BegunRead const& read, D
     move_pseudo_element_environments(read, document, element, existing_base.ptr(), existing_inheritable.ptr(), moved);
     element.set_custom_property_data({}, moved);
     element.republish_style_record_environment(read);
-    move_custom_property_environment_below(read, document, element, existing_base, moved, changed_old_base, changed_new_base);
+    move_custom_property_environment_below(read, document, element, existing_base, moved);
 }
 
 // An element's custom properties moved. Every styled descendant holds the environment it inherits
@@ -320,10 +320,9 @@ static void rebuild_custom_property_environment(Layout::BegunRead const& read, D
 // descendants that hold the one the element handed down before, with their records, and answers
 // what is left here. That is installing those records, the environments of element-backed
 // pseudo-elements, which the engine does not keep, and the custom properties a descendant declares
-// itself, built again over the moved environment. A descendant whose style reads a name whose value
-// differs between `changed_old_base` and `changed_new_base`, or reads the environment another way,
+// itself, built again over the moved environment. A descendant whose style reads the environment
 // computes again.
-static void move_custom_property_environment_below(Layout::BegunRead const& read, DOM::Document& document, DOM::Element& element, RefPtr<CustomPropertyData const> const& old_base, RefPtr<CustomPropertyData const> const& new_base, CustomPropertyData const* changed_old_base, CustomPropertyData const* changed_new_base)
+static void move_custom_property_environment_below(Layout::BegunRead const& read, DOM::Document& document, DOM::Element& element, RefPtr<CustomPropertyData const> const& old_base, RefPtr<CustomPropertyData const> const& new_base)
 {
     auto& style_computer = document.style_computer();
     auto& style_engine = style_computer.style_engine();
@@ -333,8 +332,6 @@ static void move_custom_property_environment_below(Layout::BegunRead const& read
         return { .identity = data ? data->identity() : 0, .store = data ? data->rust_store() : nullptr };
     };
     StyleEngineFFI::FfiEnvironmentMove const moved {
-        .old_base = named(changed_old_base),
-        .new_base = named(changed_new_base),
         .old_inheritable = old_inheritable ? old_inheritable->identity() : 0,
         .new_inheritable = named(new_inheritable.ptr()),
         .new_inheritable_data = new_inheritable.ptr(),
@@ -365,7 +362,7 @@ static void move_custom_property_environment_below(Layout::BegunRead const& read
                 descendant->refresh_computed_style({}, StyleRecordID { action.style_record });
             break;
         case StyleEngineFFI::FfiEnvironmentMoveActionKind::Rebuild:
-            rebuild_custom_property_environment(read, document, *descendant, new_inheritable, changed_old_base, changed_new_base);
+            rebuild_custom_property_environment(read, document, *descendant, new_inheritable);
             break;
         case StyleEngineFFI::FfiEnvironmentMoveActionKind::Recompute:
             record_environment_move_recompute(style_engine, *descendant);
@@ -381,7 +378,7 @@ static void propagate_custom_property_environment_move(Layout::BegunRead const& 
         return;
     auto old_origin_base = custom_property_environment_base(origin, move(old_origin_data));
     auto new_origin_base = custom_property_environment_base(origin, origin.custom_property_data({}));
-    move_custom_property_environment_below(read, document, origin, old_origin_base, new_origin_base, old_origin_base.ptr(), new_origin_base.ptr());
+    move_custom_property_environment_below(read, document, origin, old_origin_base, new_origin_base);
 }
 
 // A record the engine settled for a row it published unsettled, by a demand: the row installs it as one the engine

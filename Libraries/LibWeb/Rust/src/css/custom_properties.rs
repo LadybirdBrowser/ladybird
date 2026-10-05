@@ -604,12 +604,6 @@ impl CustomPropertyStore {
         Self::animation_overlay(animated, base)
     }
 
-    /// The store this one's chain goes on in, which may skip the environment it inherits from
-    /// once that one's few values were absorbed into this one.
-    pub(crate) fn parent(&self) -> Option<&Arc<CustomPropertyStore>> {
-        self.parent.as_ref()
-    }
-
     pub(crate) fn get(&self, name_raw: usize) -> Option<&CustomPropertyEntry> {
         self.own_values
             .get(&name_raw)

@@ -86,7 +86,6 @@ fn every_retained_member_is_shareable(state: &RetainedState) {
         held_style_records,
         backing_elements,
         children_explicitly_inherit_marks,
-        host_var_reads,
         css_defined_animations,
         animation_keyframes,
         animation_effect_descriptions,
@@ -199,7 +198,6 @@ fn every_retained_member_is_shareable(state: &RetainedState) {
     assert_member_is_sync(held_style_records);
     assert_member_is_sync(backing_elements);
     assert_member_is_sync(children_explicitly_inherit_marks);
-    assert_member_is_sync(host_var_reads);
     assert_member_is_sync(css_defined_animations);
     assert_member_is_sync(animation_keyframes);
     assert_member_is_sync(animation_effect_descriptions);

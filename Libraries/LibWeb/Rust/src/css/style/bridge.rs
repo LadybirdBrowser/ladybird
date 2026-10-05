@@ -2505,15 +2505,12 @@ pub struct FfiNamedEnvironment {
     pub store: *const c_void,
 }
 
-/// A move of one element's custom-property environment, as the host made it: what its style
-/// resolved to before and resolves to now, and what it handed its children before and hands them
-/// now, with the host's object for the latter and whether that declares custom properties of its
-/// own.
+/// A move of one element's custom-property environment, as the host made it: what it handed its
+/// children before and hands them now, with the host's object for the latter and whether that
+/// declares custom properties of its own.
 #[derive(Clone, Copy)]
 #[repr(C)]
 pub struct FfiEnvironmentMove {
-    pub old_base: FfiNamedEnvironment,
-    pub new_base: FfiNamedEnvironment,
     pub old_inheritable: u64,
     pub new_inheritable: FfiNamedEnvironment,
     pub new_inheritable_data: *const c_void,
@@ -2595,8 +2592,6 @@ pub unsafe extern "C" fn style_engine_move_custom_property_environment(
                 store: environment.store,
             };
             let moved = super::environment_move::EnvironmentMove {
-                old_base: named(moved.old_base),
-                new_base: named(moved.new_base),
                 old_inheritable: moved.old_inheritable,
                 new_inheritable: named(moved.new_inheritable),
                 new_inheritable_data: moved.new_inheritable_data,

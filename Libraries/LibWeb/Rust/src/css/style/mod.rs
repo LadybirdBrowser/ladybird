@@ -135,7 +135,7 @@ use planning::*;
 use smallvec::SmallVec;
 use std::collections::VecDeque;
 use std::hash::{Hash, Hasher};
-use std::rc::Rc;
+
 use std::sync::Arc;
 use std::sync::Mutex;
 
@@ -876,10 +876,6 @@ pub struct RetainedState {
     /// The elements and shadow roots the host marked as having a child that explicitly inherits
     /// a non-inherited property: a move of the node's non-inherited groups reaches its children.
     children_explicitly_inherit_marks: HashSet<StyleNodeID>,
-    /// What the style C++ computed for an element reads through `var()`, for the elements that
-    /// hold the input record of such a computation. An element without one holds a record the
-    /// engine computed, whose reads the engine knows.
-    host_var_reads: HashMap<StyleNodeID, inputs::HostVarReads>,
     /// The names of the CSS animations the host holds for each element, which the computation of
     /// its animation definitions matches them against.
     css_defined_animations: animations::CssDefinedAnimations,
@@ -1066,9 +1062,6 @@ pub struct HostState {
     /// Whether the deferred element style inputs are owed to the next transaction, as opposed to
     /// held back by a flush without a document root.
     deferred_element_style_inputs_are_pending: bool,
-    /// The custom properties whose values differ between the environments moves of this
-    /// transaction moved between.
-    environment_move_changed_names: environment_move::ChangedCustomPropertyNames,
     /// What the last custom-property environment move answered the host, kept until the next one.
     environment_move_actions: Vec<bridge::FfiEnvironmentMoveAction>,
     deferred_element_style_input_memory: MemoryLease,
