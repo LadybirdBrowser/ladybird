@@ -114,8 +114,7 @@ pub(crate) trait LockstepReason: private::LockstepReason {}
 /// [`TaskBoundary`].
 pub(crate) trait EventLoopEntry: private::EventLoopEntry {}
 
-/// What a wait for a document's render state spends: a script's forced read, the read the host began, or a job's
-/// permit, which a begun read makes.
+/// What a wait for a document's render state spends: a script's forced read, or the read the host began.
 pub(crate) trait RenderWait: private::RenderWait {
     /// What takes a frame in flight in for the wait.
     fn into_read_right(self) -> ReadRight;
@@ -132,17 +131,6 @@ impl RenderWait for ScriptForcedRead {
     fn into_read_right(self) -> ReadRight {
         ReadRight::Forced(ForcedRead::Script(self))
     }
-}
-
-macro_rules! render_wait {
-    ($wait:ty) => {
-        impl private::RenderWait for $wait {}
-        impl RenderWait for $wait {
-            fn into_read_right(self) -> ReadRight {
-                ReadRight::Begun(SpendsBegunRead(()))
-            }
-        }
-    };
 }
 
 impl private::RenderWait for &BegunRead {}
@@ -169,9 +157,12 @@ impl RenderWait for super::NoFrameInFlight {
         ReadRight::Here(self)
     }
 }
-render_wait!(NodeRead);
-render_wait!(StyleJobPermit);
-render_wait!(FrameJobPermit);
+impl private::RenderWait for NodeRead {}
+impl RenderWait for NodeRead {
+    fn into_read_right(self) -> ReadRight {
+        ReadRight::Begun(SpendsBegunRead(()))
+    }
+}
 
 impl ScriptForcedRead {
     /// A forced read for a unit test.
@@ -257,53 +248,10 @@ pub(crate) struct StyledFirst {
     not_send_or_sync: PhantomData<*const ()>,
 }
 
-/// The right to send a document's render state a style transaction that is not a forced read's first job, and wait for
-/// it. Only the constructor below mints one.
-pub(crate) struct StyleJobPermit {
-    not_send_or_sync: PhantomData<*const ()>,
-}
-
-impl StyleJobPermit {
-    /// A style transaction of `_read` that is not its first job, as a style wave after the read's first, or a rendering
-    /// update's.
-    pub(crate) fn of_style_update(_read: &BegunRead) -> Self {
-        Self {
-            not_send_or_sync: PhantomData,
-        }
-    }
-}
-
-/// The right to send a document's render state a layout round that is not a forced read's first job, and wait for it.
-/// Only the constructors below mint one, so every extra round of a read says why it is one.
-pub(crate) struct FrameJobPermit {
-    not_send_or_sync: PhantomData<*const ()>,
-}
-
-impl FrameJobPermit {
-    /// A round of `_read` after one that left the update another round: it built a tree to lay out after the host
-    /// was paid for it, or style or layout work came back from what the host did after it.
-    pub(crate) fn for_next_round(_read: &BegunRead) -> Self {
-        Self {
-            not_send_or_sync: PhantomData,
-        }
-    }
-
-    /// The first round of a layout update in `_read`, whose first job was spent already: another pass for an image
-    /// that arrived or a scroll-state snapshot, or a second update the read's call runs.
-    pub(crate) fn read_lays_out_again(_read: &BegunRead) -> Self {
-        Self {
-            not_send_or_sync: PhantomData,
-        }
-    }
-}
-
 /// A style or layout job of a document's render state, which only [`force_read`] and [`run_job`] run.
 pub(crate) trait RenderJob: Send {
     /// What the render state answers the job with.
     type Answer: Send;
-
-    /// The permit that sends the job where it is not a forced read's first.
-    type Permit: RenderWait;
 
     /// Whether the job is a style transaction, which leaves a forced read's layout to a job of its own.
     const IS_STYLE: bool;
@@ -334,10 +282,10 @@ pub(crate) fn force_read_flown_style(read: ForcedRead, host: &DocumentHost) {
     }));
 }
 
-/// Runs `job`, a style or layout job of `host`'s document that is not a forced read's first, spending `_permit`, and
-/// waits for its answer.
-pub(crate) fn run_job<J: RenderJob>(permit: J::Permit, host: &DocumentHost, job: J) -> J::Answer {
-    send_job(host, permit, job)
+/// Runs `job`, a style or layout job of `host`'s document that is not a forced read's first, in `read`, and waits for
+/// its answer: another style wave or layout round of the read, or a rendering update's.
+pub(crate) fn run_job<J: RenderJob>(read: &BegunRead, host: &DocumentHost, job: J) -> J::Answer {
+    send_job(host, read, job)
 }
 
 fn send_job<J: RenderJob>(host: &DocumentHost, wait: impl RenderWait, job: J) -> J::Answer {

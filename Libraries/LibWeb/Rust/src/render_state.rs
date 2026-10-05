@@ -30,8 +30,8 @@ pub(crate) use document_host::TestHost;
 pub use wait::BegunRead;
 pub(crate) use wait::held_node_entries;
 pub(crate) use wait::{
-    ForcedRead, FrameJobPermit, LockstepProof, NodeRead, ReadRight, RenderJob, RenderWait, ScriptForcedRead,
-    StyleJobPermit, TaskBoundary, force_read, run_job,
+    ForcedRead, LockstepProof, NodeRead, ReadRight, RenderJob, RenderWait, ScriptForcedRead, TaskBoundary, force_read,
+    run_job,
 };
 
 /// One document's render state, on the render owner.
