@@ -142,10 +142,6 @@ pub(crate) fn publish_to_host(
 /// Whether a recording renders an SVG image, which only the host renders, so that only the host publishes it.
 pub(crate) fn renders_vector_images(pending: &PendingRecording) -> bool {
     !pending.recording.resources.vector_image_render_requests.is_empty()
-        || pending
-            .recording_from_scratch
-            .as_ref()
-            .is_some_and(|recording| !recording.resources.vector_image_render_requests.is_empty())
 }
 
 /// Hands the resources of a recording that renders no SVG image to `presenter` and makes its output, beside the event
@@ -165,11 +161,10 @@ fn publish_resources(
     pending: PendingRecording,
     recorder: &RecorderState,
     sink: &mut impl RecordingResourceSink,
-    mut resolve_vector_images: impl FnMut(&mut RecordingOutput, &[VectorImageRenderRequest]),
+    resolve_vector_images: impl FnOnce(&mut RecordingOutput, &[VectorImageRenderRequest]),
 ) -> RecordingOutput {
     let PendingRecording {
         recording: RecordingResult { mut output, resources },
-        recording_from_scratch,
         publishes_recording: _,
         svg_paint_resources,
     } = pending;
@@ -193,16 +188,6 @@ fn publish_resources(
         sink.add_video_sink(resource_id, sink_handle);
     }
     resolve_vector_images(&mut output, &vector_image_render_requests);
-    if let Some(mut recording_from_scratch) = recording_from_scratch {
-        resolve_vector_images(
-            &mut recording_from_scratch.output,
-            &recording_from_scratch.resources.vector_image_render_requests,
-        );
-        crate::painting::record::verify::verify_assembled_recording_matches_fresh(
-            &output,
-            &recording_from_scratch.output,
-        );
-    }
     output.is_identical_to_published_recording = recorder
         .published_recording
         .as_ref()

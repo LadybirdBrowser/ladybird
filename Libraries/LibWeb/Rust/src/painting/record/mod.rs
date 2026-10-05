@@ -24,7 +24,6 @@ pub mod svg_resources;
 pub mod trace;
 pub mod traversal;
 pub(crate) mod vector_images;
-pub(crate) mod verify;
 
 use crate::css::css_enums;
 use crate::css::css_pixels::CssPixelRect;
@@ -60,7 +59,7 @@ pub struct RecordingOutput {
     pub has_blocking_wheel_event_listeners: bool,
     pub wheel_event_listener_state_generation: u64,
     pub is_identical_to_published_recording: bool,
-    pub(crate) capture_log_for_verification: Option<verify::CaptureLog>,
+    pub(crate) capture_log: Option<trace::CaptureLog>,
 }
 
 pub(crate) struct RecordingResult {
@@ -111,9 +110,6 @@ pub struct PaintRecorder<'a, O: Observer> {
     pub(crate) source_items: Option<Arc<PublishedHitTestItems>>,
     // Set while a producer records output that must record again every frame.
     live_producer: bool,
-    // The verification recording plans from current style instead of the prepared per-row
-    // inputs, so a snapshot that went stale shows up as a difference.
-    pub(crate) plan_from_prepared_inputs: bool,
     // Rows of the layout subtrees whose root moved: every producer of theirs records again.
     pub(crate) moved_expansion: FastSet<NodeSlotId>,
     pub(crate) blocking_wheel_event_region_count: u32,

@@ -12,7 +12,6 @@ use std::sync::Arc;
 
 pub(crate) struct PendingRecording {
     pub(crate) recording: crate::painting::record::RecordingResult,
-    pub(crate) recording_from_scratch: Option<crate::painting::record::RecordingResult>,
     pub(crate) publishes_recording: bool,
     /// The SVG paint resources the recording's frame was published with, whose filter images
     /// its publication hands to the host.

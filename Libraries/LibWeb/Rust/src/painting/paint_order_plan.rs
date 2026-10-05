@@ -199,19 +199,12 @@ impl PaintOrderInputs {
 }
 
 impl PaintScopePlan {
-    /// With prepared inputs, planning reads the snapshots kept on the rows instead of style
-    /// and layout facts. Without them it gathers current inputs, so a canonical plan can
-    /// detect a stale snapshot.
-    pub(crate) fn build(
-        arena: &impl PaintRead,
-        scope: PaintScope,
-        paint_overlay: bool,
-        use_prepared_inputs: bool,
-    ) -> Self {
+    /// Planning reads the snapshots kept on the rows, and gathers style and layout facts only
+    /// for a row that has none.
+    pub(crate) fn build(arena: &impl PaintRead, scope: PaintScope, paint_overlay: bool) -> Self {
         let mut builder = PaintOrderBuilder {
             layout_arena: arena,
             paint_overlay,
-            use_prepared_inputs,
             items: SmallVec::new(),
             last_inputs: std::cell::Cell::new(None),
         };
@@ -234,7 +227,6 @@ impl PaintScopePlan {
 struct PaintOrderBuilder<'a, R: PaintRead> {
     layout_arena: &'a R,
     paint_overlay: bool,
-    use_prepared_inputs: bool,
     items: SmallVec<[PaintOrderItem; 16]>,
     // Planning asks several questions about the same row in a row; keep its answers.
     last_inputs: std::cell::Cell<Option<(NodeSlotId, PaintOrderInputs)>>,
@@ -247,12 +239,10 @@ impl<R: PaintRead> PaintOrderBuilder<'_, R> {
         {
             return inputs;
         }
-        let prepared = if self.use_prepared_inputs {
-            self.layout_arena.prepared_paint_order_inputs(row)
-        } else {
-            None
-        };
-        let inputs = prepared.unwrap_or_else(|| PaintOrderInputs::gather(self.layout_arena, row));
+        let inputs = self
+            .layout_arena
+            .prepared_paint_order_inputs(row)
+            .unwrap_or_else(|| PaintOrderInputs::gather(self.layout_arena, row));
         self.last_inputs.set(Some((row, inputs)));
         inputs
     }
@@ -691,27 +681,5 @@ mod tests {
         arena.set_node_flag(child, NodeFlag::IsFlexItem, true);
         let as_flex_item = PaintOrderInputs::gather(&arena.paintable_rows(), child);
         assert!(arena.update_paint_order_inputs(child, as_flex_item));
-    }
-
-    #[test]
-    fn canonical_planning_can_detect_stale_prepared_inputs() {
-        let mut arena = LayoutNodeArena::new();
-        let row = arena.allocate_for_test().slot;
-        arena.write_shape(row).set_kind(NodeKind::Box);
-        arena.populate_paintable_row(row);
-        arena.refresh_paint_order_inputs(row);
-        // Deliberately omit the refresh after a participation change. The canonical planner
-        // must see the new state independently of that snapshot.
-        arena.write_shape(row).set_flags(NodeFlag::IsFlexItem as u32);
-        let scope = PaintScope {
-            owner: row,
-            kind: PaintScopeKind::Descendants(StackingContextPaintPhase::Foreground),
-        };
-        let prepared = PaintScopePlan::build(&arena.paintable_rows(), scope, false, true);
-        let canonical = PaintScopePlan::build(&arena.paintable_rows(), scope, false, false);
-        assert_ne!(prepared.items, canonical.items);
-        arena.refresh_paint_order_inputs(row);
-        let updated = PaintScopePlan::build(&arena.paintable_rows(), scope, false, true);
-        assert_eq!(updated.items, canonical.items);
     }
 }
