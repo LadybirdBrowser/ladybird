@@ -25,6 +25,7 @@ use crate::layout::text_chunker::{GraphemeSegmenter, code_point_at, code_unit_le
 use crate::layout::tree_mutation::{HostCalls, OwedHostWork, UnplacedLayoutNode};
 use crate::layout::tree_update_marks::layout_tree_update_reuse_reason;
 use crate::layout::{ComputedValuesView, FfiDisplay};
+use crate::painting::paint_read::PaintRead;
 
 type LayoutNode = NodeSlotId;
 

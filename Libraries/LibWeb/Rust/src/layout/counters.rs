@@ -16,6 +16,7 @@ use crate::css::css_string::CssString;
 use crate::css::style::StyleEngine;
 use crate::css::style::fast_hash::FastMap as HashMap;
 use crate::css::style::tree::StyleNodeID;
+use crate::painting::paint_read::PaintRead;
 use std::sync::Arc;
 
 // "UAs may have implementation-specific limits on the maximum or minimum value of a counter.

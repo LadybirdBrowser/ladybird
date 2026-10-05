@@ -5041,16 +5041,6 @@ impl LayoutNodeArena {
             .is_some_and(|metadata| metadata.occupied && metadata.generation == id.generation())
     }
 
-    /// Whether the row was built for a DOM node. The node itself is named by the row's identity
-    /// and resolved on the host side.
-    pub(crate) fn node_is_dom_backed(&self, id: NodeSlotId) -> bool {
-        crate::painting::paint_read::PaintRead::node_is_dom_backed(self, id)
-    }
-
-    pub(crate) fn node_is_element_backed(&self, id: NodeSlotId) -> bool {
-        crate::painting::paint_read::PaintRead::node_is_element_backed(self, id)
-    }
-
     pub(crate) fn previous_dom_backed_or_generated_node(
         &self,
         start: NodeSlotId,
@@ -5626,7 +5616,7 @@ mod tests {
     };
     use crate::layout::node_data::{NodeConstructionFacts, NodeFlag, NodeKind, NodeSlotId};
     use crate::layout::{CssPixels, fragment_tree, used_values};
-    use crate::painting::paint_read::GeometryRead;
+    use crate::painting::paint_read::{GeometryRead, PaintRead};
     use std::ffi::c_void;
 
     fn test_construction_facts() -> NodeConstructionFacts {
