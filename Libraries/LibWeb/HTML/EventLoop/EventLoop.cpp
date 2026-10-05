@@ -479,6 +479,12 @@ static GC::RootVector<GC::Ref<Page>> pages_of_local_roots()
     return pages;
 }
 
+enum class HeldTasks : u8 {
+    None,
+    OfLastDocument,
+    All,
+};
+
 // A rendering update whose style transaction flies for its last document, with what its steps from that document's style
 // and layout on read.
 struct EventLoop::RenderingUpdateInFlight {
@@ -491,8 +497,8 @@ struct EventLoop::RenderingUpdateInFlight {
     double update_start_time { 0 };
     // The event loop does not take the transaction in while a test holds it.
     bool held_for_testing { false };
-    // Whether the tasks of the doc whose transaction flew wait for the whole of the update rather than run beside it.
-    bool holds_tasks_of_document { false };
+    // Whose tasks wait for the whole of the update rather than run beside it.
+    HeldTasks held_tasks { HeldTasks::None };
 };
 
 // The end of a rendering update, once its last step has run.
@@ -531,19 +537,25 @@ void EventLoop::finish_rendering_update(double update_start_time)
     m_last_rendering_update_end_time = update_end_time;
 }
 
-// Whether a rendering update of `document` whose style transaction flies holds back the tasks of the document until the
-// whole of it has run, as the steps after its style and layout deliver to its script what comes before any of its tasks:
-// the resize observations its layout answers, and the animations it samples and transitions it starts, whose timing
+// Which tasks a rendering update whose style transaction flies for its last doc holds back until the whole of it has
+// run, as the steps after its style and layout deliver to script what comes before any task: the intersection
+// observations of every doc, whose roots and targets the script of any document may reach, rendered or not, the resize
+// observations the last doc's layout answers, and the animations it samples and transitions it starts, whose timing
 // script sees follow the update.
-static bool rendering_update_holds_tasks_of_document(DOM::Document& document)
+static HeldTasks tasks_rendering_update_holds(Vector<GC::Root<DOM::Document>> const& docs)
 {
+    if (any_of(docs, [](auto const& document) { return document->has_intersection_observation_targets(); }))
+        return HeldTasks::All;
+    auto& document = *docs.last();
     if (document.has_resize_observers())
-        return true;
+        return HeldTasks::OfLastDocument;
     for (auto const& timeline : document.associated_animation_timelines()) {
         if (!timeline->associated_animations().is_empty())
-            return true;
+            return HeldTasks::OfLastDocument;
     }
-    return document.style_computer().style_engine().css_transitions_may_observe_style_changes();
+    if (document.style_computer().style_engine().css_transitions_may_observe_style_changes())
+        return HeldTasks::OfLastDocument;
+    return HeldTasks::None;
 }
 
 static void update_style_and_layout_for_rendering(DOM::Document&);
@@ -670,8 +682,8 @@ void EventLoop::update_the_rendering()
                     // The rendering task ends here: a rendering opportunity meanwhile queues the next one, which keeps
                     // its place in the queue until this update has finished.
                     m_running_rendering_task = false;
-                    bool holds_tasks_of_document = rendering_update_holds_tasks_of_document(document);
-                    m_rendering_update_in_flight = make<RenderingUpdateInFlight>(move(docs), frame_timestamp, update_start_time, exchange(m_holds_next_frame_for_testing, false), holds_tasks_of_document);
+                    auto held_tasks = tasks_rendering_update_holds(docs);
+                    m_rendering_update_in_flight = make<RenderingUpdateInFlight>(move(docs), frame_timestamp, update_start_time, exchange(m_holds_next_frame_for_testing, false), held_tasks);
                     return;
                 }
             }
@@ -997,8 +1009,18 @@ bool EventLoop::holds_rendering_opportunity() const
 bool EventLoop::holds_tasks_of(DOM::Document const* document) const
 {
     // A test that holds the update in flight runs the document's tasks beside it.
-    return document && m_rendering_update_in_flight && m_rendering_update_in_flight->holds_tasks_of_document
-        && !m_rendering_update_in_flight->held_for_testing && document == &m_rendering_update_in_flight->document();
+    if (!m_rendering_update_in_flight || m_rendering_update_in_flight->held_for_testing)
+        return false;
+    auto const& update = *m_rendering_update_in_flight;
+    switch (update.held_tasks) {
+    case HeldTasks::None:
+        return false;
+    case HeldTasks::OfLastDocument:
+        return !document || document == &update.document();
+    case HeldTasks::All:
+        return true;
+    }
+    VERIFY_NOT_REACHED();
 }
 
 void EventLoop::take_finished_frames_in()

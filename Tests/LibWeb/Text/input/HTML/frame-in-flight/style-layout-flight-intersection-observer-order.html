@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<div id="target" style="position: absolute; top: 0; left: 0; width: 20px; height: 20px"></div>
+<iframe id="suppressed" style="position: absolute; top: 0; left: 300px; width: 50px; height: 50px; border: none" srcdoc="suppressed"></iframe>
+<iframe id="frame" style="position: absolute; top: 0; left: 100px; width: 100px; height: 100px; border: none" srcdoc="<style>.alternate .row { color: blue }</style><body style='margin: 0'><div id=inner style='position: absolute; top: 0; left: 0; width: 20px; height: 20px'></div>"></iframe>
+<script>
+    promiseTest(async () => {
+        if (document.readyState !== "complete")
+            await new Promise(resolve => window.addEventListener("load", resolve, { once: true }));
+        const child = document.getElementById("frame").contentDocument;
+        // The rows of the iframe that each animation frame callback restyles make the iframe the document whose style
+        // and layout fly, and keep them in flight as the event loop takes its next task.
+        for (let i = 0; i < 2000; i++) {
+            const row = child.createElement("div");
+            row.className = "row";
+            row.textContent = `row ${i}`;
+            child.body.append(row);
+        }
+
+        async function observeAcrossQueuedTask(observedTarget, scriptWindow, queueTask) {
+            const entries = [];
+            const observer = new scriptWindow.IntersectionObserver(observed => {
+                for (const entry of observed)
+                    entries.push(entry.isIntersecting);
+            });
+            observer.observe(observedTarget);
+            await new Promise(resolve => {
+                scriptWindow.requestAnimationFrame(() => {
+                    observedTarget.style.top = "5000px";
+                    child.body.classList.toggle("alternate");
+                    queueTask(() => {
+                        observedTarget.style.top = "0px";
+                        resolve();
+                    });
+                });
+            });
+            await twoFrames();
+            await nextTask();
+            observer.disconnect();
+            return entries.join(",");
+        }
+
+        function postMessageFrom(scriptWindow) {
+            return steps => {
+                const channel = new scriptWindow.MessageChannel();
+                channel.port1.onmessage = steps;
+                channel.port2.postMessage(null);
+            };
+        }
+
+        println(`container: ${await observeAcrossQueuedTask(target, window, postMessageFrom(window))}`);
+        // The implicit root of the iframe's observer is in the container's document.
+        const inner = child.getElementById("inner");
+        println(`iframe: ${await observeAcrossQueuedTask(inner, child.defaultView, postMessageFrom(child.defaultView))}`);
+        const item = new DataTransfer().items.add("text", "text/plain");
+        println(`task without a document: ${await observeAcrossQueuedTask(target, window, steps => item.getAsString(steps))}`);
+
+        // A pending view transition suppresses the rendering of the other iframe, which leaves it out of the update.
+        const suppressed = document.getElementById("suppressed").contentDocument;
+        let finishTransition;
+        await new Promise(resolve => {
+            suppressed.startViewTransition(() => {
+                resolve();
+                return new Promise(finish => finishTransition = finish);
+            });
+        });
+        println(`task of a document left out of the update: ${await observeAcrossQueuedTask(target, window, postMessageFrom(suppressed.defaultView))}`);
+        finishTransition();
+    });
+</script>

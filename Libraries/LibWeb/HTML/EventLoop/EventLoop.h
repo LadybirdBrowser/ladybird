@@ -166,7 +166,8 @@ public:
     // in the queue until the frame has been taken in, rather than wait for it.
     bool holds_rendering_opportunity() const;
     // Whether the tasks of `document` wait for the rendering update in flight: its steps after its style and layout
-    // deliver to the document's script what comes before any of its tasks. The tasks of other documents run beside it.
+    // deliver to the document's script what comes before any of its tasks. A task of no document waits whenever the
+    // tasks of any document do, and an update with intersection observations to update holds every task.
     bool holds_tasks_of(DOM::Document const*) const;
     void hold_next_frame_for_testing() { m_holds_next_frame_for_testing = true; }
     // Has the next recording that flies leave its frame for the host to present once it lands.
