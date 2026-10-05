@@ -359,7 +359,7 @@ unsafe fn owned<T: Copy>(values: *const T, count: usize) -> Box<[T]> {
 /// `FontCascadeMemo`, and `feature_values_shadow_scopes` must point at `feature_values_shadow_scope_count` scopes.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_publish_font_faces(
-    host: *const DocumentHost,
+    host: &DocumentHost,
     snapshot: *const c_void,
     memo: *const c_void,
     feature_values_shadow_scopes: *const u32,
@@ -377,8 +377,7 @@ pub unsafe extern "C" fn style_engine_publish_font_faces(
         font_faces,
         feature_values_shadow_scopes,
     };
-    // SAFETY: Guaranteed by the caller.
-    unsafe { queue(host, write) };
+    host.queue_change(ArenaChange::Engine(write));
 }
 
 /// Keeps the custom-property environment an element now holds, named by `identity`: for the element's animation
@@ -389,7 +388,7 @@ pub unsafe extern "C" fn style_engine_publish_font_faces(
 /// `host` must be a live document host, and `data` null or a live `Web::CSS::CustomPropertyData`.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_set_element_custom_property_data(
-    host: *const DocumentHost,
+    host: &DocumentHost,
     node: u32,
     data: *const c_void,
     identity: u64,
@@ -400,8 +399,6 @@ pub unsafe extern "C" fn style_engine_set_element_custom_property_data(
     let Some(node) = StyleNodeID::from_raw(node) else {
         return;
     };
-    // SAFETY: Guaranteed by the caller.
-    let host = unsafe { document_host(host) };
     host.engine_memo().held.borrow_mut().follow_element(node, data);
     // SAFETY: Guaranteed by the caller.
     let data = (!data.is_null()).then(|| unsafe { RetainedCustomPropertyData::retain(data) });
@@ -422,7 +419,7 @@ pub unsafe extern "C" fn style_engine_set_element_custom_property_data(
 /// `host` must be a live document host, and `data` null or a live `Web::CSS::CustomPropertyData`.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_set_pseudo_element_custom_property_data(
-    host: *const DocumentHost,
+    host: &DocumentHost,
     node: u32,
     pseudo: u8,
     data: *const c_void,
@@ -431,8 +428,6 @@ pub unsafe extern "C" fn style_engine_set_pseudo_element_custom_property_data(
     let Some(node) = StyleNodeID::from_raw(node) else {
         return;
     };
-    // SAFETY: Guaranteed by the caller.
-    let host = unsafe { document_host(host) };
     host.engine_memo()
         .held
         .borrow_mut()
@@ -454,9 +449,9 @@ pub unsafe extern "C" fn style_engine_set_pseudo_element_custom_property_data(
 /// # Safety
 /// `host` must be a live document host, and `raw` the raw identity of a live `AK::Utf16FlyString`.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn document_host_intern_atom(host: *const DocumentHost, raw: usize) -> u32 {
+pub unsafe extern "C" fn document_host_intern_atom(host: &DocumentHost, raw: usize) -> u32 {
     // SAFETY: Guaranteed by the caller.
-    unsafe { adopt(host, AtomLease::acquire_raw(raw)) }
+    adopt(host, unsafe { AtomLease::acquire_raw(raw) })
 }
 
 /// Interns `name` qualified by `namespace` for the document, as [`document_host_intern_atom`] does a name.
@@ -464,28 +459,17 @@ pub unsafe extern "C" fn document_host_intern_atom(host: *const DocumentHost, ra
 /// # Safety
 /// `host` must be a live document host.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn document_host_intern_qualified_atom(
-    host: *const DocumentHost,
-    namespace: u32,
-    name: u32,
-) -> u32 {
-    // SAFETY: Guaranteed by the caller.
-    unsafe {
-        adopt(
-            host,
-            AtomLease::acquire_qualified(StyleAtomID(namespace), StyleAtomID(name)),
-        )
-    }
+pub unsafe extern "C" fn document_host_intern_qualified_atom(host: &DocumentHost, namespace: u32, name: u32) -> u32 {
+    adopt(
+        host,
+        AtomLease::acquire_qualified(StyleAtomID(namespace), StyleAtomID(name)),
+    )
 }
 
 /// Queues the engine's adoption of the atom `lease` holds, and answers the atom.
-///
-/// # Safety
-/// `host` must be a live document host.
-unsafe fn adopt(host: *const DocumentHost, lease: AtomLease) -> u32 {
+fn adopt(host: &DocumentHost, lease: AtomLease) -> u32 {
     let atom = lease.atom().0;
-    // SAFETY: Guaranteed by the caller.
-    unsafe { queue(host, EngineWrite::AdoptAtom(lease)) };
+    host.queue_change(ArenaChange::Engine(EngineWrite::AdoptAtom(lease)));
     atom
 }
 
@@ -496,7 +480,7 @@ unsafe fn adopt(host: *const DocumentHost, lease: AtomLease) -> u32 {
 /// `length` code units.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_note_custom_property_name(
-    host: *const DocumentHost,
+    host: &DocumentHost,
     name: u32,
     raw: usize,
     text: *const u16,
@@ -513,8 +497,7 @@ pub unsafe extern "C" fn style_engine_note_custom_property_name(
         // SAFETY: Guaranteed by the caller.
         text: unsafe { owned(text, length) },
     };
-    // SAFETY: Guaranteed by the caller.
-    unsafe { queue(host, write) };
+    host.queue_change(ArenaChange::Engine(write));
 }
 
 /// Makes the `count` identities at `nodes`, which the host minted, live.
@@ -522,9 +505,10 @@ pub unsafe extern "C" fn style_engine_note_custom_property_name(
 /// # Safety
 /// `host` must be a live document host, and `nodes` must point at `count` readable `u32` values.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_mint_style_nodes(host: *const DocumentHost, nodes: *const u32, count: usize) {
+pub unsafe extern "C" fn style_engine_mint_style_nodes(host: &DocumentHost, nodes: *const u32, count: usize) {
     // SAFETY: Guaranteed by the caller.
-    unsafe { queue(host, EngineWrite::MintStyleNodes(owned(nodes, count))) };
+    let nodes = unsafe { owned(nodes, count) };
+    host.queue_change(ArenaChange::Engine(EngineWrite::MintStyleNodes(nodes)));
 }
 
 /// Applies the host's input transaction.
@@ -532,14 +516,10 @@ pub unsafe extern "C" fn style_engine_mint_style_nodes(host: *const DocumentHost
 /// # Safety
 /// `host` must be a live document host, and each pointer of `transaction` must cover its stated count.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_apply_transaction(
-    host: *const DocumentHost,
-    transaction: &FfiStyleInputTransaction,
-) {
+pub unsafe extern "C" fn style_engine_apply_transaction(host: &DocumentHost, transaction: &FfiStyleInputTransaction) {
     // SAFETY: Guaranteed by the caller.
     let write = EngineWrite::ApplyTransaction(Box::new(unsafe { input_transaction(transaction) }));
-    // SAFETY: Guaranteed by the caller.
-    unsafe { queue(host, write) };
+    host.queue_change(ArenaChange::Engine(write));
 }
 
 /// Records the parts the element exposes, each with the shadow host at `hosts` it is exposed to.
@@ -548,7 +528,7 @@ pub unsafe extern "C" fn style_engine_apply_transaction(
 /// `host` must be a live document host, and `names` and `hosts` must each point at `count` readable values.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_set_element_parts(
-    host: *const DocumentHost,
+    host: &DocumentHost,
     node: u32,
     names: *const u32,
     hosts: *const u32,
@@ -557,8 +537,7 @@ pub unsafe extern "C" fn style_engine_set_element_parts(
     // SAFETY: Guaranteed by the caller.
     let (names, hosts) = unsafe { (borrow(names, count), borrow(hosts, count)) };
     if let Some((node, pairs)) = element_parts(node, names, hosts) {
-        // SAFETY: Guaranteed by the caller.
-        unsafe { queue(host, EngineWrite::ElementParts { node, pairs }) };
+        host.queue_change(ArenaChange::Engine(EngineWrite::ElementParts { node, pairs }));
     }
 }
 
@@ -567,11 +546,10 @@ pub unsafe extern "C" fn style_engine_set_element_parts(
 /// # Safety
 /// `host` must be a live document host, and the caller transfers one reference to the live string `data`.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_set_text_data(host: *const DocumentHost, node: u32, data: usize) {
+pub unsafe extern "C" fn style_engine_set_text_data(host: &DocumentHost, node: u32, data: usize) {
     // SAFETY: Guaranteed by the caller.
     let data = unsafe { ak::Utf16String::from_raw_owned(data) };
-    // SAFETY: Guaranteed by the caller.
-    unsafe { queue(host, EngineWrite::TextData { node, data }) };
+    host.queue_change(ArenaChange::Engine(EngineWrite::TextData { node, data }));
 }
 
 /// Records the language the element resolves to, and the tag a `:lang()` range compares against.
@@ -580,7 +558,7 @@ pub unsafe extern "C" fn style_engine_set_text_data(host: *const DocumentHost, n
 /// `host` must be a live document host, and `text` must point at `text_length` readable code units.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_set_element_language(
-    host: *const DocumentHost,
+    host: &DocumentHost,
     node: u32,
     language: u32,
     text: *const u16,
@@ -588,8 +566,7 @@ pub unsafe extern "C" fn style_engine_set_element_language(
 ) {
     // SAFETY: Guaranteed by the caller.
     let text = unsafe { borrow(text, text_length) };
-    // SAFETY: Guaranteed by the caller.
-    unsafe { queue(host, EngineWrite::element_language(node, language, text)) };
+    host.queue_change(ArenaChange::Engine(EngineWrite::element_language(node, language, text)));
 }
 
 /// The document host `host` names.
@@ -627,15 +604,11 @@ pub(crate) fn with_engine_and_arena<R>(
 ///
 /// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_element_custom_property_data(
-    host: *const DocumentHost,
-    node: u32,
-) -> *const c_void {
+pub unsafe extern "C" fn style_engine_element_custom_property_data(host: &DocumentHost, node: u32) -> *const c_void {
     let Some(node) = StyleNodeID::from_raw(node) else {
         return std::ptr::null();
     };
-    // SAFETY: Guaranteed by the caller.
-    unsafe { document_host(host) }.engine_memo().held.borrow().element(node)
+    host.engine_memo().held.borrow().element(node)
 }
 
 /// The custom-property environment one of an element's synthetic pseudo-elements holds, or null.
@@ -645,19 +618,14 @@ pub unsafe extern "C" fn style_engine_element_custom_property_data(
 /// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_pseudo_element_custom_property_data(
-    host: *const DocumentHost,
+    host: &DocumentHost,
     node: u32,
     pseudo: u8,
 ) -> *const c_void {
     let Some(node) = StyleNodeID::from_raw(node) else {
         return std::ptr::null();
     };
-    // SAFETY: Guaranteed by the caller.
-    unsafe { document_host(host) }
-        .engine_memo()
-        .held
-        .borrow()
-        .pseudo_element(node, pseudo)
+    host.engine_memo().held.borrow().pseudo_element(node, pseudo)
 }
 
 /// Which of an element's synthetic pseudo-elements hold a custom-property environment, as a bit set by kind.
@@ -666,19 +634,11 @@ pub unsafe extern "C" fn style_engine_pseudo_element_custom_property_data(
 ///
 /// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_pseudo_elements_with_custom_property_data(
-    host: *const DocumentHost,
-    node: u32,
-) -> u64 {
+pub unsafe extern "C" fn style_engine_pseudo_elements_with_custom_property_data(host: &DocumentHost, node: u32) -> u64 {
     let Some(node) = StyleNodeID::from_raw(node) else {
         return 0;
     };
-    // SAFETY: Guaranteed by the caller.
-    unsafe { document_host(host) }
-        .engine_memo()
-        .held
-        .borrow()
-        .pseudo_element_kinds(node)
+    host.engine_memo().held.borrow().pseudo_element_kinds(node)
 }
 
 /// The nodes whose style depends on the viewport, handed to `append` one by one.
@@ -688,13 +648,12 @@ pub unsafe extern "C" fn style_engine_pseudo_elements_with_custom_property_data(
 /// `host` must be a live document host, on its document's thread, and `append` must take each node synchronously.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_viewport_dependent_nodes(
-    host: *const DocumentHost,
+    host: &DocumentHost,
     read: &crate::render_state::BegunRead,
     context: *mut c_void,
     append: unsafe extern "C" fn(*mut c_void, u32),
 ) {
-    // SAFETY: Guaranteed by the caller.
-    let nodes = with_engine(read, unsafe { document_host(host) }, |engine| {
+    let nodes = with_engine(read, host, |engine| {
         engine
             .computed_group_sets
             .viewport_dependent_nodes(|environment| engine.custom_property_environments.reads_viewport(environment))
@@ -712,15 +671,11 @@ pub unsafe extern "C" fn style_engine_viewport_dependent_nodes(
 ///
 /// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_park_element_random_base_values(
-    host: *const DocumentHost,
-    node: u32,
-) -> *const c_void {
+pub unsafe extern "C" fn style_engine_park_element_random_base_values(host: &DocumentHost, node: u32) -> *const c_void {
     let Some(node) = StyleNodeID::from_raw(node) else {
         return std::ptr::null();
     };
-    // SAFETY: Guaranteed by the caller.
-    if !unsafe { document_host(host) }.element_random_base_values_may_exist() {
+    if !host.element_random_base_values_may_exist() {
         return std::ptr::null();
     }
     let slot = ParkedBaseValues::default();
@@ -745,7 +700,7 @@ pub unsafe extern "C" fn style_engine_park_element_random_base_values(
 /// [`style_engine_park_element_random_base_values`] answered.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_unpark_element_random_base_values(
-    host: *const DocumentHost,
+    host: &DocumentHost,
     node: u32,
     slot: *const c_void,
 ) {
@@ -754,8 +709,7 @@ pub unsafe extern "C" fn style_engine_unpark_element_random_base_values(
     let Some(node) = StyleNodeID::from_raw(node) else {
         return;
     };
-    // SAFETY: Guaranteed by the caller.
-    unsafe { queue(host, EngineWrite::UnparkRandomBaseValues { node, slot }) };
+    host.queue_change(ArenaChange::Engine(EngineWrite::UnparkRandomBaseValues { node, slot }));
 }
 
 /// Lets go of a slot of random base values the element that held it no longer needs.
@@ -776,7 +730,7 @@ pub unsafe extern "C" fn style_engine_release_random_base_values(slot: *const c_
 /// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_answer_record_demand(
-    host: *const DocumentHost,
+    host: &DocumentHost,
     read: &crate::render_state::BegunRead,
     node: u32,
     demand: FfiRecordDemand,
@@ -792,7 +746,7 @@ pub unsafe extern "C" fn style_engine_answer_record_demand(
 /// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_answer_pseudo_element_record_demand(
-    host: *const DocumentHost,
+    host: &DocumentHost,
     read: &crate::render_state::BegunRead,
     node: u32,
     demand: FfiPseudoElementRecordDemand,
@@ -806,7 +760,7 @@ pub unsafe extern "C" fn style_engine_answer_pseudo_element_record_demand(
 ///
 /// `host` must be a live document host, on its document's thread.
 unsafe fn ask_record_demand(
-    host: *const DocumentHost,
+    host: &DocumentHost,
     read: &crate::render_state::BegunRead,
     node: u32,
     demand: RecordDemand,
@@ -814,8 +768,7 @@ unsafe fn ask_record_demand(
     let Some(node) = StyleNodeID::from_raw(node) else {
         return FfiRecordDemandAnswer::default();
     };
-    // SAFETY: Guaranteed by the caller.
-    with_engine(read, unsafe { document_host(host) }, |engine| {
+    with_engine(read, host, |engine| {
         super::bridge::answer_record_demand(engine, node, demand)
     })
 }
@@ -827,12 +780,10 @@ unsafe fn ask_record_demand(
 /// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_style_record_dependency_flags(
-    host: *const DocumentHost,
+    host: &DocumentHost,
     read: &crate::render_state::BegunRead,
     style_record: u64,
 ) -> u8 {
-    // SAFETY: Guaranteed by the caller.
-    let host = unsafe { document_host(host) };
     let memo = &host.engine_memo().dependency_flags;
     if let Some(flags) = memo.get(style_record) {
         return flags;
@@ -859,12 +810,10 @@ pub unsafe extern "C" fn style_engine_style_record_dependency_flags(
 /// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_style_record_custom_property_environment(
-    host: *const DocumentHost,
+    host: &DocumentHost,
     read: &crate::render_state::BegunRead,
     style_record: u64,
 ) -> u64 {
-    // SAFETY: Guaranteed by the caller.
-    let host = unsafe { document_host(host) };
     let memo = &host.engine_memo().record_environments;
     if let Some(environment) = memo.get(style_record) {
         return environment;
@@ -1185,20 +1134,11 @@ pub(crate) fn known_style_record_view(
 ///
 /// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_transition_baseline(
-    host: *const DocumentHost,
-    node: u32,
-    pseudo_kind: u8,
-) -> u64 {
+pub unsafe extern "C" fn style_engine_transition_baseline(host: &DocumentHost, node: u32, pseudo_kind: u8) -> u64 {
     let Some(node) = StyleNodeID::from_raw(node) else {
         return 0;
     };
-    // SAFETY: Guaranteed by the caller.
-    unsafe { document_host(host) }
-        .engine_memo()
-        .baselines
-        .borrow()
-        .get(node, pseudo_kind)
+    host.engine_memo().baselines.borrow().get(node, pseudo_kind)
 }
 
 /// Whether the engine has a style transaction pending, which the host knows without asking where it wrote nothing
@@ -1208,9 +1148,7 @@ pub unsafe extern "C" fn style_engine_transition_baseline(
 ///
 /// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_has_pending_transaction(host: *const DocumentHost, read: &BegunRead) -> bool {
-    // SAFETY: Guaranteed by the caller.
-    let host = unsafe { document_host(host) };
+pub unsafe extern "C" fn style_engine_has_pending_transaction(host: &DocumentHost, read: &BegunRead) -> bool {
     match host.known_facts() {
         Some(facts) => facts.has_pending_style_transaction,
         None => with_engine(read, host, |engine| {
@@ -1226,12 +1164,7 @@ pub unsafe extern "C" fn style_engine_has_pending_transaction(host: *const Docum
 ///
 /// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_has_deferred_element_style_inputs(
-    host: *const DocumentHost,
-    read: &BegunRead,
-) -> bool {
-    // SAFETY: Guaranteed by the caller.
-    let host = unsafe { document_host(host) };
+pub unsafe extern "C" fn style_engine_has_deferred_element_style_inputs(host: &DocumentHost, read: &BegunRead) -> bool {
     match host.known_facts() {
         Some(facts) => facts.has_deferred_element_style_inputs,
         None => with_engine(read, host, |engine| {
@@ -1249,12 +1182,10 @@ pub unsafe extern "C" fn style_engine_has_deferred_element_style_inputs(
 /// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_published_pseudo_style_mask(
-    host: *const DocumentHost,
+    host: &DocumentHost,
     read: &BegunRead,
     node: u32,
 ) -> u64 {
-    // SAFETY: Guaranteed by the caller.
-    let host = unsafe { document_host(host) };
     host.transaction_pseudo_styles(node).map_or_else(
         || {
             with_engine(read, host, |engine| {
@@ -1272,11 +1203,8 @@ pub unsafe extern "C" fn style_engine_published_pseudo_style_mask(
 ///
 /// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_inert_pseudo_kinds(host: *const DocumentHost, node: u32) -> u64 {
-    // SAFETY: Guaranteed by the caller.
-    unsafe { document_host(host) }
-        .transaction_pseudo_styles(node)
-        .map_or(0, |styles| styles.inert)
+pub unsafe extern "C" fn style_engine_inert_pseudo_kinds(host: &DocumentHost, node: u32) -> u64 {
+    host.transaction_pseudo_styles(node).map_or(0, |styles| styles.inert)
 }
 
 /// Whether a size container waits for layout to be evaluated, which the host knows without asking where it wrote
@@ -1287,11 +1215,9 @@ pub unsafe extern "C" fn style_engine_inert_pseudo_kinds(host: *const DocumentHo
 /// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_has_size_containers_needing_evaluation_after_layout(
-    host: *const DocumentHost,
+    host: &DocumentHost,
     read: &BegunRead,
 ) -> bool {
-    // SAFETY: Guaranteed by the caller.
-    let host = unsafe { document_host(host) };
     match host.known_facts() {
         Some(facts) => facts.has_size_containers_needing_evaluation_after_layout,
         None => with_engine(read, host, |engine| {
@@ -1308,11 +1234,9 @@ pub unsafe extern "C" fn style_engine_has_size_containers_needing_evaluation_aft
 /// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_attribute_value_text_requirements_version(
-    host: *const DocumentHost,
+    host: &DocumentHost,
     read: &BegunRead,
 ) -> u64 {
-    // SAFETY: Guaranteed by the caller.
-    let host = unsafe { document_host(host) };
     match host.known_selector_attribute_value_text_requirements_version() {
         Some(version) => super::inputs::with_attr_names_read(version),
         None => with_engine(read, host, |engine| {
@@ -1332,7 +1256,7 @@ pub unsafe extern "C" fn style_engine_attribute_value_text_requirements_version(
 /// units.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_attribute_name_requires_value_text(
-    host: *const DocumentHost,
+    host: &DocumentHost,
     read: &BegunRead,
     name: u32,
     any_namespace: u32,
@@ -1341,8 +1265,6 @@ pub unsafe extern "C" fn style_engine_attribute_name_requires_value_text(
     local_name: *const u16,
     local_name_length: usize,
 ) -> bool {
-    // SAFETY: Guaranteed by the caller.
-    let host = unsafe { document_host(host) };
     let keys = [name, any_namespace, folded_name, folded_local].map(StyleAtomID);
     match host.known_selectors_read_value_text_of(&keys) {
         Some(selectors_read) => {
@@ -1369,15 +1291,13 @@ pub unsafe extern "C" fn style_engine_attribute_name_requires_value_text(
 /// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_absorb_element_style_input(
-    host: *const DocumentHost,
+    host: &DocumentHost,
     read: &BegunRead,
     node: u32,
     reaction: u8,
     inherited_style_groups: u8,
     absorbs_any: bool,
 ) -> u32 {
-    // SAFETY: Guaranteed by the caller.
-    let host = unsafe { document_host(host) };
     let Some(style_node) = StyleNodeID::from_raw(node) else {
         return 0;
     };
@@ -1450,12 +1370,11 @@ impl<T: Copy> Memo<T> {
 /// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_native_rule_id(
-    host: *const DocumentHost,
+    host: &DocumentHost,
     read: &crate::render_state::BegunRead,
     identity: u64,
 ) -> u32 {
-    // SAFETY: Guaranteed by the caller.
-    with_engine(read, unsafe { document_host(host) }, |engine| {
+    with_engine(read, host, |engine| {
         engine.native_rule_id(identity).map_or(0, |id| id.0 + 1)
     })
 }
@@ -1467,14 +1386,13 @@ pub unsafe extern "C" fn style_engine_native_rule_id(
 /// `host` must be a live document host, on its document's thread, and the out pointers writable.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_counter(
-    host: *const DocumentHost,
+    host: &DocumentHost,
     read: &crate::render_state::BegunRead,
     index: usize,
     out_value: *mut u64,
     out_name_length: *mut usize,
 ) -> *const u8 {
-    // SAFETY: Guaranteed by the caller.
-    let counter = with_engine(read, unsafe { document_host(host) }, |engine| {
+    let counter = with_engine(read, host, |engine| {
         let retired = engine.computed_group_sets.retired_animation_overlay_records();
         engine
             .counters
@@ -1504,7 +1422,7 @@ pub unsafe extern "C" fn style_engine_counter(
 /// writable storage for one action per property.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_decide_transitions(
-    host: *const DocumentHost,
+    host: &DocumentHost,
     read: &crate::render_state::BegunRead,
     before: u64,
     after: u64,
@@ -1532,8 +1450,6 @@ pub unsafe extern "C" fn style_engine_decide_transitions(
             .then(|| StyleNodeID::from_raw(input.target_node))
             .flatten(),
     };
-    // SAFETY: As above.
-    let host = unsafe { document_host(host) };
     if decision.element.is_some()
         && host.answer_decided_transition_step(input.target_node, &decision, properties, actions)
     {

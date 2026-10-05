@@ -1113,10 +1113,8 @@ impl Drop for TestHost {
 ///
 /// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn document_host_paint_preparation_is_current(host: *const DocumentHost) -> bool {
-    assert!(!host.is_null(), "document host is null");
-    // SAFETY: Guaranteed by the caller.
-    unsafe { &*host }.paint_preparation_is_current.get()
+pub unsafe extern "C" fn document_host_paint_preparation_is_current(host: &DocumentHost) -> bool {
+    host.paint_preparation_is_current.get()
 }
 
 /// Notes that the paint and hit testing properties of `host`'s document are current, as the host begins to prepare them:
@@ -1126,10 +1124,8 @@ pub unsafe extern "C" fn document_host_paint_preparation_is_current(host: *const
 ///
 /// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn document_host_note_paint_preparation_is_current(host: *const DocumentHost) {
-    assert!(!host.is_null(), "document host is null");
-    // SAFETY: Guaranteed by the caller.
-    unsafe { &*host }.paint_preparation_is_current.set(true);
+pub unsafe extern "C" fn document_host_note_paint_preparation_is_current(host: &DocumentHost) {
+    host.paint_preparation_is_current.set(true);
 }
 
 /// What a scope of a read of a document's render state reads of the document's host: whether the host waits for the
@@ -1148,10 +1144,7 @@ pub struct FfiReadScopeView {
 /// `host` must come from [`document_host_create`] and not be destroyed yet, and what this answers is read on its
 /// document's thread only, until the host is destroyed.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn document_host_read_scope_view(host: *const DocumentHost) -> FfiReadScopeView {
-    assert!(!host.is_null(), "document host is null");
-    // SAFETY: Guaranteed by the caller.
-    let host = unsafe { &*host };
+pub unsafe extern "C" fn document_host_read_scope_view(host: &DocumentHost) -> FfiReadScopeView {
     FfiReadScopeView {
         waits_for_frame: host.waits_for_frame.as_ptr(),
         read: std::ptr::from_ref(&host.begun_read),
@@ -1164,10 +1157,8 @@ pub unsafe extern "C" fn document_host_read_scope_view(host: *const DocumentHost
 ///
 /// `host` must come from [`document_host_create`] and not be destroyed yet, on its document's thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn document_host_frame_flies(host: *const DocumentHost) -> bool {
-    assert!(!host.is_null(), "document host is null");
-    // SAFETY: Guaranteed by the caller.
-    unsafe { &*host }.frame_flies()
+pub unsafe extern "C" fn document_host_frame_flies(host: &DocumentHost) -> bool {
+    host.frame_flies()
 }
 
 /// Destroys `host`, and has the render owner drop the render state of its document, where a job made one, without

@@ -330,7 +330,7 @@ impl StyleJob {
 /// live for this call.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_take_style_transaction(
-    host: *mut DocumentHost,
+    host: &DocumentHost,
     read: &BegunRead,
     root: u32,
     computation_inputs: FfiDocumentStyleComputationInputs,
@@ -338,9 +338,6 @@ pub unsafe extern "C" fn style_engine_take_style_transaction(
     let Some(root) = StyleNodeID::from_raw(root) else {
         return FfiStyleTransactionView::default();
     };
-    assert!(!host.is_null(), "document host is null");
-    // SAFETY: Guaranteed by the caller.
-    let host = unsafe { &*host };
     let job = StyleJob {
         root,
         // SAFETY: Guaranteed by the caller.
@@ -361,14 +358,11 @@ pub unsafe extern "C" fn style_engine_take_style_transaction(
 /// live for this call.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_let_style_transaction_fly(
-    host: *mut DocumentHost,
+    host: &DocumentHost,
     root: u32,
     computation_inputs: FfiDocumentStyleComputationInputs,
     blocker: FfiFlightBlocker,
 ) -> bool {
-    assert!(!host.is_null(), "document host is null");
-    // SAFETY: Guaranteed by the caller.
-    let host = unsafe { &*host };
     // The round the host sealed for the frame flies with it, or not at all.
     let round = host.take_sealed_round();
     let (Some(root), Some(license)) = (StyleNodeID::from_raw(root), FlightLicense::for_blocker(blocker)) else {
@@ -396,12 +390,9 @@ pub unsafe extern "C" fn style_engine_let_style_transaction_fly(
 /// `host` must be a live document host, on its document's thread, that let a style transaction fly.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_take_flown_style_transaction(
-    host: *const DocumentHost,
+    host: &DocumentHost,
     read: &BegunRead,
 ) -> FfiStyleTransactionView {
-    assert!(!host.is_null(), "document host is null");
-    // SAFETY: Guaranteed by the caller.
-    let host = unsafe { &*host };
     // The read takes the frame in where it still flies.
     let answer = host.begin_style_drain(read);
     host.keep_style_transaction(answer).output.view()
@@ -414,10 +405,8 @@ pub unsafe extern "C" fn style_engine_take_flown_style_transaction(
 ///
 /// `host` must be a live document host, on its document's thread, that drains a style transaction that flew.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_end_flown_style_drain(host: *const DocumentHost) {
-    assert!(!host.is_null(), "document host is null");
-    // SAFETY: Guaranteed by the caller.
-    unsafe { &*host }.end_style_drain();
+pub unsafe extern "C" fn style_engine_end_flown_style_drain(host: &DocumentHost) {
+    host.end_style_drain();
 }
 
 /// Whether the frame whose style transaction `host`'s document drains applied the element `style_node` names its record
@@ -429,14 +418,11 @@ pub unsafe extern "C" fn style_engine_end_flown_style_drain(host: *const Documen
 /// `host` must be a live document host, on its document's thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_frame_marked_relayout(
-    host: *const DocumentHost,
+    host: &DocumentHost,
     style_node: u32,
     style_record: u64,
 ) -> bool {
-    assert!(!host.is_null(), "document host is null");
-    // SAFETY: Guaranteed by the caller.
-    StyleNodeID::from_raw(style_node)
-        .is_some_and(|style_node| unsafe { &*host }.frame_marked_relayout(style_node, style_record))
+    StyleNodeID::from_raw(style_node).is_some_and(|style_node| host.frame_marked_relayout(style_node, style_record))
 }
 
 /// Whether the style transaction of `host`'s document the host let fly still flies; one that has landed is taken in.
@@ -446,11 +432,9 @@ pub unsafe extern "C" fn style_engine_frame_marked_relayout(
 ///
 /// `host` must be a live document host, on its document's thread, and the event loop must call this between two tasks.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_style_transaction_flies(host: *const DocumentHost) -> bool {
-    assert!(!host.is_null(), "document host is null");
+pub unsafe extern "C" fn style_engine_style_transaction_flies(host: &DocumentHost) -> bool {
     let boundary = TaskBoundary::at_event_loop_entry(&TAKES_FINISHED_STYLE_IN);
-    // SAFETY: Guaranteed by the caller.
-    unsafe { &*host }.frame_still_flies(&boundary)
+    host.frame_still_flies(&boundary)
 }
 
 /// The entry the event loop calls between two tasks to take a document's style transaction in where it has landed.
@@ -467,17 +451,14 @@ const TAKES_FINISHED_STYLE_IN: TakesFinishedStyleIn = TakesFinishedStyleIn { _pr
 /// `host` must be a live document host, on its document's thread, and `allocator` its document's allocator.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_end_style_transaction(
-    host: *mut DocumentHost,
+    host: &DocumentHost,
     read: &crate::render_state::BegunRead,
     allocator: *mut StyleNodeIdAllocator,
 ) {
-    assert!(!host.is_null() && !allocator.is_null());
-    // SAFETY: Guaranteed by the caller.
-    unsafe { &*host }.end_style_transaction();
-    // SAFETY: As above.
-    let released = with_engine(read, unsafe { &*host }, |engine| engine.discard_style_transaction_outputs());
-    // SAFETY: As above.
-    let memo = unsafe { &*host }.engine_memo();
+    assert!(!allocator.is_null());
+    host.end_style_transaction();
+    let released = with_engine(read, host, |engine| engine.discard_style_transaction_outputs());
+    let memo = host.engine_memo();
     memo.held.borrow_mut().forget(&released);
     memo.described.borrow_mut().forget(&released);
     memo.baselines.borrow_mut().forget(&released);
