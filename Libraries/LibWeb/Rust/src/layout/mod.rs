@@ -102,6 +102,7 @@ use std::cell::RefCell;
 use std::cell::RefMut;
 use std::ffi::c_void;
 pub(crate) use style_values::StyleValues;
+pub(crate) use tree_builder::build_keeps_box;
 pub(crate) use update_layout::MainThreadFfiEntry as UpdateMainThreadFfiEntry;
 pub(crate) use update_layout::{ClockRound, ClockRoundDeclined, FlownRound, LayoutRoundAnswer, SealedRound};
 pub(crate) use used_values::{FfiCssPixelPoint, FfiCssPixelRect, FfiCssPixelSize, SizeConstraint, UsedValues};

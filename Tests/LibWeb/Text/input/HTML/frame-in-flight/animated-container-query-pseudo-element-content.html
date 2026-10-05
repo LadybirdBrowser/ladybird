@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    @keyframes widen {
+        from { width: 200px; }
+        to { width: 700px; }
+    }
+    #pane {
+        container-type: inline-size;
+        width: 200px;
+    }
+    #pane.widen {
+        animation: widen 10s linear;
+    }
+    #label {
+        width: 100px;
+        line-height: 20px;
+    }
+    #label::before {
+        content: "narrow";
+    }
+    @container (min-width: 400px) {
+        #label::before {
+            content: "wide wide wide wide wide wide";
+        }
+    }
+</style>
+<div id="pane"><div id="label"></div></div>
+<script>
+    // The render clock builds the boxes of a pseudo-element again beside a task where a container it lays out crosses
+    // a query that moves the pseudo-element's content, as the main thread builds them for the same size.
+    asyncTest(async done => {
+        const result = await whileClockLeased(() => {
+            pane.classList.add("widen");
+            return pane.getAnimations()[0];
+        }, (frameTime, animation) => {
+            internals.injectClockTick(frameTime + 3000);
+            internals.injectClockTick(frameTime + 5000);
+            return {
+                clock: internals.clockLeaseState(document),
+                presented: internals.presentedBorderBox(pane),
+                presentedBy: internals.lastFramePresentedBy(document),
+                localTime: frameTime + 5000 - animation.startTime,
+                animation,
+            };
+        });
+        result.animation.pause();
+        result.animation.currentTime = result.localTime;
+        const laidOut = pane.getBoundingClientRect();
+        const presented = result.presented;
+        println(`clock after its frames: ${result.clock}`);
+        println(`last frame presented by: ${result.presentedBy}`);
+        println(`the presented size is the main thread's: ${presented !== null && Math.abs(presented.width - laidOut.width) < 0.02 && Math.abs(presented.height - laidOut.height) < 0.02}`);
+        println(`the wide content wraps: ${laidOut.height > 20}`);
+        done();
+    });
+</script>

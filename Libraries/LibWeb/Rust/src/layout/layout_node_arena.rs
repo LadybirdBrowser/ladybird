@@ -5113,6 +5113,23 @@ impl LayoutNodeArena {
         !self.image_resources_owed_to_host.borrow().is_empty()
     }
 
+    /// Whether the finished builds owe the host an image a box shows: one whose provider the box owns, or one its style
+    /// names that the host loads. A box whose style names none, or only gradients, paints nothing the host attaches.
+    pub(crate) fn owes_shown_image_resources_to_host(&self) -> bool {
+        let owed = self.image_resources_owed_to_host.borrow();
+        owed.iter().any(|&(row, ref owed)| match *owed {
+            OwedImageResources::StyleResources {
+                owns_content_replacement_image,
+            } => {
+                owns_content_replacement_image
+                    || self
+                        .node_style_if_live(row)
+                        .is_some_and(|style| style.names_loaded_images())
+            }
+            OwedImageResources::GeneratedImage { .. } => true,
+        })
+    }
+
     /// Where `id` stands with the provider of its image, if it is an image box that owns one.
     pub(crate) fn owned_image_provider(&self, id: NodeSlotId) -> Option<OwnedImageProvider> {
         self.owned_image_providers.borrow().get(&id).copied()

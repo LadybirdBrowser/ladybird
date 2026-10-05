@@ -310,8 +310,8 @@ impl DocumentHost {
     }
 
     /// Ends the document's clock lease, where one runs: the boxes take back the styles the host installed before
-    /// anything reads them, the host's next layout update pays what the ticks laid out, and the recorder state and
-    /// presentation come back.
+    /// anything reads them, the boxes the clock built are marked for the host's next layout tree build to build again,
+    /// the host's next layout update pays what the ticks laid out, and the recorder state and presentation come back.
     fn end_clock_lease(&self) {
         match self.away.take() {
             Some(Away::Leased(lease)) => self.lease_landed(lease.end()),
@@ -324,18 +324,33 @@ impl DocumentHost {
         LeaseLanding {
             recording,
             ticked,
+            built,
             owed,
             presented_border_boxes,
             ..
         }: LeaseLanding,
     ) {
+        use crate::layout::layout_changes::LayoutChange;
         if !presented_border_boxes.is_empty() {
             *self.presented_border_boxes.borrow_mut() = presented_border_boxes;
         }
+        if !built.shown.is_empty() {
+            for write in built.mark_writes {
+                self.write_marks(write);
+            }
+            self.changes
+                .push_front(ArenaChange::Layout(LayoutChange::LetGoOfTickShownRecords(built.shown)));
+            for (node, mark) in built.box_marks {
+                self.changes
+                    .push_front(ArenaChange::Layout(LayoutChange::ApplyLayoutTreeUpdateMark {
+                        node: Some(node),
+                        mark,
+                    }));
+            }
+        }
         if !ticked.is_empty() {
-            self.changes.push_front(ArenaChange::Layout(
-                crate::layout::layout_changes::LayoutChange::RestoreHostStyles(ticked),
-            ));
+            self.changes
+                .push_front(ArenaChange::Layout(LayoutChange::RestoreHostStyles(ticked)));
         }
         self.clock_rounds.borrow_mut().extend(owed);
         self.note_frame_wait();

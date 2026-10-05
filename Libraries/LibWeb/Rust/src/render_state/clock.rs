@@ -22,11 +22,14 @@ use super::wait::TaskStart;
 use super::{DocumentHost, RenderState};
 use crate::css::css_pixels::CssPixelRect;
 use crate::css::style::animations::AnimationTimelineSamples;
-use crate::css::style::engine_sample::NeedsHost;
+use crate::css::style::engine_sample::{DependentRestyle, NeedsHost, TickShownRecords};
 use crate::css::style::tree::StyleNodeID;
 use crate::layout::node_data::NodeSlotId;
+use crate::layout::tree_update_marks::{
+    FfiLayoutTreeUpdateMark, LayoutTreeUpdateMarkWrite, layout_tree_update_reuse_reason,
+};
 use crate::layout::used_values::FfiCssPixelRect;
-use crate::layout::{ClockRound, ClockRoundDeclined, HostStyle, LayoutNodeArena, LayoutRoundAnswer};
+use crate::layout::{ClockRound, ClockRoundDeclined, HostStyle, LayoutNodeArena, LayoutRoundAnswer, build_keeps_box};
 use crate::painting::ffi::FfiPresentation;
 use crate::painting::paint_passes::{ClockTickVisualContexts, VisualContextsNeedHost, prepare_for_clock_tick};
 use crate::painting::paintable_geometry::absolute_border_box_rect;
@@ -74,13 +77,14 @@ impl ClockPlan {
 
 /// What a clock lease brings its host back: the recording of the frame a tick presented last, which brings the
 /// recorder state and presentation the lease took, the boxes its ticks showed samples in with the styles the host
-/// installed for them, and what the ticks' rounds owe the host, in the order they ran. The render state stays with the
-/// render owner, which the lease names it to.
+/// installed for them, the boxes they built again from records of their own, and what the ticks' rounds owe the host,
+/// in the order they ran. The render state stays with the render owner, which the lease names it to.
 pub(crate) struct LeaseLanding {
     document: DocumentId,
     pub(super) recording: TickRecording,
     plan: ClockPlan,
     pub(super) ticked: Vec<(NodeSlotId, HostStyle)>,
+    pub(super) built: TickBuilt,
     pub(super) owed: Vec<LayoutRoundAnswer>,
     /// The border boxes of the plan's elements in the last frame a tick presented.
     pub(super) presented_border_boxes: Vec<(StyleNodeID, CssPixelRect)>,
@@ -171,6 +175,7 @@ impl ClockLease {
             })),
             plan,
             ticked: Vec::new(),
+            built: TickBuilt::default(),
             owed: Vec::new(),
             presented_border_boxes: Vec::new(),
             parked: false,
@@ -265,30 +270,74 @@ impl From<VisualContextsNeedHost> for Park {
     }
 }
 
+/// The boxes the render clock built again from records of its own, which the host builds again from its own once it
+/// has the state back, as it would have had its style moved them: the records they showed, and the marks the host
+/// makes for its next layout tree build, in its own marks and on the boxes.
+#[derive(Default)]
+pub(crate) struct TickBuilt {
+    pub(super) shown: TickShownRecords,
+    pub(super) mark_writes: Vec<LayoutTreeUpdateMarkWrite>,
+    pub(super) box_marks: Vec<(StyleNodeID, FfiLayoutTreeUpdateMark)>,
+}
+
+impl TickBuilt {
+    /// Keeps the marks the host makes to build again from its own records what a clock frame built from its
+    /// records at `target`.
+    fn build_again_on_landing(&mut self, arena: &LayoutNodeArena, (target, reuse_reason): (StyleNodeID, u8)) {
+        if self
+            .box_marks
+            .iter()
+            .any(|(marked, made)| *marked == target && made.reuse_reason == reuse_reason)
+        {
+            return;
+        }
+        self.box_marks.push((target, style_change_mark(reuse_reason)));
+        self.mark_writes
+            .extend(arena.layout_tree_update_mark_writes(target, reuse_reason));
+    }
+}
+
+/// The mark a style change makes for the next layout tree build, which may reuse a box as `reuse_reason` says.
+fn style_change_mark(reuse_reason: u8) -> FfiLayoutTreeUpdateMark {
+    FfiLayoutTreeUpdateMark {
+        reuse_reason,
+        is_child_list_insertion: false,
+        is_structural_boundary_self_rebuild: false,
+    }
+}
+
 /// How many times a tick lays out again what the containers it resized restyled, as the host's layout update
 /// stabilizes them.
 const SIZE_QUERY_ROUND_LIMIT: usize = 8;
 
 /// Shows in their boxes the styles of the elements whose style a size query or container-relative unit decided below
-/// the containers in `resized`, against their new sizes, keeping each box's host style in `ticked`. An element whose
-/// animations `animated` samples composes over its host's style, which only the host restyles.
+/// the containers in `resized`, against their new sizes, keeping each box's host style in `ticked`, and marks the boxes
+/// of the pseudo-elements those styles move for the round's tree build to build again. An element whose animations
+/// `animated` samples composes over its host's style, which only the host restyles.
 fn restyle_size_query_dependents(
     state: &mut RenderState,
     resized: &[StyleNodeID],
     animated: &[StyleNodeID],
     ticked: &mut Vec<(NodeSlotId, HostStyle)>,
+    built: &mut TickBuilt,
 ) -> Result<(), Park> {
+    let mut rebuilt: smallvec::SmallVec<[StyleNodeID; 2]> = smallvec::SmallVec::new();
     for &container in resized {
         for dependent in state.engine_mut().size_container_query_dependents(container) {
             if animated.contains(&dependent) {
                 return Err(Park);
             }
             let row = state.arena.arena().bound_row(dependent);
-            let Some(restyled) = state
+            let restyled = match state
                 .engine_mut()
                 .restyle_size_query_dependent(dependent, !row.is_invalid())?
-            else {
-                continue;
+            {
+                DependentRestyle::Unmoved => continue,
+                DependentRestyle::InBox(restyled) => restyled,
+                DependentRestyle::PseudoElementsMove(restyled) => {
+                    rebuilt.push(dependent);
+                    restyled
+                }
             };
             let arena = state.arena.arena();
             if let Some(host_style) = arena.install_animation_sample(row, restyled)? {
@@ -296,6 +345,17 @@ fn restyle_size_query_dependents(
             }
             arena.push_paint_damage_for_repaint(row, PaintDamage::ALL_PRODUCERS);
         }
+    }
+    // The build regenerates the pseudo-elements in their element's box, which keeps the sample the clock frame showed
+    // in it.
+    use layout_tree_update_reuse_reason::PSEUDO_ELEMENT_CHANGE;
+    for node in rebuilt {
+        if !build_keeps_box(state.arena.arena_mut(), node, PSEUDO_ELEMENT_CHANGE) {
+            return Err(Park);
+        }
+        let arena = state.arena.arena();
+        arena.mark_layout_tree_update(Some(node), style_change_mark(PSEUDO_ELEMENT_CHANGE));
+        built.build_again_on_landing(arena, (node, PSEUDO_ELEMENT_CHANGE));
     }
     Ok(())
 }
@@ -310,14 +370,29 @@ impl LeaseLanding {
             return;
         }
         let timestamp = frame_time_nanoseconds as f64 / 1_000_000.0 - self.plan.time_origin;
-        // The tick runs on the render owner, the one thread that reaches the state.
+        // The tick runs on the render owner, the one thread that reaches the state. It shows the records the frames
+        // before it showed, and takes them back as it ends.
         self.parked = timestamp >= self.plan.deadline
-            || owner::with_state(self.document, None, |state| self.sample(state, timestamp)).is_err()
+            || owner::with_state(self.document, None, |state| {
+                state
+                    .engine_mut()
+                    .lend_tick_shown(std::mem::take(&mut self.built.shown));
+                let sampled = self.sample(state, timestamp);
+                self.built.shown = state.engine_mut().take_tick_shown();
+                sampled
+            })
+            .is_err()
             || timestamp >= self.plan.last_end;
     }
 
     fn sample(&mut self, state: &mut RenderState, timestamp: f64) -> Result<(), Park> {
-        let Self { plan, ticked, owed, .. } = self;
+        let Self {
+            plan,
+            ticked,
+            built,
+            owed,
+            ..
+        } = self;
         let samples = AnimationTimelineSamples::default().with_time(timestamp);
         for &element in &plan.elements {
             let arena = state.arena.arena();
@@ -345,15 +420,14 @@ impl LeaseLanding {
         // A container the round resized restyles what its size decides, as the host's style update after a layout
         // does, and lays it out again, until the containers stand.
         for _ in 0..SIZE_QUERY_ROUND_LIMIT {
-            let Some(answer) = plan.round.run(&mut state.arena)? else {
+            let Some(answer) = plan.round.run(&mut state.arena, owed)? else {
                 return self.present(state);
             };
             let resized: smallvec::SmallVec<[StyleNodeID; 4]> = answer.resized_size_containers().collect();
-            owed.push(answer);
             if resized.is_empty() {
                 return self.present(state);
             }
-            restyle_size_query_dependents(state, &resized, &plan.elements, ticked)?;
+            restyle_size_query_dependents(state, &resized, &plan.elements, ticked, built)?;
         }
         // The last restyle may have left nothing to lay out again.
         match state.arena.arena().layout_is_up_to_date(false) {
