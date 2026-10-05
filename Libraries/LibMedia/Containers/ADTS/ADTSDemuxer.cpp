@@ -244,9 +244,12 @@ DemuxerScanState const& ADTSDemuxer::scan_state() const
     return m_buffered_scan_thread->main_thread_state();
 }
 
-void ADTSDemuxer::set_scan_state_change_handler(Function<void()> handler)
+void ADTSDemuxer::set_scan_state_change_handler(ScanStateChangeHandler handler)
 {
-    m_buffered_scan_thread->set_change_handler(move(handler));
+    m_buffered_scan_thread->set_change_handler([handler = move(handler)] {
+        if (handler)
+            handler(TimeRanges {});
+    });
 }
 
 void ADTSDemuxer::set_blocking_reads_aborted_for_track(Track const&)

@@ -524,11 +524,14 @@ DemuxerScanState const& FFmpegDemuxer::scan_state() const
     return m_buffered_scan_thread->main_thread_state();
 }
 
-void FFmpegDemuxer::set_scan_state_change_handler(Function<void()> handler)
+void FFmpegDemuxer::set_scan_state_change_handler(ScanStateChangeHandler handler)
 {
     if (m_buffered_scan_thread == nullptr)
         return;
-    m_buffered_scan_thread->set_change_handler(move(handler));
+    m_buffered_scan_thread->set_change_handler([handler = move(handler)] {
+        if (handler)
+            handler(TimeRanges {});
+    });
 }
 
 DecoderErrorOr<AK::Duration> FFmpegDemuxer::duration_of_track(Track const& track)

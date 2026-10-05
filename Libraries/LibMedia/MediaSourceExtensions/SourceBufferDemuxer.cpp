@@ -234,6 +234,14 @@ void SourceBufferDemuxer::add_coded_frame(Media::Track const& track, Media::Code
     buffered_data_changed_while_locked();
 }
 
+// Delivery is in decode order, so a reordered frame's presentation can end after that of a later delivered frame.
+void SourceBufferDemuxer::note_delivered_frame(TrackData& data, Media::CodedFrame const& frame)
+{
+    auto end = frame.presentation_timestamp() + frame.duration();
+    if (!data.highest_delivered_presentation_end.has_value() || end > data.highest_delivered_presentation_end.value())
+        data.highest_delivered_presentation_end = end;
+}
+
 void SourceBufferDemuxer::note_cursor_jumped(TrackData& data)
 {
     if (data.cursor_continuity == CursorContinuity::Continuous)
@@ -306,6 +314,8 @@ size_t SourceBufferDemuxer::erase_frames_and_dependants(TrackData& data, size_t 
         if (frame_count >= minimum_frame_count && frame.is_keyframe())
             break;
         data.track_buffer_ranges.remove_range(frame.presentation_timestamp(), frame.presentation_timestamp() + frame.duration());
+        if (data.highest_delivered_presentation_end.has_value() && frame.presentation_timestamp() < data.highest_delivered_presentation_end.value())
+            m_invalidated_ranges.add_range(frame.presentation_timestamp(), frame.presentation_timestamp() + frame.duration());
         bytes += frame.data().size();
         if (frame.duration() == data.maximum_frame_duration)
             removed_frames_with_the_maximum_duration++;
@@ -535,6 +545,12 @@ void SourceBufferDemuxer::clear_reached_end_of_stream()
 {
     MutexLocker locker { m_mutex };
     m_reached_end_of_stream = false;
+    for (auto& data : m_tracks) {
+        if (!data->delivered_end_of_stream)
+            continue;
+        data->delivered_end_of_stream = false;
+        m_invalidated_ranges.add_range(data->highest_delivered_presentation_end.value_or(AK::Duration::zero()), AK::Duration::max());
+    }
     buffered_data_changed_while_locked();
 }
 
@@ -682,6 +698,7 @@ Media::DecoderErrorOr<Media::CodedFrame> SourceBufferDemuxer::get_next_sample_fo
         // Once the stream has ended, a frame outside the buffered ranges will never become readable.
         if (m_reached_end_of_stream && (has_frame_at_cursor || data.current_run + 1 >= data.runs.size())) {
             error = Media::DecoderError::with_description(Media::DecoderErrorCategory::EndOfStream, "End of stream"sv);
+            data.delivered_end_of_stream = true;
             break;
         }
         if (!notified_blocked) {
@@ -725,6 +742,7 @@ Media::DecoderErrorOr<Media::CodedFrame> SourceBufferDemuxer::get_next_sample_fo
                 move(new_codec_configuration),
             };
             data.cursor_presentation_timestamp = frame.presentation_timestamp();
+            note_delivered_frame(data, frame);
             data.current_frame++;
             return frame;
         }
@@ -733,6 +751,7 @@ Media::DecoderErrorOr<Media::CodedFrame> SourceBufferDemuxer::get_next_sample_fo
     }
 
     data.cursor_presentation_timestamp = stored_frame.presentation_timestamp();
+    note_delivered_frame(data, stored_frame);
     data.current_frame++;
     return stored_frame;
 }
@@ -799,6 +818,8 @@ Media::DecoderErrorOr<Media::DemuxerSeekResult> SourceBufferDemuxer::seek_to_mos
 
         if (move_cursor_to_presentation_time_while_locked(data, timestamp)) {
             data.read_anchor = timestamp;
+            data.highest_delivered_presentation_end.clear();
+            data.delivered_end_of_stream = false;
             m_data_changed.broadcast();
             return Media::DemuxerSeekResult::MovedPosition;
         }
@@ -823,7 +844,7 @@ Media::DemuxerScanState const& SourceBufferDemuxer::scan_state() const
     return m_scan_state;
 }
 
-void SourceBufferDemuxer::set_scan_state_change_handler(Function<void()> handler)
+void SourceBufferDemuxer::set_scan_state_change_handler(ScanStateChangeHandler handler)
 {
     m_scan_state_change_handler = move(handler);
     MutexLocker locker { m_mutex };
@@ -841,14 +862,16 @@ void SourceBufferDemuxer::queue_scan_state_change_dispatch_while_locked()
     m_scan_state_change_dispatch_pending = true;
     m_scan_state_change_handler_event_loop->deferred_invoke([self = NonnullRefPtr(*this)] {
         Media::DemuxerScanState scan_state;
+        Media::TimeRanges invalidated_ranges;
         {
             MutexLocker locker { self->m_mutex };
             self->m_scan_state_change_dispatch_pending = false;
             scan_state = self->scan_state_while_locked();
+            invalidated_ranges = exchange(self->m_invalidated_ranges, {});
         }
         self->m_scan_state = move(scan_state);
         if (self->m_scan_state_change_handler)
-            self->m_scan_state_change_handler();
+            self->m_scan_state_change_handler(invalidated_ranges);
     });
 }
 

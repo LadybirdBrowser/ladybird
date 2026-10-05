@@ -75,7 +75,7 @@ static Media::TimeRanges source_buffered_ranges(Media::Demuxer& demuxer)
 template<typename Condition>
 static Media::TimeRanges wait_for_buffered_ranges(Core::EventLoop& loop, Media::Demuxer& demuxer, Condition condition)
 {
-    demuxer.set_scan_state_change_handler([] { });
+    demuxer.set_scan_state_change_handler([](auto const&) { });
     ScopeGuard remove_handler = [&] { demuxer.set_scan_state_change_handler(nullptr); };
 
     bool deadline_expired = false;

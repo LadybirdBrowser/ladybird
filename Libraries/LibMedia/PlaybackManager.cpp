@@ -122,7 +122,7 @@ DecoderErrorOr<void> PlaybackManager::prepare_playback_from_demuxer(WeakPlayback
         self->check_for_demuxed_duration_change(duration);
 
         self->m_demuxers.append(demuxer);
-        demuxer->set_scan_state_change_handler([self] {
+        demuxer->set_scan_state_change_handler([self](TimeRanges const&) {
             if (!self)
                 return;
             self->update_duration_from_scan_states();
