@@ -361,36 +361,32 @@ impl IntrinsicSizeCaches {
         }
     }
 
+    /// Answers `answer` from the maps of the row `stamp` names, where they hold what was measured for it.
+    fn with_maps<R>(
+        &self,
+        stamp: IntrinsicSizeCacheStamp,
+        answer: impl FnOnce(&IntrinsicSizeMaps) -> Option<R>,
+    ) -> Option<R> {
+        let caches = self.slots.borrow();
+        let slot = caches.get(stamp.index as usize)?;
+        if slot.generation != stamp.generation || slot.epoch != stamp.epoch {
+            return None;
+        }
+        answer(slot.sizes.as_ref()?)
+    }
+
     pub(crate) fn intrinsic_block_size_cache_get(
         &self,
         stamp: IntrinsicSizeCacheStamp,
         kind: IntrinsicSizeCacheKind,
         key: IntrinsicSizeCacheKey,
     ) -> Option<IntrinsicBlockSizeMeasurement> {
-        assert!(
-            matches!(
-                kind,
-                IntrinsicSizeCacheKind::MinContentBlock | IntrinsicSizeCacheKind::MaxContentBlock
-            ),
-            "block size cache kind must use the block axis"
-        );
-
-        let IntrinsicSizeCacheStamp {
-            index,
-            generation,
-            epoch,
-        } = stamp;
-        let caches = self.slots.borrow();
-        let slot = caches.get(index as usize)?;
-        if slot.generation != generation || slot.epoch != epoch {
-            return None;
-        }
-        let map = slot
-            .sizes
-            .as_ref()?
-            .block_sizes(kind)
-            .expect("block size cache kind must use the block axis");
-        intrinsic_cache_lookup(map, key)
+        self.with_maps(stamp, |maps| {
+            let map = maps
+                .block_sizes(kind)
+                .expect("block size cache kind must use the block axis");
+            intrinsic_cache_lookup(map, key)
+        })
     }
 
     fn with_maps_mut(&self, stamp: IntrinsicSizeCacheStamp, callback: impl FnOnce(&mut IntrinsicSizeMaps)) {
@@ -435,30 +431,12 @@ impl IntrinsicSizeCaches {
         kind: IntrinsicSizeCacheKind,
         key: IntrinsicSizeCacheKey,
     ) -> Option<IntrinsicInlineSizeMeasurement> {
-        assert!(
-            matches!(
-                kind,
-                IntrinsicSizeCacheKind::MinContentInline | IntrinsicSizeCacheKind::MaxContentInline
-            ),
-            "inline measurement cache kind must use the inline axis"
-        );
-
-        let IntrinsicSizeCacheStamp {
-            index,
-            generation,
-            epoch,
-        } = stamp;
-        let caches = self.slots.borrow();
-        let slot = caches.get(index as usize)?;
-        if slot.generation != generation || slot.epoch != epoch {
-            return None;
-        }
-        let map = slot
-            .sizes
-            .as_ref()?
-            .inline_measurements(kind)
-            .expect("inline measurement cache kind must use the inline axis");
-        intrinsic_cache_lookup(map, key)
+        self.with_maps(stamp, |maps| {
+            let map = maps
+                .inline_measurements(kind)
+                .expect("inline measurement cache kind must use the inline axis");
+            intrinsic_cache_lookup(map, key)
+        })
     }
 
     pub(crate) fn intrinsic_inline_size_depends_on_block_size(
@@ -466,25 +444,9 @@ impl IntrinsicSizeCaches {
         stamp: IntrinsicSizeCacheStamp,
         compute: impl FnOnce() -> bool,
     ) -> bool {
-        let IntrinsicSizeCacheStamp {
-            index,
-            generation,
-            epoch,
-        } = stamp;
-        {
-            let caches = self.slots.borrow();
-            if let Some(slot) = caches.get(index as usize)
-                && slot.generation == generation
-                && slot.epoch == epoch
-                && let Some(value) = slot
-                    .sizes
-                    .as_ref()
-                    .and_then(|sizes| sizes.inline_size_depends_on_block_size)
-            {
-                return value;
-            }
+        if let Some(value) = self.with_maps(stamp, |maps| maps.inline_size_depends_on_block_size) {
+            return value;
         }
-
         let value = compute();
         self.with_maps_mut(stamp, |maps| {
             maps.inline_size_depends_on_block_size = Some(value);
@@ -512,17 +474,7 @@ impl IntrinsicSizeCaches {
         stamp: IntrinsicSizeCacheStamp,
         key: TableCellMeasurementKey,
     ) -> Option<TableCellMeasurement> {
-        let IntrinsicSizeCacheStamp {
-            index,
-            generation,
-            epoch,
-        } = stamp;
-        let caches = self.slots.borrow();
-        let slot = caches.get(index as usize)?;
-        if slot.generation != generation || slot.epoch != epoch {
-            return None;
-        }
-        slot.sizes.as_ref()?.table_cell_measurements.get(&key).copied()
+        self.with_maps(stamp, |maps| maps.table_cell_measurements.get(&key).copied())
     }
 
     pub(crate) fn table_cell_measurement_cache_put(
