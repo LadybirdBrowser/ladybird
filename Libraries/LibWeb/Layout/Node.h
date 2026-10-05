@@ -70,7 +70,6 @@ public:
     BegunRead const& held_read() const { return *RustFFI::layout_row_read_of_held_node(document_host()); }
 
     Compositing::RustFFI::NodeSlotId linked_slot(RustFFI::FfiNodeLink link) const { return RustFFI::layout_row_link_slot(document_host(), m_slot, link); }
-    bool has_parent() const { return linked_slot(RustFFI::FfiNodeLink::Parent).index != Compositing::RustFFI::INVALID_NODE_SLOT_INDEX; }
     Node* parent_ptr() { return linked_node(RustFFI::FfiNodeLink::Parent); }
     Node const* parent_ptr() const { return linked_node(RustFFI::FfiNodeLink::Parent); }
     Node* first_child_ptr() { return linked_node(RustFFI::FfiNodeLink::FirstChild); }
@@ -197,7 +196,6 @@ public:
 
     bool is_anonymous() const { return has_identity_flag<RustFFI::NodeFlag::Anonymous>(); }
     bool is_document_element() const { return has_identity_flag<RustFFI::NodeFlag::IsDocumentElement>(); }
-    bool insets_use_anchor_functions() const { return has_flag(RustFFI::NodeFlag::InsetsUseAnchorFunctions); }
     DOM::Node const* dom_node() const;
     DOM::Node* dom_node();
     // The identity of the DOM node this row belongs to, which names nothing for an anonymous row
@@ -287,14 +285,8 @@ public:
 
     bool is_inline_node() const { return kind() == RustFFI::NodeKind::InlineNode; }
     bool is_svg_box() const { return RustFFI::layout_node_kind_is_svg_box(kind()); }
-    bool is_svg_geometry_box() const { return kind() == RustFFI::NodeKind::SVGGeometryBox; }
-    bool is_svg_clip_box() const { return kind() == RustFFI::NodeKind::SVGClipBox; }
-    bool is_svg_mask_box() const { return kind() == RustFFI::NodeKind::SVGMaskBox; }
     bool is_svg_pattern_box() const { return kind() == RustFFI::NodeKind::SVGPatternBox; }
-    bool is_svg_graphics_box() const { return RustFFI::layout_node_kind_is_svg_graphics_box(kind()); }
     bool is_replaced_box() const { return RustFFI::layout_node_kind_is_replaced_box(kind()); }
-    bool is_list_item_box() const { return kind() == RustFFI::NodeKind::ListItemBox; }
-    bool is_list_item_marker_box() const { return kind() == RustFFI::NodeKind::ListItemMarkerBox; }
     bool is_table_wrapper() const { return kind() == RustFFI::NodeKind::TableWrapper; }
 
     template<typename T>
@@ -312,9 +304,6 @@ public:
     NodeWithStyle const* parent() const;
 
     bool children_are_inline() const { return has_flag(RustFFI::NodeFlag::ChildrenAreInline); }
-    void set_children_are_inline(bool value) { set_flag(RustFFI::NodeFlag::ChildrenAreInline, value); }
-
-    void set_list_marker_is_inside(bool value) { set_flag(RustFFI::NodeFlag::ListMarkerIsInside, value); }
 
     bool is_editing_host() const { return has_flag(RustFFI::NodeFlag::IsEditingHost); }
     static u8 dom_paint_facts_of(DOM::Node const*);
@@ -497,19 +486,6 @@ public:
         }
         VERIFY_NOT_REACHED();
     }
-    bool block_axis_is_reverse() const
-    {
-        switch (writing_mode()) {
-        case CSS::WritingMode::HorizontalTb:
-        case CSS::WritingMode::VerticalLr:
-        case CSS::WritingMode::SidewaysLr:
-            return false;
-        case CSS::WritingMode::VerticalRl:
-        case CSS::WritingMode::SidewaysRl:
-            return true;
-        }
-        VERIFY_NOT_REACHED();
-    }
     CSS::Visibility visibility() const { return static_cast<CSS::Visibility>(style_group<CSS::ComputedValues::InheritedBoxValues>().visibility); }
     CSS::ImageRendering image_rendering() const { return static_cast<CSS::ImageRendering>(style_group<CSS::ComputedValues::InheritedBoxValues>().image_rendering); }
     Color caret_color() const { return style_group<CSS::ComputedValues::InheritedUIValues>().caret_color_value(); }
@@ -523,8 +499,6 @@ public:
     CSS::Appearance appearance() const { return static_cast<CSS::Appearance>(style_group<CSS::ComputedValues::MiscResetValues>().appearance); }
     CSS::WillChange will_change() const { return style_group<CSS::ComputedValues::MiscResetValues>().will_change_value(); }
     CSS::LengthBox scroll_margin() const { return length_box(style_group<CSS::ComputedValues::MiscResetValues>().scroll_margin); }
-    CSS::LengthBox scroll_padding() const { return length_box(style_group<CSS::ComputedValues::MiscResetValues>().scroll_padding); }
-    CSS::ScrollSnapAlignData scroll_snap_align() const { return style_group<CSS::ComputedValues::MiscResetValues>().scroll_snap_align_value(); }
     CSS::ScrollSnapStop scroll_snap_stop() const { return static_cast<CSS::ScrollSnapStop>(style_group<CSS::ComputedValues::MiscResetValues>().scroll_snap_stop); }
     CSS::ScrollSnapType scroll_snap_type() const { return style_group<CSS::ComputedValues::MiscResetValues>().scroll_snap_type_value(); }
     CSS::ScrollbarWidth scrollbar_width() const { return static_cast<CSS::ScrollbarWidth>(style_group<CSS::ComputedValues::MiscResetValues>().scrollbar_width); }
@@ -532,7 +506,6 @@ public:
     Optional<Utf16FlyString> view_transition_name() const { return style_group<CSS::ComputedValues::MiscResetValues>().view_transition_name_value(); }
     Color outline_color() const { return Color::from_bgra(style_group<CSS::ComputedValues::MiscResetValues>().outline_color); }
     Color column_rule_color() const { return Color::from_bgra(style_group<CSS::ComputedValues::MiscResetValues>().column_rule_color); }
-    CSSPixels outline_offset() const { return style_group<CSS::ComputedValues::MiscResetValues>().outline_offset; }
     CSS::OutlineStyle outline_style() const { return static_cast<CSS::OutlineStyle>(style_group<CSS::ComputedValues::MiscResetValues>().outline_style); }
     CSSPixels outline_width() const { return style_group<CSS::ComputedValues::MiscResetValues>().outline_width; }
     Color background_color() const { return style_group<CSS::ComputedValues::BackgroundValues>().background_color_value(); }
@@ -647,10 +620,6 @@ public:
     bool is_absolutely_positioned() const;
     bool is_fixed_position() const;
     bool is_sticky_position() const;
-
-    // An element is called out of flow if it is floated, absolutely positioned, or is the root element.
-    // https://www.w3.org/TR/CSS22/visuren.html#positioning-scheme
-    bool is_out_of_flow() const { return is_floating() || is_absolutely_positioned(); }
 
     bool establishes_an_absolute_positioning_containing_block() const;
     bool establishes_a_fixed_positioning_containing_block() const;

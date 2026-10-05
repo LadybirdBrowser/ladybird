@@ -3615,11 +3615,6 @@ pub extern "C" fn layout_node_kind_is_svg_box(kind: NodeKind) -> bool {
     node_facts::kind_is_svg_box(kind)
 }
 
-#[unsafe(no_mangle)]
-pub extern "C" fn layout_node_kind_is_svg_graphics_box(kind: NodeKind) -> bool {
-    svg_formatting_context::kind_is_svg_graphics_box(kind)
-}
-
 fn node_is_generated_for_pseudo_element(data: &NodeData) -> bool {
     data.generated_for.get() != 0
 }
