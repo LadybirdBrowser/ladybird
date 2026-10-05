@@ -516,7 +516,6 @@ impl RetainedState {
                 LONGHAND_DRIVE_PHASE_REMAINING,
                 &raw const length,
                 std::ptr::null(),
-                std::ptr::null(),
                 &raw mut results,
                 &mut effective_color_scheme,
                 true,
@@ -937,8 +936,7 @@ impl RetainedState {
                      effective_color_scheme: &mut i16,
                      phase: u8,
                      length: *const FfiLengthResolutionContext,
-                     input_line_height_metrics: *const FfiInputLineHeightMetrics,
-                     line_height_before: *const std::ffi::c_void| unsafe {
+                     input_line_height_metrics: *const FfiInputLineHeightMetrics| unsafe {
             let evaluations_before = results.longhand_evaluations;
             drive_property_computation(
                 std::ptr::from_mut(table),
@@ -952,7 +950,6 @@ impl RetainedState {
                 phase,
                 length,
                 input_line_height_metrics,
-                line_height_before,
                 std::ptr::from_mut(results),
                 effective_color_scheme,
                 true,
@@ -994,7 +991,6 @@ impl RetainedState {
                 &mut effective_color_scheme,
                 LONGHAND_DRIVE_PHASE_FONT,
                 &raw const font_length,
-                std::ptr::null(),
                 std::ptr::null(),
             );
             // A recascaded size that read the viewport makes the element's style and font metrics
@@ -1058,7 +1054,6 @@ impl RetainedState {
                 LONGHAND_DRIVE_PHASE_LINE_HEIGHT,
                 &raw const line_height_length,
                 std::ptr::null(),
-                std::ptr::null(),
             );
         }
 
@@ -1095,7 +1090,6 @@ impl RetainedState {
                 &mut results,
                 &mut effective_color_scheme,
                 LONGHAND_DRIVE_PHASE_COLOR_SCHEME,
-                std::ptr::null(),
                 std::ptr::null(),
                 std::ptr::null(),
             );
@@ -1152,7 +1146,6 @@ impl RetainedState {
                 minimum_line_height: 0.0,
             }
         };
-        let line_height_value = table.effective_value(None, prop::LINE_HEIGHT, true).value;
         drive(
             counters,
             &mut table,
@@ -1161,7 +1154,6 @@ impl RetainedState {
             LONGHAND_DRIVE_PHASE_REMAINING,
             &raw const remaining_length,
             &raw const input_line_height_metrics,
-            line_height_value,
         );
         // A tree-counting value is admitted only where the retained tree places the element.
         if results.uses_tree_counting_function && sibling_position.is_none() {

@@ -614,7 +614,7 @@ void StyleComputer::finish_animation_refresh(Layout::BegunRead const& read, DOM:
     }
     if (computed_properties.requires_animated_post_compute_adjustments()) {
         computed_properties.prepare_for_animated_post_compute_adjustments(Badge<StyleComputer> {});
-        finalize_style(read, computed_properties, abstract_element, ComputedValuesFFI::FfiStyleFinalizationMode::AnimatedBoxType);
+        finalize_animated_box_type(read, computed_properties, abstract_element);
     }
 }
 
@@ -2166,39 +2166,6 @@ ComputationContext StyleComputer::make_computation_context_for_property(Layout::
     VERIFY_NOT_REACHED();
 }
 
-static ComputedValuesFFI::FfiBoxTypeTransformationInput make_box_type_transformation_input(
-    DOM::AbstractElement abstract_element, Optional<Display> known_parent_display = {})
-{
-    auto& element = abstract_element.element();
-
-    // NOTE: If we're computing style for a pseudo-element, the effective parent will be the originating element itself, not its parent.
-    auto parent = abstract_element.element_to_inherit_style_from();
-
-    // Climb out of `display: contents` context.
-    Optional<Display> parent_display;
-    while (parent.has_value() && parent->has_style()) {
-        auto display = [&] {
-            if (known_parent_display.has_value())
-                return *known_parent_display;
-            return parent->computed_style()->display();
-        }();
-        known_parent_display.clear();
-        if (!display.is_contents()) {
-            parent_display = display;
-            break;
-        }
-        parent = parent->element_to_inherit_style_from();
-    }
-
-    return ComputedValuesFFI::rust_box_type_transformation_input(
-        element_box_type_adjustment_facts(element),
-        abstract_element.pseudo_element().has_value()
-            ? ComputedValuesFFI::FfiStyleAdjustmentTarget::PseudoElement
-            : ComputedValuesFFI::FfiStyleAdjustmentTarget::Element,
-        parent_display.has_value(),
-        parent_display.has_value() ? to_ffi_display(*parent_display) : ComputedValuesFFI::FfiDisplay {});
-}
-
 static ComputedValuesFFI::FfiInputLineHeightMetrics input_line_height_metrics(ComputedStyleWorkingSet const& style, DOM::AbstractElement abstract_element, bool should_measure)
 {
     ComputedValuesFFI::FfiInputLineHeightMetrics line_height_metrics {};
@@ -2209,22 +2176,13 @@ static ComputedValuesFFI::FfiInputLineHeightMetrics input_line_height_metrics(Co
     return line_height_metrics;
 }
 
-void StyleComputer::finalize_style(Layout::BegunRead const& read, ComputedStyleWorkingSet& style, DOM::AbstractElement abstract_element, ComputedValuesFFI::FfiStyleFinalizationMode mode) const
+void StyleComputer::finalize_animated_box_type(Layout::BegunRead const& read, ComputedStyleWorkingSet& style, DOM::AbstractElement abstract_element) const
 {
-    bool const animated_box_type = mode == ComputedValuesFFI::FfiStyleFinalizationMode::AnimatedBoxType;
-    VERIFY(animated_box_type || mode == ComputedValuesFFI::FfiStyleFinalizationMode::BoxType);
-    ComputedValuesFFI::FfiStyleFinalizationInput input {};
-    input.mode = mode;
     // A composition sampled over a record is transformed against the input the engine drove the record against.
-    input.box_type = animated_box_type
-        ? ComputedValuesFFI::rust_animated_box_type_transformation_input(m_style_engine.host(), &read, abstract_element.element().style_node_id().value(), pseudo_element_to_ffi(abstract_element.pseudo_element()))
-        : make_box_type_transformation_input(abstract_element);
-    auto line_height_metrics = input_line_height_metrics(style, abstract_element, input.box_type.check_input_line_height);
-    auto* animated_overlay = style.prepare_animated_overlay_for_rust_finalization(
-        Badge<StyleComputer> {}, animated_box_type ? ComputedStyleWorkingSet::CreateAnimatedOverlay::Yes : ComputedStyleWorkingSet::CreateAnimatedOverlay::No);
-    auto finalization = ComputedValuesFFI::rust_finalize_style(
-        &input, style.mutable_computed_longhand_table(), animated_overlay, &line_height_metrics);
-    style.did_apply_style_finalization_from_rust(finalization.invalidated_longhands);
+    auto box_type = ComputedValuesFFI::rust_animated_box_type_transformation_input(m_style_engine.host(), &read, abstract_element.element().style_node_id().value(), pseudo_element_to_ffi(abstract_element.pseudo_element()));
+    auto line_height_metrics = input_line_height_metrics(style, abstract_element, box_type.check_input_line_height);
+    auto* animated_overlay = style.prepare_animated_overlay_for_rust_finalization(Badge<StyleComputer> {});
+    ComputedValuesFFI::rust_finalize_animated_box_type(box_type, style.mutable_computed_longhand_table(), animated_overlay, &line_height_metrics);
     style.finish_animated_overlay_rust_mutation(Badge<StyleComputer> {});
 }
 
