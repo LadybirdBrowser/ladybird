@@ -174,23 +174,21 @@ impl LayoutNodeArena {
 impl BoxRemoval {
     /// Detaches the removed node's box from its parent's box in place where it can, owing the host what dropping the
     /// subtree owes it, and marks the parent for the layout tree build to rebuild otherwise.
-    pub(crate) fn apply(self, arena: *mut LayoutNodeArena, owed: &mut Vec<HostWorkDue>) {
+    pub(crate) fn apply(self, arena: &mut LayoutNodeArena, owed: &mut Vec<HostWorkDue>) {
         let Self { parent, child, facts } = self;
-        // SAFETY: The render state holds the arena, and nothing else reaches it while the change applies.
-        let arena_ref = unsafe { &*arena };
-        let (parent_row, child_row) = (arena_ref.bound_row(parent), arena_ref.bound_row(child));
+        let (parent_row, child_row) = (arena.bound_row(parent), arena.bound_row(child));
         if parent_row.is_invalid()
             || child_row.is_invalid()
-            || !arena_ref.can_detach_box_in_place(parent, parent_row, child_row, &facts)
+            || !arena.can_detach_box_in_place(parent, parent_row, child_row, &facts)
         {
-            arena_ref.mark_layout_tree_update(Some(parent), FfiLayoutTreeUpdateMark::NODE_REMOVE);
+            arena.mark_layout_tree_update(Some(parent), FfiLayoutTreeUpdateMark::NODE_REMOVE);
             return;
         }
 
-        let parent_contains_removed_abspos_box = arena_ref.is_absolutely_positioned_box(child_row)
-            && arena_ref.containing_block_by_walking_ancestors(child_row) == parent_row;
+        let parent_contains_removed_abspos_box = arena.is_absolutely_positioned_box(child_row)
+            && arena.containing_block_by_walking_ancestors(child_row) == parent_row;
         if parent_contains_removed_abspos_box {
-            arena_ref.note_contained_abspos_child_removal(parent_row, child_row);
+            arena.note_contained_abspos_child_removal(parent_row, child_row);
         }
         owed.push(
             LayoutWrite::PrepareSubtreeForRemoval { root: child_row }
@@ -200,12 +198,12 @@ impl BoxRemoval {
         let dropped = LayoutWrite::DropSubtree { root: child_row }.apply(arena);
         assert!(dropped.was_attached, "a box detached in place is its parent's child");
         owed.push(dropped.host_work);
-        if arena_ref.data(parent_row).first_child.get().is_invalid() {
-            arena_ref.set_node_flag(parent_row, NodeFlag::ChildrenAreInline, false);
+        if arena.data(parent_row).first_child.get().is_invalid() {
+            arena.set_node_flag(parent_row, NodeFlag::ChildrenAreInline, false);
         }
         // Nothing lays a contained absolutely positioned box out again: the host repaints for it.
         if !parent_contains_removed_abspos_box {
-            arena_ref.set_needs_layout_update(parent_row, true);
+            arena.set_needs_layout_update(parent_row, true);
         }
     }
 }

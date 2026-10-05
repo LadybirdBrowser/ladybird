@@ -128,20 +128,16 @@ fn collapses_whitespace(rows: &impl PaintRead, node: NodeSlotId) -> bool {
     )
 }
 
-unsafe fn ensure_text_fragments(arena: *mut LayoutNodeArena, primary: NodeSlotId) {
-    // SAFETY: The caller lends the live arena; the IDs do not borrow it.
-    let fragments = unsafe { &*arena }.text_fragments(primary);
-    for &node in fragments.as_slice() {
-        // SAFETY: The caller lends the live arena, which nothing else borrows meanwhile.
-        ensure_text_content(unsafe { &mut *arena }, node);
+fn ensure_text_fragments(arena: &mut LayoutNodeArena, primary: NodeSlotId) {
+    for &node in arena.text_fragments(primary).as_slice() {
+        ensure_text_content(arena, node);
     }
 }
 
 /// The text the rows of the text node whose primary row is `primary` render, with whitespace
 /// collapsed where their style collapses it if `collapse_whitespace`.
 pub(crate) fn rendered_text(arena: &mut LayoutNodeArena, primary: NodeSlotId, collapse_whitespace: bool) -> Vec<u16> {
-    // SAFETY: The arena is borrowed exclusively.
-    unsafe { ensure_text_fragments(arena, primary) };
+    ensure_text_fragments(arena, primary);
     let mut text = Vec::new();
     for &node in arena.text_fragments(primary).as_slice() {
         let content = arena.text_content(node).expect("fragment was refreshed");
@@ -244,8 +240,7 @@ pub(crate) fn text_word_range(
     primary: NodeSlotId,
     dom_offset: usize,
 ) -> FfiTextSourceRange {
-    // SAFETY: The arena is borrowed exclusively.
-    unsafe { ensure_text_fragments(arena, primary) };
+    ensure_text_fragments(arena, primary);
     let range = word_range(arena, primary, dom_offset, super::text_chunker::word_boundaries);
     FfiTextSourceRange {
         start: range.start,
