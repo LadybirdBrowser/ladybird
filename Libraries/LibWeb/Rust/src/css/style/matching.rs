@@ -1502,7 +1502,7 @@ impl RetainedState {
         if let Some(view) = transaction_fact_view {
             evaluator = evaluator.with_transaction_fact_view(view, TransactionFactSide::After);
         }
-        match evaluator.matches_selector_node(program, query.compound, witness, &self.counters) {
+        match evaluator.matches_node(program, query.compound, witness, &self.counters) {
             Ok(true) => Lookup::Known(witness),
             Ok(false) => {
                 self.append_witness_effects(vec![WitnessEffect::Clear(key)]);
@@ -1780,15 +1780,6 @@ impl RetainedState {
         matches: &[RuleMatch],
     ) {
         let answer = prepare_retained_match_answer(matches.iter().copied());
-        self.remember_prepared_retained_match_answer_with_effects(effects, node, answer);
-    }
-
-    pub(super) fn remember_prepared_retained_match_answer_with_effects(
-        &mut self,
-        effects: &mut AnswerEffects,
-        node: StyleNodeID,
-        answer: Vec<RetainedRuleMatch>,
-    ) {
         self.remember_prepared_retained_match_answer_with_truth_with_effects(effects, node, answer, None);
     }
 
@@ -3007,7 +2998,7 @@ impl RetainedState {
         let (answer, applied) = self.retained_answer_after_deltas(node, patch, retained, deltas)?;
 
         if !orders_shifted && self.retained_match_deltas_cannot_change_cascade(effects, node, retained, deltas) {
-            self.remember_prepared_retained_match_answer_with_effects(effects, node, answer);
+            self.remember_prepared_retained_match_answer_with_truth_with_effects(effects, node, answer, None);
             self.publish_cascade_input_with_effects(effects, node, old_cascade_input);
             self.counters.bump(Counter::RetainedMatchAnswerDeltaPatches);
             self.counters.add(Counter::RetainedMatchAnswerDeltaEntries, applied);
@@ -3060,7 +3051,7 @@ impl RetainedState {
 
         verify_match_answer_against_cold(self, &materialized, node, "a retained match answer delta");
 
-        self.remember_prepared_retained_match_answer_with_effects(effects, node, answer);
+        self.remember_prepared_retained_match_answer_with_truth_with_effects(effects, node, answer, None);
         let cascade_winners_updated =
             self.apply_cascade_winner_match_deltas(effects, node, &materialized, deltas, &mut patch.cascade_candidates);
         let mut new_input = materialized;
@@ -3410,9 +3401,10 @@ impl RetainedState {
         }
 
         self.remember_retained_match_answer_with_effects(effects, node, &patched_answer);
-        let new_input = self.matches_for_cascade_with_scratch(
+        let mut new_input = patched_answer;
+        self.compact_matches_for_cascade_with_scratch(
             effects,
-            patched_answer,
+            &mut new_input,
             false,
             None,
             &mut patch.cascade_compaction_workspace,

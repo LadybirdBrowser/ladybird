@@ -34,11 +34,11 @@ impl RetainedState {
         let resident_facts = self.facts.primary();
         let old = MatchEvaluator::new(&self.tree, resident_facts)
             .with_transaction_fact_view(view, TransactionFactSide::Before)
-            .matches_selector_node(compiled, origin, node, &self.counters)
+            .matches_node(compiled, origin, node, &self.counters)
             .ok()?;
         let new = MatchEvaluator::new(&self.tree, resident_facts)
             .with_transaction_fact_view(view, TransactionFactSide::After)
-            .matches_selector_node(compiled, origin, node, &self.counters)
+            .matches_node(compiled, origin, node, &self.counters)
             .ok()?;
         Some(old != new)
     }
