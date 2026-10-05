@@ -76,10 +76,6 @@ pub unsafe fn script_or_module_from_abi(script_or_module: JSScriptOrModule) -> S
     }
 }
 
-/// Decides whether an execution context is the one js_execution_context_last_matching() looks for.
-pub type JSExecutionContextPredicate =
-    Option<unsafe extern "C" fn(predicate_context: *mut c_void, execution_context: *mut JSExecutionContext) -> bool>;
-
 fn execution_context_from_abi(execution_context: *mut JSExecutionContext) -> NonNull<ExecutionContext> {
     NonNull::new(execution_context.cast()).expect("the embedder passes an execution context")
 }
@@ -208,32 +204,6 @@ pub unsafe extern "C" fn js_execution_context_push(vm: *mut JSVM, execution_cont
     vm.push_execution_context(execution_context_from_abi(execution_context));
 }
 
-/// VM::pop_execution_context(): pops the execution context stack and returns the context it popped. The context that
-/// was running when that one was pushed is running again.
-///
-/// # Safety
-///
-/// `vm` must be a live VM whose execution context stack is not empty. Must be called on the thread that runs the VM.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn js_execution_context_pop(vm: *mut JSVM) -> *mut JSExecutionContext {
-    // SAFETY: The caller passes a live VM.
-    let vm = unsafe { vm_from_abi(vm) };
-    execution_context_to_abi(Some(vm.pop_execution_context()))
-}
-
-/// The number of contexts on the execution context stack, VM::execution_context_stack().size(). The frames of
-/// JavaScript functions that the interpreter calls directly are not on it.
-///
-/// # Safety
-///
-/// `vm` must be a live VM. Must be called on the thread that runs the VM.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn js_execution_context_stack_size(vm: *mut JSVM) -> usize {
-    // SAFETY: The caller passes a live VM.
-    let vm = unsafe { vm_from_abi(vm) };
-    vm.execution_context_stack_size()
-}
-
 /// VM::save_execution_context_stack(): sets the execution context stack aside and leaves an empty one with nothing
 /// running. The garbage collector keeps tracing the contexts on the saved stack until
 /// js_execution_context_restore_stack() brings it back.
@@ -271,42 +241,6 @@ pub unsafe extern "C" fn js_execution_context_restore_stack(vm: *mut JSVM) {
     // SAFETY: The caller passes a live VM.
     let vm = unsafe { vm_from_abi(vm) };
     vm.restore_execution_context_stack();
-}
-
-/// VM::last_execution_context_matching(): calls `predicate` with `predicate_context` and each execution context from
-/// the running one down, the frames of JavaScript functions that the interpreter calls directly included, and returns
-/// the first context it accepts, or null if it accepts none. The predicate may run JavaScript, as long as it leaves the
-/// execution context stack as it found it.
-///
-/// # Safety
-///
-/// `vm` must be a live VM, and `predicate` a function that may be called with `predicate_context`. Must be called on the
-/// thread that runs the VM.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn js_execution_context_last_matching(
-    vm: *mut JSVM,
-    predicate: JSExecutionContextPredicate,
-    predicate_context: *mut c_void,
-) -> *mut JSExecutionContext {
-    // SAFETY: The caller passes a live VM.
-    let vm = unsafe { vm_from_abi(vm) };
-    let predicate = predicate.expect("the embedder passes a predicate");
-    execution_context_to_abi(vm.last_execution_context_matching(|execution_context| {
-        // SAFETY: The caller passes a predicate that takes its context, and the execution context is live.
-        unsafe { predicate(predicate_context, execution_context_to_abi(Some(execution_context))) }
-    }))
-}
-
-/// GetActiveScriptOrModule(): the ScriptOrModule of the topmost execution context that has one, or an empty one.
-///
-/// # Safety
-///
-/// `vm` must be a live VM. Must be called on the thread that runs the VM.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn js_execution_context_get_active_script_or_module(vm: *mut JSVM) -> JSScriptOrModule {
-    // SAFETY: The caller passes a live VM.
-    let vm = unsafe { vm_from_abi(vm) };
-    vm.get_active_script_or_module().into()
 }
 
 /// ExecutionContext::function_name(): the name of the function whose bytecode the context runs, as an owned

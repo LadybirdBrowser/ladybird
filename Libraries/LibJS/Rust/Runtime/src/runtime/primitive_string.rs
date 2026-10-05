@@ -20,6 +20,7 @@ use crate::runtime::completion::ThrowCompletionOr;
 use crate::runtime::error::ErrorKind;
 use crate::runtime::error_types::ErrorType;
 use crate::runtime::property_key::PropertyKey;
+use crate::runtime::value::DecimalDigits;
 use crate::utf16::{
     MAX_SHORT_STRING_BYTE_COUNT, Utf16Display, Utf16StringBuilder, Utf16View, concatenate, has_fly_string_storage,
     has_short_ascii_storage, to_utf16_fly_string,
@@ -97,7 +98,7 @@ impl PrimitiveString {
             return None;
         }
 
-        let string = concatenate(&[Utf16View::Ascii(lhs_view), Utf16View::Ascii(rhs_view)]);
+        let string = Utf16String::from_ascii_concatenation(byte_count, [lhs_view, rhs_view]);
         Some(Self::create(vm, string))
     }
 
@@ -162,7 +163,7 @@ impl PrimitiveString {
         if number < numeric_string_cache.len() as u64 {
             let cache_slot = &numeric_string_cache[number as usize];
             if cache_slot.get().is_none() {
-                let string = Utf16FlyString::from_utf8(&number.to_string());
+                let string = Utf16FlyString::from_utf8(DecimalDigits::new(number).as_str());
                 cache_slot.set(Some(Self::create_from_fly_string(vm, &string)));
             }
             return cache_slot.get().expect("the numeric string was just cached");
@@ -172,7 +173,7 @@ impl PrimitiveString {
         let cache_entry = &large_cache[(number & (large_cache.len() as u64 - 1)) as usize];
         if cache_entry.string.get().is_none() || cache_entry.number.get() != number {
             cache_entry.number.set(number);
-            let string = Utf16FlyString::from_utf8(&number.to_string());
+            let string = Utf16FlyString::from_utf8(DecimalDigits::new(number).as_str());
             cache_entry.string.set(Some(Self::create_from_fly_string(vm, &string)));
         }
         cache_entry.string.get().expect("the numeric string was just cached")
@@ -482,6 +483,25 @@ impl RopeString {
     }
 
     fn resolve(&self) {
+        let string = if self.lhs().deferred_kind.get() != DeferredKind::Rope
+            && self.rhs().deferred_kind.get() != DeferredKind::Rope
+        {
+            concatenate(&[self.lhs().utf16_string_view(), self.rhs().utf16_string_view()])
+        } else {
+            self.concatenate_pieces()
+        };
+        debug_assert_eq!(
+            Utf16View::of_string(&string).length_in_code_units(),
+            self.base.length_in_utf16_code_units()
+        );
+
+        self.base.set_resolved_utf16_string(string);
+        self.base.deferred_kind.set(DeferredKind::None);
+        self.lhs.set(None);
+        self.rhs.set(None);
+    }
+
+    fn concatenate_pieces(&self) -> Utf16String {
         // This vector will hold all the pieces of the rope that need to be assembled
         // into the resolved string.
         // NB: Resolving takes no VM, so it cannot allocate cells or collect garbage while these vectors hold strings
@@ -505,16 +525,7 @@ impl RopeString {
         }
 
         let views: Vec<Utf16View<'_>> = pieces.iter().map(|piece| piece.utf16_string_view()).collect();
-        let string = concatenate(&views);
-        debug_assert_eq!(
-            Utf16View::of_string(&string).length_in_code_units(),
-            self.base.length_in_utf16_code_units()
-        );
-
-        self.base.set_resolved_utf16_string(string);
-        self.base.deferred_kind.set(DeferredKind::None);
-        self.lhs.set(None);
-        self.rhs.set(None);
+        concatenate(&views)
     }
 }
 

@@ -42,7 +42,7 @@ use crate::layout::function_object::{FunctionObject, NativeFunctionTableEntry, N
 use crate::layout::object::Object;
 use crate::layout::realm::Realm;
 use crate::layout::value::Value;
-use crate::layout::vm::{InterpreterStack, VmHead};
+use crate::layout::vm::{ExecutionContextStackEntry, InterpreterStack, VmHead};
 use crate::layout_forward::RawNativeFunctionPointer;
 use crate::lexical_path;
 use crate::runtime::abstract_operations::get_this_environment;
@@ -171,8 +171,8 @@ pub struct VmOptions {
 /// An execution context stack that VM::save_execution_context_stack() set aside, with the TypeErrorRealmScope that
 /// was active on it.
 struct SavedExecutionContextStack {
-    execution_context_stack: Vec<NonNull<ExecutionContext>>,
-    previous_running_execution_contexts: Vec<*mut ExecutionContext>,
+    storage: Vec<ExecutionContextStackEntry>,
+    length: usize,
     running_execution_context: *mut ExecutionContext,
     type_error_realm_override: Option<Gc<Realm>>,
     type_error_realm_override_depth: usize,
@@ -489,9 +489,9 @@ pub struct Vm {
     pub head: VmHead,
     heap: OnceCell<Heap>,
     _interpreter_stack_memory: InterpreterStackMemory,
-    execution_context_stack: RefCell<Vec<NonNull<ExecutionContext>>>,
-    /// The context that was running when each context on the stack was pushed.
-    previous_running_execution_contexts: RefCell<Vec<*mut ExecutionContext>>,
+    /// The storage of the execution context stack, whose length is its capacity. The head points into it and knows
+    /// which of its entries are on the stack.
+    execution_context_stack_storage: RefCell<Vec<ExecutionContextStackEntry>>,
     native_function_table: RefCell<Vec<NativeFunctionTableEntry>>,
     /// The index of each function in the native function table, by its address and type.
     native_function_indices: RefCell<HashMap<(usize, u32), u32>>,
@@ -554,10 +554,6 @@ pub struct Vm {
     /// their object, the C++ static intrinsic_accessor_map(). The objects are weak: the sweep callback forgets the
     /// ones that die.
     intrinsic_accessors: RefCell<IntrinsicAccessorMap>,
-    /// The realm TypeErrors are created in while a TypeErrorRealmScope is active, at the execution context stack
-    /// depth it was created at.
-    type_error_realm_override: Cell<Option<Gc<Realm>>>,
-    type_error_realm_override_depth: Cell<usize>,
     /// VM::m_debugger, which the head points to while it is attached.
     debugger: RefCell<Option<Rc<Debugger>>>,
     /// The properties defined with Object::define_unimplemented_property, the C++ static unimplemented_property_map().
@@ -602,6 +598,7 @@ impl Vm {
         let primitive_storage_cage_base = crate::runtime::array_buffer::primitive_storage_cage_base();
         let interpreter_stack_memory = InterpreterStackMemory::allocate();
         let native_function_table = Vec::new();
+        let mut execution_context_stack_storage = Vec::new();
         let vm = Vm {
             head: VmHead {
                 running_execution_context: Cell::new(core::ptr::null_mut()),
@@ -612,11 +609,17 @@ impl Vm {
                 heap_region_base: Cell::new(heap_region_base),
                 native_function_table_data: Cell::new(Vec::<NativeFunctionTableEntry>::as_ptr(&native_function_table)),
                 debugger: Cell::new(core::ptr::null_mut()),
+                execution_context_stack_entries: Cell::new(Vec::<ExecutionContextStackEntry>::as_mut_ptr(
+                    &mut execution_context_stack_storage,
+                )),
+                execution_context_stack_length: Cell::new(0),
+                execution_context_stack_capacity: Cell::new(0),
+                type_error_realm_override: Cell::new(None),
+                type_error_realm_override_depth: Cell::new(0),
             },
             heap: OnceCell::new(),
             _interpreter_stack_memory: interpreter_stack_memory,
-            execution_context_stack: RefCell::new(Vec::new()),
-            previous_running_execution_contexts: RefCell::new(Vec::new()),
+            execution_context_stack_storage: RefCell::new(execution_context_stack_storage),
             native_function_table: RefCell::new(native_function_table),
             native_function_indices: RefCell::new(HashMap::new()),
             roots: RootSet::default(),
@@ -671,8 +674,6 @@ impl Vm {
             module_async_evaluation_count: Cell::new(0),
             next_private_environment_id: Cell::new(1),
             intrinsic_accessors: RefCell::new(HashMap::default()),
-            type_error_realm_override: Cell::new(None),
-            type_error_realm_override_depth: Cell::new(0),
             debugger: RefCell::new(None),
             unimplemented_properties: RefCell::new(HashMap::default()),
             on_unimplemented_property_access: Cell::new(None),
@@ -771,26 +772,72 @@ impl Vm {
         context_ref.caller_return_pc.set(0);
         context_ref.caller_dst_raw.set(0);
         context_ref.caller_is_construct.set(false);
-        self.execution_context_stack.borrow_mut().push(context);
-        self.previous_running_execution_contexts
-            .borrow_mut()
-            .push(self.head.running_execution_context.get());
+        let length = self.head.execution_context_stack_length.get();
+        if length == self.head.execution_context_stack_capacity.get() {
+            self.grow_execution_context_stack();
+        }
+        // SAFETY: The storage has room for more entries than `length`.
+        let entry = unsafe { &*self.head.execution_context_stack_entries.get().add(length) };
+        entry.execution_context.set(context.as_ptr());
+        entry
+            .previous_running_execution_context
+            .set(self.head.running_execution_context.get());
+        self.head.execution_context_stack_length.set(length + 1);
         self.head.running_execution_context.set(context.as_ptr());
     }
 
     pub fn pop_execution_context(&self) -> NonNull<ExecutionContext> {
-        let context = self
-            .execution_context_stack
-            .borrow_mut()
-            .pop()
+        let length = self
+            .head
+            .execution_context_stack_length
+            .get()
+            .checked_sub(1)
             .expect("a context to pop");
-        let previous = self
-            .previous_running_execution_contexts
-            .borrow_mut()
-            .pop()
-            .expect("each pushed context records its predecessor");
-        self.head.running_execution_context.set(previous);
-        context
+        // SAFETY: The entry below the length is on the stack.
+        let entry = unsafe { &*self.head.execution_context_stack_entries.get().add(length) };
+        self.head.execution_context_stack_length.set(length);
+        self.head
+            .running_execution_context
+            .set(entry.previous_running_execution_context.get());
+        NonNull::new(entry.execution_context.get()).expect("every entry on the stack has its context")
+    }
+
+    #[cold]
+    fn grow_execution_context_stack(&self) {
+        let mut storage = self.execution_context_stack_storage.borrow_mut();
+        let capacity = (storage.len() * 2).max(16);
+        storage.resize_with(capacity, || ExecutionContextStackEntry {
+            execution_context: Cell::new(core::ptr::null_mut()),
+            previous_running_execution_context: Cell::new(core::ptr::null_mut()),
+        });
+        self.head.execution_context_stack_entries.set(storage.as_mut_ptr());
+        self.head.execution_context_stack_capacity.set(capacity);
+    }
+
+    /// The context at `index` of the execution context stack and the context that was running when it was pushed, or
+    /// None past the top of the stack.
+    fn execution_context_stack_entry(
+        &self,
+        index: usize,
+    ) -> Option<(NonNull<ExecutionContext>, *mut ExecutionContext)> {
+        if index >= self.head.execution_context_stack_length.get() {
+            return None;
+        }
+        // SAFETY: The entries below the length are on the stack.
+        let entry = unsafe { &*self.head.execution_context_stack_entries.get().add(index) };
+        Some((
+            NonNull::new(entry.execution_context.get()).expect("every entry on the stack has its context"),
+            entry.previous_running_execution_context.get(),
+        ))
+    }
+
+    /// Hands the head the storage of an execution context stack with `length` entries on it.
+    fn install_execution_context_stack(&self, mut storage: Vec<ExecutionContextStackEntry>, length: usize) {
+        assert!(length <= storage.len());
+        self.head.execution_context_stack_entries.set(storage.as_mut_ptr());
+        self.head.execution_context_stack_length.set(length);
+        self.head.execution_context_stack_capacity.set(storage.len());
+        *self.execution_context_stack_storage.borrow_mut() = storage;
     }
 
     /// Calls `callback` with each live execution context from the running one down, until it breaks, following both
@@ -801,11 +848,7 @@ impl Vm {
         let stack_length = self.execution_context_stack_size();
         for_each_execution_context_top_to_bottom_of(
             stack_length,
-            |index| {
-                let context = *self.execution_context_stack.borrow().get(index)?;
-                let previous_running_context = *self.previous_running_execution_contexts.borrow().get(index)?;
-                Some((context, previous_running_context))
-            },
+            |index| self.execution_context_stack_entry(index),
             self.head.running_execution_context.get(),
             callback,
         );
@@ -832,7 +875,7 @@ impl Vm {
     /// The number of contexts pushed onto the execution context stack, VM::execution_context_stack().size(). Frames
     /// the interpreter links through caller_frame are not on it.
     pub fn execution_context_stack_size(&self) -> usize {
-        self.execution_context_stack.borrow().len()
+        self.head.execution_context_stack_length.get()
     }
 
     /// VM::save_execution_context_stack(): sets the execution context stack aside, with the TypeErrorRealmScope that
@@ -840,25 +883,23 @@ impl Vm {
     /// stack until restore_execution_context_stack() brings it back.
     pub fn save_execution_context_stack(&self) {
         let saved_stack = SavedExecutionContextStack {
-            execution_context_stack: core::mem::take(&mut *self.execution_context_stack.borrow_mut()),
-            previous_running_execution_contexts: core::mem::take(
-                &mut *self.previous_running_execution_contexts.borrow_mut(),
-            ),
+            storage: core::mem::take(&mut *self.execution_context_stack_storage.borrow_mut()),
+            length: self.head.execution_context_stack_length.get(),
             running_execution_context: self.head.running_execution_context.replace(core::ptr::null_mut()),
-            type_error_realm_override: self.type_error_realm_override.take(),
-            type_error_realm_override_depth: self.type_error_realm_override_depth.replace(0),
+            type_error_realm_override: self.head.type_error_realm_override.take(),
+            type_error_realm_override_depth: self.head.type_error_realm_override_depth.replace(0),
         };
         self.saved_execution_context_stacks.borrow_mut().push(saved_stack);
+        self.install_execution_context_stack(Vec::new(), 0);
     }
 
     /// VM::clear_execution_context_stack(): forgets every context on the execution context stack, keeping the stack's
     /// storage.
     pub fn clear_execution_context_stack(&self) {
-        self.execution_context_stack.borrow_mut().clear();
-        self.previous_running_execution_contexts.borrow_mut().clear();
+        self.head.execution_context_stack_length.set(0);
         self.head.running_execution_context.set(core::ptr::null_mut());
-        self.type_error_realm_override.set(None);
-        self.type_error_realm_override_depth.set(0);
+        self.head.type_error_realm_override.set(None);
+        self.head.type_error_realm_override_depth.set(0);
     }
 
     /// VM::restore_execution_context_stack(): replaces the execution context stack with the one the matching
@@ -869,14 +910,15 @@ impl Vm {
             .borrow_mut()
             .pop()
             .expect("a saved execution context stack to restore");
-        *self.execution_context_stack.borrow_mut() = saved_stack.execution_context_stack;
-        *self.previous_running_execution_contexts.borrow_mut() = saved_stack.previous_running_execution_contexts;
+        self.install_execution_context_stack(saved_stack.storage, saved_stack.length);
         self.head
             .running_execution_context
             .set(saved_stack.running_execution_context);
-        self.type_error_realm_override
+        self.head
+            .type_error_realm_override
             .set(saved_stack.type_error_realm_override);
-        self.type_error_realm_override_depth
+        self.head
+            .type_error_realm_override_depth
             .set(saved_stack.type_error_realm_override_depth);
     }
 
@@ -906,11 +948,12 @@ impl Vm {
         });
         for saved_stack in self.saved_execution_context_stacks.borrow().iter() {
             for_each_execution_context_top_to_bottom_of(
-                saved_stack.execution_context_stack.len(),
+                saved_stack.length,
                 |index| {
+                    let entry = saved_stack.storage[..saved_stack.length].get(index)?;
                     Some((
-                        *saved_stack.execution_context_stack.get(index)?,
-                        *saved_stack.previous_running_execution_contexts.get(index)?,
+                        NonNull::new(entry.execution_context.get()).expect("every entry on the stack has its context"),
+                        entry.previous_running_execution_context.get(),
                     ))
                 },
                 saved_stack.running_execution_context,
@@ -929,7 +972,7 @@ impl Vm {
         self.cached_strings.trace(visitor);
         self.well_known_symbols.trace(visitor);
         self.global_symbol_registry.trace(visitor);
-        self.type_error_realm_override.trace(visitor);
+        self.head.type_error_realm_override.trace(visitor);
         self.job_queues.trace(visitor);
         self.loaded_modules.trace(visitor);
         self.finalization_registries_with_dead_cells.trace(visitor);
@@ -1077,8 +1120,8 @@ impl Vm {
 
     /// The realm vm.throw_completion() creates a TypeError in.
     pub(crate) fn type_error_realm(&self) -> Option<Gc<Realm>> {
-        if let Some(realm) = self.type_error_realm_override.get()
-            && self.execution_context_stack.borrow().len() == self.type_error_realm_override_depth.get()
+        if let Some(realm) = self.head.type_error_realm_override.get()
+            && self.head.execution_context_stack_length.get() == self.head.type_error_realm_override_depth.get()
         {
             return Some(realm);
         }
@@ -1100,18 +1143,19 @@ impl Vm {
     /// caller must put back with restore_type_error_realm_override().
     pub fn override_type_error_realm(&self, realm: Gc<Realm>) -> TypeErrorRealmOverride {
         let previous = TypeErrorRealmOverride {
-            realm: self.type_error_realm_override.get(),
-            depth: self.type_error_realm_override_depth.get(),
+            realm: self.head.type_error_realm_override.get(),
+            depth: self.head.type_error_realm_override_depth.get(),
         };
-        self.type_error_realm_override.set(Some(realm));
-        self.type_error_realm_override_depth
-            .set(self.execution_context_stack.borrow().len());
+        self.head.type_error_realm_override.set(Some(realm));
+        self.head
+            .type_error_realm_override_depth
+            .set(self.head.execution_context_stack_length.get());
         previous
     }
 
     pub fn restore_type_error_realm_override(&self, previous: TypeErrorRealmOverride) {
-        self.type_error_realm_override.set(previous.realm);
-        self.type_error_realm_override_depth.set(previous.depth);
+        self.head.type_error_realm_override.set(previous.realm);
+        self.head.type_error_realm_override_depth.set(previous.depth);
     }
 
     /// The frames of every execution context, from the running one down, with where each is in its executable.
@@ -1599,7 +1643,7 @@ impl Vm {
 
 impl Vm {
     pub fn execution_context_stack_is_empty(&self) -> bool {
-        self.execution_context_stack.borrow().is_empty()
+        self.head.execution_context_stack_length.get() == 0
     }
 
     pub fn variable_environment(&self) -> Option<Gc<Environment>> {

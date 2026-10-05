@@ -18,6 +18,7 @@ use crate::layout::value::Value;
 use crate::runtime::completion::ThrowCompletionOr;
 use crate::runtime::primitive_string::PrimitiveString;
 use crate::runtime::symbol::Symbol;
+use crate::runtime::value::{DecimalDigits, integer_to_utf16_string};
 use crate::utf16::{Utf16Display, Utf16StringBuilder, Utf16View, to_utf16_fly_string};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -76,7 +77,9 @@ impl PropertyKey {
     /// strings, since they cannot be array indices.
     pub fn from_number(index: u64) -> Self {
         if index >= u64::from(u32::MAX) {
-            return Self::from_fly_string_without_number_check(Utf16FlyString::from_utf8(&index.to_string()));
+            return Self::from_fly_string_without_number_check(Utf16FlyString::from_utf8(
+                DecimalDigits::new(index).as_str(),
+            ));
         }
         Self::from_array_index(index as u32)
     }
@@ -165,7 +168,7 @@ impl PropertyKey {
         if self.is_symbol() {
             return self.as_symbol().descriptive_string();
         }
-        Utf16String::from_utf8(&self.as_number().to_string())
+        integer_to_utf16_string(self.as_number().into())
     }
 }
 

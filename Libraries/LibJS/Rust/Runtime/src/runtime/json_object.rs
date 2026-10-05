@@ -39,7 +39,7 @@ use crate::runtime::realm::Realm;
 use crate::runtime::shape::Shape;
 use crate::runtime::string_conversions::parse_first_number_f64;
 use crate::runtime::string_object::StringObject;
-use crate::runtime::value::{append_number_to_string, same_value};
+use crate::runtime::value::{DecimalDigits, append_number_to_string, same_value};
 use crate::simdjson;
 use crate::utf16::{Utf16StringBuilder, Utf16View};
 
@@ -259,7 +259,7 @@ fn append_json_number(builder: &mut Utf16StringBuilder, value: Value) {
         return;
     }
 
-    builder.append_ascii(&value.as_i32().to_string());
+    builder.append_ascii_bytes(DecimalDigits::new_signed(i64::from(value.as_i32())).as_bytes());
 }
 
 fn write_indent(builder: &mut Utf16StringBuilder, gap: &Utf16String, depth: usize) {
