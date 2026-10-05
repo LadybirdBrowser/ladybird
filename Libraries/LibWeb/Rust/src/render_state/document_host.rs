@@ -9,7 +9,7 @@
 
 use super::clock::{ClockLease, ClockPlan, ClockTicks, LeaseLanding};
 use super::owner::{self, DocumentId, SharedWithHost, StateSeed};
-use super::wait::{BegunRead, HostRead, NodeRead, ReadRight, TaskStart};
+use super::wait::{BegunRead, NodeRead, TaskStart};
 use super::{
     ArenaChange, ChangeQueue, ForcedRead, Landing, Moves, NoFrameInFlight, Owed, RenderState, RenderWait, RowWrite,
     StateFacts, on_render_side, post_to_render_side,
@@ -237,7 +237,11 @@ impl DocumentHost {
     /// Takes the frame in flight in with `read`, and lends the writes the host queued to `apply`, for the render state
     /// to apply ahead of the host's next job. A style write queued beside a style transaction that flew stays queued,
     /// behind the drain of the transaction's reactions, which it is the next transaction's input to.
-    fn drain_queued_changes<R>(&self, read: ReadRight, apply: impl FnOnce(std::vec::Drain<'_, ArenaChange>) -> R) -> R {
+    fn drain_queued_changes<R>(
+        &self,
+        read: impl RenderWait,
+        apply: impl FnOnce(std::vec::Drain<'_, ArenaChange>) -> R,
+    ) -> R {
         self.take_frame_in(read);
         self.changes.drain(self.has_flown_style(), apply)
     }
@@ -256,7 +260,7 @@ impl DocumentHost {
     /// Runs `job` on the document's render state on the render owner, after the writes the host queued, and waits for
     /// it, taking the frame in flight in first with `read`. A host callback the job makes may reach the state again, as
     /// a layout round's read of an element's style does, which runs right there on the owner.
-    pub(super) fn reach<R: Send>(&self, read: ReadRight, job: impl FnOnce(&mut RenderState) -> R + Send) -> R {
+    pub(super) fn reach<R: Send>(&self, read: impl RenderWait, job: impl FnOnce(&mut RenderState) -> R + Send) -> R {
         let ((answer, owed), marks) = self.drain_queued_changes(read, |changes| {
             let (document, seed, marks) = (self.document, self.seed.take(), self.lend_marks());
             let in_job = self.in_job.replace(true);
@@ -322,18 +326,17 @@ impl DocumentHost {
     /// Takes the frame in flight in, where one flies, waiting for it to land, spending `read`: only a read waits for a
     /// frame. A lease ends, which waits for at most one tick and spends no read.
     #[inline]
-    fn take_frame_in(&self, read: ReadRight) -> NoFrameInFlight {
+    fn take_frame_in(&self, read: impl RenderWait) {
         if self.away.borrow().is_some() {
             self.take_frame_back(read);
         }
-        NoFrameInFlight(())
     }
 
     /// Takes back what runs beside the host: lands the frame in flight, or ends the lease.
     #[cold]
-    fn take_frame_back(&self, read: ReadRight) {
+    fn take_frame_back(&self, read: impl RenderWait) {
         if self.frame_flies() {
-            self.land_flying_frame(read);
+            self.land(read.into_forced_read());
         }
         self.end_clock_lease();
     }
@@ -422,23 +425,13 @@ impl DocumentHost {
         rounds.into_iter().for_each(pay);
     }
 
-    /// Lands the frame in flight with `read`, a read the host began being the host's own.
-    #[cold]
-    fn land_flying_frame(&self, read: ReadRight) {
-        self.land(match read {
-            ReadRight::Forced(read) => read,
-            ReadRight::Here(_) => unreachable!("a frame flies only from a rendering update, which no reach runs"),
-            ReadRight::Begun(_) => ForcedRead::Host(HostRead::begun()),
-        });
-    }
-
     /// Takes the frame in flight in, where one flies, spending `read`.
     pub(crate) fn take_frame_in_with(&self, read: &BegunRead) {
         assert!(
             read.reaches(self),
             "a begun read reaches only the render state of its own document"
         );
-        self.take_frame_in(read.into_read_right());
+        self.take_frame_in(read);
     }
 
     /// Lands the frame in flight, waiting for it, spending `read`: the style transaction that flew with it waits to be
@@ -698,7 +691,7 @@ impl DocumentHost {
 
     /// Takes what the style transaction that flew answered, for the host to drain its reactions, once `read` took the
     /// frame in. The writes the host queued beside the transaction wait for the drain to end.
-    pub(crate) fn begin_style_drain(&self, read: ReadRight) -> StyleJobAnswer {
+    pub(crate) fn begin_style_drain(&self, read: impl RenderWait) -> StyleJobAnswer {
         self.take_frame_in(read);
         let mut flown = self.flown_style.borrow_mut();
         let Some(FlownStyle::Landed(answer, applied)) = flown.take() else {
@@ -795,7 +788,7 @@ impl DocumentHost {
             self.note_render_state_write();
         }
         let job = Waited(job);
-        self.reach(wait.into_read_right(), move |state| Waited(job.into_inner()(state)))
+        self.reach(wait, move |state| Waited(job.into_inner()(state)))
             .into_inner()
     }
 
@@ -1208,7 +1201,7 @@ pub unsafe extern "C" fn document_host_destroy(host: *mut DocumentHost) {
     let host = unsafe { Box::from_raw(host) };
     // The document's teardown is the host's own read: a frame in flight lands first, and what it brought back for the
     // host goes unpaid, as the host made nothing of it yet.
-    host.take_frame_in(ReadRight::Forced(ForcedRead::Host(HostRead::begun())));
+    host.take_frame_in(ForcedRead::of_teardown());
     let DocumentHost {
         document,
         seed,
