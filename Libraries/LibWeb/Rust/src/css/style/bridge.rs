@@ -1292,8 +1292,7 @@ pub unsafe extern "C" fn style_engine_note_custom_property_environment(
     unsafe { super::engine_calls::queue(host, write) };
 }
 
-/// [`style_engine_note_custom_property_environment`] on `engine`, which the style replay tool calls
-/// as well.
+/// [`style_engine_note_custom_property_environment`] on `engine`.
 ///
 /// # Safety
 /// As for [`style_engine_note_custom_property_environment`], for the arguments after `engine`.
@@ -1416,9 +1415,6 @@ pub struct FfiAnimationEffectVersion {
 /// Describe the effects one of an element's animation lists holds, in composite order, for the
 /// style engine to sample them from. The host retains every value the effects name and streams
 /// the description to the engine.
-///
-/// Hand-written rather than a recorded boundary event, because a keyframe declaration carries a
-/// style value the host holds, which a replayed engine could not be handed.
 ///
 /// # Safety
 /// `host` must be a live document host, on its document's thread, every buffer must hold the count
@@ -1554,7 +1550,7 @@ pub(crate) fn publish_user_agent_style_rule(
     )
 }
 
-/// Replace selectors using immutable compilation inputs, preserving recording and rule identity.
+/// Replace selectors using immutable compilation inputs, preserving rule identity.
 pub(crate) fn publish_style_rule_selectors(
     engine: &mut StyleEngine,
     rule: u32,
@@ -1690,7 +1686,7 @@ pub unsafe extern "C" fn style_engine_match_element(
     })
 }
 
-/// [`style_engine_match_element`] on `engine`, which the style replay tool calls as well.
+/// [`style_engine_match_element`] on `engine`.
 ///
 /// # Safety
 /// As for [`style_engine_match_element`], for the arguments after `engine`.
@@ -1885,7 +1881,7 @@ pub unsafe extern "C" fn style_engine_publish_computed_groups(
     })
 }
 
-/// [`style_engine_publish_computed_groups`] on `engine`, which the style replay tool calls as well.
+/// [`style_engine_publish_computed_groups`] on `engine`.
 ///
 /// # Safety
 /// As for [`style_engine_publish_computed_groups`], for the arguments after `engine`.
@@ -1945,8 +1941,7 @@ pub unsafe fn publish_computed_groups(
     )
 }
 
-// Shared by host publication and native layout-style derivation. Recording stays at the
-// engine input boundary even when the producer and the style store both live in Rust.
+// Shared by host publication and native layout-style derivation.
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn publish_computed_groups_from_inputs(
     engine: &mut StyleEngine,
@@ -2313,8 +2308,8 @@ unsafe fn publish_sampled_animation_overlay(
             old_style_record: publication.previous_style_record.raw(),
             new_style_record: publication.style_record.raw(),
         },
-        // A pseudo-element the engine holds no assignment for owns no overlay slot, and a recording captures the
-        // complete base-style input, so the record is published again whole, with the overlay over the same base.
+        // A pseudo-element the engine holds no assignment for owns no overlay slot, so the record is published again
+        // whole, with the overlay over the same base.
         None => {
             // SAFETY: The base record stays live for the call.
             let base = unsafe { style_record_view(engine, input.style_record) };
@@ -2374,7 +2369,7 @@ pub unsafe extern "C" fn style_engine_style_record_view(
     view
 }
 
-/// [`style_engine_style_record_view`] on `engine`, which the style replay tool calls as well.
+/// [`style_engine_style_record_view`] on `engine`.
 ///
 /// # Safety
 /// As for [`style_engine_style_record_view`], for the arguments after `engine`.
@@ -2416,7 +2411,7 @@ pub unsafe extern "C" fn style_engine_remove_computed_pseudo(
     })
 }
 
-/// [`style_engine_remove_computed_pseudo`] on `engine`, which the style replay tool calls as well.
+/// [`style_engine_remove_computed_pseudo`] on `engine`.
 ///
 /// # Safety
 /// As for [`style_engine_remove_computed_pseudo`], for the arguments after `engine`.
@@ -2820,8 +2815,7 @@ pub unsafe extern "C" fn style_engine_settle_pseudo_records_after_host_record(
     })
 }
 
-/// [`style_engine_settle_pseudo_records_after_host_record`] on `engine`, which the style replay
-/// tool calls as well.
+/// [`style_engine_settle_pseudo_records_after_host_record`] on `engine`.
 ///
 /// # Safety
 /// As for [`style_engine_settle_pseudo_records_after_host_record`], for the arguments after `engine`.
@@ -3021,7 +3015,7 @@ pub unsafe extern "C" fn style_engine_native_rule_target(
     with_engine(read, host, |engine| unsafe { native_rule_target(engine, rule, result) })
 }
 
-/// [`style_engine_native_rule_target`] on `engine`, which the style replay tool calls as well.
+/// [`style_engine_native_rule_target`] on `engine`.
 ///
 /// # Safety
 /// As for [`style_engine_native_rule_target`], for the arguments after `engine`.
@@ -3130,11 +3124,10 @@ pub unsafe extern "C" fn style_engine_take_container_effects(
     }
 }
 
-/// Interns the name whose raw identity is `raw` in `engine`, as it adopts the atom its host interned, and as the style
-/// replay tool does.
+/// Interns the name whose raw identity is `raw` in `engine`, as it adopts the atom its host interned.
 ///
 /// # Safety
-/// `raw` must be the raw identity of a live `AK::Utf16FlyString`, or a replay token.
+/// `raw` must be the raw identity of a live `AK::Utf16FlyString`.
 pub unsafe fn intern_atom(engine: &mut StyleEngine, raw: usize) -> u32 {
     engine.intern_atom(raw).0
 }
