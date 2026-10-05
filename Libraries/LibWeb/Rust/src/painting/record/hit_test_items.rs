@@ -146,7 +146,7 @@ impl<'a, O: Observer> PaintRecorder<'a, O> {
             let rect = paintable_geometry::absolute_border_box_rect(self.source, paintable);
             let radii = self.border_radii(paintable);
             let context = self.data(paintable).accumulated_visual_context;
-            self.append_box(paintable, paintable, rect, context, radii);
+            self.append_box(paintable, rect, context, radii);
             return;
         }
         let facts = self.paintable_facts(paintable);
@@ -308,7 +308,7 @@ impl<'a, O: Observer> PaintRecorder<'a, O> {
             }
             let rect = CssPixelRect::from(piece.border_box_rect).translated_by(root_position);
             let radii = self.piece_border_radii(paintable, piece);
-            self.append_box(paintable, paintable, rect, context, radii);
+            self.append_box(paintable, rect, context, radii);
         }
     }
 
@@ -457,16 +457,17 @@ impl<'a, O: Observer> PaintRecorder<'a, O> {
     fn append_box(
         &mut self,
         paintable_box: NodeSlotId,
-        target: NodeSlotId,
         rect: CssPixelRect,
         context: ContextRef,
         border_radii: BorderRadii,
     ) {
         let caret_line_index = paintable_geometry::committed_containing_line_box_index(self.source, paintable_box);
-        let can_produce_caret_position = (self.is_atomic_inline(target) || self.is_replaced_box(target)) && {
-            let negative_z = crate::painting::style_queries::effective_z_index(self.source, target).unwrap_or(0) < 0;
-            !negative_z && self.node_has_dom_node(target)
-        };
+        let can_produce_caret_position = (self.is_atomic_inline(paintable_box) || self.is_replaced_box(paintable_box))
+            && {
+                let negative_z =
+                    crate::painting::style_queries::effective_z_index(self.source, paintable_box).unwrap_or(0) < 0;
+                !negative_z && self.node_has_dom_node(paintable_box)
+            };
         let block_container = self.block_container_of_paintable(paintable_box);
         let item = HitTestItem {
             rect,
@@ -475,7 +476,7 @@ impl<'a, O: Observer> PaintRecorder<'a, O> {
             block_container,
             border_radii,
             can_produce_caret_position,
-            ..self.base_hit_test_item(HitTestItemKind::Box, target, context)
+            ..self.base_hit_test_item(HitTestItemKind::Box, paintable_box, context)
         };
         self.list.append(item);
     }
