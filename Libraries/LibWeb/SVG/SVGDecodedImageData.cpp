@@ -47,49 +47,59 @@ static GC::Ref<SVGDecodedImageData::SVGPageClient> shared_svg_page_client_for_pa
     return page_client;
 }
 
-class ScopedSVGImageDocument {
-public:
-    enum class FrameRequests {
-        Suppress,
-        RouteToCurrentImage,
-    };
+ScopedSVGImageDocument::ScopedSVGImageDocument(DOM::Document& document, FrameRequests frame_requests)
+    : m_page_client(as<SVGDecodedImageData::SVGPageClient>(document.page().client()))
+    , m_navigable(m_page_client->page().local_traversable())
+    , m_window(m_page_client->window())
+    , m_previous_document(m_window->associated_document())
+    , m_previous_current_image_data(m_page_client->current_svg_image_data())
+    , m_should_unsuppress_frame_requests(frame_requests == FrameRequests::Suppress)
+{
+    VERIFY(document.is_decoded_svg());
 
-    ScopedSVGImageDocument(SVGDecodedImageData::SVGPageClient& page_client, DOM::Document& document, FrameRequests frame_requests, GC::Ptr<SVGDecodedImageData> current_image_data = nullptr)
-        : m_page_client(page_client)
-        , m_navigable(page_client.page().local_traversable())
-        , m_window(page_client.window())
-        , m_previous_document(*m_navigable->active_document())
-        , m_previous_current_image_data(page_client.current_svg_image_data())
-        , m_should_unsuppress_frame_requests(frame_requests == FrameRequests::Suppress)
-    {
-        if (m_should_unsuppress_frame_requests)
-            m_page_client->suppress_frame_requests();
-        m_page_client->set_current_svg_image_data(current_image_data);
+    if (m_should_unsuppress_frame_requests)
+        m_page_client->suppress_frame_requests();
 
-        document.set_browsing_context(m_navigable->active_browsing_context());
-        document.set_window(*m_window);
-        m_window->set_associated_document(document);
-        m_navigable->set_active_document(document);
+    GC::Ptr<SVGDecodedImageData> current_image_data;
+
+    for (auto& image : m_page_client->m_svg_image_data) {
+        if (&image.svg_document() == &document) {
+            current_image_data = &image;
+            break;
+        }
     }
 
-    ~ScopedSVGImageDocument()
-    {
-        m_navigable->set_active_document(m_previous_document);
-        m_window->set_associated_document(m_previous_document);
+    m_page_client->set_current_svg_image_data(current_image_data);
 
-        m_page_client->set_current_svg_image_data(m_previous_current_image_data.ptr());
-        if (m_should_unsuppress_frame_requests)
-            m_page_client->unsuppress_frame_requests();
-    }
+    document.set_browsing_context(m_navigable->active_browsing_context());
+    document.set_window(*m_window);
+    m_window->set_associated_document(document);
+    m_navigable->set_active_document(document);
+}
 
-private:
-    GC::Ref<SVGDecodedImageData::SVGPageClient> m_page_client;
-    GC::Ref<HTML::LocalNavigable> m_navigable;
-    GC::Ref<HTML::Window> m_window;
-    GC::Ref<DOM::Document> m_previous_document;
-    GC::Weak<SVGDecodedImageData> m_previous_current_image_data;
-    bool m_should_unsuppress_frame_requests { false };
-};
+ScopedSVGImageDocument::ScopedSVGImageDocument(ScopedSVGImageDocument&& other)
+    : m_page_client(other.m_page_client)
+    , m_navigable(other.m_navigable)
+    , m_window(other.m_window)
+    , m_previous_document(other.m_previous_document)
+    , m_previous_current_image_data(move(other.m_previous_current_image_data))
+    , m_should_unsuppress_frame_requests(other.m_should_unsuppress_frame_requests)
+    , m_is_active(exchange(other.m_is_active, false))
+{
+}
+
+ScopedSVGImageDocument::~ScopedSVGImageDocument()
+{
+    if (!m_is_active)
+        return;
+
+    m_navigable->set_active_document(m_previous_document);
+    m_window->set_associated_document(m_previous_document);
+
+    m_page_client->set_current_svg_image_data(m_previous_current_image_data.ptr());
+    if (m_should_unsuppress_frame_requests)
+        m_page_client->unsuppress_frame_requests();
+}
 
 ErrorOr<GC::Ref<SVGDecodedImageData>> SVGDecodedImageData::create(GC::Ref<Page> host_page, URL::URL const& url, ReadonlyBytes data)
 {
@@ -100,7 +110,7 @@ ErrorOr<GC::Ref<SVGDecodedImageData>> SVGDecodedImageData::create(GC::Ref<Page> 
     document->set_content_type("image/svg+xml"_utf16_fly_string);
     document->set_origin(URL::Origin::create_opaque());
 
-    ScopedSVGImageDocument scoped_document { *page_client, *document, ScopedSVGImageDocument::FrameRequests::Suppress };
+    ScopedSVGImageDocument scoped_document { *document, ScopedSVGImageDocument::FrameRequests::Suppress };
 
     auto parse_failed = [&] {
         document->set_suppresses_attribute_style_invalidation(true);
@@ -219,7 +229,7 @@ Optional<Compositing::DisplayListResource> SVGDecodedImageData::record_display_l
 
 Optional<Compositing::DisplayListResource> SVGDecodedImageData::record_display_list_at_scale(CSSPixelSize css_size, float raster_scale, CSS::PreferredColorScheme color_scheme, Compositing::DisplayListResourceStorage& destination_resource_storage) const
 {
-    ScopedSVGImageDocument scoped_document { *m_page_client, *m_document, ScopedSVGImageDocument::FrameRequests::RouteToCurrentImage, const_cast<SVGDecodedImageData&>(*this) };
+    ScopedSVGImageDocument scoped_document { *m_document, ScopedSVGImageDocument::FrameRequests::RouteToCurrentImage };
     auto& navigable = *m_document->navigable();
     auto& resource_storage = navigable.display_list_resource_storage();
 
@@ -353,7 +363,7 @@ CSS::SizeWithAspectRatio const& SVGDecodedImageData::natural_size() const
 
     CSS::SizeWithAspectRatio natural_size;
     {
-        ScopedSVGImageDocument scoped_document { *m_page_client, *m_document, ScopedSVGImageDocument::FrameRequests::RouteToCurrentImage, const_cast<SVGDecodedImageData&>(*this) };
+        ScopedSVGImageDocument scoped_document { *m_document, ScopedSVGImageDocument::FrameRequests::RouteToCurrentImage };
         m_document->update_style();
         auto const* sizing_values = m_root_element->style_group<CSS::ComputedValues::SizingValues>();
         VERIFY(sizing_values);

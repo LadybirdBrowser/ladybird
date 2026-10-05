@@ -10,6 +10,7 @@
 #include <LibCompositing/DisplayList/DisplayList.h>
 #include <LibCompositing/DisplayList/DisplayListResourceStorage.h>
 #include <LibGC/Heap.h>
+#include <LibGC/WeakHashSet.h>
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibWeb/CSS/Sizing.h>
 #include <LibWeb/HTML/DecodedImageData.h>
@@ -112,6 +113,8 @@ class SVGDecodedImageData::SVGPageClient final : public PageClient {
     GC_CELL(SVGDecodedImageData::SVGPageClient, PageClient);
     GC_DECLARE_ALLOCATOR(SVGDecodedImageData::SVGPageClient);
 
+    friend class ScopedSVGImageDocument;
+
 public:
     static GC::Ref<SVGPageClient> create(Page& page)
     {
@@ -178,6 +181,29 @@ private:
     size_t m_frame_request_suppression_count { 0 };
     size_t m_display_list_recording_count { 0 };
     mutable bool m_has_pending_display_list_resource_prune { false };
+};
+
+class WEB_API ScopedSVGImageDocument {
+    AK_MAKE_NONCOPYABLE(ScopedSVGImageDocument);
+
+public:
+    enum class FrameRequests : u8 {
+        Suppress,
+        RouteToCurrentImage
+    };
+
+    ScopedSVGImageDocument(DOM::Document&, FrameRequests);
+    ScopedSVGImageDocument(ScopedSVGImageDocument&&);
+    ~ScopedSVGImageDocument();
+
+private:
+    GC::Ref<SVGDecodedImageData::SVGPageClient> m_page_client;
+    GC::Ref<HTML::LocalNavigable> m_navigable;
+    GC::Ref<HTML::Window> m_window;
+    GC::Ref<DOM::Document> m_previous_document;
+    GC::Weak<SVGDecodedImageData> m_previous_current_image_data;
+    bool m_should_unsuppress_frame_requests { false };
+    bool m_is_active { true };
 };
 
 }
