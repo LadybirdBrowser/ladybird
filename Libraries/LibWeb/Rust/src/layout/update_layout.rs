@@ -30,14 +30,10 @@ mod main_thread_entries;
 pub(crate) use main_thread_entries::MainThreadFfiEntry;
 
 /// Runs `job`, a layout round of `host`'s document, on the document's render state, and answers what the round owes the
-/// host. The update's first round spends the read the host began, where no job took it yet, and every other round
-/// runs in `read`.
+/// host, in `read`.
 fn run_layout_round_job(host: &DocumentHost, read: &BegunRead, job: LayoutRoundJob) -> LayoutRoundAnswer {
     host.let_go_of_rows();
-    match host.take_forced_read() {
-        Some(forced) => crate::render_state::force_read(forced, host, job),
-        None => crate::render_state::run_job(read, host, job),
-    }
+    crate::render_state::run_job(read, host, job)
 }
 
 /// Answers `answer` from the render state of `host`'s document and `args`, in `read`: the host's layout update reads it

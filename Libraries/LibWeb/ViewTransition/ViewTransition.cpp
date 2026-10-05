@@ -234,7 +234,7 @@ ErrorOr<void> ViewTransition::capture_the_old_state()
     // 1. Let document be transition’s relevant global object’s associated document.
     auto& document = this->document();
 
-    Layout::ForcedReadScope read { document, true };
+    Layout::ForcedReadScope read { document };
     document.update_layout(DOM::UpdateLayoutReason::ViewTransitionCapture);
 
     // 2. Let namedElements be transition’s named elements.
@@ -371,7 +371,7 @@ ErrorOr<void> ViewTransition::capture_the_new_state()
     // 1. Let document be transition’s relevant global object’s associated document.
     auto& document = this->document();
 
-    Layout::ForcedReadScope read { document, true };
+    Layout::ForcedReadScope read { document };
     document.update_layout(DOM::UpdateLayoutReason::ViewTransitionCapture);
 
     // 2. Let namedElements be transition’s named elements.
@@ -827,7 +827,7 @@ void ViewTransition::handle_transition_frame()
 ErrorOr<void> ViewTransition::update_pseudo_element_styles()
 {
     // The pseudo-elements' styles are the transition's own read of the render state.
-    Layout::ForcedReadScope read { *m_document, false };
+    Layout::ForcedReadScope read { *m_document };
     // To update pseudo-element styles for a ViewTransition transition:
 
     // 1. For each transitionName → capturedElement of transition’s named elements:

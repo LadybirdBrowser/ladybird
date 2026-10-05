@@ -464,7 +464,7 @@ static Vector<Variant<Utf16String, RequiredLineBreakCount>> rendered_text_collec
 Utf16String HTMLElement::get_the_text_steps()
 {
     // 1. If element is not being rendered or if the user agent is a non-CSS user agent, then return element's descendant text content.
-    Layout::ForcedReadScope read { document(), true };
+    Layout::ForcedReadScope read { document() };
     document().update_layout(DOM::UpdateLayoutReason::HTMLElementGetTheTextSteps);
     if (!has_layout_box())
         return descendant_text_content();
@@ -546,7 +546,7 @@ static bool any_ancestor_establishes_a_fixed_position_containing_block(Layout::N
 GC::Ptr<DOM::Element> HTMLElement::scroll_parent() const
 {
     // NOTE: We have to ensure that the layout is up-to-date before querying the layout tree.
-    Layout::ForcedReadScope read { document(), true };
+    Layout::ForcedReadScope read { document() };
     const_cast<DOM::Document&>(document()).update_layout_if_needed_for_node(*this, DOM::UpdateLayoutReason::HTMLElementScrollParent);
 
     // 1. If any of the following holds true, return null and terminate this algorithm:
@@ -599,7 +599,7 @@ GC::Ptr<DOM::Element> HTMLElement::scroll_parent() const
 GC::Ptr<DOM::Element> HTMLElement::offset_parent() const
 {
     // NOTE: We have to ensure that the layout is up-to-date before querying the layout tree.
-    Layout::ForcedReadScope read { document(), true };
+    Layout::ForcedReadScope read { document() };
     const_cast<DOM::Document&>(document()).update_layout_if_needed_for_node(*this, DOM::UpdateLayoutReason::HTMLElementOffsetParent);
 
     // 1. If any of the following holds true return null and terminate this algorithm:
@@ -693,7 +693,7 @@ int HTMLElement::offset_top() const
         return 0;
 
     // NOTE: Ensure that layout is up-to-date before looking at metrics.
-    Layout::ForcedReadScope read { document(), true };
+    Layout::ForcedReadScope read { document() };
     const_cast<DOM::Document&>(document()).update_layout_if_needed_for_node(*this, DOM::UpdateLayoutReason::HTMLElementOffsetTop);
 
     auto const* layout_node = principal_layout_node(read);
@@ -738,7 +738,7 @@ int HTMLElement::offset_left() const
         return 0;
 
     // NOTE: Ensure that layout is up-to-date before looking at metrics.
-    Layout::ForcedReadScope read { document(), true };
+    Layout::ForcedReadScope read { document() };
     const_cast<DOM::Document&>(document()).update_layout_if_needed_for_node(*this, DOM::UpdateLayoutReason::HTMLElementOffsetLeft);
 
     auto const* layout_node = principal_layout_node(read);
@@ -779,7 +779,7 @@ int HTMLElement::offset_left() const
 int HTMLElement::offset_width() const
 {
     // NOTE: Ensure that layout is up-to-date before looking at metrics.
-    Layout::ForcedReadScope read { document(), true };
+    Layout::ForcedReadScope read { document() };
     const_cast<DOM::Document&>(document()).update_layout_if_needed_for_node(*this, DOM::UpdateLayoutReason::HTMLElementOffsetWidth);
 
     // 1. If the element does not have any associated box return zero and terminate this algorithm.
@@ -799,7 +799,7 @@ int HTMLElement::offset_width() const
 int HTMLElement::offset_height() const
 {
     // NOTE: Ensure that layout is up-to-date before looking at metrics.
-    Layout::ForcedReadScope read { document(), true };
+    Layout::ForcedReadScope read { document() };
     const_cast<DOM::Document&>(document()).update_layout_if_needed_for_node(*this, DOM::UpdateLayoutReason::HTMLElementOffsetHeight);
 
     // 1. If the element does not have any associated box return zero and terminate this algorithm.

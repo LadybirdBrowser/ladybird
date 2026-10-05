@@ -4922,7 +4922,7 @@ CSSPixelPoint LocalNavigable::to_page_position(CSSPixelPoint a_position)
         if (!ancestor->container())
             return {};
         // Each container's box is the caller's own read of its document's render state.
-        Layout::ForcedReadScope read { ancestor->container()->document(), false };
+        Layout::ForcedReadScope read { ancestor->container()->document() };
         auto const* layout_node = ancestor->container()->layout_node(read);
         if (!layout_node || !Painting::has_committed_box(*layout_node))
             return {};
@@ -4976,7 +4976,7 @@ void LocalNavigable::clamp_viewport_scroll_offset()
     if (!document || !document->layout_is_up_to_date())
         return;
     // The caller's own read of the render state.
-    Layout::ForcedReadScope read { *document, false };
+    Layout::ForcedReadScope read { *document };
     auto* layout_node = document->layout_node(read);
     if (!layout_node)
         return;
@@ -5263,7 +5263,7 @@ Layout::Node* LocalNavigable::layout_node_for_async_scroll_node_stable_id(Web::A
     if (!document)
         return nullptr;
     // The scrolling box is the caller's own read of the document's render state.
-    Layout::ForcedReadScope read { *document, false };
+    Layout::ForcedReadScope read { *document };
     return layout_node_for_async_scroll_node(read, *document, stable_node_id);
 }
 
@@ -5283,7 +5283,7 @@ bool LocalNavigable::set_scroll_offset_for(Web::AsyncScrollNodeStableID stable_n
 
     if (!element_for_async_scroll_node_stable_id(*document, stable_node_id))
         return false;
-    Layout::ForcedReadScope read { *document, false };
+    Layout::ForcedReadScope read { *document };
     document->update_layout(DOM::UpdateLayoutReason::ElementScroll);
     auto* layout_node = layout_node_for_async_scroll_node(read, *document, stable_node_id);
     if (!layout_node)
@@ -5307,7 +5307,7 @@ RefPtr<Painting::Scrollbar> LocalNavigable::scrollbar_dragged_by_compositor(Layo
 static Layout::Node* committed_scrolling_box_for_async_scroll_node(DOM::Document& document, Web::AsyncScrollNodeStableID stable_node_id)
 {
     // The caller's own read of the render state.
-    Layout::ForcedReadScope read { document, false };
+    Layout::ForcedReadScope read { document };
     Layout::Node* scrolling_box = nullptr;
     if (stable_node_id.kind == Web::AsyncScrollNodeKind::Viewport) {
         if (stable_node_id.node_id == document.unique_id())
@@ -5713,7 +5713,7 @@ void LocalNavigable::user_scroll_did_settle(UserScrollSettlement settlement)
     if (!document)
         return;
     // Snapping is the navigable's own read of the document's render state.
-    Layout::ForcedReadScope read { *document, false };
+    Layout::ForcedReadScope read { *document };
 
     // Settlement can occur inside a layout update when tearing down a scrollbar whose thumb is grabbed, so snapping
     // geometry is only consulted when layout is already up to date.
@@ -6864,7 +6864,7 @@ bool LocalNavigable::active_document_opts_out_of_force_dark() const
     if (!document)
         return false;
     // The caller's own read of the render state.
-    Layout::ForcedReadScope read { *document, false };
+    Layout::ForcedReadScope read { *document };
 
     if (auto* html_element = document->html_element(); html_element && html_element->layout_node(read)) {
         auto const& layout_node = *html_element->layout_node(read);
@@ -6906,7 +6906,7 @@ Optional<Compositor::CompositorFrame> LocalNavigable::record_compositor_frame(Pa
         return {};
 
     // The frame's recording is the host's own read of the document's render state.
-    Layout::ForcedReadScope read { *document, false };
+    Layout::ForcedReadScope read { *document };
     adopt_pending_async_scroll_offsets();
     document->update_paint_and_hit_testing_properties_if_needed();
     document->update_compositor_animations(read);
@@ -7129,7 +7129,7 @@ Optional<Compositor::CompositorFrame> LocalNavigable::finish_recording_in_flight
     }
 
     // Taking in the recording is the host's own read of the document's render state.
-    Layout::ForcedReadScope read { *document, false };
+    Layout::ForcedReadScope read { *document };
     // What the recording made goes to a document this navigable still presents, which still has the boxes it recorded.
     // Otherwise it stays pending, for the document's next recording to drop.
     if (has_been_destroyed() || !has_compositor_context() || active_document().ptr() != document.ptr() || !document->has_committed_viewport_box())
@@ -7220,7 +7220,7 @@ bool LocalNavigable::paint_next_frame_if_needed(DOM::UpdateLayoutReason layout_r
     // The marks the document's invalidation journal holds decide what this paint has to redo.
     if (auto document = active_document()) {
         // Draining the journal is the paint's own read of the document's render state.
-        Layout::ForcedReadScope read { *document, false };
+        Layout::ForcedReadScope read { *document };
         document->drain_invalidation_journal(read);
     }
     if (!needs_repaint())
@@ -7315,7 +7315,7 @@ GC::Ref<WebIDL::Promise> LocalNavigable::perform_a_scroll_of_a_scrolling_box(Web
     // exist then no snapping occurs).
     if (trigger == ScrollTrigger::Programmatic && destination_snapping == DestinationSnapping::SelectSnapPosition) {
         abandon_snapping_of_user_scroll_gesture(stable_node_id);
-        Layout::ForcedReadScope read { *document, false };
+        Layout::ForcedReadScope read { *document };
         document->update_layout(DOM::UpdateLayoutReason::ElementScroll);
         if (auto const* snap_container = layout_node_for_async_scroll_node(read, *document, stable_node_id)) {
             Compositing::SnapSelectionStrategy strategy;
@@ -7645,7 +7645,7 @@ GC::Ref<WebIDL::Promise> LocalNavigable::perform_a_scroll_of_the_viewport(CSSPix
         queue_scrollend_event(*doc, *vv, {}, trigger);
 
     // NB: Must update layout before accessing paintables.
-    Layout::ForcedReadScope read { *doc, false };
+    Layout::ForcedReadScope read { *doc };
     doc->update_layout(DOM::UpdateLayoutReason::NavigableViewportScroll);
 
     auto minimum_scroll_offset = Painting::minimum_scroll_offset(*doc->layout_node(read)).to_type<double>();

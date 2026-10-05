@@ -395,7 +395,7 @@ TEST_CASE(style_engine_expands_presentation_hint_shorthands_in_rust)
     // Border expands through intermediate shorthands such as border-width. Each resulting
     // longhand after the first must reuse the same immutable keyword value. The 17 longhands
     // comprise four widths, four styles, four colors, and five border-image properties.
-    Layout::ForcedReadScope read { engine.render_document(), false };
+    Layout::ForcedReadScope read { engine.render_document() };
     for (size_t index = 0;; ++index) {
         StringView name;
         u64 value = 0;

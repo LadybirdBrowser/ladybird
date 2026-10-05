@@ -22,9 +22,7 @@ use crate::css::rule::CompiledFunction;
 use crate::css::style_compute::FfiLengthResolutionContext;
 use crate::painting::ffi::FfiFlightBlocker;
 use crate::painting::recording_slot::FlightLicense;
-use crate::render_state::{
-    BegunRead, DocumentHost, ReadRight, RenderJob, RenderState, RenderWait, TaskBoundary, fly, force_read, run_job,
-};
+use crate::render_state::{BegunRead, DocumentHost, RenderJob, RenderState, RenderWait, TaskBoundary, fly, run_job};
 use std::sync::Arc;
 
 /// Takes the pending style transaction under `root`, with the document computation inputs the host sealed for it.
@@ -358,12 +356,7 @@ pub unsafe extern "C" fn style_engine_take_style_transaction(
         computation_inputs: unsafe { SealedStyleInputs::seal(computation_inputs) },
         flies: false,
     };
-    // The first style transaction of a read the host waits for is the read's first job; any other, a rendering
-    // update's or a later wave's, is a style update's.
-    let answer = match host.take_unstyled_read() {
-        Some(read) => force_read(read, host, job),
-        None => run_job(read, host, job),
-    };
+    let answer = run_job(read, host, job);
     host.keep_style_transaction(answer).output.view()
 }
 
@@ -418,12 +411,8 @@ pub unsafe extern "C" fn style_engine_take_flown_style_transaction(
     assert!(!host.is_null(), "document host is null");
     // SAFETY: Guaranteed by the caller.
     let host = unsafe { &*host };
-    // The read spends itself on the transaction where no job took it yet, as on the first job it would have sent,
-    // taking the frame in where it still flies.
-    let read = host
-        .take_unstyled_read()
-        .map_or_else(|| read.into_read_right(), ReadRight::Forced);
-    let answer = host.begin_style_drain(read);
+    // The read takes the frame in where it still flies.
+    let answer = host.begin_style_drain(read.into_read_right());
     host.keep_style_transaction(answer).output.view()
 }
 

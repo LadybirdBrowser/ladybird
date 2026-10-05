@@ -114,7 +114,7 @@ WebIDL::ExceptionOr<GC::Ref<Geometry::DOMRect>> SVGGraphicsElement::get_b_box(Bi
     //        SVG coordinate space (before any viewbox or other transformations), so it should be possible to
     //        calculate this from SVG geometry without a full layout tree (at least for simple cases).
     //        See: https://svgwg.org/svg2-draft/coords.html#BoundingBoxes
-    Layout::ForcedReadScope read { document(), true };
+    Layout::ForcedReadScope read { document() };
     document().update_layout_if_needed_for_node(*this, DOM::UpdateLayoutReason::SVGGraphicsElementGetBBox);
     auto const* self_layout_node = layout_node(read);
     if (!self_layout_node)
@@ -189,7 +189,7 @@ GC::Ptr<Geometry::DOMMatrix> SVGGraphicsElement::get_screen_ctm()
     if (!is_connected())
         return {};
 
-    Layout::ForcedReadScope read { document(), true };
+    Layout::ForcedReadScope read { document() };
     document().update_layout_if_needed_for_node(*this, DOM::UpdateLayoutReason::SVGGraphicsElementGetScreenCTM);
 
     // 2. If the current element is a non-rendered element, and the UA is not able to resolve the style of the element,

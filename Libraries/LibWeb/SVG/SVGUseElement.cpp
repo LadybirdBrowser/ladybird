@@ -213,7 +213,7 @@ Gfx::AffineTransform SVGUseElement::additional_element_transform() const
     if (auto* svg_svg_element = first_flat_tree_ancestor_of_type<SVGSVGElement>()) {
         if (auto view_box = svg_svg_element->active_view_box(); view_box.has_value())
             viewport_size = { CSSPixels::nearest_value_for(view_box->width), CSSPixels::nearest_value_for(view_box->height) };
-        else if (Layout::ForcedReadScope read { document(), false }; auto svg_svg_layout_node = svg_svg_element->unsafe_layout_node(read))
+        else if (Layout::ForcedReadScope read { document() }; auto svg_svg_layout_node = svg_svg_element->unsafe_layout_node(read))
             viewport_size = { svg_svg_layout_node->width().to_px(0), svg_svg_layout_node->height().to_px(0) };
     }
 

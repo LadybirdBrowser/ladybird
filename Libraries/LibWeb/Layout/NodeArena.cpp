@@ -69,7 +69,7 @@ void NodeArena::stop_reporting_box_presence(Badge<DOM::Document>)
 void NodeArena::commit_box_presence(DOM::Node& node)
 {
     // The caller's own read of the render state.
-    Layout::ForcedReadScope read { node.document(), false };
+    Layout::ForcedReadScope read { node.document() };
     auto const* layout_node = node.unsafe_layout_node(read);
     node.set_box_presence({}, layout_node, layout_node && Painting::has_committed_box(*layout_node));
 }

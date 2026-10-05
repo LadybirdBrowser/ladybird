@@ -1170,7 +1170,7 @@ static bool embedding_document_chain_has_no_pending_style_or_layout_work(DOM::Do
             return true;
         auto& embedding_document = container->document();
         // The embedding document's state is that document's own read.
-        Layout::ForcedReadScope embedding_read { embedding_document, false };
+        Layout::ForcedReadScope embedding_read { embedding_document };
         if (!document_has_no_pending_style_work(embedding_read, embedding_document)
             || !embedding_document.layout_is_up_to_date()
             || !container->has_style())
@@ -1245,7 +1245,7 @@ static bool update_style_for_element(Layout::BegunRead const& read, DOM::Documen
         auto& embedding_document = container.document();
         // The container's style is the embedding document's own read, in which the style transaction that flew for the
         // embedding document lands first.
-        Layout::ForcedReadScope embedding_read { embedding_document, false };
+        Layout::ForcedReadScope embedding_read { embedding_document };
         embedding_document.drain_flown_style_transaction(embedding_read);
         update_style_for_element(embedding_read, embedding_document, DOM::AbstractElement { container }, StyleUpdateMode::OnlyIfNeeded);
         embedding_document_layout_was_stale = !embedding_document.layout_is_up_to_date();
@@ -1504,7 +1504,7 @@ void Document::drain_style_transaction_that_flew(Layout::BegunRead const& read)
 void Document::update_style()
 {
     // The host's own read: the style transaction that flew lands for it.
-    Layout::ForcedReadScope read { style_computer().style_engine().render_document(), false };
+    Layout::ForcedReadScope read { style_computer().style_engine().render_document() };
     drain_flown_style_transaction(read);
     update_highlight_style_observability();
     CSS::update_style(read, *this);
@@ -1516,7 +1516,7 @@ bool Document::let_style_update_fly(Layout::RustFFI::FfiFlightBlocker blocker)
         return false;
     // Gathering what the transaction flies with, and sealing the layout round that flies after it, is the host's own
     // read of the render state, which no frame flies beside yet.
-    Layout::ForcedReadScope read { *this, false };
+    Layout::ForcedReadScope read { *this };
     update_highlight_style_observability();
     m_flown_style_update_inputs = CSS::let_style_update_fly(read, *this, blocker);
     return m_flown_style_update_inputs.has_value();
@@ -1524,14 +1524,14 @@ bool Document::let_style_update_fly(Layout::RustFFI::FfiFlightBlocker blocker)
 
 bool Document::update_style_for_element(AbstractElement const& abstract_element)
 {
-    Layout::ForcedReadScope read { *this, false };
+    Layout::ForcedReadScope read { *this };
     return update_style_for_element(abstract_element, StyleUpdateMode::Normal);
 }
 
 bool Document::update_style_for_element(AbstractElement const& abstract_element, StyleUpdateMode mode)
 {
     // A script API reads the element's style: its waits for the render state are one forced read.
-    Layout::ForcedReadScope read { style_computer().style_engine().render_document(), true };
+    Layout::ForcedReadScope read { style_computer().style_engine().render_document() };
     drain_flown_style_transaction(read);
     update_highlight_style_observability();
     flush_throttled_animation_style_update_for_node(abstract_element.element());

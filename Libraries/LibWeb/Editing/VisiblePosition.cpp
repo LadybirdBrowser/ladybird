@@ -177,7 +177,7 @@ static AdjacentContent scan_adjacent_content(Layout::BegunRead const& read, Web:
 
 bool VisiblePosition::is_start_of_paragraph() const
 {
-    Layout::ForcedReadScope read { *m_document, true };
+    Layout::ForcedReadScope read { *m_document };
     m_document->update_layout_if_needed_for_node(m_boundary.node, DOM::UpdateLayoutReason::CursorLineNavigation);
     auto block = block_node_of_node(m_boundary.node);
     if (!block)
@@ -188,7 +188,7 @@ bool VisiblePosition::is_start_of_paragraph() const
 
 bool VisiblePosition::is_end_of_paragraph() const
 {
-    Layout::ForcedReadScope read { *m_document, true };
+    Layout::ForcedReadScope read { *m_document };
     m_document->update_layout_if_needed_for_node(m_boundary.node, DOM::UpdateLayoutReason::CursorLineNavigation);
     auto block = block_node_of_node(m_boundary.node);
     if (!block)
@@ -199,7 +199,7 @@ bool VisiblePosition::is_end_of_paragraph() const
 
 bool VisiblePosition::is_start_of_containing_block() const
 {
-    Layout::ForcedReadScope read { *m_document, true };
+    Layout::ForcedReadScope read { *m_document };
     m_document->update_layout_if_needed_for_node(m_boundary.node, DOM::UpdateLayoutReason::CursorLineNavigation);
     auto block = block_node_of_node(m_boundary.node);
     if (!block)
@@ -210,7 +210,7 @@ bool VisiblePosition::is_start_of_containing_block() const
 
 bool VisiblePosition::is_end_of_containing_block() const
 {
-    Layout::ForcedReadScope read { *m_document, true };
+    Layout::ForcedReadScope read { *m_document };
     m_document->update_layout_if_needed_for_node(m_boundary.node, DOM::UpdateLayoutReason::CursorLineNavigation);
     auto block = block_node_of_node(m_boundary.node);
     if (!block)
@@ -226,7 +226,7 @@ bool VisiblePosition::is_before_or_after_containing_block() const
         return false;
 
     // The caller's own read of the render state.
-    Layout::ForcedReadScope read { block->document(), false };
+    Layout::ForcedReadScope read { block->document() };
 
     // INTEROP: Blink and WebKit Positions retain whether a block-owned offset is anchored before or after an atomic
     //          inline. DOM::BoundaryPoint has no anchor type, but an adjacent rendered atomic child proves that the

@@ -16,7 +16,7 @@ namespace Web::CSS {
 RefPtr<CounterStyle const> CounterStyleStyleValue::resolve_counter_style(StyleScope const& style_scope) const
 {
     // The caller's own read of the render state.
-    Layout::ForcedReadScope read { style_scope.document(), false };
+    Layout::ForcedReadScope read { style_scope.document() };
     return value().visit(
         [&](Utf16FlyString const& name) -> RefPtr<CounterStyle const> {
             return style_scope.get_registered_counter_style(read, name);

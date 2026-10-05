@@ -50,7 +50,7 @@ Optional<HTMLMetaElement::HttpEquivAttributeState> HTMLMetaElement::http_equiv_s
 
 void HTMLMetaElement::update_metadata(Optional<Utf16String> const& old_name)
 {
-    Layout::ForcedReadScope read { document(), false };
+    Layout::ForcedReadScope read { document() };
     if (auto name = get_attribute_ns({}, AttributeNames::name); name.has_value()) {
         if (name->equals_ignoring_ascii_case(u"theme-color"sv)) {
             document().obtain_theme_color(read);

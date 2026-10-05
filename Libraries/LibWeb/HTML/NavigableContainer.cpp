@@ -545,7 +545,7 @@ void NavigableContainer::report_content_navigable_viewport_rect(Layout::BegunRea
         if (!container || !container->document().layout_is_up_to_date())
             return;
         // Each container's box is a read of the render state of its own document.
-        Layout::ForcedReadScope container_read { container->document(), false };
+        Layout::ForcedReadScope container_read { container->document() };
         auto const* container_layout_node = container->layout_node(container_read);
         if (!container_layout_node || !Painting::is_navigable_container_viewport_paintable(*container_layout_node))
             return;

@@ -1300,7 +1300,7 @@ GC::Ref<Geometry::DOMRectList> Range::get_client_rects()
         return Geometry::DOMRectList::create({});
 
     auto& document = start_container()->document();
-    Layout::ForcedReadScope read { document, true };
+    Layout::ForcedReadScope read { document };
     document.update_layout(DOM::UpdateLayoutReason::RangeGetClientRects);
 
     Vector<GC::Root<Geometry::DOMRect>> rects;

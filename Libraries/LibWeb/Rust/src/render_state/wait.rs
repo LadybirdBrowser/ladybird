@@ -12,8 +12,7 @@
 //! is taken in without a wait only at a [`TaskBoundary`], which the entries the event loop calls between two tasks
 //! mint.
 //!
-//! A style or layout job runs only through [`force_read`], the first job of a read the host waits for, or through
-//! [`run_job`] with a permit that says why the job is another one.
+//! A style or layout job runs only through [`run_job`], in a read the host began.
 
 use super::{DocumentHost, RenderState};
 use std::marker::PhantomData;
@@ -216,25 +215,20 @@ impl TaskStart {
     }
 }
 
-/// What a read of a document's render state the host waits for spends on its first style or layout job, through
-/// [`force_read`]: the read of the script API call it is made for, or the host's own (an event's dispatch, a child
-/// document's style update, an inspection, a rendering update). The scope that brackets the read begins it (see
-/// [`DocumentHost::begin_forced_read`]), and the read's first job takes it.
+/// What a wait for a frame in flight spends: the read of the script API call it is made for, or the host's own (an
+/// event's dispatch, a child document's style update, an inspection, a rendering update, the document's teardown).
 pub(crate) enum ForcedRead {
     Script(ScriptForcedRead),
     Host(HostRead),
-    /// The read's first job was its style transaction, which spent the read: the read's first layout round is its
-    /// second wait, which the type shows.
-    AfterStyle(StyledFirst),
 }
 
-/// The host's own read of a document's render state, which only a scope the host begins mints.
+/// The host's own read of a document's render state, which only the host mints, for a read it began or its teardown of
+/// its document.
 pub(crate) struct HostRead {
     not_send_or_sync: PhantomData<*const ()>,
 }
 
 impl HostRead {
-    /// The read of a scope the host began, or of the host's teardown of its document.
     pub(super) fn begun() -> Self {
         Self {
             not_send_or_sync: PhantomData,
@@ -242,13 +236,7 @@ impl HostRead {
     }
 }
 
-/// What a forced read whose first job was its style transaction leaves its first layout round. Only [`force_read`]
-/// makes one.
-pub(crate) struct StyledFirst {
-    not_send_or_sync: PhantomData<*const ()>,
-}
-
-/// A style or layout job of a document's render state, which only [`force_read`] and [`run_job`] run.
+/// A style or layout job of a document's render state, which only [`run_job`] runs.
 pub(crate) trait RenderJob: Send {
     /// What the render state answers the job with.
     type Answer: Send;
@@ -260,39 +248,12 @@ pub(crate) trait RenderJob: Send {
     fn run_on(self, state: &mut RenderState) -> Self::Answer;
 }
 
-/// The first job of a read of `host`'s document's render state the host waits for: spends `read` on `job`, and waits
-/// for its answer. A read whose first job is its style transaction leaves its first layout round a [`StyledFirst`].
-pub(crate) fn force_read<J: RenderJob>(read: ForcedRead, host: &DocumentHost, job: J) -> J::Answer {
-    let answer = send_job(host, read, job);
-    if J::IS_STYLE {
-        host.leave_forced_read(ForcedRead::AfterStyle(StyledFirst {
-            not_send_or_sync: PhantomData,
-        }));
-    }
-    answer
-}
-
-/// Takes the frame of `host`'s document in, where it flies, spending `read` on the style transaction that flew with it,
-/// which the read takes in as its first job: the read's first layout round is its second wait, as after a style
-/// transaction it sent. This is the one way a frame in flight is waited for.
-pub(crate) fn force_read_flown_style(read: ForcedRead, host: &DocumentHost) {
-    host.land(read);
-    host.leave_forced_read(ForcedRead::AfterStyle(StyledFirst {
-        not_send_or_sync: PhantomData,
-    }));
-}
-
-/// Runs `job`, a style or layout job of `host`'s document that is not a forced read's first, in `read`, and waits for
-/// its answer: another style wave or layout round of the read, or a rendering update's.
+/// Runs `job`, a style or layout job of `host`'s document, in `read`, and waits for its answer.
 pub(crate) fn run_job<J: RenderJob>(read: &BegunRead, host: &DocumentHost, job: J) -> J::Answer {
-    send_job(host, read, job)
-}
-
-fn send_job<J: RenderJob>(host: &DocumentHost, wait: impl RenderWait, job: J) -> J::Answer {
     if !J::IS_STYLE {
         host.forget_layout_up_to_date();
     }
-    host.run(wait, true, move |state| job.run_on(state))
+    host.run(read, true, move |state| job.run_on(state))
 }
 
 macro_rules! script_entry {
@@ -304,7 +265,6 @@ macro_rules! script_entry {
 
 // The host entries script APIs call, which may each spend one forced read.
 script_entry!(super::devtools::DevtoolsEntry);
-script_entry!(super::document_host::ForcedReadScope);
 script_entry!(crate::layout::script_entries::ScriptEntry);
 
 macro_rules! lockstep_reason {

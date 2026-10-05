@@ -89,7 +89,7 @@ CSSPixelPoint AutoScrollHandler::process(CSSPixelPoint mouse_position)
 {
     m_mouse_position = mouse_position;
 
-    Layout::ForcedReadScope read { m_container_element->document(), false };
+    Layout::ForcedReadScope read { m_container_element->document() };
     m_container_element->document().update_layout(DOM::UpdateLayoutReason::AutoScrollSelection);
 
     auto* layout_node = auto_scroll_layout_node(read, m_container_element);
@@ -167,7 +167,7 @@ void AutoScrollHandler::perform_tick()
         deactivate();
         return;
     }
-    Layout::ForcedReadScope read { document, false };
+    Layout::ForcedReadScope read { document };
     document.update_layout(DOM::UpdateLayoutReason::AutoScrollSelection);
 
     auto* layout_node = auto_scroll_layout_node(read, m_container_element);

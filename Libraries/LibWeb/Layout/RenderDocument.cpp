@@ -29,20 +29,9 @@ bool RenderDocument::frame_flies() const
     return RustFFI::document_host_frame_flies(m_host);
 }
 
-ForcedReadScope::ForcedReadScope(DOM::Document const& document, bool by_script)
-    : ForcedReadScope(document.style_computer().style_engine().render_document(), by_script)
+ForcedReadScope::ForcedReadScope(DOM::Document const& document)
+    : ForcedReadScope(document.style_computer().style_engine().render_document())
 {
-}
-
-void ForcedReadScope::begin_beside_frame(bool by_script)
-{
-    RustFFI::document_host_begin_forced_read(m_render_document.host(), by_script);
-    m_began_beside_frame = true;
-}
-
-void ForcedReadScope::end_beside_frame()
-{
-    RustFFI::document_host_end_forced_read(m_render_document.host());
 }
 
 }

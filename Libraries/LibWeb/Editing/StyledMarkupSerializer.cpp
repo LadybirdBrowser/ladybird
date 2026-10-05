@@ -387,7 +387,7 @@ Utf16String serialize_styled_markup_for_clipboard(DOM::Range& range)
     if (range.collapsed())
         return {};
 
-    Layout::ForcedReadScope read { range.start_container()->document(), true };
+    Layout::ForcedReadScope read { range.start_container()->document() };
     range.start_container()->document().update_layout_if_needed_for_node(range.common_ancestor_container(), DOM::UpdateLayoutReason::NavigableSelectedText);
     StyledMarkupSelection selection { range };
     // INTEROP: Blink and WebKit represent a selection containing exactly one rendered paragraph boundary with a

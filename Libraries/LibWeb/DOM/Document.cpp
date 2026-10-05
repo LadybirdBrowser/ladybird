@@ -1662,7 +1662,7 @@ void Document::tear_down_layout_tree()
 {
     // The teardown is the host's own read of the render state: a frame in flight lands first, and the host pays the
     // layout round it ran, whose build may have replaced boxes the host still holds, before the tree goes.
-    Layout::ForcedReadScope read { *this, false };
+    Layout::ForcedReadScope read { *this };
     if (m_layout_node_arena)
         Layout::RustFFI::render_state_pay_flown_round(m_layout_node_arena->host(), read);
     auto* layout_root = layout_root_if_live(read);
@@ -2103,7 +2103,7 @@ void Document::update_layout_if_needed_for_node(Node const& node, UpdateLayoutRe
 
     // NB: Whether the read finds style or layout pending is asked behind the style transaction that flew, which lands
     //     for the read.
-    Layout::ForcedReadScope read { style_computer().style_engine().render_document(), reason_is_script_api(reason) };
+    Layout::ForcedReadScope read { style_computer().style_engine().render_document() };
     drain_flown_style_transaction(read);
 
     if (reason != UpdateLayoutReason::HTMLEventLoopRenderingUpdate)
@@ -2117,7 +2117,7 @@ void Document::update_layout_if_needed_for_node(Node const& node, UpdateLayoutRe
             if (!embedding_document || embedding_document.ptr() == embedded_document)
                 return true;
             // The embedding document's state is that document's own read.
-            Layout::ForcedReadScope embedding_read { *embedding_document, false };
+            Layout::ForcedReadScope embedding_read { *embedding_document };
             if (!embedding_document->is_clean_for_layout_geometry_read(embedding_read))
                 return false;
             embedded_document = embedding_document.ptr();
@@ -2167,7 +2167,7 @@ void Document::flush_deferred_style_change_event()
     if (!style_engine.may_have_deferred_geometry_transaction())
         return;
     // The flush is the host's own read of the render state.
-    Layout::ForcedReadScope read { *this, false };
+    Layout::ForcedReadScope read { *this };
     if (!style_engine.has_deferred_geometry_transaction(read))
         return;
 
@@ -2303,7 +2303,7 @@ bool Document::layout_is_up_to_date() const
         return false;
     // NB: Every question about pending layout work comes through here, so draining first keeps a journalled mark from
     //     hiding behind an up-to-date answer. No frame flies, so the drain's read takes none in.
-    Layout::ForcedReadScope read { *this, false };
+    Layout::ForcedReadScope read { *this };
     drain_invalidation_journal(read);
     // Without an arena there is no layout root either, so there is a tree to build.
     if (!m_layout_node_arena)
@@ -2384,7 +2384,7 @@ void Document::invalidate_style_for_viewport_change()
     // that read it again once it moves, so the readers are rows the engine settles. They are still
     // named here: what moved is in none of their winners.
     // Which records read the viewport is the viewport change's own read of the render state.
-    Layout::ForcedReadScope read { *this, false };
+    Layout::ForcedReadScope read { *this };
     auto& style_engine = style_computer().style_engine();
     for (auto style_node : style_engine.viewport_dependent_style_nodes(read)) {
         auto element = style_computer().element_for_style_node(style_node.value());
@@ -2408,7 +2408,7 @@ void Document::invalidate_style_for_viewport_change()
 
 void Document::sample_animation_effects_needing_style_update()
 {
-    Layout::ForcedReadScope read { *this, false };
+    Layout::ForcedReadScope read { *this };
     if (!m_needs_animated_style_update)
         return;
 
@@ -2521,7 +2521,7 @@ void Document::flush_throttled_animation_style_update()
 void Document::flush_throttled_animation_style_update_for_node(Node const& node)
 {
     // What the flush finds pending is its own read of the render state.
-    Layout::ForcedReadScope read { *this, false };
+    Layout::ForcedReadScope read { *this };
     // Only an animation that can skip a per-frame style update has anything for this read to catch
     // up on. Sampling and painting record whether any can, as do reads after a visibility or layout
     // tree change, and the document-wide flush above already trusts that record, so walking every
@@ -2674,7 +2674,7 @@ void Document::prepare_for_rendering(Layout::BegunRead const& read)
 void Document::update_paint_and_hit_testing_properties_if_needed()
 {
     // The caller's own read of the render state.
-    Layout::ForcedReadScope read { *this, false };
+    Layout::ForcedReadScope read { *this };
     // NB: Called during paint property resolution.
     // Everything that reads paint state comes through here, so the marks that describe it go through first.
     drain_invalidation_journal(read);
@@ -2877,7 +2877,7 @@ void Document::set_inspected_node(GC::Ptr<Node> node)
 void Document::set_highlighted_node(GC::Ptr<Node> node, Optional<CSS::PseudoElement> pseudo_element)
 {
     // Highlighting reads the node's boxes as the inspector's own read of the render state.
-    Layout::ForcedReadScope read { *this, false };
+    Layout::ForcedReadScope read { *this };
     if (m_highlighted_node == node && m_highlighted_pseudo_element == pseudo_element)
         return;
 
@@ -3075,7 +3075,7 @@ static void mark_mouse_transition_event_as_trusted_if_needed(Event& event, Optio
 void Document::set_hovered_node(GC::Ptr<Node> node, Optional<HoverEventData> hover_event_data)
 {
     // Hover reads the boxes the hovered node has, as its own read of the render state.
-    Layout::ForcedReadScope read { *this, false };
+    Layout::ForcedReadScope read { *this };
     if (m_hovered_node == node)
         return;
 
@@ -4758,7 +4758,7 @@ void Document::set_bg_color(Utf16View value)
 
 Utf16String Document::dump_dom_tree_as_json() const
 {
-    Layout::ForcedReadScope read { *this, true };
+    Layout::ForcedReadScope read { *this };
     const_cast<Document&>(*this).update_layout(UpdateLayoutReason::InspectDOMTree);
 
     Utf16StringBuilder builder;
@@ -6587,7 +6587,7 @@ void Document::run_the_update_intersection_observations_steps(HighResolutionTime
         auto intersection_root_node = observer->intersection_root_node();
         // NB: The root and the targets may each be in another document than this one, and their boxes are reads of
         //     the render state of their own documents.
-        Layout::ForcedReadScope root_read { intersection_root_node->document(), false };
+        Layout::ForcedReadScope root_read { intersection_root_node->document() };
 
         // 1. Let rootBounds be observer’s root intersection rectangle.
         auto root_visual_context_tree = sampled_visual_context_tree(intersection_root_node->document());
@@ -6637,7 +6637,7 @@ void Document::run_the_update_intersection_observations_steps(HighResolutionTime
             // NOTE: Check if target has a layout node is not in the spec but required to match other browsers.
             // AD-HOC: A target whose document was excluded from this rendering update has stale layout; treat it as
             //         not intersecting like other engines instead of reading its geometry.
-            Layout::ForcedReadScope target_read { target->document(), false };
+            Layout::ForcedReadScope target_read { target->document() };
             if (!root_is_hidden && target->document().layout_is_up_to_date() && target->layout_node(target_read) && (is_implicit_root || &target->document() == &intersection_root_node->document()) && !(root_is_element && !target->is_descendant_of(*intersection_root_node))) {
                 auto target_visual_context_tree = sampled_visual_context_tree(target->document());
                 if (!target_visual_context_tree.has_value())
@@ -7549,7 +7549,7 @@ void Document::service_compositor_animation_wakeup(double timestamp)
     if (reached_wakeup) {
         if (reached_compositor_active_start) {
             // The wake-up's own read of the render state.
-            Layout::ForcedReadScope read { *this, false };
+            Layout::ForcedReadScope read { *this };
             paint_state().republish_visual_animations(read, *this);
         }
         ++m_style_invalidation_counters.animation_frame_pump_requests;
@@ -8766,7 +8766,7 @@ static Element* retarget_from_ua_internal_shadow_root(Element& element)
 Element const* Document::element_from_point(double x, double y)
 {
     // The script API's read of the render state.
-    Layout::ForcedReadScope read { *this, true };
+    Layout::ForcedReadScope read { *this };
     // 1. If either argument is negative, x is greater than the viewport width excluding the size of a rendered scroll
     //    bar (if any), or y is greater than the viewport height excluding the size of a rendered scroll bar (if any), or
     //    there is no viewport associated with the document, return null and terminate these steps.
@@ -8806,7 +8806,7 @@ Element const* Document::element_from_point(double x, double y)
 GC::RootVector<GC::Ref<Element>> Document::elements_from_point(double x, double y)
 {
     // The caller's own read of the render state.
-    Layout::ForcedReadScope read { *this, false };
+    Layout::ForcedReadScope read { *this };
     // 1. Let sequence be a new empty sequence.
     GC::RootVector<GC::Ref<Element>> sequence;
 
@@ -8858,7 +8858,7 @@ static bool shadow_root_is_allowed_for_caret_position(ShadowRoot const& shadow_r
 // https://drafts.csswg.org/cssom-view/#dom-document-caretpositionfrompoint
 GC::Ptr<CaretPosition> Document::caret_position_from_point(double x, double y, CaretPositionFromPointOptions const& options)
 {
-    Layout::ForcedReadScope read { *this, false };
+    Layout::ForcedReadScope read { *this };
     // 1. If there is no viewport associated with the document, return null.
     // 2. If either argument is negative, x is greater than the viewport width excluding the size of a rendered scroll
     //    bar (if any), or y is greater than the viewport height excluding the size of a rendered scroll bar (if any),
@@ -9492,7 +9492,7 @@ void Document::invalidate_scroll_state()
 Vector<GC::Root<Range>> Document::find_matching_text(Utf16View query, CaseSensitivity case_sensitivity)
 {
     // The caller's own read of the render state.
-    Layout::ForcedReadScope read { *this, false };
+    Layout::ForcedReadScope read { *this };
     // Ensure the layout tree exists before searching for text matches.
     update_layout(UpdateLayoutReason::DocumentFindMatchingText);
 
@@ -9950,7 +9950,7 @@ GC::Ptr<DOM::Position> Document::cursor_position() const
 Optional<CSSPixelRect> Document::current_caret_rect()
 {
     // The caller's own read of the render state.
-    Layout::ForcedReadScope read { *this, false };
+    Layout::ForcedReadScope read { *this };
     // Returns the bounds of the current text caret in viewport-relative CSS pixels. Used to position platform overlays
     // such as the IME candidate window. Returns nothing when no editable element is focused or when layout isn't ready.
     auto position = cursor_position();
@@ -10804,7 +10804,7 @@ ElementByIdMap& Document::element_by_id() const
 Utf16String Document::dump_display_list()
 {
     // The dump's own read of the render state.
-    Layout::ForcedReadScope read { *this, false };
+    Layout::ForcedReadScope read { *this };
     update_layout(UpdateLayoutReason::DumpDisplayList);
 
     if (!has_committed_viewport_box())
@@ -10825,7 +10825,7 @@ Utf16String Document::dump_display_list()
 Utf16String Document::dump_stacking_context_tree()
 {
     // The caller's own read of the render state.
-    Layout::ForcedReadScope read { *this, false };
+    Layout::ForcedReadScope read { *this };
     update_layout(UpdateLayoutReason::DumpDisplayList);
 
     if (!has_committed_viewport_box())

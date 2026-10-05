@@ -1345,7 +1345,7 @@ void Element::run_attribute_change_steps(Utf16FlyString const& local_name, Optio
         if (local_name.is_one_of(HTML::AttributeNames::colspan, HTML::AttributeNames::rowspan, HTML::AttributeNames::span)) {
             Layout::publish_table_spans(*this);
             // The box's span data is the change's own read of the render state.
-            Layout::ForcedReadScope read { document(), false };
+            Layout::ForcedReadScope read { document() };
             if (auto* layout_node = unsafe_layout_node(read))
                 layout_node->synchronize_table_span_data();
         }
@@ -3047,7 +3047,7 @@ static QueryResult query_client_rects_after_layout_update(Element const& element
         return QueryResult {};
 
     // NOTE: Ensure that layout is up-to-date before looking at metrics.
-    Layout::ForcedReadScope read { document, true };
+    Layout::ForcedReadScope read { document };
     const_cast<Document&>(document).update_layout_if_needed_for_node(element, UpdateLayoutReason::ElementGetClientRects);
 
     // 1. If the element on which it was invoked does not have an associated layout box return an empty DOMRectList
@@ -3087,7 +3087,7 @@ Vector<CSSPixelRect> Element::get_client_rects() const
 
 CSSPixelRect Element::bounding_client_rect_assuming_layout_clean() const
 {
-    Layout::ForcedReadScope read { document(), false };
+    Layout::ForcedReadScope read { document() };
     if (!document().navigable())
         return {};
     return bounding_client_rect_assuming_layout_clean(read, document().visual_context_tree());
@@ -3164,7 +3164,7 @@ int Element::client_width() const
     }
 
     // NOTE: Ensure that layout is up-to-date before looking at metrics.
-    Layout::ForcedReadScope read { document(), true };
+    Layout::ForcedReadScope read { document() };
     const_cast<Document&>(document()).update_layout_if_needed_for_node(*this, UpdateLayoutReason::ElementClientWidth);
 
     // 1. If the element has no associated CSS layout box or if the CSS layout box is inline, return zero.
@@ -3191,7 +3191,7 @@ int Element::client_height() const
     }
 
     // NOTE: Ensure that layout is up-to-date before looking at metrics.
-    Layout::ForcedReadScope read { document(), true };
+    Layout::ForcedReadScope read { document() };
     const_cast<Document&>(document()).update_layout_if_needed_for_node(*this, UpdateLayoutReason::ElementClientHeight);
 
     // 1. If the element has no associated CSS layout box or if the CSS layout box is inline, return zero.
@@ -3691,7 +3691,7 @@ double Element::scroll_top() const
         return 0.0;
 
     // NOTE: Ensure that layout is up-to-date before looking at metrics.
-    Layout::ForcedReadScope read { document, true };
+    Layout::ForcedReadScope read { document };
     const_cast<Document&>(document).update_layout(UpdateLayoutReason::ElementScrollTop);
 
     // 6. If the element is the root element return the value of scrollY on window.
@@ -3737,7 +3737,7 @@ double Element::scroll_left() const
         return 0.0;
 
     // NOTE: Ensure that layout is up-to-date before looking at metrics.
-    Layout::ForcedReadScope read { document, true };
+    Layout::ForcedReadScope read { document };
     const_cast<Document&>(document).update_layout(UpdateLayoutReason::ElementScrollLeft);
 
     // 6. If the element is the root element return the value of scrollX on window.
@@ -3794,7 +3794,7 @@ void Element::set_scroll_left(double x)
     }
 
     // NOTE: Ensure that layout is up-to-date before looking at metrics or scrolling the page.
-    Layout::ForcedReadScope read { document, true };
+    Layout::ForcedReadScope read { document };
     const_cast<Document&>(document).update_layout(UpdateLayoutReason::ElementSetScrollLeft);
 
     // 9. If the element is the body element, document is in quirks mode, and the element is not potentially scrollable, invoke scroll() on window with x as first argument and scrollY on window as second argument, and terminate these steps.
@@ -3853,7 +3853,7 @@ void Element::set_scroll_top(double y)
     }
 
     // NOTE: Ensure that layout is up-to-date before looking at metrics or scrolling the page.
-    Layout::ForcedReadScope read { document, true };
+    Layout::ForcedReadScope read { document };
     const_cast<Document&>(document).update_layout(UpdateLayoutReason::ElementSetScrollTop);
 
     // 9. If the element is the body element, document is in quirks mode, and the element is not potentially scrollable, invoke scroll() on window with scrollX as first argument and y as second argument, and terminate these steps.
@@ -3890,7 +3890,7 @@ int Element::scroll_width()
         return 0;
 
     // NOTE: Ensure that layout is up-to-date before looking at metrics.
-    Layout::ForcedReadScope read { document, true };
+    Layout::ForcedReadScope read { document };
     document.update_layout(UpdateLayoutReason::ElementScrollWidth);
     auto const* viewport_layout_node = document.layout_node(read);
     VERIFY(viewport_layout_node && Painting::has_committed_box(*viewport_layout_node));
@@ -3935,7 +3935,7 @@ int Element::scroll_height()
         return 0;
 
     // NOTE: Ensure that layout is up-to-date before looking at metrics.
-    Layout::ForcedReadScope read { document, true };
+    Layout::ForcedReadScope read { document };
     document.update_layout(UpdateLayoutReason::ElementScrollHeight);
     auto const* viewport_layout_node = document.layout_node(read);
     VERIFY(viewport_layout_node && Painting::has_committed_box(*viewport_layout_node));
@@ -4635,7 +4635,7 @@ void Element::scroll_into_view(Element::ScrollIntoViewOptions const& options, GC
 
     // 7. If the element does not have any associated box, or is not available to user-agent features, then return a
     //    resolved Promise and abort the remaining steps.
-    Layout::ForcedReadScope read { document(), true };
+    Layout::ForcedReadScope read { document() };
     document().update_layout(UpdateLayoutReason::ElementScrollIntoView);
     HTML::TemporaryExecutionContext temporary_execution_context { document().relevant_settings_object() };
     if (!has_layout_box()) {
@@ -5211,7 +5211,7 @@ void Element::update_animated_properties_for_abstract_element(Badge<Web::Animati
 void Element::replace_style_record(CSS::StyleRecordID style_record_identity)
 {
     // The caller's own read of the render state.
-    Layout::ForcedReadScope read { document(), false };
+    Layout::ForcedReadScope read { document() };
     VERIFY(!style_record_identity || style_node_id() != 0);
     if (m_installed_style.record() == style_record_identity)
         return;
@@ -5374,7 +5374,7 @@ SyntheticPseudoElement& Element::ensure_synthetic_pseudo_element(CSS::PseudoElem
 void Element::set_custom_property_data(Optional<CSS::PseudoElement> pseudo_element, RefPtr<CSS::CustomPropertyData const> data)
 {
     // The caller's own read of the render state.
-    Layout::ForcedReadScope read { document(), false };
+    Layout::ForcedReadScope read { document() };
     AbstractElement const abstract_element { *this, pseudo_element };
     if (!data || !data->is_animation_overlay_for(abstract_element)) {
         if (auto current = custom_property_data(pseudo_element); current && current->is_animation_overlay_for(abstract_element)) {
@@ -5392,7 +5392,7 @@ void Element::set_custom_property_data(Optional<CSS::PseudoElement> pseudo_eleme
 void Element::replace_custom_property_data(Optional<CSS::PseudoElement> pseudo_element, RefPtr<CSS::CustomPropertyData const> data)
 {
     // The caller's own read of the render state.
-    Layout::ForcedReadScope read { document(), false };
+    Layout::ForcedReadScope read { document() };
     install_custom_property_data(read, pseudo_element, move(data));
 }
 
@@ -5538,7 +5538,7 @@ void Element::scroll(Bindings::ScrollToOptions options, GC::Ptr<WebIDL::Promise>
     }
 
     // NB: Ensure that layout is up-to-date before looking at metrics.
-    Layout::ForcedReadScope read { document, true };
+    Layout::ForcedReadScope read { document };
     document.update_layout(UpdateLayoutReason::ElementScroll);
 
     // 8. If the element is the root element, return the Promise returned by scroll() on window after the method is
@@ -5622,7 +5622,7 @@ void Element::scroll_by(ScrollToOptions options, GC::Ptr<WebIDL::Promise> promis
 bool Element::check_visibility(CheckVisibilityOptions const& options)
 {
     // NOTE: Ensure that layout is up-to-date before looking at metrics.
-    Layout::ForcedReadScope read { document(), true };
+    Layout::ForcedReadScope read { document() };
     document().update_layout_if_needed_for_node(*this, UpdateLayoutReason::ElementCheckVisibility);
 
     // 1. If this does not have an associated box, return false.

@@ -444,7 +444,7 @@ bool StyleEngine::attribute_name_requires_value_text(StyleAtomID name)
     return m_attribute_names_requiring_value_text.ensure(name, [&] {
         // The host holds which names the engine's selectors read the value text of as of its last job, so only a name
         // not seen since it queued a rule is its own read of the render state.
-        Layout::ForcedReadScope read { render_document(), false };
+        Layout::ForcedReadScope read { render_document() };
         // The host interned every name it asks about, with its forms.
         auto it = m_attribute_name_forms.find(name);
         VERIFY(it != m_attribute_name_forms.end());
@@ -613,7 +613,7 @@ bool StyleEngine::has_recorded_input() const
 void StyleEngine::submit_recorded_input()
 {
     // Submitting what was recorded is the host's own read of the render state.
-    Layout::ForcedReadScope read { render_document(), false };
+    Layout::ForcedReadScope read { render_document() };
     if (m_style_computer) {
         take_in_pending_style_arrivals(m_style_computer->document());
         publish_pending_element_features(*this, *m_style_computer);
