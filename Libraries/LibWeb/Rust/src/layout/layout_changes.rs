@@ -49,11 +49,6 @@ pub(crate) enum LayoutChange {
         node: Option<StyleNodeID>,
         mark: super::tree_update_marks::FfiLayoutTreeUpdateMark,
     },
-    /// The text under `root` renders with the language it now resolves: where any of it is cased by its language, the
-    /// root lays out again.
-    EnrollTextAfterLanguageChange {
-        root: NodeSlotId,
-    },
     RecordPartialRelayoutEscape,
     /// The boxes a clock lease showed samples of their elements' animations in take back the styles the host installed.
     RestoreHostStyles(Vec<(NodeSlotId, super::HostStyle)>),
@@ -193,7 +188,6 @@ impl LayoutChange {
             | Self::DeferChildListInsertionLayoutUpdate { .. }
             | Self::MarkBox { .. }
             | Self::ApplyLayoutTreeUpdateMark { .. }
-            | Self::EnrollTextAfterLanguageChange { .. }
             | Self::RecordPartialRelayoutEscape
             | Self::NoteContainedAbsposChildRemoval { .. }
             | Self::SetAnchorNameElements { .. }
@@ -223,24 +217,16 @@ impl LayoutChange {
     /// [`crate::render_state::StateFacts`]). Noting which nodes sit in a focused text control, pinning a row's style
     /// record and tracing the layout never do.
     pub(crate) fn may_move_facts(&self) -> bool {
-        !matches!(
-            self,
+        match self {
+            Self::MarkBox { marks, .. } => marks.may_lay_out(),
             Self::SetIdentityInFocusedTextControl { .. }
-                | Self::MarkBox {
-                    marks: super::tree_update_marks::FfiBoxMarks {
-                        layout_update: false,
-                        text_data_changed: false,
-                        image_data_changed: false,
-                        ..
-                    },
-                    ..
-                }
-                | Self::PinBoundBoxStyleRecordForDetachment { .. }
-                | Self::PinNodeStyleRecordForHost { .. }
-                | Self::ReleaseNodeStyleRecordPinForHost { .. }
-                | Self::BeginLayoutTrace
-                | Self::NameLayoutTraceOwners(_)
-        )
+            | Self::PinBoundBoxStyleRecordForDetachment { .. }
+            | Self::PinNodeStyleRecordForHost { .. }
+            | Self::ReleaseNodeStyleRecordPinForHost { .. }
+            | Self::BeginLayoutTrace
+            | Self::NameLayoutTraceOwners(_) => false,
+            _ => true,
+        }
     }
 
     /// Applies the change to `arena`, the arena of the document it was queued for. A node freed since then has nothing
@@ -274,11 +260,6 @@ impl LayoutChange {
             }
             Self::MarkBox { target, marks } => marks.apply(arena, target),
             Self::ApplyLayoutTreeUpdateMark { node, mark } => arena.apply_layout_tree_update_mark(node, mark),
-            Self::EnrollTextAfterLanguageChange { root } => {
-                if arena.slot_is_live(root) && super::rendered_text::enroll_text_after_language_change(arena, root) {
-                    arena.set_needs_layout_update(root, true);
-                }
-            }
             Self::RecordPartialRelayoutEscape => arena.record_partial_relayout_escape(),
             Self::NoteContainedAbsposChildRemoval { parent, child } => {
                 if arena.slot_is_live(parent) && arena.slot_is_live(child) {
@@ -572,15 +553,6 @@ pub unsafe extern "C" fn render_state_defer_child_list_insertion_layout_update(
 ) {
     // SAFETY: Guaranteed by the caller.
     unsafe { queue(host, LayoutChange::DeferChildListInsertionLayoutUpdate { parent }) };
-}
-
-/// # Safety
-///
-/// `host` must be a live document host, on the document's thread.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn render_state_enroll_text_after_language_change(host: *const DocumentHost, root: NodeSlotId) {
-    // SAFETY: Guaranteed by the caller.
-    unsafe { queue(host, LayoutChange::EnrollTextAfterLanguageChange { root }) };
 }
 
 /// # Safety

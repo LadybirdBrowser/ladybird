@@ -2321,6 +2321,18 @@ bool Node::recompute_editable_subtree_flag()
     return new_value != exchange(m_in_editable_subtree, new_value);
 }
 
+// Whether the text node's box produces a zero-width fragment even when the text is empty: text controls and editing
+// hosts rely on it to keep the line box alive with real font metrics, giving the caret an anchor to paint at and the
+// control its baseline.
+static bool produces_line_box_fragment_when_empty(Node const& node)
+{
+    if (!node.is_text())
+        return false;
+    if (auto const* shadow_root = as_if<ShadowRoot>(node.root()); shadow_root && as_if<HTML::FormAssociatedTextControlElement>(shadow_root->host()))
+        return true;
+    return node.parent() && node.parent()->is_editing_host();
+}
+
 void Node::recompute_editable_subtree_flags_and_repaint()
 {
     for_each_in_inclusive_subtree([](Node& node) {
@@ -2333,36 +2345,16 @@ void Node::recompute_editable_subtree_flags_and_repaint()
         if (auto* element = as_if<Element>(node))
             CSS::record_element_construction_facts(*element);
         node.publish_dom_paint_facts();
+        // The build stamps the boxes with these, and contenteditable and designMode move them without a rebuild. A
+        // node's stamps can flip even where its own editable-subtree flag did not, so every node's are marked.
+        Layout::RustFFI::FfiBoxMarks marks {};
+        marks.has_editing_facts = true;
+        marks.is_editing_host = node.is_editing_host();
+        marks.produces_line_box_fragment_when_empty = produces_line_box_fragment_when_empty(node);
+        node.mark_box(marks);
         return TraversalDecision::Continue;
     });
-    // The boxes take the change as the journal is drained, which may be beside a frame in flight.
-    document().invalidation_journal().note_editability_changed(*this);
     document().page().keyboard_scroll_editability_changed(document());
-}
-
-void Node::apply_editability_to_boxes(Badge<InvalidationJournal>, Layout::BegunRead const& read)
-{
-    for_each_in_inclusive_subtree([&read](Node& node) {
-        // Editing-host status and the empty-text fragment behavior of text nodes are
-        // stamped into layout NodeData at layout node construction; contenteditable and
-        // designMode changes reach here without a layout tree rebuild, so the stamps must
-        // be refreshed. A node's stamps can flip even when its own editable-subtree flag
-        // did not, hence unconditionally for every node. A flipped stamp changes geometry
-        // (an editing host gains a minimum block size, an empty editable text node gains
-        // a zero-width fragment), so the affected node also needs a relayout.
-        if (auto* layout_node = node.unsafe_layout_node(read)) {
-            auto is_editing_host = node.is_editing_host();
-            if (layout_node->is_editing_host() != is_editing_host) {
-                layout_node->set_is_editing_host(is_editing_host);
-                node.set_needs_layout_update(SetNeedsLayoutReason::EditableStateChange);
-            }
-            if (auto* layout_text_node = as_if<Layout::TextNode>(*layout_node)) {
-                if (layout_text_node->update_produces_line_box_fragment_when_empty_flag())
-                    node.set_needs_layout_update(SetNeedsLayoutReason::EditableStateChange);
-            }
-        }
-        return TraversalDecision::Continue;
-    });
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#editable

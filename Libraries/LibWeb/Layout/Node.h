@@ -317,7 +317,6 @@ public:
     void set_list_marker_is_inside(bool value) { set_flag(RustFFI::NodeFlag::ListMarkerIsInside, value); }
 
     bool is_editing_host() const { return has_flag(RustFFI::NodeFlag::IsEditingHost); }
-    void set_is_editing_host(bool value) { set_flag(RustFFI::NodeFlag::IsEditingHost, value); }
     static u8 dom_paint_facts_of(DOM::Node const*);
 
     // https://drafts.csswg.org/css-ui/#propdef-user-select

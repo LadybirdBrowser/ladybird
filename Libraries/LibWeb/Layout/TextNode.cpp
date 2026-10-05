@@ -26,28 +26,6 @@ TextNode::TextNode(DOM::Document& document, BindToPreparedArenaSlot bind, Compos
 {
 }
 
-bool TextNode::update_produces_line_box_fragment_when_empty_flag()
-{
-    // Text controls and editing hosts rely on their text node producing a zero-width fragment even
-    // when it has no text: the fragment keeps the line box alive with real font metrics, giving the
-    // caret an anchor to paint at and the control its baseline. Stamping this as a node flag keeps
-    // layout itself unaware of editing state.
-    auto produces_line_box_fragment_when_empty = [&] {
-        auto const* dom_text = this->dom_text();
-        if (!dom_text)
-            return false;
-        if (auto const* shadow_root = as_if<DOM::ShadowRoot>(dom_text->root())) {
-            if (as_if<HTML::FormAssociatedTextControlElement>(shadow_root->host()))
-                return true;
-        }
-        return dom_text->parent() && dom_text->parent()->is_editing_host();
-    }();
-    if (has_flag(RustFFI::NodeFlag::ProducesLineBoxFragmentWhenEmpty) == produces_line_box_fragment_when_empty)
-        return false;
-    set_flag(RustFFI::NodeFlag::ProducesLineBoxFragmentWhenEmpty, produces_line_box_fragment_when_empty);
-    return true;
-}
-
 TextNode::~TextNode() = default;
 
 // The build stamped the row with its characters, which this layout node shares.
