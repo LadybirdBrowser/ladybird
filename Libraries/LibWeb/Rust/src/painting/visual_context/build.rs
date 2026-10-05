@@ -282,8 +282,6 @@ pub(crate) fn create_fresh_tree_with_viewport_nodes(
         PaintableVisualContextRecord {
             inherited_input: viewport_contexts,
             output_for_descendants: viewport_contexts,
-            has_mask_nodes: false,
-            may_be_root_element: false,
             owns_geometry_dependent_nodes: false,
             subtree_may_own_geometry_dependent_nodes: false,
             stacking_context: crate::painting::stacking_context::StackingContextFacts::for_viewport(),
