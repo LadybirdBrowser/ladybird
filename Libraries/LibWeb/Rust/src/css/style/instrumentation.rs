@@ -9,9 +9,8 @@
 //! The engine chooses between selective and batch plans, between resident state and cold
 //! evaluation, and between narrow and widened impact regions. Those choices are only defensible if
 //! they are visible, so each one bumps a counter.
-//!
-//! Counters are per document and read from one thread, so they are plain integers rather than
-//! atomics.
+
+use std::sync::atomic::{AtomicU64, Ordering};
 
 macro_rules! define_counters {
     ($($variant:ident => $name:literal,)+) => {
@@ -322,9 +321,12 @@ define_counters! {
 }
 
 /// The counter set for one document.
-#[derive(Clone, Debug)]
+///
+/// NB: Counters are bumped through shared references from wherever the engine runs, so each is an atomic. Only one
+///     thread runs the engine at a time, so a relaxed load and store is enough, and costs what a plain add does.
+#[derive(Debug)]
 pub struct Counters {
-    values: [u64; COUNTER_COUNT],
+    values: [AtomicU64; COUNTER_COUNT],
 }
 
 impl Default for Counters {
@@ -333,33 +335,52 @@ impl Default for Counters {
     }
 }
 
+impl Clone for Counters {
+    fn clone(&self) -> Self {
+        let clone = Self::new();
+        clone.restore(self);
+        clone
+    }
+}
+
 impl Counters {
     #[must_use]
     pub fn new() -> Self {
         Self {
-            values: [0; COUNTER_COUNT],
+            values: [const { AtomicU64::new(0) }; COUNTER_COUNT],
         }
     }
 
-    pub fn bump(&mut self, counter: Counter) {
-        self.values[counter as usize] += 1;
+    pub fn bump(&self, counter: Counter) {
+        self.add(counter, 1);
     }
 
-    pub fn add(&mut self, counter: Counter, amount: u64) {
-        self.values[counter as usize] += amount;
+    pub fn add(&self, counter: Counter, amount: u64) {
+        let value = &self.values[counter as usize];
+        value.store(value.load(Ordering::Relaxed) + amount, Ordering::Relaxed);
     }
 
-    pub fn set(&mut self, counter: Counter, value: u64) {
-        self.values[counter as usize] = value;
+    pub fn set(&self, counter: Counter, value: u64) {
+        self.values[counter as usize].store(value, Ordering::Relaxed);
     }
 
     #[must_use]
     pub fn get(&self, counter: Counter) -> u64 {
-        self.values[counter as usize]
+        self.values[counter as usize].load(Ordering::Relaxed)
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = (&'static str, u64)> {
-        COUNTER_NAMES.iter().copied().zip(self.values)
+    /// Puts every counter back to what `other` holds.
+    pub fn restore(&self, other: &Self) {
+        for (value, other) in self.values.iter().zip(&other.values) {
+            value.store(other.load(Ordering::Relaxed), Ordering::Relaxed);
+        }
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = (&'static str, u64)> + '_ {
+        COUNTER_NAMES
+            .iter()
+            .copied()
+            .zip(self.values.iter().map(|value| value.load(Ordering::Relaxed)))
     }
 }
 
@@ -369,7 +390,7 @@ mod tests {
 
     #[test]
     fn peaks_and_totals_accumulate_differently() {
-        let mut counters = Counters::new();
+        let counters = Counters::new();
         counters.add(Counter::RawMutationRecords, 3);
         counters.add(Counter::RawMutationRecords, 4);
         assert_eq!(counters.get(Counter::RawMutationRecords), 7);

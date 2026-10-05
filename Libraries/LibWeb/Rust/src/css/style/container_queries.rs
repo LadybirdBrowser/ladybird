@@ -665,7 +665,7 @@ impl RetainedState {
         &mut self,
         rule_program_is_changing: bool,
         republication: super::publication::WinnerRepublication,
-        counters: &mut Counters,
+        counters: &Counters,
     ) {
         if self.published_container_verdicts.is_empty() {
             return;

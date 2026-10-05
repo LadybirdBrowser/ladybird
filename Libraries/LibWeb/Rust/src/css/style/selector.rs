@@ -5650,7 +5650,7 @@ impl<'a> MatchEvaluator<'a> {
         program: &SelectorProgram,
         entry: &SelectorEntry,
         node: StyleNodeID,
-        counters: &mut Counters,
+        counters: &Counters,
     ) -> Result<u32, Incomplete> {
         let Some(scope_root) = entry.scope_root else {
             return Ok(u32::MAX);
@@ -5677,7 +5677,7 @@ impl<'a> MatchEvaluator<'a> {
         &mut self,
         program: &SelectorProgram,
         node: StyleNodeID,
-        counters: &mut Counters,
+        counters: &Counters,
     ) -> Result<Option<SelectorEntry>, Incomplete> {
         let mut best: Option<SelectorEntry> = None;
         for entry in program.entries() {
@@ -5698,7 +5698,7 @@ impl<'a> MatchEvaluator<'a> {
         program: &SelectorProgram,
         entry: &SelectorEntry,
         node: StyleNodeID,
-        counters: &mut Counters,
+        counters: &Counters,
     ) -> Result<bool, Incomplete> {
         self.matches_node(program, entry.root, node, counters)
     }
@@ -5713,7 +5713,7 @@ impl<'a> MatchEvaluator<'a> {
         entry: &SelectorEntry,
         known: DispatchKey,
         node: StyleNodeID,
-        counters: &mut Counters,
+        counters: &Counters,
     ) -> Result<bool, Incomplete> {
         let is_known_operand = |operand| {
             matches!(program.node(operand), SelectorOp::Feature(_) | SelectorOp::State(_))
@@ -5747,7 +5747,7 @@ impl<'a> MatchEvaluator<'a> {
         program: &SelectorProgram,
         entry: &SelectorEntry,
         node: StyleNodeID,
-        counters: &mut Counters,
+        counters: &Counters,
     ) -> Result<bool, Incomplete> {
         let previous = self.subject.transitive_relation_program.replace(program_id);
         let result = self.matches_node(program, entry.root, node, counters);
@@ -5764,7 +5764,7 @@ impl<'a> MatchEvaluator<'a> {
         program: &SelectorProgram,
         entry: &SelectorEntry,
         node: StyleNodeID,
-        counters: &mut Counters,
+        counters: &Counters,
     ) -> Result<bool, Incomplete> {
         self.matches_node(program, entry.root, node, counters)
     }
@@ -5777,7 +5777,7 @@ impl<'a> MatchEvaluator<'a> {
         program: &SelectorProgram,
         id: SelectorNodeID,
         node: StyleNodeID,
-        counters: &mut Counters,
+        counters: &Counters,
     ) -> Result<bool, Incomplete> {
         self.matches_node(program, id, node, counters)
     }
@@ -5789,7 +5789,7 @@ impl<'a> MatchEvaluator<'a> {
         program: &SelectorProgram,
         local: SelectorPrefixLocal,
         node: StyleNodeID,
-        counters: &mut Counters,
+        counters: &Counters,
     ) -> Result<bool, Incomplete> {
         let previous = self.subject.transitive_relation_program.replace(program_id);
         let result = match program.node(local.root) {
@@ -6653,7 +6653,7 @@ mod tests {
 
     #[test]
     fn positional_answers_are_shared_across_programs() {
-        let mut fixture = Fixture::new();
+        let fixture = Fixture::new();
         let first = single_entry(|builder| {
             builder.push(SelectorOp::NthPosition(NthPosition {
                 step: 2,
@@ -6678,12 +6678,12 @@ mod tests {
 
         assert!(
             !evaluator
-                .matches_entry(&first, &first.entries()[0], fixture.nodes[1], &mut fixture.counters)
+                .matches_entry(&first, &first.entries()[0], fixture.nodes[1], &fixture.counters)
                 .unwrap()
         );
         assert!(
             !evaluator
-                .matches_entry(&second, &second.entries()[0], fixture.nodes[1], &mut fixture.counters)
+                .matches_entry(&second, &second.entries()[0], fixture.nodes[1], &fixture.counters)
                 .unwrap()
         );
         assert_eq!(fixture.counters.get(Counter::StructuralTests), 1);
@@ -6691,7 +6691,7 @@ mod tests {
 
     #[test]
     fn feature_answers_are_recomputed_across_programs() {
-        let mut fixture = Fixture::new();
+        let fixture = Fixture::new();
         let first = single_entry(|builder| builder.push_feature(FeatureTest::Class(CLASS_ITEM)));
         let second = single_entry(|builder| builder.push_feature(FeatureTest::Class(CLASS_ITEM)));
         let mut workspace = MatchScratch::default();
@@ -6705,7 +6705,7 @@ mod tests {
                     &first,
                     &first.entries()[0],
                     fixture.nodes[1],
-                    &mut fixture.counters,
+                    &fixture.counters,
                 )
                 .unwrap()
         );
@@ -6716,7 +6716,7 @@ mod tests {
                     &second,
                     &second.entries()[0],
                     fixture.nodes[1],
-                    &mut fixture.counters,
+                    &fixture.counters,
                 )
                 .unwrap()
         );
@@ -6844,7 +6844,7 @@ mod tests {
         fn matches(&mut self, program: &SelectorProgram, node: usize) -> bool {
             let mut evaluator = MatchEvaluator::new(&self.tree, &self.facts);
             evaluator
-                .matches_entry(program, &program.entries()[0], self.nodes[node], &mut self.counters)
+                .matches_entry(program, &program.entries()[0], self.nodes[node], &self.counters)
                 .unwrap()
         }
 
@@ -6853,7 +6853,7 @@ mod tests {
             let shadow_root = self.nodes[shadow_root];
             let mut evaluator = MatchEvaluator::new(&self.tree, &self.facts).in_shadow_tree(shadow_root);
             evaluator
-                .matches_entry(program, &program.entries()[0], self.nodes[node], &mut self.counters)
+                .matches_entry(program, &program.entries()[0], self.nodes[node], &self.counters)
                 .unwrap()
         }
     }
@@ -7050,13 +7050,13 @@ mod tests {
 
         assert!(
             !MatchEvaluator::new(&fixture.tree, &fixture.facts)
-                .matches_entry(&program, &program.entries()[0], fixture.nodes[3], &mut fixture.counters,)
+                .matches_entry(&program, &program.entries()[0], fixture.nodes[3], &fixture.counters,)
                 .unwrap()
         );
         assert!(
             MatchEvaluator::new(&fixture.tree, &fixture.facts)
                 .with_transaction_fact_view(&view, TransactionFactSide::Before)
-                .matches_entry(&program, &program.entries()[0], fixture.nodes[3], &mut fixture.counters,)
+                .matches_entry(&program, &program.entries()[0], fixture.nodes[3], &fixture.counters,)
                 .unwrap()
         );
     }
@@ -7069,7 +7069,7 @@ mod tests {
             let div = builder.push_feature(FeatureTest::TagName(TagTest::exact(TAG_DIV)));
             builder.push_compound(&[div, preceding])
         });
-        let mut fixture = Fixture::new();
+        let fixture = Fixture::new();
         let mut sparse = StyleNodeFacts::new();
         sparse.push_row(
             fixture.nodes[3],
@@ -7082,7 +7082,7 @@ mod tests {
         let mut evaluator = MatchEvaluator::new(&fixture.tree, &sparse);
 
         assert_eq!(
-            evaluator.matches_entry(&program, &program.entries()[0], fixture.nodes[3], &mut fixture.counters),
+            evaluator.matches_entry(&program, &program.entries()[0], fixture.nodes[3], &fixture.counters),
             Err(Incomplete::MissingSiblingFacts {
                 first: fixture.nodes[1],
                 last_exclusive: Some(fixture.nodes[3]),
@@ -7098,7 +7098,7 @@ mod tests {
             let div = builder.push_feature(FeatureTest::TagName(TagTest::exact(TAG_DIV)));
             builder.push_compound(&[div, previous])
         });
-        let mut fixture = Fixture::new();
+        let fixture = Fixture::new();
         let mut sparse = StyleNodeFacts::new();
         sparse.push_row(
             fixture.nodes[3],
@@ -7111,7 +7111,7 @@ mod tests {
         let mut evaluator = MatchEvaluator::new(&fixture.tree, &sparse);
 
         assert_eq!(
-            evaluator.matches_entry(&program, &program.entries()[0], fixture.nodes[3], &mut fixture.counters),
+            evaluator.matches_entry(&program, &program.entries()[0], fixture.nodes[3], &fixture.counters),
             Err(Incomplete::MissingFacts(fixture.nodes[2]))
         );
     }
@@ -7140,7 +7140,7 @@ mod tests {
         let mut evaluator = MatchEvaluator::new(&fixture.tree, &fixture.facts);
 
         assert_eq!(
-            evaluator.matches_entry(&program, &program.entries()[0], fixture.nodes[3], &mut fixture.counters),
+            evaluator.matches_entry(&program, &program.entries()[0], fixture.nodes[3], &fixture.counters),
             Err(Incomplete::MissingDescendantFacts {
                 root: fixture.nodes[1],
                 first: child,
@@ -7161,7 +7161,7 @@ mod tests {
                 match_in_shadow_tree: false,
             })
         });
-        let mut fixture = Fixture::new();
+        let fixture = Fixture::new();
         let mut sparse = StyleNodeFacts::new();
         sparse.push_row(
             fixture.nodes[1],
@@ -7174,7 +7174,7 @@ mod tests {
         let mut evaluator = MatchEvaluator::new(&fixture.tree, &sparse);
 
         assert_eq!(
-            evaluator.matches_entry(&program, &program.entries()[0], fixture.nodes[1], &mut fixture.counters),
+            evaluator.matches_entry(&program, &program.entries()[0], fixture.nodes[1], &fixture.counters),
             Err(Incomplete::MissingSiblingFacts {
                 first: fixture.nodes[2],
                 last_exclusive: None,
@@ -7272,18 +7272,18 @@ mod tests {
             builder.push_compound(&[scope, item])
         });
 
-        let mut fixture = Fixture::new();
+        let fixture = Fixture::new();
         let mut evaluator = MatchEvaluator::new(&fixture.tree, &fixture.facts).with_scope_root(fixture.nodes[0]);
         assert!(
             evaluator
-                .matches_entry(&program, &program.entries()[0], fixture.nodes[1], &mut fixture.counters)
+                .matches_entry(&program, &program.entries()[0], fixture.nodes[1], &fixture.counters)
                 .unwrap()
         );
 
         let mut evaluator = MatchEvaluator::new(&fixture.tree, &fixture.facts).with_scope_root(fixture.nodes[1]);
         assert!(
             !evaluator
-                .matches_entry(&program, &program.entries()[0], fixture.nodes[1], &mut fixture.counters)
+                .matches_entry(&program, &program.entries()[0], fixture.nodes[1], &fixture.counters)
                 .unwrap()
         );
     }
@@ -7367,7 +7367,7 @@ mod tests {
                 of_type: true,
             }))
         });
-        let mut fixture = Fixture::new();
+        let fixture = Fixture::new();
         let mut first_only = StyleNodeFacts::new();
         first_only.push_row(
             fixture.nodes[1],
@@ -7379,12 +7379,7 @@ mod tests {
         );
         let mut evaluator = MatchEvaluator::new(&fixture.tree, &first_only);
         assert_eq!(
-            evaluator.matches_entry(
-                &from_end,
-                &from_end.entries()[0],
-                fixture.nodes[1],
-                &mut fixture.counters
-            ),
+            evaluator.matches_entry(&from_end, &from_end.entries()[0], fixture.nodes[1], &fixture.counters),
             Err(Incomplete::MissingSiblingFacts {
                 first: fixture.nodes[2],
                 last_exclusive: None,
@@ -7406,7 +7401,7 @@ mod tests {
                 &from_start,
                 &from_start.entries()[0],
                 fixture.nodes[3],
-                &mut fixture.counters
+                &fixture.counters
             ),
             Err(Incomplete::MissingSiblingFacts {
                 first: fixture.nodes[1],
@@ -7438,10 +7433,10 @@ mod tests {
         );
         let program = builder.finish();
 
-        let mut fixture = Fixture::new();
+        let fixture = Fixture::new();
         let mut evaluator = MatchEvaluator::new(&fixture.tree, &fixture.facts);
         let matched = evaluator
-            .match_entries(&program, fixture.nodes[2], &mut fixture.counters)
+            .match_entries(&program, fixture.nodes[2], &fixture.counters)
             .unwrap()
             .unwrap();
         assert_eq!(
@@ -7457,11 +7452,11 @@ mod tests {
     #[test]
     fn a_missing_fact_row_is_reported_rather_than_answered() {
         let program = single_entry(|builder| builder.push_feature(FeatureTest::Class(CLASS_ITEM)));
-        let mut fixture = Fixture::new();
+        let fixture = Fixture::new();
         let missing = StyleNodeID::element(99);
         let mut evaluator = MatchEvaluator::new(&fixture.tree, &fixture.facts);
         assert_eq!(
-            evaluator.matches_entry(&program, &program.entries()[0], missing, &mut fixture.counters),
+            evaluator.matches_entry(&program, &program.entries()[0], missing, &fixture.counters),
             Err(Incomplete::MissingFacts(missing))
         );
     }

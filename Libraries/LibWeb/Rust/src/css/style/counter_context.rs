@@ -54,7 +54,7 @@ impl StyleEngine {
         declarations: &[declaration_block::DeclaredProperty],
     ) -> Vec<(DeclaredProperty, RetainedStyleValueData)> {
         self.state
-            .intern_element_declared_properties(declarations, &mut self.counters)
+            .intern_element_declared_properties(declarations, &self.counters)
     }
 
     #[must_use]
@@ -81,7 +81,7 @@ impl StyleEngine {
             state_deltas,
             element_declaration_deltas,
             element_style_inputs,
-            &mut self.counters,
+            &self.counters,
         );
     }
 
@@ -92,8 +92,7 @@ impl StyleEngine {
     #[inline]
     pub unsafe fn note_custom_property_name(&mut self, name: StyleAtomID, raw: usize, text: &[u16]) {
         unsafe {
-            self.state
-                .note_custom_property_name(name, raw, text, &mut self.counters);
+            self.state.note_custom_property_name(name, raw, text, &self.counters);
         }
     }
 
@@ -112,7 +111,7 @@ impl StyleEngine {
         scope: &ScopeChain<'_>,
     ) -> RuleID {
         self.state
-            .add_style_rule_in_scope(sheet, before, selectors, namespaces, scope, &mut self.counters)
+            .add_style_rule_in_scope(sheet, before, selectors, namespaces, scope, &self.counters)
     }
 
     /// Add a style rule of a user-agent sheet, compiling its selectors only if no document in the
@@ -127,7 +126,7 @@ impl StyleEngine {
         namespaces: Option<&super::rule_writes::NamespaceTexts>,
     ) -> RuleID {
         self.state
-            .add_user_agent_style_rule(sheet, before, rule_identity, selectors, namespaces, &mut self.counters)
+            .add_user_agent_style_rule(sheet, before, rule_identity, selectors, namespaces, &self.counters)
     }
 
     /// Record that a sheet declared or gave up a cascade layer.
@@ -139,7 +138,7 @@ impl StyleEngine {
     #[inline]
     #[cfg(test)]
     pub fn record_layer_statement(&mut self, sheet: SheetID) {
-        self.state.record_layer_statement(sheet, &mut self.counters);
+        self.state.record_layer_statement(sheet, &self.counters);
     }
 
     /// Add a `@keyframes` rule, which matches no element and is found by the name it declares.
@@ -148,7 +147,7 @@ impl StyleEngine {
     /// name for that input to reach the animations referencing it.
     #[inline]
     pub fn add_keyframes_rule(&mut self, sheet: SheetID, before: Option<RuleID>, name: StyleAtomID) -> RuleID {
-        self.state.add_keyframes_rule(sheet, before, name, &mut self.counters)
+        self.state.add_keyframes_rule(sheet, before, name, &self.counters)
     }
 
     /// Add an `@property` rule, which registers the custom property it names. Registering one changes
@@ -156,15 +155,14 @@ impl StyleEngine {
     /// knows and selector matching cannot say.
     #[inline]
     pub fn add_property_rule(&mut self, sheet: SheetID, before: Option<RuleID>, name: StyleAtomID) -> RuleID {
-        self.state.add_property_rule(sheet, before, name, &mut self.counters)
+        self.state.add_property_rule(sheet, before, name, &self.counters)
     }
 
     /// Add a rule that matches no element and is not found by name either, so that a change to it is
     /// an input at all. What it reaches is decided by its kind.
     #[inline]
     pub fn add_non_matching_rule(&mut self, sheet: SheetID, before: Option<RuleID>, kind: RuleKind) -> RuleID {
-        self.state
-            .add_non_matching_rule(sheet, before, kind, &mut self.counters)
+        self.state.add_non_matching_rule(sheet, before, kind, &self.counters)
     }
 
     /// Give an existing rule a new selector list, keeping its identity and its position.
@@ -181,7 +179,7 @@ impl StyleEngine {
         scope: &ScopeChain<'_>,
     ) {
         self.state
-            .replace_style_rule_selectors(rule, selectors, namespaces, scope, &mut self.counters);
+            .replace_style_rule_selectors(rule, selectors, namespaces, scope, &self.counters);
     }
 
     /// Report that a rule's declarations moved, without touching anything else about it.
@@ -193,14 +191,14 @@ impl StyleEngine {
     #[inline]
     pub fn record_rule_declarations_changed(&mut self, rule: RuleID, block_version: u32) {
         self.state
-            .record_rule_declarations_changed(rule, block_version, &mut self.counters);
+            .record_rule_declarations_changed(rule, block_version, &self.counters);
     }
 
     /// Make the identities the host minted live, ahead of anything the host records about their
     /// nodes.
     #[inline]
     pub fn mint_style_nodes(&mut self, nodes: &[u32]) {
-        self.state.mint_style_nodes(nodes, &mut self.counters);
+        self.state.mint_style_nodes(nodes, &self.counters);
     }
 
     /// Mint `out.len()` element identities from the tree's own space, for a test.
@@ -226,14 +224,14 @@ impl StyleEngine {
     #[inline]
     #[cfg(test)]
     pub fn record_tree_delta(&mut self, node: StyleNodeID, old: Option<TreeRelations>, new: Option<TreeRelations>) {
-        self.state.record_tree_delta(node, old, new, &mut self.counters);
+        self.state.record_tree_delta(node, old, new, &self.counters);
     }
 
     /// Record a change to style inputs which are properties of the document environment rather
     /// than of an element or stylesheet rule.
     #[inline]
     pub fn record_environment_change(&mut self) {
-        self.state.record_environment_change(&mut self.counters);
+        self.state.record_environment_change(&self.counters);
     }
 
     /// Record a registration made through `CSS.registerProperty()`. Stylesheet registrations are
@@ -241,13 +239,13 @@ impl StyleEngine {
     #[inline]
     pub fn record_custom_property_registration_change(&mut self, name: StyleAtomID) {
         self.state
-            .record_custom_property_registration_change(name, &mut self.counters);
+            .record_custom_property_registration_change(name, &self.counters);
     }
 
     #[inline]
     #[cfg(test)]
     pub fn record_input(&mut self, key: InputKey, old: InputValue, new: InputValue) {
-        self.state.record_input(key, old, new, &mut self.counters);
+        self.state.record_input(key, old, new, &self.counters);
     }
 
     /// Preserve the pending paint-only selector facts as the style change event established by a
@@ -256,15 +254,14 @@ impl StyleEngine {
     /// must settle style instead of reusing layout.
     #[inline]
     pub fn defer_pending_transaction_for_geometry_read(&mut self) -> bool {
-        self.state
-            .defer_pending_transaction_for_geometry_read(&mut self.counters)
+        self.state.defer_pending_transaction_for_geometry_read(&self.counters)
     }
 
     /// Install final staged relation rows at the transaction barrier.
     #[inline]
     #[cfg(test)]
     pub(super) fn apply_staged_tree_deltas(&mut self) {
-        self.state.apply_staged_tree_deltas(&mut self.counters);
+        self.state.apply_staged_tree_deltas(&self.counters);
     }
 
     /// Record the shadow parts an element exposes.
@@ -275,7 +272,7 @@ impl StyleEngine {
     /// cannot disagree.
     #[inline]
     pub fn set_element_parts(&mut self, node: StyleNodeID, pairs: &[(StyleAtomID, StyleNodeID)]) {
-        self.state.set_element_parts(node, pairs, &mut self.counters);
+        self.state.set_element_parts(node, pairs, &self.counters);
     }
 
     /// Report the outermost host a `::part()` rule can address this element from.
@@ -285,30 +282,30 @@ impl StyleEngine {
     /// and an element whose reach did not move says nothing.
     #[inline]
     pub fn set_element_part_exposure(&mut self, node: StyleNodeID, exposure: StyleAtomID) {
-        self.state.set_element_part_exposure(node, exposure, &mut self.counters);
+        self.state.set_element_part_exposure(node, exposure, &self.counters);
     }
 
     #[inline]
     pub fn set_element_heading_level(&mut self, node: StyleNodeID, level: u8) {
-        self.state.set_element_heading_level(node, level, &mut self.counters);
+        self.state.set_element_heading_level(node, level, &self.counters);
     }
 
     /// Record what a language atom spells, so `:lang()` can compare its ranges against the tag.
     #[inline]
     pub fn set_element_language_text(&mut self, language: StyleAtomID, text: &[u16]) {
-        self.state.set_element_language_text(language, text, &mut self.counters);
+        self.state.set_element_language_text(language, text, &self.counters);
     }
 
     #[inline]
     pub fn set_element_language(&mut self, node: StyleNodeID, language: StyleAtomID) {
-        self.state.set_element_language(node, language, &mut self.counters);
+        self.state.set_element_language(node, language, &self.counters);
     }
 
     /// Report the element's resolved directionality, which `:dir()` tests.
     #[inline]
     pub fn set_element_directionality(&mut self, node: StyleNodeID, directionality: StyleAtomID) {
         self.state
-            .set_element_directionality(node, directionality, &mut self.counters);
+            .set_element_directionality(node, directionality, &self.counters);
     }
 
     /// Replace the custom states an element is in.
@@ -318,14 +315,14 @@ impl StyleEngine {
     /// `:state()` reaches its subjects through the same postings every other name does.
     #[inline]
     pub fn set_element_custom_states(&mut self, node: StyleNodeID, states: &[StyleAtomID]) {
-        self.state.set_element_custom_states(node, states, &mut self.counters);
+        self.state.set_element_custom_states(node, states, &self.counters);
     }
 
     /// Attach a compiled program at the end of a scope's sheet order.
     #[inline]
     #[cfg(test)]
     pub(super) fn attach_sheet(&mut self, sheet: SheetID, tree_scope: TreeScopeID) {
-        self.state.attach_sheet(sheet, tree_scope, &mut self.counters);
+        self.state.attach_sheet(sheet, tree_scope, &self.counters);
     }
 
     /// Attach a sheet immediately before another sheet in the same scope, or at the end when that
@@ -334,12 +331,12 @@ impl StyleEngine {
     #[inline]
     pub fn attach_sheet_before_sheet(&mut self, sheet: SheetID, before: Option<SheetID>, tree_scope: TreeScopeID) {
         self.state
-            .attach_sheet_before_sheet(sheet, before, tree_scope, &mut self.counters);
+            .attach_sheet_before_sheet(sheet, before, tree_scope, &self.counters);
     }
 
     #[inline]
     pub fn detach_sheet(&mut self, sheet: SheetID, tree_scope: TreeScopeID) {
-        self.state.detach_sheet(sheet, tree_scope, &mut self.counters);
+        self.state.detach_sheet(sheet, tree_scope, &self.counters);
     }
 
     pub fn attach_sheet_occurrence(
@@ -351,16 +348,16 @@ impl StyleEngine {
         conditions_hold: bool,
     ) {
         self.state
-            .attach_sheet_occurrence(sheet, scope, identity, before, conditions_hold, &mut self.counters);
+            .attach_sheet_occurrence(sheet, scope, identity, before, conditions_hold, &self.counters);
     }
 
     pub fn detach_sheet_occurrence(&mut self, scope: TreeScopeID, identity: u64) {
-        self.state.detach_sheet_occurrence(scope, identity, &mut self.counters);
+        self.state.detach_sheet_occurrence(scope, identity, &self.counters);
     }
 
     pub fn set_sheet_occurrence_conditions(&mut self, scope: TreeScopeID, identity: u64, conditions_hold: bool) {
         self.state
-            .set_sheet_occurrence_conditions(scope, identity, conditions_hold, &mut self.counters);
+            .set_sheet_occurrence_conditions(scope, identity, conditions_hold, &self.counters);
     }
 
     /// Record that a rule sits in a cascade layer.
@@ -380,7 +377,7 @@ impl StyleEngine {
         custom_declarations: Vec<(CustomDeclaration, RetainedStyleValueData)>,
     ) {
         self.state
-            .set_element_declared_properties(node, kind, declarations, custom_declarations, &mut self.counters);
+            .set_element_declared_properties(node, kind, declarations, custom_declarations, &self.counters);
     }
 
     #[inline]
@@ -390,7 +387,7 @@ impl StyleEngine {
         winners: &[PropertyWinner],
         previous: Option<CascadeStateID>,
     ) -> CascadeStateID {
-        self.state.intern_cascade_state(winners, previous, &mut self.counters)
+        self.state.intern_cascade_state(winners, previous, &self.counters)
     }
 
     #[inline]
@@ -401,12 +398,8 @@ impl StyleEngine {
         can_have_scope_duplicates: bool,
         publish_winners_for: Option<StyleNodeID>,
     ) -> Vec<RuleMatch> {
-        self.state.matches_for_cascade_immediately(
-            all,
-            can_have_scope_duplicates,
-            publish_winners_for,
-            &mut self.counters,
-        )
+        self.state
+            .matches_for_cascade_immediately(all, can_have_scope_duplicates, publish_winners_for, &self.counters)
     }
 
     /// Repair only the winner properties named by signed match changes.
@@ -429,7 +422,7 @@ impl StyleEngine {
             matches,
             deltas,
             candidates,
-            &mut self.counters,
+            &self.counters,
         );
         self.state.install_answer_effects(effects);
         result
@@ -443,7 +436,7 @@ impl StyleEngine {
     /// a partial answer.
     #[inline]
     pub fn match_document(&mut self, root: StyleNodeID) -> Result<usize, Incomplete> {
-        self.state.match_document(root, &mut self.counters)
+        self.state.match_document(root, &self.counters)
     }
 
     /// Normalize and apply the staged inputs into one transaction. A required style observation
@@ -451,14 +444,14 @@ impl StyleEngine {
     #[inline]
     #[cfg(test)]
     pub fn take_transaction(&mut self) -> StyleTransaction {
-        self.state.take_transaction(&mut self.counters)
+        self.state.take_transaction(&self.counters)
     }
 
     /// Settle inputs which cannot be planned while the document has no style root. Exact element
     /// style reactions are edge-triggered, so preserve them for the first transaction with a root.
     #[inline]
     pub(crate) fn flush_without_document_root(&mut self) {
-        self.state.flush_without_document_root(&mut self.counters);
+        self.state.flush_without_document_root(&self.counters);
     }
 
     /// Leaves the atom sweep of the transactions taken until the next call to a later one, where `defers`.
@@ -469,7 +462,7 @@ impl StyleEngine {
     #[inline]
     #[cfg(test)]
     pub(super) fn sweep_style_atoms(&mut self) {
-        self.state.sweep_style_atoms(&mut self.counters);
+        self.state.sweep_style_atoms(&self.counters);
     }
 
     #[inline]
@@ -478,7 +471,7 @@ impl StyleEngine {
         root: StyleNodeID,
         emit: impl FnMut(StyleTransactionVersion, ProgramVersion, &[PublishedStyleDeltaRecord]),
     ) -> bool {
-        self.state.take_style_transaction(root, emit, &mut self.counters)
+        self.state.take_style_transaction(root, emit, &self.counters)
     }
 
     #[inline]
@@ -486,13 +479,13 @@ impl StyleEngine {
         &mut self,
         declaration: &declaration_block::DeclaredProperty,
     ) -> DeclaredProperty {
-        self.state.intern_declared_property(declaration, &mut self.counters)
+        self.state.intern_declared_property(declaration, &self.counters)
     }
 
     /// Put the qualified layer names in the order one tree scope declares them in.
     #[inline]
     pub fn set_layer_order(&mut self, scope: TreeScopeID, layers: &[CascadeLayerID]) {
-        self.state.set_layer_order(scope, layers, &mut self.counters);
+        self.state.set_layer_order(scope, layers, &self.counters);
     }
 
     /// Intern one immutable specified value into the rule program's dense value table.
@@ -501,7 +494,7 @@ impl StyleEngine {
     /// `value` must point at live `StyleValueData`.
     #[inline]
     pub unsafe fn intern_specified_value(&mut self, value: *const StyleValueData) -> SpecifiedValueID {
-        unsafe { self.state.intern_specified_value(value, &mut self.counters) }
+        unsafe { self.state.intern_specified_value(value, &self.counters) }
     }
 
     /// Record which cascade layer a rule sits in.
@@ -510,32 +503,32 @@ impl StyleEngine {
     /// compares; whether it is in one at all is what a layer topology change routes by.
     #[inline]
     pub fn set_rule_layer(&mut self, rule: RuleID, layer: CascadeLayerID) {
-        self.state.set_rule_layer(rule, layer, &mut self.counters);
+        self.state.set_rule_layer(rule, layer, &self.counters);
     }
 
     #[inline]
     pub fn set_rule_conditions_hold(&mut self, rule: RuleID, conditions_hold: bool) {
         self.state
-            .set_rule_conditions_hold(rule, conditions_hold, &mut self.counters);
+            .set_rule_conditions_hold(rule, conditions_hold, &self.counters);
     }
 
     /// Record whether a sheet's conditions hold, as evaluating its media queries decides.
     #[inline]
     pub fn set_sheet_conditions_hold(&mut self, sheet: SheetID, conditions_hold: bool) {
         self.state
-            .set_sheet_conditions_hold(sheet, conditions_hold, &mut self.counters);
+            .set_sheet_conditions_hold(sheet, conditions_hold, &self.counters);
     }
 
     #[cfg(test)]
     #[inline]
     pub(super) fn set_sheet_enabled(&mut self, sheet: SheetID, enabled: bool) {
-        self.state.set_sheet_enabled(sheet, enabled, &mut self.counters);
+        self.state.set_sheet_enabled(sheet, enabled, &self.counters);
     }
 
     #[inline]
     #[cfg(test)]
     pub(super) fn append_rule(&mut self, sheet: SheetID, parent: Option<RuleID>, kind: RuleKind) -> RuleID {
-        self.state.append_rule(sheet, parent, kind, &mut self.counters)
+        self.state.append_rule(sheet, parent, kind, &self.counters)
     }
 
     /// Delete a rule, taking its subtree with it. Every removed identity is journalled, because a
@@ -543,7 +536,7 @@ impl StyleEngine {
     #[inline]
     #[cfg(test)]
     pub(super) fn remove_rule(&mut self, rule: RuleID) -> Vec<RuleID> {
-        self.state.remove_rule(rule, &mut self.counters)
+        self.state.remove_rule(rule, &self.counters)
     }
 
     /// Begin rebuilding a sheet while retaining compatible style-rule identities by cascade
@@ -551,7 +544,7 @@ impl StyleEngine {
     /// departure followed by an arrival merely because the whole sheet was reparsed.
     #[inline]
     pub fn begin_sheet_rules_replacement(&mut self, sheet: SheetID) {
-        self.state.begin_sheet_rules_replacement(sheet, &mut self.counters);
+        self.state.begin_sheet_rules_replacement(sheet, &self.counters);
     }
 
     /// Finish a synchronous sheet rebuild, retiring unmatched old rules and publishing declaration
@@ -559,20 +552,20 @@ impl StyleEngine {
     #[inline]
     pub fn finish_sheet_rules_replacement(&mut self, sheet: SheetID, declaration_block: u32) {
         self.state
-            .finish_sheet_rules_replacement(sheet, declaration_block, &mut self.counters);
+            .finish_sheet_rules_replacement(sheet, declaration_block, &self.counters);
     }
 
     /// Delete one rule and settle the program around it.
     #[inline]
     pub fn remove_style_rule(&mut self, rule: RuleID) {
-        self.state.remove_style_rule(rule, &mut self.counters);
+        self.state.remove_style_rule(rule, &self.counters);
     }
 
     /// Replace a rule's contents and journal only the fields that actually changed.
     #[inline]
     #[cfg(test)]
     pub(super) fn replace_rule_version(&mut self, rule: RuleID, contents: RuleVersion) {
-        self.state.replace_rule_version(rule, contents, &mut self.counters);
+        self.state.replace_rule_version(rule, contents, &self.counters);
     }
 
     /// Take the pending transaction for the style consumer that immediately follows this call.
@@ -584,13 +577,13 @@ impl StyleEngine {
     #[cfg(test)]
     #[inline]
     pub(super) fn take_style_transaction_nodes(&mut self, root: StyleNodeID, emit: impl FnMut(&[u32])) -> bool {
-        self.state.take_style_transaction_nodes(root, emit, &mut self.counters)
+        self.state.take_style_transaction_nodes(root, emit, &self.counters)
     }
 
     #[inline]
     /// Ends the transaction the engine published last, and answers the identities its end released.
     pub(super) fn discard_style_transaction_outputs(&mut self) -> Vec<u32> {
-        self.state.discard_style_transaction_outputs(&mut self.counters)
+        self.state.discard_style_transaction_outputs(&self.counters)
     }
 
     /// Route a possible relational witness through the anchors whose truth it can flip.
@@ -611,7 +604,7 @@ impl StyleEngine {
         regions: &mut ImpactRegions,
     ) {
         self.state
-            .route_from_anchors(witness, program, anchor, site, regions, &mut self.counters);
+            .route_from_anchors(witness, program, anchor, site, regions, &self.counters);
     }
 
     #[inline]
@@ -632,7 +625,7 @@ impl StyleEngine {
             transaction,
             sequences,
             pending_prefix_producers,
-            &mut self.counters,
+            &self.counters,
         )
     }
 
@@ -644,8 +637,7 @@ impl StyleEngine {
         site: &RoutingSite<'_>,
         regions: &mut ImpactRegions,
     ) {
-        self.state
-            .add_narrowed_region(region, site, regions, &mut self.counters);
+        self.state.add_narrowed_region(region, site, regions, &self.counters);
     }
 
     /// Resolve deferred exact-node routes after the plan's symbolic coverage is final.
@@ -657,7 +649,7 @@ impl StyleEngine {
         coarse_cover: Option<&ImpactRegionBatch>,
     ) {
         self.state
-            .resolve_already_planned_selector_truth(regions, coarse_cover, &mut self.counters);
+            .resolve_already_planned_selector_truth(regions, coarse_cover, &self.counters);
     }
 
     #[inline]
@@ -668,7 +660,7 @@ impl StyleEngine {
         topology: Option<&TransactionTopology>,
     ) -> Option<MatchingFactBatch> {
         self.state
-            .materialize_cold_matching_batch(root, topology, &mut self.counters)
+            .materialize_cold_matching_batch(root, topology, &self.counters)
     }
 
     /// Share current facts and selector work while a scoped plan completes typed answer misses.
@@ -684,7 +676,7 @@ impl StyleEngine {
         prefer_complete_batch: bool,
     ) {
         self.state
-            .begin_published_match_answer_completion_batch(root, prefer_complete_batch, &mut self.counters);
+            .begin_published_match_answer_completion_batch(root, prefer_complete_batch, &self.counters);
     }
 
     /// Materialize the document's facts once for a synchronous broad style traversal.
@@ -694,7 +686,7 @@ impl StyleEngine {
     /// element use the ordinary exact batch path.
     #[inline]
     pub fn begin_cold_matching_batch(&mut self, root: StyleNodeID) -> bool {
-        self.state.begin_cold_matching_batch(root, &mut self.counters)
+        self.state.begin_cold_matching_batch(root, &self.counters)
     }
 
     /// Begin a synchronous selective traversal without paying for broad facts up front.
@@ -702,19 +694,18 @@ impl StyleEngine {
     /// Local asks remain local instead of paying for broad facts up front.
     #[inline]
     pub fn begin_adaptive_cold_matching_batch(&mut self, root: StyleNodeID) {
-        self.state.begin_adaptive_cold_matching_batch(root, &mut self.counters);
+        self.state.begin_adaptive_cold_matching_batch(root, &self.counters);
     }
 
     #[inline]
     pub fn end_cold_matching_batch(&mut self) {
-        self.state.end_cold_matching_batch(&mut self.counters);
+        self.state.end_cold_matching_batch(&self.counters);
     }
 
     #[inline]
     #[cfg(test)]
     pub(super) fn remember_retained_match_answer(&mut self, node: StyleNodeID, matches: &[RuleMatch]) {
-        self.state
-            .remember_retained_match_answer(node, matches, &mut self.counters);
+        self.state.remember_retained_match_answer(node, matches, &self.counters);
     }
 
     #[inline]
@@ -726,7 +717,7 @@ impl StyleEngine {
         selector_truth: Option<Vec<SelectorTruth>>,
     ) {
         self.state
-            .remember_prepared_retained_match_answer_with_truth(node, answer, selector_truth, &mut self.counters);
+            .remember_prepared_retained_match_answer_with_truth(node, answer, selector_truth, &self.counters);
     }
 
     /// Materialize selector incidence from current facts when no active retained answer names it.
@@ -737,7 +728,7 @@ impl StyleEngine {
         program: SelectorProgramID,
     ) -> Option<Arc<[RetainedSelectorIncidence]>> {
         self.state
-            .materialize_current_selector_incidence(program, &mut self.counters)
+            .materialize_current_selector_incidence(program, &self.counters)
     }
 
     /// Apply a complete signed match delta directly to one retained exact answer.
@@ -762,7 +753,7 @@ impl StyleEngine {
             old_identity,
             old_cascade_input,
             deltas,
-            &mut self.counters,
+            &self.counters,
         );
         self.state.install_answer_effects(effects);
         result
@@ -783,7 +774,7 @@ impl StyleEngine {
         let mut effects = AnswerEffects::default();
         let result = self
             .state
-            .patch_retained_match_answer(&mut effects, node, patch, truth_patch, &mut self.counters);
+            .patch_retained_match_answer(&mut effects, node, patch, truth_patch, &self.counters);
         self.state.install_answer_effects(effects);
         result
     }
@@ -792,18 +783,18 @@ impl StyleEngine {
     #[inline]
     #[cfg(test)]
     pub(super) fn remember_cascade_input(&mut self, node: StyleNodeID, matches: &[RuleMatch]) {
-        self.state.remember_cascade_input(node, matches, &mut self.counters);
+        self.state.remember_cascade_input(node, matches, &self.counters);
     }
 
     #[inline]
     pub fn match_element(&mut self, node: StyleNodeID) -> Result<Vec<RuleMatch>, Incomplete> {
-        self.state.match_element(node, &mut self.counters)
+        self.state.match_element(node, &self.counters)
     }
 
     /// Match one element and discard rules that cannot contribute to its cascade.
     #[inline]
     pub fn match_element_for_cascade(&mut self, node: StyleNodeID) -> Result<Vec<RuleMatch>, Incomplete> {
-        self.state.match_element_for_cascade(node, &mut self.counters)
+        self.state.match_element_for_cascade(node, &self.counters)
     }
 
     #[inline]
@@ -814,7 +805,7 @@ impl StyleEngine {
         compact_for_cascade: bool,
     ) -> Result<Vec<RuleMatch>, Incomplete> {
         self.state
-            .match_element_for_purpose(node, compact_for_cascade, &mut self.counters)
+            .match_element_for_purpose(node, compact_for_cascade, &self.counters)
     }
 
     #[cfg(test)]
@@ -825,7 +816,7 @@ impl StyleEngine {
         retained_answer_dispatch: Option<&RuleDispatch>,
     ) -> Result<PublishedMatchAnswer, Incomplete> {
         self.state
-            .complete_published_match_answer(node, retained_answer_dispatch, &mut self.counters)
+            .complete_published_match_answer(node, retained_answer_dispatch, &self.counters)
     }
 
     /// Complete a node from a matching node's already compacted cascade input and winner rows.
@@ -845,7 +836,7 @@ impl StyleEngine {
             source,
             cascade_input,
             cascade_winners_are_complete,
-            &mut self.counters,
+            &self.counters,
         );
         self.state.install_answer_effects(effects);
         result
@@ -866,7 +857,7 @@ impl StyleEngine {
         current_input: MatchAnswerID,
     ) -> bool {
         self.state
-            .answer_transition_cannot_change_cascade(node, previous_input, current_input, &mut self.counters)
+            .answer_transition_cannot_change_cascade(node, previous_input, current_input, &self.counters)
     }
 
     #[inline]
@@ -885,14 +876,14 @@ impl StyleEngine {
         let empty = AnswerEffects::default();
         let effects = traversal.as_ref().map_or(&empty, |traversal| &traversal.answer_effects);
         self.state
-            .verify_retained_cascade_input(effects, node, cascade_input, &mut self.counters);
+            .verify_retained_cascade_input(effects, node, cascade_input, &self.counters);
         self.state.retained.batch_matching_traversal = traversal;
     }
 
     #[inline]
     pub fn complete_published_match_answers_for_closure(&mut self, nodes: &[StyleNodeID]) -> Result<(), Incomplete> {
         self.state
-            .complete_published_match_answers_for_closure(nodes, &mut self.counters)
+            .complete_published_match_answers_for_closure(nodes, &self.counters)
     }
 
     /// Match one element from committed facts without consulting derived matching state.
@@ -904,7 +895,7 @@ impl StyleEngine {
         compact_for_cascade: bool,
     ) -> Result<Vec<RuleMatch>, Incomplete> {
         self.state
-            .match_element_with_exact_matcher(node, compact_for_cascade, &mut self.counters)
+            .match_element_with_exact_matcher(node, compact_for_cascade, &self.counters)
     }
 
     #[inline]
@@ -913,7 +904,7 @@ impl StyleEngine {
         &mut self,
         node: StyleNodeID,
     ) -> Result<Vec<RuleMatch>, Incomplete> {
-        self.state.exact_match_answer_for_verification(node, &mut self.counters)
+        self.state.exact_match_answer_for_verification(node, &self.counters)
     }
 
     #[inline]
@@ -922,8 +913,7 @@ impl StyleEngine {
         &mut self,
         node: StyleNodeID,
     ) -> Result<(Vec<RuleMatch>, WinnerGroups), Incomplete> {
-        self.state
-            .exact_cascade_answer_for_verification(node, &mut self.counters)
+        self.state.exact_cascade_answer_for_verification(node, &self.counters)
     }
 
     #[inline]
@@ -942,7 +932,7 @@ impl StyleEngine {
             completion_exactness,
             compact_answer,
             cascade_winners_are_complete,
-            &mut self.counters,
+            &self.counters,
         )
     }
 
@@ -950,13 +940,13 @@ impl StyleEngine {
     /// from becomes the node's cascade state, and the answer counts as consumed.
     #[inline]
     pub(crate) fn acknowledge_engine_computed_record(&mut self, node: StyleNodeID) {
-        self.state.acknowledge_engine_computed_record(node, &mut self.counters);
+        self.state.acknowledge_engine_computed_record(node, &self.counters);
     }
 
     /// C++ computes `node` itself rather than install what a record demand derived for it.
     #[inline]
     pub(crate) fn abandon_demanded_records(&mut self, node: StyleNodeID) {
-        self.state.abandon_demanded_records(node, &mut self.counters);
+        self.state.abandon_demanded_records(node, &self.counters);
     }
 
     /// Answer a read of one element's style the host makes before the next style update.
@@ -966,7 +956,7 @@ impl StyleEngine {
         node: StyleNodeID,
         demand: publication::RecordDemand,
     ) -> publication::Drive<publication::RecordDemandAnswer> {
-        self.state.answer_record_demand(node, demand, &mut self.counters)
+        self.state.answer_record_demand(node, demand, &self.counters)
     }
 
     /// The record of an element no rule reaches, from its own declarations alone.
@@ -979,7 +969,7 @@ impl StyleEngine {
         custom_declarations: &[(CustomDeclaration, RetainedStyleValueData)],
     ) -> publication::Drive<computed::FinalStyleRecordID> {
         self.state
-            .declared_only_record(subject, facts, declarations, custom_declarations, &mut self.counters)
+            .declared_only_record(subject, facts, declarations, custom_declarations, &self.counters)
     }
 
     /// Settle the pseudo-element records of an element whose record C++ just installed.
@@ -990,7 +980,7 @@ impl StyleEngine {
         old_is_list_item: bool,
     ) -> bridge::FfiSettledPseudoRecords {
         self.state
-            .settle_pseudo_records_after_host_record(node, old_is_list_item, &mut self.counters)
+            .settle_pseudo_records_after_host_record(node, old_is_list_item, &self.counters)
     }
 
     /// Publish the immutable computed-group payloads of one element's base style. This assigns
@@ -1011,7 +1001,7 @@ impl StyleEngine {
             inherited_group_count,
             custom_property_environment,
             metadata_input,
-            &mut self.counters,
+            &self.counters,
         )
     }
 
@@ -1029,18 +1019,18 @@ impl StyleEngine {
             inherited_group_count,
             custom_property_environment,
             metadata_input,
-            &mut self.counters,
+            &self.counters,
         )
     }
 
     #[inline]
     pub(crate) fn free_style_records_kept_for_leases(&mut self) {
-        self.state.free_style_records_kept_for_leases(&mut self.counters);
+        self.state.free_style_records_kept_for_leases(&self.counters);
     }
 
     #[inline]
     pub(crate) fn end_style_record_view_epoch(&mut self) {
-        self.state.end_style_record_view_epoch(&mut self.counters);
+        self.state.end_style_record_view_epoch(&self.counters);
     }
 
     #[inline]
@@ -1051,13 +1041,8 @@ impl StyleEngine {
         animated_overlay: crate::css::host_shared::HostShared<crate::css::animated_overlay::AnimatedOverlay>,
         payloads: &[crate::css::host_shared::SharedPayload],
     ) -> Option<computed::AnimationOverlayUpdate> {
-        self.state.publish_animation_overlay_impl(
-            target,
-            source_identity,
-            animated_overlay,
-            payloads,
-            &mut self.counters,
-        )
+        self.state
+            .publish_animation_overlay_impl(target, source_identity, animated_overlay, payloads, &self.counters)
     }
 
     #[inline]
@@ -1066,6 +1051,6 @@ impl StyleEngine {
         node: StyleNodeID,
         pseudo_kind: u8,
     ) -> Option<computed::FinalStyleRecordID> {
-        self.state.remove_computed_pseudo(node, pseudo_kind, &mut self.counters)
+        self.state.remove_computed_pseudo(node, pseudo_kind, &self.counters)
     }
 }

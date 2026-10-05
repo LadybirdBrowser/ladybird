@@ -56,7 +56,7 @@ impl RetainedState {
         old_is_list_item: bool,
         flipped_pseudo_rules: u64,
         republication: Option<WinnerRepublication>,
-        counters: &mut Counters,
+        counters: &Counters,
     ) -> Drive<()> {
         use pseudo_kind::{AFTER, BACKDROP, BEFORE, MARKER};
 
@@ -131,7 +131,7 @@ impl RetainedState {
         generation: u64,
         full_drive_reason: Option<FullDriveReason>,
         scratch: &mut EngineComputedRecordScratch,
-        counters: &mut Counters,
+        counters: &Counters,
     ) -> Drive<()> {
         // The records earlier reads of the node's styles were answered with are no style's now.
         self.release_demand_records(node);
@@ -160,7 +160,7 @@ impl RetainedState {
         settlement: PseudoSettlement,
         full_drive_reason: Option<FullDriveReason>,
         scratch: &mut EngineComputedRecordScratch,
-        counters: &mut Counters,
+        counters: &Counters,
     ) -> Drive<()> {
         use pseudo_kind::{BACKDROP, MARKER};
 
@@ -322,7 +322,7 @@ impl RetainedState {
                 return Err(Unanswered::Refused);
             }
             let old_record = old.unwrap_or(computed::FinalStyleRecordID::NONE);
-            let remove = |engine: &mut Self, scratch: &mut EngineComputedRecordScratch, counters: &mut Counters| {
+            let remove = |engine: &mut Self, scratch: &mut EngineComputedRecordScratch, counters: &Counters| {
                 if old.is_some() {
                     if settlement == PseudoSettlement::Generated {
                         counters.bump(Counter::EngineComputedPseudoRecords);
@@ -712,7 +712,7 @@ impl RetainedState {
     pub(super) fn revert_engine_computed_pseudo_record(
         &mut self,
         pending: PendingEngineComputedRecord,
-        counters: &mut Counters,
+        counters: &Counters,
     ) {
         let target = computed::ComputedStyleTarget::new(pending.node, pending.pseudo_kind);
         // A removal is applied only on acknowledgement.
@@ -758,7 +758,7 @@ impl RetainedState {
         &mut self,
         node: StyleNodeID,
         settlement: PseudoSettlement,
-        counters: &mut Counters,
+        counters: &Counters,
     ) -> Drive<u64> {
         match settlement {
             PseudoSettlement::Computed(kind) if u16::from(kind) > bridge::LAST_SYNTHETIC_PSEUDO_ELEMENT_KIND => {
@@ -775,7 +775,7 @@ impl RetainedState {
     /// The kinds the node's match answer has rules for, matching the element again when that
     /// answer was evicted. A match that cannot complete for want of a fact generates no
     /// pseudo-element.
-    pub(super) fn pseudo_style_mask_or_rematch(&mut self, node: StyleNodeID, counters: &mut Counters) -> u64 {
+    pub(super) fn pseudo_style_mask_or_rematch(&mut self, node: StyleNodeID, counters: &Counters) -> u64 {
         if let Some(mask) = self.pseudo_style_mask(node) {
             return mask;
         }
@@ -808,7 +808,7 @@ impl RetainedState {
         host: StyleNodeID,
         target: tree::PseudoElementTarget,
         backing_answer_is_complete: bool,
-        counters: &mut Counters,
+        counters: &Counters,
     ) -> Option<Vec<RuleMatch>> {
         if !backing_answer_is_complete {
             return None;
@@ -900,7 +900,7 @@ impl RetainedState {
         (kind, host): (u8, StyleNodeID),
         backing_answer_is_complete: bool,
         scratch: &mut EngineComputedRecordScratch,
-        counters: &mut Counters,
+        counters: &Counters,
     ) -> Drive<RecordDelta> {
         use bridge::element_adjustment_fact as fact;
         let facts = self.computed_group_sets.adjustment_facts(node);
@@ -1197,7 +1197,7 @@ impl RetainedState {
         old_is_list_item: bool,
         republication: WinnerRepublication,
         scratch: &mut EngineComputedRecordScratch,
-        counters: &mut Counters,
+        counters: &Counters,
     ) -> Drive<()> {
         // The host installed the element's record before it asked.
         let record = self.computed_group_sets.assigned_style_record(node);
@@ -1266,7 +1266,7 @@ impl RetainedState {
         node: StyleNodeID,
         republication: WinnerRepublication,
         scratch: &mut EngineComputedRecordScratch,
-        counters: &mut Counters,
+        counters: &Counters,
     ) -> bool {
         // What the engine settled for the node in a style update whose record the host computed
         // instead was settled beside a record the host never installed, and goes back.
@@ -1307,7 +1307,7 @@ impl RetainedState {
         &mut self,
         node: StyleNodeID,
         scratch: &mut EngineComputedRecordScratch,
-        counters: &mut Counters,
+        counters: &Counters,
     ) {
         for pending in self.engine_computed_records_pending.remove(&node).into_iter().flatten() {
             if pending.pseudo_kind == u8::MAX {
@@ -1382,7 +1382,7 @@ impl StyleEngineState {
         &mut self,
         node: StyleNodeID,
         old_is_list_item: bool,
-        counters: &mut Counters,
+        counters: &Counters,
     ) -> bridge::FfiSettledPseudoRecords {
         let font_environment_generation = self
             .retained

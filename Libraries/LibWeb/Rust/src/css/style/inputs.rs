@@ -173,7 +173,7 @@ pub(super) fn compile_selector_program(
     selectors: &[&CompiledSelector],
     namespaces: NamespaceScope,
     scope: &ScopeChain<'_>,
-    counters: &mut Counters,
+    counters: &Counters,
 ) -> SelectorProgram {
     let mut intern = |raw: usize, namespace: Option<StyleAtomID>| -> StyleAtomID {
         let local = atoms.intern_raw(raw);
@@ -188,7 +188,7 @@ pub(super) fn compile_selector_program(
         html_element_namespace,
         namespaces,
     );
-    let count_entry = |compiled: &compiler::CompiledEntry, counters: &mut Counters| {
+    let count_entry = |compiled: &compiler::CompiledEntry, counters: &Counters| {
         if let Some(counter) = compiled.marker.and_then(|marker| marker.counter()) {
             counters.bump(counter);
         }
@@ -291,7 +291,7 @@ impl RetainedState {
         name: StyleAtomID,
         raw: usize,
         text: &[u16],
-        counters: &mut Counters,
+        counters: &Counters,
     ) {
         if unsafe { self.custom_property_environments.note_name(name, raw, text) } {
             counters.bump(Counter::CustomPropertyNamesPublished);
@@ -321,7 +321,7 @@ impl RetainedState {
         namespaces: NamespaceScope,
         scope: &ScopeChain<'_>,
         reusable: Option<SelectorProgramID>,
-        counters: &mut Counters,
+        counters: &Counters,
     ) -> SelectorProgramID {
         let compiled = compile_selector_program(
             &mut self.atoms,
@@ -983,7 +983,7 @@ impl RetainedState {
     }
 
     /// Record what a language atom spells, so `:lang()` can compare its ranges against the tag.
-    pub fn set_element_language_text(&mut self, language: StyleAtomID, text: &[u16], counters: &mut Counters) {
+    pub fn set_element_language_text(&mut self, language: StyleAtomID, text: &[u16], counters: &Counters) {
         counters.bump(Counter::LanguageTextsPublished);
         self.facts.set_language_text(language, text);
     }
@@ -1674,7 +1674,7 @@ impl RetainedState {
         kind: ElementDeclarationKind,
         declarations: Vec<(DeclaredProperty, RetainedStyleValueData)>,
         custom_declarations: Vec<(CustomDeclaration, RetainedStyleValueData)>,
-        counters: &mut Counters,
+        counters: &Counters,
     ) {
         debug_assert!(custom_declarations.is_empty() || kind == ElementDeclarationKind::InlineStyle);
         if matches!(
@@ -1755,7 +1755,7 @@ impl RetainedState {
         previous: CascadeStateID,
         retained: MatchAnswerID,
         properties: &[u16],
-        counters: &mut Counters,
+        counters: &Counters,
     ) {
         let Some(retained) = self.match_answers.answer(retained) else {
             return;
@@ -1968,7 +1968,7 @@ impl StyleEngineState {
 
     /// Record a change to style inputs which are properties of the document environment rather
     /// than of an element or stylesheet rule.
-    pub fn record_environment_change(&mut self, counters: &mut Counters) {
+    pub fn record_environment_change(&mut self, counters: &Counters) {
         self.discard_prepared_batch_matching_traversal();
         self.host
             .journal
@@ -1987,7 +1987,7 @@ impl StyleEngineState {
         &mut self,
         document_root: StyleNodeID,
         arrivals: &[(StyleNodeID, TreeRelations)],
-        counters: &mut Counters,
+        counters: &Counters,
     ) {
         debug_assert!(!self.host.initial_tree_batch_applied);
         debug_assert!(!arrivals.is_empty());
@@ -2240,7 +2240,7 @@ impl StyleEngineState {
     /// geometry read. Repeated reads advance the same boundary to the latest observed facts.
     /// Returning false means exact journalling coarsened while combining the facts, so the caller
     /// must settle style instead of reusing layout.
-    pub fn defer_pending_transaction_for_geometry_read(&mut self, counters: &mut Counters) -> bool {
+    pub fn defer_pending_transaction_for_geometry_read(&mut self, counters: &Counters) -> bool {
         debug_assert!(!self.host.flushing_deferred_geometry_journal);
         debug_assert!(self.host.tree_staging.is_empty());
         debug_assert!(!self.host.program_staging.is_dirty());
@@ -2317,7 +2317,7 @@ impl StyleEngineState {
         self.host.flushing_deferred_geometry_journal = false;
     }
 
-    pub(super) fn merge_deferred_geometry_transaction(&mut self, counters: &mut Counters) {
+    pub(super) fn merge_deferred_geometry_transaction(&mut self, counters: &Counters) {
         if self.host.flushing_deferred_geometry_journal || self.host.deferred_geometry_journal.is_empty() {
             return;
         }
@@ -2331,7 +2331,7 @@ impl StyleEngineState {
         std::mem::swap(&mut self.host.journal, &mut self.host.deferred_geometry_journal);
     }
 
-    pub(crate) fn settle_batched_inputs(&mut self, counters: &mut Counters) {
+    pub(crate) fn settle_batched_inputs(&mut self, counters: &Counters) {
         self.install_pending_matching_context();
         if !self.host.journal.contains_only_element_style_inputs() {
             self.discard_prepared_batch_matching_traversal();
@@ -2345,7 +2345,7 @@ impl StyleEngineState {
     }
 
     /// Returns whether the change joined the current transaction.
-    pub(super) fn record(&mut self, key: InputKey, old: InputValue, new: InputValue, counters: &mut Counters) -> bool {
+    pub(super) fn record(&mut self, key: InputKey, old: InputValue, new: InputValue, counters: &Counters) -> bool {
         self.discard_prepared_batch_matching_traversal();
         if let Some(node) = self.node_whose_arrival_carries(key) {
             // Every fact of an arriving element folds onto one key, so the journal holds one entry
@@ -2397,7 +2397,7 @@ impl StyleEngineState {
         node: StyleNodeID,
         old_if_unstaged: Option<TreeRelations>,
         new: Option<TreeRelations>,
-        counters: &mut Counters,
+        counters: &Counters,
     ) {
         let old = self.host.tree_staging.current_row(node, old_if_unstaged);
         if old == new {
@@ -2419,7 +2419,7 @@ impl StyleEngineState {
         &mut self,
         node: StyleNodeID,
         update: impl FnOnce(&mut TreeRelations),
-        counters: &mut Counters,
+        counters: &Counters,
     ) {
         let old = self
             .host
@@ -2450,7 +2450,7 @@ impl StyleEngineState {
     }
 
     /// Install final staged relation rows at the transaction barrier.
-    pub(super) fn apply_staged_tree_deltas(&mut self, counters: &mut Counters) {
+    pub(super) fn apply_staged_tree_deltas(&mut self, counters: &Counters) {
         if self.host.tree_staging.is_empty() || self.host.tree_staging.is_applied() {
             return;
         }
@@ -2574,7 +2574,7 @@ impl StyleEngineState {
         selectors: &[&CompiledSelector],
         namespaces: NamespaceScope,
         scope: &ScopeChain<'_>,
-        counters: &mut Counters,
+        counters: &Counters,
     ) -> RuleID {
         self.add_style_rule_with(sheet, before, counters, |engine, previous_program, counters| {
             engine.compile_selectors(selectors, namespaces, scope, previous_program, counters)
@@ -2586,8 +2586,8 @@ impl StyleEngineState {
         &mut self,
         sheet: SheetID,
         before: Option<RuleID>,
-        counters: &mut Counters,
-        attach: impl FnOnce(&mut Self, Option<SelectorProgramID>, &mut Counters) -> SelectorProgramID,
+        counters: &Counters,
+        attach: impl FnOnce(&mut Self, Option<SelectorProgramID>, &Counters) -> SelectorProgramID,
     ) -> RuleID {
         let rule = match before {
             Some(before) => self.insert_rule_before(before, RuleKind::Style, counters),
@@ -2617,7 +2617,7 @@ impl StyleEngineState {
     /// sheet is attached to, so what moves is that scope's layer order - one input per scope the sheet
     /// decides in.
     #[cfg(test)]
-    pub fn record_layer_statement(&mut self, sheet: SheetID, counters: &mut Counters) {
+    pub fn record_layer_statement(&mut self, sheet: SheetID, counters: &Counters) {
         for scope in self.retained.program.sheet_scopes(sheet) {
             self.record_layer_topology_change(scope, counters);
         }
@@ -2629,7 +2629,7 @@ impl StyleEngineState {
         before: Option<RuleID>,
         kind: RuleKind,
         name: StyleAtomID,
-        counters: &mut Counters,
+        counters: &Counters,
     ) -> RuleID {
         let rule = match before {
             Some(before) => self.insert_rule_before(before, kind, counters),
@@ -2652,7 +2652,7 @@ impl StyleEngineState {
         selectors: &[&CompiledSelector],
         namespaces: NamespaceScope,
         scope: &ScopeChain<'_>,
-        counters: &mut Counters,
+        counters: &Counters,
     ) {
         let program = self.compile_selectors(selectors, namespaces, scope, None, counters);
         self.add_routing_rule(rule, program);
@@ -2670,7 +2670,7 @@ impl StyleEngineState {
     /// change is a version rather than the object's address. The rule keeps its identity, its
     /// position, and its selector program, so the journal sees one field move and routing reaches
     /// exactly the elements that rule matches.
-    pub fn record_rule_declarations_changed(&mut self, rule: RuleID, block_version: u32, counters: &mut Counters) {
+    pub fn record_rule_declarations_changed(&mut self, rule: RuleID, block_version: u32, counters: &Counters) {
         let mut version = self.current_rule_version(rule);
         version.declaration_block = Some(DeclarationBlockID(block_version));
         self.replace_rule_version(rule, version, counters);
@@ -2680,7 +2680,7 @@ impl StyleEngineState {
     /// Make the identities the host minted live, ahead of anything the host records about their
     /// nodes. Mints are batched because a call per node is exactly the boundary shape this design
     /// rules out.
-    pub fn mint_style_nodes(&mut self, nodes: &[u32], counters: &mut Counters) {
+    pub fn mint_style_nodes(&mut self, nodes: &[u32], counters: &Counters) {
         let mut minted_an_element = false;
         for node in nodes.iter().filter_map(|&raw| StyleNodeID::from_raw(raw)) {
             if node.text_index().is_some() {
@@ -2696,7 +2696,7 @@ impl StyleEngineState {
         }
     }
 
-    pub fn record_input(&mut self, key: InputKey, old: InputValue, new: InputValue, counters: &mut Counters) {
+    pub fn record_input(&mut self, key: InputKey, old: InputValue, new: InputValue, counters: &Counters) {
         if self.record(key, old, new, counters) {
             self.apply_to_facts_without_settling(key, new);
         }
@@ -2734,7 +2734,7 @@ impl StyleEngineState {
         old: InputValue,
         new: InputValue,
         arriving_node: bool,
-        counters: &mut Counters,
+        counters: &Counters,
     ) {
         if arriving_node {
             debug_assert!(matches!(key, InputKey::LocalFeature(..) | InputKey::State(..)));
@@ -2753,7 +2753,7 @@ impl StyleEngineState {
         node: StyleNodeID,
         old: Option<TreeRelations>,
         new: Option<TreeRelations>,
-        counters: &mut Counters,
+        counters: &Counters,
     ) {
         if let Some(old) = old {
             if let Some(previous) = old.previous_element_sibling {
@@ -2804,7 +2804,7 @@ impl StyleEngineState {
     }
 
     /// Attach a compiled program at the end of a scope's sheet order.
-    pub(super) fn attach_sheet(&mut self, sheet: SheetID, tree_scope: TreeScopeID, counters: &mut Counters) {
+    pub(super) fn attach_sheet(&mut self, sheet: SheetID, tree_scope: TreeScopeID, counters: &Counters) {
         self.restore_routing_for_reattached_sheet(sheet);
         let mut sheets = self.current_sheets_in_scope(tree_scope).to_vec();
         let previous_position = sheets.iter().position(|&candidate| candidate == sheet);
@@ -2826,7 +2826,7 @@ impl StyleEngineState {
         sheet: SheetID,
         before: SheetID,
         tree_scope: TreeScopeID,
-        counters: &mut Counters,
+        counters: &Counters,
     ) {
         self.restore_routing_for_reattached_sheet(sheet);
         let mut sheets = self.current_sheets_in_scope(tree_scope).to_vec();
@@ -2861,7 +2861,7 @@ impl StyleEngineState {
         sheet: SheetID,
         before: Option<SheetID>,
         tree_scope: TreeScopeID,
-        counters: &mut Counters,
+        counters: &Counters,
     ) {
         let before = before.filter(|&before| self.current_sheets_in_scope(tree_scope).contains(&before));
         match before {
@@ -2870,7 +2870,7 @@ impl StyleEngineState {
         }
     }
 
-    pub fn detach_sheet(&mut self, sheet: SheetID, tree_scope: TreeScopeID, counters: &mut Counters) {
+    pub fn detach_sheet(&mut self, sheet: SheetID, tree_scope: TreeScopeID, counters: &Counters) {
         let sheets = self.current_sheets_in_scope(tree_scope);
         let Some(position) = sheets.iter().position(|&candidate| candidate == sheet) else {
             return;
@@ -2893,7 +2893,7 @@ impl StyleEngineState {
         sheet: SheetID,
         before: Option<RuleID>,
         name: StyleAtomID,
-        counters: &mut Counters,
+        counters: &Counters,
     ) -> RuleID {
         self.add_named_rule(sheet, before, RuleKind::Keyframes, name, counters)
     }
@@ -2906,7 +2906,7 @@ impl StyleEngineState {
         sheet: SheetID,
         before: Option<RuleID>,
         name: StyleAtomID,
-        counters: &mut Counters,
+        counters: &Counters,
     ) -> RuleID {
         self.add_named_rule(sheet, before, RuleKind::Property, name, counters)
     }
@@ -2918,7 +2918,7 @@ impl StyleEngineState {
         sheet: SheetID,
         before: Option<RuleID>,
         kind: RuleKind,
-        counters: &mut Counters,
+        counters: &Counters,
     ) -> RuleID {
         match before {
             Some(before) => self.insert_rule_before(before, kind, counters),
@@ -2933,7 +2933,7 @@ impl StyleEngineState {
         node: StyleNodeID,
         old: Option<TreeRelations>,
         new: Option<TreeRelations>,
-        counters: &mut Counters,
+        counters: &Counters,
     ) {
         if old != new {
             self.stage_tree_delta(node, old, new, counters);
@@ -2942,7 +2942,7 @@ impl StyleEngineState {
 
     /// Record a registration made through `CSS.registerProperty()`. Stylesheet registrations are
     /// already represented by their `@property` rule's program input.
-    pub fn record_custom_property_registration_change(&mut self, name: StyleAtomID, counters: &mut Counters) {
+    pub fn record_custom_property_registration_change(&mut self, name: StyleAtomID, counters: &Counters) {
         self.record_input(
             InputKey::CustomPropertyRegistration(name),
             InputValue::Flag(false),
@@ -2962,7 +2962,7 @@ impl StyleEngineState {
         fact: StateFact,
         new_value: bool,
         arriving_node: bool,
-        counters: &mut Counters,
+        counters: &Counters,
     ) {
         let old_value = self.retained.facts.states_of_node(node).contains(fact);
         self.record_batched_input(
@@ -2983,7 +2983,7 @@ impl StyleEngineState {
         arrival: &super::bridge::FfiElementArrival,
         custom_states: &[StyleAtomID],
         arriving_node: bool,
-        counters: &mut Counters,
+        counters: &Counters,
     ) {
         debug_assert!(arriving_node);
         self.retained
@@ -3048,12 +3048,7 @@ impl StyleEngineState {
     /// enumerated from it, and journalled so a change to the `part` attribute routes. The plain
     /// name set is derived here from the name-to-host pairs exact matching needs, so the two views
     /// cannot disagree.
-    pub fn set_element_parts(
-        &mut self,
-        node: StyleNodeID,
-        pairs: &[(StyleAtomID, StyleNodeID)],
-        counters: &mut Counters,
-    ) {
+    pub fn set_element_parts(&mut self, node: StyleNodeID, pairs: &[(StyleAtomID, StyleNodeID)], counters: &Counters) {
         let mut parts = Vec::new();
         for &(part, _) in pairs {
             if !parts.contains(&part) {
@@ -3090,7 +3085,7 @@ impl StyleEngineState {
     /// What an `exportparts` change moves is which scopes can name an element, not which names it
     /// carries - the forwarded name is usually the one it already had. So the exposure is the fact,
     /// and an element whose reach did not move says nothing.
-    pub fn set_element_part_exposure(&mut self, node: StyleNodeID, exposure: StyleAtomID, counters: &mut Counters) {
+    pub fn set_element_part_exposure(&mut self, node: StyleNodeID, exposure: StyleAtomID, counters: &Counters) {
         let previous = self.retained.facts.part_exposure_of(node);
         if previous == exposure {
             return;
@@ -3103,7 +3098,7 @@ impl StyleEngineState {
         );
     }
 
-    pub fn set_element_heading_level(&mut self, node: StyleNodeID, level: u8, counters: &mut Counters) {
+    pub fn set_element_heading_level(&mut self, node: StyleNodeID, level: u8, counters: &Counters) {
         let previous = self.retained.facts.heading_level_of(node);
         if previous == level {
             return;
@@ -3116,7 +3111,7 @@ impl StyleEngineState {
         );
     }
 
-    pub fn set_element_language(&mut self, node: StyleNodeID, language: StyleAtomID, counters: &mut Counters) {
+    pub fn set_element_language(&mut self, node: StyleNodeID, language: StyleAtomID, counters: &Counters) {
         let previous = self.retained.facts.language_of(node);
         if previous == language {
             return;
@@ -3130,12 +3125,7 @@ impl StyleEngineState {
     }
 
     /// Report the element's resolved directionality, which `:dir()` tests.
-    pub fn set_element_directionality(
-        &mut self,
-        node: StyleNodeID,
-        directionality: StyleAtomID,
-        counters: &mut Counters,
-    ) {
+    pub fn set_element_directionality(&mut self, node: StyleNodeID, directionality: StyleAtomID, counters: &Counters) {
         let previous = self.retained.facts.directionality_of(node);
         if previous == directionality {
             return;
@@ -3153,7 +3143,7 @@ impl StyleEngineState {
     /// A custom state is a named fact about one element, exactly like a class, so it is published as
     /// one: the names that arrived and the names that left are each a local feature moving, and
     /// `:state()` reaches its subjects through the same postings every other name does.
-    pub fn set_element_custom_states(&mut self, node: StyleNodeID, states: &[StyleAtomID], counters: &mut Counters) {
+    pub fn set_element_custom_states(&mut self, node: StyleNodeID, states: &[StyleAtomID], counters: &Counters) {
         if self.retained.facts.custom_states_of(node) == states {
             return;
         }

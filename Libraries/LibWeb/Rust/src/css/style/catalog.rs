@@ -1840,12 +1840,7 @@ impl PublishedMatchAnswers {
         }
     }
 
-    pub(super) fn push(
-        &mut self,
-        mut entry: PublishedMatchAnswer,
-        memory: &mut MemoryController,
-        counters: &mut Counters,
-    ) {
+    pub(super) fn push(&mut self, mut entry: PublishedMatchAnswer, memory: &mut MemoryController, counters: &Counters) {
         let entries_capacity_before = self.entries.capacity();
         let shared_payload_capacity_before = self.shared_payloads.capacity();
         let mut added_payload_bytes = 0;

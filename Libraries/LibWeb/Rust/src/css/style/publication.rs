@@ -148,7 +148,7 @@ impl RetainedState {
     /// What the node's animations sampled into its custom properties is what it hands down, over
     /// the record's environment. The host lays the samples over a record as it installs it, so a
     /// child of a record moved beneath them waits for the parent.
-    fn held_custom_property_environment(&self, node: StyleNodeID, counters: &mut Counters) -> Drive<u64> {
+    fn held_custom_property_environment(&self, node: StyleNodeID, counters: &Counters) -> Drive<u64> {
         let environment = self.computed_group_sets.custom_property_environment_identity(node);
         debug_assert!(environment.is_some(), "an inheritance parent without an environment");
         let Some(environment) = environment else {
@@ -187,9 +187,7 @@ impl RetainedState {
             return Some(current);
         }
         self.computed_group_sets.custom_property_environment_identity(node)?;
-        let held = self
-            .held_custom_property_environment(node, &mut Counters::default())
-            .ok()?;
+        let held = self.held_custom_property_environment(node, &Counters::default()).ok()?;
         // An ancestor outside the batch can have no retained answer for the current rule program.
         // That does not mean it declares no custom properties: keep its own resolved values when
         // refreshing what it inherits from a parent that moved.
@@ -254,14 +252,8 @@ impl RetainedState {
                     && self.computed_group_sets.custom_property_environment_identity(parent)
                         != Some(parent_environment) =>
             {
-                self.engine_custom_property_environment(
-                    node,
-                    parent_environment,
-                    inputs,
-                    None,
-                    &mut Counters::default(),
-                )
-                .unwrap_or(held)
+                self.engine_custom_property_environment(node, parent_environment, inputs, None, &Counters::default())
+                    .unwrap_or(held)
             }
             _ => held,
         };
@@ -338,7 +330,7 @@ impl RetainedState {
         parent_inputs_moved: ParentInputsMoved,
         full_drive_reason: Option<FullDriveReason>,
         scratch: &mut EngineComputedRecordScratch,
-        counters: &mut Counters,
+        counters: &Counters,
     ) -> Drive<RecordDelta> {
         // A child of an element the host composes once it installs the element's record inherits
         // that composition, which the host has made by the next wave of the pass.
@@ -396,7 +388,7 @@ impl RetainedState {
         parent_inputs_moved: ParentInputsMoved,
         full_drive_reason: Option<FullDriveReason>,
         scratch: &mut EngineComputedRecordScratch,
-        counters: &mut Counters,
+        counters: &Counters,
     ) -> Drive<RecordDelta> {
         if !self.computes_records() {
             counters.bump(Counter::EngineComputedRecordBailUnhosted);
@@ -485,7 +477,7 @@ impl RetainedState {
         node: StyleNodeID,
         winner_key: WinnerGroupKey,
         republication: Option<WinnerRepublication>,
-        counters: &mut Counters,
+        counters: &Counters,
     ) -> Option<(u64, CascadeStateID)> {
         if let Lookup::Known(token) = self.current_winner_groups().token_for(winner_key) {
             return Some(token);
@@ -515,7 +507,7 @@ impl RetainedState {
         full_drive_reason: Option<FullDriveReason>,
         scratch: &mut EngineComputedRecordScratch,
         goal: FontDriveGoal,
-        counters: &mut Counters,
+        counters: &Counters,
     ) -> Drive<ElementAnswer> {
         use crate::css::computed_value_types::{
             STYLE_GROUP_INDEX_ANCHOR, STYLE_GROUP_INDEX_FONT, STYLE_GROUP_INDEX_SURROUND,
@@ -1214,9 +1206,9 @@ impl RetainedState {
         target: computed::ComputedStyleTarget,
         state: CascadeStateID,
         inherited_environment: u64,
-        resolve_environment: impl FnOnce(&mut Self, &mut Counters) -> Drive<u64>,
+        resolve_environment: impl FnOnce(&mut Self, &Counters) -> Drive<u64>,
         scratch: &mut EngineComputedRecordScratch,
-        counters: &mut Counters,
+        counters: &Counters,
     ) -> Drive<(u64, WinnerStore, bool)> {
         let environment = resolve_environment(self, counters)?;
         let mut substituted = false;
@@ -1263,7 +1255,7 @@ impl RetainedState {
         reads_sibling_position: bool,
         delta_property_count: u64,
         longhand_evaluations: u32,
-        counters: &mut Counters,
+        counters: &Counters,
     ) -> &mut PendingEngineComputedRecord {
         counters.add(Counter::CascadeWinnerDeltaProperties, delta_property_count);
         counters.add(Counter::ComputedWinnerDeltaPropertiesConsumed, delta_property_count);
@@ -1292,7 +1284,7 @@ impl RetainedState {
 
     /// C++ installed the record the engine derived for `node`: the winner state it was computed
     /// from becomes the node's cascade state, and the answer counts as consumed.
-    pub(crate) fn acknowledge_engine_computed_record(&mut self, node: StyleNodeID, counters: &mut Counters) {
+    pub(crate) fn acknowledge_engine_computed_record(&mut self, node: StyleNodeID, counters: &Counters) {
         if let Some(pending_records) = self.engine_computed_records_pending.remove(&node) {
             for pending in pending_records {
                 let target = computed::ComputedStyleTarget::new(node, pending.pseudo_kind);
@@ -1347,7 +1339,7 @@ impl RetainedState {
 
     /// The transaction's outputs are gone: every derived record C++ did not install goes back to
     /// the record the node held, unless a publication has moved the node on since.
-    pub(super) fn discard_engine_computed_records(&mut self, counters: &mut Counters) {
+    pub(super) fn discard_engine_computed_records(&mut self, counters: &Counters) {
         for pending in std::mem::take(&mut self.engine_computed_records_pending)
             .into_values()
             .flatten()
@@ -1387,7 +1379,7 @@ impl RetainedState {
         cascade_state: (u64, CascadeStateID),
         scratch: &mut EngineComputedRecordScratch,
         goal: FontDriveGoal,
-        counters: &mut Counters,
+        counters: &Counters,
     ) -> Drive<ElementAnswer> {
         if !self.computes_records() {
             counters.bump(Counter::EngineComputedRecordBailUnhosted);
@@ -1777,7 +1769,7 @@ impl RetainedState {
         old_style_record: computed::FinalStyleRecordID,
         delta_property_count: u64,
         scratch: &mut EngineComputedRecordScratch,
-        counters: &mut Counters,
+        counters: &Counters,
     ) -> Option<(computed::FinalStyleRecordID, computed::FinalStyleRecordID)> {
         let own_groups = self.state_owned_inherited_groups(state);
         let derived_under_parent = |engine: &Self, record: ColdRecord| {
@@ -2039,7 +2031,7 @@ impl RetainedState {
         generation: u64,
         full_drive_reason: Option<FullDriveReason>,
         scratch: &mut EngineComputedRecordScratch,
-        counters: &mut Counters,
+        counters: &Counters,
     ) -> Drive<()> {
         if self.host_composes_row(node, delta.0.raw(), delta.1.raw()) {
             return Ok(());
@@ -2145,7 +2137,7 @@ impl RetainedState {
         underlying_style_record: computed::FinalStyleRecordID,
         moves_transition_declarations: bool,
         host_applies_animation_plans: bool,
-        counters: &mut Counters,
+        counters: &Counters,
     ) -> Result<bool, Unanswered> {
         // An element whose style the host cleared on entering display:none, or never computed, has
         // no before-change style.
@@ -2276,7 +2268,7 @@ impl RetainedState {
         counter_style_registry: u64,
         cascade_state: Option<(u64, CascadeStateID)>,
         scratch: &mut EngineComputabilityScratch,
-        counters: &mut Counters,
+        counters: &Counters,
     ) -> Drive<(computed::FinalStyleRecordID, bool)> {
         use crate::css::table_group_builder::group_index;
 
@@ -2371,7 +2363,7 @@ impl RetainedState {
     /// C++ computes `node` itself rather than install what a record demand derived for it: the
     /// derived records go back as an abandoned derivation's do, and the demand's own cohorts went
     /// with it.
-    pub(crate) fn abandon_demanded_records(&mut self, node: StyleNodeID, counters: &mut Counters) {
+    pub(crate) fn abandon_demanded_records(&mut self, node: StyleNodeID, counters: &Counters) {
         self.abandon_engine_computed_record(node, &mut EngineComputedRecordScratch::default(), counters);
     }
 
@@ -2381,7 +2373,7 @@ impl RetainedState {
         &mut self,
         node: StyleNodeID,
         scratch: &mut EngineComputedRecordScratch,
-        counters: &mut Counters,
+        counters: &Counters,
     ) {
         self.put_back_engine_computed_records(node, scratch, counters);
         counters.bump(Counter::EngineComputedRecordsAbandoned);
@@ -2394,7 +2386,7 @@ impl RetainedState {
         &mut self,
         node: StyleNodeID,
         scratch: &mut EngineComputedRecordScratch,
-        counters: &mut Counters,
+        counters: &Counters,
     ) {
         for pending in self.engine_computed_records_pending.remove(&node).into_iter().flatten() {
             let derived = pending.new_style_record;
@@ -2553,7 +2545,7 @@ impl RetainedState {
         root_inputs.apply_to(&mut self.document_style_computation_inputs);
     }
 
-    fn element_drive_subject(&mut self, node: StyleNodeID, counters: &mut Counters) -> Drive<DriveSubject> {
+    fn element_drive_subject(&mut self, node: StyleNodeID, counters: &Counters) -> Drive<DriveSubject> {
         let facts = self.computed_group_sets.adjustment_facts(node);
         // The document element inherits from the initial values.
         let parent = self
@@ -2611,7 +2603,7 @@ impl RetainedState {
         node: StyleNodeID,
         cascade_state: (u64, CascadeStateID),
         scratch: &mut EngineComputabilityScratch,
-        counters: &mut Counters,
+        counters: &Counters,
     ) -> Option<StateRecordReads> {
         let environment = self
             .computed_group_sets
@@ -2662,7 +2654,7 @@ impl RetainedState {
         &mut self,
         node: StyleNodeID,
         state: CascadeStateID,
-        counters: &mut Counters,
+        counters: &Counters,
     ) -> Option<ReadsNoResourceContexts> {
         for winner in self
             .winner_groups
@@ -2820,7 +2812,7 @@ impl RetainedState {
         style_record: computed::FinalStyleRecordID,
         is_base_record: bool,
         scratch: &mut EngineComputabilityScratch,
-        counters: &mut Counters,
+        counters: &Counters,
     ) {
         if target.is_pseudo() || !is_base_record {
             return;
@@ -3286,7 +3278,7 @@ impl RetainedState {
         pseudo_kind: Option<u8>,
         environment: custom_property_cascade::SubstitutionEnvironment,
         substituted: &mut bool,
-        counters: &mut Counters,
+        counters: &Counters,
     ) -> Drive<WinnerStore> {
         self.cascaded_store_for_state_in(
             node,
@@ -3311,10 +3303,10 @@ impl RetainedState {
         environment: custom_property_cascade::SubstitutionEnvironment,
         substituted: &mut bool,
         store_use: StoreUse,
-        counters: &mut Counters,
+        counters: &Counters,
     ) -> Drive<WinnerStore> {
         // A winner whose written declaration is not where its cascade found it.
-        let unwritten = |counters: &mut Counters, invariant: &str| -> Drive<()> {
+        let unwritten = |counters: &Counters, invariant: &str| -> Drive<()> {
             if store_use == StoreUse::Admission {
                 counters.bump(Counter::EngineComputedRecordBailWinner);
                 return Err(Unanswered::Refused);
@@ -3717,7 +3709,7 @@ impl RetainedState {
         inherited_group_count: usize,
         custom_property_environment: u64,
         metadata_input: computed::ComputedMetadataInput<'_>,
-        counters: &mut Counters,
+        counters: &Counters,
     ) -> computed::ComputedGroupPublication {
         let mut scratch = EngineComputabilityScratch::default();
         let publication = self.publish_computed_groups_impl(
@@ -3743,7 +3735,7 @@ impl RetainedState {
         style_record: u64,
         inherited_group_count: usize,
         inherited_group_swap_eligible: bool,
-        counters: &mut Counters,
+        counters: &Counters,
     ) -> computed::ComputedGroupPublication {
         let group_count = self
             .computed_group_sets
@@ -3808,7 +3800,7 @@ impl RetainedState {
         inherited_group_count: usize,
         custom_property_environment: u64,
         metadata_input: computed::ComputedMetadataInput<'_>,
-        counters: &mut Counters,
+        counters: &Counters,
     ) -> computed::ComputedGroupPublication {
         self.publish_computed_groups_impl(
             None,
@@ -3855,7 +3847,7 @@ impl RetainedState {
     /// Publishes how many identities each catalog has minted. These count the sharing partition
     /// a run produces; the reuse counters beside them credit whichever publication interned an
     /// identity first, which is an execution-order decision.
-    fn note_identity_mints(&mut self, counters: &mut Counters) {
+    fn note_identity_mints(&mut self, counters: &Counters) {
         let mints = self.computed_group_sets.identity_mints();
         counters.set(Counter::ComputedGroupIdentitiesMinted, mints.groups);
         counters.set(Counter::ComputedGroupSetIdentitiesMinted, mints.group_sets);
@@ -3903,7 +3895,7 @@ impl RetainedState {
         target: computed::ComputedStyleTarget,
         (current_generation, current_cascade_state): (u64, CascadeStateID),
         node_handle_changed: bool,
-        counters: &mut Counters,
+        counters: &Counters,
     ) {
         let previous_cascade_state = self
             .computed_group_sets
@@ -3941,7 +3933,7 @@ impl RetainedState {
         metadata_input: computed::ComputedMetadataInput<'_>,
         owned: computed::PendingRecordOwnership,
         scratch: &mut EngineComputabilityScratch,
-        counters: &mut Counters,
+        counters: &Counters,
     ) -> computed::ComputedGroupPublication {
         let current_cascade_state =
             target.and_then(|target| self.computed_group_sets.take_pending_cascade_state(target));
@@ -4053,7 +4045,7 @@ impl RetainedState {
         &mut self,
         node: StyleNodeID,
         pseudo_kind: u8,
-        counters: &mut Counters,
+        counters: &Counters,
     ) -> Option<computed::FinalStyleRecordID> {
         let target = computed::ComputedStyleTarget::new(node, pseudo_kind);
         // A record the engine derived for the pseudo-element goes with it, uninstalled: the host removed the
@@ -4083,14 +4075,14 @@ impl RetainedState {
 }
 
 impl StyleEngineState {
-    pub(super) fn reclaim_computed_memory_if_needed(&mut self, counters: &mut Counters) {
+    pub(super) fn reclaim_computed_memory_if_needed(&mut self, counters: &Counters) {
         self.reclaim_unreachable_computed_records(counters);
         self.settle_computed_memory();
     }
 
     /// Frees what the engine kept for the leases of published frames, once none is held. The host calls it as it
     /// takes a recording in, so that a document that styles nothing more still frees what its recording kept.
-    pub(crate) fn free_style_records_kept_for_leases(&mut self, counters: &mut Counters) {
+    pub(crate) fn free_style_records_kept_for_leases(&mut self, counters: &Counters) {
         let freed_overlays = self.retained.computed_group_sets.free_retired_animation_overlays();
         if self.reclaim_unreachable_computed_records(counters) || freed_overlays {
             self.settle_computed_memory();
@@ -4098,7 +4090,7 @@ impl StyleEngineState {
     }
 
     /// Reclaims the unreachable computed records, if they are due and nothing views them, and answers whether it did.
-    fn reclaim_unreachable_computed_records(&mut self, counters: &mut Counters) -> bool {
+    fn reclaim_unreachable_computed_records(&mut self, counters: &Counters) -> bool {
         let Some(retention) = self.retained.computed_group_sets.reclaim_unreachable_if_needed() else {
             return false;
         };
@@ -4128,7 +4120,7 @@ impl StyleEngineState {
         source_identity: u64,
         animated_overlay: HostShared<crate::css::animated_overlay::AnimatedOverlay>,
         payloads: &[SharedPayload],
-        counters: &mut Counters,
+        counters: &Counters,
     ) -> Option<computed::AnimationOverlayUpdate> {
         // A pseudo-element inherits from its element.
         let parent = if target.is_pseudo() {
@@ -5232,7 +5224,7 @@ mod tests {
                 assert_eq!(
                     engine
                         .state
-                        .computable_state_record_reads(node, cascade_state, &mut scratch, &mut engine.counters)
+                        .computable_state_record_reads(node, cascade_state, &mut scratch, &engine.counters)
                         .is_some(),
                     node == first,
                 );
@@ -5256,7 +5248,7 @@ mod tests {
                     observed: false,
                 },
                 &mut engine.state.retained.memory,
-                &mut engine.counters,
+                &engine.counters,
             );
         }
         engine.published_match_answers.sort();
@@ -5332,7 +5324,7 @@ mod tests {
 
         engine
             .state
-            .abandon_engine_computed_record(third, &mut scratch, &mut engine.counters);
+            .abandon_engine_computed_record(third, &mut scratch, &engine.counters);
         assert_eq!(engine.computed_group_sets.assigned_style_record(third), None);
         assert_eq!(engine.computed_group_sets.pseudo_style_record(third, 0), None);
         assert!(engine.engine_computed_records_pending.is_empty());
@@ -5340,7 +5332,7 @@ mod tests {
         // A later batch can use the same node, and discarding it leaves installed nodes alone.
         publish(&mut engine, third, u8::MAX);
         publish(&mut engine, third, 0);
-        engine.state.discard_engine_computed_records(&mut engine.counters);
+        engine.state.discard_engine_computed_records(&engine.counters);
         engine.acknowledge_engine_computed_record(third);
         assert!(engine.engine_computed_records_pending.is_empty());
         assert_eq!(engine.counters.get(Counter::EngineComputedLonghandEvaluations), 3);
@@ -5475,7 +5467,7 @@ mod tests {
 }
 
 impl StyleEngineState {
-    pub(crate) fn end_style_record_view_epoch(&mut self, counters: &mut Counters) {
+    pub(crate) fn end_style_record_view_epoch(&mut self, counters: &Counters) {
         self.retained.computed_group_sets.end_style_record_view_epoch();
         self.reclaim_computed_memory_if_needed(counters);
     }
@@ -5486,7 +5478,7 @@ impl StyleEngineState {
         &mut self,
         node: StyleNodeID,
         request: font_resolution::FontRequest,
-        counters: &mut Counters,
+        counters: &Counters,
     ) {
         counters.bump(Counter::FontRefillRounds);
         counters.bump(Counter::FontResolutionRequests);
@@ -5520,11 +5512,11 @@ impl StyleEngineState {
         parent_inputs_moved: ParentInputsMoved,
         full_drive_reason: Option<FullDriveReason>,
         scratch: &mut EngineComputedRecordScratch,
-        counters: &mut Counters,
+        counters: &Counters,
     ) {
         let inputs = self.document_style_computation_inputs;
         scratch.root_element_inputs = Some((node, RootFontInputs::from_document(&inputs)));
-        let probe = |state: &mut Self, scratch: &mut EngineComputedRecordScratch, counters: &mut Counters| {
+        let probe = |state: &mut Self, scratch: &mut EngineComputedRecordScratch, counters: &Counters| {
             state.engine_computed_element_record_delta(
                 node,
                 cascade_winners_are_complete,

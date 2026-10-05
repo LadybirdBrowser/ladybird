@@ -44,18 +44,18 @@ use crate::css::selector::language_range_matches_tag;
 
 /// Where an evaluation reports how much work it did.
 pub(crate) trait CounterSink {
-    fn bump(&mut self, counter: Counter);
+    fn bump(&self, counter: Counter);
 }
 
 impl CounterSink for Counters {
-    fn bump(&mut self, counter: Counter) {
+    fn bump(&self, counter: Counter) {
         Counters::bump(self, counter);
     }
 }
 
 /// A subject that counts nothing.
 impl CounterSink for () {
-    fn bump(&mut self, _counter: Counter) {}
+    fn bump(&self, _counter: Counter) {}
 }
 
 /// Why a subject could not answer, refined by the scan that asked.
@@ -517,7 +517,7 @@ impl<S: SelectorSubject> SelectorEvaluator<S> {
         program: &SelectorProgram<S::Atoms>,
         inner: SelectorNodeID,
         host: S::Node,
-        counters: &mut S::Counters,
+        counters: &S::Counters,
     ) -> Answer<S> {
         let was_matching_host_argument = std::mem::replace(&mut self.bindings.matching_host_argument, true);
         let result = self.matches_node(program, inner, host, counters);
@@ -538,7 +538,7 @@ impl<S: SelectorSubject> SelectorEvaluator<S> {
         inner: SelectorNodeID,
         node: S::Node,
         root: S::Node,
-        counters: &mut S::Counters,
+        counters: &S::Counters,
     ) -> Answer<S> {
         if let Some(limit) = limit {
             let tree = self.subject.tree();
@@ -566,7 +566,7 @@ impl<S: SelectorSubject> SelectorEvaluator<S> {
         inner: SelectorNodeID,
         node: S::Node,
         root_candidate: S::Node,
-        counters: &mut S::Counters,
+        counters: &S::Counters,
     ) -> Answer<S> {
         if !self.matches_node(program, root, root_candidate, counters)? {
             return Ok(false);
@@ -584,7 +584,7 @@ impl<S: SelectorSubject> SelectorEvaluator<S> {
         first: u32,
         count: u32,
         node: S::Node,
-        counters: &mut S::Counters,
+        counters: &S::Counters,
     ) -> Answer<S> {
         for &operand in program.operands(first, count) {
             let matches = match program.node(operand) {
@@ -610,7 +610,7 @@ impl<S: SelectorSubject> SelectorEvaluator<S> {
         program: &SelectorProgram<S::Atoms>,
         id: SelectorNodeID,
         host: S::Node,
-        counters: &mut S::Counters,
+        counters: &S::Counters,
     ) -> Answer<S> {
         match program.node(id) {
             SelectorOp::Host(inner) => self.matches_host_argument(program, inner, host, counters),
@@ -664,7 +664,7 @@ impl<S: SelectorSubject> SelectorEvaluator<S> {
         program: &SelectorProgram<S::Atoms>,
         id: SelectorNodeID,
         node: S::Node,
-        counters: &mut S::Counters,
+        counters: &S::Counters,
     ) -> Answer<S> {
         if Some(node) != self.bindings.scope_shadow_root
             && let SelectorOp::And { first, count } = program.node(id)
@@ -680,7 +680,7 @@ impl<S: SelectorSubject> SelectorEvaluator<S> {
         relation: SelectorNodeID,
         inner: SelectorNodeID,
         node: S::Node,
-        counters: &mut S::Counters,
+        counters: &S::Counters,
     ) -> Answer<S> {
         if let Some(answer) = self.subject.relation_answer(program, relation, node) {
             return Ok(answer);
@@ -728,7 +728,7 @@ impl<S: SelectorSubject> SelectorEvaluator<S> {
         relation: SelectorNodeID,
         inner: SelectorNodeID,
         node: S::Node,
-        counters: &mut S::Counters,
+        counters: &S::Counters,
     ) -> Answer<S> {
         let tree = self.subject.tree();
         let remembered = match self.subject.remembers_relations(&self.bindings) {
@@ -834,7 +834,7 @@ impl<S: SelectorSubject> SelectorEvaluator<S> {
         program: &SelectorProgram<S::Atoms>,
         id: SelectorNodeID,
         node: S::Node,
-        counters: &mut S::Counters,
+        counters: &S::Counters,
     ) -> Answer<S> {
         let tree = self.subject.tree();
         // A shadow root is a node of the tree, which is what makes a combinator walking up out of
@@ -1251,7 +1251,7 @@ impl<S: SelectorSubject> SelectorEvaluator<S> {
         program: &SelectorProgram<S::Atoms>,
         position: NthPosition,
         node: S::Node,
-        counters: &mut S::Counters,
+        counters: &S::Counters,
     ) -> Answer<S> {
         if position.of_selector.is_none()
             && let Some(index) = self.subject.sibling_index(position, node)?
@@ -1333,7 +1333,7 @@ impl<S: SelectorSubject> SelectorEvaluator<S> {
         selector: SelectorNodeID,
         from_end: bool,
         node: S::Node,
-        counters: &mut S::Counters,
+        counters: &S::Counters,
     ) -> Result<u32, S::Incomplete> {
         let tree = self.subject.tree();
         let toward_start = |sibling| match from_end {
@@ -1377,7 +1377,7 @@ impl<S: SelectorSubject> SelectorEvaluator<S> {
         position: NthPosition,
         subject_type: Option<S::Row>,
         sibling: S::Node,
-        counters: &mut S::Counters,
+        counters: &S::Counters,
     ) -> Answer<S> {
         match (subject_type, position.of_selector) {
             (Some(subject_type), _) => {

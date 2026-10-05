@@ -28,7 +28,7 @@ impl StyleEngineState {
         identity: u64,
         before: u64,
         conditions_hold: bool,
-        counters: &mut Counters,
+        counters: &Counters,
     ) {
         let entries = &mut self.host.sheet_occurrences.entry(scope).or_default().occurrences;
         entries.retain(|entry| entry.identity != identity);
@@ -47,7 +47,7 @@ impl StyleEngineState {
         self.publish_sheet_occurrences(scope, counters);
     }
 
-    pub(super) fn detach_sheet_occurrence(&mut self, scope: TreeScopeID, identity: u64, counters: &mut Counters) {
+    pub(super) fn detach_sheet_occurrence(&mut self, scope: TreeScopeID, identity: u64, counters: &Counters) {
         let Some(state) = self.host.sheet_occurrences.get_mut(&scope) else {
             return;
         };
@@ -60,7 +60,7 @@ impl StyleEngineState {
         scope: TreeScopeID,
         identity: u64,
         conditions_hold: bool,
-        counters: &mut Counters,
+        counters: &Counters,
     ) {
         let Some(entry) = self
             .host
@@ -77,7 +77,7 @@ impl StyleEngineState {
         self.publish_sheet_occurrences(scope, counters);
     }
 
-    fn publish_sheet_occurrences(&mut self, scope: TreeScopeID, counters: &mut Counters) {
+    fn publish_sheet_occurrences(&mut self, scope: TreeScopeID, counters: &Counters) {
         let state = self.host.sheet_occurrences.get_mut(&scope).unwrap();
         let mut seen = HashSet::default();
         let mut active: Vec<_> = state

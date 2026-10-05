@@ -46,7 +46,7 @@ impl StyleEngine {
             &mut effects,
             node,
             traversal.as_deref(),
-            &mut self.counters,
+            &self.counters,
         );
         match traversal.as_mut() {
             Some(traversal) => traversal.answer_effects = effects,
@@ -830,7 +830,7 @@ fn retained_winners_construct_a_source_free_cascade_store() {
     engine.state.retained.published_match_answers.push(
         published_match_answer(nodes[1].raw(), None, 1),
         &mut engine.state.retained.memory,
-        &mut engine.counters,
+        &engine.counters,
     );
     engine.published_match_answers.sort();
 
@@ -895,7 +895,7 @@ fn repaired_selector_truth_deltas_do_not_depend_on_retained_order() {
 #[test]
 fn verification_gates_only_execute_checks() {
     let mut engine = StyleEngine::new();
-    let _: () = verify_style_answer_patch(&mut engine.state, &mut engine.counters, |_| {});
+    let _: () = verify_style_answer_patch(&mut engine.state, &engine.counters, |_| {});
     let _: () = verify_cascade_winners(&engine, |_| {});
     let _: () = verify_style_plan_provenance(&engine, |_| {});
     let _: () = verify_published_style_transaction(&engine, |_| {});
@@ -926,11 +926,11 @@ fn retained_answer_delta_memo_accounts_its_tuple_capacity() {
 #[test]
 fn published_match_answer_accounting_stays_exact_incrementally() {
     let mut memory = MemoryController::new();
-    let mut counters = Counters::new();
+    let counters = Counters::new();
     let mut answers = PublishedMatchAnswers::default();
 
     let mut push_and_verify = |answer| {
-        answers.push(answer, &mut memory, &mut counters);
+        answers.push(answer, &mut memory, &counters);
         assert_eq!(answers.memory.bytes(), answers.recompute_capacity_bytes());
         assert_eq!(
             memory.bytes_in_category(MemoryCategory::BatchScratch),
@@ -1118,9 +1118,9 @@ fn selector_truth_changes_consolidate_by_semantic_key() {
         node,
         rule: Some((rule, entry)),
     });
-    let mut counters = Counters::new();
+    let counters = Counters::new();
 
-    changes.consolidate(&mut counters);
+    changes.consolidate(&counters);
 
     assert_eq!(
         changes.deltas.as_slice(),
@@ -4866,7 +4866,7 @@ fn already_planned_routes_attribute_their_extent() {
         .state
         .retained
         .selector_truth_changes
-        .consolidate(&mut engine.counters);
+        .consolidate(&engine.counters);
     assert!(engine.selector_truth_changes.deltas.as_slice().is_empty());
     assert!(engine.selector_truth_changes.refreshes.as_slice().is_empty());
 
@@ -5976,7 +5976,7 @@ fn test_prefix_relation(engine: &mut StyleEngine, root: StyleNodeID) -> (Arc<Rul
     );
     let relation = dispatch
         .prefixes()
-        .build_relation(&mut evaluation, root, &mut engine.counters);
+        .build_relation(&mut evaluation, root, &engine.counters);
     (dispatch, relation)
 }
 
@@ -6014,7 +6014,7 @@ fn update_test_prefix_relation(
         None,
     );
     let mut changed = changed.to_vec();
-    let mut counters = Counters::default();
+    let counters = Counters::default();
     if let Some(root) = geometry_root {
         let mut geometry_nodes: Vec<_> = (0..old_facts.row_count())
             .filter_map(|row| {
@@ -6025,7 +6025,7 @@ fn update_test_prefix_relation(
         geometry_nodes.extend(engine.tree.preorder(root));
         geometry_nodes.sort_unstable();
         geometry_nodes.dedup();
-        changed.extend(relation.update_geometry(dispatch.prefixes(), &mut evaluation, &geometry_nodes, &mut counters));
+        changed.extend(relation.update_geometry(dispatch.prefixes(), &mut evaluation, &geometry_nodes, &counters));
         changed.sort_unstable();
         changed.dedup();
     }
@@ -6034,7 +6034,7 @@ fn update_test_prefix_relation(
         &mut evaluation,
         &mut old_evaluation,
         &changed,
-        &mut counters,
+        &counters,
     );
     counters
 }
@@ -6114,7 +6114,7 @@ fn prefix_completion_reuses_positive_and_negative_relation_answers() {
         None,
         None,
     );
-    let mut counters = Counters::default();
+    let counters = Counters::default();
     let mut states = PrefixStates::new();
     let mut context = super::prefix::PrefixTransitionContext::new(&mut states, facts);
     assert!(!states.complete_nodes_with_budget(
@@ -6123,7 +6123,7 @@ fn prefix_completion_reuses_positive_and_negative_relation_answers() {
         &mut evaluation,
         nodes.iter().copied(),
         0,
-        &mut counters
+        &counters
     ));
     relation.install_answers(&mut states);
     states.relation = Some(Box::new(relation));
@@ -6136,7 +6136,7 @@ fn prefix_completion_reuses_positive_and_negative_relation_answers() {
             &mut evaluation,
             nodes.iter().copied(),
             budget,
-            &mut counters
+            &counters
         ));
         assert_eq!(counters.get(Counter::PrefixCompoundsEvaluated), 0);
         assert_eq!(counters.get(Counter::PrefixTransitionMemoMisses), 0);
@@ -7310,11 +7310,11 @@ fn shared_retained_answer_completion_reuses_compact_cascade_state() {
 
         assert_eq!(second.cascade_input, Some(cascade_input));
         assert!(second.matches.is_none());
-        engine.state.retained.published_match_answers.push(
-            second,
-            &mut engine.state.retained.memory,
-            &mut engine.counters,
-        );
+        engine
+            .state
+            .retained
+            .published_match_answers
+            .push(second, &mut engine.state.retained.memory, &engine.counters);
         engine.published_match_answers.sort();
         let materialized = engine.consume_published_match_answer(nodes[3]).unwrap();
         assert_eq!(materialized.len(), if declarations_overlap { 1 } else { 10 });
@@ -7541,7 +7541,7 @@ fn an_undecided_container_verdict_has_not_moved() {
     engine.refresh_winners_whose_container_verdicts_moved(
         false,
         publication::WinnerRepublication::for_flush(),
-        &mut Counters::default(),
+        &Counters::default(),
     );
     assert_eq!(engine.published_container_verdicts.get(&nodes[2]), Some(&undecided));
 }

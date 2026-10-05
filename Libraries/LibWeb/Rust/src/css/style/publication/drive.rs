@@ -371,7 +371,7 @@ impl RetainedState {
         store: &WinnerStore,
         selected: &[u64],
         inputs: &bridge::FfiDocumentStyleComputationInputs,
-        counters: &mut Counters,
+        counters: &Counters,
     ) -> Drive<PartialDrive> {
         let random_base_values = store
             .drive_random_base_values(self, node)
@@ -655,7 +655,7 @@ impl RetainedState {
         font_scratch: &mut FontDriveScratch,
         goal: FontDriveGoal,
         awaits_registered_context: bool,
-        counters: &mut Counters,
+        counters: &Counters,
     ) -> Drive<FullDrive> {
         let random_base_values = store
             .drive_random_base_values(self, subject.target.node())
@@ -928,7 +928,7 @@ impl RetainedState {
                 -1,
             ),
         };
-        let drive = |counters: &mut Counters,
+        let drive = |counters: &Counters,
                      table: &mut ComputedLonghandTable,
                      results: &mut crate::css::style_compute::FfiLonghandDriverResults,
                      effective_color_scheme: &mut i16,

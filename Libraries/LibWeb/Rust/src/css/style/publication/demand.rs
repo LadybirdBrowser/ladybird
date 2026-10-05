@@ -121,7 +121,7 @@ impl RetainedState {
         node: StyleNodeID,
         saves: PrivateDemandSaves,
         scratch: &mut EngineComputedRecordScratch,
-        counters: &mut Counters,
+        counters: &Counters,
     ) {
         self.put_back_engine_computed_records(node, scratch, counters);
         set_contains(&mut self.nodes_with_substituted_records, node, saves.uses_substitution);
@@ -233,7 +233,7 @@ impl StyleEngineState {
         &mut self,
         node: StyleNodeID,
         demand: RecordDemand,
-        counters: &mut Counters,
+        counters: &Counters,
     ) -> Drive<RecordDemandAnswer> {
         use bridge::FfiRecordDemand as Element;
         let read_only = demand.is_read_only();
@@ -363,7 +363,7 @@ impl StyleEngineState {
         node: StyleNodeID,
         answer: PublishedMatchAnswer,
         read_only: bool,
-        counters: &mut Counters,
+        counters: &Counters,
     ) -> bool {
         let complete =
             answer.cascade_winners_are_complete || self.cascade_winners_are_complete_but_for_custom_properties(node);
@@ -390,7 +390,7 @@ impl StyleEngineState {
         targeted: bool,
         read_only: bool,
         scratch: &mut EngineComputedRecordScratch,
-        counters: &mut Counters,
+        counters: &Counters,
     ) -> Drive<RecordDemandAnswer> {
         let complete = self.publish_demanded_answer(node, answer, read_only, counters);
         let parent_inputs_moved = ParentInputsMoved {
@@ -445,7 +445,7 @@ impl StyleEngineState {
         answer: PublishedMatchAnswer,
         read_only: bool,
         scratch: &mut EngineComputedRecordScratch,
-        counters: &mut Counters,
+        counters: &Counters,
     ) -> Drive<RecordDemandAnswer> {
         // A kind past the synthetic ones is only ever computed for a read-only read: no style
         // update settles it beside its element.
@@ -549,7 +549,7 @@ impl StyleEngineState {
         facts: u32,
         declarations: &[(ElementDeclarationKind, &crate::css::declaration_block::DeclaredProperty)],
         custom_declarations: &[(CustomDeclaration, RetainedStyleValueData)],
-        counters: &mut Counters,
+        counters: &Counters,
     ) -> Drive<computed::FinalStyleRecordID> {
         if !self.computes_records() {
             return Err(Unanswered::Refused);
@@ -657,7 +657,7 @@ impl RetainedState {
         subject: StyleNodeID,
         declarations: &[(ElementDeclarationKind, &crate::css::declaration_block::DeclaredProperty)],
         environment: u64,
-        counters: &mut Counters,
+        counters: &Counters,
     ) -> Drive<WinnerStore> {
         use crate::css::style_value::retain_style_value;
         let retained = |value: &StyleValueData| unsafe {

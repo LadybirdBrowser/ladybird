@@ -84,14 +84,14 @@ impl RetainedState {
     pub(crate) fn intern_element_declared_properties(
         &mut self,
         declarations: &[declaration_block::DeclaredProperty],
-        counters: &mut Counters,
+        counters: &Counters,
     ) -> Vec<(DeclaredProperty, RetainedStyleValueData)> {
         fn append(
             engine: &mut RetainedState,
             property: u16,
             declaration: &declaration_block::DeclaredProperty,
             declarations: &mut Vec<(DeclaredProperty, RetainedStyleValueData)>,
-            counters: &mut Counters,
+            counters: &Counters,
         ) {
             use crate::css::property_metadata::{longhands_for_shorthand, property_is_shorthand};
             // Element declarations decide longhands. Presentation attributes can name shorthands
@@ -118,7 +118,7 @@ impl RetainedState {
     pub(crate) fn intern_declared_property(
         &mut self,
         declaration: &declaration_block::DeclaredProperty,
-        counters: &mut Counters,
+        counters: &Counters,
     ) -> DeclaredProperty {
         let canonical = canonical_specified_value(&declaration.value);
         let value = canonical.as_ref().unwrap_or(&declaration.value);
@@ -145,7 +145,7 @@ impl RetainedState {
     pub unsafe fn intern_specified_value(
         &mut self,
         value: *const StyleValueData,
-        counters: &mut Counters,
+        counters: &Counters,
     ) -> SpecifiedValueID {
         debug_assert!(!value.is_null());
         let (id, lookup) = unsafe { self.specified_values.intern(value, &mut self.memory) };
@@ -440,7 +440,7 @@ impl RetainedState {
 
 impl StyleEngineState {
     /// Put the qualified layer names in the order one tree scope declares them in.
-    pub fn set_layer_order(&mut self, scope: TreeScopeID, layers: &[CascadeLayerID], counters: &mut Counters) {
+    pub fn set_layer_order(&mut self, scope: TreeScopeID, layers: &[CascadeLayerID], counters: &Counters) {
         let ranks = StyleSheetProgram::layer_ranks_in_order(layers);
         let pending_order = self.host.program_staging.layer_orders.after(scope);
         if pending_order.map_or_else(
@@ -591,7 +591,7 @@ impl StyleEngineState {
             });
     }
 
-    pub fn set_rule_conditions_hold(&mut self, rule: RuleID, conditions_hold: bool, counters: &mut Counters) {
+    pub fn set_rule_conditions_hold(&mut self, rule: RuleID, conditions_hold: bool, counters: &Counters) {
         let previous = self
             .host
             .program_staging
@@ -621,7 +621,7 @@ impl StyleEngineState {
     }
 
     /// Record whether a sheet's conditions hold, as evaluating its media queries decides.
-    pub fn set_sheet_conditions_hold(&mut self, sheet: SheetID, conditions_hold: bool, counters: &mut Counters) {
+    pub fn set_sheet_conditions_hold(&mut self, sheet: SheetID, conditions_hold: bool, counters: &Counters) {
         let previous = self
             .host
             .program_staging
@@ -645,7 +645,7 @@ impl StyleEngineState {
     }
 
     #[cfg(test)]
-    pub(super) fn set_sheet_enabled(&mut self, sheet: SheetID, enabled: bool, counters: &mut Counters) {
+    pub(super) fn set_sheet_enabled(&mut self, sheet: SheetID, enabled: bool, counters: &Counters) {
         let previous = self
             .host
             .program_staging
@@ -670,7 +670,7 @@ impl StyleEngineState {
     /// Begin rebuilding a sheet while retaining compatible style-rule identities by cascade
     /// position. The parsed CSSOM objects are new, but an unchanged semantic rule does not become a
     /// departure followed by an arrival merely because the whole sheet was reparsed.
-    pub fn begin_sheet_rules_replacement(&mut self, sheet: SheetID, counters: &mut Counters) {
+    pub fn begin_sheet_rules_replacement(&mut self, sheet: SheetID, counters: &Counters) {
         assert!(
             self.host.sheet_rule_replacement.is_none(),
             "stylesheet replacements do not nest"
@@ -715,7 +715,7 @@ impl StyleEngineState {
 
     /// Finish a synchronous sheet rebuild, retiring unmatched old rules and publishing declaration
     /// changes on identities that were reused.
-    pub fn finish_sheet_rules_replacement(&mut self, sheet: SheetID, declaration_block: u32, counters: &mut Counters) {
+    pub fn finish_sheet_rules_replacement(&mut self, sheet: SheetID, declaration_block: u32, counters: &Counters) {
         let Some(replacement) = self.host.sheet_rule_replacement.take() else {
             return;
         };
@@ -743,7 +743,7 @@ impl StyleEngineState {
         self.settle_program();
     }
 
-    pub(super) fn finalize_staged_sheet_rule_replacements(&mut self, counters: &mut Counters) {
+    pub(super) fn finalize_staged_sheet_rule_replacements(&mut self, counters: &Counters) {
         for index in 0..self.host.program_staging.sheet_rule_replacements.len() {
             let Some(replacement) = self.host.program_staging.sheet_rule_replacements[index].take() else {
                 continue;
@@ -760,7 +760,7 @@ impl StyleEngineState {
         (old.rule == rule).then_some(old)
     }
 
-    pub(super) fn reuse_replaced_style_rule(&mut self, sheet: SheetID, counters: &mut Counters) -> Option<RuleID> {
+    pub(super) fn reuse_replaced_style_rule(&mut self, sheet: SheetID, counters: &Counters) -> Option<RuleID> {
         let replacement = self.host.sheet_rule_replacement.as_mut()?;
         if replacement.sheet != sheet || replacement.reuse_disabled {
             return None;
@@ -1032,7 +1032,7 @@ impl StyleEngineState {
         tree_scope: TreeScopeID,
         previous: bool,
         current: bool,
-        counters: &mut Counters,
+        counters: &Counters,
     ) {
         let key = InputKey::SheetAttachment(sheet, tree_scope);
         // A sheet that leaves a scope and comes back to it inside one transaction is attached at both
@@ -1102,7 +1102,7 @@ impl StyleEngineState {
 
     /// A layer topology change updates priority comparisons for declarations that already matched.
     /// It never invalidates selector truth.
-    pub(super) fn record_layer_topology_change(&mut self, scope: TreeScopeID, counters: &mut Counters) {
+    pub(super) fn record_layer_topology_change(&mut self, scope: TreeScopeID, counters: &Counters) {
         let program_version = self.retained.program.version();
         self.host.program_staging.base_version.get_or_insert(program_version);
         self.invalidate_scope_program(scope);
@@ -1148,7 +1148,7 @@ impl StyleEngineState {
     ///
     /// Where a rule sits among the layers is part of what the rule is, and it is what the cascade
     /// compares; whether it is in one at all is what a layer topology change routes by.
-    pub fn set_rule_layer(&mut self, rule: RuleID, layer: CascadeLayerID, counters: &mut Counters) {
+    pub fn set_rule_layer(&mut self, rule: RuleID, layer: CascadeLayerID, counters: &Counters) {
         let mut version = self.current_rule_version(rule);
         if version.layer == layer {
             return;
@@ -1166,7 +1166,7 @@ impl StyleEngineState {
         sheet: SheetID,
         parent: Option<RuleID>,
         kind: RuleKind,
-        counters: &mut Counters,
+        counters: &Counters,
     ) -> RuleID {
         let rule = self.retained.program.reserve_rule(sheet, parent, kind);
         self.stage_rule_liveness(rule, true);
@@ -1175,7 +1175,7 @@ impl StyleEngineState {
     }
 
     /// Insert one rule between two neighbours. Existing rules are neither renumbered nor rematched.
-    pub(super) fn insert_rule_before(&mut self, before: RuleID, kind: RuleKind, counters: &mut Counters) -> RuleID {
+    pub(super) fn insert_rule_before(&mut self, before: RuleID, kind: RuleKind, counters: &Counters) -> RuleID {
         let rule = self.retained.program.reserve_rule_before(before, kind);
         self.stage_rule_liveness(rule, true);
         self.record_rule_existence(rule, false, true, counters);
@@ -1184,7 +1184,7 @@ impl StyleEngineState {
 
     /// Delete a rule, taking its subtree with it. Every removed identity is journalled, because a
     /// deleted winning declaration has to be repaired wherever it was winning.
-    pub(super) fn remove_rule(&mut self, rule: RuleID, counters: &mut Counters) -> Vec<RuleID> {
+    pub(super) fn remove_rule(&mut self, rule: RuleID, counters: &Counters) -> Vec<RuleID> {
         if !self.current_rule_is_live(rule) {
             return Vec::new();
         }
@@ -1206,7 +1206,7 @@ impl StyleEngineState {
     }
 
     /// Replace a rule's contents and journal only the fields that actually changed.
-    pub(super) fn replace_rule_version(&mut self, rule: RuleID, contents: RuleVersion, counters: &mut Counters) {
+    pub(super) fn replace_rule_version(&mut self, rule: RuleID, contents: RuleVersion, counters: &Counters) {
         let previous = self.current_rule_version(rule);
         self.stage_rule_version(rule, contents);
 
@@ -1277,13 +1277,7 @@ impl StyleEngineState {
             .collect()
     }
 
-    pub(super) fn record_rule_existence(
-        &mut self,
-        rule: RuleID,
-        previous: bool,
-        current: bool,
-        counters: &mut Counters,
-    ) {
+    pub(super) fn record_rule_existence(&mut self, rule: RuleID, previous: bool, current: bool, counters: &Counters) {
         if self.rule_change_is_carried_by_its_sheet(rule) {
             self.settle_program();
             return;
@@ -1298,7 +1292,7 @@ impl StyleEngineState {
     }
 
     /// Answers the identities the end of the transaction released, for the host to mint again.
-    pub(super) fn discard_style_transaction_outputs(&mut self, counters: &mut Counters) -> Vec<u32> {
+    pub(super) fn discard_style_transaction_outputs(&mut self, counters: &Counters) -> Vec<u32> {
         if let Some(pass) = self.host.suspended_style_pass.take() {
             self.abandon_style_pass(pass);
         }
@@ -1323,7 +1317,7 @@ impl StyleEngineState {
     /// This is for `replace()`, which really does swap the whole rule list. Every other edit to a
     /// sheet moves one rule and is patched one rule at a time, because retiring identities that did
     /// not change turns a one-rule edit into a program change over the whole sheet.
-    pub(super) fn clear_sheet_rules(&mut self, sheet: SheetID, counters: &mut Counters) {
+    pub(super) fn clear_sheet_rules(&mut self, sheet: SheetID, counters: &Counters) {
         for rule in self.current_top_level_rules_in_sheet(sheet) {
             self.remove_rule(rule, counters);
         }
@@ -1331,12 +1325,12 @@ impl StyleEngineState {
     }
 
     /// Delete one rule and settle the program around it.
-    pub fn remove_style_rule(&mut self, rule: RuleID, counters: &mut Counters) {
+    pub fn remove_style_rule(&mut self, rule: RuleID, counters: &Counters) {
         self.remove_rule(rule, counters);
         self.settle_program();
     }
 
-    pub(super) fn record_sheet_order_change(&mut self, tree_scope: TreeScopeID, counters: &mut Counters) {
+    pub(super) fn record_sheet_order_change(&mut self, tree_scope: TreeScopeID, counters: &Counters) {
         self.retained.winner_groups.invalidate_priorities();
         let previous = self.retained.sheet_order_version;
         self.retained.sheet_order_version += 1;
@@ -1403,7 +1397,7 @@ impl StyleEngineState {
         &mut self,
         root: StyleNodeID,
         mut emit: impl FnMut(&[u32]),
-        counters: &mut Counters,
+        counters: &Counters,
     ) -> bool {
         assert!(self.retained.diagnostic_plan_capture.is_none());
         self.retained.diagnostic_plan_capture = Some(DiagnosticPlanCapture {

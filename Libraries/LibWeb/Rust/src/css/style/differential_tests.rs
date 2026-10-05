@@ -369,7 +369,7 @@ fn batch_matches(
         .match_node_collecting_requests(
             node,
             &mut matches,
-            &mut Counters::new(),
+            &Counters::new(),
             BatchMatchState {
                 match_workspace: scratch,
                 witness_effects: None,
@@ -732,7 +732,7 @@ fn incomplete_answer_batches_preserve_pending_lookups_and_release_ownership() {
             workload
                 .engine
                 .state
-                .discard_published_match_answers(&mut workload.engine.counters);
+                .discard_published_match_answers(&workload.engine.counters);
             assert_eq!(workload.engine.match_answers.pending_reference_count(), 0);
             assert_eq!(workload.engine.winner_groups.pending_reference_count(), 0);
             for &node in &nodes[..2] {
