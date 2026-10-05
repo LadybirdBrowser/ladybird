@@ -580,7 +580,8 @@ impl DocumentHost {
     /// Whether no text box has a source range, where the host knows: none runs. Only a build of a job or a frame splits
     /// a first letter off a text, never a write, so the fact its last job or frame left holds whatever it queued.
     pub(crate) fn known_no_text_source_ranges(&self) -> bool {
-        self.facts_where(|_| true).is_some_and(|facts| !facts.may_have_text_source_ranges)
+        self.facts_where(|_| true)
+            .is_some_and(|facts| !facts.may_have_text_source_ranges)
     }
 
     /// Whether the host knows what its engine holds as of the writes it queued: no job of the engine runs, as a host
@@ -860,13 +861,16 @@ impl DocumentHost {
             .unwrap_or_else(|| RowIdentities::of(self.rows_as_of_writes(wait, false)))
     }
 
-    /// The style record each row has, and what each row is, as of every change the host queued. The host reads them
-    /// from the rows it has where no write since changed them, as a write of what a row holds but its style does not,
-    /// and otherwise from rows the render state publishes again first, spending `wait`.
-    pub(crate) fn row_styles(&self, wait: impl RenderWait) -> RowStyles {
+    /// The style record each row has, and what each row is, as of every change the host queued, for a read of the row
+    /// `id`. The host reads them from the rows it has where no write since changed the style of `id`, as a write of
+    /// what a row holds but its style does not, nor a write of another row's style, and otherwise from rows the render
+    /// state publishes again first, spending `wait`.
+    pub(crate) fn row_styles_of(&self, id: crate::layout::node_data::NodeSlotId, wait: impl RenderWait) -> RowStyles {
         RowStyles::of(
-            self.known_rows(RowWrite::Styles, |rows, version| rows.reads_styles_as(version))
-                .unwrap_or_else(|| self.rows_as_of_writes(wait, false)),
+            self.known_rows(RowWrite::Styles, |rows, version| {
+                rows.reads_styles_as(version) && !self.changes.may_write_style_of(id, rows)
+            })
+            .unwrap_or_else(|| self.rows_as_of_writes(wait, false)),
         )
     }
 

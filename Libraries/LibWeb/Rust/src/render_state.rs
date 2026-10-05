@@ -370,7 +370,7 @@ impl ArenaChange {
             Self::Layout(change) => change.row_write(),
             Self::Paint(_) => RowWrite::Rows,
             Self::DetachForRemoval(_) | Self::RemoveBox(_) => RowWrite::Identities,
-            Self::ReinheritAnonymousDescendants(_) => RowWrite::Styles,
+            Self::ReinheritAnonymousDescendants(_) => RowWrite::NamedStyles,
             Self::Style(_) | Self::Engine(_) | Self::Rule(_) => RowWrite::None,
         }
     }
@@ -384,7 +384,9 @@ pub(crate) enum RowWrite {
     /// What a row holds, but neither its style record, what it is, nor the row a node is bound to (see
     /// [`crate::layout::LayoutNodeArena::rows_identity_version`]).
     Rows,
-    /// A row's style record too.
+    /// The style record of the rows the writes name, or of anonymous rows, too (see [`ChangeQueue::may_write_style_of`]).
+    NamedStyles,
+    /// Any row's style record too.
     Styles,
     /// What a row is, or the row a node is bound to, too.
     Identities,
@@ -410,6 +412,10 @@ struct ChangeQueue {
     /// Whether a style write queued now is held: a style transaction flew, whose reactions the host has not begun to
     /// drain.
     holds_style: Cell<bool>,
+    /// The rows whose style record the writes queued set by name, where they write no other row's but anonymous rows'.
+    styled_rows: RefCell<crate::css::style::fast_hash::FastSet<crate::layout::node_data::NodeSlotId>>,
+    /// Whether the writes queued give anonymous rows their parent's style again.
+    restyles_anonymous_rows: Cell<bool>,
 }
 
 /// What writes may move of what the host knows of the render state (see [`StateFacts`]).
@@ -437,6 +443,13 @@ impl ChangeQueue {
 
     /// Notes what `change`, a write queued, may move.
     fn note(&self, change: &ArenaChange) {
+        match change {
+            ArenaChange::Layout(crate::layout::layout_changes::LayoutChange::SetNodeStyle { node, .. }) => {
+                self.styled_rows.borrow_mut().insert(*node);
+            }
+            ArenaChange::ReinheritAnonymousDescendants(_) => self.restyles_anonymous_rows.set(true),
+            _ => {}
+        }
         let (moves, change) = (self.moves.get(), change.moves());
         self.moves.set(Moves {
             rows: moves.rows.max(change.rows),
@@ -497,11 +510,37 @@ impl ChangeQueue {
         self.queued.borrow_mut().insert(0, change);
     }
 
+    /// Whether the writes queued may write the style record of the row `id`, which `rows`, published before them, has.
+    fn may_write_style_of(
+        &self,
+        id: crate::layout::node_data::NodeSlotId,
+        rows: &crate::layout::row_reads::RowSnapshot,
+    ) -> bool {
+        use crate::layout::node_data::NodeFlag;
+        match self.moves.get().rows {
+            RowWrite::None | RowWrite::Rows => false,
+            RowWrite::NamedStyles => {
+                self.styled_rows.borrow().contains(&id)
+                    || (self.restyles_anonymous_rows.get() && rows.flags(id) & NodeFlag::Anonymous as u32 != 0)
+            }
+            RowWrite::Styles | RowWrite::Identities => true,
+        }
+    }
+
+    /// Forgets what the writes queued may move, as they are applied.
+    fn forget_moves(&self) {
+        // Only a write of a style names a row.
+        if self.moves.take().rows >= RowWrite::NamedStyles {
+            self.styled_rows.borrow_mut().clear();
+            self.restyles_anonymous_rows.set(false);
+        }
+    }
+
     /// Lends the queued writes to `apply`, which applies them, and keeps their emptied buffer as the spare. A write the
     /// host queues meanwhile, as the writes are applied or the render side works, waits for the next application.
     fn drain<R>(&self, apply: impl FnOnce(std::vec::Drain<'_, ArenaChange>) -> R) -> R {
         let mut queued = self.queued.replace(self.spare.take());
-        self.moves.take();
+        self.forget_moves();
         let answer = apply(queued.drain(..));
         self.spare.set(queued);
         answer
@@ -510,7 +549,7 @@ impl ChangeQueue {
     /// Takes the queued writes, for a style transaction that flies with them, and holds the style writes queued after,
     /// until stop_holding_style(). Their buffer comes back with give_back().
     fn take_for_flight(&self) -> Vec<ArenaChange> {
-        self.moves.take();
+        self.forget_moves();
         self.holds_style.set(true);
         self.queued.replace(self.spare.take())
     }

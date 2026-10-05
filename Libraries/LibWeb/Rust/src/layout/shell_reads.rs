@@ -52,15 +52,20 @@ unsafe fn rows(host: *mut DocumentHost, wait: impl RenderWait) -> Rc<RowSnapshot
     unsafe { &*host }.fresh_rows(wait)
 }
 
-/// The style record each row of `host`'s document has, as of every write the host made, spending `wait`.
+/// The style record each row of `host`'s document has, as of every write the host made, for a read of the row `id`,
+/// spending `wait`.
 ///
 /// # Safety
 ///
 /// As for [`rows`].
-unsafe fn styles(host: *mut DocumentHost, wait: impl RenderWait) -> crate::layout::row_reads::RowStyles {
+unsafe fn styles(
+    host: *mut DocumentHost,
+    id: NodeSlotId,
+    wait: impl RenderWait,
+) -> crate::layout::row_reads::RowStyles {
     assert!(!host.is_null(), "document host is null");
     // SAFETY: Guaranteed by the caller.
-    unsafe { &*host }.row_styles(wait)
+    unsafe { &*host }.row_styles_of(id, wait)
 }
 
 /// What each row of `host`'s document is, and the row each node is bound to, as of every write the host made, spending
@@ -167,7 +172,7 @@ pub unsafe extern "C" fn layout_row_style_node(host: *mut DocumentHost, id: Node
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_row_style_record(host: *mut DocumentHost, id: NodeSlotId) -> u64 {
     // SAFETY: Guaranteed by the caller.
-    unsafe { styles(host, node_read()) }.style_record(id)
+    unsafe { styles(host, id, node_read()) }.style_record(id)
 }
 
 /// Whether the arena derived the style record of the row `id`, which only a job changes but for the layout node's own
@@ -179,7 +184,7 @@ pub unsafe extern "C" fn layout_row_style_record(host: *mut DocumentHost, id: No
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_row_style_is_derived(host: *mut DocumentHost, id: NodeSlotId) -> bool {
     // SAFETY: Guaranteed by the caller.
-    unsafe { styles(host, node_read()) }.style_is_derived(id)
+    unsafe { styles(host, id, node_read()) }.style_is_derived(id)
 }
 
 /// # Safety
@@ -188,7 +193,10 @@ pub unsafe extern "C" fn layout_row_style_is_derived(host: *mut DocumentHost, id
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_row_style_payloads(host: *mut DocumentHost, id: NodeSlotId) -> *const c_void {
     // SAFETY: Guaranteed by the caller.
-    unsafe { styles(host, node_read()) }.style_payloads(id).as_ptr().cast()
+    unsafe { styles(host, id, node_read()) }
+        .style_payloads(id)
+        .as_ptr()
+        .cast()
 }
 
 /// # Safety
