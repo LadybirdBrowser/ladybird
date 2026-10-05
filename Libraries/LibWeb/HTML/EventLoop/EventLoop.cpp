@@ -572,6 +572,21 @@ void EventLoop::update_the_rendering()
 
     process_input_events();
 
+    // AD-HOC: A clock lease presents frames of a document's animations beside the tasks since the last update, at
+    //         display ticks later than the opportunity this update renders for, which reached the event loop only after
+    //         those tasks. An update after a lease renders at the time it runs, so no animation moves back from where a
+    //         tick showed it.
+    bool clock_was_leased = false;
+    for (auto& navigable : all_local_navigables()) {
+        auto document = navigable->active_document();
+        if (!document)
+            continue;
+        if (auto* arena = document->layout_node_arena_if_created())
+            clock_was_leased |= Layout::RustFFI::document_host_end_clock_lease_for_rendering_update(arena->host());
+    }
+    if (clock_was_leased)
+        m_last_render_opportunity_time = max(m_last_render_opportunity_time, HighResolutionTime::unsafe_shared_current_time());
+
     // 1. Let frameTimestamp be eventLoop's last render opportunity time.
     auto frame_timestamp = m_last_render_opportunity_time;
 

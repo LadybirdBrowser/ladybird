@@ -1,0 +1,2 @@
+the update's timestamp is not before the last tick: true
+the animation is not behind the last tick: true

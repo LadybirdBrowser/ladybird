@@ -106,6 +106,8 @@ pub struct DocumentHost {
     presentation: RefCell<Option<Presentation>>,
     /// The border boxes of the elements a clock lease sampled in the last frame one of its ticks presented.
     presented_border_boxes: RefCell<Vec<(StyleNodeID, CssPixelRect)>>,
+    /// Whether the render state was leased to the render clock since the last rendering update.
+    leased_since_rendering_update: Cell<bool>,
 }
 
 /// What runs on the render owner beside the host, which the host takes back before it hands the owner a job: the frame
@@ -179,6 +181,7 @@ impl DocumentHost {
             clock_rounds: RefCell::default(),
             presentation: RefCell::default(),
             presented_border_boxes: RefCell::default(),
+            leased_since_rendering_update: Cell::default(),
         }
     }
 
@@ -367,6 +370,7 @@ impl DocumentHost {
         self.note_render_state_write();
         let (lease, ticks) = ClockLease::begin(start, self.document, recorder, presentation, plan);
         *self.away.borrow_mut() = Some(Away::Leased(lease));
+        self.leased_since_rendering_update.set(true);
         Ok(ticks)
     }
 
@@ -585,6 +589,13 @@ impl DocumentHost {
     /// Ends the document's clock lease, where one runs, spending `_wait`.
     pub(crate) fn end_clock_lease_waiting(&self, _wait: impl RenderWait) {
         self.end_clock_lease();
+    }
+
+    /// Ends the clock lease, where one runs, as a rendering update begins, and answers whether the render state was
+    /// leased since the last rendering update.
+    pub(super) fn end_clock_lease_for_rendering_update(&self) -> bool {
+        self.end_clock_lease();
+        self.leased_since_rendering_update.take()
     }
 
     /// Whether the last rendering update left a plan for a clock lease no task has taken yet.

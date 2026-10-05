@@ -490,6 +490,20 @@ pub unsafe extern "C" fn document_host_end_clock_lease_for_animation(host: &Docu
     host.end_clock_lease_and_plan();
 }
 
+/// Ends the clock lease of `host`'s document, where one runs, as a rendering update begins, and answers whether the
+/// document's state was leased to the render clock since the last rendering update.
+///
+/// # Safety
+///
+/// `host` must come from `document_host_create` and not be destroyed yet, on its document's thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn document_host_end_clock_lease_for_rendering_update(host: *const DocumentHost) -> bool {
+    assert!(!host.is_null(), "document host is null");
+    // SAFETY: Guaranteed by the caller.
+    let host = unsafe { &*host };
+    host.end_clock_lease_for_rendering_update()
+}
+
 /// What a document's clock lease is doing.
 #[repr(u8)]
 pub enum FfiClockLeaseState {
