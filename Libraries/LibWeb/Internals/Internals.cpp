@@ -1223,7 +1223,7 @@ bool Internals::headless()
 bool Internals::needs_repaint()
 {
     Layout::ForcedReadScope read { window().associated_document() };
-    window().associated_document().drain_invalidation_journal(read);
+    window().associated_document().update_highlight_states_if_needed(read);
     auto local_root = local_root_of(window());
     return local_root && local_root->needs_repaint();
 }
@@ -1231,7 +1231,7 @@ bool Internals::needs_repaint()
 bool Internals::needs_display_list_record()
 {
     Layout::ForcedReadScope read { window().associated_document() };
-    window().associated_document().drain_invalidation_journal(read);
+    window().associated_document().update_highlight_states_if_needed(read);
     auto local_root = local_root_of(window());
     return local_root && local_root->needs_to_record_display_list();
 }

@@ -532,7 +532,6 @@ class EventHandler;
 class EventTarget;
 class HTMLCollection;
 class IDLEventListener;
-class InvalidationJournal;
 class LiveNodeList;
 class MutationObserver;
 class MutationRecord;

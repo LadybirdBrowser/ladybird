@@ -149,7 +149,7 @@ void Document::seal_first_layout_round(Layout::BegunRead const& read)
         return;
     if (!m_list_owners_pending_item_renumber.is_empty() || !m_elements_with_pending_top_layer_membership_change.is_empty() || m_top_layer_needs_layout_zone_rebuild)
         return;
-    drain_invalidation_journal(read);
+    update_highlight_states_if_needed(read);
     Layout::RustFFI::FfiLayoutUpdateInputs inputs {
         .reason_is_inspect_devtools_layout_data = false,
         .is_template_contents_document = m_created_for_appropriate_template_contents,
@@ -169,10 +169,6 @@ void Document::update_style_and_layout_once(Layout::BegunRead const& read, Updat
         && reason != UpdateLayoutReason::ChildDocumentStyleUpdate
         && animation_sampling_scope == ThrottledAnimationSamplingScope::Document)
         flush_throttled_animation_style_update();
-
-    // Every mark the DOM side has made goes through before the update that reads them starts. Marks made from inside
-    // the update write through on their own.
-    drain_invalidation_journal(read);
 
     auto& arena = layout_node_arena();
     Layout::RustFFI::document_host_begin_update_layout(arena.host());

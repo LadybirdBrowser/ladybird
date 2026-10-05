@@ -321,7 +321,6 @@ set(SOURCES
     DOM/EventTarget.cpp
     DOM/HTMLCollection.cpp
     DOM/IDLEventListener.cpp
-    DOM/InvalidationJournal.cpp
     DOM/LiveNodeList.cpp
     DOM/MutationObserver.cpp
     DOM/MutationRecord.cpp
