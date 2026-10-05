@@ -11,12 +11,7 @@
 use super::*;
 use crate::render_state::BegunRead;
 
-/// Mints the main thread token for this module's FFI entry points; only this module can make one.
-pub(crate) struct MainThreadFfiEntry {
-    _private: (),
-}
-
-const MAIN_THREAD_FFI_ENTRY: MainThreadFfiEntry = MainThreadFfiEntry { _private: () };
+crate::stage::main_thread_ffi_entries!();
 
 /// Runs the document's layout update to a fixed point: style, then the layout tree build, then
 /// either a partial relayout of the registered boundaries or a full pass, until nothing is
@@ -34,7 +29,7 @@ pub unsafe extern "C" fn render_state_update_layout(
 ) {
     assert!(!inputs.is_null());
     // SAFETY: Guaranteed by the entry point's contract.
-    let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY, host) };
+    let main_thread = unsafe { main_thread(host) };
     abort_on_panic(|| {
         // SAFETY: Guaranteed by the entry point's contract.
         unsafe { update_layout(&main_thread, host, read, &*inputs) };
@@ -56,7 +51,7 @@ pub unsafe extern "C" fn render_state_update_layout(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn render_state_pay_flown_round(host: &DocumentHost, read: &BegunRead) {
     // SAFETY: Guaranteed by the entry point's contract.
-    let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY, host) };
+    let main_thread = unsafe { main_thread(host) };
     abort_on_panic(|| {
         host.take_frame_in_with(read);
         host.pay_clock_rounds(|mut answer| {
@@ -96,7 +91,7 @@ pub unsafe extern "C" fn render_state_seal_clock_plan(
     last_end: f64,
 ) {
     // SAFETY: Guaranteed by the entry point's contract.
-    let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY, host) };
+    let main_thread = unsafe { main_thread(host) };
     // SAFETY: Guaranteed by the caller.
     let elements = unsafe { crate::css::custom_properties::ffi_slice(elements, count) };
     abort_on_panic(|| {
@@ -125,7 +120,7 @@ pub unsafe extern "C" fn render_state_seal_first_layout_round(
 ) {
     assert!(!inputs.is_null());
     // SAFETY: Guaranteed by the entry point's contract.
-    let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY, host) };
+    let main_thread = unsafe { main_thread(host) };
     // SAFETY: Guaranteed by the entry point's contract.
     abort_on_panic(|| unsafe { seal_first_round(&main_thread, host, read, &*inputs) });
 }

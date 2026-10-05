@@ -26,12 +26,7 @@ pub struct FfiStackingContextDumpCallbacks {
     append_text: unsafe extern "C" fn(context: *mut c_void, bytes: *const u8, byte_count: usize),
 }
 
-/// Mints the main thread token for this module's FFI entry points; only this module can make one.
-pub(crate) struct MainThreadFfiEntry {
-    _private: (),
-}
-
-const MAIN_THREAD_FFI_ENTRY: MainThreadFfiEntry = MainThreadFfiEntry { _private: () };
+crate::stage::main_thread_ffi_entries!();
 
 impl FfiStackingContextDumpCallbacks {
     fn debug_description(&self, _: &MainThread, slot: NodeSlotId) -> String {
@@ -60,7 +55,7 @@ pub unsafe extern "C" fn render_state_dump_stacking_context_tree(
     callbacks: FfiStackingContextDumpCallbacks,
 ) {
     // SAFETY: Guaranteed by the caller.
-    let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY, host) };
+    let main_thread = unsafe { main_thread(host) };
     // SAFETY: As above.
     let lines = unsafe {
         crate::painting::ffi::read_arena(host, read, viewport, |arena, viewport| {

@@ -13,12 +13,7 @@ use crate::layout::layout_changes::LayoutWrite;
 use crate::painting::paint_read::GeometryRead;
 use crate::render_state::DocumentHost;
 
-/// Mints the main thread token for this module's FFI entry points; only this module can make one.
-pub(crate) struct MainThreadFfiEntry {
-    _private: (),
-}
-
-const MAIN_THREAD_FFI_ENTRY: MainThreadFfiEntry = MainThreadFfiEntry { _private: () };
+crate::stage::main_thread_ffi_entries!();
 
 /// The row's layout node, which the host's shell factory makes the first time it is asked for, or null for a row that
 /// is not live.
@@ -180,7 +175,7 @@ pub unsafe extern "C" fn document_host_image_observers(host: &DocumentHost, slot
 unsafe fn write_and_pay(host: &DocumentHost, wait: impl crate::render_state::RenderWait, write: LayoutWrite) -> bool {
     let written = crate::layout::layout_changes::write(wait, host, write);
     // SAFETY: Guaranteed by the entry point's contract.
-    let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY, host) };
+    let main_thread = unsafe { main_thread(host) };
     written.host_work.pay(&main_thread);
     written.was_attached
 }

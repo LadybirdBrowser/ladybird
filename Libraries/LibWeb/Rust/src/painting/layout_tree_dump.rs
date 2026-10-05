@@ -24,12 +24,7 @@ use std::ffi::c_void;
 
 crate::render_state::held_node_entries!();
 
-/// Mints the main thread token for this module's FFI entry points; only this module can make one.
-pub(crate) struct MainThreadFfiEntry {
-    _private: (),
-}
-
-const MAIN_THREAD_FFI_ENTRY: MainThreadFfiEntry = MainThreadFfiEntry { _private: () };
+crate::stage::main_thread_ffi_entries!();
 
 /// The layout root of a document nested in a row's node, which the dump hands back to the host
 /// to dump, without reading it.
@@ -147,7 +142,7 @@ pub unsafe extern "C" fn render_state_dump_layout_tree(
     callbacks: FfiLayoutTreeDumpCallbacks,
 ) {
     // SAFETY: Guaranteed by the entry point's contract.
-    let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY, host) };
+    let main_thread = unsafe { main_thread(host) };
     // SAFETY: As above.
     let plan = unsafe {
         crate::painting::ffi::read_arena(

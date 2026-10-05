@@ -12,12 +12,7 @@ use super::*;
 use crate::painting::host::FfiVisualContextTreeInputs;
 use crate::painting::paint_passes::{PassEffect, pending_preparation, run as run_paint_pass};
 
-/// Mints the main thread token for this module's FFI entry points; only this module can make one.
-pub(crate) struct MainThreadFfiEntry {
-    _private: (),
-}
-
-const MAIN_THREAD_FFI_ENTRY: MainThreadFfiEntry = MainThreadFfiEntry { _private: () };
+crate::stage::main_thread_ffi_entries!();
 
 /// Answers `read` from the rows of `host`'s document as of every write the host made, spending `wait`, with every
 /// row's overflow measured, as input and chrome read boxes: scroll limits, wheel targets, scrollbars and snap areas.
@@ -354,7 +349,7 @@ pub unsafe extern "C" fn render_state_prepare_for_rendering(
     });
     if !prepared.clamped_scroll_offsets.is_empty() {
         // SAFETY: Guaranteed by the caller.
-        let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY, host) };
+        let main_thread = unsafe { main_thread(host) };
         if let Some(geometry_host) = host.host_tables().geometry_host.get() {
             for (slot, offset) in prepared.clamped_scroll_offsets {
                 // SAFETY: The pass clamped the offsets of live rows, and the host holds no borrow of the arena.
@@ -583,7 +578,7 @@ pub unsafe extern "C" fn render_state_publish_recording(
     out: *mut crate::painting::ffi::FfiPresentedRecording,
 ) {
     // SAFETY: Guaranteed by the entry point's contract.
-    let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY, host) };
+    let main_thread = unsafe { main_thread(host) };
     let mut recording = host.recording();
     if let Some(publication) = recording.take_publication() {
         crate::painting::record::publish::publish_recording(host, publication, &main_thread, &publish);
@@ -1338,7 +1333,7 @@ pub unsafe extern "C" fn layout_hit_test_find_closest_line(
     respect_clip: bool,
 ) -> crate::painting::host::FfiClosestLine {
     // SAFETY: Guaranteed by the entry point's contract.
-    let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY, host) };
+    let main_thread = unsafe { main_thread(host) };
     with_hit_test_list_spatial_indexes_and_visual_context_tree(
         host,
         read,
@@ -1388,7 +1383,7 @@ pub unsafe extern "C" fn layout_hit_test_adjacent_line(
         crate::painting::hit_test::caret::CaretLineDirection::Previous
     };
     // SAFETY: Guaranteed by the entry point's contract.
-    let main_thread = unsafe { crate::stage::from_ffi_entry(&MAIN_THREAD_FFI_ENTRY, host) };
+    let main_thread = unsafe { main_thread(host) };
     with_hit_test_list_and_caret_lines(host, read, Default::default(), |list, arena| {
         match list.adjacent_line(
             &main_thread,
