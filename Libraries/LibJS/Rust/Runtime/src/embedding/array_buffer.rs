@@ -15,7 +15,8 @@ use core::ffi::{c_int, c_void};
 use core::ptr::NonNull;
 
 use crate::embedding::abi_types::{
-    JSRealm, cell_from_abi, completion_into_abi, object_into_abi, optional_object_into_abi, vm_from_abi,
+    JSRealm, cell_from_abi, completion_into_abi, completion_writing_result_to, object_into_abi,
+    optional_object_into_abi, vm_from_abi,
 };
 use crate::gc::capi::GC_PRIMITIVE_STORAGE_NULL_HANDLE;
 use crate::gc::class::{Extends, GcCell};
@@ -26,7 +27,8 @@ use crate::layout::host_class::{JSCompletion, JSObject, JSVM, JSValue};
 use crate::layout::object::Object;
 use crate::layout::value::Value;
 use crate::runtime::array_buffer::{
-    ArrayBuffer, DataBlock, DataBlockStorage, ExternalPrimitiveStorage, Order, Shared, detach_array_buffer,
+    ArrayBuffer, DataBlock, DataBlockStorage, ExternalPrimitiveStorage, Order, OwnedBackingStore, Shared,
+    clone_array_buffer, detach_array_buffer,
 };
 use crate::runtime::byte_length::ByteLength;
 use crate::runtime::data_view::{
@@ -495,6 +497,101 @@ pub unsafe extern "C" fn js_array_buffer_detach(vm: *mut JSVM, buffer: *mut JSOb
     // SAFETY: The caller passes a live VM and buffer.
     let (vm, buffer) = unsafe { (vm_from_abi(vm), array_buffer_from_abi(buffer)) };
     completion_into_abi(detach_array_buffer(vm, buffer, Some(Value(key))))
+}
+
+/// ArrayBuffer::detach_and_take_data_block(): detaches `buffer`, as DetachArrayBuffer(buffer) does, and describes the
+/// storage of the data block it had in `out`, which the caller takes over. The caller owns the storage of a block of
+/// kind JS_ARRAY_BUFFER_STORAGE_OWNED, and frees it with gc_primitive_storage_free() or gives it to
+/// js_array_buffer_create_adopting_storage(), and keeps the owner of JS_ARRAY_BUFFER_STORAGE_EXTERNAL storage alive
+/// itself. Throws a TypeError, and leaves the buffer as it was, if the buffer has a detach key. Main thread only.
+///
+/// # Safety
+///
+/// `vm` must be live, `buffer` a live ArrayBuffer that is not a SharedArrayBuffer, and `out` valid for writes.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn js_array_buffer_detach_and_take_storage(
+    vm: *mut JSVM,
+    buffer: *mut JSObject,
+    out: *mut JSArrayBufferStorage,
+) -> JSCompletion {
+    // SAFETY: The caller passes a live VM and buffer.
+    let (vm, buffer) = unsafe { (vm_from_abi(vm), array_buffer_from_abi(buffer)) };
+    let taken_storage = buffer.detach_and_take_data_block(vm).map(|block| {
+        let mut storage = JSArrayBufferStorage {
+            kind: JS_ARRAY_BUFFER_STORAGE_DETACHED,
+            handle: GC_PRIMITIVE_STORAGE_NULL_HANDLE,
+            external: JSExternalPrimitiveStorage {
+                owner: core::ptr::null_mut(),
+                handle: GC_PRIMITIVE_STORAGE_NULL_HANDLE,
+                fixed_byte_length: 0,
+                has_fixed_byte_length: false,
+            },
+            shared_memory_object_id: 0,
+        };
+        match block.byte_buffer {
+            DataBlockStorage::Empty => {}
+            DataBlockStorage::Owned(owned) => {
+                storage.kind = JS_ARRAY_BUFFER_STORAGE_OWNED;
+                storage.handle = owned.into_handle();
+            }
+            DataBlockStorage::External(external) => {
+                storage.kind = JS_ARRAY_BUFFER_STORAGE_EXTERNAL;
+                storage.handle = external.handle();
+                storage.external = JSExternalPrimitiveStorage {
+                    owner: external.owner().as_ptr(),
+                    handle: external.handle(),
+                    fixed_byte_length: external.fixed_byte_length().unwrap_or(0),
+                    has_fixed_byte_length: external.fixed_byte_length().is_some(),
+                };
+            }
+            DataBlockStorage::Shared(_) => unreachable!("a SharedArrayBuffer is never detached"),
+        }
+        storage
+    });
+    // SAFETY: The caller passes a valid out parameter.
+    unsafe { completion_writing_result_to(taken_storage, out) }
+}
+
+/// ArrayBuffer::create(Realm&, DataBlock) over storage that the embedder owns and gives up: a fixed-length buffer of
+/// the bytes `handle` names, or of none for GC_PRIMITIVE_STORAGE_NULL_HANDLE, and a SharedArrayBuffer if `shared`.
+/// The buffer frees the storage when it no longer needs it. Main thread only.
+///
+/// # Safety
+///
+/// `vm` and `realm` must be live, and `handle` the null handle or one that names live storage that nothing else
+/// resizes or frees from now on.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn js_array_buffer_create_adopting_storage(
+    vm: *mut JSVM,
+    realm: *mut JSRealm,
+    handle: u64,
+    shared: bool,
+) -> *mut JSObject {
+    // SAFETY: The caller passes a live VM and realm.
+    let (vm, realm) = unsafe { (vm_from_abi(vm), cell_from_abi(realm)) };
+    // SAFETY: The caller gives up the storage.
+    let owned = unsafe { OwnedBackingStore::adopt_handle(handle) };
+    let block = DataBlock::new(owned, shared_from_abi(shared));
+    object_into_abi(ArrayBuffer::create_from_data_block(vm, realm, block))
+}
+
+/// CloneArrayBuffer(srcBuffer, srcByteOffset, srcLength, %ArrayBuffer%), whose new buffer of the current realm is the
+/// payload of the normal completion. Main thread only.
+///
+/// # Safety
+///
+/// `vm` must be live with a realm on its execution context stack, and `buffer` a live ArrayBuffer that is not detached
+/// and has `length` bytes from `byte_offset` on.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn js_array_buffer_clone(
+    vm: *mut JSVM,
+    buffer: *mut JSObject,
+    byte_offset: usize,
+    length: usize,
+) -> JSCompletion {
+    // SAFETY: The caller passes a live VM and buffer.
+    let (vm, buffer) = unsafe { (vm_from_abi(vm), array_buffer_from_abi(buffer)) };
+    completion_into_abi(clone_array_buffer(vm, buffer, byte_offset, length))
 }
 
 /// [[ArrayBufferDetachKey]], which is undefined unless the embedder set one. Main thread only.
