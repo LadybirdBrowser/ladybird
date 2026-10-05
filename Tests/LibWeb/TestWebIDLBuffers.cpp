@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibJS/Runtime/DataView.h>
 #include <LibJS/Runtime/Realm.h>
@@ -56,7 +57,8 @@ GC::Ref<JS::ArrayBuffer> create_resizable_array_buffer(JS::VM& vm)
 
 void shrink_resizable_array_buffer(JS::ArrayBuffer& array_buffer)
 {
-    MUST(array_buffer.try_resize(4));
+    auto& vm = array_buffer.vm();
+    MUST(JS::call(vm, MUST(array_buffer.get(vm.names.resize)), JS::Value { &array_buffer }, JS::Value(4)));
 }
 
 GC::Ref<JS::Uint8Array> create_out_of_bounds_uint8_array(JS::VM& vm)

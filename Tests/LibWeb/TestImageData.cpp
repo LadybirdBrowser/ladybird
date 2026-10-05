@@ -5,6 +5,7 @@
  */
 
 #include <AK/FlyString.h>
+#include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibJS/Runtime/TypedArray.h>
@@ -41,7 +42,7 @@ GC::Ref<JS::Uint8ClampedArray> create_out_of_bounds_uint8_clamped_array(JS::Real
     array_buffer->set_max_byte_length(16);
 
     auto typed_array = JS::TypedArrayBase::create_from_slots(realm, JS::TypedArrayBase::Kind::Uint8ClampedArray, array_buffer, JS::ByteLength { 4 }, JS::ByteLength { 4 }, 8);
-    MUST(array_buffer->try_resize(4));
+    MUST(JS::call(realm.vm(), MUST(array_buffer->get(realm.vm().names.resize)), JS::Value { array_buffer.ptr() }, JS::Value(4)));
 
     return as<JS::Uint8ClampedArray>(*typed_array);
 }

@@ -228,9 +228,13 @@ TEST_CASE(value_tag_map_and_set_round_trip)
         append_little_endian_double(value, 2.0);
         auto& map = as<JS::Map>(MUST(storage_deserialize(storage_record_with_value(value))).as_object());
         EXPECT_EQ(map.map_size(), 1u);
-        auto entry = map.map_get(JS::Value(1.0));
-        EXPECT(entry.has_value());
-        EXPECT_EQ(entry.value().as_double(), 2.0);
+        Vector<double> entries;
+        MUST(map.for_each_entry([&](JS::Value key, JS::Value entry_value) -> JS::ThrowCompletionOr<void> {
+            entries.append(key.as_double());
+            entries.append(entry_value.as_double());
+            return {};
+        }));
+        EXPECT_EQ(entries, (Vector<double> { 1.0, 2.0 }));
     }
     {
         Vector<u8> value { to_underlying(ValueTag::SetObject) };
@@ -241,9 +245,12 @@ TEST_CASE(value_tag_map_and_set_round_trip)
         append_little_endian_double(value, 8.0);
         auto& set = as<JS::Set>(MUST(storage_deserialize(storage_record_with_value(value))).as_object());
         EXPECT_EQ(set.set_size(), 2u);
-        EXPECT(set.set_has(JS::Value(7.0)));
-        EXPECT(set.set_has(JS::Value(8.0)));
-        EXPECT(!set.set_has(JS::Value(9.0)));
+        Vector<double> values;
+        MUST(set.for_each_value([&](JS::Value element) -> JS::ThrowCompletionOr<void> {
+            values.append(element.as_double());
+            return {};
+        }));
+        EXPECT_EQ(values, (Vector<double> { 7.0, 8.0 }));
     }
 }
 

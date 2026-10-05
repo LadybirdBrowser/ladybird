@@ -85,7 +85,6 @@ ALLOWED_HEADERS = {
     "LibJS/Runtime/SetIterator.h",
     "LibJS/Runtime/SharedArrayBufferConstructor.h",
     "LibJS/Runtime/StringObject.h",
-    "LibJS/Runtime/Symbol.h",
     "LibJS/Runtime/TypedArray.h",
     "LibJS/Runtime/Value.h",
     "LibJS/Runtime/ValueInlines.h",
