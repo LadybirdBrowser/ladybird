@@ -125,6 +125,7 @@
     M(NotIterable, "{} is not iterable")                                                                                            \
     M(NotObjectCoercible, "{} cannot be converted to an object")                                                                    \
     M(NotUndefined, "{} is not undefined")                                                                                          \
+    M(NumberIsLargerThanMaxSafeNumber, "{} must be less than 2^53")                                                                 \
     M(NumberIsNaN, "{} must not be NaN")                                                                                            \
     M(NumberIsNaNOrInfinity, "Number must not be NaN or Infinity")                                                                  \
     M(NumberIsNegative, "{} must not be negative")                                                                                  \

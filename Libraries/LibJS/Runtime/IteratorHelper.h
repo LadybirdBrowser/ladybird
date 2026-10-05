@@ -26,7 +26,7 @@ public:
 
     ReadonlySpan<GC::Ref<IteratorRecord>> underlying_iterators() const { return m_underlying_iterators; }
 
-    size_t counter() const { return m_counter; }
+    double counter() const { return m_counter; }
     void increment_counter() { ++m_counter; }
 
 private:
@@ -40,7 +40,7 @@ private:
     GC::Ref<Closure> m_closure;
     GC::Ptr<AbruptClosure> m_abrupt_closure;
 
-    size_t m_counter { 0 };
+    double m_counter { 0 };
     bool m_done { false };
 };
 
