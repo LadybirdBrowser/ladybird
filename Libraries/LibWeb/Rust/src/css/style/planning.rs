@@ -1481,7 +1481,7 @@ impl ExactTreeEvaluation {
             MatchEvaluator::new(tree, facts)
                 .with_match_workspace(match_workspace, MatchEvaluationSide::Current)
                 .indexing_stepped_positions_only()
-                .matches_entry_without_program_caches(compiled, entry, node, counters)
+                .matches_entry(compiled, entry, node, counters)
         };
         let evaluate_old = |match_workspace: &mut MatchScratch, view: &TransactionFactView, counters: &Counters| {
             match view.is_present(tree, TransactionFactSide::Before, node) {
@@ -1489,7 +1489,7 @@ impl ExactTreeEvaluation {
                 true => MatchEvaluator::new(tree, facts)
                     .with_transaction_fact_view(view, TransactionFactSide::Before)
                     .with_match_workspace(match_workspace, MatchEvaluationSide::OldTree)
-                    .matches_entry_without_program_caches(compiled, entry, node, counters),
+                    .matches_entry(compiled, entry, node, counters),
             }
         };
         match self {

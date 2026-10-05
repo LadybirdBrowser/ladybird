@@ -5755,33 +5755,6 @@ impl<'a> MatchEvaluator<'a> {
         result
     }
 
-    /// Evaluate one entry without admitting its primitive and transitive relation answers to the
-    /// shared program caches. Narrow exact comparisons consume the answer once, so they keep the
-    /// workspace's positional geometry but avoid canonicalization and sparse-column traffic.
-    #[inline]
-    pub(super) fn matches_entry_without_program_caches(
-        &mut self,
-        program: &SelectorProgram,
-        entry: &SelectorEntry,
-        node: StyleNodeID,
-        counters: &Counters,
-    ) -> Result<bool, Incomplete> {
-        self.matches_node(program, entry.root, node, counters)
-    }
-
-    /// Whether `node` matches one selector IR node. Routing's retained-witness check uses this to
-    /// re-evaluate a simple query's compound on the one retained witness.
-    #[inline]
-    pub(super) fn matches_selector_node(
-        &mut self,
-        program: &SelectorProgram,
-        id: SelectorNodeID,
-        node: StyleNodeID,
-        counters: &Counters,
-    ) -> Result<bool, Incomplete> {
-        self.matches_node(program, id, node, counters)
-    }
-
     /// Match the local half of one top-down selector-prefix step.
     pub(super) fn matches_prefix_local(
         &mut self,

@@ -1335,24 +1335,6 @@ impl RetainedState {
         all
     }
 
-    pub(super) fn matches_for_cascade_with_scratch(
-        &mut self,
-        effects: &mut AnswerEffects,
-        mut all: Vec<RuleMatch>,
-        can_have_scope_duplicates: bool,
-        publish_winners_for: Option<StyleNodeID>,
-        workspace: &mut CascadeCompactionWorkspace,
-    ) -> Vec<RuleMatch> {
-        self.compact_matches_for_cascade_with_scratch(
-            effects,
-            &mut all,
-            can_have_scope_duplicates,
-            publish_winners_for,
-            workspace,
-        );
-        all
-    }
-
     /// Re-reduce only the requested element properties from an exact retained match answer.
     ///
     /// This is the typed upquery for winner deletion repair. It consumes no selector facts and
