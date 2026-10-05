@@ -101,7 +101,7 @@ ThrowCompletionOr<Value> await(VM& vm, Value value)
     //        by synchronously running all queued promise jobs.
     if (auto* agent = vm.agent()) {
         // Embedder case (i.e. LibWeb). Runs all promise jobs by performing a microtask checkpoint.
-        agent->spin_event_loop_until(GC::create_function(vm.heap(), [success] {
+        agent->spin_event_loop_until(GC::create_function(vm.heap(), [&success] {
             return success.has_value();
         }));
     } else {
