@@ -20,7 +20,6 @@ mod clock;
 mod devtools;
 mod document_host;
 mod owner;
-mod questions;
 mod wait;
 
 pub(crate) use clock::ClockPlan;
@@ -28,9 +27,6 @@ pub use document_host::DocumentHost;
 pub(crate) use document_host::OwedWorkPayment;
 #[cfg(test)]
 pub(crate) use document_host::TestHost;
-pub(crate) use questions::{
-    ArenaAnswer, ArenaQuery, ArenaRead, CommittedRows, EngineCall, Lent, PreparationPending, ask,
-};
 pub use wait::BegunRead;
 pub(crate) use wait::held_node_entries;
 pub(crate) use wait::{
@@ -103,7 +99,7 @@ impl RenderState {
 
     /// How far the arena's rows have been written, which the host keeps to know whether the rows it holds still read
     /// as the arena.
-    fn rows_version(&self) -> crate::layout::RowsVersion {
+    pub(crate) fn rows_version(&self) -> crate::layout::RowsVersion {
         self.arena.arena().rows_version()
     }
 
@@ -143,12 +139,6 @@ impl RenderState {
         }
     }
 
-    /// Answers `question`, as of what the state holds now.
-    fn answer<Q: questions::Question>(&mut self, question: Q) -> Q::Answer {
-        // SAFETY: As for a change.
-        unsafe { question.answer(self.arena.arena_mut(), self.engine) }
-    }
-
     /// The style engine, to read.
     fn engine_ref(&self) -> &crate::css::style::StyleEngine {
         // SAFETY: The engine lives as long as the state, and is borrowed mutably only through a mutable borrow of it.
@@ -159,6 +149,14 @@ impl RenderState {
     pub(crate) fn engine_mut(&mut self) -> &mut crate::css::style::StyleEngine {
         // SAFETY: As for a change.
         unsafe { self.engine.get_mut() }
+    }
+
+    /// The style engine, and the layout arena beside it.
+    pub(crate) fn engine_and_arena(
+        &mut self,
+    ) -> (&mut crate::css::style::StyleEngine, &crate::layout::LayoutNodeArena) {
+        // SAFETY: As for a change. The arena only links the engine.
+        (unsafe { self.engine.get_mut() }, self.arena.arena())
     }
 
     /// The layout arena.
@@ -720,6 +718,75 @@ mod tests {
         assert!(host.rows().is_none());
         // SAFETY: The host is destroyed once, and nothing reaches it after.
         unsafe { document_host::document_host_destroy(pointer) };
+    }
+
+    #[test]
+    fn a_write_is_answered_with_what_it_owes_the_host() {
+        use crate::layout::layout_changes::{LayoutWrite, write};
+        let test_host = TestHost::new();
+        // SAFETY: The host lives as long as the test host.
+        let host = unsafe { &*test_host.host() };
+        // SAFETY: The arena lives as long as the host's render state, and the test reaches it only between jobs.
+        let arena = unsafe { &mut *host.arena_for_test() };
+        let parent = arena.allocate_for_test().slot;
+        let child = arena.allocate_for_test().slot;
+        arena.insert_child(parent, child, crate::layout::node_data::NodeSlotId::INVALID);
+        let written = write(
+            ScriptForcedRead::for_test(),
+            host,
+            LayoutWrite::DropSubtree { root: parent },
+        );
+        assert!(!written.was_attached);
+        written.host_work.pay(&crate::stage::MainThread::for_test());
+        // SAFETY: As above.
+        assert_eq!(unsafe { &*host.arena_for_test() }.live_slot_count(), 0);
+    }
+
+    #[test]
+    fn a_read_that_first_measures_a_scrollability_flip_leaves_the_paint_preparation_stale() {
+        use crate::layout::node_data::NodeKind;
+        use document_host::{
+            document_host_note_paint_preparation_is_current, document_host_paint_preparation_is_current,
+        };
+        let test_host = TestHost::new();
+        let pointer = test_host.host();
+        // SAFETY: The host lives as long as the test host.
+        let host = unsafe { &*pointer };
+        // SAFETY: The arena lives as long as the host's render state, and the test reaches it only between jobs.
+        let arena = unsafe { &mut *host.arena_for_test() };
+        let viewport = arena.allocate_for_test().slot;
+        arena.write_shape(viewport).set_kind(NodeKind::Viewport);
+        arena.populate_paintable_row(viewport);
+        arena.scrollable_overflow.viewport.set(Some(viewport));
+        // The viewport had scrollable overflow before it was laid out again, and a read measures it first since.
+        arena
+            .committed_side_data_mut(viewport)
+            .overflow_relative_to_padding_box
+            .has_scrollable_overflow = true;
+        arena.note_row_overflow_unmeasured(viewport);
+        let measure = || {
+            host.ask(ScriptForcedRead::for_test(), |state| {
+                state.arena_mut().measure_scrollable_overflow();
+            });
+        };
+
+        // SAFETY: The host is live, on this thread.
+        unsafe { document_host_note_paint_preparation_is_current(pointer) };
+        measure();
+        // SAFETY: As above.
+        assert!(!unsafe { document_host_paint_preparation_is_current(pointer) });
+        assert!(arena.scrollable_overflow.scrollability_changed.get());
+
+        // A read that measures nothing leaves the preparation as it is.
+        // SAFETY: As above.
+        unsafe { document_host_note_paint_preparation_is_current(pointer) };
+        measure();
+        // SAFETY: As above.
+        assert!(unsafe { document_host_paint_preparation_is_current(pointer) });
+
+        arena
+            .free_subtree(viewport)
+            .destroy_shells_and_invoke_callbacks(&crate::stage::MainThread::for_test());
     }
 
     #[test]

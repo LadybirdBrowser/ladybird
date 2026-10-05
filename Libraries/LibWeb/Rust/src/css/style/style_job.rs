@@ -13,7 +13,7 @@ use super::bridge::{
     FfiCustomFunctionEntry, FfiDocumentStyleComputationInputs, FfiHostHandle, FfiStyleSheetResourceContextEntry,
     FfiStyleTransactionOutput, FfiStyleTransactionView, take_style_transaction,
 };
-use super::engine_calls::{StyleAnswer, StyleQuery, ask_engine};
+use super::engine_calls::with_engine;
 use super::identities::StyleNodeIdAllocator;
 use super::tree::StyleNodeID;
 use crate::css::custom_properties::{CustomPropertyRegistry, retain_custom_property_registry};
@@ -497,9 +497,7 @@ pub unsafe extern "C" fn style_engine_end_style_transaction(
     // SAFETY: Guaranteed by the caller.
     unsafe { &*host }.end_style_transaction();
     // SAFETY: As above.
-    let StyleAnswer::Nodes(released) = (unsafe { ask_engine(host, read, StyleQuery::EndTransaction) }) else {
-        unreachable!("the end of a transaction is answered with the identities it released");
-    };
+    let released = with_engine(read, unsafe { &*host }, |engine| engine.discard_style_transaction_outputs());
     // SAFETY: As above.
     let memo = unsafe { &*host }.engine_memo();
     memo.held.borrow_mut().forget(&released);

@@ -5672,18 +5672,14 @@ pub unsafe extern "C" fn render_state_layout_is_up_to_date(
         host.note_layout_up_to_date(up_to_date);
         return up_to_date;
     }
-    let up_to_date = crate::render_state::ask(
-        here,
-        host,
-        crate::render_state::ArenaRead::new(document, |arena, document| {
-            let document_needs_layout_tree_build = document.is_some_and(|document| {
-                let marks = arena.layout_tree_update_marks().borrow();
-                marks.needs(document) || marks.child_needs(document)
-            });
-            arena.layout_is_up_to_date(document_needs_layout_tree_build)
-        }),
-    )
-    .0;
+    let up_to_date = host.ask(here, |state| {
+        let arena = state.arena_mut();
+        let document_needs_layout_tree_build = document.is_some_and(|document| {
+            let marks = arena.layout_tree_update_marks().borrow();
+            marks.needs(document) || marks.child_needs(document)
+        });
+        arena.layout_is_up_to_date(document_needs_layout_tree_build)
+    });
     host.note_layout_up_to_date(up_to_date);
     up_to_date
 }

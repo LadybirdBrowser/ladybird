@@ -21,7 +21,7 @@ use crate::painting::ffi::{
     FfiBoxModelMetrics, FfiCaretRectResult, FfiEmptyLineCaretRect, FfiOptionalCssPixelRect, FfiRectToViewportTransform,
 };
 use crate::painting::paint_read::{GeometryRead, PaintRead, PaintSource};
-use crate::render_state::{ArenaAnswer, ArenaQuery, DocumentHost, Lent, ScriptForcedRead, ask};
+use crate::render_state::{DocumentHost, ScriptForcedRead};
 use std::ffi::c_void;
 
 /// Mints the forced read of a script call that reaches the host through one of this module's entries.
@@ -447,19 +447,14 @@ pub unsafe extern "C" fn layout_script_paintable_content_size(
     })
 }
 
-/// Asks the render state of `host`'s document the arena question `query`, spending the script call's forced read.
-fn ask_arena(host: *mut DocumentHost, query: ArenaQuery) -> ArenaAnswer {
+/// Answers `read` of the layout arena of `host`'s document, spending the script call's forced read.
+fn read_arena<R>(host: *mut DocumentHost, read: impl FnOnce(&mut crate::layout::LayoutNodeArena) -> R) -> R {
     assert!(!host.is_null(), "document host is null");
     // SAFETY: Every entry here is called with a live document host, on its document's thread.
     let host = unsafe { &*host };
-    ask(ScriptForcedRead::at_script_entry(&SCRIPT_ENTRY), host, query)
-}
-
-fn text_of(answer: ArenaAnswer) -> Vec<u16> {
-    let ArenaAnswer::Text(text) = answer else {
-        unreachable!("a text question is answered with text");
-    };
-    text
+    host.ask(ScriptForcedRead::at_script_entry(&SCRIPT_ENTRY), |state| {
+        read(state.arena_mut())
+    })
 }
 
 /// The text the rows of the text node whose primary row is `primary` render, with whitespace collapsed where their
@@ -489,13 +484,9 @@ pub unsafe extern "C" fn layout_script_rendered_text(
     );
     let text = match from_rows {
         Some(text) => text,
-        None => text_of(ask_arena(
-            host,
-            ArenaQuery::RenderedText {
-                primary,
-                collapse_whitespace,
-            },
-        )),
+        None => read_arena(host, |arena| {
+            crate::layout::text_queries::rendered_text(arena, primary, collapse_whitespace)
+        }),
     };
     let view = FfiRenderedTextView {
         text: text.as_ptr(),
@@ -518,13 +509,10 @@ pub unsafe extern "C" fn layout_script_generated_content_accessible_text(
     generated_for: u8,
 ) -> usize {
     let text = match StyleNodeID::from_raw(style_node) {
-        Some(element) => text_of(ask_arena(
-            host,
-            ArenaQuery::GeneratedContentAccessibleText(crate::layout::counters::CounterOwner {
-                element,
-                generated_for,
-            }),
-        )),
+        Some(element) => read_arena(host, |arena| {
+            let owner = crate::layout::counters::CounterOwner { element, generated_for };
+            arena.generated_content().borrow().accessible_text(owner).to_vec()
+        }),
         None => Vec::new(),
     };
     ak::Utf16String::from_utf16(&text).into_raw()
@@ -552,26 +540,18 @@ pub unsafe extern "C" fn layout_script_find_matching_text(
     if query.is_empty() {
         return;
     }
-    let ArenaAnswer::TextNodes(candidates) = ask_arena(host, ArenaQuery::SearchCandidates { viewport }) else {
-        unreachable!("search candidates are answered with text nodes");
-    };
+    let candidates = read_arena(host, |arena| {
+        crate::layout::text_queries::search_candidates(arena, viewport)
+    });
     let mut excluded: Vec<StyleNodeID> = candidates
         .into_iter()
         // SAFETY: The callback only reads whether the DOM text node is searchable.
         .filter(|text| !unsafe { is_searchable(context, text.raw()) })
         .collect();
     excluded.sort_unstable();
-    let ArenaAnswer::TextRanges(matches) = ask_arena(
-        host,
-        ArenaQuery::FindText {
-            viewport,
-            query: Lent::new(&*query),
-            case_sensitive,
-            excluded: Lent::new(excluded.as_slice()),
-        },
-    ) else {
-        unreachable!("a search is answered with text ranges");
-    };
+    let matches = read_arena(host, |arena| {
+        crate::layout::text_queries::find_matching_text(arena, viewport, &query, case_sensitive, &excluded)
+    });
     for range in matches {
         // SAFETY: The host resolves each identity's DOM node itself, synchronously.
         unsafe { append(context, range) };

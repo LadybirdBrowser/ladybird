@@ -16,7 +16,7 @@ use crate::css::css_pixels::CssPixelPoint;
 use crate::css::style::NaturalSize;
 use crate::css::style::tree::StyleNodeID;
 use crate::painting::host::FfiNaturalSize;
-use crate::render_state::{ArenaChange, DocumentHost, RenderWait, ask};
+use crate::render_state::{ArenaChange, DocumentHost, RenderWait};
 use smallvec::SmallVec;
 
 /// One write of the host to a document's layout marks or layout facts, which the render state applies to the arena
@@ -478,7 +478,7 @@ impl LayoutWrite<'_> {
 /// Has the render state of `host`'s document make `write`, spending `wait`, and answers what the write owes the host,
 /// which the host pays before it goes on.
 pub(crate) fn write(wait: impl RenderWait, host: &DocumentHost, write: LayoutWrite<'_>) -> LayoutWritten {
-    ask(wait, host, write)
+    host.run(wait, true, |state| write.apply(state.arena_mut()))
 }
 
 /// Queues `change` for the render state of `host`'s document.

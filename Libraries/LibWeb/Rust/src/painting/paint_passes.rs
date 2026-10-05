@@ -22,7 +22,7 @@ use crate::painting::visual_context::incremental::{
     IncrementalUpdateResult, debug_assert_every_live_node_is_owned, update_visual_context_tree,
 };
 use crate::painting::visual_context::{VisualContextState, VisualContextTree};
-use crate::render_state::{BegunRead, DocumentHost, PreparationPending, ask};
+use crate::render_state::{BegunRead, DocumentHost};
 use libgfx_rust::FloatPoint;
 use std::sync::Arc;
 
@@ -259,7 +259,7 @@ pub(crate) fn pending_preparation(read: &BegunRead, host: &DocumentHost) -> Opti
     {
         return None;
     }
-    ask(read, host, PreparationPending)
+    host.ask(read, |state| rendering_preparation_pending(state.arena_mut()))
 }
 
 pub(crate) fn prepare_for_rendering(
