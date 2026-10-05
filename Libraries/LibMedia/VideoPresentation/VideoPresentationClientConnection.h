@@ -47,7 +47,7 @@ private:
     virtual void announce_video_frame_slot(u64 edge_id, Media::VideoFramePoolID pool_id, u32 slot_index, Core::AnonymousBuffer slot_buffer, RefPtr<Media::VideoSurface> surface) override;
     virtual void retire_video_frame_pool(u64 edge_id, Media::VideoFramePoolID pool_id) override;
     virtual void notify_data_available(u64 edge_id) override;
-    virtual void seek_sink(u64 edge_id, u32 requested_seek_id) override;
+    virtual void seek_sink(u64 edge_id, u32 requested_seek_id, InvalidateHeldData) override;
 
     struct EdgeState {
         VideoSinkHandle handle;

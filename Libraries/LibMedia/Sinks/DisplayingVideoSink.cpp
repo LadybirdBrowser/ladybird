@@ -70,12 +70,14 @@ void DisplayingVideoSink::disconnect_input(NonnullRefPtr<VideoProducer> const& i
     m_input = nullptr;
 }
 
-void DisplayingVideoSink::seek(AK::Duration timestamp)
+void DisplayingVideoSink::seek(AK::Duration timestamp, InvalidateHeldData invalidate_held_data)
 {
     m_seek_id++;
     m_last_dispatched_status = PipelineStatus::Pending;
 
     auto can_resolve_seek_within_cached_frames = [&] {
+        if (invalidate_held_data == InvalidateHeldData::Yes)
+            return false;
         if (m_seek_status != SeekStatus::None)
             return false;
         if (m_cached_frames_are_discontinuous)
@@ -106,7 +108,7 @@ void DisplayingVideoSink::seek(AK::Duration timestamp)
     }
 
     if (m_input != nullptr)
-        m_input->seek(timestamp);
+        m_input->seek(timestamp, invalidate_held_data);
     if (m_seek_status == SeekStatus::None)
         m_seek_status = SeekStatus::InProgress;
     m_next_frame = nullptr;

@@ -42,7 +42,7 @@ public:
     virtual ErrorOr<void> connect_input(NonnullRefPtr<VideoProducer> const&) override;
     virtual void disconnect_input(NonnullRefPtr<VideoProducer> const&) override;
 
-    virtual void seek(AK::Duration timestamp) override;
+    virtual void seek(AK::Duration timestamp, InvalidateHeldData = InvalidateHeldData::No) override;
 
     DisplayingVideoSinkUpdateResult update(MonotonicTime now);
     virtual RefPtr<VideoFrame> current_frame() const override;

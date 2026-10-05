@@ -152,7 +152,7 @@ void wire_full_node(VideoEdgeTestHarness& harness, NonnullRefPtr<VideoProducer> 
         if (auto harness = weak.strong_ref())
             harness->wake();
     };
-    sink_delegates.transmit_seek = [] { };
+    sink_delegates.transmit_seek = [](InvalidateHeldData) { };
     sink_delegates.transmit_time_reader = [](MediaTimeReader const&) { };
     sink_delegates.announce_slot = [weak = harness.make_weak_ref()](VideoFramePoolID pool_id, u32 slot_index, Core::AnonymousBuffer slot_buffer, RefPtr<VideoSurface> surface) {
         auto harness = weak.strong_ref();
@@ -171,7 +171,7 @@ void wire_full_node(VideoEdgeTestHarness& harness, NonnullRefPtr<VideoProducer> 
     auto consumer_edge = MUST(VideoEdgeQueue::create(ring_fd, harness.sink->edge().header_buffer()));
     RemoteVideoProducer::Delegates consumer_delegates;
     consumer_delegates.request_start = [&harness] { harness.sink->start_input(); };
-    consumer_delegates.request_seek = [&harness](AK::Duration timestamp) { harness.sink->seek_upstream(timestamp); };
+    consumer_delegates.request_seek = [&harness](AK::Duration timestamp, InvalidateHeldData invalidate_held_data) { harness.sink->seek_upstream(timestamp, invalidate_held_data); };
     consumer_delegates.release_slot = [&harness](VideoFramePoolID pool_id, u32 slot_index) { harness.sink->release_slot(pool_id, slot_index); };
     consumer_delegates.notify_space_available = [&harness] { harness.sink->notify_space_available(); };
     harness.consumer = RemoteVideoProducer::create(move(consumer_edge), harness.slot_directory, move(consumer_delegates));
@@ -191,7 +191,7 @@ NonnullRefPtr<RemoteVideoProducer> make_lookahead_consumer(VideoEdgeQueue& produ
     auto consumer_edge = MUST(VideoEdgeQueue::create(ring_fd, producer_edge.header_buffer()));
     RemoteVideoProducer::Delegates delegates;
     delegates.request_start = [] { };
-    delegates.request_seek = [&upstream_seeks](AK::Duration) { upstream_seeks++; };
+    delegates.request_seek = [&upstream_seeks](AK::Duration, InvalidateHeldData) { upstream_seeks++; };
     delegates.release_slot = [](VideoFramePoolID, u32) { };
     delegates.notify_space_available = [] { };
     auto consumer = RemoteVideoProducer::create(move(consumer_edge), VideoFrameSlotDirectory::create(), move(delegates));
@@ -427,7 +427,7 @@ TEST_CASE(consumer_releases_ring_contents_on_suspension)
     size_t space_notifications = 0;
     RemoteVideoProducer::Delegates delegates;
     delegates.request_start = [] { };
-    delegates.request_seek = [](AK::Duration) { };
+    delegates.request_seek = [](AK::Duration, InvalidateHeldData) { };
     delegates.release_slot = [&released_slots](VideoFramePoolID, u32) { released_slots++; };
     delegates.notify_space_available = [&space_notifications] { space_notifications++; };
     auto consumer = RemoteVideoProducer::create(move(consumer_edge), VideoFrameSlotDirectory::create(), move(delegates));
@@ -475,7 +475,7 @@ TEST_CASE(pump_holds_off_while_a_seek_request_is_in_flight)
 
     RemoteVideoSink::Delegates delegates;
     delegates.ring_data_available = [] { };
-    delegates.transmit_seek = [] { };
+    delegates.transmit_seek = [](InvalidateHeldData) { };
     delegates.transmit_time_reader = [](MediaTimeReader const&) { };
     delegates.announce_slot = [](VideoFramePoolID, u32, Core::AnonymousBuffer, RefPtr<VideoSurface>) { };
     delegates.retire_pool = [](VideoFramePoolID) { };
@@ -514,7 +514,7 @@ TEST_CASE(pump_resumes_after_a_withdrawn_seek_request)
 
     RemoteVideoSink::Delegates delegates;
     delegates.ring_data_available = [] { };
-    delegates.transmit_seek = [] { };
+    delegates.transmit_seek = [](InvalidateHeldData) { };
     delegates.transmit_time_reader = [](MediaTimeReader const&) { };
     delegates.announce_slot = [](VideoFramePoolID, u32, Core::AnonymousBuffer, RefPtr<VideoSurface>) { };
     delegates.retire_pool = [](VideoFramePoolID) { };
@@ -552,7 +552,7 @@ TEST_CASE(current_frame_ignores_handles_whose_lend_was_released)
 
     RemoteVideoSink::Delegates delegates;
     delegates.ring_data_available = [] { };
-    delegates.transmit_seek = [] { };
+    delegates.transmit_seek = [](InvalidateHeldData) { };
     delegates.transmit_time_reader = [](MediaTimeReader const&) { };
     delegates.announce_slot = [](VideoFramePoolID, u32, Core::AnonymousBuffer, RefPtr<VideoSurface>) { };
     delegates.retire_pool = [](VideoFramePoolID) { };
@@ -609,7 +609,7 @@ TEST_CASE(consumer_forgets_announced_slots_on_suspension)
 
     RemoteVideoProducer::Delegates delegates;
     delegates.request_start = [] { };
-    delegates.request_seek = [](AK::Duration) { };
+    delegates.request_seek = [](AK::Duration, InvalidateHeldData) { };
     delegates.release_slot = [](VideoFramePoolID, u32) { };
     delegates.notify_space_available = [] { };
     auto consumer = RemoteVideoProducer::create(move(consumer_edge), directory, move(delegates));

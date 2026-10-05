@@ -180,7 +180,7 @@ public:
     }
     virtual void consume() override { (void)m_outputs.take_first(); }
     virtual void set_wake_handler(Media::PipelineWakeHandler handler) override { m_wake_handler = move(handler); }
-    virtual void seek(AK::Duration) override { m_seek_count++; }
+    virtual void seek(AK::Duration, Media::InvalidateHeldData = Media::InvalidateHeldData::No) override { m_seek_count++; }
 
     size_t seek_count() const { return m_seek_count; }
 

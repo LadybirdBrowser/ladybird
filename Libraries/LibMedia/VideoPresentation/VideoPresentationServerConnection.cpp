@@ -76,14 +76,14 @@ void VideoPresentationServerConnection::create_registered_video_edge(VideoSinkHa
             connection.async_notify_data_available(edge_id);
         });
     };
-    delegates.transmit_seek = [weak_connection, edge_id] {
+    delegates.transmit_seek = [weak_connection, edge_id](InvalidateHeldData invalidate_held_data) {
         weak_connection.with_target([&](auto& connection) {
             VERIFY(connection.m_owner_thread_id.is_current_thread());
             auto edge_state = connection.m_edge_states.get(edge_id);
             if (!edge_state.has_value())
                 return;
             auto requested_seek_id = ++edge_state->actual_requested_seek_id;
-            connection.async_seek_sink(edge_id, requested_seek_id);
+            connection.async_seek_sink(edge_id, requested_seek_id, invalidate_held_data);
         });
     };
     delegates.transmit_time_reader = [weak_connection, edge_id](MediaTimeReader const& time_reader) {
@@ -135,10 +135,10 @@ void VideoPresentationServerConnection::request_start(u64 edge_id)
         it->value.pump->start_input();
 }
 
-void VideoPresentationServerConnection::request_seek(u64 edge_id, AK::Duration timestamp)
+void VideoPresentationServerConnection::request_seek(u64 edge_id, AK::Duration timestamp, InvalidateHeldData invalidate_held_data)
 {
     if (auto it = m_edge_states.find(edge_id); it != m_edge_states.end())
-        it->value.pump->seek_upstream(timestamp);
+        it->value.pump->seek_upstream(timestamp, invalidate_held_data);
 }
 
 void VideoPresentationServerConnection::release_slot(u64 edge_id, VideoFramePoolID pool_id, u32 slot_index)
