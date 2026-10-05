@@ -1476,23 +1476,7 @@ impl<'pass> SizingContext<'pass> {
     pub(crate) fn resolve_box_model_metrics_against_inline_basis(&self, node: Node, containing_inline_size: CssPixels) {
         let style = self.style(node);
         let used = self.used(node);
-        used.margin_left.set(style.margin_left().to_px(containing_inline_size));
-        used.border_left.set(style.border_left_width());
-        used.padding_left
-            .set(style.padding_left().to_px(containing_inline_size));
-        used.margin_right
-            .set(style.margin_right().to_px(containing_inline_size));
-        used.border_right.set(style.border_right_width());
-        used.padding_right
-            .set(style.padding_right().to_px(containing_inline_size));
-        used.margin_top.set(style.margin_top().to_px(containing_inline_size));
-        used.border_top.set(style.border_top_width());
-        used.padding_top.set(style.padding_top().to_px(containing_inline_size));
-        used.padding_bottom
-            .set(style.padding_bottom().to_px(containing_inline_size));
-        used.border_bottom.set(style.border_bottom_width());
-        used.margin_bottom
-            .set(style.margin_bottom().to_px(containing_inline_size));
+        used.resolve_box_model(&style, containing_inline_size);
     }
 
     pub(crate) fn dimension_empty_atomic_root(

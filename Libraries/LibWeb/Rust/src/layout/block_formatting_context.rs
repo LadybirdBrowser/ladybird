@@ -416,16 +416,7 @@ impl<'pass> BlockFormattingContext<'pass> {
     fn resolve_vertical_box_model_metrics(&self, node: Node, containing_block_inline_size: CssPixels) {
         let style = self.style(node);
         let used = self.used(node);
-        used.margin_top
-            .set(style.margin_top().to_px(containing_block_inline_size));
-        used.margin_bottom
-            .set(style.margin_bottom().to_px(containing_block_inline_size));
-        used.border_top.set(style.border_top_width());
-        used.border_bottom.set(style.border_bottom_width());
-        used.padding_top
-            .set(style.padding_top().to_px(containing_block_inline_size));
-        used.padding_bottom
-            .set(style.padding_bottom().to_px(containing_block_inline_size));
+        used.resolve_vertical_box_model(&style, containing_block_inline_size);
     }
 
     fn box_should_avoid_floats_because_it_establishes_fc(&self, node: Node) -> bool {
@@ -542,13 +533,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             // so they are written first.
             {
                 let used = self.used(node);
-                used.margin_left.set(style.margin_left().to_px(available_inline_size));
-                used.margin_right.set(style.margin_right().to_px(available_inline_size));
-                used.border_left.set(style.border_left_width());
-                used.border_right.set(style.border_right_width());
-                used.padding_left.set(style.padding_left().to_px(available_inline_size));
-                used.padding_right
-                    .set(style.padding_right().to_px(available_inline_size));
+                used.resolve_horizontal_box_model(&style, available_inline_size);
             }
             sizing.compute_inline_size_for_replaced_element(node, available_space, constraints)
         });
