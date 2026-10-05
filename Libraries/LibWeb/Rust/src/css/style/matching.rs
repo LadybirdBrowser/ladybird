@@ -1671,6 +1671,7 @@ impl RetainedState {
     /// element at once and exists to be compared against another matcher; this one is what styling
     /// reads.
     #[must_use]
+    #[cfg(test)]
     pub fn match_element_signature(&mut self, node: StyleNodeID) -> Option<u32> {
         if !self.match_answer_is_comparable_across_elements(node) {
             return None;
@@ -4304,6 +4305,7 @@ impl RetainedState {
         self.pseudo_cascade_states_are_unchanged_in(node, effects.winners.view(&self.winner_groups))
     }
 
+    #[cfg(test)]
     pub fn pseudo_cascade_states_are_unchanged(&self, node: StyleNodeID) -> bool {
         self.pseudo_cascade_states_are_unchanged_in(node, self.current_winner_groups())
     }

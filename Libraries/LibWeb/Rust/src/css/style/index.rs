@@ -750,6 +750,7 @@ impl StyleNodeFacts {
     }
 
     #[must_use]
+    #[cfg(test)]
     pub fn stale_rows(&self) -> u32 {
         if self.primary { 0 } else { self.stale_rows }
     }
@@ -3043,6 +3044,7 @@ impl RuleDispatch {
         self.topology.universal_by_parent.get(&key).map_or(&[], Vec::as_slice)
     }
 
+    #[cfg(test)]
     pub fn bucket(&self, key: DispatchKey) -> impl ExactSizeIterator<Item = DispatchEntry> + '_ {
         self.bucket_ids(key, CandidateEntries::All)
             .iter()
@@ -3261,6 +3263,7 @@ impl RuleDispatch {
     }
 
     #[must_use]
+    #[cfg(test)]
     pub fn capacity_bytes(&self) -> u64 {
         self.scope_capacity_bytes()
             + self.entries.capacity_bytes()
@@ -5105,6 +5108,7 @@ impl ElementFactStore {
     }
 
     #[must_use]
+    #[cfg(test)]
     pub fn has_attribute_value_text(&self, value: StyleAtomID) -> bool {
         self.attribute_catalogs
             .value_texts

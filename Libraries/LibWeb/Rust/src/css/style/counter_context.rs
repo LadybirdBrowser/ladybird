@@ -137,6 +137,7 @@ impl StyleEngine {
     /// sheet is attached to, so what moves is that scope's layer order - one input per scope the sheet
     /// decides in.
     #[inline]
+    #[cfg(test)]
     pub fn record_layer_statement(&mut self, sheet: SheetID) {
         self.state.record_layer_statement(sheet, &mut self.counters);
     }
@@ -223,6 +224,7 @@ impl StyleEngine {
     /// Stage a structural change. The normalized transaction installs the final relation rows at
     /// the next observation boundary.
     #[inline]
+    #[cfg(test)]
     pub fn record_tree_delta(&mut self, node: StyleNodeID, old: Option<TreeRelations>, new: Option<TreeRelations>) {
         self.state.record_tree_delta(node, old, new, &mut self.counters);
     }
@@ -243,6 +245,7 @@ impl StyleEngine {
     }
 
     #[inline]
+    #[cfg(test)]
     pub fn record_input(&mut self, key: InputKey, old: InputValue, new: InputValue) {
         self.state.record_input(key, old, new, &mut self.counters);
     }
@@ -446,6 +449,7 @@ impl StyleEngine {
     /// Normalize and apply the staged inputs into one transaction. A required style observation
     /// drains here first, so normalization never combines changes across an observation boundary.
     #[inline]
+    #[cfg(test)]
     pub fn take_transaction(&mut self) -> StyleTransaction {
         self.state.take_transaction(&mut self.counters)
     }

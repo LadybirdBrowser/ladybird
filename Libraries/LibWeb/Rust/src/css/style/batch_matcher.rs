@@ -115,12 +115,14 @@ impl RuleMatches {
     }
 
     #[must_use]
+    #[cfg(test)]
     pub fn is_empty(&self) -> bool {
         self.matches.is_empty()
     }
 
     /// Matches for one style node, which is contiguous because the vector is sorted by node.
     #[must_use]
+    #[cfg(test)]
     pub fn matches_for(&self, node: StyleNodeID) -> &[RuleMatch] {
         let start = self.matches.partition_point(|entry| entry.node < node);
         let end = self.matches[start..].partition_point(|entry| entry.node == node) + start;
@@ -202,6 +204,7 @@ impl RuleMatches {
 /// name, not at every element in the scope - so bucketing it here would be routing it to the wrong
 /// place.
 #[must_use]
+#[cfg(test)]
 pub fn build_scope_dispatch(
     program: &StyleSheetProgram,
     programs: &SelectorPrograms,
@@ -319,6 +322,7 @@ enum SheetsToTake {
     NonAuthorOnly,
 }
 
+#[cfg(test)]
 fn insert_scope_sheets(
     dispatch: &mut RuleDispatch,
     program: &StyleSheetProgram,

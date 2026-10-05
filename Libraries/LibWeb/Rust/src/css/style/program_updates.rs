@@ -1313,6 +1313,7 @@ impl StyleEngineState {
 
 impl StyleEngineState {
     /// Record already decoded cascade operators beside canonical specified values.
+    #[cfg(test)]
     pub fn set_rule_declared_properties_with_operators(&mut self, rule: RuleID, declared: &[DeclaredProperty]) {
         self.set_rule_declared_properties_with_written_values(rule, declared, Vec::new(), Vec::new(), Vec::new());
     }

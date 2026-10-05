@@ -875,6 +875,7 @@ impl StyleNodeTree {
 
     /// Retire an element identity. The slot stays reserved until [`Self::release_retired_identities`]
     /// runs at epoch retirement, so no reader can observe a reused identity.
+    #[cfg(test)]
     pub fn retire_element(&mut self, node: StyleNodeID, memory: &mut MemoryController) {
         self.retire_elements(&[node], memory);
     }
@@ -1964,6 +1965,7 @@ impl StyleNodeTree {
 
     /// Exact capacity of every column, charged to Tier 1.
     #[must_use]
+    #[cfg(test)]
     pub fn capacity_bytes(&self) -> u64 {
         self.capacity_bytes
     }

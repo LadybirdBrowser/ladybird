@@ -28,6 +28,7 @@ macro_rules! define_counters {
 
         impl Counter {
             #[must_use]
+            #[cfg(test)]
             pub fn name(self) -> &'static str {
                 COUNTER_NAMES[self as usize]
             }

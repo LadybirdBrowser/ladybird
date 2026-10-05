@@ -387,6 +387,7 @@ impl RetainedState {
     }
 
     #[must_use]
+    #[cfg(test)]
     pub fn memory(&self) -> &MemoryController {
         &self.memory
     }
@@ -598,6 +599,7 @@ impl RetainedState {
     ///
     /// An element's namespace is fixed when it is created, so this is a fact the store holds rather
     /// than an input that moves: nothing routes from it, and no journal entry is needed.
+    #[cfg(test)]
     pub fn set_element_namespace(&mut self, node: StyleNodeID, namespace: StyleAtomID) {
         self.facts.set_namespace(node, namespace);
     }
@@ -975,6 +977,7 @@ impl RetainedState {
     }
 
     #[must_use]
+    #[cfg(test)]
     pub fn has_attribute_value_text(&self, value: StyleAtomID) -> bool {
         self.facts.has_attribute_value_text(value)
     }
@@ -2613,6 +2616,7 @@ impl StyleEngineState {
     /// of the layers every rule referencing them sits in. A layer name belongs to the tree scope the
     /// sheet is attached to, so what moves is that scope's layer order - one input per scope the sheet
     /// decides in.
+    #[cfg(test)]
     pub fn record_layer_statement(&mut self, sheet: SheetID, counters: &mut Counters) {
         for scope in self.retained.program.sheet_scopes(sheet) {
             self.record_layer_topology_change(scope, counters);

@@ -944,6 +944,7 @@ pub struct SelectorProgramBuilder<A: AtomSpace = EngineAtoms> {
 
 impl SelectorProgramBuilder {
     #[must_use]
+    #[cfg(test)]
     pub fn new() -> Self {
         Self::default()
     }
@@ -1046,6 +1047,7 @@ impl<A: AtomSpace> SelectorProgramBuilder<A> {
     }
 
     /// Add an ancestor step: the subject has an ancestor satisfying `inner`.
+    #[cfg(test)]
     pub fn push_ancestor(&mut self, inner: SelectorNodeID) -> SelectorNodeID {
         self.push(SelectorOp::Ancestor(inner))
     }
@@ -2799,6 +2801,7 @@ impl SelectorPrograms {
     }
 
     #[must_use]
+    #[cfg(test)]
     pub fn new() -> Self {
         Self::default()
     }
@@ -3050,13 +3053,9 @@ impl SelectorPrograms {
     }
 
     #[must_use]
+    #[cfg(test)]
     pub fn len(&self) -> usize {
         self.programs.len()
-    }
-
-    #[must_use]
-    pub fn is_empty(&self) -> bool {
-        self.programs.len() == self.vacant_programs.len()
     }
 
     #[must_use]
@@ -4541,13 +4540,9 @@ impl RoutingRegistry {
     }
 
     #[must_use]
+    #[cfg(test)]
     pub fn len(&self) -> usize {
         self.routes.len()
-    }
-
-    #[must_use]
-    pub fn is_empty(&self) -> bool {
-        self.routes.is_empty()
     }
 
     #[must_use]
