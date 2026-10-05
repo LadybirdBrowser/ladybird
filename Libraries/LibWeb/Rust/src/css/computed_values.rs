@@ -2431,8 +2431,7 @@ unsafe fn free_scratch_payload(table: &StyleGroupVTable, scratch: *mut c_void) {
 /// `values` must hold one valid data entry per registered descriptor
 /// of the group, in registration order; `parent_payload` must be a valid
 /// payload of the group or null.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_build_style_group(
+pub(crate) unsafe fn build_style_group(
     group_index: usize,
     values: *const FfiGroupValueEntry,
     count: usize,
@@ -2554,8 +2553,7 @@ pub(crate) unsafe fn build_group_payload_with_rust_fill(
 /// # Safety
 /// The value pointers must be valid StyleValueData or null, and
 /// `parent_payload` a valid inherited box payload or null.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_build_inherited_box_group(
+pub(crate) unsafe fn build_inherited_box_group(
     group_index: usize,
     visibility: *const c_void,
     direction: *const c_void,
@@ -3467,8 +3465,8 @@ impl FontValues {
 /// # Safety
 /// The value pointers must identify valid StyleValueData, and
 /// `parent_payload` must identify an alignment payload or be null.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_build_alignment_group(
+#[allow(clippy::too_many_arguments)]
+pub(crate) unsafe fn rust_build_alignment_group(
     group_index: usize,
     webkit_box_orient: *const c_void,
     flex_direction: *const c_void,
@@ -3565,8 +3563,8 @@ pub(crate) unsafe fn build_svg_reset_group_payload(
 /// `text_decoration_lines` must address `text_decoration_line_count` valid
 /// enum codes, a non-null thickness must identify valid StyleValueData, and
 /// `parent_payload` must identify a text reset payload or be null.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_build_text_reset_group(
+#[allow(clippy::too_many_arguments)]
+pub(crate) unsafe fn rust_build_text_reset_group(
     group_index: usize,
     text_decoration_lines: *const u8,
     text_decoration_line_count: usize,
@@ -3621,8 +3619,8 @@ pub unsafe extern "C" fn rust_build_text_reset_group(
 /// # Safety
 /// Each value pointer must address valid StyleValueData, and `parent_payload`
 /// must be a valid surround payload or null.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_build_surround_group(
+#[allow(clippy::too_many_arguments)]
+pub(crate) unsafe fn rust_build_surround_group(
     group_index: usize,
     top: *const c_void,
     right: *const c_void,
@@ -3716,8 +3714,8 @@ pub unsafe extern "C" fn rust_build_surround_group(
 /// `values` must point at a fully initialized box payload whose ownership
 /// transfers to this call, and `parent_payload` must be a valid box payload
 /// or null.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_build_box_group(
+#[allow(clippy::too_many_arguments)]
+pub(crate) unsafe fn rust_build_box_group(
     group_index: usize,
     values: *const BoxValues,
     parent_payload: *const c_void,
@@ -3742,8 +3740,8 @@ pub unsafe extern "C" fn rust_build_box_group(
 /// `values` must point at a fully initialized grid payload whose ownership
 /// transfers to this call, and `parent_payload` must be a valid grid payload
 /// or null.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_build_grid_group(
+#[allow(clippy::too_many_arguments)]
+pub(crate) unsafe fn rust_build_grid_group(
     group_index: usize,
     values: *const GridValues,
     parent_payload: *const c_void,
@@ -3801,8 +3799,8 @@ pub(crate) fn copy_grid_placements(source: &GridValues, target: &mut GridValues)
 /// # Safety
 /// Each value pointer must address valid StyleValueData, and `parent_payload`
 /// must be a valid sizing payload or null.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_build_sizing_group(
+#[allow(clippy::too_many_arguments)]
+pub(crate) unsafe fn build_sizing_group(
     group_index: usize,
     width: *const c_void,
     min_width: *const c_void,
@@ -3843,8 +3841,7 @@ pub unsafe extern "C" fn rust_build_sizing_group(
 /// # Safety
 /// The value pointers must be valid StyleValueData or null, and
 /// `parent_payload` a valid inherited table payload or null.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_build_inherited_table_group(
+pub(crate) unsafe fn build_inherited_table_group(
     group_index: usize,
     border_collapse: *const c_void,
     caption_side: *const c_void,

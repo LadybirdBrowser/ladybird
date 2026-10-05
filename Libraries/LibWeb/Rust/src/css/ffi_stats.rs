@@ -332,13 +332,11 @@ pub extern "C" fn rust_style_ffi_note_style_value_created() {
     bump(FfiOp::StyleValueCreateEntry);
 }
 
-#[unsafe(no_mangle)]
-pub extern "C" fn rust_style_ffi_note_animation_evaluation() {
+pub(crate) fn note_animation_evaluation() {
     bump(FfiOp::AnimationEvaluationEntry);
 }
 
-#[unsafe(no_mangle)]
-pub extern "C" fn rust_style_ffi_note_transition_decision() {
+pub(crate) fn note_transition_decision() {
     bump(FfiOp::TransitionDecisionEntry);
 }
 

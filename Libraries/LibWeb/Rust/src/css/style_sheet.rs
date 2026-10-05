@@ -490,8 +490,8 @@ pub unsafe extern "C" fn rust_style_sheet_set_import(
     }
 }
 
-#[unsafe(no_mangle)]
-pub extern "C" fn rust_style_sheet_import(sheet: &NativeStyleSheet, rule_identity: u64) -> *const NativeStyleSheet {
+#[cfg(test)]
+pub(crate) fn style_sheet_import(sheet: &NativeStyleSheet, rule_identity: u64) -> *const NativeStyleSheet {
     sheet
         .imports
         .borrow()
@@ -1018,7 +1018,7 @@ mod tests {
         drop(replacement);
         assert_layers(&root, &["根.外.替", "根.外", "根.末"]);
         unsafe { rust_style_sheet_set_import(&root, root_id, std::ptr::null()) };
-        assert!(rust_style_sheet_import(&root, root_id).is_null());
+        assert!(style_sheet_import(&root, root_id).is_null());
         assert_layers(&root, &["根.外", "根.末"]);
         assert_layers(&middle, &["根.中.内", "根.中", "根.隣"]);
         set_media(&leaf, "not all");

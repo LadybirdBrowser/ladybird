@@ -2494,6 +2494,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         "ValueParserFFI".to_string(),
     ]);
     value_parser_config.export.include = vec![
+        "NativeCompilationPurpose".to_string(),
         "FfiParseStatus".to_string(),
         "FfiSimpleColor".to_string(),
         "FontFeatureValuesRuleKind".to_string(),
@@ -2637,6 +2638,9 @@ fn main() -> Result<(), Box<dyn Error>> {
         "ComputedValuesFFI".to_string(),
     ]);
     computed_values_config.export.include = vec![
+        "BoxValues".to_string(),
+        "ComputedVerticalAlign".to_string(),
+        "GridValues".to_string(),
         "StyleGroupVTable".to_string(),
         "STYLE_GROUP_STATIC_REFCOUNT".to_string(),
         "GRID_NO_INDEX".to_string(),

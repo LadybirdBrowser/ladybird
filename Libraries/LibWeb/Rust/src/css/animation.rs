@@ -98,8 +98,8 @@ pub struct FfiAnimationValueResult {
 ///
 /// # Safety
 /// The descriptor and its control-point slice must remain valid during the call.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_style_value_from_easing(descriptor: &FfiEasingDescriptor) -> *const StyleValueData {
+#[cfg(test)]
+pub(crate) unsafe fn style_value_from_easing(descriptor: &FfiEasingDescriptor) -> *const StyleValueData {
     use crate::css::style_value::{RetainedLinearEasingStop, RetainedLinearEasingStopList};
     let retain = |value| unsafe { RetainedStyleValueData::from_retained_pointer(Arc::into_raw(Arc::new(value))) };
     let mut stops = Vec::new();
@@ -7377,9 +7377,8 @@ pub(crate) fn animation_preparation_matches(
 /// `computed` must point to a live batch. Its range of sampled effects must be readable. On a cache miss both storage pointers must be live, unconsumed results from their
 /// producing calls. `underlying_longhand_table` and `overlay` must point at live values, and the
 /// overlay must be uniquely owned for the duration of the call.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_evaluate_animations(computed: *const FfiComputedAnimationBatch) -> usize {
-    crate::css::ffi_stats::rust_style_ffi_note_animation_evaluation();
+pub(crate) unsafe fn evaluate_animations(computed: *const FfiComputedAnimationBatch) -> usize {
+    crate::css::ffi_stats::note_animation_evaluation();
     let computed = unsafe { &*computed };
     assert!(!computed.underlying_longhand_table.is_null());
     assert!(!computed.overlay.is_null());
@@ -7571,7 +7570,7 @@ pub unsafe extern "C" fn rust_interpolate_scalar_style_value(
 }
 
 /// Test-only bridge for exercising Rust-owned style value composition without constructing an
-/// animation batch. Production animation evaluation uses `rust_evaluate_animations`.
+/// animation batch. Production animation evaluation uses `evaluate_animations`.
 ///
 /// # Safety
 /// `underlying` and `animated` must point at live `StyleValueData` allocations.
@@ -7917,7 +7916,7 @@ mod tests {
                 interval_count: 4,
                 step_position: 1,
             };
-            let value = unsafe { Arc::from_raw(rust_style_value_from_easing(&descriptor)) };
+            let value = unsafe { Arc::from_raw(style_value_from_easing(&descriptor)) };
             assert_eq!(
                 crate::css::serialize::serialize_style_value_to_utf16(&value).unwrap(),
                 expected.encode_utf16().collect::<Vec<_>>()
