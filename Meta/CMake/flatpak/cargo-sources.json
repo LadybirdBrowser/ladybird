@@ -1224,6 +1224,27 @@
         "dest": "cargo/vendor/zmij-1.0.21"
     },
     {
+        "type": "archive",
+        "archive-type": "tar-gzip",
+        "url": "https://static.crates.io/crates/cc/cc-1.5.1.crate",
+        "sha256": "f360145194ee8e21db5ee7f3fcd4fe52210864c75c985dae33218202c8bbe040",
+        "dest": "cargo/vendor/cc-1.5.1"
+    },
+    {
+        "type": "archive",
+        "archive-type": "tar-gzip",
+        "url": "https://static.crates.io/crates/find-msvc-tools/find-msvc-tools-0.1.14.crate",
+        "sha256": "aedcfb3409746eddb02b9e19ebda1c3394f759a152e48ee875a0844d1b955484",
+        "dest": "cargo/vendor/find-msvc-tools-0.1.14"
+    },
+    {
+        "type": "archive",
+        "archive-type": "tar-gzip",
+        "url": "https://static.crates.io/crates/shlex/shlex-2.0.1.crate",
+        "sha256": "f8fadd59c855ef2080decdef8ff161eb6661b86933c9d82e5ba29dc602a55aba",
+        "dest": "cargo/vendor/shlex-2.0.1"
+    },
+    {
         "type": "shell",
         "commands": [
             "echo '{\"files\": {}, \"package\": \"db6fe7702c798519299bcbe011ff6f1dc9e3aedc1f3171178cddf71e1736bf95\"}' > cargo/vendor/adblock-0.12.5/.cargo-checksum.json",
@@ -1400,6 +1421,9 @@
             "echo '{\"files\": {}, \"package\": \"90f911cbc359ab6af17377d242225f4d75119aec87ea711a880987b18cd7b239\"}' > cargo/vendor/zerovec-0.11.6/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"625dc425cab0dca6dc3c3319506e6593dcb08a9f387ea3b284dbd52a92c40555\"}' > cargo/vendor/zerovec-derive-0.11.3/.cargo-checksum.json",
             "echo '{\"files\": {}, \"package\": \"b8848ee67ecc8aedbaf3e4122217aff892639231befc6a1b58d29fff4c2cabaa\"}' > cargo/vendor/zmij-1.0.21/.cargo-checksum.json",
+            "echo '{\"files\": {}, \"package\": \"f360145194ee8e21db5ee7f3fcd4fe52210864c75c985dae33218202c8bbe040\"}' > cargo/vendor/cc-1.5.1/.cargo-checksum.json",
+            "echo '{\"files\": {}, \"package\": \"aedcfb3409746eddb02b9e19ebda1c3394f759a152e48ee875a0844d1b955484\"}' > cargo/vendor/find-msvc-tools-0.1.14/.cargo-checksum.json",
+            "echo '{\"files\": {}, \"package\": \"f8fadd59c855ef2080decdef8ff161eb6661b86933c9d82e5ba29dc602a55aba\"}' > cargo/vendor/shlex-2.0.1/.cargo-checksum.json",
             "mkdir -p .cargo",
             "printf '[source.crates-io]\\nreplace-with = \"vendored-sources\"\\n\\n[source.vendored-sources]\\ndirectory = \"cargo/vendor\"\\n' > .cargo/config.toml"
         ]

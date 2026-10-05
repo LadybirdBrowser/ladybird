@@ -22,7 +22,7 @@ target_link_libraries(LibJS PUBLIC LibUnicode)
 
 target_link_libraries(LibJS PUBLIC JSClangPlugin)
 
-if (NOT BUILD_SHARED_LIBS)
+if (NOT BUILD_SHARED_LIBS OR WIN32)
     target_link_libraries(LibJS PRIVATE libjs_runtime_rust)
 elseif (APPLE)
     set(CMAKE_LINK_LIBRARY_USING_load_hidden "LINKER:-load_hidden,<LIBRARY>")

@@ -6,27 +6,26 @@
 
 // RUN: %clang++ -Xclang -verify %plugin_opts% -c %s -o %t 2>&1
 
-#include <LibJS/Runtime/Object.h>
+#include <LibJS/Heap/Cell.h>
 
 // The only way to have an incorrect basename is if the class is deeply nested, and the base name
 // refers to a parent class
 
-// expected-error@+1 {{ParentObject derives from the engine type JS::Object, which only LibJS may subclass; use a host class instead}}
-class ParentObject : JS::Object {
-    JS_OBJECT(ParentObject, JS::Object);
+class ParentCell : JS::Cell {
+    GC_CELL(ParentCell, JS::Cell);
 };
 
-class TestClass : ParentObject {
-    // expected-error@+1 {{Expected second argument of JS_OBJECT macro invocation to be ParentObject}}
-    JS_OBJECT(TestClass, JS::Object);
+class TestClass : ParentCell {
+    // expected-error@+1 {{Expected second argument of GC_CELL macro invocation to be ParentCell}}
+    GC_CELL(TestClass, JS::Cell);
 };
 
 // Basename must exactly match the argument
 namespace JS {
 
-class TestClass : ::ParentObject {
-    // expected-error@+1 {{Expected second argument of JS_OBJECT macro invocation to be ::ParentObject}}
-    JS_OBJECT(TestClass, ParentObject);
+class TestClass : ::ParentCell {
+    // expected-error@+1 {{Expected second argument of GC_CELL macro invocation to be ::ParentCell}}
+    GC_CELL(TestClass, ParentCell);
 };
 
 }

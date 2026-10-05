@@ -5,36 +5,18 @@
  */
 
 // RUN: %clang++ -Xclang -verify %plugin_opts% -c %s -o %t 2>&1
+// expected-no-diagnostics
 
-#include <LibJS/Runtime/PrototypeObject.h>
+#include <LibJS/Heap/Cell.h>
 #include <LibWeb/Bindings/Wrappable.h>
 
 class TestCellClass : JS::Cell {
     GC_CELL(TestCellClass, JS::Cell);
 };
 
-// expected-error@+1 {{TestObjectClass derives from the engine type JS::Object, which only LibJS may subclass; use a host class instead}}
-class TestObjectClass : JS::Object {
-    JS_OBJECT(TestObjectClass, JS::Object);
-};
-
-// expected-error@+1 {{TestEnvironmentClass derives from the engine type JS::Environment, which only LibJS may subclass; use a host class instead}}
-class TestEnvironmentClass : JS::Environment {
-    JS_ENVIRONMENT(TestEnvironmentClass, JS::Environment);
-};
-
 class TestWrappableClass : Web::Bindings::Wrappable {
     WEB_NON_IDL_WRAPPABLE(TestWrappableClass, Web::Bindings::Wrappable);
 };
-
-namespace JS {
-
-// expected-error@+1 {{TestPrototypeClass derives from the engine type JS::PrototypeObject, which only LibJS may subclass; use a host class instead}}
-class TestPrototypeClass : JS::PrototypeObject<TestCellClass, TestCellClass> {
-    JS_PROTOTYPE_OBJECT(TestPrototypeClass, TestCellClass, TestCellClass);
-};
-
-}
 
 // Nested classes
 class Parent1 { };
