@@ -455,11 +455,6 @@ mod tests {
 
     #[test]
     fn a_structural_change_bumps_the_fragment_cache_epoch_of_every_ancestor() {
-        if super::super::fc_run_cache::fc_run_cache_mode_from_environment()
-            == super::super::fc_run_cache::FcRunCacheMode::Disabled
-        {
-            return;
-        }
         let mut arena = LayoutNodeArena::new();
         let grandparent = arena.allocate_for_test();
         let parent = arena.allocate_for_test();

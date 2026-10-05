@@ -1508,40 +1508,13 @@ impl<'pass> SizingContext<'pass> {
         constraints: ContainingBlockConstraints,
         layout_mode: LayoutMode,
     ) {
-        if layout_mode == LayoutMode::Normal && !self.purpose.is_measurement() {
-            match fc_run_cache::fc_run_cache_mode_from_environment() {
-                fc_run_cache::FcRunCacheMode::Enabled if self.try_reuse_empty_atomic_root_metrics(node) => return,
-                fc_run_cache::FcRunCacheMode::Shadow => {
-                    self.dimension_empty_atomic_root_with_shadow_comparison(node, available_space, constraints);
-                    return;
-                }
-                _ => {}
-            }
+        if layout_mode == LayoutMode::Normal
+            && !self.purpose.is_measurement()
+            && self.try_reuse_empty_atomic_root_metrics(node)
+        {
+            return;
         }
         self.dimension_empty_atomic_root_fresh(node, available_space, constraints, layout_mode);
-    }
-
-    #[cold]
-    fn dimension_empty_atomic_root_with_shadow_comparison(
-        &self,
-        node: Node,
-        available_space: AvailableSpace,
-        constraints: ContainingBlockConstraints,
-    ) {
-        let used = self.used(node);
-        let initial = used_values::UsedValuesCellState::capture(used);
-        let reused = self.try_reuse_empty_atomic_root_metrics(node);
-        let cached = used_values::UsedValuesCellState::capture(used);
-        initial.apply_to_record(used);
-        self.dimension_empty_atomic_root_fresh(node, available_space, constraints, LayoutMode::Normal);
-        if reused {
-            assert_eq!(
-                cached,
-                used_values::UsedValuesCellState::capture(used),
-                "empty atomic sizing shadow diverged for slot {}",
-                node.slot_index()
-            );
-        }
     }
 
     fn try_reuse_empty_atomic_root_metrics(&self, node: Node) -> bool {

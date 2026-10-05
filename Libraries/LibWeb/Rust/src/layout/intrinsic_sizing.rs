@@ -60,13 +60,7 @@ pub(super) fn compute_inline_sizes(
                 sizing.constraints_for_child_context(node, constraints),
                 ParticipationInParentFormattingContext::BlockLevel,
             );
-            if let Some(measurement) = compute_from_atomic_children(&run, input) {
-                if fc_run_cache::fc_run_cache_mode_from_environment() == fc_run_cache::FcRunCacheMode::Shadow {
-                    assert_eq!(Some(measurement), compute_from_items(&run, input));
-                }
-                return Some(measurement);
-            }
-            compute_from_items(&run, input)
+            compute_from_atomic_children(&run, input).or_else(|| compute_from_items(&run, input))
         },
     )
 }

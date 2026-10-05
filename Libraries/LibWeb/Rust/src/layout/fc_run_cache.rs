@@ -6,31 +6,6 @@
 
 use super::*;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(super) enum FcRunCacheMode {
-    Disabled,
-    Enabled,
-    /// Hits do not replay: the real layout runs and the reused result is verified
-    /// against it, panicking on any divergence.
-    Shadow,
-}
-
-pub(super) fn fc_run_cache_mode_from_environment() -> FcRunCacheMode {
-    static MODE: std::sync::OnceLock<FcRunCacheMode> = std::sync::OnceLock::new();
-    *MODE.get_or_init(|| match std::env::var("LADYBIRD_FC_RUN_CACHE").as_deref() {
-        Ok("0") => FcRunCacheMode::Disabled,
-        Ok("1") => FcRunCacheMode::Enabled,
-        Ok("shadow") => FcRunCacheMode::Shadow,
-        Ok(unknown) => {
-            eprintln!(
-                "Unknown LADYBIRD_FC_RUN_CACHE value {unknown:?} (expected 0, 1, or shadow); disabling the run cache"
-            );
-            FcRunCacheMode::Disabled
-        }
-        Err(_) => FcRunCacheMode::Enabled,
-    })
-}
-
 /// The complete identity of a memoizable run: the layout input plus the
 /// pre-run root record state the dispatch seam captures anyway, so every
 /// value a parent hands a spawned run is part of the key. Viewport changes
@@ -275,10 +250,7 @@ impl FcRunCacheEntry {
 
     pub(super) fn outputs_for_reused_subtree(&self) -> formatting_context::RunOutputs {
         debug_assert!(self.can_reuse_committed_subtree());
-        // Outside shadow mode, conclude() already stored this entry without its descendant fragments.
-        if fc_run_cache_mode_from_environment() == FcRunCacheMode::Shadow {
-            return outputs_without_descendant_fragments(&self.outputs);
-        }
+        // conclude() already stored this entry without its descendant fragments.
         self.outputs.clone()
     }
 }
@@ -515,7 +487,6 @@ pub(super) enum FcRunCacheAttempt {
         /// on its next probe (a fail-safe miss) instead of being baked into
         /// a forever-valid entry.
         validity: FcRunCacheValidity,
-        shadow_entry: Option<std::sync::Arc<FcRunCacheEntry>>,
         structurally_damaged_entry: Option<std::sync::Arc<FcRunCacheEntry>>,
     },
 }
@@ -524,9 +495,6 @@ impl FcRunCacheAttempt {
     pub(super) fn trace_action(&self) -> &'static str {
         match self {
             Self::Bypass => "RUN (cache=bypass)",
-            Self::Store {
-                shadow_entry: Some(_), ..
-            } => "RUN (cache=shadow-hit)",
             Self::Store { .. } => "RUN (cache=miss)",
         }
     }
@@ -543,7 +511,6 @@ impl FcRunCacheAttempt {
     ) -> Result<Self, std::sync::Arc<FcRunCacheEntry>> {
         let fc_type = key.fc_type;
         let input = &key.input;
-        let mode = fc_run_cache_mode_from_environment();
         // A run this cache cannot describe still commits its subtree, so a stored entry would go on
         // describing paintables that run has replaced. Measurement runs commit nothing and leave it alone.
         let run_supersedes_stored_entry = layout_mode == LayoutMode::Normal && !purpose.is_measurement();
@@ -552,8 +519,7 @@ impl FcRunCacheAttempt {
                 callbacks.arena().fc_run_cache_store().remove_entry(box_.slot_index());
             }
         };
-        if mode == FcRunCacheMode::Disabled
-            || layout_mode != LayoutMode::Normal
+        if layout_mode != LayoutMode::Normal
             || purpose.is_measurement()
             || should_collect_devtools_layout_data
             || input.participation == ParticipationInParentFormattingContext::Root
@@ -596,23 +562,15 @@ impl FcRunCacheAttempt {
         let store = callbacks.arena().fc_run_cache_store();
         let validity = run_root_validity(callbacks, box_);
         let structural_epoch_bumps = store.take_inline_layout_damage(box_);
-        match store.matching(box_.slot_index(), validity, key) {
-            Some(entry) if mode == FcRunCacheMode::Shadow => Ok(Self::Store {
-                validity,
-                shadow_entry: Some(entry),
-                structurally_damaged_entry: None,
-            }),
-            Some(entry) => Err(entry),
-            None => {
-                let structurally_damaged_entry =
-                    store.structurally_damaged_entry(box_.slot_index(), validity, key, structural_epoch_bumps);
-                Ok(Self::Store {
-                    validity,
-                    shadow_entry: None,
-                    structurally_damaged_entry,
-                })
-            }
+        if let Some(entry) = store.matching(box_.slot_index(), validity, key) {
+            return Err(entry);
         }
+        let structurally_damaged_entry =
+            store.structurally_damaged_entry(box_.slot_index(), validity, key, structural_epoch_bumps);
+        Ok(Self::Store {
+            validity,
+            structurally_damaged_entry,
+        })
     }
 
     pub(super) fn previous_line_data(&self) -> Option<std::sync::Arc<inline_content::InlineContent>> {
@@ -658,7 +616,6 @@ impl FcRunCacheAttempt {
     ) {
         let Self::Store {
             validity,
-            shadow_entry,
             structurally_damaged_entry,
         } = self
         else {
@@ -683,10 +640,7 @@ impl FcRunCacheAttempt {
         let entry = FcRunCacheEntry {
             key,
             validity,
-            outputs: if uncommitted
-                || fc_run_cache_mode_from_environment() == FcRunCacheMode::Shadow
-                || !outputs_allow_committed_subtree_reuse(outputs)
-            {
+            outputs: if uncommitted || !outputs_allow_committed_subtree_reuse(outputs) {
                 outputs.clone()
             } else {
                 outputs_without_descendant_fragments(outputs)
@@ -699,18 +653,6 @@ impl FcRunCacheAttempt {
                 .is_some()
                 && table_cell_contents_never_observe_intrinsic_block_padding(callbacks, box_),
         };
-        if let Some(cached) = shadow_entry {
-            let mut cached_outputs = cached.outputs.clone();
-            cached.move_root_block_paddings_to(&key, &mut cached_outputs);
-            let cached = FcRunCacheEntry {
-                key: cached.key,
-                validity: cached.validity,
-                outputs: cached_outputs,
-                uncommitted: cached.uncommitted,
-                table_cell_intrinsic_block_padding_unobserved: cached.table_cell_intrinsic_block_padding_unobserved,
-            };
-            verify_cached_entry_against_fresh_run(box_.slot_index(), &cached, &entry);
-        }
         store.store(box_.slot_index(), entry);
     }
 }
@@ -728,9 +670,7 @@ pub(super) fn store_replayed_uncommitted_entry(
     let entry = FcRunCacheEntry {
         key,
         validity: replayed.validity,
-        outputs: if fc_run_cache_mode_from_environment() == FcRunCacheMode::Shadow
-            || !outputs_allow_committed_subtree_reuse(outputs)
-        {
+        outputs: if !outputs_allow_committed_subtree_reuse(outputs) {
             outputs.clone()
         } else {
             outputs_without_descendant_fragments(outputs)
@@ -761,255 +701,6 @@ pub(super) fn table_cell_contents_never_observe_intrinsic_block_padding(
         child = callbacks.next_sibling(child);
     }
     true
-}
-
-fn verify_cached_entry_against_fresh_run(root_slot: u32, cached: &FcRunCacheEntry, fresh: &FcRunCacheEntry) {
-    assert!(
-        cached.outputs.result.depends_on_percentage_block_size == fresh.outputs.result.depends_on_percentage_block_size,
-        "run cache shadow: percentage block-size dependency diverged for slot {root_slot}"
-    );
-    assert!(
-        cached.outputs.result == fresh.outputs.result,
-        "run cache shadow: child layout result diverged for slot {root_slot}"
-    );
-    assert!(
-        cached.outputs.root_outcome.cells == fresh.outputs.root_outcome.cells,
-        "run cache shadow: body-end root record diverged for slot {root_slot}\ncached: {:?}\nfresh: {:?}",
-        cached.outputs.root_outcome.cells,
-        fresh.outputs.root_outcome.cells,
-    );
-    assert!(
-        cached.outputs.root_outcome.own_metrics_sealed == fresh.outputs.root_outcome.own_metrics_sealed,
-        "run cache shadow: root seal state diverged for slot {root_slot}"
-    );
-    assert!(
-        cached.outputs.root_outcome.line_data == fresh.outputs.root_outcome.line_data,
-        "run cache shadow: root line data diverged for slot {root_slot}"
-    );
-    assert_rare_data_matches(
-        root_slot,
-        cached.outputs.root_outcome.rare.as_ref(),
-        fresh.outputs.root_outcome.rare.as_ref(),
-    );
-    assert_unplaced_roots_match(root_slot, cached.outputs.root.as_ref(), fresh.outputs.root.as_ref());
-    assert_available_inline_size_threshold_matches_after_the_cells_it_derives_from(root_slot, cached, fresh);
-}
-
-fn assert_available_inline_size_threshold_matches_after_the_cells_it_derives_from(
-    root_slot: u32,
-    cached: &FcRunCacheEntry,
-    fresh: &FcRunCacheEntry,
-) {
-    assert!(
-        cached
-            .outputs
-            .atomic_root_sizing_repeats_for_available_inline_sizes_at_or_above
-            == fresh
-                .outputs
-                .atomic_root_sizing_repeats_for_available_inline_sizes_at_or_above,
-        "run cache shadow: available inline size independence diverged for slot {root_slot}"
-    );
-}
-
-/// The comparable view of the payloads both `UsedValuesRareData` and
-/// `Fragment` carry under identical field names, so the oracle's two
-/// comparison sites cannot drift apart when a payload is added. Shared
-/// payloads compare by content through the Rc (paths through their
-/// process-unique identity first).
-macro_rules! shadow_comparable_rare_payloads {
-    ($carrier:expr) => {
-        (
-            $carrier.svg,
-            &$carrier.computed_svg_path,
-            &$carrier.grid_layout_data,
-            &$carrier.flex_layout_data,
-            &$carrier.used_grid_tracks,
-            &$carrier.collapsed_table_borders,
-        )
-    };
-}
-
-fn assert_rare_data_matches(
-    root_slot: u32,
-    cached: Option<&used_values::UsedValuesRareData>,
-    fresh: Option<&used_values::UsedValuesRareData>,
-) {
-    assert!(
-        cached.is_some() == fresh.is_some(),
-        "run cache shadow: root rare data presence diverged for slot {root_slot}"
-    );
-    let (Some(cached), Some(fresh)) = (cached, fresh) else {
-        return;
-    };
-    assert!(
-        shadow_comparable_rare_payloads!(cached) == shadow_comparable_rare_payloads!(fresh)
-            && cached.abspos_layout_inputs == fresh.abspos_layout_inputs,
-        "run cache shadow: root rare data diverged for slot {root_slot}"
-    );
-}
-
-fn sorted_by_key<T: Clone, K: Ord>(items: &[T], key: impl Fn(&T) -> K) -> Vec<T> {
-    let mut sorted = items.to_vec();
-    sorted.sort_by_key(|item| key(item));
-    sorted
-}
-
-fn assert_unplaced_roots_match(
-    root_slot: u32,
-    cached: Option<&fragment_tree::UnplacedRootFragment>,
-    fresh: Option<&fragment_tree::UnplacedRootFragment>,
-) {
-    assert!(
-        cached.is_some() == fresh.is_some(),
-        "run cache shadow: unplaced root presence diverged for slot {root_slot}"
-    );
-    let (Some(cached), Some(fresh)) = (cached, fresh) else {
-        return;
-    };
-    assert!(
-        cached.node == fresh.node,
-        "run cache shadow: unplaced root node diverged for slot {root_slot}"
-    );
-
-    // Escape lists are collected partly from hash-map sweeps, whose order
-    // is not deterministic between runs; consumption sorts registrations
-    // into tree order, so the oracle compares them order-insensitively.
-    let pending_order = |child: &abspos_inputs::PendingAbsposChild| {
-        (child.child_box.slot_index(), child.coordinate_space_box.slot_index())
-    };
-    let cached_pending = sorted_by_key(&cached.propagated_pending_abspos, pending_order);
-    let fresh_pending = sorted_by_key(&fresh.propagated_pending_abspos, pending_order);
-    assert!(
-        cached_pending == fresh_pending,
-        "run cache shadow: propagated abspos children diverged for slot {root_slot}\ncached: {cached_pending:#?}\nfresh: {fresh_pending:#?}"
-    );
-    let candidate_order = |candidate: &fragment_tree::AnchorCandidate| {
-        (candidate.node.slot_index(), candidate.coordinate_space_box.slot_index())
-    };
-    let cached_candidates = sorted_by_key(&cached.propagated_anchor_candidates, candidate_order);
-    let fresh_candidates = sorted_by_key(&fresh.propagated_anchor_candidates, candidate_order);
-    assert!(
-        cached_candidates == fresh_candidates,
-        "run cache shadow: propagated anchor candidates diverged for slot {root_slot}"
-    );
-    let inline_rect_order = |rect: &fragment_tree::InlineContainingBlockRect| {
-        (rect.inline_box.slot_index(), rect.coordinate_space_box.slot_index())
-    };
-    let cached_inline_rects = sorted_by_key(&cached.propagated_inline_containing_block_rects, inline_rect_order);
-    let fresh_inline_rects = sorted_by_key(&fresh.propagated_inline_containing_block_rects, inline_rect_order);
-    assert!(
-        cached_inline_rects == fresh_inline_rects,
-        "run cache shadow: propagated inline containing block rects diverged for slot {root_slot}"
-    );
-    let contribution_order =
-        |contribution: &fragment_tree::AbsposContainingBlockInfoContribution| contribution.child_box.slot_index();
-    let cached_contributions = sorted_by_key(&cached.propagated_abspos_containing_block_info, contribution_order);
-    let fresh_contributions = sorted_by_key(&fresh.propagated_abspos_containing_block_info, contribution_order);
-    assert!(
-        cached_contributions == fresh_contributions,
-        "run cache shadow: propagated containing block info diverged for slot {root_slot}"
-    );
-
-    assert_link_lists_match(root_slot, &cached.scoped_descendants, &fresh.scoped_descendants);
-}
-
-fn assert_link_lists_match(root_slot: u32, cached: &[FragmentLink], fresh: &[FragmentLink]) {
-    assert!(
-        cached.len() == fresh.len(),
-        "run cache shadow: fragment child count diverged for slot {root_slot}"
-    );
-    for (cached_link, fresh_link) in cached.iter().zip(fresh) {
-        assert_links_match(root_slot, cached_link, fresh_link);
-    }
-}
-
-fn assert_links_match(root_slot: u32, cached: &FragmentLink, fresh: &FragmentLink) {
-    let mut diverged = Vec::new();
-    if cached.committed_offset != fresh.committed_offset {
-        diverged.push("committed_offset");
-    }
-    if (
-        cached.inset_left,
-        cached.inset_right,
-        cached.inset_top,
-        cached.inset_bottom,
-    ) != (fresh.inset_left, fresh.inset_right, fresh.inset_top, fresh.inset_bottom)
-    {
-        diverged.push("insets");
-    }
-    if cached.containing_line_box_index != fresh.containing_line_box_index {
-        diverged.push("containing_line_box_index");
-    }
-    if cached.abspos_layout_inputs != fresh.abspos_layout_inputs {
-        diverged.push("abspos_layout_inputs");
-    }
-    collect_diverged_fragment_fields(&cached.fragment, &fresh.fragment, &mut diverged);
-    assert!(
-        diverged.is_empty(),
-        "run cache shadow: fragment for slot {} diverged under run root slot {root_slot}: {}",
-        fresh.fragment.node.slot_index(),
-        diverged.join(", ")
-    );
-    assert_link_lists_match(root_slot, &cached.fragment.children, &fresh.fragment.children);
-}
-
-fn collect_diverged_fragment_fields(
-    cached: &fragment_tree::Fragment,
-    fresh: &fragment_tree::Fragment,
-    diverged: &mut Vec<&'static str>,
-) {
-    if cached.node != fresh.node {
-        diverged.push("node");
-    }
-    if (cached.content_inline_size, cached.content_block_size) != (fresh.content_inline_size, fresh.content_block_size)
-    {
-        diverged.push("content_size");
-    }
-    if (
-        cached.margin_left,
-        cached.margin_right,
-        cached.margin_top,
-        cached.margin_bottom,
-    ) != (
-        fresh.margin_left,
-        fresh.margin_right,
-        fresh.margin_top,
-        fresh.margin_bottom,
-    ) {
-        diverged.push("margins");
-    }
-    if (
-        cached.border_left,
-        cached.border_right,
-        cached.border_top,
-        cached.border_bottom,
-    ) != (
-        fresh.border_left,
-        fresh.border_right,
-        fresh.border_top,
-        fresh.border_bottom,
-    ) {
-        diverged.push("borders");
-    }
-    if (
-        cached.padding_left,
-        cached.padding_right,
-        cached.padding_top,
-        cached.padding_bottom,
-    ) != (
-        fresh.padding_left,
-        fresh.padding_right,
-        fresh.padding_top,
-        fresh.padding_bottom,
-    ) {
-        diverged.push("paddings");
-    }
-    if shadow_comparable_rare_payloads!(cached) != shadow_comparable_rare_payloads!(fresh) {
-        diverged.push("rare payloads");
-    }
-    if cached.line_data != fresh.line_data {
-        diverged.push("line_data");
-    }
 }
 
 #[cfg(test)]
