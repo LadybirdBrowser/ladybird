@@ -1703,7 +1703,6 @@ pub fn choose_plan(region_nodes: usize, candidate_cardinality: Option<usize>, ex
 
 #[cfg(test)]
 mod tests {
-    use super::super::memory::DeviceClass;
     use super::super::memory::MemoryController;
     use super::*;
 
@@ -1716,7 +1715,7 @@ mod tests {
 
     impl Fixture {
         fn new() -> Self {
-            let mut memory = MemoryController::new(DeviceClass::ForegroundDesktop);
+            let mut memory = MemoryController::new();
             let mut tree = StyleNodeTree::new(&mut memory);
             let nodes: Vec<StyleNodeID> = (0..8).map(|_| tree.allocate_element(&mut memory)).collect();
             // root=0, children a=1, b=2, c=3; a's children a1=4, a2=5
@@ -1778,7 +1777,7 @@ mod tests {
 
     #[test]
     fn a_document_region_includes_shadow_tree_scopes() {
-        let mut memory = MemoryController::new(DeviceClass::ForegroundDesktop);
+        let mut memory = MemoryController::new();
         let mut tree = StyleNodeTree::new(&mut memory);
         let document_root = tree.allocate_element(&mut memory);
         let host = tree.allocate_element(&mut memory);
@@ -2229,7 +2228,7 @@ mod tests {
 
     #[test]
     fn patch_attributions_are_indexed_without_preorder_coordinates() {
-        let mut memory = MemoryController::new(DeviceClass::ForegroundDesktop);
+        let mut memory = MemoryController::new();
         let mut tree = StyleNodeTree::new(&mut memory);
         let root = tree.allocate_element(&mut memory);
         let host = tree.allocate_element(&mut memory);

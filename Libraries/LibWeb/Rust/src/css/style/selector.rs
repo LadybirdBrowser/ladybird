@@ -6512,7 +6512,6 @@ mod tests {
     use super::super::index::LocalFeatureKey;
     use super::super::index::StateSet;
     use super::super::instrumentation::Counter;
-    use super::super::memory::DeviceClass;
     use super::super::memory::MemoryController;
     use super::super::relative_selector::RelativeAxis;
     use super::*;
@@ -6820,7 +6819,7 @@ mod tests {
 
     impl Fixture {
         fn new() -> Self {
-            let mut memory = MemoryController::new(DeviceClass::ForegroundDesktop);
+            let mut memory = MemoryController::new();
             let mut tree = StyleNodeTree::new(&mut memory);
             let nodes: Vec<StyleNodeID> = (0..4).map(|_| tree.allocate_element(&mut memory)).collect();
             tree.set_first_element_child(nodes[0], Some(nodes[1]));
@@ -7160,7 +7159,7 @@ mod tests {
     #[test]
     fn a_missing_fact_below_a_sibling_names_its_descendant_range() {
         let mut fixture = Fixture::new();
-        let mut memory = MemoryController::new(DeviceClass::ForegroundDesktop);
+        let mut memory = MemoryController::new();
         let child = fixture.tree.allocate_element(&mut memory);
         fixture.tree.set_parent(child, Some(fixture.nodes[1]));
         fixture.tree.set_first_element_child(fixture.nodes[1], Some(child));
@@ -7643,7 +7642,7 @@ mod tests {
 
     #[test]
     fn the_registry_returns_only_the_routes_that_mention_an_input() {
-        let mut memory = MemoryController::new(DeviceClass::ForegroundDesktop);
+        let mut memory = MemoryController::new();
         let mut registry = RoutingRegistry::new();
         let mut programs = SelectorPrograms::new();
 
@@ -7862,7 +7861,7 @@ mod tests {
 
     #[test]
     fn the_running_program_total_tracks_what_the_programs_reserve() {
-        let mut memory = MemoryController::new(DeviceClass::ForegroundDesktop);
+        let mut memory = MemoryController::new();
         let mut programs = SelectorPrograms::new();
         // Enough programs, of differing sizes, to reallocate the list several times over.
         for index in 0..64_u32 {
@@ -7906,7 +7905,7 @@ mod tests {
         let make_program = |atom| single_entry(|builder| builder.push_feature(FeatureTest::Class(StyleAtomID(atom))));
         let mut first = SelectorPrograms::new();
         let mut second = SelectorPrograms::new();
-        let mut memory = MemoryController::new(DeviceClass::ForegroundDesktop);
+        let mut memory = MemoryController::new();
         for programs in [&mut first, &mut second] {
             programs.add(make_program(7));
             programs.add(make_program(8));

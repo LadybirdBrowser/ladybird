@@ -76,8 +76,7 @@ class WEB_API StyleEngine {
     AK_MAKE_NONMOVABLE(StyleEngine);
 
 public:
-    using DeviceClass = StyleEngineFFI::FfiDeviceClass;
-    explicit StyleEngine(DeviceClass, StyleComputer* = nullptr);
+    explicit StyleEngine(StyleComputer* = nullptr);
     ~StyleEngine();
 
     void visit_edges(GC::Cell::Visitor&);

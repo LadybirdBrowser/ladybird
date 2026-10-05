@@ -233,7 +233,6 @@ impl<'a> ExactMatcher<'a> {
 mod tests {
     use super::super::index::StateSet;
     use super::super::index::StyleAtomID;
-    use super::super::memory::DeviceClass;
     use super::super::memory::MemoryController;
     use super::super::program::RuleKind;
     use super::super::program::StyleSheetObjectID;
@@ -244,7 +243,7 @@ mod tests {
 
     #[test]
     fn exact_matching_enumerates_rules_without_a_dispatch() {
-        let mut memory = MemoryController::new(DeviceClass::ForegroundDesktop);
+        let mut memory = MemoryController::new();
         let mut tree = StyleNodeTree::new(&mut memory);
         let root = tree.allocate_element(&mut memory);
         let child = tree.allocate_element(&mut memory);
@@ -301,7 +300,7 @@ mod tests {
 
     #[test]
     fn exact_matching_keeps_the_greatest_selector_list_specificity() {
-        let mut memory = MemoryController::new(DeviceClass::ForegroundDesktop);
+        let mut memory = MemoryController::new();
         let mut tree = StyleNodeTree::new(&mut memory);
         let node = tree.allocate_element(&mut memory);
         let class = StyleAtomID(1);

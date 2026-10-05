@@ -5769,7 +5769,7 @@ mod tests {
     fn a_retired_style_node_leaves_every_row_carrying_it() {
         use crate::css::style::tree::StyleNodeID;
         // The rows name their generators, whose unique node ids the style mirror answers for.
-        let mut engine = crate::css::style::StyleEngine::new(crate::css::style::memory::DeviceClass::ForegroundDesktop);
+        let mut engine = crate::css::style::StyleEngine::new();
         let mut arena = LayoutNodeArena::new();
         arena.set_style_engine(crate::css::style::StyleEngineHandle::from_raw(&raw mut engine));
         let style_node = StyleNodeID::element(3);
@@ -5850,7 +5850,7 @@ mod tests {
     fn a_commit_message_names_the_dom_node_a_row_stands_for() {
         use crate::css::style::tree::StyleNodeID;
         // The rows name their generators, whose unique node ids the style mirror answers for.
-        let mut engine = crate::css::style::StyleEngine::new(crate::css::style::memory::DeviceClass::ForegroundDesktop);
+        let mut engine = crate::css::style::StyleEngine::new();
         let mut arena = LayoutNodeArena::new();
         arena.set_style_engine(crate::css::style::StyleEngineHandle::from_raw(&raw mut engine));
         let element = StyleNodeID::element(3);
@@ -5984,7 +5984,7 @@ mod tests {
     fn a_pseudo_element_is_bound_only_to_its_principal_box() {
         use crate::css::style::tree::StyleNodeID;
         // The rows name their generators, whose unique node ids the style mirror answers for.
-        let mut engine = crate::css::style::StyleEngine::new(crate::css::style::memory::DeviceClass::ForegroundDesktop);
+        let mut engine = crate::css::style::StyleEngine::new();
         let mut arena = LayoutNodeArena::new();
         arena.set_style_engine(crate::css::style::StyleEngineHandle::from_raw(&raw mut engine));
         let generator = StyleNodeID::element(2);
@@ -6136,11 +6136,10 @@ mod tests {
     #[test]
     fn a_restamped_row_takes_the_paint_facts_its_node_published_since() {
         use crate::css::style::StyleEngine;
-        use crate::css::style::memory::DeviceClass;
         use crate::css::style::tree::StyleNodeID;
         use crate::layout::node_data::DomPaintFact;
 
-        let mut engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
+        let mut engine = StyleEngine::new();
         let mut text = [0_u32];
         engine.allocate_text_style_nodes(&mut text);
         let text = StyleNodeID::from_raw(text[0]).unwrap();
@@ -6169,10 +6168,9 @@ mod tests {
     #[test]
     fn a_stamped_row_takes_the_table_spans_its_element_published() {
         use crate::css::style::StyleEngine;
-        use crate::css::style::memory::DeviceClass;
         use crate::css::style::tree::{StyleNodeID, TableSpans};
 
-        let mut engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
+        let mut engine = StyleEngine::new();
         let mut element = [0_u32];
         engine.allocate_style_nodes(&mut element);
         let element = StyleNodeID::from_raw(element[0]).unwrap();
@@ -6206,10 +6204,9 @@ mod tests {
     #[test]
     fn rows_answer_by_the_unique_node_id_their_element_published() {
         use crate::css::style::StyleEngine;
-        use crate::css::style::memory::DeviceClass;
         use crate::css::style::tree::StyleNodeID;
 
-        let mut engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
+        let mut engine = StyleEngine::new();
         let mut element = [0_u32];
         engine.allocate_style_nodes(&mut element);
         let element = StyleNodeID::from_raw(element[0]).unwrap();
@@ -6243,10 +6240,9 @@ mod tests {
     fn rows_hold_the_scroll_offsets_published_by_identity() {
         use crate::css::css_pixels::CssPixelPoint;
         use crate::css::style::StyleEngine;
-        use crate::css::style::memory::DeviceClass;
         use crate::css::style::tree::StyleNodeID;
 
-        let mut engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
+        let mut engine = StyleEngine::new();
         let mut element = [0_u32];
         engine.allocate_style_nodes(&mut element);
         let element = StyleNodeID::from_raw(element[0]).unwrap();

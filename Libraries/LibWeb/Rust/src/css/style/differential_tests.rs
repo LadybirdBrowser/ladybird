@@ -23,7 +23,6 @@ use super::index::FeatureValue;
 use super::index::LocalFeatureKey;
 use super::index::StyleAtomID;
 use super::instrumentation::Counters;
-use super::memory::DeviceClass;
 use super::partial_view::Lookup;
 use super::program::CascadeOrigin;
 use super::program::DeclarationBlockID;
@@ -94,7 +93,7 @@ struct Workload {
 
 impl Workload {
     fn new(seed: u64) -> Self {
-        let mut engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
+        let mut engine = StyleEngine::new();
         let mut raw = vec![0; 1 + CONTAINERS + CONTAINERS * CHILDREN];
         engine.allocate_style_nodes(&mut raw);
         let nodes: Vec<_> = raw.iter().map(|&raw| StyleNodeID::from_raw(raw).unwrap()).collect();

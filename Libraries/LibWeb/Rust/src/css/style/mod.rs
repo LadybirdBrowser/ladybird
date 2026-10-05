@@ -214,7 +214,6 @@ use index::StyleNodeFacts;
 use input_routing::routing_keys_for_input;
 use memory::AdmissionFacts;
 use memory::BudgetInputs;
-use memory::DeviceClass;
 use memory::MemoryCategory;
 use memory::MemoryController;
 use memory::MemoryLease;

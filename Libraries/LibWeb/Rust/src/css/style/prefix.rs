@@ -5739,9 +5739,8 @@ mod tests {
     #[test]
     fn retained_cache_entry_maintenance_charges_the_residency_lease() {
         use super::super::index::StateSet;
-        use super::super::memory::DeviceClass;
 
-        let mut memory = MemoryController::new(DeviceClass::ForegroundDesktop);
+        let mut memory = MemoryController::new();
         let mut cache = PrefixStateCache::default();
         let mut facts = StyleNodeFacts::new();
         facts.push_row(

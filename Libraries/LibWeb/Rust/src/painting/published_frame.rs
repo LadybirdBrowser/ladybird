@@ -302,7 +302,7 @@ mod tests {
 
     #[test]
     fn published_rows_answer_every_row_read_as_the_arena_does() {
-        let mut engine = crate::css::style::StyleEngine::new(crate::css::style::memory::DeviceClass::ForegroundDesktop);
+        let mut engine = crate::css::style::StyleEngine::new();
         let mut arena = LayoutNodeArena::new();
         arena.set_style_engine(crate::css::style::StyleEngineHandle::from_raw(&raw mut engine));
         let mut slots = Vec::new();

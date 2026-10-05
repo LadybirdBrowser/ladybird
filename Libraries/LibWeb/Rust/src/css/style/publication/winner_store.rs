@@ -352,7 +352,7 @@ mod tests {
 
     #[test]
     fn winner_view_borrows_written_spelling_and_preserves_cascade_order() {
-        let mut engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
+        let mut engine = StyleEngine::new();
         let node = StyleNodeID::element(1);
         let kind = ElementDeclarationKind::InlineStyle;
         let properties = [property_id::MARGIN_LEFT, property_id::MARGIN_INLINE_START];

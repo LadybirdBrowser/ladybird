@@ -45,7 +45,6 @@ use super::compiler::ScopeChain;
 use super::index::FeatureValue;
 use super::index::LocalFeatureKey;
 use super::index::StyleAtomID;
-use super::memory::DeviceClass;
 use super::program::CascadeLayerID;
 use super::program::CascadeOrigin;
 use super::program::CustomDeclaration;
@@ -939,21 +938,6 @@ pub struct FfiStyleInputTransaction {
     pub element_style_input_count: usize,
 }
 
-/// Device class selecting the document's memory budget coefficients.
-#[derive(Clone, Copy, PartialEq, Eq)]
-#[repr(u8)]
-pub enum FfiDeviceClass {
-    ForegroundDesktop = 0,
-}
-
-impl FfiDeviceClass {
-    fn decode(self) -> DeviceClass {
-        match self {
-            Self::ForegroundDesktop => DeviceClass::ForegroundDesktop,
-        }
-    }
-}
-
 /// Cascade origin of a sheet, as the boundary names it.
 #[derive(Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
@@ -1177,11 +1161,6 @@ impl StyleEngineState {
             );
         }
     }
-}
-
-/// Creates one document's style engine, which its render state owns.
-pub(crate) fn create_document_style_engine(device_class: FfiDeviceClass) -> Box<StyleEngine> {
-    Box::new(StyleEngine::new(device_class.decode()))
 }
 
 /// The definition a plan last applied to one of the host's CSS animations, published beside the
@@ -3345,7 +3324,7 @@ mod tests {
 
     #[test]
     fn initial_tree_batch_uses_the_document_root_as_its_transaction_envelope() {
-        let mut engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
+        let mut engine = StyleEngine::new();
         let mut nodes = [0_u32; 4];
         engine.allocate_style_nodes(&mut nodes);
 
@@ -3439,7 +3418,7 @@ mod tests {
     #[test]
     fn preallocated_siblings_keep_their_disconnected_before_rows() {
         for split_batches in [false, true] {
-            let mut engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
+            let mut engine = StyleEngine::new();
             let mut nodes = [0_u32; 4];
             engine.allocate_style_nodes(&mut nodes);
             let root = StyleNodeID::from_raw(nodes[0]).unwrap();
@@ -3507,7 +3486,7 @@ mod tests {
     #[test]
     fn element_arrival_rows_install_intrinsic_facts() {
         assert_eq!(size_of::<FfiElementArrival>(), 36);
-        let mut engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
+        let mut engine = StyleEngine::new();
         let mut nodes = [0_u32; 2];
         engine.allocate_style_nodes(&mut nodes);
         let tree = [
@@ -3595,14 +3574,14 @@ mod tests {
     #[test]
     #[should_panic(expected = "an element arrival named an invalid style node")]
     fn malformed_element_arrival_rejects_an_invalid_node() {
-        let mut engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
+        let mut engine = StyleEngine::new();
         engine.apply_transaction_batch(&[], (&[arrival_for(0, 0, 0)], &[]), &[], &[], &[], &[]);
     }
 
     #[test]
     #[should_panic(expected = "an element arrival custom-state range overflowed")]
     fn malformed_element_arrival_rejects_an_overflowing_custom_state_range() {
-        let mut engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
+        let mut engine = StyleEngine::new();
         let mut nodes = [0];
         engine.allocate_style_nodes(&mut nodes);
         engine.apply_transaction_batch(&[], (&[arrival_for(nodes[0], u32::MAX, 1)], &[]), &[], &[], &[], &[]);
@@ -3611,7 +3590,7 @@ mod tests {
     #[test]
     #[should_panic(expected = "an element arrival named custom states outside the shared atom column")]
     fn malformed_element_arrival_rejects_an_out_of_bounds_custom_state_range() {
-        let mut engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
+        let mut engine = StyleEngine::new();
         let mut nodes = [0];
         engine.allocate_style_nodes(&mut nodes);
         engine.apply_transaction_batch(&[], (&[arrival_for(nodes[0], 0, 2)], &[1]), &[], &[], &[], &[]);
@@ -3619,7 +3598,7 @@ mod tests {
 
     #[test]
     fn initial_tree_bulk_load_publishes_match_answers_before_traversal() {
-        let mut engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
+        let mut engine = StyleEngine::new();
         let mut nodes = [0_u32; 3];
         engine.allocate_style_nodes(&mut nodes);
         let initial_tree = [
@@ -3720,7 +3699,7 @@ mod tests {
 
     #[test]
     fn one_batch_carries_every_typed_delta_kind() {
-        let mut engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
+        let mut engine = StyleEngine::new();
         let mut nodes = [0_u32; 3];
         engine.allocate_style_nodes(&mut nodes);
 
@@ -3810,7 +3789,7 @@ mod tests {
 
     #[test]
     fn a_batch_of_no_deltas_costs_nothing() {
-        let mut engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
+        let mut engine = StyleEngine::new();
         engine.apply_transaction_batch(&[], (&[], &[]), &[], &[], &[], &[]);
         let transaction = engine.take_transaction();
         assert!(transaction.is_empty());
@@ -3820,7 +3799,7 @@ mod tests {
 
     #[test]
     fn identities_are_minted_in_one_call_per_batch() {
-        let mut engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
+        let mut engine = StyleEngine::new();
         let mut nodes = [0_u32; 512];
         engine.allocate_style_nodes(&mut nodes);
         assert_eq!(engine.counters().get(Counter::StyleNodesAllocated), 512);

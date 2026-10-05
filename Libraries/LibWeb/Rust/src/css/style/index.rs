@@ -5614,7 +5614,6 @@ impl ElementFactStore {
 
 #[cfg(test)]
 mod tests {
-    use super::super::memory::DeviceClass;
     use super::super::tree::StyleNodeTree;
     use super::*;
 
@@ -5627,7 +5626,7 @@ mod tests {
 
     #[test]
     fn interaction_states_keep_a_posting() {
-        let mut memory = MemoryController::new(DeviceClass::ForegroundDesktop);
+        let mut memory = MemoryController::new();
         let mut facts = ElementFactStore::new();
         let node = StyleNodeID::element(1);
         facts.set_state(node, StateFact::Focus, true, &mut memory);
@@ -5656,7 +5655,7 @@ mod tests {
 
     #[test]
     fn a_posting_stays_sorted_across_chunk_splits() {
-        let mut memory = MemoryController::new(DeviceClass::ForegroundDesktop);
+        let mut memory = MemoryController::new();
         let mut postings = FeaturePostings::new();
         let key = SelectorPostingKey::Class(StyleAtomID(1));
 
@@ -5686,7 +5685,7 @@ mod tests {
 
     #[test]
     fn removing_the_last_member_reclaims_the_posting() {
-        let mut memory = MemoryController::new(DeviceClass::ForegroundDesktop);
+        let mut memory = MemoryController::new();
         let mut postings = FeaturePostings::new();
         let key = SelectorPostingKey::Class(StyleAtomID(1));
         assert!(matches!(postings.lookup(key), Lookup::KnownAbsent));
@@ -5705,7 +5704,7 @@ mod tests {
 
     #[test]
     fn local_dispatch_keys_read_the_authoritative_element_row() {
-        let mut memory = MemoryController::new(DeviceClass::ForegroundDesktop);
+        let mut memory = MemoryController::new();
         let mut facts = ElementFactStore::new();
         let node = StyleNodeID::element(1);
         let tag = StyleAtomID(10);
@@ -5751,7 +5750,7 @@ mod tests {
 
     #[test]
     fn directionality_reads_include_pending_changes() {
-        let mut memory = MemoryController::new(DeviceClass::ForegroundDesktop);
+        let mut memory = MemoryController::new();
         let mut facts = ElementFactStore::new();
         let node = StyleNodeID::element(1);
 
@@ -5764,7 +5763,7 @@ mod tests {
 
     #[test]
     fn forgetting_an_element_removes_every_owned_posting() {
-        let mut memory = MemoryController::new(DeviceClass::ForegroundDesktop);
+        let mut memory = MemoryController::new();
         let mut facts = ElementFactStore::new();
         let node = StyleNodeID::element(1);
         let name = StyleAtomID(10);
@@ -5807,7 +5806,7 @@ mod tests {
 
     #[test]
     fn resident_fact_rows_follow_dense_element_identity_slots() {
-        let mut memory = MemoryController::new(DeviceClass::ForegroundDesktop);
+        let mut memory = MemoryController::new();
         let mut facts = ElementFactStore::new();
         let first = StyleNodeID::element(3);
         let later = StyleNodeID::element(64);
@@ -5833,7 +5832,7 @@ mod tests {
 
     #[test]
     fn primary_fact_rows_replace_element_slots_in_place() {
-        let mut memory = MemoryController::new(DeviceClass::ForegroundDesktop);
+        let mut memory = MemoryController::new();
         let mut facts = ElementFactStore::new();
         let node = StyleNodeID::element(3);
         let first_class = StyleAtomID(20);
@@ -5874,7 +5873,7 @@ mod tests {
 
     #[test]
     fn fixed_fact_changes_reuse_primary_payload_handles() {
-        let mut memory = MemoryController::new(DeviceClass::ForegroundDesktop);
+        let mut memory = MemoryController::new();
         let mut facts = ElementFactStore::new();
         let node = StyleNodeID::element(1);
         facts.set_class(node, StyleAtomID(10), true, &mut memory);
@@ -5905,7 +5904,7 @@ mod tests {
 
     #[test]
     fn element_fact_capacity_includes_auxiliary_catalogs_and_staging() {
-        let mut memory = MemoryController::new(DeviceClass::ForegroundDesktop);
+        let mut memory = MemoryController::new();
         let mut facts = ElementFactStore::new();
         let node = StyleNodeID::element(64);
         let initial = facts.capacity_bytes();
@@ -5946,7 +5945,7 @@ mod tests {
 
     #[test]
     fn live_fact_atom_roots_use_incremental_counts() {
-        let mut memory = MemoryController::new(DeviceClass::ForegroundDesktop);
+        let mut memory = MemoryController::new();
         let mut facts = ElementFactStore::new();
         let node = StyleNodeID::element(1);
         facts.set_tag(node, StyleAtomID(1), &mut memory);
@@ -5985,7 +5984,7 @@ mod tests {
 
     #[test]
     fn detached_element_churn_reuses_reclaimable_auxiliary_catalog_storage() {
-        let mut memory = MemoryController::new(DeviceClass::ForegroundDesktop);
+        let mut memory = MemoryController::new();
         let mut facts = ElementFactStore::new();
         let node = StyleNodeID::element(1);
 
@@ -6028,7 +6027,7 @@ mod tests {
 
     #[test]
     fn element_declarations_follow_dense_element_identity_slots() {
-        let mut memory = MemoryController::new(DeviceClass::ForegroundDesktop);
+        let mut memory = MemoryController::new();
         let mut facts = ElementFactStore::new();
         let first = StyleNodeID::element(3);
         let later = StyleNodeID::element(64);
@@ -6088,7 +6087,7 @@ mod tests {
 
     #[test]
     fn a_posting_that_crosses_the_limit_stays_exact_until_the_boundary() {
-        let mut memory = MemoryController::new(DeviceClass::ForegroundDesktop);
+        let mut memory = MemoryController::new();
         memory.set_tier3_limit_for_test(0);
         memory.begin_tier3_quota_period();
         let mut postings = FeaturePostings::new();
@@ -6103,7 +6102,7 @@ mod tests {
 
     #[test]
     fn closed_posting_admission_keeps_existing_postings_exact() {
-        let mut memory = MemoryController::new(DeviceClass::ForegroundDesktop);
+        let mut memory = MemoryController::new();
         let mut postings = FeaturePostings::new();
         let key = SelectorPostingKey::Class(StyleAtomID(1));
         let missing_key = SelectorPostingKey::Class(StyleAtomID(2));
@@ -6124,7 +6123,7 @@ mod tests {
 
     #[test]
     fn high_cardinality_caps_apply_only_to_selector_postings() {
-        let mut memory = MemoryController::new(DeviceClass::ForegroundDesktop);
+        let mut memory = MemoryController::new();
         let mut postings = FeaturePostings::new();
         let selector = SelectorPostingKey::Class(StyleAtomID(1));
         let dependency = DependencyPostingKey::AnimationName(StyleAtomID(2));
@@ -6142,7 +6141,7 @@ mod tests {
 
     #[test]
     fn grown_postings_are_rechecked_against_the_fresh_limit() {
-        let mut memory = MemoryController::new(DeviceClass::ForegroundDesktop);
+        let mut memory = MemoryController::new();
         let mut postings = FeaturePostings::new();
         let key = SelectorPostingKey::Class(StyleAtomID(1));
         postings.set_selector_posting_limit(5000);
@@ -6166,7 +6165,7 @@ mod tests {
 
     #[test]
     fn evicting_every_posting_retains_only_the_missing_key_charge() {
-        let mut memory = MemoryController::new(DeviceClass::ForegroundDesktop);
+        let mut memory = MemoryController::new();
         let mut postings = FeaturePostings::new();
         for feature in 1..20_u32 {
             for index in 1..50_u32 {
@@ -6194,7 +6193,7 @@ mod tests {
 
     #[test]
     fn applying_staged_facts_defers_posting_rebuilds_while_admission_is_closed() {
-        let mut memory = MemoryController::new(DeviceClass::ForegroundDesktop);
+        let mut memory = MemoryController::new();
         let mut facts = ElementFactStore::new();
         let node = StyleNodeID::element(1);
         let class = StyleAtomID(1);
@@ -6225,7 +6224,7 @@ mod tests {
 
     #[test]
     fn missing_postings_rebuild_from_mutated_authoritative_facts_when_budget_returns() {
-        let mut memory = MemoryController::new(DeviceClass::ForegroundDesktop);
+        let mut memory = MemoryController::new();
         let mut facts = ElementFactStore::new();
         let node = StyleNodeID::element(1);
         let old_class = StyleAtomID(1);
@@ -6274,7 +6273,7 @@ mod tests {
 
     #[test]
     fn evicting_one_posting_preserves_exact_absence_for_other_keys() {
-        let mut memory = MemoryController::new(DeviceClass::ForegroundDesktop);
+        let mut memory = MemoryController::new();
         let mut postings = FeaturePostings::new();
         let evicted = SelectorPostingKey::Class(StyleAtomID(1));
         let absent = SelectorPostingKey::Class(StyleAtomID(2));
@@ -6288,7 +6287,7 @@ mod tests {
 
     #[test]
     fn primary_fact_capacity_matches_its_columns() {
-        let mut memory = MemoryController::new(DeviceClass::ForegroundDesktop);
+        let mut memory = MemoryController::new();
         let mut store = ElementFactStore::new();
 
         // Grow: enough classes and attributes per row to force several reallocations.
@@ -6399,7 +6398,7 @@ mod tests {
 
     #[test]
     fn shared_dispatch_allocations_are_charged_once() {
-        let mut memory = MemoryController::new(DeviceClass::ForegroundDesktop);
+        let mut memory = MemoryController::new();
         let mut dispatch = RuleDispatch::new();
         dispatch.insert(
             DispatchKey::Class(StyleAtomID(10)),
@@ -6810,7 +6809,7 @@ mod tests {
 
     #[test]
     fn pending_attribute_exposes_both_transaction_sides() {
-        let mut memory = MemoryController::new(DeviceClass::ForegroundDesktop);
+        let mut memory = MemoryController::new();
         let mut tree = StyleNodeTree::new(&mut memory);
         let node = tree.allocate_element(&mut memory);
         let name = StyleAtomID(40);
@@ -6847,7 +6846,7 @@ mod tests {
 
     #[test]
     fn reclaimed_atoms_leave_no_catalog_or_posting_rows_for_reuse() {
-        let mut memory = MemoryController::new(DeviceClass::ForegroundDesktop);
+        let mut memory = MemoryController::new();
         let mut store = ElementFactStore::new();
         let atom = StyleAtomID(40);
         store.note_attribute_name_forms(
@@ -6932,7 +6931,7 @@ mod tests {
 
     #[test]
     fn a_primary_fact_view_is_immutable_and_uncharged() {
-        let mut memory = MemoryController::new(DeviceClass::ForegroundDesktop);
+        let mut memory = MemoryController::new();
         let mut tree = StyleNodeTree::new(&mut memory);
         let node = tree.allocate_element(&mut memory);
         let mut store = ElementFactStore::new();
@@ -6951,7 +6950,7 @@ mod tests {
 
     #[test]
     fn catalog_publication_does_not_copy_primary_fact_rows() {
-        let mut memory = MemoryController::new(DeviceClass::ForegroundDesktop);
+        let mut memory = MemoryController::new();
         let mut store = ElementFactStore::new();
         let node = StyleNodeID::element(1);
         let name = StyleAtomID(20);
@@ -6985,7 +6984,7 @@ mod tests {
 
     #[test]
     fn catalog_synchronization_preserves_a_retained_primary_fact_view() {
-        let mut memory = MemoryController::new(DeviceClass::ForegroundDesktop);
+        let mut memory = MemoryController::new();
         let mut store = ElementFactStore::new();
         let node = StyleNodeID::element(1);
         let name = StyleAtomID(20);

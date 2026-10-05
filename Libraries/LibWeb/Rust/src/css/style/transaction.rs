@@ -877,7 +877,6 @@ impl NormalizationJournal {
 #[cfg(test)]
 mod tests {
     use super::super::index::StyleAtomID;
-    use super::super::memory::DeviceClass;
     use super::super::memory::Tier;
     use super::*;
 
@@ -892,7 +891,7 @@ mod tests {
     impl JournalFixture {
         fn new() -> Self {
             Self {
-                memory: MemoryController::new(DeviceClass::ForegroundDesktop),
+                memory: MemoryController::new(),
                 counters: Counters::new(),
                 journal: NormalizationJournal::new(),
             }

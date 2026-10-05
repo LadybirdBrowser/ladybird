@@ -2176,7 +2176,6 @@ impl Iterator for Preorder<'_> {
 
 #[cfg(test)]
 mod tests {
-    use super::super::memory::DeviceClass;
     use super::*;
 
     #[test]
@@ -2270,7 +2269,7 @@ mod tests {
 
     impl TreeFixture {
         fn new() -> Self {
-            let mut memory = MemoryController::new(DeviceClass::ForegroundDesktop);
+            let mut memory = MemoryController::new();
             let tree = StyleNodeTree::new(&mut memory);
             Self { memory, tree }
         }

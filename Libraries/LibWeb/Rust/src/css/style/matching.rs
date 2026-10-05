@@ -56,7 +56,7 @@ impl Default for SharedDispatches {
     fn default() -> Self {
         Self {
             templates: HashMap::default(),
-            memory: memory::MemoryController::new(memory::DeviceClass::ForegroundDesktop),
+            memory: memory::MemoryController::new(),
         }
     }
 }

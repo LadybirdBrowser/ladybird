@@ -5044,7 +5044,7 @@ mod tests {
         let old_parent = make_store(std::ptr::null(), &inherited_name, "--inherited", 1.0);
         let new_parent = make_store(std::ptr::null(), &inherited_name, "--inherited", 2.0);
         let own = make_store(Arc::as_ptr(&old_parent).cast(), &own_name, "--own", 42.0);
-        let mut engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
+        let mut engine = StyleEngine::new();
         let mut raw_nodes = [0; 3];
         engine.allocate_style_nodes(&mut raw_nodes);
         let [root, ancestor, inheritor] = raw_nodes.map(|node| StyleNodeID::from_raw(node).unwrap());
@@ -5102,7 +5102,7 @@ mod tests {
 
     #[test]
     fn retained_highlight_inheritance_parent_uses_nearest_ancestor_pseudo_record() {
-        let mut engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
+        let mut engine = StyleEngine::new();
         let mut raw_nodes = [0; 4];
         engine.allocate_style_nodes(&mut raw_nodes);
         let [root, parent, child, slot] = raw_nodes.map(|node| StyleNodeID::from_raw(node).unwrap());
@@ -5151,7 +5151,7 @@ mod tests {
         use crate::css::property_metadata::property_id;
         use crate::css::style_value::{RetainedStyleValueData, StyleValueData};
 
-        let mut engine = StyleEngineState::new(DeviceClass::ForegroundDesktop);
+        let mut engine = StyleEngineState::new();
         let sheet = engine.program.add_sheet(StyleSheetObjectID(1), CascadeOrigin::Author);
         for (shorthand, nested_shorthand) in [
             (property_id::BACKGROUND, property_id::BACKGROUND_POSITION),
@@ -5188,7 +5188,7 @@ mod tests {
     fn computability_scratch_keeps_element_declaration_inputs_separate() {
         use crate::css::style_value::RetainedStyleValueData;
 
-        let mut engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
+        let mut engine = StyleEngine::new();
         let mut raw_nodes = [0; 2];
         engine.allocate_style_nodes(&mut raw_nodes);
         let [first, second] = raw_nodes.map(|node| StyleNodeID::from_raw(node).unwrap());
@@ -5235,7 +5235,7 @@ mod tests {
 
     #[test]
     fn acknowledgement_without_pending_records_observes_published_answer() {
-        let mut engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
+        let mut engine = StyleEngine::new();
         let mut raw_nodes = [0; 2];
         engine.allocate_style_nodes(&mut raw_nodes);
         let [first, second] = raw_nodes.map(|node| StyleNodeID::from_raw(node).unwrap());
@@ -5269,7 +5269,7 @@ mod tests {
 
     #[test]
     fn pending_records_acknowledge_and_rollback_independently_by_node() {
-        let mut engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
+        let mut engine = StyleEngine::new();
         let mut raw_nodes = [0; 3];
         engine.allocate_style_nodes(&mut raw_nodes);
         let [first, second, third] = raw_nodes.map(|node| StyleNodeID::from_raw(node).unwrap());
@@ -5353,7 +5353,7 @@ mod tests {
 
     #[test]
     fn a_record_the_host_computes_instead_releases_the_detached_composition() {
-        let mut engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
+        let mut engine = StyleEngine::new();
         let mut raw_node = [0];
         engine.allocate_style_nodes(&mut raw_node);
         let node = StyleNodeID::from_raw(raw_node[0]).unwrap();
@@ -5411,7 +5411,7 @@ mod tests {
 
     #[test]
     fn a_pseudo_element_composition_detaches_and_reattaches() {
-        let mut engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
+        let mut engine = StyleEngine::new();
         let mut raw_node = [0];
         engine.allocate_style_nodes(&mut raw_node);
         let node = StyleNodeID::from_raw(raw_node[0]).unwrap();

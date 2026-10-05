@@ -362,7 +362,7 @@ static RustDeclarationBlock parse_native_declaration_block(Utf16View source)
 
 TEST_CASE(style_engine_consumes_native_inline_declaration_blocks)
 {
-    StyleEngine engine(StyleEngine::DeviceClass::ForegroundDesktop);
+    StyleEngine engine;
     auto node = engine.mint_style_node();
     auto declarations = parse_native_declaration_block(u"color: rgb(20, 24, 28); margin: var(--gap); --gap: 13px"sv);
     auto shared = declarations.share();
@@ -386,7 +386,7 @@ TEST_CASE(style_engine_consumes_native_inline_declaration_blocks)
 
 TEST_CASE(style_engine_expands_presentation_hint_shorthands_in_rust)
 {
-    StyleEngine engine(StyleEngine::DeviceClass::ForegroundDesktop);
+    StyleEngine engine;
     auto node = engine.mint_style_node();
     auto inherited = parse_native_declaration_block(u"color: inherit"sv);
     Vector<StyleProperty> hints { StyleProperty { Important::No, PropertyID::Border, inherited.properties()[0].value } };

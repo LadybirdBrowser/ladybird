@@ -13,8 +13,8 @@ namespace Web::Layout {
 
 // The host's entries are called from here, in LibWeb, so that no target outside it reaches them.
 
-RenderDocument::RenderDocument(u8 device_class)
-    : m_host(RustFFI::document_host_create(device_class))
+RenderDocument::RenderDocument()
+    : m_host(RustFFI::document_host_create())
     , m_read_scope_view(RustFFI::document_host_read_scope_view(m_host))
 {
 }

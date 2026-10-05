@@ -30,7 +30,6 @@ impl DocumentId {
 
 /// What the owner makes a document's render state from, which the host's first job hands it.
 pub(crate) struct StateSeed {
-    pub(super) device_class: crate::css::style::bridge::FfiDeviceClass,
     pub(super) shared: SharedWithHost,
 }
 

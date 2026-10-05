@@ -198,12 +198,11 @@ impl SpecifiedValues {
 #[cfg(test)]
 #[allow(clippy::arc_with_non_send_sync)]
 mod tests {
-    use super::super::memory::DeviceClass;
     use super::*;
 
     #[test]
     fn evicted_specified_values_are_missing_instead_of_absent() {
-        let mut memory = MemoryController::new(DeviceClass::ForegroundDesktop);
+        let mut memory = MemoryController::new();
         let mut values = SpecifiedValues::new();
         let value = std::sync::Arc::new(StyleValueData::Number { value: 42.0 });
         let equal_value = std::sync::Arc::new(StyleValueData::Number { value: 42.0 });
@@ -245,7 +244,7 @@ mod tests {
 
     #[test]
     fn equal_content_dedups_across_distinct_spellings() {
-        let mut memory = MemoryController::new(DeviceClass::ForegroundDesktop);
+        let mut memory = MemoryController::new();
         let mut values = SpecifiedValues::new();
         let originals: Vec<_> = (0..64)
             .map(|i| std::sync::Arc::new(StyleValueData::Number { value: f64::from(i) }))
@@ -268,7 +267,7 @@ mod tests {
 
     #[test]
     fn committed_specified_values_remain_resolvable_across_quota_boundaries() {
-        let mut memory = MemoryController::new(DeviceClass::ForegroundDesktop);
+        let mut memory = MemoryController::new();
         memory.set_tier3_limit_for_test(0);
         memory.begin_tier3_quota_period();
         let mut values = SpecifiedValues::new();
@@ -283,7 +282,7 @@ mod tests {
 
     #[test]
     fn authored_spellings_can_alias_a_canonical_identity() {
-        let mut memory = MemoryController::new(DeviceClass::ForegroundDesktop);
+        let mut memory = MemoryController::new();
         let mut values = SpecifiedValues::new();
         let canonical = std::sync::Arc::new(StyleValueData::Number { value: 42.0 });
         let authored = std::sync::Arc::new(StyleValueData::Number { value: 43.0 });
