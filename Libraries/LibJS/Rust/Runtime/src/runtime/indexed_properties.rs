@@ -46,6 +46,10 @@ pub struct GenericIndexedPropertyStorage {
 }
 
 impl GenericIndexedPropertyStorage {
+    pub fn external_memory_size(&self) -> usize {
+        self.sparse_elements.capacity() * (size_of::<u32>() + size_of::<ValueAndAttributes>())
+    }
+
     pub fn has_index(&self, index: u32) -> bool {
         self.sparse_elements.contains_key(&index)
     }

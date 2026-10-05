@@ -677,6 +677,18 @@ fn ascii_as_str(units: &[u8]) -> &str {
     unsafe { core::str::from_utf8_unchecked(units) }
 }
 
+/// Mirrors utf16_string_external_memory_size() of the C++ runtime's ExternalMemory.h: the bytes of a string's storage
+/// outside its one-word representation, which a short string does not have.
+pub fn utf16_string_external_memory_size(string: &Utf16String) -> usize {
+    if has_short_ascii_storage(string) {
+        return 0;
+    }
+    match string.as_units() {
+        Utf16StringUnits::Ascii(units) => units.len(),
+        Utf16StringUnits::Utf16(units) => size_of_val(units),
+    }
+}
+
 /// Mirrors AK::Utf16String::has_short_ascii_storage.
 pub fn has_short_ascii_storage(string: &Utf16String) -> bool {
     string.raw_identity() & ak::SHORT_STRING_FLAG != 0

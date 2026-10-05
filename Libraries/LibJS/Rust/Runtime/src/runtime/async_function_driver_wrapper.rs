@@ -10,7 +10,7 @@ use core::ptr::NonNull;
 
 use libjs_runtime_macros::Trace;
 
-use crate::gc::class::{Finalize, GcCell, define_cell};
+use crate::gc::class::{GcCell, define_cell};
 use crate::gc::gc_ref_cell::GcRefCell;
 use crate::gc::heap_function::create_heap_function;
 use crate::interpreter::execution_context::OwnedExecutionContext;
@@ -38,20 +38,13 @@ pub struct AsyncFunctionDriverWrapper {
     is_initial_execution: Cell<bool>,
 }
 
-define_cell!(AsyncFunctionDriverWrapper, Object, extends: [Promise, Object], finalize: finalize);
+define_cell!(AsyncFunctionDriverWrapper, Object, extends: [Promise, Object]);
 
 impl Deref for AsyncFunctionDriverWrapper {
     type Target = Promise;
 
     fn deref(&self) -> &Promise {
         &self.base
-    }
-}
-
-impl Finalize for AsyncFunctionDriverWrapper {
-    fn finalize(&self) {
-        Finalize::finalize(&self.base);
-        drop(self.suspended_execution_context.replace(None));
     }
 }
 
