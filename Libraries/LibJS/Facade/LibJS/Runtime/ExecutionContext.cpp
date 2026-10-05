@@ -42,6 +42,11 @@ void ExecutionContext::visit_edges(GC::Cell::Visitor& visitor)
     js_execution_context_visit(execution_context_to_abi(*this), reinterpret_cast<GCVisitor*>(&visitor));
 }
 
+SourceCode const* ExecutionContext::source_code() const
+{
+    return reinterpret_cast<SourceCode const*>(js_source_code_of_execution_context(execution_context_to_abi(*this)));
+}
+
 Utf16FlyString ExecutionContext::function_name() const
 {
     return owned_utf16_string_from_abi(js_execution_context_function_name(execution_context_to_abi(*this)));

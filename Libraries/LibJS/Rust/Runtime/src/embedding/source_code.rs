@@ -99,6 +99,52 @@ pub unsafe extern "C" fn js_source_code_length_in_code_units(source_code: *const
     unsafe { source_code_from_abi(source_code) }.length_in_code_units()
 }
 
+/// SourceCode::filename() as C++ returns it, by reference: the address of the source code's AK::Utf16String, which
+/// stays where it is, unchanged, for as long as the source code lives. Only the VM's thread may call this.
+///
+/// # Safety
+///
+/// `source_code` must be live source code.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn js_source_code_filename_address(
+    source_code: *const JSSourceCode,
+) -> *const JSOwnedUtf16String {
+    // SAFETY: The caller passes live source code.
+    let source_code = unsafe { source_code_from_abi(source_code) };
+    core::ptr::from_ref(source_code.filename()).cast()
+}
+
+/// SourceCode::code() as C++ returns it, by reference: the address of the source code's AK::Utf16String, which stays
+/// where it is, unchanged, for as long as the source code lives. Only the VM's thread may call this.
+///
+/// # Safety
+///
+/// `source_code` must be live source code.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn js_source_code_code_address(source_code: *const JSSourceCode) -> *const JSOwnedUtf16String {
+    // SAFETY: The caller passes live source code.
+    let source_code = unsafe { source_code_from_abi(source_code) };
+    core::ptr::from_ref(source_code.code()).cast()
+}
+
+/// SourceCode::utf16_data(): the js_source_code_length_in_code_units() UTF-16 code units of the code, widened on the
+/// first call for code in the ASCII storage kind. They stay where they are, unchanged, for as long as the source code
+/// lives, so a worker thread may read them while the VM's thread keeps the source code alive, as it may parse them with
+/// js_compile_parse(). Null for empty code. Only the VM's thread may call this.
+///
+/// # Safety
+///
+/// `source_code` must be live source code.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn js_source_code_utf16_data(source_code: *const JSSourceCode) -> *const u16 {
+    // SAFETY: The caller passes live source code.
+    let code_units = unsafe { source_code_from_abi(source_code) }.utf16_code_units();
+    if code_units.is_empty() {
+        return core::ptr::null();
+    }
+    code_units.as_ptr()
+}
+
 /// ExecutionContext::source_code(): the source code of the bytecode the context runs, or null if it runs none, as for a
 /// native function, or if that bytecode has no source code. The context's executable keeps it alive, and a caller that
 /// keeps it longer retains it. Only the VM's thread may call this.

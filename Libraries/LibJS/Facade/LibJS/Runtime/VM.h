@@ -133,6 +133,9 @@ public:
     void enable_debugging();
     void disable_debugging();
     [[nodiscard]] bool debugging_enabled() const;
+    // The runtime's debugger, which is attached while debugging is enabled. A Debugger handle has the VM's address.
+    [[nodiscard]] Debugger* debugger();
+    [[nodiscard]] Debugger const* debugger() const;
 
 #define __JS_ENUMERATE(SymbolName, snake_name)                 \
     GC::Ref<Symbol> well_known_symbol_##snake_name() const     \
@@ -354,6 +357,9 @@ public:
     Function<ThrowCompletionOr<HandledByHost>(ArrayBuffer&, size_t)> host_grow_shared_array_buffer;
     Function<void(Utf16View)> host_unrecognized_date_string;
     Function<bool()> host_promise_job_queue_is_empty;
+
+    // The frames of the execution context stack from the running one down, with where in its source code each one is.
+    [[nodiscard]] Vector<StackTraceElement> stack_trace() const;
 
 private:
     friend class InterpreterStack;
