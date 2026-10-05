@@ -4752,7 +4752,6 @@ void Document::set_bg_color(Utf16View value)
 
 Utf16String Document::dump_dom_tree_as_json() const
 {
-    Layout::ForcedReadScope read { *this };
     const_cast<Document&>(*this).update_layout(UpdateLayoutReason::InspectDOMTree);
 
     Utf16StringBuilder builder;
