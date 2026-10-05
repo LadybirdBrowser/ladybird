@@ -6,6 +6,7 @@
 
 use core::cell::Cell;
 use core::ffi::c_void;
+use core::num::NonZeroU64;
 use core::ops::Deref;
 use core::ptr::NonNull;
 use core::sync::atomic::{AtomicU8, AtomicU16, AtomicU32, AtomicU64, Ordering};
@@ -151,6 +152,25 @@ impl OwnedBackingStore {
         Ok(Self {
             storage: Some(OwnedPrimitiveStorage::reserve(size, capacity, ZeroFillNewBytes::Yes)?),
         })
+    }
+
+    /// Takes over storage that an embedder gives up, or none for the null handle.
+    ///
+    /// # Safety
+    ///
+    /// A handle other than the null handle must name live storage that nothing else resizes or frees from now on.
+    pub unsafe fn adopt_handle(handle: GCPrimitiveStorageHandle) -> Self {
+        Self {
+            // SAFETY: The caller gives up the storage.
+            storage: NonZeroU64::new(handle).map(|handle| unsafe { OwnedPrimitiveStorage::adopt(handle) }),
+        }
+    }
+
+    /// Gives up the storage without freeing it, for an embedder that takes it over, and returns its handle, or the null
+    /// handle if there are no bytes.
+    pub fn into_handle(self) -> GCPrimitiveStorageHandle {
+        self.storage
+            .map_or(GC_PRIMITIVE_STORAGE_NULL_HANDLE, |storage| storage.into_handle().get())
     }
 
     /// The handle of the storage, or the null handle while there are no bytes.

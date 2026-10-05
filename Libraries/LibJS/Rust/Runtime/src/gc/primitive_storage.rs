@@ -200,6 +200,33 @@ impl OwnedPrimitiveStorage {
         self.set_layout(layout);
         Ok(())
     }
+
+    /// Takes over storage that an embedder allocated or took from a data block, and now gives up.
+    ///
+    /// # Safety
+    ///
+    /// `handle` must name live storage that nothing else resizes or frees from now on.
+    pub unsafe fn adopt(handle: NonZeroU64) -> Self {
+        let storage = ForeignPrimitiveStorage::new(handle.get());
+        let mut adopted = Self {
+            handle,
+            layout: LAYOUT_OF_NO_STORAGE,
+            data: core::ptr::null_mut(),
+        };
+        adopted.set_layout(GCPrimitiveStorageLayout {
+            offset: storage.offset(),
+            size: storage.size(),
+            capacity: storage.capacity(),
+        });
+        adopted
+    }
+
+    /// Gives up the storage without freeing it, for an embedder that takes it over.
+    pub fn into_handle(self) -> NonZeroU64 {
+        let handle = self.handle;
+        core::mem::forget(self);
+        handle
+    }
 }
 
 impl Drop for OwnedPrimitiveStorage {
