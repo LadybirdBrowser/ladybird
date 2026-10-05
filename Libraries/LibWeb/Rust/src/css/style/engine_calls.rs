@@ -219,9 +219,7 @@ impl EngineWrite {
                 let atom = match lease.key() {
                     // SAFETY: The lease retains the fly string the raw identity names.
                     AtomKey::Raw(raw) => unsafe { super::bridge::intern_atom(engine, raw) },
-                    AtomKey::Qualified(namespace, name) => {
-                        super::bridge::operations::intern_qualified_atom(engine, namespace.0, name.0)
-                    }
+                    AtomKey::Qualified(namespace, name) => engine.intern_qualified_atom(namespace, name).0,
                 };
                 // The engine took a reference of its own, so the global atom stays the one the lease held.
                 assert_eq!(atom, lease.atom().0, "a document adopts the atom its host interned");

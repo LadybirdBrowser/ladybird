@@ -51,9 +51,7 @@ use super::program::CustomDeclaration;
 use super::program::DeclarationBlockID;
 
 use super::program::RuleID;
-use super::program::RuleKind;
 use super::program::SheetID;
-use super::program::StyleSheetObjectID;
 use super::transaction::ElementDeclarationKind;
 use super::transaction::InputKey;
 use super::transaction::InputValue;
@@ -949,7 +947,7 @@ pub enum FfiCascadeOrigin {
 }
 
 impl FfiCascadeOrigin {
-    fn decode(self) -> CascadeOrigin {
+    pub(super) fn decode(self) -> CascadeOrigin {
         match self {
             Self::Author => CascadeOrigin::Author,
             Self::AuthorPresentationalHint => CascadeOrigin::AuthorPresentationalHint,

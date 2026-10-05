@@ -12,11 +12,12 @@
 
 use super::StyleEngine;
 use super::bridge::{
-    BoundScopeChain, FfiCascadeOrigin, intern_native_text, operations, publish_rule_declarations, publish_style_rule,
+    BoundScopeChain, FfiCascadeOrigin, intern_native_text, publish_rule_declarations, publish_style_rule,
     publish_style_rule_selectors, publish_user_agent_style_rule,
 };
 use super::compiler::NamespaceScope;
-use super::program::{RuleID, RuleKind};
+use super::program::{CascadeLayerID, RuleID, RuleKind, SheetID, StyleSheetObjectID};
+use super::tree::TreeScopeID;
 use crate::css::container_conditions::ContainerConditionsData;
 use crate::css::declaration_block::DeclarationBlockData;
 use crate::css::selector::CompiledSelector;
@@ -209,11 +210,11 @@ pub(crate) struct CompiledRule {
 
 impl CompiledRule {
     fn publish(self, engine: &mut StyleEngine, sheet: u32, before: u32) {
-        let id = match &self.kind {
-            CompiledRuleKind::Style {
-                selectors,
-                gated_by_container_query,
-            } => {
+        let place = sheet
+            .checked_sub(1)
+            .map(|sheet| (SheetID(sheet), before.checked_sub(1).map(RuleID)));
+        let rule = match &self.kind {
+            CompiledRuleKind::Style { selectors, .. } => {
                 let id = selectors
                     .publish_user_agent(engine, sheet, before, self.identity)
                     .unwrap_or_else(|| {
@@ -224,36 +225,46 @@ impl CompiledRule {
                 if let Some(declarations) = &self.declarations {
                     publish_rule_declarations(engine, id, declarations);
                 }
-                if *gated_by_container_query {
-                    operations::set_rule_gated_by_container_query(engine, id);
-                }
-                id
+                id.checked_sub(1).map(RuleID)
             }
             CompiledRuleKind::Named { kind, name } => {
-                let name = intern_native_text(engine, name).0;
-                match kind {
-                    RuleKind::Property => operations::add_property_rule(engine, sheet, before, name),
-                    RuleKind::Keyframes => operations::add_keyframes_rule(engine, sheet, before, name),
+                let name = intern_native_text(engine, name);
+                place.map(|(sheet, before)| match kind {
+                    RuleKind::Property => engine.add_property_rule(sheet, before, name),
+                    RuleKind::Keyframes => engine.add_keyframes_rule(sheet, before, name),
                     _ => unreachable!("only @property and @keyframes rules are found by name"),
-                }
+                })
             }
-            CompiledRuleKind::NonMatching(kind) => match kind {
-                RuleKind::FontFeatureValues => operations::add_font_feature_values_rule(engine, sheet, before),
-                RuleKind::CounterStyle => operations::add_counter_style_rule(engine, sheet, before),
-                RuleKind::Function => operations::add_function_rule(engine, sheet, before),
-                _ => unreachable!("only rules of a non-matching kind are published without a name"),
-            },
+            CompiledRuleKind::NonMatching(kind) => {
+                assert!(
+                    matches!(
+                        kind,
+                        RuleKind::FontFeatureValues | RuleKind::CounterStyle | RuleKind::Function
+                    ),
+                    "only rules of a non-matching kind are published without a name"
+                );
+                place.map(|(sheet, before)| engine.add_non_matching_rule(sheet, before, *kind))
+            }
         };
-        let Some(rule) = id.checked_sub(1).map(RuleID) else {
+        let Some(rule) = rule else {
             return;
         };
+        if matches!(
+            self.kind,
+            CompiledRuleKind::Style {
+                gated_by_container_query: true,
+                ..
+            }
+        ) {
+            engine.set_rule_gated_by_container_query(rule);
+        }
         if !self.conditions_hold {
-            operations::set_rule_conditions_hold(engine, id, false);
+            engine.set_rule_conditions_hold(rule, false);
         }
         if self.in_a_layer {
             let layer = intern_native_text(engine, &self.layer_name).0;
-            operations::set_rule_in_a_layer(engine, id);
-            operations::set_rule_layer(engine, id, layer);
+            engine.set_rule_in_a_layer(rule);
+            engine.set_rule_layer(rule, CascadeLayerID(layer));
         }
         engine.register_native_rule(
             rule,
@@ -301,10 +312,14 @@ impl RuleWrite {
     pub(crate) fn apply(self, engine: &mut StyleEngine) {
         match self {
             Self::AddSheet { sheet, object, origin } => {
-                let added = operations::add_sheet(engine, object, origin);
-                assert_eq!(added, sheet, "the engine numbers a sheet as its host did");
+                let added = engine.add_sheet(StyleSheetObjectID(object), origin.decode());
+                assert_eq!(added.0 + 1, sheet, "the engine numbers a sheet as its host did");
             }
-            Self::BeginSheetRulesReplacement(sheet) => operations::begin_sheet_rules_replacement(engine, sheet),
+            Self::BeginSheetRulesReplacement(sheet) => {
+                if let Some(sheet) = sheet.checked_sub(1) {
+                    engine.begin_sheet_rules_replacement(SheetID(sheet));
+                }
+            }
             Self::PublishRules { sheet, before, rules } => {
                 let before = rule_number(engine, before);
                 for rule in rules {
@@ -320,7 +335,7 @@ impl RuleWrite {
             Self::RemoveRules(identities) => {
                 for identity in identities {
                     if let Some(rule) = engine.native_rule_id(identity) {
-                        operations::remove_rule(engine, rule.0 + 1);
+                        engine.remove_style_rule(rule);
                     }
                 }
             }
@@ -332,7 +347,7 @@ impl RuleWrite {
             Self::RuleConditions(conditions) => {
                 for (identity, holds) in conditions {
                     if let Some(rule) = engine.native_rule_id(identity) {
-                        operations::set_rule_conditions_hold(engine, rule.0 + 1, holds);
+                        engine.set_rule_conditions_hold(rule, holds);
                     }
                 }
             }
@@ -340,14 +355,14 @@ impl RuleWrite {
                 let layers: Vec<_> = names
                     .iter()
                     .map(|name| {
-                        if name.is_empty() {
+                        CascadeLayerID(if name.is_empty() {
                             0
                         } else {
                             intern_native_text(engine, name).0
-                        }
+                        })
                     })
                     .collect();
-                operations::set_layer_order(engine, tree_scope, &layers);
+                engine.set_layer_order(TreeScopeID(tree_scope), &layers);
             }
         }
     }
@@ -366,7 +381,7 @@ pub(crate) fn publish_native_rule_declarations(
 ) {
     engine.native_rules.targets.get_mut(&rule).unwrap().declarations = declarations.clone();
     let version = engine.next_declaration_block_version();
-    operations::record_rule_declarations_changed(engine, rule.0 + 1, version);
+    engine.record_rule_declarations_changed(rule, version);
     if let Some(declarations) = &declarations {
         publish_rule_declarations(engine, rule.0 + 1, declarations);
     }
