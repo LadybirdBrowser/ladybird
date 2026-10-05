@@ -1,0 +1,35 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const source = `<svg xmlns="http://www.w3.org/2000/svg">
+            <use id="instance" href="#source"/>
+            <defs><rect id="source" width="20" height="20"/></defs>
+            <script><![CDATA[
+                document.addEventListener("DOMContentLoaded", () => {
+                    const instance = document.getElementById("instance");
+                    window.resolvedBeforeLoad = instance.getBBox().width === 20;
+                    document.getElementById("source").setAttribute("width", "30");
+                    window.updatedBeforeLoad = instance.getBBox().width;
+                });
+            ]]><\/script>
+        </svg>`;
+
+        const url = URL.createObjectURL(new Blob([source], { type: "image/svg+xml" }));
+        const frame = document.createElement("iframe");
+        frame.src = url;
+        await new Promise(resolve => {
+            frame.onload = resolve;
+            document.body.append(frame);
+        });
+        println(`Resolved at DOMContentLoaded: ${frame.contentWindow.resolvedBeforeLoad}`);
+        println(`Updated before load: ${frame.contentWindow.updatedBeforeLoad}`);
+        frame.remove();
+        URL.revokeObjectURL(url);
+
+        const parsed = new DOMParser().parseFromString(source, "image/svg+xml");
+        const svg = document.body.appendChild(parsed.documentElement);
+        println(`Parsed SVG renders after insertion: ${svg.querySelector("#instance").getBBox().width === 20}`);
+        svg.remove();
+    });
+</script>

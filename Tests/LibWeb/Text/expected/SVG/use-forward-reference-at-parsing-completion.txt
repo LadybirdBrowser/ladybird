@@ -1,0 +1,3 @@
+Resolved at DOMContentLoaded: true
+Updated before load: 30
+Parsed SVG renders after insertion: true

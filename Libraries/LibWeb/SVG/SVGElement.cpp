@@ -458,10 +458,10 @@ void SVGElement::update_use_elements_that_reference_this()
     }
 
     for (auto& use_element : document().svg_use_elements()) {
-        if (document().is_completely_loaded())
+        if (document().readiness() != HTML::DocumentReadyState::Loading)
             use_element.svg_element_changed(*this);
         else
-            use_element.svg_element_changed_before_document_complete(*this);
+            use_element.svg_element_changed_before_parsing_complete(*this);
     }
 }
 
