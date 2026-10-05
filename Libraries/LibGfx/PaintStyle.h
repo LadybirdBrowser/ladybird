@@ -29,10 +29,7 @@ public:
 
 class SolidColorPaintStyle : public PaintStyle {
 public:
-    static ErrorOr<NonnullRefPtr<SolidColorPaintStyle>> create(Color color)
-    {
-        return adopt_nonnull_ref_or_enomem(new (nothrow) SolidColorPaintStyle(color));
-    }
+    static ErrorOr<NonnullRefPtr<SolidColorPaintStyle>> create(Color color);
 
     bool is_visible() const override { return m_color.alpha() > 0; }
 
@@ -112,10 +109,7 @@ private:
 
 class CanvasLinearGradientPaintStyle : public GradientPaintStyle {
 public:
-    static ErrorOr<NonnullRefPtr<CanvasLinearGradientPaintStyle>> create(FloatPoint p0, FloatPoint p1)
-    {
-        return adopt_nonnull_ref_or_enomem(new (nothrow) CanvasLinearGradientPaintStyle(p0, p1));
-    }
+    static ErrorOr<NonnullRefPtr<CanvasLinearGradientPaintStyle>> create(FloatPoint p0, FloatPoint p1);
 
     FloatPoint start_point() const { return m_p0; }
     FloatPoint end_point() const { return m_p1; }
@@ -133,10 +127,7 @@ private:
 
 class CanvasConicGradientPaintStyle : public GradientPaintStyle {
 public:
-    static ErrorOr<NonnullRefPtr<CanvasConicGradientPaintStyle>> create(FloatPoint center, float start_angle = 0.0f)
-    {
-        return adopt_nonnull_ref_or_enomem(new (nothrow) CanvasConicGradientPaintStyle(center, start_angle));
-    }
+    static ErrorOr<NonnullRefPtr<CanvasConicGradientPaintStyle>> create(FloatPoint center, float start_angle = 0.0f);
 
     FloatPoint center() const { return m_center; }
     float start_angle() const { return m_start_angle; }
@@ -154,10 +145,7 @@ private:
 
 class CanvasRadialGradientPaintStyle : public GradientPaintStyle {
 public:
-    static ErrorOr<NonnullRefPtr<CanvasRadialGradientPaintStyle>> create(FloatPoint start_center, float start_radius, FloatPoint end_center, float end_radius)
-    {
-        return adopt_nonnull_ref_or_enomem(new (nothrow) CanvasRadialGradientPaintStyle(start_center, start_radius, end_center, end_radius));
-    }
+    static ErrorOr<NonnullRefPtr<CanvasRadialGradientPaintStyle>> create(FloatPoint start_center, float start_radius, FloatPoint end_center, float end_radius);
 
     Gfx::FloatPoint start_center() const { return m_start_center; }
     float start_radius() const { return m_start_radius; }
