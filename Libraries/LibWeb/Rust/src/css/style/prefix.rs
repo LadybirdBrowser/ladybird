@@ -4915,8 +4915,6 @@ mod tests {
                 &[AttributeFact {
                     name,
                     value: StyleAtomID(30 + index),
-                    text_offset: 0,
-                    text_length: 0,
                 }],
             );
         }

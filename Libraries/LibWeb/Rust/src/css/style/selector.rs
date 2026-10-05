@@ -6738,6 +6738,7 @@ mod tests {
     const CLASS_THEME: StyleAtomID = StyleAtomID(11);
     const ID_TARGET: StyleAtomID = StyleAtomID(20);
     const ATTR_HREF: StyleAtomID = StyleAtomID(30);
+    const VALUE_HREF: StyleAtomID = StyleAtomID(41);
     const ATTR_TYPE: StyleAtomID = StyleAtomID(31);
     const VALUE_TEXT: StyleAtomID = StyleAtomID(40);
 
@@ -6791,7 +6792,7 @@ mod tests {
 
             let mut facts = StyleNodeFacts::new();
             let href: Vec<u16> = "https://example.com/a".encode_utf16().collect();
-            let (offset, length) = facts.push_text(&href);
+            facts.set_attribute_value_text_for_test(VALUE_HREF, &href);
             facts.push_row(
                 nodes[0],
                 TAG_DIV,
@@ -6808,9 +6809,7 @@ mod tests {
                 &[CLASS_ITEM],
                 &[AttributeFact {
                     name: ATTR_HREF,
-                    value: StyleAtomID::NONE,
-                    text_offset: offset,
-                    text_length: length,
+                    value: VALUE_HREF,
                 }],
             );
             let mut hovered = StateSet::default();
@@ -6824,8 +6823,6 @@ mod tests {
                 &[AttributeFact {
                     name: ATTR_TYPE,
                     value: VALUE_TEXT,
-                    text_offset: u32::MAX,
-                    text_length: 0,
                 }],
             );
             let row = facts.row_of(nodes[2]).unwrap();
