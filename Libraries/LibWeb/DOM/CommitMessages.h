@@ -42,7 +42,6 @@ private:
     enum class Kind : u8 {
         ContentSizeChangedForContainerQueries,
         NavigableContainerViewportCommitted,
-        UnexpectedFragmentedInline,
         NeedsLayoutTreeUpdate,
         TopLayerZoneRebuildNeeded,
         ListItemCounterValueRendered,
