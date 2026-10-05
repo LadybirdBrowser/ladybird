@@ -57,6 +57,15 @@ pub(crate) struct HostTables {
 }
 
 impl HostTables {
+    pub(super) fn clear_callbacks(&self) {
+        self.layout_host.set(None);
+        self.layout_update_host.set(None);
+        self.shell_factory.set(None);
+        self.shell_style_changed_host.set(None);
+        self.chrome_state_callback.set(None);
+        self.geometry_host.set(None);
+    }
+
     /// The layout node of the row `facts` describes, made by the shell factory the first time
     /// something asks for it.
     pub(crate) fn shell_of(&self, facts: ShellFacts) -> *mut c_void {

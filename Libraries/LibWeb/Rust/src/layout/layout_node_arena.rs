@@ -5486,9 +5486,10 @@ pub unsafe extern "C" fn render_state_clear_box_presence_host(host: &DocumentHos
     unsafe { queue(host, LayoutChange::SetBoxPresenceHost(None)) };
 }
 
+/// Forgets every callback the document registered with its host, as the document is finalized.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn document_host_clear_shell_factory(host: &DocumentHost) {
-    host.host_tables().shell_factory.set(None);
+pub extern "C" fn document_host_clear_callbacks(host: &DocumentHost) {
+    host.host_tables().clear_callbacks();
 }
 
 #[unsafe(no_mangle)]
@@ -5504,11 +5505,6 @@ pub unsafe extern "C" fn document_host_set_style_record_host_callbacks(
     host.host_tables()
         .shell_style_changed_host
         .set(Some((callbacks.context, callbacks.shell_style_changed)));
-}
-
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn document_host_clear_style_record_host_callbacks(host: &DocumentHost) {
-    host.host_tables().shell_style_changed_host.set(None);
 }
 
 #[unsafe(no_mangle)]

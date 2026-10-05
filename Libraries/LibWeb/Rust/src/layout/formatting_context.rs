@@ -1008,14 +1008,6 @@ pub unsafe extern "C" fn document_host_set_layout_host_callbacks(
     host.host_tables().layout_host.set(Some(callbacks));
 }
 
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn document_host_clear_layout_host_callbacks(host: &crate::render_state::DocumentHost) {
-    host.host_tables().layout_host.set(None);
-}
-
 #[derive(Clone)]
 pub(crate) struct FormattingContextRun<'pass> {
     pub(crate) purpose: LayoutPurpose,

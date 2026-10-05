@@ -862,14 +862,6 @@ pub unsafe extern "C" fn document_host_set_layout_update_host_callbacks(
 
 /// # Safety
 ///
-/// `host` must be a live document host, on its document's thread.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn document_host_clear_layout_update_host_callbacks(host: &DocumentHost) {
-    host.host_tables().layout_update_host.set(None);
-}
-
-/// # Safety
-///
 /// `host` must be a live document host, on its document's thread, with no layout update running. A document runs
 /// one layout update at a time; a nested request is a caller bug.
 #[unsafe(no_mangle)]

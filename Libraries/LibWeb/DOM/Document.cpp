@@ -775,11 +775,7 @@ void Document::finalize()
         m_layout_node_arena->stop_reporting_box_presence({});
     tear_down_layout_tree();
     if (m_layout_node_arena) {
-        Layout::RustFFI::document_host_clear_chrome_state_callback(m_layout_node_arena->host());
-        Layout::RustFFI::document_host_clear_style_record_host_callbacks(m_layout_node_arena->host());
-        Layout::RustFFI::document_host_clear_layout_host_callbacks(m_layout_node_arena->host());
-        Layout::RustFFI::document_host_clear_layout_update_host_callbacks(m_layout_node_arena->host());
-        Layout::RustFFI::document_host_clear_shell_factory(m_layout_node_arena->host());
+        Layout::RustFFI::document_host_clear_callbacks(m_layout_node_arena->host());
         VERIFY(Layout::RustFFI::render_state_layout_counts(m_layout_node_arena->host()).live_slots == 0);
         m_layout_node_arena->set_document({}, nullptr);
     }
