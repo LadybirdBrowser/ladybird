@@ -1395,7 +1395,7 @@ struct ElementDependentInvalidationState {
 // Whether the counter styles the element's generated content names now differ from the ones the box built for it
 // renders from. The build resolves them from the published record and the tree scope's registered counter styles, and
 // the arena keeps what each box was built with.
-static bool content_counter_styles_changed(Layout::BegunRead const& read, DOM::AbstractElement const& abstract_element)
+static bool content_counter_styles_changed(Layout::BegunRead const& read, DOM::AbstractElement const& abstract_element, CSS::ComputedValues const& new_computed_values)
 {
     auto* arena = abstract_element.element().document().layout_node_arena_if_created();
     if (!arena)
@@ -1403,6 +1403,11 @@ static bool content_counter_styles_changed(Layout::BegunRead const& read, DOM::A
     // Only a pseudo-element's box renders generated content.
     auto const pseudo_element = abstract_element.pseudo_element();
     if (!pseudo_element.has_value())
+        return false;
+    // A box whose `content` changes is rebuilt for that alone, so only content naming a registered counter style can
+    // render one that changed beneath it. A marker whose `content` is `normal` renders its list item's counter style.
+    if (*pseudo_element != CSS::PseudoElement::Marker
+        && !CSS::ComputedValuesFFI::rust_content_reads_counter_style_environment(new_computed_values.computed_content()->rust_style_value_data()))
         return false;
     abstract_element.style_scope().publish_counter_style_lookup_chain(read);
     return Layout::RustFFI::render_state_content_counter_styles_changed(arena->host(), &read, abstract_element.element().style_node_id().value(), Layout::Node::encode_generated_for(*pseudo_element));
@@ -1416,7 +1421,7 @@ static void add_element_dependent_invalidation(Layout::BegunRead const& read, CS
     // 'content' change, they rebuild from the element rather than its parent. The rebuild moves no
     // style, so the element's children do not react to it.
     auto compare = [&](Optional<ValueComparingRefPtr<CSS::CounterStyle const>> const& old_list_counter_style) {
-        if (content_counter_styles_changed(read, abstract_element))
+        if (content_counter_styles_changed(read, abstract_element, new_computed_values))
             invalidation |= CSS::RequiredInvalidationAfterStyleChange::rebuild_layout_tree_for_counter_styles_from(CSS::LayoutTreeRebuildRoot::Self);
 
         if (old_list_counter_style.has_value()) {
