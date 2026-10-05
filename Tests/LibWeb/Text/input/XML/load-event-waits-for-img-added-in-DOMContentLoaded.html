@@ -1,0 +1,57 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const server = httpTestServer();
+
+        const imageURL = await server.createEcho("GET", `/xml-load-delay.png`, {
+            status: 404,
+            headers: { "Content-Type": "image/png" },
+            body: "",
+            delay_ms: 200,
+        });
+
+        const documentURL = await server.createEcho("GET", `/xml-load-delay.xhtml`, {
+            status: 200,
+            headers: { "Content-Type": "application/xhtml+xml" },
+            body: `
+<html xmlns="http://www.w3.org/1999/xhtml">
+    <body>
+        <script><![CDATA[
+            const events = [];
+            document.addEventListener("DOMContentLoaded", () => {
+                events.push("DOMContentLoaded");
+                const img = document.createElement("img");
+                img.addEventListener("error", () => events.push("img error event"));
+                img.src = ${JSON.stringify(imageURL)};
+                document.body.appendChild(img);
+            });
+
+            window.addEventListener("load", () => {
+                events.push("window load event");
+                parent.postMessage(events, "*");
+            });
+        ]]><\/script>
+    </body>
+</html>`,
+        });
+        const frame = document.createElement("iframe");
+
+        const completed = new Promise(resolve => {
+            const onMessage = event => {
+                if (event.source !== frame.contentWindow) return;
+                window.removeEventListener("message", onMessage);
+                resolve(event.data);
+            };
+            window.addEventListener("message", onMessage);
+        });
+
+        frame.src = documentURL;
+
+        document.body.appendChild(frame);
+
+        for (const event of await completed) println(event);
+
+        frame.remove();
+    });
+</script>
