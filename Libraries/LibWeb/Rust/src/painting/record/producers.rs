@@ -15,7 +15,6 @@ use super::trace::{Action, Observer, Operation};
 use super::{PaintPhase, PaintRecorder};
 use crate::css::css_pixels::CssPixelRect;
 use crate::layout::node_data::{NodeFlag, NodeSlotId};
-use crate::painting::display_list::builder::CommandRange;
 use crate::painting::display_list::commands::ContextRef;
 use crate::painting::force_dark::ForceDarkRole;
 use crate::painting::paint_order_plan::{PaintScope, PaintScopePlan};
@@ -245,15 +244,7 @@ impl<O: Observer> AssemblyHost for PaintRecorder<'_, O> {
             .source_items
             .as_ref()
             .expect("clean output is copied from a published recording");
-        if !bytes.is_empty() {
-            self.recorder.append_cached_command_range_verbatim(
-                &frame.display_list,
-                CommandRange {
-                    offset: bytes.start,
-                    size: bytes.end - bytes.start,
-                },
-            );
-        }
+        self.recorder.append_cached_commands(&frame.display_list, bytes);
         if !hits.is_empty() {
             self.list
                 .append_copies_of(&items.items[hits.start as usize..hits.end as usize]);
