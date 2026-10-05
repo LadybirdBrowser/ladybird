@@ -621,26 +621,31 @@ void DecodedAudioProducer::ThreadData::push_data_and_decode_a_block()
         return;
     }
 
-    auto sample_result = m_demuxer->get_next_sample_for_track(m_track);
-    if (sample_result.is_error()) {
-        if (sample_result.error().category() == DecoderErrorCategory::EndOfStream) {
-            if (m_decoder == nullptr) {
-                set_halting_status_and_wait_for_seek(PipelineStatus::EndOfStream, {});
+    // A seek can resolve while the decoder drains for a replacement, so the frame awaiting the new decoder is still
+    // pending. Only draining further gets it decoded.
+    auto decoder_is_draining_for_replacement = m_frame_awaiting_decoder_replacement.has_value();
+    if (!decoder_is_draining_for_replacement) {
+        auto sample_result = m_demuxer->get_next_sample_for_track(m_track);
+        if (sample_result.is_error()) {
+            if (sample_result.error().category() == DecoderErrorCategory::EndOfStream) {
+                if (m_decoder == nullptr) {
+                    set_halting_status_and_wait_for_seek(PipelineStatus::EndOfStream, {});
+                    return;
+                }
+                m_decoder->signal_end_of_stream();
+            } else if (sample_result.error().category() == DecoderErrorCategory::Aborted) {
+                return;
+            } else {
+                set_halting_status_and_wait_for_seek(PipelineStatus::Error, sample_result.release_error());
                 return;
             }
-            m_decoder->signal_end_of_stream();
-        } else if (sample_result.error().category() == DecoderErrorCategory::Aborted) {
-            return;
         } else {
-            set_halting_status_and_wait_for_seek(PipelineStatus::Error, sample_result.release_error());
-            return;
-        }
-    } else {
-        auto coded_frame = sample_result.release_value();
-        auto decode_result = receive_coded_frame(coded_frame);
-        if (decode_result.is_error()) {
-            set_halting_status_and_wait_for_seek(PipelineStatus::Error, decode_result.release_error());
-            return;
+            auto coded_frame = sample_result.release_value();
+            auto decode_result = receive_coded_frame(coded_frame);
+            if (decode_result.is_error()) {
+                set_halting_status_and_wait_for_seek(PipelineStatus::Error, decode_result.release_error());
+                return;
+            }
         }
     }
 
