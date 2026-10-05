@@ -808,6 +808,7 @@ dependencies = [
  "foldhash 0.1.5",
  "ladybird_allocator",
  "libgfx_rust",
+ "rustc-demangle",
 ]
 
 [[package]]
@@ -817,6 +818,7 @@ dependencies = [
  "cbindgen",
  "foldhash 0.1.5",
  "ladybird_allocator",
+ "rustc-demangle",
  "yuv",
 ]
 
@@ -827,6 +829,7 @@ dependencies = [
  "cbindgen",
  "jxl",
  "ladybird_allocator",
+ "rustc-demangle",
 ]
 
 [[package]]
@@ -845,6 +848,7 @@ dependencies = [
  "num-bigint",
  "num-integer",
  "num-traits",
+ "rustc-demangle",
 ]
 
 [[package]]
@@ -860,6 +864,7 @@ dependencies = [
  "cbindgen",
  "ladybird_allocator",
  "libunicode_rust",
+ "rustc-demangle",
 ]
 
 [[package]]
@@ -869,6 +874,7 @@ dependencies = [
  "cbindgen",
  "encoding_rs",
  "ladybird_allocator",
+ "rustc-demangle",
 ]
 
 [[package]]
@@ -879,6 +885,7 @@ dependencies = [
  "cbindgen",
  "icu_calendar",
  "ladybird_allocator",
+ "rustc-demangle",
 ]
 
 [[package]]
@@ -890,6 +897,7 @@ dependencies = [
  "ladybird_allocator",
  "libregex_rust",
  "libunicode_rust",
+ "rustc-demangle",
 ]
 
 [[package]]
@@ -913,6 +921,7 @@ dependencies = [
  "adblock",
  "cbindgen",
  "ladybird_allocator",
+ "rustc-demangle",
  "serde_json",
 ]
 
@@ -938,6 +947,7 @@ dependencies = [
  "libgfx_rust",
  "liburl_rust",
  "libweb_html_tokenizer",
+ "rustc-demangle",
  "serde_json",
  "smallvec",
 ]
@@ -1159,6 +1169,12 @@ name = "regex-syntax"
 version = "0.8.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dc897dd8d9e8bd1ed8cdad82b5966c3e0ecae09fb1907d58efaa013543185d0a"
+
+[[package]]
+name = "rustc-demangle"
+version = "0.1.28"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b74b56ffa8bb2830709a538c2cbcae9aa062db0d2a42563bfb09bdaae44020eb"
 
 [[package]]
 name = "rustc-hash"

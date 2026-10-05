@@ -7,6 +7,7 @@
 #include <AK/AssertionFailure.h>
 #include <AK/Assertions.h>
 #include <AK/Backtrace.h>
+#include <AK/Demangle.h>
 #include <AK/Format.h>
 #include <AK/NeverDestroyed.h>
 #include <AK/Platform.h>
@@ -33,7 +34,6 @@
 #elif defined(AK_HAS_BACKTRACE_HEADER)
 #    include <AK/StringBuilder.h>
 #    include <AK/StringView.h>
-#    include <cxxabi.h>
 #endif
 
 #if defined(AK_OS_SERENITY)
@@ -114,6 +114,13 @@ void dump_backtrace(unsigned frames_to_skip, unsigned max_depth)
 {
     // We should be using cpptrace for everything but android.
     auto stacktrace = cpptrace::generate_trace(frames_to_skip, max_depth);
+
+    // cpptrace only demangles C++ names.
+    for (auto& frame : stacktrace.frames) {
+        if (auto demangled = demangle_rust_symbol({ frame.symbol.data(), frame.symbol.size() }); demangled.has_value())
+            frame.symbol.assign(demangled->characters(), demangled->length());
+    }
+
     if (auto callback = __atomic_load_n(&s_assertion_backtrace_callback, __ATOMIC_ACQUIRE)) {
         Array<AK::AssertionBacktraceFrame, AK::maximum_assertion_backtrace_frames> frames;
         auto count = min(frames.size(), stacktrace.frames.size());
@@ -149,35 +156,9 @@ void dump_backtrace(unsigned frames_to_skip, [[maybe_unused]] unsigned max_depth
     char** syms = backtrace_symbols(trace, num_frames);
 
     for (auto i = frames_to_skip; i < num_frames; ++i) {
-        // If there is a C++ symbol name in the line of the backtrace, demangle it
-        StringView sym(syms[i], strlen(syms[i]));
+        // We don't want to call dbgln() here because we might VERIFY() within AK::Format
         StringBuilder error_builder;
-        if (auto idx = sym.find("_Z"sv); idx.has_value()) {
-            // Play C games with the original string so we can print before and after the mangled symbol with a C API
-            // We don't want to call dbgln() here on substring StringView because we might VERIFY() within AK::Format
-            syms[i][idx.value() - 1] = '\0';
-            error_builder.append(syms[i], strlen(syms[i]));
-            error_builder.append(' ');
-
-            auto sym_substring = sym.substring_view(idx.value());
-            auto end_of_sym = sym_substring.find_any_of("+ "sv).value_or(sym_substring.length() - 1);
-            syms[i][idx.value() + end_of_sym] = '\0';
-
-            size_t buf_size = 128u;
-            char* buf = static_cast<char*>(malloc(buf_size));
-            auto* raw_str = &syms[i][idx.value()];
-            buf = abi::__cxa_demangle(raw_str, buf, &buf_size, nullptr);
-
-            auto* buf_to_print = buf ? buf : raw_str;
-            error_builder.append(buf_to_print, strlen(buf_to_print));
-            free(buf);
-
-            error_builder.append(' ');
-            auto* end_of_line = &syms[i][idx.value() + end_of_sym + 1];
-            error_builder.append(end_of_line, strlen(end_of_line));
-        } else {
-            error_builder.append(sym);
-        }
+        error_builder.append(demangle_backtrace_symbols_line({ syms[i], strlen(syms[i]) }));
 #    if !defined(AK_OS_ANDROID)
         error_builder.append('\n');
 #    endif

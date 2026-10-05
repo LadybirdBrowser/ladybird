@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Demangle.h>
 #include <AK/ScopeGuard.h>
 #include <LibCore/CrashHandler.h>
 #include <LibCore/DirIterator.h>
@@ -95,6 +96,28 @@ TEST_CASE(non_string_rust_panic_is_reported)
     EXPECT(run_panic(PanicMode::NonStringPayload).contains("Rust panic: non-string panic payload"sv));
 }
 
+TEST_CASE(rust_symbols_are_demangled)
+{
+    EXPECT_EQ(demangle("_RNvNtNtCsgKdBqEBFaNM_11liburl_rust3url6parser11basic_parse"sv), "liburl_rust::url::parser::basic_parse"sv);
+    EXPECT_EQ(demangle("__RNvNtNtCsgKdBqEBFaNM_11liburl_rust3url6parser11basic_parse"sv), "liburl_rust::url::parser::basic_parse"sv);
+    EXPECT_EQ(demangle("_RINvMs_NtNtCsgKdBqEBFaNM_11liburl_rust3url5inputNtB5_8UrlInput10find_asciiNCNvNtB7_6parser16preprocess_input0EB9_"sv),
+        "<liburl_rust::url::input::UrlInput>::find_ascii::<liburl_rust::url::parser::preprocess_input::{closure#0}>"sv);
+    EXPECT_EQ(demangle("_RNvC_invalid"sv), "_RNvC_invalid"sv);
+}
+
+TEST_CASE(rust_symbols_from_symbolizers_are_demangled)
+{
+    // DbgHelp strips the leading underscore and may append a parameter list.
+    EXPECT_EQ(demangle("RNvNtNtCsgKdBqEBFaNM_11liburl_rust3url6parser11basic_parse"sv), "liburl_rust::url::parser::basic_parse"sv);
+    EXPECT_EQ(demangle_rust_symbol("RNvNtNtCsgKdBqEBFaNM_11liburl_rust3url6parser11basic_parse()"sv), "liburl_rust::url::parser::basic_parse()"sv);
+
+    // Mach-O symbol tables add an extra underscore, and cpptrace appends the offset.
+    EXPECT_EQ(demangle_rust_symbol("__RNvNtNtCsgKdBqEBFaNM_11liburl_rust3url6parser11basic_parse + 51"sv), "liburl_rust::url::parser::basic_parse + 51"sv);
+    EXPECT(!demangle_rust_symbol("liburl_rust::url::parser::basic_parse"sv).has_value());
+    EXPECT_EQ(demangle_backtrace_symbols_line("./TestRustCrashReport(_RNvNtNtCsgKdBqEBFaNM_11liburl_rust3url6parser11basic_parse+0x1a) [0x55d0c1a2]"sv),
+        "./TestRustCrashReport(liburl_rust::url::parser::basic_parse+0x1a) [0x55d0c1a2]"sv);
+}
+
 #if defined(TEST_RUST_UNWIND)
 TEST_CASE(recovered_rust_panic_does_not_create_a_report)
 {
@@ -120,4 +143,15 @@ TEST_CASE(fatal_rust_panic_replaces_recovered_panic)
     EXPECT(text.contains("Rust panic: expected Rust panic"sv));
     EXPECT(!text.contains("recovered Rust panic"sv));
 }
+
+#    if defined(TEST_HAS_CPPTRACE)
+TEST_CASE(rust_frames_are_demangled)
+{
+    auto text = run_panic(PanicMode::Fatal);
+    auto stack = text.substring_view(text.find("Native stack"sv).value());
+    EXPECT(stack.contains(" rust_crash_report_unwind::rust_panic::abort_on_panic::<"sv));
+    EXPECT(!stack.contains(" _R"sv));
+    EXPECT(!stack.contains(" __R"sv));
+}
+#    endif
 #endif

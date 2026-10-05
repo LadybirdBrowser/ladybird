@@ -11,6 +11,7 @@ crate-type = ["staticlib"]
 [dependencies]
 adblock = "0.12.5"
 ladybird_allocator = { path = "../../../RustAllocator", optional = true }
+rustc-demangle = "0.1"
 serde_json = "1.0"
 
 [features]

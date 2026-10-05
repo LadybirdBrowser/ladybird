@@ -14,6 +14,7 @@ allocator = ["dep:ladybird_allocator"]
 foldhash = "0.1"
 ladybird_allocator = { path = "../../RustAllocator", optional = true }
 libgfx_rust = { path = "../../LibGfx/Rust", default-features = false }
+rustc-demangle = "0.1"
 
 [build-dependencies]
 cbindgen = "0.29"

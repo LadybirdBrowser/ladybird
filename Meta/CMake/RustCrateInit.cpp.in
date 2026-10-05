@@ -5,16 +5,18 @@
  */
 
 extern "C" void ladybird_init_rust_panic_@ARG_CRATE_NAME@();
+extern "C" void ladybird_init_rust_demangle_@ARG_CRATE_NAME@();
 
 namespace {
 
-struct RustPanicInitializer {
-    RustPanicInitializer()
+struct RustCrateInitializer {
+    RustCrateInitializer()
     {
         ladybird_init_rust_panic_@ARG_CRATE_NAME@();
+        ladybird_init_rust_demangle_@ARG_CRATE_NAME@();
     }
 };
 
-RustPanicInitializer s_rust_panic_initializer;
+RustCrateInitializer s_rust_crate_initializer;
 
 }

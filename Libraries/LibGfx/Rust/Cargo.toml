@@ -13,6 +13,7 @@ allocator = ["dep:ladybird_allocator"]
 [dependencies]
 foldhash = "0.1"
 ladybird_allocator = { path = "../../RustAllocator", optional = true }
+rustc-demangle = "0.1"
 yuv = "0.8.17"
 
 [build-dependencies]

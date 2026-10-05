@@ -9,6 +9,9 @@ mod rust_panic;
 
 #[unsafe(no_mangle)]
 pub extern "C" fn test_rust_panic(mode: u8) {
+    // This crate isn't imported through import_rust_crate(), so no static initializer installs the panic hook.
+    rust_panic::initialize();
+
     match mode {
         0 => rust_panic::abort_on_panic(|| panic!("expected Rust panic")),
         1 => {

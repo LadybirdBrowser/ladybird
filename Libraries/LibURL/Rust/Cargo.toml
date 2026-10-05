@@ -11,6 +11,7 @@ encoding_rs = "0.8.40"
 ladybird_allocator = { path = "../../RustAllocator", optional = true }
 libregex_rust = { path = "../../LibRegex/Rust" }
 libunicode_rust = { path = "../../LibUnicode/Rust", features = ["idna"] }
+rustc-demangle = "0.1"
 
 [features]
 default = []

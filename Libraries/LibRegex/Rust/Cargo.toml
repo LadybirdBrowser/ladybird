@@ -11,6 +11,7 @@ crate-type = ["staticlib", "rlib"]
 [dependencies]
 ladybird_allocator = { path = "../../RustAllocator", optional = true }
 libunicode_rust = { path = "../../LibUnicode/Rust", default-features = false }
+rustc-demangle = "0.1"
 
 [features]
 default = []
