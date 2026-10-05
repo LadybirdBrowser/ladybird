@@ -6,8 +6,9 @@
 
 use super::*;
 use crate::layout::node_data::{NodeFlag, NodeKind};
+use crate::layout::node_facts::NodeShape;
 use crate::painting::host::{FfiCaretBoundaryKind, FfiNodeIdentity, FfiResolvedCaret};
-use crate::painting::paint_read::PaintRead;
+use crate::painting::paint_read::{PaintRead, PaintRow};
 use crate::painting::paintable_data::SELECTION_STATE_START_AND_END;
 
 pub(crate) fn empty_line_is_anchored_to_its_forced_break(arena: &impl PaintRead, item: &HitTestItem) -> bool {
@@ -18,13 +19,12 @@ pub(crate) fn empty_line_is_anchored_to_its_forced_break(arena: &impl PaintRead,
 /// for a row that stands for no node of its own. An anonymous row stands for none, and so does
 /// the viewport row, whose node is the document, which has no StyleNodeID.
 pub(crate) fn row_dom_style_node(arena: &impl PaintRead, slot: NodeSlotId) -> u32 {
-    if !arena.node_is_dom_backed(slot) {
-        return 0;
+    match arena.node(slot) {
+        Some(row) if row.is_dom_backed() && row.kind() != NodeKind::Viewport => {
+            row.style_node().map_or(0, |style_node| style_node.raw())
+        }
+        _ => 0,
     }
-    if arena.node_kind_if_live(slot) == Some(crate::layout::node_data::NodeKind::Viewport) {
-        return 0;
-    }
-    arena.node_style_node(slot).map_or(0, |style_node| style_node.raw())
 }
 
 impl HitTestList {
@@ -210,21 +210,21 @@ pub(crate) fn row_node_identity(
     slot: NodeSlotId,
     allow_pseudo_fallback: bool,
 ) -> FfiNodeIdentity {
-    let Some(kind) = arena.node_kind_if_live(slot) else {
+    let Some(row) = arena.node(slot) else {
         return FfiNodeIdentity::default();
     };
-    if kind == NodeKind::Viewport {
+    if row.kind() == NodeKind::Viewport {
         return FfiNodeIdentity {
             style_node: 0,
             is_document: true,
         };
     }
-    let is_anonymous = arena.node_flags_if_live(slot) & NodeFlag::Anonymous as u32 != 0;
-    if is_anonymous && !(allow_pseudo_fallback && arena.node_generated_for(slot) != 0) {
+    let is_anonymous = row.flags() & NodeFlag::Anonymous as u32 != 0;
+    if is_anonymous && !(allow_pseudo_fallback && row.generated_for() != 0) {
         return FfiNodeIdentity::default();
     }
     FfiNodeIdentity {
-        style_node: arena.node_style_node(slot).map_or(0, |style_node| style_node.raw()),
+        style_node: row.style_node().map_or(0, |style_node| style_node.raw()),
         is_document: false,
     }
 }
