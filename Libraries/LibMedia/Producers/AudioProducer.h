@@ -31,6 +31,11 @@ public:
     virtual void set_wake_handler(PipelineWakeHandler) = 0;
 
     virtual void seek(AK::Duration timestamp) = 0;
+    virtual void seek_continuing_at_output_frame(AK::Duration timestamp, i64 output_frame_index)
+    {
+        (void)output_frame_index;
+        seek(timestamp);
+    }
 
     virtual void set_playback_rate(float rate)
     {

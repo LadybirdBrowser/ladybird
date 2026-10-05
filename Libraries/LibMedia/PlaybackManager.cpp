@@ -681,6 +681,12 @@ void PlaybackManager::seek_tracks_with_invalidated_data(Demuxer const& demuxer, 
             continue;
         track_data.video_sink->seek(current_timestamp, InvalidateHeldData::Yes);
     }
+
+    auto has_enabled_audio_track = any_of(m_audio_track_datas, [&](auto const& track_data) {
+        return track_data.demuxer.ptr() == &demuxer && track_data.enabled;
+    });
+    if (has_enabled_audio_track && m_audio_sink != nullptr)
+        m_audio_sink->reseek_input_keeping_clock();
 }
 
 void PlaybackManager::seek_clock_and_video_sinks(AK::Duration timestamp)

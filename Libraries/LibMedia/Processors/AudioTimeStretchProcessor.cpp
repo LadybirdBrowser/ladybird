@@ -57,11 +57,21 @@ void AudioTimeStretchProcessor::disconnect_input(NonnullRefPtr<AudioProducer> co
 
 void AudioTimeStretchProcessor::seek(AK::Duration timestamp)
 {
+    seek_with_output_frame(timestamp, {});
+}
+
+void AudioTimeStretchProcessor::seek_continuing_at_output_frame(AK::Duration timestamp, i64 output_frame_index)
+{
+    seek_with_output_frame(timestamp, output_frame_index);
+}
+
+void AudioTimeStretchProcessor::seek_with_output_frame(AK::Duration timestamp, Optional<i64> output_frame_index)
+{
     {
         MutexLocker locker { m_mutex };
         VERIFY(m_sample_specification.is_valid());
         auto target_frame = timestamp.to_time_units(1, m_sample_specification.sample_rate());
-        prime_stretcher_for_input_seek_while_locked(target_frame, target_frame);
+        prime_stretcher_for_input_seek_while_locked(target_frame, output_frame_index.value_or(target_frame));
 
         m_pending_block.clear();
         m_stretcher_reached_eos = false;

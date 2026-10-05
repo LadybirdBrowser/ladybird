@@ -654,6 +654,47 @@ void AudioPlaybackSink::pause_playback_stream()
         });
 }
 
+void AudioPlaybackSink::reseek_input_keeping_clock()
+{
+    // A seek that is still draining has yet to read its data, so it can simply read the new data instead.
+    if (m_seek_target_awaiting_drain.has_value()) {
+        seek(m_seek_target_awaiting_drain.value());
+        return;
+    }
+
+    RefPtr<AudioProducer> input;
+    AK::Duration timestamp;
+    i64 output_frame = 0;
+    m_played_out_timer->stop();
+    {
+        MutexLocker locker { m_output_thread_data->m_output_mutex };
+        auto& data = *m_output_thread_data;
+        // Without a playback stream, the input will be seeked once the stream is created.
+        if (data.m_input == nullptr || !data.m_playback_stream)
+            return;
+        input = data.m_input;
+
+        // Continue from what was already written to the stream, so that neither a gap nor a repeat can be heard.
+        output_frame = data.m_next_frame_to_play;
+        timestamp = AK::Duration::from_time_units(output_frame, 1, data.m_sample_specification.sample_rate());
+        if (auto timing = data.block_timings().find_timing_for_frame_index(output_frame); timing.has_value())
+            timestamp = timing->media_time_at_frame_index(output_frame);
+
+        data.m_seek_id++;
+        data.m_block_head = 0;
+        data.m_block_tail = 0;
+        data.m_block_count = 0;
+        data.m_last_real_data_end_in_frames = output_frame;
+        data.m_eos_media_frame_remainder = 0.0f;
+        data.m_last_pull_status = PipelineStatus::Pending;
+        data.m_played_out_check_requested = false;
+        data.m_waiting_for_upstream_data = true;
+        data.m_output_condition.broadcast();
+    }
+
+    input->seek_continuing_at_output_frame(timestamp, output_frame);
+}
+
 void AudioPlaybackSink::seek(AK::Duration time)
 {
     bool already_draining_for_seek = m_seek_target_awaiting_drain.has_value();
