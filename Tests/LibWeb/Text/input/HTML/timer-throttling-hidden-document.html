@@ -96,14 +96,29 @@
             report("becoming visible puts a timer back on its own deadline",
                 firedAt >= armedAt + 10 - coarsening && firedAt < wakeUp, { armedAt, wakeUp, firedAt });
 
-            waitForEarlyPhase();
-            armedAt = performance.now();
-            wakeUp = wakeUpAtOrAfter(armedAt + 250);
-            const armedVisible = fireTime(250);
-            await setSystemVisibilityState("hidden");
-            firedAt = await armedVisible;
-            report("a timer armed while visible waits for the wake-up once the document hides", firedAtOrAfter(firedAt, wakeUp),
-                { armedAt, wakeUp, firedAt });
+            // The UI process changes visibility asynchronously. Only check a timer whose deadline is still ahead
+            // once the document hides; an expired timer cannot be moved to a hidden-document wake-up.
+            let delay = 250;
+            while (true) {
+                waitForEarlyPhase();
+                armedAt = performance.now();
+                wakeUp = wakeUpAtOrAfter(armedAt + delay);
+                let timer;
+                const armedVisible = new Promise(resolve => {
+                    timer = setTimeout(() => resolve(performance.now()), delay);
+                });
+                await setSystemVisibilityState("hidden");
+                if (performance.now() >= armedAt + delay) {
+                    clearTimeout(timer);
+                    await setSystemVisibilityState("visible");
+                    delay *= 2;
+                    continue;
+                }
+                firedAt = await armedVisible;
+                report("a timer armed while visible waits for the wake-up once the document hides", firedAtOrAfter(firedAt, wakeUp),
+                    { armedAt, wakeUp, firedAt });
+                break;
+            }
         } finally {
             await setSystemVisibilityState("visible");
         }
