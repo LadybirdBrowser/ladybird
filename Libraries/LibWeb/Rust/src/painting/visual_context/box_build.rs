@@ -235,7 +235,6 @@ pub(crate) fn build_box_visual_context_nodes<Arena: PaintableRowsRead>(
     sink: &mut BoxNodeWriter<'_>,
     slot: NodeSlotId,
     inherited: DescendantVisualContexts,
-    may_be_root_element: bool,
     anchor_scroll_shift_resolver: &dyn AnchorScrollShiftResolver,
 ) -> PaintableVisualContextAssignment {
     let layout_arena = env.layout_arena;
@@ -256,8 +255,6 @@ pub(crate) fn build_box_visual_context_nodes<Arena: PaintableRowsRead>(
         PaintableVisualContextRecord {
             inherited_input: inherited,
             output_for_descendants: inherited,
-            has_mask_nodes: false,
-            may_be_root_element,
             owns_geometry_dependent_nodes: false,
             subtree_may_own_geometry_dependent_nodes: false,
             stacking_context: stacking_context_facts,
@@ -505,9 +502,6 @@ pub(crate) fn build_box_visual_context_nodes<Arena: PaintableRowsRead>(
         append_shared_effect!(EffectNodeData::Effects(facts.effects_data().unwrap()));
     }
 
-    if !facts.mask_layers.is_empty() {
-        assignment.record.has_mask_nodes = true;
-    }
     for mask_layer in &facts.mask_layers {
         append_shared_effect!(EffectNodeData::Mask(*mask_layer));
     }

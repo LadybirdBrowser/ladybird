@@ -450,36 +450,12 @@ pub unsafe extern "C" fn render_state_paintable_visual_context_copy_node_indices
 
 pub(super) fn apply_walk_assignments(
     arena: &mut crate::layout::LayoutNodeArena,
-    viewport: NodeSlotId,
     outcome: &mut crate::painting::visual_context::incremental::IncrementalUpdateOutcome,
-    state: &mut crate::painting::visual_context::VisualContextState,
 ) {
-    {
-        let mut paintable_rows = arena.paintable_rows_mut();
-        for assignment in std::mem::take(&mut outcome.assignments) {
-            assignment.apply(&mut paintable_rows);
-        }
+    let mut paintable_rows = arena.paintable_rows_mut();
+    for assignment in std::mem::take(&mut outcome.assignments) {
+        assignment.apply(&mut paintable_rows);
     }
-    if outcome.mask_node_owners_changed {
-        state.paintables_with_mask_nodes = paintables_with_mask_nodes_in_paint_order(arena, viewport);
-    }
-}
-
-fn paintables_with_mask_nodes_in_paint_order(
-    arena: &crate::layout::LayoutNodeArena,
-    viewport: NodeSlotId,
-) -> Vec<NodeSlotId> {
-    let paintable_rows = arena.paintable_rows();
-    let mut owners = Vec::new();
-    crate::painting::paint_order::for_each_in_paint_subtree(&paintable_rows, viewport, |slot| {
-        if arena
-            .paintable_visual_context_record(slot)
-            .is_some_and(|record| record.has_mask_nodes)
-        {
-            owners.push(slot);
-        }
-    });
-    owners
 }
 
 /// The index of the sticky node the accumulated visual context tree holds for `paintable`, which

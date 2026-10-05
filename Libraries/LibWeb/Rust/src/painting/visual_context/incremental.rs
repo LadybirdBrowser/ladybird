@@ -34,7 +34,6 @@ impl ChildCascade {
 pub(crate) struct IncrementalUpdateOutcome {
     pub delta: VisualContextTreeDelta,
     pub assignments: Vec<PaintableVisualContextAssignment>,
-    pub mask_node_owners_changed: bool,
 }
 
 pub(crate) enum IncrementalUpdateResult {
@@ -301,7 +300,6 @@ pub(crate) fn box_owns_geometry_dependent_nodes(
 
 struct PendingBox {
     slot: NodeSlotId,
-    parent: Option<NodeSlotId>,
     input: DescendantVisualContexts,
     cascade: ChildCascade,
 }
@@ -420,11 +418,6 @@ pub(crate) fn update_visual_context_tree<Arena: PaintableRowsRead>(
     let mut assignments: Vec<PaintableVisualContextAssignment> = Vec::with_capacity(every_box_capacity);
     let mut assignment_index_by_slot: HashMap<NodeSlotId, usize> =
         HashMap::with_capacity_and_hasher(every_box_capacity, Default::default());
-    let mut mask_node_owners_changed = state
-        .dirty_boxes
-        .removed
-        .iter()
-        .any(|removed| state.paintables_with_mask_nodes.contains(&removed.slot));
     let mut stack: Vec<PendingBox> = Vec::new();
     let push_children = |stack: &mut Vec<PendingBox>,
                          parent: NodeSlotId,
@@ -436,7 +429,6 @@ pub(crate) fn update_visual_context_tree<Arena: PaintableRowsRead>(
             if visit_every_child || plan.work.contains_key(&child) || plan.ancestors_of_work.contains(&child) {
                 stack.push(PendingBox {
                     slot: child,
-                    parent: Some(parent),
                     input: input_for_children,
                     cascade,
                 });
@@ -470,9 +462,6 @@ pub(crate) fn update_visual_context_tree<Arena: PaintableRowsRead>(
             },
         };
         let slot = pending.slot;
-        let parent = pending
-            .parent
-            .expect("every pending box below the viewport has a paint parent");
         let input = pending.input;
         let work_bits = plan.work.get(&slot).copied();
         // A box that only moved changes no more than the boxes a moved ancestor carries along: only the nodes that
@@ -504,8 +493,6 @@ pub(crate) fn update_visual_context_tree<Arena: PaintableRowsRead>(
             let record_existed = existing_record.is_some();
             let previous_output = existing_record.as_ref().map(|record| record.output_for_descendants);
             let previous_stacking_context_facts = existing_record.as_ref().map(|record| record.stacking_context);
-            let previous_has_mask_nodes = existing_record.as_ref().is_some_and(|record| record.has_mask_nodes);
-            let may_be_root_element = parent == viewport;
             let tree = std::sync::Arc::make_mut(state.tree.as_mut().expect("the tree exists throughout the pass"));
             let existing_handles = layout_arena.paintable_visual_context_node_handles(slot);
             let mut writer = BoxNodeWriter::new(tree, existing_handles.as_deref(), &mut delta);
@@ -514,7 +501,6 @@ pub(crate) fn update_visual_context_tree<Arena: PaintableRowsRead>(
                 &mut writer,
                 slot,
                 input,
-                may_be_root_element,
                 &WalkAnchorScrollShiftResolver {
                     layout_arena,
                     assignments: &assignments,
@@ -556,9 +542,6 @@ pub(crate) fn update_visual_context_tree<Arena: PaintableRowsRead>(
             delta.requires_display_list_recording |= contexts_changed;
             if reconcile.shape_changed || !record_existed || contexts_changed {
                 layout_arena.push_paint_damage(slot, crate::painting::record::damage::PaintDamage::ALL_PRODUCERS);
-            }
-            if previous_has_mask_nodes != assignment.record.has_mask_nodes {
-                mask_node_owners_changed = true;
             }
             drop(existing_record);
             if assignment.record.owns_geometry_dependent_nodes && !subtree_may_own_geometry_dependent_nodes {
@@ -628,11 +611,7 @@ pub(crate) fn update_visual_context_tree<Arena: PaintableRowsRead>(
     }
     state.scroll_state = scroll_state;
     state.needs_to_refresh_scroll_state = true;
-    IncrementalUpdateResult::Applied(Box::new(IncrementalUpdateOutcome {
-        delta,
-        assignments,
-        mask_node_owners_changed,
-    }))
+    IncrementalUpdateResult::Applied(Box::new(IncrementalUpdateOutcome { delta, assignments }))
 }
 
 #[cfg(debug_assertions)]

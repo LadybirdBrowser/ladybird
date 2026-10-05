@@ -310,7 +310,7 @@ pub(crate) fn update_accumulated_visual_contexts(
         let result = update_visual_context_tree(&arena.paintable_rows(), viewport, inputs, scope, &mut state);
         match result {
             IncrementalUpdateResult::Applied(mut outcome) => {
-                super::ffi::apply_walk_assignments(arena, viewport, &mut outcome, &mut state);
+                super::ffi::apply_walk_assignments(arena, &mut outcome);
                 arena.resort_stacking_context_entries_flagged_for_resort();
                 crate::painting::fragment_ownership::assign_fragment_ownership_for_pending_line_roots(arena);
                 let performed_full_build = scope == VisualContextUpdateScope::EveryBox;
@@ -376,10 +376,9 @@ fn fresh_visual_context_tree_build(
             unreachable!("a fresh tree walk has a tree and a viewport record")
         }
     };
-    outcome.mask_node_owners_changed = true;
     // Everything records again; pushing that first keeps the per-row pushes below free.
     arena.push_all_paint_damage();
-    super::ffi::apply_walk_assignments(arena, viewport, &mut outcome, state);
+    super::ffi::apply_walk_assignments(arena, &mut outcome);
     arena.rebuild_all_stacking_context_entries_from_records(viewport);
     arena.take_line_roots_needing_fragment_ownership();
     crate::painting::fragment_ownership::assign_fragment_ownership(&arena.paintable_rows(), viewport);
