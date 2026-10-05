@@ -92,6 +92,7 @@ struct WEBCOMMON_API MouseEvent {
         MouseUp,
         MouseMove,
         MouseLeave,
+        MouseCancel,
         MouseWheel,
     };
 
