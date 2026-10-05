@@ -70,9 +70,8 @@ struct Shared {
     /// The jobs handed to the thread and not taken yet, the last one handed first, each linked to the one handed
     /// before it.
     handed: AtomicPtr<JobHeader>,
-    /// Whether the thread runs a job, rather than waiting for the next one. Its address names the thread to
-    /// ThreadSanitizer.
-    busy: AtomicBool,
+    /// What names the thread to ThreadSanitizer, which sees the ordering the hand-off gives only through it.
+    tsan_key: AtomicBool,
 }
 
 static THREAD_SETUP: OnceLock<extern "C" fn()> = OnceLock::new();
@@ -101,7 +100,7 @@ impl StageThread {
     fn spawn(name: &str) -> Self {
         let shared: &'static Shared = Box::leak(Box::new(Shared {
             handed: AtomicPtr::new(std::ptr::null_mut()),
-            busy: AtomicBool::new(false),
+            tsan_key: AtomicBool::new(false),
         }));
         let spawned = std::thread::Builder::new()
             .name(name.into())
@@ -112,7 +111,7 @@ impl StageThread {
                 }
                 loop {
                     let last = wait_for(|| NonNull::new(shared.handed.swap(std::ptr::null_mut(), Ordering::Acquire)));
-                    tsan::acquire(&shared.busy);
+                    tsan::acquire(&shared.tsan_key);
                     let mut next = Some(in_handed_order(last));
                     while let Some(job) = next {
                         // SAFETY: `StageThread::run` keeps the job it hands out live until it is done, and
@@ -120,8 +119,7 @@ impl StageThread {
                         // it runs, as the thread that handed it may leave the frame it is in once it is done.
                         unsafe {
                             next = job.as_ref().next.get();
-                            shared.busy.store(true, Ordering::Relaxed);
-                            (job.as_ref().run)(job, &shared.busy);
+                            (job.as_ref().run)(job, &shared.tsan_key);
                         }
                     }
                 }
@@ -149,7 +147,7 @@ impl StageThread {
         let job = JobInFrame::new(|| answer = Some(std::panic::catch_unwind(AssertUnwindSafe(job))));
         self.hand(NonNull::from(&job).cast());
         wait_for(|| job.done.load(Ordering::Acquire).then_some(()));
-        tsan::acquire(&self.shared.busy);
+        tsan::acquire(&self.shared.tsan_key);
         drop(job);
         match answer.expect("a job handed out runs before it is done") {
             Ok(answer) => answer,
@@ -205,7 +203,7 @@ impl StageThread {
 
     /// Hands the job `header` heads to this thread, which runs it after the jobs handed to it before.
     fn hand(&self, header: NonNull<JobHeader>) {
-        tsan::release(&self.shared.busy);
+        tsan::release(&self.shared.tsan_key);
         let before = self
             .shared
             .handed
@@ -236,18 +234,12 @@ fn in_handed_order(last: NonNull<JobHeader>) -> NonNull<JobHeader> {
 
 /// What a stage thread knows of a job handed to it: how to run it, which the job's kind says.
 struct JobHeader {
-    /// Runs the job this header heads, and tells whoever takes its answer that it is done, after it has stored
-    /// `false` to the thread's busy flag it is handed.
+    /// Runs the job this header heads, and tells whoever takes its answer that it is done, after it has released the
+    /// thread's ThreadSanitizer key it is handed.
     run: unsafe fn(NonNull<JobHeader>, &AtomicBool),
     /// Until the stage thread takes the job, the job handed to it before this one and not taken yet; then, the job it
     /// runs after this one.
     next: Cell<Option<NonNull<JobHeader>>>,
-}
-
-/// Stores that the stage thread whose busy flag `busy` is has run its job.
-fn ran(busy: &AtomicBool) {
-    busy.store(false, Ordering::Release);
-    tsan::release(busy);
 }
 
 /// A job a thread hands a stage thread, in the frame of the thread that handed it.
@@ -281,7 +273,7 @@ impl<F: FnOnce() + Send> JobInFrame<F> {
     ///
     /// `header` must head a live `JobInFrame<F>` that was handed out to the calling thread and is not done yet, which
     /// nothing else reaches meanwhile.
-    unsafe fn run_handed(header: NonNull<JobHeader>, busy: &AtomicBool) {
+    unsafe fn run_handed(header: NonNull<JobHeader>, tsan_key: &AtomicBool) {
         let job = header.cast::<Self>();
         // SAFETY: Guaranteed by the caller: the thread that handed the job out reaches none of it until `done`.
         let waiting = unsafe {
@@ -290,7 +282,7 @@ impl<F: FnOnce() + Send> JobInFrame<F> {
             }
             (*job.as_ref().waiting.get()).take()
         };
-        ran(busy);
+        tsan::release(tsan_key);
         // SAFETY: As above. The waiting thread may leave the frame the job is in as soon as it sees `done`.
         unsafe { job.as_ref() }.done.store(true, Ordering::Release);
         if let Some(waiting) = waiting {
@@ -327,12 +319,12 @@ impl<F: FnOnce(&StopWord) -> R + Send, R: Send> SubmittedJob<F, R> {
     /// # Safety
     ///
     /// `header` must come from [`Self::give_up`], and be handed out to the calling thread only.
-    unsafe fn run_submitted(header: NonNull<JobHeader>, busy: &AtomicBool) {
+    unsafe fn run_submitted(header: NonNull<JobHeader>, tsan_key: &AtomicBool) {
         // SAFETY: Guaranteed by the caller: the submitting thread gave the job up.
         let job = unsafe { Box::from_raw(header.cast::<Self>().as_ptr()) };
         let Self { job, flight, .. } = *job;
         let answer = std::panic::catch_unwind(AssertUnwindSafe(|| job(&flight.stop)));
-        ran(busy);
+        tsan::release(tsan_key);
         flight.land(answer);
         if let Some(finished) = FLIGHT_FINISHED.get() {
             finished();
@@ -366,13 +358,13 @@ impl<F: FnOnce() + Send> PostedJob<F> {
     /// # Safety
     ///
     /// `header` must come from [`Self::give_up`], and be handed out to the calling thread only.
-    unsafe fn run_posted(header: NonNull<JobHeader>, busy: &AtomicBool) {
+    unsafe fn run_posted(header: NonNull<JobHeader>, tsan_key: &AtomicBool) {
         // SAFETY: Guaranteed by the caller: the posting thread gave the job up.
         let job = unsafe { Box::from_raw(header.cast::<Self>().as_ptr()) };
         if std::panic::catch_unwind(AssertUnwindSafe(job.job)).is_err() {
             std::process::abort();
         }
-        ran(busy);
+        tsan::release(tsan_key);
     }
 }
 
