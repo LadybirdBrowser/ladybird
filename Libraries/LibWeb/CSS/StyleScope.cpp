@@ -994,7 +994,7 @@ void StyleScope::build_counter_style_cache(Layout::BegunRead const& read)
             auto const layer = qualified_layer_name.is_empty() ? 0 : style_engine.intern_atom(qualified_layer_name).value();
             CounterStylePriority priority {
                 .origin = origin_priority,
-                .layer = style_engine.layer_index(read, tree_scope, layer),
+                .layer = StyleEngineFFI::style_engine_layer_index(style_engine.host(), &read, tree_scope, layer),
             };
             if (auto existing = counter_style_priorities.get(name); existing.has_value()) {
                 if (existing->origin > priority.origin || (existing->origin == priority.origin && existing->layer > priority.layer))
@@ -1025,7 +1025,7 @@ void StyleScope::build_counter_style_cache(Layout::BegunRead const& read)
         if (counter_style_environment_changed) {
             m_counter_style_environment_identity = document().next_counter_style_environment_identity();
             // The style engine names the same registry on every record it computes against it.
-            document().style_computer().style_engine().set_counter_style_environment_identity(style_engine_tree_scope(), m_counter_style_environment_identity);
+            StyleEngineFFI::style_engine_set_counter_style_environment_identity(document().style_computer().style_engine().host(), style_engine_tree_scope(), m_counter_style_environment_identity);
         }
 
         m_is_doing_counter_style_cache_update = false;
@@ -1238,7 +1238,7 @@ Optional<StyleScope::FunctionDefinitionAndScope> StyleScope::get_function_defini
             auto const tree_scope = scope.style_engine_tree_scope();
             auto layer_index_of = [&](Utf16FlyString const& qualified_layer_name) {
                 auto const layer = qualified_layer_name.is_empty() ? 0 : style_engine.intern_atom(qualified_layer_name);
-                return style_engine.layer_index(read, tree_scope, layer.value());
+                return StyleEngineFFI::style_engine_layer_index(style_engine.host(), &read, tree_scope, layer.value());
             };
 
             auto cached_rules = scope.rule_cache().function_rules_by_name.get(name);

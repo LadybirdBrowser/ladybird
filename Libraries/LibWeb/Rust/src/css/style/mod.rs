@@ -53,6 +53,7 @@ macro_rules! define_id {
 pub(crate) mod animations;
 mod atoms;
 pub mod batch_matcher;
+pub(crate) mod boundary;
 pub mod bridge;
 mod capacity;
 pub mod cascade;

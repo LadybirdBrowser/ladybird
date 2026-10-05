@@ -650,7 +650,7 @@ static void install_engine_pseudo_element_style(Layout::BegunRead const& read, D
         element.set_custom_property_data(pseudo_element, nullptr);
     if (!!record)
         element.document().style_computer().compose_installed_engine_record(read, target, {});
-    style_engine.acknowledge_engine_computed_record(element.style_node_id());
+    StyleEngineFFI::style_engine_acknowledge_engine_computed_record(style_engine.host(), element.style_node_id());
 }
 
 static void ensure_pseudo_element_style_for_cssom(Layout::BegunRead const& read, DOM::AbstractElement abstract_element)

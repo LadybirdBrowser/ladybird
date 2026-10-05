@@ -1227,8 +1227,6 @@ import_rust_crate(
         ValueParserRustFFI.h
         ComputedValuesRustFFI.h
         StyleEngineRustFFI.h
-        StyleEngineBridgeGenerated.h
-        StyleEngineBridgeGenerated.inc
         StyleEngineStateFactsGenerated.inc
         SelectorStateFactsGenerated.inc
         Layout/TreeBuilderRustFFI.h

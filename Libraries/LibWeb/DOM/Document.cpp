@@ -731,7 +731,7 @@ Layout::NodeArena& Document::layout_node_arena()
 void Document::reset_style_invalidation_counters(Layout::BegunRead const& read) const
 {
     m_style_invalidation_counters = {};
-    (void)const_cast<CSS::StyleEngine&>(style_computer().style_engine()).size_query_container_scan_visits(read, true);
+    (void)CSS::StyleEngineFFI::style_engine_size_query_container_scan_visits(style_computer().style_engine().host(), &read, true);
     if (m_layout_node_arena)
         Layout::RustFFI::render_state_scrollable_overflow_recalculation_count(m_layout_node_arena->host(), true);
     CSS::reset_longhand_wrappers_minted();
@@ -2001,12 +2001,12 @@ void Document::record_partial_relayout_escape(PartialRelayoutEscapeReason reason
 // boxes.
 void Document::set_needs_container_query_evaluation_after_layout(Element const& query_container)
 {
-    style_computer().style_engine().note_size_container_needs_evaluation_after_layout(query_container.style_node_id());
+    CSS::StyleEngineFFI::style_engine_note_size_container_needs_evaluation_after_layout(style_computer().style_engine().host(), query_container.style_node_id());
 }
 
 bool Document::has_size_containers_needing_evaluation_after_layout(Layout::BegunRead const& read) const
 {
-    return style_computer().style_engine().has_size_containers_needing_evaluation_after_layout(read);
+    return CSS::StyleEngineFFI::style_engine_has_size_containers_needing_evaluation_after_layout(style_computer().style_engine().host(), &read);
 }
 
 void Document::begin_style_stabilization_epoch()
@@ -2042,7 +2042,7 @@ void Document::record_style_stabilization_pass(Layout::BegunRead const& read)
     // Size-query and style-reaction dependencies are acyclic, so a coherent pass settles at
     // least one more connected element. Include inner StyleEngine transactions in the same exact
     // bound as layout feedback so neither feedback path can spin independently of the epoch.
-    auto const exact_stabilization_round_limit = static_cast<u64>(style_computer().style_engine().connected_element_count(read)) + 1;
+    auto const exact_stabilization_round_limit = static_cast<u64>(CSS::StyleEngineFFI::style_engine_connected_element_count(style_computer().style_engine().host(), &read)) + 1;
     if (m_style_stabilization_pass_count > ordinary_stabilization_round_limit + exact_stabilization_round_limit) {
         ++m_style_invalidation_counters.style_stabilization_bound_failures;
         VERIFY_NOT_REACHED();
@@ -2202,7 +2202,7 @@ void Document::flush_deferred_style_change_event()
         return;
     }
     ScopeGuard restore_later_style_inputs = [&] {
-        style_engine.end_deferred_geometry_transaction_flush();
+        CSS::StyleEngineFFI::style_engine_end_deferred_geometry_transaction_flush(style_engine.host());
     };
     update_style();
 }
@@ -2345,7 +2345,7 @@ void Document::set_quirks_mode(QuirksMode mode)
 
     // It also changes which case a rule cache buckets id and class selectors under, and brings a user
     // agent stylesheet with it, so no scope's rule cache and no element's style survives it either.
-    style_computer().style_engine().set_fold_id_and_class_name_case(in_quirks_mode());
+    CSS::StyleEngineFFI::style_engine_set_fold_id_and_class_name_case(style_computer().style_engine().host(), in_quirks_mode());
     style_scope().invalidate_style_cache();
     for_each_shadow_root([](auto& shadow_root) {
         shadow_root.style_scope().invalidate_style_cache();
@@ -10892,7 +10892,7 @@ void Document::did_change_custom_property_registrations(Optional<Utf16FlyString>
     // name. CSS.registerProperty() has no rule, so publish the equivalent named input explicitly.
     if (registered_property_set_change.has_value()) {
         auto& style_engine = style_computer().style_engine();
-        style_engine.record_custom_property_registration_change(style_engine.intern_atom(*registered_property_set_change));
+        CSS::StyleEngineFFI::style_engine_record_custom_property_registration_change(style_engine.host(), style_engine.intern_atom(*registered_property_set_change));
     }
 }
 

@@ -905,13 +905,13 @@ void AnimationUpdateContext::publish()
         bool const pins_installed_record = may_record_baseline && element.pseudo_element().has_value();
         auto& style_engine = style_computer.style_engine();
         if (pins_installed_record)
-            style_engine.pin_style_record(data.style_record_before_update);
+            CSS::StyleEngineFFI::style_engine_pin_style_record(style_engine.host(), data.style_record_before_update.value());
         auto [animated_property_invalidation, publication] = style_computer.publish_sampled_animation_overlay(read, element, *style, [&](auto const& overlay_invalidation) {
             if (may_record_baseline && (target->document().style_stabilization_has_style_reactions() || overlay_invalidation.requires_base_style_recomputation))
                 style_computer.record_transition_stabilization_baseline(element, data.style_record_before_update);
         });
         if (pins_installed_record)
-            style_engine.unpin_style_record(data.style_record_before_update);
+            CSS::StyleEngineFFI::style_engine_unpin_style_record(style_engine.host(), data.style_record_before_update.value());
         auto invalidation = CSS::decode_style_invalidation(animated_property_invalidation.invalidation);
         target->refresh_computed_style(element.pseudo_element(), publication.new_style_record);
         if (auto* svg_element = as_if<SVG::SVGElement>(*target); svg_element && !element.pseudo_element().has_value())

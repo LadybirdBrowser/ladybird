@@ -32,8 +32,6 @@ static_assert(StyleEngineFFI::LAST_ELEMENT_REFERENCE_PSEUDO_ELEMENT_KIND == to_u
 static_assert(!IsMoveConstructible<StyleEngine>);
 static_assert(!IsMoveAssignable<StyleEngine>);
 
-#include <LibWeb/StyleEngineBridgeGenerated.inc>
-
 static NonnullRefPtr<Layout::RenderDocument> create_render_document()
 {
     // The engine the render state creates holds the style groups each longhand reaches from its creation on.
@@ -47,9 +45,9 @@ StyleEngine::StyleEngine(StyleComputer* style_computer)
     , m_style_computer(style_computer)
 {
     if (m_style_computer) {
-        set_pseudo_element_style_deferred(to_underlying(PseudoElement::Selection), true);
-        set_pseudo_element_style_deferred(to_underlying(PseudoElement::SearchText), true);
-        set_pseudo_element_style_deferred(to_underlying(PseudoElement::SearchTextCurrent), true);
+        StyleEngineFFI::style_engine_set_pseudo_element_style_deferred(host(), to_underlying(PseudoElement::Selection), true);
+        StyleEngineFFI::style_engine_set_pseudo_element_style_deferred(host(), to_underlying(PseudoElement::SearchText), true);
+        StyleEngineFFI::style_engine_set_pseudo_element_style_deferred(host(), to_underlying(PseudoElement::SearchTextCurrent), true);
     }
 }
 
@@ -123,7 +121,7 @@ void StyleEngine::begin_sheet_rules_replacement(SheetID sheet)
 
 void StyleEngine::finish_sheet_rules_replacement(SheetID sheet)
 {
-    StyleEngineFFI::style_engine_finish_sheet_rules_replacement(m_render_document->host(), sheet.value(), next_declaration_block_version());
+    StyleEngineFFI::style_engine_finish_sheet_rules_replacement(host(), sheet, next_declaration_block_version());
 }
 
 void StyleEngine::set_element_inline_style_properties(StyleNodeID node, RustDeclarationBlock const* declarations)
@@ -186,7 +184,7 @@ double StyleEngine::ensure_random_base_value(Layout::BegunRead const& read, Styl
     code_units.ensure_capacity(name.length_in_code_units());
     for (size_t i = 0; i < name.length_in_code_units(); ++i)
         code_units.unchecked_append(name.code_unit_at(i));
-    return bit_cast<double>(ensure_random_base_value_bits(read, node, code_units, element_shared));
+    return bit_cast<double>(StyleEngineFFI::style_engine_ensure_random_base_value(host(), &read, node, code_units, element_shared));
 }
 
 ParkedRandomBaseValues StyleEngine::park_element_random_base_values(StyleNodeID node)
@@ -339,7 +337,7 @@ void StyleEngine::publish_html_element_namespace(StyleAtomID namespace_atom)
 {
     // NB: The engine keeps the atom it was told alive, so an equal one names the same namespace.
     if (exchange(m_html_element_namespace, namespace_atom) != namespace_atom)
-        set_html_element_namespace(namespace_atom);
+        StyleEngineFFI::style_engine_set_html_element_namespace(host(), namespace_atom);
 }
 
 // The name an attribute is published under, and the any-namespace name it shares.
@@ -377,7 +375,7 @@ StyleAtomID StyleEngine::intern_attribute_name(Utf16FlyString const& local_name,
         folded_local = intern_qualified_atom(StyleEngine::any_namespace, folded_atom);
     }
 
-    note_attribute_name_forms(name, any_namespace, folded_name, folded_local);
+    StyleEngineFFI::style_engine_note_attribute_name_forms(host(), name, any_namespace, folded_name, folded_local);
     AttributeNameForms forms { .any_namespace = any_namespace, .folded_name = folded_name, .folded_local = folded_local };
     // An attr() reads an attribute in no namespace by its local name.
     if (namespace_atom == 0) {
@@ -386,7 +384,7 @@ StyleAtomID StyleEngine::intern_attribute_name(Utf16FlyString const& local_name,
         local_name_code_units.ensure_capacity(local_name_view.length_in_code_units());
         for (size_t i = 0; i < local_name_view.length_in_code_units(); ++i)
             local_name_code_units.unchecked_append(local_name_view.code_unit_at(i));
-        note_attribute_substitution_name(name, local_name_code_units);
+        StyleEngineFFI::style_engine_note_attribute_substitution_name(host(), name, local_name_code_units);
         forms.substitution_name = move(local_name_code_units);
     }
     m_attribute_name_forms.set(name, move(forms));
@@ -421,7 +419,7 @@ void StyleEngine::publish_attribute_value_text(StyleAtomID atom, Utf16View value
     code_units.ensure_capacity(value.length_in_code_units());
     for (size_t i = 0; i < value.length_in_code_units(); ++i)
         code_units.unchecked_append(value.code_unit_at(i));
-    StyleEngineFFI::style_engine_set_attribute_value_text(m_render_document->host(), atom.value(), code_units.data(), code_units.size());
+    StyleEngineFFI::style_engine_set_attribute_value_text(host(), atom, code_units);
 }
 
 bool StyleEngine::refresh_attribute_value_text_requirements(Layout::BegunRead const& read)
@@ -542,7 +540,7 @@ void StyleEngine::record_derived_element_style_input_change(StyleNodeID style_no
     if (style_node != 0 && reaction != 0) {
         flush_deferred_geometry_transaction_before_non_replayable_input(*this, m_style_computer);
         request_frame_for_first_recorded_input(*this, m_style_computer);
-        record_derived_element_style_input(style_node, reaction, inherited_style_groups);
+        StyleEngineFFI::style_engine_record_derived_element_style_input(host(), style_node, reaction, inherited_style_groups);
     }
 }
 
@@ -552,7 +550,7 @@ void StyleEngine::record_container_query_input_change(StyleNodeID style_node)
         return;
     flush_deferred_geometry_transaction_before_non_replayable_input(*this, m_style_computer);
     request_frame_for_first_recorded_input(*this, m_style_computer);
-    record_container_query_input(style_node);
+    StyleEngineFFI::style_engine_record_container_query_input(host(), style_node);
 }
 
 void StyleEngine::record_flat_tree_descendant_style_input_changes(StyleNodeID style_node, u8 reaction, u8 inherited_style_groups)
@@ -564,7 +562,7 @@ void StyleEngine::record_flat_tree_descendant_style_input_changes(StyleNodeID st
     // The relation columns must include every tree delta recorded before this derived action.
     submit_recorded_input();
     request_frame_for_first_recorded_input(*this, m_style_computer);
-    record_flat_tree_descendant_style_inputs(style_node, reaction, inherited_style_groups);
+    StyleEngineFFI::style_engine_record_flat_tree_descendant_style_inputs(host(), style_node, reaction, inherited_style_groups);
 }
 
 void StyleEngine::record_size_container_query_dependents(StyleNodeID container)
@@ -573,16 +571,16 @@ void StyleEngine::record_size_container_query_dependents(StyleNodeID container)
         return;
     flush_deferred_geometry_transaction_before_non_replayable_input(*this, m_style_computer);
     request_frame_for_first_recorded_input(*this, m_style_computer);
-    record_size_container_query_dependent_inputs(container);
+    StyleEngineFFI::style_engine_record_size_container_query_dependents(host(), container);
 }
 
 void StyleEngine::evaluate_size_containers_needing_evaluation_after_layout(Layout::BegunRead const& read)
 {
-    if (!has_size_containers_needing_evaluation_after_layout(read))
+    if (!StyleEngineFFI::style_engine_has_size_containers_needing_evaluation_after_layout(host(), &read))
         return;
     flush_deferred_geometry_transaction_before_non_replayable_input(*this, m_style_computer);
     request_frame_for_first_recorded_input(*this, m_style_computer);
-    record_dependent_inputs_of_size_containers_needing_evaluation_after_layout();
+    StyleEngineFFI::style_engine_evaluate_size_containers_needing_evaluation_after_layout(host());
 }
 
 Vector<StyleNodeID> StyleEngine::viewport_dependent_style_nodes(Layout::BegunRead const& read)
@@ -1033,11 +1031,6 @@ bool StyleEngine::has_deferred_element_style_inputs(Layout::BegunRead const& rea
     return StyleEngineFFI::style_engine_has_deferred_element_style_inputs(m_render_document->host(), &read);
 }
 
-bool StyleEngine::has_deferred_element_style_input(Layout::BegunRead const& read, StyleNodeID style_node) const
-{
-    return StyleEngineFFI::style_engine_has_deferred_element_style_input(m_render_document->host(), &read, style_node.value());
-}
-
 bool StyleEngine::defer_pending_transaction_for_geometry_read(Layout::BegunRead const& read)
 {
     submit_recorded_input();
@@ -1049,11 +1042,6 @@ bool StyleEngine::begin_deferred_geometry_transaction_flush(Layout::BegunRead co
 {
     submit_recorded_input();
     return StyleEngineFFI::style_engine_begin_deferred_geometry_transaction_flush(m_render_document->host(), &read);
-}
-
-void StyleEngine::end_deferred_geometry_transaction_flush()
-{
-    StyleEngineFFI::style_engine_end_deferred_geometry_transaction_flush(m_render_document->host());
 }
 
 bool StyleEngine::match_element(Layout::BegunRead const& read, StyleNodeID node, Vector<RuleMatch>& matches, MatchPurpose purpose)

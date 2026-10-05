@@ -684,7 +684,7 @@ void Node::record_style_environment_change()
     document().bump_style_environment_version();
 
     if (is_document()) {
-        document().style_computer().style_engine().record_environment_change();
+        CSS::StyleEngineFFI::style_engine_record_environment_change(document().style_computer().style_engine().host());
         return;
     }
 
@@ -3875,7 +3875,7 @@ void Node::publish_dom_paint_facts()
         document.set_may_have_dom_paint_facts();
     auto style_node = is_document() ? document.style_node_id() : Layout::Node::style_node_of(this);
     if (style_node.value() != 0)
-        document.style_computer().style_engine().set_node_dom_paint_facts(style_node, facts);
+        CSS::StyleEngineFFI::style_engine_set_node_dom_paint_facts(document.style_computer().style_engine().host(), style_node, facts);
     Layout::RustFFI::FfiBoxMarks marks {};
     marks.has_dom_paint_facts = true;
     marks.dom_paint_facts = facts;
@@ -4068,7 +4068,7 @@ void Node::publish_children_explicitly_inherit_mark()
     else if (auto const* shadow_root = as_if<ShadowRoot>(*this))
         style_node = shadow_root->style_node_id();
     if (style_node != 0)
-        document().style_computer().style_engine().note_children_explicitly_inherit(style_node);
+        CSS::StyleEngineFFI::style_engine_note_children_explicitly_inherit(document().style_computer().style_engine().host(), style_node);
 }
 
 void Node::change_associated_animation_count_in_subtree(i32 delta)
