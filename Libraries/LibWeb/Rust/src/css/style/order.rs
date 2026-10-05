@@ -40,11 +40,13 @@ impl OrderMaintenance {
     }
 
     #[must_use]
+    #[cfg(test)]
     pub fn len(&self) -> usize {
         self.order.len()
     }
 
     #[must_use]
+    #[cfg(test)]
     pub fn is_empty(&self) -> bool {
         self.order.is_empty()
     }
@@ -93,6 +95,7 @@ impl OrderMaintenance {
         }
     }
 
+    #[cfg(test)]
     pub fn iter(&self) -> impl Iterator<Item = OrderToken> + '_ {
         self.order.iter().copied()
     }

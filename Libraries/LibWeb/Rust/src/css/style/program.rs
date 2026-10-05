@@ -137,6 +137,7 @@ impl StyleScopeID {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum RuleKind {
     Style,
+    #[cfg(test)]
     Media,
     CounterStyle,
     FontFeatureValues,
@@ -462,11 +463,6 @@ impl StyleSheetProgram {
         self.routing_liveness_version
     }
 
-    #[must_use]
-    pub fn rule_count(&self) -> u32 {
-        u32::try_from(self.rules.len()).expect("rule identity space exhausted")
-    }
-
     fn bump_version(&mut self) {
         self.version = ProgramVersion(self.version.0 + 1);
     }
@@ -519,6 +515,7 @@ impl StyleSheetProgram {
         self.sheets[sheet.0 as usize].dispatch_version
     }
 
+    #[cfg(test)]
     fn sheet_order_mut(&mut self, tree_scope: TreeScopeID) -> &mut OrderMaintenance {
         let index = tree_scope.0 as usize;
         self.capacity_bytes += self.sheet_order.ensure(index);
@@ -526,6 +523,7 @@ impl StyleSheetProgram {
     }
 
     /// Attach a sheet to a style scope at the end of that scope's sheet order.
+    #[cfg(test)]
     pub fn attach_sheet(&mut self, sheet: SheetID, tree_scope: TreeScopeID) -> Attachment {
         let order_axis = self.sheet_order_mut(tree_scope);
         let previous_order_capacity = order_axis.capacity_bytes();
@@ -552,6 +550,7 @@ impl StyleSheetProgram {
     /// Attach a sheet immediately before another sheet's attachment in the same scope. Loading
     /// order does not determine cascade order: a linked or imported sheet receives its position
     /// from document and rule order before or while it loads, and attachment reuses that position.
+    #[cfg(test)]
     pub fn attach_sheet_before(&mut self, sheet: SheetID, before: Attachment) -> Attachment {
         let order_axis = self.sheet_order_mut(before.tree_scope);
         let previous_order_capacity = order_axis.capacity_bytes();
@@ -585,6 +584,7 @@ impl StyleSheetProgram {
         attachment
     }
 
+    #[cfg(test)]
     pub fn detach_sheet(&mut self, sheet: SheetID, tree_scope: TreeScopeID) {
         let attachments = &mut self.sheets[sheet.0 as usize].attachments;
         let Some(position) = attachments
@@ -631,6 +631,7 @@ impl StyleSheetProgram {
     }
 
     #[must_use]
+    #[cfg(test)]
     pub fn sheet_is_enabled(&self, sheet: SheetID) -> bool {
         self.sheets[sheet.0 as usize].enabled
     }
@@ -797,6 +798,7 @@ impl StyleSheetProgram {
     // -- Rules -------------------------------------------------------------------------------
 
     /// Append a rule to a sheet or to a grouping rule.
+    #[cfg(test)]
     pub fn append_rule(&mut self, sheet: SheetID, parent: Option<RuleID>, kind: RuleKind) -> RuleID {
         let order_axis = &mut self.sheets[sheet.0 as usize].rule_order;
         let previous_capacity = order_axis.capacity_bytes();
@@ -817,6 +819,7 @@ impl StyleSheetProgram {
 
     /// Insert a rule immediately before an existing sibling. Existing rules are neither renumbered
     /// nor rematched: the new rule takes an order token between its neighbours.
+    #[cfg(test)]
     pub fn insert_rule_before(&mut self, before: RuleID, kind: RuleKind) -> RuleID {
         let sheet = self.rules[before.0 as usize].sheet;
         let parent = self.rules[before.0 as usize].parent;
@@ -1038,6 +1041,7 @@ impl StyleSheetProgram {
     /// Remove a rule and the subtree rooted at it. Deleting a group rule detaches its whole
     /// subtree; the identities are retired together in one operation rather than one rule at a
     /// time.
+    #[cfg(test)]
     pub fn remove_rule(&mut self, rule: RuleID) -> Vec<RuleID> {
         let sheet = self.rules[rule.0 as usize].sheet;
         let (removed, _) = self.detach_rule_subtree(rule);
@@ -1172,6 +1176,7 @@ impl StyleSheetProgram {
     ///
     /// The parser publishes qualified name identities rather than ranks. This table is the one
     /// place that derives ranks, so shadow scopes can order the same spelling independently.
+    #[cfg(test)]
     pub fn set_layer_order(&mut self, scope: TreeScopeID, layers: &[CascadeLayerID]) -> bool {
         let ranks = Self::layer_ranks_in_order(layers);
         self.set_layer_ranks(scope, ranks)

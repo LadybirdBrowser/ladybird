@@ -510,6 +510,7 @@ impl NormalizationJournal {
     /// Fine-grained keys currently pending. Kinds replaced by a complete-scope marker are not
     /// counted here, because their individual keys no longer exist.
     #[must_use]
+    #[cfg(test)]
     pub fn len(&self) -> usize {
         self.entries.len()
     }
@@ -574,6 +575,7 @@ impl NormalizationJournal {
     }
 
     #[must_use]
+    #[cfg(test)]
     pub fn charged_bytes(&self) -> u64 {
         u64::from(self.charged_bytes)
     }
