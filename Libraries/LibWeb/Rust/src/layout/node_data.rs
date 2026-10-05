@@ -263,9 +263,9 @@ pub enum DomPaintFact {
     NestedNavigableContainer = 1 << 3,
 }
 
+#[cfg(test)]
 #[derive(Clone, Copy)]
-#[repr(C)]
-pub struct FfiNodeConstructionFacts {
+pub(crate) struct NodeConstructionFacts {
     pub kind: NodeKind,
     pub is_anonymous: bool,
     pub is_html_input_element: bool,

@@ -1452,14 +1452,14 @@ impl LayoutNodeArena {
     // Freshly created chunks are default-initialized and free() resets slots on release, so
     // allocate() always hands out clean NodeData without writing it again.
     #[cfg(test)]
-    pub(crate) fn allocate(&mut self, construction_facts: super::node_data::FfiNodeConstructionFacts) -> NodeSlotId {
+    pub(crate) fn allocate(&mut self, construction_facts: super::node_data::NodeConstructionFacts) -> NodeSlotId {
         let slot = self.allocate_unbound();
         self.bind_shell(slot, construction_facts);
         slot
     }
 
     #[cfg(test)]
-    pub(crate) fn bind_shell(&self, slot: NodeSlotId, construction_facts: super::node_data::FfiNodeConstructionFacts) {
+    pub(crate) fn bind_shell(&self, slot: NodeSlotId, construction_facts: super::node_data::NodeConstructionFacts) {
         assert!(
             self.slot_is_live(slot),
             "layout node arena bound a shell to a dead slot"
@@ -5676,23 +5676,23 @@ mod tests {
         IntrinsicSizeCacheKey, IntrinsicSizeCacheKind, LayoutNodeArena, SLOTS_PER_CHUNK, TableCellMeasurement,
         TableCellMeasurementKey,
     };
-    use crate::layout::node_data::{FfiNodeConstructionFacts, NodeFlag, NodeKind, NodeSlotId};
+    use crate::layout::node_data::{NodeConstructionFacts, NodeFlag, NodeKind, NodeSlotId};
     use crate::layout::{CssPixels, fragment_tree, used_values};
     use std::ffi::c_void;
 
-    fn test_construction_facts() -> FfiNodeConstructionFacts {
+    fn test_construction_facts() -> NodeConstructionFacts {
         test_construction_facts_with_kind(NodeKind::Box)
     }
 
-    fn test_anonymous_construction_facts() -> FfiNodeConstructionFacts {
-        FfiNodeConstructionFacts {
+    fn test_anonymous_construction_facts() -> NodeConstructionFacts {
+        NodeConstructionFacts {
             is_anonymous: true,
             ..test_construction_facts()
         }
     }
 
-    fn test_construction_facts_with_kind(kind: NodeKind) -> FfiNodeConstructionFacts {
-        FfiNodeConstructionFacts {
+    fn test_construction_facts_with_kind(kind: NodeKind) -> NodeConstructionFacts {
+        NodeConstructionFacts {
             kind,
             is_anonymous: false,
             is_html_input_element: false,
@@ -5736,7 +5736,7 @@ mod tests {
         arena.set_style_engine(crate::css::style::StyleEngineHandle::from_raw(&raw mut engine));
         let style_node = StyleNodeID::element(3);
         let rows = [(); 3].map(|()| {
-            arena.allocate(FfiNodeConstructionFacts {
+            arena.allocate(NodeConstructionFacts {
                 style_node: style_node.raw(),
                 ..test_construction_facts()
             })
@@ -5816,7 +5816,7 @@ mod tests {
         let mut arena = LayoutNodeArena::new();
         arena.set_style_engine(crate::css::style::StyleEngineHandle::from_raw(&raw mut engine));
         let element = StyleNodeID::element(3);
-        let principal = arena.allocate(FfiNodeConstructionFacts {
+        let principal = arena.allocate(NodeConstructionFacts {
             style_node: element.raw(),
             ..test_construction_facts()
         });
@@ -5859,7 +5859,7 @@ mod tests {
             record,
         )));
         let element = StyleNodeID::element(3);
-        let row = arena.allocate(FfiNodeConstructionFacts {
+        let row = arena.allocate(NodeConstructionFacts {
             style_node: element.raw(),
             ..test_construction_facts()
         });
@@ -5892,7 +5892,7 @@ mod tests {
         use crate::css::style::tree::StyleNodeID;
         let mut arena = LayoutNodeArena::new();
         let element = StyleNodeID::element(3);
-        let facts = FfiNodeConstructionFacts {
+        let facts = NodeConstructionFacts {
             style_node: element.raw(),
             ..test_construction_facts()
         };
@@ -5989,11 +5989,11 @@ mod tests {
         let mut arena = LayoutNodeArena::new();
         let element = StyleNodeID::element(2);
         let text = StyleNodeID::text(2);
-        let element_row = arena.allocate(FfiNodeConstructionFacts {
+        let element_row = arena.allocate(NodeConstructionFacts {
             style_node: element.raw(),
             ..test_construction_facts()
         });
-        let text_row = arena.allocate(FfiNodeConstructionFacts {
+        let text_row = arena.allocate(NodeConstructionFacts {
             style_node: text.raw(),
             ..test_construction_facts()
         });
