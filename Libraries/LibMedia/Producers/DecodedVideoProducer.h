@@ -61,7 +61,7 @@ public:
     virtual void set_wake_handler(PipelineWakeHandler) override;
 
     AK::Duration select_fast_seek_target(AK::Duration timestamp, SeekMode);
-    virtual void seek(AK::Duration timestamp) override;
+    virtual void seek(AK::Duration timestamp, InvalidateHeldData = InvalidateHeldData::No) override;
 
 private:
     class ThreadData final : public AtomicRefCounted<ThreadData> {
@@ -89,7 +89,7 @@ private:
         VideoProducerOutput peek_while_locked();
         void consume();
 
-        void seek(AK::Duration timestamp);
+        void seek(AK::Duration timestamp, InvalidateHeldData);
         AK::Duration select_fast_seek_target(AK::Duration target, SeekMode) const;
 
         void register_decode_thread();
@@ -161,6 +161,8 @@ private:
         Atomic<u32> m_last_processed_seek_id { 0 };
         Atomic<u32> m_seek_id { 0 };
         AK::Duration m_seek_timestamp;
+        // Stays set until a seek discards the queue, so that a later seek cannot resolve from the stale frames.
+        bool m_held_frames_are_invalid { false };
 
         SynchronizedWakeHandler m_wake_handler;
         mutable bool m_downstream_needs_wake { true };

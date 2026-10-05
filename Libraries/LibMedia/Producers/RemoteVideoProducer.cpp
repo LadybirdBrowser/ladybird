@@ -95,7 +95,7 @@ void RemoteVideoProducer::set_wake_handler(PipelineWakeHandler handler)
     m_wake_handler.set(move(handler));
 }
 
-void RemoteVideoProducer::seek(AK::Duration timestamp)
+void RemoteVideoProducer::seek(AK::Duration timestamp, InvalidateHeldData invalidate_held_data)
 {
     discard_stale_ring_heads();
 
@@ -106,14 +106,14 @@ void RemoteVideoProducer::seek(AK::Duration timestamp)
     auto requested_seek_id = m_expected_seek_id + 1;
     m_edge.set_requested_seek_id(requested_seek_id);
     AK::atomic_thread_fence(AK::MemoryOrder::memory_order_seq_cst);
-    if (can_satisfy_seek_locally(timestamp)) {
+    if (invalidate_held_data == InvalidateHeldData::No && can_satisfy_seek_locally(timestamp)) {
         m_edge.set_requested_seek_id(m_expected_seek_id);
         return;
     }
     m_expected_seek_id = requested_seek_id;
 
     release_all_ring_frames();
-    m_delegates.request_seek(timestamp);
+    m_delegates.request_seek(timestamp, invalidate_held_data);
 }
 
 bool RemoteVideoProducer::can_satisfy_seek_locally(AK::Duration timestamp) const

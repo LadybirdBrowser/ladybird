@@ -28,9 +28,9 @@ public:
 
     ErrorOr<void> connect_input(NonnullRefPtr<VideoProducer> const&);
     void disconnect_input(NonnullRefPtr<VideoProducer> const&);
-    void transmit_seek() const;
+    void transmit_seek(InvalidateHeldData) const;
     void transmit_time_reader(MediaTimeReader const&) const;
-    void seek_upstream(AK::Duration timestamp);
+    void seek_upstream(AK::Duration timestamp, InvalidateHeldData);
     void start_input();
     void notify_space_available();
     void release_slot(VideoFramePoolID, u32 slot_index);
@@ -106,8 +106,8 @@ RefPtr<VideoFrame> RemoteVideoSink::current_frame() const { return m_thread_data
 ErrorOr<void> RemoteVideoSink::connect_input(NonnullRefPtr<VideoProducer> const& producer) { return m_thread_data->connect_input(producer); }
 void RemoteVideoSink::disconnect_input(NonnullRefPtr<VideoProducer> const& producer) { m_thread_data->disconnect_input(producer); }
 
-void RemoteVideoSink::seek(AK::Duration) { m_thread_data->transmit_seek(); }
-void RemoteVideoSink::seek_upstream(AK::Duration timestamp) { m_thread_data->seek_upstream(timestamp); }
+void RemoteVideoSink::seek(AK::Duration, InvalidateHeldData invalidate_held_data) { m_thread_data->transmit_seek(invalidate_held_data); }
+void RemoteVideoSink::seek_upstream(AK::Duration timestamp, InvalidateHeldData invalidate_held_data) { m_thread_data->seek_upstream(timestamp, invalidate_held_data); }
 
 void RemoteVideoSink::set_time_reader(MediaTimeReader time_reader)
 {
@@ -172,9 +172,9 @@ void RemoteVideoSink::ThreadData::disconnect_input(NonnullRefPtr<VideoProducer> 
     m_input = nullptr;
 }
 
-void RemoteVideoSink::ThreadData::transmit_seek() const
+void RemoteVideoSink::ThreadData::transmit_seek(InvalidateHeldData invalidate_held_data) const
 {
-    m_delegates.transmit_seek();
+    m_delegates.transmit_seek(invalidate_held_data);
 }
 
 void RemoteVideoSink::ThreadData::transmit_time_reader(MediaTimeReader const& time_reader) const
@@ -182,11 +182,11 @@ void RemoteVideoSink::ThreadData::transmit_time_reader(MediaTimeReader const& ti
     m_delegates.transmit_time_reader(time_reader);
 }
 
-void RemoteVideoSink::ThreadData::seek_upstream(AK::Duration timestamp)
+void RemoteVideoSink::ThreadData::seek_upstream(AK::Duration timestamp, InvalidateHeldData invalidate_held_data)
 {
     MutexLocker locker { m_mutex };
     if (m_input)
-        m_input->seek(timestamp);
+        m_input->seek(timestamp, invalidate_held_data);
     m_actual_seek_id++;
     m_wake_pending = true;
     m_wait_condition.broadcast();

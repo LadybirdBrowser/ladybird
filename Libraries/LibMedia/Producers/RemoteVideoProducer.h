@@ -31,7 +31,7 @@ class MEDIA_API RemoteVideoProducer final
 public:
     struct Delegates {
         Function<void()> request_start;
-        Function<void(AK::Duration)> request_seek;
+        Function<void(AK::Duration, InvalidateHeldData)> request_seek;
         Function<void(VideoFramePoolID, u32 slot_index)> release_slot;
         Function<void()> notify_space_available;
     };
@@ -44,7 +44,7 @@ public:
     virtual VideoProducerOutput peek() override;
     virtual void consume() override;
     virtual void set_wake_handler(PipelineWakeHandler) override;
-    virtual void seek(AK::Duration timestamp) override;
+    virtual void seek(AK::Duration timestamp, InvalidateHeldData = InvalidateHeldData::No) override;
 
 private:
     RemoteVideoProducer(VideoEdgeQueue, NonnullRefPtr<VideoFrameSlotDirectory>, Delegates);

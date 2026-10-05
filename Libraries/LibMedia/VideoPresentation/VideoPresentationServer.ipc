@@ -1,4 +1,5 @@
 #include <AK/Time.h>
+#include <LibMedia/InvalidateHeldData.h>
 #include <LibMedia/PipelineStatus.h>
 #include <LibMedia/VideoFramePool.h>
 #include <LibMedia/VideoSinkHandle.h>
@@ -8,7 +9,7 @@ endpoint VideoPresentationServer {
     release_video_edge(u64 edge_id) =|
 
     request_start(u64 edge_id) =|
-    request_seek(u64 edge_id, AK::Duration timestamp) =|
+    request_seek(u64 edge_id, AK::Duration timestamp, Media::InvalidateHeldData invalidate_held_data) =|
     release_slot(u64 edge_id, Media::VideoFramePoolID pool_id, u32 slot_index) =|
     notify_space_available(u64 edge_id) =|
 

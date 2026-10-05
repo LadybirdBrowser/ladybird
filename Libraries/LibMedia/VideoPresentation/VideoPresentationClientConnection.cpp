@@ -64,9 +64,9 @@ void VideoPresentationClientConnection::video_edge_ready(u64 edge_id, VideoEdgeQ
             connection.async_request_start(edge_id);
         });
     };
-    consumer_delegates.request_seek = [weak_connection, edge_id](AK::Duration timestamp) {
+    consumer_delegates.request_seek = [weak_connection, edge_id](AK::Duration timestamp, InvalidateHeldData invalidate_held_data) {
         weak_connection.with_target([&](auto& connection) {
-            connection.async_request_seek(edge_id, timestamp);
+            connection.async_request_seek(edge_id, timestamp, invalidate_held_data);
         });
     };
     consumer_delegates.release_slot = [weak_connection, edge_id](VideoFramePoolID pool_id, u32 slot_index) {
@@ -135,7 +135,7 @@ void VideoPresentationClientConnection::notify_data_available(u64 edge_id)
         edge_state->consumer->notify_data_available();
 }
 
-void VideoPresentationClientConnection::seek_sink(u64 edge_id, u32 requested_seek_id)
+void VideoPresentationClientConnection::seek_sink(u64 edge_id, u32 requested_seek_id, InvalidateHeldData invalidate_held_data)
 {
     auto edge_state = m_edge_states.get(edge_id);
     if (!edge_state.has_value())
@@ -148,7 +148,7 @@ void VideoPresentationClientConnection::seek_sink(u64 edge_id, u32 requested_see
     // seek that has not been processed yet, causing the sink to discard a frame that it needs to consult for the
     // incoming seek. With this fix, the spurious seek to the timestamp that was already read will simply hit the cache
     // anyway, so there is no harm here.
-    edge_state->sink->seek(edge_state->time_reader->current_time());
+    edge_state->sink->seek(edge_state->time_reader->current_time(), invalidate_held_data);
 }
 
 }

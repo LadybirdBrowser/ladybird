@@ -1,2 +1,2 @@
 before replacing: red 0
-after seeking into the replaced frames: red 0
+after seeking into the replaced frames: blue 0

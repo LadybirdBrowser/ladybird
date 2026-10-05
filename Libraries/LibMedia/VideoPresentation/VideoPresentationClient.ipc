@@ -1,3 +1,4 @@
+#include <LibMedia/InvalidateHeldData.h>
 #include <LibMedia/MediaTime.h>
 #include <LibMedia/VideoEdgeQueue.h>
 #include <LibMedia/VideoFramePool.h>
@@ -10,5 +11,5 @@ endpoint VideoPresentationClient {
     announce_video_frame_slot(u64 edge_id, Media::VideoFramePoolID pool_id, u32 slot_index, Core::AnonymousBuffer slot_buffer, RefPtr<Media::VideoSurface> surface) =|
     retire_video_frame_pool(u64 edge_id, Media::VideoFramePoolID pool_id) =|
     notify_data_available(u64 edge_id) =|
-    seek_sink(u64 edge_id, u32 requested_seek_id) =|
+    seek_sink(u64 edge_id, u32 requested_seek_id, Media::InvalidateHeldData invalidate_held_data) =|
 }

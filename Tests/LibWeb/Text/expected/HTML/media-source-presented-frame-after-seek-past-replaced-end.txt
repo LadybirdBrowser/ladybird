@@ -1,6 +1,6 @@
 Seeking before appending:
 at the end: red 2
-after seeking to 10: red 2
+after seeking to 10: blue 0
 Appending before seeking:
 at the end: red 2
-after seeking to 10: red 2
+after seeking to 10: blue 0

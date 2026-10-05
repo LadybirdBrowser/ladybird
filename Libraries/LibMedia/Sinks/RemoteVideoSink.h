@@ -34,7 +34,7 @@ public:
         Function<void()> ring_data_available;
         // A seek reaches the far-end consumer first so its cached frames are consulted before anything moves upstream.
         // The consumer will then seek upstream, which passes through the RemoteVideoProducer and across the edge.
-        Function<void()> transmit_seek;
+        Function<void(InvalidateHeldData)> transmit_seek;
         // Relays a replacement time reader (e.g. after audio is disabled) to the consumer; the initial one rides video_edge_ready.
         Function<void(MediaTimeReader const&)> transmit_time_reader;
         // Called to lend each new buffer backing a slot to the other side, before the first handle that refers to it.
@@ -52,8 +52,8 @@ public:
     virtual ErrorOr<void> connect_input(NonnullRefPtr<VideoProducer> const&) override;
     virtual void disconnect_input(NonnullRefPtr<VideoProducer> const&) override;
 
-    virtual void seek(AK::Duration timestamp) override;
-    void seek_upstream(AK::Duration timestamp);
+    virtual void seek(AK::Duration timestamp, InvalidateHeldData = InvalidateHeldData::No) override;
+    void seek_upstream(AK::Duration timestamp, InvalidateHeldData = InvalidateHeldData::No);
     virtual void set_time_reader(MediaTimeReader) override;
     virtual void set_state_change_handler(PipelineStateChangeHandler) override;
     virtual void set_resize_handler(PipelineResizeHandler) override;

@@ -122,10 +122,11 @@ DecoderErrorOr<void> PlaybackManager::prepare_playback_from_demuxer(WeakPlayback
         self->check_for_demuxed_duration_change(duration);
 
         self->m_demuxers.append(demuxer);
-        demuxer->set_scan_state_change_handler([self](TimeRanges const&) {
+        demuxer->set_scan_state_change_handler([self, &demuxer = *demuxer](TimeRanges const& invalidated_ranges) {
             if (!self)
                 return;
             self->update_duration_from_scan_states();
+            self->seek_tracks_with_invalidated_data(demuxer, invalidated_ranges);
             self->update_pipeline_state();
             self->dispatch_buffered_ranges_change();
         });
@@ -666,6 +667,20 @@ void PlaybackManager::apply_track_change_to_ended_state(ResumeEndedPlayback resu
         ended_state_handler.resume_from_position_before_end();
     else
         ended_state_handler.move_pipeline_to_end();
+}
+
+void PlaybackManager::seek_tracks_with_invalidated_data(Demuxer const& demuxer, TimeRanges const& invalidated_ranges)
+{
+    auto current_timestamp = current_time();
+    auto pipeline_may_hold_invalidated_data = invalidated_ranges.highest_end_time() > current_timestamp;
+    if (!pipeline_may_hold_invalidated_data)
+        return;
+
+    for (auto& track_data : m_video_track_datas) {
+        if (track_data.demuxer.ptr() != &demuxer || track_data.video_sink == nullptr)
+            continue;
+        track_data.video_sink->seek(current_timestamp, InvalidateHeldData::Yes);
+    }
 }
 
 void PlaybackManager::seek_clock_and_video_sinks(AK::Duration timestamp)

@@ -151,9 +151,9 @@ AK::Duration DecodedVideoProducer::select_fast_seek_target(AK::Duration timestam
     return m_thread_data->select_fast_seek_target(timestamp, mode);
 }
 
-void DecodedVideoProducer::seek(AK::Duration timestamp)
+void DecodedVideoProducer::seek(AK::Duration timestamp, InvalidateHeldData invalidate_held_data)
 {
-    m_thread_data->seek(timestamp);
+    m_thread_data->seek(timestamp, invalidate_held_data);
 }
 
 DecodedVideoProducer::ThreadData::ThreadData(Core::EventLoop& main_thread_event_loop, NonnullRefPtr<Demuxer> const& demuxer, Track const& track, AK::Duration auto_suspend_idle_timeout)
@@ -335,14 +335,17 @@ DecodedVideoProducer::FrameQueue& DecodedVideoProducer::ThreadData::queue()
     return m_queue;
 }
 
-void DecodedVideoProducer::ThreadData::seek(AK::Duration timestamp)
+void DecodedVideoProducer::ThreadData::seek(AK::Duration timestamp, InvalidateHeldData invalidate_held_data)
 {
     auto locker = take_lock();
     VERIFY(!m_decode_thread_id.is_current_thread());
     note_consumer_activity_while_locked();
     m_downstream_needs_wake = true;
 
-    if (is_within_available_range_while_locked(timestamp)) {
+    if (invalidate_held_data == InvalidateHeldData::Yes)
+        m_held_frames_are_invalid = true;
+
+    if (!m_held_frames_are_invalid && is_within_available_range_while_locked(timestamp)) {
         re_emit_last_frame_if_at_end_of_stream_while_locked();
         if (m_last_processed_seek_id != m_seek_id) {
             resolve_seek(m_seek_id.load());
@@ -491,7 +494,7 @@ bool DecodedVideoProducer::ThreadData::handle_seek()
             timestamp = m_seek_timestamp;
             m_demuxer->reset_blocking_reads_aborted_for_track(m_track);
 
-            if (is_within_available_range_while_locked(timestamp)) {
+            if (!m_held_frames_are_invalid && is_within_available_range_while_locked(timestamp)) {
                 re_emit_last_frame_if_at_end_of_stream_while_locked();
                 resolve_seek(seek_id);
                 dispatch_wake_if_needed_while_locked();
@@ -499,6 +502,7 @@ bool DecodedVideoProducer::ThreadData::handle_seek()
             }
 
             m_queue.clear();
+            m_held_frames_are_invalid = false;
             m_last_queued_frame = nullptr;
             m_earliest_available_timestamp = timestamp;
             m_latest_available_timestamp = timestamp;
