@@ -463,9 +463,7 @@ fn measure_scrollable_overflow_impl(
     //          its 3D rendering context. [CSS3-TRANSFORMS]
     // OPTIMIZATION: The layout tree already indexes direct children. Retain only boxes whose
     //               containing block differs from their parent in the supplemental index.
-    let direct_children = std::iter::successors(layout_arena.node_first_child_if_live(box_node), |&child| {
-        layout_arena.node_next_sibling_if_live(child)
-    });
+    let direct_children = layout_arena.children(box_node);
     let other_contained_boxes = non_child_boxes_by_containing_block
         .get(&box_node)
         .into_iter()
