@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/Debug.h>
 #include <AK/HashMap.h>
 #include <AK/NeverDestroyed.h>
 #include <LibGC/Root.h>
@@ -24,25 +23,6 @@
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::Bindings {
-
-#ifndef NDEBUG
-static HashMap<InterfaceName, Vector<FlatPtr>>& hintless_main_world_wrapper_realms_by_interface()
-{
-    static NeverDestroyed<HashMap<InterfaceName, Vector<FlatPtr>>> realms_by_interface;
-    return *realms_by_interface;
-}
-
-static void log_hintless_main_world_wrapper_realm_if_new(Wrappable& wrappable, JS::Realm& realm)
-{
-    auto realm_address = bit_cast<FlatPtr>(&realm);
-    auto& seen_realms = hintless_main_world_wrapper_realms_by_interface().ensure(wrappable.interface_name());
-    if (seen_realms.contains_slow(realm_address))
-        return;
-
-    seen_realms.append(realm_address);
-    dbgln("Wrapper diagnostic: hint-less non-Node main-world wrapper for interface #{} was created in previously unseen realm {:p}", static_cast<u16>(wrappable.interface_name()), &realm);
-}
-#endif
 
 Wrappable::Wrappable() = default;
 
@@ -205,11 +185,6 @@ GC::Ref<JS::HostObject> wrap(WrapperWorld& wrapper_world, JS::Realm& preferred_r
     }
 
     auto wrapper = wrappable->create_wrapper(actual_wrapper_realm);
-#ifndef NDEBUG
-    if (wrapper_world.is_main_world() && !is<DOM::Node>(wrappable.ptr()) && !wrappable->relevant_global_impl()) {
-        log_hintless_main_world_wrapper_realm_if_new(*wrappable, actual_wrapper_realm);
-    }
-#endif
     if (auto* element = as_if<DOM::Element>(wrappable.ptr()))
         set_prototype_from_custom_element_definition_if_needed(*element, wrapper);
     wrapper_world.set_wrapper(wrappable, wrapper);
