@@ -1101,14 +1101,8 @@ pub extern "C" fn rust_calc_node_create_numeric_dimension(kind: u8, value: f64, 
     handle(CalcNode::Numeric(numeric))
 }
 
-#[unsafe(no_mangle)]
-pub extern "C" fn rust_calc_node_create_channel_keyword(channel: u8) -> *const CalcNode {
-    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CalcNodeBuildEntry);
-    handle(CalcNode::ChannelKeyword(channel))
-}
-
-/// Creates a variadic node: kind selects sum (0), product (1), min (2),
-/// max (3) or hypot (4).
+/// Creates a variadic node: kind selects sum (0), product (1), min (2) or
+/// max (3).
 ///
 /// # Safety
 /// `children` must point at `count` valid transferred handles.
@@ -1125,15 +1119,12 @@ pub unsafe extern "C" fn rust_calc_node_create_variadic(
         1 => CalcNode::Product(children),
         2 => CalcNode::Min(children),
         3 => CalcNode::Max(children),
-        4 => CalcNode::Hypot(children),
         _ => unreachable!("invalid variadic calc node kind {kind}"),
     };
     handle(node)
 }
 
-/// Creates a single-child node: kind selects negate (0), invert (1), abs (2),
-/// sign (3), sin (4), cos (5), tan (6), asin (7), acos (8), atan (9),
-/// sqrt (10) or exp (11).
+/// Creates a single-child node: kind selects negate (0) or invert (1).
 ///
 /// # Safety
 /// `child` must be a valid transferred handle.
@@ -1144,54 +1135,7 @@ pub unsafe extern "C" fn rust_calc_node_create_unary(kind: u8, child: *const Cal
     let node = match kind {
         0 => CalcNode::Negate(child),
         1 => CalcNode::Invert(child),
-        2 => CalcNode::Abs(child),
-        3 => CalcNode::Sign(child),
-        4 => CalcNode::Sin(child),
-        5 => CalcNode::Cos(child),
-        6 => CalcNode::Tan(child),
-        7 => CalcNode::Asin(child),
-        8 => CalcNode::Acos(child),
-        9 => CalcNode::Atan(child),
-        10 => CalcNode::Sqrt(child),
-        11 => CalcNode::Exp(child),
         _ => unreachable!("invalid unary calc node kind {kind}"),
-    };
-    handle(node)
-}
-
-/// Creates a two-child node: kind selects atan2 (0), pow (1), log (2),
-/// mod (3) or rem (4), with the children in the C++ member order.
-///
-/// # Safety
-/// Both children must be valid transferred handles.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_calc_node_create_binary(
-    kind: u8,
-    first: *const CalcNode,
-    second: *const CalcNode,
-) -> *const CalcNode {
-    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CalcNodeBuildEntry);
-    let first = unsafe { Arc::from_raw(first) };
-    let second = unsafe { Arc::from_raw(second) };
-    let node = match kind {
-        0 => CalcNode::Atan2 { y: first, x: second },
-        1 => CalcNode::Pow {
-            base: first,
-            exponent: second,
-        },
-        2 => CalcNode::Log {
-            value: first,
-            base: second,
-        },
-        3 => CalcNode::Mod {
-            value: first,
-            modulus: second,
-        },
-        4 => CalcNode::Rem {
-            value: first,
-            divisor: second,
-        },
-        _ => unreachable!("invalid binary calc node kind {kind}"),
     };
     handle(node)
 }
@@ -1209,63 +1153,6 @@ pub unsafe extern "C" fn rust_calc_node_create_clamp(
         min: unsafe { Arc::from_raw(min) },
         center: unsafe { Arc::from_raw(center) },
         max: unsafe { Arc::from_raw(max) },
-    })
-}
-
-/// # Safety
-/// All three children must be valid transferred handles.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_calc_node_create_progress(
-    no_clamp: bool,
-    progress: *const CalcNode,
-    from: *const CalcNode,
-    to: *const CalcNode,
-) -> *const CalcNode {
-    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CalcNodeBuildEntry);
-    handle(CalcNode::Progress {
-        no_clamp,
-        progress: unsafe { Arc::from_raw(progress) },
-        from: unsafe { Arc::from_raw(from) },
-        to: unsafe { Arc::from_raw(to) },
-    })
-}
-
-/// # Safety
-/// Both children must be valid transferred handles.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_calc_node_create_round(
-    strategy: u8,
-    value: *const CalcNode,
-    interval: *const CalcNode,
-) -> *const CalcNode {
-    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CalcNodeBuildEntry);
-    handle(CalcNode::Round {
-        strategy,
-        value: unsafe { Arc::from_raw(value) },
-        interval: unsafe { Arc::from_raw(interval) },
-    })
-}
-
-/// # Safety
-/// The children must be valid transferred handles (`step` may be null), and
-/// `sharing` a transferred strong style value data handle.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_calc_node_create_random(
-    min: *const CalcNode,
-    max: *const CalcNode,
-    step: *const CalcNode,
-    sharing: *const std::ffi::c_void,
-) -> *const CalcNode {
-    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CalcNodeBuildEntry);
-    handle(CalcNode::Random {
-        min: unsafe { Arc::from_raw(min) },
-        max: unsafe { Arc::from_raw(max) },
-        step: if step.is_null() {
-            None
-        } else {
-            Some(unsafe { Arc::from_raw(step) })
-        },
-        sharing: unsafe { RetainedStyleValueData::from_retained_pointer(sharing.cast()) },
     })
 }
 

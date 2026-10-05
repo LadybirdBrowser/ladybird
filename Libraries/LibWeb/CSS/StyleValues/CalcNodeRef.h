@@ -65,41 +65,16 @@ public:
     }
 
     static CalcNodeRef numeric(NumericValue const&);
-    // https://drafts.csswg.org/css-values-4/#calc-constants
-    // Returns nothing for keywords that are not calc constants.
-    static Optional<CalcNodeRef> from_keyword(Keyword);
-    static CalcNodeRef channel_keyword(ChannelKeyword);
 
     static CalcNodeRef sum(Vector<CalcNodeRef>);
     static CalcNodeRef product(Vector<CalcNodeRef>);
     static CalcNodeRef min(Vector<CalcNodeRef>);
     static CalcNodeRef max(Vector<CalcNodeRef>);
-    static CalcNodeRef hypot(Vector<CalcNodeRef>);
 
     static CalcNodeRef negate(CalcNodeRef);
     static CalcNodeRef invert(CalcNodeRef);
-    static CalcNodeRef abs(CalcNodeRef);
-    static CalcNodeRef sign(CalcNodeRef);
-    static CalcNodeRef sin(CalcNodeRef);
-    static CalcNodeRef cos(CalcNodeRef);
-    static CalcNodeRef tan(CalcNodeRef);
-    static CalcNodeRef asin(CalcNodeRef);
-    static CalcNodeRef acos(CalcNodeRef);
-    static CalcNodeRef atan(CalcNodeRef);
-    static CalcNodeRef sqrt(CalcNodeRef);
-    static CalcNodeRef exp(CalcNodeRef);
-
-    // NB: Atan2's children are ordered y then x, matching the Rust tree.
-    static CalcNodeRef atan2(CalcNodeRef y, CalcNodeRef x);
-    static CalcNodeRef pow(CalcNodeRef, CalcNodeRef);
-    static CalcNodeRef log(CalcNodeRef, CalcNodeRef);
-    static CalcNodeRef mod(CalcNodeRef, CalcNodeRef);
-    static CalcNodeRef rem(CalcNodeRef, CalcNodeRef);
 
     static CalcNodeRef clamp(CalcNodeRef minimum, CalcNodeRef center, CalcNodeRef maximum);
-    static CalcNodeRef progress(bool no_clamp, CalcNodeRef value, CalcNodeRef start, CalcNodeRef end);
-    static CalcNodeRef round(RoundingStrategy, CalcNodeRef value, CalcNodeRef interval);
-    static CalcNodeRef random(StyleValue const& random_value_sharing, CalcNodeRef minimum, CalcNodeRef maximum, Optional<CalcNodeRef> step);
     static CalcNodeRef non_math_function(StyleValue const& function, Optional<NumericType> const&);
     // Numeric style values become numeric leaves; a calculated value
     // contributes its own Rust tree.
