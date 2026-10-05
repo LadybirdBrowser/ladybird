@@ -1195,20 +1195,46 @@ bool KeyframeEffect::can_skip_per_frame_animation_tick() const
     return !css_animation_events_are_heard(phase == Phase::Active);
 }
 
+bool KeyframeEffect::may_run_on_the_compositor() const
+{
+    return all_of(target_properties(), [](auto const& property) {
+        return first_is_one_of(property.id(), CSS::PropertyID::Opacity, CSS::PropertyID::BackgroundColor, CSS::PropertyID::Filter,
+            CSS::PropertyID::Translate, CSS::PropertyID::Rotate, CSS::PropertyID::Scale, CSS::PropertyID::Transform);
+    });
+}
+
 bool KeyframeEffect::css_animation_iteration_events_are_heard() const
 {
     return css_animation_events_are_heard(true);
 }
 
-// Whether a listener on the target, the nodes its events bubble to or its window hears the CSS animation events of the
-// effect that need a tick: only its iteration events if `only_iteration_events`.
+// Whether a listener on `target`, the nodes its events bubble to or its window hears an event `hears` names.
+template<typename Hears>
+static bool event_is_heard_at(DOM::Element& target, Hears const& hears)
+{
+    for (auto* node = static_cast<DOM::Node*>(&target); node;) {
+        if (hears(*node))
+            return true;
+        if (auto assigned_slot = DOM::assigned_slot_for_node(*node))
+            node = assigned_slot.ptr();
+        else
+            node = node->parent_or_shadow_host();
+    }
+    auto window = target.document().window();
+    return window && hears(*window);
+}
+
+// Whether a listener hears the CSS animation events of the effect that need a tick: only its iteration events if
+// `only_iteration_events`.
 bool KeyframeEffect::css_animation_events_are_heard(bool only_iteration_events) const
 {
     // Script animations do not dispatch CSS animation events, even when an ancestor listens for them.
     if (auto animation = associated_animation(); animation && !animation->is_css_animation())
         return false;
 
-    auto hears_css_animation_events = [only_iteration_events](DOM::EventTarget const& event_target) {
+    auto target = this->target();
+    VERIFY(target);
+    return event_is_heard_at(*target, [only_iteration_events](DOM::EventTarget const& event_target) {
         if (only_iteration_events)
             return event_target.has_event_listener(HTML::EventNames::animationiteration)
                 || event_target.has_event_listener(HTML::EventNames::webkitAnimationIteration);
@@ -1218,20 +1244,32 @@ bool KeyframeEffect::css_animation_events_are_heard(bool only_iteration_events) 
             || event_target.has_event_listener(HTML::EventNames::animationstart)
             || event_target.has_event_listener(HTML::EventNames::webkitAnimationIteration)
             || event_target.has_event_listener(HTML::EventNames::webkitAnimationStart);
-    };
+    });
+}
 
+bool KeyframeEffect::phase_events_are_heard() const
+{
+    auto animation = associated_animation();
     auto target = this->target();
-    VERIFY(target);
-    for (auto* node = static_cast<DOM::Node*>(target.ptr()); node;) {
-        if (hears_css_animation_events(*node))
-            return true;
-        if (auto assigned_slot = DOM::assigned_slot_for_node(*node))
-            node = assigned_slot.ptr();
-        else
-            node = node->parent_or_shadow_host();
+    // A script animation's finish reaches script through its promise as well as its event.
+    if (!animation || !target || !(animation->is_css_animation() || animation->is_css_transition()))
+        return true;
+    if (animation->is_css_transition()) {
+        return event_is_heard_at(*target, [](DOM::EventTarget const& event_target) {
+            return event_target.has_event_listener(HTML::EventNames::transitionrun)
+                || event_target.has_event_listener(HTML::EventNames::transitionstart)
+                || event_target.has_event_listener(HTML::EventNames::transitionend)
+                || event_target.has_event_listener(HTML::EventNames::transitioncancel)
+                || event_target.has_event_listener(HTML::EventNames::webkitTransitionEnd);
+        });
     }
-    auto window = target->document().window();
-    return window && hears_css_animation_events(*window);
+    return event_is_heard_at(*target, [](DOM::EventTarget const& event_target) {
+        return event_target.has_event_listener(HTML::EventNames::animationstart)
+            || event_target.has_event_listener(HTML::EventNames::animationend)
+            || event_target.has_event_listener(HTML::EventNames::animationcancel)
+            || event_target.has_event_listener(HTML::EventNames::webkitAnimationStart)
+            || event_target.has_event_listener(HTML::EventNames::webkitAnimationEnd);
+    });
 }
 
 static bool is_in_display_none_subtree_ignoring_animations(DOM::AbstractElement abstract_element)

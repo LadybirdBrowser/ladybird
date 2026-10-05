@@ -130,6 +130,8 @@ public:
 
     GC::Ptr<DOM::Document> document_for_timing() const;
     void update();
+    // Runs the pending play task of the animation if it is ready.
+    void run_pending_play_task_if_ready();
 
     void effect_timing_changed(Badge<AnimationEffect>);
 

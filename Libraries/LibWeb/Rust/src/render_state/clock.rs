@@ -45,15 +45,25 @@ pub(crate) struct ClockPlan {
     time_origin: f64,
     /// The timestamp of the next event of the animations, which the host sends: a tick at or past it samples nothing.
     deadline: f64,
+    /// The timestamp at which the animations a tick samples have all ended: the tick at or past it shows their ends,
+    /// and the lease wants no tick after it.
+    last_end: f64,
     round: ClockRound,
 }
 
 impl ClockPlan {
-    pub(crate) fn new(elements: Vec<StyleNodeID>, time_origin: f64, deadline: f64, round: ClockRound) -> Self {
+    pub(crate) fn new(
+        elements: Vec<StyleNodeID>,
+        time_origin: f64,
+        deadline: f64,
+        last_end: f64,
+        round: ClockRound,
+    ) -> Self {
         Self {
             elements,
             time_origin,
             deadline,
+            last_end,
             round,
         }
     }
@@ -71,7 +81,8 @@ pub(crate) struct LeaseLanding {
     pub(super) owed: Vec<LayoutRoundAnswer>,
     /// The border boxes of the plan's elements in the last frame a tick presented.
     pub(super) presented_border_boxes: Vec<(StyleNodeID, CssPixelRect)>,
-    /// Whether a tick found the lease could sample no more: past the deadline, or something only the host computes.
+    /// Whether a tick found the lease could sample no more: past the deadline or the animations' ends, or something only
+    /// the host computes.
     parked: bool,
 }
 
@@ -203,18 +214,17 @@ impl From<VisualContextsNeedHost> for Park {
 impl LeaseLanding {
     /// Samples the plan's animations at the timestamp of `frame_time_nanoseconds`, shows the samples, lays out what
     /// they moved and presents the frame, unless the host said the stop word: the host waits for the lease. A tick at or
-    /// past the deadline, or one that needs the host, parks the lease.
+    /// past the deadline, or one that needs the host, parks the lease, and so does the tick that shows the ends of the
+    /// animations, after which a tick would present the same frame again.
     fn tick(&mut self, frame_time_nanoseconds: i64, stop: &StopWord) {
         if self.parked || stop.is_said() {
             return;
         }
         let timestamp = frame_time_nanoseconds as f64 / 1_000_000.0 - self.plan.time_origin;
         // The tick runs on the render owner, the one thread that reaches the state.
-        if timestamp >= self.plan.deadline
+        self.parked = timestamp >= self.plan.deadline
             || owner::with_state(self.document, None, |state| self.sample(state, timestamp)).is_err()
-        {
-            self.parked = true;
-        }
+            || timestamp >= self.plan.last_end;
     }
 
     fn sample(&mut self, state: &mut RenderState, timestamp: f64) -> Result<(), Park> {

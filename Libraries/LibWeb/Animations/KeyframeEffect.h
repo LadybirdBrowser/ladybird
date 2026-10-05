@@ -153,6 +153,11 @@ public:
     bool can_skip_per_frame_animation_tick() const;
     // Whether a listener hears the animationiteration events of the effect's CSS animation.
     bool css_animation_iteration_events_are_heard() const;
+    // Whether a listener hears the events the effect's animation sends as the effect's phase changes. Those of a script
+    // animation always are, through its finished promise.
+    bool phase_events_are_heard() const;
+    // Whether a compositor animation may run every property the effect targets.
+    bool may_run_on_the_compositor() const;
     bool is_compositor_driven() const { return m_is_compositor_driven; }
     void set_is_compositor_driven(bool value)
     {

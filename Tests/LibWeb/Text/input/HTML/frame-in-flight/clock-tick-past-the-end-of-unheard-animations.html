@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    @keyframes grow {
+        from {
+            height: 0px;
+        }
+        to {
+            height: 100px;
+        }
+    }
+    #box {
+        width: 10px;
+        height: 20px;
+        background: green;
+    }
+    #box.grow {
+        animation: grow 200ms linear;
+    }
+</style>
+<div id="box"></div>
+<script>
+    // No listener hears the events of a finite CSS animation, so the render clock samples it past its end. The tick
+    // that shows the end parks the clock, which would only present the same frame again after it.
+    asyncTest(async done => {
+        const result = await whileClockLeased(() => {
+            box.classList.add("grow");
+            return box.getAnimations()[0];
+        }, frameTime => {
+            internals.injectClockTick(frameTime + 50);
+            const leaseDuring = internals.clockLeaseState(document);
+            internals.injectClockTick(frameTime + 500);
+            const leaseAfter = internals.clockLeaseState(document);
+            internals.injectClockTick(frameTime + 516);
+            return {
+                leaseDuring,
+                leaseAfter,
+                presentedBy: internals.lastFramePresentedBy(document),
+                presentedBorderBox: internals.presentedBorderBox(box),
+            };
+        });
+        println(`lease during the animation: ${result.leaseDuring}`);
+        println(`lease after a tick past its end: ${result.leaseAfter}`);
+        println(`last frame presented by: ${result.presentedBy}`);
+        println(`the presented height is the one after the animation: ${result.presentedBorderBox?.height}`);
+        done();
+    });
+</script>

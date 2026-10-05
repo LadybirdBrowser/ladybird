@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    #drawer {
+        width: 0;
+        height: 10px;
+        background: green;
+        transition: width 1000ms linear, height 100ms linear;
+    }
+    #drawer.open {
+        width: 100px;
+        height: 20px;
+    }
+</style>
+<div id="drawer"></div>
+<script>
+    // A click opens a drawer with transitions and leaves its work for a task after the next rendering update, which
+    // starts them. The render clock moves the drawer beside that task, past the end of the shorter transition, whose
+    // events no listener hears.
+    asyncTest(async done => {
+        await new Promise(resolve => window.addEventListener("load", resolve, { once: true }));
+        internals.setManualRenderingOpportunities(true);
+        try {
+            await nextTask();
+            drawer.classList.add("open");
+            const frameTime = performance.now();
+            internals.injectRenderingOpportunity(frameTime);
+            do await nextTask();
+            while (internals.frameSchedulerState() !== "idle");
+            internals.injectClockTick(frameTime + 250);
+            const lease = internals.clockLeaseState(document);
+            const presentedBy = internals.lastFramePresentedBy(document);
+            const presented = internals.presentedBorderBox(drawer);
+            const transition = drawer.getAnimations().find(animation => animation.transitionProperty === "width");
+            const expectedWidth = (frameTime + 250 - transition.startTime) / 10;
+            println(`lease after the tick: ${lease}`);
+            println(`last frame presented by: ${presentedBy}`);
+            println(`the presented width is the transition's at the tick: ${presented !== null && Math.abs(presented.width - expectedWidth) < 0.02}`);
+            println(`the presented height is the one the shorter transition ended at: ${presented !== null && presented.height === 20}`);
+            println(`the transition started at the rendering update: ${Math.abs(transition.startTime - frameTime) < 1}`);
+        } finally {
+            internals.setManualRenderingOpportunities(false);
+        }
+        done();
+    });
+</script>
