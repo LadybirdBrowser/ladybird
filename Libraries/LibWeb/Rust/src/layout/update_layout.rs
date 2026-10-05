@@ -633,6 +633,13 @@ impl LayoutRoundJob {
 }
 
 impl LayoutRoundAnswer {
+    /// The size query containers whose content size the round's layout changed.
+    pub(crate) fn resized_size_containers(&self) -> impl Iterator<Item = StyleNodeID> + '_ {
+        self.commits
+            .iter()
+            .flat_map(CommitNotifications::resized_size_containers)
+    }
+
     /// Pays what the round owes the host, in the order it came to owe it. The boxes nodes gained
     /// and lost and the host calls the round owes come first, then a build's commit messages and
     /// styled scroll containers, after which the document retires the tree the build replaced; then

@@ -95,6 +95,16 @@ impl StyleInvalidation {
         self.repaint_highlights |= other.repaint_highlights;
     }
 
+    /// Whether the damage stays in the box of its element: no layout tree, stacking context, visual context, scroll
+    /// snap or text decoration of descendants.
+    fn stays_in_its_box(self) -> bool {
+        self.level < INVALIDATION_REBUILD_LAYOUT_TREE
+            && self.visual_context == 0
+            && !self.rebuild_stacking_context
+            && !self.resnap_scroll_container
+            && !self.repaint_text_decorations
+    }
+
     fn unpack(packed: u32) -> Self {
         let has = |field: FfiStyleInvalidationField| packed & field as u32 != 0;
         Self {
@@ -797,15 +807,28 @@ impl RetainedState {
     ) -> bool {
         let is_document_element =
             self.computed_group_sets.adjustment_facts(node) & element_adjustment_fact::IS_DOCUMENT_ELEMENT != 0;
-        let invalidation = StyleInvalidation::unpack(
+        StyleInvalidation::unpack(
             self.compare_animation_overlay(old_style_record, animated_overlay, payloads, is_document_element)
                 .invalidation,
-        );
-        invalidation.level < INVALIDATION_REBUILD_LAYOUT_TREE
-            && invalidation.visual_context == 0
-            && !invalidation.rebuild_stacking_context
-            && !invalidation.resnap_scroll_container
-            && !invalidation.repaint_text_decorations
+        )
+        .stays_in_its_box()
+    }
+
+    /// Whether moving `node` from `old_style_record`, the record the host installed for the element, to
+    /// `new_style_record` changes only what the element's box paints and lays out, as a sample that stays in its box
+    /// does, and nothing an element child inherits.
+    pub(crate) fn restyle_stays_in_its_box(
+        &mut self,
+        node: StyleNodeID,
+        old_style_record: u64,
+        new_style_record: u64,
+    ) -> bool {
+        let invalidation =
+            StyleInvalidation::unpack(self.element_record_damage(node, false, old_style_record, new_style_record));
+        invalidation.stays_in_its_box()
+            && !invalidation.recompute_descendants
+            && ((invalidation.inherited_groups == 0 && !invalidation.non_inherited_inheritance_source)
+                || self.tree.first_element_child(node).is_none())
     }
 
     pub(crate) fn compare_style_records(

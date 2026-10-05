@@ -1,0 +1,4 @@
+lease after the tick: ticking
+last frame presented by: clock
+the presented size is the main thread's: true
+every link of the chain grew: true

@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    @keyframes widen {
+        from { width: 200px; }
+        to { width: 700px; }
+    }
+    #pane, .link {
+        container-type: inline-size;
+    }
+    #pane {
+        width: 200px;
+    }
+    #pane.widen {
+        animation: widen 10s linear;
+    }
+    .link {
+        width: 100px;
+    }
+    @container (min-width: 300px) {
+        .link {
+            width: 500px;
+            padding-top: 1px;
+        }
+    }
+</style>
+<div id="pane"><div class="link"><div class="link"><div class="link"><div class="link"><div class="link"><div class="link"><div class="link" id="last">Last</div></div></div></div></div></div></div></div>
+<script>
+    // Each container's size decides the size of the container inside it, so a tick restyles and lays out again once
+    // per link of the chain, eight times in all. When the last restyle leaves nothing to lay out, the render clock
+    // presents the frame.
+    asyncTest(async done => {
+        const result = await whileClockLeased(() => {
+            pane.classList.add("widen");
+            return pane.getAnimations()[0];
+        }, (frameTime, animation) => {
+            internals.injectClockTick(frameTime + 5000);
+            return {
+                lease: internals.clockLeaseState(document),
+                presented: internals.presentedBorderBox(pane),
+                presentedBy: internals.lastFramePresentedBy(document),
+                localTime: frameTime + 5000 - animation.startTime,
+                animation,
+            };
+        });
+        result.animation.pause();
+        result.animation.currentTime = result.localTime;
+        const laidOut = pane.getBoundingClientRect();
+        const presented = result.presented;
+        println(`lease after the tick: ${result.lease}`);
+        println(`last frame presented by: ${result.presentedBy}`);
+        println(`the presented size is the main thread's: ${presented !== null && Math.abs(presented.width - laidOut.width) < 0.02 && Math.abs(presented.height - laidOut.height) < 0.02}`);
+        println(`every link of the chain grew: ${last.getBoundingClientRect().width === 500 && laidOut.height > 7}`);
+        done();
+    });
+</script>

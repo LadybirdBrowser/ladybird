@@ -7,7 +7,7 @@
 //! Recording the elements whose style a size query container's new box moves.
 
 use super::fast_hash::FastSet as HashSet;
-use super::{StyleEngineState, StyleNodeID};
+use super::{RetainedState, StyleEngineState, StyleNodeID};
 
 /// What the host learned about size container queries while it computed styles: which elements
 /// were asked about, which elements asked, and which containers had no box to answer with yet.
@@ -95,9 +95,22 @@ impl StyleEngineState {
     /// size query or container-relative unit decided below it, and the container itself for its
     /// own pseudo-elements, is recorded to compute again.
     pub fn record_size_container_query_dependents(&mut self, container: StyleNodeID) {
-        let facts = &self.retained.size_container_queries;
+        let (changed, visits) = self.retained.size_container_query_dependents(container);
+        self.retained.size_container_queries.scan_visits += visits;
+        for node in changed {
+            self.record_container_query_input(node);
+        }
+    }
+}
+
+impl RetainedState {
+    /// The elements whose style a size query or container-relative unit decided below `container`, and the container
+    /// itself for its own pseudo-elements, with the number of elements the walk for them visited. None where nothing
+    /// resolved against the container.
+    pub(super) fn size_container_query_dependents(&self, container: StyleNodeID) -> (Vec<StyleNodeID>, u64) {
+        let facts = &self.size_container_queries;
         if !facts.queried_containers.contains(&container) {
-            return;
+            return (Vec::new(), 0);
         }
 
         let mut changed = Vec::new();
@@ -109,9 +122,8 @@ impl StyleEngineState {
 
         // The flat tree below the container is the inverse of the walk that selects a query
         // container, which is what makes it the right one for finding that container's dependents.
-        let tree = &self.retained.tree;
         let mut visits = 0;
-        let mut stack: Vec<StyleNodeID> = tree.flat_tree_children(container).collect();
+        let mut stack: Vec<StyleNodeID> = self.tree.flat_tree_children(container).collect();
         while let Some(node) = stack.pop() {
             // A text node holds a place among a slot's assigned nodes, but has no style of its own.
             if node.text_index().is_some() {
@@ -121,12 +133,8 @@ impl StyleEngineState {
             if facts.dependents.contains(&node) {
                 changed.push(node);
             }
-            stack.extend(tree.flat_tree_children(node));
+            stack.extend(self.tree.flat_tree_children(node));
         }
-        self.retained.size_container_queries.scan_visits += visits;
-
-        for node in changed {
-            self.record_container_query_input(node);
-        }
+        (changed, visits)
     }
 }

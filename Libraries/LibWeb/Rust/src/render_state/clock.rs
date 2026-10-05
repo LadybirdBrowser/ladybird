@@ -211,6 +211,41 @@ impl From<VisualContextsNeedHost> for Park {
     }
 }
 
+/// How many times a tick lays out again what the containers it resized restyled, as the host's layout update
+/// stabilizes them.
+const SIZE_QUERY_ROUND_LIMIT: usize = 8;
+
+/// Shows in their boxes the styles of the elements whose style a size query or container-relative unit decided below
+/// the containers in `resized`, against their new sizes, keeping each box's host style in `ticked`. An element whose
+/// animations `animated` samples composes over its host's style, which only the host restyles.
+fn restyle_size_query_dependents(
+    state: &mut RenderState,
+    resized: &[StyleNodeID],
+    animated: &[StyleNodeID],
+    ticked: &mut Vec<(NodeSlotId, HostStyle)>,
+) -> Result<(), Park> {
+    for &container in resized {
+        for dependent in state.engine_mut().size_container_query_dependents(container) {
+            if animated.contains(&dependent) {
+                return Err(Park);
+            }
+            let row = state.arena.arena().bound_row(dependent);
+            let Some(restyled) = state
+                .engine_mut()
+                .restyle_size_query_dependent(dependent, !row.is_invalid())?
+            else {
+                continue;
+            };
+            let arena = state.arena.arena();
+            if let Some(host_style) = arena.install_animation_sample(row, restyled)? {
+                ticked.push((row, host_style));
+            }
+            arena.push_paint_damage_for_repaint(row, PaintDamage::ALL_PRODUCERS);
+        }
+    }
+    Ok(())
+}
+
 impl LeaseLanding {
     /// Samples the plan's animations at the timestamp of `frame_time_nanoseconds`, shows the samples, lays out what
     /// they moved and presents the frame, unless the host said the stop word: the host waits for the lease. A tick at or
@@ -253,10 +288,24 @@ impl LeaseLanding {
                 .arena()
                 .push_paint_damage_for_repaint(row, PaintDamage::ALL_PRODUCERS);
         }
-        if let Some(answer) = plan.round.run(&mut state.arena)? {
+        // A container the round resized restyles what its size decides, as the host's style update after a layout
+        // does, and lays it out again, until the containers stand.
+        for _ in 0..SIZE_QUERY_ROUND_LIMIT {
+            let Some(answer) = plan.round.run(&mut state.arena)? else {
+                return self.present(state);
+            };
+            let resized: smallvec::SmallVec<[StyleNodeID; 4]> = answer.resized_size_containers().collect();
             owed.push(answer);
+            if resized.is_empty() {
+                return self.present(state);
+            }
+            restyle_size_query_dependents(state, &resized, &plan.elements, ticked)?;
         }
-        self.present(state)
+        // The last restyle may have left nothing to lay out again.
+        match state.arena.arena().layout_is_up_to_date(false) {
+            true => self.present(state),
+            false => Err(Park),
+        }
     }
 
     /// Records the document's frame again, with the inputs of the last recording that published, and presents it

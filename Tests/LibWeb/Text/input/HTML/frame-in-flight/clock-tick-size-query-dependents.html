@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    @keyframes widen {
+        from { width: 200px; }
+        to { width: 700px; }
+    }
+    #pane {
+        container-type: inline-size;
+        width: 200px;
+    }
+    #pane.widen {
+        animation: widen 10s linear;
+    }
+    #title {
+        font-size: 5cqi;
+        line-height: 1;
+    }
+    #picture {
+        height: 10px;
+    }
+    #aside {
+        display: none;
+    }
+    @container (min-width: 400px) {
+        #picture {
+            height: 50px;
+        }
+    }
+    @container (min-width: 900px) {
+        #aside {
+            display: block;
+        }
+    }
+</style>
+<div id="pane">
+    <div id="title">Title</div>
+    <div id="picture"></div>
+    <div id="aside">Aside</div>
+</div>
+<script>
+    // The render clock restyles what the size of a container it lays out decides beside a task: lengths in container
+    // units and rules in container queries, as the main thread styles them for the same size. An element the queries
+    // keep hidden stays hidden.
+    asyncTest(async done => {
+        const result = await whileClockLeased(() => {
+            pane.classList.add("widen");
+            return pane.getAnimations()[0];
+        }, (frameTime, animation) => {
+            internals.injectClockTick(frameTime + 3000);
+            internals.injectClockTick(frameTime + 5000);
+            return {
+                lease: internals.clockLeaseState(document),
+                presented: internals.presentedBorderBox(pane),
+                presentedBy: internals.lastFramePresentedBy(document),
+                localTime: frameTime + 5000 - animation.startTime,
+                animation,
+            };
+        });
+        result.animation.pause();
+        result.animation.currentTime = result.localTime;
+        const laidOut = pane.getBoundingClientRect();
+        const presented = result.presented;
+        println(`lease after the tick: ${result.lease}`);
+        println(`last frame presented by: ${result.presentedBy}`);
+        println(`the presented size is the main thread's: ${presented !== null && Math.abs(presented.width - laidOut.width) < 0.02 && Math.abs(presented.height - laidOut.height) < 0.02}`);
+        println(`the container grew past its query: ${laidOut.width > 400 && laidOut.height > 70}`);
+        done();
+    });
+</script>
