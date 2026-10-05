@@ -1,0 +1,6 @@
+em: --length 10px, margin-left 10px
+declaring element: --inherited-length 10px
+grandchild: margin-left 10px
+condition: margin-left 2px
+lh: --length 30px, margin-left 30px
+light-dark: --color rgb(0, 0, 255), background-color rgb(0, 0, 255)
