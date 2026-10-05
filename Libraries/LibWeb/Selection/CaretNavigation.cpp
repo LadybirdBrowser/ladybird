@@ -202,7 +202,6 @@ Optional<CaretLocation> CaretNavigator::move_to_adjacent_caret_host(CaretLocatio
     if (!editing_host)
         return {};
 
-    Layout::ForcedReadScope read { *m_document };
     m_document->update_layout_if_needed_for_node(*editing_host, DOM::UpdateLayoutReason::CursorLineNavigation);
 
     auto& origin = navigation_origin(location, direction);
@@ -379,7 +378,6 @@ Optional<CaretLocation> CaretNavigator::canonical_location_for_extension(CaretLo
     auto editing_host = text->editing_host();
     if (!editing_host)
         return {};
-    Layout::ForcedReadScope read { *m_document };
     m_document->update_layout_if_needed_for_node(*editing_host, DOM::UpdateLayoutReason::CursorLineNavigation);
     auto target = adjacent_caret_host(*text, *editing_host, direction);
     if (!target)
@@ -452,7 +450,6 @@ Optional<CaretLocation> CaretNavigator::move_by_word(CaretLocation const& initia
     // share a rendered inline context. Punctuation and atomic inline content remain observable stops. This is editing
     // behavior rather than a direct application of the Unicode segmentation algorithm.
     auto editing_host = initial_location.node->editing_host();
-    Layout::ForcedReadScope read { *m_document };
     m_document->update_layout_if_needed_for_node(initial_location.node, DOM::UpdateLayoutReason::CursorLineNavigation);
 
     auto location = initial_location;
@@ -541,7 +538,6 @@ Optional<CaretLocation> CaretNavigator::move_to_editing_host_boundary(CaretLocat
     if (!editing_host)
         return {};
 
-    Layout::ForcedReadScope read { *m_document };
     m_document->update_layout_if_needed_for_node(*editing_host, DOM::UpdateLayoutReason::CursorLineNavigation);
 
     auto target = adjacent_caret_host(*editing_host, *editing_host, SelectionDirection::Forward);

@@ -37,8 +37,6 @@ GC::Ref<ScrollTimeline> ScrollTimeline::create_for_constructor(JS::Object& relev
             return options.source.value();
         return document.scrolling_element();
     }();
-    // A script reads the new timeline's current time from the boxes, which waits for a frame in flight.
-    Layout::ForcedReadScope read { document };
     return create(document, source, options.axis);
 }
 

@@ -176,8 +176,6 @@ void Internals::force_incompatible_visual_context_tree_rebuild()
 
 u64 Internals::accumulated_visual_context_incremental_update_count()
 {
-    // A script reads the render state, which waits for a frame in flight.
-    Layout::ForcedReadScope read { window().associated_document() };
     auto& document = window().associated_document();
     if (!document.has_committed_viewport_box())
         return 0;
@@ -186,8 +184,6 @@ u64 Internals::accumulated_visual_context_incremental_update_count()
 
 u64 Internals::visual_context_pending_dirty_box_count()
 {
-    // A script reads the render state, which waits for a frame in flight.
-    Layout::ForcedReadScope read { window().associated_document() };
     auto& document = window().associated_document();
     if (!document.has_committed_viewport_box())
         return 0;
@@ -205,8 +201,6 @@ u64 Internals::layout_tree_pre_order_label_violation_count()
 
 u64 Internals::layout_tree_pre_order_relabel_count()
 {
-    // A script reads the render state, which waits for a frame in flight.
-    Layout::ForcedReadScope read { window().associated_document() };
     auto& document = window().associated_document();
     return Layout::RustFFI::render_state_layout_counts(document.layout_node_arena().host()).pre_order_relabels;
 }
@@ -588,7 +582,6 @@ void Internals::grant_transient_activation()
 // A click the UI process routes, as it would a user's, to the page hosting the document under it.
 void Internals::click_through_ui_process(double x, double y)
 {
-    Layout::ForcedReadScope read { window().associated_document() };
     auto& page = this->page();
     auto position = page.css_to_device_point(window().navigable()->to_page_position({ x, y }));
     auto local_root_id = window().navigable()->local_root()->id();
@@ -606,7 +599,6 @@ void Internals::click_through_ui_process(double x, double y)
 
 void Internals::wheel_through_ui_process(double x, double y, double delta_x, double delta_y)
 {
-    Layout::ForcedReadScope read { window().associated_document() };
     auto& page = this->page();
     auto position = page.css_to_device_point(window().navigable()->to_page_position({ x, y }));
     auto local_root_id = window().navigable()->local_root()->id();
@@ -1087,8 +1079,6 @@ WebIDL::UnsignedLongLong Internals::intrinsic_measurement_count()
 
 WebIDL::UnsignedLongLong Internals::accumulated_visual_context_tree_build_count()
 {
-    // A script reads the render state, which waits for a frame in flight.
-    Layout::ForcedReadScope read { window().associated_document() };
     auto& document = window().associated_document();
     if (!document.has_committed_viewport_box())
         return 0;
@@ -1097,8 +1087,6 @@ WebIDL::UnsignedLongLong Internals::accumulated_visual_context_tree_build_count(
 
 void Internals::begin_display_list_trace()
 {
-    // A script reads the render state, which waits for a frame in flight.
-    Layout::ForcedReadScope read { window().associated_document() };
     auto& document = window().associated_document();
     (void)document.paint_state().take_recording_traces();
     Layout::RustFFI::render_state_set_recording_trace_enabled(document.layout_node_arena().host(), true);
@@ -1106,8 +1094,6 @@ void Internals::begin_display_list_trace()
 
 Utf16String Internals::take_display_list_trace()
 {
-    // A script reads the render state, which waits for a frame in flight.
-    Layout::ForcedReadScope read { window().associated_document() };
     auto& document = window().associated_document();
     Layout::RustFFI::render_state_set_recording_trace_enabled(document.layout_node_arena().host(), false);
     StringBuilder builder;
@@ -1262,7 +1248,6 @@ static Utf16String dump_string_to_utf16(String const& string)
 
 Utf16String Internals::dump_display_list()
 {
-    Layout::ForcedReadScope read { window().associated_document() };
     return window().associated_document().dump_display_list();
 }
 
@@ -1795,8 +1780,6 @@ void Internals::request_reentrant_animation_style_flush_for_testing(GC::Ref<DOM:
 
 GC::Ref<JS::Object> Internals::layout_tree_build_stats()
 {
-    // A script reads the render state, which waits for a frame in flight.
-    Layout::ForcedReadScope read { window().associated_document() };
     auto object = JS::Object::create(window().principal_realm(), nullptr);
     auto counts = window().associated_document().layout_counts();
     object->define_direct_property("builds"_utf16_fly_string, JS::Value(counts.tree_builds), JS::default_attributes);
@@ -2600,8 +2583,6 @@ GC::Ref<JS::Object> Internals::async_scrolling_state_object()
 
 GC::Ref<JS::Object> Internals::recorded_async_scrolling_state_object()
 {
-    // A script reads the render state, which waits for a frame in flight.
-    Layout::ForcedReadScope read { window().associated_document() };
     auto* display_list = window().associated_document().paint_state().display_list_used_as_paint_command_cache_source();
     auto state = display_list ? Compositing::async_scrolling_state_from_display_list(*display_list) : Compositing::AsyncScrollingState {};
     return async_scrolling_state_to_object(window(), state);
