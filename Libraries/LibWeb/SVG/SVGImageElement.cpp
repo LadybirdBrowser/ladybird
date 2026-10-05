@@ -102,7 +102,7 @@ void SVGImageElement::fetch_the_document(URL::URL const& url)
             m_load_event_delayer.clear();
             register_with_decoded_image_data_if_needed();
             CSS::record_element_replaced_content_input(*this);
-            Painting::push_replaced_image_paint_facts(*this);
+            Painting::push_replaced_image_paint_facts(*this, *this);
             set_needs_layout_update(DOM::SetNeedsLayoutReason::SVGImageElementFetchTheDocument);
 
             dispatch_event(DOM::Event::create(HTML::EventNames::load,
@@ -141,7 +141,7 @@ void SVGImageElement::decoded_image_data_did_update()
 {
     // An SVG image works out its natural size again after it redraws itself or changes color scheme.
     CSS::record_element_replaced_content_input(*this);
-    Painting::push_replaced_image_paint_facts(*this);
+    Painting::push_replaced_image_paint_facts(*this, *this);
 }
 
 }

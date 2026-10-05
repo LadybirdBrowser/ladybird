@@ -9,7 +9,6 @@
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
-#include <LibWeb/DOM/InvalidationJournal.h>
 #include <LibWeb/DOM/Position.h>
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/DOM/Text.h>
@@ -739,19 +738,8 @@ public:
     }
 };
 
-DOM::Node* bound_dom_node(Layout::Node const& node)
-{
-    if (!node.dom_node_identity().binds(node))
-        return nullptr;
-    return const_cast<DOM::Node*>(node.dom_node());
-}
-
 void mark_box(Layout::Node const& node, Layout::RustFFI::FfiBoxMarks marks)
 {
-    if (auto* dom_node = bound_dom_node(node)) {
-        dom_node->mark_box(marks);
-        return;
-    }
     Layout::RustFFI::render_state_mark_row_box(node.document_host(), Layout::Node::slot_id(&node), marks);
     BoxViewRepaintAccess::set_document_needs_repaint(const_cast<DOM::Document&>(node.document()), display_list_invalidation_of(marks));
 }
@@ -777,10 +765,9 @@ void set_needs_repaint(Layout::Node const& node, InvalidateDisplayList should_in
         mark_box(node, repaint_marks(should_invalidate_display_list));
 }
 
-void request_document_repaint(Layout::Node const& node, InvalidateDisplayList should_invalidate_display_list)
+void request_document_repaint(DOM::Document const& document, InvalidateDisplayList should_invalidate_display_list)
 {
-    if (has_committed_box(node))
-        BoxViewRepaintAccess::set_document_needs_repaint(const_cast<DOM::Document&>(node.document()), should_invalidate_display_list);
+    BoxViewRepaintAccess::set_document_needs_repaint(const_cast<DOM::Document&>(document), should_invalidate_display_list);
 }
 
 void set_needs_repaint_in_subtree(Layout::Node const& node)

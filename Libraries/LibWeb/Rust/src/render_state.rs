@@ -419,6 +419,7 @@ impl ChangeQueue {
     fn push(&self, change: ArenaChange) {
         use crate::css::style::bridge::StyleChange;
         use crate::layout::layout_changes::LayoutChange;
+        use crate::painting::paint_changes::PaintChange;
         let mut queued = if self.holds_style.get() && change.writes_style() {
             self.held_style.borrow_mut()
         } else {
@@ -445,6 +446,17 @@ impl ChangeQueue {
         {
             last_marks.merge(*marks);
             return;
+        }
+        // Replaced content facts for the box the last write gave facts of the same kind replace those.
+        if let ArenaChange::Paint(PaintChange::SetReplacedPaintFacts { target, facts }) = &change
+            && let Some(ArenaChange::Paint(PaintChange::SetReplacedPaintFacts {
+                target: last_target,
+                facts: last_facts,
+            })) = queued.last()
+            && last_target == target
+            && std::mem::discriminant(last_facts) == std::mem::discriminant(facts)
+        {
+            queued.pop();
         }
         queued.push(change);
     }

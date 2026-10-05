@@ -479,8 +479,24 @@ pub(crate) enum MarkedBox {
     Node(Option<StyleNodeID>),
     /// The box bound to the pseudo-element of kind `generated_for` on the element `generator`.
     PseudoElement { generator: StyleNodeID, generated_for: u8 },
-    /// A box no node is bound to: an anonymous one, or one of several built for one node.
+    /// The box of the row, named so by a host that holds the box, or one no node is bound to: an anonymous one, or one of
+    /// several built for one node.
     Row(NodeSlotId),
+}
+
+impl MarkedBox {
+    /// The row of the box, as the arena binds it now.
+    pub(crate) fn row(self, arena: &LayoutNodeArena) -> NodeSlotId {
+        match self {
+            Self::Node(None) => arena.bound_viewport_row(),
+            Self::Node(Some(node)) => arena.bound_row(node),
+            Self::PseudoElement {
+                generator,
+                generated_for,
+            } => arena.bound_pseudo_element_row(generator, generated_for),
+            Self::Row(row) => row,
+        }
+    }
 }
 
 impl FfiBoxMarks {
@@ -518,15 +534,7 @@ impl FfiBoxMarks {
     }
 
     pub(crate) fn apply(self, arena: &mut LayoutNodeArena, target: MarkedBox) {
-        let row = match target {
-            MarkedBox::Node(None) => arena.bound_viewport_row(),
-            MarkedBox::Node(Some(node)) => arena.bound_row(node),
-            MarkedBox::PseudoElement {
-                generator,
-                generated_for,
-            } => arena.bound_pseudo_element_row(generator, generated_for),
-            MarkedBox::Row(row) => row,
-        };
+        let row = target.row(arena);
         let Some(kind) = arena.node_kind_if_live(row) else {
             return;
         };
@@ -678,7 +686,7 @@ pub unsafe extern "C" fn render_state_mark_pseudo_element_box(
     unsafe { super::layout_changes::queue(host, super::layout_changes::LayoutChange::MarkBox { target, marks }) };
 }
 
-/// Marks the box of the row `row`, which no node is bound to.
+/// Marks the box of the row `row`.
 ///
 /// # Safety
 ///

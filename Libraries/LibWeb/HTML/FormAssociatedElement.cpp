@@ -1421,8 +1421,8 @@ void FormAssociatedTextControlElement::selection_was_changed(SelectionSource sou
         VERIFY_NOT_REACHED();
     }
 
-    // NB: Called during selection change handling, layout may be stale. The text's box repaints once the document's
-    //     invalidation journal drains, so the change reads nothing of the render state.
+    // NB: Called during selection change handling, layout may be stale. The render state finds the text's box as it
+    //     applies the repaint, so the change reads nothing of it.
     auto text_node = form_associated_element_to_text_node();
     if (!text_node || !text_node->has_layout_box())
         return;

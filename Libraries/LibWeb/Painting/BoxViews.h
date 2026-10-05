@@ -88,12 +88,8 @@ WEB_API void push_highlight_pseudo_styles(DOM::Element const&);
 // The node a layout row stands for, as the arena names it.
 WEB_API DOM::NodeIdentity node_identity_of(Layout::RustFFI::FfiNodeIdentity);
 
-// The node a mark on this box names, if the box is the one the layout node arena binds to that node. Any other box
-// (anonymous, generated for a pseudo-element, or one of several built for one node) has no node a mark could name.
-WEB_API DOM::Node* bound_dom_node(Layout::Node const&);
-
-// Marks the box through its node where the box is the one bound to it (see DOM::Node::mark_box()), and by its row
-// otherwise.
+// Marks the box by its row, which asks the render state nothing, so a box held beside a frame in flight is marked
+// without taking the frame in.
 WEB_API void mark_box(Layout::Node const&, Layout::RustFFI::FfiBoxMarks);
 WEB_API Layout::RustFFI::FfiBoxMarks repaint_marks(InvalidateDisplayList);
 // The display lists `marks` leave stale.
@@ -103,7 +99,7 @@ WEB_API void set_needs_repaint(Layout::Node const&, InvalidateDisplayList = Inva
 WEB_API void set_needs_repaint_in_subtree(Layout::Node const&);
 // Records the document's display list again without damaging any row, for a change that pushes the damage of the rows it
 // changes itself.
-WEB_API void request_document_repaint(Layout::Node const&, InvalidateDisplayList);
+WEB_API void request_document_repaint(DOM::Document const&, InvalidateDisplayList);
 
 WEB_API void invalidate_propagated_text_decoration_caches(Layout::Node const&);
 WEB_API void repaint_after_style_change(Layout::Node const&, CSS::RequiredInvalidationAfterStyleChange const&);
