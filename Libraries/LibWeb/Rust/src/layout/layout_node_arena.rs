@@ -4854,17 +4854,13 @@ impl LayoutNodeArena {
     // run's probe and its store is handled by storing the probe-time validity, which turns it
     // into a fail-safe miss.
     fn invalidate_at_and_above(&self, mut node: NodeSlotId, invalidation: AncestorInvalidation) {
-        let epochs_enabled =
-            super::fc_run_cache::fc_run_cache_mode_from_environment() != super::fc_run_cache::FcRunCacheMode::Disabled;
         let paintable_rows = self.paintable_rows();
         while !node.is_invalid() {
             let data = self.data(node);
             if invalidation == AncestorInvalidation::StructuralChange {
                 self.fc_run_cache_store.note_inline_layout_damage(node);
             }
-            if epochs_enabled {
-                self.bump_fragment_cache_epoch(node);
-            }
+            self.bump_fragment_cache_epoch(node);
             let (kind, parent) = (data.kind.get(), data.parent.get());
             if super::node_facts::kind_is_box(kind) {
                 paintable_rows.clear_cached_overflow_data(node);
@@ -6385,11 +6381,6 @@ mod tests {
 
     #[test]
     fn committed_geometry_requires_a_current_layout_commit() {
-        if super::super::fc_run_cache::fc_run_cache_mode_from_environment()
-            == super::super::fc_run_cache::FcRunCacheMode::Disabled
-        {
-            return;
-        }
         let mut arena = LayoutNodeArena::new();
         let node = arena.allocate_for_test().slot;
         let current = |arena: &LayoutNodeArena| arena.with_current_committed_fragment(node, |fragment| fragment.node);

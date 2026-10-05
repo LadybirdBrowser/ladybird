@@ -1321,8 +1321,7 @@ fn apply_root_sizing_directives(
         ParticipationInParentFormattingContext::AtomicInline => {
             let run_cache_may_store_this_block_formatting_context_run = fc_type == FormattingContextType::Block
                 && run.layout_mode == LayoutMode::Normal
-                && !run.purpose.is_measurement()
-                && fc_run_cache::fc_run_cache_mode_from_environment() != fc_run_cache::FcRunCacheMode::Disabled;
+                && !run.purpose.is_measurement();
             atomic_root_sizing_repeats_for_available_inline_sizes_at_or_above = run.sizing().dimension_atomic_root(
                 run.box_,
                 input.available_space,
@@ -2188,7 +2187,6 @@ pub(crate) fn run_table_cell_ahead_of_its_intrinsic_block_padding(
     ));
     if run.purpose != LayoutPurpose::Commit
         || run.layout_mode != LayoutMode::Normal
-        || fc_run_cache::fc_run_cache_mode_from_environment() == fc_run_cache::FcRunCacheMode::Disabled
         || formatting_context_type_created_by_box(NodeFacts::new(&run.callbacks, cell))
             != Some(FormattingContextType::Block)
         || !fc_run_cache::table_cell_contents_never_observe_intrinsic_block_padding(&run.callbacks, cell)

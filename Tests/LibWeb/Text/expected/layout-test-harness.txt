@@ -5,7 +5,6 @@ PASS: missing layout
 PASS: unrelated sibling work
 PASS: fragment replay is different from subtree reuse
 PASS: bypass is different from a miss
-PASS: shadow hit is still execution
 PASS: extra pass
 PASS: nested work
 PASS: repeated run

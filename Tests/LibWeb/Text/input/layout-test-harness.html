@@ -17,7 +17,6 @@ test(() => {
         ["unrelated sibling work", expected, expected.replace("REUSE SUBTREE", "RUN (cache=miss)"), true],
         ["fragment replay is different from subtree reuse", expected, expected.replace("REUSE SUBTREE", "REPLAY FRAGMENTS"), true],
         ["bypass is different from a miss", expected, expected.replace("cache=miss", "cache=bypass"), true],
-        ["shadow hit is still execution", expected, expected.replace("REUSE SUBTREE", "RUN (cache=shadow-hit)"), true],
         ["extra pass", expected, expected + expected, true],
         ["nested work", expected, expected.replace("    #sibling", "      #sibling"), true],
         ["repeated run", expected, expected + "    #sibling/block REUSE SUBTREE\n", true],

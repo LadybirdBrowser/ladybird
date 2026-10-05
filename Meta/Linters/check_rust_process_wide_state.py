@@ -96,7 +96,6 @@ RENDER_STATE_ALLOWED = {
             "css/style/mod.rs:SELECTOR_TRUTH_DERIVATION",
             "css/style/mod.rs:STYLE_ANSWER_PATCH",
             "css/style/mod.rs:STYLE_PLAN_PROVENANCE",
-            "layout/fc_run_cache.rs:MODE",
             "layout/update_layout.rs:ENABLED",
         ],
     ),
