@@ -373,7 +373,7 @@ impl RetainedState {
 
     /// Whether a document hosts this engine. The host installs its font resolver when it creates the engine, and
     /// publishes the document's inputs and every table a record is computed against before it asks for any row. An
-    /// engine no document hosts, such as a unit test's or a replay's, computes no records. Only those builds can
+    /// engine no document hosts, such as a unit test's, computes no records. Only test builds can
     /// create such an engine, so the browser build has no unhosted path at all.
     #[cfg(test)]
     pub(super) fn computes_records(&self) -> bool {
