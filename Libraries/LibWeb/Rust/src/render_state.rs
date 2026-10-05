@@ -116,6 +116,7 @@ impl RenderState {
     fn take_owed(&mut self) -> Owed {
         let engine = self.engine_ref();
         let facts = StateFacts {
+            rows_version: self.rows_version(),
             has_pending_style_transaction: engine.has_pending_transaction(),
             has_deferred_element_style_inputs: engine.has_deferred_element_style_inputs(),
             has_size_containers_needing_evaluation_after_layout: engine
@@ -223,6 +224,8 @@ pub(crate) struct Owed {
 /// long as it writes nothing: only the host's jobs and frames write the state.
 #[derive(Clone, Copy)]
 pub(crate) struct StateFacts {
+    /// How far the arena's rows had been written.
+    pub(crate) rows_version: crate::layout::RowsVersion,
     pub(crate) has_pending_style_transaction: bool,
     pub(crate) has_deferred_element_style_inputs: bool,
     pub(crate) has_size_containers_needing_evaluation_after_layout: bool,
@@ -336,11 +339,6 @@ impl ArenaChange {
         }
     }
 
-    /// Whether the change may write the arena, and so the rows: a write to the style engine never does.
-    fn may_write_rows(&self) -> bool {
-        self.row_write() != RowWrite::None
-    }
-
     /// How far the change may write the rows.
     fn row_write(&self) -> RowWrite {
         match self {
@@ -379,35 +377,19 @@ struct ChangeQueue {
     queued: RefCell<Vec<ArenaChange>>,
     /// The empty buffer the host queues into while the writes queued before are applied.
     spare: Cell<Vec<ArenaChange>>,
-    /// How far the writes queued may write the rows (see [`ArenaChange::row_write`]).
-    row_write: Cell<RowWrite>,
     /// What the writes queued may move of what the host knows of the render state.
-    moves: Cell<QueuedMoves>,
+    moves: Cell<Moves>,
 }
 
-/// What writes may move of what the host knows of the render state.
+/// What writes may move of what the host knows of the render state (see [`StateFacts`]).
 #[derive(Clone, Copy, Default)]
-struct QueuedMoves {
+struct Moves {
+    /// How far they may write the rows (see [`ArenaChange::row_write`]).
+    rows: RowWrite,
     /// A fact (see [`ArenaChange::may_move_facts`]).
     facts: bool,
     /// The engine's selectors, which only a rule write compiles.
     selectors: bool,
-}
-
-impl QueuedMoves {
-    fn of<'a>(changes: impl IntoIterator<Item = &'a ArenaChange>) -> Self {
-        changes.into_iter().fold(Self::default(), |moves, change| Self {
-            facts: moves.facts || change.may_move_facts(),
-            selectors: moves.selectors || matches!(change, ArenaChange::Rule(_)),
-        })
-    }
-
-    fn with(self, other: Self) -> Self {
-        Self {
-            facts: self.facts || other.facts,
-            selectors: self.selectors || other.selectors,
-        }
-    }
 }
 
 impl ChangeQueue {
@@ -415,10 +397,23 @@ impl ChangeQueue {
         self.queued.borrow().is_empty()
     }
 
+    fn moves(&self) -> Moves {
+        self.moves.get()
+    }
+
+    /// Notes what `change`, a write queued, may move.
+    fn note(&self, change: &ArenaChange) {
+        let moves = self.moves.get();
+        self.moves.set(Moves {
+            rows: moves.rows.max(change.row_write()),
+            facts: moves.facts || change.may_move_facts(),
+            selectors: moves.selectors || matches!(change, ArenaChange::Rule(_)),
+        });
+    }
+
     fn push(&self, change: ArenaChange) {
         use crate::css::style::bridge::StyleChange;
-        self.row_write.set(self.row_write.get().max(change.row_write()));
-        self.moves.set(self.moves.get().with(QueuedMoves::of([&change])));
+        self.note(&change);
         let mut queued = self.queued.borrow_mut();
         // An epoch of style record views that ends before anything else is queued or applied in it views nothing.
         if matches!(change, ArenaChange::Style(StyleChange::EndStyleRecordViewEpoch {}))
@@ -433,30 +428,10 @@ impl ChangeQueue {
         queued.push(change);
     }
 
-    fn may_move_facts(&self) -> bool {
-        self.moves.get().facts
-    }
-
-    fn may_compile_selectors(&self) -> bool {
-        self.moves.get().selectors
-    }
-
     /// Queues `change` ahead of every write queued before it.
     fn push_front(&self, change: ArenaChange) {
-        self.row_write.set(self.row_write.get().max(change.row_write()));
+        self.note(&change);
         self.queued.borrow_mut().insert(0, change);
-    }
-
-    fn may_write_rows(&self) -> bool {
-        self.row_write.get() != RowWrite::None
-    }
-
-    fn may_write_row_identities(&self) -> bool {
-        self.row_write.get() == RowWrite::Identities
-    }
-
-    fn may_write_row_styles(&self) -> bool {
-        self.row_write.get() >= RowWrite::Styles
     }
 
     /// Lends the queued writes to `apply`, which applies them, and keeps their emptied buffer as the spare. A write the
@@ -464,7 +439,6 @@ impl ChangeQueue {
     /// the style writes where `hold_style`.
     fn drain<R>(&self, hold_style: bool, apply: impl FnOnce(std::vec::Drain<'_, ArenaChange>) -> R) -> R {
         let mut queued = self.queued.replace(self.spare.take());
-        self.row_write.set(RowWrite::None);
         self.moves.take();
         if hold_style {
             self.queue_style_writes_of(&mut queued);
@@ -477,7 +451,6 @@ impl ChangeQueue {
     /// Takes the queued writes, for a style transaction that flies with them. Their buffer comes back with
     /// give_back().
     fn take(&self) -> Vec<ArenaChange> {
-        self.row_write.set(RowWrite::None);
         self.moves.take();
         self.queued.replace(self.spare.take())
     }
@@ -485,9 +458,10 @@ impl ChangeQueue {
     /// Moves the style writes of `changes` back into the queue, where they wait for the next application.
     #[cold]
     fn queue_style_writes_of(&self, changes: &mut Vec<ArenaChange>) {
-        let mut queued = self.queued.borrow_mut();
-        queued.extend(changes.extract_if(.., |change| change.writes_style()));
-        self.moves.set(QueuedMoves::of(queued.iter()));
+        for change in changes.extract_if(.., |change| change.writes_style()) {
+            self.note(&change);
+            self.queued.borrow_mut().push(change);
+        }
     }
 
     /// Keeps `buffer`, emptied by the render side, as the spare.
@@ -505,7 +479,7 @@ impl ChangeQueue {
 
     /// Queues the writes hold_style_writes() held behind the writes queued meanwhile.
     fn requeue(&self, mut held: Vec<ArenaChange>) {
-        self.moves.set(self.moves.get().with(QueuedMoves::of(&held)));
+        held.iter().for_each(|change| self.note(change));
         self.queued.borrow_mut().append(&mut held);
         self.spare.set(held);
     }

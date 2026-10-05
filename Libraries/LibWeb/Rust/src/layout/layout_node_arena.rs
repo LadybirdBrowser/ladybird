@@ -5661,27 +5661,20 @@ pub unsafe extern "C" fn render_state_layout_is_up_to_date(
     let Some(here) = host.layout_waits_for_no_frame() else {
         return false;
     };
-    if let Some(up_to_date) = host.known_layout_up_to_date() {
-        return up_to_date;
-    }
     let document = StyleNodeID::from_raw(document_style_node);
-    if let Some(facts) = host.known_facts() {
-        let document_needs_layout_tree_build = document
-            .is_some_and(|document| host.read_marks(|marks| marks.needs(document) || marks.child_needs(document)));
-        let up_to_date = facts.layout_is_up_to_date_unless_built && !document_needs_layout_tree_build;
-        host.note_layout_up_to_date(up_to_date);
-        return up_to_date;
+    if let Some(up_to_date) = host.known_layout_up_to_date_unless_built() {
+        return up_to_date
+            && !document
+                .is_some_and(|document| host.read_marks(|marks| marks.needs(document) || marks.child_needs(document)));
     }
-    let up_to_date = host.ask(here, |state| {
+    host.ask(here, |state| {
         let arena = state.arena_mut();
         let document_needs_layout_tree_build = document.is_some_and(|document| {
             let marks = arena.layout_tree_update_marks().borrow();
             marks.needs(document) || marks.child_needs(document)
         });
         arena.layout_is_up_to_date(document_needs_layout_tree_build)
-    });
-    host.note_layout_up_to_date(up_to_date);
-    up_to_date
+    })
 }
 
 /// # Safety

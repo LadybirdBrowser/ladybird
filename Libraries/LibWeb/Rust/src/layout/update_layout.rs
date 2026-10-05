@@ -44,7 +44,6 @@ fn read_arena<A, R>(host: &DocumentHost, read: &BegunRead, args: A, answer: fn(&
 
 impl crate::render_state::RenderJob for LayoutRoundJob {
     type Answer = LayoutRoundAnswer;
-    const IS_STYLE: bool = false;
 
     // The host keeps what the job's inputs name until it has the answer.
     fn run_on(self, state: &mut crate::render_state::RenderState) -> LayoutRoundAnswer {
