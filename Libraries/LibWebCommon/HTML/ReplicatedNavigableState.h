@@ -44,7 +44,6 @@ struct ReplicatedContainerState {
 struct HostedNavigableState {
     URL::URL active_document_url;
     bool active_document_is_fully_active { false };
-    OpenerPolicy opener_policy;
     bool is_closing { false };
     ReplicatedContainerState container;
     bool delays_the_load_event_of_its_container { false };

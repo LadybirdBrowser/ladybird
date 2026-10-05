@@ -1098,7 +1098,7 @@ Optional<Web::HTML::ReplicatedNavigableState> CanonicalNavigable::replicated_sta
         .top_level_origin = traversable.active_document().origin(),
         .has_cross_site_ancestor = active_document_has_cross_site_ancestor(),
         .browsing_context_group_id = browsing_context_group_id,
-        .opener_policy = hosted_state.opener_policy,
+        .opener_policy = active_document().opener_policy(),
         .active_browsing_context_is_auxiliary = browsing_context.is_auxiliary(),
         .opener_navigable_id = opener_navigable_id,
         .active_document_is_completely_loaded = active_document().is_completely_loaded(),

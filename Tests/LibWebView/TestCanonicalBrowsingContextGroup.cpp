@@ -109,7 +109,6 @@ TEST_CASE(target_snapshot_params_take_the_popup_or_container_sandboxing_flags)
     frame.set_hosted_state({
         .active_document_url = URL::about_blank(),
         .active_document_is_fully_active = true,
-        .opener_policy = {},
         .is_closing = false,
         .container = embedder,
         .delays_the_load_event_of_its_container = false,
@@ -164,7 +163,6 @@ TEST_CASE(response_browsing_context_is_activated_only_at_commit)
     Web::HTML::HostedNavigableState committed_state {
         .active_document_url = destination_url,
         .active_document_is_fully_active = true,
-        .opener_policy = {},
         .is_closing = false,
         .container = {},
         .delays_the_load_event_of_its_container = false,
@@ -209,7 +207,6 @@ TEST_CASE(child_navigation_under_a_document_that_switched_groups_uses_its_group)
     Web::HTML::HostedNavigableState committed_state {
         .active_document_url = destination_url,
         .active_document_is_fully_active = true,
-        .opener_policy = {},
         .is_closing = false,
         .container = {},
         .delays_the_load_event_of_its_container = false,
@@ -290,7 +287,6 @@ TEST_CASE(document_claimed_by_a_history_job_outlives_a_newer_navigation)
     Web::HTML::HostedNavigableState committed_state {
         .active_document_url = URL::about_blank(),
         .active_document_is_fully_active = true,
-        .opener_policy = {},
         .is_closing = false,
         .container = {},
         .delays_the_load_event_of_its_container = false,
@@ -317,7 +313,6 @@ TEST_CASE(populated_document_replaces_tracked_load_when_document_state_is_reused
     Web::HTML::HostedNavigableState committed_state {
         .active_document_url = destination_url,
         .active_document_is_fully_active = true,
-        .opener_policy = {},
         .is_closing = false,
         .container = {},
         .delays_the_load_event_of_its_container = false,
@@ -337,7 +332,6 @@ TEST_CASE(same_document_traversal_commits_only_navigations_admitted_before_it)
         return Web::HTML::HostedNavigableState {
             .active_document_url = URL::about_blank(),
             .active_document_is_fully_active = true,
-            .opener_policy = {},
             .is_closing = false,
             .container = {},
             .delays_the_load_event_of_its_container = false,
