@@ -274,9 +274,6 @@ held_node_entry!(crate::layout::rendered_text::HeldNode);
 held_node_entry!(crate::layout::text_queries::HeldNode);
 held_node_entry!(crate::painting::ffi::HeldNode);
 held_node_entry!(crate::painting::layout_tree_dump::HeldNode);
-lockstep_reason!(super::clock::PresenterNeedsItsFrame);
-lockstep_reason!(super::clock::AnimationChanged);
-lockstep_reason!(super::clock::TestReadsPresentedFrame);
 
 // The host entries the event loop calls between two tasks.
 impl private::EventLoopEntry for crate::painting::ffi::TakesFinishedRecordingIn {}

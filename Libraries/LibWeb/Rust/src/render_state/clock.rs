@@ -16,7 +16,7 @@
 //! job of the host reads them, so the animations' timeline moves only in a rendering update.
 
 use super::owner::{self, DocumentId};
-use super::wait::{LockstepProof, TaskStart};
+use super::wait::TaskStart;
 use super::{DocumentHost, RenderState};
 use crate::css::css_pixels::CssPixelRect;
 use crate::css::style::animations::AnimationTimelineSamples;
@@ -316,29 +316,6 @@ pub(crate) struct LeasesClockForTask {
 
 pub(super) const LEASES_CLOCK_FOR_TASK: LeasesClockForTask = LeasesClockForTask { _private: () };
 
-/// The reason the host ends its document's clock lease for its navigable's presenter, which only the holder of the
-/// presenter presents with.
-pub(crate) struct PresenterNeedsItsFrame {
-    _private: (),
-}
-
-pub(super) const PRESENTER_NEEDS_ITS_FRAME: PresenterNeedsItsFrame = PresenterNeedsItsFrame { _private: () };
-
-/// The reason the host ends its document's clock lease as script changes an animation of the document, whose plan no
-/// longer stands.
-pub(crate) struct AnimationChanged {
-    _private: (),
-}
-
-pub(super) const ANIMATION_CHANGED: AnimationChanged = AnimationChanged { _private: () };
-
-/// The reason the host ends its document's clock lease as a test reads what a tick presented.
-pub(crate) struct TestReadsPresentedFrame {
-    _private: (),
-}
-
-const TEST_READS_PRESENTED_FRAME: TestReadsPresentedFrame = TestReadsPresentedFrame { _private: () };
-
 /// Hands the clock lease `ticks` belong to a display tick at `frame_time_nanoseconds`, and answers whether it wants the
 /// next one.
 ///
@@ -443,7 +420,6 @@ pub unsafe extern "C" fn document_host_take_back_presentation(
     assert!(!host.is_null(), "document host is null");
     // SAFETY: Guaranteed by the caller.
     let host = unsafe { &*host };
-    let _wait = LockstepProof::for_reason(&PRESENTER_NEEDS_ITS_FRAME);
     let given_back = host.take_back_presentation().map_or(
         FfiPresentation {
             presenter: std::ptr::null_mut(),
@@ -466,7 +442,6 @@ pub unsafe extern "C" fn document_host_end_clock_lease_for_animation(host: *cons
     assert!(!host.is_null(), "document host is null");
     // SAFETY: Guaranteed by the caller.
     let host = unsafe { &*host };
-    let _wait = LockstepProof::for_reason(&ANIMATION_CHANGED);
     host.end_clock_lease_and_plan();
 }
 
@@ -529,7 +504,6 @@ pub unsafe extern "C" fn document_host_presented_border_box(
     assert!(!host.is_null(), "document host is null");
     // SAFETY: Guaranteed by the caller.
     let host = unsafe { &*host };
-    let _wait = LockstepProof::for_reason(&TEST_READS_PRESENTED_FRAME);
     let Some(presented) = StyleNodeID::from_raw(element).and_then(|element| host.presented_border_box(element)) else {
         return false;
     };
