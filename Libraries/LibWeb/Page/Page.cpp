@@ -224,7 +224,7 @@ void Page::process_screenshot_requests()
                 if (!dom_node)
                     return nullptr;
                 // The screenshot reads the node's box as the page's own read of its document's render state.
-                Layout::ForcedReadScope read { dom_node->document(), false };
+                Layout::ForcedReadScope read { dom_node->document() };
                 dom_node->document().update_layout(DOM::UpdateLayoutReason::ProcessScreenshot);
                 return dom_node->layout_node(read);
             }();
@@ -246,7 +246,7 @@ void Page::process_screenshot_requests()
             });
         } else {
             // The screenshot reads the viewport's box as the page's own read of the document's render state.
-            Layout::ForcedReadScope read { *navigable->active_document(), false };
+            Layout::ForcedReadScope read { *navigable->active_document() };
             navigable->active_document()->update_layout(DOM::UpdateLayoutReason::ProcessScreenshot);
             auto const* layout_node = navigable->active_document()->layout_node(read);
             VERIFY(layout_node && Painting::has_committed_box(*layout_node));

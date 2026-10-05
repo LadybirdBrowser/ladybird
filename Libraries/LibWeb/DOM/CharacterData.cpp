@@ -202,7 +202,7 @@ WebIDL::ExceptionOr<void> CharacterData::replace_data(size_t offset, size_t coun
     if (is<Text>(*this)) {
         if (auto* parent = this->parent()) {
             // Finding the first-letter box the text is in is the change's own read of the render state.
-            Layout::ForcedReadScope read { document(), false };
+            Layout::ForcedReadScope read { document() };
             if (auto* first_letter_owner = parent->first_letter_owner_for_layout_subtree_from(read, *parent))
                 first_letter_owner->set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::CharacterDataReplaceData);
         }

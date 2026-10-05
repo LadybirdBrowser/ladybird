@@ -2664,7 +2664,7 @@ void HTMLMediaElement::update_ready_state()
 bool HTMLMediaElement::video_sink_should_tick() const
 {
     // The caller's own read of the render state.
-    Layout::ForcedReadScope read { document(), false };
+    Layout::ForcedReadScope read { document() };
     if (m_video_frame_was_recently_captured)
         return true;
     if (document().visibility_state() != VisibilityState::Visible)

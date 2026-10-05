@@ -30,8 +30,7 @@ pub(crate) use document_host::TestHost;
 pub use wait::BegunRead;
 pub(crate) use wait::held_node_entries;
 pub(crate) use wait::{
-    ForcedRead, LockstepProof, NodeRead, ReadRight, RenderJob, RenderWait, ScriptForcedRead, TaskBoundary, force_read,
-    run_job,
+    ForcedRead, LockstepProof, NodeRead, RenderJob, RenderWait, ScriptForcedRead, TaskBoundary, run_job,
 };
 
 /// One document's render state, on the render owner.
@@ -599,21 +598,6 @@ mod tests {
     use super::*;
     use std::ptr::NonNull;
     use std::rc::Rc;
-
-    #[test]
-    fn a_forced_read_is_begun_by_its_outermost_scope_and_spent_once() {
-        let host = DocumentHost::for_test();
-        host.begin_forced_read(true);
-        host.begin_forced_read(false);
-        assert!(matches!(host.take_unstyled_read(), Some(ForcedRead::Script(_))));
-        assert!(host.take_forced_read().is_none(), "a read is spent once");
-        host.end_forced_read();
-        host.end_forced_read();
-        host.begin_forced_read(false);
-        assert!(matches!(host.take_forced_read(), Some(ForcedRead::Host(_))));
-        host.end_forced_read();
-        assert!(host.take_forced_read().is_none(), "a read ends with its scope");
-    }
 
     #[test]
     fn a_render_state_is_made_by_the_first_job_of_its_host() {

@@ -40,7 +40,7 @@ Vector<VisualLine> collect_visual_lines(Layout::BegunRead const& read, DOM::Text
 
 static Vector<VisualLine> visual_lines_with_up_to_date_layout(DOM::Text const& dom_node)
 {
-    Layout::ForcedReadScope read { dom_node.document(), true };
+    Layout::ForcedReadScope read { dom_node.document() };
     const_cast<DOM::Document&>(dom_node.document()).update_layout_if_needed_for_node(dom_node, DOM::UpdateLayoutReason::CursorLineNavigation);
     return collect_visual_lines(read, dom_node);
 }
@@ -141,7 +141,7 @@ static size_t offset_in_visual_line_closest_to_inline_coordinate(Layout::BegunRe
 Optional<CursorLinePosition> compute_cursor_position_on_next_line(DOM::Text const& dom_node, size_t current_offset, TextAffinity affinity)
 {
     // The caller's own read of the render state.
-    Layout::ForcedReadScope read { dom_node.document(), false };
+    Layout::ForcedReadScope read { dom_node.document() };
     // NB: The layout update is best-effort; a detached document may still have no layout node.
     auto lines = visual_lines_with_up_to_date_layout(dom_node);
     if (!as_if<Layout::TextNode>(dom_node.layout_node(read)))
@@ -161,7 +161,7 @@ Optional<CursorLinePosition> compute_cursor_position_on_next_line(DOM::Text cons
 Optional<CursorLinePosition> compute_cursor_position_on_previous_line(DOM::Text const& dom_node, size_t current_offset, TextAffinity affinity)
 {
     // The caller's own read of the render state.
-    Layout::ForcedReadScope read { dom_node.document(), false };
+    Layout::ForcedReadScope read { dom_node.document() };
     // NB: The layout update is best-effort; a detached document may still have no layout node.
     auto lines = visual_lines_with_up_to_date_layout(dom_node);
     if (!as_if<Layout::TextNode>(dom_node.layout_node(read)))

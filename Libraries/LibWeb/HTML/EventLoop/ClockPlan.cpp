@@ -66,7 +66,7 @@ bool seal_clock_plan(DOM::Document& document, bool may_plan)
     if (may_plan) {
         // The plan reads the boxes of the elements it names and seals its round from the document's layout, which is
         // the rendering update's own read.
-        Layout::ForcedReadScope read { document, false };
+        Layout::ForcedReadScope read { document };
         // The elements whose running animations a tick samples, and the timestamp of the next event of the document's
         // animations, at which the main thread takes over again.
         Vector<u32> elements;

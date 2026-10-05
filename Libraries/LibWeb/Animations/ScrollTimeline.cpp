@@ -38,7 +38,7 @@ GC::Ref<ScrollTimeline> ScrollTimeline::create_for_constructor(JS::Object& relev
         return document.scrolling_element();
     }();
     // A script reads the new timeline's current time from the boxes, which waits for a frame in flight.
-    Layout::ForcedReadScope read { document, true };
+    Layout::ForcedReadScope read { document };
     return create(document, source, options.axis);
 }
 
@@ -123,7 +123,7 @@ static Optional<ScrollOffsetData> compute_scroll_offset_data(Variant<GC::Ptr<DOM
         return {};
 
     // The scroll container's box is the timeline's own read of the render state.
-    Layout::ForcedReadScope read { propagated_source.visit([](auto const& source) -> DOM::Document const& { return source->document(); }), false };
+    Layout::ForcedReadScope read { propagated_source.visit([](auto const& source) -> DOM::Document const& { return source->document(); }) };
 
     auto const& layout_node = propagated_source.visit([&read](auto const& source) -> Layout::NodeWithStyle const* { return source->unsafe_layout_node(read); });
 

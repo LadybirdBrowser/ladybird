@@ -43,7 +43,7 @@ Compositing::AccumulatedVisualContextTree DocumentPaintState::visual_context_tre
 {
     ensure_visual_context_tree(document);
     // The tree is the caller's own read of the paint state.
-    Layout::ForcedReadScope read { document, false };
+    Layout::ForcedReadScope read { document };
     return visual_context_tree_without_update(read, document);
 }
 
@@ -142,7 +142,7 @@ void DocumentPaintState::append_paint_command_cache_source_resources(Compositing
 void DocumentPaintState::invalidate_all_cached_paint(DOM::Document& document)
 {
     // The caller's own read of the render state.
-    Layout::ForcedReadScope read { document, false };
+    Layout::ForcedReadScope read { document };
     Layout::RustFFI::render_state_invalidate_all_paint_caches(m_layout_node_arena->host());
     Painting::set_needs_repaint(*document.unsafe_layout_node(read));
 }

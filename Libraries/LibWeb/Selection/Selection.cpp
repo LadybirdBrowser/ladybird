@@ -644,7 +644,7 @@ void Selection::scroll_focus_into_view()
     if (!focus)
         return;
 
-    Layout::ForcedReadScope read { *m_document, true };
+    Layout::ForcedReadScope read { *m_document };
     m_document->update_layout(DOM::UpdateLayoutReason::ScrollCursorIntoView);
 
     if (auto* text = as_if<DOM::Text>(*focus))

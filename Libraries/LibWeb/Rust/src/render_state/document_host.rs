@@ -9,10 +9,10 @@
 
 use super::clock::{ClockLease, ClockPlan, ClockTicks, LeaseLanding};
 use super::owner::{self, DocumentId, SharedWithHost, StateSeed};
-use super::wait::{BegunRead, HostRead, NodeRead, ReadRight, TaskStart, force_read_flown_style};
+use super::wait::{BegunRead, HostRead, NodeRead, ReadRight, TaskStart};
 use super::{
-    ArenaChange, ChangeQueue, ForcedRead, Landing, NoFrameInFlight, Owed, RenderState, RenderWait, ScriptForcedRead,
-    StateFacts, on_render_side, post_to_render_side,
+    ArenaChange, ChangeQueue, ForcedRead, Landing, NoFrameInFlight, Owed, RenderState, RenderWait, StateFacts,
+    on_render_side, post_to_render_side,
 };
 use crate::css::css_pixels::CssPixelRect;
 use crate::css::style::flight_style_rows::FlightStyleRow;
@@ -74,8 +74,6 @@ pub struct DocumentHost {
     /// The compositor animations the document's effects published in the current update pass, which the host hands
     /// the render state as the pass ends.
     compositor_animations: RefCell<Vec<VisualAnimation>>,
-    /// The read of the render state the host began and has not ended, if any.
-    forced_read: RefCell<ReadScopes>,
     /// What the host's scopes of a read lend the entries they call.
     begun_read: BegunRead,
     /// The writes the host queued that the render state has not applied yet, in the order the host made them.
@@ -152,14 +150,6 @@ enum FlownStyle {
     Draining(Vec<ArenaChange>, Vec<FlightStyleRow>),
 }
 
-/// A read of a document's render state the host began: how many of the read's scopes are open, and the read itself
-/// until its first job takes it.
-#[derive(Default)]
-struct ReadScopes {
-    scopes: u32,
-    read: Option<ForcedRead>,
-}
-
 impl DocumentHost {
     fn new() -> Self {
         let shared = SharedWithHost::new();
@@ -177,7 +167,6 @@ impl DocumentHost {
             fresh_transition_sample: Cell::default(),
             absolute_rects: RefCell::default(),
             compositor_animations: RefCell::default(),
-            forced_read: RefCell::default(),
             begun_read: BegunRead::of_host(),
             changes: ChangeQueue::default(),
             flown_style: RefCell::default(),
@@ -211,7 +200,7 @@ impl DocumentHost {
     /// A read of the host's document the test begins, and never ends.
     #[cfg(test)]
     pub(crate) fn read_for_test(&self) -> &BegunRead {
-        self.begin_forced_read(false)
+        &self.begun_read
     }
 
     pub(crate) fn host_tables(&self) -> &HostTables {
@@ -447,19 +436,14 @@ impl DocumentHost {
         rounds.into_iter().for_each(pay);
     }
 
-    /// Lands the frame in flight with `read`. A read the host began spends itself where no job took it yet, and is the
-    /// host's own read otherwise, as is a read begun where no frame flew, which the host knows nothing of: the frame
-    /// flew from inside it.
+    /// Lands the frame in flight with `read`, a read the host began being the host's own.
     #[cold]
     fn land_flying_frame(&self, read: ReadRight) {
-        let read = match read {
+        self.land(match read {
             ReadRight::Forced(read) => read,
             ReadRight::Here(_) => unreachable!("a frame flies only from a rendering update, which no reach runs"),
-            ReadRight::Begun(_) => self
-                .take_forced_read()
-                .unwrap_or_else(|| ForcedRead::Host(HostRead::begun())),
-        };
-        force_read_flown_style(read, self);
+            ReadRight::Begun(_) => ForcedRead::Host(HostRead::begun()),
+        });
     }
 
     /// Takes the frame in flight in, where one flies, spending `read`.
@@ -473,7 +457,7 @@ impl DocumentHost {
 
     /// Lands the frame in flight, waiting for it, spending `read`: the style transaction that flew with it waits to be
     /// drained.
-    pub(super) fn land(&self, read: ForcedRead) {
+    fn land(&self, read: ForcedRead) {
         match self.away.take() {
             Some(Away::Flying(flight)) => self.landed(flight.join(read)),
             other => *self.away.borrow_mut() = other,
@@ -777,23 +761,6 @@ impl DocumentHost {
         self.changes.requeue(beside);
     }
 
-    /// Begins a read of the document's render state that the host waits for, for a script API call where `by_script`
-    /// and for the host's own read otherwise, and answers the read, which the scope lends the entries it calls. A scope
-    /// begun inside the document's open read belongs to that read. A scope begins a read only where the host waits for
-    /// the frame.
-    pub(super) fn begin_forced_read(&self, by_script: bool) -> &BegunRead {
-        let mut begun = self.forced_read.borrow_mut();
-        begun.scopes += 1;
-        if begun.scopes == 1 {
-            begun.read = Some(if by_script {
-                ForcedRead::Script(ScriptForcedRead::at_script_entry(&FORCED_READ_SCOPE))
-            } else {
-                ForcedRead::Host(HostRead::begun())
-            });
-        }
-        &self.begun_read
-    }
-
     /// What the host's scopes of a read lend the entries they call.
     pub(super) fn begun_read(&self) -> &BegunRead {
         &self.begun_read
@@ -807,39 +774,6 @@ impl DocumentHost {
             "a layout node the host holds finds its document's frame taken in"
         );
         &self.begun_read
-    }
-
-    /// Ends a scope of the read the host began. The outermost drops the read where no job took it.
-    pub(super) fn end_forced_read(&self) {
-        let mut begun = self.forced_read.borrow_mut();
-        assert!(begun.scopes > 0, "a forced read ends where it began");
-        begun.scopes -= 1;
-        if begun.scopes == 0 {
-            begun.read = None;
-        }
-    }
-
-    /// Takes the read the host began, where no job took it yet, for the read's first layout round.
-    pub(crate) fn take_forced_read(&self) -> Option<ForcedRead> {
-        self.forced_read.borrow_mut().read.take()
-    }
-
-    /// Takes the read the host began, where no job took it yet, for the read's style transaction. A read whose first
-    /// job was a style transaction keeps what that left its first layout round.
-    pub(crate) fn take_unstyled_read(&self) -> Option<ForcedRead> {
-        let mut begun = self.forced_read.borrow_mut();
-        match begun.read {
-            Some(ForcedRead::Script(_) | ForcedRead::Host(_)) => begun.read.take(),
-            Some(ForcedRead::AfterStyle(_)) | None => None,
-        }
-    }
-
-    /// Leaves `read` to the next job of the read the host began, where one is open.
-    pub(super) fn leave_forced_read(&self, read: ForcedRead) {
-        let mut begun = self.forced_read.borrow_mut();
-        if begun.scopes > 0 {
-            begun.read = Some(read);
-        }
     }
 
     /// A fresh identity for an element-sourced declaration block's contents.
@@ -919,7 +853,7 @@ impl DocumentHost {
     #[cfg(test)]
     pub(crate) fn rows(&self) -> Option<Rc<RowSnapshot>> {
         let rows = self.rows.borrow().clone()?;
-        let version = self.ask(ScriptForcedRead::for_test(), |state| state.rows_version());
+        let version = self.ask(super::ScriptForcedRead::for_test(), |state| state.rows_version());
         rows.reads_as(version).then_some(rows)
     }
 
@@ -1229,7 +1163,7 @@ impl TestHost {
     pub(crate) fn engine(&self) -> crate::css::style::StyleEngineHandle {
         // SAFETY: The host lives until the test host is dropped.
         let host = unsafe { &*self.0 };
-        host.ask(ScriptForcedRead::for_test(), |state| state.engine)
+        host.ask(super::ScriptForcedRead::for_test(), |state| state.engine)
     }
 }
 
@@ -1239,42 +1173,6 @@ impl Drop for TestHost {
         // SAFETY: The test host made the host, and destroys it once.
         unsafe { document_host_destroy(self.0) };
     }
-}
-
-/// Marks the scope of a read of a document's render state that a script API call begins, which mints the call's
-/// forced read.
-pub(crate) struct ForcedReadScope {
-    _private: (),
-}
-
-const FORCED_READ_SCOPE: ForcedReadScope = ForcedReadScope { _private: () };
-
-/// Begins a read of the render state of `host`'s document that the host waits for, for a script API call where
-/// `by_script` and for the host's own read otherwise, which the scope lends the entries that reach the render state
-/// where the host is until it ends the read (see [`document_host_read_scope_view`]). The read's first style or layout
-/// job spends it. A scope begins one only where the host waits for the frame.
-///
-/// # Safety
-///
-/// `host` must come from [`document_host_create`] and not be destroyed yet, on its document's thread, with a
-/// [`document_host_end_forced_read`] for each call. `by_script` only for a scope a script API call opens.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn document_host_begin_forced_read(host: *const DocumentHost, by_script: bool) {
-    assert!(!host.is_null(), "document host is null");
-    // SAFETY: Guaranteed by the caller.
-    unsafe { &*host }.begin_forced_read(by_script);
-}
-
-/// Ends a scope of the read of the render state of `host`'s document that the host began.
-///
-/// # Safety
-///
-/// As for [`document_host_begin_forced_read`], once for each of its calls.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn document_host_end_forced_read(host: *const DocumentHost) {
-    assert!(!host.is_null(), "document host is null");
-    // SAFETY: Guaranteed by the caller.
-    unsafe { &*host }.end_forced_read();
 }
 
 /// Whether the paint and hit testing properties of `host`'s document were prepared from its render state as it is, so
@@ -1305,9 +1203,7 @@ pub unsafe extern "C" fn document_host_note_paint_preparation_is_current(host: *
 }
 
 /// What a scope of a read of a document's render state reads of the document's host: whether the host waits for the
-/// frame, which it keeps up to date, and the read the scope lends. Only a read begun where the frame flies may take
-/// the frame in, so a scope begins one with [`document_host_begin_forced_read`] only where the host waits for it, and
-/// otherwise lends the read and asks the host nothing.
+/// frame, which it keeps up to date, and the read the scope lends.
 #[repr(C)]
 pub struct FfiReadScopeView {
     pub waits_for_frame: *const bool,

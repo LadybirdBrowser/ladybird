@@ -61,7 +61,7 @@ static double percentage_resolution_basis_for_attribute_reflecting_length(GC::Pt
     }
 
     // NB: Make sure the SVG layout is up to date so the viewport size is up to date.
-    Layout::ForcedReadScope read { element->document(), true };
+    Layout::ForcedReadScope read { element->document() };
     element->document().update_layout(DOM::UpdateLayoutReason::SVGLengthValue);
 
     auto viewport = element->viewport_size_for_percentage_resolution(read);

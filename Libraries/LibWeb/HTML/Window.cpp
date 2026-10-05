@@ -1925,7 +1925,7 @@ void Window::scroll(ScrollToOptions const& options, GC::Ptr<WebIDL::Promise> pro
     //               This also means we don't need to update layout in that case.
     if (x != 0 || y != 0) {
         // NB: Make sure layout is up-to-date before looking at scrollable overflow metrics.
-        Layout::ForcedReadScope read { *document, true };
+        Layout::ForcedReadScope read { *document };
         document->update_layout(DOM::UpdateLayoutReason::WindowScroll);
 
         auto const* layout_node = document->layout_node(read);

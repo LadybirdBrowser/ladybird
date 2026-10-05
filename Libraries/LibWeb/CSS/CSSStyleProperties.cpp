@@ -707,7 +707,7 @@ static Optional<Layout::NodeWithStyle*> prepare_computed_style_and_layout_for_pr
         return {};
 
     // The script API's read of the render state.
-    Layout::ForcedReadScope read { abstract_element.document(), true };
+    Layout::ForcedReadScope read { abstract_element.document() };
 
     // NB: We grab the layout node before deciding whether update_layout() is needed.
     //     For properties that don't need layout or a layout node (the else branch below),
@@ -811,7 +811,7 @@ Optional<StyleProperty> CSSStyleProperties::get_direct_property(PropertyNameAndI
 
         auto abstract_element = *owner_node();
         // The script API's read of the render state.
-        Layout::ForcedReadScope read { abstract_element.document(), true };
+        Layout::ForcedReadScope read { abstract_element.document() };
 
         auto maybe_layout_node = prepare_computed_style_and_layout_for_property(abstract_element, property_id);
         if (!maybe_layout_node.has_value())

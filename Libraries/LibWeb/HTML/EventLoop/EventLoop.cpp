@@ -697,7 +697,7 @@ static void update_style_and_layout_for_rendering(DOM::Document& document)
     while (true) {
         // 1. Recalculate styles and update layout for doc.
         // NOTE: Recalculation of styles is handled by update_layout()
-        Layout::ForcedReadScope read { document, false };
+        Layout::ForcedReadScope read { document };
         document.update_layout(DOM::UpdateLayoutReason::HTMLEventLoopRenderingUpdate);
 
         // AD-HOC: Script that ran earlier in this rendering update may have spun the event loop (e.g. with a
@@ -891,7 +891,7 @@ void EventLoop::update_the_rendering_after_style_and_layout(Vector<GC::Root<DOM:
     for (auto* container : NavigableContainer::all_instances()) {
         if (any_of(docs, [&](auto const& document) { return document.ptr() == &container->document(); })) {
             // The container's box is the rendering update's own read of its document's render state.
-            Layout::ForcedReadScope read { container->document(), false };
+            Layout::ForcedReadScope read { container->document() };
             container->report_content_navigable_viewport_rect(read);
         }
     }

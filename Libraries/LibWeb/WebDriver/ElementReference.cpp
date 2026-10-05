@@ -276,7 +276,7 @@ bool is_element_pointer_interactable(Web::HTML::BrowsingContext const& browsing_
         return false;
 
     // The WebDriver command's read of the render state of the document it hit tests.
-    Layout::ForcedReadScope read { *document, false };
+    Layout::ForcedReadScope read { *document };
     auto const* layout_root = document->layout_node(read);
     if (!layout_root || !Painting::has_committed_box(*layout_root))
         return false;
@@ -389,7 +389,7 @@ bool is_element_non_typeable_form_control(Web::DOM::Element const& element)
 bool is_element_in_view(ReadonlySpan<GC::Ref<Web::DOM::Element>> paint_tree, Web::DOM::Element& element)
 {
     // The WebDriver command's read of the render state.
-    Layout::ForcedReadScope read { element.document(), false };
+    Layout::ForcedReadScope read { element.document() };
     // An element is in view if it is a member of its own pointer-interactable paint tree, given the pretense that its
     // pointer events are not disabled.
     auto const* layout_node = element.layout_node(read);

@@ -171,7 +171,7 @@ static CSSPixelPoint get_parent_offset(HTML::BrowsingContext const& browsing_con
         CSSPixels border_top_width = 0;
 
         // The container is laid out in the parent's document, which is the one this reads.
-        Layout::ForcedReadScope read { container_element->document(), false };
+        Layout::ForcedReadScope read { container_element->document() };
         auto const* layout_node = container_element->layout_node(read);
         if (layout_node && Painting::has_committed_box(*layout_node)) {
             auto const box_model = Painting::box_model(*layout_node);

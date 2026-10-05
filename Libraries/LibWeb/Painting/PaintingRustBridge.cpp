@@ -333,7 +333,7 @@ bool rust_refresh_scroll_state(Layout::BegunRead const& read, DOM::Document& doc
 static void push_debug_description(DOM::Document const& document, Compositing::RustFFI::NodeSlotId slot, void* description_sink)
 {
     // The box a dump describes is the dump's own read of the render state.
-    Layout::ForcedReadScope read { document, false };
+    Layout::ForcedReadScope read { document };
     auto const* layout_node = const_cast<DOM::Document&>(document).layout_node_arena().node_if_live(read, slot);
     VERIFY(layout_node);
     auto description = layout_node->debug_description();
@@ -434,7 +434,7 @@ static void dump_layout_tree(Layout::Node const& root, size_t initial_indent, bo
             auto serialized_url = content_document->url().serialize();
             push_bytes_to_dump_sink(url_sink, serialized_url.bytes());
             // The nested document's tree is the dump's own read of that document's render state.
-            Layout::ForcedReadScope read { *content_document, false };
+            Layout::ForcedReadScope read { *content_document };
             return { .has_document = true, .layout_root = const_cast<Layout::Viewport*>(content_document->layout_node(read)) }; },
         .svg_as_image_layout_root = [](void* document, Layout::RustFFI::FfiNodeIdentity node) -> void* {
             auto const* image_element = as_if<HTML::HTMLImageElement>(node_identity_of(node).resolve(*static_cast<DOM::Document*>(document)).ptr());
@@ -444,7 +444,7 @@ static void dump_layout_tree(Layout::Node const& root, size_t initial_indent, bo
             if (!svg_image_data)
                 return nullptr;
             // The image's tree is the dump's own read of its document's render state.
-            Layout::ForcedReadScope read { svg_image_data->svg_document(), false };
+            Layout::ForcedReadScope read { svg_image_data->svg_document() };
             return const_cast<Layout::Viewport*>(svg_image_data->svg_document().unsafe_layout_node(read)); },
         .dump_nested_layout_tree = [](void*, void* layout_root, size_t indent, bool interactive, void* output_sink) { dump_layout_tree(*static_cast<Layout::Node const*>(layout_root), indent, interactive, output_sink, Layout::RustFFI::layout_arena_paint_push_bytes); },
         .append_text = append_text,
@@ -646,7 +646,7 @@ Optional<DisplayListRecording> start_rust_display_list_recording(Layout::BegunRe
         // NB: The container's document is laid out ahead of the document of the navigable it hosts, and its box is read
         //     as it last laid it out, as the embedding document's own read.
         if (auto container_element = document.navigable()->container()) {
-            Layout::ForcedReadScope container_read { container_element->document(), false };
+            Layout::ForcedReadScope container_read { container_element->document() };
             if (auto const* container_node = container_element->unsafe_layout_node(container_read)) {
                 auto container_scheme = container_node->color_scheme();
                 if (container_scheme == CSS::PreferredColorScheme::Auto)

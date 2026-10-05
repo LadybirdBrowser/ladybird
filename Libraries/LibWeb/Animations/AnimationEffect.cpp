@@ -873,7 +873,7 @@ void AnimationUpdateContext::publish()
     for (size_t first = 0; first < samples.size();) {
         auto& document = samples[first].element.document();
         // Sampling the elements is the update's own read of their document's render state.
-        Layout::ForcedReadScope read { document, false };
+        Layout::ForcedReadScope read { document };
         Vector<CSS::StyleComputer::AnimationRefreshRequest> requests;
         size_t end = first;
         for (; end < samples.size() && &samples[end].element.document() == &document; ++end) {
@@ -891,7 +891,7 @@ void AnimationUpdateContext::publish()
         auto style = data.target_style;
         GC::Ref<DOM::Element> target = element.element();
         // Republishing the element's style is the update's own read of its document's render state.
-        Layout::ForcedReadScope read { target->document(), false };
+        Layout::ForcedReadScope read { target->document() };
         // An earlier entry already republished this style with the current animation values.
         if (element.style_record_identity() != data.style_record_before_update)
             continue;

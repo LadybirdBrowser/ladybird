@@ -165,7 +165,7 @@ private:
 Utf16String serialize_range_as_plain_text_for_clipboard(DOM::Range const& range)
 {
     // The text is serialized as it renders, which the copy reads as its own read of the render state.
-    Layout::ForcedReadScope read { range.start_container()->document(), false };
+    Layout::ForcedReadScope read { range.start_container()->document() };
     return ClipboardTextSerializer { range }.serialize(read);
 }
 

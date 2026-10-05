@@ -1395,7 +1395,7 @@ void FormAssociatedTextControlElement::move_selection_end_to(size_t offset, Text
 void FormAssociatedTextControlElement::scroll_cursor_into_view()
 {
     auto& element = text_control_to_html_element();
-    Layout::ForcedReadScope read { element.document(), true };
+    Layout::ForcedReadScope read { element.document() };
     element.document().update_layout(DOM::UpdateLayoutReason::ScrollCursorIntoView);
 
     auto text_node = form_associated_element_to_text_node();

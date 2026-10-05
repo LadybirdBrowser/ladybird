@@ -79,7 +79,7 @@ void HTMLLabelElement::activation_behavior(DOM::Event const& event)
         auto click_event = UIEvents::MouseEvent::create_from_mouse_event(mouse_event, HighResolutionTime::current_high_resolution_time(relevant_global_object(*this)));
 
         // NB: Ensure layout is up to date before accessing the control's committed box.
-        Layout::ForcedReadScope read { document(), true };
+        Layout::ForcedReadScope read { document() };
         document().update_layout(DOM::UpdateLayoutReason::HTMLLabelElementActivationBehavior);
 
         // Recompute offsetX/offsetY relative to the control element, since the original values are relative to the label.

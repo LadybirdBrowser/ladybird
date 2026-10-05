@@ -112,92 +112,10 @@ void Document::update_layout(UpdateLayoutReason reason)
 
 namespace Web::DOM {
 
-// Whether a script API names the reason: a read of render state for it is then the script call's forced read, and
-// otherwise the host's own.
-bool reason_is_script_api(UpdateLayoutReason reason)
-{
-    switch (reason) {
-    case UpdateLayoutReason::DocumentElementFromPoint:
-    case UpdateLayoutReason::DocumentElementsFromPoint:
-    case UpdateLayoutReason::DocumentCaretPositionFromPoint:
-    case UpdateLayoutReason::DocumentFindMatchingText:
-    case UpdateLayoutReason::DocumentSetDesignMode:
-    case UpdateLayoutReason::ElementCheckVisibility:
-    case UpdateLayoutReason::ElementClientHeight:
-    case UpdateLayoutReason::ElementClientWidth:
-    case UpdateLayoutReason::ElementGetClientRects:
-    case UpdateLayoutReason::ElementIsPotentiallyScrollable:
-    case UpdateLayoutReason::ElementScroll:
-    case UpdateLayoutReason::ElementScrollHeight:
-    case UpdateLayoutReason::ElementScrollIntoView:
-    case UpdateLayoutReason::ElementScrollLeft:
-    case UpdateLayoutReason::ElementScrollTop:
-    case UpdateLayoutReason::ElementScrollWidth:
-    case UpdateLayoutReason::ElementSetScrollLeft:
-    case UpdateLayoutReason::ElementSetScrollTop:
-    case UpdateLayoutReason::HTMLElementGetTheTextSteps:
-    case UpdateLayoutReason::HTMLElementOffsetHeight:
-    case UpdateLayoutReason::HTMLElementOffsetLeft:
-    case UpdateLayoutReason::HTMLElementOffsetParent:
-    case UpdateLayoutReason::HTMLElementOffsetTop:
-    case UpdateLayoutReason::HTMLElementOffsetWidth:
-    case UpdateLayoutReason::HTMLElementScrollParent:
-    case UpdateLayoutReason::HTMLImageElementHeight:
-    case UpdateLayoutReason::HTMLImageElementWidth:
-    case UpdateLayoutReason::HTMLImageElementX:
-    case UpdateLayoutReason::HTMLImageElementY:
-    case UpdateLayoutReason::HTMLInputElementHeight:
-    case UpdateLayoutReason::HTMLInputElementWidth:
-    case UpdateLayoutReason::InternalsLayoutTest:
-    case UpdateLayoutReason::InternalsHitTest:
-    case UpdateLayoutReason::MediaQueryListMatches:
-    case UpdateLayoutReason::NavigableSelectedText:
-    case UpdateLayoutReason::RangeGetClientRects:
-    case UpdateLayoutReason::ResolvedCSSStyleDeclarationProperty:
-    case UpdateLayoutReason::SVGGraphicsElementGetBBox:
-    case UpdateLayoutReason::SVGGraphicsElementGetScreenCTM:
-    case UpdateLayoutReason::SVGLengthValue:
-    case UpdateLayoutReason::SVGPathLength:
-    case UpdateLayoutReason::WindowScroll:
-        return true;
-    case UpdateLayoutReason::AutoScrollSelection:
-    case UpdateLayoutReason::ChildDocumentStyleUpdate:
-    case UpdateLayoutReason::CursorLineNavigation:
-    case UpdateLayoutReason::Debugging:
-    case UpdateLayoutReason::DocumentReadinessComplete:
-    case UpdateLayoutReason::DumpDisplayList:
-    case UpdateLayoutReason::EventHandlerDispatchChromeWidgetEvent:
-    case UpdateLayoutReason::EventHandlerHandleDragAndDrop:
-    case UpdateLayoutReason::EventHandlerHandleKeyDown:
-    case UpdateLayoutReason::EventHandlerHandleMouseDown:
-    case UpdateLayoutReason::EventHandlerHandleMouseMove:
-    case UpdateLayoutReason::EventHandlerHandleMouseUp:
-    case UpdateLayoutReason::EventHandlerHandleMouseWheel:
-    case UpdateLayoutReason::EventHandlerRunActivationBehavior:
-    case UpdateLayoutReason::EventHandlerShowContextMenu:
-    case UpdateLayoutReason::FontFaceSetReady:
-    case UpdateLayoutReason::HTMLEventLoopRenderingUpdate:
-    case UpdateLayoutReason::HTMLLabelElementActivationBehavior:
-    case UpdateLayoutReason::InspectAccessibilityTree:
-    case UpdateLayoutReason::InspectDOMTree:
-    case UpdateLayoutReason::InspectDevToolsLayoutData:
-    case UpdateLayoutReason::InputCaretRect:
-    case UpdateLayoutReason::NavigableViewportScroll:
-    case UpdateLayoutReason::NodeNameOrDescription:
-    case UpdateLayoutReason::SVGDecodedImageDataRender:
-    case UpdateLayoutReason::ScrollCursorIntoView:
-    case UpdateLayoutReason::ProcessScreenshot:
-    case UpdateLayoutReason::ViewTransitionCapture:
-        return false;
-    }
-    VERIFY_NOT_REACHED();
-}
-
 void Document::update_layout(UpdateLayoutReason reason, ThrottledAnimationSamplingScope animation_sampling_scope)
 {
-    // The update's waits for the render state are one read, which its first style or layout job spends. An update
-    // inside a read already begun for this document belongs to that read.
-    Layout::ForcedReadScope read { style_computer().style_engine().render_document(), reason_is_script_api(reason) };
+    // The update's waits for the render state are one read, which takes a frame in flight in.
+    Layout::ForcedReadScope read { style_computer().style_engine().render_document() };
     drain_flown_style_transaction(read);
 
     // An image box that owns its image's provider is handed it once the layout update that built the box is over, and

@@ -68,7 +68,7 @@ WebIDL::ExceptionOr<float> SVGGeometryElement::get_total_length()
     // is returned.
 
     // NB: Update layout so that the viewport size is resolved correctly
-    Layout::ForcedReadScope read { document(), true };
+    Layout::ForcedReadScope read { document() };
     document().update_layout(DOM::UpdateLayoutReason::SVGPathLength);
 
     auto viewport_size = viewport_size_for_percentage_resolution(read);
@@ -91,7 +91,7 @@ WebIDL::ExceptionOr<float> SVGGeometryElement::get_total_length()
     auto& style_document = has_no_style_node ? HTML::relevant_window(*this).associated_document() : document();
     auto& style_computer = style_document.style_computer();
     // The style comes from the engine of the document that computes it, as that document's read.
-    Layout::ForcedReadScope style_read { style_document, true };
+    Layout::ForcedReadScope style_read { style_document };
     auto record = has_no_style_node
         ? declared_only_style_record(style_read, style_computer, style_document, *this)
         : CSS::StyleRecordID { style_computer.style_engine().answer_record_demand(style_read, style_node_id(), CSS::StyleEngine::RecordDemand::ElementRead).record.style_record };

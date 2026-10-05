@@ -202,7 +202,7 @@ void InvalidationJournal::drain_if_layout_is_reading()
     if (!m_document->is_running_update_layout())
         return;
     // The drain belongs to the read the layout update began.
-    Layout::ForcedReadScope read { *m_document, false };
+    Layout::ForcedReadScope read { *m_document };
     drain(read);
 }
 

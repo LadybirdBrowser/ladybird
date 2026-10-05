@@ -67,7 +67,7 @@ void MiddleButtonScrollHandler::perform_tick()
     if (auto distance = AK::hypot(distance_x, distance_y); distance < DEAD_ZONE_RADIUS)
         return;
 
-    Layout::ForcedReadScope read { m_container_element->document(), false };
+    Layout::ForcedReadScope read { m_container_element->document() };
     m_container_element->document().update_layout(DOM::UpdateLayoutReason::AutoScrollSelection);
     m_mouse_has_moved_beyond_dead_zone = true;
 

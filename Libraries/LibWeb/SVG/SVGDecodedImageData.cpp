@@ -290,7 +290,7 @@ Optional<Compositing::DisplayListResource> SVGDecodedImageData::record_display_l
     }
 
     navigable.set_viewport_size(css_size);
-    Layout::ForcedReadScope read { *m_document, true };
+    Layout::ForcedReadScope read { *m_document };
     m_document->update_layout(DOM::UpdateLayoutReason::SVGDecodedImageDataRender);
     auto display_list = m_document->record_display_list(read, {}, resource_storage, Painting::PaintCommandCacheMode::ReadWrite);
     if (!display_list)

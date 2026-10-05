@@ -159,7 +159,7 @@ double Length::container_relative_length_to_px_without_rounding(ResolutionContex
         }
 
         // The container's box is the resolution's own read of the render state.
-        Layout::ForcedReadScope read { query_container->document(), false };
+        Layout::ForcedReadScope read { query_container->document() };
         auto const* layout_node = query_container->unsafe_layout_node(read);
         if (!layout_node || !Painting::has_committed_box(*layout_node)) {
             // A running partial relayout pass reports layout as up to date, but a container

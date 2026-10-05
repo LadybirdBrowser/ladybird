@@ -74,7 +74,7 @@ void CanvasTextDrawingStyles<CanvasType>::set_font(Utf16View font)
         //     display:none, where style updates leave it stale. Only then is its style computed again.
         auto& document = canvas_element.document();
         // The canvas's style is the setter's own read of the render state.
-        Layout::ForcedReadScope read { document, true };
+        Layout::ForcedReadScope read { document };
         document.update_style_for_element(DOM::AbstractElement { canvas_element }, DOM::Document::StyleUpdateMode::OnlyIfNeeded);
         auto style_record = canvas_element.style_record_identity();
         if (!style_record || has_flag(document.style_computer().style_engine().style_record_dependency_flags(read, style_record), CSS::StyleRecordDependencyFlag::InDisplayNoneSubtree))
